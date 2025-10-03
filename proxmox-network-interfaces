@@ -1,0 +1,93 @@
+# Proxmox Network Configuration
+# File: /etc/network/interfaces
+#
+# Hardware: Dell XPS L701X
+# - Built-in Ethernet -> LAN -> OpenWRT WAN
+# - USB-Ethernet adapter -> WAN -> ISP Router
+# - WiFi (optional) -> Management backup
+#
+# IMPORTANT: Replace interface names with your actual interface names!
+# Run 'ip link show' to find your interface names.
+# For USB-Ethernet: create udev rules (see DELL-XPS-L701X-NOTES.md)
+
+# Loopback
+auto lo
+iface lo inet loopback
+
+# ============================================================
+# Built-in Ethernet - LAN (to OpenWRT)
+# Adjust name: eth-builtin, enp9s0, eth0, or your actual name
+# ============================================================
+auto eth-builtin
+iface eth-builtin inet manual
+
+# ============================================================
+# USB-Ethernet adapter - WAN (to ISP Router)
+# Adjust name: eth-usb, enx*, or your actual name
+# WARNING: USB-Ethernet may change name on reboot!
+# Use udev rules to fix the name (see DELL-XPS-L701X-NOTES.md)
+# ============================================================
+auto eth-usb
+iface eth-usb inet manual
+
+# ============================================================
+# WiFi Interface - for emergency management access (optional)
+# Uncomment if you have WiFi and want to use it
+# ============================================================
+# auto wlan0
+# iface wlan0 inet manual
+
+# ============================================================
+# vmbr0 - WAN Bridge (to ISP Router via USB-Ethernet)
+# ============================================================
+auto vmbr0
+iface vmbr0 inet manual
+    bridge-ports eth-usb
+    bridge-stp off
+    bridge-fd 0
+    bridge-vlan-aware yes
+    bridge-vids 2-4094
+    comment WAN Bridge - OPNsense WAN to ISP Router (USB-Ethernet)
+
+# ============================================================
+# vmbr1 - LAN Bridge (to OpenWRT WAN via built-in Ethernet)
+# ============================================================
+auto vmbr1
+iface vmbr1 inet manual
+    bridge-ports eth-builtin
+    bridge-stp off
+    bridge-fd 0
+    bridge-vlan-aware yes
+    bridge-vids 2-4094
+    comment LAN Bridge - OPNsense LAN to OpenWRT WAN (built-in)
+
+# ============================================================
+# vmbr2 - Internal Bridge (for LXC containers only)
+# ============================================================
+auto vmbr2
+iface vmbr2 inet static
+    address 10.0.30.1/24
+    bridge-ports none
+    bridge-stp off
+    bridge-fd 0
+    comment Internal Network - LXC containers isolated
+
+# ============================================================
+# vmbr99 - Management Bridge (no physical port by default)
+# Uncomment bridge-ports line if you want to use WiFi
+# ============================================================
+auto vmbr99
+iface vmbr99 inet static
+    address 10.0.99.1/24
+    bridge-ports none
+    # bridge-ports wlan0  # Uncomment if using WiFi
+    bridge-stp off
+    bridge-fd 0
+    comment Management Network - Emergency access
+
+# ============================================================
+# Post-up commands (optional)
+# ============================================================
+# Enable IP forwarding
+# post-up echo 1 > /proc/sys/net/ipv4/ip_forward
+# post-up echo 1 > /proc/sys/net/ipv6/conf/all/forwarding

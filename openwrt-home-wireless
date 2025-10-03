@@ -1,0 +1,111 @@
+# OpenWRT Wireless Configuration - HOME MODE
+# File: /etc/config/wireless
+# Device: GL.iNet GL-AX1800 (Flint) - WiFi 6 (802.11ax)
+# Chipset: MediaTek MT7915 (dual-band WiFi 6)
+
+# ============================================================
+# 5GHz Radio (802.11ax - WiFi 6)
+# GL-AX1800: MediaTek MT7915, supports up to 1200 Mbps
+# ============================================================
+config wifi-device 'radio0'
+	option type 'mac80211'
+	option channel 'auto'            # or specific: 36, 40, 44, 48, 149, 153, 157, 161
+	option band '5g'
+	option htmode 'HE80'             # WiFi 6 (802.11ax) 80MHz channels
+	option country 'RU'
+	option txpower '20'
+	option cell_density '0'
+	option legacy_rates '0'          # Disable legacy rates for better performance
+	option mu_beamformer '1'         # Enable MU-MIMO beamforming
+	option he_su_beamformer '1'      # WiFi 6 single-user beamforming
+	option he_mu_beamformer '1'      # WiFi 6 multi-user beamforming
+
+# Main 5GHz WiFi - Full access to home network
+config wifi-iface 'wifinet0'
+	option device 'radio0'
+	option mode 'ap'
+	option ssid 'HomeNet-5G'
+	option encryption 'sae-mixed'    # WPA3/WPA2 mixed mode
+	option key 'YOUR_STRONG_PASSWORD_HERE'
+	option network 'lan'
+	option ieee80211w '1'            # Protected Management Frames (optional)
+	option wpa_disable_eapol_key_retries '1'
+	option isolate '0'               # Clients can see each other
+	option disassoc_low_ack '1'
+	option max_inactivity '300'
+
+# Guest 5GHz WiFi - Isolated, internet only
+config wifi-iface 'wifinet1'
+	option device 'radio0'
+	option mode 'ap'
+	option ssid 'Guest-5G'
+	option encryption 'sae'          # WPA3 only
+	option key 'GUEST_PASSWORD_HERE'
+	option network 'guest'
+	option ieee80211w '2'            # PMF required
+	option isolate '1'               # Clients cannot see each other
+	option disassoc_low_ack '1'
+
+# ============================================================
+# 2.4GHz Radio (802.11ax - WiFi 6)
+# GL-AX1800: MediaTek MT7915, supports up to 574 Mbps
+# ============================================================
+config wifi-device 'radio1'
+	option type 'mac80211'
+	option channel 'auto'            # or specific: 1, 6, 11
+	option band '2g'
+	option htmode 'HE40'             # WiFi 6 (802.11ax) 40MHz channels
+	option country 'RU'
+	option txpower '20'
+	option cell_density '0'
+	option legacy_rates '1'          # Keep for compatibility with old devices
+	option mu_beamformer '1'
+	option he_su_beamformer '1'
+	option he_mu_beamformer '1'
+
+# Main 2.4GHz WiFi - Full access to home network
+config wifi-iface 'wifinet2'
+	option device 'radio1'
+	option mode 'ap'
+	option ssid 'HomeNet-2G'
+	option encryption 'sae-mixed'    # WPA3/WPA2 mixed mode
+	option key 'YOUR_STRONG_PASSWORD_HERE'
+	option network 'lan'
+	option ieee80211w '1'
+	option wpa_disable_eapol_key_retries '1'
+	option isolate '0'
+	option disassoc_low_ack '1'
+
+# IoT 2.4GHz WiFi - Isolated for smart home devices
+config wifi-iface 'wifinet3'
+	option device 'radio1'
+	option mode 'ap'
+	option ssid 'Smart-Home'
+	option encryption 'psk2'         # WPA2 (many IoT devices don't support WPA3)
+	option key 'IOT_PASSWORD_HERE'
+	option network 'iot'
+	option isolate '1'               # Devices cannot see each other
+	option disassoc_low_ack '1'
+
+# ============================================================
+# Advanced WiFi Options (uncomment if needed)
+# ============================================================
+
+# For better roaming (802.11r Fast Transition)
+# Add to each wifi-iface:
+#	option ieee80211r '1'
+#	option mobility_domain 'a1b2'
+#	option ft_over_ds '1'
+#	option ft_psk_generate_local '1'
+
+# For load balancing between bands
+# Add to wifi-iface:
+#	option rssi_reject_assoc_rssi '-75'
+#	option bss_transition '1'
+
+# Notes:
+# - Change 'YOUR_STRONG_PASSWORD_HERE' to your actual WiFi password
+# - Change 'GUEST_PASSWORD_HERE' to guest WiFi password
+# - Change 'IOT_PASSWORD_HERE' to IoT WiFi password
+# - Adjust channel and txpower based on your environment
+# - Use 'wifi' command to scan for best channels: wifi survey radio0

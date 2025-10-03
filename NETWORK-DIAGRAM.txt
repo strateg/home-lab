@@ -1,0 +1,368 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    SECURE HOME NETWORK ARCHITECTURE                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+  HOME MODE - OpenWRT as WiFi Router inside secure perimeter
+═══════════════════════════════════════════════════════════════════════════════
+
+                            ┌─────────────┐
+                            │  INTERNET   │
+                            └──────┬──────┘
+                                   │
+                            ┌──────┴──────────┐
+                            │   ISP Router    │
+                            │  192.168.1.1    │
+                            └──────┬──────────┘
+                                   │ WAN
+                    ┌──────────────┴──────────────┐
+                    │   Proxmox Host (2x NIC)     │
+                    │   Physical Server           │
+                    ├─────────────────────────────┤
+                    │  NIC1: enp0s31f6 (WAN)     │
+                    │   └─→ vmbr0                 │
+                    │  NIC2: enp1s0 (LAN)         │
+                    │   └─→ vmbr1                 │
+                    │  WiFi: wlan0 (MGMT backup)  │
+                    │   └─→ vmbr99                │
+                    │  Internal: vmbr2            │
+                    └──────────┬──────────────────┘
+                               │
+                    ┌──────────┴──────────────┐
+                    │    OPNsense VM (100)    │
+                    │   Main Firewall         │
+                    ├─────────────────────────┤
+                    │ WAN:  DHCP from ISP     │
+                    │ LAN:  192.168.10.1/24   │
+                    │ INT:  10.0.30.1/24      │
+                    │ MGMT: 10.0.99.10/24     │
+                    │ VPN:  10.0.200.1/24     │
+                    └──┬──────────────────┬───┘
+                       │                  │
+              ┌────────┴────────┐        │
+              │                 │        │
+    ┌─────────▼─────────┐  ┌────▼───────────────┐
+    │ OpenWRT Router    │  │  LXC Containers    │
+    │ 192.168.10.2      │  │  (Internal Net)    │
+    │ AdGuard DNS :53   │  │  10.0.30.0/24      │
+    ├───────────────────┤  ├────────────────────┤
+    │ LAN: 192.168.20.1 │  │ 10.0.30.10 - DB    │
+    │ Guest: .30.1      │  │ 10.0.30.20 - Redis │
+    │ IoT: .40.1        │  │ 10.0.30.30 - Files │
+    └─────┬─────────────┘  │ 10.0.30.40 - Git   │
+          │                │ 10.0.30.50 - HomeAs│
+    ┌─────┴──────┐         └────────────────────┘
+    │            │
+┌───▼───┐    ┌──▼──────┐
+│ WiFi  │    │  LAN    │
+│ 5GHz  │    │  Ports  │
+│ 2.4G  │    │  Switch │
+└───┬───┘    └────┬────┘
+    │             │
+    │    ┌────────┴────────┬──────────┬──────────┐
+    │    │                 │          │          │
+┌───▼────▼──┐    ┌─────────▼──┐  ┌────▼─────┐  ┌▼─────────┐
+│ Laptops   │    │  Desktops  │  │  TVs     │  │  Phones  │
+│ Phones    │    │  Consoles  │  │  Media   │  │  Tablets │
+└───────────┘    └────────────┘  └──────────┘  └──────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ Guest WiFi (192.168.30.0/24) - Isolated, Internet only     │
+└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ IoT WiFi (192.168.40.0/24) - Smart home devices            │
+└─────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  TRAVEL MODE - OpenWRT as VPN Router with failover
+═══════════════════════════════════════════════════════════════════════════════
+
+              ┌─────────────────────────────────────┐
+              │          INTERNET                   │
+              └───────┬─────────────────┬───────────┘
+                      │                 │
+         ┌────────────▼───┐      ┌──────▼──────────────────┐
+         │  Hotel WiFi    │      │  Oracle Cloud           │
+         │  Public Network│      │  (Backup VPN Gateway)   │
+         │  DHCP          │      │  10.1.0.1/24            │
+         └────────┬───────┘      │  Site-to-site with home │
+                  │              └──────┬──────────────────┘
+         ┌────────▼────────────┐        │
+         │  OpenWRT Router     │        │ WireGuard
+         │  (Portable)         │        │ Failover
+         ├─────────────────────┤        │
+         │ WAN: DHCP from hotel│        │
+         │ LAN: 192.168.100.1  │◄───────┘
+         │                     │        │
+         │ WireGuard VPN:      │        │
+         │  ├─ Home (primary)  ├────────┤
+         │  │  10.0.200.10     │        │
+         │  │                  │   ┌────▼──────────────────┐
+         │  └─ Oracle (backup) │   │  HOME NETWORK         │
+         │     10.1.200.10     ├──►│  (via VPN tunnel)     │
+         │                     │   │                       │
+         │ AdGuard DNS via VPN │   │  OPNsense             │
+         └──────┬──────────────┘   │  192.168.10.1         │
+                │                  │  10.0.200.1 (VPN)     │
+         ┌──────┴──────┐           │                       │
+         │             │           │  All home services    │
+    ┌────▼───┐   ┌────▼────┐      │  accessible via VPN   │
+    │ Laptop │   │  Phone  │      │  - LXC containers     │
+    │        │   │  Tablet │      │  - Proxmox UI         │
+    └────────┘   └─────────┘      │  - Internal services  │
+                                  └───────────────────────┘
+
+    All traffic encrypted through WireGuard tunnel
+    DNS filtering via home AdGuard
+    Automatic failover if home is unreachable
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  IP ADDRESS ALLOCATION
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────┬──────────────────┬──────────────┬─────────────────────────┐
+│ Network         │ CIDR             │ Gateway      │ Description             │
+├─────────────────┼──────────────────┼──────────────┼─────────────────────────┤
+│ ISP             │ 192.168.1.0/24   │ .1.1         │ ISP Router              │
+│ OPNsense LAN    │ 192.168.10.0/24  │ .10.1        │ To OpenWRT              │
+│ OpenWRT LAN     │ 192.168.20.0/24  │ .20.1        │ Main home network       │
+│ Guest WiFi      │ 192.168.30.0/24  │ .30.1        │ Isolated guests         │
+│ IoT Network     │ 192.168.40.0/24  │ .40.1        │ Smart home devices      │
+│ LXC Internal    │ 10.0.30.0/24     │ 10.0.30.1    │ Containers              │
+│ Management      │ 10.0.99.0/24     │ 10.0.99.1    │ Proxmox/OPNsense admin  │
+│ VPN Travel      │ 10.0.200.0/24    │ 10.0.200.1   │ OpenWRT VPN home        │
+│ Oracle Cloud    │ 10.1.0.0/24      │ 10.1.0.1     │ Oracle VPN gateway      │
+│ OpenWRT Travel  │ 192.168.100.0/24 │ .100.1       │ Travel local net        │
+└─────────────────┴──────────────────┴──────────────┴─────────────────────────┘
+
+Static IPs:
+  - OPNsense LAN:   192.168.10.1
+  - OpenWRT WAN:    192.168.10.2 (static)
+  - OpenWRT LAN:    192.168.20.1
+  - AdGuard:        192.168.20.1:3000
+  - Proxmox:        10.0.99.1:8006
+  - OPNsense MGMT:  10.0.99.10:443
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  FIREWALL ZONES
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ OPNsense Firewall Rules                                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  WAN (untrusted)                                                            │
+│    ├─ Block all inbound (default)                                          │
+│    ├─ Allow established/related                                            │
+│    └─ Allow WireGuard port 51820 (for travel router)                       │
+│                                                                             │
+│  LAN (OpenWRT → trusted)                                                    │
+│    ├─ Allow to INTERNAL (LXC services)                                     │
+│    ├─ Allow to Internet (NAT)                                              │
+│    ├─ Allow to Proxmox MGMT                                                │
+│    └─ Allow to OPNsense UI                                                 │
+│                                                                             │
+│  INTERNAL (LXC → semi-trusted)                                             │
+│    ├─ Allow to Internet (ports 80,443,53 only)                            │
+│    ├─ Block to MGMT                                                        │
+│    └─ Allow to LAN (for service responses)                                │
+│                                                                             │
+│  MGMT (admin → trusted)                                                     │
+│    └─ Allow all (full admin access)                                        │
+│                                                                             │
+│  VPN_TRAVEL (portable router → trusted)                                     │
+│    ├─ Allow to LAN                                                         │
+│    ├─ Allow to INTERNAL                                                    │
+│    └─ Allow to MGMT                                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ OpenWRT Firewall Rules (HOME mode)                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  WAN (to OPNsense → trusted)                                                │
+│    ├─ Accept outbound                                                      │
+│    └─ Reject inbound                                                       │
+│                                                                             │
+│  LAN (clients → trusted)                                                    │
+│    ├─ Allow all (full access)                                              │
+│    └─ Forward to WAN                                                       │
+│                                                                             │
+│  GUEST (isolated → restricted)                                             │
+│    ├─ Forward to WAN only                                                  │
+│    ├─ Block to LAN                                                         │
+│    ├─ Block to private IPs                                                 │
+│    └─ Block router admin access                                            │
+│                                                                             │
+│  IoT (isolated → restricted)                                               │
+│    ├─ Forward to WAN only                                                  │
+│    ├─ Block to LAN/GUEST                                                   │
+│    └─ Allow to specific services (e.g., Home Assistant)                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ OpenWRT Firewall Rules (TRAVEL mode)                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  WAN (hotel/public → UNTRUSTED)                                             │
+│    ├─ Block ALL inbound                                                    │
+│    ├─ Allow DHCP client                                                    │
+│    ├─ Log all dropped packets                                              │
+│    └─ Block SMB/NetBIOS/RDP                                                │
+│                                                                             │
+│  LAN (your devices → trusted)                                               │
+│    ├─ Forward to VPN_HOME (primary)                                        │
+│    ├─ Forward to VPN_ORACLE (backup)                                       │
+│    └─ Forward to WAN (if both VPNs down)                                   │
+│                                                                             │
+│  VPN_HOME (encrypted → trusted)                                             │
+│    ├─ Accept all from LAN                                                  │
+│    └─ Full access to home network                                          │
+│                                                                             │
+│  VPN_ORACLE (encrypted → trusted)                                           │
+│    ├─ Accept all from LAN                                                  │
+│    └─ Access to home via site-to-site                                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  DNS FLOW
+═══════════════════════════════════════════════════════════════════════════════
+
+HOME Mode:
+
+  Client device → OpenWRT (192.168.20.1)
+                      ↓
+              AdGuard Home :53
+                      ↓
+              Ad/Malware filtering
+                      ↓
+         Cloudflare DoH (1.1.1.1)
+         Quad9 DoH (9.9.9.9)
+                      ↓
+              Internet DNS
+
+
+TRAVEL Mode:
+
+  Client device → OpenWRT (192.168.100.1)
+                      ↓
+              Local dnsmasq
+                      ↓
+            WireGuard VPN tunnel
+                      ↓
+         Home AdGuard (via VPN)
+                      ↓
+              Ad filtering
+                      ↓
+         Cloudflare DoH (1.1.1.1)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  VPN TOPOLOGY
+═══════════════════════════════════════════════════════════════════════════════
+
+                    ┌──────────────────────┐
+                    │   Oracle Cloud VM    │
+                    │   10.1.0.1/24        │
+                    │   WireGuard Server   │
+                    └────┬─────────────┬───┘
+                         │             │
+          ┌──────────────┘             └──────────────┐
+          │ Site-to-Site                              │ Client VPN
+          │ WireGuard                                 │ WireGuard
+          │                                           │
+    ┌─────▼──────────┐                         ┌─────▼───────────┐
+    │  Home OPNsense │                         │ OpenWRT Travel  │
+    │  10.0.200.1    │                         │ 10.1.200.10     │
+    │  (Server)      │◄────────────────────────│ (Client)        │
+    └────────────────┘   Primary VPN           └─────────────────┘
+           │             10.0.200.10
+           │
+    ┌──────▼──────────────────────────┐
+    │  Home Network Access:           │
+    │  - LXC Containers (10.0.30.x)   │
+    │  - Proxmox MGMT (10.0.99.x)     │
+    │  - All home services            │
+    └─────────────────────────────────┘
+
+
+VPN Failover Priority:
+  1. Primary:   OpenWRT Travel → Home OPNsense (direct)
+  2. Fallback:  OpenWRT Travel → Oracle Cloud → Home OPNsense
+  3. Emergency: OpenWRT Travel → Direct Internet (no VPN)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  SECURITY LAYERS
+═══════════════════════════════════════════════════════════════════════════════
+
+Layer 1: Perimeter (OPNsense)
+  ├─ Stateful firewall
+  ├─ NAT
+  ├─ Optional IDS/IPS (Suricata)
+  └─ Port forwarding (minimal)
+
+Layer 2: Access Control (OpenWRT)
+  ├─ VLAN segmentation
+  ├─ WiFi isolation (Guest/IoT)
+  ├─ MAC filtering (optional)
+  └─ QoS
+
+Layer 3: Application (AdGuard)
+  ├─ DNS filtering
+  ├─ Ad blocking
+  ├─ Malware domain blocking
+  └─ Tracking prevention
+
+Layer 4: Encryption
+  ├─ WPA3 for WiFi
+  ├─ WireGuard for VPN
+  ├─ HTTPS for web UI
+  └─ DoH/DoT for DNS
+
+Layer 5: Network Isolation
+  ├─ Guest WiFi (no LAN access)
+  ├─ IoT (limited access)
+  ├─ LXC (no MGMT access)
+  └─ VPN tunnel in travel mode
+
+
+═══════════════════════════════════════════════════════════════════════════════
+  MONITORING & MANAGEMENT ACCESS
+═══════════════════════════════════════════════════════════════════════════════
+
+Home Network:
+  - Proxmox UI:   https://10.0.99.1:8006      (via LAN or MGMT WiFi)
+  - OPNsense UI:  https://192.168.10.1        (via LAN)
+                  https://10.0.99.10          (via MGMT)
+  - OpenWRT UI:   http://192.168.20.1         (via LAN)
+  - AdGuard UI:   http://192.168.20.1:3000    (via LAN)
+
+Travel (via VPN):
+  - OpenWRT UI:   http://192.168.100.1        (local)
+  - Proxmox UI:   https://10.0.99.1:8006      (through VPN)
+  - OPNsense UI:  https://10.0.99.10          (through VPN)
+  - Home services: 10.0.30.x                  (through VPN)
+
+Emergency Access:
+  - Proxmox MGMT WiFi: vmbr99 (10.0.99.1)     (if main network fails)
+  - Oracle Cloud SSH:  ubuntu@oracle-public-ip (out-of-band)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Legend:
+  ─│┌┐└┘├┤┬┴┼  = Connections
+  ►◄▲▼         = Data flow direction
+  ┌─┐
+  │ │          = Network device/service
+  └─┘
+
+═══════════════════════════════════════════════════════════════════════════════

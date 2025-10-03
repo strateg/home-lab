@@ -1,0 +1,85 @@
+# OpenWRT Network Configuration - HOME MODE
+# File: /etc/config/network
+# Device: GL.iNet GL-AX1800 (Flint)
+# Mode: Full Router with AdGuard DNS
+
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+# ============================================================
+# WAN - Connection to OPNsense LAN
+# GL-AX1800: WAN port uses 'wan' interface (DSA)
+# ============================================================
+config interface 'wan'
+	option device 'wan'
+	option proto 'static'
+	option ipaddr '192.168.10.2'
+	option netmask '255.255.255.0'
+	option gateway '192.168.10.1'
+	option dns '127.0.0.1'           # Use local AdGuard
+	option peerdns '0'               # Don't use DNS from DHCP
+	option delegate '0'
+
+config interface 'wan6'
+	option device 'wan'
+	option proto 'dhcpv6'
+	option reqaddress 'try'
+	option reqprefix 'auto'
+
+# ============================================================
+# LAN - Local network for WiFi and wired clients
+# GL-AX1800: LAN ports are lan1, lan2, lan3, lan4 (DSA)
+# ============================================================
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+	option ipaddr '192.168.20.1'
+	option netmask '255.255.255.0'
+	option ip6assign '60'
+
+# ============================================================
+# Guest Network - Isolated WiFi for guests
+# ============================================================
+config interface 'guest'
+	option proto 'static'
+	option device 'br-guest'
+	option ipaddr '192.168.30.1'
+	option netmask '255.255.255.0'
+
+# ============================================================
+# IoT Network - Isolated for smart home devices
+# ============================================================
+config interface 'iot'
+	option proto 'static'
+	option device 'br-iot'
+	option ipaddr '192.168.40.1'
+	option netmask '255.255.255.0'
+
+# ============================================================
+# Bridge Devices for GL-AX1800
+# ============================================================
+config device
+	option name 'br-lan'
+	option type 'bridge'
+	list ports 'lan1'
+	list ports 'lan2'
+	list ports 'lan3'
+	list ports 'lan4'
+
+config device
+	option name 'br-guest'
+	option type 'bridge'
+
+config device
+	option name 'br-iot'
+	option type 'bridge'
+
+# ============================================================
+# GL-AX1800 uses DSA (Distributed Switch Architecture)
+# No swconfig needed - ports are: wan, lan1, lan2, lan3, lan4
+# ============================================================
+# WAN = Physical WAN port (blue port on GL-AX1800)
+# LAN1-4 = Physical LAN ports (yellow ports on GL-AX1800)
