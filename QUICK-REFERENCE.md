@@ -11,6 +11,102 @@ cat privatekey  # Идет в конфиг [Interface] PrivateKey
 cat publickey   # Идет в конфиг [Peer] PublicKey на другой стороне
 ```
 
+## AmneziaWG - VPN с обфускацией (для обхода DPI в РФ)
+
+### Генерация ключей AmneziaWG
+
+```bash
+# На сервере/роутере с AmneziaWG
+awg genkey | tee privatekey | awg pubkey > publickey
+awg genpsk > preshared_key
+
+# Просмотр ключей
+cat privatekey       # [Interface] PrivateKey
+cat publickey        # [Peer] PublicKey на другой стороне
+cat preshared_key    # [Peer] PresharedKey (опционально, но рекомендуется)
+```
+
+### Управление AmneziaWG
+
+```bash
+# Запустить туннель
+awg-quick up awg0
+
+# Остановить туннель
+awg-quick down awg0
+
+# Проверить статус
+awg show awg0
+
+# Показать handshake
+awg show awg0 latest-handshakes
+
+# Показать трафик
+awg show awg0 transfer
+
+# Показать peers
+awg show awg0 peers
+```
+
+### Автоматическое переключение WireGuard ↔ AmneziaWG
+
+```bash
+# Запустить failover (приоритет: AmneziaWG → WireGuard)
+/root/amneziawg-failover.sh start
+
+# Проверить текущее состояние
+/root/amneziawg-failover.sh status
+
+# Проверка и автопереключение
+/root/amneziawg-failover.sh check
+
+# Остановить все VPN
+/root/amneziawg-failover.sh stop
+
+# Перезапустить с автовыбором
+/root/amneziawg-failover.sh restart
+```
+
+### Проверка какой VPN активен
+
+```bash
+# Проверить интерфейсы
+ip link show | grep -E 'awg0|wg0'
+
+# Если awg0 UP → AmneziaWG активен
+# Если wg0 UP → WireGuard активен
+
+# Проверить маршруты
+ip route show | grep -E 'awg0|wg0'
+
+# Проверить внешний IP
+curl ifconfig.me
+# Должен показать IP Oracle Cloud, если VPN работает
+
+# Посмотреть логи failover
+tail -f /var/log/vpn-failover.log
+```
+
+### Сравнение протоколов
+
+```bash
+# WireGuard статус
+wg show wg0
+
+# AmneziaWG статус
+awg show awg0
+
+# Speedtest с WireGuard
+wg-quick up wg0
+curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python3 -
+wg-quick down wg0
+
+# Speedtest с AmneziaWG
+awg-quick up awg0
+curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python3 -
+awg-quick down awg0
+```
+
 ## OpenWRT - Управление режимами
 
 ### Проверка текущего режима
@@ -287,8 +383,53 @@ sudo wg show
 sudo journalctl -u wg-quick@wg0 -f
 
 # Проверить доступность peers
-ping 10.0.200.10  # OpenWRT travel
-ping 10.0.0.1     # Home network (if site-to-site up)
+ping 10.8.1.2  # OpenWRT travel (WireGuard)
+```
+
+### AmneziaWG на Oracle (обход DPI блокировок)
+```bash
+# Показать статус
+sudo systemctl status awg-quick@awg0
+
+# Запустить
+sudo systemctl start awg-quick@awg0
+
+# Остановить
+sudo systemctl stop awg-quick@awg0
+
+# Перезапустить
+sudo systemctl restart awg-quick@awg0
+
+# Включить автозапуск
+sudo systemctl enable awg-quick@awg0
+
+# Показать конфигурацию
+sudo awg show awg0
+
+# Показать handshake (проверить что клиент подключен)
+sudo awg show awg0 latest-handshakes
+
+# Показать трафик
+sudo awg show awg0 transfer
+
+# Просмотр логов
+sudo journalctl -u awg-quick@awg0 -f
+
+# Проверить доступность peer
+ping 10.8.2.2  # OpenWRT travel (AmneziaWG)
+
+# Отладка: показать пакеты на порту 51821
+sudo tcpdump -i ens3 udp port 51821 -v
+```
+
+### Сравнение WireGuard vs AmneziaWG на Oracle
+```bash
+# Оба могут работать одновременно
+sudo awg show awg0    # AmneziaWG (10.8.2.0/24, порт 51821)
+sudo wg show wg0      # WireGuard  (10.8.1.0/24, порт 51820)
+
+# Проверить оба порта открыты
+sudo ss -ulnp | grep -E '51820|51821'
 ```
 
 ### Firewall (iptables)
@@ -300,8 +441,182 @@ sudo iptables -t nat -L -n -v
 # Разрешить WireGuard порт
 sudo iptables -A INPUT -p udp --dport 51820 -j ACCEPT
 
+# Разрешить AmneziaWG Oracle порт
+sudo iptables -A INPUT -p udp --dport 51821 -j ACCEPT
+
+# Разрешить AmneziaWG Russia порт
+sudo iptables -A INPUT -p udp --dport 51822 -j ACCEPT
+
 # Сохранить правила
 sudo netfilter-persistent save
+```
+
+## Russia VPS (Российский IP)
+
+### SSH доступ
+```bash
+# Прямой доступ
+ssh root@RUSSIA_VPS_IP
+
+# Если изменён порт SSH
+ssh -p 2222 root@RUSSIA_VPS_IP
+
+# Через ключ
+ssh -p 2222 -i ~/.ssh/russia_key root@RUSSIA_VPS_IP
+```
+
+### AmneziaWG на Russia VPS
+
+```bash
+# Показать статус
+sudo systemctl status awg-quick@awg1
+
+# Запустить
+sudo systemctl start awg-quick@awg1
+
+# Остановить
+sudo systemctl stop awg-quick@awg1
+
+# Перезапустить
+sudo systemctl restart awg-quick@awg1
+
+# Включить автозапуск
+sudo systemctl enable awg-quick@awg1
+
+# Показать конфигурацию
+sudo awg show awg1
+
+# Показать handshake (проверить подключенных клиентов)
+sudo awg show awg1 latest-handshakes
+
+# Показать трафик
+sudo awg show awg1 transfer
+
+# Показать peers
+sudo awg show awg1 peers
+
+# Просмотр логов
+sudo journalctl -u awg-quick@awg1 -f
+
+# Проверить доступность клиента
+ping 10.9.1.2  # GL-AX1800
+
+# Отладка: показать пакеты на порту 51822
+sudo tcpdump -i eth0 udp port 51822 -v
+
+# Проверить что порт слушает
+sudo ss -ulnp | grep 51822
+```
+
+### Мониторинг Russia VPS
+
+```bash
+# Нагрузка сервера
+htop
+
+# Использование памяти
+free -h
+
+# Использование диска
+df -h
+
+# Сетевая статистика
+ifconfig
+ip -s link
+
+# Логи системы
+tail -f /var/log/syslog
+
+# Логи AmneziaWG
+journalctl -u awg-quick@awg1 -n 100
+```
+
+## VPN Selector (переключение между 3 VPN)
+
+### Базовое использование
+
+```bash
+# Подключиться к Russia VPS (российский IP)
+vpn russia
+# или
+/root/vpn-selector.sh russia
+
+# Подключиться к Oracle Cloud (обход DPI РФ)
+vpn oracle
+
+# Подключиться к домашней сети
+vpn home
+
+# Отключить все VPN
+vpn off
+
+# Проверить статус
+vpn status
+```
+
+### Расширенные команды VPN Selector
+
+```bash
+# Показать помощь
+vpn help
+
+# Проверить какой VPN активен
+cat /tmp/active_vpn
+
+# Посмотреть логи
+tail -f /var/log/vpn-selector.log
+
+# Проверить все интерфейсы
+ip link show | grep -E 'awg0|awg1|wg0'
+
+# Если awg0 → Oracle Cloud активен
+# Если awg1 → Russia VPS активен
+# Если wg0 → Home VPN активен
+```
+
+### Сценарии использования VPN Selector
+
+```bash
+# Сценарий 1: Вы за границей, нужен доступ к Сбербанку
+vpn russia
+# Открыть браузер → https://online.sberbank.ru
+
+# Сценарий 2: Вы в России, нужен обход блокировок
+vpn oracle
+# Доступ к заблокированным сайтам
+
+# Сценарий 3: Нужен доступ к домашнему Proxmox
+vpn home
+# http://10.0.99.10
+
+# Сценарий 4: Проверить внешний IP
+vpn status
+curl ifconfig.me
+curl ipinfo.io
+```
+
+### Проверка какой VPN работает
+
+```bash
+# Метод 1: Через VPN selector
+vpn status
+
+# Метод 2: Проверить интерфейсы
+if ip link show awg0 2>/dev/null | grep -q "state UP"; then
+    echo "Oracle Cloud VPN активен"
+elif ip link show awg1 2>/dev/null | grep -q "state UP"; then
+    echo "Russia VPS VPN активен"
+elif ip link show wg0 2>/dev/null | grep -q "state UP"; then
+    echo "Home VPN активен"
+else
+    echo "VPN не активен"
+fi
+
+# Метод 3: Проверить внешний IP
+curl ifconfig.me
+curl ipinfo.io/country
+# RU = Россия (Russia VPS)
+# Другое = Oracle Cloud или прямое подключение
 ```
 
 ## Диагностика подключения
