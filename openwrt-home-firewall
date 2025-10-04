@@ -58,6 +58,18 @@ config zone
 	option forward 'REJECT'
 
 # ============================================================
+# Russia VPN Zone (AmneziaWG to Russia VPS)
+# ============================================================
+config zone
+	option name 'russiavpn'
+	list network 'russiavpn'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option masq '0'  # No masquerading - OPNsense handles NAT
+	option mtu_fix '1'
+
+# ============================================================
 # Forwarding Rules
 # ============================================================
 
@@ -75,6 +87,11 @@ config forwarding
 config forwarding
 	option src 'iot'
 	option dest 'wan'
+
+# LAN to Russia VPN (when Russia VPN is active)
+config forwarding
+	option src 'lan'
+	option dest 'russiavpn'
 
 # ============================================================
 # WAN Input Rules
@@ -249,6 +266,15 @@ config rule
 	option proto 'icmp'
 	list icmp_type 'echo-request'
 	option family 'ipv4'
+	option target 'ACCEPT'
+
+# Allow Russia VPN (AmneziaWG) traffic through OPNsense
+config rule
+	option name 'Allow-Russia-VPN'
+	option src 'wan'
+	option dest '*'
+	option proto 'udp'
+	option dest_port '51822'
 	option target 'ACCEPT'
 
 # ============================================================

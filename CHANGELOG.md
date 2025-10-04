@@ -1,5 +1,88 @@
 # Changelog
 
+## v2.4.1 - Home Mode Russia VPN (2025-10-04)
+
+### Добавлено
+
+✅ **Home Mode поддержка для Russia VPN** - Использование Russia VPN когда роутер находится дома за OPNsense firewall:
+
+**Новые файлы:**
+- ✅ `openwrt-home-russia-vpn.conf` (15K) - Клиентская конфигурация для Home Mode
+  - Использование Russia VPN через OPNsense firewall
+  - Та же AmneziaWG конфигурация как в Travel Mode
+  - Маршрутизация через OPNsense (192.168.10.1)
+  - Комментарии о разнице Home vs Travel режимов
+
+- ✅ `opnsense-russia-vpn-firewall.txt` (20K) - Настройка OPNsense firewall для Russia VPN
+  - Подробная инструкция для OPNsense Web UI
+  - 3 варианта настройки (простой, безопасный, с alias)
+  - Alias для Russia VPS IP и VPN портов
+  - Проверка правил и мониторинг
+  - NAT конфигурация (автоматическая)
+  - CLI и API конфигурация (дополнительно)
+  - Troubleshooting для firewall
+
+- ✅ `HOME-RUSSIA-VPN-SETUP.md` (22K) - Полное руководство для Home Mode Russia VPN
+  - Архитектура: OpenWRT → OPNsense → Russia VPS
+  - Настройка OPNsense firewall (Web UI)
+  - Использование Russia VPN дома
+  - Интеграция с VPN Selector (работает в обоих режимах)
+  - Мониторинг через OPNsense (firewall logs, states)
+  - Troubleshooting (handshake, routing, скорость)
+  - Сравнение Home vs Travel режимов
+  - Когда использовать Russia VPN дома (тестирование, РФ сервисы, geo-блокировки)
+
+### Обновлено
+
+**Firewall конфигурации:**
+- ✏️ `openwrt-home-firewall`
+  - Добавлена Russia VPN зона (`russiavpn`)
+  - Forwarding правило LAN → Russia VPN
+  - Правило для исходящего UDP 51822
+  - Комментарии о маршрутизации через OPNsense
+
+**Документация:**
+- ✏️ `README.md`
+  - Обновлена секция "5. Russia VPS" (указаны конфигурации для Home и Travel)
+  - Добавлена информация "Использование дома (через OPNsense)"
+  - Новый FAQ "Можно ли использовать Russia VPN находясь дома?"
+  - Ссылки на `HOME-RUSSIA-VPN-SETUP.md` и `opnsense-russia-vpn-firewall.txt`
+
+### Архитектура Home Mode с Russia VPN
+
+```
+Internet → ISP Router → Proxmox WAN bridge
+                           ↓
+                      OPNsense VM
+                      (Firewall: Pass UDP 51822)
+                           ↓
+                    Proxmox LAN bridge
+                           ↓
+                      OpenWRT Router (192.168.10.2)
+                      (Russia VPN: awg1)
+                           ↓
+                  Трафик → OPNsense → Internet → Russia VPS
+```
+
+### Сценарии использования дома
+
+- ✅ **Тестирование** перед поездкой (проверка Russia VPN)
+- ✅ **Доступ к РФ сервисам** находясь дома (банки, стриминг)
+- ✅ **Обход geo-блокировок** (сервисы только для РФ)
+- ✅ **Отладка** конфигурации Russia VPN
+
+### VPN Selector работает в Home Mode
+
+```bash
+# В режиме Home (за OPNsense):
+vpn russia  # → через OPNsense → Russia VPS
+vpn oracle  # → через OPNsense → Oracle Cloud
+vpn home    # → к OPNsense WireGuard (не нужен, уже дома)
+vpn status  # → показывает активный VPN
+```
+
+---
+
 ## v2.4 - Russia VPS для российского IP (2025-10-03)
 
 ### Добавлено
