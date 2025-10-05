@@ -111,10 +111,24 @@ PREPARED_ISO="${ISO_FILE%.iso}-automated.iso"
 rm -f "$PREPARED_ISO"
 
 echo "Running: proxmox-auto-install-assistant prepare-iso ..."
+
+# prepare-iso creates file with suffix, move it to our target name
 proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
     --fetch-from iso \
-    --answer-file answer.toml \
-    --target "$PREPARED_ISO"
+    --answer-file answer.toml
+
+# The tool creates ISO with specific naming pattern
+# Find the created ISO
+CREATED_ISO=$(ls -t "${ISO_FILE%.iso}"*-auto-from-iso.iso 2>/dev/null | head -1)
+
+if [ -z "$CREATED_ISO" ]; then
+    echo -e "${RED}Error: Failed to create prepared ISO${NC}"
+    echo "Expected pattern: ${ISO_FILE%.iso}*-auto-from-iso.iso"
+    exit 1
+fi
+
+# Rename to our target
+mv "$CREATED_ISO" "$PREPARED_ISO"
 
 if [ ! -f "$PREPARED_ISO" ]; then
     echo -e "${RED}Error: Failed to create prepared ISO${NC}"
