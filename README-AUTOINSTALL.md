@@ -265,22 +265,14 @@ cat -A auto-installer.yaml
 
 ---
 
-## Files in This Repository
+## Files
 
-- **`create-proxmox-usb.sh`** - Main USB creation script ⭐
+- **`create-proxmox-usb.sh`** ⭐ - Main USB creation script
 - **`auto-installer.yaml`** - Installation configuration
 - **`proxmox-post-install.sh`** - Post-installation script
+- **`START-HERE.md`** - Quick start guide
+- **`ИНСТРУКЦИЯ.md`** - Documentation (Russian)
 - **`README-AUTOINSTALL.md`** - This file
-
-### Legacy Files (Reference Only)
-
-These scripts were attempts to solve the problem but don't work correctly:
-- `create-proxmox-usb-official.sh` - Used non-existent tool
-- `create-proxmox-usb-complete.sh` - Broke GRUB boot chain
-- `create-proxmox-usb-simple.sh` - Auto-install didn't trigger
-- `prepare-proxmox-usb-*.sh` - Various failed approaches
-
-See `SOLUTION-COMPARISON.md` for detailed analysis.
 
 ---
 
