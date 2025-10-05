@@ -87,7 +87,8 @@ sudo ./create-proxmox-usb.sh /dev/sdX proxmox-ve_9.0.iso
 ### Для России
 
 ```toml
-country = "ru"
+[global]
+country = "RU"  # Верхний регистр!
 timezone = "Europe/Moscow"
 ```
 
@@ -105,7 +106,20 @@ dns = "8.8.8.8"
 
 ```toml
 [disk-setup]
-disk_list = ["nvme0n1"]  # Для NVMe SSD
+filesystem = "ext4"
+disk_list = ["/dev/nvme0n1"]  # Полный путь с /dev/
+```
+
+### LVM параметры (для ext4)
+
+```toml
+[disk-setup]
+filesystem = "ext4"
+disk_list = ["/dev/sda"]
+lvm.swapsize = 8    # ВАЖНО: префикс lvm.
+lvm.maxroot = 30
+lvm.minfree = 8
+lvm.maxvz = 0
 ```
 
 ---
@@ -114,16 +128,35 @@ disk_list = ["nvme0n1"]  # Для NVMe SSD
 
 ### Автоустановка не запускается
 
-**Причина**: Скорее всего ISO не был подготовлен с `prepare-iso`
+**Причина**: ISO не был подготовлен с `prepare-iso`
 
 **Решение**:
 1. Убедитесь, что `proxmox-auto-install-assistant` установлен
 2. Скрипт должен показать "✓ Prepared ISO created"
 3. Пересоздайте USB
 
+### answer.toml validation failed
+
+**Причина**: Неправильный формат TOML
+
+**Решение**:
+1. Для ext4 LVM параметры должны иметь префикс `lvm.`:
+   ```toml
+   lvm.swapsize = 8  # НЕ просто swapsize
+   ```
+2. Country в верхнем регистре: `country = "EE"` (не "ee")
+3. Диски с полным путём: `disk_list = ["/dev/sda"]`
+4. Проверка: `proxmox-auto-install-assistant validate-answer answer.toml`
+
 ### proxmox-auto-install-assistant not found
 
 **Решение**: Установите инструмент (см. Шаг 0 выше)
+
+**Важно**: Используйте `tee` для sudo:
+```bash
+echo "deb..." | sudo tee /etc/apt/sources.list.d/pve-install-repo.list
+```
+НЕ `echo "deb..." > /etc/apt/...` (отказано в доступе)
 
 ### USB не загружается
 

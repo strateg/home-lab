@@ -6,8 +6,8 @@
 # Keyboard layout
 keyboard = "en-us"
 
-# Country (EE for Estonia, RU for Russia)
-country = "ee"
+# Country code (UPPERCASE! EE for Estonia, RU for Russia)
+country = "EE"
 
 # Timezone
 timezone = "Europe/Tallinn"
@@ -21,8 +21,8 @@ mailto = "admin@home.lan"
 # Root password (plain text - will be hashed during installation)
 root_password = "Homelab2025!"
 
-# For pre-hashed password instead:
-# root_password_hashed = "$6$..."
+# For pre-hashed password use:
+# root_password_hashed = "$6$..." (and remove root_password)
 
 [network]
 # Use DHCP for network configuration

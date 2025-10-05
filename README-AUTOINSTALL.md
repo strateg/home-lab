@@ -16,11 +16,29 @@ That's it! No ISO rebuilding, no manual GRUB editing, no special tools.
 
 ## Quick Start
 
+### Step 0: Install proxmox-auto-install-assistant
+
+**On Ubuntu/Debian machine:**
+
+```bash
+# Add Proxmox GPG key
+sudo wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg \
+  -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+
+# Add Proxmox repository (use tee for sudo!)
+echo "deb [arch=amd64] http://download.proxmox.com/debian/pve bookworm pve-no-subscription" | \
+  sudo tee /etc/apt/sources.list.d/pve-install-repo.list
+
+# Install
+sudo apt update
+sudo apt install proxmox-auto-install-assistant
+```
+
 ### Prerequisites
 
 - USB drive (8GB+ recommended)
 - Proxmox VE 9 ISO file
-- Ubuntu/Debian machine to create the USB
+- Ubuntu/Debian machine with `proxmox-auto-install-assistant` installed
 
 ### Create the USB
 
@@ -33,11 +51,18 @@ Replace:
 - `/dev/sdX` with your USB device (e.g., `/dev/sdb`)
 - `path/to/proxmox.iso` with path to your Proxmox ISO
 
+The script will:
+1. Check for `proxmox-auto-install-assistant`
+2. Validate `answer.toml`
+3. Prepare ISO with embedded answer file
+4. Write to USB
+5. Add graphics parameters
+
 ### Boot and Install
 
 1. **Connect external monitor** to Mini DisplayPort (for Dell XPS L701X)
 2. **Insert USB** and boot from it (F12 → select `UEFI: USB...`)
-3. **Press `a`** at the installer menu to start automated installation
+3. **Wait 10 seconds** - "Automated Installation" starts automatically!
 4. **Wait ~10-15 minutes** for installation to complete
 5. **System reboots** automatically when done
 
@@ -45,50 +70,59 @@ Replace:
 
 ## Configuration File
 
-The script uses `auto-installer.yaml` for configuration:
+The script uses `answer.toml` (TOML format) for configuration:
 
-```yaml
-install:
-  target_disk: /dev/sda          # SSD for Proxmox
-  filesystem: ext4
-  country: EE
-  timezone: Europe/Tallinn
-  keyboard: us
-  root_password: "Homelab2025!"
-  management_interface: auto      # Auto-detect network interface
-  hostname: proxmox
-  domain: home.lan
-  ipconfig:
-    mode: dhcp                    # Use DHCP for initial setup
-  disk_options:
-    swapsize: 8                   # 8GB swap (1x RAM)
-    maxroot: 30                   # 30GB root partition
-    minfree: 8                    # 8GB free space
-    maxvz: 0                      # Rest for VM storage
+```toml
+[global]
+keyboard = "en-us"
+country = "EE"              # Uppercase!
+timezone = "Europe/Tallinn"
+fqdn = "proxmox.home.lan"
+mailto = "admin@home.lan"
+root_password = "Homelab2025!"
+
+[network]
+source = "from-dhcp"
+
+[disk-setup]
+filesystem = "ext4"
+disk_list = ["/dev/sda"]    # Full path with /dev/
+lvm.swapsize = 8            # IMPORTANT: lvm. prefix
+lvm.maxroot = 30
+lvm.minfree = 8
+lvm.maxvz = 0
 ```
 
 ### Customize for Your Setup
 
-Edit `auto-installer.yaml` before running the script:
+Edit `answer.toml` before running the script:
 
 **For static IP:**
-```yaml
-ipconfig:
-  ip: 192.168.1.100/24
-  gw: 192.168.1.1
-  dns: 8.8.8.8
+```toml
+[network]
+source = "from-answer"
+cidr = "192.168.1.100/24"
+gateway = "192.168.1.1"
+dns = "8.8.8.8"
 ```
 
 **For different location:**
-```yaml
-country: RU
-timezone: Europe/Moscow
+```toml
+[global]
+country = "RU"              # Uppercase!
+timezone = "Europe/Moscow"
 ```
 
 **For different disk:**
-```yaml
-target_disk: /dev/nvme0n1  # For NVMe SSD
+```toml
+[disk-setup]
+disk_list = ["/dev/nvme0n1"]  # NVMe SSD
 ```
+
+**Important**:
+- Country code must be UPPERCASE: `"EE"` not `"ee"`
+- Disk paths must include `/dev/`: `["/dev/sda"]`
+- LVM parameters need `lvm.` prefix: `lvm.swapsize`
 
 ---
 
@@ -171,11 +205,30 @@ bash /root/proxmox-post-install.sh
 
 **Problem**: Installer waits for input instead of starting automatically
 
-**Solution**: You must press **`a`** at the installer menu to trigger automated installation
+**Solution**:
+1. Ensure script showed "✓ Prepared ISO created"
+2. ISO must be prepared with `proxmox-auto-install-assistant`
+3. Wait 10 seconds - it auto-starts!
 
-**Alternative**: Add boot parameter to auto-start:
-- Edit GRUB manually (not needed for first install)
-- Or use the script's GRUB modification feature
+### answer.toml validation failed
+
+**Problem**: Validation error when running script
+
+**Solution**:
+1. LVM parameters need `lvm.` prefix: `lvm.swapsize = 8` (not just `swapsize`)
+2. Country code UPPERCASE: `country = "EE"` (not `"ee"`)
+3. Disk paths with `/dev/`: `disk_list = ["/dev/sda"]`
+4. Validate: `proxmox-auto-install-assistant validate-answer answer.toml`
+
+### Permission denied when adding repository
+
+**Problem**: `> /etc/apt/sources.list.d/...` permission denied
+
+**Solution**: Use `tee` for sudo redirection:
+```bash
+echo "deb..." | sudo tee /etc/apt/sources.list.d/pve-install-repo.list
+```
+NOT `echo "deb..." > /etc/apt/...` (will fail)
 
 ### External Display Stays Black
 
