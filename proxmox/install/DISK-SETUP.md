@@ -129,19 +129,31 @@ UUID=xxxx-xxxx-xxxx /mnt/hdd ext4 defaults,nofail 0 2
 
 ### HDD (`local-hdd`)
 ```
-/dev/sdb1 → /mnt/hdd
-├── backups/    - Automated backups
-├── photos/     - Personal data
-├── archives/   - Long-term storage
+/dev/sdb1 → /mnt/hdd (500 GB)
+├── backups/    - VM/LXC automated backups
+├── images/     - VM disk images and templates ⭐
 ├── iso/        - Operating system ISOs
-└── templates/  - LXC templates
+├── templates/  - LXC templates
+├── snippets/   - Hook scripts and configs
+├── photos/     - Personal photos
+└── archives/   - Long-term storage
 ```
 
 **Usage:**
-- VM/LXC backups
+- **VM Templates** - For cloning and multiplication ⭐
+- VM/LXC backups (automated)
 - ISO storage
+- LXC templates
 - Personal files
 - Non-critical LXC containers
+
+**Proxmox Content Types:**
+- `backup` - VM/LXC backups
+- `iso` - ISO images
+- `vztmpl` - LXC templates
+- `rootdir` - LXC container disks
+- `images` - **VM disk images (templates!)** ⭐
+- `snippets` - Hook scripts
 
 ## Verification After Installation
 

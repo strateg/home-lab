@@ -415,18 +415,26 @@ if [ -b /dev/sdb ]; then
             if pvesm status | grep -q "local-hdd"; then
                 echo "✓ Storage 'local-hdd' already exists"
             else
-                pvesm add dir local-hdd --path "$HDD_MOUNT_POINT" --content backup,iso,vztmpl,rootdir
+                # Content types:
+                # - backup: VM/LXC backups
+                # - iso: ISO images
+                # - vztmpl: LXC templates
+                # - rootdir: LXC container disks
+                # - images: VM disk images (for templates and cloning!)
+                # - snippets: Hook scripts and configs
+                pvesm add dir local-hdd --path "$HDD_MOUNT_POINT" --content backup,iso,vztmpl,rootdir,images,snippets
                 echo "✓ Storage 'local-hdd' added to Proxmox"
             fi
 
             # Create standard directories for organization
-            mkdir -p "$HDD_MOUNT_POINT"/{backups,photos,archives,iso,templates}
-            chmod 755 "$HDD_MOUNT_POINT"/{backups,photos,archives,iso,templates}
+            mkdir -p "$HDD_MOUNT_POINT"/{backups,photos,archives,iso,templates,images,snippets}
+            chmod 755 "$HDD_MOUNT_POINT"/{backups,photos,archives,iso,templates,images,snippets}
 
             echo -e "${GREEN}✓ HDD configured successfully${NC}"
             echo "  Mount point: $HDD_MOUNT_POINT"
             echo "  Filesystem: $(blkid -s TYPE -o value $HDD_PARTITION)"
-            echo "  Directories: backups/, photos/, archives/, iso/, templates/"
+            echo "  Content types: backup, iso, vztmpl, rootdir, images, snippets"
+            echo "  Directories: backups/, photos/, archives/, iso/, templates/, images/, snippets/"
         else
             echo -e "${RED}✗ Failed to mount HDD${NC}"
         fi

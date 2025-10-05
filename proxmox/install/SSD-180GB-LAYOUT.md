@@ -68,6 +68,7 @@ Recommended allocation:
 **Total: 500 GB**
 
 Usage:
+- **VM Templates** (for cloning!) ⭐
 - VM/LXC backups (automated)
 - ISO images
 - LXC templates
@@ -81,6 +82,14 @@ Usage:
   - Photos
   - Archives
   - Documents
+
+**Content types enabled:**
+- `images` - VM disk images (**enables VM templates!**)
+- `backup` - Backups
+- `iso` - ISO images
+- `vztmpl` - LXC templates
+- `rootdir` - LXC disks
+- `snippets` - Scripts
 
 ## Comparison: 180GB vs 250GB SSD
 

@@ -639,6 +639,32 @@ pct create 200 local:vztmpl/debian-12-standard.tar.zst \
 - 10.0.30.60 - Grafana
 - 10.0.30.70 - Prometheus
 
+## VM Templates для мультиплицирования
+
+HDD настроен для хранения VM templates, что позволяет быстро клонировать сервисы:
+
+```bash
+# 1. Создайте базовую VM (на HDD или SSD)
+# 2. Настройте и подготовьте систему
+# 3. Конвертируйте в template:
+qm template 100
+
+# 4. Клонируйте для сервисов:
+# Production (на SSD - быстро)
+qm clone 100 201 --name my-service-01 --full --storage local-lvm
+
+# Testing (на HDD - экономно)
+qm clone 100 202 --name my-service-02 --full --storage local-hdd
+```
+
+**Storage configuration:**
+- `local-hdd` поддерживает content type `images` ✅
+- Templates хранятся на HDD (экономия SSD)
+- Production клоны создаются на SSD (производительность)
+- Testing клоны создаются на HDD (экономия)
+
+📖 **Подробнее:** См. [proxmox/VM-TEMPLATES-GUIDE.md](proxmox/VM-TEMPLATES-GUIDE.md)
+
 ## Backup и восстановление
 
 ### Backup конфигураций
