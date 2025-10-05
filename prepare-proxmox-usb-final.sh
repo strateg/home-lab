@@ -216,27 +216,60 @@ else
 fi
 
 echo ""
-echo -e "${GREEN}Step 4: Rebuilding ISO with hybrid boot support...${NC}"
+echo -e "${GREEN}Step 4: Finding boot files...${NC}"
+
+# Show the ISO structure to help debug
+echo "ISO directory structure:"
+find "$WORK_DIR" -type d -maxdepth 2 2>/dev/null | head -20
+
+echo ""
+echo "Searching for boot files..."
+
+# Find ISOLINUX files dynamically
+ISOLINUX_BIN=$(find "$WORK_DIR" -name "isolinux.bin" -type f 2>/dev/null | head -1)
+BOOT_CAT=$(find "$WORK_DIR" -name "boot.cat" -type f 2>/dev/null | head -1)
+EFI_IMG=$(find "$WORK_DIR" -name "efi*.img" -o -name "efiboot.img" 2>/dev/null | head -1)
+
+echo "Found boot files:"
+echo "  ISOLINUX: ${ISOLINUX_BIN:-NOT FOUND}"
+echo "  Boot catalog: ${BOOT_CAT:-NOT FOUND}"
+echo "  EFI image: ${EFI_IMG:-NOT FOUND}"
+
+# Check if we found the essential files
+if [ -z "$ISOLINUX_BIN" ]; then
+    echo -e "${YELLOW}Warning: isolinux.bin not found${NC}"
+    echo "Searching for alternative boot loaders..."
+
+    # Try to find syslinux or other boot files
+    ALT_BOOT=$(find "$WORK_DIR" -name "*.bin" -path "*/isolinux/*" -o -path "*/syslinux/*" 2>/dev/null | head -1)
+    if [ -n "$ALT_BOOT" ]; then
+        echo "  Found alternative: $ALT_BOOT"
+        ISOLINUX_BIN="$ALT_BOOT"
+    else
+        echo -e "${RED}Error: No boot loader found${NC}"
+        echo ""
+        echo "Available .bin files:"
+        find "$WORK_DIR" -name "*.bin" -type f 2>/dev/null
+        rm -rf "$WORK_DIR"
+        exit 1
+    fi
+fi
+
+if [ -z "$EFI_IMG" ]; then
+    echo -e "${YELLOW}Warning: EFI image not found, trying alternatives...${NC}"
+    # Try different possible names
+    EFI_IMG=$(find "$WORK_DIR" -name "*.img" -path "*/grub/*" -o -path "*/efi/*" 2>/dev/null | head -1)
+    if [ -n "$EFI_IMG" ]; then
+        echo "  Found: $EFI_IMG"
+    else
+        echo -e "${YELLOW}Warning: No EFI image found (Legacy boot only)${NC}"
+    fi
+fi
+
+echo ""
+echo -e "${GREEN}Step 5: Rebuilding ISO with hybrid boot support...${NC}"
 
 MODIFIED_ISO="/tmp/proxmox-modified-$$.iso"
-
-# Find required boot files
-ISOLINUX_BIN="$WORK_DIR/boot/isolinux/isolinux.bin"
-BOOT_CAT="$WORK_DIR/boot/isolinux/boot.cat"
-EFI_IMG="$WORK_DIR/boot/grub/efi.img"
-
-# Verify critical files exist
-if [ ! -f "$ISOLINUX_BIN" ]; then
-    echo -e "${RED}Error: isolinux.bin not found${NC}"
-    rm -rf "$WORK_DIR"
-    exit 1
-fi
-
-if [ ! -f "$EFI_IMG" ]; then
-    echo -e "${RED}Error: efi.img not found${NC}"
-    rm -rf "$WORK_DIR"
-    exit 1
-fi
 
 # Find isohybrid MBR
 MBR_TEMPLATE=""
@@ -253,26 +286,53 @@ fi
 
 echo "Building hybrid bootable ISO..."
 echo "  ISOLINUX: $ISOLINUX_BIN"
-echo "  EFI: $EFI_IMG"
-echo "  MBR: $MBR_TEMPLATE"
+echo "  EFI: ${EFI_IMG:-none}"
+echo "  MBR: ${MBR_TEMPLATE:-none}"
 
-# Build ISO with xorriso (proper hybrid boot)
-xorriso -as mkisofs \
-    -R -r -J -joliet-long \
-    -l -iso-level 3 \
-    -partition_offset 16 \
-    -V "PROXMOX" \
-    -b boot/isolinux/isolinux.bin \
-    -c boot/isolinux/boot.cat \
-    -no-emul-boot \
-    -boot-load-size 4 \
-    -boot-info-table \
-    -eltorito-alt-boot \
-    -e boot/grub/efi.img \
-    -no-emul-boot \
-    -append_partition 2 0xef "$EFI_IMG" \
-    -o "$MODIFIED_ISO" \
-    "$WORK_DIR" 2>&1 | grep -E "ISO image produced|xorriso : UPDATE" || true
+# Calculate relative paths for xorriso
+ISOLINUX_REL=${ISOLINUX_BIN#$WORK_DIR/}
+BOOT_CAT_REL=${BOOT_CAT#$WORK_DIR/}
+EFI_IMG_REL=${EFI_IMG#$WORK_DIR/}
+
+echo "  Relative paths:"
+echo "    ISOLINUX: $ISOLINUX_REL"
+if [ -n "$EFI_IMG" ]; then
+    echo "    EFI: $EFI_IMG_REL"
+fi
+
+# Build xorriso command dynamically based on what we found
+XORRISO_CMD="xorriso -as mkisofs"
+XORRISO_CMD="$XORRISO_CMD -R -r -J -joliet-long"
+XORRISO_CMD="$XORRISO_CMD -l -iso-level 3"
+XORRISO_CMD="$XORRISO_CMD -V PROXMOX"
+
+# Add BIOS boot (ISOLINUX)
+if [ -n "$ISOLINUX_BIN" ]; then
+    XORRISO_CMD="$XORRISO_CMD -b $ISOLINUX_REL"
+    if [ -n "$BOOT_CAT_REL" ]; then
+        XORRISO_CMD="$XORRISO_CMD -c $BOOT_CAT_REL"
+    else
+        XORRISO_CMD="$XORRISO_CMD -c boot.cat"
+    fi
+    XORRISO_CMD="$XORRISO_CMD -no-emul-boot"
+    XORRISO_CMD="$XORRISO_CMD -boot-load-size 4"
+    XORRISO_CMD="$XORRISO_CMD -boot-info-table"
+fi
+
+# Add EFI boot if found
+if [ -n "$EFI_IMG" ]; then
+    XORRISO_CMD="$XORRISO_CMD -eltorito-alt-boot"
+    XORRISO_CMD="$XORRISO_CMD -e $EFI_IMG_REL"
+    XORRISO_CMD="$XORRISO_CMD -no-emul-boot"
+    XORRISO_CMD="$XORRISO_CMD -append_partition 2 0xef $EFI_IMG"
+fi
+
+XORRISO_CMD="$XORRISO_CMD -o $MODIFIED_ISO"
+XORRISO_CMD="$XORRISO_CMD $WORK_DIR"
+
+echo ""
+echo "Running xorriso..."
+eval $XORRISO_CMD 2>&1 | grep -E "ISO image produced|xorriso : UPDATE|xorriso : NOTE" || true
 
 # Check if ISO was created
 if [ ! -f "$MODIFIED_ISO" ]; then
@@ -309,7 +369,7 @@ ISO_SIZE=$(du -h "$MODIFIED_ISO" | cut -f1)
 echo -e "${GREEN}✓ Modified ISO created ($ISO_SIZE)${NC}"
 
 echo ""
-echo -e "${GREEN}Step 5: Writing ISO to USB drive...${NC}"
+echo -e "${GREEN}Step 6: Writing ISO to USB drive...${NC}"
 
 # Write ISO to USB like balenaEtcher does - plain dd
 echo "Writing with dd (this preserves hybrid boot structure)..."
@@ -322,7 +382,7 @@ sleep 2
 echo -e "${GREEN}✓ USB written successfully${NC}"
 
 echo ""
-echo -e "${GREEN}Step 6: Verifying USB...${NC}"
+echo -e "${GREEN}Step 7: Verifying USB...${NC}"
 
 # Force kernel to re-read partition table
 partprobe "$USB_DEVICE" 2>/dev/null || true
@@ -334,7 +394,7 @@ echo "USB partition structure:"
 fdisk -l "$USB_DEVICE" 2>/dev/null | grep "^$USB_DEVICE" || lsblk "$USB_DEVICE"
 
 echo ""
-echo -e "${GREEN}Step 7: Cleanup...${NC}"
+echo -e "${GREEN}Step 8: Cleanup...${NC}"
 
 rm -rf "$WORK_DIR"
 rm -f "$MODIFIED_ISO"
