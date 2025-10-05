@@ -207,42 +207,141 @@ echo -e "${YELLOW}Note: Network changes will take effect after reboot${NC}"
 echo ""
 
 # Step 6: Storage Configuration (HDD)
-echo -e "${BLUE}[6/8] Configuring HDD storage...${NC}"
+# ====================================
+# IMPORTANT: This preserves existing data on HDD!
+# - Checks if HDD has existing filesystem
+# - Mounts WITHOUT formatting if data exists
+# - Only formats if HDD is completely new
+echo -e "${BLUE}[6/8] Configuring HDD storage (preserving existing data)...${NC}"
 
 # Check if HDD exists
 if [ -b /dev/sdb ]; then
     echo "HDD detected: /dev/sdb"
 
-    # Check if already partitioned
-    if ! fdisk -l /dev/sdb | grep -q "^/dev/sdb1"; then
-        echo "Creating partition on HDD..."
-        echo -e "n\np\n1\n\n\nw" | fdisk /dev/sdb || true
-        sleep 2
+    HDD_DEVICE="/dev/sdb"
+    HDD_PARTITION="${HDD_DEVICE}1"
+    HDD_MOUNT_POINT="/mnt/hdd"
+    HDD_FORMATTED=false
 
-        echo "Creating ext4 filesystem..."
-        mkfs.ext4 -F /dev/sdb1
+    # Check if partition exists
+    if fdisk -l "$HDD_DEVICE" | grep -q "^${HDD_PARTITION}"; then
+        echo "Partition exists: ${HDD_PARTITION}"
 
-        echo "Creating mount point..."
-        mkdir -p /mnt/hdd
+        # Check if partition has a filesystem
+        FS_TYPE=$(blkid -s TYPE -o value "$HDD_PARTITION" 2>/dev/null || echo "")
 
-        echo "Adding to fstab..."
-        if ! grep -q "/mnt/hdd" /etc/fstab; then
-            echo "/dev/sdb1 /mnt/hdd ext4 defaults 0 2" >> /etc/fstab
+        if [ -n "$FS_TYPE" ]; then
+            echo -e "${GREEN}✓ Existing filesystem detected: $FS_TYPE${NC}"
+            echo -e "${GREEN}✓ Preserving existing data (no formatting)${NC}"
+            HDD_FORMATTED=true
+        else
+            echo -e "${YELLOW}Partition exists but no filesystem detected${NC}"
+            read -p "Format partition as ext4? (yes/no): " format_confirm
+
+            if [ "$format_confirm" = "yes" ]; then
+                echo "Creating ext4 filesystem..."
+                mkfs.ext4 -F "$HDD_PARTITION"
+                HDD_FORMATTED=true
+            else
+                echo "Skipping HDD configuration"
+                HDD_FORMATTED=false
+            fi
+        fi
+    else
+        echo -e "${YELLOW}No partition found on HDD${NC}"
+        read -p "Create new partition and format as ext4? This will ERASE all data! (yes/no): " create_confirm
+
+        if [ "$create_confirm" = "yes" ]; then
+            echo "Creating partition on HDD..."
+            echo -e "n\np\n1\n\n\nw" | fdisk "$HDD_DEVICE" || true
+            sleep 2
+
+            # Reload partition table
+            partprobe "$HDD_DEVICE" 2>/dev/null || blockdev --rereadpt "$HDD_DEVICE" 2>/dev/null || true
+            sleep 2
+
+            echo "Creating ext4 filesystem..."
+            mkfs.ext4 -F -L "proxmox-hdd" "$HDD_PARTITION"
+            HDD_FORMATTED=true
+        else
+            echo "Skipping HDD configuration"
+            HDD_FORMATTED=false
+        fi
+    fi
+
+    # Mount and configure if formatted
+    if [ "$HDD_FORMATTED" = true ]; then
+        # Create mount point
+        mkdir -p "$HDD_MOUNT_POINT"
+
+        # Get UUID for reliable mounting
+        HDD_UUID=$(blkid -s UUID -o value "$HDD_PARTITION" 2>/dev/null || echo "")
+
+        if [ -n "$HDD_UUID" ]; then
+            echo "HDD UUID: $HDD_UUID"
+
+            # Add to fstab using UUID (more reliable than /dev/sdb1)
+            if ! grep -q "$HDD_UUID" /etc/fstab; then
+                echo "# HDD storage (preserves data across reboots)" >> /etc/fstab
+                echo "UUID=$HDD_UUID $HDD_MOUNT_POINT ext4 defaults,nofail 0 2" >> /etc/fstab
+                echo "✓ Added to fstab with UUID"
+            else
+                echo "✓ Already in fstab"
+            fi
+        else
+            # Fallback to device name
+            echo -e "${YELLOW}Warning: Could not get UUID, using device name${NC}"
+            if ! grep -q "$HDD_MOUNT_POINT" /etc/fstab; then
+                echo "$HDD_PARTITION $HDD_MOUNT_POINT ext4 defaults,nofail 0 2" >> /etc/fstab
+            fi
         fi
 
+        # Mount HDD
         echo "Mounting HDD..."
-        mount -a
+        if mount -a; then
+            echo -e "${GREEN}✓ HDD mounted at $HDD_MOUNT_POINT${NC}"
 
-        echo "Adding HDD to Proxmox storage..."
-        pvesm add dir local-hdd --path /mnt/hdd --content backup,iso,vztmpl,rootdir
+            # Show existing data
+            if [ -n "$(ls -A $HDD_MOUNT_POINT 2>/dev/null)" ]; then
+                echo ""
+                echo "Existing data found on HDD:"
+                du -sh "$HDD_MOUNT_POINT"/* 2>/dev/null || echo "  (empty directories)"
+                echo ""
+                df -h "$HDD_MOUNT_POINT"
+            else
+                echo "HDD is empty (newly formatted)"
+            fi
 
-        echo -e "${GREEN}✓ HDD configured and added to Proxmox${NC}"
-    else
-        echo -e "${YELLOW}HDD already partitioned, skipping...${NC}"
+            # Add to Proxmox storage
+            echo ""
+            echo "Adding HDD to Proxmox storage pool..."
+            if pvesm status | grep -q "local-hdd"; then
+                echo "✓ Storage 'local-hdd' already exists"
+            else
+                pvesm add dir local-hdd --path "$HDD_MOUNT_POINT" --content backup,iso,vztmpl,rootdir
+                echo "✓ Storage 'local-hdd' added to Proxmox"
+            fi
+
+            # Create standard directories for organization
+            mkdir -p "$HDD_MOUNT_POINT"/{backups,photos,archives,iso,templates}
+            chmod 755 "$HDD_MOUNT_POINT"/{backups,photos,archives,iso,templates}
+
+            echo -e "${GREEN}✓ HDD configured successfully${NC}"
+            echo "  Mount point: $HDD_MOUNT_POINT"
+            echo "  Filesystem: $(blkid -s TYPE -o value $HDD_PARTITION)"
+            echo "  Directories: backups/, photos/, archives/, iso/, templates/"
+        else
+            echo -e "${RED}✗ Failed to mount HDD${NC}"
+        fi
     fi
 else
     echo -e "${YELLOW}Warning: HDD (/dev/sdb) not detected${NC}"
-    echo "You can configure it later when connected"
+    echo "This is normal if:"
+    echo "  - HDD is not connected yet"
+    echo "  - You're using a single-disk setup"
+    echo "  - HDD has a different device name"
+    echo ""
+    echo "You can configure HDD later by re-running this script"
 fi
 echo ""
 
@@ -309,8 +408,8 @@ echo "Configuration applied:"
 echo "  ✓ Repositories configured (no-subscription)"
 echo "  ✓ Network interfaces: eth-builtin, eth-usb"
 echo "  ✓ Bridges: vmbr0 (WAN), vmbr1 (LAN), vmbr2 (Internal), vmbr99 (Mgmt)"
-if [ -b /dev/sdb ]; then
-    echo "  ✓ HDD storage configured at /mnt/hdd"
+if [ -b /dev/sdb ] && mountpoint -q /mnt/hdd; then
+    echo "  ✓ HDD storage mounted at /mnt/hdd (existing data preserved)"
 fi
 echo "  ✓ KSM enabled for RAM optimization"
 echo "  ✓ USB power management optimized"

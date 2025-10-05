@@ -1,13 +1,17 @@
 #!/bin/bash
-# Proxmox VE 9 - CORRECT Automated Installation USB Creator
+# Proxmox VE 9 - Automated Installation USB Creator
 #
 # This script implements the OFFICIAL Proxmox automated installation method:
-# 1. Install proxmox-auto-install-assistant
-# 2. Prepare ISO with embedded answer.toml
-# 3. Write prepared ISO to USB
-# 4. Add graphics parameters for external display
+# 1. Validates answer.toml configuration
+# 2. Prepares ISO with embedded answer.toml
+# 3. Writes prepared ISO to USB
+# 4. Adds graphics parameters for external display (Dell XPS L701X)
 #
 # The prepared ISO automatically boots "Automated Installation" after 10 seconds
+#
+# DISK SETUP (configured in answer.toml):
+# - SSD (sda): WILL BE ERASED AND FORMATTED - System disk
+# - HDD (sdb): PRESERVED - Data disk (mounted by proxmox-post-install.sh)
 #
 # Usage: sudo ./create-proxmox-usb.sh /dev/sdX path/to/proxmox.iso
 

@@ -38,18 +38,29 @@ source = "from-dhcp"
 # Filesystem type
 filesystem = "ext4"
 
-# Target disk(s)
+# ⚠️  DISK CONFIGURATION FOR DUAL-DISK SETUP
+# ============================================
+# SSD (sda): System disk - WILL BE COMPLETELY ERASED AND FORMATTED
+# HDD (sdb): Data disk - PRESERVED (not touched by installer)
+#
+# Only specify the SSD here. The HDD will be mounted by proxmox-post-install.sh
+# after installation without formatting (preserves existing data: backups, photos, etc.)
+#
+# Target disk(s) for SYSTEM installation (SSD only!)
 disk_list = ["sda"]
 
 # LVM configuration (для ext4 используется префикс lvm.)
-# Swap size in GB (8GB = 1x RAM)
+# Swap size in GB (8GB = 1x RAM for Dell XPS L701X with 8GB RAM)
 lvm.swapsize = 8
 
-# Root filesystem size in GB
-lvm.maxroot = 30
+# Root filesystem size in GB (Proxmox OS - 20GB sufficient for base system)
+lvm.maxroot = 20
 
-# Minimum free space in LVM volume group
-lvm.minfree = 8
+# Minimum free space in LVM volume group (reserve for snapshots and overhead)
+# For 180GB SSD, 4GB is reasonable
+lvm.minfree = 4
 
-# Maximum size for data volume (0 = use all remaining space)
+# Maximum size for data volume (0 = use all remaining SSD space)
+# With 180GB SSD: ~148GB available for VMs and LXC containers
+# Calculation: 180 - 8 (swap) - 20 (root) - 4 (minfree) = 148GB
 lvm.maxvz = 0

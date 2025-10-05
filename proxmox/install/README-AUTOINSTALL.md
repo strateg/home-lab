@@ -86,12 +86,43 @@ source = "from-dhcp"
 
 [disk-setup]
 filesystem = "ext4"
-disk_list = ["/dev/sda"]    # Full path with /dev/
+disk_list = ["sda"]         # SSD only - HDD preserved!
 lvm.swapsize = 8            # IMPORTANT: lvm. prefix
 lvm.maxroot = 30
 lvm.minfree = 8
 lvm.maxvz = 0
 ```
+
+### ⚠️ IMPORTANT: Disk Configuration for Dual-Disk Setup
+
+**The installer will ERASE the SSD (`/dev/sda`) completely!**
+
+For systems with **SSD + HDD** (like Dell XPS L701X):
+
+- **SSD (`/dev/sda`)**: Specified in `disk_list` → **WILL BE FORMATTED**
+  - System installation (Proxmox OS)
+  - LVM for VMs and LXC containers
+
+- **HDD (`/dev/sdb`)**: **NOT** in `disk_list` → **PRESERVED**
+  - Existing data is kept safe (backups, photos, archives)
+  - Mounted by `proxmox-post-install.sh` after installation
+  - No formatting if filesystem already exists
+  - Uses UUID-based mounting in `/etc/fstab`
+
+**What happens to HDD:**
+
+1. **During installation**: HDD is completely ignored (data safe!)
+2. **After installation**: Run `proxmox-post-install.sh`:
+   - Detects existing filesystem → mounts WITHOUT formatting
+   - No filesystem found → asks to create one
+   - Adds to Proxmox as `local-hdd` storage
+   - Creates directories: `backups/`, `photos/`, `archives/`, `iso/`, `templates/`
+
+**If you have a single-disk setup:**
+
+Just specify that disk in `disk_list` and ignore HDD-related messages.
+
+---
 
 ### Customize for Your Setup
 
