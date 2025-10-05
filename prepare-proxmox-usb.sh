@@ -72,34 +72,136 @@ dd if="$ISO_FILE" of="$USB_DEVICE" bs=4M status=progress oflag=sync
 sync
 
 echo ""
-echo -e "${GREEN}Step 2: Mounting USB partition to add answer file...${NC}"
+echo -e "${GREEN}Step 2: Detecting USB partitions...${NC}"
 
 # Wait for kernel to update partition table
-sleep 2
+sleep 3
 partprobe "$USB_DEVICE" 2>/dev/null || true
-sleep 1
+sleep 2
 
-# Find the ESP (EFI System Partition) on the USB
-# Proxmox ISO creates a partition with FAT filesystem
-USB_PART="${USB_DEVICE}2"  # Usually the second partition is the ESP
+# Show partition table for debugging
+echo "Partition table:"
+lsblk "$USB_DEVICE" -o NAME,SIZE,TYPE,FSTYPE
+
+# Find the EFI partition (usually vfat/fat32)
+USB_PART=""
+for part in "${USB_DEVICE}"[0-9]* "${USB_DEVICE}p"[0-9]*; do
+    if [ -b "$part" ]; then
+        FSTYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null || echo "")
+        echo "Checking $part: filesystem=$FSTYPE"
+        if [[ "$FSTYPE" == "vfat" ]] || [[ "$FSTYPE" == "iso9660" ]]; then
+            USB_PART="$part"
+            echo -e "${GREEN}Found mountable partition: $USB_PART ($FSTYPE)${NC}"
+            break
+        fi
+    fi
+done
+
+if [ -z "$USB_PART" ]; then
+    echo -e "${YELLOW}No vfat partition found, trying partition 2...${NC}"
+    if [ -b "${USB_DEVICE}2" ]; then
+        USB_PART="${USB_DEVICE}2"
+    elif [ -b "${USB_DEVICE}p2" ]; then
+        USB_PART="${USB_DEVICE}p2"
+    elif [ -b "${USB_DEVICE}1" ]; then
+        USB_PART="${USB_DEVICE}1"
+    elif [ -b "${USB_DEVICE}p1" ]; then
+        USB_PART="${USB_DEVICE}p1"
+    else
+        echo -e "${RED}Error: Could not find any partition on USB${NC}"
+        exit 1
+    fi
+fi
 
 # Create mount point
 MOUNT_POINT="/mnt/proxmox-usb-$$"
 mkdir -p "$MOUNT_POINT"
 
-# Try to mount
-if mount "$USB_PART" "$MOUNT_POINT" 2>/dev/null; then
-    echo -e "${GREEN}Mounted $USB_PART to $MOUNT_POINT${NC}"
-else
-    # Try first partition if second fails
-    USB_PART="${USB_DEVICE}1"
-    if mount "$USB_PART" "$MOUNT_POINT" 2>/dev/null; then
-        echo -e "${GREEN}Mounted $USB_PART to $MOUNT_POINT${NC}"
-    else
-        echo -e "${RED}Error: Could not mount USB partition${NC}"
-        rmdir "$MOUNT_POINT"
+# Try to mount with different filesystem types
+echo "Attempting to mount $USB_PART..."
+if mount -t vfat "$USB_PART" "$MOUNT_POINT" 2>/dev/null; then
+    echo -e "${GREEN}Mounted $USB_PART as vfat${NC}"
+elif mount -t iso9660 "$USB_PART" "$MOUNT_POINT" 2>/dev/null; then
+    echo -e "${YELLOW}Warning: Mounted as iso9660 (read-only)${NC}"
+    echo -e "${YELLOW}ISO filesystem is read-only. We'll remount it as read-write...${NC}"
+    umount "$MOUNT_POINT"
+    # For ISO9660, we need to extract, modify, and recreate
+    echo -e "${YELLOW}This method won't work with iso9660. Need to use alternative approach.${NC}"
+    rmdir "$MOUNT_POINT"
+
+    echo ""
+    echo -e "${BLUE}Alternative: Manual answer file placement${NC}"
+    echo "The Proxmox ISO is read-only. You need to:"
+    echo "1. Create a separate small FAT32 partition on the USB"
+    echo "2. Copy answer.toml to that partition"
+    echo "3. Boot and manually specify: auto-install-cfg=/dev/disk/by-label/ANSWERFILE/answer.toml"
+    echo ""
+    echo "Or use the automatic method below..."
+
+    # Use isohybrid method - add answer file to ISO
+    echo -e "${GREEN}Step 2b: Using alternative method - extracting and modifying ISO...${NC}"
+
+    WORK_DIR="/tmp/proxmox-iso-$$"
+    mkdir -p "$WORK_DIR"
+
+    echo "Extracting ISO contents (this may take a few minutes)..."
+    xorriso -osirrox on -indev "$ISO_FILE" -extract / "$WORK_DIR" 2>/dev/null || {
+        echo -e "${RED}Error: xorriso not installed. Installing...${NC}"
+        apt-get update && apt-get install -y xorriso
+        xorriso -osirrox on -indev "$ISO_FILE" -extract / "$WORK_DIR"
+    }
+
+    # Copy answer file
+    echo "Copying answer file..."
+    cp "proxmox-auto-install-answer.toml" "$WORK_DIR/answer.toml" 2>/dev/null || {
+        echo -e "${YELLOW}Warning: answer file not found in current directory${NC}"
+    }
+
+    # Copy post-install script
+    cp "proxmox-post-install.sh" "$WORK_DIR/" 2>/dev/null || true
+
+    # Recreate ISO with answer file
+    echo "Creating modified ISO..."
+    MODIFIED_ISO="/tmp/proxmox-modified-$$.iso"
+    xorriso -as mkisofs \
+        -o "$MODIFIED_ISO" \
+        -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+        -c boot/isolinux/boot.cat \
+        -b boot/isolinux/isolinux.bin \
+        -no-emul-boot -boot-load-size 4 -boot-info-table \
+        -eltorito-alt-boot \
+        -e boot/grub/efi.img \
+        -no-emul-boot -isohybrid-gpt-basdat \
+        "$WORK_DIR" 2>/dev/null || {
+        echo -e "${RED}Error creating modified ISO${NC}"
+        rm -rf "$WORK_DIR"
         exit 1
-    fi
+    }
+
+    # Write modified ISO to USB
+    echo "Writing modified ISO to USB..."
+    dd if="$MODIFIED_ISO" of="$USB_DEVICE" bs=4M status=progress oflag=sync
+    sync
+
+    # Cleanup
+    rm -rf "$WORK_DIR" "$MODIFIED_ISO"
+
+    echo -e "${GREEN}Modified ISO written to USB${NC}"
+    echo -e "${GREEN}Answer file included in ISO${NC}"
+
+    echo ""
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}USB drive preparation complete!${NC}"
+    echo -e "${GREEN}========================================${NC}"
+    echo ""
+    echo "Boot parameter: auto-install-cfg=partition"
+    exit 0
+else
+    echo -e "${RED}Error: Could not mount USB partition${NC}"
+    echo "Partition info:"
+    blkid "$USB_PART"
+    rmdir "$MOUNT_POINT"
+    exit 1
 fi
 
 echo ""
