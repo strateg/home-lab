@@ -30,9 +30,19 @@ Dell XPS L701X:
 
 ### Phase 2: Post-Installation (proxmox-post-install.sh)
 
-**HDD Configuration - SMART DETECTION**
+**HDD Configuration - SMART DETECTION or FORCED INIT**
 
-The script will:
+Run the script with appropriate flag:
+
+```bash
+# NEW system - automatically initialize HDD
+bash proxmox-post-install.sh --init-hdd
+
+# EXISTING system - preserve data (default)
+bash proxmox-post-install.sh
+```
+
+**Default mode (preserve data):**
 
 1. **Check if HDD has existing filesystem:**
    ```bash
@@ -47,6 +57,33 @@ The script will:
    Create new filesystem? (yes/no)
    ```
    → Asks before formatting
+
+**Init mode (`--init-hdd` flag):**
+
+1. **No partition:**
+   ```bash
+   Creating partition and formatting (auto mode)...
+   ✓ Partition created
+   ✓ ext4 filesystem created
+   ```
+   → Automatic setup
+
+2. **Partition exists but no filesystem:**
+   ```bash
+   Creating ext4 filesystem (auto mode)...
+   ✓ Formatted automatically
+   ```
+   → No questions asked
+
+3. **Existing data detected:**
+   ```bash
+   ⚠ Existing filesystem detected: ext4
+   ⚠ --init-hdd flag set, but data exists!
+   ERASE all data and reformat? (yes/no)
+   ```
+   → Safety prompt (prevents accidental data loss)
+
+**Both modes then:**
 
 3. **Mount and Configure:**
    - Create mount point: `/mnt/hdd`

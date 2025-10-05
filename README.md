@@ -354,16 +354,25 @@ sudo ./proxmox/install/create-proxmox-usb.sh /dev/sdX proxmox-ve_9.0.iso
 ssh root@<ip-address>  # Пароль: Homelab2025!
 ```
 
-2. Скопируйте конфигурацию сети:
+2. Запустите post-install скрипт:
 ```bash
-cp proxmox/configs/proxmox-network-interfaces /etc/network/interfaces
+# Для НОВОЙ системы (автоматически инициализирует HDD)
+bash proxmox-post-install.sh --init-hdd
+
+# Или для существующей системы (сохранит данные на HDD)
+bash proxmox-post-install.sh
 ```
 
-3. Настройте имена интерфейсов под ваше оборудование
+Скрипт автоматически:
+- Настроит репозитории
+- Обнаружит и настроит сетевые интерфейсы
+- Инициализирует HDD (с `--init-hdd`) или смонтирует существующий
+- Применит оптимизации
+- Настроит сетевые bridges
 
-4. Перезапустите сеть:
+3. Перезагрузите систему:
 ```bash
-ifreload -a
+systemctl reboot
 ```
 
 ### 2. OPNsense VM

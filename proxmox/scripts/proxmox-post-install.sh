@@ -5,15 +5,68 @@
 # This script configures Proxmox after unattended installation:
 # - Disables enterprise repository
 # - Configures network interfaces with udev rules
-# - Sets up HDD storage
+# - Sets up HDD storage (smart detection or forced init)
 # - Enables optimizations (KSM, USB power management)
 # - Applies home-lab network configuration
 #
-# Usage: Run this script after first boot via SSH
-#        ssh root@<proxmox-ip>
-#        bash proxmox-post-install.sh
+# Usage:
+#   ssh root@<proxmox-ip>
+#   bash proxmox-post-install.sh [OPTIONS]
+#
+# Options:
+#   --init-hdd       Force HDD initialization (create partition & format)
+#                    Use for NEW systems where HDD needs to be set up
+#   --preserve-hdd   Preserve HDD data (default, mount without formatting)
+#   --help           Show this help message
+#
+# Examples:
+#   # New system - initialize HDD automatically
+#   bash proxmox-post-install.sh --init-hdd
+#
+#   # Existing system - preserve data (default)
+#   bash proxmox-post-install.sh
+#   bash proxmox-post-install.sh --preserve-hdd
 
 set -e  # Exit on error
+
+# Parse command line arguments
+INIT_HDD=false
+PRESERVE_HDD=true
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --init-hdd)
+            INIT_HDD=true
+            PRESERVE_HDD=false
+            shift
+            ;;
+        --preserve-hdd)
+            INIT_HDD=false
+            PRESERVE_HDD=true
+            shift
+            ;;
+        --help|-h)
+            echo "Proxmox Post-Installation Configuration Script"
+            echo ""
+            echo "Usage: $0 [OPTIONS]"
+            echo ""
+            echo "Options:"
+            echo "  --init-hdd       Force HDD initialization (NEW systems)"
+            echo "  --preserve-hdd   Preserve existing data (default)"
+            echo "  --help, -h       Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0 --init-hdd          # New system setup"
+            echo "  $0                     # Preserve existing data"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
 
 # Color output
 RED='\033[0;31m'
@@ -26,6 +79,13 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}Proxmox Post-Installation Configuration${NC}"
 echo -e "${GREEN}Dell XPS L701X Home Lab${NC}"
 echo -e "${GREEN}========================================${NC}"
+echo ""
+echo "Configuration mode:"
+if [ "$INIT_HDD" = true ]; then
+    echo -e "  ${YELLOW}HDD: Initialize mode (will format HDD if needed)${NC}"
+else
+    echo -e "  ${GREEN}HDD: Preserve mode (will NOT format existing data)${NC}"
+fi
 echo ""
 
 # Check if running as root
@@ -231,28 +291,49 @@ if [ -b /dev/sdb ]; then
         FS_TYPE=$(blkid -s TYPE -o value "$HDD_PARTITION" 2>/dev/null || echo "")
 
         if [ -n "$FS_TYPE" ]; then
-            echo -e "${GREEN}✓ Existing filesystem detected: $FS_TYPE${NC}"
-            echo -e "${GREEN}✓ Preserving existing data (no formatting)${NC}"
-            HDD_FORMATTED=true
+            if [ "$INIT_HDD" = true ]; then
+                echo -e "${YELLOW}⚠ Existing filesystem detected: $FS_TYPE${NC}"
+                echo -e "${YELLOW}⚠ --init-hdd flag set, but data exists!${NC}"
+                read -p "ERASE all data and reformat? (yes/no): " confirm_erase
+
+                if [ "$confirm_erase" = "yes" ]; then
+                    echo "Formatting HDD (destroying existing data)..."
+                    mkfs.ext4 -F -L "proxmox-hdd" "$HDD_PARTITION"
+                    HDD_FORMATTED=true
+                else
+                    echo -e "${GREEN}✓ Preserving existing data${NC}"
+                    HDD_FORMATTED=true
+                fi
+            else
+                echo -e "${GREEN}✓ Existing filesystem detected: $FS_TYPE${NC}"
+                echo -e "${GREEN}✓ Preserving existing data (no formatting)${NC}"
+                HDD_FORMATTED=true
+            fi
         else
             echo -e "${YELLOW}Partition exists but no filesystem detected${NC}"
-            read -p "Format partition as ext4? (yes/no): " format_confirm
 
-            if [ "$format_confirm" = "yes" ]; then
-                echo "Creating ext4 filesystem..."
-                mkfs.ext4 -F "$HDD_PARTITION"
+            if [ "$INIT_HDD" = true ]; then
+                echo "Creating ext4 filesystem (auto mode)..."
+                mkfs.ext4 -F -L "proxmox-hdd" "$HDD_PARTITION"
                 HDD_FORMATTED=true
             else
-                echo "Skipping HDD configuration"
-                HDD_FORMATTED=false
+                read -p "Format partition as ext4? (yes/no): " format_confirm
+
+                if [ "$format_confirm" = "yes" ]; then
+                    echo "Creating ext4 filesystem..."
+                    mkfs.ext4 -F -L "proxmox-hdd" "$HDD_PARTITION"
+                    HDD_FORMATTED=true
+                else
+                    echo "Skipping HDD configuration"
+                    HDD_FORMATTED=false
+                fi
             fi
         fi
     else
         echo -e "${YELLOW}No partition found on HDD${NC}"
-        read -p "Create new partition and format as ext4? This will ERASE all data! (yes/no): " create_confirm
 
-        if [ "$create_confirm" = "yes" ]; then
-            echo "Creating partition on HDD..."
+        if [ "$INIT_HDD" = true ]; then
+            echo "Creating partition and formatting (auto mode)..."
             echo -e "n\np\n1\n\n\nw" | fdisk "$HDD_DEVICE" || true
             sleep 2
 
@@ -264,8 +345,24 @@ if [ -b /dev/sdb ]; then
             mkfs.ext4 -F -L "proxmox-hdd" "$HDD_PARTITION"
             HDD_FORMATTED=true
         else
-            echo "Skipping HDD configuration"
-            HDD_FORMATTED=false
+            read -p "Create new partition and format as ext4? This will ERASE all data! (yes/no): " create_confirm
+
+            if [ "$create_confirm" = "yes" ]; then
+                echo "Creating partition on HDD..."
+                echo -e "n\np\n1\n\n\nw" | fdisk "$HDD_DEVICE" || true
+                sleep 2
+
+                # Reload partition table
+                partprobe "$HDD_DEVICE" 2>/dev/null || blockdev --rereadpt "$HDD_DEVICE" 2>/dev/null || true
+                sleep 2
+
+                echo "Creating ext4 filesystem..."
+                mkfs.ext4 -F -L "proxmox-hdd" "$HDD_PARTITION"
+                HDD_FORMATTED=true
+            else
+                echo "Skipping HDD configuration"
+                HDD_FORMATTED=false
+            fi
         fi
     fi
 
