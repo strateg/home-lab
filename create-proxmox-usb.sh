@@ -1,15 +1,13 @@
 #!/bin/bash
-# Proxmox VE 9 - Fully Automated Installation USB Creator
+# Proxmox VE 9 - CORRECT Automated Installation USB Creator
 #
-# Creates USB with COMPLETELY AUTOMATIC installation:
-# 1. Boots automatically (5 second timeout)
-# 2. Starts auto-installer without pressing 'a'
-# 3. Works with external display (Dell XPS L701X)
+# This script implements the OFFICIAL Proxmox automated installation method:
+# 1. Install proxmox-auto-install-assistant
+# 2. Prepare ISO with embedded answer.toml
+# 3. Write prepared ISO to USB
+# 4. Add graphics parameters for external display
 #
-# Based on official Proxmox automated installation:
-# - Boot parameter: proxmox-start-auto-installer
-# - Answer file: answer.toml (TOML format)
-# - Partition label: PROXMOX-AIS
+# The prepared ISO automatically boots "Automated Installation" after 10 seconds
 #
 # Usage: sudo ./create-proxmox-usb.sh /dev/sdX path/to/proxmox.iso
 
@@ -52,15 +50,84 @@ fi
 
 if [ ! -f "answer.toml" ]; then
     echo -e "${RED}Error: answer.toml not found in current directory${NC}"
-    echo "Create answer.toml file with Proxmox installation configuration"
     exit 1
 fi
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║  Proxmox VE 9 - Fully Automated USB         ║${NC}"
-echo -e "${GREEN}║  Auto-starts in 5 seconds (no 'a' needed)   ║${NC}"
+echo -e "${GREEN}║  Proxmox VE 9 - Automated Installation      ║${NC}"
+echo -e "${GREEN}║  Official Method (prepare-iso)              ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
+echo ""
+
+# ============================================================
+# STEP 1: Check for proxmox-auto-install-assistant
+# ============================================================
+echo -e "${GREEN}[1/5] Checking for proxmox-auto-install-assistant...${NC}"
+
+if ! command -v proxmox-auto-install-assistant &> /dev/null; then
+    echo -e "${RED}Error: proxmox-auto-install-assistant not found${NC}"
+    echo ""
+    echo "Install it with these commands:"
+    echo ""
+    echo -e "${YELLOW}# Add Proxmox repository:${NC}"
+    echo "wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg"
+    echo 'echo "deb [arch=amd64] http://download.proxmox.com/debian/pve bookworm pve-no-subscription" > /etc/apt/sources.list.d/pve-install-repo.list'
+    echo ""
+    echo -e "${YELLOW}# Update and install:${NC}"
+    echo "apt update"
+    echo "apt install proxmox-auto-install-assistant"
+    echo ""
+    echo "Then run this script again."
+    exit 1
+fi
+
+echo "  ✓ proxmox-auto-install-assistant found"
+
+# ============================================================
+# STEP 2: Validate answer.toml
+# ============================================================
+echo ""
+echo -e "${GREEN}[2/5] Validating answer.toml...${NC}"
+
+if proxmox-auto-install-assistant validate-answer answer.toml; then
+    echo "  ✓ answer.toml is valid"
+else
+    echo -e "${RED}Error: answer.toml validation failed${NC}"
+    exit 1
+fi
+
+# ============================================================
+# STEP 3: Prepare ISO with embedded answer.toml
+# ============================================================
+echo ""
+echo -e "${GREEN}[3/5] Preparing ISO with embedded answer.toml...${NC}"
+
+PREPARED_ISO="${ISO_FILE%.iso}-automated.iso"
+
+# Remove old prepared ISO if exists
+rm -f "$PREPARED_ISO"
+
+echo "Running: proxmox-auto-install-assistant prepare-iso ..."
+proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
+    --fetch-from iso \
+    --answer-file answer.toml \
+    --target "$PREPARED_ISO"
+
+if [ ! -f "$PREPARED_ISO" ]; then
+    echo -e "${RED}Error: Failed to create prepared ISO${NC}"
+    exit 1
+fi
+
+echo "  ✓ Prepared ISO created: $PREPARED_ISO"
+echo "  ✓ This ISO includes 'Automated Installation' boot entry"
+echo "  ✓ Auto-selects after 10 seconds (official behavior)"
+
+# ============================================================
+# STEP 4: Write prepared ISO to USB
+# ============================================================
+echo ""
+echo -e "${GREEN}[4/5] Writing prepared ISO to USB...${NC}"
 echo ""
 echo -e "${YELLOW}WARNING: This will ERASE all data on $USB_DEVICE${NC}"
 echo ""
@@ -70,50 +137,37 @@ read -p "Type 'yes' to continue: " confirm
 
 if [ "$confirm" != "yes" ]; then
     echo "Aborted."
+    # Clean up prepared ISO
+    rm -f "$PREPARED_ISO"
     exit 0
 fi
 
 # Unmount any mounted partitions
 umount "${USB_DEVICE}"* 2>/dev/null || true
 
-# ============================================================
-# STEP 1: Write ISO to USB with dd
-# ============================================================
 echo ""
-echo -e "${GREEN}[1/5] Writing ISO to USB with dd...${NC}"
-echo "This creates bootable USB (preserves hybrid boot structure)"
-echo ""
-
-dd if="$ISO_FILE" of="$USB_DEVICE" bs=4M status=progress oflag=direct conv=fsync
+echo "Writing prepared ISO to USB with dd..."
+dd if="$PREPARED_ISO" of="$USB_DEVICE" bs=4M status=progress oflag=direct conv=fsync
 
 sync
 sleep 3
 
 echo ""
-echo -e "${GREEN}✓ Bootable USB created${NC}"
+echo "  ✓ Prepared ISO written to USB"
 
 # ============================================================
-# STEP 2: Detect partitions
+# STEP 5: Add graphics parameters for external display
 # ============================================================
 echo ""
-echo -e "${GREEN}[2/5] Detecting partitions...${NC}"
+echo -e "${GREEN}[5/5] Adding graphics parameters for external display...${NC}"
 
 partprobe "$USB_DEVICE" 2>/dev/null || true
 blockdev --rereadpt "$USB_DEVICE" 2>/dev/null || true
 sleep 3
 
-echo "Partitions:"
-lsblk "$USB_DEVICE" -o NAME,SIZE,TYPE,FSTYPE,LABEL
-
-# ============================================================
-# STEP 3: Set partition label and add answer.toml
-# ============================================================
-echo ""
-echo -e "${GREEN}[3/5] Setting up answer file...${NC}"
-
 MOUNT_POINT="/tmp/usb-$$"
 mkdir -p "$MOUNT_POINT"
-CONFIG_ADDED=0
+GRUB_MODIFIED=0
 
 # Find and mount the FAT32 EFI partition
 for part in "${USB_DEVICE}"[0-9]* "${USB_DEVICE}p"[0-9]*; do
@@ -122,163 +176,58 @@ for part in "${USB_DEVICE}"[0-9]* "${USB_DEVICE}p"[0-9]*; do
     FSTYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null || echo "")
 
     if [ "$FSTYPE" = "vfat" ]; then
-        echo ""
-        echo "Mounting $part (FAT32)..."
-
         if mount -o rw "$part" "$MOUNT_POINT" 2>/dev/null; then
-            echo "  ✓ Mounted writable"
+            GRUB_CFG=$(find "$MOUNT_POINT" -name "grub.cfg" -type f 2>/dev/null | head -1)
 
-            # Set partition label to PROXMOX-AIS (required for auto-installer)
-            CURRENT_LABEL=$(blkid -s LABEL -o value "$part" 2>/dev/null || echo "")
-            if [ "$CURRENT_LABEL" != "PROXMOX-AIS" ]; then
-                fatlabel "$part" "PROXMOX-AIS"
-                echo "  ✓ Partition label set to: PROXMOX-AIS"
-            else
-                echo "  ✓ Partition label already: PROXMOX-AIS"
+            if [ -n "$GRUB_CFG" ]; then
+                echo "Found GRUB config: ${GRUB_CFG#$MOUNT_POINT/}"
+
+                # Backup original
+                cp "$GRUB_CFG" "$GRUB_CFG.backup-$(date +%s)"
+
+                # Check if graphics parameters already present
+                if grep -q "video=vesafb" "$GRUB_CFG"; then
+                    echo "  ✓ Graphics parameters already present"
+                else
+                    echo "  Adding graphics parameters to all boot entries..."
+
+                    # Add graphics parameters to all linux boot lines
+                    sed -i '/linux.*\/boot\/linux26/ s|$| video=vesafb:ywrap,mtrr vga=791 nomodeset|' "$GRUB_CFG"
+
+                    echo "  ✓ Graphics parameters added"
+                fi
+
+                sync
+                GRUB_MODIFIED=1
             fi
 
-            # Copy answer.toml to root of partition
-            cp answer.toml "$MOUNT_POINT/answer.toml"
-            echo "  ✓ answer.toml copied to partition root"
-
-            # Copy post-install script if exists
-            if [ -f "proxmox-post-install.sh" ]; then
-                cp "proxmox-post-install.sh" "$MOUNT_POINT/"
-                echo "  ✓ proxmox-post-install.sh copied"
-            fi
-
-            sync
-            CONFIG_ADDED=1
-
-            # Don't unmount yet - we need to modify GRUB in next step
+            umount "$MOUNT_POINT"
             break
         fi
     fi
 done
 
-if [ $CONFIG_ADDED -eq 0 ]; then
-    rmdir "$MOUNT_POINT"
-    echo -e "${RED}Error: Could not find FAT32 partition${NC}"
-    exit 1
-fi
-
-# ============================================================
-# STEP 4: Create GRUB config with auto-start
-# ============================================================
-echo ""
-echo -e "${GREEN}[4/5] Creating GRUB config with AUTO-START...${NC}"
-
-GRUB_MODIFIED=0
-
-# Find GRUB config on the mounted partition
-GRUB_CFG=$(find "$MOUNT_POINT" -name "grub.cfg" -type f 2>/dev/null | head -1)
-
-if [ -n "$GRUB_CFG" ]; then
-    echo "Found GRUB config: ${GRUB_CFG#$MOUNT_POINT/}"
-
-    # Backup original
-    cp "$GRUB_CFG" "$GRUB_CFG.backup-$(date +%s)"
-
-    # Extract UUID from original config
-    UUID=$(grep "search.*fs-uuid" "$GRUB_CFG" 2>/dev/null | grep -o '[0-9-]\{10,\}' | head -1 || echo "")
-    if [ -z "$UUID" ]; then
-        UUID="2025-08-05-10-48-40-00"
-        echo "  ! Using default UUID: $UUID"
-    else
-        echo "  ✓ Found UUID: $UUID"
-    fi
-
-    # Create new GRUB config with AUTOMATED ENTRY FIRST
-    cat > "$GRUB_CFG" <<'GRUBEOF'
-# Proxmox VE - Fully Automated Installation
-# Auto-starts in 5 seconds (no manual interaction needed)
-
-set default=0
-set timeout=5
-
-# Graphics setup for external display
-insmod all_video
-insmod gfxterm
-insmod png
-loadfont unicode
-terminal_output gfxterm
-set menu_color_normal=white/black
-set menu_color_highlight=black/light-gray
-
-# Find root partition
-GRUBEOF
-
-    echo "search --fs-uuid --set=root $UUID" >> "$GRUB_CFG"
-
-    cat >> "$GRUB_CFG" <<'GRUBEOF'
-
-# AUTOMATED INSTALLATION (starts automatically after 5 seconds)
-menuentry 'Proxmox VE - AUTOMATED INSTALL (External Display)' {
-    echo 'Starting fully automated installation...'
-    echo 'No manual interaction required!'
-    linux /boot/linux26 proxmox-start-auto-installer ro video=vesafb:ywrap,mtrr vga=791 nomodeset
-    initrd /boot/initrd.img
-}
-
-# Manual install with external display
-menuentry 'Proxmox VE - Manual Install (External Display)' {
-    echo 'Starting manual installation...'
-    linux /boot/linux26 ro video=vesafb:ywrap,mtrr vga=791 nomodeset
-    initrd /boot/initrd.img
-}
-
-# Standard install
-menuentry 'Proxmox VE - Standard Install' {
-    linux /boot/linux26 ro quiet
-    initrd /boot/initrd.img
-}
-
-# Debug mode
-menuentry 'Proxmox VE - Debug Mode' {
-    linux /boot/linux26 ro debug video=vesafb:ywrap,mtrr vga=791 nomodeset
-    initrd /boot/initrd.img
-}
-GRUBEOF
-
-    echo "  ✓ GRUB config created with AUTOMATED entry"
-    echo "  ✓ Boot parameter: proxmox-start-auto-installer"
-    echo "  ✓ Graphics parameters: video=vesafb:ywrap,mtrr vga=791 nomodeset"
-    echo "  ✓ Timeout: 5 seconds (auto-start)"
-
-    GRUB_MODIFIED=1
-else
-    echo "  ⚠ GRUB config not found on FAT32 partition"
-fi
-
-sync
-umount "$MOUNT_POINT"
 rmdir "$MOUNT_POINT"
 
 # ============================================================
-# STEP 5: Final verification
+# FINAL STATUS
 # ============================================================
 echo ""
-echo -e "${GREEN}[5/5] Final sync and verification...${NC}"
-
 sync
 sleep 2
 
-echo ""
-
-if [ $CONFIG_ADDED -eq 1 ] && [ $GRUB_MODIFIED -eq 1 ]; then
+if [ $GRUB_MODIFIED -eq 1 ]; then
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║                                                ║${NC}"
-    echo -e "${GREEN}║  USB READY FOR FULLY AUTOMATED INSTALL!        ║${NC}"
+    echo -e "${GREEN}║  USB READY FOR AUTOMATED INSTALLATION!         ║${NC}"
     echo -e "${GREEN}║                                                ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
     echo ""
-    echo -e "${BLUE}What was configured:${NC}"
-    echo "  ✓ Bootable USB created with dd"
-    echo "  ✓ Partition labeled: PROXMOX-AIS"
-    echo "  ✓ answer.toml placed on partition"
-    echo "  ✓ GRUB: proxmox-start-auto-installer parameter"
-    echo "  ✓ GRUB: Graphics parameters for external display"
-    echo "  ✓ GRUB: 5-second timeout (AUTO-START)"
+    echo -e "${BLUE}What was done:${NC}"
+    echo "  ✓ Validated answer.toml"
+    echo "  ✓ Prepared ISO with embedded answer file (official method)"
+    echo "  ✓ Written prepared ISO to USB"
+    echo "  ✓ Added graphics parameters for external display"
     echo ""
     echo -e "${YELLOW}BOOT INSTRUCTIONS:${NC}"
     echo ""
@@ -292,10 +241,10 @@ if [ $CONFIG_ADDED -eq 1 ] && [ $GRUB_MODIFIED -eq 1 ]; then
     echo -e "${GREEN}AUTOMATIC BEHAVIOR:${NC}"
     echo ""
     echo "  • GRUB menu appears on external display"
-    echo "  • First option: 'Proxmox VE - AUTOMATED INSTALL'"
-    echo "  • Countdown: 5 seconds"
-    echo "  • Installation starts AUTOMATICALLY (no 'a' needed!)"
-    echo "  • Reads answer.toml from PROXMOX-AIS partition"
+    echo "  • First option: 'Automated Installation' (added by prepare-iso)"
+    echo "  • Countdown: 10 seconds (OFFICIAL timeout)"
+    echo "  • Installation starts AUTOMATICALLY!"
+    echo "  • Reads embedded answer.toml from ISO"
     echo "  • Progress shown on external display"
     echo "  • System reboots when complete (~10-15 min)"
     echo ""
@@ -303,12 +252,19 @@ if [ $CONFIG_ADDED -eq 1 ] && [ $GRUB_MODIFIED -eq 1 ]; then
     echo ""
     echo "  1. Find IP address (check router DHCP leases)"
     echo "  2. SSH: ssh root@<ip-address>"
-    echo "  3. Password: Homelab2025!"
+    echo "  3. Password: Homelab2025! (from answer.toml)"
     echo "  4. Web UI: https://<ip-address>:8006"
     echo ""
-    echo -e "${GREEN}Installation is FULLY AUTOMATIC - just boot and wait!${NC}"
+    echo -e "${GREEN}Installation is FULLY AUTOMATIC using official Proxmox method!${NC}"
     echo ""
 else
-    echo -e "${RED}Error: Could not configure USB properly${NC}"
-    exit 1
+    echo -e "${YELLOW}Warning: Could not modify GRUB for graphics${NC}"
+    echo "USB created but external display may not work"
+    echo ""
 fi
+
+# Clean up prepared ISO
+echo "Cleaning up..."
+rm -f "$PREPARED_ISO"
+echo "  ✓ Temporary prepared ISO removed"
+echo ""
