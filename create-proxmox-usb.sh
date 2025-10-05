@@ -70,13 +70,15 @@ if ! command -v proxmox-auto-install-assistant &> /dev/null; then
     echo ""
     echo "Install it with these commands:"
     echo ""
+    echo -e "${YELLOW}# Add Proxmox GPG key:${NC}"
+    echo "sudo wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg"
+    echo ""
     echo -e "${YELLOW}# Add Proxmox repository:${NC}"
-    echo "wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg"
-    echo 'echo "deb [arch=amd64] http://download.proxmox.com/debian/pve bookworm pve-no-subscription" > /etc/apt/sources.list.d/pve-install-repo.list'
+    echo 'echo "deb [arch=amd64] http://download.proxmox.com/debian/pve bookworm pve-no-subscription" | sudo tee /etc/apt/sources.list.d/pve-install-repo.list'
     echo ""
     echo -e "${YELLOW}# Update and install:${NC}"
-    echo "apt update"
-    echo "apt install proxmox-auto-install-assistant"
+    echo "sudo apt update"
+    echo "sudo apt install proxmox-auto-install-assistant"
     echo ""
     echo "Then run this script again."
     exit 1
