@@ -1,0 +1,50 @@
+# Proxmox VE 9 Automated Installation Configuration
+# Target: Dell XPS L701X (Studio XPS 17)
+#
+# Hardware:
+# - SSD 250GB (/dev/sda) - Proxmox system
+# - HDD 500GB (/dev/sdb) - Will be added to storage post-install
+# - 8GB RAM
+# - Built-in Ethernet + USB-Ethernet adapter
+#
+# IMPORTANT: Adjust settings below for your network and location
+
+install:
+  # Target disk - SSD for Proxmox system
+  target_disk: /dev/sda
+
+  # Filesystem: ext4, xfs, zfs
+  filesystem: ext4
+
+  # Location settings
+  # For Estonia:
+  country: EE
+  timezone: Europe/Tallinn
+
+  # For Russia, use:
+  # country: RU
+  # timezone: Europe/Moscow
+
+  # Keyboard layout
+  keyboard: us
+
+  # Root password - CHANGE THIS!
+  root_password: "Homelab2025!"
+
+  # Network interface - will be auto-detected
+  # (usually eno1, enp3s0, eth0, etc.)
+  management_interface: eno1
+
+  # Hostname and domain
+  hostname: proxmox
+  domain: home.lan
+
+  # Network configuration - DHCP
+  # Leave this section commented for DHCP:
+  # ipconfig: {}
+
+  # For STATIC IP, uncomment and edit:
+  # ipconfig:
+  #   ip: 192.168.1.100/24
+  #   gw: 192.168.1.1
+  #   dns: 8.8.8.8
