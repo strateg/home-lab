@@ -225,45 +225,73 @@ find "$WORK_DIR" -type d -maxdepth 2 2>/dev/null | head -20
 echo ""
 echo "Searching for boot files..."
 
-# Find ISOLINUX files dynamically
+# Find ISOLINUX files (for Legacy/BIOS boot)
 ISOLINUX_BIN=$(find "$WORK_DIR" -name "isolinux.bin" -type f 2>/dev/null | head -1)
 BOOT_CAT=$(find "$WORK_DIR" -name "boot.cat" -type f 2>/dev/null | head -1)
+
+# Find EFI files (for UEFI boot)
 EFI_IMG=$(find "$WORK_DIR" -name "efi*.img" -o -name "efiboot.img" 2>/dev/null | head -1)
+EFI_BOOT_DIR=$(find "$WORK_DIR" -type d -name "boot" -path "*/efi/*" 2>/dev/null | head -1)
+BOOTX64_EFI=$(find "$WORK_DIR" -name "bootx64.efi" -o -name "grubx64.efi" 2>/dev/null | head -1)
 
 echo "Found boot files:"
 echo "  ISOLINUX: ${ISOLINUX_BIN:-NOT FOUND}"
 echo "  Boot catalog: ${BOOT_CAT:-NOT FOUND}"
 echo "  EFI image: ${EFI_IMG:-NOT FOUND}"
+echo "  EFI boot dir: ${EFI_BOOT_DIR:-NOT FOUND}"
+echo "  EFI bootloader: ${BOOTX64_EFI:-NOT FOUND}"
 
-# Check if we found the essential files
-if [ -z "$ISOLINUX_BIN" ]; then
-    echo -e "${YELLOW}Warning: isolinux.bin not found${NC}"
-    echo "Searching for alternative boot loaders..."
+# Determine boot type
+BOOT_TYPE=""
+if [ -n "$ISOLINUX_BIN" ]; then
+    BOOT_TYPE="legacy"
+    echo -e "${GREEN}✓ Legacy/BIOS boot support detected${NC}"
+fi
 
-    # Try to find syslinux or other boot files
-    ALT_BOOT=$(find "$WORK_DIR" -name "*.bin" -path "*/isolinux/*" -o -path "*/syslinux/*" 2>/dev/null | head -1)
-    if [ -n "$ALT_BOOT" ]; then
-        echo "  Found alternative: $ALT_BOOT"
-        ISOLINUX_BIN="$ALT_BOOT"
+if [ -n "$EFI_IMG" ] || [ -n "$EFI_BOOT_DIR" ]; then
+    if [ -n "$BOOT_TYPE" ]; then
+        BOOT_TYPE="hybrid"
+        echo -e "${GREEN}✓ UEFI boot support detected (Hybrid ISO)${NC}"
     else
-        echo -e "${RED}Error: No boot loader found${NC}"
-        echo ""
-        echo "Available .bin files:"
-        find "$WORK_DIR" -name "*.bin" -type f 2>/dev/null
-        rm -rf "$WORK_DIR"
-        exit 1
+        BOOT_TYPE="uefi"
+        echo -e "${GREEN}✓ UEFI-only boot detected${NC}"
     fi
 fi
 
-if [ -z "$EFI_IMG" ]; then
-    echo -e "${YELLOW}Warning: EFI image not found, trying alternatives...${NC}"
-    # Try different possible names
-    EFI_IMG=$(find "$WORK_DIR" -name "*.img" -path "*/grub/*" -o -path "*/efi/*" 2>/dev/null | head -1)
-    if [ -n "$EFI_IMG" ]; then
-        echo "  Found: $EFI_IMG"
-    else
-        echo -e "${YELLOW}Warning: No EFI image found (Legacy boot only)${NC}"
-    fi
+if [ -z "$BOOT_TYPE" ]; then
+    echo -e "${RED}Error: No bootloader found (neither Legacy nor UEFI)${NC}"
+    echo ""
+    echo "Available boot-related files:"
+    find "$WORK_DIR" -type f \( -name "*.bin" -o -name "*.efi" -o -name "*.img" \) 2>/dev/null
+    rm -rf "$WORK_DIR"
+    exit 1
+fi
+
+# If UEFI-only and no EFI image, create one from the EFI directory
+if [ "$BOOT_TYPE" = "uefi" ] && [ -z "$EFI_IMG" ] && [ -n "$EFI_BOOT_DIR" ]; then
+    echo ""
+    echo -e "${YELLOW}Creating EFI boot image from EFI directory...${NC}"
+
+    # Get the parent efi directory
+    EFI_DIR=$(dirname "$EFI_BOOT_DIR")
+    EFI_IMG="$WORK_DIR/efi.img"
+
+    # Calculate size needed (add 20% overhead)
+    EFI_SIZE=$(du -sb "$EFI_DIR" | awk '{print int($1 * 1.2 / 1024)}')
+
+    # Create FAT filesystem image
+    dd if=/dev/zero of="$EFI_IMG" bs=1k count=$EFI_SIZE 2>/dev/null
+    mkfs.vfat "$EFI_IMG" >/dev/null 2>&1
+
+    # Mount and copy EFI files
+    EFI_MOUNT="/tmp/efi-mount-$$"
+    mkdir -p "$EFI_MOUNT"
+    mount -o loop "$EFI_IMG" "$EFI_MOUNT"
+    cp -r "$EFI_DIR"/* "$EFI_MOUNT"/
+    umount "$EFI_MOUNT"
+    rmdir "$EFI_MOUNT"
+
+    echo -e "${GREEN}✓ Created EFI boot image: $EFI_IMG${NC}"
 fi
 
 echo ""
@@ -284,47 +312,75 @@ if [ -z "$MBR_TEMPLATE" ]; then
     echo -e "${YELLOW}Warning: isohdpfx.bin not found, hybrid boot may not work${NC}"
 fi
 
-echo "Building hybrid bootable ISO..."
-echo "  ISOLINUX: $ISOLINUX_BIN"
-echo "  EFI: ${EFI_IMG:-none}"
+echo "Building bootable ISO ($BOOT_TYPE mode)..."
+echo "  Boot type: $BOOT_TYPE"
+if [ -n "$ISOLINUX_BIN" ]; then
+    echo "  ISOLINUX: $ISOLINUX_BIN"
+fi
+if [ -n "$EFI_IMG" ]; then
+    echo "  EFI: $EFI_IMG"
+fi
 echo "  MBR: ${MBR_TEMPLATE:-none}"
 
 # Calculate relative paths for xorriso
-ISOLINUX_REL=${ISOLINUX_BIN#$WORK_DIR/}
-BOOT_CAT_REL=${BOOT_CAT#$WORK_DIR/}
-EFI_IMG_REL=${EFI_IMG#$WORK_DIR/}
+if [ -n "$ISOLINUX_BIN" ]; then
+    ISOLINUX_REL=${ISOLINUX_BIN#$WORK_DIR/}
+fi
+if [ -n "$BOOT_CAT" ]; then
+    BOOT_CAT_REL=${BOOT_CAT#$WORK_DIR/}
+fi
+if [ -n "$EFI_IMG" ]; then
+    EFI_IMG_REL=${EFI_IMG#$WORK_DIR/}
+fi
 
 echo "  Relative paths:"
-echo "    ISOLINUX: $ISOLINUX_REL"
-if [ -n "$EFI_IMG" ]; then
+if [ -n "$ISOLINUX_REL" ]; then
+    echo "    ISOLINUX: $ISOLINUX_REL"
+fi
+if [ -n "$EFI_IMG_REL" ]; then
     echo "    EFI: $EFI_IMG_REL"
 fi
 
-# Build xorriso command dynamically based on what we found
+# Build xorriso command based on boot type
 XORRISO_CMD="xorriso -as mkisofs"
 XORRISO_CMD="$XORRISO_CMD -R -r -J -joliet-long"
 XORRISO_CMD="$XORRISO_CMD -l -iso-level 3"
 XORRISO_CMD="$XORRISO_CMD -V PROXMOX"
 
-# Add BIOS boot (ISOLINUX)
-if [ -n "$ISOLINUX_BIN" ]; then
-    XORRISO_CMD="$XORRISO_CMD -b $ISOLINUX_REL"
-    if [ -n "$BOOT_CAT_REL" ]; then
-        XORRISO_CMD="$XORRISO_CMD -c $BOOT_CAT_REL"
-    else
-        XORRISO_CMD="$XORRISO_CMD -c boot.cat"
+# Add BIOS boot (ISOLINUX) if present
+if [ "$BOOT_TYPE" = "legacy" ] || [ "$BOOT_TYPE" = "hybrid" ]; then
+    if [ -n "$ISOLINUX_BIN" ]; then
+        XORRISO_CMD="$XORRISO_CMD -b $ISOLINUX_REL"
+        if [ -n "$BOOT_CAT_REL" ]; then
+            XORRISO_CMD="$XORRISO_CMD -c $BOOT_CAT_REL"
+        else
+            XORRISO_CMD="$XORRISO_CMD -c boot.cat"
+        fi
+        XORRISO_CMD="$XORRISO_CMD -no-emul-boot"
+        XORRISO_CMD="$XORRISO_CMD -boot-load-size 4"
+        XORRISO_CMD="$XORRISO_CMD -boot-info-table"
     fi
-    XORRISO_CMD="$XORRISO_CMD -no-emul-boot"
-    XORRISO_CMD="$XORRISO_CMD -boot-load-size 4"
-    XORRISO_CMD="$XORRISO_CMD -boot-info-table"
 fi
 
-# Add EFI boot if found
-if [ -n "$EFI_IMG" ]; then
-    XORRISO_CMD="$XORRISO_CMD -eltorito-alt-boot"
-    XORRISO_CMD="$XORRISO_CMD -e $EFI_IMG_REL"
-    XORRISO_CMD="$XORRISO_CMD -no-emul-boot"
-    XORRISO_CMD="$XORRISO_CMD -append_partition 2 0xef $EFI_IMG"
+# Add EFI boot
+if [ "$BOOT_TYPE" = "uefi" ] || [ "$BOOT_TYPE" = "hybrid" ]; then
+    if [ -n "$EFI_IMG" ]; then
+        if [ "$BOOT_TYPE" = "hybrid" ]; then
+            XORRISO_CMD="$XORRISO_CMD -eltorito-alt-boot"
+        fi
+        XORRISO_CMD="$XORRISO_CMD -e $EFI_IMG_REL"
+        XORRISO_CMD="$XORRISO_CMD -no-emul-boot"
+
+        # For UEFI-only or hybrid, append the EFI partition
+        if [ -f "$EFI_IMG" ]; then
+            XORRISO_CMD="$XORRISO_CMD -append_partition 2 0xef $EFI_IMG"
+        fi
+    fi
+fi
+
+# Add partition offset for hybrid boot
+if [ "$BOOT_TYPE" = "hybrid" ]; then
+    XORRISO_CMD="$XORRISO_CMD -partition_offset 16"
 fi
 
 XORRISO_CMD="$XORRISO_CMD -o $MODIFIED_ISO"
@@ -332,7 +388,9 @@ XORRISO_CMD="$XORRISO_CMD $WORK_DIR"
 
 echo ""
 echo "Running xorriso..."
-eval $XORRISO_CMD 2>&1 | grep -E "ISO image produced|xorriso : UPDATE|xorriso : NOTE" || true
+echo "Command: $XORRISO_CMD"
+echo ""
+eval $XORRISO_CMD 2>&1 | grep -E "ISO image produced|xorriso : UPDATE|xorriso : NOTE|Writing|Writing to" || true
 
 # Check if ISO was created
 if [ ! -f "$MODIFIED_ISO" ]; then
