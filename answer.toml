@@ -41,15 +41,15 @@ filesystem = "ext4"
 # Target disk(s)
 disk_list = ["sda"]
 
-# LVM configuration
+# LVM configuration (для ext4 используется префикс lvm.)
 # Swap size in GB (8GB = 1x RAM)
-swapsize = 8
+lvm.swapsize = 8
 
 # Root filesystem size in GB
-maxroot = 30
+lvm.maxroot = 30
 
 # Minimum free space in LVM volume group
-minfree = 8
+lvm.minfree = 8
 
 # Maximum size for data volume (0 = use all remaining space)
-maxvz = 0
+lvm.maxvz = 0
