@@ -2,6 +2,76 @@
 
 Универсальная конфигурация домашней сети с Proxmox, OPNsense, OpenWRT и Oracle Cloud. Поддерживает два режима работы: дома и в поездке с автоматическим переключением.
 
+## Структура проекта
+
+```
+home-lab/
+├── README.md                      # Этот файл
+├── docs/                          # Документация
+│   ├── START-HERE.md             # Быстрый старт
+│   ├── QUICK-REFERENCE.md        # Краткая справка
+│   ├── CHANGELOG.md              # История изменений
+│   ├── FILES-INDEX.md            # Индекс файлов
+│   ├── AMNEZIAWG-SETUP.md        # AmneziaWG настройка
+│   ├── HOME-RUSSIA-VPN-SETUP.md  # Russia VPN дома
+│   ├── NETWORK-DIAGRAM.txt       # Диаграмма сети
+│   └── ИНСТРУКЦИЯ.md             # Инструкция (RU)
+├── proxmox/                       # Proxmox VE
+│   ├── install/                  # Автоустановка
+│   │   ├── create-proxmox-usb.sh
+│   │   ├── answer.toml
+│   │   ├── README-AUTOINSTALL.md
+│   │   └── PROXMOX-UNATTENDED-INSTALL.md
+│   ├── scripts/                  # Post-install скрипты
+│   │   ├── proxmox-post-install.sh
+│   │   └── install-lxc-containers.sh
+│   └── configs/                  # Конфигурация
+│       └── proxmox-network-interfaces
+├── openwrt/                       # OpenWRT Router
+│   ├── home/                     # Home режим
+│   │   ├── openwrt-home-network
+│   │   ├── openwrt-home-wireless
+│   │   ├── openwrt-home-dhcp
+│   │   ├── openwrt-home-firewall
+│   │   └── openwrt-home-russia-vpn.conf
+│   ├── travel/                   # Travel режим
+│   │   ├── openwrt-travel-network
+│   │   ├── openwrt-travel-wireless
+│   │   ├── openwrt-travel-dhcp
+│   │   ├── openwrt-travel-firewall
+│   │   ├── openwrt-travel-amneziawg-client.conf
+│   │   └── openwrt-travel-russia-client.conf
+│   └── scripts/                  # Скрипты управления
+│       ├── openwrt-install-script.sh
+│       ├── openwrt-mode-switcher.sh
+│       ├── openwrt-init-mode-detector
+│       ├── openwrt-vpn-selector.sh
+│       ├── openwrt-vpn-failover.sh
+│       └── openwrt-amneziawg-failover.sh
+├── opnsense/                      # OPNsense Firewall
+│   └── configs/
+│       ├── opnsense-interfaces-config.txt
+│       └── opnsense-russia-vpn-firewall.txt
+├── vpn-servers/                   # VPN Серверы
+│   ├── oracle-cloud/
+│   │   ├── oracle-cloud-wireguard.conf
+│   │   └── oracle-cloud-amneziawg.conf
+│   └── russia-vps/
+│       ├── RUSSIA-VPS-SETUP.md
+│       └── russia-vps-amneziawg.conf
+├── hardware/                      # Оборудование
+│   ├── dell-xps/
+│   │   ├── DELL-XPS-L701X-NOTES.md
+│   │   ├── DELL-XPS-SETUP-GUIDE.md
+│   │   └── DELL-XPS-EXTERNAL-DISPLAY-NOTES.md
+│   └── gl-inet/
+│       ├── GL-AX1800-NOTES.md
+│       └── GL-INET-UI-GUIDE.md
+└── services/                      # Сервисы
+    └── adguardhome/
+        └── adguardhome-config.yaml
+```
+
 ## Архитектура
 
 ### Дома
@@ -38,9 +108,9 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 - Встроенный Ethernet: 1x Gigabit (LAN)
 - USB-Ethernet: 1x Gigabit (WAN)
 
-> 📖 **Подробнее:** См. `DELL-XPS-L701X-NOTES.md` для оптимизации и особенностей
+> 📖 **Подробнее:** См. [hardware/dell-xps/DELL-XPS-L701X-NOTES.md](hardware/dell-xps/DELL-XPS-L701X-NOTES.md)
 
-**Конфигурация:** `proxmox-network-interfaces`
+**Конфигурация:** [proxmox/configs/proxmox-network-interfaces](proxmox/configs/proxmox-network-interfaces)
 
 **Bridges:**
 - `vmbr0` - WAN (к ISP Router через USB-Ethernet)
@@ -61,7 +131,7 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 - Autostart: Priority 1
 - Storage: local-lvm (SSD для производительности)
 
-**Конфигурация:** `opnsense-interfaces-config.txt`
+**Конфигурация:** [opnsense/configs/opnsense-interfaces-config.txt](opnsense/configs/opnsense-interfaces-config.txt)
 
 **Интерфейсы:**
 - WAN: DHCP от ISP (192.168.1.x)
@@ -87,7 +157,7 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 - Размер: Компактный (подходит для поездок)
 - **Dual UI:** GL.iNet UI (удобный) + OpenWRT LuCI (расширенный)
 
-> 📖 **Подробнее:** См. `GL-AX1800-NOTES.md` для специфичных настроек
+> 📖 **Подробнее:** См. [hardware/gl-inet/GL-AX1800-NOTES.md](hardware/gl-inet/GL-AX1800-NOTES.md)
 >
 > **Web интерфейсы:**
 > - GL.iNet UI: http://192.168.20.1 (для повседневных задач)
@@ -96,10 +166,10 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 **Режим ДОМА:**
 
 Файлы конфигурации:
-- `openwrt-home-network` - сетевая конфигурация
-- `openwrt-home-wireless` - WiFi настройки
-- `openwrt-home-dhcp` - DHCP и DNS
-- `openwrt-home-firewall` - правила firewall
+- [openwrt/home/openwrt-home-network](openwrt/home/openwrt-home-network) - сетевая конфигурация
+- [openwrt/home/openwrt-home-wireless](openwrt/home/openwrt-home-wireless) - WiFi настройки
+- [openwrt/home/openwrt-home-dhcp](openwrt/home/openwrt-home-dhcp) - DHCP и DNS
+- [openwrt/home/openwrt-home-firewall](openwrt/home/openwrt-home-firewall) - правила firewall
 
 **Сети:**
 - WAN: 192.168.10.2 (к OPNsense LAN)
@@ -116,7 +186,7 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 - **Расположение:** На OpenWRT (экономия RAM Proxmox!)
 - Port: 53 (DNS)
 - Web UI: http://192.168.20.1:3000
-- Конфигурация: `adguardhome-config.yaml`
+- Конфигурация: [services/adguardhome/adguardhome-config.yaml](services/adguardhome/adguardhome-config.yaml)
 - Фильтрация рекламы для всей сети
 - RAM usage: ~100-150 MB (на OpenWRT, не затрагивает Proxmox)
 
@@ -125,10 +195,10 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 **Режим В ПОЕЗДКЕ:**
 
 Файлы конфигурации:
-- `openwrt-travel-network` - сетевая конфигурация с WireGuard
-- `openwrt-travel-wireless` - WiFi для ваших устройств
-- `openwrt-travel-dhcp` - DHCP с DNS через VPN
-- `openwrt-travel-firewall` - строгий firewall для публичных сетей
+- [openwrt/travel/openwrt-travel-network](openwrt/travel/openwrt-travel-network) - сетевая конфигурация с WireGuard
+- [openwrt/travel/openwrt-travel-wireless](openwrt/travel/openwrt-travel-wireless) - WiFi для ваших устройств
+- [openwrt/travel/openwrt-travel-dhcp](openwrt/travel/openwrt-travel-dhcp) - DHCP с DNS через VPN
+- [openwrt/travel/openwrt-travel-firewall](openwrt/travel/openwrt-travel-firewall) - строгий firewall для публичных сетей
 
 **Сети:**
 - WAN: DHCP от отеля/кафе
@@ -143,13 +213,13 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 - Primary: AmneziaWG → Oracle Cloud (обход DPI блокировок РФ)
 - Backup: WireGuard → Home OPNsense (если AmneziaWG заблокирован)
 
-> 📖 **Важно для России:** См. `AMNEZIAWG-SETUP.md` для настройки обфускации
+> 📖 **Важно для России:** См. [docs/AMNEZIAWG-SETUP.md](docs/AMNEZIAWG-SETUP.md)
 
 ### 4. Oracle Cloud (Backup VPN Gateway)
 
 **Конфигурации:**
-- `oracle-cloud-wireguard.conf` - обычный WireGuard
-- `oracle-cloud-amneziawg.conf` - AmneziaWG с обфускацией (для РФ)
+- [vpn-servers/oracle-cloud/oracle-cloud-wireguard.conf](vpn-servers/oracle-cloud/oracle-cloud-wireguard.conf) - обычный WireGuard
+- [vpn-servers/oracle-cloud/oracle-cloud-amneziawg.conf](vpn-servers/oracle-cloud/oracle-cloud-amneziawg.conf) - AmneziaWG с обфускацией (для РФ)
 
 **Instance:**
 - OS: Ubuntu 22.04 LTS
@@ -171,9 +241,9 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 ### 5. Russia VPS (Российский IP адрес)
 
 **Конфигурации:**
-- `russia-vps-amneziawg.conf` - сервер на российском VPS
-- `openwrt-travel-russia-client.conf` - клиент для Travel Mode
-- `openwrt-home-russia-vpn.conf` - клиент для Home Mode
+- [vpn-servers/russia-vps/russia-vps-amneziawg.conf](vpn-servers/russia-vps/russia-vps-amneziawg.conf) - сервер на российском VPS
+- [openwrt/travel/openwrt-travel-russia-client.conf](openwrt/travel/openwrt-travel-russia-client.conf) - клиент для Travel Mode
+- [openwrt/home/openwrt-home-russia-vpn.conf](openwrt/home/openwrt-home-russia-vpn.conf) - клиент для Home Mode
 
 **Назначение:** Получение российского IP для доступа к РФ сервисам из-за границы
 
@@ -201,9 +271,9 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 - Та же AmneziaWG конфигурация, разная только маршрутизация
 
 > 📖 **Подробнее:**
-> - Настройка российского VPS: `RUSSIA-VPS-SETUP.md`
-> - Использование дома: `HOME-RUSSIA-VPN-SETUP.md`
-> - Правила OPNsense: `opnsense-russia-vpn-firewall.txt`
+> - Настройка российского VPS: [vpn-servers/russia-vps/RUSSIA-VPS-SETUP.md](vpn-servers/russia-vps/RUSSIA-VPS-SETUP.md)
+> - Использование дома: [docs/HOME-RUSSIA-VPN-SETUP.md](docs/HOME-RUSSIA-VPN-SETUP.md)
+> - Правила OPNsense: [opnsense/configs/opnsense-russia-vpn-firewall.txt](opnsense/configs/opnsense-russia-vpn-firewall.txt)
 
 ### 6. VPN Протоколы
 
@@ -211,27 +281,27 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 - ✅ Максимальная скорость
 - ✅ Простая настройка
 - ❌ Легко блокируется DPI (в РФ, Китае)
-- Файлы: `oracle-cloud-wireguard.conf`
+- Файлы: [vpn-servers/oracle-cloud/oracle-cloud-wireguard.conf](vpn-servers/oracle-cloud/oracle-cloud-wireguard.conf)
 
 **AmneziaWG Oracle** (обход блокировок):
 - ✅ Обход DPI блокировок в РФ
 - ✅ Почти такая же скорость как WireGuard
 - ✅ Обфускация трафика
-- Файлы: `oracle-cloud-amneziawg.conf`, `openwrt-travel-amneziawg-client.conf`
+- Файлы: [vpn-servers/oracle-cloud/oracle-cloud-amneziawg.conf](vpn-servers/oracle-cloud/oracle-cloud-amneziawg.conf), [openwrt/travel/openwrt-travel-amneziawg-client.conf](openwrt/travel/openwrt-travel-amneziawg-client.conf)
 
 **AmneziaWG Russia** (российский IP):
 - ✅ Российский IP адрес
 - ✅ Доступ к РФ сервисам из-за границы
 - ✅ Та же обфускация
-- Файлы: `russia-vps-amneziawg.conf`, `openwrt-travel-russia-client.conf`
+- Файлы: [vpn-servers/russia-vps/russia-vps-amneziawg.conf](vpn-servers/russia-vps/russia-vps-amneziawg.conf), [openwrt/travel/openwrt-travel-russia-client.conf](openwrt/travel/openwrt-travel-russia-client.conf)
 
 **VPN Selector:**
-- Скрипт: `openwrt-vpn-selector.sh`
+- Скрипт: [openwrt/scripts/openwrt-vpn-selector.sh](openwrt/scripts/openwrt-vpn-selector.sh)
 - Переключение одной командой: `vpn oracle`, `vpn russia`, `vpn home`
 
 > 📖 **Подробнее:**
-> - AmneziaWG настройка: `AMNEZIAWG-SETUP.md`
-> - Российский VPS: `RUSSIA-VPS-SETUP.md`
+> - AmneziaWG настройка: [docs/AMNEZIAWG-SETUP.md](docs/AMNEZIAWG-SETUP.md)
+> - Российский VPS: [vpn-servers/russia-vps/RUSSIA-VPS-SETUP.md](vpn-servers/russia-vps/RUSSIA-VPS-SETUP.md)
 
 ## IP адресация
 
@@ -262,11 +332,11 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 
 **Для Dell XPS L701X с внешним дисплеем:**
 
-⭐ **Используйте автоматическую установку**: `create-proxmox-usb.sh`
+⭐ **Используйте автоматическую установку**: [proxmox/install/create-proxmox-usb.sh](proxmox/install/create-proxmox-usb.sh)
 
 ```bash
 # 1. Создайте загрузочную USB
-sudo ./create-proxmox-usb.sh /dev/sdX proxmox-ve_9.0.iso
+sudo ./proxmox/install/create-proxmox-usb.sh /dev/sdX proxmox-ve_9.0.iso
 
 # 2. Загрузитесь с USB (F12 → UEFI: USB)
 # 3. Нажмите 'a' в меню для автоустановки
@@ -274,8 +344,8 @@ sudo ./create-proxmox-usb.sh /dev/sdX proxmox-ve_9.0.iso
 ```
 
 **📖 Подробная инструкция:**
-- English: [README-AUTOINSTALL.md](README-AUTOINSTALL.md)
-- Русский: [ИНСТРУКЦИЯ.md](ИНСТРУКЦИЯ.md)
+- English: [proxmox/install/README-AUTOINSTALL.md](proxmox/install/README-AUTOINSTALL.md)
+- Русский: [docs/ИНСТРУКЦИЯ.md](docs/ИНСТРУКЦИЯ.md)
 
 **После установки:**
 
@@ -286,7 +356,7 @@ ssh root@<ip-address>  # Пароль: Homelab2025!
 
 2. Скопируйте конфигурацию сети:
 ```bash
-cp proxmox-network-interfaces /etc/network/interfaces
+cp proxmox/configs/proxmox-network-interfaces /etc/network/interfaces
 ```
 
 3. Настройте имена интерфейсов под ваше оборудование
@@ -298,11 +368,11 @@ ifreload -a
 
 ### 2. OPNsense VM
 
-1. Создайте VM в Proxmox (см. параметры в `opnsense-interfaces-config.txt`)
+1. Создайте VM в Proxmox (см. параметры в [opnsense/configs/opnsense-interfaces-config.txt](opnsense/configs/opnsense-interfaces-config.txt))
 2. Установите OPNsense с ISO образа
 3. Настройте интерфейсы через консоль
 4. Откройте Web UI: https://192.168.10.1
-5. Следуйте инструкциям в `opnsense-interfaces-config.txt`
+5. Следуйте инструкциям в [opnsense/configs/opnsense-interfaces-config.txt](opnsense/configs/opnsense-interfaces-config.txt)
 
 ### 3. OpenWRT Router
 
@@ -311,7 +381,7 @@ ifreload -a
 1. Подключитесь к OpenWRT через SSH или Web UI
 2. Запустите установочный скрипт:
 ```bash
-scp openwrt-install-script.sh root@192.168.1.1:/tmp/
+scp openwrt/scripts/openwrt-install-script.sh root@192.168.1.1:/tmp/
 ssh root@192.168.1.1
 cd /tmp
 sh openwrt-install-script.sh
@@ -321,7 +391,7 @@ sh openwrt-install-script.sh
 
 1. Скопируйте конфигурации:
 ```bash
-scp openwrt-home-* root@192.168.20.1:/etc/openwrt-configs/home/
+scp openwrt/home/openwrt-home-* root@192.168.20.1:/etc/openwrt-configs/home/
 ssh root@192.168.20.1
 
 # Rename files
@@ -335,7 +405,7 @@ mv openwrt-home-firewall firewall
 2. Настройте WiFi пароли в файле `wireless`
 3. Настройте AdGuard Home:
 ```bash
-cp adguardhome-config.yaml /etc/adguardhome.yaml
+cp services/adguardhome/adguardhome-config.yaml /etc/adguardhome.yaml
 /etc/init.d/AdGuardHome restart
 ```
 4. Откройте http://192.168.20.1:3000 и завершите настройку
@@ -352,7 +422,7 @@ wg genkey | tee /etc/wireguard/privatekey | wg pubkey > /etc/wireguard/publickey
 
 3. Скопируйте конфигурации:
 ```bash
-scp openwrt-travel-* root@192.168.20.1:/etc/openwrt-configs/travel/
+scp openwrt/travel/openwrt-travel-* root@192.168.20.1:/etc/openwrt-configs/travel/
 ssh root@192.168.20.1
 
 cd /etc/openwrt-configs/travel/
@@ -381,7 +451,7 @@ wg genkey | sudo tee /etc/wireguard/privatekey | wg pubkey | sudo tee /etc/wireg
 
 # Copy config
 sudo nano /etc/wireguard/wg0.conf
-# Paste content from oracle-cloud-wireguard.conf
+# Paste content from vpn-servers/oracle-cloud/oracle-cloud-wireguard.conf
 ```
 
 3. Включите IP forwarding:
@@ -431,6 +501,10 @@ ssh root@192.168.20.1  # или 192.168.100.1 в поездке
 
 # Проверить VPN failover
 /usr/bin/openwrt-vpn-failover.sh
+
+# Или используйте локальные скрипты
+openwrt/scripts/openwrt-mode-switcher.sh
+openwrt/scripts/openwrt-vpn-failover.sh
 
 # Проверить текущий режим
 cat /etc/openwrt-mode
@@ -665,7 +739,7 @@ A: Да! Russia VPN работает в обоих режимах:
 - **Travel Mode** - прямое подключение к Russia VPS (в отеле/кафе)
 - **Home Mode** - через OPNsense firewall (когда роутер дома)
 
-Для Home Mode нужно настроить правила firewall на OPNsense (разрешить UDP 51822). Используется та же AmneziaWG конфигурация, разница только в маршрутизации. Подробности в `HOME-RUSSIA-VPN-SETUP.md`.
+Для Home Mode нужно настроить правила firewall на OPNsense (разрешить UDP 51822). Используется та же AmneziaWG конфигурация, разница только в маршрутизации. Подробности в [docs/HOME-RUSSIA-VPN-SETUP.md](docs/HOME-RUSSIA-VPN-SETUP.md).
 
 **Когда использовать дома:**
 - Тестирование перед поездкой
