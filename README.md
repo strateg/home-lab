@@ -639,29 +639,77 @@ pct create 200 local:vztmpl/debian-12-standard.tar.zst \
 - 10.0.30.60 - Grafana
 - 10.0.30.70 - Prometheus
 
-## VM Templates для мультиплицирования
+## Автоматизация LXC сервисов ⚡
 
-HDD настроен для хранения VM templates, что позволяет быстро клонировать сервисы:
+Система автоматического создания templates и развёртывания сервисов:
+
+### Быстрый старт (40 минут до production)
 
 ```bash
-# 1. Создайте базовую VM (на HDD или SSD)
-# 2. Настройте и подготовьте систему
-# 3. Конвертируйте в template:
-qm template 100
+# 1. Создать все templates (один раз, 30 мин)
+cd /root/scripts
+bash templates/create-all-templates.sh
 
-# 4. Клонируйте для сервисов:
-# Production (на SSD - быстро)
-qm clone 100 201 --name my-service-01 --full --storage local-lvm
+# 2. Развернуть все сервисы (10 мин)
+bash deploy-all-services.sh
 
-# Testing (на HDD - экономно)
-qm clone 100 202 --name my-service-02 --full --storage local-hdd
+# Готово! 9 сервисов запущены и настроены
 ```
 
-**Storage configuration:**
-- `local-hdd` поддерживает content type `images` ✅
-- Templates хранятся на HDD (экономия SSD)
-- Production клоны создаются на SSD (производительность)
-- Testing клоны создаются на HDD (экономия)
+### Что создаётся автоматически
+
+**Templates (HDD, ID 900-908):**
+- PostgreSQL, Redis, Nextcloud, Gitea
+- Home Assistant, Grafana, Prometheus
+- Nginx Proxy Manager, Docker Host
+
+**Services (SSD, ID 200-208):**
+- Клоны templates с конфигурацией
+- Статические IP: 10.0.30.10-90
+- Автостарт, сеть настроена
+
+### Примеры использования
+
+```bash
+# Развернуть отдельный сервис
+bash services/deploy-postgresql.sh
+
+# Создать дополнительный экземпляр PostgreSQL
+pct clone 900 210 --hostname postgres-02 --full --storage local-lvm
+pct set 210 --net0 name=eth0,bridge=vmbr2,ip=10.0.30.11/24,gw=10.0.30.1
+pct start 210
+
+# Список всех сервисов
+pct list | grep -v template
+```
+
+📖 **Документация:**
+- [Quick Start Guide](proxmox/scripts/QUICK-START.md) - 5 минут до первого сервиса
+- [Full Documentation](proxmox/scripts/README.md) - Полное руководство
+- [Architecture](proxmox/scripts/ARCHITECTURE.md) - Дизайн системы
+
+**Преимущества:**
+- ✅ 95% автоматизация (от создания до deployment)
+- ✅ Использует Proxmox Community Scripts
+- ✅ Templates на HDD, production на SSD
+- ✅ Масштабирование одной командой
+
+---
+
+## VM Templates для мультиплицирования
+
+HDD также настроен для хранения VM templates:
+
+```bash
+# Создать VM template
+qm template 100
+
+# Клонировать для production (SSD)
+qm clone 100 201 --name my-service-01 --full --storage local-lvm
+
+# Клонировать для testing (HDD)
+qm clone 100 202 --name my-service-02 --full --storage local-hdd
+```
 
 📖 **Подробнее:** См. [proxmox/VM-TEMPLATES-GUIDE.md](proxmox/VM-TEMPLATES-GUIDE.md)
 
