@@ -7,12 +7,31 @@
 | `README.md` | Полная документация по установке и использованию |
 | `FILES-INDEX.md` | Этот файл - краткое описание всех конфигураций |
 | `DELL-XPS-L701X-NOTES.md` | Оптимизация Proxmox для Dell XPS L701X (8GB RAM, USB-Ethernet) |
+| `DELL-XPS-SETUP-GUIDE.md` | Пошаговое руководство установки Proxmox на Dell XPS L701X |
+| `PROXMOX-UNATTENDED-INSTALL.md` | **Автоматическая установка Proxmox 9 без участия пользователя** |
 | `GL-AX1800-NOTES.md` | Специфичные настройки для GL.iNet GL-AX1800 (Flint) |
+| `GL-INET-UI-GUIDE.md` | Руководство по использованию GL.iNet Web UI |
 | `NETWORK-DIAGRAM.txt` | ASCII диаграммы сетевой архитектуры |
 | `QUICK-REFERENCE.md` | Быстрые команды и troubleshooting |
 | `CHANGELOG.md` | История изменений конфигурации |
 
 ## Proxmox
+
+### Автоматическая установка (Unattended)
+
+| Файл | Назначение | Применение |
+|------|------------|------------|
+| `proxmox-auto-install-answer.toml` | Файл ответов для автоматической установки Proxmox 9 | Копируется на USB для unattended install |
+| `prepare-proxmox-usb.sh` | Скрипт подготовки загрузочного USB с автоустановкой | Запустить на компьютере для создания USB |
+| `proxmox-post-install.sh` | Скрипт настройки после автоматической установки | Запустить на Proxmox после первой загрузки |
+
+**Процесс:**
+1. Настроить `proxmox-auto-install-answer.toml` (пароль, сеть, timezone)
+2. Запустить `prepare-proxmox-usb.sh /dev/sdX proxmox.iso`
+3. Загрузиться с USB на Dell XPS L701X → автоматическая установка
+4. После перезагрузки запустить `proxmox-post-install.sh`
+
+### Конфигурация сети
 
 | Файл | Назначение | Путь установки |
 |------|------------|----------------|
