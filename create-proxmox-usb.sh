@@ -1,11 +1,15 @@
 #!/bin/bash
-# Proxmox VE 9 - Automated Installation USB Creator
+# Proxmox VE 9 - Fully Automated Installation USB Creator
 #
-# CORRECT METHOD for Proxmox 8+:
-# 1. Write ISO with dd (bootable, preserves hybrid boot structure)
-# 2. Add auto-installer.yaml to /proxmox/ folder on FAT32 partition
-# 3. Modify GRUB to add graphics parameters for external display
-# 4. Boot and press 'a' to start automated installation
+# Creates USB with COMPLETELY AUTOMATIC installation:
+# 1. Boots automatically (5 second timeout)
+# 2. Starts auto-installer without pressing 'a'
+# 3. Works with external display (Dell XPS L701X)
+#
+# Based on official Proxmox automated installation:
+# - Boot parameter: proxmox-start-auto-installer
+# - Answer file: answer.toml (TOML format)
+# - Partition label: PROXMOX-AIS
 #
 # Usage: sudo ./create-proxmox-usb.sh /dev/sdX path/to/proxmox.iso
 
@@ -46,15 +50,16 @@ if [[ "$USB_DEVICE" == "/dev/sda" ]]; then
     exit 1
 fi
 
-if [ ! -f "auto-installer.yaml" ]; then
-    echo -e "${RED}Error: auto-installer.yaml not found in current directory${NC}"
+if [ ! -f "answer.toml" ]; then
+    echo -e "${RED}Error: answer.toml not found in current directory${NC}"
+    echo "Create answer.toml file with Proxmox installation configuration"
     exit 1
 fi
 
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║  Proxmox VE 9 - Automated USB Creator        ║${NC}"
-echo -e "${GREEN}║  Built-in auto-installer (Proxmox 8+)        ║${NC}"
+echo -e "${GREEN}║  Proxmox VE 9 - Fully Automated USB         ║${NC}"
+echo -e "${GREEN}║  Auto-starts in 5 seconds (no 'a' needed)   ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${YELLOW}WARNING: This will ERASE all data on $USB_DEVICE${NC}"
@@ -75,7 +80,7 @@ umount "${USB_DEVICE}"* 2>/dev/null || true
 # STEP 1: Write ISO to USB with dd
 # ============================================================
 echo ""
-echo -e "${GREEN}[1/4] Writing ISO to USB with dd...${NC}"
+echo -e "${GREEN}[1/5] Writing ISO to USB with dd...${NC}"
 echo "This creates bootable USB (preserves hybrid boot structure)"
 echo ""
 
@@ -91,7 +96,7 @@ echo -e "${GREEN}✓ Bootable USB created${NC}"
 # STEP 2: Detect partitions
 # ============================================================
 echo ""
-echo -e "${GREEN}[2/4] Detecting partitions...${NC}"
+echo -e "${GREEN}[2/5] Detecting partitions...${NC}"
 
 partprobe "$USB_DEVICE" 2>/dev/null || true
 blockdev --rereadpt "$USB_DEVICE" 2>/dev/null || true
@@ -101,10 +106,10 @@ echo "Partitions:"
 lsblk "$USB_DEVICE" -o NAME,SIZE,TYPE,FSTYPE,LABEL
 
 # ============================================================
-# STEP 3: Add auto-installer.yaml to /proxmox/
+# STEP 3: Set partition label and add answer.toml
 # ============================================================
 echo ""
-echo -e "${GREEN}[3/4] Adding auto-installer.yaml...${NC}"
+echo -e "${GREEN}[3/5] Setting up answer file...${NC}"
 
 MOUNT_POINT="/tmp/usb-$$"
 mkdir -p "$MOUNT_POINT"
@@ -123,16 +128,22 @@ for part in "${USB_DEVICE}"[0-9]* "${USB_DEVICE}p"[0-9]*; do
         if mount -o rw "$part" "$MOUNT_POINT" 2>/dev/null; then
             echo "  ✓ Mounted writable"
 
-            # Create /proxmox directory if it doesn't exist
-            mkdir -p "$MOUNT_POINT/proxmox"
+            # Set partition label to PROXMOX-AIS (required for auto-installer)
+            CURRENT_LABEL=$(blkid -s LABEL -o value "$part" 2>/dev/null || echo "")
+            if [ "$CURRENT_LABEL" != "PROXMOX-AIS" ]; then
+                fatlabel "$part" "PROXMOX-AIS"
+                echo "  ✓ Partition label set to: PROXMOX-AIS"
+            else
+                echo "  ✓ Partition label already: PROXMOX-AIS"
+            fi
 
-            # Copy auto-installer.yaml
-            cp auto-installer.yaml "$MOUNT_POINT/proxmox/auto-installer.yaml"
-            echo "  ✓ auto-installer.yaml copied to /proxmox/"
+            # Copy answer.toml to root of partition
+            cp answer.toml "$MOUNT_POINT/answer.toml"
+            echo "  ✓ answer.toml copied to partition root"
 
             # Copy post-install script if exists
             if [ -f "proxmox-post-install.sh" ]; then
-                cp "proxmox-post-install.sh" "$MOUNT_POINT/proxmox/"
+                cp "proxmox-post-install.sh" "$MOUNT_POINT/"
                 echo "  ✓ proxmox-post-install.sh copied"
             fi
 
@@ -152,10 +163,10 @@ if [ $CONFIG_ADDED -eq 0 ]; then
 fi
 
 # ============================================================
-# STEP 4: Modify GRUB for external display
+# STEP 4: Create GRUB config with auto-start
 # ============================================================
 echo ""
-echo -e "${GREEN}[4/4] Adding graphics parameters to GRUB...${NC}"
+echo -e "${GREEN}[4/5] Creating GRUB config with AUTO-START...${NC}"
 
 GRUB_MODIFIED=0
 
@@ -168,20 +179,71 @@ if [ -n "$GRUB_CFG" ]; then
     # Backup original
     cp "$GRUB_CFG" "$GRUB_CFG.backup-$(date +%s)"
 
-    # Add graphics parameters to all linux boot lines
-    # These parameters enable external display on Dell XPS L701X:
-    # video=vesafb:ywrap,mtrr vga=791 nomodeset
-
-    if grep -q "video=vesafb" "$GRUB_CFG"; then
-        echo "  ℹ Graphics parameters already present"
+    # Extract UUID from original config
+    UUID=$(grep "search.*fs-uuid" "$GRUB_CFG" 2>/dev/null | grep -o '[0-9-]\{10,\}' | head -1 || echo "")
+    if [ -z "$UUID" ]; then
+        UUID="2025-08-05-10-48-40-00"
+        echo "  ! Using default UUID: $UUID"
     else
-        echo "  Adding graphics parameters to boot entries..."
-
-        # Add parameters to all 'linux' lines that load linux26 kernel
-        sed -i '/linux.*\/boot\/linux26/ s|$| video=vesafb:ywrap,mtrr vga=791 nomodeset|' "$GRUB_CFG"
-
-        echo "  ✓ Graphics parameters added to all boot entries"
+        echo "  ✓ Found UUID: $UUID"
     fi
+
+    # Create new GRUB config with AUTOMATED ENTRY FIRST
+    cat > "$GRUB_CFG" <<'GRUBEOF'
+# Proxmox VE - Fully Automated Installation
+# Auto-starts in 5 seconds (no manual interaction needed)
+
+set default=0
+set timeout=5
+
+# Graphics setup for external display
+insmod all_video
+insmod gfxterm
+insmod png
+loadfont unicode
+terminal_output gfxterm
+set menu_color_normal=white/black
+set menu_color_highlight=black/light-gray
+
+# Find root partition
+GRUBEOF
+
+    echo "search --fs-uuid --set=root $UUID" >> "$GRUB_CFG"
+
+    cat >> "$GRUB_CFG" <<'GRUBEOF'
+
+# AUTOMATED INSTALLATION (starts automatically after 5 seconds)
+menuentry 'Proxmox VE - AUTOMATED INSTALL (External Display)' {
+    echo 'Starting fully automated installation...'
+    echo 'No manual interaction required!'
+    linux /boot/linux26 proxmox-start-auto-installer ro video=vesafb:ywrap,mtrr vga=791 nomodeset
+    initrd /boot/initrd.img
+}
+
+# Manual install with external display
+menuentry 'Proxmox VE - Manual Install (External Display)' {
+    echo 'Starting manual installation...'
+    linux /boot/linux26 ro video=vesafb:ywrap,mtrr vga=791 nomodeset
+    initrd /boot/initrd.img
+}
+
+# Standard install
+menuentry 'Proxmox VE - Standard Install' {
+    linux /boot/linux26 ro quiet
+    initrd /boot/initrd.img
+}
+
+# Debug mode
+menuentry 'Proxmox VE - Debug Mode' {
+    linux /boot/linux26 ro debug video=vesafb:ywrap,mtrr vga=791 nomodeset
+    initrd /boot/initrd.img
+}
+GRUBEOF
+
+    echo "  ✓ GRUB config created with AUTOMATED entry"
+    echo "  ✓ Boot parameter: proxmox-start-auto-installer"
+    echo "  ✓ Graphics parameters: video=vesafb:ywrap,mtrr vga=791 nomodeset"
+    echo "  ✓ Timeout: 5 seconds (auto-start)"
 
     GRUB_MODIFIED=1
 else
@@ -203,19 +265,20 @@ sleep 2
 
 echo ""
 
-if [ $CONFIG_ADDED -eq 1 ]; then
+if [ $CONFIG_ADDED -eq 1 ] && [ $GRUB_MODIFIED -eq 1 ]; then
     echo -e "${GREEN}╔════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║                                                ║${NC}"
-    echo -e "${GREEN}║        USB READY FOR AUTO-INSTALL!             ║${NC}"
+    echo -e "${GREEN}║  USB READY FOR FULLY AUTOMATED INSTALL!        ║${NC}"
     echo -e "${GREEN}║                                                ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════╝${NC}"
     echo ""
     echo -e "${BLUE}What was configured:${NC}"
     echo "  ✓ Bootable USB created with dd"
-    echo "  ✓ auto-installer.yaml added to /proxmox/"
-    if [ $GRUB_MODIFIED -eq 1 ]; then
-        echo "  ✓ Graphics parameters added to GRUB"
-    fi
+    echo "  ✓ Partition labeled: PROXMOX-AIS"
+    echo "  ✓ answer.toml placed on partition"
+    echo "  ✓ GRUB: proxmox-start-auto-installer parameter"
+    echo "  ✓ GRUB: Graphics parameters for external display"
+    echo "  ✓ GRUB: 5-second timeout (AUTO-START)"
     echo ""
     echo -e "${YELLOW}BOOT INSTRUCTIONS:${NC}"
     echo ""
@@ -226,21 +289,15 @@ if [ $CONFIG_ADDED -eq 1 ]; then
     echo "  5. Press F12 for boot menu"
     echo "  6. Select: 'UEFI: USB...' (NOT 'USB Storage Device')"
     echo ""
-    echo -e "${GREEN}AT GRUB MENU:${NC}"
+    echo -e "${GREEN}AUTOMATIC BEHAVIOR:${NC}"
     echo ""
-    echo "  7. Press 'a' key to start AUTOMATED INSTALLATION"
-    echo "     (or wait for default boot and press 'a' at installer menu)"
-    echo ""
-    echo -e "${BLUE}AUTOMATED INSTALL PROCESS:${NC}"
-    echo ""
-    echo "  • Reads /proxmox/auto-installer.yaml from USB"
-    echo "  • Partitions /dev/sda (250GB SSD)"
-    echo "  • Installs Proxmox VE 9"
-    echo "  • Configures network (DHCP)"
-    echo "  • Sets hostname: proxmox.home.lan"
-    echo "  • Sets root password: Homelab2025!"
-    echo "  • Total time: ~10-15 minutes"
-    echo "  • Reboots automatically when done"
+    echo "  • GRUB menu appears on external display"
+    echo "  • First option: 'Proxmox VE - AUTOMATED INSTALL'"
+    echo "  • Countdown: 5 seconds"
+    echo "  • Installation starts AUTOMATICALLY (no 'a' needed!)"
+    echo "  • Reads answer.toml from PROXMOX-AIS partition"
+    echo "  • Progress shown on external display"
+    echo "  • System reboots when complete (~10-15 min)"
     echo ""
     echo -e "${BLUE}AFTER INSTALLATION:${NC}"
     echo ""
@@ -249,14 +306,9 @@ if [ $CONFIG_ADDED -eq 1 ]; then
     echo "  3. Password: Homelab2025!"
     echo "  4. Web UI: https://<ip-address>:8006"
     echo ""
-    if [ -f "proxmox-post-install.sh" ]; then
-        echo "  5. Run post-install script:"
-        echo "     bash /root/proxmox-post-install.sh"
-        echo ""
-    fi
-    echo -e "${GREEN}USB is ready! Boot and press 'a' to start auto-install.${NC}"
+    echo -e "${GREEN}Installation is FULLY AUTOMATIC - just boot and wait!${NC}"
     echo ""
 else
-    echo -e "${RED}Error: Could not configure USB${NC}"
+    echo -e "${RED}Error: Could not configure USB properly${NC}"
     exit 1
 fi
