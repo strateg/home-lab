@@ -258,7 +258,7 @@ curl ifconfig.me  # Должен показать российский IP
 
 ### Совместимость
 
-- ✅ GL.iNet GL-AXT1800 (OpenWRT 21.02+)
+- ✅ GL.iNet GL-AXT1800 (firmware 4.8.2, OpenWRT 23.05)
 - ✅ Oracle Cloud (Ubuntu 22.04 LTS)
 - ✅ Timeweb / REG.RU / Selectel VPS (Ubuntu 22.04)
 - ✅ Домашний Proxmox + OPNsense
@@ -367,7 +367,7 @@ GL-AXT1800 Travel Router
 ### Совместимость
 
 - ✅ Работает параллельно с WireGuard (разные порты и подсети)
-- ✅ GL.iNet GL-AXT1800 (OpenWRT 21.02+)
+- ✅ GL.iNet GL-AXT1800 (firmware 4.8.2, OpenWRT 23.05)
 - ✅ Oracle Cloud (Ubuntu 22.04 LTS)
 - ✅ Россия, Китай, Иран, страны с DPI
 
@@ -632,7 +632,7 @@ config device
 ## Совместимость
 
 ✅ Все конфигурации оптимизированы для GL.iNet GL-AXT1800 (Flint)
-✅ Совместимо с GL.iNet firmware 4.x (на базе OpenWRT 21.02+)
+✅ Совместимо с GL.iNet firmware 4.8.2 (OpenWRT 23.05)
 ✅ Поддержка WiFi 6 (802.11ax)
 ✅ DSA (Distributed Switch Architecture)
 ✅ Dual firmware system (GL.iNet UI + OpenWRT LuCI)
@@ -642,7 +642,7 @@ config device
 Конфигурации могут быть адаптированы для:
 - GL.iNet GL-MT3000 (Beryl AX) - требуется изменение портов
 - TP-Link Archer AX23 - требуется адаптация wireless config
-- Другие роутеры с OpenWRT 21.02+ и DSA
+- Другие роутеры с OpenWRT 23.05 и DSA
 
 ## Что не изменилось
 
