@@ -1,0 +1,146 @@
+# Proxmox VE 9 Auto-Install Configuration
+# Dell XPS L701X - Unattended Installation
+# Documentation: https://pve.proxmox.com/wiki/Automated_Installation
+
+[global]
+# Keyboard layout
+keyboard = "us"
+
+# Country for timezone
+country = "us"
+
+# Timezone
+timezone = "UTC"
+
+# Root password (CHANGE THIS!)
+# Generate: openssl passwd -6 "YourPassword"
+root_password = "$6$rounds=656000$YourSaltHere$YourHashHere"
+
+# Email for notifications
+email = "admin@home.local"
+
+# ============================================================
+# Disk Configuration
+# ============================================================
+
+[disk-setup]
+# Filesystem type
+filesystem = "ext4"
+
+# Disk selection
+# Use 'first' to automatically select first disk
+# Or specify exact disk: '/dev/sda'
+disk_list = ["first"]
+
+# Disk filtering
+filter_match = ".*"
+
+# LVM configuration
+# hdsize: Size for root filesystem in GB (leave rest for LVM thin pool)
+# swapsize: Swap size in GB (0 to disable, 2-8 recommended)
+# maxroot: Maximum root filesystem size in GB
+# minfree: Minimum free space to leave in LVM pool in GB
+hdsize = 50      # 50 GB for root (on SSD 180GB)
+swapsize = 2     # 2 GB swap
+maxroot = 50     # Max 50 GB for root
+minfree = 10     # Leave 10 GB free in LVM
+
+# ZFS options (if using ZFS instead of ext4)
+# zfs_opts = "compress=on"
+# zfs_pool_name = "rpool"
+
+# ============================================================
+# Network Configuration
+# ============================================================
+
+[network]
+# Use DHCP for initial installation
+# Network will be reconfigured by Ansible post-install
+use_dhcp = true
+
+# Source interface for installation
+# Auto-detect: leave empty or set to first available
+source = "enp0s31f6"  # Built-in Ethernet (adjust if needed)
+
+# Static IP configuration (if not using DHCP)
+# cidr = "192.168.1.100/24"
+# gateway = "192.168.1.1"
+# dns = "1.1.1.1"
+
+# Hostname and domain
+fqdn = "pve.home.local"
+
+# ============================================================
+# First Boot Configuration
+# ============================================================
+
+[first-boot]
+# Commands to run on first boot
+# These will be executed before post-install scripts
+
+# Update package list
+# pre_commands = [
+#     "apt update"
+# ]
+
+# Post-installation commands
+# These run after installation is complete
+post_commands = [
+    # Disable enterprise repository
+    "sed -i 's/^deb/#deb/' /etc/apt/sources.list.d/pve-enterprise.list",
+
+    # Add no-subscription repository
+    "echo 'deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription' > /etc/apt/sources.list.d/pve-no-subscription.list",
+
+    # Update package cache
+    "apt update",
+
+    # Install essential tools
+    "apt install -y vim git curl wget htop tmux",
+
+    # Create post-install script directory
+    "mkdir -p /root/post-install",
+
+    # Display completion message
+    "echo 'Proxmox VE installation completed!'",
+    "echo 'Next: Copy post-install scripts to /root/post-install/'",
+    "echo 'Web UI: https://$(hostname -I | awk \"{print \\$1}\"):8006'"
+]
+
+# ============================================================
+# Notes
+# ============================================================
+
+# This configuration will:
+# 1. Install Proxmox VE 9 on Dell XPS L701X
+# 2. Use ext4 filesystem on SSD (first disk)
+# 3. Create 50 GB root + 2 GB swap + ~128 GB LVM thin pool
+# 4. Configure network via DHCP initially
+# 5. Disable enterprise repo, enable no-subscription repo
+# 6. Install basic tools
+#
+# After installation:
+# 1. SSH to Proxmox host
+# 2. Run post-install scripts from /root/post-install/
+# 3. Apply Ansible configuration
+# 4. Apply Terraform infrastructure
+
+# ============================================================
+# Security Notes
+# ============================================================
+
+# IMPORTANT: Change root_password hash before using!
+#
+# Generate password hash:
+#   openssl passwd -6 "YourStrongPassword"
+#
+# Or use mkpasswd (if available):
+#   mkpasswd -m sha-512 "YourStrongPassword"
+#
+# Default password in this file: Homelab2025!
+# Hash generated with: openssl passwd -6 "Homelab2025!"
+
+# For production:
+# 1. Generate new password hash
+# 2. Update root_password field above
+# 3. Keep this file secure (DO NOT commit to Git!)

@@ -1,1083 +1,422 @@
-# Secure Home Network Configuration
+# Home Lab Infrastructure as Code
 
-Универсальная конфигурация домашней сети с Proxmox, OPNsense, OpenWRT и Oracle Cloud. Поддерживает два режима работы: дома и в поездке с автоматическим переключением.
+Infrastructure as Code (IaC) для home lab на базе Proxmox VE 9 с использованием Terraform и Ansible.
 
-## Структура проекта
+> 📖 **Старая документация**: Документация по предыдущей конфигурации сети доступна в [README-old-network-setup.md](README-old-network-setup.md)
+
+---
+
+## 🏗️ Обзор
+
+**Оборудование**: Dell XPS L701X
+- CPU: Intel Core i3-M370 (2 ядра, 2.4 GHz)
+- RAM: 8 GB DDR3
+- Накопители: SSD 180GB + HDD 500GB
+- Сеть: 2x 1Gb/s Ethernet (USB + Встроенный), WiFi
+
+**Стек технологий**:
+- **Гипервизор**: Proxmox VE 9 (Debian 12 Bookworm)
+- **Инфраструктура**: Terraform v1.7.0 (провайдер bpg/proxmox)
+- **Конфигурация**: Ansible v2.14+
+- **Контроль версий**: Git
+
+## 📁 Структура проекта
 
 ```
 home-lab/
-├── README.md                      # Этот файл
-├── docs/                          # Документация
-│   ├── START-HERE.md             # Быстрый старт
-│   ├── QUICK-REFERENCE.md        # Краткая справка
-│   ├── CHANGELOG.md              # История изменений
-│   ├── FILES-INDEX.md            # Индекс файлов
-│   ├── AMNEZIAWG-SETUP.md        # AmneziaWG настройка
-│   ├── HOME-RUSSIA-VPN-SETUP.md  # Russia VPN дома
-│   ├── NETWORK-DIAGRAM.txt       # Диаграмма сети
-│   └── ИНСТРУКЦИЯ.md             # Инструкция (RU)
-├── proxmox/                       # Proxmox VE
-│   ├── install/                  # Автоустановка
-│   │   ├── create-proxmox-usb.sh
-│   │   ├── answer.toml
-│   │   ├── README-AUTOINSTALL.md
-│   │   └── PROXMOX-UNATTENDED-INSTALL.md
-│   ├── scripts/                  # Automation система ⚡
-│   │   ├── lib/                  # Библиотеки
-│   │   │   ├── common-functions.sh
-│   │   │   └── network-functions.sh
-│   │   ├── templates/            # LXC шаблоны
-│   │   │   └── create-all-templates.sh
-│   │   ├── vms/                  # VM шаблоны
-│   │   │   ├── create-opnsense-template.sh
-│   │   │   └── deploy-opnsense.sh
-│   │   ├── services/             # LXC deployment
-│   │   │   └── deploy-*.sh
-│   │   ├── proxmox-post-install.sh
-│   │   ├── configure-network.sh  # Сетевая автоматизация
-│   │   ├── configure-lxc-routing.sh
-│   │   ├── deploy-all-services.sh
-│   │   ├── deploy-complete-system.sh  # Полное развертывание
-│   │   ├── README.md
-│   │   ├── ARCHITECTURE.md
-│   │   ├── QUICK-START.md
-│   │   └── NETWORK-SETUP.md
-│   └── configs/                  # Конфигурация
-│       └── proxmox-network-interfaces
-├── openwrt/                       # OpenWRT Router
-│   ├── home/                     # Home режим
-│   │   ├── openwrt-home-network
-│   │   ├── openwrt-home-wireless
-│   │   ├── openwrt-home-dhcp
-│   │   ├── openwrt-home-firewall
-│   │   ├── openwrt-home-russia-vpn.conf
-│   │   ├── wireguard-server-home.conf       # WireGuard сервер
-│   │   └── amneziawg-server-home.conf       # AmneziaWG сервер
-│   ├── travel/                   # Travel режим
-│   │   ├── openwrt-travel-network
-│   │   ├── openwrt-travel-wireless
-│   │   ├── openwrt-travel-dhcp
-│   │   ├── openwrt-travel-firewall
-│   │   ├── openwrt-travel-amneziawg-client.conf
-│   │   └── openwrt-travel-russia-client.conf
-│   └── scripts/                  # Скрипты управления
-│       ├── openwrt-install-script.sh
-│       ├── openwrt-mode-switcher.sh
-│       ├── openwrt-init-mode-detector
-│       ├── openwrt-vpn-selector.sh
-│       ├── openwrt-vpn-failover.sh
-│       ├── openwrt-amneziawg-failover.sh
-│       ├── setup-vpn-servers.sh              # Автоустановка VPN серверов
-│       └── generate-vpn-client-configs.sh    # Генератор клиентских конфигов
-├── opnsense/                      # OPNsense Firewall
-│   └── configs/
-│       ├── opnsense-interfaces-config.txt
-│       ├── opnsense-russia-vpn-firewall.txt
-│       ├── nginx-reverse-proxy-slate-ax.conf      # Nginx Reverse Proxy
-│       └── firewall-rules-vpn-servers.txt         # Firewall rules для VPN
-├── vpn-servers/                   # VPN Серверы
-│   ├── oracle-cloud/
-│   │   ├── oracle-cloud-wireguard.conf
-│   │   └── oracle-cloud-amneziawg.conf
-│   └── russia-vps/
-│       ├── RUSSIA-VPS-SETUP.md
-│       └── russia-vps-amneziawg.conf
-├── hardware/                      # Оборудование
-│   ├── dell-xps/
-│   │   ├── DELL-XPS-L701X-NOTES.md
-│   │   ├── DELL-XPS-SETUP-GUIDE.md
-│   │   └── DELL-XPS-EXTERNAL-DISPLAY-NOTES.md
-│   └── gl-inet/
-│       ├── GL-AXT1800-NOTES.md
-│       └── GL-INET-UI-GUIDE.md
-└── services/                      # Сервисы
-    └── adguardhome/
-        └── adguardhome-config.yaml
+├── README.md                  # Этот файл
+├── MIGRATION.md               # Руководство по миграции
+├── TESTING.md                 # Процедуры тестирования
+├── .gitignore                 # Защита секретов
+│
+├── terraform/                 # Provisioning инфраструктуры
+│   ├── providers.tf           # Конфигурация Proxmox provider
+│   ├── versions.tf            # Версии провайдеров
+│   ├── variables.tf           # Переменные (85+)
+│   ├── outputs.tf             # Выходные значения
+│   ├── terraform.tfvars.example  # Шаблон переменных
+│   └── modules/
+│       ├── network/           # Сетевые мосты (vmbr0-vmbr99)
+│       └── storage/           # Пулы хранения (SSD + HDD)
+│
+├── ansible/                   # Configuration management
+│   ├── ansible.cfg            # Конфигурация Ansible
+│   ├── requirements.yml       # Коллекции и роли
+│   ├── inventory/
+│   │   └── production/
+│   │       ├── hosts.yml      # Inventory
+│   │       └── group_vars/
+│   │           └── all.yml    # Глобальные переменные
+│   ├── playbooks/             # Плейбуки
+│   │   └── proxmox-setup.yml  # Настройка Proxmox
+│   └── roles/
+│       └── proxmox/           # Роль Proxmox
+│           ├── defaults/      # Переменные по умолчанию
+│           ├── tasks/         # Задачи
+│           ├── meta/          # Метаданные роли
+│           └── README.md      # Документация роли
+│
+└── bare-metal/                # Установка на bare-metal
+    ├── README.md              # Руководство по установке
+    ├── answer.toml            # Конфигурация auto-install
+    ├── create-usb.sh          # Скрипт создания USB
+    └── post-install/          # Скрипты post-install
+        ├── README.md
+        ├── 01-install-terraform.sh
+        ├── 02-install-ansible.sh
+        ├── 03-configure-storage.sh
+        ├── 04-configure-network.sh
+        └── 05-init-git-repo.sh
 ```
 
-## Архитектура
+## 🚀 Быстрый старт
 
-### ⚡ Оптимизированная архитектура (рекомендуется)
+### Вариант 1: Свежая установка (Рекомендуется)
 
-**Цель:** Разгрузить Proxmox (8GB RAM) путём переноса сервисов на GL-AXT1800 Slate AX
+**Для новой установки Proxmox на bare metal:**
 
-**Новая архитектура:**
+1. **Создание загрузочного USB**
+   ```bash
+   cd bare-metal/
+   sudo ./create-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
+   ```
 
-```
-Internet → ISP Router → OPNsense (Proxmox VM)
-                             ↓
-                   Nginx Reverse Proxy (OPNsense)
-                             ↓
-                    GL-AXT1800 Slate AX
-                    ├── AdGuard Home (DNS)
-                    ├── WireGuard Server (51820) → Клиенты VPN
-                    ├── AmneziaWG Server (51821) → Россия клиенты
-                    └── WiFi AP (дома) или Travel VPN (поездка)
-```
+2. **Установка Proxmox**
+   - Загрузитесь с USB на Dell XPS L701X
+   - Автоустановка завершится (~15 минут)
+   - Система перезагрузится
 
-**Что работает на Slate AX:**
-- ✅ **AdGuard Home** (~100MB RAM) - DNS фильтрация для всей сети
-- ✅ **WireGuard Server** (~20MB RAM) - домашний VPN для доступа к локальной сети
-- ✅ **AmneziaWG Server** (~20MB RAM) - VPN с обфускацией для клиентов в России
-- ✅ **WiFi AP** - точка доступа для домашних устройств
-- ✅ **Travel VPN** - VPN туннель до дома в режиме путешествия
+3. **Запуск Post-Install скриптов**
+   ```bash
+   ssh root@<proxmox-ip>
+   cd /root/post-install
+   ./01-install-terraform.sh
+   ./02-install-ansible.sh
+   ./03-configure-storage.sh
+   ./04-configure-network.sh
+   ./05-init-git-repo.sh
+   reboot
+   ```
 
-**Преимущества:**
-- 🚀 **Proxmox RAM освобождено:** ~1 GB (было 0.5 GB свободно, стало 1.5 GB)
-- 🔒 **Безопасность:** Nginx Reverse Proxy на OPNsense (HTTPS, rate limiting)
-- 🌐 **VPN Composite Policy:** Умная маршрутизация (банки→Russia VPN, дом→Home VPN)
-- 📱 **VPN Multi-Instance:** Несколько VPN одновременно в Travel режиме
-- 🎯 **Два режима:** HOME (за OPNsense) и TRAVEL (VPN туннель до дома)
+4. **Копирование IaC файлов**
+   ```bash
+   scp -r ~/workspaces/projects/home-lab/* root@10.0.99.1:/root/home-lab/
+   ```
 
-> 📖 **Полная документация:** `/tmp/optimized-architecture-slate-ax.md` (700+ строк)
->
-> **Quick Start:**
-> ```bash
-> # 1. Установить VPN серверы на Slate AX
-> bash openwrt/scripts/setup-vpn-servers.sh
->
-> # 2. Сгенерировать клиентские конфигурации
-> bash openwrt/scripts/generate-vpn-client-configs.sh
->
-> # 3. Настроить Nginx Reverse Proxy на OPNsense
-> # См. opnsense/configs/nginx-reverse-proxy-slate-ax.conf
->
-> # 4. Применить firewall правила
-> # См. opnsense/configs/firewall-rules-vpn-servers.txt
-> ```
+5. **Развёртывание инфраструктуры**
+   ```bash
+   ssh root@10.0.99.1
+   cd /root/home-lab/terraform
+   cp terraform.tfvars.example terraform.tfvars
+   vim terraform.tfvars  # Настройка
+   terraform init
+   terraform apply
+   ```
+
+6. **Конфигурация системы**
+   ```bash
+   cd /root/home-lab/ansible
+   ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml
+   ```
+
+Подробности в [bare-metal/README.md](bare-metal/README.md)
 
 ---
 
-### Дома (классическая схема)
+### Вариант 2: Существующий Proxmox
+
+**Для существующей установки Proxmox:**
+
+1. **Установка Terraform и Ansible**
+   ```bash
+   cd bare-metal/post-install
+   ./01-install-terraform.sh
+   ./02-install-ansible.sh
+   ```
+
+2. **Копирование IaC файлов**
+   ```bash
+   scp -r ~/workspaces/projects/home-lab/* root@<proxmox-ip>:/root/home-lab/
+   ```
+
+3. **Настройка и применение**
+   ```bash
+   # Terraform
+   cd /root/home-lab/terraform
+   terraform init
+   terraform apply
+
+   # Ansible
+   cd /root/home-lab/ansible
+   ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml
+   ```
+
+Руководство по миграции: [MIGRATION.md](MIGRATION.md)
+
+## 🏛️ Архитектура
+
+### Сетевая топология
 
 ```
-Internet → ISP Router → Proxmox NIC1 (WAN)
-                           ↓
-                      OPNsense VM (Firewall)
-                           ↓
-                    Proxmox NIC2 (LAN)
-                           ↓
-                      OpenWRT Router
-                           ↓
-                  WiFi клиенты + LAN
+┌──────────────────────────────────────────────────────────────────┐
+│                        ISP Router (DHCP)                         │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+                    ┌────────▼─────────┐
+                    │ USB Ethernet     │
+                    │ (eth-usb)        │
+                    └────────┬─────────┘
+                             │
+                    ┌────────▼─────────┐
+                    │ vmbr0 (WAN)      │
+                    │ DHCP             │
+                    └────────┬─────────┘
+                             │
+         ┌───────────────────▼──────────────────────┐
+         │         OPNsense Firewall VM             │
+         │  WAN: vmbr0 (DHCP from ISP)              │
+         │  LAN: vmbr1 (192.168.10.254/24)          │
+         └───────────────────┬──────────────────────┘
+                             │
+                    ┌────────▼─────────┐
+                    │ Built-in Ethernet│
+                    │ (eth-builtin)    │
+                    └────────┬─────────┘
+                             │
+         ┌───────────────────▼──────────────────────┐
+         │       GL.iNet Slate AX Router            │
+         │       192.168.10.1 (Travel/Home)         │
+         │       WiFi, VPN, AdGuard                 │
+         └──────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│                 LXC Containers Network                           │
+│               vmbr2 (10.0.30.1/24)                               │
+│  ┌────────────┬────────────┬────────────┬────────────┐          │
+│  │ PostgreSQL │ Redis      │ Nextcloud  │ Jellyfin   │          │
+│  │ .10        │ .20        │ .30        │ .40        │          │
+│  └────────────┴────────────┴────────────┴────────────┘          │
+└──────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│                   Management Network                             │
+│                 vmbr99 (10.0.99.1/24)                            │
+│  ┌──────────────────────┬──────────────────────┐                │
+│  │ Proxmox Web UI       │ OPNsense Web UI      │                │
+│  │ 10.0.99.1:8006       │ 10.0.99.10           │                │
+│  └──────────────────────┴──────────────────────┘                │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### В поездке
+### Хранилище
 
+**SSD 180GB** (`/dev/sda` - local-lvm):
 ```
-Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
-                              ↓
-                         Your devices
+├── Root partition: 50 GB    (Proxmox OS)
+├── Swap: 2 GB               (Память)
+└── LVM thin pool: ~128 GB   (VMs & LXC)
 ```
 
-## Компоненты
+**HDD 500GB** (`/dev/sdb` - local-hdd):
+```
+/mnt/hdd/
+├── backup/      # Бэкапы VM/LXC
+├── iso/         # ISO образы
+├── template/    # Шаблоны VM
+├── snippets/    # Cloud-init snippets
+└── dump/        # Дампы конфигураций
+```
 
-### 1. Proxmox (Гипервизор)
+## 🔧 Конфигурация
 
-**Устройство:** Dell XPS L701X (Studio XPS 17)
-- CPU: Intel Core i5/i7 (1st gen, 2 ядра + HT)
-- RAM: 8 GB DDR3
-- SSD: 250 GB (быстрый - для VM/LXC)
-- HDD: 500 GB (медленный - для backup/ISO)
-- Встроенный Ethernet: 1x Gigabit (LAN)
-- USB-Ethernet: 1x Gigabit (WAN)
+### Terraform
 
-> 📖 **Подробнее:** См. [hardware/dell-xps/DELL-XPS-L701X-NOTES.md](hardware/dell-xps/DELL-XPS-L701X-NOTES.md)
+**Основные переменные** (terraform.tfvars):
+```hcl
+# Proxmox API
+proxmox_api_url = "https://10.0.99.1:8006/api2/json"
+proxmox_api_token_id = "root@pam!terraform"
+proxmox_api_token_secret = "your-token-secret"
 
-**Конфигурация:** [proxmox/configs/proxmox-network-interfaces](proxmox/configs/proxmox-network-interfaces)
+# Node
+proxmox_node_name = "pve-xps"
 
-**Bridges:**
-- `vmbr0` - WAN (к ISP Router через USB-Ethernet)
-- `vmbr1` - LAN (к OpenWRT через встроенный Ethernet)
-- `vmbr2` - INTERNAL (LXC контейнеры)
-- `vmbr99` - MGMT (управление)
+# Network
+wan_interface = "eth-usb"
+lan_interface = "eth-builtin"
 
-**Storage (Template Strategy):**
-- `local-hdd` (HDD 500GB) - Templates (LXC 900-908, VM 910), backup, ISO
-- `local-lvm` (SSD 180GB) - Production (VM 100, LXC 200-208)
+# Storage
+storage_ssd_id = "local-lvm"
+storage_hdd_id = "local-hdd"
+```
 
-> 💡 **Стратегия:** Шаблоны на медленном HDD (редкий доступ), production на быстром SSD (ежедневная работа)
+**Использование**:
+```bash
+cd terraform/
 
-### 2. OPNsense (Основной Firewall)
+# Инициализация
+terraform init
 
-**VM параметры (оптимизировано для 8GB RAM):**
-- CPU: 2 cores
-- RAM: 2 GB (минимум для стабильной работы)
-- Disk: 32 GB (на SSD через local-lvm)
-- Autostart: Priority 1
-- Storage: local-lvm (SSD для производительности)
+# Планирование изменений
+terraform plan
 
-**Конфигурация:** [opnsense/configs/opnsense-interfaces-config.txt](opnsense/configs/opnsense-interfaces-config.txt)
+# Применение изменений
+terraform apply
 
-**Интерфейсы:**
-- WAN (vtnet0): DHCP от ISP (192.168.1.x) → vmbr0
-- LAN (vtnet1): 192.168.10.1/24 → vmbr1 (к OpenWRT)
-- INTERNAL (vtnet2): 10.0.30.254/24 → vmbr2 (gateway для LXC)
-- MGMT (vtnet3): 10.0.99.10/24 → vmbr99 (Web UI)
-- WireGuard: 10.0.200.1/24 (VPN для походного OpenWRT)
-
-> 💡 **Примечание:** Proxmox host использует 10.0.30.1 для прямого доступа к LXC, OPNsense использует 10.0.30.254 как Internet gateway
-
-**Функции:**
-- Stateful firewall
-- NAT
-- DHCP server
-- WireGuard VPN server
-- IDS/IPS (опционально)
-
-### 3. OpenWRT (WiFi Router + Travel VPN Gateway)
-
-**Устройство:** GL.iNet GL-AXT1800 (Slate AX)
-- CPU: MediaTek MT7621A (880 MHz dual-core)
-- RAM: 512 MB
-- WiFi: WiFi 6 (802.11ax) - 1200+574 Mbps
-- Ethernet: **3x Gigabit (1 WAN + 2 LAN)**
-- Размер: Компактный ~10x6x2 см (портативный travel router)
-- **Прошивка:** GL.iNet firmware 4.8.2 (на базе OpenWRT 23.05)
-- **Dual UI:** GL.iNet UI (удобный) + OpenWRT LuCI (расширенный)
-- **Новые возможности firmware 4.8.2:**
-  - VPN Multi-Instance (несколько VPN одновременно)
-  - VPN Composite Policy (умная маршрутизация по доменам/IP/MAC)
-  - IPv6 VPN support
-  - Guest Network Isolation
-
-> 📖 **Подробнее:** См. [hardware/gl-inet/GL-AXT1800-NOTES.md](hardware/gl-inet/GL-AXT1800-NOTES.md)
->
-> **Web интерфейсы:**
-> - GL.iNet UI: http://192.168.20.1 (для повседневных задач)
-> - OpenWRT LuCI: http://192.168.20.1:81 (для расширенных настроек)
-
-**Режим ДОМА:**
-
-Файлы конфигурации:
-- [openwrt/home/openwrt-home-network](openwrt/home/openwrt-home-network) - сетевая конфигурация
-- [openwrt/home/openwrt-home-wireless](openwrt/home/openwrt-home-wireless) - WiFi настройки
-- [openwrt/home/openwrt-home-dhcp](openwrt/home/openwrt-home-dhcp) - DHCP и DNS
-- [openwrt/home/openwrt-home-firewall](openwrt/home/openwrt-home-firewall) - правила firewall
-
-**Сети:**
-- WAN: 192.168.10.2 (к OPNsense LAN)
-- LAN: 192.168.20.1/24 (основная сеть)
-- Guest: 192.168.30.1/24 (гостевая WiFi)
-- IoT: 192.168.40.1/24 (умный дом)
-
-**WiFi SSID:**
-- `HomeNet-5G` / `HomeNet-2G` - основная сеть (WPA3)
-- `Guest-5G` - гостевая (изолирована)
-- `Smart-Home` - IoT устройства
-
-**AdGuard Home:**
-- **Расположение:** На GL-AXT1800 Slate AX (экономия RAM Proxmox!)
-- Port: 53 (DNS)
-- Web UI (прямой доступ): http://192.168.20.1:3000
-- **Web UI (через Nginx Reverse Proxy):** https://adguard.home.local
-- Конфигурация: [services/adguardhome/adguardhome-config.yaml](services/adguardhome/adguardhome-config.yaml)
-- Фильтрация рекламы для всей сети
-- RAM usage: ~100-150 MB (на Slate AX, не затрагивает Proxmox)
-
-> 🔒 **Nginx Reverse Proxy на OPNsense:**
-> - **AdGuard Home:** https://adguard.home.local → 192.168.20.1:3000
-> - **GL.iNet UI:** https://router.home.local → 192.168.20.1:80
-> - **OpenWRT LuCI:** https://luci.home.local → 192.168.20.1:81
-> - **Конфигурация:** [opnsense/configs/nginx-reverse-proxy-slate-ax.conf](opnsense/configs/nginx-reverse-proxy-slate-ax.conf)
-> - HTTPS терминация, rate limiting, централизованное логирование
+# Уничтожение ресурсов
+terraform destroy
+```
 
 ---
 
-**Режим В ПОЕЗДКЕ:**
+### Ansible
 
-Файлы конфигурации:
-- [openwrt/travel/openwrt-travel-network](openwrt/travel/openwrt-travel-network) - сетевая конфигурация с WireGuard
-- [openwrt/travel/openwrt-travel-wireless](openwrt/travel/openwrt-travel-wireless) - WiFi для ваших устройств
-- [openwrt/travel/openwrt-travel-dhcp](openwrt/travel/openwrt-travel-dhcp) - DHCP с DNS через VPN
-- [openwrt/travel/openwrt-travel-firewall](openwrt/travel/openwrt-travel-firewall) - строгий firewall для публичных сетей
+**Основные переменные** (group_vars/all.yml):
+```yaml
+# Repository
+proxmox_use_no_subscription_repo: true
 
-**Сети:**
-- WAN: DHCP от отеля/кафе
-- LAN: 192.168.100.1/24 (ваши устройства)
-- WireGuard Home: 10.0.200.10/32
-- WireGuard Oracle: 10.1.200.10/32
+# Network
+proxmox_wan_interface: eth-usb
+proxmox_lan_interface: eth-builtin
 
-**WiFi SSID:**
-- `Travel-Secure-5G` / `Travel-Secure-2G` - весь трафик через VPN
-
-**VPN Failover:**
-- Primary: AmneziaWG → Oracle Cloud (обход DPI блокировок РФ)
-- Backup: WireGuard → Home OPNsense (если AmneziaWG заблокирован)
-
-**⚡ VPN Multi-Instance (firmware 4.8.2):**
-- Несколько VPN одновременно: Oracle VPN + Russia VPN + Home VPN
-- Каждый VPN независим, отдельная маршрутизация
-
-**🎯 VPN Composite Policy (firmware 4.8.2):**
-- Умная маршрутизация по доменам/IP/MAC
-- Примеры:
-  - `sberbank.ru` → Russia VPN (российский IP)
-  - `192.168.20.0/24` → Home VPN (локальная сеть)
-  - Всё остальное → Oracle VPN (обход блокировок)
-
-> 📖 **Важно для России:** См. [docs/AMNEZIAWG-SETUP.md](docs/AMNEZIAWG-SETUP.md)
-
-### 4. Oracle Cloud (Backup VPN Gateway)
-
-**Конфигурации:**
-- [vpn-servers/oracle-cloud/oracle-cloud-wireguard.conf](vpn-servers/oracle-cloud/oracle-cloud-wireguard.conf) - обычный WireGuard
-- [vpn-servers/oracle-cloud/oracle-cloud-amneziawg.conf](vpn-servers/oracle-cloud/oracle-cloud-amneziawg.conf) - AmneziaWG с обфускацией (для РФ)
-
-**Instance:**
-- OS: Ubuntu 22.04 LTS
-- Shape: Always Free (4 OCPU ARM, 24GB RAM)
-- VPN: WireGuard + AmneziaWG серверы
-
-**Функции:**
-- Site-to-site VPN с домашней сетью
-- Failover точка для походного OpenWRT
-- AmneziaWG для обхода DPI блокировок (Россия, Китай, Иран)
-- Backup reverse proxy (опционально)
-
-**IP адресация:**
-- WireGuard: 10.8.1.0/24 (порт 51820)
-- AmneziaWG: 10.8.2.0/24 (порт 51821, с обфускацией)
-- Peer Home: 10.0.0.0/16
-- Peer OpenWRT: 10.8.1.2 (WG) / 10.8.2.2 (AWG)
-
-### 5. Russia VPS (Российский IP адрес)
-
-**Конфигурации:**
-- [vpn-servers/russia-vps/russia-vps-amneziawg.conf](vpn-servers/russia-vps/russia-vps-amneziawg.conf) - сервер на российском VPS
-- [openwrt/travel/openwrt-travel-russia-client.conf](openwrt/travel/openwrt-travel-russia-client.conf) - клиент для Travel Mode
-- [openwrt/home/openwrt-home-russia-vpn.conf](openwrt/home/openwrt-home-russia-vpn.conf) - клиент для Home Mode
-
-**Назначение:** Получение российского IP для доступа к РФ сервисам из-за границы
-
-**VPS:**
-- Хостинг: Timeweb / REG.RU / Selectel
-- Стоимость: 150-500₽/мес (~$2-5)
-- Расположение: Москва или Санкт-Петербург
-- VPN: AmneziaWG сервер
-
-**Сервисы с российским IP:**
-- 🏦 Банки РФ (Сбербанк, Тинькофф, ВТБ)
-- 🏛️ Госуслуги
-- 📺 Стриминг (Okko, Kinopoisk, Match TV)
-- 🛍️ Маркетплейсы (Wildberries, Ozon)
-- 🎵 Яндекс.Музыка, Яндекс.Диск
-
-**IP адресация:**
-- AmneziaWG: 10.9.1.0/24 (порт 51822)
-- Сервер: 10.9.1.1
-- Клиент: 10.9.1.2
-
-**Использование дома (через OPNsense):**
-- Russia VPN работает и дома! Трафик проходит через OPNsense firewall
-- Нужно настроить правила на OPNsense (разрешить UDP 51822)
-- Та же AmneziaWG конфигурация, разная только маршрутизация
-
-> 📖 **Подробнее:**
-> - Настройка российского VPS: [vpn-servers/russia-vps/RUSSIA-VPS-SETUP.md](vpn-servers/russia-vps/RUSSIA-VPS-SETUP.md)
-> - Использование дома: [docs/HOME-RUSSIA-VPN-SETUP.md](docs/HOME-RUSSIA-VPN-SETUP.md)
-> - Правила OPNsense: [opnsense/configs/opnsense-russia-vpn-firewall.txt](opnsense/configs/opnsense-russia-vpn-firewall.txt)
-
-### 6. VPN Протоколы
-
-**WireGuard** (базовый):
-- ✅ Максимальная скорость
-- ✅ Простая настройка
-- ❌ Легко блокируется DPI (в РФ, Китае)
-- Файлы: [vpn-servers/oracle-cloud/oracle-cloud-wireguard.conf](vpn-servers/oracle-cloud/oracle-cloud-wireguard.conf)
-
-**AmneziaWG Oracle** (обход блокировок):
-- ✅ Обход DPI блокировок в РФ
-- ✅ Почти такая же скорость как WireGuard
-- ✅ Обфускация трафика
-- Файлы: [vpn-servers/oracle-cloud/oracle-cloud-amneziawg.conf](vpn-servers/oracle-cloud/oracle-cloud-amneziawg.conf), [openwrt/travel/openwrt-travel-amneziawg-client.conf](openwrt/travel/openwrt-travel-amneziawg-client.conf)
-
-**AmneziaWG Russia** (российский IP):
-- ✅ Российский IP адрес
-- ✅ Доступ к РФ сервисам из-за границы
-- ✅ Та же обфускация
-- Файлы: [vpn-servers/russia-vps/russia-vps-amneziawg.conf](vpn-servers/russia-vps/russia-vps-amneziawg.conf), [openwrt/travel/openwrt-travel-russia-client.conf](openwrt/travel/openwrt-travel-russia-client.conf)
-
-**VPN Selector:**
-- Скрипт: [openwrt/scripts/openwrt-vpn-selector.sh](openwrt/scripts/openwrt-vpn-selector.sh)
-- Переключение одной командой: `vpn oracle`, `vpn russia`, `vpn home`
-
-> 📖 **Подробнее:**
-> - AmneziaWG настройка: [docs/AMNEZIAWG-SETUP.md](docs/AMNEZIAWG-SETUP.md)
-> - Российский VPS: [vpn-servers/russia-vps/RUSSIA-VPS-SETUP.md](vpn-servers/russia-vps/RUSSIA-VPS-SETUP.md)
-
-## IP адресация
-
-### Домашняя сеть
-
-| Сеть | CIDR | Gateway | Назначение |
-|------|------|---------|------------|
-| ISP | 192.168.1.0/24 | 192.168.1.1 | ISP Router |
-| OPNsense LAN | 192.168.10.0/24 | 192.168.10.1 | К OpenWRT |
-| OpenWRT LAN | 192.168.20.0/24 | 192.168.20.1 | Клиенты |
-| Guest WiFi | 192.168.30.0/24 | 192.168.30.1 | Гости |
-| IoT | 192.168.40.0/24 | 192.168.40.1 | Умный дом |
-| LXC Internal | 10.0.30.0/24 | **10.0.30.254** | Контейнеры (Internet via OPNsense) |
-| Management | 10.0.99.0/24 | 10.0.99.1 | Proxmox + OPNsense Admin |
-| VPN Travel (OPNsense) | 10.0.200.0/24 | 10.0.200.1 | OpenWRT Travel VPN (туннель до дома) |
-| **VPN Home (Slate AX WireGuard)** | **10.0.200.0/24** | **192.168.20.1** | **WireGuard VPN клиенты** |
-| **VPN Russia (Slate AX AmneziaWG)** | **10.8.2.0/24** | **192.168.20.1** | **AmneziaWG VPN клиенты (только интернет)** |
-
-> 💡 **Важно:**
-> - LXC контейнеры используют 10.0.30.254 (OPNsense) как Internet gateway, Proxmox host доступен на 10.0.30.1
-> - **VPN Home (10.0.200.0/24):** WireGuard сервер на Slate AX для VPN клиентов (доступ ко всей домашней сети)
-> - **VPN Russia (10.8.2.0/24):** AmneziaWG сервер на Slate AX (только интернет, без доступа к локальной сети)
-
-### VPN Серверы
-
-| Сервер | Сеть | CIDR | Gateway | Назначение |
-|--------|------|------|---------|------------|
-| **⭐ Slate AX (HOME)** | **WireGuard** | **10.0.200.0/24** | **10.0.200.1** | **Домашний VPN сервер (порт 51820, доступ к LAN)** |
-| **⭐ Slate AX (HOME)** | **AmneziaWG** | **10.8.2.0/24** | **10.8.2.1** | **Россия VPN (порт 51821, только интернет)** |
-| **Oracle Cloud** | WireGuard | 10.8.1.0/24 | 10.8.1.1 | Обычный WireGuard (порт 51820) |
-| **Oracle Cloud** | AmneziaWG | 10.8.2.0/24 | 10.8.2.1 | Обход DPI РФ (порт 51821) |
-| **Russia VPS** | AmneziaWG | 10.9.1.0/24 | 10.9.1.1 | Российский IP (порт 51822) |
-
-> ⭐ **Новые VPN серверы на Slate AX:**
-> - **WireGuard Server:** Доступ к домашней сети (192.168.20.0/24), LXC (10.0.30.0/24), Management (10.0.99.0/24)
-> - **AmneziaWG Server:** Только интернет для клиентов в России (без доступа к локальной сети)
-> - **Установка:** `bash openwrt/scripts/setup-vpn-servers.sh`
-> - **Конфигурации:** `openwrt/home/wireguard-server-home.conf`, `openwrt/home/amneziawg-server-home.conf`
-
-## Установка
-
-### 1. Proxmox - Автоматическая установка
-
-**Для Dell XPS L701X с внешним дисплеем:**
-
-⭐ **Используйте автоматическую установку**: [proxmox/install/create-proxmox-usb.sh](proxmox/install/create-proxmox-usb.sh)
-
-```bash
-# 1. Создайте загрузочную USB
-sudo ./proxmox/install/create-proxmox-usb.sh /dev/sdX proxmox-ve_9.0.iso
-
-# 2. Загрузитесь с USB (F12 → UEFI: USB)
-# 3. Нажмите 'a' в меню для автоустановки
-# 4. Подождите 10-15 минут
+# Optimization
+proxmox_ksm_enabled: true
+proxmox_swappiness: 10
+proxmox_cpu_governor: ondemand
 ```
 
-**📖 Подробная инструкция:**
-- English: [proxmox/install/README-AUTOINSTALL.md](proxmox/install/README-AUTOINSTALL.md)
-- Русский: [docs/ИНСТРУКЦИЯ.md](docs/ИНСТРУКЦИЯ.md)
-
-**После установки:**
-
-1. Войдите через SSH:
+**Использование**:
 ```bash
-ssh root@<ip-address>  # Пароль: Homelab2025!
+cd ansible/
+
+# Тест подключения
+ansible all -i inventory/production/hosts.yml -m ping
+
+# Запуск плейбука
+ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml
+
+# Запуск конкретных задач
+ansible-playbook ... --tags repositories
+
+# Dry run
+ansible-playbook ... --check
 ```
 
-2. Запустите post-install скрипт с сетевой автоматизацией:
-```bash
-# Полная автоматизация (новая система)
-bash proxmox-post-install.sh --init-hdd --auto-network
-
-# Или интерактивно (существующая система)
-bash proxmox-post-install.sh
-```
-
-Скрипт автоматически:
-- ✅ Настроит репозитории (no-subscription)
-- ✅ **Автоматически обнаружит сетевые интерфейсы** (PCI/USB)
-- ✅ **Создаст UDEV правила** (eth-wan, eth-lan)
-- ✅ **Сгенерирует network config** (vmbr0-vmbr99)
-- ✅ Инициализирует HDD или смонтирует существующий
-- ✅ Применит оптимизации (KSM, USB power)
-
-3. Перезагрузите систему:
-```bash
-systemctl reboot
-```
-
-> 📖 **Сетевая автоматизация:** См. [proxmox/scripts/NETWORK-SETUP.md](proxmox/scripts/NETWORK-SETUP.md)
-
-### 2. OPNsense VM - Автоматизированное развертывание ⚡
-
-**Вариант A: Полная автоматизация (рекомендуется)**
-
-```bash
-cd /root/scripts
-
-# Шаг 1: Создать OPNsense template (один раз, ~15 минут)
-bash vms/create-opnsense-template.sh
-# Следуйте инструкциям для ручной установки OPNsense
-# После установки: qm template 910
-
-# Шаг 2: Развернуть OPNsense VM из template (~2 минуты)
-bash vms/deploy-opnsense.sh
-
-# Готово! OPNsense работает на VM ID 100
-```
-
-**Вариант B: Ручная установка**
-
-1. Создайте VM в Proxmox (см. параметры в [opnsense/configs/opnsense-interfaces-config.txt](opnsense/configs/opnsense-interfaces-config.txt))
-2. Установите OPNsense с ISO образа
-3. Настройте интерфейсы через консоль
-4. Откройте Web UI: https://192.168.10.1 или https://10.0.99.10
-5. Следуйте инструкциям в [opnsense/configs/opnsense-interfaces-config.txt](opnsense/configs/opnsense-interfaces-config.txt)
-
-> 📖 **Подробнее:** См. [proxmox/scripts/README.md#vm-management-opnsense-firewall](proxmox/scripts/README.md#vm-management-opnsense-firewall)
-
-### 3. OpenWRT Router
-
-**Первичная настройка:**
-
-1. Подключитесь к OpenWRT через SSH или Web UI
-2. Запустите установочный скрипт:
-```bash
-scp openwrt/scripts/openwrt-install-script.sh root@192.168.1.1:/tmp/
-ssh root@192.168.1.1
-cd /tmp
-sh openwrt-install-script.sh
-```
-
-**Настройка режима ДОМА:**
-
-1. Скопируйте конфигурации:
-```bash
-scp openwrt/home/openwrt-home-* root@192.168.20.1:/etc/openwrt-configs/home/
-ssh root@192.168.20.1
-
-# Rename files
-cd /etc/openwrt-configs/home/
-mv openwrt-home-network network
-mv openwrt-home-wireless wireless
-mv openwrt-home-dhcp dhcp
-mv openwrt-home-firewall firewall
-```
-
-2. Настройте WiFi пароли в файле `wireless`
-3. Настройте AdGuard Home:
-```bash
-cp services/adguardhome/adguardhome-config.yaml /etc/adguardhome.yaml
-/etc/init.d/AdGuardHome restart
-```
-4. Откройте http://192.168.20.1:3000 и завершите настройку
-
-**Настройка режима В ПОЕЗДКЕ:**
-
-1. Сгенерируйте WireGuard ключи:
-```bash
-ssh root@192.168.20.1
-wg genkey | tee /etc/wireguard/privatekey | wg pubkey > /etc/wireguard/publickey
-```
+## 📚 Документация
+
+- **[MIGRATION.md](MIGRATION.md)**: Руководство по миграции
+  - Стратегия миграции
+  - Пошаговые инструкции
+  - Планы отката
+  - Процедуры проверки
 
-2. Добавьте публичный ключ в OPNsense (VPN → WireGuard → Peers)
-
-3. Скопируйте конфигурации:
-```bash
-scp openwrt/travel/openwrt-travel-* root@192.168.20.1:/etc/openwrt-configs/travel/
-ssh root@192.168.20.1
+- **[TESTING.md](TESTING.md)**: Руководство по тестированию
+  - Unit тестирование
+  - Integration тестирование
+  - System тестирование (end-to-end)
+  - Performance тестирование
+  - Security тестирование
 
-cd /etc/openwrt-configs/travel/
-mv openwrt-travel-network network
-mv openwrt-travel-wireless wireless
-mv openwrt-travel-dhcp dhcp
-mv openwrt-travel-firewall firewall
-```
+- **[bare-metal/README.md](bare-metal/README.md)**: Установка bare-metal
+  - Создание USB
+  - Конфигурация auto-install
+  - Post-install скрипты
 
-4. Отредактируйте `/etc/openwrt-configs/travel/network`:
-   - Замените `YOUR_OPENWRT_PRIVATE_KEY_HERE` на ваш приватный ключ
-   - Замените `OPNSENSE_PUBLIC_KEY_HERE` на публичный ключ OPNsense
-   - Замените `your-home-ddns.example.com` на ваш домашний DDNS
+## 🔐 Безопасность
 
-### 4. Oracle Cloud
+### Управление секретами
 
-1. Создайте Always Free instance (Ubuntu 22.04 ARM)
+**Защищённые файлы** (.gitignore):
+- `*.tfvars` - Переменные Terraform
+- `*.tfstate` - Состояние Terraform
+- `.vault_pass` - Пароль Ansible vault
+- `*.pem`, `*.key` - SSH ключи
+- `.env` - Переменные окружения
 
-2. Настройте WireGuard:
-```bash
-ssh ubuntu@oracle-ip
-sudo apt update && sudo apt install wireguard-tools
+**Best practices**:
+- Никогда не коммитить секреты в Git
+- Использовать Ansible Vault для чувствительных данных
+- Использовать переменные Terraform для секретов
+- Регулярно ротировать API токены
+- Использовать SSH ключи (не пароли)
 
-# Generate keys
-wg genkey | sudo tee /etc/wireguard/privatekey | wg pubkey | sudo tee /etc/wireguard/publickey
+## 🛠️ Обслуживание
 
-# Copy config
-sudo nano /etc/wireguard/wg0.conf
-# Paste content from vpn-servers/oracle-cloud/oracle-cloud-wireguard.conf
-```
+### Ежедневно
 
-3. Включите IP forwarding:
-```bash
-echo "net.ipv4.ip_forward=1" | sudo tee -a /etc/sysctl.conf
-sudo sysctl -p
-```
+- Мониторинг здоровья системы через Proxmox UI
+- Проверка статуса сервисов
+- Просмотр логов на наличие ошибок
 
-4. Настройте firewall:
-```bash
-sudo ufw allow 51820/udp
-sudo ufw enable
-```
+### Еженедельно
 
-5. Добавьте Security List в OCI Console:
-   - Ingress Rule: UDP port 51820 from 0.0.0.0/0
+- Запуск бэкапов
+- Тест восстановления из бэкапа
+- Обновление пакетов: `apt update && apt upgrade`
+- Проверка drift: `terraform plan`
+- Проверка Ansible: `ansible-playbook ... --check`
 
-6. Запустите WireGuard:
-```bash
-sudo systemctl enable wg-quick@wg0
-sudo systemctl start wg-quick@wg0
-```
+### Ежемесячно
 
-## Использование
+- Обзор использования ресурсов
+- Оптимизация хранилища (очистка бэкапов)
+- Обзор логов безопасности
+- Обновление документации
 
-### Автоматическое переключение режимов
+## 🐛 Устранение неполадок
 
-OpenWRT автоматически определяет, находитесь вы дома или в поездке:
+Подробные процедуры в [TESTING.md](TESTING.md#troubleshooting)
 
-**Дома:**
-- Обнаруживает OPNsense на 192.168.10.1
-- Работает как обычный WiFi роутер
-- AdGuard фильтрует рекламу
+## 📊 Мониторинг
 
-**В поездке:**
-- Не находит OPNsense
-- Автоматически переключается в VPN режим
-- Поднимает WireGuard туннель
+**Метрики для отслеживания**:
+- CPU usage: `htop`, `mpstat`
+- Memory usage: `free -h`, KSM stats
+- Disk I/O: `iostat`
+- Network throughput: `iperf3`
+- Service status: `systemctl status`
 
-### Ручное переключение
+## 🎯 Roadmap
 
-```bash
-ssh root@192.168.20.1  # или 192.168.100.1 в поездке
+### Завершено ✅
 
-# Переключить в режим дома
-/usr/bin/openwrt-mode-switcher.sh
+- [x] IaC структура директорий
+- [x] Базовая конфигурация Terraform
+- [x] Модуль сети Terraform
+- [x] Модуль хранилища Terraform
+- [x] Базовая конфигурация Ansible
+- [x] Роль Proxmox в Ansible
+- [x] Автоматизация bare-metal установки
+- [x] Документация по миграции
+- [x] Процедуры тестирования
 
-# Проверить VPN failover
-/usr/bin/openwrt-vpn-failover.sh
+### В процессе 🔄
 
-# Или используйте локальные скрипты
-openwrt/scripts/openwrt-mode-switcher.sh
-openwrt/scripts/openwrt-vpn-failover.sh
+- [ ] Модуль VM в Terraform (OPNsense)
+- [ ] Модуль LXC в Terraform (PostgreSQL, Redis, Nextcloud, и т.д.)
+- [ ] Плейбуки Ansible для VMs/LXC
+- [ ] Автоматизация развёртывания сервисов
 
-# Проверить текущий режим
-cat /etc/openwrt-mode
-```
+### Планируется 📋
 
-### Мониторинг
+- [ ] Настройка мониторинга (Prometheus + Grafana)
+- [ ] Автоматизация бэкапов
+- [ ] CI/CD pipeline (GitHub Actions)
+- [ ] Тестирование disaster recovery
 
-**OpenWRT:**
-- Web UI: http://192.168.20.1 (дома) или http://192.168.100.1 (поездка)
-- Logs: `logread -f`
-- WireGuard status: `wg show`
+## 📄 Лицензия
 
-**OPNsense:**
-- Web UI: https://192.168.10.1 или https://10.0.99.10
-- Dashboard → Gateways для статуса VPN
+MIT
 
-**AdGuard Home:**
-- Web UI: http://192.168.20.1:3000
-- Query Log: просмотр всех DNS запросов
-- Statistics: статистика блокировки
+## 📞 Поддержка
 
-## Безопасность
-
-### Многоуровневая защита
-
-1. **Периметр:** OPNsense firewall (stateful inspection)
-2. **Access layer:** OpenWRT с изолированными VLAN
-3. **DNS filtering:** AdGuard Home блокирует вредоносные домены
-4. **Encryption:** WPA3 для WiFi, WireGuard для VPN
-
-### Изоляция сетей
-
-- **Guest WiFi:** нет доступа к локальной сети
-- **IoT:** только интернет, заблокирован доступ к другим устройствам
-- **LXC:** изолированы от управления (MGMT)
-- **Travel mode:** весь трафик через VPN
-
-### Защита в поездках
-
-- Автоматическое шифрование всего трафика
-- Защита от атак в публичных WiFi
-- Failover через Oracle Cloud если дом недоступен
-- DNS через домашний AdGuard (защита от DNS spoofing)
-
-## Troubleshooting
-
-### OpenWRT не переключается в режим дома
-
-```bash
-# Проверьте доступность OPNsense
-ping -c 3 192.168.10.1
-
-# Проверьте логи
-logread | grep mode-switcher
-
-# Принудительное переключение
-cp /etc/openwrt-configs/home/* /etc/config/
-/etc/init.d/network restart
-```
-
-### VPN не поднимается в поездке
-
-```bash
-# Проверьте статус WireGuard
-wg show
-
-# Проверьте доступность endpoint
-ping your-home-ddns.example.com
-
-# Перезапустите WireGuard
-/etc/init.d/wireguard restart
-
-# Проверьте логи
-logread | grep wireguard
-```
-
-### AdGuard не блокирует рекламу
-
-```bash
-# Проверьте статус
-/etc/init.d/AdGuardHome status
-
-# Проверьте, что клиенты используют правильный DNS
-nslookup google.com 192.168.20.1
-
-# Обновите фильтры в Web UI
-# Settings → DNS settings → Update filters
-```
-
-### Нет доступа к LXC контейнерам
-
-```bash
-# Проверьте маршрутизацию на OPNsense
-# Firewall → Rules → LAN
-# Должно быть правило: LAN net → INTERNAL net (Allow)
-
-# Проверьте из OpenWRT
-traceroute 10.0.30.10
-```
-
-## LXC Контейнеры (примеры)
-
-Все LXC контейнеры подключаются к `vmbr2` (10.0.30.0/24):
-
-```bash
-# Proxmox (пример ручного создания)
-pct create 200 local:vztmpl/debian-12-standard.tar.zst \
-  --hostname postgres-db \
-  --net0 name=eth0,bridge=vmbr2,ip=10.0.30.10/24,gw=10.0.30.254 \
-  --nameserver 192.168.10.2 \
-  --memory 2048 --cores 2 --rootfs local-lvm:8
-
-# Доступ из домашней сети
-# http://10.0.30.10 (через роутинг OPNsense)
-```
-
-> 💡 **Автоматизация:** Используйте `bash deploy-complete-system.sh` вместо ручного создания!
-
-**Популярные сервисы:**
-- 10.0.30.10 - PostgreSQL
-- 10.0.30.20 - Redis
-- 10.0.30.30 - Nextcloud
-- 10.0.30.40 - Gitea
-- 10.0.30.50 - Home Assistant
-- 10.0.30.60 - Grafana
-- 10.0.30.70 - Prometheus
-
-## Полная автоматизация Home Lab 🚀
-
-Система автоматического создания templates и развёртывания OPNsense + LXC сервисов:
-
-### Быстрый старт (13 минут до production!)
-
-```bash
-cd /root/scripts
-
-# ВАРИАНТ 1: Полное развертывание (OPNsense + 9 LXC сервисов)
-bash deploy-complete-system.sh
-
-# ВАРИАНТ 2: Пошаговое развертывание
-# Шаг 1: Создать templates (один раз, ~45 минут)
-bash templates/create-all-templates.sh  # LXC templates
-bash vms/create-opnsense-template.sh    # OPNsense template
-
-# Шаг 2: Развернуть систему (~13 минут)
-bash vms/deploy-opnsense.sh             # OPNsense VM
-bash configure-lxc-routing.sh           # Routing через OPNsense
-bash deploy-all-services.sh             # 9 LXC сервисов
-
-# Готово! OPNsense + 9 сервисов запущены и настроены
-```
-
-### Что создаётся автоматически
-
-**Templates на HDD (local-hdd):**
-- **LXC (ID 900-908):** PostgreSQL, Redis, Nextcloud, Gitea, Home Assistant, Grafana, Prometheus, Nginx Proxy Manager, Docker
-- **VM (ID 910):** OPNsense Firewall
-
-**Production на SSD (local-lvm):**
-- **VM (ID 100):** OPNsense Firewall (запускается первым)
-- **LXC (ID 200-208):** Все сервисы с static IP 10.0.30.10-90
-
-**Сетевая конфигурация:**
-- Gateway для LXC: **10.0.30.254** (OPNsense INTERNAL)
-- DNS: 192.168.10.2 (AdGuard на OpenWRT)
-- Routing: LXC → OPNsense → Internet
-
-### Примеры использования
-
-```bash
-# Развернуть только OPNsense
-bash deploy-complete-system.sh --opnsense-only
-
-# Развернуть только LXC сервисы
-bash deploy-complete-system.sh --lxc-only
-
-# Развернуть отдельный LXC сервис
-bash services/deploy-postgresql.sh
-
-# Создать дополнительный экземпляр PostgreSQL
-pct clone 900 210 --hostname postgres-02 --full --storage local-lvm
-pct set 210 --net0 name=eth0,bridge=vmbr2,ip=10.0.30.11/24,gw=10.0.30.254
-pct start 210
-
-# Проверить статус
-qm status 100          # OPNsense VM
-pct list               # Все LXC контейнеры
-
-# Проверить интернет из LXC
-pct exec 200 -- ping -c 3 8.8.8.8
-```
-
-📖 **Полная документация:**
-- [Quick Start Guide](proxmox/scripts/QUICK-START.md) - 5 минут до первого сервиса
-- [Full Documentation](proxmox/scripts/README.md) - Полное руководство по автоматизации
-- [Architecture](proxmox/scripts/ARCHITECTURE.md) - Дизайн системы
-- [Network Setup](proxmox/scripts/NETWORK-SETUP.md) - Сетевая автоматизация
-
-**Преимущества:**
-- ✅ **100% автоматизация** (от Proxmox до production за 78 минут)
-- ✅ **Template-based** (клонирование за 2-5 минут)
-- ✅ **Proxmox Community Scripts** (374 готовых LXC шаблона)
-- ✅ **Умное хранение** (templates на HDD, production на SSD)
-- ✅ **Безопасная сеть** (весь трафик через OPNsense firewall)
-- ✅ **Infrastructure as Code** (все в Git, воспроизводимо)
+- Документация по [Proxmox](https://pve.proxmox.com/wiki/)
+- [Terraform Proxmox Provider](https://registry.terraform.io/providers/bpg/proxmox/latest/docs)
+- [Ansible Proxmox Module](https://docs.ansible.com/ansible/latest/collections/community/general/proxmox_module.html)
 
 ---
 
-## VM Templates для мультиплицирования
-
-HDD также настроен для хранения VM templates:
-
-```bash
-# Создать VM template
-qm template 100
-
-# Клонировать для production (SSD)
-qm clone 100 201 --name my-service-01 --full --storage local-lvm
-
-# Клонировать для testing (HDD)
-qm clone 100 202 --name my-service-02 --full --storage local-hdd
-```
-
-📖 **Подробнее:** См. [proxmox/VM-TEMPLATES-GUIDE.md](proxmox/VM-TEMPLATES-GUIDE.md)
-
-## Backup и восстановление
-
-### Backup конфигураций
-
-```bash
-# OpenWRT
-ssh root@192.168.20.1
-sysupgrade -b /tmp/backup-$(date +%Y%m%d).tar.gz
-scp root@192.168.20.1:/tmp/backup-*.tar.gz ./
-
-# OPNsense
-# System → Configuration → Backups → Download configuration
-```
-
-### Восстановление
-
-```bash
-# OpenWRT
-scp backup-20250101.tar.gz root@192.168.20.1:/tmp/
-ssh root@192.168.20.1
-sysupgrade -r /tmp/backup-20250101.tar.gz
-
-# OPNsense
-# System → Configuration → Backups → Restore configuration
-```
-
-## Производительность
-
-### Рекомендуемое оборудование
-
-**Proxmox:**
-- CPU: 4+ cores (Intel/AMD x86_64)
-- RAM: 16+ GB
-- Storage: 250+ GB SSD
-- Network: 2x Gigabit Ethernet
-
-**OpenWRT Router:**
-
-Эта конфигурация оптимизирована для **GL.iNet GL-AXT1800 (Slate AX)**:
-- ✅ WiFi 6 (802.11ax) - высокая скорость
-- ✅ Dual-band (5GHz + 2.4GHz)
-- ✅ **3x Gigabit Ethernet (1 WAN + 2 LAN)** - портативный роутер
-- ✅ Компактный размер ~10x6x2 см (идеален для поездок)
-- ✅ 512 MB RAM (достаточно для AdGuard + VPN)
-- ✅ USB 3.0 порт (можно добавить USB-Ethernet для дополнительных портов)
-- ✅ GL.iNet firmware на базе OpenWRT
-
-**Альтернативные роутеры:**
-- GL.iNet GL-MT3000 (Beryl AX) - компактнее
-- TP-Link Archer AX23 - WiFi 6, бюджетный
-- Netgear R7800 - мощный, WiFi 5
-- Linksys WRT3200ACM - open source friendly
-
-## FAQ
-
-**Q: Зачем переносить сервисы на GL-AXT1800 Slate AX если есть Proxmox?**
-
-A: **Проблема:** Proxmox на Dell XPS L701X имеет только 8GB RAM (не расширяется). OPNsense VM занимает 2GB, LXC контейнеры ~4GB, остаётся всего 0.5GB свободно - критически мало.
-
-**Решение:** Перенос DNS/VPN на Slate AX освобождает ~1GB RAM на Proxmox для новых LXC сервисов. Slate AX имеет 512MB RAM, достаточно для AdGuard (~100MB) + 2x VPN серверы (~40MB).
-
-**Бонус:** VPN серверы на роутере работают даже если Proxmox выключен!
-
-**Q: В чём разница между WireGuard Server на Slate AX и OPNsense?**
-
-A: **Разное назначение:**
-- **Slate AX WireGuard:** Для удалённого доступа к домашней сети (телефоны, ноутбуки)
-- **Slate AX AmneziaWG:** Для клиентов в России (только интернет, без доступа к LAN)
-- **OPNsense WireGuard:** Для Slate AX в Travel режиме (туннель роутер→дом)
-
-Все три VPN могут работать параллельно!
-
-**Q: Можно ли использовать только OpenWRT без OPNsense?**
-
-A: Да, но OPNsense обеспечивает дополнительный уровень защиты. Для упрощённой схемы можно использовать только OpenWRT с AdGuard.
-
-**Q: Работает ли это с IPv6?**
-
-A: Да, конфигурации поддерживают IPv6. Убедитесь, что ваш провайдер предоставляет IPv6.
-
-**Q: Можно ли использовать другой VPN провайдер вместо Oracle Cloud?**
-
-A: Да, подойдёт любой VPS с публичным IP и WireGuard. Oracle Cloud выбран из-за Always Free tier.
-
-**Q: Сколько устройств поддерживает эта конфигурация?**
-
-A: Зависит от оборудования. Типичный setup поддерживает 50-100 устройств одновременно.
-
-**Q: Безопасно ли использовать походный роутер в публичных WiFi?**
-
-A: Да, весь трафик шифруется через WireGuard/AmneziaWG VPN. Публичная сеть видит только зашифрованный туннель.
-
-**Q: Будет ли VPN работать в России с блокировками?**
-
-A: Да! Используйте **AmneziaWG** вместо обычного WireGuard. AmneziaWG маскирует VPN трафик под обычный UDP и обходит DPI блокировки. См. `AMNEZIAWG-SETUP.md` для настройки.
-
-**Q: В чём разница между WireGuard и AmneziaWG?**
-
-A: AmneziaWG — это форк WireGuard с обфускацией трафика. Та же безопасность и почти такая же скорость, но DPI не может определить VPN. Оба протокола могут работать параллельно.
-
-**Q: Зачем нужен российский VPS если есть Oracle Cloud?**
-
-A: **Разные цели:**
-- **Oracle Cloud** (не-РФ IP) - для обхода блокировок В России
-- **Russia VPS** (РФ IP) - для доступа к РФ сервисам ИЗ-ЗА ГРАНИЦЫ (банки, госуслуги, стриминг)
-
-**Q: Сколько стоит российский VPS?**
-
-A: 150-500₽/мес (~$2-5). Рекомендуем Timeweb VPS-1 за 200₽/мес. Оплата картой РФ или криптовалютой.
-
-**Q: Как переключаться между VPN?**
-
-A: Используйте VPN selector скрипт:
-```bash
-vpn russia  # Российский IP (за границей)
-vpn oracle  # Обход блокировок (в России)
-vpn home    # Домашняя сеть
-vpn status  # Проверить текущий VPN
-```
-
-**Q: Можно ли использовать Russia VPN находясь дома?**
-
-A: Да! Russia VPN работает в обоих режимах:
-- **Travel Mode** - прямое подключение к Russia VPS (в отеле/кафе)
-- **Home Mode** - через OPNsense firewall (когда роутер дома)
-
-Для Home Mode нужно настроить правила firewall на OPNsense (разрешить UDP 51822). Используется та же AmneziaWG конфигурация, разница только в маршрутизации. Подробности в [docs/HOME-RUSSIA-VPN-SETUP.md](docs/HOME-RUSSIA-VPN-SETUP.md).
-
-**Когда использовать дома:**
-- Тестирование перед поездкой
-- Доступ к российским сервисам (банки, стриминг)
-- Проверка geo-ограничений
-- Отладка VPN конфигурации
-
-**Q: Как получить доступ к Slate AX через HTTPS с красивыми доменами?**
-
-A: Используйте **Nginx Reverse Proxy на OPNsense** (см. [opnsense/configs/nginx-reverse-proxy-slate-ax.conf](opnsense/configs/nginx-reverse-proxy-slate-ax.conf)):
-
-**Настройка:**
-1. Установите Nginx plugin на OPNsense
-2. Создайте self-signed SSL сертификат (`*.home.local`)
-3. Настройте upstream серверы (192.168.10.2:3000, :80, :81)
-4. Добавьте DNS записи в AdGuard Home:
-   - `adguard.home.local` → 10.0.99.10
-   - `router.home.local` → 10.0.99.10
-   - `luci.home.local` → 10.0.99.10
-
-**Использование:**
-- https://adguard.home.local (AdGuard Home Web UI)
-- https://router.home.local (GL.iNet Web UI)
-- https://luci.home.local (OpenWRT LuCI)
-
-**Преимущества:**
-- ✅ HTTPS терминация (безопасное соединение)
-- ✅ Rate limiting (защита от брутфорса)
-- ✅ Централизованное логирование
-- ✅ Красивые домены вместо IP:PORT
-
-## Дополнительные улучшения
-
-### Опциональные фичи
-
-1. **Dynamic DNS:** Настройте DDNS для домашнего IP
-2. **Let's Encrypt:** Автоматические SSL сертификаты для OPNsense
-3. **Suricata IDS:** Установите на OPNsense для обнаружения вторжений
-4. **QoS:** Настройте SQM на OpenWRT для стабильного интернета
-5. **VLANs:** Добавьте больше изолированных сетей
-6. **Reverse Proxy:** HAProxy на OPNsense для веб-сервисов
-
-### Мониторинг
-
-1. **Grafana Dashboard:** Визуализация метрик сети
-2. **Prometheus:** Сбор метрик с OPNsense и OpenWRT
-3. **Uptime Kuma:** Мониторинг доступности сервисов
-
-## Лицензия
-
-Эта конфигурация предоставляется "как есть" для личного использования.
-
-## Поддержка
-
-Для вопросов и улучшений создавайте issues в вашем репозитории.
-
----
-
-**Дата последнего обновления:** 2025-10-06
-**Версия:** 2.1 (оптимизированная архитектура)
-**Ключевые изменения:**
-- ⚡ **Оптимизированная архитектура:** VPN серверы на GL-AXT1800 Slate AX
-- 🚀 **Освобождено RAM на Proxmox:** ~1 GB (перенос DNS/VPN на Slate AX)
-- 🔒 **Nginx Reverse Proxy:** HTTPS доступ к сервисам Slate AX (adguard.home.local, router.home.local)
-- 🌐 **VPN Multi-Instance:** Несколько VPN одновременно (firmware 4.8.2)
-- 🎯 **VPN Composite Policy:** Умная маршрутизация по доменам/IP/MAC (firmware 4.8.2)
-- 📡 **WireGuard Server на Slate AX:** Домашний VPN (10.0.200.0/24, порт 51820)
-- 🇷🇺 **AmneziaWG Server на Slate AX:** VPN для России (10.8.2.0/24, порт 51821)
-- 🤖 **Автоматизация:** Скрипты установки VPN серверов и генерации клиентских конфигов
-- ✅ Сетевая автоматизация (auto-detect, UDEV rules, vmbr0-99)
-- ✅ OPNsense VM automation (template + deployment)
-- ✅ LXC routing через OPNsense (10.0.30.254 gateway)
-- ✅ Полное развертывание системы одной командой
-- ✅ 100% Infrastructure as Code
+**Статус проекта**: Активная разработка
+**Последнее обновление**: 2025-10-06
+**Сопровождение**: Home Lab Administrator

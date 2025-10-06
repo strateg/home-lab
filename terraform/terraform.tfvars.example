@@ -1,0 +1,137 @@
+# Terraform Variables Example
+# Home Lab Infrastructure
+#
+# Copy this file to terraform.tfvars and fill in your values:
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# Note: terraform.tfvars is in .gitignore (contains secrets)
+
+# ============================================================
+# Proxmox API Authentication
+# ============================================================
+
+# Create API token in Proxmox Web UI:
+# Datacenter → Permissions → API Tokens → Add
+# Format: username@realm!token_id=secret
+proxmox_api_token_id = "root@pam!terraform=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Proxmox API URL (usually default)
+proxmox_api_url = "https://10.0.99.1:8006/api2/json"
+
+# Skip TLS verification for self-signed certificates
+proxmox_tls_insecure = true
+
+# ============================================================
+# Proxmox Node
+# ============================================================
+
+# Node name (check with: pvesh get /nodes)
+proxmox_node_name = "pve"
+
+# SSH user for Proxmox host
+proxmox_ssh_user = "root"
+
+# ============================================================
+# Hardware Configuration (Dell XPS L701X)
+# ============================================================
+
+# CPU cores (Core i3-M370 = 2 cores)
+hardware_cpu_cores = 2
+
+# Total RAM in MB (8 GB)
+hardware_ram_mb = 8192
+
+# SSD size in GB (for production VMs)
+hardware_ssd_size_gb = 180
+
+# HDD size in GB (for templates, backups)
+hardware_hdd_size_gb = 500
+
+# ============================================================
+# Network Interfaces
+# ============================================================
+
+# WAN interface (USB-Ethernet, via udev rule)
+wan_interface = "eth-usb"
+
+# LAN interface (built-in Ethernet, via udev rule)
+lan_interface = "eth-builtin"
+
+# WiFi interface (optional, for management)
+wifi_interface = "wlan0"
+
+# ============================================================
+# Network Configuration
+# ============================================================
+
+# ISP Network
+isp_network = "192.168.1.0/24"
+isp_gateway = "192.168.1.1"
+
+# OPNsense LAN (to OpenWRT)
+opnsense_lan_network = "192.168.10.0/24"
+opnsense_lan_gateway = "192.168.10.1"
+
+# OpenWRT LAN (home clients)
+openwrt_lan_network = "192.168.20.0/24"
+openwrt_lan_gateway = "192.168.20.1"
+
+# LXC Internal Network
+lxc_internal_network = "10.0.30.0/24"
+lxc_internal_gateway = "10.0.30.254"  # OPNsense INTERNAL interface
+lxc_internal_proxmox_ip = "10.0.30.1"
+
+# Management Network
+mgmt_network = "10.0.99.0/24"
+mgmt_proxmox_ip = "10.0.99.1"
+mgmt_opnsense_ip = "10.0.99.10"
+
+# VPN Networks
+vpn_wireguard_network = "10.0.200.0/24"   # WireGuard on Slate AX
+vpn_amneziawg_network = "10.8.2.0/24"     # AmneziaWG on Slate AX
+
+# ============================================================
+# Storage Configuration
+# ============================================================
+
+# SSD storage (production VMs)
+storage_ssd_id = "local-lvm"
+
+# HDD storage (templates, backups)
+storage_hdd_id = "local-hdd"
+
+# Local storage (ISOs, snippets)
+storage_local_id = "local"
+
+# ============================================================
+# SSH Configuration
+# ============================================================
+
+# SSH public key for VM/LXC access
+# Generate: ssh-keygen -t rsa -b 4096 -C "home-lab"
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... your-key-here"
+
+# Path to SSH private key
+ssh_private_key_path = "~/.ssh/id_rsa"
+
+# ============================================================
+# Environment
+# ============================================================
+
+environment = "production"
+
+# Tags for all resources
+default_tags = ["terraform", "home-lab", "production"]
+
+# ============================================================
+# Feature Flags
+# ============================================================
+
+# Enable monitoring stack (Grafana, Prometheus)
+enable_monitoring = true
+
+# Enable automatic backups
+enable_backups = true
+
+# Enable VPN servers on OpenWRT
+enable_vpn_servers = true

@@ -1,0 +1,108 @@
+# Ansible Role: Proxmox - Main Tasks
+# Proxmox VE 9 Post-Installation Configuration
+
+---
+# ============================================================
+# Pre-Flight Checks
+# ============================================================
+
+- name: Check Proxmox VE is installed
+  ansible.builtin.stat:
+    path: /usr/bin/pvesh
+  register: proxmox_installed
+  failed_when: not proxmox_installed.stat.exists
+  tags: always
+
+- name: Get Proxmox VE version
+  ansible.builtin.command: pveversion
+  register: pve_version
+  changed_when: false
+  tags: always
+
+- name: Display Proxmox VE version
+  ansible.builtin.debug:
+    msg: "Proxmox VE version: {{ pve_version.stdout }}"
+  tags: always
+
+# ============================================================
+# Repository Configuration
+# ============================================================
+
+- name: Configure Proxmox repositories
+  ansible.builtin.include_tasks: repositories.yml
+  tags: repositories
+
+# ============================================================
+# Package Management
+# ============================================================
+
+- name: Install additional packages
+  ansible.builtin.include_tasks: packages.yml
+  tags: packages
+
+# ============================================================
+# Network Configuration
+# ============================================================
+
+- name: Configure network
+  ansible.builtin.include_tasks: networking.yml
+  tags: networking
+
+# ============================================================
+# Storage Configuration
+# ============================================================
+
+- name: Configure storage
+  ansible.builtin.include_tasks: storage.yml
+  tags: storage
+
+# ============================================================
+# System Optimization
+# ============================================================
+
+- name: Apply system optimizations
+  ansible.builtin.include_tasks: optimization.yml
+  tags: optimization
+
+# ============================================================
+# Security Hardening
+# ============================================================
+
+- name: Apply security hardening
+  ansible.builtin.include_tasks: security.yml
+  tags: security
+
+# ============================================================
+# Monitoring Setup
+# ============================================================
+
+- name: Setup monitoring
+  ansible.builtin.include_tasks: monitoring.yml
+  when: proxmox_node_exporter_enabled | default(true)
+  tags: monitoring
+
+# ============================================================
+# Backup Configuration
+# ============================================================
+
+- name: Configure backups
+  ansible.builtin.include_tasks: backup.yml
+  tags: backup
+
+# ============================================================
+# Final Tasks
+# ============================================================
+
+- name: Display post-installation summary
+  ansible.builtin.debug:
+    msg:
+      - "Proxmox VE configuration completed successfully!"
+      - "Version: {{ pve_version.stdout }}"
+      - "Web UI: https://{{ ansible_host }}:8006"
+      - "SSH: ssh root@{{ ansible_host }}"
+      - ""
+      - "Next steps:"
+      - "1. Access Proxmox Web UI"
+      - "2. Apply Terraform configuration"
+      - "3. Deploy VMs and LXC containers"
+  tags: always

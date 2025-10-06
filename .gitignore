@@ -1,0 +1,186 @@
+# Infrastructure as Code - Home Lab
+# Created: 2025-10-06
+
+# ============================================================
+# Terraform
+# ============================================================
+
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files, which are likely to contain sensitive data
+*.tfvars
+*.tfvars.json
+
+# Ignore override files as they are usually used to override resources locally
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Include override files you do wish to add to version control using negation pattern
+# !example_override.tf
+
+# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
+*tfplan*
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# ============================================================
+# Ansible
+# ============================================================
+
+# Ansible vault password files
+.vault_pass
+*.vault
+
+# Retry files
+*.retry
+
+# Dynamic inventory
+inventory/*/ec2.ini
+inventory/*/ec2.py
+
+# Galaxy roles
+roles/external/
+
+# ============================================================
+# SSH Keys
+# ============================================================
+
+*.pem
+*.key
+*_rsa
+*_rsa.pub
+id_*
+*.ppk
+
+# ============================================================
+# Secrets & Credentials
+# ============================================================
+
+# Environment files
+.env
+.env.*
+
+# Credentials
+credentials.json
+secrets.yml
+secrets.yaml
+*_credentials.yml
+*_credentials.yaml
+
+# API tokens
+*.token
+api_keys.txt
+
+# ============================================================
+# Proxmox / Virtual Machines
+# ============================================================
+
+# ISO images
+*.iso
+
+# VM disk images
+*.qcow2
+*.vmdk
+*.vdi
+
+# Templates (too large for git)
+*.tar.gz
+*.tar.zst
+
+# Cloud-init user-data with secrets
+user-data-*.yml
+
+# ============================================================
+# Backups
+# ============================================================
+
+backups/
+*.backup
+*.bak
+*.old
+*.dump
+*.sql
+
+# Compressed archives
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+
+# ============================================================
+# Logs
+# ============================================================
+
+*.log
+logs/
+*.log.*
+
+# ============================================================
+# OS / IDE
+# ============================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.directory
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================================
+# Temporary files
+# ============================================================
+
+/tmp/*
+!/tmp/.gitkeep
+temp/
+*.tmp
+
+# ============================================================
+# Project-specific
+# ============================================================
+
+# Legacy configs (keeping for migration reference)
+# configs/ - uncomment when migration complete
+
+# Downloaded packages
+*.deb
+*.rpm
+*.ipk
+
+# Build artifacts
+build/
+dist/
+
+# ============================================================
+# Keep empty directories
+# ============================================================
+
+!.gitkeep
