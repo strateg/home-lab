@@ -50,7 +50,9 @@ home-lab/
 │   │   ├── openwrt-home-wireless
 │   │   ├── openwrt-home-dhcp
 │   │   ├── openwrt-home-firewall
-│   │   └── openwrt-home-russia-vpn.conf
+│   │   ├── openwrt-home-russia-vpn.conf
+│   │   ├── wireguard-server-home.conf       # WireGuard сервер
+│   │   └── amneziawg-server-home.conf       # AmneziaWG сервер
 │   ├── travel/                   # Travel режим
 │   │   ├── openwrt-travel-network
 │   │   ├── openwrt-travel-wireless
@@ -64,11 +66,15 @@ home-lab/
 │       ├── openwrt-init-mode-detector
 │       ├── openwrt-vpn-selector.sh
 │       ├── openwrt-vpn-failover.sh
-│       └── openwrt-amneziawg-failover.sh
+│       ├── openwrt-amneziawg-failover.sh
+│       ├── setup-vpn-servers.sh              # Автоустановка VPN серверов
+│       └── generate-vpn-client-configs.sh    # Генератор клиентских конфигов
 ├── opnsense/                      # OPNsense Firewall
 │   └── configs/
 │       ├── opnsense-interfaces-config.txt
-│       └── opnsense-russia-vpn-firewall.txt
+│       ├── opnsense-russia-vpn-firewall.txt
+│       ├── nginx-reverse-proxy-slate-ax.conf      # Nginx Reverse Proxy
+│       └── firewall-rules-vpn-servers.txt         # Firewall rules для VPN
 ├── vpn-servers/                   # VPN Серверы
 │   ├── oracle-cloud/
 │   │   ├── oracle-cloud-wireguard.conf
@@ -91,7 +97,58 @@ home-lab/
 
 ## Архитектура
 
-### Дома
+### ⚡ Оптимизированная архитектура (рекомендуется)
+
+**Цель:** Разгрузить Proxmox (8GB RAM) путём переноса сервисов на GL-AXT1800 Slate AX
+
+**Новая архитектура:**
+
+```
+Internet → ISP Router → OPNsense (Proxmox VM)
+                             ↓
+                   Nginx Reverse Proxy (OPNsense)
+                             ↓
+                    GL-AXT1800 Slate AX
+                    ├── AdGuard Home (DNS)
+                    ├── WireGuard Server (51820) → Клиенты VPN
+                    ├── AmneziaWG Server (51821) → Россия клиенты
+                    └── WiFi AP (дома) или Travel VPN (поездка)
+```
+
+**Что работает на Slate AX:**
+- ✅ **AdGuard Home** (~100MB RAM) - DNS фильтрация для всей сети
+- ✅ **WireGuard Server** (~20MB RAM) - домашний VPN для доступа к локальной сети
+- ✅ **AmneziaWG Server** (~20MB RAM) - VPN с обфускацией для клиентов в России
+- ✅ **WiFi AP** - точка доступа для домашних устройств
+- ✅ **Travel VPN** - VPN туннель до дома в режиме путешествия
+
+**Преимущества:**
+- 🚀 **Proxmox RAM освобождено:** ~1 GB (было 0.5 GB свободно, стало 1.5 GB)
+- 🔒 **Безопасность:** Nginx Reverse Proxy на OPNsense (HTTPS, rate limiting)
+- 🌐 **VPN Composite Policy:** Умная маршрутизация (банки→Russia VPN, дом→Home VPN)
+- 📱 **VPN Multi-Instance:** Несколько VPN одновременно в Travel режиме
+- 🎯 **Два режима:** HOME (за OPNsense) и TRAVEL (VPN туннель до дома)
+
+> 📖 **Полная документация:** `/tmp/optimized-architecture-slate-ax.md` (700+ строк)
+>
+> **Quick Start:**
+> ```bash
+> # 1. Установить VPN серверы на Slate AX
+> bash openwrt/scripts/setup-vpn-servers.sh
+>
+> # 2. Сгенерировать клиентские конфигурации
+> bash openwrt/scripts/generate-vpn-client-configs.sh
+>
+> # 3. Настроить Nginx Reverse Proxy на OPNsense
+> # См. opnsense/configs/nginx-reverse-proxy-slate-ax.conf
+>
+> # 4. Применить firewall правила
+> # См. opnsense/configs/firewall-rules-vpn-servers.txt
+> ```
+
+---
+
+### Дома (классическая схема)
 
 ```
 Internet → ISP Router → Proxmox NIC1 (WAN)
@@ -176,7 +233,13 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 - WiFi: WiFi 6 (802.11ax) - 1200+574 Mbps
 - Ethernet: **3x Gigabit (1 WAN + 2 LAN)**
 - Размер: Компактный ~10x6x2 см (портативный travel router)
+- **Прошивка:** GL.iNet firmware 4.8.2 (на базе OpenWRT 23.05)
 - **Dual UI:** GL.iNet UI (удобный) + OpenWRT LuCI (расширенный)
+- **Новые возможности firmware 4.8.2:**
+  - VPN Multi-Instance (несколько VPN одновременно)
+  - VPN Composite Policy (умная маршрутизация по доменам/IP/MAC)
+  - IPv6 VPN support
+  - Guest Network Isolation
 
 > 📖 **Подробнее:** См. [hardware/gl-inet/GL-AXT1800-NOTES.md](hardware/gl-inet/GL-AXT1800-NOTES.md)
 >
@@ -204,12 +267,20 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 - `Smart-Home` - IoT устройства
 
 **AdGuard Home:**
-- **Расположение:** На OpenWRT (экономия RAM Proxmox!)
+- **Расположение:** На GL-AXT1800 Slate AX (экономия RAM Proxmox!)
 - Port: 53 (DNS)
-- Web UI: http://192.168.20.1:3000
+- Web UI (прямой доступ): http://192.168.20.1:3000
+- **Web UI (через Nginx Reverse Proxy):** https://adguard.home.local
 - Конфигурация: [services/adguardhome/adguardhome-config.yaml](services/adguardhome/adguardhome-config.yaml)
 - Фильтрация рекламы для всей сети
-- RAM usage: ~100-150 MB (на OpenWRT, не затрагивает Proxmox)
+- RAM usage: ~100-150 MB (на Slate AX, не затрагивает Proxmox)
+
+> 🔒 **Nginx Reverse Proxy на OPNsense:**
+> - **AdGuard Home:** https://adguard.home.local → 192.168.20.1:3000
+> - **GL.iNet UI:** https://router.home.local → 192.168.20.1:80
+> - **OpenWRT LuCI:** https://luci.home.local → 192.168.20.1:81
+> - **Конфигурация:** [opnsense/configs/nginx-reverse-proxy-slate-ax.conf](opnsense/configs/nginx-reverse-proxy-slate-ax.conf)
+> - HTTPS терминация, rate limiting, централизованное логирование
 
 ---
 
@@ -233,6 +304,17 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 **VPN Failover:**
 - Primary: AmneziaWG → Oracle Cloud (обход DPI блокировок РФ)
 - Backup: WireGuard → Home OPNsense (если AmneziaWG заблокирован)
+
+**⚡ VPN Multi-Instance (firmware 4.8.2):**
+- Несколько VPN одновременно: Oracle VPN + Russia VPN + Home VPN
+- Каждый VPN независим, отдельная маршрутизация
+
+**🎯 VPN Composite Policy (firmware 4.8.2):**
+- Умная маршрутизация по доменам/IP/MAC
+- Примеры:
+  - `sberbank.ru` → Russia VPN (российский IP)
+  - `192.168.20.0/24` → Home VPN (локальная сеть)
+  - Всё остальное → Oracle VPN (обход блокировок)
 
 > 📖 **Важно для России:** См. [docs/AMNEZIAWG-SETUP.md](docs/AMNEZIAWG-SETUP.md)
 
@@ -337,17 +419,30 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 | IoT | 192.168.40.0/24 | 192.168.40.1 | Умный дом |
 | LXC Internal | 10.0.30.0/24 | **10.0.30.254** | Контейнеры (Internet via OPNsense) |
 | Management | 10.0.99.0/24 | 10.0.99.1 | Proxmox + OPNsense Admin |
-| VPN Travel | 10.0.200.0/24 | 10.0.200.1 | OpenWRT VPN |
+| VPN Travel (OPNsense) | 10.0.200.0/24 | 10.0.200.1 | OpenWRT Travel VPN (туннель до дома) |
+| **VPN Home (Slate AX WireGuard)** | **10.0.200.0/24** | **192.168.20.1** | **WireGuard VPN клиенты** |
+| **VPN Russia (Slate AX AmneziaWG)** | **10.8.2.0/24** | **192.168.20.1** | **AmneziaWG VPN клиенты (только интернет)** |
 
-> 💡 **Важно:** LXC контейнеры используют 10.0.30.254 (OPNsense) как Internet gateway, Proxmox host доступен на 10.0.30.1
+> 💡 **Важно:**
+> - LXC контейнеры используют 10.0.30.254 (OPNsense) как Internet gateway, Proxmox host доступен на 10.0.30.1
+> - **VPN Home (10.0.200.0/24):** WireGuard сервер на Slate AX для VPN клиентов (доступ ко всей домашней сети)
+> - **VPN Russia (10.8.2.0/24):** AmneziaWG сервер на Slate AX (только интернет, без доступа к локальной сети)
 
 ### VPN Серверы
 
 | Сервер | Сеть | CIDR | Gateway | Назначение |
 |--------|------|------|---------|------------|
+| **⭐ Slate AX (HOME)** | **WireGuard** | **10.0.200.0/24** | **10.0.200.1** | **Домашний VPN сервер (порт 51820, доступ к LAN)** |
+| **⭐ Slate AX (HOME)** | **AmneziaWG** | **10.8.2.0/24** | **10.8.2.1** | **Россия VPN (порт 51821, только интернет)** |
 | **Oracle Cloud** | WireGuard | 10.8.1.0/24 | 10.8.1.1 | Обычный WireGuard (порт 51820) |
 | **Oracle Cloud** | AmneziaWG | 10.8.2.0/24 | 10.8.2.1 | Обход DPI РФ (порт 51821) |
 | **Russia VPS** | AmneziaWG | 10.9.1.0/24 | 10.9.1.1 | Российский IP (порт 51822) |
+
+> ⭐ **Новые VPN серверы на Slate AX:**
+> - **WireGuard Server:** Доступ к домашней сети (192.168.20.0/24), LXC (10.0.30.0/24), Management (10.0.99.0/24)
+> - **AmneziaWG Server:** Только интернет для клиентов в России (без доступа к локальной сети)
+> - **Установка:** `bash openwrt/scripts/setup-vpn-servers.sh`
+> - **Конфигурации:** `openwrt/home/wireguard-server-home.conf`, `openwrt/home/amneziawg-server-home.conf`
 
 ## Установка
 
@@ -840,6 +935,23 @@ sysupgrade -r /tmp/backup-20250101.tar.gz
 
 ## FAQ
 
+**Q: Зачем переносить сервисы на GL-AXT1800 Slate AX если есть Proxmox?**
+
+A: **Проблема:** Proxmox на Dell XPS L701X имеет только 8GB RAM (не расширяется). OPNsense VM занимает 2GB, LXC контейнеры ~4GB, остаётся всего 0.5GB свободно - критически мало.
+
+**Решение:** Перенос DNS/VPN на Slate AX освобождает ~1GB RAM на Proxmox для новых LXC сервисов. Slate AX имеет 512MB RAM, достаточно для AdGuard (~100MB) + 2x VPN серверы (~40MB).
+
+**Бонус:** VPN серверы на роутере работают даже если Proxmox выключен!
+
+**Q: В чём разница между WireGuard Server на Slate AX и OPNsense?**
+
+A: **Разное назначение:**
+- **Slate AX WireGuard:** Для удалённого доступа к домашней сети (телефоны, ноутбуки)
+- **Slate AX AmneziaWG:** Для клиентов в России (только интернет, без доступа к LAN)
+- **OPNsense WireGuard:** Для Slate AX в Travel режиме (туннель роутер→дом)
+
+Все три VPN могут работать параллельно!
+
 **Q: Можно ли использовать только OpenWRT без OPNsense?**
 
 A: Да, но OPNsense обеспечивает дополнительный уровень защиты. Для упрощённой схемы можно использовать только OpenWRT с AdGuard.
@@ -902,6 +1014,30 @@ A: Да! Russia VPN работает в обоих режимах:
 - Проверка geo-ограничений
 - Отладка VPN конфигурации
 
+**Q: Как получить доступ к Slate AX через HTTPS с красивыми доменами?**
+
+A: Используйте **Nginx Reverse Proxy на OPNsense** (см. [opnsense/configs/nginx-reverse-proxy-slate-ax.conf](opnsense/configs/nginx-reverse-proxy-slate-ax.conf)):
+
+**Настройка:**
+1. Установите Nginx plugin на OPNsense
+2. Создайте self-signed SSL сертификат (`*.home.local`)
+3. Настройте upstream серверы (192.168.10.2:3000, :80, :81)
+4. Добавьте DNS записи в AdGuard Home:
+   - `adguard.home.local` → 10.0.99.10
+   - `router.home.local` → 10.0.99.10
+   - `luci.home.local` → 10.0.99.10
+
+**Использование:**
+- https://adguard.home.local (AdGuard Home Web UI)
+- https://router.home.local (GL.iNet Web UI)
+- https://luci.home.local (OpenWRT LuCI)
+
+**Преимущества:**
+- ✅ HTTPS терминация (безопасное соединение)
+- ✅ Rate limiting (защита от брутфорса)
+- ✅ Централизованное логирование
+- ✅ Красивые домены вместо IP:PORT
+
 ## Дополнительные улучшения
 
 ### Опциональные фичи
@@ -929,9 +1065,17 @@ A: Да! Russia VPN работает в обоих режимах:
 
 ---
 
-**Дата последнего обновления:** 2025-01-06
-**Версия:** 2.0 (полная автоматизация)
+**Дата последнего обновления:** 2025-10-06
+**Версия:** 2.1 (оптимизированная архитектура)
 **Ключевые изменения:**
+- ⚡ **Оптимизированная архитектура:** VPN серверы на GL-AXT1800 Slate AX
+- 🚀 **Освобождено RAM на Proxmox:** ~1 GB (перенос DNS/VPN на Slate AX)
+- 🔒 **Nginx Reverse Proxy:** HTTPS доступ к сервисам Slate AX (adguard.home.local, router.home.local)
+- 🌐 **VPN Multi-Instance:** Несколько VPN одновременно (firmware 4.8.2)
+- 🎯 **VPN Composite Policy:** Умная маршрутизация по доменам/IP/MAC (firmware 4.8.2)
+- 📡 **WireGuard Server на Slate AX:** Домашний VPN (10.0.200.0/24, порт 51820)
+- 🇷🇺 **AmneziaWG Server на Slate AX:** VPN для России (10.8.2.0/24, порт 51821)
+- 🤖 **Автоматизация:** Скрипты установки VPN серверов и генерации клиентских конфигов
 - ✅ Сетевая автоматизация (auto-detect, UDEV rules, vmbr0-99)
 - ✅ OPNsense VM automation (template + deployment)
 - ✅ LXC routing через OPNsense (10.0.30.254 gateway)

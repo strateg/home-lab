@@ -1,0 +1,379 @@
+# OPNsense Firewall Rules для VPN серверов на GL-AXT1800 Slate AX
+# Файл: opnsense/configs/firewall-rules-vpn-servers.txt
+
+╔═══════════════════════════════════════════════════════════════╗
+║  OPNSENSE FIREWALL RULES - VPN SERVERS НА SLATE AX            ║
+╚═══════════════════════════════════════════════════════════════╝
+
+АРХИТЕКТУРА:
+───────────
+
+Internet → OPNsense WAN (vmbr0, DHCP)
+              ↓
+          OPNsense Firewall
+              ↓
+       OPNsense LAN (vmbr1, 192.168.10.1/24)
+              ↓
+       GL-AXT1800 Slate AX (192.168.10.2)
+       ├── WireGuard Server (51820/UDP)
+       ├── AmneziaWG Server (51821/UDP)
+       ├── AdGuard Home (3000/TCP)
+       ├── GL.iNet UI (80/TCP)
+       └── OpenWRT LuCI (81/TCP)
+
+═══════════════════════════════════════════════════════════════
+SECTION 1: WAN → LAN (Port Forwarding для VPN серверов)
+═══════════════════════════════════════════════════════════════
+
+Rule 1: Allow WireGuard Server (Home VPN)
+──────────────────────────────────────────
+Action:      Pass
+Interface:   WAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    UDP
+Source:      any
+Destination: WAN address
+Dest. Port:  51820
+
+NAT:
+  Target IP:   192.168.10.2 (Slate AX)
+  Target Port: 51820
+
+Description: Allow WireGuard connections to Slate AX server
+Category:    VPN
+
+──────────────────────────────────────────
+
+Rule 2: Allow AmneziaWG Server (Russia clients)
+──────────────────────────────────────────
+Action:      Pass
+Interface:   WAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    UDP
+Source:      any
+Destination: WAN address
+Dest. Port:  51821
+
+NAT:
+  Target IP:   192.168.10.2 (Slate AX)
+  Target Port: 51821
+
+Description: Allow AmneziaWG connections to Slate AX server (DPI bypass)
+Category:    VPN
+
+═══════════════════════════════════════════════════════════════
+SECTION 2: LAN → Slate AX (Access to services)
+═══════════════════════════════════════════════════════════════
+
+Rule 3: Allow LAN to AdGuard Home
+──────────────────────────────────────────
+Action:      Pass
+Interface:   LAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    TCP
+Source:      LAN net
+Destination: 192.168.10.2 (Slate AX)
+Dest. Port:  3000
+
+Description: Allow access to AdGuard Home Web UI
+Category:    Management
+
+──────────────────────────────────────────
+
+Rule 4: Allow LAN to GL.iNet UI
+──────────────────────────────────────────
+Action:      Pass
+Interface:   LAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    TCP
+Source:      LAN net
+Destination: 192.168.10.2 (Slate AX)
+Dest. Port:  80
+
+Description: Allow access to GL.iNet Web UI
+Category:    Management
+
+──────────────────────────────────────────
+
+Rule 5: Allow LAN to OpenWRT LuCI
+──────────────────────────────────────────
+Action:      Pass
+Interface:   LAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    TCP
+Source:      LAN net
+Destination: 192.168.10.2 (Slate AX)
+Dest. Port:  81
+
+Description: Allow access to OpenWRT LuCI
+Category:    Management
+
+═══════════════════════════════════════════════════════════════
+SECTION 3: VPN Clients → LAN (Access from WireGuard)
+═══════════════════════════════════════════════════════════════
+
+Rule 6: Allow WireGuard clients to Home LAN
+──────────────────────────────────────────
+Action:      Pass
+Interface:   LAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    any
+Source:      10.0.200.0/24 (WireGuard clients)
+Destination: 192.168.20.0/24 (Home LAN)
+
+Description: WireGuard VPN clients → Home network
+Category:    VPN
+
+──────────────────────────────────────────
+
+Rule 7: Allow WireGuard clients to LXC services
+──────────────────────────────────────────
+Action:      Pass
+Interface:   LAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    any
+Source:      10.0.200.0/24 (WireGuard clients)
+Destination: 10.0.30.0/24 (LXC INTERNAL)
+
+Description: WireGuard VPN clients → LXC containers
+Category:    VPN
+
+──────────────────────────────────────────
+
+Rule 8: Allow WireGuard clients to Management
+──────────────────────────────────────────
+Action:      Pass
+Interface:   LAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    any
+Source:      10.0.200.0/24 (WireGuard clients)
+Destination: 10.0.99.0/24 (Management)
+
+Description: WireGuard VPN clients → Management (Proxmox, OPNsense)
+Category:    VPN
+
+──────────────────────────────────────────
+
+Rule 9: Allow WireGuard clients to Internet
+──────────────────────────────────────────
+Action:      Pass
+Interface:   LAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    any
+Source:      10.0.200.0/24 (WireGuard clients)
+Destination: any
+
+NAT:         Enable outbound NAT (automatic)
+
+Description: WireGuard VPN clients → Internet
+Category:    VPN
+
+═══════════════════════════════════════════════════════════════
+SECTION 4: AmneziaWG Clients → Internet (Russia clients)
+═══════════════════════════════════════════════════════════════
+
+Rule 10: Allow AmneziaWG clients to Internet ONLY
+──────────────────────────────────────────
+Action:      Pass
+Interface:   LAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    any
+Source:      10.8.2.0/24 (AmneziaWG clients)
+Destination: any
+Except:      192.168.0.0/16, 10.0.0.0/8 (block local networks)
+
+NAT:         Enable outbound NAT (automatic)
+
+Description: AmneziaWG VPN clients → Internet (block local access)
+Category:    VPN
+
+Note: AmneziaWG клиенты НЕ имеют доступа к локальной сети!
+      Только интернет для обхода блокировок.
+
+═══════════════════════════════════════════════════════════════
+SECTION 5: INTERNAL (LXC) → Slate AX Services
+═══════════════════════════════════════════════════════════════
+
+Rule 11: Allow LXC to DNS (AdGuard)
+──────────────────────────────────────────
+Action:      Pass
+Interface:   INTERNAL
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    TCP/UDP
+Source:      10.0.30.0/24 (LXC containers)
+Destination: 192.168.10.2 (Slate AX)
+Dest. Port:  53
+
+Description: LXC containers → AdGuard DNS
+Category:    DNS
+
+──────────────────────────────────────────
+
+Rule 12: Allow LXC to AdGuard Web UI
+──────────────────────────────────────────
+Action:      Pass
+Interface:   INTERNAL
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    TCP
+Source:      10.0.30.0/24 (LXC containers)
+Destination: 192.168.10.2 (Slate AX)
+Dest. Port:  3000
+
+Description: LXC containers → AdGuard Home Web UI
+Category:    Management
+
+═══════════════════════════════════════════════════════════════
+SECTION 6: MANAGEMENT → Slate AX (Admin access)
+═══════════════════════════════════════════════════════════════
+
+Rule 13: Allow Management to all Slate AX services
+──────────────────────────────────────────
+Action:      Pass
+Interface:   MGMT
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    any
+Source:      10.0.99.0/24 (Management network)
+Destination: 192.168.10.2 (Slate AX)
+
+Description: Full admin access to Slate AX from Management network
+Category:    Management
+
+═══════════════════════════════════════════════════════════════
+SECTION 7: Nginx Reverse Proxy Access
+═══════════════════════════════════════════════════════════════
+
+Rule 14: Allow HTTPS to Nginx Reverse Proxy
+──────────────────────────────────────────
+Action:      Pass
+Interface:   LAN
+Direction:   in
+TCP/IP:      IPv4
+Protocol:    TCP
+Source:      LAN net (192.168.20.0/24)
+Destination: OPNsense MGMT (10.0.99.10)
+Dest. Port:  443 (HTTPS)
+
+Description: Access to Nginx Reverse Proxy (adguard.home.local, router.home.local)
+Category:    Web
+
+Note: Nginx на OPNsense проксирует запросы к:
+      - adguard.home.local → 192.168.10.2:3000
+      - router.home.local → 192.168.10.2:80
+      - luci.home.local → 192.168.10.2:81
+
+═══════════════════════════════════════════════════════════════
+ПРИМЕНЕНИЕ ПРАВИЛ В OPNSENSE
+═══════════════════════════════════════════════════════════════
+
+1. Откройте OPNsense Web UI:
+   https://10.0.99.10 или https://192.168.10.1
+
+2. Firewall → Rules → WAN:
+   - Добавьте Rule 1 (WireGuard Port Forward)
+   - Добавьте Rule 2 (AmneziaWG Port Forward)
+
+3. Firewall → Rules → LAN:
+   - Добавьте Rules 3-5 (Access to Slate AX services)
+   - Добавьте Rules 6-9 (WireGuard VPN access)
+   - Добавьте Rule 10 (AmneziaWG internet only)
+   - Добавьте Rule 14 (Nginx Reverse Proxy)
+
+4. Firewall → Rules → INTERNAL:
+   - Добавьте Rules 11-12 (LXC to Slate AX)
+
+5. Firewall → Rules → MGMT:
+   - Добавьте Rule 13 (Admin full access)
+
+6. Firewall → NAT → Port Forward:
+   - WAN:51820 → 192.168.10.2:51820 (WireGuard)
+   - WAN:51821 → 192.168.10.2:51821 (AmneziaWG)
+
+7. Применить изменения:
+   Firewall → Apply Changes
+
+═══════════════════════════════════════════════════════════════
+ПРОВЕРКА ПРАВИЛ
+═══════════════════════════════════════════════════════════════
+
+# 1. Проверка Port Forward (WireGuard)
+С внешнего клиента:
+  nc -zvu YOUR_HOME_IP 51820
+
+Ожидается: Connection successful
+
+# 2. Проверка Port Forward (AmneziaWG)
+С внешнего клиента:
+  nc -zvu YOUR_HOME_IP 51821
+
+Ожидается: Connection successful
+
+# 3. Проверка доступа к AdGuard
+С клиента в LAN:
+  curl http://192.168.10.2:3000
+
+Ожидается: HTML страница AdGuard Home
+
+# 4. Проверка VPN доступа
+Подключитесь к WireGuard и попробуйте:
+  ping 192.168.20.1  # Slate AX
+  ping 10.0.30.10    # PostgreSQL
+  ping 10.0.99.1     # Proxmox
+
+Все должны отвечать.
+
+# 5. Проверка логов
+OPNsense → Firewall → Log Files → Live View
+
+Отфильтруйте по адресу 192.168.10.2 для просмотра трафика к Slate AX.
+
+═══════════════════════════════════════════════════════════════
+БЕЗОПАСНОСТЬ
+═══════════════════════════════════════════════════════════════
+
+✅ WireGuard клиенты имеют ПОЛНЫЙ доступ к домашней сети
+   - Используйте только для доверенных устройств
+   - Регулярно ротируйте ключи
+
+✅ AmneziaWG клиенты имеют доступ ТОЛЬКО к интернету
+   - Безопасно для родственников/друзей
+   - Не видят вашу домашнюю сеть
+
+✅ Nginx Reverse Proxy добавляет уровень защиты:
+   - HTTPS терминация
+   - Rate limiting
+   - Централизованное логирование
+
+✅ Management network полностью изолирована:
+   - Доступ только через OPNsense
+   - LXC контейнеры НЕ имеют прямого доступа
+
+═══════════════════════════════════════════════════════════════
+МОНИТОРИНГ
+═══════════════════════════════════════════════════════════════
+
+Grafana Dashboard можно создать для мониторинга:
+- Количество активных VPN подключений
+- Трафик через WireGuard/AmneziaWG
+- Запросы к AdGuard Home
+- Логи Nginx Reverse Proxy
+
+Prometheus metrics:
+- wireguard_peer_tx_bytes
+- wireguard_peer_rx_bytes
+- nginx_http_requests_total
+- adguard_num_dns_queries
+
+═══════════════════════════════════════════════════════════════
