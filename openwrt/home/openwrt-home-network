@@ -1,6 +1,6 @@
 # OpenWRT Network Configuration - HOME MODE
 # File: /etc/config/network
-# Device: GL.iNet GL-AX1800 (Flint)
+# Device: GL.iNet GL-AXT1800 (Slate AX)
 # Mode: Full Router with AdGuard DNS
 
 config interface 'loopback'
@@ -11,7 +11,7 @@ config interface 'loopback'
 
 # ============================================================
 # WAN - Connection to OPNsense LAN
-# GL-AX1800: WAN port uses 'wan' interface (DSA)
+# GL-AXT1800: WAN port uses 'wan' interface (DSA)
 # ============================================================
 config interface 'wan'
 	option device 'wan'
@@ -31,7 +31,7 @@ config interface 'wan6'
 
 # ============================================================
 # LAN - Local network for WiFi and wired clients
-# GL-AX1800: LAN ports are lan1, lan2, lan3, lan4 (DSA)
+# GL-AXT1800: Only 1 LAN port (lan) ⚠️
 # ============================================================
 config interface 'lan'
 	option device 'br-lan'
@@ -59,15 +59,12 @@ config interface 'iot'
 	option netmask '255.255.255.0'
 
 # ============================================================
-# Bridge Devices for GL-AX1800
+# Bridge Devices for GL-AXT1800
 # ============================================================
 config device
 	option name 'br-lan'
 	option type 'bridge'
-	list ports 'lan1'
-	list ports 'lan2'
-	list ports 'lan3'
-	list ports 'lan4'
+	list ports 'lan'
 
 config device
 	option name 'br-guest'
@@ -78,8 +75,8 @@ config device
 	option type 'bridge'
 
 # ============================================================
-# GL-AX1800 uses DSA (Distributed Switch Architecture)
-# No swconfig needed - ports are: wan, lan1, lan2, lan3, lan4
+# GL-AXT1800 uses DSA (Distributed Switch Architecture)
+# No swconfig needed - ports are: wan, lan (only 1 LAN port!)
 # ============================================================
-# WAN = Physical WAN port (blue port on GL-AX1800)
-# LAN1-4 = Physical LAN ports (yellow ports on GL-AX1800)
+# WAN = Physical WAN port (blue port on GL-AXT1800)
+# LAN = Physical LAN port (single yellow port on GL-AXT1800)

@@ -1,5 +1,5 @@
 #!/bin/sh
-# VPN Selector Script для GL-AX1800
+# VPN Selector Script для GL-AXT1800
 # Переключение между 3 VPN: Oracle Cloud, Russia VPS, Home
 # Файл: /root/vpn-selector.sh
 
@@ -291,7 +291,7 @@ show_status() {
 show_help() {
     cat << 'EOF'
 ===============================================
-     VPN SELECTOR - GL-AX1800 Travel Router
+     VPN SELECTOR - GL-AXT1800 Travel Router
 ===============================================
 
 Usage: /root/vpn-selector.sh {oracle|russia|home|off|status}

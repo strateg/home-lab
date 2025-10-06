@@ -499,7 +499,7 @@ sudo awg show awg1 peers
 sudo journalctl -u awg-quick@awg1 -f
 
 # Проверить доступность клиента
-ping 10.9.1.2  # GL-AX1800
+ping 10.9.1.2  # GL-AXT1800
 
 # Отладка: показать пакеты на порту 51822
 sudo tcpdump -i eth0 udp port 51822 -v
@@ -921,7 +921,7 @@ systemctl status pvedaemon
 systemctl status pveproxy
 ```
 
-## GL.iNet GL-AX1800 специфичные команды
+## GL.iNet GL-AXT1800 специфичные команды
 
 ### Доступ к интерфейсам
 
@@ -1003,7 +1003,7 @@ iw dev wlan0 station dump | grep -E "Station|rx bitrate|tx bitrate"
 ```bash
 # Модель устройства
 cat /tmp/sysinfo/model
-# Вывод: GL.iNet GL-AX1800
+# Вывод: GL.iNet GL-AXT1800
 
 # Версия прошивки GL.iNet
 cat /etc/glversion
@@ -1043,7 +1043,7 @@ uci commit firewall
 # Установить iperf3
 opkg update && opkg install iperf3
 
-# Сервер на GL-AX1800
+# Сервер на GL-AXT1800
 iperf3 -s
 
 # Клиент (с другого устройства)
@@ -1073,13 +1073,13 @@ cd ~
 mkdir backup-$(date +%Y%m%d)
 # Скопировать файлы конфигурации в backup директорию
 
-# Backup GL-AX1800 (создает .tar.gz)
+# Backup GL-AXT1800 (создает .tar.gz)
 sysupgrade -b /tmp/backup-$(date +%Y%m%d).tar.gz
 scp root@192.168.20.1:/tmp/backup-*.tar.gz ./
 ```
 
 ## Дополнительные ресурсы
 
-- 📖 См. `GL-AX1800-NOTES.md` для подробной информации о GL-AX1800
+- 📖 См. `GL-AXT1800-NOTES.md` для подробной информации о GL-AXT1800
 - 📖 См. `README.md` для полной документации
 - 📖 См. `NETWORK-DIAGRAM.txt` для визуализации сети

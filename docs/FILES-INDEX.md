@@ -9,7 +9,7 @@
 | `DELL-XPS-L701X-NOTES.md` | Оптимизация Proxmox для Dell XPS L701X (8GB RAM, USB-Ethernet) |
 | `DELL-XPS-SETUP-GUIDE.md` | Пошаговое руководство установки Proxmox на Dell XPS L701X |
 | `PROXMOX-UNATTENDED-INSTALL.md` | **Автоматическая установка Proxmox 9 без участия пользователя** |
-| `GL-AX1800-NOTES.md` | Специфичные настройки для GL.iNet GL-AX1800 (Flint) |
+| `GL-AXT1800-NOTES.md` | Специфичные настройки для GL.iNet GL-AXT1800 (Flint) |
 | `GL-INET-UI-GUIDE.md` | Руководство по использованию GL.iNet Web UI |
 | `NETWORK-DIAGRAM.txt` | ASCII диаграммы сетевой архитектуры |
 | `QUICK-REFERENCE.md` | Быстрые команды и troubleshooting |
@@ -59,7 +59,7 @@
 
 ## OpenWRT - Режим ДОМА
 
-**Устройство:** GL.iNet GL-AX1800 (Flint) с WiFi 6 (802.11ax)
+**Устройство:** GL.iNet GL-AXT1800 (Flint) с WiFi 6 (802.11ax)
 
 | Файл | Назначение | Путь установки |
 |------|------------|----------------|
@@ -80,7 +80,7 @@
 
 ## OpenWRT - Режим В ПОЕЗДКЕ
 
-**Устройство:** GL.iNet GL-AX1800 (Flint) - портативный VPN роутер
+**Устройство:** GL.iNet GL-AXT1800 (Flint) - портативный VPN роутер
 
 | Файл | Назначение | Путь установки |
 |------|------------|----------------|

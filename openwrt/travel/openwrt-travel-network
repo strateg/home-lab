@@ -1,6 +1,6 @@
 # OpenWRT Network Configuration - TRAVEL MODE
 # File: /etc/config/network (travel mode)
-# Device: GL.iNet GL-AX1800 (Flint)
+# Device: GL.iNet GL-AXT1800 (Slate AX)
 # Mode: VPN Router with WireGuard to home
 
 config interface 'loopback'
@@ -11,7 +11,7 @@ config interface 'loopback'
 
 # ============================================================
 # WAN - Hotel WiFi or 4G/5G connection
-# GL-AX1800: WAN port (blue port)
+# GL-AXT1800: WAN port (blue port)
 # ============================================================
 config interface 'wan'
 	option device 'wan'
@@ -27,7 +27,7 @@ config interface 'wan6'
 
 # ============================================================
 # LAN - Local network for your travel devices
-# GL-AX1800: LAN ports (yellow ports)
+# GL-AXT1800: Only 1 LAN port (yellow port) ⚠️
 # ============================================================
 config interface 'lan'
 	option device 'br-lan'
@@ -36,14 +36,11 @@ config interface 'lan'
 	option netmask '255.255.255.0'
 	option ip6assign '60'
 
-# Bridge for LAN - GL-AX1800 DSA ports
+# Bridge for LAN - GL-AXT1800 DSA port (single LAN port)
 config device
 	option name 'br-lan'
 	option type 'bridge'
-	list ports 'lan1'
-	list ports 'lan2'
-	list ports 'lan3'
-	list ports 'lan4'
+	list ports 'lan'
 
 # ============================================================
 # WireGuard to Home OPNsense
@@ -89,9 +86,9 @@ config wireguard_wg_oracle
 	list allowed_ips '10.0.0.0/16'   # Home via Oracle tunnel
 
 # ============================================================
-# GL-AX1800 uses DSA (Distributed Switch Architecture)
-# No swconfig needed - ports: wan, lan1, lan2, lan3, lan4
+# GL-AXT1800 uses DSA (Distributed Switch Architecture)
+# No swconfig needed - ports: wan, lan (only 1 LAN port!)
 # ============================================================
 # Physical ports:
-#   WAN  = Blue port (connect to hotel WiFi/4G)
-#   LAN1-4 = Yellow ports (your devices)
+#   WAN = Blue port (connect to hotel WiFi/4G)
+#   LAN = Single yellow port (your devices via WiFi primarily)

@@ -1,11 +1,11 @@
 # OpenWRT Wireless Configuration - HOME MODE
 # File: /etc/config/wireless
-# Device: GL.iNet GL-AX1800 (Flint) - WiFi 6 (802.11ax)
+# Device: GL.iNet GL-AXT1800 (Slate AX) - WiFi 6 (802.11ax)
 # Chipset: MediaTek MT7915 (dual-band WiFi 6)
 
 # ============================================================
 # 5GHz Radio (802.11ax - WiFi 6)
-# GL-AX1800: MediaTek MT7915, supports up to 1200 Mbps
+# GL-AXT1800: MediaTek MT7915, supports up to 1200 Mbps
 # ============================================================
 config wifi-device 'radio0'
 	option type 'mac80211'
@@ -48,7 +48,7 @@ config wifi-iface 'wifinet1'
 
 # ============================================================
 # 2.4GHz Radio (802.11ax - WiFi 6)
-# GL-AX1800: MediaTek MT7915, supports up to 574 Mbps
+# GL-AXT1800: MediaTek MT7915, supports up to 574 Mbps
 # ============================================================
 config wifi-device 'radio1'
 	option type 'mac80211'

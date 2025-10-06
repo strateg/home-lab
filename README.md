@@ -82,7 +82,7 @@ home-lab/
 │   │   ├── DELL-XPS-SETUP-GUIDE.md
 │   │   └── DELL-XPS-EXTERNAL-DISPLAY-NOTES.md
 │   └── gl-inet/
-│       ├── GL-AX1800-NOTES.md
+│       ├── GL-AXT1800-NOTES.md
 │       └── GL-INET-UI-GUIDE.md
 └── services/                      # Сервисы
     └── adguardhome/
@@ -170,15 +170,15 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 
 ### 3. OpenWRT (WiFi Router + Travel VPN Gateway)
 
-**Устройство:** GL.iNet GL-AX1800 (Flint)
+**Устройство:** GL.iNet GL-AXT1800 (Slate AX)
 - CPU: MediaTek MT7621A (880 MHz dual-core)
 - RAM: 512 MB
 - WiFi: WiFi 6 (802.11ax) - 1200+574 Mbps
-- Ethernet: 5x Gigabit (1 WAN + 4 LAN)
-- Размер: Компактный (подходит для поездок)
+- Ethernet: **2x Gigabit (1 WAN + 1 LAN)** ⚠️
+- Размер: Компактный ~10x6x2 см (портативный travel router)
 - **Dual UI:** GL.iNet UI (удобный) + OpenWRT LuCI (расширенный)
 
-> 📖 **Подробнее:** См. [hardware/gl-inet/GL-AX1800-NOTES.md](hardware/gl-inet/GL-AX1800-NOTES.md)
+> 📖 **Подробнее:** См. [hardware/gl-inet/GL-AXT1800-NOTES.md](hardware/gl-inet/GL-AXT1800-NOTES.md)
 >
 > **Web интерфейсы:**
 > - GL.iNet UI: http://192.168.20.1 (для повседневных задач)
@@ -823,13 +823,13 @@ sysupgrade -r /tmp/backup-20250101.tar.gz
 
 **OpenWRT Router:**
 
-Эта конфигурация оптимизирована для **GL.iNet GL-AX1800 (Flint)**:
+Эта конфигурация оптимизирована для **GL.iNet GL-AXT1800 (Slate AX)**:
 - ✅ WiFi 6 (802.11ax) - высокая скорость
 - ✅ Dual-band (5GHz + 2.4GHz)
-- ✅ 5x Gigabit Ethernet
-- ✅ Компактный размер (идеален для поездок)
+- ⚠️ **2x Gigabit Ethernet (1 WAN + 1 LAN)** - портативный роутер
+- ✅ Компактный размер ~10x6x2 см (идеален для поездок)
 - ✅ 512 MB RAM (достаточно для AdGuard + VPN)
-- ✅ USB 3.0 порт
+- ✅ USB 3.0 порт (можно добавить USB-Ethernet для дополнительных портов)
 - ✅ GL.iNet firmware на базе OpenWRT
 
 **Альтернативные роутеры:**

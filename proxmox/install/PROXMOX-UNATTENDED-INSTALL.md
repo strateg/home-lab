@@ -456,7 +456,7 @@ Follow the OPNsense installation wizard, then configure according to:
 ### 8.4 Configure OpenWRT
 
 Connect and configure OpenWRT router:
-- See `GL-AX1800-NOTES.md` - Hardware specifics
+- See `GL-AXT1800-NOTES.md` - Hardware specifics
 - See `openwrt-home-*` files - Home mode configuration
 - See `openwrt-travel-*` files - Travel mode configuration
 
@@ -692,7 +692,7 @@ A: Not recommended for WAN/LAN, but you can use WiFi for management by:
 - 📖 `README.md` - Complete home-lab overview
 - 📖 `DELL-XPS-L701X-NOTES.md` - Hardware optimization guide
 - 📖 `DELL-XPS-SETUP-GUIDE.md` - Manual installation guide
-- 📖 `GL-AX1800-NOTES.md` - OpenWRT router configuration
+- 📖 `GL-AXT1800-NOTES.md` - OpenWRT router configuration
 - 📖 `QUICK-REFERENCE.md` - Command quick reference
 
 ---

@@ -1,5 +1,5 @@
 #!/bin/sh
-# AmneziaWG Failover Script для GL-AX1800
+# AmneziaWG Failover Script для GL-AXT1800
 # Автоматическое переключение между WireGuard и AmneziaWG
 # Файл: /root/amneziawg-failover.sh
 

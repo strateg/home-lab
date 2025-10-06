@@ -98,7 +98,7 @@ vpn status  # → показывает активный VPN
   - Firewall и systemd настройки
 
 - ✅ `openwrt-travel-russia-client.conf` (9.7K) - Клиентская конфигурация
-  - Настройка для GL-AX1800 → Russia VPS
+  - Настройка для GL-AXT1800 → Russia VPS
   - Получение российского IP адреса
   - DNS конфигурация (8.8.8.8 или Яндекс DNS)
   - Routing через VPN
@@ -118,7 +118,7 @@ vpn status  # → показывает активный VPN
   - Пошаговая установка VPS (Ubuntu 22.04)
   - Настройка безопасности (SSH порт, Fail2ban, ufw)
   - Установка и настройка AmneziaWG
-  - Настройка клиента GL-AX1800
+  - Настройка клиента GL-AXT1800
   - Production запуск с systemd
   - Мониторинг и обслуживание
   - Troubleshooting
@@ -147,7 +147,7 @@ vpn status  # → показывает активный VPN
 ### Архитектура с 3 VPN
 
 ```
-GL-AX1800 Travel Router
+GL-AXT1800 Travel Router
   │
   ├─ awg0 → Oracle Cloud (10.8.2.2, порт 51821)
   │         └─ Обход DPI блокировок РФ
@@ -210,7 +210,7 @@ systemctl start awg-quick@awg1
 
 **3. Настроить клиент:**
 ```bash
-# На GL-AX1800
+# На GL-AXT1800
 mkdir -p /etc/amnezia/amneziawg-russia
 awg genkey | tee client_privatekey | awg pubkey > client_publickey
 # Добавить public key на сервер
@@ -258,7 +258,7 @@ curl ifconfig.me  # Должен показать российский IP
 
 ### Совместимость
 
-- ✅ GL.iNet GL-AX1800 (OpenWRT 21.02+)
+- ✅ GL.iNet GL-AXT1800 (OpenWRT 21.02+)
 - ✅ Oracle Cloud (Ubuntu 22.04 LTS)
 - ✅ Timeweb / REG.RU / Selectel VPS (Ubuntu 22.04)
 - ✅ Домашний Proxmox + OPNsense
@@ -281,7 +281,7 @@ curl ifconfig.me  # Должен показать российский IP
   - Настройка firewall и systemd
 
 - ✅ `openwrt-travel-amneziawg-client.conf` (5.8K) - Клиентская конфигурация
-  - Настройка для GL-AX1800
+  - Настройка для GL-AXT1800
   - Те же обфускация параметры что и на сервере
   - Инструкция по установке AmneziaWG на OpenWRT
   - Интеграция с /etc/config/network и firewall
@@ -296,7 +296,7 @@ curl ifconfig.me  # Должен показать российский IP
 
 - ✅ **AMNEZIAWG-SETUP.md** (18K) - Полное руководство по настройке
   - Пошаговая установка сервера (Oracle Cloud)
-  - Пошаговая установка клиента (GL-AX1800)
+  - Пошаговая установка клиента (GL-AXT1800)
   - Генерация ключей и обфускация параметров
   - Диагностика и troubleshooting
   - Сравнение производительности WireGuard vs AmneziaWG
@@ -341,7 +341,7 @@ Router → AWG packets → ISP DPI → "Обычный UDP" → ПРОПУСК
 
 #### 3. Dual VPN архитектура
 ```
-GL-AX1800 Travel Router
+GL-AXT1800 Travel Router
   ├─ AmneziaWG (awg0) → 10.8.2.2 → Priority 1
   │  └─ Обход DPI, работает в РФ
   │
@@ -367,7 +367,7 @@ GL-AX1800 Travel Router
 ### Совместимость
 
 - ✅ Работает параллельно с WireGuard (разные порты и подсети)
-- ✅ GL.iNet GL-AX1800 (OpenWRT 21.02+)
+- ✅ GL.iNet GL-AXT1800 (OpenWRT 21.02+)
 - ✅ Oracle Cloud (Ubuntu 22.04 LTS)
 - ✅ Россия, Китай, Иран, страны с DPI
 
@@ -421,12 +421,12 @@ chmod +x /root/amneziawg-failover.sh
   - OpenWRT LuCI (http://192.168.20.1:81) - для расширенных настроек
 
 **Обновлённые файлы:**
-- ✏️ `GL-AX1800-NOTES.md` - Раздел "GL.iNet специфичные пакеты"
+- ✏️ `GL-AXT1800-NOTES.md` - Раздел "GL.iNet специфичные пакеты"
   - Добавлены рекомендации по использованию обоих UI
   - Список задач для GL.iNet UI vs LuCI
   - Удалены инструкции по удалению GL.iNet UI
 
-- ✏️ `QUICK-REFERENCE.md` - Секция "GL.iNet GL-AX1800 специфичные команды"
+- ✏️ `QUICK-REFERENCE.md` - Секция "GL.iNet GL-AXT1800 специфичные команды"
   - Расширен раздел "Доступ к интерфейсам"
   - Добавлены примеры когда использовать каждый UI
   - Обновлена секция "GL.iNet службы" (убрана команда отключения)
@@ -522,11 +522,11 @@ HDD 500GB (slow):
 
 ---
 
-## v2.0 - Обновление для GL.iNet GL-AX1800 (2025-10-03)
+## v2.0 - Обновление для GL.iNet GL-AXT1800 (2025-10-03)
 
 ### Добавлено
 
-✅ **GL-AX1800-NOTES.md** (11K) - Полное руководство по GL.iNet GL-AX1800:
+✅ **GL-AXT1800-NOTES.md** (11K) - Полное руководство по GL.iNet GL-AXT1800:
 - Технические характеристики и физические порты
 - Особенности GL.iNet прошивки (dual firmware system)
 - DSA (Distributed Switch Architecture) конфигурация
@@ -555,7 +555,7 @@ HDD 500GB (slow):
 
 **Travel Mode:**
 - ✅ `openwrt-travel-network` (3.3K)
-  - DSA порты для GL-AX1800
+  - DSA порты для GL-AXT1800
   - WAN порт: `wan` (синий порт)
   - LAN порты: `lan1-lan4` (желтые порты)
 
@@ -566,17 +566,17 @@ HDD 500GB (slow):
 #### Документация
 
 - ✅ `README.md` (17K)
-  - Добавлена секция о GL.iNet GL-AX1800
+  - Добавлена секция о GL.iNet GL-AXT1800
   - Обновлена секция "Рекомендуемое оборудование"
-  - Добавлены ссылки на GL-AX1800-NOTES.md
+  - Добавлены ссылки на GL-AXT1800-NOTES.md
 
 - ✅ `FILES-INDEX.md` (9.1K)
-  - Добавлен GL-AX1800-NOTES.md в индекс
+  - Добавлен GL-AXT1800-NOTES.md в индекс
   - Добавлена информация о DSA портах
   - Обновлены описания WiFi 6 конфигураций
 
 - ✅ `QUICK-REFERENCE.md` (17K)
-  - Новая секция "GL.iNet GL-AX1800 специфичные команды"
+  - Новая секция "GL.iNet GL-AXT1800 специфичные команды"
   - Команды для проверки DSA портов
   - WiFi 6 диагностика
   - GL.iNet службы управление
@@ -617,7 +617,7 @@ config device
 - Beamforming: enabled
 - MU-MIMO: enabled
 
-### Физические порты GL-AX1800
+### Физические порты GL-AXT1800
 
 ```
 Задняя панель:
@@ -631,7 +631,7 @@ config device
 
 ## Совместимость
 
-✅ Все конфигурации оптимизированы для GL.iNet GL-AX1800 (Flint)
+✅ Все конфигурации оптимизированы для GL.iNet GL-AXT1800 (Flint)
 ✅ Совместимо с GL.iNet firmware 4.x (на базе OpenWRT 21.02+)
 ✅ Поддержка WiFi 6 (802.11ax)
 ✅ DSA (Distributed Switch Architecture)
@@ -655,7 +655,7 @@ config device
 
 ## Проверка после обновления
 
-После применения конфигурации на GL-AX1800:
+После применения конфигурации на GL-AXT1800:
 
 ```bash
 # Проверить DSA порты
@@ -680,7 +680,7 @@ cat /etc/glversion
 Документация (5 файлов):
   - README.md (17K)
   - FILES-INDEX.md (9.1K)
-  - GL-AX1800-NOTES.md (11K) ⭐ NEW
+  - GL-AXT1800-NOTES.md (11K) ⭐ NEW
   - NETWORK-DIAGRAM.txt (27K)
   - QUICK-REFERENCE.md (17K)
   - CHANGELOG.md ⭐ NEW
@@ -716,7 +716,7 @@ OpenWRT Travel (4 файла):
 
 ## Следующие шаги
 
-1. Прочитайте `GL-AX1800-NOTES.md` для понимания устройства
+1. Прочитайте `GL-AXT1800-NOTES.md` для понимания устройства
 2. Примените конфигурации согласно `README.md`
 3. Используйте `QUICK-REFERENCE.md` для диагностики
 4. Сделайте backup перед изменениями!
@@ -724,5 +724,5 @@ OpenWRT Travel (4 файла):
 ---
 
 **Автор:** Configuration Generator
-**Версия:** 2.0 (GL-AX1800 optimized)
+**Версия:** 2.0 (GL-AXT1800 optimized)
 **Дата:** 2025-10-03

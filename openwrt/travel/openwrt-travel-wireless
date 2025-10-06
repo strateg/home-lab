@@ -1,10 +1,10 @@
 # OpenWRT Wireless Configuration - TRAVEL MODE
 # File: /etc/config/wireless (travel mode)
-# Device: GL.iNet GL-AX1800 (Flint) - WiFi 6 (802.11ax)
+# Device: GL.iNet GL-AXT1800 (Slate AX) - WiFi 6 (802.11ax)
 
 # ============================================================
 # 5GHz Radio - Private travel WiFi (WiFi 6)
-# GL-AX1800: MediaTek MT7915
+# GL-AXT1800: MediaTek MT7915
 # ============================================================
 config wifi-device 'radio0'
 	option type 'mac80211'
@@ -31,7 +31,7 @@ config wifi-iface 'wifinet0'
 
 # ============================================================
 # 2.4GHz Radio - Private travel WiFi (WiFi 6)
-# GL-AX1800: MediaTek MT7915
+# GL-AXT1800: MediaTek MT7915
 # ============================================================
 config wifi-device 'radio1'
 	option type 'mac80211'

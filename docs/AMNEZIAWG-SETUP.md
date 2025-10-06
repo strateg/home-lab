@@ -198,7 +198,7 @@ sudo systemctl enable awg-quick@awg0
 sudo journalctl -u awg-quick@awg0 -f
 ```
 
-### Часть 2: GL-AX1800 Client
+### Часть 2: GL-AXT1800 Client
 
 #### Шаг 1: Подключение к роутеру
 ```bash
@@ -214,14 +214,14 @@ ssh root@192.168.100.1
 **Определить архитектуру:**
 ```bash
 opkg print-architecture
-# Для GL-AX1800: mipsel_24kc
+# Для GL-AXT1800: mipsel_24kc
 ```
 
 **Скачать и установить пакеты:**
 ```bash
 cd /tmp
 
-# Модуль ядра для MediaTek MT7621 (GL-AX1800)
+# Модуль ядра для MediaTek MT7621 (GL-AXT1800)
 wget https://github.com/amnezia-vpn/amneziawg-linux-kernel-module/releases/download/v1.0.20231030/kmod-amneziawg_5.10.176-1_mipsel_24kc.ipk
 
 # Утилиты
@@ -264,7 +264,7 @@ cat client_publickey
 # Открыть конфиг сервера
 sudo nano /etc/amnezia/amneziawg/awg0.conf
 
-# Найти секцию [Peer] для GL-AX1800 и вставить:
+# Найти секцию [Peer] для GL-AXT1800 и вставить:
 [Peer]
 PublicKey = <CLIENT_PUBLIC_KEY_ИЗ_РОУТЕРА>
 PresharedKey = <PRESHARED_KEY_С_СЕРВЕРА>
@@ -424,7 +424,7 @@ sudo awg show awg0
 sudo journalctl -u awg-quick@awg0 -f
 ```
 
-**На клиенте (GL-AX1800):**
+**На клиенте (GL-AXT1800):**
 ```bash
 # Запуск
 awg-quick up awg0
@@ -583,7 +583,7 @@ awg-quick up awg0
 awg-quick down awg0
 ```
 
-### Ожидаемые результаты (GL-AX1800)
+### Ожидаемые результаты (GL-AXT1800)
 
 | Сценарий | Скорость Download | Скорость Upload | Latency |
 |----------|-------------------|-----------------|---------|
