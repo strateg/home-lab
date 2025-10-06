@@ -28,15 +28,22 @@ ID 900-999                ID 200-299
 ```
 proxmox/scripts/
 ├── lib/
-│   └── common-functions.sh        # Shared library functions
+│   ├── common-functions.sh        # Shared library functions
+│   └── network-functions.sh       # Network detection & config
 ├── templates/
 │   ├── create-all-templates.sh    # Create all templates
-│   └── create-postgresql-template.sh  # Individual template
+│   └── create-*-template.sh       # Individual templates
 ├── services/
 │   ├── deploy-postgresql.sh       # Deploy PostgreSQL
 │   ├── deploy-redis.sh            # Deploy Redis
 │   └── deploy-docker.sh           # Deploy Docker
-└── deploy-all-services.sh         # Deploy all services
+├── proxmox-post-install.sh        # Post-install automation
+├── configure-network.sh           # Network configuration
+├── deploy-all-services.sh         # Deploy all services
+├── README.md                      # This file
+├── ARCHITECTURE.md                # System design
+├── QUICK-START.md                 # 5-minute guide
+└── NETWORK-SETUP.md               # Network configuration guide
 ```
 
 ## Quick Start
@@ -146,13 +153,41 @@ bash proxmox/scripts/services/deploy-docker.sh
 
 ## Network Configuration
 
-All services deployed to **Internal Network**:
+### Automated Network Setup
+
+Use the network configuration script for automatic bridge setup:
+
+```bash
+# Full automation (recommended)
+bash configure-network.sh --auto
+
+# Interactive mode
+bash configure-network.sh
+
+# Show current config
+bash configure-network.sh --show
+```
+
+See **[NETWORK-SETUP.md](./NETWORK-SETUP.md)** for detailed guide.
+
+### Network Bridges
+
+| Bridge | Purpose | Network | Connected To |
+|--------|---------|---------|--------------|
+| vmbr0 | WAN | DHCP | ISP Router (USB-Ethernet) |
+| vmbr1 | LAN | Auto | OpenWRT (Built-in Ethernet) |
+| vmbr2 | Internal | 10.0.30.0/24 | LXC containers |
+| vmbr99 | Management | 10.0.99.0/24 | Emergency access |
+
+### LXC Container Network
+
+All services deployed to **vmbr2 (Internal Network)**:
 
 ```
 Network: 10.0.30.0/24
-Gateway: 10.0.30.1 (OPNsense)
-DNS: 192.168.10.2 (OPNsense)
-Bridge: vmbr2 (Internal)
+Gateway: 10.0.30.1 (Proxmox host)
+Bridge: vmbr2
+IPs: 10.0.30.10-90
 ```
 
 ## Storage Strategy

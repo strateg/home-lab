@@ -15,23 +15,29 @@
 #
 # Options:
 #   --init-hdd       Force HDD initialization (create partition & format)
-#                    Use for NEW systems where HDD needs to be set up
-#   --preserve-hdd   Preserve HDD data (default, mount without formatting)
+#   --preserve-hdd   Preserve HDD data (default)
+#   --auto-network   Auto-configure network (no prompts)
+#   --skip-network   Skip network configuration
 #   --help           Show this help message
 #
 # Examples:
-#   # New system - initialize HDD automatically
-#   bash proxmox-post-install.sh --init-hdd
+#   # Full automation for new system
+#   bash proxmox-post-install.sh --init-hdd --auto-network
 #
-#   # Existing system - preserve data (default)
+#   # Interactive mode with network setup
 #   bash proxmox-post-install.sh
-#   bash proxmox-post-install.sh --preserve-hdd
+#
+#   # Skip network, configure manually later
+#   bash proxmox-post-install.sh --skip-network
 
 set -e  # Exit on error
 
 # Parse command line arguments
 INIT_HDD=false
 PRESERVE_HDD=true
+AUTO_NETWORK=false
+SKIP_NETWORK=false
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -45,6 +51,14 @@ while [[ $# -gt 0 ]]; do
             PRESERVE_HDD=true
             shift
             ;;
+        --auto-network)
+            AUTO_NETWORK=true
+            shift
+            ;;
+        --skip-network)
+            SKIP_NETWORK=true
+            shift
+            ;;
         --help|-h)
             echo "Proxmox Post-Installation Configuration Script"
             echo ""
@@ -53,11 +67,14 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --init-hdd       Force HDD initialization (NEW systems)"
             echo "  --preserve-hdd   Preserve existing data (default)"
+            echo "  --auto-network   Auto-configure network (no prompts)"
+            echo "  --skip-network   Skip network configuration"
             echo "  --help, -h       Show this help message"
             echo ""
             echo "Examples:"
-            echo "  $0 --init-hdd          # New system setup"
-            echo "  $0                     # Preserve existing data"
+            echo "  $0 --init-hdd --auto-network   # Full automation for new system"
+            echo "  $0                              # Interactive mode"
+            echo "  $0 --skip-network               # Skip network setup"
             exit 0
             ;;
         *)
@@ -136,135 +153,48 @@ apt-get install -y \
 echo -e "${GREEN}✓ Essential packages installed${NC}"
 echo ""
 
-# Step 3: Network Interface Detection and Configuration
-echo -e "${BLUE}[3/8] Detecting network interfaces...${NC}"
-
-# Show all interfaces
-echo "Available network interfaces:"
-ip link show | grep -E "^[0-9]+" | awk '{print $2}' | sed 's/:$//'
-echo ""
-
-# Detect built-in and USB Ethernet
-BUILTIN_IF=$(ip link show | grep -E "en(o|p)" | head -1 | awk '{print $2}' | sed 's/:$//' || echo "")
-USB_IF=$(ip link show | grep -E "enx|eth1" | head -1 | awk '{print $2}' | sed 's/:$//' || echo "")
-
-if [ -z "$BUILTIN_IF" ]; then
-    echo -e "${YELLOW}Warning: Could not auto-detect built-in Ethernet${NC}"
-    echo "Please identify it manually:"
-    read -p "Enter built-in Ethernet interface name: " BUILTIN_IF
-fi
-
-if [ -z "$USB_IF" ]; then
-    echo -e "${YELLOW}Warning: USB-Ethernet not detected (this is normal if not connected)${NC}"
-    echo "You can configure it later by re-running this script"
-    USB_IF="eth-usb"  # Use target name
-fi
-
-echo "Built-in Ethernet: $BUILTIN_IF"
-echo "USB-Ethernet: $USB_IF"
-echo ""
-
-# Get MAC addresses
-BUILTIN_MAC=$(ip link show "$BUILTIN_IF" 2>/dev/null | grep -o 'link/ether [^ ]*' | awk '{print $2}' || echo "")
-if [ -n "$USB_IF" ] && [ "$USB_IF" != "eth-usb" ]; then
-    USB_MAC=$(ip link show "$USB_IF" 2>/dev/null | grep -o 'link/ether [^ ]*' | awk '{print $2}' || echo "")
+# Step 3-5: Network Configuration
+if [ "$SKIP_NETWORK" = true ]; then
+    echo -e "${BLUE}[3-5/8] Network configuration skipped${NC}"
+    echo ""
 else
-    USB_MAC=""
+    echo -e "${BLUE}[3-5/8] Configuring network...${NC}"
+    echo ""
+
+    NETWORK_SCRIPT="${SCRIPT_DIR}/configure-network.sh"
+
+    if [ -f "$NETWORK_SCRIPT" ]; then
+        if [ "$AUTO_NETWORK" = true ]; then
+            echo "Running automated network configuration..."
+            bash "$NETWORK_SCRIPT" --auto
+        else
+            echo "Running interactive network configuration..."
+            echo ""
+            read -p "Configure network now? (y/n): " configure_network
+
+            if [[ "$configure_network" =~ ^[Yy]$ ]]; then
+                bash "$NETWORK_SCRIPT" --interactive
+            else
+                echo -e "${YELLOW}Network configuration skipped${NC}"
+                echo "You can configure network later by running:"
+                echo "  bash ${NETWORK_SCRIPT}"
+            fi
+        fi
+    else
+        echo -e "${YELLOW}Warning: Network configuration script not found${NC}"
+        echo "Expected location: $NETWORK_SCRIPT"
+        echo ""
+        echo "Falling back to basic network detection..."
+
+        # Show available interfaces
+        echo "Available network interfaces:"
+        ip link show | grep -E "^[0-9]+" | awk '{print $2}' | sed 's/:$//'
+        echo ""
+        echo -e "${YELLOW}Please configure network manually or run configure-network.sh${NC}"
+    fi
+
+    echo ""
 fi
-
-echo "Built-in MAC: $BUILTIN_MAC"
-if [ -n "$USB_MAC" ]; then
-    echo "USB MAC: $USB_MAC"
-fi
-echo ""
-
-# Create udev rules for persistent naming
-echo -e "${BLUE}[4/8] Creating udev rules for persistent interface names...${NC}"
-
-cat > /etc/udev/rules.d/70-persistent-net.rules <<EOF
-# Persistent network interface names for Dell XPS L701X
-# Auto-generated by proxmox-post-install.sh
-
-# Built-in Ethernet
-SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="$BUILTIN_MAC", NAME="eth-builtin"
-
-EOF
-
-if [ -n "$USB_MAC" ]; then
-cat >> /etc/udev/rules.d/70-persistent-net.rules <<EOF
-# USB-Ethernet adapter
-SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="$USB_MAC", NAME="eth-usb"
-EOF
-fi
-
-echo -e "${GREEN}✓ udev rules created${NC}"
-echo ""
-
-# Step 5: Network Configuration
-echo -e "${BLUE}[5/8] Configuring network bridges...${NC}"
-
-# Backup current network config
-cp /etc/network/interfaces /etc/network/interfaces.backup
-
-# Apply home-lab network configuration
-cat > /etc/network/interfaces <<'EOF'
-# Proxmox Network Configuration - Dell XPS L701X Home Lab
-# Auto-generated by proxmox-post-install.sh
-
-# Loopback
-auto lo
-iface lo inet loopback
-
-# Built-in Ethernet - LAN (to OpenWRT)
-auto eth-builtin
-iface eth-builtin inet manual
-
-# USB-Ethernet adapter - WAN (to ISP Router)
-auto eth-usb
-iface eth-usb inet manual
-
-# vmbr0 - WAN Bridge (to ISP Router via USB-Ethernet)
-auto vmbr0
-iface vmbr0 inet manual
-    bridge-ports eth-usb
-    bridge-stp off
-    bridge-fd 0
-    bridge-vlan-aware yes
-    bridge-vids 2-4094
-    comment WAN Bridge - OPNsense WAN to ISP Router
-
-# vmbr1 - LAN Bridge (to OpenWRT WAN via built-in Ethernet)
-auto vmbr1
-iface vmbr1 inet manual
-    bridge-ports eth-builtin
-    bridge-stp off
-    bridge-fd 0
-    bridge-vlan-aware yes
-    bridge-vids 2-4094
-    comment LAN Bridge - OPNsense LAN to OpenWRT
-
-# vmbr2 - Internal Bridge (for LXC containers)
-auto vmbr2
-iface vmbr2 inet static
-    address 10.0.30.1/24
-    bridge-ports none
-    bridge-stp off
-    bridge-fd 0
-    comment Internal Network - LXC containers
-
-# vmbr99 - Management Bridge (emergency access)
-auto vmbr99
-iface vmbr99 inet static
-    address 10.0.99.1/24
-    bridge-ports none
-    bridge-stp off
-    bridge-fd 0
-    comment Management Network - Emergency access
-EOF
-
-echo -e "${GREEN}✓ Network configuration applied${NC}"
-echo -e "${YELLOW}Note: Network changes will take effect after reboot${NC}"
-echo ""
 
 # Step 6: Storage Configuration (HDD)
 # ====================================
@@ -272,7 +202,7 @@ echo ""
 # - Checks if HDD has existing filesystem
 # - Mounts WITHOUT formatting if data exists
 # - Only formats if HDD is completely new
-echo -e "${BLUE}[6/8] Configuring HDD storage (preserving existing data)...${NC}"
+echo -e "${BLUE}[6/7] Configuring HDD storage (preserving existing data)...${NC}"
 
 # Check if HDD exists
 if [ -b /dev/sdb ]; then
@@ -451,7 +381,7 @@ fi
 echo ""
 
 # Step 7: Optimizations
-echo -e "${BLUE}[7/8] Applying optimizations...${NC}"
+echo -e "${BLUE}[7/7] Applying optimizations...${NC}"
 
 # Enable KSM (Kernel Samepage Merging) for RAM efficiency
 cat > /etc/systemd/system/ksm.service <<'EOF'
@@ -501,8 +431,8 @@ echo "✓ Temperature sensors configured"
 echo -e "${GREEN}✓ Optimizations applied${NC}"
 echo ""
 
-# Step 8: Final Summary
-echo -e "${BLUE}[8/8] Configuration Summary${NC}"
+# Final Summary
+echo -e "${BLUE}Configuration Summary${NC}"
 
 echo ""
 echo -e "${GREEN}========================================${NC}"
@@ -511,8 +441,9 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 echo "Configuration applied:"
 echo "  ✓ Repositories configured (no-subscription)"
-echo "  ✓ Network interfaces: eth-builtin, eth-usb"
-echo "  ✓ Bridges: vmbr0 (WAN), vmbr1 (LAN), vmbr2 (Internal), vmbr99 (Mgmt)"
+if [ "$SKIP_NETWORK" = false ]; then
+    echo "  ✓ Network configured (eth-wan, eth-lan → vmbr0-99)"
+fi
 if [ -b /dev/sdb ] && mountpoint -q /mnt/hdd; then
     echo "  ✓ HDD storage mounted at /mnt/hdd (existing data preserved)"
 fi
@@ -520,15 +451,23 @@ echo "  ✓ KSM enabled for RAM optimization"
 echo "  ✓ USB power management optimized"
 echo "  ✓ Laptop lid behavior configured"
 echo ""
-echo -e "${YELLOW}IMPORTANT: Reboot required to apply network changes${NC}"
-echo ""
+if [ "$SKIP_NETWORK" = false ]; then
+    echo -e "${YELLOW}IMPORTANT: Reboot required to apply network changes${NC}"
+    echo ""
+fi
 echo "Next steps:"
 echo "  1. Reboot: systemctl reboot"
-echo "  2. Verify network: ip link show"
-echo "  3. Create OPNsense VM"
-echo "  4. Configure according to home-lab documentation"
+if [ "$SKIP_NETWORK" = true ]; then
+    echo "  2. Configure network: bash ${SCRIPT_DIR}/configure-network.sh"
+    echo "  3. Verify network: ip link show && brctl show"
+    echo "  4. Create OPNsense VM"
+else
+    echo "  2. Verify network: ip link show && brctl show"
+    echo "  3. Create OPNsense VM"
+fi
 echo ""
 echo "Useful commands:"
+echo "  - Network config: bash ${SCRIPT_DIR}/configure-network.sh --show"
 echo "  - Check bridges: brctl show"
 echo "  - Check storage: pvesm status"
 echo "  - Check memory: free -h"

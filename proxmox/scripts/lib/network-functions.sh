@@ -1,0 +1,502 @@
+#!/bin/bash
+# Network configuration functions for Proxmox VE
+# Handles automatic network detection and configuration
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# Network Architecture
+# ==========================================
+# vmbr0 - WAN Bridge (USB-Ethernet → ISP Router)
+# vmbr1 - LAN Bridge (Built-in Ethernet → OpenWRT WAN)
+# vmbr2 - Internal Bridge (10.0.30.0/24 → LXC containers)
+# vmbr99 - Management Bridge (10.0.99.0/24 → Emergency access)
+
+# Detect all network interfaces
+detect_network_interfaces() {
+    echo -e "${BLUE}Detecting network interfaces...${NC}"
+    echo ""
+
+    # Get all physical ethernet interfaces (exclude lo, vmbr*, veth*, etc)
+    INTERFACES=$(ip -o link show | grep -v "lo\|vmbr\|veth\|tap\|docker" | awk -F': ' '{print $2}' | cut -d'@' -f1)
+
+    echo "Physical interfaces found:"
+    for iface in $INTERFACES; do
+        MAC=$(ip link show "$iface" | grep -o 'link/ether [^ ]*' | awk '{print $2}')
+        STATE=$(ip link show "$iface" | grep -o 'state [^ ]*' | awk '{print $2}')
+        echo "  $iface - MAC: $MAC - State: $STATE"
+    done
+    echo ""
+}
+
+# Identify built-in ethernet (usually first non-USB interface)
+detect_builtin_ethernet() {
+    # Try to find built-in ethernet by various methods
+    local builtin=""
+
+    # Method 1: Check for PCI devices (built-in usually on PCI)
+    for iface in $(ls /sys/class/net/ | grep -E '^en'); do
+        if [ -d "/sys/class/net/$iface/device" ]; then
+            local bus=$(readlink -f "/sys/class/net/$iface/device" | grep -o 'pci')
+            if [ "$bus" = "pci" ]; then
+                builtin="$iface"
+                break
+            fi
+        fi
+    done
+
+    # Method 2: Fallback - first 'enp' or 'eth' interface
+    if [ -z "$builtin" ]; then
+        builtin=$(ip -o link show | grep -E 'enp|eth0' | head -1 | awk -F': ' '{print $2}')
+    fi
+
+    echo "$builtin"
+}
+
+# Identify USB ethernet adapter
+detect_usb_ethernet() {
+    local usb=""
+
+    # Method 1: Check for USB devices
+    for iface in $(ls /sys/class/net/ | grep -E '^en'); do
+        if [ -d "/sys/class/net/$iface/device" ]; then
+            local bus=$(readlink -f "/sys/class/net/$iface/device" | grep -o 'usb')
+            if [ "$bus" = "usb" ]; then
+                usb="$iface"
+                break
+            fi
+        fi
+    done
+
+    # Method 2: Check for 'enx' prefix (USB ethernet)
+    if [ -z "$usb" ]; then
+        usb=$(ip -o link show | grep 'enx' | head -1 | awk -F': ' '{print $2}')
+    fi
+
+    echo "$usb"
+}
+
+# Interactive interface selection
+select_network_interfaces() {
+    echo -e "${CYAN}Network Interface Assignment${NC}"
+    echo ""
+
+    # Detect interfaces
+    BUILTIN_AUTO=$(detect_builtin_ethernet)
+    USB_AUTO=$(detect_usb_ethernet)
+
+    echo "Auto-detected interfaces:"
+    echo "  Built-in Ethernet: ${BUILTIN_AUTO:-not found}"
+    echo "  USB Ethernet: ${USB_AUTO:-not found}"
+    echo ""
+
+    # Get available interfaces
+    local available=$(ip -o link show | grep -v "lo\|vmbr\|veth\|tap" | awk -F': ' '{print $2}' | tr '\n' ' ')
+    echo "Available interfaces: $available"
+    echo ""
+
+    # Select WAN interface (USB-Ethernet)
+    echo -e "${YELLOW}Select WAN Interface (to ISP Router):${NC}"
+    echo "This should be your USB-Ethernet adapter"
+    read -p "Interface name [${USB_AUTO}]: " WAN_IFACE
+    WAN_IFACE=${WAN_IFACE:-$USB_AUTO}
+
+    if [ -z "$WAN_IFACE" ]; then
+        echo -e "${RED}Error: WAN interface not specified${NC}"
+        return 1
+    fi
+
+    # Select LAN interface (Built-in Ethernet)
+    echo ""
+    echo -e "${YELLOW}Select LAN Interface (to OpenWRT):${NC}"
+    echo "This should be your built-in Ethernet"
+    read -p "Interface name [${BUILTIN_AUTO}]: " LAN_IFACE
+    LAN_IFACE=${LAN_IFACE:-$BUILTIN_AUTO}
+
+    if [ -z "$LAN_IFACE" ]; then
+        echo -e "${RED}Error: LAN interface not specified${NC}"
+        return 1
+    fi
+
+    # Get MAC addresses
+    WAN_MAC=$(ip link show "$WAN_IFACE" 2>/dev/null | grep -o 'link/ether [^ ]*' | awk '{print $2}')
+    LAN_MAC=$(ip link show "$LAN_IFACE" 2>/dev/null | grep -o 'link/ether [^ ]*' | awk '{print $2}')
+
+    if [ -z "$WAN_MAC" ] || [ -z "$LAN_MAC" ]; then
+        echo -e "${RED}Error: Could not get MAC addresses${NC}"
+        return 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}Configuration:${NC}"
+    echo "  WAN Interface: $WAN_IFACE (MAC: $WAN_MAC) → vmbr0 → ISP Router"
+    echo "  LAN Interface: $LAN_IFACE (MAC: $LAN_MAC) → vmbr1 → OpenWRT"
+    echo ""
+
+    return 0
+}
+
+# Generate udev rules for persistent interface names
+generate_udev_rules() {
+    local wan_mac=$1
+    local lan_mac=$2
+    local output_file=${3:-/etc/udev/rules.d/70-persistent-net.rules}
+
+    echo -e "${BLUE}Generating udev rules...${NC}"
+
+    cat > "$output_file" <<EOF
+# Persistent network interface names for Proxmox Home Lab
+# Auto-generated by network configuration script
+# Created: $(date)
+
+# WAN Interface (USB-Ethernet → ISP Router)
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="$wan_mac", NAME="eth-wan"
+
+# LAN Interface (Built-in → OpenWRT)
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="$lan_mac", NAME="eth-lan"
+EOF
+
+    echo "  ✓ Created: $output_file"
+    echo "  WAN: $wan_mac → eth-wan"
+    echo "  LAN: $lan_mac → eth-lan"
+}
+
+# Generate /etc/network/interfaces
+generate_network_interfaces() {
+    local output_file=${1:-/etc/network/interfaces}
+    local backup_file="${output_file}.backup-$(date +%s)"
+
+    echo -e "${BLUE}Generating network interfaces configuration...${NC}"
+
+    # Backup existing configuration
+    if [ -f "$output_file" ]; then
+        cp "$output_file" "$backup_file"
+        echo "  ✓ Backup: $backup_file"
+    fi
+
+    cat > "$output_file" <<'EOF'
+# Proxmox Network Configuration
+# Auto-generated by network configuration script
+# Hardware: Dell XPS L701X
+#
+# Network Architecture:
+# =====================
+# vmbr0 (WAN)      - USB-Ethernet    → ISP Router
+# vmbr1 (LAN)      - Built-in Eth    → OpenWRT WAN
+# vmbr2 (Internal) - Virtual bridge  → LXC containers (10.0.30.0/24)
+# vmbr99 (Mgmt)    - Virtual bridge  → Emergency access (10.0.99.0/24)
+
+# Loopback interface
+auto lo
+iface lo inet loopback
+
+# ============================================================
+# Physical Interfaces (managed by udev rules)
+# ============================================================
+
+# WAN Interface - USB-Ethernet adapter (to ISP Router)
+auto eth-wan
+iface eth-wan inet manual
+    # This interface is bridged to vmbr0
+
+# LAN Interface - Built-in Ethernet (to OpenWRT)
+auto eth-lan
+iface eth-lan inet manual
+    # This interface is bridged to vmbr1
+
+# ============================================================
+# vmbr0 - WAN Bridge
+# Purpose: Connect OPNsense WAN to ISP Router
+# ============================================================
+auto vmbr0
+iface vmbr0 inet manual
+    bridge-ports eth-wan
+    bridge-stp off
+    bridge-fd 0
+    bridge-vlan-aware yes
+    bridge-vids 2-4094
+    # OPNsense WAN interface will get DHCP from ISP
+    comment WAN Bridge - OPNsense to ISP Router
+
+# ============================================================
+# vmbr1 - LAN Bridge
+# Purpose: Connect OPNsense LAN to OpenWRT WAN
+# ============================================================
+auto vmbr1
+iface vmbr1 inet manual
+    bridge-ports eth-lan
+    bridge-stp off
+    bridge-fd 0
+    bridge-vlan-aware yes
+    bridge-vids 2-4094
+    # OPNsense LAN: 192.168.10.1/24
+    # OpenWRT WAN: 192.168.10.2 (gets IP from OPNsense DHCP)
+    comment LAN Bridge - OPNsense to OpenWRT
+
+# ============================================================
+# vmbr2 - Internal Bridge (LXC Containers)
+# Purpose: Isolated network for containers
+# Network: 10.0.30.0/24
+# ============================================================
+auto vmbr2
+iface vmbr2 inet static
+    address 10.0.30.1/24
+    bridge-ports none
+    bridge-stp off
+    bridge-fd 0
+    # Proxmox host: 10.0.30.1
+    # LXC containers: 10.0.30.10-250
+    # Gateway for containers: 10.0.30.1 (routes to OPNsense)
+    comment Internal Network - LXC Containers
+
+# Enable IP forwarding for container routing
+    post-up echo 1 > /proc/sys/net/ipv4/ip_forward
+    post-up iptables -t nat -A POSTROUTING -s 10.0.30.0/24 -o vmbr1 -j MASQUERADE
+    post-down iptables -t nat -D POSTROUTING -s 10.0.30.0/24 -o vmbr1 -j MASQUERADE
+
+# ============================================================
+# vmbr99 - Management Bridge
+# Purpose: Emergency access / Out-of-band management
+# Network: 10.0.99.0/24
+# ============================================================
+auto vmbr99
+iface vmbr99 inet static
+    address 10.0.99.1/24
+    bridge-ports none
+    bridge-stp off
+    bridge-fd 0
+    # Can be used for:
+    # - Emergency SSH access
+    # - Management network
+    # - WiFi bridge (add bridge-ports wlan0 if available)
+    comment Management Network - Emergency Access
+
+# ============================================================
+# Global sysctl settings
+# ============================================================
+# post-up sysctl -w net.ipv4.ip_forward=1
+# post-up sysctl -w net.ipv6.conf.all.forwarding=1
+EOF
+
+    echo "  ✓ Created: $output_file"
+}
+
+# Apply network configuration
+apply_network_config() {
+    echo -e "${YELLOW}Applying network configuration...${NC}"
+    echo ""
+    echo "This will:"
+    echo "  1. Reload udev rules"
+    echo "  2. Rename network interfaces"
+    echo "  3. Apply bridge configuration"
+    echo ""
+    echo -e "${RED}WARNING: This may temporarily disconnect your SSH session!${NC}"
+    echo ""
+
+    read -p "Continue? (yes/no): " confirm
+    if [ "$confirm" != "yes" ]; then
+        echo "Cancelled"
+        return 1
+    fi
+
+    echo ""
+    echo "Applying configuration..."
+
+    # Reload udev rules
+    udevadm control --reload-rules
+    udevadm trigger
+
+    sleep 2
+
+    # Apply network configuration
+    echo "Restarting networking..."
+    systemctl restart networking || ifreload -a
+
+    sleep 5
+
+    echo ""
+    echo -e "${GREEN}✓ Network configuration applied${NC}"
+    echo ""
+    echo "Verifying configuration..."
+    ip addr show | grep -E "eth-wan|eth-lan|vmbr"
+}
+
+# Show current network status
+show_network_status() {
+    echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}         Network Configuration Status                   ${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    echo -e "${BLUE}Physical Interfaces:${NC}"
+    for iface in eth-wan eth-lan; do
+        if ip link show "$iface" &>/dev/null; then
+            local mac=$(ip link show "$iface" | grep -o 'link/ether [^ ]*' | awk '{print $2}')
+            local state=$(ip link show "$iface" | grep -o 'state [^ ]*' | awk '{print $2}')
+            echo "  $iface: $state (MAC: $mac)"
+        else
+            echo "  $iface: NOT CONFIGURED"
+        fi
+    done
+    echo ""
+
+    echo -e "${BLUE}Bridges:${NC}"
+    for bridge in vmbr0 vmbr1 vmbr2 vmbr99; do
+        if ip link show "$bridge" &>/dev/null; then
+            local state=$(ip link show "$bridge" | grep -o 'state [^ ]*' | awk '{print $2}')
+            local ip=$(ip addr show "$bridge" | grep 'inet ' | awk '{print $2}')
+            local ports=$(bridge link show | grep "$bridge" | awk '{print $2}' | cut -d'@' -f1 | tr '\n' ' ')
+
+            echo "  $bridge: $state"
+            [ -n "$ip" ] && echo "    IP: $ip"
+            [ -n "$ports" ] && echo "    Ports: $ports"
+        else
+            echo "  $bridge: NOT CONFIGURED"
+        fi
+    done
+    echo ""
+
+    echo -e "${BLUE}IP Forwarding:${NC}"
+    local ipv4_forward=$(cat /proc/sys/net/ipv4/ip_forward)
+    echo "  IPv4: $([ "$ipv4_forward" = "1" ] && echo 'ENABLED' || echo 'DISABLED')"
+    echo ""
+}
+
+# Test network connectivity
+test_network_connectivity() {
+    echo -e "${CYAN}Testing network connectivity...${NC}"
+    echo ""
+
+    # Test internet from Proxmox host
+    echo "Testing internet connectivity from Proxmox host..."
+    if ping -c 3 8.8.8.8 &>/dev/null; then
+        echo -e "  ${GREEN}✓ Internet access: OK${NC}"
+    else
+        echo -e "  ${RED}✗ Internet access: FAILED${NC}"
+    fi
+
+    # Test if bridges are up
+    for bridge in vmbr0 vmbr1 vmbr2 vmbr99; do
+        if ip link show "$bridge" &>/dev/null; then
+            local state=$(ip link show "$bridge" | grep -o 'state [^ ]*' | awk '{print $2}')
+            if [ "$state" = "UP" ] || [ "$state" = "UNKNOWN" ]; then
+                echo -e "  ${GREEN}✓ $bridge: UP${NC}"
+            else
+                echo -e "  ${YELLOW}⚠ $bridge: $state${NC}"
+            fi
+        else
+            echo -e "  ${RED}✗ $bridge: NOT FOUND${NC}"
+        fi
+    done
+    echo ""
+}
+
+# Generate network diagram
+generate_network_diagram() {
+    cat <<'EOF'
+
+Network Architecture Diagram:
+═════════════════════════════════════════════════════════════
+
+Internet
+   │
+   │ DHCP (192.168.1.x)
+   │
+   ▼
+┌─────────────────┐
+│  ISP Router     │
+│  192.168.1.1    │
+└─────────────────┘
+   │
+   │ USB-Ethernet (eth-wan)
+   │
+   ▼
+┌─────────────────────────────────────────────────────────┐
+│             Proxmox VE Host (Dell XPS L701X)            │
+│                                                         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐ │
+│  │  vmbr0   │  │  vmbr1   │  │  vmbr2   │  │ vmbr99 │ │
+│  │   WAN    │  │   LAN    │  │ INTERNAL │  │  MGMT  │ │
+│  └────┬─────┘  └─────┬────┘  └─────┬────┘  └────┬───┘ │
+│       │              │              │             │     │
+│  eth-wan        eth-lan      10.0.30.1/24   10.0.99.1  │
+└───────┼──────────────┼──────────────┼─────────────┼────┘
+        │              │              │             │
+        │              │              │             │
+   ┌────▼───────┐      │              │             │
+   │  OPNsense  │      │              │             │
+   │  Firewall  │      │              │             │
+   │  VM        │      │              │             │
+   ├────────────┤      │              │             │
+   │ WAN: DHCP  │◄─────┘              │             │
+   │ from ISP   │                     │             │
+   ├────────────┤                     │             │
+   │ LAN:       │─────────────────────┤             │
+   │ 192.168.   │                     │             │
+   │ 10.1/24    │                     │             │
+   └─────┬──────┘                     │             │
+         │                            │             │
+         │ Built-in Ethernet          │             │
+         │ (eth-lan)                  │             │
+         │                            │             │
+         ▼                            ▼             │
+   ┌──────────┐              ┌─────────────┐       │
+   │ OpenWRT  │              │ LXC         │       │
+   │ Router   │              │ Containers  │       │
+   │          │              │             │       │
+   │ WAN:     │              │ 10.0.30.10  │       │
+   │ 192.168. │              │ PostgreSQL  │       │
+   │ 10.2/24  │              │             │       │
+   │          │              │ 10.0.30.20  │       │
+   │ LAN:     │              │ Redis       │       │
+   │ 192.168. │              │             │       │
+   │ 20.1/24  │              │ 10.0.30.30  │       │
+   │          │              │ Nextcloud   │       │
+   └──────────┘              │             │       │
+                             │ ...         │       │
+                             └─────────────┘       │
+                                                   │
+                                          Emergency Access
+                                          (Future WiFi)
+
+IP Address Allocation:
+══════════════════════════════════════════════════════════
+
+ISP Network:         192.168.1.0/24     (ISP Router)
+OPNsense LAN:        192.168.10.0/24    (to OpenWRT)
+  - Gateway:         192.168.10.1       (OPNsense)
+  - OpenWRT WAN:     192.168.10.2       (DHCP from OPNsense)
+
+OpenWRT LAN:         192.168.20.0/24    (WiFi clients)
+  - Gateway:         192.168.20.1       (OpenWRT)
+  - Clients:         192.168.20.10-250  (DHCP)
+
+LXC Internal:        10.0.30.0/24       (Containers)
+  - Gateway:         10.0.30.1          (Proxmox vmbr2)
+  - PostgreSQL:      10.0.30.10
+  - Redis:           10.0.30.20
+  - Nextcloud:       10.0.30.30
+  - ...
+
+Management:          10.0.99.0/24       (Emergency)
+  - Proxmox:         10.0.99.1
+
+EOF
+}
+
+# Export functions
+export -f detect_network_interfaces
+export -f detect_builtin_ethernet
+export -f detect_usb_ethernet
+export -f select_network_interfaces
+export -f generate_udev_rules
+export -f generate_network_interfaces
+export -f apply_network_config
+export -f show_network_status
+export -f test_network_connectivity
+export -f generate_network_diagram
