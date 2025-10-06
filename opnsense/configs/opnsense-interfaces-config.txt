@@ -1,49 +1,77 @@
 # OPNsense Interface Configuration
 # VM: OPNsense-Firewall (VM ID: 100)
 # Access: https://192.168.10.1 or https://10.0.99.10
+# Template: OPNsense on HDD (template ID: 910)
+
+# ============================================================
+# NETWORK ARCHITECTURE (Updated 2025-01-06)
+# ============================================================
+#
+# Proxmox Host Network:
+#   eth-wan (USB-Ethernet)  → vmbr0 (WAN Bridge)
+#   eth-lan (Built-in)      → vmbr1 (LAN Bridge)
+#   vmbr2 (10.0.30.1/24)    → Managed by Proxmox (LXC containers)
+#   vmbr99 (10.0.99.1/24)   → Managed by Proxmox (Management)
+#
+# OPNsense VM connects to all bridges and provides:
+#   - WAN routing (vmbr0 → Internet)
+#   - LAN routing (vmbr1 → OpenWRT)
+#   - LXC gateway (vmbr2 → route through OPNsense to Internet)
+#   - Management access (vmbr99 → admin UI)
 
 # ============================================================
 # VM Settings in Proxmox
 # ============================================================
-# CPU: 2-4 cores (host type)
-# RAM: 4096 MB
-# Disk: 32 GB (on fast storage)
+# CPU: 2-4 cores (host type for best performance)
+# RAM: 4096 MB (minimum 2048 MB)
+# Disk: 32 GB (on local-lvm for performance)
+# Machine: q35
+# BIOS: OVMF (UEFI) or SeaBIOS
 # Start at boot: Yes
 # Start/Shutdown order: 1 (start first, shutdown last)
+# Protection: Enabled (prevent accidental deletion)
 #
-# Network Adapters:
-#   net0 -> vmbr0 (WAN) - VirtIO
-#   net1 -> vmbr1 (LAN) - VirtIO
-#   net2 -> vmbr2 (INTERNAL) - VirtIO
-#   net3 -> vmbr99 (MGMT) - VirtIO
+# Network Adapters (VirtIO for best performance):
+#   net0 -> vmbr0 (WAN)      - VirtIO - Firewall: No
+#   net1 -> vmbr1 (LAN)      - VirtIO - Firewall: No
+#   net2 -> vmbr2 (INTERNAL) - VirtIO - Firewall: No
+#   net3 -> vmbr99 (MGMT)    - VirtIO - Firewall: No
 
 # ============================================================
 # Interfaces -> Assignments
 # ============================================================
 
 ## WAN Interface (vtnet0)
+# Bridge: vmbr0 (USB-Ethernet → ISP Router)
 # IPv4 Configuration Type: DHCP
 # IPv4 Address: (получает от ISP Router ~192.168.1.x)
 # Block private networks: UNCHECKED (ISP router uses private IP)
 # Block bogon networks: CHECKED
+# MSS Clamping: 1420 (если есть проблемы с MTU)
 
 ## LAN Interface (vtnet1)
+# Bridge: vmbr1 (Built-in Ethernet → OpenWRT WAN)
 # IPv4 Configuration Type: Static IPv4
 # IPv4 Address: 192.168.10.1
 # IPv4 Subnet: 24
-# Description: "To OpenWRT WAN"
+# Description: "To OpenWRT WAN - Primary LAN Gateway"
 
 ## INTERNAL Interface (vtnet2)
+# Bridge: vmbr2 (Virtual bridge for LXC containers)
 # IPv4 Configuration Type: Static IPv4
-# IPv4 Address: 10.0.30.1
+# IPv4 Address: 10.0.30.254
 # IPv4 Subnet: 24
-# Description: "LXC Containers Network"
+# Description: "LXC Containers Gateway (Proxmox manages .1)"
+# NOTE: Proxmox host uses 10.0.30.1 for direct container access
+#       OPNsense uses 10.0.30.254 as Internet gateway for containers
 
 ## MGMT Interface (vtnet3)
+# Bridge: vmbr99 (Virtual bridge for management)
 # IPv4 Configuration Type: Static IPv4
 # IPv4 Address: 10.0.99.10
 # IPv4 Subnet: 24
-# Description: "Proxmox Management Access"
+# Description: "Management Access - Web UI and SSH"
+# NOTE: Proxmox host uses 10.0.99.1
 
 # ============================================================
 # Services -> DHCPv4 -> LAN
@@ -62,10 +90,14 @@
 # ============================================================
 # Services -> DHCPv4 -> INTERNAL
 # ============================================================
-# Enable: YES
-# Range: 10.0.30.50 to 10.0.30.200
-# Gateway: 10.0.30.1
-# DNS servers: 192.168.10.2 (via routing through LAN)
+# Enable: NO (LXC containers use static IPs configured by automation)
+# NOTE: LXC containers are deployed with static IPs 10.0.30.10-90
+#       by the deploy scripts (see proxmox/scripts/services/)
+#
+# If DHCP needed for dynamic containers:
+#   Range: 10.0.30.100 to 10.0.30.200
+#   Gateway: 10.0.30.254 (OPNsense for Internet access)
+#   DNS servers: 192.168.10.2 (AdGuard via routing)
 
 # ============================================================
 # Services -> Unbound DNS (optional, if not using AdGuard)

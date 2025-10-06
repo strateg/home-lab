@@ -31,15 +31,20 @@ proxmox/scripts/
 │   ├── common-functions.sh        # Shared library functions
 │   └── network-functions.sh       # Network detection & config
 ├── templates/
-│   ├── create-all-templates.sh    # Create all templates
-│   └── create-*-template.sh       # Individual templates
+│   ├── create-all-templates.sh    # Create all LXC templates
+│   └── create-*-template.sh       # Individual LXC templates
+├── vms/
+│   ├── create-opnsense-template.sh # Create OPNsense VM template
+│   └── deploy-opnsense.sh         # Deploy OPNsense VM
 ├── services/
-│   ├── deploy-postgresql.sh       # Deploy PostgreSQL
-│   ├── deploy-redis.sh            # Deploy Redis
-│   └── deploy-docker.sh           # Deploy Docker
+│   ├── deploy-postgresql.sh       # Deploy PostgreSQL LXC
+│   ├── deploy-redis.sh            # Deploy Redis LXC
+│   └── deploy-docker.sh           # Deploy Docker LXC
 ├── proxmox-post-install.sh        # Post-install automation
 ├── configure-network.sh           # Network configuration
-├── deploy-all-services.sh         # Deploy all services
+├── configure-lxc-routing.sh       # LXC routing via OPNsense
+├── deploy-all-services.sh         # Deploy all LXC services
+├── deploy-complete-system.sh      # Full system deployment
 ├── README.md                      # This file
 ├── ARCHITECTURE.md                # System design
 ├── QUICK-START.md                 # 5-minute guide
@@ -48,25 +53,48 @@ proxmox/scripts/
 
 ## Quick Start
 
-### Option 1: Full Automation (Recommended)
+### Option 1: Complete System Deployment (Recommended)
 
 ```bash
-# 1. Create all templates (one-time, stores on HDD)
-cd /home/dmpr/workspaces/projects/home-lab
-bash proxmox/scripts/templates/create-all-templates.sh
+# Deploy everything: OPNsense VM + all LXC services
+bash proxmox/scripts/deploy-complete-system.sh
+```
 
-# 2. Deploy all services (clones to SSD)
+This will:
+- Deploy OPNsense firewall VM (ID: 100) from template
+- Configure LXC routing through OPNsense
+- Deploy all 9 LXC services (IDs: 200-208) from templates
+
+**Prerequisites:** Templates must be created first (see Template Creation below)
+
+### Option 2: Step-by-Step Deployment
+
+```bash
+# 1. Create templates (one-time, stores on HDD)
+bash proxmox/scripts/templates/create-all-templates.sh  # LXC templates
+bash proxmox/scripts/vms/create-opnsense-template.sh    # OPNsense VM template
+
+# 2. Deploy OPNsense firewall
+bash proxmox/scripts/vms/deploy-opnsense.sh
+
+# 3. Configure LXC routing
+bash proxmox/scripts/configure-lxc-routing.sh
+
+# 4. Deploy all LXC services
 bash proxmox/scripts/deploy-all-services.sh
 ```
 
-### Option 2: Individual Services
+### Option 3: Individual Components
 
 ```bash
-# 1. Create specific template
-bash proxmox/scripts/templates/create-postgresql-template.sh
-
-# 2. Deploy specific service
+# Deploy specific LXC service
 bash proxmox/scripts/services/deploy-postgresql.sh
+
+# Or deploy only OPNsense
+bash proxmox/scripts/deploy-complete-system.sh --opnsense-only
+
+# Or deploy only LXC services
+bash proxmox/scripts/deploy-complete-system.sh --lxc-only
 ```
 
 ## Template Management
@@ -100,10 +128,59 @@ bash proxmox/scripts/templates/create-all-templates.sh
 ### List Templates
 
 ```bash
+# LXC templates
 pct list | grep template
+
+# VM templates
+qm list | grep template
 ```
 
-## Service Deployment
+## VM Management (OPNsense Firewall)
+
+### Create OPNsense Template
+
+```bash
+bash proxmox/scripts/vms/create-opnsense-template.sh
+```
+
+**What it does:**
+- Downloads OPNsense ISO (24.7)
+- Creates VM (ID 910) with 4 network interfaces
+- Stores on HDD (`local-hdd`)
+- **Manual installation required** (guided by script)
+- Converts to template after installation
+
+**Template configuration:**
+| Component | Value |
+|-----------|-------|
+| ID | 910 |
+| Name | opnsense-template |
+| CPU | 2 cores (host) |
+| RAM | 4096 MB |
+| Disk | 32 GB |
+| Networks | vmbr0, vmbr1, vmbr2, vmbr99 |
+
+### Deploy OPNsense VM
+
+```bash
+bash proxmox/scripts/vms/deploy-opnsense.sh
+```
+
+**What it does:**
+- Clones template (ID 910 → 100)
+- Stores on SSD (`local-lvm`) for production
+- Configures 4 network interfaces:
+  - **WAN (vtnet0)**: vmbr0 - DHCP from ISP
+  - **LAN (vtnet1)**: vmbr1 - 192.168.10.1/24 (to OpenWRT)
+  - **INTERNAL (vtnet2)**: vmbr2 - 10.0.30.254/24 (LXC gateway)
+  - **MGMT (vtnet3)**: vmbr99 - 10.0.99.10/24 (admin access)
+- Starts VM with boot priority 1 (first to start)
+
+**Access:**
+- Web UI: https://192.168.10.1 or https://10.0.99.10
+- Default credentials: root / opnsense
+
+## Service Deployment (LXC Containers)
 
 ### Deploy All Services
 

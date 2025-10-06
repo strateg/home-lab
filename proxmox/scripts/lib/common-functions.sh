@@ -12,9 +12,10 @@ NC='\033[0m'
 
 # Network configuration
 INTERNAL_NETWORK="10.0.30.0/24"
-INTERNAL_GATEWAY="10.0.30.1"
-DNS_SERVER="192.168.10.2"
-BRIDGE="vmbr2"
+INTERNAL_GATEWAY="10.0.30.254"  # OPNsense INTERNAL interface (Internet gateway)
+PROXMOX_INTERNAL_IP="10.0.30.1"  # Proxmox host IP (direct access)
+DNS_SERVER="192.168.10.2"  # AdGuard DNS on OpenWRT
+BRIDGE="vmbr2"  # Internal bridge for LXC containers
 
 # Storage configuration
 TEMPLATE_STORAGE="local-hdd"  # Templates on HDD
@@ -50,6 +51,18 @@ template_exists() {
 container_exists() {
     local ctid=$1
     pct list | grep -q "^${ctid} "
+}
+
+# Check if VM exists
+vm_exists() {
+    local vmid=$1
+    qm list | grep -q "^${vmid} "
+}
+
+# Check if VM template exists
+vm_template_exists() {
+    local vmid=$1
+    qm list | grep "^${vmid} " | grep -q "template"
 }
 
 # Get next available CT ID
