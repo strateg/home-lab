@@ -174,7 +174,7 @@ Hotel WiFi → OpenWRT WAN → WireGuard VPN → Home OPNsense
 - CPU: MediaTek MT7621A (880 MHz dual-core)
 - RAM: 512 MB
 - WiFi: WiFi 6 (802.11ax) - 1200+574 Mbps
-- Ethernet: **2x Gigabit (1 WAN + 1 LAN)** ⚠️
+- Ethernet: **3x Gigabit (1 WAN + 2 LAN)**
 - Размер: Компактный ~10x6x2 см (портативный travel router)
 - **Dual UI:** GL.iNet UI (удобный) + OpenWRT LuCI (расширенный)
 
@@ -826,7 +826,7 @@ sysupgrade -r /tmp/backup-20250101.tar.gz
 Эта конфигурация оптимизирована для **GL.iNet GL-AXT1800 (Slate AX)**:
 - ✅ WiFi 6 (802.11ax) - высокая скорость
 - ✅ Dual-band (5GHz + 2.4GHz)
-- ⚠️ **2x Gigabit Ethernet (1 WAN + 1 LAN)** - портативный роутер
+- ✅ **3x Gigabit Ethernet (1 WAN + 2 LAN)** - портативный роутер
 - ✅ Компактный размер ~10x6x2 см (идеален для поездок)
 - ✅ 512 MB RAM (достаточно для AdGuard + VPN)
 - ✅ USB 3.0 порт (можно добавить USB-Ethernet для дополнительных портов)

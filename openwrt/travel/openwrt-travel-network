@@ -27,7 +27,7 @@ config interface 'wan6'
 
 # ============================================================
 # LAN - Local network for your travel devices
-# GL-AXT1800: Only 1 LAN port (yellow port) ⚠️
+# GL-AXT1800: 2 LAN ports (yellow ports)
 # ============================================================
 config interface 'lan'
 	option device 'br-lan'
@@ -36,11 +36,12 @@ config interface 'lan'
 	option netmask '255.255.255.0'
 	option ip6assign '60'
 
-# Bridge for LAN - GL-AXT1800 DSA port (single LAN port)
+# Bridge for LAN - GL-AXT1800 DSA ports (2 LAN ports)
 config device
 	option name 'br-lan'
 	option type 'bridge'
-	list ports 'lan'
+	list ports 'lan1'
+	list ports 'lan2'
 
 # ============================================================
 # WireGuard to Home OPNsense
@@ -87,8 +88,8 @@ config wireguard_wg_oracle
 
 # ============================================================
 # GL-AXT1800 uses DSA (Distributed Switch Architecture)
-# No swconfig needed - ports: wan, lan (only 1 LAN port!)
+# No swconfig needed - ports: wan, lan1, lan2
 # ============================================================
 # Physical ports:
 #   WAN = Blue port (connect to hotel WiFi/4G)
-#   LAN = Single yellow port (your devices via WiFi primarily)
+#   LAN1-2 = Yellow ports (your devices)

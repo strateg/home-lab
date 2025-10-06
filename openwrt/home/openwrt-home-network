@@ -31,7 +31,7 @@ config interface 'wan6'
 
 # ============================================================
 # LAN - Local network for WiFi and wired clients
-# GL-AXT1800: Only 1 LAN port (lan) ⚠️
+# GL-AXT1800: 2 LAN ports (lan1, lan2)
 # ============================================================
 config interface 'lan'
 	option device 'br-lan'
@@ -64,7 +64,8 @@ config interface 'iot'
 config device
 	option name 'br-lan'
 	option type 'bridge'
-	list ports 'lan'
+	list ports 'lan1'
+	list ports 'lan2'
 
 config device
 	option name 'br-guest'
@@ -76,7 +77,7 @@ config device
 
 # ============================================================
 # GL-AXT1800 uses DSA (Distributed Switch Architecture)
-# No swconfig needed - ports are: wan, lan (only 1 LAN port!)
+# No swconfig needed - ports are: wan, lan1, lan2
 # ============================================================
 # WAN = Physical WAN port (blue port on GL-AXT1800)
-# LAN = Physical LAN port (single yellow port on GL-AXT1800)
+# LAN1-2 = Physical LAN ports (yellow ports on GL-AXT1800)
