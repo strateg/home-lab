@@ -1,4 +1,4 @@
-# Home Lab Network Topology v2.0
+# Home Lab Network Topology v2.1
 # Infrastructure-as-Data: Single Source of Truth
 # Used to generate: Terraform configs, Ansible inventory, network diagrams, documentation
 #
@@ -9,7 +9,7 @@
 # - Dynamic IP generation friendly
 # - Single environment (production) - extensible to multi-env if needed
 
-version: "2.0.0"
+version: "2.1.0"
 
 # ============================================================
 # Metadata
@@ -20,9 +20,9 @@ metadata:
   environment: "production"
   author: "dprohhorov"
   created: "2025-10-06"
-  last_updated: "2025-10-09"
-  version: "2.0.0"
-  description: "Gamayun (Dell XPS L701X) home lab infrastructure - Infrastructure as Data v2.0"
+  last_updated: "2025-10-10"
+  version: "2.1.0"
+  description: "Gamayun (Dell XPS L701X) home lab infrastructure - Infrastructure as Data v2.1"
   changelog:
     - version: "1.0.0"
       date: "2025-10-06"
@@ -33,6 +33,9 @@ metadata:
     - version: "2.0.0"
       date: "2025-10-09"
       changes: "Restructured with physical/logical/compute separation, ID-based references"
+    - version: "2.1.0"
+      date: "2025-10-10"
+      changes: "Phase 2 improvements: SSH keys, DNS records, firewall templates, Ansible variables"
 
 # ============================================================
 # Physical Topology
@@ -474,6 +477,177 @@ logical_topology:
       destination_network_ref: net-lxc-internal
       via: "192.168.10.254"  # OPNsense
       description: "User devices access LXC services via OPNsense routing"
+
+  # ------------------------------------------------------------
+  # DNS Records
+  # ------------------------------------------------------------
+
+  dns:
+    zones:
+      - id: zone-home-local
+        domain: "home.local"
+        nameserver_ref: svc-adguard
+        type: "forward"
+        description: "Primary home lab DNS zone"
+
+        records:
+          # Physical Devices
+          - type: "A"
+            name: "gamayun"
+            ip: "10.0.99.1"
+            device_ref: gamayun
+            ttl: 3600
+            description: "Proxmox host"
+
+          # Virtual Machines
+          - type: "A"
+            name: "opnsense"
+            ip: "10.0.99.10"
+            vm_ref: vm-opnsense-fw
+            ttl: 3600
+            description: "OPNsense firewall management"
+
+          - type: "A"
+            name: "opnsense-lan"
+            ip: "192.168.10.1"
+            vm_ref: vm-opnsense-fw
+            ttl: 3600
+            description: "OPNsense LAN interface"
+
+          # LXC Containers
+          - type: "A"
+            name: "postgresql"
+            ip: "10.0.30.10"
+            lxc_ref: lxc-postgresql
+            ttl: 3600
+            description: "PostgreSQL database server"
+
+          - type: "A"
+            name: "redis"
+            ip: "10.0.30.20"
+            lxc_ref: lxc-redis
+            ttl: 3600
+            description: "Redis cache server"
+
+          - type: "A"
+            name: "nextcloud"
+            ip: "10.0.30.30"
+            lxc_ref: lxc-nextcloud
+            ttl: 3600
+            description: "Nextcloud file sharing"
+
+          # CNAME Records
+          - type: "CNAME"
+            name: "db"
+            target: "postgresql.home.local"
+            service_ref: svc-postgresql
+            ttl: 3600
+            description: "Database alias"
+
+          - type: "CNAME"
+            name: "cache"
+            target: "redis.home.local"
+            service_ref: svc-redis
+            ttl: 3600
+            description: "Cache alias"
+
+          - type: "CNAME"
+            name: "cloud"
+            target: "nextcloud.home.local"
+            service_ref: svc-nextcloud
+            ttl: 3600
+            description: "Cloud storage alias"
+
+          # SRV Records for Service Discovery
+          - type: "SRV"
+            name: "_postgresql._tcp"
+            target: "postgresql.home.local"
+            port: 5432
+            priority: 10
+            weight: 10
+            service_ref: svc-postgresql
+            ttl: 3600
+            description: "PostgreSQL service discovery"
+
+          - type: "SRV"
+            name: "_redis._tcp"
+            target: "redis.home.local"
+            port: 6379
+            priority: 10
+            weight: 10
+            service_ref: svc-redis
+            ttl: 3600
+            description: "Redis service discovery"
+
+          - type: "SRV"
+            name: "_https._tcp.nextcloud"
+            target: "nextcloud.home.local"
+            port: 443
+            priority: 10
+            weight: 10
+            service_ref: svc-nextcloud
+            ttl: 3600
+            description: "Nextcloud HTTPS service"
+
+    # DNS Forwarders
+    forwarders:
+      - "8.8.8.8"       # Google DNS
+      - "1.1.1.1"       # Cloudflare DNS
+      - "192.168.10.2"  # Local AdGuard
+
+    # DNS Settings
+    settings:
+      recursion: true
+      dnssec: true
+      cache_size_mb: 100
+      negative_ttl: 300
+      allow_query_from:
+        - "10.0.0.0/8"
+        - "192.168.0.0/16"
+
+  # ------------------------------------------------------------
+  # Firewall Templates
+  # ------------------------------------------------------------
+
+  firewall_templates:
+    - id: tmpl-web-access
+      name: "Web Access Template"
+      description: "Allow HTTP and HTTPS traffic"
+      ports: [80, 443]
+      protocols: ["tcp"]
+      action: "allow"
+
+    - id: tmpl-database-access
+      name: "Database Access Template"
+      description: "Allow common database ports"
+      ports: [5432, 3306, 6379, 27017]
+      protocols: ["tcp"]
+      action: "allow"
+
+    - id: tmpl-ssh-access
+      name: "SSH Access Template"
+      description: "Allow SSH connections"
+      ports: [22]
+      protocols: ["tcp"]
+      action: "allow"
+      rate_limit:
+        enabled: true
+        max_connections: 10
+        per_seconds: 60
+
+    - id: tmpl-management-access
+      name: "Management Access Template"
+      description: "Allow management protocols (SSH, HTTPS, RDP)"
+      ports: [22, 443, 8006, 3389]
+      protocols: ["tcp"]
+      action: "allow"
+
+    - id: tmpl-icmp-allow
+      name: "ICMP Allow Template"
+      description: "Allow ping and traceroute"
+      protocols: ["icmp"]
+      action: "allow"
+      icmp_types: [0, 8]  # Echo reply, Echo request
 
   # ------------------------------------------------------------
   # Firewall Policies
@@ -1007,6 +1181,202 @@ services:
     description: "Russia VPN server (internet only, no LAN access)"
 
 # ============================================================
+# Ansible Configuration
+# ============================================================
+
+ansible:
+  # ------------------------------------------------------------
+  # Group Variables
+  # ------------------------------------------------------------
+
+  group_vars:
+    all:
+      # Common settings for all hosts
+      ansible_user: "root"
+      ansible_python_interpreter: "/usr/bin/python3"
+      ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+
+      # Timezone & Locale
+      timezone: "UTC"
+      locale: "en_US.UTF-8"
+
+      # Common packages
+      common_packages:
+        - vim
+        - git
+        - curl
+        - wget
+        - htop
+        - tmux
+        - net-tools
+        - dnsutils
+        - python3
+        - python3-pip
+
+      # DNS configuration
+      dns_servers:
+        - "192.168.10.2"  # AdGuard Home
+        - "8.8.8.8"       # Google DNS (fallback)
+      search_domains:
+        - "home.local"
+
+      # NTP servers
+      ntp_servers:
+        - "pool.ntp.org"
+        - "time.cloudflare.com"
+
+    # LXC containers specific
+    lxc_containers:
+      # Cloud-init settings
+      cloud_init_enabled: true
+
+      # Security
+      ssh_permit_root_login: "prohibit-password"
+      ssh_password_authentication: false
+
+      # Monitoring
+      monitoring_enabled: true
+      log_retention_days: 30
+
+    # Database servers specific
+    databases:
+      backup_enabled: true
+      backup_schedule: "0 2 * * *"  # 2 AM daily
+      monitoring_queries: true
+      max_connections: 100
+
+    # Web applications specific
+    web_applications:
+      ssl_enabled: true
+      auto_renew_certs: true
+      rate_limiting: true
+
+  # ------------------------------------------------------------
+  # Host Variables (from topology)
+  # ------------------------------------------------------------
+
+  host_vars:
+    # Auto-generated from compute.lxc[*].ansible.vars
+    # and compute.vms[*].ansible.vars
+
+    postgresql-db:
+      postgresql_version: "15"
+      postgresql_max_connections: 100
+      postgresql_shared_buffers: "512MB"
+      postgresql_databases:
+        - name: "homelab"
+          owner: "app"
+      postgresql_users:
+        - name: "app"
+          password: "{{ vault_postgresql_app_password }}"
+          privileges: "ALL"
+      postgresql_hba_entries:
+        - type: "host"
+          database: "homelab"
+          user: "app"
+          address: "10.0.30.0/24"
+          method: "scram-sha-256"
+
+    redis-cache:
+      redis_version: "7"
+      redis_port: 6379
+      redis_bind: "10.0.30.20"
+      redis_maxmemory: "512mb"
+      redis_maxmemory_policy: "allkeys-lru"
+      redis_save:
+        - "900 1"   # After 900 sec if at least 1 key changed
+        - "300 10"  # After 300 sec if at least 10 keys changed
+
+    nextcloud:
+      nextcloud_version: "28"
+      nextcloud_domain: "nextcloud.home.local"
+      nextcloud_admin_user: "admin"
+      nextcloud_admin_password: "{{ vault_nextcloud_admin_password }}"
+      nextcloud_db_type: "pgsql"
+      nextcloud_db_host: "10.0.30.10"
+      nextcloud_db_name: "nextcloud"
+      nextcloud_db_user: "nextcloud"
+      nextcloud_db_password: "{{ vault_nextcloud_db_password }}"
+      nextcloud_redis_host: "10.0.30.20"
+      nextcloud_redis_port: 6379
+      nextcloud_trusted_domains:
+        - "nextcloud.home.local"
+        - "10.0.30.30"
+      nextcloud_apps:
+        - "files"
+        - "files_sharing"
+        - "files_versions"
+        - "files_trashbin"
+        - "encryption"
+        - "user_ldap"
+
+  # ------------------------------------------------------------
+  # Playbook Mappings
+  # ------------------------------------------------------------
+
+  playbooks:
+    site:
+      file: "site.yml"
+      description: "Run all playbooks in order"
+      order:
+        - "common.yml"
+        - "databases.yml"
+        - "cache.yml"
+        - "web_applications.yml"
+
+    postgresql:
+      file: "postgresql.yml"
+      description: "Deploy PostgreSQL database"
+      hosts: "databases"
+      roles:
+        - "common"
+        - "postgresql"
+
+    redis:
+      file: "redis.yml"
+      description: "Deploy Redis cache"
+      hosts: "cache_servers"
+      roles:
+        - "common"
+        - "redis"
+
+    nextcloud:
+      file: "nextcloud.yml"
+      description: "Deploy Nextcloud application"
+      hosts: "web_applications"
+      roles:
+        - "common"
+        - "nginx"
+        - "php-fpm"
+        - "nextcloud"
+
+  # ------------------------------------------------------------
+  # Vault Variables (placeholders)
+  # ------------------------------------------------------------
+
+  vault_vars:
+    # Use ansible-vault to encrypt these
+    - vault_postgresql_app_password
+    - vault_nextcloud_admin_password
+    - vault_nextcloud_db_password
+    - vault_proxmox_api_token
+
+  # ------------------------------------------------------------
+  # Ansible Configuration
+  # ------------------------------------------------------------
+
+  config:
+    # ansible.cfg settings
+    inventory: "inventory/production/hosts.yml"
+    remote_user: "root"
+    host_key_checking: false
+    retry_files_enabled: false
+    gather_facts: true
+    fact_caching: "jsonfile"
+    fact_caching_connection: "/tmp/ansible_facts"
+    fact_caching_timeout: 86400
+
+# ============================================================
 # Workflows (automation sequences)
 # ============================================================
 
@@ -1084,6 +1454,113 @@ workflows:
       - step: 7
         name: "Apply changes if approved"
         command: "cd terraform && terraform apply"
+
+# ============================================================
+# Security Configuration
+# ============================================================
+
+security:
+  # ------------------------------------------------------------
+  # SSH Key Management
+  # ------------------------------------------------------------
+
+  ssh_keys:
+    - id: ssh-admin-primary
+      name: "Admin Primary Key"
+      type: "ed25519"
+      public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData admin@workstation"
+      purpose: "Primary administration key"
+      authorized_for:
+        - device_ref: gamayun
+        - lxc_ref: lxc-postgresql
+        - lxc_ref: lxc-redis
+        - lxc_ref: lxc-nextcloud
+      created: "2025-10-06"
+      expires: null  # No expiration
+
+    - id: ssh-automation
+      name: "Automation Key"
+      type: "ed25519"
+      public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData ansible@controller"
+      purpose: "Ansible automation"
+      authorized_for:
+        - device_ref: gamayun
+      created: "2025-10-06"
+      expires: null
+
+    - id: ssh-backup
+      name: "Backup Key"
+      type: "ed25519"
+      public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData backup@backup-server"
+      purpose: "Backup system access (read-only)"
+      authorized_for:
+        - device_ref: gamayun
+      permissions: "read-only"
+      created: "2025-10-10"
+      expires: "2026-10-10"
+
+  # SSH key deployment strategy
+  ssh_key_deployment:
+    method: "cloud-init"  # or "ansible", "manual"
+    update_authorized_keys: true
+    remove_old_keys: false
+    backup_before_update: true
+
+  # ------------------------------------------------------------
+  # Certificate Management
+  # ------------------------------------------------------------
+
+  certificates:
+    - id: cert-wildcard-home
+      name: "Wildcard Home Lab Certificate"
+      type: "self-signed"
+      subject: "*.home.local"
+      subject_alt_names:
+        - "home.local"
+        - "*.home.local"
+      valid_days: 365
+      key_size: 2048
+      used_by:
+        - service_ref: svc-proxmox-ui
+        - service_ref: svc-opnsense-ui
+        - service_ref: svc-nextcloud
+      auto_renew: true
+      renew_days_before: 30
+
+    - id: cert-letsencrypt-vpn
+      name: "Let's Encrypt VPN Certificate"
+      type: "letsencrypt"
+      domains:
+        - "vpn.example.com"
+      challenge_type: "dns-01"
+      used_by:
+        - service_ref: svc-vpn-home
+      auto_renew: true
+      renew_days_before: 30
+
+  # ------------------------------------------------------------
+  # Security Policies
+  # ------------------------------------------------------------
+
+  policies:
+    password_policy:
+      min_length: 16
+      require_special_chars: true
+      require_numbers: true
+      require_uppercase: true
+      max_age_days: 90
+
+    ssh_policy:
+      permit_root_login: "prohibit-password"
+      password_authentication: false
+      pubkey_authentication: true
+      port: 22
+      max_auth_tries: 3
+
+    firewall_policy:
+      default_action: "drop"
+      log_blocked: true
+      rate_limiting: true
 
 # ============================================================
 # Backup Policies
