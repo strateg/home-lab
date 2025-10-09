@@ -25,22 +25,29 @@ This is an **Infrastructure-as-Data** home lab project. A single YAML topology f
 
 ```
 home-lab/
-├── topology.yaml              # ⭐ SINGLE SOURCE OF TRUTH
-├── scripts/                   # Generators (Python)
-│   ├── generate-terraform.py
-│   ├── generate-ansible-inventory.py
-│   ├── generate-docs.py
-│   └── validate-topology.py
-├── terraform/                 # Generated from topology.yaml
-│   ├── main.tf               # DO NOT EDIT MANUALLY
-│   ├── variables.tf
-│   └── modules/
-├── ansible/                   # Partially generated
-│   ├── inventory/production/hosts.yml  # Generated from topology.yaml
-│   ├── group_vars/all.yml              # Generated from topology.yaml
-│   ├── playbooks/            # Manual (service-specific)
-│   └── roles/                # Manual (reusable roles)
-└── bare-metal/               # Bare-metal installation automation
+├── new_system/                # ⭐ Infrastructure-as-Data (current)
+│   ├── topology.yaml          # ⭐ SINGLE SOURCE OF TRUTH
+│   ├── scripts/               # Generators (Python)
+│   │   ├── generate-terraform.py
+│   │   ├── generate-ansible-inventory.py
+│   │   ├── generate-docs.py
+│   │   └── validate-topology.py
+│   ├── terraform/             # Generated from topology.yaml
+│   │   ├── main.tf            # DO NOT EDIT MANUALLY
+│   │   ├── variables.tf
+│   │   └── modules/
+│   ├── ansible/               # Partially generated
+│   │   ├── inventory/production/hosts.yml  # Generated from topology.yaml
+│   │   ├── group_vars/all.yml              # Generated from topology.yaml
+│   │   ├── playbooks/         # Manual (service-specific)
+│   │   └── roles/             # Manual (reusable roles)
+│   └── bare-metal/            # Bare-metal installation automation
+└── old_system/                # Script-based setup (legacy)
+    ├── proxmox/scripts/       # Bash automation scripts
+    ├── openwrt/scripts/       # OpenWRT configuration scripts
+    ├── opnsense/              # OPNsense configs
+    ├── services/              # Service deployment scripts
+    └── vpn-servers/           # VPN server configs
 ```
 
 ## Common Workflows
@@ -51,22 +58,22 @@ home-lab/
 
 ```bash
 # 1. Edit topology (add VM, change IP, add bridge, etc.)
-vim topology.yaml
+vim new_system/topology.yaml
 
 # 2. Validate topology
-python3 scripts/validate-topology.py
+python3 new_system/scripts/validate-topology.py
 
 # 3. Regenerate Terraform
-python3 scripts/generate-terraform.py
+python3 new_system/scripts/generate-terraform.py
 
 # 4. Regenerate Ansible inventory
-python3 scripts/generate-ansible-inventory.py
+python3 new_system/scripts/generate-ansible-inventory.py
 
 # 5. Regenerate documentation
-python3 scripts/generate-docs.py
+python3 new_system/scripts/generate-docs.py
 
 # 6. Plan and apply Terraform changes
-cd terraform
+cd new_system/terraform
 terraform plan
 terraform apply
 
@@ -79,13 +86,13 @@ ansible-playbook -i inventory/production/hosts.yml site.yml
 
 ```bash
 # Terraform
-cd terraform
+cd new_system/terraform
 terraform init
 terraform validate
 terraform plan        # Review changes before applying
 
 # Ansible
-cd ansible
+cd new_system/ansible
 ansible all -i inventory/production/hosts.yml -m ping
 ansible-playbook ... --syntax-check
 ansible-playbook ... --check  # Dry run
@@ -94,13 +101,13 @@ ansible-playbook ... --check  # Dry run
 ### 3. Deploy New LXC Container
 
 ```bash
-# 1. Add to topology.yaml under 'lxc:' section
+# 1. Add to new_system/topology.yaml under 'lxc:' section
 # 2. Regenerate
-python3 scripts/generate-terraform.py
-python3 scripts/generate-ansible-inventory.py
+python3 new_system/scripts/generate-terraform.py
+python3 new_system/scripts/generate-ansible-inventory.py
 
 # 3. Apply Terraform (creates LXC)
-cd terraform
+cd new_system/terraform
 terraform apply -target='proxmox_virtual_environment_container.new_container'
 
 # 4. Configure with Ansible (installs services)
@@ -114,7 +121,7 @@ Complete automation from bare metal to running infrastructure:
 
 ```bash
 # 1. Create bootable USB
-cd bare-metal
+cd new_system/bare-metal
 sudo ./create-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
 
 # 2. Boot and auto-install (15 min, automatic)
@@ -134,7 +141,7 @@ scp -r ~/home-lab root@10.0.99.1:/root/
 
 # 5. Generate and apply infrastructure
 ssh root@10.0.99.1
-cd /root/home-lab
+cd /root/home-lab/new_system
 python3 scripts/generate-terraform.py
 python3 scripts/generate-ansible-inventory.py
 cd terraform
@@ -286,12 +293,12 @@ LXC Containers → vmbr2 → 10.0.30.254 (OPNsense INTERNAL) → Internet
 ### Unit Tests (Fast)
 ```bash
 # Terraform validation
-cd terraform
+cd new_system/terraform
 terraform validate
 terraform fmt -check
 
 # Ansible syntax check
-cd ansible
+cd new_system/ansible
 ansible-playbook playbooks/site.yml --syntax-check
 ansible-lint roles/
 ```
@@ -299,11 +306,11 @@ ansible-lint roles/
 ### Integration Tests (Slower)
 ```bash
 # Terraform plan (no apply)
-cd terraform
+cd new_system/terraform
 terraform plan
 
 # Ansible dry run
-cd ansible
+cd new_system/ansible
 ansible-playbook -i inventory/production/hosts.yml site.yml --check
 ```
 
@@ -328,19 +335,19 @@ ansible-playbook -i inventory/production/hosts.yml site.yml --check
 ### What Gets Regenerated
 
 ```bash
-python3 scripts/generate-terraform.py
+python3 new_system/scripts/generate-terraform.py
 # Generates:
-#   terraform/main.tf (bridges, VMs, LXC)
-#   terraform/generated-networks.tf
-#   terraform/generated-vms.tf
-#   terraform/generated-lxc.tf
+#   new_system/terraform/main.tf (bridges, VMs, LXC)
+#   new_system/terraform/generated-networks.tf
+#   new_system/terraform/generated-vms.tf
+#   new_system/terraform/generated-lxc.tf
 
-python3 scripts/generate-ansible-inventory.py
+python3 new_system/scripts/generate-ansible-inventory.py
 # Generates:
-#   ansible/inventory/production/hosts.yml
-#   ansible/group_vars/all.yml (network vars)
+#   new_system/ansible/inventory/production/hosts.yml
+#   new_system/ansible/group_vars/all.yml (network vars)
 
-python3 scripts/generate-docs.py
+python3 new_system/scripts/generate-docs.py
 # Generates:
 #   docs/network-diagram.md (Mermaid)
 #   docs/ip-allocation.md (tables)
@@ -350,10 +357,10 @@ python3 scripts/generate-docs.py
 ### Manual Files (Do Not Auto-Generate)
 
 **These files are manually maintained:**
-- `ansible/playbooks/*.yml` - Service-specific logic
-- `ansible/roles/*/tasks/*.yml` - Role implementations
-- `bare-metal/post-install/*.sh` - Bash scripts
-- `topology.yaml` - Source of truth (edit this!)
+- `new_system/ansible/playbooks/*.yml` - Service-specific logic
+- `new_system/ansible/roles/*/tasks/*.yml` - Role implementations
+- `new_system/bare-metal/post-install/*.sh` - Bash scripts
+- `new_system/topology.yaml` - Source of truth (edit this!)
 
 ## Cloud-Init Integration
 
@@ -377,14 +384,14 @@ Terraform generates cloud-init snippets → Proxmox injects on first boot → An
 ### ❌ DON'T: Edit generated Terraform files manually
 ```bash
 # Wrong:
-vim terraform/main.tf  # This will be overwritten!
+vim new_system/terraform/main.tf  # This will be overwritten!
 ```
 
 ### ✅ DO: Edit topology.yaml and regenerate
 ```bash
 # Correct:
-vim topology.yaml
-python3 scripts/generate-terraform.py
+vim new_system/topology.yaml
+python3 new_system/scripts/generate-terraform.py
 ```
 
 ### ❌ DON'T: Use Terraform for OS-level networking
@@ -421,9 +428,9 @@ postgresql_host: "{{ hostvars['postgresql-db'].ansible_host }}"
 If migrating from the old script-based setup (in `README-old-network-setup.md`):
 
 1. Read `MIGRATION.md` for complete guide
-2. Old scripts are in `proxmox/scripts/` (coexist with new IaC)
-3. Gradually migrate components to `topology.yaml`
-4. Test each component before decommissioning scripts
+2. Old scripts are in `old_system/proxmox/scripts/` (legacy, reference only)
+3. Gradually migrate components to `new_system/topology.yaml`
+4. Test each component before decommissioning old scripts
 
 ## Performance Considerations
 
@@ -444,11 +451,11 @@ If migrating from the old script-based setup (in `README-old-network-setup.md`):
 
 ```bash
 # Check Terraform state matches topology
-cd terraform
+cd new_system/terraform
 terraform plan  # Should show "No changes"
 
 # Check Ansible idempotency
-cd ansible
+cd new_system/ansible
 ansible-playbook -i inventory/production/hosts.yml site.yml --check
 # Second run should show 0 changes
 
@@ -467,9 +474,9 @@ ssh root@10.0.99.1 "pvesm status"
 - **README.md**: Project overview and quick start
 - **MIGRATION.md**: Migration guide from script-based setup
 - **TESTING.md**: Comprehensive testing procedures
-- **topology.yaml**: Infrastructure definition (source of truth)
-- **bare-metal/README.md**: Bare-metal installation guide
-- **ansible/roles/*/README.md**: Role-specific documentation
+- **new_system/topology.yaml**: Infrastructure definition (source of truth)
+- **new_system/bare-metal/README.md**: Bare-metal installation guide
+- **new_system/ansible/roles/*/README.md**: Role-specific documentation
 
 ## Generator Scripts (To Be Implemented)
 
@@ -477,22 +484,22 @@ These Python scripts transform `topology.yaml` into usable configs:
 
 ```bash
 # Validate topology schema and consistency
-python3 scripts/validate-topology.py
+python3 new_system/scripts/validate-topology.py
 
 # Generate Terraform from topology
-python3 scripts/generate-terraform.py
+python3 new_system/scripts/generate-terraform.py
 
 # Generate Ansible inventory from topology
-python3 scripts/generate-ansible-inventory.py
+python3 new_system/scripts/generate-ansible-inventory.py
 
 # Generate documentation from topology
-python3 scripts/generate-docs.py
+python3 new_system/scripts/generate-docs.py
 
 # All-in-one regeneration
-python3 scripts/regenerate-all.py
+python3 new_system/scripts/regenerate-all.py
 ```
 
-**TODO**: Implement these generators (see scripts/README.md for specifications)
+**TODO**: Implement these generators (see new_system/scripts/README.md for specifications)
 
 ## Working with Claude Code
 

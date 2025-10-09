@@ -19,7 +19,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 
 ### Current State (Script-Based)
 
-**Location**: `configs/` directory
+**Location**: `old_system/` directory
 - Bash scripts for configuration
 - Manual execution required
 - Limited idempotency
@@ -27,26 +27,28 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 - Difficult to version and test
 
 **Components**:
-- `run-on-host.sh` - Host configuration script
-- `01-configure-proxmox.sh` - Proxmox setup
-- `02-create-opnsense-vm.sh` - OPNsense VM creation
-- Various LXC container scripts
-- ISO download and preparation scripts
+- `proxmox/scripts/` - Proxmox automation scripts
+- `openwrt/scripts/` - OpenWRT configuration scripts
+- `opnsense/` - OPNsense configs
+- `services/` - Service deployment scripts
+- `vpn-servers/` - VPN server configs
 
 ### Target State (IaC)
 
-**Location**: `terraform/`, `ansible/`, `bare-metal/` directories
+**Location**: `new_system/` directory
 - Terraform for infrastructure provisioning
 - Ansible for configuration management
-- Declarative configuration
+- Declarative configuration (topology.yaml as source of truth)
 - State tracking and drift detection
 - Version controlled
 - Automated testing possible
 
 **Components**:
-- Terraform modules (network, storage, VMs, LXC)
-- Ansible roles (proxmox, opnsense, lxc)
-- Bare-metal auto-install (USB creator)
+- `topology.yaml` - Single source of truth (Infrastructure-as-Data)
+- `scripts/` - Generators (Python) from topology.yaml
+- `terraform/` - Provisioning modules (auto-generated from topology.yaml)
+- `ansible/` - Configuration roles (partially generated from topology.yaml)
+- `bare-metal/` - Bare-metal auto-install
 - Git-based workflow
 
 ### Migration Approach
@@ -66,14 +68,16 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 **Goal**: Set up IaC structure without affecting current system
 
 **Tasks**:
-- ✅ Create directory structure (terraform/, ansible/, bare-metal/)
-- ✅ Set up Terraform base configuration
+- ✅ Create directory structure (new_system/)
+- ✅ Create topology.yaml (Infrastructure-as-Data)
+- ✅ Set up Terraform base configuration (new_system/terraform/)
 - ✅ Create Terraform modules (network, storage)
-- ✅ Set up Ansible base configuration
+- ✅ Set up Ansible base configuration (new_system/ansible/)
 - ✅ Create Ansible roles (proxmox)
-- ✅ Create bare-metal installation scripts
+- ✅ Create bare-metal installation scripts (new_system/bare-metal/)
 - ✅ Initialize Git repository structure
 - ✅ Create .gitignore for secrets protection
+- ✅ Move old system to old_system/ directory
 
 **Status**: Complete
 
@@ -108,7 +112,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 
 1. **Create Bootable USB**
    ```bash
-   cd bare-metal/
+   cd new_system/bare-metal/
    sudo ./create-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
    ```
 
@@ -167,13 +171,13 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
    ```bash
    # From workstation
    cd ~/workspaces/projects/home-lab
-   scp -r terraform/ ansible/ root@10.0.99.1:/root/home-lab/
+   scp -r new_system/ root@10.0.99.1:/root/home-lab/
    ```
 
 2. **Configure Terraform Variables**
    ```bash
    # On Proxmox
-   cd /root/home-lab/terraform
+   cd /root/home-lab/new_system/terraform
    cp terraform.tfvars.example terraform.tfvars
    vim terraform.tfvars
    ```
@@ -208,7 +212,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 
 4. **Initialize Terraform**
    ```bash
-   cd /root/home-lab/terraform
+   cd /root/home-lab/new_system/terraform
    terraform init
    ```
 
@@ -266,7 +270,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 
 1. **Configure Ansible Inventory**
    ```bash
-   cd /root/home-lab/ansible
+   cd /root/home-lab/new_system/ansible
    vim inventory/production/hosts.yml
    ```
 
@@ -483,7 +487,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 ### Software Preparation
 
 - [ ] Proxmox VE 9 ISO downloaded
-- [ ] IaC files ready (terraform/, ansible/, bare-metal/)
+- [ ] IaC files ready (new_system/)
 - [ ] Workstation with SSH client
 - [ ] Text editor for configuration files
 - [ ] Password manager for secrets
@@ -1146,9 +1150,10 @@ curl -k -H "Authorization: PVEAPIToken=root@pam!terraform=<token>" \
 ssh root@<host-ip>
 
 # Check inventory
-cat ansible/inventory/production/hosts.yml
+cat new_system/ansible/inventory/production/hosts.yml
 
 # Test Ansible ping
+cd new_system/ansible
 ansible all -i inventory/production/hosts.yml -m ping -vvv
 
 # Check SSH keys

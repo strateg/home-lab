@@ -167,8 +167,8 @@ temp/
 # Project-specific
 # ============================================================
 
-# Legacy configs (keeping for migration reference)
-# configs/ - uncomment when migration complete
+# Old system (legacy, kept for reference)
+# Can be removed after complete migration to new_system/
 
 # Downloaded packages
 *.deb

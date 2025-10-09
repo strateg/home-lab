@@ -19,11 +19,11 @@ Infrastructure as Code (IaC) для home lab на базе Proxmox VE 9 с ис�
 - **Инфраструктура**: Terraform v1.7.0 (провайдер bpg/proxmox)
 - **Конфигурация**: Ansible v2.14+ с cloud-init
 - **Контроль версий**: Git
-- **⭐ Источник истины**: topology.yaml (Infrastructure-as-Data)
+- **⭐ Источник истины**: new_system/topology.yaml (Infrastructure-as-Data)
 
 ### Infrastructure-as-Data подход
 
-**Единый источник истины**: `topology.yaml` — YAML файл, описывающий всю инфраструктуру:
+**Единый источник истины**: `new_system/topology.yaml` — YAML файл, описывающий всю инфраструктуру:
 - Физические интерфейсы и сетевые мосты
 - IP адресация всех сетей
 - Определения VM и LXC контейнеров
@@ -33,22 +33,22 @@ Infrastructure as Code (IaC) для home lab на базе Proxmox VE 9 с ис�
 **Автогенерация из topology.yaml**:
 ```bash
 # Редактируем топологию
-vim topology.yaml
+vim new_system/topology.yaml
 
 # Валидируем
-python3 scripts/validate-topology.py
+python3 new_system/scripts/validate-topology.py
 
 # Генерируем Terraform конфигурации
-python3 scripts/generate-terraform.py
+python3 new_system/scripts/generate-terraform.py
 
 # Генерируем Ansible inventory
-python3 scripts/generate-ansible-inventory.py
+python3 new_system/scripts/generate-ansible-inventory.py
 
 # Генерируем документацию (диаграммы, таблицы IP)
-python3 scripts/generate-docs.py
+python3 new_system/scripts/generate-docs.py
 
 # Применяем изменения
-cd terraform && terraform apply
+cd new_system/terraform && terraform apply
 cd ../ansible && ansible-playbook -i inventory/production/hosts.yml site.yml
 ```
 
@@ -65,56 +65,45 @@ cd ../ansible && ansible-playbook -i inventory/production/hosts.yml site.yml
 home-lab/
 ├── README.md                  # Этот файл
 ├── CLAUDE.md                  # ⭐ Руководство для Claude Code
-├── topology.yaml              # ⭐ ЕДИНЫЙ ИСТОЧНИК ИСТИНЫ
 ├── MIGRATION.md               # Руководство по миграции
 ├── TESTING.md                 # Процедуры тестирования
 ├── .gitignore                 # Защита секретов
 │
-├── scripts/                   # ⭐ Генераторы из topology.yaml
-│   ├── validate-topology.py   # Валидация топологии
-│   ├── generate-terraform.py  # Генерация Terraform (TODO)
-│   ├── generate-ansible-inventory.py  # Генерация Ansible inventory (TODO)
-│   ├── generate-docs.py       # Генерация документации (TODO)
-│   └── README.md              # Документация генераторов
+├── new_system/                # ⭐ Infrastructure-as-Data (новая система)
+│   ├── topology.yaml          # ⭐ ЕДИНЫЙ ИСТОЧНИК ИСТИНЫ
+│   ├── scripts/               # ⭐ Генераторы из topology.yaml
+│   │   ├── validate-topology.py
+│   │   ├── generate-terraform.py
+│   │   ├── generate-ansible-inventory.py
+│   │   ├── generate-docs.py
+│   │   └── README.md
+│   ├── terraform/             # Provisioning (⚠️ автогенерация)
+│   │   ├── providers.tf
+│   │   ├── versions.tf
+│   │   ├── variables.tf
+│   │   ├── outputs.tf
+│   │   ├── terraform.tfvars.example
+│   │   └── modules/
+│   │       ├── network/       # Сетевые мосты
+│   │       └── storage/       # Пулы хранения
+│   ├── ansible/               # Configuration management
+│   │   ├── ansible.cfg
+│   │   ├── requirements.yml
+│   │   ├── inventory/
+│   │   ├── playbooks/
+│   │   └── roles/
+│   └── bare-metal/            # Установка на bare-metal
+│       ├── README.md
+│       ├── answer.toml
+│       ├── create-usb.sh
+│       └── post-install/
 │
-├── terraform/                 # Provisioning инфраструктуры (⚠️ автогенерация)
-│   ├── providers.tf           # Конфигурация Proxmox provider
-│   ├── versions.tf            # Версии провайдеров
-│   ├── variables.tf           # Переменные (85+)
-│   ├── outputs.tf             # Выходные значения
-│   ├── terraform.tfvars.example  # Шаблон переменных
-│   └── modules/
-│       ├── network/           # Сетевые мосты (vmbr0-vmbr99)
-│       └── storage/           # Пулы хранения (SSD + HDD)
-│
-├── ansible/                   # Configuration management
-│   ├── ansible.cfg            # Конфигурация Ansible
-│   ├── requirements.yml       # Коллекции и роли
-│   ├── inventory/
-│   │   └── production/
-│   │       ├── hosts.yml      # Inventory
-│   │       └── group_vars/
-│   │           └── all.yml    # Глобальные переменные
-│   ├── playbooks/             # Плейбуки
-│   │   └── proxmox-setup.yml  # Настройка Proxmox
-│   └── roles/
-│       └── proxmox/           # Роль Proxmox
-│           ├── defaults/      # Переменные по умолчанию
-│           ├── tasks/         # Задачи
-│           ├── meta/          # Метаданные роли
-│           └── README.md      # Документация роли
-│
-└── bare-metal/                # Установка на bare-metal
-    ├── README.md              # Руководство по установке
-    ├── answer.toml            # Конфигурация auto-install
-    ├── create-usb.sh          # Скрипт создания USB
-    └── post-install/          # Скрипты post-install
-        ├── README.md
-        ├── 01-install-terraform.sh
-        ├── 02-install-ansible.sh
-        ├── 03-configure-storage.sh
-        ├── 04-configure-network.sh
-        └── 05-init-git-repo.sh
+└── old_system/                # Script-based система (legacy)
+    ├── proxmox/scripts/       # Bash скрипты автоматизации
+    ├── openwrt/scripts/       # OpenWRT конфигурация
+    ├── opnsense/              # OPNsense конфиги
+    ├── services/              # Скрипты развёртывания сервисов
+    └── vpn-servers/           # Конфиги VPN серверов
 ```
 
 ## 🚀 Быстрый старт
@@ -125,7 +114,7 @@ home-lab/
 
 1. **Создание загрузочного USB**
    ```bash
-   cd bare-metal/
+   cd new_system/bare-metal/
    sudo ./create-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
    ```
 
@@ -154,7 +143,7 @@ home-lab/
 5. **Развёртывание инфраструктуры**
    ```bash
    ssh root@10.0.99.1
-   cd /root/home-lab/terraform
+   cd /root/home-lab/new_system/terraform
    cp terraform.tfvars.example terraform.tfvars
    vim terraform.tfvars  # Настройка
    terraform init
@@ -163,11 +152,11 @@ home-lab/
 
 6. **Конфигурация системы**
    ```bash
-   cd /root/home-lab/ansible
+   cd /root/home-lab/new_system/ansible
    ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml
    ```
 
-Подробности в [bare-metal/README.md](bare-metal/README.md)
+Подробности в [new_system/bare-metal/README.md](new_system/bare-metal/README.md)
 
 ---
 
@@ -177,7 +166,7 @@ home-lab/
 
 1. **Установка Terraform и Ansible**
    ```bash
-   cd bare-metal/post-install
+   cd new_system/bare-metal/post-install
    ./01-install-terraform.sh
    ./02-install-ansible.sh
    ```
@@ -190,12 +179,12 @@ home-lab/
 3. **Настройка и применение**
    ```bash
    # Terraform
-   cd /root/home-lab/terraform
+   cd /root/home-lab/new_system/terraform
    terraform init
    terraform apply
 
    # Ansible
-   cd /root/home-lab/ansible
+   cd /root/home-lab/new_system/ansible
    ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml
    ```
 
@@ -300,7 +289,7 @@ storage_hdd_id = "local-hdd"
 
 **Использование**:
 ```bash
-cd terraform/
+cd new_system/terraform/
 
 # Инициализация
 terraform init
@@ -336,7 +325,7 @@ proxmox_cpu_governor: ondemand
 
 **Использование**:
 ```bash
-cd ansible/
+cd new_system/ansible/
 
 # Тест подключения
 ansible all -i inventory/production/hosts.yml -m ping
@@ -366,7 +355,7 @@ ansible-playbook ... --check
   - Performance тестирование
   - Security тестирование
 
-- **[bare-metal/README.md](bare-metal/README.md)**: Установка bare-metal
+- **[new_system/bare-metal/README.md](new_system/bare-metal/README.md)**: Установка bare-metal
   - Создание USB
   - Конфигурация auto-install
   - Post-install скрипты
