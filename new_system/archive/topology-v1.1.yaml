@@ -1,0 +1,724 @@
+# Home Lab Network Topology
+# Single source of truth for infrastructure configuration
+# Used to generate: Terraform configs, Ansible inventory, network diagrams, documentation
+
+metadata:
+  org: "home-lab"
+  environment: "production"
+  author: "dprohhorov"
+  created: "2025-10-06"
+  last_updated: "2025-10-09"
+  version: "1.1.0"
+  description: "Gamayun (Dell XPS L701X) home lab infrastructure - Infrastructure as Data"
+  hardware:
+    hostname: "gamayun"
+    model: "Dell XPS L701X"
+    cpu_cores: 2
+    cpu_model: "Intel Core i3-M370"
+    ram_gb: 8
+    disks:
+      - id: ssd-system
+        device: sda
+        size_gb: 180
+        type: ssd
+        usage: "Proxmox system + VMs/LXC"
+      - id: hdd-data
+        device: sdb
+        size_gb: 500
+        type: hdd
+        usage: "Backups, ISOs, templates"
+
+# Physical network interfaces (detected via UDEV)
+physical_interfaces:
+  wan:
+    name: "eth-usb"
+    type: "usb-ethernet"
+    mac: "auto-detect"  # Set by configure-network.sh
+    speed: "1000"
+    description: "USB Ethernet adapter to ISP Router"
+
+  lan:
+    name: "eth-builtin"
+    type: "pci-ethernet"
+    mac: "auto-detect"  # Set by configure-network.sh
+    speed: "1000"
+    description: "Built-in Ethernet to GL.iNet Slate AX"
+
+# Proxmox network bridges
+bridges:
+  vmbr0:
+    comment: "WAN Bridge - to ISP Router (USB-Ethernet)"
+    ports: ["eth-usb"]
+    address: "dhcp"
+    autostart: true
+    vlan_aware: false
+    bridge_stp: false
+    bridge_fd: 0
+
+  vmbr1:
+    comment: "LAN Bridge - to GL.iNet Slate AX (Built-in Ethernet)"
+    ports: ["eth-builtin"]
+    address: "192.168.10.254/24"
+    gateway: null
+    autostart: true
+    vlan_aware: false
+    bridge_stp: false
+    bridge_fd: 0
+
+  vmbr2:
+    comment: "INTERNAL Bridge - LXC Containers"
+    ports: []
+    address: "10.0.30.1/24"
+    gateway: null
+    autostart: true
+    vlan_aware: false
+    bridge_stp: false
+    bridge_fd: 0
+
+  vmbr99:
+    comment: "MGMT Bridge - Management Network"
+    ports: []
+    address: "10.0.99.1/24"
+    gateway: null
+    autostart: true
+    vlan_aware: false
+    bridge_stp: false
+    bridge_fd: 0
+
+# ============================================================
+# Trust Zones & Security Boundaries
+# ============================================================
+
+trust_zones:
+  untrusted:
+    name: "Untrusted Zone"
+    security_level: 0
+    description: "External networks (ISP, Internet)"
+    color: "#ff0000"
+
+  dmz:
+    name: "DMZ Zone"
+    security_level: 1
+    description: "OPNsense LAN facing GL.iNet"
+    color: "#ff9900"
+
+  user:
+    name: "User Zone"
+    security_level: 1
+    description: "End-user devices (WiFi, LAN)"
+    color: "#ffcc00"
+
+  internal:
+    name: "Internal Zone"
+    security_level: 2
+    description: "LXC containers and internal services"
+    color: "#00cc00"
+
+  management:
+    name: "Management Zone"
+    security_level: 3
+    description: "Infrastructure management (Proxmox UI, OPNsense UI)"
+    color: "#0066cc"
+
+# ============================================================
+# IP Address Allocation
+# ============================================================
+
+networks:
+  wan:
+    name: "ISP Router Network"
+    cidr: "192.168.1.0/24"
+    gateway: "192.168.1.1"
+    dns: ["1.1.1.1", "8.8.8.8"]
+    dhcp: true
+    trust_zone: untrusted
+    bridge: vmbr0
+    description: "ISP provided network"
+
+  opnsense_lan:
+    name: "OPNsense LAN"
+    cidr: "192.168.10.0/24"
+    gateway: "192.168.10.1"
+    dns: ["192.168.10.2"]
+    dhcp: false
+    trust_zone: dmz
+    bridge: vmbr1
+    description: "Network between OPNsense and GL.iNet"
+
+  slate_ax_lan:
+    name: "GL.iNet Slate AX LAN"
+    cidr: "192.168.20.0/24"
+    gateway: "192.168.20.1"
+    dns: ["192.168.20.1"]
+    dhcp: true
+    dhcp_range: "192.168.20.100-192.168.20.200"
+    trust_zone: user
+    managed_by: slate-ax1800
+    description: "Main user network (WiFi + Wired)"
+
+  guest_wifi:
+    name: "Guest WiFi"
+    cidr: "192.168.30.0/24"
+    gateway: "192.168.30.1"
+    dns: ["192.168.30.1"]
+    dhcp: true
+    dhcp_range: "192.168.30.100-192.168.30.200"
+    isolated: true
+    trust_zone: user
+    managed_by: slate-ax1800
+    description: "Isolated guest network"
+
+  iot:
+    name: "IoT Network"
+    cidr: "192.168.40.0/24"
+    gateway: "192.168.40.1"
+    dns: ["192.168.40.1"]
+    dhcp: true
+    dhcp_range: "192.168.40.100-192.168.40.200"
+    isolated: true
+    trust_zone: user
+    managed_by: slate-ax1800
+    description: "Smart home devices"
+
+  lxc_internal:
+    name: "LXC Internal"
+    cidr: "10.0.30.0/24"
+    gateway: "10.0.30.254"  # OPNsense INTERNAL interface
+    dns: ["192.168.10.2"]    # AdGuard Home on Slate AX
+    dhcp: false
+    trust_zone: internal
+    bridge: vmbr2
+    description: "LXC containers network"
+
+  management:
+    name: "Management"
+    cidr: "10.0.99.0/24"
+    gateway: "10.0.99.1"
+    dns: ["1.1.1.1", "8.8.8.8"]
+    dhcp: false
+    trust_zone: management
+    bridge: vmbr99
+    description: "Management network for Proxmox/OPNsense admin"
+
+  vpn_home:
+    name: "VPN Home (Slate AX WireGuard)"
+    cidr: "10.0.200.0/24"
+    gateway: "10.0.200.1"
+    dns: ["192.168.20.1"]
+    dhcp: false
+    trust_zone: user
+    managed_by: slate-ax1800
+    description: "WireGuard VPN server on Slate AX (access to LAN)"
+
+  vpn_russia:
+    name: "VPN Russia (Slate AX AmneziaWG)"
+    cidr: "10.8.2.0/24"
+    gateway: "10.8.2.1"
+    dns: ["1.1.1.1"]
+    dhcp: false
+    trust_zone: untrusted
+    managed_by: slate-ax1800
+    description: "AmneziaWG VPN server on Slate AX (internet only)"
+
+# Storage configuration
+storage:
+  local:
+    type: "dir"
+    path: "/var/lib/vz"
+    content: ["vztmpl", "iso", "backup"]
+    shared: false
+    maxfiles: 0
+
+  local-lvm:
+    type: "lvmthin"
+    vgname: "pve"
+    thinpool: "data"
+    content: ["images", "rootdir"]
+    shared: false
+    description: "SSD 180GB - Production VMs and LXC"
+
+  local-hdd:
+    type: "dir"
+    path: "/mnt/hdd"
+    content: ["backup", "iso", "vztmpl", "snippets"]
+    shared: false
+    maxfiles: 0
+    prune_backups:
+      keep_last: 3
+      keep_daily: 7
+      keep_weekly: 4
+      keep_monthly: 6
+      keep_yearly: 1
+    description: "HDD 500GB - Backups, ISOs, Templates"
+
+# Virtual Machines
+vms:
+  opnsense:
+    vmid: 100
+    name: "opnsense-fw"
+    template: false
+    template_source: 910  # Created by create-opnsense-template.sh
+    description: "OPNsense Firewall"
+    tags: ["firewall", "security", "production"]
+
+    # Resources
+    cores: 2
+    sockets: 1
+    memory: 2048
+    balloon: 1024
+
+    # Boot
+    boot: "order=scsi0"
+    onboot: true
+    startup_order: 1
+
+    # Disks
+    disks:
+      scsi0:
+        storage: "local-lvm"
+        size: "32G"
+        format: "raw"
+        cache: "writethrough"
+        discard: "on"
+        ssd: true
+
+    # Network interfaces
+    networks:
+      net0:
+        bridge: "vmbr0"
+        model: "virtio"
+        firewall: false
+        tag: null
+        description: "WAN interface (to ISP Router)"
+        ip_config: "dhcp"
+
+      net1:
+        bridge: "vmbr1"
+        model: "virtio"
+        firewall: false
+        tag: null
+        description: "LAN interface (to GL.iNet Slate AX)"
+        ip_config:
+          address: "192.168.10.1/24"
+
+      net2:
+        bridge: "vmbr2"
+        model: "virtio"
+        firewall: false
+        tag: null
+        description: "INTERNAL interface (LXC gateway)"
+        ip_config:
+          address: "10.0.30.254/24"
+
+      net3:
+        bridge: "vmbr99"
+        model: "virtio"
+        firewall: false
+        tag: null
+        description: "MGMT interface (Web UI)"
+        ip_config:
+          address: "10.0.99.10/24"
+          gateway: "10.0.99.1"
+
+    # OS configuration (via Ansible after manual install)
+    os:
+      type: "opnsense"
+      version: "24.7"
+
+    ansible:
+      enabled: false  # Manual configuration via Web UI
+      playbook: null
+
+# LXC Containers
+lxc:
+  postgresql:
+    vmid: 200
+    name: "postgresql-db"
+    template_source: 900  # Created by Proxmox Community Scripts
+    description: "PostgreSQL Database Server"
+    tags: ["database", "production"]
+
+    # Resources
+    cores: 2
+    memory: 2048
+    swap: 512
+
+    # Boot
+    onboot: true
+    startup_order: 10
+
+    # Rootfs
+    rootfs:
+      storage: "local-lvm"
+      size: "8G"
+
+    # Network
+    network:
+      bridge: "vmbr2"
+      name: "eth0"
+      ip: "10.0.30.10/24"
+      gateway: "10.0.30.254"
+      firewall: false
+
+    # DNS
+    nameserver: "192.168.10.2"
+    searchdomain: "home.local"
+
+    # OS
+    os:
+      type: "debian"
+      version: "12"
+
+    # Cloud-init
+    cloudinit:
+      enabled: true
+      user: "postgres"
+      ssh_keys:
+        - "ssh-ed25519 AAAA..."  # Add your SSH key
+
+    # Ansible configuration
+    ansible:
+      enabled: true
+      playbook: "postgresql.yml"
+      vars:
+        postgresql_version: "15"
+        postgresql_databases:
+          - name: "homelab"
+        postgresql_users:
+          - name: "app"
+            password: "{{ vault_postgresql_app_password }}"
+
+  redis:
+    vmid: 201
+    name: "redis-cache"
+    template_source: 901
+    description: "Redis Cache Server"
+    tags: ["cache", "production"]
+
+    cores: 1
+    memory: 1024
+    swap: 256
+
+    onboot: true
+    startup_order: 11
+
+    rootfs:
+      storage: "local-lvm"
+      size: "4G"
+
+    network:
+      bridge: "vmbr2"
+      name: "eth0"
+      ip: "10.0.30.20/24"
+      gateway: "10.0.30.254"
+      firewall: false
+
+    nameserver: "192.168.10.2"
+    searchdomain: "home.local"
+
+    os:
+      type: "debian"
+      version: "12"
+
+    cloudinit:
+      enabled: true
+      user: "redis"
+
+    ansible:
+      enabled: true
+      playbook: "redis.yml"
+      vars:
+        redis_port: 6379
+        redis_maxmemory: "512mb"
+
+  nextcloud:
+    vmid: 202
+    name: "nextcloud"
+    template_source: 902
+    description: "Nextcloud File Sharing"
+    tags: ["web", "storage", "production"]
+
+    cores: 2
+    memory: 2048
+    swap: 512
+
+    onboot: true
+    startup_order: 12
+
+    rootfs:
+      storage: "local-lvm"
+      size: "16G"
+
+    # Additional mount for data
+    mountpoints:
+      mp0:
+        storage: "local-hdd"
+        mp: "/var/www/nextcloud/data"
+        size: "100G"
+
+    network:
+      bridge: "vmbr2"
+      name: "eth0"
+      ip: "10.0.30.30/24"
+      gateway: "10.0.30.254"
+      firewall: false
+
+    nameserver: "192.168.10.2"
+    searchdomain: "home.local"
+
+    os:
+      type: "debian"
+      version: "12"
+
+    cloudinit:
+      enabled: true
+      user: "www-data"
+
+    ansible:
+      enabled: true
+      playbook: "nextcloud.yml"
+      vars:
+        nextcloud_version: "28"
+        nextcloud_domain: "nextcloud.home.local"
+        nextcloud_db_host: "10.0.30.10"
+        nextcloud_redis_host: "10.0.30.20"
+
+# Templates (stored on HDD)
+templates:
+  lxc:
+    postgresql:
+      vmid: 900
+      name: "template-postgresql"
+      storage: "local-hdd"
+      source: "proxmox-community-scripts"
+      script: "db-postgresql.sh"
+
+    redis:
+      vmid: 901
+      name: "template-redis"
+      storage: "local-hdd"
+      source: "proxmox-community-scripts"
+      script: "db-redis.sh"
+
+    nextcloud:
+      vmid: 902
+      name: "template-nextcloud"
+      storage: "local-hdd"
+      source: "proxmox-community-scripts"
+      script: "nextcloud.sh"
+
+  vms:
+    opnsense:
+      vmid: 910
+      name: "template-opnsense"
+      storage: "local-hdd"
+      source: "manual"
+      iso: "OPNsense-24.7-dvd-amd64.iso"
+
+# Routing rules
+routing:
+  - name: "LXC to Internet"
+    source: "10.0.30.0/24"
+    gateway: "10.0.30.254"  # OPNsense INTERNAL
+    description: "LXC containers route through OPNsense firewall"
+
+  - name: "Management to all networks"
+    source: "10.0.99.0/24"
+    destination: "all"
+    description: "Management network can access all other networks"
+
+  - name: "Slate AX LAN to LXC"
+    source: "192.168.20.0/24"
+    destination: "10.0.30.0/24"
+    via: "192.168.10.254"  # OPNsense LAN
+    description: "User devices can access LXC services via OPNsense"
+
+# Firewall rules (high-level, implemented in OPNsense/OpenWRT)
+firewall:
+  policies:
+    - name: "Default deny"
+      action: "drop"
+      description: "Drop all traffic by default, allow explicitly"
+
+    - name: "LXC to Internet"
+      source: "10.0.30.0/24"
+      destination: "any"
+      action: "allow"
+      description: "LXC can access internet"
+
+    - name: "LAN to LXC services"
+      source: "192.168.20.0/24"
+      destination: "10.0.30.0/24"
+      ports: ["80", "443", "5432", "6379"]
+      action: "allow"
+      description: "LAN can access LXC web and database services"
+
+    - name: "Guest isolated"
+      source: "192.168.30.0/24"
+      destination: ["192.168.20.0/24", "10.0.30.0/24", "10.0.99.0/24"]
+      action: "drop"
+      description: "Guest network cannot access LAN/LXC/Management"
+
+    - name: "IoT isolated"
+      source: "192.168.40.0/24"
+      destination: ["192.168.20.0/24", "192.168.30.0/24", "10.0.30.0/24", "10.0.99.0/24"]
+      action: "drop"
+      description: "IoT cannot access other networks"
+
+# Service definitions (for documentation and monitoring)
+services:
+  adguard_home:
+    name: "AdGuard Home"
+    location: "GL.iNet Slate AX"
+    ip: "192.168.20.1"
+    port: 3000
+    protocol: "http"
+    description: "DNS filtering and ad blocking"
+    reverse_proxy: "https://adguard.home.local"
+
+  wireguard_home:
+    name: "WireGuard VPN Server"
+    location: "GL.iNet Slate AX"
+    ip: "192.168.20.1"
+    port: 51820
+    protocol: "udp"
+    description: "Home VPN server (access to LAN)"
+    network: "10.0.200.0/24"
+
+  amneziawg_russia:
+    name: "AmneziaWG VPN Server"
+    location: "GL.iNet Slate AX"
+    ip: "192.168.20.1"
+    port: 51821
+    protocol: "udp"
+    description: "Russia VPN server (internet only)"
+    network: "10.8.2.0/24"
+
+  proxmox_ui:
+    name: "Proxmox Web UI"
+    location: "Proxmox Host"
+    ip: "10.0.99.1"
+    port: 8006
+    protocol: "https"
+    description: "Proxmox management interface"
+
+  opnsense_ui:
+    name: "OPNsense Web UI"
+    location: "OPNsense VM"
+    ip: "10.0.99.10"
+    port: 443
+    protocol: "https"
+    description: "OPNsense firewall management"
+
+  postgresql:
+    name: "PostgreSQL Database"
+    location: "LXC 200"
+    ip: "10.0.30.10"
+    port: 5432
+    protocol: "tcp"
+    description: "PostgreSQL database server"
+
+  redis:
+    name: "Redis Cache"
+    location: "LXC 201"
+    ip: "10.0.30.20"
+    port: 6379
+    protocol: "tcp"
+    description: "Redis cache server"
+
+  nextcloud:
+    name: "Nextcloud"
+    location: "LXC 202"
+    ip: "10.0.30.30"
+    port: 80
+    protocol: "http"
+    description: "Nextcloud file sharing"
+    domain: "nextcloud.home.local"
+
+# Automation workflows
+workflows:
+  fresh_install:
+    name: "Fresh Proxmox Installation"
+    steps:
+      - step: 1
+        name: "Create bootable USB"
+        script: "bare-metal/create-usb.sh"
+        duration: "5 min"
+
+      - step: 2
+        name: "Boot and auto-install Proxmox"
+        manual: true
+        duration: "15 min"
+
+      - step: 3
+        name: "Run post-install scripts"
+        script: "bare-metal/post-install/01-install-terraform.sh"
+        duration: "10 min"
+
+      - step: 4
+        name: "Generate Terraform from topology"
+        script: "scripts/generate-terraform.py"
+        duration: "1 min"
+
+      - step: 5
+        name: "Apply Terraform configuration"
+        command: "cd terraform && terraform apply"
+        duration: "5 min"
+
+      - step: 6
+        name: "Generate Ansible inventory from topology"
+        script: "scripts/generate-ansible-inventory.py"
+        duration: "1 min"
+
+      - step: 7
+        name: "Run Ansible playbooks"
+        command: "cd ansible && ansible-playbook -i inventory/production/hosts.yml site.yml"
+        duration: "20 min"
+
+  update_topology:
+    name: "Update Infrastructure Topology"
+    steps:
+      - step: 1
+        name: "Edit topology.yaml"
+        manual: true
+
+      - step: 2
+        name: "Validate topology"
+        script: "scripts/validate-topology.py"
+
+      - step: 3
+        name: "Regenerate Terraform"
+        script: "scripts/generate-terraform.py"
+
+      - step: 4
+        name: "Regenerate Ansible inventory"
+        script: "scripts/generate-ansible-inventory.py"
+
+      - step: 5
+        name: "Regenerate documentation"
+        script: "scripts/generate-docs.py"
+
+      - step: 6
+        name: "Plan Terraform changes"
+        command: "cd terraform && terraform plan"
+
+      - step: 7
+        name: "Apply changes if approved"
+        command: "cd terraform && terraform apply"
+
+# Documentation generation
+documentation:
+  network_diagram:
+    format: "mermaid"
+    output: "docs/network-diagram.md"
+    auto_generate: true
+
+  ip_allocation:
+    format: "markdown-table"
+    output: "docs/ip-allocation.md"
+    auto_generate: true
+
+  service_inventory:
+    format: "markdown"
+    output: "docs/services.md"
+    auto_generate: true
