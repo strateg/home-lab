@@ -1,0 +1,49 @@
+# ============================================================
+# Network Bridges Configuration
+# Generated from topology.yaml v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with scripts/generate-terraform.py
+# ============================================================
+
+{% for bridge in bridges %}
+# {{ bridge.name }} - {{ bridge.description }}
+# Interface: {{ bridge.interface }}
+{% if bridge.ports %}# Ports: {{ bridge.ports | join(', ') }}{% endif %}
+
+resource "proxmox_virtual_environment_bridge" "{{ bridge.id | replace('-', '_') }}" {
+  node_name = var.proxmox_node
+
+  name    = "{{ bridge.interface }}"
+  comment = "{{ bridge.description }}"
+
+  {% if bridge.ports %}
+  ports = [{% for port in bridge.ports %}"{{ port }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+  {% endif %}
+
+  {% if bridge.ip %}
+  address = "{{ bridge.ip }}"
+  {% endif %}
+
+  {% if bridge.vlan_aware is defined %}
+  vlan_aware = {{ bridge.vlan_aware | lower }}
+  {% endif %}
+
+  autostart = {{ bridge.autostart | default(true) | lower }}
+}
+
+{% endfor %}
+
+# ============================================================
+# Outputs
+# ============================================================
+
+output "bridges" {
+  description = "Network bridges configuration"
+  value = {
+    {% for bridge in bridges %}
+    {{ bridge.id | replace('-', '_') }} = {
+      name = proxmox_virtual_environment_bridge.{{ bridge.id | replace('-', '_') }}.name
+      interface = "{{ bridge.interface }}"
+    }
+    {% endfor %}
+  }
+}

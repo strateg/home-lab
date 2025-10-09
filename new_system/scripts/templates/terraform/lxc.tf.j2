@@ -1,0 +1,174 @@
+# ============================================================
+# LXC Containers Configuration
+# Generated from topology.yaml v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with scripts/generate-terraform.py
+# ============================================================
+
+{% for lxc in lxc_containers %}
+# ============================================================
+# LXC: {{ lxc.name }} ({{ lxc.type }})
+# Role: {{ lxc.role }}
+# Description: {{ lxc.description }}
+# ============================================================
+
+resource "proxmox_virtual_environment_container" "{{ lxc.id | replace('-', '_') }}" {
+  node_name = var.proxmox_node
+  vm_id     = {{ lxc.vmid }}
+
+  description = "{{ lxc.description }}"
+  tags        = [{% for tag in lxc.tags %}"{{ tag }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+
+  # Resources
+  cpu {
+    cores = {{ lxc.resources.cores }}
+  }
+
+  memory {
+    dedicated = {{ lxc.resources.memory_mb }}
+    {% if lxc.resources.swap_mb %}
+    swap      = {{ lxc.resources.swap_mb }}
+    {% endif %}
+  }
+
+  # Boot configuration
+  {% if lxc.boot %}
+  started = {{ lxc.boot.onboot | default(true) | lower }}
+  {% endif %}
+
+  # Operating System
+  {% if lxc.os %}
+  operating_system {
+    template_file_id = "local:vztmpl/{{ lxc.os.type }}-{{ lxc.os.version }}-standard_{{ lxc.os.version }}.0-1_amd64.tar.zst"
+    type             = "{{ lxc.os.type }}"
+  }
+  {% endif %}
+
+  # Root filesystem
+  {% if lxc.storage and lxc.storage.rootfs %}
+  disk {
+    datastore_id = "{{ storage_map[lxc.storage.rootfs.storage_ref].pool }}"
+    size         = {{ lxc.storage.rootfs.size_gb }}
+  }
+  {% endif %}
+
+  # Network configuration
+  {% for nic in lxc.networks %}
+  network_interface {
+    name   = "{{ nic.interface }}"
+    bridge = "{{ bridge_map[nic.bridge_ref].interface }}"
+    {% if nic.ip %}
+    ip_v4_address = "{{ nic.ip }}"
+    {% if nic.gateway %}
+    ip_v4_gateway = "{{ nic.gateway }}"
+    {% endif %}
+    {% endif %}
+    {% if nic.firewall is defined %}
+    firewall = {{ nic.firewall | lower }}
+    {% endif %}
+  }
+  {% endfor %}
+
+  # DNS configuration
+  {% if lxc.dns %}
+  dns {
+    {% if lxc.dns.nameserver %}
+    servers = ["{{ lxc.dns.nameserver }}"]
+    {% endif %}
+    {% if lxc.dns.searchdomain %}
+    domain  = "{{ lxc.dns.searchdomain }}"
+    {% endif %}
+  }
+  {% endif %}
+
+  # Cloud-init / Initialization
+  {% if lxc.cloudinit and lxc.cloudinit.enabled %}
+  initialization {
+    {% if lxc.cloudinit.user %}
+    user_account {
+      keys = [
+        {% if lxc.cloudinit.ssh_keys %}
+        {% for key in lxc.cloudinit.ssh_keys %}
+        "{{ key }}",
+        {% endfor %}
+        {% endif %}
+      ]
+    }
+    {% endif %}
+
+    {% if lxc.dns %}
+    dns {
+      {% if lxc.dns.nameserver %}
+      servers = ["{{ lxc.dns.nameserver }}"]
+      {% endif %}
+      {% if lxc.dns.searchdomain %}
+      domain  = "{{ lxc.dns.searchdomain }}"
+      {% endif %}
+    }
+    {% endif %}
+
+    {% for nic in lxc.networks %}
+    ip_config {
+      ipv4 {
+        {% if nic.ip %}
+        address = "{{ nic.ip }}"
+        {% if nic.gateway %}
+        gateway = "{{ nic.gateway }}"
+        {% endif %}
+        {% endif %}
+      }
+    }
+    {% endfor %}
+  }
+  {% endif %}
+
+  # Features
+  features {
+    nesting = true
+    fuse    = false
+  }
+
+  # Console configuration
+  console {
+    enabled = true
+    tty_count = 2
+    type = "shell"
+  }
+
+  # Startup order
+  {% if lxc.boot and lxc.boot.startup_order %}
+  startup {
+    order      = {{ lxc.boot.startup_order }}
+    up_delay   = 30
+    down_delay = 30
+  }
+  {% endif %}
+
+  # Lifecycle
+  lifecycle {
+    ignore_changes = [
+      network_interface,
+      initialization,
+    ]
+  }
+}
+
+{% endfor %}
+
+# ============================================================
+# Outputs
+# ============================================================
+
+output "lxc_containers" {
+  description = "LXC containers configuration"
+  value = {
+    {% for lxc in lxc_containers %}
+    {{ lxc.id | replace('-', '_') }} = {
+      id   = proxmox_virtual_environment_container.{{ lxc.id | replace('-', '_') }}.vm_id
+      name = "{{ lxc.name }}"
+      {% if lxc.networks and lxc.networks[0].ip %}
+      ip   = "{{ lxc.networks[0].ip }}"
+      {% endif %}
+    }
+    {% endfor %}
+  }
+}

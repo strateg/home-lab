@@ -44,10 +44,26 @@ All notable changes to the home lab infrastructure configuration.
 - Two-step validation: schema compliance + reference consistency
 - Validates all `*_ref` fields point to existing IDs
 
+#### Generators (3 Python scripts + 14 Jinja2 templates)
+- **Terraform Generator** (`generate-terraform.py`, 327 lines)
+  - Generates: provider.tf, bridges.tf, vms.tf, lxc.tf, variables.tf
+  - 6 Terraform files from topology
+  - 4 bridges, 1 VM, 3 LXC containers
+- **Ansible Inventory Generator** (`generate-ansible-inventory.py`, 301 lines)
+  - Generates: hosts.yml, group_vars/all.yml, host_vars/*.yml
+  - Groups by trust zones and service types
+  - 3+ Ansible files from topology
+- **Documentation Generator** (`generate-docs.py`, 358 lines)
+  - Generates: overview.md, network-diagram.md, ip-allocation.md, services.md, devices.md
+  - Mermaid network diagrams
+  - 5 Markdown files from topology
+- **14 Jinja2 templates** in `scripts/templates/`
+
 #### Documentation
 - `MIGRATION-V1-TO-V2.md` - Complete migration guide
 - `archive/README.md` - Archive documentation
 - `TOPOLOGY-V2-ANALYSIS.md` - Analysis and improvements
+- `scripts/GENERATORS-README.md` - Generators documentation
 - `CHANGELOG.md` - This file
 
 ### 🔄 Changed

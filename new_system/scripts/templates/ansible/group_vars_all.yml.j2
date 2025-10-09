@@ -1,0 +1,107 @@
+# ============================================================
+# Ansible Group Variables (all.yml)
+# Generated from topology.yaml v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with scripts/generate-ansible-inventory.py
+# ============================================================
+
+# ============================================================
+# Common Configuration
+# ============================================================
+
+ansible_python_interpreter: /usr/bin/python3
+ansible_user: root
+
+# ============================================================
+# Network Configuration
+# ============================================================
+
+{% if mgmt_network %}
+# Management Network
+management_network:
+  cidr: "{{ mgmt_network.cidr }}"
+  gateway: "{{ mgmt_network.gateway | default('') }}"
+  vlan: {{ mgmt_network.vlan | default('null') }}
+{% endif %}
+
+{% if internal_network %}
+# Internal Network (LXC)
+internal_network:
+  cidr: "{{ internal_network.cidr }}"
+  gateway: "{{ internal_network.gateway | default('') }}"
+{% endif %}
+
+# All Networks
+networks:
+  {% for network in networks %}
+  {{ network.id }}:
+    cidr: "{{ network.cidr }}"
+    {% if network.gateway %}
+    gateway: "{{ network.gateway }}"
+    {% endif %}
+    {% if network.vlan %}
+    vlan: {{ network.vlan }}
+    {% endif %}
+    trust_zone: {{ network.trust_zone_ref | default('unknown') }}
+  {% endfor %}
+
+# ============================================================
+# DNS Configuration
+# ============================================================
+
+dns_servers:
+  - "192.168.10.2"  # Primary DNS
+  - "8.8.8.8"       # Google DNS (fallback)
+
+search_domains:
+  - "home.local"
+
+# ============================================================
+# Timezone & Locale
+# ============================================================
+
+timezone: "UTC"
+locale: "en_US.UTF-8"
+
+# ============================================================
+# Common Packages
+# ============================================================
+
+common_packages:
+  - vim
+  - git
+  - curl
+  - wget
+  - htop
+  - tmux
+  - net-tools
+  - dnsutils
+
+# ============================================================
+# Security Configuration
+# ============================================================
+
+# SSH configuration
+ssh_port: 22
+ssh_permit_root_login: "prohibit-password"
+ssh_password_authentication: false
+
+# Firewall
+firewall_enabled: true
+fail2ban_enabled: true
+
+# ============================================================
+# Monitoring & Logging
+# ============================================================
+
+# Logging
+syslog_server: null  # Set if using centralized logging
+
+# Monitoring
+monitoring_enabled: false
+
+# ============================================================
+# Backup Configuration
+# ============================================================
+
+backup_enabled: true
+backup_retention_days: 7

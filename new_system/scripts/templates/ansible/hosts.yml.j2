@@ -1,0 +1,98 @@
+# ============================================================
+# Ansible Inventory (hosts.yml)
+# Generated from topology.yaml v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with scripts/generate-ansible-inventory.py
+# ============================================================
+
+all:
+  children:
+    # ============================================================
+    # Compute Groups
+    # ============================================================
+
+    {% if lxc_hosts %}
+    lxc_containers:
+      hosts:
+        {% for host in lxc_hosts %}
+        {% if host.ip %}
+        {{ host.name }}:
+          ansible_host: {{ host.ip }}
+          ansible_user: {{ host.ansible_user }}
+          ansible_python_interpreter: /usr/bin/python3
+          vmid: {{ host.vmid }}
+          host_type: lxc
+          host_role: {{ host.role }}
+          trust_zone: {{ host.trust_zone }}
+          {% if host.playbook %}
+          playbook: {{ host.playbook }}
+          {% endif %}
+        {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {% if vm_hosts %}
+    virtual_machines:
+      hosts:
+        {% for host in vm_hosts %}
+        {% if host.ip and host.ansible_enabled %}
+        {{ host.name }}:
+          ansible_host: {{ host.ip }}
+          ansible_user: root
+          ansible_python_interpreter: /usr/bin/python3
+          vmid: {{ host.vmid }}
+          host_type: vm
+          host_role: {{ host.role }}
+          trust_zone: {{ host.trust_zone }}
+        {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    # ============================================================
+    # Trust Zone Groups
+    # ============================================================
+
+    {% for zone_id, zone_config in trust_zones.items() %}
+    {{ zone_id }}_zone:
+      hosts:
+        {% for host in lxc_hosts %}
+        {% if host.trust_zone == zone_id and host.ip %}
+        {{ host.name }}:
+        {% endif %}
+        {% endfor %}
+        {% for host in vm_hosts %}
+        {% if host.trust_zone == zone_id and host.ip and host.ansible_enabled %}
+        {{ host.name }}:
+        {% endif %}
+        {% endfor %}
+      vars:
+        trust_zone: {{ zone_id }}
+        trust_zone_level: {{ zone_config.level }}
+    {% endfor %}
+
+    # ============================================================
+    # Service Type Groups
+    # ============================================================
+
+    databases:
+      hosts:
+        {% for host in lxc_hosts %}
+        {% if host.type == 'database' and host.ip %}
+        {{ host.name }}:
+        {% endif %}
+        {% endfor %}
+
+    web_applications:
+      hosts:
+        {% for host in lxc_hosts %}
+        {% if host.type == 'web-application' and host.ip %}
+        {{ host.name }}:
+        {% endif %}
+        {% endfor %}
+
+    cache_servers:
+      hosts:
+        {% for host in lxc_hosts %}
+        {% if host.type == 'cache' and host.ip %}
+        {{ host.name }}:
+        {% endif %}
+        {% endfor %}
