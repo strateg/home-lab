@@ -1,0 +1,825 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://home-lab.local/schemas/topology-v2.json",
+  "title": "Home Lab Topology Schema v2.0",
+  "description": "JSON Schema for Infrastructure-as-Data topology configuration",
+  "type": "object",
+  "required": ["version", "metadata", "physical_topology", "logical_topology", "compute", "storage", "services"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^2\\.\\d+\\.\\d+$",
+      "description": "Schema version (2.x.x)"
+    },
+
+    "metadata": {
+      "type": "object",
+      "required": ["org", "environment", "author", "created", "last_updated", "version", "description"],
+      "properties": {
+        "org": { "type": "string", "minLength": 1 },
+        "environment": {
+          "type": "string",
+          "enum": ["production", "staging", "development", "test"]
+        },
+        "author": { "type": "string", "minLength": 1 },
+        "created": { "type": "string", "format": "date" },
+        "last_updated": { "type": "string", "format": "date" },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "description": { "type": "string" },
+        "changelog": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["version", "date", "changes"],
+            "properties": {
+              "version": { "type": "string" },
+              "date": { "type": "string", "format": "date" },
+              "changes": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "physical_topology": {
+      "type": "object",
+      "required": ["locations", "devices"],
+      "properties": {
+        "locations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "type"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+              "name": { "type": "string" },
+              "type": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "type", "role", "model", "location"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+              "name": { "type": "string" },
+              "type": {
+                "type": "string",
+                "enum": ["hypervisor", "storage", "router", "switch", "firewall", "server"]
+              },
+              "role": { "type": "string" },
+              "model": { "type": "string" },
+              "location": { "type": "string" },
+              "description": { "type": "string" },
+
+              "specs": {
+                "type": "object",
+                "properties": {
+                  "cpu": {
+                    "type": "object",
+                    "properties": {
+                      "model": { "type": "string" },
+                      "cores": { "type": "integer", "minimum": 1 },
+                      "threads": { "type": "integer", "minimum": 1 },
+                      "speed_mhz": { "type": "integer" }
+                    }
+                  },
+                  "memory": {
+                    "type": "object",
+                    "properties": {
+                      "total_gb": { "type": "integer", "minimum": 1 },
+                      "total_mb": { "type": "integer", "minimum": 1 },
+                      "type": { "type": "string" },
+                      "upgradeable": { "type": "boolean" }
+                    }
+                  },
+                  "disks": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id", "device", "size_gb", "type"],
+                      "properties": {
+                        "id": { "type": "string" },
+                        "device": { "type": "string" },
+                        "size_gb": { "type": "integer", "minimum": 1 },
+                        "type": { "type": "string", "enum": ["ssd", "hdd", "nvme"] },
+                        "usage": { "type": "string" },
+                        "storage_ref": { "type": "string" }
+                      }
+                    }
+                  },
+                  "storage": {
+                    "type": "object",
+                    "properties": {
+                      "flash_mb": { "type": "integer" },
+                      "type": { "type": "string" }
+                    }
+                  }
+                }
+              },
+
+              "interfaces": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["id", "name", "type"],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "type": {
+                      "type": "string",
+                      "enum": ["ethernet", "usb-ethernet", "pci-ethernet", "wifi-5ghz", "wifi-2.4ghz", "fiber"]
+                    },
+                    "speed_mbps": { "type": "integer" },
+                    "mac": { "type": "string" },
+                    "role": { "type": "string" },
+                    "description": { "type": "string" },
+                    "bridge_ref": { "type": "string" },
+                    "network_ref": { "type": "string" },
+                    "standard": { "type": "string" }
+                  }
+                }
+              },
+
+              "power": {
+                "type": "object",
+                "properties": {
+                  "max_watts": { "type": "integer" },
+                  "psu": { "type": "string" }
+                }
+              },
+
+              "firmware": {
+                "type": "object",
+                "properties": {
+                  "version": { "type": "string" },
+                  "base": { "type": "string" },
+                  "bios_version": { "type": "string" },
+                  "updated": { "type": "string", "format": "date" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "logical_topology": {
+      "type": "object",
+      "required": ["trust_zones", "networks", "bridges"],
+      "properties": {
+        "trust_zones": {
+          "type": "object",
+          "patternProperties": {
+            "^[a-z0-9_-]+$": {
+              "type": "object",
+              "required": ["name", "security_level", "description"],
+              "properties": {
+                "name": { "type": "string" },
+                "security_level": { "type": "integer", "minimum": 0, "maximum": 10 },
+                "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+                "description": { "type": "string" },
+                "allowed_outbound": { "type": "array", "items": { "type": "string" } },
+                "allowed_inbound": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        },
+
+        "networks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "cidr", "trust_zone_ref"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+              "name": { "type": "string" },
+              "cidr": { "type": "string", "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}/\\d{1,2}$" },
+              "gateway": { "type": "string", "format": "ipv4" },
+              "dns": {
+                "type": "array",
+                "items": { "type": "string", "format": "ipv4" }
+              },
+              "dhcp": { "type": "boolean" },
+              "dhcp_range": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+\\.\\d+-\\d+\\.\\d+\\.\\d+\\.\\d+$" },
+              "trust_zone_ref": { "type": "string" },
+              "bridge_ref": { "type": ["string", "null"] },
+              "vlan": { "type": ["integer", "null"], "minimum": 1, "maximum": 4094 },
+              "description": { "type": "string" },
+              "managed_by_ref": { "type": ["string", "null"] },
+              "isolated": { "type": "boolean" },
+              "firewall_policy": { "type": "string" },
+              "vpn_type": { "type": "string", "enum": ["wireguard", "openvpn", "amneziawg", "ipsec"] },
+              "vpn_endpoint": { "type": "string" },
+
+              "ip_allocations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["ip", "device_ref"],
+                  "properties": {
+                    "ip": { "type": "string", "format": "ipv4" },
+                    "device_ref": { "type": "string" },
+                    "interface": { "type": "string" },
+                    "description": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        },
+
+        "bridges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "device_ref", "name"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+              "device_ref": { "type": "string" },
+              "name": { "type": "string" },
+              "comment": { "type": "string" },
+              "ports": { "type": "array", "items": { "type": "string" } },
+              "address": { "type": "string" },
+              "network_ref": { "type": "string" },
+              "autostart": { "type": "boolean" },
+              "vlan_aware": { "type": "boolean" },
+              "bridge_stp": { "type": "boolean" },
+              "bridge_fd": { "type": "integer" }
+            }
+          }
+        },
+
+        "routing": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "source_network_ref": { "type": "string" },
+              "destination_network_ref": { "type": "string" },
+              "destination_cidr": { "type": "string" },
+              "next_hop": { "type": "string" },
+              "gateway_device_ref": { "type": "string" },
+              "via": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        },
+
+        "firewall_policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "priority", "action"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "priority": { "type": "integer", "minimum": 1, "maximum": 9999 },
+              "action": { "type": "string", "enum": ["allow", "deny", "drop", "reject"] },
+              "source_zone_ref": { "type": "string" },
+              "destination_zone_ref": { "type": "string" },
+              "source_network_ref": { "type": "string" },
+              "destination_network_ref": { "type": "string" },
+              "destination_zones_ref": { "type": "array", "items": { "type": "string" } },
+              "source_ips": { "type": "array", "items": { "type": "string" } },
+              "ports": { "type": "array", "items": { "type": "integer" } },
+              "protocols": { "type": "array", "items": { "type": "string" } },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "compute": {
+      "type": "object",
+      "properties": {
+        "vms": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "vmid", "name", "device_ref", "type"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+              "vmid": { "type": "integer", "minimum": 100, "maximum": 999999 },
+              "name": { "type": "string" },
+              "device_ref": { "type": "string" },
+              "type": { "type": "string" },
+              "role": { "type": "string" },
+              "template_ref": { "type": "string" },
+              "trust_zone_ref": { "type": "string" },
+              "description": { "type": "string" },
+              "tags": { "type": "array", "items": { "type": "string" } },
+
+              "resources": {
+                "type": "object",
+                "properties": {
+                  "cores": { "type": "integer", "minimum": 1 },
+                  "sockets": { "type": "integer", "minimum": 1 },
+                  "memory_mb": { "type": "integer", "minimum": 128 },
+                  "balloon_mb": { "type": "integer" },
+                  "cpu_type": { "type": "string" }
+                }
+              },
+
+              "boot": {
+                "type": "object",
+                "properties": {
+                  "order": { "type": "string" },
+                  "onboot": { "type": "boolean" },
+                  "startup_order": { "type": "integer" }
+                }
+              },
+
+              "storage": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["disk_id", "storage_ref", "size_gb"],
+                  "properties": {
+                    "disk_id": { "type": "string" },
+                    "storage_ref": { "type": "string" },
+                    "size_gb": { "type": "integer", "minimum": 1 },
+                    "format": { "type": "string", "enum": ["raw", "qcow2", "vmdk"] },
+                    "cache": { "type": "string" },
+                    "discard": { "type": "string" },
+                    "ssd": { "type": "boolean" }
+                  }
+                }
+              },
+
+              "networks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["interface", "bridge_ref"],
+                  "properties": {
+                    "interface": { "type": "string" },
+                    "bridge_ref": { "type": "string" },
+                    "network_ref": { "type": "string" },
+                    "model": { "type": "string" },
+                    "firewall": { "type": "boolean" },
+                    "role": { "type": "string" },
+                    "ip_config": {
+                      "oneOf": [
+                        { "type": "string", "enum": ["dhcp"] },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "address": { "type": "string" },
+                            "gateway": { "type": "string" }
+                          }
+                        }
+                      ]
+                    },
+                    "description": { "type": "string" }
+                  }
+                }
+              },
+
+              "os": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string" },
+                  "version": { "type": "string" }
+                }
+              },
+
+              "ansible": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "playbook": { "type": ["string", "null"] }
+                }
+              }
+            }
+          }
+        },
+
+        "lxc": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "vmid", "name", "device_ref", "type"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+              "vmid": { "type": "integer", "minimum": 100, "maximum": 999999 },
+              "name": { "type": "string" },
+              "device_ref": { "type": "string" },
+              "type": { "type": "string" },
+              "role": { "type": "string" },
+              "template_ref": { "type": "string" },
+              "trust_zone_ref": { "type": "string" },
+              "description": { "type": "string" },
+              "tags": { "type": "array", "items": { "type": "string" } },
+
+              "resources": {
+                "type": "object",
+                "properties": {
+                  "cores": { "type": "integer", "minimum": 1 },
+                  "memory_mb": { "type": "integer", "minimum": 128 },
+                  "swap_mb": { "type": "integer" }
+                }
+              },
+
+              "boot": {
+                "type": "object",
+                "properties": {
+                  "onboot": { "type": "boolean" },
+                  "startup_order": { "type": "integer" }
+                }
+              },
+
+              "storage": {
+                "type": "object",
+                "properties": {
+                  "rootfs": {
+                    "type": "object",
+                    "required": ["storage_ref", "size_gb"],
+                    "properties": {
+                      "storage_ref": { "type": "string" },
+                      "size_gb": { "type": "integer", "minimum": 1 }
+                    }
+                  },
+                  "mountpoints": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["id", "storage_ref", "mountpoint", "size_gb"],
+                      "properties": {
+                        "id": { "type": "string" },
+                        "storage_ref": { "type": "string" },
+                        "mountpoint": { "type": "string" },
+                        "size_gb": { "type": "integer", "minimum": 1 }
+                      }
+                    }
+                  }
+                }
+              },
+
+              "networks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["interface", "bridge_ref", "ip"],
+                  "properties": {
+                    "interface": { "type": "string" },
+                    "bridge_ref": { "type": "string" },
+                    "network_ref": { "type": "string" },
+                    "ip": { "type": "string" },
+                    "gateway": { "type": "string" },
+                    "firewall": { "type": "boolean" }
+                  }
+                }
+              },
+
+              "dns": {
+                "type": "object",
+                "properties": {
+                  "nameserver": { "type": "string" },
+                  "searchdomain": { "type": "string" }
+                }
+              },
+
+              "os": {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string" },
+                  "version": { "type": "string" }
+                }
+              },
+
+              "cloudinit": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "user": { "type": "string" },
+                  "ssh_keys": { "type": "array", "items": { "type": "string" } },
+                  "ssh_keys_ref": { "type": "array", "items": { "type": "string" } }
+                }
+              },
+
+              "ansible": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "playbook": { "type": "string" },
+                  "groups": { "type": "array", "items": { "type": "string" } },
+                  "vars": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+
+        "templates": {
+          "type": "object",
+          "properties": {
+            "lxc": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "vmid", "name", "storage_ref"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "vmid": { "type": "integer" },
+                  "name": { "type": "string" },
+                  "storage_ref": { "type": "string" },
+                  "source": { "type": "string" },
+                  "script": { "type": "string" },
+                  "description": { "type": "string" }
+                }
+              }
+            },
+            "vms": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "vmid", "name", "storage_ref"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "vmid": { "type": "integer" },
+                  "name": { "type": "string" },
+                  "storage_ref": { "type": "string" },
+                  "source": { "type": "string" },
+                  "iso": { "type": "string" },
+                  "description": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "storage": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "device_ref"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+          "type": { "type": "string", "enum": ["dir", "lvmthin", "lvm", "zfs", "nfs", "cifs"] },
+          "path": { "type": "string" },
+          "vgname": { "type": "string" },
+          "thinpool": { "type": "string" },
+          "content": { "type": "array", "items": { "type": "string" } },
+          "device_ref": { "type": "string" },
+          "disk_ref": { "type": "string" },
+          "shared": { "type": "boolean" },
+          "maxfiles": { "type": "integer" },
+          "prune_backups": {
+            "type": "object",
+            "properties": {
+              "keep_last": { "type": "integer" },
+              "keep_daily": { "type": "integer" },
+              "keep_weekly": { "type": "integer" },
+              "keep_monthly": { "type": "integer" },
+              "keep_yearly": { "type": "integer" }
+            }
+          },
+          "description": { "type": "string" }
+        }
+      }
+    },
+
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "type"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+          "name": { "type": "string" },
+          "type": { "type": "string" },
+          "device_ref": { "type": "string" },
+          "vm_ref": { "type": "string" },
+          "lxc_ref": { "type": "string" },
+          "network_ref": { "type": "string" },
+          "ip_ref": { "type": "string" },
+          "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+          "protocol": { "type": "string", "enum": ["tcp", "udp", "http", "https", "ssh"] },
+          "trust_zone_ref": { "type": "string" },
+          "url": { "type": "string", "format": "uri" },
+          "domain": { "type": "string" },
+          "reverse_proxy": { "type": "string" },
+          "description": { "type": "string" },
+          "vpn_type": { "type": "string" },
+          "vpn_network_ref": { "type": "string" },
+          "clients": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "service_ref": { "type": "string" }
+              }
+            }
+          },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "service_ref": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "backup": {
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "schedule", "storage_ref"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "targets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "vm_ref": { "type": "string" },
+                    "lxc_ref": { "type": "string" }
+                  }
+                }
+              },
+              "schedule": { "type": "string", "pattern": "^[\\d\\s\\*\\/,-]+$" },
+              "storage_ref": { "type": "string" },
+              "retention": {
+                "type": "object",
+                "properties": {
+                  "keep_last": { "type": "integer" },
+                  "keep_hourly": { "type": "integer" },
+                  "keep_daily": { "type": "integer" },
+                  "keep_weekly": { "type": "integer" },
+                  "keep_monthly": { "type": "integer" }
+                }
+              },
+              "mode": { "type": "string", "enum": ["snapshot", "suspend", "stop"] },
+              "compression": { "type": "string", "enum": ["none", "lzo", "gzip", "zstd"] }
+            }
+          }
+        }
+      }
+    },
+
+    "monitoring": {
+      "type": "object",
+      "properties": {
+        "healthchecks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "checks"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "device_ref": { "type": "string" },
+              "vm_ref": { "type": "string" },
+              "lxc_ref": { "type": "string" },
+              "service_ref": { "type": "string" },
+              "checks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["type"],
+                  "properties": {
+                    "type": { "type": "string", "enum": ["cpu_usage", "memory_usage", "disk_usage", "service", "port", "process", "query", "http", "vm_status", "lxc_status", "ping", "load_average", "temperature", "connection_count", "redis_ping", "redis_memory", "dns"] },
+                    "warning_threshold": { "type": "number" },
+                    "critical_threshold": { "type": "number" },
+                    "service": { "type": "string" },
+                    "port": { "type": "integer" },
+                    "process": { "type": "string" },
+                    "query": { "type": "string" },
+                    "url": { "type": "string" },
+                    "expected_status": { "type": "integer" }
+                  }
+                }
+              },
+              "interval": { "type": "string" }
+            }
+          }
+        },
+        "alerts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "trigger"],
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "description": { "type": "string" },
+              "trigger": {
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "object" }
+                ]
+              },
+              "channels": { "type": "array", "items": { "type": "string" } },
+              "severity": { "type": "string", "enum": ["info", "warning", "critical"] },
+              "escalation": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+
+    "workflows": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z0-9_-]+$": {
+          "type": "object",
+          "required": ["name", "steps"],
+          "properties": {
+            "name": { "type": "string" },
+            "description": { "type": "string" },
+            "steps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["step", "name"],
+                "properties": {
+                  "step": { "type": "integer" },
+                  "name": { "type": "string" },
+                  "script": { "type": "string" },
+                  "command": { "type": "string" },
+                  "manual": { "type": "boolean" },
+                  "duration_min": { "type": "integer" },
+                  "notes": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "documentation": {
+      "type": "object",
+      "properties": {
+        "network_diagram": {
+          "type": "object",
+          "properties": {
+            "format": { "type": "string" },
+            "output": { "type": "string" },
+            "auto_generate": { "type": "boolean" },
+            "include": { "type": "array", "items": { "type": "string" } },
+            "style": { "type": "string" }
+          }
+        },
+        "trust_zone_diagram": {
+          "type": "object",
+          "properties": {
+            "format": { "type": "string" },
+            "output": { "type": "string" },
+            "auto_generate": { "type": "boolean" },
+            "style": { "type": "string" }
+          }
+        },
+        "ip_allocation": {
+          "type": "object",
+          "properties": {
+            "format": { "type": "string" },
+            "output": { "type": "string" },
+            "auto_generate": { "type": "boolean" }
+          }
+        },
+        "service_inventory": {
+          "type": "object",
+          "properties": {
+            "format": { "type": "string" },
+            "output": { "type": "string" },
+            "auto_generate": { "type": "boolean" },
+            "include_dependencies": { "type": "boolean" }
+          }
+        },
+        "device_inventory": {
+          "type": "object",
+          "properties": {
+            "format": { "type": "string" },
+            "output": { "type": "string" },
+            "auto_generate": { "type": "boolean" }
+          }
+        }
+      }
+    },
+
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

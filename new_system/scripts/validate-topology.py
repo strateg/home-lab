@@ -39,9 +39,24 @@ class TopologyValidator:
     def validate_required_sections(self) -> None:
         """Check required top-level sections exist"""
         required = ["metadata", "bridges", "networks", "storage"]
+        recommended = ["trust_zones", "vms", "lxc", "services"]
+
         for section in required:
             if section not in self.topology:
                 self.errors.append(f"Missing required section: {section}")
+
+        for section in recommended:
+            if section not in self.topology:
+                self.warnings.append(f"Missing recommended section: {section}")
+
+    def validate_metadata(self) -> None:
+        """Check metadata completeness"""
+        metadata = self.topology.get("metadata", {})
+        required_fields = ["org", "environment", "author", "version"]
+
+        for field in required_fields:
+            if field not in metadata:
+                self.warnings.append(f"Metadata missing recommended field: {field}")
 
     def validate_ip_uniqueness(self) -> None:
         """Check for IP address conflicts"""
@@ -194,12 +209,54 @@ class TopologyValidator:
                 if storage and storage not in defined_storage:
                     self.errors.append(f"LXC {lxc_name} {mp_name}: undefined storage '{storage}'")
 
+    def validate_trust_zones(self) -> None:
+        """Check trust zone definitions and references"""
+        defined_zones = set(self.topology.get("trust_zones", {}).keys())
+
+        if not defined_zones:
+            self.warnings.append("No trust zones defined - consider adding for security boundaries")
+            return
+
+        # Check that zones have required fields
+        for zone_id, zone in self.topology.get("trust_zones", {}).items():
+            if "name" not in zone:
+                self.warnings.append(f"Trust zone '{zone_id}' missing 'name' field")
+            if "security_level" not in zone:
+                self.warnings.append(f"Trust zone '{zone_id}' missing 'security_level' field")
+
+        # Check network trust_zone references
+        for net_id, network in self.topology.get("networks", {}).items():
+            trust_zone = network.get("trust_zone")
+            if trust_zone:
+                if trust_zone not in defined_zones:
+                    self.errors.append(f"Network '{net_id}': undefined trust_zone '{trust_zone}'")
+            else:
+                self.warnings.append(f"Network '{net_id}' has no trust_zone assigned")
+
+        # Check service trust_zone references
+        for svc_id, service in self.topology.get("services", {}).items():
+            trust_zone = service.get("trust_zone")
+            if trust_zone and trust_zone not in defined_zones:
+                self.errors.append(f"Service '{svc_id}': undefined trust_zone '{trust_zone}'")
+
+    def validate_network_bridge_consistency(self) -> None:
+        """Check that networks reference correct bridges"""
+        defined_bridges = set(self.topology.get("bridges", {}).keys())
+
+        for net_id, network in self.topology.get("networks", {}).items():
+            bridge = network.get("bridge")
+            if bridge and bridge not in defined_bridges:
+                self.errors.append(f"Network '{net_id}': undefined bridge '{bridge}'")
+
     def validate(self) -> bool:
         """Run all validations"""
         if not self.load_topology():
             return False
 
         self.validate_required_sections()
+        self.validate_metadata()
+        self.validate_trust_zones()
+        self.validate_network_bridge_consistency()
         self.validate_ip_uniqueness()
         self.validate_vmid_uniqueness()
         self.validate_network_cidrs()

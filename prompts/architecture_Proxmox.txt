@@ -6,7 +6,7 @@ Hardware & Network:
 
 Host: Dell XPS L701X
 
-CPU: Intel Core i7 (first generation)
+CPU: Core i3-M370 (2.4 GHz)
 
 Memory: 8 GB DDR3 RAM
 

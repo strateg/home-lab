@@ -1,0 +1,1594 @@
+# Home Lab Network Topology v2.0
+# Infrastructure-as-Data: Single Source of Truth
+# Used to generate: Terraform configs, Ansible inventory, network diagrams, documentation
+#
+# Principles:
+# - Clear separation: physical_topology, logical_topology, compute, services
+# - ID-based references (not hardcoded IPs)
+# - Trust zones for security automation
+# - Dynamic IP generation friendly
+# - Single environment (production) - extensible to multi-env if needed
+
+version: "2.0.0"
+
+# ============================================================
+# Metadata
+# ============================================================
+
+metadata:
+  org: "home-lab"
+  environment: "production"
+  author: "dprohhorov"
+  created: "2025-10-06"
+  last_updated: "2025-10-09"
+  version: "2.0.0"
+  description: "Gamayun (Dell XPS L701X) home lab infrastructure - Infrastructure as Data v2.0"
+  changelog:
+    - version: "1.0.0"
+      date: "2025-10-06"
+      changes: "Initial Infrastructure-as-Data structure"
+    - version: "1.1.0"
+      date: "2025-10-09"
+      changes: "Added trust zones, enhanced metadata, improved validation"
+    - version: "2.0.0"
+      date: "2025-10-09"
+      changes: "Restructured with physical/logical/compute separation, ID-based references"
+
+# ============================================================
+# Physical Topology
+# ============================================================
+
+physical_topology:
+  # Physical location
+  locations:
+    - id: home
+      name: "Home Lab"
+      type: "home-office"
+      description: "Single-host home lab setup"
+
+  # Physical devices
+  devices:
+    # Proxmox Hypervisor
+    - id: gamayun
+      name: "Gamayun"
+      type: "hypervisor"
+      role: "compute"
+      model: "Dell XPS L701X"
+      location: home
+      description: "Primary Proxmox VE host - Гамаюн (вещая птица)"
+
+      specs:
+        cpu:
+          model: "Intel Core i3-M370"
+          cores: 2
+          threads: 4
+          speed_mhz: 2400
+        memory:
+          total_gb: 8
+          type: "DDR3"
+          upgradeable: false
+        disks:
+          - id: disk-ssd-system
+            device: "/dev/sda"
+            size_gb: 180
+            type: "ssd"
+            usage: "Proxmox system + VMs/LXC thin pool"
+            storage_ref: storage-lvm
+          - id: disk-hdd-data
+            device: "/dev/sdb"
+            size_gb: 500
+            type: "hdd"
+            usage: "Backups, ISOs, VM/LXC templates"
+            storage_ref: storage-hdd
+
+      interfaces:
+        - id: if-eth-usb
+          name: "eth-usb"
+          type: "usb-ethernet"
+          speed_mbps: 1000
+          mac: "auto-detect"  # Set by UDEV rules
+          role: "wan"
+          description: "USB Ethernet adapter to ISP Router"
+          bridge_ref: bridge-vmbr0
+
+        - id: if-eth-builtin
+          name: "eth-builtin"
+          type: "pci-ethernet"
+          speed_mbps: 1000
+          mac: "auto-detect"  # Set by UDEV rules
+          role: "lan"
+          description: "Built-in Ethernet to GL.iNet Slate AX"
+          bridge_ref: bridge-vmbr1
+
+      power:
+        max_watts: 65
+        psu: "Dell 65W AC adapter"
+
+      firmware:
+        bios_version: "A07"
+        updated: "2020-03-15"
+
+    # Router/Gateway
+    - id: slate-ax1800
+      name: "GL.iNet Slate AX"
+      type: "router"
+      role: "gateway"
+      model: "GL-AXT1800"
+      location: home
+      description: "WiFi 6 router, VPN server, AdGuard Home"
+
+      specs:
+        cpu:
+          model: "MediaTek MT7981B"
+          cores: 2
+          speed_mhz: 1300
+        memory:
+          total_mb: 512
+          type: "DDR4"
+        storage:
+          flash_mb: 128
+          type: "NAND"
+
+      interfaces:
+        - id: if-slate-wan
+          name: "wan"
+          type: "ethernet"
+          speed_mbps: 1000
+          role: "wan"
+          description: "WAN port - connects to OPNsense LAN"
+          network_ref: net-opnsense-lan
+
+        - id: if-slate-lan
+          name: "lan"
+          type: "ethernet"
+          speed_mbps: 1000
+          role: "lan"
+          description: "LAN port"
+
+        - id: if-slate-wlan-5g
+          name: "wlan0"
+          type: "wifi-5ghz"
+          speed_mbps: 1200
+          standard: "802.11ax"
+          description: "WiFi 6 5GHz"
+
+        - id: if-slate-wlan-2g
+          name: "wlan1"
+          type: "wifi-2.4ghz"
+          speed_mbps: 574
+          standard: "802.11ax"
+          description: "WiFi 6 2.4GHz"
+
+      firmware:
+        version: "4.8.2"
+        base: "OpenWRT 23.05"
+        updated: "2024-11-15"
+
+# ============================================================
+# Logical Topology
+# ============================================================
+
+logical_topology:
+
+  # ------------------------------------------------------------
+  # Trust Zones & Security Boundaries
+  # ------------------------------------------------------------
+
+  trust_zones:
+    untrusted:
+      name: "Untrusted Zone"
+      security_level: 0
+      color: "#ff0000"
+      description: "External networks (ISP, Internet)"
+      allowed_outbound: ["any"]
+      allowed_inbound: ["established", "related"]
+
+    dmz:
+      name: "DMZ Zone"
+      security_level: 1
+      color: "#ff9900"
+      description: "Demilitarized zone - OPNsense LAN facing GL.iNet"
+      allowed_outbound: ["any"]
+      allowed_inbound: ["from:internal", "from:management"]
+
+    user:
+      name: "User Zone"
+      security_level: 1
+      color: "#ffcc00"
+      description: "End-user devices (WiFi, LAN, VPN clients)"
+      allowed_outbound: ["to:untrusted", "to:internal:ports:80,443,5432,6379"]
+      allowed_inbound: ["established"]
+
+    internal:
+      name: "Internal Zone"
+      security_level: 2
+      color: "#00cc00"
+      description: "LXC containers and internal services"
+      allowed_outbound: ["to:untrusted"]
+      allowed_inbound: ["from:user:ports:80,443,5432,6379", "from:management"]
+
+    management:
+      name: "Management Zone"
+      security_level: 3
+      color: "#0066cc"
+      description: "Infrastructure management (Proxmox UI, OPNsense UI)"
+      allowed_outbound: ["any"]
+      allowed_inbound: ["from:admin-ips"]
+
+  # ------------------------------------------------------------
+  # Networks
+  # ------------------------------------------------------------
+
+  networks:
+    # WAN Network
+    - id: net-wan
+      name: "WAN"
+      cidr: "192.168.1.0/24"
+      gateway: "192.168.1.1"
+      dns: ["1.1.1.1", "8.8.8.8"]
+      dhcp: true
+      trust_zone_ref: untrusted
+      bridge_ref: bridge-vmbr0
+      vlan: null
+      description: "ISP provided network"
+      managed_by_ref: null  # External ISP
+
+    # OPNsense LAN
+    - id: net-opnsense-lan
+      name: "OPNsense LAN"
+      cidr: "192.168.10.0/24"
+      gateway: "192.168.10.1"
+      dns: ["192.168.10.2"]  # AdGuard on Slate AX
+      dhcp: false
+      trust_zone_ref: dmz
+      bridge_ref: bridge-vmbr1
+      vlan: null
+      description: "Network between OPNsense and GL.iNet Slate AX"
+      managed_by_ref: vm-opnsense-fw
+      ip_allocations:
+        - ip: "192.168.10.1"
+          device_ref: vm-opnsense-fw
+          interface: "net1"
+          description: "OPNsense LAN interface"
+        - ip: "192.168.10.2"
+          device_ref: slate-ax1800
+          interface: "wan"
+          description: "GL.iNet WAN interface"
+        - ip: "192.168.10.254"
+          device_ref: gamayun
+          interface: "vmbr1"
+          description: "Proxmox bridge IP"
+
+    # User LAN
+    - id: net-user-lan
+      name: "User LAN"
+      cidr: "192.168.20.0/24"
+      gateway: "192.168.20.1"
+      dns: ["192.168.20.1"]
+      dhcp: true
+      dhcp_range: "192.168.20.100-192.168.20.200"
+      trust_zone_ref: user
+      bridge_ref: null  # Managed by Slate AX, not Proxmox
+      vlan: null
+      description: "Main user network (WiFi 6 + Wired LAN)"
+      managed_by_ref: slate-ax1800
+      ip_allocations:
+        - ip: "192.168.20.1"
+          device_ref: slate-ax1800
+          interface: "lan"
+          description: "GL.iNet LAN gateway"
+
+    # Guest WiFi
+    - id: net-guest-wifi
+      name: "Guest WiFi"
+      cidr: "192.168.30.0/24"
+      gateway: "192.168.30.1"
+      dns: ["192.168.30.1"]
+      dhcp: true
+      dhcp_range: "192.168.30.100-192.168.30.200"
+      isolated: true
+      trust_zone_ref: user
+      bridge_ref: null
+      vlan: null
+      description: "Isolated guest network"
+      managed_by_ref: slate-ax1800
+      firewall_policy: "block-to-lan"
+
+    # IoT Network
+    - id: net-iot
+      name: "IoT Network"
+      cidr: "192.168.40.0/24"
+      gateway: "192.168.40.1"
+      dns: ["192.168.40.1"]
+      dhcp: true
+      dhcp_range: "192.168.40.100-192.168.40.200"
+      isolated: true
+      trust_zone_ref: user
+      bridge_ref: null
+      vlan: null
+      description: "Smart home devices"
+      managed_by_ref: slate-ax1800
+      firewall_policy: "block-to-lan-allow-internet"
+
+    # LXC Internal
+    - id: net-lxc-internal
+      name: "LXC Internal"
+      cidr: "10.0.30.0/24"
+      gateway: "10.0.30.254"
+      dns: ["192.168.10.2"]
+      dhcp: false
+      trust_zone_ref: internal
+      bridge_ref: bridge-vmbr2
+      vlan: null
+      description: "LXC containers network"
+      managed_by_ref: gamayun
+      ip_allocations:
+        - ip: "10.0.30.1"
+          device_ref: gamayun
+          interface: "vmbr2"
+          description: "Proxmox bridge IP"
+        - ip: "10.0.30.10"
+          device_ref: lxc-postgresql
+          interface: "eth0"
+          description: "PostgreSQL LXC"
+        - ip: "10.0.30.20"
+          device_ref: lxc-redis
+          interface: "eth0"
+          description: "Redis LXC"
+        - ip: "10.0.30.30"
+          device_ref: lxc-nextcloud
+          interface: "eth0"
+          description: "Nextcloud LXC"
+        - ip: "10.0.30.254"
+          device_ref: vm-opnsense-fw
+          interface: "net2"
+          description: "OPNsense INTERNAL gateway"
+
+    # Management Network
+    - id: net-management
+      name: "Management"
+      cidr: "10.0.99.0/24"
+      gateway: "10.0.99.1"
+      dns: ["1.1.1.1", "8.8.8.8"]
+      dhcp: false
+      trust_zone_ref: management
+      bridge_ref: bridge-vmbr99
+      vlan: null
+      description: "Management network for Proxmox/OPNsense admin"
+      managed_by_ref: gamayun
+      ip_allocations:
+        - ip: "10.0.99.1"
+          device_ref: gamayun
+          interface: "vmbr99"
+          description: "Proxmox Web UI"
+        - ip: "10.0.99.10"
+          device_ref: vm-opnsense-fw
+          interface: "net3"
+          description: "OPNsense Web UI"
+
+    # VPN Home
+    - id: net-vpn-home
+      name: "VPN Home"
+      cidr: "10.0.200.0/24"
+      gateway: "10.0.200.1"
+      dns: ["192.168.20.1"]
+      dhcp: false
+      trust_zone_ref: user
+      bridge_ref: null
+      vlan: null
+      description: "WireGuard VPN server on Slate AX (access to LAN)"
+      managed_by_ref: slate-ax1800
+      vpn_type: "wireguard"
+      vpn_endpoint: "home.example.com:51820"
+
+    # VPN Russia
+    - id: net-vpn-russia
+      name: "VPN Russia"
+      cidr: "10.8.2.0/24"
+      gateway: "10.8.2.1"
+      dns: ["1.1.1.1"]
+      dhcp: false
+      trust_zone_ref: untrusted
+      bridge_ref: null
+      vlan: null
+      description: "AmneziaWG VPN server on Slate AX (internet only, no LAN access)"
+      managed_by_ref: slate-ax1800
+      vpn_type: "amneziawg"
+      vpn_endpoint: "ru.example.com:51821"
+
+  # ------------------------------------------------------------
+  # Bridges (Proxmox VE)
+  # ------------------------------------------------------------
+
+  bridges:
+    - id: bridge-vmbr0
+      device_ref: gamayun
+      name: "vmbr0"
+      comment: "WAN Bridge - to ISP Router (USB-Ethernet)"
+      ports: ["if-eth-usb"]
+      address: "dhcp"
+      network_ref: net-wan
+      autostart: true
+      vlan_aware: false
+      bridge_stp: false
+      bridge_fd: 0
+
+    - id: bridge-vmbr1
+      device_ref: gamayun
+      name: "vmbr1"
+      comment: "LAN Bridge - to GL.iNet Slate AX (Built-in Ethernet)"
+      ports: ["if-eth-builtin"]
+      address: "192.168.10.254/24"
+      network_ref: net-opnsense-lan
+      autostart: true
+      vlan_aware: false
+      bridge_stp: false
+      bridge_fd: 0
+
+    - id: bridge-vmbr2
+      device_ref: gamayun
+      name: "vmbr2"
+      comment: "INTERNAL Bridge - LXC Containers"
+      ports: []
+      address: "10.0.30.1/24"
+      network_ref: net-lxc-internal
+      autostart: true
+      vlan_aware: false
+      bridge_stp: false
+      bridge_fd: 0
+
+    - id: bridge-vmbr99
+      device_ref: gamayun
+      name: "vmbr99"
+      comment: "MGMT Bridge - Management Network"
+      ports: []
+      address: "10.0.99.1/24"
+      network_ref: net-management
+      autostart: true
+      vlan_aware: false
+      bridge_stp: false
+      bridge_fd: 0
+
+  # ------------------------------------------------------------
+  # Routing
+  # ------------------------------------------------------------
+
+  routing:
+    - id: route-lxc-internet
+      name: "LXC to Internet"
+      source_network_ref: net-lxc-internal
+      destination_cidr: "0.0.0.0/0"
+      next_hop: "10.0.30.254"
+      gateway_device_ref: vm-opnsense-fw
+      description: "LXC containers route through OPNsense firewall"
+
+    - id: route-mgmt-all
+      name: "Management to all networks"
+      source_network_ref: net-management
+      destination_cidr: "0.0.0.0/0"
+      description: "Management network can access all other networks"
+
+    - id: route-user-lxc
+      name: "User LAN to LXC Services"
+      source_network_ref: net-user-lan
+      destination_network_ref: net-lxc-internal
+      via: "192.168.10.254"  # OPNsense
+      description: "User devices access LXC services via OPNsense routing"
+
+  # ------------------------------------------------------------
+  # Firewall Policies
+  # ------------------------------------------------------------
+
+  firewall_policies:
+    - id: fw-default-deny
+      name: "Default Deny"
+      priority: 1000
+      action: "drop"
+      description: "Drop all traffic by default, allow explicitly"
+
+    - id: fw-lxc-internet
+      name: "LXC to Internet"
+      priority: 100
+      source_zone_ref: internal
+      destination_zone_ref: untrusted
+      action: "allow"
+      description: "LXC can access internet"
+
+    - id: fw-user-lxc-services
+      name: "User to LXC Services"
+      priority: 200
+      source_zone_ref: user
+      destination_zone_ref: internal
+      ports: [80, 443, 5432, 6379]
+      protocols: ["tcp"]
+      action: "allow"
+      description: "User devices can access LXC web and database services"
+
+    - id: fw-guest-isolated
+      name: "Guest Isolation"
+      priority: 300
+      source_network_ref: net-guest-wifi
+      destination_zones_ref: [internal, management]
+      action: "drop"
+      description: "Guest network cannot access LAN/LXC/Management"
+
+    - id: fw-iot-isolated
+      name: "IoT Isolation"
+      priority: 300
+      source_network_ref: net-iot
+      destination_zones_ref: [internal, management, user]
+      action: "drop"
+      description: "IoT cannot access other networks (except internet)"
+
+    - id: fw-management-admin
+      name: "Management Access Control"
+      priority: 50
+      source_ips: ["192.168.20.0/24"]  # User LAN
+      destination_zone_ref: management
+      ports: [8006, 443]
+      protocols: ["tcp", "https"]
+      action: "allow"
+      description: "Allow admin access from User LAN to management interfaces"
+
+# ============================================================
+# Compute (VMs and LXC Containers)
+# ============================================================
+
+compute:
+
+  # ============================================================
+  # YAML Anchors - Reusable Configuration Defaults
+  # ============================================================
+
+  _defaults:
+    # Common OS configuration for LXC containers
+    lxc_os: &default_lxc_os
+      type: "debian"
+      version: "12"
+
+    # Common DNS configuration
+    dns: &default_dns
+      nameserver: "192.168.10.2"
+      searchdomain: "home.local"
+
+    # Common boot configuration for LXC
+    lxc_boot: &default_lxc_boot
+      onboot: true
+      startup_order: 10
+
+    # Common storage rootfs configuration
+    lxc_storage_rootfs: &default_lxc_storage_rootfs
+      storage_ref: storage-lvm
+      size_gb: 8
+
+    # Common network configuration for LXC (internal)
+    lxc_network_internal: &default_lxc_network_internal
+      interface: "eth0"
+      bridge_ref: bridge-vmbr2
+      network_ref: net-lxc-internal
+      gateway: "10.0.30.254"
+      firewall: false
+
+    # Common cloud-init configuration
+    lxc_cloudinit: &default_lxc_cloudinit
+      enabled: true
+
+    # Common ansible configuration
+    ansible_enabled: &default_ansible_enabled
+      enabled: true
+
+  # ------------------------------------------------------------
+  # Virtual Machines
+  # ------------------------------------------------------------
+
+  vms:
+    - id: vm-opnsense-fw
+      vmid: 100
+      name: "opnsense-fw"
+      device_ref: gamayun
+      type: "firewall"
+      role: "gateway"
+      template_ref: tpl-vm-opnsense
+      trust_zone_ref: dmz
+      description: "OPNsense Firewall & Router"
+      tags: ["firewall", "security", "production"]
+
+      resources:
+        cores: 2
+        sockets: 1
+        memory_mb: 2048
+        balloon_mb: 1024
+        cpu_type: "host"
+
+      boot:
+        order: "scsi0"
+        onboot: true
+        startup_order: 1
+
+      storage:
+        - disk_id: "scsi0"
+          storage_ref: storage-lvm
+          size_gb: 32
+          format: "raw"
+          cache: "writethrough"
+          discard: "on"
+          ssd: true
+
+      networks:
+        - interface: "net0"
+          bridge_ref: bridge-vmbr0
+          network_ref: net-wan
+          model: "virtio"
+          firewall: false
+          role: "wan"
+          ip_config: "dhcp"
+          description: "WAN interface (to ISP Router)"
+
+        - interface: "net1"
+          bridge_ref: bridge-vmbr1
+          network_ref: net-opnsense-lan
+          model: "virtio"
+          firewall: false
+          role: "lan"
+          ip_config:
+            address: "192.168.10.1/24"
+          description: "LAN interface (to GL.iNet Slate AX)"
+
+        - interface: "net2"
+          bridge_ref: bridge-vmbr2
+          network_ref: net-lxc-internal
+          model: "virtio"
+          firewall: false
+          role: "internal"
+          ip_config:
+            address: "10.0.30.254/24"
+          description: "INTERNAL interface (LXC gateway)"
+
+        - interface: "net3"
+          bridge_ref: bridge-vmbr99
+          network_ref: net-management
+          model: "virtio"
+          firewall: false
+          role: "management"
+          ip_config:
+            address: "10.0.99.10/24"
+            gateway: "10.0.99.1"
+          description: "MGMT interface (Web UI)"
+
+      os:
+        type: "opnsense"
+        version: "24.7"
+
+      ansible:
+        enabled: false  # Manual configuration via Web UI
+        playbook: null
+
+  # ------------------------------------------------------------
+  # LXC Containers
+  # ------------------------------------------------------------
+
+  lxc:
+    - id: lxc-postgresql
+      vmid: 200
+      name: "postgresql-db"
+      device_ref: gamayun
+      type: "database"
+      role: "database-server"
+      template_ref: tpl-lxc-postgresql
+      trust_zone_ref: internal
+      description: "PostgreSQL Database Server"
+      tags: ["database", "production"]
+
+      resources:
+        cores: 2
+        memory_mb: 2048
+        swap_mb: 512
+
+      boot:
+        <<: *default_lxc_boot
+
+      storage:
+        rootfs:
+          <<: *default_lxc_storage_rootfs
+
+      networks:
+        - <<: *default_lxc_network_internal
+          ip: "10.0.30.10/24"
+
+      dns: *default_dns
+
+      os: *default_lxc_os
+
+      cloudinit:
+        <<: *default_lxc_cloudinit
+        user: "postgres"
+        ssh_keys:
+          - "ssh-ed25519 AAAA..."  # Add your SSH key
+
+      ansible:
+        <<: *default_ansible_enabled
+        playbook: "postgresql.yml"
+        vars:
+          postgresql_version: "15"
+          postgresql_databases:
+            - name: "homelab"
+          postgresql_users:
+            - name: "app"
+              password: "{{ vault_postgresql_app_password }}"
+
+    - id: lxc-redis
+      vmid: 201
+      name: "redis-cache"
+      device_ref: gamayun
+      type: "cache"
+      role: "cache-server"
+      template_ref: tpl-lxc-redis
+      trust_zone_ref: internal
+      description: "Redis Cache Server"
+      tags: ["cache", "production"]
+
+      resources:
+        cores: 1
+        memory_mb: 1024
+        swap_mb: 256
+
+      boot:
+        <<: *default_lxc_boot
+        startup_order: 11
+
+      storage:
+        rootfs:
+          <<: *default_lxc_storage_rootfs
+          size_gb: 4
+
+      networks:
+        - <<: *default_lxc_network_internal
+          ip: "10.0.30.20/24"
+
+      dns: *default_dns
+
+      os: *default_lxc_os
+
+      cloudinit:
+        <<: *default_lxc_cloudinit
+        user: "redis"
+
+      ansible:
+        <<: *default_ansible_enabled
+        playbook: "redis.yml"
+        vars:
+          redis_port: 6379
+          redis_maxmemory: "512mb"
+
+    - id: lxc-nextcloud
+      vmid: 202
+      name: "nextcloud"
+      device_ref: gamayun
+      type: "web-application"
+      role: "file-sharing"
+      template_ref: tpl-lxc-nextcloud
+      trust_zone_ref: internal
+      description: "Nextcloud File Sharing"
+      tags: ["web", "storage", "production"]
+
+      resources:
+        cores: 2
+        memory_mb: 2048
+        swap_mb: 512
+
+      boot:
+        <<: *default_lxc_boot
+        startup_order: 12
+
+      storage:
+        rootfs:
+          <<: *default_lxc_storage_rootfs
+          size_gb: 16
+        mountpoints:
+          - id: "mp0"
+            storage_ref: storage-hdd
+            mountpoint: "/var/www/nextcloud/data"
+            size_gb: 100
+
+      networks:
+        - <<: *default_lxc_network_internal
+          ip: "10.0.30.30/24"
+
+      dns: *default_dns
+
+      os: *default_lxc_os
+
+      cloudinit:
+        <<: *default_lxc_cloudinit
+        user: "www-data"
+
+      ansible:
+        <<: *default_ansible_enabled
+        playbook: "nextcloud.yml"
+        vars:
+          nextcloud_version: "28"
+          nextcloud_domain: "nextcloud.home.local"
+          nextcloud_db_host_ref: lxc-postgresql  # Reference, not hardcoded IP
+          nextcloud_redis_host_ref: lxc-redis    # Reference, not hardcoded IP
+
+  # ------------------------------------------------------------
+  # Templates
+  # ------------------------------------------------------------
+
+  templates:
+    lxc:
+      - id: tpl-lxc-postgresql
+        vmid: 900
+        name: "template-postgresql"
+        storage_ref: storage-hdd
+        source: "proxmox-community-scripts"
+        script: "db-postgresql.sh"
+        description: "PostgreSQL LXC template"
+
+      - id: tpl-lxc-redis
+        vmid: 901
+        name: "template-redis"
+        storage_ref: storage-hdd
+        source: "proxmox-community-scripts"
+        script: "db-redis.sh"
+        description: "Redis LXC template"
+
+      - id: tpl-lxc-nextcloud
+        vmid: 902
+        name: "template-nextcloud"
+        storage_ref: storage-hdd
+        source: "proxmox-community-scripts"
+        script: "nextcloud.sh"
+        description: "Nextcloud LXC template"
+
+    vms:
+      - id: tpl-vm-opnsense
+        vmid: 910
+        name: "template-opnsense"
+        storage_ref: storage-hdd
+        source: "manual"
+        iso: "OPNsense-24.7-dvd-amd64.iso"
+        description: "OPNsense VM template"
+
+# ============================================================
+# Storage
+# ============================================================
+
+storage:
+  - id: storage-local
+    type: "dir"
+    path: "/var/lib/vz"
+    content: ["vztmpl", "iso", "backup"]
+    device_ref: gamayun
+    disk_ref: disk-ssd-system
+    shared: false
+    maxfiles: 0
+    description: "Local directory storage on SSD"
+
+  - id: storage-lvm
+    type: "lvmthin"
+    vgname: "pve"
+    thinpool: "data"
+    content: ["images", "rootdir"]
+    device_ref: gamayun
+    disk_ref: disk-ssd-system
+    shared: false
+    description: "SSD 180GB - Production VMs and LXC thin pool"
+
+  - id: storage-hdd
+    type: "dir"
+    path: "/mnt/hdd"
+    content: ["backup", "iso", "vztmpl", "snippets"]
+    device_ref: gamayun
+    disk_ref: disk-hdd-data
+    shared: false
+    maxfiles: 0
+    prune_backups:
+      keep_last: 3
+      keep_daily: 7
+      keep_weekly: 4
+      keep_monthly: 6
+      keep_yearly: 1
+    description: "HDD 500GB - Backups, ISOs, Templates"
+
+# ============================================================
+# Services (with ID references, not hardcoded IPs)
+# ============================================================
+
+services:
+  # Proxmox Host
+  - id: svc-proxmox-ui
+    name: "Proxmox Web UI"
+    type: "web-ui"
+    device_ref: gamayun
+    network_ref: net-management
+    ip_ref: "10.0.99.1"  # Dynamic from network ip_allocations
+    port: 8006
+    protocol: "https"
+    trust_zone_ref: management
+    url: "https://10.0.99.1:8006"
+    description: "Proxmox VE management interface"
+
+  # OPNsense Firewall
+  - id: svc-opnsense-ui
+    name: "OPNsense Web UI"
+    type: "web-ui"
+    vm_ref: vm-opnsense-fw
+    network_ref: net-management
+    ip_ref: "10.0.99.10"  # From vm-opnsense-fw net3 config
+    port: 443
+    protocol: "https"
+    trust_zone_ref: management
+    url: "https://10.0.99.10"
+    description: "OPNsense firewall management"
+
+  # PostgreSQL Database
+  - id: svc-postgresql
+    name: "PostgreSQL Database"
+    type: "database"
+    lxc_ref: lxc-postgresql
+    network_ref: net-lxc-internal
+    ip_ref: "10.0.30.10"  # From lxc-postgresql network config
+    port: 5432
+    protocol: "tcp"
+    trust_zone_ref: internal
+    description: "PostgreSQL database server"
+    clients:
+      - service_ref: svc-nextcloud
+
+  # Redis Cache
+  - id: svc-redis
+    name: "Redis Cache"
+    type: "cache"
+    lxc_ref: lxc-redis
+    network_ref: net-lxc-internal
+    ip_ref: "10.0.30.20"  # From lxc-redis network config
+    port: 6379
+    protocol: "tcp"
+    trust_zone_ref: internal
+    description: "Redis cache server"
+    clients:
+      - service_ref: svc-nextcloud
+
+  # Nextcloud
+  - id: svc-nextcloud
+    name: "Nextcloud"
+    type: "web-application"
+    lxc_ref: lxc-nextcloud
+    network_ref: net-lxc-internal
+    ip_ref: "10.0.30.30"  # From lxc-nextcloud network config
+    port: 80
+    protocol: "http"
+    trust_zone_ref: internal
+    domain: "nextcloud.home.local"
+    reverse_proxy: "https://nextcloud.home.local"
+    description: "Nextcloud file sharing and collaboration"
+    dependencies:
+      - service_ref: svc-postgresql
+      - service_ref: svc-redis
+
+  # AdGuard Home
+  - id: svc-adguard
+    name: "AdGuard Home"
+    type: "dns"
+    device_ref: slate-ax1800
+    network_ref: net-user-lan
+    ip_ref: "192.168.20.1"
+    port: 3000
+    protocol: "http"
+    trust_zone_ref: user
+    url: "http://192.168.20.1:3000"
+    description: "DNS filtering and ad blocking"
+
+  # WireGuard Home VPN
+  - id: svc-vpn-home
+    name: "WireGuard Home VPN"
+    type: "vpn"
+    device_ref: slate-ax1800
+    network_ref: net-vpn-home
+    port: 51820
+    protocol: "udp"
+    trust_zone_ref: user
+    vpn_type: "wireguard"
+    vpn_network_ref: net-vpn-home
+    description: "Home VPN server (access to LAN)"
+
+  # AmneziaWG Russia VPN
+  - id: svc-vpn-russia
+    name: "AmneziaWG Russia VPN"
+    type: "vpn"
+    device_ref: slate-ax1800
+    network_ref: net-vpn-russia
+    port: 51821
+    protocol: "udp"
+    trust_zone_ref: untrusted
+    vpn_type: "amneziawg"
+    vpn_network_ref: net-vpn-russia
+    description: "Russia VPN server (internet only, no LAN access)"
+
+# ============================================================
+# Workflows (automation sequences)
+# ============================================================
+
+workflows:
+  # Fresh Proxmox Installation
+  fresh_install:
+    name: "Fresh Proxmox Installation"
+    description: "Complete installation from bare metal to running infrastructure"
+    steps:
+      - step: 1
+        name: "Create bootable USB"
+        script: "bare-metal/create-usb.sh"
+        duration_min: 5
+
+      - step: 2
+        name: "Boot and auto-install Proxmox"
+        manual: true
+        duration_min: 15
+        notes: "Insert USB, F12 boot menu, select UEFI: USB, wait for auto-install"
+
+      - step: 3
+        name: "Run post-install scripts"
+        script: "bare-metal/post-install/01-install-terraform.sh"
+        duration_min: 10
+
+      - step: 4
+        name: "Generate Terraform from topology"
+        script: "scripts/generate-terraform.py"
+        duration_min: 1
+
+      - step: 5
+        name: "Apply Terraform configuration"
+        command: "cd terraform && terraform apply"
+        duration_min: 5
+
+      - step: 6
+        name: "Generate Ansible inventory from topology"
+        script: "scripts/generate-ansible-inventory.py"
+        duration_min: 1
+
+      - step: 7
+        name: "Run Ansible playbooks"
+        command: "cd ansible && ansible-playbook -i inventory/production/hosts.yml site.yml"
+        duration_min: 20
+
+  # Update Topology
+  update_topology:
+    name: "Update Infrastructure Topology"
+    description: "Modify topology and regenerate all configs"
+    steps:
+      - step: 1
+        name: "Edit topology.yaml"
+        manual: true
+
+      - step: 2
+        name: "Validate topology"
+        script: "scripts/validate-topology.py"
+
+      - step: 3
+        name: "Regenerate Terraform"
+        script: "scripts/generate-terraform.py"
+
+      - step: 4
+        name: "Regenerate Ansible inventory"
+        script: "scripts/generate-ansible-inventory.py"
+
+      - step: 5
+        name: "Regenerate documentation"
+        script: "scripts/generate-docs.py"
+
+      - step: 6
+        name: "Plan Terraform changes"
+        command: "cd terraform && terraform plan"
+
+      - step: 7
+        name: "Apply changes if approved"
+        command: "cd terraform && terraform apply"
+
+# ============================================================
+# Backup Policies
+# ============================================================
+
+backup:
+  policies:
+    # VM Backups
+    - id: backup-daily-vms
+      name: "Daily VM Backups"
+      description: "Daily backups of critical VMs (OPNsense firewall)"
+      targets:
+        - vm_ref: vm-opnsense-fw
+      schedule: "0 2 * * *"  # 2 AM daily
+      storage_ref: storage-hdd
+      retention:
+        keep_last: 3        # Last 3 backups
+        keep_daily: 7       # 7 days
+        keep_weekly: 4      # 4 weeks
+        keep_monthly: 6     # 6 months
+        keep_yearly: 1      # 1 year
+      mode: "snapshot"
+      compression: "zstd"
+      notification:
+        on_success: true
+        on_failure: true
+        channels: ["email"]
+
+    # Database Backups - Hourly
+    - id: backup-hourly-postgresql
+      name: "Hourly PostgreSQL Backups"
+      description: "Hourly snapshots for critical database"
+      targets:
+        - lxc_ref: lxc-postgresql
+      schedule: "0 * * * *"  # Every hour
+      storage_ref: storage-hdd
+      retention:
+        keep_last: 24       # Last 24 hours
+        keep_daily: 7       # 7 days
+      mode: "snapshot"
+      compression: "zstd"
+      notification:
+        on_success: false
+        on_failure: true
+        channels: ["email"]
+
+    # LXC Services - Daily
+    - id: backup-daily-lxc-services
+      name: "Daily LXC Service Backups"
+      description: "Daily backups of LXC containers (Redis, Nextcloud)"
+      targets:
+        - lxc_ref: lxc-redis
+        - lxc_ref: lxc-nextcloud
+      schedule: "0 3 * * *"  # 3 AM daily
+      storage_ref: storage-hdd
+      retention:
+        keep_last: 3
+        keep_daily: 7
+        keep_weekly: 4
+      mode: "snapshot"
+      compression: "zstd"
+      notification:
+        on_success: false
+        on_failure: true
+        channels: ["email"]
+
+    # Weekly Full Backups
+    - id: backup-weekly-full
+      name: "Weekly Full Infrastructure Backup"
+      description: "Complete weekly backup of all VMs and LXC containers"
+      targets:
+        - vm_ref: vm-opnsense-fw
+        - lxc_ref: lxc-postgresql
+        - lxc_ref: lxc-redis
+        - lxc_ref: lxc-nextcloud
+      schedule: "0 1 * * 0"  # Sunday at 1 AM
+      storage_ref: storage-hdd
+      retention:
+        keep_last: 4
+        keep_weekly: 8
+        keep_monthly: 12
+      mode: "snapshot"
+      compression: "zstd"
+      notification:
+        on_success: true
+        on_failure: true
+        channels: ["email"]
+
+  # Backup verification
+  verification:
+    enabled: true
+    schedule: "0 6 * * 1"  # Monday at 6 AM
+    test_restore: false
+    integrity_check: true
+    notification:
+      on_success: false
+      on_failure: true
+      channels: ["email"]
+
+  # Backup storage monitoring
+  storage_monitoring:
+    enabled: true
+    thresholds:
+      warning_percent: 80   # Alert at 80% full
+      critical_percent: 90  # Critical at 90% full
+    notification:
+      channels: ["email"]
+
+# ============================================================
+# Monitoring & Health Checks
+# ============================================================
+
+monitoring:
+  # Health checks for infrastructure components
+  healthchecks:
+    # Proxmox Host Health
+    - id: health-proxmox-host
+      name: "Proxmox Host Health"
+      description: "Monitor Proxmox hypervisor health"
+      device_ref: gamayun
+      enabled: true
+      checks:
+        - type: "cpu_usage"
+          warning_threshold: 80
+          critical_threshold: 95
+          unit: "percent"
+
+        - type: "memory_usage"
+          warning_threshold: 85
+          critical_threshold: 95
+          unit: "percent"
+
+        - type: "disk_usage"
+          warning_threshold: 80
+          critical_threshold: 90
+          unit: "percent"
+          paths: ["/", "/mnt/hdd"]
+
+        - type: "load_average"
+          warning_threshold: 2.0
+          critical_threshold: 4.0
+          period: "15min"
+
+        - type: "service"
+          services: ["pvestatd", "pvedaemon", "pveproxy", "pvescheduler"]
+          expected_state: "running"
+
+        - type: "temperature"
+          warning_threshold: 75
+          critical_threshold: 85
+          unit: "celsius"
+
+      interval: "60s"
+      timeout: "10s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+    # OPNsense Firewall Health
+    - id: health-opnsense-fw
+      name: "OPNsense Firewall Health"
+      description: "Monitor OPNsense VM and firewall services"
+      vm_ref: vm-opnsense-fw
+      enabled: true
+      checks:
+        - type: "vm_status"
+          expected_state: "running"
+
+        - type: "port"
+          ports: [443]  # Web UI
+          protocol: "tcp"
+
+        - type: "ping"
+          ip_ref: "10.0.99.10"
+          packet_loss_threshold: 10
+          unit: "percent"
+
+        - type: "memory_usage"
+          warning_threshold: 80
+          critical_threshold: 90
+
+      interval: "30s"
+      timeout: "5s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+    # PostgreSQL Database Health
+    - id: health-postgresql
+      name: "PostgreSQL Database Health"
+      description: "Monitor PostgreSQL LXC and database service"
+      lxc_ref: lxc-postgresql
+      service_ref: svc-postgresql
+      enabled: true
+      checks:
+        - type: "lxc_status"
+          expected_state: "running"
+
+        - type: "port"
+          port: 5432
+          protocol: "tcp"
+          ip_ref: "10.0.30.10"
+
+        - type: "process"
+          process: "postgres"
+          min_instances: 1
+
+        - type: "query"
+          query: "SELECT 1"
+          expected_result: "1"
+          timeout: "5s"
+
+        - type: "connection_count"
+          warning_threshold: 80
+          critical_threshold: 95
+          max_connections: 100
+
+        - type: "disk_usage"
+          warning_threshold: 75
+          critical_threshold: 85
+
+        - type: "memory_usage"
+          warning_threshold: 80
+          critical_threshold: 90
+
+      interval: "30s"
+      timeout: "10s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+    # Redis Cache Health
+    - id: health-redis
+      name: "Redis Cache Health"
+      description: "Monitor Redis LXC and cache service"
+      lxc_ref: lxc-redis
+      service_ref: svc-redis
+      enabled: true
+      checks:
+        - type: "lxc_status"
+          expected_state: "running"
+
+        - type: "port"
+          port: 6379
+          protocol: "tcp"
+          ip_ref: "10.0.30.20"
+
+        - type: "process"
+          process: "redis-server"
+          min_instances: 1
+
+        - type: "redis_ping"
+          command: "PING"
+          expected_result: "PONG"
+
+        - type: "memory_usage"
+          warning_threshold: 80
+          critical_threshold: 90
+
+        - type: "redis_memory"
+          warning_threshold: 900
+          critical_threshold: 1000
+          unit: "MB"
+
+      interval: "60s"
+      timeout: "5s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+    # Nextcloud Application Health
+    - id: health-nextcloud
+      name: "Nextcloud Application Health"
+      description: "Monitor Nextcloud LXC and application"
+      lxc_ref: lxc-nextcloud
+      service_ref: svc-nextcloud
+      enabled: true
+      checks:
+        - type: "lxc_status"
+          expected_state: "running"
+
+        - type: "port"
+          port: 443
+          protocol: "tcp"
+          ip_ref: "10.0.30.30"
+
+        - type: "http"
+          url: "https://10.0.30.30/status.php"
+          expected_status: 200
+          expected_content: "installed"
+          ssl_verify: false
+
+        - type: "process"
+          process: "nginx"
+          min_instances: 1
+
+        - type: "process"
+          process: "php-fpm"
+          min_instances: 1
+
+        - type: "disk_usage"
+          warning_threshold: 75
+          critical_threshold: 85
+
+        - type: "memory_usage"
+          warning_threshold: 85
+          critical_threshold: 95
+
+      interval: "60s"
+      timeout: "10s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+  # Network monitoring
+  network_monitoring:
+    - id: net-mon-internet
+      name: "Internet Connectivity"
+      description: "Monitor internet connectivity"
+      checks:
+        - type: "ping"
+          targets: ["8.8.8.8", "1.1.1.1"]
+          packet_loss_threshold: 20
+          latency_warning: 100
+          latency_critical: 500
+          unit_latency: "ms"
+
+        - type: "dns"
+          nameserver: "8.8.8.8"
+          query: "google.com"
+          expected_result: "success"
+
+      interval: "60s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+    - id: net-mon-internal
+      name: "Internal Network Connectivity"
+      description: "Monitor connectivity between trust zones"
+      checks:
+        - type: "ping"
+          source_zone_ref: user
+          target_zone_ref: internal
+          targets: ["10.0.30.10", "10.0.30.20"]
+          expected: "reachable"
+
+      interval: "120s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+  # Alerting configuration
+  alerts:
+    # Critical alerts
+    - id: alert-disk-full
+      name: "Disk Space Critical"
+      description: "Alert when disk usage exceeds 90%"
+      trigger:
+        condition: "disk_usage > 90%"
+        duration: "5m"
+      severity: "critical"
+      channels: ["email"]
+      escalation:
+        enabled: true
+        delay: "15m"
+
+    - id: alert-service-down
+      name: "Critical Service Down"
+      description: "Alert when a critical service is not running"
+      trigger:
+        condition: "service_status != 'running'"
+        services: ["postgresql", "redis", "opnsense"]
+        duration: "2m"
+      severity: "critical"
+      channels: ["email"]
+      escalation:
+        enabled: true
+        delay: "5m"
+
+    - id: alert-memory-critical
+      name: "Memory Usage Critical"
+      description: "Alert when memory usage exceeds 95%"
+      trigger:
+        condition: "memory_usage > 95%"
+        duration: "5m"
+      severity: "critical"
+      channels: ["email"]
+
+    # Warning alerts
+    - id: alert-cpu-high
+      name: "High CPU Usage"
+      description: "Alert when CPU usage is high"
+      trigger:
+        condition: "cpu_usage > 80%"
+        duration: "10m"
+      severity: "warning"
+      channels: ["email"]
+
+    - id: alert-backup-failed
+      name: "Backup Failed"
+      description: "Alert when backup job fails"
+      trigger:
+        condition: "backup_status == 'failed'"
+      severity: "warning"
+      channels: ["email"]
+
+    - id: alert-temperature-high
+      name: "High Temperature"
+      description: "Alert when system temperature is high"
+      trigger:
+        condition: "temperature > 75C"
+        duration: "5m"
+      severity: "warning"
+      channels: ["email"]
+
+  # Notification channels
+  notification_channels:
+    - id: channel-email
+      name: "Email Notifications"
+      type: "email"
+      enabled: true
+      config:
+        smtp_server: "smtp.gmail.com"
+        smtp_port: 587
+        smtp_tls: true
+        smtp_user: "admin@home.local"
+        from_address: "proxmox@home.local"
+        to_addresses: ["admin@home.local"]
+
+    - id: channel-telegram
+      name: "Telegram Notifications"
+      type: "telegram"
+      enabled: false
+      config:
+        bot_token: "TELEGRAM_BOT_TOKEN"
+        chat_id: "TELEGRAM_CHAT_ID"
+
+  # Monitoring dashboard
+  dashboard:
+    enabled: true
+    refresh_interval: "30s"
+    metrics_retention: "30d"
+    views:
+      - name: "Overview"
+        components: ["system_status", "service_status", "recent_alerts"]
+      - name: "Infrastructure"
+        components: ["proxmox_metrics", "vm_status", "lxc_status"]
+      - name: "Services"
+        components: ["postgresql_metrics", "redis_metrics", "nextcloud_metrics"]
+      - name: "Network"
+        components: ["network_traffic", "firewall_stats", "vpn_connections"]
+
+# ============================================================
+# Documentation (auto-generation config)
+# ============================================================
+
+documentation:
+  network_diagram:
+    format: "mermaid"
+    output: "docs/network-diagram.md"
+    auto_generate: true
+    include:
+      - physical_topology
+      - logical_topology.networks
+      - logical_topology.trust_zones
+
+  trust_zone_diagram:
+    format: "mermaid"
+    output: "docs/trust-zones.md"
+    auto_generate: true
+    style: "security-focused"
+
+  ip_allocation:
+    format: "markdown-table"
+    output: "docs/ip-allocation.md"
+    auto_generate: true
+
+  service_inventory:
+    format: "markdown"
+    output: "docs/services.md"
+    auto_generate: true
+    include_dependencies: true
+
+  device_inventory:
+    format: "markdown"
+    output: "docs/devices.md"
+    auto_generate: true
+
+# ============================================================
+# Notes & Best Practices
+# ============================================================
+
+notes:
+  - "All IPs are referenced by ID, not hardcoded - enables dynamic generation"
+  - "Trust zones enable automated firewall rule generation"
+  - "Physical/logical separation makes structure clear"
+  - "Services reference compute resources by ID for flexibility"
+  - "Single environment (production) - multi-env can be added if needed"
+  - "Validate topology with: python3 scripts/validate-topology.py"
+  - "Regenerate everything with: python3 scripts/regenerate-all.py"
