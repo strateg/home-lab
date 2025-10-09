@@ -520,7 +520,7 @@ ${BLUE}Configuration Details:${NC}
 - Swap: 2 GB
 - LVM thin pool: ~128 GB (for VMs/LXC)
 - Network: DHCP initially (reconfigured by post-install)
-- Hostname: pve.home.local
+- Hostname: gamayun.home.local
 
 ${GREEN}Installation is FULLY AUTOMATIC using official Proxmox method!${NC}
 
