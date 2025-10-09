@@ -328,8 +328,8 @@ ansible-playbook -i inventory/production/hosts.yml site.yml
 **Причины:**
 
 1. **Неправильный диск в answer.toml**
-   - Проверьте `disk_list = ["first"]` в answer.toml
-   - Или явно укажите: `disk_list = ["/dev/sda"]`
+   - ⚠️ `disk_list = ["first"]` **НЕ РАБОТАЕТ**!
+   - ✅ Используйте: `disk_list = ["sda"]` или `["/dev/sda"]`
 
 2. **Диск уже используется**
    - Загрузитесь с USB в Live режим

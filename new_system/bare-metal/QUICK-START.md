@@ -174,22 +174,25 @@ proxmox-auto-install-assistant validate-answer answer.toml
 
 ```toml
 [global]
-keyboard = "us"
+keyboard = "en-us"
 country = "us"
 timezone = "UTC"
 root_password = "$6$rounds=..."  # ← Изменить!
-email = "admin@home.local"
+mailto = "admin@home.local"
+fqdn = "gamayun.home.local"
 
 [disk-setup]
 filesystem = "ext4"
-disk_list = ["first"]  # Или ["/dev/sda"]
-hdsize = 50            # GB для root
-swapsize = 2           # GB для swap
+disk_list = ["sda"]    # ⚠️ Конкретный диск, НЕ "first"!
+
+# LVM configuration
+lvm.swapsize = 2       # 2 GB swap
+lvm.maxroot = 50       # 50 GB root
+lvm.minfree = 10       # 10 GB reserve
+lvm.maxvz = 0          # Use all remaining space
 
 [network]
-use_dhcp = true
-source = "enp0s31f6"   # Built-in Ethernet
-fqdn = "pve.home.local"
+source = "from-dhcp"   # Use DHCP for initial setup
 ```
 
 ## Что происходит при установке

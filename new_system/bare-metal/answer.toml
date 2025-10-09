@@ -30,29 +30,29 @@ fqdn = "gamayun.home.local"
 # Filesystem type
 filesystem = "ext4"
 
-# Disk selection
-# Use 'first' to automatically select first disk
-# Or specify exact disk: '/dev/sda'
-disk_list = ["first"]
+# ⚠️  DISK CONFIGURATION FOR DUAL-DISK SETUP
+# ============================================
+# SSD (sda): System disk - WILL BE COMPLETELY ERASED AND FORMATTED
+# HDD (sdb): Data disk - PRESERVED (not touched by installer)
+#
+# Only specify the SSD here. The HDD will be mounted by post-install scripts
+# after installation without formatting (preserves existing data: backups, ISOs, templates)
 
-# Disk filtering: 'any' or 'all'
-filter_match = "any"
+# Target disk for SYSTEM installation (SSD only!)
+disk_list = ["sda"]
 
 # LVM configuration
-[disk-setup.lvm]
-# hdsize: Size for root filesystem in GB (leave rest for LVM thin pool)
-# swapsize: Swap size in GB (0 to disable, 2-8 recommended)
-# maxroot: Maximum root filesystem size in GB
-# minfree: Minimum free space to leave in LVM pool in GB
-hdsize = 50      # 50 GB for root (on SSD 180GB)
-swapsize = 2     # 2 GB swap
-maxroot = 50     # Max 50 GB for root
-minfree = 10     # Leave 10 GB free in LVM
-
-# ZFS options (if using ZFS instead of ext4)
-# [disk-setup.zfs]
-# zfs_opts = "compress=on"
-# pool_name = "rpool"
+# swapsize: Swap size in GB (2 GB for Dell XPS L701X with 8GB RAM)
+# maxroot: Maximum root filesystem size in GB (50 GB for Proxmox OS)
+# minfree: Minimum free space to leave in LVM pool in GB (10 GB reserve)
+# maxvz: Maximum size for data volume (0 = use all remaining space)
+#
+# Calculation for 180GB SSD:
+# 180 - 2 (swap) - 50 (root) - 10 (minfree) = 118GB for VMs/LXC
+lvm.swapsize = 2
+lvm.maxroot = 50
+lvm.minfree = 10
+lvm.maxvz = 0
 
 # ============================================================
 # Network Configuration
