@@ -668,13 +668,36 @@ insmod search_fs_file
 insmod chain
 
 set install_detected=0
+set found_marker=0
 
-# Check for installation marker on first disk EFI partition
-search --no-floppy --set=efipart --file /proxmox-installed
-if [ -n "\$efipart" ]; then
-    # Read installation ID from disk
-    cat --set=installed_id (\$efipart)/proxmox-installed
+# CRITICAL: Search for proxmox-installed ONLY on first hard disk (hd0)
+# NOT on USB devices (which would be hd1, hd2, etc depending on boot order)
+# Try common EFI partition locations on hd0
 
+# Try GPT partition 2 (typical Proxmox EFI location)
+if [ -f (hd0,gpt2)/proxmox-installed ]; then
+    cat --set=installed_id (hd0,gpt2)/proxmox-installed
+    set found_marker=1
+fi
+
+# Try GPT partition 1 (alternative EFI location)
+if [ \$found_marker -eq 0 ]; then
+    if [ -f (hd0,gpt1)/proxmox-installed ]; then
+        cat --set=installed_id (hd0,gpt1)/proxmox-installed
+        set found_marker=1
+    fi
+fi
+
+# Try MBR partition 1 (legacy BIOS systems)
+if [ \$found_marker -eq 0 ]; then
+    if [ -f (hd0,msdos1)/proxmox-installed ]; then
+        cat --set=installed_id (hd0,msdos1)/proxmox-installed
+        set found_marker=1
+    fi
+fi
+
+# If marker found on hard disk, compare with USB ID
+if [ \$found_marker -eq 1 ]; then
     # Read USB installation ID
     if [ -f (\$root)/EFI/BOOT/install-id ]; then
         cat --set=usb_id (\$root)/EFI/BOOT/install-id
