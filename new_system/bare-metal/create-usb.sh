@@ -673,112 +673,46 @@ INFOEOF
             fi
 
             # Create reinstall-check GRUB script as MAIN grub.cfg
-            cat > "$MOUNT_POINT/EFI/BOOT/grub.cfg" << GRUBEOF
+            cat > "$MOUNT_POINT/EFI/BOOT/grub.cfg" << 'GRUBEOF'
 # Reinstall Prevention Check
-# This script prevents automatic reinstallation if system is already installed
+# UUID-based system to prevent accidental reinstallation
 
-# Load required modules
 insmod part_gpt
-insmod part_msdos
 insmod fat
-insmod ext2
-insmod search
-insmod search_fs_file
 insmod chain
 
-# USB Installation ID (embedded at USB creation time)
-set usb_uuid="$INSTALL_UUID"
+# UUID встроен при создании USB
+set usb_uuid="USB_UUID_PLACEHOLDER"
 
-set install_detected=0
-set found_marker=0
-
-# CRITICAL: Search for proxmox-installed ONLY on first hard disk (hd0)
-# NOT on USB devices (which would be hd1, hd2, etc depending on boot order)
-# Try common EFI partition locations on hd0
-
-# Try GPT partition 2 (typical Proxmox EFI location)
+# Проверяем наличие маркера на диске (hd0,gpt2 - EFI партиция Proxmox)
 if [ -f (hd0,gpt2)/proxmox-installed ]; then
-    cat --set=installed_id (hd0,gpt2)/proxmox-installed
-    set found_marker=1
-fi
+    cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
 
-# Try GPT partition 1 (alternative EFI location)
-if [ \$found_marker -eq 0 ]; then
-    if [ -f (hd0,gpt1)/proxmox-installed ]; then
-        cat --set=installed_id (hd0,gpt1)/proxmox-installed
-        set found_marker=1
-    fi
-fi
+    # Сравниваем UUIDs
+    if [ "$disk_uuid" = "$usb_uuid" ]; then
+        # UUIDs совпадают - загрузить систему
+        set timeout=5
+        set default=0
 
-# Try MBR partition 1 (legacy BIOS systems)
-if [ \$found_marker -eq 0 ]; then
-    if [ -f (hd0,msdos1)/proxmox-installed ]; then
-        cat --set=installed_id (hd0,msdos1)/proxmox-installed
-        set found_marker=1
-    fi
-fi
+        menuentry 'Boot Proxmox VE' {
+            chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
+        }
 
-# If marker found on hard disk, compare with USB UUID (embedded above)
-if [ \$found_marker -eq 1 ]; then
-    # Compare IDs directly (no file I/O needed!)
-    if [ "\$installed_id" = "\$usb_uuid" ]; then
-        set install_detected=1
-    fi
-fi
-
-if [ \$install_detected -eq 1 ]; then
-    # UUIDs MATCH - System installed from THIS USB
-    set timeout=5
-    set default=0
-
-    menuentry 'Boot Proxmox VE (installed system)' --hotkey=d {
-        echo "Booting installed Proxmox VE..."
-        # Search for Proxmox EFI bootloader and chainload
-        search --no-floppy --set=proxmoxroot --file /EFI/proxmox/grubx64.efi
-        if [ -n "\$proxmoxroot" ]; then
-            set root=\$proxmoxroot
-            chainloader /EFI/proxmox/grubx64.efi
-            boot
-        else
-            # Fallback: try standard EFI location
-            set root=(hd0,gpt2)
-            chainloader /EFI/proxmox/grubx64.efi
-            boot
-        fi
-    }
-
-    menuentry 'Reinstall Proxmox VE (ERASES ALL DATA!)' --hotkey=r {
-        echo "Starting Proxmox installation..."
+        menuentry 'Reinstall' {
+            configfile /EFI/BOOT/grub-install.cfg
+        }
+    else
+        # Разные UUID - показать меню установки
         configfile /EFI/BOOT/grub-install.cfg
-    }
-elif [ \$found_marker -eq 1 ]; then
-    # UUID found but DOESN'T MATCH - Different USB or old installation
-    set timeout=10
-    set default=1
-
-    menuentry 'Boot Proxmox VE (installed system from different USB)' --hotkey=d {
-        echo "Booting installed Proxmox VE..."
-        search --no-floppy --set=proxmoxroot --file /EFI/proxmox/grubx64.efi
-        if [ -n "\$proxmoxroot" ]; then
-            set root=\$proxmoxroot
-            chainloader /EFI/proxmox/grubx64.efi
-            boot
-        else
-            set root=(hd0,gpt2)
-            chainloader /EFI/proxmox/grubx64.efi
-            boot
-        fi
-    }
-
-    menuentry 'Install Proxmox VE (ERASES ALL DATA!)' --hotkey=i {
-        echo "Starting Proxmox installation..."
-        configfile /EFI/BOOT/grub-install.cfg
-    }
+    fi
 else
-    # No installation marker found - Clean disk
+    # Нет маркера - чистый диск - установка
     configfile /EFI/BOOT/grub-install.cfg
 fi
 GRUBEOF
+
+            # Replace UUID placeholder
+            sed -i "s/USB_UUID_PLACEHOLDER/$INSTALL_UUID/" "$MOUNT_POINT/EFI/BOOT/grub.cfg"
 
             print_success "Created reinstall-check as main grub.cfg"
 
