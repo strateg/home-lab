@@ -686,6 +686,9 @@ insmod search
 insmod search_fs_file
 insmod chain
 
+# USB Installation ID (embedded at USB creation time)
+set usb_uuid="$INSTALL_UUID"
+
 set install_detected=0
 set found_marker=0
 
@@ -715,16 +718,11 @@ if [ \$found_marker -eq 0 ]; then
     fi
 fi
 
-# If marker found on hard disk, compare with USB ID
+# If marker found on hard disk, compare with USB UUID (embedded above)
 if [ \$found_marker -eq 1 ]; then
-    # Read USB installation ID
-    if [ -f (\$root)/EFI/BOOT/install-id ]; then
-        cat --set=usb_id (\$root)/EFI/BOOT/install-id
-
-        # Compare IDs
-        if [ "\$installed_id" = "\$usb_id" ]; then
-            set install_detected=1
-        fi
+    # Compare IDs directly (no file I/O needed!)
+    if [ "\$installed_id" = "\$usb_uuid" ]; then
+        set install_detected=1
     fi
 fi
 
