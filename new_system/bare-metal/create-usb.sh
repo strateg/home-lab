@@ -555,59 +555,59 @@ INFOEOF
 # Reinstall Prevention Check
 # This script prevents automatic reinstallation if system is already installed
 
-set timeout=10
-set default=0
-
-# Try to detect installed Proxmox on first hard disk
+# Load required modules
 insmod part_gpt
 insmod part_msdos
 insmod fat
 insmod ext2
+insmod search
+insmod search_fs_file
+insmod chain
 
 set install_detected=0
 
 # Check for installation marker on first disk EFI partition
-search --no-floppy --fs-uuid --set=efipart 2>/dev/null
+search --no-floppy --set=efipart --file /proxmox-installed 2>/dev/null
 if [ -n "\$efipart" ]; then
-    if [ -f (\$efipart)/proxmox-installed ]; then
-        # Read installation ID from marker
-        cat --set=installed_id (\$efipart)/proxmox-installed 2>/dev/null
+    # Read installation ID from disk
+    cat --set=installed_id (\$efipart)/proxmox-installed 2>/dev/null
 
-        # Read USB installation ID
-        if [ -f (\$root)/EFI/BOOT/install-id ]; then
-            cat --set=usb_id (\$root)/EFI/BOOT/install-id
+    # Read USB installation ID
+    if [ -f (\$root)/EFI/BOOT/install-id ]; then
+        cat --set=usb_id (\$root)/EFI/BOOT/install-id
 
-            # Compare IDs
-            if [ "\$installed_id" = "\$usb_id" ]; then
-                set install_detected=1
-            fi
+        # Compare IDs
+        if [ "\$installed_id" = "\$usb_id" ]; then
+            set install_detected=1
         fi
     fi
 fi
 
 if [ \$install_detected -eq 1 ]; then
-    # System already installed with this USB - boot from disk
-    menuentry 'Boot Proxmox from disk (Already Installed)' --hotkey=d {
-        set root=(hd0,gpt2)
-        chainloader /EFI/proxmox/grubx64.efi
+    # System already installed - show menu with auto-boot to disk
+    set timeout=5
+    set default=0
+
+    menuentry 'Boot Proxmox VE (installed system)' --hotkey=d {
+        echo "Booting installed Proxmox VE..."
+        # Search for Proxmox EFI bootloader and chainload
+        search --no-floppy --set=proxmoxroot --file /EFI/proxmox/grubx64.efi
+        if [ -n "\$proxmoxroot" ]; then
+            set root=\$proxmoxroot
+            chainloader /EFI/proxmox/grubx64.efi
+            boot
+        else
+            # Fallback: try standard EFI location
+            set root=(hd0,gpt2)
+            chainloader /EFI/proxmox/grubx64.efi
+            boot
+        fi
     }
 
-    menuentry 'Reinstall Proxmox (ERASES DISK!)' --hotkey=r {
+    menuentry 'Reinstall Proxmox VE (ERASES ALL DATA!)' --hotkey=r {
+        echo "Starting Proxmox installation..."
         configfile /EFI/BOOT/grub-install.cfg
     }
-
-    echo " "
-    echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║  Proxmox already installed from this USB                ║"
-    echo "╚══════════════════════════════════════════════════════════╝"
-    echo " "
-    echo "  Installation ID: $INSTALL_UUID"
-    echo "  Created: $TIMEZONE $TIMESTAMP_READABLE"
-    echo " "
-    echo "  Press 'd' to boot installed system (auto in 10s)"
-    echo "  Press 'r' to REINSTALL (will ERASE all data!)"
-    echo " "
-
 else
     # No installation detected - proceed with normal installation
     configfile /EFI/BOOT/grub-install.cfg
