@@ -614,7 +614,7 @@ embed_install_uuid() {
     mkdir -p "$MOUNT_POINT"
     UUID_EMBEDDED=0
 
-    # Find and mount the FAT32 EFI partition
+    # Find and mount the CORRECT FAT32 EFI partition (must contain grub.cfg!)
     for part in "${USB_DEVICE}"[0-9]* "${USB_DEVICE}p"[0-9]*; do
         [ ! -b "$part" ] && continue
 
@@ -622,8 +622,14 @@ embed_install_uuid() {
 
         if [ "$FSTYPE" = "vfat" ]; then
             if mount -o rw "$part" "$MOUNT_POINT" 2>/dev/null; then
-                # Create EFI/BOOT directory if needed
-                mkdir -p "$MOUNT_POINT/EFI/BOOT"
+                # CRITICAL: Check if this is the correct EFI partition with grub.cfg
+                if [ ! -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
+                    print_warn "Partition $part is vfat but has no grub.cfg, skipping..."
+                    umount "$MOUNT_POINT"
+                    continue
+                fi
+
+                print_success "Found correct EFI partition: $part (contains grub.cfg)"
 
                 # Save installation ID (without trailing newline for exact comparison)
                 echo -n "$INSTALL_UUID" > "$MOUNT_POINT/EFI/BOOT/install-id"
@@ -710,7 +716,7 @@ if [ \$found_marker -eq 1 ]; then
 fi
 
 if [ \$install_detected -eq 1 ]; then
-    # System already installed - show menu with auto-boot to disk
+    # UUIDs MATCH - System installed from THIS USB
     set timeout=5
     set default=0
 
@@ -734,8 +740,31 @@ if [ \$install_detected -eq 1 ]; then
         echo "Starting Proxmox installation..."
         configfile /EFI/BOOT/grub-install.cfg
     }
+elif [ \$found_marker -eq 1 ]; then
+    # UUID found but DOESN'T MATCH - Different USB or old installation
+    set timeout=10
+    set default=1
+
+    menuentry 'Boot Proxmox VE (installed system from different USB)' --hotkey=d {
+        echo "Booting installed Proxmox VE..."
+        search --no-floppy --set=proxmoxroot --file /EFI/proxmox/grubx64.efi
+        if [ -n "\$proxmoxroot" ]; then
+            set root=\$proxmoxroot
+            chainloader /EFI/proxmox/grubx64.efi
+            boot
+        else
+            set root=(hd0,gpt2)
+            chainloader /EFI/proxmox/grubx64.efi
+            boot
+        fi
+    }
+
+    menuentry 'Install Proxmox VE (ERASES ALL DATA!)' --hotkey=i {
+        echo "Starting Proxmox installation..."
+        configfile /EFI/BOOT/grub-install.cfg
+    }
 else
-    # No installation detected - proceed with normal installation
+    # No installation marker found - Clean disk
     configfile /EFI/BOOT/grub-install.cfg
 fi
 GRUBEOF
