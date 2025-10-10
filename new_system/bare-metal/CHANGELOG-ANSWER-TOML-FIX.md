@@ -58,12 +58,12 @@ exit 0
 source = "from-iso"
 ```
 
-3. **Скрипт передаётся через флаг `--first-boot`**:
+3. **Скрипт передаётся через флаг `--on-first-boot`**:
 ```bash
 proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
     --fetch-from iso \
     --answer-file "$TEMP_ANSWER" \
-    --first-boot "$FIRST_BOOT_SCRIPT"
+    --on-first-boot "$FIRST_BOOT_SCRIPT"
 ```
 
 ---
@@ -117,7 +117,7 @@ EOF
 proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
     --fetch-from iso \
     --answer-file "$TEMP_ANSWER" \
-    --first-boot "$FIRST_BOOT_SCRIPT"
+    --on-first-boot "$FIRST_BOOT_SCRIPT"
 
 # Clean up temporary files
 rm -f "$TEMP_ANSWER" "$FIRST_BOOT_SCRIPT"
@@ -180,9 +180,9 @@ bash -n create-usb.sh
 2. **ISO preparation**:
    ```bash
    proxmox-auto-install-assistant prepare-iso \
-     --fetch-from iso \           # Fetch from ISO itself
-     --answer-file answer.toml \  # Config file
-     --first-boot first-boot.sh   # First-boot script
+     --fetch-from iso \              # Fetch from ISO itself
+     --answer-file answer.toml \     # Config file
+     --on-first-boot first-boot.sh   # First-boot script
    ```
 
 3. **On first boot** (after installation):
@@ -257,7 +257,7 @@ tail /var/log/proxmox-install.log
 ### DO's
 - ✅ Use separate script file for first-boot commands
 - ✅ Set `source = "from-iso"` in `[first-boot]` section
-- ✅ Pass script via `--first-boot` flag
+- ✅ Pass script via `--on-first-boot` flag (NOT `--first-boot`!)
 - ✅ Include shebang (`#!/bin/bash`) in script
 - ✅ Make script executable (`chmod +x`)
 - ✅ Exit with status code (`exit 0`)

@@ -350,11 +350,11 @@ EOF
     # Run prepare-iso with modified answer.toml and first-boot script
     # --fetch-from iso: embeds answer.toml and first-boot script into ISO
     # --answer-file: path to modified answer.toml
-    # --first-boot: path to first-boot script
+    # --on-first-boot: path to first-boot script
     proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
         --fetch-from iso \
         --answer-file "$TEMP_ANSWER" \
-        --first-boot "$FIRST_BOOT_SCRIPT"
+        --on-first-boot "$FIRST_BOOT_SCRIPT"
 
     # Clean up temporary files
     rm -f "$TEMP_ANSWER" "$FIRST_BOOT_SCRIPT"
