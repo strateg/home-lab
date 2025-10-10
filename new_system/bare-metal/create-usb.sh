@@ -334,99 +334,86 @@ else
     echo "✗ FAILED to create /etc/proxmox-install-id!"
 fi
 
-# Ensure mount point exists
-echo "Creating /boot/efi directory..."
-mkdir -p /boot/efi
-
 # Show available block devices
 echo "Available block devices:"
 lsblk 2>&1 | head -30
 
-# Find root partition to determine system disk
-ROOT_DEV=$(findmnt -n -o SOURCE / 2>/dev/null)
-echo "Root partition (/) is on: $ROOT_DEV"
-
-# Extract system disk device (remove partition number)
-if [[ "$ROOT_DEV" =~ nvme ]]; then
-    SYSTEM_DISK=$(echo "$ROOT_DEV" | sed 's/p[0-9]*$//')
+# Proxmox can mount EFI to /efi or /boot/efi - check both
+EFI_MOUNT=""
+if mountpoint -q /efi 2>/dev/null; then
+    EFI_MOUNT="/efi"
+    echo "✓ Found EFI mounted at /efi"
+elif mountpoint -q /boot/efi 2>/dev/null; then
+    EFI_MOUNT="/boot/efi"
+    echo "✓ Found EFI mounted at /boot/efi"
 else
-    SYSTEM_DISK=$(echo "$ROOT_DEV" | sed 's/[0-9]*$//')
-fi
-echo "System disk: $SYSTEM_DISK"
-
-# Check if /boot/efi is already mounted by Proxmox installer
-echo "Checking if /boot/efi is mounted..."
-if mountpoint -q /boot/efi 2>/dev/null; then
-    echo "✓ /boot/efi is already mounted"
-    MOUNTED_DEV=$(findmnt -n -o SOURCE /boot/efi 2>/dev/null)
-    echo "✓ Mounted device: $MOUNTED_DEV"
-else
-    echo "/boot/efi is NOT mounted, searching for EFI partition ON SYSTEM DISK..."
+    echo "EFI partition is NOT mounted, searching..."
 
     # Show all vfat partitions
     echo "All vfat partitions:"
     blkid -t TYPE=vfat 2>&1
 
-    # Find vfat partition on SYSTEM DISK only (not USB!)
-    echo "Searching for EFI partition on system disk: $SYSTEM_DISK"
-    for part in "${SYSTEM_DISK}"[0-9]* "${SYSTEM_DISK}p"[0-9]*; do
-        [ ! -b "$part" ] && continue
+    # Try to find and mount EFI on system disk (sda, nvme0n1)
+    for disk in /dev/sda /dev/nvme0n1; do
+        [ ! -b "$disk" ] && continue
+        echo "Checking disk: $disk"
 
-        PART_TYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null)
-        echo "Checking $part: type=$PART_TYPE"
+        for part in "${disk}"[0-9]* "${disk}p"[0-9]*; do
+            [ ! -b "$part" ] && continue
 
-        if [ "$PART_TYPE" = "vfat" ]; then
-            # This is an EFI partition on system disk
-            echo "Found vfat partition on system disk: $part"
-            echo "Attempting to mount $part..."
-            if mount "$part" /boot/efi 2>&1; then
-                echo "✓ Successfully mounted $part to /boot/efi"
-                break
-            else
-                echo "✗ Failed to mount $part"
+            PART_TYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null)
+            if [ "$PART_TYPE" = "vfat" ]; then
+                echo "Found vfat partition: $part"
+                # Try /efi first (Proxmox default)
+                mkdir -p /efi
+                if mount "$part" /efi 2>&1; then
+                    EFI_MOUNT="/efi"
+                    echo "✓ Mounted $part to /efi"
+                    break 2
+                fi
+                # Try /boot/efi as fallback
+                mkdir -p /boot/efi
+                if mount "$part" /boot/efi 2>&1; then
+                    EFI_MOUNT="/boot/efi"
+                    echo "✓ Mounted $part to /boot/efi"
+                    break 2
+                fi
             fi
-        fi
+        done
     done
-
-    # If still not mounted, error
-    if ! mountpoint -q /boot/efi; then
-        echo "✗ Could not find EFI partition on system disk!"
-        echo "All partitions on system disk:"
-        lsblk "$SYSTEM_DISK" 2>&1
-    fi
 fi
 
-# Check final mount status
+# Check final mount status and write UUID
 echo "Final mount check..."
-if mountpoint -q /boot/efi 2>/dev/null; then
-    echo "✓ /boot/efi is mounted"
-    MOUNTED_DEV=$(findmnt -n -o SOURCE /boot/efi 2>/dev/null || echo "unknown")
+if [ -n "$EFI_MOUNT" ] && mountpoint -q "$EFI_MOUNT" 2>/dev/null; then
+    echo "✓ EFI partition is mounted at: $EFI_MOUNT"
+    MOUNTED_DEV=$(findmnt -n -o SOURCE "$EFI_MOUNT" 2>/dev/null || echo "unknown")
     echo "✓ Mounted device: $MOUNTED_DEV"
 
     # Write UUID marker
-    echo "Writing installation ID to /boot/efi/proxmox-installed..."
-    echo -n "$INSTALL_ID" > /boot/efi/proxmox-installed
+    echo "Writing installation ID to $EFI_MOUNT/proxmox-installed..."
+    echo -n "$INSTALL_ID" > "$EFI_MOUNT/proxmox-installed"
     sync
 
     # Verify
-    if [ -f /boot/efi/proxmox-installed ]; then
-        SAVED_ID=$(cat /boot/efi/proxmox-installed)
-        echo "✓ SUCCESSFULLY created /boot/efi/proxmox-installed"
+    if [ -f "$EFI_MOUNT/proxmox-installed" ]; then
+        SAVED_ID=$(cat "$EFI_MOUNT/proxmox-installed")
+        echo "✓ SUCCESSFULLY created $EFI_MOUNT/proxmox-installed"
         echo "✓ File contains: '$SAVED_ID'"
 
         # Show EFI partition contents
-        echo "Contents of /boot/efi (first 30 items):"
-        ls -la /boot/efi/ 2>&1 | head -30
+        echo "Contents of $EFI_MOUNT (first 30 items):"
+        ls -la "$EFI_MOUNT/" 2>&1 | head -30
     else
-        echo "✗ ERROR: /boot/efi/proxmox-installed was NOT created!"
+        echo "✗ ERROR: $EFI_MOUNT/proxmox-installed was NOT created!"
         echo "Checking write permissions..."
-        touch /boot/efi/test-write 2>&1 && rm /boot/efi/test-write && echo "✓ Write works" || echo "✗ Cannot write"
+        touch "$EFI_MOUNT/test-write" 2>&1 && rm "$EFI_MOUNT/test-write" && echo "✓ Write works" || echo "✗ Cannot write"
     fi
 else
-    echo "✗ CRITICAL ERROR: Failed to mount /boot/efi!"
+    echo "✗ CRITICAL ERROR: Failed to mount EFI partition!"
     echo "✗ Reinstall prevention will NOT work!"
     echo "Showing mount table:"
-    mount 2>&1 | grep -E "(boot|efi|vfat)" || echo "No relevant mounts found"
+    mount 2>&1 | grep -E "(efi|vfat)" || echo "No EFI mounts found"
 fi
 
 echo "======================================================================="
