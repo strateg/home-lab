@@ -342,6 +342,18 @@ mkdir -p /boot/efi
 echo "Available block devices:"
 lsblk 2>&1 | head -30
 
+# Find root partition to determine system disk
+ROOT_DEV=$(findmnt -n -o SOURCE / 2>/dev/null)
+echo "Root partition (/) is on: $ROOT_DEV"
+
+# Extract system disk device (remove partition number)
+if [[ "$ROOT_DEV" =~ nvme ]]; then
+    SYSTEM_DISK=$(echo "$ROOT_DEV" | sed 's/p[0-9]*$//')
+else
+    SYSTEM_DISK=$(echo "$ROOT_DEV" | sed 's/[0-9]*$//')
+fi
+echo "System disk: $SYSTEM_DISK"
+
 # Check if /boot/efi is already mounted by Proxmox installer
 echo "Checking if /boot/efi is mounted..."
 if mountpoint -q /boot/efi 2>/dev/null; then
@@ -349,50 +361,38 @@ if mountpoint -q /boot/efi 2>/dev/null; then
     MOUNTED_DEV=$(findmnt -n -o SOURCE /boot/efi 2>/dev/null)
     echo "✓ Mounted device: $MOUNTED_DEV"
 else
-    echo "/boot/efi is NOT mounted, searching for EFI partition..."
+    echo "/boot/efi is NOT mounted, searching for EFI partition ON SYSTEM DISK..."
 
     # Show all vfat partitions
     echo "All vfat partitions:"
     blkid -t TYPE=vfat 2>&1
 
-    # Simple approach: try /dev/sda2 first (typical EFI partition)
-    if [ -b /dev/sda2 ]; then
-        PART_TYPE=$(blkid -s TYPE -o value /dev/sda2 2>/dev/null)
-        echo "Checking /dev/sda2: type=$PART_TYPE"
-        if [ "$PART_TYPE" = "vfat" ]; then
-            echo "Attempting to mount /dev/sda2..."
-            if mount /dev/sda2 /boot/efi 2>&1; then
-                echo "✓ Successfully mounted /dev/sda2 to /boot/efi"
-            else
-                echo "✗ Failed to mount /dev/sda2"
-            fi
-        fi
-    fi
+    # Find vfat partition on SYSTEM DISK only (not USB!)
+    echo "Searching for EFI partition on system disk: $SYSTEM_DISK"
+    for part in "${SYSTEM_DISK}"[0-9]* "${SYSTEM_DISK}p"[0-9]*; do
+        [ ! -b "$part" ] && continue
 
-    # If that didn't work, try sda1
-    if ! mountpoint -q /boot/efi && [ -b /dev/sda1 ]; then
-        PART_TYPE=$(blkid -s TYPE -o value /dev/sda1 2>/dev/null)
-        echo "Checking /dev/sda1: type=$PART_TYPE"
-        if [ "$PART_TYPE" = "vfat" ]; then
-            echo "Attempting to mount /dev/sda1..."
-            if mount /dev/sda1 /boot/efi 2>&1; then
-                echo "✓ Successfully mounted /dev/sda1 to /boot/efi"
-            else
-                echo "✗ Failed to mount /dev/sda1"
-            fi
-        fi
-    fi
+        PART_TYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null)
+        echo "Checking $part: type=$PART_TYPE"
 
-    # Final fallback: try any vfat partition
-    if ! mountpoint -q /boot/efi; then
-        echo "Trying to mount first available vfat partition..."
-        for dev in $(blkid -t TYPE=vfat -o device 2>/dev/null); do
-            echo "Trying $dev..."
-            if mount "$dev" /boot/efi 2>&1; then
-                echo "✓ Successfully mounted $dev to /boot/efi"
+        if [ "$PART_TYPE" = "vfat" ]; then
+            # This is an EFI partition on system disk
+            echo "Found vfat partition on system disk: $part"
+            echo "Attempting to mount $part..."
+            if mount "$part" /boot/efi 2>&1; then
+                echo "✓ Successfully mounted $part to /boot/efi"
                 break
+            else
+                echo "✗ Failed to mount $part"
             fi
-        done
+        fi
+    done
+
+    # If still not mounted, error
+    if ! mountpoint -q /boot/efi; then
+        echo "✗ Could not find EFI partition on system disk!"
+        echo "All partitions on system disk:"
+        lsblk "$SYSTEM_DISK" 2>&1
     fi
 fi
 
