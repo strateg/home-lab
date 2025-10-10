@@ -9,12 +9,15 @@
 
 ## Solution Overview
 
-Реализована система проверки установки через **Installation UUID (штамп)**:
-1. При создании USB генерируется уникальный UUID
-2. UUID сохраняется на флешке и на установленной системе
-3. При загрузке GRUB проверяет наличие UUID на диске
-4. Если UUID совпадают → загружается установленная система (не переустановка!)
-5. Если UUID нет или другой → запускается установка
+Реализована система проверки установки через **Installation ID (читаемый штамп с датой/временем)**:
+1. При создании USB генерируется ID с датой и временем создания
+2. Формат ID: `TIMEZONE_YYYY_MM_DD_HH_MM` (например: `UTC_2025_10_10_14_30`)
+3. ID сохраняется на флешке и на установленной системе
+4. При загрузке GRUB проверяет наличие ID на диске и показывает дату создания
+5. Если ID совпадают → загружается установленная система (не переустановка!)
+6. Если ID нет или другой → запускается установка
+
+**Преимущество**: Можно сразу увидеть когда была создана флешка!
 
 ## How It Works
 
@@ -23,24 +26,30 @@
 **Script**: `create-usb.sh`
 
 ```bash
-# 1. Generate unique installation UUID
-INSTALL_UUID=$(uuidgen)
-# Example: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+# 1. Generate readable installation ID with timestamp
+TIMEZONE=$(date +%Z)
+TIMESTAMP=$(date +%Y_%m_%d_%H_%M)
+INSTALL_UUID="${TIMEZONE}_${TIMESTAMP}"
+# Example: UTC_2025_10_10_14_30
 
-# 2. Embed UUID on USB
+# 2. Embed ID on USB
 /EFI/BOOT/install-id
-→ Contains: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+→ Contains: UTC_2025_10_10_14_30
+
+/EFI/BOOT/install-info.txt
+→ Human-readable info with parsed date/time
 
 # 3. Add first-boot commands to answer.toml
 [first-boot]
 post-installation-commands = [
-    "echo 'UUID' > /etc/proxmox-install-id",
-    "echo 'UUID' > /boot/efi/proxmox-installed"
+    "echo 'UTC_2025_10_10_14_30' > /etc/proxmox-install-id",
+    "echo 'UTC_2025_10_10_14_30' > /boot/efi/proxmox-installed"
 ]
 
-# 4. Create GRUB check script on USB
+# 4. Create GRUB check script on USB with date display
 /EFI/BOOT/reinstall-check.cfg
 → Detects if system already installed
+→ Shows readable date/time in GRUB menu
 ```
 
 ### Phase 2: First Installation
@@ -91,35 +100,39 @@ post-installation-commands = [
 
 ```
 /EFI/BOOT/
-├── install-id                  # Installation UUID (plain text)
-├── reinstall-check.cfg         # GRUB detection script
+├── install-id                  # Installation ID: UTC_2025_10_10_14_30
+├── install-info.txt            # Human-readable info (timezone, date, time)
+├── reinstall-check.cfg         # GRUB detection script (shows date in menu)
 └── grub.cfg                    # Standard GRUB config (called if no installation detected)
 ```
 
 ### On Installed System
 
 ```
-/etc/proxmox-install-id         # Installation UUID (for reference)
-/boot/efi/proxmox-installed     # UUID marker on EFI partition (checked by GRUB)
-/var/log/proxmox-install.log    # Installation log with UUID
+/etc/proxmox-install-id         # Installation ID: UTC_2025_10_10_14_30
+/boot/efi/proxmox-installed     # ID marker on EFI partition (checked by GRUB)
+/var/log/proxmox-install.log    # Installation log with ID
 ```
 
-## UUID Comparison Logic
+## ID Comparison Logic
 
 ```grub
 # GRUB script logic (reinstall-check.cfg)
 
-# Read UUID from disk
-cat --set=installed_uuid ($efipart)/proxmox-installed
+# Read ID from disk
+cat --set=installed_id ($efipart)/proxmox-installed
 
-# Read UUID from USB
-cat --set=usb_uuid ($root)/EFI/BOOT/install-id
+# Read ID from USB
+cat --set=usb_id ($root)/EFI/BOOT/install-id
 
 # Compare
-if [ "$installed_uuid" = "$usb_uuid" ]; then
+if [ "$installed_id" = "$usb_id" ]; then
     # SAME USB that installed system
     set install_detected=1
-    → Show "Boot from disk" menu (prevent reinstall)
+    → Show "Boot from disk" menu with date/time
+    → Display: "Installation ID: UTC_2025_10_10_14_30"
+    → Display: "Created: UTC 2025-10-10 14:30"
+    → Prevent reinstall
 else
     # DIFFERENT USB or no installation
     set install_detected=0
@@ -147,26 +160,36 @@ fi
 **Scenario**: System already installed from USB-A, booting from USB-A again
 
 1. Boot from USB-A
-2. UUID marker found on disk
-3. UUIDs match (both from USB-A)
-4. **Result**: Boots installed system (no reinstall)
+2. ID marker found on disk
+3. IDs match (both from USB-A)
+4. **GRUB shows**:
+   ```
+   Installation ID: UTC_2025_10_10_14_30
+   Created: UTC 2025-10-10 14:30
+
+   Press 'd' to boot installed system (auto in 10s)
+   Press 'r' to REINSTALL (will ERASE all data!)
+   ```
+5. **Result**: Boots installed system (no reinstall)
 
 **User action**: Press 'r' to force reinstall if needed
 
-**Status**: ✅ Reinstallation prevented
+**Status**: ✅ Reinstallation prevented, date/time visible
 
 ---
 
 ### Case 3: Install with DIFFERENT USB
 
-**Scenario**: System installed from USB-A, booting from USB-B (different UUID)
+**Scenario**: System installed from USB-A, booting from USB-B (different dates)
 
 1. Boot from USB-B
-2. UUID marker found on disk (from USB-A)
-3. UUIDs DON'T match:
-   - Disk UUID: `aaaa-bbbb-cccc...` (from USB-A)
-   - USB UUID: `1111-2222-3333...` (from USB-B)
+2. ID marker found on disk (from USB-A)
+3. IDs DON'T match:
+   - Disk ID: `UTC_2025_10_10_14_30` (USB-A, created Oct 10 14:30)
+   - USB ID: `UTC_2025_10_15_09_00` (USB-B, created Oct 15 09:00)
 4. **Result**: Shows installation menu (allows fresh install)
+
+**Note**: Can see both USB creation dates!
 
 **Status**: ✅ Can reinstall with different USB
 
@@ -177,13 +200,16 @@ fi
 **Scenario**: SSD with installed Proxmox moved to another Dell XPS
 
 1. Boot from any USB
-2. UUID marker found on disk
-3. UUIDs may match or not (depends on USB used)
-4. **Result**:
-   - If same USB → boots installed system
-   - If different USB → allows reinstallation
+2. ID marker found on disk
+3. IDs may match or not (depends on USB used)
+4. **GRUB shows installation date from original USB**
+5. **Result**:
+   - If same USB (same date) → boots installed system
+   - If different USB (different date) → allows reinstallation
 
-**Status**: ✅ Portable, UUID-based detection
+**Advantage**: Can see when system was originally installed!
+
+**Status**: ✅ Portable, date-based detection
 
 ## Technical Details
 
@@ -221,46 +247,58 @@ post-installation-commands = [
 
 ## Security Considerations
 
-### UUID Uniqueness
+### ID Uniqueness
 
-- Generated with `uuidgen` (RFC 4122)
-- Example: `550e8400-e29b-41d4-a716-446655440000`
-- Collision probability: ~1 in 10^36 (negligible)
+- Format: `TIMEZONE_YYYY_MM_DD_HH_MM`
+- Example: `UTC_2025_10_10_14_30`
+- Based on creation timestamp (minute precision)
+- Collision: Only if two USBs created in same minute (unlikely)
+- Human-readable: Can see exact creation date/time
 
 ### Tampering Prevention
 
-- UUIDs stored in plain text (not encrypted)
+- IDs stored in plain text (not encrypted)
 - **Not a security feature** - это механизм удобства, не безопасности
-- Any user with disk access can modify UUIDs
+- Any user with disk access can modify IDs
 - Purpose: Prevent **accidental** reinstallation, not malicious reinstallation
+- **Bonus**: IDs are human-readable, showing creation date
 
 ### Force Reinstallation
 
 User can always force reinstallation by:
 1. Pressing 'r' in GRUB menu, OR
 2. Deleting `/boot/efi/proxmox-installed` on disk, OR
-3. Creating USB with different UUID (new USB)
+3. Creating USB with different date (new USB or wait 1 minute)
 
 ## Troubleshooting
 
-### Issue 1: System Always Reinstalls (UUID not working)
+### Issue 1: System Always Reinstalls (ID not working)
 
-**Symptoms**: Every boot starts installation, UUID check doesn't work
+**Symptoms**: Every boot starts installation, ID check doesn't work
 
 **Diagnosis**:
 ```bash
-# Check if UUID was saved during installation
+# Check if ID was saved during installation
 ssh root@proxmox-ip
 cat /etc/proxmox-install-id
+# Should show: UTC_2025_10_10_14_30
+
 cat /boot/efi/proxmox-installed
+# Should show: UTC_2025_10_10_14_30
 ```
 
 **Fix**:
 - If files missing: first-boot commands failed
+- Get USB ID:
+  ```bash
+  # Mount USB and check
+  cat /mnt/EFI/BOOT/install-id
+  ```
 - Manually create markers:
   ```bash
-  echo "YOUR-USB-UUID" > /etc/proxmox-install-id
-  echo "YOUR-USB-UUID" > /boot/efi/proxmox-installed
+  USB_ID="UTC_2025_10_10_14_30"  # From USB
+  echo "$USB_ID" > /etc/proxmox-install-id
+  echo "$USB_ID" > /boot/efi/proxmox-installed
   ```
 
 ---
@@ -303,26 +341,32 @@ reboot
 
 ---
 
-### Issue 4: UUID Mismatch but Should Match
+### Issue 4: ID Mismatch but Should Match
 
-**Symptoms**: Different UUIDs on USB and disk, but should be same
+**Symptoms**: Different IDs on USB and disk, but should be same
 
 **Diagnosis**:
 ```bash
 # On USB (mount it)
 cat /mnt/EFI/BOOT/install-id
+# Shows: UTC_2025_10_10_14_30
+
+# Show human-readable info
+cat /mnt/EFI/BOOT/install-info.txt
+# Shows parsed date/time
 
 # On installed system
 cat /boot/efi/proxmox-installed
+# Shows: UTC_2025_10_10_14_30
 
-# Compare
+# Compare - should match!
 ```
 
 **Fix**:
-- Update disk UUID to match USB:
+- Update disk ID to match USB:
   ```bash
-  USB_UUID=$(cat /mnt/EFI/BOOT/install-id)
-  echo "$USB_UUID" > /boot/efi/proxmox-installed
+  USB_ID=$(cat /mnt/EFI/BOOT/install-id)
+  echo "$USB_ID" > /boot/efi/proxmox-installed
   ```
 
 ## Testing Checklist
@@ -353,16 +397,17 @@ cat /boot/efi/proxmox-installed
 
 ### Potential Enhancements
 
-1. **Visual indicator of UUID**:
-   - Show last 8 chars of UUID in GRUB menu
-   - Example: "Installed by USB ...67890"
+1. ~~**Visual indicator of creation date**~~ → ✅ **IMPLEMENTED!**
+   - Shows full date/time in GRUB menu
+   - Format: `UTC 2025-10-10 14:30`
+   - Also saved in readable `install-info.txt` file
 
 2. **Installation counter**:
    - Track how many times system was installed
    - Save to `/etc/proxmox-install-count`
 
-3. **Multiple UUID support**:
-   - Allow list of trusted USB UUIDs
+3. **Multiple ID support**:
+   - Allow list of trusted USB IDs
    - Example: `/etc/proxmox-install-ids` (one per line)
 
 4. **GRUB password protection**:
@@ -371,7 +416,11 @@ cat /boot/efi/proxmox-installed
 
 5. **USB write-protection**:
    - Mark USB as read-only after creation
-   - Prevent UUID modification
+   - Prevent ID modification
+
+6. **Installation history**:
+   - Log all installation attempts with dates
+   - Show in GRUB: "Last installed: 2025-10-10"
 
 ### Compatibility
 
