@@ -3,7 +3,7 @@
 Generate Ansible inventory from topology v2.0
 
 Usage:
-    python3 scripts/generate-ansible-inventory.py [--topology topology.yaml] [--output ansible/inventory/production]
+    python3 scripts/generate-ansible-inventory.py [--topology topology.yaml] [--output generated/ansible]
 
 Requirements:
     pip install pyyaml jinja2
@@ -12,6 +12,7 @@ Requirements:
 import sys
 import yaml
 import argparse
+import shutil
 from pathlib import Path
 from typing import Dict, List
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -61,7 +62,14 @@ class AnsibleInventoryGenerator:
 
     def generate_all(self) -> bool:
         """Generate all Ansible inventory files"""
+        # Clean output directory if it exists
+        if self.output_dir.exists():
+            print(f"🧹 Cleaning output directory: {self.output_dir}")
+            shutil.rmtree(self.output_dir)
+
+        # Create fresh output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        print(f"📁 Created output directory: {self.output_dir}")
 
         success = True
         success &= self.generate_hosts()
@@ -174,7 +182,7 @@ class AnsibleInventoryGenerator:
                 topology_version=self.topology.get('version', '2.0.0')
             )
 
-            group_vars_dir = self.output_dir.parent / "group_vars"
+            group_vars_dir = self.output_dir / "group_vars"
             group_vars_dir.mkdir(parents=True, exist_ok=True)
 
             output_file = group_vars_dir / "all.yml"
@@ -191,7 +199,7 @@ class AnsibleInventoryGenerator:
         try:
             template = self.jinja_env.get_template('ansible/host_vars.yml.j2')
 
-            host_vars_dir = self.output_dir.parent / "host_vars"
+            host_vars_dir = self.output_dir / "host_vars"
             host_vars_dir.mkdir(parents=True, exist_ok=True)
 
             count = 0
@@ -259,8 +267,8 @@ def main():
     )
     parser.add_argument(
         "--output",
-        default="ansible/inventory/production",
-        help="Output directory for inventory files"
+        default="generated/ansible/inventory/production",
+        help="Output directory for inventory files (default: generated/ansible/inventory/production/)"
     )
     parser.add_argument(
         "--templates",

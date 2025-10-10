@@ -3,7 +3,7 @@
 Generate Terraform configuration from topology v2.0
 
 Usage:
-    python3 scripts/generate-terraform.py [--topology topology.yaml] [--output terraform/]
+    python3 scripts/generate-terraform.py [--topology topology.yaml] [--output generated/terraform/]
 
 Requirements:
     pip install pyyaml jinja2
@@ -12,6 +12,7 @@ Requirements:
 import sys
 import yaml
 import argparse
+import shutil
 from pathlib import Path
 from typing import Dict, List
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -61,7 +62,14 @@ class TerraformGenerator:
 
     def generate_all(self) -> bool:
         """Generate all Terraform files"""
+        # Clean output directory if it exists
+        if self.output_dir.exists():
+            print(f"🧹 Cleaning output directory: {self.output_dir}")
+            shutil.rmtree(self.output_dir)
+
+        # Create fresh output directory
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        print(f"📁 Created output directory: {self.output_dir}")
 
         success = True
         success &= self.generate_provider()
@@ -248,8 +256,8 @@ def main():
     )
     parser.add_argument(
         "--output",
-        default="terraform",
-        help="Output directory for Terraform files"
+        default="generated/terraform",
+        help="Output directory for Terraform files (default: generated/terraform/)"
     )
     parser.add_argument(
         "--templates",

@@ -12,8 +12,10 @@ Generates Proxmox Terraform configuration from topology.
 
 **Usage**:
 ```bash
-python3 scripts/generate-terraform.py [--topology topology.yaml] [--output terraform/]
+python3 scripts/generate-terraform.py [--topology topology.yaml] [--output generated/terraform/]
 ```
+
+**Output directory**: `generated/terraform/` (auto-cleaned before generation)
 
 **Generates**:
 - `provider.tf` - Proxmox provider configuration
@@ -34,7 +36,7 @@ pip install pyyaml jinja2
 python3 scripts/generate-terraform.py
 
 # Initialize and apply
-cd terraform
+cd generated/terraform
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with your credentials
 terraform init
@@ -52,8 +54,10 @@ Generates Ansible inventory and group variables from topology.
 
 **Usage**:
 ```bash
-python3 scripts/generate-ansible-inventory.py [--topology topology.yaml] [--output ansible/inventory/production]
+python3 scripts/generate-ansible-inventory.py [--topology topology.yaml] [--output generated/ansible/inventory/production]
 ```
+
+**Output directory**: `generated/ansible/inventory/production/` (auto-cleaned before generation)
 
 **Generates**:
 - `hosts.yml` - Ansible inventory with groups
@@ -75,10 +79,10 @@ pip install pyyaml jinja2
 python3 scripts/generate-ansible-inventory.py
 
 # Test connectivity
-ansible all -i ansible/inventory/production/hosts.yml -m ping
+ansible all -i generated/ansible/inventory/production/hosts.yml -m ping
 
 # Run playbooks
-ansible-playbook -i ansible/inventory/production/hosts.yml playbooks/site.yml
+ansible-playbook -i generated/ansible/inventory/production/hosts.yml playbooks/site.yml
 ```
 
 ---
@@ -91,8 +95,10 @@ Generates Markdown documentation from topology.
 
 **Usage**:
 ```bash
-python3 scripts/generate-docs.py [--topology topology.yaml] [--output docs/]
+python3 scripts/generate-docs.py [--topology topology.yaml] [--output generated/docs/]
 ```
+
+**Output directory**: `generated/docs/` (auto-cleaned before generation)
 
 **Generates**:
 - `overview.md` - Infrastructure overview with statistics
@@ -119,74 +125,97 @@ python3 scripts/generate-docs.py
 ## 🗂️ Directory Structure
 
 ```
-scripts/
-├── generate-terraform.py          # Terraform generator
-├── generate-ansible-inventory.py  # Ansible inventory generator
-├── generate-docs.py                # Documentation generator
-├── validate-topology.py            # JSON Schema v7 validator
-├── claude-logger.py                # Claude API logger
-├── templates/                      # Jinja2 templates
+new_system/
+├── topology.yaml                   # 📝 SOURCE OF TRUTH
+├── .gitignore                      # Ignores generated/ directory
+├── generated/                      # ⚠️  AUTO-GENERATED (DO NOT EDIT!)
 │   ├── terraform/
-│   │   ├── provider.tf.j2
-│   │   ├── bridges.tf.j2
-│   │   ├── vms.tf.j2
-│   │   ├── lxc.tf.j2
-│   │   ├── variables.tf.j2
-│   │   └── terraform.tfvars.example.j2
+│   │   ├── provider.tf
+│   │   ├── bridges.tf
+│   │   ├── vms.tf
+│   │   ├── lxc.tf
+│   │   ├── variables.tf
+│   │   └── terraform.tfvars.example
 │   ├── ansible/
-│   │   ├── hosts.yml.j2
-│   │   ├── group_vars_all.yml.j2
-│   │   └── host_vars.yml.j2
+│   │   └── inventory/
+│   │       └── production/
+│   │           ├── hosts.yml
+│   │           ├── group_vars/all.yml
+│   │           └── host_vars/*.yml
 │   └── docs/
-│       ├── overview.md.j2
-│       ├── network-diagram.md.j2
-│       ├── ip-allocation.md.j2
-│       ├── services.md.j2
-│       └── devices.md.j2
-└── GENERATORS-README.md           # This file
+│       ├── overview.md
+│       ├── network-diagram.md
+│       ├── ip-allocation.md
+│       ├── services.md
+│       └── devices.md
+├── scripts/
+│   ├── generate-terraform.py       # Terraform generator
+│   ├── generate-ansible-inventory.py  # Ansible inventory generator
+│   ├── generate-docs.py             # Documentation generator
+│   ├── validate-topology.py         # JSON Schema v7 validator
+│   ├── regenerate-all.py            # ⭐ Regenerate everything
+│   └── templates/                   # Jinja2 templates
+│       ├── terraform/
+│       │   ├── provider.tf.j2
+│       │   ├── bridges.tf.j2
+│       │   ├── vms.tf.j2
+│       │   ├── lxc.tf.j2
+│       │   ├── variables.tf.j2
+│       │   └── terraform.tfvars.example.j2
+│       ├── ansible/
+│       │   ├── hosts.yml.j2
+│       │   ├── group_vars_all.yml.j2
+│       │   └── host_vars.yml.j2
+│       └── docs/
+│           ├── overview.md.j2
+│           ├── network-diagram.md.j2
+│           ├── ip-allocation.md.j2
+│           ├── services.md.j2
+│           └── devices.md.j2
+└── ansible/
+    ├── playbooks/                   # ✏️  Manual (service logic)
+    └── roles/                       # ✏️  Manual (reusable roles)
 ```
+
+**Key principle**:
+- ✏️  **Edit**: `topology.yaml`, `ansible/playbooks/`, `ansible/roles/`
+- ⚠️  **DO NOT EDIT**: `generated/*` (auto-regenerated, changes will be lost!)
 
 ---
 
 ## 🚀 Quick Start
 
-### Regenerate Everything
+### Regenerate Everything (Recommended)
+
+```bash
+# ⭐ ONE COMMAND to regenerate everything
+python3 scripts/regenerate-all.py
+
+# This will:
+# 1. Clean generated/ directory
+# 2. Validate topology
+# 3. Generate Terraform → generated/terraform/
+# 4. Generate Ansible → generated/ansible/
+# 5. Generate docs → generated/docs/
+```
+
+### Regenerate Individual Components
 
 ```bash
 # 1. Validate topology
 python3 scripts/validate-topology.py
 
-# 2. Generate Terraform
+# 2. Generate Terraform only
 python3 scripts/generate-terraform.py
 
-# 3. Generate Ansible inventory
+# 3. Generate Ansible inventory only
 python3 scripts/generate-ansible-inventory.py
 
-# 4. Generate documentation
+# 4. Generate documentation only
 python3 scripts/generate-docs.py
 ```
 
-### Create Regenerate-All Script
-
-Create `scripts/regenerate-all.py`:
-
-```python
-#!/usr/bin/env python3
-import subprocess
-
-scripts = [
-    ("Validating topology", ["python3", "scripts/validate-topology.py"]),
-    ("Generating Terraform", ["python3", "scripts/generate-terraform.py"]),
-    ("Generating Ansible inventory", ["python3", "scripts/generate-ansible-inventory.py"]),
-    ("Generating documentation", ["python3", "scripts/generate-docs.py"]),
-]
-
-for desc, cmd in scripts:
-    print(f"\n{desc}...")
-    subprocess.run(cmd, check=True)
-
-print("\n✅ All generators completed successfully!")
-```
+**Note**: Each generator automatically **cleans** its output directory before generating files!
 
 ---
 
@@ -216,12 +245,19 @@ Generators read from these topology sections:
 
 **Workflow**:
 ```bash
+vim topology.yaml                         # 1. Edit topology
+python3 scripts/regenerate-all.py         # 2. Regenerate everything
+cd generated/terraform && terraform plan  # 3. Review changes
+```
+
+**Or step-by-step**:
+```bash
 vim topology.yaml                         # 1. Edit
-python3 scripts/validate-topology.py     # 2. Validate
-python3 scripts/generate-terraform.py    # 3. Regenerate Terraform
+python3 scripts/validate-topology.py      # 2. Validate
+python3 scripts/generate-terraform.py     # 3. Regenerate Terraform
 python3 scripts/generate-ansible-inventory.py  # 4. Regenerate Ansible
-python3 scripts/generate-docs.py         # 5. Regenerate docs
-cd terraform && terraform plan            # 6. Review changes
+python3 scripts/generate-docs.py          # 5. Regenerate docs
+cd generated/terraform && terraform plan  # 6. Review changes
 ```
 
 ---
@@ -294,14 +330,16 @@ python3 scripts/generate-terraform.py --topology topology.yaml --output terrafor
 
 ```bash
 # Terraform to custom directory
-python3 scripts/generate-terraform.py --output /path/to/terraform
+python3 scripts/generate-terraform.py --output /path/to/custom/terraform
 
 # Ansible to staging environment
-python3 scripts/generate-ansible-inventory.py --output ansible/inventory/staging
+python3 scripts/generate-ansible-inventory.py --output generated/ansible/inventory/staging
 
 # Documentation to wiki
 python3 scripts/generate-docs.py --output /wiki/infrastructure
 ```
+
+**Important**: Custom output directories are NOT auto-cleaned. Use default `generated/` for auto-cleanup.
 
 ### Use with CI/CD
 
@@ -332,10 +370,38 @@ jobs:
 - **Topology Format**: See `topology.yaml` v2.0 structure
 - **Schema**: `schemas/topology-v2-schema.json` (JSON Schema v7)
 - **Validator**: `scripts/validate-topology.py`
+- **Regenerate All**: `scripts/regenerate-all.py` ⭐
 - **Migration Guide**: `MIGRATION-V1-TO-V2.md`
 - **Changelog**: `CHANGELOG.md`
+- **Git Ignore**: `.gitignore` (excludes `generated/`)
+
+---
+
+## ⚠️ Important Notes
+
+### DO NOT Edit Generated Files
+
+Files in `generated/` directory are **automatically regenerated** and **auto-cleaned**:
+- ❌ DO NOT manually edit files in `generated/`
+- ❌ DO NOT commit `generated/` to Git (it's gitignored)
+- ✅ DO edit `topology.yaml` as the single source of truth
+- ✅ DO edit `ansible/playbooks/` and `ansible/roles/` manually
+
+### Generated Directory Structure
+
+```
+generated/
+├── terraform/          # Cleaned before each terraform generation
+├── ansible/            # Cleaned before each ansible generation
+│   └── inventory/
+│       └── production/
+└── docs/               # Cleaned before each docs generation
+```
+
+Each generator **removes** its output directory before creating new files!
 
 ---
 
 **Status**: ✅ All generators functional for topology v2.0
 **Last Updated**: 2025-10-10
+**Output**: `generated/` directory (gitignored, auto-cleaned)

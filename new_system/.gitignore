@@ -1,0 +1,42 @@
+# Generated files - DO NOT COMMIT
+# These files are auto-generated from topology.yaml
+
+generated/
+
+# Terraform state files (if accidentally created outside generated/)
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+
+# Ansible Vault password files
+.vault_pass
+*.vault
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+.*.bak
