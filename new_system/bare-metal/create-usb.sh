@@ -614,28 +614,41 @@ embed_install_uuid() {
     mkdir -p "$MOUNT_POINT"
     UUID_EMBEDDED=0
 
-    # Find and mount the CORRECT FAT32 EFI partition (must contain grub.cfg!)
+    # Find and mount the CORRECT EFI boot partition
+    # Must be vfat with PARTLABEL="EFI boot partition" or similar
     for part in "${USB_DEVICE}"[0-9]* "${USB_DEVICE}p"[0-9]*; do
         [ ! -b "$part" ] && continue
 
+        # Check filesystem type
         FSTYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null || echo "")
+        [ "$FSTYPE" != "vfat" ] && continue
 
-        if [ "$FSTYPE" = "vfat" ]; then
-            if mount -o rw "$part" "$MOUNT_POINT" 2>/dev/null; then
-                # CRITICAL: Check if this is the correct EFI partition with grub.cfg
-                if [ ! -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
-                    print_warn "Partition $part is vfat but has no grub.cfg, skipping..."
-                    umount "$MOUNT_POINT"
-                    continue
-                fi
+        # Check partition label (must be EFI-related)
+        PARTLABEL=$(blkid -s PARTLABEL -o value "$part" 2>/dev/null || echo "")
+        print_info "Checking $part: TYPE=$FSTYPE PARTLABEL='$PARTLABEL'"
 
-                print_success "Found correct EFI partition: $part (contains grub.cfg)"
+        # Skip if not EFI boot partition
+        if [[ ! "$PARTLABEL" =~ [Ee][Ff][Ii] ]] && [[ ! "$PARTLABEL" =~ [Bb]oot ]]; then
+            print_warn "  Skipping $part: not an EFI boot partition (PARTLABEL='$PARTLABEL')"
+            continue
+        fi
 
-                # Save installation ID (without trailing newline for exact comparison)
-                echo -n "$INSTALL_UUID" > "$MOUNT_POINT/EFI/BOOT/install-id"
+        # Try to mount
+        if mount -o rw "$part" "$MOUNT_POINT" 2>/dev/null; then
+            # Verify it contains grub.cfg
+            if [ ! -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
+                print_warn "  Partition $part has EFI label but no grub.cfg, skipping..."
+                umount "$MOUNT_POINT"
+                continue
+            fi
 
-                # Also save human-readable version
-                cat > "$MOUNT_POINT/EFI/BOOT/install-info.txt" << INFOEOF
+            print_success "Found correct EFI boot partition: $part (PARTLABEL='$PARTLABEL')"
+
+            # Save installation ID (without trailing newline for exact comparison)
+            echo -n "$INSTALL_UUID" > "$MOUNT_POINT/EFI/BOOT/install-id"
+
+            # Also save human-readable version
+            cat > "$MOUNT_POINT/EFI/BOOT/install-info.txt" << INFOEOF
 Proxmox VE Auto-Install USB
 ============================
 
@@ -650,17 +663,17 @@ This USB will mark installed systems with this ID to prevent
 accidental reinstallation on reboot.
 INFOEOF
 
-                print_success "ID saved to: /EFI/BOOT/install-id"
-                print_success "Info saved to: /EFI/BOOT/install-info.txt"
+            print_success "ID saved to: /EFI/BOOT/install-id"
+            print_success "Info saved to: /EFI/BOOT/install-info.txt"
 
-                # Backup original grub.cfg
-                if [ -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
-                    mv "$MOUNT_POINT/EFI/BOOT/grub.cfg" "$MOUNT_POINT/EFI/BOOT/grub-install.cfg"
-                    print_success "Backed up original grub.cfg → grub-install.cfg"
-                fi
+            # Backup original grub.cfg
+            if [ -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
+                mv "$MOUNT_POINT/EFI/BOOT/grub.cfg" "$MOUNT_POINT/EFI/BOOT/grub-install.cfg"
+                print_success "Backed up original grub.cfg → grub-install.cfg"
+            fi
 
-                # Create reinstall-check GRUB script as MAIN grub.cfg
-                cat > "$MOUNT_POINT/EFI/BOOT/grub.cfg" << GRUBEOF
+            # Create reinstall-check GRUB script as MAIN grub.cfg
+            cat > "$MOUNT_POINT/EFI/BOOT/grub.cfg" << GRUBEOF
 # Reinstall Prevention Check
 # This script prevents automatic reinstallation if system is already installed
 
@@ -769,13 +782,12 @@ else
 fi
 GRUBEOF
 
-                print_success "Created reinstall-check as main grub.cfg"
+            print_success "Created reinstall-check as main grub.cfg"
 
-                sync
-                UUID_EMBEDDED=1
-                umount "$MOUNT_POINT"
-                break
-            fi
+            sync
+            UUID_EMBEDDED=1
+            umount "$MOUNT_POINT"
+            break
         fi
     done
 
