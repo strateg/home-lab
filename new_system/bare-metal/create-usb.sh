@@ -290,17 +290,54 @@ prepare_iso() {
     print_info "This creates an ISO with 'Automated Installation' boot option"
     echo ""
 
+    # Generate unique installation UUID (штамп)
+    INSTALL_UUID=$(uuidgen)
+    print_info "Generated installation UUID: $INSTALL_UUID"
+
+    # Save UUID to file for later embedding on USB
+    echo "$INSTALL_UUID" > /tmp/install-uuid-$$
+    export INSTALL_UUID
+
+    # Create modified answer.toml with UUID marker commands
+    TEMP_ANSWER="/tmp/answer-with-uuid-$$.toml"
+    cp ./answer.toml "$TEMP_ANSWER"
+
+    # Add first-boot commands to save UUID marker on installed system
+    cat >> "$TEMP_ANSWER" << EOF
+
+# ============================================================
+# First-boot commands (Reinstall Prevention)
+# ============================================================
+
+[first-boot]
+# Commands to run after first successful boot
+# These commands save installation UUID marker to prevent reinstallation
+
+# Save installation UUID to system
+post-installation-commands = [
+    "echo '$INSTALL_UUID' > /etc/proxmox-install-id",
+    "mkdir -p /boot/efi",
+    "echo '$INSTALL_UUID' > /boot/efi/proxmox-installed",
+    "echo 'Installation UUID marker created: $INSTALL_UUID' >> /var/log/proxmox-install.log"
+]
+EOF
+
+    print_success "Added UUID marker commands to answer.toml"
+
     PREPARED_ISO="${ISO_FILE%.iso}-automated.iso"
 
     # Remove old prepared ISO if exists
     rm -f "$PREPARED_ISO"
 
-    # Run prepare-iso
+    # Run prepare-iso with modified answer.toml
     # --fetch-from iso: embeds answer.toml into ISO
-    # --answer-file: path to answer.toml
+    # --answer-file: path to modified answer.toml
     proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
         --fetch-from iso \
-        --answer-file ./answer.toml
+        --answer-file "$TEMP_ANSWER"
+
+    # Clean up temporary answer file
+    rm -f "$TEMP_ANSWER"
 
     # The tool creates ISO with specific naming pattern
     # Find the created ISO
@@ -424,6 +461,125 @@ add_graphics_params() {
 }
 
 # ============================================================
+# Embed installation UUID and reinstall-check script
+# ============================================================
+
+embed_install_uuid() {
+    print_section "Embedding installation UUID on USB"
+
+    # Get saved UUID
+    INSTALL_UUID=$(cat /tmp/install-uuid-$$ 2>/dev/null)
+    if [ -z "$INSTALL_UUID" ]; then
+        print_error "Installation UUID not found"
+        exit 1
+    fi
+
+    print_info "Installation UUID: $INSTALL_UUID"
+
+    # Force re-read partition table
+    partprobe "$USB_DEVICE" 2>/dev/null || true
+    blockdev --rereadpt "$USB_DEVICE" 2>/dev/null || true
+    sleep 3
+
+    MOUNT_POINT="/tmp/usb-uuid-$$"
+    mkdir -p "$MOUNT_POINT"
+    UUID_EMBEDDED=0
+
+    # Find and mount the FAT32 EFI partition
+    for part in "${USB_DEVICE}"[0-9]* "${USB_DEVICE}p"[0-9]*; do
+        [ ! -b "$part" ] && continue
+
+        FSTYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null || echo "")
+
+        if [ "$FSTYPE" = "vfat" ]; then
+            if mount -o rw "$part" "$MOUNT_POINT" 2>/dev/null; then
+                # Create EFI/BOOT directory if needed
+                mkdir -p "$MOUNT_POINT/EFI/BOOT"
+
+                # Save installation UUID
+                echo "$INSTALL_UUID" > "$MOUNT_POINT/EFI/BOOT/install-id"
+                print_success "UUID saved to: /EFI/BOOT/install-id"
+
+                # Create reinstall-check GRUB script
+                cat > "$MOUNT_POINT/EFI/BOOT/reinstall-check.cfg" << 'GRUB_EOF'
+# Reinstall Prevention Check
+# This script prevents automatic reinstallation if system is already installed
+
+set timeout=10
+set default=0
+
+# Try to detect installed Proxmox on first hard disk
+insmod part_gpt
+insmod part_msdos
+insmod fat
+insmod ext2
+
+set install_detected=0
+
+# Check for installation marker on first disk EFI partition
+search --no-floppy --fs-uuid --set=efipart 2>/dev/null
+if [ -n "$efipart" ]; then
+    if [ -f ($efipart)/proxmox-installed ]; then
+        # Read installation UUID from marker
+        cat --set=installed_uuid ($efipart)/proxmox-installed 2>/dev/null
+
+        # Read USB installation UUID
+        if [ -f ($root)/EFI/BOOT/install-id ]; then
+            cat --set=usb_uuid ($root)/EFI/BOOT/install-id
+
+            # Compare UUIDs
+            if [ "$installed_uuid" = "$usb_uuid" ]; then
+                set install_detected=1
+            fi
+        fi
+    fi
+fi
+
+if [ $install_detected -eq 1 ]; then
+    # System already installed with this USB - boot from disk
+    menuentry 'Boot Proxmox from disk (Already Installed)' --hotkey=d {
+        set root=(hd0,gpt2)
+        chainloader /EFI/proxmox/grubx64.efi
+    }
+
+    menuentry 'Reinstall Proxmox (ERASES DISK!)' --hotkey=r {
+        configfile /EFI/BOOT/grub.cfg
+    }
+
+    echo "Proxmox already installed from this USB"
+    echo "Press 'd' to boot installed system (auto in 10s)"
+    echo "Press 'r' to REINSTALL (will ERASE all data!)"
+
+else
+    # No installation detected - proceed with normal installation
+    configfile /EFI/BOOT/grub.cfg
+fi
+GRUB_EOF
+
+                print_success "Created reinstall-check script"
+
+                sync
+                UUID_EMBEDDED=1
+                umount "$MOUNT_POINT"
+                break
+            fi
+        fi
+    done
+
+    rmdir "$MOUNT_POINT"
+
+    # Clean up temp UUID file
+    rm -f /tmp/install-uuid-$$
+
+    if [ $UUID_EMBEDDED -eq 1 ]; then
+        print_success "Installation UUID embedded on USB"
+    else
+        print_error "Failed to embed UUID (USB may reinstall every boot)"
+        exit 1
+    fi
+}
+
+# ============================================================
 # Verify USB
 # ============================================================
 
@@ -477,6 +633,7 @@ ${GREEN}╔═══════════════════════
 ${GREEN}║ AUTOMATIC INSTALLATION BEHAVIOR                       ║${NC}
 ${GREEN}╚════════════════════════════════════════════════════════╝${NC}
 
+${BLUE}First boot (system NOT installed):${NC}
 • GRUB menu appears on external display
 • First option: ${GREEN}"Automated Installation"${NC} (official Proxmox)
 • Countdown: ${YELLOW}10 seconds${NC} (automatic boot)
@@ -484,6 +641,18 @@ ${GREEN}╚═══════════════════════
 • Reads embedded answer.toml from ISO
 • Progress shown on external display
 • System reboots when complete (~10-15 min)
+• Installation UUID marker saved to disk
+
+${BLUE}Second boot (system ALREADY installed from this USB):${NC}
+• GRUB detects installation UUID marker
+• ${GREEN}Menu changes automatically${NC}:
+  1. 'Boot Proxmox from disk (Already Installed)' ${YELLOW}[default]${NC}
+  2. 'Reinstall Proxmox (ERASES DISK!)'
+• Countdown: ${YELLOW}10 seconds${NC} → boots installed system
+• ${RED}Reinstallation prevented automatically!${NC}
+• Press 'r' to force reinstall if needed (ERASES ALL DATA!)
+
+${GREEN}This prevents accidental reinstallation!${NC}
 
 ${BLUE}╔════════════════════════════════════════════════════════╗${NC}
 ${BLUE}║ AFTER INSTALLATION                                    ║${NC}
@@ -548,6 +717,7 @@ main() {
     prepare_iso
     write_usb
     add_graphics_params
+    embed_install_uuid
     verify_usb
     display_instructions
 

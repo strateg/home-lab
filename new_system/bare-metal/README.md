@@ -11,17 +11,20 @@ This directory contains everything needed to create a bootable USB drive that wi
 - Automatic disk partitioning (ext4, LVM-thin)
 - Network configuration via DHCP
 - Repository setup (no-subscription)
+- **Reinstall prevention** (UUID-based detection) ⭐ NEW
 - Post-install scripts for complete system configuration
 
 ## Files
 
 ```
 bare-metal/
-├── README.md              # This file
-├── answer.toml            # Proxmox auto-install configuration
-├── create-usb.sh          # USB creator script
-└── post-install/          # Post-installation scripts
-    ├── README.md          # Post-install guide
+├── README.md                         # This file
+├── answer.toml                       # Proxmox auto-install configuration
+├── create-usb.sh                     # USB creator script (with reinstall prevention)
+├── REINSTALL-PREVENTION.md           # ⭐ UUID-based reinstall prevention documentation
+├── CHANGELOG-REINSTALL-PREVENTION.md # Reinstall prevention feature changelog
+└── post-install/                     # Post-installation scripts
+    ├── README.md                     # Post-install guide
     ├── 01-install-terraform.sh
     ├── 02-install-ansible.sh
     ├── 03-configure-storage.sh
@@ -77,7 +80,9 @@ sudo ./create-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
 3. Press **F12** for boot menu
 4. Select USB drive (UEFI mode)
 5. Installation starts automatically (~10-15 minutes)
-6. Remove USB and reboot when complete
+6. **No need to remove USB!** System will boot from disk (reinstall prevention active)
+
+**New Feature**: После установки система автоматически определяет, что установка уже выполнена с этого USB, и загружается с диска вместо переустановки. См. [REINSTALL-PREVENTION.md](REINSTALL-PREVENTION.md)
 
 ### Step 3: Post-Installation Configuration
 
