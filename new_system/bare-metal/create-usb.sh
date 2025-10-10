@@ -308,21 +308,107 @@ prepare_iso() {
     cat > "$FIRST_BOOT_SCRIPT" << 'SCRIPTEOF'
 #!/bin/bash
 # First-boot script - Reinstall Prevention
-# Saves installation ID marker to prevent reinstallation
+# Reads installation ID from USB and saves it to the installed system
 
-INSTALL_ID="INSTALL_UUID_PLACEHOLDER"
+set -e
 
-# Save installation ID to system
-echo "$INSTALL_ID" > /etc/proxmox-install-id
-mkdir -p /boot/efi
-echo "$INSTALL_ID" > /boot/efi/proxmox-installed
-echo "Installation ID marker created: $INSTALL_ID" >> /var/log/proxmox-install.log
+# Log everything
+exec 1>>/var/log/proxmox-first-boot.log 2>&1
+echo "===== First-boot script started at $(date) ====="
 
+# Find the USB installation media (look for install-id file)
+INSTALL_ID=""
+USB_MOUNT=""
+
+# Search all mounted vfat partitions for install-id file
+for mount_point in /media/* /mnt/* /run/media/* /run/mount/*; do
+    if [ -f "$mount_point/EFI/BOOT/install-id" ]; then
+        INSTALL_ID=$(cat "$mount_point/EFI/BOOT/install-id")
+        USB_MOUNT="$mount_point"
+        echo "✓ Found USB installation media at: $USB_MOUNT"
+        echo "✓ Installation ID from USB: $INSTALL_ID"
+        break
+    fi
+done
+
+# If not found in mounted locations, search all vfat partitions
+if [ -z "$INSTALL_ID" ]; then
+    echo "Searching for USB in all vfat partitions..."
+    for dev in $(blkid -t TYPE=vfat -o device); do
+        TMP_MOUNT="/tmp/usb-check-$$"
+        mkdir -p "$TMP_MOUNT"
+        if mount -o ro "$dev" "$TMP_MOUNT" 2>/dev/null; then
+            if [ -f "$TMP_MOUNT/EFI/BOOT/install-id" ]; then
+                INSTALL_ID=$(cat "$TMP_MOUNT/EFI/BOOT/install-id")
+                echo "✓ Found installation ID on $dev: $INSTALL_ID"
+                umount "$TMP_MOUNT"
+                rmdir "$TMP_MOUNT"
+                break
+            fi
+            umount "$TMP_MOUNT" 2>/dev/null
+            rmdir "$TMP_MOUNT"
+        fi
+    done
+fi
+
+if [ -z "$INSTALL_ID" ]; then
+    echo "⚠ WARNING: Could not find USB installation media!"
+    echo "⚠ Using fallback timestamp-based ID"
+    TIMEZONE=$(date +%Z)
+    TIMESTAMP=$(date +%Y_%m_%d_%H_%M)
+    INSTALL_ID="${TIMEZONE}_${TIMESTAMP}"
+    echo "Generated fallback ID: $INSTALL_ID"
+fi
+
+echo "Installation ID to save: $INSTALL_ID"
+
+# Save installation ID to system root
+echo -n "$INSTALL_ID" > /etc/proxmox-install-id
+echo "✓ Created /etc/proxmox-install-id"
+
+# Find EFI partition and mount it
+EFI_PARTITION=$(blkid | grep -i 'TYPE="vfat"' | grep -i 'efi' | head -1 | cut -d: -f1)
+if [ -z "$EFI_PARTITION" ]; then
+    # Try finding any vfat partition (likely EFI)
+    EFI_PARTITION=$(blkid -t TYPE=vfat -o device | head -1)
+fi
+
+if [ -n "$EFI_PARTITION" ]; then
+    echo "Found EFI partition: $EFI_PARTITION"
+
+    # Ensure mount point exists
+    mkdir -p /boot/efi
+
+    # Mount if not already mounted
+    if ! mountpoint -q /boot/efi; then
+        mount "$EFI_PARTITION" /boot/efi
+        echo "✓ Mounted $EFI_PARTITION to /boot/efi"
+    else
+        echo "✓ /boot/efi already mounted"
+    fi
+
+    # Write UUID marker to EFI partition root (without trailing newline)
+    echo -n "$INSTALL_ID" > /boot/efi/proxmox-installed
+    sync
+    echo "✓ Created /boot/efi/proxmox-installed with ID: $INSTALL_ID"
+
+    # Verify the file was created
+    if [ -f /boot/efi/proxmox-installed ]; then
+        SAVED_ID=$(cat /boot/efi/proxmox-installed)
+        echo "✓ Verified: File contains '$SAVED_ID'"
+    else
+        echo "✗ ERROR: File was not created!"
+    fi
+else
+    echo "⚠ WARNING: Could not find EFI partition!"
+    echo "⚠ Reinstall prevention may not work!"
+fi
+
+echo "===== First-boot script completed at $(date) ====="
 exit 0
 SCRIPTEOF
 
-    # Replace placeholder with actual UUID
-    sed -i "s/INSTALL_UUID_PLACEHOLDER/$INSTALL_UUID/" "$FIRST_BOOT_SCRIPT"
+    # Make script executable (no placeholder replacement needed - UUID generated dynamically)
     chmod +x "$FIRST_BOOT_SCRIPT"
 
     # Create modified answer.toml with first-boot reference
@@ -522,8 +608,8 @@ embed_install_uuid() {
                 # Create EFI/BOOT directory if needed
                 mkdir -p "$MOUNT_POINT/EFI/BOOT"
 
-                # Save installation ID
-                echo "$INSTALL_UUID" > "$MOUNT_POINT/EFI/BOOT/install-id"
+                # Save installation ID (without trailing newline for exact comparison)
+                echo -n "$INSTALL_UUID" > "$MOUNT_POINT/EFI/BOOT/install-id"
 
                 # Also save human-readable version
                 cat > "$MOUNT_POINT/EFI/BOOT/install-info.txt" << INFOEOF
@@ -565,22 +651,62 @@ insmod search_fs_file
 insmod chain
 
 set install_detected=0
+set debug_mode=1
+
+# Debug: Show what we're doing
+if [ \$debug_mode -eq 1 ]; then
+    echo "DEBUG: Searching for installation marker..."
+fi
 
 # Check for installation marker on first disk EFI partition
-search --no-floppy --set=efipart --file /proxmox-installed 2>/dev/null
+search --no-floppy --set=efipart --file /proxmox-installed
 if [ -n "\$efipart" ]; then
+    if [ \$debug_mode -eq 1 ]; then
+        echo "DEBUG: Found EFI partition with marker: \$efipart"
+    fi
+
     # Read installation ID from disk
-    cat --set=installed_id (\$efipart)/proxmox-installed 2>/dev/null
+    cat --set=installed_id (\$efipart)/proxmox-installed
+
+    if [ \$debug_mode -eq 1 ]; then
+        echo "DEBUG: Disk UUID: \$installed_id"
+    fi
 
     # Read USB installation ID
     if [ -f (\$root)/EFI/BOOT/install-id ]; then
         cat --set=usb_id (\$root)/EFI/BOOT/install-id
 
+        if [ \$debug_mode -eq 1 ]; then
+            echo "DEBUG: USB UUID: \$usb_id"
+        fi
+
         # Compare IDs
         if [ "\$installed_id" = "\$usb_id" ]; then
             set install_detected=1
+            if [ \$debug_mode -eq 1 ]; then
+                echo "DEBUG: UUIDs match! System already installed."
+            fi
+        else
+            if [ \$debug_mode -eq 1 ]; then
+                echo "DEBUG: UUIDs DO NOT match."
+            fi
+        fi
+    else
+        if [ \$debug_mode -eq 1 ]; then
+            echo "DEBUG: No install-id file on USB"
         fi
     fi
+else
+    if [ \$debug_mode -eq 1 ]; then
+        echo "DEBUG: No installation marker found on disk"
+    fi
+fi
+
+if [ \$debug_mode -eq 1 ]; then
+    echo "DEBUG: install_detected = \$install_detected"
+    echo " "
+    echo "Press any key to continue..."
+    read -t 5
 fi
 
 if [ \$install_detected -eq 1 ]; then
