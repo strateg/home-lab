@@ -308,108 +308,138 @@ prepare_iso() {
     cat > "$FIRST_BOOT_SCRIPT" << 'SCRIPTEOF'
 #!/bin/bash
 # First-boot script - Reinstall Prevention
-# Reads installation ID from USB and saves it to the installed system
+# This script is embedded into the ISO with hardcoded installation ID
 
-set -e
-
-# Log everything
+# DO NOT use 'set -e' - we want to continue even if some commands fail
+# Log everything with timestamps
 exec 1>>/var/log/proxmox-first-boot.log 2>&1
+
+echo "======================================================================="
 echo "===== First-boot script started at $(date) ====="
+echo "======================================================================="
 
-# Find the USB installation media (look for install-id file)
-INSTALL_ID=""
-USB_MOUNT=""
+# Installation ID is embedded at USB creation time (replaced by sed)
+INSTALL_ID="INSTALL_UUID_PLACEHOLDER"
+echo "Installation ID (from USB creation): $INSTALL_ID"
 
-# Search all mounted vfat partitions for install-id file
-for mount_point in /media/* /mnt/* /run/media/* /run/mount/*; do
-    if [ -f "$mount_point/EFI/BOOT/install-id" ]; then
-        INSTALL_ID=$(cat "$mount_point/EFI/BOOT/install-id")
-        USB_MOUNT="$mount_point"
-        echo "✓ Found USB installation media at: $USB_MOUNT"
-        echo "✓ Installation ID from USB: $INSTALL_ID"
-        break
-    fi
-done
-
-# If not found in mounted locations, search all vfat partitions
-if [ -z "$INSTALL_ID" ]; then
-    echo "Searching for USB in all vfat partitions..."
-    for dev in $(blkid -t TYPE=vfat -o device); do
-        TMP_MOUNT="/tmp/usb-check-$$"
-        mkdir -p "$TMP_MOUNT"
-        if mount -o ro "$dev" "$TMP_MOUNT" 2>/dev/null; then
-            if [ -f "$TMP_MOUNT/EFI/BOOT/install-id" ]; then
-                INSTALL_ID=$(cat "$TMP_MOUNT/EFI/BOOT/install-id")
-                echo "✓ Found installation ID on $dev: $INSTALL_ID"
-                umount "$TMP_MOUNT"
-                rmdir "$TMP_MOUNT"
-                break
-            fi
-            umount "$TMP_MOUNT" 2>/dev/null
-            rmdir "$TMP_MOUNT"
-        fi
-    done
-fi
-
-if [ -z "$INSTALL_ID" ]; then
-    echo "⚠ WARNING: Could not find USB installation media!"
-    echo "⚠ Using fallback timestamp-based ID"
-    TIMEZONE=$(date +%Z)
-    TIMESTAMP=$(date +%Y_%m_%d_%H_%M)
-    INSTALL_ID="${TIMEZONE}_${TIMESTAMP}"
-    echo "Generated fallback ID: $INSTALL_ID"
-fi
-
-echo "Installation ID to save: $INSTALL_ID"
+# Create marker to prove script ran
+touch /root/FIRST_BOOT_SCRIPT_RAN
+echo "✓ Created /root/FIRST_BOOT_SCRIPT_RAN marker"
 
 # Save installation ID to system root
 echo -n "$INSTALL_ID" > /etc/proxmox-install-id
-echo "✓ Created /etc/proxmox-install-id"
-
-# Find EFI partition and mount it
-EFI_PARTITION=$(blkid | grep -i 'TYPE="vfat"' | grep -i 'efi' | head -1 | cut -d: -f1)
-if [ -z "$EFI_PARTITION" ]; then
-    # Try finding any vfat partition (likely EFI)
-    EFI_PARTITION=$(blkid -t TYPE=vfat -o device | head -1)
+if [ -f /etc/proxmox-install-id ]; then
+    echo "✓ Created /etc/proxmox-install-id with ID: $INSTALL_ID"
+else
+    echo "✗ FAILED to create /etc/proxmox-install-id!"
 fi
 
-if [ -n "$EFI_PARTITION" ]; then
-    echo "Found EFI partition: $EFI_PARTITION"
+# Ensure mount point exists
+echo "Creating /boot/efi directory..."
+mkdir -p /boot/efi
 
-    # Ensure mount point exists
-    mkdir -p /boot/efi
+# Show available block devices
+echo "Available block devices:"
+lsblk 2>&1 | head -30
 
-    # Mount if not already mounted
-    if ! mountpoint -q /boot/efi; then
-        mount "$EFI_PARTITION" /boot/efi
-        echo "✓ Mounted $EFI_PARTITION to /boot/efi"
-    else
-        echo "✓ /boot/efi already mounted"
+# Check if /boot/efi is already mounted by Proxmox installer
+echo "Checking if /boot/efi is mounted..."
+if mountpoint -q /boot/efi 2>/dev/null; then
+    echo "✓ /boot/efi is already mounted"
+    MOUNTED_DEV=$(findmnt -n -o SOURCE /boot/efi 2>/dev/null)
+    echo "✓ Mounted device: $MOUNTED_DEV"
+else
+    echo "/boot/efi is NOT mounted, searching for EFI partition..."
+
+    # Show all vfat partitions
+    echo "All vfat partitions:"
+    blkid -t TYPE=vfat 2>&1
+
+    # Simple approach: try /dev/sda2 first (typical EFI partition)
+    if [ -b /dev/sda2 ]; then
+        PART_TYPE=$(blkid -s TYPE -o value /dev/sda2 2>/dev/null)
+        echo "Checking /dev/sda2: type=$PART_TYPE"
+        if [ "$PART_TYPE" = "vfat" ]; then
+            echo "Attempting to mount /dev/sda2..."
+            if mount /dev/sda2 /boot/efi 2>&1; then
+                echo "✓ Successfully mounted /dev/sda2 to /boot/efi"
+            else
+                echo "✗ Failed to mount /dev/sda2"
+            fi
+        fi
     fi
 
-    # Write UUID marker to EFI partition root (without trailing newline)
+    # If that didn't work, try sda1
+    if ! mountpoint -q /boot/efi && [ -b /dev/sda1 ]; then
+        PART_TYPE=$(blkid -s TYPE -o value /dev/sda1 2>/dev/null)
+        echo "Checking /dev/sda1: type=$PART_TYPE"
+        if [ "$PART_TYPE" = "vfat" ]; then
+            echo "Attempting to mount /dev/sda1..."
+            if mount /dev/sda1 /boot/efi 2>&1; then
+                echo "✓ Successfully mounted /dev/sda1 to /boot/efi"
+            else
+                echo "✗ Failed to mount /dev/sda1"
+            fi
+        fi
+    fi
+
+    # Final fallback: try any vfat partition
+    if ! mountpoint -q /boot/efi; then
+        echo "Trying to mount first available vfat partition..."
+        for dev in $(blkid -t TYPE=vfat -o device 2>/dev/null); do
+            echo "Trying $dev..."
+            if mount "$dev" /boot/efi 2>&1; then
+                echo "✓ Successfully mounted $dev to /boot/efi"
+                break
+            fi
+        done
+    fi
+fi
+
+# Check final mount status
+echo "Final mount check..."
+if mountpoint -q /boot/efi 2>/dev/null; then
+    echo "✓ /boot/efi is mounted"
+    MOUNTED_DEV=$(findmnt -n -o SOURCE /boot/efi 2>/dev/null || echo "unknown")
+    echo "✓ Mounted device: $MOUNTED_DEV"
+
+    # Write UUID marker
+    echo "Writing installation ID to /boot/efi/proxmox-installed..."
     echo -n "$INSTALL_ID" > /boot/efi/proxmox-installed
     sync
-    echo "✓ Created /boot/efi/proxmox-installed with ID: $INSTALL_ID"
 
-    # Verify the file was created
+    # Verify
     if [ -f /boot/efi/proxmox-installed ]; then
         SAVED_ID=$(cat /boot/efi/proxmox-installed)
-        echo "✓ Verified: File contains '$SAVED_ID'"
+        echo "✓ SUCCESSFULLY created /boot/efi/proxmox-installed"
+        echo "✓ File contains: '$SAVED_ID'"
+
+        # Show EFI partition contents
+        echo "Contents of /boot/efi (first 30 items):"
+        ls -la /boot/efi/ 2>&1 | head -30
     else
-        echo "✗ ERROR: File was not created!"
+        echo "✗ ERROR: /boot/efi/proxmox-installed was NOT created!"
+        echo "Checking write permissions..."
+        touch /boot/efi/test-write 2>&1 && rm /boot/efi/test-write && echo "✓ Write works" || echo "✗ Cannot write"
     fi
 else
-    echo "⚠ WARNING: Could not find EFI partition!"
-    echo "⚠ Reinstall prevention may not work!"
+    echo "✗ CRITICAL ERROR: Failed to mount /boot/efi!"
+    echo "✗ Reinstall prevention will NOT work!"
+    echo "Showing mount table:"
+    mount 2>&1 | grep -E "(boot|efi|vfat)" || echo "No relevant mounts found"
 fi
 
+echo "======================================================================="
 echo "===== First-boot script completed at $(date) ====="
+echo "======================================================================="
 exit 0
 SCRIPTEOF
 
-    # Make script executable (no placeholder replacement needed - UUID generated dynamically)
+    # Replace placeholder with actual UUID
+    sed -i "s/INSTALL_UUID_PLACEHOLDER/$INSTALL_UUID/" "$FIRST_BOOT_SCRIPT"
     chmod +x "$FIRST_BOOT_SCRIPT"
+
+    print_success "Created first-boot script with embedded UUID: $INSTALL_UUID"
 
     # Create modified answer.toml with first-boot reference
     TEMP_ANSWER="/tmp/answer-with-uuid-$$.toml"
@@ -651,62 +681,22 @@ insmod search_fs_file
 insmod chain
 
 set install_detected=0
-set debug_mode=1
-
-# Debug: Show what we're doing
-if [ \$debug_mode -eq 1 ]; then
-    echo "DEBUG: Searching for installation marker..."
-fi
 
 # Check for installation marker on first disk EFI partition
 search --no-floppy --set=efipart --file /proxmox-installed
 if [ -n "\$efipart" ]; then
-    if [ \$debug_mode -eq 1 ]; then
-        echo "DEBUG: Found EFI partition with marker: \$efipart"
-    fi
-
     # Read installation ID from disk
     cat --set=installed_id (\$efipart)/proxmox-installed
-
-    if [ \$debug_mode -eq 1 ]; then
-        echo "DEBUG: Disk UUID: \$installed_id"
-    fi
 
     # Read USB installation ID
     if [ -f (\$root)/EFI/BOOT/install-id ]; then
         cat --set=usb_id (\$root)/EFI/BOOT/install-id
 
-        if [ \$debug_mode -eq 1 ]; then
-            echo "DEBUG: USB UUID: \$usb_id"
-        fi
-
         # Compare IDs
         if [ "\$installed_id" = "\$usb_id" ]; then
             set install_detected=1
-            if [ \$debug_mode -eq 1 ]; then
-                echo "DEBUG: UUIDs match! System already installed."
-            fi
-        else
-            if [ \$debug_mode -eq 1 ]; then
-                echo "DEBUG: UUIDs DO NOT match."
-            fi
-        fi
-    else
-        if [ \$debug_mode -eq 1 ]; then
-            echo "DEBUG: No install-id file on USB"
         fi
     fi
-else
-    if [ \$debug_mode -eq 1 ]; then
-        echo "DEBUG: No installation marker found on disk"
-    fi
-fi
-
-if [ \$debug_mode -eq 1 ]; then
-    echo "DEBUG: install_detected = \$install_detected"
-    echo " "
-    echo "Press any key to continue..."
-    read -t 5
 fi
 
 if [ \$install_detected -eq 1 ]; then
