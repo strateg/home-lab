@@ -544,8 +544,14 @@ INFOEOF
                 print_success "ID saved to: /EFI/BOOT/install-id"
                 print_success "Info saved to: /EFI/BOOT/install-info.txt"
 
-                # Create reinstall-check GRUB script with readable ID display
-                cat > "$MOUNT_POINT/EFI/BOOT/reinstall-check.cfg" << GRUBEOF
+                # Backup original grub.cfg
+                if [ -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
+                    mv "$MOUNT_POINT/EFI/BOOT/grub.cfg" "$MOUNT_POINT/EFI/BOOT/grub-install.cfg"
+                    print_success "Backed up original grub.cfg → grub-install.cfg"
+                fi
+
+                # Create reinstall-check GRUB script as MAIN grub.cfg
+                cat > "$MOUNT_POINT/EFI/BOOT/grub.cfg" << GRUBEOF
 # Reinstall Prevention Check
 # This script prevents automatic reinstallation if system is already installed
 
@@ -587,7 +593,7 @@ if [ \$install_detected -eq 1 ]; then
     }
 
     menuentry 'Reinstall Proxmox (ERASES DISK!)' --hotkey=r {
-        configfile /EFI/BOOT/grub.cfg
+        configfile /EFI/BOOT/grub-install.cfg
     }
 
     echo " "
@@ -604,11 +610,11 @@ if [ \$install_detected -eq 1 ]; then
 
 else
     # No installation detected - proceed with normal installation
-    configfile /EFI/BOOT/grub.cfg
+    configfile /EFI/BOOT/grub-install.cfg
 fi
 GRUBEOF
 
-                print_success "Created reinstall-check script"
+                print_success "Created reinstall-check as main grub.cfg"
 
                 sync
                 UUID_EMBEDDED=1
