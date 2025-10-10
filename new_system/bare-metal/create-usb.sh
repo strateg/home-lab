@@ -303,46 +303,61 @@ prepare_iso() {
     echo "$INSTALL_UUID" > /tmp/install-uuid-$$
     export INSTALL_UUID
 
-    # Create modified answer.toml with UUID marker commands
+    # Create first-boot script with UUID marker commands
+    FIRST_BOOT_SCRIPT="/tmp/first-boot-$$.sh"
+    cat > "$FIRST_BOOT_SCRIPT" << 'SCRIPTEOF'
+#!/bin/bash
+# First-boot script - Reinstall Prevention
+# Saves installation ID marker to prevent reinstallation
+
+INSTALL_ID="INSTALL_UUID_PLACEHOLDER"
+
+# Save installation ID to system
+echo "$INSTALL_ID" > /etc/proxmox-install-id
+mkdir -p /boot/efi
+echo "$INSTALL_ID" > /boot/efi/proxmox-installed
+echo "Installation ID marker created: $INSTALL_ID" >> /var/log/proxmox-install.log
+
+exit 0
+SCRIPTEOF
+
+    # Replace placeholder with actual UUID
+    sed -i "s/INSTALL_UUID_PLACEHOLDER/$INSTALL_UUID/" "$FIRST_BOOT_SCRIPT"
+    chmod +x "$FIRST_BOOT_SCRIPT"
+
+    # Create modified answer.toml with first-boot reference
     TEMP_ANSWER="/tmp/answer-with-uuid-$$.toml"
     cp ./answer.toml "$TEMP_ANSWER"
 
-    # Add first-boot commands to save UUID marker on installed system
-    cat >> "$TEMP_ANSWER" << EOF
+    # Add first-boot section
+    cat >> "$TEMP_ANSWER" << 'EOF'
 
 # ============================================================
-# First-boot commands (Reinstall Prevention)
+# First-boot script (Reinstall Prevention)
 # ============================================================
 
 [first-boot]
-# Commands to run after first successful boot
-# These commands save installation UUID marker to prevent reinstallation
-
-# Save installation UUID to system
-post-installation-commands = [
-    "echo '$INSTALL_UUID' > /etc/proxmox-install-id",
-    "mkdir -p /boot/efi",
-    "echo '$INSTALL_UUID' > /boot/efi/proxmox-installed",
-    "echo 'Installation UUID marker created: $INSTALL_UUID' >> /var/log/proxmox-install.log"
-]
+source = "from-iso"
 EOF
 
-    print_success "Added UUID marker commands to answer.toml"
+    print_success "Created first-boot script with UUID: $INSTALL_UUID"
 
     PREPARED_ISO="${ISO_FILE%.iso}-automated.iso"
 
     # Remove old prepared ISO if exists
     rm -f "$PREPARED_ISO"
 
-    # Run prepare-iso with modified answer.toml
-    # --fetch-from iso: embeds answer.toml into ISO
+    # Run prepare-iso with modified answer.toml and first-boot script
+    # --fetch-from iso: embeds answer.toml and first-boot script into ISO
     # --answer-file: path to modified answer.toml
+    # --first-boot: path to first-boot script
     proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
         --fetch-from iso \
-        --answer-file "$TEMP_ANSWER"
+        --answer-file "$TEMP_ANSWER" \
+        --first-boot "$FIRST_BOOT_SCRIPT"
 
-    # Clean up temporary answer file
-    rm -f "$TEMP_ANSWER"
+    # Clean up temporary files
+    rm -f "$TEMP_ANSWER" "$FIRST_BOOT_SCRIPT"
 
     # The tool creates ISO with specific naming pattern
     # Find the created ISO
