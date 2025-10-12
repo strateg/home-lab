@@ -580,17 +580,16 @@ embed_install_uuid() {
 
             print_success "Found correct EFI boot partition: $part (PARTLABEL='$PARTLABEL')"
 
-            # Backup original grub.cfg
+            # Backup original grub.cfg by RENAMING (not copying!)
             if [ -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
-                cp "$MOUNT_POINT/EFI/BOOT/grub.cfg" "$MOUNT_POINT/EFI/BOOT/grub-original.cfg"
+                mv "$MOUNT_POINT/EFI/BOOT/grub.cfg" "$MOUNT_POINT/EFI/BOOT/grub-install.cfg"
 
                 # Verify backup was created
-                if [ -f "$MOUNT_POINT/EFI/BOOT/grub-original.cfg" ]; then
-                    print_success "Backed up original grub.cfg → grub-original.cfg"
-                    print_info "  Original size: $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub.cfg") bytes"
-                    print_info "  Backup size:   $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub-original.cfg") bytes"
+                if [ -f "$MOUNT_POINT/EFI/BOOT/grub-install.cfg" ]; then
+                    print_success "Renamed original grub.cfg → grub-install.cfg"
+                    print_info "  Size: $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub-install.cfg") bytes"
                 else
-                    print_error "Failed to create grub-original.cfg backup!"
+                    print_error "Failed to rename grub.cfg!"
                     umount "$MOUNT_POINT"
                     exit 1
                 fi
@@ -615,37 +614,38 @@ set found_system=0
 set disk_uuid=""
 set efi_part=""
 
-# Ищем EFI партицию с маркером ТОЛЬКО на системном диске (hd0)
-# НЕ используем search - он ищет везде, включая USB!
-# Проверяем явно hd0,gpt1 → hd0,gpt2 → hd0,gpt3
-
-# Проверяем gpt1 (UEFI-only схемы)
-if [ -f (hd0,gpt1)/proxmox-installed ]; then
-    cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
-    set efi_part="hd0,gpt1"
+# Ищем маркер ТОЛЬКО на системном диске hd0 (не USB!)
+# Сначала проверяем gpt2 (самый частый случай - BIOS+UEFI)
+if [ -f (hd0,gpt2)/proxmox-installed ]; then
+    cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
+    set efi_part="hd0,gpt2"
     if [ "$disk_uuid" = "$usb_uuid" ]; then
         set found_system=1
     fi
 fi
 
-# Если не нашли на gpt1, проверяем gpt2 (BIOS+UEFI схемы)
-if [ $found_system -eq 0 -a -z "$disk_uuid" ]; then
-    if [ -f (hd0,gpt2)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
-        set efi_part="hd0,gpt2"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
+# Если не на gpt2, пробуем gpt1 (UEFI-only)
+if [ $found_system -eq 0 ]; then
+    if [ -z "$disk_uuid" ]; then
+        if [ -f (hd0,gpt1)/proxmox-installed ]; then
+            cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
+            set efi_part="hd0,gpt1"
+            if [ "$disk_uuid" = "$usb_uuid" ]; then
+                set found_system=1
+            fi
         fi
     fi
 fi
 
-# На всякий случай проверяем gpt3 (нестандартные схемы)
-if [ $found_system -eq 0 -a -z "$disk_uuid" ]; then
-    if [ -f (hd0,gpt3)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt3)/proxmox-installed
-        set efi_part="hd0,gpt3"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
+# Если не на gpt1, пробуем gpt3 (редкие схемы)
+if [ $found_system -eq 0 ]; then
+    if [ -z "$disk_uuid" ]; then
+        if [ -f (hd0,gpt3)/proxmox-installed ]; then
+            cat --set=disk_uuid (hd0,gpt3)/proxmox-installed
+            set efi_part="hd0,gpt3"
+            if [ "$disk_uuid" = "$usb_uuid" ]; then
+                set found_system=1
+            fi
         fi
     fi
 fi
@@ -657,34 +657,24 @@ if [ $found_system -eq 1 ]; then
     set default=0
 
     menuentry 'Boot Proxmox VE (installed system)' {
-        # Используем найденную EFI партицию (гарантированно с hd0)
-        if [ "$efi_part" = "hd0,gpt1" ]; then
-            if [ -f (hd0,gpt1)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
-            fi
-        elif [ "$efi_part" = "hd0,gpt2" ]; then
-            if [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
-            fi
-        elif [ "$efi_part" = "hd0,gpt3" ]; then
-            if [ -f (hd0,gpt3)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt3)/EFI/proxmox/grubx64.efi
-            fi
+        # Используем найденную EFI партицию
+        # Проверяем сначала самый частый случай - gpt2
+        if [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
+            chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
+        elif [ -f (hd0,gpt1)/EFI/proxmox/grubx64.efi ]; then
+            chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
+        elif [ -f (hd0,gpt3)/EFI/proxmox/grubx64.efi ]; then
+            chainloader (hd0,gpt3)/EFI/proxmox/grubx64.efi
         else
-            echo "ERROR: EFI partition not detected on hd0"
-            echo "Found: $efi_part"
+            echo "ERROR: Proxmox bootloader not found"
+            echo "Checked: (hd0,gpt1), (hd0,gpt2), (hd0,gpt3)"
             echo "Press any key..."
             read
         fi
     }
 
     menuentry 'Reinstall Proxmox (ERASES ALL DATA!)' {
-        if [ -f ($root)/EFI/BOOT/grub-original.cfg ]; then
-            configfile ($root)/EFI/BOOT/grub-original.cfg
-        else
-            echo "ERROR: Installation menu not found"
-            read
-        fi
+        configfile /EFI/BOOT/grub-install.cfg
     }
 else
     # UUID не совпадают или нет маркера
@@ -715,17 +705,8 @@ else
     set default=0
 
     menuentry 'Install Proxmox VE (AUTO-INSTALL)' {
-        # Запускает меню установки, где auto-install default
-        if [ -f ($root)/EFI/BOOT/grub-original.cfg ]; then
-            configfile ($root)/EFI/BOOT/grub-original.cfg
-        else
-            echo "ERROR: Installation files not found on USB"
-            echo "grub-original.cfg is missing"
-            echo ""
-            echo "Press any key to halt..."
-            read
-            halt
-        fi
+        # Запускает меню установки с автоустановкой
+        configfile /EFI/BOOT/grub-install.cfg
     }
 
     menuentry 'Boot existing system from disk (if any)' {
@@ -764,28 +745,28 @@ GRUBEOF
             mv "$MOUNT_POINT/EFI/BOOT/grub.cfg.new" "$MOUNT_POINT/EFI/BOOT/grub.cfg"
 
             print_success "Created UUID check wrapper as grub.cfg"
-            print_info "Original installer menu preserved in grub-original.cfg"
+            print_info "Original installer menu saved as grub-install.cfg"
 
             # Verify both files exist
             echo ""
             print_info "Verifying files on USB:"
             if [ -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
-                print_success "  ✓ grub.cfg (wrapper): $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub.cfg") bytes"
+                print_success "  ✓ grub.cfg (UUID wrapper): $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub.cfg") bytes"
                 echo "     First line: $(head -1 "$MOUNT_POINT/EFI/BOOT/grub.cfg")"
             else
                 print_error "  ✗ grub.cfg MISSING!"
             fi
 
-            if [ -f "$MOUNT_POINT/EFI/BOOT/grub-original.cfg" ]; then
-                print_success "  ✓ grub-original.cfg (installer): $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub-original.cfg") bytes"
-                echo "     First line: $(head -1 "$MOUNT_POINT/EFI/BOOT/grub-original.cfg")"
+            if [ -f "$MOUNT_POINT/EFI/BOOT/grub-install.cfg" ]; then
+                print_success "  ✓ grub-install.cfg (original): $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub-install.cfg") bytes"
+                echo "     First line: $(head -1 "$MOUNT_POINT/EFI/BOOT/grub-install.cfg")"
             else
-                print_error "  ✗ grub-original.cfg MISSING!"
+                print_error "  ✗ grub-install.cfg MISSING!"
             fi
 
             # Check UUID in wrapper
             if grep -q "set usb_uuid=\"$INSTALL_UUID\"" "$MOUNT_POINT/EFI/BOOT/grub.cfg"; then
-                print_success "  ✓ UUID embedded in wrapper: $INSTALL_UUID"
+                print_success "  ✓ UUID embedded correctly: $INSTALL_UUID"
             else
                 print_error "  ✗ UUID NOT found in wrapper!"
             fi
