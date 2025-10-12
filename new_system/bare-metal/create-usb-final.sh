@@ -201,14 +201,21 @@ prepare_iso() {
     print_info "Embedding answer.toml using proxmox-auto-install-assistant..."
     print_info "Command: proxmox-auto-install-assistant prepare-iso --fetch-from iso --answer-file \"$answer\" --output \"$output_iso\" --tmp \"$TMPDIR\" \"$iso_src\""
 
-    if ! proxmox-auto-install-assistant prepare-iso \
+    # Run prepare-iso (capture output but preserve exit code)
+    local paa_output paa_exit
+    paa_output=$(proxmox-auto-install-assistant prepare-iso \
         --fetch-from iso \
         --answer-file "$answer" \
         --output "$output_iso" \
         --tmp "$TMPDIR" \
-        "$iso_src" 2>&1 | tee /tmp/paa-output.log; then
-        print_error "proxmox-auto-install-assistant failed. Output:"
-        cat /tmp/paa-output.log >&2
+        "$iso_src" 2>&1)
+    paa_exit=$?
+
+    # Print output to stderr (logs)
+    echo "$paa_output" >&2
+
+    if [[ $paa_exit -ne 0 ]]; then
+        print_error "proxmox-auto-install-assistant failed with exit code: $paa_exit"
         return 9
     fi
 
