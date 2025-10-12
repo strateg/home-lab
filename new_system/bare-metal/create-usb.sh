@@ -583,7 +583,21 @@ embed_install_uuid() {
             # Backup original grub.cfg
             if [ -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
                 cp "$MOUNT_POINT/EFI/BOOT/grub.cfg" "$MOUNT_POINT/EFI/BOOT/grub-original.cfg"
-                print_success "Backed up original grub.cfg → grub-original.cfg"
+
+                # Verify backup was created
+                if [ -f "$MOUNT_POINT/EFI/BOOT/grub-original.cfg" ]; then
+                    print_success "Backed up original grub.cfg → grub-original.cfg"
+                    print_info "  Original size: $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub.cfg") bytes"
+                    print_info "  Backup size:   $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub-original.cfg") bytes"
+                else
+                    print_error "Failed to create grub-original.cfg backup!"
+                    umount "$MOUNT_POINT"
+                    exit 1
+                fi
+            else
+                print_error "Original grub.cfg not found on USB!"
+                umount "$MOUNT_POINT"
+                exit 1
             fi
 
             # Create new grub.cfg with UUID check wrapper
@@ -597,31 +611,59 @@ insmod chain
 
 # UUID встроен при создании USB
 set usb_uuid="USB_UUID_PLACEHOLDER"
+set found_system=0
 
 # Проверяем маркер на (hd0,gpt2) - EFI партиция системного диска
 if [ -f (hd0,gpt2)/proxmox-installed ]; then
     cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
 
-    # Сравниваем UUIDs
+    # Если UUID совпадают - система установлена с ЭТОЙ флешки
     if [ "$disk_uuid" = "$usb_uuid" ]; then
-        # UUIDs совпадают - система уже установлена
-        set timeout=5
-        set default=0
-
-        menuentry 'Boot Proxmox VE' {
-            chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
-        }
-
-        menuentry 'Reinstall (ERASES ALL DATA!)' {
-            configfile /EFI/BOOT/grub-original.cfg
-        }
-    else
-        # Разные UUID - загрузить оригинальное меню установки
-        configfile /EFI/BOOT/grub-original.cfg
+        set found_system=1
     fi
+fi
+
+if [ $found_system -eq 1 ]; then
+    # UUID совпадают - система уже установлена с этой флешки
+    set timeout=5
+    set default=0
+
+    menuentry 'Boot Proxmox VE (installed system)' {
+        chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
+    }
+
+    menuentry 'Reinstall (ERASES ALL DATA!)' {
+        # Проверяем наличие файла перед загрузкой
+        if [ -f ($root)/EFI/BOOT/grub-original.cfg ]; then
+            configfile ($root)/EFI/BOOT/grub-original.cfg
+        else
+            echo "ERROR: grub-original.cfg not found!"
+            echo "Press any key to reboot..."
+            read
+            reboot
+        fi
+    }
 else
-    # Нет маркера - чистый диск - загрузить оригинальное меню установки
-    configfile /EFI/BOOT/grub-original.cfg
+    # UUID не совпадают или нет маркера - запустить автоустановку
+    # Проверяем наличие файла перед загрузкой
+    if [ -f ($root)/EFI/BOOT/grub-original.cfg ]; then
+        configfile ($root)/EFI/BOOT/grub-original.cfg
+    else
+        # Fallback: показать сообщение об ошибке
+        set timeout=30
+        menuentry 'ERROR: Installation menu not found!' {
+            echo "grub-original.cfg missing from USB"
+            echo "UUID on USB: $usb_uuid"
+            echo "UUID on disk: $disk_uuid"
+            echo "Press any key..."
+            read
+        }
+        menuentry 'Try to boot from disk' {
+            if [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
+                chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
+            fi
+        }
+    fi
 fi
 GRUBEOF
 
@@ -633,6 +675,30 @@ GRUBEOF
 
             print_success "Created UUID check wrapper as grub.cfg"
             print_info "Original installer menu preserved in grub-original.cfg"
+
+            # Verify both files exist
+            echo ""
+            print_info "Verifying files on USB:"
+            if [ -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
+                print_success "  ✓ grub.cfg (wrapper): $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub.cfg") bytes"
+                echo "     First line: $(head -1 "$MOUNT_POINT/EFI/BOOT/grub.cfg")"
+            else
+                print_error "  ✗ grub.cfg MISSING!"
+            fi
+
+            if [ -f "$MOUNT_POINT/EFI/BOOT/grub-original.cfg" ]; then
+                print_success "  ✓ grub-original.cfg (installer): $(stat -c%s "$MOUNT_POINT/EFI/BOOT/grub-original.cfg") bytes"
+                echo "     First line: $(head -1 "$MOUNT_POINT/EFI/BOOT/grub-original.cfg")"
+            else
+                print_error "  ✗ grub-original.cfg MISSING!"
+            fi
+
+            # Check UUID in wrapper
+            if grep -q "set usb_uuid=\"$INSTALL_UUID\"" "$MOUNT_POINT/EFI/BOOT/grub.cfg"; then
+                print_success "  ✓ UUID embedded in wrapper: $INSTALL_UUID"
+            else
+                print_error "  ✗ UUID NOT found in wrapper!"
+            fi
 
             sync
             UUID_EMBEDDED=1
