@@ -613,26 +613,38 @@ set usb_uuid="USB_UUID_PLACEHOLDER"
 set found_system=0
 set disk_uuid=""
 set efi_part=""
+set disk=""
 
-# Шаг 1: Найти EFI партицию с маркером
-if [ -f (hd0,gpt2)/proxmox-installed ]; then
+# При загрузке с USB: hd0=USB, hd1=системный диск
+# Проверяем hd1 (системный диск), затем hd0 как fallback
+if [ -f (hd1,gpt2)/proxmox-installed ]; then
+    cat --set=disk_uuid (hd1,gpt2)/proxmox-installed
     set efi_part="gpt2"
-elif [ -f (hd0,gpt1)/proxmox-installed ]; then
+    set disk="hd1"
+elif [ -f (hd1,gpt1)/proxmox-installed ]; then
+    cat --set=disk_uuid (hd1,gpt1)/proxmox-installed
     set efi_part="gpt1"
-elif [ -f (hd0,gpt3)/proxmox-installed ]; then
+    set disk="hd1"
+elif [ -f (hd1,gpt3)/proxmox-installed ]; then
+    cat --set=disk_uuid (hd1,gpt3)/proxmox-installed
     set efi_part="gpt3"
+    set disk="hd1"
+elif [ -f (hd0,gpt2)/proxmox-installed ]; then
+    cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
+    set efi_part="gpt2"
+    set disk="hd0"
+elif [ -f (hd0,gpt1)/proxmox-installed ]; then
+    cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
+    set efi_part="gpt1"
+    set disk="hd0"
+elif [ -f (hd0,gpt3)/proxmox-installed ]; then
+    cat --set=disk_uuid (hd0,gpt3)/proxmox-installed
+    set efi_part="gpt3"
+    set disk="hd0"
 fi
 
-# Шаг 2: Если нашли - проверить UUID
+# Проверить UUID
 if [ -n "$efi_part" ]; then
-    if [ "$efi_part" = "gpt2" ]; then
-        cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
-    elif [ "$efi_part" = "gpt1" ]; then
-        cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
-    elif [ "$efi_part" = "gpt3" ]; then
-        cat --set=disk_uuid (hd0,gpt3)/proxmox-installed
-    fi
-
     if [ "$disk_uuid" = "$usb_uuid" ]; then
         set found_system=1
     fi
@@ -641,20 +653,27 @@ fi
 if [ $found_system -eq 1 ]; then
     # UUID совпадают - система уже установлена с этой флешки
     # Предотвращаем переустановку, но даем опцию
+
     set timeout=5
     set default=0
 
     menuentry 'Boot Proxmox VE (installed system)' {
-        # Используем найденную партицию ($efi_part уже установлена выше)
-        if [ "$efi_part" = "gpt2" ]; then
-            chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
-        elif [ "$efi_part" = "gpt1" ]; then
-            chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
-        elif [ "$efi_part" = "gpt3" ]; then
-            chainloader (hd0,gpt3)/EFI/proxmox/grubx64.efi
+        if [ "$disk" = "hd1" ]; then
+            if [ "$efi_part" = "gpt2" ]; then
+                chainloader (hd1,gpt2)/EFI/proxmox/grubx64.efi
+            elif [ "$efi_part" = "gpt1" ]; then
+                chainloader (hd1,gpt1)/EFI/proxmox/grubx64.efi
+            elif [ "$efi_part" = "gpt3" ]; then
+                chainloader (hd1,gpt3)/EFI/proxmox/grubx64.efi
+            fi
         else
-            echo "ERROR: EFI partition not set"
-            read
+            if [ "$efi_part" = "gpt2" ]; then
+                chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
+            elif [ "$efi_part" = "gpt1" ]; then
+                chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
+            elif [ "$efi_part" = "gpt3" ]; then
+                chainloader (hd0,gpt3)/EFI/proxmox/grubx64.efi
+            fi
         fi
     }
 
@@ -662,45 +681,34 @@ if [ $found_system -eq 1 ]; then
         configfile /EFI/BOOT/grub-install.cfg
     }
 else
-    # UUID не совпадают или нет маркера
-    # Запуск АВТОУСТАНОВКИ с предупреждением 5 секунд
-
-    # Показываем информацию
-    echo "=============================================="
-    echo "  Proxmox VE Auto-Installation"
-    echo "=============================================="
-    echo ""
-    if [ -n "$disk_uuid" ]; then
-        echo "Different USB detected!"
-        echo "Old system will be ERASED"
-    else
-        echo "No existing installation found"
-        echo "Fresh installation"
-    fi
-    echo ""
-    echo "Starting in 5 seconds..."
-    echo "Press any key to see options"
-    echo "=============================================="
-
+    # UUID не совпадают или нет маркера - запуск установки
     set timeout=5
     set default=0
 
     menuentry 'Install Proxmox VE (AUTO-INSTALL)' {
-        # Запускает меню установки с автоустановкой
         configfile /EFI/BOOT/grub-install.cfg
     }
 
     menuentry 'Boot existing system from disk (if any)' {
-        # Ищем Proxmox bootloader на hd0 (проверяем gpt2→gpt1→gpt3)
-        if [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
-            chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
-        elif [ -f (hd0,gpt1)/EFI/proxmox/grubx64.efi ]; then
-            chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
-        elif [ -f (hd0,gpt3)/EFI/proxmox/grubx64.efi ]; then
-            chainloader (hd0,gpt3)/EFI/proxmox/grubx64.efi
+        if [ "$disk" = "hd1" ]; then
+            if [ "$efi_part" = "gpt2" ]; then
+                chainloader (hd1,gpt2)/EFI/proxmox/grubx64.efi
+            elif [ "$efi_part" = "gpt1" ]; then
+                chainloader (hd1,gpt1)/EFI/proxmox/grubx64.efi
+            elif [ "$efi_part" = "gpt3" ]; then
+                chainloader (hd1,gpt3)/EFI/proxmox/grubx64.efi
+            fi
         else
-            echo "No Proxmox installation found"
-            read
+            if [ "$efi_part" = "gpt2" ]; then
+                chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
+            elif [ "$efi_part" = "gpt1" ]; then
+                chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
+            elif [ "$efi_part" = "gpt3" ]; then
+                chainloader (hd0,gpt3)/EFI/proxmox/grubx64.efi
+            else
+                echo "No Proxmox installation found"
+                read
+            fi
         fi
     }
 
