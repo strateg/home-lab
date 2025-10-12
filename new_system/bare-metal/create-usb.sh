@@ -615,94 +615,17 @@ set found_system=0
 set disk_uuid=""
 set efi_part=""
 
-# Ищем EFI партицию с маркером на всех GPT партициях системного диска
-# Проверяем партиции от 1 до 9 (должно покрыть все реальные случаи)
+# Ищем EFI партицию с маркером на системном диске
+# Используем GRUB команду search - автоматически найдет партицию с файлом
+search --no-floppy --file /proxmox-installed --set=efi_part
 
-if [ -f (hd0,gpt1)/proxmox-installed ]; then
-    cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
-    set efi_part="gpt1"
+# Если файл найден, читаем UUID
+if [ -n "$efi_part" ]; then
+    cat --set=disk_uuid ($efi_part)/proxmox-installed
+
+    # Сравниваем с UUID на USB
     if [ "$disk_uuid" = "$usb_uuid" ]; then
         set found_system=1
-    fi
-fi
-
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt2)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
-        set efi_part="gpt2"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-        fi
-    fi
-fi
-
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt3)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt3)/proxmox-installed
-        set efi_part="gpt3"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-        fi
-    fi
-fi
-
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt4)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt4)/proxmox-installed
-        set efi_part="gpt4"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-        fi
-    fi
-fi
-
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt5)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt5)/proxmox-installed
-        set efi_part="gpt5"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-        fi
-    fi
-fi
-
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt6)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt6)/proxmox-installed
-        set efi_part="gpt6"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-        fi
-    fi
-fi
-
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt7)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt7)/proxmox-installed
-        set efi_part="gpt7"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-        fi
-    fi
-fi
-
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt8)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt8)/proxmox-installed
-        set efi_part="gpt8"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-        fi
-    fi
-fi
-
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt9)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt9)/proxmox-installed
-        set efi_part="gpt9"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-        fi
     fi
 fi
 
@@ -713,63 +636,18 @@ if [ $found_system -eq 1 ]; then
     set default=0
 
     menuentry 'Boot Proxmox VE (installed system)' {
-        # Используем найденную EFI партицию или ищем вручную
-        set boot_success=0
-
-        # Сначала пробуем найденную партицию
+        # Используем найденную EFI партицию напрямую
         if [ -n "$efi_part" ]; then
-            if [ "$efi_part" = "gpt1" ]; then
-                if [ -f (hd0,gpt1)/EFI/proxmox/grubx64.efi ]; then
-                    chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
-                    set boot_success=1
-                fi
-            elif [ "$efi_part" = "gpt2" ]; then
-                if [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
-                    chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
-                    set boot_success=1
-                fi
-            elif [ "$efi_part" = "gpt3" ]; then
-                if [ -f (hd0,gpt3)/EFI/proxmox/grubx64.efi ]; then
-                    chainloader (hd0,gpt3)/EFI/proxmox/grubx64.efi
-                    set boot_success=1
-                fi
-            elif [ "$efi_part" = "gpt4" ]; then
-                if [ -f (hd0,gpt4)/EFI/proxmox/grubx64.efi ]; then
-                    chainloader (hd0,gpt4)/EFI/proxmox/grubx64.efi
-                    set boot_success=1
-                fi
-            elif [ "$efi_part" = "gpt5" ]; then
-                if [ -f (hd0,gpt5)/EFI/proxmox/grubx64.efi ]; then
-                    chainloader (hd0,gpt5)/EFI/proxmox/grubx64.efi
-                    set boot_success=1
-                fi
-            elif [ "$efi_part" = "gpt6" ]; then
-                if [ -f (hd0,gpt6)/EFI/proxmox/grubx64.efi ]; then
-                    chainloader (hd0,gpt6)/EFI/proxmox/grubx64.efi
-                    set boot_success=1
-                fi
-            elif [ "$efi_part" = "gpt7" ]; then
-                if [ -f (hd0,gpt7)/EFI/proxmox/grubx64.efi ]; then
-                    chainloader (hd0,gpt7)/EFI/proxmox/grubx64.efi
-                    set boot_success=1
-                fi
-            elif [ "$efi_part" = "gpt8" ]; then
-                if [ -f (hd0,gpt8)/EFI/proxmox/grubx64.efi ]; then
-                    chainloader (hd0,gpt8)/EFI/proxmox/grubx64.efi
-                    set boot_success=1
-                fi
-            elif [ "$efi_part" = "gpt9" ]; then
-                if [ -f (hd0,gpt9)/EFI/proxmox/grubx64.efi ]; then
-                    chainloader (hd0,gpt9)/EFI/proxmox/grubx64.efi
-                    set boot_success=1
-                fi
+            if [ -f ($efi_part)/EFI/proxmox/grubx64.efi ]; then
+                chainloader ($efi_part)/EFI/proxmox/grubx64.efi
+            else
+                echo "ERROR: Proxmox bootloader not found on $efi_part"
+                echo "File checked: ($efi_part)/EFI/proxmox/grubx64.efi"
+                echo "Press any key..."
+                read
             fi
-        fi
-
-        # Если не смогли загрузить, показываем ошибку
-        if [ $boot_success -eq 0 ]; then
-            echo "ERROR: Proxmox bootloader not found!"
-            echo "EFI partition: $efi_part"
+        else
+            echo "ERROR: EFI partition not detected!"
             echo "Press any key..."
             read
         fi
@@ -800,7 +678,7 @@ else
         echo "Old system will be erased!"
     else
         echo "No installation marker found on disk"
-        echo "Checked partitions: gpt1-gpt9"
+        echo "Searched all partitions automatically"
         echo "Fresh installation will start"
     fi
     echo ""
@@ -826,73 +704,15 @@ else
     }
 
     menuentry 'Boot existing system from disk (if any)' {
-        # Ищем Proxmox на любой EFI партиции (проверяем все gpt1-gpt9)
-        set boot_found=0
+        # Используем search для поиска Proxmox bootloader
+        set proxmox_part=""
+        search --no-floppy --file /EFI/proxmox/grubx64.efi --set=proxmox_part
 
-        if [ -f (hd0,gpt1)/EFI/proxmox/grubx64.efi ]; then
-            chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
-            set boot_found=1
-        fi
-
-        if [ $boot_found -eq 0 ]; then
-            if [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
-                set boot_found=1
-            fi
-        fi
-
-        if [ $boot_found -eq 0 ]; then
-            if [ -f (hd0,gpt3)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt3)/EFI/proxmox/grubx64.efi
-                set boot_found=1
-            fi
-        fi
-
-        if [ $boot_found -eq 0 ]; then
-            if [ -f (hd0,gpt4)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt4)/EFI/proxmox/grubx64.efi
-                set boot_found=1
-            fi
-        fi
-
-        if [ $boot_found -eq 0 ]; then
-            if [ -f (hd0,gpt5)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt5)/EFI/proxmox/grubx64.efi
-                set boot_found=1
-            fi
-        fi
-
-        if [ $boot_found -eq 0 ]; then
-            if [ -f (hd0,gpt6)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt6)/EFI/proxmox/grubx64.efi
-                set boot_found=1
-            fi
-        fi
-
-        if [ $boot_found -eq 0 ]; then
-            if [ -f (hd0,gpt7)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt7)/EFI/proxmox/grubx64.efi
-                set boot_found=1
-            fi
-        fi
-
-        if [ $boot_found -eq 0 ]; then
-            if [ -f (hd0,gpt8)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt8)/EFI/proxmox/grubx64.efi
-                set boot_found=1
-            fi
-        fi
-
-        if [ $boot_found -eq 0 ]; then
-            if [ -f (hd0,gpt9)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt9)/EFI/proxmox/grubx64.efi
-                set boot_found=1
-            fi
-        fi
-
-        if [ $boot_found -eq 0 ]; then
+        if [ -n "$proxmox_part" ]; then
+            chainloader ($proxmox_part)/EFI/proxmox/grubx64.efi
+        else
             echo "No Proxmox installation found on disk"
-            echo "Checked partitions: gpt1-gpt9"
+            echo "Searched for: /EFI/proxmox/grubx64.efi"
             echo "Press any key..."
             read
         fi
