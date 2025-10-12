@@ -615,101 +615,113 @@ set disk_uuid=""
 set efi_part=""
 set disk=""
 
-# Найти системный диск: ищем диск с Proxmox bootloader (не USB!)
-# Проверяем hd0, hd1, hd2 и партиции gpt1, gpt2, gpt3
+# Ищем proxmox-installed на любом диске (hd0, hd1, hd2)
+# Файл создается first-boot скриптом только на системном диске
 
-# hd0
+# hd0,gpt2
 if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
-        if [ -f (hd0,gpt2)/proxmox-installed ]; then
-            cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
-            if [ "$disk_uuid" = "$usb_uuid" ]; then
-                set found_system=1
-                set efi_part="gpt2"
-                set disk="hd0"
-            fi
-        fi
-    elif [ -f (hd0,gpt1)/EFI/proxmox/grubx64.efi ]; then
-        if [ -f (hd0,gpt1)/proxmox-installed ]; then
-            cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
-            if [ "$disk_uuid" = "$usb_uuid" ]; then
-                set found_system=1
-                set efi_part="gpt1"
-                set disk="hd0"
-            fi
-        fi
-    elif [ -f (hd0,gpt3)/EFI/proxmox/grubx64.efi ]; then
-        if [ -f (hd0,gpt3)/proxmox-installed ]; then
-            cat --set=disk_uuid (hd0,gpt3)/proxmox-installed
-            if [ "$disk_uuid" = "$usb_uuid" ]; then
-                set found_system=1
-                set efi_part="gpt3"
-                set disk="hd0"
-            fi
+    if [ -f (hd0,gpt2)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt2"
+            set disk="hd0"
         fi
     fi
 fi
 
-# hd1
+# hd0,gpt1
 if [ $found_system -eq 0 ]; then
-    if [ -f (hd1,gpt2)/EFI/proxmox/grubx64.efi ]; then
-        if [ -f (hd1,gpt2)/proxmox-installed ]; then
-            cat --set=disk_uuid (hd1,gpt2)/proxmox-installed
-            if [ "$disk_uuid" = "$usb_uuid" ]; then
-                set found_system=1
-                set efi_part="gpt2"
-                set disk="hd1"
-            fi
-        fi
-    elif [ -f (hd1,gpt1)/EFI/proxmox/grubx64.efi ]; then
-        if [ -f (hd1,gpt1)/proxmox-installed ]; then
-            cat --set=disk_uuid (hd1,gpt1)/proxmox-installed
-            if [ "$disk_uuid" = "$usb_uuid" ]; then
-                set found_system=1
-                set efi_part="gpt1"
-                set disk="hd1"
-            fi
-        fi
-    elif [ -f (hd1,gpt3)/EFI/proxmox/grubx64.efi ]; then
-        if [ -f (hd1,gpt3)/proxmox-installed ]; then
-            cat --set=disk_uuid (hd1,gpt3)/proxmox-installed
-            if [ "$disk_uuid" = "$usb_uuid" ]; then
-                set found_system=1
-                set efi_part="gpt3"
-                set disk="hd1"
-            fi
+    if [ -f (hd0,gpt1)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt1"
+            set disk="hd0"
         fi
     fi
 fi
 
-# hd2
+# hd0,gpt3
 if [ $found_system -eq 0 ]; then
-    if [ -f (hd2,gpt2)/EFI/proxmox/grubx64.efi ]; then
-        if [ -f (hd2,gpt2)/proxmox-installed ]; then
-            cat --set=disk_uuid (hd2,gpt2)/proxmox-installed
-            if [ "$disk_uuid" = "$usb_uuid" ]; then
-                set found_system=1
-                set efi_part="gpt2"
-                set disk="hd2"
-            fi
+    if [ -f (hd0,gpt3)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd0,gpt3)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt3"
+            set disk="hd0"
         fi
-    elif [ -f (hd2,gpt1)/EFI/proxmox/grubx64.efi ]; then
-        if [ -f (hd2,gpt1)/proxmox-installed ]; then
-            cat --set=disk_uuid (hd2,gpt1)/proxmox-installed
-            if [ "$disk_uuid" = "$usb_uuid" ]; then
-                set found_system=1
-                set efi_part="gpt1"
-                set disk="hd2"
-            fi
+    fi
+fi
+
+# hd1,gpt2
+if [ $found_system -eq 0 ]; then
+    if [ -f (hd1,gpt2)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd1,gpt2)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt2"
+            set disk="hd1"
         fi
-    elif [ -f (hd2,gpt3)/EFI/proxmox/grubx64.efi ]; then
-        if [ -f (hd2,gpt3)/proxmox-installed ]; then
-            cat --set=disk_uuid (hd2,gpt3)/proxmox-installed
-            if [ "$disk_uuid" = "$usb_uuid" ]; then
-                set found_system=1
-                set efi_part="gpt3"
-                set disk="hd2"
-            fi
+    fi
+fi
+
+# hd1,gpt1
+if [ $found_system -eq 0 ]; then
+    if [ -f (hd1,gpt1)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd1,gpt1)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt1"
+            set disk="hd1"
+        fi
+    fi
+fi
+
+# hd1,gpt3
+if [ $found_system -eq 0 ]; then
+    if [ -f (hd1,gpt3)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd1,gpt3)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt3"
+            set disk="hd1"
+        fi
+    fi
+fi
+
+# hd2,gpt2
+if [ $found_system -eq 0 ]; then
+    if [ -f (hd2,gpt2)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd2,gpt2)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt2"
+            set disk="hd2"
+        fi
+    fi
+fi
+
+# hd2,gpt1
+if [ $found_system -eq 0 ]; then
+    if [ -f (hd2,gpt1)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd2,gpt1)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt1"
+            set disk="hd2"
+        fi
+    fi
+fi
+
+# hd2,gpt3
+if [ $found_system -eq 0 ]; then
+    if [ -f (hd2,gpt3)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd2,gpt3)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt3"
+            set disk="hd2"
         fi
     fi
 fi
