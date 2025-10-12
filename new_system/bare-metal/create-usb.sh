@@ -380,29 +380,48 @@ SCRIPTEOF
     # --answer-file: path to answer.toml
     # --on-first-boot: bash script to run after first boot
     print_info "Preparing ISO with first-boot script..."
-    proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
+
+    if ! proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
         --fetch-from iso \
         --answer-file ./answer.toml \
-        --on-first-boot "$FIRST_BOOT_SCRIPT"
+        --on-first-boot "$FIRST_BOOT_SCRIPT"; then
+        print_error "Failed to prepare ISO with proxmox-auto-install-assistant"
+        rm -f "$FIRST_BOOT_SCRIPT"
+        exit 1
+    fi
 
     # Clean up temporary first-boot script
     rm -f "$FIRST_BOOT_SCRIPT"
 
     # The tool creates ISO with specific naming pattern
     # Find the created ISO
+    print_info "Looking for created ISO..."
+    print_info "Expected pattern: ${ISO_FILE%.iso}*-auto-from-iso.iso"
+
+    # List all ISO files in current directory for debugging
+    echo ""
+    print_info "ISO files in current directory:"
+    ls -lh *.iso 2>/dev/null || echo "  (none found)"
+    echo ""
+
     CREATED_ISO=$(ls -t "${ISO_FILE%.iso}"*-auto-from-iso.iso 2>/dev/null | head -1)
 
     if [ -z "$CREATED_ISO" ]; then
         print_error "Failed to create prepared ISO"
         echo "Expected pattern: ${ISO_FILE%.iso}*-auto-from-iso.iso"
+        echo ""
+        print_info "Checking if proxmox-auto-install-assistant created any output..."
+        ls -lh "${ISO_FILE%.iso}"*.iso 2>/dev/null || echo "  No ISO files with that prefix found"
         exit 1
     fi
+
+    print_success "Found created ISO: $CREATED_ISO"
 
     # Rename to our target
     mv "$CREATED_ISO" "$PREPARED_ISO"
 
     if [ ! -f "$PREPARED_ISO" ]; then
-        print_error "Failed to create prepared ISO"
+        print_error "Failed to rename prepared ISO"
         exit 1
     fi
 
