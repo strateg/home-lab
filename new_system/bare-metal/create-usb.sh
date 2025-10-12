@@ -625,6 +625,7 @@ fi
 
 if [ $found_system -eq 1 ]; then
     # UUID совпадают - система уже установлена с этой флешки
+    # Предотвращаем переустановку, но даем опцию
     set timeout=5
     set default=0
 
@@ -632,38 +633,67 @@ if [ $found_system -eq 1 ]; then
         chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
     }
 
-    menuentry 'Reinstall (ERASES ALL DATA!)' {
-        # Проверяем наличие файла перед загрузкой
+    menuentry 'Reinstall Proxmox (ERASES ALL DATA!)' {
         if [ -f ($root)/EFI/BOOT/grub-original.cfg ]; then
             configfile ($root)/EFI/BOOT/grub-original.cfg
         else
-            echo "ERROR: grub-original.cfg not found!"
-            echo "Press any key to reboot..."
+            echo "ERROR: Installation menu not found"
             read
-            reboot
         fi
     }
 else
-    # UUID не совпадают или нет маркера - запустить автоустановку
-    # Проверяем наличие файла перед загрузкой
-    if [ -f ($root)/EFI/BOOT/grub-original.cfg ]; then
-        configfile ($root)/EFI/BOOT/grub-original.cfg
+    # UUID не совпадают или нет маркера
+    # Запуск АВТОУСТАНОВКИ с предупреждением 5 секунд
+
+    # Показываем информацию
+    echo "=============================================="
+    echo "  Proxmox VE Auto-Installation"
+    echo "=============================================="
+    echo ""
+    if [ -n "$disk_uuid" ]; then
+        echo "USB UUID:  $usb_uuid"
+        echo "Disk UUID: $disk_uuid"
+        echo ""
+        echo "Different USB detected - new installation"
     else
-        # Fallback: показать сообщение об ошибке
-        set timeout=30
-        menuentry 'ERROR: Installation menu not found!' {
-            echo "grub-original.cfg missing from USB"
-            echo "UUID on USB: $usb_uuid"
-            echo "UUID on disk: $disk_uuid"
+        echo "No installation found on disk"
+        echo "Fresh installation will start"
+    fi
+    echo ""
+    echo "AUTO-INSTALLATION starts in 5 seconds..."
+    echo "Press ESC or arrow keys to see options"
+    echo "=============================================="
+
+    set timeout=5
+    set default=0
+
+    menuentry 'Install Proxmox VE (AUTO-INSTALL)' {
+        # Запускает меню установки, где auto-install default
+        if [ -f ($root)/EFI/BOOT/grub-original.cfg ]; then
+            configfile ($root)/EFI/BOOT/grub-original.cfg
+        else
+            echo "ERROR: Installation files not found on USB"
+            echo "grub-original.cfg is missing"
+            echo ""
+            echo "Press any key to halt..."
+            read
+            halt
+        fi
+    }
+
+    menuentry 'Boot existing system from disk (if any)' {
+        if [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
+            chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
+        else
+            echo "No Proxmox installation found on disk"
             echo "Press any key..."
             read
-        }
-        menuentry 'Try to boot from disk' {
-            if [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
-                chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
-            fi
-        }
-    fi
+        fi
+    }
+
+    menuentry 'Cancel installation (Halt)' {
+        halt
+    }
 fi
 GRUBEOF
 
