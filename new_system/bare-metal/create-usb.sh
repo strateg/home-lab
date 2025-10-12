@@ -290,92 +290,56 @@ prepare_iso() {
     print_info "This creates an ISO with 'Automated Installation' boot option"
     echo ""
 
-    # Generate readable installation ID with timestamp (штамп)
-    # Format: TIMEZONE_YYYY_MM_DD_HH_MM
+    # Generate readable installation UUID (timestamp-based)
     TIMEZONE=$(date +%Z)
     TIMESTAMP=$(date +%Y_%m_%d_%H_%M)
     INSTALL_UUID="${TIMEZONE}_${TIMESTAMP}"
-
-    print_info "Generated installation ID: $INSTALL_UUID"
-    print_info "Format: ${TIMEZONE} (timezone) ${TIMESTAMP//_/-} (date time)"
+    print_info "Generated installation UUID: $INSTALL_UUID"
 
     # Save UUID to file for later embedding on USB
     echo "$INSTALL_UUID" > /tmp/install-uuid-$$
     export INSTALL_UUID
 
-    # Create first-boot script with UUID marker commands
+    # Create first-boot script with embedded UUID
     FIRST_BOOT_SCRIPT="/tmp/first-boot-$$.sh"
     cat > "$FIRST_BOOT_SCRIPT" << 'SCRIPTEOF'
 #!/bin/bash
 # First-boot script - Reinstall Prevention
-# This script is embedded into the ISO with hardcoded installation ID
 
-# DO NOT use 'set -e' - we want to continue even if some commands fail
-# Log everything with timestamps
 exec 1>>/var/log/proxmox-first-boot.log 2>&1
 
 echo "======================================================================="
 echo "===== First-boot script started at $(date) ====="
 echo "======================================================================="
 
-# Installation ID is embedded at USB creation time (replaced by sed)
+# Installation ID is embedded at USB creation time
 INSTALL_ID="INSTALL_UUID_PLACEHOLDER"
 echo "Installation ID (from USB creation): $INSTALL_ID"
 
-# Create marker to prove script ran
-touch /root/FIRST_BOOT_SCRIPT_RAN
-echo "✓ Created /root/FIRST_BOOT_SCRIPT_RAN marker"
-
 # Save installation ID to system root
 echo -n "$INSTALL_ID" > /etc/proxmox-install-id
-if [ -f /etc/proxmox-install-id ]; then
-    echo "✓ Created /etc/proxmox-install-id with ID: $INSTALL_ID"
-else
-    echo "✗ FAILED to create /etc/proxmox-install-id!"
-fi
+echo "✓ Created /etc/proxmox-install-id"
 
-# Show available block devices
-echo "Available block devices:"
-lsblk 2>&1 | head -30
-
-# Proxmox can mount EFI to /efi or /boot/efi - check both
+# Find EFI partition - Proxmox can mount to /efi or /boot/efi
 EFI_MOUNT=""
 if mountpoint -q /efi 2>/dev/null; then
     EFI_MOUNT="/efi"
-    echo "✓ Found EFI mounted at /efi"
+    echo "✓ Found EFI at /efi"
 elif mountpoint -q /boot/efi 2>/dev/null; then
     EFI_MOUNT="/boot/efi"
-    echo "✓ Found EFI mounted at /boot/efi"
+    echo "✓ Found EFI at /boot/efi"
 else
-    echo "EFI partition is NOT mounted, searching..."
-
-    # Show all vfat partitions
-    echo "All vfat partitions:"
-    blkid -t TYPE=vfat 2>&1
-
-    # Try to find and mount EFI on system disk (sda, nvme0n1)
+    echo "EFI not mounted, searching..."
     for disk in /dev/sda /dev/nvme0n1; do
         [ ! -b "$disk" ] && continue
-        echo "Checking disk: $disk"
-
         for part in "${disk}"[0-9]* "${disk}p"[0-9]*; do
             [ ! -b "$part" ] && continue
-
             PART_TYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null)
             if [ "$PART_TYPE" = "vfat" ]; then
-                echo "Found vfat partition: $part"
-                # Try /efi first (Proxmox default)
                 mkdir -p /efi
                 if mount "$part" /efi 2>&1; then
                     EFI_MOUNT="/efi"
                     echo "✓ Mounted $part to /efi"
-                    break 2
-                fi
-                # Try /boot/efi as fallback
-                mkdir -p /boot/efi
-                if mount "$part" /boot/efi 2>&1; then
-                    EFI_MOUNT="/boot/efi"
-                    echo "✓ Mounted $part to /boot/efi"
                     break 2
                 fi
             fi
@@ -383,65 +347,26 @@ else
     done
 fi
 
-# Check final mount status and write UUID
-echo "Final mount check..."
+# Write UUID marker to EFI
 if [ -n "$EFI_MOUNT" ] && mountpoint -q "$EFI_MOUNT" 2>/dev/null; then
-    echo "✓ EFI partition is mounted at: $EFI_MOUNT"
-    MOUNTED_DEV=$(findmnt -n -o SOURCE "$EFI_MOUNT" 2>/dev/null || echo "unknown")
-    echo "✓ Mounted device: $MOUNTED_DEV"
-
-    # Write UUID marker
-    echo "Writing installation ID to $EFI_MOUNT/proxmox-installed..."
     echo -n "$INSTALL_ID" > "$EFI_MOUNT/proxmox-installed"
     sync
-
-    # Verify
     if [ -f "$EFI_MOUNT/proxmox-installed" ]; then
-        SAVED_ID=$(cat "$EFI_MOUNT/proxmox-installed")
-        echo "✓ SUCCESSFULLY created $EFI_MOUNT/proxmox-installed"
-        echo "✓ File contains: '$SAVED_ID'"
-
-        # Show EFI partition contents
-        echo "Contents of $EFI_MOUNT (first 30 items):"
-        ls -la "$EFI_MOUNT/" 2>&1 | head -30
+        echo "✓ Created $EFI_MOUNT/proxmox-installed with ID: $INSTALL_ID"
     else
-        echo "✗ ERROR: $EFI_MOUNT/proxmox-installed was NOT created!"
-        echo "Checking write permissions..."
-        touch "$EFI_MOUNT/test-write" 2>&1 && rm "$EFI_MOUNT/test-write" && echo "✓ Write works" || echo "✗ Cannot write"
+        echo "✗ Failed to create marker file!"
     fi
 else
-    echo "✗ CRITICAL ERROR: Failed to mount EFI partition!"
-    echo "✗ Reinstall prevention will NOT work!"
-    echo "Showing mount table:"
-    mount 2>&1 | grep -E "(efi|vfat)" || echo "No EFI mounts found"
+    echo "✗ CRITICAL: Failed to mount EFI partition!"
 fi
 
-echo "======================================================================="
-echo "===== First-boot script completed at $(date) ====="
-echo "======================================================================="
+echo "===== First-boot completed at $(date) ====="
 exit 0
 SCRIPTEOF
 
     # Replace placeholder with actual UUID
     sed -i "s/INSTALL_UUID_PLACEHOLDER/$INSTALL_UUID/" "$FIRST_BOOT_SCRIPT"
     chmod +x "$FIRST_BOOT_SCRIPT"
-
-    print_success "Created first-boot script with embedded UUID: $INSTALL_UUID"
-
-    # Create modified answer.toml with first-boot reference
-    TEMP_ANSWER="/tmp/answer-with-uuid-$$.toml"
-    cp ./answer.toml "$TEMP_ANSWER"
-
-    # Add first-boot section
-    cat >> "$TEMP_ANSWER" << 'EOF'
-
-# ============================================================
-# First-boot script (Reinstall Prevention)
-# ============================================================
-
-[first-boot]
-source = "from-iso"
-EOF
 
     print_success "Created first-boot script with UUID: $INSTALL_UUID"
 
@@ -450,17 +375,18 @@ EOF
     # Remove old prepared ISO if exists
     rm -f "$PREPARED_ISO"
 
-    # Run prepare-iso with modified answer.toml and first-boot script
-    # --fetch-from iso: embeds answer.toml and first-boot script into ISO
-    # --answer-file: path to modified answer.toml
-    # --on-first-boot: path to first-boot script
+    # Run prepare-iso with answer.toml and first-boot script
+    # --fetch-from iso: embeds answer.toml into ISO
+    # --answer-file: path to answer.toml
+    # --on-first-boot: bash script to run after first boot
+    print_info "Preparing ISO with first-boot script..."
     proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
         --fetch-from iso \
-        --answer-file "$TEMP_ANSWER" \
+        --answer-file ./answer.toml \
         --on-first-boot "$FIRST_BOOT_SCRIPT"
 
-    # Clean up temporary files
-    rm -f "$TEMP_ANSWER" "$FIRST_BOOT_SCRIPT"
+    # Clean up temporary first-boot script
+    rm -f "$FIRST_BOOT_SCRIPT"
 
     # The tool creates ISO with specific naming pattern
     # Find the created ISO
@@ -588,22 +514,16 @@ add_graphics_params() {
 # ============================================================
 
 embed_install_uuid() {
-    print_section "Embedding installation ID on USB"
+    print_section "Embedding installation UUID on USB"
 
     # Get saved UUID
     INSTALL_UUID=$(cat /tmp/install-uuid-$$ 2>/dev/null)
     if [ -z "$INSTALL_UUID" ]; then
-        print_error "Installation ID not found"
+        print_error "Installation UUID not found"
         exit 1
     fi
 
-    # Parse UUID to show readable format
-    TIMEZONE="${INSTALL_UUID%%_*}"
-    TIMESTAMP="${INSTALL_UUID#*_}"
-    TIMESTAMP_READABLE=$(echo "$TIMESTAMP" | sed 's/_/-/g; s/-/ /3; s/-/:/4')
-
-    print_info "Installation ID: $INSTALL_UUID"
-    print_info "Created: $TIMEZONE $TIMESTAMP_READABLE"
+    print_info "Installation UUID: $INSTALL_UUID"
 
     # Force re-read partition table
     partprobe "$USB_DEVICE" 2>/dev/null || true
@@ -614,26 +534,23 @@ embed_install_uuid() {
     mkdir -p "$MOUNT_POINT"
     UUID_EMBEDDED=0
 
-    # Find and mount the CORRECT EFI boot partition
-    # Must be vfat with PARTLABEL="EFI boot partition" or similar
+    # Find and mount the FAT32 EFI partition (look for PARTLABEL)
     for part in "${USB_DEVICE}"[0-9]* "${USB_DEVICE}p"[0-9]*; do
         [ ! -b "$part" ] && continue
 
-        # Check filesystem type
         FSTYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null || echo "")
         [ "$FSTYPE" != "vfat" ] && continue
 
-        # Check partition label (must be EFI-related)
+        # Check PARTLABEL to find correct EFI partition
         PARTLABEL=$(blkid -s PARTLABEL -o value "$part" 2>/dev/null || echo "")
         print_info "Checking $part: TYPE=$FSTYPE PARTLABEL='$PARTLABEL'"
 
         # Skip if not EFI boot partition
         if [[ ! "$PARTLABEL" =~ [Ee][Ff][Ii] ]] && [[ ! "$PARTLABEL" =~ [Bb]oot ]]; then
-            print_warn "  Skipping $part: not an EFI boot partition (PARTLABEL='$PARTLABEL')"
+            print_warn "  Skipping $part: not EFI boot partition"
             continue
         fi
 
-        # Try to mount
         if mount -o rw "$part" "$MOUNT_POINT" 2>/dev/null; then
             # Verify it contains grub.cfg
             if [ ! -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
@@ -644,38 +561,16 @@ embed_install_uuid() {
 
             print_success "Found correct EFI boot partition: $part (PARTLABEL='$PARTLABEL')"
 
-            # Save installation ID (without trailing newline for exact comparison)
-            echo -n "$INSTALL_UUID" > "$MOUNT_POINT/EFI/BOOT/install-id"
-
-            # Also save human-readable version
-            cat > "$MOUNT_POINT/EFI/BOOT/install-info.txt" << INFOEOF
-Proxmox VE Auto-Install USB
-============================
-
-Installation ID: $INSTALL_UUID
-
-Created:
-  Timezone: $TIMEZONE
-  Date:     $(echo "$TIMESTAMP" | cut -d_ -f1-3 | sed 's/_/-/g')
-  Time:     $(echo "$TIMESTAMP" | cut -d_ -f4-5 | sed 's/_/:/g')
-
-This USB will mark installed systems with this ID to prevent
-accidental reinstallation on reboot.
-INFOEOF
-
-            print_success "ID saved to: /EFI/BOOT/install-id"
-            print_success "Info saved to: /EFI/BOOT/install-info.txt"
-
             # Backup original grub.cfg
             if [ -f "$MOUNT_POINT/EFI/BOOT/grub.cfg" ]; then
-                mv "$MOUNT_POINT/EFI/BOOT/grub.cfg" "$MOUNT_POINT/EFI/BOOT/grub-install.cfg"
-                print_success "Backed up original grub.cfg → grub-install.cfg"
+                cp "$MOUNT_POINT/EFI/BOOT/grub.cfg" "$MOUNT_POINT/EFI/BOOT/grub-original.cfg"
+                print_success "Backed up original grub.cfg → grub-original.cfg"
             fi
 
-            # Create reinstall-check GRUB script as MAIN grub.cfg
-            cat > "$MOUNT_POINT/EFI/BOOT/grub.cfg" << 'GRUBEOF'
-# Reinstall Prevention Check
-# UUID-based system to prevent accidental reinstallation
+            # Create new grub.cfg with UUID check wrapper
+            cat > "$MOUNT_POINT/EFI/BOOT/grub.cfg.new" << 'GRUBEOF'
+# Reinstall Prevention Wrapper
+# This checks for existing installation before loading installer menu
 
 insmod part_gpt
 insmod fat
@@ -684,13 +579,13 @@ insmod chain
 # UUID встроен при создании USB
 set usb_uuid="USB_UUID_PLACEHOLDER"
 
-# Проверяем наличие маркера на диске (hd0,gpt2 - EFI партиция Proxmox)
+# Проверяем маркер на (hd0,gpt2) - EFI партиция системного диска
 if [ -f (hd0,gpt2)/proxmox-installed ]; then
     cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
 
     # Сравниваем UUIDs
     if [ "$disk_uuid" = "$usb_uuid" ]; then
-        # UUIDs совпадают - загрузить систему
+        # UUIDs совпадают - система уже установлена
         set timeout=5
         set default=0
 
@@ -698,23 +593,27 @@ if [ -f (hd0,gpt2)/proxmox-installed ]; then
             chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
         }
 
-        menuentry 'Reinstall' {
-            configfile /EFI/BOOT/grub-install.cfg
+        menuentry 'Reinstall (ERASES ALL DATA!)' {
+            configfile /EFI/BOOT/grub-original.cfg
         }
     else
-        # Разные UUID - показать меню установки
-        configfile /EFI/BOOT/grub-install.cfg
+        # Разные UUID - загрузить оригинальное меню установки
+        configfile /EFI/BOOT/grub-original.cfg
     fi
 else
-    # Нет маркера - чистый диск - установка
-    configfile /EFI/BOOT/grub-install.cfg
+    # Нет маркера - чистый диск - загрузить оригинальное меню установки
+    configfile /EFI/BOOT/grub-original.cfg
 fi
 GRUBEOF
 
             # Replace UUID placeholder
-            sed -i "s/USB_UUID_PLACEHOLDER/$INSTALL_UUID/" "$MOUNT_POINT/EFI/BOOT/grub.cfg"
+            sed -i "s/USB_UUID_PLACEHOLDER/$INSTALL_UUID/" "$MOUNT_POINT/EFI/BOOT/grub.cfg.new"
 
-            print_success "Created reinstall-check as main grub.cfg"
+            # Replace grub.cfg with our wrapper
+            mv "$MOUNT_POINT/EFI/BOOT/grub.cfg.new" "$MOUNT_POINT/EFI/BOOT/grub.cfg"
+
+            print_success "Created UUID check wrapper as grub.cfg"
+            print_info "Original installer menu preserved in grub-original.cfg"
 
             sync
             UUID_EMBEDDED=1
@@ -729,14 +628,9 @@ GRUBEOF
     rm -f /tmp/install-uuid-$$
 
     if [ $UUID_EMBEDDED -eq 1 ]; then
-        print_success "Installation ID embedded on USB"
-        echo ""
-        print_info "📝 Installation ID breakdown:"
-        print_info "   Timezone: $TIMEZONE"
-        print_info "   Date:     $(echo "$TIMESTAMP" | cut -d_ -f1-3 | sed 's/_/-/g')"
-        print_info "   Time:     $(echo "$TIMESTAMP" | cut -d_ -f4-5 | sed 's/_/:/g')"
+        print_success "Installation UUID embedded on USB"
     else
-        print_error "Failed to embed ID (USB may reinstall every boot)"
+        print_error "Failed to embed UUID (USB may reinstall every boot)"
         exit 1
     fi
 }
@@ -780,10 +674,6 @@ ${BLUE}What was done:${NC}
   ✓ Written prepared ISO to USB: $USB_DEVICE
   ✓ Added graphics parameters for external display
 
-${GREEN}Installation ID: $INSTALL_UUID${NC}
-  Timezone: ${TIMEZONE}
-  Created:  $(echo "$TIMESTAMP" | cut -d_ -f1-3 | sed 's/_/-/g') $(echo "$TIMESTAMP" | cut -d_ -f4-5 | sed 's/_/:/g')
-
 ${YELLOW}╔════════════════════════════════════════════════════════╗${NC}
 ${YELLOW}║ BOOT INSTRUCTIONS (Dell XPS L701X)                    ║${NC}
 ${YELLOW}╚════════════════════════════════════════════════════════╝${NC}
@@ -810,8 +700,7 @@ ${BLUE}First boot (system NOT installed):${NC}
 • Installation UUID marker saved to disk
 
 ${BLUE}Second boot (system ALREADY installed from this USB):${NC}
-• GRUB detects installation ID marker
-• Shows readable installation date/time in menu
+• GRUB detects installation UUID marker
 • ${GREEN}Menu changes automatically${NC}:
   1. 'Boot Proxmox from disk (Already Installed)' ${YELLOW}[default]${NC}
   2. 'Reinstall Proxmox (ERASES DISK!)'
@@ -820,7 +709,6 @@ ${BLUE}Second boot (system ALREADY installed from this USB):${NC}
 • Press 'r' to force reinstall if needed (ERASES ALL DATA!)
 
 ${GREEN}This prevents accidental reinstallation!${NC}
-${BLUE}Installation ID shows when USB was created!${NC}
 
 ${BLUE}╔════════════════════════════════════════════════════════╗${NC}
 ${BLUE}║ AFTER INSTALLATION                                    ║${NC}
