@@ -612,14 +612,39 @@ insmod chain
 # UUID встроен при создании USB
 set usb_uuid="USB_UUID_PLACEHOLDER"
 set found_system=0
+set disk_uuid=""
 
-# Проверяем маркер на (hd0,gpt2) - EFI партиция системного диска
-if [ -f (hd0,gpt2)/proxmox-installed ]; then
-    cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
+# Ищем EFI партицию на системном диске
+# Proxmox может создавать EFI на gpt1 или gpt2 (зависит от BIOS/UEFI схемы)
 
-    # Если UUID совпадают - система установлена с ЭТОЙ флешки
+# Проверяем (hd0,gpt1) - может быть EFI на UEFI-only системах
+if [ -f (hd0,gpt1)/proxmox-installed ]; then
+    cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
+
     if [ "$disk_uuid" = "$usb_uuid" ]; then
         set found_system=1
+    fi
+fi
+
+# Если не нашли на gpt1, проверяем (hd0,gpt2) - EFI на BIOS+UEFI системах
+if [ $found_system -eq 0 ]; then
+    if [ -f (hd0,gpt2)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
+
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+        fi
+    fi
+fi
+
+# Если не нашли на gpt2, проверяем (hd0,gpt3) - на всякий случай
+if [ $found_system -eq 0 ]; then
+    if [ -f (hd0,gpt3)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd0,gpt3)/proxmox-installed
+
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+        fi
     fi
 fi
 
@@ -630,7 +655,18 @@ if [ $found_system -eq 1 ]; then
     set default=0
 
     menuentry 'Boot Proxmox VE (installed system)' {
-        chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
+        # Ищем EFI партицию с Proxmox bootloader
+        if [ -f (hd0,gpt1)/EFI/proxmox/grubx64.efi ]; then
+            chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
+        elif [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
+            chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
+        elif [ -f (hd0,gpt3)/EFI/proxmox/grubx64.efi ]; then
+            chainloader (hd0,gpt3)/EFI/proxmox/grubx64.efi
+        else
+            echo "ERROR: Proxmox bootloader not found!"
+            echo "Tried: (hd0,gpt1), (hd0,gpt2), (hd0,gpt3)"
+            read
+        fi
     }
 
     menuentry 'Reinstall Proxmox (ERASES ALL DATA!)' {
@@ -682,10 +718,16 @@ else
     }
 
     menuentry 'Boot existing system from disk (if any)' {
-        if [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
+        # Ищем Proxmox на любой EFI партиции
+        if [ -f (hd0,gpt1)/EFI/proxmox/grubx64.efi ]; then
+            chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
+        elif [ -f (hd0,gpt2)/EFI/proxmox/grubx64.efi ]; then
             chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
+        elif [ -f (hd0,gpt3)/EFI/proxmox/grubx64.efi ]; then
+            chainloader (hd0,gpt3)/EFI/proxmox/grubx64.efi
         else
             echo "No Proxmox installation found on disk"
+            echo "Tried: (hd0,gpt1), (hd0,gpt2), (hd0,gpt3)"
             echo "Press any key..."
             read
         fi
