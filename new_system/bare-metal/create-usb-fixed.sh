@@ -192,23 +192,25 @@ prepare_iso() {
     TMPDIR=$(mktemp -d -t pmxiso.XXXX)
     print_info "Using tempdir $TMPDIR"
 
+    # Generate output ISO filename
+    local output_iso="$TMPDIR/$(basename "${iso_src%.iso}")-auto-from-iso.iso"
+
     # Use proxmox-auto-install-assistant (REQUIRED for auto-install)
     print_info "Embedding answer.toml using proxmox-auto-install-assistant..."
 
     if ! proxmox-auto-install-assistant prepare-iso "$iso_src" \
         --fetch-from iso \
         --answer-file "$answer" \
-        --outdir "$TMPDIR"; then
+        --output "$output_iso" \
+        --tmp "$TMPDIR"; then
         print_error "proxmox-auto-install-assistant failed"
         return 9
     fi
 
-    # Find created ISO (pattern: *-auto-from-iso.iso)
-    local created_iso
-    created_iso=$(find "$TMPDIR" -maxdepth 1 -type f -name '*-auto-from-iso.iso' -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -n1 | awk '{print $2}')
-
-    if [[ -z "$created_iso" || ! -f "$created_iso" ]]; then
-        print_error "Assistant did not produce ISO (expected pattern: *-auto-from-iso.iso)"
+    # Verify created ISO exists
+    local created_iso="$output_iso"
+    if [[ ! -f "$created_iso" ]]; then
+        print_error "Assistant did not create ISO at: $created_iso"
         return 9
     fi
 
