@@ -320,7 +320,7 @@ echo "Installation ID (from USB creation): $INSTALL_ID"
 echo -n "$INSTALL_ID" > /etc/proxmox-install-id
 echo "✓ Created /etc/proxmox-install-id"
 
-# Find EFI partition - Proxmox can mount to /efi or /boot/efi
+# Find EFI partition ON THE SAME DISK as root filesystem (not USB!)
 EFI_MOUNT=""
 if mountpoint -q /efi 2>/dev/null; then
     EFI_MOUNT="/efi"
@@ -329,10 +329,13 @@ elif mountpoint -q /boot/efi 2>/dev/null; then
     EFI_MOUNT="/boot/efi"
     echo "✓ Found EFI at /boot/efi"
 else
-    echo "EFI not mounted, searching..."
-    for disk in /dev/sda /dev/nvme0n1; do
-        [ ! -b "$disk" ] && continue
-        for part in "${disk}"[0-9]* "${disk}p"[0-9]*; do
+    echo "EFI not mounted, searching on root device..."
+    # Find device where root is installed
+    ROOT_DEV=$(findmnt -n -o SOURCE / | sed 's/[0-9]*$//')
+    echo "Root device: $ROOT_DEV"
+
+    if [ -n "$ROOT_DEV" ]; then
+        for part in "${ROOT_DEV}"[0-9]* "${ROOT_DEV}p"[0-9]*; do
             [ ! -b "$part" ] && continue
             PART_TYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null)
             if [ "$PART_TYPE" = "vfat" ]; then
@@ -340,11 +343,11 @@ else
                 if mount "$part" /efi 2>&1; then
                     EFI_MOUNT="/efi"
                     echo "✓ Mounted $part to /efi"
-                    break 2
+                    break
                 fi
             fi
         done
-    done
+    fi
 fi
 
 # Write UUID marker to EFI
