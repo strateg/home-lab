@@ -614,26 +614,37 @@ set found_system=0
 set disk_uuid=""
 set efi_part=""
 
-# Ищем маркер ТОЛЬКО на hd0 (системный диск, не USB!)
-# Проверяем gpt2 → gpt1 → gpt3 (покрывает 99.9% случаев)
+# Ищем СОВПАДЕНИЕ UUID на hd0 (не USB!)
+# Проверяем ВСЕ партиции, пока не найдем совпадение
 
+# Проверяем gpt2 (самый частый случай)
 if [ -f (hd0,gpt2)/proxmox-installed ]; then
     cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
-    set efi_part="gpt2"
     if [ "$disk_uuid" = "$usb_uuid" ]; then
         set found_system=1
+        set efi_part="gpt2"
     fi
-elif [ -f (hd0,gpt1)/proxmox-installed ]; then
-    cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
-    set efi_part="gpt1"
-    if [ "$disk_uuid" = "$usb_uuid" ]; then
-        set found_system=1
+fi
+
+# Если не совпало, проверяем gpt1
+if [ $found_system -eq 0 ]; then
+    if [ -f (hd0,gpt1)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt1"
+        fi
     fi
-elif [ -f (hd0,gpt3)/proxmox-installed ]; then
-    cat --set=disk_uuid (hd0,gpt3)/proxmox-installed
-    set efi_part="gpt3"
-    if [ "$disk_uuid" = "$usb_uuid" ]; then
-        set found_system=1
+fi
+
+# Если не совпало, проверяем gpt3
+if [ $found_system -eq 0 ]; then
+    if [ -f (hd0,gpt3)/proxmox-installed ]; then
+        cat --set=disk_uuid (hd0,gpt3)/proxmox-installed
+        if [ "$disk_uuid" = "$usb_uuid" ]; then
+            set found_system=1
+            set efi_part="gpt3"
+        fi
     fi
 fi
 
