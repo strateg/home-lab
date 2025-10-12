@@ -198,11 +198,12 @@ prepare_iso() {
     # Use proxmox-auto-install-assistant (REQUIRED for auto-install)
     print_info "Embedding answer.toml using proxmox-auto-install-assistant..."
 
-    if ! proxmox-auto-install-assistant prepare-iso "$iso_src" \
+    if ! proxmox-auto-install-assistant prepare-iso \
         --fetch-from iso \
         --answer-file "$answer" \
         --output "$output_iso" \
-        --tmp "$TMPDIR"; then
+        --tmp "$TMPDIR" \
+        "$iso_src"; then
         print_error "proxmox-auto-install-assistant failed"
         return 9
     fi

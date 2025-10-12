@@ -199,12 +199,16 @@ prepare_iso() {
     local output_iso="$TMPDIR/$(basename "${iso_src%.iso}")-auto-from-iso.iso"
 
     print_info "Embedding answer.toml using proxmox-auto-install-assistant..."
-    if ! proxmox-auto-install-assistant prepare-iso "$iso_src" \
+    print_info "Command: proxmox-auto-install-assistant prepare-iso --fetch-from iso --answer-file \"$answer\" --output \"$output_iso\" --tmp \"$TMPDIR\" \"$iso_src\""
+
+    if ! proxmox-auto-install-assistant prepare-iso \
         --fetch-from iso \
         --answer-file "$answer" \
         --output "$output_iso" \
-        --tmp "$TMPDIR"; then
-        print_error "proxmox-auto-install-assistant failed"
+        --tmp "$TMPDIR" \
+        "$iso_src" 2>&1 | tee /tmp/paa-output.log; then
+        print_error "proxmox-auto-install-assistant failed. Output:"
+        cat /tmp/paa-output.log >&2
         return 9
     fi
 
@@ -212,6 +216,10 @@ prepare_iso() {
     local created_iso="$output_iso"
     if [[ ! -f "$created_iso" ]]; then
         print_error "Assistant did not create ISO at: $created_iso"
+        print_info "Contents of $TMPDIR:"
+        ls -la "$TMPDIR" >&2 || true
+        print_info "Looking for any ISO files in tempdir:"
+        find "$TMPDIR" -type f -name "*.iso" >&2 || true
         return 9
     fi
 

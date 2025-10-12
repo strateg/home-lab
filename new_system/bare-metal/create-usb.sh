@@ -384,10 +384,11 @@ SCRIPTEOF
     # --on-first-boot: bash script to run after first boot
     print_info "Preparing ISO with first-boot script..."
 
-    if ! proxmox-auto-install-assistant prepare-iso "$ISO_FILE" \
+    if ! proxmox-auto-install-assistant prepare-iso \
         --fetch-from iso \
         --answer-file ./answer.toml \
-        --on-first-boot "$FIRST_BOOT_SCRIPT"; then
+        --on-first-boot "$FIRST_BOOT_SCRIPT" \
+        "$ISO_FILE"; then
         print_error "Failed to prepare ISO with proxmox-auto-install-assistant"
         rm -f "$FIRST_BOOT_SCRIPT"
         exit 1
