@@ -452,7 +452,8 @@ add_graphics_params() {
         local fstype
         fstype=$(blkid -s TYPE -o value "$part" 2>/dev/null || echo "")
 
-        if [[ "$fstype" == "vfat" ]]; then
+        # Check both vfat and hfsplus (Proxmox ISO hybrid)
+        if [[ "$fstype" == "vfat" || "$fstype" == "hfsplus" ]]; then
             if mount -o rw "$part" "$mount_point" 2>/dev/null; then
                 local grub_cfg
                 grub_cfg=$(find "$mount_point" -type f -name "grub.cfg" 2>/dev/null | head -1 || true)
@@ -520,7 +521,7 @@ embed_uuid_wrapper() {
     mount_point=$(mktemp -d -t usbmnt.XXXX)
     local embedded=0
 
-    # Find EFI partition
+    # Find EFI partition (can be vfat or hfsplus for Proxmox ISO)
     while IFS= read -r p; do
         [[ -z "$p" ]] && continue
         local part="/dev/${p##*/}"
@@ -529,11 +530,12 @@ embed_uuid_wrapper() {
         local fstype
         fstype=$(blkid -s TYPE -o value "$part" 2>/dev/null || echo "")
 
-        if [[ "$fstype" == "vfat" ]]; then
+        # Check both vfat (standard EFI) and hfsplus (Proxmox ISO hybrid)
+        if [[ "$fstype" == "vfat" || "$fstype" == "hfsplus" ]]; then
             if mount -o rw "$part" "$mount_point" 2>/dev/null; then
                 # Check if this has EFI/BOOT/grub.cfg
                 if [[ -f "$mount_point/EFI/BOOT/grub.cfg" ]]; then
-                    print_info "Found EFI boot partition: $part"
+                    print_info "Found EFI boot partition: $part ($fstype)"
 
                     # Backup original grub.cfg by RENAMING
                     if [[ -f "$mount_point/EFI/BOOT/grub.cfg" ]]; then
