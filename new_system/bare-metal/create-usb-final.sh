@@ -22,10 +22,18 @@ TMPDIR=""
 cleanup() {
     local rc=${1:-$?}
 
-    # Remove temporary directory
+    # Remove temporary directory (includes temporary ISO)
     if [[ -n "${TMPDIR:-}" && -d "${TMPDIR:-}" ]]; then
+        printf '%s\n' "INFO: Cleaning up temporary files in $TMPDIR..." >&2
         rm -rf "${TMPDIR}"
     fi
+
+    # Clean up any leftover temp directories from previous runs
+    for pattern in /tmp/pmxiso.* /var/tmp/pmxiso.* ./pmxiso.*; do
+        for dir in $pattern; do
+            [[ -d "$dir" ]] && rm -rf "$dir" 2>/dev/null || true
+        done
+    done
 
     # Unmount any temporary mount points (best-effort)
     for dir in /tmp/usbmnt.* /tmp/usb-uuid.*; do
@@ -192,7 +200,15 @@ prepare_iso() {
         return 6
     fi
 
-    TMPDIR=$(mktemp -d -t pmxiso.XXXX)
+    # Use /var/tmp instead of /tmp to avoid tmpfs size limits
+    # /var/tmp is usually on disk, not in RAM
+    # If /var/tmp doesn't have enough space, use current directory
+    if [[ -d /var/tmp ]] && [[ $(df --output=avail /var/tmp | tail -1) -gt 2000000 ]]; then
+        TMPDIR=$(mktemp -d /var/tmp/pmxiso.XXXX)
+    else
+        print_warning "/var/tmp has insufficient space, using current directory"
+        TMPDIR=$(mktemp -d ./pmxiso.XXXX)
+    fi
     print_info "Using tempdir $TMPDIR"
 
     # Generate output ISO filename
@@ -468,6 +484,8 @@ main() {
     print_info "After installation:"
     print_info "  SSH: ssh root@<proxmox-ip>"
     print_info "  Web: https://<proxmox-ip>:8006"
+    print_info ""
+    print_info "Note: Temporary ISO will be automatically cleaned up on exit."
 
     return 0
 }
