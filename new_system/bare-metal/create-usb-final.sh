@@ -235,6 +235,80 @@ prepare_iso() {
     return 0
 }
 
+# --- add auto-installer-mode.toml to USB (critical for auto-installer to work) ---
+add_auto_installer_mode() {
+    local usb_device="$1"
+    if [[ -z "$usb_device" || ! -b "$usb_device" ]]; then
+        print_error "add_auto_installer_mode requires valid USB device"
+        return 10
+    fi
+
+    print_info "Adding auto-installer-mode.toml to USB..."
+
+    # Force re-read partition table
+    partprobe "$usb_device" 2>/dev/null || true
+    blockdev --rereadpt "$usb_device" 2>/dev/null || true
+    sleep 1
+
+    local mount_point
+    mount_point=$(mktemp -d -t usbmnt.XXXX)
+    local added=0
+
+    # Find the main ISO partition (usually HFS+ or ISO9660)
+    while IFS= read -r p; do
+        [[ -z "$p" ]] && continue
+        local part="/dev/${p##*/}"
+        [[ ! -b "$part" ]] && continue
+
+        local fstype
+        fstype=$(blkid -s TYPE -o value "$part" 2>/dev/null || echo "")
+
+        # Try to mount HFS+ or iso9660 partitions
+        if [[ "$fstype" == "hfsplus" || "$fstype" == "iso9660" ]]; then
+            if mount -o rw "$part" "$mount_point" 2>/dev/null; then
+                # Check if this is the right partition (has boot/ directory)
+                if [[ -d "$mount_point/boot" ]]; then
+                    print_info "Found ISO root partition: $part"
+
+                    # Check if auto-installer-mode.toml already exists
+                    if [[ -f "$mount_point/auto-installer-mode.toml" ]]; then
+                        print_info "auto-installer-mode.toml already exists"
+                        added=1
+                    else
+                        # Create auto-installer-mode.toml
+                        cat > "$mount_point/auto-installer-mode.toml" << 'EOF'
+mode = "iso"
+EOF
+                        sync
+                        if [[ -f "$mount_point/auto-installer-mode.toml" ]]; then
+                            print_info "Created auto-installer-mode.toml"
+                            added=1
+                        else
+                            print_warning "Failed to create auto-installer-mode.toml (read-only filesystem?)"
+                        fi
+                    fi
+
+                    umount "$mount_point" >/dev/null 2>&1 || true
+                    break
+                else
+                    umount "$mount_point" >/dev/null 2>&1 || true
+                fi
+            fi
+        fi
+    done < <(lsblk -ln -o NAME "$usb_device" | tail -n +2)
+
+    rmdir "$mount_point" >/dev/null 2>&1 || true
+
+    if [[ $added -eq 1 ]]; then
+        print_info "auto-installer-mode.toml is present on USB"
+    else
+        print_warning "Could not add auto-installer-mode.toml (filesystem may be read-only)"
+        print_warning "WORKAROUND: Boot to GRUB, press 'e' on any entry, add 'proxmox-start-auto-installer' to linux line"
+    fi
+
+    return 0
+}
+
 # --- add graphics params for Dell XPS L701X to USB (after write) ---
 add_graphics_params() {
     local usb_device="$1"
@@ -371,6 +445,9 @@ main() {
     sync
     sleep 1
     print_info "Successfully wrote $created_iso to $target_dev"
+
+    # Add auto-installer-mode.toml (CRITICAL for auto-installer to work)
+    add_auto_installer_mode "$target_dev" || print_warning "add_auto_installer_mode encountered an issue"
 
     # Add graphics parameters (best-effort)
     add_graphics_params "$target_dev" || print_warning "add_graphics_params encountered an issue"
