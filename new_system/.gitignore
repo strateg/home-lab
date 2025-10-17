@@ -11,9 +11,24 @@ generated/
 .terraform/
 .terraform.lock.hcl
 
-# Ansible Vault password files
+# Ansible Vault password files and encrypted secrets
 .vault_pass
+.vault_password
 *.vault
+
+# Encrypted vault files (keep .example files)
+**/vault.yml
+!**/vault.yml.example
+
+# SSH private keys
+*.pem
+*.key
+!*.pub
+
+# Environment files with secrets
+.env
+.env.local
+*.secret
 
 # Python cache
 __pycache__/
