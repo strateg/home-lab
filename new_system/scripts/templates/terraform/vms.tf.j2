@@ -44,7 +44,7 @@ resource "proxmox_virtual_environment_vm" "{{ vm.id | replace('-', '_') }}" {
   # Storage
   {% for disk in vm.storage %}
   disk {
-    datastore_id = "{{ storage_map[disk.storage_ref].pool }}"
+    datastore_id = "{{ storage_map[disk.storage_ref].name }}"
     file_id      = null
     interface    = "{{ disk.disk_id }}"
     size         = {{ disk.size_gb }}
@@ -66,7 +66,7 @@ resource "proxmox_virtual_environment_vm" "{{ vm.id | replace('-', '_') }}" {
   # Network interfaces
   {% for nic in vm.networks %}
   network_device {
-    bridge  = "{{ bridge_map[nic.bridge_ref].interface }}"
+    bridge  = "{{ bridge_map[nic.bridge_ref].name }}"
     model   = "{{ nic.model | default('virtio') }}"
     {% if nic.firewall is defined %}
     firewall = {{ nic.firewall | lower }}

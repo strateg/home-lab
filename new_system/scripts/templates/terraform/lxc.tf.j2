@@ -46,7 +46,7 @@ resource "proxmox_virtual_environment_container" "{{ lxc.id | replace('-', '_') 
   # Root filesystem
   {% if lxc.storage and lxc.storage.rootfs %}
   disk {
-    datastore_id = "{{ storage_map[lxc.storage.rootfs.storage_ref].pool }}"
+    datastore_id = "{{ storage_map[lxc.storage.rootfs.storage_ref].name }}"
     size         = {{ lxc.storage.rootfs.size_gb }}
   }
   {% endif %}
@@ -55,7 +55,7 @@ resource "proxmox_virtual_environment_container" "{{ lxc.id | replace('-', '_') 
   {% for nic in lxc.networks %}
   network_interface {
     name   = "{{ nic.interface }}"
-    bridge = "{{ bridge_map[nic.bridge_ref].interface }}"
+    bridge = "{{ bridge_map[nic.bridge_ref].name }}"
     {% if nic.ip %}
     ip_v4_address = "{{ nic.ip }}"
     {% if nic.gateway %}

@@ -1030,6 +1030,7 @@ compute:
 
 storage:
   - id: storage-local
+    name: "local"
     type: "dir"
     path: "/var/lib/vz"
     content: ["vztmpl", "iso", "backup"]
@@ -1040,6 +1041,7 @@ storage:
     description: "Local directory storage on SSD"
 
   - id: storage-lvm
+    name: "local-lvm"
     type: "lvmthin"
     vgname: "pve"
     thinpool: "data"
@@ -1050,6 +1052,7 @@ storage:
     description: "SSD 180GB - Production VMs and LXC thin pool"
 
   - id: storage-hdd
+    name: "local-hdd"
     type: "dir"
     path: "/mnt/hdd"
     content: ["backup", "iso", "vztmpl", "snippets"]

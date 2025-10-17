@@ -5,22 +5,21 @@
 # ============================================================
 
 {% for bridge in bridges %}
-# {{ bridge.name }} - {{ bridge.description }}
-# Interface: {{ bridge.interface }}
-{% if bridge.ports %}# Ports: {{ bridge.ports | join(', ') }}{% endif %}
+# {{ bridge.name }} - {{ bridge.comment }}
+# Ports: {{ bridge.ports | join(', ') if bridge.ports else 'none' }}
 
 resource "proxmox_virtual_environment_bridge" "{{ bridge.id | replace('-', '_') }}" {
   node_name = var.proxmox_node
 
-  name    = "{{ bridge.interface }}"
-  comment = "{{ bridge.description }}"
+  name    = "{{ bridge.name }}"
+  comment = "{{ bridge.comment }}"
 
   {% if bridge.ports %}
   ports = [{% for port in bridge.ports %}"{{ port }}"{% if not loop.last %}, {% endif %}{% endfor %}]
   {% endif %}
 
-  {% if bridge.ip %}
-  address = "{{ bridge.ip }}"
+  {% if bridge.address %}
+  address = "{{ bridge.address }}"
   {% endif %}
 
   {% if bridge.vlan_aware is defined %}
@@ -42,7 +41,7 @@ output "bridges" {
     {% for bridge in bridges %}
     {{ bridge.id | replace('-', '_') }} = {
       name = proxmox_virtual_environment_bridge.{{ bridge.id | replace('-', '_') }}.name
-      interface = "{{ bridge.interface }}"
+      bridge_name = "{{ bridge.name }}"
     }
     {% endfor %}
   }
