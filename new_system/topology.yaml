@@ -770,8 +770,8 @@ compute:
       resources:
         cores: 2
         sockets: 1
-        memory_mb: 2048
-        balloon_mb: 1024
+        memory_mb: 1536
+        balloon_mb: 0  # Disabled for better stability
         cpu_type: "host"
 
       boot:
@@ -855,8 +855,8 @@ compute:
 
       resources:
         cores: 2
-        memory_mb: 2048
-        swap_mb: 512
+        memory_mb: 1024
+        swap_mb: 1024  # Increased swap for DB operations
 
       boot:
         <<: *default_lxc_boot
@@ -903,8 +903,8 @@ compute:
 
       resources:
         cores: 1
-        memory_mb: 1024
-        swap_mb: 256
+        memory_mb: 768
+        swap_mb: 512  # Redis uses maxmemory limit internally
 
       boot:
         <<: *default_lxc_boot
@@ -947,8 +947,8 @@ compute:
 
       resources:
         cores: 2
-        memory_mb: 2048
-        swap_mb: 512
+        memory_mb: 1536
+        swap_mb: 1024  # PHP-FPM workers can use swap if needed
 
       boot:
         <<: *default_lxc_boot
@@ -1246,7 +1246,7 @@ ansible:
       backup_enabled: true
       backup_schedule: "0 2 * * *"  # 2 AM daily
       monitoring_queries: true
-      max_connections: 100
+      max_connections: 50  # Optimized for RAM constraints
 
     # Web applications specific
     web_applications:
@@ -1264,8 +1264,11 @@ ansible:
 
     postgresql-db:
       postgresql_version: "15"
-      postgresql_max_connections: 100
-      postgresql_shared_buffers: "512MB"
+      postgresql_max_connections: 50  # Reduced for home lab
+      postgresql_shared_buffers: "256MB"  # 25% of 1GB RAM
+      postgresql_effective_cache_size: "768MB"  # 75% of 1GB RAM
+      postgresql_work_mem: "4MB"  # 256MB / 50 connections
+      postgresql_maintenance_work_mem: "64MB"
       postgresql_databases:
         - name: "homelab"
           owner: "app"
