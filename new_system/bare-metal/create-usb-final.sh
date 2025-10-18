@@ -721,6 +721,152 @@ GRUB_EOF
 }
 
 # --- Main ---
+# --- validate created USB (comprehensive post-creation check) ---
+validate_created_usb() {
+    local usb_device="$1"
+    if [[ -z "$usb_device" || ! -b "$usb_device" ]]; then
+        print_error "validate_created_usb requires valid USB device"
+        return 10
+    fi
+
+    print_info ""
+    print_info "========================================="
+    print_info "VALIDATING CREATED USB"
+    print_info "========================================="
+
+    local validation_failed=0
+    local mount_point
+    mount_point=$(mktemp -d -t usb-validate.XXXX)
+
+    # Force re-read partition table
+    partprobe "$usb_device" 2>/dev/null || true
+    sleep 1
+
+    # Check 1: Partition table
+    print_info "Checking partition table..."
+    local efi_part="" hfs_part=""
+    while IFS= read -r p; do
+        [[ -z "$p" ]] && continue
+        local part="/dev/${p##*/}"
+        [[ ! -b "$part" ]] && continue
+
+        local fstype
+        fstype=$(blkid -s TYPE -o value "$part" 2>/dev/null || echo "")
+
+        if [[ "$fstype" == "vfat" ]]; then
+            efi_part="$part"
+            print_info "  ✓ EFI partition found: $part (vfat)"
+        elif [[ "$fstype" == "hfsplus" ]]; then
+            hfs_part="$part"
+            print_info "  ✓ HFS+ partition found: $part (installer data)"
+        fi
+    done < <(lsblk -ln -o NAME "$usb_device" | tail -n +2)
+
+    if [[ -z "$efi_part" ]]; then
+        print_error "  ✗ EFI partition (vfat) NOT FOUND!"
+        validation_failed=1
+    fi
+
+    if [[ -z "$hfs_part" ]]; then
+        print_warning "  ⚠ HFS+ partition NOT FOUND (may be ISO9660 instead)"
+    fi
+
+    # Check 2: EFI partition contents
+    if [[ -n "$efi_part" ]]; then
+        print_info "Checking EFI partition contents..."
+        if mount -o ro "$efi_part" "$mount_point" 2>/dev/null; then
+            # Check bootloader
+            if [[ -f "$mount_point/EFI/BOOT/grubx64.efi" ]]; then
+                print_info "  ✓ UEFI bootloader: EFI/BOOT/grubx64.efi"
+            else
+                print_error "  ✗ MISSING: EFI/BOOT/grubx64.efi"
+                validation_failed=1
+            fi
+
+            # Check grub.cfg
+            if [[ -f "$mount_point/EFI/BOOT/grub.cfg" ]]; then
+                print_info "  ✓ GRUB config: EFI/BOOT/grub.cfg"
+
+                # Validate grub.cfg content based on mode
+                if [[ "${SKIP_UUID_PROTECTION:-0}" == "1" ]]; then
+                    # Should NOT contain UUID wrapper
+                    if grep -q "usb_uuid=" "$mount_point/EFI/BOOT/grub.cfg" 2>/dev/null; then
+                        print_error "  ✗ grub.cfg contains UUID wrapper (SKIP_UUID_PROTECTION=1 mode)"
+                        print_error "    Expected: direct installer menu"
+                        print_error "    Found: UUID protection wrapper"
+                        validation_failed=1
+                    else
+                        print_info "  ✓ grub.cfg: direct installer menu (no UUID check)"
+                    fi
+                else
+                    # Should contain UUID wrapper
+                    if grep -q "usb_uuid=" "$mount_point/EFI/BOOT/grub.cfg" 2>/dev/null; then
+                        print_info "  ✓ grub.cfg: UUID protection wrapper active"
+
+                        # Check for backup installer menu
+                        if [[ -f "$mount_point/EFI/BOOT/grub-install.cfg" ]]; then
+                            print_info "  ✓ Backup installer menu: grub-install.cfg"
+                        else
+                            print_warning "  ⚠ grub-install.cfg NOT FOUND (UUID wrapper may fail)"
+                        fi
+                    else
+                        print_warning "  ⚠ grub.cfg does not contain UUID wrapper"
+                        print_warning "    This may be direct installer menu (check manually)"
+                    fi
+                fi
+
+                # Show first 10 lines of grub.cfg for debugging
+                print_info "  First 10 lines of grub.cfg:"
+                head -10 "$mount_point/EFI/BOOT/grub.cfg" | sed 's/^/    /' >&2
+            else
+                print_error "  ✗ MISSING: EFI/BOOT/grub.cfg"
+                validation_failed=1
+            fi
+
+            umount "$mount_point" 2>/dev/null || true
+        else
+            print_error "  ✗ Cannot mount EFI partition"
+            validation_failed=1
+        fi
+    fi
+
+    # Check 3: HFS+ partition (installer data)
+    if [[ -n "$hfs_part" ]]; then
+        print_info "Checking HFS+ partition (installer data)..."
+        if mount -o ro "$hfs_part" "$mount_point" 2>/dev/null; then
+            if [[ -d "$mount_point/boot" ]]; then
+                print_info "  ✓ Installer data: boot/ directory found"
+            else
+                print_warning "  ⚠ boot/ directory NOT FOUND in HFS+ partition"
+            fi
+
+            if [[ -f "$mount_point/boot/grub/grub.cfg" ]]; then
+                print_info "  ✓ Installer GRUB menu: boot/grub/grub.cfg"
+            else
+                print_warning "  ⚠ boot/grub/grub.cfg NOT FOUND"
+            fi
+
+            umount "$mount_point" 2>/dev/null || true
+        else
+            print_warning "  ⚠ Cannot mount HFS+ partition (may be read-only ISO9660)"
+        fi
+    fi
+
+    rmdir "$mount_point" 2>/dev/null || true
+
+    print_info "========================================="
+    if [[ $validation_failed -eq 0 ]]; then
+        print_info "✓ VALIDATION PASSED: USB is ready for boot"
+    else
+        print_error "✗ VALIDATION FAILED: USB may not boot correctly"
+        print_error "  Check errors above and recreate USB if needed"
+    fi
+    print_info "========================================="
+    print_info ""
+
+    return $validation_failed
+}
+
 main() {
     check_root || return 1
     check_requirements || return 2
@@ -798,6 +944,9 @@ main() {
 
     # Add graphics parameters (best-effort)
     add_graphics_params "$target_dev" || print_warning "add_graphics_params encountered an issue"
+
+    # Validate created USB (comprehensive check)
+    validate_created_usb "$target_dev" || print_warning "Validation encountered issues (see above)"
 
     print_info ""
     print_info "========================================="
