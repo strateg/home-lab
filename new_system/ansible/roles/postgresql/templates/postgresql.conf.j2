@@ -1,0 +1,36 @@
+# PostgreSQL Configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+# Network
+listen_addresses = '{{ postgresql_listen_addresses }}'
+port = {{ postgresql_port }}
+
+# Resource Usage
+max_connections = {{ postgresql_max_connections }}
+shared_buffers = {{ postgresql_shared_buffers }}
+effective_cache_size = {{ postgresql_effective_cache_size }}
+work_mem = {{ postgresql_work_mem }}
+maintenance_work_mem = {{ postgresql_maintenance_work_mem }}
+wal_buffers = {{ postgresql_wal_buffers }}
+
+# Write-Ahead Log
+wal_level = {{ postgresql_wal_level }}
+max_wal_senders = {{ postgresql_max_wal_senders }}
+max_replication_slots = {{ postgresql_max_replication_slots }}
+
+# Logging
+logging_collector = {{ postgresql_logging_collector }}
+log_directory = '{{ postgresql_log_directory }}'
+log_filename = '{{ postgresql_log_filename }}'
+log_rotation_age = {{ postgresql_log_rotation_age }}
+log_rotation_size = {{ postgresql_log_rotation_size }}
+log_line_prefix = '{{ postgresql_log_line_prefix }}'
+
+# Locale
+lc_messages = 'en_US.UTF-8'
+lc_monetary = 'en_US.UTF-8'
+lc_numeric = 'en_US.UTF-8'
+lc_time = 'en_US.UTF-8'
+
+# Security
+password_encryption = {{ postgresql_host_auth_method }}

@@ -1,0 +1,45 @@
+---
+# Redis Role - Default Variables
+
+# Version (latest from apt)
+redis_version: "latest"
+
+# Network
+redis_bind_address: "0.0.0.0"
+redis_port: 6379
+redis_protected_mode: "yes"
+
+# Security
+redis_requirepass: "{{ vault_redis_password }}"
+
+# Memory
+redis_maxmemory: "512mb"
+redis_maxmemory_policy: "allkeys-lru"
+
+# Persistence
+redis_persistence_enabled: true
+redis_save:
+  - "900 1"    # After 900 sec if at least 1 key changed
+  - "300 10"   # After 300 sec if at least 10 keys changed
+  - "60 10000" # After 60 sec if at least 10000 keys changed
+
+# AOF (Append Only File)
+redis_appendonly: "yes"
+redis_appendfsync: "everysec"
+
+# Directories
+redis_dir: "/var/lib/redis"
+redis_logfile: "/var/log/redis/redis-server.log"
+
+# Performance
+redis_tcp_backlog: 511
+redis_timeout: 0
+redis_tcp_keepalive: 300
+redis_databases: 16
+
+# Slow log
+redis_slowlog_log_slower_than: 10000
+redis_slowlog_max_len: 128
+
+# Limits
+redis_maxclients: 10000

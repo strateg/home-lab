@@ -1,0 +1,10 @@
+{{ item.path }} {
+    rotate {{ item.rotate | default(7) }}
+    {{ item.frequency | default('daily') }}
+    size {{ item.size | default('10M') }}
+    missingok
+    notifempty
+    compress
+    delaycompress
+    sharedscripts
+}

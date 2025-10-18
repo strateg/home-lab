@@ -1,0 +1,21 @@
+---
+# Nextcloud Apps Configuration
+
+- name: Get list of installed apps
+  become_user: www-data
+  command: php {{ nextcloud_install_dir }}/occ app:list --output=json
+  register: nextcloud_apps
+  changed_when: false
+
+- name: Enable recommended apps
+  become_user: www-data
+  command: php {{ nextcloud_install_dir }}/occ app:enable {{ item }}
+  loop:
+    - files_external
+    - files_sharing
+    - files_versions
+    - files_trashbin
+    - activity
+    - comments
+    - notifications
+  ignore_errors: yes

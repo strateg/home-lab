@@ -1,0 +1,51 @@
+# Redis Configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+# Network
+bind {{ redis_bind_address }}
+port {{ redis_port }}
+protected-mode {{ redis_protected_mode }}
+tcp-backlog {{ redis_tcp_backlog }}
+timeout {{ redis_timeout }}
+tcp-keepalive {{ redis_tcp_keepalive }}
+
+# Security
+requirepass {{ redis_requirepass }}
+
+# Memory Management
+maxmemory {{ redis_maxmemory }}
+maxmemory-policy {{ redis_maxmemory_policy }}
+
+# Persistence - RDB
+{% if redis_persistence_enabled %}
+{% for save_rule in redis_save %}
+save {{ save_rule }}
+{% endfor %}
+dir {{ redis_dir }}
+dbfilename dump.rdb
+{% else %}
+save ""
+{% endif %}
+
+# Persistence - AOF
+appendonly {{ redis_appendonly }}
+{% if redis_appendonly == "yes" %}
+appendfsync {{ redis_appendfsync }}
+appendfilename "appendonly.aof"
+{% endif %}
+
+# Logging
+loglevel notice
+logfile {{ redis_logfile }}
+
+# General
+databases {{ redis_databases }}
+daemonize no
+supervised systemd
+
+# Clients
+maxclients {{ redis_maxclients }}
+
+# Slow Log
+slowlog-log-slower-than {{ redis_slowlog_log_slower_than }}
+slowlog-max-len {{ redis_slowlog_max_len }}
