@@ -554,9 +554,42 @@ embed_uuid_wrapper() {
                         print_warning "This USB will ALWAYS reinstall Proxmox on boot!"
                         print_warning "Remove USB after installation to prevent reinstall loops!"
 
-                        # Just copy installer menu as main grub.cfg (no wrapper)
-                        cp "$mount_point/EFI/BOOT/grub-install.cfg" "$mount_point/EFI/BOOT/grub.cfg"
-                        print_info "Using direct installer menu (no UUID check)"
+                        # Find and copy REAL installer menu from HFS+ partition
+                        local hfs_mount
+                        hfs_mount=$(mktemp -d -t hfs-mount.XXXX)
+                        local found_installer=0
+
+                        # Search for HFS+ partition with installer grub.cfg
+                        while IFS= read -r hp; do
+                            [[ -z "$hp" ]] && continue
+                            local hfs_part="/dev/${hp##*/}"
+                            [[ ! -b "$hfs_part" ]] && continue
+
+                            local hfs_fstype
+                            hfs_fstype=$(blkid -s TYPE -o value "$hfs_part" 2>/dev/null || echo "")
+
+                            if [[ "$hfs_fstype" == "hfsplus" ]] || [[ "$hfs_fstype" == "iso9660" ]]; then
+                                if mount -o ro "$hfs_part" "$hfs_mount" 2>/dev/null; then
+                                    if [[ -f "$hfs_mount/boot/grub/grub.cfg" ]]; then
+                                        print_info "Found installer menu on $hfs_part"
+                                        cp "$hfs_mount/boot/grub/grub.cfg" "$mount_point/EFI/BOOT/grub.cfg"
+                                        print_info "Copied real installer menu to EFI/BOOT/grub.cfg"
+                                        found_installer=1
+                                        umount "$hfs_mount" 2>/dev/null || true
+                                        break
+                                    else
+                                        umount "$hfs_mount" 2>/dev/null || true
+                                    fi
+                                fi
+                            fi
+                        done < <(lsblk -ln -o NAME "$usb_device" | tail -n +2)
+
+                        rmdir "$hfs_mount" 2>/dev/null || true
+
+                        if [[ $found_installer -eq 0 ]]; then
+                            print_error "Could not find installer menu on HFS+/ISO9660 partition"
+                            print_error "USB may not boot correctly!"
+                        fi
 
                         sync
                         embedded=1
