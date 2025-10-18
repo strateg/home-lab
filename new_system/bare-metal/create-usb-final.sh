@@ -502,16 +502,20 @@ embed_uuid_wrapper() {
     fi
 
     # Get UUID from TMPDIR (saved by prepare_iso)
-    local install_uuid
-    if [[ -f "$TMPDIR/install-uuid" ]]; then
-        install_uuid=$(cat "$TMPDIR/install-uuid")
+    # Skip UUID check if SKIP_UUID_PROTECTION=1
+    local install_uuid=""
+    if [[ "${SKIP_UUID_PROTECTION:-0}" != "1" ]]; then
+        if [[ -f "$TMPDIR/install-uuid" ]]; then
+            install_uuid=$(cat "$TMPDIR/install-uuid")
+            print_info "Embedding UUID wrapper in GRUB (prevents reinstallation loop)..."
+            print_info "Installation UUID: $install_uuid"
+        else
+            print_warning "Installation UUID not found, skipping UUID wrapper"
+            return 0
+        fi
     else
-        print_warning "Installation UUID not found, skipping UUID wrapper"
-        return 0
+        print_info "UUID protection disabled (SKIP_UUID_PROTECTION=1)"
     fi
-
-    print_info "Embedding UUID wrapper in GRUB (prevents reinstallation loop)..."
-    print_info "Installation UUID: $install_uuid"
 
     # Force re-read partition table
     partprobe "$usb_device" 2>/dev/null || true
