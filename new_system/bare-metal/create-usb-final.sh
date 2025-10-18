@@ -10,8 +10,9 @@
 #   sudo ./proxmox-auto-install.sh proxmox-ve_9.0-1.iso answer.toml /dev/sdb
 #
 # Environment variables:
-#   ROOT_PASSWORD_HASH - precomputed password hash to embed in answer.toml
-#   AUTO_CONFIRM=1     - skip interactive confirmation (for automation)
+#   ROOT_PASSWORD_HASH       - precomputed password hash to embed in answer.toml
+#   AUTO_CONFIRM=1           - skip interactive confirmation (for automation)
+#   SKIP_UUID_PROTECTION=1   - disable UUID-based reinstall prevention (allows forced reinstall)
 #
 set -euo pipefail
 IFS=$'\n\t'
@@ -543,7 +544,23 @@ embed_uuid_wrapper() {
                         print_info "Renamed original grub.cfg → grub-install.cfg"
                     fi
 
-                    # Create UUID check wrapper
+                    # Check if UUID protection should be skipped
+                    if [[ "${SKIP_UUID_PROTECTION:-0}" == "1" ]]; then
+                        print_warning "UUID protection DISABLED (SKIP_UUID_PROTECTION=1)"
+                        print_warning "This USB will ALWAYS reinstall Proxmox on boot!"
+                        print_warning "Remove USB after installation to prevent reinstall loops!"
+
+                        # Just copy installer menu as main grub.cfg (no wrapper)
+                        cp "$mount_point/EFI/BOOT/grub-install.cfg" "$mount_point/EFI/BOOT/grub.cfg"
+                        print_info "Using direct installer menu (no UUID check)"
+
+                        sync
+                        embedded=1
+                        umount "$mount_point" >/dev/null 2>&1 || true
+                        break
+                    fi
+
+                    # Create UUID check wrapper (default behavior)
                     cat > "$mount_point/EFI/BOOT/grub.cfg" << 'GRUB_EOF'
 # Reinstall Prevention Wrapper
 # Checks for existing installation before loading installer menu
