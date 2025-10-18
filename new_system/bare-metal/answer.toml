@@ -23,9 +23,9 @@ mailto = "admin@home.local"
 fqdn = "gamayun.home.local"
 
 # Post-installation behavior
-# reboot = false: System halts after installation (allows removing USB before boot)
-# reboot = true: System reboots automatically after installation (default)
-reboot = false
+# reboot_mode = "power-off": System halts after installation (allows removing USB before boot)
+# reboot_mode = "reboot": System reboots automatically after installation (default)
+reboot_mode = "power-off"
 
 # ============================================================
 # Disk Configuration
