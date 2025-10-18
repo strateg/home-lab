@@ -14,7 +14,7 @@ timezone = "UTC"
 
 # Root password (CHANGE THIS!)
 # Generate: openssl passwd -6 "YourPassword"
-root_password = "$6$rounds=656000$YourSaltHere$YourHashHere"
+root_password = "$6$Fp5wD4/PurW4sN.M$u0vb1s5mEg9g1P0YUL53nDoqffHucJxAlP1gO0rZE/73zdfUauTXOewtO38dUQiMU7NOLJv71GmJQhP34eqAn/"
 
 # Email for notifications
 mailto = "admin@home.local"
