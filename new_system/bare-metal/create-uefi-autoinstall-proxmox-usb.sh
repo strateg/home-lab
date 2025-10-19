@@ -55,6 +55,7 @@ trap 'cleanup $?' EXIT INT TERM
 print_info()    { printf '%s\n' "INFO: $*" >&2; }
 print_error()   { printf '%s\n' "ERROR: $*" >&2; }
 print_warning() { printf '%s\n' "WARNING: $*" >&2; }
+print_success() { printf '%s\n' "SUCCESS: $*" >&2; }
 
 # --- root check ---
 check_root() {

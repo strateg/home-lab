@@ -15,7 +15,7 @@ timezone = "UTC"
 # Root password
 # Current password: proxmox (simple password for testing)
 # To change: openssl passwd -6 "YourNewPassword"
-root_password = "$6$lof6dKwypgY9kmFW$sV8/1E0V.LGHTIocjlrN0JnCHRIKEGvIzUD/wmzU29esslwprNXcLTRoXYYEM/Q1S7HmJzZn.BDqAk19sBgBt1"
+root_password = "$6$Wx8sYKmgnwHk4BgS$eGr047.zvpBPesQF.sQ13IFcLdPSaIhqJ8eteA5Y0LSwq4Fp2vurgSN9LmWLjvxBPKJCRpt57l.vC9izxPQvn0"
 
 # Email for notifications
 mailto = "admin@home.local"

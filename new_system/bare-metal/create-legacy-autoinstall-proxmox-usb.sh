@@ -437,6 +437,23 @@ main() {
     print_info ""
     print_info "Web UI: https://<proxmox-ip>:8006"
     print_info ""
+    print_warning "=============================================="
+    print_warning "IF PASSWORD DOESN'T WORK AFTER INSTALLATION"
+    print_warning "=============================================="
+    print_warning ""
+    print_warning "Legacy BIOS auto-install may not work correctly."
+    print_warning "If you can't login, boot from this USB again and:"
+    print_warning ""
+    print_warning "1. At GRUB menu, press 'c' for command line"
+    print_warning "2. Type: linux (hd0,gpt3)/vmlinuz root=/dev/sda3 init=/bin/bash"
+    print_warning "3. Type: boot"
+    print_warning "4. At prompt: mount -o remount,rw /"
+    print_warning "5. Type: passwd root"
+    print_warning "6. Enter new password"
+    print_warning "7. Type: sync && reboot -f"
+    print_warning ""
+    print_warning "OR use UEFI mode instead (recommended)"
+    print_warning ""
 
     return 0
 }
