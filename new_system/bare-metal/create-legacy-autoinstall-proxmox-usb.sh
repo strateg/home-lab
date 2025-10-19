@@ -253,40 +253,32 @@ add_legacy_grub_wrapper() {
     local usb_device="$1"
     local install_uuid="$INSTALL_UUID"
 
-    print_info "Adding Legacy GRUB wrapper for reinstall prevention..."
-
-    # Force re-read partition table
-    partprobe "$usb_device" 2>/dev/null || true
-    sleep 2
-
-    local mount_point=$(mktemp -d -t usbmnt.XXXX)
-
-    # Find and mount the ISO9660/HFS+ partition (usually partition 3)
-    local iso_part="${usb_device}3"
-
-    # Try to mount as ISO9660 (read-only) to check structure
-    if mount -t iso9660 -o ro "$iso_part" "$mount_point" 2>/dev/null; then
-        print_info "Found ISO partition: $iso_part"
-
-        # Check if GRUB config exists
-        if [[ -f "$mount_point/boot/grub/grub.cfg" ]]; then
-            print_info "Found GRUB config at boot/grub/grub.cfg"
-
-            # Copy original for reference
-            cp "$mount_point/boot/grub/grub.cfg" "$TMPDIR/grub-original.cfg" 2>/dev/null || true
-
-            print_info "ISO partition is read-only (expected for hybrid ISO)"
-            print_info "GRUB wrapper will be added via auto-installer-mode.toml activation"
-        fi
-
-        umount "$mount_point"
-    fi
-
-    rmdir "$mount_point" 2>/dev/null || true
-
-    # Add auto-installer activation
-    print_info "Auto-installer will be activated via answer.toml (embedded in ISO)"
-    print_success "Legacy GRUB configuration ready"
+    print_warning "=============================================="
+    print_warning "LEGACY BIOS REINSTALL PREVENTION LIMITATION"
+    print_warning "=============================================="
+    print_warning ""
+    print_warning "⚠️  Reinstall prevention does NOT work with Legacy BIOS!"
+    print_warning ""
+    print_warning "Why: Hybrid ISO uses read-only ISO9660 filesystem"
+    print_warning "     → Cannot modify GRUB to add UUID check wrapper"
+    print_warning ""
+    print_warning "WORKAROUND: Manually remove USB after installation"
+    print_warning ""
+    print_warning "What happens:"
+    print_warning "  1. Dell boots → Proxmox installer starts automatically"
+    print_warning "  2. Installation completes (system powers off)"
+    print_warning "  3. ⚠️  REMOVE USB BEFORE POWERING ON!"
+    print_warning "  4. System boots from hard drive"
+    print_warning ""
+    print_warning "If you forget to remove USB:"
+    print_warning "  → Dell will boot from USB again"
+    print_warning "  → Installer will start (blue menu)"
+    print_warning "  → Press Ctrl+C or press F12 and select hard drive"
+    print_warning ""
+    print_warning "Alternative: Use UEFI mode if your hardware supports it"
+    print_warning "            (UEFI has full reinstall prevention)"
+    print_warning ""
+    print_warning "=============================================="
 }
 
 # Main function
@@ -356,6 +348,10 @@ main() {
     print_info "5. Proxmox installer will start automatically"
     print_info "6. Installation completes in ~10-15 minutes"
     print_info "7. System will power off after installation"
+    print_info ""
+    print_warning "⚠️  IMPORTANT: REMOVE USB BEFORE POWERING ON!"
+    print_warning "   (Legacy BIOS doesn't support reinstall prevention)"
+    print_info ""
     print_info "8. Remove USB and power on to boot Proxmox"
     print_info ""
     print_info "Installation UUID: $INSTALL_UUID"

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Wrapper script for create-usb-final.sh
+# Wrapper script for create-uefi-autoinstall-proxmox-usb.sh
 # Run this script manually in terminal with: sudo ./run-create-usb.sh
 #
 
@@ -37,7 +37,7 @@ echo "Starting USB creation..."
 echo ""
 
 # Run the main script with AUTO_CONFIRM and absolute ISO path
-AUTO_CONFIRM=1 ./create-usb-final.sh /home/strateg/Загрузки/proxmox-ve_9.0-1.iso answer.toml /dev/sdc
+AUTO_CONFIRM=1 ./create-uefi-autoinstall-proxmox-usb.sh /home/strateg/Загрузки/proxmox-ve_9.0-1.iso answer.toml /dev/sdc
 
 echo ""
 echo "=========================================="

@@ -18,13 +18,14 @@ This directory contains everything needed to create a bootable USB drive that wi
 
 ```
 bare-metal/
-├── README.md                         # This file
-├── answer.toml                       # Proxmox auto-install configuration
-├── create-usb.sh                     # USB creator script (with reinstall prevention)
-├── REINSTALL-PREVENTION.md           # ⭐ UUID-based reinstall prevention documentation
-├── CHANGELOG-REINSTALL-PREVENTION.md # Reinstall prevention feature changelog
-└── post-install/                     # Post-installation scripts
-    ├── README.md                     # Post-install guide
+├── README.md                                    # This file
+├── answer.toml                                  # Proxmox auto-install configuration
+├── create-uefi-autoinstall-proxmox-usb.sh      # ⭐ UEFI USB creator (recommended, with reinstall prevention)
+├── create-legacy-autoinstall-proxmox-usb.sh    # Legacy BIOS USB creator (fallback, no reinstall prevention)
+├── REINSTALL-PREVENTION.md                      # UUID-based reinstall prevention documentation
+├── CHANGELOG-REINSTALL-PREVENTION.md            # Reinstall prevention feature changelog
+└── post-install/                                # Post-installation scripts
+    ├── README.md                                # Post-install guide
     ├── 01-install-terraform.sh
     ├── 02-install-ansible.sh
     ├── 03-configure-storage.sh
@@ -64,14 +65,17 @@ cd bare-metal/
 # Download Proxmox VE 9 ISO (if not already downloaded)
 wget https://enterprise.proxmox.com/iso/proxmox-ve_9.0-1.iso
 
-# Create bootable USB (replace /dev/sdX with your USB device)
-sudo ./create-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
+# Create UEFI bootable USB (recommended - has reinstall prevention)
+sudo ./create-uefi-autoinstall-proxmox-usb.sh ~/Downloads/proxmox-ve_9.0-1.iso answer.toml /dev/sdc
+
+# OR for Legacy BIOS (fallback - no reinstall prevention)
+# sudo ./create-legacy-autoinstall-proxmox-usb.sh ~/Downloads/proxmox-ve_9.0-1.iso answer.toml /dev/sdc
 ```
 
 **Important**:
-- Replace `/dev/sdX` with your actual USB device (e.g., `/dev/sdb`)
+- Replace `/dev/sdc` with your actual USB device (use `lsblk` to find it)
 - All data on USB drive will be ERASED
-- Script will prompt for root password (for Proxmox)
+- UEFI mode is recommended (has full reinstall prevention)
 
 ### Step 2: Install Proxmox
 
@@ -83,6 +87,63 @@ sudo ./create-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
 6. **No need to remove USB!** System will boot from disk (reinstall prevention active)
 
 **New Feature**: После установки система автоматически определяет, что установка уже выполнена с этого USB, и загружается с диска вместо переустановки. См. [REINSTALL-PREVENTION.md](REINSTALL-PREVENTION.md)
+
+## Boot Modes: UEFI vs Legacy BIOS
+
+### UEFI Mode (Recommended)
+
+**Script**: `create-uefi-autoinstall-proxmox-usb.sh`
+
+✅ **Advantages**:
+- **Full reinstall prevention** - USB won't reinstall if system already installed
+- Automatic boot from hard drive after installation
+- No need to remove USB after installation
+- Modern boot standard
+
+**Usage**:
+```bash
+sudo ./create-uefi-autoinstall-proxmox-usb.sh ~/Downloads/proxmox-ve_9.0-1.iso answer.toml /dev/sdc
+```
+
+**Boot Instructions**:
+1. Press F12 during boot
+2. Select **UEFI: USB Device** (not just "USB Device")
+3. System installs automatically
+4. On next boot, system boots from hard drive (even with USB inserted)
+
+### Legacy BIOS Mode (Fallback)
+
+**Script**: `create-legacy-autoinstall-proxmox-usb.sh`
+
+⚠️ **Limitations**:
+- **NO reinstall prevention** - Will always try to reinstall when booted from USB
+- **Must remove USB manually** after installation
+- ISO filesystem is read-only (cannot modify GRUB)
+
+**Why No Reinstall Prevention?**
+- Hybrid ISO uses ISO9660 filesystem (read-only)
+- Cannot modify GRUB configuration on read-only filesystem
+- UEFI has writable FAT32 partition, Legacy BIOS does not
+
+**Usage**:
+```bash
+sudo ./create-legacy-autoinstall-proxmox-usb.sh ~/Downloads/proxmox-ve_9.0-1.iso answer.toml /dev/sdc
+```
+
+**Boot Instructions**:
+1. Press F12 during boot
+2. Select **Removable Devices** or **USB HDD** (not UEFI)
+3. System installs automatically
+4. System powers off after installation
+5. **⚠️ REMOVE USB BEFORE POWERING ON!**
+6. Power on to boot from hard drive
+
+**If You Forget to Remove USB**:
+- Dell will boot from USB again
+- Blue GRUB menu appears offering to reinstall
+- Press **Ctrl+C** or **F12** and select hard drive manually
+
+**Recommendation**: Use UEFI mode if your hardware supports it. Only use Legacy BIOS if UEFI boot fails.
 
 ### Step 3: Post-Installation Configuration
 
@@ -122,7 +183,7 @@ Password: (the one you set during USB creation)
 
 ### Phase 1: USB Creation
 
-The `create-usb.sh` script performs these steps:
+The UEFI script (`create-uefi-autoinstall-proxmox-usb.sh`) performs these steps:
 
 1. **Validates USB device**
    - Checks if device exists
@@ -149,11 +210,15 @@ The `create-usb.sh` script performs these steps:
 
 **Usage**:
 ```bash
-sudo ./create-usb.sh <USB_DEVICE> <ISO_FILE>
+# UEFI mode (recommended)
+sudo ./create-uefi-autoinstall-proxmox-usb.sh <ISO_FILE> answer.toml <USB_DEVICE>
+
+# Legacy BIOS mode (fallback)
+sudo ./create-legacy-autoinstall-proxmox-usb.sh <ISO_FILE> answer.toml <USB_DEVICE>
 
 # Examples:
-sudo ./create-usb.sh /dev/sdb proxmox-ve_9.0-1.iso
-sudo ./create-usb.sh /dev/sdc ~/Downloads/proxmox-ve_9.0-1.iso
+sudo ./create-uefi-autoinstall-proxmox-usb.sh ~/Downloads/proxmox-ve_9.0-1.iso answer.toml /dev/sdc
+sudo ./create-legacy-autoinstall-proxmox-usb.sh ~/Downloads/proxmox-ve_9.0-1.iso answer.toml /dev/sdc
 ```
 
 **Options**:
@@ -295,7 +360,7 @@ lsblk -o NAME,SIZE,TYPE,MOUNTPOINT
 **Error: Permission denied**
 ```bash
 # Run with sudo
-sudo ./create-usb.sh /dev/sdb proxmox-ve_9.0-1.iso
+sudo ./create-uefi-autoinstall-proxmox-usb.sh ~/Downloads/proxmox-ve_9.0-1.iso answer.toml /dev/sdc
 ```
 
 **Error: ISO file not valid**
