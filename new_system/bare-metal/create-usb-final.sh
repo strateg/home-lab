@@ -296,16 +296,11 @@ prepare_iso() {
     fi
     print_info "Using tempdir $TMPDIR"
 
-    # Generate installation UUID (timestamp-based)
-    local timezone timestamp install_uuid
-    timezone=$(date +%Z)
-    timestamp=$(date +%Y_%m_%d_%H_%M)
-    install_uuid="${timezone}_${timestamp}"
-    print_info "Generated installation UUID: $install_uuid"
+    # Use INSTALL_UUID from global scope (set by main() before calling prepare_iso)
+    local install_uuid="$INSTALL_UUID"
 
-    # Save UUID to temp file for later use (embedding in USB grub.cfg)
+    # Save UUID to temp file for later use (if needed)
     echo "$install_uuid" > "$TMPDIR/install-uuid"
-    export INSTALL_UUID="$install_uuid"
 
     # Create first-boot script with UUID
     local first_boot_script="$TMPDIR/first-boot.sh"
@@ -501,16 +496,16 @@ embed_uuid_wrapper() {
         return 10
     fi
 
-    # Get UUID from TMPDIR (saved by prepare_iso)
+    # Get UUID from environment variable (exported by prepare_iso)
     # Skip UUID check if SKIP_UUID_PROTECTION=1
     local install_uuid=""
     if [[ "${SKIP_UUID_PROTECTION:-0}" != "1" ]]; then
-        if [[ -f "$TMPDIR/install-uuid" ]]; then
-            install_uuid=$(cat "$TMPDIR/install-uuid")
+        if [[ -n "${INSTALL_UUID:-}" ]]; then
+            install_uuid="$INSTALL_UUID"
             print_info "Embedding UUID wrapper in GRUB (prevents reinstallation loop)..."
             print_info "Installation UUID: $install_uuid"
         else
-            print_warning "Installation UUID not found, skipping UUID wrapper"
+            print_warning "Installation UUID not found in environment, skipping UUID wrapper"
             return 0
         fi
     else
@@ -613,6 +608,14 @@ set disk_uuid=""
 set efi_part=""
 set disk=""
 
+# Debug output
+echo "======================================"
+echo "Proxmox Auto-Installer (UUID Protection)"
+echo "======================================"
+echo "USB UUID: $usb_uuid"
+echo "Searching for existing installation..."
+echo ""
+
 # Search for proxmox-installed marker on system disk (hd1)
 # The first-boot script creates this file only on the system disk
 
@@ -620,10 +623,14 @@ set disk=""
 if [ $found_system -eq 0 ]; then
     if [ -f (hd1,gpt2)/proxmox-installed ]; then
         cat --set=disk_uuid (hd1,gpt2)/proxmox-installed
+        echo "Found marker on (hd1,gpt2): $disk_uuid"
         if [ "$disk_uuid" = "$usb_uuid" ]; then
             set found_system=1
             set efi_part="gpt2"
             set disk="hd1"
+            echo "UUID MATCH! System installed with this USB."
+        else
+            echo "UUID MISMATCH! Different USB was used for installation."
         fi
     fi
 fi
@@ -664,9 +671,16 @@ if [ $found_system -eq 0 ]; then
     fi
 fi
 
+echo ""
 if [ $found_system -eq 1 ]; then
     # UUID matches - system already installed with this USB
     # Boot installed system by default, offer reinstall option
+    echo "======================================"
+    echo "DECISION: Boot installed system (UUID matches)"
+    echo "======================================"
+    echo ""
+    echo "Press any key to see menu..."
+    sleep 3
 
     set timeout=5
     set default=0
@@ -692,34 +706,28 @@ if [ $found_system -eq 1 ]; then
     }
 else
     # UUID doesn't match or no marker found - proceed with installation
+    echo "======================================"
+    echo "DECISION: Proceed with installation"
+    echo "Reason: No marker found OR UUID mismatch"
+    echo "======================================"
+    echo ""
+    echo "Press any key to see menu..."
+    sleep 3
+
     set timeout=5
     set default=0
 
     menuentry 'Install Proxmox VE (AUTO-INSTALL)' {
-        configfile /EFI/BOOT/grub-install.cfg
+        search --no-floppy --fs-uuid --set=root 2025-08-05-10-48-40-00
+        set prefix=($root)/boot/grub
+        echo 'Loading Proxmox kernel with auto-installer...'
+        linux $prefix/../linux26 ro ramdisk_size=16777216 rw splash=silent video=vesafb:ywrap,mtrr vga=791 nomodeset proxmox-start-auto-installer
+        echo 'Loading initrd...'
+        initrd $prefix/../initrd.img
     }
 
-    menuentry 'Boot existing system from disk (if any)' {
-        if [ "$disk" = "hd1" ]; then
-            if [ "$efi_part" = "gpt2" ]; then
-                chainloader (hd1,gpt2)/EFI/proxmox/grubx64.efi
-            elif [ "$efi_part" = "gpt1" ]; then
-                chainloader (hd1,gpt1)/EFI/proxmox/grubx64.efi
-            else
-                echo "No Proxmox installation found on hd1"
-                read
-            fi
-        else
-            echo "Checking hd0..."
-            if [ "$efi_part" = "gpt2" ]; then
-                chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
-            elif [ "$efi_part" = "gpt1" ]; then
-                chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
-            else
-                echo "No Proxmox installation found"
-                read
-            fi
-        fi
+    menuentry 'Install Proxmox VE (Manual - use if auto fails)' {
+        configfile /EFI/BOOT/grub-install.cfg
     }
 fi
 GRUB_EOF
@@ -922,7 +930,15 @@ main() {
         set_root_password "$answer_toml" "$ROOT_PASSWORD_HASH" || return 7
     fi
 
+    # Generate installation UUID BEFORE prepare_iso (so it's accessible globally)
+    local timezone timestamp
+    timezone=$(date +%Z)
+    timestamp=$(date +%Y_%m_%d_%H_%M)
+    INSTALL_UUID="${timezone}_${timestamp}"  # GLOBAL variable
+    print_info "Generated installation UUID: $INSTALL_UUID"
+
     # Prepare ISO (prints path to stdout, logs to stderr)
+    # UUID is passed via INSTALL_UUID global variable
     local created_iso=""
     created_iso=$(prepare_iso "$iso_src" "$answer_toml")
     if [[ -z "${created_iso:-}" || ! -f "$created_iso" ]]; then

@@ -1,0 +1,122 @@
+==========================================
+Proxmox Auto-Install USB Creator
+==========================================
+
+This script will create bootable USB with:
+  - Proxmox VE 9 ISO
+  - Auto-install configuration (answer.toml)
+  - UUID-based reinstall prevention
+
+Configuration:
+  ISO: /home/strateg/Загрузки/proxmox-ve_9.0-1.iso
+  Config: answer.toml
+  Target: /dev/sdc (SanDisk 3.2Gen1 114.6G)
+
+⚠️  WARNING: ALL DATA ON /dev/sdc WILL BE ERASED!
+
+Continue? (type YES): 
+Starting USB creation...
+
+INFO: Validated target: /dev/sdc (device: sdc)
+The answer file was parsed successfully, no errors found!
+INFO: answer.toml validated successfully
+INFO: Generated installation UUID: EEST_2025_10_18_20_09
+INFO: Using tempdir /var/tmp/pmxiso.03D5
+INFO: Created first-boot script with UUID: EEST_2025_10_18_20_09
+INFO: Embedding answer.toml and first-boot script using proxmox-auto-install-assistant...
+Checking provided answer file...
+The answer file was parsed successfully, no errors found!
+Copying source ISO to temporary location...
+Preparing ISO...
+Moving prepared ISO to target location...
+Final ISO is available at "/var/tmp/pmxiso.03D5/proxmox-ve_9.0-1-auto-from-iso.iso".
+INFO: Prepared ISO located at: /var/tmp/pmxiso.03D5/proxmox-ve_9.0-1-auto-from-iso.iso
+WARNING: About to write ISO to /dev/sdc - THIS WILL DESTROY ALL DATA ON THE DEVICE
+Type YES to confirm: INFO: Unmounting potential mounted partitions on /dev/sdc ...
+INFO: Writing prepared ISO to /dev/sdc (this may take several minutes)...
+100663296 bytes (101 MB, 96 MiB) copied, 1 s, 99,5 MB/s205520896 bytes (206 MB, 196 MiB) copied, 2 s, 101 MB/s310378496 bytes (310 MB, 296 MiB) copied, 3 s, 102 MB/s415236096 bytes (415 MB, 396 MiB) copied, 4 s, 103 MB/s520093696 bytes (520 MB, 496 MiB) copied, 5 s, 104 MB/s620756992 bytes (621 MB, 592 MiB) copied, 6 s, 103 MB/s725614592 bytes (726 MB, 692 MiB) copied, 7 s, 103 MB/s826277888 bytes (826 MB, 788 MiB) copied, 8 s, 103 MB/s935329792 bytes (935 MB, 892 MiB) copied, 9 s, 103 MB/s1035993088 bytes (1,0 GB, 988 MiB) copied, 10 s, 103 MB/s1140850688 bytes (1,1 GB, 1,1 GiB) copied, 11 s, 103 MB/s1241513984 bytes (1,2 GB, 1,2 GiB) copied, 12 s, 103 MB/s1346371584 bytes (1,3 GB, 1,3 GiB) copied, 13 s, 103 MB/s1451229184 bytes (1,5 GB, 1,4 GiB) copied, 14 s, 103 MB/s1556086784 bytes (1,6 GB, 1,4 GiB) copied, 15 s, 104 MB/s1643118592 bytes (1,6 GB, 1,5 GiB) copied, 15,81 s, 104 MB/s
+
+391+1 records in
+391+1 records out
+1643118592 bytes (1,6 GB, 1,5 GiB) copied, 15,8808 s, 103 MB/s
+INFO: Successfully wrote /var/tmp/pmxiso.03D5/proxmox-ve_9.0-1-auto-from-iso.iso to /dev/sdc
+INFO: Adding auto-installer-mode.toml to USB...
+INFO: Found ISO root partition: /dev/sdc3
+./create-usb-final.sh: строка 390: /tmp/usbmnt.0n1a/auto-installer-mode.toml: Файловая система доступна только для чтения
+WARNING: Failed to create auto-installer-mode.toml (read-only filesystem?)
+WARNING: Could not add auto-installer-mode.toml (filesystem may be read-only)
+WARNING: WORKAROUND: Boot to GRUB, press 'e' on any entry, add 'proxmox-start-auto-installer' to linux line
+INFO: Embedding UUID wrapper in GRUB (prevents reinstallation loop)...
+INFO: Installation UUID: EEST_2025_10_18_20_09
+INFO: Found EFI boot partition: /dev/sdc2 (vfat)
+INFO: Renamed original grub.cfg → grub-install.cfg
+./create-usb-final.sh: строка 725: print_success: команда не найдена
+INFO: Original installer menu saved as grub-install.cfg
+./create-usb-final.sh: строка 742: print_success: команда не найдена
+INFO: After installation, USB will automatically boot installed system
+INFO: Adding graphics parameters for Dell XPS L701X (external display)...
+INFO: Found GRUB config: efi/boot/grub.cfg
+INFO: Adding graphics parameters to kernel boot lines...
+INFO: Graphics parameters added
+INFO: GRUB configuration updated for external display support
+INFO: 
+INFO: =========================================
+INFO: VALIDATING CREATED USB
+INFO: =========================================
+INFO: Checking partition table...
+INFO:   ✓ EFI partition found: /dev/sdc2 (vfat)
+INFO:   ✓ HFS+ partition found: /dev/sdc3 (installer data)
+INFO: Checking EFI partition contents...
+INFO:   ✓ UEFI bootloader: EFI/BOOT/grubx64.efi
+INFO:   ✓ GRUB config: EFI/BOOT/grub.cfg
+INFO:   ✓ grub.cfg: UUID protection wrapper active
+INFO:   ✓ Backup installer menu: grub-install.cfg
+INFO:   First 10 lines of grub.cfg:
+    # Reinstall Prevention Wrapper
+    # Checks for existing installation before loading installer menu
+    
+    insmod part_gpt
+    insmod fat
+    insmod chain
+    
+    # UUID embedded at USB creation time
+    set usb_uuid="EEST_2025_10_18_20_09"
+    set found_system=0
+INFO: Checking HFS+ partition (installer data)...
+INFO:   ✓ Installer data: boot/ directory found
+INFO:   ✓ Installer GRUB menu: boot/grub/grub.cfg
+INFO: =========================================
+INFO: ✓ VALIDATION PASSED: USB is ready for boot
+INFO: =========================================
+INFO: 
+INFO: 
+INFO: =========================================
+INFO: USB READY FOR AUTOMATED INSTALLATION
+INFO: =========================================
+INFO: 
+INFO: Boot instructions (FIRST BOOT):
+INFO: 1. Connect external monitor (Mini DisplayPort)
+INFO: 2. Insert USB into Dell XPS L701X
+INFO: 3. Boot and press F12 for boot menu
+INFO: 4. Select: UEFI: USB... (NOT 'USB Storage Device')
+INFO: 5. GRUB menu: 'Install Proxmox VE (AUTO-INSTALL)'
+INFO: 6. Installation starts automatically after 5 seconds
+INFO: 7. System reboots after installation (~10-15 min)
+INFO: 
+INFO: Boot instructions (AFTER INSTALLATION):
+INFO: 1. Leave USB inserted and reboot
+INFO: 2. GRUB menu changes to: 'Boot Proxmox VE (Already Installed)'
+INFO: 3. Boots installed system automatically after 5 seconds
+INFO: 4. No reinstallation - UUID protection active!
+INFO: 
+INFO: To force reinstall: Select 'Reinstall Proxmox (ERASES ALL DATA!)'
+INFO: 
+INFO: After first successful boot:
+INFO:   SSH: ssh root@<proxmox-ip>
+INFO:   Web: https://<proxmox-ip>:8006
+INFO: 
+INFO: Note: Temporary ISO will be automatically cleaned up on exit.
+
+==========================================
+USB creation completed!
+==========================================
