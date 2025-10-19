@@ -356,6 +356,12 @@ main() {
     print_info ""
     print_info "Installation UUID: $INSTALL_UUID"
     print_info ""
+    print_info "Login credentials:"
+    print_info "  Username: root"
+    print_info "  Password: proxmox (from answer.toml)"
+    print_info ""
+    print_info "Web UI: https://<proxmox-ip>:8006"
+    print_info ""
 
     return 0
 }

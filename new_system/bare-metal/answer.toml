@@ -12,9 +12,10 @@ country = "us"
 # Timezone
 timezone = "UTC"
 
-# Root password (CHANGE THIS!)
-# Generate: openssl passwd -6 "YourPassword"
-root_password = "$6$Fp5wD4/PurW4sN.M$u0vb1s5mEg9g1P0YUL53nDoqffHucJxAlP1gO0rZE/73zdfUauTXOewtO38dUQiMU7NOLJv71GmJQhP34eqAn/"
+# Root password
+# Current password: proxmox (simple password for testing)
+# To change: openssl passwd -6 "YourNewPassword"
+root_password = "$6$p/ATewn9uUwUYfDp$OuCQXOaDbnWygsNPYuTQJRSgiNSi5h3Yz2ChZEyn48uHwtY587tU6aTXPy.b6lGmOiKF4ihZXSOlZykjqJyId."
 
 # Email for notifications
 mailto = "admin@home.local"
@@ -111,8 +112,8 @@ source = "from-dhcp"
 # Or use mkpasswd (if available):
 #   mkpasswd -m sha-512 "YourStrongPassword"
 #
-# Default password in this file: Homelab2025!
-# Hash generated with: openssl passwd -6 "Homelab2025!"
+# Current password in this file: proxmox
+# Hash generated with: openssl passwd -6 "proxmox"
 
 # For production:
 # 1. Generate new password hash
