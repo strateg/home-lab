@@ -23,7 +23,9 @@
 
 ### Phase 1: USB Creation
 
-**Script**: `create-usb.sh`
+**Script**: `create-uefi-autoinstall-proxmox-usb.sh` (UEFI mode only)
+
+> **Note**: Reinstall prevention is **only available in UEFI mode**. Legacy BIOS does not support this feature due to read-only ISO filesystem limitations. See [USB Creation Guide](usb-creation.md) for details.
 
 ```bash
 # 1. Generate readable installation ID with timestamp

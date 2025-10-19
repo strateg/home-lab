@@ -14,16 +14,28 @@ This directory contains everything needed to create a bootable USB drive that wi
 - **Reinstall prevention** (UUID-based detection) ⭐ NEW
 - Post-install scripts for complete system configuration
 
+## Documentation
+
+📚 **Comprehensive guides available in [`docs/`](docs/)**:
+- **[Quick Start Guide](docs/guides/quick-start.md)** - Get started in 15 minutes
+- **[USB Creation Guide](docs/guides/usb-creation.md)** - Detailed USB creation instructions
+- **[Reinstall Prevention](docs/guides/reinstall-prevention.md)** - How UUID-based protection works
+- **[Architecture](docs/technical/architecture.md)** - Technical overview
+- **[docs/README.md](docs/README.md)** - Full documentation index
+
 ## Files
 
 ```
 bare-metal/
-├── README.md                                    # This file
+├── README.md                                    # This file (overview and quick reference)
 ├── answer.toml                                  # Proxmox auto-install configuration
-├── create-uefi-autoinstall-proxmox-usb.sh      # ⭐ UEFI USB creator (recommended, with reinstall prevention)
-├── create-legacy-autoinstall-proxmox-usb.sh    # Legacy BIOS USB creator (fallback, no reinstall prevention)
-├── REINSTALL-PREVENTION.md                      # UUID-based reinstall prevention documentation
-├── CHANGELOG-REINSTALL-PREVENTION.md            # Reinstall prevention feature changelog
+├── create-uefi-autoinstall-proxmox-usb.sh      # ⭐ UEFI USB creator (recommended)
+├── create-legacy-autoinstall-proxmox-usb.sh    # Legacy BIOS USB creator (fallback)
+├── docs/                                        # 📚 Comprehensive documentation
+│   ├── README.md                                # Documentation index
+│   ├── guides/                                  # User guides
+│   ├── technical/                               # Technical documentation
+│   └── archive/                                 # Historical docs (reference only)
 └── post-install/                                # Post-installation scripts
     ├── README.md                                # Post-install guide
     ├── 01-install-terraform.sh
@@ -86,7 +98,7 @@ sudo ./create-uefi-autoinstall-proxmox-usb.sh ~/Downloads/proxmox-ve_9.0-1.iso a
 5. Installation starts automatically (~10-15 minutes)
 6. **No need to remove USB!** System will boot from disk (reinstall prevention active)
 
-**New Feature**: После установки система автоматически определяет, что установка уже выполнена с этого USB, и загружается с диска вместо переустановки. См. [REINSTALL-PREVENTION.md](REINSTALL-PREVENTION.md)
+💡 **Reinstall Prevention**: After installation, the system automatically detects it was installed from this USB and boots from the hard drive instead of reinstalling. See [Reinstall Prevention Guide](docs/guides/reinstall-prevention.md) for details.
 
 ## Boot Modes: UEFI vs Legacy BIOS
 
