@@ -179,8 +179,9 @@ prepare_iso() {
     local install_uuid="$INSTALL_UUID"
     echo "$install_uuid" > "$TMPDIR/install-uuid"
 
-    # Create first-boot script
-    local first_boot_script="$TMPDIR/first-boot.sh"
+    # Create first-boot script OUTSIDE the --tmp directory
+    # (proxmox-auto-install-assistant may clean/use the --tmp directory)
+    local first_boot_script="/tmp/proxmox-first-boot-${install_uuid}.sh"
     create_first_boot_script "$install_uuid" "$first_boot_script"
 
     # Generate output ISO
@@ -188,21 +189,32 @@ prepare_iso() {
 
     print_info "Embedding answer.toml and first-boot script..."
 
-    if ! proxmox-auto-install-assistant prepare-iso \
+    # Run proxmox-auto-install-assistant (output goes to stderr to not interfere with return value)
+    set +e
+    proxmox-auto-install-assistant prepare-iso \
         --fetch-from iso \
         --answer-file "$answer" \
         --output "$output_iso" \
         --tmp "$TMPDIR" \
         --on-first-boot "$first_boot_script" \
-        "$iso_src" 2>&1; then
-        print_error "proxmox-auto-install-assistant failed"
+        "$iso_src" >&2
+    local prepare_exit=$?
+    set -e
+
+    if [[ $prepare_exit -ne 0 ]]; then
+        print_error "proxmox-auto-install-assistant failed with exit code $prepare_exit"
+        rm -f "$first_boot_script"
         return 9
     fi
 
     if [[ ! -f "$output_iso" ]]; then
         print_error "Assistant did not create ISO"
+        rm -f "$first_boot_script"
         return 9
     fi
+
+    # Clean up temporary first-boot script
+    rm -f "$first_boot_script"
 
     printf '%s\n' "$output_iso"
 }
@@ -291,6 +303,10 @@ main() {
         print_error "Example: sudo $SCRIPT_NAME proxmox-ve_9.0-1.iso answer.toml /dev/sdc"
         return 1
     fi
+
+    # Convert to absolute paths (important when running with sudo)
+    iso_src=$(realpath "$iso_src")
+    answer_toml=$(realpath "$answer_toml")
 
     validate_usb_device "$target_dev" || return 3
     validate_answer_file "$answer_toml" || return 6

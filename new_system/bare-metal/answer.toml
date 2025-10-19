@@ -118,3 +118,15 @@ source = "from-dhcp"
 # 1. Generate new password hash
 # 2. Update root_password field above
 # 3. Keep this file secure (DO NOT commit to Git!)
+
+# ============================================================
+# First-Boot Configuration
+# ============================================================
+
+[first-boot]
+# Source: 'from-iso' means the script is embedded in the ISO
+source = "from-iso"
+
+# Ordering: 'fully-up' ensures system is fully booted before running
+# This allows the script to use Proxmox tools like qm, pct, pvesh
+ordering = "fully-up"
