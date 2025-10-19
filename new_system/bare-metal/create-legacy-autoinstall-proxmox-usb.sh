@@ -120,6 +120,35 @@ validate_answer_file() {
     print_info "answer.toml validated successfully"
 }
 
+# Update password in answer.toml
+update_password_in_answer() {
+    local answer_file="$1"
+    local new_password="$2"
+
+    print_info "Updating password in answer.toml..."
+
+    # Generate password hash
+    local password_hash
+    password_hash=$(openssl passwd -6 "$new_password")
+
+    # Create temporary file
+    local temp_file="${answer_file}.tmp"
+
+    # Replace password hash in answer.toml
+    awk -v hash="$password_hash" '
+        /^root_password = / {
+            print "root_password = \"" hash "\""
+            next
+        }
+        { print }
+    ' "$answer_file" > "$temp_file"
+
+    # Replace original file
+    mv "$temp_file" "$answer_file"
+
+    print_info "Password hash updated successfully"
+}
+
 # Create first-boot script with UUID
 create_first_boot_script() {
     local install_uuid="$1"
@@ -303,6 +332,52 @@ main() {
     validate_usb_device "$target_dev" || return 3
     validate_answer_file "$answer_toml" || return 6
 
+    # Ask for root password (unless AUTO_CONFIRM is set)
+    if [[ "${AUTO_CONFIRM:-0}" != "1" ]]; then
+        print_info ""
+        print_info "=========================================="
+        print_info "Proxmox Root Password Configuration"
+        print_info "=========================================="
+        print_info ""
+        print_info "You can set a custom root password for Proxmox installation."
+        print_info "Current password in answer.toml: proxmox"
+        print_info ""
+        read -p "Do you want to change the password? (y/N): " change_password
+
+        if [[ "$change_password" =~ ^[Yy]$ ]]; then
+            while true; do
+                read -sp "Enter new root password: " new_password
+                echo ""
+
+                if [[ ${#new_password} -lt 5 ]]; then
+                    print_error "Password too short (minimum 5 characters)"
+                    continue
+                fi
+
+                read -sp "Confirm password: " new_password_confirm
+                echo ""
+
+                if [[ "$new_password" != "$new_password_confirm" ]]; then
+                    print_error "Passwords don't match. Try again."
+                    continue
+                fi
+
+                # Update password in answer.toml
+                update_password_in_answer "$answer_toml" "$new_password"
+                ROOT_PASSWORD="$new_password"
+                print_success "Password updated successfully"
+                break
+            done
+        else
+            ROOT_PASSWORD="proxmox"
+            print_info "Using default password: proxmox"
+        fi
+        print_info ""
+    else
+        ROOT_PASSWORD="proxmox"
+        print_info "Using default password from answer.toml: proxmox"
+    fi
+
     # Generate installation UUID
     local timezone timestamp
     timezone=$(date +%Z)
@@ -358,7 +433,7 @@ main() {
     print_info ""
     print_info "Login credentials:"
     print_info "  Username: root"
-    print_info "  Password: proxmox (from answer.toml)"
+    print_info "  Password: ${ROOT_PASSWORD:-proxmox}"
     print_info ""
     print_info "Web UI: https://<proxmox-ip>:8006"
     print_info ""
