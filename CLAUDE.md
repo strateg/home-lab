@@ -4,14 +4,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture Overview
 
-This is an **Infrastructure-as-Data** home lab project. A single YAML topology file (`topology.yaml`) is the **canonical source of truth** that generates:
+This is an **Infrastructure-as-Data** home lab project. The topology is defined in **modular YAML files** in `topology/` directory, with `topology.yaml` as the main entry point. This is the **canonical source of truth** that generates:
 - Terraform configurations (Proxmox infrastructure)
 - Ansible inventory and variables
 - Network diagrams
 - IP allocation documentation
 - Service inventory
 
-**Key Principle**: Edit `topology.yaml` → regenerate everything → apply with Terraform/Ansible.
+**Key Principle**: Edit `topology/*.yaml` modules → regenerate everything → apply with Terraform/Ansible.
+
+### Modular Structure (v2.2)
+
+**Main File**: `topology.yaml` (36 lines) - Entry point with `!include` directives
+**Modules**: `topology/*.yaml` (13 files) - Organized by concern
+
+```
+topology/
+├── metadata.yaml          # Project info, changelog
+├── physical.yaml          # Hardware devices, locations
+├── logical.yaml           # Networks, bridges, DNS
+├── compute.yaml           # VMs and LXC containers
+├── storage.yaml           # Storage pools
+├── services.yaml          # Service definitions
+├── ansible.yaml           # Ansible configuration
+├── workflows.yaml         # Automation workflows
+├── security.yaml          # Firewall policies
+├── backup.yaml            # Backup configuration
+├── monitoring.yaml        # Monitoring, alerts
+├── documentation.yaml     # Documentation metadata
+└── notes.yaml             # Operational notes
+```
+
+**Benefits**:
+- ✅ Each module < 500 lines (was 2104 in one file)
+- ✅ Edit modules independently (fewer Git conflicts)
+- ✅ Clear separation of concerns
+- ✅ Easy navigation and collaboration
+- ✅ All generators automatically merge modules
+
+See `TOPOLOGY-MODULAR.md` for details.
 
 ### Technology Stack
 
@@ -26,13 +57,28 @@ This is an **Infrastructure-as-Data** home lab project. A single YAML topology f
 ```
 home-lab/
 ├── new_system/                # ⭐ Infrastructure-as-Data (current)
-│   ├── topology.yaml          # ⭐ SINGLE SOURCE OF TRUTH
+│   ├── topology.yaml          # ⭐ Main entry point (36 lines, with !include)
+│   ├── topology/              # ⭐ Modular topology components (13 files)
+│   │   ├── metadata.yaml
+│   │   ├── physical.yaml
+│   │   ├── logical.yaml
+│   │   ├── compute.yaml
+│   │   ├── storage.yaml
+│   │   ├── services.yaml
+│   │   ├── ansible.yaml
+│   │   ├── workflows.yaml
+│   │   ├── security.yaml
+│   │   ├── backup.yaml
+│   │   ├── monitoring.yaml
+│   │   ├── documentation.yaml
+│   │   └── notes.yaml
 │   ├── scripts/               # Generators (Python)
+│   │   ├── topology_loader.py     # YAML loader with !include support
 │   │   ├── generate-terraform.py
 │   │   ├── generate-ansible-inventory.py
 │   │   ├── generate-docs.py
 │   │   └── validate-topology.py
-│   ├── generated/             # Auto-generated from topology.yaml
+│   ├── generated/             # Auto-generated from topology modules
 │   │   ├── terraform/         # Terraform configs (DO NOT EDIT MANUALLY)
 │   │   │   ├── provider.tf
 │   │   │   ├── versions.tf
@@ -58,13 +104,15 @@ home-lab/
 
 ### 1. Modify Infrastructure
 
-**ALWAYS edit topology.yaml first, then regenerate:**
+**ALWAYS edit topology modules first, then regenerate:**
 
 ```bash
-# 1. Edit topology (add VM, change IP, add bridge, etc.)
-vim new_system/topology.yaml
+# 1. Edit the relevant module (VMs, networks, services, etc.)
+vim new_system/topology/compute.yaml     # Add/modify VMs or LXC
+vim new_system/topology/logical.yaml     # Add/modify networks or bridges
+vim new_system/topology/services.yaml    # Add/modify services
 
-# 2. Validate topology
+# 2. Validate topology (automatically merges all modules)
 python3 new_system/scripts/validate-topology.py
 
 # 3. Regenerate Terraform

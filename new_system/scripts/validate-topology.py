@@ -17,6 +17,9 @@ import argparse
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# Import topology loader with !include support
+from topology_loader import load_topology
+
 try:
     from jsonschema import validate, Draft7Validator, ValidationError
     from jsonschema.exceptions import best_match
@@ -39,10 +42,9 @@ class SchemaValidator:
 
     def load_files(self) -> bool:
         """Load topology YAML and schema JSON"""
-        # Load topology
+        # Load topology (with !include support)
         try:
-            with open(self.topology_path) as f:
-                self.topology = yaml.safe_load(f)
+            self.topology = load_topology(str(self.topology_path))
             print(f"✓ Loaded topology: {self.topology_path}")
         except FileNotFoundError:
             self.errors.append(f"Topology file not found: {self.topology_path}")

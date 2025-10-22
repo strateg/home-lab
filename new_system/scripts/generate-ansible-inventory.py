@@ -17,6 +17,9 @@ from pathlib import Path
 from typing import Dict, List
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+# Import topology loader with !include support
+from topology_loader import load_topology
+
 class AnsibleInventoryGenerator:
     """Generate Ansible inventory from topology v2.0"""
 
@@ -35,10 +38,9 @@ class AnsibleInventoryGenerator:
         )
 
     def load_topology(self) -> bool:
-        """Load topology YAML file"""
+        """Load topology YAML file (with !include support)"""
         try:
-            with open(self.topology_path) as f:
-                self.topology = yaml.safe_load(f)
+            self.topology = load_topology(str(self.topology_path))
             print(f"✓ Loaded topology: {self.topology_path}")
 
             # Validate v2.0 structure
