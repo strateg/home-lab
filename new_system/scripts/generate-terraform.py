@@ -76,7 +76,6 @@ class TerraformGenerator:
         success = True
         success &= self.generate_versions()
         success &= self.generate_provider()
-        success &= self.generate_bridges()
         success &= self.generate_vms()
         success &= self.generate_lxc()
         success &= self.generate_variables()
@@ -136,27 +135,6 @@ class TerraformGenerator:
 
         except Exception as e:
             print(f"❌ Error generating versions.tf: {e}")
-            return False
-
-    def generate_bridges(self) -> bool:
-        """Generate bridges.tf with network bridge resources"""
-        try:
-            template = self.jinja_env.get_template('terraform/bridges.tf.j2')
-
-            bridges = self.topology['logical_topology'].get('bridges', [])
-
-            content = template.render(
-                bridges=bridges,
-                topology_version=self.topology.get('version', '2.0.0')
-            )
-
-            output_file = self.output_dir / "bridges.tf"
-            output_file.write_text(content)
-            print(f"✓ Generated: {output_file} ({len(bridges)} bridges)")
-            return True
-
-        except Exception as e:
-            print(f"❌ Error generating bridges.tf: {e}")
             return False
 
     def generate_vms(self) -> bool:
@@ -282,13 +260,12 @@ class TerraformGenerator:
 
         vms = len(self.topology['compute'].get('vms', []))
         lxc = len(self.topology['compute'].get('lxc', []))
-        bridges = len(self.topology['logical_topology'].get('bridges', []))
 
         print(f"\n✓ Generated Terraform configuration for:")
-        print(f"  - {bridges} network bridges")
         print(f"  - {vms} VMs")
         print(f"  - {lxc} LXC containers")
         print(f"\n✓ Output directory: {self.output_dir}")
+        print(f"\n⚠️  Note: Network bridges must be created manually (see BRIDGES.md)")
         print(f"\nNext steps:")
         print(f"  1. Copy terraform.tfvars.example to terraform.tfvars")
         print(f"  2. Edit terraform.tfvars with your credentials")

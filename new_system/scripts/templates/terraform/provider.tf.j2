@@ -57,9 +57,6 @@ provider "proxmox" {
     agent    = true
     username = var.proxmox_ssh_user
   }
-
-  # Timeout settings (10 minutes for slow operations)
-  timeout = 600
 }
 
 # ============================================================

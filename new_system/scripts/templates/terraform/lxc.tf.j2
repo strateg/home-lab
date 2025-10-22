@@ -56,29 +56,11 @@ resource "proxmox_virtual_environment_container" "{{ lxc.id | replace('-', '_') 
   network_interface {
     name   = "{{ nic.interface }}"
     bridge = "{{ bridge_map[nic.bridge_ref].name }}"
-    {% if nic.ip %}
-    ip_v4_address = "{{ nic.ip }}"
-    {% if nic.gateway %}
-    ip_v4_gateway = "{{ nic.gateway }}"
-    {% endif %}
-    {% endif %}
     {% if nic.firewall is defined %}
     firewall = {{ nic.firewall | lower }}
     {% endif %}
   }
   {% endfor %}
-
-  # DNS configuration
-  {% if lxc.dns %}
-  dns {
-    {% if lxc.dns.nameserver %}
-    servers = ["{{ lxc.dns.nameserver }}"]
-    {% endif %}
-    {% if lxc.dns.searchdomain %}
-    domain  = "{{ lxc.dns.searchdomain }}"
-    {% endif %}
-  }
-  {% endif %}
 
   # Cloud-init / Initialization
   {% if lxc.cloudinit and lxc.cloudinit.enabled %}
