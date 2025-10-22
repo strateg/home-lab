@@ -51,18 +51,24 @@
           type: "usb-ethernet"
           speed_mbps: 1000
           mac: "auto-detect"  # Set by UDEV rules
+          physical_name: "enx001122334455"  # TODO: Replace with actual interface name from 'ip link show'
           role: "wan"
           description: "USB Ethernet adapter to ISP Router"
           bridge_ref: bridge-vmbr0
+          # To find physical name: ssh root@proxmox "ip link show | grep -i usb"
+          # USB Ethernet usually named: enx<MAC_ADDRESS>
 
         - id: if-eth-builtin
           name: "eth-builtin"
           type: "pci-ethernet"
           speed_mbps: 1000
           mac: "auto-detect"  # Set by UDEV rules
+          physical_name: "enp3s0"  # TODO: Replace with actual interface name from 'ip link show'
           role: "lan"
           description: "Built-in Ethernet to GL.iNet Slate AX"
           bridge_ref: bridge-vmbr1
+          # To find physical name: ssh root@proxmox "ip link show | grep -E 'enp|eth0'"
+          # Built-in Ethernet usually named: enp<bus>s<slot> or eth0
 
       power:
         max_watts: 65

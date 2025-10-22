@@ -2,18 +2,162 @@
 
 ## Overview
 
-Network bridges in Proxmox VE must be created **manually** because the `bpg/proxmox` Terraform provider v0.50.0 does not support the `proxmox_virtual_environment_bridge` resource type.
+Network bridges in Proxmox VE can now be **automatically created via Terraform** using `bpg/proxmox` provider v0.85+!
 
-This document provides instructions for creating the required network bridges for the home lab infrastructure.
+This document provides:
+1. **Automated setup** using Terraform (recommended)
+2. **Manual setup** alternatives (Web UI, CLI, Ansible)
 
-## Why Manual Setup?
+---
 
-The Terraform Proxmox provider focuses on VM/LXC lifecycle management and does not support network bridge creation. Bridges are typically configured during initial Proxmox installation and rarely change, making manual configuration acceptable.
+## ✨ NEW: Automated Setup via Terraform (Recommended)
 
-**Alternative approaches:**
-- Ansible network configuration (recommended for automation)
-- Proxmox Web UI (easiest for initial setup)
-- CLI commands via SSH (for scripting)
+### What Changed?
+
+**Provider v0.85.0+ supports `proxmox_virtual_environment_network_linux_bridge` resource!**
+
+- ✅ **Fully automated** bridge creation from `topology.yaml`
+- ✅ **Declarative** infrastructure-as-code
+- ✅ **Idempotent** - safe to run multiple times
+- ✅ **Integrated** with VM/LXC deployment
+
+### Prerequisites
+
+1. **Update Terraform provider** (already done in generated config):
+   ```hcl
+   proxmox = {
+     source  = "bpg/proxmox"
+     version = "~> 0.85.0"  # Was: 0.50.0
+   }
+   ```
+
+2. **Verify physical interface names** in `topology/physical.yaml`:
+   ```bash
+   # SSH to Proxmox host
+   ssh root@<proxmox-ip>
+
+   # Find USB Ethernet adapter
+   ip link show | grep -i enx
+   # Example output: enx00e04c6800f9
+
+   # Find built-in Ethernet
+   ip link show | grep -E 'enp|eth0'
+   # Example output: enp3s0
+   ```
+
+3. **Update `topology/physical.yaml`** with actual interface names:
+   ```yaml
+   - id: if-eth-usb
+     physical_name: "enx00e04c6800f9"  # ← Replace with your USB Ethernet name
+
+   - id: if-eth-builtin
+     physical_name: "enp3s0"  # ← Replace with your built-in Ethernet name
+   ```
+
+4. **Regenerate Terraform**:
+   ```bash
+   cd new_system
+   python3 scripts/generate-terraform.py
+   ```
+
+### Deploy Bridges with Terraform
+
+```bash
+cd generated/terraform
+
+# 1. Upgrade provider to v0.85+
+terraform init -upgrade
+
+# 2. Review what will be created
+terraform plan
+
+# Expected output:
+# + proxmox_virtual_environment_network_linux_bridge.bridge_vmbr0
+# + proxmox_virtual_environment_network_linux_bridge.bridge_vmbr1
+# + proxmox_virtual_environment_network_linux_bridge.bridge_vmbr2
+# + proxmox_virtual_environment_network_linux_bridge.bridge_vmbr99
+
+# 3. Create bridges
+terraform apply
+
+# 4. Verify
+terraform output bridges
+```
+
+### Verify Bridge Creation
+
+```bash
+# SSH to Proxmox
+ssh root@<proxmox-ip>
+
+# Check bridges
+brctl show
+# Should show: vmbr0, vmbr1, vmbr2, vmbr99
+
+# Check IPs
+ip addr show | grep vmbr
+# vmbr0: DHCP (from ISP)
+# vmbr1: 192.168.10.254/24
+# vmbr2: 10.0.30.1/24
+# vmbr99: 10.0.99.1/24
+```
+
+### What Gets Created
+
+From `generated/terraform/bridges.tf`:
+
+```hcl
+resource "proxmox_virtual_environment_network_linux_bridge" "bridge_vmbr0" {
+  node_name = var.proxmox_node
+  name      = "vmbr0"
+  comment   = "WAN Bridge - to ISP Router (USB-Ethernet)"
+  ports     = ["enx00e04c6800f9"]  # Your USB Ethernet
+  # DHCP - no static address
+  autostart = true
+}
+
+resource "proxmox_virtual_environment_network_linux_bridge" "bridge_vmbr1" {
+  node_name = var.proxmox_node
+  name      = "vmbr1"
+  comment   = "LAN Bridge - to GL.iNet Slate AX"
+  ports     = ["enp3s0"]  # Your built-in Ethernet
+  address   = "192.168.10.254/24"
+  autostart = true
+}
+
+# ... vmbr2 and vmbr99 (internal bridges, no physical ports)
+```
+
+### Troubleshooting Terraform Bridges
+
+**Issue: "Cannot find interface enxXXXX"**
+```bash
+# Solution: Update physical_name in topology/physical.yaml
+ssh root@<proxmox-ip> "ip link show"
+# Copy actual interface name to topology/physical.yaml
+```
+
+**Issue: "Bridge already exists"**
+```bash
+# Solution: Import existing bridge into Terraform state
+terraform import proxmox_virtual_environment_network_linux_bridge.bridge_vmbr0 <node>:vmbr0
+terraform import proxmox_virtual_environment_network_linux_bridge.bridge_vmbr1 <node>:vmbr1
+terraform import proxmox_virtual_environment_network_linux_bridge.bridge_vmbr2 <node>:vmbr2
+terraform import proxmox_virtual_environment_network_linux_bridge.bridge_vmbr99 <node>:vmbr99
+```
+
+**Issue: "DHCP not working on vmbr0"**
+```bash
+# Some provider versions may require manual DHCP setup
+# Edit /etc/network/interfaces on Proxmox host:
+auto vmbr0
+iface vmbr0 inet dhcp
+    bridge-ports enxXXXXXXXXXXXX
+```
+
+---
+
+## Manual Setup (Fallback)
 
 ## Required Bridges
 

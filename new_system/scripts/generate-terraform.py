@@ -62,6 +62,40 @@ class TerraformGenerator:
             print(f"❌ YAML parse error: {e}")
             return False
 
+    def _resolve_interface_names(self, bridges: List[Dict]) -> List[Dict]:
+        """
+        Resolve logical interface IDs (if-eth-usb) to physical names (enxXXXX)
+
+        Args:
+            bridges: List of bridge configurations with 'ports' field
+
+        Returns:
+            List of bridges with resolved physical interface names
+        """
+        # Build interface map: id -> physical_name
+        interface_map = {}
+        for device in self.topology['physical_topology'].get('devices', []):
+            if device.get('type') == 'hypervisor':
+                for interface in device.get('interfaces', []):
+                    interface_id = interface.get('id')
+                    physical_name = interface.get('physical_name')
+                    if interface_id and physical_name:
+                        interface_map[interface_id] = physical_name
+
+        # Resolve ports in bridges
+        for bridge in bridges:
+            if bridge.get('ports'):
+                resolved_ports = []
+                for port_id in bridge['ports']:
+                    if port_id in interface_map:
+                        resolved_ports.append(interface_map[port_id])
+                    else:
+                        print(f"⚠️  Warning: Cannot resolve interface '{port_id}' - using as-is")
+                        resolved_ports.append(port_id)
+                bridge['ports'] = resolved_ports
+
+        return bridges
+
     def generate_all(self) -> bool:
         """Generate all Terraform files"""
         # Clean output directory if it exists
@@ -76,6 +110,7 @@ class TerraformGenerator:
         success = True
         success &= self.generate_versions()
         success &= self.generate_provider()
+        success &= self.generate_bridges()  # Generate bridges BEFORE VMs/LXC
         success &= self.generate_vms()
         success &= self.generate_lxc()
         success &= self.generate_variables()
@@ -135,6 +170,37 @@ class TerraformGenerator:
 
         except Exception as e:
             print(f"❌ Error generating versions.tf: {e}")
+            return False
+
+    def generate_bridges(self) -> bool:
+        """Generate bridges.tf with network bridge resources"""
+        try:
+            template = self.jinja_env.get_template('terraform/bridges.tf.j2')
+
+            # Get bridges from topology
+            bridges = self.topology['logical_topology'].get('bridges', [])
+
+            # Make a copy to avoid modifying original topology
+            import copy
+            bridges = copy.deepcopy(bridges)
+
+            # Resolve logical interface IDs to physical names
+            bridges = self._resolve_interface_names(bridges)
+
+            content = template.render(
+                bridges=bridges,
+                topology_version=self.topology.get('version', '2.0.0')
+            )
+
+            output_file = self.output_dir / "bridges.tf"
+            output_file.write_text(content)
+            print(f"✓ Generated: {output_file} ({len(bridges)} bridges)")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error generating bridges.tf: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def generate_vms(self) -> bool:
@@ -258,20 +324,26 @@ class TerraformGenerator:
         print("Terraform Generation Summary")
         print("="*70)
 
+        bridges = len(self.topology['logical_topology'].get('bridges', []))
         vms = len(self.topology['compute'].get('vms', []))
         lxc = len(self.topology['compute'].get('lxc', []))
 
         print(f"\n✓ Generated Terraform configuration for:")
+        print(f"  - {bridges} network bridges")
         print(f"  - {vms} VMs")
         print(f"  - {lxc} LXC containers")
         print(f"\n✓ Output directory: {self.output_dir}")
-        print(f"\n⚠️  Note: Network bridges must be created manually (see BRIDGES.md)")
+        print(f"\n💡 Note: Using bpg/proxmox provider v0.85+ for automated bridge creation")
+        print(f"   If bridges fail to create, see BRIDGES.md for manual setup")
         print(f"\nNext steps:")
-        print(f"  1. Copy terraform.tfvars.example to terraform.tfvars")
-        print(f"  2. Edit terraform.tfvars with your credentials")
-        print(f"  3. Run: cd {self.output_dir} && terraform init")
-        print(f"  4. Run: terraform plan")
-        print(f"  5. Run: terraform apply")
+        print(f"  1. Verify physical interface names in topology/physical.yaml:")
+        print(f"     - if-eth-usb → check actual USB Ethernet name (enxXXXX)")
+        print(f"     - if-eth-builtin → check actual built-in Ethernet name (enp3s0)")
+        print(f"  2. Copy terraform.tfvars.example to terraform.tfvars")
+        print(f"  3. Edit terraform.tfvars with your credentials")
+        print(f"  4. Run: cd {self.output_dir} && terraform init -upgrade")
+        print(f"  5. Run: terraform plan")
+        print(f"  6. Run: terraform apply")
 
 
 def main():

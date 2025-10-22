@@ -18,9 +18,10 @@ terraform {
   required_providers {
     # Proxmox Provider
     # https://registry.terraform.io/providers/bpg/proxmox/latest/docs
+    # Updated to v0.85+ for network bridge support
     proxmox = {
       source  = "bpg/proxmox"
-      version = "~> 0.50.0"
+      version = "~> 0.85.0"
     }
 
     # Random Provider (for generating passwords, IDs, etc.)
