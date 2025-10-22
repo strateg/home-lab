@@ -88,6 +88,23 @@ ansible-playbook -i inventory/production/hosts.yml site.yml
 
 ### 2. Test Infrastructure Changes
 
+**Automated End-to-End Test** (Recommended):
+```bash
+# Run complete regeneration workflow test
+cd new_system
+./scripts/test-regeneration.sh
+
+# This will:
+# 1. Validate topology.yaml
+# 2. Generate Terraform configs
+# 3. Validate Terraform syntax
+# 4. Generate Ansible inventory
+# 5. Validate Ansible syntax
+# 6. Check idempotency
+# 7. Show git status
+```
+
+**Manual Testing**:
 ```bash
 # Terraform
 cd new_system/terraform  # (symlink to generated/terraform)
@@ -335,6 +352,12 @@ ansible-playbook -i inventory/production/hosts.yml site.yml --check
 - Added/removed network bridge
 - Modified storage configuration
 - Changed resource allocation
+
+**Important**: Generated files are stored in git for transparency and easy rollback. After regeneration, commit changes:
+```bash
+git add new_system/generated/
+git commit -m "Regenerate infrastructure from topology.yaml"
+```
 
 ### What Gets Regenerated
 
