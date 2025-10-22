@@ -1,0 +1,40 @@
+# Documentation
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+  network_diagram:
+    format: "mermaid"
+    output: "docs/network-diagram.md"
+    auto_generate: true
+    include:
+      - physical_topology
+      - logical_topology.networks
+      - logical_topology.trust_zones
+
+  trust_zone_diagram:
+    format: "mermaid"
+    output: "docs/trust-zones.md"
+    auto_generate: true
+    style: "security-focused"
+
+  ip_allocation:
+    format: "markdown-table"
+    output: "docs/ip-allocation.md"
+    auto_generate: true
+
+  service_inventory:
+    format: "markdown"
+    output: "docs/services.md"
+    auto_generate: true
+    include_dependencies: true
+
+  device_inventory:
+    format: "markdown"
+    output: "docs/devices.md"
+    auto_generate: true
+
+# ============================================================
+# Notes & Best Practices
+# ============================================================
+

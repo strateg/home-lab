@@ -1,0 +1,119 @@
+# Services
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+  # Proxmox Host
+  - id: svc-proxmox-ui
+    name: "Proxmox Web UI"
+    type: "web-ui"
+    device_ref: gamayun
+    network_ref: net-management
+    ip_ref: "10.0.99.1"  # Dynamic from network ip_allocations
+    port: 8006
+    protocol: "https"
+    trust_zone_ref: management
+    url: "https://10.0.99.1:8006"
+    description: "Proxmox VE management interface"
+
+  # OPNsense Firewall
+  - id: svc-opnsense-ui
+    name: "OPNsense Web UI"
+    type: "web-ui"
+    vm_ref: vm-opnsense-fw
+    network_ref: net-management
+    ip_ref: "10.0.99.10"  # From vm-opnsense-fw net3 config
+    port: 443
+    protocol: "https"
+    trust_zone_ref: management
+    url: "https://10.0.99.10"
+    description: "OPNsense firewall management"
+
+  # PostgreSQL Database
+  - id: svc-postgresql
+    name: "PostgreSQL Database"
+    type: "database"
+    lxc_ref: lxc-postgresql
+    network_ref: net-lxc-internal
+    ip_ref: "10.0.30.10"  # From lxc-postgresql network config
+    port: 5432
+    protocol: "tcp"
+    trust_zone_ref: internal
+    description: "PostgreSQL database server"
+    clients:
+      - service_ref: svc-nextcloud
+
+  # Redis Cache
+  - id: svc-redis
+    name: "Redis Cache"
+    type: "cache"
+    lxc_ref: lxc-redis
+    network_ref: net-lxc-internal
+    ip_ref: "10.0.30.20"  # From lxc-redis network config
+    port: 6379
+    protocol: "tcp"
+    trust_zone_ref: internal
+    description: "Redis cache server"
+    clients:
+      - service_ref: svc-nextcloud
+
+  # Nextcloud
+  - id: svc-nextcloud
+    name: "Nextcloud"
+    type: "web-application"
+    lxc_ref: lxc-nextcloud
+    network_ref: net-lxc-internal
+    ip_ref: "10.0.30.30"  # From lxc-nextcloud network config
+    port: 80
+    protocol: "http"
+    trust_zone_ref: internal
+    domain: "nextcloud.home.local"
+    reverse_proxy: "https://nextcloud.home.local"
+    description: "Nextcloud file sharing and collaboration"
+    dependencies:
+      - service_ref: svc-postgresql
+      - service_ref: svc-redis
+
+  # AdGuard Home
+  - id: svc-adguard
+    name: "AdGuard Home"
+    type: "dns"
+    device_ref: slate-ax1800
+    network_ref: net-user-lan
+    ip_ref: "192.168.20.1"
+    port: 3000
+    protocol: "http"
+    trust_zone_ref: user
+    url: "http://192.168.20.1:3000"
+    description: "DNS filtering and ad blocking"
+
+  # WireGuard Home VPN
+  - id: svc-vpn-home
+    name: "WireGuard Home VPN"
+    type: "vpn"
+    device_ref: slate-ax1800
+    network_ref: net-vpn-home
+    port: 51820
+    protocol: "udp"
+    trust_zone_ref: user
+    vpn_type: "wireguard"
+    vpn_network_ref: net-vpn-home
+    description: "Home VPN server (access to LAN)"
+
+  # AmneziaWG Russia VPN
+  - id: svc-vpn-russia
+    name: "AmneziaWG Russia VPN"
+    type: "vpn"
+    device_ref: slate-ax1800
+    network_ref: net-vpn-russia
+    port: 51821
+    protocol: "udp"
+    trust_zone_ref: untrusted
+    vpn_type: "amneziawg"
+    vpn_network_ref: net-vpn-russia
+    description: "Russia VPN server (internet only, no LAN access)"
+
+# ============================================================
+# Ansible Configuration
+# ============================================================
+

@@ -1,0 +1,324 @@
+# Compute Resources
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+
+  # ============================================================
+  # YAML Anchors - Reusable Configuration Defaults
+  # ============================================================
+
+  _defaults:
+    # Common OS configuration for LXC containers
+    lxc_os: &default_lxc_os
+      type: "debian"
+      version: "12"
+
+    # Common DNS configuration
+    dns: &default_dns
+      nameserver: "192.168.10.2"
+      searchdomain: "home.local"
+
+    # Common boot configuration for LXC
+    lxc_boot: &default_lxc_boot
+      onboot: true
+      startup_order: 10
+
+    # Common storage rootfs configuration
+    lxc_storage_rootfs: &default_lxc_storage_rootfs
+      storage_ref: storage-lvm
+      size_gb: 8
+
+    # Common network configuration for LXC (internal)
+    lxc_network_internal: &default_lxc_network_internal
+      interface: "eth0"
+      bridge_ref: bridge-vmbr2
+      network_ref: net-lxc-internal
+      gateway: "10.0.30.254"
+      firewall: false
+
+    # Common cloud-init configuration
+    lxc_cloudinit: &default_lxc_cloudinit
+      enabled: true
+
+    # Common ansible configuration
+    ansible_enabled: &default_ansible_enabled
+      enabled: true
+
+  # ------------------------------------------------------------
+  # Virtual Machines
+  # ------------------------------------------------------------
+
+  vms:
+    - id: vm-opnsense-fw
+      vmid: 100
+      name: "opnsense-fw"
+      device_ref: gamayun
+      type: "firewall"
+      role: "gateway"
+      template_ref: tpl-vm-opnsense
+      trust_zone_ref: dmz
+      description: "OPNsense Firewall & Router"
+      tags: ["firewall", "security", "production"]
+
+      resources:
+        cores: 2
+        sockets: 1
+        memory_mb: 1536
+        balloon_mb: 0  # Disabled for better stability
+        cpu_type: "host"
+
+      boot:
+        order: "scsi0"
+        onboot: true
+        startup_order: 1
+
+      storage:
+        - disk_id: "scsi0"
+          storage_ref: storage-lvm
+          size_gb: 32
+          format: "raw"
+          cache: "writethrough"
+          discard: "on"
+          ssd: true
+
+      networks:
+        - interface: "net0"
+          bridge_ref: bridge-vmbr0
+          network_ref: net-wan
+          model: "virtio"
+          firewall: false
+          role: "wan"
+          ip_config: "dhcp"
+          description: "WAN interface (to ISP Router)"
+
+        - interface: "net1"
+          bridge_ref: bridge-vmbr1
+          network_ref: net-opnsense-lan
+          model: "virtio"
+          firewall: false
+          role: "lan"
+          ip_config:
+            address: "192.168.10.1/24"
+          description: "LAN interface (to GL.iNet Slate AX)"
+
+        - interface: "net2"
+          bridge_ref: bridge-vmbr2
+          network_ref: net-lxc-internal
+          model: "virtio"
+          firewall: false
+          role: "internal"
+          ip_config:
+            address: "10.0.30.254/24"
+          description: "INTERNAL interface (LXC gateway)"
+
+        - interface: "net3"
+          bridge_ref: bridge-vmbr99
+          network_ref: net-management
+          model: "virtio"
+          firewall: false
+          role: "management"
+          ip_config:
+            address: "10.0.99.10/24"
+            gateway: "10.0.99.1"
+          description: "MGMT interface (Web UI)"
+
+      os:
+        type: "opnsense"
+        version: "24.7"
+
+      ansible:
+        enabled: false  # Manual configuration via Web UI
+        playbook: null
+
+  # ------------------------------------------------------------
+  # LXC Containers
+  # ------------------------------------------------------------
+
+  lxc:
+    - id: lxc-postgresql
+      vmid: 200
+      name: "postgresql-db"
+      device_ref: gamayun
+      type: "database"
+      role: "database-server"
+      template_ref: tpl-lxc-postgresql
+      trust_zone_ref: internal
+      description: "PostgreSQL Database Server"
+      tags: ["database", "production"]
+
+      resources:
+        cores: 2
+        memory_mb: 1024
+        swap_mb: 1024  # Increased swap for DB operations
+
+      boot:
+        <<: *default_lxc_boot
+
+      storage:
+        rootfs:
+          <<: *default_lxc_storage_rootfs
+
+      networks:
+        - <<: *default_lxc_network_internal
+          ip: "10.0.30.10/24"
+
+      dns: *default_dns
+
+      os: *default_lxc_os
+
+      cloudinit:
+        <<: *default_lxc_cloudinit
+        user: "postgres"
+        ssh_keys:
+          - "ssh-ed25519 AAAA..."  # Add your SSH key
+
+      ansible:
+        <<: *default_ansible_enabled
+        playbook: "postgresql.yml"
+        vars:
+          postgresql_version: "15"
+          postgresql_databases:
+            - name: "homelab"
+          postgresql_users:
+            - name: "app"
+              password: "{{ vault_postgresql_app_password }}"
+
+    - id: lxc-redis
+      vmid: 201
+      name: "redis-cache"
+      device_ref: gamayun
+      type: "cache"
+      role: "cache-server"
+      template_ref: tpl-lxc-redis
+      trust_zone_ref: internal
+      description: "Redis Cache Server"
+      tags: ["cache", "production"]
+
+      resources:
+        cores: 1
+        memory_mb: 768
+        swap_mb: 512  # Redis uses maxmemory limit internally
+
+      boot:
+        <<: *default_lxc_boot
+        startup_order: 11
+
+      storage:
+        rootfs:
+          <<: *default_lxc_storage_rootfs
+          size_gb: 4
+
+      networks:
+        - <<: *default_lxc_network_internal
+          ip: "10.0.30.20/24"
+
+      dns: *default_dns
+
+      os: *default_lxc_os
+
+      cloudinit:
+        <<: *default_lxc_cloudinit
+        user: "redis"
+
+      ansible:
+        <<: *default_ansible_enabled
+        playbook: "redis.yml"
+        vars:
+          redis_port: 6379
+          redis_maxmemory: "512mb"
+
+    - id: lxc-nextcloud
+      vmid: 202
+      name: "nextcloud"
+      device_ref: gamayun
+      type: "web-application"
+      role: "file-sharing"
+      template_ref: tpl-lxc-nextcloud
+      trust_zone_ref: internal
+      description: "Nextcloud File Sharing"
+      tags: ["web", "storage", "production"]
+
+      resources:
+        cores: 2
+        memory_mb: 1536
+        swap_mb: 1024  # PHP-FPM workers can use swap if needed
+
+      boot:
+        <<: *default_lxc_boot
+        startup_order: 12
+
+      storage:
+        rootfs:
+          <<: *default_lxc_storage_rootfs
+          size_gb: 16
+        mountpoints:
+          - id: "mp0"
+            storage_ref: storage-hdd
+            mountpoint: "/var/www/nextcloud/data"
+            size_gb: 100
+
+      networks:
+        - <<: *default_lxc_network_internal
+          ip: "10.0.30.30/24"
+
+      dns: *default_dns
+
+      os: *default_lxc_os
+
+      cloudinit:
+        <<: *default_lxc_cloudinit
+        user: "www-data"
+
+      ansible:
+        <<: *default_ansible_enabled
+        playbook: "nextcloud.yml"
+        vars:
+          nextcloud_version: "28"
+          nextcloud_domain: "nextcloud.home.local"
+          nextcloud_db_host_ref: lxc-postgresql  # Reference, not hardcoded IP
+          nextcloud_redis_host_ref: lxc-redis    # Reference, not hardcoded IP
+
+  # ------------------------------------------------------------
+  # Templates
+  # ------------------------------------------------------------
+
+  templates:
+    lxc:
+      - id: tpl-lxc-postgresql
+        vmid: 900
+        name: "template-postgresql"
+        storage_ref: storage-hdd
+        source: "proxmox-community-scripts"
+        script: "db-postgresql.sh"
+        description: "PostgreSQL LXC template"
+
+      - id: tpl-lxc-redis
+        vmid: 901
+        name: "template-redis"
+        storage_ref: storage-hdd
+        source: "proxmox-community-scripts"
+        script: "db-redis.sh"
+        description: "Redis LXC template"
+
+      - id: tpl-lxc-nextcloud
+        vmid: 902
+        name: "template-nextcloud"
+        storage_ref: storage-hdd
+        source: "proxmox-community-scripts"
+        script: "nextcloud.sh"
+        description: "Nextcloud LXC template"
+
+    vms:
+      - id: tpl-vm-opnsense
+        vmid: 910
+        name: "template-opnsense"
+        storage_ref: storage-hdd
+        source: "manual"
+        iso: "OPNsense-24.7-dvd-amd64.iso"
+        description: "OPNsense VM template"
+
+# ============================================================
+# Storage
+# ============================================================
+

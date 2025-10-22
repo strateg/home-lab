@@ -1,0 +1,134 @@
+# Physical Topology
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+  # Physical location
+  locations:
+    - id: home
+      name: "Home Lab"
+      type: "home-office"
+      description: "Single-host home lab setup"
+
+  # Physical devices
+  devices:
+    # Proxmox Hypervisor
+    - id: gamayun
+      name: "Gamayun"
+      type: "hypervisor"
+      role: "compute"
+      model: "Dell XPS L701X"
+      location: home
+      description: "Primary Proxmox VE host - Гамаюн (вещая птица)"
+
+      specs:
+        cpu:
+          model: "Intel Core i3-M370"
+          cores: 2
+          threads: 4
+          speed_mhz: 2400
+        memory:
+          total_gb: 8
+          type: "DDR3"
+          upgradeable: false
+        disks:
+          - id: disk-ssd-system
+            device: "/dev/sda"
+            size_gb: 180
+            type: "ssd"
+            usage: "Proxmox system + VMs/LXC thin pool"
+            storage_ref: storage-lvm
+          - id: disk-hdd-data
+            device: "/dev/sdb"
+            size_gb: 500
+            type: "hdd"
+            usage: "Backups, ISOs, VM/LXC templates"
+            storage_ref: storage-hdd
+
+      interfaces:
+        - id: if-eth-usb
+          name: "eth-usb"
+          type: "usb-ethernet"
+          speed_mbps: 1000
+          mac: "auto-detect"  # Set by UDEV rules
+          role: "wan"
+          description: "USB Ethernet adapter to ISP Router"
+          bridge_ref: bridge-vmbr0
+
+        - id: if-eth-builtin
+          name: "eth-builtin"
+          type: "pci-ethernet"
+          speed_mbps: 1000
+          mac: "auto-detect"  # Set by UDEV rules
+          role: "lan"
+          description: "Built-in Ethernet to GL.iNet Slate AX"
+          bridge_ref: bridge-vmbr1
+
+      power:
+        max_watts: 65
+        psu: "Dell 65W AC adapter"
+
+      firmware:
+        bios_version: "A07"
+        updated: "2020-03-15"
+
+    # Router/Gateway
+    - id: slate-ax1800
+      name: "GL.iNet Slate AX"
+      type: "router"
+      role: "gateway"
+      model: "GL-AXT1800"
+      location: home
+      description: "WiFi 6 router, VPN server, AdGuard Home"
+
+      specs:
+        cpu:
+          model: "MediaTek MT7981B"
+          cores: 2
+          speed_mhz: 1300
+        memory:
+          total_mb: 512
+          type: "DDR4"
+        storage:
+          flash_mb: 128
+          type: "NAND"
+
+      interfaces:
+        - id: if-slate-wan
+          name: "wan"
+          type: "ethernet"
+          speed_mbps: 1000
+          role: "wan"
+          description: "WAN port - connects to OPNsense LAN"
+          network_ref: net-opnsense-lan
+
+        - id: if-slate-lan
+          name: "lan"
+          type: "ethernet"
+          speed_mbps: 1000
+          role: "lan"
+          description: "LAN port"
+
+        - id: if-slate-wlan-5g
+          name: "wlan0"
+          type: "wifi-5ghz"
+          speed_mbps: 1200
+          standard: "802.11ax"
+          description: "WiFi 6 5GHz"
+
+        - id: if-slate-wlan-2g
+          name: "wlan1"
+          type: "wifi-2.4ghz"
+          speed_mbps: 574
+          standard: "802.11ax"
+          description: "WiFi 6 2.4GHz"
+
+      firmware:
+        version: "4.8.2"
+        base: "OpenWRT 23.05"
+        updated: "2024-11-15"
+
+# ============================================================
+# Logical Topology
+# ============================================================
+

@@ -1,0 +1,111 @@
+# Security Configuration
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+  # ------------------------------------------------------------
+  # SSH Key Management
+  # ------------------------------------------------------------
+
+  ssh_keys:
+    - id: ssh-admin-primary
+      name: "Admin Primary Key"
+      type: "ed25519"
+      public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData admin@workstation"
+      purpose: "Primary administration key"
+      authorized_for:
+        - device_ref: gamayun
+        - lxc_ref: lxc-postgresql
+        - lxc_ref: lxc-redis
+        - lxc_ref: lxc-nextcloud
+      created: "2025-10-06"
+      expires: null  # No expiration
+
+    - id: ssh-automation
+      name: "Automation Key"
+      type: "ed25519"
+      public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData ansible@controller"
+      purpose: "Ansible automation"
+      authorized_for:
+        - device_ref: gamayun
+      created: "2025-10-06"
+      expires: null
+
+    - id: ssh-backup
+      name: "Backup Key"
+      type: "ed25519"
+      public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData backup@backup-server"
+      purpose: "Backup system access (read-only)"
+      authorized_for:
+        - device_ref: gamayun
+      permissions: "read-only"
+      created: "2025-10-10"
+      expires: "2026-10-10"
+
+  # SSH key deployment strategy
+  ssh_key_deployment:
+    method: "cloud-init"  # or "ansible", "manual"
+    update_authorized_keys: true
+    remove_old_keys: false
+    backup_before_update: true
+
+  # ------------------------------------------------------------
+  # Certificate Management
+  # ------------------------------------------------------------
+
+  certificates:
+    - id: cert-wildcard-home
+      name: "Wildcard Home Lab Certificate"
+      type: "self-signed"
+      subject: "*.home.local"
+      subject_alt_names:
+        - "home.local"
+        - "*.home.local"
+      valid_days: 365
+      key_size: 2048
+      used_by:
+        - service_ref: svc-proxmox-ui
+        - service_ref: svc-opnsense-ui
+        - service_ref: svc-nextcloud
+      auto_renew: true
+      renew_days_before: 30
+
+    - id: cert-letsencrypt-vpn
+      name: "Let's Encrypt VPN Certificate"
+      type: "letsencrypt"
+      domains:
+        - "vpn.example.com"
+      challenge_type: "dns-01"
+      used_by:
+        - service_ref: svc-vpn-home
+      auto_renew: true
+      renew_days_before: 30
+
+  # ------------------------------------------------------------
+  # Security Policies
+  # ------------------------------------------------------------
+
+  policies:
+    password_policy:
+      min_length: 16
+      require_special_chars: true
+      require_numbers: true
+      require_uppercase: true
+      max_age_days: 90
+
+    ssh_policy:
+      permit_root_login: "prohibit-password"
+      password_authentication: false
+      pubkey_authentication: true
+      port: 22
+      max_auth_tries: 3
+
+    firewall_policy:
+      default_action: "drop"
+      log_blocked: true
+      rate_limiting: true
+
+# ============================================================
+# Backup Policies
+# ============================================================
+

@@ -1,0 +1,12 @@
+# Notes
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+  - "All IPs are referenced by ID, not hardcoded - enables dynamic generation"
+  - "Trust zones enable automated firewall rule generation"
+  - "Physical/logical separation makes structure clear"
+  - "Services reference compute resources by ID for flexibility"
+  - "Single environment (production) - multi-env can be added if needed"
+  - "Validate topology with: python3 scripts/validate-topology.py"
+  - "Regenerate everything with: python3 scripts/regenerate-all.py"

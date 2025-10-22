@@ -1,0 +1,555 @@
+# Logical Topology
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+
+  # ------------------------------------------------------------
+  # Trust Zones & Security Boundaries
+  # ------------------------------------------------------------
+
+  trust_zones:
+    untrusted:
+      name: "Untrusted Zone"
+      security_level: 0
+      color: "#ff0000"
+      description: "External networks (ISP, Internet)"
+      allowed_outbound: ["any"]
+      allowed_inbound: ["established", "related"]
+
+    dmz:
+      name: "DMZ Zone"
+      security_level: 1
+      color: "#ff9900"
+      description: "Demilitarized zone - OPNsense LAN facing GL.iNet"
+      allowed_outbound: ["any"]
+      allowed_inbound: ["from:internal", "from:management"]
+
+    user:
+      name: "User Zone"
+      security_level: 1
+      color: "#ffcc00"
+      description: "End-user devices (WiFi, LAN, VPN clients)"
+      allowed_outbound: ["to:untrusted", "to:internal:ports:80,443,5432,6379"]
+      allowed_inbound: ["established"]
+
+    internal:
+      name: "Internal Zone"
+      security_level: 2
+      color: "#00cc00"
+      description: "LXC containers and internal services"
+      allowed_outbound: ["to:untrusted"]
+      allowed_inbound: ["from:user:ports:80,443,5432,6379", "from:management"]
+
+    management:
+      name: "Management Zone"
+      security_level: 3
+      color: "#0066cc"
+      description: "Infrastructure management (Proxmox UI, OPNsense UI)"
+      allowed_outbound: ["any"]
+      allowed_inbound: ["from:admin-ips"]
+
+  # ------------------------------------------------------------
+  # Networks
+  # ------------------------------------------------------------
+
+  networks:
+    # WAN Network
+    - id: net-wan
+      name: "WAN"
+      cidr: "192.168.1.0/24"
+      gateway: "192.168.1.1"
+      dns: ["1.1.1.1", "8.8.8.8"]
+      dhcp: true
+      trust_zone_ref: untrusted
+      bridge_ref: bridge-vmbr0
+      vlan: null
+      description: "ISP provided network"
+      managed_by_ref: null  # External ISP
+
+    # OPNsense LAN
+    - id: net-opnsense-lan
+      name: "OPNsense LAN"
+      cidr: "192.168.10.0/24"
+      gateway: "192.168.10.1"
+      dns: ["192.168.10.2"]  # AdGuard on Slate AX
+      dhcp: false
+      trust_zone_ref: dmz
+      bridge_ref: bridge-vmbr1
+      vlan: null
+      description: "Network between OPNsense and GL.iNet Slate AX"
+      managed_by_ref: vm-opnsense-fw
+      ip_allocations:
+        - ip: "192.168.10.1"
+          device_ref: vm-opnsense-fw
+          interface: "net1"
+          description: "OPNsense LAN interface"
+        - ip: "192.168.10.2"
+          device_ref: slate-ax1800
+          interface: "wan"
+          description: "GL.iNet WAN interface"
+        - ip: "192.168.10.254"
+          device_ref: gamayun
+          interface: "vmbr1"
+          description: "Proxmox bridge IP"
+
+    # User LAN
+    - id: net-user-lan
+      name: "User LAN"
+      cidr: "192.168.20.0/24"
+      gateway: "192.168.20.1"
+      dns: ["192.168.20.1"]
+      dhcp: true
+      dhcp_range: "192.168.20.100-192.168.20.200"
+      trust_zone_ref: user
+      bridge_ref: null  # Managed by Slate AX, not Proxmox
+      vlan: null
+      description: "Main user network (WiFi 6 + Wired LAN)"
+      managed_by_ref: slate-ax1800
+      ip_allocations:
+        - ip: "192.168.20.1"
+          device_ref: slate-ax1800
+          interface: "lan"
+          description: "GL.iNet LAN gateway"
+
+    # Guest WiFi
+    - id: net-guest-wifi
+      name: "Guest WiFi"
+      cidr: "192.168.30.0/24"
+      gateway: "192.168.30.1"
+      dns: ["192.168.30.1"]
+      dhcp: true
+      dhcp_range: "192.168.30.100-192.168.30.200"
+      isolated: true
+      trust_zone_ref: user
+      bridge_ref: null
+      vlan: null
+      description: "Isolated guest network"
+      managed_by_ref: slate-ax1800
+      firewall_policy: "block-to-lan"
+
+    # IoT Network
+    - id: net-iot
+      name: "IoT Network"
+      cidr: "192.168.40.0/24"
+      gateway: "192.168.40.1"
+      dns: ["192.168.40.1"]
+      dhcp: true
+      dhcp_range: "192.168.40.100-192.168.40.200"
+      isolated: true
+      trust_zone_ref: user
+      bridge_ref: null
+      vlan: null
+      description: "Smart home devices"
+      managed_by_ref: slate-ax1800
+      firewall_policy: "block-to-lan-allow-internet"
+
+    # LXC Internal
+    - id: net-lxc-internal
+      name: "LXC Internal"
+      cidr: "10.0.30.0/24"
+      gateway: "10.0.30.254"
+      dns: ["192.168.10.2"]
+      dhcp: false
+      trust_zone_ref: internal
+      bridge_ref: bridge-vmbr2
+      vlan: null
+      description: "LXC containers network"
+      managed_by_ref: gamayun
+      ip_allocations:
+        - ip: "10.0.30.1"
+          device_ref: gamayun
+          interface: "vmbr2"
+          description: "Proxmox bridge IP"
+        - ip: "10.0.30.10"
+          device_ref: lxc-postgresql
+          interface: "eth0"
+          description: "PostgreSQL LXC"
+        - ip: "10.0.30.20"
+          device_ref: lxc-redis
+          interface: "eth0"
+          description: "Redis LXC"
+        - ip: "10.0.30.30"
+          device_ref: lxc-nextcloud
+          interface: "eth0"
+          description: "Nextcloud LXC"
+        - ip: "10.0.30.254"
+          device_ref: vm-opnsense-fw
+          interface: "net2"
+          description: "OPNsense INTERNAL gateway"
+
+    # Management Network
+    - id: net-management
+      name: "Management"
+      cidr: "10.0.99.0/24"
+      gateway: "10.0.99.1"
+      dns: ["1.1.1.1", "8.8.8.8"]
+      dhcp: false
+      trust_zone_ref: management
+      bridge_ref: bridge-vmbr99
+      vlan: null
+      description: "Management network for Proxmox/OPNsense admin"
+      managed_by_ref: gamayun
+      ip_allocations:
+        - ip: "10.0.99.1"
+          device_ref: gamayun
+          interface: "vmbr99"
+          description: "Proxmox Web UI"
+        - ip: "10.0.99.10"
+          device_ref: vm-opnsense-fw
+          interface: "net3"
+          description: "OPNsense Web UI"
+
+    # VPN Home
+    - id: net-vpn-home
+      name: "VPN Home"
+      cidr: "10.0.200.0/24"
+      gateway: "10.0.200.1"
+      dns: ["192.168.20.1"]
+      dhcp: false
+      trust_zone_ref: user
+      bridge_ref: null
+      vlan: null
+      description: "WireGuard VPN server on Slate AX (access to LAN)"
+      managed_by_ref: slate-ax1800
+      vpn_type: "wireguard"
+      vpn_endpoint: "home.example.com:51820"
+
+    # VPN Russia
+    - id: net-vpn-russia
+      name: "VPN Russia"
+      cidr: "10.8.2.0/24"
+      gateway: "10.8.2.1"
+      dns: ["1.1.1.1"]
+      dhcp: false
+      trust_zone_ref: untrusted
+      bridge_ref: null
+      vlan: null
+      description: "AmneziaWG VPN server on Slate AX (internet only, no LAN access)"
+      managed_by_ref: slate-ax1800
+      vpn_type: "amneziawg"
+      vpn_endpoint: "ru.example.com:51821"
+
+  # ------------------------------------------------------------
+  # Bridges (Proxmox VE)
+  # ------------------------------------------------------------
+
+  bridges:
+    - id: bridge-vmbr0
+      device_ref: gamayun
+      name: "vmbr0"
+      comment: "WAN Bridge - to ISP Router (USB-Ethernet)"
+      ports: ["if-eth-usb"]
+      address: "dhcp"
+      network_ref: net-wan
+      autostart: true
+      vlan_aware: false
+      bridge_stp: false
+      bridge_fd: 0
+
+    - id: bridge-vmbr1
+      device_ref: gamayun
+      name: "vmbr1"
+      comment: "LAN Bridge - to GL.iNet Slate AX (Built-in Ethernet)"
+      ports: ["if-eth-builtin"]
+      address: "192.168.10.254/24"
+      network_ref: net-opnsense-lan
+      autostart: true
+      vlan_aware: false
+      bridge_stp: false
+      bridge_fd: 0
+
+    - id: bridge-vmbr2
+      device_ref: gamayun
+      name: "vmbr2"
+      comment: "INTERNAL Bridge - LXC Containers"
+      ports: []
+      address: "10.0.30.1/24"
+      network_ref: net-lxc-internal
+      autostart: true
+      vlan_aware: false
+      bridge_stp: false
+      bridge_fd: 0
+
+    - id: bridge-vmbr99
+      device_ref: gamayun
+      name: "vmbr99"
+      comment: "MGMT Bridge - Management Network"
+      ports: []
+      address: "10.0.99.1/24"
+      network_ref: net-management
+      autostart: true
+      vlan_aware: false
+      bridge_stp: false
+      bridge_fd: 0
+
+    # OPTIONAL: WiFi Bridge for management/out-of-band access
+    # Uncomment to enable WiFi bridge
+    # - id: bridge-wifi
+    #   device_ref: gamayun
+    #   name: "vmbr-wifi"
+    #   comment: "WiFi Bridge - Management/Out-of-band access"
+    #   ports: ["wlan0"]
+    #   address: "192.168.99.1/24"
+    #   network_ref: net-wifi-mgmt
+    #   autostart: false
+    #   vlan_aware: false
+    #   bridge_stp: false
+    #   bridge_fd: 0
+
+  # ------------------------------------------------------------
+  # Routing
+  # ------------------------------------------------------------
+
+  routing:
+    - id: route-lxc-internet
+      name: "LXC to Internet"
+      source_network_ref: net-lxc-internal
+      destination_cidr: "0.0.0.0/0"
+      next_hop: "10.0.30.254"
+      gateway_device_ref: vm-opnsense-fw
+      description: "LXC containers route through OPNsense firewall"
+
+    - id: route-mgmt-all
+      name: "Management to all networks"
+      source_network_ref: net-management
+      destination_cidr: "0.0.0.0/0"
+      description: "Management network can access all other networks"
+
+    - id: route-user-lxc
+      name: "User LAN to LXC Services"
+      source_network_ref: net-user-lan
+      destination_network_ref: net-lxc-internal
+      via: "192.168.10.254"  # OPNsense
+      description: "User devices access LXC services via OPNsense routing"
+
+  # ------------------------------------------------------------
+  # DNS Records
+  # ------------------------------------------------------------
+
+  dns:
+    zones:
+      - id: zone-home-local
+        domain: "home.local"
+        nameserver_ref: svc-adguard
+        type: "forward"
+        description: "Primary home lab DNS zone"
+
+        records:
+          # Physical Devices
+          - type: "A"
+            name: "gamayun"
+            ip: "10.0.99.1"
+            device_ref: gamayun
+            ttl: 3600
+            description: "Proxmox host"
+
+          # Virtual Machines
+          - type: "A"
+            name: "opnsense"
+            ip: "10.0.99.10"
+            vm_ref: vm-opnsense-fw
+            ttl: 3600
+            description: "OPNsense firewall management"
+
+          - type: "A"
+            name: "opnsense-lan"
+            ip: "192.168.10.1"
+            vm_ref: vm-opnsense-fw
+            ttl: 3600
+            description: "OPNsense LAN interface"
+
+          # LXC Containers
+          - type: "A"
+            name: "postgresql"
+            ip: "10.0.30.10"
+            lxc_ref: lxc-postgresql
+            ttl: 3600
+            description: "PostgreSQL database server"
+
+          - type: "A"
+            name: "redis"
+            ip: "10.0.30.20"
+            lxc_ref: lxc-redis
+            ttl: 3600
+            description: "Redis cache server"
+
+          - type: "A"
+            name: "nextcloud"
+            ip: "10.0.30.30"
+            lxc_ref: lxc-nextcloud
+            ttl: 3600
+            description: "Nextcloud file sharing"
+
+          # CNAME Records
+          - type: "CNAME"
+            name: "db"
+            target: "postgresql.home.local"
+            service_ref: svc-postgresql
+            ttl: 3600
+            description: "Database alias"
+
+          - type: "CNAME"
+            name: "cache"
+            target: "redis.home.local"
+            service_ref: svc-redis
+            ttl: 3600
+            description: "Cache alias"
+
+          - type: "CNAME"
+            name: "cloud"
+            target: "nextcloud.home.local"
+            service_ref: svc-nextcloud
+            ttl: 3600
+            description: "Cloud storage alias"
+
+          # SRV Records for Service Discovery
+          - type: "SRV"
+            name: "_postgresql._tcp"
+            target: "postgresql.home.local"
+            port: 5432
+            priority: 10
+            weight: 10
+            service_ref: svc-postgresql
+            ttl: 3600
+            description: "PostgreSQL service discovery"
+
+          - type: "SRV"
+            name: "_redis._tcp"
+            target: "redis.home.local"
+            port: 6379
+            priority: 10
+            weight: 10
+            service_ref: svc-redis
+            ttl: 3600
+            description: "Redis service discovery"
+
+          - type: "SRV"
+            name: "_https._tcp.nextcloud"
+            target: "nextcloud.home.local"
+            port: 443
+            priority: 10
+            weight: 10
+            service_ref: svc-nextcloud
+            ttl: 3600
+            description: "Nextcloud HTTPS service"
+
+    # DNS Forwarders
+    forwarders:
+      - "8.8.8.8"       # Google DNS
+      - "1.1.1.1"       # Cloudflare DNS
+      - "192.168.10.2"  # Local AdGuard
+
+    # DNS Settings
+    settings:
+      recursion: true
+      dnssec: true
+      cache_size_mb: 100
+      negative_ttl: 300
+      allow_query_from:
+        - "10.0.0.0/8"
+        - "192.168.0.0/16"
+
+  # ------------------------------------------------------------
+  # Firewall Templates
+  # ------------------------------------------------------------
+
+  firewall_templates:
+    - id: tmpl-web-access
+      name: "Web Access Template"
+      description: "Allow HTTP and HTTPS traffic"
+      ports: [80, 443]
+      protocols: ["tcp"]
+      action: "allow"
+
+    - id: tmpl-database-access
+      name: "Database Access Template"
+      description: "Allow common database ports"
+      ports: [5432, 3306, 6379, 27017]
+      protocols: ["tcp"]
+      action: "allow"
+
+    - id: tmpl-ssh-access
+      name: "SSH Access Template"
+      description: "Allow SSH connections"
+      ports: [22]
+      protocols: ["tcp"]
+      action: "allow"
+      rate_limit:
+        enabled: true
+        max_connections: 10
+        per_seconds: 60
+
+    - id: tmpl-management-access
+      name: "Management Access Template"
+      description: "Allow management protocols (SSH, HTTPS, RDP)"
+      ports: [22, 443, 8006, 3389]
+      protocols: ["tcp"]
+      action: "allow"
+
+    - id: tmpl-icmp-allow
+      name: "ICMP Allow Template"
+      description: "Allow ping and traceroute"
+      protocols: ["icmp"]
+      action: "allow"
+      icmp_types: [0, 8]  # Echo reply, Echo request
+
+  # ------------------------------------------------------------
+  # Firewall Policies
+  # ------------------------------------------------------------
+
+  firewall_policies:
+    - id: fw-default-deny
+      name: "Default Deny"
+      priority: 1000
+      action: "drop"
+      description: "Drop all traffic by default, allow explicitly"
+
+    - id: fw-lxc-internet
+      name: "LXC to Internet"
+      priority: 100
+      source_zone_ref: internal
+      destination_zone_ref: untrusted
+      action: "allow"
+      description: "LXC can access internet"
+
+    - id: fw-user-lxc-services
+      name: "User to LXC Services"
+      priority: 200
+      source_zone_ref: user
+      destination_zone_ref: internal
+      ports: [80, 443, 5432, 6379]
+      protocols: ["tcp"]
+      action: "allow"
+      description: "User devices can access LXC web and database services"
+
+    - id: fw-guest-isolated
+      name: "Guest Isolation"
+      priority: 300
+      source_network_ref: net-guest-wifi
+      destination_zones_ref: [internal, management]
+      action: "drop"
+      description: "Guest network cannot access LAN/LXC/Management"
+
+    - id: fw-iot-isolated
+      name: "IoT Isolation"
+      priority: 300
+      source_network_ref: net-iot
+      destination_zones_ref: [internal, management, user]
+      action: "drop"
+      description: "IoT cannot access other networks (except internet)"
+
+    - id: fw-management-admin
+      name: "Management Access Control"
+      priority: 50
+      source_ips: ["192.168.20.0/24"]  # User LAN
+      destination_zone_ref: management
+      ports: [8006, 443]
+      protocols: ["tcp", "https"]
+      action: "allow"
+      description: "Allow admin access from User LAN to management interfaces"
+
+# ============================================================
+# Compute (VMs and LXC Containers)
+# ============================================================
+

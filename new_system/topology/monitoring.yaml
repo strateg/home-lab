@@ -1,0 +1,356 @@
+# Monitoring Configuration
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+  # Health checks for infrastructure components
+  healthchecks:
+    # Proxmox Host Health
+    - id: health-proxmox-host
+      name: "Proxmox Host Health"
+      description: "Monitor Proxmox hypervisor health"
+      device_ref: gamayun
+      enabled: true
+      checks:
+        - type: "cpu_usage"
+          warning_threshold: 80
+          critical_threshold: 95
+          unit: "percent"
+
+        - type: "memory_usage"
+          warning_threshold: 85
+          critical_threshold: 95
+          unit: "percent"
+
+        - type: "disk_usage"
+          warning_threshold: 80
+          critical_threshold: 90
+          unit: "percent"
+          paths: ["/", "/mnt/hdd"]
+
+        - type: "load_average"
+          warning_threshold: 2.0
+          critical_threshold: 4.0
+          period: "15min"
+
+        - type: "service"
+          services: ["pvestatd", "pvedaemon", "pveproxy", "pvescheduler"]
+          expected_state: "running"
+
+        - type: "temperature"
+          warning_threshold: 75
+          critical_threshold: 85
+          unit: "celsius"
+
+      interval: "60s"
+      timeout: "10s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+    # OPNsense Firewall Health
+    - id: health-opnsense-fw
+      name: "OPNsense Firewall Health"
+      description: "Monitor OPNsense VM and firewall services"
+      vm_ref: vm-opnsense-fw
+      enabled: true
+      checks:
+        - type: "vm_status"
+          expected_state: "running"
+
+        - type: "port"
+          ports: [443]  # Web UI
+          protocol: "tcp"
+
+        - type: "ping"
+          ip_ref: "10.0.99.10"
+          packet_loss_threshold: 10
+          unit: "percent"
+
+        - type: "memory_usage"
+          warning_threshold: 80
+          critical_threshold: 90
+
+      interval: "30s"
+      timeout: "5s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+    # PostgreSQL Database Health
+    - id: health-postgresql
+      name: "PostgreSQL Database Health"
+      description: "Monitor PostgreSQL LXC and database service"
+      lxc_ref: lxc-postgresql
+      service_ref: svc-postgresql
+      enabled: true
+      checks:
+        - type: "lxc_status"
+          expected_state: "running"
+
+        - type: "port"
+          port: 5432
+          protocol: "tcp"
+          ip_ref: "10.0.30.10"
+
+        - type: "process"
+          process: "postgres"
+          min_instances: 1
+
+        - type: "query"
+          query: "SELECT 1"
+          expected_result: "1"
+          timeout: "5s"
+
+        - type: "connection_count"
+          warning_threshold: 80
+          critical_threshold: 95
+          max_connections: 100
+
+        - type: "disk_usage"
+          warning_threshold: 75
+          critical_threshold: 85
+
+        - type: "memory_usage"
+          warning_threshold: 80
+          critical_threshold: 90
+
+      interval: "30s"
+      timeout: "10s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+    # Redis Cache Health
+    - id: health-redis
+      name: "Redis Cache Health"
+      description: "Monitor Redis LXC and cache service"
+      lxc_ref: lxc-redis
+      service_ref: svc-redis
+      enabled: true
+      checks:
+        - type: "lxc_status"
+          expected_state: "running"
+
+        - type: "port"
+          port: 6379
+          protocol: "tcp"
+          ip_ref: "10.0.30.20"
+
+        - type: "process"
+          process: "redis-server"
+          min_instances: 1
+
+        - type: "redis_ping"
+          command: "PING"
+          expected_result: "PONG"
+
+        - type: "memory_usage"
+          warning_threshold: 80
+          critical_threshold: 90
+
+        - type: "redis_memory"
+          warning_threshold: 900
+          critical_threshold: 1000
+          unit: "MB"
+
+      interval: "60s"
+      timeout: "5s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+    # Nextcloud Application Health
+    - id: health-nextcloud
+      name: "Nextcloud Application Health"
+      description: "Monitor Nextcloud LXC and application"
+      lxc_ref: lxc-nextcloud
+      service_ref: svc-nextcloud
+      enabled: true
+      checks:
+        - type: "lxc_status"
+          expected_state: "running"
+
+        - type: "port"
+          port: 443
+          protocol: "tcp"
+          ip_ref: "10.0.30.30"
+
+        - type: "http"
+          url: "https://10.0.30.30/status.php"
+          expected_status: 200
+          expected_content: "installed"
+          ssl_verify: false
+
+        - type: "process"
+          process: "nginx"
+          min_instances: 1
+
+        - type: "process"
+          process: "php-fpm"
+          min_instances: 1
+
+        - type: "disk_usage"
+          warning_threshold: 75
+          critical_threshold: 85
+
+        - type: "memory_usage"
+          warning_threshold: 85
+          critical_threshold: 95
+
+      interval: "60s"
+      timeout: "10s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+  # Network monitoring
+  network_monitoring:
+    - id: net-mon-internet
+      name: "Internet Connectivity"
+      description: "Monitor internet connectivity"
+      checks:
+        - type: "ping"
+          targets: ["8.8.8.8", "1.1.1.1"]
+          packet_loss_threshold: 20
+          latency_warning: 100
+          latency_critical: 500
+          unit_latency: "ms"
+
+        - type: "dns"
+          nameserver: "8.8.8.8"
+          query: "google.com"
+          expected_result: "success"
+
+      interval: "60s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+    - id: net-mon-internal
+      name: "Internal Network Connectivity"
+      description: "Monitor connectivity between trust zones"
+      checks:
+        - type: "ping"
+          source_zone_ref: user
+          target_zone_ref: internal
+          targets: ["10.0.30.10", "10.0.30.20"]
+          expected: "reachable"
+
+      interval: "120s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email"]
+
+  # Alerting configuration
+  alerts:
+    # Critical alerts
+    - id: alert-disk-full
+      name: "Disk Space Critical"
+      description: "Alert when disk usage exceeds 90%"
+      trigger:
+        condition: "disk_usage > 90%"
+        duration: "5m"
+      severity: "critical"
+      channels: ["email"]
+      escalation:
+        enabled: true
+        delay: "15m"
+
+    - id: alert-service-down
+      name: "Critical Service Down"
+      description: "Alert when a critical service is not running"
+      trigger:
+        condition: "service_status != 'running'"
+        services: ["postgresql", "redis", "opnsense"]
+        duration: "2m"
+      severity: "critical"
+      channels: ["email"]
+      escalation:
+        enabled: true
+        delay: "5m"
+
+    - id: alert-memory-critical
+      name: "Memory Usage Critical"
+      description: "Alert when memory usage exceeds 95%"
+      trigger:
+        condition: "memory_usage > 95%"
+        duration: "5m"
+      severity: "critical"
+      channels: ["email"]
+
+    # Warning alerts
+    - id: alert-cpu-high
+      name: "High CPU Usage"
+      description: "Alert when CPU usage is high"
+      trigger:
+        condition: "cpu_usage > 80%"
+        duration: "10m"
+      severity: "warning"
+      channels: ["email"]
+
+    - id: alert-backup-failed
+      name: "Backup Failed"
+      description: "Alert when backup job fails"
+      trigger:
+        condition: "backup_status == 'failed'"
+      severity: "warning"
+      channels: ["email"]
+
+    - id: alert-temperature-high
+      name: "High Temperature"
+      description: "Alert when system temperature is high"
+      trigger:
+        condition: "temperature > 75C"
+        duration: "5m"
+      severity: "warning"
+      channels: ["email"]
+
+  # Notification channels
+  notification_channels:
+    - id: channel-email
+      name: "Email Notifications"
+      type: "email"
+      enabled: true
+      config:
+        smtp_server: "smtp.gmail.com"
+        smtp_port: 587
+        smtp_tls: true
+        smtp_user: "admin@home.local"
+        from_address: "proxmox@home.local"
+        to_addresses: ["admin@home.local"]
+
+    - id: channel-telegram
+      name: "Telegram Notifications"
+      type: "telegram"
+      enabled: false
+      config:
+        bot_token: "TELEGRAM_BOT_TOKEN"
+        chat_id: "TELEGRAM_CHAT_ID"
+
+  # Monitoring dashboard
+  dashboard:
+    enabled: true
+    refresh_interval: "30s"
+    metrics_retention: "30d"
+    views:
+      - name: "Overview"
+        components: ["system_status", "service_status", "recent_alerts"]
+      - name: "Infrastructure"
+        components: ["proxmox_metrics", "vm_status", "lxc_status"]
+      - name: "Services"
+        components: ["postgresql_metrics", "redis_metrics", "nextcloud_metrics"]
+      - name: "Network"
+        components: ["network_traffic", "firewall_stats", "vpn_connections"]
+
+# ============================================================
+# Documentation (auto-generation config)
+# ============================================================
+

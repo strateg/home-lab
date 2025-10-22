@@ -1,0 +1,83 @@
+# Workflows
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+  # Fresh Proxmox Installation
+  fresh_install:
+    name: "Fresh Proxmox Installation"
+    description: "Complete installation from bare metal to running infrastructure"
+    steps:
+      - step: 1
+        name: "Create bootable USB"
+        script: "bare-metal/create-usb.sh"
+        duration_min: 5
+
+      - step: 2
+        name: "Boot and auto-install Proxmox"
+        manual: true
+        duration_min: 15
+        notes: "Insert USB, F12 boot menu, select UEFI: USB, wait for auto-install"
+
+      - step: 3
+        name: "Run post-install scripts"
+        script: "bare-metal/post-install/01-install-terraform.sh"
+        duration_min: 10
+
+      - step: 4
+        name: "Generate Terraform from topology"
+        script: "scripts/generate-terraform.py"
+        duration_min: 1
+
+      - step: 5
+        name: "Apply Terraform configuration"
+        command: "cd terraform && terraform apply"
+        duration_min: 5
+
+      - step: 6
+        name: "Generate Ansible inventory from topology"
+        script: "scripts/generate-ansible-inventory.py"
+        duration_min: 1
+
+      - step: 7
+        name: "Run Ansible playbooks"
+        command: "cd ansible && ansible-playbook -i inventory/production/hosts.yml site.yml"
+        duration_min: 20
+
+  # Update Topology
+  update_topology:
+    name: "Update Infrastructure Topology"
+    description: "Modify topology and regenerate all configs"
+    steps:
+      - step: 1
+        name: "Edit topology.yaml"
+        manual: true
+
+      - step: 2
+        name: "Validate topology"
+        script: "scripts/validate-topology.py"
+
+      - step: 3
+        name: "Regenerate Terraform"
+        script: "scripts/generate-terraform.py"
+
+      - step: 4
+        name: "Regenerate Ansible inventory"
+        script: "scripts/generate-ansible-inventory.py"
+
+      - step: 5
+        name: "Regenerate documentation"
+        script: "scripts/generate-docs.py"
+
+      - step: 6
+        name: "Plan Terraform changes"
+        command: "cd terraform && terraform plan"
+
+      - step: 7
+        name: "Apply changes if approved"
+        command: "cd terraform && terraform apply"
+
+# ============================================================
+# Security Configuration
+# ============================================================
+

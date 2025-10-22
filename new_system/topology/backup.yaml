@@ -1,0 +1,111 @@
+# Backup Configuration
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+  policies:
+    # VM Backups
+    - id: backup-daily-vms
+      name: "Daily VM Backups"
+      description: "Daily backups of critical VMs (OPNsense firewall)"
+      targets:
+        - vm_ref: vm-opnsense-fw
+      schedule: "0 2 * * *"  # 2 AM daily
+      storage_ref: storage-hdd
+      retention:
+        keep_last: 3        # Last 3 backups
+        keep_daily: 7       # 7 days
+        keep_weekly: 4      # 4 weeks
+        keep_monthly: 6     # 6 months
+        keep_yearly: 1      # 1 year
+      mode: "snapshot"
+      compression: "zstd"
+      notification:
+        on_success: true
+        on_failure: true
+        channels: ["email"]
+
+    # Database Backups - Hourly
+    - id: backup-hourly-postgresql
+      name: "Hourly PostgreSQL Backups"
+      description: "Hourly snapshots for critical database"
+      targets:
+        - lxc_ref: lxc-postgresql
+      schedule: "0 * * * *"  # Every hour
+      storage_ref: storage-hdd
+      retention:
+        keep_last: 24       # Last 24 hours
+        keep_daily: 7       # 7 days
+      mode: "snapshot"
+      compression: "zstd"
+      notification:
+        on_success: false
+        on_failure: true
+        channels: ["email"]
+
+    # LXC Services - Daily
+    - id: backup-daily-lxc-services
+      name: "Daily LXC Service Backups"
+      description: "Daily backups of LXC containers (Redis, Nextcloud)"
+      targets:
+        - lxc_ref: lxc-redis
+        - lxc_ref: lxc-nextcloud
+      schedule: "0 3 * * *"  # 3 AM daily
+      storage_ref: storage-hdd
+      retention:
+        keep_last: 3
+        keep_daily: 7
+        keep_weekly: 4
+      mode: "snapshot"
+      compression: "zstd"
+      notification:
+        on_success: false
+        on_failure: true
+        channels: ["email"]
+
+    # Weekly Full Backups
+    - id: backup-weekly-full
+      name: "Weekly Full Infrastructure Backup"
+      description: "Complete weekly backup of all VMs and LXC containers"
+      targets:
+        - vm_ref: vm-opnsense-fw
+        - lxc_ref: lxc-postgresql
+        - lxc_ref: lxc-redis
+        - lxc_ref: lxc-nextcloud
+      schedule: "0 1 * * 0"  # Sunday at 1 AM
+      storage_ref: storage-hdd
+      retention:
+        keep_last: 4
+        keep_weekly: 8
+        keep_monthly: 12
+      mode: "snapshot"
+      compression: "zstd"
+      notification:
+        on_success: true
+        on_failure: true
+        channels: ["email"]
+
+  # Backup verification
+  verification:
+    enabled: true
+    schedule: "0 6 * * 1"  # Monday at 6 AM
+    test_restore: false
+    integrity_check: true
+    notification:
+      on_success: false
+      on_failure: true
+      channels: ["email"]
+
+  # Backup storage monitoring
+  storage_monitoring:
+    enabled: true
+    thresholds:
+      warning_percent: 80   # Alert at 80% full
+      critical_percent: 90  # Critical at 90% full
+    notification:
+      channels: ["email"]
+
+# ============================================================
+# Monitoring & Health Checks
+# ============================================================
+

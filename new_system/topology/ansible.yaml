@@ -1,0 +1,203 @@
+# Ansible Configuration
+# Part of Home Lab Topology v2.1.0
+# This file is part of the modular topology structure
+# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+
+  # ------------------------------------------------------------
+  # Group Variables
+  # ------------------------------------------------------------
+
+  group_vars:
+    all:
+      # Common settings for all hosts
+      ansible_user: "root"
+      ansible_python_interpreter: "/usr/bin/python3"
+      ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+
+      # Timezone & Locale
+      timezone: "UTC"
+      locale: "en_US.UTF-8"
+
+      # Common packages
+      common_packages:
+        - vim
+        - git
+        - curl
+        - wget
+        - htop
+        - tmux
+        - net-tools
+        - dnsutils
+        - python3
+        - python3-pip
+
+      # DNS configuration
+      dns_servers:
+        - "192.168.10.2"  # AdGuard Home
+        - "8.8.8.8"       # Google DNS (fallback)
+      search_domains:
+        - "home.local"
+
+      # NTP servers
+      ntp_servers:
+        - "pool.ntp.org"
+        - "time.cloudflare.com"
+
+    # LXC containers specific
+    lxc_containers:
+      # Cloud-init settings
+      cloud_init_enabled: true
+
+      # Security
+      ssh_permit_root_login: "prohibit-password"
+      ssh_password_authentication: false
+
+      # Monitoring
+      monitoring_enabled: true
+      log_retention_days: 30
+
+    # Database servers specific
+    databases:
+      backup_enabled: true
+      backup_schedule: "0 2 * * *"  # 2 AM daily
+      monitoring_queries: true
+      max_connections: 50  # Optimized for RAM constraints
+
+    # Web applications specific
+    web_applications:
+      ssl_enabled: true
+      auto_renew_certs: true
+      rate_limiting: true
+
+  # ------------------------------------------------------------
+  # Host Variables (from topology)
+  # ------------------------------------------------------------
+
+  host_vars:
+    # Auto-generated from compute.lxc[*].ansible.vars
+    # and compute.vms[*].ansible.vars
+
+    postgresql-db:
+      postgresql_version: "15"
+      postgresql_max_connections: 50  # Reduced for home lab
+      postgresql_shared_buffers: "256MB"  # 25% of 1GB RAM
+      postgresql_effective_cache_size: "768MB"  # 75% of 1GB RAM
+      postgresql_work_mem: "4MB"  # 256MB / 50 connections
+      postgresql_maintenance_work_mem: "64MB"
+      postgresql_databases:
+        - name: "homelab"
+          owner: "app"
+      postgresql_users:
+        - name: "app"
+          password: "{{ vault_postgresql_app_password }}"
+          privileges: "ALL"
+      postgresql_hba_entries:
+        - type: "host"
+          database: "homelab"
+          user: "app"
+          address: "10.0.30.0/24"
+          method: "scram-sha-256"
+
+    redis-cache:
+      redis_version: "7"
+      redis_port: 6379
+      redis_bind: "10.0.30.20"
+      redis_maxmemory: "512mb"
+      redis_maxmemory_policy: "allkeys-lru"
+      redis_save:
+        - "900 1"   # After 900 sec if at least 1 key changed
+        - "300 10"  # After 300 sec if at least 10 keys changed
+
+    nextcloud:
+      nextcloud_version: "28"
+      nextcloud_domain: "nextcloud.home.local"
+      nextcloud_admin_user: "admin"
+      nextcloud_admin_password: "{{ vault_nextcloud_admin_password }}"
+      nextcloud_db_type: "pgsql"
+      nextcloud_db_host: "10.0.30.10"
+      nextcloud_db_name: "nextcloud"
+      nextcloud_db_user: "nextcloud"
+      nextcloud_db_password: "{{ vault_nextcloud_db_password }}"
+      nextcloud_redis_host: "10.0.30.20"
+      nextcloud_redis_port: 6379
+      nextcloud_trusted_domains:
+        - "nextcloud.home.local"
+        - "10.0.30.30"
+      nextcloud_apps:
+        - "files"
+        - "files_sharing"
+        - "files_versions"
+        - "files_trashbin"
+        - "encryption"
+        - "user_ldap"
+
+  # ------------------------------------------------------------
+  # Playbook Mappings
+  # ------------------------------------------------------------
+
+  playbooks:
+    site:
+      file: "site.yml"
+      description: "Run all playbooks in order"
+      order:
+        - "common.yml"
+        - "databases.yml"
+        - "cache.yml"
+        - "web_applications.yml"
+
+    postgresql:
+      file: "postgresql.yml"
+      description: "Deploy PostgreSQL database"
+      hosts: "databases"
+      roles:
+        - "common"
+        - "postgresql"
+
+    redis:
+      file: "redis.yml"
+      description: "Deploy Redis cache"
+      hosts: "cache_servers"
+      roles:
+        - "common"
+        - "redis"
+
+    nextcloud:
+      file: "nextcloud.yml"
+      description: "Deploy Nextcloud application"
+      hosts: "web_applications"
+      roles:
+        - "common"
+        - "nginx"
+        - "php-fpm"
+        - "nextcloud"
+
+  # ------------------------------------------------------------
+  # Vault Variables (placeholders)
+  # ------------------------------------------------------------
+
+  vault_vars:
+    # Use ansible-vault to encrypt these
+    - vault_postgresql_app_password
+    - vault_nextcloud_admin_password
+    - vault_nextcloud_db_password
+    - vault_proxmox_api_token
+
+  # ------------------------------------------------------------
+  # Ansible Configuration
+  # ------------------------------------------------------------
+
+  config:
+    # ansible.cfg settings
+    inventory: "inventory/production/hosts.yml"
+    remote_user: "root"
+    host_key_checking: false
+    retry_files_enabled: false
+    gather_facts: true
+    fact_caching: "jsonfile"
+    fact_caching_connection: "/tmp/ansible_facts"
+    fact_caching_timeout: 86400
+
+# ============================================================
+# Workflows (automation sequences)
+# ============================================================
+
