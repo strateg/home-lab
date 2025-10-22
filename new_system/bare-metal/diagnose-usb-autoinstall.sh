@@ -188,51 +188,60 @@ main() {
     print_header "5. Bootloader Configuration"
 
     echo "Checking for bootloader configs..."
-
-    # Check ISOLINUX (Legacy BIOS)
-    if [[ -f "$MOUNT_POINT/isolinux/isolinux.cfg" ]]; then
-        print_success "Found ISOLINUX config: isolinux/isolinux.cfg"
-        echo ""
-        echo "ISOLINUX configuration (first 30 lines):"
-        head -30 "$MOUNT_POINT/isolinux/isolinux.cfg" | sed 's/^/    /'
-        echo ""
-        echo "Checking for auto-installer kernel parameter..."
-        if grep -q "proxmox-start-auto-installer" "$MOUNT_POINT/isolinux/isolinux.cfg"; then
-            print_success "Found 'proxmox-start-auto-installer' flag"
-        else
-            print_error "'proxmox-start-auto-installer' NOT FOUND (auto-install won't activate!)"
-        fi
-    else
-        print_warning "isolinux/isolinux.cfg not found"
-    fi
-
     echo ""
-    # Check SYSLINUX
-    if [[ -f "$MOUNT_POINT/syslinux/syslinux.cfg" ]]; then
-        print_success "Found SYSLINUX config: syslinux/syslinux.cfg"
-        echo ""
-        echo "SYSLINUX configuration (first 30 lines):"
-        head -30 "$MOUNT_POINT/syslinux/syslinux.cfg" | sed 's/^/    /'
-    else
-        print_warning "syslinux/syslinux.cfg not found"
-    fi
-
+    print_info "NOTE: Proxmox uses GRUB (not ISOLINUX/SYSLINUX) for Legacy BIOS boot"
     echo ""
-    # Check GRUB (may exist on hybrid ISO)
+
+    # Check GRUB (Primary bootloader for Proxmox hybrid ISO)
+    local grub_found=0
     if [[ -f "$MOUNT_POINT/boot/grub/grub.cfg" ]]; then
         print_success "Found GRUB config: boot/grub/grub.cfg"
+        grub_found=1
         echo ""
-        echo "GRUB configuration (first 30 lines):"
-        head -30 "$MOUNT_POINT/boot/grub/grub.cfg" | sed 's/^/    /'
+        echo "GRUB configuration (first 40 lines):"
+        head -40 "$MOUNT_POINT/boot/grub/grub.cfg" | sed 's/^/    /'
         echo ""
         echo "Checking for auto-installer kernel parameter..."
         if grep -q "proxmox-start-auto-installer" "$MOUNT_POINT/boot/grub/grub.cfg"; then
-            print_success "Found 'proxmox-start-auto-installer' flag"
+            print_success "Found 'proxmox-start-auto-installer' flag in GRUB config"
         else
-            print_error "'proxmox-start-auto-installer' NOT FOUND (auto-install won't activate!)"
+            print_error "'proxmox-start-auto-installer' NOT FOUND in GRUB config!"
+            print_error "Auto-install will NOT activate automatically!"
         fi
     else
-        print_warning "boot/grub/grub.cfg not found (expected for Legacy BIOS)"
+        print_error "boot/grub/grub.cfg NOT FOUND!"
+        print_error "This is critical - USB won't boot without GRUB config"
+    fi
+
+    echo ""
+    # Check for GRUB core files
+    echo "Checking for GRUB core files..."
+    local grub_core_found=0
+    for grub_file in "$MOUNT_POINT/boot/grub/i386-pc/core.img" "$MOUNT_POINT/boot/grub/i386-pc/boot.img"; do
+        if [[ -f "$grub_file" ]]; then
+            print_success "Found: $(basename $(dirname $grub_file))/$(basename $grub_file)"
+            grub_core_found=1
+        fi
+    done
+
+    if [[ $grub_core_found -eq 0 ]]; then
+        print_warning "GRUB i386-pc core files not found (may use embedded GRUB)"
+    fi
+
+    echo ""
+    # Check ISOLINUX (Legacy - Proxmox doesn't use this anymore)
+    if [[ -f "$MOUNT_POINT/isolinux/isolinux.cfg" ]]; then
+        print_info "Found ISOLINUX config (legacy, not used by Proxmox)"
+    else
+        print_info "ISOLINUX not found (expected - Proxmox uses GRUB)"
+    fi
+
+    echo ""
+    # Check SYSLINUX (Legacy - Proxmox doesn't use this)
+    if [[ -f "$MOUNT_POINT/syslinux/syslinux.cfg" ]]; then
+        print_info "Found SYSLINUX config (legacy, not used by Proxmox)"
+    else
+        print_info "SYSLINUX not found (expected - Proxmox uses GRUB)"
     fi
 
     # ============================================================
@@ -305,20 +314,37 @@ main() {
     fi
 
     echo ""
-    # Boot method check
-    if [[ -f "$MOUNT_POINT/isolinux/isolinux.cfg" ]]; then
-        print_success "Legacy BIOS boot method: ISOLINUX (correct for Dell XPS L701X)"
+    # Boot method check (GRUB-based)
+    if [[ -f "$MOUNT_POINT/boot/grub/grub.cfg" ]]; then
+        print_success "Legacy BIOS boot method: GRUB (correct for Proxmox hybrid ISO)"
+
+        # Check if GRUB MBR is installed
+        echo ""
+        echo "Checking MBR boot sector..."
+        local mbr_sig=$(dd if="$USB_DEVICE" bs=1 skip=510 count=2 2>/dev/null | xxd -p)
+        if [[ "$mbr_sig" == "55aa" ]]; then
+            print_success "MBR boot signature valid (0x55AA)"
+        else
+            print_error "MBR boot signature invalid! USB may not boot in Legacy BIOS"
+        fi
     else
-        print_warning "ISOLINUX config not found - may not boot in Legacy BIOS mode"
+        print_error "GRUB config not found - USB will NOT boot in Legacy BIOS mode!"
+        echo ""
+        print_info "To fix: Recreate USB with corrected create-legacy-autoinstall-proxmox-usb.sh"
     fi
 
     echo ""
-    print_info "If Dell boots to old Proxmox GRUB instead of USB:"
-    print_info "1. Check BIOS boot order (USB HDD must be first)"
-    print_info "2. Try different USB port"
-    print_info "3. Press F12 at boot and manually select 'Removable Devices'"
+    print_info "Troubleshooting if Dell boots to old Proxmox GRUB instead of USB:"
+    print_info "1. Verify USB is first in BIOS boot order (USB HDD must be #1)"
+    print_info "2. Try different USB port (USB 2.0 ports work better with Legacy BIOS)"
+    print_info "3. Press F12 at boot and manually select 'Removable Devices' or 'USB HDD'"
     print_info "4. Disable 'Fast Boot' in BIOS if present"
-    print_info "5. Ensure Secure Boot is disabled (if option exists)"
+    print_info "5. Check if MBR is correctly installed (run this diagnostic again)"
+    echo ""
+    print_info "If USB still doesn't boot:"
+    print_info "- Recreate USB ensuring grub-install runs successfully"
+    print_info "- Check USB integrity: sudo fdisk -l $USB_DEVICE"
+    print_info "- Verify GRUB files exist: ls -la /mnt/usb/boot/grub/"
 
     echo ""
 }

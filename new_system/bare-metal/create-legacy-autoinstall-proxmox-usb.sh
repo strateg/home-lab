@@ -63,7 +63,7 @@ check_root() {
 # Requirements check
 check_requirements() {
     local missing=()
-    local cmds=(lsblk mktemp dd syslinux extlinux awk sed grep mount umount mkfs.vfat sync blkid parted proxmox-auto-install-assistant)
+    local cmds=(lsblk mktemp dd awk sed grep mount umount mkfs.vfat sync blkid parted partprobe proxmox-auto-install-assistant)
 
     for cmd in "${cmds[@]}"; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -73,8 +73,22 @@ check_requirements() {
 
     if [[ ${#missing[@]} -ne 0 ]]; then
         print_error "Missing required commands: ${missing[*]}"
-        print_error "Install with: apt update && apt install syslinux extlinux parted dosfstools proxmox-auto-install-assistant"
+        print_error "Install with: apt update && apt install parted dosfstools proxmox-auto-install-assistant"
         return 2
+    fi
+
+    # Check for GRUB (optional but recommended for Legacy BIOS)
+    if ! command -v grub-install >/dev/null 2>&1; then
+        print_warning "grub-install not found"
+        print_warning "Legacy BIOS boot may not work on all systems"
+        print_warning "Install with: apt install grub-pc-bin"
+        print_warning ""
+        print_warning "Hybrid ISO should still work on most Legacy BIOS systems"
+        print_warning "Continue anyway? (y/N)"
+        read -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            return 2
+        fi
     fi
 }
 
@@ -324,44 +338,82 @@ create_legacy_usb() {
 
     # Force re-read partition table
     partprobe "$usb_device" 2>/dev/null || true
-    sleep 1
+    sleep 2
 
-    # Find the ISO9660 partition (usually first partition)
-    local iso_part="${usb_device}1"
-    if [[ ! -b "$iso_part" ]]; then
-        # Try without partition number for whole-disk ISO
-        iso_part="$usb_device"
-    fi
+    # Proxmox hybrid ISO uses GRUB (not ISOLINUX) for both UEFI and Legacy BIOS
+    # The ISO already has GRUB embedded, but we need to ensure the MBR is correct
 
-    # Install syslinux MBR to make it bootable in Legacy BIOS
-    print_info "Installing SYSLINUX MBR..."
-    if command -v dd-mbr >/dev/null 2>&1; then
-        # Debian/Ubuntu package: mbr
-        dd-mbr -f "$usb_device" 2>/dev/null || print_warning "dd-mbr failed (may not be critical)"
-    elif [[ -f /usr/lib/syslinux/mbr/mbr.bin ]]; then
-        # Syslinux MBR from package
-        dd if=/usr/lib/syslinux/mbr/mbr.bin of="$usb_device" bs=440 count=1 conv=notrunc 2>/dev/null || \
-            print_warning "Failed to install syslinux MBR (may not be critical)"
-    elif [[ -f /usr/share/syslinux/mbr.bin ]]; then
-        # Alternative location
-        dd if=/usr/share/syslinux/mbr.bin of="$usb_device" bs=440 count=1 conv=notrunc 2>/dev/null || \
-            print_warning "Failed to install syslinux MBR (may not be critical)"
+    print_info "Installing GRUB boot sector for Legacy BIOS..."
+
+    # Check if grub-install is available
+    if command -v grub-install >/dev/null 2>&1; then
+        # Mount USB to access GRUB files
+        local mount_point=$(mktemp -d /tmp/usb-grub.XXXX)
+        local mounted=0
+
+        # Try to mount ISO9660 filesystem
+        for part in "${usb_device}" "${usb_device}1" "${usb_device}2"; do
+            if [[ -b "$part" ]] && mount -o ro "$part" "$mount_point" 2>/dev/null; then
+                print_info "Mounted $part for GRUB inspection"
+                mounted=1
+                break
+            fi
+        done
+
+        if [[ $mounted -eq 1 ]]; then
+            # Check if GRUB files exist
+            if [[ -d "$mount_point/boot/grub" ]]; then
+                print_info "Found GRUB directory: $mount_point/boot/grub"
+
+                # Unmount before installing GRUB
+                umount "$mount_point"
+                rmdir "$mount_point"
+
+                # Install GRUB to MBR (this makes USB bootable in Legacy BIOS)
+                print_info "Installing GRUB to MBR of $usb_device..."
+                if grub-install --target=i386-pc --boot-directory=/tmp/grub-boot-dummy --force --skip-fs-probe "$usb_device" 2>/dev/null; then
+                    print_info "✓ GRUB installed to MBR successfully"
+                else
+                    print_warning "grub-install failed, trying alternative method..."
+
+                    # Alternative: Install generic GRUB MBR boot sector
+                    if [[ -f /usr/lib/grub/i386-pc/boot.img ]]; then
+                        dd if=/usr/lib/grub/i386-pc/boot.img of="$usb_device" bs=440 count=1 conv=notrunc 2>/dev/null && \
+                            print_info "✓ Installed GRUB boot.img to MBR" || \
+                            print_warning "Failed to install GRUB boot sector"
+                    fi
+                fi
+            else
+                print_warning "GRUB directory not found on USB"
+                umount "$mount_point" 2>/dev/null || true
+                rmdir "$mount_point"
+            fi
+        else
+            print_warning "Could not mount USB to inspect GRUB"
+            rmdir "$mount_point"
+        fi
     else
-        print_warning "SYSLINUX MBR not found (install syslinux package)"
-        print_warning "Legacy BIOS boot may not work on some systems"
+        print_warning "grub-install not found (install grub-pc package)"
+        print_info "Hybrid ISO should still work on most Legacy BIOS systems"
     fi
 
-    # Set boot flag on first partition (if it exists as a partition)
+    # Set boot flag on first partition (if it exists)
+    print_info "Setting boot flag..."
     if [[ -b "${usb_device}1" ]]; then
-        print_info "Setting boot flag on partition 1..."
-        parted -s "$usb_device" set 1 boot on 2>/dev/null || \
-            print_warning "Failed to set boot flag (may not be critical)"
+        parted -s "$usb_device" set 1 boot on 2>/dev/null && \
+            print_info "✓ Boot flag set on partition 1" || \
+            print_warning "Failed to set boot flag"
+    else
+        # For whole-disk ISO, set legacy_boot flag
+        parted -s "$usb_device" disk_set pmbr_boot on 2>/dev/null && \
+            print_info "✓ Legacy boot flag set" || \
+            print_warning "Failed to set legacy boot flag"
     fi
 
     sync
     sleep 1
 
-    print_info "USB created successfully (hybrid boot mode with Legacy BIOS support)"
+    print_info "USB created successfully (hybrid ISO with Legacy BIOS support)"
 }
 
 # Add GRUB wrapper for reinstall prevention (Legacy BIOS version)
