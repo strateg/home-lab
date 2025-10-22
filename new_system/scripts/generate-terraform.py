@@ -72,11 +72,13 @@ class TerraformGenerator:
         print(f"📁 Created output directory: {self.output_dir}")
 
         success = True
+        success &= self.generate_versions()
         success &= self.generate_provider()
         success &= self.generate_bridges()
         success &= self.generate_vms()
         success &= self.generate_lxc()
         success &= self.generate_variables()
+        success &= self.generate_outputs()
 
         return success
 
@@ -88,7 +90,7 @@ class TerraformGenerator:
             # Get Proxmox device from physical topology
             proxmox_device = None
             for device in self.topology['physical_topology'].get('devices', []):
-                if device.get('type') == 'hypervisor' and device.get('role') == 'proxmox':
+                if device.get('type') == 'hypervisor' and device.get('role') == 'compute':
                     proxmox_device = device
                     break
 
@@ -114,6 +116,24 @@ class TerraformGenerator:
 
         except Exception as e:
             print(f"❌ Error generating provider.tf: {e}")
+            return False
+
+    def generate_versions(self) -> bool:
+        """Generate versions.tf with required Terraform and provider versions"""
+        try:
+            template = self.jinja_env.get_template('terraform/versions.tf.j2')
+
+            content = template.render(
+                topology_version=self.topology.get('version', '2.0.0')
+            )
+
+            output_file = self.output_dir / "versions.tf"
+            output_file.write_text(content)
+            print(f"✓ Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error generating versions.tf: {e}")
             return False
 
     def generate_bridges(self) -> bool:
@@ -220,6 +240,36 @@ class TerraformGenerator:
 
         except Exception as e:
             print(f"❌ Error generating variables: {e}")
+            return False
+
+    def generate_outputs(self) -> bool:
+        """Generate outputs.tf with infrastructure outputs"""
+        try:
+            template = self.jinja_env.get_template('terraform/outputs.tf.j2')
+
+            # Gather all data for outputs
+            bridges = self.topology['logical_topology'].get('bridges', [])
+            lxc_containers = self.topology['compute'].get('lxc', [])
+            vms = self.topology['compute'].get('vms', [])
+            storage = self.topology.get('storage', [])
+            devices = self.topology['physical_topology'].get('devices', [])
+
+            content = template.render(
+                bridges=bridges,
+                lxc_containers=lxc_containers,
+                vms=vms,
+                storage=storage,
+                devices=devices,
+                topology_version=self.topology.get('version', '2.0.0')
+            )
+
+            output_file = self.output_dir / "outputs.tf"
+            output_file.write_text(content)
+            print(f"✓ Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error generating outputs.tf: {e}")
             return False
 
     def print_summary(self):
