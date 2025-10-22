@@ -1,13 +1,23 @@
 #!/usr/bin/env bash
 #
-# proxmox-auto-install.sh — Production-ready version
+# create-uefi-autoinstall-proxmox-usb.sh — Production-ready UEFI USB creator
 #
-# Полностью исправленная и улучшенная версия для автоматической установки Proxmox.
+# Creates auto-installing Proxmox VE USB for UEFI systems with optional reinstall prevention.
+#
+# Features:
+#   - Auto-generates answer.toml from topology.yaml (Infrastructure-as-Data)
+#   - UEFI boot support (recommended for modern systems)
+#   - UUID-based reinstall prevention (optional)
+#   - Interactive password configuration
 #
 # Usage:
-#   sudo ./proxmox-auto-install.sh <proxmox-original.iso> <answer.toml> <target-disk>
+#   sudo ./create-uefi-autoinstall-proxmox-usb.sh <proxmox-iso> <answer.toml> <target-disk>
 # Example:
-#   sudo ./proxmox-auto-install.sh proxmox-ve_9.0-1.iso answer.toml /dev/sdb
+#   sudo ./create-uefi-autoinstall-proxmox-usb.sh proxmox-ve_9.0-1.iso answer.toml /dev/sdb
+#
+# Note:
+#   If topology.yaml exists, answer.toml will be auto-generated from topology data
+#   (hostname, disk config, network) before creating USB.
 #
 # Environment variables:
 #   ROOT_PASSWORD_HASH       - precomputed password hash to embed in answer.toml
@@ -128,6 +138,47 @@ validate_usb_device() {
 
     print_info "Validated target: $target (device: $devname)"
     return 0
+}
+
+# --- generate answer.toml from topology.yaml ---
+generate_answer_from_topology() {
+    local answer_file="$1"
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local project_root="$(dirname "$script_dir")"
+    local topology_file="$project_root/topology.yaml"
+    local generator_script="$project_root/scripts/generate-proxmox-answer.py"
+
+    # Check if topology.yaml exists
+    if [[ ! -f "$topology_file" ]]; then
+        print_warning "topology.yaml not found at: $topology_file"
+        print_warning "Skipping auto-generation from topology"
+        return 0
+    fi
+
+    # Check if generator script exists
+    if [[ ! -f "$generator_script" ]]; then
+        print_warning "Generator script not found: $generator_script"
+        print_warning "Skipping auto-generation from topology"
+        return 0
+    fi
+
+    # Check if Python 3 is available
+    if ! command -v python3 >/dev/null 2>&1; then
+        print_warning "Python 3 not found, skipping auto-generation"
+        return 0
+    fi
+
+    print_info "Found topology.yaml at: $topology_file"
+    print_info "Generating answer.toml from topology..."
+
+    # Generate answer.toml
+    if python3 "$generator_script" "$topology_file" "$answer_file"; then
+        print_success "Generated answer.toml from topology.yaml"
+        return 0
+    else
+        print_error "Failed to generate answer.toml from topology"
+        return 6
+    fi
 }
 
 # --- validate answer file (via official tool) ---
@@ -953,6 +1004,11 @@ main() {
     fi
 
     validate_usb_device "$target_dev" || return 3
+
+    # Generate answer.toml from topology.yaml if available
+    # This will overwrite existing answer.toml with topology data
+    generate_answer_from_topology "$answer_toml" || true
+
     validate_answer_file "$answer_toml" || return 6
 
     # Ask for root password (unless AUTO_CONFIRM is set)
