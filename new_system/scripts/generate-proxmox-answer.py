@@ -118,6 +118,25 @@ class ProxmoxAnswerGenerator:
         """Get value from metadata section"""
         return self.topology.get('metadata', {}).get(key, default)
 
+    def _get_root_password_hash(self) -> str:
+        """
+        Get Proxmox root password hash from topology security section
+
+        Returns:
+            SHA-512 password hash from topology.security.proxmox.root_password_hash
+            Falls back to hardcoded default if not found in topology
+        """
+        security = self.topology.get('security', {})
+        proxmox_security = security.get('proxmox', {})
+
+        # Read from topology (preferred)
+        hash_from_topology = proxmox_security.get('root_password_hash')
+        if hash_from_topology:
+            return hash_from_topology
+
+        # Fallback: hardcoded default (same as before for backward compatibility)
+        return "$6$Wx8sYKmgnwHk4BgS$eGr047.zvpBPesQF.sQ13IFcLdPSaIhqJ8eteA5Y0LSwq4Fp2vurgSN9LmWLjvxBPKJCRpt57l.vC9izxPQvn0"
+
     def validate(self) -> bool:
         """
         Validate topology for Proxmox auto-install requirements
@@ -241,9 +260,9 @@ class ProxmoxAnswerGenerator:
         if not self.proxmox_node:
             raise ValueError("No Proxmox hypervisor found in topology")
 
-        # Default password hash (proxmox) - MUST BE CHANGED IN PRODUCTION
+        # Get password hash from topology or use provided hash
         if not root_password_hash:
-            root_password_hash = "$6$Wx8sYKmgnwHk4BgS$eGr047.zvpBPesQF.sQ13IFcLdPSaIhqJ8eteA5Y0LSwq4Fp2vurgSN9LmWLjvxBPKJCRpt57l.vC9izxPQvn0"
+            root_password_hash = self._get_root_password_hash()
 
         hostname = self._get_hostname()
         primary_disk = self._get_primary_disk()

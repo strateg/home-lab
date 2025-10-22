@@ -15,12 +15,15 @@
 # Example:
 #   sudo ./create-uefi-autoinstall-proxmox-usb.sh proxmox-ve_9.0-1.iso answer.toml /dev/sdb
 #
-# Note:
-#   If topology.yaml exists, answer.toml will be auto-generated from topology data
-#   (hostname, disk config, network) before creating USB.
+# Password Configuration:
+#   1. Default hash is read from topology/security.yaml → proxmox.root_password_hash
+#   2. Generate answer.toml calls generate-proxmox-answer.py which reads the hash
+#   3. Interactive mode: user can override by entering custom password
+#   4. Non-interactive mode: can override with ROOT_PASSWORD_HASH env var
+#   Single source of truth: topology/security.yaml (unless explicitly overridden)
 #
 # Environment variables:
-#   ROOT_PASSWORD_HASH       - precomputed password hash to embed in answer.toml
+#   ROOT_PASSWORD_HASH       - precomputed password hash to override topology default
 #   AUTO_CONFIRM=1           - skip interactive confirmation (for automation)
 #   SKIP_UUID_PROTECTION=1   - disable UUID-based reinstall prevention (allows forced reinstall)
 #

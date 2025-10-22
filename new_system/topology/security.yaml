@@ -4,6 +4,16 @@
 # Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
 
   # ------------------------------------------------------------
+  # Proxmox Security
+  # ------------------------------------------------------------
+
+  proxmox:
+    # Default root password hash for auto-installation
+    # Hash for password: 'proxmox' (MUST BE CHANGED IN PRODUCTION!)
+    # Generate new hash with: openssl passwd -6 'YourPassword'
+    root_password_hash: "$6$Wx8sYKmgnwHk4BgS$eGr047.zvpBPesQF.sQ13IFcLdPSaIhqJ8eteA5Y0LSwq4Fp2vurgSN9LmWLjvxBPKJCRpt57l.vC9izxPQvn0"
+
+  # ------------------------------------------------------------
   # SSH Key Management
   # ------------------------------------------------------------
 
