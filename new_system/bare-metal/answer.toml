@@ -1,31 +1,15 @@
 # Proxmox VE 9 Auto-Install Configuration
-# Dell XPS L701X - Unattended Installation
+# Generated from topology.yaml v2.2.0
+# DO NOT EDIT MANUALLY - Regenerate with scripts/generate-proxmox-answer.py
 # Documentation: https://pve.proxmox.com/wiki/Automated_Installation
 
 [global]
-# Keyboard layout
 keyboard = "en-us"
-
-# Country for timezone
 country = "us"
-
-# Timezone
 timezone = "UTC"
-
-# Root password
-# Current password: proxmox (simple password for testing)
-# To change: openssl passwd -6 "YourNewPassword"
 root_password = "$6$Wx8sYKmgnwHk4BgS$eGr047.zvpBPesQF.sQ13IFcLdPSaIhqJ8eteA5Y0LSwq4Fp2vurgSN9LmWLjvxBPKJCRpt57l.vC9izxPQvn0"
-
-# Email for notifications
 mailto = "admin@home.local"
-
-# Fully Qualified Domain Name
 fqdn = "gamayun.home.local"
-
-# Post-installation behavior
-# reboot_mode = "power-off": System halts after installation (allows removing USB before boot)
-# reboot_mode = "reboot": System reboots automatically after installation (default)
 reboot_mode = "power-off"
 
 # ============================================================
@@ -33,28 +17,13 @@ reboot_mode = "power-off"
 # ============================================================
 
 [disk-setup]
-# Filesystem type
 filesystem = "ext4"
-
-# ⚠️  DISK CONFIGURATION FOR DUAL-DISK SETUP
-# ============================================
-# SSD (sda): System disk - WILL BE COMPLETELY ERASED AND FORMATTED
-# HDD (sdb): Data disk - PRESERVED (not touched by installer)
-#
-# Only specify the SSD here. The HDD will be mounted by post-install scripts
-# after installation without formatting (preserves existing data: backups, ISOs, templates)
-
-# Target disk for SYSTEM installation (SSD only!)
 disk_list = ["sda"]
 
 # LVM configuration
-# swapsize: Swap size in GB (2 GB for Dell XPS L701X with 8GB RAM)
-# maxroot: Maximum root filesystem size in GB (50 GB for Proxmox OS)
-# minfree: Minimum free space to leave in LVM pool in GB (10 GB reserve)
-# maxvz: Maximum size for data volume (0 = use all remaining space)
-#
-# Calculation for 180GB SSD:
-# 180 - 2 (swap) - 50 (root) - 10 (minfree) = 118GB for VMs/LXC
+# swapsize: Swap size in GB
+# maxroot: Maximum root filesystem size in GB
+# minfree: Minimum free space to leave in LVM pool in GB
 lvm.swapsize = 2
 lvm.maxroot = 50
 lvm.minfree = 10
@@ -65,69 +34,31 @@ lvm.maxvz = 0
 # ============================================================
 
 [network]
-# Network source: 'from-dhcp' or 'from-answer'
-# from-dhcp: Use DHCP to get IP address
-# from-answer: Use static IP configuration below
 source = "from-dhcp"
 
-# Static IP configuration (only used if source = "from-answer")
-# cidr = "192.168.1.100/24"
-# gateway = "192.168.1.1"
-# dns = "1.1.1.1"
-
-# Interface filter (optional, to select specific interface)
-# filter = "enp0s31f6"
-
-# ============================================================
-# Notes
-# ============================================================
-
-# This configuration will:
-# 1. Install Proxmox VE 9 on Dell XPS L701X
-# 2. Hostname: gamayun.home.local
-# 3. Use ext4 filesystem on SSD (first disk)
-# 4. Create 50 GB root + 2 GB swap + ~128 GB LVM thin pool
-# 5. Configure network via DHCP initially
-#
-# After installation:
-# 1. SSH to Proxmox host: ssh root@gamayun.home.local (or IP)
-# 2. Run post-install scripts from /root/post-install/:
-#    - 01-install-terraform.sh
-#    - 02-install-ansible.sh
-#    - 03-configure-storage.sh
-#    - 04-configure-network.sh
-#    - 05-init-git-repo.sh
-# 3. Apply Ansible configuration
-# 4. Apply Terraform infrastructure
-
-# ============================================================
-# Security Notes
-# ============================================================
-
-# IMPORTANT: Change root_password hash before using!
-#
-# Generate password hash:
-#   openssl passwd -6 "YourStrongPassword"
-#
-# Or use mkpasswd (if available):
-#   mkpasswd -m sha-512 "YourStrongPassword"
-#
-# Current password in this file: proxmox
-# Hash generated with: openssl passwd -6 "proxmox"
-
-# For production:
-# 1. Generate new password hash
-# 2. Update root_password field above
-# 3. Keep this file secure (DO NOT commit to Git!)
+# Static IP configuration will be applied by post-install scripts
 
 # ============================================================
 # First-Boot Configuration
 # ============================================================
 
 [first-boot]
-# Source: 'from-iso' means the script is embedded in the ISO
 source = "from-iso"
-
-# Ordering: 'fully-up' ensures system is fully booted before running
-# This allows the script to use Proxmox tools like qm, pct, pvesh
 ordering = "fully-up"
+
+# ============================================================
+# Notes
+# ============================================================
+#
+# This configuration will:
+# 1. Install Proxmox VE 9 on Dell XPS L701X
+# 2. Hostname: gamayun.home.local
+# 3. System disk: sda
+# 4. Network: DHCP initially (configured by post-install scripts)
+#
+# After installation:
+# 1. Remove USB drive and boot into Proxmox
+# 2. SSH to Proxmox host
+# 3. Run post-install scripts from /root/post-install/
+# 4. Apply Terraform infrastructure
+# 5. Apply Ansible configuration

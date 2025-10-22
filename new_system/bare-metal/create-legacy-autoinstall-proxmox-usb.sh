@@ -320,7 +320,48 @@ create_legacy_usb() {
     sync
     sleep 2
 
-    print_info "USB created successfully (hybrid boot mode)"
+    print_info "Activating Legacy BIOS boot support..."
+
+    # Force re-read partition table
+    partprobe "$usb_device" 2>/dev/null || true
+    sleep 1
+
+    # Find the ISO9660 partition (usually first partition)
+    local iso_part="${usb_device}1"
+    if [[ ! -b "$iso_part" ]]; then
+        # Try without partition number for whole-disk ISO
+        iso_part="$usb_device"
+    fi
+
+    # Install syslinux MBR to make it bootable in Legacy BIOS
+    print_info "Installing SYSLINUX MBR..."
+    if command -v dd-mbr >/dev/null 2>&1; then
+        # Debian/Ubuntu package: mbr
+        dd-mbr -f "$usb_device" 2>/dev/null || print_warning "dd-mbr failed (may not be critical)"
+    elif [[ -f /usr/lib/syslinux/mbr/mbr.bin ]]; then
+        # Syslinux MBR from package
+        dd if=/usr/lib/syslinux/mbr/mbr.bin of="$usb_device" bs=440 count=1 conv=notrunc 2>/dev/null || \
+            print_warning "Failed to install syslinux MBR (may not be critical)"
+    elif [[ -f /usr/share/syslinux/mbr.bin ]]; then
+        # Alternative location
+        dd if=/usr/share/syslinux/mbr.bin of="$usb_device" bs=440 count=1 conv=notrunc 2>/dev/null || \
+            print_warning "Failed to install syslinux MBR (may not be critical)"
+    else
+        print_warning "SYSLINUX MBR not found (install syslinux package)"
+        print_warning "Legacy BIOS boot may not work on some systems"
+    fi
+
+    # Set boot flag on first partition (if it exists as a partition)
+    if [[ -b "${usb_device}1" ]]; then
+        print_info "Setting boot flag on partition 1..."
+        parted -s "$usb_device" set 1 boot on 2>/dev/null || \
+            print_warning "Failed to set boot flag (may not be critical)"
+    fi
+
+    sync
+    sleep 1
+
+    print_info "USB created successfully (hybrid boot mode with Legacy BIOS support)"
 }
 
 # Add GRUB wrapper for reinstall prevention (Legacy BIOS version)
