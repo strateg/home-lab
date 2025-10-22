@@ -48,7 +48,7 @@ python3 new_system/scripts/generate-ansible-inventory.py
 python3 new_system/scripts/generate-docs.py
 
 # Применяем изменения
-cd new_system/terraform && terraform apply
+cd new_system/terraform && terraform apply  # terraform -> symlink to generated/terraform
 cd ../ansible && ansible-playbook -i inventory/production/hosts.yml site.yml
 ```
 
@@ -77,15 +77,11 @@ home-lab/
 │   │   ├── generate-ansible-inventory.py
 │   │   ├── generate-docs.py
 │   │   └── README.md
-│   ├── terraform/             # Provisioning (⚠️ автогенерация)
-│   │   ├── providers.tf
-│   │   ├── versions.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   ├── terraform.tfvars.example
-│   │   └── modules/
-│   │       ├── network/       # Сетевые мосты
-│   │       └── storage/       # Пулы хранения
+│   ├── generated/             # ⚠️ Автогенерация (НЕ РЕДАКТИРОВАТЬ)
+│   │   ├── terraform/         # Terraform конфиги
+│   │   ├── ansible/           # Ansible inventory
+│   │   └── docs/              # Документация
+│   ├── terraform -> generated/terraform/  # Symlink для удобства
 │   ├── ansible/               # Configuration management
 │   │   ├── ansible.cfg
 │   │   ├── requirements.yml
@@ -98,12 +94,14 @@ home-lab/
 │       ├── create-usb.sh
 │       └── post-install/
 │
-└── old_system/                # Script-based система (legacy)
-    ├── proxmox/scripts/       # Bash скрипты автоматизации
-    ├── openwrt/scripts/       # OpenWRT конфигурация
-    ├── opnsense/              # OPNsense конфиги
-    ├── services/              # Скрипты развёртывания сервисов
-    └── vpn-servers/           # Конфиги VPN серверов
+├── old_system/                # Script-based система (legacy)
+│   ├── proxmox/scripts/       # Bash скрипты автоматизации
+│   ├── openwrt/scripts/       # OpenWRT конфигурация
+│   ├── opnsense/              # OPNsense конфиги
+│   ├── services/              # Скрипты развёртывания сервисов
+│   └── vpn-servers/           # Конфиги VPN серверов
+└── archive/                   # Архивы legacy кода
+    └── legacy-terraform/      # Архив ручных Terraform модулей
 ```
 
 ## 🚀 Быстрый старт
@@ -143,7 +141,7 @@ home-lab/
 5. **Развёртывание инфраструктуры**
    ```bash
    ssh root@10.0.99.1
-   cd /root/home-lab/new_system/terraform
+   cd /root/home-lab/new_system/terraform  # symlink to generated/terraform
    cp terraform.tfvars.example terraform.tfvars
    vim terraform.tfvars  # Настройка
    terraform init
@@ -179,7 +177,7 @@ home-lab/
 3. **Настройка и применение**
    ```bash
    # Terraform
-   cd /root/home-lab/new_system/terraform
+   cd /root/home-lab/new_system/terraform  # symlink to generated/terraform
    terraform init
    terraform apply
 

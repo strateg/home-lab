@@ -452,6 +452,20 @@ logical_topology:
       bridge_stp: false
       bridge_fd: 0
 
+    # OPTIONAL: WiFi Bridge for management/out-of-band access
+    # Uncomment to enable WiFi bridge
+    # - id: bridge-wifi
+    #   device_ref: gamayun
+    #   name: "vmbr-wifi"
+    #   comment: "WiFi Bridge - Management/Out-of-band access"
+    #   ports: ["wlan0"]
+    #   address: "192.168.99.1/24"
+    #   network_ref: net-wifi-mgmt
+    #   autostart: false
+    #   vlan_aware: false
+    #   bridge_stp: false
+    #   bridge_fd: 0
+
   # ------------------------------------------------------------
   # Routing
   # ------------------------------------------------------------
@@ -1067,6 +1081,19 @@ storage:
       keep_monthly: 6
       keep_yearly: 1
     description: "HDD 500GB - Backups, ISOs, Templates"
+
+  # OPTIONAL: NFS Storage for shared templates/backups
+  # Uncomment to enable NFS storage (requires NAS server)
+  # - id: storage-nfs
+  #   name: "nfs-shared"
+  #   type: "nfs"
+  #   server: "192.168.1.100"  # NAS IP address
+  #   export: "/mnt/pool/proxmox"  # NFS export path
+  #   content: ["backup", "iso", "vztmpl"]
+  #   device_ref: gamayun
+  #   shared: true
+  #   maxfiles: 0
+  #   description: "NFS shared storage from TrueNAS"
 
 # ============================================================
 # Services (with ID references, not hardcoded IPs)

@@ -32,22 +32,26 @@ home-lab/
 │   │   ├── generate-ansible-inventory.py
 │   │   ├── generate-docs.py
 │   │   └── validate-topology.py
-│   ├── terraform/             # Generated from topology.yaml
-│   │   ├── main.tf            # DO NOT EDIT MANUALLY
-│   │   ├── variables.tf
-│   │   └── modules/
-│   ├── ansible/               # Partially generated
-│   │   ├── inventory/production/hosts.yml  # Generated from topology.yaml
-│   │   ├── group_vars/all.yml              # Generated from topology.yaml
-│   │   ├── playbooks/         # Manual (service-specific)
-│   │   └── roles/             # Manual (reusable roles)
+│   ├── generated/             # Auto-generated from topology.yaml
+│   │   ├── terraform/         # Terraform configs (DO NOT EDIT MANUALLY)
+│   │   │   ├── provider.tf
+│   │   │   ├── versions.tf
+│   │   │   ├── variables.tf
+│   │   │   ├── outputs.tf
+│   │   │   ├── bridges.tf
+│   │   │   ├── lxc.tf
+│   │   │   └── vms.tf
+│   │   ├── ansible/           # Ansible inventory (DO NOT EDIT MANUALLY)
+│   │   │   └── inventory/
+│   │   └── docs/              # Documentation (DO NOT EDIT MANUALLY)
+│   ├── terraform -> generated/terraform/  # Symlink for convenience
+│   ├── ansible/               # Ansible playbooks and roles (manual)
+│   │   ├── playbooks/         # Service-specific playbooks
+│   │   └── roles/             # Reusable roles
 │   └── bare-metal/            # Bare-metal installation automation
-└── old_system/                # Script-based setup (legacy)
-    ├── proxmox/scripts/       # Bash automation scripts
-    ├── openwrt/scripts/       # OpenWRT configuration scripts
-    ├── opnsense/              # OPNsense configs
-    ├── services/              # Service deployment scripts
-    └── vpn-servers/           # VPN server configs
+├── old_system/                # Script-based setup (will be archived)
+└── archive/                   # Legacy code archives
+    └── legacy-terraform/      # Archived manual Terraform modules
 ```
 
 ## Common Workflows
@@ -73,7 +77,7 @@ python3 new_system/scripts/generate-ansible-inventory.py
 python3 new_system/scripts/generate-docs.py
 
 # 6. Plan and apply Terraform changes
-cd new_system/terraform
+cd new_system/terraform  # (symlink to generated/terraform)
 terraform plan
 terraform apply
 
@@ -86,7 +90,7 @@ ansible-playbook -i inventory/production/hosts.yml site.yml
 
 ```bash
 # Terraform
-cd new_system/terraform
+cd new_system/terraform  # (symlink to generated/terraform)
 terraform init
 terraform validate
 terraform plan        # Review changes before applying
@@ -107,7 +111,7 @@ python3 new_system/scripts/generate-terraform.py
 python3 new_system/scripts/generate-ansible-inventory.py
 
 # 3. Apply Terraform (creates LXC)
-cd new_system/terraform
+cd new_system/terraform  # (symlink to generated/terraform)
 terraform apply -target='proxmox_virtual_environment_container.new_container'
 
 # 4. Configure with Ansible (installs services)
@@ -337,15 +341,18 @@ ansible-playbook -i inventory/production/hosts.yml site.yml --check
 ```bash
 python3 new_system/scripts/generate-terraform.py
 # Generates:
-#   new_system/terraform/main.tf (bridges, VMs, LXC)
-#   new_system/terraform/generated-networks.tf
-#   new_system/terraform/generated-vms.tf
-#   new_system/terraform/generated-lxc.tf
+#   new_system/generated/terraform/provider.tf
+#   new_system/generated/terraform/versions.tf
+#   new_system/generated/terraform/variables.tf
+#   new_system/generated/terraform/outputs.tf
+#   new_system/generated/terraform/bridges.tf
+#   new_system/generated/terraform/vms.tf
+#   new_system/generated/terraform/lxc.tf
 
 python3 new_system/scripts/generate-ansible-inventory.py
 # Generates:
-#   new_system/ansible/inventory/production/hosts.yml
-#   new_system/ansible/group_vars/all.yml (network vars)
+#   new_system/generated/ansible/inventory/hosts.yml
+#   new_system/generated/ansible/group_vars/all.yml
 
 python3 new_system/scripts/generate-docs.py
 # Generates:
@@ -357,10 +364,13 @@ python3 new_system/scripts/generate-docs.py
 ### Manual Files (Do Not Auto-Generate)
 
 **These files are manually maintained:**
+- `new_system/topology.yaml` - Source of truth (EDIT THIS!)
 - `new_system/ansible/playbooks/*.yml` - Service-specific logic
 - `new_system/ansible/roles/*/tasks/*.yml` - Role implementations
 - `new_system/bare-metal/post-install/*.sh` - Bash scripts
-- `new_system/topology.yaml` - Source of truth (edit this!)
+- `new_system/scripts/templates/*.j2` - Jinja2 templates for generators
+
+**NEVER edit files in `new_system/generated/`** - they will be overwritten!
 
 ## Cloud-Init Integration
 
@@ -384,7 +394,8 @@ Terraform generates cloud-init snippets → Proxmox injects on first boot → An
 ### ❌ DON'T: Edit generated Terraform files manually
 ```bash
 # Wrong:
-vim new_system/terraform/main.tf  # This will be overwritten!
+vim new_system/generated/terraform/bridges.tf  # This will be overwritten!
+vim new_system/terraform/lxc.tf                # Same as above (symlink)
 ```
 
 ### ✅ DO: Edit topology.yaml and regenerate
@@ -392,6 +403,7 @@ vim new_system/terraform/main.tf  # This will be overwritten!
 # Correct:
 vim new_system/topology.yaml
 python3 new_system/scripts/generate-terraform.py
+# All files in generated/ will be updated automatically
 ```
 
 ### ❌ DON'T: Use Terraform for OS-level networking
@@ -425,12 +437,20 @@ postgresql_host: "{{ hostvars['postgresql-db'].ansible_host }}"
 
 ## Migration from Old Setup
 
+### From old_system (Script-Based)
 If migrating from the old script-based setup (in `README-old-network-setup.md`):
-
 1. Read `MIGRATION.md` for complete guide
 2. Old scripts are in `old_system/proxmox/scripts/` (legacy, reference only)
 3. Gradually migrate components to `new_system/topology.yaml`
 4. Test each component before decommissioning old scripts
+
+### From Legacy Terraform Modules
+Legacy manual Terraform modules have been archived to `archive/legacy-terraform/`:
+- Network modules (bridges configuration)
+- Storage modules (storage pools configuration)
+- Provider configurations
+
+These are kept for reference only. All infrastructure is now auto-generated from topology.yaml.
 
 ## Performance Considerations
 

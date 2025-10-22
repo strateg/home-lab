@@ -7,24 +7,73 @@
 terraform {
   required_version = ">= 1.5.0"
 
+  # Backend configuration (local by default)
+  # Uncomment for production remote backend:
+  # backend "s3" {
+  #   bucket = "home-lab-terraform-state"
+  #   key    = "production/terraform.tfstate"
+  #   region = "us-east-1"
+  # }
+
   required_providers {
+    # Proxmox Provider
+    # https://registry.terraform.io/providers/bpg/proxmox/latest/docs
     proxmox = {
       source  = "bpg/proxmox"
       version = "~> 0.50.0"
     }
+
+    # Random Provider (for generating passwords, IDs, etc.)
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6.0"
+    }
+
+    # Local Provider (for local file operations)
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5.0"
+    }
+
+    # TLS Provider (for generating SSH keys)
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0.0"
+    }
   }
 }
+
+# ============================================================
+# Proxmox Provider
+# ============================================================
 
 provider "proxmox" {
   endpoint = var.proxmox_api_url
   api_token = var.proxmox_api_token
   insecure = var.proxmox_insecure
 
+  # SSH connection for executing commands on Proxmox host
   ssh {
     agent    = true
     username = var.proxmox_ssh_user
   }
+
+  # Timeout settings (10 minutes for slow operations)
+  timeout = 600
 }
+
+# ============================================================
+# Additional Providers
+# ============================================================
+
+# Random provider for generating random values
+provider "random" {}
+
+# Local provider for local file operations
+provider "local" {}
+
+# TLS provider for SSH key generation
+provider "tls" {}
 
 # ============================================================
 # Data Sources
