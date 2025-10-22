@@ -11,6 +11,11 @@
 # Example:
 #   sudo ./create-legacy-autoinstall-proxmox-usb.sh ~/Downloads/proxmox-ve_9.0-1.iso answer.toml /dev/sdc
 #
+# Note:
+#   If topology.yaml exists in project root, answer.toml will be auto-generated
+#   from topology data (hostname, disk config, network) before creating USB.
+#   This ensures the answer file matches your infrastructure definition.
+#
 
 set -euo pipefail
 IFS=$'\n\t'
@@ -102,6 +107,47 @@ validate_usb_device() {
     fi
 
     print_info "Validated target: $target (device: $devname)"
+}
+
+# Generate answer.toml from topology.yaml
+generate_answer_from_topology() {
+    local answer_file="$1"
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local project_root="$(dirname "$script_dir")"
+    local topology_file="$project_root/topology.yaml"
+    local generator_script="$project_root/scripts/generate-proxmox-answer.py"
+
+    # Check if topology.yaml exists
+    if [[ ! -f "$topology_file" ]]; then
+        print_warning "topology.yaml not found at: $topology_file"
+        print_warning "Skipping auto-generation from topology"
+        return 0
+    fi
+
+    # Check if generator script exists
+    if [[ ! -f "$generator_script" ]]; then
+        print_warning "Generator script not found: $generator_script"
+        print_warning "Skipping auto-generation from topology"
+        return 0
+    fi
+
+    # Check if Python 3 is available
+    if ! command -v python3 >/dev/null 2>&1; then
+        print_warning "Python 3 not found, skipping auto-generation"
+        return 0
+    fi
+
+    print_info "Found topology.yaml at: $topology_file"
+    print_info "Generating answer.toml from topology..."
+
+    # Generate answer.toml
+    if python3 "$generator_script" "$topology_file" "$answer_file"; then
+        print_success "Generated answer.toml from topology.yaml"
+        return 0
+    else
+        print_error "Failed to generate answer.toml from topology"
+        return 6
+    fi
 }
 
 # Validate answer.toml
@@ -330,6 +376,11 @@ main() {
     answer_toml=$(realpath "$answer_toml")
 
     validate_usb_device "$target_dev" || return 3
+
+    # Generate answer.toml from topology.yaml if available
+    # This will overwrite existing answer.toml with topology data
+    generate_answer_from_topology "$answer_toml" || true
+
     validate_answer_file "$answer_toml" || return 6
 
     # Ask for root password (unless AUTO_CONFIRM is set)

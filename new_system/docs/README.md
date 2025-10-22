@@ -32,9 +32,10 @@ docs/
 ### For New Users
 
 1. **Understand the architecture**: Read [TOPOLOGY-MODULAR.md](architecture/TOPOLOGY-MODULAR.md)
-2. **Learn the workflow**: Read [GENERATED-QUICK-GUIDE.md](guides/GENERATED-QUICK-GUIDE.md)
-3. **Set up bridges**: Follow [BRIDGES.md](guides/BRIDGES.md) (Terraform automation)
-4. **Manage secrets**: Read [ANSIBLE-VAULT-GUIDE.md](guides/ANSIBLE-VAULT-GUIDE.md)
+2. **Create Proxmox USB**: Follow [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md) for bare-metal setup
+3. **Learn the workflow**: Read [GENERATED-QUICK-GUIDE.md](guides/GENERATED-QUICK-GUIDE.md)
+4. **Set up bridges**: Follow [BRIDGES.md](guides/BRIDGES.md) (Terraform automation)
+5. **Manage secrets**: Read [ANSIBLE-VAULT-GUIDE.md](guides/ANSIBLE-VAULT-GUIDE.md)
 
 ### For Existing Users
 
@@ -50,6 +51,7 @@ docs/
 
 | Document | Description | Audience |
 |----------|-------------|----------|
+| [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md) | 🆕 Create auto-install USB from topology.yaml | DevOps, Sysadmin |
 | [BRIDGES.md](guides/BRIDGES.md) | Network bridges setup (Terraform + manual methods) | DevOps, Network Admin |
 | [GENERATED-QUICK-GUIDE.md](guides/GENERATED-QUICK-GUIDE.md) | Quick reference for generated/ directory workflow | All Users |
 | [RAM-OPTIMIZATION.md](guides/RAM-OPTIMIZATION.md) | RAM allocation strategies for 8GB constraint | DevOps, Sysadmin |
@@ -103,6 +105,14 @@ All documents follow this structure:
 ---
 
 ## 🆕 Recent Updates (2025-10-22)
+
+### ✨ NEW: Proxmox USB Auto-Install from Topology
+
+- **PROXMOX-USB-AUTOINSTALL.md** - Complete guide for creating bootable USB
+- `generate-proxmox-answer.py` - Auto-generates answer.toml from topology.yaml
+- `create-legacy-autoinstall-proxmox-usb.sh` - Integrated with topology generator
+- Supports Dell XPS L701X (Legacy BIOS/MBR)
+- Full validation and error checking
 
 ### ✨ NEW: Automated Bridge Creation
 

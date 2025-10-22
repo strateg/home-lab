@@ -7,16 +7,21 @@ Automated bare-metal installation for Proxmox VE 9 on Dell XPS L701X using auto-
 This directory contains everything needed to create a bootable USB drive that will automatically install and configure Proxmox VE 9 on Dell XPS L701X laptop.
 
 **Key Features**:
+- ✨ **NEW**: Auto-generates `answer.toml` from `topology.yaml` (Infrastructure-as-Data)
 - Unattended installation (no user interaction required)
 - Automatic disk partitioning (ext4, LVM-thin)
+- Hostname, disk config, network from topology
 - Network configuration via DHCP
 - Repository setup (no-subscription)
-- **Reinstall prevention** (UUID-based detection) ⭐ NEW
+- **Reinstall prevention** (UUID-based detection)
 - Post-install scripts for complete system configuration
 
 ## Documentation
 
-📚 **Comprehensive guides available in [`docs/`](docs/)**:
+📚 **NEW: Infrastructure-as-Data USB Creation**:
+- **[PROXMOX-USB-AUTOINSTALL.md](../docs/guides/PROXMOX-USB-AUTOINSTALL.md)** - ⭐ Complete guide using topology.yaml
+
+📚 **Legacy guides available in [`docs/`](docs/)**:
 - **[Quick Start Guide](docs/guides/quick-start.md)** - Get started in 15 minutes
 - **[USB Creation Guide](docs/guides/usb-creation.md)** - Detailed USB creation instructions
 - **[Reinstall Prevention](docs/guides/reinstall-prevention.md)** - How UUID-based protection works
