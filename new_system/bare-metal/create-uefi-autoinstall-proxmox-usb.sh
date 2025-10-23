@@ -1119,8 +1119,9 @@ main() {
     sleep 1
     print_info "Successfully wrote $created_iso to $target_dev"
 
-    # Add auto-installer-mode.toml (CRITICAL for auto-installer to work)
-    add_auto_installer_mode "$target_dev" || print_warning "add_auto_installer_mode encountered an issue"
+    # NOTE: auto-installer-mode.toml is already embedded by proxmox-auto-install-assistant
+    # No need to add it manually - ISO partition is read-only after dd
+    print_info "auto-installer-mode.toml and answer.toml embedded in ISO by proxmox-auto-install-assistant"
 
     # Embed UUID wrapper in GRUB (PREVENTS REINSTALLATION LOOP)
     embed_uuid_wrapper "$target_dev" || print_warning "embed_uuid_wrapper encountered an issue"
