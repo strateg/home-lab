@@ -1024,14 +1024,18 @@ main() {
     # Ask for root password (unless AUTO_CONFIRM is set)
     if [[ "${AUTO_CONFIRM:-0}" != "1" ]] && [[ -t 0 ]]; then
         print_info ""
-        print_info "=========================================="
-        print_info "Proxmox Root Password Configuration"
-        print_info "=========================================="
+        print_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        print_info "Root Password Configuration"
+        print_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         print_info ""
-        print_info "You can set a custom root password for Proxmox installation."
-        print_info "Current password in answer.toml: proxmox"
+        print_info "answer.toml was generated from topology/security.yaml"
+        print_info "Default password from topology: 'proxmox' (CHANGE IN PRODUCTION!)"
         print_info ""
-        read -p "Do you want to change the password? (y/N): " change_password
+        print_info "Options:"
+        print_info "  [N] Keep password from topology/security.yaml (default)"
+        print_info "  [Y] Set custom password for this USB only"
+        print_info ""
+        read -p "Do you want to set a custom password? (y/N): " change_password
 
         if [[ "$change_password" =~ ^[Yy]$ ]]; then
             while true; do
@@ -1059,7 +1063,8 @@ main() {
             done
         else
             ROOT_PASSWORD="proxmox"
-            print_info "Using default password: proxmox"
+            print_success "Using password from topology/security.yaml"
+            print_info "Password: 'proxmox' (from topology default)"
         fi
         print_info ""
     else
