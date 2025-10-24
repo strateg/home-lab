@@ -536,6 +536,7 @@ GRUB_MOD_EOF
     # Rebuild ISO with xorriso
     print_info "Rebuilding ISO with modified GRUB config..."
 
+    # Redirect all xorriso output to stderr to not interfere with function return value
     xorriso -as mkisofs \
         -o "$output_iso" \
         -V "$iso_label" \
@@ -559,7 +560,7 @@ GRUB_MOD_EOF
         -e '/efi.img' \
         -no-emul-boot \
         -boot-load-size 16384 \
-        "$iso_extract" 2>&1 | grep -v "^xorriso" || true
+        "$iso_extract" >&2 2>&1
 
     # Cleanup temp directory
     rm -rf "$mod_tmpdir"
@@ -1252,6 +1253,10 @@ main() {
         return 1
     fi
 
+    # Expand tilde in paths (important for ~ to work correctly in all contexts)
+    iso_src="${iso_src/#\~/$HOME}"
+    answer_toml="${answer_toml/#\~/$HOME}"
+
     validate_usb_device "$target_dev" || return 3
 
     # Generate answer.toml from topology.yaml if available
@@ -1329,10 +1334,26 @@ main() {
     print_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     local modified_iso=""
     modified_iso=$(modify_iso_for_autoinstall "$iso_src")
-    if [[ -z "${modified_iso:-}" || ! -f "$modified_iso" ]]; then
-        print_error "Failed to modify ISO"
+    local modify_exit=$?
+
+    if [[ $modify_exit -ne 0 ]]; then
+        print_error "Failed to modify ISO (exit code: $modify_exit)"
         return 9
     fi
+
+    if [[ -z "${modified_iso:-}" ]]; then
+        print_error "Failed to modify ISO (empty output)"
+        return 9
+    fi
+
+    # Extract just the last line (the file path) - xorriso may output multiple lines
+    modified_iso=$(echo "$modified_iso" | tail -1)
+
+    if [[ ! -f "$modified_iso" ]]; then
+        print_error "Failed to modify ISO (file not found: $modified_iso)"
+        return 9
+    fi
+
     print_info "Using ISO: $modified_iso"
 
     # Prepare ISO (prints path to stdout, logs to stderr)
