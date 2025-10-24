@@ -803,11 +803,10 @@ else
 
     menuentry 'Install Proxmox VE (AUTO-INSTALL)' {
         search --no-floppy --fs-uuid --set=root 2025-08-05-10-48-40-00
-        set prefix=($root)/boot/grub
         echo 'Loading Proxmox kernel with auto-installer...'
-        linux $prefix/../linux26 ro ramdisk_size=16777216 rw splash=silent video=vesafb:ywrap,mtrr vga=791 nomodeset proxmox-start-auto-installer
+        linux ($root)/boot/linux26 ro ramdisk_size=16777216 rw splash=silent video=vesafb:ywrap,mtrr vga=791 nomodeset proxmox-start-auto-installer
         echo 'Loading initrd...'
-        initrd $prefix/../initrd.img
+        initrd ($root)/boot/initrd.img
     }
 
     menuentry 'Install Proxmox VE (Manual - use if auto fails)' {
