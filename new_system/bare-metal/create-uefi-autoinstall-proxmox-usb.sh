@@ -6,9 +6,16 @@
 #
 # Features:
 #   - Auto-generates answer.toml from topology.yaml (Infrastructure-as-Data)
+#   - Automatically modifies ISO to enable auto-installer by default (fixes GRUB HFS+ issue)
 #   - UEFI boot support (recommended for modern systems)
 #   - UUID-based reinstall prevention (optional)
 #   - Interactive password configuration
+#
+# How it works:
+#   1. Modifies Proxmox ISO /boot/grub/grub.cfg to remove auto-installer-mode.toml check
+#      (Fixes issue where GRUB loads config from HFS+ partition without the file)
+#   2. Embeds answer.toml and first-boot script using proxmox-auto-install-assistant
+#   3. Creates bootable USB with UUID-based reinstall prevention wrapper
 #
 # Usage:
 #   sudo ./create-uefi-autoinstall-proxmox-usb.sh <proxmox-iso> <answer.toml> <target-disk>
@@ -82,7 +89,7 @@ check_root() {
 # --- requirements check ---
 check_requirements() {
     local missing=()
-    local cmds=(lsblk mktemp dd awk sed findmnt find grep mount umount cp mv date sync blkid partprobe blockdev proxmox-auto-install-assistant)
+    local cmds=(lsblk mktemp dd awk sed findmnt find grep mount umount cp mv date sync blkid partprobe blockdev proxmox-auto-install-assistant xorriso isoinfo)
 
     for cmd in "${cmds[@]}"; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -92,7 +99,8 @@ check_requirements() {
 
     if [[ ${#missing[@]} -ne 0 ]]; then
         print_error "Missing required commands: ${missing[*]}"
-        print_error "Install with: apt update && apt install ${missing[*]}"
+        print_error "Install proxmox-auto-install-assistant: wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg && echo 'deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription' > /etc/apt/sources.list.d/pve-install-repo.list && apt update && apt install -y proxmox-auto-install-assistant"
+        print_error "Install xorriso and isoinfo: apt update && apt install -y xorriso genisoimage"
         return 2
     fi
 
@@ -347,6 +355,229 @@ FIRSTBOOT_EOF
     chmod +x "$script_path"
 
     print_info "Created first-boot script with UUID: $install_uuid"
+    return 0
+}
+
+# --- modify ISO to enable auto-installer by default ---
+# Modifies Proxmox ISO /boot/grub/grub.cfg to remove the check for auto-installer-mode.toml
+# This fixes the issue where GRUB loads config from HFS+ partition which doesn't have the file
+# Returns: path to modified ISO (or original if already modified) via stdout
+modify_iso_for_autoinstall() {
+    local iso_src="$1"
+
+    if [[ -z "$iso_src" ]]; then
+        print_error "modify_iso_for_autoinstall requires <iso-path>"
+        return 1
+    fi
+
+    if [[ ! -f "$iso_src" ]]; then
+        print_error "ISO file not found: $iso_src"
+        return 1
+    fi
+
+    print_info "Checking if ISO needs modification for auto-installer..."
+
+    # Create temporary mount point to check ISO
+    local check_mount=$(mktemp -d -t iso-check.XXXX)
+
+    # Mount ISO to check if already modified
+    if mount -o loop,ro "$iso_src" "$check_mount" 2>/dev/null; then
+        local already_modified=0
+
+        if [[ -f "$check_mount/boot/grub/grub.cfg" ]]; then
+            if grep -q "AUTO-INSTALLER ENABLED BY DEFAULT" "$check_mount/boot/grub/grub.cfg" 2>/dev/null; then
+                already_modified=1
+                print_success "ISO already modified (auto-installer enabled by default)"
+            fi
+        fi
+
+        umount "$check_mount" 2>/dev/null || true
+        rmdir "$check_mount" 2>/dev/null || true
+
+        if [[ $already_modified -eq 1 ]]; then
+            # Return original ISO path
+            printf '%s\n' "$iso_src"
+            return 0
+        fi
+    else
+        rmdir "$check_mount" 2>/dev/null || true
+    fi
+
+    # ISO needs modification
+    print_info "ISO needs modification - enabling auto-installer by default..."
+    print_info "This fixes GRUB loading config from HFS+ partition without auto-installer files"
+
+    # Create temp directory for ISO modification
+    local mod_tmpdir=$(mktemp -d -t iso-mod.XXXX)
+    local iso_extract="$mod_tmpdir/iso"
+    mkdir -p "$iso_extract"
+
+    # Extract ISO
+    print_info "Extracting ISO (this may take a few minutes)..."
+    xorriso -osirrox on -indev "$iso_src" -extract / "$iso_extract" 2>&1 | grep -v "^xorriso" || true
+
+    local grub_cfg="$iso_extract/boot/grub/grub.cfg"
+
+    if [[ ! -f "$grub_cfg" ]]; then
+        print_error "GRUB config not found in ISO: $grub_cfg"
+        rm -rf "$mod_tmpdir"
+        return 1
+    fi
+
+    # Backup original
+    cp "$grub_cfg" "$grub_cfg.original"
+
+    # Modify GRUB config: remove 'if [ -f auto-installer-mode.toml ]' check
+    # and make auto-installer menu always available
+    print_info "Modifying GRUB config to enable auto-installer by default..."
+
+    cat > "$grub_cfg.new" << 'GRUB_MOD_EOF'
+insmod gzio
+insmod iso9660
+
+if [ x$feature_default_font_path = xy ] ; then
+   font=unicode
+else
+   font=$prefix/unicode.pf2
+fi
+
+set gfxmode=1024x768,640x480
+set gfxpayload=1024x768
+
+if loadfont $font; then
+    if test "${grub_platform}" = "efi"; then
+        insmod efi_gop
+        insmod efi_uga
+    fi
+    insmod video_bochs
+    insmod video_cirrus
+    insmod all_video
+    insmod png
+    insmod gfxterm
+    set theme=/boot/grub/pvetheme/theme.txt
+    export theme
+    terminal_input console
+    terminal_output gfxterm
+fi
+
+# Enable serial console
+insmod serial
+insmod usbserial_common
+insmod usbserial_ftdi
+insmod usbserial_pl2303
+insmod usbserial_usbdebug
+if serial --unit=0 --speed=115200; then
+    terminal_input --append serial
+    terminal_output --append serial
+    set show_serial_entry=y
+fi
+
+# AUTO-INSTALLER ENABLED BY DEFAULT (modified by create-uefi-autoinstall-proxmox-usb.sh)
+# Original check removed: if [ -f auto-installer-mode.toml ]; then
+# This fixes the issue where GRUB loads config from HFS+ partition which doesn't have auto-installer files
+set timeout_style=menu
+set timeout=10
+set default=0
+
+menuentry 'Install Proxmox VE (Automated)' --class debian --class gnu-linux --class gnu --class os {
+    echo        'Loading Proxmox VE Automatic Installer ...'
+    linux       /boot/linux26 ro ramdisk_size=16777216 rw quiet splash=silent proxmox-start-auto-installer
+    echo        'Loading initial ramdisk ...'
+    initrd      /boot/initrd.img
+}
+
+menuentry 'Install Proxmox VE (Graphical)' --class debian --class gnu-linux --class gnu --class os {
+    echo	'Loading Proxmox VE Installer ...'
+    linux	/boot/linux26 ro ramdisk_size=16777216 rw quiet splash=silent
+    echo	'Loading initial ramdisk ...'
+    initrd	/boot/initrd.img
+}
+
+menuentry 'Install Proxmox VE (Terminal UI)' --class debian --class gnu-linux --class gnu --class os {
+    set background_color=black
+    echo    'Loading Proxmox VE Console Installer ...'
+    gfxpayload=800x600x16,800x600
+    linux   /boot/linux26 ro ramdisk_size=16777216 rw quiet splash=silent proxtui
+    echo    'Loading initial ramdisk ...'
+    initrd  /boot/initrd.img
+}
+
+if [ x"${show_serial_entry}" == 'xy' ]; then
+    menuentry 'Install Proxmox VE (Terminal UI, Serial Console)' --class debian --class gnu-linux --class gnu --class os {
+        echo	'Loading Proxmox Console Installer (serial) ...'
+        linux	/boot/linux26 ro ramdisk_size=16777216 rw splash=verbose proxtui console=ttyS0,115200
+        echo	'Loading initial ramdisk ...'
+        initrd	/boot/initrd.img
+    }
+fi
+
+menuentry 'Install Proxmox VE (Debug Mode)' --class debian --class gnu-linux --class gnu --class os {
+    echo	'Loading Proxmox VE Installer (Debug) ...'
+    linux	/boot/linux26 ro ramdisk_size=16777216 rw splash=verbose proxdebug
+    echo	'Loading initial ramdisk ...'
+    initrd	/boot/initrd.img
+}
+GRUB_MOD_EOF
+
+    # Replace GRUB config
+    mv "$grub_cfg.new" "$grub_cfg"
+    print_success "GRUB config modified"
+
+    # Get ISO info
+    local iso_label
+    iso_label=$(isoinfo -d -i "$iso_src" 2>/dev/null | grep "Volume id:" | cut -d: -f2 | xargs || echo "PVE")
+
+    # Extract MBR from original ISO
+    dd if="$iso_src" bs=1 count=432 of="$mod_tmpdir/isohdpfx.bin" 2>/dev/null
+
+    # Generate output filename
+    local output_iso="${iso_src%.iso}-autoinstall.iso"
+
+    # Rebuild ISO with xorriso
+    print_info "Rebuilding ISO with modified GRUB config..."
+
+    xorriso -as mkisofs \
+        -o "$output_iso" \
+        -V "$iso_label" \
+        -J -joliet-long -r \
+        --grub2-mbr "$mod_tmpdir/isohdpfx.bin" \
+        --protective-msdos-label \
+        -partition_cyl_align off \
+        -partition_offset 0 \
+        -partition_hd_cyl 98 \
+        -partition_sec_hd 32 \
+        -apm-block-size 2048 \
+        -hfsplus \
+        -efi-boot-part --efi-boot-image \
+        -c '/boot/boot.cat' \
+        -b '/boot/grub/i386-pc/eltorito.img' \
+        -no-emul-boot \
+        -boot-load-size 4 \
+        -boot-info-table \
+        --grub2-boot-info \
+        -eltorito-alt-boot \
+        -e '/efi.img' \
+        -no-emul-boot \
+        -boot-load-size 16384 \
+        "$iso_extract" 2>&1 | grep -v "^xorriso" || true
+
+    # Cleanup temp directory
+    rm -rf "$mod_tmpdir"
+
+    if [[ ! -f "$output_iso" ]]; then
+        print_error "Failed to create modified ISO: $output_iso"
+        return 1
+    fi
+
+    local input_size=$(du -h "$iso_src" | cut -f1)
+    local output_size=$(du -h "$output_iso" | cut -f1)
+
+    print_success "ISO modified successfully: $output_iso"
+    print_info "Original ISO: $input_size → Modified ISO: $output_size"
+    print_info "Changes: Auto-installer enabled by default (no file check required)"
+
+    # Return modified ISO path
+    printf '%s\n' "$output_iso"
     return 0
 }
 
@@ -1091,10 +1322,26 @@ main() {
     INSTALL_UUID="${timezone}_${timestamp}"  # GLOBAL variable
     print_info "Generated installation UUID: $INSTALL_UUID"
 
+    # Modify ISO if needed (enables auto-installer by default)
+    # This fixes GRUB loading config from HFS+ partition without auto-installer files
+    print_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_info "Step 1: Modify ISO for auto-installer (if needed)"
+    print_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    local modified_iso=""
+    modified_iso=$(modify_iso_for_autoinstall "$iso_src")
+    if [[ -z "${modified_iso:-}" || ! -f "$modified_iso" ]]; then
+        print_error "Failed to modify ISO"
+        return 9
+    fi
+    print_info "Using ISO: $modified_iso"
+
     # Prepare ISO (prints path to stdout, logs to stderr)
     # UUID is passed via INSTALL_UUID global variable
+    print_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    print_info "Step 2: Embed answer.toml and first-boot script"
+    print_info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     local created_iso=""
-    created_iso=$(prepare_iso "$iso_src" "$answer_toml")
+    created_iso=$(prepare_iso "$modified_iso" "$answer_toml")
     if [[ -z "${created_iso:-}" || ! -f "$created_iso" ]]; then
         print_error "Failed to create prepared ISO"
         return 9

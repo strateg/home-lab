@@ -183,13 +183,82 @@ commit 91092be
 🐛 Fix GRUB prefix issue preventing auto-installer activation
 ```
 
+## FINAL SOLUTION: Modify ISO Before USB Creation
+
+After discovering that `set prefix` fixes didn't work (GRUB still loaded HFS+ config), we found the **real root cause**:
+
+### The Real Problem
+
+1. **grubx64.efi** has **embedded** `prefix=/boot/grub` (cannot be changed without recompiling GRUB)
+2. GRUB loads `/boot/grub/grub.cfg` from **HFS+ partition**, NOT our `/EFI/BOOT/grub.cfg`
+3. HFS+ `grub.cfg` checks: `if [ -f auto-installer-mode.toml ]`
+4. File is on ISO9660 layer, NOT on HFS+ partition → check fails
+5. Auto-installer menu NOT created → graphical installer runs
+
+### The Solution
+
+**Modify Proxmox ISO `/boot/grub/grub.cfg` BEFORE writing to USB:**
+
+1. Extract ISO with xorriso
+2. Modify `/boot/grub/grub.cfg`:
+   - Remove: `if [ -f auto-installer-mode.toml ]; then`
+   - Make auto-installer menu **always available**
+   - Set as default (option 0, timeout 10 sec)
+3. Rebuild ISO with xorriso (preserves hybrid boot structure)
+4. Use modified ISO for USB creation
+
+### Implementation
+
+**Two approaches:**
+
+1. **Automatic (Integrated)**:
+   - Added `modify_iso_for_autoinstall()` to `create-uefi-autoinstall-proxmox-usb.sh`
+   - Script automatically checks if ISO needs modification
+   - Modifies on first run, caches result for reuse
+   - Single command: `sudo ./create-uefi-autoinstall-proxmox-usb.sh iso answer.toml /dev/sdX`
+
+2. **Manual (Standalone)**:
+   - Created `modify-proxmox-iso.sh` for manual ISO modification
+   - Can be used independently for testing or batch processing
+   - Usage: `sudo ./modify-proxmox-iso.sh input.iso output.iso`
+
+### Commits
+
+```
+<to be committed>
+✨ Automatic ISO modification: Enable auto-installer by default
+
+Changes:
+- Added modify_iso_for_autoinstall() function to create-uefi-autoinstall-proxmox-usb.sh
+- Function extracts ISO, modifies /boot/grub/grub.cfg, rebuilds with xorriso
+- Removes 'if [ -f auto-installer-mode.toml ]' check (file not on HFS+ partition)
+- Makes auto-installer menu always available (default option, 10-sec timeout)
+- Script automatically checks if ISO already modified (idempotent)
+- Added xorriso and isoinfo to required dependencies
+- Created modify-proxmox-iso.sh as standalone tool
+- Created ISO-MODIFICATION-FIX.md documentation
+
+Why this fixes the issue:
+- GRUB loads config from HFS+ partition (embedded prefix=/boot/grub)
+- auto-installer-mode.toml is on ISO9660 layer, not HFS+
+- File check fails → auto-installer menu not created → graphical installer runs
+- Solution: Modify grub.cfg to NOT check for file, enable auto-installer unconditionally
+
+Testing:
+✅ ISO modification successful (1.6G → 1.6G)
+✅ Modified grub.cfg verified on HFS+ partition
+✅ USB created successfully
+⏳ Hardware test pending
+```
+
 ## Next Steps
 
-1. ✅ Root cause identified and fixed
-2. ✅ Fix committed to git
-3. ⏳ Create new USB with fixed script
-4. ⏳ Test auto-installation
-5. ⏳ Verify SSH access with password from topology
+1. ✅ Root cause identified: GRUB loads HFS+ config, not EFI wrapper
+2. ✅ Solution implemented: Modify ISO before USB creation
+3. ✅ Scripts updated: Automatic ISO modification integrated
+4. ✅ USB created with modified ISO
+5. ⏳ Test auto-installation on target hardware
+6. ⏳ Verify SSH access with password from topology
 
 ## Lessons Learned
 
@@ -198,3 +267,6 @@ commit 91092be
 3. **Password hash type** (`$6$` vs `$y$`) indicates which installer ran
 4. **Hybrid ISO structure** has two filesystem layers (ISO9660 whole disk + HFS+ partition)
 5. **File checks in GRUB** (`if [ -f file ]`) depend on working directory
+6. **GRUB prefix is embedded** in grubx64.efi and cannot be changed by renaming configs
+7. **HFS+ partition is read-only** and cannot be modified after ISO creation
+8. **Solution: Modify ISO source** before writing to USB, not after
