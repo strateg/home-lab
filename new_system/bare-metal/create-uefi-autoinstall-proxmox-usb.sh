@@ -625,6 +625,14 @@ embed_uuid_wrapper() {
                     if [[ -f "$mount_point/EFI/BOOT/grub.cfg" ]]; then
                         mv "$mount_point/EFI/BOOT/grub.cfg" "$mount_point/EFI/BOOT/grub-install.cfg"
                         print_info "Renamed original grub.cfg → grub-install.cfg"
+
+                        # CRITICAL FIX: Remove 'set prefix' from grub-install.cfg
+                        # The original Proxmox grub.cfg contains 'set prefix=($root)/boot/grub'
+                        # which breaks auto-installer-mode.toml file detection
+                        if grep -q "^set prefix=" "$mount_point/EFI/BOOT/grub-install.cfg" 2>/dev/null; then
+                            sed -i '/^set prefix=/d' "$mount_point/EFI/BOOT/grub-install.cfg"
+                            print_success "Removed 'set prefix' from grub-install.cfg (fixes auto-installer detection)"
+                        fi
                     fi
 
                     # Check if UUID protection should be skipped
