@@ -715,14 +715,16 @@ echo ""
 if [ $found_system -eq 0 ]; then
     if [ -f (hd1,gpt2)/proxmox-installed ]; then
         cat --set=disk_uuid (hd1,gpt2)/proxmox-installed
-        echo "Found marker on (hd1,gpt2): $disk_uuid"
+        echo "✓ Found installation marker on (hd1,gpt2)"
+        echo "  Disk UUID: $disk_uuid"
+        echo "  USB  UUID: $usb_uuid"
         if [ "$disk_uuid" = "$usb_uuid" ]; then
             set found_system=1
             set efi_part="gpt2"
             set disk="hd1"
-            echo "UUID MATCH! System installed with this USB."
+            echo "  Result: UUIDs MATCH!"
         else
-            echo "UUID MISMATCH! Different USB was used for installation."
+            echo "  Result: UUIDs DON'T MATCH (different USB)"
         fi
     fi
 fi
@@ -764,17 +766,21 @@ if [ $found_system -eq 0 ]; then
 fi
 
 echo ""
+echo "══════════════════════════════════════"
+echo "UUID Check Result:"
+echo "══════════════════════════════════════"
 if [ $found_system -eq 1 ]; then
     # UUID matches - system already installed with this USB
-    # Boot installed system by default, offer reinstall option
-    echo "======================================"
-    echo "DECISION: Boot installed system (UUID matches)"
-    echo "======================================"
+    echo "✓ MATCH: System was installed with THIS USB"
+    echo "  Location: ($disk,$efi_part)"
     echo ""
-    echo "Press any key to see menu..."
-    sleep 3
+    echo "DECISION: Boot installed Proxmox system"
+    echo "          (To reinstall, select 'Reinstall' from menu)"
+    echo ""
+    echo "Press any key to show menu (or wait 10 seconds)..."
+    sleep 10
 
-    set timeout=5
+    set timeout=30
     set default=0
 
     menuentry 'Boot Proxmox VE (Already Installed)' {
@@ -798,15 +804,17 @@ if [ $found_system -eq 1 ]; then
     }
 else
     # UUID doesn't match or no marker found - proceed with installation
-    echo "======================================"
-    echo "DECISION: Proceed with installation"
-    echo "Reason: No marker found OR UUID mismatch"
-    echo "======================================"
+    echo "✗ NO MATCH: No installation found for this USB"
+    echo "  (Either first install or different USB was used)"
     echo ""
-    echo "Press any key to see menu..."
-    sleep 3
+    echo "DECISION: Proceed with AUTO-INSTALLATION"
+    echo "          (To install manually, select 'Manual' from menu)"
+    echo ""
+    echo "Press any key to show menu (or wait 10 seconds)..."
+    echo "Auto-installer will start automatically..."
+    sleep 10
 
-    set timeout=5
+    set timeout=30
     set default=0
 
     menuentry 'Install Proxmox VE (AUTO-INSTALL)' {
