@@ -452,7 +452,10 @@ elif mountpoint -q /boot/efi 2>/dev/null; then
 else
     echo "EFI not mounted, searching on root device..."
     # Find device where root is installed
-    ROOT_DEV=$(findmnt -n -o SOURCE / | sed 's/[0-9]*$//')
+    # Handle both traditional (sda3) and NVMe (nvme0n1p3) naming
+    ROOT_SRC=$(findmnt -n -o SOURCE /)
+    ROOT_DEV=$(echo "$ROOT_SRC" | sed -E 's/p?[0-9]+$//')
+    echo "Root source: $ROOT_SRC"
     echo "Root device: $ROOT_DEV"
 
     if [ -n "$ROOT_DEV" ]; then
@@ -461,10 +464,13 @@ else
             PART_TYPE=$(blkid -s TYPE -o value "$part" 2>/dev/null)
             if [ "$PART_TYPE" = "vfat" ]; then
                 mkdir -p /efi
-                if mount "$part" /efi 2>&1; then
+                echo "Attempting to mount $part to /efi..."
+                if mount "$part" /efi 2>&1 | tee -a /var/log/proxmox-first-boot.log; then
                     EFI_MOUNT="/efi"
                     echo "✓ Mounted $part to /efi"
                     break
+                else
+                    echo "✗ Failed to mount $part"
                 fi
             fi
         done
@@ -784,60 +790,47 @@ echo "USB UUID: $usb_uuid"
 echo "Searching for existing installation..."
 echo ""
 
-# Search for proxmox-installed marker on system disk (hd1)
-# The first-boot script creates this file only on the system disk
+# Search for proxmox-installed marker on system disks
+# The first-boot script creates this file only on the system disk EFI partition
+# Check multiple disks (hd0-hd3) and partitions (gpt1-gpt3) to handle various configurations
 
-# hd1,gpt2 (most common EFI location)
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd1,gpt2)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd1,gpt2)/proxmox-installed
-        echo "Found marker on (hd1,gpt2): $disk_uuid"
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-            set efi_part="gpt2"
-            set disk="hd1"
-            echo "UUID MATCH! System installed with this USB."
-        else
-            echo "UUID MISMATCH! Different USB was used for installation."
-        fi
+# Loop through disks: hd0, hd1, hd2, hd3 (covers most systems)
+for check_disk in hd0 hd1 hd2 hd3; do
+    if [ $found_system -eq 1 ]; then
+        break
     fi
-fi
 
-# hd1,gpt1
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd1,gpt1)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd1,gpt1)/proxmox-installed
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-            set efi_part="gpt1"
-            set disk="hd1"
+    # Loop through common EFI partition locations: gpt1, gpt2, gpt3
+    for check_part in gpt1 gpt2 gpt3; do
+        if [ $found_system -eq 1 ]; then
+            break
         fi
-    fi
-fi
 
-# hd0,gpt2 (fallback if USB is hd1)
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt2)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt2)/proxmox-installed
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-            set efi_part="gpt2"
-            set disk="hd0"
-        fi
-    fi
-fi
+        # Construct partition path
+        set check_path="($check_disk,$check_part)/proxmox-installed"
 
-# hd0,gpt1
-if [ $found_system -eq 0 ]; then
-    if [ -f (hd0,gpt1)/proxmox-installed ]; then
-        cat --set=disk_uuid (hd0,gpt1)/proxmox-installed
-        if [ "$disk_uuid" = "$usb_uuid" ]; then
-            set found_system=1
-            set efi_part="gpt1"
-            set disk="hd0"
+        # Check if marker file exists
+        if test -f "($check_disk,$check_part)/proxmox-installed"; then
+            # Read UUID from marker file
+            cat --set=disk_uuid "($check_disk,$check_part)/proxmox-installed"
+            echo "Found marker on ($check_disk,$check_part): $disk_uuid"
+
+            # Compare UUIDs
+            if [ "$disk_uuid" = "$usb_uuid" ]; then
+                set found_system=1
+                set efi_part="$check_part"
+                set disk="$check_disk"
+                echo "UUID MATCH! System installed with this USB."
+                echo "Disk: $disk, Partition: $efi_part"
+            else
+                echo "UUID MISMATCH on ($check_disk,$check_part)"
+                echo "  Expected: $usb_uuid"
+                echo "  Found: $disk_uuid"
+                echo "  (Different USB was used for installation)"
+            fi
         fi
-    fi
-fi
+    done
+done
 
 echo ""
 if [ $found_system -eq 1 ]; then
@@ -854,18 +847,38 @@ if [ $found_system -eq 1 ]; then
     set default=0
 
     menuentry 'Boot Proxmox VE (Already Installed)' {
-        if [ "$disk" = "hd1" ]; then
-            if [ "$efi_part" = "gpt2" ]; then
-                chainloader (hd1,gpt2)/EFI/proxmox/grubx64.efi
-            elif [ "$efi_part" = "gpt1" ]; then
-                chainloader (hd1,gpt1)/EFI/proxmox/grubx64.efi
-            fi
+        # Build boot path dynamically from detected disk and partition
+        echo "Detected installation:"
+        echo "  Disk: $disk"
+        echo "  EFI Partition: $efi_part"
+        echo ""
+
+        # Construct chainloader path
+        set boot_path="($disk,$efi_part)/EFI/proxmox/grubx64.efi"
+        echo "Chainloading from: $boot_path"
+
+        # Verify bootloader exists before attempting chainload
+        if test -f "$boot_path"; then
+            chainloader "$boot_path"
+            boot
         else
-            if [ "$efi_part" = "gpt2" ]; then
-                chainloader (hd0,gpt2)/EFI/proxmox/grubx64.efi
-            elif [ "$efi_part" = "gpt1" ]; then
-                chainloader (hd0,gpt1)/EFI/proxmox/grubx64.efi
-            fi
+            echo "ERROR: Proxmox bootloader not found at: $boot_path"
+            echo ""
+            echo "Attempting alternative locations..."
+
+            # Try alternative paths (in case Proxmox installed differently)
+            for alt_part in gpt1 gpt2 gpt3; do
+                set alt_path="($disk,$alt_part)/EFI/proxmox/grubx64.efi"
+                if test -f "$alt_path"; then
+                    echo "Found at: $alt_path"
+                    chainloader "$alt_path"
+                    boot
+                fi
+            done
+
+            echo "ERROR: Could not find Proxmox bootloader on any partition!"
+            echo "Press any key to return to menu..."
+            read
         fi
     }
 
