@@ -30,6 +30,9 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# Set restrictive umask for temporary files (no access for group/others)
+umask 077
+
 SCRIPT_NAME=$(basename "$0")
 TMPDIR=""
 
@@ -97,6 +100,102 @@ check_requirements() {
     fi
 
     return 0
+}
+
+# --- check available disk space (in KB) ---
+check_disk_space() {
+    local path="$1"
+    local required_mb="$2"
+    local purpose="${3:-operations}"
+
+    if [[ -z "$path" || -z "$required_mb" ]]; then
+        print_error "check_disk_space requires <path> <required_mb>"
+        return 1
+    fi
+
+    # Check if path exists
+    if [[ ! -e "$path" ]]; then
+        print_error "Path does not exist: $path"
+        return 1
+    fi
+
+    # Get available space in KB
+    local avail_kb
+    avail_kb=$(df --output=avail "$path" 2>/dev/null | tail -1)
+
+    # Check if df succeeded and returned valid number
+    if [[ -z "$avail_kb" ]]; then
+        print_error "Cannot determine available space on: $path"
+        return 1
+    fi
+
+    # Validate it's a number and positive
+    if ! [[ "$avail_kb" =~ ^[0-9]+$ ]] || [[ "$avail_kb" -le 0 ]]; then
+        print_error "Invalid disk space value for: $path (got: $avail_kb)"
+        return 1
+    fi
+
+    # Convert to MB
+    local avail_mb=$((avail_kb / 1024))
+    local required_kb=$((required_mb * 1024))
+
+    print_info "Disk space check for $purpose:"
+    print_info "  Location: $path"
+    print_info "  Available: ${avail_mb} MB"
+    print_info "  Required: ${required_mb} MB"
+
+    if [[ $avail_kb -lt $required_kb ]]; then
+        print_error "Insufficient disk space for $purpose"
+        print_error "  Need at least ${required_mb} MB, but only ${avail_mb} MB available"
+        return 1
+    fi
+
+    print_info "  ✓ Sufficient space available"
+    return 0
+}
+
+# --- wait for device to be ready (handles race conditions) ---
+wait_for_device_ready() {
+    local device="$1"
+    local max_retries="${2:-10}"
+    local retry=0
+
+    if [[ -z "$device" || ! -b "$device" ]]; then
+        print_error "wait_for_device_ready: invalid device: $device"
+        return 1
+    fi
+
+    print_info "Waiting for device $device to be ready..."
+
+    # Force kernel to re-read partition table
+    partprobe "$device" 2>/dev/null || true
+    blockdev --rereadpt "$device" 2>/dev/null || true
+
+    # Wait for udev to settle (process device changes)
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm settle --timeout=10 2>/dev/null || true
+    fi
+
+    # Retry loop: wait for partitions to appear
+    while [[ $retry -lt $max_retries ]]; do
+        # Check if device has readable partitions
+        if lsblk -ln -o NAME "$device" 2>/dev/null | tail -n +2 | grep -q .; then
+            if [[ $retry -eq 0 ]]; then
+                print_info "Device ready immediately"
+            else
+                print_info "Device ready after $retry retries"
+            fi
+            sleep 1  # Extra settling time
+            return 0
+        fi
+
+        retry=$((retry + 1))
+        print_info "Waiting for partitions... (attempt $retry/$max_retries)"
+        sleep 1
+    done
+
+    print_warning "Device partitions not detected after $max_retries retries (may be normal for some devices)"
+    return 0  # Don't fail, might be OK
 }
 
 # --- validate that provided device is a whole-disk and not system disk ---
@@ -182,6 +281,53 @@ generate_answer_from_topology() {
         print_error "Failed to generate answer.toml from topology"
         return 6
     fi
+}
+
+# --- validate ISO file (security checks) ---
+# Returns canonical path via stdout, error messages via stderr
+validate_iso_file() {
+    local iso_file="$1"
+
+    if [[ -z "$iso_file" ]]; then
+        print_error "No ISO file provided"
+        return 1
+    fi
+
+    # Resolve to canonical path (prevents path traversal and symlink attacks)
+    local iso_path
+    iso_path=$(readlink -f "$iso_file" 2>/dev/null || echo "")
+    if [[ -z "$iso_path" ]]; then
+        print_error "Cannot resolve path to ISO: $iso_file"
+        return 1
+    fi
+
+    # Check file exists and is a regular file (not device, socket, etc.)
+    if [[ ! -f "$iso_path" ]]; then
+        print_error "ISO file not found or not a regular file: $iso_path"
+        return 1
+    fi
+
+    # Check file is readable
+    if [[ ! -r "$iso_path" ]]; then
+        print_error "ISO file not readable: $iso_path"
+        return 1
+    fi
+
+    # Basic magic number check (ISO9660 signature at offset 0x8001)
+    if command -v file >/dev/null 2>&1; then
+        local file_type
+        file_type=$(file -b "$iso_path" 2>/dev/null || echo "")
+        if [[ ! "$file_type" =~ [Ii][Ss][Oo] ]]; then
+            print_warning "File does not appear to be an ISO image: $file_type"
+            print_warning "Proceeding anyway, but this may fail..."
+        fi
+    fi
+
+    print_info "ISO file validated: $iso_path"
+
+    # Return canonical path to caller (via stdout)
+    printf '%s' "$iso_path"
+    return 0
 }
 
 # --- validate answer file (via official tool) ---
@@ -369,16 +515,28 @@ prepare_iso() {
         return 6
     fi
 
-    # Use /var/tmp instead of /tmp to avoid tmpfs size limits
-    # /var/tmp is usually on disk, not in RAM
-    # If /var/tmp doesn't have enough space, use current directory
-    if [[ -d /var/tmp ]] && [[ $(df --output=avail /var/tmp | tail -1) -gt 2000000 ]]; then
+    # Calculate required space: ISO size * 3 (for extraction + modifications)
+    local iso_size_kb
+    iso_size_kb=$(du -k "$iso_src" | cut -f1)
+    local required_mb=$(( (iso_size_kb * 3) / 1024 ))
+
+    print_info "ISO size: $((iso_size_kb / 1024)) MB"
+    print_info "Required temp space: ~${required_mb} MB (3x ISO size for extraction)"
+
+    # Try /var/tmp first (on disk, not RAM)
+    if [[ -d /var/tmp ]] && check_disk_space /var/tmp "$required_mb" "temporary ISO processing"; then
         TMPDIR=$(mktemp -d /var/tmp/pmxiso.XXXX)
-    else
+        print_info "Using /var/tmp for temporary files"
+    # Fallback to current directory
+    elif check_disk_space . "$required_mb" "temporary ISO processing"; then
         print_warning "/var/tmp has insufficient space, using current directory"
         TMPDIR=$(mktemp -d ./pmxiso.XXXX)
+        print_info "Using current directory for temporary files"
+    else
+        print_error "Insufficient disk space for ISO processing"
+        print_error "Need at least ${required_mb} MB free space"
+        return 13
     fi
-    print_info "Using tempdir $TMPDIR"
 
     # Use INSTALL_UUID from global scope (set by main() before calling prepare_iso)
     local install_uuid="$INSTALL_UUID"
@@ -430,79 +588,9 @@ prepare_iso() {
     return 0
 }
 
-# --- add auto-installer-mode.toml to USB (critical for auto-installer to work) ---
-add_auto_installer_mode() {
-    local usb_device="$1"
-    if [[ -z "$usb_device" || ! -b "$usb_device" ]]; then
-        print_error "add_auto_installer_mode requires valid USB device"
-        return 10
-    fi
-
-    print_info "Adding auto-installer-mode.toml to USB..."
-
-    # Force re-read partition table
-    partprobe "$usb_device" 2>/dev/null || true
-    blockdev --rereadpt "$usb_device" 2>/dev/null || true
-    sleep 1
-
-    local mount_point
-    mount_point=$(mktemp -d -t usbmnt.XXXX)
-    local added=0
-
-    # Find the main ISO partition (usually HFS+ or ISO9660)
-    while IFS= read -r p; do
-        [[ -z "$p" ]] && continue
-        local part="/dev/${p##*/}"
-        [[ ! -b "$part" ]] && continue
-
-        local fstype
-        fstype=$(blkid -s TYPE -o value "$part" 2>/dev/null || echo "")
-
-        # Try to mount HFS+ or iso9660 partitions
-        if [[ "$fstype" == "hfsplus" || "$fstype" == "iso9660" ]]; then
-            if mount -o rw "$part" "$mount_point" 2>/dev/null; then
-                # Check if this is the right partition (has boot/ directory)
-                if [[ -d "$mount_point/boot" ]]; then
-                    print_info "Found ISO root partition: $part"
-
-                    # Check if auto-installer-mode.toml already exists
-                    if [[ -f "$mount_point/auto-installer-mode.toml" ]]; then
-                        print_info "auto-installer-mode.toml already exists"
-                        added=1
-                    else
-                        # Create auto-installer-mode.toml
-                        cat > "$mount_point/auto-installer-mode.toml" << 'EOF'
-mode = "iso"
-EOF
-                        sync
-                        if [[ -f "$mount_point/auto-installer-mode.toml" ]]; then
-                            print_info "Created auto-installer-mode.toml"
-                            added=1
-                        else
-                            print_warning "Failed to create auto-installer-mode.toml (read-only filesystem?)"
-                        fi
-                    fi
-
-                    umount "$mount_point" >/dev/null 2>&1 || true
-                    break
-                else
-                    umount "$mount_point" >/dev/null 2>&1 || true
-                fi
-            fi
-        fi
-    done < <(lsblk -ln -o NAME "$usb_device" | tail -n +2)
-
-    rmdir "$mount_point" >/dev/null 2>&1 || true
-
-    if [[ $added -eq 1 ]]; then
-        print_info "auto-installer-mode.toml is present on USB"
-    else
-        print_warning "Could not add auto-installer-mode.toml (filesystem may be read-only)"
-        print_warning "WORKAROUND: Boot to GRUB, press 'e' on any entry, add 'proxmox-start-auto-installer' to linux line"
-    fi
-
-    return 0
-}
+# NOTE: add_auto_installer_mode() function was removed as dead code
+# proxmox-auto-install-assistant already embeds auto-installer-mode.toml in the ISO
+# After dd, ISO partitions become read-only, so manual addition is not possible anyway
 
 # --- add graphics params for Dell XPS L701X to USB (after write) ---
 add_graphics_params() {
@@ -514,10 +602,8 @@ add_graphics_params() {
 
     print_info "Adding graphics parameters for Dell XPS L701X (external display)..."
 
-    # Force re-read partition table
-    partprobe "$usb_device" 2>/dev/null || true
-    blockdev --rereadpt "$usb_device" 2>/dev/null || true
-    sleep 1
+    # Wait for device to be ready (handles race conditions)
+    wait_for_device_ready "$usb_device"
 
     local mount_point
     mount_point=$(mktemp -d -t usbmnt.XXXX)
@@ -596,10 +682,8 @@ embed_uuid_wrapper() {
         print_info "UUID protection disabled (SKIP_UUID_PROTECTION=1)"
     fi
 
-    # Force re-read partition table
-    partprobe "$usb_device" 2>/dev/null || true
-    blockdev --rereadpt "$usb_device" 2>/dev/null || true
-    sleep 1
+    # Wait for device to be ready (handles race conditions)
+    wait_for_device_ready "$usb_device"
 
     local mount_point
     mount_point=$(mktemp -d -t usbmnt.XXXX)
@@ -802,12 +886,60 @@ else
     set default=0
 
     menuentry 'Install Proxmox VE (AUTO-INSTALL)' {
-        search --no-floppy --fs-uuid --set=root 2025-08-05-10-48-40-00
-        set prefix=($root)/boot/grub
-        echo 'Loading Proxmox kernel with auto-installer...'
-        linux $prefix/../linux26 ro ramdisk_size=16777216 rw splash=silent video=vesafb:ywrap,mtrr vga=791 nomodeset proxmox-start-auto-installer
-        echo 'Loading initrd...'
-        initrd $prefix/../initrd.img
+        # Search for Proxmox ISO partition by trying different methods
+        # Method 1: Search by common Proxmox labels (version-agnostic pattern)
+        set isopart=""
+
+        # Try labels: pve-9, pve-8, pve-10, etc (common pattern)
+        for label in pve-9 pve-8 pve-10 pve-11 pve-7; do
+            search --no-floppy --label --set=isopart "$label"
+            if [ -n "$isopart" ]; then
+                break
+            fi
+        done
+
+        # Method 2: Fallback - search for kernel file directly on known partition locations
+        if [ -z "$isopart" ]; then
+            # Most Proxmox USBs after dd have layout: gpt1=EFI, gpt2/gpt3=ISO data
+            for part in (hd0,gpt3) (hd0,gpt2) (hd0,gpt1); do
+                if [ -f "$part/boot/linux26" ]; then
+                    set isopart="$part"
+                    break
+                fi
+            done
+        fi
+
+        # Method 3: Last resort - try to find by ISO9660 volume ID pattern
+        if [ -z "$isopart" ]; then
+            search --no-floppy --file /boot/linux26 --set=isopart
+        fi
+
+        # Check if we found ISO partition
+        if [ -z "$isopart" ]; then
+            echo "======================================"
+            echo "ERROR: Cannot find Proxmox ISO data!"
+            echo "======================================"
+            echo ""
+            echo "Tried:"
+            echo "  - Searching by volume labels (pve-9, pve-8, etc.)"
+            echo "  - Checking partitions (hd0,gpt1/2/3)"
+            echo "  - Searching for /boot/linux26 file"
+            echo ""
+            echo "Press any key to open manual installer menu..."
+            read
+            configfile /EFI/BOOT/grub-install.cfg
+        else
+            # Found ISO partition - boot with auto-installer
+            set root="$isopart"
+            set prefix=($root)/boot/grub
+            echo "Found Proxmox ISO on: $isopart"
+            echo 'Loading Proxmox kernel with auto-installer...'
+            linux ($root)/boot/linux26 ro ramdisk_size=16777216 rw splash=silent video=vesafb:ywrap,mtrr vga=791 nomodeset proxmox-start-auto-installer
+            echo 'Loading initrd...'
+            initrd ($root)/boot/initrd.img
+            echo 'Booting...'
+            boot
+        fi
     }
 
     menuentry 'Install Proxmox VE (Manual - use if auto fails)' {
@@ -863,9 +995,8 @@ validate_created_usb() {
     local mount_point
     mount_point=$(mktemp -d -t usb-validate.XXXX)
 
-    # Force re-read partition table
-    partprobe "$usb_device" 2>/dev/null || true
-    sleep 1
+    # Wait for device to be ready (handles race conditions)
+    wait_for_device_ready "$usb_device"
 
     # Check 1: Partition table
     print_info "Checking partition table..."
@@ -1006,7 +1137,32 @@ main() {
         return 1
     fi
 
+    # Validate ISO file (security checks) and normalize path
+    local iso_canonical
+    iso_canonical=$(validate_iso_file "$iso_src") || return 15
+    iso_src="$iso_canonical"  # Use canonical path from now on
+
     validate_usb_device "$target_dev" || return 3
+
+    # Check USB device has enough space for ISO
+    if [[ -f "$iso_src" ]]; then
+        local iso_size_mb
+        iso_size_mb=$(du -m "$iso_src" | cut -f1)
+        local usb_size_mb
+        usb_size_mb=$(lsblk -bdn -o SIZE "$target_dev" 2>/dev/null | awk '{print int($1/1024/1024)}')
+
+        if [[ -n "$usb_size_mb" && $usb_size_mb -gt 0 ]]; then
+            print_info "USB device size: ${usb_size_mb} MB"
+            print_info "ISO size: ${iso_size_mb} MB"
+
+            if [[ $usb_size_mb -lt $iso_size_mb ]]; then
+                print_error "USB device is too small for this ISO"
+                print_error "  USB: ${usb_size_mb} MB, ISO: ${iso_size_mb} MB"
+                return 14
+            fi
+            print_info "✓ USB device has sufficient space"
+        fi
+    fi
 
     # Generate answer.toml from topology.yaml if available
     # This will overwrite existing answer.toml with topology data
@@ -1022,9 +1178,9 @@ main() {
         print_info "=========================================="
         print_info ""
         print_info "You can set a custom root password for Proxmox installation."
-        print_info "Current password in answer.toml: proxmox"
+        print_info "Default password from topology.yaml will be used if not changed."
         print_info ""
-        read -p "Do you want to change the password? (y/N): " change_password
+        read -p "Do you want to set a custom password? (y/N): " change_password
 
         if [[ "$change_password" =~ ^[Yy]$ ]]; then
             while true; do
@@ -1047,6 +1203,10 @@ main() {
                 # Update password in answer.toml
                 update_password_in_answer "$answer_toml" "$new_password"
                 ROOT_PASSWORD="$new_password"
+
+                # Clear password from variable (security)
+                unset new_password new_password_confirm
+
                 print_success "Password updated successfully"
                 break
             done
@@ -1116,7 +1276,11 @@ main() {
         return 11
     fi
     sync
-    sleep 1
+
+    # Wait for device to be ready after dd (critical for partition detection)
+    print_info "Synchronizing device changes..."
+    wait_for_device_ready "$target_dev" 15  # Longer timeout after dd
+
     print_info "Successfully wrote $created_iso to $target_dev"
 
     # NOTE: auto-installer-mode.toml is already embedded by proxmox-auto-install-assistant
