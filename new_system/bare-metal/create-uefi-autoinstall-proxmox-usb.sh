@@ -48,7 +48,9 @@ cleanup() {
     # Clean up any leftover temp directories from previous runs
     for pattern in /tmp/pmxiso.* /var/tmp/pmxiso.* ./pmxiso.*; do
         for dir in $pattern; do
-            [[ -d "$dir" ]] && rm -rf "$dir" 2>/dev/null || true
+            if [[ -d "$dir" ]]; then
+                rm -rf "$dir" 2>/dev/null || true
+            fi
         done
     done
 
@@ -57,7 +59,9 @@ cleanup() {
         if [[ -d "$dir" ]] && mountpoint -q "$dir" 2>/dev/null; then
             umount "$dir" 2>/dev/null || true
         fi
-        [[ -d "$dir" ]] && rmdir "$dir" 2>/dev/null || true
+        if [[ -d "$dir" ]]; then
+            rmdir "$dir" 2>/dev/null || true
+        fi
     done
 
     if [[ $rc -ne 0 ]]; then
@@ -245,8 +249,10 @@ validate_usb_device() {
 # --- generate answer.toml from topology.yaml ---
 generate_answer_from_topology() {
     local answer_file="$1"
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local project_root="$(dirname "$script_dir")"
+    local script_dir
+    local project_root
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    project_root="$(dirname "$script_dir")"
     local topology_file="$project_root/topology.yaml"
     local generator_script="$project_root/scripts/generate-proxmox-answer.py"
 
@@ -273,12 +279,39 @@ generate_answer_from_topology() {
     print_info "Found topology.yaml at: $topology_file"
     print_info "Generating answer.toml from topology..."
 
+    # Backup existing answer.toml if it exists
+    if [[ -f "$answer_file" ]]; then
+        cp "$answer_file" "${answer_file}.backup-$(date +%s)" 2>/dev/null || true
+        print_info "Backed up existing answer.toml"
+    fi
+
     # Generate answer.toml
     if python3 "$generator_script" "$topology_file" "$answer_file"; then
         print_success "Generated answer.toml from topology.yaml"
+
+        # Verify generated file is valid
+        if [[ ! -f "$answer_file" ]]; then
+            print_error "Generator succeeded but answer.toml not created"
+            return 6
+        fi
+
+        if [[ ! -s "$answer_file" ]]; then
+            print_error "Generated answer.toml is empty"
+            return 6
+        fi
+
         return 0
     else
         print_error "Failed to generate answer.toml from topology"
+
+        # Try to restore backup if generation failed
+        local backup_file
+        backup_file=$(find "$(dirname "$answer_file")" -maxdepth 1 -name "$(basename "$answer_file").backup-*" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
+        if [[ -n "$backup_file" && -f "$backup_file" ]]; then
+            print_warning "Attempting to restore backup: $backup_file"
+            cp "$backup_file" "$answer_file" || true
+        fi
+
         return 6
     fi
 }
@@ -555,7 +588,8 @@ prepare_iso() {
     create_first_boot_script "$install_uuid" "$first_boot_script"
 
     # Generate output ISO filename
-    local output_iso="$TMPDIR/$(basename "${iso_src%.iso}")-auto-from-iso.iso"
+    local output_iso
+    output_iso="$TMPDIR/$(basename "${iso_src%.iso}")-auto-from-iso.iso"
 
     print_info "Embedding answer.toml and first-boot script using proxmox-auto-install-assistant..."
 
@@ -631,7 +665,7 @@ add_graphics_params() {
                 grub_cfg=$(find "$mount_point" -type f -name "grub.cfg" 2>/dev/null | head -1 || true)
 
                 if [[ -n "$grub_cfg" && -f "$grub_cfg" ]]; then
-                    print_info "Found GRUB config: ${grub_cfg#$mount_point/}"
+                    print_info "Found GRUB config: ${grub_cfg#"$mount_point"/}"
                     cp -a "$grub_cfg" "${grub_cfg}.backup-$(date +%s)" || true
 
                     if grep -q "video=vesafb" "$grub_cfg" 2>/dev/null; then
@@ -1179,7 +1213,16 @@ main() {
 
     # Generate answer.toml from topology.yaml if available
     # This will overwrite existing answer.toml with topology data
-    generate_answer_from_topology "$answer_toml" || true
+    if ! generate_answer_from_topology "$answer_toml"; then
+        # Generation failed - check if answer.toml exists and is valid
+        if [[ ! -f "$answer_toml" ]]; then
+            print_error "No answer.toml found and topology generation failed"
+            print_error "Please provide a valid answer.toml file"
+            return 6
+        fi
+        print_warning "Topology generation failed, using existing answer.toml"
+        print_warning "This may contain outdated configuration"
+    fi
 
     validate_answer_file "$answer_toml" || return 6
 
@@ -1193,11 +1236,11 @@ main() {
         print_info "You can set a custom root password for Proxmox installation."
         print_info "Default password from topology.yaml will be used if not changed."
         print_info ""
-        read -p "Do you want to set a custom password? (y/N): " change_password
+        read -r -p "Do you want to set a custom password? (y/N): " change_password
 
         if [[ "$change_password" =~ ^[Yy]$ ]]; then
             while true; do
-                read -sp "Enter new root password: " new_password
+                read -r -s -p "Enter new root password: " new_password
                 echo ""
 
                 if [[ ${#new_password} -lt 5 ]]; then
@@ -1205,7 +1248,7 @@ main() {
                     continue
                 fi
 
-                read -sp "Confirm password: " new_password_confirm
+                read -r -s -p "Confirm password: " new_password_confirm
                 echo ""
 
                 if [[ "$new_password" != "$new_password_confirm" ]]; then
