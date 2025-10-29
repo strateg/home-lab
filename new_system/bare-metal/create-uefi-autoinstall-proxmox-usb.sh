@@ -840,9 +840,6 @@ for check_disk in hd0 hd1 hd2 hd3; do
             break
         fi
 
-        # Construct partition path
-        set check_path="($check_disk,$check_part)/proxmox-installed"
-
         # Check if marker file exists
         if test -f "($check_disk,$check_part)/proxmox-installed"; then
             # Read UUID from marker file
@@ -886,26 +883,23 @@ if [ $found_system -eq 1 ]; then
         echo "  Disk: $disk"
         echo "  EFI Partition: $efi_part"
         echo ""
-
-        # Construct chainloader path
-        set boot_path="($disk,$efi_part)/EFI/proxmox/grubx64.efi"
-        echo "Chainloading from: $boot_path"
+        echo "Chainloading from: ($disk,$efi_part)/EFI/proxmox/grubx64.efi"
 
         # Verify bootloader exists before attempting chainload
-        if test -f "$boot_path"; then
-            chainloader "$boot_path"
+        # Note: test -f in GRUB requires direct path substitution, not string variables
+        if test -f "($disk,$efi_part)/EFI/proxmox/grubx64.efi"; then
+            chainloader "($disk,$efi_part)/EFI/proxmox/grubx64.efi"
             boot
         else
-            echo "ERROR: Proxmox bootloader not found at: $boot_path"
+            echo "ERROR: Proxmox bootloader not found at: ($disk,$efi_part)/EFI/proxmox/grubx64.efi"
             echo ""
             echo "Attempting alternative locations..."
 
             # Try alternative paths (in case Proxmox installed differently)
             for alt_part in gpt1 gpt2 gpt3; do
-                set alt_path="($disk,$alt_part)/EFI/proxmox/grubx64.efi"
-                if test -f "$alt_path"; then
-                    echo "Found at: $alt_path"
-                    chainloader "$alt_path"
+                if test -f "($disk,$alt_part)/EFI/proxmox/grubx64.efi"; then
+                    echo "Found at: ($disk,$alt_part)/EFI/proxmox/grubx64.efi"
+                    chainloader "($disk,$alt_part)/EFI/proxmox/grubx64.efi"
                     boot
                 fi
             done
@@ -1344,17 +1338,29 @@ main() {
     print_info "auto-installer-mode.toml and answer.toml embedded in ISO by proxmox-auto-install-assistant"
 
     # Embed UUID wrapper in GRUB (PREVENTS REINSTALLATION LOOP)
-    embed_uuid_wrapper "$target_dev" || print_warning "embed_uuid_wrapper encountered an issue"
+    # Note: This is best-effort. USB will work without UUID protection, just won't prevent reinstall loops
+    embed_uuid_wrapper "$target_dev" || print_warning "UUID wrapper embedding failed - reinstall protection disabled"
 
-    # Add graphics parameters (best-effort)
-    add_graphics_params "$target_dev" || print_warning "add_graphics_params encountered an issue"
+    # Add graphics parameters (best-effort for external display)
+    add_graphics_params "$target_dev" || print_warning "Graphics parameters not added - external display may not work"
 
-    # Validate created USB (comprehensive check)
-    validate_created_usb "$target_dev" || print_warning "Validation encountered issues (see above)"
+    # Validate created USB (CRITICAL: if this fails, USB may not boot)
+    if ! validate_created_usb "$target_dev"; then
+        print_error ""
+        print_error "========================================="
+        print_error "USB VALIDATION FAILED"
+        print_error "========================================="
+        print_error "USB may not be bootable. Check errors above."
+        print_error "Consider recreating the USB or checking:"
+        print_error "  - USB device health"
+        print_error "  - Filesystem support (vfat, hfsplus)"
+        print_error "  - USB write permissions"
+        return 16
+    fi
 
     print_info ""
     print_info "========================================="
-    print_info "USB READY FOR AUTOMATED INSTALLATION"
+    print_info "✓ USB READY FOR AUTOMATED INSTALLATION"
     print_info "========================================="
     print_info ""
 
