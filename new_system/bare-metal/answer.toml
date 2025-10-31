@@ -7,7 +7,7 @@
 keyboard = "en-us"
 country = "us"
 timezone = "UTC"
-root_password = "$6$c9bAqQzrLw2iQRC4$dEOmTMWdoZ20ar/IE2TQjkv3olE4jw6plQvfIFvLUcI4r.VF3R.iNuCYVvPNnoz0yQFIYxxEW8wYo4gMsjt1H1"
+root_password = "$6$g14OyOClJFo4JRy4$UTb2XgzhQDzgjeQOlstNPD7ykYYPeVNXdfQOhTzu4Obz6xh0EPsEx6SLz3h/TD4Nle.FFtP/7p8OBZJawMqgM0"
 mailto = "admin@home.local"
 fqdn = "gamayun.home.local"
 reboot_mode = "power-off"
