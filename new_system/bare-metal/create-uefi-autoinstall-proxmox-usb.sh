@@ -767,22 +767,30 @@ add_graphics_params() {
         # Check both vfat and hfsplus (Proxmox ISO hybrid)
         if [[ "$fstype" == "vfat" || "$fstype" == "hfsplus" ]]; then
             if mount -o rw "$part" "$mount_point" 2>/dev/null; then
-                local grub_cfg
-                grub_cfg=$(find "$mount_point" -type f -name "grub.cfg" 2>/dev/null | head -1 || true)
+                # Modify BOTH grub.cfg (UUID wrapper) AND grub-install.cfg (original installer menu)
+                # This ensures video params work regardless of which path is taken
+                local grub_files=()
+                while IFS= read -r grub_file; do
+                    grub_files+=("$grub_file")
+                done < <(find "$mount_point" -type f \( -name "grub.cfg" -o -name "grub-install.cfg" \) 2>/dev/null)
 
-                if [[ -n "$grub_cfg" && -f "$grub_cfg" ]]; then
-                    print_info "Found GRUB config: ${grub_cfg#$mount_point/}"
-                    cp -a "$grub_cfg" "${grub_cfg}.backup-$(date +%s)" || true
+                if [[ ${#grub_files[@]} -gt 0 ]]; then
+                    for grub_cfg in "${grub_files[@]}"; do
+                        print_info "Found GRUB config: ${grub_cfg#"$mount_point"/}"
 
-                    if grep -q "video=vesafb" "$grub_cfg" 2>/dev/null; then
-                        print_info "Graphics parameters already present"
-                    else
-                        print_info "Adding graphics parameters to kernel boot lines..."
-                        # Proxmox uses /boot/linux26 path for kernel
-                        sed -i '/linux.*\/boot\/linux26/ s|$| video=vesafb:ywrap,mtrr vga=791 nomodeset|' "$grub_cfg" || true
-                        print_info "Graphics parameters added"
-                        modified=1
-                    fi
+                        # Backup before modification
+                        cp -a "$grub_cfg" "${grub_cfg}.backup-$(date +%s)" || true
+
+                        if grep -q "video=vesafb" "$grub_cfg" 2>/dev/null; then
+                            print_info "  Graphics parameters already present in ${grub_cfg##*/}"
+                        else
+                            print_info "  Adding graphics parameters to ${grub_cfg##*/}..."
+                            # Proxmox uses /boot/linux26 path for kernel
+                            sed -i '/linux.*\/boot\/linux26/ s|$| video=vesafb:ywrap,mtrr vga=791 nomodeset|' "$grub_cfg" || true
+                            print_info "  ✓ Graphics parameters added to ${grub_cfg##*/}"
+                            modified=1
+                        fi
+                    done
 
                     sync
                 fi
@@ -1050,11 +1058,42 @@ else
     set default=0
 
     menuentry 'Install Proxmox VE (AUTO-INSTALL)' {
-        search --no-floppy --fs-uuid --set=root 2025-08-05-10-48-40-00
-        echo 'Loading Proxmox kernel with auto-installer...'
-        linux ($root)/boot/linux26 ro ramdisk_size=16777216 rw splash=silent video=vesafb:ywrap,mtrr vga=791 nomodeset proxmox-start-auto-installer
-        echo 'Loading initrd...'
-        initrd ($root)/boot/initrd.img
+        # Dynamic ISO partition search (replaces hardcoded UUID)
+        # This makes USB work with any Proxmox ISO version
+        set isopart=""
+
+        # Method 1: Search by common Proxmox ISO labels (version-agnostic)
+        for label in pve-9 pve-8 pve-10 pve-11 pve-7 pve-12; do
+            search --no-floppy --label --set=isopart "$label"
+            if [ -n "$isopart" ]; then
+                echo "Found ISO by label: $label"
+                break
+            fi
+        done
+
+        # Method 2: Search by filesystem UUID (try known Proxmox patterns)
+        if [ -z "$isopart" ]; then
+            search --no-floppy --fs-uuid --set=isopart 2025-08-05-10-48-40-00 2>/dev/null || true
+        fi
+
+        # Method 3: Search for kernel file directly
+        if [ -z "$isopart" ]; then
+            search --no-floppy --file /boot/linux26 --set=isopart
+        fi
+
+        # Boot with found partition
+        if [ -n "$isopart" ]; then
+            set root=$isopart
+            echo "Loading Proxmox kernel with auto-installer..."
+            echo "ISO partition: $isopart"
+            linux ($root)/boot/linux26 ro ramdisk_size=16777216 rw splash=silent video=vesafb:ywrap,mtrr vga=791 nomodeset proxmox-start-auto-installer
+            echo "Loading initrd..."
+            initrd ($root)/boot/initrd.img
+        else
+            echo "ERROR: Cannot find Proxmox ISO partition!"
+            echo "Falling back to manual installer menu..."
+            configfile /EFI/BOOT/grub-install.cfg
+        fi
     }
 
     menuentry 'Install Proxmox VE (Manual - use if auto fails)' {
@@ -1216,6 +1255,53 @@ validate_created_usb() {
                 print_info "  ✓ Installer GRUB menu: boot/grub/grub.cfg"
             else
                 print_warning "  ⚠ boot/grub/grub.cfg NOT FOUND"
+            fi
+
+            # Check for answer.toml (CRITICAL for auto-installation)
+            print_info "  Checking for answer.toml (auto-installer configuration)..."
+            local answer_found=0
+
+            # Try common locations where proxmox-auto-install-assistant embeds answer.toml
+            for location in "answer.toml" "proxmox/answer.toml" ".proxmox-auto-installer/answer.toml"; do
+                if [[ -f "$mount_point/$location" ]]; then
+                    print_info "    ✓ answer.toml found at: $location"
+
+                    # Verify it's not empty
+                    if [[ -s "$mount_point/$location" ]]; then
+                        local file_size
+                        file_size=$(stat -c%s "$mount_point/$location" 2>/dev/null || echo "0")
+                        print_info "    ✓ File size: $file_size bytes"
+
+                        # Check for key configuration items
+                        if grep -q "root_password" "$mount_point/$location" 2>/dev/null; then
+                            print_info "    ✓ Contains root_password configuration"
+                        else
+                            print_warning "    ⚠ root_password NOT FOUND in answer.toml"
+                        fi
+
+                        if grep -q "\\[disk-setup\\]" "$mount_point/$location" 2>/dev/null; then
+                            print_info "    ✓ Contains disk-setup configuration"
+                        else
+                            print_warning "    ⚠ disk-setup section NOT FOUND in answer.toml"
+                        fi
+
+                        answer_found=1
+                    else
+                        print_error "    ✗ answer.toml is EMPTY at $location!"
+                        validation_failed=1
+                    fi
+                    break
+                fi
+            done
+
+            if [[ $answer_found -eq 0 ]]; then
+                print_error "  ✗ answer.toml NOT FOUND in ISO!"
+                print_error "    Auto-installation will fail - system will use defaults"
+                print_error "    Locations checked:"
+                print_error "      - answer.toml"
+                print_error "      - proxmox/answer.toml"
+                print_error "      - .proxmox-auto-installer/answer.toml"
+                validation_failed=1
             fi
 
             umount "$mount_point" 2>/dev/null || true
