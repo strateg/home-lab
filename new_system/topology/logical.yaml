@@ -175,14 +175,14 @@
       isolated: true
       trust_zone_ref: guest
       bridge_ref: null
-      vlan: 30
+      vlan: 50  # Fixed: was 30, conflicted with net-servers
       description: "Isolated guest WiFi network"
       managed_by_ref: mikrotik-chateau
       firewall_policy: "internet-only"
       ip_allocations:
         - ip: "192.168.30.1"
           device_ref: mikrotik-chateau
-          interface: "vlan30-guest"
+          interface: "vlan50-guest"
           description: "MikroTik guest gateway"
 
     # IoT Network (Isolated)
@@ -684,6 +684,169 @@
       action: "accept"
       chain: "forward"
       description: "Tailscale mesh clients can access LAN and servers"
+
+  # ------------------------------------------------------------
+  # QoS Configuration (MikroTik Queue Trees)
+  # ------------------------------------------------------------
+
+  qos:
+    enabled: true
+    device_ref: mikrotik-chateau
+    interface: "ether1"  # WAN interface
+    total_bandwidth:
+      download_mbps: 100  # Adjust to your ISP speed
+      upload_mbps: 20     # Adjust to your ISP speed
+
+    # Traffic classes with priorities (1 = highest)
+    queues:
+      - id: qos-voip
+        name: "VoIP & Video Calls"
+        priority: 1
+        guarantee_percent: 10
+        max_limit_percent: 30
+        burst_limit_percent: 50
+        burst_time: "2s"
+        protocols: ["sip", "rtp", "rtcp"]
+        ports: [5060, 5061, 10000-20000]
+        dscp_mark: "ef"  # Expedited Forwarding
+        description: "Real-time voice and video"
+
+      - id: qos-gaming
+        name: "Gaming"
+        priority: 2
+        guarantee_percent: 15
+        max_limit_percent: 40
+        burst_limit_percent: 60
+        burst_time: "1s"
+        ports: [3074, 3478-3480, 27015-27030]  # Xbox, PlayStation, Steam
+        dscp_mark: "af41"
+        description: "Low-latency gaming traffic"
+
+      - id: qos-interactive
+        name: "Interactive"
+        priority: 3
+        guarantee_percent: 20
+        max_limit_percent: 60
+        protocols: ["ssh", "rdp", "vnc"]
+        ports: [22, 3389, 5900]
+        dscp_mark: "af31"
+        description: "SSH, RDP, remote access"
+
+      - id: qos-streaming
+        name: "Streaming"
+        priority: 4
+        guarantee_percent: 20
+        max_limit_percent: 80
+        protocols: ["https"]
+        layer7:
+          - "netflix"
+          - "youtube"
+          - "twitch"
+        dscp_mark: "af21"
+        description: "Video streaming services"
+
+      - id: qos-web
+        name: "Web Browsing"
+        priority: 5
+        guarantee_percent: 15
+        max_limit_percent: 70
+        protocols: ["http", "https"]
+        ports: [80, 443]
+        dscp_mark: "af11"
+        description: "General web traffic"
+
+      - id: qos-bulk
+        name: "Bulk Transfer"
+        priority: 6
+        guarantee_percent: 10
+        max_limit_percent: 90
+        protocols: ["ftp", "sftp", "rsync"]
+        ports: [21, 22, 873]
+        dscp_mark: "be"  # Best Effort
+        description: "File transfers, backups"
+
+      - id: qos-downloads
+        name: "Downloads & P2P"
+        priority: 8
+        guarantee_percent: 5
+        max_limit_percent: 95
+        protocols: ["bittorrent"]
+        layer7:
+          - "torrent"
+        dscp_mark: "cs1"  # Scavenger
+        description: "Low priority bulk downloads"
+
+    # Per-device bandwidth limits
+    device_limits:
+      - network_ref: net-iot
+        download_limit_mbps: 10
+        upload_limit_mbps: 5
+        description: "IoT devices limited bandwidth"
+
+      - network_ref: net-guest
+        download_limit_mbps: 20
+        upload_limit_mbps: 10
+        per_host_limit: true
+        description: "Guest network per-device limit"
+
+  # ------------------------------------------------------------
+  # IPv6 Configuration
+  # ------------------------------------------------------------
+
+  ipv6:
+    enabled: false  # Enable when ISP provides IPv6
+    mode: "dual-stack"
+
+    wan:
+      method: "dhcpv6-pd"  # Prefix Delegation from ISP
+      prefix_hint: "/56"   # Request /56 prefix
+      interface_ref: if-mikrotik-wan
+
+    prefix_delegation:
+      enabled: true
+      pool_name: "ipv6-pool"
+      prefix_length: 64
+
+    networks:
+      - id: net-lan-v6
+        network_ref: net-lan
+        prefix: "auto"  # From PD pool
+        slaac: true
+        ra_interval: "200-600"
+        dns: ["2606:4700:4700::1111", "2001:4860:4860::8888"]
+
+      - id: net-servers-v6
+        network_ref: net-servers
+        prefix: "auto"
+        slaac: false  # Static IPs for servers
+        dhcpv6: true
+
+      - id: net-guest-v6
+        network_ref: net-guest
+        prefix: "auto"
+        slaac: true
+        isolated: true
+
+      - id: net-iot-v6
+        network_ref: net-iot
+        prefix: "auto"
+        slaac: true
+        isolated: true
+
+    firewall:
+      default_policy: "drop"
+      allow_icmpv6: true
+      icmpv6_types:
+        - "echo-request"
+        - "echo-reply"
+        - "router-solicitation"
+        - "router-advertisement"
+        - "neighbor-solicitation"
+        - "neighbor-advertisement"
+
+    privacy_extensions:
+      enabled: true
+      prefer_public: false
 
 # ============================================================
 # Compute (VMs and LXC Containers)

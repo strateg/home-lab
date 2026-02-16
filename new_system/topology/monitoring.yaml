@@ -1,10 +1,115 @@
 # Monitoring Configuration
-# Part of Home Lab Topology v2.1.0
+# Part of Home Lab Topology v3.0.0
 # This file is part of the modular topology structure
-# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+#
+# Monitoring Stack:
+# - Prometheus (Orange Pi 5) - metrics collection
+# - Grafana (Orange Pi 5) - visualization
+# - Alertmanager (Orange Pi 5) - alerting
+# - Loki (Orange Pi 5) - log aggregation
+# - Node Exporter - system metrics
+# - SNMP - MikroTik metrics
 
-  # Health checks for infrastructure components
+  # ============================================================
+  # Health Checks
+  # ============================================================
+
   healthchecks:
+    # MikroTik Router Health
+    - id: health-mikrotik
+      name: "MikroTik Router Health"
+      description: "Monitor MikroTik central router"
+      device_ref: mikrotik-chateau
+      enabled: true
+      critical: true
+      checks:
+        - type: "ping"
+          target: "192.168.88.1"
+          timeout_ms: 1000
+          packet_loss_threshold: 5
+
+        - type: "port"
+          ports: [80, 443, 8291]  # WebFig, HTTPS, Winbox
+          protocol: "tcp"
+
+        - type: "snmp"
+          community: "public"
+          oids:
+            - name: "cpu_load"
+              oid: "1.3.6.1.2.1.25.3.3.1.2"
+              warning_threshold: 70
+              critical_threshold: 90
+            - name: "memory_usage"
+              oid: "1.3.6.1.2.1.25.2.3.1.6"
+              warning_threshold: 80
+              critical_threshold: 95
+            - name: "temperature"
+              oid: "1.3.6.1.4.1.14988.1.1.3.10"
+              warning_threshold: 60
+              critical_threshold: 75
+
+        - type: "api"
+          endpoint: "/rest/system/resource"
+          auth: true
+          expected_status: 200
+
+      interval: "30s"
+      timeout: "10s"
+      notification:
+        on_warning: true
+        on_critical: true
+        channels: ["email", "telegram"]
+
+    # LTE Failover Health
+    - id: health-lte-failover
+      name: "LTE Failover Status"
+      description: "Monitor LTE modem and failover status"
+      device_ref: mikrotik-chateau
+      enabled: true
+      critical: true
+      checks:
+        - type: "interface_status"
+          interface: "lte1"
+          expected: "running"
+          alert_on_down: false  # LTE may be standby
+
+        - type: "lte_signal"
+          interface: "lte1"
+          metrics:
+            rssi:
+              warning_threshold: -85
+              critical_threshold: -100
+              unit: "dBm"
+            rsrp:
+              warning_threshold: -100
+              critical_threshold: -120
+              unit: "dBm"
+            rsrq:
+              warning_threshold: -12
+              critical_threshold: -15
+              unit: "dB"
+            sinr:
+              warning_threshold: 5
+              critical_threshold: 0
+              unit: "dB"
+
+        - type: "failover_status"
+          primary_interface: "ether1"
+          backup_interface: "lte1"
+          alert_on_failover: true
+          alert_on_failback: true
+
+        - type: "sim_status"
+          expected: "ready"
+
+      interval: "60s"
+      timeout: "15s"
+      notification:
+        on_warning: true
+        on_critical: true
+        on_failover: true
+        channels: ["email", "telegram"]
+
     # Proxmox Host Health
     - id: health-proxmox-host
       name: "Proxmox Host Health"
@@ -12,6 +117,10 @@
       device_ref: gamayun
       enabled: true
       checks:
+        - type: "ping"
+          target: "192.168.88.2"
+          packet_loss_threshold: 10
+
         - type: "cpu_usage"
           warning_threshold: 80
           critical_threshold: 95
@@ -29,7 +138,7 @@
           paths: ["/", "/mnt/hdd"]
 
         - type: "load_average"
-          warning_threshold: 2.0
+          warning_threshold: 3.0
           critical_threshold: 4.0
           period: "15min"
 
@@ -42,6 +151,10 @@
           critical_threshold: 85
           unit: "celsius"
 
+        - type: "port"
+          ports: [8006, 22]
+          protocol: "tcp"
+
       interval: "60s"
       timeout: "10s"
       notification:
@@ -49,31 +162,54 @@
         on_critical: true
         channels: ["email"]
 
-    # OPNsense Firewall Health
-    - id: health-opnsense-fw
-      name: "OPNsense Firewall Health"
-      description: "Monitor OPNsense VM and firewall services"
-      vm_ref: vm-opnsense-fw
+    # Orange Pi 5 Health
+    - id: health-orangepi5
+      name: "Orange Pi 5 Health"
+      description: "Monitor Orange Pi 5 application server"
+      device_ref: orangepi5
       enabled: true
       checks:
-        - type: "vm_status"
-          expected_state: "running"
-
-        - type: "port"
-          ports: [443]  # Web UI
-          protocol: "tcp"
-
         - type: "ping"
-          ip_ref: "10.0.99.10"
+          target: "192.168.88.3"
           packet_loss_threshold: 10
-          unit: "percent"
+
+        - type: "cpu_usage"
+          warning_threshold: 75
+          critical_threshold: 90
 
         - type: "memory_usage"
           warning_threshold: 80
-          critical_threshold: 90
+          critical_threshold: 95
 
-      interval: "30s"
-      timeout: "5s"
+        - type: "disk_usage"
+          warning_threshold: 75
+          critical_threshold: 85
+          paths: ["/", "/mnt/nvme"]
+
+        - type: "temperature"
+          warning_threshold: 70
+          critical_threshold: 80
+          sensor: "cpu-thermal"
+
+        - type: "docker"
+          check_daemon: true
+          containers:
+            - name: "nextcloud"
+              expected_state: "running"
+            - name: "jellyfin"
+              expected_state: "running"
+            - name: "prometheus"
+              expected_state: "running"
+            - name: "grafana"
+              expected_state: "running"
+
+        - type: "port"
+          ports: [80, 443, 8096, 9090, 3000]
+          protocol: "tcp"
+          ip: "10.0.30.50"
+
+      interval: "60s"
+      timeout: "10s"
       notification:
         on_warning: true
         on_critical: true
@@ -93,7 +229,7 @@
         - type: "port"
           port: 5432
           protocol: "tcp"
-          ip_ref: "10.0.30.10"
+          ip: "10.0.30.10"
 
         - type: "process"
           process: "postgres"
@@ -108,6 +244,11 @@
           warning_threshold: 80
           critical_threshold: 95
           max_connections: 100
+
+        - type: "replication_lag"
+          enabled: false  # Enable if replication is set up
+          warning_threshold_seconds: 60
+          critical_threshold_seconds: 300
 
         - type: "disk_usage"
           warning_threshold: 75
@@ -138,7 +279,7 @@
         - type: "port"
           port: 6379
           protocol: "tcp"
-          ip_ref: "10.0.30.20"
+          ip: "10.0.30.20"
 
         - type: "process"
           process: "redis-server"
@@ -148,14 +289,18 @@
           command: "PING"
           expected_result: "PONG"
 
+        - type: "redis_memory"
+          warning_threshold: 200
+          critical_threshold: 250
+          unit: "MB"
+
+        - type: "redis_keys"
+          warning_threshold: 100000
+          critical_threshold: 500000
+
         - type: "memory_usage"
           warning_threshold: 80
           critical_threshold: 90
-
-        - type: "redis_memory"
-          warning_threshold: 900
-          critical_threshold: 1000
-          unit: "MB"
 
       interval: "60s"
       timeout: "5s"
@@ -167,65 +312,102 @@
     # Nextcloud Application Health
     - id: health-nextcloud
       name: "Nextcloud Application Health"
-      description: "Monitor Nextcloud LXC and application"
-      lxc_ref: lxc-nextcloud
+      description: "Monitor Nextcloud on Orange Pi 5"
+      device_ref: orangepi5
       service_ref: svc-nextcloud
       enabled: true
       checks:
-        - type: "lxc_status"
-          expected_state: "running"
-
-        - type: "port"
-          port: 443
-          protocol: "tcp"
-          ip_ref: "10.0.30.30"
+        - type: "http"
+          url: "https://10.0.30.50/status.php"
+          expected_status: 200
+          expected_content: "installed.*true"
+          ssl_verify: false
+          timeout: "10s"
 
         - type: "http"
-          url: "https://10.0.30.30/status.php"
+          url: "https://10.0.30.50/ocs/v2.php/apps/serverinfo/api/v1/info"
           expected_status: 200
-          expected_content: "installed"
+          auth: true
           ssl_verify: false
 
-        - type: "process"
-          process: "nginx"
-          min_instances: 1
+        - type: "docker_container"
+          name: "nextcloud"
+          expected_state: "running"
+          health_check: true
 
-        - type: "process"
-          process: "php-fpm"
-          min_instances: 1
-
-        - type: "disk_usage"
-          warning_threshold: 75
-          critical_threshold: 85
-
-        - type: "memory_usage"
-          warning_threshold: 85
-          critical_threshold: 95
-
-      interval: "60s"
-      timeout: "10s"
+      interval: "120s"
+      timeout: "15s"
       notification:
         on_warning: true
         on_critical: true
         channels: ["email"]
 
-  # Network monitoring
+    # UPS Health
+    - id: health-ups
+      name: "UPS Health"
+      description: "Monitor UPS status via NUT"
+      ups_ref: ups-main
+      enabled: true
+      checks:
+        - type: "ups_status"
+          expected: ["OL", "OB"]  # Online or On Battery
+          critical_states: ["LB", "RB", "FSD"]  # Low Battery, Replace Battery, Forced Shutdown
+
+        - type: "battery_charge"
+          warning_threshold: 50
+          critical_threshold: 30
+          unit: "percent"
+
+        - type: "battery_runtime"
+          warning_threshold: 600   # 10 minutes
+          critical_threshold: 300  # 5 minutes
+          unit: "seconds"
+
+        - type: "load"
+          warning_threshold: 80
+          critical_threshold: 90
+          unit: "percent"
+
+        - type: "input_voltage"
+          warning_low: 200
+          warning_high: 250
+          critical_low: 180
+          critical_high: 260
+          unit: "volts"
+
+      interval: "30s"
+      timeout: "5s"
+      notification:
+        on_warning: true
+        on_critical: true
+        on_battery: true
+        channels: ["email", "telegram"]
+
+  # ============================================================
+  # Network Monitoring
+  # ============================================================
+
   network_monitoring:
     - id: net-mon-internet
       name: "Internet Connectivity"
-      description: "Monitor internet connectivity"
+      description: "Monitor primary and failover internet"
+      enabled: true
       checks:
         - type: "ping"
-          targets: ["8.8.8.8", "1.1.1.1"]
+          targets: ["8.8.8.8", "1.1.1.1", "208.67.222.222"]
           packet_loss_threshold: 20
-          latency_warning: 100
-          latency_critical: 500
-          unit_latency: "ms"
+          latency_warning_ms: 50
+          latency_critical_ms: 200
 
         - type: "dns"
-          nameserver: "8.8.8.8"
+          nameservers: ["8.8.8.8", "1.1.1.1"]
           query: "google.com"
-          expected_result: "success"
+          timeout_ms: 2000
+
+        - type: "http"
+          urls: ["https://www.google.com", "https://www.cloudflare.com"]
+          expected_status: [200, 301, 302]
+          timeout_ms: 5000
 
       interval: "60s"
       notification:
@@ -235,13 +417,23 @@
 
     - id: net-mon-internal
       name: "Internal Network Connectivity"
-      description: "Monitor connectivity between trust zones"
+      description: "Monitor inter-VLAN connectivity"
+      enabled: true
       checks:
         - type: "ping"
-          source_zone_ref: user
-          target_zone_ref: internal
-          targets: ["10.0.30.10", "10.0.30.20"]
-          expected: "reachable"
+          from: "192.168.88.1"
+          targets:
+            - "192.168.88.2"   # Proxmox
+            - "192.168.88.3"   # Orange Pi 5
+            - "10.0.30.10"     # PostgreSQL
+            - "10.0.30.20"     # Redis
+            - "10.0.30.50"     # OPi5 servers
+          packet_loss_threshold: 5
+
+        - type: "traceroute"
+          targets:
+            - "10.0.30.10"
+          expected_hops: 2
 
       interval: "120s"
       notification:
@@ -249,12 +441,65 @@
         on_critical: true
         channels: ["email"]
 
-  # Alerting configuration
+    - id: net-mon-bandwidth
+      name: "Bandwidth Monitoring"
+      description: "Monitor network throughput"
+      enabled: true
+      device_ref: mikrotik-chateau
+      interfaces:
+        - name: "ether1"
+          type: "wan"
+          expected_speed_mbps: 100
+        - name: "lte1"
+          type: "wan-backup"
+          expected_speed_mbps: 50
+        - name: "ether2"
+          type: "lan"
+          expected_speed_mbps: 1000
+      interval: "60s"
+
+  # ============================================================
+  # Alerts
+  # ============================================================
+
   alerts:
     # Critical alerts
+    - id: alert-router-down
+      name: "Router Down"
+      description: "MikroTik router is unreachable"
+      trigger:
+        condition: "ping_failed"
+        target: "192.168.88.1"
+        duration: "1m"
+      severity: "critical"
+      channels: ["email", "telegram"]
+      escalation:
+        enabled: true
+        delay: "5m"
+
+    - id: alert-internet-down
+      name: "Internet Down"
+      description: "No internet connectivity"
+      trigger:
+        condition: "all_checks_failed"
+        healthcheck_ref: net-mon-internet
+        duration: "2m"
+      severity: "critical"
+      channels: ["email", "telegram"]
+
+    - id: alert-lte-failover-active
+      name: "LTE Failover Active"
+      description: "Primary WAN failed, using LTE backup"
+      trigger:
+        condition: "failover_active"
+        primary: "ether1"
+        backup: "lte1"
+      severity: "warning"
+      channels: ["email", "telegram"]
+
     - id: alert-disk-full
       name: "Disk Space Critical"
-      description: "Alert when disk usage exceeds 90%"
+      description: "Disk usage exceeds 90%"
       trigger:
         condition: "disk_usage > 90%"
         duration: "5m"
@@ -266,54 +511,71 @@
 
     - id: alert-service-down
       name: "Critical Service Down"
-      description: "Alert when a critical service is not running"
+      description: "A critical service is not running"
       trigger:
         condition: "service_status != 'running'"
-        services: ["postgresql", "redis", "opnsense"]
+        services: ["postgresql", "redis", "nextcloud", "adguard"]
         duration: "2m"
       severity: "critical"
-      channels: ["email"]
+      channels: ["email", "telegram"]
       escalation:
         enabled: true
         delay: "5m"
 
     - id: alert-memory-critical
       name: "Memory Usage Critical"
-      description: "Alert when memory usage exceeds 95%"
+      description: "Memory usage exceeds 95%"
       trigger:
         condition: "memory_usage > 95%"
         duration: "5m"
       severity: "critical"
       channels: ["email"]
 
-    # Warning alerts
-    - id: alert-cpu-high
-      name: "High CPU Usage"
-      description: "Alert when CPU usage is high"
+    - id: alert-ups-on-battery
+      name: "UPS On Battery"
+      description: "Power outage - UPS on battery"
       trigger:
-        condition: "cpu_usage > 80%"
-        duration: "10m"
+        condition: "ups_status == 'OB'"
+      severity: "warning"
+      channels: ["email", "telegram"]
+
+    - id: alert-ups-low-battery
+      name: "UPS Low Battery"
+      description: "UPS battery critically low"
+      trigger:
+        condition: "battery_charge < 30%"
+      severity: "critical"
+      channels: ["email", "telegram"]
+
+    - id: alert-temperature-high
+      name: "High Temperature"
+      description: "Device temperature is high"
+      trigger:
+        condition: "temperature > 75"
+        duration: "5m"
       severity: "warning"
       channels: ["email"]
 
     - id: alert-backup-failed
       name: "Backup Failed"
-      description: "Alert when backup job fails"
+      description: "Backup job failed"
       trigger:
         condition: "backup_status == 'failed'"
       severity: "warning"
       channels: ["email"]
 
-    - id: alert-temperature-high
-      name: "High Temperature"
-      description: "Alert when system temperature is high"
+    - id: alert-certificate-expiry
+      name: "Certificate Expiring"
+      description: "SSL certificate expiring soon"
       trigger:
-        condition: "temperature > 75C"
-        duration: "5m"
+        condition: "cert_days_remaining < 14"
       severity: "warning"
       channels: ["email"]
 
-  # Notification channels
+  # ============================================================
+  # Notification Channels
+  # ============================================================
+
   notification_channels:
     - id: channel-email
       name: "Email Notifications"
@@ -323,32 +585,72 @@
         smtp_server: "smtp.gmail.com"
         smtp_port: 587
         smtp_tls: true
-        smtp_user: "admin@home.local"
-        from_address: "proxmox@home.local"
-        to_addresses: ["admin@home.local"]
+        smtp_user: "{{ vault_smtp_user }}"
+        smtp_password: "{{ vault_smtp_password }}"
+        from_address: "homelab@home.local"
+        to_addresses:
+          - "admin@home.local"
+      rate_limit:
+        max_per_hour: 20
+        cooldown_minutes: 5
 
     - id: channel-telegram
       name: "Telegram Notifications"
       type: "telegram"
-      enabled: false
+      enabled: true
       config:
-        bot_token: "TELEGRAM_BOT_TOKEN"
-        chat_id: "TELEGRAM_CHAT_ID"
+        bot_token: "{{ vault_telegram_bot_token }}"
+        chat_id: "{{ vault_telegram_chat_id }}"
+      priority: ["critical", "warning"]
+      rate_limit:
+        max_per_hour: 30
 
-  # Monitoring dashboard
+  # ============================================================
+  # Dashboard Configuration
+  # ============================================================
+
   dashboard:
     enabled: true
+    provider: "grafana"
     refresh_interval: "30s"
     metrics_retention: "30d"
+
     views:
       - name: "Overview"
-        components: ["system_status", "service_status", "recent_alerts"]
+        default: true
+        panels:
+          - "system_status"
+          - "service_status"
+          - "recent_alerts"
+          - "network_traffic"
+
       - name: "Infrastructure"
-        components: ["proxmox_metrics", "vm_status", "lxc_status"]
-      - name: "Services"
-        components: ["postgresql_metrics", "redis_metrics", "nextcloud_metrics"]
+        panels:
+          - "mikrotik_metrics"
+          - "proxmox_metrics"
+          - "orangepi5_metrics"
+          - "lxc_status"
+
       - name: "Network"
-        components: ["network_traffic", "firewall_stats", "vpn_connections"]
+        panels:
+          - "wan_traffic"
+          - "lte_status"
+          - "interface_bandwidth"
+          - "firewall_stats"
+          - "vpn_connections"
+
+      - name: "Services"
+        panels:
+          - "postgresql_metrics"
+          - "redis_metrics"
+          - "nextcloud_metrics"
+          - "docker_containers"
+
+      - name: "Power"
+        panels:
+          - "ups_status"
+          - "battery_level"
+          - "power_consumption"
 
 # ============================================================
 # Documentation (auto-generation config)
