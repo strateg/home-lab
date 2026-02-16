@@ -7,9 +7,9 @@
   environment: "production"
   author: "dprohhorov"
   created: "2025-10-06"
-  last_updated: "2025-10-10"
-  version: "2.1.0"
-  description: "Gamayun (Dell XPS L701X) home lab infrastructure - Infrastructure as Data v2.1"
+  last_updated: "2026-02-16"
+  version: "3.0.0"
+  description: "Home lab infrastructure with MikroTik Chateau LTE7 ax as central router, Orange Pi 5 as application server, Proxmox as database/dev server"
   changelog:
     - version: "1.0.0"
       date: "2025-10-06"
@@ -23,6 +23,18 @@
     - version: "2.1.0"
       date: "2025-10-10"
       changes: "Phase 2 improvements: SSH keys, DNS records, firewall templates, Ansible variables"
+    - version: "3.0.0"
+      date: "2026-02-16"
+      changes: |
+        Major architecture redesign:
+        - Added MikroTik Chateau LTE7 ax as central router (replaces OPNsense VM)
+        - Added Orange Pi 5 as dedicated application server
+        - Removed OPNsense VM from Proxmox (freed ~2GB RAM)
+        - Moved Nextcloud, Jellyfin, monitoring to Orange Pi 5
+        - Added LTE failover capability
+        - Added container support on MikroTik (AdGuard, Tailscale)
+        - GL.iNet Slate AX repurposed as travel router only
+        - Network resilience: critical services on router survive node failures
 
 # ============================================================
 # Physical Topology

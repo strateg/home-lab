@@ -78,14 +78,269 @@
         bios_version: "A07"
         updated: "2020-03-15"
 
-    # Router/Gateway
+    # Central Router with LTE Failover
+    - id: mikrotik-chateau
+      name: "MikroTik Chateau LTE7 ax"
+      type: "router"
+      role: "central-gateway"
+      model: "S53UG+5HaxD2HaxD-TC&R11e-LTE7"
+      location: home
+      description: "Central router with WiFi 6, LTE failover, RouterOS v7 containers"
+
+      specs:
+        cpu:
+          model: "Qualcomm IPQ-6010"
+          architecture: "ARM64"
+          cores: 4
+          speed_mhz: 1800
+          speed_mode: "auto (864-1800 MHz)"
+        memory:
+          total_mb: 1024
+          type: "DDR"
+        storage:
+          flash_mb: 128
+          type: "NAND"
+        usb:
+          version: "2.0"
+          type: "Type-A"
+          max_current_ma: 1000
+          note: "For container storage (AdGuard, Tailscale)"
+
+      interfaces:
+        # Ethernet
+        - id: if-mikrotik-wan
+          name: "ether1"
+          type: "ethernet"
+          speed_mbps: 2500
+          role: "wan"
+          description: "2.5 GbE WAN port - connects to ISP"
+          network_ref: net-wan
+
+        - id: if-mikrotik-lan1
+          name: "ether2"
+          type: "ethernet"
+          speed_mbps: 1000
+          role: "lan"
+          description: "LAN port 1 - Proxmox"
+
+        - id: if-mikrotik-lan2
+          name: "ether3"
+          type: "ethernet"
+          speed_mbps: 1000
+          role: "lan"
+          description: "LAN port 2 - Orange Pi 5"
+
+        - id: if-mikrotik-lan3
+          name: "ether4"
+          type: "ethernet"
+          speed_mbps: 1000
+          role: "lan"
+          description: "LAN port 3 - reserved"
+
+        - id: if-mikrotik-lan4
+          name: "ether5"
+          type: "ethernet"
+          speed_mbps: 1000
+          role: "lan"
+          description: "LAN port 4 - reserved"
+
+        # WiFi 6
+        - id: if-mikrotik-wlan-5g
+          name: "wlan1"
+          type: "wifi-5ghz"
+          speed_mbps: 1200
+          standard: "802.11ax"
+          chipset: "QCN-5052"
+          chains: 2
+          antenna_gain_dbi: 6
+          description: "WiFi 6 5GHz (main)"
+
+        - id: if-mikrotik-wlan-2g
+          name: "wlan2"
+          type: "wifi-2.4ghz"
+          speed_mbps: 574
+          standard: "802.11ax"
+          chipset: "QCN-5022"
+          chains: 2
+          antenna_gain_dbi: 3
+          description: "WiFi 6 2.4GHz (compatibility)"
+
+        # LTE Modem
+        - id: if-mikrotik-lte
+          name: "lte1"
+          type: "lte"
+          modem: "R11e-LTE7"
+          category: 7
+          speed_dl_mbps: 300
+          speed_ul_mbps: 100
+          mimo_dl: "2x2"
+          mimo_ul: "1x1"
+          sim_type: "Micro-SIM"
+          lte_bands_fdd: [1, 3, 5, 7, 8, 20, 28, 32]
+          lte_bands_tdd: [38, 40, 41]
+          bands_3g: [1, 3, 5, 8]
+          role: "wan-failover"
+          description: "LTE Cat 7 modem for failover"
+
+      power:
+        input_voltage: "12-28V DC"
+        max_watts: 21.5
+        typical_watts: 15.5
+        cooling: "passive"
+
+      firmware:
+        os: "RouterOS"
+        version: "v7"
+        license_level: 4
+        features:
+          - "Container support (Docker-compatible)"
+          - "WireGuard VPN"
+          - "ZeroTier"
+          - "REST API"
+          - "TR-069"
+          - "IPsec"
+
+      containers:
+        storage: "USB SSD recommended"
+        note: "USB 2.0 sufficient for light containers (AdGuard, Tailscale)"
+        planned:
+          - name: "adguard"
+            image: "adguard/adguardhome"
+            purpose: "DNS filtering, ad blocking"
+          - name: "tailscale"
+            image: "tailscale/tailscale"
+            purpose: "Mesh VPN"
+
+    # Application Server
+    - id: orangepi5
+      name: "Orange Pi 5"
+      type: "sbc"
+      role: "application-server"
+      model: "Orange Pi 5"
+      location: home
+      description: "Dedicated application server for Nextcloud, Jellyfin, monitoring"
+
+      specs:
+        cpu:
+          model: "Rockchip RK3588S"
+          architecture: "ARM64"
+          cores: 8
+          cores_big: 4
+          cores_big_model: "Cortex-A76"
+          cores_big_speed_mhz: 2400
+          cores_little: 4
+          cores_little_model: "Cortex-A55"
+          cores_little_speed_mhz: 1800
+          process_nm: 8
+        gpu:
+          model: "ARM Mali-G610"
+          cores: 4
+          opengl_es: "3.2"
+          opencl: "2.2"
+          vulkan: "1.2"
+        npu:
+          model: "Rockchip NPU"
+          tops: 6
+          operations: ["INT4", "INT8", "INT16"]
+        vpu:
+          h265_decode: "8K@60fps"
+          h264_decode: "8K@30fps"
+          h265_encode: "8K@30fps"
+          note: "Hardware transcoding for Jellyfin"
+        memory:
+          total_gb: 8  # Options: 4, 8, 16, 32 GB
+          type: "LPDDR4/4X"
+        storage:
+          emmc: false
+          m2_slot: true
+          m2_type: "PCIe 2.0 x1"
+          m2_key: "M-Key"
+          nvme_planned_gb: 256
+
+      interfaces:
+        - id: if-opi5-eth
+          name: "eth0"
+          type: "ethernet"
+          speed_mbps: 1000
+          chipset: "RTL8211F-CG"
+          role: "lan"
+          description: "Gigabit Ethernet - connects to MikroTik"
+          network_ref: net-lan
+
+        - id: if-opi5-usb3
+          name: "usb3"
+          type: "usb"
+          speed_mbps: 5000
+          standard: "USB 3.0"
+          count: 1
+          description: "USB 3.0 Type-A"
+
+        - id: if-opi5-usb2
+          name: "usb2"
+          type: "usb"
+          speed_mbps: 480
+          standard: "USB 2.0"
+          count: 2
+          description: "USB 2.0 Type-A x2"
+
+        - id: if-opi5-usbc
+          name: "usbc"
+          type: "usb-c"
+          speed_mbps: 480
+          role: "power"
+          description: "USB Type-C (power + OTG)"
+
+        - id: if-opi5-hdmi
+          name: "hdmi"
+          type: "hdmi"
+          version: "2.1"
+          resolution: "8K@60Hz"
+          description: "HDMI 2.1 output"
+
+        - id: if-opi5-gpio
+          name: "gpio"
+          type: "gpio"
+          pins: 26
+          description: "26-pin GPIO header"
+
+      power:
+        input: "5V DC via USB-C"
+        recommended_adapter: "5V/4A"
+        max_watts: 20
+        typical_watts: 8
+
+      os:
+        supported:
+          - "Orange Pi OS (Debian-based)"
+          - "Ubuntu 22.04"
+          - "Debian 11/12"
+          - "Armbian"
+          - "Android 12"
+        planned: "Debian 12"
+
+      services_planned:
+        - name: "Nextcloud"
+          type: "file-sharing"
+          storage: "NVMe SSD"
+        - name: "Jellyfin"
+          type: "media-server"
+          hw_transcoding: true
+        - name: "Prometheus"
+          type: "monitoring"
+        - name: "Grafana"
+          type: "visualization"
+        - name: "Home Assistant"
+          type: "home-automation"
+          optional: true
+
+    # Travel Router (not permanent in home network)
     - id: slate-ax1800
       name: "GL.iNet Slate AX"
       type: "router"
-      role: "gateway"
+      role: "travel-router"
       model: "GL-AXT1800"
-      location: home
-      description: "WiFi 6 router, VPN server, AdGuard Home"
+      location: portable
+      description: "Travel router for remote access to home network"
 
       specs:
         cpu:
@@ -105,8 +360,7 @@
           type: "ethernet"
           speed_mbps: 1000
           role: "wan"
-          description: "WAN port - connects to OPNsense LAN"
-          network_ref: net-opnsense-lan
+          description: "WAN port"
 
         - id: if-slate-lan
           name: "lan"
@@ -133,6 +387,11 @@
         version: "4.8.2"
         base: "OpenWRT 23.05"
         updated: "2024-11-15"
+
+      travel_features:
+        - "WireGuard client to home network"
+        - "Repeater mode for hotel WiFi"
+        - "Portable VPN gateway"
 
 # ============================================================
 # Logical Topology

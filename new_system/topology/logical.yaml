@@ -1,7 +1,13 @@
 # Logical Topology
-# Part of Home Lab Topology v2.1.0
+# Part of Home Lab Topology v3.0.0
 # This file is part of the modular topology structure
 # Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+#
+# Architecture v3.0: MikroTik Chateau LTE7 ax as central router
+# - No OPNsense VM (removed to free Proxmox RAM)
+# - MikroTik handles routing, firewall, WiFi, LTE failover
+# - Orange Pi 5 as dedicated application server
+# - Proxmox for databases and dev/lab VMs
 
 
   # ------------------------------------------------------------
@@ -13,39 +19,49 @@
       name: "Untrusted Zone"
       security_level: 0
       color: "#ff0000"
-      description: "External networks (ISP, Internet)"
+      description: "External networks (ISP, Internet, LTE)"
       allowed_outbound: ["any"]
       allowed_inbound: ["established", "related"]
-
-    dmz:
-      name: "DMZ Zone"
-      security_level: 1
-      color: "#ff9900"
-      description: "Demilitarized zone - OPNsense LAN facing GL.iNet"
-      allowed_outbound: ["any"]
-      allowed_inbound: ["from:internal", "from:management"]
 
     user:
       name: "User Zone"
       security_level: 1
       color: "#ffcc00"
       description: "End-user devices (WiFi, LAN, VPN clients)"
-      allowed_outbound: ["to:untrusted", "to:internal:ports:80,443,5432,6379"]
+      allowed_outbound: ["to:untrusted", "to:servers:ports:80,443,5432,6379"]
       allowed_inbound: ["established"]
 
-    internal:
-      name: "Internal Zone"
+    servers:
+      name: "Servers Zone"
       security_level: 2
       color: "#00cc00"
-      description: "LXC containers and internal services"
+      description: "Proxmox LXC and Orange Pi 5 services"
       allowed_outbound: ["to:untrusted"]
       allowed_inbound: ["from:user:ports:80,443,5432,6379", "from:management"]
+
+    iot:
+      name: "IoT Zone"
+      security_level: 1
+      color: "#ff6600"
+      description: "Smart home devices (isolated)"
+      allowed_outbound: ["to:untrusted"]
+      allowed_inbound: ["established"]
+      isolated: true
+
+    guest:
+      name: "Guest Zone"
+      security_level: 0
+      color: "#999999"
+      description: "Guest WiFi (isolated, internet only)"
+      allowed_outbound: ["to:untrusted"]
+      allowed_inbound: ["established"]
+      isolated: true
 
     management:
       name: "Management Zone"
       security_level: 3
       color: "#0066cc"
-      description: "Infrastructure management (Proxmox UI, OPNsense UI)"
+      description: "Infrastructure management (Proxmox UI, MikroTik UI)"
       allowed_outbound: ["any"]
       allowed_inbound: ["from:admin-ips"]
 
@@ -54,110 +70,84 @@
   # ------------------------------------------------------------
 
   networks:
-    # WAN Network
+    # WAN Network (ISP)
     - id: net-wan
-      name: "WAN"
-      cidr: "192.168.1.0/24"
-      gateway: "192.168.1.1"
+      name: "WAN (ISP)"
+      cidr: "dhcp"
+      gateway: "dhcp"
       dns: ["1.1.1.1", "8.8.8.8"]
       dhcp: true
       trust_zone_ref: untrusted
-      bridge_ref: bridge-vmbr0
+      bridge_ref: null  # Direct to MikroTik WAN port
       vlan: null
-      description: "ISP provided network"
-      managed_by_ref: null  # External ISP
+      description: "Primary ISP connection via MikroTik ether1 (2.5GbE)"
+      managed_by_ref: mikrotik-chateau
+      interface_ref: if-mikrotik-wan
 
-    # OPNsense LAN
-    - id: net-opnsense-lan
-      name: "OPNsense LAN"
-      cidr: "192.168.10.0/24"
-      gateway: "192.168.10.1"
-      dns: ["192.168.10.2"]  # AdGuard on Slate AX
-      dhcp: false
-      trust_zone_ref: dmz
-      bridge_ref: bridge-vmbr1
+    # LTE Failover
+    - id: net-lte-failover
+      name: "LTE Failover"
+      cidr: "dhcp"
+      gateway: "dhcp"
+      dns: ["1.1.1.1", "8.8.8.8"]
+      dhcp: true
+      trust_zone_ref: untrusted
+      bridge_ref: null
       vlan: null
-      description: "Network between OPNsense and GL.iNet Slate AX"
-      managed_by_ref: vm-opnsense-fw
+      description: "LTE Cat 7 failover connection"
+      managed_by_ref: mikrotik-chateau
+      interface_ref: if-mikrotik-lte
+      failover:
+        enabled: true
+        primary: net-wan
+        check_gateway: "ping"
+        failover_threshold: 3
+
+    # Main LAN (Users + Servers)
+    - id: net-lan
+      name: "LAN"
+      cidr: "192.168.88.0/24"
+      gateway: "192.168.88.1"
+      dns: ["192.168.88.1"]  # MikroTik forwards to AdGuard container
+      dhcp: true
+      dhcp_range: "192.168.88.100-192.168.88.200"
+      trust_zone_ref: user
+      bridge_ref: null  # MikroTik bridge
+      vlan: null
+      description: "Main LAN network (WiFi + Wired)"
+      managed_by_ref: mikrotik-chateau
       ip_allocations:
-        - ip: "192.168.10.1"
-          device_ref: vm-opnsense-fw
-          interface: "net1"
-          description: "OPNsense LAN interface"
-        - ip: "192.168.10.2"
-          device_ref: slate-ax1800
-          interface: "wan"
-          description: "GL.iNet WAN interface"
-        - ip: "192.168.10.254"
+        - ip: "192.168.88.1"
+          device_ref: mikrotik-chateau
+          interface: "bridge-lan"
+          description: "MikroTik LAN gateway"
+        - ip: "192.168.88.2"
           device_ref: gamayun
-          interface: "vmbr1"
-          description: "Proxmox bridge IP"
+          interface: "eth0"
+          description: "Proxmox host"
+        - ip: "192.168.88.3"
+          device_ref: orangepi5
+          interface: "eth0"
+          description: "Orange Pi 5 application server"
 
-    # User LAN
-    - id: net-user-lan
-      name: "User LAN"
-      cidr: "192.168.20.0/24"
-      gateway: "192.168.20.1"
-      dns: ["192.168.20.1"]
-      dhcp: true
-      dhcp_range: "192.168.20.100-192.168.20.200"
-      trust_zone_ref: user
-      bridge_ref: null  # Managed by Slate AX, not Proxmox
-      vlan: null
-      description: "Main user network (WiFi 6 + Wired LAN)"
-      managed_by_ref: slate-ax1800
-      ip_allocations:
-        - ip: "192.168.20.1"
-          device_ref: slate-ax1800
-          interface: "lan"
-          description: "GL.iNet LAN gateway"
-
-    # Guest WiFi
-    - id: net-guest-wifi
-      name: "Guest WiFi"
-      cidr: "192.168.30.0/24"
-      gateway: "192.168.30.1"
-      dns: ["192.168.30.1"]
-      dhcp: true
-      dhcp_range: "192.168.30.100-192.168.30.200"
-      isolated: true
-      trust_zone_ref: user
-      bridge_ref: null
-      vlan: null
-      description: "Isolated guest network"
-      managed_by_ref: slate-ax1800
-      firewall_policy: "block-to-lan"
-
-    # IoT Network
-    - id: net-iot
-      name: "IoT Network"
-      cidr: "192.168.40.0/24"
-      gateway: "192.168.40.1"
-      dns: ["192.168.40.1"]
-      dhcp: true
-      dhcp_range: "192.168.40.100-192.168.40.200"
-      isolated: true
-      trust_zone_ref: user
-      bridge_ref: null
-      vlan: null
-      description: "Smart home devices"
-      managed_by_ref: slate-ax1800
-      firewall_policy: "block-to-lan-allow-internet"
-
-    # LXC Internal
-    - id: net-lxc-internal
-      name: "LXC Internal"
+    # Servers VLAN (Proxmox LXC + Orange Pi 5 services)
+    - id: net-servers
+      name: "Servers"
       cidr: "10.0.30.0/24"
-      gateway: "10.0.30.254"
-      dns: ["192.168.10.2"]
+      gateway: "10.0.30.1"
+      dns: ["192.168.88.1"]  # MikroTik AdGuard
       dhcp: false
-      trust_zone_ref: internal
+      trust_zone_ref: servers
       bridge_ref: bridge-vmbr2
-      vlan: null
-      description: "LXC containers network"
-      managed_by_ref: gamayun
+      vlan: 30
+      description: "Server network for Proxmox LXC and Orange Pi 5"
+      managed_by_ref: mikrotik-chateau
       ip_allocations:
         - ip: "10.0.30.1"
+          device_ref: mikrotik-chateau
+          interface: "vlan30"
+          description: "MikroTik servers gateway"
+        - ip: "10.0.30.2"
           device_ref: gamayun
           interface: "vmbr2"
           description: "Proxmox bridge IP"
@@ -169,103 +159,141 @@
           device_ref: lxc-redis
           interface: "eth0"
           description: "Redis LXC"
-        - ip: "10.0.30.30"
-          device_ref: lxc-nextcloud
-          interface: "eth0"
-          description: "Nextcloud LXC"
-        - ip: "10.0.30.254"
-          device_ref: vm-opnsense-fw
-          interface: "net2"
-          description: "OPNsense INTERNAL gateway"
+        - ip: "10.0.30.50"
+          device_ref: orangepi5
+          interface: "eth0.30"
+          description: "Orange Pi 5 server interface"
+
+    # Guest WiFi (Isolated)
+    - id: net-guest
+      name: "Guest WiFi"
+      cidr: "192.168.30.0/24"
+      gateway: "192.168.30.1"
+      dns: ["1.1.1.1", "8.8.8.8"]  # Public DNS, no local access
+      dhcp: true
+      dhcp_range: "192.168.30.100-192.168.30.200"
+      isolated: true
+      trust_zone_ref: guest
+      bridge_ref: null
+      vlan: 30
+      description: "Isolated guest WiFi network"
+      managed_by_ref: mikrotik-chateau
+      firewall_policy: "internet-only"
+      ip_allocations:
+        - ip: "192.168.30.1"
+          device_ref: mikrotik-chateau
+          interface: "vlan30-guest"
+          description: "MikroTik guest gateway"
+
+    # IoT Network (Isolated)
+    - id: net-iot
+      name: "IoT Network"
+      cidr: "192.168.40.0/24"
+      gateway: "192.168.40.1"
+      dns: ["192.168.88.1"]
+      dhcp: true
+      dhcp_range: "192.168.40.100-192.168.40.200"
+      isolated: true
+      trust_zone_ref: iot
+      bridge_ref: null
+      vlan: 40
+      description: "Smart home devices (isolated from main LAN)"
+      managed_by_ref: mikrotik-chateau
+      firewall_policy: "internet-only-no-lateral"
+      ip_allocations:
+        - ip: "192.168.40.1"
+          device_ref: mikrotik-chateau
+          interface: "vlan40-iot"
+          description: "MikroTik IoT gateway"
 
     # Management Network
     - id: net-management
       name: "Management"
       cidr: "10.0.99.0/24"
       gateway: "10.0.99.1"
-      dns: ["1.1.1.1", "8.8.8.8"]
+      dns: ["192.168.88.1"]
       dhcp: false
       trust_zone_ref: management
       bridge_ref: bridge-vmbr99
-      vlan: null
-      description: "Management network for Proxmox/OPNsense admin"
-      managed_by_ref: gamayun
+      vlan: 99
+      description: "Management network for infrastructure admin"
+      managed_by_ref: mikrotik-chateau
       ip_allocations:
         - ip: "10.0.99.1"
+          device_ref: mikrotik-chateau
+          interface: "vlan99-mgmt"
+          description: "MikroTik management gateway"
+        - ip: "10.0.99.2"
           device_ref: gamayun
           interface: "vmbr99"
           description: "Proxmox Web UI"
-        - ip: "10.0.99.10"
-          device_ref: vm-opnsense-fw
-          interface: "net3"
-          description: "OPNsense Web UI"
+        - ip: "10.0.99.3"
+          device_ref: orangepi5
+          interface: "eth0.99"
+          description: "Orange Pi 5 management"
 
-    # VPN Home
+    # VPN Home (WireGuard on MikroTik)
     - id: net-vpn-home
       name: "VPN Home"
       cidr: "10.0.200.0/24"
       gateway: "10.0.200.1"
-      dns: ["192.168.20.1"]
+      dns: ["192.168.88.1"]
       dhcp: false
       trust_zone_ref: user
       bridge_ref: null
       vlan: null
-      description: "WireGuard VPN server on Slate AX (access to LAN)"
-      managed_by_ref: slate-ax1800
+      description: "WireGuard VPN on MikroTik (full LAN access)"
+      managed_by_ref: mikrotik-chateau
       vpn_type: "wireguard"
       vpn_endpoint: "home.example.com:51820"
+      ip_allocations:
+        - ip: "10.0.200.1"
+          device_ref: mikrotik-chateau
+          interface: "wireguard1"
+          description: "WireGuard server"
 
-    # VPN Russia
-    - id: net-vpn-russia
-      name: "VPN Russia"
-      cidr: "10.8.2.0/24"
-      gateway: "10.8.2.1"
-      dns: ["1.1.1.1"]
+    # Tailscale Mesh (Container on MikroTik)
+    - id: net-tailscale
+      name: "Tailscale Mesh"
+      cidr: "100.64.0.0/10"  # Tailscale CGNAT range
+      gateway: null
+      dns: ["100.100.100.100"]  # MagicDNS
       dhcp: false
-      trust_zone_ref: untrusted
+      trust_zone_ref: user
       bridge_ref: null
       vlan: null
-      description: "AmneziaWG VPN server on Slate AX (internet only, no LAN access)"
-      managed_by_ref: slate-ax1800
-      vpn_type: "amneziawg"
-      vpn_endpoint: "ru.example.com:51821"
+      description: "Tailscale mesh VPN (container on MikroTik)"
+      managed_by_ref: mikrotik-chateau
+      vpn_type: "tailscale"
 
   # ------------------------------------------------------------
   # Bridges (Proxmox VE)
   # ------------------------------------------------------------
+  # Note: MikroTik is now the central router
+  # Proxmox bridges are for internal VM/LXC networking only
 
   bridges:
     - id: bridge-vmbr0
       device_ref: gamayun
       name: "vmbr0"
-      comment: "WAN Bridge - to ISP Router (USB-Ethernet)"
-      ports: ["if-eth-usb"]
-      address: "dhcp"
-      network_ref: net-wan
-      autostart: true
-      vlan_aware: false
-      bridge_stp: false
-      bridge_fd: 0
-
-    - id: bridge-vmbr1
-      device_ref: gamayun
-      name: "vmbr1"
-      comment: "LAN Bridge - to GL.iNet Slate AX (Built-in Ethernet)"
+      comment: "LAN Bridge - to MikroTik (Built-in Ethernet)"
       ports: ["if-eth-builtin"]
-      address: "192.168.10.254/24"
-      network_ref: net-opnsense-lan
+      address: "192.168.88.2/24"
+      gateway: "192.168.88.1"
+      network_ref: net-lan
       autostart: true
-      vlan_aware: false
+      vlan_aware: true
       bridge_stp: false
       bridge_fd: 0
 
     - id: bridge-vmbr2
       device_ref: gamayun
       name: "vmbr2"
-      comment: "INTERNAL Bridge - LXC Containers"
+      comment: "Servers Bridge - LXC Containers (VLAN 30)"
       ports: []
-      address: "10.0.30.1/24"
-      network_ref: net-lxc-internal
+      address: "10.0.30.2/24"
+      gateway: "10.0.30.1"
+      network_ref: net-servers
       autostart: true
       vlan_aware: false
       bridge_stp: false
@@ -274,54 +302,55 @@
     - id: bridge-vmbr99
       device_ref: gamayun
       name: "vmbr99"
-      comment: "MGMT Bridge - Management Network"
+      comment: "Management Bridge (VLAN 99)"
       ports: []
-      address: "10.0.99.1/24"
+      address: "10.0.99.2/24"
+      gateway: "10.0.99.1"
       network_ref: net-management
       autostart: true
       vlan_aware: false
       bridge_stp: false
       bridge_fd: 0
 
-    # OPTIONAL: WiFi Bridge for management/out-of-band access
-    # Uncomment to enable WiFi bridge
-    # - id: bridge-wifi
-    #   device_ref: gamayun
-    #   name: "vmbr-wifi"
-    #   comment: "WiFi Bridge - Management/Out-of-band access"
-    #   ports: ["wlan0"]
-    #   address: "192.168.99.1/24"
-    #   network_ref: net-wifi-mgmt
-    #   autostart: false
-    #   vlan_aware: false
-    #   bridge_stp: false
-    #   bridge_fd: 0
-
   # ------------------------------------------------------------
   # Routing
   # ------------------------------------------------------------
+  # MikroTik handles all inter-VLAN routing
+  # Proxmox only needs default route to MikroTik
 
   routing:
+    - id: route-proxmox-default
+      name: "Proxmox Default Route"
+      device_ref: gamayun
+      destination_cidr: "0.0.0.0/0"
+      next_hop: "192.168.88.1"
+      gateway_device_ref: mikrotik-chateau
+      description: "All Proxmox traffic routes through MikroTik"
+
     - id: route-lxc-internet
       name: "LXC to Internet"
-      source_network_ref: net-lxc-internal
+      source_network_ref: net-servers
       destination_cidr: "0.0.0.0/0"
-      next_hop: "10.0.30.254"
-      gateway_device_ref: vm-opnsense-fw
-      description: "LXC containers route through OPNsense firewall"
+      next_hop: "10.0.30.1"
+      gateway_device_ref: mikrotik-chateau
+      description: "LXC containers route through MikroTik"
 
-    - id: route-mgmt-all
-      name: "Management to all networks"
-      source_network_ref: net-management
+    - id: route-user-servers
+      name: "User LAN to Servers"
+      source_network_ref: net-lan
+      destination_network_ref: net-servers
+      via: "192.168.88.1"
+      gateway_device_ref: mikrotik-chateau
+      description: "User devices access servers via MikroTik inter-VLAN routing"
+
+    - id: route-lte-failover
+      name: "LTE Failover Route"
+      device_ref: mikrotik-chateau
       destination_cidr: "0.0.0.0/0"
-      description: "Management network can access all other networks"
-
-    - id: route-user-lxc
-      name: "User LAN to LXC Services"
-      source_network_ref: net-user-lan
-      destination_network_ref: net-lxc-internal
-      via: "192.168.10.254"  # OPNsense
-      description: "User devices access LXC services via OPNsense routing"
+      next_hop: "lte1"
+      priority: 10
+      check_gateway: "ping"
+      description: "Automatic failover to LTE when ISP is down"
 
   # ------------------------------------------------------------
   # DNS Records
@@ -333,33 +362,54 @@
         domain: "home.local"
         nameserver_ref: svc-adguard
         type: "forward"
-        description: "Primary home lab DNS zone"
+        description: "Primary home lab DNS zone (AdGuard on MikroTik)"
 
         records:
-          # Physical Devices
+          # Network Devices
+          - type: "A"
+            name: "router"
+            ip: "192.168.88.1"
+            device_ref: mikrotik-chateau
+            ttl: 3600
+            description: "MikroTik router"
+
+          - type: "A"
+            name: "mikrotik"
+            ip: "192.168.88.1"
+            device_ref: mikrotik-chateau
+            ttl: 3600
+            description: "MikroTik router alias"
+
+          # Physical Servers
           - type: "A"
             name: "gamayun"
-            ip: "10.0.99.1"
+            ip: "192.168.88.2"
             device_ref: gamayun
             ttl: 3600
             description: "Proxmox host"
 
-          # Virtual Machines
           - type: "A"
-            name: "opnsense"
-            ip: "10.0.99.10"
-            vm_ref: vm-opnsense-fw
+            name: "proxmox"
+            ip: "10.0.99.2"
+            device_ref: gamayun
             ttl: 3600
-            description: "OPNsense firewall management"
+            description: "Proxmox Web UI (management)"
 
           - type: "A"
-            name: "opnsense-lan"
-            ip: "192.168.10.1"
-            vm_ref: vm-opnsense-fw
+            name: "orangepi"
+            ip: "192.168.88.3"
+            device_ref: orangepi5
             ttl: 3600
-            description: "OPNsense LAN interface"
+            description: "Orange Pi 5 application server"
 
-          # LXC Containers
+          - type: "A"
+            name: "opi5"
+            ip: "10.0.30.50"
+            device_ref: orangepi5
+            ttl: 3600
+            description: "Orange Pi 5 server interface"
+
+          # LXC Containers (Proxmox)
           - type: "A"
             name: "postgresql"
             ip: "10.0.30.10"
@@ -374,12 +424,34 @@
             ttl: 3600
             description: "Redis cache server"
 
+          # Services on Orange Pi 5
           - type: "A"
             name: "nextcloud"
-            ip: "10.0.30.30"
-            lxc_ref: lxc-nextcloud
+            ip: "10.0.30.50"
+            device_ref: orangepi5
             ttl: 3600
-            description: "Nextcloud file sharing"
+            description: "Nextcloud on Orange Pi 5"
+
+          - type: "A"
+            name: "jellyfin"
+            ip: "10.0.30.50"
+            device_ref: orangepi5
+            ttl: 3600
+            description: "Jellyfin media server on Orange Pi 5"
+
+          - type: "A"
+            name: "grafana"
+            ip: "10.0.30.50"
+            device_ref: orangepi5
+            ttl: 3600
+            description: "Grafana on Orange Pi 5"
+
+          - type: "A"
+            name: "prometheus"
+            ip: "10.0.30.50"
+            device_ref: orangepi5
+            ttl: 3600
+            description: "Prometheus on Orange Pi 5"
 
           # CNAME Records
           - type: "CNAME"
@@ -402,6 +474,20 @@
             service_ref: svc-nextcloud
             ttl: 3600
             description: "Cloud storage alias"
+
+          - type: "CNAME"
+            name: "media"
+            target: "jellyfin.home.local"
+            service_ref: svc-jellyfin
+            ttl: 3600
+            description: "Media server alias"
+
+          - type: "CNAME"
+            name: "monitor"
+            target: "grafana.home.local"
+            service_ref: svc-grafana
+            ttl: 3600
+            description: "Monitoring alias"
 
           # SRV Records for Service Discovery
           - type: "SRV"
@@ -434,14 +520,22 @@
             ttl: 3600
             description: "Nextcloud HTTPS service"
 
-    # DNS Forwarders
+    # DNS Forwarders (upstream from AdGuard)
     forwarders:
-      - "8.8.8.8"       # Google DNS
-      - "1.1.1.1"       # Cloudflare DNS
-      - "192.168.10.2"  # Local AdGuard
+      upstream_doh:
+        - "https://dns.cloudflare.com/dns-query"
+        - "https://dns.google/dns-query"
+      upstream_dot:
+        - "tls://1.1.1.1"
+        - "tls://8.8.8.8"
+      fallback:
+        - "1.1.1.1"
+        - "8.8.8.8"
 
     # DNS Settings
     settings:
+      provider: "adguard-home"
+      location: "mikrotik-container"
       recursion: true
       dnssec: true
       cache_size_mb: 100
@@ -449,6 +543,7 @@
       allow_query_from:
         - "10.0.0.0/8"
         - "192.168.0.0/16"
+        - "100.64.0.0/10"  # Tailscale
 
   # ------------------------------------------------------------
   # Firewall Templates
@@ -495,7 +590,7 @@
       icmp_types: [0, 8]  # Echo reply, Echo request
 
   # ------------------------------------------------------------
-  # Firewall Policies
+  # Firewall Policies (MikroTik RouterOS)
   # ------------------------------------------------------------
 
   firewall_policies:
@@ -503,51 +598,92 @@
       name: "Default Deny"
       priority: 1000
       action: "drop"
+      chain: "forward"
       description: "Drop all traffic by default, allow explicitly"
 
-    - id: fw-lxc-internet
-      name: "LXC to Internet"
-      priority: 100
-      source_zone_ref: internal
-      destination_zone_ref: untrusted
-      action: "allow"
-      description: "LXC can access internet"
+    - id: fw-established-related
+      name: "Allow Established/Related"
+      priority: 1
+      action: "accept"
+      chain: "forward"
+      connection_state: ["established", "related"]
+      description: "Allow established and related connections"
 
-    - id: fw-user-lxc-services
-      name: "User to LXC Services"
+    - id: fw-servers-internet
+      name: "Servers to Internet"
+      priority: 100
+      source_zone_ref: servers
+      destination_zone_ref: untrusted
+      action: "accept"
+      chain: "forward"
+      description: "Servers can access internet"
+
+    - id: fw-user-servers
+      name: "User to Server Services"
       priority: 200
       source_zone_ref: user
-      destination_zone_ref: internal
-      ports: [80, 443, 5432, 6379]
+      destination_zone_ref: servers
+      ports: [80, 443, 5432, 6379, 8096, 3000, 9090]
       protocols: ["tcp"]
-      action: "allow"
-      description: "User devices can access LXC web and database services"
+      action: "accept"
+      chain: "forward"
+      description: "User devices can access server services"
 
     - id: fw-guest-isolated
       name: "Guest Isolation"
       priority: 300
-      source_network_ref: net-guest-wifi
-      destination_zones_ref: [internal, management]
+      source_zone_ref: guest
+      destination_zones_ref: [servers, management, user, iot]
       action: "drop"
-      description: "Guest network cannot access LAN/LXC/Management"
+      chain: "forward"
+      description: "Guest network cannot access any internal networks"
 
     - id: fw-iot-isolated
       name: "IoT Isolation"
       priority: 300
-      source_network_ref: net-iot
-      destination_zones_ref: [internal, management, user]
+      source_zone_ref: iot
+      destination_zones_ref: [servers, management, user, guest]
       action: "drop"
+      chain: "forward"
       description: "IoT cannot access other networks (except internet)"
+
+    - id: fw-iot-internet
+      name: "IoT to Internet"
+      priority: 301
+      source_zone_ref: iot
+      destination_zone_ref: untrusted
+      action: "accept"
+      chain: "forward"
+      description: "IoT can access internet"
 
     - id: fw-management-admin
       name: "Management Access Control"
       priority: 50
-      source_ips: ["192.168.20.0/24"]  # User LAN
+      source_network_ref: net-lan
       destination_zone_ref: management
-      ports: [8006, 443]
-      protocols: ["tcp", "https"]
-      action: "allow"
-      description: "Allow admin access from User LAN to management interfaces"
+      ports: [8006, 443, 22, 80]
+      protocols: ["tcp"]
+      action: "accept"
+      chain: "forward"
+      description: "Allow admin access from LAN to management interfaces"
+
+    - id: fw-vpn-full-access
+      name: "VPN Full Access"
+      priority: 60
+      source_network_ref: net-vpn-home
+      destination_zones_ref: [user, servers, management]
+      action: "accept"
+      chain: "forward"
+      description: "VPN clients have full network access"
+
+    - id: fw-tailscale-access
+      name: "Tailscale Access"
+      priority: 61
+      source_network_ref: net-tailscale
+      destination_zones_ref: [user, servers]
+      action: "accept"
+      chain: "forward"
+      description: "Tailscale mesh clients can access LAN and servers"
 
 # ============================================================
 # Compute (VMs and LXC Containers)

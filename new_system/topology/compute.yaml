@@ -1,7 +1,13 @@
 # Compute Resources
-# Part of Home Lab Topology v2.1.0
+# Part of Home Lab Topology v3.0.0
 # This file is part of the modular topology structure
 # Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+#
+# Architecture v3.0:
+# - MikroTik Chateau LTE7 ax handles routing/firewall (no OPNsense VM needed)
+# - Orange Pi 5 runs application services (Nextcloud, Jellyfin, monitoring)
+# - Proxmox runs only database LXC containers (PostgreSQL, Redis)
+# - This frees ~5-6GB RAM on Proxmox for dev/lab VMs
 
 
   # ============================================================
@@ -14,9 +20,9 @@
       type: "debian"
       version: "12"
 
-    # Common DNS configuration
+    # Common DNS configuration (MikroTik AdGuard)
     dns: &default_dns
-      nameserver: "192.168.10.2"
+      nameserver: "192.168.88.1"
       searchdomain: "home.local"
 
     # Common boot configuration for LXC
@@ -29,12 +35,12 @@
       storage_ref: storage-lvm
       size_gb: 8
 
-    # Common network configuration for LXC (internal)
-    lxc_network_internal: &default_lxc_network_internal
+    # Common network configuration for LXC (servers network)
+    lxc_network_servers: &default_lxc_network_servers
       interface: "eth0"
       bridge_ref: bridge-vmbr2
-      network_ref: net-lxc-internal
-      gateway: "10.0.30.254"
+      network_ref: net-servers
+      gateway: "10.0.30.1"  # MikroTik
       firewall: false
 
     # Common cloud-init configuration
@@ -48,92 +54,27 @@
   # ------------------------------------------------------------
   # Virtual Machines
   # ------------------------------------------------------------
+  # Note: OPNsense VM removed - MikroTik handles routing/firewall
+  # RAM freed: ~2GB (was 1.5GB + overhead)
 
-  vms:
-    - id: vm-opnsense-fw
-      vmid: 100
-      name: "opnsense-fw"
-      device_ref: gamayun
-      type: "firewall"
-      role: "gateway"
-      template_ref: tpl-vm-opnsense
-      trust_zone_ref: dmz
-      description: "OPNsense Firewall & Router"
-      tags: ["firewall", "security", "production"]
+  vms: []
+  # Future VMs can be added here for dev/lab purposes
+  # Example:
+  # - id: vm-dev-ubuntu
+  #   vmid: 110
+  #   name: "dev-ubuntu"
+  #   ...
 
-      resources:
-        cores: 2
-        sockets: 1
-        memory_mb: 1536
-        balloon_mb: 0  # Disabled for better stability
-        cpu_type: "host"
-
-      boot:
-        order: "scsi0"
-        onboot: true
-        startup_order: 1
-
-      storage:
-        - disk_id: "scsi0"
-          storage_ref: storage-lvm
-          size_gb: 32
-          format: "raw"
-          cache: "writethrough"
-          discard: "on"
-          ssd: true
-
-      networks:
-        - interface: "net0"
-          bridge_ref: bridge-vmbr0
-          network_ref: net-wan
-          model: "virtio"
-          firewall: false
-          role: "wan"
-          ip_config: "dhcp"
-          description: "WAN interface (to ISP Router)"
-
-        - interface: "net1"
-          bridge_ref: bridge-vmbr1
-          network_ref: net-opnsense-lan
-          model: "virtio"
-          firewall: false
-          role: "lan"
-          ip_config:
-            address: "192.168.10.1/24"
-          description: "LAN interface (to GL.iNet Slate AX)"
-
-        - interface: "net2"
-          bridge_ref: bridge-vmbr2
-          network_ref: net-lxc-internal
-          model: "virtio"
-          firewall: false
-          role: "internal"
-          ip_config:
-            address: "10.0.30.254/24"
-          description: "INTERNAL interface (LXC gateway)"
-
-        - interface: "net3"
-          bridge_ref: bridge-vmbr99
-          network_ref: net-management
-          model: "virtio"
-          firewall: false
-          role: "management"
-          ip_config:
-            address: "10.0.99.10/24"
-            gateway: "10.0.99.1"
-          description: "MGMT interface (Web UI)"
-
-      os:
-        type: "opnsense"
-        version: "24.7"
-
-      ansible:
-        enabled: false  # Manual configuration via Web UI
-        playbook: null
 
   # ------------------------------------------------------------
   # LXC Containers
   # ------------------------------------------------------------
+  # Only database containers run on Proxmox
+  # Application services (Nextcloud, Jellyfin, etc.) run on Orange Pi 5
+  # This optimizes for:
+  # - Low latency database access (SSD on Proxmox)
+  # - Hardware transcoding on Orange Pi 5 (RK3588S VPU)
+  # - Network resilience (critical DNS/VPN on MikroTik)
 
   lxc:
     - id: lxc-postgresql
@@ -143,14 +84,14 @@
       type: "database"
       role: "database-server"
       template_ref: tpl-lxc-postgresql
-      trust_zone_ref: internal
+      trust_zone_ref: servers
       description: "PostgreSQL Database Server"
       tags: ["database", "production"]
 
       resources:
         cores: 2
         memory_mb: 1024
-        swap_mb: 1024  # Increased swap for DB operations
+        swap_mb: 1024
 
       boot:
         <<: *default_lxc_boot
@@ -160,7 +101,7 @@
           <<: *default_lxc_storage_rootfs
 
       networks:
-        - <<: *default_lxc_network_internal
+        - <<: *default_lxc_network_servers
           ip: "10.0.30.10/24"
 
       dns: *default_dns
@@ -177,12 +118,29 @@
         <<: *default_ansible_enabled
         playbook: "postgresql.yml"
         vars:
-          postgresql_version: "15"
+          postgresql_version: "16"
+          postgresql_listen_addresses: "10.0.30.10"
           postgresql_databases:
+            - name: "nextcloud"
             - name: "homelab"
           postgresql_users:
+            - name: "nextcloud"
+              password: "{{ vault_postgresql_nextcloud_password }}"
+              database: "nextcloud"
             - name: "app"
               password: "{{ vault_postgresql_app_password }}"
+              database: "homelab"
+          postgresql_pg_hba:
+            - type: "host"
+              database: "nextcloud"
+              user: "nextcloud"
+              address: "10.0.30.50/32"  # Orange Pi 5
+              method: "scram-sha-256"
+            - type: "host"
+              database: "all"
+              user: "all"
+              address: "10.0.30.0/24"
+              method: "scram-sha-256"
 
     - id: lxc-redis
       vmid: 201
@@ -191,14 +149,14 @@
       type: "cache"
       role: "cache-server"
       template_ref: tpl-lxc-redis
-      trust_zone_ref: internal
+      trust_zone_ref: servers
       description: "Redis Cache Server"
       tags: ["cache", "production"]
 
       resources:
         cores: 1
-        memory_mb: 768
-        swap_mb: 512  # Redis uses maxmemory limit internally
+        memory_mb: 512
+        swap_mb: 256
 
       boot:
         <<: *default_lxc_boot
@@ -210,7 +168,7 @@
           size_gb: 4
 
       networks:
-        - <<: *default_lxc_network_internal
+        - <<: *default_lxc_network_servers
           ip: "10.0.30.20/24"
 
       dns: *default_dns
@@ -226,58 +184,66 @@
         playbook: "redis.yml"
         vars:
           redis_port: 6379
-          redis_maxmemory: "512mb"
+          redis_bind: "10.0.30.20"
+          redis_maxmemory: "256mb"
+          redis_maxmemory_policy: "allkeys-lru"
 
-    - id: lxc-nextcloud
-      vmid: 202
-      name: "nextcloud"
-      device_ref: gamayun
-      type: "web-application"
-      role: "file-sharing"
-      template_ref: tpl-lxc-nextcloud
-      trust_zone_ref: internal
-      description: "Nextcloud File Sharing"
-      tags: ["web", "storage", "production"]
+  # ------------------------------------------------------------
+  # Orange Pi 5 Services (Docker Compose)
+  # ------------------------------------------------------------
+  # These services run on Orange Pi 5, not as Proxmox LXC
+  # Defined here for documentation and Ansible inventory generation
 
-      resources:
-        cores: 2
-        memory_mb: 1536
-        swap_mb: 1024  # PHP-FPM workers can use swap if needed
+  external_services:
+    - id: ext-orangepi5
+      device_ref: orangepi5
+      description: "Application services on Orange Pi 5"
+      ip: "10.0.30.50"
 
-      boot:
-        <<: *default_lxc_boot
-        startup_order: 12
+      docker_services:
+        - name: "nextcloud"
+          image: "nextcloud:28"
+          ports: ["443:443", "80:80"]
+          volumes:
+            - "/mnt/nvme/nextcloud/data:/var/www/html/data"
+            - "/mnt/nvme/nextcloud/config:/var/www/html/config"
+          environment:
+            POSTGRES_HOST: "10.0.30.10"
+            REDIS_HOST: "10.0.30.20"
+          depends_on: ["lxc-postgresql", "lxc-redis"]
 
-      storage:
-        rootfs:
-          <<: *default_lxc_storage_rootfs
-          size_gb: 16
-        mountpoints:
-          - id: "mp0"
-            storage_ref: storage-hdd
-            mountpoint: "/var/www/nextcloud/data"
-            size_gb: 100
+        - name: "jellyfin"
+          image: "jellyfin/jellyfin:latest"
+          ports: ["8096:8096"]
+          volumes:
+            - "/mnt/nvme/jellyfin/config:/config"
+            - "/mnt/nvme/jellyfin/cache:/cache"
+            - "/mnt/nvme/media:/media"
+          devices:
+            - "/dev/dri:/dev/dri"  # Hardware transcoding
+            - "/dev/mali0:/dev/mali0"
+            - "/dev/rga:/dev/rga"
+          note: "RK3588S VPU for hardware transcoding"
 
-      networks:
-        - <<: *default_lxc_network_internal
-          ip: "10.0.30.30/24"
+        - name: "prometheus"
+          image: "prom/prometheus:latest"
+          ports: ["9090:9090"]
+          volumes:
+            - "/mnt/nvme/prometheus:/prometheus"
 
-      dns: *default_dns
+        - name: "grafana"
+          image: "grafana/grafana:latest"
+          ports: ["3000:3000"]
+          volumes:
+            - "/mnt/nvme/grafana:/var/lib/grafana"
 
-      os: *default_lxc_os
-
-      cloudinit:
-        <<: *default_lxc_cloudinit
-        user: "www-data"
-
-      ansible:
-        <<: *default_ansible_enabled
-        playbook: "nextcloud.yml"
-        vars:
-          nextcloud_version: "28"
-          nextcloud_domain: "nextcloud.home.local"
-          nextcloud_db_host_ref: lxc-postgresql  # Reference, not hardcoded IP
-          nextcloud_redis_host_ref: lxc-redis    # Reference, not hardcoded IP
+        - name: "home-assistant"
+          image: "homeassistant/home-assistant:stable"
+          ports: ["8123:8123"]
+          volumes:
+            - "/mnt/nvme/homeassistant:/config"
+          optional: true
+          note: "Enable if smart home devices are used"
 
   # ------------------------------------------------------------
   # Templates
@@ -301,22 +267,30 @@
         script: "db-redis.sh"
         description: "Redis LXC template"
 
-      - id: tpl-lxc-nextcloud
+      - id: tpl-lxc-debian
         vmid: 902
-        name: "template-nextcloud"
+        name: "template-debian"
         storage_ref: storage-hdd
-        source: "proxmox-community-scripts"
-        script: "nextcloud.sh"
-        description: "Nextcloud LXC template"
+        source: "proxmox"
+        image: "debian-12-standard_12.2-1_amd64.tar.zst"
+        description: "Debian 12 base LXC template"
 
     vms:
-      - id: tpl-vm-opnsense
+      - id: tpl-vm-debian
         vmid: 910
-        name: "template-opnsense"
+        name: "template-debian-vm"
         storage_ref: storage-hdd
-        source: "manual"
-        iso: "OPNsense-24.7-dvd-amd64.iso"
-        description: "OPNsense VM template"
+        source: "cloud-init"
+        image: "debian-12-genericcloud-amd64.qcow2"
+        description: "Debian 12 cloud-init VM template"
+
+      - id: tpl-vm-ubuntu
+        vmid: 911
+        name: "template-ubuntu-vm"
+        storage_ref: storage-hdd
+        source: "cloud-init"
+        image: "ubuntu-24.04-server-cloudimg-amd64.img"
+        description: "Ubuntu 24.04 cloud-init VM template"
 
 # ============================================================
 # Storage
