@@ -1,0 +1,138 @@
+# =============================================================================
+# MikroTik Terraform Outputs
+# Generated from topology v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with: python3 scripts/generate-terraform-mikrotik.py
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# System Information
+# -----------------------------------------------------------------------------
+
+output "router_identity" {
+  description = "MikroTik router identity"
+  value       = routeros_system_identity.router.name
+}
+
+# -----------------------------------------------------------------------------
+# Network Configuration
+# -----------------------------------------------------------------------------
+
+output "networks" {
+  description = "Configured networks"
+  value = {
+{% for network in networks %}
+{% if network.managed_by_ref == 'mikrotik-chateau' and network.cidr != 'dhcp' %}
+    "{{ network.id }}" = {
+      name    = "{{ network.name }}"
+      cidr    = "{{ network.cidr }}"
+      gateway = "{{ network.gateway }}"
+      vlan    = {{ network.vlan if network.vlan else 'null' }}
+    }
+{% endif %}
+{% endfor %}
+  }
+}
+
+# -----------------------------------------------------------------------------
+# VLAN Configuration
+# -----------------------------------------------------------------------------
+
+output "vlans" {
+  description = "Configured VLANs"
+  value = {
+{% for vlan in vlans %}
+    "{{ vlan.id }}" = {
+      name        = "{{ vlan.name }}"
+      network_ref = "{{ vlan.network_ref }}"
+    }
+{% endfor %}
+  }
+}
+
+# -----------------------------------------------------------------------------
+# VPN Information
+# -----------------------------------------------------------------------------
+
+output "wireguard_interface" {
+  description = "WireGuard interface name"
+  value       = routeros_interface_wireguard.wg_home.name
+}
+
+output "wireguard_public_key" {
+  description = "WireGuard server public key (share with peers)"
+  value       = routeros_interface_wireguard.wg_home.public_key
+  sensitive   = false
+}
+
+output "wireguard_endpoint" {
+  description = "WireGuard endpoint configuration"
+  value = {
+    port    = {{ wireguard.port | default(51820) }}
+    network = "{{ wireguard.network | default('10.0.200.0/24') }}"
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Container Status
+# -----------------------------------------------------------------------------
+
+output "containers" {
+  description = "Deployed containers"
+  value = {
+    adguard = {
+      name     = routeros_container.adguard.hostname
+      image    = routeros_container.adguard.remote_image
+      interface = routeros_interface_veth.adguard_veth.name
+      ip       = routeros_interface_veth.adguard_veth.address
+    }
+    tailscale = {
+      name     = routeros_container.tailscale.hostname
+      image    = routeros_container.tailscale.remote_image
+      interface = routeros_interface_veth.tailscale_veth.name
+      ip       = routeros_interface_veth.tailscale_veth.address
+    }
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Management Access
+# -----------------------------------------------------------------------------
+
+output "management_urls" {
+  description = "Management interface URLs"
+  value = {
+    webfig    = "https://{{ mikrotik_mgmt_ip | default('192.168.88.1') }}/"
+    api       = "https://{{ mikrotik_mgmt_ip | default('192.168.88.1') }}:8443/"
+    adguard   = "http://{{ mikrotik_mgmt_ip | default('192.168.88.1') }}:3000/"
+    winbox    = "{{ mikrotik_mgmt_ip | default('192.168.88.1') }}:8291"
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Infrastructure Summary
+# -----------------------------------------------------------------------------
+
+output "infrastructure_summary" {
+  description = "MikroTik infrastructure summary"
+  value = <<-EOT
+    ╔══════════════════════════════════════════════════════════════════════╗
+    ║  MikroTik RouterOS Configuration - Topology v{{ topology_version }}
+    ╠══════════════════════════════════════════════════════════════════════╣
+    ║  Router: {{ mikrotik_device.name | default('MikroTik Chateau LTE7 ax') }}
+    ║
+    ║  Networks:
+{% for network in networks %}
+{% if network.managed_by_ref == 'mikrotik-chateau' and network.cidr != 'dhcp' %}
+    ║    - {{ network.name }}: {{ network.cidr }}{% if network.vlan %} (VLAN {{ network.vlan }}){% endif %}
+
+{% endif %}
+{% endfor %}
+    ║
+    ║  Services:
+    ║    - DNS: AdGuard Home (container)
+    ║    - VPN: WireGuard + Tailscale
+    ║    - LTE Failover: Active
+    ║
+    ╚══════════════════════════════════════════════════════════════════════╝
+  EOT
+}

@@ -1,0 +1,206 @@
+# =============================================================================
+# MikroTik Firewall Configuration
+# Generated from topology v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with: python3 scripts/generate-terraform-mikrotik.py
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Address Lists
+# -----------------------------------------------------------------------------
+
+resource "routeros_ip_firewall_addr_list" "lan_networks" {
+  list    = "LAN"
+  address = "192.168.88.0/24"
+  comment = "Main LAN network"
+}
+
+resource "routeros_ip_firewall_addr_list" "servers_network" {
+  list    = "SERVERS"
+  address = "10.0.30.0/24"
+  comment = "Servers network"
+}
+
+resource "routeros_ip_firewall_addr_list" "management_network" {
+  list    = "MANAGEMENT"
+  address = "10.0.99.0/24"
+  comment = "Management network"
+}
+
+resource "routeros_ip_firewall_addr_list" "vpn_network" {
+  list    = "VPN"
+  address = "10.0.200.0/24"
+  comment = "WireGuard VPN network"
+}
+
+resource "routeros_ip_firewall_addr_list" "guest_network" {
+  list    = "GUEST"
+  address = "192.168.30.0/24"
+  comment = "Guest WiFi network"
+}
+
+resource "routeros_ip_firewall_addr_list" "iot_network" {
+  list    = "IOT"
+  address = "192.168.40.0/24"
+  comment = "IoT network"
+}
+
+# -----------------------------------------------------------------------------
+# Firewall Filter Rules - Input Chain
+# -----------------------------------------------------------------------------
+
+resource "routeros_ip_firewall_filter" "input_established" {
+  chain            = "input"
+  action           = "accept"
+  connection_state = "established,related"
+  comment          = "Accept established/related connections"
+}
+
+resource "routeros_ip_firewall_filter" "input_icmp" {
+  chain    = "input"
+  action   = "accept"
+  protocol = "icmp"
+  comment  = "Accept ICMP (ping)"
+}
+
+resource "routeros_ip_firewall_filter" "input_ssh_lan" {
+  chain        = "input"
+  action       = "accept"
+  protocol     = "tcp"
+  dst_port     = "22"
+  src_address_list = "LAN"
+  comment      = "Accept SSH from LAN"
+}
+
+resource "routeros_ip_firewall_filter" "input_winbox" {
+  chain        = "input"
+  action       = "accept"
+  protocol     = "tcp"
+  dst_port     = "8291"
+  src_address_list = "LAN"
+  comment      = "Accept Winbox from LAN"
+}
+
+resource "routeros_ip_firewall_filter" "input_api" {
+  chain        = "input"
+  action       = "accept"
+  protocol     = "tcp"
+  dst_port     = "8443"
+  src_address_list = "MANAGEMENT"
+  comment      = "Accept REST API from management network"
+}
+
+resource "routeros_ip_firewall_filter" "input_dns" {
+  chain    = "input"
+  action   = "accept"
+  protocol = "udp"
+  dst_port = "53"
+  comment  = "Accept DNS queries"
+}
+
+resource "routeros_ip_firewall_filter" "input_dhcp" {
+  chain    = "input"
+  action   = "accept"
+  protocol = "udp"
+  dst_port = "67"
+  comment  = "Accept DHCP requests"
+}
+
+resource "routeros_ip_firewall_filter" "input_wireguard" {
+  chain        = "input"
+  action       = "accept"
+  protocol     = "udp"
+  dst_port     = "51820"
+  in_interface = "ether1"
+  comment      = "Accept WireGuard from WAN"
+}
+
+resource "routeros_ip_firewall_filter" "input_drop_wan" {
+  chain        = "input"
+  action       = "drop"
+  in_interface = "ether1"
+  comment      = "Drop all other input from WAN"
+  log          = true
+  log_prefix   = "DROP_INPUT_WAN:"
+}
+
+# -----------------------------------------------------------------------------
+# Firewall Filter Rules - Forward Chain
+# -----------------------------------------------------------------------------
+
+resource "routeros_ip_firewall_filter" "forward_established" {
+  chain            = "forward"
+  action           = "accept"
+  connection_state = "established,related"
+  comment          = "Accept established/related forward"
+}
+
+resource "routeros_ip_firewall_filter" "forward_invalid" {
+  chain            = "forward"
+  action           = "drop"
+  connection_state = "invalid"
+  comment          = "Drop invalid connections"
+}
+
+{% for policy in firewall_policies %}
+{% if policy.chain == 'forward' %}
+resource "routeros_ip_firewall_filter" "{{ policy.id | replace('-', '_') }}" {
+  chain  = "forward"
+  action = "{{ policy.action }}"
+  {% if policy.source_network_ref %}
+  src_address = "{{ policy.source_cidr }}"
+  {% elif policy.source_zone_ref %}
+  src_address_list = "{{ policy.source_zone_ref | upper }}"
+  {% endif %}
+  {% if policy.destination_network_ref %}
+  dst_address = "{{ policy.destination_cidr }}"
+  {% elif policy.destination_zone_ref %}
+  dst_address_list = "{{ policy.destination_zone_ref | upper }}"
+  {% endif %}
+  {% if policy.protocols %}
+  protocol = "{{ policy.protocols[0] }}"
+  {% endif %}
+  {% if policy.ports %}
+  dst_port = "{{ policy.ports | join(',') }}"
+  {% endif %}
+  comment = "{{ policy.name }}: {{ policy.description }}"
+}
+
+{% endif %}
+{% endfor %}
+# Default drop for forward
+resource "routeros_ip_firewall_filter" "forward_drop_default" {
+  chain   = "forward"
+  action  = "drop"
+  comment = "Default drop all forward"
+  log     = true
+  log_prefix = "DROP_FORWARD:"
+}
+
+# -----------------------------------------------------------------------------
+# NAT Rules
+# -----------------------------------------------------------------------------
+
+resource "routeros_ip_firewall_nat" "masquerade_wan" {
+  chain        = "srcnat"
+  action       = "masquerade"
+  out_interface = "ether1"
+  comment      = "Masquerade outgoing traffic on WAN"
+}
+
+resource "routeros_ip_firewall_nat" "masquerade_lte" {
+  chain        = "srcnat"
+  action       = "masquerade"
+  out_interface = "lte1"
+  comment      = "Masquerade outgoing traffic on LTE failover"
+}
+
+# DNS redirect to AdGuard container
+resource "routeros_ip_firewall_nat" "dns_redirect" {
+  chain       = "dstnat"
+  action      = "dst-nat"
+  protocol    = "udp"
+  dst_port    = "53"
+  to_addresses = "192.168.88.1"
+  to_ports    = "53"
+  comment     = "Redirect DNS to AdGuard"
+}

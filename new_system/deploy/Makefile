@@ -1,0 +1,226 @@
+# =============================================================================
+# Home Lab Infrastructure Deployment Makefile
+# =============================================================================
+#
+# Usage:
+#   make help          - Show available commands
+#   make all           - Validate, generate, and show plans
+#   make deploy-all    - Full deployment (network → compute → services)
+#
+# Prerequisites:
+#   - Python 3.8+
+#   - Terraform 1.5+
+#   - Ansible 2.14+
+#   - Bootstrap completed (see: make bootstrap-info)
+#
+# =============================================================================
+
+.PHONY: all help validate generate plan apply deploy-all clean
+.PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
+.PHONY: configure test bootstrap-info
+
+# Directories
+TOPOLOGY_DIR := ..
+SCRIPTS_DIR := $(TOPOLOGY_DIR)/scripts
+GENERATED_DIR := $(TOPOLOGY_DIR)/generated
+ANSIBLE_DIR := $(TOPOLOGY_DIR)/ansible
+
+# Colors
+GREEN := \033[0;32m
+YELLOW := \033[0;33m
+RED := \033[0;31m
+NC := \033[0m  # No Color
+
+# =============================================================================
+# Main Targets
+# =============================================================================
+
+all: validate generate plan
+	@echo "$(GREEN)✓ All checks passed. Ready for deployment.$(NC)"
+	@echo "  Run 'make deploy-all' to deploy, or apply individually:"
+	@echo "  - make apply-mikrotik  (network first)"
+	@echo "  - make apply-proxmox   (compute second)"
+	@echo "  - make configure       (services last)"
+
+help:
+	@echo "╔══════════════════════════════════════════════════════════════════╗"
+	@echo "║  Home Lab Infrastructure Deployment                              ║"
+	@echo "╠══════════════════════════════════════════════════════════════════╣"
+	@echo "║  Validation & Generation:                                        ║"
+	@echo "║    make validate       - Validate topology YAML                  ║"
+	@echo "║    make generate       - Generate all configs from topology      ║"
+	@echo "║                                                                  ║"
+	@echo "║  Planning (Dry Run):                                             ║"
+	@echo "║    make plan           - Show all Terraform plans                ║"
+	@echo "║    make plan-mikrotik  - Show MikroTik changes                   ║"
+	@echo "║    make plan-proxmox   - Show Proxmox changes                    ║"
+	@echo "║                                                                  ║"
+	@echo "║  Deployment:                                                     ║"
+	@echo "║    make apply-mikrotik - Apply MikroTik configuration            ║"
+	@echo "║    make apply-proxmox  - Apply Proxmox configuration             ║"
+	@echo "║    make configure      - Run Ansible playbooks                   ║"
+	@echo "║    make deploy-all     - Full deployment (all phases)            ║"
+	@echo "║                                                                  ║"
+	@echo "║  Utilities:                                                      ║"
+	@echo "║    make test           - Verify deployment health                ║"
+	@echo "║    make clean          - Clean generated files                   ║"
+	@echo "║    make bootstrap-info - Show bootstrap instructions             ║"
+	@echo "╚══════════════════════════════════════════════════════════════════╝"
+
+# =============================================================================
+# Validation & Generation
+# =============================================================================
+
+validate:
+	@echo "$(YELLOW)📋 Validating topology...$(NC)"
+	cd $(TOPOLOGY_DIR) && python3 $(SCRIPTS_DIR)/validate-topology.py
+	@echo "$(GREEN)✓ Topology validation passed$(NC)"
+
+generate: generate-terraform generate-mikrotik generate-ansible generate-docs
+	@echo "$(GREEN)✓ All configurations generated$(NC)"
+
+generate-terraform:
+	@echo "$(YELLOW)📝 Generating Terraform (Proxmox)...$(NC)"
+	cd $(TOPOLOGY_DIR) && python3 $(SCRIPTS_DIR)/generate-terraform.py
+
+generate-mikrotik:
+	@echo "$(YELLOW)📝 Generating Terraform (MikroTik)...$(NC)"
+	cd $(TOPOLOGY_DIR) && python3 $(SCRIPTS_DIR)/generate-terraform-mikrotik.py
+
+generate-ansible:
+	@echo "$(YELLOW)📝 Generating Ansible inventory...$(NC)"
+	cd $(TOPOLOGY_DIR) && python3 $(SCRIPTS_DIR)/generate-ansible-inventory.py
+
+generate-docs:
+	@echo "$(YELLOW)📝 Generating documentation...$(NC)"
+	cd $(TOPOLOGY_DIR) && python3 $(SCRIPTS_DIR)/generate-docs.py || true
+
+# =============================================================================
+# Terraform Planning
+# =============================================================================
+
+plan: plan-mikrotik plan-proxmox
+	@echo "$(GREEN)✓ All plans generated$(NC)"
+
+plan-mikrotik:
+	@echo "$(YELLOW)🔍 Planning MikroTik changes...$(NC)"
+	@if [ -f $(GENERATED_DIR)/terraform-mikrotik/terraform.tfvars ]; then \
+		cd $(GENERATED_DIR)/terraform-mikrotik && terraform init -upgrade && terraform plan; \
+	else \
+		echo "$(RED)⚠️  terraform.tfvars not found. Copy terraform.tfvars.example first.$(NC)"; \
+		exit 1; \
+	fi
+
+plan-proxmox:
+	@echo "$(YELLOW)🔍 Planning Proxmox changes...$(NC)"
+	@if [ -f $(GENERATED_DIR)/terraform/terraform.tfvars ]; then \
+		cd $(GENERATED_DIR)/terraform && terraform init -upgrade && terraform plan; \
+	else \
+		echo "$(RED)⚠️  terraform.tfvars not found. Copy terraform.tfvars.example first.$(NC)"; \
+		exit 1; \
+	fi
+
+# =============================================================================
+# Terraform Apply
+# =============================================================================
+
+apply-mikrotik:
+	@echo "$(YELLOW)🚀 Applying MikroTik configuration...$(NC)"
+	@echo "$(RED)⚠️  This will modify your MikroTik router. Ensure you have console access!$(NC)"
+	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	./phases/01-network.sh
+
+apply-proxmox:
+	@echo "$(YELLOW)🚀 Applying Proxmox configuration...$(NC)"
+	./phases/02-compute.sh
+
+# =============================================================================
+# Ansible Configuration
+# =============================================================================
+
+configure:
+	@echo "$(YELLOW)⚙️  Running Ansible playbooks...$(NC)"
+	./phases/03-services.sh
+
+# =============================================================================
+# Full Deployment
+# =============================================================================
+
+deploy-all: validate generate
+	@echo "$(YELLOW)🚀 Starting full deployment...$(NC)"
+	@echo ""
+	@echo "Deployment order:"
+	@echo "  1. Network (MikroTik)"
+	@echo "  2. Compute (Proxmox)"
+	@echo "  3. Services (Ansible)"
+	@echo "  4. Verification"
+	@echo ""
+	@read -p "Continue with full deployment? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	./phases/01-network.sh
+	./phases/02-compute.sh
+	./phases/03-services.sh
+	./phases/04-verify.sh
+	@echo "$(GREEN)✅ Full deployment completed!$(NC)"
+
+# =============================================================================
+# Verification
+# =============================================================================
+
+test:
+	@echo "$(YELLOW)🧪 Running deployment verification...$(NC)"
+	./phases/04-verify.sh
+
+# =============================================================================
+# Utilities
+# =============================================================================
+
+clean:
+	@echo "$(YELLOW)🧹 Cleaning generated files...$(NC)"
+	rm -rf $(GENERATED_DIR)/terraform-mikrotik/*.tf
+	rm -rf $(GENERATED_DIR)/terraform-mikrotik/.terraform
+	rm -f $(GENERATED_DIR)/terraform-mikrotik/terraform.tfstate*
+	@echo "$(GREEN)✓ Generated MikroTik files cleaned$(NC)"
+	@echo "$(YELLOW)Note: Proxmox terraform state preserved. Use 'make clean-all' to remove.$(NC)"
+
+clean-all: clean
+	rm -rf $(GENERATED_DIR)/terraform/*.tf
+	rm -rf $(GENERATED_DIR)/terraform/.terraform
+	rm -f $(GENERATED_DIR)/terraform/terraform.tfstate*
+	@echo "$(GREEN)✓ All generated files cleaned$(NC)"
+
+bootstrap-info:
+	@echo "╔══════════════════════════════════════════════════════════════════╗"
+	@echo "║  Bootstrap Instructions                                          ║"
+	@echo "╠══════════════════════════════════════════════════════════════════╣"
+	@echo "║                                                                  ║"
+	@echo "║  1. MikroTik Bootstrap:                                          ║"
+	@echo "║     - Connect via WinBox to 192.168.88.1                         ║"
+	@echo "║     - Import: bootstrap/mikrotik/bootstrap.rsc                   ║"
+	@echo "║     - Or run commands manually (see README)                      ║"
+	@echo "║                                                                  ║"
+	@echo "║  2. Proxmox Bootstrap:                                           ║"
+	@echo "║     - Use: bare-metal/create-uefi-autoinstall-proxmox-usb.sh     ║"
+	@echo "║     - Boot from USB, auto-install completes                      ║"
+	@echo "║     - Run post-install scripts                                   ║"
+	@echo "║                                                                  ║"
+	@echo "║  3. Orange Pi 5 Bootstrap:                                       ║"
+	@echo "║     - Flash Armbian to NVMe with cloud-init                      ║"
+	@echo "║     - Configure network via cloud-init user-data                 ║"
+	@echo "║                                                                  ║"
+	@echo "║  After bootstrap, run: make deploy-all                           ║"
+	@echo "╚══════════════════════════════════════════════════════════════════╝"
+
+# =============================================================================
+# Init targets (first-time setup)
+# =============================================================================
+
+init-mikrotik:
+	@echo "$(YELLOW)Initializing MikroTik Terraform...$(NC)"
+	cd $(GENERATED_DIR)/terraform-mikrotik && terraform init -upgrade
+
+init-proxmox:
+	@echo "$(YELLOW)Initializing Proxmox Terraform...$(NC)"
+	cd $(GENERATED_DIR)/terraform && terraform init -upgrade
+
+init: init-mikrotik init-proxmox
+	@echo "$(GREEN)✓ All Terraform providers initialized$(NC)"

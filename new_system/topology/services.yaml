@@ -8,92 +8,95 @@
 # - Orange Pi 5: Nextcloud, Jellyfin, Prometheus, Grafana, Home Assistant
 # - Proxmox: PostgreSQL, Redis (databases only)
 
-  # ============================================================
-  # SSL/TLS Certificates
-  # ============================================================
+# ============================================================
+# SSL/TLS Certificates
+# ============================================================
 
-  ssl_certificates:
-    # Local Certificate Authority for *.home.local domains
-    local_ca:
-      enabled: true
-      name: "Home Lab CA"
-      cn: "Home Lab Root CA"
-      organization: "Home Lab"
-      validity_days: 3650  # 10 years
-      key_size: 4096
-      storage:
-        device_ref: orangepi5
-        path: "/mnt/nvme/ssl/ca"
-      distribution:
-        - device_ref: gamayun
-        - device_ref: orangepi5
-        - device_ref: mikrotik-chateau
+ssl_certificates:
+  # Local Certificate Authority for *.home.local domains
+  local_ca:
+    enabled: true
+    name: "Home Lab CA"
+    cn: "Home Lab Root CA"
+    organization: "Home Lab"
+    validity_days: 3650
+    key_size: 4096
+    storage:
+      device_ref: orangepi5
+      path: "/mnt/nvme/ssl/ca"
+    distribution:
+      - device_ref: gamayun
+      - device_ref: orangepi5
+      - device_ref: mikrotik-chateau
 
-    # Certificates for services
-    certificates:
-      - id: cert-nextcloud
-        domain: "nextcloud.home.local"
-        alt_names:
-          - "cloud.home.local"
-        issuer: "local_ca"
-        validity_days: 365
-        auto_renew: true
-        renew_before_days: 30
-        service_ref: svc-nextcloud
+  # Certificates for services
+  certificates:
+    - id: cert-nextcloud
+      domain: "nextcloud.home.local"
+      alt_names:
+        - "cloud.home.local"
+      issuer: "local_ca"
+      validity_days: 365
+      auto_renew: true
+      renew_before_days: 30
+      service_ref: svc-nextcloud
 
-      - id: cert-jellyfin
-        domain: "jellyfin.home.local"
-        alt_names:
-          - "media.home.local"
-        issuer: "local_ca"
-        validity_days: 365
-        auto_renew: true
-        service_ref: svc-jellyfin
+    - id: cert-jellyfin
+      domain: "jellyfin.home.local"
+      alt_names:
+        - "media.home.local"
+      issuer: "local_ca"
+      validity_days: 365
+      auto_renew: true
+      service_ref: svc-jellyfin
 
-      - id: cert-grafana
-        domain: "grafana.home.local"
-        alt_names:
-          - "monitor.home.local"
-        issuer: "local_ca"
-        validity_days: 365
-        auto_renew: true
-        service_ref: svc-grafana
+    - id: cert-grafana
+      domain: "grafana.home.local"
+      alt_names:
+        - "monitor.home.local"
+      issuer: "local_ca"
+      validity_days: 365
+      auto_renew: true
+      service_ref: svc-grafana
 
-      - id: cert-proxmox
-        domain: "proxmox.home.local"
-        alt_names:
-          - "gamayun.home.local"
-          - "10.0.99.2"
-        issuer: "local_ca"
-        validity_days: 365
-        auto_renew: true
-        service_ref: svc-proxmox-ui
+    - id: cert-proxmox
+      domain: "proxmox.home.local"
+      alt_names:
+        - "gamayun.home.local"
+        - "10.0.99.2"
+      issuer: "local_ca"
+      validity_days: 365
+      auto_renew: true
+      service_ref: svc-proxmox-ui
 
-      - id: cert-mikrotik
-        domain: "mikrotik.home.local"
-        alt_names:
-          - "router.home.local"
-          - "10.0.99.1"
-        issuer: "local_ca"
-        validity_days: 365
-        auto_renew: true
-        service_ref: svc-mikrotik-ui
+    - id: cert-mikrotik
+      domain: "mikrotik.home.local"
+      alt_names:
+        - "router.home.local"
+        - "10.0.99.1"
+      issuer: "local_ca"
+      validity_days: 365
+      auto_renew: true
+      service_ref: svc-mikrotik-ui
 
-    # Let's Encrypt for public domains (if needed)
-    letsencrypt:
-      enabled: false  # Enable when public domain is available
-      email: "admin@example.com"
-      staging: true  # Use staging for testing
-      domains: []
-      challenge_type: "dns-01"  # or http-01
-      dns_provider: "cloudflare"  # if using dns-01
+  # Let's Encrypt for public domains (if needed)
+  letsencrypt:
+    enabled: false
+    email: "admin@example.com"
+    staging: true
+    domains: []
+    challenge_type: "dns-01"
+    dns_provider: "cloudflare"
 
+# ============================================================
+# Service Items
+# ============================================================
+
+items:
   # ============================================================
   # Tier 1: Critical Services (MikroTik - Always On)
   # ============================================================
-  # These services run on MikroTik and survive Proxmox/OPi5 failures
 
-  # MikroTik Router UI
   - id: svc-mikrotik-ui
     name: "MikroTik WebFig"
     type: "web-ui"
@@ -102,7 +105,7 @@
     ip: "10.0.99.1"
     ports:
       https: 443
-      http: 80  # Redirect to HTTPS
+      http: 80
       winbox: 8291
       api: 8728
       api_ssl: 8729
@@ -113,7 +116,7 @@
     critical: true
     security:
       https_redirect: true
-      ssl_certificate: "self-signed"  # TODO: Replace with Let's Encrypt
+      ssl_certificate: "self-signed"
       allowed_from:
         - net-lan
         - net-vpn-home
@@ -122,7 +125,6 @@
         max_connections: 5
         per_seconds: 60
 
-  # AdGuard Home (MikroTik Container)
   - id: svc-adguard
     name: "AdGuard Home"
     type: "dns"
@@ -147,7 +149,6 @@
       - "Parental controls"
       - "Custom filtering rules"
 
-  # WireGuard VPN (MikroTik Native)
   - id: svc-wireguard
     name: "WireGuard VPN"
     type: "vpn"
@@ -166,7 +167,6 @@
       - "Works over LTE failover"
       - "Low latency"
 
-  # Tailscale (MikroTik Container)
   - id: svc-tailscale
     name: "Tailscale"
     type: "vpn"
@@ -187,9 +187,7 @@
   # ============================================================
   # Tier 2: Application Services (Orange Pi 5)
   # ============================================================
-  # These services run on Orange Pi 5 with NVMe storage
 
-  # Nextcloud
   - id: svc-nextcloud
     name: "Nextcloud"
     type: "web-application"
@@ -214,7 +212,6 @@
       type: "nvme"
       path: "/mnt/nvme/nextcloud"
 
-  # Jellyfin Media Server
   - id: svc-jellyfin
     name: "Jellyfin"
     type: "media-server"
@@ -242,7 +239,6 @@
         cache: "/mnt/nvme/jellyfin/cache"
         media: "/mnt/nvme/media"
 
-  # Secondary DNS (Orange Pi 5) - Fallback when MikroTik is down
   - id: svc-adguard-secondary
     name: "AdGuard Home Secondary"
     type: "dns"
@@ -253,7 +249,7 @@
     network_ref: net-servers
     ip: "10.0.30.50"
     ports:
-      dns: 5353  # Non-standard port, forwarded from MikroTik
+      dns: 5353
       web_ui: 3001
     protocol: "http"
     trust_zone_ref: servers
@@ -261,9 +257,7 @@
     description: "Secondary DNS for redundancy (synced with primary)"
     optional: true
     sync_with: svc-adguard
-    note: "Activate if MikroTik DNS fails"
 
-  # Prometheus Monitoring
   - id: svc-prometheus
     name: "Prometheus"
     type: "monitoring"
@@ -295,7 +289,6 @@
         type: "redis_exporter"
         target: "10.0.30.20:9121"
 
-  # Alertmanager
   - id: svc-alertmanager
     name: "Alertmanager"
     type: "alerting"
@@ -318,7 +311,6 @@
       - type: "telegram"
         enabled: false
 
-  # Loki - Centralized Logging
   - id: svc-loki
     name: "Loki"
     type: "logging"
@@ -345,7 +337,6 @@
       - name: "docker"
         type: "docker-driver"
 
-  # Grafana Visualization
   - id: svc-grafana
     name: "Grafana"
     type: "visualization"
@@ -364,7 +355,6 @@
     dependencies:
       - service_ref: svc-prometheus
 
-  # Home Assistant (Optional)
   - id: svc-homeassistant
     name: "Home Assistant"
     type: "home-automation"
@@ -389,9 +379,7 @@
   # ============================================================
   # Tier 3: Database Services (Proxmox LXC)
   # ============================================================
-  # Low-latency database access on Proxmox SSD
 
-  # Proxmox Host Web UI
   - id: svc-proxmox-ui
     name: "Proxmox Web UI"
     type: "web-ui"
@@ -404,7 +392,6 @@
     url: "https://10.0.99.2:8006"
     description: "Proxmox VE management interface"
 
-  # PostgreSQL Database
   - id: svc-postgresql
     name: "PostgreSQL Database"
     type: "database"
@@ -423,7 +410,6 @@
       - name: "homelab"
         user: "app"
 
-  # Redis Cache
   - id: svc-redis
     name: "Redis Cache"
     type: "cache"
@@ -436,8 +422,3 @@
     description: "Redis cache server"
     clients:
       - service_ref: svc-nextcloud
-
-# ============================================================
-# Ansible Configuration
-# ============================================================
-

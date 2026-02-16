@@ -4,9 +4,10 @@ Regenerate ALL files from topology.yaml
 
 This script runs all generators in the correct order:
 1. Validate topology
-2. Generate Terraform
-3. Generate Ansible inventory
-4. Generate documentation
+2. Generate Terraform (Proxmox)
+3. Generate Terraform (MikroTik)
+4. Generate Ansible inventory
+5. Generate documentation
 
 Usage:
     python3 scripts/regenerate-all.py [--topology topology.yaml]
@@ -79,30 +80,34 @@ class RegenerateAll:
         print(f"🕐 Started at: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
         # Step 1: Validate topology
-        self.print_header("Step 1/4: Validate Topology")
+        self.print_header("Step 1/5: Validate Topology")
         if not self.run_script("validate-topology.py", "Validating topology"):
             print("⚠️  Validation failed, but continuing with generation...")
             print("   (Fix validation errors to ensure correct output)\n")
 
-        # Step 2: Generate Terraform
-        self.print_header("Step 2/4: Generate Terraform")
-        success_terraform = self.run_script("generate-terraform.py", "Generating Terraform configuration")
+        # Step 2: Generate Terraform (Proxmox)
+        self.print_header("Step 2/5: Generate Terraform (Proxmox)")
+        success_terraform = self.run_script("generate-terraform.py", "Generating Proxmox Terraform configuration")
 
-        # Step 3: Generate Ansible inventory
-        self.print_header("Step 3/4: Generate Ansible Inventory")
+        # Step 3: Generate Terraform (MikroTik)
+        self.print_header("Step 3/5: Generate Terraform (MikroTik)")
+        success_mikrotik = self.run_script("generate-terraform-mikrotik.py", "Generating MikroTik Terraform configuration")
+
+        # Step 4: Generate Ansible inventory
+        self.print_header("Step 4/5: Generate Ansible Inventory")
         success_ansible = self.run_script("generate-ansible-inventory.py", "Generating Ansible inventory")
 
-        # Step 4: Generate documentation
-        self.print_header("Step 4/4: Generate Documentation")
+        # Step 5: Generate documentation
+        self.print_header("Step 5/5: Generate Documentation")
         success_docs = self.run_script("generate-docs.py", "Generating documentation")
 
         # Summary
-        self.print_summary(success_terraform, success_ansible, success_docs)
+        self.print_summary(success_terraform, success_mikrotik, success_ansible, success_docs)
 
         # Return True only if all critical generators succeeded
-        return success_terraform and success_ansible and success_docs
+        return success_terraform and success_mikrotik and success_ansible and success_docs
 
-    def print_summary(self, success_terraform: bool, success_ansible: bool, success_docs: bool):
+    def print_summary(self, success_terraform: bool, success_mikrotik: bool, success_ansible: bool, success_docs: bool):
         """Print final summary"""
         end_time = datetime.now()
         duration = (end_time - self.start_time).total_seconds()
@@ -110,9 +115,10 @@ class RegenerateAll:
         self.print_header("📊 Summary")
 
         print("Results:")
-        print(f"  {'✅' if success_terraform else '❌'} Terraform:  {'Success' if success_terraform else 'Failed'}")
-        print(f"  {'✅' if success_ansible else '❌'} Ansible:   {'Success' if success_ansible else 'Failed'}")
-        print(f"  {'✅' if success_docs else '❌'} Docs:      {'Success' if success_docs else 'Failed'}")
+        print(f"  {'✅' if success_terraform else '❌'} Terraform (Proxmox):  {'Success' if success_terraform else 'Failed'}")
+        print(f"  {'✅' if success_mikrotik else '❌'} Terraform (MikroTik): {'Success' if success_mikrotik else 'Failed'}")
+        print(f"  {'✅' if success_ansible else '❌'} Ansible:              {'Success' if success_ansible else 'Failed'}")
+        print(f"  {'✅' if success_docs else '❌'} Documentation:        {'Success' if success_docs else 'Failed'}")
 
         print(f"\n⏱️  Duration: {duration:.2f} seconds")
         print(f"🕐 Completed at: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -124,15 +130,27 @@ class RegenerateAll:
 
         print("\n" + "="*70)
 
-        if success_terraform and success_ansible and success_docs:
+        all_success = success_terraform and success_mikrotik and success_ansible and success_docs
+        if all_success:
             print("\n✅ All generators completed successfully!")
             print("\n📁 Generated files structure:")
             print("   generated/")
-            print("   ├── terraform/")
+            print("   ├── terraform/              # Proxmox infrastructure")
             print("   │   ├── provider.tf")
             print("   │   ├── bridges.tf")
             print("   │   ├── vms.tf")
             print("   │   ├── lxc.tf")
+            print("   │   ├── variables.tf")
+            print("   │   └── terraform.tfvars.example")
+            print("   ├── terraform-mikrotik/     # MikroTik RouterOS")
+            print("   │   ├── provider.tf")
+            print("   │   ├── interfaces.tf")
+            print("   │   ├── addresses.tf")
+            print("   │   ├── dhcp.tf")
+            print("   │   ├── firewall.tf")
+            print("   │   ├── qos.tf")
+            print("   │   ├── vpn.tf")
+            print("   │   ├── containers.tf")
             print("   │   ├── variables.tf")
             print("   │   └── terraform.tfvars.example")
             print("   ├── ansible/")
@@ -140,11 +158,7 @@ class RegenerateAll:
             print("   │       └── production/")
             print("   │           ├── hosts.yml")
             print("   │           ├── group_vars/")
-            print("   │           │   └── all.yml")
             print("   │           └── host_vars/")
-            print("   │               ├── postgresql-db.yml")
-            print("   │               ├── redis-cache.yml")
-            print("   │               └── nextcloud.yml")
             print("   └── docs/")
             print("       ├── overview.md")
             print("       ├── network-diagram.md")
@@ -153,10 +167,14 @@ class RegenerateAll:
             print("       └── devices.md")
 
             print("\n📝 Next steps:")
-            print("   1. Review generated files in generated/ directory")
-            print("   2. Apply Terraform: cd generated/terraform && terraform init && terraform plan")
-            print("   3. Run Ansible: ansible-playbook -i generated/ansible/inventory/production/hosts.yml playbooks/site.yml")
-            print("   4. View docs: cat generated/docs/overview.md")
+            print("   1. Bootstrap MikroTik: see bootstrap/mikrotik/README.md")
+            print("   2. Configure terraform.tfvars files in both directories")
+            print("   3. Deploy using Makefile:")
+            print("      cd deploy && make deploy-all")
+            print("   Or deploy manually:")
+            print("      cd generated/terraform-mikrotik && terraform init && terraform apply")
+            print("      cd generated/terraform && terraform init && terraform apply")
+            print("      cd ansible && ansible-playbook -i inventory/production/hosts.yml site.yml")
         else:
             print("\n❌ Some generators failed. Check errors above.")
             print("   Fix issues and run again: python3 scripts/regenerate-all.py")

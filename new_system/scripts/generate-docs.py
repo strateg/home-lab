@@ -156,7 +156,12 @@ class DocumentationGenerator:
         try:
             template = self.jinja_env.get_template('docs/services.md.j2')
 
-            services = self.topology.get('services', [])
+            # Services can be under 'services.items' (new structure) or 'services' (list)
+            services_data = self.topology.get('services', {})
+            if isinstance(services_data, dict):
+                services = services_data.get('items', [])
+            else:
+                services = services_data  # Backwards compatibility if it's a list
 
             # Enrich services with host information
             lxc_map = {lxc['id']: lxc for lxc in self.topology['compute'].get('lxc', [])}
@@ -237,7 +242,9 @@ class DocumentationGenerator:
             networks = self.topology['logical_topology'].get('networks', [])
             vms = self.topology['compute'].get('vms', [])
             lxc = self.topology['compute'].get('lxc', [])
-            services = self.topology.get('services', [])
+            # Services can be under 'services.items' (new structure) or 'services' (list)
+            services_data = self.topology.get('services', {})
+            services = services_data.get('items', []) if isinstance(services_data, dict) else services_data
             storage = self.topology.get('storage', [])
 
             # Calculate statistics
