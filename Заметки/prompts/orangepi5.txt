@@ -1,0 +1,44 @@
+ I have a  orange pi 5 . What would you suggest to do me with that looking at the home-lab
+  infrastructure?
+
+● Looking at your home-lab infrastructure, the Orange Pi 5 could be a great addition given your main constraint: 8GB RAM on the Proxmox host (Dell XPS L701X).
+
+  Recommended Uses for Orange Pi 5
+
+  1. Offload Resource-Heavy Services (Best ROI)
+
+  Your Proxmox has only ~4GB left after OPNsense. The Orange Pi 5 (especially 8GB+ model) could run:
+
+  - Nextcloud - Currently planned for LXC at 10.0.30.30, but it's RAM-hungry
+  - Media Server (Jellyfin) - The RK3588S has excellent hardware transcoding via VPU
+  - Monitoring Stack - Prometheus + Grafana can consume significant resources
+
+  2. Secondary/Backup Node
+
+  - Backup server - Store Proxmox backups (vzdump) on attached NVMe
+  - Redundant DNS - Second AdGuard/Pi-hole instance (primary on GL.iNet)
+  - Database replica - PostgreSQL standby for your 10.0.30.10 instance
+
+  3. Kubernetes Playground
+
+  - Run K3s lightweight Kubernetes
+  - Learn container orchestration without consuming Proxmox resources
+  - Could join with Proxmox LXC nodes later
+
+  4. Home Automation Hub
+
+  - Home Assistant - Runs great on Orange Pi 5
+  - GPIO for sensors/relays
+  - Zigbee/Z-Wave coordinator (with USB adapter)
+
+  My Top Suggestion
+
+  Given your topology, I'd recommend: Move Nextcloud + media services to Orange Pi 5
+
+  This would:
+  - Free ~2GB RAM on Proxmox for more LXC containers
+  - Take advantage of RK3588S hardware transcoding
+  - Keep databases (PostgreSQL, Redis) on Proxmox for low-latency access
+  - Add resilience (services survive Proxmox maintenance)
+
+  Network integration: Add it to vmbr2 (INTERNAL, 10.0.30.x) or vmbr99 (MGMT) depending on use case.
