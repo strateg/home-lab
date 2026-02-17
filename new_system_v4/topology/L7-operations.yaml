@@ -265,6 +265,7 @@ backup:
     description: Export RouterOS configuration to Git repository
     targets:
     - device_ref: mikrotik-chateau
+      data_asset_ref: data-mikrotik-config
     type: config-export
     schedule: 0 4 * * *
     method: routeros-export
@@ -289,6 +290,15 @@ backup:
     description: Backup Docker volumes and NVMe data to Proxmox HDD
     targets:
     - device_ref: orangepi5
+      data_asset_ref: data-nextcloud
+    - device_ref: orangepi5
+      data_asset_ref: data-jellyfin-config
+    - device_ref: orangepi5
+      data_asset_ref: data-grafana
+    - device_ref: orangepi5
+      data_asset_ref: data-prometheus
+    - device_ref: orangepi5
+      data_asset_ref: data-homeassistant
     type: rsync
     schedule: 0 3 * * *
     source_paths:
@@ -320,6 +330,7 @@ backup:
     description: Hourly pg_dump for critical database
     targets:
     - lxc_ref: lxc-postgresql
+      data_asset_ref: data-postgresql-db
     type: pg_dump
     schedule: 0 * * * *
     databases:
@@ -343,6 +354,7 @@ backup:
     description: Full LXC snapshot for disaster recovery
     targets:
     - lxc_ref: lxc-postgresql
+      data_asset_ref: data-postgresql-db
     type: vzdump
     schedule: 0 2 * * *
     storage_ref: storage-hdd
@@ -363,6 +375,7 @@ backup:
     description: Daily backup of Redis LXC
     targets:
     - lxc_ref: lxc-redis
+      data_asset_ref: data-redis-db
     type: vzdump
     schedule: 0 2 30 * * *
     storage_ref: storage-hdd
@@ -382,7 +395,9 @@ backup:
     description: Complete weekly backup of all LXC containers
     targets:
     - lxc_ref: lxc-postgresql
+      data_asset_ref: data-postgresql-db
     - lxc_ref: lxc-redis
+      data_asset_ref: data-redis-db
     type: vzdump
     schedule: 0 1 * * 0
     storage_ref: storage-hdd
@@ -402,9 +417,9 @@ backup:
     name: Weekly Offsite Backup
     description: Critical data to cloud storage (encrypted)
     targets:
-    - postgresql-dumps
-    - mikrotik-config
-    - nextcloud-data
+    - data_asset_ref: data-postgresql-dumps
+    - data_asset_ref: data-mikrotik-config
+    - data_asset_ref: data-nextcloud
     type: rclone
     schedule: 0 5 * * 0
     source_paths:

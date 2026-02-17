@@ -93,7 +93,8 @@
         "documentation": {"type": "object"},
         "notes": {"type": "array"},
         "ansible": {"type": "object"},
-        "backup_policies": {"type": "array"}
+        "backup": {"type": "object"},
+        "security": {"type": "object"}
       },
       "additionalProperties": true
     }

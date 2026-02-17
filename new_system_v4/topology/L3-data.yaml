@@ -49,4 +49,58 @@ storage:
     keep_monthly: 6
     keep_yearly: 1
   description: HDD 500GB - Backups, ISOs, Templates
-data_assets: []
+data_assets:
+- id: data-mikrotik-config
+  name: MikroTik RouterOS Config
+  type: config-export
+  device_ref: mikrotik-chateau
+  description: RouterOS configuration exports
+- id: data-postgresql-db
+  name: PostgreSQL Data
+  type: database
+  storage_ref: storage-lvm
+  device_ref: gamayun
+  description: Primary PostgreSQL data (LXC rootfs)
+- id: data-redis-db
+  name: Redis Data
+  type: cache
+  storage_ref: storage-lvm
+  device_ref: gamayun
+  description: Redis data (LXC rootfs)
+- id: data-postgresql-dumps
+  name: PostgreSQL Dumps
+  type: backup-artifact
+  storage_ref: storage-hdd
+  device_ref: gamayun
+  path: /mnt/hdd/backups/postgresql
+  description: pg_dump artifacts
+- id: data-nextcloud
+  name: Nextcloud Data
+  type: volume
+  device_ref: orangepi5
+  path: /mnt/nvme/nextcloud
+  description: Nextcloud data and config
+- id: data-jellyfin-config
+  name: Jellyfin Config
+  type: volume
+  device_ref: orangepi5
+  path: /mnt/nvme/jellyfin/config
+  description: Jellyfin configuration
+- id: data-grafana
+  name: Grafana Data
+  type: volume
+  device_ref: orangepi5
+  path: /mnt/nvme/grafana
+  description: Grafana data
+- id: data-prometheus
+  name: Prometheus Data
+  type: volume
+  device_ref: orangepi5
+  path: /mnt/nvme/prometheus
+  description: Prometheus TSDB
+- id: data-homeassistant
+  name: Home Assistant Data
+  type: volume
+  device_ref: orangepi5
+  path: /mnt/nvme/homeassistant
+  description: Home Assistant config
