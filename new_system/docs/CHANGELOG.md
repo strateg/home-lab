@@ -2,6 +2,113 @@
 
 All notable changes to the home lab infrastructure configuration.
 
+## [3.0.0] - 2026-02-17
+
+### MikroTik Terraform Automation
+
+**Major Release**: Full infrastructure-as-code for MikroTik RouterOS using `terraform-routeros` provider.
+
+### Added
+
+#### MikroTik Terraform Generator
+- **`scripts/generate-terraform-mikrotik.py`**: New generator for MikroTik configuration
+  - Reads topology.yaml and generates complete RouterOS Terraform
+  - 11 Jinja2 templates for different resource types
+  - Supports all MikroTik-specific configuration
+
+#### Generated MikroTik Resources
+- **Interfaces**: Bridge, VLANs, bridge ports, VLAN filtering
+- **IP Configuration**: Addresses, pools, DHCP servers
+- **DNS**: Settings, static records (20 records)
+- **Firewall**: Filter rules, NAT, address lists
+- **QoS**: Queue trees with 7 priority classes
+- **VPN**: WireGuard with dynamic peer management
+- **Containers**: AdGuard Home, Tailscale
+
+#### Deployment Orchestration
+- **`deploy/Makefile`**: Convenient deployment commands
+  - `make deploy-all`: Full deployment with phases
+  - `make plan-mikrotik`, `make plan-proxmox`: Preview changes
+  - `make apply-mikrotik`, `make apply-proxmox`: Apply configuration
+  - `make configure`: Run Ansible playbooks
+  - `make test`: Verification checks
+
+- **Phase Scripts** (`deploy/phases/`):
+  - `00-bootstrap.sh`: Bootstrap instructions
+  - `01-network.sh`: MikroTik Terraform deployment
+  - `02-compute.sh`: Proxmox Terraform deployment
+  - `03-services.sh`: Ansible configuration
+  - `04-verify.sh`: Health verification
+
+#### Bootstrap System
+- **`bootstrap/mikrotik/bootstrap.rsc`**: RouterOS bootstrap script
+  - Enables REST API on port 8443
+  - Creates terraform user with appropriate permissions
+  - Enables container mode (RouterOS 7.4+)
+  - Prepares USB storage for containers
+- **`bootstrap/mikrotik/README.md`**: Comprehensive bootstrap guide
+
+#### Documentation
+- **`docs/guides/DEPLOYMENT-STRATEGY.md`**: Complete deployment workflow
+- **`docs/guides/MIKROTIK-TERRAFORM.md`**: MikroTik Terraform guide
+- Updated `docs/README.md` with new structure
+
+### Changed
+
+#### Topology Structure
+- **Version**: 2.1.0 → 3.0.0
+- **`services.yaml`**: Restructured with `ssl_certificates` and `items` keys
+- Added MikroTik-specific configuration in logical.yaml
+
+#### Scripts Updated
+- **`regenerate-all.py`**: Added MikroTik generation step (Step 3/5)
+- **`generate-docs.py`**: Updated to handle new services structure
+- **`generate-terraform-mikrotik.py`**: New services.items handling
+
+### Technical Details
+
+#### terraform-routeros Provider (v1.99.0)
+| Resource Type | Count | Description |
+|---------------|-------|-------------|
+| `routeros_interface_bridge` | 1 | Main LAN bridge |
+| `routeros_interface_bridge_port` | 4 | LAN ports |
+| `routeros_interface_vlan` | 4 | VLANs (30, 40, 50, 99) |
+| `routeros_ip_address` | 9 | Gateway addresses |
+| `routeros_ip_dhcp_server` | 3 | DHCP servers |
+| `routeros_ip_dns_record` | 20 | Static DNS records |
+| `routeros_ip_firewall_filter` | 15+ | Firewall rules |
+| `routeros_ip_firewall_nat` | 5+ | NAT rules |
+| `routeros_queue_tree` | 14 | QoS queues |
+| `routeros_interface_wireguard` | 1 | WireGuard VPN |
+| `routeros_container` | 2 | AdGuard, Tailscale |
+
+#### Generated Files
+```
+generated/terraform-mikrotik/
+├── provider.tf         (36 lines)
+├── variables.tf        (72 lines)
+├── interfaces.tf       (154 lines)
+├── addresses.tf        (76 lines)
+├── dhcp.tf             (85 lines)
+├── dns.tf              (159 lines)
+├── firewall.tf         (255 lines)
+├── qos.tf              (305 lines)
+├── vpn.tf              (94 lines)
+├── containers.tf       (171 lines)
+├── outputs.tf          (180 lines)
+└── terraform.tfvars.example
+Total: 1587 lines
+```
+
+### Validation
+- Terraform validate: Success
+- Terraform init: Success (terraform-routeros v1.99.0)
+- Makefile: All targets working
+- Phase scripts: Bash syntax validated
+- Bootstrap script: RouterOS syntax valid
+
+---
+
 ## [2.1.0] - 2025-10-10
 
 ### 🎉 Phase 2 Improvements - Enhanced Configuration

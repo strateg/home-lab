@@ -4,152 +4,200 @@ Welcome to the home lab infrastructure documentation! This directory contains al
 
 ---
 
-## 📂 Documentation Structure
+## Documentation Structure
 
 ```
 docs/
-├── README.md                    # ← You are here
-├── CHANGELOG.md                 # Project changelog (v2.1.0)
+├── README.md                    # You are here
+├── CHANGELOG.md                 # Project changelog (v3.0.0)
 ├── CHANGELOG-GENERATED-DIR.md   # Generated directory changelog
 ├── guides/                      # Practical how-to guides
-│   ├── BRIDGES.md               # Network bridges setup (Terraform + Manual)
+│   ├── DEPLOYMENT-STRATEGY.md   # Full deployment workflow (NEW)
+│   ├── MIKROTIK-TERRAFORM.md    # MikroTik Terraform guide (NEW)
+│   ├── BRIDGES.md               # Network bridges setup
 │   ├── GENERATED-QUICK-GUIDE.md # Generated directory quick reference
-│   ├── ANSIBLE-VAULT-GUIDE.md   # Secrets management with Ansible Vault
-│   └── RAM-OPTIMIZATION.md      # RAM optimization strategies (8GB constraint)
+│   ├── PROXMOX-USB-AUTOINSTALL.md # Proxmox auto-install USB
+│   ├── ANSIBLE-VAULT-GUIDE.md   # Secrets management
+│   └── RAM-OPTIMIZATION.md      # RAM optimization (8GB constraint)
 ├── architecture/                # Architecture and design decisions
-│   ├── TOPOLOGY-MODULAR.md      # Modular topology structure (v2.2)
-│   └── MIGRATION-V1-TO-V2.md    # Migration guide from v1.1 to v2.0
-└── archive/                     # Historical documents (superseded)
-    ├── TOPOLOGY-ANALYSIS.md
-    ├── TOPOLOGY-V2-ANALYSIS.md
-    └── TOPOLOGY-IMPROVEMENTS-SUMMARY.md
+│   ├── TOPOLOGY-MODULAR.md      # Modular topology structure (v3.0)
+│   └── MIGRATION-V1-TO-V2.md    # Migration guide (historical)
+└── archive/                     # Historical documents
 ```
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
+
+### Full Deployment from Scratch
+
+```bash
+# 1. Bootstrap MikroTik (one-time, manual via WinBox)
+#    Import bootstrap/mikrotik/bootstrap.rsc
+
+# 2. Configure credentials
+cd generated/terraform-mikrotik
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with passwords and keys
+
+# 3. Deploy everything
+cd deploy
+make deploy-all
+```
+
+See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete guide.
 
 ### For New Users
 
 1. **Understand the architecture**: Read [TOPOLOGY-MODULAR.md](architecture/TOPOLOGY-MODULAR.md)
-2. **Create Proxmox USB**: Follow [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md) for bare-metal setup
-3. **Learn the workflow**: Read [GENERATED-QUICK-GUIDE.md](guides/GENERATED-QUICK-GUIDE.md)
-4. **Set up bridges**: Follow [BRIDGES.md](guides/BRIDGES.md) (Terraform automation)
+2. **Learn deployment strategy**: Read [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md)
+3. **MikroTik setup**: Follow [MIKROTIK-TERRAFORM.md](guides/MIKROTIK-TERRAFORM.md)
+4. **Create Proxmox USB**: Follow [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md)
 5. **Manage secrets**: Read [ANSIBLE-VAULT-GUIDE.md](guides/ANSIBLE-VAULT-GUIDE.md)
 
-### For Existing Users
+---
 
-- **Changelog**: See [CHANGELOG.md](CHANGELOG.md) for recent changes
-- **Guides**: Browse [guides/](guides/) for specific how-tos
-- **Architecture**: See [architecture/](architecture/) for design decisions
+## Infrastructure Overview
+
+```
+                    ┌─────────────────┐
+                    │    Internet     │
+                    └────────┬────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              │  MikroTik Chateau LTE7 ax   │
+              │  ├─ Firewall + NAT          │
+              │  ├─ DHCP + DNS (AdGuard)    │
+              │  ├─ VLANs (30,40,50,99)     │
+              │  ├─ WireGuard VPN           │
+              │  ├─ Tailscale (container)   │
+              │  └─ QoS Traffic Shaping     │
+              └──────────────┬──────────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         │                   │                   │
+   ┌─────┴─────┐      ┌─────┴─────┐      ┌─────┴─────┐
+   │ Orange Pi │      │  Proxmox  │      │   Users   │
+   │    5      │      │  (Dell)   │      │  Devices  │
+   ├───────────┤      ├───────────┤      └───────────┘
+   │ Nextcloud │      │ PostgreSQL│
+   │ Jellyfin  │      │ Redis     │
+   │ Grafana   │      └───────────┘
+   │ Prometheus│
+   └───────────┘
+```
 
 ---
 
-## 📚 Documentation by Topic
+## Documentation by Topic
 
-### 🔧 Infrastructure Setup
+### Deployment & Operations
 
-| Document | Description | Audience |
-|----------|-------------|----------|
-| [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md) | 🆕 Create auto-install USB from topology.yaml | DevOps, Sysadmin |
-| [BRIDGES.md](guides/BRIDGES.md) | Network bridges setup (Terraform + manual methods) | DevOps, Network Admin |
-| [GENERATED-QUICK-GUIDE.md](guides/GENERATED-QUICK-GUIDE.md) | Quick reference for generated/ directory workflow | All Users |
-| [RAM-OPTIMIZATION.md](guides/RAM-OPTIMIZATION.md) | RAM allocation strategies for 8GB constraint | DevOps, Sysadmin |
+| Document | Description | Status |
+|----------|-------------|--------|
+| [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) | Full deployment workflow with phases | NEW |
+| [MIKROTIK-TERRAFORM.md](guides/MIKROTIK-TERRAFORM.md) | MikroTik RouterOS automation | NEW |
+| [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md) | Proxmox auto-install USB creation | STABLE |
+| [BRIDGES.md](guides/BRIDGES.md) | Network bridges (Terraform + manual) | STABLE |
 
-### 🏗️ Architecture
+### Infrastructure Setup
 
-| Document | Description | Audience |
-|----------|-------------|----------|
-| [TOPOLOGY-MODULAR.md](architecture/TOPOLOGY-MODULAR.md) | Modular topology structure (36 lines main + 13 modules) | Developers, Architects |
-| [MIGRATION-V1-TO-V2.md](architecture/MIGRATION-V1-TO-V2.md) | v1.1 → v2.0 migration guide (historical) | Architects, Lead Devs |
+| Document | Description | Status |
+|----------|-------------|--------|
+| [GENERATED-QUICK-GUIDE.md](guides/GENERATED-QUICK-GUIDE.md) | Generated directory workflow | STABLE |
+| [RAM-OPTIMIZATION.md](guides/RAM-OPTIMIZATION.md) | RAM allocation for 8GB constraint | STABLE |
+| [ANSIBLE-VAULT-GUIDE.md](guides/ANSIBLE-VAULT-GUIDE.md) | Secrets management | STABLE |
 
-### 🔒 Security
+### Architecture
 
-| Document | Description | Audience |
-|----------|-------------|----------|
-| [ANSIBLE-VAULT-GUIDE.md](guides/ANSIBLE-VAULT-GUIDE.md) | Managing secrets with Ansible Vault | DevOps, Security |
-
-### 📊 Project Management
-
-| Document | Description | Audience |
-|----------|-------------|----------|
-| [CHANGELOG.md](CHANGELOG.md) | Complete project changelog | All Users |
-| [CHANGELOG-GENERATED-DIR.md](CHANGELOG-GENERATED-DIR.md) | Generated directory structure changelog | Developers |
+| Document | Description | Status |
+|----------|-------------|--------|
+| [TOPOLOGY-MODULAR.md](architecture/TOPOLOGY-MODULAR.md) | Modular topology structure | UPDATED |
+| [MIGRATION-V1-TO-V2.md](architecture/MIGRATION-V1-TO-V2.md) | Migration guide v1→v2 | ARCHIVED |
 
 ---
 
-## 🗂️ Documentation Conventions
+## Deployment Phases
 
-### File Naming
+The infrastructure is deployed in 4 phases:
 
-- `UPPERCASE-KEBAB-CASE.md` - Main documentation files
-- `lowercase-kebab-case.md` - Supporting files (if needed)
+| Phase | Target | Tool | Description |
+|-------|--------|------|-------------|
+| 0 | MikroTik | Manual | Bootstrap REST API (one-time) |
+| 1 | MikroTik | Terraform | Network, firewall, VPN, containers |
+| 2 | Proxmox | Terraform | LXC containers (PostgreSQL, Redis) |
+| 3 | All | Ansible | Service configuration |
+| 4 | All | Script | Verification checks |
 
-### Status Labels
+```bash
+# Full deployment command
+cd deploy && make deploy-all
 
-- 🆕 **NEW** - Recently added or updated
-- ✅ **STABLE** - Tested and production-ready
-- 🔄 **UPDATED** - Recently revised
-- ⚠️ **DEPRECATED** - Superseded by newer version (in archive/)
-- 📦 **ARCHIVED** - Historical reference only
-
-### Document Structure
-
-All documents follow this structure:
-1. **Overview** - What is this?
-2. **Prerequisites** - What do you need?
-3. **Step-by-step Guide** - How to use it?
-4. **Troubleshooting** - Common issues
-5. **References** - External links
-
----
-
-## 🆕 Recent Updates (2025-10-22)
-
-### ✨ NEW: Proxmox USB Auto-Install from Topology
-
-- **PROXMOX-USB-AUTOINSTALL.md** - Complete guide for creating bootable USB
-- `generate-proxmox-answer.py` - Auto-generates answer.toml from topology.yaml
-- `create-legacy-autoinstall-proxmox-usb.sh` - Integrated with topology generator
-- Supports Dell XPS L701X (Legacy BIOS/MBR)
-- Full validation and error checking
-
-### ✨ NEW: Automated Bridge Creation
-
-- **BRIDGES.md** updated with Terraform automation using bpg/proxmox v0.85+
-- Bridges now created automatically from `topology.yaml`
-- Manual methods kept as fallback
-
-### 🔄 Documentation Reorganization
-
-- Created structured docs/ directory with subdirectories
-- Moved outdated docs to `archive/`
-- Improved navigation with this README
+# Or step by step
+make bootstrap-info   # Show bootstrap instructions
+make plan             # Preview all changes
+make apply-mikrotik   # Phase 1: Network
+make apply-proxmox    # Phase 2: Compute
+make configure        # Phase 3: Services
+make test             # Phase 4: Verify
+```
 
 ---
 
-## 📖 Key Concepts
+## Generated Resources
+
+### MikroTik Terraform (terraform-routeros)
+
+| Resource Type | Count | Description |
+|---------------|-------|-------------|
+| Bridge | 1 | bridge-lan with VLAN filtering |
+| Bridge Ports | 4 | LAN1-4 (ether2-ether5) |
+| VLANs | 4 | 30 (servers), 40 (IoT), 50 (guest), 99 (mgmt) |
+| IP Addresses | 9 | Per-network gateway addresses |
+| DHCP Servers | 3 | LAN, Guest, IoT |
+| DNS Records | 20 | Static records for services |
+| Firewall Rules | 15+ | Filter + NAT + address lists |
+| QoS Queues | 7 | Priority-based traffic shaping |
+| WireGuard | 1 | VPN with dynamic peers |
+| Containers | 2 | AdGuard Home, Tailscale |
+
+### Proxmox Terraform (bpg/proxmox)
+
+| Resource Type | Count | Description |
+|---------------|-------|-------------|
+| Bridges | 3 | vmbr0 (WAN), vmbr2 (servers), vmbr99 (mgmt) |
+| LXC Containers | 2 | PostgreSQL, Redis |
+
+---
+
+## Key Concepts
 
 ### Infrastructure-as-Data
 
 Everything is defined in `topology.yaml` (single source of truth):
+
 ```
-topology.yaml (36 lines)  →  Generated configs
-    ↓
-topology/ (13 modules)
-    ↓
-scripts/generate-*.py
-    ↓
-generated/
-├── terraform/
-├── ansible/inventory/
-└── docs/
+topology.yaml (36 lines)
+    ├── !include topology/physical.yaml
+    ├── !include topology/logical.yaml
+    ├── !include topology/compute.yaml
+    ├── !include topology/services.yaml
+    └── ... (13 modules total)
+           ↓
+    scripts/generate-*.py
+           ↓
+    generated/
+    ├── terraform/           # Proxmox
+    ├── terraform-mikrotik/  # MikroTik
+    ├── ansible/inventory/
+    └── docs/
 ```
 
 ### Generated vs. Manual Files
 
 **Generated** (DO NOT EDIT):
 - `generated/terraform/*.tf`
+- `generated/terraform-mikrotik/*.tf`
 - `generated/ansible/inventory/`
 - `generated/docs/`
 
@@ -157,109 +205,83 @@ generated/
 - `topology.yaml` and `topology/*.yaml`
 - `ansible/playbooks/*.yml`
 - `ansible/roles/*/tasks/*.yml`
-
-### Modular Topology
-
-Since v2.2.0, topology is split into 13 modules:
-- **physical.yaml** - Hardware, devices
-- **logical.yaml** - Networks, bridges, DNS
-- **compute.yaml** - VMs and LXC
-- **storage.yaml** - Storage pools
-- ... (see [TOPOLOGY-MODULAR.md](architecture/TOPOLOGY-MODULAR.md))
+- `deploy/phases/*.sh`
 
 ---
 
-## 🛠️ How to Use This Documentation
+## Recent Updates (2026-02)
 
-### 1. Find What You Need
+### NEW: MikroTik Terraform Automation
 
-Use the **Documentation by Topic** table above, or:
+- **terraform-routeros provider** v1.99.0 integration
+- Full network configuration from topology.yaml
+- WireGuard VPN with dynamic peers
+- Container support (AdGuard, Tailscale)
+- QoS traffic shaping
 
-```bash
-# Search all documentation
-grep -r "keyword" docs/
+### NEW: Deployment Orchestration
 
-# List all guides
-ls docs/guides/
+- **deploy/Makefile** - Convenient deployment commands
+- **Phase scripts** - Modular deployment (01-network, 02-compute, etc.)
+- **Bootstrap scripts** - MikroTik REST API setup
+- **Verification** - Automated health checks
 
-# List architecture docs
-ls docs/architecture/
+### NEW: Topology v3.0
+
+- Added MikroTik-specific configuration
+- Enhanced firewall policies
+- QoS queue definitions
+- Container service definitions
+
+---
+
+## File Structure
+
+```
+new_system/
+├── topology.yaml              # Main entry point
+├── topology/                  # 13 modular YAML files
+├── scripts/                   # Python generators
+│   ├── generate-terraform.py          # Proxmox
+│   ├── generate-terraform-mikrotik.py # MikroTik (NEW)
+│   ├── generate-ansible-inventory.py
+│   └── generate-docs.py
+├── generated/                 # Auto-generated configs
+│   ├── terraform/             # Proxmox Terraform
+│   ├── terraform-mikrotik/    # MikroTik Terraform (NEW)
+│   ├── ansible/inventory/
+│   └── docs/
+├── deploy/                    # Deployment orchestration (NEW)
+│   ├── Makefile
+│   └── phases/
+├── bootstrap/                 # One-time setup (NEW)
+│   └── mikrotik/
+├── ansible/                   # Playbooks and roles
+└── docs/                      # Documentation
 ```
 
-### 2. Read the Guide
-
-Each guide includes:
-- **Prerequisites** - What you need before starting
-- **Step-by-step instructions** - How to complete the task
-- **Examples** - Real-world usage
-- **Troubleshooting** - Common issues and solutions
-
-### 3. Update Documentation
-
-If you find errors or want to improve docs:
-
-1. Edit the source file in `docs/`
-2. Follow existing conventions
-3. Keep it concise and practical
-4. Add examples where helpful
-
 ---
 
-## 📦 Archive
+## External References
 
-The [archive/](archive/) directory contains historical documents that have been superseded:
+### Terraform Providers
 
-| Document | Replaced By | Date Archived |
-|----------|-------------|---------------|
-| TOPOLOGY-ANALYSIS.md | TOPOLOGY-MODULAR.md | 2025-10-22 |
-| TOPOLOGY-V2-ANALYSIS.md | CHANGELOG.md v2.1.0 | 2025-10-22 |
-| TOPOLOGY-IMPROVEMENTS-SUMMARY.md | CHANGELOG.md v2.1.0 | 2025-10-22 |
+- [terraform-routeros](https://registry.terraform.io/providers/terraform-routeros/routeros/latest/docs) - MikroTik RouterOS
+- [bpg/proxmox](https://registry.terraform.io/providers/bpg/proxmox/latest/docs) - Proxmox VE
 
-These files are kept for historical reference and understanding the evolution of the project.
+### MikroTik
 
----
+- [RouterOS Documentation](https://help.mikrotik.com/docs/display/ROS/RouterOS)
+- [RouterOS Scripting](https://help.mikrotik.com/docs/display/ROS/Scripting)
+- [Container Package](https://help.mikrotik.com/docs/display/ROS/Container)
 
-## 🔗 External References
-
-### Terraform
-
-- [bpg/proxmox Provider](https://registry.terraform.io/providers/bpg/proxmox/latest/docs)
-- [Terraform Best Practices](https://www.terraform-best-practices.com/)
-
-### Ansible
-
-- [Ansible Documentation](https://docs.ansible.com/)
-- [Ansible Vault Guide (Official)](https://docs.ansible.com/ansible/latest/user_guide/vault.html)
-
-### Proxmox
+### Proxmox & Ansible
 
 - [Proxmox VE Documentation](https://pve.proxmox.com/wiki/Main_Page)
-- [Network Configuration](https://pve.proxmox.com/wiki/Network_Configuration)
-
-### Infrastructure-as-Code
-
-- [Infrastructure as Code (O'Reilly)](https://www.oreilly.com/library/view/infrastructure-as-code/9781098114664/)
-- [GitOps Principles](https://www.gitops.tech/)
+- [Ansible Documentation](https://docs.ansible.com/)
 
 ---
 
-## 📞 Support
-
-For questions or issues:
-
-1. Check the [Troubleshooting](#) sections in guides
-2. Review [CHANGELOG.md](CHANGELOG.md) for recent changes
-3. Search existing documentation with `grep -r "keyword" docs/`
-
----
-
-## 📄 License
-
-This documentation is part of the home-lab project.
-
----
-
-**Last Updated**: 2025-10-22
-**Documentation Version**: 2.2.0
-**Topology Version**: 2.2.0
-**Generated Structure**: v1.0.0
+**Last Updated**: 2026-02-17
+**Documentation Version**: 3.0.0
+**Topology Version**: 3.0.0
