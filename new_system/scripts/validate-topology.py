@@ -164,9 +164,15 @@ class SchemaValidator:
         for lxc in self.topology.get('compute', {}).get('lxc', []):
             ids['lxc'].add(lxc.get('id'))
 
-        # Extract service IDs
-        for service in self.topology.get('services', []):
-            ids['services'].add(service.get('id'))
+        # Extract service IDs (handle both list and object with 'items' key)
+        services_data = self.topology.get('services', [])
+        if isinstance(services_data, dict):
+            services_list = services_data.get('items', [])
+        else:
+            services_list = services_data
+        for service in services_list:
+            if isinstance(service, dict):
+                ids['services'].add(service.get('id'))
 
         # Extract template IDs
         for tpl in self.topology.get('compute', {}).get('templates', {}).get('lxc', []):
@@ -263,7 +269,15 @@ class SchemaValidator:
 
     def _check_service_refs(self, ids: Dict[str, set]) -> None:
         """Check service reference consistency"""
-        for service in self.topology.get('services', []):
+        # Handle both list and object with 'items' key
+        services_data = self.topology.get('services', [])
+        if isinstance(services_data, dict):
+            services_list = services_data.get('items', [])
+        else:
+            services_list = services_data
+        for service in services_list:
+            if not isinstance(service, dict):
+                continue
             svc_id = service.get('id')
 
             # Check device_ref
