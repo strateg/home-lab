@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Home Lab Topology v4.0 - Layered",
+  "title": "Home Lab Topology v4.0 - Layered (Enhanced)",
+  "description": "Infrastructure-as-Data schema with strict type validation",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,90 +14,638 @@
     "L6_observability",
     "L7_operations"
   ],
+
+  "definitions": {
+    "DeviceType": {
+      "type": "string",
+      "enum": ["hypervisor", "router", "sbc", "switch", "ap", "nas"]
+    },
+    "DeviceRole": {
+      "type": "string",
+      "enum": ["compute", "central-gateway", "application-server", "travel-router", "storage-server", "backup-server"]
+    },
+    "InterfaceType": {
+      "type": "string",
+      "enum": ["ethernet", "pci-ethernet", "usb-ethernet", "wifi-5ghz", "wifi-2.4ghz", "lte", "usb", "usb-c", "hdmi", "display", "camera", "expansion", "audio", "debug"]
+    },
+    "InterfaceRole": {
+      "type": "string",
+      "enum": ["wan", "wan-failover", "lan", "reserved", "trunk", "management", "power + data + display"]
+    },
+    "LocationType": {
+      "type": "string",
+      "enum": ["home-office", "mobile", "datacenter", "remote", "portable"]
+    },
+    "TrustZone": {
+      "type": "string",
+      "enum": ["untrusted", "guest", "user", "iot", "servers", "management"]
+    },
+    "SecurityLevel": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "VpnType": {
+      "type": "string",
+      "enum": ["wireguard", "tailscale", "openvpn", "ipsec", "zerotier"]
+    },
+    "FirewallAction": {
+      "type": "string",
+      "enum": ["accept", "drop", "reject", "log", "pass"]
+    },
+    "FirewallChain": {
+      "type": "string",
+      "enum": ["input", "output", "forward", "prerouting", "postrouting"]
+    },
+    "ConnectionState": {
+      "type": "string",
+      "enum": ["new", "established", "related", "invalid"]
+    },
+    "DscpMark": {
+      "type": "string",
+      "enum": ["ef", "af41", "af31", "af21", "af11", "be", "cs1", "cs0", "cs2", "cs3", "cs4", "cs5", "cs6", "cs7"]
+    },
+    "NetworkProtocol": {
+      "type": "string",
+      "enum": ["tcp", "udp", "icmp", "icmpv6", "any"]
+    },
+    "StorageType": {
+      "type": "string",
+      "enum": ["dir", "lvmthin", "lvm", "zfs", "nfs", "cifs", "cephfs", "rbd"]
+    },
+    "StorageContent": {
+      "type": "string",
+      "enum": ["images", "rootdir", "vztmpl", "iso", "backup", "snippets"]
+    },
+    "DiskType": {
+      "type": "string",
+      "enum": ["ssd", "hdd", "nvme"]
+    },
+    "DataAssetType": {
+      "type": "string",
+      "enum": ["config-export", "database", "cache", "backup-artifact", "volume", "file", "media"]
+    },
+    "LxcType": {
+      "type": "string",
+      "enum": ["database", "cache", "web", "application", "utility", "proxy"]
+    },
+    "LxcRole": {
+      "type": "string",
+      "enum": ["database-server", "cache-server", "web-server", "app-server", "proxy-server"]
+    },
+    "TemplateSource": {
+      "type": "string",
+      "enum": ["proxmox", "proxmox-community-scripts", "cloud-init", "manual", "turnkey"]
+    },
+    "OsType": {
+      "type": "string",
+      "enum": ["debian", "ubuntu", "alpine", "centos", "rocky", "fedora", "openwrt", "routeros"]
+    },
+    "ServiceType": {
+      "type": "string",
+      "enum": ["web-ui", "web-application", "dns", "vpn", "database", "cache", "media-server", "monitoring", "alerting", "logging", "visualization", "home-automation", "file-storage", "proxy", "mail"]
+    },
+    "ContainerRuntime": {
+      "type": "string",
+      "enum": ["docker", "podman", "lxc", "native", "containerd"]
+    },
+    "CertificateType": {
+      "type": "string",
+      "enum": ["self-signed", "letsencrypt", "local-ca"]
+    },
+    "ChallengeType": {
+      "type": "string",
+      "enum": ["http-01", "dns-01"]
+    },
+    "DnsRecordType": {
+      "type": "string",
+      "enum": ["A", "AAAA", "CNAME", "MX", "TXT", "SRV", "PTR", "NS", "CAA"]
+    },
+    "DnsZoneType": {
+      "type": "string",
+      "enum": ["forward", "reverse", "stub"]
+    },
+    "HealthCheckType": {
+      "type": "string",
+      "enum": [
+        "ping", "port", "http", "https", "tcp", "snmp", "api",
+        "cpu_usage", "memory_usage", "disk_usage", "load_average",
+        "temperature", "service", "process", "docker", "docker_container",
+        "lxc_status", "query", "redis_ping", "redis_memory", "redis_keys",
+        "ups_status", "battery_charge", "battery_runtime", "load", "input_voltage",
+        "interface_status", "lte_signal", "failover_status", "sim_status",
+        "dns", "traceroute", "connection_count", "replication_lag"
+      ]
+    },
+    "AlertSeverity": {
+      "type": "string",
+      "enum": ["info", "warning", "critical"]
+    },
+    "NotificationChannelType": {
+      "type": "string",
+      "enum": ["email", "telegram", "slack", "webhook", "sms", "pushover"]
+    },
+    "BackupType": {
+      "type": "string",
+      "enum": ["vzdump", "pg_dump", "rsync", "rclone", "config-export", "tar", "borg"]
+    },
+    "BackupCompression": {
+      "type": "string",
+      "enum": ["none", "gzip", "zstd", "lz4", "xz"]
+    },
+    "BackupMode": {
+      "type": "string",
+      "enum": ["snapshot", "stop", "suspend"]
+    },
+    "StorageMediaType": {
+      "type": "string",
+      "enum": ["ssd", "hdd", "nvme", "cloud", "tape"]
+    },
+    "SshKeyType": {
+      "type": "string",
+      "enum": ["ed25519", "rsa", "ecdsa"]
+    },
+
+    "IdPattern": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "minLength": 2,
+      "maxLength": 64
+    },
+    "DeviceRef": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "NetworkRef": {
+      "type": "string",
+      "pattern": "^net-[a-z0-9-]+$"
+    },
+    "BridgeRef": {
+      "type": "string",
+      "pattern": "^bridge-[a-z0-9]+$"
+    },
+    "StorageRef": {
+      "type": "string",
+      "pattern": "^storage-[a-z0-9-]+$"
+    },
+    "LxcRef": {
+      "type": "string",
+      "pattern": "^lxc-[a-z0-9-]+$"
+    },
+    "ServiceRef": {
+      "type": "string",
+      "pattern": "^svc-[a-z0-9-]+$"
+    },
+    "SecurityPolicyRef": {
+      "type": "string",
+      "pattern": "^sec-[a-z0-9-]+$"
+    },
+    "InterfaceRef": {
+      "type": "string",
+      "pattern": "^if-[a-z0-9-]+$"
+    },
+
+    "IpAddress": {
+      "type": "string",
+      "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
+    },
+    "IpAddressWithCidr": {
+      "type": "string",
+      "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}/\\d{1,2}$"
+    },
+    "Cidr": {
+      "type": "string",
+      "oneOf": [
+        { "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}/\\d{1,2}$" },
+        { "enum": ["dhcp"] }
+      ]
+    },
+    "Port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "MacAddress": {
+      "type": "string",
+      "pattern": "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$|^auto-detect$"
+    },
+    "Percentage": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "Duration": {
+      "type": "string",
+      "pattern": "^\\d+[smhd]$"
+    },
+    "CronSchedule": {
+      "type": "string",
+      "pattern": "^[0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+ [0-9*,/-]+$"
+    },
+
+    "Device": {
+      "type": "object",
+      "required": ["id", "name", "type", "role"],
+      "properties": {
+        "id": { "$ref": "#/definitions/IdPattern" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/DeviceType" },
+        "role": { "$ref": "#/definitions/DeviceRole" },
+        "model": { "type": "string" },
+        "location": { "type": "string" },
+        "description": { "type": "string" },
+        "specs": { "type": "object" },
+        "interfaces": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Interface" }
+        },
+        "power": { "type": "object" },
+        "firmware": { "type": "object" }
+      }
+    },
+    "Interface": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": { "$ref": "#/definitions/InterfaceRef" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/InterfaceType" },
+        "speed_mbps": { "type": "integer" },
+        "mac": { "$ref": "#/definitions/MacAddress" },
+        "role": { "$ref": "#/definitions/InterfaceRole" },
+        "description": { "type": "string" }
+      }
+    },
+    "Location": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": { "$ref": "#/definitions/IdPattern" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/LocationType" },
+        "description": { "type": "string" }
+      }
+    },
+    "Network": {
+      "type": "object",
+      "required": ["id", "name", "cidr"],
+      "properties": {
+        "id": { "$ref": "#/definitions/NetworkRef" },
+        "name": { "type": "string" },
+        "cidr": { "$ref": "#/definitions/Cidr" },
+        "gateway": { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+        "dns": { "type": "array", "items": { "$ref": "#/definitions/IpAddress" } },
+        "dhcp": { "type": "boolean" },
+        "dhcp_range": { "type": "string" },
+        "trust_zone_ref": { "$ref": "#/definitions/TrustZone" },
+        "bridge_ref": { "oneOf": [{ "$ref": "#/definitions/BridgeRef" }, { "type": "null" }] },
+        "vlan": { "oneOf": [{ "type": "integer", "minimum": 1, "maximum": 4094 }, { "type": "null" }] },
+        "description": { "type": "string" },
+        "managed_by_ref": { "$ref": "#/definitions/DeviceRef" },
+        "interface_ref": { "$ref": "#/definitions/InterfaceRef" },
+        "vpn_type": { "$ref": "#/definitions/VpnType" },
+        "ip_allocations": { "type": "array" }
+      }
+    },
+    "Bridge": {
+      "type": "object",
+      "required": ["id", "device_ref", "name"],
+      "properties": {
+        "id": { "$ref": "#/definitions/BridgeRef" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "name": { "type": "string" },
+        "comment": { "type": "string" },
+        "ports": { "type": "array", "items": { "type": "string" } },
+        "address": { "$ref": "#/definitions/IpAddressWithCidr" },
+        "gateway": { "$ref": "#/definitions/IpAddress" },
+        "network_ref": { "$ref": "#/definitions/NetworkRef" },
+        "vlan_aware": { "type": "boolean" },
+        "bridge_stp": { "type": "boolean" },
+        "bridge_fd": { "type": "integer" }
+      }
+    },
+    "Storage": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": { "$ref": "#/definitions/StorageRef" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/StorageType" },
+        "path": { "type": "string" },
+        "content": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/StorageContent" }
+        },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "disk_ref": { "type": "string" },
+        "shared": { "type": "boolean" },
+        "description": { "type": "string" }
+      }
+    },
+    "DataAsset": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^data-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/DataAssetType" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "storage_ref": { "$ref": "#/definitions/StorageRef" },
+        "path": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "Lxc": {
+      "type": "object",
+      "required": ["id", "vmid", "name", "device_ref"],
+      "properties": {
+        "id": { "$ref": "#/definitions/LxcRef" },
+        "vmid": { "type": "integer", "minimum": 100, "maximum": 999999999 },
+        "name": { "type": "string" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "type": { "$ref": "#/definitions/LxcType" },
+        "role": { "$ref": "#/definitions/LxcRole" },
+        "template_ref": { "type": "string" },
+        "trust_zone_ref": { "$ref": "#/definitions/TrustZone" },
+        "description": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "resources": {
+          "type": "object",
+          "properties": {
+            "cores": { "type": "integer", "minimum": 1 },
+            "memory_mb": { "type": "integer", "minimum": 64 },
+            "swap_mb": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "boot": { "type": "object" },
+        "storage": { "type": "object" },
+        "networks": { "type": "array" },
+        "dns": { "type": "object" },
+        "os": {
+          "type": "object",
+          "properties": {
+            "type": { "$ref": "#/definitions/OsType" },
+            "version": { "type": "string" }
+          }
+        },
+        "cloudinit": { "type": "object" },
+        "ansible": { "type": "object" }
+      }
+    },
+    "Service": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": { "$ref": "#/definitions/ServiceRef" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/ServiceType" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "lxc_ref": { "$ref": "#/definitions/LxcRef" },
+        "network_ref": { "$ref": "#/definitions/NetworkRef" },
+        "ip": { "$ref": "#/definitions/IpAddress" },
+        "port": { "$ref": "#/definitions/Port" },
+        "ports": { "type": "object" },
+        "protocol": { "type": "string", "enum": ["http", "https", "tcp", "udp"] },
+        "trust_zone_ref": { "$ref": "#/definitions/TrustZone" },
+        "url": { "type": "string", "format": "uri" },
+        "domain": { "type": "string" },
+        "description": { "type": "string" },
+        "container": { "type": "boolean" },
+        "container_runtime": { "$ref": "#/definitions/ContainerRuntime" },
+        "container_image": { "type": "string" },
+        "native": { "type": "boolean" },
+        "critical": { "type": "boolean" },
+        "optional": { "type": "boolean" },
+        "dependencies": { "type": "array" },
+        "security_policy_ref": { "$ref": "#/definitions/SecurityPolicyRef" },
+        "vpn_type": { "$ref": "#/definitions/VpnType" }
+      }
+    },
+    "HealthCheck": {
+      "type": "object",
+      "required": ["id", "name", "checks"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^health-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "lxc_ref": { "$ref": "#/definitions/LxcRef" },
+        "service_ref": { "$ref": "#/definitions/ServiceRef" },
+        "enabled": { "type": "boolean" },
+        "critical": { "type": "boolean" },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": { "$ref": "#/definitions/HealthCheckType" }
+            }
+          }
+        },
+        "interval": { "$ref": "#/definitions/Duration" },
+        "timeout": { "$ref": "#/definitions/Duration" },
+        "notification": { "type": "object" }
+      }
+    },
+    "Alert": {
+      "type": "object",
+      "required": ["id", "name", "trigger", "severity"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^alert-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "trigger": { "type": "object" },
+        "severity": { "$ref": "#/definitions/AlertSeverity" },
+        "channels": { "type": "array", "items": { "type": "string" } },
+        "escalation": { "type": "object" }
+      }
+    },
+    "NotificationChannel": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^channel-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/NotificationChannelType" },
+        "enabled": { "type": "boolean" },
+        "config": { "type": "object" }
+      }
+    },
+    "BackupPolicy": {
+      "type": "object",
+      "required": ["id", "name", "type", "schedule"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^backup-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "targets": { "type": "array" },
+        "type": { "$ref": "#/definitions/BackupType" },
+        "schedule": { "$ref": "#/definitions/CronSchedule" },
+        "destination": { "type": "object" },
+        "compression": { "$ref": "#/definitions/BackupCompression" },
+        "retention": { "type": "object" },
+        "notification": { "type": "object" },
+        "security_policy_ref": { "$ref": "#/definitions/SecurityPolicyRef" }
+      }
+    },
+    "SshKey": {
+      "type": "object",
+      "required": ["id", "name", "type", "public_key"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ssh-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/SshKeyType" },
+        "public_key": { "type": "string" },
+        "purpose": { "type": "string" },
+        "authorized_for": { "type": "array" },
+        "created": { "type": "string", "format": "date" },
+        "expires": { "oneOf": [{ "type": "string", "format": "date" }, { "type": "null" }] }
+      }
+    }
+  },
+
   "properties": {
     "L0_meta": {
       "type": "object",
       "required": ["version"],
       "properties": {
-        "version": {"type": "string", "pattern": "^4\\."},
-        "metadata": {"type": "object"},
-        "defaults": {"type": "object"},
-        "security_policy": {"type": "array"}
-      },
-      "additionalProperties": true
+        "version": { "type": "string", "pattern": "^4\\." },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "org": { "type": "string" },
+            "environment": { "type": "string", "enum": ["production", "staging", "development", "test"] },
+            "author": { "type": "string" },
+            "created": { "type": "string", "format": "date" },
+            "last_updated": { "type": "string", "format": "date" },
+            "description": { "type": "string" },
+            "changelog": { "type": "array" }
+          }
+        },
+        "defaults": { "type": "object" },
+        "security_policy": { "type": "array" }
+      }
     },
     "L1_foundation": {
       "type": "object",
       "properties": {
-        "locations": {"type": "array"},
-        "devices": {"type": "array"},
-        "ups": {"type": "array"}
-      },
-      "additionalProperties": true
+        "locations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Location" }
+        },
+        "devices": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Device" }
+        },
+        "ups": { "type": "array" }
+      }
     },
     "L2_network": {
       "type": "object",
       "properties": {
-        "trust_zones": {"type": "object"},
-        "networks": {"type": "array"},
-        "bridges": {"type": "array"},
-        "routing": {"type": "array"},
-        "firewall_templates": {"type": "array"},
-        "firewall_policies": {"type": "array"},
-        "qos": {"type": "object"},
-        "ipv6": {"type": "object"}
-      },
-      "additionalProperties": true
+        "trust_zones": { "type": "object" },
+        "networks": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Network" }
+        },
+        "bridges": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Bridge" }
+        },
+        "routing": { "type": "array" },
+        "firewall_templates": { "type": "array" },
+        "firewall_policies": { "type": "array" },
+        "qos": { "type": "object" },
+        "ipv6": { "type": "object" }
+      }
     },
     "L3_data": {
       "type": "object",
       "properties": {
-        "storage": {"type": "array"},
-        "data_assets": {"type": "array"}
-      },
-      "additionalProperties": true
+        "storage": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Storage" }
+        },
+        "data_assets": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DataAsset" }
+        }
+      }
     },
     "L4_platform": {
       "type": "object",
       "properties": {
-        "vms": {"type": "array"},
-        "lxc": {"type": "array"},
-        "templates": {"type": "object"}
-      },
-      "additionalProperties": true
+        "_defaults": { "type": "object" },
+        "vms": { "type": "array" },
+        "lxc": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Lxc" }
+        },
+        "templates": { "type": "object" }
+      }
     },
     "L5_application": {
       "type": "object",
       "properties": {
-        "certificates": {"type": "object"},
-        "services": {"type": "array"},
-        "dns": {"type": "object"}
-      },
-      "additionalProperties": true
+        "certificates": { "type": "object" },
+        "services": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Service" }
+        },
+        "dns": { "type": "object" },
+        "external_services": { "type": "array" }
+      }
     },
     "L6_observability": {
       "type": "object",
       "properties": {
-        "healthchecks": {"type": "array"},
-        "network_monitoring": {"type": "array"},
-        "alerts": {"type": "array"},
-        "notification_channels": {"type": "array"},
-        "dashboard": {"type": "object"}
-      },
-      "additionalProperties": true
+        "healthchecks": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/HealthCheck" }
+        },
+        "network_monitoring": { "type": "array" },
+        "alerts": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Alert" }
+        },
+        "notification_channels": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/NotificationChannel" }
+        },
+        "dashboard": { "type": "object" }
+      }
     },
     "L7_operations": {
       "type": "object",
       "properties": {
-        "workflows": {"type": "object"},
-        "runbooks": {"type": "array"},
-        "documentation": {"type": "object"},
-        "notes": {"type": "array"},
-        "ansible": {"type": "object"},
-        "backup": {"type": "object"},
-        "security": {"type": "object"}
-      },
-      "additionalProperties": true
+        "workflows": { "type": "object" },
+        "runbooks": { "type": "array" },
+        "documentation": { "type": "object" },
+        "notes": { "type": "array", "items": { "type": "string" } },
+        "ansible": { "type": "object" },
+        "backup": {
+          "type": "object",
+          "properties": {
+            "strategy": { "type": "object" },
+            "policies": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/BackupPolicy" }
+            },
+            "verification": { "type": "object" },
+            "storage_monitoring": { "type": "object" }
+          }
+        },
+        "security": {
+          "type": "object",
+          "properties": {
+            "ssh_keys": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/SshKey" }
+            }
+          }
+        }
+      }
     }
   }
 }
