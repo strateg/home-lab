@@ -1,7 +1,7 @@
 # Network Diagram
 
 **Generated from**: topology.yaml v4.0.0
-**Date**: 2026-02-17 17:23:32
+**Date**: 2026-02-17 17:26:26
 
 ---
 
@@ -66,9 +66,7 @@ graph TB
     classDef bridge fill:#e9ecef,stroke:#868e96,color:#000
 
     class INTERNET untrusted
-    class  dmz
     class USERS user
-    class  internal
     class PROXMOX mgmt
     class bridge_vmbr0,bridge_vmbr2,bridge_vmbr99 bridge
 ```

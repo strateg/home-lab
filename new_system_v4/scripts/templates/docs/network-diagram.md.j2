@@ -84,11 +84,20 @@ graph TB
     classDef bridge fill:#e9ecef,stroke:#868e96,color:#000
 
     class INTERNET untrusted
-    class {{ vms | selectattr('trust_zone_ref', 'equalto', 'dmz') | map(attribute='id') | map('replace', '-', '_') | join(',') }} dmz
+    {% set dmz_nodes = vms | selectattr('trust_zone_ref', 'equalto', 'dmz') | map(attribute='id') | map('replace', '-', '_') | list %}
+    {% if dmz_nodes %}
+    class {{ dmz_nodes | join(',') }} dmz
+    {% endif %}
     class USERS user
-    class {{ lxc | selectattr('trust_zone_ref', 'equalto', 'internal') | map(attribute='id') | map('replace', '-', '_') | join(',') }} internal
+    {% set internal_nodes = lxc | selectattr('trust_zone_ref', 'equalto', 'internal') | map(attribute='id') | map('replace', '-', '_') | list %}
+    {% if internal_nodes %}
+    class {{ internal_nodes | join(',') }} internal
+    {% endif %}
     class PROXMOX mgmt
-    class {% for bridge in bridges %}{{ bridge.id | replace('-', '_') }}{% if not loop.last %},{% endif %}{% endfor %} bridge
+    {% set bridge_nodes = bridges | map(attribute='id') | map('replace', '-', '_') | list %}
+    {% if bridge_nodes %}
+    class {{ bridge_nodes | join(',') }} bridge
+    {% endif %}
 ```
 
 ---
