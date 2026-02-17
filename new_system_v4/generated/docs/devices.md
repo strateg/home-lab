@@ -1,7 +1,7 @@
 # Devices Inventory
 
 **Generated from**: topology.yaml v4.0.0
-**Date**: 2026-02-17 18:11:30
+**Date**: 2026-02-17 18:56:35
 
 ---
 
@@ -43,7 +43,7 @@
   - Speed: 
   - Type: usb-ethernet
 
-**Description**: Primary Proxmox VE host - Р“Р°РјР°СЋРЅ (РІРµС‰Р°СЏ РїС‚РёС†Р°)
+**Description**: Primary Proxmox VE host - Гамаюн (вещая птица)
 
 ---
 
