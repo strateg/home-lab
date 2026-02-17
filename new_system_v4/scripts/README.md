@@ -89,3 +89,14 @@ generated/
 - L7 Operations: workflows, ansible, backup
 
 References must only point downward or within the same layer.
+
+## Important Notes
+
+### DO NOT Edit Generated Files
+
+Files in generated/ are automatically regenerated and auto-cleaned.
+
+- DO NOT manually edit files in generated/
+- DO NOT commit generated/ to Git
+- DO edit topology.yaml as the single source of truth
+- DO edit ansible/playbooks/ and ansible/roles/ manually
