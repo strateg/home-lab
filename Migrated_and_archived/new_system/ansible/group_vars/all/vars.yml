@@ -1,0 +1,135 @@
+---
+# Non-sensitive variables for all hosts
+#
+# Sensitive variables are in vault.yml (encrypted)
+# This file is safe to commit to git
+
+# ============================================================
+# Common Settings
+# ============================================================
+
+# Timezone
+timezone: "UTC"
+locale: "en_US.UTF-8"
+
+# NTP Servers
+ntp_servers:
+  - "pool.ntp.org"
+  - "time.cloudflare.com"
+
+# DNS Servers
+dns_servers:
+  - "192.168.10.2"  # AdGuard Home on GL.iNet
+  - "8.8.8.8"       # Google DNS (fallback)
+
+search_domains:
+  - "home.local"
+
+# ============================================================
+# Common Packages
+# ============================================================
+
+common_packages:
+  - vim
+  - git
+  - curl
+  - wget
+  - htop
+  - tmux
+  - net-tools
+  - dnsutils
+  - python3
+  - python3-pip
+
+# ============================================================
+# Security Settings
+# ============================================================
+
+# SSH configuration
+ssh_permit_root_login: "prohibit-password"
+ssh_password_authentication: false
+ssh_pubkey_authentication: true
+ssh_port: 22
+
+# Fail2ban
+fail2ban_enabled: true
+fail2ban_bantime: 3600
+fail2ban_maxretry: 5
+
+# ============================================================
+# Monitoring
+# ============================================================
+
+monitoring_enabled: true
+log_retention_days: 30
+
+# ============================================================
+# Backup Settings (non-sensitive)
+# ============================================================
+
+backup_enabled: true
+backup_schedule: "0 2 * * *"  # 2 AM daily
+backup_retention_days: 30
+
+# Backup destinations (encrypted with vault_backup_encryption_password)
+backup_destinations:
+  - type: "local"
+    path: "/mnt/hdd/backups"
+  - type: "remote"
+    enabled: false
+    # host: "backup.example.com"
+    # path: "/backups/homelab"
+
+# ============================================================
+# Email Notifications (non-sensitive config)
+# ============================================================
+
+email_notifications_enabled: true
+# Credentials in vault.yml:
+#   - vault_smtp_user
+#   - vault_smtp_password
+#   - vault_smtp_server
+#   - vault_alert_email
+
+# ============================================================
+# SSL/TLS
+# ============================================================
+
+ssl_enabled: true
+ssl_cert_path: "/etc/ssl/certs"
+ssl_key_path: "/etc/ssl/private"
+
+# ============================================================
+# Reference to vault variables
+# ============================================================
+
+# These variables are defined in vault.yml (encrypted):
+#
+# Proxmox:
+#   - vault_proxmox_api_token
+#   - vault_proxmox_api_secret
+#   - vault_proxmox_root_password
+#
+# PostgreSQL:
+#   - vault_postgresql_superuser_password
+#   - vault_postgresql_app_password
+#
+# Nextcloud:
+#   - vault_nextcloud_admin_password
+#   - vault_nextcloud_db_password
+#   - vault_nextcloud_secret
+#
+# Redis:
+#   - vault_redis_password
+#
+# OPNsense:
+#   - vault_opnsense_root_password
+#   - vault_opnsense_api_key
+#
+# VPN:
+#   - vault_wireguard_home_private_key
+#   - vault_amneziawg_russia_private_key
+#
+# Notifications:
+#   - vault_smtp_password
+#   - vault_telegram_bot_token

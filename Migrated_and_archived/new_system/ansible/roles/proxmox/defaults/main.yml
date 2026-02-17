@@ -1,0 +1,187 @@
+# Ansible Role: Proxmox - Default Variables
+# Dell XPS L701X Configuration
+
+# ============================================================
+# Proxmox Repositories
+# ============================================================
+
+# Use no-subscription repository (free)
+proxmox_use_no_subscription_repo: true
+
+# Use enterprise repository (requires subscription)
+proxmox_use_enterprise_repo: false
+
+# Enable Proxmox Ceph repository
+proxmox_use_ceph_repo: false
+
+# Repository URLs
+proxmox_repo_no_subscription: "deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription"
+proxmox_repo_enterprise: "deb https://enterprise.proxmox.com/debian/pve bookworm pve-enterprise"
+
+# ============================================================
+# Network Configuration
+# ============================================================
+
+# Network interfaces (via udev rules)
+proxmox_wan_interface: eth-usb      # USB-Ethernet
+proxmox_lan_interface: eth-builtin  # Built-in Ethernet
+proxmox_wifi_interface: wlan0       # WiFi (optional)
+
+# Network bridges
+proxmox_bridges:
+  - name: vmbr0
+    comment: "WAN Bridge - to ISP Router"
+    ports: "{{ proxmox_wan_interface }}"
+    address: ""  # DHCP from ISP (managed by OPNsense)
+    autostart: true
+
+  - name: vmbr1
+    comment: "LAN Bridge - to OpenWRT"
+    ports: "{{ proxmox_lan_interface }}"
+    address: "192.168.10.254"
+    netmask: "255.255.255.0"
+    autostart: true
+
+  - name: vmbr2
+    comment: "INTERNAL Bridge - LXC Containers"
+    ports: ""  # No physical port
+    address: "10.0.30.1"
+    netmask: "255.255.255.0"
+    autostart: true
+
+  - name: vmbr99
+    comment: "MGMT Bridge - Management"
+    ports: ""  # No physical port
+    address: "10.0.99.1"
+    netmask: "255.255.255.0"
+    autostart: true
+
+# DNS servers
+proxmox_dns_servers:
+  - 192.168.20.1  # AdGuard Home
+  - 1.1.1.1       # Cloudflare
+
+# ============================================================
+# Storage Configuration
+# ============================================================
+
+# SSD Storage (local-lvm)
+proxmox_ssd_storage:
+  name: local-lvm
+  type: lvmthin
+  content: "images,rootdir"
+
+# HDD Storage (local-hdd)
+proxmox_hdd_storage:
+  name: local-hdd
+  type: dir
+  path: /mnt/hdd
+  content: "backup,iso,vztmpl,snippets"
+  enabled: true
+
+# HDD mount point
+proxmox_hdd_mount_point: /mnt/hdd
+proxmox_hdd_device: /dev/sdb1  # Adjust based on actual device
+
+# ============================================================
+# System Optimization
+# ============================================================
+
+# KSM (Kernel Same-page Merging) for RAM deduplication
+proxmox_ksm_enabled: true
+
+# Swap configuration
+proxmox_swap_enabled: true
+proxmox_swappiness: 10
+
+# CPU Governor
+proxmox_cpu_governor: ondemand  # powersave, performance, ondemand
+
+# ============================================================
+# Security
+# ============================================================
+
+# SSH configuration
+proxmox_ssh_port: 22
+proxmox_ssh_permit_root_login: "yes"
+proxmox_ssh_password_authentication: "no"
+
+# Firewall
+proxmox_firewall_enabled: true
+
+# Fail2ban
+proxmox_fail2ban_enabled: true
+
+# ============================================================
+# Updates & Packages
+# ============================================================
+
+# Automatic updates
+proxmox_auto_updates: false  # Manual updates for stability
+
+# Additional packages
+proxmox_additional_packages:
+  - vim
+  - git
+  - htop
+  - iotop
+  - sysstat
+  - smartmontools
+  - lm-sensors
+  - ncdu
+  - tmux
+  - curl
+  - wget
+
+# ============================================================
+# Monitoring
+# ============================================================
+
+# Prometheus Node Exporter
+proxmox_node_exporter_enabled: true
+proxmox_node_exporter_port: 9100
+
+# SMART monitoring
+proxmox_smartd_enabled: true
+
+# ============================================================
+# Backup Configuration
+# ============================================================
+
+# Backup storage
+proxmox_backup_storage: local-hdd
+proxmox_backup_path: /mnt/hdd/dump
+
+# Backup schedule (cron format)
+proxmox_backup_schedule:
+  daily: "0 2 * * *"    # 2 AM daily
+  weekly: "0 3 * * 0"   # 3 AM Sunday
+  monthly: "0 4 1 * *"  # 4 AM 1st of month
+
+# ============================================================
+# Hardware Specific (Dell XPS L701X)
+# ============================================================
+
+# CPU configuration
+proxmox_cpu_model: "Intel Core i3-M370"
+proxmox_cpu_cores: 2
+
+# RAM configuration
+proxmox_ram_mb: 8192
+
+# Power management
+proxmox_laptop_mode: true
+proxmox_usb_autosuspend: false  # Disable for USB-Ethernet stability
+
+# ============================================================
+# Advanced Settings
+# ============================================================
+
+# IOMMU (not needed for Dell XPS L701X)
+proxmox_iommu_enabled: false
+
+# Nested virtualization
+proxmox_nested_virt_enabled: false
+
+# VM migration
+proxmox_migration_enabled: false  # Single node

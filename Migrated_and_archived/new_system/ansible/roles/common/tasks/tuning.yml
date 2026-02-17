@@ -1,0 +1,25 @@
+---
+# System Tuning Tasks
+
+- name: Configure sysctl parameters
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  loop:
+    - { name: 'vm.swappiness', value: "{{ common_swappiness }}" }
+    - { name: 'fs.file-max', value: "{{ common_max_files }}" }
+    - { name: 'net.core.somaxconn', value: '1024' }
+    - { name: 'net.ipv4.tcp_max_syn_backlog', value: '2048' }
+    - { name: 'net.ipv4.ip_local_port_range', value: '10000 65535' }
+
+- name: Configure limits
+  pam_limits:
+    domain: '*'
+    limit_type: "{{ item.type }}"
+    limit_item: "{{ item.item }}"
+    value: "{{ item.value }}"
+  loop:
+    - { type: 'soft', item: 'nofile', value: "{{ common_max_files }}" }
+    - { type: 'hard', item: 'nofile', value: "{{ common_max_files }}" }

@@ -1,0 +1,12 @@
+---
+# Redis Cache Server Playbook
+
+- name: Configure Redis Cache
+  hosts: lxc_containers
+  become: yes
+  gather_facts: yes
+  tags: [redis, cache]
+
+  roles:
+    - role: redis
+      when: "'redis' in inventory_hostname or 'cache' in group_names"

@@ -1,0 +1,18 @@
+---
+# Redis Installation Tasks
+
+- name: Install Redis server
+  apt:
+    name:
+      - redis-server
+      - redis-tools
+      - python3-redis
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+
+- name: Ensure Redis is started and enabled
+  systemd:
+    name: redis-server
+    state: started
+    enabled: yes

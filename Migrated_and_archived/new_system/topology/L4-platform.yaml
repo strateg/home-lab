@@ -1,0 +1,260 @@
+# Layer 4: Platform - Compute resources
+# Part of Home Lab Topology v4.0.0 (OSI-Layer Architecture)
+# Dependencies: L1 (device_ref), L2 (network_ref, bridge_ref), L3 (storage_ref)
+# Provides: vm_id, lxc_id for upper layers
+# Edit this file then regenerate: python3 scripts/regenerate-all.py
+
+vms: []
+lxc:
+- id: lxc-postgresql
+  vmid: 200
+  name: postgresql-db
+  device_ref: gamayun
+  type: database
+  role: database-server
+  template_ref: tpl-lxc-postgresql
+  trust_zone_ref: servers
+  description: PostgreSQL Database Server
+  tags:
+  - database
+  - production
+  resources:
+    cores: 2
+    memory_mb: 1024
+    swap_mb: 1024
+  boot:
+    onboot: true
+    startup_order: 10
+  storage:
+    rootfs:
+      storage_ref: storage-lvm
+      size_gb: 8
+  networks:
+  - interface: eth0
+    bridge_ref: bridge-vmbr2
+    network_ref: net-servers
+    gateway: 10.0.30.1
+    firewall: false
+    ip: 10.0.30.10/24
+  dns: &id001
+    nameserver: 192.168.88.1
+    searchdomain: home.local
+  os: &id002
+    type: debian
+    version: '12'
+  cloudinit:
+    enabled: true
+    user: postgres
+    ssh_keys:
+    - ssh-ed25519 AAAA...
+  ansible:
+    enabled: true
+    playbook: postgresql.yml
+    vars:
+      postgresql_version: '16'
+      postgresql_listen_addresses: 10.0.30.10
+      postgresql_databases:
+      - name: nextcloud
+      - name: homelab
+      postgresql_users:
+      - name: nextcloud
+        password: '{{ vault_postgresql_nextcloud_password }}'
+        database: nextcloud
+      - name: app
+        password: '{{ vault_postgresql_app_password }}'
+        database: homelab
+      postgresql_pg_hba:
+      - type: host
+        database: nextcloud
+        user: nextcloud
+        address: 10.0.30.50/32
+        method: scram-sha-256
+      - type: host
+        database: all
+        user: all
+        address: 10.0.30.0/24
+        method: scram-sha-256
+- id: lxc-redis
+  vmid: 201
+  name: redis-cache
+  device_ref: gamayun
+  type: cache
+  role: cache-server
+  template_ref: tpl-lxc-redis
+  trust_zone_ref: servers
+  description: Redis Cache Server
+  tags:
+  - cache
+  - production
+  resources:
+    cores: 1
+    memory_mb: 512
+    swap_mb: 256
+  boot:
+    onboot: true
+    startup_order: 11
+  storage:
+    rootfs:
+      storage_ref: storage-lvm
+      size_gb: 4
+  networks:
+  - interface: eth0
+    bridge_ref: bridge-vmbr2
+    network_ref: net-servers
+    gateway: 10.0.30.1
+    firewall: false
+    ip: 10.0.30.20/24
+  dns: *id001
+  os: *id002
+  cloudinit:
+    enabled: true
+    user: redis
+  ansible:
+    enabled: true
+    playbook: redis.yml
+    vars:
+      redis_port: 6379
+      redis_bind: 10.0.30.20
+      redis_maxmemory: 256mb
+      redis_maxmemory_policy: allkeys-lru
+templates:
+  lxc:
+  - id: tpl-lxc-postgresql
+    vmid: 900
+    name: template-postgresql
+    storage_ref: storage-hdd
+    source: proxmox-community-scripts
+    script: db-postgresql.sh
+    description: PostgreSQL LXC template
+  - id: tpl-lxc-redis
+    vmid: 901
+    name: template-redis
+    storage_ref: storage-hdd
+    source: proxmox-community-scripts
+    script: db-redis.sh
+    description: Redis LXC template
+  - id: tpl-lxc-debian
+    vmid: 902
+    name: template-debian
+    storage_ref: storage-hdd
+    source: proxmox
+    image: debian-12-standard_12.2-1_amd64.tar.zst
+    description: Debian 12 base LXC template
+  vms:
+  - id: tpl-vm-debian
+    vmid: 910
+    name: template-debian-vm
+    storage_ref: storage-hdd
+    source: cloud-init
+    image: debian-12-genericcloud-amd64.qcow2
+    description: Debian 12 cloud-init VM template
+  - id: tpl-vm-ubuntu
+    vmid: 911
+    name: template-ubuntu-vm
+    storage_ref: storage-hdd
+    source: cloud-init
+    image: ubuntu-24.04-server-cloudimg-amd64.img
+    description: Ubuntu 24.04 cloud-init VM template
+ansible_config:
+  group_vars:
+    all:
+      ansible_user: root
+      ansible_python_interpreter: /usr/bin/python3
+      ansible_ssh_common_args: -o StrictHostKeyChecking=no
+      timezone: UTC
+      locale: en_US.UTF-8
+      common_packages:
+      - vim
+      - git
+      - curl
+      - wget
+      - htop
+      - tmux
+      - net-tools
+      - dnsutils
+      - python3
+      - python3-pip
+      dns_servers:
+      - 192.168.88.1
+      - 1.1.1.1
+      search_domains:
+      - home.local
+      ntp_servers:
+      - pool.ntp.org
+      - time.cloudflare.com
+    lxc_containers:
+      cloud_init_enabled: true
+      ssh_permit_root_login: prohibit-password
+      ssh_password_authentication: false
+      monitoring_enabled: true
+      log_retention_days: 30
+    databases:
+      backup_enabled: true
+      backup_schedule: 0 2 * * *
+      monitoring_queries: true
+      max_connections: 50
+    web_applications:
+      ssl_enabled: true
+      auto_renew_certs: true
+      rate_limiting: true
+  host_vars:
+    postgresql-db:
+      postgresql_version: '15'
+      postgresql_max_connections: 50
+      postgresql_shared_buffers: 256MB
+      postgresql_effective_cache_size: 768MB
+      postgresql_work_mem: 4MB
+      postgresql_maintenance_work_mem: 64MB
+      postgresql_databases:
+      - name: homelab
+        owner: app
+      postgresql_users:
+      - name: app
+        password: '{{ vault_postgresql_app_password }}'
+        privileges: ALL
+      postgresql_hba_entries:
+      - type: host
+        database: homelab
+        user: app
+        address: 10.0.30.0/24
+        method: scram-sha-256
+    redis-cache:
+      redis_version: '7'
+      redis_port: 6379
+      redis_bind: 10.0.30.20
+      redis_maxmemory: 512mb
+      redis_maxmemory_policy: allkeys-lru
+      redis_save:
+      - 900 1
+      - 300 10
+    nextcloud:
+      nextcloud_version: '28'
+      nextcloud_domain: nextcloud.home.local
+      nextcloud_admin_user: admin
+      nextcloud_admin_password: '{{ vault_nextcloud_admin_password }}'
+      nextcloud_db_type: pgsql
+      nextcloud_db_host: 10.0.30.10
+      nextcloud_db_name: nextcloud
+      nextcloud_db_user: nextcloud
+      nextcloud_db_password: '{{ vault_nextcloud_db_password }}'
+      nextcloud_redis_host: 10.0.30.20
+      nextcloud_redis_port: 6379
+      nextcloud_trusted_domains:
+      - nextcloud.home.local
+      - 10.0.30.30
+      nextcloud_apps:
+      - files
+      - files_sharing
+      - files_versions
+      - files_trashbin
+      - encryption
+      - user_ldap
+  config:
+    inventory: inventory/production/hosts.yml
+    remote_user: root
+    host_key_checking: false
+    retry_files_enabled: false
+    gather_facts: true
+    fact_caching: jsonfile
+    fact_caching_connection: /tmp/ansible_facts
+    fact_caching_timeout: 86400

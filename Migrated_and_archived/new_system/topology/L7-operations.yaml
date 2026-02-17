@@ -1,0 +1,102 @@
+# Layer 7: Operations - Workflows and documentation
+# Part of Home Lab Topology v4.0.0 (OSI-Layer Architecture)
+# Dependencies: All lower layers (L1-L6)
+# Provides: Nothing (top layer)
+# Edit this file then regenerate: python3 scripts/regenerate-all.py
+
+workflows:
+  fresh_install:
+    name: Fresh Proxmox Installation
+    description: Complete installation from bare metal to running infrastructure
+    steps:
+    - step: 1
+      name: Create bootable USB
+      script: bare-metal/run-create-usb.sh
+      alternative: bare-metal/create-uefi-autoinstall-proxmox-usb.sh
+      duration_min: 5
+    - step: 2
+      name: Boot and auto-install Proxmox
+      manual: true
+      duration_min: 15
+      notes: 'Insert USB, F12 boot menu, select UEFI: USB, wait for auto-install'
+    - step: 3
+      name: Run post-install scripts
+      script: bare-metal/post-install/01-install-terraform.sh
+      duration_min: 10
+    - step: 4
+      name: Generate Terraform from topology
+      script: scripts/generate-terraform.py
+      duration_min: 1
+    - step: 5
+      name: Apply Terraform configuration
+      command: cd terraform && terraform apply
+      duration_min: 5
+    - step: 6
+      name: Generate Ansible inventory from topology
+      script: scripts/generate-ansible-inventory.py
+      duration_min: 1
+    - step: 7
+      name: Run Ansible playbooks
+      command: cd ansible && ansible-playbook -i inventory/production/hosts.yml site.yml
+      duration_min: 20
+  update_topology:
+    name: Update Infrastructure Topology
+    description: Modify topology and regenerate all configs
+    steps:
+    - step: 1
+      name: Edit topology.yaml
+      manual: true
+    - step: 2
+      name: Validate topology
+      script: scripts/validate-topology.py
+    - step: 3
+      name: Regenerate Terraform
+      script: scripts/generate-terraform.py
+    - step: 4
+      name: Regenerate Ansible inventory
+      script: scripts/generate-ansible-inventory.py
+    - step: 5
+      name: Regenerate documentation
+      script: scripts/generate-docs.py
+    - step: 6
+      name: Plan Terraform changes
+      command: cd terraform && terraform plan
+    - step: 7
+      name: Apply changes if approved
+      command: cd terraform && terraform apply
+runbooks: []
+documentation:
+  network_diagram:
+    format: mermaid
+    output: docs/network-diagram.md
+    auto_generate: true
+    include:
+    - physical_topology
+    - logical_topology.networks
+    - logical_topology.trust_zones
+  trust_zone_diagram:
+    format: mermaid
+    output: docs/trust-zones.md
+    auto_generate: true
+    style: security-focused
+  ip_allocation:
+    format: markdown-table
+    output: docs/ip-allocation.md
+    auto_generate: true
+  service_inventory:
+    format: markdown
+    output: docs/services.md
+    auto_generate: true
+    include_dependencies: true
+  device_inventory:
+    format: markdown
+    output: docs/devices.md
+    auto_generate: true
+notes:
+- All IPs are referenced by ID, not hardcoded - enables dynamic generation
+- Trust zones enable automated firewall rule generation
+- Physical/logical separation makes structure clear
+- Services reference compute resources by ID for flexibility
+- Single environment (production) - multi-env can be added if needed
+- 'Validate topology with: python3 scripts/validate-topology.py'
+- 'Regenerate everything with: python3 scripts/regenerate-all.py'

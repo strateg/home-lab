@@ -1,0 +1,26 @@
+---
+# Common Configuration Playbook
+# Applied to all hosts (VMs, LXC, Proxmox)
+
+- name: Apply common configuration
+  hosts: all
+  become: yes
+  gather_facts: yes
+  tags: [common]
+
+  pre_tasks:
+    - name: Wait for system to become reachable
+      wait_for_connection:
+        timeout: 300
+
+    - name: Gather facts
+      setup:
+
+  roles:
+    - role: common
+      tags: [base]
+
+  post_tasks:
+    - name: Display completion message
+      debug:
+        msg: "Common configuration completed for {{ inventory_hostname }}"

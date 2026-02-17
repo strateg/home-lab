@@ -1,0 +1,28 @@
+---
+# PostgreSQL Configuration Tasks
+
+- name: Configure postgresql.conf
+  template:
+    src: postgresql.conf.j2
+    dest: "{{ postgresql_config_dir }}/postgresql.conf"
+    owner: postgres
+    group: postgres
+    mode: '0644'
+  notify: restart postgresql
+
+- name: Configure pg_hba.conf
+  template:
+    src: pg_hba.conf.j2
+    dest: "{{ postgresql_config_dir }}/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: '0640'
+  notify: reload postgresql
+
+- name: Set PostgreSQL superuser password
+  postgresql_user:
+    name: postgres
+    password: "{{ vault_postgresql_superuser_password }}"
+    encrypted: yes
+  become_user: postgres
+  when: vault_postgresql_superuser_password is defined
