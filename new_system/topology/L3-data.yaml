@@ -1,0 +1,52 @@
+# L3 Data
+# Part of Home Lab Topology v4.0.0
+# Data layer: storage pools, data assets (no references upward)
+# Edit this file then regenerate: python3 scripts/regenerate-all.py
+
+storage:
+- id: storage-local
+  name: local
+  type: dir
+  path: /var/lib/vz
+  content:
+  - vztmpl
+  - iso
+  - backup
+  device_ref: gamayun
+  disk_ref: disk-ssd-system
+  shared: false
+  maxfiles: 0
+  description: Local directory storage on SSD
+- id: storage-lvm
+  name: local-lvm
+  type: lvmthin
+  vgname: pve
+  thinpool: data
+  content:
+  - images
+  - rootdir
+  device_ref: gamayun
+  disk_ref: disk-ssd-system
+  shared: false
+  description: SSD 180GB - Production VMs and LXC thin pool
+- id: storage-hdd
+  name: local-hdd
+  type: dir
+  path: /mnt/hdd
+  content:
+  - backup
+  - iso
+  - vztmpl
+  - snippets
+  device_ref: gamayun
+  disk_ref: disk-hdd-data
+  shared: false
+  maxfiles: 0
+  prune_backups:
+    keep_last: 3
+    keep_daily: 7
+    keep_weekly: 4
+    keep_monthly: 6
+    keep_yearly: 1
+  description: HDD 500GB - Backups, ISOs, Templates
+data_assets: []

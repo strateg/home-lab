@@ -1,0 +1,175 @@
+# L4 Platform
+# Part of Home Lab Topology v4.0.0
+# Compute platform: VMs, LXC, templates
+# Edit this file then regenerate: python3 scripts/regenerate-all.py
+
+_defaults:
+  lxc_os: &id002
+    type: debian
+    version: '12'
+  dns: &id001
+    nameserver: 192.168.88.1
+    searchdomain: home.local
+  lxc_boot:
+    onboot: true
+    startup_order: 10
+  lxc_storage_rootfs:
+    storage_ref: storage-lvm
+    size_gb: 8
+  lxc_network_servers:
+    interface: eth0
+    bridge_ref: bridge-vmbr2
+    network_ref: net-servers
+    gateway: 10.0.30.1
+    firewall: false
+  lxc_cloudinit:
+    enabled: true
+  ansible_enabled:
+    enabled: true
+vms: []
+lxc:
+- id: lxc-postgresql
+  vmid: 200
+  name: postgresql-db
+  device_ref: gamayun
+  type: database
+  role: database-server
+  template_ref: tpl-lxc-postgresql
+  trust_zone_ref: servers
+  description: PostgreSQL Database Server
+  tags:
+  - database
+  - production
+  resources:
+    cores: 2
+    memory_mb: 1024
+    swap_mb: 1024
+  boot:
+    onboot: true
+    startup_order: 10
+  storage:
+    rootfs:
+      storage_ref: storage-lvm
+      size_gb: 8
+  networks:
+  - interface: eth0
+    bridge_ref: bridge-vmbr2
+    network_ref: net-servers
+    gateway: 10.0.30.1
+    firewall: false
+    ip: 10.0.30.10/24
+  dns: *id001
+  os: *id002
+  cloudinit:
+    enabled: true
+    user: postgres
+    ssh_keys:
+    - ssh-ed25519 AAAA...
+  ansible:
+    enabled: true
+    playbook: postgresql.yml
+    vars:
+      postgresql_version: '16'
+      postgresql_listen_addresses: 10.0.30.10
+      postgresql_databases:
+      - name: nextcloud
+      - name: homelab
+      postgresql_users:
+      - name: nextcloud
+        password: '{{ vault_postgresql_nextcloud_password }}'
+        database: nextcloud
+      - name: app
+        password: '{{ vault_postgresql_app_password }}'
+        database: homelab
+      postgresql_pg_hba:
+      - type: host
+        database: nextcloud
+        user: nextcloud
+        address: 10.0.30.50/32
+        method: scram-sha-256
+      - type: host
+        database: all
+        user: all
+        address: 10.0.30.0/24
+        method: scram-sha-256
+- id: lxc-redis
+  vmid: 201
+  name: redis-cache
+  device_ref: gamayun
+  type: cache
+  role: cache-server
+  template_ref: tpl-lxc-redis
+  trust_zone_ref: servers
+  description: Redis Cache Server
+  tags:
+  - cache
+  - production
+  resources:
+    cores: 1
+    memory_mb: 512
+    swap_mb: 256
+  boot:
+    onboot: true
+    startup_order: 11
+  storage:
+    rootfs:
+      storage_ref: storage-lvm
+      size_gb: 4
+  networks:
+  - interface: eth0
+    bridge_ref: bridge-vmbr2
+    network_ref: net-servers
+    gateway: 10.0.30.1
+    firewall: false
+    ip: 10.0.30.20/24
+  dns: *id001
+  os: *id002
+  cloudinit:
+    enabled: true
+    user: redis
+  ansible:
+    enabled: true
+    playbook: redis.yml
+    vars:
+      redis_port: 6379
+      redis_bind: 10.0.30.20
+      redis_maxmemory: 256mb
+      redis_maxmemory_policy: allkeys-lru
+templates:
+  lxc:
+  - id: tpl-lxc-postgresql
+    vmid: 900
+    name: template-postgresql
+    storage_ref: storage-hdd
+    source: proxmox-community-scripts
+    script: db-postgresql.sh
+    description: PostgreSQL LXC template
+  - id: tpl-lxc-redis
+    vmid: 901
+    name: template-redis
+    storage_ref: storage-hdd
+    source: proxmox-community-scripts
+    script: db-redis.sh
+    description: Redis LXC template
+  - id: tpl-lxc-debian
+    vmid: 902
+    name: template-debian
+    storage_ref: storage-hdd
+    source: proxmox
+    image: debian-12-standard_12.2-1_amd64.tar.zst
+    description: Debian 12 base LXC template
+  vms:
+  - id: tpl-vm-debian
+    vmid: 910
+    name: template-debian-vm
+    storage_ref: storage-hdd
+    source: cloud-init
+    image: debian-12-genericcloud-amd64.qcow2
+    description: Debian 12 cloud-init VM template
+  - id: tpl-vm-ubuntu
+    vmid: 911
+    name: template-ubuntu-vm
+    storage_ref: storage-hdd
+    source: cloud-init
+    image: ubuntu-24.04-server-cloudimg-amd64.img
+    description: Ubuntu 24.04 cloud-init VM template

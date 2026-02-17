@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Home Lab Topology v4.0 - Layered",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "L0_meta",
+    "L1_foundation",
+    "L2_network",
+    "L3_data",
+    "L4_platform",
+    "L5_application",
+    "L6_observability",
+    "L7_operations"
+  ],
+  "properties": {
+    "L0_meta": {
+      "type": "object",
+      "required": ["version"],
+      "properties": {
+        "version": {"type": "string", "pattern": "^4\\."},
+        "metadata": {"type": "object"},
+        "defaults": {"type": "object"},
+        "security_policy": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "L1_foundation": {
+      "type": "object",
+      "properties": {
+        "locations": {"type": "array"},
+        "devices": {"type": "array"},
+        "ups": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "L2_network": {
+      "type": "object",
+      "properties": {
+        "trust_zones": {"type": "object"},
+        "networks": {"type": "array"},
+        "bridges": {"type": "array"},
+        "routing": {"type": "array"},
+        "firewall_templates": {"type": "array"},
+        "firewall_policies": {"type": "array"},
+        "qos": {"type": "object"},
+        "ipv6": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "L3_data": {
+      "type": "object",
+      "properties": {
+        "storage": {"type": "array"},
+        "data_assets": {"type": "array"}
+      },
+      "additionalProperties": true
+    },
+    "L4_platform": {
+      "type": "object",
+      "properties": {
+        "vms": {"type": "array"},
+        "lxc": {"type": "array"},
+        "templates": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "L5_application": {
+      "type": "object",
+      "properties": {
+        "certificates": {"type": "object"},
+        "services": {"type": "array"},
+        "dns": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "L6_observability": {
+      "type": "object",
+      "properties": {
+        "healthchecks": {"type": "array"},
+        "network_monitoring": {"type": "array"},
+        "alerts": {"type": "array"},
+        "notification_channels": {"type": "array"},
+        "dashboard": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "L7_operations": {
+      "type": "object",
+      "properties": {
+        "workflows": {"type": "object"},
+        "runbooks": {"type": "array"},
+        "documentation": {"type": "object"},
+        "notes": {"type": "array"},
+        "ansible": {"type": "object"},
+        "backup_policies": {"type": "array"}
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,42 +1,31 @@
-# Home Lab Network Topology v3.0 - Modular Structure
+# Home Lab Network Topology v4.0 - Layered (OSI-like) Structure
 # Infrastructure-as-Data: Single Source of Truth
 # Used to generate: Terraform configs, Ansible inventory, network diagrams, documentation
 #
-# This is the main topology file that includes all modular components.
+# This is the main topology file that includes all layered components.
 # Edit individual files in topology/ directory and use generators.
 #
-# Architecture v3.0:
-# - MikroTik Chateau LTE7 ax: Central router, firewall, WiFi, LTE failover, containers
-# - Orange Pi 5: Application server (Nextcloud, Jellyfin, monitoring)
-# - Proxmox: Database LXC (PostgreSQL, Redis) + dev/lab VMs
-# - GL.iNet Slate AX: Travel router only
+# Architecture v4.0:
+# - Strict layer separation (L0..L7)
+# - References only downward (never upward)
+# - Generators process L0 → L7 (resolve lower layers first)
+# - Isolation of changes: L5 changes do not require L1–L4 changes
 #
-# Principles:
-# - Network resilience: critical services survive node failures
-# - Modular structure for better maintainability
-# - Clear separation: physical_topology, logical_topology, compute, services
-# - ID-based references (not hardcoded IPs)
-# - Trust zones for security automation
-# - Dynamic IP generation friendly
+# Layer map:
+# L0 Meta          -> version, defaults, policies
+# L1 Foundation    -> devices, interfaces, MACs, UPS
+# L2 Network       -> networks, bridges, trust_zones, firewall
+# L3 Data          -> storage, data assets
+# L4 Platform      -> VMs, LXC, templates
+# L5 Application   -> services, ports, certificates, DNS records
+# L6 Observability -> monitoring, alerts, dashboards
+# L7 Operations    -> workflows, runbooks, docs, backups
 
-version: "3.0.0"
-
-# ============================================================
-# Modular Components
-# ============================================================
-# Each section is imported from topology/ directory
-# Edit topology/*.yaml files to modify infrastructure
-
-metadata: !include topology/metadata.yaml
-physical_topology: !include topology/physical.yaml
-logical_topology: !include topology/logical.yaml
-compute: !include topology/compute.yaml
-storage: !include topology/storage.yaml
-services: !include topology/services.yaml
-ansible: !include topology/ansible.yaml
-workflows: !include topology/workflows.yaml
-security: !include topology/security.yaml
-backup: !include topology/backup.yaml
-monitoring: !include topology/monitoring.yaml
-documentation: !include topology/documentation.yaml
-notes: !include topology/notes.yaml
+L0_meta: !include topology/L0-meta.yaml
+L1_foundation: !include topology/L1-foundation.yaml
+L2_network: !include topology/L2-network.yaml
+L3_data: !include topology/L3-data.yaml
+L4_platform: !include topology/L4-platform.yaml
+L5_application: !include topology/L5-application.yaml
+L6_observability: !include topology/L6-observability.yaml
+L7_operations: !include topology/L7-operations.yaml

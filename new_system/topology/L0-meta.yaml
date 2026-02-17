@@ -1,0 +1,73 @@
+# L0 Meta
+# Part of Home Lab Topology v4.0.0
+# This file defines version, defaults, and global policies (including security)
+# Edit this file then regenerate: python3 scripts/regenerate-all.py
+
+version: 4.0.0
+metadata:
+  org: home-lab
+  environment: production
+  author: dprohhorov
+  created: '2025-10-06'
+  last_updated: '2026-02-17'
+  version: 4.0.0
+  description: Home lab infrastructure with MikroTik Chateau LTE7 ax as central router,
+    Orange Pi 5 as application server, Proxmox as database/dev server
+  changelog:
+  - version: 1.0.0
+    date: '2025-10-06'
+    changes: Initial Infrastructure-as-Data structure
+  - version: 1.1.0
+    date: '2025-10-09'
+    changes: Added trust zones, enhanced metadata, improved validation
+  - version: 2.0.0
+    date: '2025-10-09'
+    changes: Restructured with physical/logical/compute separation, ID-based references
+  - version: 2.1.0
+    date: '2025-10-10'
+    changes: 'Phase 2 improvements: SSH keys, DNS records, firewall templates, Ansible
+      variables'
+  - version: 3.0.0
+    date: '2026-02-16'
+    changes: 'Major architecture redesign:
+
+      - Added MikroTik Chateau LTE7 ax as central router (replaces OPNsense VM)
+
+      - Added Orange Pi 5 as dedicated application server
+
+      - Removed OPNsense VM from Proxmox (freed ~2GB RAM)
+
+      - Moved Nextcloud, Jellyfin, monitoring to Orange Pi 5
+
+      - Added LTE failover capability
+
+      - Added container support on MikroTik (AdGuard, Tailscale)
+
+      - GL.iNet Slate AX repurposed as travel router only
+
+      - Network resilience: critical services on router survive node failures
+
+      '
+  - version: 4.0.0
+    date: '2026-02-17'
+    changes: Layered OSI-like architecture (L0–L7), strict downward references
+defaults: {}
+security_policy:
+- id: sec-baseline
+  description: Baseline security policy
+  password_policy:
+    min_length: 16
+    require_special_chars: true
+    require_numbers: true
+    require_uppercase: true
+    max_age_days: 90
+  ssh_policy:
+    permit_root_login: prohibit-password
+    password_authentication: false
+    pubkey_authentication: true
+    port: 22
+    max_auth_tries: 3
+  firewall_policy:
+    default_action: drop
+    log_blocked: true
+    rate_limiting: true
