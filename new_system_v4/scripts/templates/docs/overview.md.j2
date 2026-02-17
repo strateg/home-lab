@@ -1,0 +1,74 @@
+# Infrastructure Overview
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Metadata
+
+- **Organization**: {{ metadata.org }}
+- **Environment**: {{ metadata.environment }}
+- **Author**: {{ metadata.author }}
+- **Created**: {{ metadata.created }}
+- **Last Updated**: {{ metadata.last_updated }}
+- **Version**: {{ metadata.version }}
+
+**Description**: {{ metadata.description }}
+
+---
+
+## Infrastructure Statistics
+
+| Resource Type | Count |
+|---------------|-------|
+| Physical Devices | {{ stats.total_devices }} |
+| Virtual Machines | {{ stats.total_vms }} |
+| LXC Containers | {{ stats.total_lxc }} |
+| Networks | {{ stats.total_networks }} |
+| Services | {{ stats.total_services }} |
+| Storage Pools | {{ stats.total_storage }} |
+
+**Total Compute Resources**: {{ stats.total_vms + stats.total_lxc }}
+
+---
+
+## Quick Links
+
+- [Network Diagram](network-diagram.md) - Visual representation of network topology
+- [IP Allocation](ip-allocation.md) - IP address assignments
+- [Services Inventory](services.md) - Running services and applications
+- [Devices Inventory](devices.md) - Hardware and virtual machines
+
+---
+
+## Architecture Principles
+
+This infrastructure follows **Infrastructure-as-Data** principles:
+
+1. **Single Source of Truth**: `topology.yaml` defines entire infrastructure
+2. **Layered Model (L0–L7)**: Strict downward references (no upward coupling)
+3. **ID-based References**: No hardcoded IPs or names
+4. **Trust Zones**: Security boundaries with automated firewall rules
+5. **Version Controlled**: All configuration in Git
+
+---
+
+## Regenerating Documentation
+
+To regenerate this documentation:
+
+```bash
+python3 scripts/generate-docs.py
+```
+
+To regenerate Terraform and Ansible configurations:
+
+```bash
+python3 scripts/generate-terraform.py
+python3 scripts/generate-ansible-inventory.py
+```
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate from topology.yaml

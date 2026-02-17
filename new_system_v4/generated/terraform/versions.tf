@@ -1,0 +1,13 @@
+# ============================================================
+# Terraform Version Constraint
+# Generated from topology.yaml v4.0.0
+# DO NOT EDIT MANUALLY - Regenerate with scripts/generate-terraform.py
+# ============================================================
+#
+# NOTE: Provider versions and configuration are in provider.tf
+# This file only specifies the Terraform version constraint.
+#
+
+terraform {
+  required_version = ">= 1.5.0"
+}

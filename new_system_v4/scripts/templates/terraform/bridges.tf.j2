@@ -1,0 +1,80 @@
+# ============================================================
+# Network Bridges Configuration
+# Generated from topology.yaml v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with scripts/generate-terraform.py
+# ============================================================
+
+{% for bridge in bridges %}
+# {{ bridge.name }} - {{ bridge.comment }}
+{% if bridge.ports %}
+# Ports: {{ bridge.ports | join(', ') }}
+{% else %}
+# Ports: none (internal only)
+{% endif %}
+
+resource "proxmox_virtual_environment_network_linux_bridge" "{{ bridge.id | replace('-', '_') }}" {
+  node_name = var.proxmox_node
+
+  name    = "{{ bridge.name }}"
+  comment = "{{ bridge.comment }}"
+
+  {% if bridge.ports %}
+  ports = [{% for port in bridge.ports %}"{{ port }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+  {% endif %}
+
+  {% if bridge.address != 'dhcp' %}
+  address = "{{ bridge.address }}"
+  {% else %}
+  # DHCP configuration - address will be obtained dynamically
+  # Note: Some provider versions may require manual DHCP setup via /etc/network/interfaces
+  {% endif %}
+
+  {% if bridge.get('gateway') %}
+  gateway = "{{ bridge.gateway }}"
+  {% endif %}
+
+  vlan_aware = {{ bridge.vlan_aware | default(false) | lower }}
+
+  {% if bridge.autostart is defined %}
+  autostart = {{ bridge.autostart | lower }}
+  {% endif %}
+
+  # Lifecycle management
+  lifecycle {
+    ignore_changes = [
+      # Ignore changes to these attributes as they may be managed outside Terraform
+      # or change dynamically (e.g., DHCP-assigned IP)
+      {% if bridge.address == 'dhcp' %}
+      address,
+      {% endif %}
+    ]
+  }
+}
+
+{% endfor %}
+
+# ============================================================
+# Outputs
+# ============================================================
+
+output "bridges" {
+  description = "Network bridges configuration"
+  value = {
+    {% for bridge in bridges %}
+    {{ bridge.id | replace('-', '_') }} = {
+      name        = proxmox_virtual_environment_network_linux_bridge.{{ bridge.id | replace('-', '_') }}.name
+      bridge_name = "{{ bridge.name }}"
+      {% if bridge.address != 'dhcp' %}
+      address     = "{{ bridge.address }}"
+      {% else %}
+      address     = "dhcp"
+      {% endif %}
+      {% if bridge.ports %}
+      ports       = [{% for port in bridge.ports %}"{{ port }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+      {% else %}
+      ports       = []
+      {% endif %}
+    }
+    {% endfor %}
+  }
+}

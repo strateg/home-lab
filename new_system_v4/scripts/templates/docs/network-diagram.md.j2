@@ -1,0 +1,134 @@
+# Network Diagram
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Infrastructure Network Topology
+
+```mermaid
+graph TB
+    %% ============================================================
+    %% Trust Zones
+    %% ============================================================
+
+    subgraph UNTRUSTED["Untrusted Zone (Level 0)"]
+        INTERNET[("Internet")]
+    end
+
+    subgraph DMZ["DMZ Zone (Level 1)"]
+        {% for vm in vms %}
+        {% if vm.trust_zone_ref == 'dmz' %}
+        {{ vm.id | replace('-', '_') }}["{{ vm.name }}<br/>{{ vm.type }}"]
+        {% endif %}
+        {% endfor %}
+    end
+
+    subgraph USER["User Zone (Level 1)"]
+        USERS[("User Devices")]
+    end
+
+    subgraph INTERNAL["Internal Zone (Level 2)"]
+        {% for lxc_item in lxc %}
+        {% if lxc_item.trust_zone_ref == 'internal' %}
+        {{ lxc_item.id | replace('-', '_') }}["{{ lxc_item.name }}<br/>{{ lxc_item.type }}"]
+        {% endif %}
+        {% endfor %}
+    end
+
+    subgraph MGMT["Management Zone (Level 3)"]
+        PROXMOX["Proxmox VE<br/>hypervisor"]
+    end
+
+    %% ============================================================
+    %% Network Bridges
+    %% ============================================================
+
+    {% for bridge in bridges %}
+    {{ bridge.id | replace('-', '_') }}[/"{{ bridge.name }}"/]
+    {% endfor %}
+
+    %% ============================================================
+    %% Network Connections
+    %% ============================================================
+
+    %% Internet → DMZ
+    INTERNET -.->|WAN| bridge_vmbr0
+
+    %% Bridges to VMs/LXC
+    {% for vm in vms %}
+    {% for nic in vm.networks %}
+    bridge_{{ nic.bridge_ref | replace('-', '_') }} <-->|{{ nic.role }}| {{ vm.id | replace('-', '_') }}
+    {% endfor %}
+    {% endfor %}
+
+    {% for lxc_item in lxc %}
+    {% for nic in lxc_item.networks %}
+    bridge_{{ nic.bridge_ref | replace('-', '_') }} <-->|{{ nic.ip.split('/')[0] }}| {{ lxc_item.id | replace('-', '_') }}
+    {% endfor %}
+    {% endfor %}
+
+    %% Proxmox management
+    PROXMOX <--> bridge_vmbr99
+
+    %% User to DMZ
+    USERS -.-> bridge_vmbr1
+
+    %% Styling
+    classDef untrusted fill:#ff6b6b,stroke:#c92a2a,color:#fff
+    classDef dmz fill:#fab005,stroke:#f08c00,color:#000
+    classDef user fill:#74c0fc,stroke:#1864ab,color:#000
+    classDef internal fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef mgmt fill:#da77f2,stroke:#9c36b5,color:#fff
+    classDef bridge fill:#e9ecef,stroke:#868e96,color:#000
+
+    class INTERNET untrusted
+    class {{ vms | selectattr('trust_zone_ref', 'equalto', 'dmz') | map(attribute='id') | map('replace', '-', '_') | join(',') }} dmz
+    class USERS user
+    class {{ lxc | selectattr('trust_zone_ref', 'equalto', 'internal') | map(attribute='id') | map('replace', '-', '_') | join(',') }} internal
+    class PROXMOX mgmt
+    class {% for bridge in bridges %}{{ bridge.id | replace('-', '_') }}{% if not loop.last %},{% endif %}{% endfor %} bridge
+```
+
+---
+
+## Trust Zones Explanation
+
+| Zone | Level | Purpose | Devices |
+|------|-------|---------|---------|
+{% for zone_id, zone_config in trust_zones.items() %}
+| {{ zone_id | title }} | {{ zone_config.security_level | default('') }} | {{ zone_config.description }} | {% set zone_devices = [] %}{% for vm in vms %}{% if vm.trust_zone_ref == zone_id %}{% set _ = zone_devices.append(vm.name) %}{% endif %}{% endfor %}{% for lxc_item in lxc %}{% if lxc_item.trust_zone_ref == zone_id %}{% set _ = zone_devices.append(lxc_item.name) %}{% endif %}{% endfor %}{{ zone_devices | join(', ') if zone_devices else 'None' }} |
+{% endfor %}
+
+---
+
+## Network Details
+
+{% for network in networks %}
+### {{ network.id }}
+
+- **CIDR**: {{ network.cidr }}
+- **Bridge**: {{ network.bridge_ref }}
+- **Trust Zone**: {{ network.trust_zone_ref }}
+{% if network.gateway %}
+- **Gateway**: {{ network.gateway }}
+{% endif %}
+{% if network.vlan %}
+- **VLAN**: {{ network.vlan }}
+{% endif %}
+
+{% if network.ip_allocations %}
+**Allocated IPs**:
+{% for alloc in network.ip_allocations | sort(attribute='ip') %}
+- `{{ alloc.ip }}` → {{ alloc.device_ref | default(alloc.vm_ref | default(alloc.lxc_ref)) }} ({{ alloc.interface }})
+{% endfor %}
+{% endif %}
+
+---
+
+{% endfor %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 scripts/generate-docs.py`

@@ -1,0 +1,172 @@
+# =============================================================================
+# MikroTik Container Configuration (RouterOS 7.x)
+# Generated from topology v4.0.0
+# DO NOT EDIT MANUALLY - Regenerate with: python3 scripts/generate-terraform-mikrotik.py
+# =============================================================================
+
+# Note: Container support requires:
+# - RouterOS 7.4+
+# - ARM64 or x86 architecture
+# - Container package installed
+# - USB storage for container images (USB 2.0 on Chateau)
+
+# -----------------------------------------------------------------------------
+# Container Configuration (Global)
+# -----------------------------------------------------------------------------
+
+resource "routeros_container_config" "config" {
+  registry_url = "https://registry-1.docker.io"
+  ram_high     = "512M"
+  tmpdir       = "/usb1/containers/tmp"
+}
+
+# -----------------------------------------------------------------------------
+# Container Mounts (USB Storage)
+# -----------------------------------------------------------------------------
+
+resource "routeros_container_mounts" "adguard_config" {
+  name = "adguard-config"
+  src  = "/usb1/containers/adguard/config"
+  dst  = "/opt/adguardhome/conf"
+}
+
+resource "routeros_container_mounts" "adguard_data" {
+  name = "adguard-data"
+  src  = "/usb1/containers/adguard/data"
+  dst  = "/opt/adguardhome/work"
+}
+
+resource "routeros_container_mounts" "tailscale_state" {
+  name = "tailscale-state"
+  src  = "/usb1/containers/tailscale/state"
+  dst  = "/var/lib/tailscale"
+}
+
+# -----------------------------------------------------------------------------
+# AdGuard Home Container
+# -----------------------------------------------------------------------------
+
+resource "routeros_container" "adguard" {
+  remote_image = "adguard/adguardhome:latest"
+  interface    = routeros_interface_veth.adguard_veth.name
+  root_dir     = "/usb1/containers/adguard/root"
+  mounts       = [
+    routeros_container_mounts.adguard_config.name,
+    routeros_container_mounts.adguard_data.name
+  ]
+  hostname     = "adguard"
+  dns          = "1.1.1.1"
+  logging      = true
+  start_on_boot = true
+  comment      = "AdGuard Home DNS filtering"
+
+  depends_on = [
+    routeros_container_config.config,
+    routeros_container_mounts.adguard_config,
+    routeros_container_mounts.adguard_data,
+    routeros_interface_veth.adguard_veth
+  ]
+}
+
+# AdGuard veth interface
+resource "routeros_interface_veth" "adguard_veth" {
+  name    = "veth-adguard"
+  address = ["172.17.0.2/24"]
+  gateway = "172.17.0.1"
+  comment = "AdGuard container interface"
+}
+
+# Bridge port for AdGuard container
+resource "routeros_interface_bridge_port" "adguard_port" {
+  bridge    = routeros_interface_bridge.lan.name
+  interface = routeros_interface_veth.adguard_veth.name
+  comment   = "AdGuard container to LAN bridge"
+
+  depends_on = [
+    routeros_interface_bridge.lan,
+    routeros_interface_veth.adguard_veth
+  ]
+}
+
+# -----------------------------------------------------------------------------
+# Tailscale Container
+# -----------------------------------------------------------------------------
+
+resource "routeros_container_envs" "tailscale_authkey" {
+  name  = "tailscale-authkey"
+  key   = "TS_AUTHKEY"
+  value = var.tailscale_authkey
+}
+
+resource "routeros_container_envs" "tailscale_routes" {
+  name  = "tailscale-routes"
+  key   = "TS_ROUTES"
+  value = "192.168.88.0/24,10.0.30.0/24,10.0.99.0/24"
+}
+
+resource "routeros_container_envs" "tailscale_extra_args" {
+  name  = "tailscale-args"
+  key   = "TS_EXTRA_ARGS"
+  value = "--advertise-exit-node"
+}
+
+resource "routeros_container" "tailscale" {
+  remote_image = "tailscale/tailscale:stable"
+  interface    = routeros_interface_veth.tailscale_veth.name
+  root_dir     = "/usb1/containers/tailscale/root"
+  mounts       = [routeros_container_mounts.tailscale_state.name]
+  envlist      = "${routeros_container_envs.tailscale_authkey.name},${routeros_container_envs.tailscale_routes.name},${routeros_container_envs.tailscale_extra_args.name}"
+  hostname     = "mikrotik-tailscale"
+  dns          = "1.1.1.1"
+  logging      = true
+  start_on_boot = true
+  comment      = "Tailscale mesh VPN"
+
+  depends_on = [
+    routeros_container_config.config,
+    routeros_container_mounts.tailscale_state,
+    routeros_interface_veth.tailscale_veth,
+    routeros_container_envs.tailscale_authkey,
+    routeros_container_envs.tailscale_routes,
+    routeros_container_envs.tailscale_extra_args
+  ]
+}
+
+# Tailscale veth interface
+resource "routeros_interface_veth" "tailscale_veth" {
+  name    = "veth-tailscale"
+  address = ["172.17.0.3/24"]
+  gateway = "172.17.0.1"
+  comment = "Tailscale container interface"
+}
+
+# Bridge port for Tailscale container
+resource "routeros_interface_bridge_port" "tailscale_port" {
+  bridge    = routeros_interface_bridge.lan.name
+  interface = routeros_interface_veth.tailscale_veth.name
+  comment   = "Tailscale container to LAN bridge"
+
+  depends_on = [
+    routeros_interface_bridge.lan,
+    routeros_interface_veth.tailscale_veth
+  ]
+}
+
+# -----------------------------------------------------------------------------
+# Container IP Routing
+# -----------------------------------------------------------------------------
+
+# Route for container network
+resource "routeros_ip_address" "container_gateway" {
+  address   = "172.17.0.1/24"
+  interface = routeros_interface_bridge.lan.name
+  comment   = "Container network gateway"
+}
+
+# NAT for containers to access internet
+resource "routeros_ip_firewall_nat" "container_masq" {
+  chain       = "srcnat"
+  action      = "masquerade"
+  src_address = "172.17.0.0/24"
+  comment     = "Masquerade container traffic"
+}

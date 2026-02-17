@@ -1,0 +1,127 @@
+# ============================================================
+# Ansible Group Variables (all.yml)
+# Generated from topology.yaml v4.0.0
+# DO NOT EDIT MANUALLY - Regenerate with scripts/generate-ansible-inventory.py
+# ============================================================
+
+# ============================================================
+# Common Configuration
+# ============================================================
+
+ansible_python_interpreter: /usr/bin/python3
+ansible_user: root
+
+# ============================================================
+# Network Configuration
+# ============================================================
+
+# Management Network
+management_network:
+  cidr: "10.0.99.0/24"
+  gateway: "10.0.99.1"
+  vlan: 99
+
+
+# All Networks
+networks:
+  net-wan:
+    cidr: "dhcp"
+    gateway: "dhcp"
+    trust_zone: untrusted
+  net-lte-failover:
+    cidr: "dhcp"
+    gateway: "dhcp"
+    trust_zone: untrusted
+  net-lan:
+    cidr: "192.168.88.0/24"
+    gateway: "192.168.88.1"
+    trust_zone: user
+  net-servers:
+    cidr: "10.0.30.0/24"
+    gateway: "10.0.30.1"
+    vlan: 30
+    trust_zone: servers
+  net-guest:
+    cidr: "192.168.30.0/24"
+    gateway: "192.168.30.1"
+    vlan: 50
+    trust_zone: guest
+  net-iot:
+    cidr: "192.168.40.0/24"
+    gateway: "192.168.40.1"
+    vlan: 40
+    trust_zone: iot
+  net-management:
+    cidr: "10.0.99.0/24"
+    gateway: "10.0.99.1"
+    vlan: 99
+    trust_zone: management
+  net-vpn-home:
+    cidr: "10.0.200.0/24"
+    gateway: "10.0.200.1"
+    trust_zone: user
+  net-tailscale:
+    cidr: "100.64.0.0/10"
+    trust_zone: user
+
+# ============================================================
+# DNS Configuration
+# ============================================================
+
+dns_servers:
+  - "192.168.88.1"
+  - "1.1.1.1"
+
+search_domains:
+  - "home.local"
+
+# ============================================================
+# Timezone & Locale
+# ============================================================
+
+timezone: "UTC"
+locale: "en_US.UTF-8"
+
+# ============================================================
+# Common Packages
+# ============================================================
+
+common_packages:
+  - vim
+  - git
+  - curl
+  - wget
+  - htop
+  - tmux
+  - net-tools
+  - dnsutils
+
+# ============================================================
+# Security Configuration
+# ============================================================
+
+# SSH configuration
+ssh_port: 22
+ssh_permit_root_login: "prohibit-password"
+ssh_password_authentication: false
+
+# Firewall
+firewall_enabled: true
+fail2ban_enabled: true
+
+# ============================================================
+# Monitoring & Logging
+# ============================================================
+
+# Logging
+syslog_server: null  # Set if using centralized logging
+
+# Monitoring
+monitoring_enabled: false
+
+# ============================================================
+# Backup Configuration
+# ============================================================
+
+backup_enabled: true
+backup_retention_days: 7

@@ -1,0 +1,86 @@
+# =============================================================================
+# MikroTik Interface Configuration
+# Generated from topology v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with: python3 scripts/generate-terraform-mikrotik.py
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Bridge Configuration
+# -----------------------------------------------------------------------------
+
+resource "routeros_interface_bridge" "lan" {
+  name           = "bridge-lan"
+  comment        = "Main LAN Bridge"
+  vlan_filtering = true
+  pvid           = 1
+  frame_types    = "admit-all"
+  igmp_snooping  = true
+  protocol_mode  = "rstp"
+}
+
+# -----------------------------------------------------------------------------
+# Bridge Ports (LAN ports to bridge)
+# -----------------------------------------------------------------------------
+
+{% for port in lan_ports %}
+resource "routeros_interface_bridge_port" "{{ port.name | replace('-', '_') }}" {
+  bridge    = routeros_interface_bridge.lan.name
+  interface = "{{ port.interface }}"
+  pvid      = {{ port.pvid | default(1) }}
+  comment   = "{{ port.comment | default(port.interface + ' to LAN bridge') }}"
+  {% if port.tagged_vlans %}
+  frame_types = "admit-only-vlan-tagged"
+  {% endif %}
+
+  depends_on = [routeros_interface_bridge.lan]
+}
+
+{% endfor %}
+# -----------------------------------------------------------------------------
+# VLAN Interfaces
+# -----------------------------------------------------------------------------
+
+{% for vlan in vlans %}
+resource "routeros_interface_vlan" "vlan{{ vlan.id }}" {
+  name      = "vlan{{ vlan.id }}"
+  vlan_id   = {{ vlan.id }}
+  interface = routeros_interface_bridge.lan.name
+  comment   = "{{ vlan.name }} ({{ vlan.network_ref }})"
+
+  depends_on = [routeros_interface_bridge.lan]
+}
+
+{% endfor %}
+# -----------------------------------------------------------------------------
+# Bridge VLAN Filtering
+# -----------------------------------------------------------------------------
+
+{% for vlan in vlans %}
+resource "routeros_interface_bridge_vlan" "vlan{{ vlan.id }}" {
+  bridge   = routeros_interface_bridge.lan.name
+  vlan_ids = [{{ vlan.id }}]
+  tagged   = [routeros_interface_bridge.lan.name]
+  {% if vlan.untagged_ports %}
+  untagged = [{% for port in vlan.untagged_ports %}"{{ port }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+  {% endif %}
+  comment  = "{{ vlan.name }}"
+
+  depends_on = [routeros_interface_vlan.vlan{{ vlan.id }}]
+}
+
+{% endfor %}
+# -----------------------------------------------------------------------------
+# WiFi Interfaces (if managed by Terraform)
+# -----------------------------------------------------------------------------
+# Note: WiFi configuration via Terraform is complex and may require
+# manual setup. See bootstrap/mikrotik/README.md for WiFi setup guide.
+
+# WiFi 5GHz - wlan1
+# WiFi 2.4GHz - wlan2
+# Guest VLAN assignment is handled in CAPsMAN or WiFi configuration
+
+# -----------------------------------------------------------------------------
+# WAN Interface (ether1 - 2.5GbE)
+# -----------------------------------------------------------------------------
+# WAN interface is configured via DHCP client, not managed here
+# LTE interface (lte1) is configured separately for failover

@@ -1,0 +1,118 @@
+# =============================================================================
+# MikroTik QoS Configuration (Queue Trees)
+# Generated from topology v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with: python3 scripts/generate-terraform-mikrotik.py
+# =============================================================================
+
+{% if qos.enabled %}
+# -----------------------------------------------------------------------------
+# Queue Type Definitions
+# -----------------------------------------------------------------------------
+
+resource "routeros_queue_type" "pcq_download" {
+  name     = "pcq-download"
+  kind     = "pcq"
+  pcq_rate = "0"
+  pcq_classifier = ["dst-address"]
+}
+
+resource "routeros_queue_type" "pcq_upload" {
+  name     = "pcq-upload"
+  kind     = "pcq"
+  pcq_rate = "0"
+  pcq_classifier = ["src-address"]
+}
+
+# -----------------------------------------------------------------------------
+# Simple Queues (Per-Network Limits)
+# -----------------------------------------------------------------------------
+
+{% for limit in qos.device_limits %}
+resource "routeros_queue_simple" "limit_{{ limit.network_ref | replace('-', '_') }}" {
+  name       = "limit-{{ limit.network_ref }}"
+  target     = ["{{ limit.target_cidr }}"]
+  max_limit  = "{{ limit.upload_limit_mbps }}M/{{ limit.download_limit_mbps }}M"
+  {% if limit.per_host_limit %}
+  queue      = "pcq-upload-default/pcq-download-default"
+  {% endif %}
+  comment    = "{{ limit.description }}"
+}
+
+{% endfor %}
+# -----------------------------------------------------------------------------
+# Queue Tree (Traffic Prioritization)
+# -----------------------------------------------------------------------------
+
+# Parent queue on WAN interface
+resource "routeros_queue_tree" "download_parent" {
+  name       = "Download"
+  parent     = "global"
+  max_limit  = "{{ qos.total_bandwidth.download_mbps }}M"
+  comment    = "Download traffic shaping"
+}
+
+resource "routeros_queue_tree" "upload_parent" {
+  name       = "Upload"
+  parent     = "global"
+  max_limit  = "{{ qos.total_bandwidth.upload_mbps }}M"
+  comment    = "Upload traffic shaping"
+}
+
+{% for queue in qos.queues %}
+# {{ queue.name }}
+resource "routeros_queue_tree" "{{ queue.id | replace('-', '_') }}_down" {
+  name       = "{{ queue.name }}-Down"
+  parent     = routeros_queue_tree.download_parent.name
+  priority   = {{ queue.priority }}
+  limit_at   = "{{ (qos.total_bandwidth.download_mbps * queue.guarantee_percent / 100) | int }}M"
+  max_limit  = "{{ (qos.total_bandwidth.download_mbps * queue.max_limit_percent / 100) | int }}M"
+  {% if queue.burst_limit_percent %}
+  burst_limit = "{{ (qos.total_bandwidth.download_mbps * queue.burst_limit_percent / 100) | int }}M"
+  burst_time  = "{{ queue.burst_time | default('1s') }}"
+  burst_threshold = "{{ (qos.total_bandwidth.download_mbps * queue.guarantee_percent / 100) | int }}M"
+  {% endif %}
+  packet_mark = ["{{ queue.id }}"]
+  comment    = "{{ queue.description }}"
+
+  depends_on = [routeros_queue_tree.download_parent]
+}
+
+resource "routeros_queue_tree" "{{ queue.id | replace('-', '_') }}_up" {
+  name       = "{{ queue.name }}-Up"
+  parent     = routeros_queue_tree.upload_parent.name
+  priority   = {{ queue.priority }}
+  limit_at   = "{{ (qos.total_bandwidth.upload_mbps * queue.guarantee_percent / 100) | int }}M"
+  max_limit  = "{{ (qos.total_bandwidth.upload_mbps * queue.max_limit_percent / 100) | int }}M"
+  {% if queue.burst_limit_percent %}
+  burst_limit = "{{ (qos.total_bandwidth.upload_mbps * queue.burst_limit_percent / 100) | int }}M"
+  burst_time  = "{{ queue.burst_time | default('1s') }}"
+  burst_threshold = "{{ (qos.total_bandwidth.upload_mbps * queue.guarantee_percent / 100) | int }}M"
+  {% endif %}
+  packet_mark = ["{{ queue.id }}"]
+  comment    = "{{ queue.description }}"
+
+  depends_on = [routeros_queue_tree.upload_parent]
+}
+
+{% endfor %}
+# -----------------------------------------------------------------------------
+# Mangle Rules for Traffic Marking
+# -----------------------------------------------------------------------------
+
+{% for queue in qos.queues %}
+{% if queue.ports %}
+resource "routeros_ip_firewall_mangle" "mark_{{ queue.id | replace('-', '_') }}" {
+  chain       = "forward"
+  action      = "mark-packet"
+  new_packet_mark = "{{ queue.id }}"
+  passthrough = true
+  protocol    = "tcp"
+  dst_port    = "{{ queue.ports | join(',') }}"
+  comment     = "Mark {{ queue.name }} traffic"
+}
+{% endif %}
+
+{% endfor %}
+{% else %}
+# QoS is disabled in topology configuration
+{% endif %}

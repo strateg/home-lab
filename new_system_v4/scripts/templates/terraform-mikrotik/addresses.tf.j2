@@ -1,0 +1,38 @@
+# =============================================================================
+# MikroTik IP Address Configuration
+# Generated from topology v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with: python3 scripts/generate-terraform-mikrotik.py
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Bridge/VLAN IP Addresses
+# -----------------------------------------------------------------------------
+
+{% for network in networks %}
+{% if network.gateway and network.managed_by_ref == 'mikrotik-chateau' and network.cidr != 'dhcp' %}
+resource "routeros_ip_address" "{{ network.id | replace('-', '_') }}" {
+  address   = "{{ network.gateway }}/{{ network.cidr.split('/')[1] }}"
+  interface = "{{ network.interface_name | default('bridge-lan' if network.vlan is none else 'vlan' ~ network.vlan) }}"
+  comment   = "{{ network.name }} gateway"
+  {% if network.vlan %}
+
+  depends_on = [routeros_interface_vlan.vlan{{ network.vlan }}]
+  {% endif %}
+}
+
+{% endif %}
+{% endfor %}
+# -----------------------------------------------------------------------------
+# IP Pool Configuration (for DHCP)
+# -----------------------------------------------------------------------------
+
+{% for network in networks %}
+{% if network.dhcp and network.dhcp_range %}
+resource "routeros_ip_pool" "pool_{{ network.id | replace('-', '_') }}" {
+  name    = "pool-{{ network.id }}"
+  ranges  = ["{{ network.dhcp_range }}"]
+  comment = "DHCP pool for {{ network.name }}"
+}
+
+{% endif %}
+{% endfor %}

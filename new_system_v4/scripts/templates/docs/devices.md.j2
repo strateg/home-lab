@@ -1,0 +1,166 @@
+# Devices Inventory
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Physical Devices
+
+{% for device in devices %}
+### {{ device.name }}
+
+**ID**: `{{ device.id }}`
+
+| Property | Value |
+|----------|-------|
+| **Type** | {{ device.type }} |
+| **Role** | {{ device.role }} |
+| **Model** | {{ device.model }} |
+| **Location** | {{ device.location }} |
+
+#### Specifications
+
+{% if device.specs %}
+{% if device.specs.cpu %}
+**CPU**: {{ device.specs.cpu.model }}
+- Cores: {{ device.specs.cpu.cores }}
+- Threads: {{ device.specs.cpu.threads }}
+- Speed: {{ device.specs.cpu.speed_mhz }} MHz
+{% endif %}
+
+{% if device.specs.memory %}
+**Memory**: {{ device.specs.memory.total_gb }} GB {{ device.specs.memory.type }}
+- Upgradeable: {{ 'Yes' if device.specs.memory.upgradeable else 'No' }}
+{% endif %}
+
+{% if device.specs.disks %}
+**Storage**:
+{% for disk in device.specs.disks %}
+- {{ disk.id }}: {{ disk.size_gb }} GB {{ disk.type | upper }} ({{ disk.model }})
+{% endfor %}
+{% endif %}
+{% endif %}
+
+{% if device.interfaces %}
+#### Network Interfaces
+
+{% for iface in device.interfaces %}
+- **{{ iface.id }}** ({{ iface.physical_name }})
+  - MAC: `{{ iface.mac }}`
+  - Speed: {{ iface.speed }}
+  - Type: {{ iface.type }}
+{% endfor %}
+{% endif %}
+
+**Description**: {{ device.description | default('No description') }}
+
+---
+
+{% endfor %}
+
+## Virtual Machines
+
+Total: **{{ vms | length }}**
+
+{% for vm in vms %}
+### {{ vm.name }}
+
+**ID**: `{{ vm.id }}` | **VMID**: {{ vm.vmid }}
+
+| Property | Value |
+|----------|-------|
+| **Type** | {{ vm.type }} |
+| **Role** | {{ vm.role }} |
+| **OS** | {{ vm.os.type }} {{ vm.os.version | default('') }} |
+| **Trust Zone** | {{ vm.trust_zone_ref }} |
+
+**Resources**:
+- **CPU**: {{ vm.resources.cores }} cores ({{ vm.resources.sockets | default(1) }} socket)
+- **Memory**: {{ vm.resources.memory_mb }} MB
+{% if vm.resources.balloon_mb %}
+- **Balloon**: {{ vm.resources.balloon_mb }} MB
+{% endif %}
+
+**Storage**:
+{% for disk in vm.storage %}
+- {{ disk.disk_id }}: {{ disk.size_gb }} GB ({{ disk.format | default('raw') }})
+{% endfor %}
+
+**Network**: {{ vm.networks | length }} interface(s)
+
+**Tags**: {{ vm.tags | join(', ') }}
+
+---
+
+{% endfor %}
+
+## LXC Containers
+
+Total: **{{ lxc | length }}**
+
+{% for container in lxc %}
+### {{ container.name }}
+
+**ID**: `{{ container.id }}` | **VMID**: {{ container.vmid }}
+
+| Property | Value |
+|----------|-------|
+| **Type** | {{ container.type }} |
+| **Role** | {{ container.role }} |
+| **OS** | {{ container.os.type }} {{ container.os.version }} |
+| **Trust Zone** | {{ container.trust_zone_ref }} |
+
+**Resources**:
+- **CPU**: {{ container.resources.cores }} cores
+- **Memory**: {{ container.resources.memory_mb }} MB
+{% if container.resources.swap_mb %}
+- **Swap**: {{ container.resources.swap_mb }} MB
+{% endif %}
+
+**Storage**:
+- **Root**: {{ container.storage.rootfs.size_gb }} GB
+{% if container.storage.mountpoints %}
+{% for mp in container.storage.mountpoints %}
+- **{{ mp.id }}**: {{ mp.size_gb }} GB → {{ mp.mountpoint }}
+{% endfor %}
+{% endif %}
+
+**IP Address**: {{ container.networks[0].ip if container.networks else 'N/A' }}
+
+**Tags**: {{ container.tags | join(', ') }}
+
+---
+
+{% endfor %}
+
+## Storage Pools
+
+{% for pool in storage %}
+### {{ pool.name }}
+
+**ID**: `{{ pool.id }}`
+
+| Property | Value |
+|----------|-------|
+| **Pool** | {{ pool.pool }} |
+| **Type** | {{ pool.type }} |
+| **Path** | {{ pool.path | default('N/A') }} |
+
+{% if pool.usage %}
+**Usage**:
+- VMs: {{ pool.usage.vms | default(0) }}
+- LXC: {{ pool.usage.lxc | default(0) }}
+- Backups: {{ pool.usage.backups | default(0) }}
+- Templates: {{ pool.usage.templates | default(0) }}
+{% endif %}
+
+**Description**: {{ pool.description | default('No description') }}
+
+---
+
+{% endfor %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 scripts/generate-docs.py`

@@ -1,0 +1,73 @@
+# IP Address Allocation
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Network Summary
+
+Total networks: **{{ networks | length }}**
+
+| Network ID | CIDR | Gateway | VLAN | Trust Zone |
+|------------|------|---------|------|------------|
+{% for network in networks %}
+| {{ network.id }} | {{ network.cidr }} | {{ network.gateway | default('N/A') }} | {{ network.vlan | default('N/A') }} | {{ network.trust_zone_ref }} |
+{% endfor %}
+
+---
+
+## IP Allocations
+
+Total allocated IPs: **{{ allocations | length }}**
+
+| IP Address | Device | Network | Interface | Description |
+|------------|--------|---------|-----------|-------------|
+{% for alloc in allocations | sort(attribute='ip') %}
+| {{ alloc.ip }} | {{ alloc.device }} | {{ alloc.network }} | {{ alloc.interface }} | {{ alloc.description }} |
+{% endfor %}
+
+---
+
+## Allocations by Network
+
+{% for network in networks %}
+### {{ network.id }} ({{ network.cidr }})
+
+**Trust Zone**: {{ network.trust_zone_ref }}
+{% if network.gateway %}
+**Gateway**: {{ network.gateway }}
+{% endif %}
+{% if network.vlan %}
+**VLAN**: {{ network.vlan }}
+{% endif %}
+
+{% if network.ip_allocations %}
+| IP Address | Device | Interface | Description |
+|------------|--------|-----------|-------------|
+{% for alloc in network.ip_allocations %}
+| {{ alloc.ip }} | {{ alloc.device_ref | default(alloc.vm_ref | default(alloc.lxc_ref | default('N/A'))) }} | {{ alloc.interface | default('-') }} | {{ alloc.description | default('') }} |
+{% endfor %}
+{% else %}
+*No allocations defined*
+{% endif %}
+
+---
+
+{% endfor %}
+
+## Reserved Addresses
+
+{% for network in networks %}
+{% if network.reserved %}
+### {{ network.id }}
+
+{% for reserved in network.reserved %}
+- `{{ reserved }}` - {{ network.id }} reserved address
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 scripts/generate-docs.py`

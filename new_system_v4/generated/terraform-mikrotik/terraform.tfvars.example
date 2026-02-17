@@ -1,0 +1,34 @@
+# =============================================================================
+# MikroTik Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to version control (contains secrets)
+# =============================================================================
+
+# MikroTik Connection
+mikrotik_host     = "https://192.168.88.1:8443"
+mikrotik_username = "terraform"
+mikrotik_password = "YOUR_SECURE_PASSWORD"
+mikrotik_insecure = true  # Set to false with valid SSL certificate
+
+# WireGuard VPN (generate with: wg genkey)
+wireguard_private_key = ""
+
+# WireGuard Peers (add your devices)
+wireguard_peers = [
+  # {
+  #   name        = "phone"
+  #   public_key  = "generated_public_key_here"
+  #   allowed_ips = ["10.0.200.10/32"]
+  #   comment     = "My Phone"
+  # },
+  # {
+  #   name        = "laptop"
+  #   public_key  = "generated_public_key_here"
+  #   allowed_ips = ["10.0.200.11/32"]
+  #   comment     = "My Laptop"
+  # }
+]
+
+# Container Configuration
+adguard_password  = ""  # bcrypt hash of admin password
+tailscale_authkey = ""  # From Tailscale admin console
