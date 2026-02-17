@@ -1,0 +1,113 @@
+# OpenWRT DHCP & DNS Configuration - HOME MODE
+# File: /etc/config/dhcp
+
+# ============================================================
+# DNSMasq Main Configuration
+# ============================================================
+config dnsmasq
+	option domainneeded '1'
+	option localise_queries '1'
+	option rebind_protection '0'     # Disabled for AdGuard
+	option rebind_localhost '1'
+	option local '/lan/'
+	option domain 'lan'
+	option expandhosts '1'
+	option cachesize '10000'
+	option authoritative '1'
+	option readethers '1'
+	option leasefile '/tmp/dhcp.leases'
+	option resolvfile '/tmp/resolv.conf.d/resolv.conf.auto'
+	option localservice '1'
+	option port '0'                  # DISABLE dnsmasq DNS (AdGuard handles it)
+	option nonwildcard '1'
+	option filter_aaaa '0'
+	option filter_a '0'
+
+# ============================================================
+# LAN DHCP Server
+# ============================================================
+config dhcp 'lan'
+	option interface 'lan'
+	option start '100'
+	option limit '150'
+	option leasetime '12h'
+	option dhcpv4 'server'
+	option dhcpv6 'server'
+	option ra 'server'
+	option ra_slaac '1'
+	list ra_flags 'managed-config'
+	list ra_flags 'other-config'
+	# DNS server pointing to local AdGuard
+	list dhcp_option '6,192.168.20.1'
+	# Domain name
+	option domain 'lan'
+
+# Static DHCP leases (examples)
+# config host
+# 	option name 'desktop-pc'
+# 	option mac 'AA:BB:CC:DD:EE:FF'
+# 	option ip '192.168.20.10'
+# 	option leasetime 'infinite'
+
+# config host
+# 	option name 'laptop'
+# 	option mac '11:22:33:44:55:66'
+# 	option ip '192.168.20.11'
+
+# ============================================================
+# Guest Network DHCP Server
+# ============================================================
+config dhcp 'guest'
+	option interface 'guest'
+	option start '100'
+	option limit '100'
+	option leasetime '1h'
+	option dhcpv4 'server'
+	# DNS server pointing to local AdGuard
+	list dhcp_option '6,192.168.30.1'
+
+# ============================================================
+# IoT Network DHCP Server
+# ============================================================
+config dhcp 'iot'
+	option interface 'iot'
+	option start '50'
+	option limit '100'
+	option leasetime '24h'
+	option dhcpv4 'server'
+	# DNS server pointing to local AdGuard
+	list dhcp_option '6,192.168.40.1'
+
+# ============================================================
+# WAN DHCP Client
+# ============================================================
+config dhcp 'wan'
+	option interface 'wan'
+	option ignore '1'                # Don't serve DHCP on WAN
+
+# ============================================================
+# odhcpd Configuration (for IPv6)
+# ============================================================
+config odhcpd 'odhcpd'
+	option maindhcp '0'
+	option leasefile '/tmp/hosts/odhcpd'
+	option leasetrigger '/usr/sbin/odhcpd-update'
+	option loglevel '4'
+
+# ============================================================
+# DNS Forwarding (disabled, AdGuard handles it)
+# ============================================================
+# All DNS queries go to AdGuard Home on port 53
+# AdGuard listens on: 192.168.20.1:53, 192.168.30.1:53, 192.168.40.1:53
+
+# ============================================================
+# Domain Overrides (if needed for local services)
+# ============================================================
+# Uncomment and adjust for local domain resolution
+# config domain
+# 	option name 'proxmox.lan'
+# 	option ip '10.0.99.1'
+
+# config domain
+# 	option name 'opnsense.lan'
+# 	option ip '192.168.10.1'

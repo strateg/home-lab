@@ -1,0 +1,238 @@
+# OpenWRT Firewall Configuration - TRAVEL MODE
+# File: /etc/config/firewall (travel mode)
+
+# ============================================================
+# Firewall Defaults
+# ============================================================
+config defaults
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option synflood_protect '1'
+	option drop_invalid '1'
+	option tcp_syncookies '1'
+
+# ============================================================
+# WAN Zone (hotel/public WiFi - UNTRUSTED)
+# ============================================================
+config zone
+	option name 'wan'
+	list network 'wan'
+	list network 'wan6'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option masq '1'
+	option mtu_fix '1'
+	option log '1'                   # Log dropped packets
+
+# ============================================================
+# LAN Zone (your travel devices - TRUSTED)
+# ============================================================
+config zone
+	option name 'lan'
+	list network 'lan'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+
+# ============================================================
+# WireGuard VPN Zones
+# ============================================================
+
+# VPN to Home
+config zone
+	option name 'vpn_home'
+	list network 'wg_home'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+	option masq '0'                  # Don't NAT VPN traffic
+
+# VPN to Oracle
+config zone
+	option name 'vpn_oracle'
+	list network 'wg_oracle'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+	option masq '0'
+
+# ============================================================
+# Forwarding Rules - Policy-based routing
+# ============================================================
+
+# LAN to VPN Home (primary)
+config forwarding
+	option src 'lan'
+	option dest 'vpn_home'
+
+# LAN to VPN Oracle (failover)
+config forwarding
+	option src 'lan'
+	option dest 'vpn_oracle'
+
+# LAN to WAN (direct internet - only if VPN fails)
+config forwarding
+	option src 'lan'
+	option dest 'wan'
+
+# Allow VPN to access WAN
+config forwarding
+	option src 'vpn_home'
+	option dest 'wan'
+
+config forwarding
+	option src 'vpn_oracle'
+	option dest 'wan'
+
+# ============================================================
+# WAN Input Rules (minimal - block everything)
+# ============================================================
+
+# Allow DHCP from hotel/public network
+config rule
+	option name 'Allow-DHCP-Renew'
+	option src 'wan'
+	option proto 'udp'
+	option dest_port '68'
+	option target 'ACCEPT'
+	option family 'ipv4'
+
+# Block all incoming from WAN (except established)
+config rule
+	option name 'Block-WAN-Input'
+	option src 'wan'
+	option target 'REJECT'
+
+# ============================================================
+# LAN Rules
+# ============================================================
+
+# Allow DNS to router (will forward through VPN)
+config rule
+	option name 'Allow-DNS-LAN'
+	option src 'lan'
+	option dest_port '53'
+	option proto 'tcp udp'
+	option target 'ACCEPT'
+
+# Allow DHCP
+config rule
+	option name 'Allow-DHCP-LAN'
+	option src 'lan'
+	option proto 'udp'
+	option src_port '67-68'
+	option dest_port '67-68'
+	option target 'ACCEPT'
+
+# Allow access to router WebUI
+config rule
+	option name 'Allow-Web-Admin-LAN'
+	option src 'lan'
+	option proto 'tcp'
+	option dest_port '80 443'
+	option target 'ACCEPT'
+
+# Allow SSH from LAN
+config rule
+	option name 'Allow-SSH-LAN'
+	option src 'lan'
+	option proto 'tcp'
+	option dest_port '22'
+	option target 'ACCEPT'
+
+# Allow ping from LAN
+config rule
+	option name 'Allow-Ping-LAN'
+	option src 'lan'
+	option proto 'icmp'
+	list icmp_type 'echo-request'
+	option target 'ACCEPT'
+
+# ============================================================
+# VPN Rules
+# ============================================================
+
+# Allow WireGuard traffic out to home
+config rule
+	option name 'Allow-WG-Home-Out'
+	option src 'wan'
+	option dest '*'
+	option proto 'udp'
+	option dest_port '51820'
+	option target 'ACCEPT'
+
+# Allow WireGuard traffic out to Oracle
+config rule
+	option name 'Allow-WG-Oracle-Out'
+	option src 'wan'
+	option dest '*'
+	option proto 'udp'
+	option dest_port '51820'
+	option target 'ACCEPT'
+
+# ============================================================
+# Security Rules for Public WiFi
+# ============================================================
+
+# Block SMB/NetBIOS from WAN (hotel network attacks)
+config rule
+	option name 'Block-SMB-WAN'
+	option src 'wan'
+	option proto 'tcp udp'
+	option dest_port '137-139 445'
+	option target 'REJECT'
+
+# Block common attack ports
+config rule
+	option name 'Block-Attack-Ports'
+	option src 'wan'
+	option proto 'tcp'
+	option dest_port '23 135 1433 3389'
+	option target 'REJECT'
+
+# Drop invalid packets
+config rule
+	option name 'Drop-Invalid'
+	option src '*'
+	option proto 'all'
+	option extra '--state INVALID'
+	option target 'DROP'
+
+# ============================================================
+# NAT Rules - Force traffic through VPN
+# ============================================================
+
+# Masquerade LAN to WAN (only if VPN is down)
+config rule
+	option name 'Masquerade-LAN-WAN'
+	option src 'lan'
+	option dest 'wan'
+	option target 'MASQUERADE'
+	option family 'ipv4'
+
+# ============================================================
+# Kill Switch - Block non-VPN traffic (optional)
+# ============================================================
+# Uncomment to enable kill switch (blocks internet if VPN is down)
+
+# config rule
+# 	option name 'VPN-Kill-Switch'
+# 	option src 'lan'
+# 	option dest 'wan'
+# 	option proto 'all'
+# 	option target 'REJECT'
+# 	option extra '-m mark ! --mark 0x100'  # Only allow marked VPN traffic
+
+# ============================================================
+# Logging (for debugging in hostile networks)
+# ============================================================
+
+# Log dropped packets from WAN
+config rule
+	option name 'Log-WAN-Drop'
+	option src 'wan'
+	option target 'LOG'
+	option log_prefix 'WAN-DROP: '
+	option log_level 'warning'

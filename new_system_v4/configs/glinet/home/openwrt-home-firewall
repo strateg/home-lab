@@ -1,0 +1,325 @@
+# OpenWRT Firewall Configuration - HOME MODE
+# File: /etc/config/firewall
+
+# ============================================================
+# Firewall Defaults
+# ============================================================
+config defaults
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option synflood_protect '1'
+	option drop_invalid '1'
+	option tcp_syncookies '1'
+	option tcp_ecn '0'
+	option tcp_window_scaling '1'
+
+# ============================================================
+# WAN Zone (connection to OPNsense)
+# ============================================================
+config zone
+	option name 'wan'
+	list network 'wan'
+	list network 'wan6'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option masq '1'
+	option mtu_fix '1'
+
+# ============================================================
+# LAN Zone (trusted home network)
+# ============================================================
+config zone
+	option name 'lan'
+	list network 'lan'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+
+# ============================================================
+# Guest Zone (isolated, internet only)
+# ============================================================
+config zone
+	option name 'guest'
+	list network 'guest'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+# ============================================================
+# IoT Zone (isolated, limited access)
+# ============================================================
+config zone
+	option name 'iot'
+	list network 'iot'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+
+# ============================================================
+# Russia VPN Zone (AmneziaWG to Russia VPS)
+# ============================================================
+config zone
+	option name 'russiavpn'
+	list network 'russiavpn'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	option masq '0'  # No masquerading - OPNsense handles NAT
+	option mtu_fix '1'
+
+# ============================================================
+# Forwarding Rules
+# ============================================================
+
+# LAN to WAN
+config forwarding
+	option src 'lan'
+	option dest 'wan'
+
+# Guest to WAN (internet only)
+config forwarding
+	option src 'guest'
+	option dest 'wan'
+
+# IoT to WAN (internet only)
+config forwarding
+	option src 'iot'
+	option dest 'wan'
+
+# LAN to Russia VPN (when Russia VPN is active)
+config forwarding
+	option src 'lan'
+	option dest 'russiavpn'
+
+# ============================================================
+# WAN Input Rules
+# ============================================================
+
+# Allow DHCP from OPNsense
+config rule
+	option name 'Allow-DHCP-Renew'
+	option src 'wan'
+	option proto 'udp'
+	option dest_port '68'
+	option target 'ACCEPT'
+	option family 'ipv4'
+
+# Allow ICMPv6 for IPv6 functionality
+config rule
+	option name 'Allow-ICMPv6-Input'
+	option src 'wan'
+	option proto 'icmp'
+	list icmp_type 'echo-request'
+	list icmp_type 'echo-reply'
+	list icmp_type 'destination-unreachable'
+	list icmp_type 'packet-too-big'
+	list icmp_type 'time-exceeded'
+	list icmp_type 'bad-header'
+	list icmp_type 'unknown-header-type'
+	list icmp_type 'router-solicitation'
+	list icmp_type 'neighbour-solicitation'
+	list icmp_type 'router-advertisement'
+	list icmp_type 'neighbour-advertisement'
+	option limit '1000/sec'
+	option family 'ipv6'
+	option target 'ACCEPT'
+
+# Allow DHCPv6 replies
+config rule
+	option name 'Allow-DHCPv6'
+	option src 'wan'
+	option proto 'udp'
+	option dest_port '546'
+	option family 'ipv6'
+	option target 'ACCEPT'
+
+# ============================================================
+# LAN Rules
+# ============================================================
+
+# Allow DNS queries to AdGuard
+config rule
+	option name 'Allow-DNS-LAN'
+	option src 'lan'
+	option dest_port '53 853'
+	option proto 'tcp udp'
+	option target 'ACCEPT'
+
+# Allow DHCP requests
+config rule
+	option name 'Allow-DHCP-LAN'
+	option src 'lan'
+	option proto 'udp'
+	option src_port '67-68'
+	option dest_port '67-68'
+	option target 'ACCEPT'
+
+# Allow access to OpenWRT WebUI
+config rule
+	option name 'Allow-Web-Admin-LAN'
+	option src 'lan'
+	option proto 'tcp'
+	option dest_port '80 443'
+	option target 'ACCEPT'
+
+# Allow SSH from LAN
+config rule
+	option name 'Allow-SSH-LAN'
+	option src 'lan'
+	option proto 'tcp'
+	option dest_port '22'
+	option target 'ACCEPT'
+
+# Allow ping from LAN
+config rule
+	option name 'Allow-Ping-LAN'
+	option src 'lan'
+	option proto 'icmp'
+	list icmp_type 'echo-request'
+	option target 'ACCEPT'
+
+# ============================================================
+# Guest Network Rules
+# ============================================================
+
+# Allow DNS queries to AdGuard
+config rule
+	option name 'Allow-DNS-Guest'
+	option src 'guest'
+	option dest_port '53'
+	option proto 'tcp udp'
+	option target 'ACCEPT'
+
+# Allow DHCP from guests
+config rule
+	option name 'Allow-DHCP-Guest'
+	option src 'guest'
+	option proto 'udp'
+	option src_port '67-68'
+	option dest_port '67-68'
+	option target 'ACCEPT'
+
+# Block guests from accessing local networks
+config rule
+	option name 'Block-Guest-to-Private'
+	option src 'guest'
+	option dest_ip '10.0.0.0/8 172.16.0.0/12 192.168.0.0/16'
+	option proto 'all'
+	option target 'REJECT'
+
+# Block guests from accessing router admin
+config rule
+	option name 'Block-Guest-Admin'
+	option src 'guest'
+	option proto 'tcp'
+	option dest_port '22 80 443'
+	option target 'REJECT'
+
+# ============================================================
+# IoT Network Rules
+# ============================================================
+
+# Allow DNS queries to AdGuard
+config rule
+	option name 'Allow-DNS-IoT'
+	option src 'iot'
+	option dest_port '53'
+	option proto 'tcp udp'
+	option target 'ACCEPT'
+
+# Allow DHCP from IoT devices
+config rule
+	option name 'Allow-DHCP-IoT'
+	option src 'iot'
+	option proto 'udp'
+	option src_port '67-68'
+	option dest_port '67-68'
+	option target 'ACCEPT'
+
+# Block IoT from accessing local networks (except specific services)
+config rule
+	option name 'Block-IoT-to-Private'
+	option src 'iot'
+	option dest_ip '10.0.0.0/8 172.16.0.0/12 192.168.0.0/16'
+	option proto 'all'
+	option target 'REJECT'
+
+# Optional: Allow IoT to Home Assistant (example)
+# config rule
+# 	option name 'Allow-IoT-to-HomeAssistant'
+# 	option src 'iot'
+# 	option dest_ip '10.0.30.80'
+# 	option dest_port '8123'
+# 	option proto 'tcp'
+# 	option target 'ACCEPT'
+
+# ============================================================
+# WAN Output Rules
+# ============================================================
+
+# Allow pings to WAN
+config rule
+	option name 'Allow-Ping'
+	option src 'wan'
+	option proto 'icmp'
+	list icmp_type 'echo-request'
+	option family 'ipv4'
+	option target 'ACCEPT'
+
+# Allow Russia VPN (AmneziaWG) traffic through OPNsense
+config rule
+	option name 'Allow-Russia-VPN'
+	option src 'wan'
+	option dest '*'
+	option proto 'udp'
+	option dest_port '51822'
+	option target 'ACCEPT'
+
+# ============================================================
+# Additional Security Rules
+# ============================================================
+
+# Reject AUTH on WAN
+config rule
+	option name 'Reject-Auth'
+	option src 'wan'
+	option dest_port '113'
+	option proto 'tcp'
+	option target 'REJECT'
+
+# Drop invalid packets
+config rule
+	option name 'Drop-Invalid'
+	option src '*'
+	option proto 'all'
+	option extra '--state INVALID'
+	option target 'DROP'
+
+# ============================================================
+# Port Forwarding (examples - uncomment if needed)
+# ============================================================
+
+# Example: Forward port 8443 to internal service
+# config redirect
+# 	option name 'Forward-HTTPS-Alt'
+# 	option src 'wan'
+# 	option proto 'tcp'
+# 	option src_dport '8443'
+# 	option dest 'lan'
+# 	option dest_ip '192.168.20.50'
+# 	option dest_port '443'
+# 	option target 'DNAT'
+
+# ============================================================
+# Traffic Rules (QoS hints - if using SQM)
+# ============================================================
+
+# config rule
+# 	option name 'Priority-Gaming'
+# 	option src 'lan'
+# 	option proto 'udp'
+# 	option dest_port '27000-27050'  # Steam/gaming ports
+# 	option target 'ACCEPT'
+# 	option set_mark '0x100'

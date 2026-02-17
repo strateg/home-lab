@@ -1,0 +1,260 @@
+# OPNsense Interface Configuration
+# VM: OPNsense-Firewall (VM ID: 100)
+# Access: https://192.168.10.1 or https://10.0.99.10
+# Template: OPNsense on HDD (template ID: 910)
+
+# ============================================================
+# NETWORK ARCHITECTURE (Updated 2025-01-06)
+# ============================================================
+#
+# Proxmox Host Network:
+#   eth-wan (USB-Ethernet)  → vmbr0 (WAN Bridge)
+#   eth-lan (Built-in)      → vmbr1 (LAN Bridge)
+#   vmbr2 (10.0.30.1/24)    → Managed by Proxmox (LXC containers)
+#   vmbr99 (10.0.99.1/24)   → Managed by Proxmox (Management)
+#
+# OPNsense VM connects to all bridges and provides:
+#   - WAN routing (vmbr0 → Internet)
+#   - LAN routing (vmbr1 → OpenWRT)
+#   - LXC gateway (vmbr2 → route through OPNsense to Internet)
+#   - Management access (vmbr99 → admin UI)
+
+# ============================================================
+# VM Settings in Proxmox
+# ============================================================
+# CPU: 2-4 cores (host type for best performance)
+# RAM: 4096 MB (minimum 2048 MB)
+# Disk: 32 GB (on local-lvm for performance)
+# Machine: q35
+# BIOS: OVMF (UEFI) or SeaBIOS
+# Start at boot: Yes
+# Start/Shutdown order: 1 (start first, shutdown last)
+# Protection: Enabled (prevent accidental deletion)
+#
+# Network Adapters (VirtIO for best performance):
+#   net0 -> vmbr0 (WAN)      - VirtIO - Firewall: No
+#   net1 -> vmbr1 (LAN)      - VirtIO - Firewall: No
+#   net2 -> vmbr2 (INTERNAL) - VirtIO - Firewall: No
+#   net3 -> vmbr99 (MGMT)    - VirtIO - Firewall: No
+
+# ============================================================
+# Interfaces -> Assignments
+# ============================================================
+
+## WAN Interface (vtnet0)
+# Bridge: vmbr0 (USB-Ethernet → ISP Router)
+# IPv4 Configuration Type: DHCP
+# IPv4 Address: (получает от ISP Router ~192.168.1.x)
+# Block private networks: UNCHECKED (ISP router uses private IP)
+# Block bogon networks: CHECKED
+# MSS Clamping: 1420 (если есть проблемы с MTU)
+
+## LAN Interface (vtnet1)
+# Bridge: vmbr1 (Built-in Ethernet → OpenWRT WAN)
+# IPv4 Configuration Type: Static IPv4
+# IPv4 Address: 192.168.10.1
+# IPv4 Subnet: 24
+# Description: "To OpenWRT WAN - Primary LAN Gateway"
+
+## INTERNAL Interface (vtnet2)
+# Bridge: vmbr2 (Virtual bridge for LXC containers)
+# IPv4 Configuration Type: Static IPv4
+# IPv4 Address: 10.0.30.254
+# IPv4 Subnet: 24
+# Description: "LXC Containers Gateway (Proxmox manages .1)"
+# NOTE: Proxmox host uses 10.0.30.1 for direct container access
+#       OPNsense uses 10.0.30.254 as Internet gateway for containers
+
+## MGMT Interface (vtnet3)
+# Bridge: vmbr99 (Virtual bridge for management)
+# IPv4 Configuration Type: Static IPv4
+# IPv4 Address: 10.0.99.10
+# IPv4 Subnet: 24
+# Description: "Management Access - Web UI and SSH"
+# NOTE: Proxmox host uses 10.0.99.1
+
+# ============================================================
+# Services -> DHCPv4 -> LAN
+# ============================================================
+# Enable: YES
+# Range: 192.168.10.2 to 192.168.10.2 (only for OpenWRT)
+# Gateway: 192.168.10.1
+# DNS servers: 192.168.10.2 (OpenWRT with AdGuard)
+
+# Static DHCP Mappings:
+#   MAC Address: <OpenWRT_WAN_MAC_ADDRESS>
+#   IP Address: 192.168.10.2
+#   Hostname: openwrt-router
+#   Description: OpenWRT Router
+
+# ============================================================
+# Services -> DHCPv4 -> INTERNAL
+# ============================================================
+# Enable: NO (LXC containers use static IPs configured by automation)
+# NOTE: LXC containers are deployed with static IPs 10.0.30.10-90
+#       by the deploy scripts (see proxmox/scripts/services/)
+#
+# If DHCP needed for dynamic containers:
+#   Range: 10.0.30.100 to 10.0.30.200
+#   Gateway: 10.0.30.254 (OPNsense for Internet access)
+#   DNS servers: 192.168.10.2 (AdGuard via routing)
+
+# ============================================================
+# Services -> Unbound DNS (optional, if not using AdGuard)
+# ============================================================
+# Enable: NO (using AdGuard on OpenWRT)
+# If needed for internal resolution:
+#   Listen Port: 53
+#   Network Interfaces: INTERNAL, MGMT
+#   Outgoing Network Interfaces: WAN
+#   DNS Query Forwarding: Enable
+#   Custom Forwarders: 192.168.10.2
+
+# ============================================================
+# Firewall -> NAT -> Outbound
+# ============================================================
+# Mode: Hybrid Outbound NAT
+
+# Rules:
+# 1. LAN net (192.168.10.0/24) -> WAN address (automatic NAT for OpenWRT)
+# 2. INTERNAL net (10.0.30.0/24) -> WAN address (NAT for LXC containers)
+
+# ============================================================
+# Firewall -> Rules -> WAN
+# ============================================================
+# Default: Block all inbound
+
+# Rule: Allow established/related
+#   Action: Pass
+#   Interface: WAN
+#   Protocol: any
+#   Source: any
+#   Destination: any
+#   Advanced: State Type = keep state
+
+# Rule: Allow WireGuard VPN (for travel OpenWRT)
+#   Action: Pass
+#   Interface: WAN
+#   Protocol: UDP
+#   Source: any
+#   Destination: WAN address
+#   Destination port: 51820
+#   Description: "WireGuard VPN for Travel Router"
+
+# ============================================================
+# Firewall -> Rules -> LAN (to OpenWRT)
+# ============================================================
+
+# Rule: LAN to INTERNAL Services
+#   Action: Pass
+#   Interface: LAN
+#   Protocol: any
+#   Source: LAN net
+#   Destination: INTERNAL net
+#   Description: "Allow OpenWRT clients to access LXC services"
+
+# Rule: LAN to Internet
+#   Action: Pass
+#   Interface: LAN
+#   Protocol: any
+#   Source: LAN net
+#   Destination: any
+#   Description: "Allow internet access"
+
+# Rule: LAN to Proxmox Web UI
+#   Action: Pass
+#   Interface: LAN
+#   Protocol: TCP
+#   Source: LAN net
+#   Destination: 10.0.99.1
+#   Destination port: 8006
+#   Description: "Access to Proxmox Web UI"
+
+# Rule: LAN to OPNsense Web UI
+#   Action: Pass
+#   Interface: LAN
+#   Protocol: TCP
+#   Source: LAN net
+#   Destination: LAN address
+#   Destination port: 443
+#   Description: "Access to OPNsense Web UI"
+
+# ============================================================
+# Firewall -> Rules -> INTERNAL (LXC containers)
+# ============================================================
+
+# Rule: INTERNAL to Internet (limited)
+#   Action: Pass
+#   Interface: INTERNAL
+#   Protocol: TCP/UDP
+#   Source: INTERNAL net
+#   Destination: any
+#   Destination port: 80, 443, 53
+#   Description: "Allow LXC containers to update and resolve DNS"
+
+# Rule: Block INTERNAL to MGMT
+#   Action: Reject
+#   Interface: INTERNAL
+#   Protocol: any
+#   Source: INTERNAL net
+#   Destination: MGMT net
+#   Description: "Prevent LXC from accessing management network"
+
+# Rule: Allow INTERNAL to LAN (for services accessible from clients)
+#   Action: Pass
+#   Interface: INTERNAL
+#   Protocol: TCP
+#   Source: INTERNAL net
+#   Destination: LAN net
+#   Destination port: 80, 443, 5432, 6379, 3306
+#   Description: "Allow LXC services to respond to LAN clients"
+
+# ============================================================
+# Firewall -> Rules -> MGMT
+# ============================================================
+
+# Rule: MGMT full access
+#   Action: Pass
+#   Interface: MGMT
+#   Protocol: any
+#   Source: MGMT net
+#   Destination: any
+#   Description: "Full access from management network"
+
+# ============================================================
+# VPN -> WireGuard (for travel OpenWRT)
+# ============================================================
+# Instance Name: wg_travel
+# Listen Port: 51820
+# Tunnel Address: 10.0.200.1/24
+# Peers:
+#   Name: openwrt_travel
+#   Public Key: <OpenWRT_WireGuard_Public_Key>
+#   Allowed IPs: 10.0.200.10/32
+#   Endpoint: (leave empty - client initiated)
+#   Persistent Keepalive: 25
+
+# Firewall rule for WireGuard interface:
+#   Interface: WG_TRAVEL
+#   Action: Pass
+#   Source: WG_TRAVEL net
+#   Destination: LAN net, INTERNAL net, MGMT net
+#   Description: "Travel router full access"
+
+# ============================================================
+# System -> Settings -> Administration
+# ============================================================
+# Protocol: HTTPS
+# TCP Port: 443
+# Web GUI SSL Certificate: Generate Let's Encrypt or use self-signed
+# DNS Rebinding Checks: Disable (for accessing via different interfaces)
+
+# ============================================================
+# System -> Firmware -> Plugins
+# ============================================================
+# Recommended plugins:
+# - os-wireguard (WireGuard VPN)
+# - os-haproxy (if using as reverse proxy)
+# - os-acme-client (Let's Encrypt certificates)
+# - os-vnstat (bandwidth monitoring)
+# - os-theme-cicada or os-theme-vicuna (better UI themes)

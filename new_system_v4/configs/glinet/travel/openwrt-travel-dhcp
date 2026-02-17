@@ -1,0 +1,88 @@
+# OpenWRT DHCP & DNS Configuration - TRAVEL MODE
+# File: /etc/config/dhcp (travel mode)
+
+# ============================================================
+# DNSMasq Configuration
+# ============================================================
+config dnsmasq
+	option domainneeded '1'
+	option localise_queries '1'
+	option rebind_protection '1'     # Enable for public WiFi protection
+	option rebind_localhost '1'
+	option local '/lan/'
+	option domain 'travel.lan'
+	option expandhosts '1'
+	option cachesize '5000'
+	option authoritative '1'
+	option readethers '1'
+	option leasefile '/tmp/dhcp.leases'
+	option resolvfile '/tmp/resolv.conf.d/resolv.conf.auto'
+	option localservice '1'
+	option nonwildcard '1'
+	# DNS forwarding through VPN (to home AdGuard)
+	list server '10.0.30.10'         # Home AdGuard through VPN
+	list server '192.168.10.2'       # OpenWRT home through VPN
+	list server '1.1.1.1'            # Fallback if VPN is down
+	list server '8.8.8.8'            # Fallback
+
+# ============================================================
+# LAN DHCP Server
+# ============================================================
+config dhcp 'lan'
+	option interface 'lan'
+	option start '100'
+	option limit '50'
+	option leasetime '2h'            # Shorter leases for travel
+	option dhcpv4 'server'
+	option dhcpv6 'disabled'
+	option ra 'disabled'
+	# DNS server (router itself, forwards to home)
+	list dhcp_option '6,192.168.100.1'
+	option domain 'travel.lan'
+
+# ============================================================
+# WAN DHCP Client
+# ============================================================
+config dhcp 'wan'
+	option interface 'wan'
+	option ignore '1'
+
+# ============================================================
+# odhcpd Configuration
+# ============================================================
+config odhcpd 'odhcpd'
+	option maindhcp '0'
+	option leasefile '/tmp/hosts/odhcpd'
+	option leasetrigger '/usr/sbin/odhcpd-update'
+	option loglevel '4'
+
+# ============================================================
+# DNS Security for Travel
+# ============================================================
+# Enable DNS over TLS/HTTPS for queries that don't go through VPN
+
+# DNS over HTTPS (if VPN is down)
+# Requires: opkg install https-dns-proxy
+# config https-dns-proxy
+# 	option bootstrap_dns '1.1.1.1,8.8.8.8'
+# 	option resolver_url 'https://cloudflare-dns.com/dns-query'
+# 	option listen_addr '127.0.0.1'
+# 	option listen_port '5053'
+
+# ============================================================
+# Static DHCP Leases (your devices)
+# ============================================================
+
+# Example: Your laptop
+# config host
+# 	option name 'my-laptop'
+# 	option mac 'AA:BB:CC:DD:EE:FF'
+# 	option ip '192.168.100.10'
+# 	option leasetime 'infinite'
+
+# Example: Your phone
+# config host
+# 	option name 'my-phone'
+# 	option mac '11:22:33:44:55:66'
+# 	option ip '192.168.100.11'
+# 	option leasetime 'infinite'

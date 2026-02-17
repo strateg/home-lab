@@ -1,0 +1,78 @@
+# OpenWRT Wireless Configuration - TRAVEL MODE
+# File: /etc/config/wireless (travel mode)
+# Device: GL.iNet GL-AXT1800 (Slate AX) - WiFi 6 (802.11ax)
+
+# ============================================================
+# 5GHz Radio - Private travel WiFi (WiFi 6)
+# GL-AXT1800: MediaTek MT7915
+# ============================================================
+config wifi-device 'radio0'
+	option type 'mac80211'
+	option channel 'auto'
+	option band '5g'
+	option htmode 'HE80'             # WiFi 6 (802.11ax)
+	option country 'RU'              # Adjust based on travel location
+	option txpower '20'
+	option cell_density '0'
+	option mu_beamformer '1'
+	option he_su_beamformer '1'
+	option he_mu_beamformer '1'
+
+# Travel WiFi - All traffic through VPN
+config wifi-iface 'wifinet0'
+	option device 'radio0'
+	option mode 'ap'
+	option ssid 'Travel-Secure-5G'
+	option encryption 'sae'          # WPA3
+	option key 'TRAVEL_WIFI_PASSWORD_HERE'
+	option network 'lan'
+	option ieee80211w '2'            # PMF required
+	option isolate '0'
+
+# ============================================================
+# 2.4GHz Radio - Private travel WiFi (WiFi 6)
+# GL-AXT1800: MediaTek MT7915
+# ============================================================
+config wifi-device 'radio1'
+	option type 'mac80211'
+	option channel 'auto'
+	option band '2g'
+	option htmode 'HE40'             # WiFi 6 (802.11ax)
+	option country 'RU'
+	option txpower '20'
+	option mu_beamformer '1'
+	option he_su_beamformer '1'
+	option he_mu_beamformer '1'
+
+# Travel WiFi 2.4GHz
+config wifi-iface 'wifinet1'
+	option device 'radio1'
+	option mode 'ap'
+	option ssid 'Travel-Secure-2G'
+	option encryption 'sae-mixed'    # WPA3/WPA2 for compatibility
+	option key 'TRAVEL_WIFI_PASSWORD_HERE'
+	option network 'lan'
+	option ieee80211w '1'
+
+# ============================================================
+# Optional: Connect to hotel WiFi via radio0 as client
+# ============================================================
+# Uncomment if you want to use OpenWRT to connect to hotel WiFi
+# (and provide WiFi to your devices simultaneously)
+
+# config wifi-iface 'hotel_client'
+# 	option device 'radio0'
+# 	option mode 'sta'                # Station (client) mode
+# 	option ssid 'HOTEL_WIFI_SSID'
+# 	option encryption 'psk2'
+# 	option key 'HOTEL_WIFI_PASSWORD'
+# 	option network 'wan'
+# 	option disabled '1'              # Enable manually when needed
+
+# ============================================================
+# Notes for travel mode:
+# ============================================================
+# - Change country code when traveling to comply with local regulations
+# - Use strong password for travel WiFi
+# - All traffic will go through VPN tunnel to home or Oracle
+# - Consider lowering txpower in hotels to avoid interference

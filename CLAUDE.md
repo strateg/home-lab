@@ -4,195 +4,187 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture Overview
 
-This is an **Infrastructure-as-Data** home lab project. The topology is defined in **modular YAML files** in `topology/` directory, with `topology.yaml` as the main entry point. This is the **canonical source of truth** that generates:
+This is an **Infrastructure-as-Data** home lab project using **OSI-like layer architecture (v4.0)**. The topology is defined in **8 layer files** (L0-L7) in `new_system_v4/topology/` directory, with `topology.yaml` as the main entry point. This is the **canonical source of truth** that generates:
 - Terraform configurations (Proxmox infrastructure)
+- Terraform configurations (MikroTik RouterOS)
 - Ansible inventory and variables
 - Network diagrams
 - IP allocation documentation
 - Service inventory
 
-**Key Principle**: Edit `topology/*.yaml` modules → regenerate everything → apply with Terraform/Ansible.
+**Key Principle**: Edit `topology/L*.yaml` layers → regenerate everything → apply with Terraform/Ansible.
 
-### Modular Structure (v2.2)
+### OSI-Layer Architecture (v4.0)
 
-**Main File**: `topology.yaml` (36 lines) - Entry point with `!include` directives
-**Modules**: `topology/*.yaml` (13 files) - Organized by concern
+**Main File**: `topology.yaml` - Entry point with `!include` directives
+**Layers**: `topology/L0-L7.yaml` (8 files) - Organized by OSI-like principles
 
 ```
 topology/
-├── metadata.yaml          # Project info, changelog
-├── physical.yaml          # Hardware devices, locations
-├── logical.yaml           # Networks, bridges, DNS
-├── compute.yaml           # VMs and LXC containers
-├── storage.yaml           # Storage pools
-├── services.yaml          # Service definitions
-├── ansible.yaml           # Ansible configuration
-├── workflows.yaml         # Automation workflows
-├── security.yaml          # Firewall policies
-├── backup.yaml            # Backup configuration
-├── monitoring.yaml        # Monitoring, alerts
-├── documentation.yaml     # Documentation metadata
-└── notes.yaml             # Operational notes
+├── L0-meta.yaml           # Meta: version, defaults, security policies
+├── L1-foundation.yaml     # Foundation: physical devices, interfaces, UPS
+├── L2-network.yaml        # Network: networks, bridges, firewall, QoS, IPv6
+├── L3-data.yaml           # Data: storage pools, data assets
+├── L4-platform.yaml       # Platform: VMs, LXC containers, templates
+├── L5-application.yaml    # Application: services, certificates, DNS
+├── L6-observability.yaml  # Observability: monitoring, alerts, dashboards
+└── L7-operations.yaml     # Operations: workflows, ansible config, backups
 ```
 
-**Benefits**:
-- ✅ Each module < 500 lines (was 2104 in one file)
-- ✅ Edit modules independently (fewer Git conflicts)
-- ✅ Clear separation of concerns
-- ✅ Easy navigation and collaboration
-- ✅ All generators automatically merge modules
+**Layer Dependency Rules**:
+- Higher layers (L7) can reference lower layers (L0-L6)
+- Lower layers CANNOT reference higher layers
+- Example: L5 (services) can reference L4 (LXC) but NOT vice versa
 
-See `TOPOLOGY-MODULAR.md` for details.
+**Benefits**:
+- Clear separation of concerns following OSI model principles
+- Explicit dependency direction (top-down only)
+- Each layer < 700 lines
+- Easier to understand infrastructure hierarchy
+- All generators automatically merge layers
 
 ### Technology Stack
 
 - **Hypervisor**: Proxmox VE 9 (Dell XPS L701X: 2 cores, 8GB RAM, SSD 180GB + HDD 500GB)
-- **Infrastructure Provisioning**: Terraform (bpg/proxmox provider v0.50.0)
+- **Router**: MikroTik Chateau LTE7 ax (ARM64, 1GB RAM, RouterOS 7.x)
+- **SBC**: Orange Pi 5 (RK3588S, 16GB RAM, NVMe 256GB)
+- **Infrastructure Provisioning**:
+  - Terraform (bpg/proxmox provider v0.85+)
+  - Terraform (terraform-routeros/routeros provider)
 - **Configuration Management**: Ansible v2.14+ with cloud-init
-- **Source of Truth**: topology.yaml (YAML format)
+- **Source of Truth**: topology.yaml (YAML format, v4.0)
 - **Version Control**: Git
 
 ### Directory Structure
 
 ```
 home-lab/
-├── new_system/                # ⭐ Infrastructure-as-Data (current)
-│   ├── topology.yaml          # ⭐ Main entry point (36 lines, with !include)
-│   ├── topology/              # ⭐ Modular topology components (13 files)
-│   │   ├── metadata.yaml
-│   │   ├── physical.yaml
-│   │   ├── logical.yaml
-│   │   ├── compute.yaml
-│   │   ├── storage.yaml
-│   │   ├── services.yaml
-│   │   ├── ansible.yaml
-│   │   ├── workflows.yaml
-│   │   ├── security.yaml
-│   │   ├── backup.yaml
-│   │   ├── monitoring.yaml
-│   │   ├── documentation.yaml
-│   │   └── notes.yaml
+├── new_system_v4/             # Infrastructure-as-Data (v4 OSI-layer)
+│   ├── topology.yaml          # Main entry point with !include
+│   ├── topology/              # OSI-like layer files (8 files)
+│   │   ├── L0-meta.yaml       # Meta layer
+│   │   ├── L1-foundation.yaml # Physical devices
+│   │   ├── L2-network.yaml    # Networks, bridges, firewall
+│   │   ├── L3-data.yaml       # Storage
+│   │   ├── L4-platform.yaml   # VMs, LXC
+│   │   ├── L5-application.yaml# Services
+│   │   ├── L6-observability.yaml # Monitoring
+│   │   └── L7-operations.yaml # Workflows, backup
 │   ├── scripts/               # Generators (Python)
-│   │   ├── topology_loader.py     # YAML loader with !include support
+│   │   ├── topology_loader.py
 │   │   ├── generate-terraform.py
+│   │   ├── generate-terraform-mikrotik.py
 │   │   ├── generate-ansible-inventory.py
 │   │   ├── generate-docs.py
-│   │   └── validate-topology.py
-│   ├── generated/             # Auto-generated from topology modules
-│   │   ├── terraform/         # Terraform configs (DO NOT EDIT MANUALLY)
-│   │   │   ├── provider.tf
-│   │   │   ├── versions.tf
-│   │   │   ├── variables.tf
-│   │   │   ├── outputs.tf
-│   │   │   ├── bridges.tf
-│   │   │   ├── lxc.tf
-│   │   │   └── vms.tf
-│   │   ├── ansible/           # Ansible inventory (DO NOT EDIT MANUALLY)
-│   │   │   └── inventory/
-│   │   └── docs/              # Documentation (DO NOT EDIT MANUALLY)
-│   ├── terraform -> generated/terraform/  # Symlink for convenience
-│   ├── ansible/               # Ansible playbooks and roles (manual)
-│   │   ├── playbooks/         # Service-specific playbooks
-│   │   └── roles/             # Reusable roles
-│   └── bare-metal/            # Bare-metal installation automation
-├── old_system/                # Script-based setup (will be archived)
+│   │   ├── validate-topology.py
+│   │   └── regenerate-all.py
+│   ├── generated/             # Auto-generated (DO NOT EDIT)
+│   │   ├── terraform/         # Proxmox Terraform
+│   │   ├── terraform-mikrotik/# MikroTik Terraform
+│   │   ├── ansible/inventory/ # Ansible inventory
+│   │   └── docs/              # Documentation
+│   ├── terraform -> generated/terraform/  # Symlink
+│   ├── ansible/               # Playbooks and roles (manual)
+│   │   ├── playbooks/
+│   │   └── roles/
+│   ├── bare-metal/            # Proxmox USB auto-install
+│   ├── bootstrap/mikrotik/    # MikroTik initial setup
+│   ├── deploy/                # Deployment orchestration
+│   │   ├── Makefile
+│   │   └── phases/
+│   ├── docs/                  # Manual documentation
+│   └── schemas/               # JSON Schema validation
+├── old_system/                # Legacy (archived)
 └── archive/                   # Legacy code archives
-    └── legacy-terraform/      # Archived manual Terraform modules
 ```
 
 ## Common Workflows
 
 ### 1. Modify Infrastructure
 
-**ALWAYS edit topology modules first, then regenerate:**
+**ALWAYS edit layer files first, then regenerate:**
 
 ```bash
-# 1. Edit the relevant module (VMs, networks, services, etc.)
-vim new_system/topology/compute.yaml     # Add/modify VMs or LXC
-vim new_system/topology/logical.yaml     # Add/modify networks or bridges
-vim new_system/topology/services.yaml    # Add/modify services
+cd new_system_v4
 
-# 2. Validate topology (automatically merges all modules)
-python3 new_system/scripts/validate-topology.py
+# 1. Edit the relevant layer
+vim topology/L4-platform.yaml      # Add/modify VMs or LXC
+vim topology/L2-network.yaml       # Add/modify networks or bridges
+vim topology/L5-application.yaml   # Add/modify services
 
-# 3. Regenerate Terraform
-python3 new_system/scripts/generate-terraform.py
+# 2. Validate and regenerate all
+python3 scripts/regenerate-all.py
 
-# 4. Regenerate Ansible inventory
-python3 new_system/scripts/generate-ansible-inventory.py
+# Or step by step:
+python3 scripts/validate-topology.py
+python3 scripts/generate-terraform.py
+python3 scripts/generate-terraform-mikrotik.py
+python3 scripts/generate-ansible-inventory.py
+python3 scripts/generate-docs.py
 
-# 5. Regenerate documentation
-python3 new_system/scripts/generate-docs.py
+# 3. Plan and apply Terraform changes
+cd generated/terraform
+terraform plan && terraform apply
 
-# 6. Plan and apply Terraform changes
-cd new_system/terraform  # (symlink to generated/terraform)
-terraform plan
-terraform apply
+cd ../terraform-mikrotik
+terraform plan && terraform apply
 
-# 7. Run Ansible if needed
-cd ../ansible
-ansible-playbook -i inventory/production/hosts.yml site.yml
+# 4. Run Ansible if needed
+cd ../../ansible
+ansible-playbook playbooks/site.yml
 ```
 
-### 2. Test Infrastructure Changes
+### 2. Using Makefile (Recommended)
 
-**Automated End-to-End Test** (Recommended):
 ```bash
-# Run complete regeneration workflow test
-cd new_system
-./scripts/test-regeneration.sh
+cd new_system_v4/deploy
 
-# This will:
-# 1. Validate topology.yaml
-# 2. Generate Terraform configs
-# 3. Validate Terraform syntax
-# 4. Generate Ansible inventory
-# 5. Validate Ansible syntax
-# 6. Check idempotency
-# 7. Show git status
-```
+# Validate topology
+make validate
 
-**Manual Testing**:
-```bash
-# Terraform
-cd new_system/terraform  # (symlink to generated/terraform)
-terraform init
-terraform validate
-terraform plan        # Review changes before applying
+# Generate all configs
+make generate
 
-# Ansible
-cd new_system/ansible
-ansible all -i inventory/production/hosts.yml -m ping
-ansible-playbook ... --syntax-check
-ansible-playbook ... --check  # Dry run
+# Full deployment
+make deploy-all
+
+# Or individual phases
+make plan-mikrotik
+make plan-proxmox
+make apply-mikrotik
+make apply-proxmox
+make configure  # Ansible
 ```
 
 ### 3. Deploy New LXC Container
 
 ```bash
-# 1. Add to new_system/topology.yaml under 'lxc:' section
-# 2. Regenerate
-python3 new_system/scripts/generate-terraform.py
-python3 new_system/scripts/generate-ansible-inventory.py
+cd new_system_v4
 
-# 3. Apply Terraform (creates LXC)
-cd new_system/terraform  # (symlink to generated/terraform)
+# 1. Add to topology/L4-platform.yaml under 'lxc:' section
+vim topology/L4-platform.yaml
+
+# 2. Add service in L5 if needed
+vim topology/L5-application.yaml
+
+# 3. Regenerate
+python3 scripts/regenerate-all.py
+
+# 4. Apply Terraform (creates LXC)
+cd generated/terraform
 terraform apply -target='proxmox_virtual_environment_container.new_container'
 
-# 4. Configure with Ansible (installs services)
-cd ../ansible
-ansible-playbook -i inventory/production/hosts.yml playbooks/new-service.yml
+# 5. Configure with Ansible
+cd ../../ansible
+ansible-playbook playbooks/new-service.yml
 ```
 
 ### 4. Fresh Proxmox Installation
 
-Complete automation from bare metal to running infrastructure:
-
 ```bash
-# 1. Create bootable USB (use wrapper or main script)
-cd new_system/bare-metal
+# 1. Create bootable USB
+cd new_system_v4/bare-metal
 sudo ./run-create-usb.sh  # Interactive wrapper
-# Or directly: sudo ./create-uefi-autoinstall-proxmox-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
 
 # 2. Boot and auto-install (15 min, automatic)
 
@@ -206,412 +198,192 @@ cd /root/post-install
 ./05-init-git-repo.sh
 reboot
 
-# 4. Copy repository
+# 4. Copy repository and deploy
 scp -r ~/home-lab root@10.0.99.1:/root/
-
-# 5. Generate and apply infrastructure
 ssh root@10.0.99.1
-cd /root/home-lab/new_system
-python3 scripts/generate-terraform.py
-python3 scripts/generate-ansible-inventory.py
-cd terraform
-terraform init
-terraform apply
-cd ../ansible
-ansible-playbook -i inventory/production/hosts.yml site.yml
+cd /root/home-lab/new_system_v4
+python3 scripts/regenerate-all.py
+cd deploy && make deploy-all
 ```
 
 ## Code Organization Principles
 
-### What Terraform Manages (Proxmox-level)
+### What Terraform Manages
 
+**Proxmox (generated/terraform/):**
 - Network bridges (vmbr0-vmbr99)
-- VMs and LXC containers (creation, resources, NICs)
-- VM/LXC network interface attachments
+- VMs and LXC containers
 - Storage pools
-- Proxmox SDN (if used)
 
-**DO NOT** use Terraform for:
-- OS-level network configuration (use Ansible + cloud-init)
-- Service installation (use Ansible)
-- Application configuration (use Ansible)
+**MikroTik (generated/terraform-mikrotik/):**
+- Bridge and VLAN interfaces
+- IP addresses and DHCP
+- Firewall rules and NAT
+- QoS (queues)
+- WireGuard VPN
+- Containers (AdGuard, Tailscale)
 
-### What Ansible Manages (OS-level)
+### What Ansible Manages
 
-- Network configuration inside VMs/LXC (via cloud-init + Ansible)
-- Service installation and configuration
-- System hardening and optimization
+- OS-level configuration inside VMs/LXC
+- Service installation (PostgreSQL, Redis, etc.)
+- System hardening
 - User management
-- Firewall rules inside OS
 
-**DO NOT** use Ansible for:
-- Creating VMs/LXC (use Terraform)
-- Proxmox bridge configuration (use Terraform)
-- VM resource allocation (use Terraform)
+### Layer Contents
 
-### What topology.yaml Contains
-
-**Infrastructure as Data:**
-- Physical interfaces (MAC addresses, names)
-- Network bridges and their properties
-- IP address allocations for all networks
-- VM definitions (resources, NICs, disks)
-- LXC definitions (resources, NICs, mounts)
-- Storage configuration
-- Routing rules
-- Firewall policies (high-level)
-- Service inventory
-
-**NOT in topology.yaml:**
-- Ansible playbook logic
-- Terraform provider configuration
-- Secrets (use Ansible Vault or Terraform variables)
-- Application-specific configs
+| Layer | File | Contains |
+|-------|------|----------|
+| L0 | L0-meta.yaml | version, defaults, security_policy |
+| L1 | L1-foundation.yaml | devices, interfaces, ups |
+| L2 | L2-network.yaml | networks, bridges, firewall, qos, ipv6 |
+| L3 | L3-data.yaml | storage_pools, data_assets |
+| L4 | L4-platform.yaml | vms, lxc, templates |
+| L5 | L5-application.yaml | services, certificates, dns_records |
+| L6 | L6-observability.yaml | healthchecks, alerts, dashboards |
+| L7 | L7-operations.yaml | workflows, ansible_config, backup |
 
 ## Network Architecture
 
 ### Physical Layer
-- **eth-usb**: USB Ethernet → vmbr0 (WAN to ISP)
-- **eth-builtin**: Built-in Ethernet → vmbr1 (LAN to GL.iNet)
+- **MikroTik Chateau**: Main router with LTE, WiFi 6, 4x GbE
+- **Dell XPS L701X**: Proxmox hypervisor
+- **Orange Pi 5**: Docker host for media services
 
-### Bridge Layer (Proxmox)
-- **vmbr0**: WAN (DHCP from ISP) - OPNsense WAN interface
-- **vmbr1**: LAN (192.168.10.254/24) - OPNsense LAN interface
-- **vmbr2**: INTERNAL (10.0.30.1/24) - LXC containers
-- **vmbr99**: MGMT (10.0.99.1/24) - Management network
-
-### IP Allocation Strategy
-
+### Network Topology
 ```
-WAN (vmbr0):           DHCP (ISP provided)
-OPNsense LAN (vmbr1):  192.168.10.0/24
-  - OPNsense LAN:      192.168.10.1
-  - GL.iNet WAN:       192.168.10.2
-  - Proxmox (unused):  192.168.10.254
-
-GL.iNet LAN:           192.168.20.0/24 (user devices)
-Guest WiFi:            192.168.30.0/24 (isolated)
-IoT:                   192.168.40.0/24 (isolated)
-
-LXC Internal (vmbr2):  10.0.30.0/24
-  - Proxmox host:      10.0.30.1
-  - PostgreSQL:        10.0.30.10
-  - Redis:             10.0.30.20
-  - Nextcloud:         10.0.30.30
-  - Gateway (OPNsense):10.0.30.254
-
-Management (vmbr99):   10.0.99.0/24
-  - Proxmox UI:        10.0.99.1:8006
-  - OPNsense UI:       10.0.99.10:443
-
-VPN Home (Slate AX):   10.0.200.0/24
-VPN Russia (Slate AX): 10.8.2.0/24
-```
-
-### Traffic Flow
-
-```
-Internet → ISP Router → vmbr0 → OPNsense (firewall)
-                                    ↓
-                          vmbr1 → GL.iNet Slate AX → WiFi/LAN users
-                                    ↓
-                        Users access LXC via routing:
-                        192.168.20.x → 10.0.30.x (through OPNsense)
-
-LXC Containers → vmbr2 → 10.0.30.254 (OPNsense INTERNAL) → Internet
+Internet (LTE/WAN)
+       │
+       ▼
+┌─────────────────────┐
+│  MikroTik Chateau   │ ← Router, Firewall, VPN
+│  192.168.88.1       │
+└─────────────────────┘
+       │
+       ├── VLAN 10: Servers (10.0.10.0/24)
+       │   ├── Proxmox: 10.0.10.1
+       │   ├── Orange Pi 5: 10.0.10.5
+       │   └── LXC containers
+       │
+       ├── VLAN 20: Users (192.168.20.0/24)
+       ├── VLAN 30: IoT (192.168.30.0/24)
+       ├── VLAN 40: Guest (192.168.40.0/24)
+       └── VLAN 99: Management (10.0.99.0/24)
 ```
 
 ## Storage Strategy
 
 ### SSD 180GB (local-lvm)
-- **Purpose**: Production VMs and LXC (fast access needed)
-- **Contains**: Running VMs/LXC root disks
-- **Partitioning**: 50GB root + 2GB swap + 128GB LVM thin pool
+- Production VMs and LXC root disks
+- Fast access workloads
 
 ### HDD 500GB (local-hdd)
-- **Purpose**: Templates, backups, ISOs (infrequent access)
-- **Contains**: VM/LXC templates (VMID 900-910), backups, ISO images
-- **Path**: /mnt/hdd
-- **Backup retention**: 3 last, 7 daily, 4 weekly, 6 monthly, 1 yearly
-
-**Workflow**: Create template on HDD → Clone to SSD for production
-
-## Important ID Ranges
-
-- **VM Templates**: 910-919 (on local-hdd)
-- **LXC Templates**: 900-909 (on local-hdd)
-- **Production VMs**: 100-199 (on local-lvm)
-- **Production LXC**: 200-299 (on local-lvm)
+- Templates (VMID 900-919)
+- Backups
+- ISO images
 
 ## Secrets Management
 
-**Never commit these to Git:**
-- `terraform.tfvars` (contains API tokens)
-- `terraform.tfstate` (contains sensitive data)
-- `.vault_pass` (Ansible vault password)
-- `*.pem`, `*.key` (SSH keys)
-- `.env` files
+**Never commit:**
+- `terraform.tfvars`
+- `terraform.tfstate`
+- `.vault_pass`
+- `*.pem`, `*.key`
 
-**Proper handling:**
-- Terraform secrets: Use `terraform.tfvars` (gitignored)
-- Ansible secrets: Use Ansible Vault
-- SSH keys: Store in `~/.ssh/`, reference in configs
-- API tokens: Environment variables or external secret managers
+**Use:**
+- Terraform: `terraform.tfvars` (gitignored)
+- Ansible: Ansible Vault
+- API tokens: Environment variables
 
-## Testing Strategy
-
-### Unit Tests (Fast)
-```bash
-# Terraform validation
-cd new_system/terraform
-terraform validate
-terraform fmt -check
-
-# Ansible syntax check
-cd new_system/ansible
-ansible-playbook playbooks/site.yml --syntax-check
-ansible-lint roles/
-```
-
-### Integration Tests (Slower)
-```bash
-# Terraform plan (no apply)
-cd new_system/terraform
-terraform plan
-
-# Ansible dry run
-cd new_system/ansible
-ansible-playbook -i inventory/production/hosts.yml site.yml --check
-```
-
-### System Tests (Full deployment)
-```bash
-# Deploy to staging/dev environment
-# Test end-to-end workflows
-# See TESTING.md for comprehensive procedures
-```
-
-## Regenerating from topology.yaml
+## Regenerating from Topology
 
 ### When to Regenerate
 
-**ALWAYS regenerate after editing topology.yaml:**
-- Added/removed VM or LXC
-- Changed IP address
-- Added/removed network bridge
-- Modified storage configuration
-- Changed resource allocation
-
-**Important**: Generated files are stored in git for transparency and easy rollback. After regeneration, commit changes:
+Always regenerate after editing any `topology/L*.yaml` file:
 ```bash
-git add new_system/generated/
-git commit -m "Regenerate infrastructure from topology.yaml"
+cd new_system_v4
+python3 scripts/regenerate-all.py
 ```
 
-### What Gets Regenerated
+### What Gets Generated
 
-```bash
-python3 new_system/scripts/generate-terraform.py
-# Generates:
-#   new_system/generated/terraform/provider.tf
-#   new_system/generated/terraform/versions.tf
-#   new_system/generated/terraform/variables.tf
-#   new_system/generated/terraform/outputs.tf
-#   new_system/generated/terraform/bridges.tf
-#   new_system/generated/terraform/vms.tf
-#   new_system/generated/terraform/lxc.tf
-
-python3 new_system/scripts/generate-ansible-inventory.py
-# Generates:
-#   new_system/generated/ansible/inventory/hosts.yml
-#   new_system/generated/ansible/group_vars/all.yml
-
-python3 new_system/scripts/generate-docs.py
-# Generates:
-#   docs/network-diagram.md (Mermaid)
-#   docs/ip-allocation.md (tables)
-#   docs/services.md (service inventory)
 ```
-
-### Manual Files (Do Not Auto-Generate)
-
-**These files are manually maintained:**
-- `new_system/topology.yaml` - Source of truth (EDIT THIS!)
-- `new_system/ansible/playbooks/*.yml` - Service-specific logic
-- `new_system/ansible/roles/*/tasks/*.yml` - Role implementations
-- `new_system/bare-metal/post-install/*.sh` - Bash scripts
-- `new_system/scripts/templates/*.j2` - Jinja2 templates for generators
-
-**NEVER edit files in `new_system/generated/`** - they will be overwritten!
-
-## Cloud-Init Integration
-
-LXC containers use cloud-init for initial OS configuration:
-
-```yaml
-# In topology.yaml
-lxc:
-  myservice:
-    cloudinit:
-      enabled: true
-      user: "serviceuser"
-      ssh_keys:
-        - "ssh-ed25519 ..."
+generated/
+├── terraform/              # Proxmox
+│   ├── provider.tf
+│   ├── bridges.tf
+│   ├── vms.tf
+│   ├── lxc.tf
+│   └── variables.tf
+├── terraform-mikrotik/     # MikroTik RouterOS
+│   ├── provider.tf
+│   ├── interfaces.tf
+│   ├── addresses.tf
+│   ├── dhcp.tf
+│   ├── firewall.tf
+│   ├── qos.tf
+│   ├── vpn.tf
+│   └── containers.tf
+├── ansible/inventory/      # Ansible
+│   └── production/
+│       ├── hosts.yml
+│       ├── group_vars/
+│       └── host_vars/
+└── docs/                   # Documentation
+    ├── overview.md
+    ├── network-diagram.md
+    ├── ip-allocation.md
+    ├── services.md
+    └── devices.md
 ```
-
-Terraform generates cloud-init snippets → Proxmox injects on first boot → Ansible configures services.
 
 ## Common Pitfalls
 
-### ❌ DON'T: Edit generated Terraform files manually
+### DON'T: Edit generated files
 ```bash
 # Wrong:
-vim new_system/generated/terraform/bridges.tf  # This will be overwritten!
-vim new_system/terraform/lxc.tf                # Same as above (symlink)
+vim new_system_v4/generated/terraform/bridges.tf  # Will be overwritten!
 ```
 
-### ✅ DO: Edit topology.yaml and regenerate
+### DO: Edit layer files and regenerate
 ```bash
 # Correct:
-vim new_system/topology.yaml
-python3 new_system/scripts/generate-terraform.py
-# All files in generated/ will be updated automatically
+vim new_system_v4/topology/L2-network.yaml
+python3 new_system_v4/scripts/regenerate-all.py
 ```
 
-### ❌ DON'T: Use Terraform for OS-level networking
-```hcl
-# Wrong in Terraform:
-provisioner "remote-exec" {
-  inline = ["ip addr add ..."]  # Use Ansible instead!
-}
-```
-
-### ✅ DO: Use Ansible for OS-level configuration
+### DON'T: Reference higher layers from lower
 ```yaml
-# Correct in Ansible:
-- name: Configure network interface
-  ansible.builtin.template:
-    src: interfaces.j2
-    dest: /etc/network/interfaces
+# Wrong in L4-platform.yaml:
+lxc:
+  - id: lxc-db
+    service_ref: svc-postgresql  # L4 cannot reference L5!
 ```
 
-### ❌ DON'T: Hardcode IPs in Ansible playbooks
+### DO: Reference lower layers only
 ```yaml
-# Wrong:
-postgresql_host: "10.0.30.10"  # Hardcoded!
+# Correct in L5-application.yaml:
+services:
+  - id: svc-postgresql
+    lxc_ref: lxc-db              # L5 can reference L4
 ```
-
-### ✅ DO: Reference topology-generated variables
-```yaml
-# Correct:
-postgresql_host: "{{ hostvars['postgresql-db'].ansible_host }}"
-```
-
-## Migration from Old Setup
-
-### From old_system (Script-Based)
-If migrating from the old script-based setup (in `README-old-network-setup.md`):
-1. Read `MIGRATION.md` for complete guide
-2. Old scripts are in `old_system/proxmox/scripts/` (legacy, reference only)
-3. Gradually migrate components to `new_system/topology.yaml`
-4. Test each component before decommissioning old scripts
-
-### From Legacy Terraform Modules
-Legacy manual Terraform modules have been archived to `archive/legacy-terraform/`:
-- Network modules (bridges configuration)
-- Storage modules (storage pools configuration)
-- Provider configurations
-
-These are kept for reference only. All infrastructure is now auto-generated from topology.yaml.
-
-## Performance Considerations
-
-**Hardware Constraints**: Dell XPS L701X has only 8GB RAM (non-upgradable)
-
-**RAM Allocation Strategy** (from topology.yaml):
-- Proxmox OS: ~1.5 GB
-- OPNsense VM: 2 GB (minimum for stability)
-- LXC containers: 1-2 GB each
-- **Available for LXC**: ~4 GB (after OPNsense)
-
-**Offload to GL.iNet Slate AX** (512MB RAM):
-- AdGuard Home (~100 MB)
-- WireGuard/AmneziaWG servers (~40 MB)
-- **Frees ~140 MB on Proxmox**
-
-## Monitoring and Verification
-
-```bash
-# Check Terraform state matches topology
-cd new_system/terraform
-terraform plan  # Should show "No changes"
-
-# Check Ansible idempotency
-cd new_system/ansible
-ansible-playbook -i inventory/production/hosts.yml site.yml --check
-# Second run should show 0 changes
-
-# Verify network bridges
-ssh root@10.0.99.1 "brctl show"
-
-# Verify LXC connectivity
-ssh root@10.0.99.1 "pct exec 200 -- ping -c 3 8.8.8.8"
-
-# Check storage usage
-ssh root@10.0.99.1 "pvesm status"
-```
-
-## Documentation
-
-- **README.md**: Project overview and quick start
-- **MIGRATION.md**: Migration guide from script-based setup
-- **TESTING.md**: Comprehensive testing procedures
-- **new_system/topology.yaml**: Infrastructure definition (source of truth)
-- **new_system/bare-metal/README.md**: Bare-metal installation guide
-- **new_system/ansible/roles/*/README.md**: Role-specific documentation
-
-## Generator Scripts (To Be Implemented)
-
-These Python scripts transform `topology.yaml` into usable configs:
-
-```bash
-# Validate topology schema and consistency
-python3 new_system/scripts/validate-topology.py
-
-# Generate Terraform from topology
-python3 new_system/scripts/generate-terraform.py
-
-# Generate Ansible inventory from topology
-python3 new_system/scripts/generate-ansible-inventory.py
-
-# Generate documentation from topology
-python3 new_system/scripts/generate-docs.py
-
-# All-in-one regeneration
-python3 new_system/scripts/regenerate-all.py
-```
-
-**TODO**: Implement these generators (see new_system/scripts/README.md for specifications)
 
 ## Working with Claude Code
 
 When Claude Code helps with this repository:
 
-1. **Always check topology.yaml first** - It's the source of truth
-2. **Regenerate after topology changes** - Run generator scripts
-3. **Use Terraform for Proxmox objects** - Bridges, VMs, LXC NICs
-4. **Use Ansible for OS configuration** - Services, networking inside VMs/LXC
-5. **Test changes incrementally** - Validate → Plan → Apply
-6. **Document in topology.yaml** - Keep it updated
+1. **Always check topology layers first** - They are the source of truth
+2. **Regenerate after changes** - Run `regenerate-all.py`
+3. **Respect layer boundaries** - Don't create upward references
+4. **Use Makefile** - `cd deploy && make validate generate`
 
 **Ask Claude Code to:**
-- "Add a new LXC container for service X to topology.yaml"
-- "Regenerate Terraform from topology.yaml"
-- "Generate network diagram from topology.yaml"
-- "Validate topology.yaml schema"
-- "What IP should I use for service X?"
+- "Add a new LXC container to L4-platform.yaml"
+- "Add a service definition to L5-application.yaml"
+- "Regenerate all configs"
+- "Validate topology"
 
 **Don't ask Claude Code to:**
-- Edit generated Terraform files directly
-- Hardcode IPs outside topology.yaml
-- Mix Terraform and Ansible responsibilities
+- Edit files in `generated/` directly
+- Create references from lower to higher layers
+- Hardcode IPs outside topology

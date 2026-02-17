@@ -1,0 +1,506 @@
+# OPNsense Firewall Rules для Russia VPN
+# Разрешение трафика от OpenWRT к Russia VPS через AmneziaWG
+# Применяется когда OpenWRT в Home Mode (за OPNsense)
+
+# ============================================================
+# АРХИТЕКТУРА
+# ============================================================
+
+# Internet → ISP Router → Proxmox NIC1 (WAN bridge)
+#                             ↓
+#                        OPNsense VM
+#                             ↓
+#                     Proxmox NIC2 (LAN bridge)
+#                             ↓
+#                        OpenWRT Router (192.168.10.2)
+#                             ↓
+#                   OpenWRT Russia VPN (awg1)
+#                             ↓
+#                       (через OPNsense WAN)
+#                             ↓
+#                         Internet
+#                             ↓
+#                       Russia VPS (AmneziaWG сервер)
+
+# Трафик должен пройти:
+# OpenWRT (192.168.10.2) → OPNsense LAN (192.168.10.1) → OPNsense WAN → Internet → Russia VPS
+
+# ============================================================
+# НЕОБХОДИМЫЕ ПРАВИЛА FIREWALL
+# ============================================================
+
+# 1. Разрешить исходящий UDP 51822 от OpenWRT
+# 2. Разрешить established/related соединения обратно
+# 3. NAT автоматически применится (OPNsense WAN)
+
+# ============================================================
+# НАСТРОЙКА ЧЕРЕЗ WEB UI
+# ============================================================
+
+# Войти в OPNsense Web UI:
+# http://192.168.10.1  (из домашней сети)
+# или
+# http://10.0.99.10    (из Proxmox)
+
+# Логин: root
+# Пароль: ваш пароль OPNsense
+
+## ----------------------------------------------------------
+## ВАРИАНТ 1: Разрешить весь исходящий UDP (простой)
+## ----------------------------------------------------------
+
+# Firewall → Rules → LAN
+
+# Нажать: + Add (вверху справа)
+
+# General:
+#   Action: Pass
+#   Interface: LAN
+#   Direction: in
+#   TCP/IP Version: IPv4
+#   Protocol: UDP
+#
+# Source:
+#   Source: LAN net
+#   (или конкретно: Single host or Network → 192.168.10.2)
+#
+# Destination:
+#   Destination: any
+#   Destination port range: 51822 to 51822
+#
+# Extra Options:
+#   Description: Allow Russia VPN (AmneziaWG) from OpenWRT
+#   Category: VPN (создать если нет)
+#
+# Нажать: Save
+# Нажать: Apply Changes (вверху)
+
+## ----------------------------------------------------------
+## ВАРИАНТ 2: Разрешить только к конкретному Russia VPS IP (безопасный)
+## ----------------------------------------------------------
+
+# Firewall → Rules → LAN
+
+# Нажать: + Add
+
+# General:
+#   Action: Pass
+#   Interface: LAN
+#   Direction: in
+#   TCP/IP Version: IPv4
+#   Protocol: UDP
+#
+# Source:
+#   Source: Single host or Network
+#   Address: 192.168.10.2/32  (OpenWRT IP)
+#
+# Destination:
+#   Destination: Single host or Network
+#   Address: RUSSIA_VPS_IP  (публичный IP вашего VPS, например 5.188.123.45)
+#   Destination port range: 51822 to 51822
+#
+# Extra Options:
+#   Description: Allow Russia VPN to VPS (RUSSIA_VPS_IP)
+#   Category: VPN
+#
+# Нажать: Save
+# Нажать: Apply Changes
+
+## ----------------------------------------------------------
+## ВАРИАНТ 3: Создать Alias для гибкости (рекомендуется)
+## ----------------------------------------------------------
+
+# Шаг 1: Создать Alias для Russia VPS IP
+
+# Firewall → Aliases
+
+# Нажать: + (Add new alias)
+
+# Properties:
+#   Enabled: ✓
+#   Name: Russia_VPS_Servers
+#   Type: Host(s)
+#   Content: RUSSIA_VPS_IP  (например, 5.188.123.45)
+#   Description: Russia VPS AmneziaWG Servers
+#
+# Нажать: Save
+# Нажать: Apply
+
+# Шаг 2: Создать Alias для VPN портов
+
+# Firewall → Aliases
+
+# Нажать: + (Add new alias)
+
+# Properties:
+#   Enabled: ✓
+#   Name: VPN_Ports
+#   Type: Port(s)
+#   Content: 51820  (WireGuard Home)
+#            51821  (AmneziaWG Oracle)
+#            51822  (AmneziaWG Russia)
+#   Description: VPN Server Ports
+#
+# Нажать: Save
+# Нажать: Apply
+
+# Шаг 3: Создать правило используя Aliases
+
+# Firewall → Rules → LAN
+
+# Нажать: + Add
+
+# General:
+#   Action: Pass
+#   Interface: LAN
+#   Direction: in
+#   TCP/IP Version: IPv4
+#   Protocol: UDP
+#
+# Source:
+#   Source: LAN net
+#   (или 192.168.10.2/32 для OpenWRT только)
+#
+# Destination:
+#   Destination: Russia_VPS_Servers  (выбрать из выпадающего списка)
+#   Destination port range: 51822 to 51822
+#   (или VPN_Ports to VPN_Ports для всех VPN)
+#
+# Extra Options:
+#   Description: Allow VPN traffic from LAN to Russia VPS
+#   Category: VPN
+#
+# Нажать: Save
+# Нажать: Apply Changes
+
+# ============================================================
+# ПРОВЕРКА ПРАВИЛ
+# ============================================================
+
+# После добавления правила проверить:
+
+# Firewall → Rules → LAN
+
+# Должно быть правило:
+# ✓ | Pass | LAN | UDP | * | 192.168.10.2 | * | Russia_VPS | 51822 | Allow Russia VPN
+
+# Порядок правил:
+# - Новое правило должно быть ВЫШЕ блокирующих правил (если есть)
+# - OPNsense обрабатывает правила сверху вниз
+# - Первое совпадение применяется
+
+# Если правило не работает, попробуйте переместить его выше:
+# Нажать на правило → Move (стрелка вверх)
+
+# ============================================================
+# ПРОВЕРКА РАБОТЫ
+# ============================================================
+
+# 1. На OpenWRT запустить Russia VPN:
+# ssh root@192.168.20.1
+# awg-quick up awg1
+
+# 2. Проверить handshake:
+# awg show awg1 latest-handshakes
+
+# 3. На OPNsense посмотреть логи firewall:
+# Firewall → Log Files → Live View
+
+# Должны быть записи:
+# Pass | LAN | UDP | 192.168.10.2:random_port → RUSSIA_VPS_IP:51822
+
+# Если видны блоки (Block):
+# Block | LAN | UDP | 192.168.10.2:random_port → RUSSIA_VPS_IP:51822
+# → Правило не работает, проверить настройки
+
+# 4. Проверить состояния (states):
+# Firewall → Diagnostics → States
+
+# Искать: 192.168.10.2 и порт 51822
+# Должен быть UDP state: 192.168.10.2:random → RUSSIA_VPS_IP:51822
+
+# ============================================================
+# NAT (НЕ ТРЕБУЕТСЯ ДОПОЛНИТЕЛЬНАЯ НАСТРОЙКА)
+# ============================================================
+
+# OPNsense автоматически выполняет NAT для исходящего трафика:
+#
+# Outbound NAT (автоматический):
+# Firewall → NAT → Outbound → Mode: Automatic
+#
+# Это означает:
+# OpenWRT (192.168.10.2:random_port) → OPNsense WAN (192.168.1.x:random_port) → Russia VPS
+#
+# Russia VPS видит: источник = 192.168.1.x (OPNsense WAN IP)
+# Ответы идут обратно через тот же NAT
+
+# Если используете Manual Outbound NAT, добавьте правило:
+#
+# Firewall → NAT → Outbound → Mode: Hybrid/Manual
+#
+# Нажать: Add
+#
+# Interface: WAN
+# Source: 192.168.10.0/24 (LAN network)
+# Destination: any
+# Translation: Interface address
+# Description: NAT for LAN to Internet
+#
+# Нажать: Save
+# Нажать: Apply
+
+# ============================================================
+# ДОПОЛНИТЕЛЬНЫЕ ПРАВИЛА (ОПЦИОНАЛЬНО)
+# ============================================================
+
+## Logging для отладки:
+
+# В правиле firewall включить логирование:
+# Edit rule → Advanced Options
+# Log: ✓ Log packets that are handled by this rule
+# Нажать: Save
+
+# Теперь в Firewall → Log Files будут видны все пакеты
+
+## Rate limiting (защита от DDoS):
+
+# Ограничить количество соединений от OpenWRT:
+#
+# Edit rule → Advanced Options
+# Advanced Options:
+#   Max states: 1000
+#   Max new connections / second: 100
+#   Max source nodes: 10
+#
+# Нажать: Save
+
+## Schedule (расписание):
+
+# Разрешить Russia VPN только в определенное время:
+#
+# Firewall → Settings → Schedules
+# Нажать: + Add
+#
+# Name: Business_Hours
+# Days: Mon-Fri
+# Time: 09:00 - 18:00
+#
+# Затем в правиле:
+# Edit rule → Extra Options
+# Schedule: Business_Hours
+
+# ============================================================
+# ПРАВИЛА ДЛЯ ДРУГИХ VPN (ORACLE, HOME)
+# ============================================================
+
+# Аналогично можно настроить для других VPN:
+
+## Oracle Cloud AmneziaWG (порт 51821):
+
+# Firewall → Rules → LAN → Add
+#
+# Action: Pass
+# Protocol: UDP
+# Source: 192.168.10.2 (OpenWRT)
+# Destination: ORACLE_CLOUD_IP
+# Dest port: 51821
+# Description: Allow Oracle AmneziaWG from OpenWRT
+
+## Home WireGuard (порт 51820):
+
+# Если OPNsense - это WireGuard сервер:
+# → Не нужно, OpenWRT уже в LAN и может подключаться
+
+# Если WireGuard сервер на другом хосте:
+# Firewall → Rules → LAN → Add
+#
+# Action: Pass
+# Protocol: UDP
+# Source: 192.168.10.2
+# Destination: WIREGUARD_SERVER_IP
+# Dest port: 51820
+# Description: Allow WireGuard from OpenWRT
+
+# ============================================================
+# УНИВЕРСАЛЬНОЕ ПРАВИЛО ДЛЯ ВСЕХ VPN
+# ============================================================
+
+# Создать одно правило для всех VPN портов:
+
+# Firewall → Aliases
+# Name: VPN_Destinations
+# Type: Host(s)
+# Content:
+#   ORACLE_CLOUD_IP
+#   RUSSIA_VPS_IP
+#   OTHER_VPN_IP
+
+# Firewall → Aliases
+# Name: VPN_Ports
+# Type: Port(s)
+# Content:
+#   51820
+#   51821
+#   51822
+
+# Firewall → Rules → LAN → Add
+#
+# Action: Pass
+# Protocol: UDP
+# Source: 192.168.10.2 (OpenWRT) или LAN net (весь LAN)
+# Destination: VPN_Destinations
+# Dest port: VPN_Ports
+# Description: Allow all VPN protocols from OpenWRT
+
+# ============================================================
+# БЕЗОПАСНОСТЬ
+# ============================================================
+
+# Рекомендации:
+
+# 1. Разрешайте только ИСХОДЯЩИЙ трафик:
+#    - Direction: in (на LAN интерфейсе = исходящий из LAN)
+#    - НЕ создавайте правила на WAN для входящего 51822
+
+# 2. Используйте конкретные IP:
+#    - Source: 192.168.10.2 (только OpenWRT)
+#    - Destination: конкретный IP VPS
+#    - НЕ используйте "any" без необходимости
+
+# 3. Ограничьте порты:
+#    - Только нужные порты (51820, 51821, 51822)
+#    - НЕ разрешайте "any port"
+
+# 4. Мониторинг:
+#    - Периодически проверяйте Firewall → Log Files
+#    - Ищите подозрительную активность
+
+# 5. Обновления:
+#    - Регулярно обновляйте OPNsense
+#    - System → Firmware → Updates
+
+# ============================================================
+# TROUBLESHOOTING
+# ============================================================
+
+# Проблема: Правило создано, но трафик блокируется
+
+# Решение:
+# 1. Проверить порядок правил (правило должно быть выше блоков)
+# 2. Проверить Interface (должно быть LAN, не WAN)
+# 3. Проверить Direction (должно быть "in")
+# 4. Посмотреть Live View логи:
+#    Firewall → Log Files → Live View
+#    Включить фильтр: Interface=LAN, Protocol=UDP, Port=51822
+
+# Проблема: Правило работает, но нет handshake на OpenWRT
+
+# Решение:
+# 1. Проверить что Russia VPS доступен:
+#    ping RUSSIA_VPS_IP (с OPNsense)
+#    Diagnostics → Ping: RUSSIA_VPS_IP
+# 2. Проверить что порт 51822 открыт на VPS:
+#    На VPS: sudo ss -ulnp | grep 51822
+# 3. Проверить NAT:
+#    Firewall → Diagnostics → States
+#    Искать: 192.168.10.2 и 51822
+
+# Проблема: Handshake есть, но медленная скорость
+
+# Решение:
+# 1. Двойной NAT (ISP → OPNsense) может замедлять
+# 2. Проверить load на OPNsense:
+#    Dashboard → System Information
+#    CPU и Memory usage
+# 3. Включить hardware offloading если доступно:
+#    Interfaces → Settings → Hardware offloading
+
+# ============================================================
+# РЕЗЕРВНАЯ КОНФИГУРАЦИЯ
+# ============================================================
+
+# После настройки сделать backup:
+
+# System → Configuration → Backups
+
+# Нажать: Download configuration
+
+# Сохранить файл: opnsense-config-with-russia-vpn-YYYYMMDD.xml
+
+# Для восстановления:
+# System → Configuration → Backups
+# Choose File → выбрать backup
+# Restore Configuration
+
+# ============================================================
+# CLI КОНФИГУРАЦИЯ (АЛЬТЕРНАТИВА)
+# ============================================================
+
+# Через SSH к OPNsense:
+
+# ssh root@192.168.10.1
+# или
+# ssh root@10.0.99.10
+
+# Добавить правило через pfctl (временно, до перезагрузки):
+
+# pfctl -a opnsense -t lan -T add 192.168.10.2
+# pfctl -a opnsense -sr | grep 51822
+
+# Для постоянного правила используйте Web UI или API
+
+# ============================================================
+# API КОНФИГУРАЦИЯ (ПРОДВИНУТАЯ)
+# ============================================================
+
+# OPNsense поддерживает REST API для автоматизации:
+
+# 1. Создать API ключ:
+#    System → Access → Users → Edit user → API keys
+
+# 2. Использовать API для создания правила:
+
+# curl -k -u "API_KEY:API_SECRET" \
+#   -X POST \
+#   -d '{"rule":{"enabled":"1","action":"pass","interface":"lan", \
+#        "protocol":"udp","source":"192.168.10.2/32", \
+#        "destination":"RUSSIA_VPS_IP","destination_port":"51822", \
+#        "descr":"Russia VPN from OpenWRT"}}' \
+#   https://192.168.10.1/api/firewall/filter/addRule
+
+# 3. Применить изменения:
+
+# curl -k -u "API_KEY:API_SECRET" \
+#   -X POST \
+#   https://192.168.10.1/api/firewall/filter/apply
+
+# ============================================================
+# ПОЛЕЗНЫЕ ССЫЛКИ
+# ============================================================
+
+# OPNsense документация:
+# https://docs.opnsense.org/manual/firewall.html
+
+# Firewall правила:
+# https://docs.opnsense.org/manual/how-tos/firewall_rule.html
+
+# NAT:
+# https://docs.opnsense.org/manual/nat.html
+
+# Troubleshooting:
+# https://docs.opnsense.org/troubleshooting/firewall.html
+
+# ============================================================
+# ЗАКЛЮЧЕНИЕ
+# ============================================================
+
+# После настройки этих правил OpenWRT сможет подключаться к Russia VPS
+# через OPNsense firewall, находясь в Home Mode.
+
+# Трафик будет защищён:
+# 1. OPNsense firewall (контроль исходящих соединений)
+# 2. AmneziaWG encryption (защита от DPI)
+# 3. Russia VPS (российский IP для сервисов)
+
+# Для применения см. подробную инструкцию:
+# HOME-RUSSIA-VPN-SETUP.md

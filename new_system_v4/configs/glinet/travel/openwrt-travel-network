@@ -1,0 +1,95 @@
+# OpenWRT Network Configuration - TRAVEL MODE
+# File: /etc/config/network (travel mode)
+# Device: GL.iNet GL-AXT1800 (Slate AX)
+# Mode: VPN Router with WireGuard to home
+
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+# ============================================================
+# WAN - Hotel WiFi or 4G/5G connection
+# GL-AXT1800: WAN port (blue port)
+# ============================================================
+config interface 'wan'
+	option device 'wan'
+	option proto 'dhcp'              # Get IP from hotel/public WiFi
+	option peerdns '0'               # Don't use their DNS
+	option dns '1.1.1.1 8.8.8.8'    # Fallback DNS before VPN connects
+
+config interface 'wan6'
+	option device 'wan'
+	option proto 'dhcpv6'
+	option reqaddress 'try'
+	option reqprefix 'auto'
+
+# ============================================================
+# LAN - Local network for your travel devices
+# GL-AXT1800: 2 LAN ports (yellow ports)
+# ============================================================
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+	option ipaddr '192.168.100.1'
+	option netmask '255.255.255.0'
+	option ip6assign '60'
+
+# Bridge for LAN - GL-AXT1800 DSA ports (2 LAN ports)
+config device
+	option name 'br-lan'
+	option type 'bridge'
+	list ports 'lan1'
+	list ports 'lan2'
+
+# ============================================================
+# WireGuard to Home OPNsense
+# ============================================================
+config interface 'wg_home'
+	option proto 'wireguard'
+	option private_key 'YOUR_OPENWRT_PRIVATE_KEY_HERE'
+	option listen_port '51821'
+	list addresses '10.0.200.10/32'
+	option mtu '1420'
+
+# WireGuard peer: Home OPNsense
+config wireguard_wg_home
+	option public_key 'OPNSENSE_PUBLIC_KEY_HERE'
+	option endpoint_host 'your-home-ddns.example.com'  # Your home dynamic DNS
+	option endpoint_port '51820'
+	option persistent_keepalive '25'
+	option route_allowed_ips '1'
+	# Access to home networks
+	list allowed_ips '10.0.0.0/16'   # All home networks
+	list allowed_ips '192.168.10.0/24'  # OPNsense LAN
+	list allowed_ips '10.0.99.10/32'    # Proxmox management
+
+# ============================================================
+# WireGuard to Oracle Cloud (failover)
+# ============================================================
+config interface 'wg_oracle'
+	option proto 'wireguard'
+	option private_key 'YOUR_OPENWRT_PRIVATE_KEY_ORACLE'
+	option listen_port '51822'
+	list addresses '10.1.200.10/32'
+	option mtu '1420'
+
+# WireGuard peer: Oracle Cloud
+config wireguard_wg_oracle
+	option public_key 'ORACLE_PUBLIC_KEY_HERE'
+	option endpoint_host 'oracle-instance.region.oraclecloud.com'
+	option endpoint_port '51820'
+	option persistent_keepalive '25'
+	option route_allowed_ips '1'
+	# Access to home via Oracle site-to-site
+	list allowed_ips '10.1.0.0/16'   # Oracle network
+	list allowed_ips '10.0.0.0/16'   # Home via Oracle tunnel
+
+# ============================================================
+# GL-AXT1800 uses DSA (Distributed Switch Architecture)
+# No swconfig needed - ports: wan, lan1, lan2
+# ============================================================
+# Physical ports:
+#   WAN = Blue port (connect to hotel WiFi/4G)
+#   LAN1-2 = Yellow ports (your devices)
