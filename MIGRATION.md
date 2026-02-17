@@ -113,7 +113,8 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 1. **Create Bootable USB**
    ```bash
    cd new_system/bare-metal/
-   sudo ./create-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
+   sudo ./run-create-usb.sh  # Interactive wrapper
+   # Or: sudo ./create-uefi-autoinstall-proxmox-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
    ```
 
 2. **Install Proxmox**

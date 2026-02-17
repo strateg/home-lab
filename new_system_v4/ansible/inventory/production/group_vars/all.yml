@@ -1,0 +1,213 @@
+# Group Variables - All Hosts
+# Common variables applied to all infrastructure
+
+# ============================================================
+# Environment Configuration
+# ============================================================
+
+environment: production
+datacenter: home-lab
+timezone: UTC
+
+# ============================================================
+# Network Configuration
+# ============================================================
+
+# DNS Configuration
+dns_nameservers:
+  - 192.168.20.1    # AdGuard Home (primary)
+  - 1.1.1.1         # Cloudflare DNS (fallback)
+  - 8.8.8.8         # Google DNS (fallback)
+
+# NTP Configuration
+ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+  - 2.pool.ntp.org
+
+# Domain Configuration
+domain_name: home.local
+search_domains:
+  - home.local
+
+# ============================================================
+# User Configuration
+# ============================================================
+
+# Admin users (will be created on all systems)
+admin_users:
+  - name: admin
+    comment: "Home Lab Administrator"
+    shell: /bin/bash
+    groups:
+      - sudo
+      - adm
+    ssh_keys:
+      - "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+# ============================================================
+# SSH Configuration
+# ============================================================
+
+ssh_port: 22
+ssh_permit_root_login: "yes"  # For lab environment only!
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+
+# ============================================================
+# Security Configuration
+# ============================================================
+
+# Firewall
+firewall_enabled: true
+firewall_default_policy: deny
+
+# Fail2ban
+fail2ban_enabled: true
+fail2ban_bantime: 3600
+fail2ban_maxretry: 5
+
+# Automatic updates (Debian/Ubuntu)
+unattended_upgrades_enabled: true
+unattended_upgrades_auto_reboot: false
+
+# ============================================================
+# Monitoring Configuration
+# ============================================================
+
+# Prometheus Node Exporter
+node_exporter_enabled: true
+node_exporter_port: 9100
+
+# Logging
+log_level: info
+syslog_server: 10.0.30.70  # Prometheus LXC
+
+# ============================================================
+# Backup Configuration
+# ============================================================
+
+# Backup destination
+backup_storage: local-hdd
+backup_path: /mnt/hdd/dump
+
+# Retention policy
+backup_retention:
+  keep_last: 3
+  keep_daily: 7
+  keep_weekly: 4
+  keep_monthly: 6
+  keep_yearly: 1
+
+# Backup schedule
+backup_schedule:
+  daily: "02:00"
+  weekly: "03:00"
+  monthly: "04:00"
+
+# ============================================================
+# Package Management
+# ============================================================
+
+# Common packages for all systems
+common_packages:
+  - vim
+  - git
+  - curl
+  - wget
+  - htop
+  - tmux
+  - ncdu
+  - iotop
+  - sysstat
+  - net-tools
+  - dnsutils
+  - traceroute
+  - tcpdump
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# ============================================================
+# Performance Tuning
+# ============================================================
+
+# Swap configuration
+swap_enabled: true
+swap_size_mb: 2048
+swappiness: 10
+
+# File descriptor limits
+file_descriptor_limit: 65536
+
+# ============================================================
+# Service Discovery
+# ============================================================
+
+# Internal services registry
+services:
+  proxmox:
+    host: 10.0.99.1
+    port: 8006
+    protocol: https
+  opnsense:
+    host: 10.0.99.10
+    port: 443
+    protocol: https
+  openwrt:
+    host: 192.168.20.1
+    port: 80
+    protocol: http
+  adguard:
+    host: 192.168.20.1
+    port: 3000
+    protocol: http
+  postgresql:
+    host: 10.0.30.10
+    port: 5432
+    protocol: tcp
+  redis:
+    host: 10.0.30.20
+    port: 6379
+    protocol: tcp
+  nextcloud:
+    host: 10.0.30.30
+    port: 443
+    protocol: https
+  gitea:
+    host: 10.0.30.40
+    port: 3000
+    protocol: http
+  home_assistant:
+    host: 10.0.30.50
+    port: 8123
+    protocol: http
+  grafana:
+    host: 10.0.30.60
+    port: 3000
+    protocol: http
+  prometheus:
+    host: 10.0.30.70
+    port: 9090
+    protocol: http
+
+# ============================================================
+# Tags for Resources
+# ============================================================
+
+default_tags:
+  - ansible-managed
+  - home-lab
+  - production
+
+# ============================================================
+# Feature Flags
+# ============================================================
+
+features:
+  monitoring: true
+  backups: true
+  vpn_servers: true
+  fail2ban: true
+  unattended_upgrades: true
+  node_exporter: true

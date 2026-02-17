@@ -189,9 +189,10 @@ ansible-playbook -i inventory/production/hosts.yml playbooks/new-service.yml
 Complete automation from bare metal to running infrastructure:
 
 ```bash
-# 1. Create bootable USB
+# 1. Create bootable USB (use wrapper or main script)
 cd new_system/bare-metal
-sudo ./create-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
+sudo ./run-create-usb.sh  # Interactive wrapper
+# Or directly: sudo ./create-uefi-autoinstall-proxmox-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
 
 # 2. Boot and auto-install (15 min, automatic)
 

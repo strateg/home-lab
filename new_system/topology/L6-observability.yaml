@@ -1,0 +1,497 @@
+# Layer 6: Observability - Monitoring and alerting
+# Part of Home Lab Topology v4.0.0 (OSI-Layer Architecture)
+# Dependencies: L1 (device_ref), L4 (lxc_ref), L5 (service_ref)
+# Provides: healthcheck_id, alert_id for upper layers
+# Edit this file then regenerate: python3 scripts/regenerate-all.py
+
+healthchecks:
+- id: health-mikrotik
+  name: MikroTik Router Health
+  description: Monitor MikroTik central router
+  device_ref: mikrotik-chateau
+  enabled: true
+  critical: true
+  checks:
+  - type: ping
+    target: 192.168.88.1
+    timeout_ms: 1000
+    packet_loss_threshold: 5
+  - type: port
+    ports:
+    - 80
+    - 443
+    - 8291
+    protocol: tcp
+  - type: snmp
+    community: public
+    oids:
+    - name: cpu_load
+      oid: 1.3.6.1.2.1.25.3.3.1.2
+      warning_threshold: 70
+      critical_threshold: 90
+    - name: memory_usage
+      oid: 1.3.6.1.2.1.25.2.3.1.6
+      warning_threshold: 80
+      critical_threshold: 95
+    - name: temperature
+      oid: 1.3.6.1.4.1.14988.1.1.3.10
+      warning_threshold: 60
+      critical_threshold: 75
+  - type: api
+    endpoint: /rest/system/resource
+    auth: true
+    expected_status: 200
+  interval: 30s
+  timeout: 10s
+  notification:
+    on_warning: true
+    on_critical: true
+    channels:
+    - email
+    - telegram
+- id: health-lte-failover
+  name: LTE Failover Status
+  description: Monitor LTE modem and failover status
+  device_ref: mikrotik-chateau
+  enabled: true
+  critical: true
+  checks:
+  - type: interface_status
+    interface: lte1
+    expected: running
+    alert_on_down: false
+  - type: lte_signal
+    interface: lte1
+    metrics:
+      rssi:
+        warning_threshold: -85
+        critical_threshold: -100
+        unit: dBm
+      rsrp:
+        warning_threshold: -100
+        critical_threshold: -120
+        unit: dBm
+      rsrq:
+        warning_threshold: -12
+        critical_threshold: -15
+        unit: dB
+      sinr:
+        warning_threshold: 5
+        critical_threshold: 0
+        unit: dB
+  - type: failover_status
+    primary_interface: ether1
+    backup_interface: lte1
+    alert_on_failover: true
+    alert_on_failback: true
+  - type: sim_status
+    expected: ready
+  interval: 60s
+  timeout: 15s
+  notification:
+    on_warning: true
+    on_critical: true
+    on_failover: true
+    channels:
+    - email
+    - telegram
+- id: health-proxmox-host
+  name: Proxmox Host Health
+  description: Monitor Proxmox hypervisor health
+  device_ref: gamayun
+  enabled: true
+  checks:
+  - type: ping
+    target: 192.168.88.2
+    packet_loss_threshold: 10
+  - type: cpu_usage
+    warning_threshold: 80
+    critical_threshold: 95
+    unit: percent
+  - type: memory_usage
+    warning_threshold: 85
+    critical_threshold: 95
+    unit: percent
+  - type: disk_usage
+    warning_threshold: 80
+    critical_threshold: 90
+    unit: percent
+    paths:
+    - /
+    - /mnt/hdd
+  - type: load_average
+    warning_threshold: 3.0
+    critical_threshold: 4.0
+    period: 15min
+  - type: service
+    services:
+    - pvestatd
+    - pvedaemon
+    - pveproxy
+    - pvescheduler
+    expected_state: running
+  - type: temperature
+    warning_threshold: 75
+    critical_threshold: 85
+    unit: celsius
+  - type: port
+    ports:
+    - 8006
+    - 22
+    protocol: tcp
+  interval: 60s
+  timeout: 10s
+  notification:
+    on_warning: true
+    on_critical: true
+    channels:
+    - email
+- id: health-orangepi5
+  name: Orange Pi 5 Health
+  description: Monitor Orange Pi 5 application server
+  device_ref: orangepi5
+  enabled: true
+  checks:
+  - type: ping
+    target: 192.168.88.3
+    packet_loss_threshold: 10
+  - type: cpu_usage
+    warning_threshold: 75
+    critical_threshold: 90
+  - type: memory_usage
+    warning_threshold: 80
+    critical_threshold: 95
+  - type: disk_usage
+    warning_threshold: 75
+    critical_threshold: 85
+    paths:
+    - /
+    - /mnt/nvme
+  - type: temperature
+    warning_threshold: 70
+    critical_threshold: 80
+    sensor: cpu-thermal
+  - type: docker
+    check_daemon: true
+    containers:
+    - name: nextcloud
+      expected_state: running
+    - name: jellyfin
+      expected_state: running
+    - name: prometheus
+      expected_state: running
+    - name: grafana
+      expected_state: running
+  - type: port
+    ports:
+    - 80
+    - 443
+    - 8096
+    - 9090
+    - 3000
+    protocol: tcp
+    ip: 10.0.30.50
+  interval: 60s
+  timeout: 10s
+  notification:
+    on_warning: true
+    on_critical: true
+    channels:
+    - email
+- id: health-postgresql
+  name: PostgreSQL Database Health
+  description: Monitor PostgreSQL LXC and database service
+  lxc_ref: lxc-postgresql
+  service_ref: svc-postgresql
+  enabled: true
+  checks:
+  - type: lxc_status
+    expected_state: running
+  - type: port
+    port: 5432
+    protocol: tcp
+    ip: 10.0.30.10
+  - type: process
+    process: postgres
+    min_instances: 1
+  - type: query
+    query: SELECT 1
+    expected_result: '1'
+    timeout: 5s
+  - type: connection_count
+    warning_threshold: 80
+    critical_threshold: 95
+    max_connections: 100
+  - type: replication_lag
+    enabled: false
+    warning_threshold_seconds: 60
+    critical_threshold_seconds: 300
+  - type: disk_usage
+    warning_threshold: 75
+    critical_threshold: 85
+  - type: memory_usage
+    warning_threshold: 80
+    critical_threshold: 90
+  interval: 30s
+  timeout: 10s
+  notification:
+    on_warning: true
+    on_critical: true
+    channels:
+    - email
+- id: health-redis
+  name: Redis Cache Health
+  description: Monitor Redis LXC and cache service
+  lxc_ref: lxc-redis
+  service_ref: svc-redis
+  enabled: true
+  checks:
+  - type: lxc_status
+    expected_state: running
+  - type: port
+    port: 6379
+    protocol: tcp
+    ip: 10.0.30.20
+  - type: process
+    process: redis-server
+    min_instances: 1
+  - type: redis_ping
+    command: PING
+    expected_result: PONG
+  - type: redis_memory
+    warning_threshold: 200
+    critical_threshold: 250
+    unit: MB
+  - type: redis_keys
+    warning_threshold: 100000
+    critical_threshold: 500000
+  - type: memory_usage
+    warning_threshold: 80
+    critical_threshold: 90
+  interval: 60s
+  timeout: 5s
+  notification:
+    on_warning: true
+    on_critical: true
+    channels:
+    - email
+- id: health-nextcloud
+  name: Nextcloud Application Health
+  description: Monitor Nextcloud on Orange Pi 5
+  device_ref: orangepi5
+  service_ref: svc-nextcloud
+  enabled: true
+  checks:
+  - type: http
+    url: https://10.0.30.50/status.php
+    expected_status: 200
+    expected_content: installed.*true
+    ssl_verify: false
+    timeout: 10s
+  - type: http
+    url: https://10.0.30.50/ocs/v2.php/apps/serverinfo/api/v1/info
+    expected_status: 200
+    auth: true
+    ssl_verify: false
+  - type: docker_container
+    name: nextcloud
+    expected_state: running
+    health_check: true
+  interval: 120s
+  timeout: 15s
+  notification:
+    on_warning: true
+    on_critical: true
+    channels:
+    - email
+- id: health-ups
+  name: UPS Health
+  description: Monitor UPS status via NUT
+  ups_ref: ups-main
+  enabled: true
+  checks:
+  - type: ups_status
+    expected:
+    - OL
+    - OB
+    critical_states:
+    - LB
+    - RB
+    - FSD
+  - type: battery_charge
+    warning_threshold: 50
+    critical_threshold: 30
+    unit: percent
+  - type: battery_runtime
+    warning_threshold: 600
+    critical_threshold: 300
+    unit: seconds
+  - type: load
+    warning_threshold: 80
+    critical_threshold: 90
+    unit: percent
+  - type: input_voltage
+    warning_low: 200
+    warning_high: 250
+    critical_low: 180
+    critical_high: 260
+    unit: volts
+  interval: 30s
+  timeout: 5s
+  notification:
+    on_warning: true
+    on_critical: true
+    on_battery: true
+    channels:
+    - email
+    - telegram
+alerts:
+- id: alert-router-down
+  name: Router Down
+  description: MikroTik router is unreachable
+  trigger:
+    condition: ping_failed
+    target: 192.168.88.1
+    duration: 1m
+  severity: critical
+  channels:
+  - email
+  - telegram
+  escalation:
+    enabled: true
+    delay: 5m
+- id: alert-internet-down
+  name: Internet Down
+  description: No internet connectivity
+  trigger:
+    condition: all_checks_failed
+    healthcheck_ref: net-mon-internet
+    duration: 2m
+  severity: critical
+  channels:
+  - email
+  - telegram
+- id: alert-lte-failover-active
+  name: LTE Failover Active
+  description: Primary WAN failed, using LTE backup
+  trigger:
+    condition: failover_active
+    primary: ether1
+    backup: lte1
+  severity: warning
+  channels:
+  - email
+  - telegram
+- id: alert-disk-full
+  name: Disk Space Critical
+  description: Disk usage exceeds 90%
+  trigger:
+    condition: disk_usage > 90%
+    duration: 5m
+  severity: critical
+  channels:
+  - email
+  escalation:
+    enabled: true
+    delay: 15m
+- id: alert-service-down
+  name: Critical Service Down
+  description: A critical service is not running
+  trigger:
+    condition: service_status != 'running'
+    services:
+    - postgresql
+    - redis
+    - nextcloud
+    - adguard
+    duration: 2m
+  severity: critical
+  channels:
+  - email
+  - telegram
+  escalation:
+    enabled: true
+    delay: 5m
+- id: alert-memory-critical
+  name: Memory Usage Critical
+  description: Memory usage exceeds 95%
+  trigger:
+    condition: memory_usage > 95%
+    duration: 5m
+  severity: critical
+  channels:
+  - email
+- id: alert-ups-on-battery
+  name: UPS On Battery
+  description: Power outage - UPS on battery
+  trigger:
+    condition: ups_status == 'OB'
+  severity: warning
+  channels:
+  - email
+  - telegram
+- id: alert-ups-low-battery
+  name: UPS Low Battery
+  description: UPS battery critically low
+  trigger:
+    condition: battery_charge < 30%
+  severity: critical
+  channels:
+  - email
+  - telegram
+- id: alert-temperature-high
+  name: High Temperature
+  description: Device temperature is high
+  trigger:
+    condition: temperature > 75
+    duration: 5m
+  severity: warning
+  channels:
+  - email
+- id: alert-backup-failed
+  name: Backup Failed
+  description: Backup job failed
+  trigger:
+    condition: backup_status == 'failed'
+  severity: warning
+  channels:
+  - email
+- id: alert-certificate-expiry
+  name: Certificate Expiring
+  description: SSL certificate expiring soon
+  trigger:
+    condition: cert_days_remaining < 14
+  severity: warning
+  channels:
+  - email
+notification_channels:
+- id: channel-email
+  name: Email Notifications
+  type: email
+  enabled: true
+  config:
+    smtp_server: smtp.gmail.com
+    smtp_port: 587
+    smtp_tls: true
+    smtp_user: '{{ vault_smtp_user }}'
+    smtp_password: '{{ vault_smtp_password }}'
+    from_address: homelab@home.local
+    to_addresses:
+    - admin@home.local
+  rate_limit:
+    max_per_hour: 20
+    cooldown_minutes: 5
+- id: channel-telegram
+  name: Telegram Notifications
+  type: telegram
+  enabled: true
+  config:
+    bot_token: '{{ vault_telegram_bot_token }}'
+    chat_id: '{{ vault_telegram_chat_id }}'
+  priority:
+  - critical
+  - warning
+  rate_limit:
+    max_per_hour: 30
+dashboards: []
+metrics: {}

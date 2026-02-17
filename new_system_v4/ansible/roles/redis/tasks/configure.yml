@@ -1,0 +1,41 @@
+---
+# Redis Configuration Tasks
+
+- name: Configure Redis
+  template:
+    src: redis.conf.j2
+    dest: /etc/redis/redis.conf
+    owner: redis
+    group: redis
+    mode: '0640'
+  notify: restart redis
+
+- name: Ensure Redis directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: redis
+    group: redis
+    mode: '0750'
+  loop:
+    - "{{ redis_dir }}"
+    - /var/log/redis
+
+- name: Configure Redis systemd override
+  template:
+    src: redis-server.service.j2
+    dest: /etc/systemd/system/redis-server.service.d/override.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart redis
+
+- name: Create Redis systemd override directory
+  file:
+    path: /etc/systemd/system/redis-server.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'

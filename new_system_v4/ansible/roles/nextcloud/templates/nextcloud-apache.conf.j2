@@ -1,0 +1,17 @@
+<VirtualHost *:{{ nextcloud_http_port }}>
+    ServerName {{ nextcloud_servername }}
+    DocumentRoot {{ nextcloud_install_dir }}
+
+    <Directory {{ nextcloud_install_dir }}>
+        Require all granted
+        AllowOverride All
+        Options FollowSymLinks MultiViews
+
+        <IfModule mod_dav.c>
+            Dav off
+        </IfModule>
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/nextcloud_error.log
+    CustomLog ${APACHE_LOG_DIR}/nextcloud_access.log combined
+</VirtualHost>

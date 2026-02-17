@@ -1,0 +1,29 @@
+---
+# Main Playbook - Home Lab Infrastructure
+# Orchestrates all service deployments
+
+- name: Configure Proxmox Host
+  hosts: proxmox
+  become: yes
+  gather_facts: yes
+  tags: [proxmox]
+
+  roles:
+    - role: proxmox
+      when: "'proxmox' in group_names"
+
+- name: Common Configuration (All Hosts)
+  import_playbook: common.yml
+  tags: [common]
+
+- name: Configure PostgreSQL Database
+  import_playbook: postgresql.yml
+  tags: [postgresql, database]
+
+- name: Configure Redis Cache
+  import_playbook: redis.yml
+  tags: [redis, cache]
+
+- name: Configure Nextcloud
+  import_playbook: nextcloud.yml
+  tags: [nextcloud, web]

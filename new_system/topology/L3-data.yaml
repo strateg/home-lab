@@ -1,0 +1,217 @@
+# Layer 3: Data - Storage and backup
+# Part of Home Lab Topology v4.0.0 (OSI-Layer Architecture)
+# Dependencies: L1 (device_ref, disk_ref), L2 (network access)
+# Provides: storage_id, backup_policy_id for upper layers
+# Edit this file then regenerate: python3 scripts/regenerate-all.py
+
+storage_pools:
+- id: storage-local
+  name: local
+  type: dir
+  path: /var/lib/vz
+  content:
+  - vztmpl
+  - iso
+  - backup
+  device_ref: gamayun
+  disk_ref: disk-ssd-system
+  shared: false
+  maxfiles: 0
+  description: Local directory storage on SSD
+- id: storage-lvm
+  name: local-lvm
+  type: lvmthin
+  vgname: pve
+  thinpool: data
+  content:
+  - images
+  - rootdir
+  device_ref: gamayun
+  disk_ref: disk-ssd-system
+  shared: false
+  description: SSD 180GB - Production VMs and LXC thin pool
+- id: storage-hdd
+  name: local-hdd
+  type: dir
+  path: /mnt/hdd
+  content:
+  - backup
+  - iso
+  - vztmpl
+  - snippets
+  device_ref: gamayun
+  disk_ref: disk-hdd-data
+  shared: false
+  maxfiles: 0
+  prune_backups:
+    keep_last: 3
+    keep_daily: 7
+    keep_weekly: 4
+    keep_monthly: 6
+    keep_yearly: 1
+  description: HDD 500GB - Backups, ISOs, Templates
+backup_policies:
+- id: backup-mikrotik-config
+  name: MikroTik Config Backup
+  description: Export RouterOS configuration to Git repository
+  targets:
+  - device_ref: mikrotik-chateau
+  type: config-export
+  schedule: 0 4 * * *
+  method: routeros-export
+  export_format: rsc
+  destination:
+    type: git
+    repository: /home/dmpr/workspaces/projects/home-lab/backups/mikrotik
+    branch: main
+    commit_message: Automated MikroTik config backup - {{ date }}
+  retention:
+    keep_commits: 90
+  verification:
+    syntax_check: true
+  notification:
+    on_success: false
+    on_failure: true
+    channels:
+    - email
+- id: backup-orangepi5-data
+  name: Orange Pi 5 Data Backup
+  description: Backup Docker volumes and NVMe data to Proxmox HDD
+  targets:
+  - device_ref: orangepi5
+  type: rsync
+  schedule: 0 3 * * *
+  source_paths:
+  - /mnt/nvme/nextcloud
+  - /mnt/nvme/jellyfin/config
+  - /mnt/nvme/grafana
+  - /mnt/nvme/prometheus
+  - /mnt/nvme/homeassistant
+  destination:
+    type: rsync
+    target: root@192.168.88.2:/mnt/hdd/backups/orangepi5
+    ssh_key: /root/.ssh/id_ed25519
+  options:
+    incremental: true
+    compress: true
+    delete_old: false
+    bandwidth_limit_kbps: 50000
+  retention:
+    keep_daily: 7
+    keep_weekly: 4
+  notification:
+    on_success: false
+    on_failure: true
+    channels:
+    - email
+- id: backup-hourly-postgresql
+  name: Hourly PostgreSQL Backups
+  description: Hourly pg_dump for critical database
+  targets:
+  - lxc_ref: lxc-postgresql
+  type: pg_dump
+  schedule: 0 * * * *
+  databases:
+  - nextcloud
+  - homelab
+  destination:
+    storage_ref: storage-hdd
+    path: /mnt/hdd/backups/postgresql
+  compression: zstd
+  retention:
+    keep_last: 24
+    keep_daily: 7
+  notification:
+    on_success: false
+    on_failure: true
+    channels:
+    - email
+- id: backup-daily-postgresql-lxc
+  name: Daily PostgreSQL LXC Snapshot
+  description: Full LXC snapshot for disaster recovery
+  targets:
+  - lxc_ref: lxc-postgresql
+  type: vzdump
+  schedule: 0 2 * * *
+  storage_ref: storage-hdd
+  mode: snapshot
+  compression: zstd
+  retention:
+    keep_last: 3
+    keep_daily: 7
+    keep_weekly: 4
+  notification:
+    on_success: false
+    on_failure: true
+    channels:
+    - email
+- id: backup-daily-redis
+  name: Daily Redis Backup
+  description: Daily backup of Redis LXC
+  targets:
+  - lxc_ref: lxc-redis
+  type: vzdump
+  schedule: 0 2 30 * * *
+  storage_ref: storage-hdd
+  mode: snapshot
+  compression: zstd
+  retention:
+    keep_last: 3
+    keep_daily: 7
+  notification:
+    on_success: false
+    on_failure: true
+    channels:
+    - email
+- id: backup-weekly-full
+  name: Weekly Full Infrastructure Backup
+  description: Complete weekly backup of all LXC containers
+  targets:
+  - lxc_ref: lxc-postgresql
+  - lxc_ref: lxc-redis
+  type: vzdump
+  schedule: 0 1 * * 0
+  storage_ref: storage-hdd
+  mode: snapshot
+  compression: zstd
+  retention:
+    keep_last: 4
+    keep_weekly: 8
+    keep_monthly: 6
+  notification:
+    on_success: true
+    on_failure: true
+    channels:
+    - email
+- id: backup-offsite-weekly
+  name: Weekly Offsite Backup
+  description: Critical data to cloud storage (encrypted)
+  targets:
+  - postgresql-dumps
+  - mikrotik-config
+  - nextcloud-data
+  type: rclone
+  schedule: 0 5 * * 0
+  source_paths:
+  - /mnt/hdd/backups/postgresql
+  - /mnt/hdd/backups/mikrotik
+  - /mnt/hdd/backups/orangepi5/nextcloud
+  destination:
+    type: cloud
+    provider: backblaze-b2
+    bucket: homelab-backups
+    path: /weekly
+  encryption:
+    enabled: true
+    method: rclone-crypt
+    password_file: /root/.config/rclone/crypt-password
+  retention:
+    keep_weekly: 8
+    keep_monthly: 6
+  notification:
+    on_success: true
+    on_failure: true
+    channels:
+    - email
+backup_schedule: {}
+retention: {}

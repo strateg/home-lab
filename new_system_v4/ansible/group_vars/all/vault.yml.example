@@ -1,0 +1,155 @@
+---
+# Ansible Vault Variables (EXAMPLE - DO NOT COMMIT REAL SECRETS)
+#
+# This file shows the structure of vault.yml (encrypted)
+#
+# To create your actual vault.yml:
+#   1. Copy this file: cp vault.yml.example vault.yml
+#   2. Edit with real secrets: vim vault.yml
+#   3. Encrypt it: ansible-vault encrypt vault.yml
+#   4. NEVER commit unencrypted vault.yml to git!
+#
+# To edit encrypted vault:
+#   ansible-vault edit group_vars/all/vault.yml
+
+# ============================================================
+# Proxmox VE
+# ============================================================
+
+# Proxmox API Token (for Terraform)
+# Format: USER@REALM!TOKENID=UUID
+# Generate: pvesh create /access/users/root@pam/token/terraform
+vault_proxmox_api_token: "root@pam!terraform=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Proxmox API Token Secret
+vault_proxmox_api_secret: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+# Proxmox root password (if needed for direct access)
+vault_proxmox_root_password: "CHANGEME_STRONG_PASSWORD"
+
+# ============================================================
+# PostgreSQL Database
+# ============================================================
+
+# PostgreSQL superuser (postgres) password
+vault_postgresql_superuser_password: "CHANGEME_POSTGRES_SUPER_PASSWORD"
+
+# PostgreSQL application user password
+vault_postgresql_app_password: "CHANGEME_APP_DB_PASSWORD"
+
+# PostgreSQL replication password (if using replication)
+vault_postgresql_replication_password: "CHANGEME_REPLICATION_PASSWORD"
+
+# ============================================================
+# Nextcloud
+# ============================================================
+
+# Nextcloud admin user password
+vault_nextcloud_admin_password: "CHANGEME_NEXTCLOUD_ADMIN_PASSWORD"
+
+# Nextcloud database user password
+vault_nextcloud_db_password: "CHANGEME_NEXTCLOUD_DB_PASSWORD"
+
+# Nextcloud instance ID (random string)
+vault_nextcloud_instanceid: "oc_CHANGEME_RANDOM_STRING"
+
+# Nextcloud secret (for encryption)
+vault_nextcloud_secret: "CHANGEME_NEXTCLOUD_SECRET_KEY"
+
+# ============================================================
+# Redis
+# ============================================================
+
+# Redis password (requirepass)
+vault_redis_password: "CHANGEME_REDIS_PASSWORD"
+
+# ============================================================
+# OPNsense
+# ============================================================
+
+# OPNsense root password
+vault_opnsense_root_password: "CHANGEME_OPNSENSE_ROOT_PASSWORD"
+
+# OPNsense API credentials
+vault_opnsense_api_key: "CHANGEME_API_KEY"
+vault_opnsense_api_secret: "CHANGEME_API_SECRET"
+
+# ============================================================
+# SSH Keys
+# ============================================================
+
+# Private SSH key for automation (if stored in vault)
+# vault_ssh_private_key: |
+#   -----BEGIN OPENSSH PRIVATE KEY-----
+#   ...
+#   -----END OPENSSH PRIVATE KEY-----
+
+# ============================================================
+# VPN Configurations
+# ============================================================
+
+# WireGuard private key (home VPN)
+vault_wireguard_home_private_key: "CHANGEME_WG_PRIVATE_KEY="
+
+# AmneziaWG private key (russia VPN)
+vault_amneziawg_russia_private_key: "CHANGEME_AWG_PRIVATE_KEY="
+
+# ============================================================
+# Email Notifications
+# ============================================================
+
+# SMTP credentials for email alerts
+vault_smtp_user: "admin@home.local"
+vault_smtp_password: "CHANGEME_SMTP_PASSWORD"
+vault_smtp_server: "smtp.gmail.com"
+vault_smtp_port: 587
+
+# Email recipient for alerts
+vault_alert_email: "admin@example.com"
+
+# ============================================================
+# Backup Encryption
+# ============================================================
+
+# Backup encryption password (for encrypted backups)
+vault_backup_encryption_password: "CHANGEME_BACKUP_ENCRYPTION_KEY"
+
+# ============================================================
+# SSL/TLS Certificates
+# ============================================================
+
+# Let's Encrypt account email
+vault_letsencrypt_email: "admin@example.com"
+
+# Wildcard certificate key (if using self-signed)
+# vault_ssl_private_key: |
+#   -----BEGIN PRIVATE KEY-----
+#   ...
+#   -----END PRIVATE KEY-----
+
+# ============================================================
+# Third-party Services
+# ============================================================
+
+# Telegram Bot Token (for notifications)
+vault_telegram_bot_token: "1234567890:CHANGEME_TELEGRAM_BOT_TOKEN"
+vault_telegram_chat_id: "CHANGEME_CHAT_ID"
+
+# Cloudflare API Token (for DNS challenges)
+vault_cloudflare_api_token: "CHANGEME_CLOUDFLARE_TOKEN"
+
+# ============================================================
+# Password Generation Examples
+# ============================================================
+#
+# Generate strong passwords:
+#   openssl rand -base64 32
+#   pwgen -s 64 1
+#
+# Generate WireGuard keys:
+#   wg genkey
+#
+# Generate random hex:
+#   openssl rand -hex 32
+#
+# ============================================================

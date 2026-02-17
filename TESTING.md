@@ -445,8 +445,10 @@ echo "Proxmox role tests passed!"
 
 1. **Bare-metal Installation**
    ```bash
-   # Create USB
-   sudo ./bare-metal/create-usb.sh /dev/sdb proxmox-ve_9.0-1.iso
+   # Create USB (use wrapper or main script)
+   cd new_system/bare-metal/
+   sudo ./run-create-usb.sh  # Interactive
+   # Or: sudo ./create-uefi-autoinstall-proxmox-usb.sh /dev/sdb proxmox-ve_9.0-1.iso
 
    # Boot and install (manual step)
    # Wait for installation to complete (~15 minutes)

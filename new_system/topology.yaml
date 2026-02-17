@@ -1,0 +1,28 @@
+# Home Lab Topology v4.0.0 - OSI-Layer Architecture
+#
+# This file uses !include directives to load modular layer files.
+# Layers are processed in order L0 → L7 (dependencies resolved bottom-up).
+#
+# Layer Structure:
+#   L0: Meta        - version, defaults, policies
+#   L1: Foundation  - physical devices, interfaces
+#   L2: Network     - networks, bridges, firewall
+#   L3: Data        - storage, backup policies
+#   L4: Platform    - VMs, LXC containers
+#   L5: Application - services, certificates
+#   L6: Observability - monitoring, alerts
+#   L7: Operations  - workflows, documentation
+#
+# Edit layer files then regenerate: python3 scripts/regenerate-all.py
+
+version: "4.0.0"
+
+# Load layers in dependency order
+meta: !include topology/L0-meta.yaml
+foundation: !include topology/L1-foundation.yaml
+network: !include topology/L2-network.yaml
+data: !include topology/L3-data.yaml
+platform: !include topology/L4-platform.yaml
+application: !include topology/L5-application.yaml
+observability: !include topology/L6-observability.yaml
+operations: !include topology/L7-operations.yaml

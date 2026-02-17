@@ -1,0 +1,42 @@
+# Home Lab Network Topology v3.0 - Modular Structure
+# Infrastructure-as-Data: Single Source of Truth
+# Used to generate: Terraform configs, Ansible inventory, network diagrams, documentation
+#
+# This is the main topology file that includes all modular components.
+# Edit individual files in topology/ directory and use generators.
+#
+# Architecture v3.0:
+# - MikroTik Chateau LTE7 ax: Central router, firewall, WiFi, LTE failover, containers
+# - Orange Pi 5: Application server (Nextcloud, Jellyfin, monitoring)
+# - Proxmox: Database LXC (PostgreSQL, Redis) + dev/lab VMs
+# - GL.iNet Slate AX: Travel router only
+#
+# Principles:
+# - Network resilience: critical services survive node failures
+# - Modular structure for better maintainability
+# - Clear separation: physical_topology, logical_topology, compute, services
+# - ID-based references (not hardcoded IPs)
+# - Trust zones for security automation
+# - Dynamic IP generation friendly
+
+version: "3.0.0"
+
+# ============================================================
+# Modular Components
+# ============================================================
+# Each section is imported from topology/ directory
+# Edit topology/*.yaml files to modify infrastructure
+
+metadata: !include topology/metadata.yaml
+physical_topology: !include topology/physical.yaml
+logical_topology: !include topology/logical.yaml
+compute: !include topology/compute.yaml
+storage: !include topology/storage.yaml
+services: !include topology/services.yaml
+ansible: !include topology/ansible.yaml
+workflows: !include topology/workflows.yaml
+security: !include topology/security.yaml
+backup: !include topology/backup.yaml
+monitoring: !include topology/monitoring.yaml
+documentation: !include topology/documentation.yaml
+notes: !include topology/notes.yaml

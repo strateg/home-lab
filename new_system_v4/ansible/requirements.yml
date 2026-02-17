@@ -1,0 +1,112 @@
+# Ansible Galaxy Requirements
+# Collections and Roles dependencies
+
+# ============================================================
+# Collections
+# ============================================================
+
+collections:
+  # Community General Collection
+  # https://galaxy.ansible.com/community/general
+  - name: community.general
+    version: ">=7.0.0"
+
+  # Ansible Posix Collection
+  # https://galaxy.ansible.com/ansible/posix
+  - name: ansible.posix
+    version: ">=1.5.0"
+
+  # Community Crypto Collection (for SSL certificates)
+  # https://galaxy.ansible.com/community/crypto
+  - name: community.crypto
+    version: ">=2.15.0"
+
+  # Community Docker Collection
+  # https://galaxy.ansible.com/community/docker
+  - name: community.docker
+    version: ">=3.4.0"
+
+  # Community PostgreSQL Collection
+  # https://galaxy.ansible.com/community/postgresql
+  - name: community.postgresql
+    version: ">=3.2.0"
+
+  # Community MySQL Collection
+  # https://galaxy.ansible.com/community/mysql
+  - name: community.mysql
+    version: ">=3.7.0"
+
+  # Community Grafana Collection
+  # https://galaxy.ansible.com/community/grafana
+  - name: community.grafana
+    version: ">=1.6.0"
+
+  # Prometheus Collection
+  # https://galaxy.ansible.com/prometheus/prometheus
+  - name: prometheus.prometheus
+    version: ">=0.13.0"
+
+# ============================================================
+# Roles (optional)
+# ============================================================
+
+roles:
+  # Geerlingguy roles (highly popular and well-maintained)
+
+  # PostgreSQL
+  - name: geerlingguy.postgresql
+    version: "3.4.6"
+
+  # Redis
+  - name: geerlingguy.redis
+    version: "1.8.0"
+
+  # Docker
+  - name: geerlingguy.docker
+    version: "7.0.2"
+
+  # Nginx
+  - name: geerlingguy.nginx
+    version: "3.1.4"
+
+  # Security (fail2ban, firewall)
+  - name: geerlingguy.security
+    version: "2.3.1"
+
+  # Git
+  - name: geerlingguy.git
+    version: "3.2.0"
+
+# ============================================================
+# Installation
+# ============================================================
+#
+# Install all requirements:
+#   ansible-galaxy install -r requirements.yml
+#
+# Install collections only:
+#   ansible-galaxy collection install -r requirements.yml
+#
+# Install roles only:
+#   ansible-galaxy role install -r requirements.yml
+#
+# Force reinstall:
+#   ansible-galaxy install -r requirements.yml --force
+#
+# Install to custom path:
+#   ansible-galaxy install -r requirements.yml -p ./roles
+#
+# ============================================================
+# Upgrade
+# ============================================================
+#
+# Upgrade all:
+#   ansible-galaxy install -r requirements.yml --force
+#
+# List installed collections:
+#   ansible-galaxy collection list
+#
+# List installed roles:
+#   ansible-galaxy role list
+#
+# ============================================================
