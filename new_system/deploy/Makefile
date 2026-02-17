@@ -19,11 +19,12 @@
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
 .PHONY: configure test bootstrap-info
 
-# Directories
-TOPOLOGY_DIR := ..
-SCRIPTS_DIR := $(TOPOLOGY_DIR)/scripts
-GENERATED_DIR := $(TOPOLOGY_DIR)/generated
-ANSIBLE_DIR := $(TOPOLOGY_DIR)/ansible
+# Directories (relative to deploy/)
+ROOT_DIR := $(shell cd .. && pwd)
+TOPOLOGY_DIR := $(ROOT_DIR)
+SCRIPTS_DIR := $(ROOT_DIR)/scripts
+GENERATED_DIR := $(ROOT_DIR)/generated
+ANSIBLE_DIR := $(ROOT_DIR)/ansible
 
 # Colors
 GREEN := \033[0;32m
@@ -73,7 +74,7 @@ help:
 
 validate:
 	@echo "$(YELLOW)📋 Validating topology...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 $(SCRIPTS_DIR)/validate-topology.py
+	cd $(TOPOLOGY_DIR) && python3 scripts/validate-topology.py
 	@echo "$(GREEN)✓ Topology validation passed$(NC)"
 
 generate: generate-terraform generate-mikrotik generate-ansible generate-docs
@@ -81,19 +82,19 @@ generate: generate-terraform generate-mikrotik generate-ansible generate-docs
 
 generate-terraform:
 	@echo "$(YELLOW)📝 Generating Terraform (Proxmox)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 $(SCRIPTS_DIR)/generate-terraform.py
+	cd $(TOPOLOGY_DIR) && python3 scripts/generate-terraform.py
 
 generate-mikrotik:
 	@echo "$(YELLOW)📝 Generating Terraform (MikroTik)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 $(SCRIPTS_DIR)/generate-terraform-mikrotik.py
+	cd $(TOPOLOGY_DIR) && python3 scripts/generate-terraform-mikrotik.py
 
 generate-ansible:
 	@echo "$(YELLOW)📝 Generating Ansible inventory...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 $(SCRIPTS_DIR)/generate-ansible-inventory.py
+	cd $(TOPOLOGY_DIR) && python3 scripts/generate-ansible-inventory.py
 
 generate-docs:
 	@echo "$(YELLOW)📝 Generating documentation...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 $(SCRIPTS_DIR)/generate-docs.py || true
+	cd $(TOPOLOGY_DIR) && python3 scripts/generate-docs.py || true
 
 # =============================================================================
 # Terraform Planning
