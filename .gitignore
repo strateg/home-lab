@@ -1,187 +1,147 @@
-# Infrastructure as Code - Home Lab
-# Created: 2025-10-06
 
-# ============================================================
-# Terraform
-# ============================================================
-
-# Local .terraform directories
-**/.terraform/*
-
-# .tfstate files
-*.tfstate
-*.tfstate.*
-
-# Crash log files
-crash.log
-crash.*.log
-
-# Exclude all .tfvars files, which are likely to contain sensitive data
-*.tfvars
-*.tfvars.json
-
-# Ignore override files as they are usually used to override resources locally
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-
-# Include override files you do wish to add to version control using negation pattern
+!**/vault.yml.example
+!*.pub
+!*.tfvars.example
+!.gitkeep
+!/tmp/.gitkeep
 # !example_override.tf
-
-# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
-*tfplan*
-
-# Ignore CLI configuration files
-.terraformrc
-terraform.rc
-
+# .tfstate files
 # ============================================================
-# Ansible
-# ============================================================
-
-# Ansible vault password files
-.vault_pass
-*.vault
-
-# Retry files
-*.retry
-
-# Dynamic inventory
-inventory/*/ec2.ini
-inventory/*/ec2.py
-
-# Galaxy roles
-roles/external/
-
-# ============================================================
-# SSH Keys
-# ============================================================
-
-*.pem
-*.key
-*_rsa
-*_rsa.pub
-id_*
-*.ppk
-
-# ============================================================
-# Secrets & Credentials
-# ============================================================
-
-# Environment files
-.env
-.env.*
-
-# Credentials
-credentials.json
-secrets.yml
-secrets.yaml
-*_credentials.yml
-*_credentials.yaml
-
 # API tokens
-*.token
-api_keys.txt
-
-# ============================================================
-# Proxmox / Virtual Machines
-# ============================================================
-
-# ISO images
-*.iso
-
-# VM disk images
-*.qcow2
-*.vmdk
-*.vdi
-
-# Templates (too large for git)
-*.tar.gz
-*.tar.zst
-
-# Cloud-init user-data with secrets
-user-data-*.yml
-
-# ============================================================
+# Ansible
+# Ansible Vault password files and encrypted secrets
+# Ansible vault password files
 # Backups
-# ============================================================
-
-backups/
+# Build artifacts
+# Can be removed after complete migration to new_system/
+# Cloud-init user-data with secrets
+# Compressed archives
+# Crash log files
+# Created: 2025-10-06
+# Credentials
+# Downloaded packages
+# Dynamic inventory
+# Encrypted vault files (keep .example files)
+# Environment files
+# Environment files with secrets
+# Exclude all .tfvars files, which are likely to contain sensitive data
+# Galaxy roles
+# Generated files - DO NOT COMMIT
+# IDE
+# IDEs
+# ISO images
+# Ignore CLI configuration files
+# Ignore override files as they are usually used to override resources locally
+# Include override files you do wish to add to version control using negation pattern
+# Include tfplan files to ignore the plan output of command: terraform plan -out=tfplan
+# Infrastructure as Code - Home Lab
+# Keep empty directories
+# Linux
+# Local .terraform directories
+# Logs
+# OS
+# OS / IDE
+# Old system (legacy, kept for reference)
+# Project-specific
+# Proxmox / Virtual Machines
+# Python cache
+# Retry files
+# SSH Keys
+# SSH private keys
+# Secrets & Credentials
+# Templates (too large for git)
+# Temporary files
+# Terraform
+# Terraform state files (if accidentally created outside generated/)
+# These files are auto-generated from topology.yaml
+# VM disk images
+# Windows
+# macOS
+*$py.class
+**/.terraform/*
+**/vault.yml
 *.backup
 *.bak
-*.old
-*.dump
-*.sql
-
-# Compressed archives
-*.zip
-*.tar
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-
-# ============================================================
-# Logs
-# ============================================================
-
-*.log
-logs/
-*.log.*
-
-# ============================================================
-# OS / IDE
-# ============================================================
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Linux
-*~
-.directory
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# ============================================================
-# Temporary files
-# ============================================================
-
-/tmp/*
-!/tmp/.gitkeep
-temp/
-*.tmp
-
-# ============================================================
-# Project-specific
-# ============================================================
-
-# Old system (legacy, kept for reference)
-# Can be removed after complete migration to new_system/
-
-# Downloaded packages
 *.deb
-*.rpm
+*.dump
 *.ipk
-
-# Build artifacts
+*.iso
+*.key
+*.log
+*.log.*
+*.old
+*.pem
+*.ppk
+*.py[cod]
+*.qcow2
+*.retry
+*.rpm
+*.secret
+*.so
+*.sql
+*.swo
+*.swp
+*.tar
+*.tar.bz2
+*.tar.gz
+*.tar.xz
+*.tar.zst
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.tmp
+*.token
+*.vault
+*.vdi
+*.vmdk
+*.zip
+*_credentials.yaml
+*_credentials.yml
+*_override.tf
+*_override.tf.json
+*_rsa
+*_rsa.pub
+*tfplan*
+*~
+.*.bak
+.AppleDouble
+.DS_Store
+.LSOverride
+.Python
+.directory
+.env
+.env.*
+.env.local
+.idea/
+.terraform.lock.hcl
+.terraform/
+.terraformrc
+.vault_pass
+.vault_password
+.vscode/
+/tmp/*
+Desktop.ini
+Thumbs.db
+__pycache__/
+api_keys.txt
+backups/
 build/
+crash.*.log
+crash.log
+credentials.json
 dist/
-
-# ============================================================
-# Keep empty directories
-# ============================================================
-
-!.gitkeep
+ehthumbs.db
+generated/
+id_*
+inventory/*/ec2.ini
+inventory/*/ec2.py
 logs/
+override.tf
+override.tf.json
+roles/external/
+secrets.yaml
+secrets.yml
+temp/
+terraform.rc
+user-data-*.yml

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture Overview
 
-This is an **Infrastructure-as-Data** home lab project using **OSI-like layer architecture (v4.0)**. The topology is defined in **8 layer files** (L0-L7) in `new_system_v4/topology/` directory, with `topology.yaml` as the main entry point. This is the **canonical source of truth** that generates:
+This is an **Infrastructure-as-Data** home lab project using **OSI-like layer architecture (v4.0)**. The topology is defined in **8 layer files** (L0-L7) in `topology/` directory, with `topology.yaml` as the main entry point. This is the **canonical source of truth** that generates:
 - Terraform configurations (Proxmox infrastructure)
 - Terraform configurations (MikroTik RouterOS)
 - Ansible inventory and variables
@@ -59,43 +59,42 @@ topology/
 
 ```
 home-lab/
-├── new_system_v4/             # Infrastructure-as-Data (v4 OSI-layer)
-│   ├── topology.yaml          # Main entry point with !include
-│   ├── topology/              # OSI-like layer files (8 files)
-│   │   ├── L0-meta.yaml       # Meta layer
-│   │   ├── L1-foundation.yaml # Physical devices
-│   │   ├── L2-network.yaml    # Networks, bridges, firewall
-│   │   ├── L3-data.yaml       # Storage
-│   │   ├── L4-platform.yaml   # VMs, LXC
-│   │   ├── L5-application.yaml# Services
-│   │   ├── L6-observability.yaml # Monitoring
-│   │   └── L7-operations.yaml # Workflows, backup
-│   ├── scripts/               # Generators (Python)
-│   │   ├── topology_loader.py
-│   │   ├── generate-terraform.py
-│   │   ├── generate-terraform-mikrotik.py
-│   │   ├── generate-ansible-inventory.py
-│   │   ├── generate-docs.py
-│   │   ├── validate-topology.py
-│   │   └── regenerate-all.py
-│   ├── generated/             # Auto-generated (DO NOT EDIT)
-│   │   ├── terraform/         # Proxmox Terraform
-│   │   ├── terraform-mikrotik/# MikroTik Terraform
-│   │   ├── ansible/inventory/ # Ansible inventory
-│   │   └── docs/              # Documentation
-│   ├── terraform -> generated/terraform/  # Symlink
-│   ├── ansible/               # Playbooks and roles (manual)
-│   │   ├── playbooks/
-│   │   └── roles/
-│   ├── bare-metal/            # Proxmox USB auto-install
-│   ├── bootstrap/mikrotik/    # MikroTik initial setup
-│   ├── deploy/                # Deployment orchestration
-│   │   ├── Makefile
-│   │   └── phases/
-│   ├── docs/                  # Manual documentation
-│   └── schemas/               # JSON Schema validation
-├── old_system/                # Legacy (archived)
-└── archive/                   # Legacy code archives
+├── topology.yaml              # Main entry point with !include
+├── topology/                  # OSI-like layer files (8 files)
+│   ├── L0-meta.yaml           # Meta layer
+│   ├── L1-foundation.yaml     # Physical devices
+│   ├── L2-network.yaml        # Networks, bridges, firewall
+│   ├── L3-data.yaml           # Storage
+│   ├── L4-platform.yaml       # VMs, LXC
+│   ├── L5-application.yaml    # Services
+│   ├── L6-observability.yaml  # Monitoring
+│   └── L7-operations.yaml     # Workflows, backup
+├── scripts/                   # Generators (Python)
+│   ├── topology_loader.py
+│   ├── generate-terraform.py
+│   ├── generate-terraform-mikrotik.py
+│   ├── generate-ansible-inventory.py
+│   ├── generate-docs.py
+│   ├── validate-topology.py
+│   └── regenerate-all.py
+├── generated/                 # Auto-generated (DO NOT EDIT)
+│   ├── terraform/             # Proxmox Terraform
+│   ├── terraform-mikrotik/    # MikroTik Terraform
+│   ├── ansible/inventory/     # Ansible inventory
+│   └── docs/                  # Documentation
+├── terraform -> generated/terraform/  # Symlink
+├── ansible/                   # Playbooks and roles (manual)
+│   ├── playbooks/
+│   └── roles/
+├── bare-metal/                # Proxmox USB auto-install
+├── bootstrap/mikrotik/        # MikroTik initial setup
+├── deploy/                    # Deployment orchestration
+│   ├── Makefile
+│   └── phases/
+├── docs/                      # Manual documentation
+├── schemas/                   # JSON Schema validation
+├── configs/                   # Device configs (GL.iNet, VPN)
+└── Migrated_and_archived/     # Legacy code (archived)
 ```
 
 ## Common Workflows
@@ -105,8 +104,6 @@ home-lab/
 **ALWAYS edit layer files first, then regenerate:**
 
 ```bash
-cd new_system_v4
-
 # 1. Edit the relevant layer
 vim topology/L4-platform.yaml      # Add/modify VMs or LXC
 vim topology/L2-network.yaml       # Add/modify networks or bridges
@@ -137,7 +134,7 @@ ansible-playbook playbooks/site.yml
 ### 2. Using Makefile (Recommended)
 
 ```bash
-cd new_system_v4/deploy
+cd deploy
 
 # Validate topology
 make validate
@@ -159,8 +156,6 @@ make configure  # Ansible
 ### 3. Deploy New LXC Container
 
 ```bash
-cd new_system_v4
-
 # 1. Add to topology/L4-platform.yaml under 'lxc:' section
 vim topology/L4-platform.yaml
 
@@ -183,7 +178,7 @@ ansible-playbook playbooks/new-service.yml
 
 ```bash
 # 1. Create bootable USB
-cd new_system_v4/bare-metal
+cd bare-metal
 sudo ./run-create-usb.sh  # Interactive wrapper
 
 # 2. Boot and auto-install (15 min, automatic)
@@ -201,7 +196,7 @@ reboot
 # 4. Copy repository and deploy
 scp -r ~/home-lab root@10.0.99.1:/root/
 ssh root@10.0.99.1
-cd /root/home-lab/new_system_v4
+cd /root/home-lab
 python3 scripts/regenerate-all.py
 cd deploy && make deploy-all
 ```
@@ -301,7 +296,6 @@ Internet (LTE/WAN)
 
 Always regenerate after editing any `topology/L*.yaml` file:
 ```bash
-cd new_system_v4
 python3 scripts/regenerate-all.py
 ```
 
@@ -342,14 +336,14 @@ generated/
 ### DON'T: Edit generated files
 ```bash
 # Wrong:
-vim new_system_v4/generated/terraform/bridges.tf  # Will be overwritten!
+vim generated/terraform/bridges.tf  # Will be overwritten!
 ```
 
 ### DO: Edit layer files and regenerate
 ```bash
 # Correct:
-vim new_system_v4/topology/L2-network.yaml
-python3 new_system_v4/scripts/regenerate-all.py
+vim topology/L2-network.yaml
+python3 scripts/regenerate-all.py
 ```
 
 ### DON'T: Reference higher layers from lower
