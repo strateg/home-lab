@@ -410,9 +410,9 @@ jobs:
 - [x] ✅ Implement validate-topology.py
 - [x] ✅ Implement generate-terraform.py (with versions.tf and outputs.tf generation)
 - [x] ✅ Implement generate-ansible-inventory.py
-- [x] ✅ Create Jinja2 templates (terraform/*, ansible/*)
-- [x] ✅ Create JSON schema for validation (schemas/topology-v2-schema.json)
+- [x] ✅ Implement generate-docs.py
+- [x] ✅ Create Jinja2 templates (terraform/*, ansible/*, docs/*)
+- [x] ✅ Create JSON schema for validation (schemas/topology-v3-schema.json)
 - [x] ✅ Create end-to-end test workflow (test-regeneration.sh)
-- [ ] 🚧 Implement generate-docs.py (planned)
 - [ ] 🚧 Add unit tests for generators (planned)
 - [ ] 🚧 Add CI/CD validation workflow (planned)

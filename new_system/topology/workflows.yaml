@@ -10,7 +10,8 @@
     steps:
       - step: 1
         name: "Create bootable USB"
-        script: "bare-metal/create-usb.sh"
+        script: "bare-metal/run-create-usb.sh"
+        alternative: "bare-metal/create-uefi-autoinstall-proxmox-usb.sh"
         duration_min: 5
 
       - step: 2

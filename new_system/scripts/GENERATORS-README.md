@@ -367,8 +367,8 @@ jobs:
 
 ## 📚 References
 
-- **Topology Format**: See `topology.yaml` v2.0 structure
-- **Schema**: `schemas/topology-v2-schema.json` (JSON Schema v7)
+- **Topology Format**: See `topology.yaml` v3.0 structure
+- **Schema**: `schemas/topology-v3-schema.json` (JSON Schema v7)
 - **Validator**: `scripts/validate-topology.py`
 - **Regenerate All**: `scripts/regenerate-all.py` ⭐
 - **Migration Guide**: `MIGRATION-V1-TO-V2.md`

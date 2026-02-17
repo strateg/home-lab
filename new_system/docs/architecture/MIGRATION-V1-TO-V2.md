@@ -26,7 +26,7 @@ archive/
   ├── validate-topology-v1.1.py
   └── README.md
 schemas/
-  └── topology-v2-schema.json
+  └── topology-v3-schema.json
 scripts/
   └── validate-topology.py  (new JSON Schema v7 validator)
 ```
@@ -85,7 +85,7 @@ Reusable defaults for:
 **Benefits**: Reduced duplication, improved maintainability, consistency
 
 ### 5. ✅ JSON Schema v7 Validation
-- File: `schemas/topology-v2-schema.json` (819 lines)
+- File: `schemas/topology-v3-schema.json` (819 lines)
 - Type validation, enums, patterns, required fields
 - Reference consistency checking
 - Detailed error messages with paths
@@ -135,7 +135,7 @@ mv scripts/validate-with-schema.py scripts/validate-topology.py
 ```python
 # scripts/validate-topology.py
 parser.add_argument("--topology", default="topology.yaml")  # was topology-v2.0.yaml
-parser.add_argument("--schema", default="schemas/topology-v2-schema.json")
+parser.add_argument("--schema", default="schemas/topology-v3-schema.json")
 ```
 
 ### 5. Created Documentation
@@ -234,7 +234,7 @@ From TOPOLOGY-V2-ANALYSIS.md:
 
 - **Analysis**: `TOPOLOGY-V2-ANALYSIS.md` - 10 improvements identified
 - **Archive**: `archive/README.md` - Legacy files documentation
-- **Schema**: `schemas/topology-v2-schema.json` - JSON Schema v7
+- **Schema**: `schemas/topology-v3-schema.json` - JSON Schema v7
 - **Validator**: `scripts/validate-topology.py` - Validation tool
 
 ---

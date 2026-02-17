@@ -398,9 +398,9 @@ class SchemaValidator:
                             global_ips[ip_addr] = []
                         global_ips[ip_addr].append(('vm-config', vm_id))
 
-        # Warn about IPs that appear in multiple contexts
+        # Warn about IPs that appear in multiple contexts (2+ = potential conflict)
         for ip_addr, locations in global_ips.items():
-            if len(locations) > 2:  # More than 2 could indicate a real problem
+            if len(locations) >= 2:
                 loc_str = ', '.join([f"{net}:{dev}" for net, dev in locations])
                 self.warnings.append(f"IP {ip_addr} appears in {len(locations)} places: {loc_str}")
 
