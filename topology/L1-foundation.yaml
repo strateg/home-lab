@@ -12,6 +12,20 @@ locations:
   name: Portable
   type: mobile
   description: Travel or temporary deployments
+# Cloud locations
+- id: oracle-frankfurt
+  name: Oracle Cloud Frankfurt
+  type: cloud
+  provider: oracle
+  region: eu-frankfurt-1
+  description: Oracle Cloud Infrastructure - EU Frankfurt region (Always Free eligible)
+- id: hetzner-nuremberg
+  name: Hetzner Cloud Nuremberg
+  type: cloud
+  provider: hetzner
+  region: nbg1
+  description: Hetzner Cloud - Nuremberg datacenter
+
 devices:
 - id: gamayun
   name: Gamayun
@@ -405,6 +419,93 @@ devices:
   - WireGuard client to home network
   - Repeater mode for hotel WiFi
   - Portable VPN gateway
+
+# Cloud Servers
+- id: oracle-arm-frankfurt
+  name: Oracle Cloud ARM (Frankfurt)
+  type: cloud-vm
+  role: vpn-exit-node
+  location: oracle-frankfurt
+  description: Oracle Cloud Always Free ARM instance - Жар-птица (огненная птица, символ удачи)
+  cloud:
+    provider: oracle
+    region: eu-frankfurt-1
+    availability_zone: EU-FRANKFURT-1-AD-1
+    instance_type: VM.Standard.A1.Flex
+    vcpus: 4
+    memory_gb: 24
+    boot_volume_gb: 200
+    public_ip: true
+    ipv6: true
+    pricing:
+      tier: free
+      monthly_cost: 0
+      currency: EUR
+    tags:
+      purpose: vpn-exit-node
+      environment: production
+  specs:
+    cpu:
+      architecture: ARM64
+      model: Ampere Altra
+      cores: 4
+    memory:
+      total_gb: 24
+      type: DDR4
+  interfaces:
+  - id: if-oracle-public
+    name: ens3
+    type: ethernet
+    speed_mbps: 1000
+    role: wan
+    description: Primary public network interface
+  services:
+  - WireGuard VPN server (exit node for RU traffic)
+  - Tailscale relay node
+  - Optional: lightweight web services
+
+- id: hetzner-cx22-nuremberg
+  name: Hetzner CX22 (Nuremberg)
+  type: cloud-vm
+  role: cloud-server
+  location: hetzner-nuremberg
+  description: Hetzner Cloud entry-level VPS - Алконост (птица радости)
+  cloud:
+    provider: hetzner
+    region: nbg1
+    instance_type: cx22
+    vcpus: 2
+    memory_gb: 4
+    boot_volume_gb: 40
+    public_ip: true
+    ipv6: true
+    pricing:
+      tier: paid
+      monthly_cost: 4.35
+      currency: EUR
+    tags:
+      purpose: general-compute
+      environment: production
+  specs:
+    cpu:
+      architecture: x86_64
+      model: Intel Xeon
+      cores: 2
+    memory:
+      total_gb: 4
+      type: DDR4
+  interfaces:
+  - id: if-hetzner-public
+    name: eth0
+    type: ethernet
+    speed_mbps: 1000
+    role: wan
+    description: Primary public network interface
+  services:
+  - Backup VPN endpoint
+  - Remote development environment
+  - CI/CD runners
+
 ups:
 - id: ups-main
   name: Main UPS

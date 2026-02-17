@@ -18,11 +18,11 @@
   "definitions": {
     "DeviceType": {
       "type": "string",
-      "enum": ["hypervisor", "router", "sbc", "switch", "ap", "nas"]
+      "enum": ["hypervisor", "router", "sbc", "switch", "ap", "nas", "cloud-vm"]
     },
     "DeviceRole": {
       "type": "string",
-      "enum": ["compute", "central-gateway", "application-server", "travel-router", "storage-server", "backup-server"]
+      "enum": ["compute", "central-gateway", "application-server", "travel-router", "storage-server", "backup-server", "cloud-server", "vpn-exit-node"]
     },
     "InterfaceType": {
       "type": "string",
@@ -34,7 +34,16 @@
     },
     "LocationType": {
       "type": "string",
-      "enum": ["home-office", "mobile", "datacenter", "remote", "portable"]
+      "enum": ["home-office", "mobile", "datacenter", "remote", "portable", "cloud"]
+    },
+    "CloudProvider": {
+      "type": "string",
+      "enum": ["oracle", "hetzner", "aws", "gcp", "azure", "digitalocean", "vultr", "linode"]
+    },
+    "CloudRegion": {
+      "type": "string",
+      "description": "Cloud provider region/datacenter identifier",
+      "examples": ["eu-frankfurt-1", "fsn1", "eu-central-1", "europe-west1"]
     },
     "TrustZone": {
       "type": "string",
@@ -260,7 +269,37 @@
           "items": { "$ref": "#/definitions/Interface" }
         },
         "power": { "type": "object" },
-        "firmware": { "type": "object" }
+        "firmware": { "type": "object" },
+        "cloud": { "$ref": "#/definitions/CloudConfig" }
+      }
+    },
+    "CloudConfig": {
+      "type": "object",
+      "description": "Cloud-specific configuration for cloud-vm devices",
+      "required": ["provider", "region"],
+      "properties": {
+        "provider": { "$ref": "#/definitions/CloudProvider" },
+        "region": { "type": "string" },
+        "availability_zone": { "type": "string" },
+        "instance_type": { "type": "string" },
+        "vcpus": { "type": "integer", "minimum": 1 },
+        "memory_gb": { "type": "number", "minimum": 0.5 },
+        "boot_volume_gb": { "type": "integer", "minimum": 10 },
+        "public_ip": { "type": "boolean" },
+        "ipv6": { "type": "boolean" },
+        "vpc_id": { "type": "string" },
+        "subnet_id": { "type": "string" },
+        "security_groups": { "type": "array", "items": { "type": "string" } },
+        "ssh_key_name": { "type": "string" },
+        "pricing": {
+          "type": "object",
+          "properties": {
+            "tier": { "type": "string", "enum": ["free", "paid"] },
+            "monthly_cost": { "type": "number" },
+            "currency": { "type": "string", "default": "EUR" }
+          }
+        },
+        "tags": { "type": "object" }
       }
     },
     "Interface": {
@@ -283,7 +322,9 @@
         "id": { "$ref": "#/definitions/IdPattern" },
         "name": { "type": "string" },
         "type": { "$ref": "#/definitions/LocationType" },
-        "description": { "type": "string" }
+        "description": { "type": "string" },
+        "provider": { "$ref": "#/definitions/CloudProvider" },
+        "region": { "type": "string" }
       }
     },
     "Network": {

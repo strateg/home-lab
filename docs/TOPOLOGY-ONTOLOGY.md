@@ -11,10 +11,11 @@
 | `hypervisor` | Гипервизор для виртуализации | Proxmox VE |
 | `router` | Маршрутизатор/firewall | MikroTik, GL.iNet |
 | `sbc` | Single Board Computer | Orange Pi 5, Raspberry Pi |
+| `cloud-vm` | Облачная виртуальная машина | Oracle Cloud, Hetzner Cloud |
 
 ```yaml
 DeviceType:
-  enum: [hypervisor, router, sbc]
+  enum: [hypervisor, router, sbc, switch, ap, nas, cloud-vm]
 ```
 
 ### 2. Device Roles (L1)
@@ -25,10 +26,30 @@ DeviceType:
 | `central-gateway` | Центральный шлюз сети |
 | `application-server` | Сервер приложений |
 | `travel-router` | Портативный роутер |
+| `cloud-server` | Облачный сервер |
+| `vpn-exit-node` | VPN exit node для обхода блокировок |
 
 ```yaml
 DeviceRole:
-  enum: [compute, central-gateway, application-server, travel-router]
+  enum: [compute, central-gateway, application-server, travel-router, storage-server, backup-server, cloud-server, vpn-exit-node]
+```
+
+### 2a. Cloud Providers (L1)
+
+| Провайдер | Описание | Free Tier |
+|-----------|----------|-----------|
+| `oracle` | Oracle Cloud Infrastructure | ARM 4 vCPU, 24GB RAM |
+| `hetzner` | Hetzner Cloud | Нет |
+| `aws` | Amazon Web Services | t2.micro 12 мес |
+| `gcp` | Google Cloud Platform | e2-micro always free |
+| `azure` | Microsoft Azure | B1S 12 мес |
+| `digitalocean` | DigitalOcean | Нет |
+| `vultr` | Vultr | Нет |
+| `linode` | Linode/Akamai | Нет |
+
+```yaml
+CloudProvider:
+  enum: [oracle, hetzner, aws, gcp, azure, digitalocean, vultr, linode]
 ```
 
 ### 3. Interface Types (L1)
@@ -75,9 +96,17 @@ InterfaceRole:
 
 ### 5. Location Types (L1)
 
+| Тип | Описание |
+|-----|----------|
+| `home-office` | Домашняя лаборатория |
+| `mobile` | Мобильное/портативное |
+| `datacenter` | Дата-центр |
+| `remote` | Удалённая локация |
+| `cloud` | Облачный провайдер |
+
 ```yaml
 LocationType:
-  enum: [home-office, mobile, datacenter, remote]
+  enum: [home-office, mobile, datacenter, remote, portable, cloud]
 ```
 
 ### 6. Trust Zones (L2)
