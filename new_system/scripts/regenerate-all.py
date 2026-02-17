@@ -24,7 +24,7 @@ from datetime import datetime
 
 
 class RegenerateAll:
-    """Run all generators for topology v2.0"""
+    """Run all generators for topology v3.0"""
 
     def __init__(self, topology_path: str):
         self.topology_path = topology_path

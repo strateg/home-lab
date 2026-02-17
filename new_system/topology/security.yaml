@@ -1,7 +1,7 @@
 # Security Configuration
-# Part of Home Lab Topology v2.1.0
+# Part of Home Lab Topology v3.0.0
 # This file is part of the modular topology structure
-# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+# Edit this file then regenerate: python3 scripts/regenerate-all.py
 
   # ------------------------------------------------------------
   # Proxmox Security

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate Ansible inventory from topology v2.0
+Generate Ansible inventory from topology v3.0
 
 Usage:
     python3 scripts/generate-ansible-inventory.py [--topology topology.yaml] [--output generated/ansible]
@@ -21,7 +21,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from topology_loader import load_topology
 
 class AnsibleInventoryGenerator:
-    """Generate Ansible inventory from topology v2.0"""
+    """Generate Ansible inventory from topology v3.0"""
 
     def __init__(self, topology_path: str, output_dir: str, templates_dir: str = "scripts/templates"):
         self.topology_path = Path(topology_path)
@@ -43,7 +43,7 @@ class AnsibleInventoryGenerator:
             self.topology = load_topology(str(self.topology_path))
             print(f"✓ Loaded topology: {self.topology_path}")
 
-            # Validate v2.0 structure
+            # Validate v3.0 structure
             required = ['version', 'physical_topology', 'logical_topology', 'compute']
             for section in required:
                 if section not in self.topology:
@@ -51,8 +51,8 @@ class AnsibleInventoryGenerator:
                     return False
 
             version = self.topology.get('version', '')
-            if not version.startswith('2.'):
-                print(f"⚠️  Warning: Topology version {version} may not be compatible (expected 2.x)")
+            if not (version.startswith('2.') or version.startswith('3.')):
+                print(f"⚠️  Warning: Topology version {version} may not be compatible (expected 2.x or 3.x)")
 
             return True
         except FileNotFoundError:
@@ -91,6 +91,17 @@ class AnsibleInventoryGenerator:
 
             # Get network maps for IP resolution
             networks = {n['id']: n for n in self.topology['logical_topology'].get('networks', [])}
+
+            # Build IP map from network allocations
+            ip_map = {}  # device_ref -> ip
+            for network in self.topology['logical_topology'].get('networks', []):
+                for alloc in network.get('ip_allocations', []):
+                    device_ref = alloc.get('device_ref')
+                    ip = alloc.get('ip')
+                    if device_ref and ip:
+                        # Prefer management network IPs
+                        if 'management' in network.get('id', '') or device_ref not in ip_map:
+                            ip_map[device_ref] = ip
 
             # Build host information
             lxc_hosts = []
@@ -132,14 +143,36 @@ class AnsibleInventoryGenerator:
                 }
                 vm_hosts.append(host_info)
 
+            # Extract physical devices that should be managed (SBC, servers)
+            physical_hosts = []
+            managed_types = ['sbc', 'server']
+            for device in self.topology['physical_topology'].get('devices', []):
+                if device.get('type') in managed_types:
+                    # Get IP from ip_map (from network allocations)
+                    device_id = device['id']
+                    device_ip = ip_map.get(device_id)
+
+                    host_info = {
+                        'id': device_id,
+                        'name': device['name'],
+                        'type': device.get('type', 'unknown'),
+                        'role': device.get('role', 'unknown'),
+                        'model': device.get('model', 'unknown'),
+                        'ip': device_ip,
+                        'ansible_enabled': True,  # Physical devices are assumed manageable
+                        'description': device.get('description', ''),
+                    }
+                    physical_hosts.append(host_info)
+
             # Group hosts by trust zones
             trust_zones = self.topology['logical_topology'].get('trust_zones', {})
 
             content = template.render(
                 lxc_hosts=lxc_hosts,
                 vm_hosts=vm_hosts,
+                physical_hosts=physical_hosts,
                 trust_zones=trust_zones,
-                topology_version=self.topology.get('version', '2.0.0')
+                topology_version=self.topology.get('version', '3.0.0')
             )
 
             output_file = self.output_dir / "hosts.yml"
@@ -147,6 +180,7 @@ class AnsibleInventoryGenerator:
             print(f"✓ Generated: {output_file}")
             print(f"  - {len(lxc_hosts)} LXC containers")
             print(f"  - {len(vm_hosts)} VMs")
+            print(f"  - {len(physical_hosts)} physical devices")
             return True
 
         except Exception as e:
@@ -177,11 +211,15 @@ class AnsibleInventoryGenerator:
                     internal_network = network
                     break
 
+            # Get ansible configuration from topology
+            ansible_config = self.topology.get('ansible', {})
+
             content = template.render(
                 mgmt_network=mgmt_network,
                 internal_network=internal_network,
                 networks=networks,
-                topology_version=self.topology.get('version', '2.0.0')
+                ansible_config=ansible_config,
+                topology_version=self.topology.get('version', '3.0.0')
             )
 
             group_vars_dir = self.output_dir / "group_vars"
@@ -260,7 +298,7 @@ class AnsibleInventoryGenerator:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate Ansible inventory from topology v2.0"
+        description="Generate Ansible inventory from topology v3.0"
     )
     parser.add_argument(
         "--topology",
@@ -283,7 +321,7 @@ def main():
     generator = AnsibleInventoryGenerator(args.topology, args.output, args.templates)
 
     print("="*70)
-    print("Ansible Inventory Generator (Topology v2.0)")
+    print("Ansible Inventory Generator (Topology v3.0)")
     print("="*70)
     print()
 

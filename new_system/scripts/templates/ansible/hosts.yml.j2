@@ -47,6 +47,33 @@ all:
         {% endfor %}
     {% endif %}
 
+    {% if physical_hosts %}
+    physical_devices:
+      hosts:
+        {% for host in physical_hosts %}
+        {% if host.ip and host.ansible_enabled %}
+        {{ host.name }}:
+          ansible_host: {{ host.ip }}
+          ansible_user: root
+          ansible_python_interpreter: /usr/bin/python3
+          host_type: {{ host.type }}
+          host_role: {{ host.role }}
+          device_model: {{ host.model }}
+          {% if host.description %}
+          description: "{{ host.description }}"
+          {% endif %}
+        {% endif %}
+        {% endfor %}
+
+    sbc_devices:
+      hosts:
+        {% for host in physical_hosts %}
+        {% if host.type == 'sbc' and host.ip and host.ansible_enabled %}
+        {{ host.name }}:
+        {% endif %}
+        {% endfor %}
+    {% endif %}
+
     # ============================================================
     # Trust Zone Groups
     # ============================================================

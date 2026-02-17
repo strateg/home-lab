@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate Terraform configuration from topology v2.0
+Generate Terraform configuration from topology v3.0
 
 Usage:
     python3 scripts/generate-terraform.py [--topology topology.yaml] [--output generated/terraform/]
@@ -21,7 +21,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from topology_loader import load_topology
 
 class TerraformGenerator:
-    """Generate Terraform configs from topology v2.0"""
+    """Generate Terraform configs from topology v3.0"""
 
     def __init__(self, topology_path: str, output_dir: str, templates_dir: str = "scripts/templates"):
         self.topology_path = Path(topology_path)
@@ -43,7 +43,7 @@ class TerraformGenerator:
             self.topology = load_topology(str(self.topology_path))
             print(f"✓ Loaded topology: {self.topology_path}")
 
-            # Validate v2.0 structure
+            # Validate v3.0 structure
             required = ['version', 'physical_topology', 'logical_topology', 'compute', 'storage']
             for section in required:
                 if section not in self.topology:
@@ -51,8 +51,8 @@ class TerraformGenerator:
                     return False
 
             version = self.topology.get('version', '')
-            if not version.startswith('2.'):
-                print(f"⚠️  Warning: Topology version {version} may not be compatible (expected 2.x)")
+            if not (version.startswith('2.') or version.startswith('3.')):
+                print(f"⚠️  Warning: Topology version {version} may not be compatible (expected 2.x or 3.x)")
 
             return True
         except FileNotFoundError:
@@ -348,7 +348,7 @@ class TerraformGenerator:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate Terraform configuration from topology v2.0"
+        description="Generate Terraform configuration from topology v3.0"
     )
     parser.add_argument(
         "--topology",
@@ -371,7 +371,7 @@ def main():
     generator = TerraformGenerator(args.topology, args.output, args.templates)
 
     print("="*70)
-    print("Terraform Configuration Generator (Topology v2.0)")
+    print("Terraform Configuration Generator (Topology v3.0)")
     print("="*70)
     print()
 

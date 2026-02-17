@@ -4,7 +4,7 @@ Validate topology.yaml against JSON Schema v7
 Provides detailed error messages and validation reports
 
 Usage:
-    python3 scripts/validate-topology.py [--topology topology.yaml] [--schema schemas/topology-v2-schema.json]
+    python3 scripts/validate-topology.py [--topology topology.yaml] [--schema schemas/topology-v3-schema.json]
 
 Requirements:
     pip install jsonschema pyyaml
@@ -320,6 +320,90 @@ class SchemaValidator:
             if network_ref and network_ref not in ids['networks']:
                 self.errors.append(f"Bridge '{bridge_id}': network_ref '{network_ref}' does not exist")
 
+    def check_version(self) -> None:
+        """Check topology version compatibility"""
+        if not self.topology:
+            return
+
+        version = self.topology.get('version', '')
+        if not version:
+            self.warnings.append("No version specified in topology")
+            return
+
+        # Check for supported versions (2.x or 3.x)
+        if not (version.startswith('2.') or version.startswith('3.')):
+            self.errors.append(f"Unsupported topology version: {version} (expected 2.x or 3.x)")
+        elif version.startswith('2.'):
+            self.warnings.append(f"Topology version {version} is legacy. Consider upgrading to v3.x")
+
+    def check_ip_overlaps(self) -> None:
+        """Check for duplicate/overlapping IP addresses"""
+        if not self.topology:
+            return
+
+        # Collect all IP allocations per network
+        ip_allocations = {}  # network_id -> {ip: device_ref}
+        global_ips = {}  # ip -> [(network_id, device_ref)]
+
+        for network in self.topology.get('logical_topology', {}).get('networks', []):
+            net_id = network.get('id', 'unknown')
+            ip_allocations[net_id] = {}
+
+            for alloc in network.get('ip_allocations', []):
+                ip = alloc.get('ip', '')
+                device_ref = alloc.get('device_ref') or alloc.get('vm_ref') or alloc.get('lxc_ref') or 'unknown'
+
+                # Strip CIDR notation if present for comparison
+                ip_addr = ip.split('/')[0] if ip else ''
+
+                if not ip_addr:
+                    continue
+
+                # Check duplicate within same network
+                if ip_addr in ip_allocations[net_id]:
+                    existing = ip_allocations[net_id][ip_addr]
+                    self.errors.append(
+                        f"Duplicate IP in network '{net_id}': {ip_addr} assigned to both "
+                        f"'{existing}' and '{device_ref}'"
+                    )
+                else:
+                    ip_allocations[net_id][ip_addr] = device_ref
+
+                # Track globally for cross-network warnings
+                if ip_addr not in global_ips:
+                    global_ips[ip_addr] = []
+                global_ips[ip_addr].append((net_id, device_ref))
+
+        # Also check LXC container IPs
+        for lxc in self.topology.get('compute', {}).get('lxc', []):
+            lxc_id = lxc.get('id', 'unknown')
+            for net in lxc.get('networks', []):
+                ip = net.get('ip', '')
+                ip_addr = ip.split('/')[0] if ip else ''
+                if ip_addr:
+                    if ip_addr not in global_ips:
+                        global_ips[ip_addr] = []
+                    global_ips[ip_addr].append(('lxc-config', lxc_id))
+
+        # Also check VM IPs
+        for vm in self.topology.get('compute', {}).get('vms', []):
+            vm_id = vm.get('id', 'unknown')
+            for net in vm.get('networks', []):
+                ip_config = net.get('ip_config', {})
+                if isinstance(ip_config, dict):
+                    ip = ip_config.get('address', '')
+                    ip_addr = ip.split('/')[0] if ip else ''
+                    if ip_addr:
+                        if ip_addr not in global_ips:
+                            global_ips[ip_addr] = []
+                        global_ips[ip_addr].append(('vm-config', vm_id))
+
+        # Warn about IPs that appear in multiple contexts
+        for ip_addr, locations in global_ips.items():
+            if len(locations) > 2:  # More than 2 could indicate a real problem
+                loc_str = ', '.join([f"{net}:{dev}" for net, dev in locations])
+                self.warnings.append(f"IP {ip_addr} appears in {len(locations)} places: {loc_str}")
+
     def print_results(self) -> None:
         """Print validation results"""
         print("\n" + "="*70)
@@ -333,8 +417,10 @@ class SchemaValidator:
         else:
             print("✅ Validation PASSED")
             print("="*70)
-            print("\n✓ Topology is valid according to JSON Schema v7")
+            print("\n✓ Topology version is compatible")
+            print("✓ Topology is valid according to JSON Schema v7")
             print("✓ All references are consistent")
+            print("✓ No IP address conflicts")
 
         if self.warnings:
             print(f"\n⚠️  {len(self.warnings)} warning(s):")
@@ -352,8 +438,14 @@ class SchemaValidator:
         if not self.load_files():
             return False
 
+        # Version check
+        print("\n🏷️  Step 1: Checking topology version...")
+        self.check_version()
+        version = self.topology.get('version', 'unknown')
+        print(f"✓ Topology version: {version}")
+
         # Schema validation
-        print("\n📋 Step 1: Validating against JSON Schema...")
+        print("\n📋 Step 2: Validating against JSON Schema...")
         schema_valid = self.validate_schema()
 
         if schema_valid:
@@ -363,13 +455,25 @@ class SchemaValidator:
 
         # Reference validation
         if schema_valid:
-            print("\n🔗 Step 2: Checking reference consistency...")
+            print("\n🔗 Step 3: Checking reference consistency...")
+            errors_before = len(self.errors)
             self.check_references()
 
-            if not self.errors:
+            if len(self.errors) == errors_before:
                 print("✓ All references are valid")
             else:
-                print(f"✗ Reference validation failed ({len(self.errors)} errors)")
+                print(f"✗ Reference validation failed ({len(self.errors) - errors_before} errors)")
+
+        # IP overlap check
+        if schema_valid:
+            print("\n🌐 Step 4: Checking for IP address conflicts...")
+            errors_before = len(self.errors)
+            self.check_ip_overlaps()
+
+            if len(self.errors) == errors_before:
+                print("✓ No IP address conflicts found")
+            else:
+                print(f"✗ IP conflicts found ({len(self.errors) - errors_before} errors)")
 
         return len(self.errors) == 0
 
@@ -385,7 +489,7 @@ def main():
     )
     parser.add_argument(
         "--schema",
-        default="schemas/topology-v2-schema.json",
+        default="schemas/topology-v3-schema.json",
         help="Path to JSON Schema file"
     )
     parser.add_argument(

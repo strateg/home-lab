@@ -73,7 +73,7 @@ def split_topology():
     ]
 
     # Extract version
-    version = '2.1.0'
+    version = '3.0.0'
     for line in lines:
         if line.startswith('version:'):
             version = line.split(':', 1)[1].strip().strip('"\'')
@@ -90,7 +90,7 @@ def split_topology():
             header = f"# {title}\n"
             header += f"# Part of Home Lab Topology v{version}\n"
             header += f"# This file is part of the modular topology structure\n"
-            header += f"# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py\n"
+            header += f"# Edit this file then regenerate: python3 scripts/regenerate-all.py\n"
             header += "\n"
 
             # Write file

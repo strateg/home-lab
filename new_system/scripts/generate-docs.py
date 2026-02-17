@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate documentation from topology v2.0
+Generate documentation from topology v3.0
 
 Usage:
     python3 scripts/generate-docs.py [--topology topology.yaml] [--output generated/docs/]
@@ -22,7 +22,7 @@ from datetime import datetime
 from topology_loader import load_topology
 
 class DocumentationGenerator:
-    """Generate documentation from topology v2.0"""
+    """Generate documentation from topology v3.0"""
 
     def __init__(self, topology_path: str, output_dir: str, templates_dir: str = "scripts/templates"):
         self.topology_path = Path(topology_path)
@@ -44,7 +44,7 @@ class DocumentationGenerator:
             self.topology = load_topology(str(self.topology_path))
             print(f"✓ Loaded topology: {self.topology_path}")
 
-            # Validate v2.0 structure
+            # Validate v3.0 structure
             required = ['version', 'physical_topology', 'logical_topology', 'compute']
             for section in required:
                 if section not in self.topology:
@@ -52,8 +52,8 @@ class DocumentationGenerator:
                     return False
 
             version = self.topology.get('version', '')
-            if not version.startswith('2.'):
-                print(f"⚠️  Warning: Topology version {version} may not be compatible (expected 2.x)")
+            if not (version.startswith('2.') or version.startswith('3.')):
+                print(f"⚠️  Warning: Topology version {version} may not be compatible (expected 2.x or 3.x)")
 
             return True
         except FileNotFoundError:
@@ -293,7 +293,7 @@ class DocumentationGenerator:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Generate documentation from topology v2.0"
+        description="Generate documentation from topology v3.0"
     )
     parser.add_argument(
         "--topology",
@@ -316,7 +316,7 @@ def main():
     generator = DocumentationGenerator(args.topology, args.output, args.templates)
 
     print("="*70)
-    print("Documentation Generator (Topology v2.0)")
+    print("Documentation Generator (Topology v3.0)")
     print("="*70)
     print()
 

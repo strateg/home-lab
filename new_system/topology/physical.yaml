@@ -1,7 +1,7 @@
 # Physical Topology
-# Part of Home Lab Topology v2.1.0
+# Part of Home Lab Topology v3.0.0
 # This file is part of the modular topology structure
-# Edit this file and regenerate topology.yaml with: python3 scripts/merge-topology.py
+# Edit this file then regenerate: python3 scripts/regenerate-all.py
 
   # Physical location
   locations:
@@ -52,11 +52,12 @@
           type: "pci-ethernet"
           speed_mbps: 1000
           mac: "auto-detect"
-          physical_name: "enp3s0"  # TODO: Replace with actual interface name
+          physical_name: "enp3s0"  # Discover with: ip link show | grep -E '^[0-9]+: e'
           role: "lan"
           description: "Built-in Ethernet to MikroTik LAN port"
           bridge_ref: bridge-vmbr0
           network_ref: net-lan
+          note: "Run 'ip link' on Proxmox to get actual interface name"
 
         # USB Ethernet - reserved for future use or out-of-band management
         - id: if-eth-usb
@@ -64,11 +65,11 @@
           type: "usb-ethernet"
           speed_mbps: 1000
           mac: "auto-detect"
-          physical_name: "enx001122334455"  # TODO: Replace with actual
+          physical_name: "enxXXXXXXXXXXXX"  # Placeholder - format is enx<MAC> for USB Ethernet
           role: "reserved"
           description: "USB Ethernet adapter - reserved for OOB management or backup"
           status: "optional"
-          note: "Can be used for direct ISP connection bypass or out-of-band access"
+          note: "USB Ethernet uses predictable naming: enx<MAC>. Run 'ip link' to discover."
 
       power:
         max_watts: 65
