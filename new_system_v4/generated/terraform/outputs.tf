@@ -49,16 +49,8 @@ output "network_summary" {
   value = {
     vmbr0 = {
       subnet  = "192.168.88.2/24"
-      comment = "LAN Bridge - to MikroTik (Built-in Ethernet)"
+      comment = "LAN trunk bridge to MikroTik (VLAN-aware)"
       ports   = ["if-eth-builtin"]
-    }
-    vmbr2 = {
-      subnet  = "10.0.30.2/24"
-      comment = "Servers Bridge - LXC Containers (VLAN 30)"
-    }
-    vmbr99 = {
-      subnet  = "10.0.99.2/24"
-      comment = "Management Bridge (VLAN 99)"
     }
   }
 }
@@ -105,7 +97,7 @@ output "trust_zones" {
 output "infrastructure_stats" {
   description = "Infrastructure statistics"
   value = {
-    total_bridges       = 3
+    total_bridges       = 1
     total_lxc          = 2
     total_storage_pools = 3
     topology_version   = "4.0.0"
@@ -124,7 +116,7 @@ output "next_steps" {
 
     📊 Infrastructure Summary:
        - LXC Containers: 2
-       - Network Bridges: 3
+       - Network Bridges: 1
 
     🔧 Next steps:
 

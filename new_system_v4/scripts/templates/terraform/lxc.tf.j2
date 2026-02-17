@@ -59,6 +59,9 @@ resource "proxmox_virtual_environment_container" "{{ lxc.id | replace('-', '_') 
     {% if nic.firewall is defined %}
     firewall = {{ nic.firewall | lower }}
     {% endif %}
+    {% if nic.vlan_tag is defined and nic.vlan_tag is not none %}
+    vlan_id  = {{ nic.vlan_tag }}
+    {% endif %}
   }
   {% endfor %}
 

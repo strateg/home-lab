@@ -15,7 +15,7 @@ all:
       hosts:
         {% for host in lxc_hosts %}
         {% if host.ip %}
-        {{ host.name }}:
+        {{ host.inventory_name }}:
           ansible_host: {{ host.ip }}
           ansible_user: {{ host.ansible_user }}
           ansible_python_interpreter: /usr/bin/python3
@@ -23,6 +23,7 @@ all:
           host_type: lxc
           host_role: {{ host.role }}
           trust_zone: {{ host.trust_zone }}
+          display_name: "{{ host.display_name }}"
           {% if host.playbook %}
           playbook: {{ host.playbook }}
           {% endif %}
@@ -35,7 +36,7 @@ all:
       hosts:
         {% for host in vm_hosts %}
         {% if host.ip and host.ansible_enabled %}
-        {{ host.name }}:
+        {{ host.inventory_name }}:
           ansible_host: {{ host.ip }}
           ansible_user: root
           ansible_python_interpreter: /usr/bin/python3
@@ -43,6 +44,7 @@ all:
           host_type: vm
           host_role: {{ host.role }}
           trust_zone: {{ host.trust_zone }}
+          display_name: "{{ host.display_name }}"
         {% endif %}
         {% endfor %}
     {% endif %}
@@ -52,13 +54,14 @@ all:
       hosts:
         {% for host in physical_hosts %}
         {% if host.ip and host.ansible_enabled %}
-        {{ host.name }}:
+        {{ host.inventory_name }}:
           ansible_host: {{ host.ip }}
           ansible_user: root
           ansible_python_interpreter: /usr/bin/python3
           host_type: {{ host.type }}
           host_role: {{ host.role }}
           device_model: {{ host.model }}
+          display_name: "{{ host.display_name }}"
           {% if host.description %}
           description: "{{ host.description }}"
           {% endif %}
@@ -69,7 +72,7 @@ all:
       hosts:
         {% for host in physical_hosts %}
         {% if host.type == 'sbc' and host.ip and host.ansible_enabled %}
-        {{ host.name }}:
+        {{ host.inventory_name }}:
         {% endif %}
         {% endfor %}
     {% endif %}
@@ -83,12 +86,12 @@ all:
       hosts:
         {% for host in lxc_hosts %}
         {% if host.trust_zone == zone_id and host.ip %}
-        {{ host.name }}:
+        {{ host.inventory_name }}:
         {% endif %}
         {% endfor %}
         {% for host in vm_hosts %}
         {% if host.trust_zone == zone_id and host.ip and host.ansible_enabled %}
-        {{ host.name }}:
+        {{ host.inventory_name }}:
         {% endif %}
         {% endfor %}
       vars:
@@ -104,7 +107,7 @@ all:
       hosts:
         {% for host in lxc_hosts %}
         {% if host.type == 'database' and host.ip %}
-        {{ host.name }}:
+        {{ host.inventory_name }}:
         {% endif %}
         {% endfor %}
 
@@ -112,7 +115,7 @@ all:
       hosts:
         {% for host in lxc_hosts %}
         {% if host.type == 'web-application' and host.ip %}
-        {{ host.name }}:
+        {{ host.inventory_name }}:
         {% endif %}
         {% endfor %}
 
@@ -120,6 +123,6 @@ all:
       hosts:
         {% for host in lxc_hosts %}
         {% if host.type == 'cache' and host.ip %}
-        {{ host.name }}:
+        {{ host.inventory_name }}:
         {% endif %}
         {% endfor %}

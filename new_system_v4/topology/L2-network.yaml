@@ -131,7 +131,7 @@ networks:
   - 192.168.88.1
   dhcp: false
   trust_zone_ref: servers
-  bridge_ref: bridge-vmbr2
+  bridge_ref: bridge-vmbr0
   vlan: 30
   description: Server network for Proxmox LXC and Orange Pi 5
   managed_by_ref: mikrotik-chateau
@@ -142,7 +142,7 @@ networks:
     description: MikroTik servers gateway
   - ip: 10.0.30.2
     device_ref: gamayun
-    interface: vmbr2
+    interface: vmbr0.30
     description: Proxmox bridge IP
   - ip: 10.0.30.50
     device_ref: orangepi5
@@ -197,7 +197,7 @@ networks:
   - 192.168.88.1
   dhcp: false
   trust_zone_ref: management
-  bridge_ref: bridge-vmbr99
+  bridge_ref: bridge-vmbr0
   vlan: 99
   description: Management network for infrastructure admin
   managed_by_ref: mikrotik-chateau
@@ -208,7 +208,7 @@ networks:
     description: MikroTik management gateway
   - ip: 10.0.99.2
     device_ref: gamayun
-    interface: vmbr99
+    interface: vmbr0.99
     description: Proxmox Web UI
   - ip: 10.0.99.3
     device_ref: orangepi5
@@ -250,7 +250,7 @@ bridges:
 - id: bridge-vmbr0
   device_ref: gamayun
   name: vmbr0
-  comment: LAN Bridge - to MikroTik (Built-in Ethernet)
+  comment: LAN trunk bridge to MikroTik (VLAN-aware)
   ports:
   - if-eth-builtin
   address: 192.168.88.2/24
@@ -258,30 +258,6 @@ bridges:
   network_ref: net-lan
   autostart: true
   vlan_aware: true
-  bridge_stp: false
-  bridge_fd: 0
-- id: bridge-vmbr2
-  device_ref: gamayun
-  name: vmbr2
-  comment: Servers Bridge - LXC Containers (VLAN 30)
-  ports: []
-  address: 10.0.30.2/24
-  gateway: 10.0.30.1
-  network_ref: net-servers
-  autostart: true
-  vlan_aware: false
-  bridge_stp: false
-  bridge_fd: 0
-- id: bridge-vmbr99
-  device_ref: gamayun
-  name: vmbr99
-  comment: Management Bridge (VLAN 99)
-  ports: []
-  address: 10.0.99.2/24
-  gateway: 10.0.99.1
-  network_ref: net-management
-  autostart: true
-  vlan_aware: false
   bridge_stp: false
   bridge_fd: 0
 routing:

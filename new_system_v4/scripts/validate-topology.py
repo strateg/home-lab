@@ -196,6 +196,49 @@ class SchemaValidator:
         self._check_certificate_refs(ids)
         self._check_backup_refs(ids)
         self._check_security_policy_refs(ids)
+        self._check_vlan_tags()
+
+    def _check_vlan_tags(self) -> None:
+        """Check VLAN tags for LXC networks against L2 network definitions"""
+        l2 = self.topology.get('L2_network', {})
+        l4 = self.topology.get('L4_platform', {})
+
+        networks = {n.get('id'): n for n in l2.get('networks', []) or []}
+        bridges = {b.get('id'): b for b in l2.get('bridges', []) or []}
+
+        for lxc in l4.get('lxc', []) or []:
+            lxc_id = lxc.get('id', 'unknown')
+            for nic in lxc.get('networks', []) or []:
+                network_ref = nic.get('network_ref')
+                vlan_tag = nic.get('vlan_tag')
+                bridge_ref = nic.get('bridge_ref')
+
+                if not network_ref or network_ref not in networks:
+                    continue
+
+                network = networks[network_ref]
+                network_vlan = network.get('vlan')
+
+                if network_vlan is not None:
+                    if vlan_tag is None:
+                        self.warnings.append(
+                            f"LXC '{lxc_id}': network '{network_ref}' uses VLAN {network_vlan} "
+                            "but vlan_tag is not set"
+                        )
+                    elif vlan_tag != network_vlan:
+                        self.errors.append(
+                            f"LXC '{lxc_id}': vlan_tag {vlan_tag} does not match network '{network_ref}' VLAN {network_vlan}"
+                        )
+                elif vlan_tag is not None:
+                    self.warnings.append(
+                        f"LXC '{lxc_id}': vlan_tag {vlan_tag} set but network '{network_ref}' has no VLAN"
+                    )
+
+                bridge = bridges.get(bridge_ref) if bridge_ref else None
+                if vlan_tag is not None and bridge and bridge.get('vlan_aware') is False:
+                    self.warnings.append(
+                        f"LXC '{lxc_id}': vlan_tag {vlan_tag} used on non-vlan-aware bridge '{bridge_ref}'"
+                    )
 
     def _check_network_refs(self, ids: Dict[str, Set[str]]) -> None:
         l2 = self.topology.get('L2_network', {})

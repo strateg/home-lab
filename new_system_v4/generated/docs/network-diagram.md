@@ -1,7 +1,7 @@
 # Network Diagram
 
 **Generated from**: topology.yaml v4.0.0
-**Date**: 2026-02-17 17:26:26
+**Date**: 2026-02-17 17:45:30
 
 ---
 
@@ -36,8 +36,6 @@ graph TB
     %% ============================================================
 
     bridge_vmbr0[/"vmbr0"/]
-    bridge_vmbr2[/"vmbr2"/]
-    bridge_vmbr99[/"vmbr99"/]
 
     %% ============================================================
     %% Network Connections
@@ -48,8 +46,8 @@ graph TB
 
     %% Bridges to VMs/LXC
 
-    bridge_bridge_vmbr2 <-->|10.0.30.10| lxc_postgresql
-    bridge_bridge_vmbr2 <-->|10.0.30.20| lxc_redis
+    bridge_bridge_vmbr0 <-->|10.0.30.10| lxc_postgresql
+    bridge_bridge_vmbr0 <-->|10.0.30.20| lxc_redis
 
     %% Proxmox management
     PROXMOX <--> bridge_vmbr99
@@ -68,7 +66,7 @@ graph TB
     class INTERNET untrusted
     class USERS user
     class PROXMOX mgmt
-    class bridge_vmbr0,bridge_vmbr2,bridge_vmbr99 bridge
+    class bridge_vmbr0 bridge
 ```
 
 ---
@@ -125,14 +123,14 @@ graph TB
 ### net-servers
 
 - **CIDR**: 10.0.30.0/24
-- **Bridge**: bridge-vmbr2
+- **Bridge**: bridge-vmbr0
 - **Trust Zone**: servers
 - **Gateway**: 10.0.30.1
 - **VLAN**: 30
 
 **Allocated IPs**:
 - `10.0.30.1` → mikrotik-chateau (vlan30)
-- `10.0.30.2` → gamayun (vmbr2)
+- `10.0.30.2` → gamayun (vmbr0.30)
 - `10.0.30.50` → orangepi5 (eth0.30)
 
 ---
@@ -166,14 +164,14 @@ graph TB
 ### net-management
 
 - **CIDR**: 10.0.99.0/24
-- **Bridge**: bridge-vmbr99
+- **Bridge**: bridge-vmbr0
 - **Trust Zone**: management
 - **Gateway**: 10.0.99.1
 - **VLAN**: 99
 
 **Allocated IPs**:
 - `10.0.99.1` → mikrotik-chateau (vlan99-mgmt)
-- `10.0.99.2` → gamayun (vmbr99)
+- `10.0.99.2` → gamayun (vmbr0.99)
 - `10.0.99.3` → orangepi5 (eth0.99)
 
 ---

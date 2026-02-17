@@ -100,7 +100,9 @@ class AnsibleInventoryGenerator:
             for lxc in lxc_containers:
                 host_info = {
                     'id': lxc['id'],
+                    'inventory_name': lxc['id'],
                     'name': lxc['name'],
+                    'display_name': lxc['name'],
                     'vmid': lxc['vmid'],
                     'type': lxc.get('type', 'unknown'),
                     'role': lxc.get('role', 'unknown'),
@@ -124,7 +126,9 @@ class AnsibleInventoryGenerator:
 
                 host_info = {
                     'id': vm['id'],
+                    'inventory_name': vm['id'],
                     'name': vm['name'],
+                    'display_name': vm['name'],
                     'vmid': vm['vmid'],
                     'type': vm.get('type', 'unknown'),
                     'role': vm.get('role', 'unknown'),
@@ -143,7 +147,9 @@ class AnsibleInventoryGenerator:
 
                     host_info = {
                         'id': device_id,
+                        'inventory_name': device_id,
                         'name': device['name'],
+                        'display_name': device['name'],
                         'type': device.get('type', 'unknown'),
                         'role': device.get('role', 'unknown'),
                         'model': device.get('model', 'unknown'),
@@ -243,7 +249,7 @@ class AnsibleInventoryGenerator:
                     host_vars=host_vars
                 )
 
-                output_file = host_vars_dir / f"{lxc['name']}.yml"
+                output_file = host_vars_dir / f"{lxc['id']}.yml"
                 output_file.write_text(content, encoding="utf-8")
                 count += 1
 

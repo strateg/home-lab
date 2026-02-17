@@ -185,7 +185,7 @@ ansible:
       nextcloud_redis_port: 6379
       nextcloud_trusted_domains:
       - nextcloud.home.local
-      - 10.0.30.30
+      - 10.0.30.50
       nextcloud_apps:
       - files
       - files_sharing
@@ -377,7 +377,7 @@ backup:
     - lxc_ref: lxc-redis
       data_asset_ref: data-redis-db
     type: vzdump
-    schedule: 0 2 30 * * *
+    schedule: 0 2 * * *
     storage_ref: storage-hdd
     mode: snapshot
     compression: zstd

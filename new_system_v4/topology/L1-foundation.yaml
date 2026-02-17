@@ -8,6 +8,10 @@ locations:
   name: Home Lab
   type: home-office
   description: Single-host home lab setup
+- id: portable
+  name: Portable
+  type: mobile
+  description: Travel or temporary deployments
 devices:
 - id: gamayun
   name: Gamayun

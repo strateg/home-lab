@@ -46,8 +46,8 @@ healthchecks:
     on_warning: true
     on_critical: true
     channels:
-    - email
-    - telegram
+    - channel-email
+    - channel-telegram
 - id: health-lte-failover
   name: LTE Failover Status
   description: Monitor LTE modem and failover status
@@ -92,8 +92,8 @@ healthchecks:
     on_critical: true
     on_failover: true
     channels:
-    - email
-    - telegram
+    - channel-email
+    - channel-telegram
 - id: health-proxmox-host
   name: Proxmox Host Health
   description: Monitor Proxmox hypervisor health
@@ -144,7 +144,7 @@ healthchecks:
     on_warning: true
     on_critical: true
     channels:
-    - email
+    - channel-email
 - id: health-orangepi5
   name: Orange Pi 5 Health
   description: Monitor Orange Pi 5 application server
@@ -196,7 +196,7 @@ healthchecks:
     on_warning: true
     on_critical: true
     channels:
-    - email
+    - channel-email
 - id: health-postgresql
   name: PostgreSQL Database Health
   description: Monitor PostgreSQL LXC and database service
@@ -237,7 +237,7 @@ healthchecks:
     on_warning: true
     on_critical: true
     channels:
-    - email
+    - channel-email
 - id: health-redis
   name: Redis Cache Health
   description: Monitor Redis LXC and cache service
@@ -273,7 +273,7 @@ healthchecks:
     on_warning: true
     on_critical: true
     channels:
-    - email
+    - channel-email
 - id: health-nextcloud
   name: Nextcloud Application Health
   description: Monitor Nextcloud on Orange Pi 5
@@ -302,7 +302,7 @@ healthchecks:
     on_warning: true
     on_critical: true
     channels:
-    - email
+    - channel-email
 - id: health-ups
   name: UPS Health
   description: Monitor UPS status via NUT
@@ -342,8 +342,8 @@ healthchecks:
     on_critical: true
     on_battery: true
     channels:
-    - email
-    - telegram
+    - channel-email
+    - channel-telegram
 network_monitoring:
 - id: net-mon-internet
   name: Internet Connectivity
@@ -378,7 +378,7 @@ network_monitoring:
     on_warning: true
     on_critical: true
     channels:
-    - email
+    - channel-email
 - id: net-mon-internal
   name: Internal Network Connectivity
   description: Monitor inter-VLAN connectivity
@@ -402,7 +402,7 @@ network_monitoring:
     on_warning: true
     on_critical: true
     channels:
-    - email
+    - channel-email
 - id: net-mon-bandwidth
   name: Bandwidth Monitoring
   description: Monitor network throughput
@@ -429,8 +429,8 @@ alerts:
     duration: 1m
   severity: critical
   channels:
-  - email
-  - telegram
+  - channel-email
+  - channel-telegram
   escalation:
     enabled: true
     delay: 5m
@@ -443,8 +443,8 @@ alerts:
     duration: 2m
   severity: critical
   channels:
-  - email
-  - telegram
+  - channel-email
+  - channel-telegram
 - id: alert-lte-failover-active
   name: LTE Failover Active
   description: Primary WAN failed, using LTE backup
@@ -454,8 +454,8 @@ alerts:
     backup: lte1
   severity: warning
   channels:
-  - email
-  - telegram
+  - channel-email
+  - channel-telegram
 - id: alert-disk-full
   name: Disk Space Critical
   description: Disk usage exceeds 90%
@@ -464,7 +464,7 @@ alerts:
     duration: 5m
   severity: critical
   channels:
-  - email
+  - channel-email
   escalation:
     enabled: true
     delay: 15m
@@ -474,15 +474,15 @@ alerts:
   trigger:
     condition: service_status != 'running'
     services:
-    - postgresql
-    - redis
-    - nextcloud
-    - adguard
+    - svc-postgresql
+    - svc-redis
+    - svc-nextcloud
+    - svc-adguard
     duration: 2m
   severity: critical
   channels:
-  - email
-  - telegram
+  - channel-email
+  - channel-telegram
   escalation:
     enabled: true
     delay: 5m
@@ -494,7 +494,7 @@ alerts:
     duration: 5m
   severity: critical
   channels:
-  - email
+  - channel-email
 - id: alert-ups-on-battery
   name: UPS On Battery
   description: Power outage - UPS on battery
@@ -502,8 +502,8 @@ alerts:
     condition: ups_status == 'OB'
   severity: warning
   channels:
-  - email
-  - telegram
+  - channel-email
+  - channel-telegram
 - id: alert-ups-low-battery
   name: UPS Low Battery
   description: UPS battery critically low
@@ -511,8 +511,8 @@ alerts:
     condition: battery_charge < 30%
   severity: critical
   channels:
-  - email
-  - telegram
+  - channel-email
+  - channel-telegram
 - id: alert-temperature-high
   name: High Temperature
   description: Device temperature is high
@@ -521,7 +521,7 @@ alerts:
     duration: 5m
   severity: warning
   channels:
-  - email
+  - channel-email
 - id: alert-backup-failed
   name: Backup Failed
   description: Backup job failed
@@ -529,7 +529,7 @@ alerts:
     condition: backup_status == 'failed'
   severity: warning
   channels:
-  - email
+  - channel-email
 - id: alert-certificate-expiry
   name: Certificate Expiring
   description: SSL certificate expiring soon
@@ -537,7 +537,7 @@ alerts:
     condition: cert_days_remaining < 14
   severity: warning
   channels:
-  - email
+  - channel-email
 notification_channels:
 - id: channel-email
   name: Email Notifications
@@ -604,3 +604,4 @@ dashboard:
     - ups_status
     - battery_level
     - power_consumption
+

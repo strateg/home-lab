@@ -1,7 +1,7 @@
 # Infrastructure Overview
 
 **Generated from**: topology.yaml v4.0.0
-**Date**: 2026-02-17 17:26:26
+**Date**: 2026-02-17 17:45:30
 
 ---
 
@@ -12,7 +12,7 @@
 - **Author**: dprohhorov
 - **Created**: 2025-10-06
 - **Last Updated**: 2026-02-17
-- **Version**: 4.0.0
+- **Version**: 
 
 **Description**: Home lab infrastructure with MikroTik Chateau LTE7 ax as central router, Orange Pi 5 as application server, Proxmox as database/dev server
 

@@ -45,8 +45,9 @@ resource "proxmox_virtual_environment_container" "lxc_postgresql" {
   # Network configuration
   network_interface {
     name   = "eth0"
-    bridge = "vmbr2"
+    bridge = "vmbr0"
     firewall = false
+    vlan_id  = 30
   }
 
   # Cloud-init / Initialization
@@ -140,8 +141,9 @@ resource "proxmox_virtual_environment_container" "lxc_redis" {
   # Network configuration
   network_interface {
     name   = "eth0"
-    bridge = "vmbr2"
+    bridge = "vmbr0"
     firewall = false
+    vlan_id  = 30
   }
 
   # Cloud-init / Initialization

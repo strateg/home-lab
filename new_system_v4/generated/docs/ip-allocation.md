@@ -1,7 +1,7 @@
 # IP Address Allocation
 
 **Generated from**: topology.yaml v4.0.0
-**Date**: 2026-02-17 17:26:26
+**Date**: 2026-02-17 17:45:30
 
 ---
 
@@ -31,10 +31,10 @@ Total allocated IPs: **12**
 |------------|--------|---------|-----------|-------------|
 | 10.0.200.1 | mikrotik-chateau | net-vpn-home | wireguard1 | WireGuard server |
 | 10.0.30.1 | mikrotik-chateau | net-servers | vlan30 | MikroTik servers gateway |
-| 10.0.30.2 | gamayun | net-servers | vmbr2 | Proxmox bridge IP |
+| 10.0.30.2 | gamayun | net-servers | vmbr0.30 | Proxmox bridge IP |
 | 10.0.30.50 | orangepi5 | net-servers | eth0.30 | Orange Pi 5 server interface |
 | 10.0.99.1 | mikrotik-chateau | net-management | vlan99-mgmt | MikroTik management gateway |
-| 10.0.99.2 | gamayun | net-management | vmbr99 | Proxmox Web UI |
+| 10.0.99.2 | gamayun | net-management | vmbr0.99 | Proxmox Web UI |
 | 10.0.99.3 | orangepi5 | net-management | eth0.99 | Orange Pi 5 management |
 | 192.168.30.1 | mikrotik-chateau | net-guest | vlan50-guest | MikroTik guest gateway |
 | 192.168.40.1 | mikrotik-chateau | net-iot | vlan40-iot | MikroTik IoT gateway |
@@ -86,7 +86,7 @@ Total allocated IPs: **12**
 | IP Address | Device | Interface | Description |
 |------------|--------|-----------|-------------|
 | 10.0.30.1 | mikrotik-chateau | vlan30 | MikroTik servers gateway |
-| 10.0.30.2 | gamayun | vmbr2 | Proxmox bridge IP |
+| 10.0.30.2 | gamayun | vmbr0.30 | Proxmox bridge IP |
 | 10.0.30.50 | orangepi5 | eth0.30 | Orange Pi 5 server interface |
 
 ---
@@ -124,7 +124,7 @@ Total allocated IPs: **12**
 | IP Address | Device | Interface | Description |
 |------------|--------|-----------|-------------|
 | 10.0.99.1 | mikrotik-chateau | vlan99-mgmt | MikroTik management gateway |
-| 10.0.99.2 | gamayun | vmbr99 | Proxmox Web UI |
+| 10.0.99.2 | gamayun | vmbr0.99 | Proxmox Web UI |
 | 10.0.99.3 | orangepi5 | eth0.99 | Orange Pi 5 management |
 
 ---
