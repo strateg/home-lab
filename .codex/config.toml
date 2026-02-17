@@ -1,0 +1,7 @@
+model = "gpt-5.2-codex"
+
+reasoning_effort = "high"
+
+autonomy = "full"
+
+architecture_enforcement = true
