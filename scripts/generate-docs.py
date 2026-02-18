@@ -38,6 +38,16 @@ class DocumentationGenerator:
             lstrip_blocks=True
         )
 
+        # Add custom filters for Mermaid diagram generation
+        self.jinja_env.filters['mermaid_id'] = self._mermaid_id
+
+    @staticmethod
+    def _mermaid_id(value: str) -> str:
+        """Convert string to valid Mermaid node ID (alphanumeric + underscore)"""
+        if not value:
+            return 'unknown'
+        return value.replace('-', '_').replace('.', '_').replace(' ', '_').replace('/', '_')
+
     def load_topology(self) -> bool:
         """Load topology YAML file (with !include support)"""
         try:
@@ -72,11 +82,18 @@ class DocumentationGenerator:
         print(f"DIR Created output directory: {self.output_dir}")
 
         success = True
+        # Core documentation
         success &= self.generate_network_diagram()
         success &= self.generate_ip_allocation()
         success &= self.generate_services_inventory()
         success &= self.generate_devices_inventory()
         success &= self.generate_overview()
+
+        # Visual diagrams (Phase 1)
+        success &= self.generate_physical_topology()
+        success &= self.generate_vlan_topology()
+        success &= self.generate_trust_zones()
+        success &= self.generate_service_dependencies()
 
         return success
 
@@ -259,6 +276,104 @@ class DocumentationGenerator:
             print(f"ERROR Error generating overview.md: {e}")
             return False
 
+    def generate_physical_topology(self) -> bool:
+        """Generate physical infrastructure topology diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/physical-topology.md.j2')
+
+            devices = self.topology['L1_foundation'].get('devices', [])
+            locations = self.topology['L1_foundation'].get('locations', [])
+
+            content = template.render(
+                devices=devices,
+                locations=locations,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "physical-topology.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating physical-topology.md: {e}")
+            return False
+
+    def generate_vlan_topology(self) -> bool:
+        """Generate VLAN topology diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/vlan-topology.md.j2')
+
+            networks = self.topology['L2_network'].get('networks', [])
+            bridges = self.topology['L2_network'].get('bridges', [])
+
+            content = template.render(
+                networks=networks,
+                bridges=bridges,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "vlan-topology.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating vlan-topology.md: {e}")
+            return False
+
+    def generate_trust_zones(self) -> bool:
+        """Generate trust zone security diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/trust-zones.md.j2')
+
+            trust_zones = self.topology['L2_network'].get('trust_zones', {})
+            firewall_policies = self.topology['L2_network'].get('firewall_policies', [])
+            networks = self.topology['L2_network'].get('networks', [])
+
+            content = template.render(
+                trust_zones=trust_zones,
+                firewall_policies=firewall_policies,
+                networks=networks,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "trust-zones.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating trust-zones.md: {e}")
+            return False
+
+    def generate_service_dependencies(self) -> bool:
+        """Generate service dependency diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/service-dependencies.md.j2')
+
+            services = self.topology.get('L5_application', {}).get('services', [])
+            lxc = self.topology['L4_platform'].get('lxc', [])
+
+            content = template.render(
+                services=services,
+                lxc=lxc,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "service-dependencies.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating service-dependencies.md: {e}")
+            return False
+
     def print_summary(self):
         """Print generation summary"""
         print("\n" + "="*70)
@@ -266,11 +381,17 @@ class DocumentationGenerator:
         print("="*70)
 
         print(f"\nOK Generated documentation:")
-        print(f"  - Network diagram (Mermaid)")
-        print(f"  - IP allocation table")
-        print(f"  - Services inventory")
-        print(f"  - Devices inventory")
-        print(f"  - Infrastructure overview")
+        print(f"  Core:")
+        print(f"    - Network diagram (Mermaid)")
+        print(f"    - IP allocation table")
+        print(f"    - Services inventory")
+        print(f"    - Devices inventory")
+        print(f"    - Infrastructure overview")
+        print(f"  Visual Diagrams:")
+        print(f"    - Physical topology (Mermaid)")
+        print(f"    - VLAN topology (Mermaid)")
+        print(f"    - Trust zones (Mermaid)")
+        print(f"    - Service dependencies (Mermaid)")
         print(f"\nOK Output directory: {self.output_dir}")
         print(f"\nFiles created:")
         for file in sorted(self.output_dir.glob("*.md")):

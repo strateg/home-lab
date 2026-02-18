@@ -17,10 +17,10 @@ graph TB
         INTERNET[("Internet")]
     end
 
-    subgraph DMZ["DMZ Zone (Level 1)"]
-        {% for vm in vms %}
-        {% if vm.trust_zone_ref == 'dmz' %}
-        {{ vm.id | replace('-', '_') }}["{{ vm.name }}<br/>{{ vm.type }}"]
+    subgraph SERVERS["Servers Zone (Level 2)"]
+        {% for lxc_item in lxc %}
+        {% if lxc_item.trust_zone_ref == 'servers' %}
+        {{ lxc_item.id | mermaid_id }}["{{ lxc_item.name }}<br/>LXC"]
         {% endif %}
         {% endfor %}
     end
@@ -29,72 +29,57 @@ graph TB
         USERS[("User Devices")]
     end
 
-    subgraph INTERNAL["Internal Zone (Level 2)"]
-        {% for lxc_item in lxc %}
-        {% if lxc_item.trust_zone_ref == 'internal' %}
-        {{ lxc_item.id | replace('-', '_') }}["{{ lxc_item.name }}<br/>{{ lxc_item.type }}"]
-        {% endif %}
-        {% endfor %}
-    end
-
     subgraph MGMT["Management Zone (Level 3)"]
         PROXMOX["Proxmox VE<br/>hypervisor"]
+        MIKROTIK["MikroTik<br/>router"]
     end
 
     %% ============================================================
-    %% Network Bridges
+    %% Network Bridges (Proxmox)
     %% ============================================================
 
     {% for bridge in bridges %}
-    {{ bridge.id | replace('-', '_') }}[/"{{ bridge.name }}"/]
+    {{ bridge.id | mermaid_id }}[/"{{ bridge.name }}<br/>{{ bridge.comment | default('bridge') }}"/]
     {% endfor %}
 
     %% ============================================================
     %% Network Connections
     %% ============================================================
 
-    %% Internet → DMZ
-    INTERNET -.->|WAN| bridge_vmbr0
+    %% Internet → MikroTik
+    INTERNET -.->|WAN| MIKROTIK
 
-    %% Bridges to VMs/LXC
-    {% for vm in vms %}
-    {% for nic in vm.networks %}
-    bridge_{{ nic.bridge_ref | replace('-', '_') }} <-->|{{ nic.role }}| {{ vm.id | replace('-', '_') }}
-    {% endfor %}
-    {% endfor %}
+    %% MikroTik → Bridges
+    MIKROTIK -->|trunk| {{ bridges[0].id | mermaid_id if bridges else 'bridge_vmbr0' }}
 
+    %% Bridges to LXC
     {% for lxc_item in lxc %}
     {% for nic in lxc_item.networks %}
-    bridge_{{ nic.bridge_ref | replace('-', '_') }} <-->|{{ nic.ip.split('/')[0] }}| {{ lxc_item.id | replace('-', '_') }}
+    {{ nic.bridge_ref | mermaid_id }} <-->|{{ nic.ip.split('/')[0] }}| {{ lxc_item.id | mermaid_id }}
     {% endfor %}
     {% endfor %}
 
     %% Proxmox management
-    PROXMOX <--> bridge_vmbr99
+    PROXMOX <--> {{ bridges[0].id | mermaid_id if bridges else 'bridge_vmbr0' }}
 
-    %% User to DMZ
-    USERS -.-> bridge_vmbr1
+    %% User to network
+    USERS -.->|WiFi/LAN| MIKROTIK
 
     %% Styling
     classDef untrusted fill:#ff6b6b,stroke:#c92a2a,color:#fff
-    classDef dmz fill:#fab005,stroke:#f08c00,color:#000
+    classDef servers fill:#51cf66,stroke:#2b8a3e,color:#000
     classDef user fill:#74c0fc,stroke:#1864ab,color:#000
-    classDef internal fill:#51cf66,stroke:#2b8a3e,color:#000
     classDef mgmt fill:#da77f2,stroke:#9c36b5,color:#fff
     classDef bridge fill:#e9ecef,stroke:#868e96,color:#000
 
     class INTERNET untrusted
-    {% set dmz_nodes = vms | selectattr('trust_zone_ref', 'equalto', 'dmz') | map(attribute='id') | map('replace', '-', '_') | list %}
-    {% if dmz_nodes %}
-    class {{ dmz_nodes | join(',') }} dmz
-    {% endif %}
     class USERS user
-    {% set internal_nodes = lxc | selectattr('trust_zone_ref', 'equalto', 'internal') | map(attribute='id') | map('replace', '-', '_') | list %}
-    {% if internal_nodes %}
-    class {{ internal_nodes | join(',') }} internal
+    class PROXMOX,MIKROTIK mgmt
+    {% set server_nodes = lxc | selectattr('trust_zone_ref', 'equalto', 'servers') | map(attribute='id') | map('mermaid_id') | list %}
+    {% if server_nodes %}
+    class {{ server_nodes | join(',') }} servers
     {% endif %}
-    class PROXMOX mgmt
-    {% set bridge_nodes = bridges | map(attribute='id') | map('replace', '-', '_') | list %}
+    {% set bridge_nodes = bridges | map(attribute='id') | map('mermaid_id') | list %}
     {% if bridge_nodes %}
     class {{ bridge_nodes | join(',') }} bridge
     {% endif %}

@@ -1,0 +1,130 @@
+# Physical Infrastructure Topology
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Device Topology
+
+```mermaid
+graph TB
+    subgraph cloud["Cloud Infrastructure"]
+        {% for device in devices %}
+        {% if device.location in ['oracle-frankfurt', 'hetzner-nuremberg'] %}
+        {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.model | default(device.type) }}<br/>{{ device.specs.cpu.cores | default('?') }} cores / {{ device.specs.memory.total_gb | default(device.specs.memory.total_mb | default(0) / 1024) }}GB"]
+        {% endif %}
+        {% endfor %}
+    end
+
+    subgraph home["Home Lab"]
+        internet(("ISP<br/>Internet"))
+
+        {% for device in devices %}
+        {% if device.location == 'home' %}
+        {% if device.type == 'router' %}
+        {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.role }}<br/>{{ device.specs.cpu.architecture | default('') }} / {{ device.specs.memory.total_mb | default(device.specs.memory.total_gb * 1024 if device.specs.memory.total_gb else '?') }}MB"]
+        {% elif device.type == 'hypervisor' %}
+        {{ device.id | mermaid_id }}["{{ device.name }}<br/>Proxmox VE<br/>{{ device.specs.cpu.cores }}C/{{ device.specs.cpu.threads }}T / {{ device.specs.memory.total_gb }}GB"]
+        {% elif device.type == 'sbc' %}
+        {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.model }}<br/>{{ device.specs.cpu.cores }} cores / {{ device.specs.memory.total_gb }}GB"]
+        {% else %}
+        {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.type }}"]
+        {% endif %}
+        {% endif %}
+        {% endfor %}
+    end
+
+    %% Connections
+    internet -->|WAN 2.5GbE| mikrotik_chateau
+    {% for device in devices %}
+    {% if device.location == 'home' and device.type != 'router' %}
+    mikrotik_chateau -->|1GbE| {{ device.id | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    %% VPN to Cloud
+    {% for device in devices %}
+    {% if device.location in ['oracle-frankfurt', 'hetzner-nuremberg'] %}
+    mikrotik_chateau -.->|WireGuard| {{ device.id | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    %% Styling
+    classDef router fill:#4dabf7,stroke:#1864ab,color:#fff
+    classDef server fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef sbc fill:#ffd43b,stroke:#fab005,color:#000
+    classDef cloud fill:#ffc078,stroke:#e8590c,color:#000
+    classDef internet fill:#ff6b6b,stroke:#c92a2a,color:#fff
+
+    class internet internet
+    {% for device in devices %}
+    {% if device.type == 'router' %}
+    class {{ device.id | mermaid_id }} router
+    {% elif device.type == 'hypervisor' %}
+    class {{ device.id | mermaid_id }} server
+    {% elif device.type == 'sbc' %}
+    class {{ device.id | mermaid_id }} sbc
+    {% elif device.location in ['oracle-frankfurt', 'hetzner-nuremberg'] %}
+    class {{ device.id | mermaid_id }} cloud
+    {% endif %}
+    {% endfor %}
+```
+
+---
+
+## Device Inventory
+
+| Device | Type | Location | CPU | RAM | Role |
+|--------|------|----------|-----|-----|------|
+{% for device in devices %}
+| **{{ device.name }}** | {{ device.type }} | {{ device.location }} | {{ device.specs.cpu.model | default(device.specs.cpu.cores ~ ' cores') }} | {{ device.specs.memory.total_gb | default(device.specs.memory.total_mb / 1024 if device.specs.memory.total_mb else '?') }}GB | {{ device.role }} |
+{% endfor %}
+
+---
+
+## Network Interfaces
+
+{% for device in devices %}
+### {{ device.name }}
+
+| Interface | Type | Speed | Role | Description |
+|-----------|------|-------|------|-------------|
+{% for iface in device.interfaces | default([]) %}
+| {{ iface.name }} | {{ iface.type }} | {{ iface.speed_mbps | default('?') }} Mbps | {{ iface.role }} | {{ iface.description | default('-') }} |
+{% endfor %}
+
+{% endfor %}
+
+---
+
+## Storage Summary
+
+{% for device in devices %}
+{% if device.specs.disks is defined %}
+### {{ device.name }} Storage
+
+| Device | Size | Type | Usage |
+|--------|------|------|-------|
+{% for disk in device.specs.disks %}
+| {{ disk.device }} | {{ disk.size_gb }}GB | {{ disk.type | upper }} | {{ disk.usage }} |
+{% endfor %}
+
+{% endif %}
+{% endfor %}
+
+---
+
+## Power Consumption
+
+| Device | Max Power | Notes |
+|--------|-----------|-------|
+{% for device in devices %}
+{% if device.power is defined %}
+| {{ device.name }} | {{ device.power.max_watts | default(device.power.typical_watts | default('?')) }}W | {{ device.power.psu | default(device.power.input_voltage | default('-')) }} |
+{% endif %}
+{% endfor %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 scripts/generate-docs.py`
