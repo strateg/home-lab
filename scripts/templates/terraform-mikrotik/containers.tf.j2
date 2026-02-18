@@ -50,15 +50,15 @@ resource "routeros_container" "adguard" {
   remote_image = "adguard/adguardhome:latest"
   interface    = routeros_interface_veth.adguard_veth.name
   root_dir     = "/usb1/containers/adguard/root"
-  mounts       = [
+  mounts = [
     routeros_container_mounts.adguard_config.name,
     routeros_container_mounts.adguard_data.name
   ]
-  hostname     = "adguard"
-  dns          = "1.1.1.1"
-  logging      = true
+  hostname      = "adguard"
+  dns           = "1.1.1.1"
+  logging       = true
   start_on_boot = true
-  comment      = "AdGuard Home DNS filtering"
+  comment       = "AdGuard Home DNS filtering"
 
   depends_on = [
     routeros_container_config.config,
@@ -111,16 +111,16 @@ resource "routeros_container_envs" "tailscale_extra_args" {
 }
 
 resource "routeros_container" "tailscale" {
-  remote_image = "tailscale/tailscale:stable"
-  interface    = routeros_interface_veth.tailscale_veth.name
-  root_dir     = "/usb1/containers/tailscale/root"
-  mounts       = [routeros_container_mounts.tailscale_state.name]
-  envlist      = "${routeros_container_envs.tailscale_authkey.name},${routeros_container_envs.tailscale_routes.name},${routeros_container_envs.tailscale_extra_args.name}"
-  hostname     = "mikrotik-tailscale"
-  dns          = "1.1.1.1"
-  logging      = true
+  remote_image  = "tailscale/tailscale:stable"
+  interface     = routeros_interface_veth.tailscale_veth.name
+  root_dir      = "/usb1/containers/tailscale/root"
+  mounts        = [routeros_container_mounts.tailscale_state.name]
+  envlist       = "${routeros_container_envs.tailscale_authkey.name},${routeros_container_envs.tailscale_routes.name},${routeros_container_envs.tailscale_extra_args.name}"
+  hostname      = "mikrotik-tailscale"
+  dns           = "1.1.1.1"
+  logging       = true
   start_on_boot = true
-  comment      = "Tailscale mesh VPN"
+  comment       = "Tailscale mesh VPN"
 
   depends_on = [
     routeros_container_config.config,

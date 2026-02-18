@@ -63,30 +63,30 @@ resource "routeros_ip_firewall_filter" "input_icmp" {
 }
 
 resource "routeros_ip_firewall_filter" "input_ssh_lan" {
-  chain        = "input"
-  action       = "accept"
-  protocol     = "tcp"
-  dst_port     = "22"
+  chain            = "input"
+  action           = "accept"
+  protocol         = "tcp"
+  dst_port         = "22"
   src_address_list = "LAN"
-  comment      = "Accept SSH from LAN"
+  comment          = "Accept SSH from LAN"
 }
 
 resource "routeros_ip_firewall_filter" "input_winbox" {
-  chain        = "input"
-  action       = "accept"
-  protocol     = "tcp"
-  dst_port     = "8291"
+  chain            = "input"
+  action           = "accept"
+  protocol         = "tcp"
+  dst_port         = "8291"
   src_address_list = "LAN"
-  comment      = "Accept Winbox from LAN"
+  comment          = "Accept Winbox from LAN"
 }
 
 resource "routeros_ip_firewall_filter" "input_api" {
-  chain        = "input"
-  action       = "accept"
-  protocol     = "tcp"
-  dst_port     = "8443"
+  chain            = "input"
+  action           = "accept"
+  protocol         = "tcp"
+  dst_port         = "8443"
   src_address_list = "MANAGEMENT"
-  comment      = "Accept REST API from management network"
+  comment          = "Accept REST API from management network"
 }
 
 resource "routeros_ip_firewall_filter" "input_dns" {
@@ -144,35 +144,35 @@ resource "routeros_ip_firewall_filter" "forward_invalid" {
 {% for policy in firewall_policies %}
 {% if policy.chain == 'forward' %}
 resource "routeros_ip_firewall_filter" "{{ policy.id | replace('-', '_') }}" {
-  chain  = "forward"
-  action = "{{ policy.action }}"
+  chain            = "forward"
+  action           = "{{ policy.action }}"
   {% if policy.source_network_ref %}
-  src_address = "{{ policy.source_cidr }}"
+  src_address      = "{{ policy.source_cidr }}"
   {% elif policy.source_zone_ref %}
   src_address_list = "{{ policy.source_zone_ref | upper }}"
   {% endif %}
   {% if policy.destination_network_ref %}
-  dst_address = "{{ policy.destination_cidr }}"
+  dst_address      = "{{ policy.destination_cidr }}"
   {% elif policy.destination_zone_ref %}
   dst_address_list = "{{ policy.destination_zone_ref | upper }}"
   {% endif %}
   {% if policy.protocols %}
-  protocol = "{{ policy.protocols[0] }}"
+  protocol         = "{{ policy.protocols[0] }}"
   {% endif %}
   {% if policy.ports %}
-  dst_port = "{{ policy.ports | join(',') }}"
+  dst_port         = "{{ policy.ports | join(',') }}"
   {% endif %}
-  comment = "{{ policy.name }}: {{ policy.description }}"
+  comment          = "{{ policy.name }}: {{ policy.description }}"
 }
 
 {% endif %}
 {% endfor %}
 # Default drop for forward
 resource "routeros_ip_firewall_filter" "forward_drop_default" {
-  chain   = "forward"
-  action  = "drop"
-  comment = "Default drop all forward"
-  log     = true
+  chain      = "forward"
+  action     = "drop"
+  comment    = "Default drop all forward"
+  log        = true
   log_prefix = "DROP_FORWARD:"
 }
 
@@ -181,26 +181,26 @@ resource "routeros_ip_firewall_filter" "forward_drop_default" {
 # -----------------------------------------------------------------------------
 
 resource "routeros_ip_firewall_nat" "masquerade_wan" {
-  chain        = "srcnat"
-  action       = "masquerade"
+  chain         = "srcnat"
+  action        = "masquerade"
   out_interface = "ether1"
-  comment      = "Masquerade outgoing traffic on WAN"
+  comment       = "Masquerade outgoing traffic on WAN"
 }
 
 resource "routeros_ip_firewall_nat" "masquerade_lte" {
-  chain        = "srcnat"
-  action       = "masquerade"
+  chain         = "srcnat"
+  action        = "masquerade"
   out_interface = "lte1"
-  comment      = "Masquerade outgoing traffic on LTE failover"
+  comment       = "Masquerade outgoing traffic on LTE failover"
 }
 
 # DNS redirect to AdGuard container
 resource "routeros_ip_firewall_nat" "dns_redirect" {
-  chain       = "dstnat"
-  action      = "dst-nat"
-  protocol    = "udp"
-  dst_port    = "53"
+  chain        = "dstnat"
+  action       = "dst-nat"
+  protocol     = "udp"
+  dst_port     = "53"
   to_addresses = "192.168.88.1"
-  to_ports    = "53"
-  comment     = "Redirect DNS to AdGuard"
+  to_ports     = "53"
+  comment      = "Redirect DNS to AdGuard"
 }

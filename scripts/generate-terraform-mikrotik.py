@@ -272,7 +272,37 @@ class MikrotikTerraformGenerator:
         success &= self.generate_file('outputs.tf.j2', 'outputs.tf')
         success &= self.generate_tfvars_example()
 
+        # Run terraform fmt to normalize formatting
+        success &= self.run_terraform_fmt()
+
         return success
+
+    def run_terraform_fmt(self) -> bool:
+        """Run terraform fmt to normalize file formatting"""
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["terraform", "fmt"],
+                cwd=str(self.output_dir),
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                formatted_files = result.stdout.strip().split('\n') if result.stdout.strip() else []
+                if formatted_files and formatted_files[0]:
+                    print(f"FMT Formatted {len(formatted_files)} files with terraform fmt")
+                else:
+                    print("FMT All files already formatted")
+                return True
+            else:
+                print(f"WARN  terraform fmt returned non-zero: {result.stderr}")
+                return True  # Non-fatal, files are still valid
+        except FileNotFoundError:
+            print("WARN  terraform not found in PATH, skipping fmt")
+            return True  # Non-fatal
+        except Exception as e:
+            print(f"WARN  terraform fmt failed: {e}")
+            return True  # Non-fatal
 
     def generate_file(self, template_name: str, output_name: str) -> bool:
         """Generate a single Terraform file from template"""

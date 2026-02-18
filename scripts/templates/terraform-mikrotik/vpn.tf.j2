@@ -42,11 +42,11 @@ resource "routeros_ip_address" "wg_home_address" {
 resource "routeros_interface_wireguard_peer" "peers" {
   for_each = { for peer in var.wireguard_peers : peer.name => peer }
 
-  interface             = routeros_interface_wireguard.wg_home.name
-  public_key            = each.value.public_key
-  allowed_address       = each.value.allowed_ips
-  persistent_keepalive  = lookup(each.value, "keepalive", "25s")
-  comment               = lookup(each.value, "comment", each.key)
+  interface            = routeros_interface_wireguard.wg_home.name
+  public_key           = each.value.public_key
+  allowed_address      = each.value.allowed_ips
+  persistent_keepalive = lookup(each.value, "keepalive", "25s")
+  comment              = lookup(each.value, "comment", each.key)
 
   depends_on = [routeros_interface_wireguard.wg_home]
 }
@@ -87,9 +87,9 @@ resource "routeros_ip_firewall_filter" "wg_forward_out" {
 # -----------------------------------------------------------------------------
 
 resource "routeros_ip_firewall_nat" "wg_masquerade" {
-  chain        = "srcnat"
-  action       = "masquerade"
-  src_address  = "{{ wireguard.network | default('10.0.200.0/24') }}"
+  chain         = "srcnat"
+  action        = "masquerade"
+  src_address   = "{{ wireguard.network | default('10.0.200.0/24') }}"
   out_interface = "ether1"
-  comment      = "Masquerade WireGuard clients to WAN"
+  comment       = "Masquerade WireGuard clients to WAN"
 }

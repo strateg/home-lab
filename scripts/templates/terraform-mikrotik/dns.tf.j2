@@ -11,7 +11,7 @@
 # MikroTik forwards to AdGuard container on localhost
 
 resource "routeros_ip_dns" "dns" {
-  servers               = ["127.0.0.1"]  # AdGuard container
+  servers               = ["127.0.0.1"] # AdGuard container
   allow_remote_requests = true
   cache_size            = {{ dns_settings.cache_size_mb | default(2) }}
   cache_max_ttl         = "{{ dns_settings.cache_max_ttl | default('1w') }}"
