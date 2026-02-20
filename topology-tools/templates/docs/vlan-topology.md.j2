@@ -1,0 +1,122 @@
+# VLAN Topology
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## VLAN Segmentation Overview
+
+```mermaid
+graph LR
+    subgraph router["MikroTik Router"]
+        direction TB
+        {% for network in networks %}
+        {% if network.vlan %}
+        {{ network.id | mermaid_id }}["VLAN {{ network.vlan }}<br/>{{ network.name }}<br/>{{ network.cidr }}"]
+        {% elif network.cidr != 'dhcp' and network.bridge_ref is none %}
+        {{ network.id | mermaid_id }}["{{ network.name }}<br/>{{ network.cidr }}"]
+        {% endif %}
+        {% endfor %}
+    end
+
+    subgraph proxmox["Proxmox VE"]
+        {% for bridge in bridges %}
+        {{ bridge.id | mermaid_id }}[/"{{ bridge.name }}"/]
+        {% endfor %}
+    end
+
+    %% Trunk connection
+    router -->|"802.1Q Trunk<br/>All VLANs"| {{ bridges[0].id | mermaid_id if bridges else 'vmbr0' }}
+
+    %% VLAN colors by trust zone
+    classDef untrusted fill:#ff6b6b,stroke:#c92a2a,color:#fff
+    classDef user fill:#74c0fc,stroke:#1864ab,color:#000
+    classDef servers fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef iot fill:#ffd43b,stroke:#fab005,color:#000
+    classDef guest fill:#868e96,stroke:#495057,color:#fff
+    classDef mgmt fill:#da77f2,stroke:#9c36b5,color:#fff
+    classDef bridge fill:#e9ecef,stroke:#868e96,color:#000
+
+    {% for network in networks %}
+    {% if network.trust_zone_ref == 'untrusted' %}
+    class {{ network.id | mermaid_id }} untrusted
+    {% elif network.trust_zone_ref == 'user' %}
+    class {{ network.id | mermaid_id }} user
+    {% elif network.trust_zone_ref == 'servers' %}
+    class {{ network.id | mermaid_id }} servers
+    {% elif network.trust_zone_ref == 'iot' %}
+    class {{ network.id | mermaid_id }} iot
+    {% elif network.trust_zone_ref == 'guest' %}
+    class {{ network.id | mermaid_id }} guest
+    {% elif network.trust_zone_ref == 'management' %}
+    class {{ network.id | mermaid_id }} mgmt
+    {% endif %}
+    {% endfor %}
+    {% for bridge in bridges %}
+    class {{ bridge.id | mermaid_id }} bridge
+    {% endfor %}
+```
+
+---
+
+## VLAN Details
+
+| VLAN ID | Name | Network | Gateway | Trust Zone | DHCP |
+|---------|------|---------|---------|------------|------|
+{% for network in networks %}
+{% if network.vlan %}
+| {{ network.vlan }} | {{ network.name }} | `{{ network.cidr }}` | {{ network.gateway | default('-') }} | {{ network.trust_zone_ref }} | {{ 'Yes' if network.dhcp else 'No' }} |
+{% endif %}
+{% endfor %}
+
+---
+
+## Non-VLAN Networks
+
+| Network | CIDR | Gateway | Trust Zone | Purpose |
+|---------|------|---------|------------|---------|
+{% for network in networks %}
+{% if not network.vlan and network.cidr != 'dhcp' %}
+| {{ network.name }} | `{{ network.cidr }}` | {{ network.gateway | default('DHCP') }} | {{ network.trust_zone_ref }} | {{ network.description | default('-') }} |
+{% endif %}
+{% endfor %}
+
+---
+
+## Trunk Port Configuration
+
+### MikroTik -> Proxmox
+
+```
+Interface: ether2 (MikroTik) -> enp3s0 (Proxmox)
+Mode: 802.1Q Trunk
+Native VLAN: None (all tagged)
+Tagged VLANs:
+{% for network in networks %}
+{% if network.vlan %}
+  - VLAN {{ network.vlan }}: {{ network.name }} ({{ network.cidr }})
+{% endif %}
+{% endfor %}
+```
+
+---
+
+## IP Allocation per VLAN
+
+{% for network in networks %}
+{% if network.ip_allocations %}
+### {{ network.name }}{% if network.vlan %} (VLAN {{ network.vlan }}){% endif %}
+
+| IP Address | Device | Interface | Description |
+|------------|--------|-----------|-------------|
+{% for alloc in network.ip_allocations | sort(attribute='ip') %}
+| `{{ alloc.ip }}` | {{ alloc.device_ref | default(alloc.lxc_ref | default(alloc.vm_ref | default('?'))) }} | {{ alloc.interface | default('-') }} | {{ alloc.description | default('-') }} |
+{% endfor %}
+
+{% endif %}
+{% endfor %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 topology-tools/generate-docs.py`

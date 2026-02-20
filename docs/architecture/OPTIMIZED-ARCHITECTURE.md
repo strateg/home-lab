@@ -239,7 +239,7 @@ Slate AX VPN:  WireGuard → Home OPNsense
 
 ```bash
 # Запустить автоустановку
-bash openwrt/scripts/setup-vpn-servers.sh
+bash manual-scripts/openwrt/setup-vpn-servers.sh
 
 # Скрипт автоматически:
 # ✅ Установит WireGuard и AmneziaWG
@@ -253,7 +253,7 @@ bash openwrt/scripts/setup-vpn-servers.sh
 
 ```bash
 # Запустить генератор
-bash openwrt/scripts/generate-vpn-client-configs.sh
+bash manual-scripts/openwrt/generate-vpn-client-configs.sh
 
 # Скрипт создаст:
 # ✅ Конфигурации для WireGuard клиентов

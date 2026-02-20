@@ -14,7 +14,7 @@ Successfully migrated home lab infrastructure configuration from topology v1.1 t
 **Before (v1.1):**
 ```
 topology.yaml              (17 KB, flat structure)
-scripts/validate-topology.py
+topology-tools/validate-topology.py
 ```
 
 **After (v2.0):**
@@ -91,7 +91,7 @@ Reusable defaults for:
 - Detailed error messages with paths
 
 ### 6. ✅ Enhanced Validator
-- File: `scripts/validate-topology.py` (393 lines)
+- File: `topology-tools/validate-topology.py` (393 lines)
 - Two-step validation: schema + references
 - Validates all `*_ref` fields point to existing IDs
 - Better error reporting
@@ -122,18 +122,18 @@ mkdir -p archive/
 ```bash
 mv topology.yaml archive/topology-v1.1.yaml
 mv topology-v1.1-backup.yaml archive/topology-v1.1-backup.yaml
-mv scripts/validate-topology.py archive/validate-topology-v1.1.py
+mv topology-tools/validate-topology.py archive/validate-topology-v1.1.py
 ```
 
 ### 3. Promoted v2.0 to Production
 ```bash
 mv topology-v2.0.yaml topology.yaml
-mv scripts/validate-with-schema.py scripts/validate-topology.py
+mv scripts/validate-with-schema.py topology-tools/validate-topology.py
 ```
 
 ### 4. Updated Validator Default Paths
 ```python
-# scripts/validate-topology.py
+# topology-tools/validate-topology.py
 parser.add_argument("--topology", default="topology.yaml")  # was topology-v2.0.yaml
 parser.add_argument("--schema", default="schemas/topology-v3-schema.json")
 ```
@@ -147,7 +147,7 @@ parser.add_argument("--schema", default="schemas/topology-v3-schema.json")
 
 ```bash
 # Validate new topology
-python3 scripts/validate-topology.py
+python3 topology-tools/validate-topology.py
 
 # Output:
 # ✅ Validation PASSED
@@ -162,9 +162,9 @@ python3 scripts/validate-topology.py
 Old v1.1 generators will NOT work with v2.0 topology:
 
 **What needs updating:**
-- `scripts/generate-terraform.py` - Must handle `physical_topology`, `logical_topology`, `compute` sections
-- `scripts/generate-ansible-inventory.py` - Must handle new structure
-- `scripts/generate-docs.py` - Must handle expanded sections
+- `topology-tools/generate-terraform.py` - Must handle `physical_topology`, `logical_topology`, `compute` sections
+- `topology-tools/generate-ansible-inventory.py` - Must handle new structure
+- `topology-tools/generate-docs.py` - Must handle expanded sections
 
 **TODO**: Implement v2.0-compatible generators
 
@@ -187,10 +187,10 @@ cp topology.yaml topology-v2.0-backup.yaml
 
 # 2. Restore v1.1
 cp archive/topology-v1.1.yaml topology.yaml
-cp archive/validate-topology-v1.1.py scripts/validate-topology.py
+cp archive/validate-topology-v1.1.py topology-tools/validate-topology.py
 
 # 3. Validate
-python3 scripts/validate-topology.py
+python3 topology-tools/validate-topology.py
 ```
 
 **Note**: You will lose all v2.0 enhancements (backup policies, monitoring, YAML anchors).
@@ -235,7 +235,7 @@ From TOPOLOGY-V2-ANALYSIS.md:
 - **Analysis**: `TOPOLOGY-V2-ANALYSIS.md` - 10 improvements identified
 - **Archive**: `archive/README.md` - Legacy files documentation
 - **Schema**: `schemas/topology-v3-schema.json` - JSON Schema v7
-- **Validator**: `scripts/validate-topology.py` - Validation tool
+- **Validator**: `topology-tools/validate-topology.py` - Validation tool
 
 ---
 

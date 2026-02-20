@@ -1,0 +1,120 @@
+# Certificates Topology
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## PKI and Certificate Distribution
+
+```mermaid
+flowchart LR
+    local_ca["Local CA<br/>{{ certificates.local_ca.name | default('N/A') }}"]
+
+    subgraph certs["Issued Certificates"]
+        {% for cert in certificates.certificates | default([]) %}
+        {{ cert.id | mermaid_id }}["{{ cert.domain }}<br/>{{ cert.issuer | default('issuer') }}"]
+        {% endfor %}
+        {% for cert in certificates.additional | default([]) %}
+        {{ cert.id | mermaid_id }}["{{ cert.name | default(cert.id) }}<br/>{{ cert.type | default('custom') }}"]
+        {% endfor %}
+    end
+
+    subgraph services["TLS Services"]
+        {% for service in services %}
+        {% if service.protocol == 'https' or (service.ports is defined and service.ports.https is defined) %}
+        {{ service.id | mermaid_id }}["{{ service.name }}<br/>{{ service.protocol | default('https') }}"]
+        {% endif %}
+        {% endfor %}
+    end
+
+    subgraph dist["CA Distribution"]
+        {% for node in certificates.local_ca.distribution | default([]) %}
+        dist_{{ node.device_ref | mermaid_id }}["{{ node.device_ref }}"]
+        {% endfor %}
+    end
+
+    {% for cert in certificates.certificates | default([]) %}
+    local_ca --> {{ cert.id | mermaid_id }}
+    {% if cert.service_ref is defined %}
+    {{ cert.id | mermaid_id }} --> {{ cert.service_ref | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    {% for cert in certificates.additional | default([]) %}
+    {% if cert.type == 'self-signed' %}
+    local_ca -.policy.-> {{ cert.id | mermaid_id }}
+    {% endif %}
+    {% for target in cert.used_by | default([]) %}
+    {{ cert.id | mermaid_id }} --> {{ target.service_ref | mermaid_id }}
+    {% endfor %}
+    {% endfor %}
+
+    {% for node in certificates.local_ca.distribution | default([]) %}
+    local_ca --> dist_{{ node.device_ref | mermaid_id }}
+    {% endfor %}
+
+    classDef ca fill:#74c0fc,stroke:#1864ab,color:#000
+    classDef cert fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef svc fill:#ffd43b,stroke:#fab005,color:#000
+    classDef dist fill:#ff8787,stroke:#c92a2a,color:#fff
+
+    class local_ca ca
+    {% for cert in certificates.certificates | default([]) %}
+    class {{ cert.id | mermaid_id }} cert
+    {% endfor %}
+    {% for cert in certificates.additional | default([]) %}
+    class {{ cert.id | mermaid_id }} cert
+    {% endfor %}
+    {% for service in services %}
+    {% if service.protocol == 'https' or (service.ports is defined and service.ports.https is defined) %}
+    class {{ service.id | mermaid_id }} svc
+    {% endif %}
+    {% endfor %}
+    {% for node in certificates.local_ca.distribution | default([]) %}
+    class dist_{{ node.device_ref | mermaid_id }} dist
+    {% endfor %}
+```
+
+---
+
+## Local CA
+
+| Field | Value |
+|-------|-------|
+| Enabled | {{ 'Yes' if certificates.local_ca.enabled else 'No' }} |
+| Name | {{ certificates.local_ca.name | default('-') }} |
+| Common Name | {{ certificates.local_ca.cn | default('-') }} |
+| Organization | {{ certificates.local_ca.organization | default('-') }} |
+| Validity | {{ certificates.local_ca.validity_days | default('-') }} days |
+| Key Size | {{ certificates.local_ca.key_size | default('-') }} bits |
+| Storage | {{ certificates.local_ca.storage.device_ref | default('-') }}:{{ certificates.local_ca.storage.path | default('-') }} |
+
+---
+
+## Issued Certificates
+
+| Certificate | Domain/Subject | Issuer/Type | Validity | Auto Renew | Service Ref |
+|-------------|----------------|-------------|----------|------------|-------------|
+{% for cert in certificates.certificates | default([]) %}
+| {{ cert.id }} | {{ cert.domain }} | {{ cert.issuer | default('-') }} | {{ cert.validity_days | default('-') }} days | {{ 'Yes' if cert.auto_renew else 'No' }} | {{ cert.service_ref | default('-') }} |
+{% endfor %}
+{% for cert in certificates.additional | default([]) %}
+| {{ cert.id }} | {{ cert.subject | default(cert.name | default('-')) }} | {{ cert.type | default('-') }} | {{ cert.valid_days | default('-') }} days | {{ 'Yes' if cert.auto_renew else 'No' }} | {% for target in cert.used_by | default([]) %}{{ target.service_ref }}{% if not loop.last %}, {% endif %}{% endfor %} |
+{% endfor %}
+
+---
+
+## Let's Encrypt Settings
+
+| Setting | Value |
+|---------|-------|
+| Enabled | {{ 'Yes' if certificates.letsencrypt.enabled else 'No' }} |
+| Email | {{ certificates.letsencrypt.email | default('-') }} |
+| Challenge | {{ certificates.letsencrypt.challenge_type | default('-') }} |
+| DNS Provider | {{ certificates.letsencrypt.dns_provider | default('-') }} |
+| Staging | {{ 'Yes' if certificates.letsencrypt.staging else 'No' }} |
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 topology-tools/generate-docs.py`

@@ -9,7 +9,7 @@
 #   - provider/<class>/
 # - links: topology/L1-foundation/links/
 # - power: topology/L1-foundation/power/
-# Edit modules then regenerate: python3 scripts/topology/regenerate-all.py
+# Edit modules then regenerate: python3 topology-tools/regenerate-all.py
 
 locations: !include L1-foundation/locations/_index.yaml
 devices: !include L1-foundation/devices/_index.yaml

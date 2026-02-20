@@ -11,7 +11,7 @@ All notable changes to the home lab infrastructure configuration.
 ### Added
 
 #### MikroTik Terraform Generator
-- **`scripts/generate-terraform-mikrotik.py`**: New generator for MikroTik configuration
+- **`topology-tools/generate-terraform-mikrotik.py`**: New generator for MikroTik configuration
   - Reads topology.yaml and generates complete RouterOS Terraform
   - 11 Jinja2 templates for different resource types
   - Supports all MikroTik-specific configuration
@@ -243,7 +243,7 @@ Total: 1587 lines
 
 #### Validation
 - JSON Schema v7 (`schemas/topology-v3-schema.json`, 819 lines)
-- New validator (`scripts/validate-topology.py`, 393 lines)
+- New validator (`topology-tools/validate-topology.py`, 393 lines)
 - Two-step validation: schema compliance + reference consistency
 - Validates all `*_ref` fields point to existing IDs
 
@@ -260,13 +260,13 @@ Total: 1587 lines
   - Generates: overview.md, network-diagram.md, ip-allocation.md, services.md, devices.md
   - Mermaid network diagrams
   - 5 Markdown files from topology
-- **14 Jinja2 templates** in `scripts/templates/`
+- **14 Jinja2 templates** in `topology-tools/templates/`
 
 #### Documentation
 - `MIGRATION-V1-TO-V2.md` - Complete migration guide
 - `archive/README.md` - Archive documentation
 - `TOPOLOGY-V2-ANALYSIS.md` - Analysis and improvements
-- `scripts/GENERATORS-README.md` - Generators documentation
+- `topology-tools/GENERATORS-README.md` - Generators documentation
 - `CHANGELOG.md` - This file
 
 ### 🔄 Changed

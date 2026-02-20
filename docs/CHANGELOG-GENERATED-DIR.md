@@ -97,7 +97,7 @@ def generate_all(self) -> bool:
 
 ### regenerate-all.py Script
 
-**New file**: `scripts/regenerate-all.py` (200 lines)
+**New file**: `topology-tools/regenerate-all.py` (200 lines)
 
 **Features**:
 - Runs all generators in correct order
@@ -108,7 +108,7 @@ def generate_all(self) -> bool:
 
 **Usage**:
 ```bash
-python3 scripts/regenerate-all.py
+python3 topology-tools/regenerate-all.py
 # Validates + generates Terraform + Ansible + Docs
 ```
 
@@ -223,7 +223,7 @@ host_vars_dir = self.output_dir / "host_vars"
 
 ### Updated Documentation
 
-**File**: `scripts/GENERATORS-README.md`
+**File**: `topology-tools/GENERATORS-README.md`
 
 **Changes**:
 - Updated all examples to use `generated/` paths
@@ -284,7 +284,7 @@ Files in `generated/` directory are automatically regenerated:
 ```bash
 # 1. Clean test
 rm -rf generated
-python3 scripts/regenerate-all.py
+python3 topology-tools/regenerate-all.py
 
 # Result:
 ✅ All generators completed successfully!
@@ -300,7 +300,7 @@ generated/
 └── docs/ (5 markdown files)
 
 # 3. Re-run test (tests auto-cleanup)
-python3 scripts/regenerate-all.py
+python3 topology-tools/regenerate-all.py
 
 # Result:
 🧹 Cleaning output directory: generated/terraform
@@ -350,7 +350,7 @@ python3 scripts/regenerate-all.py
 vim topology.yaml
 
 # 2. Regenerate everything
-python3 scripts/regenerate-all.py
+python3 topology-tools/regenerate-all.py
 
 # 3. Review changes
 cd generated/terraform
@@ -364,15 +364,15 @@ terraform apply
 
 ```bash
 # Generate only Terraform
-python3 scripts/generate-terraform.py
+python3 topology-tools/generate-terraform.py
 # Output: generated/terraform/
 
 # Generate only Ansible
-python3 scripts/generate-ansible-inventory.py
+python3 topology-tools/generate-ansible-inventory.py
 # Output: generated/ansible/inventory/production/
 
 # Generate only docs
-python3 scripts/generate-docs.py
+python3 topology-tools/generate-docs.py
 # Output: generated/docs/
 ```
 
@@ -384,7 +384,7 @@ git clone <repo>
 cd home-lab/new_system
 
 # Generate all files (not in repo!)
-python3 scripts/regenerate-all.py
+python3 topology-tools/regenerate-all.py
 
 # generated/ directory created from topology.yaml
 ```
@@ -416,7 +416,7 @@ python3 scripts/regenerate-all.py
 
 ```
 1. Edit topology.yaml (single source of truth)
-2. Run python3 scripts/regenerate-all.py
+2. Run python3 topology-tools/regenerate-all.py
 3. Review generated/ files (read-only mindset)
 4. Apply with terraform/ansible
 ```
@@ -432,13 +432,13 @@ python3 scripts/regenerate-all.py
 
 ## 📚 References
 
-- **Main Documentation**: `scripts/GENERATORS-README.md` (updated)
-- **Regenerate Script**: `scripts/regenerate-all.py`
+- **Main Documentation**: `topology-tools/GENERATORS-README.md` (updated)
+- **Regenerate Script**: `topology-tools/regenerate-all.py`
 - **Gitignore**: `.gitignore`
 - **Modified Scripts**:
-  - `scripts/generate-terraform.py`
-  - `scripts/generate-ansible-inventory.py`
-  - `scripts/generate-docs.py`
+  - `topology-tools/generate-terraform.py`
+  - `topology-tools/generate-ansible-inventory.py`
+  - `topology-tools/generate-docs.py`
 
 ---
 

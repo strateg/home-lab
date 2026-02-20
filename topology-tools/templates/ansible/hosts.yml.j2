@@ -1,0 +1,128 @@
+# ============================================================
+# Ansible Inventory (hosts.yml)
+# Generated from topology.yaml v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with topology-tools/generate-ansible-inventory.py
+# ============================================================
+
+all:
+  children:
+    # ============================================================
+    # Compute Groups
+    # ============================================================
+
+    {% if lxc_hosts %}
+    lxc_containers:
+      hosts:
+        {% for host in lxc_hosts %}
+        {% if host.ip %}
+        {{ host.inventory_name }}:
+          ansible_host: {{ host.ip }}
+          ansible_user: {{ host.ansible_user }}
+          ansible_python_interpreter: /usr/bin/python3
+          vmid: {{ host.vmid }}
+          host_type: lxc
+          host_role: {{ host.role }}
+          trust_zone: {{ host.trust_zone }}
+          display_name: "{{ host.display_name }}"
+          {% if host.playbook %}
+          playbook: {{ host.playbook }}
+          {% endif %}
+        {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {% if vm_hosts %}
+    virtual_machines:
+      hosts:
+        {% for host in vm_hosts %}
+        {% if host.ip and host.ansible_enabled %}
+        {{ host.inventory_name }}:
+          ansible_host: {{ host.ip }}
+          ansible_user: root
+          ansible_python_interpreter: /usr/bin/python3
+          vmid: {{ host.vmid }}
+          host_type: vm
+          host_role: {{ host.role }}
+          trust_zone: {{ host.trust_zone }}
+          display_name: "{{ host.display_name }}"
+        {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    {% if physical_hosts %}
+    physical_devices:
+      hosts:
+        {% for host in physical_hosts %}
+        {% if host.ip and host.ansible_enabled %}
+        {{ host.inventory_name }}:
+          ansible_host: {{ host.ip }}
+          ansible_user: root
+          ansible_python_interpreter: /usr/bin/python3
+          host_type: {{ host.type }}
+          host_role: {{ host.role }}
+          device_model: {{ host.model }}
+          display_name: "{{ host.display_name }}"
+          {% if host.description %}
+          description: "{{ host.description }}"
+          {% endif %}
+        {% endif %}
+        {% endfor %}
+
+    sbc_devices:
+      hosts:
+        {% for host in physical_hosts %}
+        {% if host.type == 'sbc' and host.ip and host.ansible_enabled %}
+        {{ host.inventory_name }}:
+        {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    # ============================================================
+    # Trust Zone Groups
+    # ============================================================
+
+    {% for zone_id, zone_config in trust_zones.items() %}
+    {{ zone_id }}_zone:
+      hosts:
+        {% for host in lxc_hosts %}
+        {% if host.trust_zone == zone_id and host.ip %}
+        {{ host.inventory_name }}:
+        {% endif %}
+        {% endfor %}
+        {% for host in vm_hosts %}
+        {% if host.trust_zone == zone_id and host.ip and host.ansible_enabled %}
+        {{ host.inventory_name }}:
+        {% endif %}
+        {% endfor %}
+      vars:
+        trust_zone: {{ zone_id }}
+        trust_zone_level: {{ zone_config.security_level }}
+    {% endfor %}
+
+    # ============================================================
+    # Service Type Groups
+    # ============================================================
+
+    databases:
+      hosts:
+        {% for host in lxc_hosts %}
+        {% if host.type == 'database' and host.ip %}
+        {{ host.inventory_name }}:
+        {% endif %}
+        {% endfor %}
+
+    web_applications:
+      hosts:
+        {% for host in lxc_hosts %}
+        {% if host.type == 'web-application' and host.ip %}
+        {{ host.inventory_name }}:
+        {% endif %}
+        {% endfor %}
+
+    cache_servers:
+      hosts:
+        {% for host in lxc_hosts %}
+        {% if host.type == 'cache' and host.ip %}
+        {{ host.inventory_name }}:
+        {% endif %}
+        {% endfor %}

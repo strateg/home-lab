@@ -1,0 +1,51 @@
+# =============================================================================
+# MikroTik DHCP Server Configuration
+# Generated from topology v{{ topology_version }}
+# DO NOT EDIT MANUALLY - Regenerate with: python3 topology-tools/generate-terraform-mikrotik.py
+# =============================================================================
+
+{% for network in networks %}
+{% if network.dhcp and network.dhcp_range and network.managed_by_ref == 'mikrotik-chateau' %}
+# -----------------------------------------------------------------------------
+# DHCP Server: {{ network.name }}
+# -----------------------------------------------------------------------------
+
+resource "routeros_ip_dhcp_server" "dhcp_{{ network.id | replace('-', '_') }}" {
+  name          = "dhcp-{{ network.id }}"
+  interface     = "{{ network.interface_name | default('bridge-lan' if network.vlan is none else 'vlan' ~ network.vlan) }}"
+  address_pool  = routeros_ip_pool.pool_{{ network.id | replace('-', '_') }}.name
+  lease_time    = "{{ network.dhcp_lease_time | default('1d') }}"
+  authoritative = "yes"
+  comment       = "DHCP server for {{ network.name }}"
+
+  depends_on = [
+    routeros_ip_pool.pool_{{ network.id | replace('-', '_') }},
+    routeros_ip_address.{{ network.id | replace('-', '_') }}
+  ]
+}
+
+resource "routeros_ip_dhcp_server_network" "net_{{ network.id | replace('-', '_') }}" {
+  address    = "{{ network.cidr }}"
+  gateway    = "{{ network.gateway }}"
+  dns_server = [{% for dns in network.dns %}"{{ dns }}"{% if not loop.last %}, {% endif %}{% endfor %}]
+  {% if network.domain %}
+  domain     = "{{ network.domain }}"
+  {% endif %}
+  comment    = "{{ network.name }} DHCP network"
+}
+
+{% endif %}
+{% endfor %}
+# -----------------------------------------------------------------------------
+# Static DHCP Leases (Reserved IPs)
+# -----------------------------------------------------------------------------
+
+{% for lease in dhcp_leases %}
+resource "routeros_ip_dhcp_server_lease" "lease_{{ lease.id | replace('-', '_') }}" {
+  address     = "{{ lease.ip }}"
+  mac_address = "{{ lease.mac }}"
+  server      = "{{ lease.server }}"
+  comment     = "{{ lease.comment | default(lease.device_ref) }}"
+}
+
+{% endfor %}

@@ -1,7 +1,7 @@
 # L7 Operations
 # Part of Home Lab Topology v4.0.0
 # Workflows, runbooks, docs, backups, automation
-# Edit this file then regenerate: python3 scripts/topology/regenerate-all.py
+# Edit this file then regenerate: python3 topology-tools/regenerate-all.py
 
 workflows:
   fresh_install:
@@ -24,7 +24,7 @@ workflows:
       duration_min: 10
     - step: 4
       name: Generate Terraform from topology
-      script: scripts/topology/generate-terraform.py
+      script: topology-tools/generate-terraform.py
       duration_min: 1
     - step: 5
       name: Apply Terraform configuration
@@ -32,7 +32,7 @@ workflows:
       duration_min: 5
     - step: 6
       name: Generate Ansible inventory from topology
-      script: scripts/topology/generate-ansible-inventory.py
+      script: topology-tools/generate-ansible-inventory.py
       duration_min: 1
     - step: 7
       name: Run Ansible playbooks
@@ -47,16 +47,16 @@ workflows:
       manual: true
     - step: 2
       name: Validate topology
-      script: scripts/topology/validate-topology.py
+      script: topology-tools/validate-topology.py
     - step: 3
       name: Regenerate Terraform
-      script: scripts/topology/generate-terraform.py
+      script: topology-tools/generate-terraform.py
     - step: 4
       name: Regenerate Ansible inventory
-      script: scripts/topology/generate-ansible-inventory.py
+      script: topology-tools/generate-ansible-inventory.py
     - step: 5
       name: Regenerate documentation
-      script: scripts/topology/generate-docs.py
+      script: topology-tools/generate-docs.py
     - step: 6
       name: Plan Terraform changes
       command: cd terraform && terraform plan
@@ -97,8 +97,8 @@ notes:
 - Physical/logical separation makes structure clear
 - Services reference compute resources by ID for flexibility
 - Single environment (production) - multi-env can be added if needed
-- 'Validate topology with: python3 scripts/topology/validate-topology.py'
-- 'Regenerate everything with: python3 scripts/topology/regenerate-all.py'
+- 'Validate topology with: python3 topology-tools/validate-topology.py'
+- 'Regenerate everything with: python3 topology-tools/regenerate-all.py'
 ansible:
   group_vars:
     all:

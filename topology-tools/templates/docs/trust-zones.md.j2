@@ -1,0 +1,151 @@
+# Trust Zone Security Matrix
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Security Zone Overview
+
+```mermaid
+flowchart TB
+    subgraph level0["Security Level 0 - Untrusted"]
+        internet[("Internet<br/>External")]
+        guest["Guest WiFi<br/>Isolated"]
+    end
+
+    subgraph level1["Security Level 1 - Semi-Trusted"]
+        user["User Devices<br/>LAN/WiFi"]
+        iot["IoT Devices<br/>Isolated"]
+    end
+
+    subgraph level2["Security Level 2 - Trusted"]
+        servers["Servers<br/>LXC/Docker"]
+    end
+
+    subgraph level3["Security Level 3 - Management"]
+        mgmt["Management<br/>Admin Access"]
+    end
+
+    %% Allowed flows (green)
+    user -->|"HTTP/HTTPS<br/>DB ports"| servers
+    servers -->|"Outbound"| internet
+    mgmt -->|"Full Access"| servers
+    mgmt -->|"Admin"| user
+    guest -->|"Internet Only"| internet
+
+    %% Blocked flows (red dashed)
+    guest x-.-x servers
+    guest x-.-x user
+    iot x-.-x servers
+    iot x-.-x user
+    internet x-.-x servers
+
+    %% Styling
+    classDef untrusted fill:#ff6b6b,stroke:#c92a2a,color:#fff
+    classDef semitrust fill:#ffd43b,stroke:#fab005,color:#000
+    classDef trusted fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef mgmt fill:#da77f2,stroke:#9c36b5,color:#fff
+
+    class internet,guest untrusted
+    class user,iot semitrust
+    class servers trusted
+    class mgmt mgmt
+```
+
+---
+
+## Trust Zone Details
+
+| Zone | Security Level | Color | Description |
+|------|----------------|-------|-------------|
+{% for zone_id, zone in trust_zones.items() %}
+| **{{ zone.name }}** | {{ zone.security_level }} | <span style="color:{{ zone.color }}">{{ zone.color }}</span> | {{ zone.description }} |
+{% endfor %}
+
+---
+
+## Firewall Policy Matrix
+
+### Inter-Zone Traffic Rules
+
+```mermaid
+flowchart LR
+    subgraph policies["Firewall Policies"]
+        direction TB
+        {% for policy in firewall_policies[:8] %}
+        {{ policy.id | mermaid_id }}["{{ policy.name }}<br/>{{ policy.action | upper }}"]
+        {% endfor %}
+    end
+
+    classDef accept fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef drop fill:#ff6b6b,stroke:#c92a2a,color:#fff
+
+    {% for policy in firewall_policies[:8] %}
+    {% if policy.action == 'accept' %}
+    class {{ policy.id | mermaid_id }} accept
+    {% else %}
+    class {{ policy.id | mermaid_id }} drop
+    {% endif %}
+    {% endfor %}
+```
+
+---
+
+## Detailed Firewall Rules
+
+| Priority | Name | Source | Destination | Ports | Action |
+|----------|------|--------|-------------|-------|--------|
+{% for policy in firewall_policies | sort(attribute='priority') %}
+| {{ policy.priority }} | {{ policy.name }} | {{ policy.source_zone_ref | default(policy.source_network_ref | default('any')) }} | {{ policy.destination_zone_ref | default(policy.destination_network_ref | default('any')) }} | {{ policy.ports | join(', ') if policy.ports else 'all' }} | **{{ policy.action | upper }}** |
+{% endfor %}
+
+---
+
+## Zone Access Matrix
+
+|  | -> Untrusted | -> User | -> Servers | -> IoT | -> Guest | -> Mgmt |
+|--|-------------|--------|-----------|-------|---------|--------|
+| **Untrusted ->** | - | DENY | DENY | DENY | DENY | DENY |
+| **User ->** | ALLOW | - | ALLOW (ports) | DENY | DENY | DENY |
+| **Servers ->** | ALLOW | DENY | - | DENY | DENY | DENY |
+| **IoT ->** | ALLOW | DENY | DENY | - | DENY | DENY |
+| **Guest ->** | ALLOW | DENY | DENY | DENY | - | DENY |
+| **Mgmt ->** | ALLOW | ALLOW | ALLOW | ALLOW | ALLOW | - |
+
+**Legend**: `ALLOW` = permitted, `DENY` = blocked, `(ports)` = limited ports only
+
+---
+
+## Network to Zone Mapping
+
+| Network | CIDR | Zone | Security | Profile | Plane | Segmentation | Transport | Volatility |
+|---------|------|------|----------|---------|-------|--------------|-----------|------------|
+{% for network in networks %}
+{% if network.trust_zone_ref %}
+| {{ network.name }} | {{ network.cidr }} | {{ network.trust_zone_ref }} | {{ trust_zones[network.trust_zone_ref].security_level if trust_zones[network.trust_zone_ref] is defined else '?' }} | {{ network.profile_ref | default('-') }} | {{ network.network_plane | default('virtual') }} | {{ network.segmentation_type | default(('vlan' if network.vlan else ('overlay-vpn' if network.vpn_type is defined else 'routed-subnet'))) }} | {{ network.transport | join(', ') if network.transport else '-' }} | {{ network.volatility | default('medium') }} |
+{% endif %}
+{% endfor %}
+
+---
+
+## Analysis Notes
+
+1. **Physical underlay vs virtual overlay**: `network_plane` identifies whether a segment is tied to uplink underlay (`underlay-uplink`), standard virtual segmentation (`virtual`), or overlay transport (`overlay`).
+2. **Segmentation source**: `segmentation_type` makes enforcement intent explicit (`vlan`, `bridge`, `overlay-vpn`, `mesh-overlay`).
+3. **Carrier awareness**: `transport` highlights which physical media can carry traffic in each zone, improving threat and blast-radius analysis.
+4. **Change impact**: `volatility` marks likely change frequency to separate stable core segments from task-driven overlays.
+
+---
+
+## Security Principles
+
+1. **Default Deny**: All traffic is blocked unless explicitly allowed
+2. **Least Privilege**: Only necessary ports are opened
+3. **Zone Isolation**: IoT and Guest networks are fully isolated
+4. **Management Separation**: Admin access from dedicated zone only
+5. **Outbound Only**: Lower security zones can only initiate outbound connections
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 topology-tools/generate-docs.py`

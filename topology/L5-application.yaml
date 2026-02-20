@@ -1,7 +1,7 @@
 # L5 Application
 # Part of Home Lab Topology v4.0.0
 # Services, ports, certificates, DNS records
-# Edit this file then regenerate: python3 scripts/topology/regenerate-all.py
+# Edit this file then regenerate: python3 topology-tools/regenerate-all.py
 
 certificates:
   local_ca:

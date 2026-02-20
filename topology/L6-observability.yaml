@@ -1,7 +1,7 @@
 # L6 Observability
 # Part of Home Lab Topology v4.0.0
 # Monitoring, alerts, dashboards
-# Edit this file then regenerate: python3 scripts/topology/regenerate-all.py
+# Edit this file then regenerate: python3 topology-tools/regenerate-all.py
 
 healthchecks:
 - id: health-mikrotik

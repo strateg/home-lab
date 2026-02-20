@@ -1,0 +1,131 @@
+# Monitoring Topology
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Observability Flow
+
+```mermaid
+flowchart LR
+    subgraph targets["Monitored Targets"]
+        {% for hc in healthchecks %}
+        {{ hc.id | mermaid_id }}["{{ hc.name }}"]
+        {% endfor %}
+        {% for nm in network_monitoring %}
+        {{ nm.id | mermaid_id }}["{{ nm.name }}"]
+        {% endfor %}
+    end
+
+    subgraph stack["Observability Stack"]
+        {% for svc in services %}
+        {% if svc.type in ['monitoring', 'alerting', 'logging', 'visualization'] %}
+        {{ svc.id | mermaid_id }}["{{ svc.name }}<br/>{{ svc.type }}"]
+        {% endif %}
+        {% endfor %}
+        dashboard["Dashboard<br/>{{ dashboard.provider | default('n/a') }}"]
+    end
+
+    subgraph alerting["Alert Rules"]
+        {% for alert in alerts %}
+        {{ alert.id | mermaid_id }}["{{ alert.name }}<br/>{{ alert.severity | upper }}"]
+        {% endfor %}
+    end
+
+    subgraph channels["Notification Channels"]
+        {% for ch in notification_channels %}
+        {{ ch.id | mermaid_id }}["{{ ch.name }}<br/>{{ ch.type }}"]
+        {% endfor %}
+    end
+
+    {% for hc in healthchecks %}
+    {{ hc.id | mermaid_id }} -.metrics.-> svc_prometheus
+    {% endfor %}
+    {% for nm in network_monitoring %}
+    {{ nm.id | mermaid_id }} -.metrics.-> svc_prometheus
+    {% endfor %}
+
+    svc_prometheus --> svc_alertmanager
+    svc_prometheus --> svc_grafana
+    svc_loki --> svc_grafana
+    svc_grafana --> dashboard
+
+    {% for alert in alerts %}
+    svc_alertmanager --> {{ alert.id | mermaid_id }}
+    {% for channel_id in alert.channels | default([]) %}
+    {{ alert.id | mermaid_id }} --> {{ channel_id | mermaid_id }}
+    {% endfor %}
+    {% endfor %}
+
+    classDef target fill:#74c0fc,stroke:#1864ab,color:#000
+    classDef stack fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef alert fill:#ffd43b,stroke:#fab005,color:#000
+    classDef channel fill:#ff8787,stroke:#c92a2a,color:#fff
+    classDef dashboard fill:#da77f2,stroke:#9c36b5,color:#fff
+
+    {% for hc in healthchecks %}
+    class {{ hc.id | mermaid_id }} target
+    {% endfor %}
+    {% for nm in network_monitoring %}
+    class {{ nm.id | mermaid_id }} target
+    {% endfor %}
+    {% for svc in services %}
+    {% if svc.type in ['monitoring', 'alerting', 'logging', 'visualization'] %}
+    class {{ svc.id | mermaid_id }} stack
+    {% endif %}
+    {% endfor %}
+    {% for alert in alerts %}
+    class {{ alert.id | mermaid_id }} alert
+    {% endfor %}
+    {% for ch in notification_channels %}
+    class {{ ch.id | mermaid_id }} channel
+    {% endfor %}
+    class dashboard dashboard
+```
+
+---
+
+## Monitoring Components
+
+| Component | Type | Host | Endpoint |
+|-----------|------|------|----------|
+{% for svc in services %}
+{% if svc.type in ['monitoring', 'alerting', 'logging', 'visualization'] %}
+| {{ svc.name }} | {{ svc.type }} | {{ svc.device_ref | default(svc.lxc_ref | default('-')) }} | {{ svc.url | default(svc.ip ~ ':' ~ (svc.port | default('-'))) }} |
+{% endif %}
+{% endfor %}
+
+---
+
+## Healthchecks
+
+| Healthcheck | Target | Interval | Critical |
+|-------------|--------|----------|----------|
+{% for hc in healthchecks %}
+| {{ hc.name }} | {{ hc.device_ref | default(hc.lxc_ref | default(hc.service_ref | default(hc.ups_ref | default('-')))) }} | {{ hc.interval | default('-') }} | {{ 'Yes' if hc.critical else 'No' }} |
+{% endfor %}
+
+---
+
+## Alert Rules
+
+| Alert | Severity | Channels |
+|-------|----------|----------|
+{% for alert in alerts %}
+| {{ alert.name }} | {{ alert.severity }} | {{ alert.channels | join(', ') if alert.channels else '-' }} |
+{% endfor %}
+
+---
+
+## Notification Channels
+
+| Channel | Type | Enabled |
+|---------|------|---------|
+{% for ch in notification_channels %}
+| {{ ch.name }} | {{ ch.type }} | {{ 'Yes' if ch.enabled else 'No' }} |
+{% endfor %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 topology-tools/generate-docs.py`

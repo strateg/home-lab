@@ -1,0 +1,103 @@
+# UPS Topology
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Power Protection Graph
+
+```mermaid
+flowchart TB
+    grid["Power Grid"]
+
+    {% for unit in ups %}
+    {{ unit.id | mermaid_id }}["{{ unit.name }}<br/>{{ unit.model }}<br/>{{ unit.specs.capacity_va | default('?') }}VA / {{ unit.specs.capacity_watts | default('?') }}W"]
+    grid --> {{ unit.id | mermaid_id }}
+
+    {% for pd in unit.protected_devices | default([]) %}
+    pd_{{ unit.id | mermaid_id }}_{{ pd.device_ref | mermaid_id }}["{{ pd.device_ref }}<br/>{{ pd.power_watts | default('?') }}W"]
+    {{ unit.id | mermaid_id }} --> pd_{{ unit.id | mermaid_id }}_{{ pd.device_ref | mermaid_id }}
+    {% endfor %}
+
+    mon_{{ unit.id | mermaid_id }}["Monitoring<br/>{{ unit.connection.monitoring_software | default('N/A') }}"]
+    {{ unit.connection.connected_to | mermaid_id }} -.USB.-> mon_{{ unit.id | mermaid_id }}
+    mon_{{ unit.id | mermaid_id }} -.status.-> {{ unit.id | mermaid_id }}
+    {% endfor %}
+
+    classDef grid fill:#74c0fc,stroke:#1864ab,color:#000
+    classDef ups fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef dev fill:#ffd43b,stroke:#fab005,color:#000
+    classDef mon fill:#ff8787,stroke:#c92a2a,color:#fff
+
+    class grid grid
+    {% for unit in ups %}
+    class {{ unit.id | mermaid_id }} ups
+    class mon_{{ unit.id | mermaid_id }} mon
+    {% for pd in unit.protected_devices | default([]) %}
+    class pd_{{ unit.id | mermaid_id }}_{{ pd.device_ref | mermaid_id }} dev
+    {% endfor %}
+    {% endfor %}
+```
+
+---
+
+## UPS Inventory
+
+| UPS | Model | Capacity (VA/W) | Location | Connected To | Runtime |
+|-----|-------|------------------|----------|--------------|---------|
+{% for unit in ups %}
+| {{ unit.name }} | {{ unit.model }} | {{ unit.specs.capacity_va | default('-') }}/{{ unit.specs.capacity_watts | default('-') }} | {{ unit.location | default('-') }} | {{ unit.connection.connected_to | default('-') }} | {{ unit.estimated_runtime_min | default('-') }} min |
+{% endfor %}
+
+---
+
+## Protected Devices
+
+| UPS | Device | Power | Priority | Description |
+|-----|--------|-------|----------|-------------|
+{% for unit in ups %}
+{% for pd in unit.protected_devices | default([]) %}
+| {{ unit.id }} | {{ pd.device_ref }} | {{ pd.power_watts | default('-') }}W | {{ pd.priority | default('-') }} | {{ pd.description | default('-') }} |
+{% endfor %}
+{% endfor %}
+
+---
+
+## Thresholds
+
+| UPS | Low Battery | Critical Battery | Shutdown Battery | Overload |
+|-----|-------------|------------------|------------------|----------|
+{% for unit in ups %}
+| {{ unit.id }} | {{ unit.thresholds.low_battery_percent | default('-') }}% | {{ unit.thresholds.critical_battery_percent | default('-') }}% | {{ unit.thresholds.shutdown_battery_percent | default('-') }}% | {{ unit.thresholds.overload_percent | default('-') }}% |
+{% endfor %}
+
+---
+
+## Power Events and Actions
+
+| UPS | Event | Action | Target | Delay |
+|-----|-------|--------|--------|-------|
+{% for unit in ups %}
+{% for event_name, actions in unit.actions.items() %}
+{% for action in actions %}
+| {{ unit.id }} | {{ event_name }} | {{ action.action | default('-') }} | {{ action.target | default('-') }} | {{ action.delay_seconds | default(0) }}s |
+{% endfor %}
+{% endfor %}
+{% endfor %}
+
+---
+
+## Observability Integration
+
+| Healthcheck | Description | Alert Severity |
+|-------------|-------------|----------------|
+{% for hc in healthchecks %}
+{% if hc.ups_ref is defined %}
+| {{ hc.name }} | {{ hc.description | default('-') }} | {% for alert in alerts %}{% if 'ups' in alert.id %}{{ alert.severity }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %} |
+{% endif %}
+{% endfor %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 topology-tools/generate-docs.py`

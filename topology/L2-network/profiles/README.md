@@ -28,7 +28,7 @@ Use these rules to keep L1 foundation and L2 network intent consistent.
   - should set `vpn_type`
   - should keep `bridge_ref: null` and `vlan: null`
 
-Validation for these rules is implemented in `scripts/topology/validate-topology.py`.
+Validation for these rules is implemented in `topology-tools/validate-topology.py`.
 
 ## Usage Rules
 
@@ -43,8 +43,8 @@ Validation for these rules is implemented in `scripts/topology/validate-topology
 2. Set `profile_ref` in network module.
 3. Add override only if this network is an exception.
 4. Run:
-   - `python scripts/topology/validate-topology.py`
-   - `python scripts/topology/generate-docs.py`
+   - `python topology-tools/validate-topology.py`
+   - `python topology-tools/generate-docs.py`
 
 ## Add New Profile (when needed)
 

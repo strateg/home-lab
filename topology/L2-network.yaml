@@ -10,7 +10,7 @@
 # - firewall: topology/L2-network/firewall/
 # - qos: topology/L2-network/qos/
 # - ipv6: topology/L2-network/ipv6/
-# Edit modules then regenerate: python3 scripts/topology/regenerate-all.py
+# Edit modules then regenerate: python3 topology-tools/regenerate-all.py
 
 trust_zones: !include L2-network/trust-zones/baseline.yaml
 network_profiles: !include L2-network/profiles/default.yaml

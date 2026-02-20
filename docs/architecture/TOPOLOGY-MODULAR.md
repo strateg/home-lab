@@ -56,7 +56,7 @@ vim topology/logical.yaml       # Add network or bridge
 vim topology/services.yaml      # Add new service
 
 # Regenerate everything
-python3 scripts/topology/regenerate-all.py
+python3 topology-tools/regenerate-all.py
 ```
 
 ### How It Works
@@ -71,7 +71,7 @@ logical_topology: !include topology/logical.yaml
 # ... etc
 ```
 
-All generators (validate, terraform, ansible, docs) automatically merge included files using `scripts/topology/topology_loader.py`.
+All generators (validate, terraform, ansible, docs) automatically merge included files using `topology-tools/topology_loader.py`.
 
 ## Backward Compatibility
 
@@ -82,7 +82,7 @@ All generators (validate, terraform, ansible, docs) automatically merge included
 
 ## Migration
 
-The split was done automatically using `scripts/topology/split-topology.py` which:
+The split was done automatically using `topology-tools/split-topology.py` which:
 - Preserves all comments and formatting
 - Adds headers to each module
 - Maintains proper YAML indentation
@@ -98,14 +98,14 @@ The split was done automatically using `scripts/topology/split-topology.py` whic
 ### New Files
 - `topology.yaml` - Replaced with modular version (36 lines)
 - `topology/*.yaml` - 13 module files
-- `scripts/topology/topology_loader.py` - YAML loader with !include support
-- `scripts/topology/split-topology.py` - Splitter script (for reference)
+- `topology-tools/topology_loader.py` - YAML loader with !include support
+- `topology-tools/split-topology.py` - Splitter script (for reference)
 
 ### Updated Files
-- `scripts/topology/validate-topology.py` - Uses topology_loader
-- `scripts/topology/generate-terraform.py` - Uses topology_loader
-- `scripts/topology/generate-ansible-inventory.py` - Uses topology_loader
-- `scripts/topology/generate-docs.py` - Uses topology_loader
+- `topology-tools/validate-topology.py` - Uses topology_loader
+- `topology-tools/generate-terraform.py` - Uses topology_loader
+- `topology-tools/generate-ansible-inventory.py` - Uses topology_loader
+- `topology-tools/generate-docs.py` - Uses topology_loader
 
 ### Backup
 - `topology.yaml.backup` - Original monolithic file (2104 lines)
@@ -115,11 +115,11 @@ The split was done automatically using `scripts/topology/split-topology.py` whic
 All generators tested and working:
 
 ```bash
-✅ python3 scripts/topology/validate-topology.py          # Schema validation
-✅ python3 scripts/topology/generate-terraform.py         # Terraform generation
-✅ python3 scripts/topology/generate-ansible-inventory.py # Ansible inventory
-✅ python3 scripts/topology/generate-docs.py              # Documentation
-✅ python3 scripts/topology/regenerate-all.py             # Full regeneration
+✅ python3 topology-tools/validate-topology.py          # Schema validation
+✅ python3 topology-tools/generate-terraform.py         # Terraform generation
+✅ python3 topology-tools/generate-ansible-inventory.py # Ansible inventory
+✅ python3 topology-tools/generate-docs.py              # Documentation
+✅ python3 topology-tools/regenerate-all.py             # Full regeneration
 ```
 
 ## Further Improvements

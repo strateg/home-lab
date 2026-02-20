@@ -54,8 +54,8 @@ check_dependencies() {
 validate_topology() {
     log_info "Validating topology.yaml..."
 
-    if [ -f "$PROJECT_ROOT/scripts/topology/validate-topology.py" ]; then
-        python3 "$PROJECT_ROOT/scripts/topology/validate-topology.py" --topology "$TOPOLOGY_FILE"
+    if [ -f "$PROJECT_ROOT/topology-tools/validate-topology.py" ]; then
+        python3 "$PROJECT_ROOT/topology-tools/validate-topology.py" --topology "$TOPOLOGY_FILE"
         log_success "Topology validation passed"
     else
         log_warn "Validator not found, skipping validation"
@@ -68,7 +68,7 @@ generate_all() {
 
     # Run regenerate-all.py
     cd "$PROJECT_ROOT"
-    python3 scripts/topology/regenerate-all.py
+    python3 topology-tools/regenerate-all.py
 
     log_success "Configuration generation completed"
 }
@@ -81,10 +81,15 @@ copy_sources() {
     cp "$TOPOLOGY_FILE" "$OUTPUT_DIR/"
     log_success "Copied topology.yaml"
 
-    # Copy generator scripts
-    mkdir -p "$OUTPUT_DIR/scripts"
-    cp -r "$PROJECT_ROOT/scripts/"* "$OUTPUT_DIR/scripts/"
-    log_success "Copied generator scripts"
+    # Copy topology tools
+    mkdir -p "$OUTPUT_DIR/topology-tools"
+    cp -r "$PROJECT_ROOT/topology-tools/"* "$OUTPUT_DIR/topology-tools/"
+    log_success "Copied topology tools"
+
+    # Copy manual scripts
+    mkdir -p "$OUTPUT_DIR/manual-scripts"
+    cp -r "$PROJECT_ROOT/manual-scripts/"* "$OUTPUT_DIR/manual-scripts/"
+    log_success "Copied manual scripts"
 }
 
 # Create deployment scripts
@@ -105,7 +110,8 @@ This directory contains auto-generated infrastructure configurations:
 - `generated/terraform/` - Terraform configurations for Proxmox
 - `generated/ansible/` - Ansible inventory and playbooks
 - `generated/docs/` - Network diagrams and documentation
-- `scripts/` - Deployment and management scripts
+- `topology-tools/` - Topology generators and validator
+- `manual-scripts/` - Manual setup/config scripts
 
 ## Deployment
 
@@ -115,18 +121,18 @@ See `AUTO-DEPLOY-ARCHITECTURE.md` for full documentation.
 
 ```bash
 # Deploy infrastructure
-cd scripts
+cd topology-tools
 ./deploy-infrastructure.sh
 
 # Verify deployment
 ./verify-deployment.sh
 ```
 
-## Regenerate Configurations
+## Regenerate Topology Artifacts
 
 ```bash
-cd scripts
-python3 topology/regenerate-all.py
+cd topology-tools
+python3 regenerate-all.py
 ```
 
 Generated at: $(date)

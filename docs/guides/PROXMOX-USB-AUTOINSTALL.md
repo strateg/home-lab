@@ -63,7 +63,7 @@ Before generating USB, validate your topology:
 cd /path/to/home-lab/new_system
 
 # Validate topology for Proxmox requirements
-python3 scripts/topology/generate-proxmox-answer.py --validate
+python3 topology-tools/generate-proxmox-answer.py --validate
 ```
 
 **Expected output:**
@@ -83,7 +83,7 @@ The USB creation script auto-generates `answer.toml`, but you can preview it:
 
 ```bash
 # Generate answer.toml from topology
-python3 scripts/topology/generate-proxmox-answer.py topology.yaml bare-metal/answer.toml
+python3 topology-tools/generate-proxmox-answer.py topology.yaml bare-metal/answer.toml
 
 # Review generated file
 cat bare-metal/answer.toml
@@ -173,7 +173,7 @@ lvm.maxvz = 0       # ~128 GB for VMs/LXC
 Static IP from topology can be used with `--static` flag:
 
 ```bash
-python3 scripts/topology/generate-proxmox-answer.py topology.yaml answer.toml --static
+python3 topology-tools/generate-proxmox-answer.py topology.yaml answer.toml --static
 ```
 
 This uses management network IP allocation from `topology.yaml`.
@@ -283,7 +283,7 @@ Generate `answer.toml` with specific password:
 PASSWORD_HASH=$(openssl passwd -6 "MySecurePassword")
 
 # Generate answer.toml with custom password
-python3 scripts/topology/generate-proxmox-answer.py \
+python3 topology-tools/generate-proxmox-answer.py \
     topology.yaml \
     answer.toml \
     --password "$PASSWORD_HASH"
@@ -294,7 +294,7 @@ python3 scripts/topology/generate-proxmox-answer.py \
 Use management network IP from topology:
 
 ```bash
-python3 scripts/topology/generate-proxmox-answer.py \
+python3 topology-tools/generate-proxmox-answer.py \
     topology.yaml \
     answer.toml \
     --static
@@ -380,14 +380,14 @@ After successful Proxmox installation:
    cd /root/home-lab/new_system
 
    # Generate Terraform
-   python3 scripts/topology/generate-terraform.py
+   python3 topology-tools/generate-terraform.py
    cd generated/terraform
    terraform init
    terraform apply
 
    # Generate Ansible inventory
    cd /root/home-lab/new_system
-   python3 scripts/topology/generate-ansible-inventory.py
+   python3 topology-tools/generate-ansible-inventory.py
    cd ansible
    ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
    ```
@@ -399,7 +399,7 @@ After successful Proxmox installation:
 | File | Purpose | Generated? |
 |------|---------|------------|
 | `topology.yaml` | Infrastructure source of truth | Manual |
-| `scripts/topology/generate-proxmox-answer.py` | Answer file generator | Manual |
+| `topology-tools/generate-proxmox-answer.py` | Answer file generator | Manual |
 | `bare-metal/answer.toml` | Proxmox auto-install config | Generated |
 | `bare-metal/create-legacy-autoinstall-proxmox-usb.sh` | USB creation script | Manual |
 | `/tmp/prepared-proxmox-*.iso` | Hybrid ISO with answer | Generated |

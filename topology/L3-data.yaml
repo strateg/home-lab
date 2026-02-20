@@ -1,7 +1,7 @@
 # L3 Data
 # Part of Home Lab Topology v4.0.0
 # Data layer: storage pools, data assets (no references upward)
-# Edit this file then regenerate: python3 scripts/topology/regenerate-all.py
+# Edit this file then regenerate: python3 topology-tools/regenerate-all.py
 
 storage:
 - id: storage-local

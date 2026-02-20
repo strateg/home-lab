@@ -22,7 +22,7 @@
 # Directories (relative to deploy/)
 ROOT_DIR := $(shell cd .. && pwd)
 TOPOLOGY_DIR := $(ROOT_DIR)
-SCRIPTS_DIR := $(ROOT_DIR)/scripts
+TOPOLOGY_TOOLS_DIR := $(ROOT_DIR)/topology-tools
 GENERATED_DIR := $(ROOT_DIR)/generated
 ANSIBLE_DIR := $(ROOT_DIR)/ansible
 
@@ -74,7 +74,7 @@ help:
 
 validate:
 	@echo "$(YELLOW)📋 Validating topology...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 scripts/topology/validate-topology.py
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/validate-topology.py
 	@echo "$(GREEN)✓ Topology validation passed$(NC)"
 
 generate: generate-terraform generate-mikrotik generate-ansible generate-docs
@@ -82,19 +82,19 @@ generate: generate-terraform generate-mikrotik generate-ansible generate-docs
 
 generate-terraform:
 	@echo "$(YELLOW)📝 Generating Terraform (Proxmox)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 scripts/topology/generate-terraform.py
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-terraform.py
 
 generate-mikrotik:
 	@echo "$(YELLOW)📝 Generating Terraform (MikroTik)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 scripts/topology/generate-terraform-mikrotik.py
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-terraform-mikrotik.py
 
 generate-ansible:
 	@echo "$(YELLOW)📝 Generating Ansible inventory...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 scripts/topology/generate-ansible-inventory.py
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-ansible-inventory.py
 
 generate-docs:
 	@echo "$(YELLOW)📝 Generating documentation...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 scripts/topology/generate-docs.py || true
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-docs.py || true
 
 # =============================================================================
 # Terraform Planning

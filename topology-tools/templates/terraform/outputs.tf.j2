@@ -1,0 +1,210 @@
+# ============================================================
+# Terraform Outputs
+# Generated from topology.yaml v{{ topology_version | default('2.0.0') }}
+# DO NOT EDIT MANUALLY - Regenerate with topology-tools/generate-terraform.py
+# ============================================================
+
+# ============================================================
+# Proxmox Node Information
+# ============================================================
+
+output "proxmox_node" {
+  description = "Proxmox node name"
+  value       = var.proxmox_node
+}
+
+output "proxmox_api_url" {
+  description = "Proxmox API URL"
+  value       = var.proxmox_api_url
+}
+
+# ============================================================
+# NOTE: bridges and lxc_containers outputs are defined in their
+# respective .tf files (bridges.tf and lxc.tf) to keep related
+# resources and outputs together.
+# ============================================================
+
+# ============================================================
+# Virtual Machines
+# ============================================================
+
+{% if vms %}
+output "virtual_machines" {
+  description = "Virtual machines configuration"
+  value = {
+{% for vm in vms %}
+    {{ vm.id | replace('-', '_') }} = {
+      vmid        = {{ vm.vmid }}
+      name        = "{{ vm.name }}"
+      description = "{{ vm.description }}"
+      role        = "{{ vm.role }}"
+      trust_zone_ref  = "{{ vm.trust_zone_ref }}"
+{% if vm.networks %}
+      networks = {
+{% for net in vm.networks %}
+        {{ net.interface }} = "{{ net.ip_config.address if net.ip_config is mapping and net.ip_config.address is defined else net.ip_config }}"
+{% endfor %}
+      }
+{% endif %}
+    }
+{% endfor %}
+  }
+}
+{% endif %}
+
+# ============================================================
+# Management Access URLs
+# ============================================================
+
+output "management_urls" {
+  description = "Management access URLs for services"
+  value = {
+{% for device in devices %}
+{% if device.role == 'compute' %}
+    proxmox_web_ui = "https://{{ device.management_ip }}:8006"
+{% endif %}
+{% endfor %}
+{% for vm in vms %}
+{% if vm.role == 'gateway' %}
+{% for net in vm.networks %}
+{% if net.role == 'management' %}
+    {{ vm.id | replace('-', '_') }}_web_ui = "https://{{ net.ip_config.address.split('/')[0] if net.ip_config is mapping else 'N/A' }}"
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endfor %}
+  }
+}
+
+# ============================================================
+# Network Configuration Summary
+# ============================================================
+
+output "network_summary" {
+  description = "Network configuration summary"
+  value = {
+{% for bridge in bridges %}
+    {{ bridge.name }} = {
+      subnet  = "{{ bridge.address }}"
+      comment = "{{ bridge.comment }}"
+{% if bridge.ports %}
+      ports   = {{ bridge.ports | tojson }}
+{% endif %}
+    }
+{% endfor %}
+  }
+}
+
+# ============================================================
+# Storage Configuration
+# ============================================================
+
+{% if storage %}
+output "storage_pools" {
+  description = "Configured storage pools"
+  value = {
+{% for store in storage %}
+    {{ store.id | replace('-', '_') }} = {
+      name = "{{ store.name }}"
+      type = "{{ store.type }}"
+{% if store.path %}
+      path = "{{ store.path }}"
+{% endif %}
+    }
+{% endfor %}
+  }
+}
+{% endif %}
+
+# ============================================================
+# Trust Zones
+# ============================================================
+
+output "trust_zones" {
+  description = "Infrastructure trust zones"
+  value = {
+{% set ns = namespace(trust_zones={}) %}
+{% for lxc in lxc_containers %}
+{% set zone_ref = lxc.trust_zone_ref %}
+{% if zone_ref not in ns.trust_zones %}
+{% set _ = ns.trust_zones.update({zone_ref: []}) %}
+{% endif %}
+{% set _ = ns.trust_zones[zone_ref].append(lxc.name) %}
+{% endfor %}
+{% for vm in vms %}
+{% set zone_ref = vm.trust_zone_ref %}
+{% if zone_ref not in ns.trust_zones %}
+{% set _ = ns.trust_zones.update({zone_ref: []}) %}
+{% endif %}
+{% set _ = ns.trust_zones[zone_ref].append(vm.name) %}
+{% endfor %}
+{% for zone, hosts in ns.trust_zones.items() %}
+    {{ zone }} = [{% for host in hosts %}"{{ host }}"{{ ", " if not loop.last else "" }}{% endfor %}]
+{% endfor %}
+  }
+}
+
+# ============================================================
+# Infrastructure Statistics
+# ============================================================
+
+output "infrastructure_stats" {
+  description = "Infrastructure statistics"
+  value = {
+    total_bridges       = {{ bridges | length }}
+{% if lxc_containers %}
+    total_lxc          = {{ lxc_containers | length }}
+{% endif %}
+{% if vms %}
+    total_vms          = {{ vms | length }}
+{% endif %}
+{% if storage %}
+    total_storage_pools = {{ storage | length }}
+{% endif %}
+    topology_version   = "{{ topology_version | default('2.0.0') }}"
+  }
+}
+
+# ============================================================
+# Next Steps
+# ============================================================
+
+output "next_steps" {
+  description = "Next steps after Terraform apply"
+  value = <<-EOT
+
+    ✅ Terraform infrastructure provisioned successfully!
+
+    📊 Infrastructure Summary:
+{% if lxc_containers %}
+       - LXC Containers: {{ lxc_containers | length }}
+{% endif %}
+{% if vms %}
+       - Virtual Machines: {{ vms | length }}
+{% endif %}
+       - Network Bridges: {{ bridges | length }}
+
+    🔧 Next steps:
+
+    1. Apply Ansible configuration:
+       cd ../ansible
+       ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
+
+    2. Access Proxmox Web UI:
+{% for device in devices %}
+{% if device.role == 'compute' %}
+       https://{{ device.management_ip }}:8006
+       User: root
+{% endif %}
+{% endfor %}
+
+    3. Verify infrastructure:
+       terraform output
+       cd ../scripts
+       ./test-regeneration.sh
+
+    4. Check connectivity:
+       ansible all -i ../ansible/inventory/production/hosts.yml -m ping
+
+  EOT
+}

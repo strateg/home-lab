@@ -28,7 +28,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 
 **Components**:
 - `proxmox/scripts/` - Proxmox automation scripts
-- `openwrt/scripts/` - OpenWRT configuration scripts
+- `manual-scripts/openwrt/` - OpenWRT configuration scripts
 - `opnsense/` - OPNsense configs
 - `services/` - Service deployment scripts
 - `vpn-servers/` - VPN server configs

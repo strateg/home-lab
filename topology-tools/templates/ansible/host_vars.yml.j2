@@ -1,0 +1,24 @@
+# ============================================================
+# Ansible Host Variables: {{ host_name }}
+# Generated from topology.yaml
+# DO NOT EDIT MANUALLY - Regenerate with topology-tools/generate-ansible-inventory.py
+# ============================================================
+
+# Host: {{ host_name }} ({{ host_type }})
+# ID: {{ host_id }}
+
+{% for key, value in host_vars.items() %}
+{% if value is mapping %}
+{{ key }}:
+  {% for k, v in value.items() %}
+  {{ k }}: {{ v | tojson }}
+  {% endfor %}
+{% elif value is iterable and value is not string %}
+{{ key }}:
+  {% for item in value %}
+  - {{ item | tojson }}
+  {% endfor %}
+{% else %}
+{{ key }}: {{ value | tojson }}
+{% endif %}
+{% endfor %}

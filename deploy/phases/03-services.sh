@@ -46,7 +46,7 @@ fi
 
 if [ ! -f "$INVENTORY" ]; then
     echo -e "${RED}❌ No inventory file found!${NC}"
-    echo "   Run: python3 scripts/topology/generate-ansible-inventory.py"
+    echo "   Run: python3 topology-tools/generate-ansible-inventory.py"
     exit 1
 fi
 

@@ -1,7 +1,7 @@
 # L4 Platform
 # Part of Home Lab Topology v4.0.0
 # Compute platform: VMs, LXC, templates
-# Edit this file then regenerate: python3 scripts/topology/regenerate-all.py
+# Edit this file then regenerate: python3 topology-tools/regenerate-all.py
 
 _defaults:
   lxc_os: &id002

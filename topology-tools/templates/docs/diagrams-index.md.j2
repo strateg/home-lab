@@ -1,0 +1,98 @@
+# Diagrams Index
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Documentation Map
+
+Total generated pages: **{{ total_docs }}**
+
+```mermaid
+flowchart TB
+    idx["Diagrams Index"]
+
+    subgraph core["Core"]
+        {% for doc in docs_index.core %}
+        core_{{ loop.index }}["{{ doc.title }}"]
+        {% endfor %}
+    end
+
+    subgraph p1["Phase 1"]
+        {% for doc in docs_index.phase1 %}
+        p1_{{ loop.index }}["{{ doc.title }}"]
+        {% endfor %}
+    end
+
+    subgraph p2["Phase 2"]
+        {% for doc in docs_index.phase2 %}
+        p2_{{ loop.index }}["{{ doc.title }}"]
+        {% endfor %}
+    end
+
+    subgraph p3["Phase 3"]
+        {% for doc in docs_index.phase3 %}
+        p3_{{ loop.index }}["{{ doc.title }}"]
+        {% endfor %}
+    end
+
+    idx --> core
+    idx --> p1
+    idx --> p2
+    idx --> p3
+```
+
+---
+
+## Core Docs
+
+| Document | Purpose |
+|----------|---------|
+{% for doc in docs_index.core %}
+| [{{ doc.title }}]({{ doc.file }}) | {{ doc.description }} |
+{% endfor %}
+
+---
+
+## Phase 1 Diagrams
+
+| Document | Purpose |
+|----------|---------|
+{% for doc in docs_index.phase1 %}
+| [{{ doc.title }}]({{ doc.file }}) | {{ doc.description }} |
+{% endfor %}
+
+---
+
+## Phase 2 Diagrams
+
+| Document | Purpose |
+|----------|---------|
+{% for doc in docs_index.phase2 %}
+| [{{ doc.title }}]({{ doc.file }}) | {{ doc.description }} |
+{% endfor %}
+
+---
+
+## Phase 3 Diagrams
+
+| Document | Purpose |
+|----------|---------|
+{% for doc in docs_index.phase3 %}
+| [{{ doc.title }}]({{ doc.file }}) | {{ doc.description }} |
+{% endfor %}
+
+---
+
+## Navigation Shortcuts
+
+- [Back to Overview](overview.md)
+- [Network Diagram](network-diagram.md)
+- [Trust Zones](trust-zones.md)
+- [Monitoring Topology](monitoring-topology.md)
+- [UPS Topology](ups-topology.md)
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 topology-tools/generate-docs.py`

@@ -57,7 +57,7 @@ This document provides:
 4. **Regenerate Terraform**:
    ```bash
    cd new_system
-   python3 scripts/topology/generate-terraform.py
+   python3 topology-tools/generate-terraform.py
    ```
 
 ### Deploy Bridges with Terraform
@@ -630,7 +630,7 @@ After bridges are configured:
 
 1. Edit `topology.yaml` (add to `logical_topology.bridges`)
 2. Create bridge manually using one of the methods above
-3. Regenerate Terraform: `python3 scripts/topology/generate-terraform.py`
+3. Regenerate Terraform: `python3 topology-tools/generate-terraform.py`
 4. Apply Terraform changes
 
 ### Modifying bridge IP
