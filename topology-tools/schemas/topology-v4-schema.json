@@ -444,19 +444,21 @@
         "description": { "type": "string" }
       }
     },
-    "Ups": {
+    "PowerPolicy": {
       "type": "object",
-      "required": ["id", "name", "type"],
+      "required": ["id", "name", "type", "device_ref"],
       "properties": {
-        "id": { "type": "string", "pattern": "^ups-[a-z0-9-]+$" },
+        "id": { "type": "string", "pattern": "^policy-[a-z0-9-]+$" },
         "name": { "type": "string" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "policy_scope": { "type": "string", "enum": ["ups", "pdu", "mixed"] },
         "model": { "type": "string" },
-        "type": { "type": "string", "enum": ["line-interactive", "online-double-conversion", "offline-standby", "dc-ups"] },
+        "type": { "type": "string", "enum": ["ups-protection", "pdu-distribution", "outage-propagation"] },
+        "ups_type": { "type": "string", "enum": ["line-interactive", "online-double-conversion", "offline-standby", "dc-ups"] },
         "location": { "type": "string" },
         "description": { "type": "string" },
         "specs": { "type": "object" },
         "connection": { "type": "object" },
-        "managed_device_ref": { "$ref": "#/definitions/DeviceRef" },
         "protected_devices": { "type": "array" },
         "outage_model": { "type": "object" },
         "thresholds": { "type": "object" },
@@ -744,10 +746,6 @@
         "physical_links": {
           "type": "array",
           "items": { "$ref": "#/definitions/PhysicalLink" }
-        },
-        "ups": {
-          "type": "array",
-          "items": { "$ref": "#/definitions/Ups" }
         }
       }
     },
@@ -839,6 +837,15 @@
         "workflows": { "type": "object" },
         "runbooks": { "type": "array" },
         "documentation": { "type": "object" },
+        "power_resilience": {
+          "type": "object",
+          "properties": {
+            "policies": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/PowerPolicy" }
+            }
+          }
+        },
         "notes": { "type": "array", "items": { "type": "string" } },
         "ansible": { "type": "object" },
         "backup": {

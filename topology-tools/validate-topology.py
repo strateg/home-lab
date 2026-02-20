@@ -173,6 +173,7 @@ class SchemaValidator:
         ids = {
             'devices': set(),
             'interfaces': set(),
+            'power_policies': set(),
             'networks': set(),
             'bridges': set(),
             'storage': set(),
@@ -192,6 +193,7 @@ class SchemaValidator:
         l3 = self.topology.get('L3_data', {})
         l4 = self.topology.get('L4_platform', {})
         l5 = self.topology.get('L5_application', {})
+        l7 = self.topology.get('L7_operations', {})
 
         for policy in l0.get('security_policy', []) or []:
             if isinstance(policy, dict) and policy.get('id'):
@@ -203,6 +205,12 @@ class SchemaValidator:
             for iface in device.get('interfaces', []) or []:
                 if isinstance(iface, dict) and iface.get('id'):
                     ids['interfaces'].add(iface['id'])
+
+        l7_power = l7.get('power_resilience', {}) or {}
+        l7_policies = l7_power.get('policies', []) or []
+        for policy in l7_policies:
+            if isinstance(policy, dict) and policy.get('id'):
+                ids['power_policies'].add(policy['id'])
 
         for network in l2.get('networks', []) or []:
             if isinstance(network, dict) and network.get('id'):
@@ -414,9 +422,9 @@ class SchemaValidator:
         devices = l1.get('devices', []) or []
         locations = {loc.get('id'): loc for loc in l1.get('locations', []) or [] if isinstance(loc, dict)}
         device_map = {d.get('id'): d for d in devices if isinstance(d, dict) and d.get('id')}
-        ups_ids = {
-            u.get('id') for u in l1.get('ups', []) or []
-            if isinstance(u, dict) and u.get('id')
+        power_device_ids = {
+            d.get('id') for d in devices
+            if isinstance(d, dict) and d.get('id') and d.get('class') == 'power'
         }
         class_type_map = {
             'network': {'router', 'switch', 'ap'},
@@ -443,15 +451,9 @@ class SchemaValidator:
             power_cfg = device.get('power') if isinstance(device.get('power'), dict) else {}
             upstream_power_ref = power_cfg.get('upstream_power_ref')
             if upstream_power_ref:
-                if upstream_power_ref in device_map:
-                    upstream_class = (device_map.get(upstream_power_ref) or {}).get('class')
-                    if upstream_class != 'power':
-                        self.errors.append(
-                            f"Device '{dev_id}': upstream_power_ref '{upstream_power_ref}' must reference class 'power' device or UPS"
-                        )
-                elif upstream_power_ref not in ups_ids:
+                if upstream_power_ref not in power_device_ids:
                     self.errors.append(
-                        f"Device '{dev_id}': upstream_power_ref '{upstream_power_ref}' does not exist in L1 devices/ups"
+                        f"Device '{dev_id}': upstream_power_ref '{upstream_power_ref}' must reference an existing class 'power' device"
                     )
 
             allowed_types = class_type_map.get(dev_class)
@@ -469,15 +471,6 @@ class SchemaValidator:
             if dev_type == 'cloud-vm' and dev_substrate != 'provider-instance':
                 self.errors.append(
                     f"Device '{dev_id}': cloud-vm must use substrate 'provider-instance'"
-                )
-
-        for ups in l1.get('ups', []) or []:
-            if not isinstance(ups, dict):
-                continue
-            managed_device_ref = ups.get('managed_device_ref')
-            if managed_device_ref and managed_device_ref not in ids['devices']:
-                self.errors.append(
-                    f"UPS '{ups.get('id', 'unknown')}': managed_device_ref '{managed_device_ref}' does not exist"
                 )
 
             if dev_type != 'cloud-vm' and dev_substrate == 'provider-instance':
@@ -499,6 +492,42 @@ class SchemaValidator:
                 self.warnings.append(
                     f"Device '{dev_id}': baremetal substrate mapped to cloud location '{location_ref}'"
                 )
+
+        l7 = self.topology.get('L7_operations', {}) or {}
+        l7_power = l7.get('power_resilience', {}) or {}
+        l7_policies = l7_power.get('policies', []) or []
+        for policy in l7_policies:
+            if not isinstance(policy, dict):
+                continue
+
+            policy_id = policy.get('id', 'unknown')
+            policy_device_ref = policy.get('device_ref')
+
+            if policy_device_ref and policy_device_ref not in ids['devices']:
+                self.errors.append(
+                    f"Power policy '{policy_id}': device_ref '{policy_device_ref}' does not exist"
+                )
+            elif policy_device_ref and (device_map.get(policy_device_ref) or {}).get('class') != 'power':
+                self.errors.append(
+                    f"Power policy '{policy_id}': device_ref '{policy_device_ref}' must reference class 'power' device"
+                )
+
+            connection = policy.get('connection')
+            if isinstance(connection, dict):
+                connected_to = connection.get('connected_to')
+                if connected_to and connected_to not in ids['devices']:
+                    self.errors.append(
+                        f"Power policy '{policy_id}': connection.connected_to '{connected_to}' does not exist"
+                    )
+
+            for protected in policy.get('protected_devices', []) or []:
+                if not isinstance(protected, dict):
+                    continue
+                protected_ref = protected.get('device_ref')
+                if protected_ref and protected_ref not in ids['devices']:
+                    self.errors.append(
+                        f"Power policy '{policy_id}': protected_devices device_ref '{protected_ref}' does not exist"
+                    )
 
     def _check_l0_contracts(self, ids: Dict[str, Set[str]]) -> None:
         """Validate L0 governance fields and cross-layer defaults."""

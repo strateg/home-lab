@@ -38,7 +38,8 @@ Rules:
   - `topology/L1-foundation/devices/owned/<class>/`
   - `topology/L1-foundation/devices/provider/<class>/`
   - `topology/L1-foundation/links/`
-  - `topology/L1-foundation/power/`
+  - `topology/L7-operations.yaml`:
+  - `topology/L7-operations/power/`
   - `topology/L2-network.yaml`:
   - `topology/L2-network/trust-zones/`
   - `topology/L2-network/profiles/`
@@ -55,7 +56,6 @@ Rules:
   - `topology/L4-platform.yaml`
   - `topology/L5-application.yaml`
   - `topology/L6-observability.yaml`
-  - `topology/L7-operations.yaml`
 
 ## Editing Conventions (AI + Human)
 

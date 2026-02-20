@@ -3,7 +3,7 @@
 - !include owned/network/slate-ax1800.yaml
 
 # Owned foundation nodes: power
-- !include owned/power/ups-main-managed.yaml
+- !include owned/power/ups-main.yaml
 - !include owned/power/pdu-rack-home.yaml
 
 # Owned foundation nodes: compute

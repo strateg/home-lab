@@ -64,6 +64,7 @@ workflows:
       name: Apply changes if approved
       command: cd terraform && terraform apply
 runbooks: []
+power_resilience: !include L7-operations/power/_index.yaml
 documentation:
   network_diagram:
     format: mermaid

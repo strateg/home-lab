@@ -1,5 +1,5 @@
-id: ups-main-managed
-name: Main UPS (Managed Device)
+id: ups-main
+name: Main UPS
 type: ups
 role: power-backup
 class: power
@@ -7,7 +7,7 @@ substrate: baremetal-owned
 access: local-lan
 model: APC Back-UPS 650VA
 location: home
-description: Managed UPS representation in L1 device inventory for power outage modeling
+description: Primary physical UPS device in L1 inventory
 specs:
   capacity_va: 650
   capacity_watts: 390

@@ -579,7 +579,8 @@ class DocumentationGenerator:
         try:
             template = self.jinja_env.get_template('docs/ups-topology.md.j2')
 
-            ups = self.topology['L1_foundation'].get('ups', [])
+            l7_power = (self.topology.get('L7_operations', {}) or {}).get('power_resilience', {}) or {}
+            ups = l7_power.get('policies', []) or []
             devices = self.topology['L1_foundation'].get('devices', [])
             healthchecks = self.topology.get('L6_observability', {}).get('healthchecks', [])
             alerts = self.topology.get('L6_observability', {}).get('alerts', [])

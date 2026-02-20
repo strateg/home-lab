@@ -14,13 +14,13 @@
 #
 # Layer map:
 # L0 Meta          -> version, defaults, policies
-# L1 Foundation    -> devices, interfaces, MACs, UPS
+# L1 Foundation    -> devices, interfaces, MACs, physical power sources
 # L2 Network       -> networks, bridges, trust_zones, firewall
 # L3 Data          -> storage, data assets
 # L4 Platform      -> VMs, LXC, templates
 # L5 Application   -> services, ports, certificates, DNS records
 # L6 Observability -> monitoring, alerts, dashboards
-# L7 Operations    -> workflows, runbooks, docs, backups
+# L7 Operations    -> workflows, runbooks, docs, backups, power outage policies
 
 L0_meta: !include topology/L0-meta.yaml
 L1_foundation: !include topology/L1-foundation.yaml

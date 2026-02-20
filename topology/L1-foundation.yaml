@@ -1,6 +1,6 @@
 # L1 Foundation
 # Part of Home Lab Topology v4.0.0
-# Foundation inventory: owned/provider foundation nodes, interfaces, MACs, UPS
+# Foundation inventory: owned/provider foundation nodes, interfaces, MACs
 # Workload virtualization (VM/LXC) is modeled in L4 Platform only.
 # Modular layout:
 # - locations: topology/L1-foundation/locations/
@@ -8,10 +8,8 @@
 #   - owned/<class>/
 #   - provider/<class>/
 # - links: topology/L1-foundation/links/
-# - power: topology/L1-foundation/power/ (AC/DC/UPS/PoE model)
 # Edit modules then regenerate: python3 topology-tools/regenerate-all.py
 
 locations: !include L1-foundation/locations/_index.yaml
 devices: !include L1-foundation/devices/_index.yaml
 physical_links: !include L1-foundation/links/_index.yaml
-ups: !include L1-foundation/power/_index.yaml

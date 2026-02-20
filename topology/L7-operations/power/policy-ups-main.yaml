@@ -1,7 +1,9 @@
-id: ups-main
-name: Main UPS
+id: policy-ups-main
+name: Main UPS Runtime Policy
+type: ups-protection
+device_ref: ups-main
 model: APC Back-UPS 650VA
-type: line-interactive
+ups_type: line-interactive
 location: home
 description: Primary UPS for critical infrastructure
 input_source: ac-mains
@@ -22,7 +24,6 @@ connection:
   connected_to: orangepi5
   monitoring_software: nut
   driver: usbhid-ups
-managed_device_ref: ups-main-managed
 protected_devices:
 - device_ref: mikrotik-chateau
   power_watts: 16
