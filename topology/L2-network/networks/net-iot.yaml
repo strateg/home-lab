@@ -1,0 +1,26 @@
+id: net-iot
+name: IoT Network
+cidr: 192.168.40.0/24
+gateway: 192.168.40.1
+dns:
+- 192.168.88.1
+dhcp: true
+dhcp_range: 192.168.40.100-192.168.40.200
+isolated: true
+trust_zone_ref: iot
+bridge_ref: null
+vlan: 40
+description: Smart home devices (isolated from main LAN)
+network_plane: virtual
+segmentation_type: vlan
+transport:
+- wifi
+- ethernet
+volatility: medium
+managed_by_ref: mikrotik-chateau
+firewall_policy: internet-only-no-lateral
+ip_allocations:
+- ip: 192.168.40.1
+  device_ref: mikrotik-chateau
+  interface: vlan40-iot
+  description: MikroTik IoT gateway

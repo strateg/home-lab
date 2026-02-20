@@ -1,0 +1,10 @@
+id: link-lte-backhaul
+endpoint_a:
+  device_ref: mikrotik-chateau
+  interface_ref: if-mikrotik-lte
+endpoint_b:
+  external_ref: mobile-operator-lte
+medium: lte
+speed_mbps: 300
+status: standby
+description: LTE backhaul used as WAN failover path

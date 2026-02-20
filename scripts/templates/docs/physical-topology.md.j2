@@ -35,20 +35,36 @@ graph TB
         {% endfor %}
     end
 
+    %% External physical endpoints from link inventory
+    {% for link in physical_links | default([]) %}
+    {% if link.endpoint_a.external_ref is defined %}
+    ext_{{ link.endpoint_a.external_ref | mermaid_id }}["{{ link.endpoint_a.external_ref }}"]
+    {% endif %}
+    {% if link.endpoint_b.external_ref is defined %}
+    ext_{{ link.endpoint_b.external_ref | mermaid_id }}["{{ link.endpoint_b.external_ref }}"]
+    {% endif %}
+    {% endfor %}
+
     %% Connections
+    {% if physical_links %}
+    {% for link in physical_links %}
+    {% set src = link.endpoint_a.device_ref if link.endpoint_a.device_ref is defined else ('ext_' ~ (link.endpoint_a.external_ref | mermaid_id)) %}
+    {% set dst = link.endpoint_b.device_ref if link.endpoint_b.device_ref is defined else ('ext_' ~ (link.endpoint_b.external_ref | mermaid_id)) %}
+    {% set speed_label = (link.speed_mbps ~ 'Mbps') if link.speed_mbps is defined else '' %}
+    {% if link.medium in ['wifi', 'lte'] %}
+    {{ src | mermaid_id }} -.->|{{ link.medium | upper }}{% if speed_label %}<br/>{{ speed_label }}{% endif %}| {{ dst | mermaid_id }}
+    {% else %}
+    {{ src | mermaid_id }} -->|{{ link.medium | upper }}{% if speed_label %}<br/>{{ speed_label }}{% endif %}| {{ dst | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+    {% else %}
     internet -->|WAN 2.5GbE| mikrotik_chateau
     {% for device in devices %}
     {% if device.location == 'home' and device.type != 'router' %}
     mikrotik_chateau -->|1GbE| {{ device.id | mermaid_id }}
     {% endif %}
     {% endfor %}
-
-    %% VPN to Cloud
-    {% for device in devices %}
-    {% if device.location in ['oracle-frankfurt', 'hetzner-nuremberg'] %}
-    mikrotik_chateau -.->|WireGuard| {{ device.id | mermaid_id }}
     {% endif %}
-    {% endfor %}
 
     %% Styling
     classDef router fill:#4dabf7,stroke:#1864ab,color:#fff
@@ -56,8 +72,17 @@ graph TB
     classDef sbc fill:#ffd43b,stroke:#fab005,color:#000
     classDef cloud fill:#ffc078,stroke:#e8590c,color:#000
     classDef internet fill:#ff6b6b,stroke:#c92a2a,color:#fff
+    classDef external fill:#adb5bd,stroke:#495057,color:#000
 
     class internet internet
+    {% for link in physical_links | default([]) %}
+    {% if link.endpoint_a.external_ref is defined %}
+    class ext_{{ link.endpoint_a.external_ref | mermaid_id }} external
+    {% endif %}
+    {% if link.endpoint_b.external_ref is defined %}
+    class ext_{{ link.endpoint_b.external_ref | mermaid_id }} external
+    {% endif %}
+    {% endfor %}
     {% for device in devices %}
     {% if device.type == 'router' %}
     class {{ device.id | mermaid_id }} router
@@ -70,6 +95,20 @@ graph TB
     {% endif %}
     {% endfor %}
 ```
+
+---
+
+## Physical Link Inventory
+
+| Link ID | Endpoint A | Endpoint B | Medium | Speed | VLAN Trunk | Status |
+|---------|------------|------------|--------|-------|------------|--------|
+{% for link in physical_links | default([]) %}
+| {{ link.id }} | {{ link.endpoint_a.device_ref | default(link.endpoint_a.external_ref) }}{% if link.endpoint_a.interface_ref is defined %} ({{ link.endpoint_a.interface_ref }}){% endif %} | {{ link.endpoint_b.device_ref | default(link.endpoint_b.external_ref) }}{% if link.endpoint_b.interface_ref is defined %} ({{ link.endpoint_b.interface_ref }}){% endif %} | {{ link.medium | upper }} | {{ link.speed_mbps | default('-') }}{% if link.speed_mbps is defined %} Mbps{% endif %} | {{ 'Yes' if link.vlan_trunk else 'No' }} | {{ link.status | default('-') }} |
+{% endfor %}
+
+---
+
+Overlay (VPN/mesh) links are documented separately in `vpn-topology.md`.
 
 ---
 

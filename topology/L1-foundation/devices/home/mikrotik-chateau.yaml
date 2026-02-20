@@ -1,0 +1,120 @@
+id: mikrotik-chateau
+name: MikroTik Chateau LTE7 ax
+type: router
+role: central-gateway
+model: S53UG+5HaxD2HaxD-TC&R11e-LTE7
+location: home
+description: Central router with WiFi 6, LTE failover, RouterOS v7 containers
+specs:
+  cpu:
+    model: Qualcomm IPQ-6010
+    architecture: ARM64
+    cores: 4
+    speed_mhz: 1800
+    speed_mode: auto (864-1800 MHz)
+  memory:
+    total_mb: 1024
+    type: DDR
+  storage:
+    flash_mb: 128
+    type: NAND
+  usb:
+    version: '2.0'
+    type: Type-A
+    max_current_ma: 1000
+    note: For container storage (AdGuard, Tailscale)
+interfaces:
+- id: if-mikrotik-wan
+  name: ether1
+  type: ethernet
+  speed_mbps: 2500
+  role: wan
+  description: 2.5 GbE WAN port - connects to ISP
+- id: if-mikrotik-lan1
+  name: ether2
+  type: ethernet
+  speed_mbps: 1000
+  role: lan
+  description: LAN port 1 - Proxmox
+- id: if-mikrotik-lan2
+  name: ether3
+  type: ethernet
+  speed_mbps: 1000
+  role: lan
+  description: LAN port 2 - Orange Pi 5
+- id: if-mikrotik-lan3
+  name: ether4
+  type: ethernet
+  speed_mbps: 1000
+  role: lan
+  description: LAN port 3 - reserved
+- id: if-mikrotik-lan4
+  name: ether5
+  type: ethernet
+  speed_mbps: 1000
+  role: lan
+  description: LAN port 4 - reserved
+- id: if-mikrotik-wlan-5g
+  name: wlan1
+  type: wifi-5ghz
+  speed_mbps: 1200
+  standard: 802.11ax
+  chipset: QCN-5052
+  chains: 2
+  antenna_gain_dbi: 6
+  description: WiFi 6 5GHz (main)
+- id: if-mikrotik-wlan-2g
+  name: wlan2
+  type: wifi-2.4ghz
+  speed_mbps: 574
+  standard: 802.11ax
+  chipset: QCN-5022
+  chains: 2
+  antenna_gain_dbi: 3
+  description: WiFi 6 2.4GHz (compatibility)
+- id: if-mikrotik-lte
+  name: lte1
+  type: lte
+  modem: R11e-LTE7
+  category: 7
+  speed_dl_mbps: 300
+  speed_ul_mbps: 100
+  mimo_dl: 2x2
+  mimo_ul: 1x1
+  sim_type: Micro-SIM
+  lte_bands_fdd:
+  - 1
+  - 3
+  - 5
+  - 7
+  - 8
+  - 20
+  - 28
+  - 32
+  lte_bands_tdd:
+  - 38
+  - 40
+  - 41
+  bands_3g:
+  - 1
+  - 3
+  - 5
+  - 8
+  role: wan-failover
+  description: LTE Cat 7 modem for failover
+power:
+  input_voltage: 12-28V DC
+  max_watts: 21.5
+  typical_watts: 15.5
+  cooling: passive
+firmware:
+  os: RouterOS
+  version: v7
+  license_level: 4
+  features:
+  - Container support (Docker-compatible)
+  - WireGuard VPN
+  - ZeroTier
+  - REST API
+  - TR-069
+  - IPsec

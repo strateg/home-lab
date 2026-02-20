@@ -1,0 +1,19 @@
+id: net-wan
+name: WAN (ISP)
+cidr: dhcp
+gateway: dhcp
+dns:
+- 1.1.1.1
+- 8.8.8.8
+dhcp: true
+trust_zone_ref: untrusted
+bridge_ref: null
+vlan: null
+description: Primary ISP connection via MikroTik ether1 (2.5GbE)
+network_plane: underlay-uplink
+segmentation_type: uplink
+transport:
+- ethernet
+volatility: medium
+managed_by_ref: mikrotik-chateau
+interface_ref: if-mikrotik-wan

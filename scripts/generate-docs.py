@@ -295,10 +295,12 @@ class DocumentationGenerator:
 
             devices = self.topology['L1_foundation'].get('devices', [])
             locations = self.topology['L1_foundation'].get('locations', [])
+            physical_links = self.topology['L1_foundation'].get('physical_links', [])
 
             content = template.render(
                 devices=devices,
                 locations=locations,
+                physical_links=physical_links,
                 topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
                 generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             )

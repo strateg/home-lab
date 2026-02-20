@@ -1,0 +1,59 @@
+untrusted:
+  name: Untrusted Zone
+  security_level: 0
+  color: '#ff0000'
+  description: External networks (ISP, Internet, LTE)
+  allowed_outbound:
+  - any
+  allowed_inbound:
+  - established
+  - related
+user:
+  name: User Zone
+  security_level: 1
+  color: '#ffcc00'
+  description: End-user devices (WiFi, LAN, VPN clients)
+  allowed_outbound:
+  - to:untrusted
+  - to:servers:ports:80,443,5432,6379
+  allowed_inbound:
+  - established
+servers:
+  name: Servers Zone
+  security_level: 2
+  color: '#00cc00'
+  description: Proxmox LXC and Orange Pi 5 services
+  allowed_outbound:
+  - to:untrusted
+  allowed_inbound:
+  - from:user:ports:80,443,5432,6379
+  - from:management
+iot:
+  name: IoT Zone
+  security_level: 1
+  color: '#ff6600'
+  description: Smart home devices (isolated)
+  allowed_outbound:
+  - to:untrusted
+  allowed_inbound:
+  - established
+  isolated: true
+guest:
+  name: Guest Zone
+  security_level: 0
+  color: '#999999'
+  description: Guest WiFi (isolated, internet only)
+  allowed_outbound:
+  - to:untrusted
+  allowed_inbound:
+  - established
+  isolated: true
+management:
+  name: Management Zone
+  security_level: 3
+  color: '#0066cc'
+  description: Infrastructure management (Proxmox UI, MikroTik UI)
+  allowed_outbound:
+  - any
+  allowed_inbound:
+  - from:admin-ips

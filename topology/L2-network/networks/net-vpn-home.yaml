@@ -1,0 +1,24 @@
+id: net-vpn-home
+name: VPN Home
+cidr: 10.0.200.0/24
+gateway: 10.0.200.1
+dns:
+- 192.168.88.1
+dhcp: false
+trust_zone_ref: user
+bridge_ref: null
+vlan: null
+description: WireGuard VPN on MikroTik (full LAN access)
+network_plane: overlay
+segmentation_type: overlay-vpn
+transport:
+- internet-overlay
+volatility: high
+managed_by_ref: mikrotik-chateau
+vpn_type: wireguard
+vpn_endpoint: home.example.com:51820
+ip_allocations:
+- ip: 10.0.200.1
+  device_ref: mikrotik-chateau
+  interface: wireguard1
+  description: WireGuard server

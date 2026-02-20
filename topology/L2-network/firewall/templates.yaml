@@ -1,0 +1,52 @@
+- id: tmpl-web-access
+  name: Web Access Template
+  description: Allow HTTP and HTTPS traffic
+  ports:
+  - 80
+  - 443
+  protocols:
+  - tcp
+  action: allow
+- id: tmpl-database-access
+  name: Database Access Template
+  description: Allow common database ports
+  ports:
+  - 5432
+  - 3306
+  - 6379
+  - 27017
+  protocols:
+  - tcp
+  action: allow
+- id: tmpl-ssh-access
+  name: SSH Access Template
+  description: Allow SSH connections
+  ports:
+  - 22
+  protocols:
+  - tcp
+  action: allow
+  rate_limit:
+    enabled: true
+    max_connections: 10
+    per_seconds: 60
+- id: tmpl-management-access
+  name: Management Access Template
+  description: Allow management protocols (SSH, HTTPS, RDP)
+  ports:
+  - 22
+  - 443
+  - 8006
+  - 3389
+  protocols:
+  - tcp
+  action: allow
+- id: tmpl-icmp-allow
+  name: ICMP Allow Template
+  description: Allow ping and traceroute
+  protocols:
+  - icmp
+  action: allow
+  icmp_types:
+  - 0
+  - 8

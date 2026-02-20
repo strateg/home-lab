@@ -1,0 +1,54 @@
+id: gamayun
+name: Gamayun
+type: hypervisor
+role: compute
+model: Dell XPS L701X
+location: home
+description: Primary Proxmox VE host - Гамаюн (вещая птица)
+specs:
+  cpu:
+    model: Intel Core i3-M370
+    cores: 2
+    threads: 4
+    speed_mhz: 2400
+  memory:
+    total_gb: 8
+    type: DDR3
+    upgradeable: false
+  disks:
+  - id: disk-ssd-system
+    device: /dev/sda
+    size_gb: 180
+    type: ssd
+    usage: Proxmox system + VMs/LXC thin pool
+  - id: disk-hdd-data
+    device: /dev/sdb
+    size_gb: 500
+    type: hdd
+    usage: Backups, ISOs, VM/LXC templates
+interfaces:
+- id: if-eth-builtin
+  name: eth-builtin
+  type: pci-ethernet
+  speed_mbps: 1000
+  mac: auto-detect
+  physical_name: enp3s0
+  role: lan
+  description: Built-in Ethernet to MikroTik LAN port
+  note: Run 'ip link' on Proxmox to get actual interface name
+- id: if-eth-usb
+  name: eth-usb
+  type: usb-ethernet
+  speed_mbps: 1000
+  mac: auto-detect
+  physical_name: enxXXXXXXXXXXXX
+  role: reserved
+  description: USB Ethernet adapter - reserved for OOB management or backup
+  status: optional
+  note: 'USB Ethernet uses predictable naming: enx<MAC>. Run ''ip link'' to discover.'
+power:
+  max_watts: 65
+  psu: Dell 65W AC adapter
+firmware:
+  bios_version: A07
+  updated: '2020-03-15'

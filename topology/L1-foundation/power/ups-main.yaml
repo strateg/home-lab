@@ -1,0 +1,89 @@
+id: ups-main
+name: Main UPS
+model: APC Back-UPS 650VA
+type: line-interactive
+location: home
+description: Primary UPS for critical infrastructure
+specs:
+  capacity_va: 650
+  capacity_watts: 390
+  battery_type: Sealed Lead Acid
+  battery_count: 1
+  runtime_full_load_min: 5
+  runtime_half_load_min: 15
+  input_voltage: 220-240V AC
+  output_voltage: 230V AC
+  outlets_battery: 4
+  outlets_surge: 2
+connection:
+  type: usb
+  connected_to: orangepi5
+  monitoring_software: nut
+  driver: usbhid-ups
+protected_devices:
+- device_ref: mikrotik-chateau
+  power_watts: 16
+  priority: 1
+  description: Router - critical for network
+- device_ref: orangepi5
+  power_watts: 15
+  priority: 2
+  description: Application server
+- device_ref: gamayun
+  power_watts: 50
+  priority: 3
+  description: Proxmox server
+total_load_watts: 81
+estimated_runtime_min: 20
+thresholds:
+  low_battery_percent: 30
+  critical_battery_percent: 15
+  shutdown_battery_percent: 10
+  overload_percent: 90
+actions:
+  on_battery:
+  - action: notify
+    delay_seconds: 0
+    message: UPS on battery power
+  - action: log
+    delay_seconds: 0
+  low_battery:
+  - action: notify
+    delay_seconds: 0
+    message: UPS battery low - prepare for shutdown
+  - action: shutdown
+    target: gamayun
+    delay_seconds: 60
+    command: shutdown -h +1
+  critical_battery:
+  - action: shutdown
+    target: orangepi5
+    delay_seconds: 30
+    command: shutdown -h now
+  - action: notify
+    message: Critical battery - shutting down servers
+  power_restored:
+  - action: notify
+    message: Power restored
+  - action: cancel_shutdown
+monitoring:
+  enabled: true
+  poll_interval_seconds: 10
+  metrics:
+  - battery.charge
+  - battery.runtime
+  - input.voltage
+  - output.voltage
+  - ups.load
+  - ups.status
+  - ups.temperature
+notifications:
+  channels:
+  - email
+  - telegram
+  events:
+  - on_battery
+  - low_battery
+  - power_restored
+  - overload
+  - replace_battery

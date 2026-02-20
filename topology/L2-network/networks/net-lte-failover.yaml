@@ -1,0 +1,24 @@
+id: net-lte-failover
+name: LTE Failover
+cidr: dhcp
+gateway: dhcp
+dns:
+- 1.1.1.1
+- 8.8.8.8
+dhcp: true
+trust_zone_ref: untrusted
+bridge_ref: null
+vlan: null
+description: LTE Cat 7 failover connection
+network_plane: underlay-uplink
+segmentation_type: uplink
+transport:
+- lte
+volatility: medium
+managed_by_ref: mikrotik-chateau
+interface_ref: if-mikrotik-lte
+failover:
+  enabled: true
+  primary: net-wan
+  check_gateway: ping
+  failover_threshold: 3

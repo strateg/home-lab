@@ -189,6 +189,7 @@ class SchemaValidator:
 
         self._check_network_refs(ids)
         self._check_bridge_refs(ids)
+        self._check_physical_links(ids)
         self._check_vm_refs(ids)
         self._check_lxc_refs(ids)
         self._check_service_refs(ids)
@@ -276,6 +277,50 @@ class SchemaValidator:
             for port in bridge.get('ports', []) or []:
                 if port not in ids['interfaces']:
                     self.errors.append(f"Bridge '{bridge_id}': port '{port}' does not exist in device interfaces")
+
+    def _check_physical_links(self, ids: Dict[str, Set[str]]) -> None:
+        l1 = self.topology.get('L1_foundation', {})
+        links = l1.get('physical_links', []) or []
+        if not links:
+            return
+
+        interface_owner = {}
+        for device in l1.get('devices', []) or []:
+            device_id = device.get('id')
+            for iface in device.get('interfaces', []) or []:
+                iface_id = iface.get('id')
+                if iface_id:
+                    interface_owner[iface_id] = device_id
+
+        for link in links:
+            link_id = link.get('id', 'unknown')
+            for endpoint_key in ('endpoint_a', 'endpoint_b'):
+                endpoint = link.get(endpoint_key, {}) or {}
+                device_ref = endpoint.get('device_ref')
+                interface_ref = endpoint.get('interface_ref')
+                external_ref = endpoint.get('external_ref')
+
+                if device_ref and device_ref not in ids['devices']:
+                    self.errors.append(
+                        f"Physical link '{link_id}' {endpoint_key}: device_ref '{device_ref}' does not exist"
+                    )
+
+                if interface_ref and interface_ref not in ids['interfaces']:
+                    self.errors.append(
+                        f"Physical link '{link_id}' {endpoint_key}: interface_ref '{interface_ref}' does not exist"
+                    )
+
+                if device_ref and interface_ref in interface_owner and interface_owner[interface_ref] != device_ref:
+                    owner = interface_owner[interface_ref]
+                    self.errors.append(
+                        f"Physical link '{link_id}' {endpoint_key}: interface_ref '{interface_ref}' "
+                        f"belongs to '{owner}', not '{device_ref}'"
+                    )
+
+                if not device_ref and not external_ref:
+                    self.errors.append(
+                        f"Physical link '{link_id}' {endpoint_key}: either device_ref or external_ref is required"
+                    )
 
     def _check_vm_refs(self, ids: Dict[str, Set[str]]) -> None:
         l4 = self.topology.get('L4_platform', {})

@@ -119,13 +119,22 @@ flowchart LR
 
 ## Network to Zone Mapping
 
-| Network | CIDR | Trust Zone | Security Level |
-|---------|------|------------|----------------|
+| Network | CIDR | Zone | Security | Plane | Segmentation | Transport | Volatility |
+|---------|------|------|----------|-------|--------------|-----------|------------|
 {% for network in networks %}
 {% if network.trust_zone_ref %}
-| {{ network.name }} | {{ network.cidr }} | {{ network.trust_zone_ref }} | {{ trust_zones[network.trust_zone_ref].security_level if trust_zones[network.trust_zone_ref] is defined else '?' }} |
+| {{ network.name }} | {{ network.cidr }} | {{ network.trust_zone_ref }} | {{ trust_zones[network.trust_zone_ref].security_level if trust_zones[network.trust_zone_ref] is defined else '?' }} | {{ network.network_plane | default('virtual') }} | {{ network.segmentation_type | default(('vlan' if network.vlan else ('overlay-vpn' if network.vpn_type is defined else 'routed-subnet'))) }} | {{ network.transport | join(', ') if network.transport else '-' }} | {{ network.volatility | default('medium') }} |
 {% endif %}
 {% endfor %}
+
+---
+
+## Analysis Notes
+
+1. **Physical underlay vs virtual overlay**: `network_plane` identifies whether a segment is tied to uplink underlay (`underlay-uplink`), standard virtual segmentation (`virtual`), or overlay transport (`overlay`).
+2. **Segmentation source**: `segmentation_type` makes enforcement intent explicit (`vlan`, `bridge`, `overlay-vpn`, `mesh-overlay`).
+3. **Carrier awareness**: `transport` highlights which physical media can carry traffic in each zone, improving threat and blast-radius analysis.
+4. **Change impact**: `volatility` marks likely change frequency to separate stable core segments from task-driven overlays.
 
 ---
 

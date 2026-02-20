@@ -1,0 +1,51 @@
+id: slate-ax1800
+name: GL.iNet Slate AX
+type: router
+role: travel-router
+model: GL-AXT1800
+location: portable
+description: Travel router for remote access to home network
+specs:
+  cpu:
+    model: MediaTek MT7981B
+    cores: 2
+    speed_mhz: 1300
+  memory:
+    total_mb: 512
+    type: DDR4
+  storage:
+    flash_mb: 128
+    type: NAND
+interfaces:
+- id: if-slate-wan
+  name: wan
+  type: ethernet
+  speed_mbps: 1000
+  role: wan
+  description: WAN port
+- id: if-slate-lan
+  name: lan
+  type: ethernet
+  speed_mbps: 1000
+  role: lan
+  description: LAN port
+- id: if-slate-wlan-5g
+  name: wlan0
+  type: wifi-5ghz
+  speed_mbps: 1200
+  standard: 802.11ax
+  description: WiFi 6 5GHz
+- id: if-slate-wlan-2g
+  name: wlan1
+  type: wifi-2.4ghz
+  speed_mbps: 574
+  standard: 802.11ax
+  description: WiFi 6 2.4GHz
+firmware:
+  version: 4.8.2
+  base: OpenWRT 23.05
+  updated: '2024-11-15'
+travel_features:
+- WireGuard client to home network
+- Repeater mode for hotel WiFi
+- Portable VPN gateway

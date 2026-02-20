@@ -1,0 +1,32 @@
+id: net-lan
+name: LAN
+cidr: 192.168.88.0/24
+gateway: 192.168.88.1
+dns:
+- 192.168.88.1
+dhcp: true
+dhcp_range: 192.168.88.100-192.168.88.200
+trust_zone_ref: user
+bridge_ref: null
+vlan: null
+description: Main LAN network (WiFi + Wired)
+network_plane: virtual
+segmentation_type: bridge
+transport:
+- ethernet
+- wifi
+volatility: low
+managed_by_ref: mikrotik-chateau
+ip_allocations:
+- ip: 192.168.88.1
+  device_ref: mikrotik-chateau
+  interface: bridge-lan
+  description: MikroTik LAN gateway
+- ip: 192.168.88.2
+  device_ref: gamayun
+  interface: eth0
+  description: Proxmox host
+- ip: 192.168.88.3
+  device_ref: orangepi5
+  interface: eth0
+  description: Orange Pi 5 application server

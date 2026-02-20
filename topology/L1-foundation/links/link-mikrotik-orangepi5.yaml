@@ -1,0 +1,13 @@
+id: link-mikrotik-orangepi5
+endpoint_a:
+  device_ref: mikrotik-chateau
+  interface_ref: if-mikrotik-lan2
+endpoint_b:
+  device_ref: orangepi5
+  interface_ref: if-opi5-eth
+medium: ethernet
+speed_mbps: 1000
+duplex: full
+vlan_trunk: true
+status: active
+description: Wired uplink for Orange Pi carrying server and management VLANs

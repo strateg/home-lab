@@ -1,0 +1,11 @@
+# Home lab devices
+- !include home/gamayun.yaml
+- !include home/mikrotik-chateau.yaml
+- !include home/orangepi5.yaml
+
+# Portable devices
+- !include portable/slate-ax1800.yaml
+
+# Cloud devices
+- !include cloud/oracle-arm-frankfurt.yaml
+- !include cloud/hetzner-cx22-nuremberg.yaml

@@ -1,0 +1,18 @@
+id: net-tailscale
+name: Tailscale Mesh
+cidr: 100.64.0.0/10
+gateway: null
+dns:
+- 100.100.100.100
+dhcp: false
+trust_zone_ref: user
+bridge_ref: null
+vlan: null
+description: Tailscale mesh VPN (container on MikroTik)
+network_plane: overlay
+segmentation_type: mesh-overlay
+transport:
+- internet-overlay
+volatility: high
+managed_by_ref: mikrotik-chateau
+vpn_type: tailscale

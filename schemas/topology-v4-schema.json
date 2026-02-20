@@ -58,6 +58,26 @@
       "type": "string",
       "enum": ["wireguard", "tailscale", "openvpn", "ipsec", "zerotier"]
     },
+    "PhysicalLinkMedium": {
+      "type": "string",
+      "enum": ["ethernet", "wifi", "fiber", "lte", "coax", "usb", "serial"]
+    },
+    "NetworkPlane": {
+      "type": "string",
+      "enum": ["virtual", "underlay-uplink", "overlay"]
+    },
+    "SegmentationType": {
+      "type": "string",
+      "enum": ["uplink", "routed-subnet", "vlan", "bridge", "overlay-vpn", "mesh-overlay"]
+    },
+    "NetworkTransport": {
+      "type": "string",
+      "enum": ["ethernet", "wifi", "fiber", "lte", "internet-overlay"]
+    },
+    "NetworkVolatility": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
     "FirewallAction": {
       "type": "string",
       "enum": ["accept", "drop", "reject", "log", "pass"]
@@ -327,6 +347,34 @@
         "region": { "type": "string" }
       }
     },
+    "PhysicalLinkEndpoint": {
+      "type": "object",
+      "properties": {
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "interface_ref": { "$ref": "#/definitions/InterfaceRef" },
+        "external_ref": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "anyOf": [
+        { "required": ["device_ref"] },
+        { "required": ["external_ref"] }
+      ]
+    },
+    "PhysicalLink": {
+      "type": "object",
+      "required": ["id", "endpoint_a", "endpoint_b", "medium"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^link-[a-z0-9-]+$" },
+        "endpoint_a": { "$ref": "#/definitions/PhysicalLinkEndpoint" },
+        "endpoint_b": { "$ref": "#/definitions/PhysicalLinkEndpoint" },
+        "medium": { "$ref": "#/definitions/PhysicalLinkMedium" },
+        "speed_mbps": { "type": "integer", "minimum": 1 },
+        "duplex": { "type": "string", "enum": ["half", "full"] },
+        "vlan_trunk": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "standby", "planned"] },
+        "description": { "type": "string" }
+      }
+    },
     "Network": {
       "type": "object",
       "required": ["id", "name", "cidr"],
@@ -342,6 +390,13 @@
         "bridge_ref": { "oneOf": [{ "$ref": "#/definitions/BridgeRef" }, { "type": "null" }] },
         "vlan": { "oneOf": [{ "type": "integer", "minimum": 1, "maximum": 4094 }, { "type": "null" }] },
         "description": { "type": "string" },
+        "network_plane": { "$ref": "#/definitions/NetworkPlane" },
+        "segmentation_type": { "$ref": "#/definitions/SegmentationType" },
+        "transport": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/NetworkTransport" }
+        },
+        "volatility": { "$ref": "#/definitions/NetworkVolatility" },
         "managed_by_ref": { "$ref": "#/definitions/DeviceRef" },
         "interface_ref": { "$ref": "#/definitions/InterfaceRef" },
         "vpn_type": { "$ref": "#/definitions/VpnType" },
@@ -578,6 +633,10 @@
         "devices": {
           "type": "array",
           "items": { "$ref": "#/definitions/Device" }
+        },
+        "physical_links": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PhysicalLink" }
         },
         "ups": { "type": "array" }
       }

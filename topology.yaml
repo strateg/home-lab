@@ -4,6 +4,7 @@
 #
 # This is the main topology file that includes all layered components.
 # Edit individual files in topology/ directory and use generators.
+# Modular rules and workflow: see topology/MODULAR-GUIDE.md
 #
 # Architecture v4.0:
 # - Strict layer separation (L0..L7)

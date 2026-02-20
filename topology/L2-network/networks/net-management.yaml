@@ -1,0 +1,30 @@
+id: net-management
+name: Management
+cidr: 10.0.99.0/24
+gateway: 10.0.99.1
+dns:
+- 192.168.88.1
+dhcp: false
+trust_zone_ref: management
+bridge_ref: bridge-vmbr0
+vlan: 99
+description: Management network for infrastructure admin
+network_plane: virtual
+segmentation_type: vlan
+transport:
+- ethernet
+volatility: low
+managed_by_ref: mikrotik-chateau
+ip_allocations:
+- ip: 10.0.99.1
+  device_ref: mikrotik-chateau
+  interface: vlan99-mgmt
+  description: MikroTik management gateway
+- ip: 10.0.99.2
+  device_ref: gamayun
+  interface: vmbr0.99
+  description: Proxmox Web UI
+- ip: 10.0.99.3
+  device_ref: orangepi5
+  interface: eth0.99
+  description: Orange Pi 5 management

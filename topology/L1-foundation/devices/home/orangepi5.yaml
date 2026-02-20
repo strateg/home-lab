@@ -1,0 +1,167 @@
+id: orangepi5
+name: Orange Pi 5
+type: sbc
+role: application-server
+model: Orange Pi 5
+location: home
+description: Dedicated application server for Nextcloud, Jellyfin, monitoring
+source: http://www.orangepi.org/html/hardWare/computerAndMicrocontrollers/details/Orange-Pi-5.html
+specs:
+  soc: Rockchip RK3588S (8nm LP process)
+  pmu: RK806-1
+  cpu:
+    model: Rockchip RK3588S
+    architecture: ARM64
+    cores: 8
+    design: Big.LITTLE Architecture
+    cores_big: 4
+    cores_big_model: Cortex-A76
+    cores_big_speed_mhz: 2400
+    cores_little: 4
+    cores_little_model: Cortex-A55
+    cores_little_speed_mhz: 1800
+    process_nm: 8
+  gpu:
+    model: ARM Mali-G610 MP4 Odin
+    cores: 4
+    opengl_es: 1.1/2.0/3.2
+    opencl: '2.2'
+    vulkan: '1.2'
+    features:
+    - 3D graphics engine
+    - 2D graphics engine
+  npu:
+    model: Built-in AI accelerator NPU
+    tops: 6
+    operations:
+    - INT4
+    - INT8
+    - INT16
+    note: Mixed operation support
+  vpu:
+    h265_decode: 8K@60fps
+    h264_decode: 8K@30fps
+    h265_encode: 8K@30fps
+    note: Hardware transcoding for Jellyfin
+  memory:
+    options_gb:
+    - 4
+    - 8
+    - 16
+    selected_gb: 8
+    type: LPDDR4/4X
+  storage:
+    qspi_nor_flash_mb: 16
+    microsd_slot: true
+    m2_slot: true
+    m2_key: M-Key
+    m2_support:
+    - PCIe NVMe SSD
+    - Custom PCIe WiFi6+BT5.0 module
+    nvme_planned_gb: 256
+interfaces:
+- id: if-opi5-eth
+  name: eth0
+  type: ethernet
+  speed_mbps: 1000
+  speeds_supported:
+  - 10
+  - 100
+  - 1000
+  role: lan
+  description: 10/100/1000Mbps Gigabit Ethernet
+- id: if-opi5-usb3
+  name: usb3
+  type: usb
+  speed_mbps: 5000
+  standard: USB 3.0
+  connector: Type-A
+  count: 1
+  description: USB 3.0 Type-A x1
+- id: if-opi5-usb2
+  name: usb2
+  type: usb
+  speed_mbps: 480
+  standard: USB 2.0
+  connector: Type-A
+  count: 2
+  description: USB 2.0 Type-A x2
+- id: if-opi5-usbc
+  name: usbc
+  type: usb-c
+  speed_mbps: 10000
+  standard: USB 3.1
+  role: power + data + display
+  description: Type-C USB3.1 (power, data, DP1.4 Alt Mode)
+  features:
+  - Power delivery (5V@4A)
+  - USB 3.1 data
+  - DisplayPort 1.4 Alt Mode
+  note: DP1.4 and USB3.1 multiplexed on same port
+- id: if-opi5-hdmi
+  name: hdmi
+  type: hdmi
+  version: '2.1'
+  resolution: 8K@60Hz
+  audio: eARC
+  description: HDMI 2.1 output with eARC
+- id: if-opi5-mipi-dsi
+  name: mipi-dsi
+  type: display
+  lanes: 4
+  count: 2
+  resolution: 4K@60Hz
+  description: 2x MIPI D-PHY TX 4Lane for displays
+- id: if-opi5-mipi-csi
+  name: mipi-csi
+  type: camera
+  lanes: 4
+  count: 2
+  description: MIPI CSI 4Lane + 2x MIPI D-PHY RX 4Lane for cameras
+- id: if-opi5-gpio
+  name: gpio
+  type: expansion
+  description: Expansion port for UART, PWM, I2C, SPI, CAN and GPIO
+- id: if-opi5-audio
+  name: audio
+  type: audio
+  codec: ES8388
+  features:
+  - 3.5mm headphone jack (input/output)
+  - Onboard MIC
+  - HDMI 2.1 eARC
+  description: Audio codec with 3.5mm jack and onboard mic
+- id: if-opi5-debug
+  name: uart-debug
+  type: debug
+  pins: 3
+  description: 3 Pin debug serial port (UART)
+buttons:
+- name: MaskROM
+  type: recovery
+- name: Recovery
+  type: recovery
+- name: On/Off
+  type: power
+leds:
+- name: Power
+  color: red
+- name: Status
+  color: green
+cooling:
+  fan_voltage: 5V
+  fan_connector: true
+power:
+  input: Type-C
+  voltage: 5V
+  current: 4A
+  watts: 20
+  connector: USB Type-C
+os:
+  official:
+  - Orange Pi OS (Droid)
+  - Orange Pi OS (Arch)
+  - Ubuntu
+  - Debian
+  - Android 12
+  planned: Debian 12
