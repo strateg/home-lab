@@ -353,6 +353,10 @@ ansible-playbook playbooks/proxmox-setup.yml --check
   - Performance тестирование
   - Security тестирование
 
+- **[adr/](adr/)**: Architecture Decision Records
+  - Каждое архитектурное решение фиксируется отдельным ADR-файлом
+  - Формат: `adr/NNNN-short-kebab-title.md`
+
 - **[new_system/manual-scripts/bare-metal/README.md](new_system/manual-scripts/bare-metal/README.md)**: Установка bare-metal
   - Создание USB
   - Конфигурация auto-install

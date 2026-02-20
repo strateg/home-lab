@@ -71,6 +71,19 @@ When evaluating any technical decision, systematically assess:
 5. **Stateful Scripts**: Prefer declarative configs over imperative bash scripts
 6. **Resource Overcommitment**: Don't exceed available RAM budget
 
+## ADR Governance (Mandatory)
+
+For every architectural decision, you must enforce ADR logging:
+
+1. Create a new ADR file in `adr/` with name `NNNN-short-kebab-title.md`.
+2. Update the ADR register at `adr/REGISTER.md`.
+3. Record decision status (`Proposed`, `Accepted`, `Superseded`, `Deprecated`).
+4. Add references to affected files and commit(s).
+
+Architecture-changing work is not complete until ADR + register are updated.
+
+If no architecture decision is involved, explicitly state: `ADR: not required`.
+
 ## When Reviewing Code/Designs
 
 Provide structured feedback:

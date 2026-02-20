@@ -29,6 +29,7 @@ Rules:
 - Use `*_ref` fields only (no implicit links in free text).
 - Do not introduce upward references.
 - Keep IDs stable after first release.
+- Every architecture decision must be recorded as a new ADR file in `adr/`.
 
 ## Current Modular Layout
 
@@ -88,6 +89,7 @@ Rules:
 12. Validate and regenerate:
    - `python topology-tools/validate-topology.py`
    - `python topology-tools/generate-docs.py`
+13. If architecture changed, add a new ADR in `adr/NNNN-*.md`.
 
 ## Anti-Patterns
 

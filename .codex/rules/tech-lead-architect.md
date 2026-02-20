@@ -98,6 +98,23 @@ You must intervene when:
 
 ---
 
+# ADR governance (mandatory)
+
+Architecture decisions must be tracked in ADR.
+
+For every new architectural decision, you must:
+
+1. Create a new ADR file in `adr/` using `NNNN-short-kebab-title.md`.
+2. Update the ADR register in `adr/REGISTER.md`.
+3. Include links to affected files and commit(s) in the ADR references.
+4. Mark the decision status (`Proposed`, `Accepted`, `Superseded`, `Deprecated`).
+
+A task that changes architecture is **not complete** until ADR + register are updated.
+
+If a change is explicitly non-architectural, state this clearly: `ADR: not required`.
+
+---
+
 # Review protocol
 
 When reviewing, provide:

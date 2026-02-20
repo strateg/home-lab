@@ -22,13 +22,13 @@ This is an **Infrastructure-as-Data** home lab project using **OSI-like layer ar
 ```
 topology/
 ├── L0-meta.yaml           # Meta: version, defaults, security policies
-├── L1-foundation.yaml     # Foundation: physical devices, interfaces, UPS
+├── L1-foundation.yaml     # Foundation: physical devices, interfaces, physical power inventory
 ├── L2-network.yaml        # Network: networks, bridges, firewall, QoS, IPv6
 ├── L3-data.yaml           # Data: storage pools, data assets
 ├── L4-platform.yaml       # Platform: VMs, LXC containers, templates
 ├── L5-application.yaml    # Application: services, certificates, DNS
 ├── L6-observability.yaml  # Observability: monitoring, alerts, dashboards
-└── L7-operations.yaml     # Operations: workflows, ansible config, backups
+└── L7-operations.yaml     # Operations: workflows, power resilience policies, ansible config, backups
 ```
 
 **Layer Dependency Rules**:
@@ -235,13 +235,23 @@ cd deploy && make deploy-all
 | Layer | File | Contains |
 |-------|------|----------|
 | L0 | L0-meta.yaml | version, defaults, security_policy |
-| L1 | L1-foundation.yaml | devices, interfaces, ups |
+| L1 | L1-foundation.yaml | devices, interfaces, physical links, physical power devices |
 | L2 | L2-network.yaml | networks, bridges, firewall, qos, ipv6 |
 | L3 | L3-data.yaml | storage_pools, data_assets |
 | L4 | L4-platform.yaml | vms, lxc, templates |
 | L5 | L5-application.yaml | services, certificates, dns_records |
 | L6 | L6-observability.yaml | healthchecks, alerts, dashboards |
-| L7 | L7-operations.yaml | workflows, ansible_config, backup |
+| L7 | L7-operations.yaml | workflows, power_resilience, ansible_config, backup |
+
+## ADR Policy (Mandatory)
+
+Architecture decisions must be documented in `adr/`.
+
+- One architectural decision -> one ADR file.
+- Naming: `adr/NNNN-short-kebab-title.md`.
+- Use `adr/0000-template.md` as a starting point.
+- No architecture change is considered complete without an ADR entry.
+- For superseding decisions, create a new ADR and mark prior one as superseded.
 
 ## Network Architecture
 
@@ -374,7 +384,8 @@ When Claude Code helps with this repository:
 1. **Always check topology layers first** - They are the source of truth
 2. **Regenerate after changes** - Run `regenerate-all.py`
 3. **Respect layer boundaries** - Don't create upward references
-4. **Use Makefile** - `cd deploy && make validate generate`
+4. **Record architecture decisions in ADR** - add/update `adr/NNNN-*.md`
+5. **Use Makefile** - `cd deploy && make validate generate`
 
 **Ask Claude Code to:**
 - "Add a new LXC container to L4-platform.yaml"
