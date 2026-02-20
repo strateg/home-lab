@@ -1,0 +1,200 @@
+# Storage Topology
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Storage Architecture
+
+```mermaid
+flowchart TB
+    subgraph legend["Legend"]
+        direction LR
+        l_ssd[("SSD Storage")]
+        l_hdd[("HDD Storage")]
+        l_nvme[("NVMe Storage")]
+        l_data["Data Asset"]
+    end
+
+    subgraph proxmox["Proxmox VE (gamayun)"]
+        {% for pool in storage %}
+        {% if pool.device_ref == 'gamayun' %}
+        {{ pool.id | mermaid_id }}[("{{ pool.name }}<br/>{{ pool.type }}<br/>{{ pool.description | default('') | truncate(30) }}")]
+        {% endif %}
+        {% endfor %}
+    end
+
+    subgraph orangepi["Orange Pi 5"]
+        nvme_pool[("NVMe 256GB<br/>/mnt/nvme")]
+        {% for asset in data_assets %}
+        {% if asset.device_ref == 'orangepi5' %}
+        {{ asset.id | mermaid_id }}["{{ asset.name }}<br/>{{ asset.type }}"]
+        nvme_pool --> {{ asset.id | mermaid_id }}
+        {% endif %}
+        {% endfor %}
+    end
+
+    subgraph mikrotik["MikroTik Chateau"]
+        {% for asset in data_assets %}
+        {% if asset.device_ref == 'mikrotik-chateau' %}
+        {{ asset.id | mermaid_id }}["{{ asset.name }}<br/>{{ asset.type }}"]
+        {% endif %}
+        {% endfor %}
+    end
+
+    %% Data Assets on Proxmox Storage
+    {% for asset in data_assets %}
+    {% if asset.storage_ref is defined %}
+    {{ asset.storage_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}["{{ asset.name }}<br/>{{ asset.type }}"]
+    {% endif %}
+    {% endfor %}
+
+    %% Styling
+    classDef ssd fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef hdd fill:#ffd43b,stroke:#fab005,color:#000
+    classDef nvme fill:#4dabf7,stroke:#1864ab,color:#fff
+    classDef data fill:#e9ecef,stroke:#495057,color:#000
+    classDef config fill:#ffc078,stroke:#e8590c,color:#000
+
+    {% for pool in storage %}
+    {% if 'ssd' in pool.description | lower or 'lvm' in pool.type | lower %}
+    class {{ pool.id | mermaid_id }} ssd
+    {% elif 'hdd' in pool.description | lower %}
+    class {{ pool.id | mermaid_id }} hdd
+    {% endif %}
+    {% endfor %}
+    class nvme_pool nvme
+
+    {% for asset in data_assets %}
+    {% if asset.type == 'config-export' %}
+    class {{ asset.id | mermaid_id }} config
+    {% else %}
+    class {{ asset.id | mermaid_id }} data
+    {% endif %}
+    {% endfor %}
+```
+
+---
+
+## Storage Pools
+
+| Storage ID | Name | Type | Path/VG | Content Types | Device |
+|------------|------|------|---------|---------------|--------|
+{% for pool in storage %}
+| {{ pool.id }} | **{{ pool.name }}** | {{ pool.type }} | {{ pool.path | default(pool.vgname | default('-')) }} | {{ pool.content | join(', ') }} | {{ pool.device_ref }} |
+{% endfor %}
+
+---
+
+## Data Flow Diagram
+
+```mermaid
+flowchart LR
+    subgraph clients["Clients"]
+        user["User Devices"]
+        vpn["VPN Clients"]
+    end
+
+    subgraph services["Services"]
+        nextcloud["Nextcloud"]
+        jellyfin["Jellyfin"]
+        grafana["Grafana"]
+    end
+
+    subgraph databases["Databases"]
+        postgresql["PostgreSQL"]
+        redis["Redis"]
+    end
+
+    subgraph storage_layer["Storage Layer"]
+        ssd[("local-lvm<br/>SSD 180GB")]
+        hdd[("local-hdd<br/>HDD 500GB")]
+        nvme[("NVMe<br/>256GB")]
+    end
+
+    %% Data flows
+    user --> nextcloud
+    user --> jellyfin
+    vpn --> nextcloud
+
+    nextcloud --> postgresql
+    nextcloud --> redis
+    nextcloud --> nvme
+
+    jellyfin --> nvme
+
+    grafana --> postgresql
+    grafana --> nvme
+
+    postgresql --> ssd
+    redis --> ssd
+
+    %% Backup flows
+    ssd -.->|backup| hdd
+    nvme -.->|backup| hdd
+
+    %% Styling
+    classDef client fill:#4dabf7,stroke:#1864ab,color:#fff
+    classDef service fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef db fill:#ffc078,stroke:#e8590c,color:#000
+    classDef storage fill:#ffd43b,stroke:#fab005,color:#000
+
+    class user,vpn client
+    class nextcloud,jellyfin,grafana service
+    class postgresql,redis db
+    class ssd,hdd,nvme storage
+```
+
+---
+
+## Data Assets
+
+| Asset | Type | Storage | Device | Description |
+|-------|------|---------|--------|-------------|
+{% for asset in data_assets %}
+| **{{ asset.name }}** | {{ asset.type }} | {{ asset.storage_ref | default(asset.path | default('-')) }} | {{ asset.device_ref }} | {{ asset.description | default('-') }} |
+{% endfor %}
+
+---
+
+## Backup Configuration
+
+{% for pool in storage %}
+{% if pool.prune_backups is defined %}
+### {{ pool.name }} Backup Retention
+
+| Policy | Value |
+|--------|-------|
+{% if pool.prune_backups.keep_last is defined %}
+| Keep Last | {{ pool.prune_backups.keep_last }} |
+{% endif %}
+{% if pool.prune_backups.keep_daily is defined %}
+| Keep Daily | {{ pool.prune_backups.keep_daily }} |
+{% endif %}
+{% if pool.prune_backups.keep_weekly is defined %}
+| Keep Weekly | {{ pool.prune_backups.keep_weekly }} |
+{% endif %}
+{% if pool.prune_backups.keep_monthly is defined %}
+| Keep Monthly | {{ pool.prune_backups.keep_monthly }} |
+{% endif %}
+{% if pool.prune_backups.keep_yearly is defined %}
+| Keep Yearly | {{ pool.prune_backups.keep_yearly }} |
+{% endif %}
+
+{% endif %}
+{% endfor %}
+
+---
+
+## Storage Capacity Planning
+
+| Pool | Type | Primary Usage | Estimated Usage |
+|------|------|---------------|-----------------|
+{% for pool in storage %}
+| {{ pool.name }} | {{ pool.type }} | {{ pool.content | first }} | {% if 'ssd' in pool.description | lower %}VMs, LXC rootfs{% elif 'hdd' in pool.description | lower %}Backups, ISOs{% else %}General{% endif %} |
+{% endfor %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 scripts/generate-docs.py`

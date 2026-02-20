@@ -95,6 +95,12 @@ class DocumentationGenerator:
         success &= self.generate_trust_zones()
         success &= self.generate_service_dependencies()
 
+        # Visual diagrams (Phase 2)
+        success &= self.generate_storage_topology()
+        success &= self.generate_ip_visual()
+        success &= self.generate_monitoring_topology()
+        success &= self.generate_vpn_topology()
+
         return success
 
     def generate_network_diagram(self) -> bool:
@@ -374,6 +380,112 @@ class DocumentationGenerator:
             print(f"ERROR Error generating service-dependencies.md: {e}")
             return False
 
+    def generate_storage_topology(self) -> bool:
+        """Generate storage topology diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/storage-topology.md.j2')
+
+            storage = self.topology.get('L3_data', {}).get('storage', [])
+            data_assets = self.topology.get('L3_data', {}).get('data_assets', [])
+
+            content = template.render(
+                storage=storage,
+                data_assets=data_assets,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "storage-topology.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating storage-topology.md: {e}")
+            return False
+
+    def generate_ip_visual(self) -> bool:
+        """Generate visual IP allocation diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/ip-visual.md.j2')
+
+            networks = self.topology['L2_network'].get('networks', [])
+
+            content = template.render(
+                networks=networks,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "ip-visual.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating ip-visual.md: {e}")
+            return False
+
+    def generate_monitoring_topology(self) -> bool:
+        """Generate monitoring infrastructure diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/monitoring-topology.md.j2')
+
+            healthchecks = self.topology.get('L6_observability', {}).get('healthchecks', [])
+            alerts = self.topology.get('L6_observability', {}).get('alerts', [])
+            network_monitoring = self.topology.get('L6_observability', {}).get('network_monitoring', [])
+            notification_channels = self.topology.get('L6_observability', {}).get('notification_channels', [])
+            dashboard = self.topology.get('L6_observability', {}).get('dashboard', {})
+
+            content = template.render(
+                healthchecks=healthchecks,
+                alerts=alerts,
+                network_monitoring=network_monitoring,
+                notification_channels=notification_channels,
+                dashboard=dashboard,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "monitoring-topology.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating monitoring-topology.md: {e}")
+            return False
+
+    def generate_vpn_topology(self) -> bool:
+        """Generate VPN infrastructure diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/vpn-topology.md.j2')
+
+            networks = self.topology['L2_network'].get('networks', [])
+            vpn_networks = [n for n in networks if n.get('vpn_type')]
+
+            services = self.topology.get('L5_application', {}).get('services', [])
+            vpn_services = [s for s in services if s.get('type') == 'vpn']
+
+            firewall_policies = self.topology['L2_network'].get('firewall_policies', [])
+
+            content = template.render(
+                vpn_networks=vpn_networks,
+                vpn_services=vpn_services,
+                firewall_policies=firewall_policies,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "vpn-topology.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating vpn-topology.md: {e}")
+            return False
+
     def print_summary(self):
         """Print generation summary"""
         print("\n" + "="*70)
@@ -387,11 +499,16 @@ class DocumentationGenerator:
         print(f"    - Services inventory")
         print(f"    - Devices inventory")
         print(f"    - Infrastructure overview")
-        print(f"  Visual Diagrams:")
+        print(f"  Visual Diagrams (Phase 1):")
         print(f"    - Physical topology (Mermaid)")
         print(f"    - VLAN topology (Mermaid)")
         print(f"    - Trust zones (Mermaid)")
         print(f"    - Service dependencies (Mermaid)")
+        print(f"  Visual Diagrams (Phase 2):")
+        print(f"    - Storage topology (Mermaid)")
+        print(f"    - IP visual map (Mermaid)")
+        print(f"    - Monitoring topology (Mermaid)")
+        print(f"    - VPN topology (Mermaid)")
         print(f"\nOK Output directory: {self.output_dir}")
         print(f"\nFiles created:")
         for file in sorted(self.output_dir.glob("*.md")):

@@ -1,0 +1,300 @@
+# VPN Infrastructure
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## VPN Overview
+
+```mermaid
+flowchart TB
+    subgraph internet["Internet"]
+        mobile["Mobile Devices"]
+        laptop["Laptops"]
+        cloud_nodes["Cloud Servers"]
+    end
+
+    subgraph mikrotik["MikroTik Chateau"]
+        subgraph vpn_servers["VPN Servers"]
+            wg["WireGuard<br/>:51820/UDP<br/>Native RouterOS"]
+            ts["Tailscale<br/>Container<br/>Mesh VPN"]
+        end
+    end
+
+    subgraph home_network["Home Network"]
+        lan["LAN<br/>192.168.88.0/24"]
+        servers["Servers<br/>10.0.30.0/24"]
+        mgmt["Management<br/>10.0.99.0/24"]
+    end
+
+    %% WireGuard connections
+    mobile -->|WireGuard| wg
+    laptop -->|WireGuard| wg
+
+    %% Tailscale connections
+    laptop -.->|Tailscale Mesh| ts
+    cloud_nodes -.->|Tailscale Mesh| ts
+
+    %% Internal access
+    wg --> lan
+    wg --> servers
+    wg --> mgmt
+
+    ts --> lan
+    ts --> servers
+
+    %% Styling
+    classDef external fill:#ff6b6b,stroke:#c92a2a,color:#fff
+    classDef vpn fill:#cc5de8,stroke:#9c36b5,color:#fff
+    classDef internal fill:#51cf66,stroke:#2b8a3e,color:#000
+
+    class mobile,laptop,cloud_nodes external
+    class wg,ts vpn
+    class lan,servers,mgmt internal
+```
+
+---
+
+## VPN Networks
+
+{% for network in vpn_networks %}
+### {{ network.name }}
+
+```mermaid
+flowchart LR
+    subgraph vpn_net["{{ network.name }}"]
+        gateway["Gateway<br/>{{ network.gateway | default('10.0.200.1') }}"]
+        {% if network.vpn_type == 'wireguard' %}
+        client1["Client 1<br/>10.0.200.2"]
+        client2["Client 2<br/>10.0.200.3"]
+        gateway --> client1
+        gateway --> client2
+        {% elif network.vpn_type == 'tailscale' %}
+        node1["Node 1"]
+        node2["Node 2"]
+        gateway <--> node1
+        gateway <--> node2
+        node1 <--> node2
+        {% endif %}
+    end
+```
+
+| Property | Value |
+|----------|-------|
+| Network ID | {{ network.id }} |
+| CIDR | {{ network.cidr }} |
+| Gateway | {{ network.gateway | default('Dynamic') }} |
+| VPN Type | {{ network.vpn_type | default('wireguard') }} |
+{% if network.vpn_endpoint is defined %}
+| Endpoint | {{ network.vpn_endpoint }} |
+{% endif %}
+| Trust Zone | {{ network.trust_zone_ref }} |
+| Description | {{ network.description }} |
+
+{% endfor %}
+
+---
+
+## VPN Services
+
+{% for service in vpn_services %}
+### {{ service.name }}
+
+```mermaid
+flowchart TB
+    subgraph svc_{{ service.id | mermaid_id }}["{{ service.name }}"]
+        endpoint["Endpoint<br/>{{ service.ip | default('Dynamic') }}{% if service.port is defined %}:{{ service.port }}{% endif %}"]
+        {% if service.features is defined %}
+        subgraph features["Features"]
+            {% for feature in service.features %}
+            f{{ loop.index }}["{{ feature }}"]
+            {% endfor %}
+        end
+        {% endif %}
+    end
+
+    %% Access zones
+    {% for zone in ['user', 'servers', 'management'] %}
+    {% if zone in service.trust_zone_ref or service.trust_zone_ref == zone %}
+    {{ zone }}_zone["{{ zone | title }} Zone"] --> endpoint
+    {% endif %}
+    {% endfor %}
+```
+
+| Property | Value |
+|----------|-------|
+| Service ID | {{ service.id }} |
+| Type | {{ service.type }} |
+| Device | {{ service.device_ref }} |
+{% if service.native is defined and service.native %}
+| Implementation | Native RouterOS |
+{% elif service.container is defined and service.container %}
+| Implementation | Container ({{ service.container_image | default('unknown') }}) |
+{% endif %}
+| Network | {{ service.network_ref }} |
+{% if service.port is defined %}
+| Port | {{ service.port }}/{{ service.protocol | default('UDP') }} |
+{% endif %}
+| Trust Zone | {{ service.trust_zone_ref }} |
+| Critical | {{ 'Yes' if service.critical else 'No' }} |
+
+{% if service.features is defined %}
+**Features**:
+{% for feature in service.features %}
+- {{ feature }}
+{% endfor %}
+{% endif %}
+
+{% endfor %}
+
+---
+
+## VPN Access Matrix
+
+```mermaid
+flowchart LR
+    subgraph vpn_clients["VPN Clients"]
+        wg_client["WireGuard<br/>Clients"]
+        ts_client["Tailscale<br/>Clients"]
+    end
+
+    subgraph access["Access Level"]
+        full["Full Access<br/>All Networks"]
+        limited["Limited Access<br/>User + Servers"]
+    end
+
+    subgraph networks["Internal Networks"]
+        lan_net["LAN"]
+        srv_net["Servers"]
+        mgmt_net["Management"]
+        iot_net["IoT"]
+        guest_net["Guest"]
+    end
+
+    wg_client --> full
+    ts_client --> limited
+
+    full --> lan_net
+    full --> srv_net
+    full --> mgmt_net
+
+    limited --> lan_net
+    limited --> srv_net
+
+    full x--x iot_net
+    full x--x guest_net
+    limited x--x mgmt_net
+    limited x--x iot_net
+    limited x--x guest_net
+
+    %% Styling
+    classDef vpn fill:#cc5de8,stroke:#9c36b5,color:#fff
+    classDef full fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef limited fill:#ffd43b,stroke:#fab005,color:#000
+    classDef blocked fill:#ff6b6b,stroke:#c92a2a,color:#fff
+
+    class wg_client,ts_client vpn
+    class full,lan_net,srv_net,mgmt_net full
+    class limited limited
+    class iot_net,guest_net blocked
+```
+
+---
+
+## Firewall Rules for VPN
+
+| Rule | Source | Destination | Ports | Action |
+|------|--------|-------------|-------|--------|
+{% for policy in firewall_policies %}
+{% if 'vpn' in policy.name | lower or 'tailscale' in policy.name | lower %}
+| {{ policy.name }} | {{ policy.source_network_ref | default(policy.source_zone_ref | default('any')) }} | {{ policy.destination_zones_ref | default([policy.destination_zone_ref]) | join(', ') }} | {{ policy.ports | default(['all']) | join(', ') }} | {{ policy.action }} |
+{% endif %}
+{% endfor %}
+
+---
+
+## VPN Client Configuration
+
+### WireGuard Client Template
+
+```ini
+[Interface]
+PrivateKey = <CLIENT_PRIVATE_KEY>
+Address = 10.0.200.X/24
+DNS = 192.168.88.1
+
+[Peer]
+PublicKey = <SERVER_PUBLIC_KEY>
+AllowedIPs = 0.0.0.0/0  # Full tunnel
+# AllowedIPs = 192.168.88.0/24, 10.0.30.0/24, 10.0.99.0/24  # Split tunnel
+Endpoint = home.example.com:51820
+PersistentKeepalive = 25
+```
+
+### Tailscale Setup
+
+```bash
+# On client device
+tailscale up --accept-routes
+
+# On MikroTik container
+tailscale up --advertise-routes=192.168.88.0/24,10.0.30.0/24
+```
+
+---
+
+## VPN Redundancy
+
+```mermaid
+flowchart TB
+    subgraph client["Remote Client"]
+        vpn_client["VPN Client"]
+    end
+
+    subgraph primary["Primary Path"]
+        isp["ISP WAN"]
+        wg_primary["WireGuard<br/>home.example.com:51820"]
+    end
+
+    subgraph failover["Failover Path"]
+        lte["LTE Backup"]
+        wg_backup["WireGuard<br/>Dynamic IP"]
+    end
+
+    subgraph ts_mesh["Tailscale Mesh"]
+        ts_relay["Tailscale DERP<br/>Relay"]
+    end
+
+    vpn_client --> isp
+    vpn_client -.-> lte
+    vpn_client -.-> ts_relay
+
+    isp --> wg_primary
+    lte --> wg_backup
+    ts_relay --> wg_backup
+
+    %% Styling
+    classDef primary fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef backup fill:#ffd43b,stroke:#fab005,color:#000
+    classDef mesh fill:#cc5de8,stroke:#9c36b5,color:#fff
+
+    class isp,wg_primary primary
+    class lte,wg_backup backup
+    class ts_relay mesh
+```
+
+---
+
+## Connection Status Checks
+
+| VPN | Check Type | Target | Interval |
+|-----|------------|--------|----------|
+| WireGuard | Handshake Age | < 180s | 30s |
+| WireGuard | Data Transfer | > 0 bytes/5min | 60s |
+| Tailscale | Node Status | Online | 60s |
+| Tailscale | Network Latency | < 100ms | 60s |
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 scripts/generate-docs.py`

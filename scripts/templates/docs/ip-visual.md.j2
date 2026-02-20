@@ -1,0 +1,181 @@
+# IP Address Visual Map
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Network Address Space Overview
+
+```mermaid
+flowchart TB
+    subgraph internet["External Networks"]
+        wan["WAN (ISP)<br/>DHCP"]
+        lte["LTE Failover<br/>DHCP"]
+    end
+
+    subgraph private_10["10.x.x.x Address Space"]
+        subgraph servers_net["Servers VLAN 30"]
+            net_srv["10.0.30.0/24"]
+        end
+        subgraph mgmt_net["Management VLAN 99"]
+            net_mgmt["10.0.99.0/24"]
+        end
+        subgraph vpn_net["VPN Networks"]
+            net_vpn["10.0.200.0/24<br/>WireGuard"]
+        end
+    end
+
+    subgraph private_192["192.168.x.x Address Space"]
+        subgraph lan_net["LAN (Default)"]
+            net_lan["192.168.88.0/24"]
+        end
+        subgraph guest_net["Guest VLAN 50"]
+            net_guest["192.168.30.0/24"]
+        end
+        subgraph iot_net["IoT VLAN 40"]
+            net_iot["192.168.40.0/24"]
+        end
+    end
+
+    subgraph tailscale_net["Tailscale Mesh"]
+        net_ts["100.64.0.0/10<br/>CGNAT"]
+    end
+
+    %% Connections
+    wan --> net_lan
+    lte -.->|failover| net_lan
+    net_lan --> net_srv
+    net_lan --> net_mgmt
+    net_lan --> net_vpn
+    net_lan --> net_guest
+    net_lan --> net_iot
+    net_lan --> net_ts
+
+    %% Styling
+    classDef external fill:#ff6b6b,stroke:#c92a2a,color:#fff
+    classDef internal fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef mgmt fill:#4dabf7,stroke:#1864ab,color:#fff
+    classDef isolated fill:#ffd43b,stroke:#fab005,color:#000
+    classDef vpn fill:#cc5de8,stroke:#9c36b5,color:#fff
+
+    class wan,lte external
+    class net_lan,net_srv internal
+    class net_mgmt mgmt
+    class net_guest,net_iot isolated
+    class net_vpn,net_ts vpn
+```
+
+---
+
+## IP Allocation by Network
+
+{% for network in networks %}
+{% if network.ip_allocations is defined and network.ip_allocations %}
+### {{ network.name }} ({{ network.cidr }})
+
+{% if network.vlan is defined and network.vlan %}
+**VLAN ID**: {{ network.vlan }} | **Trust Zone**: {{ network.trust_zone_ref | default('default') }}
+{% endif %}
+
+```mermaid
+flowchart LR
+    subgraph {{ network.id | mermaid_id }}["{{ network.name }} - {{ network.cidr }}"]
+        gw["Gateway<br/>{{ network.gateway | default('DHCP') }}"]
+        {% for alloc in network.ip_allocations %}
+        {{ alloc.ip | mermaid_id }}["{{ alloc.ip }}<br/>{{ alloc.device_ref | default('unknown') }}<br/><small>{{ alloc.description | default('') | truncate(20) }}</small>"]
+        {% endfor %}
+    end
+
+    %% Styling
+    classDef gateway fill:#ff6b6b,stroke:#c92a2a,color:#fff
+    classDef device fill:#4dabf7,stroke:#1864ab,color:#fff
+
+    class gw gateway
+    {% for alloc in network.ip_allocations %}
+    class {{ alloc.ip | mermaid_id }} device
+    {% endfor %}
+```
+
+| IP Address | Device | Interface | Description |
+|------------|--------|-----------|-------------|
+{% for alloc in network.ip_allocations %}
+| `{{ alloc.ip }}` | {{ alloc.device_ref | default('unknown') }} | {{ alloc.interface | default('-') }} | {{ alloc.description | default('-') }} |
+{% endfor %}
+
+{% endif %}
+{% endfor %}
+
+---
+
+## Network Summary Table
+
+| Network | CIDR | Gateway | VLAN | DHCP | Trust Zone | Usage |
+|---------|------|---------|------|------|------------|-------|
+{% for network in networks %}
+| **{{ network.name }}** | {{ network.cidr }} | {{ network.gateway | default('DHCP') }} | {{ network.vlan | default('-') }} | {{ 'Yes' if network.dhcp else 'No' }} | {{ network.trust_zone_ref | default('-') }} | {{ network.description | default('-') | truncate(30) }} |
+{% endfor %}
+
+---
+
+## IP Range Allocation
+
+```mermaid
+gantt
+    title IP Address Space Usage
+    dateFormat X
+    axisFormat %s
+
+    section 10.0.30.x
+    Gateway (10.0.30.1)      :done, 1, 2
+    Proxmox (10.0.30.2)      :done, 2, 3
+    Reserved (10.0.30.3-9)   :crit, 3, 10
+    PostgreSQL (10.0.30.10)  :done, 10, 11
+    Redis (10.0.30.20)       :done, 20, 21
+    Orange Pi (10.0.30.50)   :done, 50, 51
+    Available                :active, 51, 254
+
+    section 10.0.99.x
+    Gateway (10.0.99.1)      :done, 1, 2
+    Proxmox UI (10.0.99.2)   :done, 2, 3
+    Orange Pi (10.0.99.3)    :done, 3, 4
+    Available                :active, 4, 254
+
+    section 192.168.88.x
+    Gateway (192.168.88.1)   :done, 1, 2
+    Proxmox (192.168.88.2)   :done, 2, 3
+    Orange Pi (192.168.88.3) :done, 3, 4
+    Reserved (4-99)          :crit, 4, 100
+    DHCP Range (100-200)     :active, 100, 200
+    Available (201-254)      :active, 201, 254
+```
+
+---
+
+## DHCP Configuration
+
+| Network | DHCP Range | Lease Time | DNS Server |
+|---------|------------|------------|------------|
+{% for network in networks %}
+{% if network.dhcp_range is defined %}
+| {{ network.name }} | `{{ network.dhcp_range }}` | Default | {{ network.dns | first | default('192.168.88.1') }} |
+{% endif %}
+{% endfor %}
+
+---
+
+## Reserved IP Addresses
+
+| IP Range | Purpose | Notes |
+|----------|---------|-------|
+| 10.0.30.1-9 | Gateway + Reserved | Infrastructure devices |
+| 10.0.30.10-29 | LXC Containers | Static allocation |
+| 10.0.30.50-59 | Application Servers | Orange Pi 5, future servers |
+| 10.0.99.1-10 | Management | Admin access only |
+| 10.0.200.1 | VPN Gateway | WireGuard server |
+| 192.168.88.1-10 | Core Infrastructure | Router, Proxmox, OPi5 |
+| 192.168.88.100-200 | DHCP Pool | Dynamic client allocation |
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 scripts/generate-docs.py`

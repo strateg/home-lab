@@ -1,0 +1,281 @@
+# Monitoring Infrastructure
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Monitoring Stack Overview
+
+```mermaid
+flowchart TB
+    subgraph users["Users"]
+        admin["Admin"]
+    end
+
+    subgraph visualization["Visualization Layer"]
+        grafana["Grafana<br/>:3000<br/>Dashboards"]
+    end
+
+    subgraph collection["Collection Layer"]
+        prometheus["Prometheus<br/>:9090<br/>Metrics TSDB"]
+        loki["Loki<br/>:3100<br/>Log Aggregation"]
+        alertmanager["Alertmanager<br/>:9093<br/>Alert Routing"]
+    end
+
+    subgraph targets["Monitored Targets"]
+        subgraph devices["Devices"]
+            mikrotik["MikroTik<br/>SNMP"]
+            proxmox["Proxmox<br/>node_exporter"]
+            orangepi["Orange Pi 5<br/>node_exporter"]
+        end
+        subgraph services_grp["Services"]
+            postgresql["PostgreSQL<br/>pg_exporter"]
+            redis["Redis<br/>redis_exporter"]
+            docker["Docker<br/>containers"]
+        end
+    end
+
+    subgraph notifications["Notification Channels"]
+        email["Email<br/>SMTP"]
+        telegram["Telegram<br/>Bot API"]
+    end
+
+    %% Connections
+    admin --> grafana
+    grafana --> prometheus
+    grafana --> loki
+
+    prometheus --> mikrotik
+    prometheus --> proxmox
+    prometheus --> orangepi
+    prometheus --> postgresql
+    prometheus --> redis
+    prometheus --> docker
+
+    loki --> mikrotik
+    loki --> proxmox
+    loki --> orangepi
+    loki --> docker
+
+    prometheus --> alertmanager
+    alertmanager --> email
+    alertmanager --> telegram
+
+    %% Styling
+    classDef user fill:#4dabf7,stroke:#1864ab,color:#fff
+    classDef viz fill:#cc5de8,stroke:#9c36b5,color:#fff
+    classDef collect fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef target fill:#ffd43b,stroke:#fab005,color:#000
+    classDef notify fill:#ff6b6b,stroke:#c92a2a,color:#fff
+
+    class admin user
+    class grafana viz
+    class prometheus,loki,alertmanager collect
+    class mikrotik,proxmox,orangepi,postgresql,redis,docker target
+    class email,telegram notify
+```
+
+---
+
+## Metrics Collection Flow
+
+```mermaid
+flowchart LR
+    subgraph exporters["Exporters"]
+        node_exp["node_exporter<br/>:9100"]
+        snmp_exp["snmp_exporter<br/>SNMP queries"]
+        pg_exp["postgres_exporter<br/>:9187"]
+        redis_exp["redis_exporter<br/>:9121"]
+    end
+
+    subgraph prometheus_grp["Prometheus"]
+        prom["Prometheus<br/>Scrape Targets"]
+        tsdb["Time Series DB<br/>15d retention"]
+        rules["Alert Rules<br/>Recording Rules"]
+    end
+
+    subgraph alerting["Alerting"]
+        am["Alertmanager"]
+        routes["Routing Rules"]
+        silence["Silences"]
+    end
+
+    node_exp --> prom
+    snmp_exp --> prom
+    pg_exp --> prom
+    redis_exp --> prom
+
+    prom --> tsdb
+    prom --> rules
+    rules --> am
+    am --> routes
+    am --> silence
+
+    %% Styling
+    classDef exporter fill:#ffd43b,stroke:#fab005,color:#000
+    classDef prom fill:#e64545,stroke:#c92a2a,color:#fff
+    classDef alert fill:#ff6b6b,stroke:#c92a2a,color:#fff
+
+    class node_exp,snmp_exp,pg_exp,redis_exp exporter
+    class prom,tsdb,rules prom
+    class am,routes,silence alert
+```
+
+---
+
+## Health Checks
+
+| Check ID | Name | Target | Type | Interval | Critical |
+|----------|------|--------|------|----------|----------|
+{% for check in healthchecks %}
+| {{ check.id }} | **{{ check.name }}** | {{ check.device_ref | default(check.lxc_ref | default('-')) }} | {{ check.checks | first | attr('type') | default('mixed') }} | {{ check.interval | default('60s') }} | {{ 'Yes' if check.critical else 'No' }} |
+{% endfor %}
+
+---
+
+## Health Check Details
+
+{% for check in healthchecks %}
+### {{ check.name }}
+
+**Target**: {{ check.device_ref | default(check.lxc_ref | default(check.service_ref | default('unknown'))) }}
+**Enabled**: {{ 'Yes' if check.enabled else 'No' }}
+**Critical**: {{ 'Yes' if check.critical else 'No' }}
+
+| Check Type | Details |
+|------------|---------|
+{% for c in check.checks %}
+| {{ c.type }} | {% if c.target is defined %}Target: {{ c.target }}{% elif c.ports is defined %}Ports: {{ c.ports | join(', ') }}{% elif c.warning_threshold is defined %}Warning: {{ c.warning_threshold }}, Critical: {{ c.critical_threshold | default('N/A') }}{% else %}Configured{% endif %} |
+{% endfor %}
+
+{% if check.notification is defined %}
+**Notifications**: {% for channel in check.notification.channels | default([]) %}{{ channel }}{% if not loop.last %}, {% endif %}{% endfor %}
+
+{% endif %}
+{% endfor %}
+
+---
+
+## Alert Configuration
+
+```mermaid
+flowchart TB
+    subgraph triggers["Alert Triggers"]
+        {% for alert in alerts %}
+        {{ alert.id | mermaid_id }}["{{ alert.name }}<br/>{{ alert.severity }}"]
+        {% endfor %}
+    end
+
+    subgraph routing["Alert Routing"]
+        critical_route["Critical<br/>Immediate"]
+        warning_route["Warning<br/>Batched"]
+    end
+
+    subgraph channels["Channels"]
+        ch_email["Email"]
+        ch_telegram["Telegram"]
+    end
+
+    %% Route alerts by severity
+    {% for alert in alerts %}
+    {% if alert.severity == 'critical' %}
+    {{ alert.id | mermaid_id }} --> critical_route
+    {% else %}
+    {{ alert.id | mermaid_id }} --> warning_route
+    {% endif %}
+    {% endfor %}
+
+    critical_route --> ch_email
+    critical_route --> ch_telegram
+    warning_route --> ch_email
+
+    %% Styling
+    classDef critical fill:#ff6b6b,stroke:#c92a2a,color:#fff
+    classDef warning fill:#ffd43b,stroke:#fab005,color:#000
+    classDef channel fill:#4dabf7,stroke:#1864ab,color:#fff
+
+    {% for alert in alerts %}
+    {% if alert.severity == 'critical' %}
+    class {{ alert.id | mermaid_id }} critical
+    {% else %}
+    class {{ alert.id | mermaid_id }} warning
+    {% endif %}
+    {% endfor %}
+
+    class critical_route critical
+    class warning_route warning
+    class ch_email,ch_telegram channel
+```
+
+---
+
+## Alerts Summary
+
+| Alert | Description | Severity | Channels |
+|-------|-------------|----------|----------|
+{% for alert in alerts %}
+| **{{ alert.name }}** | {{ alert.description | truncate(40) }} | {{ alert.severity }} | {{ alert.channels | join(', ') }} |
+{% endfor %}
+
+---
+
+## Network Monitoring
+
+{% for monitor in network_monitoring %}
+### {{ monitor.name }}
+
+**Description**: {{ monitor.description }}
+**Enabled**: {{ 'Yes' if monitor.enabled else 'No' }}
+**Interval**: {{ monitor.interval | default('60s') }}
+
+| Check Type | Targets/Details |
+|------------|-----------------|
+{% for check in monitor.checks %}
+| {{ check.type }} | {% if check.targets is defined %}{{ check.targets | join(', ') }}{% elif check.urls is defined %}{{ check.urls | join(', ') }}{% else %}Configured{% endif %} |
+{% endfor %}
+
+{% endfor %}
+
+---
+
+## Notification Channels
+
+{% for channel in notification_channels %}
+### {{ channel.name }}
+
+| Property | Value |
+|----------|-------|
+| Type | {{ channel.type }} |
+| Enabled | {{ 'Yes' if channel.enabled else 'No' }} |
+{% if channel.rate_limit is defined %}
+| Rate Limit | {{ channel.rate_limit.max_per_hour }} per hour |
+| Cooldown | {{ channel.rate_limit.cooldown_minutes }} minutes |
+{% endif %}
+{% if channel.priority is defined %}
+| Priority Levels | {{ channel.priority | join(', ') }} |
+{% endif %}
+
+{% endfor %}
+
+---
+
+## Dashboard Configuration
+
+{% if dashboard is defined %}
+**Provider**: {{ dashboard.provider }}
+**Refresh Interval**: {{ dashboard.refresh_interval }}
+**Metrics Retention**: {{ dashboard.metrics_retention }}
+
+### Dashboard Views
+
+| View Name | Default | Panels |
+|-----------|---------|--------|
+{% for view in dashboard.views %}
+| {{ view.name }} | {{ 'Yes' if view.default else 'No' }} | {{ view.panels | join(', ') }} |
+{% endfor %}
+{% endif %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 scripts/generate-docs.py`
