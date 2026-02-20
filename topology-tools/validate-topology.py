@@ -658,6 +658,15 @@ class SchemaValidator:
         l2 = self.topology.get('L2_network', {})
         l1 = self.topology.get('L1_foundation', {})
         profiles = l2.get('network_profiles', {}) or {}
+        trust_zones = l2.get('trust_zones', {}) or {}
+        firewall_policy_map = {
+            policy.get('id'): policy for policy in l2.get('firewall_policies', []) or []
+            if isinstance(policy, dict) and policy.get('id')
+        }
+        global_firewall_policy_ids = {
+            policy_id for policy_id, policy in firewall_policy_map.items()
+            if not policy.get('source_zone_ref') and not policy.get('source_network_ref')
+        }
         profile_fields = ['network_plane', 'segmentation_type', 'transport', 'volatility']
         device_map = {
             d.get('id'): d for d in l1.get('devices', []) or []
@@ -728,9 +737,40 @@ class SchemaValidator:
                     )
 
             firewall_policy_refs = network.get('firewall_policy_refs') or []
+            if len(firewall_policy_refs) != len(set(firewall_policy_refs)):
+                self.warnings.append(
+                    f"Network '{net_id}': duplicate entries in firewall_policy_refs"
+                )
+
+            zone = trust_zones.get(trust_zone_ref, {}) if trust_zone_ref else {}
+            if isinstance(zone, dict) and zone.get('isolated') is True and not firewall_policy_refs:
+                self.warnings.append(
+                    f"Network '{net_id}': isolated trust zone '{trust_zone_ref}' should define firewall_policy_refs"
+                )
+
             for fw_ref in firewall_policy_refs:
                 if fw_ref not in ids['firewall_policies']:
                     self.errors.append(f"Network '{net_id}': firewall_policy_refs '{fw_ref}' does not exist")
+                    continue
+
+                if fw_ref in global_firewall_policy_ids:
+                    continue
+
+                policy = firewall_policy_map.get(fw_ref, {})
+                policy_source_network = policy.get('source_network_ref')
+                policy_source_zone = policy.get('source_zone_ref')
+
+                if policy_source_network and policy_source_network != net_id:
+                    self.errors.append(
+                        f"Network '{net_id}': firewall policy '{fw_ref}' source_network_ref "
+                        f"'{policy_source_network}' does not match network id"
+                    )
+
+                if policy_source_zone and policy_source_zone != trust_zone_ref:
+                    self.errors.append(
+                        f"Network '{net_id}': firewall policy '{fw_ref}' source_zone_ref "
+                        f"'{policy_source_zone}' does not match trust_zone_ref '{trust_zone_ref}'"
+                    )
 
             plane = effective.get('network_plane')
             segmentation = effective.get('segmentation_type')

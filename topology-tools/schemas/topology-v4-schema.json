@@ -518,6 +518,40 @@
       },
       "additionalProperties": true
     },
+    "FirewallPolicy": {
+      "type": "object",
+      "required": ["id", "action", "chain"],
+      "properties": {
+        "id": { "$ref": "#/definitions/FirewallPolicyRef" },
+        "name": { "type": "string" },
+        "priority": { "type": "integer", "minimum": 0 },
+        "source_zone_ref": { "$ref": "#/definitions/TrustZone" },
+        "source_network_ref": { "$ref": "#/definitions/NetworkRef" },
+        "destination_zone_ref": { "$ref": "#/definitions/TrustZone" },
+        "destination_zones_ref": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/TrustZone" }
+        },
+        "destination_network_ref": { "$ref": "#/definitions/NetworkRef" },
+        "ports": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Port" }
+        },
+        "protocols": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/NetworkProtocol" }
+        },
+        "action": { "$ref": "#/definitions/FirewallAction" },
+        "chain": { "$ref": "#/definitions/FirewallChain" },
+        "connection_state": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ConnectionState" }
+        },
+        "description": { "type": "string" },
+        "security_policy_ref": { "$ref": "#/definitions/SecurityPolicyRef" }
+      },
+      "additionalProperties": false
+    },
     "Network": {
       "type": "object",
       "required": ["id", "name", "cidr"],
@@ -835,7 +869,10 @@
         },
         "routing": { "type": "array" },
         "firewall_templates": { "type": "array" },
-        "firewall_policies": { "type": "array" },
+        "firewall_policies": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/FirewallPolicy" }
+        },
         "qos": { "type": "object" },
         "ipv6": { "type": "object" }
       }
