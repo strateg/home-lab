@@ -53,7 +53,7 @@ ZSwap compresses memory in RAM before writing to disk swap, improving performanc
 ```bash
 # Run post-install script
 ssh root@10.0.99.1
-cd /root/home-lab/new_system/bare-metal/post-install
+cd /root/home-lab/new_system/manual-scripts/bare-metal/post-install
 ./06-enable-zswap.sh
 
 # Reboot to activate

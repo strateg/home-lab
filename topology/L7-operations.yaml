@@ -10,8 +10,8 @@ workflows:
     steps:
     - step: 1
       name: Create bootable USB
-      script: bare-metal/run-create-usb.sh
-      alternative: bare-metal/create-uefi-autoinstall-proxmox-usb.sh
+      script: manual-scripts/bare-metal/run-create-usb.sh
+      alternative: manual-scripts/bare-metal/create-uefi-autoinstall-proxmox-usb.sh
       duration_min: 5
     - step: 2
       name: Boot and auto-install Proxmox
@@ -20,7 +20,7 @@ workflows:
       notes: 'Insert USB, F12 boot menu, select UEFI: USB, wait for auto-install'
     - step: 3
       name: Run post-install scripts
-      script: bare-metal/post-install/01-install-terraform.sh
+      script: manual-scripts/bare-metal/post-install/01-install-terraform.sh
       duration_min: 10
     - step: 4
       name: Generate Terraform from topology

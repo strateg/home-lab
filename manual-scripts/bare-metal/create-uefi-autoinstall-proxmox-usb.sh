@@ -155,7 +155,7 @@ validate_usb_device() {
 generate_answer_from_topology() {
     local answer_file="$1"
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local project_root="$(dirname "$script_dir")"
+    local project_root="$(cd "$script_dir/../.." && pwd)"
     local topology_file="$project_root/topology.yaml"
     local generator_script="$project_root/topology-tools/generate-proxmox-answer.py"
 

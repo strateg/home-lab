@@ -48,7 +48,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 - `scripts/` - Generators (Python) from topology.yaml
 - `terraform/` - Provisioning modules (auto-generated from topology.yaml)
 - `ansible/` - Configuration roles (partially generated from topology.yaml)
-- `bare-metal/` - Bare-metal auto-install
+- `manual-scripts/bare-metal/` - Bare-metal auto-install
 - Git-based workflow
 
 ### Migration Approach
@@ -74,7 +74,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 - ✅ Create Terraform modules (network, storage)
 - ✅ Set up Ansible base configuration (new_system/ansible/)
 - ✅ Create Ansible roles (proxmox)
-- ✅ Create bare-metal installation scripts (new_system/bare-metal/)
+- ✅ Create bare-metal installation scripts (new_system/manual-scripts/bare-metal/)
 - ✅ Initialize Git repository structure
 - ✅ Create .gitignore for secrets protection
 - ✅ Move old system to old_system/ directory
@@ -112,7 +112,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 
 1. **Create Bootable USB**
    ```bash
-   cd new_system/bare-metal/
+   cd new_system/manual-scripts/bare-metal/
    sudo ./run-create-usb.sh  # Interactive wrapper
    # Or: sudo ./create-uefi-autoinstall-proxmox-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
    ```

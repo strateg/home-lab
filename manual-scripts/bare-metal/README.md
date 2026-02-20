@@ -31,7 +31,7 @@ This directory contains everything needed to create a bootable USB drive that wi
 ## Files
 
 ```
-bare-metal/
+manual-scripts/bare-metal/
 ├── README.md                                    # This file (overview and quick reference)
 ├── answer.toml                                  # Proxmox auto-install configuration
 ├── create-uefi-autoinstall-proxmox-usb.sh      # ⭐ UEFI USB creator (recommended)
@@ -77,7 +77,7 @@ bare-metal/
 ### Step 1: Prepare Bootable USB
 
 ```bash
-cd bare-metal/
+cd manual-scripts/bare-metal/
 
 # Download Proxmox VE 9 ISO (if not already downloaded)
 wget https://enterprise.proxmox.com/iso/proxmox-ve_9.0-1.iso

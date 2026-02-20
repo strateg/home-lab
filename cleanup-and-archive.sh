@@ -5,7 +5,7 @@
 #
 # This script:
 # 1. Creates archive/ directory structure
-# 2. Moves outdated scripts from bare-metal/ to archive/
+# 2. Moves outdated scripts from manual-scripts/bare-metal/ to archive/
 # 3. Moves old_system/ to archive/
 # 4. Preserves git history (uses git mv)
 # 5. Creates backup before any changes
@@ -86,25 +86,25 @@ fi
 # ============================================================
 # 2. Archive outdated bare-metal scripts
 # ============================================================
-print_header "2. Archiving Outdated Scripts from bare-metal/"
+print_header "2. Archiving Outdated Scripts from manual-scripts/bare-metal/"
 
 # List of files to archive (outdated/duplicate/temporary)
 SCRIPTS_TO_ARCHIVE=(
-    "new_system/bare-metal/create-usb.sh"
-    "new_system/bare-metal/create-usb-fixed.sh"
-    "new_system/bare-metal/create-legacy-autoinstall-proxmox-usb.sh"
-    "new_system/bare-metal/check-usb.sh"
-    "new_system/bare-metal/check-usb-contents.sh"
-    "new_system/bare-metal/disable-uuid-protection.sh"
-    "new_system/bare-metal/fix-grub-autoinstall.sh"
-    "new_system/bare-metal/remove-old-proxmox-grub.sh"
-    "new_system/bare-metal/show-grub-menu.sh"
-    "new_system/bare-metal/diagnose-usb.sh"
+    "new_system/manual-scripts/bare-metal/create-usb.sh"
+    "new_system/manual-scripts/bare-metal/create-usb-fixed.sh"
+    "new_system/manual-scripts/bare-metal/create-legacy-autoinstall-proxmox-usb.sh"
+    "new_system/manual-scripts/bare-metal/check-usb.sh"
+    "new_system/manual-scripts/bare-metal/check-usb-contents.sh"
+    "new_system/manual-scripts/bare-metal/disable-uuid-protection.sh"
+    "new_system/manual-scripts/bare-metal/fix-grub-autoinstall.sh"
+    "new_system/manual-scripts/bare-metal/remove-old-proxmox-grub.sh"
+    "new_system/manual-scripts/bare-metal/show-grub-menu.sh"
+    "new_system/manual-scripts/bare-metal/diagnose-usb.sh"
 )
 
 LOGS_TO_ARCHIVE=(
-    "new_system/bare-metal/usb-creation-log.txt"
-    "new_system/bare-metal/usb-final-creation.txt"
+    "new_system/manual-scripts/bare-metal/usb-creation-log.txt"
+    "new_system/manual-scripts/bare-metal/usb-final-creation.txt"
 )
 
 echo "Scripts to archive:"
@@ -156,25 +156,25 @@ if [[ "$response" =~ ^[Yy]$ ]]; then
 fi
 
 # ============================================================
-# 3. Archive bare-metal/docs/archive/
+# 3. Archive manual-scripts/bare-metal/docs/archive/
 # ============================================================
-print_header "3. Moving bare-metal/docs/archive/ to project archive/"
+print_header "3. Moving manual-scripts/bare-metal/docs/archive/ to project archive/"
 
-if [[ -d "new_system/bare-metal/docs/archive" ]]; then
-    echo "Found bare-metal/docs/archive/ with documentation:"
-    ls -1 new_system/bare-metal/docs/archive/ | head -10
+if [[ -d "new_system/manual-scripts/bare-metal/docs/archive" ]]; then
+    echo "Found manual-scripts/bare-metal/docs/archive/ with documentation:"
+    ls -1 new_system/manual-scripts/bare-metal/docs/archive/ | head -10
     echo ""
     read -p "Move to project archive? (y/N): " response
     if [[ "$response" =~ ^[Yy]$ ]]; then
         if [[ "$DRY_RUN" == false ]]; then
-            git mv new_system/bare-metal/docs/archive "$ARCHIVE_ROOT/bare-metal-docs/"
-            print_success "Moved bare-metal/docs/archive/"
+            git mv new_system/manual-scripts/bare-metal/docs/archive "$ARCHIVE_ROOT/bare-metal-docs/"
+            print_success "Moved manual-scripts/bare-metal/docs/archive/"
         else
-            print_info "[DRY RUN] Would move bare-metal/docs/archive/"
+            print_info "[DRY RUN] Would move manual-scripts/bare-metal/docs/archive/"
         fi
     fi
 else
-    print_info "bare-metal/docs/archive/ not found (already moved?)"
+    print_info "manual-scripts/bare-metal/docs/archive/ not found (already moved?)"
 fi
 
 # ============================================================
@@ -226,7 +226,7 @@ if [[ "$DRY_RUN" == false ]]; then
     echo "   git add ."
     echo "   git commit -m '🧹 Cleanup: Archive outdated scripts and old_system'"
     echo ""
-    echo "Kept working scripts in new_system/bare-metal/:"
+    echo "Kept working scripts in new_system/manual-scripts/bare-metal/:"
     echo "  ✅ create-uefi-autoinstall-proxmox-usb.sh (WORKING)"
     echo "  ✅ diagnose-usb-autoinstall.sh (USEFUL)"
     echo "  ✅ run-create-usb.sh (WRAPPER)"

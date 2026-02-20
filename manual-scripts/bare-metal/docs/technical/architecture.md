@@ -166,37 +166,37 @@ echo "✅ Infrastructure is ready!"
 
 ### New Files:
 
-1. **bare-metal/scripts/generate-configs.sh**
+1. **manual-scripts/bare-metal/scripts/generate-configs.sh**
    - Calls Python generators (Terraform, Ansible, Docs)
    - Creates tarball with all configs
 
-2. **bare-metal/scripts/embed-configs.sh**
+2. **manual-scripts/bare-metal/scripts/embed-configs.sh**
    - Extracts ISO
    - Adds configs tarball to ISO
    - Rebuilds ISO
 
-3. **bare-metal/scripts/first-boot-extended.sh**
+3. **manual-scripts/bare-metal/scripts/first-boot-extended.sh**
    - ✅ UUID marker (existing)
    - 🆕 Mount HDD
    - 🆕 Extract configs
    - 🆕 Setup systemd service
 
-4. **bare-metal/scripts/deploy-infrastructure.sh**
+4. **manual-scripts/bare-metal/scripts/deploy-infrastructure.sh**
    - Main deployment orchestrator
 
-5. **bare-metal/scripts/install-tools.sh**
+5. **manual-scripts/bare-metal/scripts/install-tools.sh**
    - Install Terraform (via HashiCorp repo)
    - Install Ansible (via pip)
    - Install Python dependencies
 
-6. **bare-metal/scripts/verify-deployment.sh**
+6. **manual-scripts/bare-metal/scripts/verify-deployment.sh**
    - Check VMs are running
    - Check LXC containers accessible
    - Ping test all services
 
 ### Modified Files:
 
-1. **bare-metal/create-usb.sh**
+1. **manual-scripts/bare-metal/create-usb.sh**
    - Add config generation step
    - Add config embedding step
    - Update first-boot script

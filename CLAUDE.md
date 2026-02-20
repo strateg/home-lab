@@ -92,7 +92,7 @@ home-lab/
 ├── ansible/                   # Playbooks and roles (manual)
 │   ├── playbooks/
 │   └── roles/
-├── bare-metal/                # Proxmox USB auto-install
+├── manual-scripts/bare-metal/                # Proxmox USB auto-install
 ├── bootstrap/mikrotik/        # MikroTik initial setup
 ├── deploy/                    # Deployment orchestration
 │   ├── Makefile

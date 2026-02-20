@@ -83,10 +83,10 @@ The USB creation script auto-generates `answer.toml`, but you can preview it:
 
 ```bash
 # Generate answer.toml from topology
-python3 topology-tools/generate-proxmox-answer.py topology.yaml bare-metal/answer.toml
+python3 topology-tools/generate-proxmox-answer.py topology.yaml manual-scripts/bare-metal/answer.toml
 
 # Review generated file
-cat bare-metal/answer.toml
+cat manual-scripts/bare-metal/answer.toml
 ```
 
 ### 3. Create Bootable USB
@@ -194,7 +194,7 @@ This uses management network IP allocation from `topology.yaml`.
 openssl passwd -6 "YourStrongPassword"
 
 # Edit answer.toml and replace root_password value
-vim bare-metal/answer.toml
+vim manual-scripts/bare-metal/answer.toml
 ```
 
 ---
@@ -319,7 +319,7 @@ If you don't want auto-generation from topology:
 
 ```bash
 # Create answer.toml manually
-vim bare-metal/answer.toml
+vim manual-scripts/bare-metal/answer.toml
 
 # Create USB without topology integration
 # (move topology.yaml temporarily or edit script)
@@ -400,8 +400,8 @@ After successful Proxmox installation:
 |------|---------|------------|
 | `topology.yaml` | Infrastructure source of truth | Manual |
 | `topology-tools/generate-proxmox-answer.py` | Answer file generator | Manual |
-| `bare-metal/answer.toml` | Proxmox auto-install config | Generated |
-| `bare-metal/create-legacy-autoinstall-proxmox-usb.sh` | USB creation script | Manual |
+| `manual-scripts/bare-metal/answer.toml` | Proxmox auto-install config | Generated |
+| `manual-scripts/bare-metal/create-legacy-autoinstall-proxmox-usb.sh` | USB creation script | Manual |
 | `/tmp/prepared-proxmox-*.iso` | Hybrid ISO with answer | Generated |
 
 ---
@@ -419,10 +419,10 @@ After successful Proxmox installation:
 
 ```bash
 # Check if answer.toml is gitignored
-git check-ignore -v bare-metal/answer.toml
+git check-ignore -v manual-scripts/bare-metal/answer.toml
 
 # If not ignored, add to .gitignore
-echo "bare-metal/answer.toml" >> .gitignore
+echo "manual-scripts/bare-metal/answer.toml" >> .gitignore
 ```
 
 **Note**: Sample `answer.toml` with default password can be committed for reference, but production files should be gitignored.

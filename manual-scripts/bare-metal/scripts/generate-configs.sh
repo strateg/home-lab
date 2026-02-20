@@ -5,7 +5,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TOPOLOGY_FILE="$PROJECT_ROOT/topology.yaml"
 OUTPUT_DIR="${1:-$PROJECT_ROOT/generated}"
 INSTALL_UUID="${2:-}"
@@ -147,7 +147,7 @@ create_archive() {
     log_info "Creating configuration archive..."
 
     ARCHIVE_NAME="home-lab-configs-${INSTALL_UUID:-$(date +%Y%m%d_%H%M%S)}.tar.gz"
-    ARCHIVE_PATH="$PROJECT_ROOT/bare-metal/$ARCHIVE_NAME"
+    ARCHIVE_PATH="$PROJECT_ROOT/manual-scripts/bare-metal/$ARCHIVE_NAME"
 
     cd "$OUTPUT_DIR"
     tar -czf "$ARCHIVE_PATH" .
@@ -157,7 +157,7 @@ create_archive() {
     log_info "Archive path: $ARCHIVE_PATH"
 
     # Save archive path for later use
-    echo "$ARCHIVE_PATH" > "$PROJECT_ROOT/bare-metal/.last-archive-path"
+    echo "$ARCHIVE_PATH" > "$PROJECT_ROOT/manual-scripts/bare-metal/.last-archive-path"
 }
 
 # Main
@@ -182,7 +182,7 @@ main() {
     log_success "All configurations generated successfully!"
     echo ""
     echo "Next steps:"
-    echo "  1. Archive created at: $PROJECT_ROOT/bare-metal/"
+    echo "  1. Archive created at: $PROJECT_ROOT/manual-scripts/bare-metal/"
     echo "  2. Run create-usb.sh to embed configs into USB"
     echo ""
 }

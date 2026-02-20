@@ -200,7 +200,7 @@ bootstrap-info:
 	@echo "║     - Or run commands manually (see README)                      ║"
 	@echo "║                                                                  ║"
 	@echo "║  2. Proxmox Bootstrap:                                           ║"
-	@echo "║     - Use: bare-metal/create-uefi-autoinstall-proxmox-usb.sh     ║"
+	@echo "║     - Use: manual-scripts/bare-metal/create-uefi-autoinstall-proxmox-usb.sh     ║"
 	@echo "║     - Boot from USB, auto-install completes                      ║"
 	@echo "║     - Run post-install scripts                                   ║"
 	@echo "║                                                                  ║"

@@ -88,7 +88,7 @@ home-lab/
 │   │   ├── inventory/
 │   │   ├── playbooks/
 │   │   └── roles/
-│   └── bare-metal/            # Установка на bare-metal
+│   └── manual-scripts/bare-metal/            # Установка на bare-metal
 │       ├── README.md
 │       ├── answer.toml
 │       ├── create-uefi-autoinstall-proxmox-usb.sh  # Main USB creation script
@@ -111,7 +111,7 @@ home-lab/
 
 1. **Создание загрузочного USB**
    ```bash
-   cd new_system/bare-metal/
+   cd new_system/manual-scripts/bare-metal/
    sudo ./run-create-usb.sh  # Interactive wrapper
    # Or: sudo ./create-uefi-autoinstall-proxmox-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
    ```
@@ -154,7 +154,7 @@ home-lab/
    ansible-playbook playbooks/proxmox-setup.yml  # inventory configured in ansible.cfg
    ```
 
-Подробности в [new_system/bare-metal/README.md](new_system/bare-metal/README.md)
+Подробности в [new_system/manual-scripts/bare-metal/README.md](new_system/manual-scripts/bare-metal/README.md)
 
 ---
 
@@ -164,7 +164,7 @@ home-lab/
 
 1. **Установка Terraform и Ansible**
    ```bash
-   cd new_system/bare-metal/post-install
+   cd new_system/manual-scripts/bare-metal/post-install
    ./01-install-terraform.sh
    ./02-install-ansible.sh
    ```
@@ -353,7 +353,7 @@ ansible-playbook playbooks/proxmox-setup.yml --check
   - Performance тестирование
   - Security тестирование
 
-- **[new_system/bare-metal/README.md](new_system/bare-metal/README.md)**: Установка bare-metal
+- **[new_system/manual-scripts/bare-metal/README.md](new_system/manual-scripts/bare-metal/README.md)**: Установка bare-metal
   - Создание USB
   - Конфигурация auto-install
   - Post-install скрипты

@@ -436,7 +436,7 @@ cat /boot/efi/proxmox-installed
 - **GRUB Manual**: https://www.gnu.org/software/grub/manual/
 - **Proxmox Auto-Install**: https://pve.proxmox.com/wiki/Automated_Installation
 - **UUID RFC 4122**: https://datatracker.ietf.org/doc/html/rfc4122
-- **Project Repository**: `bare-metal/create-usb.sh`
+- **Project Repository**: `manual-scripts/bare-metal/create-usb.sh`
 
 ---
 
