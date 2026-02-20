@@ -48,6 +48,22 @@ class DocumentationGenerator:
             return 'unknown'
         return value.replace('-', '_').replace('.', '_').replace(' ', '_').replace('/', '_')
 
+    def _get_resolved_networks(self):
+        """Resolve L2 networks with optional network profile defaults."""
+        l2 = self.topology.get('L2_network', {})
+        profiles = l2.get('network_profiles', {}) or {}
+        resolved = []
+
+        for network in l2.get('networks', []) or []:
+            merged = {}
+            profile_ref = network.get('profile_ref')
+            if profile_ref and profile_ref in profiles and isinstance(profiles[profile_ref], dict):
+                merged.update(profiles[profile_ref])
+            merged.update(network)
+            resolved.append(merged)
+
+        return resolved
+
     def load_topology(self) -> bool:
         """Load topology YAML file (with !include support)"""
         try:
@@ -114,7 +130,7 @@ class DocumentationGenerator:
         try:
             template = self.jinja_env.get_template('docs/network-diagram.md.j2')
 
-            networks = self.topology['L2_network'].get('networks', [])
+            networks = self._get_resolved_networks()
             bridges = self.topology['L2_network'].get('bridges', [])
             trust_zones = self.topology['L2_network'].get('trust_zones', {})
             vms = self.topology['L4_platform'].get('vms', [])
@@ -146,7 +162,7 @@ class DocumentationGenerator:
         try:
             template = self.jinja_env.get_template('docs/ip-allocation.md.j2')
 
-            networks = self.topology['L2_network'].get('networks', [])
+            networks = self._get_resolved_networks()
 
             allocations = []
             for network in networks:
@@ -319,7 +335,7 @@ class DocumentationGenerator:
         try:
             template = self.jinja_env.get_template('docs/vlan-topology.md.j2')
 
-            networks = self.topology['L2_network'].get('networks', [])
+            networks = self._get_resolved_networks()
             bridges = self.topology['L2_network'].get('bridges', [])
 
             content = template.render(
@@ -345,7 +361,7 @@ class DocumentationGenerator:
 
             trust_zones = self.topology['L2_network'].get('trust_zones', {})
             firewall_policies = self.topology['L2_network'].get('firewall_policies', [])
-            networks = self.topology['L2_network'].get('networks', [])
+            networks = self._get_resolved_networks()
 
             content = template.render(
                 trust_zones=trust_zones,

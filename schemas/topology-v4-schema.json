@@ -78,6 +78,10 @@
       "type": "string",
       "enum": ["low", "medium", "high"]
     },
+    "NetworkProfileRef": {
+      "type": "string",
+      "pattern": "^prof-[a-z0-9-]+$"
+    },
     "FirewallAction": {
       "type": "string",
       "enum": ["accept", "drop", "reject", "log", "pass"]
@@ -390,6 +394,7 @@
         "bridge_ref": { "oneOf": [{ "$ref": "#/definitions/BridgeRef" }, { "type": "null" }] },
         "vlan": { "oneOf": [{ "type": "integer", "minimum": 1, "maximum": 4094 }, { "type": "null" }] },
         "description": { "type": "string" },
+        "profile_ref": { "$ref": "#/definitions/NetworkProfileRef" },
         "network_plane": { "$ref": "#/definitions/NetworkPlane" },
         "segmentation_type": { "$ref": "#/definitions/SegmentationType" },
         "transport": {
@@ -401,6 +406,21 @@
         "interface_ref": { "$ref": "#/definitions/InterfaceRef" },
         "vpn_type": { "$ref": "#/definitions/VpnType" },
         "ip_allocations": { "type": "array" }
+      }
+    },
+    "NetworkProfile": {
+      "type": "object",
+      "required": ["network_plane", "segmentation_type", "transport", "volatility"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "network_plane": { "$ref": "#/definitions/NetworkPlane" },
+        "segmentation_type": { "$ref": "#/definitions/SegmentationType" },
+        "transport": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/NetworkTransport" }
+        },
+        "volatility": { "$ref": "#/definitions/NetworkVolatility" }
       }
     },
     "Bridge": {
@@ -645,6 +665,13 @@
       "type": "object",
       "properties": {
         "trust_zones": { "type": "object" },
+        "network_profiles": {
+          "type": "object",
+          "patternProperties": {
+            "^prof-[a-z0-9-]+$": { "$ref": "#/definitions/NetworkProfile" }
+          },
+          "additionalProperties": false
+        },
         "networks": {
           "type": "array",
           "items": { "$ref": "#/definitions/Network" }

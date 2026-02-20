@@ -1,0 +1,73 @@
+prof-underlay-ethernet-uplink:
+  name: Underlay Ethernet Uplink
+  description: Physical underlay uplink over Ethernet to ISP edge
+  network_plane: underlay-uplink
+  segmentation_type: uplink
+  transport:
+  - ethernet
+  volatility: medium
+
+prof-underlay-lte-uplink:
+  name: Underlay LTE Uplink
+  description: Physical underlay uplink over LTE modem
+  network_plane: underlay-uplink
+  segmentation_type: uplink
+  transport:
+  - lte
+  volatility: medium
+
+prof-virtual-bridge-mixed:
+  name: Virtual Bridge Mixed Transport
+  description: Virtual routed subnet carried by both wired and wireless access
+  network_plane: virtual
+  segmentation_type: bridge
+  transport:
+  - ethernet
+  - wifi
+  volatility: low
+
+prof-virtual-vlan-wired:
+  name: Virtual VLAN Wired
+  description: VLAN-segmented virtual network over wired transport
+  network_plane: virtual
+  segmentation_type: vlan
+  transport:
+  - ethernet
+  volatility: medium
+
+prof-virtual-vlan-wifi:
+  name: Virtual VLAN WiFi
+  description: VLAN-segmented virtual network over WiFi transport
+  network_plane: virtual
+  segmentation_type: vlan
+  transport:
+  - wifi
+  volatility: medium
+
+prof-virtual-vlan-mixed:
+  name: Virtual VLAN Mixed Transport
+  description: VLAN-segmented network with mixed wired and wireless clients
+  network_plane: virtual
+  segmentation_type: vlan
+  transport:
+  - wifi
+  - ethernet
+  volatility: medium
+
+prof-overlay-vpn:
+  name: Overlay VPN
+  description: Routed VPN overlay over internet underlay
+  network_plane: overlay
+  segmentation_type: overlay-vpn
+  transport:
+  - internet-overlay
+  volatility: high
+
+prof-overlay-mesh:
+  name: Overlay Mesh
+  description: Mesh overlay network over internet underlay
+  network_plane: overlay
+  segmentation_type: mesh-overlay
+  transport:
+  - internet-overlay
+  volatility: high

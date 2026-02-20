@@ -119,11 +119,11 @@ flowchart LR
 
 ## Network to Zone Mapping
 
-| Network | CIDR | Zone | Security | Plane | Segmentation | Transport | Volatility |
-|---------|------|------|----------|-------|--------------|-----------|------------|
+| Network | CIDR | Zone | Security | Profile | Plane | Segmentation | Transport | Volatility |
+|---------|------|------|----------|---------|-------|--------------|-----------|------------|
 {% for network in networks %}
 {% if network.trust_zone_ref %}
-| {{ network.name }} | {{ network.cidr }} | {{ network.trust_zone_ref }} | {{ trust_zones[network.trust_zone_ref].security_level if trust_zones[network.trust_zone_ref] is defined else '?' }} | {{ network.network_plane | default('virtual') }} | {{ network.segmentation_type | default(('vlan' if network.vlan else ('overlay-vpn' if network.vpn_type is defined else 'routed-subnet'))) }} | {{ network.transport | join(', ') if network.transport else '-' }} | {{ network.volatility | default('medium') }} |
+| {{ network.name }} | {{ network.cidr }} | {{ network.trust_zone_ref }} | {{ trust_zones[network.trust_zone_ref].security_level if trust_zones[network.trust_zone_ref] is defined else '?' }} | {{ network.profile_ref | default('-') }} | {{ network.network_plane | default('virtual') }} | {{ network.segmentation_type | default(('vlan' if network.vlan else ('overlay-vpn' if network.vpn_type is defined else 'routed-subnet'))) }} | {{ network.transport | join(', ') if network.transport else '-' }} | {{ network.volatility | default('medium') }} |
 {% endif %}
 {% endfor %}
 

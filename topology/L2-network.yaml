@@ -3,6 +3,7 @@
 # Logical networking: networks, bridges, trust_zones, firewall
 # Modular layout:
 # - trust-zones: topology/L2-network/trust-zones/
+# - profiles: topology/L2-network/profiles/
 # - networks: topology/L2-network/networks/
 # - bridges: topology/L2-network/bridges/
 # - routing: topology/L2-network/routing/
@@ -12,6 +13,7 @@
 # Edit modules then regenerate: python3 scripts/regenerate-all.py
 
 trust_zones: !include L2-network/trust-zones/baseline.yaml
+network_profiles: !include L2-network/profiles/default.yaml
 networks: !include L2-network/networks/_index.yaml
 bridges: !include L2-network/bridges/_index.yaml
 routing: !include L2-network/routing/default.yaml

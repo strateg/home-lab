@@ -10,11 +10,7 @@ trust_zone_ref: untrusted
 bridge_ref: null
 vlan: null
 description: LTE Cat 7 failover connection
-network_plane: underlay-uplink
-segmentation_type: uplink
-transport:
-- lte
-volatility: medium
+profile_ref: prof-underlay-lte-uplink
 managed_by_ref: mikrotik-chateau
 interface_ref: if-mikrotik-lte
 failover:

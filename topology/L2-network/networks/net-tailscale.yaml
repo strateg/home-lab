@@ -9,10 +9,6 @@ trust_zone_ref: user
 bridge_ref: null
 vlan: null
 description: Tailscale mesh VPN (container on MikroTik)
-network_plane: overlay
-segmentation_type: mesh-overlay
-transport:
-- internet-overlay
-volatility: high
+profile_ref: prof-overlay-mesh
 managed_by_ref: mikrotik-chateau
 vpn_type: tailscale

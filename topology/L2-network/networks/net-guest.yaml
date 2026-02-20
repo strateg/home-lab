@@ -12,11 +12,7 @@ trust_zone_ref: guest
 bridge_ref: null
 vlan: 50
 description: Isolated guest WiFi network
-network_plane: virtual
-segmentation_type: vlan
-transport:
-- wifi
-volatility: medium
+profile_ref: prof-virtual-vlan-wifi
 managed_by_ref: mikrotik-chateau
 firewall_policy: internet-only
 ip_allocations:

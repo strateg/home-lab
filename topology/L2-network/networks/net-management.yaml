@@ -9,10 +9,7 @@ trust_zone_ref: management
 bridge_ref: bridge-vmbr0
 vlan: 99
 description: Management network for infrastructure admin
-network_plane: virtual
-segmentation_type: vlan
-transport:
-- ethernet
+profile_ref: prof-virtual-vlan-wired
 volatility: low
 managed_by_ref: mikrotik-chateau
 ip_allocations:

@@ -39,6 +39,7 @@ Rules:
   - `topology/L1-foundation/power/`
 - `topology/L2-network.yaml`:
   - `topology/L2-network/trust-zones/`
+  - `topology/L2-network/profiles/`
   - `topology/L2-network/networks/`
   - `topology/L2-network/bridges/`
   - `topology/L2-network/routing/`
@@ -60,9 +61,10 @@ Rules:
 2. Add include entry to `topology/L1-foundation/devices/_index.yaml`.
 3. Add/update physical connectivity in `topology/L1-foundation/links/` and `links/_index.yaml`.
 4. If needed, add/update virtual network in `topology/L2-network/networks/` and `_index.yaml`.
-5. Set explicit virtual segmentation fields: `network_plane`, `segmentation_type`, `transport`, `volatility`.
-6. Add platform/app/monitoring modules only if the device hosts workloads.
-7. Validate and regenerate:
+5. Prefer `profile_ref` from `topology/L2-network/profiles/default.yaml`.
+6. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
+7. Add platform/app/monitoring modules only if the device hosts workloads.
+8. Validate and regenerate:
    - `python scripts/validate-topology.py`
    - `python scripts/generate-docs.py`
 

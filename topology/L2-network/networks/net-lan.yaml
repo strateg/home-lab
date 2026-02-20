@@ -10,12 +10,7 @@ trust_zone_ref: user
 bridge_ref: null
 vlan: null
 description: Main LAN network (WiFi + Wired)
-network_plane: virtual
-segmentation_type: bridge
-transport:
-- ethernet
-- wifi
-volatility: low
+profile_ref: prof-virtual-bridge-mixed
 managed_by_ref: mikrotik-chateau
 ip_allocations:
 - ip: 192.168.88.1

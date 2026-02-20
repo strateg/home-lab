@@ -115,6 +115,7 @@ class SchemaValidator:
             'storage': set(),
             'data_assets': set(),
             'trust_zones': set(),
+            'network_profiles': set(),
             'vms': set(),
             'lxc': set(),
             'services': set(),
@@ -143,6 +144,9 @@ class SchemaValidator:
         for network in l2.get('networks', []) or []:
             if isinstance(network, dict) and network.get('id'):
                 ids['networks'].add(network['id'])
+
+        profiles = l2.get('network_profiles', {}) or {}
+        ids['network_profiles'] = set(profiles.keys())
 
         for bridge in l2.get('bridges', []) or []:
             if isinstance(bridge, dict) and bridge.get('id'):
@@ -249,6 +253,18 @@ class SchemaValidator:
             trust_zone_ref = network.get('trust_zone_ref')
             if trust_zone_ref and trust_zone_ref not in ids['trust_zones']:
                 self.errors.append(f"Network '{net_id}': trust_zone_ref '{trust_zone_ref}' does not exist")
+
+            profile_ref = network.get('profile_ref')
+            if profile_ref and profile_ref not in ids['network_profiles']:
+                self.errors.append(f"Network '{net_id}': profile_ref '{profile_ref}' does not exist")
+
+            if not profile_ref:
+                required_virtual_fields = ['network_plane', 'segmentation_type', 'transport', 'volatility']
+                missing = [f for f in required_virtual_fields if network.get(f) in (None, [], '')]
+                if missing:
+                    self.warnings.append(
+                        f"Network '{net_id}': no profile_ref and missing fields for analysis: {', '.join(missing)}"
+                    )
 
             bridge_ref = network.get('bridge_ref')
             if bridge_ref and bridge_ref not in ids['bridges']:

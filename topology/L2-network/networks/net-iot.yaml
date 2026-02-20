@@ -11,12 +11,7 @@ trust_zone_ref: iot
 bridge_ref: null
 vlan: 40
 description: Smart home devices (isolated from main LAN)
-network_plane: virtual
-segmentation_type: vlan
-transport:
-- wifi
-- ethernet
-volatility: medium
+profile_ref: prof-virtual-vlan-mixed
 managed_by_ref: mikrotik-chateau
 firewall_policy: internet-only-no-lateral
 ip_allocations:

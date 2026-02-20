@@ -9,11 +9,7 @@ trust_zone_ref: user
 bridge_ref: null
 vlan: null
 description: WireGuard VPN on MikroTik (full LAN access)
-network_plane: overlay
-segmentation_type: overlay-vpn
-transport:
-- internet-overlay
-volatility: high
+profile_ref: prof-overlay-vpn
 managed_by_ref: mikrotik-chateau
 vpn_type: wireguard
 vpn_endpoint: home.example.com:51820

@@ -9,11 +9,7 @@ trust_zone_ref: servers
 bridge_ref: bridge-vmbr0
 vlan: 30
 description: Server network for Proxmox LXC and Orange Pi 5
-network_plane: virtual
-segmentation_type: vlan
-transport:
-- ethernet
-volatility: medium
+profile_ref: prof-virtual-vlan-wired
 managed_by_ref: mikrotik-chateau
 ip_allocations:
 - ip: 10.0.30.1
