@@ -8,6 +8,7 @@ This script runs all generators in the correct order:
 3. Generate Terraform (MikroTik)
 4. Generate Ansible inventory
 5. Generate documentation
+6. Validate Mermaid rendering (optional)
 
 Usage:
     python3 topology-tools/regenerate-all.py [--topology topology.yaml]
@@ -21,14 +22,18 @@ import argparse
 import subprocess
 from pathlib import Path
 from datetime import datetime
+from typing import List, Optional
 
 
 class RegenerateAll:
     """Run all generators for topology v4.0"""
 
-    def __init__(self, topology_path: str):
+    def __init__(self, topology_path: str, validate_mermaid: bool = True, mermaid_icon_mode: str = "auto"):
         self.topology_path = topology_path
         self.scripts_dir = Path(__file__).resolve().parent
+        self.project_root = self.scripts_dir.parent
+        self.validate_mermaid = validate_mermaid
+        self.mermaid_icon_mode = mermaid_icon_mode
         self.errors = []
         self.start_time = datetime.now()
 
@@ -38,7 +43,7 @@ class RegenerateAll:
         print(f"  {text}")
         print("="*70 + "\n")
 
-    def run_script(self, script_name: str, description: str) -> bool:
+    def run_script(self, script_name: str, description: str, args: Optional[List[str]] = None) -> bool:
         """Run a Python script and capture result"""
         print(f"RUN  {description}...")
         print(f"   Script: {script_name}")
@@ -52,11 +57,16 @@ class RegenerateAll:
             return False
 
         try:
-            result = subprocess.run(
-                [sys.executable, str(script_path), "--topology", self.topology_path],
+            command = [sys.executable, str(script_path)]
+            if args:
+                command.extend(args)
+
+            subprocess.run(
+                command,
                 capture_output=False,
                 text=True,
-                check=True
+                check=True,
+                cwd=str(self.project_root),
             )
             print(f"OK {description} completed\n")
             return True
@@ -78,29 +88,66 @@ class RegenerateAll:
 
         print(f"DIR Topology file: {self.topology_path}")
         print(f"TIME Started at: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        total_steps = 6 if self.validate_mermaid else 5
 
-        self.print_header("Step 1/5: Validate Topology")
-        if not self.run_script("validate-topology.py", "Validating topology"):
+        self.print_header(f"Step 1/{total_steps}: Validate Topology")
+        if not self.run_script(
+            "validate-topology.py",
+            "Validating topology",
+            ["--topology", self.topology_path],
+        ):
             print("WARN  Validation failed, but continuing with generation...")
             print("   (Fix validation errors to ensure correct output)\n")
 
-        self.print_header("Step 2/5: Generate Terraform (Proxmox)")
-        success_terraform = self.run_script("generate-terraform.py", "Generating Proxmox Terraform configuration")
+        self.print_header(f"Step 2/{total_steps}: Generate Terraform (Proxmox)")
+        success_terraform = self.run_script(
+            "generate-terraform.py",
+            "Generating Proxmox Terraform configuration",
+            ["--topology", self.topology_path],
+        )
 
-        self.print_header("Step 3/5: Generate Terraform (MikroTik)")
-        success_mikrotik = self.run_script("generate-terraform-mikrotik.py", "Generating MikroTik Terraform configuration")
+        self.print_header(f"Step 3/{total_steps}: Generate Terraform (MikroTik)")
+        success_mikrotik = self.run_script(
+            "generate-terraform-mikrotik.py",
+            "Generating MikroTik Terraform configuration",
+            ["--topology", self.topology_path],
+        )
 
-        self.print_header("Step 4/5: Generate Ansible Inventory")
-        success_ansible = self.run_script("generate-ansible-inventory.py", "Generating Ansible inventory")
+        self.print_header(f"Step 4/{total_steps}: Generate Ansible Inventory")
+        success_ansible = self.run_script(
+            "generate-ansible-inventory.py",
+            "Generating Ansible inventory",
+            ["--topology", self.topology_path],
+        )
 
-        self.print_header("Step 5/5: Generate Documentation")
-        success_docs = self.run_script("generate-docs.py", "Generating documentation")
+        self.print_header(f"Step 5/{total_steps}: Generate Documentation")
+        success_docs = self.run_script(
+            "generate-docs.py",
+            "Generating documentation",
+            ["--topology", self.topology_path],
+        )
 
-        self.print_summary(success_terraform, success_mikrotik, success_ansible, success_docs)
+        success_mermaid = True
+        if self.validate_mermaid:
+            self.print_header(f"Step 6/{total_steps}: Validate Mermaid Rendering")
+            success_mermaid = self.run_script(
+                "validate-mermaid-render.py",
+                "Validating Mermaid renderability",
+                ["--docs-dir", "generated/docs", "--icon-mode", self.mermaid_icon_mode],
+            )
 
-        return success_terraform and success_mikrotik and success_ansible and success_docs
+        self.print_summary(success_terraform, success_mikrotik, success_ansible, success_docs, success_mermaid)
 
-    def print_summary(self, success_terraform: bool, success_mikrotik: bool, success_ansible: bool, success_docs: bool):
+        return success_terraform and success_mikrotik and success_ansible and success_docs and success_mermaid
+
+    def print_summary(
+        self,
+        success_terraform: bool,
+        success_mikrotik: bool,
+        success_ansible: bool,
+        success_docs: bool,
+        success_mermaid: bool,
+    ):
         """Print final summary"""
         end_time = datetime.now()
         duration = (end_time - self.start_time).total_seconds()
@@ -112,6 +159,7 @@ class RegenerateAll:
         print(f"  {'OK' if success_mikrotik else 'ERROR'} Terraform (MikroTik): {'Success' if success_mikrotik else 'Failed'}")
         print(f"  {'OK' if success_ansible else 'ERROR'} Ansible:              {'Success' if success_ansible else 'Failed'}")
         print(f"  {'OK' if success_docs else 'ERROR'} Documentation:        {'Success' if success_docs else 'Failed'}")
+        print(f"  {'OK' if success_mermaid else 'ERROR'} Mermaid Render:      {'Success' if success_mermaid else 'Failed'}")
 
         print(f"\nTIME  Duration: {duration:.2f} seconds")
         print(f"TIME Completed at: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -123,7 +171,7 @@ class RegenerateAll:
 
         print("\n" + "="*70)
 
-        all_success = success_terraform and success_mikrotik and success_ansible and success_docs
+        all_success = success_terraform and success_mikrotik and success_ansible and success_docs and success_mermaid
         if all_success:
             print("\nOK All generators completed successfully!")
             print("\nDIR Generated files structure:")
@@ -184,10 +232,25 @@ def main():
         default="topology.yaml",
         help="Path to topology YAML file (default: topology.yaml)"
     )
+    parser.add_argument(
+        "--skip-mermaid-validate",
+        action="store_true",
+        help="Skip Mermaid render validation step after docs generation"
+    )
+    parser.add_argument(
+        "--mermaid-icon-mode",
+        default="auto",
+        choices=["auto", "icon-nodes", "compat", "none"],
+        help="Icon mode to use for Mermaid render validation (default: auto)"
+    )
 
     args = parser.parse_args()
 
-    regenerator = RegenerateAll(args.topology)
+    regenerator = RegenerateAll(
+        args.topology,
+        validate_mermaid=not args.skip_mermaid_validate,
+        mermaid_icon_mode=args.mermaid_icon_mode,
+    )
     success = regenerator.run_all()
 
     sys.exit(0 if success else 1)

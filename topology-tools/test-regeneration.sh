@@ -9,8 +9,9 @@
 # 2. Generate Terraform configuration
 # 3. Generate Ansible inventory
 # 4. Generate documentation
-# 5. Validate Terraform syntax
-# 6. Validate Ansible syntax
+# 5. Validate Mermaid diagram rendering
+# 6. Validate Terraform syntax
+# 7. Validate Ansible syntax
 #
 # Usage:
 #   ./topology-tools/test-regeneration.sh
@@ -37,7 +38,7 @@ TESTS_TOTAL=0
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Change to project root
 cd "$PROJECT_ROOT"
@@ -289,10 +290,31 @@ else
 fi
 
 # ============================================================
-# Test 7: Check Git Status
+# Test 7: Validate Mermaid Render
 # ============================================================
 
-print_header "Test 7: Check Git Status"
+print_header "Test 7: Validate Mermaid Render"
+
+if [ ! -f "topology-tools/validate-mermaid-render.py" ]; then
+    print_warning "validate-mermaid-render.py not found, skipping Mermaid render validation"
+elif ! command -v npx &> /dev/null && ! command -v npm &> /dev/null; then
+    print_warning "Neither npx nor npm found, skipping Mermaid render validation"
+else
+    echo ""
+    echo "Validating Mermaid rendering (auto icon mode)..."
+    if python3 topology-tools/validate-mermaid-render.py --docs-dir generated/docs --icon-mode auto; then
+        print_success "Mermaid render validation passed"
+    else
+        print_error "Mermaid render validation failed"
+        exit 1
+    fi
+fi
+
+# ============================================================
+# Test 8: Check Git Status
+# ============================================================
+
+print_header "Test 8: Check Git Status"
 
 cd "$PROJECT_ROOT"
 
@@ -313,10 +335,10 @@ else
 fi
 
 # ============================================================
-# Test 8: Idempotency Check
+# Test 9: Idempotency Check
 # ============================================================
 
-print_header "Test 8: Idempotency Check"
+print_header "Test 9: Idempotency Check"
 
 echo ""
 echo "Running generators a second time to check idempotency..."
@@ -333,6 +355,8 @@ python3 topology-tools/generate-terraform.py --output generated/terraform > /dev
 if [ -f "topology-tools/generate-ansible-inventory.py" ]; then
     python3 topology-tools/generate-ansible-inventory.py --output generated/ansible > /dev/null 2>&1
 fi
+
+python3 topology-tools/generate-docs.py --output generated/docs > /dev/null 2>&1
 
 # Compare
 if diff -r "$TEMP_DIR/generated-before" generated/ > /dev/null 2>&1; then

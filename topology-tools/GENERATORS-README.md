@@ -127,10 +127,12 @@ python topology-tools/validate-mermaid-render.py --docs-dir generated/docs --ico
 
 ### regenerate-all.py
 Run validation and all generators in order.
+By default it also validates Mermaid rendering for generated docs.
 
 Usage:
 ```bash
 python topology-tools/regenerate-all.py --topology topology.yaml
+python topology-tools/regenerate-all.py --topology topology.yaml --skip-mermaid-validate
 ```
 
 ## Dependencies
