@@ -55,9 +55,16 @@ flowchart LR
     class {{ device.id | mermaid_id }} host
     {% endfor %}
     {% for pool in storage %}
+    {% set media_lower = (pool.media | default('') | lower) %}
     {% set desc_lower = (pool.description | default('') | lower) %}
     {% set type_lower = (pool.type | default('') | lower) %}
-    {% if 'nvme' in desc_lower %}
+    {% if media_lower == 'nvme' %}
+    class {{ pool.id | mermaid_id }} nvme
+    {% elif media_lower == 'ssd' %}
+    class {{ pool.id | mermaid_id }} ssd
+    {% elif media_lower == 'hdd' %}
+    class {{ pool.id | mermaid_id }} hdd
+    {% elif 'nvme' in desc_lower %}
     class {{ pool.id | mermaid_id }} nvme
     {% elif 'ssd' in desc_lower or 'lvm' in type_lower %}
     class {{ pool.id | mermaid_id }} ssd
@@ -76,10 +83,10 @@ flowchart LR
 
 ## Storage Pools
 
-| ID | Name | Type | Device | Content | Shared | Path/VG |
-|----|------|------|--------|---------|--------|---------|
+| ID | Name | Type | Media | Device | Content | Shared | Path/VG |
+|----|------|------|-------|--------|---------|--------|---------|
 {% for pool in storage %}
-| {{ pool.id }} | {{ pool.name }} | {{ pool.type }} | {{ pool.device_ref | default('-') }} | {{ pool.content | join(', ') if pool.content else '-' }} | {{ 'Yes' if pool.shared else 'No' }} | {{ pool.path | default(pool.vgname | default('-')) }} |
+| {{ pool.id }} | {{ pool.name }} | {{ pool.type }} | {{ pool.media | default('-') }} | {{ pool.device_ref | default('-') }} | {{ pool.content | join(', ') if pool.content else '-' }} | {{ 'Yes' if pool.shared else 'No' }} | {{ pool.path | default(pool.vgname | default('-')) }} |
 {% endfor %}
 
 ---

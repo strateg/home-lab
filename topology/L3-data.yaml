@@ -7,6 +7,7 @@ storage:
 - id: storage-local
   name: local
   type: dir
+  media: ssd
   path: /var/lib/vz
   content:
   - vztmpl
@@ -20,6 +21,7 @@ storage:
 - id: storage-lvm
   name: local-lvm
   type: lvmthin
+  media: ssd
   vgname: pve
   thinpool: data
   content:
@@ -32,6 +34,7 @@ storage:
 - id: storage-hdd
   name: local-hdd
   type: dir
+  media: hdd
   path: /mnt/hdd
   content:
   - backup

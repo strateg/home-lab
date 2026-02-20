@@ -163,4 +163,5 @@ tailscale up --reset
 
 - [Home Russia VPN Setup](HOME-RUSSIA-VPN-SETUP.md) - Specific setup for Russia access
 - [AmneziaWG Setup](AMNEZIAWG-SETUP.md) - Obfuscated WireGuard for censored networks
-- Generated: [VPN Topology](../../generated/docs/vpn-topology.md) - Current VPN architecture
+- [VPN Topology Template](../../scripts/templates/docs/vpn-topology.md.j2) - Source template for generated diagram
+- Local generated output: `generated/docs/vpn-topology.md` (after `python scripts/generate-docs.py`)
