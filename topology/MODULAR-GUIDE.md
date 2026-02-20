@@ -35,6 +35,8 @@ Rules:
 - `topology/L1-foundation.yaml`:
   - `topology/L1-foundation/locations/`
   - `topology/L1-foundation/devices/`
+  - `topology/L1-foundation/devices/owned/<class>/`
+  - `topology/L1-foundation/devices/provider/<class>/`
   - `topology/L1-foundation/links/`
   - `topology/L1-foundation/power/`
 - `topology/L2-network.yaml`:
@@ -54,21 +56,26 @@ Rules:
 - Use predictable names: file name equals object `id` where possible.
 - Keep indexes explicit: `_index.yaml` contains only ordered `!include` entries.
 - Keep module size practical (target under ~200 lines).
-- Preserve key order: `id`, `name`, `type`, refs, config, `description`.
+- Preserve key order: `id`, `name`, `type`, `role`, `class`, `substrate`, `access`, refs, config, `description`.
+- In L1 devices, always set taxonomy explicitly: `class` + `substrate` + `access`.
+- `physical_links` can reference only owned/colo substrate devices (no `provider-instance`).
+- VM/LXC remain in `L4_platform` (compute module), not in `L1_foundation`.
 - For L2 networks with `profile_ref`, keep only exception overrides in network files.
 
 ## Add New Hardware Workflow
 
-1. Add new device file under `topology/L1-foundation/devices/<group>/<device-id>.yaml`.
+1. Add new device file under `topology/L1-foundation/devices/<substrate-group>/<class>/<device-id>.yaml`.
 2. Add include entry to `topology/L1-foundation/devices/_index.yaml`.
-3. Add/update physical connectivity in `topology/L1-foundation/links/` and `links/_index.yaml`.
-4. If needed, add/update virtual network in `topology/L2-network/networks/` and `_index.yaml`.
-5. Prefer `profile_ref` from `topology/L2-network/profiles/default.yaml`.
-6. Read profile rules in `topology/L2-network/profiles/README.md`.
-7. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
-8. For firewall policy changes, edit `topology/L2-network/firewall/policies/*` and include from `topology/L2-network/firewall/policies/_index.yaml`.
-9. Add platform/app/monitoring modules only if the device hosts workloads.
-10. Validate and regenerate:
+3. Set `class`/`substrate`/`access`.
+4. Add/update physical connectivity in `topology/L1-foundation/links/` and `links/_index.yaml` only for non-provider substrates.
+5. If needed, add/update virtual network in `topology/L2-network/networks/` and `_index.yaml`.
+6. Prefer `profile_ref` from `topology/L2-network/profiles/default.yaml`.
+7. Read profile rules in `topology/L2-network/profiles/README.md`.
+8. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
+9. For firewall policy changes, edit `topology/L2-network/firewall/policies/*` and include from `topology/L2-network/firewall/policies/_index.yaml`.
+10. Add VM/LXC workloads in `topology/L4-platform.yaml` only.
+11. Add platform/app/monitoring modules only if the device hosts workloads.
+12. Validate and regenerate:
    - `python scripts/validate-topology.py`
    - `python scripts/generate-docs.py`
 

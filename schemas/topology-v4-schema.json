@@ -24,6 +24,18 @@
       "type": "string",
       "enum": ["compute", "central-gateway", "application-server", "travel-router", "storage-server", "backup-server", "cloud-server", "vpn-exit-node"]
     },
+    "DeviceClass": {
+      "type": "string",
+      "enum": ["network", "compute", "storage", "power", "external"]
+    },
+    "DeviceSubstrate": {
+      "type": "string",
+      "enum": ["baremetal-owned", "baremetal-colo", "provider-instance"]
+    },
+    "DeviceAccess": {
+      "type": "string",
+      "enum": ["local-lan", "vpn-only", "public"]
+    },
     "InterfaceType": {
       "type": "string",
       "enum": ["ethernet", "pci-ethernet", "usb-ethernet", "wifi-5ghz", "wifi-2.4ghz", "lte", "usb", "usb-c", "hdmi", "display", "camera", "expansion", "audio", "debug"]
@@ -278,12 +290,15 @@
 
     "Device": {
       "type": "object",
-      "required": ["id", "name", "type", "role"],
+      "required": ["id", "name", "type", "role", "class", "substrate", "access"],
       "properties": {
         "id": { "$ref": "#/definitions/IdPattern" },
         "name": { "type": "string" },
         "type": { "$ref": "#/definitions/DeviceType" },
         "role": { "$ref": "#/definitions/DeviceRole" },
+        "class": { "$ref": "#/definitions/DeviceClass" },
+        "substrate": { "$ref": "#/definitions/DeviceSubstrate" },
+        "access": { "$ref": "#/definitions/DeviceAccess" },
         "model": { "type": "string" },
         "location": { "type": "string" },
         "description": { "type": "string" },

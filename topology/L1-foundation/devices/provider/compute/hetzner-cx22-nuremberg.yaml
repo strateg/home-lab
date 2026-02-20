@@ -2,6 +2,9 @@ id: hetzner-cx22-nuremberg
 name: Hetzner CX22 (Nuremberg)
 type: cloud-vm
 role: cloud-server
+class: compute
+substrate: provider-instance
+access: public
 location: hetzner-nuremberg
 description: Hetzner Cloud entry-level VPS - Алконост (птица радости)
 cloud:

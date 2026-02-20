@@ -191,6 +191,7 @@ class SchemaValidator:
 
         ids = self._collect_ids()
 
+        self._check_device_taxonomy(ids)
         self._check_network_refs(ids)
         self._check_bridge_refs(ids)
         self._check_physical_links(ids)
@@ -202,6 +203,47 @@ class SchemaValidator:
         self._check_backup_refs(ids)
         self._check_security_policy_refs(ids)
         self._check_vlan_tags()
+
+    def _check_device_taxonomy(self, ids: Dict[str, Set[str]]) -> None:
+        """Validate L1 foundation taxonomy and substrate consistency."""
+        l1 = self.topology.get('L1_foundation', {})
+        devices = l1.get('devices', []) or []
+        locations = {loc.get('id'): loc for loc in l1.get('locations', []) or [] if isinstance(loc, dict)}
+
+        for device in devices:
+            if not isinstance(device, dict):
+                continue
+
+            dev_id = device.get('id', 'unknown')
+            dev_type = device.get('type')
+            dev_substrate = device.get('substrate')
+            dev_access = device.get('access')
+            location_ref = device.get('location')
+
+            if location_ref and location_ref not in locations:
+                self.errors.append(f"Device '{dev_id}': location '{location_ref}' does not exist")
+
+            if dev_type == 'cloud-vm' and location_ref in locations:
+                location_type = locations[location_ref].get('type')
+                if location_type != 'cloud':
+                    self.errors.append(
+                        f"Device '{dev_id}': cloud-vm is expected in cloud location, got '{location_ref}'"
+                    )
+
+            if dev_type == 'cloud-vm' and dev_substrate != 'provider-instance':
+                self.errors.append(
+                    f"Device '{dev_id}': cloud-vm must use substrate 'provider-instance'"
+                )
+
+            if dev_substrate == 'provider-instance' and dev_type != 'cloud-vm':
+                self.warnings.append(
+                    f"Device '{dev_id}': provider-instance substrate is usually paired with type 'cloud-vm'"
+                )
+
+            if dev_substrate == 'provider-instance' and dev_access == 'local-lan':
+                self.warnings.append(
+                    f"Device '{dev_id}': provider-instance usually should not use access 'local-lan'"
+                )
 
     def _check_vlan_tags(self) -> None:
         """Check VLAN tags for LXC networks against L2 network definitions"""
@@ -315,6 +357,11 @@ class SchemaValidator:
         if not links:
             return
 
+        device_map = {
+            d.get('id'): d for d in l1.get('devices', []) or []
+            if isinstance(d, dict) and d.get('id')
+        }
+
         interface_owner = {}
         for device in l1.get('devices', []) or []:
             device_id = device.get('id')
@@ -334,6 +381,10 @@ class SchemaValidator:
                 if device_ref and device_ref not in ids['devices']:
                     self.errors.append(
                         f"Physical link '{link_id}' {endpoint_key}: device_ref '{device_ref}' does not exist"
+                    )
+                elif device_ref and device_map.get(device_ref, {}).get('substrate') == 'provider-instance':
+                    self.errors.append(
+                        f"Physical link '{link_id}' {endpoint_key}: device_ref '{device_ref}' is provider-instance"
                     )
 
                 if interface_ref and interface_ref not in ids['interfaces']:

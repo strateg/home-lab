@@ -5,7 +5,7 @@
 
 ---
 
-## Physical Devices
+## L1 Foundation Nodes
 
 {% for device in devices %}
 ### {{ device.name }}
@@ -16,6 +16,9 @@
 |----------|-------|
 | **Type** | {{ device.type }} |
 | **Role** | {{ device.role }} |
+| **Class** | {{ device.class }} |
+| **Substrate** | {{ device.substrate }} |
+| **Access** | {{ device.access }} |
 | **Model** | {{ device.model }} |
 | **Location** | {{ device.location }} |
 
@@ -46,9 +49,9 @@
 #### Network Interfaces
 
 {% for iface in device.interfaces %}
-- **{{ iface.id }}** ({{ iface.physical_name }})
+- **{{ iface.id }}** ({{ iface.physical_name | default(iface.name) }})
   - MAC: `{{ iface.mac }}`
-  - Speed: {{ iface.speed }}
+  - Speed: {{ iface.speed | default(iface.speed_mbps) }}
   - Type: {{ iface.type }}
 {% endfor %}
 {% endif %}

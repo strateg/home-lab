@@ -2,6 +2,9 @@ id: oracle-arm-frankfurt
 name: Oracle Cloud ARM (Frankfurt)
 type: cloud-vm
 role: vpn-exit-node
+class: compute
+substrate: provider-instance
+access: public
 location: oracle-frankfurt
 description: Oracle Cloud Always Free ARM instance - Жар-птица (огненная птица, символ удачи)
 cloud:

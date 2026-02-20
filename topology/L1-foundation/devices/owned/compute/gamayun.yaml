@@ -2,6 +2,9 @@ id: gamayun
 name: Gamayun
 type: hypervisor
 role: compute
+class: compute
+substrate: baremetal-owned
+access: local-lan
 model: Dell XPS L701X
 location: home
 description: Primary Proxmox VE host - Гамаюн (вещая птица)

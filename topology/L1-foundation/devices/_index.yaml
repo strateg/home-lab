@@ -1,11 +1,11 @@
-# Home lab devices
-- !include home/gamayun.yaml
-- !include home/mikrotik-chateau.yaml
-- !include home/orangepi5.yaml
+# Owned foundation nodes: network
+- !include owned/network/mikrotik-chateau.yaml
+- !include owned/network/slate-ax1800.yaml
 
-# Portable devices
-- !include portable/slate-ax1800.yaml
+# Owned foundation nodes: compute
+- !include owned/compute/gamayun.yaml
+- !include owned/compute/orangepi5.yaml
 
-# Cloud devices
-- !include cloud/oracle-arm-frankfurt.yaml
-- !include cloud/hetzner-cx22-nuremberg.yaml
+# Provider foundation nodes: compute
+- !include provider/compute/oracle-arm-frankfurt.yaml
+- !include provider/compute/hetzner-cx22-nuremberg.yaml

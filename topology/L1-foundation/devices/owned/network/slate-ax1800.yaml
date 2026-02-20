@@ -2,6 +2,9 @@ id: slate-ax1800
 name: GL.iNet Slate AX
 type: router
 role: travel-router
+class: network
+substrate: baremetal-owned
+access: local-lan
 model: GL-AXT1800
 location: portable
 description: Travel router for remote access to home network

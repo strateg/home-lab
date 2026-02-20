@@ -2,6 +2,9 @@ id: mikrotik-chateau
 name: MikroTik Chateau LTE7 ax
 type: router
 role: central-gateway
+class: network
+substrate: baremetal-owned
+access: local-lan
 model: S53UG+5HaxD2HaxD-TC&R11e-LTE7
 location: home
 description: Central router with WiFi 6, LTE failover, RouterOS v7 containers

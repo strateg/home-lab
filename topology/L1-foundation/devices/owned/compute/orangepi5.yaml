@@ -2,6 +2,9 @@ id: orangepi5
 name: Orange Pi 5
 type: sbc
 role: application-server
+class: compute
+substrate: baremetal-owned
+access: local-lan
 model: Orange Pi 5
 location: home
 description: Dedicated application server for Nextcloud, Jellyfin, monitoring
