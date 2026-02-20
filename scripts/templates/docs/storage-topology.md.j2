@@ -7,6 +7,8 @@
 
 ## Storage Architecture
 
+**Legend**: 🟢 SSD | 🟡 HDD | 🔵 NVMe | ⚪ Host
+
 ```mermaid
 flowchart LR
     subgraph hosts["Hosts"]
@@ -41,15 +43,29 @@ flowchart LR
     {% endif %}
     {% endfor %}
 
+    %% Style definitions
     classDef host fill:#74c0fc,stroke:#1864ab,color:#000
-    classDef pool fill:#51cf66,stroke:#2b8a3e,color:#000
-    classDef data fill:#ffd43b,stroke:#fab005,color:#000
+    classDef ssd fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef hdd fill:#ffd43b,stroke:#fab005,color:#000
+    classDef nvme fill:#4dabf7,stroke:#1864ab,color:#fff
+    classDef pool fill:#adb5bd,stroke:#495057,color:#000
+    classDef data fill:#e9ecef,stroke:#495057,color:#000
 
     {% for device in devices %}
     class {{ device.id | mermaid_id }} host
     {% endfor %}
     {% for pool in storage %}
+    {% set desc_lower = (pool.description | default('') | lower) %}
+    {% set type_lower = (pool.type | default('') | lower) %}
+    {% if 'nvme' in desc_lower %}
+    class {{ pool.id | mermaid_id }} nvme
+    {% elif 'ssd' in desc_lower or 'lvm' in type_lower %}
+    class {{ pool.id | mermaid_id }} ssd
+    {% elif 'hdd' in desc_lower %}
+    class {{ pool.id | mermaid_id }} hdd
+    {% else %}
     class {{ pool.id | mermaid_id }} pool
+    {% endif %}
     {% endfor %}
     {% for asset in data_assets %}
     class {{ asset.id | mermaid_id }} data
