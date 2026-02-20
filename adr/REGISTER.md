@@ -10,3 +10,4 @@
 | [0006](0006-mermaid-icon-mode-with-fallback.md) | Add Mermaid Icon Mode with Template Fallback | Superseded | 2026-02-20 | - | [0008](0008-mermaid-icon-node-default-and-runtime-pack-registration.md) |
 | [0007](0007-icon-legend-and-complete-device-icon-coverage.md) | Add Icon Legend Page and Complete Device Icon Coverage | Accepted | 2026-02-20 | - | - |
 | [0008](0008-mermaid-icon-node-default-and-runtime-pack-registration.md) | Make Mermaid Icon-Node the Default and Require Runtime Icon Pack Registration | Accepted | 2026-02-20 | [0006](0006-mermaid-icon-mode-with-fallback.md) | - |
+| [0009](0009-robust-icon-pack-discovery-and-render-validation.md) | Robust Mermaid Icon Pack Discovery and Render Validation | Accepted | 2026-02-20 | - | - |

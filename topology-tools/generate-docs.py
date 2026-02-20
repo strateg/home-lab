@@ -17,7 +17,7 @@ import re
 import json
 import base64
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 from urllib.parse import quote
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from datetime import datetime
@@ -65,6 +65,51 @@ class DocumentationGenerator:
         self.jinja_env.filters['mermaid_id'] = self._mermaid_id
         self.diagram_generator = DiagramDocumentationGenerator(self)
 
+    @property
+    def icon_mode(self) -> str:
+        if not self.mermaid_icons:
+            return "none"
+        return "icon-nodes" if self.mermaid_icon_nodes else "compat"
+
+    def icon_runtime_hint(self) -> str:
+        if not self.mermaid_icons:
+            return "Icon mode disabled."
+        if self.mermaid_icon_nodes:
+            return f"Icon-node mode enabled. Renderer must preload icon packs: {self.diagram_generator.ICON_PACK_HINT}."
+        return "Compatibility icon mode enabled. Icons are embedded inline in labels; runtime icon pack preload is not required."
+
+    def _icon_pack_search_dirs(self) -> List[Path]:
+        """Discover candidate @iconify-json directories independent of the current working directory."""
+        script_dir = Path(__file__).resolve().parent
+        raw_roots = [
+            Path.cwd(),
+            self.topology_path.resolve().parent,
+            script_dir,
+            script_dir.parent,
+        ]
+
+        unique_roots = []
+        seen_roots = set()
+        for root in raw_roots:
+            root_key = str(root)
+            if root_key in seen_roots:
+                continue
+            seen_roots.add(root_key)
+            unique_roots.append(root)
+
+        search_dirs = []
+        seen_dirs = set()
+        for root in unique_roots:
+            for parent in [root, *root.parents]:
+                candidate = parent / "node_modules" / "@iconify-json"
+                candidate_key = str(candidate)
+                if candidate_key in seen_dirs:
+                    continue
+                seen_dirs.add(candidate_key)
+                search_dirs.append(candidate)
+
+        return search_dirs
+
     def _load_icon_packs(self):
         if self._icon_pack_cache is not None:
             return self._icon_pack_cache
@@ -75,17 +120,19 @@ class DocumentationGenerator:
             "logos": "logos",
         }
         packs = {}
-        base_dir = Path.cwd() / "node_modules" / "@iconify-json"
+        search_dirs = self._icon_pack_search_dirs()
         for prefix, package_dir in mapping.items():
-            icon_file = base_dir / package_dir / "icons.json"
-            if not icon_file.exists():
-                continue
-            try:
-                data = json.loads(icon_file.read_text(encoding="utf-8"))
-                packs[prefix] = data
-            except Exception:
-                # Ignore malformed local packs and fall back to remote URL mode.
-                continue
+            for base_dir in search_dirs:
+                icon_file = base_dir / package_dir / "icons.json"
+                if not icon_file.exists():
+                    continue
+                try:
+                    data = json.loads(icon_file.read_text(encoding="utf-8"))
+                    packs[prefix] = data
+                    break
+                except Exception:
+                    # Ignore malformed local packs and continue searching other paths.
+                    continue
 
         self._icon_pack_cache = packs
         return packs
@@ -259,6 +306,8 @@ class DocumentationGenerator:
                 },
                 zone_icons=self.diagram_generator.ZONE_ICON_MAP,
                 use_mermaid_icons=self.mermaid_icons,
+                icon_mode=self.icon_mode,
+                mermaid_icon_runtime_hint=self.icon_runtime_hint(),
                 mermaid_icon_pack_hint=self.diagram_generator.ICON_PACK_HINT,
                 topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
                 generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')

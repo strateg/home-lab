@@ -217,6 +217,8 @@ class DiagramDocumentationGenerator:
                 topology_version=self.topology_version,
                 generated_at=self.generated_at(),
                 use_mermaid_icons=self.use_mermaid_icons,
+                icon_mode=getattr(self.docs_generator, "icon_mode", "none"),
+                mermaid_icon_runtime_hint=self.docs_generator.icon_runtime_hint(),
                 mermaid_icon_pack_hint=self.ICON_PACK_HINT,
                 # Icon-node styling constants (available in all templates)
                 icon_node_defaults=self.ICON_NODE_DEFAULTS,

@@ -112,6 +112,19 @@ mermaid.registerIconPacks([
 ]);
 ```
 
+### validate-mermaid-render.py
+Validate Mermaid renderability of generated docs using Mermaid CLI.
+
+Usage:
+```bash
+# Auto-detect icon mode from generated docs
+python topology-tools/validate-mermaid-render.py --docs-dir generated/docs
+
+# Explicit mode checks
+python topology-tools/validate-mermaid-render.py --docs-dir generated/docs --icon-mode icon-nodes
+python topology-tools/validate-mermaid-render.py --docs-dir generated/docs --icon-mode compat
+```
+
 ### regenerate-all.py
 Run validation and all generators in order.
 
@@ -124,6 +137,11 @@ python topology-tools/regenerate-all.py --topology topology.yaml
 
 ```bash
 python -m pip install pyyaml jinja2 jsonschema
+```
+
+Optional (for render validation script):
+```bash
+npm install --save-dev @mermaid-js/mermaid-cli @iconify-json/simple-icons @iconify-json/mdi @iconify-json/logos
 ```
 
 ## Outputs
