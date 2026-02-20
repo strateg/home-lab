@@ -102,6 +102,20 @@ flowchart LR
 
 ---
 
+## Network Firewall Bindings
+
+| Network | Zone | Policy IDs (`firewall_policy_refs`) | Policy Names |
+|---------|------|--------------------------------------|--------------|
+{% if network_policy_bindings %}
+{% for binding in network_policy_bindings %}
+| {{ binding.network_name }} (`{{ binding.network_id }}`) | {{ binding.trust_zone_ref | default('-') }} | {{ binding.policy_refs | join(', ') }} | {{ binding.policy_names | join(', ') }} |
+{% endfor %}
+{% else %}
+| - | - | - | No explicit `firewall_policy_refs` in networks |
+{% endif %}
+
+---
+
 ## Zone Access Matrix
 
 |  | -> Untrusted | -> User | -> Servers | -> IoT | -> Guest | -> Mgmt |

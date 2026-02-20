@@ -6,3 +6,4 @@
 | [0002](0002-separate-data-and-power-links-in-l1.md) | Separate Data Links and Power Links in L1 | Accepted | 2026-02-20 | - | - |
 | [0003](0003-data-links-naming-and-power-constraints.md) | Rename L1 Physical Links to Data Links and Constrain Data-Link Power | Accepted | 2026-02-20 | - | - |
 | [0004](0004-l2-firewall-policy-references-and-validation.md) | Enforce Explicit L2 Firewall Policy References and Validation Semantics | Accepted | 2026-02-20 | - | - |
+| [0005](0005-diagram-generation-determinism-and-binding-visibility.md) | Improve Diagram Generation Determinism and Firewall Binding Visibility | Accepted | 2026-02-20 | - | - |
