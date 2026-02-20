@@ -209,6 +209,11 @@ class SchemaValidator:
         l1 = self.topology.get('L1_foundation', {})
         devices = l1.get('devices', []) or []
         locations = {loc.get('id'): loc for loc in l1.get('locations', []) or [] if isinstance(loc, dict)}
+        class_type_map = {
+            'network': {'router', 'switch', 'ap'},
+            'compute': {'hypervisor', 'sbc', 'cloud-vm'},
+            'storage': {'nas'},
+        }
 
         for device in devices:
             if not isinstance(device, dict):
@@ -216,15 +221,22 @@ class SchemaValidator:
 
             dev_id = device.get('id', 'unknown')
             dev_type = device.get('type')
+            dev_class = device.get('class')
             dev_substrate = device.get('substrate')
             dev_access = device.get('access')
             location_ref = device.get('location')
+            location_type = locations.get(location_ref, {}).get('type') if location_ref in locations else None
 
             if location_ref and location_ref not in locations:
                 self.errors.append(f"Device '{dev_id}': location '{location_ref}' does not exist")
 
+            allowed_types = class_type_map.get(dev_class)
+            if allowed_types and dev_type not in allowed_types:
+                self.errors.append(
+                    f"Device '{dev_id}': class '{dev_class}' is inconsistent with type '{dev_type}'"
+                )
+
             if dev_type == 'cloud-vm' and location_ref in locations:
-                location_type = locations[location_ref].get('type')
                 if location_type != 'cloud':
                     self.errors.append(
                         f"Device '{dev_id}': cloud-vm is expected in cloud location, got '{location_ref}'"
@@ -235,14 +247,24 @@ class SchemaValidator:
                     f"Device '{dev_id}': cloud-vm must use substrate 'provider-instance'"
                 )
 
-            if dev_substrate == 'provider-instance' and dev_type != 'cloud-vm':
-                self.warnings.append(
-                    f"Device '{dev_id}': provider-instance substrate is usually paired with type 'cloud-vm'"
+            if dev_type != 'cloud-vm' and dev_substrate == 'provider-instance':
+                self.errors.append(
+                    f"Device '{dev_id}': substrate 'provider-instance' is reserved for cloud-vm"
                 )
 
             if dev_substrate == 'provider-instance' and dev_access == 'local-lan':
                 self.warnings.append(
                     f"Device '{dev_id}': provider-instance usually should not use access 'local-lan'"
+                )
+
+            if dev_substrate == 'provider-instance' and dev_access not in {'public', 'vpn-only'}:
+                self.warnings.append(
+                    f"Device '{dev_id}': provider-instance access is usually 'public' or 'vpn-only'"
+                )
+
+            if dev_substrate in {'baremetal-owned', 'baremetal-colo'} and location_type == 'cloud':
+                self.warnings.append(
+                    f"Device '{dev_id}': baremetal substrate mapped to cloud location '{location_ref}'"
                 )
 
     def _check_vlan_tags(self) -> None:
@@ -289,17 +311,27 @@ class SchemaValidator:
 
     def _check_network_refs(self, ids: Dict[str, Set[str]]) -> None:
         l2 = self.topology.get('L2_network', {})
+        l1 = self.topology.get('L1_foundation', {})
         profiles = l2.get('network_profiles', {}) or {}
         profile_fields = ['network_plane', 'segmentation_type', 'transport', 'volatility']
+        device_map = {
+            d.get('id'): d for d in l1.get('devices', []) or []
+            if isinstance(d, dict) and d.get('id')
+        }
 
         for network in l2.get('networks', []) or []:
             net_id = network.get('id')
+            effective = {}
+            profile_ref = network.get('profile_ref')
+
+            if profile_ref and profile_ref in profiles and isinstance(profiles[profile_ref], dict):
+                effective.update(profiles[profile_ref])
+            effective.update(network)
 
             trust_zone_ref = network.get('trust_zone_ref')
             if trust_zone_ref and trust_zone_ref not in ids['trust_zones']:
                 self.errors.append(f"Network '{net_id}': trust_zone_ref '{trust_zone_ref}' does not exist")
 
-            profile_ref = network.get('profile_ref')
             if profile_ref and profile_ref not in ids['network_profiles']:
                 self.errors.append(f"Network '{net_id}': profile_ref '{profile_ref}' does not exist")
             elif profile_ref:
@@ -330,10 +362,85 @@ class SchemaValidator:
             managed_by_ref = network.get('managed_by_ref')
             if managed_by_ref and managed_by_ref not in ids['devices']:
                 self.errors.append(f"Network '{net_id}': managed_by_ref '{managed_by_ref}' does not exist or is not a device")
+            elif managed_by_ref:
+                managed_device = device_map.get(managed_by_ref, {})
+                if managed_device.get('class') != 'network':
+                    self.errors.append(
+                        f"Network '{net_id}': managed_by_ref '{managed_by_ref}' must reference class 'network' device"
+                    )
+            else:
+                self.warnings.append(f"Network '{net_id}': missing managed_by_ref")
 
             interface_ref = network.get('interface_ref')
             if interface_ref and interface_ref not in ids['interfaces']:
                 self.errors.append(f"Network '{net_id}': interface_ref '{interface_ref}' does not exist")
+            elif interface_ref and managed_by_ref:
+                managed_device = device_map.get(managed_by_ref, {})
+                managed_ifaces = {i.get('id') for i in managed_device.get('interfaces', []) or [] if isinstance(i, dict)}
+                if interface_ref not in managed_ifaces:
+                    self.errors.append(
+                        f"Network '{net_id}': interface_ref '{interface_ref}' does not belong to managed_by_ref '{managed_by_ref}'"
+                    )
+
+            plane = effective.get('network_plane')
+            segmentation = effective.get('segmentation_type')
+            transport = effective.get('transport') or []
+            vlan = network.get('vlan')
+
+            if segmentation == 'uplink' and plane != 'underlay-uplink':
+                self.errors.append(
+                    f"Network '{net_id}': segmentation_type 'uplink' requires network_plane 'underlay-uplink'"
+                )
+
+            if segmentation in {'overlay-vpn', 'mesh-overlay'} and plane != 'overlay':
+                self.errors.append(
+                    f"Network '{net_id}': segmentation_type '{segmentation}' requires network_plane 'overlay'"
+                )
+
+            if segmentation == 'vlan' and vlan is None:
+                self.errors.append(f"Network '{net_id}': segmentation_type 'vlan' requires non-null vlan")
+
+            if segmentation == 'bridge' and vlan is not None:
+                self.errors.append(f"Network '{net_id}': segmentation_type 'bridge' requires vlan: null")
+
+            if plane == 'underlay-uplink':
+                if trust_zone_ref != 'untrusted':
+                    self.errors.append(
+                        f"Network '{net_id}': underlay-uplink networks must use trust_zone_ref 'untrusted'"
+                    )
+                if network.get('bridge_ref') is not None:
+                    self.errors.append(f"Network '{net_id}': underlay-uplink cannot set bridge_ref")
+                if vlan is not None:
+                    self.errors.append(f"Network '{net_id}': underlay-uplink cannot set vlan")
+                if not interface_ref:
+                    self.warnings.append(f"Network '{net_id}': underlay-uplink should set interface_ref")
+
+            if plane == 'overlay':
+                if not network.get('vpn_type'):
+                    self.warnings.append(f"Network '{net_id}': overlay network should set vpn_type")
+                if network.get('bridge_ref') is not None:
+                    self.warnings.append(f"Network '{net_id}': overlay network should keep bridge_ref null")
+                if vlan is not None:
+                    self.warnings.append(f"Network '{net_id}': overlay network should keep vlan null")
+
+            if managed_by_ref:
+                managed_device = device_map.get(managed_by_ref, {})
+                iface_types = {
+                    i.get('type') for i in managed_device.get('interfaces', []) or []
+                    if isinstance(i, dict) and i.get('type')
+                }
+                transport_type_map = {
+                    'ethernet': {'ethernet', 'pci-ethernet', 'usb-ethernet'},
+                    'fiber': {'ethernet', 'pci-ethernet', 'usb-ethernet'},
+                    'wifi': {'wifi-5ghz', 'wifi-2.4ghz'},
+                    'lte': {'lte'},
+                }
+                for medium in transport:
+                    allowed_iface_types = transport_type_map.get(medium)
+                    if allowed_iface_types and not (iface_types & allowed_iface_types):
+                        self.warnings.append(
+                            f"Network '{net_id}': transport '{medium}' is not backed by interfaces on '{managed_by_ref}'"
+                        )
 
     def _check_bridge_refs(self, ids: Dict[str, Set[str]]) -> None:
         l2 = self.topology.get('L2_network', {})

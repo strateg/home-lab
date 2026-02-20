@@ -10,6 +10,26 @@ Each profile defines the default analysis fields:
 - `transport`: list like `ethernet`, `wifi`, `lte`, `internet-overlay`
 - `volatility`: `low` | `medium` | `high`
 
+## L1-L2 Taxonomy Contract
+
+Use these rules to keep L1 foundation and L2 network intent consistent.
+
+- L1 manager device:
+  - `managed_by_ref` should point to L1 device with `class: network`.
+- L2 underlay (`network_plane: underlay-uplink`):
+  - should use `trust_zone_ref: untrusted`
+  - should keep `bridge_ref: null` and `vlan: null`
+  - should set `interface_ref` on manager device
+- L2 virtual VLAN (`segmentation_type: vlan`):
+  - requires non-null `vlan`
+- L2 virtual bridge (`segmentation_type: bridge`):
+  - requires `vlan: null`
+- L2 overlay (`network_plane: overlay`):
+  - should set `vpn_type`
+  - should keep `bridge_ref: null` and `vlan: null`
+
+Validation for these rules is implemented in `scripts/validate-topology.py`.
+
 ## Usage Rules
 
 - Every L2 network should prefer `profile_ref`.

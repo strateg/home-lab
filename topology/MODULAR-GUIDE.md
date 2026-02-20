@@ -60,6 +60,7 @@ Rules:
 - In L1 devices, always set taxonomy explicitly: `class` + `substrate` + `access`.
 - `physical_links` can reference only owned/colo substrate devices (no `provider-instance`).
 - VM/LXC remain in `L4_platform` (compute module), not in `L1_foundation`.
+- In L2 networks, `managed_by_ref` should point to `class: network` device.
 - For L2 networks with `profile_ref`, keep only exception overrides in network files.
 
 ## Add New Hardware Workflow
