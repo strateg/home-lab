@@ -26,7 +26,7 @@ flowchart TB
   subgraph dev["Device Types"]
     {% for entry in device_type_entries %}
     {% if use_mermaid_icons %}
-    dev_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "rounded", label: "{{ entry.label }}", pos: "b", h: 42 }
+    dev_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "{{ icon_node_defaults.form }}", label: "{{ entry.label }}", pos: "{{ icon_node_defaults.pos }}", h: {{ icon_node_defaults.h }} }
     {% else %}
     dev_{{ entry.label | mermaid_id }}["{{ entry.label }}<br/>{{ entry.icon }}"]
     {% endif %}
@@ -49,7 +49,7 @@ flowchart LR
   subgraph zones["Trust Zones"]
     {% for entry in zone_entries %}
     {% if use_mermaid_icons %}
-    zone_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "circle", label: "{{ entry.label }}", pos: "b", h: 40 }
+    zone_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "{{ icon_node_circle.form }}", label: "{{ entry.label }}", pos: "{{ icon_node_circle.pos }}", h: {{ icon_node_circle.h }} }
     {% else %}
     zone_{{ entry.label | mermaid_id }}["{{ entry.label }}<br/>{{ entry.icon }}"]
     {% endif %}
@@ -72,7 +72,7 @@ flowchart LR
   subgraph cloud["Cloud Providers"]
     {% for entry in provider_entries %}
     {% if use_mermaid_icons %}
-    cloud_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "circle", label: "{{ entry.label }}", pos: "b", h: 40 }
+    cloud_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "{{ icon_node_circle.form }}", label: "{{ entry.label }}", pos: "{{ icon_node_circle.pos }}", h: {{ icon_node_circle.h }} }
     {% else %}
     cloud_{{ entry.label | mermaid_id }}["{{ entry.label }}<br/>{{ entry.icon }}"]
     {% endif %}
@@ -95,7 +95,7 @@ flowchart LR
   subgraph ext["External Endpoints"]
     {% for entry in external_entries %}
     {% if use_mermaid_icons %}
-    ext_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "circle", label: "{{ entry.label }}", pos: "b", h: 40 }
+    ext_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "{{ icon_node_circle.form }}", label: "{{ entry.label }}", pos: "{{ icon_node_circle.pos }}", h: {{ icon_node_circle.h }} }
     {% else %}
     ext_{{ entry.label | mermaid_id }}["{{ entry.label }}<br/>{{ entry.icon }}"]
     {% endif %}

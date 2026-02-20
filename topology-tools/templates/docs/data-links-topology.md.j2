@@ -15,7 +15,7 @@
 graph TB
     {% for ref in external_refs %}
     {% if use_mermaid_icons %}
-    ext_{{ ref | mermaid_id }}@{ icon: "{{ external_icons.get(ref, 'mdi:help-circle-outline') }}", form: "circle", label: "{{ ref }}", pos: "b", h: 42 }
+    ext_{{ ref | mermaid_id }}@{ icon: "{{ external_icons.get(ref, 'mdi:help-circle-outline') }}", form: "{{ icon_node_circle.form }}", label: "{{ ref }}", pos: "{{ icon_node_circle.pos }}", h: {{ icon_node_circle.h }} }
     {% else %}
     ext_{{ ref | mermaid_id }}["{{ ref }}"]
     {% endif %}
@@ -23,7 +23,7 @@ graph TB
 
     {% for device in linked_devices %}
     {% if use_mermaid_icons %}
-    {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:devices') }}", form: "rounded", label: "{{ device.name }}", pos: "b", h: 46 }
+    {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:devices') }}", form: "{{ icon_node_defaults.form }}", label: "{{ device.name }}", pos: "{{ icon_node_defaults.pos }}", h: {{ icon_node_defaults.h }} }
     {% else %}
     {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.type | upper }}"]
     {% endif %}

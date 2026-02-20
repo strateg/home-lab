@@ -11,6 +11,18 @@ class DiagramDocumentationGenerator:
     """Generate all diagram-oriented documentation pages."""
 
     ICON_PACK_HINT = "`si` (Simple Icons) and `mdi` (Material Design Icons)"
+
+    # Icon-node rendering defaults (Mermaid @{ ... } syntax)
+    ICON_NODE_DEFAULTS = {
+        "form": "rounded",
+        "pos": "b",
+        "h": 46,
+    }
+    ICON_NODE_CIRCLE = {"form": "circle", "pos": "b", "h": 42}
+
+    # Locations considered cloud (for template logic)
+    CLOUD_LOCATIONS = frozenset({"oracle-frankfurt", "hetzner-nuremberg", "aws-eu-west-1", "gcp-europe-west1"})
+
     DEVICE_ICON_BY_TYPE = {
         "hypervisor": "si:proxmox",
         "router": "mdi:router-network",
@@ -19,8 +31,15 @@ class DiagramDocumentationGenerator:
         "ap": "mdi:access-point",
         "nas": "mdi:nas",
         "cloud-vm": "mdi:cloud-outline",
-        "ups": "mdi:battery-high",
+        "ups": "mdi:battery-charging-high",  # Consistent with POWER_ICONS
         "pdu": "mdi:power-socket-eu",
+        "firewall": "mdi:wall-fire",
+        "load-balancer": "mdi:scale-balance",
+        "container-host": "mdi:docker",
+        "workstation": "mdi:desktop-tower-monitor",
+        "laptop": "mdi:laptop",
+        "phone": "mdi:cellphone",
+        "iot-device": "mdi:home-automation",
     }
     DEVICE_ICON_BY_CLASS = {
         "network": "mdi:router-network",
@@ -99,6 +118,16 @@ class DiagramDocumentationGenerator:
         "external-service",
     ]
 
+    # Power-related icons (consistent set)
+    POWER_ICONS = {
+        "ups": "mdi:battery-charging-high",
+        "pdu": "mdi:power-socket-eu",
+        "utility-grid": "mdi:transmission-tower",
+        "battery": "mdi:battery-high",
+        "solar": "mdi:solar-power",
+        "generator": "mdi:engine",
+    }
+
     DIAGRAMS_INDEX = {
         "core": [
             {"title": "Infrastructure Overview", "file": "overview.md", "description": "Summary and metadata"},
@@ -168,6 +197,19 @@ class DiagramDocumentationGenerator:
     def _sort_dicts(items, key: str = "id"):
         return sorted(items or [], key=lambda item: (item.get(key, ""), item.get("name", "")))
 
+    @classmethod
+    def is_cloud_location(cls, location: str) -> bool:
+        """Check if location is a cloud provider location."""
+        return (location or "").lower() in cls.CLOUD_LOCATIONS
+
+    @staticmethod
+    def _icon_for(entity: dict, type_key: str, mapping: dict, default: str) -> str:
+        """Unified icon lookup: get type from entity, lookup in mapping, fallback to default."""
+        if not isinstance(entity, dict):
+            return default
+        entity_type = (entity.get(type_key) or "").lower()
+        return mapping.get(entity_type, default)
+
     def _render_document(self, template_path: str, output_name: str, **context) -> bool:
         try:
             template = self.jinja_env.get_template(template_path)
@@ -176,6 +218,9 @@ class DiagramDocumentationGenerator:
                 generated_at=self.generated_at(),
                 use_mermaid_icons=self.use_mermaid_icons,
                 mermaid_icon_pack_hint=self.ICON_PACK_HINT,
+                # Icon-node styling constants (available in all templates)
+                icon_node_defaults=self.ICON_NODE_DEFAULTS,
+                icon_node_circle=self.ICON_NODE_CIRCLE,
                 **context,
             )
             content = self.docs_generator.transform_mermaid_icons_for_compat(content)
@@ -233,15 +278,22 @@ class DiagramDocumentationGenerator:
             return self.DEVICE_ICON_BY_CLASS[device_class]
         return "mdi:devices"
 
-    @staticmethod
-    def _external_ref_icon(ref: str) -> str:
+    @classmethod
+    def _external_ref_icon(cls, ref: str) -> str:
         text = (ref or "").lower()
         if "isp" in text or "internet" in text:
             return "mdi:cloud-outline"
         if "lte" in text or "mobile" in text:
             return "mdi:signal-cellular-3"
+        # Power-related external refs use consistent POWER_ICONS
         if "utility" in text or "grid" in text:
-            return "mdi:transmission-tower"
+            return cls.POWER_ICONS["utility-grid"]
+        if "ups" in text or "battery" in text:
+            return cls.POWER_ICONS["ups"]
+        if "solar" in text:
+            return cls.POWER_ICONS["solar"]
+        if "generator" in text:
+            return cls.POWER_ICONS["generator"]
         if "wifi" in text:
             return "mdi:wifi"
         if "vpn" in text:
@@ -288,20 +340,13 @@ class DiagramDocumentationGenerator:
         return "mdi:database"
 
     def _data_asset_icon(self, asset: Dict) -> str:
-        if not isinstance(asset, dict):
-            return "mdi:file-outline"
-        asset_type = (asset.get("type") or "").lower()
-        if asset_type in self.DATA_ASSET_ICON_BY_TYPE:
-            return self.DATA_ASSET_ICON_BY_TYPE[asset_type]
-        return "mdi:file-outline"
+        return self._icon_for(asset, "type", self.DATA_ASSET_ICON_BY_TYPE, "mdi:file-outline")
 
     def _alert_icon(self, alert: Dict) -> str:
-        severity = ((alert or {}).get("severity") or "").lower()
-        return self.ALERT_ICON_BY_SEVERITY.get(severity, "mdi:alert-circle-outline")
+        return self._icon_for(alert, "severity", self.ALERT_ICON_BY_SEVERITY, "mdi:alert-circle-outline")
 
     def _channel_icon(self, channel: Dict) -> str:
-        channel_type = ((channel or {}).get("type") or "").lower()
-        return self.CHANNEL_ICON_BY_TYPE.get(channel_type, "mdi:message-alert-outline")
+        return self._icon_for(channel, "type", self.CHANNEL_ICON_BY_TYPE, "mdi:message-alert-outline")
 
     def generate_all(self) -> bool:
         """Generate all diagram pages and index."""
@@ -348,6 +393,12 @@ class DiagramDocumentationGenerator:
             }
         )
         external_icons = {ref: self._external_ref_icon(ref) for ref in external_refs}
+        # Precompute cloud device IDs for template (avoids hardcoded location checks)
+        cloud_device_ids = {
+            device.get("id")
+            for device in devices
+            if device.get("id") and self.is_cloud_location(device.get("location", ""))
+        }
         return self._render_document(
             "docs/physical-topology.md.j2",
             "physical-topology.md",
@@ -357,6 +408,7 @@ class DiagramDocumentationGenerator:
             device_icons=device_icons,
             external_refs=external_refs,
             external_icons=external_icons,
+            cloud_device_ids=cloud_device_ids,
         )
 
     def generate_data_links_topology(self) -> bool:

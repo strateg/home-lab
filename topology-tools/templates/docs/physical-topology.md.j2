@@ -15,11 +15,11 @@
 graph TB
     subgraph cloud["Cloud Infrastructure"]
         {% for device in devices %}
-        {% if device.location in ['oracle-frankfurt', 'hetzner-nuremberg'] %}
+        {% if device.id in cloud_device_ids %}
         {% set cloud_cpu_cores = device.specs.cpu.cores if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.cores is defined else '?' %}
         {% set cloud_ram_gb = device.specs.memory.total_gb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else (device.specs.memory.total_mb / 1024 if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_mb is defined else '?') %}
         {% if use_mermaid_icons %}
-        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:devices') }}", form: "rounded", label: "{{ device.name }} {{ cloud_cpu_cores }}C {{ cloud_ram_gb }}GB", pos: "b", h: 48 }
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:devices') }}", form: "{{ icon_node_defaults.form }}", label: "{{ device.name }} {{ cloud_cpu_cores }}C {{ cloud_ram_gb }}GB", pos: "{{ icon_node_defaults.pos }}", h: {{ icon_node_defaults.h }} }
         {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.model | default(device.type) }}<br/>{{ cloud_cpu_cores }} cores / {{ cloud_ram_gb }}GB"]
         {% endif %}
@@ -29,18 +29,18 @@ graph TB
 
     subgraph home["Home Lab"]
         {% if use_mermaid_icons %}
-        internet@{ icon: "mdi:cloud-outline", form: "circle", label: "ISP Internet", pos: "b", h: 44 }
+        internet@{ icon: "mdi:cloud-outline", form: "{{ icon_node_circle.form }}", label: "ISP Internet", pos: "{{ icon_node_circle.pos }}", h: {{ icon_node_circle.h }} }
         {% else %}
         internet(("ISP<br/>Internet"))
         {% endif %}
 
         {% for device in devices %}
-        {% if device.location == 'home' %}
+        {% if device.id not in cloud_device_ids %}
         {% if device.type == 'router' %}
         {% set router_cpu_arch = device.specs.cpu.architecture if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.architecture is defined else '' %}
         {% set router_mem_mb = device.specs.memory.total_mb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_mb is defined else (device.specs.memory.total_gb * 1024 if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else '?') %}
         {% if use_mermaid_icons %}
-        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:router-network') }}", form: "rounded", label: "{{ device.name }} {{ router_cpu_arch }} {{ router_mem_mb }}MB", pos: "b", h: 48 }
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:router-network') }}", form: "{{ icon_node_defaults.form }}", label: "{{ device.name }} {{ router_cpu_arch }} {{ router_mem_mb }}MB", pos: "{{ icon_node_defaults.pos }}", h: {{ icon_node_defaults.h }} }
         {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.role }}<br/>{{ router_cpu_arch }} / {{ router_mem_mb }}MB"]
         {% endif %}
@@ -49,7 +49,7 @@ graph TB
         {% set hyp_threads = device.specs.cpu.threads if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.threads is defined else '?' %}
         {% set hyp_ram_gb = device.specs.memory.total_gb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else '?' %}
         {% if use_mermaid_icons %}
-        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'si:proxmox') }}", form: "rounded", label: "{{ device.name }} {{ hyp_cores }}C/{{ hyp_threads }}T {{ hyp_ram_gb }}GB", pos: "b", h: 48 }
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'si:proxmox') }}", form: "{{ icon_node_defaults.form }}", label: "{{ device.name }} {{ hyp_cores }}C/{{ hyp_threads }}T {{ hyp_ram_gb }}GB", pos: "{{ icon_node_defaults.pos }}", h: {{ icon_node_defaults.h }} }
         {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>Proxmox VE<br/>{{ hyp_cores }}C/{{ hyp_threads }}T / {{ hyp_ram_gb }}GB"]
         {% endif %}
@@ -57,13 +57,13 @@ graph TB
         {% set sbc_cpu_cores = device.specs.cpu.cores if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.cores is defined else '?' %}
         {% set sbc_ram_gb = device.specs.memory.total_gb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else '?' %}
         {% if use_mermaid_icons %}
-        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:chip') }}", form: "rounded", label: "{{ device.name }} {{ sbc_cpu_cores }}C {{ sbc_ram_gb }}GB", pos: "b", h: 48 }
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:chip') }}", form: "{{ icon_node_defaults.form }}", label: "{{ device.name }} {{ sbc_cpu_cores }}C {{ sbc_ram_gb }}GB", pos: "{{ icon_node_defaults.pos }}", h: {{ icon_node_defaults.h }} }
         {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.model }}<br/>{{ sbc_cpu_cores }} cores / {{ sbc_ram_gb }}GB"]
         {% endif %}
         {% else %}
         {% if use_mermaid_icons %}
-        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:devices') }}", form: "rounded", label: "{{ device.name }} {{ device.type }}", pos: "b", h: 46 }
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:devices') }}", form: "{{ icon_node_defaults.form }}", label: "{{ device.name }} {{ device.type }}", pos: "{{ icon_node_defaults.pos }}", h: {{ icon_node_defaults.h }} }
         {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.type }}"]
         {% endif %}
@@ -75,7 +75,7 @@ graph TB
     %% External physical endpoints from link inventory
     {% for ref in external_refs | default([]) %}
     {% if use_mermaid_icons %}
-    ext_{{ ref | mermaid_id }}@{ icon: "{{ external_icons.get(ref, 'mdi:help-circle-outline') }}", form: "circle", label: "{{ ref }}", pos: "b", h: 42 }
+    ext_{{ ref | mermaid_id }}@{ icon: "{{ external_icons.get(ref, 'mdi:help-circle-outline') }}", form: "{{ icon_node_circle.form }}", label: "{{ ref }}", pos: "{{ icon_node_circle.pos }}", h: {{ icon_node_circle.h }} }
     {% else %}
     ext_{{ ref | mermaid_id }}["{{ ref }}"]
     {% endif %}
@@ -115,14 +115,14 @@ graph TB
     class ext_{{ ref | mermaid_id }} external
     {% endfor %}
     {% for device in devices %}
-    {% if device.type == 'router' %}
+    {% if device.id in cloud_device_ids %}
+    class {{ device.id | mermaid_id }} cloud
+    {% elif device.type == 'router' %}
     class {{ device.id | mermaid_id }} router
     {% elif device.type == 'hypervisor' %}
     class {{ device.id | mermaid_id }} server
     {% elif device.type == 'sbc' %}
     class {{ device.id | mermaid_id }} sbc
-    {% elif device.location in ['oracle-frankfurt', 'hetzner-nuremberg'] %}
-    class {{ device.id | mermaid_id }} cloud
     {% endif %}
     {% endfor %}
 ```
