@@ -104,6 +104,9 @@ class DocumentationGenerator:
         success &= self.generate_certificates_topology()
         success &= self.generate_ups_topology()
 
+        # Index & navigation (Phase 4)
+        success &= self.generate_diagrams_index()
+
         return success
 
     def generate_network_diagram(self) -> bool:
@@ -581,6 +584,55 @@ class DocumentationGenerator:
             print(f"ERROR Error generating ups-topology.md: {e}")
             return False
 
+    def generate_diagrams_index(self) -> bool:
+        """Generate diagrams index and navigation page"""
+        try:
+            template = self.jinja_env.get_template('docs/diagrams-index.md.j2')
+
+            docs_index = {
+                "core": [
+                    {"title": "Infrastructure Overview", "file": "overview.md", "description": "Summary and metadata"},
+                    {"title": "Network Diagram", "file": "network-diagram.md", "description": "Layered network map"},
+                    {"title": "IP Allocation", "file": "ip-allocation.md", "description": "Address assignments"},
+                    {"title": "Services Inventory", "file": "services.md", "description": "Service catalog"},
+                    {"title": "Devices Inventory", "file": "devices.md", "description": "Hardware and platform inventory"},
+                ],
+                "phase1": [
+                    {"title": "Physical Topology", "file": "physical-topology.md", "description": "Physical devices and links"},
+                    {"title": "VLAN Topology", "file": "vlan-topology.md", "description": "VLAN segmentation and trunking"},
+                    {"title": "Trust Zones", "file": "trust-zones.md", "description": "Security zones and firewall matrix"},
+                    {"title": "Service Dependencies", "file": "service-dependencies.md", "description": "Application dependency graph"},
+                ],
+                "phase2": [
+                    {"title": "Storage Topology", "file": "storage-topology.md", "description": "Storage pools and data assets"},
+                    {"title": "Monitoring Topology", "file": "monitoring-topology.md", "description": "Observability pipeline"},
+                    {"title": "VPN Topology", "file": "vpn-topology.md", "description": "Remote access and VPN scope"},
+                ],
+                "phase3": [
+                    {"title": "QoS Topology", "file": "qos-topology.md", "description": "Traffic classes and limits"},
+                    {"title": "Certificates Topology", "file": "certificates-topology.md", "description": "PKI and cert distribution"},
+                    {"title": "UPS Topology", "file": "ups-topology.md", "description": "Power protection and shutdown flow"},
+                ],
+            }
+
+            total_docs = sum(len(items) for items in docs_index.values())
+
+            content = template.render(
+                docs_index=docs_index,
+                total_docs=total_docs,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "diagrams-index.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating diagrams-index.md: {e}")
+            return False
+
     def print_summary(self):
         """Print generation summary"""
         print("\n" + "="*70)
@@ -605,6 +657,8 @@ class DocumentationGenerator:
         print(f"    - QoS topology (Mermaid)")
         print(f"    - Certificates topology (Mermaid)")
         print(f"    - UPS topology (Mermaid)")
+        print(f"  Navigation:")
+        print(f"    - Diagrams index")
         print(f"\nOK Output directory: {self.output_dir}")
         print(f"\nFiles created:")
         for file in sorted(self.output_dir.glob("*.md")):
