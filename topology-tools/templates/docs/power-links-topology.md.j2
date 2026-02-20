@@ -1,0 +1,65 @@
+# Power Links Topology
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Physical Power Cabling
+
+```mermaid
+graph TB
+    {% for ref in external_refs %}
+    ext_{{ ref | mermaid_id }}["{{ ref }}"]
+    {% endfor %}
+
+    {% for device in linked_devices %}
+    {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.type | upper }}"]
+    {% endfor %}
+
+    {% for link in power_links %}
+    {% set src = link.endpoint_a.device_ref if link.endpoint_a.device_ref is defined else ('ext_' ~ (link.endpoint_a.external_ref | mermaid_id)) %}
+    {% set dst = link.endpoint_b.device_ref if link.endpoint_b.device_ref is defined else ('ext_' ~ (link.endpoint_b.external_ref | mermaid_id)) %}
+    {% set watts = (link.max_watts ~ 'W') if link.max_watts is defined else '' %}
+    {% set volts = (link.voltage_v ~ 'V') if link.voltage_v is defined else '' %}
+    {% set label = link.mode | upper %}
+    {% if watts %}{% set label = label ~ '<br/>' ~ watts %}{% endif %}
+    {% if volts %}{% set label = label ~ ' / ' ~ volts %}{% endif %}
+    {% if link.mode == 'wireless-inductive' %}
+    {{ src | mermaid_id }} -.->|{{ label }}| {{ dst | mermaid_id }}
+    {% else %}
+    {{ src | mermaid_id }} -->|{{ label }}| {{ dst | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    classDef powerdev fill:#ffe066,stroke:#e67700,color:#000
+    classDef external fill:#adb5bd,stroke:#495057,color:#000
+
+    {% for device in linked_devices %}
+    class {{ device.id | mermaid_id }} powerdev
+    {% endfor %}
+    {% for ref in external_refs %}
+    class ext_{{ ref | mermaid_id }} external
+    {% endfor %}
+```
+
+---
+
+## Power Link Inventory
+
+| Power Link ID | Endpoint A | Endpoint B | Mode | Max Power | Voltage | Data Link Ref | Status |
+|---------------|------------|------------|------|-----------|---------|---------------|--------|
+{% for link in power_links %}
+| {{ link.id }} | {{ link.endpoint_a.device_ref | default(link.endpoint_a.external_ref) }}{% if link.endpoint_a.interface_ref is defined %} ({{ link.endpoint_a.interface_ref }}){% endif %} | {{ link.endpoint_b.device_ref | default(link.endpoint_b.external_ref) }}{% if link.endpoint_b.interface_ref is defined %} ({{ link.endpoint_b.interface_ref }}){% endif %} | {{ link.mode }} | {{ link.max_watts | default('-') }}{% if link.max_watts is defined %}W{% endif %} | {{ link.voltage_v | default('-') }}{% if link.voltage_v is defined %}V{% endif %} | {{ link.data_link_ref | default('-') }} | {{ link.status | default('-') }} |
+{% endfor %}
+
+---
+
+## Notes
+
+- `mode: poe` should reference matching data cable with `data_link_ref`.
+- `mode: wireless-inductive` represents cableless magnetic charging.
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 topology-tools/generate-docs.py`

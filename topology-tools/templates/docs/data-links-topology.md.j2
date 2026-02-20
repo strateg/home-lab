@@ -1,0 +1,63 @@
+# Data Links Topology
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Physical Data Connectivity
+
+```mermaid
+graph TB
+    {% for ref in external_refs %}
+    ext_{{ ref | mermaid_id }}["{{ ref }}"]
+    {% endfor %}
+
+    {% for device in linked_devices %}
+    {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.type | upper }}"]
+    {% endfor %}
+
+    {% for link in data_links %}
+    {% set src = link.endpoint_a.device_ref if link.endpoint_a.device_ref is defined else ('ext_' ~ (link.endpoint_a.external_ref | mermaid_id)) %}
+    {% set dst = link.endpoint_b.device_ref if link.endpoint_b.device_ref is defined else ('ext_' ~ (link.endpoint_b.external_ref | mermaid_id)) %}
+    {% set speed = (link.speed_mbps ~ 'Mbps') if link.speed_mbps is defined else '' %}
+    {% set label = link.medium | upper %}
+    {% if speed %}{% set label = label ~ '<br/>' ~ speed %}{% endif %}
+    {% if link.medium in ['wifi', 'lte'] %}
+    {{ src | mermaid_id }} -.->|{{ label }}| {{ dst | mermaid_id }}
+    {% else %}
+    {{ src | mermaid_id }} -->|{{ label }}| {{ dst | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    classDef datadev fill:#74c0fc,stroke:#1864ab,color:#000
+    classDef external fill:#adb5bd,stroke:#495057,color:#000
+
+    {% for device in linked_devices %}
+    class {{ device.id | mermaid_id }} datadev
+    {% endfor %}
+    {% for ref in external_refs %}
+    class ext_{{ ref | mermaid_id }} external
+    {% endfor %}
+```
+
+---
+
+## Data Link Inventory
+
+| Data Link ID | Endpoint A | Endpoint B | Medium | Speed | VLAN Trunk | PoE | Status |
+|--------------|------------|------------|--------|-------|------------|-----|--------|
+{% for link in data_links %}
+| {{ link.id }} | {{ link.endpoint_a.device_ref | default(link.endpoint_a.external_ref) }}{% if link.endpoint_a.interface_ref is defined %} ({{ link.endpoint_a.interface_ref }}){% endif %} | {{ link.endpoint_b.device_ref | default(link.endpoint_b.external_ref) }}{% if link.endpoint_b.interface_ref is defined %} ({{ link.endpoint_b.interface_ref }}){% endif %} | {{ link.medium | upper }} | {{ link.speed_mbps | default('-') }}{% if link.speed_mbps is defined %} Mbps{% endif %} | {{ 'Yes' if link.vlan_trunk else 'No' }} | {{ 'Yes' if link.power_delivery is defined else 'No' }} | {{ link.status | default('-') }} |
+{% endfor %}
+
+---
+
+## Notes
+
+- Data links may use Ethernet, WiFi, optical/fiber, LTE and other media.
+- In-band power on data links is allowed only for Ethernet PoE.
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 topology-tools/generate-docs.py`
