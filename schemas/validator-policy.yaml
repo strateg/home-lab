@@ -1,0 +1,17 @@
+checks:
+  file_placement:
+    enabled: true
+    severity: warning
+    filename_id_mismatch_severity: warning
+
+paths:
+  l1_devices_root: topology/L1-foundation/devices/
+  l1_links_root: topology/L1-foundation/links/
+  l2_networks_root: topology/L2-network/networks/
+  l2_bridges_root: topology/L2-network/bridges/
+  l2_firewall_policies_root: topology/L2-network/firewall/policies/
+
+l1_device_group_by_substrate:
+  provider-instance: provider
+  baremetal-owned: owned
+  baremetal-colo: owned

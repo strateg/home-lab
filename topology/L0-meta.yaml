@@ -50,7 +50,10 @@ metadata:
   - version: 4.0.0
     date: '2026-02-17'
     changes: Layered OSI-like architecture (L0–L7), strict downward references
-defaults: {}
+defaults:
+  refs:
+    security_policy_ref: sec-baseline
+    network_manager_device_ref: mikrotik-chateau
 security_policy:
 - id: sec-baseline
   description: Baseline security policy

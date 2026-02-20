@@ -4,7 +4,7 @@ Validate topology.yaml against JSON Schema v7 (v4 layered topology)
 Provides detailed error messages and validation reports
 
 Usage:
-    python3 scripts/validate-topology.py [--topology topology.yaml] [--schema schemas/topology-v4-schema.json]
+    python3 scripts/validate-topology.py [--topology topology.yaml] [--schema schemas/topology-v4-schema.json] [--validator-policy schemas/validator-policy.yaml]
 
 Requirements:
     pip install jsonschema pyyaml
@@ -14,8 +14,9 @@ import sys
 import json
 import yaml
 import argparse
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 # Import topology loader with !include support
 from topology_loader import load_topology
@@ -31,13 +32,56 @@ except ImportError:
 class SchemaValidator:
     """Validate topology YAML against JSON Schema"""
 
-    def __init__(self, topology_path: str, schema_path: str):
+    def __init__(self, topology_path: str, schema_path: str, validator_policy_path: Optional[str] = None):
         self.topology_path = Path(topology_path)
         self.schema_path = Path(schema_path)
+        self.validator_policy_path = Path(validator_policy_path) if validator_policy_path else Path("schemas/validator-policy.yaml")
         self.topology: Optional[Dict] = None
         self.schema: Optional[Dict] = None
+        self.validator_policy: Dict[str, Any] = self._default_validator_policy()
         self.errors: List[str] = []
         self.warnings: List[str] = []
+
+    @staticmethod
+    def _default_validator_policy() -> Dict[str, Any]:
+        """Built-in validator policy defaults (used if policy file is absent)."""
+        return {
+            'checks': {
+                'file_placement': {
+                    'enabled': True,
+                    'severity': 'warning',
+                    'filename_id_mismatch_severity': 'warning',
+                }
+            },
+            'paths': {
+                'l1_devices_root': 'topology/L1-foundation/devices/',
+                'l1_links_root': 'topology/L1-foundation/links/',
+                'l2_networks_root': 'topology/L2-network/networks/',
+                'l2_bridges_root': 'topology/L2-network/bridges/',
+                'l2_firewall_policies_root': 'topology/L2-network/firewall/policies/',
+            },
+            'l1_device_group_by_substrate': {
+                'provider-instance': 'provider',
+                'baremetal-owned': 'owned',
+                'baremetal-colo': 'owned',
+            },
+        }
+
+    def _policy_get(self, keys: List[str], default: Any = None) -> Any:
+        """Safely read nested keys from validator policy."""
+        current: Any = self.validator_policy
+        for key in keys:
+            if not isinstance(current, dict) or key not in current:
+                return default
+            current = current[key]
+        return current
+
+    def _emit_by_severity(self, severity: str, message: str) -> None:
+        """Route validator message by severity."""
+        if severity == 'error':
+            self.errors.append(message)
+        else:
+            self.warnings.append(message)
 
     def load_files(self) -> bool:
         """Load topology YAML and schema JSON"""
@@ -61,6 +105,21 @@ class SchemaValidator:
         except json.JSONDecodeError as e:
             self.errors.append(f"JSON schema parse error: {e}")
             return False
+
+        if self.validator_policy_path.exists():
+            try:
+                with open(self.validator_policy_path, 'r', encoding='utf-8') as f:
+                    loaded = yaml.safe_load(f) or {}
+                if isinstance(loaded, dict):
+                    # shallow merge: loaded overrides defaults by top-level key
+                    self.validator_policy.update(loaded)
+                print(f"OK Loaded validator policy: {self.validator_policy_path}")
+            except (OSError, yaml.YAMLError) as e:
+                self.warnings.append(f"Validator policy load warning ({self.validator_policy_path}): {e}")
+        else:
+            self.warnings.append(
+                f"Validator policy file not found: {self.validator_policy_path} (using built-in defaults)"
+            )
 
         return True
 
@@ -193,6 +252,7 @@ class SchemaValidator:
 
         self._check_file_placement()
         self._check_device_taxonomy(ids)
+        self._check_l0_contracts(ids)
         self._check_network_refs(ids)
         self._check_bridge_refs(ids)
         self._check_physical_links(ids)
@@ -210,6 +270,9 @@ class SchemaValidator:
         Validate that module objects are stored in expected directories.
         The object model (fields inside files) is authoritative; paths are validated against it.
         """
+        if not self._policy_get(['checks', 'file_placement', 'enabled'], True):
+            return
+
         topology_dir = self.topology_path.parent / 'topology'
         if not topology_dir.exists():
             self.warnings.append("Topology directory not found for placement checks: topology/")
@@ -236,7 +299,12 @@ class SchemaValidator:
 
             obj_id = obj.get('id')
             if isinstance(obj_id, str) and obj_id and file_path.stem != obj_id:
-                self.warnings.append(
+                severity = self._policy_get(
+                    ['checks', 'file_placement', 'filename_id_mismatch_severity'],
+                    'warning'
+                )
+                self._emit_by_severity(
+                    severity,
                     f"File '{rel}': filename '{file_path.stem}' differs from id '{obj_id}'"
                 )
 
@@ -247,7 +315,7 @@ class SchemaValidator:
             if {'id', 'endpoint_a', 'endpoint_b', 'medium'}.issubset(obj.keys()):
                 self._check_expected_prefix(
                     rel,
-                    "topology/L1-foundation/links/",
+                    self._policy_get(['paths', 'l1_links_root'], "topology/L1-foundation/links/"),
                     f"topology/L1-foundation/links/{obj.get('id', file_path.name)}.yaml"
                 )
                 continue
@@ -255,7 +323,7 @@ class SchemaValidator:
             if isinstance(obj.get('id'), str) and obj.get('id', '').startswith('net-') and 'cidr' in obj:
                 self._check_expected_prefix(
                     rel,
-                    "topology/L2-network/networks/",
+                    self._policy_get(['paths', 'l2_networks_root'], "topology/L2-network/networks/"),
                     f"topology/L2-network/networks/{obj.get('id', file_path.name)}.yaml"
                 )
                 continue
@@ -263,7 +331,7 @@ class SchemaValidator:
             if isinstance(obj.get('id'), str) and obj.get('id', '').startswith('bridge-') and 'device_ref' in obj:
                 self._check_expected_prefix(
                     rel,
-                    "topology/L2-network/bridges/",
+                    self._policy_get(['paths', 'l2_bridges_root'], "topology/L2-network/bridges/"),
                     f"topology/L2-network/bridges/{obj.get('id', file_path.name)}.yaml"
                 )
                 continue
@@ -271,14 +339,16 @@ class SchemaValidator:
             if isinstance(obj.get('id'), str) and obj.get('id', '').startswith('fw-') and 'chain' in obj:
                 self._check_expected_prefix(
                     rel,
-                    "topology/L2-network/firewall/policies/",
+                    self._policy_get(['paths', 'l2_firewall_policies_root'], "topology/L2-network/firewall/policies/"),
                     f"topology/L2-network/firewall/policies/<group>/{obj.get('id', file_path.name)}.yaml"
                 )
                 continue
 
     def _check_expected_prefix(self, rel: str, expected_prefix: str, suggestion: str) -> None:
         if not rel.startswith(expected_prefix):
-            self.warnings.append(
+            severity = self._policy_get(['checks', 'file_placement', 'severity'], 'warning')
+            self._emit_by_severity(
+                severity,
                 f"File placement lint: '{rel}' does not match recommended layout; expected under "
                 f"'{expected_prefix}' (suggested: '{suggestion}')"
             )
@@ -288,25 +358,29 @@ class SchemaValidator:
         device_class = device.get('class', 'unknown')
         substrate = device.get('substrate')
 
-        expected_group = {
-            'provider-instance': 'provider',
-            'baremetal-owned': 'owned',
-            'baremetal-colo': 'owned',
-        }.get(substrate, 'owned')
+        expected_group = self._policy_get(
+            ['l1_device_group_by_substrate', str(substrate)],
+            'owned'
+        )
 
-        expected_path = f"topology/L1-foundation/devices/{expected_group}/{device_class}/{device_id}.yaml"
+        devices_root = self._policy_get(['paths', 'l1_devices_root'], "topology/L1-foundation/devices/")
+        expected_path = f"{devices_root}{expected_group}/{device_class}/{device_id}.yaml"
 
-        if not rel.startswith("topology/L1-foundation/devices/"):
-            self.warnings.append(
+        if not rel.startswith(devices_root):
+            severity = self._policy_get(['checks', 'file_placement', 'severity'], 'warning')
+            self._emit_by_severity(
+                severity,
                 f"File placement lint: device file '{rel}' should be in L1 devices "
                 f"(suggested: '{expected_path}')"
             )
             return
 
-        rel_inside = rel.replace("topology/L1-foundation/devices/", "", 1)
+        rel_inside = rel.replace(devices_root, "", 1)
         parts = rel_inside.split('/')
         if len(parts) < 3:
-            self.warnings.append(
+            severity = self._policy_get(['checks', 'file_placement', 'severity'], 'warning')
+            self._emit_by_severity(
+                severity,
                 f"File placement lint: device file '{rel}' should follow "
                 f"'topology/L1-foundation/devices/<group>/<class>/<id>.yaml'"
             )
@@ -315,13 +389,17 @@ class SchemaValidator:
         group, class_dir = parts[0], parts[1]
 
         if group != expected_group:
-            self.warnings.append(
+            severity = self._policy_get(['checks', 'file_placement', 'severity'], 'warning')
+            self._emit_by_severity(
+                severity,
                 f"File placement lint: device '{device_id}' substrate '{substrate}' expects group "
                 f"'{expected_group}', got '{group}' (suggested: '{expected_path}')"
             )
 
         if class_dir != device_class:
-            self.warnings.append(
+            severity = self._policy_get(['checks', 'file_placement', 'severity'], 'warning')
+            self._emit_by_severity(
+                severity,
                 f"File placement lint: device '{device_id}' class '{device_class}' expects folder "
                 f"'{device_class}', got '{class_dir}' (suggested: '{expected_path}')"
             )
@@ -388,6 +466,65 @@ class SchemaValidator:
                 self.warnings.append(
                     f"Device '{dev_id}': baremetal substrate mapped to cloud location '{location_ref}'"
                 )
+
+    def _check_l0_contracts(self, ids: Dict[str, Set[str]]) -> None:
+        """Validate L0 governance fields and cross-layer defaults."""
+        l0 = self.topology.get('L0_meta', {}) or {}
+        metadata = l0.get('metadata', {}) or {}
+        defaults = l0.get('defaults', {}) or {}
+        refs_defaults = defaults.get('refs', {}) or {}
+        version = l0.get('version')
+
+        created = metadata.get('created')
+        last_updated = metadata.get('last_updated')
+        if isinstance(created, str) and isinstance(last_updated, str):
+            try:
+                created_dt = datetime.strptime(created, '%Y-%m-%d').date()
+                updated_dt = datetime.strptime(last_updated, '%Y-%m-%d').date()
+                if updated_dt < created_dt:
+                    self.errors.append(
+                        f"L0_meta.metadata.last_updated '{last_updated}' is earlier than created '{created}'"
+                    )
+            except ValueError:
+                self.warnings.append(
+                    "L0_meta.metadata.created/last_updated should use YYYY-MM-DD format"
+                )
+
+        changelog = metadata.get('changelog', []) or []
+        if version and changelog:
+            has_version = any(
+                isinstance(entry, dict) and entry.get('version') == version
+                for entry in changelog
+            )
+            if not has_version:
+                self.warnings.append(
+                    f"L0_meta.metadata.changelog does not contain current version '{version}'"
+                )
+
+        default_sec_ref = refs_defaults.get('security_policy_ref')
+        if default_sec_ref and default_sec_ref not in ids['security_policies']:
+            self.errors.append(
+                f"L0_meta.defaults.refs.security_policy_ref '{default_sec_ref}' does not exist"
+            )
+
+        default_mgr_ref = refs_defaults.get('network_manager_device_ref')
+        if default_mgr_ref:
+            l1_devices = self.topology.get('L1_foundation', {}).get('devices', []) or []
+            device_map = {
+                d.get('id'): d for d in l1_devices
+                if isinstance(d, dict) and d.get('id')
+            }
+            if default_mgr_ref not in ids['devices']:
+                self.errors.append(
+                    f"L0_meta.defaults.refs.network_manager_device_ref '{default_mgr_ref}' does not exist"
+                )
+            else:
+                mgr_class = (device_map.get(default_mgr_ref) or {}).get('class')
+                if mgr_class != 'network':
+                    self.errors.append(
+                        f"L0_meta.defaults.refs.network_manager_device_ref '{default_mgr_ref}' "
+                        "must reference class 'network' device"
+                    )
 
     def _check_vlan_tags(self) -> None:
         """Check VLAN tags for LXC networks against L2 network definitions"""
@@ -934,6 +1071,11 @@ def main():
         help="Path to JSON Schema file"
     )
     parser.add_argument(
+        "--validator-policy",
+        default="schemas/validator-policy.yaml",
+        help="Path to validator policy YAML file (non-domain validation settings)"
+    )
+    parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -942,7 +1084,7 @@ def main():
 
     args = parser.parse_args()
 
-    validator = SchemaValidator(args.topology, args.schema)
+    validator = SchemaValidator(args.topology, args.schema, args.validator_policy)
     valid = validator.validate()
     validator.print_results()
 
