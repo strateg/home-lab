@@ -1,0 +1,15 @@
+# Baseline policy set
+- !include baseline/fw-established-related.yaml
+- !include baseline/fw-management-admin.yaml
+- !include baseline/fw-servers-internet.yaml
+- !include baseline/fw-user-servers.yaml
+- !include baseline/fw-default-deny.yaml
+
+# Isolation policy set
+- !include isolation/fw-guest-isolated.yaml
+- !include isolation/fw-iot-isolated.yaml
+- !include isolation/fw-iot-internet.yaml
+
+# Remote access policy set
+- !include remote-access/fw-vpn-full-access.yaml
+- !include remote-access/fw-tailscale-access.yaml

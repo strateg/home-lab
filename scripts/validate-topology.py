@@ -247,6 +247,9 @@ class SchemaValidator:
 
     def _check_network_refs(self, ids: Dict[str, Set[str]]) -> None:
         l2 = self.topology.get('L2_network', {})
+        profiles = l2.get('network_profiles', {}) or {}
+        profile_fields = ['network_plane', 'segmentation_type', 'transport', 'volatility']
+
         for network in l2.get('networks', []) or []:
             net_id = network.get('id')
 
@@ -257,10 +260,22 @@ class SchemaValidator:
             profile_ref = network.get('profile_ref')
             if profile_ref and profile_ref not in ids['network_profiles']:
                 self.errors.append(f"Network '{net_id}': profile_ref '{profile_ref}' does not exist")
+            elif profile_ref:
+                profile = profiles.get(profile_ref)
+                if isinstance(profile, dict):
+                    explicit_fields = [field for field in profile_fields if field in network]
+                    redundant_fields = [
+                        field for field in explicit_fields
+                        if network.get(field) == profile.get(field)
+                    ]
+                    if explicit_fields and len(redundant_fields) == len(explicit_fields):
+                        self.warnings.append(
+                            f"Network '{net_id}': redundant profile overrides for '{profile_ref}': "
+                            f"{', '.join(redundant_fields)}"
+                        )
 
             if not profile_ref:
-                required_virtual_fields = ['network_plane', 'segmentation_type', 'transport', 'volatility']
-                missing = [f for f in required_virtual_fields if network.get(f) in (None, [], '')]
+                missing = [field for field in profile_fields if network.get(field) in (None, [], '')]
                 if missing:
                     self.warnings.append(
                         f"Network '{net_id}': no profile_ref and missing fields for analysis: {', '.join(missing)}"

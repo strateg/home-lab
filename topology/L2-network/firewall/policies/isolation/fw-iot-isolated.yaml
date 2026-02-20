@@ -1,0 +1,13 @@
+id: fw-iot-isolated
+name: IoT Isolation
+priority: 300
+source_zone_ref: iot
+destination_zones_ref:
+- servers
+- management
+- user
+- guest
+action: drop
+chain: forward
+description: IoT cannot access other networks (except internet)
+security_policy_ref: sec-baseline

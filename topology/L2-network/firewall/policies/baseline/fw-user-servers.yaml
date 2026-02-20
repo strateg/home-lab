@@ -1,0 +1,19 @@
+id: fw-user-servers
+name: User to Server Services
+priority: 200
+source_zone_ref: user
+destination_zone_ref: servers
+ports:
+- 80
+- 443
+- 5432
+- 6379
+- 8096
+- 3000
+- 9090
+protocols:
+- tcp
+action: accept
+chain: forward
+description: User devices can access server services
+security_policy_ref: sec-baseline

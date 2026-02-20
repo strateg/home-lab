@@ -18,6 +18,6 @@ networks: !include L2-network/networks/_index.yaml
 bridges: !include L2-network/bridges/_index.yaml
 routing: !include L2-network/routing/default.yaml
 firewall_templates: !include L2-network/firewall/templates.yaml
-firewall_policies: !include L2-network/firewall/policies.yaml
+firewall_policies: !include L2-network/firewall/policies/_index.yaml
 qos: !include L2-network/qos/default.yaml
 ipv6: !include L2-network/ipv6/default.yaml

@@ -44,6 +44,7 @@ Rules:
   - `topology/L2-network/bridges/`
   - `topology/L2-network/routing/`
   - `topology/L2-network/firewall/`
+  - `topology/L2-network/firewall/policies/`
   - `topology/L2-network/qos/`
   - `topology/L2-network/ipv6/`
 
@@ -54,6 +55,7 @@ Rules:
 - Keep indexes explicit: `_index.yaml` contains only ordered `!include` entries.
 - Keep module size practical (target under ~200 lines).
 - Preserve key order: `id`, `name`, `type`, refs, config, `description`.
+- For L2 networks with `profile_ref`, keep only exception overrides in network files.
 
 ## Add New Hardware Workflow
 
@@ -62,9 +64,11 @@ Rules:
 3. Add/update physical connectivity in `topology/L1-foundation/links/` and `links/_index.yaml`.
 4. If needed, add/update virtual network in `topology/L2-network/networks/` and `_index.yaml`.
 5. Prefer `profile_ref` from `topology/L2-network/profiles/default.yaml`.
-6. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
-7. Add platform/app/monitoring modules only if the device hosts workloads.
-8. Validate and regenerate:
+6. Read profile rules in `topology/L2-network/profiles/README.md`.
+7. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
+8. For firewall policy changes, edit `topology/L2-network/firewall/policies/*` and include from `topology/L2-network/firewall/policies/_index.yaml`.
+9. Add platform/app/monitoring modules only if the device hosts workloads.
+10. Validate and regenerate:
    - `python scripts/validate-topology.py`
    - `python scripts/generate-docs.py`
 

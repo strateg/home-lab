@@ -1,0 +1,7 @@
+id: fw-default-deny
+name: Default Deny
+priority: 1000
+action: drop
+chain: forward
+description: Drop all traffic by default, allow explicitly
+security_policy_ref: sec-baseline
