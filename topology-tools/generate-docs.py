@@ -13,8 +13,12 @@ import sys
 import yaml
 import argparse
 import shutil
+import re
+import json
+import base64
 from pathlib import Path
 from typing import Dict
+from urllib.parse import quote
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from datetime import datetime
 
@@ -26,18 +30,29 @@ from docs_diagrams import DiagramDocumentationGenerator
 class DocumentationGenerator:
     """Generate documentation from topology v4.0"""
 
+    ICON_NODE_RE = re.compile(
+        r'^(?P<indent>\s*)(?P<node_id>[A-Za-z0-9_]+)@\{\s*'
+        r'(?:(?!\}\s*$).)*?icon:\s*"(?P<icon>[^"]+)"'
+        r'(?:(?!\}\s*$).)*?label:\s*"(?P<label>[^"]*)"'
+        r'(?:(?!\}\s*$).)*?\}\s*$'
+    )
+
     def __init__(
         self,
         topology_path: str,
         output_dir: str,
         templates_dir: str = "topology-tools/templates",
-        mermaid_icons: bool = False,
+        mermaid_icons: bool = True,
+        mermaid_icon_nodes: bool = True,
     ):
         self.topology_path = Path(topology_path)
         self.output_dir = Path(output_dir)
         self.templates_dir = Path(templates_dir)
         self.mermaid_icons = mermaid_icons
+        self.mermaid_icon_nodes = mermaid_icon_nodes
         self.topology: Dict = {}
+        self._icon_pack_cache = None
+        self._icon_data_uri_cache = {}
 
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(self.templates_dir)),
@@ -49,6 +64,101 @@ class DocumentationGenerator:
         # Add custom filters for Mermaid diagram generation
         self.jinja_env.filters['mermaid_id'] = self._mermaid_id
         self.diagram_generator = DiagramDocumentationGenerator(self)
+
+    def _load_icon_packs(self):
+        if self._icon_pack_cache is not None:
+            return self._icon_pack_cache
+
+        mapping = {
+            "mdi": "mdi",
+            "si": "simple-icons",
+            "logos": "logos",
+        }
+        packs = {}
+        base_dir = Path.cwd() / "node_modules" / "@iconify-json"
+        for prefix, package_dir in mapping.items():
+            icon_file = base_dir / package_dir / "icons.json"
+            if not icon_file.exists():
+                continue
+            try:
+                data = json.loads(icon_file.read_text(encoding="utf-8"))
+                packs[prefix] = data
+            except Exception:
+                # Ignore malformed local packs and fall back to remote URL mode.
+                continue
+
+        self._icon_pack_cache = packs
+        return packs
+
+    @staticmethod
+    def _icon_svg_from_pack(pack: Dict, icon_name: str) -> str:
+        if not isinstance(pack, dict):
+            return ""
+        icons = pack.get("icons", {}) or {}
+        icon = icons.get(icon_name)
+        if not isinstance(icon, dict):
+            return ""
+        body = icon.get("body")
+        if not body:
+            return ""
+        width = icon.get("width", pack.get("width", 24))
+        height = icon.get("height", pack.get("height", 24))
+        return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}">{body}</svg>'
+
+    def _local_icon_src(self, icon_id: str) -> str:
+        if icon_id in self._icon_data_uri_cache:
+            return self._icon_data_uri_cache[icon_id]
+        if ":" not in (icon_id or ""):
+            return ""
+        prefix, icon_name = icon_id.split(":", 1)
+        packs = self._load_icon_packs()
+        pack = packs.get(prefix)
+        if not pack:
+            return ""
+        svg = self._icon_svg_from_pack(pack, icon_name)
+        if not svg:
+            return ""
+        encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+        data_uri = f"data:image/svg+xml;base64,{encoded}"
+        self._icon_data_uri_cache[icon_id] = data_uri
+        return data_uri
+
+    def _icon_html(self, icon_id: str) -> str:
+        """
+        Build HTML icon label.
+        Prefer local icon assets from installed Iconify JSON packs.
+        Fallback to remote Iconify API if local packs are unavailable.
+        """
+        local_src = self._local_icon_src(icon_id)
+        if local_src:
+            return f"<img src='{local_src}' height='16'/>"
+
+        safe_icon = quote(icon_id or "mdi:help-circle-outline", safe="")
+        return f"<img src='https://api.iconify.design/{safe_icon}.svg' height='16'/>"
+
+    def transform_mermaid_icons_for_compat(self, content: str) -> str:
+        """
+        Convert Mermaid icon-node syntax to regular nodes with inline HTML icons.
+        This keeps icon visuals for renderers that do not support `@{ icon: ... }`.
+        """
+        if not self.mermaid_icons or self.mermaid_icon_nodes:
+            return content
+
+        converted_lines = []
+        for line in content.splitlines():
+            match = self.ICON_NODE_RE.match(line)
+            if not match:
+                converted_lines.append(line)
+                continue
+
+            indent = match.group("indent")
+            node_id = match.group("node_id")
+            icon_id = match.group("icon")
+            label = match.group("label").replace('"', '\\"')
+            icon_html = self._icon_html(icon_id)
+            converted_lines.append(f'{indent}{node_id}["{icon_html} {label}"]')
+
+        return "\n".join(converted_lines)
 
     @staticmethod
     def _mermaid_id(value: str) -> str:
@@ -133,9 +243,27 @@ class DocumentationGenerator:
                 trust_zones=trust_zones,
                 vms=vms,
                 lxc=lxc,
+                network_icons={
+                    net.get('id'): self.diagram_generator._network_icon(net)
+                    for net in networks
+                    if isinstance(net, dict) and net.get('id')
+                },
+                lxc_icons={
+                    item.get('id'): (
+                        'mdi:docker'
+                        if 'docker' in str(item.get('type', '')).lower()
+                        else 'mdi:cube-outline'
+                    )
+                    for item in lxc
+                    if isinstance(item, dict) and item.get('id')
+                },
+                zone_icons=self.diagram_generator.ZONE_ICON_MAP,
+                use_mermaid_icons=self.mermaid_icons,
+                mermaid_icon_pack_hint=self.diagram_generator.ICON_PACK_HINT,
                 topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
                 generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             )
+            content = self.transform_mermaid_icons_for_compat(content)
 
             output_file = self.output_dir / "network-diagram.md"
             output_file.write_text(content, encoding="utf-8")
@@ -341,8 +469,28 @@ def main():
     parser.add_argument(
         "--mermaid-icons",
         action="store_true",
-        help="Enable Mermaid icon-node syntax (requires icon packs configured in diagram renderer)"
+        dest="mermaid_icons",
+        help="Enable Mermaid icon-node syntax (requires Mermaid renderer with icon-node support)"
     )
+    parser.add_argument(
+        "--no-mermaid-icons",
+        action="store_false",
+        dest="mermaid_icons",
+        help="Disable Mermaid icon-node syntax and use plain Mermaid nodes"
+    )
+    parser.add_argument(
+        "--mermaid-icon-nodes",
+        action="store_true",
+        dest="mermaid_icon_nodes",
+        help="Emit raw Mermaid `@{ icon: ... }` node syntax (default; requires Mermaid with icon-node support)"
+    )
+    parser.add_argument(
+        "--mermaid-icon-compat",
+        action="store_false",
+        dest="mermaid_icon_nodes",
+        help="Use compatibility icon rendering: convert icon-nodes into standard nodes with inline icons"
+    )
+    parser.set_defaults(mermaid_icons=True, mermaid_icon_nodes=True)
 
     args = parser.parse_args()
 
@@ -351,6 +499,7 @@ def main():
         args.output,
         args.templates,
         mermaid_icons=args.mermaid_icons,
+        mermaid_icon_nodes=args.mermaid_icon_nodes,
     )
 
     print("="*70)

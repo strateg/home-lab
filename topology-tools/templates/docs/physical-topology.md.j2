@@ -7,6 +7,10 @@
 
 ## Device Topology
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 graph TB
     subgraph cloud["Cloud Infrastructure"]
@@ -14,43 +18,66 @@ graph TB
         {% if device.location in ['oracle-frankfurt', 'hetzner-nuremberg'] %}
         {% set cloud_cpu_cores = device.specs.cpu.cores if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.cores is defined else '?' %}
         {% set cloud_ram_gb = device.specs.memory.total_gb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else (device.specs.memory.total_mb / 1024 if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_mb is defined else '?') %}
+        {% if use_mermaid_icons %}
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:devices') }}", form: "rounded", label: "{{ device.name }} {{ cloud_cpu_cores }}C {{ cloud_ram_gb }}GB", pos: "b", h: 48 }
+        {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.model | default(device.type) }}<br/>{{ cloud_cpu_cores }} cores / {{ cloud_ram_gb }}GB"]
+        {% endif %}
         {% endif %}
         {% endfor %}
     end
 
     subgraph home["Home Lab"]
+        {% if use_mermaid_icons %}
+        internet@{ icon: "mdi:cloud-outline", form: "circle", label: "ISP Internet", pos: "b", h: 44 }
+        {% else %}
         internet(("ISP<br/>Internet"))
+        {% endif %}
 
         {% for device in devices %}
         {% if device.location == 'home' %}
         {% if device.type == 'router' %}
         {% set router_cpu_arch = device.specs.cpu.architecture if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.architecture is defined else '' %}
         {% set router_mem_mb = device.specs.memory.total_mb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_mb is defined else (device.specs.memory.total_gb * 1024 if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else '?') %}
+        {% if use_mermaid_icons %}
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:router-network') }}", form: "rounded", label: "{{ device.name }} {{ router_cpu_arch }} {{ router_mem_mb }}MB", pos: "b", h: 48 }
+        {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.role }}<br/>{{ router_cpu_arch }} / {{ router_mem_mb }}MB"]
+        {% endif %}
         {% elif device.type == 'hypervisor' %}
         {% set hyp_cores = device.specs.cpu.cores if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.cores is defined else '?' %}
         {% set hyp_threads = device.specs.cpu.threads if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.threads is defined else '?' %}
         {% set hyp_ram_gb = device.specs.memory.total_gb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else '?' %}
+        {% if use_mermaid_icons %}
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'si:proxmox') }}", form: "rounded", label: "{{ device.name }} {{ hyp_cores }}C/{{ hyp_threads }}T {{ hyp_ram_gb }}GB", pos: "b", h: 48 }
+        {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>Proxmox VE<br/>{{ hyp_cores }}C/{{ hyp_threads }}T / {{ hyp_ram_gb }}GB"]
+        {% endif %}
         {% elif device.type == 'sbc' %}
         {% set sbc_cpu_cores = device.specs.cpu.cores if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.cores is defined else '?' %}
         {% set sbc_ram_gb = device.specs.memory.total_gb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else '?' %}
+        {% if use_mermaid_icons %}
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:chip') }}", form: "rounded", label: "{{ device.name }} {{ sbc_cpu_cores }}C {{ sbc_ram_gb }}GB", pos: "b", h: 48 }
+        {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.model }}<br/>{{ sbc_cpu_cores }} cores / {{ sbc_ram_gb }}GB"]
+        {% endif %}
+        {% else %}
+        {% if use_mermaid_icons %}
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:devices') }}", form: "rounded", label: "{{ device.name }} {{ device.type }}", pos: "b", h: 46 }
         {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.type }}"]
+        {% endif %}
         {% endif %}
         {% endif %}
         {% endfor %}
     end
 
     %% External physical endpoints from link inventory
-    {% for link in physical_links | default([]) %}
-    {% if link.endpoint_a.external_ref is defined %}
-    ext_{{ link.endpoint_a.external_ref | mermaid_id }}["{{ link.endpoint_a.external_ref }}"]
-    {% endif %}
-    {% if link.endpoint_b.external_ref is defined %}
-    ext_{{ link.endpoint_b.external_ref | mermaid_id }}["{{ link.endpoint_b.external_ref }}"]
+    {% for ref in external_refs | default([]) %}
+    {% if use_mermaid_icons %}
+    ext_{{ ref | mermaid_id }}@{ icon: "{{ external_icons.get(ref, 'mdi:help-circle-outline') }}", form: "circle", label: "{{ ref }}", pos: "b", h: 42 }
+    {% else %}
+    ext_{{ ref | mermaid_id }}["{{ ref }}"]
     {% endif %}
     {% endfor %}
 
@@ -84,13 +111,8 @@ graph TB
     classDef external fill:#adb5bd,stroke:#495057,color:#000
 
     class internet internet
-    {% for link in physical_links | default([]) %}
-    {% if link.endpoint_a.external_ref is defined %}
-    class ext_{{ link.endpoint_a.external_ref | mermaid_id }} external
-    {% endif %}
-    {% if link.endpoint_b.external_ref is defined %}
-    class ext_{{ link.endpoint_b.external_ref | mermaid_id }} external
-    {% endif %}
+    {% for ref in external_refs | default([]) %}
+    class ext_{{ ref | mermaid_id }} external
     {% endfor %}
     {% for device in devices %}
     {% if device.type == 'router' %}

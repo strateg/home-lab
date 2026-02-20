@@ -9,23 +9,39 @@
 
 **Legend**: 🟢 SSD | 🟡 HDD | 🔵 NVMe | ⚪ Host
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 flowchart LR
     subgraph hosts["Hosts"]
         {% for device in devices %}
+        {% if use_mermaid_icons %}
+        {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:devices') }}", form: "rounded", label: "{{ device.name }}", pos: "b", h: 44 }
+        {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}"]
+        {% endif %}
         {% endfor %}
     end
 
     subgraph pools["Storage Pools"]
         {% for pool in storage %}
+        {% if use_mermaid_icons %}
+        {{ pool.id | mermaid_id }}@{ icon: "{{ pool_icons.get(pool.id, 'mdi:database') }}", form: "rounded", label: "{{ pool.name }} {{ pool.type }}{% if pool.path is defined %} {{ pool.path }}{% endif %}", pos: "b", h: 46 }
+        {% else %}
         {{ pool.id | mermaid_id }}["{{ pool.name }}<br/>{{ pool.type }}{% if pool.path is defined %}<br/>{{ pool.path }}{% endif %}"]
+        {% endif %}
         {% endfor %}
     end
 
     subgraph assets["Data Assets"]
         {% for asset in data_assets %}
+        {% if use_mermaid_icons %}
+        {{ asset.id | mermaid_id }}@{ icon: "{{ asset_icons.get(asset.id, 'mdi:file-outline') }}", form: "rounded", label: "{{ asset.name }} {{ asset.type }}", pos: "b", h: 44 }
+        {% else %}
         {{ asset.id | mermaid_id }}["{{ asset.name }}<br/>{{ asset.type }}"]
+        {% endif %}
         {% endfor %}
     end
 

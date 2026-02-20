@@ -7,29 +7,51 @@
 
 ## VPN Architecture
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 flowchart LR
     subgraph clients["Remote Clients"]
+        {% if use_mermaid_icons %}
+        user_laptop@{ icon: "mdi:laptop", form: "circle", label: "Laptop", pos: "b", h: 40 }
+        user_phone@{ icon: "mdi:cellphone", form: "circle", label: "Phone", pos: "b", h: 40 }
+        travel_router@{ icon: "mdi:router-wireless", form: "circle", label: "Travel Router", pos: "b", h: 40 }
+        {% else %}
         user_laptop["Laptop"]
         user_phone["Phone"]
         travel_router["Travel Router"]
+        {% endif %}
     end
 
     subgraph edge["VPN Entry Points"]
         {% for svc in vpn_services %}
+        {% if use_mermaid_icons %}
+        {{ svc.id | mermaid_id }}@{ icon: "{{ vpn_service_icons.get(svc.id, 'mdi:vpn') }}", form: "rounded", label: "{{ svc.name }} {{ svc.vpn_type | default(svc.type) }}", pos: "b", h: 44 }
+        {% else %}
         {{ svc.id | mermaid_id }}["{{ svc.name }}<br/>{{ svc.vpn_type | default(svc.type) }}"]
+        {% endif %}
         {% endfor %}
     end
 
     subgraph vpnnets["VPN Networks"]
         {% for net in vpn_networks %}
+        {% if use_mermaid_icons %}
+        {{ net.id | mermaid_id }}@{ icon: "{{ vpn_network_icons.get(net.id, 'mdi:vpn') }}", form: "rounded", label: "{{ net.name }} {{ net.cidr }}", pos: "b", h: 44 }
+        {% else %}
         {{ net.id | mermaid_id }}["{{ net.name }}<br/>{{ net.cidr }}"]
+        {% endif %}
         {% endfor %}
     end
 
     subgraph zones["Accessible Zones"]
         {% for zone_id, zone in trust_zones.items() %}
+        {% if use_mermaid_icons %}
+        zone_{{ zone_id | mermaid_id }}@{ icon: "{{ zone_icons.get(zone_id, 'mdi:shield-outline') }}", form: "rounded", label: "{{ zone.name }}", pos: "b", h: 42 }
+        {% else %}
         zone_{{ zone_id | mermaid_id }}["{{ zone.name }}"]
+        {% endif %}
         {% endfor %}
     end
 

@@ -60,20 +60,64 @@ Usage:
 python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs
 ```
 
-Icon-enhanced Mermaid output (with fallback-friendly templates):
+Icon modes:
 ```bash
-python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --mermaid-icons
+# Default: icon-nodes (@{ icon: ... })
+python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs
+
+# Optional fallback for older Mermaid renderers
+python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --mermaid-icon-compat
+
+# Disable icons completely
+python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --no-mermaid-icons
 ```
 
-When `--mermaid-icons` is enabled, the rendered Mermaid uses `icon` nodes with icon IDs from:
+`--mermaid-icon-compat` embeds icons directly as inline SVG data URIs in Mermaid labels.
+This mode does not require `registerIconPacks(...)` and avoids icon CDN/network dependency.
+
+Default mode emits Mermaid `icon` nodes with icon IDs from:
 - `si` (Simple Icons)
 - `mdi` (Material Design Icons)
 
-Your Mermaid renderer must preload these packs, for example:
+Your Mermaid runtime must register icon packs.
+
+CDN example:
 ```js
+import mermaid from "CDN/mermaid.esm.mjs";
+
 mermaid.registerIconPacks([
-  { name: "si", loader: () => import("@iconify-json/simple-icons/icons.json").then(m => m.default) },
-  { name: "mdi", loader: () => import("@iconify-json/mdi/icons.json").then(m => m.default) }
+  {
+    name: "si",
+    loader: () =>
+      fetch("https://unpkg.com/@iconify-json/simple-icons/icons.json").then((res) => res.json()),
+  },
+  {
+    name: "mdi",
+    loader: () =>
+      fetch("https://unpkg.com/@iconify-json/mdi/icons.json").then((res) => res.json()),
+  },
+]);
+```
+
+Bundler example (lazy loading):
+```js
+import mermaid from "mermaid";
+
+mermaid.registerIconPacks([
+  { name: "si", loader: () => import("@iconify-json/simple-icons").then((m) => m.icons) },
+  { name: "mdi", loader: () => import("@iconify-json/mdi").then((m) => m.icons) },
+]);
+```
+
+Bundler example (no lazy loading):
+```js
+import mermaid from "mermaid";
+import { icons as siIcons } from "@iconify-json/simple-icons";
+import { icons as mdiIcons } from "@iconify-json/mdi";
+
+mermaid.registerIconPacks([
+  { name: "si", icons: siIcons },
+  { name: "mdi", icons: mdiIcons },
 ]);
 ```
 

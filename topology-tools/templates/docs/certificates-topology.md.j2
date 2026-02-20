@@ -7,30 +7,54 @@
 
 ## PKI and Certificate Distribution
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 flowchart LR
+    {% if use_mermaid_icons %}
+    local_ca@{ icon: "mdi:certificate", form: "rounded", label: "Local CA {{ certificates.local_ca.name | default('N/A') }}", pos: "b", h: 44 }
+    {% else %}
     local_ca["Local CA<br/>{{ certificates.local_ca.name | default('N/A') }}"]
+    {% endif %}
 
     subgraph certs["Issued Certificates"]
         {% for cert in certificates.certificates | default([]) %}
+        {% if use_mermaid_icons %}
+        {{ cert.id | mermaid_id }}@{ icon: "{{ cert_icons.get(cert.id, 'mdi:certificate-outline') }}", form: "rounded", label: "{{ cert.domain }} {{ cert.issuer | default('issuer') }}", pos: "b", h: 44 }
+        {% else %}
         {{ cert.id | mermaid_id }}["{{ cert.domain }}<br/>{{ cert.issuer | default('issuer') }}"]
+        {% endif %}
         {% endfor %}
         {% for cert in certificates.additional | default([]) %}
+        {% if use_mermaid_icons %}
+        {{ cert.id | mermaid_id }}@{ icon: "{{ cert_icons.get(cert.id, 'mdi:certificate-outline') }}", form: "rounded", label: "{{ cert.name | default(cert.id) }} {{ cert.type | default('custom') }}", pos: "b", h: 44 }
+        {% else %}
         {{ cert.id | mermaid_id }}["{{ cert.name | default(cert.id) }}<br/>{{ cert.type | default('custom') }}"]
+        {% endif %}
         {% endfor %}
     end
 
     subgraph services["TLS Services"]
         {% for service in services %}
         {% if service.protocol == 'https' or (service.ports is defined and service.ports.https is defined) %}
+        {% if use_mermaid_icons %}
+        {{ service.id | mermaid_id }}@{ icon: "{{ service_icons.get(service.id, 'mdi:web') }}", form: "rounded", label: "{{ service.name }} {{ service.protocol | default('https') }}", pos: "b", h: 42 }
+        {% else %}
         {{ service.id | mermaid_id }}["{{ service.name }}<br/>{{ service.protocol | default('https') }}"]
+        {% endif %}
         {% endif %}
         {% endfor %}
     end
 
     subgraph dist["CA Distribution"]
         {% for node in certificates.local_ca.distribution | default([]) %}
+        {% if use_mermaid_icons %}
+        dist_{{ node.device_ref | mermaid_id }}@{ icon: "{{ distribution_icons.get(node.device_ref, 'mdi:devices') }}", form: "rounded", label: "{{ node.device_ref }}", pos: "b", h: 42 }
+        {% else %}
         dist_{{ node.device_ref | mermaid_id }}["{{ node.device_ref }}"]
+        {% endif %}
         {% endfor %}
     end
 

@@ -7,20 +7,40 @@
 
 ## Power Protection Graph
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 flowchart TB
+    {% if use_mermaid_icons %}
+    grid@{ icon: "mdi:transmission-tower", form: "circle", label: "Power Grid", pos: "b", h: 44 }
+    {% else %}
     grid["Power Grid"]
+    {% endif %}
 
     {% for unit in ups %}
+    {% if use_mermaid_icons %}
+    {{ unit.id | mermaid_id }}@{ icon: "mdi:battery-high", form: "rounded", label: "{{ unit.name }} {{ unit.model }} {{ unit.specs.capacity_va | default('?') }}VA / {{ unit.specs.capacity_watts | default('?') }}W", pos: "b", h: 48 }
+    {% else %}
     {{ unit.id | mermaid_id }}["{{ unit.name }}<br/>{{ unit.model }}<br/>{{ unit.specs.capacity_va | default('?') }}VA / {{ unit.specs.capacity_watts | default('?') }}W"]
+    {% endif %}
     grid --> {{ unit.id | mermaid_id }}
 
     {% for pd in unit.protected_devices | default([]) %}
+    {% if use_mermaid_icons %}
+    pd_{{ unit.id | mermaid_id }}_{{ pd.device_ref | mermaid_id }}@{ icon: "{{ protected_device_icons.get(pd.device_ref, 'mdi:devices') }}", form: "rounded", label: "{{ pd.device_ref }} {{ pd.power_watts | default('?') }}W", pos: "b", h: 44 }
+    {% else %}
     pd_{{ unit.id | mermaid_id }}_{{ pd.device_ref | mermaid_id }}["{{ pd.device_ref }}<br/>{{ pd.power_watts | default('?') }}W"]
+    {% endif %}
     {{ unit.id | mermaid_id }} --> pd_{{ unit.id | mermaid_id }}_{{ pd.device_ref | mermaid_id }}
     {% endfor %}
 
+    {% if use_mermaid_icons %}
+    mon_{{ unit.id | mermaid_id }}@{ icon: "mdi:chart-line", form: "rounded", label: "Monitoring {{ unit.connection.monitoring_software | default('N/A') }}", pos: "b", h: 42 }
+    {% else %}
     mon_{{ unit.id | mermaid_id }}["Monitoring<br/>{{ unit.connection.monitoring_software | default('N/A') }}"]
+    {% endif %}
     {{ unit.connection.connected_to | mermaid_id }} -.USB.-> mon_{{ unit.id | mermaid_id }}
     mon_{{ unit.id | mermaid_id }} -.status.-> {{ unit.id | mermaid_id }}
     {% endfor %}

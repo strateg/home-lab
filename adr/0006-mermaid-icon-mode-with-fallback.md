@@ -1,6 +1,6 @@
 # ADR 0006: Add Mermaid Icon Mode with Template Fallback
 
-- Status: Accepted
+- Status: Superseded by [0008](0008-mermaid-icon-node-default-and-runtime-pack-registration.md)
 - Date: 2026-02-20
 - Supersedes: -
 

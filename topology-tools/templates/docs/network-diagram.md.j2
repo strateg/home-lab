@@ -7,23 +7,43 @@
 
 ## Infrastructure Network Topology
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 graph TB
     %% Trust Zones
     subgraph untrusted["Untrusted Zone"]
+        {% if use_mermaid_icons %}
+        INTERNET@{ icon: "mdi:cloud-outline", form: "circle", label: "Internet", pos: "b", h: 44 }
+        {% else %}
         INTERNET[("Internet")]
+        {% endif %}
         {% for network in networks %}
         {% if network.trust_zone_ref == 'untrusted' %}
+        {% if use_mermaid_icons %}
+        {{ network.id | mermaid_id }}@{ icon: "{{ network_icons.get(network.id, 'mdi:lan') }}", form: "rounded", label: "{{ network.name }} {{ network.cidr }}", pos: "b", h: 46 }
+        {% else %}
         {{ network.id | mermaid_id }}["{{ network.name }}<br/>{{ network.cidr }}"]
+        {% endif %}
         {% endif %}
         {% endfor %}
     end
 
     subgraph user["User Zone"]
+        {% if use_mermaid_icons %}
+        USER_DEVICES@{ icon: "mdi:account-group", form: "circle", label: "User Devices", pos: "b", h: 44 }
+        {% else %}
         USER_DEVICES[("User Devices")]
+        {% endif %}
         {% for network in networks %}
         {% if network.trust_zone_ref == 'user' %}
+        {% if use_mermaid_icons %}
+        {{ network.id | mermaid_id }}@{ icon: "{{ network_icons.get(network.id, 'mdi:lan') }}", form: "rounded", label: "{{ network.name }} {{ network.cidr }}", pos: "b", h: 46 }
+        {% else %}
         {{ network.id | mermaid_id }}["{{ network.name }}<br/>{{ network.cidr }}"]
+        {% endif %}
         {% endif %}
         {% endfor %}
     end
@@ -31,13 +51,21 @@ graph TB
     subgraph servers["Servers Zone"]
         {% for network in networks %}
         {% if network.trust_zone_ref == 'servers' %}
+        {% if use_mermaid_icons %}
+        {{ network.id | mermaid_id }}@{ icon: "{{ network_icons.get(network.id, 'mdi:server-network') }}", form: "rounded", label: "{{ network.name }} {{ network.cidr }}", pos: "b", h: 46 }
+        {% else %}
         {{ network.id | mermaid_id }}["{{ network.name }}<br/>{{ network.cidr }}"]
+        {% endif %}
         {% endif %}
         {% endfor %}
 
         {% for lxc_item in lxc %}
         {% if lxc_item.trust_zone_ref == 'servers' %}
+        {% if use_mermaid_icons %}
+        {{ lxc_item.id | mermaid_id }}@{ icon: "{{ lxc_icons.get(lxc_item.id, 'mdi:cube-outline') }}", form: "rounded", label: "{{ lxc_item.name }} {{ lxc_item.type }}", pos: "b", h: 44 }
+        {% else %}
         {{ lxc_item.id | mermaid_id }}["{{ lxc_item.name }}<br/>{{ lxc_item.type }}"]
+        {% endif %}
         {% endif %}
         {% endfor %}
     end
@@ -45,23 +73,39 @@ graph TB
     subgraph management["Management Zone"]
         {% for network in networks %}
         {% if network.trust_zone_ref == 'management' %}
+        {% if use_mermaid_icons %}
+        {{ network.id | mermaid_id }}@{ icon: "{{ network_icons.get(network.id, zone_icons.get('management', 'mdi:shield-crown')) }}", form: "rounded", label: "{{ network.name }} {{ network.cidr }}", pos: "b", h: 46 }
+        {% else %}
         {{ network.id | mermaid_id }}["{{ network.name }}<br/>{{ network.cidr }}"]
         {% endif %}
+        {% endif %}
         {% endfor %}
+        {% if use_mermaid_icons %}
+        PROXMOX@{ icon: "si:proxmox", form: "rounded", label: "Proxmox VE", pos: "b", h: 44 }
+        {% else %}
         PROXMOX["Proxmox VE"]
+        {% endif %}
     end
 
     subgraph guest["Guest/IoT Zones"]
         {% for network in networks %}
         {% if network.trust_zone_ref in ['guest', 'iot'] %}
+        {% if use_mermaid_icons %}
+        {{ network.id | mermaid_id }}@{ icon: "{{ network_icons.get(network.id, 'mdi:wifi') }}", form: "rounded", label: "{{ network.name }} {{ network.cidr }}", pos: "b", h: 46 }
+        {% else %}
         {{ network.id | mermaid_id }}["{{ network.name }}<br/>{{ network.cidr }}"]
+        {% endif %}
         {% endif %}
         {% endfor %}
     end
 
     %% Network bridges
     {% for bridge in bridges %}
+    {% if use_mermaid_icons %}
+    {{ bridge.id | mermaid_id }}@{ icon: "mdi:bridge", form: "rounded", label: "{{ bridge.name }}", pos: "b", h: 42 }
+    {% else %}
     {{ bridge.id | mermaid_id }}[/"{{ bridge.name }}"/]
+    {% endif %}
     {% endfor %}
 
     %% Core connections

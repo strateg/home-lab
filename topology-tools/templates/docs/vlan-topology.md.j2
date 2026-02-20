@@ -7,27 +7,48 @@
 
 ## VLAN Segmentation Overview
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 graph LR
     subgraph router["MikroTik Router"]
         direction TB
+        {% if use_mermaid_icons %}
+        router_core@{ icon: "mdi:router-network", form: "rounded", label: "MikroTik Router", pos: "b", h: 44 }
+        {% else %}
+        router_core["MikroTik Router"]
+        {% endif %}
         {% for network in networks %}
         {% if network.vlan %}
+        {% if use_mermaid_icons %}
+        {{ network.id | mermaid_id }}@{ icon: "{{ network_icons.get(network.id, 'mdi:lan-connect') }}", form: "rounded", label: "VLAN {{ network.vlan }} {{ network.name }} {{ network.cidr }}", pos: "b", h: 46 }
+        {% else %}
         {{ network.id | mermaid_id }}["VLAN {{ network.vlan }}<br/>{{ network.name }}<br/>{{ network.cidr }}"]
+        {% endif %}
         {% elif network.cidr != 'dhcp' and network.bridge_ref is none %}
+        {% if use_mermaid_icons %}
+        {{ network.id | mermaid_id }}@{ icon: "{{ network_icons.get(network.id, 'mdi:lan') }}", form: "rounded", label: "{{ network.name }} {{ network.cidr }}", pos: "b", h: 46 }
+        {% else %}
         {{ network.id | mermaid_id }}["{{ network.name }}<br/>{{ network.cidr }}"]
+        {% endif %}
         {% endif %}
         {% endfor %}
     end
 
     subgraph proxmox["Proxmox VE"]
         {% for bridge in bridges %}
+        {% if use_mermaid_icons %}
+        {{ bridge.id | mermaid_id }}@{ icon: "mdi:bridge", form: "rounded", label: "{{ bridge.name }}", pos: "b", h: 42 }
+        {% else %}
         {{ bridge.id | mermaid_id }}[/"{{ bridge.name }}"/]
+        {% endif %}
         {% endfor %}
     end
 
     %% Trunk connection
-    router -->|"802.1Q Trunk<br/>All VLANs"| {{ bridges[0].id | mermaid_id if bridges else 'vmbr0' }}
+    router_core -->|"802.1Q Trunk<br/>All VLANs"| {{ bridges[0].id | mermaid_id if bridges else 'vmbr0' }}
 
     %% VLAN colors by trust zone
     classDef untrusted fill:#ff6b6b,stroke:#c92a2a,color:#fff

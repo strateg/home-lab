@@ -7,20 +7,36 @@
 
 ## QoS Traffic Classes
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 flowchart TB
+    {% if use_mermaid_icons %}
+    internet@{ icon: "mdi:cloud-outline", form: "circle", label: "WAN {{ qos.interface | default('interface') }} {{ qos.total_bandwidth.download_mbps | default('?') }} down / {{ qos.total_bandwidth.upload_mbps | default('?') }} up Mbps", pos: "b", h: 46 }
+    {% else %}
     internet["WAN / {{ qos.interface | default('interface') }}<br/>{{ qos.total_bandwidth.download_mbps | default('?') }} down / {{ qos.total_bandwidth.upload_mbps | default('?') }} up Mbps"]
+    {% endif %}
 
     subgraph scheduler["Queue Scheduler"]
         direction TB
         {% for queue in qos.queues | default([]) %}
+        {% if use_mermaid_icons %}
+        {{ queue.id | mermaid_id }}@{ icon: "mdi:chart-bar", form: "rounded", label: "P{{ queue.priority }} {{ queue.name }} G{{ queue.guarantee_percent }}% / M{{ queue.max_limit_percent }}%", pos: "b", h: 44 }
+        {% else %}
         {{ queue.id | mermaid_id }}["P{{ queue.priority }} {{ queue.name }}<br/>G{{ queue.guarantee_percent }}% / M{{ queue.max_limit_percent }}%"]
+        {% endif %}
         {% endfor %}
     end
 
     subgraph netlimits["Per-Network Limits"]
         {% for limit in qos.device_limits | default([]) %}
+        {% if use_mermaid_icons %}
+        {{ limit.network_ref | mermaid_id }}@{ icon: "{{ limit_icons.get(limit.network_ref, 'mdi:lan') }}", form: "rounded", label: "{{ limit.network_ref }} {{ limit.download_limit_mbps }} down / {{ limit.upload_limit_mbps }} up Mbps", pos: "b", h: 44 }
+        {% else %}
         {{ limit.network_ref | mermaid_id }}["{{ limit.network_ref }}<br/>{{ limit.download_limit_mbps }} down / {{ limit.upload_limit_mbps }} up Mbps"]
+        {% endif %}
         {% endfor %}
     end
 

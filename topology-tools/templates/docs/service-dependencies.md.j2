@@ -7,13 +7,21 @@
 
 ## Service Dependency Graph
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 flowchart TB
     subgraph mikrotik["MikroTik Chateau"]
         direction TB
         {% for service in services %}
         {% if service.device_ref == 'mikrotik-chateau' %}
+        {% if use_mermaid_icons %}
+        {{ service.id | mermaid_id }}@{ icon: "{{ service_icons.get(service.id, 'mdi:application-cog-outline') }}", form: "rounded", label: "{{ service.name }} {{ service.type }}", pos: "b", h: 44 }
+        {% else %}
         {{ service.id | mermaid_id }}["{{ service.name }}<br/>{{ service.type }}"]
+        {% endif %}
         {% endif %}
         {% endfor %}
     end
@@ -22,7 +30,11 @@ flowchart TB
         direction TB
         {% for service in services %}
         {% if service.device_ref == 'orangepi5' %}
+        {% if use_mermaid_icons %}
+        {{ service.id | mermaid_id }}@{ icon: "{{ service_icons.get(service.id, 'mdi:application-cog-outline') }}", form: "rounded", label: "{{ service.name }} {{ service.type }}", pos: "b", h: 44 }
+        {% else %}
         {{ service.id | mermaid_id }}["{{ service.name }}<br/>{{ service.type }}"]
+        {% endif %}
         {% endif %}
         {% endfor %}
     end
@@ -31,7 +43,11 @@ flowchart TB
         direction TB
         {% for service in services %}
         {% if service.lxc_ref is defined %}
+        {% if use_mermaid_icons %}
+        {{ service.id | mermaid_id }}@{ icon: "{{ service_icons.get(service.id, 'mdi:application-cog-outline') }}", form: "rounded", label: "{{ service.name }} {{ service.type }}", pos: "b", h: 44 }
+        {% else %}
         {{ service.id | mermaid_id }}[("{{ service.name }}<br/>{{ service.type }}")]
+        {% endif %}
         {% endif %}
         {% endfor %}
     end
@@ -140,24 +156,45 @@ flowchart TB
 ```mermaid
 flowchart LR
     subgraph users["Users"]
+        {% if use_mermaid_icons %}
+        browser@{ icon: "mdi:web", form: "circle", label: "Browser", pos: "b", h: 40 }
+        mobile@{ icon: "mdi:cellphone", form: "circle", label: "Mobile App", pos: "b", h: 40 }
+        {% else %}
         browser["Browser"]
         mobile["Mobile App"]
+        {% endif %}
     end
 
     subgraph services["Services"]
+        {% if use_mermaid_icons %}
+        nextcloud@{ icon: "mdi:cloud-outline", form: "rounded", label: "Nextcloud", pos: "b", h: 42 }
+        jellyfin@{ icon: "mdi:multimedia", form: "rounded", label: "Jellyfin", pos: "b", h: 42 }
+        grafana@{ icon: "mdi:chart-areaspline", form: "rounded", label: "Grafana", pos: "b", h: 42 }
+        {% else %}
         nextcloud["Nextcloud"]
         jellyfin["Jellyfin"]
         grafana["Grafana"]
+        {% endif %}
     end
 
     subgraph data["Data Layer"]
+        {% if use_mermaid_icons %}
+        postgresql@{ icon: "mdi:database", form: "rounded", label: "PostgreSQL", pos: "b", h: 42 }
+        redis@{ icon: "mdi:database-clock", form: "rounded", label: "Redis", pos: "b", h: 42 }
+        {% else %}
         postgresql[("PostgreSQL")]
         redis[("Redis")]
+        {% endif %}
     end
 
     subgraph monitoring["Monitoring"]
+        {% if use_mermaid_icons %}
+        prometheus@{ icon: "mdi:chart-line", form: "rounded", label: "Prometheus", pos: "b", h: 42 }
+        loki@{ icon: "mdi:file-document-outline", form: "rounded", label: "Loki", pos: "b", h: 42 }
+        {% else %}
         prometheus["Prometheus"]
         loki["Loki"]
+        {% endif %}
     end
 
     browser --> nextcloud

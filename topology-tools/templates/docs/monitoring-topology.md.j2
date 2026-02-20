@@ -7,35 +7,63 @@
 
 ## Observability Flow
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 flowchart LR
     subgraph targets["Monitored Targets"]
         {% for hc in healthchecks %}
+        {% if use_mermaid_icons %}
+        {{ hc.id | mermaid_id }}@{ icon: "{{ healthcheck_icons.get(hc.id, 'mdi:stethoscope') }}", form: "rounded", label: "{{ hc.name }}", pos: "b", h: 42 }
+        {% else %}
         {{ hc.id | mermaid_id }}["{{ hc.name }}"]
+        {% endif %}
         {% endfor %}
         {% for nm in network_monitoring %}
+        {% if use_mermaid_icons %}
+        {{ nm.id | mermaid_id }}@{ icon: "{{ network_monitoring_icons.get(nm.id, 'mdi:lan-check') }}", form: "rounded", label: "{{ nm.name }}", pos: "b", h: 42 }
+        {% else %}
         {{ nm.id | mermaid_id }}["{{ nm.name }}"]
+        {% endif %}
         {% endfor %}
     end
 
     subgraph stack["Observability Stack"]
         {% for svc in services %}
         {% if svc.type in ['monitoring', 'alerting', 'logging', 'visualization'] %}
+        {% if use_mermaid_icons %}
+        {{ svc.id | mermaid_id }}@{ icon: "{{ service_icons.get(svc.id, 'mdi:application-cog-outline') }}", form: "rounded", label: "{{ svc.name }} {{ svc.type }}", pos: "b", h: 44 }
+        {% else %}
         {{ svc.id | mermaid_id }}["{{ svc.name }}<br/>{{ svc.type }}"]
         {% endif %}
+        {% endif %}
         {% endfor %}
+        {% if use_mermaid_icons %}
+        dashboard@{ icon: "mdi:view-dashboard", form: "rounded", label: "Dashboard {{ dashboard.provider | default('n/a') }}", pos: "b", h: 42 }
+        {% else %}
         dashboard["Dashboard<br/>{{ dashboard.provider | default('n/a') }}"]
+        {% endif %}
     end
 
     subgraph alerting["Alert Rules"]
         {% for alert in alerts %}
+        {% if use_mermaid_icons %}
+        {{ alert.id | mermaid_id }}@{ icon: "{{ alert_icons.get(alert.id, 'mdi:alert-circle-outline') }}", form: "rounded", label: "{{ alert.name }} {{ alert.severity | upper }}", pos: "b", h: 44 }
+        {% else %}
         {{ alert.id | mermaid_id }}["{{ alert.name }}<br/>{{ alert.severity | upper }}"]
+        {% endif %}
         {% endfor %}
     end
 
     subgraph channels["Notification Channels"]
         {% for ch in notification_channels %}
+        {% if use_mermaid_icons %}
+        {{ ch.id | mermaid_id }}@{ icon: "{{ channel_icons.get(ch.id, 'mdi:message-alert-outline') }}", form: "rounded", label: "{{ ch.name }} {{ ch.type }}", pos: "b", h: 44 }
+        {% else %}
         {{ ch.id | mermaid_id }}["{{ ch.name }}<br/>{{ ch.type }}"]
+        {% endif %}
         {% endfor %}
     end
 

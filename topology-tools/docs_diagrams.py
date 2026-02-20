@@ -15,7 +15,7 @@ class DiagramDocumentationGenerator:
         "hypervisor": "si:proxmox",
         "router": "mdi:router-network",
         "sbc": "mdi:chip",
-        "switch": "mdi:ethernet-switch",
+        "switch": "mdi:switch",
         "ap": "mdi:access-point",
         "nas": "mdi:nas",
         "cloud-vm": "mdi:cloud-outline",
@@ -44,6 +44,52 @@ class DiagramDocumentationGenerator:
         "iot": "mdi:home-automation",
         "servers": "mdi:server",
         "management": "mdi:shield-crown",
+    }
+    NETWORK_ICON_BY_ZONE = {
+        "untrusted": "mdi:earth",
+        "guest": "mdi:wifi-strength-1-alert",
+        "user": "mdi:lan",
+        "iot": "mdi:lan-pending",
+        "servers": "mdi:server-network",
+        "management": "mdi:shield-crown",
+    }
+    SERVICE_ICON_BY_TYPE = {
+        "database": "mdi:database",
+        "cache": "mdi:database-clock",
+        "web-application": "mdi:web",
+        "web-ui": "mdi:view-dashboard",
+        "media-server": "mdi:multimedia",
+        "monitoring": "mdi:chart-line",
+        "alerting": "mdi:bell-alert",
+        "logging": "mdi:file-document-outline",
+        "visualization": "mdi:chart-areaspline",
+        "dns": "mdi:dns",
+        "vpn": "mdi:vpn",
+    }
+    STORAGE_POOL_ICON_BY_MEDIA = {
+        "nvme": "mdi:memory",
+        "ssd": "mdi:harddisk",
+        "hdd": "mdi:harddisk-plus",
+    }
+    DATA_ASSET_ICON_BY_TYPE = {
+        "backup": "mdi:backup-restore",
+        "database": "mdi:database",
+        "media": "mdi:folder-music",
+        "config": "mdi:file-cog-outline",
+        "logs": "mdi:file-document-outline",
+    }
+    ALERT_ICON_BY_SEVERITY = {
+        "critical": "mdi:alert-octagon",
+        "high": "mdi:alert",
+        "warning": "mdi:alert-outline",
+        "info": "mdi:information-outline",
+    }
+    CHANNEL_ICON_BY_TYPE = {
+        "telegram": "mdi:send",
+        "email": "mdi:email-outline",
+        "webhook": "mdi:webhook",
+        "slack": "si:slack",
+        "discord": "si:discord",
     }
     EXTERNAL_LEGEND_SAMPLES = [
         "isp-uplink",
@@ -132,6 +178,7 @@ class DiagramDocumentationGenerator:
                 mermaid_icon_pack_hint=self.ICON_PACK_HINT,
                 **context,
             )
+            content = self.docs_generator.transform_mermaid_icons_for_compat(content)
             output_file = self.output_dir / output_name
             output_file.write_text(content, encoding="utf-8")
             print(f"OK Generated: {output_file}")
@@ -205,6 +252,57 @@ class DiagramDocumentationGenerator:
             return "si:hetzner"
         return "mdi:help-circle-outline"
 
+    def _network_icon(self, network: Dict) -> str:
+        if not isinstance(network, dict):
+            return "mdi:lan"
+        zone = (network.get("trust_zone_ref") or "").lower()
+        if zone in self.NETWORK_ICON_BY_ZONE:
+            return self.NETWORK_ICON_BY_ZONE[zone]
+        if network.get("vpn_type"):
+            return "mdi:vpn"
+        if network.get("vlan"):
+            return "mdi:lan-connect"
+        return "mdi:lan"
+
+    def _service_icon(self, service: Dict) -> str:
+        if not isinstance(service, dict):
+            return "mdi:application-cog-outline"
+        service_type = (service.get("type") or "").lower()
+        if service_type in self.SERVICE_ICON_BY_TYPE:
+            return self.SERVICE_ICON_BY_TYPE[service_type]
+        if service.get("vpn_type"):
+            return "mdi:vpn"
+        return "mdi:application-cog-outline"
+
+    def _storage_pool_icon(self, pool: Dict) -> str:
+        if not isinstance(pool, dict):
+            return "mdi:database"
+        media = (pool.get("media") or "").lower()
+        if media in self.STORAGE_POOL_ICON_BY_MEDIA:
+            return self.STORAGE_POOL_ICON_BY_MEDIA[media]
+        pool_type = (pool.get("type") or "").lower()
+        if "nfs" in pool_type or "smb" in pool_type:
+            return "mdi:folder-network-outline"
+        if "backup" in pool_type:
+            return "mdi:backup-restore"
+        return "mdi:database"
+
+    def _data_asset_icon(self, asset: Dict) -> str:
+        if not isinstance(asset, dict):
+            return "mdi:file-outline"
+        asset_type = (asset.get("type") or "").lower()
+        if asset_type in self.DATA_ASSET_ICON_BY_TYPE:
+            return self.DATA_ASSET_ICON_BY_TYPE[asset_type]
+        return "mdi:file-outline"
+
+    def _alert_icon(self, alert: Dict) -> str:
+        severity = ((alert or {}).get("severity") or "").lower()
+        return self.ALERT_ICON_BY_SEVERITY.get(severity, "mdi:alert-circle-outline")
+
+    def _channel_icon(self, channel: Dict) -> str:
+        channel_type = ((channel or {}).get("type") or "").lower()
+        return self.CHANNEL_ICON_BY_TYPE.get(channel_type, "mdi:message-alert-outline")
+
     def generate_all(self) -> bool:
         """Generate all diagram pages and index."""
         self._generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -240,12 +338,25 @@ class DiagramDocumentationGenerator:
         devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
         locations = self._sort_dicts(self.topology["L1_foundation"].get("locations", []))
         physical_links = self._sort_dicts(self.topology["L1_foundation"].get("data_links", []))
+        device_icons = {device.get("id"): self._device_icon(device) for device in devices if device.get("id")}
+        external_refs = sorted(
+            {
+                endpoint.get("external_ref")
+                for link in physical_links
+                for endpoint in [link.get("endpoint_a", {}) or {}, link.get("endpoint_b", {}) or {}]
+                if endpoint.get("external_ref")
+            }
+        )
+        external_icons = {ref: self._external_ref_icon(ref) for ref in external_refs}
         return self._render_document(
             "docs/physical-topology.md.j2",
             "physical-topology.md",
             devices=devices,
             locations=locations,
             physical_links=physical_links,
+            device_icons=device_icons,
+            external_refs=external_refs,
+            external_icons=external_icons,
         )
 
     def generate_data_links_topology(self) -> bool:
@@ -284,11 +395,13 @@ class DiagramDocumentationGenerator:
         """Generate VLAN topology diagram."""
         networks = self._sort_dicts(self.docs_generator._get_resolved_networks())
         bridges = self._sort_dicts(self.topology["L2_network"].get("bridges", []))
+        network_icons = {network.get("id"): self._network_icon(network) for network in networks if network.get("id")}
         return self._render_document(
             "docs/vlan-topology.md.j2",
             "vlan-topology.md",
             networks=networks,
             bridges=bridges,
+            network_icons=network_icons,
         )
 
     def generate_icon_legend(self) -> bool:
@@ -380,11 +493,13 @@ class DiagramDocumentationGenerator:
         """Generate service dependency diagram."""
         services = self._sort_dicts(self.topology.get("L5_application", {}).get("services", []))
         lxc = self._sort_dicts(self.topology["L4_platform"].get("lxc", []))
+        service_icons = {service.get("id"): self._service_icon(service) for service in services if service.get("id")}
         return self._render_document(
             "docs/service-dependencies.md.j2",
             "service-dependencies.md",
             services=services,
             lxc=lxc,
+            service_icons=service_icons,
         )
 
     def generate_storage_topology(self) -> bool:
@@ -392,12 +507,18 @@ class DiagramDocumentationGenerator:
         storage = self._sort_dicts(self.topology.get("L3_data", {}).get("storage", []))
         data_assets = self._sort_dicts(self.topology.get("L3_data", {}).get("data_assets", []))
         devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
+        device_icons = {device.get("id"): self._device_icon(device) for device in devices if device.get("id")}
+        pool_icons = {pool.get("id"): self._storage_pool_icon(pool) for pool in storage if pool.get("id")}
+        asset_icons = {asset.get("id"): self._data_asset_icon(asset) for asset in data_assets if asset.get("id")}
         return self._render_document(
             "docs/storage-topology.md.j2",
             "storage-topology.md",
             storage=storage,
             data_assets=data_assets,
             devices=devices,
+            device_icons=device_icons,
+            pool_icons=pool_icons,
+            asset_icons=asset_icons,
         )
 
     def generate_monitoring_topology(self) -> bool:
@@ -409,6 +530,15 @@ class DiagramDocumentationGenerator:
         alerts = self._sort_dicts(observability.get("alerts", []))
         notification_channels = self._sort_dicts(observability.get("notification_channels", []))
         dashboard = observability.get("dashboard", {})
+        service_icons = {service.get("id"): self._service_icon(service) for service in services if service.get("id")}
+        healthcheck_icons = {hc.get("id"): "mdi:stethoscope" for hc in healthchecks if hc.get("id")}
+        network_monitoring_icons = {nm.get("id"): "mdi:lan-check" for nm in network_monitoring if nm.get("id")}
+        alert_icons = {alert.get("id"): self._alert_icon(alert) for alert in alerts if alert.get("id")}
+        channel_icons = {
+            channel.get("id"): self._channel_icon(channel)
+            for channel in notification_channels
+            if channel.get("id")
+        }
         return self._render_document(
             "docs/monitoring-topology.md.j2",
             "monitoring-topology.md",
@@ -418,6 +548,11 @@ class DiagramDocumentationGenerator:
             alerts=alerts,
             notification_channels=notification_channels,
             dashboard=dashboard,
+            service_icons=service_icons,
+            healthcheck_icons=healthcheck_icons,
+            network_monitoring_icons=network_monitoring_icons,
+            alert_icons=alert_icons,
+            channel_icons=channel_icons,
         )
 
     def generate_vpn_topology(self) -> bool:
@@ -431,6 +566,8 @@ class DiagramDocumentationGenerator:
         vpn_networks = [net for net in networks if net.get("vpn_type")]
         vpn_network_ids = {net["id"] for net in vpn_networks}
         vpn_services = [svc for svc in services if svc.get("type") == "vpn"]
+        vpn_service_icons = {svc.get("id"): self._service_icon(svc) for svc in vpn_services if svc.get("id")}
+        vpn_network_icons = {net.get("id"): self._network_icon(net) for net in vpn_networks if net.get("id")}
 
         vpn_access = {}
         for policy in firewall_policies:
@@ -465,6 +602,9 @@ class DiagramDocumentationGenerator:
             vpn_access=vpn_access_list,
             trust_zones=trust_zones,
             devices=devices,
+            vpn_service_icons=vpn_service_icons,
+            vpn_network_icons=vpn_network_icons,
+            zone_icons=self.ZONE_ICON_MAP,
         )
 
     def generate_qos_topology(self) -> bool:
@@ -472,12 +612,20 @@ class DiagramDocumentationGenerator:
         qos = self.topology["L2_network"].get("qos", {})
         networks = self._sort_dicts(self.topology["L2_network"].get("networks", []))
         devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
+        network_map = {network.get("id"): network for network in networks if network.get("id")}
+        limit_icons = {}
+        for limit in qos.get("device_limits", []) or []:
+            network_ref = limit.get("network_ref")
+            if not network_ref:
+                continue
+            limit_icons[network_ref] = self._network_icon(network_map.get(network_ref, {}))
         return self._render_document(
             "docs/qos-topology.md.j2",
             "qos-topology.md",
             qos=qos,
             networks=networks,
             devices=devices,
+            limit_icons=limit_icons,
         )
 
     def generate_certificates_topology(self) -> bool:
@@ -485,12 +633,36 @@ class DiagramDocumentationGenerator:
         certificates = self.topology.get("L5_application", {}).get("certificates", {})
         services = self._sort_dicts(self.topology.get("L5_application", {}).get("services", []))
         devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
+        service_icons = {service.get("id"): self._service_icon(service) for service in services if service.get("id")}
+        cert_icons = {}
+        for cert in certificates.get("certificates", []) or []:
+            cert_id = cert.get("id")
+            if cert_id:
+                cert_icons[cert_id] = "mdi:certificate-outline"
+        for cert in certificates.get("additional", []) or []:
+            cert_id = cert.get("id")
+            if not cert_id:
+                continue
+            if (cert.get("type") or "").lower() == "self-signed":
+                cert_icons[cert_id] = "mdi:certificate"
+            else:
+                cert_icons[cert_id] = "mdi:certificate-outline"
+        device_map = {device.get("id"): device for device in devices if device.get("id")}
+        distribution_icons = {}
+        for node in certificates.get("local_ca", {}).get("distribution", []) or []:
+            device_ref = node.get("device_ref")
+            if not device_ref:
+                continue
+            distribution_icons[device_ref] = self._device_icon(device_map.get(device_ref, {"id": device_ref}))
         return self._render_document(
             "docs/certificates-topology.md.j2",
             "certificates-topology.md",
             certificates=certificates,
             services=services,
             devices=devices,
+            service_icons=service_icons,
+            cert_icons=cert_icons,
+            distribution_icons=distribution_icons,
         )
 
     def generate_ups_topology(self) -> bool:
@@ -500,6 +672,16 @@ class DiagramDocumentationGenerator:
         devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
         healthchecks = self._sort_dicts(self.topology.get("L6_observability", {}).get("healthchecks", []))
         alerts = self._sort_dicts(self.topology.get("L6_observability", {}).get("alerts", []))
+        device_map = {device.get("id"): device for device in devices if device.get("id")}
+        protected_device_icons = {}
+        for unit in ups:
+            for protected_device in unit.get("protected_devices", []) or []:
+                device_ref = protected_device.get("device_ref")
+                if not device_ref:
+                    continue
+                protected_device_icons[device_ref] = self._device_icon(
+                    device_map.get(device_ref, {"id": device_ref})
+                )
         return self._render_document(
             "docs/ups-topology.md.j2",
             "ups-topology.md",
@@ -507,6 +689,7 @@ class DiagramDocumentationGenerator:
             devices=devices,
             healthchecks=healthchecks,
             alerts=alerts,
+            protected_device_icons=protected_device_icons,
         )
 
     def generate_diagrams_index(self) -> bool:
