@@ -12,7 +12,9 @@ graph TB
     subgraph cloud["Cloud Infrastructure"]
         {% for device in devices %}
         {% if device.location in ['oracle-frankfurt', 'hetzner-nuremberg'] %}
-        {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.model | default(device.type) }}<br/>{{ device.specs.cpu.cores | default('?') }} cores / {{ device.specs.memory.total_gb | default(device.specs.memory.total_mb | default(0) / 1024) }}GB"]
+        {% set cloud_cpu_cores = device.specs.cpu.cores if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.cores is defined else '?' %}
+        {% set cloud_ram_gb = device.specs.memory.total_gb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else (device.specs.memory.total_mb / 1024 if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_mb is defined else '?') %}
+        {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.model | default(device.type) }}<br/>{{ cloud_cpu_cores }} cores / {{ cloud_ram_gb }}GB"]
         {% endif %}
         {% endfor %}
     end
@@ -23,11 +25,18 @@ graph TB
         {% for device in devices %}
         {% if device.location == 'home' %}
         {% if device.type == 'router' %}
-        {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.role }}<br/>{{ device.specs.cpu.architecture | default('') }} / {{ device.specs.memory.total_mb | default(device.specs.memory.total_gb * 1024 if device.specs.memory.total_gb else '?') }}MB"]
+        {% set router_cpu_arch = device.specs.cpu.architecture if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.architecture is defined else '' %}
+        {% set router_mem_mb = device.specs.memory.total_mb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_mb is defined else (device.specs.memory.total_gb * 1024 if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else '?') %}
+        {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.role }}<br/>{{ router_cpu_arch }} / {{ router_mem_mb }}MB"]
         {% elif device.type == 'hypervisor' %}
-        {{ device.id | mermaid_id }}["{{ device.name }}<br/>Proxmox VE<br/>{{ device.specs.cpu.cores }}C/{{ device.specs.cpu.threads }}T / {{ device.specs.memory.total_gb }}GB"]
+        {% set hyp_cores = device.specs.cpu.cores if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.cores is defined else '?' %}
+        {% set hyp_threads = device.specs.cpu.threads if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.threads is defined else '?' %}
+        {% set hyp_ram_gb = device.specs.memory.total_gb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else '?' %}
+        {{ device.id | mermaid_id }}["{{ device.name }}<br/>Proxmox VE<br/>{{ hyp_cores }}C/{{ hyp_threads }}T / {{ hyp_ram_gb }}GB"]
         {% elif device.type == 'sbc' %}
-        {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.model }}<br/>{{ device.specs.cpu.cores }} cores / {{ device.specs.memory.total_gb }}GB"]
+        {% set sbc_cpu_cores = device.specs.cpu.cores if device.specs is defined and device.specs.cpu is defined and device.specs.cpu.cores is defined else '?' %}
+        {% set sbc_ram_gb = device.specs.memory.total_gb if device.specs is defined and device.specs.memory is defined and device.specs.memory.total_gb is defined else '?' %}
+        {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.model }}<br/>{{ sbc_cpu_cores }} cores / {{ sbc_ram_gb }}GB"]
         {% else %}
         {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.type }}"]
         {% endif %}
@@ -117,7 +126,23 @@ Overlay (VPN/mesh) links are documented separately in `vpn-topology.md`.
 | Device | Type | Location | CPU | RAM | Role |
 |--------|------|----------|-----|-----|------|
 {% for device in devices %}
-| **{{ device.name }}** | {{ device.type }} | {{ device.location }} | {{ device.specs.cpu.model | default(device.specs.cpu.cores ~ ' cores') }} | {{ device.specs.memory.total_gb | default(device.specs.memory.total_mb / 1024 if device.specs.memory.total_mb else '?') }}GB | {{ device.role }} |
+{% set cpu_label = '-' %}
+{% if device.specs is defined and device.specs.cpu is defined %}
+{% if device.specs.cpu.model is defined %}
+{% set cpu_label = device.specs.cpu.model %}
+{% elif device.specs.cpu.cores is defined %}
+{% set cpu_label = device.specs.cpu.cores ~ ' cores' %}
+{% endif %}
+{% endif %}
+{% set ram_label = '-' %}
+{% if device.specs is defined and device.specs.memory is defined %}
+{% if device.specs.memory.total_gb is defined %}
+{% set ram_label = device.specs.memory.total_gb ~ 'GB' %}
+{% elif device.specs.memory.total_mb is defined %}
+{% set ram_label = (device.specs.memory.total_mb / 1024) ~ 'GB' %}
+{% endif %}
+{% endif %}
+| **{{ device.name }}** | {{ device.type }} | {{ device.location }} | {{ cpu_label }} | {{ ram_label }} | {{ device.role }} |
 {% endfor %}
 
 ---
@@ -140,7 +165,7 @@ Overlay (VPN/mesh) links are documented separately in `vpn-topology.md`.
 ## Storage Summary
 
 {% for device in devices %}
-{% if device.specs.disks is defined %}
+{% if device.specs is defined and device.specs.disks is defined %}
 ### {{ device.name }} Storage
 
 | Device | Size | Type | Usage |

@@ -50,6 +50,9 @@ interfaces:
   status: optional
   note: 'USB Ethernet uses predictable naming: enx<MAC>. Run ''ip link'' to discover.'
 power:
+  primary_source: ac-mains
+  backup_source: ups-output
+  upstream_power_ref: pdu-rack-home
   max_watts: 65
   psu: Dell 65W AC adapter
 firmware:

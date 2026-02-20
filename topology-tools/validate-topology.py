@@ -413,10 +413,16 @@ class SchemaValidator:
         l1 = self.topology.get('L1_foundation', {})
         devices = l1.get('devices', []) or []
         locations = {loc.get('id'): loc for loc in l1.get('locations', []) or [] if isinstance(loc, dict)}
+        device_map = {d.get('id'): d for d in devices if isinstance(d, dict) and d.get('id')}
+        ups_ids = {
+            u.get('id') for u in l1.get('ups', []) or []
+            if isinstance(u, dict) and u.get('id')
+        }
         class_type_map = {
             'network': {'router', 'switch', 'ap'},
             'compute': {'hypervisor', 'sbc', 'cloud-vm'},
             'storage': {'nas'},
+            'power': {'ups', 'pdu'},
         }
 
         for device in devices:
@@ -434,6 +440,20 @@ class SchemaValidator:
             if location_ref and location_ref not in locations:
                 self.errors.append(f"Device '{dev_id}': location '{location_ref}' does not exist")
 
+            power_cfg = device.get('power') if isinstance(device.get('power'), dict) else {}
+            upstream_power_ref = power_cfg.get('upstream_power_ref')
+            if upstream_power_ref:
+                if upstream_power_ref in device_map:
+                    upstream_class = (device_map.get(upstream_power_ref) or {}).get('class')
+                    if upstream_class != 'power':
+                        self.errors.append(
+                            f"Device '{dev_id}': upstream_power_ref '{upstream_power_ref}' must reference class 'power' device or UPS"
+                        )
+                elif upstream_power_ref not in ups_ids:
+                    self.errors.append(
+                        f"Device '{dev_id}': upstream_power_ref '{upstream_power_ref}' does not exist in L1 devices/ups"
+                    )
+
             allowed_types = class_type_map.get(dev_class)
             if allowed_types and dev_type not in allowed_types:
                 self.errors.append(
@@ -449,6 +469,15 @@ class SchemaValidator:
             if dev_type == 'cloud-vm' and dev_substrate != 'provider-instance':
                 self.errors.append(
                     f"Device '{dev_id}': cloud-vm must use substrate 'provider-instance'"
+                )
+
+        for ups in l1.get('ups', []) or []:
+            if not isinstance(ups, dict):
+                continue
+            managed_device_ref = ups.get('managed_device_ref')
+            if managed_device_ref and managed_device_ref not in ids['devices']:
+                self.errors.append(
+                    f"UPS '{ups.get('id', 'unknown')}': managed_device_ref '{managed_device_ref}' does not exist"
                 )
 
             if dev_type != 'cloud-vm' and dev_substrate == 'provider-instance':

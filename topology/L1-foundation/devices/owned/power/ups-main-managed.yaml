@@ -1,0 +1,28 @@
+id: ups-main-managed
+name: Main UPS (Managed Device)
+type: ups
+role: power-backup
+class: power
+substrate: baremetal-owned
+access: local-lan
+model: APC Back-UPS 650VA
+location: home
+description: Managed UPS representation in L1 device inventory for power outage modeling
+specs:
+  capacity_va: 650
+  capacity_watts: 390
+  battery_type: Sealed Lead Acid
+  runtime_half_load_min: 15
+interfaces:
+- id: if-ups-main-usb
+  name: usb-monitor
+  type: usb
+  role: management
+  description: UPS USB monitoring interface (NUT)
+power:
+  primary_source: ac-mains
+  backup_source: battery
+  battery_present: true
+  battery_chemistry: SLA
+  input_voltage: 220-240V AC
+  max_watts: 390

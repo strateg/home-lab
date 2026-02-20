@@ -8,7 +8,7 @@
 #   - owned/<class>/
 #   - provider/<class>/
 # - links: topology/L1-foundation/links/
-# - power: topology/L1-foundation/power/
+# - power: topology/L1-foundation/power/ (AC/DC/UPS/PoE model)
 # Edit modules then regenerate: python3 topology-tools/regenerate-all.py
 
 locations: !include L1-foundation/locations/_index.yaml

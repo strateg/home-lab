@@ -106,6 +106,9 @@ interfaces:
   role: wan-failover
   description: LTE Cat 7 modem for failover
 power:
+  primary_source: dc-adapter
+  backup_source: ups-output
+  upstream_power_ref: ups-main
   input_voltage: 12-28V DC
   max_watts: 21.5
   typical_watts: 15.5

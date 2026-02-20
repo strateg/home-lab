@@ -4,6 +4,8 @@ model: APC Back-UPS 650VA
 type: line-interactive
 location: home
 description: Primary UPS for critical infrastructure
+input_source: ac-mains
+output_source: ups-output
 specs:
   capacity_va: 650
   capacity_watts: 390
@@ -20,21 +22,26 @@ connection:
   connected_to: orangepi5
   monitoring_software: nut
   driver: usbhid-ups
+managed_device_ref: ups-main-managed
 protected_devices:
 - device_ref: mikrotik-chateau
   power_watts: 16
   priority: 1
   description: Router - critical for network
+- device_ref: pdu-rack-home
+  power_watts: 2
+  priority: 2
+  description: Managed power distribution unit
 - device_ref: orangepi5
   power_watts: 15
-  priority: 2
+  priority: 3
   description: Application server
 - device_ref: gamayun
   power_watts: 50
-  priority: 3
+  priority: 4
   description: Proxmox server
-total_load_watts: 81
-estimated_runtime_min: 20
+total_load_watts: 83
+estimated_runtime_min: 18
 thresholds:
   low_battery_percent: 30
   critical_battery_percent: 15
@@ -87,3 +94,11 @@ notifications:
   - power_restored
   - overload
   - replace_battery
+outage_model:
+  modeled: true
+  upstream_source: utility-grid
+  failure_domain: home-power
+  cascading_path:
+  - ups-main
+  - pdu-rack-home
+  notes: Outage impact propagates through UPS to managed PDU and then to protected hosts

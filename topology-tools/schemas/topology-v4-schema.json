@@ -18,11 +18,11 @@
   "definitions": {
     "DeviceType": {
       "type": "string",
-      "enum": ["hypervisor", "router", "sbc", "switch", "ap", "nas", "cloud-vm"]
+      "enum": ["hypervisor", "router", "sbc", "switch", "ap", "nas", "cloud-vm", "ups", "pdu"]
     },
     "DeviceRole": {
       "type": "string",
-      "enum": ["compute", "central-gateway", "application-server", "travel-router", "storage-server", "backup-server", "cloud-server", "vpn-exit-node"]
+      "enum": ["compute", "central-gateway", "application-server", "travel-router", "storage-server", "backup-server", "cloud-server", "vpn-exit-node", "power-backup", "power-distribution"]
     },
     "DeviceClass": {
       "type": "string",
@@ -35,6 +35,14 @@
     "DeviceAccess": {
       "type": "string",
       "enum": ["local-lan", "vpn-only", "public"]
+    },
+    "PowerSourceType": {
+      "type": "string",
+      "enum": ["ac-mains", "dc-adapter", "usb-pd", "poe", "battery", "ups-output", "cloud-provider"]
+    },
+    "PowerDeliveryStandard": {
+      "type": "string",
+      "enum": ["802.3af", "802.3at", "802.3bt", "usb-pd-3.0", "usb-pd-3.1", "proprietary"]
     },
     "InterfaceType": {
       "type": "string",
@@ -307,10 +315,38 @@
           "type": "array",
           "items": { "$ref": "#/definitions/Interface" }
         },
-        "power": { "type": "object" },
+        "power": { "$ref": "#/definitions/DevicePower" },
         "firmware": { "type": "object" },
         "cloud": { "$ref": "#/definitions/CloudConfig" }
       }
+    },
+    "DevicePower": {
+      "type": "object",
+      "properties": {
+        "primary_source": { "$ref": "#/definitions/PowerSourceType" },
+        "backup_source": { "$ref": "#/definitions/PowerSourceType" },
+        "upstream_power_ref": { "type": "string", "pattern": "^(ups|pdu)-[a-z0-9-]+$" },
+        "connector": { "type": "string" },
+        "input_voltage": { "type": "string" },
+        "input_voltage_v": { "type": "number" },
+        "input_current_a": { "type": "number" },
+        "max_watts": { "type": "number" },
+        "typical_watts": { "type": "number" },
+        "psu": { "type": "string" },
+        "battery_present": { "type": "boolean" },
+        "battery_chemistry": { "type": "string" },
+        "poe": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "role": { "type": "string", "enum": ["pd", "pse", "passthrough"] },
+            "standard": { "$ref": "#/definitions/PowerDeliveryStandard" },
+            "class": { "type": "integer", "minimum": 0, "maximum": 8 },
+            "max_watts": { "type": "number" }
+          }
+        }
+      },
+      "additionalProperties": true
     },
     "CloudConfig": {
       "type": "object",
@@ -390,9 +426,45 @@
         "speed_mbps": { "type": "integer", "minimum": 1 },
         "duplex": { "type": "string", "enum": ["half", "full"] },
         "vlan_trunk": { "type": "boolean" },
+        "power_delivery": { "$ref": "#/definitions/PowerDelivery" },
         "status": { "type": "string", "enum": ["active", "standby", "planned"] },
         "description": { "type": "string" }
       }
+    },
+    "PowerDelivery": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "mode": { "type": "string", "enum": ["poe", "usb-pd", "dc", "ac"] },
+        "standard": { "$ref": "#/definitions/PowerDeliveryStandard" },
+        "provider_endpoint": { "type": "string", "enum": ["endpoint_a", "endpoint_b", "external"] },
+        "class": { "type": "integer", "minimum": 0, "maximum": 8 },
+        "max_watts": { "type": "number" },
+        "voltage_v": { "type": "number" },
+        "description": { "type": "string" }
+      }
+    },
+    "Ups": {
+      "type": "object",
+      "required": ["id", "name", "type"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^ups-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "model": { "type": "string" },
+        "type": { "type": "string", "enum": ["line-interactive", "online-double-conversion", "offline-standby", "dc-ups"] },
+        "location": { "type": "string" },
+        "description": { "type": "string" },
+        "specs": { "type": "object" },
+        "connection": { "type": "object" },
+        "managed_device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "protected_devices": { "type": "array" },
+        "outage_model": { "type": "object" },
+        "thresholds": { "type": "object" },
+        "actions": { "type": "object" },
+        "monitoring": { "type": "object" },
+        "notifications": { "type": "object" }
+      },
+      "additionalProperties": true
     },
     "Network": {
       "type": "object",
@@ -673,7 +745,10 @@
           "type": "array",
           "items": { "$ref": "#/definitions/PhysicalLink" }
         },
-        "ups": { "type": "array" }
+        "ups": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Ups" }
+        }
       }
     },
     "L2_network": {

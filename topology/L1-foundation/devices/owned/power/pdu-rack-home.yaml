@@ -1,0 +1,25 @@
+id: pdu-rack-home
+name: Rack PDU (Home)
+type: pdu
+role: power-distribution
+class: power
+substrate: baremetal-owned
+access: local-lan
+model: Managed PDU (logical)
+location: home
+description: Logical managed PDU for outlet grouping and power outage impact modeling
+specs:
+  outlets_total: 8
+  switched_outlets: 8
+  meter: true
+interfaces:
+- id: if-pdu-mgmt
+  name: eth-mgmt
+  type: ethernet
+  speed_mbps: 100
+  role: management
+  description: PDU management interface
+power:
+  primary_source: ups-output
+  upstream_power_ref: ups-main
+  max_watts: 350

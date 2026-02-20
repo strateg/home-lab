@@ -155,6 +155,9 @@ cooling:
   fan_voltage: 5V
   fan_connector: true
 power:
+  primary_source: usb-pd
+  backup_source: ups-output
+  upstream_power_ref: pdu-rack-home
   input: Type-C
   voltage: 5V
   current: 4A
