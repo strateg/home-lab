@@ -7,24 +7,46 @@
 
 ## Security Zone Overview
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 flowchart TB
     subgraph level0["Security Level 0 - Untrusted"]
+        {% if use_mermaid_icons %}
+        internet@{ icon: "{{ zone_icons.get('untrusted', 'mdi:earth') }}", form: "circle", label: "Internet", pos: "b", h: 44 }
+        guest@{ icon: "{{ zone_icons.get('guest', 'mdi:account-question') }}", form: "circle", label: "Guest WiFi", pos: "b", h: 44 }
+        {% else %}
         internet[("Internet<br/>External")]
         guest["Guest WiFi<br/>Isolated"]
+        {% endif %}
     end
 
     subgraph level1["Security Level 1 - Semi-Trusted"]
+        {% if use_mermaid_icons %}
+        user@{ icon: "{{ zone_icons.get('user', 'mdi:account-group') }}", form: "rounded", label: "User Devices", pos: "b", h: 44 }
+        iot@{ icon: "{{ zone_icons.get('iot', 'mdi:home-automation') }}", form: "rounded", label: "IoT Devices", pos: "b", h: 44 }
+        {% else %}
         user["User Devices<br/>LAN/WiFi"]
         iot["IoT Devices<br/>Isolated"]
+        {% endif %}
     end
 
     subgraph level2["Security Level 2 - Trusted"]
+        {% if use_mermaid_icons %}
+        servers@{ icon: "{{ zone_icons.get('servers', 'mdi:server') }}", form: "rounded", label: "Servers", pos: "b", h: 44 }
+        {% else %}
         servers["Servers<br/>LXC/Docker"]
+        {% endif %}
     end
 
     subgraph level3["Security Level 3 - Management"]
+        {% if use_mermaid_icons %}
+        mgmt@{ icon: "{{ zone_icons.get('management', 'mdi:shield-crown') }}", form: "rounded", label: "Management", pos: "b", h: 44 }
+        {% else %}
         mgmt["Management<br/>Admin Access"]
+        {% endif %}
     end
 
     %% Allowed flows (green)

@@ -60,6 +60,27 @@ Usage:
 python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs
 ```
 
+Icon-enhanced Mermaid output (with fallback-friendly templates):
+```bash
+python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --mermaid-icons
+```
+
+When `--mermaid-icons` is enabled, the rendered Mermaid uses `icon` nodes with icon IDs from:
+- `si` (Simple Icons)
+- `mdi` (Material Design Icons)
+
+Your Mermaid renderer must preload these packs, for example:
+```js
+mermaid.registerIconPacks([
+  { name: "si", loader: () => import("@iconify-json/simple-icons/icons.json").then(m => m.default) },
+  { name: "mdi", loader: () => import("@iconify-json/mdi/icons.json").then(m => m.default) }
+]);
+```
+
+References:
+- https://docs.mermaidchart.com/mermaid-oss/config/icons.html
+- https://iconify.design/docs/icons/icon-sets/
+
 ### regenerate-all.py
 Run validation and all generators in order.
 

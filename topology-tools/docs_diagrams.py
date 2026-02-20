@@ -10,6 +10,33 @@ from typing import Dict, List, Tuple
 class DiagramDocumentationGenerator:
     """Generate all diagram-oriented documentation pages."""
 
+    ICON_PACK_HINT = "`si` (Simple Icons) and `mdi` (Material Design Icons)"
+    DEVICE_ICON_BY_TYPE = {
+        "router": "si:mikrotik",
+        "hypervisor": "si:proxmox",
+        "cloud-vm": "mdi:cloud-outline",
+        "sbc": "mdi:chip",
+        "ups": "mdi:battery-high",
+        "pdu": "mdi:power-socket-eu",
+        "switch": "mdi:ethernet-switch",
+        "ap": "mdi:access-point",
+        "nas": "mdi:nas",
+    }
+    DEVICE_ICON_BY_CLASS = {
+        "network": "mdi:router-network",
+        "compute": "mdi:server",
+        "storage": "mdi:database",
+        "power": "mdi:flash",
+    }
+    ZONE_ICON_MAP = {
+        "untrusted": "mdi:earth",
+        "guest": "mdi:account-question",
+        "user": "mdi:account-group",
+        "iot": "mdi:home-automation",
+        "servers": "mdi:server",
+        "management": "mdi:shield-crown",
+    }
+
     DIAGRAMS_INDEX = {
         "core": [
             {"title": "Infrastructure Overview", "file": "overview.md", "description": "Summary and metadata"},
@@ -58,6 +85,10 @@ class DiagramDocumentationGenerator:
     def topology_version(self):
         return self.topology.get("L0_meta", {}).get("version", "4.0.0")
 
+    @property
+    def use_mermaid_icons(self) -> bool:
+        return bool(getattr(self.docs_generator, "mermaid_icons", False))
+
     def generated_at(self) -> str:
         if not self._generated_at:
             self._generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -80,6 +111,8 @@ class DiagramDocumentationGenerator:
             content = template.render(
                 topology_version=self.topology_version,
                 generated_at=self.generated_at(),
+                use_mermaid_icons=self.use_mermaid_icons,
+                mermaid_icon_pack_hint=self.ICON_PACK_HINT,
                 **context,
             )
             output_file = self.output_dir / output_name
@@ -109,6 +142,28 @@ class DiagramDocumentationGenerator:
 
         linked_devices = [device_map[dev_id] for dev_id in sorted(linked_device_ids) if dev_id in device_map]
         return linked_devices, device_map, sorted(external_refs), links
+
+    def _device_icon(self, device: Dict) -> str:
+        device_type = (device.get("type") or "").lower()
+        if device_type in self.DEVICE_ICON_BY_TYPE:
+            return self.DEVICE_ICON_BY_TYPE[device_type]
+        device_class = (device.get("class") or "").lower()
+        if device_class in self.DEVICE_ICON_BY_CLASS:
+            return self.DEVICE_ICON_BY_CLASS[device_class]
+        return "mdi:devices"
+
+    @staticmethod
+    def _external_ref_icon(ref: str) -> str:
+        text = (ref or "").lower()
+        if "isp" in text or "internet" in text:
+            return "mdi:cloud-outline"
+        if "lte" in text or "mobile" in text:
+            return "mdi:signal-cellular-3"
+        if "utility" in text or "grid" in text:
+            return "mdi:transmission-tower"
+        if "wifi" in text:
+            return "mdi:wifi"
+        return "mdi:help-circle-outline"
 
     def generate_all(self) -> bool:
         """Generate all diagram pages and index."""
@@ -155,6 +210,8 @@ class DiagramDocumentationGenerator:
     def generate_data_links_topology(self) -> bool:
         """Generate data-link physical topology diagram."""
         linked_devices, device_map, external_refs, data_links = self._collect_link_graph_data("data_links")
+        device_icons = {device.get("id"): self._device_icon(device) for device in linked_devices}
+        external_icons = {ref: self._external_ref_icon(ref) for ref in external_refs}
         return self._render_document(
             "docs/data-links-topology.md.j2",
             "data-links-topology.md",
@@ -162,11 +219,15 @@ class DiagramDocumentationGenerator:
             device_map=device_map,
             data_links=data_links,
             external_refs=external_refs,
+            device_icons=device_icons,
+            external_icons=external_icons,
         )
 
     def generate_power_links_topology(self) -> bool:
         """Generate power-link physical topology diagram."""
         linked_devices, device_map, external_refs, power_links = self._collect_link_graph_data("power_links")
+        device_icons = {device.get("id"): self._device_icon(device) for device in linked_devices}
+        external_icons = {ref: self._external_ref_icon(ref) for ref in external_refs}
         return self._render_document(
             "docs/power-links-topology.md.j2",
             "power-links-topology.md",
@@ -174,6 +235,8 @@ class DiagramDocumentationGenerator:
             linked_devices=linked_devices,
             device_map=device_map,
             external_refs=external_refs,
+            device_icons=device_icons,
+            external_icons=external_icons,
         )
 
     def generate_vlan_topology(self) -> bool:
@@ -227,6 +290,7 @@ class DiagramDocumentationGenerator:
             networks=networks,
             firewall_policy_map=firewall_policy_map,
             network_policy_bindings=network_policy_bindings,
+            zone_icons=self.ZONE_ICON_MAP,
         )
 
     def generate_service_dependencies(self) -> bool:

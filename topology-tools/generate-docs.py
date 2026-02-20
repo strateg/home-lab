@@ -26,10 +26,17 @@ from docs_diagrams import DiagramDocumentationGenerator
 class DocumentationGenerator:
     """Generate documentation from topology v4.0"""
 
-    def __init__(self, topology_path: str, output_dir: str, templates_dir: str = "topology-tools/templates"):
+    def __init__(
+        self,
+        topology_path: str,
+        output_dir: str,
+        templates_dir: str = "topology-tools/templates",
+        mermaid_icons: bool = False,
+    ):
         self.topology_path = Path(topology_path)
         self.output_dir = Path(output_dir)
         self.templates_dir = Path(templates_dir)
+        self.mermaid_icons = mermaid_icons
         self.topology: Dict = {}
 
         self.jinja_env = Environment(
@@ -331,10 +338,20 @@ def main():
         default="topology-tools/templates",
         help="Directory containing Jinja2 templates"
     )
+    parser.add_argument(
+        "--mermaid-icons",
+        action="store_true",
+        help="Enable Mermaid icon-node syntax (requires icon packs configured in diagram renderer)"
+    )
 
     args = parser.parse_args()
 
-    generator = DocumentationGenerator(args.topology, args.output, args.templates)
+    generator = DocumentationGenerator(
+        args.topology,
+        args.output,
+        args.templates,
+        mermaid_icons=args.mermaid_icons,
+    )
 
     print("="*70)
     print("Documentation Generator (Topology v4.0)")

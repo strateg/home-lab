@@ -53,6 +53,23 @@ Usage:
 python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs
 ```
 
+Icon-enhanced Mermaid output:
+```bash
+python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --mermaid-icons
+```
+
+`--mermaid-icons` emits Mermaid `icon` nodes and expects icon packs:
+- `si` (Simple Icons)
+- `mdi` (Material Design Icons)
+
+Renderer example:
+```js
+mermaid.registerIconPacks([
+  { name: "si", loader: () => import("@iconify-json/simple-icons/icons.json").then(m => m.default) },
+  { name: "mdi", loader: () => import("@iconify-json/mdi/icons.json").then(m => m.default) }
+]);
+```
+
 ### regenerate-all.py
 Run validation and all generators in order.
 

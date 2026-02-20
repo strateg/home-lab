@@ -7,14 +7,26 @@
 
 ## Physical Power Cabling
 
+{% if use_mermaid_icons %}
+> Icon mode enabled. Renderer must preload icon packs: {{ mermaid_icon_pack_hint }}.
+{% endif %}
+
 ```mermaid
 graph TB
     {% for ref in external_refs %}
+    {% if use_mermaid_icons %}
+    ext_{{ ref | mermaid_id }}@{ icon: "{{ external_icons.get(ref, 'mdi:help-circle-outline') }}", form: "circle", label: "{{ ref }}", pos: "b", h: 42 }
+    {% else %}
     ext_{{ ref | mermaid_id }}["{{ ref }}"]
+    {% endif %}
     {% endfor %}
 
     {% for device in linked_devices %}
+    {% if use_mermaid_icons %}
+    {{ device.id | mermaid_id }}@{ icon: "{{ device_icons.get(device.id, 'mdi:devices') }}", form: "rounded", label: "{{ device.name }}", pos: "b", h: 46 }
+    {% else %}
     {{ device.id | mermaid_id }}["{{ device.name }}<br/>{{ device.type | upper }}"]
+    {% endif %}
     {% endfor %}
 
     {% for link in power_links %}
