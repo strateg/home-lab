@@ -191,6 +191,7 @@ class SchemaValidator:
 
         ids = self._collect_ids()
 
+        self._check_file_placement()
         self._check_device_taxonomy(ids)
         self._check_network_refs(ids)
         self._check_bridge_refs(ids)
@@ -203,6 +204,127 @@ class SchemaValidator:
         self._check_backup_refs(ids)
         self._check_security_policy_refs(ids)
         self._check_vlan_tags()
+
+    def _check_file_placement(self) -> None:
+        """
+        Validate that module objects are stored in expected directories.
+        The object model (fields inside files) is authoritative; paths are validated against it.
+        """
+        topology_dir = self.topology_path.parent / 'topology'
+        if not topology_dir.exists():
+            self.warnings.append("Topology directory not found for placement checks: topology/")
+            return
+
+        for file_path in topology_dir.rglob('*.yaml'):
+            if file_path.name == '_index.yaml':
+                continue
+
+            rel = file_path.relative_to(self.topology_path.parent).as_posix()
+
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    obj = yaml.safe_load(f)
+            except yaml.YAMLError:
+                # Composite files with !include are validated elsewhere
+                continue
+            except OSError as e:
+                self.warnings.append(f"Cannot read file for placement check '{rel}': {e}")
+                continue
+
+            if not isinstance(obj, dict):
+                continue
+
+            obj_id = obj.get('id')
+            if isinstance(obj_id, str) and obj_id and file_path.stem != obj_id:
+                self.warnings.append(
+                    f"File '{rel}': filename '{file_path.stem}' differs from id '{obj_id}'"
+                )
+
+            if {'id', 'type', 'role', 'class', 'substrate'}.issubset(obj.keys()):
+                self._check_device_file_path(rel, file_path, obj)
+                continue
+
+            if {'id', 'endpoint_a', 'endpoint_b', 'medium'}.issubset(obj.keys()):
+                self._check_expected_prefix(
+                    rel,
+                    "topology/L1-foundation/links/",
+                    f"topology/L1-foundation/links/{obj.get('id', file_path.name)}.yaml"
+                )
+                continue
+
+            if isinstance(obj.get('id'), str) and obj.get('id', '').startswith('net-') and 'cidr' in obj:
+                self._check_expected_prefix(
+                    rel,
+                    "topology/L2-network/networks/",
+                    f"topology/L2-network/networks/{obj.get('id', file_path.name)}.yaml"
+                )
+                continue
+
+            if isinstance(obj.get('id'), str) and obj.get('id', '').startswith('bridge-') and 'device_ref' in obj:
+                self._check_expected_prefix(
+                    rel,
+                    "topology/L2-network/bridges/",
+                    f"topology/L2-network/bridges/{obj.get('id', file_path.name)}.yaml"
+                )
+                continue
+
+            if isinstance(obj.get('id'), str) and obj.get('id', '').startswith('fw-') and 'chain' in obj:
+                self._check_expected_prefix(
+                    rel,
+                    "topology/L2-network/firewall/policies/",
+                    f"topology/L2-network/firewall/policies/<group>/{obj.get('id', file_path.name)}.yaml"
+                )
+                continue
+
+    def _check_expected_prefix(self, rel: str, expected_prefix: str, suggestion: str) -> None:
+        if not rel.startswith(expected_prefix):
+            self.errors.append(
+                f"File placement error: '{rel}' does not match model; expected under "
+                f"'{expected_prefix}' (suggested: '{suggestion}')"
+            )
+
+    def _check_device_file_path(self, rel: str, file_path: Path, device: Dict) -> None:
+        device_id = device.get('id', file_path.stem)
+        device_class = device.get('class', 'unknown')
+        substrate = device.get('substrate')
+
+        expected_group = {
+            'provider-instance': 'provider',
+            'baremetal-owned': 'owned',
+            'baremetal-colo': 'owned',
+        }.get(substrate, 'owned')
+
+        expected_path = f"topology/L1-foundation/devices/{expected_group}/{device_class}/{device_id}.yaml"
+
+        if not rel.startswith("topology/L1-foundation/devices/"):
+            self.errors.append(
+                f"File placement error: device file '{rel}' must be in L1 devices "
+                f"(suggested: '{expected_path}')"
+            )
+            return
+
+        rel_inside = rel.replace("topology/L1-foundation/devices/", "", 1)
+        parts = rel_inside.split('/')
+        if len(parts) < 3:
+            self.errors.append(
+                f"File placement error: device file '{rel}' must follow "
+                f"'topology/L1-foundation/devices/<group>/<class>/<id>.yaml'"
+            )
+            return
+
+        group, class_dir = parts[0], parts[1]
+
+        if group != expected_group:
+            self.errors.append(
+                f"File placement error: device '{device_id}' substrate '{substrate}' expects group "
+                f"'{expected_group}', got '{group}' (suggested: '{expected_path}')"
+            )
+
+        if class_dir != device_class:
+            self.errors.append(
+                f"File placement error: device '{device_id}' class '{device_class}' expects folder "
+                f"'{device_class}', got '{class_dir}' (suggested: '{expected_path}')"
+            )
 
     def _check_device_taxonomy(self, ids: Dict[str, Set[str]]) -> None:
         """Validate L1 foundation taxonomy and substrate consistency."""

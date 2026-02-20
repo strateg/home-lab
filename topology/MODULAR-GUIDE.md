@@ -32,23 +32,30 @@ Rules:
 
 ## Current Modular Layout
 
-- `topology/L1-foundation.yaml`:
+- Modularized layers:
+  - `topology/L1-foundation.yaml`:
   - `topology/L1-foundation/locations/`
-  - `topology/L1-foundation/devices/`
   - `topology/L1-foundation/devices/owned/<class>/`
   - `topology/L1-foundation/devices/provider/<class>/`
   - `topology/L1-foundation/links/`
   - `topology/L1-foundation/power/`
-- `topology/L2-network.yaml`:
+  - `topology/L2-network.yaml`:
   - `topology/L2-network/trust-zones/`
   - `topology/L2-network/profiles/`
   - `topology/L2-network/networks/`
   - `topology/L2-network/bridges/`
   - `topology/L2-network/routing/`
-  - `topology/L2-network/firewall/`
   - `topology/L2-network/firewall/policies/`
+  - `topology/L2-network/firewall/templates.yaml`
   - `topology/L2-network/qos/`
   - `topology/L2-network/ipv6/`
+- Single-file layers (not yet modularized into subfolders):
+  - `topology/L0-meta.yaml`
+  - `topology/L3-data.yaml`
+  - `topology/L4-platform.yaml`
+  - `topology/L5-application.yaml`
+  - `topology/L6-observability.yaml`
+  - `topology/L7-operations.yaml`
 
 ## Editing Conventions (AI + Human)
 
@@ -57,6 +64,8 @@ Rules:
 - Keep indexes explicit: `_index.yaml` contains only ordered `!include` entries.
 - Keep module size practical (target under ~200 lines).
 - Preserve key order: `id`, `name`, `type`, `role`, `class`, `substrate`, `access`, refs, config, `description`.
+- Model is defined by fields inside files; folders are validated against model.
+- Validator reports placement errors and suggests expected paths when files are moved/copied incorrectly.
 - In L1 devices, always set taxonomy explicitly: `class` + `substrate` + `access`.
 - `physical_links` can reference only owned/colo substrate devices (no `provider-instance`).
 - VM/LXC remain in `L4_platform` (compute module), not in `L1_foundation`.
