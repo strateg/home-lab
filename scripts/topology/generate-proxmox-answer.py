@@ -4,10 +4,10 @@ Generate Proxmox auto-install answer.toml from topology.yaml
 Extracts Proxmox node configuration and generates answer file for unattended installation
 
 Usage:
-    python3 generate-proxmox-answer.py [topology.yaml] [output.toml]
+    python3 scripts/topology/generate-proxmox-answer.py [topology.yaml] [output.toml]
 
 Example:
-    python3 generate-proxmox-answer.py ../topology.yaml ../bare-metal/answer.toml
+    python3 scripts/topology/generate-proxmox-answer.py topology.yaml bare-metal/answer.toml
 """
 
 import sys
@@ -273,7 +273,7 @@ class ProxmoxAnswerGenerator:
         # Header
         sections.append("# Proxmox VE 9 Auto-Install Configuration")
         sections.append(f"# Generated from topology.yaml v{self.topology.get('version', '2.2.0')}")
-        sections.append("# DO NOT EDIT MANUALLY - Regenerate with scripts/generate-proxmox-answer.py")
+        sections.append("# DO NOT EDIT MANUALLY - Regenerate with scripts/topology/generate-proxmox-answer.py")
         sections.append("# Documentation: https://pve.proxmox.com/wiki/Automated_Installation")
         sections.append("")
 

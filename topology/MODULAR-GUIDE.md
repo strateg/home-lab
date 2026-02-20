@@ -86,8 +86,8 @@ Rules:
 10. Add VM/LXC workloads in `topology/L4-platform.yaml` only.
 11. Add platform/app/monitoring modules only if the device hosts workloads.
 12. Validate and regenerate:
-   - `python scripts/validate-topology.py`
-   - `python scripts/generate-docs.py`
+   - `python scripts/topology/validate-topology.py`
+   - `python scripts/topology/generate-docs.py`
 
 ## Anti-Patterns
 

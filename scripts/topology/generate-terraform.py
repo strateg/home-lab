@@ -3,7 +3,7 @@
 Generate Terraform configuration from topology v4.0 (layered)
 
 Usage:
-    python3 scripts/generate-terraform.py [--topology topology.yaml] [--output generated/terraform/]
+    python3 scripts/topology/generate-terraform.py [--topology topology.yaml] [--output generated/terraform/]
 
 Requirements:
     pip install pyyaml jinja2

@@ -3,7 +3,7 @@
 Generate Ansible inventory from topology v4.0
 
 Usage:
-    python3 scripts/generate-ansible-inventory.py [--topology topology.yaml] [--output generated/ansible]
+    python3 scripts/topology/generate-ansible-inventory.py [--topology topology.yaml] [--output generated/ansible]
 
 Requirements:
     pip install pyyaml jinja2

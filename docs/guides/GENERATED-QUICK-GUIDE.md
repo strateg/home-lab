@@ -35,7 +35,7 @@ new_system/
 ### Регенерировать всё (рекомендуется)
 
 ```bash
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 ```
 
 Эта одна команда:
@@ -61,7 +61,7 @@ vim topology.yaml
 ### 2. Регенерируй
 
 ```bash
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 ```
 
 ### 3. Просмотри изменения
@@ -87,13 +87,13 @@ terraform apply
 
 ```bash
 # Только Terraform
-python3 scripts/generate-terraform.py
+python3 scripts/topology/generate-terraform.py
 
 # Только Ansible
-python3 scripts/generate-ansible-inventory.py
+python3 scripts/topology/generate-ansible-inventory.py
 
 # Только документация
-python3 scripts/generate-docs.py
+python3 scripts/topology/generate-docs.py
 ```
 
 **Каждый генератор автоматически очищает свою директорию!**
@@ -140,7 +140,7 @@ python3 scripts/generate-docs.py
 При запуске генератора:
 
 ```bash
-python3 scripts/generate-terraform.py
+python3 scripts/topology/generate-terraform.py
 
 # Вывод:
 🧹 Cleaning output directory: generated/terraform
@@ -210,7 +210,7 @@ ls generated
 # bash: ls: cannot access 'generated': No such file or directory
 
 # Сгенерировать из topology.yaml
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 
 # Теперь есть!
 ls generated
@@ -227,7 +227,7 @@ vim topology.yaml
 # Изменил IP PostgreSQL: 10.0.30.10 → 10.0.30.15
 
 # 2. Регенерировать
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 
 # 3. Проверить изменения
 cd generated/terraform
@@ -251,7 +251,7 @@ vim topology.yaml
 #   ...
 
 # 2. Регенерировать всё
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 
 # Результат:
 # ✓ Generated: generated/terraform/lxc.tf (4 containers)  ← было 3
@@ -273,10 +273,10 @@ terraform apply
 
 ```bash
 # Проверь, что скрипт запускается
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 
 # Если ошибка валидации - исправь topology.yaml
-python3 scripts/validate-topology.py
+python3 scripts/topology/validate-topology.py
 ```
 
 ---
@@ -286,7 +286,7 @@ python3 scripts/validate-topology.py
 ```bash
 # Удали generated/ и регенерируй
 rm -rf generated
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 ```
 
 ---
@@ -306,14 +306,14 @@ python3 scripts/regenerate-all.py
 - **Полная документация**: `scripts/GENERATORS-README.md`
 - **Changelog**: `CHANGELOG-GENERATED-DIR.md`
 - **Topology v2.0**: `topology.yaml`
-- **Валидация**: `python3 scripts/validate-topology.py`
+- **Валидация**: `python3 scripts/topology/validate-topology.py`
 
 ---
 
 ## ✅ Checklist для работы
 
 - [ ] Отредактировал `topology.yaml`
-- [ ] Запустил `python3 scripts/regenerate-all.py`
+- [ ] Запустил `python3 scripts/topology/regenerate-all.py`
 - [ ] Проверил `terraform plan` в `generated/terraform/`
 - [ ] Применил изменения с `terraform apply`
 - [ ] Запустил Ansible (если нужно)

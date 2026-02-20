@@ -4,7 +4,7 @@ Validate topology.yaml against JSON Schema v7 (v4 layered topology)
 Provides detailed error messages and validation reports
 
 Usage:
-    python3 scripts/validate-topology.py [--topology topology.yaml] [--schema schemas/topology-v4-schema.json] [--validator-policy schemas/validator-policy.yaml]
+    python3 scripts/topology/validate-topology.py [--topology topology.yaml] [--schema schemas/topology-v4-schema.json] [--validator-policy schemas/validator-policy.yaml]
 
 Requirements:
     pip install jsonschema pyyaml

@@ -111,12 +111,12 @@ fi
 print_success "topology.yaml exists"
 
 # Check if validate script exists
-if [ ! -f "scripts/validate-topology.py" ]; then
+if [ ! -f "scripts/topology/validate-topology.py" ]; then
     print_warning "validate-topology.py not found, skipping validation"
 else
     echo ""
     echo "Running validation..."
-    if python3 scripts/validate-topology.py; then
+    if python3 scripts/topology/validate-topology.py; then
         print_success "topology.yaml validation passed"
     else
         print_error "topology.yaml validation failed"
@@ -132,14 +132,14 @@ fi
 
 print_header "Test 2: Generate Terraform Configuration"
 
-if [ ! -f "scripts/generate-terraform.py" ]; then
+if [ ! -f "scripts/topology/generate-terraform.py" ]; then
     print_error "generate-terraform.py not found"
     exit 1
 fi
 
 echo ""
 echo "Generating Terraform configuration..."
-if python3 scripts/generate-terraform.py --output generated/terraform; then
+if python3 scripts/topology/generate-terraform.py --output generated/terraform; then
     print_success "Terraform generation completed"
 else
     print_error "Terraform generation failed"
@@ -214,12 +214,12 @@ fi
 
 print_header "Test 4: Generate Ansible Inventory"
 
-if [ ! -f "scripts/generate-ansible-inventory.py" ]; then
+if [ ! -f "scripts/topology/generate-ansible-inventory.py" ]; then
     print_warning "generate-ansible-inventory.py not found, skipping"
 else
     echo ""
     echo "Generating Ansible inventory..."
-    if python3 scripts/generate-ansible-inventory.py --output generated/ansible; then
+    if python3 scripts/topology/generate-ansible-inventory.py --output generated/ansible; then
         print_success "Ansible inventory generation completed"
     else
         print_error "Ansible inventory generation failed"
@@ -276,12 +276,12 @@ fi
 
 print_header "Test 6: Generate Documentation"
 
-if [ ! -f "scripts/generate-docs.py" ]; then
+if [ ! -f "scripts/topology/generate-docs.py" ]; then
     print_warning "generate-docs.py not found, skipping"
 else
     echo ""
     echo "Generating documentation..."
-    if python3 scripts/generate-docs.py --output generated/docs; then
+    if python3 scripts/topology/generate-docs.py --output generated/docs; then
         print_success "Documentation generation completed"
     else
         print_warning "Documentation generation failed (non-critical)"
@@ -328,10 +328,10 @@ TEMP_DIR=$(mktemp -d)
 cp -r generated/ "$TEMP_DIR/generated-before"
 
 # Regenerate
-python3 scripts/generate-terraform.py --output generated/terraform > /dev/null 2>&1
+python3 scripts/topology/generate-terraform.py --output generated/terraform > /dev/null 2>&1
 
-if [ -f "scripts/generate-ansible-inventory.py" ]; then
-    python3 scripts/generate-ansible-inventory.py --output generated/ansible > /dev/null 2>&1
+if [ -f "scripts/topology/generate-ansible-inventory.py" ]; then
+    python3 scripts/topology/generate-ansible-inventory.py --output generated/ansible > /dev/null 2>&1
 fi
 
 # Compare

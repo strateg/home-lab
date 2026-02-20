@@ -1,6 +1,6 @@
 # Proxmox VE 9 Auto-Install Configuration
 # Generated from topology.yaml v2.2.0
-# DO NOT EDIT MANUALLY - Regenerate with scripts/generate-proxmox-answer.py
+# DO NOT EDIT MANUALLY - Regenerate with scripts/topology/generate-proxmox-answer.py
 # Documentation: https://pve.proxmox.com/wiki/Automated_Installation
 
 [global]

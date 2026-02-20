@@ -36,16 +36,16 @@ Infrastructure as Code (IaC) для home lab на базе Proxmox VE 9 с ис�
 vim new_system/topology.yaml
 
 # Валидируем
-python3 new_system/scripts/validate-topology.py
+python3 new_system/scripts/topology/validate-topology.py
 
 # Генерируем Terraform конфигурации
-python3 new_system/scripts/generate-terraform.py
+python3 new_system/scripts/topology/generate-terraform.py
 
 # Генерируем Ansible inventory
-python3 new_system/scripts/generate-ansible-inventory.py
+python3 new_system/scripts/topology/generate-ansible-inventory.py
 
 # Генерируем документацию (диаграммы, таблицы IP)
-python3 new_system/scripts/generate-docs.py
+python3 new_system/scripts/topology/generate-docs.py
 
 # Применяем изменения
 cd new_system/terraform && terraform apply  # terraform -> symlink to generated/terraform

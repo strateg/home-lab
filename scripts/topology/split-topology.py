@@ -90,7 +90,7 @@ def split_topology():
             header = f"# {title}\n"
             header += f"# Part of Home Lab Topology v{version}\n"
             header += f"# This file is part of the modular topology structure\n"
-            header += f"# Edit this file then regenerate: python3 scripts/regenerate-all.py\n"
+            header += f"# Edit this file then regenerate: python3 scripts/topology/regenerate-all.py\n"
             header += "\n"
 
             # Write file

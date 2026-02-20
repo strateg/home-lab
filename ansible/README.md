@@ -188,7 +188,7 @@ Inventory files are **auto-generated** from `topology.yaml`:
 ```bash
 # Regenerate inventory
 cd ..
-python3 scripts/generate-ansible-inventory.py
+python3 scripts/topology/generate-ansible-inventory.py
 ```
 
 ### Host Groups

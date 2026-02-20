@@ -1,7 +1,7 @@
 # L0 Meta
 # Part of Home Lab Topology v4.0.0
 # This file defines version, defaults, and global policies (including security)
-# Edit this file then regenerate: python3 scripts/regenerate-all.py
+# Edit this file then regenerate: python3 scripts/topology/regenerate-all.py
 
 version: 4.0.0
 metadata:

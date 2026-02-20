@@ -54,8 +54,8 @@ check_dependencies() {
 validate_topology() {
     log_info "Validating topology.yaml..."
 
-    if [ -f "$PROJECT_ROOT/scripts/validate-topology.py" ]; then
-        python3 "$PROJECT_ROOT/scripts/validate-topology.py" "$TOPOLOGY_FILE"
+    if [ -f "$PROJECT_ROOT/scripts/topology/validate-topology.py" ]; then
+        python3 "$PROJECT_ROOT/scripts/topology/validate-topology.py" --topology "$TOPOLOGY_FILE"
         log_success "Topology validation passed"
     else
         log_warn "Validator not found, skipping validation"
@@ -67,8 +67,8 @@ generate_all() {
     log_info "Generating configurations from topology.yaml..."
 
     # Run regenerate-all.py
-    cd "$PROJECT_ROOT/scripts"
-    python3 regenerate-all.py
+    cd "$PROJECT_ROOT"
+    python3 scripts/topology/regenerate-all.py
 
     log_success "Configuration generation completed"
 }
@@ -126,7 +126,7 @@ cd scripts
 
 ```bash
 cd scripts
-python3 regenerate-all.py
+python3 topology/regenerate-all.py
 ```
 
 Generated at: $(date)

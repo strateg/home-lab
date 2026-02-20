@@ -10,7 +10,7 @@ This script runs all generators in the correct order:
 5. Generate documentation
 
 Usage:
-    python3 scripts/regenerate-all.py [--topology topology.yaml]
+    python3 scripts/topology/regenerate-all.py [--topology topology.yaml]
 
 Requirements:
     pip install pyyaml jinja2 jsonschema
@@ -28,7 +28,7 @@ class RegenerateAll:
 
     def __init__(self, topology_path: str):
         self.topology_path = topology_path
-        self.scripts_dir = Path("scripts")
+        self.scripts_dir = Path(__file__).resolve().parent
         self.errors = []
         self.start_time = datetime.now()
 
@@ -170,7 +170,7 @@ class RegenerateAll:
             print("      cd ansible && ansible-playbook -i inventory/production/hosts.yml site.yml")
         else:
             print("\nERROR Some generators failed. Check errors above.")
-            print("   Fix issues and run again: python3 scripts/regenerate-all.py")
+            print("   Fix issues and run again: python3 scripts/topology/regenerate-all.py")
 
         print()
 

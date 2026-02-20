@@ -3,7 +3,7 @@
 Generate documentation from topology v4.0
 
 Usage:
-    python3 scripts/generate-docs.py [--topology topology.yaml] [--output generated/docs/]
+    python3 scripts/topology/generate-docs.py [--topology topology.yaml] [--output generated/docs/]
 
 Requirements:
     pip install pyyaml jinja2

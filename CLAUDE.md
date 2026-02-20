@@ -69,14 +69,18 @@ home-lab/
 │   ├── L5-application.yaml    # Services
 │   ├── L6-observability.yaml  # Monitoring
 │   └── L7-operations.yaml     # Workflows, backup
-├── scripts/                   # Generators (Python)
-│   ├── topology_loader.py
-│   ├── generate-terraform.py
-│   ├── generate-terraform-mikrotik.py
-│   ├── generate-ansible-inventory.py
-│   ├── generate-docs.py
-│   ├── validate-topology.py
-│   └── regenerate-all.py
+├── scripts/                   # Scripts by purpose
+│   ├── topology/              # Topology-driven generators/validator
+│   │   ├── topology_loader.py
+│   │   ├── generate-terraform.py
+│   │   ├── generate-terraform-mikrotik.py
+│   │   ├── generate-ansible-inventory.py
+│   │   ├── generate-docs.py
+│   │   ├── validate-topology.py
+│   │   └── regenerate-all.py
+│   ├── openwrt/               # Device setup/config scripts
+│   ├── opi5/                  # Device setup/config scripts
+│   └── templates/             # Jinja2 templates for generators
 ├── generated/                 # Auto-generated (DO NOT EDIT)
 │   ├── terraform/             # Proxmox Terraform
 │   ├── terraform-mikrotik/    # MikroTik Terraform
@@ -110,14 +114,14 @@ vim topology/L2-network.yaml       # Add/modify networks or bridges
 vim topology/L5-application.yaml   # Add/modify services
 
 # 2. Validate and regenerate all
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 
 # Or step by step:
-python3 scripts/validate-topology.py
-python3 scripts/generate-terraform.py
-python3 scripts/generate-terraform-mikrotik.py
-python3 scripts/generate-ansible-inventory.py
-python3 scripts/generate-docs.py
+python3 scripts/topology/validate-topology.py
+python3 scripts/topology/generate-terraform.py
+python3 scripts/topology/generate-terraform-mikrotik.py
+python3 scripts/topology/generate-ansible-inventory.py
+python3 scripts/topology/generate-docs.py
 
 # 3. Plan and apply Terraform changes
 cd generated/terraform
@@ -163,7 +167,7 @@ vim topology/L4-platform.yaml
 vim topology/L5-application.yaml
 
 # 3. Regenerate
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 
 # 4. Apply Terraform (creates LXC)
 cd generated/terraform
@@ -197,7 +201,7 @@ reboot
 scp -r ~/home-lab root@10.0.99.1:/root/
 ssh root@10.0.99.1
 cd /root/home-lab
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 cd deploy && make deploy-all
 ```
 
@@ -296,7 +300,7 @@ Internet (LTE/WAN)
 
 Always regenerate after editing any `topology/L*.yaml` file:
 ```bash
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 ```
 
 ### What Gets Generated
@@ -343,7 +347,7 @@ vim generated/terraform/bridges.tf  # Will be overwritten!
 ```bash
 # Correct:
 vim topology/L2-network.yaml
-python3 scripts/regenerate-all.py
+python3 scripts/topology/regenerate-all.py
 ```
 
 ### DON'T: Reference higher layers from lower

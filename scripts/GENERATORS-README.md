@@ -18,7 +18,7 @@ Validate topology.yaml schema and references.
 
 Usage:
 ```bash
-python scripts/validate-topology.py --topology topology.yaml --schema schemas/topology-v4-schema.json
+python scripts/topology/validate-topology.py --topology topology.yaml --schema schemas/topology-v4-schema.json
 ```
 
 ### generate-terraform.py
@@ -26,7 +26,7 @@ Generate Proxmox Terraform from L1/L2/L3/L4.
 
 Usage:
 ```bash
-python scripts/generate-terraform.py --topology topology.yaml --output generated/terraform
+python scripts/topology/generate-terraform.py --topology topology.yaml --output generated/terraform
 ```
 
 ### generate-terraform-mikrotik.py
@@ -34,7 +34,7 @@ Generate MikroTik RouterOS Terraform from L1/L2/L5.
 
 Usage:
 ```bash
-python scripts/generate-terraform-mikrotik.py --topology topology.yaml --output generated/terraform-mikrotik
+python scripts/topology/generate-terraform-mikrotik.py --topology topology.yaml --output generated/terraform-mikrotik
 ```
 
 ### generate-ansible-inventory.py
@@ -42,7 +42,7 @@ Generate Ansible inventory from L1/L2/L4 and L7 (ansible config).
 
 Usage:
 ```bash
-python scripts/generate-ansible-inventory.py --topology topology.yaml --output generated/ansible/inventory/production
+python scripts/topology/generate-ansible-inventory.py --topology topology.yaml --output generated/ansible/inventory/production
 ```
 
 ### generate-docs.py
@@ -50,7 +50,7 @@ Generate documentation from L0-L5.
 
 Usage:
 ```bash
-python scripts/generate-docs.py --topology topology.yaml --output generated/docs
+python scripts/topology/generate-docs.py --topology topology.yaml --output generated/docs
 ```
 
 ### regenerate-all.py
@@ -58,7 +58,7 @@ Run validation and all generators in order.
 
 Usage:
 ```bash
-python scripts/regenerate-all.py --topology topology.yaml
+python scripts/topology/regenerate-all.py --topology topology.yaml
 ```
 
 ## Dependencies
@@ -122,12 +122,15 @@ new_system_v4/
     ansible/inventory/production/
     docs/
   scripts/
-    generate-terraform.py
-    generate-terraform-mikrotik.py
-    generate-ansible-inventory.py
-    generate-docs.py
-    validate-topology.py
-    regenerate-all.py
+    topology/
+      generate-terraform.py
+      generate-terraform-mikrotik.py
+      generate-ansible-inventory.py
+      generate-docs.py
+      validate-topology.py
+      regenerate-all.py
+      topology_loader.py
+      split-topology.py
     templates/
       terraform/
       terraform-mikrotik/
@@ -138,8 +141,8 @@ new_system_v4/
 ## Quick Start
 
 ```bash
-python scripts/validate-topology.py --topology topology.yaml --schema schemas/topology-v4-schema.json
-python scripts/regenerate-all.py --topology topology.yaml
+python scripts/topology/validate-topology.py --topology topology.yaml --schema schemas/topology-v4-schema.json
+python scripts/topology/regenerate-all.py --topology topology.yaml
 ```
 
 ## Notes

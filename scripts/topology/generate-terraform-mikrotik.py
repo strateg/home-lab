@@ -3,7 +3,7 @@
 Generate MikroTik RouterOS Terraform configuration from topology v4.0
 
 Usage:
-    python3 scripts/generate-terraform-mikrotik.py [--topology topology.yaml] [--output generated/terraform-mikrotik/]
+    python3 scripts/topology/generate-terraform-mikrotik.py [--topology topology.yaml] [--output generated/terraform-mikrotik/]
 
 Requirements:
     pip install pyyaml jinja2

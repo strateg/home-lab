@@ -157,7 +157,7 @@ generate_answer_from_topology() {
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     local project_root="$(dirname "$script_dir")"
     local topology_file="$project_root/topology.yaml"
-    local generator_script="$project_root/scripts/generate-proxmox-answer.py"
+    local generator_script="$project_root/scripts/topology/generate-proxmox-answer.py"
 
     # Check if topology.yaml exists
     if [[ ! -f "$topology_file" ]]; then
