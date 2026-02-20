@@ -1,0 +1,114 @@
+# Icon Legend
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## Mermaid Icon Packs
+
+This page documents icon IDs used by diagram templates.
+
+{% if use_mermaid_icons %}
+`--mermaid-icons` is enabled for this render.
+{% else %}
+`--mermaid-icons` is disabled for this render (fallback nodes are shown).
+{% endif %}
+
+Required icon packs for icon mode: {{ mermaid_icon_pack_hint }}
+
+---
+
+## Device Type Icons
+
+```mermaid
+flowchart TB
+  subgraph dev["Device Types"]
+    {% for entry in device_type_entries %}
+    {% if use_mermaid_icons %}
+    dev_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "rounded", label: "{{ entry.label }}", pos: "b", h: 42 }
+    {% else %}
+    dev_{{ entry.label | mermaid_id }}["{{ entry.label }}<br/>{{ entry.icon }}"]
+    {% endif %}
+    {% endfor %}
+  end
+```
+
+| Device Type | Icon |
+|-------------|------|
+{% for entry in device_type_entries %}
+| `{{ entry.label }}` | `{{ entry.icon }}` |
+{% endfor %}
+
+---
+
+## Trust Zone Icons
+
+```mermaid
+flowchart LR
+  subgraph zones["Trust Zones"]
+    {% for entry in zone_entries %}
+    {% if use_mermaid_icons %}
+    zone_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "circle", label: "{{ entry.label }}", pos: "b", h: 40 }
+    {% else %}
+    zone_{{ entry.label | mermaid_id }}["{{ entry.label }}<br/>{{ entry.icon }}"]
+    {% endif %}
+    {% endfor %}
+  end
+```
+
+| Trust Zone | Icon |
+|------------|------|
+{% for entry in zone_entries %}
+| `{{ entry.label }}` | `{{ entry.icon }}` |
+{% endfor %}
+
+---
+
+## Cloud Provider Icons
+
+```mermaid
+flowchart LR
+  subgraph cloud["Cloud Providers"]
+    {% for entry in provider_entries %}
+    {% if use_mermaid_icons %}
+    cloud_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "circle", label: "{{ entry.label }}", pos: "b", h: 40 }
+    {% else %}
+    cloud_{{ entry.label | mermaid_id }}["{{ entry.label }}<br/>{{ entry.icon }}"]
+    {% endif %}
+    {% endfor %}
+  end
+```
+
+| Provider | Icon |
+|----------|------|
+{% for entry in provider_entries %}
+| `{{ entry.label }}` | `{{ entry.icon }}` |
+{% endfor %}
+
+---
+
+## External Endpoint Icons
+
+```mermaid
+flowchart LR
+  subgraph ext["External Endpoints"]
+    {% for entry in external_entries %}
+    {% if use_mermaid_icons %}
+    ext_{{ entry.label | mermaid_id }}@{ icon: "{{ entry.icon }}", form: "circle", label: "{{ entry.label }}", pos: "b", h: 40 }
+    {% else %}
+    ext_{{ entry.label | mermaid_id }}["{{ entry.label }}<br/>{{ entry.icon }}"]
+    {% endif %}
+    {% endfor %}
+  end
+```
+
+| External Ref Pattern | Icon |
+|----------------------|------|
+{% for entry in external_entries %}
+| `{{ entry.label }}` | `{{ entry.icon }}` |
+{% endfor %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 topology-tools/generate-docs.py`

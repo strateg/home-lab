@@ -12,21 +12,30 @@ class DiagramDocumentationGenerator:
 
     ICON_PACK_HINT = "`si` (Simple Icons) and `mdi` (Material Design Icons)"
     DEVICE_ICON_BY_TYPE = {
-        "router": "si:mikrotik",
         "hypervisor": "si:proxmox",
-        "cloud-vm": "mdi:cloud-outline",
+        "router": "mdi:router-network",
         "sbc": "mdi:chip",
-        "ups": "mdi:battery-high",
-        "pdu": "mdi:power-socket-eu",
         "switch": "mdi:ethernet-switch",
         "ap": "mdi:access-point",
         "nas": "mdi:nas",
+        "cloud-vm": "mdi:cloud-outline",
+        "ups": "mdi:battery-high",
+        "pdu": "mdi:power-socket-eu",
     }
     DEVICE_ICON_BY_CLASS = {
         "network": "mdi:router-network",
         "compute": "mdi:server",
         "storage": "mdi:database",
         "power": "mdi:flash",
+        "external": "mdi:cloud-outline",
+    }
+    CLOUD_PROVIDER_ICON = {
+        "oracle": "si:oracle",
+        "hetzner": "si:hetzner",
+        "aws": "si:amazonaws",
+        "gcp": "si:googlecloud",
+        "azure": "si:microsoftazure",
+        "digitalocean": "si:digitalocean",
     }
     ZONE_ICON_MAP = {
         "untrusted": "mdi:earth",
@@ -36,6 +45,13 @@ class DiagramDocumentationGenerator:
         "servers": "mdi:server",
         "management": "mdi:shield-crown",
     }
+    EXTERNAL_LEGEND_SAMPLES = [
+        "isp-uplink",
+        "mobile-operator-lte",
+        "wifi-clients-5ghz",
+        "utility-grid-home",
+        "external-service",
+    ]
 
     DIAGRAMS_INDEX = {
         "core": [
@@ -48,6 +64,7 @@ class DiagramDocumentationGenerator:
         "phase1": [
             {"title": "Power Links Topology", "file": "power-links-topology.md", "description": "Physical power cabling and feed paths"},
             {"title": "Data Links Topology", "file": "data-links-topology.md", "description": "Physical data connectivity"},
+            {"title": "Icon Legend", "file": "icon-legend.md", "description": "Icon mapping used in professional diagrams"},
             {"title": "Physical Topology", "file": "physical-topology.md", "description": "Physical devices and links"},
             {"title": "VLAN Topology", "file": "vlan-topology.md", "description": "VLAN segmentation and trunking"},
             {"title": "Trust Zones", "file": "trust-zones.md", "description": "Security zones and firewall matrix"},
@@ -144,7 +161,24 @@ class DiagramDocumentationGenerator:
         return linked_devices, device_map, sorted(external_refs), links
 
     def _device_icon(self, device: Dict) -> str:
+        device_id = (device.get("id") or "").lower()
         device_type = (device.get("type") or "").lower()
+        device_model = (device.get("model") or "").lower()
+
+        # Provider-specific cloud icons look better than generic cloud nodes.
+        cloud = device.get("cloud") or {}
+        provider = (cloud.get("provider") or "").lower()
+        if device_type == "cloud-vm" and provider in self.CLOUD_PROVIDER_ICON:
+            return self.CLOUD_PROVIDER_ICON[provider]
+
+        # Local vendor hints.
+        if "mikrotik" in device_id or "mikrotik" in device_model:
+            return "si:mikrotik"
+        if "proxmox" in device_model:
+            return "si:proxmox"
+        if "openwrt" in device_model or "gl-inet" in device_model:
+            return "si:openwrt"
+
         if device_type in self.DEVICE_ICON_BY_TYPE:
             return self.DEVICE_ICON_BY_TYPE[device_type]
         device_class = (device.get("class") or "").lower()
@@ -163,6 +197,12 @@ class DiagramDocumentationGenerator:
             return "mdi:transmission-tower"
         if "wifi" in text:
             return "mdi:wifi"
+        if "vpn" in text:
+            return "mdi:vpn"
+        if "oracle" in text:
+            return "si:oracle"
+        if "hetzner" in text:
+            return "si:hetzner"
         return "mdi:help-circle-outline"
 
     def generate_all(self) -> bool:
@@ -174,6 +214,7 @@ class DiagramDocumentationGenerator:
         # Visual diagrams (Phase 1)
         success &= self.generate_power_links_topology()
         success &= self.generate_data_links_topology()
+        success &= self.generate_icon_legend()
         success &= self.generate_physical_topology()
         success &= self.generate_vlan_topology()
         success &= self.generate_trust_zones()
@@ -248,6 +289,48 @@ class DiagramDocumentationGenerator:
             "vlan-topology.md",
             networks=networks,
             bridges=bridges,
+        )
+
+    def generate_icon_legend(self) -> bool:
+        """Generate icon legend used across professional Mermaid diagrams."""
+        devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
+        trust_zones = self.topology["L2_network"].get("trust_zones", {})
+
+        device_type_entries = []
+        observed_types = {device.get("type") for device in devices if device.get("type")}
+        for device_type in sorted(observed_types):
+            icon = self.DEVICE_ICON_BY_TYPE.get(device_type, "mdi:devices")
+            device_type_entries.append({"label": device_type, "icon": icon})
+
+        for device_type, icon in sorted(self.DEVICE_ICON_BY_TYPE.items()):
+            if device_type not in observed_types:
+                device_type_entries.append({"label": device_type, "icon": icon})
+
+        observed_providers = {
+            (device.get("cloud") or {}).get("provider")
+            for device in devices
+            if isinstance(device, dict)
+        }
+        provider_entries = [
+            {"label": provider, "icon": self.CLOUD_PROVIDER_ICON.get(provider, "mdi:cloud-outline")}
+            for provider in sorted(provider for provider in observed_providers if provider)
+        ]
+
+        zone_entries = []
+        for zone_id in sorted(trust_zones.keys()):
+            zone_entries.append({"label": zone_id, "icon": self.ZONE_ICON_MAP.get(zone_id, "mdi:shield-outline")})
+
+        external_entries = []
+        for ref in self.EXTERNAL_LEGEND_SAMPLES:
+            external_entries.append({"label": ref, "icon": self._external_ref_icon(ref)})
+
+        return self._render_document(
+            "docs/icon-legend.md.j2",
+            "icon-legend.md",
+            device_type_entries=device_type_entries,
+            provider_entries=provider_entries,
+            zone_entries=zone_entries,
+            external_entries=external_entries,
         )
 
     def generate_trust_zones(self) -> bool:
