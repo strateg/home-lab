@@ -3,7 +3,7 @@
 `topology-tools/` contains topology-driven generators and validator.
 
 Related root directories:
-- `schemas/` - topology schema and validator policy
+- `topology-tools/schemas/` - topology schema and validator policy
 - `topology-tools/templates/` - Jinja2 templates for generated artifacts
 - `manual-scripts/` - manual setup/config scripts (separated from topology tooling)
 
@@ -25,7 +25,7 @@ Validate topology.yaml schema and references.
 
 Usage:
 ```bash
-python topology-tools/validate-topology.py --topology topology.yaml --schema schemas/topology-v4-schema.json
+python topology-tools/validate-topology.py --topology topology.yaml --schema topology-tools/schemas/topology-v4-schema.json
 ```
 
 ### generate-terraform.py

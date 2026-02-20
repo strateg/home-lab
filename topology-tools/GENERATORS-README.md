@@ -18,7 +18,7 @@ Validate topology.yaml schema and references.
 
 Usage:
 ```bash
-python topology-tools/validate-topology.py --topology topology.yaml --schema schemas/topology-v4-schema.json
+python topology-tools/validate-topology.py --topology topology.yaml --schema topology-tools/schemas/topology-v4-schema.json
 ```
 
 ### generate-terraform.py
@@ -114,8 +114,6 @@ home-lab/
     L5-application.yaml
     L6-observability.yaml
     L7-operations.yaml
-  schemas/
-    topology-v4-schema.json
   generated/
     terraform/
     terraform-mikrotik/
@@ -130,6 +128,9 @@ home-lab/
     regenerate-all.py
     topology_loader.py
     split-topology.py
+    schemas/
+      topology-v4-schema.json
+      validator-policy.yaml
     templates/
       terraform/
       terraform-mikrotik/
@@ -143,7 +144,7 @@ home-lab/
 ## Quick Start
 
 ```bash
-python topology-tools/validate-topology.py --topology topology.yaml --schema schemas/topology-v4-schema.json
+python topology-tools/validate-topology.py --topology topology.yaml --schema topology-tools/schemas/topology-v4-schema.json
 python topology-tools/regenerate-all.py --topology topology.yaml
 ```
 

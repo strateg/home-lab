@@ -242,7 +242,7 @@ Total: 1587 lines
 - Monitoring dashboard (4 views)
 
 #### Validation
-- JSON Schema v7 (`schemas/topology-v3-schema.json`, 819 lines)
+- JSON Schema v7 (`topology-tools/schemas/topology-v3-schema.json`, 819 lines)
 - New validator (`topology-tools/validate-topology.py`, 393 lines)
 - Two-step validation: schema compliance + reference consistency
 - Validates all `*_ref` fields point to existing IDs

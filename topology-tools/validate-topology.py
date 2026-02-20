@@ -4,7 +4,7 @@ Validate topology.yaml against JSON Schema v7 (v4 layered topology)
 Provides detailed error messages and validation reports
 
 Usage:
-    python3 topology-tools/validate-topology.py [--topology topology.yaml] [--schema schemas/topology-v4-schema.json] [--validator-policy schemas/validator-policy.yaml]
+    python3 topology-tools/validate-topology.py [--topology topology.yaml] [--schema topology-tools/schemas/topology-v4-schema.json] [--validator-policy topology-tools/schemas/validator-policy.yaml]
 
 Requirements:
     pip install jsonschema pyyaml
@@ -28,6 +28,10 @@ except ImportError:
     print("   Install with: pip install jsonschema")
     sys.exit(1)
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_SCHEMA_PATH = SCRIPT_DIR / "schemas" / "topology-v4-schema.json"
+DEFAULT_VALIDATOR_POLICY_PATH = SCRIPT_DIR / "schemas" / "validator-policy.yaml"
+
 
 class SchemaValidator:
     """Validate topology YAML against JSON Schema"""
@@ -35,7 +39,7 @@ class SchemaValidator:
     def __init__(self, topology_path: str, schema_path: str, validator_policy_path: Optional[str] = None):
         self.topology_path = Path(topology_path)
         self.schema_path = Path(schema_path)
-        self.validator_policy_path = Path(validator_policy_path) if validator_policy_path else Path("schemas/validator-policy.yaml")
+        self.validator_policy_path = Path(validator_policy_path) if validator_policy_path else DEFAULT_VALIDATOR_POLICY_PATH
         self.topology: Optional[Dict] = None
         self.schema: Optional[Dict] = None
         self.validator_policy: Dict[str, Any] = self._default_validator_policy()
@@ -1067,12 +1071,12 @@ def main():
     )
     parser.add_argument(
         "--schema",
-        default="schemas/topology-v4-schema.json",
+        default=str(DEFAULT_SCHEMA_PATH),
         help="Path to JSON Schema file"
     )
     parser.add_argument(
         "--validator-policy",
-        default="schemas/validator-policy.yaml",
+        default=str(DEFAULT_VALIDATOR_POLICY_PATH),
         help="Path to validator policy YAML file (non-domain validation settings)"
     )
     parser.add_argument(

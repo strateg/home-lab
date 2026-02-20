@@ -77,6 +77,7 @@ home-lab/
 │   ├── generate-docs.py
 │   ├── validate-topology.py
 │   ├── regenerate-all.py
+│   ├── schemas/               # JSON Schema + validator policy
 │   └── templates/             # Jinja2 templates for generators
 ├── manual-scripts/            # Manual setup/config scripts
 │   ├── openwrt/
@@ -97,7 +98,6 @@ home-lab/
 │   ├── Makefile
 │   └── phases/
 ├── docs/                      # Manual documentation
-├── schemas/                   # JSON Schema validation
 ├── configs/                   # Device configs (GL.iNet, VPN)
 └── Migrated_and_archived/     # Legacy code (archived)
 ```
