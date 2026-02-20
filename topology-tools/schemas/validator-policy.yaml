@@ -6,7 +6,8 @@ checks:
 
 paths:
   l1_devices_root: topology/L1-foundation/devices/
-  l1_links_root: topology/L1-foundation/links/
+  l1_data_links_root: topology/L1-foundation/data-links/
+  l1_power_links_root: topology/L1-foundation/power-links/
   l2_networks_root: topology/L2-network/networks/
   l2_bridges_root: topology/L2-network/bridges/
   l2_firewall_policies_root: topology/L2-network/firewall/policies/

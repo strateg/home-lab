@@ -1,0 +1,10 @@
+id: plink-grid-ups-main
+endpoint_a:
+  external_ref: utility-grid-home
+endpoint_b:
+  device_ref: ups-main
+mode: ac
+voltage_v: 230
+max_watts: 390
+status: active
+description: Utility AC mains feed to UPS input.

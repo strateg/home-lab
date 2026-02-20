@@ -80,7 +80,11 @@
     },
     "PhysicalLinkMedium": {
       "type": "string",
-      "enum": ["ethernet", "wifi", "fiber", "lte", "coax", "usb", "serial"]
+      "enum": ["ethernet", "wifi", "fiber", "optical", "lte", "coax", "usb", "serial"]
+    },
+    "PowerLinkMode": {
+      "type": "string",
+      "enum": ["ac", "dc", "poe", "usb-pd", "battery", "wireless-inductive"]
     },
     "NetworkPlane": {
       "type": "string",
@@ -256,6 +260,10 @@
     "InterfaceRef": {
       "type": "string",
       "pattern": "^if-[a-z0-9-]+$"
+    },
+    "DataLinkRef": {
+      "type": "string",
+      "pattern": "^link-[a-z0-9-]+$"
     },
 
     "IpAddress": {
@@ -435,12 +443,30 @@
       "type": "object",
       "properties": {
         "enabled": { "type": "boolean" },
-        "mode": { "type": "string", "enum": ["poe", "usb-pd", "dc", "ac"] },
+        "mode": { "type": "string", "enum": ["poe"] },
         "standard": { "$ref": "#/definitions/PowerDeliveryStandard" },
         "provider_endpoint": { "type": "string", "enum": ["endpoint_a", "endpoint_b", "external"] },
         "class": { "type": "integer", "minimum": 0, "maximum": 8 },
         "max_watts": { "type": "number" },
         "voltage_v": { "type": "number" },
+        "description": { "type": "string" }
+      }
+    },
+    "PowerLink": {
+      "type": "object",
+      "required": ["id", "endpoint_a", "endpoint_b", "mode"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^plink-[a-z0-9-]+$" },
+        "endpoint_a": { "$ref": "#/definitions/PhysicalLinkEndpoint" },
+        "endpoint_b": { "$ref": "#/definitions/PhysicalLinkEndpoint" },
+        "mode": { "$ref": "#/definitions/PowerLinkMode" },
+        "standard": { "$ref": "#/definitions/PowerDeliveryStandard" },
+        "provider_endpoint": { "type": "string", "enum": ["endpoint_a", "endpoint_b", "external"] },
+        "max_watts": { "type": "number", "minimum": 0 },
+        "voltage_v": { "type": "number", "minimum": 0 },
+        "current_a": { "type": "number", "minimum": 0 },
+        "data_link_ref": { "$ref": "#/definitions/DataLinkRef" },
+        "status": { "type": "string", "enum": ["active", "standby", "planned"] },
         "description": { "type": "string" }
       }
     },
@@ -743,9 +769,13 @@
           "type": "array",
           "items": { "$ref": "#/definitions/Device" }
         },
-        "physical_links": {
+        "data_links": {
           "type": "array",
           "items": { "$ref": "#/definitions/PhysicalLink" }
+        },
+        "power_links": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/PowerLink" }
         }
       }
     },

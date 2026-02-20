@@ -14,7 +14,7 @@
 #
 # Layer map:
 # L0 Meta          -> version, defaults, policies
-# L1 Foundation    -> devices, interfaces, MACs, physical power sources
+# L1 Foundation    -> devices, interfaces, MACs, data links, power links, physical power sources
 # L2 Network       -> networks, bridges, trust_zones, firewall
 # L3 Data          -> storage, data assets
 # L4 Platform      -> VMs, LXC, templates

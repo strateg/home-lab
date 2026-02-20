@@ -1,0 +1,10 @@
+id: plink-ups-main-pdu-rack-home
+endpoint_a:
+  device_ref: ups-main
+endpoint_b:
+  device_ref: pdu-rack-home
+mode: ac
+voltage_v: 230
+max_watts: 350
+status: active
+description: UPS output feeds managed rack PDU.

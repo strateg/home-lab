@@ -311,7 +311,7 @@ class DocumentationGenerator:
 
             devices = self.topology['L1_foundation'].get('devices', [])
             locations = self.topology['L1_foundation'].get('locations', [])
-            physical_links = self.topology['L1_foundation'].get('physical_links', [])
+            physical_links = self.topology['L1_foundation'].get('data_links', [])
 
             content = template.render(
                 devices=devices,

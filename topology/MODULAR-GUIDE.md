@@ -9,7 +9,7 @@ This guide defines how to keep topology files small, readable, and safe to evolv
 - Enforce strict downward dependencies (`L(N)` may reference only `L<=N`).
 - Make adding new hardware a small, local change.
 - Keep **underlay vs overlay** explicit:
-  - L1 = physical links (`physical_links`)
+  - L1 = data links (`data_links`) and power links (`power_links`)
   - L2 = virtual segmentation (`network_plane`, `segmentation_type`, `transport`, `volatility`)
 
 ## Dependency Rules
@@ -38,7 +38,8 @@ Rules:
   - `topology/L1-foundation/locations/`
   - `topology/L1-foundation/devices/owned/<class>/`
   - `topology/L1-foundation/devices/provider/<class>/`
-  - `topology/L1-foundation/links/`
+  - `topology/L1-foundation/data-links/` (data links)
+  - `topology/L1-foundation/power-links/` (power links)
   - `topology/L7-operations.yaml`:
   - `topology/L7-operations/power/`
   - `topology/L2-network.yaml`:
@@ -68,7 +69,9 @@ Rules:
 - Model is defined by fields inside files; folders are validated against model.
 - Validator reports placement lints (warnings) and suggests expected paths when files are moved/copied incorrectly.
 - In L1 devices, always set taxonomy explicitly: `class` + `substrate` + `access`.
-- `physical_links` can reference only owned/colo substrate devices (no `provider-instance`).
+- `data_links` can reference only owned/colo substrate devices (no `provider-instance`).
+- `power_links` can reference only owned/colo substrate devices (no `provider-instance`).
+- For PoE, model both links: one data link + one power link with `data_link_ref`.
 - VM/LXC remain in `L4_platform` (compute module), not in `L1_foundation`.
 - In L2 networks, `managed_by_ref` should point to `class: network` device.
 - For L2 networks with `profile_ref`, keep only exception overrides in network files.
@@ -78,18 +81,19 @@ Rules:
 1. Add new device file under `topology/L1-foundation/devices/<substrate-group>/<class>/<device-id>.yaml`.
 2. Add include entry to `topology/L1-foundation/devices/_index.yaml`.
 3. Set `class`/`substrate`/`access`.
-4. Add/update physical connectivity in `topology/L1-foundation/links/` and `links/_index.yaml` only for non-provider substrates.
-5. If needed, add/update virtual network in `topology/L2-network/networks/` and `_index.yaml`.
-6. Prefer `profile_ref` from `topology/L2-network/profiles/default.yaml`.
-7. Read profile rules in `topology/L2-network/profiles/README.md`.
-8. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
-9. For firewall policy changes, edit `topology/L2-network/firewall/policies/*` and include from `topology/L2-network/firewall/policies/_index.yaml`.
-10. Add VM/LXC workloads in `topology/L4-platform.yaml` only.
-11. Add platform/app/monitoring modules only if the device hosts workloads.
-12. Validate and regenerate:
+4. Add/update data connectivity in `topology/L1-foundation/data-links/` and `data-links/_index.yaml` only for non-provider substrates.
+5. Add/update power cabling in `topology/L1-foundation/power-links/` and `power-links/_index.yaml`.
+6. If needed, add/update virtual network in `topology/L2-network/networks/` and `_index.yaml`.
+7. Prefer `profile_ref` from `topology/L2-network/profiles/default.yaml`.
+8. Read profile rules in `topology/L2-network/profiles/README.md`.
+9. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
+10. For firewall policy changes, edit `topology/L2-network/firewall/policies/*` and include from `topology/L2-network/firewall/policies/_index.yaml`.
+11. Add VM/LXC workloads in `topology/L4-platform.yaml` only.
+12. Add platform/app/monitoring modules only if the device hosts workloads.
+13. Validate and regenerate:
    - `python topology-tools/validate-topology.py`
    - `python topology-tools/generate-docs.py`
-13. If architecture changed, add a new ADR in `adr/NNNN-*.md`.
+14. If architecture changed, add a new ADR in `adr/NNNN-*.md`.
 
 ## Anti-Patterns
 

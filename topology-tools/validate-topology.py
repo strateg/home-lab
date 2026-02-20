@@ -59,7 +59,7 @@ class SchemaValidator:
             },
             'paths': {
                 'l1_devices_root': 'topology/L1-foundation/devices/',
-                'l1_links_root': 'topology/L1-foundation/links/',
+                'l1_data_links_root': 'topology/L1-foundation/data-links/',
                 'l2_networks_root': 'topology/L2-network/networks/',
                 'l2_bridges_root': 'topology/L2-network/bridges/',
                 'l2_firewall_policies_root': 'topology/L2-network/firewall/policies/',
@@ -173,6 +173,8 @@ class SchemaValidator:
         ids = {
             'devices': set(),
             'interfaces': set(),
+            'data_links': set(),
+            'power_links': set(),
             'power_policies': set(),
             'networks': set(),
             'bridges': set(),
@@ -205,6 +207,14 @@ class SchemaValidator:
             for iface in device.get('interfaces', []) or []:
                 if isinstance(iface, dict) and iface.get('id'):
                     ids['interfaces'].add(iface['id'])
+
+        for link in l1.get('data_links', []) or []:
+            if isinstance(link, dict) and link.get('id'):
+                ids['data_links'].add(link['id'])
+
+        for link in l1.get('power_links', []) or []:
+            if isinstance(link, dict) and link.get('id'):
+                ids['power_links'].add(link['id'])
 
         l7_power = l7.get('power_resilience', {}) or {}
         l7_policies = l7_power.get('policies', []) or []
@@ -267,7 +277,8 @@ class SchemaValidator:
         self._check_l0_contracts(ids)
         self._check_network_refs(ids)
         self._check_bridge_refs(ids)
-        self._check_physical_links(ids)
+        self._check_data_links(ids)
+        self._check_power_links(ids)
         self._check_vm_refs(ids)
         self._check_lxc_refs(ids)
         self._check_service_refs(ids)
@@ -327,8 +338,16 @@ class SchemaValidator:
             if {'id', 'endpoint_a', 'endpoint_b', 'medium'}.issubset(obj.keys()):
                 self._check_expected_prefix(
                     rel,
-                    self._policy_get(['paths', 'l1_links_root'], "topology/L1-foundation/links/"),
-                    f"topology/L1-foundation/links/{obj.get('id', file_path.name)}.yaml"
+                    self._policy_get(['paths', 'l1_data_links_root'], "topology/L1-foundation/data-links/"),
+                    f"topology/L1-foundation/data-links/{obj.get('id', file_path.name)}.yaml"
+                )
+                continue
+
+            if {'id', 'endpoint_a', 'endpoint_b', 'mode'}.issubset(obj.keys()) and str(obj.get('id', '')).startswith('plink-'):
+                self._check_expected_prefix(
+                    rel,
+                    self._policy_get(['paths', 'l1_power_links_root'], "topology/L1-foundation/power-links/"),
+                    f"topology/L1-foundation/power-links/{obj.get('id', file_path.name)}.yaml"
                 )
                 continue
 
@@ -779,9 +798,9 @@ class SchemaValidator:
                 if port not in ids['interfaces']:
                     self.errors.append(f"Bridge '{bridge_id}': port '{port}' does not exist in device interfaces")
 
-    def _check_physical_links(self, ids: Dict[str, Set[str]]) -> None:
+    def _check_data_links(self, ids: Dict[str, Set[str]]) -> None:
         l1 = self.topology.get('L1_foundation', {})
-        links = l1.get('physical_links', []) or []
+        links = l1.get('data_links', []) or []
         if not links:
             return
 
@@ -808,28 +827,116 @@ class SchemaValidator:
 
                 if device_ref and device_ref not in ids['devices']:
                     self.errors.append(
-                        f"Physical link '{link_id}' {endpoint_key}: device_ref '{device_ref}' does not exist"
+                        f"Data link '{link_id}' {endpoint_key}: device_ref '{device_ref}' does not exist"
                     )
                 elif device_ref and device_map.get(device_ref, {}).get('substrate') == 'provider-instance':
                     self.errors.append(
-                        f"Physical link '{link_id}' {endpoint_key}: device_ref '{device_ref}' is provider-instance"
+                        f"Data link '{link_id}' {endpoint_key}: device_ref '{device_ref}' is provider-instance"
                     )
 
                 if interface_ref and interface_ref not in ids['interfaces']:
                     self.errors.append(
-                        f"Physical link '{link_id}' {endpoint_key}: interface_ref '{interface_ref}' does not exist"
+                        f"Data link '{link_id}' {endpoint_key}: interface_ref '{interface_ref}' does not exist"
                     )
 
                 if device_ref and interface_ref in interface_owner and interface_owner[interface_ref] != device_ref:
                     owner = interface_owner[interface_ref]
                     self.errors.append(
-                        f"Physical link '{link_id}' {endpoint_key}: interface_ref '{interface_ref}' "
+                        f"Data link '{link_id}' {endpoint_key}: interface_ref '{interface_ref}' "
                         f"belongs to '{owner}', not '{device_ref}'"
                     )
 
                 if not device_ref and not external_ref:
                     self.errors.append(
-                        f"Physical link '{link_id}' {endpoint_key}: either device_ref or external_ref is required"
+                        f"Data link '{link_id}' {endpoint_key}: either device_ref or external_ref is required"
+                    )
+
+            power_delivery = link.get('power_delivery')
+            medium = link.get('medium')
+            if isinstance(power_delivery, dict):
+                if medium != 'ethernet':
+                    self.errors.append(
+                        f"Data link '{link_id}': power_delivery is allowed only on medium 'ethernet'"
+                    )
+                mode = power_delivery.get('mode')
+                if mode and mode != 'poe':
+                    self.errors.append(
+                        f"Data link '{link_id}': power_delivery.mode must be 'poe' for data links"
+                    )
+
+    def _check_power_links(self, ids: Dict[str, Set[str]]) -> None:
+        l1 = self.topology.get('L1_foundation', {})
+        links = l1.get('power_links', []) or []
+        if not links:
+            return
+
+        device_map = {
+            d.get('id'): d for d in l1.get('devices', []) or []
+            if isinstance(d, dict) and d.get('id')
+        }
+
+        interface_owner = {}
+        for device in l1.get('devices', []) or []:
+            device_id = device.get('id')
+            for iface in device.get('interfaces', []) or []:
+                iface_id = iface.get('id')
+                if iface_id:
+                    interface_owner[iface_id] = device_id
+
+        for link in links:
+            link_id = link.get('id', 'unknown')
+            mode = link.get('mode')
+            data_link_ref = link.get('data_link_ref')
+
+            if data_link_ref and data_link_ref not in ids['data_links']:
+                self.errors.append(
+                    f"Power link '{link_id}': data_link_ref '{data_link_ref}' does not exist"
+                )
+
+            if mode == 'poe' and not data_link_ref:
+                self.warnings.append(
+                    f"Power link '{link_id}': PoE link should set data_link_ref to matching data link"
+                )
+            elif mode != 'poe' and data_link_ref:
+                self.warnings.append(
+                    f"Power link '{link_id}': data_link_ref is typically used only with mode 'poe'"
+                )
+
+            if mode == 'wireless-inductive' and data_link_ref:
+                self.errors.append(
+                    f"Power link '{link_id}': wireless-inductive mode must not set data_link_ref"
+                )
+
+            for endpoint_key in ('endpoint_a', 'endpoint_b'):
+                endpoint = link.get(endpoint_key, {}) or {}
+                device_ref = endpoint.get('device_ref')
+                interface_ref = endpoint.get('interface_ref')
+                external_ref = endpoint.get('external_ref')
+
+                if device_ref and device_ref not in ids['devices']:
+                    self.errors.append(
+                        f"Power link '{link_id}' {endpoint_key}: device_ref '{device_ref}' does not exist"
+                    )
+                elif device_ref and device_map.get(device_ref, {}).get('substrate') == 'provider-instance':
+                    self.errors.append(
+                        f"Power link '{link_id}' {endpoint_key}: device_ref '{device_ref}' is provider-instance"
+                    )
+
+                if interface_ref and interface_ref not in ids['interfaces']:
+                    self.errors.append(
+                        f"Power link '{link_id}' {endpoint_key}: interface_ref '{interface_ref}' does not exist"
+                    )
+
+                if device_ref and interface_ref in interface_owner and interface_owner[interface_ref] != device_ref:
+                    owner = interface_owner[interface_ref]
+                    self.errors.append(
+                        f"Power link '{link_id}' {endpoint_key}: interface_ref '{interface_ref}' "
+                        f"belongs to '{owner}', not '{device_ref}'"
+                    )
+
+                if not device_ref and not external_ref:
+                    self.errors.append(
+                        f"Power link '{link_id}' {endpoint_key}: either device_ref or external_ref is required"
                     )
 
     def _check_vm_refs(self, ids: Dict[str, Set[str]]) -> None:

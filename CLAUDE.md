@@ -235,7 +235,7 @@ cd deploy && make deploy-all
 | Layer | File | Contains |
 |-------|------|----------|
 | L0 | L0-meta.yaml | version, defaults, security_policy |
-| L1 | L1-foundation.yaml | devices, interfaces, physical links, physical power devices |
+| L1 | L1-foundation.yaml | devices, interfaces, data links (data_links), power links (power_links), physical power devices |
 | L2 | L2-network.yaml | networks, bridges, firewall, qos, ipv6 |
 | L3 | L3-data.yaml | storage_pools, data_assets |
 | L4 | L4-platform.yaml | vms, lxc, templates |
