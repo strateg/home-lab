@@ -74,6 +74,26 @@
       "minimum": 0,
       "maximum": 3
     },
+    "TrustZoneDefinition": {
+      "type": "object",
+      "required": ["name", "security_level"],
+      "properties": {
+        "name": { "type": "string" },
+        "security_level": { "$ref": "#/definitions/SecurityLevel" },
+        "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "description": { "type": "string" },
+        "isolated": { "type": "boolean" },
+        "allowed_outbound": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "allowed_inbound": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
     "VpnType": {
       "type": "string",
       "enum": ["wireguard", "tailscale", "openvpn", "ipsec", "zerotier"]
@@ -264,6 +284,10 @@
     "DataLinkRef": {
       "type": "string",
       "pattern": "^link-[a-z0-9-]+$"
+    },
+    "FirewallPolicyRef": {
+      "type": "string",
+      "pattern": "^fw-[a-z0-9-]+$"
     },
 
     "IpAddress": {
@@ -520,7 +544,12 @@
         "managed_by_ref": { "$ref": "#/definitions/DeviceRef" },
         "interface_ref": { "$ref": "#/definitions/InterfaceRef" },
         "vpn_type": { "$ref": "#/definitions/VpnType" },
-        "ip_allocations": { "type": "array" }
+        "ip_allocations": { "type": "array" },
+        "firewall_policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/FirewallPolicyRef" },
+          "description": "List of firewall policy IDs that apply to this network"
+        }
       }
     },
     "NetworkProfile": {
@@ -782,7 +811,13 @@
     "L2_network": {
       "type": "object",
       "properties": {
-        "trust_zones": { "type": "object" },
+        "trust_zones": {
+          "type": "object",
+          "patternProperties": {
+            "^[a-z][a-z0-9-]*$": { "$ref": "#/definitions/TrustZoneDefinition" }
+          },
+          "additionalProperties": false
+        },
         "network_profiles": {
           "type": "object",
           "patternProperties": {

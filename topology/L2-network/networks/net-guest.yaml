@@ -7,14 +7,16 @@ dns:
 - 8.8.8.8
 dhcp: true
 dhcp_range: 192.168.30.100-192.168.30.200
-isolated: true
 trust_zone_ref: guest
 bridge_ref: null
 vlan: 50
 description: Isolated guest WiFi network
 profile_ref: prof-virtual-vlan-wifi
 managed_by_ref: mikrotik-chateau
-firewall_policy: internet-only
+firewall_policy_refs:
+  - fw-guest-isolated
+  - fw-established-related
+  - fw-default-deny
 ip_allocations:
 - ip: 192.168.30.1
   device_ref: mikrotik-chateau

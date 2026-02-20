@@ -182,6 +182,7 @@ class SchemaValidator:
             'data_assets': set(),
             'trust_zones': set(),
             'network_profiles': set(),
+            'firewall_policies': set(),
             'vms': set(),
             'lxc': set(),
             'services': set(),
@@ -232,6 +233,10 @@ class SchemaValidator:
         for bridge in l2.get('bridges', []) or []:
             if isinstance(bridge, dict) and bridge.get('id'):
                 ids['bridges'].add(bridge['id'])
+
+        for fw_policy in l2.get('firewall_policies', []) or []:
+            if isinstance(fw_policy, dict) and fw_policy.get('id'):
+                ids['firewall_policies'].add(fw_policy['id'])
 
         for storage in l3.get('storage', []) or []:
             if isinstance(storage, dict) and storage.get('id'):
@@ -721,6 +726,11 @@ class SchemaValidator:
                     self.errors.append(
                         f"Network '{net_id}': interface_ref '{interface_ref}' does not belong to managed_by_ref '{managed_by_ref}'"
                     )
+
+            firewall_policy_refs = network.get('firewall_policy_refs') or []
+            for fw_ref in firewall_policy_refs:
+                if fw_ref not in ids['firewall_policies']:
+                    self.errors.append(f"Network '{net_id}': firewall_policy_refs '{fw_ref}' does not exist")
 
             plane = effective.get('network_plane')
             segmentation = effective.get('segmentation_type')
