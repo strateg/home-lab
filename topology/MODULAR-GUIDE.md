@@ -65,7 +65,7 @@ Rules:
 - Keep module size practical (target under ~200 lines).
 - Preserve key order: `id`, `name`, `type`, `role`, `class`, `substrate`, `access`, refs, config, `description`.
 - Model is defined by fields inside files; folders are validated against model.
-- Validator reports placement errors and suggests expected paths when files are moved/copied incorrectly.
+- Validator reports placement lints (warnings) and suggests expected paths when files are moved/copied incorrectly.
 - In L1 devices, always set taxonomy explicitly: `class` + `substrate` + `access`.
 - `physical_links` can reference only owned/colo substrate devices (no `provider-instance`).
 - VM/LXC remain in `L4_platform` (compute module), not in `L1_foundation`.

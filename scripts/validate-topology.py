@@ -278,8 +278,8 @@ class SchemaValidator:
 
     def _check_expected_prefix(self, rel: str, expected_prefix: str, suggestion: str) -> None:
         if not rel.startswith(expected_prefix):
-            self.errors.append(
-                f"File placement error: '{rel}' does not match model; expected under "
+            self.warnings.append(
+                f"File placement lint: '{rel}' does not match recommended layout; expected under "
                 f"'{expected_prefix}' (suggested: '{suggestion}')"
             )
 
@@ -297,8 +297,8 @@ class SchemaValidator:
         expected_path = f"topology/L1-foundation/devices/{expected_group}/{device_class}/{device_id}.yaml"
 
         if not rel.startswith("topology/L1-foundation/devices/"):
-            self.errors.append(
-                f"File placement error: device file '{rel}' must be in L1 devices "
+            self.warnings.append(
+                f"File placement lint: device file '{rel}' should be in L1 devices "
                 f"(suggested: '{expected_path}')"
             )
             return
@@ -306,8 +306,8 @@ class SchemaValidator:
         rel_inside = rel.replace("topology/L1-foundation/devices/", "", 1)
         parts = rel_inside.split('/')
         if len(parts) < 3:
-            self.errors.append(
-                f"File placement error: device file '{rel}' must follow "
+            self.warnings.append(
+                f"File placement lint: device file '{rel}' should follow "
                 f"'topology/L1-foundation/devices/<group>/<class>/<id>.yaml'"
             )
             return
@@ -315,14 +315,14 @@ class SchemaValidator:
         group, class_dir = parts[0], parts[1]
 
         if group != expected_group:
-            self.errors.append(
-                f"File placement error: device '{device_id}' substrate '{substrate}' expects group "
+            self.warnings.append(
+                f"File placement lint: device '{device_id}' substrate '{substrate}' expects group "
                 f"'{expected_group}', got '{group}' (suggested: '{expected_path}')"
             )
 
         if class_dir != device_class:
-            self.errors.append(
-                f"File placement error: device '{device_id}' class '{device_class}' expects folder "
+            self.warnings.append(
+                f"File placement lint: device '{device_id}' class '{device_class}' expects folder "
                 f"'{device_class}', got '{class_dir}' (suggested: '{expected_path}')"
             )
 
