@@ -1,0 +1,113 @@
+# VPN Topology
+
+**Generated from**: topology.yaml v{{ topology_version }}
+**Date**: {{ generated_at }}
+
+---
+
+## VPN Architecture
+
+```mermaid
+flowchart LR
+    subgraph clients["Remote Clients"]
+        user_laptop["Laptop"]
+        user_phone["Phone"]
+        travel_router["Travel Router"]
+    end
+
+    subgraph edge["VPN Entry Points"]
+        {% for svc in vpn_services %}
+        {{ svc.id | mermaid_id }}["{{ svc.name }}<br/>{{ svc.vpn_type | default(svc.type) }}"]
+        {% endfor %}
+    end
+
+    subgraph vpnnets["VPN Networks"]
+        {% for net in vpn_networks %}
+        {{ net.id | mermaid_id }}["{{ net.name }}<br/>{{ net.cidr }}"]
+        {% endfor %}
+    end
+
+    subgraph zones["Accessible Zones"]
+        {% for zone_id, zone in trust_zones.items() %}
+        zone_{{ zone_id | mermaid_id }}["{{ zone.name }}"]
+        {% endfor %}
+    end
+
+    user_laptop --> svc_wireguard
+    user_phone --> svc_tailscale
+    travel_router --> svc_wireguard
+
+    {% for svc in vpn_services %}
+    {% if svc.network_ref is defined %}
+    {{ svc.id | mermaid_id }} --> {{ svc.network_ref | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    {% for rule in vpn_access %}
+    {% for dst in rule.destinations %}
+    {{ rule.network_id | mermaid_id }} --> zone_{{ dst | mermaid_id }}
+    {% endfor %}
+    {% endfor %}
+
+    classDef client fill:#74c0fc,stroke:#1864ab,color:#000
+    classDef vpnsvc fill:#51cf66,stroke:#2b8a3e,color:#000
+    classDef vpnnet fill:#ffd43b,stroke:#fab005,color:#000
+    classDef zone fill:#ff8787,stroke:#c92a2a,color:#fff
+
+    class user_laptop,user_phone,travel_router client
+    {% for svc in vpn_services %}
+    class {{ svc.id | mermaid_id }} vpnsvc
+    {% endfor %}
+    {% for net in vpn_networks %}
+    class {{ net.id | mermaid_id }} vpnnet
+    {% endfor %}
+    {% for zone_id, zone in trust_zones.items() %}
+    class zone_{{ zone_id | mermaid_id }} zone
+    {% endfor %}
+```
+
+---
+
+## VPN Services
+
+| Service | Type | Device | Network | Endpoint |
+|---------|------|--------|---------|----------|
+{% for svc in vpn_services %}
+| {{ svc.name }} | {{ svc.vpn_type | default(svc.type) }} | {{ svc.device_ref | default('-') }} | {{ svc.network_ref | default('-') }} | {{ svc.vpn_endpoint | default(svc.ip ~ ':' ~ (svc.port | default('-'))) }} |
+{% endfor %}
+
+---
+
+## VPN Networks
+
+| Network | CIDR | Gateway | Manager |
+|---------|------|---------|---------|
+{% for net in vpn_networks %}
+| {{ net.name }} | {{ net.cidr }} | {{ net.gateway | default('-') }} | {{ net.managed_by_ref | default('-') }} |
+{% endfor %}
+
+---
+
+## Access Policies Derived from Firewall
+
+| VPN Network | Allowed Destinations |
+|-------------|----------------------|
+{% for rule in vpn_access %}
+| {{ rule.network_id }} | {{ rule.destinations | join(', ') if rule.destinations else '-' }} |
+{% endfor %}
+
+---
+
+## Related Devices
+
+| Device | Location | Role |
+|--------|----------|------|
+{% for device in devices %}
+{% if device.id in ['mikrotik-chateau', 'slate-ax1800', 'oracle-arm-frankfurt', 'hetzner-cx22-nuremberg'] %}
+| {{ device.name }} | {{ device.location }} | {{ device.role }} |
+{% endif %}
+{% endfor %}
+
+---
+
+**DO NOT EDIT MANUALLY** - Regenerate with `python3 scripts/generate-docs.py`

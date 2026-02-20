@@ -99,6 +99,11 @@ class DocumentationGenerator:
         success &= self.generate_monitoring_topology()
         success &= self.generate_vpn_topology()
 
+        # Visual diagrams (Phase 3)
+        success &= self.generate_qos_topology()
+        success &= self.generate_certificates_topology()
+        success &= self.generate_ups_topology()
+
         return success
 
     def generate_network_diagram(self) -> bool:
@@ -496,6 +501,86 @@ class DocumentationGenerator:
             print(f"ERROR Error generating vpn-topology.md: {e}")
             return False
 
+    def generate_qos_topology(self) -> bool:
+        """Generate QoS topology diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/qos-topology.md.j2')
+
+            qos = self.topology['L2_network'].get('qos', {})
+            networks = self.topology['L2_network'].get('networks', [])
+            devices = self.topology['L1_foundation'].get('devices', [])
+
+            content = template.render(
+                qos=qos,
+                networks=networks,
+                devices=devices,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "qos-topology.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating qos-topology.md: {e}")
+            return False
+
+    def generate_certificates_topology(self) -> bool:
+        """Generate certificates topology diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/certificates-topology.md.j2')
+
+            certificates = self.topology.get('L5_application', {}).get('certificates', {})
+            services = self.topology.get('L5_application', {}).get('services', [])
+            devices = self.topology['L1_foundation'].get('devices', [])
+
+            content = template.render(
+                certificates=certificates,
+                services=services,
+                devices=devices,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "certificates-topology.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating certificates-topology.md: {e}")
+            return False
+
+    def generate_ups_topology(self) -> bool:
+        """Generate UPS topology diagram"""
+        try:
+            template = self.jinja_env.get_template('docs/ups-topology.md.j2')
+
+            ups = self.topology['L1_foundation'].get('ups', [])
+            devices = self.topology['L1_foundation'].get('devices', [])
+            healthchecks = self.topology.get('L6_observability', {}).get('healthchecks', [])
+            alerts = self.topology.get('L6_observability', {}).get('alerts', [])
+
+            content = template.render(
+                ups=ups,
+                devices=devices,
+                healthchecks=healthchecks,
+                alerts=alerts,
+                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            )
+
+            output_file = self.output_dir / "ups-topology.md"
+            output_file.write_text(content, encoding="utf-8")
+            print(f"OK Generated: {output_file}")
+            return True
+
+        except Exception as e:
+            print(f"ERROR Error generating ups-topology.md: {e}")
+            return False
+
     def print_summary(self):
         """Print generation summary"""
         print("\n" + "="*70)
@@ -517,6 +602,9 @@ class DocumentationGenerator:
         print(f"    - Storage topology (Mermaid)")
         print(f"    - Monitoring topology (Mermaid)")
         print(f"    - VPN topology (Mermaid)")
+        print(f"    - QoS topology (Mermaid)")
+        print(f"    - Certificates topology (Mermaid)")
+        print(f"    - UPS topology (Mermaid)")
         print(f"\nOK Output directory: {self.output_dir}")
         print(f"\nFiles created:")
         for file in sorted(self.output_dir.glob("*.md")):
