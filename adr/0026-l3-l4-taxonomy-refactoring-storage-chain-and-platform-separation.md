@@ -234,57 +234,70 @@ Done criteria:
 - Current repository topology validates in compat mode with zero errors.
 - At least one service and one LXC are modeled in the new style.
 
-### Phase 3 - Migration tooling and reporting
+### Phase 3 - Migration tooling and controlled cutover (in progress)
 
-- Add migration assistant (`migrate-to-v5.py`) with `--dry-run`.
-- Emit machine-readable migration report for legacy fields and required conversions.
-- Support deterministic transforms for:
-  - `L3_data.storage -> storage_endpoints`
-  - `services.*_ref -> services.runtime`
-  - `lxc.resources -> resource_profile_ref`
+- Migration assistant (`migrate-to-v5.py`) supports:
+  - report mode (text/JSON),
+  - additive `--apply` transform,
+  - `--drop-legacy` cleanup with safety checks and pending counters.
+- Deterministic transforms currently include:
+  - `L3_data.storage -> storage_endpoints` (+ `infer_from` enrichment for LVMThin),
+  - `services.*_ref -> services.runtime`,
+  - `lxc.resources -> resource_profiles + resource_profile_ref`,
+  - `lxc.ansible.vars -> services[].config`,
+  - `storage_ref -> storage_endpoint_ref` across L4 objects.
+- `validate-topology.py --strict` is used as migration readiness gate.
 
 Done criteria:
 
-- Tool produces stable conversion output and explicit checklist for manual review.
+- Tool emits stable stats with `*_pending` visibility for unresolved manual work.
+- Cutover preview can pass strict validation when written in repository root context.
 
-### Phase 4 - Generator dual-write rollout
+### Phase 4 - Repository topology migration (new-model authoring)
 
-- Update generators to read new model first and fallback to legacy during `M1-M2`.
-- Implement deterministic precedence when both old and new fields are present.
-- Add support for `storage_endpoints[].infer_from` shorthand expansion in generation path.
+- Apply migration assistant output to repository topology files.
+- Manually complete unresolved items that require domain intent:
+  - `L3_data.data_assets[*]` placement field removal,
+  - explicit `L4 storage.volumes[*].data_asset_ref` placement mapping.
+- Preserve compatibility branches only where required for active generators (`M2`).
 
 Primary files:
 
-- `topology-tools/scripts/generators/terraform/proxmox/generator.py`
-- `topology-tools/scripts/generators/terraform/mikrotik/generator.py`
-- `topology-tools/generate-ansible-inventory.py`
-- `topology-tools/scripts/generators/docs/generator.py`
+- `topology/L3-data.yaml`
+- `topology/L4-platform.yaml`
+- `topology/L5-application.yaml`
 
 Done criteria:
 
-- `topology-tools/regenerate-all.py` succeeds for legacy-only, mixed, and new-only fixture sets.
+- Main topology validates in strict mode with zero deprecation warnings.
+- Remaining legacy fields are tracked only in migration fixtures, not in main topology.
 
-### Phase 5 - Quality gates and strict hardening
+### Phase 5 - Generator and CI hardening
 
-- Add fixture topologies: legacy-only, mixed, new-only.
-- Add validator tests for chain integrity and deprecation escalation behavior.
-- Add generator regression snapshots for key outputs.
-- Enable strict mode in CI for new-only fixtures.
-
-Done criteria:
-
-- CI blocks regressions and fails on strict-mode warnings for new-only fixtures.
-
-### Phase 6 - v5 cutover
-
-- Switch default validation profile to strict for mainline topologies.
-- Remove deprecated legacy fields from schema and validators.
-- Remove fallback branches in generators and migration compatibility code.
-- Update docs and ADR status for cutover completion.
+- Update generators to prefer new-model fields first and use legacy fallback only in compatibility fixtures.
+- Implement deterministic precedence where old/new fields coexist.
+- Add fixture set split: `legacy-only`, `mixed`, `new-only`.
+- Add CI matrix:
+  - compat validation for legacy/mixed fixtures,
+  - strict validation for new-only fixtures,
+  - generator regression snapshots for critical outputs.
 
 Done criteria:
 
-- Legacy fields absent from repository topology and generated outputs.
+- `topology-tools/regenerate-all.py` is green for all fixture classes.
+- CI blocks regressions and strict warnings on new-only fixtures.
+
+### Phase 6 - v5.0.0 cutover and cleanup
+
+- Switch default validation profile to strict for repository workflows.
+- Remove deprecated legacy fields from schema/validators and fallback logic from generators.
+- Keep migration assistant for importing older topologies, but mark compatibility path as transitional.
+- Update docs/ADR register with cutover completion and v5 contract.
+
+Done criteria:
+
+- Mainline repository topology and generated outputs contain only v5 fields.
+- Legacy compatibility exists only as explicit migration input path.
 
 ## Acceptance Criteria
 

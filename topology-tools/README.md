@@ -62,7 +62,17 @@ python topology-tools/migrate-to-v5.py --topology topology.yaml --json
 
 # Additive preview transform (writes new-model fields, keeps legacy fields)
 python topology-tools/migrate-to-v5.py --topology topology.yaml --apply --output-topology generated/migration/topology-v5-preview.yaml
+
+# Cutover preview transform (drops migrated legacy fields when replacements exist)
+python topology-tools/migrate-to-v5.py --topology topology.yaml --apply --drop-legacy --output-topology topology-v5-cutover-preview.yaml
+
+# Validate cutover preview in strict mode
+python topology-tools/validate-topology.py --topology topology-v5-cutover-preview.yaml --strict
 ```
+
+Notes:
+- `--drop-legacy` removes only legacy fields with safe replacement and reports pending items for manual migration.
+- For strict validation, place preview topology in project root (next to `topology/`) to keep placement checks active.
 
 ### generate-terraform-proxmox.py
 Generate Proxmox Terraform from L1/L2/L3/L4.
