@@ -4,7 +4,7 @@ Validate topology.yaml against JSON Schema v7 (v4 layered topology)
 Provides detailed error messages and validation reports
 
 Usage:
-    python3 topology-tools/validate-topology.py [--topology topology.yaml] [--schema topology-tools/schemas/topology-v4-schema.json] [--validator-policy topology-tools/schemas/validator-policy.yaml] [--no-topology-cache] [--strict]
+    python3 topology-tools/validate-topology.py [--topology topology.yaml] [--schema topology-tools/schemas/topology-v4-schema.json] [--validator-policy topology-tools/schemas/validator-policy.yaml] [--no-topology-cache] [--strict] [--migration-report]
 
 Requirements:
     pip install jsonschema pyyaml
@@ -73,12 +73,14 @@ class SchemaValidator:
         validator_policy_path: Optional[str] = None,
         use_topology_cache: bool = True,
         strict_mode: bool = False,
+        show_migration_report: bool = False,
     ):
         self.topology_path = Path(topology_path)
         self.schema_path = Path(schema_path)
         self.validator_policy_path = Path(validator_policy_path) if validator_policy_path else DEFAULT_VALIDATOR_POLICY_PATH
         self.use_topology_cache = use_topology_cache
         self.strict_mode = strict_mode
+        self.show_migration_report = show_migration_report
         self.topology: Optional[Dict] = None
         self.schema: Optional[Dict] = None
         self.validator_policy: Dict[str, Any] = self._default_validator_policy()
@@ -381,6 +383,78 @@ class SchemaValidator:
             warnings=self.warnings,
         )
 
+    def build_migration_report(self) -> List[str]:
+        """Build a migration checklist for legacy-to-new model transition."""
+        topology = self.topology or {}
+        l3 = topology.get('L3_data', {}) or {}
+        l4 = topology.get('L4_platform', {}) or {}
+        l5 = topology.get('L5_application', {}) or {}
+
+        items: List[str] = []
+
+        storage_entries = len(l3.get('storage', []) or [])
+        if storage_entries:
+            items.append(
+                f"L3_data.storage: {storage_entries} entr{'y' if storage_entries == 1 else 'ies'} -> migrate to storage_endpoints (+ chain entities)"
+            )
+
+        for idx, asset in enumerate(l3.get('data_assets', []) or []):
+            if not isinstance(asset, dict):
+                continue
+            asset_id = asset.get('id', f"index-{idx}")
+            placement_fields = [key for key in ("storage_ref", "storage_endpoint_ref", "mount_point_ref", "path") if asset.get(key)]
+            if placement_fields:
+                items.append(
+                    f"L3_data.data_assets[{asset_id}]: placement fields {placement_fields} -> move placement to L4 storage.volumes"
+                )
+
+        for idx, lxc in enumerate(l4.get('lxc', []) or []):
+            if not isinstance(lxc, dict):
+                continue
+            lxc_id = lxc.get('id', f"index-{idx}")
+            if lxc.get('type'):
+                items.append(f"L4_platform.lxc[{lxc_id}].type -> replace with platform_type + L5 service semantics")
+            if lxc.get('role'):
+                items.append(f"L4_platform.lxc[{lxc_id}].role -> replace with resource_profile_ref + L5 service semantics")
+            if lxc.get('resources'):
+                items.append(f"L4_platform.lxc[{lxc_id}].resources -> migrate to resource_profiles + resource_profile_ref")
+            ansible_vars = ((lxc.get('ansible') or {}).get('vars') or {})
+            if isinstance(ansible_vars, dict) and ansible_vars:
+                items.append(f"L4_platform.lxc[{lxc_id}].ansible.vars -> move app config to L5 services[].config")
+
+        for idx, service in enumerate(l5.get('services', []) or []):
+            if not isinstance(service, dict):
+                continue
+            svc_id = service.get('id', f"index-{idx}")
+            if service.get('ip'):
+                items.append(f"L5_application.services[{svc_id}].ip -> derive from runtime target + network_binding_ref")
+            legacy_refs = [ref for ref in ("device_ref", "vm_ref", "lxc_ref", "network_ref") if service.get(ref)]
+            if legacy_refs:
+                items.append(f"L5_application.services[{svc_id}] legacy refs {legacy_refs} -> migrate to runtime.*")
+            if not service.get('runtime'):
+                items.append(f"L5_application.services[{svc_id}] missing runtime -> add runtime.type + runtime.target_ref")
+
+        ext_services = len(l5.get('external_services', []) or [])
+        if ext_services:
+            items.append(
+                f"L5_application.external_services: {ext_services} entr{'y' if ext_services == 1 else 'ies'} -> fold into services[].runtime.type=docker"
+            )
+
+        return items
+
+    def print_migration_report(self) -> None:
+        """Print migration report section."""
+        report_items = self.build_migration_report()
+        print("\n" + "=" * 70)
+        print("MIGRATION REPORT")
+        print("=" * 70)
+        if not report_items:
+            print("\nOK No legacy migration items detected.")
+            return
+        print("\nLegacy fields requiring migration:")
+        for item in report_items:
+            print(f"  - {item}")
+
     def print_results(self) -> None:
         """Print validation results"""
         print("\n" + "="*70)
@@ -453,6 +527,9 @@ class SchemaValidator:
             self.warnings.clear()
             print(f"\nSTRICT Strict mode enabled: escalated {len(escalated)} warning(s) to error(s)")
 
+        if self.show_migration_report:
+            self.print_migration_report()
+
         return len(self.errors) == 0
 
 
@@ -491,6 +568,11 @@ def main():
         action="store_true",
         help="Treat warnings as errors (useful for migration hardening)",
     )
+    parser.add_argument(
+        "--migration-report",
+        action="store_true",
+        help="Print legacy-to-new model migration checklist",
+    )
 
     args = parser.parse_args()
 
@@ -500,6 +582,7 @@ def main():
         args.validator_policy,
         use_topology_cache=not args.no_topology_cache,
         strict_mode=args.strict,
+        show_migration_report=args.migration_report,
     )
     valid = validator.validate()
     validator.print_results()
