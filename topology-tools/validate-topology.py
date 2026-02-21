@@ -557,15 +557,12 @@ class SchemaValidator:
                     )
 
     def _normalize_device_storage_inventory(self, device: Dict[str, Any]) -> Dict[str, Any]:
-        """Return normalized storage inventory across preferred and legacy L1 models."""
+        """Return normalized storage inventory from storage_slots."""
         specs = device.get('specs', {}) if isinstance(device.get('specs'), dict) else {}
         slots = specs.get('storage_slots', []) if isinstance(specs.get('storage_slots'), list) else []
-        storage_ports = specs.get('storage_ports', []) if isinstance(specs.get('storage_ports'), list) else []
-        legacy_disks = specs.get('disks', []) if isinstance(specs.get('disks'), list) else []
 
         normalized_disks: List[Dict[str, Any]] = []
 
-        # Preferred model: storage_slots[] with optional installed media.
         for slot in slots:
             if not isinstance(slot, dict):
                 continue
@@ -580,36 +577,11 @@ class SchemaValidator:
                 'port_type': slot.get('bus'),
                 'removable': media.get('removable'),
                 'virtual': media.get('virtual'),
-                'legacy_device_path': media.get('device'),
-                'source': 'slots',
-            })
-
-        # Legacy model: storage_ports[] + disks[].
-        port_type_by_id = {
-            port.get('id'): port.get('type')
-            for port in storage_ports
-            if isinstance(port, dict) and port.get('id')
-        }
-        for disk in legacy_disks:
-            if not isinstance(disk, dict):
-                continue
-            port_ref = disk.get('port_ref')
-            normalized_disks.append({
-                'id': disk.get('id'),
-                'type': disk.get('type'),
-                'mount_type': disk.get('mount_type'),
-                'port_ref': port_ref,
-                'port_type': port_type_by_id.get(port_ref),
-                'removable': disk.get('removable'),
-                'virtual': disk.get('virtual'),
-                'legacy_device_path': disk.get('device'),
-                'source': 'legacy',
+                'os_device_path': media.get('device'),
             })
 
         return {
             'slots': slots,
-            'storage_ports': storage_ports,
-            'legacy_disks': legacy_disks,
             'normalized_disks': normalized_disks,
         }
 
@@ -621,8 +593,6 @@ class SchemaValidator:
 
         inventory = self._normalize_device_storage_inventory(device)
         slots = inventory['slots']
-        storage_ports = inventory['storage_ports']
-        legacy_disks = inventory['legacy_disks']
         disks = inventory['normalized_disks']
 
         if dev_class != 'compute':
@@ -641,17 +611,7 @@ class SchemaValidator:
 
         if dev_substrate in {'baremetal-owned', 'baremetal-colo'} and not disks:
             self.errors.append(
-                f"Device '{dev_id}': baremetal compute device must define storage inventory (prefer specs.storage_slots)"
-            )
-
-        if slots and (storage_ports or legacy_disks):
-            self.warnings.append(
-                f"Device '{dev_id}': both storage_slots and legacy storage_ports/disks detected; prefer storage_slots only"
-            )
-
-        if legacy_disks and not storage_ports:
-            self.errors.append(
-                f"Device '{dev_id}': specs.storage_ports is required when specs.disks are defined"
+                f"Device '{dev_id}': baremetal compute device must define specs.storage_slots inventory"
             )
 
         slot_ids: Set[str] = set()
@@ -666,19 +626,6 @@ class SchemaValidator:
                     f"Device '{dev_id}': duplicate storage slot id '{slot_id}'"
                 )
             slot_ids.add(slot_id)
-
-        port_ids: Set[str] = set()
-        for port in storage_ports:
-            if not isinstance(port, dict):
-                continue
-            port_id = port.get('id')
-            if not port_id:
-                continue
-            if port_id in port_ids:
-                self.errors.append(
-                    f"Device '{dev_id}': duplicate storage port id '{port_id}'"
-                )
-            port_ids.add(port_id)
 
         disk_ids: Set[str] = set()
         disk_port_compat = {
@@ -707,17 +654,10 @@ class SchemaValidator:
                     )
                 disk_ids.add(disk_id)
 
-            if disk.get('legacy_device_path'):
+            if disk.get('os_device_path'):
                 self.errors.append(
                     f"Device '{dev_id}': disk '{disk_id or 'unknown'}' contains logical OS device path; move it to L3 storage.os_device"
                 )
-
-            port_ref = disk.get('port_ref')
-            if disk.get('source') == 'legacy' and port_ref and port_ids and port_ref not in port_ids:
-                self.errors.append(
-                    f"Device '{dev_id}': disk '{disk_id or 'unknown'}' references unknown port_ref '{port_ref}'"
-                )
-                continue
 
             disk_type = disk.get('type')
             port_type = disk.get('port_type')

@@ -69,7 +69,7 @@ class ProxmoxAnswerGenerator:
         return "sda"
 
     def _get_device_disks(self) -> list[Dict[str, Any]]:
-        """Return normalized disk list from preferred storage_slots or legacy disks."""
+        """Return disk list from L1 storage_slots."""
         if not self.proxmox_node:
             return []
 
@@ -83,11 +83,7 @@ class ProxmoxAnswerGenerator:
             if isinstance(media, dict):
                 disks.append(media)
 
-        if disks:
-            return disks
-
-        legacy_disks = specs.get('disks', [])
-        return legacy_disks if isinstance(legacy_disks, list) else []
+        return disks
 
     def _get_os_device_for_disk(self, disk_id: Optional[str]) -> Optional[str]:
         """Resolve OS-visible device path from L3 storage by disk_ref."""
@@ -96,12 +92,6 @@ class ProxmoxAnswerGenerator:
 
         l3_storage = self.topology.get('L3_data', {}).get('storage', [])
         for storage in l3_storage:
-            if storage.get('disk_ref') == disk_id and storage.get('os_device'):
-                return storage.get('os_device')
-
-        # Legacy fallback for old topology layouts.
-        legacy_storage = self.topology.get('data_layer', {}).get('storage', [])
-        for storage in legacy_storage:
             if storage.get('disk_ref') == disk_id and storage.get('os_device'):
                 return storage.get('os_device')
 

@@ -48,15 +48,6 @@
   - Model: {{ slot.media.model | default('n/a') }}
 {% endif %}
 {% endfor %}
-{% elif device.specs.disks %}
-**Storage**:
-{% for disk in device.specs.disks %}
-- {{ disk.id }}: {{ disk.size_gb }} GB {{ disk.type | upper }}
-  - Port: `{{ disk.port_ref | default('n/a') }}`
-  - Mount: {{ disk.mount_type | default('replaceable') }}
-  - State: {{ disk.state | default('present') }}
-  - Model: {{ disk.model | default('n/a') }}
-{% endfor %}
 {% endif %}
 {% endif %}
 
