@@ -207,6 +207,9 @@ home-lab/
     regenerate-all.py
     topology_loader.py
     split-topology.py
+    validation/
+      checks/
+    generation/
     schemas/
       topology-v4-schema.json
       validator-policy.yaml

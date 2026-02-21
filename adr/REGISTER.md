@@ -18,3 +18,4 @@
 | [0014](0014-l1-storage-slots-preferred-model-with-legacy-compatibility.md) | Use L1 Storage Slots as Preferred Model with Legacy Compatibility | Superseded | 2026-02-21 | - | [0015](0015-drop-legacy-storage-compatibility-after-storage-slots-migration.md) |
 | [0015](0015-drop-legacy-storage-compatibility-after-storage-slots-migration.md) | Drop Legacy L1 Storage Compatibility After Storage Slots Migration | Accepted | 2026-02-21 | [0014](0014-l1-storage-slots-preferred-model-with-legacy-compatibility.md) | - |
 | [0016](0016-l1-storage-media-registry-and-slot-attachments.md) | Separate L1 Storage Media Registry from Device Slot Attachments | Accepted | 2026-02-21 | - | - |
+| [0017](0017-topology-tools-modular-refactor-validation-generation.md) | Modular Refactor of topology-tools into Validation and Generation Domains | Accepted | 2026-02-21 | - | - |
