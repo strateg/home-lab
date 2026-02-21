@@ -24,7 +24,7 @@ workflows:
       duration_min: 10
     - step: 4
       name: Generate Terraform from topology
-      script: topology-tools/generate-terraform.py
+      script: topology-tools/generate-terraform-proxmox.py
       duration_min: 1
     - step: 5
       name: Apply Terraform configuration
@@ -50,7 +50,7 @@ workflows:
       script: topology-tools/validate-topology.py
     - step: 3
       name: Regenerate Terraform
-      script: topology-tools/generate-terraform.py
+      script: topology-tools/generate-terraform-proxmox.py
     - step: 4
       name: Regenerate Ansible inventory
       script: topology-tools/generate-ansible-inventory.py
@@ -511,3 +511,4 @@ security:
     backup_before_update: true
   proxmox:
     root_password_hash: $6$Wx8sYKmgnwHk4BgS$eGr047.zvpBPesQF.sQ13IFcLdPSaIhqJ8eteA5Y0LSwq4Fp2vurgSN9LmWLjvxBPKJCRpt57l.vC9izxPQvn0
+

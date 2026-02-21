@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, List, Set
 
 import yaml
 
-from scripts.validation.checks.storage import (
+from scripts.validators.checks.storage import (
     build_l1_storage_context,
     check_device_storage_taxonomy,
     check_l1_media_inventory,

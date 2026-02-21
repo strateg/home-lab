@@ -101,7 +101,7 @@ class RegenerateAll:
 
         self.print_header(f"Step 2/{total_steps}: Generate Terraform (Proxmox)")
         success_terraform = self.run_script(
-            "generate-terraform.py",
+            "generate-terraform-proxmox.py",
             "Generating Proxmox Terraform configuration",
             ["--topology", self.topology_path],
         )
@@ -258,3 +258,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

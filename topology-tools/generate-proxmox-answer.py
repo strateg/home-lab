@@ -15,7 +15,7 @@ import argparse
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from scripts.generation.common import load_and_validate_layered_topology
+from scripts.generators.common import load_and_validate_layered_topology
 
 
 class ProxmoxAnswerGenerator:

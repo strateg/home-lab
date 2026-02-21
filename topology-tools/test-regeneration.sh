@@ -133,14 +133,14 @@ fi
 
 print_header "Test 2: Generate Terraform Configuration"
 
-if [ ! -f "topology-tools/generate-terraform.py" ]; then
-    print_error "generate-terraform.py not found"
+if [ ! -f "topology-tools/generate-terraform-proxmox.py" ]; then
+    print_error "generate-terraform-proxmox.py not found"
     exit 1
 fi
 
 echo ""
 echo "Generating Terraform configuration..."
-if python3 topology-tools/generate-terraform.py --output generated/terraform; then
+if python3 topology-tools/generate-terraform-proxmox.py --output generated/terraform; then
     print_success "Terraform generation completed"
 else
     print_error "Terraform generation failed"
@@ -350,7 +350,7 @@ TEMP_DIR=$(mktemp -d)
 cp -r generated/ "$TEMP_DIR/generated-before"
 
 # Regenerate
-python3 topology-tools/generate-terraform.py --output generated/terraform > /dev/null 2>&1
+python3 topology-tools/generate-terraform-proxmox.py --output generated/terraform > /dev/null 2>&1
 
 if [ -f "topology-tools/generate-ansible-inventory.py" ]; then
     python3 topology-tools/generate-ansible-inventory.py --output generated/ansible > /dev/null 2>&1
@@ -405,3 +405,4 @@ else
     echo ""
     exit 1
 fi
+

@@ -24,3 +24,5 @@
 | [0020](0020-topology-tools-scripts-domain-layout.md) | Co-locate Generation and Validation Under topology-tools/scripts | Accepted | 2026-02-21 | - | - |
 | [0021](0021-docs-generation-moved-to-scripts-generation-docs.md) | Move Documentation Generation Core into scripts/generation/docs | Accepted | 2026-02-21 | - | - |
 | [0022](0022-docs-diagram-module-canonical-location.md) | Use scripts/generation/docs/docs_diagram.py as Canonical Diagram Module | Accepted | 2026-02-21 | - | - |
+| [0023](0023-terraform-generators-and-templates-domain-layout.md) | Terraform Generators and Templates Domain Layout | Accepted | 2026-02-21 | - | - |
+| [0024](0024-validators-namespace-alignment.md) | Rename Validation Package Namespace to validators | Accepted | 2026-02-21 | - | - |

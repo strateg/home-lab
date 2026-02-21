@@ -1,7 +1,7 @@
 # ============================================================
 # Terraform Provider Configuration
 # Generated from topology.yaml v{{ topology_version | default('2.0.0') }}
-# DO NOT EDIT MANUALLY - Regenerate with topology-tools/generate-terraform.py
+# DO NOT EDIT MANUALLY - Regenerate with topology-tools/generate-terraform-proxmox.py
 # ============================================================
 
 terraform {
@@ -85,3 +85,4 @@ provider "tls" {}
 {% endif %}
 
 data "proxmox_virtual_environment_nodes" "available_nodes" {}
+

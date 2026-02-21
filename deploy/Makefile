@@ -82,7 +82,7 @@ generate: generate-terraform generate-mikrotik generate-ansible generate-docs
 
 generate-terraform:
 	@echo "$(YELLOW)📝 Generating Terraform (Proxmox)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-terraform.py
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-terraform-proxmox.py
 
 generate-mikrotik:
 	@echo "$(YELLOW)📝 Generating Terraform (MikroTik)...$(NC)"
@@ -225,3 +225,4 @@ init-proxmox:
 
 init: init-mikrotik init-proxmox
 	@echo "$(GREEN)✓ All Terraform providers initialized$(NC)"
+

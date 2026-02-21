@@ -1,19 +1,25 @@
 # Topology Tools (v4)
 
-`topology-tools/` contains topology-driven generators and validator.
+`topology-tools/` contains topology-driven generators and validators.
 
 Related root directories:
 - `topology-tools/schemas/` - topology schema and validator policy
-- `topology-tools/templates/` - Jinja2 templates for generated artifacts
-- `topology-tools/scripts/validation/` - modular validation domain (`checks/*`)
+- `topology-tools/templates/` - Jinja2 templates for generators
+  - `templates/ansible/` - Ansible inventory templates
+  - `templates/docs/` - Documentation templates
+  - `templates/terraform/proxmox/` - Proxmox Terraform templates
+  - `templates/terraform/mikrotik/` - MikroTik Terraform templates
+- `topology-tools/scripts/validators/` - modular validation domain (`checks/*`)
   - `checks/storage.py` - L1/L3 storage model checks
   - `checks/network.py` - L2/L1 link and network checks
   - `checks/references.py` - L4-L7 reference checks
   - `checks/foundation.py` - file placement and L1 taxonomy checks
   - `checks/governance.py` - L0 contracts, version, IP overlap checks
-- `topology-tools/scripts/generation/` - modular generation domain (incremental migration)
-  - `scripts/generation/common/` - shared loader/output helpers for generator scripts
-  - `scripts/generation/docs/` - documentation generation core (generator, diagrams, CLI)
+- `topology-tools/scripts/generators/` - modular generation domain
+  - `scripts/generators/common/` - shared loader/output helpers for generator scripts
+  - `scripts/generators/docs/` - documentation generation core (generator, diagrams, CLI)
+  - `scripts/generators/terraform/proxmox/` - Proxmox Terraform generator modules
+  - `scripts/generators/terraform/mikrotik/` - MikroTik Terraform generator modules
 - `manual-scripts/` - manual setup/config scripts (separated from topology tooling)
 
 Topology scripts transform `topology.yaml` (L0-L7 layered) into Terraform configs, Ansible inventory, and documentation.
@@ -37,12 +43,12 @@ Usage:
 python topology-tools/validate-topology.py --topology topology.yaml --schema topology-tools/schemas/topology-v4-schema.json
 ```
 
-### generate-terraform.py
+### generate-terraform-proxmox.py
 Generate Proxmox Terraform from L1/L2/L3/L4.
 
 Usage:
 ```bash
-python topology-tools/generate-terraform.py --topology topology.yaml --output generated/terraform
+python topology-tools/generate-terraform-proxmox.py --topology topology.yaml --output generated/terraform
 ```
 
 ### generate-terraform-mikrotik.py
@@ -216,3 +222,4 @@ Files in generated/ are automatically regenerated and auto-cleaned.
 - DO NOT commit generated/ to Git
 - DO edit topology.yaml as the single source of truth
 - DO edit ansible/playbooks/ and ansible/roles/ manually
+

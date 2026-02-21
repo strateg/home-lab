@@ -1,22 +1,13 @@
-#!/usr/bin/env python3
 """
-Generate Terraform configuration from topology v4.0 (layered)
-
-Usage:
-    python3 topology-tools/generate-terraform.py [--topology topology.yaml] [--output generated/terraform/]
-
-Requirements:
-    pip install pyyaml jinja2
+Terraform generator core for Proxmox resources.
 """
 
-import sys
 import yaml
-import argparse
 from pathlib import Path
 from typing import Dict, List
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from scripts.generation.common import load_and_validate_layered_topology, prepare_output_directory
+from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
 
 
 class TerraformGenerator:
@@ -103,7 +94,7 @@ class TerraformGenerator:
     def generate_provider(self) -> bool:
         """Generate provider.tf with Proxmox configuration"""
         try:
-            template = self.jinja_env.get_template('terraform/provider.tf.j2')
+            template = self.jinja_env.get_template('terraform/proxmox/provider.tf.j2')
 
             proxmox_device = None
             for device in self.topology['L1_foundation'].get('devices', []):
@@ -137,7 +128,7 @@ class TerraformGenerator:
     def generate_versions(self) -> bool:
         """Generate versions.tf with required Terraform and provider versions"""
         try:
-            template = self.jinja_env.get_template('terraform/versions.tf.j2')
+            template = self.jinja_env.get_template('terraform/proxmox/versions.tf.j2')
 
             content = template.render(
                 topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0')
@@ -155,7 +146,7 @@ class TerraformGenerator:
     def generate_bridges(self) -> bool:
         """Generate bridges.tf with network bridge resources"""
         try:
-            template = self.jinja_env.get_template('terraform/bridges.tf.j2')
+            template = self.jinja_env.get_template('terraform/proxmox/bridges.tf.j2')
 
             bridges = self.topology['L2_network'].get('bridges', [])
 
@@ -182,7 +173,7 @@ class TerraformGenerator:
     def generate_vms(self) -> bool:
         """Generate vms.tf with VM resources"""
         try:
-            template = self.jinja_env.get_template('terraform/vms.tf.j2')
+            template = self.jinja_env.get_template('terraform/proxmox/vms.tf.j2')
 
             vms = self.topology['L4_platform'].get('vms', [])
             storage_map = {s['id']: s for s in self.topology.get('L3_data', {}).get('storage', [])}
@@ -207,7 +198,7 @@ class TerraformGenerator:
     def generate_lxc(self) -> bool:
         """Generate lxc.tf with LXC container resources"""
         try:
-            template = self.jinja_env.get_template('terraform/lxc.tf.j2')
+            template = self.jinja_env.get_template('terraform/proxmox/lxc.tf.j2')
 
             lxc_containers = self.topology['L4_platform'].get('lxc', [])
             storage_map = {s['id']: s for s in self.topology.get('L3_data', {}).get('storage', [])}
@@ -232,14 +223,14 @@ class TerraformGenerator:
     def generate_variables(self) -> bool:
         """Generate variables.tf and terraform.tfvars.example"""
         try:
-            vars_template = self.jinja_env.get_template('terraform/variables.tf.j2')
+            vars_template = self.jinja_env.get_template('terraform/proxmox/variables.tf.j2')
             vars_content = vars_template.render()
 
             vars_file = self.output_dir / "variables.tf"
             vars_file.write_text(vars_content, encoding="utf-8")
             print(f"OK Generated: {vars_file}")
 
-            tfvars_template = self.jinja_env.get_template('terraform/terraform.tfvars.example.j2')
+            tfvars_template = self.jinja_env.get_template('terraform/proxmox/terraform.tfvars.example.j2')
 
             mgmt_network = None
             for network in self.topology['L2_network'].get('networks', []):
@@ -264,7 +255,7 @@ class TerraformGenerator:
     def generate_outputs(self) -> bool:
         """Generate outputs.tf with infrastructure outputs"""
         try:
-            template = self.jinja_env.get_template('terraform/outputs.tf.j2')
+            template = self.jinja_env.get_template('terraform/proxmox/outputs.tf.j2')
 
             bridges = self.topology['L2_network'].get('bridges', [])
             lxc_containers = self.topology['L4_platform'].get('lxc', [])
@@ -316,49 +307,3 @@ class TerraformGenerator:
         print(f"  4. Run: cd {self.output_dir} && terraform init -upgrade")
         print(f"  5. Run: terraform plan")
         print(f"  6. Run: terraform apply")
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Generate Terraform configuration from topology v4.0"
-    )
-    parser.add_argument(
-        "--topology",
-        default="topology.yaml",
-        help="Path to topology YAML file"
-    )
-    parser.add_argument(
-        "--output",
-        default="generated/terraform",
-        help="Output directory for Terraform files (default: generated/terraform/)"
-    )
-    parser.add_argument(
-        "--templates",
-        default="topology-tools/templates",
-        help="Directory containing Jinja2 templates"
-    )
-
-    args = parser.parse_args()
-
-    generator = TerraformGenerator(args.topology, args.output, args.templates)
-
-    print("="*70)
-    print("Terraform Configuration Generator (Topology v4.0)")
-    print("="*70)
-    print()
-
-    if not generator.load_topology():
-        sys.exit(1)
-
-    print("\nGEN Generating Terraform files...\n")
-
-    if not generator.generate_all():
-        print("\nERROR Generation failed with errors")
-        sys.exit(1)
-
-    generator.print_summary()
-    print("\nOK Terraform generation completed successfully!\n")
-
-
-if __name__ == "__main__":
-    main()

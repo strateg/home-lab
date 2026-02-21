@@ -1,7 +1,7 @@
 # ============================================================
 # Network Bridges Configuration
 # Generated from topology.yaml v{{ topology_version }}
-# DO NOT EDIT MANUALLY - Regenerate with topology-tools/generate-terraform.py
+# DO NOT EDIT MANUALLY - Regenerate with topology-tools/generate-terraform-proxmox.py
 # ============================================================
 
 {% for bridge in bridges %}
@@ -78,3 +78,4 @@ output "bridges" {
     {% endfor %}
   }
 }
+

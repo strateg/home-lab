@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from scripts.generation.common import load_and_validate_layered_topology, prepare_output_directory
+from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
 
 
 class AnsibleInventoryGenerator:

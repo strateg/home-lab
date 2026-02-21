@@ -21,12 +21,12 @@ Usage:
 python topology-tools/validate-topology.py --topology topology.yaml --schema topology-tools/schemas/topology-v4-schema.json
 ```
 
-### generate-terraform.py
+### generate-terraform-proxmox.py
 Generate Proxmox Terraform from L1/L2/L3/L4.
 
 Usage:
 ```bash
-python topology-tools/generate-terraform.py --topology topology.yaml --output generated/terraform
+python topology-tools/generate-terraform-proxmox.py --topology topology.yaml --output generated/terraform
 ```
 
 ### generate-terraform-mikrotik.py
@@ -214,7 +214,7 @@ home-lab/
     ansible/inventory/production/
     docs/
   topology-tools/
-    generate-terraform.py
+    generate-terraform-proxmox.py
     generate-terraform-mikrotik.py
     generate-ansible-inventory.py
     generate-docs.py
@@ -223,7 +223,7 @@ home-lab/
     topology_loader.py
     split-topology.py
     scripts/
-      validation/
+      validators/
         checks/
           storage.py
           network.py
@@ -231,17 +231,20 @@ home-lab/
           foundation.py
           governance.py
         ids.py
-      generation/
+      generators/
         common/
         docs/
+        terraform/
+          proxmox/
+          mikrotik/
     schemas/
       topology-v4-schema.json
       validator-policy.yaml
     templates/
-      terraform/
-      terraform-mikrotik/
       ansible/
       docs/
+      terraform/proxmox/
+      terraform/mikrotik/
   manual-scripts/
     openwrt/
     opi5/
@@ -257,7 +260,7 @@ python topology-tools/regenerate-all.py --topology topology.yaml
 ## Notes
 
 - Do not edit generated files under generated/. They are overwritten on each run.
-- Templates live in topology-tools/templates/ and use Jinja2.
+- Templates live in `topology-tools/templates/` (ansible/docs/terraform) and use Jinja2.
 
 ## Important Notes
 
@@ -276,7 +279,7 @@ Files in generated/ are automatically regenerated and auto-cleaned.
 - Ensure topology.yaml includes L0-L7 includes.
 
 2) Template not found
-- Ensure topology-tools/templates/ exists and contains .j2 files.
+- Ensure `topology-tools/templates/` exists and contains required `.j2` files.
 
 3) Reference validation failed
 - Run validate-topology.py and fix reported refs.
@@ -285,3 +288,4 @@ Files in generated/ are automatically regenerated and auto-cleaned.
 
 - Generators updated for topology v4.0
 - Last updated: 2026-02-17
+
