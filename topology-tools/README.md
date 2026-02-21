@@ -41,6 +41,27 @@ Validate topology.yaml schema and references.
 Usage:
 ```bash
 python topology-tools/validate-topology.py --topology topology.yaml --schema topology-tools/schemas/topology-v4-schema.json
+python topology-tools/validate-topology.py --topology topology.yaml --strict
+python topology-tools/validate-topology.py --topology topology.yaml --migration-report
+```
+
+Notes:
+- `--strict` escalates warnings (including deprecation warnings) to errors.
+- `--migration-report` prints a checklist of legacy fields to migrate for ADR-0026/v5.
+
+### migrate-to-v5.py
+Migration assistant for ADR-0026.
+
+Usage:
+```bash
+# Report-only mode (default)
+python topology-tools/migrate-to-v5.py --topology topology.yaml
+
+# JSON report for automation
+python topology-tools/migrate-to-v5.py --topology topology.yaml --json
+
+# Additive preview transform (writes new-model fields, keeps legacy fields)
+python topology-tools/migrate-to-v5.py --topology topology.yaml --apply --output-topology generated/migration/topology-v5-preview.yaml
 ```
 
 ### generate-terraform-proxmox.py
