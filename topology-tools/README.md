@@ -206,8 +206,12 @@ By default it also validates Mermaid rendering for generated docs.
 Usage:
 ```bash
 python topology-tools/regenerate-all.py --topology topology.yaml
+python topology-tools/regenerate-all.py --topology topology-v5-cutover-preview.yaml --strict
 python topology-tools/regenerate-all.py --topology topology.yaml --skip-mermaid-validate
+python topology-tools/regenerate-all.py --topology topology.yaml --fail-on-validation
 ```
+
+`--strict` forwards strict validation to `validate-topology.py` and enables fail-fast on validation errors.
 
 ## Dependencies
 

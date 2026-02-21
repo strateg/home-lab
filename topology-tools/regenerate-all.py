@@ -35,6 +35,8 @@ class RegenerateAll:
         topology_path: str,
         validate_mermaid: bool = True,
         mermaid_icon_mode: str = "auto",
+        strict_validate: bool = False,
+        fail_on_validation: bool = False,
         use_topology_cache: bool = True,
         clear_cache_first: bool = False,
     ):
@@ -43,6 +45,8 @@ class RegenerateAll:
         self.project_root = self.scripts_dir.parent
         self.validate_mermaid = validate_mermaid
         self.mermaid_icon_mode = mermaid_icon_mode
+        self.strict_validate = strict_validate
+        self.fail_on_validation = fail_on_validation
         self.use_topology_cache = use_topology_cache
         self.clear_cache_first = clear_cache_first
         self.errors = []
@@ -100,6 +104,8 @@ class RegenerateAll:
         print(f"DIR Topology file: {self.topology_path}")
         print(f"TIME Started at: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"CACHE Topology cache: {'enabled' if self.use_topology_cache else 'disabled'}")
+        print(f"STEP Validation mode: {'strict' if self.strict_validate else 'compat'}")
+        print(f"STEP Fail on validation error: {'yes' if self.fail_on_validation else 'no'}")
         if self.use_topology_cache and self.clear_cache_first:
             try:
                 cache_removed = clear_topology_cache(self.topology_path)
@@ -113,6 +119,8 @@ class RegenerateAll:
 
         self.print_header(f"Step 1/{total_steps}: Validate Topology")
         validate_args = ["--topology", self.topology_path]
+        if self.strict_validate:
+            validate_args.append("--strict")
         if not self.use_topology_cache:
             validate_args.append("--no-topology-cache")
         if not self.run_script(
@@ -120,6 +128,10 @@ class RegenerateAll:
             "Validating topology",
             validate_args,
         ):
+            if self.fail_on_validation:
+                print("ERROR Validation failed, stopping due to fail-on-validation policy.")
+                self.print_summary(False, False, False, False, not self.validate_mermaid)
+                return False
             print("WARN  Validation failed, but continuing with generation...")
             print("   (Fix validation errors to ensure correct output)\n")
 
@@ -287,6 +299,16 @@ def main():
         action="store_true",
         help="Clear existing topology cache before regeneration",
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Run topology validation in strict mode (warnings become errors)",
+    )
+    parser.add_argument(
+        "--fail-on-validation",
+        action="store_true",
+        help="Stop regenerate-all immediately when topology validation fails",
+    )
 
     args = parser.parse_args()
 
@@ -294,6 +316,8 @@ def main():
         args.topology,
         validate_mermaid=not args.skip_mermaid_validate,
         mermaid_icon_mode=args.mermaid_icon_mode,
+        strict_validate=args.strict,
+        fail_on_validation=args.fail_on_validation or args.strict,
         use_topology_cache=not args.no_topology_cache,
         clear_cache_first=args.clear_topology_cache,
     )
