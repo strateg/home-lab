@@ -2,6 +2,7 @@
 Terraform generator core for Proxmox resources.
 """
 
+import copy
 import yaml
 from pathlib import Path
 from typing import Dict, List
@@ -72,6 +73,49 @@ class TerraformGenerator:
                 bridge['ports'] = resolved_ports
 
         return bridges
+
+    def _resolve_lxc_resources(self, lxc_containers: List[Dict]) -> List[Dict]:
+        """
+        Resolve effective LXC resources for templates.
+
+        Priority:
+        1. legacy inline lxc.resources
+        2. lxc.resource_profile_ref -> L4 resource_profiles
+        3. conservative defaults
+        """
+        l4 = self.topology.get('L4_platform', {}) or {}
+        profiles = l4.get('resource_profiles', []) or []
+        profile_map = {
+            profile.get('id'): profile
+            for profile in profiles
+            if isinstance(profile, dict) and profile.get('id')
+        }
+        resolved: List[Dict] = []
+
+        for container in lxc_containers:
+            if not isinstance(container, dict):
+                continue
+            item = copy.deepcopy(container)
+            resources = item.get('resources') if isinstance(item.get('resources'), dict) else None
+
+            if not resources:
+                profile_ref = item.get('resource_profile_ref')
+                profile = profile_map.get(profile_ref, {}) if profile_ref else {}
+                cpu = (profile.get('cpu') or {})
+                memory = (profile.get('memory') or {})
+                resources = {
+                    'cores': cpu.get('cores', 1),
+                    'memory_mb': memory.get('mb', 512),
+                    'swap_mb': memory.get('swap_mb', 0),
+                }
+                item['resources'] = resources
+
+            # Keep template comments informative when old semantic fields are removed.
+            item.setdefault('type', item.get('platform_type', 'lxc'))
+            item.setdefault('role', item.get('resource_profile_ref', 'resource-profile'))
+            resolved.append(item)
+
+        return resolved
 
     def generate_all(self) -> bool:
         """Generate all Terraform files"""
@@ -150,7 +194,6 @@ class TerraformGenerator:
 
             bridges = self.topology['L2_network'].get('bridges', [])
 
-            import copy
             bridges = copy.deepcopy(bridges)
             bridges = self._resolve_interface_names(bridges)
 
@@ -201,6 +244,7 @@ class TerraformGenerator:
             template = self.jinja_env.get_template('terraform/proxmox/lxc.tf.j2')
 
             lxc_containers = self.topology['L4_platform'].get('lxc', [])
+            lxc_containers = self._resolve_lxc_resources(lxc_containers)
             storage_map = {s['id']: s for s in self.topology.get('L3_data', {}).get('storage', [])}
             bridge_map = {b['id']: b for b in self.topology['L2_network'].get('bridges', [])}
 

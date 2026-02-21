@@ -6,6 +6,7 @@ import yaml
 import re
 import json
 import base64
+import copy
 from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import quote
@@ -297,6 +298,37 @@ class DocumentationGenerator:
             'media_attachments': media_attachments,
         }
 
+    def _resolve_lxc_resources(self, lxc_containers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Resolve effective LXC resources from inline resources or resource profiles."""
+        l4 = self.topology.get('L4_platform', {}) or {}
+        profile_map = {
+            profile.get('id'): profile
+            for profile in (l4.get('resource_profiles', []) or [])
+            if isinstance(profile, dict) and profile.get('id')
+        }
+        resolved: List[Dict[str, Any]] = []
+
+        for container in lxc_containers:
+            if not isinstance(container, dict):
+                continue
+            item = copy.deepcopy(container)
+            resources = item.get('resources') if isinstance(item.get('resources'), dict) else None
+            if not resources:
+                profile_ref = item.get('resource_profile_ref')
+                profile = profile_map.get(profile_ref, {}) if profile_ref else {}
+                cpu = (profile.get('cpu') or {})
+                memory = (profile.get('memory') or {})
+                item['resources'] = {
+                    'cores': cpu.get('cores', 1),
+                    'memory_mb': memory.get('mb', 512),
+                    'swap_mb': memory.get('swap_mb', 0),
+                }
+            item.setdefault('type', item.get('platform_type', 'lxc'))
+            item.setdefault('role', item.get('resource_profile_ref', 'resource-profile'))
+            resolved.append(item)
+
+        return resolved
+
     def load_topology(self) -> bool:
         """Load topology YAML file (with !include support)"""
         try:
@@ -468,7 +500,7 @@ class DocumentationGenerator:
         """Generate devices inventory"""
         devices = self.topology['L1_foundation'].get('devices', [])
         vms = self.topology['L4_platform'].get('vms', [])
-        lxc = self.topology['L4_platform'].get('lxc', [])
+        lxc = self._resolve_lxc_resources(self.topology['L4_platform'].get('lxc', []))
         storage = self.topology.get('L3_data', {}).get('storage', [])
         storage_views = self.build_l1_storage_views()
 

@@ -205,6 +205,21 @@ services:
   storage:
     type: nvme
     path: /mnt/nvme/nextcloud
+  config:
+    docker:
+      ports:
+      - 443:443
+      - 80:80
+      volumes:
+      - /mnt/nvme/nextcloud/data:/var/www/html/data
+      - /mnt/nvme/nextcloud/config:/var/www/html/config
+      environment:
+        POSTGRES_HOST: 10.0.30.10
+        REDIS_HOST: 10.0.30.20
+      depends_on:
+      - lxc-postgresql
+      - lxc-redis
+      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
 - id: svc-jellyfin
   name: Jellyfin
@@ -232,6 +247,20 @@ services:
       config: /mnt/nvme/jellyfin/config
       cache: /mnt/nvme/jellyfin/cache
       media: /mnt/nvme/media
+  config:
+    docker:
+      ports:
+      - 8096:8096
+      volumes:
+      - /mnt/nvme/jellyfin/config:/config
+      - /mnt/nvme/jellyfin/cache:/cache
+      - /mnt/nvme/media:/media
+      devices:
+      - /dev/dri:/dev/dri
+      - /dev/mali0:/dev/mali0
+      - /dev/rga:/dev/rga
+      note: RK3588S VPU for hardware transcoding
+      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
 - id: svc-adguard-secondary
   name: AdGuard Home Secondary
@@ -282,6 +311,13 @@ services:
   - name: redis
     type: redis_exporter
     target: 10.0.30.20:9121
+  config:
+    docker:
+      ports:
+      - 9090:9090
+      volumes:
+      - /mnt/nvme/prometheus:/prometheus
+      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
 - id: svc-alertmanager
   name: Alertmanager
@@ -348,6 +384,13 @@ services:
   description: Grafana dashboards and visualization
   dependencies:
   - service_ref: svc-prometheus
+  config:
+    docker:
+      ports:
+      - 3000:3000
+      volumes:
+      - /mnt/nvme/grafana:/var/lib/grafana
+      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
 - id: svc-homeassistant
   name: Home Assistant
@@ -369,6 +412,14 @@ services:
   - Zigbee support (with USB adapter)
   - Z-Wave support (with USB adapter)
   - GPIO access
+  config:
+    docker:
+      ports:
+      - 8123:8123
+      volumes:
+      - /mnt/nvme/homeassistant:/config
+      note: Enable if smart home devices are used
+      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
 - id: svc-proxmox-ui
   name: Proxmox Web UI
@@ -399,6 +450,30 @@ services:
     user: nextcloud
   - name: homelab
     user: app
+  config:
+    postgresql_version: '16'
+    postgresql_listen_addresses: 10.0.30.10
+    postgresql_databases:
+    - name: nextcloud
+    - name: homelab
+    postgresql_users:
+    - name: nextcloud
+      password: '{{ vault_postgresql_nextcloud_password }}'
+      database: nextcloud
+    - name: app
+      password: '{{ vault_postgresql_app_password }}'
+      database: homelab
+    postgresql_pg_hba:
+    - type: host
+      database: nextcloud
+      user: nextcloud
+      address: 10.0.30.50/32
+      method: scram-sha-256
+    - type: host
+      database: all
+      user: all
+      address: 10.0.30.0/24
+      method: scram-sha-256
   security_policy_ref: sec-baseline
 - id: svc-redis
   name: Redis Cache
@@ -412,6 +487,11 @@ services:
   description: Redis cache server
   clients:
   - service_ref: svc-nextcloud
+  config:
+    redis_port: 6379
+    redis_bind: 10.0.30.20
+    redis_maxmemory: 256mb
+    redis_maxmemory_policy: allkeys-lru
   security_policy_ref: sec-baseline
 dns:
   zones:
@@ -571,56 +651,3 @@ dns:
     - 10.0.0.0/8
     - 192.168.0.0/16
     - 100.64.0.0/10
-external_services:
-- id: ext-orangepi5
-  device_ref: orangepi5
-  description: Application services on Orange Pi 5
-  ip: 10.0.30.50
-  docker_services:
-  - name: nextcloud
-    image: nextcloud:28
-    ports:
-    - 443:443
-    - 80:80
-    volumes:
-    - /mnt/nvme/nextcloud/data:/var/www/html/data
-    - /mnt/nvme/nextcloud/config:/var/www/html/config
-    environment:
-      POSTGRES_HOST: 10.0.30.10
-      REDIS_HOST: 10.0.30.20
-    depends_on:
-    - lxc-postgresql
-    - lxc-redis
-  - name: jellyfin
-    image: jellyfin/jellyfin:latest
-    ports:
-    - 8096:8096
-    volumes:
-    - /mnt/nvme/jellyfin/config:/config
-    - /mnt/nvme/jellyfin/cache:/cache
-    - /mnt/nvme/media:/media
-    devices:
-    - /dev/dri:/dev/dri
-    - /dev/mali0:/dev/mali0
-    - /dev/rga:/dev/rga
-    note: RK3588S VPU for hardware transcoding
-  - name: prometheus
-    image: prom/prometheus:latest
-    ports:
-    - 9090:9090
-    volumes:
-    - /mnt/nvme/prometheus:/prometheus
-  - name: grafana
-    image: grafana/grafana:latest
-    ports:
-    - 3000:3000
-    volumes:
-    - /mnt/nvme/grafana:/var/lib/grafana
-  - name: home-assistant
-    image: homeassistant/home-assistant:stable
-    ports:
-    - 8123:8123
-    volumes:
-    - /mnt/nvme/homeassistant:/config
-    optional: true
-    note: Enable if smart home devices are used

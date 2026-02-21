@@ -28,23 +28,34 @@ _defaults:
   ansible_enabled:
     enabled: true
 vms: []
+resource_profiles:
+- id: profile-db-small
+  name: Database Small
+  cpu:
+    cores: 2
+  memory:
+    mb: 1024
+    swap_mb: 1024
+- id: profile-cache-small
+  name: Cache Small
+  cpu:
+    cores: 1
+  memory:
+    mb: 512
+    swap_mb: 256
 lxc:
 - id: lxc-postgresql
   vmid: 200
   name: postgresql-db
   device_ref: gamayun
-  type: database
-  role: database-server
+  platform_type: lxc-unprivileged
+  resource_profile_ref: profile-db-small
   template_ref: tpl-lxc-postgresql
   trust_zone_ref: servers
   description: PostgreSQL Database Server
   tags:
   - database
   - production
-  resources:
-    cores: 2
-    memory_mb: 1024
-    swap_mb: 1024
   boot:
     onboot: true
     startup_order: 10
@@ -70,46 +81,18 @@ lxc:
   ansible:
     enabled: true
     playbook: postgresql.yml
-    vars:
-      postgresql_version: '16'
-      postgresql_listen_addresses: 10.0.30.10
-      postgresql_databases:
-      - name: nextcloud
-      - name: homelab
-      postgresql_users:
-      - name: nextcloud
-        password: '{{ vault_postgresql_nextcloud_password }}'
-        database: nextcloud
-      - name: app
-        password: '{{ vault_postgresql_app_password }}'
-        database: homelab
-      postgresql_pg_hba:
-      - type: host
-        database: nextcloud
-        user: nextcloud
-        address: 10.0.30.50/32
-        method: scram-sha-256
-      - type: host
-        database: all
-        user: all
-        address: 10.0.30.0/24
-        method: scram-sha-256
 - id: lxc-redis
   vmid: 201
   name: redis-cache
   device_ref: gamayun
-  type: cache
-  role: cache-server
+  platform_type: lxc-unprivileged
+  resource_profile_ref: profile-cache-small
   template_ref: tpl-lxc-redis
   trust_zone_ref: servers
   description: Redis Cache Server
   tags:
   - cache
   - production
-  resources:
-    cores: 1
-    memory_mb: 512
-    swap_mb: 256
   boot:
     onboot: true
     startup_order: 11
@@ -133,11 +116,6 @@ lxc:
   ansible:
     enabled: true
     playbook: redis.yml
-    vars:
-      redis_port: 6379
-      redis_bind: 10.0.30.20
-      redis_maxmemory: 256mb
-      redis_maxmemory_policy: allkeys-lru
 templates:
   lxc:
   - id: tpl-lxc-postgresql
