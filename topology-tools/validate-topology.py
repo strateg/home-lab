@@ -4,7 +4,7 @@ Validate topology.yaml against JSON Schema v7 (v4 layered topology)
 Provides detailed error messages and validation reports
 
 Usage:
-    python3 topology-tools/validate-topology.py [--topology topology.yaml] [--schema topology-tools/schemas/topology-v4-schema.json] [--validator-policy topology-tools/schemas/validator-policy.yaml]
+    python3 topology-tools/validate-topology.py [--topology topology.yaml] [--schema topology-tools/schemas/topology-v4-schema.json] [--validator-policy topology-tools/schemas/validator-policy.yaml] [--no-topology-cache]
 
 Requirements:
     pip install jsonschema pyyaml
@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional, Set
 
 # Import topology loader with !include support
 from topology_loader import load_topology
+from scripts.generators.common import load_topology_cached
 from scripts.validators.checks.storage import (
     build_l1_storage_context,
     check_l3_storage_refs,
@@ -65,10 +66,17 @@ DEFAULT_VALIDATOR_POLICY_PATH = SCRIPT_DIR / "schemas" / "validator-policy.yaml"
 class SchemaValidator:
     """Validate topology YAML against JSON Schema"""
 
-    def __init__(self, topology_path: str, schema_path: str, validator_policy_path: Optional[str] = None):
+    def __init__(
+        self,
+        topology_path: str,
+        schema_path: str,
+        validator_policy_path: Optional[str] = None,
+        use_topology_cache: bool = True,
+    ):
         self.topology_path = Path(topology_path)
         self.schema_path = Path(schema_path)
         self.validator_policy_path = Path(validator_policy_path) if validator_policy_path else DEFAULT_VALIDATOR_POLICY_PATH
+        self.use_topology_cache = use_topology_cache
         self.topology: Optional[Dict] = None
         self.schema: Optional[Dict] = None
         self.validator_policy: Dict[str, Any] = self._default_validator_policy()
@@ -121,7 +129,10 @@ class SchemaValidator:
     def load_files(self) -> bool:
         """Load topology YAML and schema JSON"""
         try:
-            self.topology = load_topology(str(self.topology_path))
+            if self.use_topology_cache:
+                self.topology = load_topology_cached(self.topology_path)
+            else:
+                self.topology = load_topology(str(self.topology_path))
             print(f"OK Loaded topology: {self.topology_path}")
         except FileNotFoundError:
             self.errors.append(f"Topology file not found: {self.topology_path}")
@@ -462,10 +473,20 @@ def main():
         action="store_true",
         help="Verbose output"
     )
+    parser.add_argument(
+        "--no-topology-cache",
+        action="store_true",
+        help="Disable shared topology cache and force direct YAML parse",
+    )
 
     args = parser.parse_args()
 
-    validator = SchemaValidator(args.topology, args.schema, args.validator_policy)
+    validator = SchemaValidator(
+        args.topology,
+        args.schema,
+        args.validator_policy,
+        use_topology_cache=not args.no_topology_cache,
+    )
     valid = validator.validate()
     validator.print_results()
 

@@ -27,4 +27,4 @@
 | [0023](0023-terraform-generators-and-templates-domain-layout.md) | Terraform Generators and Templates Domain Layout | Accepted | 2026-02-21 | - | - |
 | [0024](0024-validators-namespace-alignment.md) | Rename Validation Package Namespace to validators | Accepted | 2026-02-21 | - | - |
 | [0025](0025-generator-protocol-and-cli-base-class.md) | Generator Protocol and CLI Base Class | Accepted | 2026-02-21 | - | - |
-| [0026](0026-l3-l4-taxonomy-refactoring-storage-chain-and-platform-separation.md) | L3/L4 Taxonomy Refactoring — Storage Chain and Platform Separation | Proposed | 2026-02-21 | - | - |
+| [0026](0026-l3-l4-taxonomy-refactoring-storage-chain-and-platform-separation.md) | L3/L4 Taxonomy Refactoring — Storage Chain and Platform Separation | Accepted | 2026-02-21 | - | - |

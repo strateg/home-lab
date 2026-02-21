@@ -242,6 +242,25 @@
       "type": "string",
       "enum": ["config-export", "database", "cache", "backup-artifact", "volume", "file", "media"]
     },
+    "DataAssetCategory": {
+      "type": "string",
+      "enum": [
+        "database",
+        "cache",
+        "timeseries",
+        "search-index",
+        "object-storage",
+        "file-share",
+        "media-library",
+        "configuration",
+        "secrets",
+        "logs"
+      ]
+    },
+    "DataCriticality": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
     "LxcType": {
       "type": "string",
       "enum": ["database", "cache", "web", "application", "utility", "proxy"]
@@ -249,6 +268,10 @@
     "LxcRole": {
       "type": "string",
       "enum": ["database-server", "cache-server", "web-server", "app-server", "proxy-server"]
+    },
+    "PlatformType": {
+      "type": "string",
+      "enum": ["lxc-unprivileged", "lxc-privileged", "lxc-nested", "vm-uefi", "vm-bios", "vm-cloud-init"]
     },
     "TemplateSource": {
       "type": "string",
@@ -265,6 +288,10 @@
     "ContainerRuntime": {
       "type": "string",
       "enum": ["docker", "podman", "lxc", "native", "containerd"]
+    },
+    "RuntimeType": {
+      "type": "string",
+      "enum": ["lxc", "vm", "docker", "baremetal"]
     },
     "CertificateType": {
       "type": "string",
@@ -345,17 +372,37 @@
       "type": "string",
       "pattern": "^storage-[a-z0-9-]+$"
     },
+    "StorageEndpointRef": {
+      "type": "string",
+      "pattern": "^se-[a-z0-9-]+$"
+    },
     "MediaRef": {
       "type": "string",
       "pattern": "^disk-[a-z0-9-]+$"
+    },
+    "DataAssetRef": {
+      "type": "string",
+      "pattern": "^data-[a-z0-9-]+$"
     },
     "LxcRef": {
       "type": "string",
       "pattern": "^lxc-[a-z0-9-]+$"
     },
+    "VmRef": {
+      "type": "string",
+      "pattern": "^vm-[a-z0-9-]+$"
+    },
     "ServiceRef": {
       "type": "string",
       "pattern": "^svc-[a-z0-9-]+$"
+    },
+    "ResourceProfileRef": {
+      "type": "string",
+      "pattern": "^profile-[a-z0-9-]+$"
+    },
+    "BackupPolicyRef": {
+      "type": "string",
+      "pattern": "^backup-[a-z0-9-]+$"
     },
     "SecurityPolicyRef": {
       "type": "string",
@@ -725,18 +772,221 @@
         "description": { "type": "string" }
       }
     },
-    "DataAsset": {
+    "Partition": {
       "type": "object",
-      "required": ["id", "name", "type"],
+      "required": ["id", "media_attachment_ref", "number", "type"],
       "properties": {
-        "id": { "type": "string", "pattern": "^data-[a-z0-9-]+$" },
-        "name": { "type": "string" },
-        "type": { "$ref": "#/definitions/DataAssetType" },
-        "device_ref": { "$ref": "#/definitions/DeviceRef" },
-        "storage_ref": { "$ref": "#/definitions/StorageRef" },
-        "path": { "type": "string" },
+        "id": { "type": "string", "pattern": "^part-[a-z0-9-]+$" },
+        "media_attachment_ref": { "type": "string", "pattern": "^attach-[a-z0-9-]+$" },
+        "number": { "type": "integer", "minimum": 1 },
+        "type": { "type": "string", "enum": ["efi", "swap", "ext4", "xfs", "zfs", "lvm-pv", "other"] },
+        "size": {
+          "oneOf": [
+            { "type": "number", "minimum": 0.001 },
+            { "type": "string", "enum": ["remaining"] }
+          ]
+        },
+        "flags": { "type": "array", "items": { "type": "string" } },
         "description": { "type": "string" }
       }
+    },
+    "VolumeGroup": {
+      "type": "object",
+      "required": ["id", "name", "type", "pv_refs"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^vg-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["lvm", "zfs", "btrfs"] },
+        "pv_refs": { "type": "array", "items": { "type": "string", "pattern": "^part-[a-z0-9-]+$" } },
+        "description": { "type": "string" }
+      }
+    },
+    "LogicalVolume": {
+      "type": "object",
+      "required": ["id", "name", "type", "vg_ref"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^lv-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["thin-pool", "thick", "dataset", "zvol", "filesystem"] },
+        "vg_ref": { "type": "string", "pattern": "^vg-[a-z0-9-]+$" },
+        "size_gb": { "type": "number", "minimum": 0.001 },
+        "description": { "type": "string" }
+      }
+    },
+    "Filesystem": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^fs-[a-z0-9-]+$" },
+        "type": { "type": "string", "enum": ["ext4", "xfs", "zfs", "btrfs"] },
+        "lv_ref": { "type": "string", "pattern": "^lv-[a-z0-9-]+$" },
+        "partition_ref": { "type": "string", "pattern": "^part-[a-z0-9-]+$" },
+        "mount_options": { "type": "array", "items": { "type": "string" } },
+        "description": { "type": "string" }
+      }
+    },
+    "MountPoint": {
+      "type": "object",
+      "required": ["id", "path"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^mnt-[a-z0-9-]+$" },
+        "path": { "type": "string", "pattern": "^/.+" },
+        "filesystem_ref": { "type": "string", "pattern": "^fs-[a-z0-9-]+$" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "description": { "type": "string" }
+      }
+    },
+    "StorageEndpoint": {
+      "type": "object",
+      "required": ["id", "name", "platform", "type"],
+      "properties": {
+        "id": { "$ref": "#/definitions/StorageEndpointRef" },
+        "name": { "type": "string" },
+        "platform": { "type": "string", "enum": ["proxmox", "docker", "kubernetes", "host"] },
+        "type": { "$ref": "#/definitions/StorageType" },
+        "lv_ref": { "type": "string", "pattern": "^lv-[a-z0-9-]+$" },
+        "mount_point_ref": { "type": "string", "pattern": "^mnt-[a-z0-9-]+$" },
+        "content": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/StorageContent" }
+        },
+        "path": { "type": "string" },
+        "shared": { "type": "boolean" },
+        "description": { "type": "string" }
+      }
+    },
+    "ResourceProfile": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "$ref": "#/definitions/ResourceProfileRef" },
+        "name": { "type": "string" },
+        "cpu": {
+          "type": "object",
+          "properties": {
+            "cores": { "type": "integer", "minimum": 1 },
+            "limit_percent": { "$ref": "#/definitions/Percentage" }
+          }
+        },
+        "memory": {
+          "type": "object",
+          "properties": {
+            "mb": { "type": "integer", "minimum": 64 },
+            "swap_mb": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "rootfs_gb": { "type": "number", "minimum": 0.1 }
+          }
+        },
+        "tuning": { "type": "object" },
+        "description": { "type": "string" }
+      }
+    },
+    "LxcStorageRootfs": {
+      "type": "object",
+      "properties": {
+        "storage_ref": { "$ref": "#/definitions/StorageRef" },
+        "storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" },
+        "size_gb": { "type": "number", "minimum": 0.1 }
+      }
+    },
+    "LxcVolume": {
+      "type": "object",
+      "required": ["id", "mount_path"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^vol-[a-z0-9-]+$" },
+        "mount_path": { "type": "string", "pattern": "^/.+" },
+        "storage_ref": { "$ref": "#/definitions/StorageRef" },
+        "storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" },
+        "size_gb": { "type": "number", "minimum": 0.1 },
+        "data_asset_ref": { "$ref": "#/definitions/DataAssetRef" },
+        "backup": { "type": "boolean" }
+      }
+    },
+    "LxcStorage": {
+      "type": "object",
+      "properties": {
+        "rootfs": { "$ref": "#/definitions/LxcStorageRootfs" },
+        "volumes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LxcVolume" }
+        }
+      }
+    },
+    "ServiceEndpoint": {
+      "type": "object",
+      "required": ["name", "protocol", "port"],
+      "properties": {
+        "name": { "type": "string" },
+        "protocol": { "type": "string", "enum": ["http", "https", "tcp", "udp"] },
+        "port": { "$ref": "#/definitions/Port" }
+      }
+    },
+    "ServiceRuntime": {
+      "type": "object",
+      "required": ["type", "target_ref"],
+      "properties": {
+        "type": { "$ref": "#/definitions/RuntimeType" },
+        "target_ref": { "$ref": "#/definitions/IdPattern" },
+        "network_binding_ref": { "$ref": "#/definitions/NetworkRef" },
+        "image": { "type": "string" }
+      }
+    },
+    "DataAsset": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "$ref": "#/definitions/DataAssetRef" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/DataAssetType" },
+        "category": { "$ref": "#/definitions/DataAssetCategory" },
+        "criticality": { "$ref": "#/definitions/DataCriticality" },
+        "backup_policy_refs": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/BackupPolicyRef" }
+        },
+        "retention_days": { "type": "integer", "minimum": 0 },
+        "encryption_at_rest": { "type": "boolean" },
+        "engine": { "type": "string" },
+        "engine_version": { "type": "string" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "storage_ref": { "$ref": "#/definitions/StorageRef" },
+        "storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" },
+        "mount_point_ref": { "type": "string", "pattern": "^mnt-[a-z0-9-]+$" },
+        "path": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            { "required": ["type"] },
+            { "required": ["category"] }
+          ]
+        },
+        {
+          "if": {
+            "required": ["category"],
+            "properties": {
+              "category": {
+                "enum": ["database", "cache", "timeseries", "search-index", "object-storage"]
+              }
+            }
+          },
+          "then": { "required": ["engine"] }
+        },
+        {
+          "if": {
+            "required": ["criticality"],
+            "properties": {
+              "criticality": { "enum": ["high", "critical"] }
+            }
+          },
+          "then": { "required": ["backup_policy_refs"] }
+        }
+      ]
     },
     "Lxc": {
       "type": "object",
@@ -746,6 +996,8 @@
         "vmid": { "type": "integer", "minimum": 100, "maximum": 999999999 },
         "name": { "type": "string" },
         "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "platform_type": { "$ref": "#/definitions/PlatformType" },
+        "resource_profile_ref": { "$ref": "#/definitions/ResourceProfileRef" },
         "type": { "$ref": "#/definitions/LxcType" },
         "role": { "$ref": "#/definitions/LxcRole" },
         "template_ref": { "type": "string" },
@@ -761,7 +1013,7 @@
           }
         },
         "boot": { "type": "object" },
-        "storage": { "type": "object" },
+        "storage": { "$ref": "#/definitions/LxcStorage" },
         "networks": { "type": "array" },
         "dns": { "type": "object" },
         "os": {
@@ -782,7 +1034,19 @@
         "id": { "$ref": "#/definitions/ServiceRef" },
         "name": { "type": "string" },
         "type": { "$ref": "#/definitions/ServiceType" },
+        "runtime": { "$ref": "#/definitions/ServiceRuntime" },
+        "network_binding_ref": { "$ref": "#/definitions/NetworkRef" },
+        "data_asset_refs": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/DataAssetRef" }
+        },
+        "endpoints": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ServiceEndpoint" }
+        },
+        "config": { "type": "object" },
         "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "vm_ref": { "$ref": "#/definitions/VmRef" },
         "lxc_ref": { "$ref": "#/definitions/LxcRef" },
         "network_ref": { "$ref": "#/definitions/NetworkRef" },
         "ip": { "$ref": "#/definitions/IpAddress" },
@@ -977,6 +1241,30 @@
     "L3_data": {
       "type": "object",
       "properties": {
+        "partitions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Partition" }
+        },
+        "volume_groups": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/VolumeGroup" }
+        },
+        "logical_volumes": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LogicalVolume" }
+        },
+        "filesystems": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Filesystem" }
+        },
+        "mount_points": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/MountPoint" }
+        },
+        "storage_endpoints": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/StorageEndpoint" }
+        },
         "storage": {
           "type": "array",
           "items": { "$ref": "#/definitions/Storage" }
@@ -992,6 +1280,10 @@
       "properties": {
         "_defaults": { "type": "object" },
         "vms": { "type": "array" },
+        "resource_profiles": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ResourceProfile" }
+        },
         "lxc": {
           "type": "array",
           "items": { "$ref": "#/definitions/Lxc" }

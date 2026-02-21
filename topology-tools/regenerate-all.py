@@ -24,16 +24,27 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Optional
 
+from scripts.generators.common import clear_topology_cache, warm_topology_cache
+
 
 class RegenerateAll:
     """Run all generators for topology v4.0"""
 
-    def __init__(self, topology_path: str, validate_mermaid: bool = True, mermaid_icon_mode: str = "auto"):
+    def __init__(
+        self,
+        topology_path: str,
+        validate_mermaid: bool = True,
+        mermaid_icon_mode: str = "auto",
+        use_topology_cache: bool = True,
+        clear_cache_first: bool = False,
+    ):
         self.topology_path = topology_path
         self.scripts_dir = Path(__file__).resolve().parent
         self.project_root = self.scripts_dir.parent
         self.validate_mermaid = validate_mermaid
         self.mermaid_icon_mode = mermaid_icon_mode
+        self.use_topology_cache = use_topology_cache
+        self.clear_cache_first = clear_cache_first
         self.errors = []
         self.start_time = datetime.now()
 
@@ -88,16 +99,39 @@ class RegenerateAll:
 
         print(f"DIR Topology file: {self.topology_path}")
         print(f"TIME Started at: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"CACHE Topology cache: {'enabled' if self.use_topology_cache else 'disabled'}")
+        if self.use_topology_cache and self.clear_cache_first:
+            try:
+                cache_removed = clear_topology_cache(self.topology_path)
+                if cache_removed:
+                    print("CACHE Cleared existing topology cache")
+                else:
+                    print("CACHE No existing topology cache to clear")
+            except OSError as e:
+                print(f"WARN  Failed to clear topology cache: {e}")
         total_steps = 6 if self.validate_mermaid else 5
 
         self.print_header(f"Step 1/{total_steps}: Validate Topology")
+        validate_args = ["--topology", self.topology_path]
+        if not self.use_topology_cache:
+            validate_args.append("--no-topology-cache")
         if not self.run_script(
             "validate-topology.py",
             "Validating topology",
-            ["--topology", self.topology_path],
+            validate_args,
         ):
             print("WARN  Validation failed, but continuing with generation...")
             print("   (Fix validation errors to ensure correct output)\n")
+
+        if self.use_topology_cache:
+            print("CACHE Warming shared topology cache...")
+            try:
+                warm_topology_cache(self.topology_path)
+                print("OK Topology cache is ready\n")
+            except Exception as e:
+                warning = f"Topology cache warm-up failed: {e}"
+                print(f"WARN  {warning}\n")
+                self.errors.append(warning)
 
         self.print_header(f"Step 2/{total_steps}: Generate Terraform (Proxmox)")
         success_terraform = self.run_script(
@@ -243,6 +277,16 @@ def main():
         choices=["auto", "icon-nodes", "compat", "none"],
         help="Icon mode to use for Mermaid render validation (default: auto)"
     )
+    parser.add_argument(
+        "--no-topology-cache",
+        action="store_true",
+        help="Disable shared topology cache for validation/generation",
+    )
+    parser.add_argument(
+        "--clear-topology-cache",
+        action="store_true",
+        help="Clear existing topology cache before regeneration",
+    )
 
     args = parser.parse_args()
 
@@ -250,6 +294,8 @@ def main():
         args.topology,
         validate_mermaid=not args.skip_mermaid_validate,
         mermaid_icon_mode=args.mermaid_icon_mode,
+        use_topology_cache=not args.no_topology_cache,
+        clear_cache_first=args.clear_topology_cache,
     )
     success = regenerator.run_all()
 

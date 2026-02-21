@@ -377,11 +377,17 @@ def check_l3_storage_refs(
     errors: List[str],
     warnings: List[str],
 ) -> None:
-    """Validate L3 storage bindings to L1 media inventory."""
+    """Validate L3 storage bindings to L1 media inventory and ADR-0026 compat rules."""
     l3 = topology.get('L3_data', {}) or {}
     storage_ctx = storage_ctx or {}
     media_by_id = storage_ctx.get('media_by_id', {})
     media_attachments = storage_ctx.get('media_attachments', [])
+    l7_backup = (topology.get('L7_operations', {}) or {}).get('backup', {}) or {}
+    backup_policies = {
+        policy.get('id')
+        for policy in (l7_backup.get('policies', []) or [])
+        if isinstance(policy, dict) and policy.get('id')
+    }
 
     disk_ids_by_device: Dict[str, Set[str]] = {}
     for attachment in media_attachments:
@@ -441,3 +447,54 @@ def check_l3_storage_refs(
                     f"Storage '{storage_id}': disk_ref '{disk_ref}' not found on device '{device_ref}'"
                 )
 
+    for endpoint in l3.get('storage_endpoints', []) or []:
+        if not isinstance(endpoint, dict):
+            continue
+        endpoint_id = endpoint.get('id', 'unknown')
+        has_lv_ref = bool(endpoint.get('lv_ref'))
+        has_mount_point_ref = bool(endpoint.get('mount_point_ref'))
+        has_path = bool(endpoint.get('path'))
+
+        if not any((has_lv_ref, has_mount_point_ref, has_path)):
+            warnings.append(
+                f"Storage endpoint '{endpoint_id}': no lv_ref/mount_point_ref/path set"
+            )
+
+    engine_required_categories = {
+        'database',
+        'cache',
+        'timeseries',
+        'search-index',
+        'object-storage',
+    }
+    for asset in l3.get('data_assets', []) or []:
+        if not isinstance(asset, dict):
+            continue
+        asset_id = asset.get('id', 'unknown')
+        category = asset.get('category')
+        criticality = asset.get('criticality')
+        backup_policy_refs = asset.get('backup_policy_refs') or []
+
+        if category in engine_required_categories and not asset.get('engine'):
+            errors.append(
+                f"Data asset '{asset_id}': category '{category}' requires engine"
+            )
+
+        if criticality in {'high', 'critical'} and not backup_policy_refs:
+            errors.append(
+                f"Data asset '{asset_id}': criticality '{criticality}' requires backup_policy_refs"
+            )
+
+        for backup_ref in backup_policy_refs:
+            if backup_ref not in backup_policies:
+                errors.append(
+                    f"Data asset '{asset_id}': backup_policy_ref '{backup_ref}' not found in L7_operations.backup.policies"
+                )
+
+        has_placement_fields = bool(
+            asset.get('storage_endpoint_ref') or asset.get('mount_point_ref') or asset.get('path')
+        )
+        if asset.get('category') and has_placement_fields:
+            warnings.append(
+                f"Data asset '{asset_id}': placement fields in L3 data_assets are deprecated; prefer L4 volume placement"
+            )

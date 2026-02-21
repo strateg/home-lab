@@ -14,12 +14,14 @@ def collect_ids(topology: Dict[str, Any]) -> Dict[str, Set[str]]:
         'networks': set(),
         'bridges': set(),
         'storage': set(),
+        'storage_endpoints': set(),
         'data_assets': set(),
         'trust_zones': set(),
         'network_profiles': set(),
         'firewall_policies': set(),
         'vms': set(),
         'lxc': set(),
+        'resource_profiles': set(),
         'services': set(),
         'templates': set(),
         'security_policies': set(),
@@ -77,6 +79,13 @@ def collect_ids(topology: Dict[str, Any]) -> Dict[str, Set[str]]:
         if isinstance(storage, dict) and storage.get('id'):
             ids['storage'].add(storage['id'])
 
+    for endpoint in l3.get('storage_endpoints', []) or []:
+        if isinstance(endpoint, dict) and endpoint.get('id'):
+            endpoint_id = endpoint['id']
+            ids['storage_endpoints'].add(endpoint_id)
+            # Keep legacy compatibility: treat endpoint IDs as valid storage refs for cross-layer checks.
+            ids['storage'].add(endpoint_id)
+
     for asset in l3.get('data_assets', []) or []:
         if isinstance(asset, dict) and asset.get('id'):
             ids['data_assets'].add(asset['id'])
@@ -92,6 +101,10 @@ def collect_ids(topology: Dict[str, Any]) -> Dict[str, Set[str]]:
         if isinstance(lxc, dict) and lxc.get('id'):
             ids['lxc'].add(lxc['id'])
 
+    for profile in l4.get('resource_profiles', []) or []:
+        if isinstance(profile, dict) and profile.get('id'):
+            ids['resource_profiles'].add(profile['id'])
+
     for svc in l5.get('services', []) or []:
         if isinstance(svc, dict) and svc.get('id'):
             ids['services'].add(svc['id'])
@@ -104,4 +117,3 @@ def collect_ids(topology: Dict[str, Any]) -> Dict[str, Set[str]]:
             ids['templates'].add(tpl['id'])
 
     return ids
-
