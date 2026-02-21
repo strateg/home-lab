@@ -65,29 +65,24 @@ data_assets:
   name: Nextcloud Data
   type: volume
   device_ref: orangepi5
-  path: /mnt/nvme/nextcloud
   description: Nextcloud data and config
 - id: data-jellyfin-config
   name: Jellyfin Config
   type: volume
   device_ref: orangepi5
-  path: /mnt/nvme/jellyfin/config
   description: Jellyfin configuration
 - id: data-grafana
   name: Grafana Data
   type: volume
   device_ref: orangepi5
-  path: /mnt/nvme/grafana
   description: Grafana data
 - id: data-prometheus
   name: Prometheus Data
   type: volume
   device_ref: orangepi5
-  path: /mnt/nvme/prometheus
   description: Prometheus TSDB
 - id: data-homeassistant
   name: Home Assistant Data
   type: volume
   device_ref: orangepi5
-  path: /mnt/nvme/homeassistant
   description: Home Assistant config

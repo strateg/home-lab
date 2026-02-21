@@ -253,7 +253,7 @@ Done criteria:
 - Tool emits stable stats with `*_pending` visibility for unresolved manual work.
 - Cutover preview can pass strict validation when written in repository root context.
 
-### Phase 4 - Repository topology migration (new-model authoring, in progress)
+### Phase 4 - Repository topology migration (new-model authoring, completed)
 
 - Apply migration assistant output to repository topology files.
 - Manually complete unresolved items that require domain intent:
@@ -280,7 +280,7 @@ Done criteria:
 
 - Main topology validates in strict mode with zero deprecation warnings.
 - Remaining legacy fields are tracked only in migration fixtures, not in main topology.
-- Remaining open migration debt is limited to path-only `L3 data_assets` on baremetal/container host workloads.
+- Migration assistant report for repository topology is now empty (`OK No legacy migration items detected`).
 
 ### Phase 5 - Generator and CI hardening
 
