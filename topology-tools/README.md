@@ -13,6 +13,7 @@ Related root directories:
   - `checks/governance.py` - L0 contracts, version, IP overlap checks
 - `topology-tools/scripts/generation/` - modular generation domain (incremental migration)
   - `scripts/generation/common/` - shared loader/output helpers for generator scripts
+  - `scripts/generation/docs/` - documentation generation core (generator, diagrams, CLI)
 - `manual-scripts/` - manual setup/config scripts (separated from topology tooling)
 
 Topology scripts transform `topology.yaml` (L0-L7 layered) into Terraform configs, Ansible inventory, and documentation.

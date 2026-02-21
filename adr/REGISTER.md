@@ -22,3 +22,5 @@
 | [0018](0018-generation-common-loader-and-output-preparation.md) | Shared Generation Common Module for Layered Topology Loading and Output Directory Preparation | Accepted | 2026-02-21 | - | - |
 | [0019](0019-proxmox-answer-layered-topology-only.md) | Proxmox Answer Generator Uses Layered Topology Only (No Legacy Root Sections) | Accepted | 2026-02-21 | - | - |
 | [0020](0020-topology-tools-scripts-domain-layout.md) | Co-locate Generation and Validation Under topology-tools/scripts | Accepted | 2026-02-21 | - | - |
+| [0021](0021-docs-generation-moved-to-scripts-generation-docs.md) | Move Documentation Generation Core into scripts/generation/docs | Accepted | 2026-02-21 | - | - |
+| [0022](0022-docs-diagram-module-canonical-location.md) | Use scripts/generation/docs/docs_diagram.py as Canonical Diagram Module | Accepted | 2026-02-21 | - | - |

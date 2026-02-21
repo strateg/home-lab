@@ -233,6 +233,7 @@ home-lab/
         ids.py
       generation/
         common/
+        docs/
     schemas/
       topology-v4-schema.json
       validator-policy.yaml
