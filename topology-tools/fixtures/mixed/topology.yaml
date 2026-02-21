@@ -1,0 +1,32 @@
+# Home Lab Network Topology v4.0 - Layered (OSI-like) Structure
+# Infrastructure-as-Data: Single Source of Truth
+# Used to generate: Terraform configs, Ansible inventory, network diagrams, documentation
+#
+# This is the main topology file that includes all layered components.
+# Edit individual files in topology/ directory and use generators.
+# Modular rules and workflow: see topology/MODULAR-GUIDE.md
+#
+# Architecture v4.0:
+# - Strict layer separation (L0..L7)
+# - References only downward (never upward)
+# - Generators process L0 → L7 (resolve lower layers first)
+# - Isolation of changes: L5 changes do not require L1–L4 changes
+#
+# Layer map:
+# L0 Meta          -> version, defaults, policies
+# L1 Foundation    -> devices, interfaces, MACs, storage slots, media registry, slot-media attachments, data links, power links
+# L2 Network       -> networks, bridges, trust_zones, firewall
+# L3 Data          -> storage, data assets, logical disk mappings (disk_ref + os_device)
+# L4 Platform      -> VMs, LXC, templates
+# L5 Application   -> services, ports, certificates, DNS records
+# L6 Observability -> monitoring, alerts, dashboards
+# L7 Operations    -> workflows, runbooks, docs, backups, power outage policies
+
+L0_meta: !include topology/L0-meta.yaml
+L1_foundation: !include topology/L1-foundation.yaml
+L2_network: !include topology/L2-network.yaml
+L3_data: !include topology/L3-data.yaml
+L4_platform: !include topology/L4-platform.yaml
+L5_application: !include topology/L5-application.yaml
+L6_observability: !include topology/L6-observability.yaml
+L7_operations: !include topology/L7-operations.yaml

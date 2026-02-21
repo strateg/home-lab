@@ -1,0 +1,56 @@
+id: hetzner-cx22-nuremberg
+name: Hetzner CX22 (Nuremberg)
+type: cloud-vm
+role: cloud-server
+class: compute
+substrate: provider-instance
+access: public
+location: hetzner-nuremberg
+description: Hetzner Cloud entry-level VPS - Алконост (птица радости)
+supported_operating_systems:
+- Ubuntu
+- Debian
+- CentOS Stream
+- Fedora
+cloud:
+  provider: hetzner
+  region: nbg1
+  instance_type: cx22
+  vcpus: 2
+  memory_gb: 4
+  boot_volume_gb: 40
+  public_ip: true
+  ipv6: true
+  pricing:
+    tier: paid
+    monthly_cost: 4.35
+    currency: EUR
+  tags:
+    purpose: general-compute
+    environment: production
+specs:
+  cpu:
+    architecture: x86_64
+    model: Intel Xeon
+    cores: 2
+  memory:
+    total_gb: 4
+    type: DDR4
+  storage_slots:
+  - id: slot-virtio-blk-0
+    name: Virtual Block Device 0
+    bus: virtual
+    mount: virtual
+    connector: paravirtual
+    description: Cloud provider attached system volume
+interfaces:
+- id: if-hetzner-public
+  name: eth0
+  type: ethernet
+  speed_mbps: 1000
+  role: wan
+  description: Primary public network interface
+services:
+- Backup VPN endpoint
+- Remote development environment
+- CI/CD runners

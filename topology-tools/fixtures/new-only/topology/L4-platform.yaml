@@ -1,0 +1,173 @@
+# L4 Platform
+# Part of Home Lab Topology v4.0.0
+# Compute platform: VMs, LXC, templates
+# Edit this file then regenerate: python3 topology-tools/regenerate-all.py
+
+_defaults:
+  lxc_os: &id002
+    type: debian
+    version: '12'
+  dns: &id001
+    nameserver: 192.168.88.1
+    searchdomain: home.local
+  lxc_boot:
+    onboot: true
+    startup_order: 10
+  lxc_storage_rootfs:
+    storage_endpoint_ref: se-lvm
+    size_gb: 8
+  lxc_network_servers:
+    interface: eth0
+    bridge_ref: bridge-vmbr0
+    network_ref: net-servers
+    gateway: 10.0.30.1
+    firewall: false
+    vlan_tag: 30
+  lxc_cloudinit:
+    enabled: true
+  ansible_enabled:
+    enabled: true
+vms: []
+resource_profiles:
+- id: profile-db-small
+  name: Database Small
+  cpu:
+    cores: 2
+  memory:
+    mb: 1024
+    swap_mb: 1024
+- id: profile-cache-small
+  name: Cache Small
+  cpu:
+    cores: 1
+  memory:
+    mb: 512
+    swap_mb: 256
+lxc:
+- id: lxc-postgresql
+  vmid: 200
+  name: postgresql-db
+  device_ref: gamayun
+  platform_type: lxc-unprivileged
+  resource_profile_ref: profile-db-small
+  template_ref: tpl-lxc-postgresql
+  trust_zone_ref: servers
+  description: PostgreSQL Database Server
+  tags:
+  - database
+  - production
+  boot:
+    onboot: true
+    startup_order: 10
+  storage:
+    rootfs:
+      storage_endpoint_ref: se-lvm
+      size_gb: 8
+    volumes:
+    - id: vol-postgresql-data
+      mount_path: /var/lib/postgresql/data
+      storage_endpoint_ref: se-lvm
+      size_gb: 20
+      data_asset_ref: data-postgresql-db
+    - id: vol-postgresql-dumps
+      mount_path: /var/backups/postgresql
+      storage_endpoint_ref: se-hdd
+      size_gb: 50
+      data_asset_ref: data-postgresql-dumps
+  networks:
+  - interface: eth0
+    bridge_ref: bridge-vmbr0
+    network_ref: net-servers
+    gateway: 10.0.30.1
+    firewall: false
+    vlan_tag: 30
+    ip: 10.0.30.10/24
+  dns: *id001
+  os: *id002
+  cloudinit:
+    enabled: true
+    user: postgres
+    ssh_keys:
+    - ssh-ed25519 AAAA...
+  ansible:
+    enabled: true
+    playbook: postgresql.yml
+- id: lxc-redis
+  vmid: 201
+  name: redis-cache
+  device_ref: gamayun
+  platform_type: lxc-unprivileged
+  resource_profile_ref: profile-cache-small
+  template_ref: tpl-lxc-redis
+  trust_zone_ref: servers
+  description: Redis Cache Server
+  tags:
+  - cache
+  - production
+  boot:
+    onboot: true
+    startup_order: 11
+  storage:
+    rootfs:
+      storage_endpoint_ref: se-lvm
+      size_gb: 4
+    volumes:
+    - id: vol-redis-data
+      mount_path: /var/lib/redis
+      storage_endpoint_ref: se-lvm
+      size_gb: 4
+      data_asset_ref: data-redis-db
+  networks:
+  - interface: eth0
+    bridge_ref: bridge-vmbr0
+    network_ref: net-servers
+    gateway: 10.0.30.1
+    firewall: false
+    vlan_tag: 30
+    ip: 10.0.30.20/24
+  dns: *id001
+  os: *id002
+  cloudinit:
+    enabled: true
+    user: redis
+  ansible:
+    enabled: true
+    playbook: redis.yml
+templates:
+  lxc:
+  - id: tpl-lxc-postgresql
+    vmid: 900
+    name: template-postgresql
+    storage_endpoint_ref: se-hdd
+    source: proxmox-community-scripts
+    script: db-postgresql.sh
+    description: PostgreSQL LXC template
+  - id: tpl-lxc-redis
+    vmid: 901
+    name: template-redis
+    storage_endpoint_ref: se-hdd
+    source: proxmox-community-scripts
+    script: db-redis.sh
+    description: Redis LXC template
+  - id: tpl-lxc-debian
+    vmid: 902
+    name: template-debian
+    storage_endpoint_ref: se-hdd
+    source: proxmox
+    image: debian-12-standard_12.2-1_amd64.tar.zst
+    description: Debian 12 base LXC template
+  vms:
+  - id: tpl-vm-debian
+    vmid: 910
+    name: template-debian-vm
+    storage_endpoint_ref: se-hdd
+    source: cloud-init
+    image: debian-12-genericcloud-amd64.qcow2
+    description: Debian 12 cloud-init VM template
+  - id: tpl-vm-ubuntu
+    vmid: 911
+    name: template-ubuntu-vm
+    storage_endpoint_ref: se-hdd
+    source: cloud-init
+    image: ubuntu-24.04-server-cloudimg-amd64.img
+    description: Ubuntu 24.04 cloud-init VM template

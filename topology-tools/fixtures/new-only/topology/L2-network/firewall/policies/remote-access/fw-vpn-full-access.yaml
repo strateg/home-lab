@@ -1,0 +1,12 @@
+id: fw-vpn-full-access
+name: VPN Full Access
+priority: 60
+source_network_ref: net-vpn-home
+destination_zones_ref:
+- user
+- servers
+- management
+action: accept
+chain: forward
+description: VPN clients have full network access
+security_policy_ref: sec-baseline

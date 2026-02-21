@@ -1,0 +1,12 @@
+id: disk-ssd-system
+name: System SSD
+type: ssd
+form_factor: 2.5in
+supported_buses:
+- sata
+state: present
+size_gb: 180
+rotational: false
+boot: true
+removable: false
+usage: Primary internal system/application SSD

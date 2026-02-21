@@ -1,0 +1,11 @@
+id: disk-hetzner-root-volume
+name: Hetzner Root Volume
+type: ssd
+form_factor: virtual
+supported_buses:
+- virtual
+state: present
+size_gb: 40
+virtual: true
+boot: true
+usage: Provider-managed virtual system volume

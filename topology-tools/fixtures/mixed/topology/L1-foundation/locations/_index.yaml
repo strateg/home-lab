@@ -1,0 +1,7 @@
+# Core locations
+- !include home.yaml
+- !include portable.yaml
+
+# Cloud locations
+- !include oracle-frankfurt.yaml
+- !include hetzner-nuremberg.yaml

@@ -1,0 +1,6 @@
+id: attach-orangepi5-slot-qspi-0
+device_ref: orangepi5
+slot_ref: slot-qspi-0
+media_ref: disk-qspi-boot
+state: present
+description: Onboard firmware flash

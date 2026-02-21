@@ -1,0 +1,11 @@
+# WAN uplinks
+- !include link-wan-isp.yaml
+- !include link-lte-backhaul.yaml
+
+# Wired LAN
+- !include link-mikrotik-gamayun.yaml
+- !include link-mikrotik-orangepi5.yaml
+
+# Wireless access
+- !include link-wifi-5ghz-clients.yaml
+- !include link-wifi-24ghz-clients.yaml

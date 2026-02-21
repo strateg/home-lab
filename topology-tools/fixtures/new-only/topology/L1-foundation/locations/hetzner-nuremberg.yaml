@@ -1,0 +1,6 @@
+id: hetzner-nuremberg
+name: Hetzner Cloud Nuremberg
+type: cloud
+provider: hetzner
+region: nbg1
+description: Hetzner Cloud - Nuremberg datacenter

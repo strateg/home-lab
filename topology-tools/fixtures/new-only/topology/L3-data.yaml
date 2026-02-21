@@ -1,0 +1,88 @@
+# L3 Data
+# Part of Home Lab Topology v4.0.0
+# Data layer: logical storage pools, OS-level disk mappings, data assets (no references upward)
+# Edit this file then regenerate: python3 topology-tools/regenerate-all.py
+
+storage_endpoints:
+- id: se-local
+  name: local
+  platform: proxmox
+  type: dir
+  path: /var/lib/vz
+  content:
+  - vztmpl
+  - iso
+  - backup
+  shared: false
+  description: Local directory storage on SSD
+- id: se-lvm
+  name: local-lvm
+  platform: proxmox
+  type: lvmthin
+  content:
+  - images
+  - rootdir
+  shared: false
+  infer_from:
+    media_attachment_ref: attach-gamayun-slot-sata-0
+    vg_name: pve
+    lv_name: data
+  description: SSD 180GB - Production VMs and LXC thin pool
+- id: se-hdd
+  name: local-hdd
+  platform: proxmox
+  type: dir
+  path: /mnt/hdd
+  content:
+  - backup
+  - iso
+  - vztmpl
+  - snippets
+  shared: false
+  description: HDD 500GB - Backups, ISOs, Templates
+data_assets:
+- id: data-mikrotik-config
+  name: MikroTik RouterOS Config
+  type: config-export
+  device_ref: mikrotik-chateau
+  description: RouterOS configuration exports
+- id: data-postgresql-db
+  name: PostgreSQL Data
+  type: database
+  device_ref: gamayun
+  description: Primary PostgreSQL data (LXC rootfs)
+- id: data-redis-db
+  name: Redis Data
+  type: cache
+  device_ref: gamayun
+  description: Redis data (LXC rootfs)
+- id: data-postgresql-dumps
+  name: PostgreSQL Dumps
+  type: backup-artifact
+  device_ref: gamayun
+  description: pg_dump artifacts
+- id: data-nextcloud
+  name: Nextcloud Data
+  type: volume
+  device_ref: orangepi5
+  description: Nextcloud data and config
+- id: data-jellyfin-config
+  name: Jellyfin Config
+  type: volume
+  device_ref: orangepi5
+  description: Jellyfin configuration
+- id: data-grafana
+  name: Grafana Data
+  type: volume
+  device_ref: orangepi5
+  description: Grafana data
+- id: data-prometheus
+  name: Prometheus Data
+  type: volume
+  device_ref: orangepi5
+  description: Prometheus TSDB
+- id: data-homeassistant
+  name: Home Assistant Data
+  type: volume
+  device_ref: orangepi5
+  description: Home Assistant config

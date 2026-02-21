@@ -4,7 +4,7 @@ Validate topology.yaml against JSON Schema v7 (v4 layered topology)
 Provides detailed error messages and validation reports
 
 Usage:
-    python3 topology-tools/validate-topology.py [--topology topology.yaml] [--schema topology-tools/schemas/topology-v4-schema.json] [--validator-policy topology-tools/schemas/validator-policy.yaml] [--no-topology-cache] [--strict] [--migration-report]
+    python3 topology-tools/validate-topology.py [--topology topology.yaml] [--schema topology-tools/schemas/topology-v4-schema.json] [--validator-policy topology-tools/schemas/validator-policy.yaml] [--no-topology-cache] [--strict|--compat] [--migration-report]
 
 Requirements:
     pip install jsonschema pyyaml
@@ -72,7 +72,7 @@ class SchemaValidator:
         schema_path: str,
         validator_policy_path: Optional[str] = None,
         use_topology_cache: bool = True,
-        strict_mode: bool = False,
+        strict_mode: bool = True,
         show_migration_report: bool = False,
     ):
         self.topology_path = Path(topology_path)
@@ -484,6 +484,7 @@ class SchemaValidator:
         print("Topology Schema Validation (JSON Schema v7)")
         print("="*70)
         print()
+        print(f"MODE Validation mode: {'strict' if self.strict_mode else 'compat'}")
 
         if not self.load_files():
             return False
@@ -563,11 +564,20 @@ def main():
         action="store_true",
         help="Disable shared topology cache and force direct YAML parse",
     )
-    parser.add_argument(
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
         "--strict",
+        dest="strict_mode",
         action="store_true",
-        help="Treat warnings as errors (useful for migration hardening)",
+        help="Run strict mode: warnings are treated as errors (default).",
     )
+    mode_group.add_argument(
+        "--compat",
+        dest="strict_mode",
+        action="store_false",
+        help="Run compatibility mode: warnings stay warnings.",
+    )
+    parser.set_defaults(strict_mode=True)
     parser.add_argument(
         "--migration-report",
         action="store_true",
@@ -581,7 +591,7 @@ def main():
         args.schema,
         args.validator_policy,
         use_topology_cache=not args.no_topology_cache,
-        strict_mode=args.strict,
+        strict_mode=args.strict_mode,
         show_migration_report=args.migration_report,
     )
     valid = validator.validate()

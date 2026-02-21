@@ -1,0 +1,12 @@
+id: disk-qspi-boot
+name: Onboard QSPI Boot Flash
+type: flash
+form_factor: onboard-chip
+supported_buses:
+- qspi
+- onboard
+state: present
+size_gb: 0.016
+boot: true
+removable: false
+usage: Onboard firmware storage

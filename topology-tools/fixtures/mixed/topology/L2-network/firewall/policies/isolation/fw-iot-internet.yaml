@@ -1,0 +1,9 @@
+id: fw-iot-internet
+name: IoT to Internet
+priority: 301
+source_zone_ref: iot
+destination_zone_ref: untrusted
+action: accept
+chain: forward
+description: IoT can access internet
+security_policy_ref: sec-baseline

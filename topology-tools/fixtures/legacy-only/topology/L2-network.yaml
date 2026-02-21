@@ -1,0 +1,23 @@
+# L2 Network
+# Part of Home Lab Topology v4.0.0
+# Logical networking: networks, bridges, trust_zones, firewall
+# Modular layout:
+# - trust-zones: topology/L2-network/trust-zones/
+# - profiles: topology/L2-network/profiles/
+# - networks: topology/L2-network/networks/
+# - bridges: topology/L2-network/bridges/
+# - routing: topology/L2-network/routing/
+# - firewall: topology/L2-network/firewall/
+# - qos: topology/L2-network/qos/
+# - ipv6: topology/L2-network/ipv6/
+# Edit modules then regenerate: python3 topology-tools/regenerate-all.py
+
+trust_zones: !include L2-network/trust-zones/baseline.yaml
+network_profiles: !include L2-network/profiles/default.yaml
+networks: !include L2-network/networks/_index.yaml
+bridges: !include L2-network/bridges/_index.yaml
+routing: !include L2-network/routing/default.yaml
+firewall_templates: !include L2-network/firewall/templates.yaml
+firewall_policies: !include L2-network/firewall/policies/_index.yaml
+qos: !include L2-network/qos/default.yaml
+ipv6: !include L2-network/ipv6/default.yaml

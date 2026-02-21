@@ -1,0 +1,11 @@
+id: link-wan-isp
+endpoint_a:
+  device_ref: mikrotik-chateau
+  interface_ref: if-mikrotik-wan
+endpoint_b:
+  external_ref: isp-uplink
+medium: ethernet
+speed_mbps: 2500
+duplex: full
+status: active
+description: Primary WAN uplink from router to ISP edge/ONT

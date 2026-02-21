@@ -1,0 +1,9 @@
+# Baremetal media
+- !include disk-ssd-system.yaml
+- !include disk-hdd-data.yaml
+- !include disk-qspi-boot.yaml
+- !include disk-nvme-main.yaml
+
+# Provider virtual media
+- !include disk-oci-boot-volume.yaml
+- !include disk-hetzner-root-volume.yaml

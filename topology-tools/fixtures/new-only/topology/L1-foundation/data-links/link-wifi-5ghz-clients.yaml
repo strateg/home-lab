@@ -1,0 +1,10 @@
+id: link-wifi-5ghz-clients
+endpoint_a:
+  device_ref: mikrotik-chateau
+  interface_ref: if-mikrotik-wlan-5g
+endpoint_b:
+  external_ref: wifi-clients-5ghz
+medium: wifi
+speed_mbps: 1200
+status: active
+description: WiFi 5GHz client access on router AP interface

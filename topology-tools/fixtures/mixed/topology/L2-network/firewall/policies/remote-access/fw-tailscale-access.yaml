@@ -1,0 +1,11 @@
+id: fw-tailscale-access
+name: Tailscale Access
+priority: 61
+source_network_ref: net-tailscale
+destination_zones_ref:
+- user
+- servers
+action: accept
+chain: forward
+description: Tailscale mesh clients can access LAN and servers
+security_policy_ref: sec-baseline

@@ -1,0 +1,6 @@
+id: attach-gamayun-slot-sata-1
+device_ref: gamayun
+slot_ref: slot-sata-1
+media_ref: disk-hdd-data
+state: present
+description: Secondary internal capacity disk

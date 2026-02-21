@@ -1,0 +1,10 @@
+id: plink-pdu-rack-gamayun
+endpoint_a:
+  device_ref: pdu-rack-home
+endpoint_b:
+  device_ref: gamayun
+mode: ac
+voltage_v: 230
+max_watts: 65
+status: active
+description: PDU outlet feed to Proxmox host power adapter.

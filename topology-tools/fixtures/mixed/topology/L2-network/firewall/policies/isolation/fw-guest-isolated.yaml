@@ -1,0 +1,13 @@
+id: fw-guest-isolated
+name: Guest Isolation
+priority: 300
+source_zone_ref: guest
+destination_zones_ref:
+- servers
+- management
+- user
+- iot
+action: drop
+chain: forward
+description: Guest network cannot access any internal networks
+security_policy_ref: sec-baseline

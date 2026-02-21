@@ -1,0 +1,6 @@
+id: attach-oracle-arm-frankfurt-slot-virtio-blk-0
+device_ref: oracle-arm-frankfurt
+slot_ref: slot-virtio-blk-0
+media_ref: disk-oci-boot-volume
+state: present
+description: Provider-attached Oracle boot volume

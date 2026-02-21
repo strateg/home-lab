@@ -1,0 +1,9 @@
+id: fw-servers-internet
+name: Servers to Internet
+priority: 100
+source_zone_ref: servers
+destination_zone_ref: untrusted
+action: accept
+chain: forward
+description: Servers can access internet
+security_policy_ref: sec-baseline

@@ -1,0 +1,16 @@
+# WAN and uplinks
+- !include net-wan.yaml
+- !include net-lte-failover.yaml
+
+# Core LAN and server segments
+- !include net-lan.yaml
+- !include net-servers.yaml
+
+# Isolated user segments
+- !include net-guest.yaml
+- !include net-iot.yaml
+
+# Management and remote access
+- !include net-management.yaml
+- !include net-vpn-home.yaml
+- !include net-tailscale.yaml

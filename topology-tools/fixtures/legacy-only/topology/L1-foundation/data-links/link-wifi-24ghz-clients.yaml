@@ -1,0 +1,10 @@
+id: link-wifi-24ghz-clients
+endpoint_a:
+  device_ref: mikrotik-chateau
+  interface_ref: if-mikrotik-wlan-2g
+endpoint_b:
+  external_ref: wifi-clients-24ghz
+medium: wifi
+speed_mbps: 574
+status: active
+description: WiFi 2.4GHz client access on router AP interface

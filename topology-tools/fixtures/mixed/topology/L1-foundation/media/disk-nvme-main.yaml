@@ -1,0 +1,12 @@
+id: disk-nvme-main
+name: NVMe Main Storage
+type: nvme
+form_factor: m2-2280
+supported_buses:
+- m2
+- pcie
+state: planned
+size_gb: 256
+rotational: false
+removable: false
+usage: Primary high-performance expansion storage

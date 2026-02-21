@@ -1,0 +1,6 @@
+id: oracle-frankfurt
+name: Oracle Cloud Frankfurt
+type: cloud
+provider: oracle
+region: eu-frankfurt-1
+description: Oracle Cloud Infrastructure - EU Frankfurt region (Always Free eligible)

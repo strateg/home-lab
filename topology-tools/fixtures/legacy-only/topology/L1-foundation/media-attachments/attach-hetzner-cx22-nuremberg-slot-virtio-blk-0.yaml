@@ -1,0 +1,6 @@
+id: attach-hetzner-cx22-nuremberg-slot-virtio-blk-0
+device_ref: hetzner-cx22-nuremberg
+slot_ref: slot-virtio-blk-0
+media_ref: disk-hetzner-root-volume
+state: present
+description: Provider-attached Hetzner root volume

@@ -1,0 +1,691 @@
+certificates:
+  local_ca:
+    enabled: true
+    name: Home Lab CA
+    cn: Home Lab Root CA
+    organization: Home Lab
+    validity_days: 3650
+    key_size: 4096
+    storage:
+      device_ref: orangepi5
+      path: /mnt/nvme/ssl/ca
+    distribution:
+    - device_ref: gamayun
+    - device_ref: orangepi5
+    - device_ref: mikrotik-chateau
+  certificates:
+  - id: cert-nextcloud
+    domain: nextcloud.home.local
+    alt_names:
+    - cloud.home.local
+    issuer: local_ca
+    validity_days: 365
+    auto_renew: true
+    renew_before_days: 30
+    service_ref: svc-nextcloud
+  - id: cert-jellyfin
+    domain: jellyfin.home.local
+    alt_names:
+    - media.home.local
+    issuer: local_ca
+    validity_days: 365
+    auto_renew: true
+    service_ref: svc-jellyfin
+  - id: cert-grafana
+    domain: grafana.home.local
+    alt_names:
+    - monitor.home.local
+    issuer: local_ca
+    validity_days: 365
+    auto_renew: true
+    service_ref: svc-grafana
+  - id: cert-proxmox
+    domain: proxmox.home.local
+    alt_names:
+    - gamayun.home.local
+    - 10.0.99.2
+    issuer: local_ca
+    validity_days: 365
+    auto_renew: true
+    service_ref: svc-proxmox-ui
+  - id: cert-mikrotik
+    domain: mikrotik.home.local
+    alt_names:
+    - router.home.local
+    - 10.0.99.1
+    issuer: local_ca
+    validity_days: 365
+    auto_renew: true
+    service_ref: svc-mikrotik-ui
+  letsencrypt:
+    enabled: false
+    email: admin@example.com
+    staging: true
+    domains: []
+    challenge_type: dns-01
+    dns_provider: cloudflare
+  additional:
+  - id: cert-wildcard-home
+    name: Wildcard Home Lab Certificate
+    type: self-signed
+    subject: '*.home.local'
+    subject_alt_names:
+    - home.local
+    - '*.home.local'
+    valid_days: 365
+    key_size: 2048
+    used_by:
+    - service_ref: svc-proxmox-ui
+    - service_ref: svc-nextcloud
+    auto_renew: true
+    renew_days_before: 30
+  - id: cert-letsencrypt-vpn
+    name: Let's Encrypt VPN Certificate
+    type: letsencrypt
+    domains:
+    - vpn.example.com
+    challenge_type: dns-01
+    used_by:
+    - service_ref: svc-wireguard
+    auto_renew: true
+    renew_days_before: 30
+services:
+- id: svc-mikrotik-ui
+  name: MikroTik WebFig
+  type: web-ui
+  ports:
+    https: 443
+    http: 80
+    winbox: 8291
+    api: 8728
+    api_ssl: 8729
+  protocol: https
+  trust_zone_ref: management
+  url: https://10.0.99.1
+  description: MikroTik RouterOS WebFig management (HTTPS)
+  critical: true
+  data_asset_refs:
+  - data-mikrotik-config
+  security:
+    https_redirect: true
+    ssl_certificate: self-signed
+    allowed_from:
+    - net-lan
+    - net-vpn-home
+    - net-tailscale
+    rate_limit:
+      max_connections: 5
+      per_seconds: 60
+  security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-management
+- id: svc-adguard
+  name: AdGuard Home
+  type: dns
+  container: true
+  container_image: adguard/adguardhome
+  ports:
+    dns: 53
+    web_ui: 3000
+  protocol: http
+  trust_zone_ref: user
+  url: http://192.168.88.1:3000
+  description: DNS filtering and ad blocking (container on MikroTik)
+  critical: true
+  features:
+  - DNS-over-HTTPS upstream
+  - DNS-over-TLS upstream
+  - Ad blocking
+  - Tracker blocking
+  - Parental controls
+  - Custom filtering rules
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-lan
+    image: adguard/adguardhome
+- id: svc-wireguard
+  name: WireGuard VPN
+  type: vpn
+  native: true
+  port: 51820
+  protocol: udp
+  trust_zone_ref: user
+  vpn_type: wireguard
+  description: WireGuard VPN server (native RouterOS)
+  critical: true
+  features:
+  - Full LAN access
+  - Works over LTE failover
+  - Low latency
+  security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-vpn-home
+- id: svc-tailscale
+  name: Tailscale
+  type: vpn
+  container: true
+  container_image: tailscale/tailscale
+  trust_zone_ref: user
+  vpn_type: tailscale
+  description: Tailscale mesh VPN (container on MikroTik)
+  critical: true
+  features:
+  - Zero-config mesh VPN
+  - MagicDNS
+  - Exit node capability
+  - Subnet routing
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-tailscale
+    image: tailscale/tailscale
+- id: svc-nextcloud
+  name: Nextcloud
+  type: web-application
+  container: true
+  container_runtime: docker
+  container_image: nextcloud:28
+  ports:
+    https: 443
+    http: 80
+  protocol: https
+  trust_zone_ref: servers
+  domain: nextcloud.home.local
+  url: https://nextcloud.home.local
+  description: Nextcloud file sharing and collaboration
+  dependencies:
+  - service_ref: svc-postgresql
+  - service_ref: svc-redis
+  data_asset_refs:
+  - data-nextcloud
+  storage:
+    type: nvme
+    path: /mnt/nvme/nextcloud
+  config:
+    docker:
+      ports:
+      - 443:443
+      - 80:80
+      volumes:
+      - /mnt/nvme/nextcloud/data:/var/www/html/data
+      - /mnt/nvme/nextcloud/config:/var/www/html/config
+      environment:
+        POSTGRES_HOST: 10.0.30.10
+        REDIS_HOST: 10.0.30.20
+      depends_on:
+      - lxc-postgresql
+      - lxc-redis
+      host_ip: 10.0.30.50
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: nextcloud:28
+- id: svc-jellyfin
+  name: Jellyfin
+  type: media-server
+  container: true
+  container_runtime: docker
+  container_image: jellyfin/jellyfin:latest
+  port: 8096
+  protocol: http
+  trust_zone_ref: servers
+  domain: jellyfin.home.local
+  url: http://jellyfin.home.local:8096
+  description: Jellyfin media server with hardware transcoding
+  features:
+  - RK3588S VPU hardware transcoding
+  - H.265/HEVC decode up to 8K@60fps
+  - H.264 decode up to 8K@30fps
+  - Hardware encoding
+  data_asset_refs:
+  - data-jellyfin-config
+  storage:
+    type: nvme
+    paths:
+      config: /mnt/nvme/jellyfin/config
+      cache: /mnt/nvme/jellyfin/cache
+      media: /mnt/nvme/media
+  config:
+    docker:
+      ports:
+      - 8096:8096
+      volumes:
+      - /mnt/nvme/jellyfin/config:/config
+      - /mnt/nvme/jellyfin/cache:/cache
+      - /mnt/nvme/media:/media
+      devices:
+      - /dev/dri:/dev/dri
+      - /dev/mali0:/dev/mali0
+      - /dev/rga:/dev/rga
+      note: RK3588S VPU for hardware transcoding
+      host_ip: 10.0.30.50
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: jellyfin/jellyfin:latest
+- id: svc-adguard-secondary
+  name: AdGuard Home Secondary
+  type: dns
+  container: true
+  container_runtime: docker
+  container_image: adguard/adguardhome
+  ports:
+    dns: 5353
+    web_ui: 3001
+  protocol: http
+  trust_zone_ref: servers
+  url: http://10.0.30.50:3001
+  description: Secondary DNS for redundancy (synced with primary)
+  optional: true
+  sync_with: svc-adguard
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: adguard/adguardhome
+- id: svc-prometheus
+  name: Prometheus
+  type: monitoring
+  container: true
+  container_runtime: docker
+  container_image: prom/prometheus:latest
+  port: 9090
+  protocol: http
+  trust_zone_ref: servers
+  url: http://10.0.30.50:9090
+  description: Prometheus metrics collection
+  scrape_targets:
+  - name: mikrotik
+    type: snmp
+    target: 192.168.88.1
+  - name: proxmox
+    type: node_exporter
+    target: 192.168.88.2:9100
+  - name: orangepi5
+    type: node_exporter
+    target: 10.0.30.50:9100
+  - name: postgresql
+    type: postgres_exporter
+    target: 10.0.30.10:9187
+  - name: redis
+    type: redis_exporter
+    target: 10.0.30.20:9121
+  data_asset_refs:
+  - data-prometheus
+  config:
+    docker:
+      ports:
+      - 9090:9090
+      volumes:
+      - /mnt/nvme/prometheus:/prometheus
+      host_ip: 10.0.30.50
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: prom/prometheus:latest
+- id: svc-alertmanager
+  name: Alertmanager
+  type: alerting
+  container: true
+  container_runtime: docker
+  container_image: prom/alertmanager:latest
+  port: 9093
+  protocol: http
+  trust_zone_ref: servers
+  url: http://10.0.30.50:9093
+  description: Alert routing and notifications
+  dependencies:
+  - service_ref: svc-prometheus
+  notification_channels:
+  - type: email
+    enabled: true
+  - type: telegram
+    enabled: false
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: prom/alertmanager:latest
+- id: svc-loki
+  name: Loki
+  type: logging
+  container: true
+  container_runtime: docker
+  container_image: grafana/loki:latest
+  port: 3100
+  protocol: http
+  trust_zone_ref: servers
+  description: Centralized log aggregation
+  log_sources:
+  - name: mikrotik
+    type: syslog
+    target: 192.168.88.1
+  - name: proxmox
+    type: promtail
+    target: 192.168.88.2
+  - name: orangepi5
+    type: promtail
+    target: 10.0.30.50
+  - name: docker
+    type: docker-driver
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: grafana/loki:latest
+- id: svc-grafana
+  name: Grafana
+  type: visualization
+  container: true
+  container_runtime: docker
+  container_image: grafana/grafana:latest
+  port: 3000
+  protocol: http
+  trust_zone_ref: servers
+  domain: grafana.home.local
+  url: http://grafana.home.local:3000
+  description: Grafana dashboards and visualization
+  dependencies:
+  - service_ref: svc-prometheus
+  data_asset_refs:
+  - data-grafana
+  config:
+    docker:
+      ports:
+      - 3000:3000
+      volumes:
+      - /mnt/nvme/grafana:/var/lib/grafana
+      host_ip: 10.0.30.50
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: grafana/grafana:latest
+- id: svc-homeassistant
+  name: Home Assistant
+  type: home-automation
+  container: true
+  container_runtime: docker
+  container_image: homeassistant/home-assistant:stable
+  port: 8123
+  protocol: http
+  trust_zone_ref: servers
+  domain: ha.home.local
+  url: http://ha.home.local:8123
+  description: Home Assistant smart home automation
+  optional: true
+  features:
+  - Zigbee support (with USB adapter)
+  - Z-Wave support (with USB adapter)
+  - GPIO access
+  data_asset_refs:
+  - data-homeassistant
+  config:
+    docker:
+      ports:
+      - 8123:8123
+      volumes:
+      - /mnt/nvme/homeassistant:/config
+      note: Enable if smart home devices are used
+      host_ip: 10.0.30.50
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: homeassistant/home-assistant:stable
+- id: svc-proxmox-ui
+  name: Proxmox Web UI
+  type: web-ui
+  port: 8006
+  protocol: https
+  trust_zone_ref: management
+  url: https://10.0.99.2:8006
+  description: Proxmox VE management interface
+  security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: gamayun
+    network_binding_ref: net-management
+- id: svc-postgresql
+  name: PostgreSQL Database
+  type: database
+  port: 5432
+  protocol: tcp
+  trust_zone_ref: servers
+  description: PostgreSQL database server
+  clients:
+  - service_ref: svc-nextcloud
+  databases:
+  - name: nextcloud
+    user: nextcloud
+  - name: homelab
+    user: app
+  data_asset_refs:
+  - data-postgresql-db
+  - data-postgresql-dumps
+  config:
+    postgresql_version: '16'
+    postgresql_listen_addresses: 10.0.30.10
+    postgresql_databases:
+    - name: nextcloud
+    - name: homelab
+    postgresql_users:
+    - name: nextcloud
+      password: '{{ vault_postgresql_nextcloud_password }}'
+      database: nextcloud
+    - name: app
+      password: '{{ vault_postgresql_app_password }}'
+      database: homelab
+    postgresql_pg_hba:
+    - type: host
+      database: nextcloud
+      user: nextcloud
+      address: 10.0.30.50/32
+      method: scram-sha-256
+    - type: host
+      database: all
+      user: all
+      address: 10.0.30.0/24
+      method: scram-sha-256
+  security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-postgresql
+    network_binding_ref: net-servers
+- id: svc-redis
+  name: Redis Cache
+  type: cache
+  port: 6379
+  protocol: tcp
+  trust_zone_ref: servers
+  description: Redis cache server
+  clients:
+  - service_ref: svc-nextcloud
+  data_asset_refs:
+  - data-redis-db
+  config:
+    redis_port: 6379
+    redis_bind: 10.0.30.20
+    redis_maxmemory: 256mb
+    redis_maxmemory_policy: allkeys-lru
+  security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-redis
+    network_binding_ref: net-servers
+dns:
+  zones:
+  - id: zone-home-local
+    domain: home.local
+    nameserver_ref: svc-adguard
+    type: forward
+    description: Primary home lab DNS zone (AdGuard on MikroTik)
+    records:
+    - type: A
+      name: router
+      ip: 192.168.88.1
+      device_ref: mikrotik-chateau
+      ttl: 3600
+      description: MikroTik router
+    - type: A
+      name: mikrotik
+      ip: 192.168.88.1
+      device_ref: mikrotik-chateau
+      ttl: 3600
+      description: MikroTik router alias
+    - type: A
+      name: gamayun
+      ip: 192.168.88.2
+      device_ref: gamayun
+      ttl: 3600
+      description: Proxmox host
+    - type: A
+      name: proxmox
+      ip: 10.0.99.2
+      device_ref: gamayun
+      ttl: 3600
+      description: Proxmox Web UI (management)
+    - type: A
+      name: orangepi
+      ip: 192.168.88.3
+      device_ref: orangepi5
+      ttl: 3600
+      description: Orange Pi 5 application server
+    - type: A
+      name: opi5
+      ip: 10.0.30.50
+      device_ref: orangepi5
+      ttl: 3600
+      description: Orange Pi 5 server interface
+    - type: A
+      name: postgresql
+      ip: 10.0.30.10
+      lxc_ref: lxc-postgresql
+      ttl: 3600
+      description: PostgreSQL database server
+    - type: A
+      name: redis
+      ip: 10.0.30.20
+      lxc_ref: lxc-redis
+      ttl: 3600
+      description: Redis cache server
+    - type: A
+      name: nextcloud
+      ip: 10.0.30.50
+      device_ref: orangepi5
+      ttl: 3600
+      description: Nextcloud on Orange Pi 5
+    - type: A
+      name: jellyfin
+      ip: 10.0.30.50
+      device_ref: orangepi5
+      ttl: 3600
+      description: Jellyfin media server on Orange Pi 5
+    - type: A
+      name: grafana
+      ip: 10.0.30.50
+      device_ref: orangepi5
+      ttl: 3600
+      description: Grafana on Orange Pi 5
+    - type: A
+      name: prometheus
+      ip: 10.0.30.50
+      device_ref: orangepi5
+      ttl: 3600
+      description: Prometheus on Orange Pi 5
+    - type: CNAME
+      name: db
+      target: postgresql.home.local
+      service_ref: svc-postgresql
+      ttl: 3600
+      description: Database alias
+    - type: CNAME
+      name: cache
+      target: redis.home.local
+      service_ref: svc-redis
+      ttl: 3600
+      description: Cache alias
+    - type: CNAME
+      name: cloud
+      target: nextcloud.home.local
+      service_ref: svc-nextcloud
+      ttl: 3600
+      description: Cloud storage alias
+    - type: CNAME
+      name: media
+      target: jellyfin.home.local
+      service_ref: svc-jellyfin
+      ttl: 3600
+      description: Media server alias
+    - type: CNAME
+      name: monitor
+      target: grafana.home.local
+      service_ref: svc-grafana
+      ttl: 3600
+      description: Monitoring alias
+    - type: SRV
+      name: _postgresql._tcp
+      target: postgresql.home.local
+      port: 5432
+      priority: 10
+      weight: 10
+      service_ref: svc-postgresql
+      ttl: 3600
+      description: PostgreSQL service discovery
+    - type: SRV
+      name: _redis._tcp
+      target: redis.home.local
+      port: 6379
+      priority: 10
+      weight: 10
+      service_ref: svc-redis
+      ttl: 3600
+      description: Redis service discovery
+    - type: SRV
+      name: _https._tcp.nextcloud
+      target: nextcloud.home.local
+      port: 443
+      priority: 10
+      weight: 10
+      service_ref: svc-nextcloud
+      ttl: 3600
+      description: Nextcloud HTTPS service
+  forwarders:
+    upstream_doh:
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.google/dns-query
+    upstream_dot:
+    - tls://1.1.1.1
+    - tls://8.8.8.8
+    fallback:
+    - 1.1.1.1
+    - 8.8.8.8
+  settings:
+    provider: adguard-home
+    location: mikrotik-container
+    recursion: true
+    dnssec: true
+    cache_size_mb: 100
+    negative_ttl: 300
+    allow_query_from:
+    - 10.0.0.0/8
+    - 192.168.0.0/16
+    - 100.64.0.0/10

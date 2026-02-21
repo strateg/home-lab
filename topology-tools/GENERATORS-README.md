@@ -19,7 +19,13 @@ Validate topology.yaml schema and references.
 Usage:
 ```bash
 python topology-tools/validate-topology.py --topology topology.yaml --schema topology-tools/schemas/topology-v4-schema.json
+python topology-tools/validate-topology.py --topology topology.yaml
+python topology-tools/validate-topology.py --topology topology.yaml --compat
 ```
+
+Notes:
+- strict mode is the default.
+- use `--compat` only for legacy/mixed migration fixtures.
 
 ### generate-terraform-proxmox.py
 Generate Proxmox Terraform from L1/L2/L3/L4.
@@ -143,11 +149,21 @@ python topology-tools/validate-mermaid-render.py --docs-dir generated/docs --ico
 ### regenerate-all.py
 Run validation and all generators in order.
 By default it also validates Mermaid rendering for generated docs.
+Validation runs in strict mode by default.
 
 Usage:
 ```bash
 python topology-tools/regenerate-all.py --topology topology.yaml
+python topology-tools/regenerate-all.py --topology topology-tools/fixtures/legacy-only/topology.yaml --compat-validation
 python topology-tools/regenerate-all.py --topology topology.yaml --skip-mermaid-validate
+```
+
+### run-fixture-matrix.py
+Run fixture matrix for `legacy-only`, `mixed`, and `new-only`.
+
+Usage:
+```bash
+python topology-tools/run-fixture-matrix.py
 ```
 
 ## Dependencies

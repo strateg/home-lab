@@ -1,0 +1,6 @@
+id: attach-gamayun-slot-sata-0
+device_ref: gamayun
+slot_ref: slot-sata-0
+media_ref: disk-ssd-system
+state: present
+description: Primary system SSD

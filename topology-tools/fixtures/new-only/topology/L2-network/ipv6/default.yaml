@@ -1,0 +1,47 @@
+enabled: false
+mode: dual-stack
+wan:
+  method: dhcpv6-pd
+  prefix_hint: /56
+  interface_ref: if-mikrotik-wan
+prefix_delegation:
+  enabled: true
+  pool_name: ipv6-pool
+  prefix_length: 64
+networks:
+- id: net-lan-v6
+  network_ref: net-lan
+  prefix: auto
+  slaac: true
+  ra_interval: 200-600
+  dns:
+  - 2606:4700:4700::1111
+  - 2001:4860:4860::8888
+- id: net-servers-v6
+  network_ref: net-servers
+  prefix: auto
+  slaac: false
+  dhcpv6: true
+- id: net-guest-v6
+  network_ref: net-guest
+  prefix: auto
+  slaac: true
+  isolated: true
+- id: net-iot-v6
+  network_ref: net-iot
+  prefix: auto
+  slaac: true
+  isolated: true
+firewall:
+  default_policy: drop
+  allow_icmpv6: true
+  icmpv6_types:
+  - echo-request
+  - echo-reply
+  - router-solicitation
+  - router-advertisement
+  - neighbor-solicitation
+  - neighbor-advertisement
+privacy_extensions:
+  enabled: true
+  prefer_public: false

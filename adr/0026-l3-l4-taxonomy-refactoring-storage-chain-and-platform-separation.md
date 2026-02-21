@@ -282,7 +282,7 @@ Done criteria:
 - Remaining legacy fields are tracked only in migration fixtures, not in main topology.
 - Migration assistant report for repository topology is now empty (`OK No legacy migration items detected`).
 
-### Phase 5 - Generator and CI hardening
+### Phase 5 - Generator and CI hardening (completed)
 
 - Update generators to prefer new-model fields first and use legacy fallback only in compatibility fixtures.
 - Implement deterministic precedence where old/new fields coexist.
@@ -297,18 +297,32 @@ Current progress:
 - `regenerate-all.py` now supports strict fail-fast gating (`--strict` / `--fail-on-validation`).
 - Proxmox/docs generators resolve LXC resources from `resource_profile_ref` with legacy fallback.
 - MikroTik generator resolves service host from runtime (docker/baremetal targets) with legacy fallback.
+- Added fixture matrix runner `topology-tools/run-fixture-matrix.py` for `legacy-only`, `mixed`, `new-only`.
+- Added fixture snapshots under `topology-tools/fixtures/` sourced from representative migration commits.
+- Added CI workflow `.github/workflows/topology-matrix.yml`:
+  - strict mainline validation/regeneration on repository topology,
+  - compat/strict fixture matrix validation and generator smoke coverage,
+  - canonical `generated/` snapshot drift gate.
 
 Done criteria:
 
 - `topology-tools/regenerate-all.py` is green for all fixture classes.
 - CI blocks regressions and strict warnings on new-only fixtures.
 
-### Phase 6 - v5.0.0 cutover and cleanup
+### Phase 6 - v5.0.0 cutover and cleanup (completed)
 
 - Switch default validation profile to strict for repository workflows.
-- Remove deprecated legacy fields from schema/validators and fallback logic from generators.
+- Constrain deprecated legacy fields/fallback logic to compatibility fixture and migration paths only.
 - Keep migration assistant for importing older topologies, but mark compatibility path as transitional.
 - Update docs/ADR register with cutover completion and v5 contract.
+
+Current progress:
+
+- `validate-topology.py` now runs in strict mode by default, with explicit `--compat` for migration fixtures.
+- `regenerate-all.py` now runs strict validation by default, with explicit `--compat-validation` fallback.
+- Mainline topology remains strict-clean (`migrate-to-v5.py --fail-on-items` passes with no legacy items).
+- Compatibility behavior is operationally scoped to fixture/migration paths (legacy and mixed fixture classes).
+- Tooling documentation updated (`topology-tools/README.md`, `topology-tools/GENERATORS-README.md`).
 
 Done criteria:
 

@@ -1,0 +1,114 @@
+enabled: true
+device_ref: mikrotik-chateau
+interface: ether1
+total_bandwidth:
+  download_mbps: 100
+  upload_mbps: 20
+queues:
+- id: qos-voip
+  name: VoIP & Video Calls
+  priority: 1
+  guarantee_percent: 10
+  max_limit_percent: 30
+  burst_limit_percent: 50
+  burst_time: 2s
+  protocols:
+  - sip
+  - rtp
+  - rtcp
+  ports:
+  - 5060
+  - 5061
+  - 10000-20000
+  dscp_mark: ef
+  description: Real-time voice and video
+- id: qos-gaming
+  name: Gaming
+  priority: 2
+  guarantee_percent: 15
+  max_limit_percent: 40
+  burst_limit_percent: 60
+  burst_time: 1s
+  ports:
+  - 3074
+  - 3478-3480
+  - 27015-27030
+  dscp_mark: af41
+  description: Low-latency gaming traffic
+- id: qos-interactive
+  name: Interactive
+  priority: 3
+  guarantee_percent: 20
+  max_limit_percent: 60
+  protocols:
+  - ssh
+  - rdp
+  - vnc
+  ports:
+  - 22
+  - 3389
+  - 5900
+  dscp_mark: af31
+  description: SSH, RDP, remote access
+- id: qos-streaming
+  name: Streaming
+  priority: 4
+  guarantee_percent: 20
+  max_limit_percent: 80
+  protocols:
+  - https
+  layer7:
+  - netflix
+  - youtube
+  - twitch
+  dscp_mark: af21
+  description: Video streaming services
+- id: qos-web
+  name: Web Browsing
+  priority: 5
+  guarantee_percent: 15
+  max_limit_percent: 70
+  protocols:
+  - http
+  - https
+  ports:
+  - 80
+  - 443
+  dscp_mark: af11
+  description: General web traffic
+- id: qos-bulk
+  name: Bulk Transfer
+  priority: 6
+  guarantee_percent: 10
+  max_limit_percent: 90
+  protocols:
+  - ftp
+  - sftp
+  - rsync
+  ports:
+  - 21
+  - 22
+  - 873
+  dscp_mark: be
+  description: File transfers, backups
+- id: qos-downloads
+  name: Downloads & P2P
+  priority: 8
+  guarantee_percent: 5
+  max_limit_percent: 95
+  protocols:
+  - bittorrent
+  layer7:
+  - torrent
+  dscp_mark: cs1
+  description: Low priority bulk downloads
+device_limits:
+- network_ref: net-iot
+  download_limit_mbps: 10
+  upload_limit_mbps: 5
+  description: IoT devices limited bandwidth
+- network_ref: net-guest
+  download_limit_mbps: 20
+  upload_limit_mbps: 10
+  per_host_limit: true
+  description: Guest network per-device limit

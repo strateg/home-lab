@@ -1,0 +1,16 @@
+id: fw-management-admin
+name: Management Access Control
+priority: 50
+source_network_ref: net-lan
+destination_zone_ref: management
+ports:
+- 8006
+- 443
+- 22
+- 80
+protocols:
+- tcp
+action: accept
+chain: forward
+description: Allow admin access from LAN to management interfaces
+security_policy_ref: sec-baseline

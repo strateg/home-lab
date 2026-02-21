@@ -35,7 +35,7 @@ class RegenerateAll:
         topology_path: str,
         validate_mermaid: bool = True,
         mermaid_icon_mode: str = "auto",
-        strict_validate: bool = False,
+        strict_validate: bool = True,
         fail_on_validation: bool = False,
         use_topology_cache: bool = True,
         clear_cache_first: bool = False,
@@ -119,8 +119,7 @@ class RegenerateAll:
 
         self.print_header(f"Step 1/{total_steps}: Validate Topology")
         validate_args = ["--topology", self.topology_path]
-        if self.strict_validate:
-            validate_args.append("--strict")
+        validate_args.append("--strict" if self.strict_validate else "--compat")
         if not self.use_topology_cache:
             validate_args.append("--no-topology-cache")
         if not self.run_script(
@@ -299,11 +298,20 @@ def main():
         action="store_true",
         help="Clear existing topology cache before regeneration",
     )
-    parser.add_argument(
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
         "--strict",
+        dest="strict_validate",
         action="store_true",
-        help="Run topology validation in strict mode (warnings become errors)",
+        help="Run topology validation in strict mode (default)",
     )
+    mode_group.add_argument(
+        "--compat-validation",
+        dest="strict_validate",
+        action="store_false",
+        help="Run topology validation in compatibility mode",
+    )
+    parser.set_defaults(strict_validate=True)
     parser.add_argument(
         "--fail-on-validation",
         action="store_true",
@@ -316,8 +324,8 @@ def main():
         args.topology,
         validate_mermaid=not args.skip_mermaid_validate,
         mermaid_icon_mode=args.mermaid_icon_mode,
-        strict_validate=args.strict,
-        fail_on_validation=args.fail_on_validation or args.strict,
+        strict_validate=args.strict_validate,
+        fail_on_validation=args.fail_on_validation or args.strict_validate,
         use_topology_cache=not args.no_topology_cache,
         clear_cache_first=args.clear_topology_cache,
     )

@@ -1,0 +1,10 @@
+id: plink-pdu-rack-orangepi5
+endpoint_a:
+  device_ref: pdu-rack-home
+endpoint_b:
+  device_ref: orangepi5
+mode: ac
+voltage_v: 230
+max_watts: 20
+status: active
+description: PDU outlet feed to Orange Pi power adapter (USB-C PD output to board).

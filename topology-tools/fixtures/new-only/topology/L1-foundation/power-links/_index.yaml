@@ -1,0 +1,6 @@
+# Utility and device power cabling in L1.
+- !include plink-grid-ups-main.yaml
+- !include plink-ups-main-pdu-rack-home.yaml
+- !include plink-ups-main-mikrotik.yaml
+- !include plink-pdu-rack-gamayun.yaml
+- !include plink-pdu-rack-orangepi5.yaml

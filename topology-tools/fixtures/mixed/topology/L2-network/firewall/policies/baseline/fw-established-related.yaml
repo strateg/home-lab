@@ -1,0 +1,10 @@
+id: fw-established-related
+name: Allow Established/Related
+priority: 1
+action: accept
+chain: forward
+connection_state:
+- established
+- related
+description: Allow established and related connections
+security_policy_ref: sec-baseline

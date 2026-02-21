@@ -1,0 +1,13 @@
+id: link-mikrotik-gamayun
+endpoint_a:
+  device_ref: mikrotik-chateau
+  interface_ref: if-mikrotik-lan1
+endpoint_b:
+  device_ref: gamayun
+  interface_ref: if-eth-builtin
+medium: ethernet
+speed_mbps: 1000
+duplex: full
+vlan_trunk: true
+status: active
+description: Wired trunk link carrying LAN and tagged VLANs for Proxmox

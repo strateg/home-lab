@@ -1,0 +1,55 @@
+name: Topology Validation Matrix
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - "feature/**"
+      - "fix/**"
+      - "topology/**"
+  pull_request:
+
+jobs:
+  strict-mainline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Tooling Dependencies
+        run: python -m pip install --upgrade pip pyyaml jinja2 jsonschema
+
+      - name: Strict Validate Main Topology
+        run: python topology-tools/validate-topology.py --topology topology.yaml --strict --no-topology-cache
+
+      - name: Strict Regenerate Main Topology Outputs
+        run: python topology-tools/regenerate-all.py --topology topology.yaml --strict --skip-mermaid-validate --no-topology-cache
+
+      - name: Ensure No Legacy Fields In Main Topology
+        run: python topology-tools/migrate-to-v5.py --topology topology.yaml --fail-on-items
+
+      - name: Ensure Canonical Generated Outputs Are Up To Date
+        run: git diff --exit-code -- generated
+
+  fixture-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Tooling Dependencies
+        run: python -m pip install --upgrade pip pyyaml jinja2 jsonschema
+
+      - name: Run Legacy Mixed New Fixture Matrix
+        run: python topology-tools/run-fixture-matrix.py

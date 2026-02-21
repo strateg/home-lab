@@ -1,0 +1,9 @@
+# Baremetal attachments
+- !include attach-gamayun-slot-sata-0.yaml
+- !include attach-gamayun-slot-sata-1.yaml
+- !include attach-orangepi5-slot-qspi-0.yaml
+- !include attach-orangepi5-slot-m2-0.yaml
+
+# Provider virtual attachments
+- !include attach-oracle-arm-frankfurt-slot-virtio-blk-0.yaml
+- !include attach-hetzner-cx22-nuremberg-slot-virtio-blk-0.yaml

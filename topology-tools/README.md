@@ -41,12 +41,14 @@ Validate topology.yaml schema and references.
 Usage:
 ```bash
 python topology-tools/validate-topology.py --topology topology.yaml --schema topology-tools/schemas/topology-v4-schema.json
-python topology-tools/validate-topology.py --topology topology.yaml --strict
+python topology-tools/validate-topology.py --topology topology.yaml
+python topology-tools/validate-topology.py --topology topology.yaml --compat
 python topology-tools/validate-topology.py --topology topology.yaml --migration-report
 ```
 
 Notes:
-- `--strict` escalates warnings (including deprecation warnings) to errors.
+- strict mode is the default. Warnings (including deprecations) are escalated to errors.
+- `--compat` keeps warnings as warnings for legacy/mixed migration fixtures.
 - `--migration-report` prints a checklist of legacy fields to migrate for ADR-0026/v5.
 
 ### migrate-to-v5.py
@@ -202,16 +204,31 @@ python topology-tools/validate-mermaid-render.py --docs-dir generated/docs --ico
 ### regenerate-all.py
 Run validation and all generators in order.
 By default it also validates Mermaid rendering for generated docs.
+Validation runs in strict mode by default.
 
 Usage:
 ```bash
 python topology-tools/regenerate-all.py --topology topology.yaml
-python topology-tools/regenerate-all.py --topology topology-v5-cutover-preview.yaml --strict
+python topology-tools/regenerate-all.py --topology topology-v5-cutover-preview.yaml
+python topology-tools/regenerate-all.py --topology topology-tools/fixtures/legacy-only/topology.yaml --compat-validation
 python topology-tools/regenerate-all.py --topology topology.yaml --skip-mermaid-validate
 python topology-tools/regenerate-all.py --topology topology.yaml --fail-on-validation
 ```
 
-`--strict` forwards strict validation to `validate-topology.py` and enables fail-fast on validation errors.
+`--compat-validation` forwards compatibility validation to `validate-topology.py`.
+
+### run-fixture-matrix.py
+Run compatibility matrix over fixture classes (`legacy-only`, `mixed`, `new-only`).
+
+Usage:
+```bash
+python topology-tools/run-fixture-matrix.py
+python topology-tools/run-fixture-matrix.py --fixtures legacy-only,mixed --skip-canonical-compare
+```
+
+Notes:
+- `legacy-only` and `mixed` are validated in compatibility mode.
+- `new-only` is validated in strict mode and compared against repository `generated/` snapshots.
 
 ## Dependencies
 

@@ -1,0 +1,57 @@
+id: oracle-arm-frankfurt
+name: Oracle Cloud ARM (Frankfurt)
+type: cloud-vm
+role: vpn-exit-node
+class: compute
+substrate: provider-instance
+access: public
+location: oracle-frankfurt
+description: Oracle Cloud Always Free ARM instance - Жар-птица (огненная птица, символ удачи)
+supported_operating_systems:
+- Ubuntu
+- Debian
+- Oracle Linux
+- Rocky Linux
+cloud:
+  provider: oracle
+  region: eu-frankfurt-1
+  availability_zone: EU-FRANKFURT-1-AD-1
+  instance_type: VM.Standard.A1.Flex
+  vcpus: 4
+  memory_gb: 24
+  boot_volume_gb: 200
+  public_ip: true
+  ipv6: true
+  pricing:
+    tier: free
+    monthly_cost: 0
+    currency: EUR
+  tags:
+    purpose: vpn-exit-node
+    environment: production
+specs:
+  cpu:
+    architecture: ARM64
+    model: Ampere Altra
+    cores: 4
+  memory:
+    total_gb: 24
+    type: DDR4
+  storage_slots:
+  - id: slot-virtio-blk-0
+    name: Virtual Block Device 0
+    bus: virtual
+    mount: virtual
+    connector: paravirtual
+    description: Cloud provider attached boot volume
+interfaces:
+- id: if-oracle-public
+  name: ens3
+  type: ethernet
+  speed_mbps: 1000
+  role: wan
+  description: Primary public network interface
+services:
+- WireGuard VPN server (exit node for RU traffic)
+- Tailscale relay node
+- Optional: lightweight web services

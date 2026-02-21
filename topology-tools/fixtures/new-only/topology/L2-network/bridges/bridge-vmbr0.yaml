@@ -1,0 +1,13 @@
+id: bridge-vmbr0
+device_ref: gamayun
+name: vmbr0
+comment: LAN trunk bridge to MikroTik (VLAN-aware)
+ports:
+- if-eth-builtin
+address: 192.168.88.2/24
+gateway: 192.168.88.1
+network_ref: net-lan
+autostart: true
+vlan_aware: true
+bridge_stp: false
+bridge_fd: 0

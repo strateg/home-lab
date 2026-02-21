@@ -1,0 +1,29 @@
+- id: route-proxmox-default
+  name: Proxmox Default Route
+  device_ref: gamayun
+  destination_cidr: 0.0.0.0/0
+  next_hop: 192.168.88.1
+  gateway_device_ref: mikrotik-chateau
+  description: All Proxmox traffic routes through MikroTik
+- id: route-lxc-internet
+  name: LXC to Internet
+  source_network_ref: net-servers
+  destination_cidr: 0.0.0.0/0
+  next_hop: 10.0.30.1
+  gateway_device_ref: mikrotik-chateau
+  description: LXC containers route through MikroTik
+- id: route-user-servers
+  name: User LAN to Servers
+  source_network_ref: net-lan
+  destination_network_ref: net-servers
+  via: 192.168.88.1
+  gateway_device_ref: mikrotik-chateau
+  description: User devices access servers via MikroTik inter-VLAN routing
+- id: route-lte-failover
+  name: LTE Failover Route
+  device_ref: mikrotik-chateau
+  destination_cidr: 0.0.0.0/0
+  next_hop: lte1
+  priority: 10
+  check_gateway: ping
+  description: Automatic failover to LTE when ISP is down
