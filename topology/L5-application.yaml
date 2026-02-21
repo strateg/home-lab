@@ -112,6 +112,8 @@ services:
   url: https://10.0.99.1
   description: MikroTik RouterOS WebFig management (HTTPS)
   critical: true
+  data_asset_refs:
+  - data-mikrotik-config
   security:
     https_redirect: true
     ssl_certificate: self-signed
@@ -202,6 +204,8 @@ services:
   dependencies:
   - service_ref: svc-postgresql
   - service_ref: svc-redis
+  data_asset_refs:
+  - data-nextcloud
   storage:
     type: nvme
     path: /mnt/nvme/nextcloud
@@ -241,6 +245,8 @@ services:
   - H.265/HEVC decode up to 8K@60fps
   - H.264 decode up to 8K@30fps
   - Hardware encoding
+  data_asset_refs:
+  - data-jellyfin-config
   storage:
     type: nvme
     paths:
@@ -311,6 +317,8 @@ services:
   - name: redis
     type: redis_exporter
     target: 10.0.30.20:9121
+  data_asset_refs:
+  - data-prometheus
   config:
     docker:
       ports:
@@ -384,6 +392,8 @@ services:
   description: Grafana dashboards and visualization
   dependencies:
   - service_ref: svc-prometheus
+  data_asset_refs:
+  - data-grafana
   config:
     docker:
       ports:
@@ -412,6 +422,8 @@ services:
   - Zigbee support (with USB adapter)
   - Z-Wave support (with USB adapter)
   - GPIO access
+  data_asset_refs:
+  - data-homeassistant
   config:
     docker:
       ports:
@@ -450,6 +462,9 @@ services:
     user: nextcloud
   - name: homelab
     user: app
+  data_asset_refs:
+  - data-postgresql-db
+  - data-postgresql-dumps
   config:
     postgresql_version: '16'
     postgresql_listen_addresses: 10.0.30.10
@@ -487,6 +502,8 @@ services:
   description: Redis cache server
   clients:
   - service_ref: svc-nextcloud
+  data_asset_refs:
+  - data-redis-db
   config:
     redis_port: 6379
     redis_bind: 10.0.30.20

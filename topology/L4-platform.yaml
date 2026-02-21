@@ -63,6 +63,17 @@ lxc:
     rootfs:
       storage_ref: storage-lvm
       size_gb: 8
+    volumes:
+    - id: vol-postgresql-data
+      mount_path: /var/lib/postgresql/data
+      storage_ref: storage-lvm
+      size_gb: 20
+      data_asset_ref: data-postgresql-db
+    - id: vol-postgresql-dumps
+      mount_path: /var/backups/postgresql
+      storage_ref: storage-hdd
+      size_gb: 50
+      data_asset_ref: data-postgresql-dumps
   networks:
   - interface: eth0
     bridge_ref: bridge-vmbr0
@@ -100,6 +111,12 @@ lxc:
     rootfs:
       storage_ref: storage-lvm
       size_gb: 4
+    volumes:
+    - id: vol-redis-data
+      mount_path: /var/lib/redis
+      storage_ref: storage-lvm
+      size_gb: 4
+      data_asset_ref: data-redis-db
   networks:
   - interface: eth0
     bridge_ref: bridge-vmbr0
