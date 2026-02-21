@@ -209,6 +209,12 @@ home-lab/
     split-topology.py
     validation/
       checks/
+        storage.py
+        network.py
+        references.py
+        foundation.py
+        governance.py
+      ids.py
     generation/
     schemas/
       topology-v4-schema.json
