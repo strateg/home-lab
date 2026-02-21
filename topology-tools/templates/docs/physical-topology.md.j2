@@ -187,15 +187,22 @@ Overlay (VPN/mesh) links are documented separately in `vpn-topology.md`.
 ## Storage Summary
 
 {% for device in devices %}
-{% if device.specs is defined and device.specs.disks is defined %}
+{% if device.specs is defined and ((device.specs.storage_slots is defined and device.specs.storage_slots) or (device.specs.disks is defined and device.specs.disks)) %}
 ### {{ device.name }} Storage
 
-| Disk ID | Size | Type | Port | State | Usage |
-|---------|------|------|------|-------|-------|
-{% for disk in device.specs.disks %}
-| {{ disk.id }} | {{ disk.size_gb }}GB | {{ disk.type | upper }} | {{ disk.port_ref | default('-') }} | {{ disk.state | default('present') }} | {{ disk.usage | default('-') }} |
+| Disk ID | Size | Type | Mount | Slot/Port | State | Usage |
+|---------|------|------|-------|------|-------|-------|
+{% if device.specs.storage_slots is defined and device.specs.storage_slots %}
+{% for slot in device.specs.storage_slots %}
+{% if slot.media is defined and slot.media %}
+| {{ slot.media.id }} | {{ slot.media.size_gb }}GB | {{ slot.media.type | upper }} | {{ slot.mount | default('replaceable') }} | {{ slot.id | default('-') }} | {{ slot.media.state | default('present') }} | {{ slot.media.usage | default('-') }} |
+{% endif %}
 {% endfor %}
-
+{% else %}
+{% for disk in device.specs.disks %}
+| {{ disk.id }} | {{ disk.size_gb }}GB | {{ disk.type | upper }} | {{ disk.mount_type | default('replaceable') }} | {{ disk.port_ref | default('-') }} | {{ disk.state | default('present') }} | {{ disk.usage | default('-') }} |
+{% endfor %}
+{% endif %}
 {% endif %}
 {% endfor %}
 

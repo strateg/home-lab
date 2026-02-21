@@ -22,40 +22,39 @@ specs:
     total_gb: 8
     type: DDR3
     upgradeable: false
-  storage_ports:
-  - id: port-sata-0
-    name: SATA Port 0
-    type: sata
+  storage_slots:
+  - id: slot-sata-0
+    name: SATA Slot 0
+    bus: sata
+    mount: replaceable
     connector: 2.5-inch internal bay
-    bus: sata-3
     max_speed_gbps: 6
     description: Primary internal SATA bay
-  - id: port-sata-1
-    name: SATA Port 1
-    type: sata
+    media:
+      id: disk-ssd-system
+      name: System SSD
+      type: ssd
+      state: present
+      size_gb: 180
+      rotational: false
+      boot: true
+      usage: Primary internal system/application SSD
+  - id: slot-sata-1
+    name: SATA Slot 1
+    bus: sata
+    mount: replaceable
     connector: 2.5-inch internal bay
-    bus: sata-3
     max_speed_gbps: 6
     description: Secondary internal SATA bay
-  disks:
-  - id: disk-ssd-system
-    name: System SSD
-    state: present
-    port_ref: port-sata-0
-    size_gb: 180
-    type: ssd
-    rotational: false
-    boot: true
-    usage: Primary internal system/application SSD
-  - id: disk-hdd-data
-    name: Data HDD
-    state: present
-    port_ref: port-sata-1
-    size_gb: 500
-    type: hdd
-    rotational: true
-    removable: false
-    usage: Secondary internal capacity disk
+    media:
+      id: disk-hdd-data
+      name: Data HDD
+      type: hdd
+      state: present
+      size_gb: 500
+      rotational: true
+      removable: false
+      usage: Secondary internal capacity disk
 interfaces:
 - id: if-eth-builtin
   name: eth-builtin

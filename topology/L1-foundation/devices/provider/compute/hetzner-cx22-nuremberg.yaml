@@ -36,23 +36,22 @@ specs:
   memory:
     total_gb: 4
     type: DDR4
-  storage_ports:
-  - id: port-virtio-blk-0
+  storage_slots:
+  - id: slot-virtio-blk-0
     name: Virtual Block Device 0
-    type: virtual
+    bus: virtual
+    mount: virtual
     connector: paravirtual
-    bus: virtio-blk
     description: Cloud provider attached system volume
-  disks:
-  - id: disk-boot-volume
-    name: Hetzner Root Volume
-    type: ssd
-    state: present
-    size_gb: 40
-    port_ref: port-virtio-blk-0
-    virtual: true
-    boot: true
-    usage: Provider-managed virtual system volume
+    media:
+      id: disk-boot-volume
+      name: Hetzner Root Volume
+      type: ssd
+      state: present
+      size_gb: 40
+      virtual: true
+      boot: true
+      usage: Provider-managed virtual system volume
 interfaces:
 - id: if-hetzner-public
   name: eth0

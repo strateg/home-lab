@@ -164,7 +164,11 @@
     },
     "StoragePortType": {
       "type": "string",
-      "enum": ["sata", "sas", "m2", "pcie", "usb", "sdio", "emmc", "qspi", "virtual"]
+      "enum": ["ide", "sata", "sas", "m2", "pcie", "usb", "sdio", "emmc", "emmc-reader", "qspi", "onboard", "virtual"]
+    },
+    "StorageMountType": {
+      "type": "string",
+      "enum": ["soldered", "replaceable", "removable", "virtual"]
     },
     "StoragePort": {
       "type": "object",
@@ -183,12 +187,13 @@
     },
     "PhysicalDisk": {
       "type": "object",
-      "required": ["id", "type", "size_gb", "port_ref"],
+      "required": ["id", "type", "size_gb", "port_ref", "mount_type"],
       "properties": {
         "id": { "type": "string", "pattern": "^disk-[a-z0-9-]+$" },
         "name": { "type": "string" },
         "type": { "$ref": "#/definitions/DiskType" },
         "state": { "$ref": "#/definitions/DiskState" },
+        "mount_type": { "$ref": "#/definitions/StorageMountType" },
         "size_gb": { "type": "number", "minimum": 0.001 },
         "port_ref": { "type": "string", "pattern": "^port-[a-z0-9-]+$" },
         "serial": { "type": "string" },
@@ -203,15 +208,59 @@
       },
       "additionalProperties": false
     },
+    "StorageMedia": {
+      "type": "object",
+      "required": ["id", "type", "size_gb"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^disk-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "type": { "$ref": "#/definitions/DiskType" },
+        "state": { "$ref": "#/definitions/DiskState" },
+        "size_gb": { "type": "number", "minimum": 0.001 },
+        "serial": { "type": "string" },
+        "vendor": { "type": "string" },
+        "model": { "type": "string" },
+        "usage": { "type": "string" },
+        "boot": { "type": "boolean" },
+        "removable": { "type": "boolean" },
+        "rotational": { "type": "boolean" },
+        "virtual": { "type": "boolean" },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "StorageSlot": {
+      "type": "object",
+      "required": ["id", "bus", "mount"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^slot-[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "bus": { "$ref": "#/definitions/StoragePortType" },
+        "mount": { "$ref": "#/definitions/StorageMountType" },
+        "connector": { "type": "string" },
+        "max_speed_gbps": { "type": "number", "minimum": 0 },
+        "lanes": { "type": "integer", "minimum": 1 },
+        "description": { "type": "string" },
+        "media": { "$ref": "#/definitions/StorageMedia" }
+      },
+      "additionalProperties": false
+    },
     "DeviceSpecs": {
       "type": "object",
       "properties": {
+        "storage_slots": {
+          "type": "array",
+          "description": "Preferred model: each slot describes bus, mount type and optional installed media",
+          "items": { "$ref": "#/definitions/StorageSlot" }
+        },
         "storage_ports": {
           "type": "array",
+          "description": "Legacy model (deprecated): use storage_slots",
           "items": { "$ref": "#/definitions/StoragePort" }
         },
         "disks": {
           "type": "array",
+          "description": "Legacy model (deprecated): use storage_slots[].media",
           "items": { "$ref": "#/definitions/PhysicalDisk" }
         }
       },

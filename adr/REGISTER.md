@@ -14,3 +14,5 @@
 | [0010](0010-regeneration-pipeline-mermaid-quality-gate.md) | Add Mermaid Render Quality Gate to Regeneration Pipeline | Accepted | 2026-02-20 | - | - |
 | [0011](0011-l1-physical-storage-taxonomy-and-l3-disk-binding.md) | L1 Physical Storage Taxonomy and L3 Disk Binding | Accepted | 2026-02-20 | - | - |
 | [0012](0012-separate-l1-physical-disk-specs-from-l3-logical-storage-mapping.md) | Separate L1 Physical Disk Specs from L3 Logical Storage Mapping | Accepted | 2026-02-21 | - | - |
+| [0013](0013-l1-storage-mount-taxonomy-soldered-replaceable-removable.md) | L1 Storage Mount Taxonomy for Soldered, Replaceable, and Removable Media | Accepted | 2026-02-21 | - | - |
+| [0014](0014-l1-storage-slots-preferred-model-with-legacy-compatibility.md) | Use L1 Storage Slots as Preferred Model with Legacy Compatibility | Accepted | 2026-02-21 | - | - |

@@ -172,7 +172,8 @@ generated/
 ## Architecture Notes (v4)
 
 - L0 Meta: version, defaults, security_policy
-- L1 Foundation: devices, interfaces, physical storage inventory (disks + storage ports), UPS
+- L1 Foundation: devices, interfaces, physical storage inventory (disks + storage ports + mount type), UPS
+  Preferred storage model: `specs.storage_slots[]` (legacy `storage_ports` + `disks` is still accepted for migration).
 - L2 Network: networks, bridges, routing, firewall
 - L3 Data: storage, data_assets, logical storage bindings (disk_ref + os_device)
 - L4 Platform: VMs, LXC, templates

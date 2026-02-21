@@ -49,7 +49,7 @@ class ProxmoxAnswerGenerator:
         if not self.proxmox_node:
             return "sda"
 
-        disks = self.proxmox_node.get('specs', {}).get('disks', [])
+        disks = self._get_device_disks()
 
         # Prefer SSD disk and resolve OS-level device from L3 storage mapping.
         for disk in disks:
@@ -67,6 +67,27 @@ class ProxmoxAnswerGenerator:
                 return device_path.replace('/dev/', '')
 
         return "sda"
+
+    def _get_device_disks(self) -> list[Dict[str, Any]]:
+        """Return normalized disk list from preferred storage_slots or legacy disks."""
+        if not self.proxmox_node:
+            return []
+
+        specs = self.proxmox_node.get('specs', {}) if isinstance(self.proxmox_node.get('specs'), dict) else {}
+        slots = specs.get('storage_slots', []) if isinstance(specs.get('storage_slots'), list) else []
+        disks: list[Dict[str, Any]] = []
+        for slot in slots:
+            if not isinstance(slot, dict):
+                continue
+            media = slot.get('media')
+            if isinstance(media, dict):
+                disks.append(media)
+
+        if disks:
+            return disks
+
+        legacy_disks = specs.get('disks', [])
+        return legacy_disks if isinstance(legacy_disks, list) else []
 
     def _get_os_device_for_disk(self, disk_id: Optional[str]) -> Optional[str]:
         """Resolve OS-visible device path from L3 storage by disk_ref."""
@@ -178,7 +199,7 @@ class ProxmoxAnswerGenerator:
             self.validation_errors.append("Proxmox node missing 'id' field")
 
         # Check disk configuration
-        disks = self.proxmox_node.get('specs', {}).get('disks', [])
+        disks = self._get_device_disks()
         if not disks:
             self.validation_errors.append("Proxmox node has no disks defined")
         else:

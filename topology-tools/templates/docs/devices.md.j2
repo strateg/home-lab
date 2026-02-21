@@ -37,11 +37,23 @@
 - Upgradeable: {{ 'Yes' if device.specs.memory.upgradeable else 'No' }}
 {% endif %}
 
-{% if device.specs.disks %}
+{% if device.specs.storage_slots is defined and device.specs.storage_slots %}
+**Storage**:
+{% for slot in device.specs.storage_slots %}
+{% if slot.media is defined and slot.media %}
+- {{ slot.media.id }}: {{ slot.media.size_gb }} GB {{ slot.media.type | upper }}
+  - Slot: `{{ slot.id | default('n/a') }}`
+  - Mount: {{ slot.mount | default('replaceable') }}
+  - State: {{ slot.media.state | default('present') }}
+  - Model: {{ slot.media.model | default('n/a') }}
+{% endif %}
+{% endfor %}
+{% elif device.specs.disks %}
 **Storage**:
 {% for disk in device.specs.disks %}
 - {{ disk.id }}: {{ disk.size_gb }} GB {{ disk.type | upper }}
   - Port: `{{ disk.port_ref | default('n/a') }}`
+  - Mount: {{ disk.mount_type | default('replaceable') }}
   - State: {{ disk.state | default('present') }}
   - Model: {{ disk.model | default('n/a') }}
 {% endfor %}
