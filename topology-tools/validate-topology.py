@@ -19,18 +19,18 @@ from typing import Any, Dict, List, Optional, Set
 
 # Import topology loader with !include support
 from topology_loader import load_topology
-from validation.checks.storage import (
+from scripts.validation.checks.storage import (
     build_l1_storage_context,
     check_l3_storage_refs,
 )
-from validation.checks.network import (
+from scripts.validation.checks.network import (
     check_bridge_refs,
     check_data_links,
     check_network_refs,
     check_power_links,
     check_vlan_tags,
 )
-from validation.checks.references import (
+from scripts.validation.checks.references import (
     check_backup_refs,
     check_certificate_refs,
     check_dns_refs,
@@ -39,16 +39,16 @@ from validation.checks.references import (
     check_service_refs,
     check_vm_refs,
 )
-from validation.checks.foundation import (
+from scripts.validation.checks.foundation import (
     check_device_taxonomy,
     check_file_placement,
 )
-from validation.checks.governance import (
+from scripts.validation.checks.governance import (
     check_ip_overlaps,
     check_l0_contracts,
     check_version,
 )
-from validation.ids import collect_ids
+from scripts.validation.ids import collect_ids
 
 try:
     from jsonschema import Draft7Validator, ValidationError

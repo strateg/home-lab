@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, List, Set
 
 import yaml
 
-from validation.checks.storage import (
+from scripts.validation.checks.storage import (
     build_l1_storage_context,
     check_device_storage_taxonomy,
     check_l1_media_inventory,
@@ -357,4 +357,3 @@ def check_device_taxonomy(
                 errors.append(
                     f"Power policy '{policy_id}': protected_devices device_ref '{protected_ref}' does not exist"
                 )
-

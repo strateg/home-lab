@@ -222,16 +222,17 @@ home-lab/
     regenerate-all.py
     topology_loader.py
     split-topology.py
-    validation/
-      checks/
-        storage.py
-        network.py
-        references.py
-        foundation.py
-        governance.py
-      ids.py
-    generation/
-      common/
+    scripts/
+      validation/
+        checks/
+          storage.py
+          network.py
+          references.py
+          foundation.py
+          governance.py
+        ids.py
+      generation/
+        common/
     schemas/
       topology-v4-schema.json
       validator-policy.yaml

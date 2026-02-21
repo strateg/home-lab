@@ -5,14 +5,14 @@
 Related root directories:
 - `topology-tools/schemas/` - topology schema and validator policy
 - `topology-tools/templates/` - Jinja2 templates for generated artifacts
-- `topology-tools/validation/` - modular validation domain (`checks/*`)
+- `topology-tools/scripts/validation/` - modular validation domain (`checks/*`)
   - `checks/storage.py` - L1/L3 storage model checks
   - `checks/network.py` - L2/L1 link and network checks
   - `checks/references.py` - L4-L7 reference checks
   - `checks/foundation.py` - file placement and L1 taxonomy checks
   - `checks/governance.py` - L0 contracts, version, IP overlap checks
-- `topology-tools/generation/` - modular generation domain (incremental migration)
-  - `generation/common/` - shared loader/output helpers for generator scripts
+- `topology-tools/scripts/generation/` - modular generation domain (incremental migration)
+  - `scripts/generation/common/` - shared loader/output helpers for generator scripts
 - `manual-scripts/` - manual setup/config scripts (separated from topology tooling)
 
 Topology scripts transform `topology.yaml` (L0-L7 layered) into Terraform configs, Ansible inventory, and documentation.

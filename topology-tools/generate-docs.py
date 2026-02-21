@@ -22,7 +22,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from datetime import datetime
 
 from docs_diagrams import DiagramDocumentationGenerator
-from generation.common import load_and_validate_layered_topology, prepare_output_directory
+from scripts.generation.common import load_and_validate_layered_topology, prepare_output_directory
 
 
 class DocumentationGenerator:

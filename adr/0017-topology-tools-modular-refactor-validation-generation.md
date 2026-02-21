@@ -48,6 +48,6 @@ Compatibility:
 
 - Primary files:
   - `topology-tools/validate-topology.py`
-  - `topology-tools/validation/checks/storage.py`
+  - `topology-tools/scripts/validation/checks/storage.py`
 - Orchestration/compatibility:
   - `topology-tools/regenerate-all.py`

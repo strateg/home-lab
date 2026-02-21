@@ -21,3 +21,4 @@
 | [0017](0017-topology-tools-modular-refactor-validation-generation.md) | Modular Refactor of topology-tools into Validation and Generation Domains | Accepted | 2026-02-21 | - | - |
 | [0018](0018-generation-common-loader-and-output-preparation.md) | Shared Generation Common Module for Layered Topology Loading and Output Directory Preparation | Accepted | 2026-02-21 | - | - |
 | [0019](0019-proxmox-answer-layered-topology-only.md) | Proxmox Answer Generator Uses Layered Topology Only (No Legacy Root Sections) | Accepted | 2026-02-21 | - | - |
+| [0020](0020-topology-tools-scripts-domain-layout.md) | Co-locate Generation and Validation Under topology-tools/scripts | Accepted | 2026-02-21 | - | - |

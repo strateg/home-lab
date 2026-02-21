@@ -42,8 +42,8 @@ Compatibility:
 ## References
 
 - Files:
-  - `topology-tools/generation/common/__init__.py`
-  - `topology-tools/generation/common/topology.py`
+  - `topology-tools/scripts/generation/common/__init__.py`
+  - `topology-tools/scripts/generation/common/topology.py`
   - `topology-tools/generate-terraform.py`
   - `topology-tools/generate-terraform-mikrotik.py`
   - `topology-tools/generate-ansible-inventory.py`
