@@ -44,6 +44,11 @@ L1.media_attachments
   -> L3.storage_endpoints
 ```
 
+To avoid over-modeling in small home-lab setups, implementations MAY support a shorthand
+`storage_endpoints[].infer_from` mode that derives intermediate chain entities
+(partition/VG/LV/filesystem/mount) deterministically.
+This shorthand is an authoring convenience only; the canonical model remains explicit chain entities.
+
 ### D2. Define strict ownership (single source of truth)
 
 Ownership contract:
@@ -165,7 +170,15 @@ Migration policy:
 
 This ADR is accepted only with the phased plan below.
 
-### D9. Non-goals
+### D9. Versioning policy
+
+Versioning policy for this migration:
+
+- `v4.1.x`: compatibility schema (dual-read foundations in schema/validators).
+- `v4.2.x`: dual-write period for generators and migration assistant tooling.
+- `v5.0.0`: strict-only model after legacy field removal.
+
+### D10. Non-goals
 
 Out of scope for this ADR:
 

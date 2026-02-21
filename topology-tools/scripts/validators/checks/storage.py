@@ -447,6 +447,87 @@ def check_l3_storage_refs(
                     f"Storage '{storage_id}': disk_ref '{disk_ref}' not found on device '{device_ref}'"
                 )
 
+    attachment_ids = {
+        item.get('id')
+        for item in media_attachments
+        if isinstance(item, dict) and item.get('id')
+    }
+    partitions = {
+        item.get('id'): item
+        for item in (l3.get('partitions', []) or [])
+        if isinstance(item, dict) and item.get('id')
+    }
+    volume_groups = {
+        item.get('id'): item
+        for item in (l3.get('volume_groups', []) or [])
+        if isinstance(item, dict) and item.get('id')
+    }
+    logical_volumes = {
+        item.get('id'): item
+        for item in (l3.get('logical_volumes', []) or [])
+        if isinstance(item, dict) and item.get('id')
+    }
+    filesystems = {
+        item.get('id'): item
+        for item in (l3.get('filesystems', []) or [])
+        if isinstance(item, dict) and item.get('id')
+    }
+    mount_points = {
+        item.get('id'): item
+        for item in (l3.get('mount_points', []) or [])
+        if isinstance(item, dict) and item.get('id')
+    }
+
+    for partition_id, partition in partitions.items():
+        media_attachment_ref = partition.get('media_attachment_ref')
+        if media_attachment_ref and media_attachment_ref not in attachment_ids:
+            errors.append(
+                f"Partition '{partition_id}': media_attachment_ref '{media_attachment_ref}' not found in L1 media_attachments"
+            )
+
+    for vg_id, vg in volume_groups.items():
+        for pv_ref in vg.get('pv_refs', []) or []:
+            partition = partitions.get(pv_ref)
+            if not partition:
+                errors.append(
+                    f"Volume group '{vg_id}': pv_ref '{pv_ref}' not found in L3 partitions"
+                )
+                continue
+            if partition.get('type') != 'lvm-pv':
+                errors.append(
+                    f"Volume group '{vg_id}': pv_ref '{pv_ref}' must reference partition type 'lvm-pv'"
+                )
+
+    for lv_id, lv in logical_volumes.items():
+        vg_ref = lv.get('vg_ref')
+        if vg_ref and vg_ref not in volume_groups:
+            errors.append(
+                f"Logical volume '{lv_id}': vg_ref '{vg_ref}' not found in L3 volume_groups"
+            )
+
+    for fs_id, filesystem in filesystems.items():
+        lv_ref = filesystem.get('lv_ref')
+        partition_ref = filesystem.get('partition_ref')
+        if not lv_ref and not partition_ref:
+            errors.append(
+                f"Filesystem '{fs_id}': must reference lv_ref or partition_ref"
+            )
+        if lv_ref and lv_ref not in logical_volumes:
+            errors.append(
+                f"Filesystem '{fs_id}': lv_ref '{lv_ref}' not found in L3 logical_volumes"
+            )
+        if partition_ref and partition_ref not in partitions:
+            errors.append(
+                f"Filesystem '{fs_id}': partition_ref '{partition_ref}' not found in L3 partitions"
+            )
+
+    for mount_id, mount in mount_points.items():
+        filesystem_ref = mount.get('filesystem_ref')
+        if filesystem_ref and filesystem_ref not in filesystems:
+            errors.append(
+                f"Mount point '{mount_id}': filesystem_ref '{filesystem_ref}' not found in L3 filesystems"
+            )
+
     for endpoint in l3.get('storage_endpoints', []) or []:
         if not isinstance(endpoint, dict):
             continue
@@ -458,6 +539,14 @@ def check_l3_storage_refs(
         if not any((has_lv_ref, has_mount_point_ref, has_path)):
             warnings.append(
                 f"Storage endpoint '{endpoint_id}': no lv_ref/mount_point_ref/path set"
+            )
+        if endpoint.get('lv_ref') and endpoint.get('lv_ref') not in logical_volumes:
+            errors.append(
+                f"Storage endpoint '{endpoint_id}': lv_ref '{endpoint.get('lv_ref')}' not found in L3 logical_volumes"
+            )
+        if endpoint.get('mount_point_ref') and endpoint.get('mount_point_ref') not in mount_points:
+            errors.append(
+                f"Storage endpoint '{endpoint_id}': mount_point_ref '{endpoint.get('mount_point_ref')}' not found in L3 mount_points"
             )
 
     engine_required_categories = {

@@ -97,6 +97,10 @@ def check_lxc_refs(
             warnings.append(f"LXC '{lxc_id}': legacy field 'type' is deprecated; prefer platform_type + service runtime")
         if lxc.get('role'):
             warnings.append(f"LXC '{lxc_id}': legacy field 'role' is deprecated; prefer platform_type + resource_profile_ref")
+        if lxc.get('resources'):
+            warnings.append(
+                f"LXC '{lxc_id}': inline 'resources' is deprecated; prefer resource_profiles + resource_profile_ref"
+            )
 
         ansible_vars = ((lxc.get('ansible') or {}).get('vars') or {})
         if isinstance(ansible_vars, dict):
@@ -182,6 +186,11 @@ def check_service_refs(
             dep_ref = dep.get('service_ref')
             if dep_ref and dep_ref not in ids['services']:
                 errors.append(f"Service '{svc_id}': dependency service_ref '{dep_ref}' does not exist")
+
+    if l5.get('external_services'):
+        warnings.append(
+            "L5_application.external_services is deprecated; model Docker/Baremetal workloads via services[].runtime"
+        )
 
 
 def check_dns_refs(

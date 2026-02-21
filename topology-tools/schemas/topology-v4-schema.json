@@ -933,7 +933,42 @@
         "target_ref": { "$ref": "#/definitions/IdPattern" },
         "network_binding_ref": { "$ref": "#/definitions/NetworkRef" },
         "image": { "type": "string" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "lxc" } },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "target_ref": { "$ref": "#/definitions/LxcRef" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "vm" } },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "target_ref": { "$ref": "#/definitions/VmRef" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "enum": ["docker", "baremetal"] } },
+            "required": ["type"]
+          },
+          "then": {
+            "properties": {
+              "target_ref": { "$ref": "#/definitions/DeviceRef" }
+            }
+          }
+        }
+      ]
     },
     "DataAsset": {
       "type": "object",
@@ -952,11 +987,27 @@
         "encryption_at_rest": { "type": "boolean" },
         "engine": { "type": "string" },
         "engine_version": { "type": "string" },
-        "device_ref": { "$ref": "#/definitions/DeviceRef" },
-        "storage_ref": { "$ref": "#/definitions/StorageRef" },
-        "storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" },
-        "mount_point_ref": { "type": "string", "pattern": "^mnt-[a-z0-9-]+$" },
-        "path": { "type": "string" },
+        "device_ref": {
+          "$ref": "#/definitions/DeviceRef",
+          "x-deprecated": "Prefer L4 placement and L5 runtime linkage for ownership/placement."
+        },
+        "storage_ref": {
+          "$ref": "#/definitions/StorageRef",
+          "x-deprecated": "Use L4 storage.volumes[].storage_endpoint_ref or storage_ref."
+        },
+        "storage_endpoint_ref": {
+          "$ref": "#/definitions/StorageEndpointRef",
+          "x-deprecated": "Use L4 storage.volumes[].storage_endpoint_ref for placement."
+        },
+        "mount_point_ref": {
+          "type": "string",
+          "pattern": "^mnt-[a-z0-9-]+$",
+          "x-deprecated": "Use L4 storage.volumes[].mount_path for placement."
+        },
+        "path": {
+          "type": "string",
+          "x-deprecated": "Use L4 storage.volumes[].mount_path for placement."
+        },
         "description": { "type": "string" }
       },
       "allOf": [
@@ -998,14 +1049,21 @@
         "device_ref": { "$ref": "#/definitions/DeviceRef" },
         "platform_type": { "$ref": "#/definitions/PlatformType" },
         "resource_profile_ref": { "$ref": "#/definitions/ResourceProfileRef" },
-        "type": { "$ref": "#/definitions/LxcType" },
-        "role": { "$ref": "#/definitions/LxcRole" },
+        "type": {
+          "$ref": "#/definitions/LxcType",
+          "x-deprecated": "Use platform_type + L5 service runtime semantics."
+        },
+        "role": {
+          "$ref": "#/definitions/LxcRole",
+          "x-deprecated": "Use resource_profile_ref + L5 service runtime semantics."
+        },
         "template_ref": { "type": "string" },
         "trust_zone_ref": { "$ref": "#/definitions/TrustZone" },
         "description": { "type": "string" },
         "tags": { "type": "array", "items": { "type": "string" } },
         "resources": {
           "type": "object",
+          "x-deprecated": "Use resource_profiles and resource_profile_ref.",
           "properties": {
             "cores": { "type": "integer", "minimum": 1 },
             "memory_mb": { "type": "integer", "minimum": 64 },
@@ -1045,11 +1103,26 @@
           "items": { "$ref": "#/definitions/ServiceEndpoint" }
         },
         "config": { "type": "object" },
-        "device_ref": { "$ref": "#/definitions/DeviceRef" },
-        "vm_ref": { "$ref": "#/definitions/VmRef" },
-        "lxc_ref": { "$ref": "#/definitions/LxcRef" },
-        "network_ref": { "$ref": "#/definitions/NetworkRef" },
-        "ip": { "$ref": "#/definitions/IpAddress" },
+        "device_ref": {
+          "$ref": "#/definitions/DeviceRef",
+          "x-deprecated": "Use runtime.target_ref with runtime.type."
+        },
+        "vm_ref": {
+          "$ref": "#/definitions/VmRef",
+          "x-deprecated": "Use runtime.target_ref with runtime.type."
+        },
+        "lxc_ref": {
+          "$ref": "#/definitions/LxcRef",
+          "x-deprecated": "Use runtime.target_ref with runtime.type."
+        },
+        "network_ref": {
+          "$ref": "#/definitions/NetworkRef",
+          "x-deprecated": "Use runtime.network_binding_ref."
+        },
+        "ip": {
+          "$ref": "#/definitions/IpAddress",
+          "x-deprecated": "Resolve from runtime target + runtime.network_binding_ref."
+        },
         "port": { "$ref": "#/definitions/Port" },
         "ports": { "type": "object" },
         "protocol": { "type": "string", "enum": ["http", "https", "tcp", "udp"] },
@@ -1267,6 +1340,7 @@
         },
         "storage": {
           "type": "array",
+          "x-deprecated": "Use L3 storage_endpoints + chain entities for new model.",
           "items": { "$ref": "#/definitions/Storage" }
         },
         "data_assets": {
@@ -1300,7 +1374,10 @@
           "items": { "$ref": "#/definitions/Service" }
         },
         "dns": { "type": "object" },
-        "external_services": { "type": "array" }
+        "external_services": {
+          "type": "array",
+          "x-deprecated": "Use unified services[].runtime with runtime.type=docker."
+        }
       }
     },
     "L6_observability": {
