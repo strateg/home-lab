@@ -567,6 +567,7 @@ def check_l3_storage_refs(
             attachment_ref = infer_from.get('media_attachment_ref')
             vg_name = infer_from.get('vg_name')
             lv_name = infer_from.get('lv_name')
+            expected_vg_id = None
             if attachment_ref and attachment_ref not in attachment_ids:
                 errors.append(
                     f"Storage endpoint '{endpoint_id}': infer_from.media_attachment_ref '{attachment_ref}' not found in L1 media_attachments"
@@ -586,9 +587,23 @@ def check_l3_storage_refs(
                     )
 
             if isinstance(vg_name, str) and vg_name.strip() and volume_groups_by_name:
-                if vg_name.strip() not in volume_groups_by_name:
+                expected_vg_id = volume_groups_by_name.get(vg_name.strip())
+                if not expected_vg_id:
                     warnings.append(
                         f"Storage endpoint '{endpoint_id}': infer_from.vg_name '{vg_name}' is not present in L3 volume_groups names"
+                    )
+
+            if endpoint.get('type') == 'lvmthin' and attachment_ref and expected_vg_id:
+                expected_vg = volume_groups.get(expected_vg_id) or {}
+                expected_pv_refs = expected_vg.get('pv_refs', []) or []
+                pv_matches_attachment = any(
+                    isinstance(partitions.get(pv_ref), dict)
+                    and partitions[pv_ref].get('media_attachment_ref') == attachment_ref
+                    for pv_ref in expected_pv_refs
+                )
+                if expected_pv_refs and not pv_matches_attachment:
+                    errors.append(
+                        f"Storage endpoint '{endpoint_id}': infer_from.media_attachment_ref '{attachment_ref}' is not linked to any pv_refs in volume group '{expected_vg_id}'"
                     )
 
             if isinstance(lv_name, str) and lv_name.strip() and logical_volumes_by_name:
@@ -597,9 +612,8 @@ def check_l3_storage_refs(
                     warnings.append(
                         f"Storage endpoint '{endpoint_id}': infer_from.lv_name '{lv_name}' is not present in L3 logical_volumes names"
                     )
-                elif isinstance(vg_name, str) and vg_name.strip() and volume_groups_by_name:
-                    expected_vg_id = volume_groups_by_name.get(vg_name.strip())
-                    if expected_vg_id and lv_item.get('vg_ref') and lv_item.get('vg_ref') != expected_vg_id:
+                elif expected_vg_id:
+                    if lv_item.get('vg_ref') and lv_item.get('vg_ref') != expected_vg_id:
                         warnings.append(
                             f"Storage endpoint '{endpoint_id}': infer_from.lv_name '{lv_name}' belongs to vg '{lv_item.get('vg_ref')}', not '{expected_vg_id}'"
                         )

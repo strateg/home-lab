@@ -922,6 +922,7 @@
       "properties": {
         "storage_ref": { "$ref": "#/definitions/StorageRef" },
         "storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" },
+        "data_asset_ref": { "$ref": "#/definitions/DataAssetRef" },
         "size_gb": { "type": "number", "minimum": 0.1 }
       }
     },

@@ -126,7 +126,7 @@ lxc:
 Validation:
 
 - `volumes[].data_asset_ref` must exist in L3 `data_assets`.
-- `rootfs` SHOULD NOT reference a `data_asset_ref`.
+- `rootfs.data_asset_ref` is optional and recommended for persistent runtime/config state that requires governance and backup tracking.
 
 ### D6. Unify L5 runtime model and network binding
 
@@ -237,7 +237,7 @@ Done criteria:
 - Current repository topology validates in compat mode with zero errors.
 - At least one service and one LXC are modeled in the new style.
 
-### Phase 3 - Migration tooling and controlled cutover (in progress)
+### Phase 3 - Migration tooling and controlled cutover (completed)
 
 - Migration assistant (`migrate-to-v5.py`) supports:
   - report mode (text/JSON),
@@ -250,6 +250,7 @@ Done criteria:
   - `lxc.ansible.vars -> services[].config`,
   - `storage_ref -> storage_endpoint_ref` across L4 objects.
 - `validate-topology.py --strict` is used as migration readiness gate.
+- `infer_from` validation checks attachment and L3 chain consistency (`media_attachment_ref -> VG pv_refs -> LV`).
 
 Done criteria:
 

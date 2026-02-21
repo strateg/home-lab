@@ -13,14 +13,7 @@ Primary reference:
 
 ## Active Tasks
 
-- [ ] **L5/L6 modularization polish (Medium)**
-  Current split is file-level and already in use:
-  - `topology/L5-application/{certificates.yaml,services.yaml,dns.yaml}`
-  - `topology/L6-observability/{healthchecks.yaml,network-monitoring.yaml,alerts.yaml,notification-channels.yaml,dashboard.yaml}`
-  Optional next step: migrate to nested `_index.yaml` + domain subfolders if churn increases.
-
-- [ ] **ADR consolidation policy (Low)**
-  Define when to create a new ADR vs update an existing domain ADR.
+- [ ] No open migration tasks. New work should start from fresh review findings.
 
 ## Done Recently
 
@@ -31,3 +24,5 @@ Primary reference:
 - [x] Runtime/data-asset/resource-profile cross-layer validation hardening.
 - [x] L5/L6 layer modularization via `!include`.
 - [x] Main topology switched to explicit L3 storage chain (`partitions -> volume_groups -> logical_volumes -> filesystems -> mount_points -> storage_endpoints`).
+- [x] `rootfs.data_asset_ref` support added for LXC governance mapping.
+- [x] ADR authoring policy updated to prefer domain ADR updates over micro-ADRs.

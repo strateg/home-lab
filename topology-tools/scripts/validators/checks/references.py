@@ -67,6 +67,9 @@ def check_lxc_refs(
         storage_ref = rootfs.get('storage_endpoint_ref') or rootfs.get('storage_ref')
         if storage_ref and storage_ref not in ids['storage']:
             errors.append(f"LXC '{lxc_id}': rootfs storage_ref '{storage_ref}' does not exist")
+        rootfs_data_asset_ref = rootfs.get('data_asset_ref')
+        if rootfs_data_asset_ref and rootfs_data_asset_ref not in ids['data_assets']:
+            errors.append(f"LXC '{lxc_id}': rootfs data_asset_ref '{rootfs_data_asset_ref}' does not exist")
 
         if rootfs.get('storage_ref') and rootfs.get('storage_endpoint_ref'):
             warnings.append(

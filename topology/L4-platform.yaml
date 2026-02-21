@@ -63,6 +63,7 @@ lxc:
     rootfs:
       storage_endpoint_ref: se-lvm
       size_gb: 8
+      data_asset_ref: data-postgresql-rootfs
     volumes:
     - id: vol-postgresql-data
       mount_path: /var/lib/postgresql/data
@@ -111,6 +112,7 @@ lxc:
     rootfs:
       storage_endpoint_ref: se-lvm
       size_gb: 4
+      data_asset_ref: data-redis-rootfs
     volumes:
     - id: vol-redis-data
       mount_path: /var/lib/redis

@@ -4,10 +4,10 @@
 # Edit this file then regenerate: python3 topology-tools/regenerate-all.py
 
 _defaults:
-  lxc_os: &id002
+  lxc_os: &lxc_os_default
     type: debian
     version: '12'
-  dns: &id001
+  dns: &dns_default
     nameserver: 192.168.88.1
     searchdomain: home.local
   lxc_boot:
@@ -82,8 +82,8 @@ lxc:
     firewall: false
     vlan_tag: 30
     ip: 10.0.30.10/24
-  dns: *id001
-  os: *id002
+  dns: *dns_default
+  os: *lxc_os_default
   cloudinit:
     enabled: true
     user: postgres
@@ -125,8 +125,8 @@ lxc:
     firewall: false
     vlan_tag: 30
     ip: 10.0.30.20/24
-  dns: *id001
-  os: *id002
+  dns: *dns_default
+  os: *lxc_os_default
   cloudinit:
     enabled: true
     user: redis
