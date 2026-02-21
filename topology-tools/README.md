@@ -12,6 +12,7 @@ Related root directories:
   - `checks/foundation.py` - file placement and L1 taxonomy checks
   - `checks/governance.py` - L0 contracts, version, IP overlap checks
 - `topology-tools/generation/` - modular generation domain (incremental migration)
+  - `generation/common/` - shared loader/output helpers for generator scripts
 - `manual-scripts/` - manual setup/config scripts (separated from topology tooling)
 
 Topology scripts transform `topology.yaml` (L0-L7 layered) into Terraform configs, Ansible inventory, and documentation.
@@ -131,6 +132,21 @@ mermaid.registerIconPacks([
 References:
 - https://docs.mermaidchart.com/mermaid-oss/config/icons.html
 - https://iconify.design/docs/icons/icon-sets/
+
+### generate-proxmox-answer.py
+Generate Proxmox `answer.toml` for unattended install from layered topology.
+
+Usage:
+```bash
+python topology-tools/generate-proxmox-answer.py topology.yaml manual-scripts/bare-metal/answer.toml
+```
+
+Reads:
+- `L1_foundation` (hypervisor and media attachment inventory)
+- `L2_network` (management network/IP allocation)
+- `L3_data` (disk_ref -> os_device mapping)
+- `L5_application` (DNS domain)
+- `L7_operations` (security.proxmox.root_password_hash)
 
 ### validate-mermaid-render.py
 Validate Mermaid renderability of generated docs using Mermaid CLI.

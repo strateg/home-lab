@@ -25,13 +25,11 @@ the terraform-routeros provider. It reads the topology YAML files and creates:
 
 import sys
 import argparse
-import shutil
 from pathlib import Path
 from typing import Dict, List
 from jinja2 import Environment, FileSystemLoader
 
-# Import topology loader with !include support
-from topology_loader import load_topology
+from generation.common import load_and_validate_layered_topology, prepare_output_directory
 
 
 class MikrotikTerraformGenerator:
@@ -64,20 +62,19 @@ class MikrotikTerraformGenerator:
     def load_topology(self) -> bool:
         """Load topology YAML file (with !include support)"""
         try:
-            self.topology = load_topology(str(self.topology_path))
+            self.topology, version_warning = load_and_validate_layered_topology(
+                self.topology_path,
+                required_sections=['L0_meta', 'L1_foundation', 'L2_network', 'L5_application'],
+            )
             print(f"OK Loaded topology: {self.topology_path}")
 
-            required = ['L0_meta', 'L1_foundation', 'L2_network', 'L5_application']
-            for section in required:
-                if section not in self.topology:
-                    print(f"ERROR Missing required section: {section}")
-                    return False
-
-            version = self.topology.get('L0_meta', {}).get('version', '')
-            if not version.startswith('4.'):
-                print(f"WARN  Warning: Topology version {version} - expected 4.x for MikroTik support")
+            if version_warning:
+                print(f"WARN  {version_warning}")
 
             return True
+        except ValueError as e:
+            print(f"ERROR {e}")
+            return False
         except FileNotFoundError:
             print(f"ERROR Topology file not found: {self.topology_path}")
             return False
@@ -251,11 +248,9 @@ class MikrotikTerraformGenerator:
 
     def generate_all(self) -> bool:
         """Generate all Terraform files"""
-        if self.output_dir.exists():
+        if prepare_output_directory(self.output_dir):
             print(f"CLEAN Cleaning output directory: {self.output_dir}")
-            shutil.rmtree(self.output_dir)
 
-        self.output_dir.mkdir(parents=True, exist_ok=True)
         print(f"DIR Created output directory: {self.output_dir}")
 
         success = True

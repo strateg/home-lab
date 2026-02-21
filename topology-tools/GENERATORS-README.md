@@ -112,6 +112,21 @@ mermaid.registerIconPacks([
 ]);
 ```
 
+### generate-proxmox-answer.py
+Generate Proxmox `answer.toml` for unattended installation from layered topology.
+
+Usage:
+```bash
+python topology-tools/generate-proxmox-answer.py topology.yaml manual-scripts/bare-metal/answer.toml
+```
+
+Reads:
+- `L1_foundation`
+- `L2_network`
+- `L3_data`
+- `L5_application`
+- `L7_operations`
+
 ### validate-mermaid-render.py
 Validate Mermaid renderability of generated docs using Mermaid CLI.
 
@@ -216,6 +231,7 @@ home-lab/
         governance.py
       ids.py
     generation/
+      common/
     schemas/
       topology-v4-schema.json
       validator-policy.yaml

@@ -14,7 +14,8 @@ import sys
 import argparse
 from pathlib import Path
 from typing import Dict, Any, Optional
-from topology_loader import load_topology
+
+from generation.common import load_and_validate_layered_topology
 
 
 class ProxmoxAnswerGenerator:
@@ -28,7 +29,19 @@ class ProxmoxAnswerGenerator:
             topology_path: Path to topology.yaml
         """
         self.topology_path = Path(topology_path)
-        self.topology = load_topology(str(topology_path))
+        self.topology, version_warning = load_and_validate_layered_topology(
+            self.topology_path,
+            required_sections=[
+                'L0_meta',
+                'L1_foundation',
+                'L2_network',
+                'L3_data',
+                'L5_application',
+                'L7_operations',
+            ],
+        )
+        if version_warning:
+            print(f"WARN  {version_warning}")
         self.proxmox_node = self._extract_proxmox_node()
         self.validation_errors = []
         self.validation_warnings = []
@@ -36,8 +49,6 @@ class ProxmoxAnswerGenerator:
     def _extract_proxmox_node(self) -> Optional[Dict[str, Any]]:
         """Extract Proxmox hypervisor node from topology"""
         devices = self.topology.get('L1_foundation', {}).get('devices', [])
-        if not devices:
-            devices = self.topology.get('physical_topology', {}).get('devices', [])
 
         for device in devices:
             # Find hypervisor device (role can be 'compute', 'proxmox-ve', or 'hypervisor')
@@ -120,6 +131,9 @@ class ProxmoxAnswerGenerator:
             return None
 
         l3_storage = self.topology.get('L3_data', {}).get('storage', [])
+        if not isinstance(l3_storage, list):
+            return None
+
         for storage in l3_storage:
             if storage.get('disk_ref') == disk_id and storage.get('os_device'):
                 return storage.get('os_device')
@@ -132,7 +146,9 @@ class ProxmoxAnswerGenerator:
             return "proxmox.home.local"
 
         # Get domain from DNS zone (default: home.local)
-        dns_zones = self.topology.get('logical_topology', {}).get('dns', {}).get('zones', [])
+        dns_zones = self.topology.get('L5_application', {}).get('dns', {}).get('zones', [])
+        if not isinstance(dns_zones, list):
+            dns_zones = []
         domain = 'home.local'
         if dns_zones:
             domain = dns_zones[0].get('domain', 'home.local')
@@ -146,7 +162,9 @@ class ProxmoxAnswerGenerator:
         Extract management network IP configuration for Proxmox node
         Returns dict with 'ip', 'gateway', 'dns' or None for DHCP
         """
-        networks = self.topology.get('logical_topology', {}).get('networks', [])
+        networks = self.topology.get('L2_network', {}).get('networks', [])
+        if not isinstance(networks, list):
+            return None
 
         # Find management network
         mgmt_network = None
@@ -175,19 +193,15 @@ class ProxmoxAnswerGenerator:
 
         return None
 
-    def _get_metadata(self, key: str, default: Any = None) -> Any:
-        """Get value from metadata section"""
-        return self.topology.get('metadata', {}).get(key, default)
-
     def _get_root_password_hash(self) -> str:
         """
-        Get Proxmox root password hash from topology security section
+        Get Proxmox root password hash from L7 operations security section
 
         Returns:
-            SHA-512 password hash from topology.security.proxmox.root_password_hash
+            SHA-512 password hash from topology.L7_operations.security.proxmox.root_password_hash
             Falls back to hardcoded default if not found in topology
         """
-        security = self.topology.get('security', {})
+        security = self.topology.get('L7_operations', {}).get('security', {})
         proxmox_security = security.get('proxmox', {})
 
         # Read from topology (preferred)
@@ -236,12 +250,16 @@ class ProxmoxAnswerGenerator:
                     )
 
         # Check network configuration
-        networks = self.topology.get('logical_topology', {}).get('networks', [])
+        networks = self.topology.get('L2_network', {}).get('networks', [])
+        if not isinstance(networks, list):
+            networks = []
         if not networks:
             self.validation_warnings.append("No networks defined in topology")
 
         # Check DNS zones for hostname domain
-        dns_zones = self.topology.get('logical_topology', {}).get('dns', {}).get('zones', [])
+        dns_zones = self.topology.get('L5_application', {}).get('dns', {}).get('zones', [])
+        if not isinstance(dns_zones, list):
+            dns_zones = []
         if not dns_zones:
             self.validation_warnings.append("No DNS zones defined, using default 'home.local'")
 
@@ -336,7 +354,9 @@ class ProxmoxAnswerGenerator:
 
         # Header
         sections.append("# Proxmox VE 9 Auto-Install Configuration")
-        sections.append(f"# Generated from topology.yaml v{self.topology.get('version', '2.2.0')}")
+        sections.append(
+            f"# Generated from topology.yaml v{self.topology.get('L0_meta', {}).get('version', '4.0.0')}"
+        )
         sections.append("# DO NOT EDIT MANUALLY - Regenerate with topology-tools/generate-proxmox-answer.py")
         sections.append("# Documentation: https://pve.proxmox.com/wiki/Automated_Installation")
         sections.append("")
@@ -536,7 +556,7 @@ Examples:
 
         if args.validate:
             print("OK Topology loaded successfully")
-            print(f"  - Version: {generator.topology.get('version', 'unknown')}")
+            print(f"  - Version: {generator.topology.get('L0_meta', {}).get('version', 'unknown')}")
             print(f"  - Proxmox node: {generator._get_hostname()}")
             print()
 
