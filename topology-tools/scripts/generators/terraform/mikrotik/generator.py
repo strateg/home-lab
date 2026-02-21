@@ -364,8 +364,8 @@ tailscale_authkey = \"\"  # From Tailscale admin console
             print(f"ERROR Error generating terraform.tfvars.example: {e}")
             return False
 
-    def print_summary(self):
-        """Print generation summary"""
+    def print_summary(self) -> None:
+        """Print generation summary."""
         print("\n" + "=" * 70)
         print("MikroTik Terraform Generation Summary")
         print("=" * 70)

@@ -1,6 +1,16 @@
-"""Terraform generator domains."""
+"""Terraform generator domains.
 
-from .proxmox import TerraformGenerator
-from .mikrotik import MikrotikTerraformGenerator
+Provides Terraform configuration generators for:
+- Proxmox VE (VMs, LXC, bridges, storage)
+- MikroTik RouterOS (interfaces, firewall, VPN, QoS)
+"""
 
-__all__ = ["TerraformGenerator", "MikrotikTerraformGenerator"]
+from .mikrotik import MikrotikTerraformCLI, MikrotikTerraformGenerator
+from .proxmox import ProxmoxTerraformCLI, TerraformGenerator
+
+__all__ = [
+    "MikrotikTerraformCLI",
+    "MikrotikTerraformGenerator",
+    "ProxmoxTerraformCLI",
+    "TerraformGenerator",
+]

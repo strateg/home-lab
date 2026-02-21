@@ -281,8 +281,8 @@ class TerraformGenerator:
             print(f"ERROR Error generating outputs.tf: {e}")
             return False
 
-    def print_summary(self):
-        """Print generation summary"""
+    def print_summary(self) -> None:
+        """Print generation summary."""
         print("\n" + "="*70)
         print("Terraform Generation Summary")
         print("="*70)

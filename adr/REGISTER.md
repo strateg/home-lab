@@ -26,3 +26,4 @@
 | [0022](0022-docs-diagram-module-canonical-location.md) | Use scripts/generation/docs/docs_diagram.py as Canonical Diagram Module | Accepted | 2026-02-21 | - | - |
 | [0023](0023-terraform-generators-and-templates-domain-layout.md) | Terraform Generators and Templates Domain Layout | Accepted | 2026-02-21 | - | - |
 | [0024](0024-validators-namespace-alignment.md) | Rename Validation Package Namespace to validators | Accepted | 2026-02-21 | - | - |
+| [0025](0025-generator-protocol-and-cli-base-class.md) | Generator Protocol and CLI Base Class | Accepted | 2026-02-21 | - | - |

@@ -4,53 +4,29 @@ from __future__ import annotations
 
 import argparse
 import sys
+from typing import Sequence
 
+from scripts.generators.common import GeneratorCLI, run_cli
 from .generator import TerraformGenerator
 
 
+class ProxmoxTerraformCLI(GeneratorCLI):
+    """CLI for Proxmox Terraform configuration generator."""
+
+    description = "Generate Terraform configuration from topology v4.0"
+    banner = "Terraform Configuration Generator (Topology v4.0)"
+    default_output = "generated/terraform"
+    success_message = "Terraform generation completed successfully!"
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Generate Terraform configuration from topology v4.0"
-    )
-    parser.add_argument(
-        "--topology",
-        default="topology.yaml",
-        help="Path to topology YAML file"
-    )
-    parser.add_argument(
-        "--output",
-        default="generated/terraform",
-        help="Output directory for Terraform files (default: generated/terraform/)"
-    )
-    parser.add_argument(
-        "--templates",
-        default="topology-tools/templates",
-        help="Directory containing Terraform Jinja2 templates"
-    )
-    return parser
+    """Build argument parser (for backwards compatibility)."""
+    return ProxmoxTerraformCLI(TerraformGenerator).build_parser()
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
-    generator = TerraformGenerator(args.topology, args.output, args.templates)
-
-    print("=" * 70)
-    print("Terraform Configuration Generator (Topology v4.0)")
-    print("=" * 70)
-    print()
-
-    if not generator.load_topology():
-        return 1
-
-    print("\nGEN Generating Terraform files...\n")
-
-    if not generator.generate_all():
-        print("\nERROR Generation failed with errors")
-        return 1
-
-    generator.print_summary()
-    print("\nOK Terraform generation completed successfully!\n")
-    return 0
+def main(argv: Sequence[str] | None = None) -> int:
+    """Main entry point."""
+    return run_cli(ProxmoxTerraformCLI(TerraformGenerator), argv)
 
 
 if __name__ == "__main__":

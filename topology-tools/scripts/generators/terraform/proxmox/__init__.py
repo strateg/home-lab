@@ -1,5 +1,6 @@
-"""Terraform generators."""
+"""Proxmox Terraform generator package."""
 
+from .cli import ProxmoxTerraformCLI, main
 from .generator import TerraformGenerator
 
-__all__ = ["TerraformGenerator"]
+__all__ = ["ProxmoxTerraformCLI", "TerraformGenerator", "main"]

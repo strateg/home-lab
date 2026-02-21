@@ -508,8 +508,8 @@ class DocumentationGenerator:
             stats=stats,
         )
 
-    def print_summary(self):
-        """Print generation summary"""
+    def print_summary(self) -> None:
+        """Print generation summary."""
         print("\n" + "="*70)
         print("Documentation Generation Summary")
         print("="*70)

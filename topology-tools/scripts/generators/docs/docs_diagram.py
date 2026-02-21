@@ -4,7 +4,10 @@ Diagram generation helpers for topology documentation.
 """
 
 from datetime import datetime
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
+
+from jinja2 import Environment
 
 
 class DiagramDocumentationGenerator:
@@ -162,19 +165,19 @@ class DiagramDocumentationGenerator:
         self._generated_at = None
 
     @property
-    def topology(self):
+    def topology(self) -> Dict[str, Any]:
         return self.docs_generator.topology
 
     @property
-    def output_dir(self):
+    def output_dir(self) -> Path:
         return self.docs_generator.output_dir
 
     @property
-    def jinja_env(self):
+    def jinja_env(self) -> Environment:
         return self.docs_generator.jinja_env
 
     @property
-    def topology_version(self):
+    def topology_version(self) -> str:
         return self.topology.get("L0_meta", {}).get("version", "4.0.0")
 
     @property
