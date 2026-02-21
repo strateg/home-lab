@@ -1,0 +1,90 @@
+  local_ca:
+    enabled: true
+    name: Home Lab CA
+    cn: Home Lab Root CA
+    organization: Home Lab
+    validity_days: 3650
+    key_size: 4096
+    storage:
+      device_ref: orangepi5
+      path: /mnt/nvme/ssl/ca
+    distribution:
+    - device_ref: gamayun
+    - device_ref: orangepi5
+    - device_ref: mikrotik-chateau
+  certificates:
+  - id: cert-nextcloud
+    domain: nextcloud.home.local
+    alt_names:
+    - cloud.home.local
+    issuer: local_ca
+    validity_days: 365
+    auto_renew: true
+    renew_before_days: 30
+    service_ref: svc-nextcloud
+  - id: cert-jellyfin
+    domain: jellyfin.home.local
+    alt_names:
+    - media.home.local
+    issuer: local_ca
+    validity_days: 365
+    auto_renew: true
+    service_ref: svc-jellyfin
+  - id: cert-grafana
+    domain: grafana.home.local
+    alt_names:
+    - monitor.home.local
+    issuer: local_ca
+    validity_days: 365
+    auto_renew: true
+    service_ref: svc-grafana
+  - id: cert-proxmox
+    domain: proxmox.home.local
+    alt_names:
+    - gamayun.home.local
+    - 10.0.99.2
+    issuer: local_ca
+    validity_days: 365
+    auto_renew: true
+    service_ref: svc-proxmox-ui
+  - id: cert-mikrotik
+    domain: mikrotik.home.local
+    alt_names:
+    - router.home.local
+    - 10.0.99.1
+    issuer: local_ca
+    validity_days: 365
+    auto_renew: true
+    service_ref: svc-mikrotik-ui
+  letsencrypt:
+    enabled: false
+    email: admin@example.com
+    staging: true
+    domains: []
+    challenge_type: dns-01
+    dns_provider: cloudflare
+  additional:
+  - id: cert-wildcard-home
+    name: Wildcard Home Lab Certificate
+    type: self-signed
+    subject: '*.home.local'
+    subject_alt_names:
+    - home.local
+    - '*.home.local'
+    valid_days: 365
+    key_size: 2048
+    used_by:
+    - service_ref: svc-proxmox-ui
+    - service_ref: svc-nextcloud
+    auto_renew: true
+    renew_days_before: 30
+  - id: cert-letsencrypt-vpn
+    name: Let's Encrypt VPN Certificate
+    type: letsencrypt
+    domains:
+    - vpn.example.com
+    challenge_type: dns-01
+    used_by:
+    - service_ref: svc-wireguard
+    auto_renew: true
+    renew_days_before: 30

@@ -54,12 +54,20 @@ Rules:
   - `topology/L2-network/firewall/templates.yaml`
   - `topology/L2-network/qos/`
   - `topology/L2-network/ipv6/`
+  - `topology/L5-application.yaml`:
+  - `topology/L5-application/certificates.yaml`
+  - `topology/L5-application/services.yaml`
+  - `topology/L5-application/dns.yaml`
+  - `topology/L6-observability.yaml`:
+  - `topology/L6-observability/healthchecks.yaml`
+  - `topology/L6-observability/network-monitoring.yaml`
+  - `topology/L6-observability/alerts.yaml`
+  - `topology/L6-observability/notification-channels.yaml`
+  - `topology/L6-observability/dashboard.yaml`
 - Single-file layers (not yet modularized into subfolders):
   - `topology/L0-meta.yaml`
   - `topology/L3-data.yaml`
   - `topology/L4-platform.yaml`
-  - `topology/L5-application.yaml`
-  - `topology/L6-observability.yaml`
 
 ## Editing Conventions (AI + Human)
 

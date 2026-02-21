@@ -1,0 +1,37 @@
+  enabled: true
+  provider: grafana
+  refresh_interval: 30s
+  metrics_retention: 30d
+  views:
+  - name: Overview
+    default: true
+    panels:
+    - system_status
+    - service_status
+    - recent_alerts
+    - network_traffic
+  - name: Infrastructure
+    panels:
+    - mikrotik_metrics
+    - proxmox_metrics
+    - orangepi5_metrics
+    - lxc_status
+  - name: Network
+    panels:
+    - wan_traffic
+    - lte_status
+    - interface_bandwidth
+    - firewall_stats
+    - vpn_connections
+  - name: Services
+    panels:
+    - postgresql_metrics
+    - redis_metrics
+    - nextcloud_metrics
+    - docker_containers
+  - name: Power
+    panels:
+    - ups_status
+    - battery_level
+    - power_consumption
+

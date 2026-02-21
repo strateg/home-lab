@@ -1,0 +1,157 @@
+  zones:
+  - id: zone-home-local
+    domain: home.local
+    nameserver_ref: svc-adguard
+    type: forward
+    description: Primary home lab DNS zone (AdGuard on MikroTik)
+    records:
+    - type: A
+      name: router
+      ip: 192.168.88.1
+      device_ref: mikrotik-chateau
+      ttl: 3600
+      description: MikroTik router
+    - type: A
+      name: mikrotik
+      ip: 192.168.88.1
+      device_ref: mikrotik-chateau
+      ttl: 3600
+      description: MikroTik router alias
+    - type: A
+      name: gamayun
+      ip: 192.168.88.2
+      device_ref: gamayun
+      ttl: 3600
+      description: Proxmox host
+    - type: A
+      name: proxmox
+      ip: 10.0.99.2
+      device_ref: gamayun
+      ttl: 3600
+      description: Proxmox Web UI (management)
+    - type: A
+      name: orangepi
+      ip: 192.168.88.3
+      device_ref: orangepi5
+      ttl: 3600
+      description: Orange Pi 5 application server
+    - type: A
+      name: opi5
+      ip: 10.0.30.50
+      device_ref: orangepi5
+      ttl: 3600
+      description: Orange Pi 5 server interface
+    - type: A
+      name: postgresql
+      ip: 10.0.30.10
+      lxc_ref: lxc-postgresql
+      ttl: 3600
+      description: PostgreSQL database server
+    - type: A
+      name: redis
+      ip: 10.0.30.20
+      lxc_ref: lxc-redis
+      ttl: 3600
+      description: Redis cache server
+    - type: A
+      name: nextcloud
+      ip: 10.0.30.50
+      device_ref: orangepi5
+      ttl: 3600
+      description: Nextcloud on Orange Pi 5
+    - type: A
+      name: jellyfin
+      ip: 10.0.30.50
+      device_ref: orangepi5
+      ttl: 3600
+      description: Jellyfin media server on Orange Pi 5
+    - type: A
+      name: grafana
+      ip: 10.0.30.50
+      device_ref: orangepi5
+      ttl: 3600
+      description: Grafana on Orange Pi 5
+    - type: A
+      name: prometheus
+      ip: 10.0.30.50
+      device_ref: orangepi5
+      ttl: 3600
+      description: Prometheus on Orange Pi 5
+    - type: CNAME
+      name: db
+      target: postgresql.home.local
+      service_ref: svc-postgresql
+      ttl: 3600
+      description: Database alias
+    - type: CNAME
+      name: cache
+      target: redis.home.local
+      service_ref: svc-redis
+      ttl: 3600
+      description: Cache alias
+    - type: CNAME
+      name: cloud
+      target: nextcloud.home.local
+      service_ref: svc-nextcloud
+      ttl: 3600
+      description: Cloud storage alias
+    - type: CNAME
+      name: media
+      target: jellyfin.home.local
+      service_ref: svc-jellyfin
+      ttl: 3600
+      description: Media server alias
+    - type: CNAME
+      name: monitor
+      target: grafana.home.local
+      service_ref: svc-grafana
+      ttl: 3600
+      description: Monitoring alias
+    - type: SRV
+      name: _postgresql._tcp
+      target: postgresql.home.local
+      port: 5432
+      priority: 10
+      weight: 10
+      service_ref: svc-postgresql
+      ttl: 3600
+      description: PostgreSQL service discovery
+    - type: SRV
+      name: _redis._tcp
+      target: redis.home.local
+      port: 6379
+      priority: 10
+      weight: 10
+      service_ref: svc-redis
+      ttl: 3600
+      description: Redis service discovery
+    - type: SRV
+      name: _https._tcp.nextcloud
+      target: nextcloud.home.local
+      port: 443
+      priority: 10
+      weight: 10
+      service_ref: svc-nextcloud
+      ttl: 3600
+      description: Nextcloud HTTPS service
+  forwarders:
+    upstream_doh:
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.google/dns-query
+    upstream_dot:
+    - tls://1.1.1.1
+    - tls://8.8.8.8
+    fallback:
+    - 1.1.1.1
+    - 8.8.8.8
+  settings:
+    provider: adguard-home
+    location: mikrotik-container
+    recursion: true
+    dnssec: true
+    cache_size_mb: 100
+    negative_ttl: 300
+    allow_query_from:
+    - 10.0.0.0/8
+    - 192.168.0.0/16
+    - 100.64.0.0/10

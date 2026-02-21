@@ -1,0 +1,28 @@
+- id: channel-email
+  name: Email Notifications
+  type: email
+  enabled: true
+  config:
+    smtp_server: smtp.gmail.com
+    smtp_port: 587
+    smtp_tls: true
+    smtp_user: '{{ vault_smtp_user }}'
+    smtp_password: '{{ vault_smtp_password }}'
+    from_address: homelab@home.local
+    to_addresses:
+    - admin@home.local
+  rate_limit:
+    max_per_hour: 20
+    cooldown_minutes: 5
+- id: channel-telegram
+  name: Telegram Notifications
+  type: telegram
+  enabled: true
+  config:
+    bot_token: '{{ vault_telegram_bot_token }}'
+    chat_id: '{{ vault_telegram_chat_id }}'
+  priority:
+  - critical
+  - warning
+  rate_limit:
+    max_per_hour: 30

@@ -18,20 +18,11 @@ Primary reference:
   1. Keep shorthand-first (`storage_endpoints[].infer_from`) as default for home-lab scale.
   2. Implement full explicit chain authoring (`partitions` -> `volume_groups` -> `logical_volumes` -> `filesystems` -> `mount_points`) in main topology.
 
-- [ ] **L5 modularization (Medium)**
-  Split `topology/L5-application.yaml` into:
-  - `topology/L5-application/_index.yaml`
-  - `topology/L5-application/services/`
-  - `topology/L5-application/certificates/`
-  - `topology/L5-application/dns/`
-
-- [ ] **L6 modularization (Medium)**
-  Split `topology/L6-observability.yaml` into:
-  - `topology/L6-observability/_index.yaml`
-  - `topology/L6-observability/healthchecks/`
-  - `topology/L6-observability/alerts/`
-  - `topology/L6-observability/channels/`
-  - `topology/L6-observability/dashboard/`
+- [ ] **L5/L6 modularization polish (Medium)**
+  Current split is file-level and already in use:
+  - `topology/L5-application/{certificates.yaml,services.yaml,dns.yaml}`
+  - `topology/L6-observability/{healthchecks.yaml,network-monitoring.yaml,alerts.yaml,notification-channels.yaml,dashboard.yaml}`
+  Optional next step: migrate to nested `_index.yaml` + domain subfolders if churn increases.
 
 - [ ] **ADR consolidation policy (Low)**
   Define when to create a new ADR vs update an existing domain ADR.
@@ -43,3 +34,4 @@ Primary reference:
 - [x] Fixture matrix runner: `topology-tools/run-fixture-matrix.py`.
 - [x] CI workflow: `.github/workflows/topology-matrix.yml`.
 - [x] Runtime/data-asset/resource-profile cross-layer validation hardening.
+- [x] L5/L6 layer modularization via `!include`.

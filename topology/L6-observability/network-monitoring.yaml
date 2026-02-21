@@ -1,0 +1,74 @@
+- id: net-mon-internet
+  name: Internet Connectivity
+  description: Monitor primary and failover internet
+  enabled: true
+  checks:
+  - type: ping
+    targets:
+    - 8.8.8.8
+    - 1.1.1.1
+    - 208.67.222.222
+    packet_loss_threshold: 20
+    latency_warning_ms: 50
+    latency_critical_ms: 200
+  - type: dns
+    nameservers:
+    - 8.8.8.8
+    - 1.1.1.1
+    query: google.com
+    timeout_ms: 2000
+  - type: http
+    urls:
+    - https://www.google.com
+    - https://www.cloudflare.com
+    expected_status:
+    - 200
+    - 301
+    - 302
+    timeout_ms: 5000
+  interval: 60s
+  notification:
+    on_warning: true
+    on_critical: true
+    channels:
+    - channel-email
+- id: net-mon-internal
+  name: Internal Network Connectivity
+  description: Monitor inter-VLAN connectivity
+  enabled: true
+  checks:
+  - type: ping
+    from: 192.168.88.1
+    targets:
+    - 192.168.88.2
+    - 192.168.88.3
+    - 10.0.30.10
+    - 10.0.30.20
+    - 10.0.30.50
+    packet_loss_threshold: 5
+  - type: traceroute
+    targets:
+    - 10.0.30.10
+    expected_hops: 2
+  interval: 120s
+  notification:
+    on_warning: true
+    on_critical: true
+    channels:
+    - channel-email
+- id: net-mon-bandwidth
+  name: Bandwidth Monitoring
+  description: Monitor network throughput
+  enabled: true
+  device_ref: mikrotik-chateau
+  interfaces:
+  - name: ether1
+    type: wan
+    expected_speed_mbps: 100
+  - name: lte1
+    type: wan-backup
+    expected_speed_mbps: 50
+  - name: ether2
+    type: lan
+    expected_speed_mbps: 1000
+  interval: 60s
