@@ -37,15 +37,18 @@
 - Upgradeable: {{ 'Yes' if device.specs.memory.upgradeable else 'No' }}
 {% endif %}
 
-{% if device.specs.storage_slots is defined and device.specs.storage_slots %}
+{% set device_storage_rows = storage_rows_by_device.get(device.id, []) %}
+{% if device_storage_rows %}
 **Storage**:
-{% for slot in device.specs.storage_slots %}
-{% if slot.media is defined and slot.media %}
-- {{ slot.media.id }}: {{ slot.media.size_gb }} GB {{ slot.media.type | upper }}
-  - Slot: `{{ slot.id | default('n/a') }}`
-  - Mount: {{ slot.mount | default('replaceable') }}
-  - State: {{ slot.media.state | default('present') }}
-  - Model: {{ slot.media.model | default('n/a') }}
+{% for row in device_storage_rows %}
+{% if row.media %}
+- {{ row.media.id }}: {{ row.media.size_gb }} GB {{ row.media.type | upper }}
+  - Slot: `{{ row.slot_id | default('n/a') }}`
+  - Bus / Mount: {{ row.slot_bus | default('-') }} / {{ row.slot_mount | default('replaceable') }}
+  - Attachment state: {{ row.attachment_state | default('present') }}
+  - Model: {{ row.media.model | default('n/a') }}
+{% else %}
+- Slot `{{ row.slot_id | default('n/a') }}`: empty ({{ row.slot_bus | default('-') }} / {{ row.slot_mount | default('replaceable') }})
 {% endif %}
 {% endfor %}
 {% endif %}

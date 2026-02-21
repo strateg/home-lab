@@ -146,7 +146,7 @@ The following settings are automatically extracted from `topology.yaml`:
 | Setting | Topology Source | Example |
 |---------|-----------------|---------|
 | **Hostname** | `physical_topology.devices[].id` + DNS domain | `gamayun.home.local` |
-| **System Disk** | `L1_foundation.devices[].specs.storage_slots[].media` (SSD preferred) | `sda` |
+| **System Disk** | `L1_foundation.media_registry` + `L1_foundation.media_attachments` + slot taxonomy (SSD preferred) | `sda` |
 | **Network** | `logical_topology.networks` (management network) | DHCP (default) |
 | **Domain** | `logical_topology.dns.zones[].domain` | `home.local` |
 

@@ -7,11 +7,15 @@
 # - devices: topology/L1-foundation/devices/
 #   - owned/<class>/
 #   - provider/<class>/
+# - media: topology/L1-foundation/media/ (portable and fixed storage media registry)
+# - media-attachments: topology/L1-foundation/media-attachments/ (slot <-> media bindings)
 # - data-links: topology/L1-foundation/data-links/ (data links)
 # - power-links: topology/L1-foundation/power-links/ (power cabling)
 # Edit modules then regenerate: python3 topology-tools/regenerate-all.py
 
 locations: !include L1-foundation/locations/_index.yaml
 devices: !include L1-foundation/devices/_index.yaml
+media_registry: !include L1-foundation/media/_index.yaml
+media_attachments: !include L1-foundation/media-attachments/_index.yaml
 data_links: !include L1-foundation/data-links/_index.yaml
 power_links: !include L1-foundation/power-links/_index.yaml

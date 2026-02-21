@@ -35,7 +35,9 @@ class ProxmoxAnswerGenerator:
 
     def _extract_proxmox_node(self) -> Optional[Dict[str, Any]]:
         """Extract Proxmox hypervisor node from topology"""
-        devices = self.topology.get('physical_topology', {}).get('devices', [])
+        devices = self.topology.get('L1_foundation', {}).get('devices', [])
+        if not devices:
+            devices = self.topology.get('physical_topology', {}).get('devices', [])
 
         for device in devices:
             # Find hypervisor device (role can be 'compute', 'proxmox-ve', or 'hypervisor')
@@ -69,19 +71,46 @@ class ProxmoxAnswerGenerator:
         return "sda"
 
     def _get_device_disks(self) -> list[Dict[str, Any]]:
-        """Return disk list from L1 storage_slots."""
+        """Return attached media list for Proxmox node from L1 media registries."""
         if not self.proxmox_node:
             return []
 
+        l1 = self.topology.get('L1_foundation', {}) or {}
+        media_registry = l1.get('media_registry', []) if isinstance(l1.get('media_registry'), list) else []
+        media_attachments = l1.get('media_attachments', []) if isinstance(l1.get('media_attachments'), list) else []
+
+        media_by_id = {
+            media.get('id'): media
+            for media in media_registry
+            if isinstance(media, dict) and media.get('id')
+        }
+
         specs = self.proxmox_node.get('specs', {}) if isinstance(self.proxmox_node.get('specs'), dict) else {}
         slots = specs.get('storage_slots', []) if isinstance(specs.get('storage_slots'), list) else []
-        disks: list[Dict[str, Any]] = []
-        for slot in slots:
-            if not isinstance(slot, dict):
+        slot_ids = [slot.get('id') for slot in slots if isinstance(slot, dict) and slot.get('id')]
+
+        attachments_by_slot: Dict[str, list[Dict[str, Any]]] = {}
+        for attachment in media_attachments:
+            if not isinstance(attachment, dict):
                 continue
-            media = slot.get('media')
-            if isinstance(media, dict):
-                disks.append(media)
+            if attachment.get('device_ref') != self.proxmox_node.get('id'):
+                continue
+            slot_ref = attachment.get('slot_ref')
+            if not slot_ref:
+                continue
+            attachments_by_slot.setdefault(slot_ref, []).append(attachment)
+
+        disks: list[Dict[str, Any]] = []
+        for slot_id in slot_ids:
+            slot_attachments = attachments_by_slot.get(slot_id, [])
+            slot_attachments = sorted(
+                slot_attachments,
+                key=lambda item: (0 if item.get('state', 'present') == 'present' else 1, item.get('id', '')),
+            )
+            for attachment in slot_attachments:
+                media = media_by_id.get(attachment.get('media_ref'))
+                if isinstance(media, dict):
+                    disks.append(media)
 
         return disks
 

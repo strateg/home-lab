@@ -66,15 +66,6 @@ specs:
     mount: soldered
     connector: onboard flash
     description: Onboard firmware storage
-    media:
-      id: disk-qspi-boot
-      name: Onboard QSPI Boot Flash
-      type: flash
-      state: present
-      size_gb: 0.016
-      boot: true
-      removable: false
-      usage: Onboard firmware storage
   - id: slot-m2-0
     name: M.2 M-Key Slot
     bus: m2
@@ -82,15 +73,6 @@ specs:
     connector: M-Key 2280
     lanes: 1
     description: Primary NVMe expansion slot
-    media:
-      id: disk-nvme-main
-      name: NVMe Main Storage
-      type: nvme
-      state: planned
-      size_gb: 256
-      rotational: false
-      removable: false
-      usage: Primary high-performance expansion storage
   - id: slot-microsd-0
     name: MicroSD Slot
     bus: sdio

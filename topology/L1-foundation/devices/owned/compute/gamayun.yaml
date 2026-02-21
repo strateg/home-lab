@@ -30,15 +30,6 @@ specs:
     connector: 2.5-inch internal bay
     max_speed_gbps: 6
     description: Primary internal SATA bay
-    media:
-      id: disk-ssd-system
-      name: System SSD
-      type: ssd
-      state: present
-      size_gb: 180
-      rotational: false
-      boot: true
-      usage: Primary internal system/application SSD
   - id: slot-sata-1
     name: SATA Slot 1
     bus: sata
@@ -46,15 +37,6 @@ specs:
     connector: 2.5-inch internal bay
     max_speed_gbps: 6
     description: Secondary internal SATA bay
-    media:
-      id: disk-hdd-data
-      name: Data HDD
-      type: hdd
-      state: present
-      size_gb: 500
-      rotational: true
-      removable: false
-      usage: Secondary internal capacity disk
 interfaces:
 - id: if-eth-builtin
   name: eth-builtin

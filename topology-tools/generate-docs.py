@@ -17,7 +17,7 @@ import re
 import json
 import base64
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 from urllib.parse import quote
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from datetime import datetime
@@ -230,6 +230,84 @@ class DocumentationGenerator:
 
         return resolved
 
+    def build_l1_storage_views(self) -> Dict[str, Any]:
+        """Build pre-resolved storage rows per device from L1 media registry + attachments."""
+        l1 = self.topology.get('L1_foundation', {}) or {}
+        devices = l1.get('devices', []) or []
+        media_registry = l1.get('media_registry', []) if isinstance(l1.get('media_registry'), list) else []
+        media_attachments = l1.get('media_attachments', []) if isinstance(l1.get('media_attachments'), list) else []
+
+        media_by_id = {
+            media.get('id'): media
+            for media in media_registry
+            if isinstance(media, dict) and media.get('id')
+        }
+
+        attachments_by_device_slot: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
+        for attachment in media_attachments:
+            if not isinstance(attachment, dict):
+                continue
+            device_ref = attachment.get('device_ref')
+            slot_ref = attachment.get('slot_ref')
+            if not device_ref or not slot_ref:
+                continue
+            attachments_by_device_slot.setdefault(device_ref, {}).setdefault(slot_ref, []).append(attachment)
+
+        rows_by_device: Dict[str, List[Dict[str, Any]]] = {}
+        for device in devices:
+            if not isinstance(device, dict):
+                continue
+            dev_id = device.get('id')
+            if not dev_id:
+                continue
+
+            specs = device.get('specs', {}) if isinstance(device.get('specs'), dict) else {}
+            slots = specs.get('storage_slots', []) if isinstance(specs.get('storage_slots'), list) else []
+            device_rows: List[Dict[str, Any]] = []
+
+            for slot in slots:
+                if not isinstance(slot, dict):
+                    continue
+                slot_id = slot.get('id')
+                slot_attachments = attachments_by_device_slot.get(dev_id, {}).get(slot_id, []) if slot_id else []
+                sorted_attachments = sorted(
+                    slot_attachments,
+                    key=lambda item: (0 if item.get('state', 'present') == 'present' else 1, item.get('id', '')),
+                )
+
+                if not sorted_attachments:
+                    device_rows.append({
+                        'slot_id': slot_id,
+                        'slot_bus': slot.get('bus'),
+                        'slot_mount': slot.get('mount'),
+                        'slot_name': slot.get('name'),
+                        'attachment_id': None,
+                        'attachment_state': 'empty',
+                        'media': None,
+                    })
+                    continue
+
+                for attachment in sorted_attachments:
+                    media = media_by_id.get(attachment.get('media_ref'))
+                    device_rows.append({
+                        'slot_id': slot_id,
+                        'slot_bus': slot.get('bus'),
+                        'slot_mount': slot.get('mount'),
+                        'slot_name': slot.get('name'),
+                        'attachment_id': attachment.get('id'),
+                        'attachment_state': attachment.get('state', 'present'),
+                        'media': media,
+                    })
+
+            rows_by_device[dev_id] = device_rows
+
+        return {
+            'rows_by_device': rows_by_device,
+            'media_by_id': media_by_id,
+            'media_registry': media_registry,
+            'media_attachments': media_attachments,
+        }
+
     def load_topology(self) -> bool:
         """Load topology YAML file (with !include support)"""
         try:
@@ -415,12 +493,14 @@ class DocumentationGenerator:
             vms = self.topology['L4_platform'].get('vms', [])
             lxc = self.topology['L4_platform'].get('lxc', [])
             storage = self.topology.get('L3_data', {}).get('storage', [])
+            storage_views = self.build_l1_storage_views()
 
             content = template.render(
                 devices=devices,
                 vms=vms,
                 lxc=lxc,
                 storage=storage,
+                storage_rows_by_device=storage_views['rows_by_device'],
                 topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
                 generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             )

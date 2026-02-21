@@ -174,9 +174,17 @@
       "type": "object",
       "required": ["id", "type", "size_gb"],
       "properties": {
-        "id": { "type": "string", "pattern": "^disk-[a-z0-9-]+$" },
+        "id": { "$ref": "#/definitions/MediaRef" },
         "name": { "type": "string" },
         "type": { "$ref": "#/definitions/DiskType" },
+        "form_factor": {
+          "type": "string",
+          "enum": ["3.5in", "2.5in", "m2-2280", "m2-2242", "msata", "microsd", "sd", "usb-stick", "usb-ssd", "onboard-chip", "virtual", "other"]
+        },
+        "supported_buses": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/StoragePortType" }
+        },
         "state": { "$ref": "#/definitions/DiskState" },
         "size_gb": { "type": "number", "minimum": 0.001 },
         "serial": { "type": "string" },
@@ -202,8 +210,20 @@
         "connector": { "type": "string" },
         "max_speed_gbps": { "type": "number", "minimum": 0 },
         "lanes": { "type": "integer", "minimum": 1 },
-        "description": { "type": "string" },
-        "media": { "$ref": "#/definitions/StorageMedia" }
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "StorageMediaAttachment": {
+      "type": "object",
+      "required": ["id", "device_ref", "slot_ref", "media_ref"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^attach-[a-z0-9-]+$" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "slot_ref": { "type": "string", "pattern": "^slot-[a-z0-9-]+$" },
+        "media_ref": { "$ref": "#/definitions/MediaRef" },
+        "state": { "$ref": "#/definitions/DiskState" },
+        "description": { "type": "string" }
       },
       "additionalProperties": false
     },
@@ -212,7 +232,7 @@
       "properties": {
         "storage_slots": {
           "type": "array",
-          "description": "Primary model: each slot describes bus, mount type and optional installed media",
+          "description": "Slot capabilities model: each slot describes bus, mount type and connector characteristics",
           "items": { "$ref": "#/definitions/StorageSlot" }
         }
       },
@@ -324,6 +344,10 @@
     "StorageRef": {
       "type": "string",
       "pattern": "^storage-[a-z0-9-]+$"
+    },
+    "MediaRef": {
+      "type": "string",
+      "pattern": "^disk-[a-z0-9-]+$"
     },
     "LxcRef": {
       "type": "string",
@@ -696,7 +720,7 @@
           "items": { "$ref": "#/definitions/StorageContent" }
         },
         "device_ref": { "$ref": "#/definitions/DeviceRef" },
-        "disk_ref": { "type": "string" },
+        "disk_ref": { "$ref": "#/definitions/MediaRef" },
         "shared": { "type": "boolean" },
         "description": { "type": "string" }
       }
@@ -896,6 +920,14 @@
         "devices": {
           "type": "array",
           "items": { "$ref": "#/definitions/Device" }
+        },
+        "media_registry": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/StorageMedia" }
+        },
+        "media_attachments": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/StorageMediaAttachment" }
         },
         "data_links": {
           "type": "array",

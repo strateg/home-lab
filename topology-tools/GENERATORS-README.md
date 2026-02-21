@@ -159,7 +159,7 @@ generated/
 ## Topology v4 Structure
 
 - L0 Meta: version, defaults, security_policy
-- L1 Foundation: devices, interfaces, physical storage inventory (`storage_slots` + mount type), UPS
+- L1 Foundation: devices, interfaces, storage slots, global media registry, slot-media attachments, UPS
 - L2 Network: networks, bridges, routing, firewall
 - L3 Data: storage, data_assets, logical storage bindings (disk_ref + os_device)
 - L4 Platform: VMs, LXC, templates

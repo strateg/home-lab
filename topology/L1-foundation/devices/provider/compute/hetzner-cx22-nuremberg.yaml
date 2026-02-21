@@ -43,15 +43,6 @@ specs:
     mount: virtual
     connector: paravirtual
     description: Cloud provider attached system volume
-    media:
-      id: disk-boot-volume
-      name: Hetzner Root Volume
-      type: ssd
-      state: present
-      size_gb: 40
-      virtual: true
-      boot: true
-      usage: Provider-managed virtual system volume
 interfaces:
 - id: if-hetzner-public
   name: eth0

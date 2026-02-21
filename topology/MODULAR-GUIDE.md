@@ -38,6 +38,8 @@ Rules:
   - `topology/L1-foundation/locations/`
   - `topology/L1-foundation/devices/owned/<class>/`
   - `topology/L1-foundation/devices/provider/<class>/`
+  - `topology/L1-foundation/media/` (storage media registry)
+  - `topology/L1-foundation/media-attachments/` (device slot to media bindings)
   - `topology/L1-foundation/data-links/` (data links)
   - `topology/L1-foundation/power-links/` (power links)
   - `topology/L7-operations.yaml`:
@@ -69,6 +71,7 @@ Rules:
 - Model is defined by fields inside files; folders are validated against model.
 - Validator reports placement lints (warnings) and suggests expected paths when files are moved/copied incorrectly.
 - In L1 devices, always set taxonomy explicitly: `class` + `substrate` + `access`.
+- In L1 storage, keep slot capability in devices and media state in `media_registry` + `media_attachments` (no inline `slot.media`).
 - `data_links` can reference only owned/colo substrate devices (no `provider-instance`).
 - `power_links` can reference only owned/colo substrate devices (no `provider-instance`).
 - For PoE, model both links: one data link + one power link with `data_link_ref`.
@@ -83,17 +86,19 @@ Rules:
 3. Set `class`/`substrate`/`access`.
 4. Add/update data connectivity in `topology/L1-foundation/data-links/` and `data-links/_index.yaml` only for non-provider substrates.
 5. Add/update power cabling in `topology/L1-foundation/power-links/` and `power-links/_index.yaml`.
-6. If needed, add/update virtual network in `topology/L2-network/networks/` and `_index.yaml`.
-7. Prefer `profile_ref` from `topology/L2-network/profiles/default.yaml`.
-8. Read profile rules in `topology/L2-network/profiles/README.md`.
-9. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
-10. For firewall policy changes, edit `topology/L2-network/firewall/policies/*` and include from `topology/L2-network/firewall/policies/_index.yaml`.
-11. Add VM/LXC workloads in `topology/L4-platform.yaml` only.
-12. Add platform/app/monitoring modules only if the device hosts workloads.
-13. Validate and regenerate:
+6. Add/update storage media in `topology/L1-foundation/media/` and `_index.yaml`.
+7. Add/update slot/media bindings in `topology/L1-foundation/media-attachments/` and `_index.yaml`.
+8. If needed, add/update virtual network in `topology/L2-network/networks/` and `_index.yaml`.
+9. Prefer `profile_ref` from `topology/L2-network/profiles/default.yaml`.
+10. Read profile rules in `topology/L2-network/profiles/README.md`.
+11. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
+12. For firewall policy changes, edit `topology/L2-network/firewall/policies/*` and include from `topology/L2-network/firewall/policies/_index.yaml`.
+13. Add VM/LXC workloads in `topology/L4-platform.yaml` only.
+14. Add platform/app/monitoring modules only if the device hosts workloads.
+15. Validate and regenerate:
    - `python topology-tools/validate-topology.py`
    - `python topology-tools/generate-docs.py`
-14. If architecture changed, add a new ADR in `adr/NNNN-*.md`.
+16. If architecture changed, add a new ADR in `adr/NNNN-*.md`.
 
 ## Anti-Patterns
 

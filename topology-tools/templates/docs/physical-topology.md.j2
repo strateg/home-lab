@@ -187,14 +187,17 @@ Overlay (VPN/mesh) links are documented separately in `vpn-topology.md`.
 ## Storage Summary
 
 {% for device in devices %}
-{% if device.specs is defined and device.specs.storage_slots is defined and device.specs.storage_slots %}
+{% set device_storage_rows = storage_rows_by_device.get(device.id, []) %}
+{% if device_storage_rows %}
 ### {{ device.name }} Storage
 
 | Disk ID | Size | Type | Mount | Slot/Port | State | Usage |
 |---------|------|------|-------|------|-------|-------|
-{% for slot in device.specs.storage_slots %}
-{% if slot.media is defined and slot.media %}
-| {{ slot.media.id }} | {{ slot.media.size_gb }}GB | {{ slot.media.type | upper }} | {{ slot.mount | default('replaceable') }} | {{ slot.id | default('-') }} | {{ slot.media.state | default('present') }} | {{ slot.media.usage | default('-') }} |
+{% for row in device_storage_rows %}
+{% if row.media %}
+| {{ row.media.id }} | {{ row.media.size_gb }}GB | {{ row.media.type | upper }} | {{ row.slot_mount | default('replaceable') }} | {{ row.slot_id | default('-') }} | {{ row.attachment_state | default(row.media.state | default('present')) }} | {{ row.media.usage | default('-') }} |
+{% else %}
+| - | - | - | {{ row.slot_mount | default('replaceable') }} | {{ row.slot_id | default('-') }} | empty | - |
 {% endif %}
 {% endfor %}
 {% endif %}

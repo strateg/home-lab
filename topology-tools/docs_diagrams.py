@@ -385,6 +385,7 @@ class DiagramDocumentationGenerator:
         devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
         locations = self._sort_dicts(self.topology["L1_foundation"].get("locations", []))
         physical_links = self._sort_dicts(self.topology["L1_foundation"].get("data_links", []))
+        storage_views = self.docs_generator.build_l1_storage_views()
         device_icons = {device.get("id"): self._device_icon(device) for device in devices if device.get("id")}
         external_refs = sorted(
             {
@@ -411,6 +412,7 @@ class DiagramDocumentationGenerator:
             external_refs=external_refs,
             external_icons=external_icons,
             cloud_device_ids=cloud_device_ids,
+            storage_rows_by_device=storage_views.get("rows_by_device", {}),
         )
 
     def generate_data_links_topology(self) -> bool:

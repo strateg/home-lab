@@ -44,15 +44,6 @@ specs:
     mount: virtual
     connector: paravirtual
     description: Cloud provider attached boot volume
-    media:
-      id: disk-boot-volume
-      name: OCI Boot Volume
-      type: ssd
-      state: present
-      size_gb: 200
-      virtual: true
-      boot: true
-      usage: Provider-managed virtual boot volume
 interfaces:
 - id: if-oracle-public
   name: ens3
