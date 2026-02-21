@@ -9,6 +9,12 @@ model: Orange Pi 5
 location: home
 description: Dedicated application server for Nextcloud, Jellyfin, monitoring
 source: http://www.orangepi.org/html/hardWare/computerAndMicrocontrollers/details/Orange-Pi-5.html
+supported_operating_systems:
+- Orange Pi OS (Droid)
+- Orange Pi OS (Arch)
+- Ubuntu
+- Debian
+- Android 12
 specs:
   soc: Rockchip RK3588S (8nm LP process)
   pmu: RK806-1
@@ -53,6 +59,45 @@ specs:
     - 16
     selected_gb: 8
     type: LPDDR4/4X
+  storage_ports:
+  - id: port-qspi-0
+    name: Onboard QSPI NOR
+    type: qspi
+    connector: onboard flash
+    bus: qspi
+    description: Onboard firmware storage
+  - id: port-m2-0
+    name: M.2 M-Key Slot
+    type: m2
+    connector: M-Key 2280
+    bus: pcie-3.0-x1
+    lanes: 1
+    description: Primary NVMe expansion slot
+  - id: port-microsd-0
+    name: MicroSD Slot
+    type: sdio
+    connector: microSD
+    bus: sdio
+    description: Removable storage slot
+  disks:
+  - id: disk-qspi-boot
+    name: Onboard QSPI Boot Flash
+    type: flash
+    state: present
+    size_gb: 0.016
+    port_ref: port-qspi-0
+    boot: true
+    removable: false
+    usage: Onboard firmware storage
+  - id: disk-nvme-main
+    name: NVMe Main Storage
+    type: nvme
+    state: planned
+    size_gb: 256
+    port_ref: port-m2-0
+    rotational: false
+    removable: false
+    usage: Primary high-performance expansion storage
   storage:
     qspi_nor_flash_mb: 16
     microsd_slot: true
@@ -163,11 +208,3 @@ power:
   current: 4A
   watts: 20
   connector: USB Type-C
-os:
-  official:
-  - Orange Pi OS (Droid)
-  - Orange Pi OS (Arch)
-  - Ubuntu
-  - Debian
-  - Android 12
-  planned: Debian 12

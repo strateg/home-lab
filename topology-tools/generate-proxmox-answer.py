@@ -45,25 +45,46 @@ class ProxmoxAnswerGenerator:
         return None
 
     def _get_primary_disk(self) -> str:
-        """Get primary disk for system installation (SSD)"""
+        """Get primary disk for system installation (SSD) from L3 logical mapping."""
         if not self.proxmox_node:
             return "sda"
 
         disks = self.proxmox_node.get('specs', {}).get('disks', [])
 
-        # Find SSD for system installation
+        # Prefer SSD disk and resolve OS-level device from L3 storage mapping.
         for disk in disks:
             if disk.get('type') == 'ssd':
-                # Extract device name from path (/dev/sda -> sda)
-                device_path = disk.get('device', '/dev/sda')
+                disk_id = disk.get('id')
+                device_path = self._get_os_device_for_disk(disk_id)
+                if device_path:
+                    return device_path.replace('/dev/', '')
+
+        # Fallback: first disk with logical device mapping.
+        if disks:
+            disk_id = disks[0].get('id')
+            device_path = self._get_os_device_for_disk(disk_id)
+            if device_path:
                 return device_path.replace('/dev/', '')
 
-        # Fallback: first disk
-        if disks:
-            device_path = disks[0].get('device', '/dev/sda')
-            return device_path.replace('/dev/', '')
-
         return "sda"
+
+    def _get_os_device_for_disk(self, disk_id: Optional[str]) -> Optional[str]:
+        """Resolve OS-visible device path from L3 storage by disk_ref."""
+        if not disk_id:
+            return None
+
+        l3_storage = self.topology.get('L3_data', {}).get('storage', [])
+        for storage in l3_storage:
+            if storage.get('disk_ref') == disk_id and storage.get('os_device'):
+                return storage.get('os_device')
+
+        # Legacy fallback for old topology layouts.
+        legacy_storage = self.topology.get('data_layer', {}).get('storage', [])
+        for storage in legacy_storage:
+            if storage.get('disk_ref') == disk_id and storage.get('os_device'):
+                return storage.get('os_device')
+
+        return None
 
     def _get_hostname(self) -> str:
         """Get FQDN from topology"""
@@ -166,10 +187,13 @@ class ProxmoxAnswerGenerator:
             if not has_system_disk:
                 self.validation_warnings.append("No SSD found for system installation, will use first disk")
 
-            # Check disk devices are specified
+            # Check L3 provides OS-level disk mapping.
             for disk in disks:
-                if not disk.get('device'):
-                    self.validation_warnings.append(f"Disk {disk.get('id', 'unknown')} missing 'device' field")
+                disk_id = disk.get('id')
+                if not self._get_os_device_for_disk(disk_id):
+                    self.validation_warnings.append(
+                        f"Disk {disk_id or 'unknown'} has no L3 storage.os_device mapping"
+                    )
 
         # Check network configuration
         networks = self.topology.get('logical_topology', {}).get('networks', [])

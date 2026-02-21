@@ -190,10 +190,10 @@ Overlay (VPN/mesh) links are documented separately in `vpn-topology.md`.
 {% if device.specs is defined and device.specs.disks is defined %}
 ### {{ device.name }} Storage
 
-| Device | Size | Type | Usage |
-|--------|------|------|-------|
+| Disk ID | Size | Type | Port | State | Usage |
+|---------|------|------|------|-------|-------|
 {% for disk in device.specs.disks %}
-| {{ disk.device }} | {{ disk.size_gb }}GB | {{ disk.type | upper }} | {{ disk.usage }} |
+| {{ disk.id }} | {{ disk.size_gb }}GB | {{ disk.type | upper }} | {{ disk.port_ref | default('-') }} | {{ disk.state | default('present') }} | {{ disk.usage | default('-') }} |
 {% endfor %}
 
 {% endif %}

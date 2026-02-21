@@ -12,3 +12,5 @@
 | [0008](0008-mermaid-icon-node-default-and-runtime-pack-registration.md) | Make Mermaid Icon-Node the Default and Require Runtime Icon Pack Registration | Accepted | 2026-02-20 | [0006](0006-mermaid-icon-mode-with-fallback.md) | - |
 | [0009](0009-robust-icon-pack-discovery-and-render-validation.md) | Robust Mermaid Icon Pack Discovery and Render Validation | Accepted | 2026-02-20 | - | - |
 | [0010](0010-regeneration-pipeline-mermaid-quality-gate.md) | Add Mermaid Render Quality Gate to Regeneration Pipeline | Accepted | 2026-02-20 | - | - |
+| [0011](0011-l1-physical-storage-taxonomy-and-l3-disk-binding.md) | L1 Physical Storage Taxonomy and L3 Disk Binding | Accepted | 2026-02-20 | - | - |
+| [0012](0012-separate-l1-physical-disk-specs-from-l3-logical-storage-mapping.md) | Separate L1 Physical Disk Specs from L3 Logical Storage Mapping | Accepted | 2026-02-21 | - | - |

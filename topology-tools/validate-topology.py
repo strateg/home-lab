@@ -284,6 +284,7 @@ class SchemaValidator:
         self._check_bridge_refs(ids)
         self._check_data_links(ids)
         self._check_power_links(ids)
+        self._check_l3_storage_refs(ids)
         self._check_vm_refs(ids)
         self._check_lxc_refs(ids)
         self._check_service_refs(ids)
@@ -517,6 +518,8 @@ class SchemaValidator:
                     f"Device '{dev_id}': baremetal substrate mapped to cloud location '{location_ref}'"
                 )
 
+            self._check_device_storage_taxonomy(device)
+
         l7 = self.topology.get('L7_operations', {}) or {}
         l7_power = l7.get('power_resilience', {}) or {}
         l7_policies = l7_power.get('policies', []) or []
@@ -551,6 +554,161 @@ class SchemaValidator:
                 if protected_ref and protected_ref not in ids['devices']:
                     self.errors.append(
                         f"Power policy '{policy_id}': protected_devices device_ref '{protected_ref}' does not exist"
+                    )
+
+    def _check_device_storage_taxonomy(self, device: Dict[str, Any]) -> None:
+        """Validate L1 compute storage inventory and disk/port bindings."""
+        dev_id = device.get('id', 'unknown')
+        dev_class = device.get('class')
+        dev_substrate = device.get('substrate')
+
+        specs = device.get('specs', {}) if isinstance(device.get('specs'), dict) else {}
+        storage_ports = specs.get('storage_ports', []) if isinstance(specs.get('storage_ports'), list) else []
+        disks = specs.get('disks', []) if isinstance(specs.get('disks'), list) else []
+
+        if dev_class != 'compute':
+            return
+
+        # L1 should keep only hardware capabilities, not planned runtime OS intent.
+        os_cfg = device.get('os')
+        if isinstance(os_cfg, dict):
+            self.warnings.append(
+                f"Device '{dev_id}': legacy 'os' block in L1; prefer supported_operating_systems for hardware capability only"
+            )
+            if os_cfg.get('planned'):
+                self.errors.append(
+                    f"Device '{dev_id}': move os.planned to upper layers; keep only supported_operating_systems in L1"
+                )
+
+        if dev_substrate in {'baremetal-owned', 'baremetal-colo'} and not disks:
+            self.errors.append(
+                f"Device '{dev_id}': baremetal compute device must define specs.disks inventory"
+            )
+
+        if disks and not storage_ports:
+            self.errors.append(
+                f"Device '{dev_id}': specs.storage_ports is required when specs.disks are defined"
+            )
+
+        port_ids: Set[str] = set()
+        for port in storage_ports:
+            if not isinstance(port, dict):
+                continue
+            port_id = port.get('id')
+            if not port_id:
+                continue
+            if port_id in port_ids:
+                self.errors.append(
+                    f"Device '{dev_id}': duplicate storage port id '{port_id}'"
+                )
+            port_ids.add(port_id)
+
+        disk_ids: Set[str] = set()
+        port_type_by_id = {
+            port.get('id'): port.get('type')
+            for port in storage_ports
+            if isinstance(port, dict) and port.get('id')
+        }
+        disk_port_compat = {
+            'hdd': {'sata', 'sas', 'usb', 'virtual'},
+            'ssd': {'sata', 'sas', 'm2', 'pcie', 'usb', 'virtual'},
+            'nvme': {'m2', 'pcie', 'virtual'},
+            'sd-card': {'sdio', 'usb'},
+            'emmc': {'emmc'},
+            'flash': {'qspi', 'usb', 'virtual', 'emmc'},
+        }
+
+        for disk in disks:
+            if not isinstance(disk, dict):
+                continue
+            disk_id = disk.get('id')
+            if disk_id:
+                if disk_id in disk_ids:
+                    self.errors.append(
+                        f"Device '{dev_id}': duplicate disk id '{disk_id}'"
+                    )
+                disk_ids.add(disk_id)
+
+            if disk.get('device'):
+                self.errors.append(
+                    f"Device '{dev_id}': disk '{disk_id or 'unknown'}' contains logical OS device path; move it to L3 storage.os_device"
+                )
+
+            port_ref = disk.get('port_ref')
+            if port_ref and port_ids and port_ref not in port_ids:
+                self.errors.append(
+                    f"Device '{dev_id}': disk '{disk_id or 'unknown'}' references unknown port_ref '{port_ref}'"
+                )
+                continue
+
+            disk_type = disk.get('type')
+            port_type = port_type_by_id.get(port_ref)
+            allowed_ports = disk_port_compat.get(disk_type)
+            if port_type and allowed_ports and port_type not in allowed_ports:
+                self.warnings.append(
+                    f"Device '{dev_id}': disk '{disk_id or 'unknown'}' type '{disk_type}' "
+                    f"is unusual for port type '{port_type}'"
+                )
+
+    def _check_l3_storage_refs(self, ids: Dict[str, Set[str]]) -> None:
+        """Validate L3 storage bindings to L1 device disks."""
+        l1 = self.topology.get('L1_foundation', {}) or {}
+        l3 = self.topology.get('L3_data', {}) or {}
+
+        device_map = {
+            d.get('id'): d
+            for d in l1.get('devices', []) or []
+            if isinstance(d, dict) and d.get('id')
+        }
+        disk_ids_by_device: Dict[str, Set[str]] = {}
+        for dev_id, device in device_map.items():
+            specs = device.get('specs', {}) if isinstance(device.get('specs'), dict) else {}
+            disks = specs.get('disks', []) if isinstance(specs.get('disks'), list) else []
+            disk_ids_by_device[dev_id] = {
+                disk.get('id')
+                for disk in disks
+                if isinstance(disk, dict) and disk.get('id')
+            }
+
+        for storage in l3.get('storage', []) or []:
+            if not isinstance(storage, dict):
+                continue
+            storage_id = storage.get('id', 'unknown')
+            device_ref = storage.get('device_ref')
+            disk_ref = storage.get('disk_ref')
+            os_device = storage.get('os_device')
+
+            if device_ref and device_ref not in ids['devices']:
+                self.errors.append(
+                    f"Storage '{storage_id}': device_ref '{device_ref}' does not exist"
+                )
+                continue
+
+            if disk_ref and not device_ref:
+                self.errors.append(
+                    f"Storage '{storage_id}': disk_ref '{disk_ref}' requires device_ref"
+                )
+                continue
+
+            if os_device and not disk_ref:
+                self.warnings.append(
+                    f"Storage '{storage_id}': os_device is set without disk_ref; prefer disk_ref+device_ref binding"
+                )
+
+            if disk_ref and not os_device:
+                self.warnings.append(
+                    f"Storage '{storage_id}': disk_ref '{disk_ref}' has no os_device mapping"
+                )
+
+            if device_ref and disk_ref:
+                known_disks = disk_ids_by_device.get(device_ref, set())
+                if not known_disks:
+                    self.warnings.append(
+                        f"Storage '{storage_id}': device '{device_ref}' has no specs.disks inventory in L1"
+                    )
+                elif disk_ref not in known_disks:
+                    self.errors.append(
+                        f"Storage '{storage_id}': disk_ref '{disk_ref}' not found on device '{device_ref}'"
                     )
 
     def _check_l0_contracts(self, ids: Dict[str, Set[str]]) -> None:

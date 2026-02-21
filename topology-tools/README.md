@@ -172,9 +172,9 @@ generated/
 ## Architecture Notes (v4)
 
 - L0 Meta: version, defaults, security_policy
-- L1 Foundation: devices, interfaces, UPS
+- L1 Foundation: devices, interfaces, physical storage inventory (disks + storage ports), UPS
 - L2 Network: networks, bridges, routing, firewall
-- L3 Data: storage, data_assets
+- L3 Data: storage, data_assets, logical storage bindings (disk_ref + os_device)
 - L4 Platform: VMs, LXC, templates
 - L5 Application: services, certs, DNS
 - L6 Observability: monitoring, alerts, dashboards

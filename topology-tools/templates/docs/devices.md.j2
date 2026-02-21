@@ -40,7 +40,10 @@
 {% if device.specs.disks %}
 **Storage**:
 {% for disk in device.specs.disks %}
-- {{ disk.id }}: {{ disk.size_gb }} GB {{ disk.type | upper }} ({{ disk.model }})
+- {{ disk.id }}: {{ disk.size_gb }} GB {{ disk.type | upper }}
+  - Port: `{{ disk.port_ref | default('n/a') }}`
+  - State: {{ disk.state | default('present') }}
+  - Model: {{ disk.model | default('n/a') }}
 {% endfor %}
 {% endif %}
 {% endif %}

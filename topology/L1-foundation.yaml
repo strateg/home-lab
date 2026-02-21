@@ -1,6 +1,6 @@
 # L1 Foundation
 # Part of Home Lab Topology v4.0.0
-# Foundation inventory: owned/provider foundation nodes, interfaces, MACs
+# Foundation inventory: owned/provider foundation nodes, interfaces, MACs, physical storage inventory
 # Workload virtualization (VM/LXC) is modeled in L4 Platform only.
 # Modular layout:
 # - locations: topology/L1-foundation/locations/

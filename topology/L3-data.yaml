@@ -1,6 +1,6 @@
 # L3 Data
 # Part of Home Lab Topology v4.0.0
-# Data layer: storage pools, data assets (no references upward)
+# Data layer: logical storage pools, OS-level disk mappings, data assets (no references upward)
 # Edit this file then regenerate: python3 topology-tools/regenerate-all.py
 
 storage:
@@ -15,6 +15,7 @@ storage:
   - backup
   device_ref: gamayun
   disk_ref: disk-ssd-system
+  os_device: /dev/sda3
   shared: false
   maxfiles: 0
   description: Local directory storage on SSD
@@ -29,6 +30,7 @@ storage:
   - rootdir
   device_ref: gamayun
   disk_ref: disk-ssd-system
+  os_device: /dev/pve/data
   shared: false
   description: SSD 180GB - Production VMs and LXC thin pool
 - id: storage-hdd
@@ -43,6 +45,7 @@ storage:
   - snippets
   device_ref: gamayun
   disk_ref: disk-hdd-data
+  os_device: /dev/sdb1
   shared: false
   maxfiles: 0
   prune_backups:

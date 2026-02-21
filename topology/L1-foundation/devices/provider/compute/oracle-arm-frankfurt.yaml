@@ -7,6 +7,11 @@ substrate: provider-instance
 access: public
 location: oracle-frankfurt
 description: Oracle Cloud Always Free ARM instance - Жар-птица (огненная птица, символ удачи)
+supported_operating_systems:
+- Ubuntu
+- Debian
+- Oracle Linux
+- Rocky Linux
 cloud:
   provider: oracle
   region: eu-frankfurt-1
@@ -32,6 +37,23 @@ specs:
   memory:
     total_gb: 24
     type: DDR4
+  storage_ports:
+  - id: port-virtio-blk-0
+    name: Virtual Block Device 0
+    type: virtual
+    connector: paravirtual
+    bus: virtio-blk
+    description: Cloud provider attached boot volume
+  disks:
+  - id: disk-boot-volume
+    name: OCI Boot Volume
+    type: ssd
+    state: present
+    size_gb: 200
+    port_ref: port-virtio-blk-0
+    virtual: true
+    boot: true
+    usage: Provider-managed virtual boot volume
 interfaces:
 - id: if-oracle-public
   name: ens3

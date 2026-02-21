@@ -8,6 +8,10 @@ access: local-lan
 model: Dell XPS L701X
 location: home
 description: Primary Proxmox VE host - Гамаюн (вещая птица)
+supported_operating_systems:
+- Proxmox VE
+- Debian
+- Ubuntu Server
 specs:
   cpu:
     model: Intel Core i3-M370
@@ -18,17 +22,40 @@ specs:
     total_gb: 8
     type: DDR3
     upgradeable: false
+  storage_ports:
+  - id: port-sata-0
+    name: SATA Port 0
+    type: sata
+    connector: 2.5-inch internal bay
+    bus: sata-3
+    max_speed_gbps: 6
+    description: Primary internal SATA bay
+  - id: port-sata-1
+    name: SATA Port 1
+    type: sata
+    connector: 2.5-inch internal bay
+    bus: sata-3
+    max_speed_gbps: 6
+    description: Secondary internal SATA bay
   disks:
   - id: disk-ssd-system
-    device: /dev/sda
+    name: System SSD
+    state: present
+    port_ref: port-sata-0
     size_gb: 180
     type: ssd
-    usage: Proxmox system + VMs/LXC thin pool
+    rotational: false
+    boot: true
+    usage: Primary internal system/application SSD
   - id: disk-hdd-data
-    device: /dev/sdb
+    name: Data HDD
+    state: present
+    port_ref: port-sata-1
     size_gb: 500
     type: hdd
-    usage: Backups, ISOs, VM/LXC templates
+    rotational: true
+    removable: false
+    usage: Secondary internal capacity disk
 interfaces:
 - id: if-eth-builtin
   name: eth-builtin
