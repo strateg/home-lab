@@ -45,8 +45,9 @@ resource "proxmox_virtual_environment_container" "{{ lxc.id | replace('-', '_') 
 
   # Root filesystem
   {% if lxc.storage and lxc.storage.rootfs %}
+  {% set rootfs_storage_ref = lxc.storage.rootfs.storage_endpoint_ref | default(lxc.storage.rootfs.storage_ref) %}
   disk {
-    datastore_id = "{{ storage_map[lxc.storage.rootfs.storage_ref].name }}"
+    datastore_id = "{{ storage_map[rootfs_storage_ref].name }}"
     size         = {{ lxc.storage.rootfs.size_gb }}
   }
   {% endif %}

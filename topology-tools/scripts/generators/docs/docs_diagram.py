@@ -563,7 +563,7 @@ class DiagramDocumentationGenerator:
 
     def generate_storage_topology(self) -> bool:
         """Generate storage topology diagram."""
-        storage = self._sort_dicts(self.topology.get("L3_data", {}).get("storage", []))
+        storage = self._sort_dicts(self.docs_generator.resolve_storage_pools_for_docs())
         data_assets = self._sort_dicts(self.topology.get("L3_data", {}).get("data_assets", []))
         devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
         device_icons = {device.get("id"): self._device_icon(device) for device in devices if device.get("id")}

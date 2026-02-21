@@ -117,6 +117,26 @@ class TerraformGenerator:
 
         return resolved
 
+    def _build_storage_map(self) -> Dict[str, Dict]:
+        """
+        Build storage map from legacy storage pools and/or storage_endpoints.
+        """
+        l3 = self.topology.get('L3_data', {}) or {}
+        storage_map: Dict[str, Dict] = {}
+
+        for storage in l3.get('storage', []) or []:
+            if isinstance(storage, dict) and storage.get('id'):
+                storage_map[storage['id']] = storage
+
+        for endpoint in l3.get('storage_endpoints', []) or []:
+            if not isinstance(endpoint, dict) or not endpoint.get('id'):
+                continue
+            entry = copy.deepcopy(endpoint)
+            entry.setdefault('name', endpoint.get('id'))
+            storage_map[endpoint['id']] = entry
+
+        return storage_map
+
     def generate_all(self) -> bool:
         """Generate all Terraform files"""
         if prepare_output_directory(self.output_dir):
@@ -219,7 +239,7 @@ class TerraformGenerator:
             template = self.jinja_env.get_template('terraform/proxmox/vms.tf.j2')
 
             vms = self.topology['L4_platform'].get('vms', [])
-            storage_map = {s['id']: s for s in self.topology.get('L3_data', {}).get('storage', [])}
+            storage_map = self._build_storage_map()
             bridge_map = {b['id']: b for b in self.topology['L2_network'].get('bridges', [])}
 
             content = template.render(
@@ -245,7 +265,7 @@ class TerraformGenerator:
 
             lxc_containers = self.topology['L4_platform'].get('lxc', [])
             lxc_containers = self._resolve_lxc_resources(lxc_containers)
-            storage_map = {s['id']: s for s in self.topology.get('L3_data', {}).get('storage', [])}
+            storage_map = self._build_storage_map()
             bridge_map = {b['id']: b for b in self.topology['L2_network'].get('bridges', [])}
 
             content = template.render(
@@ -304,7 +324,7 @@ class TerraformGenerator:
             bridges = self.topology['L2_network'].get('bridges', [])
             lxc_containers = self.topology['L4_platform'].get('lxc', [])
             vms = self.topology['L4_platform'].get('vms', [])
-            storage = self.topology.get('L3_data', {}).get('storage', [])
+            storage = list(self._build_storage_map().values())
             devices = self.topology['L1_foundation'].get('devices', [])
 
             content = template.render(

@@ -43,8 +43,9 @@ resource "proxmox_virtual_environment_vm" "{{ vm.id | replace('-', '_') }}" {
 
   # Storage
   {% for disk in vm.storage %}
+  {% set disk_storage_ref = disk.storage_endpoint_ref | default(disk.storage_ref) %}
   disk {
-    datastore_id = "{{ storage_map[disk.storage_ref].name }}"
+    datastore_id = "{{ storage_map[disk_storage_ref].name }}"
     file_id      = null
     interface    = "{{ disk.disk_id }}"
     size         = {{ disk.size_gb }}

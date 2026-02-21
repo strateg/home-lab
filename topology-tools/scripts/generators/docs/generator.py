@@ -417,6 +417,50 @@ class DocumentationGenerator:
             'media_attachments': media_attachments,
         }
 
+    def resolve_storage_pools_for_docs(self) -> List[Dict[str, Any]]:
+        """
+        Resolve storage pools for docs from legacy `storage` or `storage_endpoints`.
+        """
+        l1 = self.topology.get('L1_foundation', {}) or {}
+        l3 = self.topology.get('L3_data', {}) or {}
+        legacy_storage = l3.get('storage', []) or []
+        if legacy_storage:
+            return legacy_storage
+
+        media_registry = {
+            media.get('id'): media
+            for media in (l1.get('media_registry', []) or [])
+            if isinstance(media, dict) and media.get('id')
+        }
+        attachments = {
+            attachment.get('id'): attachment
+            for attachment in (l1.get('media_attachments', []) or [])
+            if isinstance(attachment, dict) and attachment.get('id')
+        }
+
+        resolved: List[Dict[str, Any]] = []
+        for endpoint in l3.get('storage_endpoints', []) or []:
+            if not isinstance(endpoint, dict):
+                continue
+            item = copy.deepcopy(endpoint)
+            infer_from = endpoint.get('infer_from', {}) if isinstance(endpoint.get('infer_from'), dict) else {}
+            attachment_ref = infer_from.get('media_attachment_ref')
+            attachment = attachments.get(attachment_ref, {}) if attachment_ref else {}
+            media = media_registry.get(attachment.get('media_ref'), {}) if attachment else {}
+
+            item.setdefault('media', media.get('type'))
+            item.setdefault('device_ref', attachment.get('device_ref'))
+            if not item.get('path'):
+                lv_name = infer_from.get('lv_name')
+                vg_name = infer_from.get('vg_name')
+                if vg_name and lv_name:
+                    item['path'] = f"{vg_name}/{lv_name}"
+                elif lv_name:
+                    item['path'] = lv_name
+            resolved.append(item)
+
+        return resolved
+
     def _resolve_lxc_resources(self, lxc_containers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Resolve effective LXC resources from inline resources or resource profiles."""
         l4 = self.topology.get('L4_platform', {}) or {}
@@ -623,7 +667,7 @@ class DocumentationGenerator:
         devices = self.topology['L1_foundation'].get('devices', [])
         vms = self.topology['L4_platform'].get('vms', [])
         lxc = self._resolve_lxc_resources(self.topology['L4_platform'].get('lxc', []))
-        storage = self.topology.get('L3_data', {}).get('storage', [])
+        storage = self.resolve_storage_pools_for_docs()
         storage_views = self.build_l1_storage_views()
 
         return self._render_core_document(
@@ -644,7 +688,7 @@ class DocumentationGenerator:
         vms = self.topology['L4_platform'].get('vms', [])
         lxc = self.topology['L4_platform'].get('lxc', [])
         services = self.topology.get('L5_application', {}).get('services', [])
-        storage = self.topology.get('L3_data', {}).get('storage', [])
+        storage = self.resolve_storage_pools_for_docs()
 
         stats = {
             'total_devices': len(devices),

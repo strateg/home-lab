@@ -3,57 +3,42 @@
 # Data layer: logical storage pools, OS-level disk mappings, data assets (no references upward)
 # Edit this file then regenerate: python3 topology-tools/regenerate-all.py
 
-storage:
-- id: storage-local
+storage_endpoints:
+- id: se-local
   name: local
+  platform: proxmox
   type: dir
-  media: ssd
   path: /var/lib/vz
   content:
   - vztmpl
   - iso
   - backup
-  device_ref: gamayun
-  disk_ref: disk-ssd-system
-  os_device: /dev/sda3
   shared: false
-  maxfiles: 0
   description: Local directory storage on SSD
-- id: storage-lvm
+- id: se-lvm
   name: local-lvm
+  platform: proxmox
   type: lvmthin
-  media: ssd
-  vgname: pve
-  thinpool: data
   content:
   - images
   - rootdir
-  device_ref: gamayun
-  disk_ref: disk-ssd-system
-  os_device: /dev/pve/data
   shared: false
+  infer_from:
+    media_attachment_ref: attach-gamayun-slot-sata-0
+    vg_name: pve
+    lv_name: data
   description: SSD 180GB - Production VMs and LXC thin pool
-- id: storage-hdd
+- id: se-hdd
   name: local-hdd
+  platform: proxmox
   type: dir
-  media: hdd
   path: /mnt/hdd
   content:
   - backup
   - iso
   - vztmpl
   - snippets
-  device_ref: gamayun
-  disk_ref: disk-hdd-data
-  os_device: /dev/sdb1
   shared: false
-  maxfiles: 0
-  prune_backups:
-    keep_last: 3
-    keep_daily: 7
-    keep_weekly: 4
-    keep_monthly: 6
-    keep_yearly: 1
   description: HDD 500GB - Backups, ISOs, Templates
 data_assets:
 - id: data-mikrotik-config

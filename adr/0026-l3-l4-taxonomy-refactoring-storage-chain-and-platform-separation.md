@@ -267,6 +267,7 @@ Current progress:
 - `L5_application.services` migrated to unified `runtime` model (legacy `*_ref` and `service.ip` removed from topology).
 - Runtime-related app config moved from `L4 lxc.ansible.vars` to `L5 services[].config`.
 - Added initial `L4 storage.volumes[].data_asset_ref` mappings for PostgreSQL/Redis data paths.
+- Legacy `L3_data.storage` replaced with `storage_endpoints` in repository topology.
 - Main topology now passes strict validation and strict regeneration.
 
 Primary files:
@@ -279,7 +280,7 @@ Done criteria:
 
 - Main topology validates in strict mode with zero deprecation warnings.
 - Remaining legacy fields are tracked only in migration fixtures, not in main topology.
-- Remaining open migration debt is limited to L3 placement/storage-chain modernization.
+- Remaining open migration debt is limited to path-only `L3 data_assets` on baremetal/container host workloads.
 
 ### Phase 5 - Generator and CI hardening
 
