@@ -462,10 +462,20 @@ def check_l3_storage_refs(
         for item in (l3.get('volume_groups', []) or [])
         if isinstance(item, dict) and item.get('id')
     }
+    volume_groups_by_name = {
+        str(item.get('name')).strip(): item.get('id')
+        for item in (l3.get('volume_groups', []) or [])
+        if isinstance(item, dict) and item.get('id') and isinstance(item.get('name'), str) and str(item.get('name')).strip()
+    }
     logical_volumes = {
         item.get('id'): item
         for item in (l3.get('logical_volumes', []) or [])
         if isinstance(item, dict) and item.get('id')
+    }
+    logical_volumes_by_name = {
+        str(item.get('name')).strip(): item
+        for item in (l3.get('logical_volumes', []) or [])
+        if isinstance(item, dict) and item.get('id') and isinstance(item.get('name'), str) and str(item.get('name')).strip()
     }
     filesystems = {
         item.get('id'): item
@@ -555,10 +565,45 @@ def check_l3_storage_refs(
 
         if has_infer_from:
             attachment_ref = infer_from.get('media_attachment_ref')
+            vg_name = infer_from.get('vg_name')
+            lv_name = infer_from.get('lv_name')
             if attachment_ref and attachment_ref not in attachment_ids:
                 errors.append(
                     f"Storage endpoint '{endpoint_id}': infer_from.media_attachment_ref '{attachment_ref}' not found in L1 media_attachments"
                 )
+            if endpoint.get('type') == 'lvmthin':
+                if not attachment_ref:
+                    errors.append(
+                        f"Storage endpoint '{endpoint_id}': infer_from.media_attachment_ref is required for type 'lvmthin'"
+                    )
+                if not vg_name:
+                    errors.append(
+                        f"Storage endpoint '{endpoint_id}': infer_from.vg_name is required for type 'lvmthin'"
+                    )
+                if not lv_name:
+                    errors.append(
+                        f"Storage endpoint '{endpoint_id}': infer_from.lv_name is required for type 'lvmthin'"
+                    )
+
+            if isinstance(vg_name, str) and vg_name.strip() and volume_groups_by_name:
+                if vg_name.strip() not in volume_groups_by_name:
+                    warnings.append(
+                        f"Storage endpoint '{endpoint_id}': infer_from.vg_name '{vg_name}' is not present in L3 volume_groups names"
+                    )
+
+            if isinstance(lv_name, str) and lv_name.strip() and logical_volumes_by_name:
+                lv_item = logical_volumes_by_name.get(lv_name.strip())
+                if not lv_item:
+                    warnings.append(
+                        f"Storage endpoint '{endpoint_id}': infer_from.lv_name '{lv_name}' is not present in L3 logical_volumes names"
+                    )
+                elif isinstance(vg_name, str) and vg_name.strip() and volume_groups_by_name:
+                    expected_vg_id = volume_groups_by_name.get(vg_name.strip())
+                    if expected_vg_id and lv_item.get('vg_ref') and lv_item.get('vg_ref') != expected_vg_id:
+                        warnings.append(
+                            f"Storage endpoint '{endpoint_id}': infer_from.lv_name '{lv_name}' belongs to vg '{lv_item.get('vg_ref')}', not '{expected_vg_id}'"
+                        )
+
             if has_lv_ref or has_mount_point_ref:
                 warnings.append(
                     f"Storage endpoint '{endpoint_id}': infer_from used together with lv_ref/mount_point_ref; prefer one modeling approach"

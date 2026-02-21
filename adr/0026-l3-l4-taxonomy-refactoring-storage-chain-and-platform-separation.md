@@ -48,6 +48,8 @@ To avoid over-modeling in small home-lab setups, implementations MAY support a s
 `storage_endpoints[].infer_from` mode that derives intermediate chain entities
 (partition/VG/LV/filesystem/mount) deterministically.
 This shorthand is an authoring convenience only; the canonical model remains explicit chain entities.
+For this repository baseline, shorthand-first authoring is accepted for v5 cutover.
+Explicit chain entities remain available and may be adopted incrementally when needed.
 
 ### D2. Define strict ownership (single source of truth)
 
@@ -268,6 +270,8 @@ Current progress:
 - Runtime-related app config moved from `L4 lxc.ansible.vars` to `L5 services[].config`.
 - Added initial `L4 storage.volumes[].data_asset_ref` mappings for PostgreSQL/Redis data paths.
 - Legacy `L3_data.storage` replaced with `storage_endpoints` in repository topology.
+- Repository currently uses shorthand-first L3 authoring (`storage_endpoints[].infer_from`) for home-lab scale.
+- Full explicit chain entities (`partitions/volume_groups/logical_volumes/filesystems/mount_points`) are supported by schema/validators but intentionally not mandatory for mainline topology.
 - Main topology now passes strict validation and strict regeneration.
 
 Primary files:

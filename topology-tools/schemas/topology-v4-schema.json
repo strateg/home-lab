@@ -854,7 +854,14 @@
             "vg_name": { "type": "string" },
             "lv_name": { "type": "string" },
             "auto_chain": { "type": "boolean" }
-          }
+          },
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": { "required": ["lv_name"] },
+              "then": { "required": ["vg_name"] }
+            }
+          ]
         },
         "content": {
           "type": "array",
@@ -863,7 +870,22 @@
         "path": { "type": "string" },
         "shared": { "type": "boolean" },
         "description": { "type": "string" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "lvmthin" } },
+            "required": ["type", "infer_from"]
+          },
+          "then": {
+            "properties": {
+              "infer_from": {
+                "required": ["media_attachment_ref", "vg_name", "lv_name"]
+              }
+            }
+          }
+        }
+      ]
     },
     "ResourceProfile": {
       "type": "object",
