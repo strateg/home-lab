@@ -64,21 +64,17 @@ data_assets:
 - id: data-postgresql-db
   name: PostgreSQL Data
   type: database
-  storage_ref: storage-lvm
   device_ref: gamayun
   description: Primary PostgreSQL data (LXC rootfs)
 - id: data-redis-db
   name: Redis Data
   type: cache
-  storage_ref: storage-lvm
   device_ref: gamayun
   description: Redis data (LXC rootfs)
 - id: data-postgresql-dumps
   name: PostgreSQL Dumps
   type: backup-artifact
-  storage_ref: storage-hdd
   device_ref: gamayun
-  path: /mnt/hdd/backups/postgresql
   description: pg_dump artifacts
 - id: data-nextcloud
   name: Nextcloud Data

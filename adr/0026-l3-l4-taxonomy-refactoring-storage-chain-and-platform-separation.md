@@ -253,13 +253,21 @@ Done criteria:
 - Tool emits stable stats with `*_pending` visibility for unresolved manual work.
 - Cutover preview can pass strict validation when written in repository root context.
 
-### Phase 4 - Repository topology migration (new-model authoring)
+### Phase 4 - Repository topology migration (new-model authoring, in progress)
 
 - Apply migration assistant output to repository topology files.
 - Manually complete unresolved items that require domain intent:
   - `L3_data.data_assets[*]` placement field removal,
   - explicit `L4 storage.volumes[*].data_asset_ref` placement mapping.
 - Preserve compatibility branches only where required for active generators (`M2`).
+
+Current progress:
+
+- `L4_platform.lxc` migrated to `platform_type + resource_profile_ref`.
+- `L5_application.services` migrated to unified `runtime` model (legacy `*_ref` and `service.ip` removed from topology).
+- Runtime-related app config moved from `L4 lxc.ansible.vars` to `L5 services[].config`.
+- Added initial `L4 storage.volumes[].data_asset_ref` mappings for PostgreSQL/Redis data paths.
+- Main topology now passes strict validation and strict regeneration.
 
 Primary files:
 
@@ -271,6 +279,7 @@ Done criteria:
 
 - Main topology validates in strict mode with zero deprecation warnings.
 - Remaining legacy fields are tracked only in migration fixtures, not in main topology.
+- Remaining open migration debt is limited to L3 placement/storage-chain modernization.
 
 ### Phase 5 - Generator and CI hardening
 
@@ -281,6 +290,12 @@ Done criteria:
   - compat validation for legacy/mixed fixtures,
   - strict validation for new-only fixtures,
   - generator regression snapshots for critical outputs.
+
+Current progress:
+
+- `regenerate-all.py` now supports strict fail-fast gating (`--strict` / `--fail-on-validation`).
+- Proxmox/docs generators resolve LXC resources from `resource_profile_ref` with legacy fallback.
+- MikroTik generator resolves service host from runtime (docker/baremetal targets) with legacy fallback.
 
 Done criteria:
 

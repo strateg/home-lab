@@ -204,6 +204,125 @@ class DocumentationGenerator:
             return 'unknown'
         return value.replace('-', '_').replace('.', '_').replace(' ', '_').replace('/', '_')
 
+    @staticmethod
+    def _ip_without_cidr(value: str) -> str:
+        if not isinstance(value, str):
+            return ""
+        return value.split("/")[0].strip()
+
+    def _apply_service_runtime_compat_fields(self) -> None:
+        """
+        Enrich services with compatibility fields derived from runtime.
+
+        Templates still reference legacy fields (device_ref/lxc_ref/network_ref/ip).
+        This keeps docs generation stable while topology authoring moves to runtime.
+        """
+        l2 = self.topology.get("L2_network", {}) or {}
+        l4 = self.topology.get("L4_platform", {}) or {}
+        l5 = self.topology.get("L5_application", {}) or {}
+
+        lxc_map = {
+            item.get("id"): item
+            for item in (l4.get("lxc", []) or [])
+            if isinstance(item, dict) and item.get("id")
+        }
+        vm_map = {
+            item.get("id"): item
+            for item in (l4.get("vms", []) or [])
+            if isinstance(item, dict) and item.get("id")
+        }
+        ip_allocations = l2.get("ip_allocations", []) or []
+        alloc_by_network_device = {}
+        for alloc in ip_allocations:
+            if not isinstance(alloc, dict):
+                continue
+            network_ref = alloc.get("network_ref")
+            device_ref = alloc.get("device_ref")
+            ip = self._ip_without_cidr(alloc.get("ip"))
+            if network_ref and device_ref and ip:
+                alloc_by_network_device[(network_ref, device_ref)] = ip
+
+        def _ip_from_runtime_target(
+            runtime_type: str,
+            target_ref: str,
+            network_binding_ref: str,
+        ) -> str:
+            if runtime_type == "lxc":
+                lxc = lxc_map.get(target_ref, {})
+                for nic in lxc.get("networks", []) or []:
+                    if not isinstance(nic, dict):
+                        continue
+                    if network_binding_ref and nic.get("network_ref") != network_binding_ref:
+                        continue
+                    ip = self._ip_without_cidr(nic.get("ip"))
+                    if ip:
+                        return ip
+            elif runtime_type == "vm":
+                vm = vm_map.get(target_ref, {})
+                for nic in vm.get("networks", []) or []:
+                    if not isinstance(nic, dict):
+                        continue
+                    if network_binding_ref and nic.get("network_ref") != network_binding_ref:
+                        continue
+                    ip = self._ip_without_cidr(nic.get("ip"))
+                    if ip:
+                        return ip
+            elif runtime_type in {"docker", "baremetal"}:
+                return alloc_by_network_device.get((network_binding_ref, target_ref), "")
+            return ""
+
+        services = l5.get("services", []) or []
+        for service in services:
+            if not isinstance(service, dict):
+                continue
+            runtime = service.get("runtime")
+            if not isinstance(runtime, dict):
+                continue
+
+            runtime_type = runtime.get("type")
+            target_ref = runtime.get("target_ref")
+            network_binding_ref = runtime.get("network_binding_ref")
+
+            if runtime_type == "lxc" and target_ref:
+                service.setdefault("lxc_ref", target_ref)
+                host = lxc_map.get(target_ref, {})
+                if host.get("device_ref"):
+                    service.setdefault("device_ref", host["device_ref"])
+            elif runtime_type == "vm" and target_ref:
+                service.setdefault("vm_ref", target_ref)
+                host = vm_map.get(target_ref, {})
+                if host.get("device_ref"):
+                    service.setdefault("device_ref", host["device_ref"])
+            elif runtime_type in {"docker", "baremetal"} and target_ref:
+                service.setdefault("device_ref", target_ref)
+
+            if network_binding_ref:
+                service.setdefault("network_ref", network_binding_ref)
+            else:
+                # Fallback to host-first network when binding is omitted.
+                if service.get("lxc_ref"):
+                    host = lxc_map.get(service["lxc_ref"], {})
+                    nic = (host.get("networks", []) or [{}])[0]
+                    if isinstance(nic, dict) and nic.get("network_ref"):
+                        service.setdefault("network_ref", nic["network_ref"])
+                elif service.get("vm_ref"):
+                    host = vm_map.get(service["vm_ref"], {})
+                    nic = (host.get("networks", []) or [{}])[0]
+                    if isinstance(nic, dict) and nic.get("network_ref"):
+                        service.setdefault("network_ref", nic["network_ref"])
+
+            if not service.get("ip"):
+                inferred_ip = _ip_from_runtime_target(
+                    runtime_type or "",
+                    target_ref or "",
+                    service.get("network_ref", ""),
+                )
+                if inferred_ip:
+                    service["ip"] = inferred_ip
+
+        l5["services"] = services
+        self.topology["L5_application"] = l5
+
     def _get_resolved_networks(self):
         """Resolve L2 networks with optional network profile defaults."""
         l2 = self.topology.get('L2_network', {})
@@ -340,6 +459,9 @@ class DocumentationGenerator:
 
             if version_warning:
                 print(f"WARN  {version_warning}")
+
+            # Runtime-first compatibility for templates that still read legacy service fields.
+            self._apply_service_runtime_compat_fields()
 
             return True
         except ValueError as e:

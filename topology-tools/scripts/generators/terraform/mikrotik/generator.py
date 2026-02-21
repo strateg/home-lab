@@ -198,14 +198,37 @@ class MikrotikTerraformGenerator:
             'services': []
         }
 
+        def _service_target_device(service: Dict) -> str:
+            runtime = service.get('runtime')
+            if isinstance(runtime, dict):
+                runtime_type = runtime.get('type')
+                target_ref = runtime.get('target_ref')
+                if runtime_type in {'docker', 'baremetal'} and isinstance(target_ref, str):
+                    return target_ref
+                if runtime_type == 'lxc' and isinstance(target_ref, str):
+                    for lxc in self.topology.get('L4_platform', {}).get('lxc', []) or []:
+                        if isinstance(lxc, dict) and lxc.get('id') == target_ref:
+                            return lxc.get('device_ref', '')
+                if runtime_type == 'vm' and isinstance(target_ref, str):
+                    for vm in self.topology.get('L4_platform', {}).get('vms', []) or []:
+                        if isinstance(vm, dict) and vm.get('id') == target_ref:
+                            return vm.get('device_ref', '')
+            return service.get('device_ref', '')
+
         for service in services:
-            if isinstance(service, dict) and service.get('device_ref') == 'mikrotik-chateau':
-                if service.get('container'):
-                    self.containers['services'].append({
-                        'id': service.get('id'),
-                        'name': service.get('name'),
-                        'image': service.get('container_image'),
-                    })
+            if not isinstance(service, dict):
+                continue
+            if _service_target_device(service) != 'mikrotik-chateau':
+                continue
+            runtime = service.get('runtime') if isinstance(service.get('runtime'), dict) else {}
+            is_container = service.get('container') or runtime.get('type') == 'docker'
+            if is_container:
+                image = runtime.get('image') or service.get('container_image')
+                self.containers['services'].append({
+                    'id': service.get('id'),
+                    'name': service.get('name'),
+                    'image': image,
+                })
 
         print(f"OK Extracted {len(self.containers['services'])} container configurations")
 

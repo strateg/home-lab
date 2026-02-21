@@ -1,8 +1,3 @@
-# L5 Application
-# Part of Home Lab Topology v4.0.0
-# Services, ports, certificates, DNS records
-# Edit this file then regenerate: python3 topology-tools/regenerate-all.py
-
 certificates:
   local_ca:
     enabled: true
@@ -98,9 +93,6 @@ services:
 - id: svc-mikrotik-ui
   name: MikroTik WebFig
   type: web-ui
-  device_ref: mikrotik-chateau
-  network_ref: net-management
-  ip: 10.0.99.1
   ports:
     https: 443
     http: 80
@@ -125,14 +117,15 @@ services:
       max_connections: 5
       per_seconds: 60
   security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-management
 - id: svc-adguard
   name: AdGuard Home
   type: dns
-  device_ref: mikrotik-chateau
   container: true
   container_image: adguard/adguardhome
-  network_ref: net-lan
-  ip: 192.168.88.1
   ports:
     dns: 53
     web_ui: 3000
@@ -149,13 +142,15 @@ services:
   - Parental controls
   - Custom filtering rules
   security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-lan
+    image: adguard/adguardhome
 - id: svc-wireguard
   name: WireGuard VPN
   type: vpn
-  device_ref: mikrotik-chateau
   native: true
-  network_ref: net-vpn-home
-  ip: 10.0.200.1
   port: 51820
   protocol: udp
   trust_zone_ref: user
@@ -167,13 +162,15 @@ services:
   - Works over LTE failover
   - Low latency
   security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-vpn-home
 - id: svc-tailscale
   name: Tailscale
   type: vpn
-  device_ref: mikrotik-chateau
   container: true
   container_image: tailscale/tailscale
-  network_ref: net-tailscale
   trust_zone_ref: user
   vpn_type: tailscale
   description: Tailscale mesh VPN (container on MikroTik)
@@ -184,15 +181,17 @@ services:
   - Exit node capability
   - Subnet routing
   security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-tailscale
+    image: tailscale/tailscale
 - id: svc-nextcloud
   name: Nextcloud
   type: web-application
-  device_ref: orangepi5
   container: true
   container_runtime: docker
   container_image: nextcloud:28
-  network_ref: net-servers
-  ip: 10.0.30.50
   ports:
     https: 443
     http: 80
@@ -225,15 +224,17 @@ services:
       - lxc-redis
       host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: nextcloud:28
 - id: svc-jellyfin
   name: Jellyfin
   type: media-server
-  device_ref: orangepi5
   container: true
   container_runtime: docker
   container_image: jellyfin/jellyfin:latest
-  network_ref: net-servers
-  ip: 10.0.30.50
   port: 8096
   protocol: http
   trust_zone_ref: servers
@@ -268,15 +269,17 @@ services:
       note: RK3588S VPU for hardware transcoding
       host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: jellyfin/jellyfin:latest
 - id: svc-adguard-secondary
   name: AdGuard Home Secondary
   type: dns
-  device_ref: orangepi5
   container: true
   container_runtime: docker
   container_image: adguard/adguardhome
-  network_ref: net-servers
-  ip: 10.0.30.50
   ports:
     dns: 5353
     web_ui: 3001
@@ -287,15 +290,17 @@ services:
   optional: true
   sync_with: svc-adguard
   security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: adguard/adguardhome
 - id: svc-prometheus
   name: Prometheus
   type: monitoring
-  device_ref: orangepi5
   container: true
   container_runtime: docker
   container_image: prom/prometheus:latest
-  network_ref: net-servers
-  ip: 10.0.30.50
   port: 9090
   protocol: http
   trust_zone_ref: servers
@@ -327,15 +332,17 @@ services:
       - /mnt/nvme/prometheus:/prometheus
       host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: prom/prometheus:latest
 - id: svc-alertmanager
   name: Alertmanager
   type: alerting
-  device_ref: orangepi5
   container: true
   container_runtime: docker
   container_image: prom/alertmanager:latest
-  network_ref: net-servers
-  ip: 10.0.30.50
   port: 9093
   protocol: http
   trust_zone_ref: servers
@@ -349,15 +356,17 @@ services:
   - type: telegram
     enabled: false
   security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: prom/alertmanager:latest
 - id: svc-loki
   name: Loki
   type: logging
-  device_ref: orangepi5
   container: true
   container_runtime: docker
   container_image: grafana/loki:latest
-  network_ref: net-servers
-  ip: 10.0.30.50
   port: 3100
   protocol: http
   trust_zone_ref: servers
@@ -375,15 +384,17 @@ services:
   - name: docker
     type: docker-driver
   security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: grafana/loki:latest
 - id: svc-grafana
   name: Grafana
   type: visualization
-  device_ref: orangepi5
   container: true
   container_runtime: docker
   container_image: grafana/grafana:latest
-  network_ref: net-servers
-  ip: 10.0.30.50
   port: 3000
   protocol: http
   trust_zone_ref: servers
@@ -402,15 +413,17 @@ services:
       - /mnt/nvme/grafana:/var/lib/grafana
       host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: grafana/grafana:latest
 - id: svc-homeassistant
   name: Home Assistant
   type: home-automation
-  device_ref: orangepi5
   container: true
   container_runtime: docker
   container_image: homeassistant/home-assistant:stable
-  network_ref: net-servers
-  ip: 10.0.30.50
   port: 8123
   protocol: http
   trust_zone_ref: servers
@@ -433,24 +446,27 @@ services:
       note: Enable if smart home devices are used
       host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: homeassistant/home-assistant:stable
 - id: svc-proxmox-ui
   name: Proxmox Web UI
   type: web-ui
-  device_ref: gamayun
-  network_ref: net-management
-  ip: 10.0.99.2
   port: 8006
   protocol: https
   trust_zone_ref: management
   url: https://10.0.99.2:8006
   description: Proxmox VE management interface
   security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: gamayun
+    network_binding_ref: net-management
 - id: svc-postgresql
   name: PostgreSQL Database
   type: database
-  lxc_ref: lxc-postgresql
-  network_ref: net-servers
-  ip: 10.0.30.10
   port: 5432
   protocol: tcp
   trust_zone_ref: servers
@@ -490,12 +506,13 @@ services:
       address: 10.0.30.0/24
       method: scram-sha-256
   security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-postgresql
+    network_binding_ref: net-servers
 - id: svc-redis
   name: Redis Cache
   type: cache
-  lxc_ref: lxc-redis
-  network_ref: net-servers
-  ip: 10.0.30.20
   port: 6379
   protocol: tcp
   trust_zone_ref: servers
@@ -510,6 +527,10 @@ services:
     redis_maxmemory: 256mb
     redis_maxmemory_policy: allkeys-lru
   security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-redis
+    network_binding_ref: net-servers
 dns:
   zones:
   - id: zone-home-local
