@@ -846,6 +846,16 @@
         "type": { "$ref": "#/definitions/StorageType" },
         "lv_ref": { "type": "string", "pattern": "^lv-[a-z0-9-]+$" },
         "mount_point_ref": { "type": "string", "pattern": "^mnt-[a-z0-9-]+$" },
+        "infer_from": {
+          "type": "object",
+          "description": "Shorthand: derives partition/VG/LV/FS/mount chain automatically",
+          "properties": {
+            "media_attachment_ref": { "type": "string", "pattern": "^attach-[a-z0-9-]+$" },
+            "vg_name": { "type": "string" },
+            "lv_name": { "type": "string" },
+            "auto_chain": { "type": "boolean" }
+          }
+        },
         "content": {
           "type": "array",
           "items": { "$ref": "#/definitions/StorageContent" }

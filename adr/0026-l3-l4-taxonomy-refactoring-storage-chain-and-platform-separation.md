@@ -210,43 +210,48 @@ Out of scope for this ADR:
 
 ## Implementation Plan
 
-### Phase 1 - Schema foundation
+### Phase 1 - Compatibility baseline (completed)
 
-- Add L3 modular schema objects (`partitions`, `volume_groups`, `logical_volumes`, `filesystems`, `mount_points`, `storage_endpoints`, `data_assets`).
-- Add L4 `storage.volumes[]`, `platform_type`, and `resource_profile_ref`.
-- Add L5 `runtime`, `network_binding_ref`, and `endpoints`.
-- Mark legacy fields as deprecated (description + warning metadata).
+- Added new schema entities and refs for L3/L4/L5 while preserving legacy fields.
+- Added deprecation markers (`x-deprecated`) for legacy placement/runtime fields.
+- Added cross-layer validation for L3 chain integrity and runtime/resource references.
+- Added strict mode (`validate-topology.py --strict`) to escalate warnings into errors.
 
 Done criteria:
 
-- `topology-tools/schemas/topology-v4-schema.json` validates both old and new model.
+- `topology-tools/schemas/topology-v4-schema.json` validates legacy and mixed topologies.
+- `topology-tools/validate-topology.py` supports `compat` and `strict` behavior.
 
-### Phase 2 - Topology data migration scaffolding
+### Phase 2 - Topology scaffolding and authoring model
 
 - Introduce modular `topology/L3-data/*` structure and `_index.yaml` wiring.
-- Populate new entities for existing storage chain.
-- Add `data_asset_ref` to relevant L4 volumes.
-- Add L5 `runtime` alongside existing refs.
+- Seed `resource_profiles` in `L4_platform` and migrate representative LXC entries.
+- Add `services[].runtime` and `network_binding_ref` alongside legacy service refs.
+- Keep legacy fields present but warn in validation output.
 
 Done criteria:
 
-- Current repo topology validates in compatibility mode with zero errors.
+- Current repository topology validates in compat mode with zero errors.
+- At least one service and one LXC are modeled in the new style.
 
-### Phase 3 - Validators
+### Phase 3 - Migration tooling and reporting
 
-- Implement L3 chain integrity checks in `topology-tools/scripts/validators/checks/storage.py`.
-- Add L4/L5 cross-layer checks in relevant validator modules.
-- Add deprecation warnings for legacy fields with strict-mode escalation.
+- Add migration assistant (`migrate-to-v5.py`) with `--dry-run`.
+- Emit machine-readable migration report for legacy fields and required conversions.
+- Support deterministic transforms for:
+  - `L3_data.storage -> storage_endpoints`
+  - `services.*_ref -> services.runtime`
+  - `lxc.resources -> resource_profile_ref`
 
 Done criteria:
 
-- Validator supports `compat` and `strict` behaviors.
+- Tool produces stable conversion output and explicit checklist for manual review.
 
-### Phase 4 - Generators
+### Phase 4 - Generator dual-write rollout
 
-- Update generators to read new model first, fallback to legacy during `M1-M2`.
-- Enforce deterministic precedence when both old and new are present.
-- Emit migration hints when legacy fallback is used.
+- Update generators to read new model first and fallback to legacy during `M1-M2`.
+- Implement deterministic precedence when both old and new fields are present.
+- Add support for `storage_endpoints[].infer_from` shorthand expansion in generation path.
 
 Primary files:
 
@@ -257,24 +262,25 @@ Primary files:
 
 Done criteria:
 
-- `topology-tools/regenerate-all.py` succeeds with new-only topology and with mixed compatibility topology.
+- `topology-tools/regenerate-all.py` succeeds for legacy-only, mixed, and new-only fixture sets.
 
-### Phase 5 - Tests and quality gates
+### Phase 5 - Quality gates and strict hardening
 
 - Add fixture topologies: legacy-only, mixed, new-only.
-- Add validator tests for each cross-layer rule.
+- Add validator tests for chain integrity and deprecation escalation behavior.
 - Add generator regression snapshots for key outputs.
+- Enable strict mode in CI for new-only fixtures.
 
 Done criteria:
 
-- CI validates all three fixture modes and blocks regressions.
+- CI blocks regressions and fails on strict-mode warnings for new-only fixtures.
 
-### Phase 6 - Cutover
+### Phase 6 - v5 cutover
 
-- Switch default validation to strict.
+- Switch default validation profile to strict for mainline topologies.
 - Remove deprecated legacy fields from schema and validators.
-- Remove fallback branches in generators.
-- Update docs and ADR status.
+- Remove fallback branches in generators and migration compatibility code.
+- Update docs and ADR status for cutover completion.
 
 Done criteria:
 

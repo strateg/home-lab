@@ -4,7 +4,7 @@ Validate topology.yaml against JSON Schema v7 (v4 layered topology)
 Provides detailed error messages and validation reports
 
 Usage:
-    python3 topology-tools/validate-topology.py [--topology topology.yaml] [--schema topology-tools/schemas/topology-v4-schema.json] [--validator-policy topology-tools/schemas/validator-policy.yaml] [--no-topology-cache]
+    python3 topology-tools/validate-topology.py [--topology topology.yaml] [--schema topology-tools/schemas/topology-v4-schema.json] [--validator-policy topology-tools/schemas/validator-policy.yaml] [--no-topology-cache] [--strict]
 
 Requirements:
     pip install jsonschema pyyaml
@@ -72,11 +72,13 @@ class SchemaValidator:
         schema_path: str,
         validator_policy_path: Optional[str] = None,
         use_topology_cache: bool = True,
+        strict_mode: bool = False,
     ):
         self.topology_path = Path(topology_path)
         self.schema_path = Path(schema_path)
         self.validator_policy_path = Path(validator_policy_path) if validator_policy_path else DEFAULT_VALIDATOR_POLICY_PATH
         self.use_topology_cache = use_topology_cache
+        self.strict_mode = strict_mode
         self.topology: Optional[Dict] = None
         self.schema: Optional[Dict] = None
         self.validator_policy: Dict[str, Any] = self._default_validator_policy()
@@ -445,6 +447,12 @@ class SchemaValidator:
             else:
                 print(f"X IP conflicts found ({len(self.errors) - errors_before} errors)")
 
+        if self.strict_mode and self.warnings:
+            escalated = [f"[STRICT] {warning}" for warning in self.warnings]
+            self.errors.extend(escalated)
+            self.warnings.clear()
+            print(f"\nSTRICT Strict mode enabled: escalated {len(escalated)} warning(s) to error(s)")
+
         return len(self.errors) == 0
 
 
@@ -478,6 +486,11 @@ def main():
         action="store_true",
         help="Disable shared topology cache and force direct YAML parse",
     )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Treat warnings as errors (useful for migration hardening)",
+    )
 
     args = parser.parse_args()
 
@@ -486,6 +499,7 @@ def main():
         args.schema,
         args.validator_policy,
         use_topology_cache=not args.no_topology_cache,
+        strict_mode=args.strict,
     )
     valid = validator.validate()
     validator.print_results()

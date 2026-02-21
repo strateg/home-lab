@@ -486,6 +486,7 @@ def check_l3_storage_refs(
             )
 
     for vg_id, vg in volume_groups.items():
+        vg_type = vg.get('type')
         for pv_ref in vg.get('pv_refs', []) or []:
             partition = partitions.get(pv_ref)
             if not partition:
@@ -493,9 +494,14 @@ def check_l3_storage_refs(
                     f"Volume group '{vg_id}': pv_ref '{pv_ref}' not found in L3 partitions"
                 )
                 continue
-            if partition.get('type') != 'lvm-pv':
+            part_type = partition.get('type')
+            if vg_type == 'lvm' and part_type != 'lvm-pv':
                 errors.append(
                     f"Volume group '{vg_id}': pv_ref '{pv_ref}' must reference partition type 'lvm-pv'"
+                )
+            if vg_type in {'zfs', 'btrfs'} and part_type == 'lvm-pv':
+                warnings.append(
+                    f"Volume group '{vg_id}': pv_ref '{pv_ref}' uses partition type 'lvm-pv' which is unusual for vg type '{vg_type}'"
                 )
 
     for lv_id, lv in logical_volumes.items():
@@ -508,6 +514,10 @@ def check_l3_storage_refs(
     for fs_id, filesystem in filesystems.items():
         lv_ref = filesystem.get('lv_ref')
         partition_ref = filesystem.get('partition_ref')
+        if lv_ref and partition_ref:
+            errors.append(
+                f"Filesystem '{fs_id}': cannot reference both lv_ref and partition_ref"
+            )
         if not lv_ref and not partition_ref:
             errors.append(
                 f"Filesystem '{fs_id}': must reference lv_ref or partition_ref"
@@ -535,11 +545,25 @@ def check_l3_storage_refs(
         has_lv_ref = bool(endpoint.get('lv_ref'))
         has_mount_point_ref = bool(endpoint.get('mount_point_ref'))
         has_path = bool(endpoint.get('path'))
+        infer_from = endpoint.get('infer_from')
+        has_infer_from = isinstance(infer_from, dict) and bool(infer_from)
 
-        if not any((has_lv_ref, has_mount_point_ref, has_path)):
+        if not any((has_lv_ref, has_mount_point_ref, has_path, has_infer_from)):
             warnings.append(
-                f"Storage endpoint '{endpoint_id}': no lv_ref/mount_point_ref/path set"
+                f"Storage endpoint '{endpoint_id}': no lv_ref/mount_point_ref/path/infer_from set"
             )
+
+        if has_infer_from:
+            attachment_ref = infer_from.get('media_attachment_ref')
+            if attachment_ref and attachment_ref not in attachment_ids:
+                errors.append(
+                    f"Storage endpoint '{endpoint_id}': infer_from.media_attachment_ref '{attachment_ref}' not found in L1 media_attachments"
+                )
+            if has_lv_ref or has_mount_point_ref:
+                warnings.append(
+                    f"Storage endpoint '{endpoint_id}': infer_from used together with lv_ref/mount_point_ref; prefer one modeling approach"
+                )
+
         if endpoint.get('lv_ref') and endpoint.get('lv_ref') not in logical_volumes:
             errors.append(
                 f"Storage endpoint '{endpoint_id}': lv_ref '{endpoint.get('lv_ref')}' not found in L3 logical_volumes"
