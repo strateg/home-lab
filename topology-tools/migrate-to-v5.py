@@ -13,8 +13,11 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Dict, List
+
+import yaml
 
 from scripts.generators.common import load_topology_cached
 
@@ -104,6 +107,179 @@ def report_has_items(report: Dict[str, List[str]]) -> bool:
     return any(items for items in report.values())
 
 
+def _infer_service_runtime(service: Dict[str, Any]) -> Dict[str, Any]:
+    """Infer runtime block from legacy service fields."""
+    runtime: Dict[str, Any] = {}
+
+    if service.get("lxc_ref"):
+        runtime["type"] = "lxc"
+        runtime["target_ref"] = service["lxc_ref"]
+    elif service.get("vm_ref"):
+        runtime["type"] = "vm"
+        runtime["target_ref"] = service["vm_ref"]
+    elif service.get("device_ref"):
+        runtime["type"] = "docker" if service.get("container") else "baremetal"
+        runtime["target_ref"] = service["device_ref"]
+    else:
+        return {}
+
+    if service.get("network_ref"):
+        runtime["network_binding_ref"] = service["network_ref"]
+    if service.get("container_image"):
+        runtime["image"] = service["container_image"]
+
+    return runtime
+
+
+def _migrate_resource_profiles(topology: Dict[str, Any]) -> int:
+    """
+    Convert inline LXC resources into reusable resource profiles.
+
+    Returns:
+        Number of LXC entries updated with resource_profile_ref.
+    """
+    l4 = topology.get("L4_platform", {}) or {}
+    lxc_list = l4.get("lxc", []) or []
+    existing_profiles = l4.get("resource_profiles", []) or []
+    profile_keys: Dict[str, str] = {}
+
+    for profile in existing_profiles:
+        if not isinstance(profile, dict):
+            continue
+        profile_id = profile.get("id")
+        cpu = (profile.get("cpu") or {}).get("cores")
+        memory = (profile.get("memory") or {}).get("mb")
+        swap = (profile.get("memory") or {}).get("swap_mb")
+        if profile_id:
+            profile_keys[f"{cpu}:{memory}:{swap}"] = profile_id
+
+    created_profiles: List[Dict[str, Any]] = []
+    updated = 0
+    next_idx = 1
+
+    def new_profile_id() -> str:
+        nonlocal next_idx
+        while True:
+            candidate = f"profile-migrated-{next_idx:02d}"
+            next_idx += 1
+            if all((p.get("id") != candidate) for p in existing_profiles + created_profiles):
+                return candidate
+
+    for lxc in lxc_list:
+        if not isinstance(lxc, dict):
+            continue
+        if lxc.get("resource_profile_ref"):
+            continue
+        resources = lxc.get("resources")
+        if not isinstance(resources, dict):
+            continue
+
+        key = f"{resources.get('cores')}:{resources.get('memory_mb')}:{resources.get('swap_mb')}"
+        profile_id = profile_keys.get(key)
+        if not profile_id:
+            profile_id = new_profile_id()
+            profile_keys[key] = profile_id
+            created_profiles.append(
+                {
+                    "id": profile_id,
+                    "name": f"Migrated profile ({resources.get('cores')}c/{resources.get('memory_mb')}MB)",
+                    "cpu": {"cores": resources.get("cores")},
+                    "memory": {
+                        "mb": resources.get("memory_mb"),
+                        "swap_mb": resources.get("swap_mb", 0),
+                    },
+                }
+            )
+
+        lxc["resource_profile_ref"] = profile_id
+        updated += 1
+
+    if created_profiles:
+        l4.setdefault("resource_profiles", [])
+        l4["resource_profiles"].extend(created_profiles)
+        topology["L4_platform"] = l4
+
+    return updated
+
+
+def _migrate_storage_endpoints(topology: Dict[str, Any]) -> int:
+    """
+    Derive storage_endpoints from legacy L3 storage entries when missing.
+
+    Returns:
+        Number of storage_endpoints created.
+    """
+    l3 = topology.get("L3_data", {}) or {}
+    legacy_storage = l3.get("storage", []) or []
+    existing_endpoints = l3.get("storage_endpoints", []) or []
+    existing_ids = {
+        entry.get("id")
+        for entry in existing_endpoints
+        if isinstance(entry, dict) and entry.get("id")
+    }
+
+    created = 0
+    for storage in legacy_storage:
+        if not isinstance(storage, dict):
+            continue
+        legacy_id = storage.get("id", "")
+        suffix = legacy_id.replace("storage-", "", 1) if legacy_id.startswith("storage-") else legacy_id
+        endpoint_id = f"se-{suffix}" if suffix else ""
+        if not endpoint_id or endpoint_id in existing_ids:
+            continue
+
+        endpoint: Dict[str, Any] = {
+            "id": endpoint_id,
+            "name": storage.get("name", endpoint_id),
+            "platform": "proxmox",
+            "type": storage.get("type", "dir"),
+            "content": storage.get("content", []),
+            "shared": storage.get("shared", False),
+            "description": f"Migrated from L3_data.storage '{legacy_id}'",
+        }
+        if storage.get("path"):
+            endpoint["path"] = storage.get("path")
+
+        existing_endpoints.append(endpoint)
+        existing_ids.add(endpoint_id)
+        created += 1
+
+    if created:
+        l3["storage_endpoints"] = existing_endpoints
+        topology["L3_data"] = l3
+
+    return created
+
+
+def apply_migration(topology: Dict[str, Any]) -> Dict[str, int]:
+    """
+    Apply safe additive migration transforms.
+
+    Legacy fields are preserved; new-model fields are added.
+    """
+    stats = {
+        "services_runtime_added": 0,
+        "lxc_resource_profiles_assigned": 0,
+        "storage_endpoints_created": 0,
+    }
+
+    l5 = topology.get("L5_application", {}) or {}
+    services = l5.get("services", []) or []
+    for service in services:
+        if not isinstance(service, dict):
+            continue
+        if service.get("runtime"):
+            continue
+        runtime = _infer_service_runtime(service)
+        if runtime:
+            service["runtime"] = runtime
+            stats["services_runtime_added"] += 1
+
+    stats["lxc_resource_profiles_assigned"] = _migrate_resource_profiles(topology)
+    stats["storage_endpoints_created"] = _migrate_storage_endpoints(topology)
+    return stats
+
+
 def print_report(report: Dict[str, List[str]]) -> None:
     print("=" * 70)
     print("Migration Assistant (ADR-0026 -> v5 model)")
@@ -147,6 +323,15 @@ def main() -> int:
         action="store_true",
         help="Exit with code 1 if migration items are detected",
     )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply additive migration transforms and write resulting topology YAML",
+    )
+    parser.add_argument(
+        "--output-topology",
+        help="Output file path for migrated topology YAML (required with --apply)",
+    )
 
     args = parser.parse_args()
 
@@ -185,6 +370,26 @@ def main() -> int:
 
     if args.fail_on_items and report_has_items(report):
         return 1
+
+    if args.apply:
+        if not args.output_topology:
+            print("ERROR --output-topology is required when using --apply")
+            return 2
+        migrated = deepcopy(topology)
+        stats = apply_migration(migrated)
+        output_path = Path(args.output_topology)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            yaml.safe_dump(migrated, sort_keys=False, allow_unicode=False),
+            encoding="utf-8",
+        )
+        print(
+            "OK Migrated topology written: "
+            f"{output_path} "
+            f"(services_runtime_added={stats['services_runtime_added']}, "
+            f"lxc_resource_profiles_assigned={stats['lxc_resource_profiles_assigned']}, "
+            f"storage_endpoints_created={stats['storage_endpoints_created']})"
+        )
     return 0
 
 
