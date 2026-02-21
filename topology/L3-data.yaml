@@ -3,11 +3,81 @@
 # Data layer: logical storage pools, OS-level disk mappings, data assets (no references upward)
 # Edit this file then regenerate: python3 topology-tools/regenerate-all.py
 
+partitions:
+- id: part-gamayun-ssd-1
+  media_attachment_ref: attach-gamayun-slot-sata-0
+  number: 1
+  type: efi
+  size: 0.5
+  description: EFI system partition on Gamayun SSD
+- id: part-gamayun-ssd-2
+  media_attachment_ref: attach-gamayun-slot-sata-0
+  number: 2
+  type: swap
+  size: 2
+  description: Swap partition on Gamayun SSD
+- id: part-gamayun-ssd-3
+  media_attachment_ref: attach-gamayun-slot-sata-0
+  number: 3
+  type: lvm-pv
+  size: remaining
+  description: LVM physical volume for Proxmox VG
+- id: part-gamayun-hdd-1
+  media_attachment_ref: attach-gamayun-slot-sata-1
+  number: 1
+  type: ext4
+  size: remaining
+  description: Primary data partition on Gamayun HDD
+
+volume_groups:
+- id: vg-pve
+  name: pve
+  type: lvm
+  pv_refs:
+  - part-gamayun-ssd-3
+  description: Proxmox default volume group
+
+logical_volumes:
+- id: lv-pve-root
+  name: root
+  type: thick
+  vg_ref: vg-pve
+  size_gb: 58
+  description: Proxmox host root logical volume
+- id: lv-pve-data
+  name: data
+  type: thin-pool
+  vg_ref: vg-pve
+  description: Proxmox thin pool for VM and LXC disks
+
+filesystems:
+- id: fs-pve-root
+  type: ext4
+  lv_ref: lv-pve-root
+  description: Root filesystem for Proxmox host
+- id: fs-gamayun-hdd
+  type: ext4
+  partition_ref: part-gamayun-hdd-1
+  description: Filesystem mounted at /mnt/hdd
+
+mount_points:
+- id: mnt-gamayun-root
+  path: /
+  filesystem_ref: fs-pve-root
+  device_ref: gamayun
+  description: Root mount on Proxmox host
+- id: mnt-gamayun-hdd
+  path: /mnt/hdd
+  filesystem_ref: fs-gamayun-hdd
+  device_ref: gamayun
+  description: HDD data mount on Proxmox host
+
 storage_endpoints:
 - id: se-local
   name: local
   platform: proxmox
   type: dir
+  mount_point_ref: mnt-gamayun-root
   path: /var/lib/vz
   content:
   - vztmpl
@@ -19,19 +89,17 @@ storage_endpoints:
   name: local-lvm
   platform: proxmox
   type: lvmthin
+  lv_ref: lv-pve-data
   content:
   - images
   - rootdir
   shared: false
-  infer_from:
-    media_attachment_ref: attach-gamayun-slot-sata-0
-    vg_name: pve
-    lv_name: data
   description: SSD 180GB - Production VMs and LXC thin pool
 - id: se-hdd
   name: local-hdd
   platform: proxmox
   type: dir
+  mount_point_ref: mnt-gamayun-hdd
   path: /mnt/hdd
   content:
   - backup

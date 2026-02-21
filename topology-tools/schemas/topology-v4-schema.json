@@ -830,7 +830,7 @@
       "required": ["id", "path"],
       "properties": {
         "id": { "type": "string", "pattern": "^mnt-[a-z0-9-]+$" },
-        "path": { "type": "string", "pattern": "^/.+" },
+        "path": { "type": "string", "pattern": "^/.*" },
         "filesystem_ref": { "type": "string", "pattern": "^fs-[a-z0-9-]+$" },
         "device_ref": { "$ref": "#/definitions/DeviceRef" },
         "description": { "type": "string" }

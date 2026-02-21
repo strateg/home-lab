@@ -13,11 +13,6 @@ Primary reference:
 
 ## Active Tasks
 
-- [ ] **L3 chain stance (High)**
-  Decide and document one of:
-  1. Keep shorthand-first (`storage_endpoints[].infer_from`) as default for home-lab scale.
-  2. Implement full explicit chain authoring (`partitions` -> `volume_groups` -> `logical_volumes` -> `filesystems` -> `mount_points`) in main topology.
-
 - [ ] **L5/L6 modularization polish (Medium)**
   Current split is file-level and already in use:
   - `topology/L5-application/{certificates.yaml,services.yaml,dns.yaml}`
@@ -35,3 +30,4 @@ Primary reference:
 - [x] CI workflow: `.github/workflows/topology-matrix.yml`.
 - [x] Runtime/data-asset/resource-profile cross-layer validation hardening.
 - [x] L5/L6 layer modularization via `!include`.
+- [x] Main topology switched to explicit L3 storage chain (`partitions -> volume_groups -> logical_volumes -> filesystems -> mount_points -> storage_endpoints`).
