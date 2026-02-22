@@ -1,0 +1,5 @@
+id: data-nextcloud
+name: Nextcloud Data
+type: volume
+device_ref: orangepi5
+description: Nextcloud data and config

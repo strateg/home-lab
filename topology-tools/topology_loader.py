@@ -1,39 +1,76 @@
 """
-Topology Loader - YAML loader with !include support
-Handles loading modular topology files
+Topology Loader - YAML loader with include directives.
+Handles loading modular topology files.
 """
 
-import yaml
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Iterable
+
+import yaml
 
 
 class IncludeLoader(yaml.SafeLoader):
-    """Custom YAML loader with !include support"""
+    """Custom YAML loader with include directive support."""
 
     def __init__(self, stream):
         self._root = Path(stream.name).parent if hasattr(stream, 'name') else Path.cwd()
         super().__init__(stream)
 
 
-def include_constructor(loader: IncludeLoader, node: yaml.Node) -> Any:
-    """Construct !include directive"""
-    # Get the path from the node
-    include_path = loader.construct_scalar(node)
+def _load_yaml(path: Path) -> Any:
+    """Load YAML file with IncludeLoader preserving include semantics."""
+    with open(path, 'r', encoding='utf-8') as file_handle:
+        return yaml.load(file_handle, IncludeLoader)
 
-    # Resolve relative to the file containing the !include
+
+def _iter_yaml_files_sorted(directory: Path) -> Iterable[Path]:
+    """Yield YAML files under directory in deterministic lexicographic order."""
+    files = [
+        candidate
+        for candidate in directory.rglob('*')
+        if candidate.is_file()
+        and candidate.suffix.lower() in {'.yaml', '.yml'}
+        and not candidate.name.startswith('_')
+    ]
+    return sorted(files, key=lambda item: item.relative_to(directory).as_posix())
+
+
+def include_constructor(loader: IncludeLoader, node: yaml.Node) -> Any:
+    """Construct !include directive."""
+    include_path = loader.construct_scalar(node)
     full_path = loader._root / include_path
 
     if not full_path.exists():
         raise FileNotFoundError(f"Included file not found: {full_path}")
 
-    # Load the included file
-    with open(full_path, 'r') as f:
-        return yaml.load(f, IncludeLoader)
+    return _load_yaml(full_path)
 
 
-# Register the !include constructor
+def include_dir_sorted_constructor(loader: IncludeLoader, node: yaml.Node) -> Any:
+    """Construct !include_dir_sorted directive."""
+    include_path = loader.construct_scalar(node)
+    full_path = loader._root / include_path
+
+    if not full_path.exists():
+        raise FileNotFoundError(f"Included directory not found: {full_path}")
+    if not full_path.is_dir():
+        raise NotADirectoryError(f"Expected directory for !include_dir_sorted: {full_path}")
+
+    items = []
+    for yaml_file in _iter_yaml_files_sorted(full_path):
+        loaded = _load_yaml(yaml_file)
+        if loaded is None:
+            continue
+        if isinstance(loaded, list):
+            items.extend(loaded)
+            continue
+        items.append(loaded)
+    return items
+
+
+# Register include constructors
 yaml.add_constructor('!include', include_constructor, IncludeLoader)
+yaml.add_constructor('!include_dir_sorted', include_dir_sorted_constructor, IncludeLoader)
 
 
 def load_topology(topology_path: str) -> Dict[str, Any]:

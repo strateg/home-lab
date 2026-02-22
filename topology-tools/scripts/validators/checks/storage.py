@@ -1,5 +1,6 @@
 """Storage-specific validation checks for L1 and L3."""
 
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 
@@ -369,10 +370,93 @@ def check_l1_media_inventory(
                 present_media_claims[media_ref] = this_owner
 
 
+def _check_duplicate_ids(
+    domain_name: str,
+    items: Any,
+    *,
+    errors: List[str],
+) -> None:
+    """Detect duplicate IDs within a single L3 entity domain."""
+    if not isinstance(items, list):
+        return
+    seen: Set[str] = set()
+    duplicates: Set[str] = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        item_id = item.get('id')
+        if not isinstance(item_id, str) or not item_id:
+            continue
+        if item_id in seen:
+            duplicates.add(item_id)
+            continue
+        seen.add(item_id)
+    for duplicate_id in sorted(duplicates):
+        errors.append(f"L3 {domain_name}: duplicate id '{duplicate_id}'")
+
+
+def _validate_l3_autodiscovery_contract(
+    topology_path: Optional[Path | str],
+    *,
+    errors: List[str],
+) -> None:
+    """
+    Validate deterministic include contract for modular L3.
+
+    Contract:
+    - L3 composition file uses !include_dir_sorted for L3 domains.
+    - L3 modular tree does not use manual _index.yaml files.
+    """
+    if topology_path is None:
+        return
+
+    root_path = Path(topology_path).resolve().parent
+    l3_file = root_path / 'topology' / 'L3-data.yaml'
+    l3_dir = root_path / 'topology' / 'L3-data'
+
+    # Keep backward compatibility for legacy monolithic fixtures.
+    # Contract is enforced only when modular L3 directory exists.
+    if not l3_file.exists() or not l3_dir.exists():
+        return
+
+    try:
+        l3_text = l3_file.read_text(encoding='utf-8')
+    except OSError as exc:
+        errors.append(f"L3 include contract: cannot read '{l3_file}': {exc}")
+        return
+
+    expected_autodiscovery = {
+        'partitions': 'L3-data/partitions',
+        'volume_groups': 'L3-data/volume-groups',
+        'logical_volumes': 'L3-data/logical-volumes',
+        'filesystems': 'L3-data/filesystems',
+        'mount_points': 'L3-data/mount-points',
+        'storage_endpoints': 'L3-data/storage-endpoints',
+        'data_assets': 'L3-data/data-assets',
+    }
+    for field_name, field_path in expected_autodiscovery.items():
+        expected_line = f"{field_name}: !include_dir_sorted {field_path}"
+        if expected_line not in l3_text:
+            errors.append(
+                f"L3 include contract: '{l3_file}' must define `{expected_line}`"
+            )
+
+    if l3_dir.exists():
+        manual_indexes = sorted(
+            candidate.relative_to(root_path).as_posix()
+            for candidate in l3_dir.rglob('_index.yaml')
+        )
+        for manual_index in manual_indexes:
+            errors.append(
+                f"L3 include contract: manual index file is not allowed with autodiscovery ('{manual_index}')"
+            )
+
+
 def check_l3_storage_refs(
     topology: Dict[str, Any],
     ids: Dict[str, Set[str]],
     *,
+    topology_path: Optional[Path | str] = None,
     storage_ctx: Optional[Dict[str, Any]],
     errors: List[str],
     warnings: List[str],
@@ -388,6 +472,16 @@ def check_l3_storage_refs(
         for policy in (l7_backup.get('policies', []) or [])
         if isinstance(policy, dict) and policy.get('id')
     }
+
+    _validate_l3_autodiscovery_contract(topology_path, errors=errors)
+    _check_duplicate_ids('partitions', l3.get('partitions', []), errors=errors)
+    _check_duplicate_ids('volume_groups', l3.get('volume_groups', []), errors=errors)
+    _check_duplicate_ids('logical_volumes', l3.get('logical_volumes', []), errors=errors)
+    _check_duplicate_ids('filesystems', l3.get('filesystems', []), errors=errors)
+    _check_duplicate_ids('mount_points', l3.get('mount_points', []), errors=errors)
+    _check_duplicate_ids('storage', l3.get('storage', []), errors=errors)
+    _check_duplicate_ids('storage_endpoints', l3.get('storage_endpoints', []), errors=errors)
+    _check_duplicate_ids('data_assets', l3.get('data_assets', []), errors=errors)
 
     disk_ids_by_device: Dict[str, Set[str]] = {}
     for attachment in media_attachments:

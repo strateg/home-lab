@@ -1,0 +1,4 @@
+id: fs-pve-root
+type: ext4
+lv_ref: lv-pve-root
+description: Root filesystem for Proxmox host

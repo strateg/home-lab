@@ -1,0 +1,5 @@
+id: data-redis-rootfs
+name: Redis RootFS
+type: volume
+device_ref: gamayun
+description: Redis LXC root filesystem

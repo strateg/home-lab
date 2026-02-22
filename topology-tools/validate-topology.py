@@ -269,6 +269,7 @@ class SchemaValidator:
         check_l3_storage_refs(
             self.topology or {},
             ids,
+            topology_path=self.topology_path,
             storage_ctx=build_l1_storage_context(self.topology or {}),
             errors=self.errors,
             warnings=self.warnings,

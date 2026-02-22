@@ -1,0 +1,5 @@
+id: data-jellyfin-config
+name: Jellyfin Config
+type: volume
+device_ref: orangepi5
+description: Jellyfin configuration

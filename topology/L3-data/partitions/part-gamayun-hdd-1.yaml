@@ -1,0 +1,6 @@
+id: part-gamayun-hdd-1
+media_attachment_ref: attach-gamayun-slot-sata-1
+number: 1
+type: ext4
+size: remaining
+description: Primary data partition on Gamayun HDD

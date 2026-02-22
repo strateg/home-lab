@@ -1,0 +1,5 @@
+id: mnt-gamayun-hdd
+path: /mnt/hdd
+filesystem_ref: fs-gamayun-hdd
+device_ref: gamayun
+description: HDD data mount on Proxmox host
