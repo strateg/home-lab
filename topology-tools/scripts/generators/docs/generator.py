@@ -730,6 +730,7 @@ class DocumentationGenerator:
         """Generate devices inventory"""
         devices = self.topology['L1_foundation'].get('devices', [])
         vms = self.topology['L4_platform'].get('vms', [])
+        host_operating_systems = self.topology['L4_platform'].get('host_operating_systems', [])
         lxc = self._resolve_lxc_resources(self.topology['L4_platform'].get('lxc', []))
         storage = self.resolve_storage_pools_for_docs()
         storage_views = self.build_l1_storage_views()
@@ -739,6 +740,7 @@ class DocumentationGenerator:
             "devices.md",
             devices=devices,
             vms=vms,
+            host_operating_systems=host_operating_systems,
             lxc=lxc,
             storage=storage,
             storage_rows_by_device=storage_views['rows_by_device'],

@@ -70,6 +70,39 @@
 
 {% endfor %}
 
+## Host Operating Systems (L4 Substrates)
+
+Total: **{{ host_operating_systems | length }}**
+
+{% for host_os in host_operating_systems %}
+### {{ host_os.id }}
+
+| Property | Value |
+|----------|-------|
+| **Device** | {{ host_os.device_ref }} |
+| **Distribution** | {{ host_os.distribution }} |
+| **Version** | {{ host_os.version | default('N/A') }} |
+| **Architecture** | {{ host_os.architecture }} |
+| **Host Type** | {{ host_os.host_type }} |
+| **Status** | {{ host_os.status }} |
+| **Capabilities** | {{ host_os.capabilities | join(', ') if host_os.capabilities else 'N/A' }} |
+
+{% if host_os.installation %}
+**Installation**:
+- Media: `{{ host_os.installation.media_ref | default('N/A') }}`
+- Slot: `{{ host_os.installation.slot_ref | default('N/A') }}`
+- Root mount: `{{ host_os.installation.root_mount | default('N/A') }}`
+{% if host_os.installation.root_storage_endpoint_ref %}
+- Root storage endpoint: `{{ host_os.installation.root_storage_endpoint_ref }}`
+{% endif %}
+{% endif %}
+
+**Description**: {{ host_os.description | default('No description') }}
+
+---
+
+{% endfor %}
+
 ## Virtual Machines
 
 Total: **{{ vms | length }}**
