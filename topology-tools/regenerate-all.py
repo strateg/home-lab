@@ -20,6 +20,7 @@ Requirements:
 import sys
 import argparse
 import subprocess
+import shutil
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional
@@ -97,6 +98,21 @@ class RegenerateAll:
             self.errors.append(error)
             return False
 
+    def cleanup_legacy_docs_outputs(self) -> None:
+        """Remove obsolete docs output directories before canonical docs generation."""
+        generated_dir = self.project_root / "generated"
+        for legacy_name in ("docs-compat", "docs-icon-nodes"):
+            legacy_dir = generated_dir / legacy_name
+            if not legacy_dir.exists():
+                continue
+            try:
+                shutil.rmtree(legacy_dir)
+                print(f"CLEAN Removed legacy docs directory: {legacy_dir}")
+            except OSError as e:
+                warning = f"Failed to remove legacy docs directory {legacy_dir}: {e}"
+                print(f"WARN  {warning}")
+                self.errors.append(warning)
+
     def run_all(self) -> bool:
         """Run all generators"""
         self.print_header("REGEN Regenerate All from topology.yaml (v4)")
@@ -166,6 +182,7 @@ class RegenerateAll:
         )
 
         self.print_header(f"Step 5/{total_steps}: Generate Documentation")
+        self.cleanup_legacy_docs_outputs()
         success_docs = self.run_script(
             "generate-docs.py",
             "Generating documentation",

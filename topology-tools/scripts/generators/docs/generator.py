@@ -7,6 +7,7 @@ import re
 import json
 import base64
 import copy
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import quote
@@ -525,6 +526,7 @@ class DocumentationGenerator:
         if prepare_output_directory(self.output_dir):
             print(f"CLEAN Cleaning output directory: {self.output_dir}")
 
+        self._cleanup_legacy_docs_directories()
         print(f"DIR Created output directory: {self.output_dir}")
         self.generated_files = []
         self.generated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -539,6 +541,31 @@ class DocumentationGenerator:
         success &= self._write_generation_artifacts()
 
         return success
+
+    def _cleanup_legacy_docs_directories(self) -> None:
+        """
+        Remove obsolete side-by-side docs outputs when generating canonical docs.
+
+        Legacy directories (`docs-compat`, `docs-icon-nodes`) were used during
+        icon-mode migration and should not coexist with canonical `generated/docs`.
+        """
+        try:
+            output_dir = self.output_dir.resolve()
+        except OSError:
+            return
+
+        if output_dir.name != "docs" or output_dir.parent.name != "generated":
+            return
+
+        for legacy_name in ("docs-compat", "docs-icon-nodes"):
+            legacy_dir = output_dir.parent / legacy_name
+            if not legacy_dir.exists():
+                continue
+            try:
+                shutil.rmtree(legacy_dir)
+                print(f"CLEAN Removed legacy docs directory: {legacy_dir}")
+            except OSError as e:
+                print(f"WARN  Failed to remove legacy docs directory {legacy_dir}: {e}")
 
     def _register_generated_file(self, output_name: str) -> None:
         """Register generated documentation filename for deterministic artifacts."""
