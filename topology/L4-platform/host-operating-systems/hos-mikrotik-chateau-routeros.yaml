@@ -1,0 +1,10 @@
+id: hos-mikrotik-chateau-routeros
+device_ref: mikrotik-chateau
+distribution: routeros
+architecture: ARM64
+host_type: embedded
+status: active
+capabilities:
+- container
+- baremetal
+description: RouterOS host substrate for MikroTik Chateau services and containers

@@ -36,6 +36,11 @@
       "type": "string",
       "enum": ["local-lan", "vpn-only", "public"]
     },
+    "CpuArchitecture": {
+      "type": "string",
+      "enum": ["x86_64", "amd64", "ARM64", "arm64", "aarch64", "RISCV64", "riscv64", "i386", "x86", "armv7"],
+      "description": "CPU architecture of host compile/runtime target. Canonical values are x86_64, arm64, riscv64, i386."
+    },
     "PowerSourceType": {
       "type": "string",
       "enum": ["ac-mains", "dc-adapter", "usb-pd", "poe", "battery", "ups-output", "cloud-provider"]
@@ -239,6 +244,13 @@
     "DeviceSpecs": {
       "type": "object",
       "properties": {
+        "cpu": {
+          "type": "object",
+          "properties": {
+            "architecture": { "$ref": "#/definitions/CpuArchitecture" }
+          },
+          "additionalProperties": true
+        },
         "storage_slots": {
           "type": "array",
           "description": "Slot capabilities model: each slot describes bus, mount type and connector characteristics",
@@ -409,6 +421,10 @@
       "type": "string",
       "pattern": "^profile-[a-z0-9-]+$"
     },
+    "HostOsRef": {
+      "type": "string",
+      "pattern": "^hos-[a-z0-9-]+$"
+    },
     "BackupPolicyRef": {
       "type": "string",
       "pattern": "^backup-[a-z0-9-]+$"
@@ -494,7 +510,32 @@
         "power": { "$ref": "#/definitions/DevicePower" },
         "firmware": { "type": "object" },
         "cloud": { "$ref": "#/definitions/CloudConfig" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "class": { "const": "compute" }
+            },
+            "required": ["class"]
+          },
+          "then": {
+            "required": ["specs"],
+            "properties": {
+              "specs": {
+                "type": "object",
+                "required": ["cpu"],
+                "properties": {
+                  "cpu": {
+                    "type": "object",
+                    "required": ["architecture"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "DevicePower": {
       "type": "object",
@@ -1110,6 +1151,65 @@
         }
       ]
     },
+    "HostOperatingSystem": {
+      "type": "object",
+      "required": ["id", "device_ref", "distribution", "architecture", "status"],
+      "properties": {
+        "id": { "$ref": "#/definitions/HostOsRef" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "distribution": { "type": "string" },
+        "architecture": { "$ref": "#/definitions/CpuArchitecture" },
+        "host_type": { "type": "string", "enum": ["baremetal", "hypervisor", "embedded"] },
+        "status": { "type": "string", "enum": ["active", "planned", "maintenance", "retired"] },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["lxc", "vm", "docker", "container", "cloudinit", "baremetal"]
+          }
+        },
+        "installation": {
+          "type": "object",
+          "properties": {
+            "media_ref": { "$ref": "#/definitions/MediaRef" },
+            "slot_ref": { "type": "string", "pattern": "^slot-[a-z0-9-]+$" },
+            "root_mount": { "type": "string", "pattern": "^/.*" },
+            "root_storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" }
+          }
+        },
+        "description": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "Vm": {
+      "type": "object",
+      "required": ["id", "vmid", "name", "device_ref"],
+      "properties": {
+        "id": { "$ref": "#/definitions/VmRef" },
+        "vmid": { "type": "integer", "minimum": 100, "maximum": 999999999 },
+        "name": { "type": "string" },
+        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "host_os_ref": { "$ref": "#/definitions/HostOsRef" },
+        "template_ref": { "type": "string" },
+        "trust_zone_ref": { "$ref": "#/definitions/TrustZone" },
+        "description": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "resources": { "type": "object" },
+        "boot": { "type": "object" },
+        "storage": { "type": "array" },
+        "networks": { "type": "array" },
+        "os": {
+          "type": "object",
+          "properties": {
+            "type": { "$ref": "#/definitions/OsType" },
+            "version": { "type": "string" },
+            "architecture": { "$ref": "#/definitions/CpuArchitecture" }
+          }
+        },
+        "cloudinit": { "type": "object" },
+        "ansible": { "type": "object" }
+      }
+    },
     "Lxc": {
       "type": "object",
       "required": ["id", "vmid", "name", "device_ref"],
@@ -1118,6 +1218,7 @@
         "vmid": { "type": "integer", "minimum": 100, "maximum": 999999999 },
         "name": { "type": "string" },
         "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "host_os_ref": { "$ref": "#/definitions/HostOsRef" },
         "platform_type": { "$ref": "#/definitions/PlatformType" },
         "resource_profile_ref": { "$ref": "#/definitions/ResourceProfileRef" },
         "type": {
@@ -1149,7 +1250,8 @@
           "type": "object",
           "properties": {
             "type": { "$ref": "#/definitions/OsType" },
-            "version": { "type": "string" }
+            "version": { "type": "string" },
+            "architecture": { "$ref": "#/definitions/CpuArchitecture" }
           }
         },
         "cloudinit": { "type": "object" },
@@ -1424,7 +1526,10 @@
       "type": "object",
       "properties": {
         "_defaults": { "type": "object" },
-        "vms": { "type": "array" },
+        "vms": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Vm" }
+        },
         "resource_profiles": {
           "type": "array",
           "items": { "$ref": "#/definitions/ResourceProfile" }
@@ -1432,6 +1537,10 @@
         "lxc": {
           "type": "array",
           "items": { "$ref": "#/definitions/Lxc" }
+        },
+        "host_operating_systems": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/HostOperatingSystem" }
         },
         "templates": { "type": "object" }
       }

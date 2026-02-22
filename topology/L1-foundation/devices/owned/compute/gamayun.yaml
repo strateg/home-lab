@@ -15,6 +15,7 @@ supported_operating_systems:
 specs:
   cpu:
     model: Intel Core i3-M370
+    architecture: x86_64
     cores: 2
     threads: 4
     speed_mhz: 2400

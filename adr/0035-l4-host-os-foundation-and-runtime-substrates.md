@@ -22,9 +22,10 @@ breaking_changes: false
 |---|---|
 | Scope | Make `host_operating_systems` a first-class, validated L4 contract |
 | Problem | Host OS facts are authored, but schema/validators do not enforce them |
-| Public API | `host_operating_systems[].id`, `lxc[].id`, `vms[].id` |
+| Public API | `host_operating_systems[].id`, `lxc[].id`, `vms[].id` (after VM schema typing) |
+| L1 prerequisite | `class: compute` must declare `specs.cpu.architecture` |
 | Breaking changes | None in phase-1 (additive) |
-| Main risk | Partial adoption without validator guardrails |
+| Main risk | Partial adoption without capability and reference guardrails |
 
 ## Context
 
@@ -37,15 +38,28 @@ Current contract gap:
 
 1. `host_operating_systems` is present in topology data but not typed in `topology-v4-schema.json`.
 2. ID collector and reference checks do not validate host OS objects.
-3. Workload and service models rely on `device_ref`/`target_ref`, so host OS state is not part of runtime readiness checks.
+3. `L5` runtimes already target devices with container and baremetal modes, but some runtime-bearing devices do not yet have `hos-*` objects.
+4. VM list is schema-weak (`vms` array without typed `items`), which weakens claimed API stability.
+5. Compute substrate compile target is not enforced in L1 today, so host/runtime architecture compatibility can drift.
 
 Cross-layer dependency direction for this decision:
 
 | Direction | Contract |
 |---|---|
-| L4 host OS -> L1 | `device_ref`, `installation.media_ref`, `installation.slot_ref` |
+| L4 host OS -> L1 | `device_ref`, `installation.media_ref`, `installation.slot_ref`, `specs.cpu.architecture` (compile target) |
+| L4 host OS -> L3 | Optional `installation.root_storage_endpoint_ref` |
 | L4 workloads -> L1/L2/L3 | Existing `device_ref`, `bridge_ref`, `network_ref`, `storage_endpoint_ref`, `data_asset_ref` |
 | L5 services -> L4/L1 | Existing `runtime.target_ref` model stays unchanged |
+
+Cross-layer contract diagram:
+
+```mermaid
+graph TD
+  L1[L1 device and media attachment] --> HOS[L4 host_operating_systems]
+  L3[L3 storage_endpoints] --> HOS
+  HOS --> WL[L4 workloads lxc and vms]
+  WL --> L5[L5 services runtime target_ref]
+```
 
 ## Alternatives Considered
 
@@ -58,6 +72,16 @@ Cross-layer dependency direction for this decision:
 
 ## Decision
 
+### D0. L1 compute architecture is an explicit taxonomy contract
+
+For every `L1` device with `class: compute`, `specs.cpu.architecture` is required.
+
+Purpose:
+
+1. Declare host compile/runtime target explicitly (`x86_64`, `arm64`, and accepted aliases).
+2. Prevent accidental placement assumptions for architecture-sensitive workloads and images.
+3. Keep host substrate compatibility checks deterministic for L4/L5 validations.
+
 ### D1. Host OS is a first-class L4 entity
 
 Add typed schema support for `L4_platform.host_operating_systems[]` with stable ID pattern `hos-*`.
@@ -67,9 +91,13 @@ Minimum contract in v1:
 - `id`
 - `device_ref`
 - `distribution`
+- `architecture` (must match normalized `L1 specs.cpu.architecture`)
+- `host_type` (`baremetal`, `hypervisor`, `embedded`)
 - `status`
+- `capabilities[]` (for example `lxc`, `vm`, `docker`, `container`, `cloudinit`)
 - `installation.media_ref` (optional when unknown)
 - `installation.slot_ref` (optional when unknown)
+- `installation.root_storage_endpoint_ref` (optional `L3 storage_endpoint_ref` when root placement is modeled)
 
 ### D2. Separate host OS from guest OS explicitly
 
@@ -77,13 +105,25 @@ L4 keeps two different OS concerns:
 
 - Host OS lifecycle:
   - `host_operating_systems[]`
-  - Example: Ubuntu on OrangePi5 NVMe
+  - Example host types:
+    - Ubuntu on OrangePi5 NVMe (`baremetal`)
+    - Proxmox VE on `gamayun` (`hypervisor`)
+    - RouterOS on `mikrotik-chateau` (`embedded`)
 - Guest OS/runtime image intent:
   - `lxc[].os`, `vms[].os`, template image metadata
 
 This keeps platform substrate facts (`host`) separate from workload image semantics (`guest`).
 
-### D3. Keep runtime references backward-compatible in phase-1
+### D3. Keep substrate and workload split explicit inside L4
+
+Logical L4 model is:
+
+- `substrates`: runtime foundations (`host_operating_systems`, future `container_runtimes`)
+- `workloads`: runtime instances (`lxc`, `vms`)
+
+In current MVP structure this is represented by separate top-level keys and directories, without additional nesting changes.
+
+### D4. Keep runtime references backward-compatible in phase-1
 
 No immediate breaking changes to existing runtime contracts:
 
@@ -102,7 +142,37 @@ Validation behavior:
 3. If a workload has `device_ref` and device has exactly one active host OS, omission of `host_os_ref` is allowed (warning-free).
 4. If a workload has `device_ref` and device has multiple active host OS objects, missing `host_os_ref` is a warning in phase-1 and an error in phase-2.
 
-### D4. Do not change layer dependency order
+### D5. Enforce runtime capability checks against host OS
+
+Add phase-2 validator rules:
+
+| Runtime or workload | Required host capability |
+|---|---|
+| `service.runtime.type: lxc` | `lxc` |
+| `service.runtime.type: vm` | `vm` |
+| `service.runtime.type: docker` | `docker` or `container` |
+| `service.runtime.type: baremetal` | Host OS object exists for `target_ref` |
+| `L4 vms[]` placement | `vm` on resolved host OS |
+| `L4 lxc[]` placement | `lxc` on resolved host OS |
+
+Architecture normalization for compatibility checks:
+
+- `amd64` -> `x86_64`
+- `aarch64`, `ARM64` -> `arm64`
+- `riscv` -> `riscv64`
+- `x86` -> `i386`
+
+Validator rule:
+
+- `host_operating_systems[].architecture` must match normalized `L1 device.specs.cpu.architecture`.
+
+When `template_ref` and explicit guest OS fields conflict, precedence rule is:
+
+1. Workload explicit OS field wins.
+2. Template OS is fallback/default.
+3. Validator emits warning on conflicting values.
+
+### D6. Do not change layer dependency order
 
 Layer model remains:
 
@@ -114,9 +184,9 @@ Provisioning sequence in real operations (install OS, then configure network) do
 
 | Entity | Visibility | Stability | Consumers |
 |---|---|---|---|
-| `host_operating_systems[].id` (`hos-*`) | Public | Stable v1 | L4 validators, docs, future runtime guardrails |
+| `host_operating_systems[].id` (`hos-*`) | Public | Stable v1 | L4 validators, docs, L5 runtime chain validation |
 | `lxc[].id` (`lxc-*`) | Public | Stable v1 | L5 runtime, L6, L7 |
-| `vms[].id` (`vm-*`) | Public | Stable v1 | L5 runtime, L6, L7 |
+| `vms[].id` (`vm-*`) | Public | Stable after phase-0 VM schema typing | L5 runtime, L6, L7 |
 | `resource_profiles[]`, `templates.*`, `_defaults` | Internal | Mutable | L4 only |
 
 Evolution policy:
@@ -129,8 +199,20 @@ Evolution policy:
 ### Phase-0: Contract Readiness
 
 1. Add schema definition for `host_operating_systems`.
-2. Extend ID collector with `host_operating_systems`.
-3. Add reference validators for `host_os_ref` consistency rules.
+2. Type `vms` as `items: { "$ref": "#/definitions/Vm" }`.
+3. Add L1 CPU architecture taxonomy in schema (`specs.cpu.architecture`) and enforce it for `class: compute` in validators.
+4. Extend ID collector with `host_operating_systems`.
+5. Add reference validators for `host_os_ref` consistency rules.
+6. Add validator guardrail for template-vs-explicit OS conflicts.
+
+### Phase-0.5: Baseline Host OS Coverage
+
+Create missing host OS substrate objects for active runtime devices:
+
+1. `hos-gamayun-proxmox` (`host_type: hypervisor`, capabilities: `lxc`, `vm`, `cloudinit`)
+2. `hos-mikrotik-chateau-routeros` (`host_type: embedded`, capabilities: `container`)
+
+Goal: every active runtime-bearing device has at least one `hos-*` object.
 
 ### Phase-1: Additive Adoption
 
@@ -141,7 +223,19 @@ Evolution policy:
 ### Phase-2: Strictness Upgrade
 
 1. Promote missing `host_os_ref` to error only for ambiguous multi-OS-per-device cases.
-2. Keep single-host-OS-per-device omission valid to minimize authoring overhead.
+2. Enforce `runtime/workload -> capability` mapping checks.
+3. Keep single-host-OS-per-device omission valid to minimize authoring overhead.
+
+## Blockers and Prerequisites
+
+| Item | Status | Notes |
+|---|---|---|
+| `host_operating_systems` schema typing | Required | Phase-0 blocker |
+| `vms` typed items schema | Required | Phase-0 blocker for stable VM API claim |
+| L1 compute `specs.cpu.architecture` enforcement | Required | Phase-0 blocker for deterministic compile-target checks |
+| `ids.py` hos ID collection | Required | Phase-0 blocker |
+| Runtime capability validators | Required for phase-2 | Added as staged enforcement |
+| Host OS data backfill (`gamayun`, `mikrotik-chateau`) | Required | Phase-0.5 blocker for full runtime-chain coverage |
 
 ## Rollback
 
@@ -158,8 +252,9 @@ If phase-0 or phase-1 introduces regressions:
 | Component | Impact | Action |
 |---|---|---|
 | `topology-tools/schemas/topology-v4-schema.json` | Medium | Add typed `host_operating_systems` and optional `host_os_ref` |
-| `topology-tools/scripts/validators/ids.py` | Low | Collect `hos-*` IDs |
-| `topology-tools/scripts/validators/checks/references.py` | Medium | Add host OS reference and consistency checks |
+| `topology-tools/scripts/validators/checks/foundation.py` | Medium | Enforce `specs.cpu.architecture` on `class: compute` devices |
+| `topology-tools/scripts/validators/ids.py` | High | Collect `hos-*` IDs for chain validation |
+| `topology-tools/scripts/validators/checks/references.py` | High | Add host OS reference, consistency, capability, and OS precedence checks |
 | `topology-tools/scripts/generators/docs/generator.py` | Low | Render host OS inventory section and optional links |
 | Terraform generators | None (phase-1) | Keep existing runtime generation path |
 
@@ -180,8 +275,12 @@ Success metrics:
 
 | Metric | Target |
 |---|---|
+| `L1 class: compute` devices with `specs.cpu.architecture` | 100% |
 | Host OS objects with valid `device_ref` | 100% |
+| Host OS objects per active runtime device | 100% |
+| `L5` services with runtime type `baremetal`/`docker` resolving valid host OS chain | 100% |
 | Invalid `host_os_ref` accepted in strict mode | 0 |
+| Cross-layer reference cycles introduced | 0 |
 | Workload breakage after phase-1 rollout | 0 |
 | Docs show host OS inventory deterministically | 100% |
 
@@ -197,10 +296,13 @@ Success metrics:
 ## References
 
 - `topology/L4-platform.yaml`
+- `topology/L1-foundation/devices/owned/compute/gamayun.yaml`
 - `topology/L4-platform/host-operating-systems/hos-orangepi5-ubuntu.yaml`
 - `topology-tools/schemas/topology-v4-schema.json`
+- `topology-tools/scripts/validators/checks/foundation.py`
 - `topology-tools/scripts/validators/ids.py`
 - `topology-tools/scripts/validators/checks/references.py`
+- `topology/L5-application/services.yaml`
 - `topology/MODULAR-GUIDE.md`
 - [0032](0032-l3-data-modularization-and-layer-contracts.md)
 - [0034](0034-l4-platform-modularization-and-runtime-taxonomy.md)

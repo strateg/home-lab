@@ -80,6 +80,7 @@ Purpose:
 Canonical ownership:
 - Locations and device inventory.
 - Device taxonomy (`class`, `substrate`, `access`) and hardware capabilities.
+- Compute host architecture taxonomy (`specs.cpu.architecture`) used as compile/runtime target metadata.
 - Physical storage capability (`specs.storage_slots`).
 - Mutable media state (`media_registry`, `media_attachments`).
 - Physical connectivity (`data_links`, `power_links`).
@@ -96,6 +97,17 @@ Validation-critical invariants:
 - `data_links` and `power_links` are separate first-class domains.
 - PoE is modeled as two links: one data link + one power link with `data_link_ref`.
 - `upstream_power_ref` targets existing `class: power` devices.
+- Every `class: compute` device must declare `specs.cpu.architecture`.
+- Preferred architecture values are `x86_64` and `arm64`; aliases (`amd64`, `aarch64`) are allowed for compatibility.
+
+Architecture taxonomy:
+
+| Canonical | Common aliases | Typical substrate |
+|---|---|---|
+| `x86_64` | `amd64` | Proxmox and classic server hosts |
+| `arm64` | `ARM64`, `aarch64` | SBC and ARM cloud hosts |
+| `riscv64` | `RISCV64`, `riscv` | Future RISC-V nodes |
+| `i386` | `x86` | Legacy/compatibility workloads |
 
 Example (`topology/L1-foundation/devices/owned/compute/orangepi5.yaml`):
 
@@ -105,6 +117,8 @@ class: compute
 substrate: baremetal-owned
 access: local-lan
 specs:
+  cpu:
+    architecture: arm64
   storage_slots:
   - id: slot-m2-0
     bus: m2
@@ -345,6 +359,7 @@ Use this mapping when the machine is "owned by account/billing" but physically c
 - `L1`:
   - Store the cloud host itself as a device in `topology/L1-foundation/devices/provider/compute/`.
   - Use `type: cloud-vm`, `class: compute`, `substrate: provider-instance`, `access: public` or `access: vpn-only`.
+  - Set `specs.cpu.architecture` explicitly to capture host/runtime compile target.
   - Keep CPU/RAM and base hardware-like capacity in `specs.cpu` and `specs.memory`.
   - Keep provider-specific sizing and placement in `cloud.instance_type`, `cloud.vcpus`, `cloud.memory_gb`, `cloud.region`.
 - `L1 media + attachments`:
@@ -370,6 +385,9 @@ type: cloud-vm
 class: compute
 substrate: provider-instance
 access: public
+specs:
+  cpu:
+    architecture: arm64
 cloud:
   instance_type: VM.Standard.A1.Flex
   vcpus: 4

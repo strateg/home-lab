@@ -22,6 +22,7 @@ def collect_ids(topology: Dict[str, Any]) -> Dict[str, Set[str]]:
         'vms': set(),
         'lxc': set(),
         'resource_profiles': set(),
+        'host_operating_systems': set(),
         'services': set(),
         'templates': set(),
         'security_policies': set(),
@@ -104,6 +105,10 @@ def collect_ids(topology: Dict[str, Any]) -> Dict[str, Set[str]]:
     for profile in l4.get('resource_profiles', []) or []:
         if isinstance(profile, dict) and profile.get('id'):
             ids['resource_profiles'].add(profile['id'])
+
+    for host_os in l4.get('host_operating_systems', []) or []:
+        if isinstance(host_os, dict) and host_os.get('id'):
+            ids['host_operating_systems'].add(host_os['id'])
 
     for svc in l5.get('services', []) or []:
         if isinstance(svc, dict) and svc.get('id'):

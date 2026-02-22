@@ -1,0 +1,15 @@
+id: hos-gamayun-proxmox
+device_ref: gamayun
+distribution: proxmox-ve
+architecture: x86_64
+host_type: hypervisor
+status: active
+capabilities:
+- lxc
+- vm
+- cloudinit
+installation:
+  media_ref: disk-ssd-system
+  slot_ref: slot-sata-0
+  root_mount: /
+description: Proxmox VE host operating system for Gamayun hypervisor

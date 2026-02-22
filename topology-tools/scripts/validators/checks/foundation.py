@@ -435,6 +435,16 @@ def check_device_taxonomy(
                 f"Device '{dev_id}': baremetal substrate mapped to cloud location '{location_ref}'"
             )
 
+        if dev_class == 'compute':
+            specs = device.get('specs') if isinstance(device.get('specs'), dict) else {}
+            cpu = specs.get('cpu') if isinstance(specs.get('cpu'), dict) else {}
+            cpu_arch = cpu.get('architecture')
+            if not isinstance(cpu_arch, str) or not cpu_arch.strip():
+                errors.append(
+                    f"Device '{dev_id}': compute devices must declare specs.cpu.architecture "
+                    f"(for host/runtime compile target compatibility)"
+                )
+
         check_device_storage_taxonomy(
             device,
             storage_ctx=storage_ctx,

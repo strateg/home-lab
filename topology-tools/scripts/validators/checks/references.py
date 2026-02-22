@@ -3,6 +3,108 @@
 from typing import Any, Dict, List, Set
 
 
+ARCH_ALIASES = {
+    "x86_64": "x86_64",
+    "amd64": "x86_64",
+    "x86": "i386",
+    "i386": "i386",
+    "arm64": "arm64",
+    "aarch64": "arm64",
+    "riscv64": "riscv64",
+    "riscv": "riscv64",
+}
+
+
+def _normalize_arch(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    normalized = value.strip().lower()
+    return ARCH_ALIASES.get(normalized, normalized)
+
+
+def _device_map(topology: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    l1 = topology.get('L1_foundation', {})
+    return {
+        d.get('id'): d
+        for d in (l1.get('devices', []) or [])
+        if isinstance(d, dict) and d.get('id')
+    }
+
+
+def _host_os_map(topology: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    l4 = topology.get('L4_platform', {})
+    return {
+        h.get('id'): h
+        for h in (l4.get('host_operating_systems', []) or [])
+        if isinstance(h, dict) and h.get('id')
+    }
+
+
+def _active_host_os_by_device(topology: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
+    per_device: Dict[str, List[Dict[str, Any]]] = {}
+    for host_os in _host_os_map(topology).values():
+        status = str(host_os.get('status', '')).lower()
+        if status and status != 'active':
+            continue
+        device_ref = host_os.get('device_ref')
+        if isinstance(device_ref, str) and device_ref:
+            per_device.setdefault(device_ref, []).append(host_os)
+    return per_device
+
+
+def _device_architecture(device: Dict[str, Any]) -> str:
+    specs = device.get('specs') if isinstance(device.get('specs'), dict) else {}
+    cpu = specs.get('cpu') if isinstance(specs.get('cpu'), dict) else {}
+    return _normalize_arch(cpu.get('architecture'))
+
+
+def check_host_os_refs(
+    topology: Dict[str, Any],
+    ids: Dict[str, Set[str]],
+    *,
+    errors: List[str],
+    warnings: List[str],
+) -> None:
+    del warnings
+    l1 = topology.get('L1_foundation', {})
+    l4 = topology.get('L4_platform', {})
+    devices = _device_map(topology)
+    media_ids = {
+        media.get('id')
+        for media in (l1.get('media_registry', []) or [])
+        if isinstance(media, dict) and media.get('id')
+    }
+
+    for host_os in l4.get('host_operating_systems', []) or []:
+        if not isinstance(host_os, dict):
+            continue
+        hos_id = host_os.get('id')
+        device_ref = host_os.get('device_ref')
+        if device_ref and device_ref not in ids['devices']:
+            errors.append(f"Host OS '{hos_id}': device_ref '{device_ref}' does not exist")
+            continue
+
+        installation = host_os.get('installation') if isinstance(host_os.get('installation'), dict) else {}
+        media_ref = installation.get('media_ref')
+        if media_ref and media_ref not in media_ids:
+            errors.append(f"Host OS '{hos_id}': installation.media_ref '{media_ref}' does not exist")
+
+        root_storage_endpoint_ref = installation.get('root_storage_endpoint_ref')
+        if root_storage_endpoint_ref and root_storage_endpoint_ref not in ids['storage_endpoints']:
+            errors.append(
+                f"Host OS '{hos_id}': installation.root_storage_endpoint_ref '{root_storage_endpoint_ref}' does not exist"
+            )
+
+        device = devices.get(device_ref, {})
+        device_arch = _device_architecture(device)
+        host_arch = _normalize_arch(host_os.get('architecture'))
+        if device_arch and host_arch and device_arch != host_arch:
+            errors.append(
+                f"Host OS '{hos_id}' architecture '{host_os.get('architecture')}' does not match "
+                f"device '{device_ref}' architecture '{device.get('specs', {}).get('cpu', {}).get('architecture')}'"
+            )
+
+
 def check_vm_refs(
     topology: Dict[str, Any],
     ids: Dict[str, Set[str]],
@@ -12,6 +114,8 @@ def check_vm_refs(
 ) -> None:
     del warnings
     l4 = topology.get('L4_platform', {})
+    host_os_map = _host_os_map(topology)
+    active_by_device = _active_host_os_by_device(topology)
     for vm in l4.get('vms', []) or []:
         vm_id = vm.get('id')
         device_ref = vm.get('device_ref')
@@ -25,6 +129,28 @@ def check_vm_refs(
         template_ref = vm.get('template_ref')
         if template_ref and template_ref not in ids['templates']:
             errors.append(f"VM '{vm_id}': template_ref '{template_ref}' does not exist")
+
+        host_os_ref = vm.get('host_os_ref')
+        if host_os_ref and host_os_ref not in ids.get('host_operating_systems', set()):
+            errors.append(f"VM '{vm_id}': host_os_ref '{host_os_ref}' does not exist")
+        if host_os_ref and host_os_ref in host_os_map:
+            host_device_ref = host_os_map[host_os_ref].get('device_ref')
+            if device_ref and host_device_ref and host_device_ref != device_ref:
+                errors.append(
+                    f"VM '{vm_id}': host_os_ref '{host_os_ref}' belongs to device '{host_device_ref}', "
+                    f"expected '{device_ref}'"
+                )
+            vm_arch = _normalize_arch((vm.get('os') or {}).get('architecture'))
+            host_arch = _normalize_arch(host_os_map[host_os_ref].get('architecture'))
+            if vm_arch and host_arch and vm_arch != host_arch:
+                errors.append(
+                    f"VM '{vm_id}': guest architecture '{(vm.get('os') or {}).get('architecture')}' "
+                    f"does not match host OS '{host_os_ref}' architecture '{host_os_map[host_os_ref].get('architecture')}'"
+                )
+        if not host_os_ref and device_ref and len(active_by_device.get(device_ref, [])) > 1:
+            errors.append(
+                f"VM '{vm_id}': device '{device_ref}' has multiple active host OS objects; host_os_ref is required"
+            )
 
         for disk in vm.get('storage', []) or []:
             storage_ref = disk.get('storage_ref')
@@ -45,6 +171,8 @@ def check_lxc_refs(
     warnings: List[str],
 ) -> None:
     l4 = topology.get('L4_platform', {})
+    host_os_map = _host_os_map(topology)
+    active_by_device = _active_host_os_by_device(topology)
     for lxc in l4.get('lxc', []) or []:
         lxc_id = lxc.get('id')
         device_ref = lxc.get('device_ref')
@@ -58,6 +186,28 @@ def check_lxc_refs(
         template_ref = lxc.get('template_ref')
         if template_ref and template_ref not in ids['templates']:
             errors.append(f"LXC '{lxc_id}': template_ref '{template_ref}' does not exist")
+
+        host_os_ref = lxc.get('host_os_ref')
+        if host_os_ref and host_os_ref not in ids.get('host_operating_systems', set()):
+            errors.append(f"LXC '{lxc_id}': host_os_ref '{host_os_ref}' does not exist")
+        if host_os_ref and host_os_ref in host_os_map:
+            host_device_ref = host_os_map[host_os_ref].get('device_ref')
+            if device_ref and host_device_ref and host_device_ref != device_ref:
+                errors.append(
+                    f"LXC '{lxc_id}': host_os_ref '{host_os_ref}' belongs to device '{host_device_ref}', "
+                    f"expected '{device_ref}'"
+                )
+            lxc_arch = _normalize_arch((lxc.get('os') or {}).get('architecture'))
+            host_arch = _normalize_arch(host_os_map[host_os_ref].get('architecture'))
+            if lxc_arch and host_arch and lxc_arch != host_arch:
+                errors.append(
+                    f"LXC '{lxc_id}': guest architecture '{(lxc.get('os') or {}).get('architecture')}' "
+                    f"does not match host OS '{host_os_ref}' architecture '{host_os_map[host_os_ref].get('architecture')}'"
+                )
+        if not host_os_ref and device_ref and len(active_by_device.get(device_ref, [])) > 1:
+            errors.append(
+                f"LXC '{lxc_id}': device '{device_ref}' has multiple active host OS objects; host_os_ref is required"
+            )
 
         resource_profile_ref = lxc.get('resource_profile_ref')
         if resource_profile_ref and resource_profile_ref not in ids.get('resource_profiles', set()):
@@ -130,6 +280,7 @@ def check_service_refs(
     warnings: List[str],
 ) -> None:
     l5 = topology.get('L5_application', {})
+    active_by_device = _active_host_os_by_device(topology)
     for service in l5.get('services', []) or []:
         if not isinstance(service, dict):
             continue
@@ -170,6 +321,22 @@ def check_service_refs(
                 errors.append(f"Service '{svc_id}': runtime target_ref '{target_ref}' is not a known VM")
             if runtime_type in {'docker', 'baremetal'} and target_ref and target_ref not in ids['devices']:
                 errors.append(f"Service '{svc_id}': runtime target_ref '{target_ref}' is not a known device")
+            if runtime_type in {'docker', 'baremetal'} and target_ref in ids['devices']:
+                host_os_entries = active_by_device.get(target_ref, [])
+                if not host_os_entries:
+                    errors.append(
+                        f"Service '{svc_id}': runtime target_ref '{target_ref}' has no active host_operating_systems entry"
+                    )
+                if runtime_type == 'docker' and host_os_entries:
+                    has_container_capability = any(
+                        any(cap in {'docker', 'container'} for cap in (entry.get('capabilities') or []))
+                        for entry in host_os_entries
+                    )
+                    if not has_container_capability:
+                        errors.append(
+                            f"Service '{svc_id}': runtime type docker requires host capability 'docker' or 'container' "
+                            f"for device '{target_ref}'"
+                        )
 
             if service.get('ip'):
                 warnings.append(

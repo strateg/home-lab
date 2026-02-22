@@ -40,6 +40,7 @@ from scripts.validators.checks.references import (
     check_backup_refs,
     check_certificate_refs,
     check_dns_refs,
+    check_host_os_refs,
     check_lxc_refs,
     check_security_policy_refs,
     check_service_refs,
@@ -240,6 +241,7 @@ class SchemaValidator:
         self._check_data_links(ids)
         self._check_power_links(ids)
         self._check_l3_storage_refs(ids)
+        self._check_host_os_refs(ids)
         self._check_vm_refs(ids)
         self._check_lxc_refs(ids)
         self._check_service_refs(ids)
@@ -341,6 +343,14 @@ class SchemaValidator:
 
     def _check_vm_refs(self, ids: Dict[str, Set[str]]) -> None:
         check_vm_refs(
+            self.topology or {},
+            ids,
+            errors=self.errors,
+            warnings=self.warnings,
+        )
+
+    def _check_host_os_refs(self, ids: Dict[str, Set[str]]) -> None:
+        check_host_os_refs(
             self.topology or {},
             ids,
             errors=self.errors,

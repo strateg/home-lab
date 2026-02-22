@@ -1,7 +1,13 @@
 id: hos-orangepi5-ubuntu
 device_ref: orangepi5
 distribution: ubuntu
+architecture: arm64
+host_type: baremetal
 status: active
+capabilities:
+- docker
+- container
+- baremetal
 installation:
   media_ref: disk-nvme-main
   slot_ref: slot-m2-0
