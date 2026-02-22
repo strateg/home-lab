@@ -3,7 +3,6 @@
 Diagram generation helpers for topology documentation.
 """
 
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -162,7 +161,6 @@ class DiagramDocumentationGenerator:
 
     def __init__(self, docs_generator):
         self.docs_generator = docs_generator
-        self._generated_at = None
 
     @property
     def topology(self) -> Dict[str, Any]:
@@ -183,11 +181,6 @@ class DiagramDocumentationGenerator:
     @property
     def use_mermaid_icons(self) -> bool:
         return bool(getattr(self.docs_generator, "mermaid_icons", False))
-
-    def generated_at(self) -> str:
-        if not self._generated_at:
-            self._generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return self._generated_at
 
     @classmethod
     def summary_items(cls) -> List[str]:
@@ -218,7 +211,6 @@ class DiagramDocumentationGenerator:
             template = self.jinja_env.get_template(template_path)
             content = template.render(
                 topology_version=self.topology_version,
-                generated_at=self.generated_at(),
                 use_mermaid_icons=self.use_mermaid_icons,
                 icon_mode=getattr(self.docs_generator, "icon_mode", "none"),
                 mermaid_icon_runtime_hint=self.docs_generator.icon_runtime_hint(),
@@ -232,6 +224,7 @@ class DiagramDocumentationGenerator:
             output_file = self.output_dir / output_name
             output_file.write_text(content, encoding="utf-8")
             print(f"OK Generated: {output_file}")
+            self.docs_generator._register_generated_file(output_name)
             return True
         except Exception as e:
             print(f"ERROR Error generating {output_name}: {e}")
@@ -355,8 +348,6 @@ class DiagramDocumentationGenerator:
 
     def generate_all(self) -> bool:
         """Generate all diagram pages and index."""
-        self._generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
         success = True
 
         # Visual diagrams (Phase 1)

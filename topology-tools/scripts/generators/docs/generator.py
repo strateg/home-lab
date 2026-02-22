@@ -43,6 +43,8 @@ class DocumentationGenerator:
         self.topology: Dict = {}
         self._icon_pack_cache = None
         self._icon_data_uri_cache = {}
+        self.generated_files: List[str] = []
+        self.generated_at: str = ""
 
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(self.templates_dir)),
@@ -524,6 +526,8 @@ class DocumentationGenerator:
             print(f"CLEAN Cleaning output directory: {self.output_dir}")
 
         print(f"DIR Created output directory: {self.output_dir}")
+        self.generated_files = []
+        self.generated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         success = True
         success &= self.generate_network_diagram()
@@ -532,8 +536,41 @@ class DocumentationGenerator:
         success &= self.generate_devices_inventory()
         success &= self.generate_overview()
         success &= self.diagram_generator.generate_all()
+        success &= self._write_generation_artifacts()
 
         return success
+
+    def _register_generated_file(self, output_name: str) -> None:
+        """Register generated documentation filename for deterministic artifacts."""
+        if not output_name:
+            return
+        if output_name not in self.generated_files:
+            self.generated_files.append(output_name)
+
+    def _write_generation_artifacts(self) -> bool:
+        """
+        Write non-content generation artifacts:
+        - _generated_at.txt: volatile generation timestamp.
+        - _generated_files.txt: deterministic sorted list of generated docs files.
+        """
+        try:
+            generated_at_file = self.output_dir / "_generated_at.txt"
+            generated_files_file = self.output_dir / "_generated_files.txt"
+
+            generated_at_file.write_text(f"{self.generated_at}\n", encoding="utf-8")
+
+            files_sorted = sorted(self.generated_files)
+            generated_files_file.write_text(
+                "\n".join(files_sorted) + ("\n" if files_sorted else ""),
+                encoding="utf-8",
+            )
+
+            print(f"OK Generated: {generated_at_file}")
+            print(f"OK Generated: {generated_files_file}")
+            return True
+        except Exception as e:
+            print(f"ERROR Error generating docs metadata artifacts: {e}")
+            return False
 
     def _render_core_document(self, template_name: str, output_name: str, **context: Any) -> bool:
         """Render a core docs template and write it to output directory."""
@@ -541,13 +578,13 @@ class DocumentationGenerator:
             template = self.jinja_env.get_template(template_name)
             content = template.render(
                 topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
-                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 **context,
             )
             content = self.transform_mermaid_icons_for_compat(content)
             output_file = self.output_dir / output_name
             output_file.write_text(content, encoding="utf-8")
             print(f"OK Generated: {output_file}")
+            self._register_generated_file(output_name)
             return True
         except Exception as e:
             print(f"ERROR Error generating {output_name}: {e}")
@@ -590,13 +627,13 @@ class DocumentationGenerator:
                 mermaid_icon_runtime_hint=self.icon_runtime_hint(),
                 mermaid_icon_pack_hint=self.diagram_generator.ICON_PACK_HINT,
                 topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
-                generated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             )
             content = self.transform_mermaid_icons_for_compat(content)
 
             output_file = self.output_dir / "network-diagram.md"
             output_file.write_text(content, encoding="utf-8")
             print(f"OK Generated: {output_file}")
+            self._register_generated_file("network-diagram.md")
             return True
 
         except Exception as e:
