@@ -14,6 +14,12 @@
 
 Current scale is small (2 LXC, 0 VM, 5 templates), but edits already touch unrelated sections and increase review noise.
 
+Critical implementation constraint:
+
+- current L4 uses YAML anchors/aliases for shared defaults;
+- `!include_dir_sorted` in `topology-tools/topology_loader.py` loads each file independently, so cross-file aliases are not valid;
+- anchor migration is therefore a phase-0 blocker for safe split.
+
 Cross-layer analysis:
 
 - Downward (`L4 -> L1/L2/L3`):
@@ -86,6 +92,12 @@ Host-level grouping is introduced only when at least one threshold is met:
 1. `workloads/<type>/` has more than 12 files, or
 2. more than 2 placement domains are active (for example, `proxmox` + cloud provider).
 
+Threshold rationale:
+
+1. terminal ergonomics: around 10-15 entries remain quickly scannable in standard CLI listing output;
+2. cognitive load: after about 10-12 peer objects, navigation benefit from grouping becomes noticeable;
+3. `12` is a policy threshold, not a hard technical limit.
+
 ### Composition Root Example
 
 `topology/L4-platform.yaml` becomes a thin composition root:
@@ -102,6 +114,24 @@ templates:
   lxc: !include_dir_sorted L4-platform/templates/lxc
   vms: !include_dir_sorted L4-platform/templates/vms
 ```
+
+### Anchor Migration Strategy (Phase-0 Blocker)
+
+Current monolithic L4 uses aliases such as `*dns_default` and `*lxc_os_default` inside workloads.
+Because alias resolution is file-local during parsing, these aliases cannot safely reference anchors defined in another file.
+
+Migration approach:
+
+1. Pre-split normalization:
+   - replace alias-based fields in each workload with explicit inline values (`dns`, `os`, and other aliased blocks);
+   - keep effective values identical to current resolved topology.
+2. Split after normalization:
+   - move normalized workload objects into `workloads/lxc/` and `workloads/vms/`.
+3. Transition handling:
+   - keep `_defaults` in `defaults.yaml` only as documentation/reference in phase-1;
+   - do not use cross-file aliases in modular L4 files.
+4. Guardrail:
+   - add validator warning/error for YAML aliases under `topology/L4-platform/workloads/` (implementation task).
 
 ## Public API Contract (for L5/L6/L7)
 
@@ -143,6 +173,30 @@ Deferred (out of phase-1 scope):
 1. `host_operating_systems` schema and validators: blocker, not implemented.
 2. `container_runtimes` / cluster taxonomy schema and generators: blocker, not implemented.
 
+## Toolchain Impact Analysis
+
+Schema and data model:
+
+1. No phase-1 schema changes required (`L4_platform` keys remain identical).
+
+Generators:
+
+1. `topology-tools/scripts/generators/terraform/proxmox/generator.py` expects `L4_platform.lxc`, `L4_platform.vms`, `L4_platform.templates`, `L4_platform.resource_profiles`; behavior is unchanged after composition.
+2. `topology-tools/scripts/generators/docs/generator.py` reads the same keys; behavior is unchanged after composition.
+
+Validators:
+
+1. Existing cross-layer ID/ref checks remain valid because object IDs and top-level keys do not change.
+2. Additional validator tasks for implementation phase:
+   - enforce L4 composition-root include contract in `topology/L4-platform.yaml`;
+   - detect alias usage under modular workload files as migration guardrail.
+
+Documentation:
+
+1. `topology/MODULAR-GUIDE.md` must be updated when phase-1 is implemented:
+   - remove `L4-platform.yaml` from "single-file layers",
+   - add the approved L4 modular paths.
+
 ## RACI / Ownership
 
 1. Responsible: topology maintainer (L4 file/module edits).
@@ -169,14 +223,15 @@ Benefits:
 
 Trade-offs:
 
-1. File count increases from 1 to about 8 in current state.
+1. File count increases from 1 monolith to about 10-11 files in current state.
 2. Include contracts become part of validator governance.
 
 Success metrics:
 
-1. Adding one LXC changes at most 2 files (`workloads/lxc/lxc-*.yaml` and optional profile/template file).
-2. Median diff size for workload-only changes stays under 60 lines.
-3. Zero behavioral diff in generated outputs after phase-1 split.
+1. Adding one LXC changes 1-4 files in L4 (`workloads/lxc/lxc-*.yaml` plus optional profile/template updates).
+2. Typical LXC introduction changes 0-2 additional files in L3 when new data assets/storage bindings are required.
+3. Median diff size for workload-only changes stays under 60 lines.
+4. Zero behavioral diff in generated outputs after phase-1 split.
 
 ## Deferred Extension Path
 
@@ -184,14 +239,17 @@ When first real object appears, add only the needed domain:
 
 1. Add `host_operating_systems` only when OS lifecycle tracking is modeled as objects.
 2. Add container runtime taxonomy only when at least one runtime/cluster object exists.
-3. Document each added domain via follow-up ADR (expected next: ADR0035+).
+3. L5 one-object-per-file modularization is a separate decision and should be considered only after its own scale threshold is reached.
+4. Document each added domain via follow-up ADR (expected next: ADR0035+).
 
 ## References
 
 - `topology/L4-platform.yaml`
+- `topology/MODULAR-GUIDE.md`
 - [0031](0031-layered-topology-toolchain-contract-alignment.md)
 - [0032](0032-l3-data-modularization-and-layer-contracts.md)
 - [0033](0033-toolchain-contract-rebaseline-after-modularization.md)
+- `topology-tools/topology_loader.py`
 - `topology-tools/validate-topology.py`
 - `topology-tools/scripts/validators/checks/references.py`
 - `topology-tools/scripts/generators/terraform/proxmox/generator.py`
