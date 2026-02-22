@@ -1,7 +1,8 @@
 id: hos-mikrotik-chateau-routeros
 device_ref: mikrotik-chateau
 distribution: routeros
-architecture: ARM64
+version: "7.x"
+architecture: arm64
 host_type: embedded
 status: active
 capabilities:

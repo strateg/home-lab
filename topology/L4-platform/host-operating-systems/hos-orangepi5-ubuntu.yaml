@@ -1,6 +1,7 @@
 id: hos-orangepi5-ubuntu
 device_ref: orangepi5
 distribution: ubuntu
+version: "24.04"
 architecture: arm64
 host_type: baremetal
 status: active

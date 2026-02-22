@@ -217,6 +217,20 @@ Validation-critical invariants:
 - One-object-per-file structure for workloads/templates/profiles in modular form (ADR 0034 direction, implemented).
 - No cross-file YAML anchor dependency in modular workload files.
 - Runtime target IDs remain stable because they are consumed cross-layer.
+- Host OS architecture must match `L1 specs.cpu.architecture` after alias normalization.
+- Canonical stored architecture values should be lowercase (`x86_64`, `arm64`, `riscv64`, `i386`).
+- `installation` is optional for `host_type: embedded`, but recommended for `baremetal` and `hypervisor`.
+
+Host OS capability taxonomy:
+
+| Capability | Meaning | Valid host types |
+|---|---|---|
+| `lxc` | Can run LXC workloads | `hypervisor` |
+| `vm` | Can run VM workloads | `hypervisor` |
+| `docker` | Docker engine/runtime available | `baremetal`, `hypervisor` |
+| `container` | Generic container support | `embedded`, `baremetal`, `hypervisor` |
+| `cloudinit` | Supports cloud-init guest bootstrap | `hypervisor`, `baremetal` |
+| `baremetal` | Native host service execution (non-containerized) | `baremetal`, `embedded` |
 
 Current maturity note:
 - `host_operating_systems` is now authored in topology (e.g., Orange Pi Ubuntu on NVMe) and used as architectural fact tracking.
@@ -369,7 +383,8 @@ Use this mapping when the machine is "owned by account/billing" but physically c
   - Store logical storage chain and `storage_endpoints` only when those cloud disks are used for mounts, data placement, or backup destinations.
   - If the cloud disk is present but not used by modeled workloads/data flows yet, keep only L1 media/attachment facts.
 - `L4`:
-  - Store host OS installation fact in `host_operating_systems` (for example `hos-orangepi5-ubuntu` pattern).
+  - Store host OS fact in `host_operating_systems` when the cloud device is a runtime target in L4/L5.
+  - For inventory-only cloud devices without modeled runtime targets, `host_operating_systems` may be omitted.
   - Store runtime placement/resources for workloads that run on that cloud host.
 - `L5/L6/L7`:
   - `L5`: services and runtime bindings targeting that host.

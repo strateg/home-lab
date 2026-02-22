@@ -1,6 +1,7 @@
 id: hos-gamayun-proxmox
 device_ref: gamayun
 distribution: proxmox-ve
+version: "9.x"
 architecture: x86_64
 host_type: hypervisor
 status: active

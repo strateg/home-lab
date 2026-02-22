@@ -91,6 +91,7 @@ Minimum contract in v1:
 - `id`
 - `device_ref`
 - `distribution`
+- `version` (optional but recommended)
 - `architecture` (must match normalized `L1 specs.cpu.architecture`)
 - `host_type` (`baremetal`, `hypervisor`, `embedded`)
 - `status`
@@ -98,6 +99,11 @@ Minimum contract in v1:
 - `installation.media_ref` (optional when unknown)
 - `installation.slot_ref` (optional when unknown)
 - `installation.root_storage_endpoint_ref` (optional `L3 storage_endpoint_ref` when root placement is modeled)
+
+Installation semantics:
+
+- `installation` is recommended for `baremetal` and `hypervisor` host types.
+- `installation` is optional for `embedded` host types where OS/firmware is not modeled via replaceable media.
 
 ### D2. Separate host OS from guest OS explicitly
 
@@ -151,7 +157,7 @@ Add phase-2 validator rules:
 | `service.runtime.type: lxc` | `lxc` |
 | `service.runtime.type: vm` | `vm` |
 | `service.runtime.type: docker` | `docker` or `container` |
-| `service.runtime.type: baremetal` | Host OS object exists for `target_ref` |
+| `service.runtime.type: baremetal` | Host OS object exists for `target_ref`; `baremetal` means native host execution (including embedded-native services) |
 | `L4 vms[]` placement | `vm` on resolved host OS |
 | `L4 lxc[]` placement | `lxc` on resolved host OS |
 | `L4 template.architecture` (if set) | Must match resolved host OS architecture |
@@ -180,6 +186,14 @@ Layer model remains:
 - `L0 -> L1 -> L2 -> L3 -> L4 -> L5 -> L6 -> L7`
 
 Provisioning sequence in real operations (install OS, then configure network) does not require reversing architectural dependency direction. L2 continues to define logical network contract consumed by L4 workloads.
+
+### D7. Cloud host OS policy
+
+For provider instances:
+
+1. `host_operating_systems` is required when the device is an active runtime target (`L4` workloads or `L5 runtime.type` targeting the device).
+2. `host_operating_systems` may be omitted for inventory-only cloud devices not hosting modeled runtime targets.
+3. If omitted, architecture still must be declared in `L1 specs.cpu.architecture`.
 
 ## Public API Contract (L4 v1)
 
@@ -212,7 +226,7 @@ Evolution policy:
 Create missing host OS substrate objects for active runtime devices:
 
 1. `hos-gamayun-proxmox` (`host_type: hypervisor`, capabilities: `lxc`, `vm`, `cloudinit`)
-2. `hos-mikrotik-chateau-routeros` (`host_type: embedded`, capabilities: `container`)
+2. `hos-mikrotik-chateau-routeros` (`host_type: embedded`, capabilities: `container`, `baremetal`)
 
 Goal: every active runtime-bearing device has at least one `hos-*` object.
 

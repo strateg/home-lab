@@ -1158,6 +1158,7 @@
         "id": { "$ref": "#/definitions/HostOsRef" },
         "device_ref": { "$ref": "#/definitions/DeviceRef" },
         "distribution": { "type": "string" },
+        "version": { "type": "string" },
         "architecture": { "$ref": "#/definitions/CpuArchitecture" },
         "host_type": { "type": "string", "enum": ["baremetal", "hypervisor", "embedded"] },
         "status": { "type": "string", "enum": ["active", "planned", "maintenance", "retired"] },
