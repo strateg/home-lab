@@ -102,6 +102,36 @@ Rules:
 - In L2 networks, `managed_by_ref` should point to `class: network` device.
 - For L2 networks with `profile_ref`, keep only exception overrides in network files.
 
+## ADR Boilerplate (Layer Modularization)
+
+Use this section as shared source of truth for modularization ADRs to avoid repeated prose.
+
+### Naming Conventions
+
+- Directories: `kebab-case` (for example `resource-profiles/`, `storage-endpoints/`).
+- YAML keys: `snake_case` (for example `resource_profiles`, `storage_endpoints`).
+- Object IDs: stable, prefix-based, and layer-scoped.
+
+### Discovery Contract
+
+- Prefer deterministic auto-discovery: `!include_dir_sorted` for order-insensitive domains.
+- Do not use manual `_index.yaml` in migrated autodiscovery domains.
+- Keep one-object-per-file where practical; file name should match object `id` when possible.
+
+### RACI Template
+
+- Responsible: topology maintainer for layer files.
+- Accountable: architecture owner for contracts and boundary changes.
+- Consulted: upstream/downstream layer owners impacted by references.
+- Informed: operations owner for deployment/runbook impacts.
+
+### Rollback Template
+
+1. Restore composition root and/or monolithic layer file from git.
+2. Remove modular directory tree introduced by migration.
+3. Run strict validation: `python topology-tools/validate-topology.py --strict`.
+4. Regenerate outputs: `python topology-tools/regenerate-all.py --topology topology.yaml --strict --skip-mermaid-validate`.
+
 ## Add New Hardware Workflow
 
 1. Add new device file under `topology/L1-foundation/devices/<substrate-group>/<class>/<device-id>.yaml`.
