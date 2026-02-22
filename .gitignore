@@ -145,3 +145,4 @@ secrets.yml
 temp/
 terraform.rc
 user-data-*.yml
+.cache
