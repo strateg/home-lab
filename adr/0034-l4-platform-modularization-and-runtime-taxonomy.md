@@ -115,6 +115,9 @@ templates:
   vms: !include_dir_sorted L4-platform/templates/vms
 ```
 
+Note: `_defaults` is included for reference/documentation only after anchor normalization.
+New workloads should inline their configuration or use `resource_profile_ref`.
+
 ### Anchor Migration Strategy (Phase-0 Blocker)
 
 Current monolithic L4 uses aliases such as `*dns_default` and `*lxc_os_default` inside workloads.
@@ -161,6 +164,11 @@ Evolution policy:
    - templates: `tpl-lxc-*`, `tpl-vm-*`
 
 ## Prerequisites and Blockers
+
+Phase-0 (pre-split, required before phase-1):
+
+1. Anchor normalization in `topology/L4-platform.yaml`: inline all alias-based fields used by workloads.
+2. Verification: regenerate outputs before/after normalization and confirm zero generated diff.
 
 Phase-1 (this ADR) readiness:
 
