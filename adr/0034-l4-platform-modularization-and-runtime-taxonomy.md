@@ -1,70 +1,67 @@
-# ADR 0034: L4 Platform Modularization and Runtime Taxonomy
+# ADR 0034: L4 Platform Modularization (MVP) and Runtime Taxonomy
 
 - Status: Proposed
 - Date: 2026-02-22
 
 ## Context
 
-`L4_platform` is currently a monolithic file (`topology/L4-platform.yaml`) that combines:
+`L4_platform` is currently monolithic (`topology/L4-platform.yaml`, ~176 lines) and mixes:
 
-1. Defaults and anchors.
-2. Resource profiles.
-3. VM and LXC runtime instances.
-4. Template catalog.
+1. defaults and anchors,
+2. resource profiles,
+3. runtime workloads (`lxc`, `vms`),
+4. template catalog.
 
-After L1/L2/L3 modularization, L4 remains the largest unsplit runtime layer and now carries growing responsibilities:
-
-1. Hypervisor workloads (VM/LXC).
-2. Containerized runtime platforms (Docker/Podman).
-3. Orchestrated platforms (Kubernetes/OpenShift).
-4. Host OS state for L1 devices (planned/active lifecycle).
-
-This increases cognitive load and creates large diffs for small changes.
+Current scale is small (2 LXC, 0 VM, 5 templates), but edits already touch unrelated sections and increase review noise.
 
 Cross-layer analysis:
 
 - Downward (`L4 -> L1/L2/L3`):
-  - `device_ref` to L1 host inventory.
-  - `bridge_ref`, `network_ref`, `trust_zone_ref` to L2 network model.
-  - `storage_endpoint_ref` and `data_asset_ref` bindings to L3 contracts.
+  - `device_ref` to L1 devices.
+  - `bridge_ref`/`network_ref`/`trust_zone_ref` to L2.
+  - `storage_endpoint_ref`/`data_asset_ref` to L3.
 - Upward (`L5/L6/L7 <- L4`):
-  - L5 runtime targets (`lxc_ref`/`vm_ref`) depend on stable L4 IDs.
-  - L6 healthchecks depend on L4 workload IDs (`lxc_ref`).
-  - L7 backup/ops flows depend on L4 workload IDs and placement semantics.
+  - stable `lxc.id`/`vms.id` are consumed by service runtime targeting and operations flows.
 
-L4 therefore requires modularization by runtime domain, while preserving stable IDs for upper layers.
+Goal: reduce cognitive load now without speculative structure.
+
+## Responsibility Contract (L4)
+
+L4 owns:
+
+1. Workload instances and placement (`lxc`, `vms`).
+2. Runtime provisioning templates.
+3. Resource sizing policy (`resource_profiles`).
+
+L4 does not own:
+
+1. Service semantics and endpoint contracts (L5).
+2. Monitoring policy semantics (L6).
+3. Backup/runbook workflow semantics (L7).
 
 ## Alternatives Considered
 
 ### A. Keep monolithic `topology/L4-platform.yaml`
 
-Rejected:
+Rejected: highest short-term simplicity, but weak review ergonomics as L4 grows.
 
-- high review noise,
-- weak ownership boundaries,
-- poor scalability with container/orchestrator expansion.
+### B. Deep hierarchy by provider/node now
 
-### B. Split only by host (`by-node`) without domain boundaries
+Rejected: overfits future scale and adds unnecessary navigation depth for current footprint.
 
-Rejected:
+### C. Full runtime taxonomy now (`container-platforms/*`, `host-operating-systems/*`)
 
-- duplicates shared concerns (profiles/templates),
-- weak discoverability for platform-wide contracts,
-- harder validation of domain-specific invariants.
+Rejected: speculative (YAGNI) because those objects do not exist in current data model.
 
-### C. Selected: domain-first modularization with optional host partitioning
+### D. Selected: MVP modularization of existing domains only
 
-Selected:
-
-- clear bounded contexts in L4,
-- stable contracts for upper layers,
-- scalable extension to Docker/OpenShift and host OS lifecycle.
+Selected: smallest change set with immediate maintenance benefit and no schema churn.
 
 ## Decision
 
-Adopt modular L4 structure with domain-based composition and deterministic auto-discovery for order-insensitive domains.
+Adopt a minimal modular structure for current, schema-backed L4 domains only.
 
-Canonical structure:
+Canonical structure (phase-1 scope):
 
 ```text
 topology/L4-platform/
@@ -79,126 +76,123 @@ topology/L4-platform/
       tpl-vm-*.yaml
   workloads/
     lxc/
-      owned/proxmox/<node-id>/lxc-*.yaml
-      provider/<provider>/<region>/lxc-*.yaml
+      lxc-*.yaml
     vms/
-      owned/proxmox/<node-id>/vm-*.yaml
-      provider/<provider>/<region>/vm-*.yaml
-  host-operating-systems/
-    owned/hos-*.yaml
-    provider/hos-*.yaml
-  container-platforms/
-    runtimes/
-      rt-*.yaml
-    clusters/
-      cluster-*.yaml
-    nodes/
-      cnode-*.yaml
-    namespaces/
-      ns-*.yaml
+      vm-*.yaml
 ```
 
-`topology/L4-platform.yaml` becomes composition root:
+No `owned/proxy/provider/region/node` nesting in phase-1.
+Host-level grouping is introduced only when at least one threshold is met:
 
-1. `_defaults: !include L4-platform/defaults/defaults.yaml`
-2. `resource_profiles: !include_dir_sorted L4-platform/resource-profiles`
-3. `lxc: !include_dir_sorted L4-platform/workloads/lxc`
-4. `vms: !include_dir_sorted L4-platform/workloads/vms`
-5. `templates.lxc: !include_dir_sorted L4-platform/templates/lxc`
-6. `templates.vms: !include_dir_sorted L4-platform/templates/vms`
-7. New domains (schema rollout dependent):
-   - `host_operating_systems: !include_dir_sorted L4-platform/host-operating-systems`
-   - `container_runtimes: !include_dir_sorted L4-platform/container-platforms/runtimes`
-   - `container_clusters: !include_dir_sorted L4-platform/container-platforms/clusters`
-   - `container_nodes: !include_dir_sorted L4-platform/container-platforms/nodes`
-   - `platform_namespaces: !include_dir_sorted L4-platform/container-platforms/namespaces`
+1. `workloads/<type>/` has more than 12 files, or
+2. more than 2 placement domains are active (for example, `proxmox` + cloud provider).
 
-### L4 Responsibility Contract
+### Composition Root Example
 
-L4 owns runtime substrate and placement only:
+`topology/L4-platform.yaml` becomes a thin composition root:
 
-1. Workload instances and host bindings.
-2. Runtime platform inventory (VM/LXC/container runtimes/clusters).
-3. Host OS lifecycle state.
-4. Resource/profile/template policy.
+```yaml
+# L4 Platform composition root
+_defaults: !include L4-platform/defaults/defaults.yaml
 
-L4 does not own:
+resource_profiles: !include_dir_sorted L4-platform/resource-profiles
+lxc: !include_dir_sorted L4-platform/workloads/lxc
+vms: !include_dir_sorted L4-platform/workloads/vms
 
-1. Service semantics and endpoint behavior (L5).
-2. Alerting/monitoring policy semantics (L6).
-3. Backup/runbook/workflow policy semantics (L7).
+templates:
+  lxc: !include_dir_sorted L4-platform/templates/lxc
+  vms: !include_dir_sorted L4-platform/templates/vms
+```
 
-### Naming Contract
+## Public API Contract (for L5/L6/L7)
 
-1. Directories: `kebab-case`.
-2. YAML keys: `snake_case`.
-3. IDs:
-   - `vm-*`, `lxc-*`, `profile-*`, `tpl-*` (existing),
-   - `hos-*` for host OS entries,
-   - `rt-*`, `cluster-*`, `cnode-*`, `ns-*` for container platform domains.
+Public/stable in L4 `v1`:
 
-### Extension Patterns
+1. `lxc[].id`
+2. `vms[].id`
 
-1. Add new Proxmox node:
-   - add L1 device/media,
-   - add L4 workloads under `workloads/*/owned/proxmox/<node-id>/`,
-   - optionally add host OS entry in `host-operating-systems/owned/`.
-2. Add Docker host:
-   - add L1 device,
-   - add `container-platforms/runtimes/rt-*.yaml`,
-   - bind L5 runtime targets to `rt-*` (migration phase).
-3. Add OpenShift cluster:
-   - add `container_clusters`, `container_nodes`, `platform_namespaces`,
-   - keep service semantics in L5.
+Internal (not for upper-layer references):
 
-### Validator and Governance Requirements
+1. `_defaults`
+2. `resource_profiles`
+3. `templates` and template-internal fields
 
-1. Add L4 include-contract checks (required `!include_dir_sorted` lines).
-2. Add duplicate ID checks by L4 domain.
-3. Add filename==id lint for new one-object-per-file domains.
-4. Keep strict mode as default.
+Evolution policy:
+
+1. Breaking ID contract change requires new ADR and one release deprecation window.
+2. Removal must keep validation warning for at least one cycle before strict error.
+
+## Naming Contract
+
+1. Directory names: `kebab-case` (`resource-profiles/`).
+2. YAML keys: `snake_case` (`resource_profiles`).
+3. Object IDs:
+   - workloads: `lxc-*`, `vm-*`
+   - profiles: `profile-*`
+   - templates: `tpl-lxc-*`, `tpl-vm-*`
+
+## Prerequisites and Blockers
+
+Phase-1 (this ADR) readiness:
+
+1. `!include_dir_sorted` support in loader: ready.
+2. Current schema keys (`lxc`, `vms`, `resource_profiles`, `templates`): ready.
+3. Reference validation for L4 IDs: ready.
+
+Deferred (out of phase-1 scope):
+
+1. `host_operating_systems` schema and validators: blocker, not implemented.
+2. `container_runtimes` / cluster taxonomy schema and generators: blocker, not implemented.
+
+## RACI / Ownership
+
+1. Responsible: topology maintainer (L4 file/module edits).
+2. Accountable: architecture owner (layer contracts and ADR compliance).
+3. Consulted: service owners (L5 runtime target impacts).
+4. Informed: operations owner (deploy and runbook impact).
+
+## Rollback Plan
+
+If migration causes breakage:
+
+1. Restore monolithic `topology/L4-platform.yaml` from git.
+2. Remove `topology/L4-platform/` modular tree.
+3. Run `python topology-tools/validate-topology.py --strict`.
+4. Run `python topology-tools/regenerate-all.py --topology topology.yaml --strict --skip-mermaid-validate`.
 
 ## Consequences
 
 Benefits:
 
-- Smaller, localized diffs for L4 changes.
-- Clear separation between runtime substrate and service semantics.
-- Scalable path for Docker/OpenShift without overloading L5.
-- Lower cognitive load via domain-oriented navigation.
+1. Immediate reduction of merge conflicts in L4.
+2. Lower cognitive load with one-object-per-file in high-churn areas.
+3. No schema changes required for phase-1.
 
 Trade-offs:
 
-- More files and stronger validator contracts.
-- Schema and generator updates required for new container/host-OS domains.
-- Transition period where old and new runtime targeting may coexist.
-
-Migration impact:
-
-1. Phase 1: non-functional L4 split of existing domains (`resource_profiles`, `lxc`, `vms`, `templates`).
-2. Phase 2: introduce `host_operating_systems` domain and migrate planned host OS state from L1.
-3. Phase 3: introduce `container-platforms/*` domains and runtime-target evolution for L5.
-4. Phase 4: enforce strict validator contracts and remove legacy compatibility paths.
+1. File count increases from 1 to about 8 in current state.
+2. Include contracts become part of validator governance.
 
 Success metrics:
 
-1. Adding one LXC/VM changes at most 1-2 files in L4 modules.
-2. Median diff size for runtime instance changes stays under 60 lines.
-3. Zero behavioral diffs in generated outputs after phase-1 split.
-4. No manual `_index.yaml` in migrated L4 order-insensitive domains.
+1. Adding one LXC changes at most 2 files (`workloads/lxc/lxc-*.yaml` and optional profile/template file).
+2. Median diff size for workload-only changes stays under 60 lines.
+3. Zero behavioral diff in generated outputs after phase-1 split.
+
+## Deferred Extension Path
+
+When first real object appears, add only the needed domain:
+
+1. Add `host_operating_systems` only when OS lifecycle tracking is modeled as objects.
+2. Add container runtime taxonomy only when at least one runtime/cluster object exists.
+3. Document each added domain via follow-up ADR (expected next: ADR0035+).
 
 ## References
 
-- Current monolith: `topology/L4-platform.yaml`
-- Layer contracts and storage/platform context:
-  - [0026](0026-l3-l4-taxonomy-refactoring-storage-chain-and-platform-separation.md)
-  - [0029](0029-storage-taxonomy-and-layer-boundary-consolidation.md)
-  - [0032](0032-l3-data-modularization-and-layer-contracts.md)
-  - [0033](0033-toolchain-contract-rebaseline-after-modularization.md)
-- Related toolchain alignment:
-  - [0031](0031-layered-topology-toolchain-contract-alignment.md)
-- Validators/generators:
-  - `topology-tools/validate-topology.py`
-  - `topology-tools/scripts/validators/checks/references.py`
-  - `topology-tools/scripts/generators/terraform/proxmox/generator.py`
-  - `topology-tools/generate-ansible-inventory.py`
+1. `topology/L4-platform.yaml`
+2. [0031](0031-layered-topology-toolchain-contract-alignment.md)
+3. [0032](0032-l3-data-modularization-and-layer-contracts.md)
+4. [0033](0033-toolchain-contract-rebaseline-after-modularization.md)
+5. `topology-tools/validate-topology.py`
+6. `topology-tools/scripts/validators/checks/references.py`
+7. `topology-tools/scripts/generators/terraform/proxmox/generator.py`
