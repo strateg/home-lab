@@ -52,6 +52,19 @@ flowchart TB
         {% endfor %}
     end
 
+    subgraph gamayun_host["Proxmox Host (Gamayun)"]
+        direction TB
+        {% for service in services %}
+        {% if service.device_ref == 'gamayun' and service.lxc_ref is not defined %}
+        {% if use_mermaid_icons %}
+        {{ service.id | mermaid_id }}@{ icon: "{{ service_icons.get(service.id, 'mdi:application-cog-outline') }}", form: "rounded", label: "{{ service.name }} {{ service.type }}", pos: "b", h: 44 }
+        {% else %}
+        {{ service.id | mermaid_id }}["{{ service.name }}<br/>{{ service.type }}"]
+        {% endif %}
+        {% endif %}
+        {% endfor %}
+    end
+
     %% Declared dependencies
     {% for service in services %}
     {% if service.dependencies is defined %}
@@ -60,11 +73,6 @@ flowchart TB
     {% endfor %}
     {% endif %}
     {% endfor %}
-
-    %% Monitoring dependencies
-    svc_grafana --> svc_prometheus
-    svc_grafana --> svc_loki
-    svc_alertmanager --> svc_prometheus
 
     %% Styling
     classDef database fill:#4dabf7,stroke:#1864ab,color:#fff

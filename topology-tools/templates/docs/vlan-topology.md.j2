@@ -59,7 +59,9 @@ graph LR
     classDef mgmt fill:#da77f2,stroke:#9c36b5,color:#fff
     classDef bridge fill:#e9ecef,stroke:#868e96,color:#000
 
+    {# Apply classes only to networks that were defined as nodes #}
     {% for network in networks %}
+    {% if network.vlan or (network.cidr != 'dhcp' and network.bridge_ref is none) %}
     {% if network.trust_zone_ref == 'untrusted' %}
     class {{ network.id | mermaid_id }} untrusted
     {% elif network.trust_zone_ref == 'user' %}
@@ -72,6 +74,7 @@ graph LR
     class {{ network.id | mermaid_id }} guest
     {% elif network.trust_zone_ref == 'management' %}
     class {{ network.id | mermaid_id }} mgmt
+    {% endif %}
     {% endif %}
     {% endfor %}
     {% for bridge in bridges %}

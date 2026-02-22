@@ -41,7 +41,8 @@ flowchart TB
     {% else %}
     mon_{{ unit.id | mermaid_id }}["Monitoring<br/>{{ unit.connection.monitoring_software | default('N/A') }}"]
     {% endif %}
-    {{ unit.connection.connected_to | mermaid_id }} -.USB.-> mon_{{ unit.id | mermaid_id }}
+    {#- Use the full node ID with prefix for the monitoring device connection -#}
+    pd_{{ unit.id | mermaid_id }}_{{ unit.connection.connected_to | mermaid_id }} -.USB.-> mon_{{ unit.id | mermaid_id }}
     mon_{{ unit.id | mermaid_id }} -.status.-> {{ unit.id | mermaid_id }}
     {% endfor %}
 

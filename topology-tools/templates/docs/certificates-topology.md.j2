@@ -7,6 +7,20 @@
 
 ## PKI and Certificate Distribution
 
+{# Collect all service_refs from certificates to ensure they are defined as nodes #}
+{%- set cert_service_refs = [] -%}
+{%- for cert in certificates.certificates | default([]) -%}
+    {%- if cert.service_ref is defined -%}
+        {%- set _ = cert_service_refs.append(cert.service_ref) -%}
+    {%- endif -%}
+{%- endfor -%}
+{%- for cert in certificates.additional | default([]) -%}
+    {%- for target in cert.used_by | default([]) -%}
+        {%- if target.service_ref is defined -%}
+            {%- set _ = cert_service_refs.append(target.service_ref) -%}
+        {%- endif -%}
+    {%- endfor -%}
+{%- endfor %}
 {% if use_mermaid_icons %}
 > {{ mermaid_icon_runtime_hint }}
 {% endif %}
@@ -38,7 +52,7 @@ flowchart LR
 
     subgraph services["TLS Services"]
         {% for service in services %}
-        {% if service.protocol == 'https' or (service.ports is defined and service.ports.https is defined) %}
+        {% if service.protocol == 'https' or (service.ports is defined and service.ports.https is defined) or service.id in cert_service_refs %}
         {% if use_mermaid_icons %}
         {{ service.id | mermaid_id }}@{ icon: "{{ service_icons.get(service.id, 'mdi:web') }}", form: "rounded", label: "{{ service.name }} {{ service.protocol | default('https') }}", pos: "b", h: 42 }
         {% else %}
@@ -91,7 +105,7 @@ flowchart LR
     class {{ cert.id | mermaid_id }} cert
     {% endfor %}
     {% for service in services %}
-    {% if service.protocol == 'https' or (service.ports is defined and service.ports.https is defined) %}
+    {% if service.protocol == 'https' or (service.ports is defined and service.ports.https is defined) or service.id in cert_service_refs %}
     class {{ service.id | mermaid_id }} svc
     {% endif %}
     {% endfor %}
