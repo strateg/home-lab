@@ -15,6 +15,7 @@ from .governance import check_ip_overlaps, check_l0_contracts, check_version
 from .network import (
     check_bridge_refs,
     check_data_links,
+    check_firewall_policy_addressability,
     check_network_refs,
     check_power_links,
     check_vlan_tags,
@@ -48,6 +49,7 @@ __all__ = [
     # Network checks
     "check_bridge_refs",
     "check_data_links",
+    "check_firewall_policy_addressability",
     "check_network_refs",
     "check_power_links",
     "check_vlan_tags",

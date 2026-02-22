@@ -559,3 +559,67 @@ def check_trust_zone_firewall_refs(
                 f"Trust zone '{zone_id}': default_firewall_policy_ref '{fw_ref}' does not exist"
             )
 
+
+def check_firewall_policy_addressability(
+    topology: Dict[str, Any],
+    *,
+    errors: List[str],
+    warnings: List[str],
+) -> None:
+    """
+    Validate that firewall policy zone/network refs are resolvable to address sets.
+
+    This guards generator behavior that derives RouterOS address-lists from L2 refs.
+    """
+    del errors
+    l2 = topology.get('L2_network', {}) or {}
+    networks = [network for network in (l2.get('networks', []) or []) if isinstance(network, dict)]
+    policies = [policy for policy in (l2.get('firewall_policies', []) or []) if isinstance(policy, dict)]
+
+    network_cidr_by_id = {
+        network.get('id'): network.get('cidr')
+        for network in networks
+        if network.get('id')
+    }
+    zone_has_static_cidr: Dict[str, bool] = {}
+    for network in networks:
+        zone_ref = network.get('trust_zone_ref')
+        cidr = network.get('cidr')
+        if not isinstance(zone_ref, str) or not zone_ref:
+            continue
+        has_static = isinstance(cidr, str) and cidr != 'dhcp'
+        zone_has_static_cidr[zone_ref] = zone_has_static_cidr.get(zone_ref, False) or has_static
+
+    for policy in policies:
+        policy_id = policy.get('id', 'unknown')
+
+        for key in ('source_network_ref', 'destination_network_ref'):
+            network_ref = policy.get(key)
+            if not isinstance(network_ref, str) or not network_ref:
+                continue
+            cidr = network_cidr_by_id.get(network_ref)
+            if cidr == 'dhcp':
+                warnings.append(
+                    f"Firewall policy '{policy_id}': {key} '{network_ref}' resolves to dynamic CIDR ('dhcp'); "
+                    "address-list based matching may be incomplete"
+                )
+
+        zone_refs: List[str] = []
+        for key in ('source_zone_ref', 'destination_zone_ref'):
+            zone_ref = policy.get(key)
+            if isinstance(zone_ref, str) and zone_ref:
+                zone_refs.append(zone_ref)
+        for zone_ref in policy.get('destination_zones_ref', []) or []:
+            if isinstance(zone_ref, str) and zone_ref:
+                zone_refs.append(zone_ref)
+
+        for zone_ref in zone_refs:
+            if zone_ref == 'untrusted':
+                # Untrusted can be mapped to catch-all in generators.
+                continue
+            if not zone_has_static_cidr.get(zone_ref, False):
+                warnings.append(
+                    f"Firewall policy '{policy_id}': zone ref '{zone_ref}' has no static CIDR networks; "
+                    "address-list derivation may be empty"
+                )
+

@@ -11,6 +11,25 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ANSIBLE_DIR="$PROJECT_DIR/ansible"
+ALLOW_LEGACY_INVENTORY_FALLBACK="${ALLOW_LEGACY_INVENTORY_FALLBACK:-0}"
+
+for arg in "$@"; do
+    case "$arg" in
+        --allow-legacy-inventory)
+            ALLOW_LEGACY_INVENTORY_FALLBACK=1
+            ;;
+        -h|--help)
+            echo "Usage: $0 [--allow-legacy-inventory]"
+            echo ""
+            echo "Default behavior:"
+            echo "  - Uses generated inventory only: generated/ansible/inventory/production/hosts.yml"
+            echo "Compatibility mode:"
+            echo "  --allow-legacy-inventory or ALLOW_LEGACY_INVENTORY_FALLBACK=1"
+            echo "  - allows fallback to ansible/inventory/production/hosts.yml"
+            exit 0
+            ;;
+    esac
+done
 
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -38,10 +57,22 @@ if [ ! -d "$ANSIBLE_DIR" ]; then
 fi
 
 # Check inventory exists
-INVENTORY="$PROJECT_DIR/generated/ansible/inventory/hosts.yml"
+INVENTORY="$PROJECT_DIR/generated/ansible/inventory/production/hosts.yml"
 if [ ! -f "$INVENTORY" ]; then
-    echo -e "${YELLOW}⚠️  Generated inventory not found, using default${NC}"
-    INVENTORY="$ANSIBLE_DIR/inventory/production/hosts.yml"
+    if [ "$ALLOW_LEGACY_INVENTORY_FALLBACK" = "1" ]; then
+        echo -e "${YELLOW}⚠️  Generated inventory not found, falling back to legacy inventory (compat mode enabled)${NC}"
+        INVENTORY="$ANSIBLE_DIR/inventory/production/hosts.yml"
+    else
+        echo -e "${RED}❌ Generated inventory not found: $INVENTORY${NC}"
+        echo "   Generate inventory first:"
+        echo "   python3 topology-tools/generate-ansible-inventory.py"
+        echo ""
+        echo "   Legacy fallback is disabled by default."
+        echo "   To enable temporarily:"
+        echo "   - pass --allow-legacy-inventory"
+        echo "   - or set ALLOW_LEGACY_INVENTORY_FALLBACK=1"
+        exit 1
+    fi
 fi
 
 if [ ! -f "$INVENTORY" ]; then

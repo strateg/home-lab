@@ -27,6 +27,7 @@ from scripts.validators.checks.storage import (
 from scripts.validators.checks.network import (
     check_bridge_refs,
     check_data_links,
+    check_firewall_policy_addressability,
     check_mtu_consistency,
     check_network_refs,
     check_power_links,
@@ -234,6 +235,7 @@ class SchemaValidator:
         self._check_device_taxonomy(ids)
         self._check_l0_contracts(ids)
         self._check_network_refs(ids)
+        self._check_firewall_policy_addressability()
         self._check_bridge_refs(ids)
         self._check_data_links(ids)
         self._check_power_links(ids)
@@ -310,6 +312,13 @@ class SchemaValidator:
         check_bridge_refs(
             self.topology or {},
             ids,
+            errors=self.errors,
+            warnings=self.warnings,
+        )
+
+    def _check_firewall_policy_addressability(self) -> None:
+        check_firewall_policy_addressability(
+            self.topology or {},
             errors=self.errors,
             warnings=self.warnings,
         )

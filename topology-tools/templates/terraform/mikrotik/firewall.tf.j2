@@ -8,41 +8,14 @@
 # Address Lists
 # -----------------------------------------------------------------------------
 
-resource "routeros_ip_firewall_addr_list" "lan_networks" {
-  list    = "LAN"
-  address = "192.168.88.0/24"
-  comment = "Main LAN network"
+{% for addr in firewall_address_lists %}
+resource "routeros_ip_firewall_addr_list" "{{ addr.resource_name }}" {
+  list    = "{{ addr.list }}"
+  address = "{{ addr.address }}"
+  comment = "{{ addr.comment }}"
 }
 
-resource "routeros_ip_firewall_addr_list" "servers_network" {
-  list    = "SERVERS"
-  address = "10.0.30.0/24"
-  comment = "Servers network"
-}
-
-resource "routeros_ip_firewall_addr_list" "management_network" {
-  list    = "MANAGEMENT"
-  address = "10.0.99.0/24"
-  comment = "Management network"
-}
-
-resource "routeros_ip_firewall_addr_list" "vpn_network" {
-  list    = "VPN"
-  address = "10.0.200.0/24"
-  comment = "WireGuard VPN network"
-}
-
-resource "routeros_ip_firewall_addr_list" "guest_network" {
-  list    = "GUEST"
-  address = "192.168.30.0/24"
-  comment = "Guest WiFi network"
-}
-
-resource "routeros_ip_firewall_addr_list" "iot_network" {
-  list    = "IOT"
-  address = "192.168.40.0/24"
-  comment = "IoT network"
-}
+{% endfor %}
 
 # -----------------------------------------------------------------------------
 # Firewall Filter Rules - Input Chain
@@ -67,7 +40,7 @@ resource "routeros_ip_firewall_filter" "input_ssh_lan" {
   action           = "accept"
   protocol         = "tcp"
   dst_port         = "22"
-  src_address_list = "LAN"
+  src_address_list = "{{ lan_admin_list_name }}"
   comment          = "Accept SSH from LAN"
 }
 
@@ -76,7 +49,7 @@ resource "routeros_ip_firewall_filter" "input_winbox" {
   action           = "accept"
   protocol         = "tcp"
   dst_port         = "8291"
-  src_address_list = "LAN"
+  src_address_list = "{{ lan_admin_list_name }}"
   comment          = "Accept Winbox from LAN"
 }
 
@@ -85,7 +58,7 @@ resource "routeros_ip_firewall_filter" "input_api" {
   action           = "accept"
   protocol         = "tcp"
   dst_port         = "8443"
-  src_address_list = "MANAGEMENT"
+  src_address_list = "{{ management_list_name }}"
   comment          = "Accept REST API from management network"
 }
 
@@ -110,14 +83,14 @@ resource "routeros_ip_firewall_filter" "input_wireguard" {
   action       = "accept"
   protocol     = "udp"
   dst_port     = "51820"
-  in_interface = "ether1"
+  in_interface = "{{ wan_interface_name }}"
   comment      = "Accept WireGuard from WAN"
 }
 
 resource "routeros_ip_firewall_filter" "input_drop_wan" {
   chain        = "input"
   action       = "drop"
-  in_interface = "ether1"
+  in_interface = "{{ wan_interface_name }}"
   comment      = "Drop all other input from WAN"
   log          = true
   log_prefix   = "DROP_INPUT_WAN:"
@@ -143,24 +116,23 @@ resource "routeros_ip_firewall_filter" "forward_invalid" {
 
 {% for policy in firewall_policies %}
 {% if policy.chain == 'forward' %}
-resource "routeros_ip_firewall_filter" "{{ policy.id | replace('-', '_') }}" {
+resource "routeros_ip_firewall_filter" "{{ policy.resource_name }}" {
   chain            = "forward"
   action           = "{{ policy.action }}"
-  {% if policy.source_network_ref %}
-  src_address      = "{{ policy.source_cidr }}"
-  {% elif policy.source_zone_ref %}
-  src_address_list = "{{ policy.source_zone_ref | upper }}"
+  {% if policy.source_address_list %}
+  src_address_list = "{{ policy.source_address_list }}"
   {% endif %}
-  {% if policy.destination_network_ref %}
-  dst_address      = "{{ policy.destination_cidr }}"
-  {% elif policy.destination_zone_ref %}
-  dst_address_list = "{{ policy.destination_zone_ref | upper }}"
+  {% if policy.destination_address_list %}
+  dst_address_list = "{{ policy.destination_address_list }}"
   {% endif %}
-  {% if policy.protocols %}
-  protocol         = "{{ policy.protocols[0] }}"
+  {% if policy.connection_state_csv %}
+  connection_state = "{{ policy.connection_state_csv }}"
   {% endif %}
-  {% if policy.ports %}
-  dst_port         = "{{ policy.ports | join(',') }}"
+  {% if policy.protocol %}
+  protocol         = "{{ policy.protocol }}"
+  {% endif %}
+  {% if policy.ports_csv %}
+  dst_port         = "{{ policy.ports_csv }}"
   {% endif %}
   comment          = "{{ policy.name }}: {{ policy.description }}"
 }
@@ -183,14 +155,14 @@ resource "routeros_ip_firewall_filter" "forward_drop_default" {
 resource "routeros_ip_firewall_nat" "masquerade_wan" {
   chain         = "srcnat"
   action        = "masquerade"
-  out_interface = "ether1"
+  out_interface = "{{ wan_interface_name }}"
   comment       = "Masquerade outgoing traffic on WAN"
 }
 
 resource "routeros_ip_firewall_nat" "masquerade_lte" {
   chain         = "srcnat"
   action        = "masquerade"
-  out_interface = "lte1"
+  out_interface = "{{ lte_interface_name }}"
   comment       = "Masquerade outgoing traffic on LTE failover"
 }
 

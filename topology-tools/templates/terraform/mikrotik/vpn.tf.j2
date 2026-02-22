@@ -60,7 +60,7 @@ resource "routeros_ip_firewall_filter" "wg_input" {
   action       = "accept"
   protocol     = "udp"
   dst_port     = "{{ wireguard.port | default(51820) }}"
-  in_interface = "ether1"
+  in_interface = "{{ wan_interface_name }}"
   comment      = "Accept WireGuard on WAN"
 }
 
@@ -90,6 +90,6 @@ resource "routeros_ip_firewall_nat" "wg_masquerade" {
   chain         = "srcnat"
   action        = "masquerade"
   src_address   = "{{ wireguard.network | default('10.0.200.0/24') }}"
-  out_interface = "ether1"
+  out_interface = "{{ wan_interface_name }}"
   comment       = "Masquerade WireGuard clients to WAN"
 }

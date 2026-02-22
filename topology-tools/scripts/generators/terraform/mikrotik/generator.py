@@ -3,7 +3,8 @@ Terraform generator core for MikroTik RouterOS.
 """
 
 from pathlib import Path
-from typing import Dict, List
+import re
+from typing import Any, Dict, List
 from jinja2 import Environment, FileSystemLoader
 
 from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
@@ -23,18 +24,55 @@ class MikrotikTerraformGenerator:
         self.vlans: List[Dict] = []
         self.lan_ports: List[Dict] = []
         self.firewall_policies: List[Dict] = []
+        self.firewall_address_lists: List[Dict] = []
         self.qos: Dict = {}
         self.wireguard: Dict = {}
         self.containers: Dict = {}
         self.dns_records: List[Dict] = []
         self.dns_settings: Dict = {}
         self.dhcp_leases: List[Dict] = []
+        self.interface_name_by_id: Dict[str, str] = {}
+        self.wan_interface_name: str = 'ether1'
+        self.lte_interface_name: str = 'lte1'
 
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(self.templates_dir)),
             trim_blocks=True,
             lstrip_blocks=True
         )
+
+    @staticmethod
+    def _network_list_name(network_id: str) -> str:
+        base = network_id[4:] if isinstance(network_id, str) and network_id.startswith('net-') else network_id
+        return f"NET_{str(base).replace('-', '_').upper()}"
+
+    @staticmethod
+    def _zone_list_name(zone_id: str) -> str:
+        return str(zone_id).replace('-', '_').upper()
+
+    @staticmethod
+    def _terraform_resource_name(seed: str) -> str:
+        resource_name = re.sub(r'[^a-zA-Z0-9_]', '_', str(seed).lower()).strip('_')
+        if not resource_name:
+            resource_name = 'resource'
+        if resource_name[0].isdigit():
+            resource_name = f"r_{resource_name}"
+        return resource_name
+
+    def _build_interface_name_map(self) -> None:
+        self.interface_name_by_id = {}
+        for interface in self.mikrotik_device.get('interfaces', []):
+            if not isinstance(interface, dict):
+                continue
+            interface_id = interface.get('id')
+            interface_name = interface.get('physical_name') or interface.get('name') or interface_id
+            if interface_id and interface_name:
+                self.interface_name_by_id[interface_id] = interface_name
+
+    def _resolve_interface_name(self, interface_ref: str, default_name: str = "") -> str:
+        if not interface_ref:
+            return default_name
+        return self.interface_name_by_id.get(interface_ref, default_name or interface_ref)
 
     def load_topology(self) -> bool:
         """Load topology YAML file (with !include support)"""
@@ -92,13 +130,26 @@ class MikrotikTerraformGenerator:
 
     def _extract_networks(self):
         """Extract networks managed by MikroTik"""
+        self._build_interface_name_map()
+
         for network in self.topology['L2_network'].get('networks', []):
             if network.get('managed_by_ref') == 'mikrotik-chateau':
-                if network.get('vlan'):
-                    network['interface_name'] = f"vlan{network['vlan']}"
+                item = dict(network)
+                if item.get('vlan'):
+                    item['interface_name'] = f"vlan{item['vlan']}"
+                elif item.get('interface_ref'):
+                    item['interface_name'] = self._resolve_interface_name(item.get('interface_ref'), default_name='bridge-lan')
                 else:
-                    network['interface_name'] = 'bridge-lan'
-                self.networks.append(network)
+                    item['interface_name'] = 'bridge-lan'
+                self.networks.append(item)
+
+        wan_network = next((n for n in self.networks if n.get('id') == 'net-wan'), None)
+        if isinstance(wan_network, dict) and wan_network.get('interface_name'):
+            self.wan_interface_name = wan_network['interface_name']
+
+        lte_network = next((n for n in self.networks if n.get('id') == 'net-lte-failover'), None)
+        if isinstance(lte_network, dict) and lte_network.get('interface_name'):
+            self.lte_interface_name = lte_network['interface_name']
 
         print(f"OK Extracted {len(self.networks)} networks")
 
@@ -124,7 +175,7 @@ class MikrotikTerraformGenerator:
             if interface.get('type') == 'ethernet' and interface.get('role') == 'lan':
                 self.lan_ports.append({
                     'name': interface.get('id', '').replace('if-mikrotik-', ''),
-                    'interface': interface.get('physical_name', interface.get('id')),
+                    'interface': interface.get('physical_name') or interface.get('name') or interface.get('id'),
                     'pvid': 1,
                     'comment': interface.get('description', ''),
                     'tagged_vlans': False,
@@ -132,26 +183,150 @@ class MikrotikTerraformGenerator:
 
         print(f"OK Extracted {len(self.lan_ports)} LAN ports")
 
+    def _build_firewall_address_lists(self, policies: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+        """Build deterministic address-lists for all networks/zones referenced by firewall policies."""
+        all_networks = {
+            network.get('id'): network
+            for network in self.topology.get('L2_network', {}).get('networks', []) or []
+            if isinstance(network, dict) and network.get('id')
+        }
+
+        referenced_networks = set()
+        referenced_zones = set()
+        for policy in policies:
+            if not isinstance(policy, dict):
+                continue
+            for key in ('source_network_ref', 'destination_network_ref'):
+                network_ref = policy.get(key)
+                if isinstance(network_ref, str) and network_ref:
+                    referenced_networks.add(network_ref)
+            for key in ('source_zone_ref', 'destination_zone_ref'):
+                zone_ref = policy.get(key)
+                if isinstance(zone_ref, str) and zone_ref:
+                    referenced_zones.add(zone_ref)
+            for zone_ref in policy.get('destination_zones_ref', []) or []:
+                if isinstance(zone_ref, str) and zone_ref:
+                    referenced_zones.add(zone_ref)
+
+        zone_cidrs: Dict[str, set] = {}
+        for network in all_networks.values():
+            zone_ref = network.get('trust_zone_ref')
+            cidr = network.get('cidr')
+            if not isinstance(zone_ref, str) or not zone_ref:
+                continue
+            if not isinstance(cidr, str) or not cidr or cidr == 'dhcp':
+                continue
+            zone_cidrs.setdefault(zone_ref, set()).add(cidr)
+
+        entries: List[Dict[str, str]] = []
+        seen_pairs = set()
+        seen_resource_names = set()
+
+        def add_entry(list_name: str, address: str, comment: str) -> None:
+            pair = (list_name, address)
+            if pair in seen_pairs:
+                return
+            seen_pairs.add(pair)
+            base_name = self._terraform_resource_name(f"addr_list_{list_name}_{address}")
+            resource_name = base_name
+            suffix = 2
+            while resource_name in seen_resource_names:
+                resource_name = f"{base_name}_{suffix}"
+                suffix += 1
+            seen_resource_names.add(resource_name)
+            entries.append({
+                'resource_name': resource_name,
+                'list': list_name,
+                'address': address,
+                'comment': comment,
+            })
+
+        for zone_ref in sorted(referenced_zones):
+            list_name = self._zone_list_name(zone_ref)
+            cidrs = sorted(zone_cidrs.get(zone_ref, set()))
+            if not cidrs and zone_ref == 'untrusted':
+                cidrs = ['0.0.0.0/0']
+            for cidr in cidrs:
+                add_entry(list_name, cidr, f"Trust zone {zone_ref}")
+
+        for network_ref in sorted(referenced_networks):
+            network = all_networks.get(network_ref)
+            if not isinstance(network, dict):
+                continue
+            cidr = network.get('cidr')
+            if not isinstance(cidr, str) or not cidr or cidr == 'dhcp':
+                continue
+            add_entry(
+                self._network_list_name(network_ref),
+                cidr,
+                f"Network {network_ref}",
+            )
+
+        return entries
+
+    def _expand_firewall_policies(self, policies: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Expand firewall policies into rule-ready records (including destination_zones_ref fan-out)."""
+        expanded: List[Dict[str, Any]] = []
+
+        for policy in policies:
+            if not isinstance(policy, dict):
+                continue
+
+            source_list = None
+            if policy.get('source_network_ref'):
+                source_list = self._network_list_name(policy['source_network_ref'])
+            elif policy.get('source_zone_ref'):
+                source_list = self._zone_list_name(policy['source_zone_ref'])
+
+            destination_lists: List[Any] = []
+            if policy.get('destination_network_ref'):
+                destination_lists = [self._network_list_name(policy['destination_network_ref'])]
+            elif policy.get('destination_zone_ref'):
+                destination_lists = [self._zone_list_name(policy['destination_zone_ref'])]
+            else:
+                for zone_ref in policy.get('destination_zones_ref', []) or []:
+                    if isinstance(zone_ref, str) and zone_ref:
+                        destination_lists.append(self._zone_list_name(zone_ref))
+            if not destination_lists:
+                destination_lists = [None]
+
+            protocols = policy.get('protocols') or []
+            protocol = protocols[0] if isinstance(protocols, list) and protocols else None
+            ports = policy.get('ports') or []
+            ports_csv = ",".join(str(port) for port in ports) if isinstance(ports, list) and ports else None
+            connection_state = policy.get('connection_state') or []
+            connection_state_csv = (
+                ",".join(str(state) for state in connection_state)
+                if isinstance(connection_state, list) and connection_state
+                else None
+            )
+
+            for index, destination_list in enumerate(destination_lists):
+                suffix = f"-dst-{index + 1}" if len(destination_lists) > 1 else ""
+                effective_id = f"{policy.get('id', 'fw-policy')}{suffix}"
+                expanded.append({
+                    **policy,
+                    'effective_id': effective_id,
+                    'resource_name': effective_id.replace('-', '_'),
+                    'source_address_list': source_list,
+                    'destination_address_list': destination_list,
+                    'protocol': protocol,
+                    'ports_csv': ports_csv,
+                    'connection_state_csv': connection_state_csv,
+                })
+
+        return expanded
+
     def _extract_firewall_policies(self):
         """Extract firewall policies"""
         policies = self.topology['L2_network'].get('firewall_policies', [])
+        self.firewall_address_lists = self._build_firewall_address_lists(policies)
+        self.firewall_policies = self._expand_firewall_policies(policies)
 
-        for policy in policies:
-            if policy.get('source_network_ref'):
-                for net in self.networks:
-                    if net.get('id') == policy['source_network_ref']:
-                        policy['source_cidr'] = net.get('cidr')
-                        break
-
-            if policy.get('destination_network_ref'):
-                for net in self.networks:
-                    if net.get('id') == policy['destination_network_ref']:
-                        policy['destination_cidr'] = net.get('cidr')
-                        break
-
-            self.firewall_policies.append(policy)
-
-        print(f"OK Extracted {len(self.firewall_policies)} firewall policies")
+        print(
+            f"OK Extracted {len(self.firewall_policies)} firewall policy rules "
+            f"and {len(self.firewall_address_lists)} address-list entries"
+        )
 
     def _extract_qos(self):
         """Extract QoS configuration"""
@@ -318,6 +493,11 @@ class MikrotikTerraformGenerator:
                 'vlans': self.vlans,
                 'lan_ports': self.lan_ports,
                 'firewall_policies': self.firewall_policies,
+                'firewall_address_lists': self.firewall_address_lists,
+                'wan_interface_name': self.wan_interface_name,
+                'lte_interface_name': self.lte_interface_name,
+                'lan_admin_list_name': self._network_list_name('net-lan'),
+                'management_list_name': self._zone_list_name('management'),
                 'qos': self.qos,
                 'wireguard': self.wireguard,
                 'containers': self.containers,
