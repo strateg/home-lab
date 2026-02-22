@@ -34,3 +34,4 @@
 | [0031](0031-layered-topology-toolchain-contract-alignment.md) | Layered Topology Toolchain Contract Alignment | Proposed | 2026-02-22 | - | - |
 | [0032](0032-l3-data-modularization-and-layer-contracts.md) | L3 Data Modularization and Layer Contracts | Proposed | 2026-02-22 | - | - |
 | [0033](0033-toolchain-contract-rebaseline-after-modularization.md) | Toolchain Contract Rebaseline After Modularization | Proposed | 2026-02-22 | - | - |
+| [0034](0034-l4-platform-modularization-and-runtime-taxonomy.md) | L4 Platform Modularization and Runtime Taxonomy | Proposed | 2026-02-22 | - | - |
