@@ -14,14 +14,14 @@ profile_ref: prof-virtual-bridge-mixed
 managed_by_ref: mikrotik-chateau
 ip_allocations:
 - ip: 192.168.88.1
-  device_ref: mikrotik-chateau
+  host_os_ref: hos-mikrotik-chateau-routeros
   interface: bridge-lan
   description: MikroTik LAN gateway
 - ip: 192.168.88.2
-  device_ref: gamayun
+  host_os_ref: hos-gamayun-proxmox
   interface: eth0
   description: Proxmox host
 - ip: 192.168.88.3
-  device_ref: orangepi5
+  host_os_ref: hos-orangepi5-ubuntu
   interface: eth0
   description: Orange Pi 5 application server

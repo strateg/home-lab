@@ -37,4 +37,5 @@
 | [0034](0034-l4-platform-modularization-and-runtime-taxonomy.md) | L4 Platform Modularization and Runtime Taxonomy | Proposed | 2026-02-22 | - | - |
 | [0035](0035-l4-host-os-foundation-and-runtime-substrates.md) | L4 Host OS Foundation and Runtime Substrate Contracts | Proposed | 2026-02-22 | - | - |
 | [0036](0036-l2-host-os-reference-in-network-allocations.md) | Host OS Reference in Network Allocations | Proposed | 2026-02-22 | - | - |
-| [0037](0037-l2-network-substrate-and-workload-binding-contracts.md) | L2 Network Substrate and Workload Binding Contracts | Proposed | 2026-02-22 | - | - |
+| [0037](0037-l2-network-substrate-and-workload-binding-contracts.md) | L2 Network Substrate and Workload Binding Contracts | Superseded | 2026-02-22 | - | [0038](0038-network-binding-contracts-phase1.md) |
+| [0038](0038-network-binding-contracts-phase1.md) | Network Binding Contracts Phase 1 (Gradual Evolution) | Accepted | 2026-02-22 | [0037](0037-l2-network-substrate-and-workload-binding-contracts.md) | - |

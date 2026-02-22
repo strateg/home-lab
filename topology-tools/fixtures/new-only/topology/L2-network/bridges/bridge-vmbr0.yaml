@@ -1,5 +1,6 @@
 id: bridge-vmbr0
 device_ref: gamayun
+host_os_ref: hos-gamayun-proxmox
 name: vmbr0
 comment: LAN trunk bridge to MikroTik (VLAN-aware)
 ports:

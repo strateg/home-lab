@@ -50,6 +50,10 @@ Notes:
 - strict mode is the default. Warnings (including deprecations) are escalated to errors.
 - `--compat` keeps warnings as warnings for legacy/mixed migration fixtures.
 - `--migration-report` prints a checklist of legacy fields to migrate for ADR-0026/v5.
+- ADR-0038 checks are enabled:
+  - validates runtime-to-network reachability for `docker|baremetal|lxc|vm`.
+  - validates `ip_allocations[].host_os_ref` and bridge optional `host_os_ref`.
+  - `ip_allocations[].device_ref` is deprecated (compatibility path).
 
 ### migrate-to-v5.py
 Migration assistant for ADR-0026.

@@ -133,6 +133,48 @@ lxc:
   ansible:
     enabled: true
     playbook: redis.yml
+host_operating_systems:
+- id: hos-gamayun-proxmox
+  device_ref: gamayun
+  distribution: proxmox-ve
+  version: "9.x"
+  architecture: x86_64
+  host_type: hypervisor
+  status: active
+  capabilities:
+  - lxc
+  - vm
+  - cloudinit
+  - baremetal
+  installation:
+    media_ref: disk-ssd-system
+    slot_ref: slot-sata-0
+    root_mount: /
+- id: hos-orangepi5-ubuntu
+  device_ref: orangepi5
+  distribution: ubuntu
+  version: "24.04"
+  architecture: arm64
+  host_type: baremetal
+  status: active
+  capabilities:
+  - docker
+  - container
+  - baremetal
+  installation:
+    media_ref: disk-nvme-main
+    slot_ref: slot-m2-0
+    root_mount: /
+- id: hos-mikrotik-chateau-routeros
+  device_ref: mikrotik-chateau
+  distribution: routeros
+  version: "7.x"
+  architecture: arm64
+  host_type: embedded
+  status: active
+  capabilities:
+  - container
+  - baremetal
 templates:
   lxc:
   - id: tpl-lxc-postgresql

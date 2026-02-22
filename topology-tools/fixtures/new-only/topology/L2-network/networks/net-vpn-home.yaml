@@ -15,6 +15,6 @@ vpn_type: wireguard
 vpn_endpoint: home.example.com:51820
 ip_allocations:
 - ip: 10.0.200.1
-  device_ref: mikrotik-chateau
+  host_os_ref: hos-mikrotik-chateau-routeros
   interface: wireguard1
   description: WireGuard server

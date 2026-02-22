@@ -28,6 +28,18 @@ Use these rules to keep L1 foundation and L2 network intent consistent.
   - should set `vpn_type`
   - should keep `bridge_ref: null` and `vlan: null`
 
+## L2-L4-L5 Binding Contract (ADR 0038, Phase 1)
+
+- `ip_allocations` ownership:
+  - prefer `host_os_ref` (L4 `host_operating_systems[].id`)
+  - `device_ref` is compatibility-only and deprecated
+- `bridges` may set optional `host_os_ref` to make logical bridge ownership explicit.
+- Runtime reachability checks:
+  - `runtime.type: docker|baremetal` must resolve to target ownership in `runtime.network_binding_ref`.
+  - `runtime.type: lxc|vm` must use a network that exists in the corresponding L4 workload attachment list.
+- Overlay exception:
+  - overlay networks may have no static `ip_allocations`; ownership can still be derived via `managed_by_ref`.
+
 Validation for these rules is implemented in `topology-tools/validate-topology.py`.
 
 ## Usage Rules

@@ -643,6 +643,7 @@ def check_ip_allocation_host_os_refs(
         for h in (l4.get('host_operating_systems', []) or [])
         if isinstance(h, dict) and h.get('id')
     }
+    has_host_os_inventory = bool(host_os_ids)
 
     host_os_by_device: Dict[str, List[str]] = {}
     for h in (l4.get('host_operating_systems', []) or []):
@@ -674,8 +675,9 @@ def check_ip_allocation_host_os_refs(
                         f"host_os_ref '{host_os_ref}' does not exist"
                     )
 
-            # Deprecation warning for device_ref
-            if device_ref and not host_os_ref:
+            # Deprecation warning for device_ref.
+            # Keep migration fixtures warning-free when host OS inventory is absent.
+            if has_host_os_inventory and device_ref and not host_os_ref:
                 # Check if device has known host OS for migration hint
                 known_hos = host_os_by_device.get(device_ref, [])
                 hint = ""
@@ -730,9 +732,39 @@ def check_runtime_network_reachability(
         if isinstance(device_ref, str) and isinstance(hos_id, str):
             device_to_host_os.setdefault(device_ref, set()).add(hos_id)
 
+    # Build runtime target network bindings for workload targets
+    lxc_networks_by_id: Dict[str, Set[str]] = {}
+    for lxc in (l4.get('lxc', []) or []):
+        if not isinstance(lxc, dict):
+            continue
+        lxc_id = lxc.get('id')
+        if not isinstance(lxc_id, str):
+            continue
+        lxc_networks_by_id[lxc_id] = {
+            nic.get('network_ref')
+            for nic in (lxc.get('networks', []) or [])
+            if isinstance(nic, dict) and isinstance(nic.get('network_ref'), str) and nic.get('network_ref')
+        }
+
+    vm_networks_by_id: Dict[str, Set[str]] = {}
+    for vm in (l4.get('vms', []) or []):
+        if not isinstance(vm, dict):
+            continue
+        vm_id = vm.get('id')
+        if not isinstance(vm_id, str):
+            continue
+        vm_networks_by_id[vm_id] = {
+            nic.get('network_ref')
+            for nic in (vm.get('networks', []) or [])
+            if isinstance(nic, dict) and isinstance(nic.get('network_ref'), str) and nic.get('network_ref')
+        }
+
     # Build network -> reachable devices/host_os mapping
     network_reachable_devices: Dict[str, Set[str]] = {}
     network_reachable_host_os: Dict[str, Set[str]] = {}
+    network_plane_by_id: Dict[str, str] = {}
+    network_manager_by_id: Dict[str, str] = {}
+    profiles = l2.get('network_profiles', {}) or {}
 
     for network in l2.get('networks', []) or []:
         if not isinstance(network, dict):
@@ -741,8 +773,20 @@ def check_runtime_network_reachability(
         if not net_id:
             continue
 
+        effective: Dict[str, Any] = {}
+        profile_ref = network.get('profile_ref')
+        if isinstance(profile_ref, str) and profile_ref in profiles and isinstance(profiles[profile_ref], dict):
+            effective.update(profiles[profile_ref])
+        effective.update(network)
+
         network_reachable_devices[net_id] = set()
         network_reachable_host_os[net_id] = set()
+        network_plane = effective.get('network_plane')
+        managed_by_ref = network.get('managed_by_ref')
+        if isinstance(network_plane, str):
+            network_plane_by_id[net_id] = network_plane
+        if isinstance(managed_by_ref, str):
+            network_manager_by_id[net_id] = managed_by_ref
 
         for alloc in network.get('ip_allocations', []) or []:
             if not isinstance(alloc, dict):
@@ -769,10 +813,6 @@ def check_runtime_network_reachability(
         target_ref = runtime.get('target_ref')
         network_binding_ref = runtime.get('network_binding_ref')
 
-        # Only check docker and baremetal types (device-level targets)
-        if runtime_type not in {'docker', 'baremetal'}:
-            continue
-
         if not target_ref or not network_binding_ref:
             continue
 
@@ -781,20 +821,45 @@ def check_runtime_network_reachability(
             # Network doesn't exist - will be caught by check_service_refs
             continue
 
-        # Check reachability
-        device_reachable = target_ref in network_reachable_devices.get(network_binding_ref, set())
+        # LXC/VM runtime targets should be bound to one of workload NIC network_refs.
+        if runtime_type == 'lxc':
+            target_networks = lxc_networks_by_id.get(target_ref)
+            if target_networks is not None and network_binding_ref not in target_networks:
+                warnings.append(
+                    f"Service '{svc_id}': runtime target '{target_ref}' does not attach "
+                    f"to network '{network_binding_ref}' in L4 workload networks"
+                )
+            continue
 
-        # Also check via host_os_ref
-        target_host_os_set = device_to_host_os.get(target_ref, set())
-        host_os_reachable = bool(
-            target_host_os_set & network_reachable_host_os.get(network_binding_ref, set())
-        )
+        if runtime_type == 'vm':
+            target_networks = vm_networks_by_id.get(target_ref)
+            if target_networks is not None and network_binding_ref not in target_networks:
+                warnings.append(
+                    f"Service '{svc_id}': runtime target '{target_ref}' does not attach "
+                    f"to network '{network_binding_ref}' in L4 workload networks"
+                )
+            continue
 
-        if not device_reachable and not host_os_reachable:
-            warnings.append(
-                f"Service '{svc_id}': runtime target '{target_ref}' has no ip_allocation "
-                f"in network '{network_binding_ref}' (unreachable network binding)"
+        # Docker/baremetal runtime targets are device-level and resolved through
+        # static allocations, host_os allocations, or overlay manager ownership.
+        if runtime_type in {'docker', 'baremetal'}:
+            device_reachable = target_ref in network_reachable_devices.get(network_binding_ref, set())
+
+            target_host_os_set = device_to_host_os.get(target_ref, set())
+            host_os_reachable = bool(
+                target_host_os_set & network_reachable_host_os.get(network_binding_ref, set())
             )
+
+            overlay_managed_by_target = (
+                network_plane_by_id.get(network_binding_ref) == 'overlay'
+                and network_manager_by_id.get(network_binding_ref) == target_ref
+            )
+
+            if not device_reachable and not host_os_reachable and not overlay_managed_by_target:
+                warnings.append(
+                    f"Service '{svc_id}': runtime target '{target_ref}' has no reachable "
+                    f"ownership/attachment in network '{network_binding_ref}'"
+                )
 
 
 def check_single_active_os_per_device(

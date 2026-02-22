@@ -450,10 +450,7 @@
       "type": "object",
       "description": "IP address allocation within a network. Use host_os_ref (preferred) or device_ref (deprecated).",
       "properties": {
-        "ip": {
-          "type": "string",
-          "description": "IP address (without CIDR suffix)"
-        },
+        "ip": { "$ref": "#/definitions/IpAddress" },
         "host_os_ref": {
           "$ref": "#/definitions/HostOsRef",
           "description": "Host OS that owns this IP allocation (preferred over device_ref)"

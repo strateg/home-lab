@@ -37,7 +37,8 @@ This section is based on active architecture decisions and implemented commits.
 Primary contract sources:
 
 - Accepted ADRs: `adr/0001-power-policy-layer-boundary.md`, `adr/0002-separate-data-and-power-links-in-l1.md`, `adr/0003-data-links-naming-and-power-constraints.md`, `adr/0004-l2-firewall-policy-references-and-validation.md`, `adr/0026-l3-l4-taxonomy-refactoring-storage-chain-and-platform-separation.md`, `adr/0028-topology-tools-architecture-consolidation.md`, `adr/0029-storage-taxonomy-and-layer-boundary-consolidation.md`
-- Proposed but already influencing authoring and review: `adr/0031-layered-topology-toolchain-contract-alignment.md`, `adr/0032-l3-data-modularization-and-layer-contracts.md`, `adr/0033-toolchain-contract-rebaseline-after-modularization.md`, `adr/0034-l4-platform-modularization-and-runtime-taxonomy.md`
+- Proposed but already influencing authoring and review: `adr/0031-layered-topology-toolchain-contract-alignment.md`, `adr/0032-l3-data-modularization-and-layer-contracts.md`, `adr/0033-toolchain-contract-rebaseline-after-modularization.md`, `adr/0034-l4-platform-modularization-and-runtime-taxonomy.md`, `adr/0035-l4-host-os-foundation-and-runtime-substrates.md`
+- Accepted network-binding evolution: `adr/0038-network-binding-contracts-phase1.md`
 - Key implementation commits: `6a61f32`, `01e1aeb`, `f5a2789`, `f3a005e`, `febe840`, `fd46cff`
 
 Use this section as the practical layer contract for day-to-day modeling.
@@ -143,12 +144,18 @@ Public contract for upper layers:
 
 Boundary rules:
 - L2 references L1 device IDs for management/ownership (`managed_by_ref`) but does not own hardware inventory.
+- L2 may reference L4 host OS IDs for logical ownership in selected fields (`host_os_ref` in `ip_allocations` and `bridges`).
 - L2 does not own service/runtime semantics (L5/L4 concern).
 
 Validation-critical invariants:
 - Firewall policies are explicit references, not free-text policy names (ADR 0004).
 - In profile-driven networks, profile defines baseline and per-network files keep only intentional overrides.
 - Trust-zone and VLAN policy is explicit (`vlan_ids`, default zone firewall policy) where declared.
+- Prefer `ip_allocations[].host_os_ref` for IP ownership semantics; `ip_allocations[].device_ref` remains compatibility-only and is deprecated.
+- Runtime binding chain must be resolvable:
+  - `runtime.type: docker|baremetal` uses host/device ownership in target network.
+  - `runtime.type: lxc|vm` must align with workload network attachments in L4.
+- Overlay networks may rely on manager ownership (`managed_by_ref`) without static `ip_allocations`.
 
 Example (`topology/L2-network/networks/net-servers.yaml`):
 
