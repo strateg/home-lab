@@ -1,0 +1,9 @@
+id: hos-orangepi5-ubuntu
+device_ref: orangepi5
+distribution: ubuntu
+status: active
+installation:
+  media_ref: disk-nvme-main
+  slot_ref: slot-m2-0
+  root_mount: /
+description: Orange Pi 5 host OS installed on 512 GB NVMe system disk

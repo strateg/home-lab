@@ -7,6 +7,7 @@ _defaults: !include L4-platform/defaults.yaml
 resource_profiles: !include_dir_sorted L4-platform/resource-profiles
 lxc: !include_dir_sorted L4-platform/workloads/lxc
 vms: !include_dir_sorted L4-platform/workloads/vms
+host_operating_systems: !include_dir_sorted L4-platform/host-operating-systems
 
 templates:
   lxc: !include_dir_sorted L4-platform/templates/lxc

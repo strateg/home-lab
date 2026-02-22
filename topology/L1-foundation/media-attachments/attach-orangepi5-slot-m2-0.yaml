@@ -2,5 +2,5 @@ id: attach-orangepi5-slot-m2-0
 device_ref: orangepi5
 slot_ref: slot-m2-0
 media_ref: disk-nvme-main
-state: planned
-description: Planned primary NVMe drive
+state: present
+description: Installed primary NVMe drive (Ubuntu system disk)

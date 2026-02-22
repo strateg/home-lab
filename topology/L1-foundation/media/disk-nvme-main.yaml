@@ -5,8 +5,8 @@ form_factor: m2-2280
 supported_buses:
 - m2
 - pcie
-state: planned
-size_gb: 256
+state: present
+size_gb: 512
 rotational: false
 removable: false
-usage: Primary high-performance expansion storage
+usage: Primary NVMe system storage (Ubuntu root)
