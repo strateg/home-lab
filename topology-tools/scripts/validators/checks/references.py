@@ -136,6 +136,7 @@ def check_host_os_refs(
     l4 = topology.get('L4_platform', {})
     devices = _device_map(topology)
     active_by_device = _active_host_os_by_device(topology)
+    has_host_os_inventory = bool(_host_os_map(topology))
     media_ids = {
         media.get('id')
         for media in (l1.get('media_registry', []) or [])
@@ -199,11 +200,12 @@ def check_host_os_refs(
                         f"Host OS '{hos_id}': capability '{cap}' is not valid for host_type '{host_type}'"
                     )
 
-    for device_ref in _runtime_target_devices(topology):
-        if device_ref in devices and not active_by_device.get(device_ref):
-            errors.append(
-                f"Device '{device_ref}': active runtime target requires at least one active host_operating_systems entry"
-            )
+    if has_host_os_inventory:
+        for device_ref in _runtime_target_devices(topology):
+            if device_ref in devices and not active_by_device.get(device_ref):
+                errors.append(
+                    f"Device '{device_ref}': active runtime target requires at least one active host_operating_systems entry"
+                )
 
 
 def check_vm_refs(
@@ -443,6 +445,7 @@ def check_service_refs(
 ) -> None:
     l5 = topology.get('L5_application', {})
     active_by_device = _active_host_os_by_device(topology)
+    has_host_os_inventory = bool(_host_os_map(topology))
     for service in l5.get('services', []) or []:
         if not isinstance(service, dict):
             continue
@@ -485,7 +488,7 @@ def check_service_refs(
                 errors.append(f"Service '{svc_id}': runtime target_ref '{target_ref}' is not a known device")
             if runtime_type in {'docker', 'baremetal'} and target_ref in ids['devices']:
                 host_os_entries = active_by_device.get(target_ref, [])
-                if not host_os_entries:
+                if has_host_os_inventory and not host_os_entries:
                     errors.append(
                         f"Service '{svc_id}': runtime target_ref '{target_ref}' has no active host_operating_systems entry"
                     )

@@ -54,6 +54,9 @@ Notes:
   - validates runtime-to-network reachability for `docker|baremetal|lxc|vm`.
   - validates `ip_allocations[].host_os_ref` and bridge optional `host_os_ref`.
   - `ip_allocations[].device_ref` is deprecated (compatibility path).
+- Template storage transition is compatibility-aware:
+  - `templates.*.storage_endpoint_ref` is canonical.
+  - legacy `templates.*.storage_ref` is still accepted for migration fixtures (deprecated).
 
 ### migrate-to-v5.py
 Migration assistant for ADR-0026.

@@ -1255,12 +1255,16 @@
     },
     "LxcTemplate": {
       "type": "object",
-      "required": ["id", "vmid", "name", "storage_endpoint_ref", "source"],
+      "required": ["id", "vmid", "name", "source"],
       "properties": {
         "id": { "type": "string", "pattern": "^tpl-lxc-[a-z0-9-]+$" },
         "vmid": { "type": "integer", "minimum": 100, "maximum": 999999999 },
         "name": { "type": "string" },
         "storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" },
+        "storage_ref": {
+          "$ref": "#/definitions/StorageRef",
+          "x-deprecated": "Use storage_endpoint_ref."
+        },
         "source": { "$ref": "#/definitions/TemplateSource" },
         "image": { "type": "string" },
         "script": { "type": "string" },
@@ -1268,6 +1272,12 @@
         "description": { "type": "string" }
       },
       "allOf": [
+        {
+          "anyOf": [
+            { "required": ["storage_endpoint_ref"] },
+            { "required": ["storage_ref"] }
+          ]
+        },
         {
           "anyOf": [
             { "required": ["image"] },
@@ -1279,12 +1289,16 @@
     },
     "VmTemplate": {
       "type": "object",
-      "required": ["id", "vmid", "name", "storage_endpoint_ref", "source"],
+      "required": ["id", "vmid", "name", "source"],
       "properties": {
         "id": { "type": "string", "pattern": "^tpl-vm-[a-z0-9-]+$" },
         "vmid": { "type": "integer", "minimum": 100, "maximum": 999999999 },
         "name": { "type": "string" },
         "storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" },
+        "storage_ref": {
+          "$ref": "#/definitions/StorageRef",
+          "x-deprecated": "Use storage_endpoint_ref."
+        },
         "source": { "$ref": "#/definitions/TemplateSource" },
         "image": { "type": "string" },
         "script": { "type": "string" },
@@ -1292,6 +1306,12 @@
         "description": { "type": "string" }
       },
       "allOf": [
+        {
+          "anyOf": [
+            { "required": ["storage_endpoint_ref"] },
+            { "required": ["storage_ref"] }
+          ]
+        },
         {
           "anyOf": [
             { "required": ["image"] },
