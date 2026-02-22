@@ -1,6 +1,6 @@
 # ADR 0023: Terraform Generators and Templates Domain Layout
 
-- Status: Accepted
+- Status: Superseded by [0028](0028-topology-tools-architecture-consolidation.md)
 - Date: 2026-02-21
 
 ## Context

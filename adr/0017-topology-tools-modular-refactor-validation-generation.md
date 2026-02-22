@@ -1,6 +1,6 @@
 # ADR 0017: Modular Refactor of topology-tools into Validation and Generation Domains
 
-- Status: Accepted
+- Status: Superseded by [0028](0028-topology-tools-architecture-consolidation.md)
 - Date: 2026-02-21
 
 ## Context

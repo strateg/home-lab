@@ -1,6 +1,6 @@
 # ADR 0024: Rename Validation Package Namespace to validators
 
-- Status: Accepted
+- Status: Superseded by [0028](0028-topology-tools-architecture-consolidation.md)
 - Date: 2026-02-21
 
 ## Context

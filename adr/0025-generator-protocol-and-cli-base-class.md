@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [0028](0028-topology-tools-architecture-consolidation.md)
 
 ## Date
 

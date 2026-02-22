@@ -1,6 +1,6 @@
 # ADR 0019: Proxmox Answer Generator Uses Layered Topology Only (No Legacy Root Sections)
 
-- Status: Accepted
+- Status: Superseded by [0028](0028-topology-tools-architecture-consolidation.md)
 - Date: 2026-02-21
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR 0020: Co-locate Generation and Validation Under topology-tools/scripts
 
-- Status: Accepted
+- Status: Superseded by [0028](0028-topology-tools-architecture-consolidation.md)
 - Date: 2026-02-21
 
 ## Context
