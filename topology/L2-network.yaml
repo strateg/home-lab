@@ -14,7 +14,7 @@
 
 trust_zones: !include L2-network/trust-zones/baseline.yaml
 network_profiles: !include L2-network/profiles/default.yaml
-networks: !include L2-network/networks/_index.yaml
+networks: !include_dir_sorted L2-network/networks
 bridges: !include L2-network/bridges/_index.yaml
 routing: !include L2-network/routing/default.yaml
 firewall_templates: !include L2-network/firewall/templates.yaml

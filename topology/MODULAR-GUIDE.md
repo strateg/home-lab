@@ -54,6 +54,14 @@ Rules:
   - `topology/L2-network/firewall/templates.yaml`
   - `topology/L2-network/qos/`
   - `topology/L2-network/ipv6/`
+  - `topology/L3-data.yaml`:
+  - `topology/L3-data/partitions/`
+  - `topology/L3-data/volume-groups/`
+  - `topology/L3-data/logical-volumes/`
+  - `topology/L3-data/filesystems/`
+  - `topology/L3-data/mount-points/`
+  - `topology/L3-data/storage-endpoints/`
+  - `topology/L3-data/data-assets/`
   - `topology/L5-application.yaml`:
   - `topology/L5-application/certificates.yaml`
   - `topology/L5-application/services.yaml`
@@ -66,14 +74,14 @@ Rules:
   - `topology/L6-observability/dashboard.yaml`
 - Single-file layers (not yet modularized into subfolders):
   - `topology/L0-meta.yaml`
-  - `topology/L3-data.yaml`
   - `topology/L4-platform.yaml`
 
 ## Editing Conventions (AI + Human)
 
 - One module file should represent one logical unit.
 - Use predictable names: file name equals object `id` where possible.
-- Keep indexes explicit: `_index.yaml` contains only ordered `!include` entries.
+- Prefer deterministic auto-discovery with `!include_dir_sorted` for order-insensitive domains.
+- Keep `_index.yaml` only for order-sensitive domains (for example firewall policy chains).
 - Keep module size practical (target under ~200 lines).
 - Preserve key order: `id`, `name`, `type`, `role`, `class`, `substrate`, `access`, refs, config, `description`.
 - Model is defined by fields inside files; folders are validated against model.
@@ -90,23 +98,22 @@ Rules:
 ## Add New Hardware Workflow
 
 1. Add new device file under `topology/L1-foundation/devices/<substrate-group>/<class>/<device-id>.yaml`.
-2. Add include entry to `topology/L1-foundation/devices/_index.yaml`.
-3. Set `class`/`substrate`/`access`.
-4. Add/update data connectivity in `topology/L1-foundation/data-links/` and `data-links/_index.yaml` only for non-provider substrates.
-5. Add/update power cabling in `topology/L1-foundation/power-links/` and `power-links/_index.yaml`.
-6. Add/update storage media in `topology/L1-foundation/media/` and `_index.yaml`.
-7. Add/update slot/media bindings in `topology/L1-foundation/media-attachments/` and `_index.yaml`.
-8. If needed, add/update virtual network in `topology/L2-network/networks/` and `_index.yaml`.
-9. Prefer `profile_ref` from `topology/L2-network/profiles/default.yaml`.
-10. Read profile rules in `topology/L2-network/profiles/README.md`.
-11. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
-12. For firewall policy changes, edit `topology/L2-network/firewall/policies/*` and include from `topology/L2-network/firewall/policies/_index.yaml`.
-13. Add VM/LXC workloads in `topology/L4-platform.yaml` only.
-14. Add platform/app/monitoring modules only if the device hosts workloads.
-15. Validate and regenerate:
+2. Set `class`/`substrate`/`access`.
+3. Add/update data connectivity in `topology/L1-foundation/data-links/` only for non-provider substrates.
+4. Add/update power cabling in `topology/L1-foundation/power-links/`.
+5. Add/update storage media in `topology/L1-foundation/media/`.
+6. Add/update slot/media bindings in `topology/L1-foundation/media-attachments/`.
+7. If needed, add/update virtual network in `topology/L2-network/networks/`.
+8. Prefer `profile_ref` from `topology/L2-network/profiles/default.yaml`.
+9. Read profile rules in `topology/L2-network/profiles/README.md`.
+10. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
+11. For firewall policy changes, edit `topology/L2-network/firewall/policies/*` and include from `topology/L2-network/firewall/policies/_index.yaml`.
+12. Add VM/LXC workloads in `topology/L4-platform.yaml` only.
+13. Add platform/app/monitoring modules only if the device hosts workloads.
+14. Validate and regenerate:
    - `python topology-tools/validate-topology.py`
    - `python topology-tools/generate-docs.py`
-16. If architecture changed, add a new ADR in `adr/NNNN-*.md`.
+15. If architecture changed, add a new ADR in `adr/NNNN-*.md`.
 
 ## Anti-Patterns
 
