@@ -1,5 +1,6 @@
 """Network and link-specific validation checks."""
 
+import ipaddress
 from typing import Any, Dict, List, Set
 
 
@@ -412,4 +413,149 @@ def check_power_links(
                 errors.append(
                     f"Power link '{link_id}' {endpoint_key}: either device_ref or external_ref is required"
                 )
+
+
+def check_mtu_consistency(
+    topology: Dict[str, Any],
+    *,
+    errors: List[str],
+    warnings: List[str],
+) -> None:
+    """Check MTU and jumbo_frames consistency."""
+    del warnings
+    l2 = topology.get('L2_network', {})
+
+    for network in l2.get('networks', []) or []:
+        net_id = network.get('id')
+        mtu = network.get('mtu')
+        jumbo_frames = network.get('jumbo_frames', False)
+
+        if jumbo_frames and mtu is not None and mtu <= 1500:
+            errors.append(
+                f"Network '{net_id}': jumbo_frames is true but mtu ({mtu}) <= 1500"
+            )
+
+
+def check_vlan_zone_consistency(
+    topology: Dict[str, Any],
+    *,
+    errors: List[str],
+    warnings: List[str],
+) -> None:
+    """Check that network VLAN is in its trust zone's vlan_ids."""
+    l2 = topology.get('L2_network', {})
+    trust_zones = l2.get('trust_zones', {}) or {}
+
+    for network in l2.get('networks', []) or []:
+        net_id = network.get('id')
+        vlan = network.get('vlan')
+        trust_zone_ref = network.get('trust_zone_ref')
+
+        if vlan is None or not trust_zone_ref:
+            continue
+
+        zone = trust_zones.get(trust_zone_ref, {})
+        if not isinstance(zone, dict):
+            continue
+
+        vlan_ids = zone.get('vlan_ids')
+        if vlan_ids is None:
+            continue
+
+        if vlan not in vlan_ids:
+            warnings.append(
+                f"Network '{net_id}': VLAN {vlan} not in trust zone '{trust_zone_ref}' vlan_ids {vlan_ids}"
+            )
+
+
+def check_reserved_ranges(
+    topology: Dict[str, Any],
+    *,
+    errors: List[str],
+    warnings: List[str],
+) -> None:
+    """Check reserved_ranges validity."""
+    del warnings
+    l2 = topology.get('L2_network', {})
+
+    for network in l2.get('networks', []) or []:
+        net_id = network.get('id')
+        cidr = network.get('cidr')
+        reserved_ranges = network.get('reserved_ranges') or []
+
+        if not reserved_ranges or cidr == 'dhcp':
+            continue
+
+        try:
+            net = ipaddress.ip_network(cidr, strict=False)
+        except ValueError:
+            continue
+
+        parsed_ranges = []
+        for rng in reserved_ranges:
+            start_str = rng.get('start')
+            end_str = rng.get('end')
+            purpose = rng.get('purpose', 'unknown')
+
+            if not start_str or not end_str:
+                errors.append(
+                    f"Network '{net_id}': reserved range missing start or end"
+                )
+                continue
+
+            try:
+                start_ip = ipaddress.ip_address(start_str)
+                end_ip = ipaddress.ip_address(end_str)
+            except ValueError as e:
+                errors.append(
+                    f"Network '{net_id}': invalid IP in reserved range: {e}"
+                )
+                continue
+
+            if start_ip not in net or end_ip not in net:
+                errors.append(
+                    f"Network '{net_id}': reserved range {start_str}-{end_str} not within CIDR {cidr}"
+                )
+                continue
+
+            if start_ip > end_ip:
+                errors.append(
+                    f"Network '{net_id}': reserved range start {start_str} > end {end_str}"
+                )
+                continue
+
+            parsed_ranges.append((start_ip, end_ip, purpose))
+
+        for i, (start1, end1, purpose1) in enumerate(parsed_ranges):
+            for j, (start2, end2, purpose2) in enumerate(parsed_ranges):
+                if i >= j:
+                    continue
+                if start1 <= end2 and start2 <= end1:
+                    errors.append(
+                        f"Network '{net_id}': reserved ranges overlap: "
+                        f"{start1}-{end1} ({purpose1}) and {start2}-{end2} ({purpose2})"
+                    )
+
+
+def check_trust_zone_firewall_refs(
+    topology: Dict[str, Any],
+    ids: Dict[str, Set[str]],
+    *,
+    errors: List[str],
+    warnings: List[str],
+) -> None:
+    """Check that trust zone default_firewall_policy_ref exists."""
+    del warnings
+    l2 = topology.get('L2_network', {})
+    trust_zones = l2.get('trust_zones', {}) or {}
+
+    for zone_id, zone in trust_zones.items():
+        if not isinstance(zone, dict):
+            continue
+
+        fw_ref = zone.get('default_firewall_policy_ref')
+        if fw_ref and fw_ref not in ids['firewall_policies']:
+            errors.append(
+                f"Trust zone '{zone_id}': default_firewall_policy_ref '{fw_ref}' does not exist"
+            )
 

@@ -6,12 +6,21 @@ dns:
 - 192.168.88.1
 dhcp: true
 dhcp_range: 192.168.88.100-192.168.88.200
+mtu: 1500
+jumbo_frames: false
 trust_zone_ref: user
 bridge_ref: null
 vlan: null
 description: Main LAN network (WiFi + Wired)
 profile_ref: prof-virtual-bridge-mixed
 managed_by_ref: mikrotik-chateau
+reserved_ranges:
+- start: 192.168.88.1
+  end: 192.168.88.9
+  purpose: infrastructure
+- start: 192.168.88.100
+  end: 192.168.88.200
+  purpose: dhcp-pool
 ip_allocations:
 - ip: 192.168.88.1
   device_ref: mikrotik-chateau

@@ -27,9 +27,13 @@ from scripts.validators.checks.storage import (
 from scripts.validators.checks.network import (
     check_bridge_refs,
     check_data_links,
+    check_mtu_consistency,
     check_network_refs,
     check_power_links,
+    check_reserved_ranges,
+    check_trust_zone_firewall_refs,
     check_vlan_tags,
+    check_vlan_zone_consistency,
 )
 from scripts.validators.checks.references import (
     check_backup_refs,
@@ -240,6 +244,10 @@ class SchemaValidator:
         self._check_backup_refs(ids)
         self._check_security_policy_refs(ids)
         self._check_vlan_tags()
+        self._check_mtu_consistency()
+        self._check_vlan_zone_consistency()
+        self._check_reserved_ranges()
+        self._check_trust_zone_firewall_refs(ids)
 
     def _check_file_placement(self) -> None:
         check_file_placement(
@@ -363,6 +371,35 @@ class SchemaValidator:
 
     def _check_security_policy_refs(self, ids: Dict[str, Set[str]]) -> None:
         check_security_policy_refs(
+            self.topology or {},
+            ids,
+            errors=self.errors,
+            warnings=self.warnings,
+        )
+
+    def _check_mtu_consistency(self) -> None:
+        check_mtu_consistency(
+            self.topology or {},
+            errors=self.errors,
+            warnings=self.warnings,
+        )
+
+    def _check_vlan_zone_consistency(self) -> None:
+        check_vlan_zone_consistency(
+            self.topology or {},
+            errors=self.errors,
+            warnings=self.warnings,
+        )
+
+    def _check_reserved_ranges(self) -> None:
+        check_reserved_ranges(
+            self.topology or {},
+            errors=self.errors,
+            warnings=self.warnings,
+        )
+
+    def _check_trust_zone_firewall_refs(self, ids: Dict[str, Set[str]]) -> None:
+        check_trust_zone_firewall_refs(
             self.topology or {},
             ids,
             errors=self.errors,

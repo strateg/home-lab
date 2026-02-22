@@ -83,6 +83,15 @@
         "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
         "description": { "type": "string" },
         "isolated": { "type": "boolean" },
+        "vlan_ids": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1, "maximum": 4094 },
+          "description": "VLAN IDs associated with this trust zone"
+        },
+        "default_firewall_policy_ref": {
+          "$ref": "#/definitions/FirewallPolicyRef",
+          "description": "Default firewall policy applied to this zone"
+        },
         "allowed_outbound": {
           "type": "array",
           "items": { "type": "string" }
@@ -698,6 +707,18 @@
         "dns": { "type": "array", "items": { "$ref": "#/definitions/IpAddress" } },
         "dhcp": { "type": "boolean" },
         "dhcp_range": { "type": "string" },
+        "mtu": {
+          "type": "integer",
+          "minimum": 576,
+          "maximum": 9000,
+          "default": 1500,
+          "description": "Maximum Transmission Unit"
+        },
+        "jumbo_frames": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable jumbo frames (MTU > 1500)"
+        },
         "trust_zone_ref": { "$ref": "#/definitions/TrustZone" },
         "bridge_ref": { "oneOf": [{ "$ref": "#/definitions/BridgeRef" }, { "type": "null" }] },
         "vlan": { "oneOf": [{ "type": "integer", "minimum": 1, "maximum": 4094 }, { "type": "null" }] },
@@ -714,6 +735,23 @@
         "interface_ref": { "$ref": "#/definitions/InterfaceRef" },
         "vpn_type": { "$ref": "#/definitions/VpnType" },
         "ip_allocations": { "type": "array" },
+        "reserved_ranges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["start", "end", "purpose"],
+            "properties": {
+              "start": { "$ref": "#/definitions/IpAddress" },
+              "end": { "$ref": "#/definitions/IpAddress" },
+              "purpose": {
+                "type": "string",
+                "enum": ["infrastructure", "dhcp-pool", "static-assignments", "future-expansion"]
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Reserved IP address ranges within the network"
+        },
         "firewall_policy_refs": {
           "type": "array",
           "items": { "$ref": "#/definitions/FirewallPolicyRef" },
