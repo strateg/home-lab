@@ -346,9 +346,7 @@ Done criteria:
 ## References
 
 - Previous ADRs:
-  - ADR-0011: `adr/0011-l1-physical-storage-taxonomy-and-l3-disk-binding.md`
-  - ADR-0012: `adr/0012-separate-l1-physical-disk-specs-from-l3-logical-storage-mapping.md`
-  - ADR-0016: `adr/0016-l1-storage-media-registry-and-slot-attachments.md`
+  - ADR-0029: `adr/0029-storage-taxonomy-and-layer-boundary-consolidation.md`
 - Schema:
   - `topology-tools/schemas/topology-v4-schema.json`
 - Topology layers:

@@ -1,6 +1,6 @@
 # ADR 0011: L1 Physical Storage Taxonomy and L3 Disk Binding
 
-- Status: Accepted
+- Status: Superseded by [0029](0029-storage-taxonomy-and-layer-boundary-consolidation.md)
 - Date: 2026-02-20
 
 ## Context

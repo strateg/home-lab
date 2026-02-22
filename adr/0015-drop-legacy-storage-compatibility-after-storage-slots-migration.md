@@ -1,6 +1,6 @@
 # ADR 0015: Drop Legacy L1 Storage Compatibility After Storage Slots Migration
 
-- Status: Accepted
+- Status: Superseded by [0029](0029-storage-taxonomy-and-layer-boundary-consolidation.md)
 - Date: 2026-02-21
 - Supersedes: [0014](0014-l1-storage-slots-preferred-model-with-legacy-compatibility.md)
 

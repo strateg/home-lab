@@ -1,6 +1,6 @@
 # ADR 0016: L1 Storage Media Registry and Slot Attachments
 
-- Status: Accepted
+- Status: Superseded by [0029](0029-storage-taxonomy-and-layer-boundary-consolidation.md)
 - Date: 2026-02-21
 
 ## Context

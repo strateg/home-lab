@@ -1,6 +1,6 @@
 # ADR 0012: Separate L1 Physical Disk Specs from L3 Logical Storage Mapping
 
-- Status: Accepted
+- Status: Superseded by [0029](0029-storage-taxonomy-and-layer-boundary-consolidation.md)
 - Date: 2026-02-21
 
 ## Context

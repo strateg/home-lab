@@ -1,6 +1,6 @@
 # ADR 0013: L1 Storage Mount Taxonomy for Soldered, Replaceable, and Removable Media
 
-- Status: Accepted
+- Status: Superseded by [0029](0029-storage-taxonomy-and-layer-boundary-consolidation.md)
 - Date: 2026-02-21
 
 ## Context
