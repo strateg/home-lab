@@ -14,6 +14,17 @@ ARCH_ALIASES = {
     "riscv": "riscv64",
 }
 
+CANONICAL_ARCH_VALUES = {"x86_64", "arm64", "riscv64", "i386"}
+
+CAPABILITY_ALLOWED_HOST_TYPES = {
+    "lxc": {"hypervisor"},
+    "vm": {"hypervisor"},
+    "docker": {"baremetal", "hypervisor"},
+    "container": {"embedded", "baremetal", "hypervisor"},
+    "cloudinit": {"hypervisor", "baremetal"},
+    "baremetal": {"baremetal", "embedded", "hypervisor"},
+}
+
 
 def _normalize_arch(value: Any) -> str:
     if not isinstance(value, str):
@@ -68,6 +79,35 @@ def _device_architecture(device: Dict[str, Any]) -> str:
     return _normalize_arch(cpu.get('architecture'))
 
 
+def _runtime_target_devices(topology: Dict[str, Any]) -> Set[str]:
+    l4 = topology.get('L4_platform', {})
+    l5 = topology.get('L5_application', {})
+    devices: Set[str] = set()
+
+    for workload in (l4.get('lxc', []) or []):
+        if isinstance(workload, dict):
+            device_ref = workload.get('device_ref')
+            if isinstance(device_ref, str) and device_ref:
+                devices.add(device_ref)
+
+    for workload in (l4.get('vms', []) or []):
+        if isinstance(workload, dict):
+            device_ref = workload.get('device_ref')
+            if isinstance(device_ref, str) and device_ref:
+                devices.add(device_ref)
+
+    for service in (l5.get('services', []) or []):
+        if not isinstance(service, dict):
+            continue
+        runtime = service.get('runtime') if isinstance(service.get('runtime'), dict) else {}
+        runtime_type = runtime.get('type')
+        target_ref = runtime.get('target_ref')
+        if runtime_type in {'docker', 'baremetal'} and isinstance(target_ref, str) and target_ref:
+            devices.add(target_ref)
+
+    return devices
+
+
 def _resolve_host_os(
     *,
     device_ref: Any,
@@ -95,6 +135,7 @@ def check_host_os_refs(
     l1 = topology.get('L1_foundation', {})
     l4 = topology.get('L4_platform', {})
     devices = _device_map(topology)
+    active_by_device = _active_host_os_by_device(topology)
     media_ids = {
         media.get('id')
         for media in (l1.get('media_registry', []) or [])
@@ -128,6 +169,40 @@ def check_host_os_refs(
             errors.append(
                 f"Host OS '{hos_id}' architecture '{host_os.get('architecture')}' does not match "
                 f"device '{device_ref}' architecture '{device.get('specs', {}).get('cpu', {}).get('architecture')}'"
+            )
+
+        raw_arch = host_os.get('architecture')
+        if isinstance(raw_arch, str) and raw_arch.strip():
+            if raw_arch != host_arch:
+                errors.append(
+                    f"Host OS '{hos_id}': architecture '{raw_arch}' must be canonical; use '{host_arch}'"
+                )
+            if host_arch and host_arch not in CANONICAL_ARCH_VALUES:
+                errors.append(
+                    f"Host OS '{hos_id}': architecture '{raw_arch}' normalizes to unsupported '{host_arch}'"
+                )
+
+        host_type = host_os.get('host_type')
+        if host_type in {'baremetal', 'hypervisor'} and not installation:
+            errors.append(
+                f"Host OS '{hos_id}': installation is required for host_type '{host_type}'"
+            )
+
+        capabilities = host_os.get('capabilities') or []
+        if isinstance(capabilities, list):
+            for cap in capabilities:
+                if not isinstance(cap, str):
+                    continue
+                allowed_host_types = CAPABILITY_ALLOWED_HOST_TYPES.get(cap)
+                if allowed_host_types and host_type not in allowed_host_types:
+                    errors.append(
+                        f"Host OS '{hos_id}': capability '{cap}' is not valid for host_type '{host_type}'"
+                    )
+
+    for device_ref in _runtime_target_devices(topology):
+        if device_ref in devices and not active_by_device.get(device_ref):
+            errors.append(
+                f"Device '{device_ref}': active runtime target requires at least one active host_operating_systems entry"
             )
 
 
@@ -422,6 +497,16 @@ def check_service_refs(
                     if not has_container_capability:
                         errors.append(
                             f"Service '{svc_id}': runtime type docker requires host capability 'docker' or 'container' "
+                            f"for device '{target_ref}'"
+                        )
+                if runtime_type == 'baremetal' and host_os_entries:
+                    has_baremetal_capability = any(
+                        any(cap == 'baremetal' for cap in (entry.get('capabilities') or []))
+                        for entry in host_os_entries
+                    )
+                    if not has_baremetal_capability:
+                        errors.append(
+                            f"Service '{svc_id}': runtime type baremetal requires host capability 'baremetal' "
                             f"for device '{target_ref}'"
                         )
 

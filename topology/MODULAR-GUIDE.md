@@ -230,7 +230,7 @@ Host OS capability taxonomy:
 | `docker` | Docker engine/runtime available | `baremetal`, `hypervisor` |
 | `container` | Generic container support | `embedded`, `baremetal`, `hypervisor` |
 | `cloudinit` | Supports cloud-init guest bootstrap | `hypervisor`, `baremetal` |
-| `baremetal` | Native host service execution (non-containerized) | `baremetal`, `embedded` |
+| `baremetal` | Native host service execution (non-containerized) | `baremetal`, `embedded`, `hypervisor` |
 
 Current maturity note:
 - `host_operating_systems` is now authored in topology (e.g., Orange Pi Ubuntu on NVMe) and used as architectural fact tracking.

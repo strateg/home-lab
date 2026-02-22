@@ -9,6 +9,7 @@ capabilities:
 - lxc
 - vm
 - cloudinit
+- baremetal
 installation:
   media_ref: disk-ssd-system
   slot_ref: slot-sata-0
