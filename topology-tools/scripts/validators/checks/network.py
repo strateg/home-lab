@@ -623,3 +623,210 @@ def check_firewall_policy_addressability(
                     "address-list derivation may be empty"
                 )
 
+
+def check_ip_allocation_host_os_refs(
+    topology: Dict[str, Any],
+    ids: Dict[str, Set[str]],
+    *,
+    errors: List[str],
+    warnings: List[str],
+) -> None:
+    """Validate ip_allocations host_os_ref and emit deprecation warnings for device_ref.
+
+    Phase 1 of ADR 0038: Network Binding Contracts.
+    """
+    l2 = topology.get('L2_network', {})
+    l4 = topology.get('L4_platform', {})
+
+    host_os_ids = {
+        h.get('id')
+        for h in (l4.get('host_operating_systems', []) or [])
+        if isinstance(h, dict) and h.get('id')
+    }
+
+    host_os_by_device: Dict[str, List[str]] = {}
+    for h in (l4.get('host_operating_systems', []) or []):
+        if not isinstance(h, dict):
+            continue
+        device_ref = h.get('device_ref')
+        hos_id = h.get('id')
+        if isinstance(device_ref, str) and isinstance(hos_id, str):
+            host_os_by_device.setdefault(device_ref, []).append(hos_id)
+
+    for network in l2.get('networks', []) or []:
+        if not isinstance(network, dict):
+            continue
+        net_id = network.get('id', 'unknown')
+
+        for alloc in network.get('ip_allocations', []) or []:
+            if not isinstance(alloc, dict):
+                continue
+
+            ip = alloc.get('ip', 'unknown')
+            host_os_ref = alloc.get('host_os_ref')
+            device_ref = alloc.get('device_ref')
+
+            # Validate host_os_ref if present
+            if host_os_ref:
+                if host_os_ref not in host_os_ids:
+                    errors.append(
+                        f"Network '{net_id}' ip_allocation '{ip}': "
+                        f"host_os_ref '{host_os_ref}' does not exist"
+                    )
+
+            # Deprecation warning for device_ref
+            if device_ref and not host_os_ref:
+                # Check if device has known host OS for migration hint
+                known_hos = host_os_by_device.get(device_ref, [])
+                hint = ""
+                if len(known_hos) == 1:
+                    hint = f" (suggestion: use host_os_ref: {known_hos[0]})"
+                warnings.append(
+                    f"Network '{net_id}' ip_allocation '{ip}': "
+                    f"device_ref '{device_ref}' is deprecated; use host_os_ref instead{hint}"
+                )
+
+            # Require at least one reference
+            if not host_os_ref and not device_ref:
+                errors.append(
+                    f"Network '{net_id}' ip_allocation '{ip}': "
+                    "either host_os_ref or device_ref is required"
+                )
+
+
+def check_runtime_network_reachability(
+    topology: Dict[str, Any],
+    ids: Dict[str, Set[str]],
+    *,
+    errors: List[str],
+    warnings: List[str],
+) -> None:
+    """Validate that runtime target_ref can reach network_binding_ref.
+
+    Phase 1 of ADR 0038: Emit warnings for unreachable chains.
+    Phase 2: Promote to errors.
+
+    For runtime.type in {docker, baremetal}:
+    1. Resolve target_ref to device
+    2. Check network_binding_ref has ip_allocation with matching device_ref or host_os_ref
+    """
+    del errors  # Phase 1: warnings only
+
+    l2 = topology.get('L2_network', {})
+    l4 = topology.get('L4_platform', {})
+    l5 = topology.get('L5_application', {})
+
+    # Build device -> host_os_ref mapping
+    device_to_host_os: Dict[str, Set[str]] = {}
+    for h in (l4.get('host_operating_systems', []) or []):
+        if not isinstance(h, dict):
+            continue
+        device_ref = h.get('device_ref')
+        hos_id = h.get('id')
+        status = str(h.get('status', '')).lower()
+        # Only consider active host OS for reachability
+        if status and status != 'active':
+            continue
+        if isinstance(device_ref, str) and isinstance(hos_id, str):
+            device_to_host_os.setdefault(device_ref, set()).add(hos_id)
+
+    # Build network -> reachable devices/host_os mapping
+    network_reachable_devices: Dict[str, Set[str]] = {}
+    network_reachable_host_os: Dict[str, Set[str]] = {}
+
+    for network in l2.get('networks', []) or []:
+        if not isinstance(network, dict):
+            continue
+        net_id = network.get('id')
+        if not net_id:
+            continue
+
+        network_reachable_devices[net_id] = set()
+        network_reachable_host_os[net_id] = set()
+
+        for alloc in network.get('ip_allocations', []) or []:
+            if not isinstance(alloc, dict):
+                continue
+            device_ref = alloc.get('device_ref')
+            host_os_ref = alloc.get('host_os_ref')
+
+            if isinstance(device_ref, str):
+                network_reachable_devices[net_id].add(device_ref)
+            if isinstance(host_os_ref, str):
+                network_reachable_host_os[net_id].add(host_os_ref)
+
+    # Validate L5 services runtime reachability
+    for service in l5.get('services', []) or []:
+        if not isinstance(service, dict):
+            continue
+
+        svc_id = service.get('id', 'unknown')
+        runtime = service.get('runtime')
+        if not isinstance(runtime, dict):
+            continue
+
+        runtime_type = runtime.get('type')
+        target_ref = runtime.get('target_ref')
+        network_binding_ref = runtime.get('network_binding_ref')
+
+        # Only check docker and baremetal types (device-level targets)
+        if runtime_type not in {'docker', 'baremetal'}:
+            continue
+
+        if not target_ref or not network_binding_ref:
+            continue
+
+        # Check if network exists
+        if network_binding_ref not in network_reachable_devices:
+            # Network doesn't exist - will be caught by check_service_refs
+            continue
+
+        # Check reachability
+        device_reachable = target_ref in network_reachable_devices.get(network_binding_ref, set())
+
+        # Also check via host_os_ref
+        target_host_os_set = device_to_host_os.get(target_ref, set())
+        host_os_reachable = bool(
+            target_host_os_set & network_reachable_host_os.get(network_binding_ref, set())
+        )
+
+        if not device_reachable and not host_os_reachable:
+            warnings.append(
+                f"Service '{svc_id}': runtime target '{target_ref}' has no ip_allocation "
+                f"in network '{network_binding_ref}' (unreachable network binding)"
+            )
+
+
+def check_single_active_os_per_device(
+    topology: Dict[str, Any],
+    *,
+    errors: List[str],
+    warnings: List[str],
+) -> None:
+    """Enforce maximum one active host_operating_systems per device.
+
+    Supports dual-boot scenarios where only one OS is active at a time.
+    """
+    del warnings
+
+    l4 = topology.get('L4_platform', {})
+
+    active_by_device: Dict[str, List[str]] = {}
+    for h in (l4.get('host_operating_systems', []) or []):
+        if not isinstance(h, dict):
+            continue
+        status = str(h.get('status', '')).lower()
+        if status != 'active':
+            continue
+        device_ref = h.get('device_ref')
+        hos_id = h.get('id', 'unknown')
+        if isinstance(device_ref, str):
+            active_by_device.setdefault(device_ref, []).append(hos_id)
+
+    for device_ref, hos_list in active_by_device.items():
+        if len(hos_list) > 1:
+            errors.append(
+                f"Device '{device_ref}' has multiple active host OS: {', '.join(hos_list)}. "
+                f"Only one active OS per device is allowed (dual-boot constraint)."
+            )
+

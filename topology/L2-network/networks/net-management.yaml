@@ -20,14 +20,14 @@ reserved_ranges:
   purpose: infrastructure
 ip_allocations:
 - ip: 10.0.99.1
-  device_ref: mikrotik-chateau
+  host_os_ref: hos-mikrotik-chateau-routeros
   interface: vlan99-mgmt
   description: MikroTik management gateway
 - ip: 10.0.99.2
-  device_ref: gamayun
+  host_os_ref: hos-gamayun-proxmox
   interface: vmbr0.99
   description: Proxmox Web UI
 - ip: 10.0.99.3
-  device_ref: orangepi5
+  host_os_ref: hos-orangepi5-ubuntu
   interface: eth0.99
   description: Orange Pi 5 management

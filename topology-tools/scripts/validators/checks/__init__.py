@@ -16,8 +16,11 @@ from .network import (
     check_bridge_refs,
     check_data_links,
     check_firewall_policy_addressability,
+    check_ip_allocation_host_os_refs,
     check_network_refs,
     check_power_links,
+    check_runtime_network_reachability,
+    check_single_active_os_per_device,
     check_vlan_tags,
 )
 from .references import (
@@ -51,8 +54,11 @@ __all__ = [
     "check_bridge_refs",
     "check_data_links",
     "check_firewall_policy_addressability",
+    "check_ip_allocation_host_os_refs",
     "check_network_refs",
     "check_power_links",
+    "check_runtime_network_reachability",
+    "check_single_active_os_per_device",
     "check_vlan_tags",
     # Reference checks
     "check_backup_refs",

@@ -446,6 +446,39 @@
       "pattern": "^fw-[a-z0-9-]+$"
     },
 
+    "IpAllocation": {
+      "type": "object",
+      "description": "IP address allocation within a network. Use host_os_ref (preferred) or device_ref (deprecated).",
+      "properties": {
+        "ip": {
+          "type": "string",
+          "description": "IP address (without CIDR suffix)"
+        },
+        "host_os_ref": {
+          "$ref": "#/definitions/HostOsRef",
+          "description": "Host OS that owns this IP allocation (preferred over device_ref)"
+        },
+        "device_ref": {
+          "$ref": "#/definitions/DeviceRef",
+          "description": "Device that owns this IP (deprecated: use host_os_ref instead)",
+          "x-deprecated": "Use host_os_ref for semantic OS ownership"
+        },
+        "interface": {
+          "type": "string",
+          "description": "Network interface name on the host"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": ["ip"],
+      "oneOf": [
+        { "required": ["host_os_ref"] },
+        { "required": ["device_ref"] }
+      ],
+      "additionalProperties": false
+    },
+
     "IpAddress": {
       "type": "string",
       "pattern": "^(\\d{1,3}\\.){3}\\d{1,3}$"
@@ -775,7 +808,11 @@
         "managed_by_ref": { "$ref": "#/definitions/DeviceRef" },
         "interface_ref": { "$ref": "#/definitions/InterfaceRef" },
         "vpn_type": { "$ref": "#/definitions/VpnType" },
-        "ip_allocations": { "type": "array" },
+        "ip_allocations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/IpAllocation" },
+          "description": "Static IP allocations for hosts in this network"
+        },
         "reserved_ranges": {
           "type": "array",
           "items": {
@@ -820,13 +857,21 @@
       "required": ["id", "device_ref", "name"],
       "properties": {
         "id": { "$ref": "#/definitions/BridgeRef" },
-        "device_ref": { "$ref": "#/definitions/DeviceRef" },
+        "device_ref": {
+          "$ref": "#/definitions/DeviceRef",
+          "description": "Physical device that owns the bridge ports"
+        },
+        "host_os_ref": {
+          "$ref": "#/definitions/HostOsRef",
+          "description": "Host OS that manages this bridge (optional, for explicit logical ownership)"
+        },
         "name": { "type": "string" },
         "comment": { "type": "string" },
         "ports": { "type": "array", "items": { "type": "string" } },
         "address": { "$ref": "#/definitions/IpAddressWithCidr" },
         "gateway": { "$ref": "#/definitions/IpAddress" },
         "network_ref": { "$ref": "#/definitions/NetworkRef" },
+        "autostart": { "type": "boolean" },
         "vlan_aware": { "type": "boolean" },
         "bridge_stp": { "type": "boolean" },
         "bridge_fd": { "type": "integer" }

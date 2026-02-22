@@ -2,7 +2,7 @@
 adr: "0037"
 layer: "L2, L4, L5"
 scope: "network-substrate-workload-binding"
-status: "Proposed"
+status: "Superseded"
 date: "2026-02-22"
 public_api:
   - "L2 networks[].id"
@@ -14,15 +14,21 @@ public_api:
   - "L5 runtime.network_binding_ref"
 breaking_changes: false
 supersedes: null
+superseded_by: "0038"
 related:
   - "0030"
   - "0035"
   - "0036"
+  - "0038"
 ---
 
 # ADR 0037: L2 Network Substrate and Workload Binding Contracts
 
-- Status: Proposed
+- Status: Superseded by [ADR 0038](0038-network-binding-contracts-phase1.md)
+
+> **Note**: This ADR proposed a comprehensive solution. After architectural review,
+> a gradual evolution approach (Phase 1) was selected and implemented in ADR 0038.
+> This ADR is preserved for historical context.
 - Date: 2026-02-22
 
 ## TL;DR

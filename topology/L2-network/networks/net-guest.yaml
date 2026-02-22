@@ -19,6 +19,6 @@ firewall_policy_refs:
   - fw-default-deny
 ip_allocations:
 - ip: 192.168.30.1
-  device_ref: mikrotik-chateau
+  host_os_ref: hos-mikrotik-chateau-routeros
   interface: vlan50-guest
   description: MikroTik guest gateway

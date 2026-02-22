@@ -28,10 +28,13 @@ from scripts.validators.checks.network import (
     check_bridge_refs,
     check_data_links,
     check_firewall_policy_addressability,
+    check_ip_allocation_host_os_refs,
     check_mtu_consistency,
     check_network_refs,
     check_power_links,
     check_reserved_ranges,
+    check_runtime_network_reachability,
+    check_single_active_os_per_device,
     check_trust_zone_firewall_refs,
     check_vlan_tags,
     check_vlan_zone_consistency,
@@ -254,6 +257,9 @@ class SchemaValidator:
         self._check_vlan_zone_consistency()
         self._check_reserved_ranges()
         self._check_trust_zone_firewall_refs(ids)
+        self._check_ip_allocation_host_os_refs(ids)
+        self._check_runtime_network_reachability(ids)
+        self._check_single_active_os_per_device()
 
     def _check_file_placement(self) -> None:
         check_file_placement(
@@ -430,6 +436,29 @@ class SchemaValidator:
         check_trust_zone_firewall_refs(
             self.topology or {},
             ids,
+            errors=self.errors,
+            warnings=self.warnings,
+        )
+
+    def _check_ip_allocation_host_os_refs(self, ids: Dict[str, Set[str]]) -> None:
+        check_ip_allocation_host_os_refs(
+            self.topology or {},
+            ids,
+            errors=self.errors,
+            warnings=self.warnings,
+        )
+
+    def _check_runtime_network_reachability(self, ids: Dict[str, Set[str]]) -> None:
+        check_runtime_network_reachability(
+            self.topology or {},
+            ids,
+            errors=self.errors,
+            warnings=self.warnings,
+        )
+
+    def _check_single_active_os_per_device(self) -> None:
+        check_single_active_os_per_device(
+            self.topology or {},
             errors=self.errors,
             warnings=self.warnings,
         )
