@@ -65,8 +65,7 @@ Canonical structure (phase-1 scope):
 
 ```text
 topology/L4-platform/
-  defaults/
-    defaults.yaml
+  defaults.yaml
   resource-profiles/
     profile-*.yaml
   templates/
@@ -81,7 +80,7 @@ topology/L4-platform/
       vm-*.yaml
 ```
 
-No `owned/proxy/provider/region/node` nesting in phase-1.
+No `owned/proxmox/provider/region/node` nesting in phase-1.
 Host-level grouping is introduced only when at least one threshold is met:
 
 1. `workloads/<type>/` has more than 12 files, or
@@ -93,7 +92,7 @@ Host-level grouping is introduced only when at least one threshold is met:
 
 ```yaml
 # L4 Platform composition root
-_defaults: !include L4-platform/defaults/defaults.yaml
+_defaults: !include L4-platform/defaults.yaml
 
 resource_profiles: !include_dir_sorted L4-platform/resource-profiles
 lxc: !include_dir_sorted L4-platform/workloads/lxc
@@ -189,10 +188,10 @@ When first real object appears, add only the needed domain:
 
 ## References
 
-1. `topology/L4-platform.yaml`
-2. [0031](0031-layered-topology-toolchain-contract-alignment.md)
-3. [0032](0032-l3-data-modularization-and-layer-contracts.md)
-4. [0033](0033-toolchain-contract-rebaseline-after-modularization.md)
-5. `topology-tools/validate-topology.py`
-6. `topology-tools/scripts/validators/checks/references.py`
-7. `topology-tools/scripts/generators/terraform/proxmox/generator.py`
+- `topology/L4-platform.yaml`
+- [0031](0031-layered-topology-toolchain-contract-alignment.md)
+- [0032](0032-l3-data-modularization-and-layer-contracts.md)
+- [0033](0033-toolchain-contract-rebaseline-after-modularization.md)
+- `topology-tools/validate-topology.py`
+- `topology-tools/scripts/validators/checks/references.py`
+- `topology-tools/scripts/generators/terraform/proxmox/generator.py`
