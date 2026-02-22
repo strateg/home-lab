@@ -35,3 +35,4 @@
 | [0032](0032-l3-data-modularization-and-layer-contracts.md) | L3 Data Modularization and Layer Contracts | Proposed | 2026-02-22 | - | - |
 | [0033](0033-toolchain-contract-rebaseline-after-modularization.md) | Toolchain Contract Rebaseline After Modularization | Proposed | 2026-02-22 | - | - |
 | [0034](0034-l4-platform-modularization-and-runtime-taxonomy.md) | L4 Platform Modularization and Runtime Taxonomy | Proposed | 2026-02-22 | - | - |
+| [0035](0035-l4-host-os-foundation-and-runtime-substrates.md) | L4 Host OS Foundation and Runtime Substrate Contracts | Proposed | 2026-02-22 | - | - |
