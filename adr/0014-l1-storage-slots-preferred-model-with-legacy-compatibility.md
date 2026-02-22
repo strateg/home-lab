@@ -1,6 +1,6 @@
 # ADR 0014: Use L1 Storage Slots as Preferred Model with Legacy Compatibility
 
-- Status: Accepted
+- Status: Superseded by [0015](0015-drop-legacy-storage-compatibility-after-storage-slots-migration.md)
 - Date: 2026-02-21
 
 ## Context

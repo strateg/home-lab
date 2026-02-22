@@ -1,6 +1,6 @@
 # ADR 0007: Add Icon Legend Page and Complete Device Icon Coverage
 
-- Status: Accepted
+- Status: Superseded by [0027](0027-mermaid-rendering-strategy-consolidation.md)
 - Date: 2026-02-20
 - Supersedes: -
 

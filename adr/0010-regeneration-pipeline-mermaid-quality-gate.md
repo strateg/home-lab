@@ -1,6 +1,6 @@
 # ADR 0010: Add Mermaid Render Quality Gate to Regeneration Pipeline
 
-- Status: Accepted
+- Status: Superseded by [0027](0027-mermaid-rendering-strategy-consolidation.md)
 - Date: 2026-02-20
 
 ## Context

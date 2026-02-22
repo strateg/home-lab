@@ -1,6 +1,6 @@
 # ADR 0008: Make Mermaid Icon-Node the Default and Require Runtime Icon Pack Registration
 
-- Status: Accepted
+- Status: Superseded by [0027](0027-mermaid-rendering-strategy-consolidation.md)
 - Date: 2026-02-20
 - Supersedes: [0006](0006-mermaid-icon-mode-with-fallback.md)
 
