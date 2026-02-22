@@ -1,0 +1,7 @@
+id: tpl-lxc-debian
+vmid: 902
+name: template-debian
+storage_endpoint_ref: se-hdd
+source: proxmox
+image: debian-12-standard_12.2-1_amd64.tar.zst
+description: Debian 12 base LXC template

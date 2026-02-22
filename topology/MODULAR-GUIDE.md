@@ -62,6 +62,13 @@ Rules:
   - `topology/L3-data/mount-points/`
   - `topology/L3-data/storage-endpoints/`
   - `topology/L3-data/data-assets/`
+  - `topology/L4-platform.yaml`:
+  - `topology/L4-platform/defaults.yaml`
+  - `topology/L4-platform/resource-profiles/`
+  - `topology/L4-platform/workloads/lxc/`
+  - `topology/L4-platform/workloads/vms/`
+  - `topology/L4-platform/templates/lxc/`
+  - `topology/L4-platform/templates/vms/`
   - `topology/L5-application.yaml`:
   - `topology/L5-application/certificates.yaml`
   - `topology/L5-application/services.yaml`
@@ -74,7 +81,6 @@ Rules:
   - `topology/L6-observability/dashboard.yaml`
 - Single-file layers (not yet modularized into subfolders):
   - `topology/L0-meta.yaml`
-  - `topology/L4-platform.yaml`
 
 ## Editing Conventions (AI + Human)
 
@@ -92,6 +98,7 @@ Rules:
 - `power_links` can reference only owned/colo substrate devices (no `provider-instance`).
 - For PoE, model both links: one data link + one power link with `data_link_ref`.
 - VM/LXC remain in `L4_platform` (compute module), not in `L1_foundation`.
+- L4 workloads are one-object-per-file in `topology/L4-platform/workloads/`.
 - In L2 networks, `managed_by_ref` should point to `class: network` device.
 - For L2 networks with `profile_ref`, keep only exception overrides in network files.
 
@@ -108,7 +115,7 @@ Rules:
 9. Read profile rules in `topology/L2-network/profiles/README.md`.
 10. Override explicit fields (`network_plane`, `segmentation_type`, `transport`, `volatility`) only when diverging from profile.
 11. For firewall policy changes, edit `topology/L2-network/firewall/policies/*` and include from `topology/L2-network/firewall/policies/_index.yaml`.
-12. Add VM/LXC workloads in `topology/L4-platform.yaml` only.
+12. Add VM/LXC workloads in `topology/L4-platform/workloads/lxc/` or `topology/L4-platform/workloads/vms/`.
 13. Add platform/app/monitoring modules only if the device hosts workloads.
 14. Validate and regenerate:
    - `python topology-tools/validate-topology.py`

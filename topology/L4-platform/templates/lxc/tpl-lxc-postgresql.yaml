@@ -1,0 +1,7 @@
+id: tpl-lxc-postgresql
+vmid: 900
+name: template-postgresql
+storage_endpoint_ref: se-hdd
+source: proxmox-community-scripts
+script: db-postgresql.sh
+description: PostgreSQL LXC template

@@ -1,0 +1,7 @@
+id: tpl-lxc-redis
+vmid: 901
+name: template-redis
+storage_endpoint_ref: se-hdd
+source: proxmox-community-scripts
+script: db-redis.sh
+description: Redis LXC template

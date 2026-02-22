@@ -1,0 +1,53 @@
+id: lxc-postgresql
+vmid: 200
+name: postgresql-db
+device_ref: gamayun
+platform_type: lxc-unprivileged
+resource_profile_ref: profile-db-small
+template_ref: tpl-lxc-postgresql
+trust_zone_ref: servers
+description: PostgreSQL Database Server
+tags:
+- database
+- production
+boot:
+  onboot: true
+  startup_order: 10
+storage:
+  rootfs:
+    storage_endpoint_ref: se-lvm
+    size_gb: 8
+    data_asset_ref: data-postgresql-rootfs
+  volumes:
+  - id: vol-postgresql-data
+    mount_path: /var/lib/postgresql/data
+    storage_endpoint_ref: se-lvm
+    size_gb: 20
+    data_asset_ref: data-postgresql-db
+  - id: vol-postgresql-dumps
+    mount_path: /var/backups/postgresql
+    storage_endpoint_ref: se-hdd
+    size_gb: 50
+    data_asset_ref: data-postgresql-dumps
+networks:
+- interface: eth0
+  bridge_ref: bridge-vmbr0
+  network_ref: net-servers
+  gateway: 10.0.30.1
+  firewall: false
+  vlan_tag: 30
+  ip: 10.0.30.10/24
+dns:
+  nameserver: 192.168.88.1
+  searchdomain: home.local
+os:
+  type: debian
+  version: '12'
+cloudinit:
+  enabled: true
+  user: postgres
+  ssh_keys:
+  - ssh-ed25519 AAAA...
+ansible:
+  enabled: true
+  playbook: postgresql.yml

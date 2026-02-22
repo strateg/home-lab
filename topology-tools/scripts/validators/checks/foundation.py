@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Set
 
 import yaml
+from yaml.tokens import AliasToken
 
 from scripts.validators.checks.storage import (
     build_l1_storage_context,
@@ -46,6 +47,7 @@ def check_modular_include_contract(
     Enforced domains:
     - L1: devices, media, media-attachments, data-links, power-links
     - L2: networks
+    - L4 (when modular tree exists): defaults/resource-profiles/workloads/templates
     """
     if _is_fixture_topology(topology_path):
         # Keep fixture suites backward-compatible (legacy/new/mixed snapshots).
@@ -54,6 +56,8 @@ def check_modular_include_contract(
     root = topology_path.resolve().parent
     l1_file = root / 'topology' / 'L1-foundation.yaml'
     l2_file = root / 'topology' / 'L2-network.yaml'
+    l4_file = root / 'topology' / 'L4-platform.yaml'
+    l4_dir = root / 'topology' / 'L4-platform'
 
     expected_lines_by_file = {
         l1_file: [
@@ -67,6 +71,15 @@ def check_modular_include_contract(
             "networks: !include_dir_sorted L2-network/networks",
         ],
     }
+    if l4_dir.exists():
+        expected_lines_by_file[l4_file] = [
+            "_defaults: !include L4-platform/defaults.yaml",
+            "resource_profiles: !include_dir_sorted L4-platform/resource-profiles",
+            "lxc: !include_dir_sorted L4-platform/workloads/lxc",
+            "vms: !include_dir_sorted L4-platform/workloads/vms",
+            "lxc: !include_dir_sorted L4-platform/templates/lxc",
+            "vms: !include_dir_sorted L4-platform/templates/vms",
+        ]
 
     for composition_file, expected_lines in expected_lines_by_file.items():
         if not composition_file.exists():
@@ -90,6 +103,14 @@ def check_modular_include_contract(
         root / 'topology' / 'L1-foundation' / 'power-links',
         root / 'topology' / 'L2-network' / 'networks',
     ]
+    if l4_dir.exists():
+        migrated_dirs.extend([
+            l4_dir / 'resource-profiles',
+            l4_dir / 'workloads' / 'lxc',
+            l4_dir / 'workloads' / 'vms',
+            l4_dir / 'templates' / 'lxc',
+            l4_dir / 'templates' / 'vms',
+        ])
 
     for domain_dir in migrated_dirs:
         if not domain_dir.exists():
@@ -102,6 +123,38 @@ def check_modular_include_contract(
             errors.append(
                 f"Include contract: manual index file is not allowed in migrated domain ('{index_file}')"
             )
+
+    if l4_dir.exists():
+        _check_l4_workload_alias_usage(root=root, errors=errors)
+
+
+def _check_l4_workload_alias_usage(*, root: Path, errors: List[str]) -> None:
+    """Disallow YAML alias usage in modular L4 workloads to prevent cross-file anchor coupling."""
+    workload_roots = [
+        root / 'topology' / 'L4-platform' / 'workloads' / 'lxc',
+        root / 'topology' / 'L4-platform' / 'workloads' / 'vms',
+    ]
+    for workload_root in workload_roots:
+        if not workload_root.exists():
+            continue
+        for file_path in sorted(workload_root.rglob('*.yaml')):
+            try:
+                content = file_path.read_text(encoding='utf-8')
+            except OSError as exc:
+                errors.append(f"Include contract: cannot read '{file_path}': {exc}")
+                continue
+
+            try:
+                has_alias = any(isinstance(token, AliasToken) for token in yaml.scan(content))
+            except yaml.YAMLError as exc:
+                errors.append(f"Include contract: cannot parse '{file_path}' for alias scan: {exc}")
+                continue
+
+            if has_alias:
+                rel = file_path.relative_to(root).as_posix()
+                errors.append(
+                    f"Include contract: YAML aliases are not allowed in modular L4 workloads ('{rel}')"
+                )
 
 
 def _check_device_file_path(

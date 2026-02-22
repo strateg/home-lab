@@ -1,0 +1,23 @@
+lxc_os:
+  type: debian
+  version: '12'
+dns:
+  nameserver: 192.168.88.1
+  searchdomain: home.local
+lxc_boot:
+  onboot: true
+  startup_order: 10
+lxc_storage_rootfs:
+  storage_endpoint_ref: se-lvm
+  size_gb: 8
+lxc_network_servers:
+  interface: eth0
+  bridge_ref: bridge-vmbr0
+  network_ref: net-servers
+  gateway: 10.0.30.1
+  firewall: false
+  vlan_tag: 30
+lxc_cloudinit:
+  enabled: true
+ansible_enabled:
+  enabled: true

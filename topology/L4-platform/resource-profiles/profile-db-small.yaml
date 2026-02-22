@@ -1,0 +1,7 @@
+id: profile-db-small
+name: Database Small
+cpu:
+  cores: 2
+memory:
+  mb: 1024
+  swap_mb: 1024
