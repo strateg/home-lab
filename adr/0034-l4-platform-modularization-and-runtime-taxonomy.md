@@ -1,19 +1,3 @@
----
-adr: "0034"
-layer: "L4"
-scope: "modularization"
-status: "Proposed"
-date: "2026-02-22"
-blockers:
-  - id: "anchor-normalization"
-    phase: 0
-    status: "required"
-public_api:
-  - "lxc[].id"
-  - "vms[].id"
-breaking_changes: false
----
-
 # ADR 0034: L4 Platform Modularization (MVP)
 
 - Status: Proposed
@@ -22,199 +6,213 @@ breaking_changes: false
 ## TL;DR
 
 | Aspect | Value |
-|---|---|
-| Scope | Split `L4_platform` monolith into modular files by existing domains only |
-| Blocker | Phase-0 anchor normalization before split |
-| Public API | `lxc[].id`, `vms[].id` |
-| Breaking changes | None in phase-1 (`L4_platform` keys unchanged) |
-| Risk | Low, rollback by restoring monolith and removing modular tree |
+|--------|-------|
+| Scope | Split `L4-platform.yaml` (~176 lines) into ~10 modular files |
+| Blocker | Phase-0: inline YAML anchors before split |
+| Public API | `lxc[].id`, `vms[].id` (stable, consumed by L5/L6/L7) |
+| Schema changes | None |
+| Risk | Low (git restore rollback) |
 
 ## Context
 
-Current `L4_platform` (`topology/L4-platform.yaml`) mixes defaults, profiles, workloads, and templates in one file.
-At current scale (2 LXC, 0 VM, 5 templates), changes already create unnecessary review noise.
+`L4_platform` is monolithic and mixes defaults, profiles, workloads, and templates. Current scale is small (2 LXC, 5 templates), but edits touch unrelated sections.
 
-Key constraint:
+**Critical constraint:** L4 uses YAML anchors (`*dns_default`, `*lxc_os_default`). The `!include_dir_sorted` loader parses files independently, so cross-file aliases fail. Anchor inlining is a phase-0 blocker.
 
-- YAML aliases used in monolith cannot be safely reused across modular files because `!include_dir_sorted` loads files independently (`topology-tools/topology_loader.py`).
+**Cross-layer dependencies:**
 
-Cross-layer contracts:
+| Direction | References |
+|-----------|------------|
+| L4 → L1 | `device_ref` |
+| L4 → L2 | `bridge_ref`, `network_ref`, `trust_zone_ref` |
+| L4 → L3 | `storage_endpoint_ref`, `data_asset_ref` |
+| L5/L6/L7 → L4 | `lxc[].id`, `vms[].id` |
 
-- Downward (`L4 -> L1/L2/L3`): `device_ref`, `bridge_ref`/`network_ref`, `storage_endpoint_ref`/`data_asset_ref`.
-- Upward (`L5/L6/L7 <- L4`): stable workload IDs (`lxc[].id`, `vms[].id`).
+## Blockers & Prerequisites
 
-## Related ADRs
+### Phase-0 (before split)
 
-| ADR | Relationship | Dependency |
-|---|---|---|
-| [0031](0031-layered-topology-toolchain-contract-alignment.md) | Baseline | Layered toolchain contract |
-| [0032](0032-l3-data-modularization-and-layer-contracts.md) | Pattern source | L3 modularization approach |
-| [0033](0033-toolchain-contract-rebaseline-after-modularization.md) | Prerequisite | Deterministic include support and contract tightening |
+| Task | Status | Notes |
+|------|--------|-------|
+| Inline all YAML anchors | TODO | Replace `*alias` with explicit values |
+| Verify zero-diff regeneration | TODO | Compare outputs before/after |
 
-## Blockers And Prerequisites
-
-### Phase-0 (Before Split)
-
-| Task | Status | Owner |
-|---|---|---|
-| Normalize anchors in monolithic `L4-platform.yaml` (inline alias-based fields in workloads) | Required | topology-maintainer |
-| Verify no behavior changes (`validate` + `regenerate-all` before/after) | Required | topology-maintainer |
-
-### Phase-1 (This ADR)
+### Phase-1 (this ADR)
 
 | Dependency | Status |
-|---|---|
-| `!include_dir_sorted` loader support | Ready |
-| Existing schema keys (`lxc`, `vms`, `resource_profiles`, `templates`) | Ready |
-| Cross-layer reference validation on L4 IDs | Ready |
+|------------|--------|
+| `!include_dir_sorted` in loader | Ready |
+| Schema keys unchanged | Ready |
+| Reference validation | Ready |
 
 ### Deferred
 
-| Feature | Blocker |
-|---|---|
-| `host_operating_systems` domain | Schema and validators not implemented |
-| Container runtime/cluster taxonomy | Schema and generators not implemented |
+| Feature | Status |
+|---------|--------|
+| `host_operating_systems` schema | Not implemented |
+| `container_runtimes` schema | Not implemented |
 
 ## Decision
 
-Use MVP modularization only for existing, schema-backed L4 domains.
+### Target Structure
 
-```text
+```
 topology/L4-platform/
-  defaults.yaml
+  defaults.yaml           # Reference only (post-migration)
   resource-profiles/
     profile-*.yaml
-  workloads/
-    lxc/
-      lxc-*.yaml
-    vms/
-      vm-*.yaml
   templates/
-    lxc/
-      tpl-lxc-*.yaml
-    vms/
-      tpl-vm-*.yaml
+    lxc/tpl-lxc-*.yaml
+    vms/tpl-vm-*.yaml
+  workloads/
+    lxc/lxc-*.yaml
+    vms/vm-*.yaml
 ```
-
-No provider/node deep nesting in phase-1.
-
-Thresholds for introducing deeper grouping:
-
-| Trigger | Action |
-|---|---|
-| `workloads/<type>/` grows beyond ~12 files | Introduce additional grouping |
-| More than 2 placement domains active | Introduce grouping by placement |
-
-Rationale: around 10-15 peer entries remain quickly scannable in common CLI views; after that grouping helps navigation.
 
 ### Composition Root
 
 ```yaml
+# topology/L4-platform.yaml
 _defaults: !include L4-platform/defaults.yaml
+
 resource_profiles: !include_dir_sorted L4-platform/resource-profiles
 lxc: !include_dir_sorted L4-platform/workloads/lxc
 vms: !include_dir_sorted L4-platform/workloads/vms
+
 templates:
   lxc: !include_dir_sorted L4-platform/templates/lxc
   vms: !include_dir_sorted L4-platform/templates/vms
 ```
 
-Note: `_defaults` is reference/documentation only after phase-0 normalization; modular workloads must not use YAML aliases.
+### Scaling Thresholds
+
+| Trigger | Action |
+|---------|--------|
+| `workloads/<type>/` > 12 files | Add `owned/`/`provider/` subdirs |
+| > 2 placement domains | Add per-domain grouping |
+
+Rationale: ~10-15 entries remain scannable in CLI; cognitive benefit from grouping appears after 10-12 peers.
 
 ## Contracts
 
 ### Public API
 
-| ID | Visibility | Stability | Consumers |
-|---|---|---|---|
-| `lxc[].id` | Public | Stable `v1` | L5, L6, L7 |
-| `vms[].id` | Public | Stable `v1` | L5, L6, L7 |
+| ID Pattern | Visibility | Stability | Consumer |
+|------------|------------|-----------|----------|
+| `lxc-*` | Public | Stable v1 | L5 `runtime.target_ref`, L6, L7 backup |
+| `vm-*` | Public | Stable v1 | L5, L6, L7 |
+| `profile-*` | Internal | Mutable | L4 only |
+| `tpl-*` | Internal | Mutable | L4 only |
 | `_defaults` | Internal | Mutable | L4 only |
-| `resource_profiles` | Internal | Mutable | L4 only |
-| `templates.*` | Internal | Mutable | L4 only |
 
-Evolution rule: breaking ID change requires new ADR plus at least one deprecation cycle.
+**Evolution:** Breaking ID change requires new ADR + one deprecation cycle.
 
 ### Naming
 
-Common naming/discovery conventions are centralized in `topology/MODULAR-GUIDE.md` (`Naming conventions`, `Discovery contract`).
-L4-specific ID families: `lxc-*`, `vm-*`, `profile-*`, `tpl-lxc-*`, `tpl-vm-*`.
+| Scope | Convention | Example |
+|-------|------------|---------|
+| Directories | `kebab-case` | `resource-profiles/` |
+| YAML keys | `snake_case` | `resource_profiles:` |
+| Workload IDs | `lxc-*`, `vm-*` | `lxc-postgresql` |
+| Profile IDs | `profile-*` | `profile-db-small` |
+| Template IDs | `tpl-lxc-*`, `tpl-vm-*` | `tpl-lxc-debian` |
+
+### Responsibility Boundary
+
+| L4 Owns | L4 Does NOT Own |
+|---------|-----------------|
+| Workload instances & placement | Service semantics (L5) |
+| Templates & provisioning | Monitoring policy (L6) |
+| Resource profiles | Backup/runbook policy (L7) |
 
 ## Migration
 
-### Anchor Strategy
+### Phase-0: Anchor Normalization
 
-1. In monolithic L4, replace alias-based workload fields with explicit values.
-2. Validate and regenerate to confirm no behavioral diffs.
-3. Split workloads/profiles/templates into modular files.
-4. Keep `_defaults` as reference only; disallow aliases in modular workload files.
+1. Replace all `*alias` references with inline values in `L4-platform.yaml`
+2. Run `regenerate-all.py`, verify zero diff
+3. Commit normalized monolith
 
-### Toolchain Impact
+### Phase-1: Split
 
-| Component | Impact | Action |
-|---|---|---|
-| Schema | None | Keep existing keys |
-| `terraform/proxmox/generator.py` | None | Input keys unchanged |
-| `docs/generator.py` | None | Input keys unchanged |
-| Validators | Minor | Enforce L4 include contract; detect aliases in workloads |
-| `topology/MODULAR-GUIDE.md` | Minor | Remove L4 from single-file list; add modular paths |
-
-### Verification Checklist
-
-- [ ] `python topology-tools/validate-topology.py --strict` passes
-- [ ] `python topology-tools/regenerate-all.py --topology topology.yaml --strict --skip-mermaid-validate` passes
-- [ ] Generated infra outputs (`terraform`, `terraform-mikrotik`, `ansible`) match before/after split
-- [ ] No YAML aliases under `topology/L4-platform/workloads/**/*.yaml`
-- [ ] L5/L6/L7 references to `lxc[].id` and `vms[].id` remain valid
+1. Create `topology/L4-platform/` structure
+2. Move objects to per-file modules
+3. Convert `L4-platform.yaml` to composition root
+4. Run `regenerate-all.py`, verify zero diff
+5. Add validator guardrail for alias detection in `workloads/`
 
 ### Rollback
 
-```powershell
-git restore topology/L4-platform.yaml
-Remove-Item -Recurse -Force topology/L4-platform
+```bash
+git checkout HEAD~1 -- topology/L4-platform.yaml
+rm -rf topology/L4-platform/
 python topology-tools/validate-topology.py --strict
-python topology-tools/regenerate-all.py --topology topology.yaml --strict --skip-mermaid-validate
+python topology-tools/regenerate-all.py --strict --skip-mermaid-validate
 ```
+
+## Toolchain Impact
+
+| Component | Impact | Action Required |
+|-----------|--------|-----------------|
+| Schema | None | Keys unchanged |
+| `proxmox/generator.py` | None | Reads same structure |
+| `docs/generator.py` | None | Reads same structure |
+| Validators | Minor | Add alias detection guardrail |
+| `MODULAR-GUIDE.md` | Update | Move L4 to modularized list |
 
 ## Consequences
 
-Benefits:
+### Benefits
 
-- Smaller, localized diffs for L4 changes.
-- Lower cognitive load via one-object-per-file workload modules.
-- No phase-1 schema churn.
+- Smaller, localized diffs (one-object-per-file)
+- Reduced merge conflicts
+- No schema changes required
 
-Trade-offs:
+### Trade-offs
 
-- File count increases from 1 monolith to about 10-11 files at current scale.
-- Include contract and alias guardrails become validator responsibilities.
+- File count: 1 → ~10
+- Include contracts become validator-enforced
 
-Success metrics:
+### Success Metrics
 
 | Metric | Target |
-|---|---|
-| Files touched for new LXC in L4 | 1-4 |
-| Additional L3 files touched for new LXC data placement | 0-2 |
-| Median workload-only diff size | < 60 changed lines |
-| Behavioral diff after phase-1 split | 0 in infra outputs |
+|--------|--------|
+| Files changed per new LXC | 1-4 (workload + optional profile/template) |
+| Additional L3 files | 0-2 (if new data assets) |
+| Median diff size | < 60 lines |
+| Behavioral diff after split | Zero |
 
-## Ownership
+## Ownership (RACI)
 
 | Role | Party |
-|---|---|
-| Responsible | topology maintainer |
-| Accountable | architecture owner |
-| Consulted | service owners |
-| Informed | operations owner |
+|------|-------|
+| Responsible | Topology maintainer |
+| Accountable | Architecture owner |
+| Consulted | L5 service owners |
+| Informed | Operations owner |
+
+## Deferred
+
+| Extension | Trigger |
+|-----------|---------|
+| `host_operating_systems` | When OS lifecycle objects exist |
+| `container_runtimes` | When first runtime/cluster object exists |
+| L5 modularization | Separate ADR after L5 scale threshold |
 
 ## References
 
-- `topology/L4-platform.yaml`
-- `topology/MODULAR-GUIDE.md`
-- `topology-tools/topology_loader.py`
-- `topology-tools/validate-topology.py`
-- `topology-tools/scripts/validators/checks/references.py`
-- `topology-tools/scripts/generators/terraform/proxmox/generator.py`
-- [0031](0031-layered-topology-toolchain-contract-alignment.md)
-- [0032](0032-l3-data-modularization-and-layer-contracts.md)
-- [0033](0033-toolchain-contract-rebaseline-after-modularization.md)
+- Source: `topology/L4-platform.yaml`
+- Guide: `topology/MODULAR-GUIDE.md`
+- Loader: `topology-tools/topology_loader.py`
+- Validator: `topology-tools/scripts/validators/checks/references.py`
+- Generator: `topology-tools/scripts/generators/terraform/proxmox/generator.py`
+- Related: [0031], [0032], [0033]
+
+## Alternatives Considered
+
+| Option | Verdict | Reason |
+|--------|---------|--------|
+| A. Keep monolith | Rejected | Poor review ergonomics at scale |
+| B. Deep hierarchy now | Rejected | Overfits future, unnecessary depth |
+| C. Full taxonomy now | Rejected | YAGNI, objects don't exist |
+| **D. MVP split** | **Selected** | Minimal change, immediate benefit |
