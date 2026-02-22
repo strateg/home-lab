@@ -29,6 +29,81 @@ def _check_expected_prefix(
         )
 
 
+def _is_fixture_topology(topology_path: Path) -> bool:
+    """Return True when validator is pointed to bundled fixture topology."""
+    parts = {part.lower() for part in topology_path.resolve().parts}
+    return 'topology-tools' in parts and 'fixtures' in parts
+
+
+def check_modular_include_contract(
+    *,
+    topology_path: Path,
+    errors: List[str],
+) -> None:
+    """
+    Enforce deterministic include contract for migrated high-churn L1/L2 domains.
+
+    Enforced domains:
+    - L1: devices, media, media-attachments, data-links, power-links
+    - L2: networks
+    """
+    if _is_fixture_topology(topology_path):
+        # Keep fixture suites backward-compatible (legacy/new/mixed snapshots).
+        return
+
+    root = topology_path.resolve().parent
+    l1_file = root / 'topology' / 'L1-foundation.yaml'
+    l2_file = root / 'topology' / 'L2-network.yaml'
+
+    expected_lines_by_file = {
+        l1_file: [
+            "devices: !include_dir_sorted L1-foundation/devices",
+            "media_registry: !include_dir_sorted L1-foundation/media",
+            "media_attachments: !include_dir_sorted L1-foundation/media-attachments",
+            "data_links: !include_dir_sorted L1-foundation/data-links",
+            "power_links: !include_dir_sorted L1-foundation/power-links",
+        ],
+        l2_file: [
+            "networks: !include_dir_sorted L2-network/networks",
+        ],
+    }
+
+    for composition_file, expected_lines in expected_lines_by_file.items():
+        if not composition_file.exists():
+            continue
+        try:
+            content = composition_file.read_text(encoding='utf-8')
+        except OSError as exc:
+            errors.append(f"Include contract: cannot read '{composition_file}': {exc}")
+            continue
+        for expected_line in expected_lines:
+            if expected_line not in content:
+                errors.append(
+                    f"Include contract: '{composition_file}' must define `{expected_line}`"
+                )
+
+    migrated_dirs = [
+        root / 'topology' / 'L1-foundation' / 'devices',
+        root / 'topology' / 'L1-foundation' / 'media',
+        root / 'topology' / 'L1-foundation' / 'media-attachments',
+        root / 'topology' / 'L1-foundation' / 'data-links',
+        root / 'topology' / 'L1-foundation' / 'power-links',
+        root / 'topology' / 'L2-network' / 'networks',
+    ]
+
+    for domain_dir in migrated_dirs:
+        if not domain_dir.exists():
+            continue
+        index_files = sorted(
+            candidate.relative_to(root).as_posix()
+            for candidate in domain_dir.rglob('_index.yaml')
+        )
+        for index_file in index_files:
+            errors.append(
+                f"Include contract: manual index file is not allowed in migrated domain ('{index_file}')"
+            )
+
+
 def _check_device_file_path(
     *,
     rel: str,

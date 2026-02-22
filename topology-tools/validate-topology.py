@@ -47,6 +47,7 @@ from scripts.validators.checks.references import (
 from scripts.validators.checks.foundation import (
     check_device_taxonomy,
     check_file_placement,
+    check_modular_include_contract,
 )
 from scripts.validators.checks.governance import (
     check_ip_overlaps,
@@ -229,6 +230,7 @@ class SchemaValidator:
         ids = self._collect_ids()
 
         self._check_file_placement()
+        self._check_modular_include_contract()
         self._check_device_taxonomy(ids)
         self._check_l0_contracts(ids)
         self._check_network_refs(ids)
@@ -255,6 +257,12 @@ class SchemaValidator:
             policy_get=self._policy_get,
             emit_by_severity=self._emit_by_severity,
             warnings=self.warnings,
+        )
+
+    def _check_modular_include_contract(self) -> None:
+        check_modular_include_contract(
+            topology_path=self.topology_path,
+            errors=self.errors,
         )
 
     def _check_device_taxonomy(self, ids: Dict[str, Set[str]]) -> None:
