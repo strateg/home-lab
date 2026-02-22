@@ -4,4 +4,5 @@ name: template-debian-vm
 storage_endpoint_ref: se-hdd
 source: cloud-init
 image: debian-12-genericcloud-amd64.qcow2
+architecture: x86_64
 description: Debian 12 cloud-init VM template

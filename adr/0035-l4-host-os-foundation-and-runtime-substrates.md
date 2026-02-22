@@ -154,6 +154,7 @@ Add phase-2 validator rules:
 | `service.runtime.type: baremetal` | Host OS object exists for `target_ref` |
 | `L4 vms[]` placement | `vm` on resolved host OS |
 | `L4 lxc[]` placement | `lxc` on resolved host OS |
+| `L4 template.architecture` (if set) | Must match resolved host OS architecture |
 
 Architecture normalization for compatibility checks:
 
@@ -204,6 +205,7 @@ Evolution policy:
 4. Extend ID collector with `host_operating_systems`.
 5. Add reference validators for `host_os_ref` consistency rules.
 6. Add validator guardrail for template-vs-explicit OS conflicts.
+7. Add template architecture compatibility checks (`template.architecture` vs resolved host architecture).
 
 ### Phase-0.5: Baseline Host OS Coverage
 
@@ -251,7 +253,7 @@ If phase-0 or phase-1 introduces regressions:
 
 | Component | Impact | Action |
 |---|---|---|
-| `topology-tools/schemas/topology-v4-schema.json` | Medium | Add typed `host_operating_systems` and optional `host_os_ref` |
+| `topology-tools/schemas/topology-v4-schema.json` | High | Add typed `host_operating_systems`, typed `vms`, and typed `templates.*` with optional `architecture` |
 | `topology-tools/scripts/validators/checks/foundation.py` | Medium | Enforce `specs.cpu.architecture` on `class: compute` devices |
 | `topology-tools/scripts/validators/ids.py` | High | Collect `hos-*` IDs for chain validation |
 | `topology-tools/scripts/validators/checks/references.py` | High | Add host OS reference, consistency, capability, and OS precedence checks |

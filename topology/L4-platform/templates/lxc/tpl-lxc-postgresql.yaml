@@ -4,4 +4,5 @@ name: template-postgresql
 storage_endpoint_ref: se-hdd
 source: proxmox-community-scripts
 script: db-postgresql.sh
+architecture: x86_64
 description: PostgreSQL LXC template

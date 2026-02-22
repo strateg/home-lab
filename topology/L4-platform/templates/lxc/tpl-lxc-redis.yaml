@@ -4,4 +4,5 @@ name: template-redis
 storage_endpoint_ref: se-hdd
 source: proxmox-community-scripts
 script: db-redis.sh
+architecture: x86_64
 description: Redis LXC template

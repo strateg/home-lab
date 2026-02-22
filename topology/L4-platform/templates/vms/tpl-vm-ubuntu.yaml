@@ -4,4 +4,5 @@ name: template-ubuntu-vm
 storage_endpoint_ref: se-hdd
 source: cloud-init
 image: ubuntu-24.04-server-cloudimg-amd64.img
+architecture: x86_64
 description: Ubuntu 24.04 cloud-init VM template

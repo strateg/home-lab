@@ -40,6 +40,16 @@ def _host_os_map(topology: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     }
 
 
+def _template_map(topology: Dict[str, Any], template_family: str) -> Dict[str, Dict[str, Any]]:
+    l4 = topology.get('L4_platform', {})
+    templates = (l4.get('templates') or {}).get(template_family, []) or []
+    return {
+        template.get('id'): template
+        for template in templates
+        if isinstance(template, dict) and template.get('id')
+    }
+
+
 def _active_host_os_by_device(topology: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
     per_device: Dict[str, List[Dict[str, Any]]] = {}
     for host_os in _host_os_map(topology).values():
@@ -56,6 +66,22 @@ def _device_architecture(device: Dict[str, Any]) -> str:
     specs = device.get('specs') if isinstance(device.get('specs'), dict) else {}
     cpu = specs.get('cpu') if isinstance(specs.get('cpu'), dict) else {}
     return _normalize_arch(cpu.get('architecture'))
+
+
+def _resolve_host_os(
+    *,
+    device_ref: Any,
+    host_os_ref: Any,
+    host_os_map: Dict[str, Dict[str, Any]],
+    active_by_device: Dict[str, List[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    if isinstance(host_os_ref, str) and host_os_ref in host_os_map:
+        return host_os_map[host_os_ref]
+    if isinstance(device_ref, str) and device_ref:
+        active = active_by_device.get(device_ref, [])
+        if len(active) == 1:
+            return active[0]
+    return {}
 
 
 def check_host_os_refs(
@@ -112,10 +138,10 @@ def check_vm_refs(
     errors: List[str],
     warnings: List[str],
 ) -> None:
-    del warnings
     l4 = topology.get('L4_platform', {})
     host_os_map = _host_os_map(topology)
     active_by_device = _active_host_os_by_device(topology)
+    vm_templates = _template_map(topology, 'vms')
     for vm in l4.get('vms', []) or []:
         vm_id = vm.get('id')
         device_ref = vm.get('device_ref')
@@ -140,16 +166,46 @@ def check_vm_refs(
                     f"VM '{vm_id}': host_os_ref '{host_os_ref}' belongs to device '{host_device_ref}', "
                     f"expected '{device_ref}'"
                 )
-            vm_arch = _normalize_arch((vm.get('os') or {}).get('architecture'))
-            host_arch = _normalize_arch(host_os_map[host_os_ref].get('architecture'))
-            if vm_arch and host_arch and vm_arch != host_arch:
-                errors.append(
-                    f"VM '{vm_id}': guest architecture '{(vm.get('os') or {}).get('architecture')}' "
-                    f"does not match host OS '{host_os_ref}' architecture '{host_os_map[host_os_ref].get('architecture')}'"
-                )
         if not host_os_ref and device_ref and len(active_by_device.get(device_ref, [])) > 1:
             errors.append(
                 f"VM '{vm_id}': device '{device_ref}' has multiple active host OS objects; host_os_ref is required"
+            )
+
+        resolved_host_os = _resolve_host_os(
+            device_ref=device_ref,
+            host_os_ref=host_os_ref,
+            host_os_map=host_os_map,
+            active_by_device=active_by_device,
+        )
+        resolved_host_arch = _normalize_arch(resolved_host_os.get('architecture'))
+        resolved_caps = {str(cap).strip().lower() for cap in (resolved_host_os.get('capabilities') or [])}
+        vm_arch_raw = (vm.get('os') or {}).get('architecture')
+        vm_arch = _normalize_arch(vm_arch_raw)
+        template = vm_templates.get(template_ref, {})
+        template_arch_raw = template.get('architecture') if isinstance(template, dict) else None
+        template_arch = _normalize_arch(template_arch_raw)
+
+        if resolved_host_os and 'vm' not in resolved_caps:
+            errors.append(
+                f"VM '{vm_id}': resolved host OS '{resolved_host_os.get('id')}' lacks required capability 'vm'"
+            )
+
+        if vm_arch and template_arch and vm_arch != template_arch:
+            warnings.append(
+                f"VM '{vm_id}': os.architecture '{vm_arch_raw}' conflicts with template '{template_ref}' "
+                f"architecture '{template_arch_raw}'; workload value takes precedence"
+            )
+
+        if resolved_host_arch and template_arch and template_arch != resolved_host_arch:
+            errors.append(
+                f"VM '{vm_id}': template '{template_ref}' architecture '{template_arch_raw}' does not match "
+                f"resolved host OS architecture '{resolved_host_os.get('architecture')}'"
+            )
+
+        if resolved_host_arch and vm_arch and vm_arch != resolved_host_arch:
+            errors.append(
+                f"VM '{vm_id}': guest architecture '{vm_arch_raw}' does not match "
+                f"resolved host OS architecture '{resolved_host_os.get('architecture')}'"
             )
 
         for disk in vm.get('storage', []) or []:
@@ -173,6 +229,7 @@ def check_lxc_refs(
     l4 = topology.get('L4_platform', {})
     host_os_map = _host_os_map(topology)
     active_by_device = _active_host_os_by_device(topology)
+    lxc_templates = _template_map(topology, 'lxc')
     for lxc in l4.get('lxc', []) or []:
         lxc_id = lxc.get('id')
         device_ref = lxc.get('device_ref')
@@ -197,16 +254,46 @@ def check_lxc_refs(
                     f"LXC '{lxc_id}': host_os_ref '{host_os_ref}' belongs to device '{host_device_ref}', "
                     f"expected '{device_ref}'"
                 )
-            lxc_arch = _normalize_arch((lxc.get('os') or {}).get('architecture'))
-            host_arch = _normalize_arch(host_os_map[host_os_ref].get('architecture'))
-            if lxc_arch and host_arch and lxc_arch != host_arch:
-                errors.append(
-                    f"LXC '{lxc_id}': guest architecture '{(lxc.get('os') or {}).get('architecture')}' "
-                    f"does not match host OS '{host_os_ref}' architecture '{host_os_map[host_os_ref].get('architecture')}'"
-                )
         if not host_os_ref and device_ref and len(active_by_device.get(device_ref, [])) > 1:
             errors.append(
                 f"LXC '{lxc_id}': device '{device_ref}' has multiple active host OS objects; host_os_ref is required"
+            )
+
+        resolved_host_os = _resolve_host_os(
+            device_ref=device_ref,
+            host_os_ref=host_os_ref,
+            host_os_map=host_os_map,
+            active_by_device=active_by_device,
+        )
+        resolved_host_arch = _normalize_arch(resolved_host_os.get('architecture'))
+        resolved_caps = {str(cap).strip().lower() for cap in (resolved_host_os.get('capabilities') or [])}
+        lxc_arch_raw = (lxc.get('os') or {}).get('architecture')
+        lxc_arch = _normalize_arch(lxc_arch_raw)
+        template = lxc_templates.get(template_ref, {})
+        template_arch_raw = template.get('architecture') if isinstance(template, dict) else None
+        template_arch = _normalize_arch(template_arch_raw)
+
+        if resolved_host_os and 'lxc' not in resolved_caps:
+            errors.append(
+                f"LXC '{lxc_id}': resolved host OS '{resolved_host_os.get('id')}' lacks required capability 'lxc'"
+            )
+
+        if lxc_arch and template_arch and lxc_arch != template_arch:
+            warnings.append(
+                f"LXC '{lxc_id}': os.architecture '{lxc_arch_raw}' conflicts with template '{template_ref}' "
+                f"architecture '{template_arch_raw}'; workload value takes precedence"
+            )
+
+        if resolved_host_arch and template_arch and template_arch != resolved_host_arch:
+            errors.append(
+                f"LXC '{lxc_id}': template '{template_ref}' architecture '{template_arch_raw}' does not match "
+                f"resolved host OS architecture '{resolved_host_os.get('architecture')}'"
+            )
+
+        if resolved_host_arch and lxc_arch and lxc_arch != resolved_host_arch:
+            errors.append(
+                f"LXC '{lxc_id}': guest architecture '{lxc_arch_raw}' does not match "
+                f"resolved host OS architecture '{resolved_host_os.get('architecture')}'"
             )
 
         resource_profile_ref = lxc.get('resource_profile_ref')

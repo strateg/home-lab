@@ -1210,6 +1210,54 @@
         "ansible": { "type": "object" }
       }
     },
+    "LxcTemplate": {
+      "type": "object",
+      "required": ["id", "vmid", "name", "storage_endpoint_ref", "source"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^tpl-lxc-[a-z0-9-]+$" },
+        "vmid": { "type": "integer", "minimum": 100, "maximum": 999999999 },
+        "name": { "type": "string" },
+        "storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" },
+        "source": { "$ref": "#/definitions/TemplateSource" },
+        "image": { "type": "string" },
+        "script": { "type": "string" },
+        "architecture": { "$ref": "#/definitions/CpuArchitecture" },
+        "description": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            { "required": ["image"] },
+            { "required": ["script"] }
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "VmTemplate": {
+      "type": "object",
+      "required": ["id", "vmid", "name", "storage_endpoint_ref", "source"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^tpl-vm-[a-z0-9-]+$" },
+        "vmid": { "type": "integer", "minimum": 100, "maximum": 999999999 },
+        "name": { "type": "string" },
+        "storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" },
+        "source": { "$ref": "#/definitions/TemplateSource" },
+        "image": { "type": "string" },
+        "script": { "type": "string" },
+        "architecture": { "$ref": "#/definitions/CpuArchitecture" },
+        "description": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "anyOf": [
+            { "required": ["image"] },
+            { "required": ["script"] }
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
     "Lxc": {
       "type": "object",
       "required": ["id", "vmid", "name", "device_ref"],
@@ -1542,7 +1590,20 @@
           "type": "array",
           "items": { "$ref": "#/definitions/HostOperatingSystem" }
         },
-        "templates": { "type": "object" }
+        "templates": {
+          "type": "object",
+          "properties": {
+            "lxc": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/LxcTemplate" }
+            },
+            "vms": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/VmTemplate" }
+            }
+          },
+          "additionalProperties": false
+        }
       }
     },
     "L5_application": {
