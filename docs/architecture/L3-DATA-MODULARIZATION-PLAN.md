@@ -44,8 +44,8 @@ Exit criteria:
 
 1. Create `topology/L3-data/*` directories.
 2. Move each L3 object into dedicated module files.
-3. Add `_index.yaml` per subdirectory.
-4. Convert `topology/L3-data.yaml` to include-based composition root.
+3. Convert `topology/L3-data.yaml` to deterministic directory-includes per domain.
+4. Keep optional manifest files only where explicit non-default order is required.
 
 Rules:
 
@@ -78,6 +78,7 @@ Exit criteria:
    - L4/L5/L7 may reference only `storage_endpoints`/`data_assets` from L3.
    - Disallow upper-layer refs to internal chain IDs (`part-*`, `vg-*`, `lv-*`, `fs-*`, `mnt-*`).
    - Verify L7 `storage_ref` resolves to endpoint IDs.
+   - Verify deterministic include order and unique IDs in each L3 domain.
 3. Fix topology drift found by new checks.
 
 Exit criteria:
@@ -117,10 +118,11 @@ Exit criteria:
    - Mitigation: regression regeneration and diff checks.
 3. Legacy refs in upper layers:
    - Mitigation: add semantic validator checks before finalization.
+4. Loader support gap for directory includes:
+   - Mitigation: implement loader feature before switching canonical L3 root.
 
 ## Rollback Plan
 
 1. Restore previous `topology/L3-data.yaml` monolith from git.
 2. Remove `topology/L3-data/` subtree.
 3. Re-run strict validation/regeneration.
-
