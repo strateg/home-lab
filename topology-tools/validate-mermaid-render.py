@@ -42,16 +42,27 @@ def resolve_mmdc_runner():
     """
     Resolve command prefix for Mermaid CLI.
     Prefer npx package invocation, fallback to npm exec package invocation.
+
+    On Windows, prefer .cmd variants. On Linux/WSL, use native commands only
+    to avoid picking up Windows executables from /mnt/... paths.
     """
-    npx_exec = shutil.which("npx.cmd") or shutil.which("npx")
+    is_windows = sys.platform == "win32"
+
+    if is_windows:
+        npx_exec = shutil.which("npx.cmd") or shutil.which("npx")
+    else:
+        npx_exec = shutil.which("npx")
     if npx_exec:
         return [npx_exec, "--yes", "@mermaid-js/mermaid-cli"]
 
-    npm_exec = shutil.which("npm.cmd") or shutil.which("npm")
+    if is_windows:
+        npm_exec = shutil.which("npm.cmd") or shutil.which("npm")
+    else:
+        npm_exec = shutil.which("npm")
     if npm_exec:
         return [npm_exec, "exec", "--yes", "@mermaid-js/mermaid-cli", "--"]
 
-    raise FileNotFoundError("Neither 'npx(.cmd)' nor 'npm(.cmd)' is available in PATH.")
+    raise FileNotFoundError("Neither 'npx' nor 'npm' is available in PATH.")
 
 
 def run_mmdc(bundle_path: Path, assets_dir: Path, icon_mode: str, icon_packs):
