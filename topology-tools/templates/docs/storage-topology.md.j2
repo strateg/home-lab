@@ -32,7 +32,8 @@ flowchart LR
     subgraph PART["Partitions"]
         direction TB
 {% for part in block.partitions %}
-{% set part_label = "p" ~ (part.number | default('?')) ~ " " ~ (part.type | default('')) %}
+{% set part_type = (part.type | default('')) | replace('-', ' ') %}
+{% set part_label = "p" ~ (part.number | default('?')) ~ " " ~ part_type %}
 {% if use_mermaid_icons %}
         P_{{ part.id | mermaid_id }}@{ icon: "mdi:harddisk", form: "rounded", label: "{{ part_label }}", pos: "b", h: 32 }
 {% else %}
@@ -62,7 +63,8 @@ flowchart LR
     subgraph LVS["Logical Volumes"]
         direction TB
 {% for lv in block.logical_volumes %}
-{% set lv_label = (lv.name | default(lv.id | replace('lv-', ''))) ~ " " ~ (lv.type | default('')) %}
+{% set lv_type = (lv.type | default('')) | replace('-', ' ') %}
+{% set lv_label = (lv.name | default(lv.id | replace('lv-', ''))) ~ " " ~ lv_type %}
 {% if use_mermaid_icons %}
         LV_{{ lv.id | mermaid_id }}@{ icon: "mdi:disc-player", form: "rounded", label: "{{ lv_label }}", pos: "b", h: 32 }
 {% else %}
@@ -107,8 +109,9 @@ flowchart LR
     subgraph EPS["Endpoints"]
         direction TB
 {% for endpoint in block.storage_endpoints %}
-{% set ep_name = endpoint.name | default(endpoint.id | replace('se-', '')) %}
-{% set ep_label = ep_name ~ " " ~ (endpoint.type | default('')) %}
+{% set ep_name = endpoint.name | default(endpoint.id | replace('se-', '')) | replace('-', ' ') %}
+{% set ep_type = (endpoint.type | default('')) | replace('-', ' ') %}
+{% set ep_label = ep_name ~ " " ~ ep_type %}
 {% if use_mermaid_icons %}
         EP_{{ endpoint.id | mermaid_id }}@{ icon: "{{ pool_icons.get(endpoint.id, 'mdi:database') }}", form: "rounded", label: "{{ ep_label }}", pos: "b", h: 32 }
 {% else %}
@@ -124,7 +127,8 @@ flowchart LR
         direction TB
 {% for asset in block.data_assets %}
 {% set asset_name = asset.name | default(asset.id) | replace(' Data', '') | replace(' Config', '') %}
-{% set asset_label = asset_name ~ " " ~ (asset.type | default('')) %}
+{% set asset_type = (asset.type | default('')) | replace('-', ' ') %}
+{% set asset_label = asset_name ~ " " ~ asset_type %}
 {% if use_mermaid_icons %}
         DA_{{ asset.id | mermaid_id }}@{ icon: "{{ asset_icons.get(asset.id, 'mdi:file-outline') }}", form: "rounded", label: "{{ asset_label }}", pos: "b", h: 32 }
 {% else %}
