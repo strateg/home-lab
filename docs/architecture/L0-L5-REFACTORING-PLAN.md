@@ -1,6 +1,6 @@
 # L0-L5 Refactoring Plan (ADR-0040)
 
-Status: Active (P0 and P1.1 complete)
+Status: Active (P0 and P1 complete)
 Date: 2026-02-23
 Scope: `L0` .. `L5`
 
@@ -108,9 +108,9 @@ Scope: `L0` .. `L5`
 **Goal**: Consistent `protocol` vs certificate/TLS intent for web services.
 
 **Tasks**:
-- [ ] Audit services with `protocol: https` but no `security.ssl_certificate`
-- [ ] Define canonical pattern: `protocol` indicates transport, `security.ssl_certificate` indicates cert source
-- [ ] Document in MODULAR-GUIDE.md
+- [x] Audit services with `protocol: https` but no `security.ssl_certificate`
+- [x] Define canonical pattern: `protocol` indicates transport, `security.ssl_certificate` indicates cert source
+- [x] Document in MODULAR-GUIDE.md
 
 ### P2 (Hardening) - Governance and Cleanup
 
@@ -226,7 +226,7 @@ git tag -d pre-adr0040-*
 
 - [x] Zero `host_ip:` in services.yaml
 - [x] Generators derive IP from target resolution
-- [ ] Security intent pattern documented
+- [x] Security intent pattern documented
 
 ### P2 Complete When
 

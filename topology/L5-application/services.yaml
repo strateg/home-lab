@@ -16,7 +16,7 @@
   - data-mikrotik-config
   security:
     https_redirect: true
-    ssl_certificate: self-signed
+    ssl_certificate: cert-mikrotik
     allowed_from:
     - net-lan
     - net-vpn-home
@@ -122,6 +122,9 @@
       depends_on:
       - lxc-postgresql
       - lxc-redis
+  security:
+    https_redirect: true
+    ssl_certificate: cert-nextcloud
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -333,6 +336,8 @@
   trust_zone_ref: management
   url: https://10.0.99.2:8006
   description: Proxmox VE management interface
+  security:
+    ssl_certificate: cert-proxmox
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal

@@ -518,6 +518,14 @@ def check_service_refs(
                 "derive binding from runtime.target_ref + runtime.network_binding_ref"
             )
 
+        protocol = str(service.get('protocol') or '').strip().lower()
+        security = service.get('security') if isinstance(service.get('security'), dict) else {}
+        if protocol == 'https' and not security.get('ssl_certificate'):
+            warnings.append(
+                f"Service '{svc_id}': protocol 'https' should declare security.ssl_certificate "
+                "(certificate intent/source)"
+            )
+
         device_ref = service.get('device_ref')
         if device_ref and device_ref not in ids['devices']:
             errors.append(f"Service '{svc_id}': device_ref '{device_ref}' does not exist")

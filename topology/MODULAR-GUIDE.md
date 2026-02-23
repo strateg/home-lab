@@ -287,6 +287,9 @@ Validation-critical invariants:
 - `runtime.target_ref` resolves to valid L4/L1 target by runtime type.
 - `data_asset_refs` resolve to L3 `data_assets`.
 - Endpoint and runtime fields are normalized for generators (ongoing hardening in ADR 0031 and ADR 0033).
+- `protocol` declares the transport exposed by the service endpoint (`http`, `https`, `tcp`, `udp`).
+- For `protocol: https`, declare `security.ssl_certificate` to make certificate intent explicit.
+- Prefer certificate IDs from `L5_application.certificates.certificates[].id` (for example `cert-nextcloud`).
 
 Example (`topology/L5-application/services.yaml`):
 
