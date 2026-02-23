@@ -122,7 +122,6 @@
       depends_on:
       - lxc-postgresql
       - lxc-redis
-      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -164,7 +163,6 @@
       - /dev/mali0:/dev/mali0
       - /dev/rga:/dev/rga
       note: RK3588S VPU for hardware transcoding
-      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -221,7 +219,6 @@
       - 9090:9090
       volumes:
       - /mnt/nvme/prometheus:/prometheus
-      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -293,7 +290,6 @@
       - 3000:3000
       volumes:
       - /mnt/nvme/grafana:/var/lib/grafana
-      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -323,7 +319,6 @@
       volumes:
       - /mnt/nvme/homeassistant:/config
       note: Enable if smart home devices are used
-      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
   runtime:
     type: docker

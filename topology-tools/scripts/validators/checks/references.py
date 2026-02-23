@@ -510,6 +510,14 @@ def check_service_refs(
                     f"Service '{svc_id}': legacy field '{legacy_field}' is deprecated; use {replacement}"
                 )
 
+        config = service.get('config') if isinstance(service.get('config'), dict) else {}
+        docker_config = config.get('docker') if isinstance(config.get('docker'), dict) else {}
+        if docker_config.get('host_ip'):
+            warnings.append(
+                f"Service '{svc_id}': config.docker.host_ip is deprecated; "
+                "derive binding from runtime.target_ref + runtime.network_binding_ref"
+            )
+
         device_ref = service.get('device_ref')
         if device_ref and device_ref not in ids['devices']:
             errors.append(f"Service '{svc_id}': device_ref '{device_ref}' does not exist")

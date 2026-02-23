@@ -1,6 +1,6 @@
 # L0-L5 Refactoring Plan (ADR-0040)
 
-Status: Active (P0 complete)
+Status: Active (P0 and P1.1 complete)
 Date: 2026-02-23
 Scope: `L0` .. `L5`
 
@@ -94,14 +94,14 @@ Scope: `L0` .. `L5`
 - L5 `config.docker.host_ip` is deprecated (derive from target resolution)
 
 **Tasks**:
-- [ ] Update generators to derive service IP from target resolution
+- [x] Update generators to derive service IP from target resolution
   - If `runtime.target_ref` → L1 device: look up IP in L2 `ip_allocations`
   - If `runtime.target_ref` → L4 workload: look up IP in workload networks
-- [ ] Remove `config.docker.host_ip` from services.yaml
+- [x] Remove `config.docker.host_ip` from services.yaml
   - File: `topology/L5-application/services.yaml`
   - Lines: 129, 172, 231, 306, 337
   - Acceptance: `grep -c "host_ip:" topology/L5-application/services.yaml` returns 0
-- [ ] Add validator warning for deprecated `host_ip` usage
+- [x] Add validator warning for deprecated `host_ip` usage
 
 #### P1.2: Security intent alignment
 
@@ -224,8 +224,8 @@ git tag -d pre-adr0040-*
 
 ### P1 Complete When
 
-- [ ] Zero `host_ip:` in services.yaml
-- [ ] Generators derive IP from target resolution
+- [x] Zero `host_ip:` in services.yaml
+- [x] Generators derive IP from target resolution
 - [ ] Security intent pattern documented
 
 ### P2 Complete When
