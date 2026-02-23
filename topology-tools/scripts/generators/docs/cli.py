@@ -30,13 +30,13 @@ class DocumentationCLI(GeneratorCLI):
             "--no-mermaid-icons",
             action="store_false",
             dest="mermaid_icons",
-            help="Disable Mermaid icon-node syntax and use plain Mermaid nodes",
+            help="Disable Mermaid icon-node syntax and use plain Mermaid nodes (default)",
         )
         parser.add_argument(
             "--mermaid-icon-nodes",
             action="store_true",
             dest="mermaid_icon_nodes",
-            help="Emit raw Mermaid `@{ icon: ... }` node syntax (default; requires Mermaid with icon-node support)",
+            help="Emit raw Mermaid `@{ icon: ... }` node syntax (requires Mermaid with icon-node support)",
         )
         parser.add_argument(
             "--mermaid-icon-compat",
@@ -44,7 +44,7 @@ class DocumentationCLI(GeneratorCLI):
             dest="mermaid_icon_nodes",
             help="Use compatibility icon rendering: convert icon-nodes into standard nodes with inline icons",
         )
-        parser.set_defaults(mermaid_icons=True, mermaid_icon_nodes=True)
+        parser.set_defaults(mermaid_icons=False, mermaid_icon_nodes=True)
 
     def create_generator(self, args: argparse.Namespace) -> Generator:
         """Create DocumentationGenerator with Mermaid options."""
