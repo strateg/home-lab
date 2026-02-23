@@ -40,3 +40,4 @@
 | [0037](0037-l2-network-substrate-and-workload-binding-contracts.md) | L2 Network Substrate and Workload Binding Contracts | Superseded | 2026-02-22 | - | [0038](0038-network-binding-contracts-phase1.md) |
 | [0038](0038-network-binding-contracts-phase1.md) | Network Binding Contracts Phase 1 (Gradual Evolution) | Accepted | 2026-02-22 | [0037](0037-l2-network-substrate-and-workload-binding-contracts.md) | - |
 | [0039](0039-l4-host-os-installation-storage-contract-clarification.md) | Host OS Installation Storage Contract (Strict) | Accepted | 2026-02-23 | - | - |
+| [0040](0040-l0-l5-canonical-ownership-and-refactoring-plan.md) | L0-L5 Canonical Ownership and Refactoring Plan | Accepted | 2026-02-23 | - | - |
