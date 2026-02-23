@@ -71,7 +71,7 @@ graph TB
         {% endfor %}
     end
 
-    %% External physical endpoints from link inventory
+    %% External endpoints from L1 data-link inventory
     {% for ref in external_refs | default([]) %}
     {% if use_mermaid_icons %}
     ext_{{ ref | mermaid_id }}@{ icon: "{{ external_icons.get(ref, 'mdi:help-circle-outline') }}", form: "{{ icon_node_circle.form }}", label: "{{ ref }}", pos: "{{ icon_node_circle.pos }}", h: {{ icon_node_circle.h }} }
@@ -81,8 +81,8 @@ graph TB
     {% endfor %}
 
     %% Connections
-    {% if physical_links %}
-    {% for link in physical_links %}
+    {% if data_links %}
+    {% for link in data_links %}
     {% set src = link.endpoint_a.device_ref if link.endpoint_a.device_ref is defined else ('ext_' ~ (link.endpoint_a.external_ref | mermaid_id)) %}
     {% set dst = link.endpoint_b.device_ref if link.endpoint_b.device_ref is defined else ('ext_' ~ (link.endpoint_b.external_ref | mermaid_id)) %}
     {% set speed_label = (link.speed_mbps ~ 'Mbps') if link.speed_mbps is defined else '' %}
@@ -128,11 +128,11 @@ graph TB
 
 ---
 
-## Physical Link Inventory
+## Data Link Inventory
 
-| Link ID | Endpoint A | Endpoint B | Medium | Speed | VLAN Trunk | Status |
-|---------|------------|------------|--------|-------|------------|--------|
-{% for link in physical_links | default([]) %}
+| Data Link ID | Endpoint A | Endpoint B | Medium | Speed | VLAN Trunk | Status |
+|--------------|------------|------------|--------|-------|------------|--------|
+{% for link in data_links | default([]) %}
 | {{ link.id }} | {{ link.endpoint_a.device_ref | default(link.endpoint_a.external_ref) }}{% if link.endpoint_a.interface_ref is defined %} ({{ link.endpoint_a.interface_ref }}){% endif %} | {{ link.endpoint_b.device_ref | default(link.endpoint_b.external_ref) }}{% if link.endpoint_b.interface_ref is defined %} ({{ link.endpoint_b.interface_ref }}){% endif %} | {{ link.medium | upper }} | {{ link.speed_mbps | default('-') }}{% if link.speed_mbps is defined %} Mbps{% endif %} | {{ 'Yes' if link.vlan_trunk else 'No' }} | {{ link.status | default('-') }} |
 {% endfor %}
 

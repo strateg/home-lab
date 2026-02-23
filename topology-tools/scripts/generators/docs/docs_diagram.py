@@ -378,13 +378,13 @@ class DiagramDocumentationGenerator:
         """Generate physical infrastructure topology diagram."""
         devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
         locations = self._sort_dicts(self.topology["L1_foundation"].get("locations", []))
-        physical_links = self._sort_dicts(self.topology["L1_foundation"].get("data_links", []))
+        data_links = self._sort_dicts(self.topology["L1_foundation"].get("data_links", []))
         storage_views = self.docs_generator.build_l1_storage_views()
         device_icons = {device.get("id"): self._device_icon(device) for device in devices if device.get("id")}
         external_refs = sorted(
             {
                 endpoint.get("external_ref")
-                for link in physical_links
+                for link in data_links
                 for endpoint in [link.get("endpoint_a", {}) or {}, link.get("endpoint_b", {}) or {}]
                 if endpoint.get("external_ref")
             }
@@ -401,7 +401,7 @@ class DiagramDocumentationGenerator:
             "physical-topology.md",
             devices=devices,
             locations=locations,
-            physical_links=physical_links,
+            data_links=data_links,
             device_icons=device_icons,
             external_refs=external_refs,
             external_icons=external_icons,
