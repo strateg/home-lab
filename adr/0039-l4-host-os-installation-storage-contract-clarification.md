@@ -198,13 +198,13 @@ For `host_type: embedded`:
 
 4. ✅ Add deprecation warning in validator for `root_mount` without `root_storage_endpoint_ref`.
 
-5. TODO: Update docs examples to prefer `root_storage_endpoint_ref` over `root_mount`.
+5. ✅ Update docs template to prefer `root_storage_endpoint_ref` over `root_mount`.
 
-### Phase-2 (deprecation)
+### Phase-2 (deprecation) - DONE
 
-1. ✅ Validator warning when `root_mount` is used without `root_storage_endpoint_ref` (done in phase-1).
-2. Validator warning on newly added `root_mount` in changed files.
-3. Update schema to mark `root_mount` as deprecated.
+1. ✅ Validator warning when `root_mount` is used without `root_storage_endpoint_ref`.
+2. ✅ Docs template updated: `root_storage_endpoint_ref` shown first, `root_mount` only when ref missing.
+3. ✅ Schema marks `root_mount` as deprecated (`"deprecated": true`).
 
 ### Phase-3 (strict)
 
@@ -269,7 +269,7 @@ installation:
 | Add `root_storage_endpoint_ref` to schema | Done | Already in schema |
 | Add reference validator for `root_storage_endpoint_ref` | Done | Already in validator |
 | Add deprecation warning for `root_mount` | Done | Phase-1 complete |
-| Mark `root_mount` as deprecated in schema | Required | Phase-2 blocker |
+| Mark `root_mount` as deprecated in schema | Done | Phase-2 complete |
 
 ## Verification Checklist
 
@@ -280,7 +280,7 @@ installation:
 - [x] Referenced storage endpoints have valid `mount_point_ref` chain
 - [x] `root_mount` deprecated warnings appear in validator output (when ref missing)
 - [x] `python topology-tools/validate-topology.py --strict` passes
-- [ ] Docs correctly render host OS installation details
+- [x] Docs correctly render host OS installation details
 
 ## Rollback
 
