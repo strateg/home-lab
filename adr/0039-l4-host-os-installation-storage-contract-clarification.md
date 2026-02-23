@@ -184,23 +184,25 @@ For `host_type: embedded`:
 
 ## Migration Plan
 
-### Phase-1 (additive, current)
+### Phase-1 (additive, current) - DONE
 
-1. Create missing storage endpoints for host root:
+1. ✅ Create missing storage endpoints for host root:
    - `topology/L3-data/storage-endpoints/se-gamayun-root.yaml`
    - `topology/L3-data/storage-endpoints/se-orangepi5-root.yaml`
 
-2. Update host OS objects with `root_storage_endpoint_ref`:
+2. ✅ Update host OS objects with `root_storage_endpoint_ref`:
    - `hos-gamayun-proxmox.yaml`
    - `hos-orangepi5-ubuntu.yaml`
 
-3. Keep `root_mount` for backward compatibility during transition.
+3. ✅ Keep `root_mount` for backward compatibility during transition.
 
-4. Update docs examples to prefer `root_storage_endpoint_ref` over `root_mount`.
+4. ✅ Add deprecation warning in validator for `root_mount` without `root_storage_endpoint_ref`.
+
+5. TODO: Update docs examples to prefer `root_storage_endpoint_ref` over `root_mount`.
 
 ### Phase-2 (deprecation)
 
-1. Validator warning when `root_mount` is used without `root_storage_endpoint_ref`.
+1. ✅ Validator warning when `root_mount` is used without `root_storage_endpoint_ref` (done in phase-1).
 2. Validator warning on newly added `root_mount` in changed files.
 3. Update schema to mark `root_mount` as deprecated.
 
@@ -262,21 +264,22 @@ installation:
 
 | Item | Status | Notes |
 |---|---|---|
-| Create `se-gamayun-root` storage endpoint | Required | Phase-1 blocker |
-| Create `se-orangepi5-root` storage endpoint | Required | Phase-1 blocker |
-| Add `root_storage_endpoint_ref` to schema | Required | Phase-1 blocker |
-| Add reference validator for `root_storage_endpoint_ref` | Required | Phase-1 blocker |
+| Create `se-gamayun-root` storage endpoint | Done | Phase-1 complete |
+| Create `se-orangepi5-root` storage endpoint | Done | Phase-1 complete |
+| Add `root_storage_endpoint_ref` to schema | Done | Already in schema |
+| Add reference validator for `root_storage_endpoint_ref` | Done | Already in validator |
+| Add deprecation warning for `root_mount` | Done | Phase-1 complete |
 | Mark `root_mount` as deprecated in schema | Required | Phase-2 blocker |
 
 ## Verification Checklist
 
-- [ ] `se-gamayun-root` storage endpoint exists and references `mnt-gamayun-root`
-- [ ] `se-orangepi5-root` storage endpoint exists (if applicable)
-- [ ] All `host_type: baremetal/hypervisor` have `root_storage_endpoint_ref`
-- [ ] `root_storage_endpoint_ref` resolves to valid `storage_endpoints[].id`
-- [ ] Referenced storage endpoints have valid `mount_point_ref` chain
-- [ ] `root_mount` deprecated warnings appear in validator output (Phase-2)
-- [ ] `python topology-tools/validate-topology.py --strict` passes
+- [x] `se-gamayun-root` storage endpoint exists and references `mnt-gamayun-root`
+- [x] `se-orangepi5-root` storage endpoint exists
+- [x] All `host_type: baremetal/hypervisor` have `root_storage_endpoint_ref`
+- [x] `root_storage_endpoint_ref` resolves to valid `storage_endpoints[].id`
+- [x] Referenced storage endpoints have valid `mount_point_ref` chain
+- [x] `root_mount` deprecated warnings appear in validator output (when ref missing)
+- [x] `python topology-tools/validate-topology.py --strict` passes
 - [ ] Docs correctly render host OS installation details
 
 ## Rollback
