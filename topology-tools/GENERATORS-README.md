@@ -61,11 +61,11 @@ python topology-tools/generate-docs.py --topology topology.yaml --output generat
 
 Icon modes:
 ```bash
-# Default: icon-nodes (@{ icon: ... })
+# Default: compatibility mode (no Mermaid @{ ... } syntax)
 python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs
 
-# Optional fallback for older Mermaid renderers
-python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --mermaid-icon-compat
+# Optional: force icon-node syntax (requires Mermaid icon-node support)
+python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --mermaid-icon-nodes
 
 # Disable icons completely
 python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --no-mermaid-icons
@@ -74,7 +74,7 @@ python topology-tools/generate-docs.py --topology topology.yaml --output generat
 `--mermaid-icon-compat` embeds icons as inline SVG data URIs in node labels.
 This mode works without runtime `registerIconPacks(...)` and without icon CDN access.
 
-Default mode emits Mermaid `icon` nodes and expects icon packs:
+`--mermaid-icon-nodes` emits Mermaid `icon` nodes and expects icon packs:
 - `si` (Simple Icons)
 - `mdi` (Material Design Icons)
 
