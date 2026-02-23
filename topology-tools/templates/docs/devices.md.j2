@@ -89,11 +89,7 @@ Total: **{{ host_operating_systems | length }}**
 
 {% if host_os.installation %}
 **Installation**:
-- Media: `{{ host_os.installation.media_ref | default('N/A') }}`
-- Slot: `{{ host_os.installation.slot_ref | default('N/A') }}`
-{% if host_os.installation.root_storage_endpoint_ref %}
-- Root storage endpoint: `{{ host_os.installation.root_storage_endpoint_ref }}`
-{% endif %}
+- Root storage endpoint: `{{ host_os.installation.root_storage_endpoint_ref | default('N/A') }}`
 {% endif %}
 
 **Description**: {{ host_os.description | default('No description') }}

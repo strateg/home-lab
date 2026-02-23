@@ -39,4 +39,4 @@
 | [0036](0036-l2-host-os-reference-in-network-allocations.md) | Host OS Reference in Network Allocations | Proposed | 2026-02-22 | - | - |
 | [0037](0037-l2-network-substrate-and-workload-binding-contracts.md) | L2 Network Substrate and Workload Binding Contracts | Superseded | 2026-02-22 | - | [0038](0038-network-binding-contracts-phase1.md) |
 | [0038](0038-network-binding-contracts-phase1.md) | Network Binding Contracts Phase 1 (Gradual Evolution) | Accepted | 2026-02-22 | [0037](0037-l2-network-substrate-and-workload-binding-contracts.md) | - |
-| [0039](0039-l4-host-os-installation-storage-contract-clarification.md) | Clarify Host OS Installation Storage Contract and Layer Boundary | Proposed | 2026-02-23 | - | - |
+| [0039](0039-l4-host-os-installation-storage-contract-clarification.md) | Host OS Installation Storage Contract (Strict) | Accepted | 2026-02-23 | - | - |

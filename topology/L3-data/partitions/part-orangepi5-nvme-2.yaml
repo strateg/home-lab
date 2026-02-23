@@ -1,0 +1,6 @@
+id: part-orangepi5-nvme-2
+media_attachment_ref: attach-orangepi5-slot-m2-0
+number: 2
+type: ext4
+size: remaining
+description: Root partition on Orange Pi 5 NVMe (Ubuntu 24.04)

@@ -80,6 +80,15 @@ def _device_architecture(device: Dict[str, Any]) -> str:
     return _normalize_arch(cpu.get('architecture'))
 
 
+def _storage_endpoint_map(topology: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    l3 = topology.get('L3_data', {})
+    return {
+        endpoint.get('id'): endpoint
+        for endpoint in (l3.get('storage_endpoints', []) or [])
+        if isinstance(endpoint, dict) and endpoint.get('id')
+    }
+
+
 def _runtime_target_devices(topology: Dict[str, Any]) -> Set[str]:
     l4 = topology.get('L4_platform', {})
     l5 = topology.get('L5_application', {})
@@ -133,7 +142,6 @@ def check_host_os_refs(
     warnings: List[str],
 ) -> None:
     del warnings
-    l1 = topology.get('L1_foundation', {})
     l3 = topology.get('L3_data', {})
     l4 = topology.get('L4_platform', {})
     devices = _device_map(topology)
@@ -149,11 +157,6 @@ def check_host_os_refs(
         for mount in (l3.get('mount_points', []) or [])
         if isinstance(mount, dict) and mount.get('id')
     }
-    media_ids = {
-        media.get('id')
-        for media in (l1.get('media_registry', []) or [])
-        if isinstance(media, dict) and media.get('id')
-    }
 
     for host_os in l4.get('host_operating_systems', []) or []:
         if not isinstance(host_os, dict):
@@ -165,25 +168,6 @@ def check_host_os_refs(
             continue
 
         installation = host_os.get('installation') if isinstance(host_os.get('installation'), dict) else {}
-        media_ref = installation.get('media_ref')
-        if media_ref and media_ref not in media_ids:
-            errors.append(f"Host OS '{hos_id}': installation.media_ref '{media_ref}' does not exist")
-        slot_ref = installation.get('slot_ref')
-        if slot_ref and device_ref:
-            device_specs = devices.get(device_ref, {}).get('specs')
-            if not isinstance(device_specs, dict):
-                device_specs = {}
-            storage_slots = device_specs.get('storage_slots') or []
-            slot_ids = {
-                slot.get('id')
-                for slot in storage_slots
-                if isinstance(slot, dict) and slot.get('id')
-            }
-            if slot_ids and slot_ref not in slot_ids:
-                errors.append(
-                    f"Host OS '{hos_id}': installation.slot_ref '{slot_ref}' does not exist on device '{device_ref}'"
-                )
-
         root_storage_endpoint_ref = installation.get('root_storage_endpoint_ref')
         if root_storage_endpoint_ref and root_storage_endpoint_ref not in ids['storage_endpoints']:
             errors.append(
@@ -198,6 +182,17 @@ def check_host_os_refs(
                 errors.append(
                     f"Host OS '{hos_id}': installation.root_storage_endpoint_ref '{root_storage_endpoint_ref}' "
                     f"points to mount point on device '{mount_device_ref}', expected '{device_ref}'"
+                )
+
+        host_type = host_os.get('host_type')
+        if host_type in {'baremetal', 'hypervisor'}:
+            if not installation:
+                errors.append(
+                    f"Host OS '{hos_id}': installation is required for host_type '{host_type}'"
+                )
+            elif not root_storage_endpoint_ref:
+                errors.append(
+                    f"Host OS '{hos_id}': installation.root_storage_endpoint_ref is required for host_type '{host_type}'"
                 )
 
         device = devices.get(device_ref, {})
@@ -219,16 +214,6 @@ def check_host_os_refs(
                 errors.append(
                     f"Host OS '{hos_id}': architecture '{raw_arch}' normalizes to unsupported '{host_arch}'"
                 )
-
-        host_type = host_os.get('host_type')
-        if host_type in {'baremetal', 'hypervisor'} and not installation:
-            errors.append(
-                f"Host OS '{hos_id}': installation is required for host_type '{host_type}'"
-            )
-        if host_type in {'baremetal', 'hypervisor'} and not root_storage_endpoint_ref:
-            errors.append(
-                f"Host OS '{hos_id}': installation.root_storage_endpoint_ref is required for host_type '{host_type}'"
-            )
 
         capabilities = host_os.get('capabilities') or []
         if isinstance(capabilities, list):
@@ -260,6 +245,7 @@ def check_vm_refs(
     host_os_map = _host_os_map(topology)
     active_by_device = _active_host_os_by_device(topology)
     vm_templates = _template_map(topology, 'vms')
+    storage_endpoint_map = _storage_endpoint_map(topology)
     for vm in l4.get('vms', []) or []:
         vm_id = vm.get('id')
         device_ref = vm.get('device_ref')
@@ -327,9 +313,16 @@ def check_vm_refs(
             )
 
         for disk in vm.get('storage', []) or []:
-            storage_ref = disk.get('storage_ref')
-            if storage_ref and storage_ref not in ids['storage']:
-                errors.append(f"VM '{vm_id}': storage_ref '{storage_ref}' does not exist")
+            disk_storage_ref = disk.get('storage_endpoint_ref') or disk.get('storage_ref')
+            if disk_storage_ref and disk_storage_ref not in ids['storage']:
+                errors.append(f"VM '{vm_id}': storage_ref '{disk_storage_ref}' does not exist")
+            if disk_storage_ref and disk_storage_ref in storage_endpoint_map:
+                endpoint_platform = str(storage_endpoint_map[disk_storage_ref].get('platform') or '').strip().lower()
+                if endpoint_platform and endpoint_platform != 'proxmox':
+                    errors.append(
+                        f"VM '{vm_id}': storage reference '{disk_storage_ref}' has platform '{endpoint_platform}', "
+                        "expected 'proxmox'"
+                    )
 
         for net in vm.get('networks', []) or []:
             bridge_ref = net.get('bridge_ref')
@@ -348,6 +341,7 @@ def check_lxc_refs(
     host_os_map = _host_os_map(topology)
     active_by_device = _active_host_os_by_device(topology)
     lxc_templates = _template_map(topology, 'lxc')
+    storage_endpoint_map = _storage_endpoint_map(topology)
     for lxc in l4.get('lxc', []) or []:
         lxc_id = lxc.get('id')
         device_ref = lxc.get('device_ref')
@@ -422,6 +416,13 @@ def check_lxc_refs(
         storage_ref = rootfs.get('storage_endpoint_ref') or rootfs.get('storage_ref')
         if storage_ref and storage_ref not in ids['storage']:
             errors.append(f"LXC '{lxc_id}': rootfs storage_ref '{storage_ref}' does not exist")
+        if storage_ref and storage_ref in storage_endpoint_map:
+            endpoint_platform = str(storage_endpoint_map[storage_ref].get('platform') or '').strip().lower()
+            if endpoint_platform and endpoint_platform != 'proxmox':
+                errors.append(
+                    f"LXC '{lxc_id}': rootfs storage reference '{storage_ref}' has platform '{endpoint_platform}', "
+                    "expected 'proxmox'"
+                )
         rootfs_data_asset_ref = rootfs.get('data_asset_ref')
         if rootfs_data_asset_ref and rootfs_data_asset_ref not in ids['data_assets']:
             errors.append(f"LXC '{lxc_id}': rootfs data_asset_ref '{rootfs_data_asset_ref}' does not exist")
@@ -440,6 +441,13 @@ def check_lxc_refs(
                 errors.append(
                     f"LXC '{lxc_id}' volume '{volume_id}': storage reference '{volume_storage_ref}' does not exist"
                 )
+            if volume_storage_ref and volume_storage_ref in storage_endpoint_map:
+                endpoint_platform = str(storage_endpoint_map[volume_storage_ref].get('platform') or '').strip().lower()
+                if endpoint_platform and endpoint_platform != 'proxmox':
+                    errors.append(
+                        f"LXC '{lxc_id}' volume '{volume_id}': storage reference '{volume_storage_ref}' "
+                        f"has platform '{endpoint_platform}', expected 'proxmox'"
+                    )
             data_asset_ref = volume.get('data_asset_ref')
             if data_asset_ref and data_asset_ref not in ids['data_assets']:
                 errors.append(
