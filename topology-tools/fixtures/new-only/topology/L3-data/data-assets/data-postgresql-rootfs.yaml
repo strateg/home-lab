@@ -3,3 +3,5 @@ name: PostgreSQL RootFS
 type: volume
 device_ref: gamayun
 description: PostgreSQL LXC root filesystem
+category: configuration
+criticality: medium

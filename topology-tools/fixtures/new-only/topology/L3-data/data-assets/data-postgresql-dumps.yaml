@@ -3,3 +3,7 @@ name: PostgreSQL Dumps
 type: backup-artifact
 device_ref: gamayun
 description: pg_dump artifacts
+category: file-share
+criticality: high
+backup_policy_refs:
+- backup-offsite-weekly

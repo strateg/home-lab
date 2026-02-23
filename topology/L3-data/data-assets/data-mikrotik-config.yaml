@@ -3,3 +3,7 @@ name: MikroTik RouterOS Config
 type: config-export
 device_ref: mikrotik-chateau
 description: RouterOS configuration exports
+category: configuration
+criticality: critical
+backup_policy_refs:
+- backup-mikrotik-config

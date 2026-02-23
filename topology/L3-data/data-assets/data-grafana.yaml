@@ -3,3 +3,7 @@ name: Grafana Data
 type: volume
 device_ref: orangepi5
 description: Grafana data
+category: configuration
+criticality: medium
+backup_policy_refs:
+- backup-orangepi5-data

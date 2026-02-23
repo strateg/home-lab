@@ -1,6 +1,6 @@
 # L0-L5 Refactoring Plan (ADR-0040)
 
-Status: Active (P0 and P1 complete)
+Status: Active (P0, P1, P2.1 complete)
 Date: 2026-02-23
 Scope: `L0` .. `L5`
 
@@ -117,9 +117,9 @@ Scope: `L0` .. `L5`
 #### P2.1: L3 data_assets taxonomy enrichment
 
 **Tasks**:
-- [ ] Add `category` field to data_assets (config, database, media, logs)
-- [ ] Add `criticality` field (critical, important, normal)
-- [ ] Add `backup_policy_ref` where applicable
+- [x] Add `category` field to data_assets (config, database, media, logs)
+- [x] Add `criticality` field (`low|medium|high|critical`)
+- [x] Add `backup_policy_refs` where applicable
 
 #### P2.2: Metadata governance
 
