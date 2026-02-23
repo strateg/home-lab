@@ -143,6 +143,9 @@ class MikrotikTerraformGenerator:
                     item['interface_name'] = 'bridge-lan'
                 self.networks.append(item)
 
+        # Keep file rendering stable across monolith/modular source ordering.
+        self.networks.sort(key=lambda item: str(item.get('id') or ''))
+
         wan_network = next((n for n in self.networks if n.get('id') == 'net-wan'), None)
         if isinstance(wan_network, dict) and wan_network.get('interface_name'):
             self.wan_interface_name = wan_network['interface_name']
@@ -166,6 +169,8 @@ class MikrotikTerraformGenerator:
                     'trust_zone_ref': network.get('trust_zone_ref'),
                     'untagged_ports': [],
                 })
+
+        self.vlans.sort(key=lambda item: int(item.get('id')) if str(item.get('id')).isdigit() else str(item.get('id')))
 
         print(f"OK Extracted {len(self.vlans)} VLANs")
 

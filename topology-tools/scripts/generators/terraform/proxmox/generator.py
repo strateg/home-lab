@@ -324,7 +324,11 @@ class TerraformGenerator:
             bridges = self.topology['L2_network'].get('bridges', [])
             lxc_containers = self.topology['L4_platform'].get('lxc', [])
             vms = self.topology['L4_platform'].get('vms', [])
-            storage = list(self._build_storage_map().values())
+            # Keep outputs.tf stable regardless of source file ordering.
+            storage = sorted(
+                self._build_storage_map().values(),
+                key=lambda item: str(item.get('id') or item.get('name') or '')
+            )
             devices = self.topology['L1_foundation'].get('devices', [])
 
             content = template.render(

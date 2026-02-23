@@ -1,0 +1,5 @@
+id: data-mikrotik-config
+name: MikroTik RouterOS Config
+type: config-export
+device_ref: mikrotik-chateau
+description: RouterOS configuration exports

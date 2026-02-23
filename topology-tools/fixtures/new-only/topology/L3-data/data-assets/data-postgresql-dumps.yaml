@@ -1,0 +1,5 @@
+id: data-postgresql-dumps
+name: PostgreSQL Dumps
+type: backup-artifact
+device_ref: gamayun
+description: pg_dump artifacts

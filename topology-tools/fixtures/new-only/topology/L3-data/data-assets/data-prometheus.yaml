@@ -1,0 +1,5 @@
+id: data-prometheus
+name: Prometheus Data
+type: volume
+device_ref: orangepi5
+description: Prometheus TSDB

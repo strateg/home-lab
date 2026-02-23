@@ -1,0 +1,6 @@
+id: part-gamayun-ssd-1
+media_attachment_ref: attach-gamayun-slot-sata-0
+number: 1
+type: efi
+size: 0.5
+description: EFI system partition on Gamayun SSD

@@ -22,8 +22,9 @@ CAPABILITY_ALLOWED_HOST_TYPES = {
     "docker": {"baremetal", "hypervisor"},
     "container": {"embedded", "baremetal", "hypervisor"},
     "cloudinit": {"hypervisor", "baremetal"},
-    "baremetal": {"baremetal", "embedded", "hypervisor"},
 }
+
+RUNTIME_BAREMETAL_ALLOWED_HOST_TYPES = {"baremetal", "embedded", "hypervisor"}
 
 
 def _normalize_arch(value: Any) -> str:
@@ -503,13 +504,14 @@ def check_service_refs(
                             f"for device '{target_ref}'"
                         )
                 if runtime_type == 'baremetal' and host_os_entries:
-                    has_baremetal_capability = any(
-                        any(cap == 'baremetal' for cap in (entry.get('capabilities') or []))
+                    has_native_host_type = any(
+                        str(entry.get('host_type') or '').strip().lower() in RUNTIME_BAREMETAL_ALLOWED_HOST_TYPES
                         for entry in host_os_entries
                     )
-                    if not has_baremetal_capability:
+                    if not has_native_host_type:
                         errors.append(
-                            f"Service '{svc_id}': runtime type baremetal requires host capability 'baremetal' "
+                            f"Service '{svc_id}': runtime type baremetal requires host_type "
+                            f"in {sorted(RUNTIME_BAREMETAL_ALLOWED_HOST_TYPES)} "
                             f"for device '{target_ref}'"
                         )
 

@@ -1,0 +1,13 @@
+id: se-hdd
+name: local-hdd
+platform: proxmox
+type: dir
+mount_point_ref: mnt-gamayun-hdd
+path: /mnt/hdd
+content:
+  - backup
+  - iso
+  - vztmpl
+  - snippets
+shared: false
+description: HDD 500GB - Backups, ISOs, Templates

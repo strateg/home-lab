@@ -1,0 +1,46 @@
+id: lxc-redis
+vmid: 201
+name: redis-cache
+device_ref: gamayun
+platform_type: lxc-unprivileged
+resource_profile_ref: profile-cache-small
+template_ref: tpl-lxc-redis
+trust_zone_ref: servers
+description: Redis Cache Server
+tags:
+- cache
+- production
+boot:
+  onboot: true
+  startup_order: 11
+storage:
+  rootfs:
+    storage_endpoint_ref: se-lvm
+    size_gb: 4
+    data_asset_ref: data-redis-rootfs
+  volumes:
+  - id: vol-redis-data
+    mount_path: /var/lib/redis
+    storage_endpoint_ref: se-lvm
+    size_gb: 4
+    data_asset_ref: data-redis-db
+networks:
+- interface: eth0
+  bridge_ref: bridge-vmbr0
+  network_ref: net-servers
+  gateway: 10.0.30.1
+  firewall: false
+  vlan_tag: 30
+  ip: 10.0.30.20/24
+dns:
+  nameserver: 192.168.88.1
+  searchdomain: home.local
+os:
+  type: debian
+  version: '12'
+cloudinit:
+  enabled: true
+  user: redis
+ansible:
+  enabled: true
+  playbook: redis.yml

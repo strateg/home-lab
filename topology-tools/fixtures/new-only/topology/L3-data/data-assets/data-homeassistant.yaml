@@ -1,0 +1,5 @@
+id: data-homeassistant
+name: Home Assistant Data
+type: volume
+device_ref: orangepi5
+description: Home Assistant config

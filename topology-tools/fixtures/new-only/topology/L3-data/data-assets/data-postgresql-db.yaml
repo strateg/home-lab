@@ -1,0 +1,5 @@
+id: data-postgresql-db
+name: PostgreSQL Data
+type: database
+device_ref: gamayun
+description: Primary PostgreSQL data volume

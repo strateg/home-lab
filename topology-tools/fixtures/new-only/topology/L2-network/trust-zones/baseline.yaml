@@ -28,6 +28,7 @@ servers:
   allowed_inbound:
   - from:user:ports:80,443,5432,6379
   - from:management
+  vlan_ids: [30]
 iot:
   name: IoT Zone
   security_level: 1
@@ -38,6 +39,8 @@ iot:
   allowed_inbound:
   - established
   isolated: true
+  vlan_ids: [40]
+  default_firewall_policy_ref: fw-iot-isolated
 guest:
   name: Guest Zone
   security_level: 0
@@ -48,6 +51,8 @@ guest:
   allowed_inbound:
   - established
   isolated: true
+  vlan_ids: [50]
+  default_firewall_policy_ref: fw-guest-isolated
 management:
   name: Management Zone
   security_level: 3
@@ -57,3 +62,4 @@ management:
   - any
   allowed_inbound:
   - from:admin-ips
+  vlan_ids: [99]

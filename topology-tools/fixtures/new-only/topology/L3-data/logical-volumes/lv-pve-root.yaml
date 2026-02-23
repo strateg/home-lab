@@ -1,0 +1,6 @@
+id: lv-pve-root
+name: root
+type: thick
+vg_ref: vg-pve
+size_gb: 58
+description: Proxmox host root logical volume

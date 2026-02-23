@@ -1,0 +1,12 @@
+id: se-local
+name: local
+platform: proxmox
+type: dir
+mount_point_ref: mnt-gamayun-root
+path: /var/lib/vz
+content:
+  - vztmpl
+  - iso
+  - backup
+shared: false
+description: Local directory storage on SSD

@@ -1,0 +1,7 @@
+id: profile-cache-small
+name: Cache Small
+cpu:
+  cores: 1
+memory:
+  mb: 512
+  swap_mb: 256

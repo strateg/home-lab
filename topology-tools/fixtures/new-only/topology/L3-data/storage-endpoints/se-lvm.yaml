@@ -1,0 +1,10 @@
+id: se-lvm
+name: local-lvm
+platform: proxmox
+type: lvmthin
+lv_ref: lv-pve-data
+content:
+  - images
+  - rootdir
+shared: false
+description: SSD 180GB - Production VMs and LXC thin pool

@@ -1,0 +1,6 @@
+id: part-gamayun-ssd-3
+media_attachment_ref: attach-gamayun-slot-sata-0
+number: 3
+type: lvm-pv
+size: remaining
+description: LVM physical volume for Proxmox VG

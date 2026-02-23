@@ -1,0 +1,5 @@
+id: data-redis-db
+name: Redis Data
+type: cache
+device_ref: gamayun
+description: Redis data volume

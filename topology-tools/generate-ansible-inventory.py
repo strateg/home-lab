@@ -183,7 +183,10 @@ class AnsibleInventoryGenerator:
         try:
             template = self.jinja_env.get_template('ansible/group_vars_all.yml.j2')
 
-            networks = self.topology['L2_network'].get('networks', [])
+            networks = sorted(
+                self.topology['L2_network'].get('networks', []),
+                key=lambda item: str(item.get('id') or '')
+            )
 
             mgmt_network = None
             for network in networks:

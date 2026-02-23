@@ -76,8 +76,22 @@ def compare_directories(expected: Path, actual: Path, *, normalize_markdown_date
         issues.append(f"Missing generated directory: {actual}")
         return issues
 
-    expected_files = {path.relative_to(expected) for path in expected.rglob("*") if path.is_file()}
-    actual_files = {path.relative_to(actual) for path in actual.rglob("*") if path.is_file()}
+    ignored_files = {Path("_generated_at.txt")} if normalize_markdown_dates else set()
+
+    expected_files = {
+        rel_path
+        for path in expected.rglob("*")
+        if path.is_file()
+        for rel_path in [path.relative_to(expected)]
+        if rel_path not in ignored_files
+    }
+    actual_files = {
+        rel_path
+        for path in actual.rglob("*")
+        if path.is_file()
+        for rel_path in [path.relative_to(actual)]
+        if rel_path not in ignored_files
+    }
 
     for missing in sorted(expected_files - actual_files):
         issues.append(f"Missing file: {missing}")

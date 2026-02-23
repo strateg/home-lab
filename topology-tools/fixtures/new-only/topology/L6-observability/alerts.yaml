@@ -1,0 +1,118 @@
+- id: alert-router-down
+  name: Router Down
+  description: MikroTik router is unreachable
+  trigger:
+    condition: ping_failed
+    target: 192.168.88.1
+    duration: 1m
+  severity: critical
+  channels:
+  - channel-email
+  - channel-telegram
+  escalation:
+    enabled: true
+    delay: 5m
+- id: alert-internet-down
+  name: Internet Down
+  description: No internet connectivity
+  trigger:
+    condition: all_checks_failed
+    healthcheck_ref: net-mon-internet
+    duration: 2m
+  severity: critical
+  channels:
+  - channel-email
+  - channel-telegram
+- id: alert-lte-failover-active
+  name: LTE Failover Active
+  description: Primary WAN failed, using LTE backup
+  trigger:
+    condition: failover_active
+    primary: ether1
+    backup: lte1
+  severity: warning
+  channels:
+  - channel-email
+  - channel-telegram
+- id: alert-disk-full
+  name: Disk Space Critical
+  description: Disk usage exceeds 90%
+  trigger:
+    condition: disk_usage > 90%
+    duration: 5m
+  severity: critical
+  channels:
+  - channel-email
+  escalation:
+    enabled: true
+    delay: 15m
+- id: alert-service-down
+  name: Critical Service Down
+  description: A critical service is not running
+  trigger:
+    condition: service_status != 'running'
+    services:
+    - svc-postgresql
+    - svc-redis
+    - svc-nextcloud
+    - svc-adguard
+    duration: 2m
+  severity: critical
+  channels:
+  - channel-email
+  - channel-telegram
+  escalation:
+    enabled: true
+    delay: 5m
+- id: alert-memory-critical
+  name: Memory Usage Critical
+  description: Memory usage exceeds 95%
+  trigger:
+    condition: memory_usage > 95%
+    duration: 5m
+  severity: critical
+  channels:
+  - channel-email
+- id: alert-ups-on-battery
+  name: UPS On Battery
+  description: Power outage - UPS on battery
+  trigger:
+    condition: ups_status == 'OB'
+  severity: warning
+  channels:
+  - channel-email
+  - channel-telegram
+- id: alert-ups-low-battery
+  name: UPS Low Battery
+  description: UPS battery critically low
+  trigger:
+    condition: battery_charge < 30%
+  severity: critical
+  channels:
+  - channel-email
+  - channel-telegram
+- id: alert-temperature-high
+  name: High Temperature
+  description: Device temperature is high
+  trigger:
+    condition: temperature > 75
+    duration: 5m
+  severity: warning
+  channels:
+  - channel-email
+- id: alert-backup-failed
+  name: Backup Failed
+  description: Backup job failed
+  trigger:
+    condition: backup_status == 'failed'
+  severity: warning
+  channels:
+  - channel-email
+- id: alert-certificate-expiry
+  name: Certificate Expiring
+  description: SSL certificate expiring soon
+  trigger:
+    condition: cert_days_remaining < 14
+  severity: warning
+  channels:
+  - channel-email

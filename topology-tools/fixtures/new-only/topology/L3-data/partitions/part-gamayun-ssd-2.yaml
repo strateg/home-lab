@@ -1,0 +1,6 @@
+id: part-gamayun-ssd-2
+media_attachment_ref: attach-gamayun-slot-sata-0
+number: 2
+type: swap
+size: 2
+description: Swap partition on Gamayun SSD

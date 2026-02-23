@@ -1195,7 +1195,7 @@
     },
     "HostOperatingSystem": {
       "type": "object",
-      "required": ["id", "device_ref", "distribution", "architecture", "status"],
+      "required": ["id", "device_ref", "distribution", "architecture", "host_type", "status"],
       "properties": {
         "id": { "$ref": "#/definitions/HostOsRef" },
         "device_ref": { "$ref": "#/definitions/DeviceRef" },
@@ -1206,9 +1206,10 @@
         "status": { "type": "string", "enum": ["active", "planned", "maintenance", "retired"] },
         "capabilities": {
           "type": "array",
+          "uniqueItems": true,
           "items": {
             "type": "string",
-            "enum": ["lxc", "vm", "docker", "container", "cloudinit", "baremetal"]
+            "enum": ["lxc", "vm", "docker", "container", "cloudinit"]
           }
         },
         "installation": {

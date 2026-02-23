@@ -148,16 +148,16 @@ Validation behavior:
 3. If a workload has `device_ref` and device has exactly one active host OS, omission of `host_os_ref` is allowed (warning-free).
 4. If a workload has `device_ref` and device has multiple active host OS objects, missing `host_os_ref` is a warning in phase-1 and an error in phase-2.
 
-### D5. Enforce runtime capability checks against host OS
+### D5. Enforce runtime substrate/capability checks against host OS
 
 Add phase-2 validator rules:
 
-| Runtime or workload | Required host capability |
+| Runtime or workload | Required host substrate/capability |
 |---|---|
 | `service.runtime.type: lxc` | `lxc` |
 | `service.runtime.type: vm` | `vm` |
 | `service.runtime.type: docker` | `docker` or `container` |
-| `service.runtime.type: baremetal` | Host OS object exists for `target_ref`; `baremetal` means native host execution (including embedded-native services) |
+| `service.runtime.type: baremetal` | Host OS object exists for `target_ref`; host `host_type` must be one of `baremetal`, `embedded`, `hypervisor` |
 | `L4 vms[]` placement | `vm` on resolved host OS |
 | `L4 lxc[]` placement | `lxc` on resolved host OS |
 | `L4 template.architecture` (if set) | Must match resolved host OS architecture |
@@ -226,7 +226,7 @@ Evolution policy:
 Create missing host OS substrate objects for active runtime devices:
 
 1. `hos-gamayun-proxmox` (`host_type: hypervisor`, capabilities: `lxc`, `vm`, `cloudinit`)
-2. `hos-mikrotik-chateau-routeros` (`host_type: embedded`, capabilities: `container`, `baremetal`)
+2. `hos-mikrotik-chateau-routeros` (`host_type: embedded`, capabilities: `container`)
 
 Goal: every active runtime-bearing device has at least one `hos-*` object.
 

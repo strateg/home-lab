@@ -1,0 +1,5 @@
+id: data-grafana
+name: Grafana Data
+type: volume
+device_ref: orangepi5
+description: Grafana data
