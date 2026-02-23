@@ -1,0 +1,8 @@
+id: se-gamayun-root
+name: gamayun-root
+platform: host
+type: dir
+mount_point_ref: mnt-gamayun-root
+path: /
+shared: false
+description: Host root filesystem storage endpoint for Proxmox host

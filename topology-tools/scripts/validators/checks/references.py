@@ -132,7 +132,6 @@ def check_host_os_refs(
     errors: List[str],
     warnings: List[str],
 ) -> None:
-    del warnings
     l1 = topology.get('L1_foundation', {})
     l4 = topology.get('L4_platform', {})
     devices = _device_map(topology)
@@ -162,6 +161,13 @@ def check_host_os_refs(
         if root_storage_endpoint_ref and root_storage_endpoint_ref not in ids['storage_endpoints']:
             errors.append(
                 f"Host OS '{hos_id}': installation.root_storage_endpoint_ref '{root_storage_endpoint_ref}' does not exist"
+            )
+
+        root_mount = installation.get('root_mount')
+        if root_mount and not root_storage_endpoint_ref:
+            warnings.append(
+                f"Host OS '{hos_id}': installation.root_mount is deprecated; "
+                f"use root_storage_endpoint_ref instead (see ADR 0039)"
             )
 
         device = devices.get(device_ref, {})
