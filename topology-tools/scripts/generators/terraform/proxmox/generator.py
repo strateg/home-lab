@@ -131,6 +131,12 @@ class TerraformGenerator:
         for endpoint in l3.get('storage_endpoints', []) or []:
             if not isinstance(endpoint, dict) or not endpoint.get('id'):
                 continue
+            # Proxmox generator should only expose Proxmox datastore endpoints.
+            # Host-level endpoints (e.g. host root '/') are valid in L3 but are
+            # not Proxmox datastores and must not leak into Terraform outputs.
+            endpoint_platform = str(endpoint.get('platform') or '').strip().lower()
+            if endpoint_platform and endpoint_platform != 'proxmox':
+                continue
             entry = copy.deepcopy(endpoint)
             entry.setdefault('name', endpoint.get('id'))
             storage_map[endpoint['id']] = entry
