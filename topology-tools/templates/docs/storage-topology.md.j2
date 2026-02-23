@@ -24,12 +24,65 @@ flowchart LR
         {% endfor %}
     end
 
-    subgraph pools["Storage Pools"]
-        {% for pool in storage %}
+    subgraph l3chain["L3 Storage Chain"]
+        subgraph l3parts["Partitions"]
+            {% for part in partitions %}
+            {% if use_mermaid_icons %}
+            {{ part.id | mermaid_id }}@{ icon: "mdi:harddisk", form: "rounded", label: "{{ part.id }} p{{ part.number | default('?') }} {{ part.type | default('') }}", pos: "b", h: 40 }
+            {% else %}
+            {{ part.id | mermaid_id }}["{{ part.id }}<br/>p{{ part.number | default('?') }} {{ part.type | default('') }}"]
+            {% endif %}
+            {% endfor %}
+        end
+
+        subgraph l3vgs["Volume Groups"]
+            {% for vg in volume_groups %}
+            {% if use_mermaid_icons %}
+            {{ vg.id | mermaid_id }}@{ icon: "mdi:view-grid-plus", form: "rounded", label: "{{ vg.name | default(vg.id) }}", pos: "b", h: 40 }
+            {% else %}
+            {{ vg.id | mermaid_id }}["{{ vg.name | default(vg.id) }}"]
+            {% endif %}
+            {% endfor %}
+        end
+
+        subgraph l3lvs["Logical Volumes"]
+            {% for lv in logical_volumes %}
+            {% if use_mermaid_icons %}
+            {{ lv.id | mermaid_id }}@{ icon: "mdi:disc-player", form: "rounded", label: "{{ lv.name | default(lv.id) }}", pos: "b", h: 40 }
+            {% else %}
+            {{ lv.id | mermaid_id }}["{{ lv.name | default(lv.id) }}"]
+            {% endif %}
+            {% endfor %}
+        end
+
+        subgraph l3fs["Filesystems"]
+            {% for fs in filesystems %}
+            {% if use_mermaid_icons %}
+            {{ fs.id | mermaid_id }}@{ icon: "mdi:folder-cog", form: "rounded", label: "{{ fs.id }} {{ fs.type | default('') }}", pos: "b", h: 40 }
+            {% else %}
+            {{ fs.id | mermaid_id }}["{{ fs.id }}<br/>{{ fs.type | default('') }}"]
+            {% endif %}
+            {% endfor %}
+        end
+
+        subgraph l3mnt["Mount Points"]
+            {% for mount in mount_points %}
+            {% if use_mermaid_icons %}
+            {{ mount.id | mermaid_id }}@{ icon: "mdi:folder-marker", form: "rounded", label: "{{ mount.path | default(mount.id) }}", pos: "b", h: 40 }
+            {% else %}
+            {{ mount.id | mermaid_id }}["{{ mount.path | default(mount.id) }}"]
+            {% endif %}
+            {% endfor %}
+        end
+    end
+
+    subgraph pools["L3 Storage Endpoints"]
+        {% for endpoint in storage_endpoints %}
+        {% set resolved = storage_resolved_by_id.get(endpoint.id, endpoint) %}
         {% if use_mermaid_icons %}
-        {{ pool.id | mermaid_id }}@{ icon: "{{ pool_icons.get(pool.id, 'mdi:database') }}", form: "rounded", label: "{{ pool.name }} {{ pool.type }}{% if pool.path is defined %} {{ pool.path }}{% endif %}", pos: "b", h: 46 }
+        {{ endpoint.id | mermaid_id }}@{ icon: "{{ pool_icons.get(endpoint.id, 'mdi:database') }}", form: "rounded", label: "{{ endpoint.id }} {{ endpoint.type }}{% if endpoint.name is defined %} {{ endpoint.name }}{% endif %}{% if resolved.path is defined %} {{ resolved.path }}{% elif endpoint.lv_ref is defined %} {{ endpoint.lv_ref }}{% endif %}", pos: "b", h: 46 }
         {% else %}
-        {{ pool.id | mermaid_id }}["{{ pool.name }}<br/>{{ pool.type }}{% if pool.path is defined %}<br/>{{ pool.path }}{% endif %}"]
+        {{ endpoint.id | mermaid_id }}["{{ endpoint.id }}<br/>{{ endpoint.type }}{% if endpoint.name is defined %}<br/>{{ endpoint.name }}{% endif %}{% if resolved.path is defined %}<br/>{{ resolved.path }}{% elif endpoint.lv_ref is defined %}<br/>{{ endpoint.lv_ref }}{% endif %}"]
         {% endif %}
         {% endfor %}
     end
@@ -44,9 +97,50 @@ flowchart LR
         {% endfor %}
     end
 
-    {% for pool in storage %}
-    {% if pool.device_ref %}
-    {{ pool.device_ref | mermaid_id }} --> {{ pool.id | mermaid_id }}
+    {% for endpoint in storage_endpoints %}
+    {% set resolved = storage_resolved_by_id.get(endpoint.id, endpoint) %}
+    {% if resolved.device_ref %}
+    {{ resolved.device_ref | mermaid_id }} --> {{ endpoint.id | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    {% for mount in mount_points %}
+    {% if mount.device_ref %}
+    {{ mount.device_ref | mermaid_id }} --> {{ mount.id | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    {% for vg in volume_groups %}
+    {% for pv_ref in vg.pv_refs | default([], true) %}
+    {{ pv_ref | mermaid_id }} --> {{ vg.id | mermaid_id }}
+    {% endfor %}
+    {% endfor %}
+
+    {% for lv in logical_volumes %}
+    {% if lv.vg_ref %}
+    {{ lv.vg_ref | mermaid_id }} --> {{ lv.id | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    {% for fs in filesystems %}
+    {% if fs.partition_ref %}
+    {{ fs.partition_ref | mermaid_id }} --> {{ fs.id | mermaid_id }}
+    {% elif fs.lv_ref %}
+    {{ fs.lv_ref | mermaid_id }} --> {{ fs.id | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    {% for mount in mount_points %}
+    {% if mount.filesystem_ref %}
+    {{ mount.filesystem_ref | mermaid_id }} --> {{ mount.id | mermaid_id }}
+    {% endif %}
+    {% endfor %}
+
+    {% for endpoint in storage_endpoints %}
+    {% if endpoint.mount_point_ref %}
+    {{ endpoint.mount_point_ref | mermaid_id }} --> {{ endpoint.id | mermaid_id }}
+    {% elif endpoint.lv_ref %}
+    {{ endpoint.lv_ref | mermaid_id }} --> {{ endpoint.id | mermaid_id }}
     {% endif %}
     {% endfor %}
 
@@ -59,8 +153,6 @@ flowchart LR
     {{ asset.storage_endpoint_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}
     {% elif asset.storage_ref is defined %}
     {{ asset.storage_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}
-    {% elif asset.device_ref is defined %}
-    {{ asset.device_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}
     {% endif %}
     {% endfor %}
 
@@ -71,28 +163,49 @@ flowchart LR
     classDef nvme fill:#4dabf7,stroke:#1864ab,color:#fff
     classDef pool fill:#adb5bd,stroke:#495057,color:#000
     classDef data fill:#e9ecef,stroke:#495057,color:#000
+    classDef partition fill:#fff3bf,stroke:#f08c00,color:#000
+    classDef vg fill:#c3fae8,stroke:#0ca678,color:#000
+    classDef lv fill:#d0ebff,stroke:#1971c2,color:#000
+    classDef fs fill:#e5dbff,stroke:#5f3dc4,color:#000
+    classDef mount fill:#ffe8cc,stroke:#d9480f,color:#000
 
     {% for device in devices %}
     class {{ device.id | mermaid_id }} host
     {% endfor %}
-    {% for pool in storage %}
-    {% set media_lower = (pool.media | default('') | lower) %}
-    {% set desc_lower = (pool.description | default('') | lower) %}
-    {% set type_lower = (pool.type | default('') | lower) %}
+    {% for part in partitions %}
+    class {{ part.id | mermaid_id }} partition
+    {% endfor %}
+    {% for vg in volume_groups %}
+    class {{ vg.id | mermaid_id }} vg
+    {% endfor %}
+    {% for lv in logical_volumes %}
+    class {{ lv.id | mermaid_id }} lv
+    {% endfor %}
+    {% for fs in filesystems %}
+    class {{ fs.id | mermaid_id }} fs
+    {% endfor %}
+    {% for mount in mount_points %}
+    class {{ mount.id | mermaid_id }} mount
+    {% endfor %}
+    {% for endpoint in storage_endpoints %}
+    {% set resolved = storage_resolved_by_id.get(endpoint.id, endpoint) %}
+    {% set media_lower = (resolved.media | default('') | lower) %}
+    {% set desc_lower = (endpoint.description | default('') | lower) %}
+    {% set type_lower = (endpoint.type | default('') | lower) %}
     {% if media_lower == 'nvme' %}
-    class {{ pool.id | mermaid_id }} nvme
+    class {{ endpoint.id | mermaid_id }} nvme
     {% elif media_lower == 'ssd' %}
-    class {{ pool.id | mermaid_id }} ssd
+    class {{ endpoint.id | mermaid_id }} ssd
     {% elif media_lower == 'hdd' %}
-    class {{ pool.id | mermaid_id }} hdd
+    class {{ endpoint.id | mermaid_id }} hdd
     {% elif 'nvme' in desc_lower %}
-    class {{ pool.id | mermaid_id }} nvme
+    class {{ endpoint.id | mermaid_id }} nvme
     {% elif 'ssd' in desc_lower or 'lvm' in type_lower %}
-    class {{ pool.id | mermaid_id }} ssd
+    class {{ endpoint.id | mermaid_id }} ssd
     {% elif 'hdd' in desc_lower %}
-    class {{ pool.id | mermaid_id }} hdd
+    class {{ endpoint.id | mermaid_id }} hdd
     {% else %}
-    class {{ pool.id | mermaid_id }} pool
+    class {{ endpoint.id | mermaid_id }} pool
     {% endif %}
     {% endfor %}
     {% for asset in data_assets %}
@@ -102,7 +215,7 @@ flowchart LR
 
 ---
 
-## Storage Pools
+## Storage Endpoints
 
 | ID | Name | Type | Media | Device | Content | Shared | Path/VG |
 |----|------|------|-------|--------|---------|--------|---------|
@@ -114,8 +227,8 @@ flowchart LR
 
 ## Data Assets
 
-| Asset | Type | Storage Endpoint Ref(s) | Runtime Ref(s) | Mount Path(s) | Device Ref |
-|-------|------|--------------------------|----------------|---------------|------------|
+| Asset | Type | Storage Endpoint Ref(s) | Runtime Ref(s) | Mount Path(s) | Device Ref | Placement Source |
+|-------|------|--------------------------|----------------|---------------|------------|------------------|
 {% for asset in data_assets %}
 {% set storage_refs = asset.resolved_storage_endpoint_refs if asset.resolved_storage_endpoint_refs else [] %}
 {% set runtime_refs = asset.resolved_runtime_refs if asset.resolved_runtime_refs else [] %}
@@ -123,7 +236,7 @@ flowchart LR
 {% set storage_display = storage_refs | join(', ') if storage_refs else (asset.storage_endpoint_ref | default(asset.storage_ref | default('-', true), true)) %}
 {% set runtime_display = runtime_refs | join(', ') if runtime_refs else '-' %}
 {% set mount_display = mount_paths | join(', ') if mount_paths else (asset.path | default('-', true)) %}
-| {{ asset.name }} | {{ asset.type }} | {{ storage_display }} | {{ runtime_display }} | {{ mount_display }} | {{ asset.device_ref | default('-', true) }} |
+| {{ asset.name }} | {{ asset.type }} | {{ storage_display }} | {{ runtime_display }} | {{ mount_display }} | {{ asset.device_ref | default('-', true) }} | {{ asset.placement_source | default('-', true) }} |
 {% endfor %}
 
 ---

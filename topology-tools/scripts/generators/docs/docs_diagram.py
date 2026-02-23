@@ -554,9 +554,29 @@ class DiagramDocumentationGenerator:
 
     def generate_storage_topology(self) -> bool:
         """Generate storage topology diagram."""
+        l3 = self.topology.get("L3_data", {})
         storage = self._sort_dicts(self.docs_generator.resolve_storage_pools_for_docs())
         data_assets = self._sort_dicts(self.docs_generator.resolve_data_assets_for_docs())
-        devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
+        partitions = self._sort_dicts(l3.get("partitions", []))
+        volume_groups = self._sort_dicts(l3.get("volume_groups", []))
+        logical_volumes = self._sort_dicts(l3.get("logical_volumes", []))
+        filesystems = self._sort_dicts(l3.get("filesystems", []))
+        mount_points = self._sort_dicts(l3.get("mount_points", []))
+        storage_endpoints = self._sort_dicts(l3.get("storage_endpoints", []))
+        storage_resolved_by_id = {item.get("id"): item for item in storage if item.get("id")}
+        all_devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
+        known_device_ids = {device.get("id") for device in all_devices if device.get("id")}
+        storage_device_ids = {pool.get("device_ref") for pool in storage if pool.get("device_ref")}
+        asset_owner_ids = {asset.get("device_ref") for asset in data_assets if asset.get("device_ref")}
+        mount_device_ids = {mount.get("device_ref") for mount in mount_points if mount.get("device_ref")}
+        runtime_device_ids = {
+            runtime_ref
+            for asset in data_assets
+            for runtime_ref in (asset.get("resolved_runtime_refs") or [])
+            if runtime_ref in known_device_ids
+        }
+        relevant_device_ids = storage_device_ids | asset_owner_ids | mount_device_ids | runtime_device_ids
+        devices = [device for device in all_devices if device.get("id") in relevant_device_ids] or all_devices
         device_icons = {device.get("id"): self._device_icon(device) for device in devices if device.get("id")}
         pool_icons = {pool.get("id"): self._storage_pool_icon(pool) for pool in storage if pool.get("id")}
         asset_icons = {asset.get("id"): self._data_asset_icon(asset) for asset in data_assets if asset.get("id")}
@@ -565,6 +585,13 @@ class DiagramDocumentationGenerator:
             "storage-topology.md",
             storage=storage,
             data_assets=data_assets,
+            partitions=partitions,
+            volume_groups=volume_groups,
+            logical_volumes=logical_volumes,
+            filesystems=filesystems,
+            mount_points=mount_points,
+            storage_endpoints=storage_endpoints,
+            storage_resolved_by_id=storage_resolved_by_id,
             devices=devices,
             device_icons=device_icons,
             pool_icons=pool_icons,
