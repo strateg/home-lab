@@ -12,6 +12,8 @@ from scripts.validators.checks.storage import (
     check_l1_media_inventory,
 )
 
+L1_NON_PHYSICAL_KEYS = ("services", "applications", "runtime")
+
 
 def _check_expected_prefix(
     *,
@@ -388,6 +390,13 @@ def check_device_taxonomy(
         dev_access = device.get('access')
         location_ref = device.get('location')
         location_type = locations.get(location_ref, {}).get('type') if location_ref in locations else None
+
+        for forbidden_key in L1_NON_PHYSICAL_KEYS:
+            if forbidden_key in device:
+                warnings.append(
+                    f"Device '{dev_id}': non-physical field '{forbidden_key}' in L1 is deprecated; "
+                    "keep service/runtime intent in L4/L5"
+                )
 
         if location_ref and location_ref not in locations:
             errors.append(f"Device '{dev_id}': location '{location_ref}' does not exist")

@@ -32,7 +32,6 @@
 - id: svc-adguard
   name: AdGuard Home
   type: dns
-  container: true
   ports:
     dns: 53
     web_ui: 3000
@@ -57,7 +56,6 @@
 - id: svc-wireguard
   name: WireGuard VPN
   type: vpn
-  native: true
   port: 51820
   protocol: udp
   trust_zone_ref: user
@@ -76,7 +74,6 @@
 - id: svc-tailscale
   name: Tailscale
   type: vpn
-  container: true
   trust_zone_ref: user
   vpn_type: tailscale
   description: Tailscale mesh VPN (container on MikroTik)
@@ -95,7 +92,6 @@
 - id: svc-nextcloud
   name: Nextcloud
   type: web-application
-  container: true
   ports:
     https: 443
     http: 80
@@ -136,7 +132,6 @@
 - id: svc-jellyfin
   name: Jellyfin
   type: media-server
-  container: true
   port: 8096
   protocol: http
   trust_zone_ref: servers
@@ -179,7 +174,6 @@
 - id: svc-adguard-secondary
   name: AdGuard Home Secondary
   type: dns
-  container: true
   ports:
     dns: 5353
     web_ui: 3001
@@ -198,7 +192,6 @@
 - id: svc-prometheus
   name: Prometheus
   type: monitoring
-  container: true
   port: 9090
   protocol: http
   trust_zone_ref: servers
@@ -238,7 +231,6 @@
 - id: svc-alertmanager
   name: Alertmanager
   type: alerting
-  container: true
   port: 9093
   protocol: http
   trust_zone_ref: servers
@@ -260,7 +252,6 @@
 - id: svc-loki
   name: Loki
   type: logging
-  container: true
   port: 3100
   protocol: http
   trust_zone_ref: servers
@@ -286,7 +277,6 @@
 - id: svc-grafana
   name: Grafana
   type: visualization
-  container: true
   port: 3000
   protocol: http
   trust_zone_ref: servers
@@ -313,7 +303,6 @@
 - id: svc-homeassistant
   name: Home Assistant
   type: home-automation
-  container: true
   port: 8123
   protocol: http
   trust_zone_ref: servers

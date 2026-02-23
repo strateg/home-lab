@@ -1,6 +1,6 @@
 # L0-L5 Refactoring Plan (ADR-0040)
 
-Status: Active
+Status: Active (P0 complete)
 Date: 2026-02-23
 Scope: `L0` .. `L5`
 
@@ -48,15 +48,15 @@ Scope: `L0` .. `L5`
 **Goal**: Remove legacy runtime-type fields from services.yaml.
 
 **Tasks**:
-- [ ] Remove `container: true` from 10 services
+- [x] Remove `container: true` from 10 services
   - File: `topology/L5-application/services.yaml`
   - Lines: 35, 79, 98, 139, 182, 201, 241, 263, 289, 316
   - Acceptance: `grep -c "container: true" topology/L5-application/services.yaml` returns 0
-- [ ] Remove `native: true` from 1 service
+- [x] Remove `native: true` from 1 service
   - File: `topology/L5-application/services.yaml`
   - Line: 60
   - Acceptance: `grep -c "native: true" topology/L5-application/services.yaml` returns 0
-- [ ] Verify all services have `runtime.type` set
+- [x] Verify all services have `runtime.type` set
   - Acceptance: validator passes with no "missing runtime.type" errors
 
 #### P0.2: L1 physical-only guardrail
@@ -64,11 +64,11 @@ Scope: `L0` .. `L5`
 **Goal**: Add validator rule preventing non-physical keys in L1 devices.
 
 **Tasks**:
-- [ ] Add validator check `check_l1_physical_only()`
-  - File: `topology-tools/scripts/validators/checks/layer_boundaries.py` (new)
+- [x] Add validator check `check_l1_physical_only()`
+  - File: `topology-tools/scripts/validators/checks/foundation.py`
   - Forbidden keys: `services`, `applications`, `runtime`
   - Acceptance: validator fails if forbidden key added to any L1 device
-- [ ] Audit existing L1 devices for violations
+- [x] Audit existing L1 devices for violations
   - Path: `topology/L1-foundation/devices/**/*.yaml`
   - Acceptance: `grep -r "^services:\|^applications:\|^runtime:" topology/L1-foundation/devices/` returns empty
 
@@ -77,8 +77,8 @@ Scope: `L0` .. `L5`
 **Goal**: Add validator rule blocking legacy fields in authored services.
 
 **Tasks**:
-- [ ] Add validator check `check_no_legacy_service_fields()`
-  - File: `topology-tools/scripts/validators/checks/layer_boundaries.py`
+- [x] Add validator check `check_no_legacy_service_fields()`
+  - File: `topology-tools/scripts/validators/checks/references.py`
   - Forbidden keys: `container`, `native`
   - Acceptance: validator fails if `container: true` added to any service
 
@@ -216,11 +216,11 @@ git tag -d pre-adr0040-*
 
 ### P0 Complete When
 
-- [ ] Zero `container: true` in services.yaml
-- [ ] Zero `native: true` in services.yaml
-- [ ] Validator blocks new legacy field additions
-- [ ] Validator blocks non-physical keys in L1
-- [ ] All generators produce identical output (compatibility preserved)
+- [x] Zero `container: true` in services.yaml
+- [x] Zero `native: true` in services.yaml
+- [x] Validator blocks new legacy field additions
+- [x] Validator blocks non-physical keys in L1
+- [x] All generators produce identical output (compatibility preserved)
 
 ### P1 Complete When
 
