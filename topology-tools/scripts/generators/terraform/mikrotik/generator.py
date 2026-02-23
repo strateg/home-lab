@@ -401,9 +401,9 @@ class MikrotikTerraformGenerator:
             if _service_target_device(service) != 'mikrotik-chateau':
                 continue
             runtime = service.get('runtime') if isinstance(service.get('runtime'), dict) else {}
-            is_container = service.get('container') or runtime.get('type') == 'docker'
+            is_container = runtime.get('type') == 'docker'
             if is_container:
-                image = runtime.get('image') or service.get('container_image')
+                image = runtime.get('image')
                 self.containers['services'].append({
                     'id': service.get('id'),
                     'name': service.get('name'),

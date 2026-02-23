@@ -1,6 +1,6 @@
 # L0-L5 Refactoring Plan (ADR-0040)
 
-Status: Active (P0, P1, P2.1, P2.2 complete)
+Status: Active (P0, P1, P2 complete)
 Date: 2026-02-23
 Scope: `L0` .. `L5`
 
@@ -131,9 +131,9 @@ Scope: `L0` .. `L5`
 #### P2.3: Generator compatibility cleanup
 
 **Tasks**:
-- [ ] Remove compatibility projections for `container`/`native` from generators
-- [ ] Update doc templates to use only canonical fields
-- [ ] Remove deprecated field handling code
+- [x] Remove compatibility projections for `container`/`native` from generators
+- [x] Update doc templates to use only canonical fields
+- [x] Remove deprecated field handling code
 
 ## Execution Sequence
 
@@ -230,9 +230,9 @@ git tag -d pre-adr0040-*
 
 ### P2 Complete When
 
-- [ ] data_assets have category/criticality
-- [ ] Metadata auto-update implemented
-- [ ] No compatibility code in generators for removed fields
+- [x] data_assets have category/criticality
+- [x] Metadata auto-update implemented
+- [x] No compatibility code in generators for removed fields
 
 ## Dependencies
 

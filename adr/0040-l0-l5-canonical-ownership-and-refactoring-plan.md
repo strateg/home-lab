@@ -64,11 +64,11 @@ Decision: `L5.services[].config.docker.host_ip` is deprecated. Service IP bindin
 2. `runtime.network_binding_ref` → resolves to L2 network
 3. Generator looks up IP from L2 or L4 based on target type
 
-### 4. Generators keep compatibility projection
+### 4. Generator compatibility is phased out for removed L5 runtime hints
 
 - Projection happens in tooling (`generate-*.py`), not in source topology authoring.
-- Generators may synthesize legacy fields for downstream consumers during transition.
-- Source topology is tightened; generators are updated incrementally.
+- During transition, generators may synthesize structural runtime projections (`device_ref/lxc_ref/network_ref/ip`) for docs.
+- Compatibility projections for removed L5 runtime hints (`container`, `native`, `container_image`) are eliminated in P2 cleanup.
 
 ### 5. Refactor by priority
 
@@ -88,7 +88,7 @@ Decision: `L5.services[].config.docker.host_ip` is deprecated. Service IP bindin
 ### Trade-offs
 
 - Transitional updates in generators/templates are required while compatibility fields are phased out.
-- Some existing docs views still depend on compatibility projections.
+- Some docs views still use structural runtime projections until full runtime-only templating is complete.
 - P1 IP ownership change requires generator updates before topology cleanup.
 
 ### Migration impact

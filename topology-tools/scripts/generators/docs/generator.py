@@ -217,7 +217,8 @@ class DocumentationGenerator:
         """
         Enrich services with compatibility fields derived from runtime.
 
-        Templates still reference legacy fields (device_ref/lxc_ref/network_ref/ip).
+        Templates still reference structural compatibility fields
+        (device_ref/lxc_ref/network_ref/ip).
         This keeps docs generation stable while topology authoring moves to runtime.
         """
         l2 = self.topology.get("L2_network", {}) or {}
@@ -298,13 +299,6 @@ class DocumentationGenerator:
                     service.setdefault("device_ref", host["device_ref"])
             elif runtime_type in {"docker", "baremetal"} and target_ref:
                 service.setdefault("device_ref", target_ref)
-
-            # Keep legacy template fields derived from runtime to avoid source-data duplication.
-            if runtime_type == "docker":
-                service.setdefault("container", True)
-                if runtime.get("image"):
-                    service.setdefault("container_image", runtime["image"])
-                service.setdefault("container_runtime", "docker")
 
             if network_binding_ref:
                 service.setdefault("network_ref", network_binding_ref)

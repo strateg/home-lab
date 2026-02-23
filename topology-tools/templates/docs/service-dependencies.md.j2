@@ -128,21 +128,21 @@ flowchart TB
 
 ### MikroTik Chateau (Router)
 
-| Service | Type | Port(s) | Container |
-|---------|------|---------|-----------|
+| Service | Type | Port(s) | Runtime |
+|---------|------|---------|---------|
 {% for service in services %}
 {% if service.device_ref == 'mikrotik-chateau' %}
-| {{ service.name }} | {{ service.type }} | {{ service.port | default('-') }} | {{ 'Yes' if service.container else 'Native' }} |
+| {{ service.name }} | {{ service.type }} | {{ service.port | default('-') }} | {{ service.runtime.type if service.runtime is defined and service.runtime.type is defined else 'unknown' }} |
 {% endif %}
 {% endfor %}
 
 ### Orange Pi 5 (Application Server)
 
-| Service | Type | Port | Container Image |
-|---------|------|------|-----------------|
+| Service | Type | Port | Runtime Image |
+|---------|------|------|---------------|
 {% for service in services %}
 {% if service.device_ref == 'orangepi5' %}
-| {{ service.name }} | {{ service.type }} | {{ service.port | default('-') }} | {{ service.container_image | default('-') }} |
+| {{ service.name }} | {{ service.type }} | {{ service.port | default('-') }} | {{ service.runtime.image if service.runtime is defined and service.runtime.image is defined else '-' }} |
 {% endif %}
 {% endfor %}
 
