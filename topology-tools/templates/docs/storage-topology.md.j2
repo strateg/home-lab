@@ -18,172 +18,183 @@
 `type: {{ block.device.type | default('unknown') }}` | `class: {{ block.device.device_class | default(block.device.class | default('unknown')) }}` | `location: {{ block.device.location | default('n/a') }}` | `endpoints: {{ block.storage_endpoints | length }}` | `assets: {{ block.data_assets | length }}`
 
 ```mermaid
-%%{init: {'flowchart': {'nodeSpacing': 18, 'rankSpacing': 24, 'padding': 4}} }%%
-flowchart TB
+%%{init: {'flowchart': {'nodeSpacing': 14, 'rankSpacing': 18, 'padding': 4}} }%%
+flowchart LR
     {% if use_mermaid_icons %}
     {{ block.device.id | mermaid_id }}@{ icon: "{{ device_icons.get(block.device.id, 'mdi:devices') }}", form: "rounded", label: "{{ block.device.name }}", pos: "b", h: 40 }
     {% else %}
     {{ block.device.id | mermaid_id }}["{{ block.device.name }}"]
     {% endif %}
 
-    subgraph l3chain["L3 Storage Chain"]
-        direction TB
-        {% if block.partitions %}
-        subgraph l3parts["Partitions"]
+    subgraph layers["Storage Layers"]
+        direction LR
+        subgraph l3chain["L3 Storage Chain"]
             direction TB
-            {% for part in block.partitions %}
-            {% if use_mermaid_icons %}
-            {{ part.id | mermaid_id }}@{ icon: "mdi:harddisk", form: "rounded", label: "{{ part.id }} p{{ part.number | default('?') }} {{ part.type | default('') }}", pos: "b", h: 34 }
-            {% else %}
-            {{ part.id | mermaid_id }}["{{ part.id }}<br/>p{{ part.number | default('?') }} {{ part.type | default('') }}"]
+            {% if block.partitions %}
+            subgraph l3parts["Partitions"]
+                direction TB
+                {% for part in block.partitions %}
+                {% if use_mermaid_icons %}
+                {{ part.id | mermaid_id }}@{ icon: "mdi:harddisk", form: "rounded", label: "{{ part.id }} p{{ part.number | default('?') }}", pos: "b", h: 34 }
+                {% else %}
+                {{ part.id | mermaid_id }}["{{ part.id }}<br/>p{{ part.number | default('?') }}"]
+                {% endif %}
+                {% endfor %}
+                {% for i in range(1, block.partitions | length) %}
+                {{ block.partitions[i - 1].id | mermaid_id }} --> {{ block.partitions[i].id | mermaid_id }}
+                {% endfor %}
+            end
             {% endif %}
+
+            {% if block.volume_groups %}
+            subgraph l3vgs["Volume Groups"]
+                direction TB
+                {% for vg in block.volume_groups %}
+                {% if use_mermaid_icons %}
+                {{ vg.id | mermaid_id }}@{ icon: "mdi:view-grid-plus", form: "rounded", label: "{{ vg.name | default(vg.id) }}", pos: "b", h: 34 }
+                {% else %}
+                {{ vg.id | mermaid_id }}["{{ vg.name | default(vg.id) }}"]
+                {% endif %}
+                {% endfor %}
+                {% for i in range(1, block.volume_groups | length) %}
+                {{ block.volume_groups[i - 1].id | mermaid_id }} --> {{ block.volume_groups[i].id | mermaid_id }}
+                {% endfor %}
+            end
+            {% endif %}
+
+            {% if block.logical_volumes %}
+            subgraph l3lvs["Logical Volumes"]
+                direction TB
+                {% for lv in block.logical_volumes %}
+                {% if use_mermaid_icons %}
+                {{ lv.id | mermaid_id }}@{ icon: "mdi:disc-player", form: "rounded", label: "{{ lv.name | default(lv.id) }}", pos: "b", h: 34 }
+                {% else %}
+                {{ lv.id | mermaid_id }}["{{ lv.name | default(lv.id) }}"]
+                {% endif %}
+                {% endfor %}
+                {% for i in range(1, block.logical_volumes | length) %}
+                {{ block.logical_volumes[i - 1].id | mermaid_id }} --> {{ block.logical_volumes[i].id | mermaid_id }}
+                {% endfor %}
+            end
+            {% endif %}
+
+            {% if block.filesystems %}
+            subgraph l3fs["Filesystems"]
+                direction TB
+                {% for fs in block.filesystems %}
+                {% if use_mermaid_icons %}
+                {{ fs.id | mermaid_id }}@{ icon: "mdi:folder-cog", form: "rounded", label: "{{ fs.id }}", pos: "b", h: 34 }
+                {% else %}
+                {{ fs.id | mermaid_id }}["{{ fs.id }}"]
+                {% endif %}
+                {% endfor %}
+                {% for i in range(1, block.filesystems | length) %}
+                {{ block.filesystems[i - 1].id | mermaid_id }} --> {{ block.filesystems[i].id | mermaid_id }}
+                {% endfor %}
+            end
+            {% endif %}
+
+            {% if block.mount_points %}
+            subgraph l3mnt["Mount Points"]
+                direction TB
+                {% for mount in block.mount_points %}
+                {% if use_mermaid_icons %}
+                {{ mount.id | mermaid_id }}@{ icon: "mdi:folder-marker", form: "rounded", label: "{{ mount.path | default(mount.id) }}", pos: "b", h: 34 }
+                {% else %}
+                {{ mount.id | mermaid_id }}["{{ mount.path | default(mount.id) }}"]
+                {% endif %}
+                {% endfor %}
+                {% for i in range(1, block.mount_points | length) %}
+                {{ block.mount_points[i - 1].id | mermaid_id }} --> {{ block.mount_points[i].id | mermaid_id }}
+                {% endfor %}
+            end
+            {% endif %}
+        end
+
+        {% if block.storage_endpoints %}
+        subgraph pools["L3 Storage Endpoints"]
+            direction TB
+            {% for endpoint in block.storage_endpoints %}
+            {% set resolved = storage_resolved_by_id.get(endpoint.id, endpoint) %}
+            {% if use_mermaid_icons %}
+            {{ endpoint.id | mermaid_id }}@{ icon: "{{ pool_icons.get(endpoint.id, 'mdi:database') }}", form: "rounded", label: "{{ endpoint.id }} {{ endpoint.type }}", pos: "b", h: 36 }
+            {% else %}
+            {{ endpoint.id | mermaid_id }}["{{ endpoint.id }}<br/>{{ endpoint.type }}"]
+            {% endif %}
+            {% endfor %}
+            {% for i in range(1, block.storage_endpoints | length) %}
+            {{ block.storage_endpoints[i - 1].id | mermaid_id }} --> {{ block.storage_endpoints[i].id | mermaid_id }}
             {% endfor %}
         end
         {% endif %}
 
-        {% if block.volume_groups %}
-        subgraph l3vgs["Volume Groups"]
+        {% if block.data_assets %}
+        subgraph assets["Data Assets"]
             direction TB
-            {% for vg in block.volume_groups %}
+            {% for asset in block.data_assets %}
             {% if use_mermaid_icons %}
-            {{ vg.id | mermaid_id }}@{ icon: "mdi:view-grid-plus", form: "rounded", label: "{{ vg.name | default(vg.id) }}", pos: "b", h: 34 }
+            {{ asset.id | mermaid_id }}@{ icon: "{{ asset_icons.get(asset.id, 'mdi:file-outline') }}", form: "rounded", label: "{{ asset.id }} {{ asset.type }}", pos: "b", h: 34 }
             {% else %}
-            {{ vg.id | mermaid_id }}["{{ vg.name | default(vg.id) }}"]
+            {{ asset.id | mermaid_id }}["{{ asset.id }}<br/>{{ asset.type }}"]
             {% endif %}
             {% endfor %}
-        end
-        {% endif %}
-
-        {% if block.logical_volumes %}
-        subgraph l3lvs["Logical Volumes"]
-            direction TB
-            {% for lv in block.logical_volumes %}
-            {% if use_mermaid_icons %}
-            {{ lv.id | mermaid_id }}@{ icon: "mdi:disc-player", form: "rounded", label: "{{ lv.name | default(lv.id) }}", pos: "b", h: 34 }
-            {% else %}
-            {{ lv.id | mermaid_id }}["{{ lv.name | default(lv.id) }}"]
-            {% endif %}
-            {% endfor %}
-        end
-        {% endif %}
-
-        {% if block.filesystems %}
-        subgraph l3fs["Filesystems"]
-            direction TB
-            {% for fs in block.filesystems %}
-            {% if use_mermaid_icons %}
-            {{ fs.id | mermaid_id }}@{ icon: "mdi:folder-cog", form: "rounded", label: "{{ fs.id }} {{ fs.type | default('') }}", pos: "b", h: 34 }
-            {% else %}
-            {{ fs.id | mermaid_id }}["{{ fs.id }}<br/>{{ fs.type | default('') }}"]
-            {% endif %}
-            {% endfor %}
-        end
-        {% endif %}
-
-        {% if block.mount_points %}
-        subgraph l3mnt["Mount Points"]
-            direction TB
-            {% for mount in block.mount_points %}
-            {% if use_mermaid_icons %}
-            {{ mount.id | mermaid_id }}@{ icon: "mdi:folder-marker", form: "rounded", label: "{{ mount.path | default(mount.id) }}", pos: "b", h: 34 }
-            {% else %}
-            {{ mount.id | mermaid_id }}["{{ mount.path | default(mount.id) }}"]
-            {% endif %}
+            {% for i in range(1, block.data_assets | length) %}
+            {{ block.data_assets[i - 1].id | mermaid_id }} --> {{ block.data_assets[i].id | mermaid_id }}
             {% endfor %}
         end
         {% endif %}
     end
 
-    {% if block.storage_endpoints %}
-    subgraph pools["L3 Storage Endpoints"]
-        direction TB
-        {% for endpoint in block.storage_endpoints %}
-        {% set resolved = storage_resolved_by_id.get(endpoint.id, endpoint) %}
-        {% if use_mermaid_icons %}
-        {{ endpoint.id | mermaid_id }}@{ icon: "{{ pool_icons.get(endpoint.id, 'mdi:database') }}", form: "rounded", label: "{{ endpoint.id }} {{ endpoint.type }}{% if endpoint.name is defined %} {{ endpoint.name }}{% endif %}{% if resolved.path is defined %} {{ resolved.path }}{% elif endpoint.lv_ref is defined %} {{ endpoint.lv_ref }}{% endif %}", pos: "b", h: 38 }
-        {% else %}
-        {{ endpoint.id | mermaid_id }}["{{ endpoint.id }}<br/>{{ endpoint.type }}{% if endpoint.name is defined %}<br/>{{ endpoint.name }}{% endif %}{% if resolved.path is defined %}<br/>{{ resolved.path }}{% elif endpoint.lv_ref is defined %}<br/>{{ endpoint.lv_ref }}{% endif %}"]
-        {% endif %}
-        {% endfor %}
-    end
+    {% set host_attach = namespace(node='') %}
+    {% if block.mount_points %}
+    {% set host_attach.node = block.mount_points[0].id %}
+    {% elif block.storage_endpoints %}
+    {% set host_attach.node = block.storage_endpoints[0].id %}
+    {% elif block.filesystems %}
+    {% set host_attach.node = block.filesystems[0].id %}
+    {% elif block.logical_volumes %}
+    {% set host_attach.node = block.logical_volumes[0].id %}
+    {% elif block.volume_groups %}
+    {% set host_attach.node = block.volume_groups[0].id %}
+    {% elif block.partitions %}
+    {% set host_attach.node = block.partitions[0].id %}
+    {% elif block.data_assets %}
+    {% set host_attach.node = block.data_assets[0].id %}
+    {% endif %}
+    {% if host_attach.node %}
+    {{ block.device.id | mermaid_id }} --> {{ host_attach.node | mermaid_id }}
     {% endif %}
 
-    {% if block.data_assets %}
-    subgraph assets["Data Assets"]
-        direction TB
-        {% for asset in block.data_assets %}
-        {% if use_mermaid_icons %}
-        {{ asset.id | mermaid_id }}@{ icon: "{{ asset_icons.get(asset.id, 'mdi:file-outline') }}", form: "rounded", label: "{{ asset.name }} {{ asset.type }}", pos: "b", h: 36 }
-        {% else %}
-        {{ asset.id | mermaid_id }}["{{ asset.name }}<br/>{{ asset.type }}"]
-        {% endif %}
-        {% endfor %}
-    end
+    {# Vertical bridge between adjacent L3 groups for stable one-column layout #}
+    {% if block.partitions and block.volume_groups %}
+    {{ block.partitions[-1].id | mermaid_id }} --> {{ block.volume_groups[0].id | mermaid_id }}
     {% endif %}
 
-    {% for mount in block.mount_points %}
-    {% if mount.device_ref %}
-    {{ mount.device_ref | mermaid_id }} --> {{ mount.id | mermaid_id }}
+    {% if block.volume_groups and block.logical_volumes %}
+    {{ block.volume_groups[-1].id | mermaid_id }} --> {{ block.logical_volumes[0].id | mermaid_id }}
     {% endif %}
-    {% endfor %}
 
-    {% for endpoint in block.storage_endpoints %}
-    {% set resolved = storage_resolved_by_id.get(endpoint.id, endpoint) %}
-    {% if resolved.device_ref %}
-    {{ resolved.device_ref | mermaid_id }} --> {{ endpoint.id | mermaid_id }}
+    {% if block.logical_volumes and block.filesystems %}
+    {{ block.logical_volumes[-1].id | mermaid_id }} --> {{ block.filesystems[0].id | mermaid_id }}
+    {% elif block.partitions and block.filesystems %}
+    {{ block.partitions[-1].id | mermaid_id }} --> {{ block.filesystems[0].id | mermaid_id }}
     {% endif %}
-    {% endfor %}
 
-    {% for vg in block.volume_groups %}
-    {% for pv_ref in vg.pv_refs | default([], true) %}
-    {% if pv_ref in block.partition_ids %}
-    {{ pv_ref | mermaid_id }} --> {{ vg.id | mermaid_id }}
+    {% if block.filesystems and block.mount_points %}
+    {{ block.filesystems[-1].id | mermaid_id }} --> {{ block.mount_points[0].id | mermaid_id }}
     {% endif %}
-    {% endfor %}
-    {% endfor %}
 
-    {% for lv in block.logical_volumes %}
-    {% if lv.vg_ref and lv.vg_ref in block.volume_group_ids %}
-    {{ lv.vg_ref | mermaid_id }} --> {{ lv.id | mermaid_id }}
+    {% if block.mount_points and block.storage_endpoints %}
+    {{ block.mount_points[-1].id | mermaid_id }} --> {{ block.storage_endpoints[0].id | mermaid_id }}
+    {% elif block.logical_volumes and block.storage_endpoints %}
+    {{ block.logical_volumes[-1].id | mermaid_id }} --> {{ block.storage_endpoints[0].id | mermaid_id }}
+    {% elif block.filesystems and block.storage_endpoints %}
+    {{ block.filesystems[-1].id | mermaid_id }} --> {{ block.storage_endpoints[0].id | mermaid_id }}
     {% endif %}
-    {% endfor %}
 
-    {% for fs in block.filesystems %}
-    {% if fs.partition_ref and fs.partition_ref in block.partition_ids %}
-    {{ fs.partition_ref | mermaid_id }} --> {{ fs.id | mermaid_id }}
-    {% elif fs.lv_ref and fs.lv_ref in block.logical_volume_ids %}
-    {{ fs.lv_ref | mermaid_id }} --> {{ fs.id | mermaid_id }}
+    {% if block.storage_endpoints and block.data_assets %}
+    {{ block.storage_endpoints[-1].id | mermaid_id }} --> {{ block.data_assets[0].id | mermaid_id }}
     {% endif %}
-    {% endfor %}
-
-    {% for mount in block.mount_points %}
-    {% if mount.filesystem_ref and mount.filesystem_ref in block.filesystem_ids %}
-    {{ mount.filesystem_ref | mermaid_id }} --> {{ mount.id | mermaid_id }}
-    {% endif %}
-    {% endfor %}
-
-    {% for endpoint in block.storage_endpoints %}
-    {% if endpoint.mount_point_ref and endpoint.mount_point_ref in block.mount_point_ids %}
-    {{ endpoint.mount_point_ref | mermaid_id }} --> {{ endpoint.id | mermaid_id }}
-    {% elif endpoint.lv_ref and endpoint.lv_ref in block.logical_volume_ids %}
-    {{ endpoint.lv_ref | mermaid_id }} --> {{ endpoint.id | mermaid_id }}
-    {% endif %}
-    {% endfor %}
-
-    {% for asset in block.data_assets %}
-    {% set asset_endpoint_refs = asset.resolved_storage_endpoint_refs if asset.resolved_storage_endpoint_refs else [] %}
-    {% if asset_endpoint_refs %}
-    {% for endpoint_ref in asset_endpoint_refs %}
-    {% if endpoint_ref in block.storage_endpoint_ids %}
-    {{ endpoint_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}
-    {% endif %}
-    {% endfor %}
-    {% elif asset.storage_endpoint_ref is defined and asset.storage_endpoint_ref in block.storage_endpoint_ids %}
-    {{ asset.storage_endpoint_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}
-    {% elif asset.storage_ref is defined and asset.storage_ref in block.storage_endpoint_ids %}
-    {{ asset.storage_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}
-    {% endif %}
-    {% endfor %}
 
     %% Style definitions
     classDef host fill:#74c0fc,stroke:#1864ab,color:#000
