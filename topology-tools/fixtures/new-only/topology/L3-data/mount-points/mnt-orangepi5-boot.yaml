@@ -1,0 +1,5 @@
+id: mnt-orangepi5-boot
+path: /boot
+filesystem_ref: fs-orangepi5-boot
+device_ref: orangepi5
+description: Boot mount on Orange Pi 5 host (kernel, initramfs)

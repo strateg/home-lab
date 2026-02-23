@@ -51,7 +51,13 @@ flowchart LR
     {% endfor %}
 
     {% for asset in data_assets %}
-    {% if asset.storage_ref is defined %}
+    {% if asset.resolved_storage_endpoint_refs is defined and asset.resolved_storage_endpoint_refs %}
+    {% for endpoint_ref in asset.resolved_storage_endpoint_refs %}
+    {{ endpoint_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}
+    {% endfor %}
+    {% elif asset.storage_endpoint_ref is defined %}
+    {{ asset.storage_endpoint_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}
+    {% elif asset.storage_ref is defined %}
     {{ asset.storage_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}
     {% elif asset.device_ref is defined %}
     {{ asset.device_ref | mermaid_id }} --> {{ asset.id | mermaid_id }}
@@ -101,17 +107,23 @@ flowchart LR
 | ID | Name | Type | Media | Device | Content | Shared | Path/VG |
 |----|------|------|-------|--------|---------|--------|---------|
 {% for pool in storage %}
-| {{ pool.id }} | {{ pool.name }} | {{ pool.type }} | {{ pool.media | default('-') }} | {{ pool.device_ref | default('-') }} | {{ pool.content | join(', ') if pool.content else '-' }} | {{ 'Yes' if pool.shared else 'No' }} | {{ pool.path | default(pool.vgname | default('-')) }} |
+| {{ pool.id }} | {{ pool.name }} | {{ pool.type }} | {{ pool.media | default('-', true) }} | {{ pool.device_ref | default('-', true) }} | {{ pool.content | join(', ') if pool.content else '-' }} | {{ 'Yes' if pool.shared else 'No' }} | {{ pool.path | default(pool.vgname | default('-'), true) }} |
 {% endfor %}
 
 ---
 
 ## Data Assets
 
-| Asset | Type | Storage Ref | Device Ref | Path |
-|-------|------|-------------|------------|------|
+| Asset | Type | Storage Endpoint Ref(s) | Runtime Ref(s) | Mount Path(s) | Device Ref |
+|-------|------|--------------------------|----------------|---------------|------------|
 {% for asset in data_assets %}
-| {{ asset.name }} | {{ asset.type }} | {{ asset.storage_ref | default('-') }} | {{ asset.device_ref | default('-') }} | {{ asset.path | default('-') }} |
+{% set storage_refs = asset.resolved_storage_endpoint_refs if asset.resolved_storage_endpoint_refs else [] %}
+{% set runtime_refs = asset.resolved_runtime_refs if asset.resolved_runtime_refs else [] %}
+{% set mount_paths = asset.resolved_mount_paths if asset.resolved_mount_paths else [] %}
+{% set storage_display = storage_refs | join(', ') if storage_refs else (asset.storage_endpoint_ref | default(asset.storage_ref | default('-', true), true)) %}
+{% set runtime_display = runtime_refs | join(', ') if runtime_refs else '-' %}
+{% set mount_display = mount_paths | join(', ') if mount_paths else (asset.path | default('-', true)) %}
+| {{ asset.name }} | {{ asset.type }} | {{ storage_display }} | {{ runtime_display }} | {{ mount_display }} | {{ asset.device_ref | default('-', true) }} |
 {% endfor %}
 
 ---
