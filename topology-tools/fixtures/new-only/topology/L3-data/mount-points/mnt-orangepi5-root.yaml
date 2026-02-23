@@ -1,0 +1,4 @@
+id: mnt-orangepi5-root
+path: /
+device_ref: orangepi5
+description: Root mount on Orange Pi 5 host

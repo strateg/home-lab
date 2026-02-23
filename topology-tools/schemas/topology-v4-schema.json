@@ -1217,13 +1217,30 @@
           "properties": {
             "media_ref": { "$ref": "#/definitions/MediaRef" },
             "slot_ref": { "type": "string", "pattern": "^slot-[a-z0-9-]+$" },
-            "root_mount": { "type": "string", "pattern": "^/.*" },
             "root_storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" }
           }
         },
         "description": { "type": "string" }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "host_type": { "enum": ["baremetal", "hypervisor"] }
+            },
+            "required": ["host_type"]
+          },
+          "then": {
+            "required": ["installation"],
+            "properties": {
+              "installation": {
+                "required": ["root_storage_endpoint_ref"]
+              }
+            }
+          }
+        }
+      ]
     },
     "Vm": {
       "type": "object",
