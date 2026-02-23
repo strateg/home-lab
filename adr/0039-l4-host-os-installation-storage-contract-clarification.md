@@ -2,16 +2,16 @@
 adr: "0039"
 layer: "L4"
 scope: "host-os-installation-storage-contract"
-status: "Proposed"
+status: "Accepted"
 date: "2026-02-23"
 public_api:
   - "host_operating_systems[].installation.root_storage_endpoint_ref"
-breaking_changes: false
+breaking_changes: true
 ---
 
 # ADR 0039: Clarify Host OS Installation Storage Contract and Layer Boundary
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-02-23
 
 ## TL;DR
@@ -206,11 +206,12 @@ For `host_type: embedded`:
 2. ✅ Docs template updated: `root_storage_endpoint_ref` shown first, `root_mount` only when ref missing.
 3. ✅ Schema marks `root_mount` as deprecated (`"deprecated": true`).
 
-### Phase-3 (strict)
+### Phase-3 (strict) - DONE
 
-1. Remove `root_mount` from schema.
-2. Remove template/docs rendering that treats `root_mount` as primary field.
-3. `root_storage_endpoint_ref` becomes required for `host_type: baremetal/hypervisor`.
+1. ✅ Remove `root_mount` from schema.
+2. ✅ Remove template/docs rendering that treats `root_mount` as primary field.
+3. ✅ `root_storage_endpoint_ref` becomes required for `host_type: baremetal/hypervisor`.
+4. ✅ Remove `root_mount` from all hos-files.
 
 ### YAML Examples
 

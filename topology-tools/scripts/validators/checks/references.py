@@ -132,6 +132,7 @@ def check_host_os_refs(
     errors: List[str],
     warnings: List[str],
 ) -> None:
+    del warnings  # Unused after ADR 0039 phase-3
     l1 = topology.get('L1_foundation', {})
     l4 = topology.get('L4_platform', {})
     devices = _device_map(topology)
@@ -163,11 +164,10 @@ def check_host_os_refs(
                 f"Host OS '{hos_id}': installation.root_storage_endpoint_ref '{root_storage_endpoint_ref}' does not exist"
             )
 
-        root_mount = installation.get('root_mount')
-        if root_mount and not root_storage_endpoint_ref:
-            warnings.append(
-                f"Host OS '{hos_id}': installation.root_mount is deprecated; "
-                f"use root_storage_endpoint_ref instead (see ADR 0039)"
+        host_type = host_os.get('host_type')
+        if host_type in {'baremetal', 'hypervisor'} and installation and not root_storage_endpoint_ref:
+            errors.append(
+                f"Host OS '{hos_id}': installation.root_storage_endpoint_ref is required for host_type '{host_type}' (see ADR 0039)"
             )
 
         device = devices.get(device_ref, {})
@@ -190,7 +190,6 @@ def check_host_os_refs(
                     f"Host OS '{hos_id}': architecture '{raw_arch}' normalizes to unsupported '{host_arch}'"
                 )
 
-        host_type = host_os.get('host_type')
         if host_type in {'baremetal', 'hypervisor'} and not installation:
             errors.append(
                 f"Host OS '{hos_id}': installation is required for host_type '{host_type}'"

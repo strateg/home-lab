@@ -1217,12 +1217,6 @@
           "properties": {
             "media_ref": { "$ref": "#/definitions/MediaRef" },
             "slot_ref": { "type": "string", "pattern": "^slot-[a-z0-9-]+$" },
-            "root_mount": {
-              "type": "string",
-              "pattern": "^/.*",
-              "deprecated": true,
-              "description": "DEPRECATED: Use root_storage_endpoint_ref instead (see ADR 0039)"
-            },
             "root_storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" }
           }
         },

@@ -12,5 +12,4 @@ installation:
   media_ref: disk-nvme-main
   slot_ref: slot-m2-0
   root_storage_endpoint_ref: se-orangepi5-root
-  root_mount: /  # DEPRECATED: use root_storage_endpoint_ref
 description: Orange Pi 5 host OS installed on 512 GB NVMe system disk

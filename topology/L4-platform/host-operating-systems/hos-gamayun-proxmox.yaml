@@ -13,5 +13,4 @@ installation:
   media_ref: disk-ssd-system
   slot_ref: slot-sata-0
   root_storage_endpoint_ref: se-gamayun-root
-  root_mount: /  # DEPRECATED: use root_storage_endpoint_ref
 description: Proxmox VE host operating system for Gamayun hypervisor
