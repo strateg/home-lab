@@ -1215,10 +1215,9 @@
         "installation": {
           "type": "object",
           "properties": {
-            "media_ref": { "$ref": "#/definitions/MediaRef" },
-            "slot_ref": { "type": "string", "pattern": "^slot-[a-z0-9-]+$" },
             "root_storage_endpoint_ref": { "$ref": "#/definitions/StorageEndpointRef" }
-          }
+          },
+          "required": ["root_storage_endpoint_ref"]
         },
         "description": { "type": "string" }
       },

@@ -124,22 +124,24 @@ shared: false
 description: Host root filesystem storage endpoint for Proxmox host
 ```
 
-### D2. Keep two distinct reference classes in `installation`
+### D2. Single reference via `root_storage_endpoint_ref`
 
-`host_operating_systems[].installation` contains two complementary reference types:
+`host_operating_systems[].installation` contains only one reference:
 
-| Field | Target Layer | Purpose | When Needed |
-|---|---|---|---|
-| `media_ref` | L1 | Physical media where OS was installed | Hardware traceability |
-| `slot_ref` | L1 | Physical slot/interface connection | Physical topology |
-| `root_storage_endpoint_ref` | L3 | Logical storage endpoint for root placement | Workload placement validation |
+| Field | Target Layer | Purpose |
+|---|---|---|
+| `root_storage_endpoint_ref` | L3 | Logical storage endpoint for root placement |
+
+Physical media information (disk, slot) is derivable through L3 chain:
+```
+root_storage_endpoint_ref -> mount_point -> filesystem -> partition -> media_attachment -> media/slot
+```
 
 Rationale:
 
-- `media_ref`/`slot_ref` answer "where OS was installed physically" (L4 -> L1).
-- `root_storage_endpoint_ref` answers "which logical storage endpoint represents host root" (L4 -> L3).
-
-These concerns are complementary, not conflicting.
+- **No duplication**: Physical media info exists in L3 chain, no need to duplicate in L4.
+- **Single source of truth**: L3 storage chain is the authoritative source for storage topology.
+- **Simpler contract**: Only one reference to maintain and validate.
 
 ### D3. Treat `root_mount` as legacy compatibility field
 
@@ -172,15 +174,13 @@ Semantic distinction:
 
 For `host_type` in `{baremetal, hypervisor}`:
 
-1. `installation` remains required.
-2. `root_storage_endpoint_ref` is strongly recommended and should become mandatory after migration window.
-3. `media_ref` and `slot_ref` stay optional (unknown/abstract installs are valid).
+1. `installation` block is required.
+2. `installation.root_storage_endpoint_ref` is required.
 
 For `host_type: embedded`:
 
-1. `installation` remains optional.
-2. If `installation` is present, same field semantics apply.
-3. Many embedded devices (e.g., RouterOS) do not have modeled L3 storage chain; `root_storage_endpoint_ref` may be omitted.
+1. `installation` block is optional.
+2. Many embedded devices (e.g., RouterOS) do not have modeled L3 storage chain.
 
 ## Migration Plan
 
@@ -213,6 +213,15 @@ For `host_type: embedded`:
 3. ✅ `root_storage_endpoint_ref` becomes required for `host_type: baremetal/hypervisor`.
 4. ✅ Remove `root_mount` from all hos-files.
 
+### Phase-4 (simplification) - DONE
+
+1. ✅ Remove `media_ref` and `slot_ref` from schema (redundant with L3 chain).
+2. ✅ Remove `media_ref` and `slot_ref` from all hos-files.
+3. ✅ Update docs template to show only `root_storage_endpoint_ref`.
+4. ✅ Remove `media_ref` validation from validator.
+
+Rationale: Physical media/slot info is derivable from L3 chain. Keeping it in L4 was duplication.
+
 ### YAML Examples
 
 **Before (legacy):**
@@ -230,7 +239,7 @@ installation:
   root_mount: /                   # Path string (DEPRECATED)
 ```
 
-**After Phase-1 (recommended):**
+**After Phase-4 (final):**
 
 ```yaml
 # hos-gamayun-proxmox.yaml
@@ -240,25 +249,14 @@ distribution: proxmox-ve
 version: "9.x"
 host_type: hypervisor
 installation:
-  media_ref: disk-ssd-system           # L1 reference (valid)
-  slot_ref: slot-sata-0                # L1 reference (valid)
-  root_storage_endpoint_ref: se-gamayun-root  # L3 reference (NEW)
-  root_mount: /                        # DEPRECATED, kept for compatibility
+  root_storage_endpoint_ref: se-gamayun-root  # Only L3 reference needed
 ```
 
-**After Phase-3 (strict):**
-
-```yaml
-# hos-gamayun-proxmox.yaml
-id: hos-gamayun-proxmox
-device_ref: gamayun
-distribution: proxmox-ve
-version: "9.x"
-host_type: hypervisor
-installation:
-  media_ref: disk-ssd-system           # L1 reference (optional)
-  slot_ref: slot-sata-0                # L1 reference (optional)
-  root_storage_endpoint_ref: se-gamayun-root  # L3 reference (required)
+Physical media info is derived from L3 chain:
+```
+se-gamayun-root -> mnt-gamayun-root -> fs-pve-root -> lv-pve-root
+  -> vg-pve -> part-gamayun-ssd-3 -> attach-gamayun-slot-sata-0
+  -> disk-ssd-system + slot-sata-0
 ```
 
 ## Blockers and Prerequisites
@@ -271,6 +269,8 @@ installation:
 | Add reference validator for `root_storage_endpoint_ref` | Done | Already in validator |
 | Add deprecation warning for `root_mount` | Done | Phase-1 complete |
 | Mark `root_mount` as deprecated in schema | Done | Phase-2 complete |
+| Remove `media_ref`/`slot_ref` from schema | Done | Phase-4 complete |
+| Remove `media_ref`/`slot_ref` from hos-files | Done | Phase-4 complete |
 
 ## Verification Checklist
 
@@ -279,7 +279,7 @@ installation:
 - [x] All `host_type: baremetal/hypervisor` have `root_storage_endpoint_ref`
 - [x] `root_storage_endpoint_ref` resolves to valid `storage_endpoints[].id`
 - [x] Referenced storage endpoints have valid `mount_point_ref` chain
-- [x] `root_mount` deprecated warnings appear in validator output (when ref missing)
+- [x] `installation` contains only `root_storage_endpoint_ref` (no media_ref/slot_ref)
 - [x] `python topology-tools/validate-topology.py --strict` passes
 - [x] Docs correctly render host OS installation details
 

@@ -133,16 +133,10 @@ def check_host_os_refs(
     warnings: List[str],
 ) -> None:
     del warnings  # Unused after ADR 0039 phase-3
-    l1 = topology.get('L1_foundation', {})
     l4 = topology.get('L4_platform', {})
     devices = _device_map(topology)
     active_by_device = _active_host_os_by_device(topology)
     has_host_os_inventory = bool(_host_os_map(topology))
-    media_ids = {
-        media.get('id')
-        for media in (l1.get('media_registry', []) or [])
-        if isinstance(media, dict) and media.get('id')
-    }
 
     for host_os in l4.get('host_operating_systems', []) or []:
         if not isinstance(host_os, dict):
@@ -154,10 +148,6 @@ def check_host_os_refs(
             continue
 
         installation = host_os.get('installation') if isinstance(host_os.get('installation'), dict) else {}
-        media_ref = installation.get('media_ref')
-        if media_ref and media_ref not in media_ids:
-            errors.append(f"Host OS '{hos_id}': installation.media_ref '{media_ref}' does not exist")
-
         root_storage_endpoint_ref = installation.get('root_storage_endpoint_ref')
         if root_storage_endpoint_ref and root_storage_endpoint_ref not in ids['storage_endpoints']:
             errors.append(
