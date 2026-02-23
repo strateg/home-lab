@@ -63,6 +63,11 @@ Boundary rules:
 - L0 does not model devices, networks, storage internals, workloads, services, or operations.
 - Cross-layer IDs in `defaults.refs` are allowed as global defaults, not as ownership transfer.
 
+Metadata freshness policy:
+- `metadata.last_updated` uses `YYYY-MM-DD`.
+- Update `metadata.last_updated` on every committed topology model change (`topology.yaml` and/or `topology/**`).
+- Repository pre-commit hook (`.pre-commit-config.yaml`) auto-updates this field in `topology/L0-meta.yaml`.
+
 Example (`topology/L0-meta.yaml`):
 
 ```yaml

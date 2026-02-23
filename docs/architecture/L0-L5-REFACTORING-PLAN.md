@@ -1,6 +1,6 @@
 # L0-L5 Refactoring Plan (ADR-0040)
 
-Status: Active (P0, P1, P2.1 complete)
+Status: Active (P0, P1, P2.1, P2.2 complete)
 Date: 2026-02-23
 Scope: `L0` .. `L5`
 
@@ -124,9 +124,9 @@ Scope: `L0` .. `L5`
 #### P2.2: Metadata governance
 
 **Tasks**:
-- [ ] Define `L0.metadata.last_updated` policy
-- [ ] Add pre-commit hook to auto-update timestamp
-- [ ] Document update triggers in MODULAR-GUIDE.md
+- [x] Define `L0.metadata.last_updated` policy
+- [x] Add pre-commit hook to auto-update timestamp
+- [x] Document update triggers in MODULAR-GUIDE.md
 
 #### P2.3: Generator compatibility cleanup
 

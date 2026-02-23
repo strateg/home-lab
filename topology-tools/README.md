@@ -248,6 +248,16 @@ Optional (for render validation script):
 npm install --save-dev @mermaid-js/mermaid-cli @iconify-json/simple-icons @iconify-json/mdi @iconify-json/logos
 ```
 
+Optional (for metadata freshness automation):
+```bash
+python -m pip install pre-commit
+pre-commit install
+```
+
+Installed local hook:
+- `update-l0-last-updated` updates `topology/L0-meta.yaml -> metadata.last_updated`
+  when staged changes include `topology.yaml` or files under `topology/`.
+
 ## Outputs
 
 ```
