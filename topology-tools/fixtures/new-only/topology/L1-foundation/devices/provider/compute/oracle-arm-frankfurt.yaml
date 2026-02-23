@@ -51,7 +51,3 @@ interfaces:
   speed_mbps: 1000
   role: wan
   description: Primary public network interface
-services:
-- WireGuard VPN server (exit node for RU traffic)
-- Tailscale relay node
-- Optional: lightweight web services

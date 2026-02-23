@@ -79,15 +79,6 @@ specs:
     mount: removable
     connector: microSD
     description: Removable storage slot
-  storage:
-    qspi_nor_flash_mb: 16
-    microsd_slot: true
-    m2_slot: true
-    m2_key: M-Key
-    m2_support:
-    - PCIe NVMe SSD
-    - Custom PCIe WiFi6+BT5.0 module
-    nvme_installed_gb: 512
 interfaces:
 - id: if-opi5-eth
   name: eth0

@@ -33,7 +33,6 @@
   name: AdGuard Home
   type: dns
   container: true
-  container_image: adguard/adguardhome
   ports:
     dns: 53
     web_ui: 3000
@@ -78,7 +77,6 @@
   name: Tailscale
   type: vpn
   container: true
-  container_image: tailscale/tailscale
   trust_zone_ref: user
   vpn_type: tailscale
   description: Tailscale mesh VPN (container on MikroTik)
@@ -98,8 +96,6 @@
   name: Nextcloud
   type: web-application
   container: true
-  container_runtime: docker
-  container_image: nextcloud:28
   ports:
     https: 443
     http: 80
@@ -141,8 +137,6 @@
   name: Jellyfin
   type: media-server
   container: true
-  container_runtime: docker
-  container_image: jellyfin/jellyfin:latest
   port: 8096
   protocol: http
   trust_zone_ref: servers
@@ -186,8 +180,6 @@
   name: AdGuard Home Secondary
   type: dns
   container: true
-  container_runtime: docker
-  container_image: adguard/adguardhome
   ports:
     dns: 5353
     web_ui: 3001
@@ -207,8 +199,6 @@
   name: Prometheus
   type: monitoring
   container: true
-  container_runtime: docker
-  container_image: prom/prometheus:latest
   port: 9090
   protocol: http
   trust_zone_ref: servers
@@ -249,8 +239,6 @@
   name: Alertmanager
   type: alerting
   container: true
-  container_runtime: docker
-  container_image: prom/alertmanager:latest
   port: 9093
   protocol: http
   trust_zone_ref: servers
@@ -273,8 +261,6 @@
   name: Loki
   type: logging
   container: true
-  container_runtime: docker
-  container_image: grafana/loki:latest
   port: 3100
   protocol: http
   trust_zone_ref: servers
@@ -301,8 +287,6 @@
   name: Grafana
   type: visualization
   container: true
-  container_runtime: docker
-  container_image: grafana/grafana:latest
   port: 3000
   protocol: http
   trust_zone_ref: servers
@@ -330,8 +314,6 @@
   name: Home Assistant
   type: home-automation
   container: true
-  container_runtime: docker
-  container_image: homeassistant/home-assistant:stable
   port: 8123
   protocol: http
   trust_zone_ref: servers

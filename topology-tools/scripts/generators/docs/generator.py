@@ -299,6 +299,13 @@ class DocumentationGenerator:
             elif runtime_type in {"docker", "baremetal"} and target_ref:
                 service.setdefault("device_ref", target_ref)
 
+            # Keep legacy template fields derived from runtime to avoid source-data duplication.
+            if runtime_type == "docker":
+                service.setdefault("container", True)
+                if runtime.get("image"):
+                    service.setdefault("container_image", runtime["image"])
+                service.setdefault("container_runtime", "docker")
+
             if network_binding_ref:
                 service.setdefault("network_ref", network_binding_ref)
             else:
