@@ -1,0 +1,18 @@
+# Proxmox Management UI
+# Hypervisor web interface
+
+- id: svc-proxmox-ui
+  name: Proxmox Web UI
+  type: web-ui
+  port: 8006
+  protocol: https
+  trust_zone_ref: management
+  url: https://10.0.99.2:8006
+  description: Proxmox VE management interface
+  security:
+    ssl_certificate: cert-proxmox
+  security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: gamayun
+    network_binding_ref: net-management

@@ -1,0 +1,100 @@
+# MikroTik Network Services
+# DNS, VPN, NTP - core network infrastructure on edge router
+
+- id: svc-adguard
+  name: AdGuard Home
+  type: dns
+  ports:
+    dns_udp: 53
+    dns_tcp: 53
+    web_ui: 3000
+  protocol: http
+  trust_zone_ref: servers
+  url: http://192.168.88.1:3000
+  description: DNS filtering and ad blocking (container on MikroTik)
+  critical: true
+  features:
+  - DNS-over-HTTPS upstream
+  - DNS-over-TLS upstream
+  - Ad blocking
+  - Tracker blocking
+  - Parental controls
+  - Custom filtering rules
+  data_asset_refs:
+  - data-adguard
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-lan
+    image: adguard/adguardhome
+    resources:
+      memory_mb: 128
+      memory_limit_mb: 256
+
+- id: svc-wireguard
+  name: WireGuard VPN
+  type: vpn
+  port: 51820
+  protocol: udp
+  trust_zone_ref: user
+  vpn_type: wireguard
+  description: WireGuard VPN server (native RouterOS)
+  critical: true
+  features:
+  - Full LAN access
+  - Works over LTE failover
+  - Low latency
+  data_asset_refs:
+  - data-wireguard
+  security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-vpn-home
+
+- id: svc-tailscale
+  name: Tailscale
+  type: vpn
+  trust_zone_ref: user
+  vpn_type: tailscale
+  description: Tailscale mesh VPN (container on MikroTik)
+  critical: true
+  features:
+  - Zero-config mesh VPN
+  - MagicDNS
+  - Exit node capability
+  - Subnet routing
+  data_asset_refs:
+  - data-tailscale
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-tailscale
+    image: tailscale/tailscale
+    resources:
+      memory_mb: 50
+      memory_limit_mb: 100
+
+- id: svc-ntp
+  name: NTP Server
+  type: monitoring
+  port: 123
+  protocol: udp
+  trust_zone_ref: servers
+  description: Network Time Protocol server (native RouterOS)
+  critical: true
+  features:
+  - Stratum 2 NTP server
+  - GPS/LTE time source fallback
+  - Serves all LAN clients
+  clients:
+  - network_ref: net-lan
+  - network_ref: net-servers
+  - network_ref: net-iot
+  security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-lan

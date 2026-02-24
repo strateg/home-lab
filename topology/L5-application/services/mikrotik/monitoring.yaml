@@ -1,0 +1,50 @@
+# MikroTik Monitoring Services
+# SNMP, Syslog forwarding - observability integration
+
+- id: svc-snmp
+  name: SNMP Agent
+  type: monitoring
+  port: 161
+  protocol: udp
+  trust_zone_ref: management
+  description: SNMP agent for Prometheus monitoring (native RouterOS)
+  features:
+  - SNMPv2c/v3 support
+  - Interface statistics
+  - System health metrics
+  - Traffic counters
+  clients:
+  - service_ref: svc-prometheus
+  security:
+    snmp_community: '{{ vault_snmp_community }}'
+    allowed_from:
+    - net-servers
+    - net-management
+  security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-management
+
+- id: svc-syslog-forward
+  name: Syslog Forwarder
+  type: logging
+  protocol: udp
+  trust_zone_ref: servers
+  description: Syslog forwarding to Loki (native RouterOS)
+  features:
+  - Forward all RouterOS logs
+  - Firewall log forwarding
+  - DHCP lease logs
+  - VPN connection logs
+  dependencies:
+  - service_ref: svc-loki
+  config:
+    remote_address: 10.0.30.50
+    remote_port: 1514
+    facility: local0
+  security_policy_ref: sec-baseline
+  runtime:
+    type: baremetal
+    target_ref: mikrotik-chateau
+    network_binding_ref: net-servers

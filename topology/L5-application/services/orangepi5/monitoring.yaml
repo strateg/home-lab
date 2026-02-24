@@ -1,0 +1,134 @@
+# Orange Pi 5 Monitoring Stack
+# Prometheus, Alertmanager, Loki, Grafana, secondary DNS
+
+- id: svc-adguard-secondary
+  name: AdGuard Home Secondary
+  type: dns
+  ports:
+    dns: 5353
+    web_ui: 3001
+  protocol: http
+  trust_zone_ref: servers
+  url: http://10.0.30.50:3001
+  description: Secondary DNS for redundancy (synced with primary)
+  optional: true
+  sync_with: svc-adguard
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: adguard/adguardhome
+
+- id: svc-prometheus
+  name: Prometheus
+  type: monitoring
+  port: 9090
+  protocol: http
+  trust_zone_ref: servers
+  url: http://10.0.30.50:9090
+  description: Prometheus metrics collection
+  scrape_targets:
+  - name: mikrotik
+    type: snmp
+    target: 192.168.88.1
+  - name: proxmox
+    type: node_exporter
+    target: 192.168.88.2:9100
+  - name: orangepi5
+    type: node_exporter
+    target: 10.0.30.50:9100
+  - name: postgresql
+    type: postgres_exporter
+    target: 10.0.30.10:9187
+  - name: redis
+    type: redis_exporter
+    target: 10.0.30.20:9121
+  data_asset_refs:
+  - data-prometheus
+  config:
+    docker:
+      ports:
+      - 9090:9090
+      volumes:
+      - /mnt/nvme/prometheus:/prometheus
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: prom/prometheus:latest
+
+- id: svc-alertmanager
+  name: Alertmanager
+  type: alerting
+  port: 9093
+  protocol: http
+  trust_zone_ref: servers
+  url: http://10.0.30.50:9093
+  description: Alert routing and notifications
+  dependencies:
+  - service_ref: svc-prometheus
+  notification_channels:
+  - type: email
+    enabled: true
+  - type: telegram
+    enabled: false
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: prom/alertmanager:latest
+
+- id: svc-loki
+  name: Loki
+  type: logging
+  port: 3100
+  protocol: http
+  trust_zone_ref: servers
+  description: Centralized log aggregation
+  log_sources:
+  - name: mikrotik
+    type: syslog
+    target: 192.168.88.1
+  - name: proxmox
+    type: promtail
+    target: 192.168.88.2
+  - name: orangepi5
+    type: promtail
+    target: 10.0.30.50
+  - name: docker
+    type: docker-driver
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: grafana/loki:latest
+
+- id: svc-grafana
+  name: Grafana
+  type: visualization
+  port: 3000
+  protocol: http
+  trust_zone_ref: servers
+  domain: grafana.home.local
+  url: http://grafana.home.local:3000
+  description: Grafana dashboards and visualization
+  dependencies:
+  - service_ref: svc-prometheus
+  data_asset_refs:
+  - data-grafana
+  config:
+    docker:
+      ports:
+      - 3000:3000
+      volumes:
+      - /mnt/nvme/grafana:/var/lib/grafana
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: orangepi5
+    network_binding_ref: net-servers
+    image: grafana/grafana:latest
