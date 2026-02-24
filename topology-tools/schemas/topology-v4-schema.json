@@ -104,6 +104,10 @@
         "allowed_inbound": {
           "type": "array",
           "items": { "type": "string" }
+        },
+        "reserved": {
+          "type": "boolean",
+          "description": "Zone defined but not currently in use (reserved for future)"
         }
       },
       "additionalProperties": false

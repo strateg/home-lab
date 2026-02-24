@@ -17,7 +17,6 @@ storage:
   rootfs:
     storage_endpoint_ref: se-lvm
     size_gb: 8
-    data_asset_ref: data-postgresql-rootfs
   volumes:
   - id: vol-postgresql-data
     mount_path: /var/lib/postgresql/data

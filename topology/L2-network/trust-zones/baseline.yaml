@@ -3,6 +3,7 @@ untrusted:
   security_level: 0
   color: '#ff0000'
   description: External networks (ISP, Internet, LTE)
+  reserved: true
   allowed_outbound:
   - any
   allowed_inbound:
@@ -46,6 +47,7 @@ guest:
   security_level: 0
   color: '#999999'
   description: Guest WiFi (isolated, internet only)
+  reserved: true
   allowed_outbound:
   - to:untrusted
   allowed_inbound:

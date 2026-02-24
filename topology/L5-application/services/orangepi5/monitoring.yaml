@@ -13,6 +13,8 @@
   description: Secondary DNS for redundancy (synced with primary)
   optional: true
   sync_with: svc-adguard
+  data_asset_refs:
+  - data-adguard-secondary
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -74,6 +76,8 @@
     enabled: true
   - type: telegram
     enabled: false
+  data_asset_refs:
+  - data-alertmanager
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -100,6 +104,8 @@
     target: 10.0.30.50
   - name: docker
     type: docker-driver
+  data_asset_refs:
+  - data-loki
   security_policy_ref: sec-baseline
   runtime:
     type: docker
