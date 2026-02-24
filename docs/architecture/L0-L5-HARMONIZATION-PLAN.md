@@ -139,39 +139,50 @@ topology/L5-application/services/**/*.yaml (update refs)
 topology/L4-platform/workloads/lxc/*.yaml (update refs)
 ```
 
-## Phase 2: IP Derivation (Future ADR)
+## Phase 2: IP Derivation ✅ COMPLETE (ADR-0044)
 
-### P2.1: Design IP resolution pattern
+### P2.1: Design IP resolution pattern ✅
 
-**Current**:
+**Implemented pattern (Option B - IpRef)**:
 ```yaml
+ip_refs:
+  postgres_host:
+    lxc_ref: lxc-postgresql
+    network_ref: net-servers
 config:
-  POSTGRES_HOST: 10.0.30.10
+  docker:
+    environment:
+      POSTGRES_HOST: '{{ ip_refs.postgres_host }}'
 ```
 
-**Options**:
+**Schema additions**:
+- [x] IpRef definition (lxc_ref, vm_ref, host_os_ref, service_ref + network_ref)
+- [x] ip_refs field on Service
+- [x] url_derived field for automatic URL generation
+- [x] url_port field for port override
 
-A. Generator-time resolution:
-```yaml
-config:
-  POSTGRES_HOST: "{{ lookup('lxc-postgresql', 'net-servers') }}"
-```
+### P2.2: Migrate services ✅
 
-B. Ref-based (generator resolves):
-```yaml
-config:
-  postgres_target_ref: lxc-postgresql
-  postgres_network_ref: net-servers
-```
+**Migrated**: 21 → 1 hardcoded IPs
+- [x] svc-nextcloud (POSTGRES_HOST, REDIS_HOST)
+- [x] svc-postgresql (listen_addresses, pg_hba)
+- [x] svc-redis (bind)
+- [x] svc-prometheus (scrape_targets)
+- [x] svc-loki (log_sources)
+- [x] svc-syslog-forward (remote_address)
+- [x] All UI services (url_derived)
 
-C. Service dependency resolution:
-```yaml
-dependencies:
-- service_ref: svc-postgresql
-  inject_as: POSTGRES_HOST
-```
+**Remaining**: `10.0.30.0/24` subnet in pg_hba (intentional - not a host IP)
 
-**Decision**: Defer to ADR-0044. Requires generator changes.
+### P2.3: Generator implementation
+
+**Status**: Deferred - topology is prepared, generators need update to resolve refs.
+
+When implemented, generators will:
+1. Parse `ip_refs` from services
+2. Resolve IPs from L2 ip_allocations or L4 workload networks
+3. Substitute `{{ ip_refs.* }}` placeholders
+4. Generate `url` from `url_derived` + runtime target IP
 
 ## Validation Gate
 

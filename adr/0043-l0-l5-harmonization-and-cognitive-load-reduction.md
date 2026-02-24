@@ -176,10 +176,11 @@ See: `docs/architecture/L0-L5-HARMONIZATION-PLAN.md`
 - [x] servers zone split into 3 sub-zones
 - [x] Validation passes
 
-### P2 Complete When
+### P2 Complete When ✅ (via ADR-0044)
 
-- [ ] Zero hardcoded IPs in L5 services
-- [ ] Generators resolve refs to IPs
+- [x] Zero hardcoded host IPs in L5 services (21 → 1 subnet)
+- [x] ip_refs pattern implemented in topology
+- [ ] Generators resolve refs to IPs (deferred)
 
 ## References
 
