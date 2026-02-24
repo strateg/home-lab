@@ -164,7 +164,16 @@ Run fixture matrix for `legacy-only`, `mixed`, and `new-only`.
 Usage:
 ```bash
 python topology-tools/run-fixture-matrix.py
+python topology-tools/run-fixture-matrix.py --skip-generators
+python topology-tools/run-fixture-matrix.py --allow-migration-drift
 ```
+
+Notes:
+- Migration item counts are baseline-checked by default:
+  - `legacy-only`: `62`
+  - `mixed`: `6`
+  - `new-only`: `0`
+- Use `--allow-migration-drift` only when intentionally updating fixture baselines.
 
 ## Dependencies
 

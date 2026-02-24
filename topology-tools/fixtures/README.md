@@ -20,11 +20,17 @@ Each fixture contains:
 
 - `legacy-only` and `mixed` are validated in `compat` mode.
 - `new-only` is validated in `strict` mode and must have zero migration items.
+- Migration item baselines are enforced by default:
+  - `legacy-only`: `62`
+  - `mixed`: `6`
+  - `new-only`: `0`
 
 Use:
 
 ```bash
 python topology-tools/run-fixture-matrix.py
+python topology-tools/run-fixture-matrix.py --skip-generators
+python topology-tools/run-fixture-matrix.py --allow-migration-drift
 ```
 
 This runs validation, migration-report checks, and generator smoke tests for all fixture classes.

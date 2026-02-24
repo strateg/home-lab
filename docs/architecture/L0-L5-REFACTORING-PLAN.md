@@ -1,7 +1,8 @@
 # L0-L5 Refactoring Plan (ADR-0040)
 
-Status: Active (P0, P1, P2 complete)
+Status: Maintenance (P0, P1, P2 complete)
 Date: 2026-02-23
+Updated: 2026-02-24
 Scope: `L0` .. `L5`
 
 ## Goals
@@ -135,6 +136,13 @@ Scope: `L0` .. `L5`
 - [x] Update doc templates to use only canonical fields
 - [x] Remove deprecated field handling code
 
+#### P2.4: Fixture governance hardening
+
+**Tasks**:
+- [x] Enforce exact migration-item baselines in `run-fixture-matrix.py`
+- [x] Add controlled override flag (`--allow-migration-drift`) for intentional fixture updates
+- [x] Document fixture baseline contract in topology tool READMEs
+
 ## Execution Sequence
 
 ### Pre-flight checklist
@@ -233,6 +241,7 @@ git tag -d pre-adr0040-*
 - [x] data_assets have category/criticality
 - [x] Metadata auto-update implemented
 - [x] No compatibility code in generators for removed fields
+- [x] Fixture matrix enforces exact migration-item baselines for `legacy-only`, `mixed`, `new-only`
 
 ## Dependencies
 

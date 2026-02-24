@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-02-23
-- Updated: 2026-02-23
+- Updated: 2026-02-24
 
 ## Context
 
@@ -134,6 +134,17 @@ git diff --stat generated/
 
 # Mermaid diagram validation
 python topology-tools/validate-mermaid-render.py --docs-dir generated/docs
+```
+
+### Fixture matrix governance gate
+
+```bash
+# Enforces baseline migration item counts:
+# legacy-only=62, mixed=6, new-only=0
+python topology-tools/run-fixture-matrix.py
+
+# Temporary bypass for intentional fixture migration updates
+python topology-tools/run-fixture-matrix.py --allow-migration-drift
 ```
 
 ## References

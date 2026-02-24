@@ -231,11 +231,18 @@ Usage:
 ```bash
 python topology-tools/run-fixture-matrix.py
 python topology-tools/run-fixture-matrix.py --fixtures legacy-only,mixed --skip-canonical-compare
+python topology-tools/run-fixture-matrix.py --skip-generators
+python topology-tools/run-fixture-matrix.py --allow-migration-drift
 ```
 
 Notes:
 - `legacy-only` and `mixed` are validated in compatibility mode.
 - `new-only` is validated in strict mode and compared against repository `generated/` snapshots.
+- Migration item counts are baseline-checked by default:
+  - `legacy-only`: `62`
+  - `mixed`: `6`
+  - `new-only`: `0`
+- `--allow-migration-drift` bypasses baseline checks for intentional fixture updates.
 
 ## Dependencies
 
