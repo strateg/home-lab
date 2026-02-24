@@ -1,0 +1,5 @@
+id: mnt-srv-orangepi5-root
+path: /
+filesystem_ref: fs-srv-orangepi5-root
+device_ref: srv-orangepi5
+description: Root mount on Orange Pi 5 host (Ubuntu on NVMe)

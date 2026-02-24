@@ -6,12 +6,12 @@
     validity_days: 3650
     key_size: 4096
     storage:
-      device_ref: orangepi5
+      device_ref: srv-orangepi5
       path: /mnt/nvme/ssl/ca
     distribution:
-    - device_ref: gamayun
-    - device_ref: orangepi5
-    - device_ref: mikrotik-chateau
+    - device_ref: srv-gamayun
+    - device_ref: srv-orangepi5
+    - device_ref: rtr-mikrotik
   certificates:
   - id: cert-nextcloud
     domain: nextcloud.home.local
@@ -41,7 +41,7 @@
   - id: cert-proxmox
     domain: proxmox.home.local
     alt_names:
-    - gamayun.home.local
+    - srv-gamayun.home.local
     - 10.0.99.2
     issuer: local_ca
     validity_days: 365

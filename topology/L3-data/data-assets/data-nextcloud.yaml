@@ -1,9 +1,9 @@
 id: data-nextcloud
 name: Nextcloud Data
 type: volume
-device_ref: orangepi5
+device_ref: srv-orangepi5
 description: Nextcloud data and config
 category: media-library
 criticality: critical
 backup_policy_refs:
-- backup-orangepi5-data
+- backup-srv-orangepi5-data

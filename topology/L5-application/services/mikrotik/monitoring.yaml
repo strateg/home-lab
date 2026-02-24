@@ -23,7 +23,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik
     network_binding_ref: net-management
 
 - id: svc-syslog-forward
@@ -46,5 +46,5 @@
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik
     network_binding_ref: net-servers

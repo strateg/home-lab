@@ -1,8 +1,0 @@
-id: se-orangepi5-root
-name: orangepi5-root
-platform: host
-type: dir
-mount_point_ref: mnt-orangepi5-root
-path: /
-shared: false
-description: Host root filesystem storage endpoint for Orange Pi 5

@@ -8,37 +8,37 @@
     - type: A
       name: router
       ip: 192.168.88.1
-      device_ref: mikrotik-chateau
+      device_ref: rtr-mikrotik
       ttl: 3600
       description: MikroTik router
     - type: A
       name: mikrotik
       ip: 192.168.88.1
-      device_ref: mikrotik-chateau
+      device_ref: rtr-mikrotik
       ttl: 3600
       description: MikroTik router alias
     - type: A
-      name: gamayun
+      name: srv-gamayun
       ip: 192.168.88.2
-      device_ref: gamayun
+      device_ref: srv-gamayun
       ttl: 3600
       description: Proxmox host
     - type: A
       name: proxmox
       ip: 10.0.99.2
-      device_ref: gamayun
+      device_ref: srv-gamayun
       ttl: 3600
       description: Proxmox Web UI (management)
     - type: A
       name: orangepi
       ip: 192.168.88.3
-      device_ref: orangepi5
+      device_ref: srv-orangepi5
       ttl: 3600
       description: Orange Pi 5 application server
     - type: A
       name: opi5
       ip: 10.0.30.50
-      device_ref: orangepi5
+      device_ref: srv-orangepi5
       ttl: 3600
       description: Orange Pi 5 server interface
     - type: A
@@ -56,37 +56,37 @@
     - type: A
       name: nextcloud
       ip: 10.0.30.50
-      device_ref: orangepi5
+      device_ref: srv-orangepi5
       ttl: 3600
       description: Nextcloud on Orange Pi 5
     - type: A
       name: jellyfin
       ip: 10.0.30.50
-      device_ref: orangepi5
+      device_ref: srv-orangepi5
       ttl: 3600
       description: Jellyfin media server on Orange Pi 5
     - type: A
       name: grafana
       ip: 10.0.30.50
-      device_ref: orangepi5
+      device_ref: srv-orangepi5
       ttl: 3600
       description: Grafana on Orange Pi 5
     - type: A
       name: prometheus
       ip: 10.0.30.50
-      device_ref: orangepi5
+      device_ref: srv-orangepi5
       ttl: 3600
       description: Prometheus on Orange Pi 5
     - type: A
       name: mqtt
       ip: 192.168.88.1
-      device_ref: mikrotik-chateau
+      device_ref: rtr-mikrotik
       ttl: 3600
       description: Mosquitto MQTT broker on MikroTik
     - type: A
       name: ntp
       ip: 192.168.88.1
-      device_ref: mikrotik-chateau
+      device_ref: rtr-mikrotik
       ttl: 3600
       description: NTP server on MikroTik
     - type: CNAME

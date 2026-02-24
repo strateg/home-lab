@@ -1,10 +1,10 @@
 id: data-alertmanager
 name: Alertmanager Data
 type: volume
-device_ref: orangepi5
+device_ref: srv-orangepi5
 description: Alertmanager silences and notification state
 category: configuration
 criticality: medium
 backup_policy_refs:
-- backup-orangepi5-data
+- backup-srv-orangepi5-data
 engine: alertmanager

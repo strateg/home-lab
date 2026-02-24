@@ -1,7 +1,7 @@
 id: data-postgresql-dumps
 name: PostgreSQL Dumps
 type: backup-artifact
-device_ref: gamayun
+device_ref: srv-gamayun
 description: pg_dump artifacts
 category: file-share
 criticality: high

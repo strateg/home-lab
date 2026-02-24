@@ -40,7 +40,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: nextcloud:28
 
@@ -82,7 +82,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: jellyfin/jellyfin:latest
 
@@ -112,6 +112,6 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: homeassistant/home-assistant:stable

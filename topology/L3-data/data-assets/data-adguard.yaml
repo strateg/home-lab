@@ -1,7 +1,7 @@
 id: data-adguard
 name: AdGuard Home Data
 type: volume
-device_ref: mikrotik-chateau
+device_ref: rtr-mikrotik
 description: AdGuard Home configuration and work data (USB storage)
 category: configuration
 criticality: high

@@ -1,0 +1,4 @@
+id: fs-srv-gamayun-hdd
+type: ext4
+partition_ref: part-srv-gamayun-hdd-1
+description: Filesystem mounted at /mnt/hdd

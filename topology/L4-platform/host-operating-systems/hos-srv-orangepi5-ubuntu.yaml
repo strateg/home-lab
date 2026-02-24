@@ -1,0 +1,13 @@
+id: hos-srv-orangepi5-ubuntu
+device_ref: srv-orangepi5
+distribution: ubuntu
+version: "24.04"
+architecture: arm64
+host_type: baremetal
+status: active
+capabilities:
+- docker
+- container
+installation:
+  root_storage_endpoint_ref: se-srv-orangepi5-root
+description: Orange Pi 5 host OS installed on 512 GB NVMe system disk

@@ -1,7 +1,7 @@
 - id: health-mikrotik
   name: MikroTik Router Health
   description: Monitor MikroTik central router
-  device_ref: mikrotik-chateau
+  device_ref: rtr-mikrotik
   enabled: true
   critical: true
   checks:
@@ -45,7 +45,7 @@
 - id: health-lte-failover
   name: LTE Failover Status
   description: Monitor LTE modem and failover status
-  device_ref: mikrotik-chateau
+  device_ref: rtr-mikrotik
   enabled: true
   critical: true
   checks:
@@ -91,7 +91,7 @@
 - id: health-proxmox-host
   name: Proxmox Host Health
   description: Monitor Proxmox hypervisor health
-  device_ref: gamayun
+  device_ref: srv-gamayun
   enabled: true
   checks:
   - type: ping
@@ -139,10 +139,10 @@
     on_critical: true
     channels:
     - channel-email
-- id: health-orangepi5
+- id: health-srv-orangepi5
   name: Orange Pi 5 Health
   description: Monitor Orange Pi 5 application server
-  device_ref: orangepi5
+  device_ref: srv-orangepi5
   enabled: true
   checks:
   - type: ping
@@ -271,7 +271,7 @@
 - id: health-nextcloud
   name: Nextcloud Application Health
   description: Monitor Nextcloud on Orange Pi 5
-  device_ref: orangepi5
+  device_ref: srv-orangepi5
   service_ref: svc-nextcloud
   enabled: true
   checks:

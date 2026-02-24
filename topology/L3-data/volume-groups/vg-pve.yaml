@@ -2,5 +2,5 @@ id: vg-pve
 name: pve
 type: lvm
 pv_refs:
-  - part-gamayun-ssd-3
+  - part-srv-gamayun-ssd-3
 description: Proxmox default volume group

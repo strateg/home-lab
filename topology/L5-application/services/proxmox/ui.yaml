@@ -14,5 +14,5 @@
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: gamayun
+    target_ref: srv-gamayun
     network_binding_ref: net-management

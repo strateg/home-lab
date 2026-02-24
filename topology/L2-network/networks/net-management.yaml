@@ -13,21 +13,21 @@ vlan: 99
 description: Management network for infrastructure admin
 profile_ref: prof-virtual-vlan-wired
 volatility: low
-managed_by_ref: mikrotik-chateau
+managed_by_ref: rtr-mikrotik
 reserved_ranges:
 - start: 10.0.99.1
   end: 10.0.99.9
   purpose: infrastructure
 ip_allocations:
 - ip: 10.0.99.1
-  host_os_ref: hos-mikrotik-chateau-routeros
+  host_os_ref: hos-rtr-mikrotik-routeros
   interface: vlan99-mgmt
   description: MikroTik management gateway
 - ip: 10.0.99.2
-  host_os_ref: hos-gamayun-proxmox
+  host_os_ref: hos-srv-gamayun-proxmox
   interface: vmbr0.99
   description: Proxmox Web UI
 - ip: 10.0.99.3
-  host_os_ref: hos-orangepi5-ubuntu
+  host_os_ref: hos-srv-orangepi5-ubuntu
   interface: eth0.99
   description: Orange Pi 5 management
