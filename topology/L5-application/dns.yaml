@@ -77,6 +77,18 @@
       device_ref: orangepi5
       ttl: 3600
       description: Prometheus on Orange Pi 5
+    - type: A
+      name: mqtt
+      ip: 192.168.88.1
+      device_ref: mikrotik-chateau
+      ttl: 3600
+      description: Mosquitto MQTT broker on MikroTik
+    - type: A
+      name: ntp
+      ip: 192.168.88.1
+      device_ref: mikrotik-chateau
+      ttl: 3600
+      description: NTP server on MikroTik
     - type: CNAME
       name: db
       target: postgresql.home.local
