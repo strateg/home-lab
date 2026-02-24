@@ -1,0 +1,4 @@
+id: fs-srv-orangepi5-root
+type: ext4
+partition_ref: part-srv-orangepi5-nvme-2
+description: Root filesystem for Orange Pi 5 (Ubuntu 24.04)

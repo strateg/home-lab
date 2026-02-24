@@ -8,15 +8,18 @@
     dns: 5353
     web_ui: 3001
   protocol: http
-  trust_zone_ref: servers
-  url: http://10.0.30.50:3001
+  trust_zone_ref: servers-mon
+  url_derived: true
+  url_port: 3001
   description: Secondary DNS for redundancy (synced with primary)
   optional: true
   sync_with: svc-adguard
+  data_asset_refs:
+  - data-adguard-secondary
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: adguard/adguardhome
 
@@ -25,25 +28,41 @@
   type: monitoring
   port: 9090
   protocol: http
-  trust_zone_ref: servers
-  url: http://10.0.30.50:9090
+  trust_zone_ref: servers-mon
+  url_derived: true
   description: Prometheus metrics collection
+  ip_refs:
+    mikrotik:
+      host_os_ref: hos-rtr-mikrotik-routeros
+      network_ref: net-lan
+    proxmox:
+      host_os_ref: hos-srv-gamayun-proxmox
+      network_ref: net-lan
+    orangepi5:
+      host_os_ref: hos-srv-orangepi5-ubuntu
+      network_ref: net-servers
+    postgresql:
+      lxc_ref: lxc-postgresql
+      network_ref: net-servers
+    redis:
+      lxc_ref: lxc-redis
+      network_ref: net-servers
   scrape_targets:
   - name: mikrotik
     type: snmp
-    target: 192.168.88.1
+    target: '{{ ip_refs.mikrotik }}'
   - name: proxmox
     type: node_exporter
-    target: 192.168.88.2:9100
-  - name: orangepi5
+    target: '{{ ip_refs.proxmox }}:9100'
+  - name: srv-orangepi5
     type: node_exporter
-    target: 10.0.30.50:9100
+    target: '{{ ip_refs.orangepi5 }}:9100'
   - name: postgresql
     type: postgres_exporter
-    target: 10.0.30.10:9187
+    target: '{{ ip_refs.postgresql }}:9187'
   - name: redis
     type: redis_exporter
-    target: 10.0.30.20:9121
+    target: '{{ ip_refs.redis }}:9121'
   data_asset_refs:
   - data-prometheus
   config:
@@ -55,7 +74,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: prom/prometheus:latest
 
@@ -64,8 +83,8 @@
   type: alerting
   port: 9093
   protocol: http
-  trust_zone_ref: servers
-  url: http://10.0.30.50:9093
+  trust_zone_ref: servers-mon
+  url_derived: true
   description: Alert routing and notifications
   dependencies:
   - service_ref: svc-prometheus
@@ -74,10 +93,12 @@
     enabled: true
   - type: telegram
     enabled: false
+  data_asset_refs:
+  - data-alertmanager
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: prom/alertmanager:latest
 
@@ -86,24 +107,36 @@
   type: logging
   port: 3100
   protocol: http
-  trust_zone_ref: servers
+  trust_zone_ref: servers-mon
   description: Centralized log aggregation
+  ip_refs:
+    mikrotik:
+      host_os_ref: hos-rtr-mikrotik-routeros
+      network_ref: net-lan
+    proxmox:
+      host_os_ref: hos-srv-gamayun-proxmox
+      network_ref: net-lan
+    orangepi5:
+      host_os_ref: hos-srv-orangepi5-ubuntu
+      network_ref: net-servers
   log_sources:
   - name: mikrotik
     type: syslog
-    target: 192.168.88.1
+    target: '{{ ip_refs.mikrotik }}'
   - name: proxmox
     type: promtail
-    target: 192.168.88.2
-  - name: orangepi5
+    target: '{{ ip_refs.proxmox }}'
+  - name: srv-orangepi5
     type: promtail
-    target: 10.0.30.50
+    target: '{{ ip_refs.orangepi5 }}'
   - name: docker
     type: docker-driver
+  data_asset_refs:
+  - data-loki
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: grafana/loki:latest
 
@@ -112,7 +145,7 @@
   type: visualization
   port: 3000
   protocol: http
-  trust_zone_ref: servers
+  trust_zone_ref: servers-mon
   domain: grafana.home.local
   url: http://grafana.home.local:3000
   description: Grafana dashboards and visualization
@@ -129,6 +162,6 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: grafana/grafana:latest

@@ -7,12 +7,12 @@
   port: 8006
   protocol: https
   trust_zone_ref: management
-  url: https://10.0.99.2:8006
+  url_derived: true
   description: Proxmox VE management interface
   security:
     ssl_certificate: cert-proxmox
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: gamayun
+    target_ref: srv-gamayun
     network_binding_ref: net-management

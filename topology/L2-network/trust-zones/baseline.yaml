@@ -3,6 +3,7 @@ untrusted:
   security_level: 0
   color: '#ff0000'
   description: External networks (ISP, Internet, LTE)
+  reserved: true
   allowed_outbound:
   - any
   allowed_inbound:
@@ -22,11 +23,47 @@ servers:
   name: Servers Zone
   security_level: 2
   color: '#00cc00'
-  description: Proxmox LXC and Orange Pi 5 services
+  description: Edge infrastructure services (DNS, NTP)
   allowed_outbound:
   - to:untrusted
   allowed_inbound:
-  - from:user:ports:80,443,5432,6379
+  - from:user:ports:53,123
+  - from:management
+  vlan_ids: [30]
+servers-data:
+  name: Data Tier
+  security_level: 2
+  color: '#006600'
+  description: Database and cache services (PostgreSQL, Redis)
+  allowed_outbound:
+  - to:untrusted
+  allowed_inbound:
+  - from:servers-app:ports:5432,6379
+  - from:management
+  vlan_ids: [30]
+servers-app:
+  name: Application Tier
+  security_level: 2
+  color: '#00aa00'
+  description: User-facing applications (Nextcloud, Jellyfin, HomeAssistant)
+  allowed_outbound:
+  - to:untrusted
+  - to:servers-data:ports:5432,6379
+  allowed_inbound:
+  - from:user:ports:80,443,8080,8096,8123
+  - from:management
+  vlan_ids: [30]
+servers-mon:
+  name: Monitoring Tier
+  security_level: 2
+  color: '#00ff00'
+  description: Observability stack (Prometheus, Grafana, Loki)
+  allowed_outbound:
+  - to:untrusted
+  - to:servers-data
+  - to:servers-app
+  allowed_inbound:
+  - from:user:ports:3000,9090
   - from:management
   vlan_ids: [30]
 iot:
@@ -46,6 +83,7 @@ guest:
   security_level: 0
   color: '#999999'
   description: Guest WiFi (isolated, internet only)
+  reserved: true
   allowed_outbound:
   - to:untrusted
   allowed_inbound:

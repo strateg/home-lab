@@ -4,7 +4,7 @@
 #
 # Modular layout:
 # - services/mikrotik/   - Edge router services (DNS, VPN, NTP, MQTT)
-# - services/orangepi5/  - Application server (apps, monitoring stack)
+# - services/srv-orangepi5/  - Application server (apps, monitoring stack)
 # - services/proxmox/    - Hypervisor management
 # - services/lxc/        - LXC workload services (databases)
 # - dns/                 - DNS zones and records

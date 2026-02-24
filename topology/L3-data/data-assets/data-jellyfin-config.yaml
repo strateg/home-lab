@@ -1,9 +1,9 @@
 id: data-jellyfin-config
 name: Jellyfin Config
 type: volume
-device_ref: orangepi5
+device_ref: srv-orangepi5
 description: Jellyfin configuration
 category: configuration
 criticality: medium
 backup_policy_refs:
-- backup-orangepi5-data
+- backup-srv-orangepi5-data

@@ -247,12 +247,12 @@ backup:
     media:
     - id: media-proxmox-ssd
       type: ssd
-      device_ref: gamayun
+      device_ref: srv-gamayun
       path: /dev/sda
       role: primary
     - id: media-proxmox-hdd
       type: hdd
-      device_ref: gamayun
+      device_ref: srv-gamayun
       path: /mnt/hdd
       role: local-backup
     - id: media-cloud
@@ -265,7 +265,7 @@ backup:
     name: MikroTik Config Backup
     description: Export RouterOS configuration to Git repository
     targets:
-    - device_ref: mikrotik-chateau
+    - device_ref: rtr-mikrotik
       data_asset_ref: data-mikrotik-config
     type: config-export
     schedule: 0 4 * * *
@@ -286,19 +286,19 @@ backup:
       channels:
       - email
     security_policy_ref: sec-baseline
-  - id: backup-orangepi5-data
+  - id: backup-srv-orangepi5-data
     name: Orange Pi 5 Data Backup
     description: Backup Docker volumes and NVMe data to Proxmox HDD
     targets:
-    - device_ref: orangepi5
+    - device_ref: srv-orangepi5
       data_asset_ref: data-nextcloud
-    - device_ref: orangepi5
+    - device_ref: srv-orangepi5
       data_asset_ref: data-jellyfin-config
-    - device_ref: orangepi5
+    - device_ref: srv-orangepi5
       data_asset_ref: data-grafana
-    - device_ref: orangepi5
+    - device_ref: srv-orangepi5
       data_asset_ref: data-prometheus
-    - device_ref: orangepi5
+    - device_ref: srv-orangepi5
       data_asset_ref: data-homeassistant
     type: rsync
     schedule: 0 3 * * *
@@ -310,7 +310,7 @@ backup:
     - /mnt/nvme/homeassistant
     destination:
       type: rsync
-      target: root@192.168.88.2:/mnt/hdd/backups/orangepi5
+      target: root@192.168.88.2:/mnt/hdd/backups/srv-orangepi5
       ssh_key: /root/.ssh/id_ed25519
     options:
       incremental: true
@@ -426,7 +426,7 @@ backup:
     source_paths:
     - /mnt/hdd/backups/postgresql
     - /mnt/hdd/backups/mikrotik
-    - /mnt/hdd/backups/orangepi5/nextcloud
+    - /mnt/hdd/backups/srv-orangepi5/nextcloud
     destination:
       type: cloud
       provider: backblaze-b2
@@ -480,7 +480,7 @@ security:
     public_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData admin@workstation
     purpose: Primary administration key
     authorized_for:
-    - device_ref: gamayun
+    - device_ref: srv-gamayun
     - lxc_ref: lxc-postgresql
     - lxc_ref: lxc-redis
     created: '2025-10-06'
@@ -491,7 +491,7 @@ security:
     public_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData ansible@controller
     purpose: Ansible automation
     authorized_for:
-    - device_ref: gamayun
+    - device_ref: srv-gamayun
     created: '2025-10-06'
     expires: null
   - id: ssh-backup
@@ -500,7 +500,7 @@ security:
     public_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleKeyData backup@backup-server
     purpose: Backup system access (read-only)
     authorized_for:
-    - device_ref: gamayun
+    - device_ref: srv-gamayun
     permissions: read-only
     created: '2025-10-10'
     expires: '2026-10-10'

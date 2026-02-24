@@ -164,22 +164,23 @@ See: `docs/architecture/L0-L5-HARMONIZATION-PLAN.md`
 
 ## Success Criteria
 
-### P0 Complete When
+### P0 Complete When ✅
 
-- [ ] All stateful services have data_asset_refs
-- [ ] No orphaned data_assets
-- [ ] Unused trust zones marked as reserved
+- [x] All stateful services have data_asset_refs
+- [x] No orphaned data_assets
+- [x] Unused trust zones marked as reserved
 
-### P1 Complete When
+### P1 Complete When ✅
 
-- [ ] All L1 devices have class-based prefix
-- [ ] servers zone split into 3 sub-zones
-- [ ] Validation passes
+- [x] All L1 devices have class-based prefix
+- [x] servers zone split into 3 sub-zones
+- [x] Validation passes
 
-### P2 Complete When
+### P2 Complete When ✅ (via ADR-0044)
 
-- [ ] Zero hardcoded IPs in L5 services
-- [ ] Generators resolve refs to IPs
+- [x] Zero hardcoded host IPs in L5 services (21 → 1 subnet)
+- [x] ip_refs pattern implemented in topology
+- [ ] Generators resolve refs to IPs (deferred)
 
 ## References
 

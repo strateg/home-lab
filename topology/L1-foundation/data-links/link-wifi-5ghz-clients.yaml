@@ -1,6 +1,6 @@
 id: link-wifi-5ghz-clients
 endpoint_a:
-  device_ref: mikrotik-chateau
+  device_ref: rtr-mikrotik
   interface_ref: if-mikrotik-wlan-5g
 endpoint_b:
   external_ref: wifi-clients-5ghz

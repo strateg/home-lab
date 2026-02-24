@@ -12,7 +12,7 @@
     api_ssl: 8729
   protocol: https
   trust_zone_ref: management
-  url: https://10.0.99.1
+  url_derived: true
   description: MikroTik RouterOS WebFig management (HTTPS)
   critical: true
   data_asset_refs:
@@ -30,5 +30,5 @@
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik
     network_binding_ref: net-management

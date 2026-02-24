@@ -1,7 +1,7 @@
 id: data-wireguard
 name: WireGuard Keys
 type: config-export
-device_ref: mikrotik-chateau
+device_ref: rtr-mikrotik
 description: WireGuard keys and peer configuration (stored in RouterOS)
 category: configuration
 criticality: critical

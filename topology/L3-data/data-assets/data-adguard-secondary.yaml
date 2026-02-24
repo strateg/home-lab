@@ -1,0 +1,10 @@
+id: data-adguard-secondary
+name: AdGuard Home Secondary Data
+type: volume
+device_ref: srv-orangepi5
+description: Secondary AdGuard configuration and query logs
+category: configuration
+criticality: low
+backup_policy_refs:
+- backup-srv-orangepi5-data
+engine: adguard

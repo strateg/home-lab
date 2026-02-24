@@ -23,14 +23,14 @@
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik
     network_binding_ref: net-management
 
 - id: svc-syslog-forward
   name: Syslog Forwarder
   type: logging
   protocol: udp
-  trust_zone_ref: servers
+  trust_zone_ref: servers-mon
   description: Syslog forwarding to Loki (native RouterOS)
   features:
   - Forward all RouterOS logs
@@ -39,12 +39,16 @@
   - VPN connection logs
   dependencies:
   - service_ref: svc-loki
+  ip_refs:
+    loki_server:
+      host_os_ref: hos-srv-orangepi5-ubuntu
+      network_ref: net-servers
   config:
-    remote_address: 10.0.30.50
+    remote_address: '{{ ip_refs.loki_server }}'
     remote_port: 1514
     facility: local0
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik
     network_binding_ref: net-servers

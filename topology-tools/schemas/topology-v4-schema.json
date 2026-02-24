@@ -72,7 +72,7 @@
     },
     "TrustZone": {
       "type": "string",
-      "enum": ["untrusted", "guest", "user", "iot", "servers", "management"]
+      "enum": ["untrusted", "guest", "user", "iot", "servers", "servers-data", "servers-app", "servers-mon", "management"]
     },
     "SecurityLevel": {
       "type": "integer",
@@ -104,6 +104,10 @@
         "allowed_inbound": {
           "type": "array",
           "items": { "type": "string" }
+        },
+        "reserved": {
+          "type": "boolean",
+          "description": "Zone defined but not currently in use (reserved for future)"
         }
       },
       "additionalProperties": false
@@ -416,6 +420,24 @@
     "ServiceRef": {
       "type": "string",
       "pattern": "^svc-[a-z0-9-]+$"
+    },
+    "IpRef": {
+      "type": "object",
+      "description": "Reference to resolve an IP address from topology entities",
+      "properties": {
+        "lxc_ref": { "$ref": "#/definitions/LxcRef" },
+        "vm_ref": { "$ref": "#/definitions/VmRef" },
+        "host_os_ref": { "$ref": "#/definitions/HostOsRef" },
+        "service_ref": { "$ref": "#/definitions/ServiceRef" },
+        "network_ref": { "$ref": "#/definitions/NetworkRef" }
+      },
+      "oneOf": [
+        { "required": ["lxc_ref", "network_ref"] },
+        { "required": ["vm_ref", "network_ref"] },
+        { "required": ["host_os_ref", "network_ref"] },
+        { "required": ["service_ref"] }
+      ],
+      "additionalProperties": false
     },
     "ResourceProfileRef": {
       "type": "string",
@@ -1492,6 +1514,19 @@
           "items": { "$ref": "#/definitions/ServiceEndpoint" }
         },
         "config": { "type": "object" },
+        "ip_refs": {
+          "type": "object",
+          "description": "Named IP references resolved at generation time",
+          "additionalProperties": { "$ref": "#/definitions/IpRef" }
+        },
+        "url_derived": {
+          "type": "boolean",
+          "description": "Generate URL from runtime target IP and port"
+        },
+        "url_port": {
+          "$ref": "#/definitions/Port",
+          "description": "Override port for url_derived (when service has multiple ports)"
+        },
         "device_ref": {
           "$ref": "#/definitions/DeviceRef",
           "x-deprecated": "Use runtime.target_ref with runtime.type."

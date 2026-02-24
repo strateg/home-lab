@@ -8,7 +8,7 @@
     https: 443
     http: 80
   protocol: https
-  trust_zone_ref: servers
+  trust_zone_ref: servers-app
   domain: nextcloud.home.local
   url: https://nextcloud.home.local
   description: Nextcloud file sharing and collaboration
@@ -20,6 +20,13 @@
   storage:
     type: nvme
     path: /mnt/nvme/nextcloud
+  ip_refs:
+    postgres_host:
+      lxc_ref: lxc-postgresql
+      network_ref: net-servers
+    redis_host:
+      lxc_ref: lxc-redis
+      network_ref: net-servers
   config:
     docker:
       ports:
@@ -29,8 +36,8 @@
       - /mnt/nvme/nextcloud/data:/var/www/html/data
       - /mnt/nvme/nextcloud/config:/var/www/html/config
       environment:
-        POSTGRES_HOST: 10.0.30.10
-        REDIS_HOST: 10.0.30.20
+        POSTGRES_HOST: '{{ ip_refs.postgres_host }}'
+        REDIS_HOST: '{{ ip_refs.redis_host }}'
       depends_on:
       - lxc-postgresql
       - lxc-redis
@@ -40,7 +47,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: nextcloud:28
 
@@ -49,7 +56,7 @@
   type: media-server
   port: 8096
   protocol: http
-  trust_zone_ref: servers
+  trust_zone_ref: servers-app
   domain: jellyfin.home.local
   url: http://jellyfin.home.local:8096
   description: Jellyfin media server with hardware transcoding
@@ -82,7 +89,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: jellyfin/jellyfin:latest
 
@@ -91,7 +98,7 @@
   type: home-automation
   port: 8123
   protocol: http
-  trust_zone_ref: servers
+  trust_zone_ref: servers-app
   domain: ha.home.local
   url: http://ha.home.local:8123
   description: Home Assistant smart home automation
@@ -112,6 +119,6 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: orangepi5
+    target_ref: srv-orangepi5
     network_binding_ref: net-servers
     image: homeassistant/home-assistant:stable

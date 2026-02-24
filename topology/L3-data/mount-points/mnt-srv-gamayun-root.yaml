@@ -1,0 +1,5 @@
+id: mnt-srv-gamayun-root
+path: /
+filesystem_ref: fs-pve-root
+device_ref: srv-gamayun
+description: Root mount on Proxmox host

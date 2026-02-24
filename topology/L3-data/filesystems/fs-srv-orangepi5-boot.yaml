@@ -1,0 +1,4 @@
+id: fs-srv-orangepi5-boot
+type: ext4
+partition_ref: part-srv-orangepi5-nvme-1
+description: Boot filesystem for Orange Pi 5 (kernel, initramfs)

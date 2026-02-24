@@ -10,11 +10,11 @@ bridge_ref: null
 vlan: null
 description: WireGuard VPN on MikroTik (full LAN access)
 profile_ref: prof-overlay-vpn
-managed_by_ref: mikrotik-chateau
+managed_by_ref: rtr-mikrotik
 vpn_type: wireguard
 vpn_endpoint: home.example.com:51820
 ip_allocations:
 - ip: 10.0.200.1
-  host_os_ref: hos-mikrotik-chateau-routeros
+  host_os_ref: hos-rtr-mikrotik-routeros
   interface: wireguard1
   description: WireGuard server

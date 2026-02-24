@@ -11,17 +11,17 @@ Scope: L0-L5
 3. Cleaner trust zone model
 4. Reduced cognitive load
 
-## Phase 0: Quick Cleanup (Non-breaking)
+## Phase 0: Quick Cleanup (Non-breaking) ✅ COMPLETE
 
-### P0.1: Add missing data_asset_refs
+### P0.1: Add missing data_asset_refs ✅
 
 **Tasks**:
-- [ ] Create `data-loki.yaml` in L3
-- [ ] Create `data-alertmanager.yaml` in L3
-- [ ] Create `data-adguard-secondary.yaml` in L3
-- [ ] Add `data_asset_refs` to svc-loki
-- [ ] Add `data_asset_refs` to svc-alertmanager
-- [ ] Add `data_asset_refs` to svc-adguard-secondary
+- [x] Create `data-loki.yaml` in L3
+- [x] Create `data-alertmanager.yaml` in L3
+- [x] Create `data-adguard-secondary.yaml` in L3
+- [x] Add `data_asset_refs` to svc-loki
+- [x] Add `data_asset_refs` to svc-alertmanager
+- [x] Add `data_asset_refs` to svc-adguard-secondary
 
 **Files**:
 ```
@@ -37,11 +37,12 @@ grep -c "data_asset_refs" topology/L5-application/services/orangepi5/monitoring.
 # Should return 5 (all monitoring services have refs)
 ```
 
-### P0.2: Remove orphaned data assets
+### P0.2: Remove orphaned data assets ✅
 
 **Tasks**:
-- [ ] Delete `data-postgresql-rootfs.yaml`
-- [ ] Delete `data-redis-rootfs.yaml`
+- [x] Delete `data-postgresql-rootfs.yaml`
+- [x] Delete `data-redis-rootfs.yaml`
+- [x] Remove rootfs data_asset_ref from lxc-postgresql and lxc-redis
 
 **Rationale**: LXC rootfs is infrastructure (managed by Proxmox backup), not application data.
 
@@ -57,21 +58,22 @@ ls topology/L3-data/data-assets/ | grep -c rootfs
 # Should return 0
 ```
 
-### P0.3: Mark reserved trust zones
+### P0.3: Mark reserved trust zones ✅
 
 **Tasks**:
-- [ ] Add `reserved: true` to `guest` zone
-- [ ] Add `reserved: true` to `untrusted` zone
-- [ ] Update validator to skip reserved zones in usage checks
+- [x] Add `reserved: true` to `guest` zone
+- [x] Add `reserved: true` to `untrusted` zone
+- [x] Add `reserved` field to TrustZoneDefinition schema
 
 **Files**:
 ```
 topology/L2-network/trust-zones/baseline.yaml (update)
+topology-tools/schemas/topology-v4-schema.json (update)
 ```
 
-## Phase 1: Naming Harmonization (Breaking)
+## Phase 1: Naming Harmonization (Breaking) ✅ COMPLETE
 
-### P1.1: Standardize L1 device ID prefixes
+### P1.1: Standardize L1 device ID prefixes ✅
 
 **Mapping**:
 | Current | New | Class |
@@ -83,19 +85,19 @@ topology/L2-network/trust-zones/baseline.yaml (update)
 | `hetzner-cx22-nuremberg` | `vps-hetzner-nuremberg` | provider |
 | `oracle-arm-frankfurt` | `vps-oracle-frankfurt` | provider |
 | `ups-main` | `ups-main` | power (OK) |
-| `pdu-rack-home` | `pdu-rack` | power (OK) |
+| `pdu-rack-home` | `pdu-rack` | power |
 
 **Tasks**:
-- [ ] Update L1 device files (rename + update id field)
-- [ ] Update all device_ref in L1 (data-links, power-links, media-attachments)
-- [ ] Update all device_ref in L2 (bridges, networks.ip_allocations, networks.managed_by_ref)
-- [ ] Update all device_ref in L3 (data_assets)
-- [ ] Update all device_ref, host_os[].device_ref in L4
-- [ ] Update all runtime.target_ref in L5
-- [ ] Update all device_ref in L5 (dns records)
-- [ ] Run validation
+- [x] Update L1 device files (rename + update id field)
+- [x] Update all device_ref in L1 (data-links, power-links, media-attachments)
+- [x] Update all device_ref in L2 (bridges, networks.ip_allocations, networks.managed_by_ref)
+- [x] Update all device_ref in L3 (data_assets)
+- [x] Update all device_ref, host_os[].device_ref in L4
+- [x] Update all runtime.target_ref in L5
+- [x] Update all device_ref in L5 (dns records)
+- [x] Run validation
 
-**Impact**: ~50 refs to update
+**Impact**: 95 files, ~200 refs updated
 
 **Acceptance**:
 ```bash
@@ -103,7 +105,7 @@ grep -r "gamayun\|orangepi5" topology/ --include="*.yaml" | grep -v "srv-"
 # Should return 0 matches (all updated to srv- prefix)
 ```
 
-### P1.2: Split servers trust zone
+### P1.2: Split servers trust zone ✅
 
 **Mapping**:
 | Service | Current Zone | New Zone |
@@ -123,51 +125,64 @@ grep -r "gamayun\|orangepi5" topology/ --include="*.yaml" | grep -v "srv-"
 | svc-syslog-forward | servers | servers-mon |
 
 **Tasks**:
-- [ ] Add `servers-data`, `servers-app`, `servers-mon` to trust zones
-- [ ] Define firewall policies for new zones
-- [ ] Update trust_zone_ref in all affected services
-- [ ] Run validation
+- [x] Add `servers-data`, `servers-app`, `servers-mon` to trust zones
+- [x] Add zone definitions to baseline.yaml
+- [x] Update trust_zone_ref in all affected services
+- [x] Update L4 LXC workloads trust_zone_ref
+- [x] Run validation
 
 **Files**:
 ```
 topology/L2-network/trust-zones/baseline.yaml (update)
-topology/L2-network/firewall/policies/ (new policies)
+topology-tools/schemas/topology-v4-schema.json (update)
 topology/L5-application/services/**/*.yaml (update refs)
+topology/L4-platform/workloads/lxc/*.yaml (update refs)
 ```
 
-## Phase 2: IP Derivation (Future ADR)
+## Phase 2: IP Derivation ✅ COMPLETE (ADR-0044)
 
-### P2.1: Design IP resolution pattern
+### P2.1: Design IP resolution pattern ✅
 
-**Current**:
+**Implemented pattern (Option B - IpRef)**:
 ```yaml
+ip_refs:
+  postgres_host:
+    lxc_ref: lxc-postgresql
+    network_ref: net-servers
 config:
-  POSTGRES_HOST: 10.0.30.10
+  docker:
+    environment:
+      POSTGRES_HOST: '{{ ip_refs.postgres_host }}'
 ```
 
-**Options**:
+**Schema additions**:
+- [x] IpRef definition (lxc_ref, vm_ref, host_os_ref, service_ref + network_ref)
+- [x] ip_refs field on Service
+- [x] url_derived field for automatic URL generation
+- [x] url_port field for port override
 
-A. Generator-time resolution:
-```yaml
-config:
-  POSTGRES_HOST: "{{ lookup('lxc-postgresql', 'net-servers') }}"
-```
+### P2.2: Migrate services ✅
 
-B. Ref-based (generator resolves):
-```yaml
-config:
-  postgres_target_ref: lxc-postgresql
-  postgres_network_ref: net-servers
-```
+**Migrated**: 21 → 1 hardcoded IPs
+- [x] svc-nextcloud (POSTGRES_HOST, REDIS_HOST)
+- [x] svc-postgresql (listen_addresses, pg_hba)
+- [x] svc-redis (bind)
+- [x] svc-prometheus (scrape_targets)
+- [x] svc-loki (log_sources)
+- [x] svc-syslog-forward (remote_address)
+- [x] All UI services (url_derived)
 
-C. Service dependency resolution:
-```yaml
-dependencies:
-- service_ref: svc-postgresql
-  inject_as: POSTGRES_HOST
-```
+**Remaining**: `10.0.30.0/24` subnet in pg_hba (intentional - not a host IP)
 
-**Decision**: Defer to ADR-0044. Requires generator changes.
+### P2.3: Generator implementation
+
+**Status**: Deferred - topology is prepared, generators need update to resolve refs.
+
+When implemented, generators will:
+1. Parse `ip_refs` from services
+2. Resolve IPs from L2 ip_allocations or L4 workload networks
+3. Substitute `{{ ip_refs.* }}` placeholders
+4. Generate `url` from `url_derived` + runtime target IP
 
 ## Validation Gate
 

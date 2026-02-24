@@ -1,0 +1,14 @@
+id: hos-srv-gamayun-proxmox
+device_ref: srv-gamayun
+distribution: proxmox-ve
+version: "9.x"
+architecture: x86_64
+host_type: hypervisor
+status: active
+capabilities:
+- lxc
+- vm
+- cloudinit
+installation:
+  root_storage_endpoint_ref: se-srv-gamayun-root
+description: Proxmox VE host operating system for Gamayun hypervisor

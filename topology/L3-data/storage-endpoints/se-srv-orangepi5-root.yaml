@@ -1,0 +1,8 @@
+id: se-srv-orangepi5-root
+name: srv-orangepi5-root
+platform: host
+type: dir
+mount_point_ref: mnt-srv-orangepi5-root
+path: /
+shared: false
+description: Host root filesystem storage endpoint for Orange Pi 5

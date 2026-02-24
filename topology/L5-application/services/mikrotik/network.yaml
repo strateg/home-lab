@@ -10,7 +10,8 @@
     web_ui: 3000
   protocol: http
   trust_zone_ref: servers
-  url: http://192.168.88.1:3000
+  url_derived: true
+  url_port: 3000
   description: DNS filtering and ad blocking (container on MikroTik)
   critical: true
   features:
@@ -25,7 +26,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik
     network_binding_ref: net-lan
     image: adguard/adguardhome
     resources:
@@ -50,7 +51,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik
     network_binding_ref: net-vpn-home
 
 - id: svc-tailscale
@@ -70,7 +71,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik
     network_binding_ref: net-tailscale
     image: tailscale/tailscale
     resources:
@@ -96,5 +97,5 @@
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik
     network_binding_ref: net-lan

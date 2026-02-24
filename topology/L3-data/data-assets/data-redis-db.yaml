@@ -1,7 +1,7 @@
 id: data-redis-db
 name: Redis Data
 type: cache
-device_ref: gamayun
+device_ref: srv-gamayun
 description: Redis data volume
 category: cache
 criticality: high

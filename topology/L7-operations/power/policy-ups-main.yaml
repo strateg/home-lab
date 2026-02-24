@@ -21,23 +21,23 @@ specs:
   outlets_surge: 2
 connection:
   type: usb
-  connected_to: orangepi5
+  connected_to: srv-orangepi5
   monitoring_software: nut
   driver: usbhid-ups
 protected_devices:
-- device_ref: mikrotik-chateau
+- device_ref: rtr-mikrotik
   power_watts: 16
   priority: 1
   description: Router - critical for network
-- device_ref: pdu-rack-home
+- device_ref: pdu-rack
   power_watts: 2
   priority: 2
   description: Managed power distribution unit
-- device_ref: orangepi5
+- device_ref: srv-orangepi5
   power_watts: 15
   priority: 3
   description: Application server
-- device_ref: gamayun
+- device_ref: srv-gamayun
   power_watts: 50
   priority: 4
   description: Proxmox server
@@ -60,12 +60,12 @@ actions:
     delay_seconds: 0
     message: UPS battery low - prepare for shutdown
   - action: shutdown
-    target: gamayun
+    target: srv-gamayun
     delay_seconds: 60
     command: shutdown -h +1
   critical_battery:
   - action: shutdown
-    target: orangepi5
+    target: srv-orangepi5
     delay_seconds: 30
     command: shutdown -h now
   - action: notify
@@ -101,5 +101,5 @@ outage_model:
   failure_domain: home-power
   cascading_path:
   - ups-main
-  - pdu-rack-home
+  - pdu-rack
   notes: Outage impact propagates through UPS to managed PDU and then to protected hosts

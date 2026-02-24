@@ -30,7 +30,7 @@ class DocumentationCLI(GeneratorCLI):
             "--no-mermaid-icons",
             action="store_false",
             dest="mermaid_icons",
-            help="Disable Mermaid icon-node syntax and use plain Mermaid nodes",
+            help="Disable Mermaid icon-node syntax and use plain Mermaid nodes (default)",
         )
         parser.add_argument(
             "--mermaid-icon-nodes",

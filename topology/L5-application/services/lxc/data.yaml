@@ -6,7 +6,7 @@
   type: database
   port: 5432
   protocol: tcp
-  trust_zone_ref: servers
+  trust_zone_ref: servers-data
   description: PostgreSQL database server
   clients:
   - service_ref: svc-nextcloud
@@ -18,9 +18,16 @@
   data_asset_refs:
   - data-postgresql-db
   - data-postgresql-dumps
+  ip_refs:
+    self:
+      lxc_ref: lxc-postgresql
+      network_ref: net-servers
+    nextcloud_client:
+      host_os_ref: hos-srv-orangepi5-ubuntu
+      network_ref: net-servers
   config:
     postgresql_version: '16'
-    postgresql_listen_addresses: 10.0.30.10
+    postgresql_listen_addresses: '{{ ip_refs.self }}'
     postgresql_databases:
     - name: nextcloud
     - name: homelab
@@ -35,7 +42,7 @@
     - type: host
       database: nextcloud
       user: nextcloud
-      address: 10.0.30.50/32
+      address: '{{ ip_refs.nextcloud_client }}/32'
       method: scram-sha-256
     - type: host
       database: all
@@ -53,15 +60,19 @@
   type: cache
   port: 6379
   protocol: tcp
-  trust_zone_ref: servers
+  trust_zone_ref: servers-data
   description: Redis cache server
   clients:
   - service_ref: svc-nextcloud
   data_asset_refs:
   - data-redis-db
+  ip_refs:
+    self:
+      lxc_ref: lxc-redis
+      network_ref: net-servers
   config:
     redis_port: 6379
-    redis_bind: 10.0.30.20
+    redis_bind: '{{ ip_refs.self }}'
     redis_maxmemory: 256mb
     redis_maxmemory_policy: allkeys-lru
   security_policy_ref: sec-baseline

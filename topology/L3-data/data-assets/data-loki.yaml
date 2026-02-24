@@ -1,0 +1,10 @@
+id: data-loki
+name: Loki Data
+type: volume
+device_ref: srv-orangepi5
+description: Loki log storage chunks and index
+category: logs
+criticality: medium
+backup_policy_refs:
+- backup-srv-orangepi5-data
+engine: loki
