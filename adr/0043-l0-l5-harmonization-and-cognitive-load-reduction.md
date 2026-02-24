@@ -164,11 +164,11 @@ See: `docs/architecture/L0-L5-HARMONIZATION-PLAN.md`
 
 ## Success Criteria
 
-### P0 Complete When
+### P0 Complete When ✅
 
-- [ ] All stateful services have data_asset_refs
-- [ ] No orphaned data_assets
-- [ ] Unused trust zones marked as reserved
+- [x] All stateful services have data_asset_refs
+- [x] No orphaned data_assets
+- [x] Unused trust zones marked as reserved
 
 ### P1 Complete When
 

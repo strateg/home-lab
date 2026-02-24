@@ -11,17 +11,17 @@ Scope: L0-L5
 3. Cleaner trust zone model
 4. Reduced cognitive load
 
-## Phase 0: Quick Cleanup (Non-breaking)
+## Phase 0: Quick Cleanup (Non-breaking) ✅ COMPLETE
 
-### P0.1: Add missing data_asset_refs
+### P0.1: Add missing data_asset_refs ✅
 
 **Tasks**:
-- [ ] Create `data-loki.yaml` in L3
-- [ ] Create `data-alertmanager.yaml` in L3
-- [ ] Create `data-adguard-secondary.yaml` in L3
-- [ ] Add `data_asset_refs` to svc-loki
-- [ ] Add `data_asset_refs` to svc-alertmanager
-- [ ] Add `data_asset_refs` to svc-adguard-secondary
+- [x] Create `data-loki.yaml` in L3
+- [x] Create `data-alertmanager.yaml` in L3
+- [x] Create `data-adguard-secondary.yaml` in L3
+- [x] Add `data_asset_refs` to svc-loki
+- [x] Add `data_asset_refs` to svc-alertmanager
+- [x] Add `data_asset_refs` to svc-adguard-secondary
 
 **Files**:
 ```
@@ -37,11 +37,12 @@ grep -c "data_asset_refs" topology/L5-application/services/orangepi5/monitoring.
 # Should return 5 (all monitoring services have refs)
 ```
 
-### P0.2: Remove orphaned data assets
+### P0.2: Remove orphaned data assets ✅
 
 **Tasks**:
-- [ ] Delete `data-postgresql-rootfs.yaml`
-- [ ] Delete `data-redis-rootfs.yaml`
+- [x] Delete `data-postgresql-rootfs.yaml`
+- [x] Delete `data-redis-rootfs.yaml`
+- [x] Remove rootfs data_asset_ref from lxc-postgresql and lxc-redis
 
 **Rationale**: LXC rootfs is infrastructure (managed by Proxmox backup), not application data.
 
@@ -57,16 +58,17 @@ ls topology/L3-data/data-assets/ | grep -c rootfs
 # Should return 0
 ```
 
-### P0.3: Mark reserved trust zones
+### P0.3: Mark reserved trust zones ✅
 
 **Tasks**:
-- [ ] Add `reserved: true` to `guest` zone
-- [ ] Add `reserved: true` to `untrusted` zone
-- [ ] Update validator to skip reserved zones in usage checks
+- [x] Add `reserved: true` to `guest` zone
+- [x] Add `reserved: true` to `untrusted` zone
+- [x] Add `reserved` field to TrustZoneDefinition schema
 
 **Files**:
 ```
 topology/L2-network/trust-zones/baseline.yaml (update)
+topology-tools/schemas/topology-v4-schema.json (update)
 ```
 
 ## Phase 1: Naming Harmonization (Breaking)
