@@ -1070,6 +1070,93 @@
         }
       }
     },
+    "LxcNetworkAttachment": {
+      "type": "object",
+      "description": "Network attachment for LXC container (ADR-0041)",
+      "required": ["network_ref", "ip"],
+      "properties": {
+        "network_ref": {
+          "$ref": "#/definitions/NetworkRef",
+          "description": "Reference to L2 network"
+        },
+        "bridge_ref": {
+          "$ref": "#/definitions/BridgeRef",
+          "description": "Reference to L2 bridge (optional, inferred from network if not set)"
+        },
+        "ip": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
+          "description": "Static IP address with CIDR notation"
+        },
+        "gateway": {
+          "type": "string",
+          "format": "ipv4",
+          "description": "Gateway IP address"
+        },
+        "interface": {
+          "type": "string",
+          "pattern": "^eth[0-9]+$",
+          "description": "Network interface name"
+        },
+        "vlan_tag": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4094,
+          "description": "VLAN tag for tagged traffic"
+        },
+        "firewall": {
+          "type": "boolean",
+          "description": "Enable Proxmox firewall on interface"
+        }
+      },
+      "additionalProperties": false
+    },
+    "VmNetworkAttachment": {
+      "type": "object",
+      "description": "Network attachment for VM (ADR-0041)",
+      "required": ["network_ref"],
+      "properties": {
+        "network_ref": {
+          "$ref": "#/definitions/NetworkRef",
+          "description": "Reference to L2 network"
+        },
+        "bridge_ref": {
+          "$ref": "#/definitions/BridgeRef",
+          "description": "Reference to L2 bridge"
+        },
+        "ip": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+/[0-9]+$",
+          "description": "Static IP address with CIDR notation (optional for DHCP)"
+        },
+        "gateway": {
+          "type": "string",
+          "format": "ipv4",
+          "description": "Gateway IP address"
+        },
+        "model": {
+          "type": "string",
+          "enum": ["virtio", "e1000", "rtl8139"],
+          "description": "Network adapter model"
+        },
+        "mac_address": {
+          "type": "string",
+          "pattern": "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+          "description": "MAC address override"
+        },
+        "vlan_tag": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4094,
+          "description": "VLAN tag for tagged traffic"
+        },
+        "firewall": {
+          "type": "boolean",
+          "description": "Enable Proxmox firewall on interface"
+        }
+      },
+      "additionalProperties": false
+    },
     "ServiceEndpoint": {
       "type": "object",
       "required": ["name", "protocol", "port"],
@@ -1258,7 +1345,7 @@
         "resources": { "type": "object" },
         "boot": { "type": "object" },
         "storage": { "type": "array" },
-        "networks": { "type": "array" },
+        "networks": { "type": "array", "items": { "$ref": "#/definitions/VmNetworkAttachment" } },
         "os": {
           "type": "object",
           "properties": {
@@ -1373,7 +1460,7 @@
         },
         "boot": { "type": "object" },
         "storage": { "$ref": "#/definitions/LxcStorage" },
-        "networks": { "type": "array" },
+        "networks": { "type": "array", "items": { "$ref": "#/definitions/LxcNetworkAttachment" } },
         "dns": { "type": "object" },
         "os": {
           "type": "object",
