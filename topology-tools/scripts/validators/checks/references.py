@@ -28,6 +28,7 @@ RUNTIME_BAREMETAL_ALLOWED_HOST_TYPES = {"baremetal", "embedded", "hypervisor"}
 LEGACY_SERVICE_FIELDS = {
     "container": "runtime.type=docker",
     "native": "runtime.type=baremetal",
+    "container_image": "runtime.image",
 }
 
 
