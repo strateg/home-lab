@@ -9,7 +9,8 @@
     web_ui: 3001
   protocol: http
   trust_zone_ref: servers-mon
-  url: http://10.0.30.50:3001
+  url_derived: true
+  url_port: 3001
   description: Secondary DNS for redundancy (synced with primary)
   optional: true
   sync_with: svc-adguard
@@ -28,24 +29,40 @@
   port: 9090
   protocol: http
   trust_zone_ref: servers-mon
-  url: http://10.0.30.50:9090
+  url_derived: true
   description: Prometheus metrics collection
+  ip_refs:
+    mikrotik:
+      host_os_ref: hos-rtr-mikrotik-routeros
+      network_ref: net-lan
+    proxmox:
+      host_os_ref: hos-srv-gamayun-proxmox
+      network_ref: net-lan
+    orangepi5:
+      host_os_ref: hos-srv-orangepi5-ubuntu
+      network_ref: net-servers
+    postgresql:
+      lxc_ref: lxc-postgresql
+      network_ref: net-servers
+    redis:
+      lxc_ref: lxc-redis
+      network_ref: net-servers
   scrape_targets:
   - name: mikrotik
     type: snmp
-    target: 192.168.88.1
+    target: '{{ ip_refs.mikrotik }}'
   - name: proxmox
     type: node_exporter
-    target: 192.168.88.2:9100
+    target: '{{ ip_refs.proxmox }}:9100'
   - name: srv-orangepi5
     type: node_exporter
-    target: 10.0.30.50:9100
+    target: '{{ ip_refs.orangepi5 }}:9100'
   - name: postgresql
     type: postgres_exporter
-    target: 10.0.30.10:9187
+    target: '{{ ip_refs.postgresql }}:9187'
   - name: redis
     type: redis_exporter
-    target: 10.0.30.20:9121
+    target: '{{ ip_refs.redis }}:9121'
   data_asset_refs:
   - data-prometheus
   config:
@@ -67,7 +84,7 @@
   port: 9093
   protocol: http
   trust_zone_ref: servers-mon
-  url: http://10.0.30.50:9093
+  url_derived: true
   description: Alert routing and notifications
   dependencies:
   - service_ref: svc-prometheus
@@ -92,16 +109,26 @@
   protocol: http
   trust_zone_ref: servers-mon
   description: Centralized log aggregation
+  ip_refs:
+    mikrotik:
+      host_os_ref: hos-rtr-mikrotik-routeros
+      network_ref: net-lan
+    proxmox:
+      host_os_ref: hos-srv-gamayun-proxmox
+      network_ref: net-lan
+    orangepi5:
+      host_os_ref: hos-srv-orangepi5-ubuntu
+      network_ref: net-servers
   log_sources:
   - name: mikrotik
     type: syslog
-    target: 192.168.88.1
+    target: '{{ ip_refs.mikrotik }}'
   - name: proxmox
     type: promtail
-    target: 192.168.88.2
+    target: '{{ ip_refs.proxmox }}'
   - name: srv-orangepi5
     type: promtail
-    target: 10.0.30.50
+    target: '{{ ip_refs.orangepi5 }}'
   - name: docker
     type: docker-driver
   data_asset_refs:

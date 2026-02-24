@@ -39,8 +39,12 @@
   - VPN connection logs
   dependencies:
   - service_ref: svc-loki
+  ip_refs:
+    loki_server:
+      host_os_ref: hos-srv-orangepi5-ubuntu
+      network_ref: net-servers
   config:
-    remote_address: 10.0.30.50
+    remote_address: '{{ ip_refs.loki_server }}'
     remote_port: 1514
     facility: local0
   security_policy_ref: sec-baseline

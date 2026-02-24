@@ -20,6 +20,13 @@
   storage:
     type: nvme
     path: /mnt/nvme/nextcloud
+  ip_refs:
+    postgres_host:
+      lxc_ref: lxc-postgresql
+      network_ref: net-servers
+    redis_host:
+      lxc_ref: lxc-redis
+      network_ref: net-servers
   config:
     docker:
       ports:
@@ -29,8 +36,8 @@
       - /mnt/nvme/nextcloud/data:/var/www/html/data
       - /mnt/nvme/nextcloud/config:/var/www/html/config
       environment:
-        POSTGRES_HOST: 10.0.30.10
-        REDIS_HOST: 10.0.30.20
+        POSTGRES_HOST: '{{ ip_refs.postgres_host }}'
+        REDIS_HOST: '{{ ip_refs.redis_host }}'
       depends_on:
       - lxc-postgresql
       - lxc-redis
