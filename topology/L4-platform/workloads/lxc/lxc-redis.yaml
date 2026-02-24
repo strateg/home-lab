@@ -5,7 +5,7 @@ device_ref: srv-gamayun
 platform_type: lxc-unprivileged
 resource_profile_ref: profile-cache-small
 template_ref: tpl-lxc-redis
-trust_zone_ref: servers
+trust_zone_ref: servers-data
 description: Redis Cache Server
 tags:
 - cache

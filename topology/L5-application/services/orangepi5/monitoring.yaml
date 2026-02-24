@@ -8,7 +8,7 @@
     dns: 5353
     web_ui: 3001
   protocol: http
-  trust_zone_ref: servers
+  trust_zone_ref: servers-mon
   url: http://10.0.30.50:3001
   description: Secondary DNS for redundancy (synced with primary)
   optional: true
@@ -27,7 +27,7 @@
   type: monitoring
   port: 9090
   protocol: http
-  trust_zone_ref: servers
+  trust_zone_ref: servers-mon
   url: http://10.0.30.50:9090
   description: Prometheus metrics collection
   scrape_targets:
@@ -66,7 +66,7 @@
   type: alerting
   port: 9093
   protocol: http
-  trust_zone_ref: servers
+  trust_zone_ref: servers-mon
   url: http://10.0.30.50:9093
   description: Alert routing and notifications
   dependencies:
@@ -90,7 +90,7 @@
   type: logging
   port: 3100
   protocol: http
-  trust_zone_ref: servers
+  trust_zone_ref: servers-mon
   description: Centralized log aggregation
   log_sources:
   - name: mikrotik
@@ -118,7 +118,7 @@
   type: visualization
   port: 3000
   protocol: http
-  trust_zone_ref: servers
+  trust_zone_ref: servers-mon
   domain: grafana.home.local
   url: http://grafana.home.local:3000
   description: Grafana dashboards and visualization

@@ -30,7 +30,7 @@
   name: Syslog Forwarder
   type: logging
   protocol: udp
-  trust_zone_ref: servers
+  trust_zone_ref: servers-mon
   description: Syslog forwarding to Loki (native RouterOS)
   features:
   - Forward all RouterOS logs

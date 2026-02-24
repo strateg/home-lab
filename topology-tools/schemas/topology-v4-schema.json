@@ -72,7 +72,7 @@
     },
     "TrustZone": {
       "type": "string",
-      "enum": ["untrusted", "guest", "user", "iot", "servers", "management"]
+      "enum": ["untrusted", "guest", "user", "iot", "servers", "servers-data", "servers-app", "servers-mon", "management"]
     },
     "SecurityLevel": {
       "type": "integer",
