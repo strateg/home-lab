@@ -25,6 +25,10 @@ CAPABILITY_ALLOWED_HOST_TYPES = {
 }
 
 RUNTIME_BAREMETAL_ALLOWED_HOST_TYPES = {"baremetal", "embedded", "hypervisor"}
+LEGACY_SERVICE_FIELDS = {
+    "container": "runtime.type=docker",
+    "native": "runtime.type=baremetal",
+}
 
 
 def _normalize_arch(value: Any) -> str:
@@ -499,6 +503,28 @@ def check_service_refs(
         if not isinstance(service, dict):
             continue
         svc_id = service.get('id')
+
+        for legacy_field, replacement in LEGACY_SERVICE_FIELDS.items():
+            if legacy_field in service:
+                warnings.append(
+                    f"Service '{svc_id}': legacy field '{legacy_field}' is deprecated; use {replacement}"
+                )
+
+        config = service.get('config') if isinstance(service.get('config'), dict) else {}
+        docker_config = config.get('docker') if isinstance(config.get('docker'), dict) else {}
+        if docker_config.get('host_ip'):
+            warnings.append(
+                f"Service '{svc_id}': config.docker.host_ip is deprecated; "
+                "derive binding from runtime.target_ref + runtime.network_binding_ref"
+            )
+
+        protocol = str(service.get('protocol') or '').strip().lower()
+        security = service.get('security') if isinstance(service.get('security'), dict) else {}
+        if protocol == 'https' and not security.get('ssl_certificate'):
+            warnings.append(
+                f"Service '{svc_id}': protocol 'https' should declare security.ssl_certificate "
+                "(certificate intent/source)"
+            )
 
         device_ref = service.get('device_ref')
         if device_ref and device_ref not in ids['devices']:

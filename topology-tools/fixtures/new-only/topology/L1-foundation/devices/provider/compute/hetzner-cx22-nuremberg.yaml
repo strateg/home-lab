@@ -50,7 +50,3 @@ interfaces:
   speed_mbps: 1000
   role: wan
   description: Primary public network interface
-services:
-- Backup VPN endpoint
-- Remote development environment
-- CI/CD runners

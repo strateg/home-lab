@@ -1,8 +1,17 @@
 # L5 Application
 # Part of Home Lab Topology v4.0.0
 # Services, certificates, DNS
-# Modular layout
+#
+# Modular layout:
+# - services/mikrotik/   - Edge router services (DNS, VPN, NTP, MQTT)
+# - services/srv-orangepi5/  - Application server (apps, monitoring stack)
+# - services/proxmox/    - Hypervisor management
+# - services/lxc/        - LXC workload services (databases)
+# - dns/                 - DNS zones and records
+# - certificates/        - TLS certificates
+#
+# Edit modules then regenerate: python3 topology-tools/regenerate-all.py
 
-certificates: !include L5-application/certificates.yaml
-services: !include L5-application/services.yaml
-dns: !include L5-application/dns.yaml
+services: !include_dir_sorted L5-application/services
+dns: !include L5-application/dns/zones.yaml
+certificates: !include L5-application/certificates/certs.yaml

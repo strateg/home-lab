@@ -1,5 +1,9 @@
 id: data-mikrotik-config
 name: MikroTik RouterOS Config
 type: config-export
-device_ref: mikrotik-chateau
+device_ref: rtr-mikrotik
 description: RouterOS configuration exports
+category: configuration
+criticality: critical
+backup_policy_refs:
+- backup-mikrotik-config

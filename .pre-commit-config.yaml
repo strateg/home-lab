@@ -1,0 +1,8 @@
+repos:
+- repo: local
+  hooks:
+  - id: update-l0-last-updated
+    name: Update L0 metadata.last_updated
+    entry: python topology-tools/scripts/hooks/update_l0_last_updated.py
+    language: system
+    pass_filenames: false

@@ -1,0 +1,11 @@
+id: data-tailscale
+name: Tailscale State
+type: volume
+device_ref: rtr-mikrotik
+description: Tailscale state and configuration (USB storage)
+category: configuration
+criticality: high
+paths:
+  state: /mnt/usb/tailscale/state
+backup_policy_refs:
+- backup-mikrotik-config

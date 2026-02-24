@@ -378,13 +378,13 @@ class DiagramDocumentationGenerator:
         """Generate physical infrastructure topology diagram."""
         devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
         locations = self._sort_dicts(self.topology["L1_foundation"].get("locations", []))
-        physical_links = self._sort_dicts(self.topology["L1_foundation"].get("data_links", []))
+        data_links = self._sort_dicts(self.topology["L1_foundation"].get("data_links", []))
         storage_views = self.docs_generator.build_l1_storage_views()
         device_icons = {device.get("id"): self._device_icon(device) for device in devices if device.get("id")}
         external_refs = sorted(
             {
                 endpoint.get("external_ref")
-                for link in physical_links
+                for link in data_links
                 for endpoint in [link.get("endpoint_a", {}) or {}, link.get("endpoint_b", {}) or {}]
                 if endpoint.get("external_ref")
             }
@@ -401,7 +401,7 @@ class DiagramDocumentationGenerator:
             "physical-topology.md",
             devices=devices,
             locations=locations,
-            physical_links=physical_links,
+            data_links=data_links,
             device_icons=device_icons,
             external_refs=external_refs,
             external_icons=external_icons,
@@ -554,9 +554,196 @@ class DiagramDocumentationGenerator:
 
     def generate_storage_topology(self) -> bool:
         """Generate storage topology diagram."""
+        l1 = self.topology.get("L1_foundation", {})
+        l3 = self.topology.get("L3_data", {})
         storage = self._sort_dicts(self.docs_generator.resolve_storage_pools_for_docs())
-        data_assets = self._sort_dicts(self.topology.get("L3_data", {}).get("data_assets", []))
-        devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
+        data_assets = self._sort_dicts(self.docs_generator.resolve_data_assets_for_docs())
+        partitions = self._sort_dicts(l3.get("partitions", []))
+        volume_groups = self._sort_dicts(l3.get("volume_groups", []))
+        logical_volumes = self._sort_dicts(l3.get("logical_volumes", []))
+        filesystems = self._sort_dicts(l3.get("filesystems", []))
+        mount_points = self._sort_dicts(l3.get("mount_points", []))
+        storage_endpoints = self._sort_dicts(l3.get("storage_endpoints", []))
+        storage_resolved_by_id = {item.get("id"): item for item in storage if item.get("id")}
+        all_devices = self._sort_dicts(self.topology["L1_foundation"].get("devices", []))
+        attachments_by_id = {
+            attachment.get("id"): attachment
+            for attachment in (l1.get("media_attachments", []) or [])
+            if isinstance(attachment, dict) and attachment.get("id")
+        }
+
+        partition_device: Dict[str, str] = {}
+        for partition in partitions:
+            if not isinstance(partition, dict):
+                continue
+            partition_id = partition.get("id")
+            attachment = attachments_by_id.get(partition.get("media_attachment_ref"), {})
+            device_ref = attachment.get("device_ref")
+            if partition_id and device_ref:
+                partition_device[partition_id] = device_ref
+
+        vg_device: Dict[str, str] = {}
+        for vg in volume_groups:
+            if not isinstance(vg, dict):
+                continue
+            vg_id = vg.get("id")
+            if not vg_id:
+                continue
+            devices_for_vg = sorted(
+                {
+                    partition_device.get(pv_ref)
+                    for pv_ref in (vg.get("pv_refs") or [])
+                    if partition_device.get(pv_ref)
+                }
+            )
+            if devices_for_vg:
+                vg_device[vg_id] = devices_for_vg[0]
+
+        lv_device: Dict[str, str] = {}
+        for lv in logical_volumes:
+            if not isinstance(lv, dict):
+                continue
+            lv_id = lv.get("id")
+            vg_ref = lv.get("vg_ref")
+            if lv_id and vg_ref and vg_ref in vg_device:
+                lv_device[lv_id] = vg_device[vg_ref]
+
+        filesystem_device: Dict[str, str] = {}
+        for filesystem in filesystems:
+            if not isinstance(filesystem, dict):
+                continue
+            filesystem_id = filesystem.get("id")
+            if not filesystem_id:
+                continue
+            partition_ref = filesystem.get("partition_ref")
+            lv_ref = filesystem.get("lv_ref")
+            if partition_ref and partition_ref in partition_device:
+                filesystem_device[filesystem_id] = partition_device[partition_ref]
+            elif lv_ref and lv_ref in lv_device:
+                filesystem_device[filesystem_id] = lv_device[lv_ref]
+
+        mount_device: Dict[str, str] = {}
+        for mount in mount_points:
+            if not isinstance(mount, dict):
+                continue
+            mount_id = mount.get("id")
+            if not mount_id:
+                continue
+            device_ref = mount.get("device_ref")
+            filesystem_ref = mount.get("filesystem_ref")
+            if device_ref:
+                mount_device[mount_id] = device_ref
+            elif filesystem_ref and filesystem_ref in filesystem_device:
+                mount_device[mount_id] = filesystem_device[filesystem_ref]
+
+        endpoint_device: Dict[str, str] = {}
+        for endpoint in storage_endpoints:
+            if not isinstance(endpoint, dict):
+                continue
+            endpoint_id = endpoint.get("id")
+            if not endpoint_id:
+                continue
+            resolved = storage_resolved_by_id.get(endpoint_id, {})
+            mount_point_ref = endpoint.get("mount_point_ref")
+            lv_ref = endpoint.get("lv_ref")
+            device_ref = (
+                resolved.get("device_ref")
+                or endpoint.get("device_ref")
+                or mount_device.get(mount_point_ref)
+                or lv_device.get(lv_ref)
+            )
+            if device_ref:
+                endpoint_device[endpoint_id] = device_ref
+
+        asset_device: Dict[str, str] = {}
+        known_device_ids = {device.get("id") for device in all_devices if device.get("id")}
+        for asset in data_assets:
+            if not isinstance(asset, dict):
+                continue
+            asset_id = asset.get("id")
+            if not asset_id:
+                continue
+
+            candidate_devices = sorted(
+                {
+                    endpoint_device.get(endpoint_ref)
+                    for endpoint_ref in (asset.get("resolved_storage_endpoint_refs") or [])
+                    if endpoint_device.get(endpoint_ref)
+                }
+            )
+            if not candidate_devices and asset.get("device_ref"):
+                candidate_devices = [asset.get("device_ref")]
+            if not candidate_devices:
+                candidate_devices = sorted(
+                    {
+                        runtime_ref
+                        for runtime_ref in (asset.get("resolved_runtime_refs") or [])
+                        if runtime_ref in known_device_ids
+                    }
+                )
+
+            if candidate_devices:
+                asset_device[asset_id] = candidate_devices[0]
+
+        relevant_device_ids = (
+            set(partition_device.values())
+            | set(vg_device.values())
+            | set(lv_device.values())
+            | set(filesystem_device.values())
+            | set(mount_device.values())
+            | set(endpoint_device.values())
+            | set(asset_device.values())
+        )
+        devices = [device for device in all_devices if device.get("id") in relevant_device_ids] or all_devices
+
+        device_blocks: List[Dict[str, Any]] = []
+        for device in devices:
+            device_id = device.get("id")
+            if not device_id:
+                continue
+
+            block_partitions = [item for item in partitions if partition_device.get(item.get("id")) == device_id]
+            block_volume_groups = [item for item in volume_groups if vg_device.get(item.get("id")) == device_id]
+            block_logical_volumes = [item for item in logical_volumes if lv_device.get(item.get("id")) == device_id]
+            block_filesystems = [item for item in filesystems if filesystem_device.get(item.get("id")) == device_id]
+            block_mount_points = [item for item in mount_points if mount_device.get(item.get("id")) == device_id]
+            block_storage_endpoints = [
+                item for item in storage_endpoints if endpoint_device.get(item.get("id")) == device_id
+            ]
+            block_data_assets = [item for item in data_assets if asset_device.get(item.get("id")) == device_id]
+
+            if not any(
+                (
+                    block_partitions,
+                    block_volume_groups,
+                    block_logical_volumes,
+                    block_filesystems,
+                    block_mount_points,
+                    block_storage_endpoints,
+                    block_data_assets,
+                )
+            ):
+                continue
+
+            device_blocks.append(
+                {
+                    "device": device,
+                    "partitions": block_partitions,
+                    "volume_groups": block_volume_groups,
+                    "logical_volumes": block_logical_volumes,
+                    "filesystems": block_filesystems,
+                    "mount_points": block_mount_points,
+                    "storage_endpoints": block_storage_endpoints,
+                    "data_assets": block_data_assets,
+                    "partition_ids": {item.get("id") for item in block_partitions if item.get("id")},
+                    "volume_group_ids": {item.get("id") for item in block_volume_groups if item.get("id")},
+                    "logical_volume_ids": {item.get("id") for item in block_logical_volumes if item.get("id")},
+                    "filesystem_ids": {item.get("id") for item in block_filesystems if item.get("id")},
+                    "mount_point_ids": {item.get("id") for item in block_mount_points if item.get("id")},
+                    "storage_endpoint_ids": {item.get("id") for item in block_storage_endpoints if item.get("id")},
+                }
+            )
+
         device_icons = {device.get("id"): self._device_icon(device) for device in devices if device.get("id")}
         pool_icons = {pool.get("id"): self._storage_pool_icon(pool) for pool in storage if pool.get("id")}
         asset_icons = {asset.get("id"): self._data_asset_icon(asset) for asset in data_assets if asset.get("id")}
@@ -565,7 +752,15 @@ class DiagramDocumentationGenerator:
             "storage-topology.md",
             storage=storage,
             data_assets=data_assets,
+            partitions=partitions,
+            volume_groups=volume_groups,
+            logical_volumes=logical_volumes,
+            filesystems=filesystems,
+            mount_points=mount_points,
+            storage_endpoints=storage_endpoints,
+            storage_resolved_by_id=storage_resolved_by_id,
             devices=devices,
+            device_blocks=device_blocks,
             device_icons=device_icons,
             pool_icons=pool_icons,
             asset_icons=asset_icons,

@@ -1,11 +1,11 @@
 id: lxc-postgresql
 vmid: 200
 name: postgresql-db
-device_ref: gamayun
+device_ref: srv-gamayun
 platform_type: lxc-unprivileged
 resource_profile_ref: profile-db-small
 template_ref: tpl-lxc-postgresql
-trust_zone_ref: servers
+trust_zone_ref: servers-data
 description: PostgreSQL Database Server
 tags:
 - database
@@ -17,7 +17,6 @@ storage:
   rootfs:
     storage_endpoint_ref: se-lvm
     size_gb: 8
-    data_asset_ref: data-postgresql-rootfs
   volumes:
   - id: vol-postgresql-data
     mount_path: /var/lib/postgresql/data

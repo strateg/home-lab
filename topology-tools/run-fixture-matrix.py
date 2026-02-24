@@ -17,13 +17,14 @@ from typing import Dict, Iterable, List
 class FixtureSpec:
     name: str
     mode: str
-    expect_migration_items: bool
+    expected_migration_items: int
 
 
 DEFAULT_FIXTURES: Dict[str, FixtureSpec] = {
-    "legacy-only": FixtureSpec(name="legacy-only", mode="compat", expect_migration_items=True),
-    "mixed": FixtureSpec(name="mixed", mode="compat", expect_migration_items=True),
-    "new-only": FixtureSpec(name="new-only", mode="strict", expect_migration_items=False),
+    # Keep explicit baselines so CI catches accidental migration debt drift.
+    "legacy-only": FixtureSpec(name="legacy-only", mode="compat", expected_migration_items=62),
+    "mixed": FixtureSpec(name="mixed", mode="compat", expected_migration_items=6),
+    "new-only": FixtureSpec(name="new-only", mode="strict", expected_migration_items=0),
 }
 
 
@@ -160,6 +161,11 @@ def main() -> int:
         action="store_true",
         help="Skip new-only comparison against repository generated/ snapshots",
     )
+    parser.add_argument(
+        "--allow-migration-drift",
+        action="store_true",
+        help="Allow fixture migration item counts to drift from recorded baselines",
+    )
     args = parser.parse_args()
 
     project_root = Path(args.project_root).resolve()
@@ -217,11 +223,11 @@ def main() -> int:
                 topology_path=topology_path,
             )
             print(f"INFO migration items: {item_count}")
-            if spec.expect_migration_items and item_count == 0:
-                print(f"ERROR Fixture '{spec.name}' expected migration items, got 0")
-                return 1
-            if not spec.expect_migration_items and item_count > 0:
-                print(f"ERROR Fixture '{spec.name}' expected 0 migration items, got {item_count}")
+            if not args.allow_migration_drift and item_count != spec.expected_migration_items:
+                print(
+                    "ERROR Fixture "
+                    f"'{spec.name}' expected {spec.expected_migration_items} migration items, got {item_count}"
+                )
                 return 1
 
             if args.skip_generators:

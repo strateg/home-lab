@@ -1,5 +1,0 @@
-id: data-postgresql-rootfs
-name: PostgreSQL RootFS
-type: volume
-device_ref: gamayun
-description: PostgreSQL LXC root filesystem

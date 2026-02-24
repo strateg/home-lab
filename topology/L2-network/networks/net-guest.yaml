@@ -12,13 +12,13 @@ bridge_ref: null
 vlan: 50
 description: Isolated guest WiFi network
 profile_ref: prof-virtual-vlan-wifi
-managed_by_ref: mikrotik-chateau
+managed_by_ref: rtr-mikrotik
 firewall_policy_refs:
   - fw-guest-isolated
   - fw-established-related
   - fw-default-deny
 ip_allocations:
 - ip: 192.168.30.1
-  host_os_ref: hos-mikrotik-chateau-routeros
+  host_os_ref: hos-rtr-mikrotik-routeros
   interface: vlan50-guest
   description: MikroTik guest gateway

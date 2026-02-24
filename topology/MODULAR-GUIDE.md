@@ -63,6 +63,11 @@ Boundary rules:
 - L0 does not model devices, networks, storage internals, workloads, services, or operations.
 - Cross-layer IDs in `defaults.refs` are allowed as global defaults, not as ownership transfer.
 
+Metadata freshness policy:
+- `metadata.last_updated` uses `YYYY-MM-DD`.
+- Update `metadata.last_updated` on every committed topology model change (`topology.yaml` and/or `topology/**`).
+- Repository pre-commit hook (`.pre-commit-config.yaml`) auto-updates this field in `topology/L0-meta.yaml`.
+
 Example (`topology/L0-meta.yaml`):
 
 ```yaml
@@ -287,6 +292,9 @@ Validation-critical invariants:
 - `runtime.target_ref` resolves to valid L4/L1 target by runtime type.
 - `data_asset_refs` resolve to L3 `data_assets`.
 - Endpoint and runtime fields are normalized for generators (ongoing hardening in ADR 0031 and ADR 0033).
+- `protocol` declares the transport exposed by the service endpoint (`http`, `https`, `tcp`, `udp`).
+- For `protocol: https`, declare `security.ssl_certificate` to make certificate intent explicit.
+- Prefer certificate IDs from `L5_application.certificates.certificates[].id` (for example `cert-nextcloud`).
 
 Example (`topology/L5-application/services.yaml`):
 

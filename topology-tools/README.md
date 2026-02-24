@@ -117,11 +117,11 @@ python topology-tools/generate-docs.py --topology topology.yaml --output generat
 
 Icon modes:
 ```bash
-# Default: icon-nodes (@{ icon: ... })
+# Default: compatibility mode (no Mermaid @{ ... } syntax)
 python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs
 
-# Optional fallback for older Mermaid renderers
-python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --mermaid-icon-compat
+# Optional: force icon-node syntax (requires Mermaid icon-node support)
+python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --mermaid-icon-nodes
 
 # Disable icons completely
 python topology-tools/generate-docs.py --topology topology.yaml --output generated/docs --no-mermaid-icons
@@ -130,7 +130,7 @@ python topology-tools/generate-docs.py --topology topology.yaml --output generat
 `--mermaid-icon-compat` embeds icons directly as inline SVG data URIs in Mermaid labels.
 This mode does not require `registerIconPacks(...)` and avoids icon CDN/network dependency.
 
-Default mode emits Mermaid `icon` nodes with icon IDs from:
+`--mermaid-icon-nodes` emits Mermaid `icon` nodes with icon IDs from:
 - `si` (Simple Icons)
 - `mdi` (Material Design Icons)
 
@@ -231,11 +231,18 @@ Usage:
 ```bash
 python topology-tools/run-fixture-matrix.py
 python topology-tools/run-fixture-matrix.py --fixtures legacy-only,mixed --skip-canonical-compare
+python topology-tools/run-fixture-matrix.py --skip-generators
+python topology-tools/run-fixture-matrix.py --allow-migration-drift
 ```
 
 Notes:
 - `legacy-only` and `mixed` are validated in compatibility mode.
 - `new-only` is validated in strict mode and compared against repository `generated/` snapshots.
+- Migration item counts are baseline-checked by default:
+  - `legacy-only`: `62`
+  - `mixed`: `6`
+  - `new-only`: `0`
+- `--allow-migration-drift` bypasses baseline checks for intentional fixture updates.
 
 ## Dependencies
 
@@ -247,6 +254,16 @@ Optional (for render validation script):
 ```bash
 npm install --save-dev @mermaid-js/mermaid-cli @iconify-json/simple-icons @iconify-json/mdi @iconify-json/logos
 ```
+
+Optional (for metadata freshness automation):
+```bash
+python -m pip install pre-commit
+pre-commit install
+```
+
+Installed local hook:
+- `update-l0-last-updated` updates `topology/L0-meta.yaml -> metadata.last_updated`
+  when staged changes include `topology.yaml` or files under `topology/`.
 
 ## Outputs
 

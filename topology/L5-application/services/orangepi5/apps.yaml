@@ -1,0 +1,117 @@
+# Orange Pi 5 Applications
+# User-facing services on application server
+
+- id: svc-nextcloud
+  name: Nextcloud
+  type: web-application
+  ports:
+    https: 443
+    http: 80
+  protocol: https
+  trust_zone_ref: servers-app
+  domain: nextcloud.home.local
+  url: https://nextcloud.home.local
+  description: Nextcloud file sharing and collaboration
+  dependencies:
+  - service_ref: svc-postgresql
+  - service_ref: svc-redis
+  data_asset_refs:
+  - data-nextcloud
+  storage:
+    type: nvme
+    path: /mnt/nvme/nextcloud
+  config:
+    docker:
+      ports:
+      - 443:443
+      - 80:80
+      volumes:
+      - /mnt/nvme/nextcloud/data:/var/www/html/data
+      - /mnt/nvme/nextcloud/config:/var/www/html/config
+      environment:
+        POSTGRES_HOST: 10.0.30.10
+        REDIS_HOST: 10.0.30.20
+      depends_on:
+      - lxc-postgresql
+      - lxc-redis
+  security:
+    https_redirect: true
+    ssl_certificate: cert-nextcloud
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: srv-orangepi5
+    network_binding_ref: net-servers
+    image: nextcloud:28
+
+- id: svc-jellyfin
+  name: Jellyfin
+  type: media-server
+  port: 8096
+  protocol: http
+  trust_zone_ref: servers-app
+  domain: jellyfin.home.local
+  url: http://jellyfin.home.local:8096
+  description: Jellyfin media server with hardware transcoding
+  features:
+  - RK3588S VPU hardware transcoding
+  - H.265/HEVC decode up to 8K@60fps
+  - H.264 decode up to 8K@30fps
+  - Hardware encoding
+  data_asset_refs:
+  - data-jellyfin-config
+  storage:
+    type: nvme
+    paths:
+      config: /mnt/nvme/jellyfin/config
+      cache: /mnt/nvme/jellyfin/cache
+      media: /mnt/nvme/media
+  config:
+    docker:
+      ports:
+      - 8096:8096
+      volumes:
+      - /mnt/nvme/jellyfin/config:/config
+      - /mnt/nvme/jellyfin/cache:/cache
+      - /mnt/nvme/media:/media
+      devices:
+      - /dev/dri:/dev/dri
+      - /dev/mali0:/dev/mali0
+      - /dev/rga:/dev/rga
+      note: RK3588S VPU for hardware transcoding
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: srv-orangepi5
+    network_binding_ref: net-servers
+    image: jellyfin/jellyfin:latest
+
+- id: svc-homeassistant
+  name: Home Assistant
+  type: home-automation
+  port: 8123
+  protocol: http
+  trust_zone_ref: servers-app
+  domain: ha.home.local
+  url: http://ha.home.local:8123
+  description: Home Assistant smart home automation
+  optional: true
+  features:
+  - Zigbee support (with USB adapter)
+  - Z-Wave support (with USB adapter)
+  - GPIO access
+  data_asset_refs:
+  - data-homeassistant
+  config:
+    docker:
+      ports:
+      - 8123:8123
+      volumes:
+      - /mnt/nvme/homeassistant:/config
+      note: Enable if smart home devices are used
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: srv-orangepi5
+    network_binding_ref: net-servers
+    image: homeassistant/home-assistant:stable

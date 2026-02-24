@@ -1,5 +1,10 @@
 id: data-prometheus
 name: Prometheus Data
 type: volume
-device_ref: orangepi5
+device_ref: srv-orangepi5
 description: Prometheus TSDB
+category: timeseries
+criticality: high
+backup_policy_refs:
+- backup-srv-orangepi5-data
+engine: prometheus

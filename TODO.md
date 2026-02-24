@@ -20,6 +20,7 @@ Primary reference:
 - [x] Strict-by-default validation in `topology-tools/validate-topology.py`.
 - [x] Strict-by-default regeneration in `topology-tools/regenerate-all.py`.
 - [x] Fixture matrix runner: `topology-tools/run-fixture-matrix.py`.
+- [x] Fixture matrix baseline guardrails (`legacy-only=62`, `mixed=6`, `new-only=0`) with optional drift override flag.
 - [x] CI workflow: `.github/workflows/topology-matrix.yml`.
 - [x] Runtime/data-asset/resource-profile cross-layer validation hardening.
 - [x] L5/L6 layer modularization via `!include`.

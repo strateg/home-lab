@@ -1,11 +1,11 @@
 id: lxc-redis
 vmid: 201
 name: redis-cache
-device_ref: gamayun
+device_ref: srv-gamayun
 platform_type: lxc-unprivileged
 resource_profile_ref: profile-cache-small
 template_ref: tpl-lxc-redis
-trust_zone_ref: servers
+trust_zone_ref: servers-data
 description: Redis Cache Server
 tags:
 - cache
@@ -17,7 +17,6 @@ storage:
   rootfs:
     storage_endpoint_ref: se-lvm
     size_gb: 4
-    data_asset_ref: data-redis-rootfs
   volumes:
   - id: vol-redis-data
     mount_path: /var/lib/redis

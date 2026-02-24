@@ -217,7 +217,8 @@ class DocumentationGenerator:
         """
         Enrich services with compatibility fields derived from runtime.
 
-        Templates still reference legacy fields (device_ref/lxc_ref/network_ref/ip).
+        Templates still reference structural compatibility fields
+        (device_ref/lxc_ref/network_ref/ip).
         This keeps docs generation stable while topology authoring moves to runtime.
         """
         l2 = self.topology.get("L2_network", {}) or {}
@@ -423,6 +424,7 @@ class DocumentationGenerator:
     def resolve_storage_pools_for_docs(self) -> List[Dict[str, Any]]:
         """
         Resolve storage pools for docs from legacy `storage` or `storage_endpoints`.
+        For storage_endpoints, enrich with inferred device/media from the L3 storage chain.
         """
         l1 = self.topology.get('L1_foundation', {}) or {}
         l3 = self.topology.get('L3_data', {}) or {}
@@ -440,19 +442,106 @@ class DocumentationGenerator:
             for attachment in (l1.get('media_attachments', []) or [])
             if isinstance(attachment, dict) and attachment.get('id')
         }
+        partitions = {
+            item.get('id'): item
+            for item in (l3.get('partitions', []) or [])
+            if isinstance(item, dict) and item.get('id')
+        }
+        volume_groups = {
+            item.get('id'): item
+            for item in (l3.get('volume_groups', []) or [])
+            if isinstance(item, dict) and item.get('id')
+        }
+        logical_volumes = {
+            item.get('id'): item
+            for item in (l3.get('logical_volumes', []) or [])
+            if isinstance(item, dict) and item.get('id')
+        }
+        filesystems = {
+            item.get('id'): item
+            for item in (l3.get('filesystems', []) or [])
+            if isinstance(item, dict) and item.get('id')
+        }
+        mount_points = {
+            item.get('id'): item
+            for item in (l3.get('mount_points', []) or [])
+            if isinstance(item, dict) and item.get('id')
+        }
+
+        def _resolve_from_partition(
+            partition_ref: str,
+            device_ref: str | None,
+            media_type: str | None,
+        ) -> tuple[str | None, str | None]:
+            partition = partitions.get(partition_ref, {}) if partition_ref else {}
+            attachment_ref = partition.get('media_attachment_ref')
+            attachment = attachments.get(attachment_ref, {}) if attachment_ref else {}
+            media = media_registry.get(attachment.get('media_ref'), {}) if attachment else {}
+            resolved_device = device_ref or attachment.get('device_ref')
+            resolved_media = media_type or media.get('type')
+            return resolved_device, resolved_media
+
+        def _resolve_from_lv(
+            lv_ref: str,
+            device_ref: str | None,
+            media_type: str | None,
+        ) -> tuple[str | None, str | None]:
+            lv = logical_volumes.get(lv_ref, {}) if lv_ref else {}
+            vg = volume_groups.get(lv.get('vg_ref'), {}) if lv else {}
+            for pv_ref in (vg.get('pv_refs') or []):
+                device_ref, media_type = _resolve_from_partition(pv_ref, device_ref, media_type)
+                if device_ref and media_type:
+                    break
+            return device_ref, media_type
 
         resolved: List[Dict[str, Any]] = []
         for endpoint in l3.get('storage_endpoints', []) or []:
             if not isinstance(endpoint, dict):
                 continue
             item = copy.deepcopy(endpoint)
+            device_ref = item.get('device_ref')
+            media_type = item.get('media')
+
+            mount_point = mount_points.get(item.get('mount_point_ref'), {}) if item.get('mount_point_ref') else {}
+            if mount_point:
+                device_ref = device_ref or mount_point.get('device_ref')
+                if not item.get('path'):
+                    item['path'] = mount_point.get('path')
+
+            filesystem = filesystems.get(mount_point.get('filesystem_ref'), {}) if mount_point else {}
+            if filesystem.get('partition_ref'):
+                device_ref, media_type = _resolve_from_partition(
+                    filesystem.get('partition_ref'),
+                    device_ref,
+                    media_type,
+                )
+            elif filesystem.get('lv_ref'):
+                device_ref, media_type = _resolve_from_lv(
+                    filesystem.get('lv_ref'),
+                    device_ref,
+                    media_type,
+                )
+
+            if item.get('lv_ref'):
+                device_ref, media_type = _resolve_from_lv(item.get('lv_ref'), device_ref, media_type)
+                if not item.get('path'):
+                    lv = logical_volumes.get(item.get('lv_ref'), {})
+                    vg = volume_groups.get(lv.get('vg_ref'), {}) if lv else {}
+                    vg_name = vg.get('name') or vg.get('id')
+                    lv_name = lv.get('name') or lv.get('id')
+                    if vg_name and lv_name:
+                        item['path'] = f"{vg_name}/{lv_name}"
+
             infer_from = endpoint.get('infer_from', {}) if isinstance(endpoint.get('infer_from'), dict) else {}
             attachment_ref = infer_from.get('media_attachment_ref')
             attachment = attachments.get(attachment_ref, {}) if attachment_ref else {}
             media = media_registry.get(attachment.get('media_ref'), {}) if attachment else {}
+            device_ref = device_ref or attachment.get('device_ref')
+            media_type = media_type or media.get('type')
 
-            item.setdefault('media', media.get('type'))
-            item.setdefault('device_ref', attachment.get('device_ref'))
+            item['device_ref'] = device_ref
+            item['media'] = media_type
+
             if not item.get('path'):
                 lv_name = infer_from.get('lv_name')
                 vg_name = infer_from.get('vg_name')
@@ -463,6 +552,184 @@ class DocumentationGenerator:
             resolved.append(item)
 
         return resolved
+
+    def resolve_data_assets_for_docs(self) -> List[Dict[str, Any]]:
+        """
+        Resolve data asset placement links for docs.
+
+        Canonical placement comes from L4 storage bindings (`storage_endpoint_ref`)
+        with `data_asset_ref` linkage on rootfs/volumes.
+        For docker/baremetal runtimes, fallback endpoint inference is derived from
+        active host OS installation root storage endpoint on the target device.
+        """
+        l3 = self.topology.get('L3_data', {}) or {}
+        l4 = self.topology.get('L4_platform', {}) or {}
+        l5 = self.topology.get('L5_application', {}) or {}
+        data_assets = l3.get('data_assets', []) or []
+
+        placement_map: Dict[str, Dict[str, set[str]]] = {}
+        host_root_endpoint_by_device: Dict[str, str] = {}
+
+        for host_os in l4.get('host_operating_systems', []) or []:
+            if not isinstance(host_os, dict):
+                continue
+            status = str(host_os.get('status', '')).strip().lower()
+            if status and status != 'active':
+                continue
+            device_ref = host_os.get('device_ref')
+            installation = host_os.get('installation') if isinstance(host_os.get('installation'), dict) else {}
+            root_storage_ref = installation.get('root_storage_endpoint_ref')
+            if isinstance(device_ref, str) and device_ref and isinstance(root_storage_ref, str) and root_storage_ref:
+                host_root_endpoint_by_device.setdefault(device_ref, root_storage_ref)
+
+        def _extract_service_mount_paths(service: Dict[str, Any]) -> List[str]:
+            mount_paths: set[str] = set()
+
+            storage = service.get('storage') if isinstance(service.get('storage'), dict) else {}
+            path_single = storage.get('path')
+            if isinstance(path_single, str) and path_single:
+                mount_paths.add(path_single)
+
+            path_map = storage.get('paths') if isinstance(storage.get('paths'), dict) else {}
+            for value in path_map.values():
+                if isinstance(value, str) and value:
+                    mount_paths.add(value)
+
+            config = service.get('config') if isinstance(service.get('config'), dict) else {}
+            docker = config.get('docker') if isinstance(config.get('docker'), dict) else {}
+            volumes = docker.get('volumes') if isinstance(docker.get('volumes'), list) else []
+            for volume in volumes:
+                if isinstance(volume, str):
+                    host_path = volume.split(':', 1)[0].strip()
+                    if host_path.startswith('/'):
+                        mount_paths.add(host_path)
+                    continue
+                if isinstance(volume, dict):
+                    host_path = volume.get('source') or volume.get('host_path') or volume.get('src')
+                    if isinstance(host_path, str) and host_path.startswith('/'):
+                        mount_paths.add(host_path)
+
+            return sorted(mount_paths)
+
+        def _register(
+            data_asset_ref: str | None,
+            storage_ref: str | None,
+            runtime_ref: str | None,
+            mount_path: str | None,
+            source: str | None,
+        ) -> None:
+            if not data_asset_ref:
+                return
+            slot = placement_map.setdefault(
+                data_asset_ref,
+                {
+                    'storage_endpoint_refs': set(),
+                    'runtime_refs': set(),
+                    'mount_paths': set(),
+                    'placement_sources': set(),
+                },
+            )
+            if storage_ref:
+                slot['storage_endpoint_refs'].add(storage_ref)
+            if runtime_ref:
+                slot['runtime_refs'].add(runtime_ref)
+            if mount_path:
+                slot['mount_paths'].add(mount_path)
+            if source:
+                slot['placement_sources'].add(source)
+
+        for lxc in l4.get('lxc', []) or []:
+            if not isinstance(lxc, dict):
+                continue
+            runtime_ref = lxc.get('id')
+            storage = lxc.get('storage', {}) if isinstance(lxc.get('storage'), dict) else {}
+
+            rootfs = storage.get('rootfs', {}) if isinstance(storage.get('rootfs'), dict) else {}
+            _register(
+                rootfs.get('data_asset_ref'),
+                rootfs.get('storage_endpoint_ref') or rootfs.get('storage_ref'),
+                runtime_ref,
+                '/',
+                'l4-storage',
+            )
+
+            for volume in storage.get('volumes', []) or []:
+                if not isinstance(volume, dict):
+                    continue
+                _register(
+                    volume.get('data_asset_ref'),
+                    volume.get('storage_endpoint_ref') or volume.get('storage_ref'),
+                    runtime_ref,
+                    volume.get('mount_path'),
+                    'l4-storage',
+                )
+
+        for vm in l4.get('vms', []) or []:
+            if not isinstance(vm, dict):
+                continue
+            runtime_ref = vm.get('id')
+            for disk in vm.get('storage', []) or []:
+                if not isinstance(disk, dict):
+                    continue
+                _register(
+                    disk.get('data_asset_ref'),
+                    disk.get('storage_endpoint_ref') or disk.get('storage_ref'),
+                    runtime_ref,
+                    disk.get('mount_path') or disk.get('path') or disk.get('target'),
+                    'l4-storage',
+                )
+
+        for service in l5.get('services', []) or []:
+            if not isinstance(service, dict):
+                continue
+            asset_refs = service.get('data_asset_refs') if isinstance(service.get('data_asset_refs'), list) else []
+            if not asset_refs:
+                continue
+
+            runtime = service.get('runtime') if isinstance(service.get('runtime'), dict) else {}
+            runtime_type = str(runtime.get('type') or '').strip().lower()
+            runtime_target_ref = runtime.get('target_ref')
+            runtime_ref = runtime_target_ref if isinstance(runtime_target_ref, str) and runtime_target_ref else service.get('id')
+            storage_ref = runtime.get('storage_endpoint_ref') or runtime.get('storage_ref')
+
+            if (
+                not storage_ref
+                and runtime_type in {'docker', 'baremetal'}
+                and isinstance(runtime_target_ref, str)
+                and runtime_target_ref
+            ):
+                storage_ref = host_root_endpoint_by_device.get(runtime_target_ref)
+
+            mount_paths = _extract_service_mount_paths(service)
+            source = 'l5-runtime-host-root' if storage_ref and runtime_type in {'docker', 'baremetal'} else 'l5-runtime'
+
+            for asset_ref in asset_refs:
+                if not isinstance(asset_ref, str) or not asset_ref:
+                    continue
+                if mount_paths:
+                    for mount_path in mount_paths:
+                        _register(asset_ref, storage_ref, runtime_ref, mount_path, source)
+                else:
+                    _register(asset_ref, storage_ref, runtime_ref, None, source)
+
+        resolved_assets: List[Dict[str, Any]] = []
+        for asset in data_assets:
+            if not isinstance(asset, dict):
+                continue
+            item = copy.deepcopy(asset)
+            placement = placement_map.get(item.get('id'), {})
+            endpoint_refs = sorted(placement.get('storage_endpoint_refs', set()))
+            runtime_refs = sorted(placement.get('runtime_refs', set()))
+            mount_paths = sorted(placement.get('mount_paths', set()))
+            placement_sources = sorted(placement.get('placement_sources', set()))
+
+            item['resolved_storage_endpoint_refs'] = endpoint_refs
+            item['resolved_runtime_refs'] = runtime_refs
+            item['resolved_mount_paths'] = mount_paths
+            item['placement_source'] = ', '.join(placement_sources) if placement_sources else 'l3-ownership'
+            resolved_assets.append(item)
+
+        return resolved_assets
 
     def _resolve_lxc_resources(self, lxc_containers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Resolve effective LXC resources from inline resources or resource profiles."""

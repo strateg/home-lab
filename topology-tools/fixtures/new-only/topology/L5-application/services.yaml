@@ -16,7 +16,7 @@
   - data-mikrotik-config
   security:
     https_redirect: true
-    ssl_certificate: self-signed
+    ssl_certificate: cert-mikrotik
     allowed_from:
     - net-lan
     - net-vpn-home
@@ -32,8 +32,6 @@
 - id: svc-adguard
   name: AdGuard Home
   type: dns
-  container: true
-  container_image: adguard/adguardhome
   ports:
     dns: 53
     web_ui: 3000
@@ -58,7 +56,6 @@
 - id: svc-wireguard
   name: WireGuard VPN
   type: vpn
-  native: true
   port: 51820
   protocol: udp
   trust_zone_ref: user
@@ -77,8 +74,6 @@
 - id: svc-tailscale
   name: Tailscale
   type: vpn
-  container: true
-  container_image: tailscale/tailscale
   trust_zone_ref: user
   vpn_type: tailscale
   description: Tailscale mesh VPN (container on MikroTik)
@@ -97,9 +92,6 @@
 - id: svc-nextcloud
   name: Nextcloud
   type: web-application
-  container: true
-  container_runtime: docker
-  container_image: nextcloud:28
   ports:
     https: 443
     http: 80
@@ -130,7 +122,9 @@
       depends_on:
       - lxc-postgresql
       - lxc-redis
-      host_ip: 10.0.30.50
+  security:
+    https_redirect: true
+    ssl_certificate: cert-nextcloud
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -140,9 +134,6 @@
 - id: svc-jellyfin
   name: Jellyfin
   type: media-server
-  container: true
-  container_runtime: docker
-  container_image: jellyfin/jellyfin:latest
   port: 8096
   protocol: http
   trust_zone_ref: servers
@@ -175,7 +166,6 @@
       - /dev/mali0:/dev/mali0
       - /dev/rga:/dev/rga
       note: RK3588S VPU for hardware transcoding
-      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -185,9 +175,6 @@
 - id: svc-adguard-secondary
   name: AdGuard Home Secondary
   type: dns
-  container: true
-  container_runtime: docker
-  container_image: adguard/adguardhome
   ports:
     dns: 5353
     web_ui: 3001
@@ -206,9 +193,6 @@
 - id: svc-prometheus
   name: Prometheus
   type: monitoring
-  container: true
-  container_runtime: docker
-  container_image: prom/prometheus:latest
   port: 9090
   protocol: http
   trust_zone_ref: servers
@@ -238,7 +222,6 @@
       - 9090:9090
       volumes:
       - /mnt/nvme/prometheus:/prometheus
-      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -248,9 +231,6 @@
 - id: svc-alertmanager
   name: Alertmanager
   type: alerting
-  container: true
-  container_runtime: docker
-  container_image: prom/alertmanager:latest
   port: 9093
   protocol: http
   trust_zone_ref: servers
@@ -272,9 +252,6 @@
 - id: svc-loki
   name: Loki
   type: logging
-  container: true
-  container_runtime: docker
-  container_image: grafana/loki:latest
   port: 3100
   protocol: http
   trust_zone_ref: servers
@@ -300,9 +277,6 @@
 - id: svc-grafana
   name: Grafana
   type: visualization
-  container: true
-  container_runtime: docker
-  container_image: grafana/grafana:latest
   port: 3000
   protocol: http
   trust_zone_ref: servers
@@ -319,7 +293,6 @@
       - 3000:3000
       volumes:
       - /mnt/nvme/grafana:/var/lib/grafana
-      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -329,9 +302,6 @@
 - id: svc-homeassistant
   name: Home Assistant
   type: home-automation
-  container: true
-  container_runtime: docker
-  container_image: homeassistant/home-assistant:stable
   port: 8123
   protocol: http
   trust_zone_ref: servers
@@ -352,7 +322,6 @@
       volumes:
       - /mnt/nvme/homeassistant:/config
       note: Enable if smart home devices are used
-      host_ip: 10.0.30.50
   security_policy_ref: sec-baseline
   runtime:
     type: docker
@@ -367,6 +336,8 @@
   trust_zone_ref: management
   url: https://10.0.99.2:8006
   description: Proxmox VE management interface
+  security:
+    ssl_certificate: cert-proxmox
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal

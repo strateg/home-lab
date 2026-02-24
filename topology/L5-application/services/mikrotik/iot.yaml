@@ -1,0 +1,40 @@
+# MikroTik IoT Services
+# MQTT broker for IoT device communication
+
+- id: svc-mosquitto
+  name: Mosquitto MQTT
+  type: home-automation
+  ports:
+    mqtt: 1883
+    mqtt_tls: 8883
+    websocket: 9001
+  protocol: tcp
+  trust_zone_ref: iot
+  description: Mosquitto MQTT broker for IoT devices (container on MikroTik)
+  optional: true
+  features:
+  - MQTT 3.1.1 and 5.0 support
+  - TLS encryption
+  - WebSocket support
+  - Persistent sessions
+  - Topic-based ACL
+  clients:
+  - network_ref: net-iot
+  - service_ref: svc-homeassistant
+  data_asset_refs:
+  - data-mosquitto
+  security:
+    authentication: true
+    tls_enabled: true
+    allowed_from:
+    - net-iot
+    - net-servers
+  security_policy_ref: sec-baseline
+  runtime:
+    type: docker
+    target_ref: rtr-mikrotik
+    network_binding_ref: net-iot
+    image: eclipse-mosquitto:2
+    resources:
+      memory_mb: 20
+      memory_limit_mb: 64

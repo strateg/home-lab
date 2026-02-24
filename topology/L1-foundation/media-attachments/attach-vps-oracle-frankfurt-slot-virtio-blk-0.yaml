@@ -1,0 +1,6 @@
+id: attach-vps-oracle-frankfurt-slot-virtio-blk-0
+device_ref: vps-oracle-frankfurt
+slot_ref: slot-virtio-blk-0
+media_ref: disk-oci-boot-volume
+state: present
+description: Provider-attached Oracle boot volume
