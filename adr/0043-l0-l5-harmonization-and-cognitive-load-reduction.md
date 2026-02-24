@@ -170,11 +170,11 @@ See: `docs/architecture/L0-L5-HARMONIZATION-PLAN.md`
 - [x] No orphaned data_assets
 - [x] Unused trust zones marked as reserved
 
-### P1 Complete When
+### P1 Complete When ✅
 
-- [ ] All L1 devices have class-based prefix
-- [ ] servers zone split into 3 sub-zones
-- [ ] Validation passes
+- [x] All L1 devices have class-based prefix
+- [x] servers zone split into 3 sub-zones
+- [x] Validation passes
 
 ### P2 Complete When
 

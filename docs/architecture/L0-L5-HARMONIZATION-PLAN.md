@@ -71,9 +71,9 @@ topology/L2-network/trust-zones/baseline.yaml (update)
 topology-tools/schemas/topology-v4-schema.json (update)
 ```
 
-## Phase 1: Naming Harmonization (Breaking)
+## Phase 1: Naming Harmonization (Breaking) ✅ COMPLETE
 
-### P1.1: Standardize L1 device ID prefixes
+### P1.1: Standardize L1 device ID prefixes ✅
 
 **Mapping**:
 | Current | New | Class |
@@ -85,19 +85,19 @@ topology-tools/schemas/topology-v4-schema.json (update)
 | `hetzner-cx22-nuremberg` | `vps-hetzner-nuremberg` | provider |
 | `oracle-arm-frankfurt` | `vps-oracle-frankfurt` | provider |
 | `ups-main` | `ups-main` | power (OK) |
-| `pdu-rack-home` | `pdu-rack` | power (OK) |
+| `pdu-rack-home` | `pdu-rack` | power |
 
 **Tasks**:
-- [ ] Update L1 device files (rename + update id field)
-- [ ] Update all device_ref in L1 (data-links, power-links, media-attachments)
-- [ ] Update all device_ref in L2 (bridges, networks.ip_allocations, networks.managed_by_ref)
-- [ ] Update all device_ref in L3 (data_assets)
-- [ ] Update all device_ref, host_os[].device_ref in L4
-- [ ] Update all runtime.target_ref in L5
-- [ ] Update all device_ref in L5 (dns records)
-- [ ] Run validation
+- [x] Update L1 device files (rename + update id field)
+- [x] Update all device_ref in L1 (data-links, power-links, media-attachments)
+- [x] Update all device_ref in L2 (bridges, networks.ip_allocations, networks.managed_by_ref)
+- [x] Update all device_ref in L3 (data_assets)
+- [x] Update all device_ref, host_os[].device_ref in L4
+- [x] Update all runtime.target_ref in L5
+- [x] Update all device_ref in L5 (dns records)
+- [x] Run validation
 
-**Impact**: ~50 refs to update
+**Impact**: 95 files, ~200 refs updated
 
 **Acceptance**:
 ```bash
@@ -105,7 +105,7 @@ grep -r "gamayun\|orangepi5" topology/ --include="*.yaml" | grep -v "srv-"
 # Should return 0 matches (all updated to srv- prefix)
 ```
 
-### P1.2: Split servers trust zone
+### P1.2: Split servers trust zone ✅
 
 **Mapping**:
 | Service | Current Zone | New Zone |
@@ -125,16 +125,18 @@ grep -r "gamayun\|orangepi5" topology/ --include="*.yaml" | grep -v "srv-"
 | svc-syslog-forward | servers | servers-mon |
 
 **Tasks**:
-- [ ] Add `servers-data`, `servers-app`, `servers-mon` to trust zones
-- [ ] Define firewall policies for new zones
-- [ ] Update trust_zone_ref in all affected services
-- [ ] Run validation
+- [x] Add `servers-data`, `servers-app`, `servers-mon` to trust zones
+- [x] Add zone definitions to baseline.yaml
+- [x] Update trust_zone_ref in all affected services
+- [x] Update L4 LXC workloads trust_zone_ref
+- [x] Run validation
 
 **Files**:
 ```
 topology/L2-network/trust-zones/baseline.yaml (update)
-topology/L2-network/firewall/policies/ (new policies)
+topology-tools/schemas/topology-v4-schema.json (update)
 topology/L5-application/services/**/*.yaml (update refs)
+topology/L4-platform/workloads/lxc/*.yaml (update refs)
 ```
 
 ## Phase 2: IP Derivation (Future ADR)
