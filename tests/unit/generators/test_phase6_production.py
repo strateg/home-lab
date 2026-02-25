@@ -64,7 +64,16 @@ class TestPerformanceProfiler:
 
         assert result.duration_ms == 500
         assert "test" in str(result)
-        assert "0.50s" in str(result)
+        assert "500.00ms" in str(result)
+
+        # Test seconds format for longer durations
+        result_long = TimingResult(
+            name="long_test",
+            duration_seconds=2.5,
+            start_time=0,
+            end_time=2.5,
+        )
+        assert "2.50s" in str(result_long)
 
 
 class TestErrorHandler:
