@@ -11,7 +11,15 @@ from typing import Any, Dict, List
 
 import yaml
 
-from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
+from scripts.generators.common import (
+    ErrorHandler,
+    GeneratorContext,
+    IpResolverV2,
+    PerformanceProfiler,
+    ProgressTracker,
+    load_and_validate_layered_topology,
+    prepare_output_directory,
+)
 
 from .data import DataResolver
 from .docs_diagram import DiagramDocumentationGenerator
@@ -46,6 +54,10 @@ class DocumentationGenerator:
         self.generated_files: List[str] = []
         self.generated_at: str = ""
 
+        # Phase 4: Dependency injection and error handling
+        self.error_handler = ErrorHandler(verbose=False)
+        self.profiler = PerformanceProfiler(enabled=True)
+
         # Initialize icon manager
         self.icon_manager = IconManager(self.topology_path)
 
@@ -55,6 +67,12 @@ class DocumentationGenerator:
 
         # Keep reference to jinja_env for backward compatibility
         self.jinja_env = self.template_manager.jinja_env
+
+        # Phase 4: Modern IP resolver (initialized after topology loaded)
+        self._ip_resolver: IpResolverV2 | None = None
+
+        # Phase 4: Generator context (initialized after topology loaded)
+        self._context: GeneratorContext | None = None
 
         # Data resolver initialized lazily after topology is loaded
         self._data_resolver = None
@@ -67,6 +85,30 @@ class DocumentationGenerator:
         if self._data_resolver is None:
             self._data_resolver = DataResolver(self.topology)
         return self._data_resolver
+
+    @property
+    def ip_resolver(self) -> IpResolverV2:
+        """Get modern IP resolver (Phase 4 - lazy initialization)."""
+        if self._ip_resolver is None:
+            self._ip_resolver = IpResolverV2(self.topology)
+        return self._ip_resolver
+
+    @property
+    def context(self) -> GeneratorContext:
+        """Get generator context for DI (Phase 4 - lazy initialization)."""
+        if self._context is None:
+            from scripts.generators.common import GeneratorConfig
+
+            # Create context from current state
+            config = GeneratorConfig(
+                topology_path=self.topology_path,
+                output_dir=self.output_dir,
+                templates_dir=self.templates_dir,
+            )
+            self._context = GeneratorContext(config=config)
+            # Set topology so it doesn't lazy-load
+            self._context._topology = self.topology
+        return self._context
 
     @property
     def icon_mode(self) -> str:
