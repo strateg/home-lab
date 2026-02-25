@@ -9,11 +9,12 @@ Exit codes:
     0: Valid
     1: Validation errors
 """
+import ipaddress
 import sys
-import yaml
 from pathlib import Path
 from typing import Dict, List, Set
-import ipaddress
+
+import yaml
 
 
 class TopologyValidator:
@@ -164,7 +165,7 @@ class TopologyValidator:
 
         # Check overlaps
         for i, (name1, net1) in enumerate(networks):
-            for name2, net2 in networks[i+1:]:
+            for name2, net2 in networks[i + 1 :]:
                 if net1.overlaps(net2):
                     self.warnings.append(f"Network overlap: {name1} ({net1}) and {name2} ({net2})")
 
@@ -287,6 +288,7 @@ class TopologyValidator:
 
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="Validate topology.yaml")
     parser.add_argument("--topology", default="topology.yaml", help="Path to topology.yaml")
     args = parser.parse_args()

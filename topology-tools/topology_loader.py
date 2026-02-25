@@ -13,13 +13,13 @@ class IncludeLoader(yaml.SafeLoader):
     """Custom YAML loader with include directive support."""
 
     def __init__(self, stream):
-        self._root = Path(stream.name).parent if hasattr(stream, 'name') else Path.cwd()
+        self._root = Path(stream.name).parent if hasattr(stream, "name") else Path.cwd()
         super().__init__(stream)
 
 
 def _load_yaml(path: Path) -> Any:
     """Load YAML file with IncludeLoader preserving include semantics."""
-    with open(path, 'r', encoding='utf-8') as file_handle:
+    with open(path, "r", encoding="utf-8") as file_handle:
         return yaml.load(file_handle, IncludeLoader)
 
 
@@ -27,10 +27,8 @@ def _iter_yaml_files_sorted(directory: Path) -> Iterable[Path]:
     """Yield YAML files under directory in deterministic lexicographic order."""
     files = [
         candidate
-        for candidate in directory.rglob('*')
-        if candidate.is_file()
-        and candidate.suffix.lower() in {'.yaml', '.yml'}
-        and not candidate.name.startswith('_')
+        for candidate in directory.rglob("*")
+        if candidate.is_file() and candidate.suffix.lower() in {".yaml", ".yml"} and not candidate.name.startswith("_")
     ]
     return sorted(files, key=lambda item: item.relative_to(directory).as_posix())
 
@@ -69,8 +67,8 @@ def include_dir_sorted_constructor(loader: IncludeLoader, node: yaml.Node) -> An
 
 
 # Register include constructors
-yaml.add_constructor('!include', include_constructor, IncludeLoader)
-yaml.add_constructor('!include_dir_sorted', include_dir_sorted_constructor, IncludeLoader)
+yaml.add_constructor("!include", include_constructor, IncludeLoader)
+yaml.add_constructor("!include_dir_sorted", include_dir_sorted_constructor, IncludeLoader)
 
 
 def load_topology(topology_path: str) -> Dict[str, Any]:
@@ -97,7 +95,7 @@ def load_topology(topology_path: str) -> Dict[str, Any]:
     if not topology_file.exists():
         raise FileNotFoundError(f"Topology file not found: {topology_path}")
 
-    with open(topology_file, 'r') as f:
+    with open(topology_file, "r") as f:
         topology = yaml.load(f, IncludeLoader)
 
     return topology
@@ -113,7 +111,7 @@ def validate_modular_structure(topology_path: str) -> bool:
     Returns:
         True if all modules exist, False otherwise
     """
-    topology_dir = Path(topology_path).parent / 'topology'
+    topology_dir = Path(topology_path).parent / "topology"
 
     if not topology_dir.exists():
         print(f"WARN  Warning: topology/ directory not found")
@@ -121,14 +119,14 @@ def validate_modular_structure(topology_path: str) -> bool:
 
     # Expected module files (L0-L7)
     expected_modules = [
-        'L0-meta.yaml',
-        'L1-foundation.yaml',
-        'L2-network.yaml',
-        'L3-data.yaml',
-        'L4-platform.yaml',
-        'L5-application.yaml',
-        'L6-observability.yaml',
-        'L7-operations.yaml',
+        "L0-meta.yaml",
+        "L1-foundation.yaml",
+        "L2-network.yaml",
+        "L3-data.yaml",
+        "L4-platform.yaml",
+        "L5-application.yaml",
+        "L6-observability.yaml",
+        "L7-operations.yaml",
     ]
 
     missing_modules = []
@@ -146,20 +144,20 @@ def validate_modular_structure(topology_path: str) -> bool:
     return True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Test the loader
     import sys
 
     if len(sys.argv) > 1:
         topology_path = sys.argv[1]
     else:
-        topology_path = 'topology.yaml'
+        topology_path = "topology.yaml"
 
     print(f"Loading topology from: {topology_path}")
 
     try:
         topology = load_topology(topology_path)
-        version = topology.get('L0_meta', {}).get('version', 'unknown')
+        version = topology.get("L0_meta", {}).get("version", "unknown")
         print(f"OK Successfully loaded topology v{version}")
         print(f"  - Sections: {list(topology.keys())}")
     except Exception as e:

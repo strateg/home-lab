@@ -6,6 +6,7 @@ Split topology.yaml into modular files (preserving comments and formatting)
 import re
 from pathlib import Path
 
+
 def extract_section(lines, start_pattern, end_pattern=None):
     """Extract a section from lines, preserving formatting"""
     result = []
@@ -23,19 +24,19 @@ def extract_section(lines, start_pattern, end_pattern=None):
         # If we're in the section
         if in_section:
             # Check if we've reached the next top-level section
-            if line.strip() and not line.startswith('#') and not line.startswith(' '):
+            if line.strip() and not line.startswith("#") and not line.startswith(" "):
                 # This is a new top-level key, stop
                 break
 
             # Check if this line is at the same or lower indent level (new section)
-            if line.strip() and not line.startswith('#'):
+            if line.strip() and not line.startswith("#"):
                 current_indent = len(line) - len(line.lstrip())
                 if current_indent <= indent_level:
                     break
 
             # Add the line (dedent by removing section indent)
             if line.strip():  # Non-empty line
-                if line.startswith(' ' * indent_level):
+                if line.startswith(" " * indent_level):
                     result.append(line[indent_level:])  # Remove indent
                 else:
                     result.append(line)  # Keep as is (comments, etc.)
@@ -44,39 +45,40 @@ def extract_section(lines, start_pattern, end_pattern=None):
 
     return result
 
+
 def split_topology():
     """Split topology.yaml into modular structure"""
 
     # Read topology.yaml
-    with open('topology.yaml') as f:
+    with open("topology.yaml") as f:
         lines = f.readlines()
 
     # Create topology/ directory
-    topology_dir = Path('topology')
+    topology_dir = Path("topology")
     topology_dir.mkdir(exist_ok=True)
 
     # Define sections to extract (pattern, output filename, header)
     sections = [
-        (r'^metadata:', 'metadata.yaml', 'Metadata'),
-        (r'^physical_topology:', 'physical.yaml', 'Physical Topology'),
-        (r'^logical_topology:', 'logical.yaml', 'Logical Topology'),
-        (r'^compute:', 'compute.yaml', 'Compute Resources'),
-        (r'^storage:', 'storage.yaml', 'Storage Configuration'),
-        (r'^services:', 'services.yaml', 'Services'),
-        (r'^ansible:', 'ansible.yaml', 'Ansible Configuration'),
-        (r'^workflows:', 'workflows.yaml', 'Workflows'),
-        (r'^security:', 'security.yaml', 'Security Configuration'),
-        (r'^backup:', 'backup.yaml', 'Backup Configuration'),
-        (r'^monitoring:', 'monitoring.yaml', 'Monitoring Configuration'),
-        (r'^documentation:', 'documentation.yaml', 'Documentation'),
-        (r'^notes:', 'notes.yaml', 'Notes'),
+        (r"^metadata:", "metadata.yaml", "Metadata"),
+        (r"^physical_topology:", "physical.yaml", "Physical Topology"),
+        (r"^logical_topology:", "logical.yaml", "Logical Topology"),
+        (r"^compute:", "compute.yaml", "Compute Resources"),
+        (r"^storage:", "storage.yaml", "Storage Configuration"),
+        (r"^services:", "services.yaml", "Services"),
+        (r"^ansible:", "ansible.yaml", "Ansible Configuration"),
+        (r"^workflows:", "workflows.yaml", "Workflows"),
+        (r"^security:", "security.yaml", "Security Configuration"),
+        (r"^backup:", "backup.yaml", "Backup Configuration"),
+        (r"^monitoring:", "monitoring.yaml", "Monitoring Configuration"),
+        (r"^documentation:", "documentation.yaml", "Documentation"),
+        (r"^notes:", "notes.yaml", "Notes"),
     ]
 
     # Extract version
-    version = '3.0.0'
+    version = "3.0.0"
     for line in lines:
-        if line.startswith('version:'):
-            version = line.split(':', 1)[1].strip().strip('"\'')
+        if line.startswith("version:"):
+            version = line.split(":", 1)[1].strip().strip("\"'")
             break
 
     # Extract each section
@@ -94,7 +96,7 @@ def split_topology():
             header += "\n"
 
             # Write file
-            with open(output_path, 'w') as f:
+            with open(output_path, "w") as f:
                 f.write(header)
                 f.writelines(section_lines)
 
@@ -109,5 +111,6 @@ def split_topology():
     print(f"  2. Backup original: cp topology.yaml topology.yaml.backup")
     print(f"  3. Create new topology.yaml with !include directives")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     split_topology()

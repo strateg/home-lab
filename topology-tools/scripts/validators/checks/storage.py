@@ -6,47 +6,47 @@ from typing import Any, Dict, List, Optional, Set
 
 def storage_disk_port_compatibility() -> Dict[str, Set[str]]:
     return {
-        'hdd': {'ide', 'sata', 'sas', 'usb', 'virtual'},
-        'ssd': {'ide', 'sata', 'sas', 'm2', 'pcie', 'usb', 'virtual'},
-        'nvme': {'m2', 'pcie', 'virtual'},
-        'sd-card': {'sdio', 'usb'},
-        'emmc': {'emmc', 'emmc-reader', 'onboard'},
-        'flash': {'qspi', 'usb', 'virtual', 'emmc', 'onboard'},
+        "hdd": {"ide", "sata", "sas", "usb", "virtual"},
+        "ssd": {"ide", "sata", "sas", "m2", "pcie", "usb", "virtual"},
+        "nvme": {"m2", "pcie", "virtual"},
+        "sd-card": {"sdio", "usb"},
+        "emmc": {"emmc", "emmc-reader", "onboard"},
+        "flash": {"qspi", "usb", "virtual", "emmc", "onboard"},
     }
 
 
 def storage_mount_port_compatibility() -> Dict[str, Set[str]]:
     return {
-        'soldered': {'qspi', 'emmc', 'onboard'},
-        'replaceable': {'ide', 'sata', 'sas', 'm2', 'pcie', 'emmc'},
-        'removable': {'usb', 'sdio', 'emmc-reader'},
-        'virtual': {'virtual'},
+        "soldered": {"qspi", "emmc", "onboard"},
+        "replaceable": {"ide", "sata", "sas", "m2", "pcie", "emmc"},
+        "removable": {"usb", "sdio", "emmc-reader"},
+        "virtual": {"virtual"},
     }
 
 
 def build_l1_storage_context(topology: Dict[str, Any]) -> Dict[str, Any]:
     """Build lookup maps for L1 slot/media/attachment model."""
-    l1 = topology.get('L1_foundation', {}) or {}
-    devices = l1.get('devices', []) or []
-    media_registry = l1.get('media_registry', []) if isinstance(l1.get('media_registry'), list) else []
-    media_attachments = l1.get('media_attachments', []) if isinstance(l1.get('media_attachments'), list) else []
+    l1 = topology.get("L1_foundation", {}) or {}
+    devices = l1.get("devices", []) or []
+    media_registry = l1.get("media_registry", []) if isinstance(l1.get("media_registry"), list) else []
+    media_attachments = l1.get("media_attachments", []) if isinstance(l1.get("media_attachments"), list) else []
 
     device_map: Dict[str, Dict[str, Any]] = {}
     slots_by_device: Dict[str, Dict[str, Dict[str, Any]]] = {}
     for device in devices:
         if not isinstance(device, dict):
             continue
-        dev_id = device.get('id')
+        dev_id = device.get("id")
         if not dev_id:
             continue
         device_map[dev_id] = device
-        specs = device.get('specs', {}) if isinstance(device.get('specs'), dict) else {}
-        slots = specs.get('storage_slots', []) if isinstance(specs.get('storage_slots'), list) else []
+        specs = device.get("specs", {}) if isinstance(device.get("specs"), dict) else {}
+        slots = specs.get("storage_slots", []) if isinstance(specs.get("storage_slots"), list) else []
         slot_map: Dict[str, Dict[str, Any]] = {}
         for slot in slots:
             if not isinstance(slot, dict):
                 continue
-            slot_id = slot.get('id')
+            slot_id = slot.get("id")
             if slot_id:
                 slot_map[slot_id] = slot
         slots_by_device[dev_id] = slot_map
@@ -55,7 +55,7 @@ def build_l1_storage_context(topology: Dict[str, Any]) -> Dict[str, Any]:
     for media in media_registry:
         if not isinstance(media, dict):
             continue
-        media_id = media.get('id')
+        media_id = media.get("id")
         if media_id:
             media_by_id[media_id] = media
 
@@ -63,19 +63,19 @@ def build_l1_storage_context(topology: Dict[str, Any]) -> Dict[str, Any]:
     for attachment in media_attachments:
         if not isinstance(attachment, dict):
             continue
-        device_ref = attachment.get('device_ref')
-        slot_ref = attachment.get('slot_ref')
+        device_ref = attachment.get("device_ref")
+        slot_ref = attachment.get("slot_ref")
         if not device_ref or not slot_ref:
             continue
         attachments_by_device_slot.setdefault(device_ref, {}).setdefault(slot_ref, []).append(attachment)
 
     return {
-        'device_map': device_map,
-        'slots_by_device': slots_by_device,
-        'media_registry': media_registry,
-        'media_attachments': media_attachments,
-        'media_by_id': media_by_id,
-        'attachments_by_device_slot': attachments_by_device_slot,
+        "device_map": device_map,
+        "slots_by_device": slots_by_device,
+        "media_registry": media_registry,
+        "media_attachments": media_attachments,
+        "media_by_id": media_by_id,
+        "attachments_by_device_slot": attachments_by_device_slot,
     }
 
 
@@ -86,51 +86,53 @@ def normalize_device_storage_inventory(
     """Return normalized storage inventory resolved from slots + media attachments."""
     storage_ctx = storage_ctx or {}
 
-    dev_id = device.get('id')
-    specs = device.get('specs', {}) if isinstance(device.get('specs'), dict) else {}
-    slots = specs.get('storage_slots', []) if isinstance(specs.get('storage_slots'), list) else []
-    attachments_by_slot = storage_ctx.get('attachments_by_device_slot', {}).get(dev_id, {})
-    media_by_id = storage_ctx.get('media_by_id', {})
+    dev_id = device.get("id")
+    specs = device.get("specs", {}) if isinstance(device.get("specs"), dict) else {}
+    slots = specs.get("storage_slots", []) if isinstance(specs.get("storage_slots"), list) else []
+    attachments_by_slot = storage_ctx.get("attachments_by_device_slot", {}).get(dev_id, {})
+    media_by_id = storage_ctx.get("media_by_id", {})
 
     normalized_disks: List[Dict[str, Any]] = []
 
     for slot in slots:
         if not isinstance(slot, dict):
             continue
-        slot_id = slot.get('id')
+        slot_id = slot.get("id")
         slot_attachments = attachments_by_slot.get(slot_id, []) if slot_id else []
         selected_attachment: Optional[Dict[str, Any]] = None
         if slot_attachments:
-            present = [a for a in slot_attachments if a.get('state', 'present') == 'present']
+            present = [a for a in slot_attachments if a.get("state", "present") == "present"]
             selected_attachment = present[0] if present else slot_attachments[0]
 
         media = None
         media_ref = None
         if isinstance(selected_attachment, dict):
-            media_ref = selected_attachment.get('media_ref')
+            media_ref = selected_attachment.get("media_ref")
             media = media_by_id.get(media_ref)
 
         if not isinstance(media, dict):
             continue
 
-        normalized_disks.append({
-            'id': media.get('id'),
-            'type': media.get('type'),
-            'mount_type': slot.get('mount'),
-            'port_ref': slot_id,
-            'port_type': slot.get('bus'),
-            'removable': media.get('removable'),
-            'virtual': media.get('virtual'),
-            'os_device_path': media.get('device'),
-            'supported_buses': media.get('supported_buses'),
-            'attachment_id': selected_attachment.get('id') if isinstance(selected_attachment, dict) else None,
-            'attachment_state': selected_attachment.get('state') if isinstance(selected_attachment, dict) else None,
-            'media_ref': media_ref,
-        })
+        normalized_disks.append(
+            {
+                "id": media.get("id"),
+                "type": media.get("type"),
+                "mount_type": slot.get("mount"),
+                "port_ref": slot_id,
+                "port_type": slot.get("bus"),
+                "removable": media.get("removable"),
+                "virtual": media.get("virtual"),
+                "os_device_path": media.get("device"),
+                "supported_buses": media.get("supported_buses"),
+                "attachment_id": selected_attachment.get("id") if isinstance(selected_attachment, dict) else None,
+                "attachment_state": selected_attachment.get("state") if isinstance(selected_attachment, dict) else None,
+                "media_ref": media_ref,
+            }
+        )
 
     return {
-        'slots': slots,
-        'normalized_disks': normalized_disks,
+        "slots": slots,
+        "normalized_disks": normalized_disks,
     }
 
 
@@ -142,49 +144,43 @@ def check_device_storage_taxonomy(
     warnings: List[str],
 ) -> None:
     """Validate L1 compute storage slots and resolved media taxonomy."""
-    dev_id = device.get('id', 'unknown')
-    dev_class = device.get('class')
-    dev_substrate = device.get('substrate')
+    dev_id = device.get("id", "unknown")
+    dev_class = device.get("class")
+    dev_substrate = device.get("substrate")
 
     inventory = normalize_device_storage_inventory(device, storage_ctx=storage_ctx)
-    slots = inventory['slots']
-    disks = inventory['normalized_disks']
+    slots = inventory["slots"]
+    disks = inventory["normalized_disks"]
 
-    if dev_class != 'compute':
+    if dev_class != "compute":
         return
 
-    os_cfg = device.get('os')
+    os_cfg = device.get("os")
     if isinstance(os_cfg, dict):
         warnings.append(
             f"Device '{dev_id}': legacy 'os' block in L1; prefer supported_operating_systems for hardware capability only"
         )
-        if os_cfg.get('planned'):
+        if os_cfg.get("planned"):
             errors.append(
                 f"Device '{dev_id}': move os.planned to upper layers; keep only supported_operating_systems in L1"
             )
 
-    if dev_substrate in {'baremetal-owned', 'baremetal-colo'} and not slots:
-        errors.append(
-            f"Device '{dev_id}': baremetal compute device must define specs.storage_slots inventory"
-        )
-    elif dev_substrate in {'baremetal-owned', 'baremetal-colo'} and not disks:
-        warnings.append(
-            f"Device '{dev_id}': no media attached to storage slots; check L1 media_attachments"
-        )
+    if dev_substrate in {"baremetal-owned", "baremetal-colo"} and not slots:
+        errors.append(f"Device '{dev_id}': baremetal compute device must define specs.storage_slots inventory")
+    elif dev_substrate in {"baremetal-owned", "baremetal-colo"} and not disks:
+        warnings.append(f"Device '{dev_id}': no media attached to storage slots; check L1 media_attachments")
 
     slot_ids: Set[str] = set()
     for slot in slots:
         if not isinstance(slot, dict):
             continue
-        slot_id = slot.get('id')
+        slot_id = slot.get("id")
         if not slot_id:
             continue
         if slot_id in slot_ids:
-            errors.append(
-                f"Device '{dev_id}': duplicate storage slot id '{slot_id}'"
-            )
+            errors.append(f"Device '{dev_id}': duplicate storage slot id '{slot_id}'")
         slot_ids.add(slot_id)
-        if slot.get('media') is not None:
+        if slot.get("media") is not None:
             errors.append(
                 f"Device '{dev_id}': inline slot.media is deprecated; use L1 media_registry + media_attachments"
             )
@@ -196,21 +192,19 @@ def check_device_storage_taxonomy(
     for disk in disks:
         if not isinstance(disk, dict):
             continue
-        disk_id = disk.get('id')
+        disk_id = disk.get("id")
         if disk_id:
             if disk_id in disk_ids:
-                errors.append(
-                    f"Device '{dev_id}': duplicate disk id '{disk_id}'"
-                )
+                errors.append(f"Device '{dev_id}': duplicate disk id '{disk_id}'")
             disk_ids.add(disk_id)
 
-        if disk.get('os_device_path'):
+        if disk.get("os_device_path"):
             errors.append(
                 f"Device '{dev_id}': disk '{disk_id or 'unknown'}' contains logical OS device path; move it to L3 storage.os_device"
             )
 
-        disk_type = disk.get('type')
-        port_type = disk.get('port_type')
+        disk_type = disk.get("type")
+        port_type = disk.get("port_type")
         allowed_ports = disk_port_compat.get(disk_type)
         if port_type and allowed_ports and port_type not in allowed_ports:
             warnings.append(
@@ -218,13 +212,11 @@ def check_device_storage_taxonomy(
                 f"is unusual for port type '{port_type}'"
             )
 
-        supported_buses = disk.get('supported_buses')
+        supported_buses = disk.get("supported_buses")
         if isinstance(supported_buses, list) and port_type and port_type not in set(supported_buses):
-            errors.append(
-                f"Device '{dev_id}': disk '{disk_id or 'unknown'}' does not support slot bus '{port_type}'"
-            )
+            errors.append(f"Device '{dev_id}': disk '{disk_id or 'unknown'}' does not support slot bus '{port_type}'")
 
-        mount_type = disk.get('mount_type')
+        mount_type = disk.get("mount_type")
         allowed_mount_ports = mount_port_compat.get(mount_type)
         if port_type and allowed_mount_ports and port_type not in allowed_mount_ports:
             errors.append(
@@ -232,19 +224,13 @@ def check_device_storage_taxonomy(
                 f"is incompatible with port type '{port_type}'"
             )
 
-        removable = disk.get('removable')
-        if mount_type == 'soldered' and removable is True:
-            errors.append(
-                f"Device '{dev_id}': soldered disk '{disk_id or 'unknown'}' cannot be removable"
-            )
-        if mount_type == 'removable' and removable is False:
-            warnings.append(
-                f"Device '{dev_id}': removable disk '{disk_id or 'unknown'}' has removable=false"
-            )
-        if mount_type == 'virtual' and disk.get('virtual') is not True:
-            warnings.append(
-                f"Device '{dev_id}': virtual disk '{disk_id or 'unknown'}' should set virtual=true"
-            )
+        removable = disk.get("removable")
+        if mount_type == "soldered" and removable is True:
+            errors.append(f"Device '{dev_id}': soldered disk '{disk_id or 'unknown'}' cannot be removable")
+        if mount_type == "removable" and removable is False:
+            warnings.append(f"Device '{dev_id}': removable disk '{disk_id or 'unknown'}' has removable=false")
+        if mount_type == "virtual" and disk.get("virtual") is not True:
+            warnings.append(f"Device '{dev_id}': virtual disk '{disk_id or 'unknown'}' should set virtual=true")
 
 
 def check_l1_media_inventory(
@@ -259,10 +245,10 @@ def check_l1_media_inventory(
     del topology  # Reserved for future expansion; storage_ctx already includes resolved L1 view.
     storage_ctx = storage_ctx or {}
 
-    media_registry = storage_ctx.get('media_registry', [])
-    media_attachments = storage_ctx.get('media_attachments', [])
-    slots_by_device = storage_ctx.get('slots_by_device', {})
-    media_by_id = storage_ctx.get('media_by_id', {})
+    media_registry = storage_ctx.get("media_registry", [])
+    media_attachments = storage_ctx.get("media_attachments", [])
+    slots_by_device = storage_ctx.get("slots_by_device", {})
+    media_by_id = storage_ctx.get("media_by_id", {})
 
     disk_port_compat = storage_disk_port_compatibility()
     mount_port_compat = storage_mount_port_compatibility()
@@ -271,7 +257,7 @@ def check_l1_media_inventory(
     for media in media_registry:
         if not isinstance(media, dict):
             continue
-        media_id = media.get('id')
+        media_id = media.get("id")
         if not media_id:
             continue
         if media_id in seen_media_ids:
@@ -284,16 +270,14 @@ def check_l1_media_inventory(
     for attachment in media_attachments:
         if not isinstance(attachment, dict):
             continue
-        attach_id = attachment.get('id', 'unknown')
-        device_ref = attachment.get('device_ref')
-        slot_ref = attachment.get('slot_ref')
-        media_ref = attachment.get('media_ref')
-        state = attachment.get('state', 'present')
+        attach_id = attachment.get("id", "unknown")
+        device_ref = attachment.get("device_ref")
+        slot_ref = attachment.get("slot_ref")
+        media_ref = attachment.get("media_ref")
+        state = attachment.get("state", "present")
 
-        if device_ref and device_ref not in ids['devices']:
-            errors.append(
-                f"L1 media attachment '{attach_id}': device_ref '{device_ref}' does not exist"
-            )
+        if device_ref and device_ref not in ids["devices"]:
+            errors.append(f"L1 media attachment '{attach_id}': device_ref '{device_ref}' does not exist")
             continue
 
         if not device_ref or not slot_ref:
@@ -309,15 +293,13 @@ def check_l1_media_inventory(
 
         media = media_by_id.get(media_ref)
         if not isinstance(media, dict):
-            errors.append(
-                f"L1 media attachment '{attach_id}': media_ref '{media_ref}' not found in media_registry"
-            )
+            errors.append(f"L1 media attachment '{attach_id}': media_ref '{media_ref}' not found in media_registry")
             continue
 
-        port_type = slot.get('bus')
-        mount_type = slot.get('mount')
-        media_type = media.get('type')
-        media_id = media.get('id') or media_ref or 'unknown'
+        port_type = slot.get("bus")
+        mount_type = slot.get("mount")
+        media_type = media.get("type")
+        media_id = media.get("id") or media_ref or "unknown"
 
         allowed_ports = disk_port_compat.get(media_type)
         if port_type and allowed_ports and port_type not in allowed_ports:
@@ -326,11 +308,9 @@ def check_l1_media_inventory(
                 f"is unusual for port type '{port_type}'"
             )
 
-        supported_buses = media.get('supported_buses')
+        supported_buses = media.get("supported_buses")
         if isinstance(supported_buses, list) and port_type and port_type not in set(supported_buses):
-            errors.append(
-                f"L1 media attachment '{attach_id}': media '{media_id}' does not support bus '{port_type}'"
-            )
+            errors.append(f"L1 media attachment '{attach_id}': media '{media_id}' does not support bus '{port_type}'")
 
         allowed_mount_ports = mount_port_compat.get(mount_type)
         if port_type and allowed_mount_ports and port_type not in allowed_mount_ports:
@@ -338,21 +318,21 @@ def check_l1_media_inventory(
                 f"L1 media attachment '{attach_id}': mount_type '{mount_type}' is incompatible with port '{port_type}'"
             )
 
-        removable = media.get('removable')
-        if mount_type == 'soldered' and removable is True:
+        removable = media.get("removable")
+        if mount_type == "soldered" and removable is True:
             errors.append(
                 f"L1 media attachment '{attach_id}': soldered slot '{slot_ref}' cannot use removable media '{media_id}'"
             )
-        if mount_type == 'removable' and removable is False:
+        if mount_type == "removable" and removable is False:
             warnings.append(
                 f"L1 media attachment '{attach_id}': removable slot '{slot_ref}' has media '{media_id}' with removable=false"
             )
-        if mount_type == 'virtual' and media.get('virtual') is not True:
+        if mount_type == "virtual" and media.get("virtual") is not True:
             warnings.append(
                 f"L1 media attachment '{attach_id}': virtual slot '{slot_ref}' should use media with virtual=true"
             )
 
-        if state == 'present':
+        if state == "present":
             slot_key = f"{device_ref}::{slot_ref}"
             if slot_key in present_slot_claims:
                 errors.append(
@@ -384,7 +364,7 @@ def _check_duplicate_ids(
     for item in items:
         if not isinstance(item, dict):
             continue
-        item_id = item.get('id')
+        item_id = item.get("id")
         if not isinstance(item_id, str) or not item_id:
             continue
         if item_id in seen:
@@ -411,8 +391,8 @@ def _validate_l3_autodiscovery_contract(
         return
 
     root_path = Path(topology_path).resolve().parent
-    l3_file = root_path / 'topology' / 'L3-data.yaml'
-    l3_dir = root_path / 'topology' / 'L3-data'
+    l3_file = root_path / "topology" / "L3-data.yaml"
+    l3_dir = root_path / "topology" / "L3-data"
 
     # Keep backward compatibility for legacy monolithic fixtures.
     # Contract is enforced only when modular L3 directory exists.
@@ -420,31 +400,28 @@ def _validate_l3_autodiscovery_contract(
         return
 
     try:
-        l3_text = l3_file.read_text(encoding='utf-8')
+        l3_text = l3_file.read_text(encoding="utf-8")
     except OSError as exc:
         errors.append(f"L3 include contract: cannot read '{l3_file}': {exc}")
         return
 
     expected_autodiscovery = {
-        'partitions': 'L3-data/partitions',
-        'volume_groups': 'L3-data/volume-groups',
-        'logical_volumes': 'L3-data/logical-volumes',
-        'filesystems': 'L3-data/filesystems',
-        'mount_points': 'L3-data/mount-points',
-        'storage_endpoints': 'L3-data/storage-endpoints',
-        'data_assets': 'L3-data/data-assets',
+        "partitions": "L3-data/partitions",
+        "volume_groups": "L3-data/volume-groups",
+        "logical_volumes": "L3-data/logical-volumes",
+        "filesystems": "L3-data/filesystems",
+        "mount_points": "L3-data/mount-points",
+        "storage_endpoints": "L3-data/storage-endpoints",
+        "data_assets": "L3-data/data-assets",
     }
     for field_name, field_path in expected_autodiscovery.items():
         expected_line = f"{field_name}: !include_dir_sorted {field_path}"
         if expected_line not in l3_text:
-            errors.append(
-                f"L3 include contract: '{l3_file}' must define `{expected_line}`"
-            )
+            errors.append(f"L3 include contract: '{l3_file}' must define `{expected_line}`")
 
     if l3_dir.exists():
         manual_indexes = sorted(
-            candidate.relative_to(root_path).as_posix()
-            for candidate in l3_dir.rglob('_index.yaml')
+            candidate.relative_to(root_path).as_posix() for candidate in l3_dir.rglob("_index.yaml")
         )
         for manual_index in manual_indexes:
             errors.append(
@@ -462,62 +439,56 @@ def check_l3_storage_refs(
     warnings: List[str],
 ) -> None:
     """Validate L3 storage bindings to L1 media inventory and ADR-0026 compat rules."""
-    l3 = topology.get('L3_data', {}) or {}
+    l3 = topology.get("L3_data", {}) or {}
     storage_ctx = storage_ctx or {}
-    media_by_id = storage_ctx.get('media_by_id', {})
-    media_attachments = storage_ctx.get('media_attachments', [])
-    l7_backup = (topology.get('L7_operations', {}) or {}).get('backup', {}) or {}
+    media_by_id = storage_ctx.get("media_by_id", {})
+    media_attachments = storage_ctx.get("media_attachments", [])
+    l7_backup = (topology.get("L7_operations", {}) or {}).get("backup", {}) or {}
     backup_policies = {
-        policy.get('id')
-        for policy in (l7_backup.get('policies', []) or [])
-        if isinstance(policy, dict) and policy.get('id')
+        policy.get("id")
+        for policy in (l7_backup.get("policies", []) or [])
+        if isinstance(policy, dict) and policy.get("id")
     }
 
     _validate_l3_autodiscovery_contract(topology_path, errors=errors)
-    _check_duplicate_ids('partitions', l3.get('partitions', []), errors=errors)
-    _check_duplicate_ids('volume_groups', l3.get('volume_groups', []), errors=errors)
-    _check_duplicate_ids('logical_volumes', l3.get('logical_volumes', []), errors=errors)
-    _check_duplicate_ids('filesystems', l3.get('filesystems', []), errors=errors)
-    _check_duplicate_ids('mount_points', l3.get('mount_points', []), errors=errors)
-    _check_duplicate_ids('storage', l3.get('storage', []), errors=errors)
-    _check_duplicate_ids('storage_endpoints', l3.get('storage_endpoints', []), errors=errors)
-    _check_duplicate_ids('data_assets', l3.get('data_assets', []), errors=errors)
+    _check_duplicate_ids("partitions", l3.get("partitions", []), errors=errors)
+    _check_duplicate_ids("volume_groups", l3.get("volume_groups", []), errors=errors)
+    _check_duplicate_ids("logical_volumes", l3.get("logical_volumes", []), errors=errors)
+    _check_duplicate_ids("filesystems", l3.get("filesystems", []), errors=errors)
+    _check_duplicate_ids("mount_points", l3.get("mount_points", []), errors=errors)
+    _check_duplicate_ids("storage", l3.get("storage", []), errors=errors)
+    _check_duplicate_ids("storage_endpoints", l3.get("storage_endpoints", []), errors=errors)
+    _check_duplicate_ids("data_assets", l3.get("data_assets", []), errors=errors)
 
     disk_ids_by_device: Dict[str, Set[str]] = {}
     for attachment in media_attachments:
         if not isinstance(attachment, dict):
             continue
-        device_ref = attachment.get('device_ref')
-        media_ref = attachment.get('media_ref')
-        state = attachment.get('state', 'present')
-        if not device_ref or not media_ref or state == 'retired':
+        device_ref = attachment.get("device_ref")
+        media_ref = attachment.get("media_ref")
+        state = attachment.get("state", "present")
+        if not device_ref or not media_ref or state == "retired":
             continue
         disk_ids_by_device.setdefault(device_ref, set()).add(media_ref)
 
-    for storage in l3.get('storage', []) or []:
+    for storage in l3.get("storage", []) or []:
         if not isinstance(storage, dict):
             continue
-        storage_id = storage.get('id', 'unknown')
-        device_ref = storage.get('device_ref')
-        disk_ref = storage.get('disk_ref')
-        os_device = storage.get('os_device')
+        storage_id = storage.get("id", "unknown")
+        device_ref = storage.get("device_ref")
+        disk_ref = storage.get("disk_ref")
+        os_device = storage.get("os_device")
 
-        if device_ref and device_ref not in ids['devices']:
-            errors.append(
-                f"Storage '{storage_id}': device_ref '{device_ref}' does not exist"
-            )
+        if device_ref and device_ref not in ids["devices"]:
+            errors.append(f"Storage '{storage_id}': device_ref '{device_ref}' does not exist")
             continue
 
         if disk_ref and not device_ref:
-            errors.append(
-                f"Storage '{storage_id}': disk_ref '{disk_ref}' requires device_ref"
-            )
+            errors.append(f"Storage '{storage_id}': disk_ref '{disk_ref}' requires device_ref")
             continue
 
         if disk_ref and disk_ref not in media_by_id:
-            errors.append(
-                f"Storage '{storage_id}': disk_ref '{disk_ref}' not found in L1 media_registry"
-            )
+            errors.append(f"Storage '{storage_id}': disk_ref '{disk_ref}' not found in L1 media_registry")
             continue
 
         if os_device and not disk_ref:
@@ -526,147 +497,119 @@ def check_l3_storage_refs(
             )
 
         if disk_ref and not os_device:
-            warnings.append(
-                f"Storage '{storage_id}': disk_ref '{disk_ref}' has no os_device mapping"
-            )
+            warnings.append(f"Storage '{storage_id}': disk_ref '{disk_ref}' has no os_device mapping")
 
         if device_ref and disk_ref:
             known_disks = disk_ids_by_device.get(device_ref, set())
             if not known_disks:
-                warnings.append(
-                    f"Storage '{storage_id}': device '{device_ref}' has no L1 disk inventory"
-                )
+                warnings.append(f"Storage '{storage_id}': device '{device_ref}' has no L1 disk inventory")
             elif disk_ref not in known_disks:
-                errors.append(
-                    f"Storage '{storage_id}': disk_ref '{disk_ref}' not found on device '{device_ref}'"
-                )
+                errors.append(f"Storage '{storage_id}': disk_ref '{disk_ref}' not found on device '{device_ref}'")
 
-    attachment_ids = {
-        item.get('id')
-        for item in media_attachments
-        if isinstance(item, dict) and item.get('id')
-    }
+    attachment_ids = {item.get("id") for item in media_attachments if isinstance(item, dict) and item.get("id")}
     partitions = {
-        item.get('id'): item
-        for item in (l3.get('partitions', []) or [])
-        if isinstance(item, dict) and item.get('id')
+        item.get("id"): item for item in (l3.get("partitions", []) or []) if isinstance(item, dict) and item.get("id")
     }
     volume_groups = {
-        item.get('id'): item
-        for item in (l3.get('volume_groups', []) or [])
-        if isinstance(item, dict) and item.get('id')
+        item.get("id"): item
+        for item in (l3.get("volume_groups", []) or [])
+        if isinstance(item, dict) and item.get("id")
     }
     volume_groups_by_name = {
-        str(item.get('name')).strip(): item.get('id')
-        for item in (l3.get('volume_groups', []) or [])
-        if isinstance(item, dict) and item.get('id') and isinstance(item.get('name'), str) and str(item.get('name')).strip()
+        str(item.get("name")).strip(): item.get("id")
+        for item in (l3.get("volume_groups", []) or [])
+        if isinstance(item, dict)
+        and item.get("id")
+        and isinstance(item.get("name"), str)
+        and str(item.get("name")).strip()
     }
     logical_volumes = {
-        item.get('id'): item
-        for item in (l3.get('logical_volumes', []) or [])
-        if isinstance(item, dict) and item.get('id')
+        item.get("id"): item
+        for item in (l3.get("logical_volumes", []) or [])
+        if isinstance(item, dict) and item.get("id")
     }
     logical_volumes_by_name = {
-        str(item.get('name')).strip(): item
-        for item in (l3.get('logical_volumes', []) or [])
-        if isinstance(item, dict) and item.get('id') and isinstance(item.get('name'), str) and str(item.get('name')).strip()
+        str(item.get("name")).strip(): item
+        for item in (l3.get("logical_volumes", []) or [])
+        if isinstance(item, dict)
+        and item.get("id")
+        and isinstance(item.get("name"), str)
+        and str(item.get("name")).strip()
     }
     filesystems = {
-        item.get('id'): item
-        for item in (l3.get('filesystems', []) or [])
-        if isinstance(item, dict) and item.get('id')
+        item.get("id"): item for item in (l3.get("filesystems", []) or []) if isinstance(item, dict) and item.get("id")
     }
     mount_points = {
-        item.get('id'): item
-        for item in (l3.get('mount_points', []) or [])
-        if isinstance(item, dict) and item.get('id')
+        item.get("id"): item for item in (l3.get("mount_points", []) or []) if isinstance(item, dict) and item.get("id")
     }
 
     for partition_id, partition in partitions.items():
-        media_attachment_ref = partition.get('media_attachment_ref')
+        media_attachment_ref = partition.get("media_attachment_ref")
         if media_attachment_ref and media_attachment_ref not in attachment_ids:
             errors.append(
                 f"Partition '{partition_id}': media_attachment_ref '{media_attachment_ref}' not found in L1 media_attachments"
             )
 
     for vg_id, vg in volume_groups.items():
-        vg_type = vg.get('type')
-        for pv_ref in vg.get('pv_refs', []) or []:
+        vg_type = vg.get("type")
+        for pv_ref in vg.get("pv_refs", []) or []:
             partition = partitions.get(pv_ref)
             if not partition:
-                errors.append(
-                    f"Volume group '{vg_id}': pv_ref '{pv_ref}' not found in L3 partitions"
-                )
+                errors.append(f"Volume group '{vg_id}': pv_ref '{pv_ref}' not found in L3 partitions")
                 continue
-            part_type = partition.get('type')
-            if vg_type == 'lvm' and part_type != 'lvm-pv':
-                errors.append(
-                    f"Volume group '{vg_id}': pv_ref '{pv_ref}' must reference partition type 'lvm-pv'"
-                )
-            if vg_type in {'zfs', 'btrfs'} and part_type == 'lvm-pv':
+            part_type = partition.get("type")
+            if vg_type == "lvm" and part_type != "lvm-pv":
+                errors.append(f"Volume group '{vg_id}': pv_ref '{pv_ref}' must reference partition type 'lvm-pv'")
+            if vg_type in {"zfs", "btrfs"} and part_type == "lvm-pv":
                 warnings.append(
                     f"Volume group '{vg_id}': pv_ref '{pv_ref}' uses partition type 'lvm-pv' which is unusual for vg type '{vg_type}'"
                 )
 
     for lv_id, lv in logical_volumes.items():
-        vg_ref = lv.get('vg_ref')
+        vg_ref = lv.get("vg_ref")
         if vg_ref and vg_ref not in volume_groups:
-            errors.append(
-                f"Logical volume '{lv_id}': vg_ref '{vg_ref}' not found in L3 volume_groups"
-            )
+            errors.append(f"Logical volume '{lv_id}': vg_ref '{vg_ref}' not found in L3 volume_groups")
 
     for fs_id, filesystem in filesystems.items():
-        lv_ref = filesystem.get('lv_ref')
-        partition_ref = filesystem.get('partition_ref')
+        lv_ref = filesystem.get("lv_ref")
+        partition_ref = filesystem.get("partition_ref")
         if lv_ref and partition_ref:
-            errors.append(
-                f"Filesystem '{fs_id}': cannot reference both lv_ref and partition_ref"
-            )
+            errors.append(f"Filesystem '{fs_id}': cannot reference both lv_ref and partition_ref")
         if not lv_ref and not partition_ref:
-            errors.append(
-                f"Filesystem '{fs_id}': must reference lv_ref or partition_ref"
-            )
+            errors.append(f"Filesystem '{fs_id}': must reference lv_ref or partition_ref")
         if lv_ref and lv_ref not in logical_volumes:
-            errors.append(
-                f"Filesystem '{fs_id}': lv_ref '{lv_ref}' not found in L3 logical_volumes"
-            )
+            errors.append(f"Filesystem '{fs_id}': lv_ref '{lv_ref}' not found in L3 logical_volumes")
         if partition_ref and partition_ref not in partitions:
-            errors.append(
-                f"Filesystem '{fs_id}': partition_ref '{partition_ref}' not found in L3 partitions"
-            )
+            errors.append(f"Filesystem '{fs_id}': partition_ref '{partition_ref}' not found in L3 partitions")
 
     for mount_id, mount in mount_points.items():
-        filesystem_ref = mount.get('filesystem_ref')
+        filesystem_ref = mount.get("filesystem_ref")
         if filesystem_ref and filesystem_ref not in filesystems:
-            errors.append(
-                f"Mount point '{mount_id}': filesystem_ref '{filesystem_ref}' not found in L3 filesystems"
-            )
+            errors.append(f"Mount point '{mount_id}': filesystem_ref '{filesystem_ref}' not found in L3 filesystems")
 
-    for endpoint in l3.get('storage_endpoints', []) or []:
+    for endpoint in l3.get("storage_endpoints", []) or []:
         if not isinstance(endpoint, dict):
             continue
-        endpoint_id = endpoint.get('id', 'unknown')
-        has_lv_ref = bool(endpoint.get('lv_ref'))
-        has_mount_point_ref = bool(endpoint.get('mount_point_ref'))
-        has_path = bool(endpoint.get('path'))
-        infer_from = endpoint.get('infer_from')
+        endpoint_id = endpoint.get("id", "unknown")
+        has_lv_ref = bool(endpoint.get("lv_ref"))
+        has_mount_point_ref = bool(endpoint.get("mount_point_ref"))
+        has_path = bool(endpoint.get("path"))
+        infer_from = endpoint.get("infer_from")
         has_infer_from = isinstance(infer_from, dict) and bool(infer_from)
 
         if not any((has_lv_ref, has_mount_point_ref, has_path, has_infer_from)):
-            warnings.append(
-                f"Storage endpoint '{endpoint_id}': no lv_ref/mount_point_ref/path/infer_from set"
-            )
+            warnings.append(f"Storage endpoint '{endpoint_id}': no lv_ref/mount_point_ref/path/infer_from set")
 
         if has_infer_from:
-            attachment_ref = infer_from.get('media_attachment_ref')
-            vg_name = infer_from.get('vg_name')
-            lv_name = infer_from.get('lv_name')
+            attachment_ref = infer_from.get("media_attachment_ref")
+            vg_name = infer_from.get("vg_name")
+            lv_name = infer_from.get("lv_name")
             expected_vg_id = None
             if attachment_ref and attachment_ref not in attachment_ids:
                 errors.append(
                     f"Storage endpoint '{endpoint_id}': infer_from.media_attachment_ref '{attachment_ref}' not found in L1 media_attachments"
                 )
-            if endpoint.get('type') == 'lvmthin':
+            if endpoint.get("type") == "lvmthin":
                 if not attachment_ref:
                     errors.append(
                         f"Storage endpoint '{endpoint_id}': infer_from.media_attachment_ref is required for type 'lvmthin'"
@@ -687,12 +630,12 @@ def check_l3_storage_refs(
                         f"Storage endpoint '{endpoint_id}': infer_from.vg_name '{vg_name}' is not present in L3 volume_groups names"
                     )
 
-            if endpoint.get('type') == 'lvmthin' and attachment_ref and expected_vg_id:
+            if endpoint.get("type") == "lvmthin" and attachment_ref and expected_vg_id:
                 expected_vg = volume_groups.get(expected_vg_id) or {}
-                expected_pv_refs = expected_vg.get('pv_refs', []) or []
+                expected_pv_refs = expected_vg.get("pv_refs", []) or []
                 pv_matches_attachment = any(
                     isinstance(partitions.get(pv_ref), dict)
-                    and partitions[pv_ref].get('media_attachment_ref') == attachment_ref
+                    and partitions[pv_ref].get("media_attachment_ref") == attachment_ref
                     for pv_ref in expected_pv_refs
                 )
                 if expected_pv_refs and not pv_matches_attachment:
@@ -707,7 +650,7 @@ def check_l3_storage_refs(
                         f"Storage endpoint '{endpoint_id}': infer_from.lv_name '{lv_name}' is not present in L3 logical_volumes names"
                     )
                 elif expected_vg_id:
-                    if lv_item.get('vg_ref') and lv_item.get('vg_ref') != expected_vg_id:
+                    if lv_item.get("vg_ref") and lv_item.get("vg_ref") != expected_vg_id:
                         warnings.append(
                             f"Storage endpoint '{endpoint_id}': infer_from.lv_name '{lv_name}' belongs to vg '{lv_item.get('vg_ref')}', not '{expected_vg_id}'"
                         )
@@ -717,39 +660,35 @@ def check_l3_storage_refs(
                     f"Storage endpoint '{endpoint_id}': infer_from used together with lv_ref/mount_point_ref; prefer one modeling approach"
                 )
 
-        if endpoint.get('lv_ref') and endpoint.get('lv_ref') not in logical_volumes:
+        if endpoint.get("lv_ref") and endpoint.get("lv_ref") not in logical_volumes:
             errors.append(
                 f"Storage endpoint '{endpoint_id}': lv_ref '{endpoint.get('lv_ref')}' not found in L3 logical_volumes"
             )
-        if endpoint.get('mount_point_ref') and endpoint.get('mount_point_ref') not in mount_points:
+        if endpoint.get("mount_point_ref") and endpoint.get("mount_point_ref") not in mount_points:
             errors.append(
                 f"Storage endpoint '{endpoint_id}': mount_point_ref '{endpoint.get('mount_point_ref')}' not found in L3 mount_points"
             )
 
     engine_required_categories = {
-        'database',
-        'cache',
-        'timeseries',
-        'search-index',
-        'object-storage',
+        "database",
+        "cache",
+        "timeseries",
+        "search-index",
+        "object-storage",
     }
-    for asset in l3.get('data_assets', []) or []:
+    for asset in l3.get("data_assets", []) or []:
         if not isinstance(asset, dict):
             continue
-        asset_id = asset.get('id', 'unknown')
-        category = asset.get('category')
-        criticality = asset.get('criticality')
-        backup_policy_refs = asset.get('backup_policy_refs') or []
+        asset_id = asset.get("id", "unknown")
+        category = asset.get("category")
+        criticality = asset.get("criticality")
+        backup_policy_refs = asset.get("backup_policy_refs") or []
 
-        if category in engine_required_categories and not asset.get('engine'):
-            errors.append(
-                f"Data asset '{asset_id}': category '{category}' requires engine"
-            )
+        if category in engine_required_categories and not asset.get("engine"):
+            errors.append(f"Data asset '{asset_id}': category '{category}' requires engine")
 
-        if criticality in {'high', 'critical'} and not backup_policy_refs:
-            errors.append(
-                f"Data asset '{asset_id}': criticality '{criticality}' requires backup_policy_refs"
-            )
+        if criticality in {"high", "critical"} and not backup_policy_refs:
+            errors.append(f"Data asset '{asset_id}': criticality '{criticality}' requires backup_policy_refs")
 
         for backup_ref in backup_policy_refs:
             if backup_ref not in backup_policies:
@@ -758,9 +697,9 @@ def check_l3_storage_refs(
                 )
 
         has_placement_fields = bool(
-            asset.get('storage_endpoint_ref') or asset.get('mount_point_ref') or asset.get('path')
+            asset.get("storage_endpoint_ref") or asset.get("mount_point_ref") or asset.get("path")
         )
-        if asset.get('category') and has_placement_fields:
+        if asset.get("category") and has_placement_fields:
             warnings.append(
                 f"Data asset '{asset_id}': placement fields in L3 data_assets are deprecated; prefer L4 volume placement"
             )

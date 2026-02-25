@@ -9,7 +9,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 LAST_UPDATED_RE = re.compile(r"^(\s*last_updated:\s*)(['\"]?)(\d{4}-\d{2}-\d{2})(['\"]?)\s*$", re.MULTILINE)
 
 

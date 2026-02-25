@@ -6,7 +6,8 @@ import argparse
 import sys
 from typing import Sequence
 
-from scripts.generators.common import GeneratorCLI, Generator, run_cli
+from scripts.generators.common import Generator, GeneratorCLI, run_cli
+
 from .generator import DocumentationGenerator
 
 

@@ -14,7 +14,7 @@ Configuration:
 
 ⚠️  WARNING: ALL DATA ON /dev/sdc WILL BE ERASED!
 
-Continue? (type YES): 
+Continue? (type YES):
 Starting USB creation...
 
 INFO: Validated target: /dev/sdc (device: sdc)
@@ -52,7 +52,7 @@ INFO: Found GRUB config: efi/boot/grub.cfg
 INFO: Adding graphics parameters to kernel boot lines...
 INFO: Graphics parameters added
 INFO: GRUB configuration updated for external display support
-INFO: 
+INFO:
 INFO: =========================================
 INFO: VALIDATING CREATED USB
 INFO: =========================================
@@ -81,12 +81,12 @@ INFO:   ✓ Installer GRUB menu: boot/grub/grub.cfg
 INFO: =========================================
 INFO: ✓ VALIDATION PASSED: USB is ready for boot
 INFO: =========================================
-INFO: 
-INFO: 
+INFO:
+INFO:
 INFO: =========================================
 INFO: USB READY FOR AUTOMATED INSTALLATION
 INFO: =========================================
-INFO: 
+INFO:
 INFO: Boot instructions (FIRST BOOT):
 INFO: 1. Connect external monitor (Mini DisplayPort)
 INFO: 2. Insert USB into Dell XPS L701X
@@ -95,19 +95,19 @@ INFO: 4. Select: UEFI: USB... (NOT 'USB Storage Device')
 INFO: 5. GRUB menu: 'Install Proxmox VE (AUTO-INSTALL)'
 INFO: 6. Installation starts automatically after 5 seconds
 INFO: 7. System reboots after installation (~10-15 min)
-INFO: 
+INFO:
 INFO: Boot instructions (AFTER INSTALLATION):
 INFO: 1. Leave USB inserted and reboot
 INFO: 2. GRUB menu changes to: 'Boot Proxmox VE (Already Installed)'
 INFO: 3. Boots installed system automatically after 5 seconds
 INFO: 4. No reinstallation - UUID protection active!
-INFO: 
+INFO:
 INFO: To force reinstall: Select 'Reinstall Proxmox (ERASES ALL DATA!)'
-INFO: 
+INFO:
 INFO: After first successful boot:
 INFO:   SSH: ssh root@<proxmox-ip>
 INFO:   Web: https://<proxmox-ip>:8006
-INFO: 
+INFO:
 INFO: Note: Temporary ISO will be automatically cleaned up on exit.
 
 ==========================================

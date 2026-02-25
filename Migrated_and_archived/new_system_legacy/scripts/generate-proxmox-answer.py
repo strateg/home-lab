@@ -10,10 +10,11 @@ Example:
     python3 generate-proxmox-answer.py ../topology.yaml ../bare-metal/answer.toml
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
+
 from topology_loader import load_topology
 
 
@@ -35,11 +36,11 @@ class ProxmoxAnswerGenerator:
 
     def _extract_proxmox_node(self) -> Optional[Dict[str, Any]]:
         """Extract Proxmox hypervisor node from topology"""
-        devices = self.topology.get('physical_topology', {}).get('devices', [])
+        devices = self.topology.get("physical_topology", {}).get("devices", [])
 
         for device in devices:
             # Find hypervisor device (role can be 'compute', 'proxmox-ve', or 'hypervisor')
-            if device.get('type') == 'hypervisor':
+            if device.get("type") == "hypervisor":
                 return device
 
         return None
@@ -49,19 +50,19 @@ class ProxmoxAnswerGenerator:
         if not self.proxmox_node:
             return "sda"
 
-        disks = self.proxmox_node.get('specs', {}).get('disks', [])
+        disks = self.proxmox_node.get("specs", {}).get("disks", [])
 
         # Find SSD for system installation
         for disk in disks:
-            if disk.get('type') == 'ssd':
+            if disk.get("type") == "ssd":
                 # Extract device name from path (/dev/sda -> sda)
-                device_path = disk.get('device', '/dev/sda')
-                return device_path.replace('/dev/', '')
+                device_path = disk.get("device", "/dev/sda")
+                return device_path.replace("/dev/", "")
 
         # Fallback: first disk
         if disks:
-            device_path = disks[0].get('device', '/dev/sda')
-            return device_path.replace('/dev/', '')
+            device_path = disks[0].get("device", "/dev/sda")
+            return device_path.replace("/dev/", "")
 
         return "sda"
 
@@ -71,13 +72,13 @@ class ProxmoxAnswerGenerator:
             return "proxmox.home.local"
 
         # Get domain from DNS zone (default: home.local)
-        dns_zones = self.topology.get('logical_topology', {}).get('dns', {}).get('zones', [])
-        domain = 'home.local'
+        dns_zones = self.topology.get("logical_topology", {}).get("dns", {}).get("zones", [])
+        domain = "home.local"
         if dns_zones:
-            domain = dns_zones[0].get('domain', 'home.local')
+            domain = dns_zones[0].get("domain", "home.local")
 
         # Construct FQDN: {node_id}.{domain}
-        node_id = self.proxmox_node.get('id', 'proxmox')
+        node_id = self.proxmox_node.get("id", "proxmox")
         return f"{node_id}.{domain}"
 
     def _get_management_ip(self) -> Optional[Dict[str, str]]:
@@ -85,12 +86,12 @@ class ProxmoxAnswerGenerator:
         Extract management network IP configuration for Proxmox node
         Returns dict with 'ip', 'gateway', 'dns' or None for DHCP
         """
-        networks = self.topology.get('logical_topology', {}).get('networks', [])
+        networks = self.topology.get("logical_topology", {}).get("networks", [])
 
         # Find management network
         mgmt_network = None
         for net in networks:
-            if net.get('id') == 'net-management':
+            if net.get("id") == "net-management":
                 mgmt_network = net
                 break
 
@@ -98,25 +99,21 @@ class ProxmoxAnswerGenerator:
             return None
 
         # Find Proxmox node IP allocation
-        allocations = mgmt_network.get('ip_allocations', [])
+        allocations = mgmt_network.get("ip_allocations", [])
         for alloc in allocations:
-            if alloc.get('device_ref') == self.proxmox_node.get('id'):
+            if alloc.get("device_ref") == self.proxmox_node.get("id"):
                 # Extract IP from allocation
-                ip_cidr = alloc.get('ip')  # e.g., "10.0.99.1/24"
-                gateway = mgmt_network.get('gateway', '10.0.99.1')
-                dns_servers = mgmt_network.get('dns', ['1.1.1.1', '8.8.8.8'])
+                ip_cidr = alloc.get("ip")  # e.g., "10.0.99.1/24"
+                gateway = mgmt_network.get("gateway", "10.0.99.1")
+                dns_servers = mgmt_network.get("dns", ["1.1.1.1", "8.8.8.8"])
 
-                return {
-                    'cidr': ip_cidr,
-                    'gateway': gateway,
-                    'dns': dns_servers[0] if dns_servers else '1.1.1.1'
-                }
+                return {"cidr": ip_cidr, "gateway": gateway, "dns": dns_servers[0] if dns_servers else "1.1.1.1"}
 
         return None
 
     def _get_metadata(self, key: str, default: Any = None) -> Any:
         """Get value from metadata section"""
-        return self.topology.get('metadata', {}).get(key, default)
+        return self.topology.get("metadata", {}).get(key, default)
 
     def _get_root_password_hash(self) -> str:
         """
@@ -126,16 +123,18 @@ class ProxmoxAnswerGenerator:
             SHA-512 password hash from topology.security.proxmox.root_password_hash
             Falls back to hardcoded default if not found in topology
         """
-        security = self.topology.get('security', {})
-        proxmox_security = security.get('proxmox', {})
+        security = self.topology.get("security", {})
+        proxmox_security = security.get("proxmox", {})
 
         # Read from topology (preferred)
-        hash_from_topology = proxmox_security.get('root_password_hash')
+        hash_from_topology = proxmox_security.get("root_password_hash")
         if hash_from_topology:
             return hash_from_topology
 
         # Fallback: hardcoded default (same as before for backward compatibility)
-        return "$6$Wx8sYKmgnwHk4BgS$eGr047.zvpBPesQF.sQ13IFcLdPSaIhqJ8eteA5Y0LSwq4Fp2vurgSN9LmWLjvxBPKJCRpt57l.vC9izxPQvn0"
+        return (
+            "$6$Wx8sYKmgnwHk4BgS$eGr047.zvpBPesQF.sQ13IFcLdPSaIhqJ8eteA5Y0LSwq4Fp2vurgSN9LmWLjvxBPKJCRpt57l.vC9izxPQvn0"
+        )
 
     def validate(self) -> bool:
         """
@@ -153,38 +152,38 @@ class ProxmoxAnswerGenerator:
             return False
 
         # Check node has ID
-        if not self.proxmox_node.get('id'):
+        if not self.proxmox_node.get("id"):
             self.validation_errors.append("Proxmox node missing 'id' field")
 
         # Check disk configuration
-        disks = self.proxmox_node.get('specs', {}).get('disks', [])
+        disks = self.proxmox_node.get("specs", {}).get("disks", [])
         if not disks:
             self.validation_errors.append("Proxmox node has no disks defined")
         else:
             # Check for system disk (SSD)
-            has_system_disk = any(d.get('type') == 'ssd' for d in disks)
+            has_system_disk = any(d.get("type") == "ssd" for d in disks)
             if not has_system_disk:
                 self.validation_warnings.append("No SSD found for system installation, will use first disk")
 
             # Check disk devices are specified
             for disk in disks:
-                if not disk.get('device'):
+                if not disk.get("device"):
                     self.validation_warnings.append(f"Disk {disk.get('id', 'unknown')} missing 'device' field")
 
         # Check network configuration
-        networks = self.topology.get('logical_topology', {}).get('networks', [])
+        networks = self.topology.get("logical_topology", {}).get("networks", [])
         if not networks:
             self.validation_warnings.append("No networks defined in topology")
 
         # Check DNS zones for hostname domain
-        dns_zones = self.topology.get('logical_topology', {}).get('dns', {}).get('zones', [])
+        dns_zones = self.topology.get("logical_topology", {}).get("dns", {}).get("zones", [])
         if not dns_zones:
             self.validation_warnings.append("No DNS zones defined, using default 'home.local'")
 
         # Check management network
         mgmt_network = None
         for net in networks:
-            if net.get('id') == 'net-management':
+            if net.get("id") == "net-management":
                 mgmt_network = net
                 break
 
@@ -192,11 +191,8 @@ class ProxmoxAnswerGenerator:
             self.validation_warnings.append("No management network (net-management) found, using DHCP")
         else:
             # Check if Proxmox node has IP allocation
-            allocations = mgmt_network.get('ip_allocations', [])
-            has_proxmox_ip = any(
-                alloc.get('device_ref') == self.proxmox_node.get('id')
-                for alloc in allocations
-            )
+            allocations = mgmt_network.get("ip_allocations", [])
+            has_proxmox_ip = any(alloc.get("device_ref") == self.proxmox_node.get("id") for alloc in allocations)
             if not has_proxmox_ip:
                 self.validation_warnings.append(
                     f"Proxmox node '{self.proxmox_node.get('id')}' has no IP allocation in management network"
@@ -227,18 +223,17 @@ class ProxmoxAnswerGenerator:
             if isinstance(value, str):
                 lines.append(f'{key} = "{value}"')
             elif isinstance(value, (int, float)):
-                lines.append(f'{key} = {value}')
+                lines.append(f"{key} = {value}")
             elif isinstance(value, list):
                 # Format list of strings
-                formatted_list = ', '.join(f'"{v}"' for v in value)
-                lines.append(f'{key} = [{formatted_list}]')
+                formatted_list = ", ".join(f'"{v}"' for v in value)
+                lines.append(f"{key} = [{formatted_list}]")
             elif isinstance(value, bool):
-                lines.append(f'{key} = {str(value).lower()}')
+                lines.append(f"{key} = {str(value).lower()}")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
-    def generate(self, root_password_hash: Optional[str] = None,
-                 use_dhcp: bool = True) -> str:
+    def generate(self, root_password_hash: Optional[str] = None, use_dhcp: bool = True) -> str:
         """
         Generate answer.toml content
 
@@ -279,15 +274,15 @@ class ProxmoxAnswerGenerator:
 
         # [global] section
         global_data = {
-            'keyboard': 'en-us',
-            'country': 'us',
-            'timezone': 'UTC',
-            'root_password': root_password_hash,
-            'mailto': 'admin@home.local',
-            'fqdn': hostname,
-            'reboot_mode': 'power-off',
+            "keyboard": "en-us",
+            "country": "us",
+            "timezone": "UTC",
+            "root_password": root_password_hash,
+            "mailto": "admin@home.local",
+            "fqdn": hostname,
+            "reboot_mode": "power-off",
         }
-        sections.append(self._format_toml_section('global', global_data))
+        sections.append(self._format_toml_section("global", global_data))
         sections.append("")
 
         # [disk-setup] section
@@ -297,10 +292,10 @@ class ProxmoxAnswerGenerator:
         sections.append("")
 
         disk_setup_data = {
-            'filesystem': 'ext4',
-            'disk_list': [primary_disk],
+            "filesystem": "ext4",
+            "disk_list": [primary_disk],
         }
-        sections.append(self._format_toml_section('disk-setup', disk_setup_data))
+        sections.append(self._format_toml_section("disk-setup", disk_setup_data))
         sections.append("")
 
         # LVM configuration
@@ -323,9 +318,9 @@ class ProxmoxAnswerGenerator:
         if use_dhcp:
             # DHCP configuration (recommended for initial setup)
             network_data = {
-                'source': 'from-dhcp',
+                "source": "from-dhcp",
             }
-            sections.append(self._format_toml_section('network', network_data))
+            sections.append(self._format_toml_section("network", network_data))
             sections.append("")
             sections.append("# Static IP configuration will be applied by post-install scripts")
         else:
@@ -333,16 +328,16 @@ class ProxmoxAnswerGenerator:
             mgmt_ip = self._get_management_ip()
             if mgmt_ip:
                 network_data = {
-                    'source': 'from-answer',
-                    'cidr': mgmt_ip['cidr'],
-                    'gateway': mgmt_ip['gateway'],
-                    'dns': mgmt_ip['dns'],
+                    "source": "from-answer",
+                    "cidr": mgmt_ip["cidr"],
+                    "gateway": mgmt_ip["gateway"],
+                    "dns": mgmt_ip["dns"],
                 }
-                sections.append(self._format_toml_section('network', network_data))
+                sections.append(self._format_toml_section("network", network_data))
             else:
                 # Fallback to DHCP if no management IP found
-                network_data = {'source': 'from-dhcp'}
-                sections.append(self._format_toml_section('network', network_data))
+                network_data = {"source": "from-dhcp"}
+                sections.append(self._format_toml_section("network", network_data))
                 sections.append("# No static management IP found in topology, using DHCP")
 
         sections.append("")
@@ -354,10 +349,10 @@ class ProxmoxAnswerGenerator:
         sections.append("")
 
         first_boot_data = {
-            'source': 'from-iso',
-            'ordering': 'fully-up',
+            "source": "from-iso",
+            "ordering": "fully-up",
         }
-        sections.append(self._format_toml_section('first-boot', first_boot_data))
+        sections.append(self._format_toml_section("first-boot", first_boot_data))
         sections.append("")
 
         # Notes
@@ -366,7 +361,9 @@ class ProxmoxAnswerGenerator:
         sections.append("# ============================================================")
         sections.append("#")
         sections.append("# This configuration will:")
-        sections.append(f"# 1. Install Proxmox VE 9 on {self.proxmox_node.get('specs', {}).get('model', 'Dell XPS L701X')}")
+        sections.append(
+            f"# 1. Install Proxmox VE 9 on {self.proxmox_node.get('specs', {}).get('model', 'Dell XPS L701X')}"
+        )
         sections.append(f"# 2. Hostname: {hostname}")
         sections.append(f"# 3. System disk: {primary_disk}")
         sections.append("# 4. Network: DHCP initially (configured by post-install scripts)")
@@ -379,10 +376,9 @@ class ProxmoxAnswerGenerator:
         sections.append("# 5. Apply Ansible configuration")
         sections.append("")
 
-        return '\n'.join(sections)
+        return "\n".join(sections)
 
-    def save(self, output_path: str, root_password_hash: Optional[str] = None,
-             use_dhcp: bool = True) -> None:
+    def save(self, output_path: str, root_password_hash: Optional[str] = None, use_dhcp: bool = True) -> None:
         """
         Generate and save answer.toml
 
@@ -411,7 +407,7 @@ class ProxmoxAnswerGenerator:
 def main():
     """CLI entry point"""
     parser = argparse.ArgumentParser(
-        description='Generate Proxmox answer.toml from topology.yaml',
+        description="Generate Proxmox answer.toml from topology.yaml",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -423,39 +419,25 @@ Examples:
 
   # Generate with static IP (not recommended for auto-install)
   %(prog)s topology.yaml answer.toml --static
-        """
+        """,
     )
 
     parser.add_argument(
-        'topology',
-        nargs='?',
-        default='topology.yaml',
-        help='Path to topology.yaml (default: topology.yaml)'
+        "topology", nargs="?", default="topology.yaml", help="Path to topology.yaml (default: topology.yaml)"
     )
 
     parser.add_argument(
-        'output',
-        nargs='?',
-        default='bare-metal/answer.toml',
-        help='Output path for answer.toml (default: bare-metal/answer.toml)'
+        "output",
+        nargs="?",
+        default="bare-metal/answer.toml",
+        help="Output path for answer.toml (default: bare-metal/answer.toml)",
     )
 
-    parser.add_argument(
-        '--password',
-        help='Root password hash (SHA-512). Generate with: openssl passwd -6 "password"'
-    )
+    parser.add_argument("--password", help='Root password hash (SHA-512). Generate with: openssl passwd -6 "password"')
 
-    parser.add_argument(
-        '--static',
-        action='store_true',
-        help='Use static IP from topology (default: DHCP)'
-    )
+    parser.add_argument("--static", action="store_true", help="Use static IP from topology (default: DHCP)")
 
-    parser.add_argument(
-        '--validate',
-        action='store_true',
-        help='Validate topology structure only (do not generate)'
-    )
+    parser.add_argument("--validate", action="store_true", help="Validate topology structure only (do not generate)")
 
     args = parser.parse_args()
 
@@ -483,11 +465,7 @@ Examples:
             return 0 if is_valid else 1
 
         # Generate answer.toml
-        generator.save(
-            args.output,
-            root_password_hash=args.password,
-            use_dhcp=not args.static
-        )
+        generator.save(args.output, root_password_hash=args.password, use_dhcp=not args.static)
 
         print("")
         print("⚠️  IMPORTANT:")
@@ -500,9 +478,10 @@ Examples:
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

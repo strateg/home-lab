@@ -149,10 +149,7 @@ def load_and_validate_layered_topology(
     version = topology.get("L0_meta", {}).get("version", "")
     warning = None
     if expected_version_prefix and not str(version).startswith(expected_version_prefix):
-        warning = (
-            f"Warning: Topology version {version} may not be compatible "
-            f"(expected {expected_version_prefix}x)"
-        )
+        warning = f"Warning: Topology version {version} may not be compatible " f"(expected {expected_version_prefix}x)"
 
     return topology, warning
 

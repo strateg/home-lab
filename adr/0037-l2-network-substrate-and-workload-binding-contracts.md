@@ -62,7 +62,7 @@ This causes ambiguity in multi-runtime scenarios (host OS + LXC + VM + Docker) e
 
 ### D1. Keep L2 as canonical network source of truth
 
-L2 remains the owner of network segmentation and policy.  
+L2 remains the owner of network segmentation and policy.
 Do not move IP allocation or bridge ownership models to L4.
 
 ### D2. Add explicit network scope in L2
@@ -87,7 +87,7 @@ Scope rules:
 - `vm` -> `vm-*`
 - `docker`/`baremetal` -> `device_ref`
 
-Add optional `runtime.host_os_ref` only for disambiguation (for example multiple active host OS entries on one device).  
+Add optional `runtime.host_os_ref` only for disambiguation (for example multiple active host OS entries on one device).
 This keeps existing consumers stable and avoids broad breaking changes.
 
 ### D4. Add optional host OS ownership to L2 allocations and bridges

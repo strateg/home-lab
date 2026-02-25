@@ -2,7 +2,6 @@
 
 from typing import Any, Dict, List, Set
 
-
 ARCH_ALIASES = {
     "x86_64": "x86_64",
     "amd64": "x86_64",
@@ -40,84 +39,72 @@ def _normalize_arch(value: Any) -> str:
 
 
 def _device_map(topology: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    l1 = topology.get('L1_foundation', {})
-    return {
-        d.get('id'): d
-        for d in (l1.get('devices', []) or [])
-        if isinstance(d, dict) and d.get('id')
-    }
+    l1 = topology.get("L1_foundation", {})
+    return {d.get("id"): d for d in (l1.get("devices", []) or []) if isinstance(d, dict) and d.get("id")}
 
 
 def _host_os_map(topology: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    l4 = topology.get('L4_platform', {})
-    return {
-        h.get('id'): h
-        for h in (l4.get('host_operating_systems', []) or [])
-        if isinstance(h, dict) and h.get('id')
-    }
+    l4 = topology.get("L4_platform", {})
+    return {h.get("id"): h for h in (l4.get("host_operating_systems", []) or []) if isinstance(h, dict) and h.get("id")}
 
 
 def _template_map(topology: Dict[str, Any], template_family: str) -> Dict[str, Dict[str, Any]]:
-    l4 = topology.get('L4_platform', {})
-    templates = (l4.get('templates') or {}).get(template_family, []) or []
-    return {
-        template.get('id'): template
-        for template in templates
-        if isinstance(template, dict) and template.get('id')
-    }
+    l4 = topology.get("L4_platform", {})
+    templates = (l4.get("templates") or {}).get(template_family, []) or []
+    return {template.get("id"): template for template in templates if isinstance(template, dict) and template.get("id")}
 
 
 def _active_host_os_by_device(topology: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
     per_device: Dict[str, List[Dict[str, Any]]] = {}
     for host_os in _host_os_map(topology).values():
-        status = str(host_os.get('status', '')).lower()
-        if status and status != 'active':
+        status = str(host_os.get("status", "")).lower()
+        if status and status != "active":
             continue
-        device_ref = host_os.get('device_ref')
+        device_ref = host_os.get("device_ref")
         if isinstance(device_ref, str) and device_ref:
             per_device.setdefault(device_ref, []).append(host_os)
     return per_device
 
 
 def _device_architecture(device: Dict[str, Any]) -> str:
-    specs = device.get('specs') if isinstance(device.get('specs'), dict) else {}
-    cpu = specs.get('cpu') if isinstance(specs.get('cpu'), dict) else {}
-    return _normalize_arch(cpu.get('architecture'))
+    specs = device.get("specs") if isinstance(device.get("specs"), dict) else {}
+    cpu = specs.get("cpu") if isinstance(specs.get("cpu"), dict) else {}
+    return _normalize_arch(cpu.get("architecture"))
 
 
 def _storage_endpoint_map(topology: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
-    l3 = topology.get('L3_data', {})
+    l3 = topology.get("L3_data", {})
     return {
-        endpoint.get('id'): endpoint
-        for endpoint in (l3.get('storage_endpoints', []) or [])
-        if isinstance(endpoint, dict) and endpoint.get('id')
+        endpoint.get("id"): endpoint
+        for endpoint in (l3.get("storage_endpoints", []) or [])
+        if isinstance(endpoint, dict) and endpoint.get("id")
     }
 
 
 def _runtime_target_devices(topology: Dict[str, Any]) -> Set[str]:
-    l4 = topology.get('L4_platform', {})
-    l5 = topology.get('L5_application', {})
+    l4 = topology.get("L4_platform", {})
+    l5 = topology.get("L5_application", {})
     devices: Set[str] = set()
 
-    for workload in (l4.get('lxc', []) or []):
+    for workload in l4.get("lxc", []) or []:
         if isinstance(workload, dict):
-            device_ref = workload.get('device_ref')
+            device_ref = workload.get("device_ref")
             if isinstance(device_ref, str) and device_ref:
                 devices.add(device_ref)
 
-    for workload in (l4.get('vms', []) or []):
+    for workload in l4.get("vms", []) or []:
         if isinstance(workload, dict):
-            device_ref = workload.get('device_ref')
+            device_ref = workload.get("device_ref")
             if isinstance(device_ref, str) and device_ref:
                 devices.add(device_ref)
 
-    for service in (l5.get('services', []) or []):
+    for service in l5.get("services", []) or []:
         if not isinstance(service, dict):
             continue
-        runtime = service.get('runtime') if isinstance(service.get('runtime'), dict) else {}
-        runtime_type = runtime.get('type')
-        target_ref = runtime.get('target_ref')
-        if runtime_type in {'docker', 'baremetal'} and isinstance(target_ref, str) and target_ref:
+        runtime = service.get("runtime") if isinstance(service.get("runtime"), dict) else {}
+        runtime_type = runtime.get("type")
+        target_ref = runtime.get("target_ref")
+        if runtime_type in {"docker", "baremetal"} and isinstance(target_ref, str) and target_ref:
             devices.add(target_ref)
 
     return devices
@@ -147,54 +134,52 @@ def check_host_os_refs(
     warnings: List[str],
 ) -> None:
     del warnings
-    l3 = topology.get('L3_data', {})
-    l4 = topology.get('L4_platform', {})
+    l3 = topology.get("L3_data", {})
+    l4 = topology.get("L4_platform", {})
     devices = _device_map(topology)
     active_by_device = _active_host_os_by_device(topology)
     has_host_os_inventory = bool(_host_os_map(topology))
     storage_endpoints = {
-        endpoint.get('id'): endpoint
-        for endpoint in (l3.get('storage_endpoints', []) or [])
-        if isinstance(endpoint, dict) and endpoint.get('id')
+        endpoint.get("id"): endpoint
+        for endpoint in (l3.get("storage_endpoints", []) or [])
+        if isinstance(endpoint, dict) and endpoint.get("id")
     }
     mount_points = {
-        mount.get('id'): mount
-        for mount in (l3.get('mount_points', []) or [])
-        if isinstance(mount, dict) and mount.get('id')
+        mount.get("id"): mount
+        for mount in (l3.get("mount_points", []) or [])
+        if isinstance(mount, dict) and mount.get("id")
     }
 
-    for host_os in l4.get('host_operating_systems', []) or []:
+    for host_os in l4.get("host_operating_systems", []) or []:
         if not isinstance(host_os, dict):
             continue
-        hos_id = host_os.get('id')
-        device_ref = host_os.get('device_ref')
-        if device_ref and device_ref not in ids['devices']:
+        hos_id = host_os.get("id")
+        device_ref = host_os.get("device_ref")
+        if device_ref and device_ref not in ids["devices"]:
             errors.append(f"Host OS '{hos_id}': device_ref '{device_ref}' does not exist")
             continue
 
-        installation = host_os.get('installation') if isinstance(host_os.get('installation'), dict) else {}
-        root_storage_endpoint_ref = installation.get('root_storage_endpoint_ref')
-        if root_storage_endpoint_ref and root_storage_endpoint_ref not in ids['storage_endpoints']:
+        installation = host_os.get("installation") if isinstance(host_os.get("installation"), dict) else {}
+        root_storage_endpoint_ref = installation.get("root_storage_endpoint_ref")
+        if root_storage_endpoint_ref and root_storage_endpoint_ref not in ids["storage_endpoints"]:
             errors.append(
                 f"Host OS '{hos_id}': installation.root_storage_endpoint_ref '{root_storage_endpoint_ref}' does not exist"
             )
         if root_storage_endpoint_ref and root_storage_endpoint_ref in storage_endpoints:
             endpoint = storage_endpoints[root_storage_endpoint_ref]
-            mount_point_ref = endpoint.get('mount_point_ref')
+            mount_point_ref = endpoint.get("mount_point_ref")
             mount_point = mount_points.get(mount_point_ref, {}) if isinstance(mount_point_ref, str) else {}
-            mount_device_ref = mount_point.get('device_ref')
+            mount_device_ref = mount_point.get("device_ref")
             if mount_device_ref and device_ref and mount_device_ref != device_ref:
                 errors.append(
                     f"Host OS '{hos_id}': installation.root_storage_endpoint_ref '{root_storage_endpoint_ref}' "
                     f"points to mount point on device '{mount_device_ref}', expected '{device_ref}'"
                 )
 
-        host_type = host_os.get('host_type')
-        if host_type in {'baremetal', 'hypervisor'}:
+        host_type = host_os.get("host_type")
+        if host_type in {"baremetal", "hypervisor"}:
             if not installation:
-                errors.append(
-                    f"Host OS '{hos_id}': installation is required for host_type '{host_type}'"
-                )
+                errors.append(f"Host OS '{hos_id}': installation is required for host_type '{host_type}'")
             elif not root_storage_endpoint_ref:
                 errors.append(
                     f"Host OS '{hos_id}': installation.root_storage_endpoint_ref is required for host_type '{host_type}'"
@@ -202,34 +187,28 @@ def check_host_os_refs(
 
         device = devices.get(device_ref, {})
         device_arch = _device_architecture(device)
-        host_arch = _normalize_arch(host_os.get('architecture'))
+        host_arch = _normalize_arch(host_os.get("architecture"))
         if device_arch and host_arch and device_arch != host_arch:
             errors.append(
                 f"Host OS '{hos_id}' architecture '{host_os.get('architecture')}' does not match "
                 f"device '{device_ref}' architecture '{device.get('specs', {}).get('cpu', {}).get('architecture')}'"
             )
 
-        raw_arch = host_os.get('architecture')
+        raw_arch = host_os.get("architecture")
         if isinstance(raw_arch, str) and raw_arch.strip():
             if raw_arch != host_arch:
-                errors.append(
-                    f"Host OS '{hos_id}': architecture '{raw_arch}' must be canonical; use '{host_arch}'"
-                )
+                errors.append(f"Host OS '{hos_id}': architecture '{raw_arch}' must be canonical; use '{host_arch}'")
             if host_arch and host_arch not in CANONICAL_ARCH_VALUES:
-                errors.append(
-                    f"Host OS '{hos_id}': architecture '{raw_arch}' normalizes to unsupported '{host_arch}'"
-                )
+                errors.append(f"Host OS '{hos_id}': architecture '{raw_arch}' normalizes to unsupported '{host_arch}'")
 
-        capabilities = host_os.get('capabilities') or []
+        capabilities = host_os.get("capabilities") or []
         if isinstance(capabilities, list):
             for cap in capabilities:
                 if not isinstance(cap, str):
                     continue
                 allowed_host_types = CAPABILITY_ALLOWED_HOST_TYPES.get(cap)
                 if allowed_host_types and host_type not in allowed_host_types:
-                    errors.append(
-                        f"Host OS '{hos_id}': capability '{cap}' is not valid for host_type '{host_type}'"
-                    )
+                    errors.append(f"Host OS '{hos_id}': capability '{cap}' is not valid for host_type '{host_type}'")
 
     if has_host_os_inventory:
         for device_ref in _runtime_target_devices(topology):
@@ -246,30 +225,30 @@ def check_vm_refs(
     errors: List[str],
     warnings: List[str],
 ) -> None:
-    l4 = topology.get('L4_platform', {})
+    l4 = topology.get("L4_platform", {})
     host_os_map = _host_os_map(topology)
     active_by_device = _active_host_os_by_device(topology)
-    vm_templates = _template_map(topology, 'vms')
+    vm_templates = _template_map(topology, "vms")
     storage_endpoint_map = _storage_endpoint_map(topology)
-    for vm in l4.get('vms', []) or []:
-        vm_id = vm.get('id')
-        device_ref = vm.get('device_ref')
-        if device_ref and device_ref not in ids['devices']:
+    for vm in l4.get("vms", []) or []:
+        vm_id = vm.get("id")
+        device_ref = vm.get("device_ref")
+        if device_ref and device_ref not in ids["devices"]:
             errors.append(f"VM '{vm_id}': device_ref '{device_ref}' does not exist")
 
-        trust_zone_ref = vm.get('trust_zone_ref')
-        if trust_zone_ref and trust_zone_ref not in ids['trust_zones']:
+        trust_zone_ref = vm.get("trust_zone_ref")
+        if trust_zone_ref and trust_zone_ref not in ids["trust_zones"]:
             errors.append(f"VM '{vm_id}': trust_zone_ref '{trust_zone_ref}' does not exist")
 
-        template_ref = vm.get('template_ref')
-        if template_ref and template_ref not in ids['templates']:
+        template_ref = vm.get("template_ref")
+        if template_ref and template_ref not in ids["templates"]:
             errors.append(f"VM '{vm_id}': template_ref '{template_ref}' does not exist")
 
-        host_os_ref = vm.get('host_os_ref')
-        if host_os_ref and host_os_ref not in ids.get('host_operating_systems', set()):
+        host_os_ref = vm.get("host_os_ref")
+        if host_os_ref and host_os_ref not in ids.get("host_operating_systems", set()):
             errors.append(f"VM '{vm_id}': host_os_ref '{host_os_ref}' does not exist")
         if host_os_ref and host_os_ref in host_os_map:
-            host_device_ref = host_os_map[host_os_ref].get('device_ref')
+            host_device_ref = host_os_map[host_os_ref].get("device_ref")
             if device_ref and host_device_ref and host_device_ref != device_ref:
                 errors.append(
                     f"VM '{vm_id}': host_os_ref '{host_os_ref}' belongs to device '{host_device_ref}', "
@@ -286,15 +265,15 @@ def check_vm_refs(
             host_os_map=host_os_map,
             active_by_device=active_by_device,
         )
-        resolved_host_arch = _normalize_arch(resolved_host_os.get('architecture'))
-        resolved_caps = {str(cap).strip().lower() for cap in (resolved_host_os.get('capabilities') or [])}
-        vm_arch_raw = (vm.get('os') or {}).get('architecture')
+        resolved_host_arch = _normalize_arch(resolved_host_os.get("architecture"))
+        resolved_caps = {str(cap).strip().lower() for cap in (resolved_host_os.get("capabilities") or [])}
+        vm_arch_raw = (vm.get("os") or {}).get("architecture")
         vm_arch = _normalize_arch(vm_arch_raw)
         template = vm_templates.get(template_ref, {})
-        template_arch_raw = template.get('architecture') if isinstance(template, dict) else None
+        template_arch_raw = template.get("architecture") if isinstance(template, dict) else None
         template_arch = _normalize_arch(template_arch_raw)
 
-        if resolved_host_os and 'vm' not in resolved_caps:
+        if resolved_host_os and "vm" not in resolved_caps:
             errors.append(
                 f"VM '{vm_id}': resolved host OS '{resolved_host_os.get('id')}' lacks required capability 'vm'"
             )
@@ -317,21 +296,21 @@ def check_vm_refs(
                 f"resolved host OS architecture '{resolved_host_os.get('architecture')}'"
             )
 
-        for disk in vm.get('storage', []) or []:
-            disk_storage_ref = disk.get('storage_endpoint_ref') or disk.get('storage_ref')
-            if disk_storage_ref and disk_storage_ref not in ids['storage']:
+        for disk in vm.get("storage", []) or []:
+            disk_storage_ref = disk.get("storage_endpoint_ref") or disk.get("storage_ref")
+            if disk_storage_ref and disk_storage_ref not in ids["storage"]:
                 errors.append(f"VM '{vm_id}': storage_ref '{disk_storage_ref}' does not exist")
             if disk_storage_ref and disk_storage_ref in storage_endpoint_map:
-                endpoint_platform = str(storage_endpoint_map[disk_storage_ref].get('platform') or '').strip().lower()
-                if endpoint_platform and endpoint_platform != 'proxmox':
+                endpoint_platform = str(storage_endpoint_map[disk_storage_ref].get("platform") or "").strip().lower()
+                if endpoint_platform and endpoint_platform != "proxmox":
                     errors.append(
                         f"VM '{vm_id}': storage reference '{disk_storage_ref}' has platform '{endpoint_platform}', "
                         "expected 'proxmox'"
                     )
 
-        for net in vm.get('networks', []) or []:
-            bridge_ref = net.get('bridge_ref')
-            if bridge_ref and bridge_ref not in ids['bridges']:
+        for net in vm.get("networks", []) or []:
+            bridge_ref = net.get("bridge_ref")
+            if bridge_ref and bridge_ref not in ids["bridges"]:
                 errors.append(f"VM '{vm_id}': bridge_ref '{bridge_ref}' does not exist")
 
 
@@ -342,30 +321,30 @@ def check_lxc_refs(
     errors: List[str],
     warnings: List[str],
 ) -> None:
-    l4 = topology.get('L4_platform', {})
+    l4 = topology.get("L4_platform", {})
     host_os_map = _host_os_map(topology)
     active_by_device = _active_host_os_by_device(topology)
-    lxc_templates = _template_map(topology, 'lxc')
+    lxc_templates = _template_map(topology, "lxc")
     storage_endpoint_map = _storage_endpoint_map(topology)
-    for lxc in l4.get('lxc', []) or []:
-        lxc_id = lxc.get('id')
-        device_ref = lxc.get('device_ref')
-        if device_ref and device_ref not in ids['devices']:
+    for lxc in l4.get("lxc", []) or []:
+        lxc_id = lxc.get("id")
+        device_ref = lxc.get("device_ref")
+        if device_ref and device_ref not in ids["devices"]:
             errors.append(f"LXC '{lxc_id}': device_ref '{device_ref}' does not exist")
 
-        trust_zone_ref = lxc.get('trust_zone_ref')
-        if trust_zone_ref and trust_zone_ref not in ids['trust_zones']:
+        trust_zone_ref = lxc.get("trust_zone_ref")
+        if trust_zone_ref and trust_zone_ref not in ids["trust_zones"]:
             errors.append(f"LXC '{lxc_id}': trust_zone_ref '{trust_zone_ref}' does not exist")
 
-        template_ref = lxc.get('template_ref')
-        if template_ref and template_ref not in ids['templates']:
+        template_ref = lxc.get("template_ref")
+        if template_ref and template_ref not in ids["templates"]:
             errors.append(f"LXC '{lxc_id}': template_ref '{template_ref}' does not exist")
 
-        host_os_ref = lxc.get('host_os_ref')
-        if host_os_ref and host_os_ref not in ids.get('host_operating_systems', set()):
+        host_os_ref = lxc.get("host_os_ref")
+        if host_os_ref and host_os_ref not in ids.get("host_operating_systems", set()):
             errors.append(f"LXC '{lxc_id}': host_os_ref '{host_os_ref}' does not exist")
         if host_os_ref and host_os_ref in host_os_map:
-            host_device_ref = host_os_map[host_os_ref].get('device_ref')
+            host_device_ref = host_os_map[host_os_ref].get("device_ref")
             if device_ref and host_device_ref and host_device_ref != device_ref:
                 errors.append(
                     f"LXC '{lxc_id}': host_os_ref '{host_os_ref}' belongs to device '{host_device_ref}', "
@@ -382,15 +361,15 @@ def check_lxc_refs(
             host_os_map=host_os_map,
             active_by_device=active_by_device,
         )
-        resolved_host_arch = _normalize_arch(resolved_host_os.get('architecture'))
-        resolved_caps = {str(cap).strip().lower() for cap in (resolved_host_os.get('capabilities') or [])}
-        lxc_arch_raw = (lxc.get('os') or {}).get('architecture')
+        resolved_host_arch = _normalize_arch(resolved_host_os.get("architecture"))
+        resolved_caps = {str(cap).strip().lower() for cap in (resolved_host_os.get("capabilities") or [])}
+        lxc_arch_raw = (lxc.get("os") or {}).get("architecture")
         lxc_arch = _normalize_arch(lxc_arch_raw)
         template = lxc_templates.get(template_ref, {})
-        template_arch_raw = template.get('architecture') if isinstance(template, dict) else None
+        template_arch_raw = template.get("architecture") if isinstance(template, dict) else None
         template_arch = _normalize_arch(template_arch_raw)
 
-        if resolved_host_os and 'lxc' not in resolved_caps:
+        if resolved_host_os and "lxc" not in resolved_caps:
             errors.append(
                 f"LXC '{lxc_id}': resolved host OS '{resolved_host_os.get('id')}' lacks required capability 'lxc'"
             )
@@ -413,67 +392,69 @@ def check_lxc_refs(
                 f"resolved host OS architecture '{resolved_host_os.get('architecture')}'"
             )
 
-        resource_profile_ref = lxc.get('resource_profile_ref')
-        if resource_profile_ref and resource_profile_ref not in ids.get('resource_profiles', set()):
+        resource_profile_ref = lxc.get("resource_profile_ref")
+        if resource_profile_ref and resource_profile_ref not in ids.get("resource_profiles", set()):
             errors.append(f"LXC '{lxc_id}': resource_profile_ref '{resource_profile_ref}' does not exist")
 
-        rootfs = lxc.get('storage', {}).get('rootfs', {})
-        storage_ref = rootfs.get('storage_endpoint_ref') or rootfs.get('storage_ref')
-        if storage_ref and storage_ref not in ids['storage']:
+        rootfs = lxc.get("storage", {}).get("rootfs", {})
+        storage_ref = rootfs.get("storage_endpoint_ref") or rootfs.get("storage_ref")
+        if storage_ref and storage_ref not in ids["storage"]:
             errors.append(f"LXC '{lxc_id}': rootfs storage_ref '{storage_ref}' does not exist")
         if storage_ref and storage_ref in storage_endpoint_map:
-            endpoint_platform = str(storage_endpoint_map[storage_ref].get('platform') or '').strip().lower()
-            if endpoint_platform and endpoint_platform != 'proxmox':
+            endpoint_platform = str(storage_endpoint_map[storage_ref].get("platform") or "").strip().lower()
+            if endpoint_platform and endpoint_platform != "proxmox":
                 errors.append(
                     f"LXC '{lxc_id}': rootfs storage reference '{storage_ref}' has platform '{endpoint_platform}', "
                     "expected 'proxmox'"
                 )
-        rootfs_data_asset_ref = rootfs.get('data_asset_ref')
-        if rootfs_data_asset_ref and rootfs_data_asset_ref not in ids['data_assets']:
+        rootfs_data_asset_ref = rootfs.get("data_asset_ref")
+        if rootfs_data_asset_ref and rootfs_data_asset_ref not in ids["data_assets"]:
             errors.append(f"LXC '{lxc_id}': rootfs data_asset_ref '{rootfs_data_asset_ref}' does not exist")
 
-        if rootfs.get('storage_ref') and rootfs.get('storage_endpoint_ref'):
+        if rootfs.get("storage_ref") and rootfs.get("storage_endpoint_ref"):
             warnings.append(
                 f"LXC '{lxc_id}': both rootfs.storage_ref and rootfs.storage_endpoint_ref are set; prefer storage_endpoint_ref"
             )
 
-        for volume in lxc.get('storage', {}).get('volumes', []) or []:
+        for volume in lxc.get("storage", {}).get("volumes", []) or []:
             if not isinstance(volume, dict):
                 continue
-            volume_id = volume.get('id', 'unknown')
-            volume_storage_ref = volume.get('storage_endpoint_ref') or volume.get('storage_ref')
-            if volume_storage_ref and volume_storage_ref not in ids['storage']:
+            volume_id = volume.get("id", "unknown")
+            volume_storage_ref = volume.get("storage_endpoint_ref") or volume.get("storage_ref")
+            if volume_storage_ref and volume_storage_ref not in ids["storage"]:
                 errors.append(
                     f"LXC '{lxc_id}' volume '{volume_id}': storage reference '{volume_storage_ref}' does not exist"
                 )
             if volume_storage_ref and volume_storage_ref in storage_endpoint_map:
-                endpoint_platform = str(storage_endpoint_map[volume_storage_ref].get('platform') or '').strip().lower()
-                if endpoint_platform and endpoint_platform != 'proxmox':
+                endpoint_platform = str(storage_endpoint_map[volume_storage_ref].get("platform") or "").strip().lower()
+                if endpoint_platform and endpoint_platform != "proxmox":
                     errors.append(
                         f"LXC '{lxc_id}' volume '{volume_id}': storage reference '{volume_storage_ref}' "
                         f"has platform '{endpoint_platform}', expected 'proxmox'"
                     )
-            data_asset_ref = volume.get('data_asset_ref')
-            if data_asset_ref and data_asset_ref not in ids['data_assets']:
-                errors.append(
-                    f"LXC '{lxc_id}' volume '{volume_id}': data_asset_ref '{data_asset_ref}' does not exist"
-                )
+            data_asset_ref = volume.get("data_asset_ref")
+            if data_asset_ref and data_asset_ref not in ids["data_assets"]:
+                errors.append(f"LXC '{lxc_id}' volume '{volume_id}': data_asset_ref '{data_asset_ref}' does not exist")
 
-        for net in lxc.get('networks', []) or []:
-            bridge_ref = net.get('bridge_ref')
-            if bridge_ref and bridge_ref not in ids['bridges']:
+        for net in lxc.get("networks", []) or []:
+            bridge_ref = net.get("bridge_ref")
+            if bridge_ref and bridge_ref not in ids["bridges"]:
                 errors.append(f"LXC '{lxc_id}': bridge_ref '{bridge_ref}' does not exist")
 
-        if lxc.get('type'):
-            warnings.append(f"LXC '{lxc_id}': legacy field 'type' is deprecated; prefer platform_type + service runtime")
-        if lxc.get('role'):
-            warnings.append(f"LXC '{lxc_id}': legacy field 'role' is deprecated; prefer platform_type + resource_profile_ref")
-        if lxc.get('resources'):
+        if lxc.get("type"):
+            warnings.append(
+                f"LXC '{lxc_id}': legacy field 'type' is deprecated; prefer platform_type + service runtime"
+            )
+        if lxc.get("role"):
+            warnings.append(
+                f"LXC '{lxc_id}': legacy field 'role' is deprecated; prefer platform_type + resource_profile_ref"
+            )
+        if lxc.get("resources"):
             warnings.append(
                 f"LXC '{lxc_id}': inline 'resources' is deprecated; prefer resource_profiles + resource_profile_ref"
             )
 
-        ansible_vars = ((lxc.get('ansible') or {}).get('vars') or {})
+        ansible_vars = (lxc.get("ansible") or {}).get("vars") or {}
         if isinstance(ansible_vars, dict):
             app_key_prefixes = (
                 "postgresql_",
@@ -497,80 +478,78 @@ def check_service_refs(
     errors: List[str],
     warnings: List[str],
 ) -> None:
-    l5 = topology.get('L5_application', {})
+    l5 = topology.get("L5_application", {})
     active_by_device = _active_host_os_by_device(topology)
     has_host_os_inventory = bool(_host_os_map(topology))
-    for service in l5.get('services', []) or []:
+    for service in l5.get("services", []) or []:
         if not isinstance(service, dict):
             continue
-        svc_id = service.get('id')
+        svc_id = service.get("id")
 
         for legacy_field, replacement in LEGACY_SERVICE_FIELDS.items():
             if legacy_field in service:
-                warnings.append(
-                    f"Service '{svc_id}': legacy field '{legacy_field}' is deprecated; use {replacement}"
-                )
+                warnings.append(f"Service '{svc_id}': legacy field '{legacy_field}' is deprecated; use {replacement}")
 
-        config = service.get('config') if isinstance(service.get('config'), dict) else {}
-        docker_config = config.get('docker') if isinstance(config.get('docker'), dict) else {}
-        if docker_config.get('host_ip'):
+        config = service.get("config") if isinstance(service.get("config"), dict) else {}
+        docker_config = config.get("docker") if isinstance(config.get("docker"), dict) else {}
+        if docker_config.get("host_ip"):
             warnings.append(
                 f"Service '{svc_id}': config.docker.host_ip is deprecated; "
                 "derive binding from runtime.target_ref + runtime.network_binding_ref"
             )
 
-        protocol = str(service.get('protocol') or '').strip().lower()
-        security = service.get('security') if isinstance(service.get('security'), dict) else {}
-        if protocol == 'https' and not security.get('ssl_certificate'):
+        protocol = str(service.get("protocol") or "").strip().lower()
+        security = service.get("security") if isinstance(service.get("security"), dict) else {}
+        if protocol == "https" and not security.get("ssl_certificate"):
             warnings.append(
                 f"Service '{svc_id}': protocol 'https' should declare security.ssl_certificate "
                 "(certificate intent/source)"
             )
 
-        device_ref = service.get('device_ref')
-        if device_ref and device_ref not in ids['devices']:
+        device_ref = service.get("device_ref")
+        if device_ref and device_ref not in ids["devices"]:
             errors.append(f"Service '{svc_id}': device_ref '{device_ref}' does not exist")
 
-        vm_ref = service.get('vm_ref')
-        if vm_ref and vm_ref not in ids['vms']:
+        vm_ref = service.get("vm_ref")
+        if vm_ref and vm_ref not in ids["vms"]:
             errors.append(f"Service '{svc_id}': vm_ref '{vm_ref}' does not exist")
 
-        lxc_ref = service.get('lxc_ref')
-        if lxc_ref and lxc_ref not in ids['lxc']:
+        lxc_ref = service.get("lxc_ref")
+        if lxc_ref and lxc_ref not in ids["lxc"]:
             errors.append(f"Service '{svc_id}': lxc_ref '{lxc_ref}' does not exist")
 
-        network_ref = service.get('network_ref')
-        if network_ref and network_ref not in ids['networks']:
+        network_ref = service.get("network_ref")
+        if network_ref and network_ref not in ids["networks"]:
             errors.append(f"Service '{svc_id}': network_ref '{network_ref}' does not exist")
 
-        trust_zone_ref = service.get('trust_zone_ref')
-        if trust_zone_ref and trust_zone_ref not in ids['trust_zones']:
+        trust_zone_ref = service.get("trust_zone_ref")
+        if trust_zone_ref and trust_zone_ref not in ids["trust_zones"]:
             errors.append(f"Service '{svc_id}': trust_zone_ref '{trust_zone_ref}' does not exist")
 
-        runtime = service.get('runtime', {}) or {}
+        runtime = service.get("runtime", {}) or {}
         if isinstance(runtime, dict) and runtime:
-            runtime_type = runtime.get('type')
-            target_ref = runtime.get('target_ref')
-            network_binding_ref = runtime.get('network_binding_ref')
+            runtime_type = runtime.get("type")
+            target_ref = runtime.get("target_ref")
+            network_binding_ref = runtime.get("network_binding_ref")
 
-            if network_binding_ref and network_binding_ref not in ids['networks']:
+            if network_binding_ref and network_binding_ref not in ids["networks"]:
                 errors.append(f"Service '{svc_id}': runtime network_binding_ref '{network_binding_ref}' does not exist")
 
-            if runtime_type == 'lxc' and target_ref and target_ref not in ids['lxc']:
+            if runtime_type == "lxc" and target_ref and target_ref not in ids["lxc"]:
                 errors.append(f"Service '{svc_id}': runtime target_ref '{target_ref}' is not a known LXC")
-            if runtime_type == 'vm' and target_ref and target_ref not in ids['vms']:
+            if runtime_type == "vm" and target_ref and target_ref not in ids["vms"]:
                 errors.append(f"Service '{svc_id}': runtime target_ref '{target_ref}' is not a known VM")
-            if runtime_type in {'docker', 'baremetal'} and target_ref and target_ref not in ids['devices']:
+            if runtime_type in {"docker", "baremetal"} and target_ref and target_ref not in ids["devices"]:
                 errors.append(f"Service '{svc_id}': runtime target_ref '{target_ref}' is not a known device")
-            if runtime_type in {'docker', 'baremetal'} and target_ref in ids['devices']:
+            if runtime_type in {"docker", "baremetal"} and target_ref in ids["devices"]:
                 host_os_entries = active_by_device.get(target_ref, [])
                 if has_host_os_inventory and not host_os_entries:
                     errors.append(
                         f"Service '{svc_id}': runtime target_ref '{target_ref}' has no active host_operating_systems entry"
                     )
-                if runtime_type == 'docker' and host_os_entries:
+                if runtime_type == "docker" and host_os_entries:
                     has_container_capability = any(
-                        any(cap in {'docker', 'container'} for cap in (entry.get('capabilities') or []))
+                        any(cap in {"docker", "container"} for cap in (entry.get("capabilities") or []))
                         for entry in host_os_entries
                     )
                     if not has_container_capability:
@@ -578,9 +557,9 @@ def check_service_refs(
                             f"Service '{svc_id}': runtime type docker requires host capability 'docker' or 'container' "
                             f"for device '{target_ref}'"
                         )
-                if runtime_type == 'baremetal' and host_os_entries:
+                if runtime_type == "baremetal" and host_os_entries:
                     has_native_host_type = any(
-                        str(entry.get('host_type') or '').strip().lower() in RUNTIME_BAREMETAL_ALLOWED_HOST_TYPES
+                        str(entry.get("host_type") or "").strip().lower() in RUNTIME_BAREMETAL_ALLOWED_HOST_TYPES
                         for entry in host_os_entries
                     )
                     if not has_native_host_type:
@@ -590,26 +569,24 @@ def check_service_refs(
                             f"for device '{target_ref}'"
                         )
 
-            if service.get('ip'):
+            if service.get("ip"):
                 warnings.append(
                     f"Service '{svc_id}': legacy field 'ip' with runtime model is deprecated; prefer runtime/network binding resolution"
                 )
 
-            if service.get('device_ref') or service.get('vm_ref') or service.get('lxc_ref'):
-                warnings.append(
-                    f"Service '{svc_id}': mixing runtime with legacy *_ref fields; prefer runtime only"
-                )
+            if service.get("device_ref") or service.get("vm_ref") or service.get("lxc_ref"):
+                warnings.append(f"Service '{svc_id}': mixing runtime with legacy *_ref fields; prefer runtime only")
 
-        for data_asset_ref in service.get('data_asset_refs', []) or []:
-            if data_asset_ref not in ids['data_assets']:
+        for data_asset_ref in service.get("data_asset_refs", []) or []:
+            if data_asset_ref not in ids["data_assets"]:
                 errors.append(f"Service '{svc_id}': data_asset_ref '{data_asset_ref}' does not exist")
 
-        for dep in service.get('dependencies', []) or []:
-            dep_ref = dep.get('service_ref')
-            if dep_ref and dep_ref not in ids['services']:
+        for dep in service.get("dependencies", []) or []:
+            dep_ref = dep.get("service_ref")
+            if dep_ref and dep_ref not in ids["services"]:
                 errors.append(f"Service '{svc_id}': dependency service_ref '{dep_ref}' does not exist")
 
-    if l5.get('external_services'):
+    if l5.get("external_services"):
         warnings.append(
             "L5_application.external_services is deprecated; model Docker/Baremetal workloads via services[].runtime"
         )
@@ -623,18 +600,18 @@ def check_dns_refs(
     warnings: List[str],
 ) -> None:
     del warnings
-    l5 = topology.get('L5_application', {})
-    dns = l5.get('dns', {})
-    for zone in dns.get('zones', []) or []:
-        for record in zone.get('records', []) or []:
-            device_ref = record.get('device_ref')
-            if device_ref and device_ref not in ids['devices']:
+    l5 = topology.get("L5_application", {})
+    dns = l5.get("dns", {})
+    for zone in dns.get("zones", []) or []:
+        for record in zone.get("records", []) or []:
+            device_ref = record.get("device_ref")
+            if device_ref and device_ref not in ids["devices"]:
                 errors.append(f"DNS record '{record.get('name')}' references unknown device_ref '{device_ref}'")
-            lxc_ref = record.get('lxc_ref')
-            if lxc_ref and lxc_ref not in ids['lxc']:
+            lxc_ref = record.get("lxc_ref")
+            if lxc_ref and lxc_ref not in ids["lxc"]:
                 errors.append(f"DNS record '{record.get('name')}' references unknown lxc_ref '{lxc_ref}'")
-            service_ref = record.get('service_ref')
-            if service_ref and service_ref not in ids['services']:
+            service_ref = record.get("service_ref")
+            if service_ref and service_ref not in ids["services"]:
                 errors.append(f"DNS record '{record.get('name')}' references unknown service_ref '{service_ref}'")
 
 
@@ -646,16 +623,16 @@ def check_certificate_refs(
     warnings: List[str],
 ) -> None:
     del warnings
-    l5 = topology.get('L5_application', {})
-    certs = l5.get('certificates', {})
-    for cert in certs.get('certificates', []) or []:
-        service_ref = cert.get('service_ref')
-        if service_ref and service_ref not in ids['services']:
+    l5 = topology.get("L5_application", {})
+    certs = l5.get("certificates", {})
+    for cert in certs.get("certificates", []) or []:
+        service_ref = cert.get("service_ref")
+        if service_ref and service_ref not in ids["services"]:
             errors.append(f"Certificate '{cert.get('id')}' references unknown service_ref '{service_ref}'")
-    for cert in certs.get('additional', []) or []:
-        for used in cert.get('used_by', []) or []:
-            service_ref = used.get('service_ref')
-            if service_ref and service_ref not in ids['services']:
+    for cert in certs.get("additional", []) or []:
+        for used in cert.get("used_by", []) or []:
+            service_ref = used.get("service_ref")
+            if service_ref and service_ref not in ids["services"]:
                 errors.append(f"Certificate '{cert.get('id')}' references unknown service_ref '{service_ref}'")
 
 
@@ -667,18 +644,18 @@ def check_backup_refs(
     warnings: List[str],
 ) -> None:
     del warnings
-    l7 = topology.get('L7_operations', {})
-    backup = l7.get('backup', {})
-    for policy in backup.get('policies', []) or []:
-        for target in policy.get('targets', []) or []:
-            device_ref = target.get('device_ref')
-            if device_ref and device_ref not in ids['devices']:
+    l7 = topology.get("L7_operations", {})
+    backup = l7.get("backup", {})
+    for policy in backup.get("policies", []) or []:
+        for target in policy.get("targets", []) or []:
+            device_ref = target.get("device_ref")
+            if device_ref and device_ref not in ids["devices"]:
                 errors.append(f"Backup '{policy.get('id')}': device_ref '{device_ref}' does not exist")
-            lxc_ref = target.get('lxc_ref')
-            if lxc_ref and lxc_ref not in ids['lxc']:
+            lxc_ref = target.get("lxc_ref")
+            if lxc_ref and lxc_ref not in ids["lxc"]:
                 errors.append(f"Backup '{policy.get('id')}': lxc_ref '{lxc_ref}' does not exist")
-            data_asset_ref = target.get('data_asset_ref')
-            if data_asset_ref and data_asset_ref not in ids['data_assets']:
+            data_asset_ref = target.get("data_asset_ref")
+            if data_asset_ref and data_asset_ref not in ids["data_assets"]:
                 errors.append(f"Backup '{policy.get('id')}': data_asset_ref '{data_asset_ref}' does not exist")
 
 
@@ -690,23 +667,23 @@ def check_security_policy_refs(
     warnings: List[str],
 ) -> None:
     del warnings
-    l2 = topology.get('L2_network', {})
-    l5 = topology.get('L5_application', {})
-    l7 = topology.get('L7_operations', {})
-    valid = ids['security_policies']
+    l2 = topology.get("L2_network", {})
+    l5 = topology.get("L5_application", {})
+    l7 = topology.get("L7_operations", {})
+    valid = ids["security_policies"]
 
-    for policy in l2.get('firewall_policies', []) or []:
-        ref = policy.get('security_policy_ref')
+    for policy in l2.get("firewall_policies", []) or []:
+        ref = policy.get("security_policy_ref")
         if ref and ref not in valid:
             errors.append(f"Firewall policy '{policy.get('id')}': security_policy_ref '{ref}' does not exist")
 
-    for svc in l5.get('services', []) or []:
-        ref = svc.get('security_policy_ref')
+    for svc in l5.get("services", []) or []:
+        ref = svc.get("security_policy_ref")
         if ref and ref not in valid:
             errors.append(f"Service '{svc.get('id')}': security_policy_ref '{ref}' does not exist")
 
-    backup = l7.get('backup', {})
-    for policy in backup.get('policies', []) or []:
-        ref = policy.get('security_policy_ref')
+    backup = l7.get("backup", {})
+    for policy in backup.get("policies", []) or []:
+        ref = policy.get("security_policy_ref")
         if ref and ref not in valid:
             errors.append(f"Backup '{policy.get('id')}': security_policy_ref '{ref}' does not exist")

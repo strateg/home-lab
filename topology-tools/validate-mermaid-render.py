@@ -141,10 +141,7 @@ def main():
                 print(f"INFO temp artifacts kept in: {temp_root}")
             return result.returncode
 
-        print(
-            f"OK Mermaid render validation passed: {len(doc_files)} docs "
-            f"(mode={icon_mode})."
-        )
+        print(f"OK Mermaid render validation passed: {len(doc_files)} docs " f"(mode={icon_mode}).")
         return 0
     except FileNotFoundError as err:
         print(f"ERROR {err}")

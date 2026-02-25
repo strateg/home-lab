@@ -225,4 +225,3 @@ init-proxmox:
 
 init: init-mikrotik init-proxmox
 	@echo "$(GREEN)✓ All Terraform providers initialized$(NC)"
-

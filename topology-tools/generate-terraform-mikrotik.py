@@ -3,6 +3,5 @@
 
 from scripts.generators.terraform.mikrotik.cli import main
 
-
 if __name__ == "__main__":
     raise SystemExit(main())

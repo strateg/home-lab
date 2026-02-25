@@ -17,15 +17,26 @@ Requirements:
     pip install pyyaml jinja2 jsonschema
 """
 
-import sys
 import argparse
-import subprocess
+import logging
 import shutil
-from pathlib import Path
+import subprocess
+import sys
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
 from scripts.generators.common import clear_topology_cache, warm_topology_cache
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)-8s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+    ],
+)
+logger = logging.getLogger(__name__)
 
 
 class RegenerateAll:
@@ -55,9 +66,9 @@ class RegenerateAll:
 
     def print_header(self, text: str):
         """Print section header"""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print(f"  {text}")
-        print("="*70 + "\n")
+        print("=" * 70 + "\n")
 
     def run_script(self, script_name: str, description: str, args: Optional[List[str]] = None) -> bool:
         """Run a Python script and capture result"""
@@ -77,6 +88,10 @@ class RegenerateAll:
             if args:
                 command.extend(args)
 
+            logger.info(f"Starting: {description}")
+            logger.debug(f"  Script: {script_path}")
+            logger.debug(f"  Command: {' '.join(command)}")
+
             subprocess.run(
                 command,
                 capture_output=False,
@@ -84,16 +99,19 @@ class RegenerateAll:
                 check=True,
                 cwd=str(self.project_root),
             )
+            logger.info(f"Completed: {description}")
             print(f"OK {description} completed\n")
             return True
 
         except subprocess.CalledProcessError as e:
             error = f"{description} failed with exit code {e.returncode}"
+            logger.error(error)
             print(f"ERROR {error}\n")
             self.errors.append(error)
             return False
         except Exception as e:
             error = f"{description} failed: {e}"
+            logger.exception(error)
             print(f"ERROR {error}\n")
             self.errors.append(error)
             return False
@@ -217,11 +235,19 @@ class RegenerateAll:
         self.print_header("SUMMARY Summary")
 
         print("Results:")
-        print(f"  {'OK' if success_terraform else 'ERROR'} Terraform (Proxmox):  {'Success' if success_terraform else 'Failed'}")
-        print(f"  {'OK' if success_mikrotik else 'ERROR'} Terraform (MikroTik): {'Success' if success_mikrotik else 'Failed'}")
-        print(f"  {'OK' if success_ansible else 'ERROR'} Ansible:              {'Success' if success_ansible else 'Failed'}")
+        print(
+            f"  {'OK' if success_terraform else 'ERROR'} Terraform (Proxmox):  {'Success' if success_terraform else 'Failed'}"
+        )
+        print(
+            f"  {'OK' if success_mikrotik else 'ERROR'} Terraform (MikroTik): {'Success' if success_mikrotik else 'Failed'}"
+        )
+        print(
+            f"  {'OK' if success_ansible else 'ERROR'} Ansible:              {'Success' if success_ansible else 'Failed'}"
+        )
         print(f"  {'OK' if success_docs else 'ERROR'} Documentation:        {'Success' if success_docs else 'Failed'}")
-        print(f"  {'OK' if success_mermaid else 'ERROR'} Mermaid Render:      {'Success' if success_mermaid else 'Failed'}")
+        print(
+            f"  {'OK' if success_mermaid else 'ERROR'} Mermaid Render:      {'Success' if success_mermaid else 'Failed'}"
+        )
 
         print(f"\nTIME  Duration: {duration:.2f} seconds")
         print(f"TIME Completed at: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -231,7 +257,7 @@ class RegenerateAll:
             for i, error in enumerate(self.errors, 1):
                 print(f"   {i}. {error}")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
 
         all_success = success_terraform and success_mikrotik and success_ansible and success_docs and success_mermaid
         if all_success:
@@ -290,20 +316,16 @@ def main():
         description="Regenerate ALL files from topology.yaml (validate + terraform + ansible + docs)"
     )
     parser.add_argument(
-        "--topology",
-        default="topology.yaml",
-        help="Path to topology YAML file (default: topology.yaml)"
+        "--topology", default="topology.yaml", help="Path to topology YAML file (default: topology.yaml)"
     )
     parser.add_argument(
-        "--skip-mermaid-validate",
-        action="store_true",
-        help="Skip Mermaid render validation step after docs generation"
+        "--skip-mermaid-validate", action="store_true", help="Skip Mermaid render validation step after docs generation"
     )
     parser.add_argument(
         "--mermaid-icon-mode",
         default="auto",
         choices=["auto", "icon-nodes", "compat", "none"],
-        help="Icon mode to use for Mermaid render validation (default: auto)"
+        help="Icon mode to use for Mermaid render validation (default: auto)",
     )
     parser.add_argument(
         "--no-topology-cache",
@@ -353,4 +375,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

@@ -5,13 +5,13 @@ Claude Logger Agent
 Сохраняет историю локально в файлы JSON и Markdown.
 """
 
+import argparse
+import json
 import os
 import sys
-import json
-import argparse
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 try:
     import anthropic
@@ -64,7 +64,7 @@ class ClaudeLogger:
             "session_id": self.session_id,
             "started_at": self.session_id,
             "model": self.model,
-            "conversation": self.conversation
+            "conversation": self.conversation,
         }
 
         with open(self.session_file, "w", encoding="utf-8") as f:
@@ -121,13 +121,9 @@ class ClaudeLogger:
             response = message.content[0].text
 
             # Логируем взаимодействие
-            self.conversation.append({
-                "timestamp": timestamp,
-                "prompt": prompt,
-                "response": response,
-                "model": self.model,
-                "system": system
-            })
+            self.conversation.append(
+                {"timestamp": timestamp, "prompt": prompt, "response": response, "model": self.model, "system": system}
+            )
 
             # Сохраняем логи
             self.save_logs()
@@ -136,12 +132,7 @@ class ClaudeLogger:
 
         except Exception as e:
             error_msg = f"❌ Ошибка: {str(e)}"
-            self.conversation.append({
-                "timestamp": timestamp,
-                "prompt": prompt,
-                "response": error_msg,
-                "error": True
-            })
+            self.conversation.append({"timestamp": timestamp, "prompt": prompt, "response": error_msg, "error": True})
             self.save_logs()
             return error_msg
 
@@ -194,30 +185,19 @@ class ClaudeLogger:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Claude Logger Agent - логирование взаимодействий с Claude API"
-    )
-    parser.add_argument(
-        "--api-key",
-        help="Anthropic API ключ (или используйте ANTHROPIC_API_KEY env variable)"
-    )
+    parser = argparse.ArgumentParser(description="Claude Logger Agent - логирование взаимодействий с Claude API")
+    parser.add_argument("--api-key", help="Anthropic API ключ (или используйте ANTHROPIC_API_KEY env variable)")
     parser.add_argument(
         "--model",
         default="claude-sonnet-4-20250514",
-        help="Модель Claude для использования (default: claude-sonnet-4-20250514)"
+        help="Модель Claude для использования (default: claude-sonnet-4-20250514)",
     )
-    parser.add_argument(
-        "--system",
-        help="Системный промпт"
-    )
-    parser.add_argument(
-        "--prompt",
-        help="Одиночный промпт (без интерактивного режима)"
-    )
+    parser.add_argument("--system", help="Системный промпт")
+    parser.add_argument("--prompt", help="Одиночный промпт (без интерактивного режима)")
     parser.add_argument(
         "--log-dir",
         default="../../logs/claude-sessions",
-        help="Директория для логов (default: ../../logs/claude-sessions)"
+        help="Директория для логов (default: ../../logs/claude-sessions)",
     )
 
     args = parser.parse_args()

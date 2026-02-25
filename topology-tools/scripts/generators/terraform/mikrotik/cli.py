@@ -7,6 +7,7 @@ import sys
 from typing import Sequence
 
 from scripts.generators.common import GeneratorCLI, run_cli
+
 from .generator import MikrotikTerraformGenerator
 
 

@@ -9,16 +9,18 @@ Requirements:
     pip install pyyaml jinja2
 """
 
-import sys
-import yaml
 import argparse
 import shutil
+import sys
 from pathlib import Path
 from typing import Dict, List
+
+import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 # Import topology loader with !include support
 from topology_loader import load_topology
+
 
 class TerraformGenerator:
     """Generate Terraform configs from topology v3.0"""
@@ -34,7 +36,7 @@ class TerraformGenerator:
             loader=FileSystemLoader(str(self.templates_dir)),
             autoescape=select_autoescape(),
             trim_blocks=True,
-            lstrip_blocks=True
+            lstrip_blocks=True,
         )
 
     def load_topology(self) -> bool:
@@ -44,14 +46,14 @@ class TerraformGenerator:
             print(f"✓ Loaded topology: {self.topology_path}")
 
             # Validate v3.0 structure
-            required = ['version', 'physical_topology', 'logical_topology', 'compute', 'storage']
+            required = ["version", "physical_topology", "logical_topology", "compute", "storage"]
             for section in required:
                 if section not in self.topology:
                     print(f"❌ Missing required section: {section}")
                     return False
 
-            version = self.topology.get('version', '')
-            if not (version.startswith('2.') or version.startswith('3.')):
+            version = self.topology.get("version", "")
+            if not (version.startswith("2.") or version.startswith("3.")):
                 print(f"⚠️  Warning: Topology version {version} may not be compatible (expected 2.x or 3.x)")
 
             return True
@@ -74,25 +76,25 @@ class TerraformGenerator:
         """
         # Build interface map: id -> physical_name
         interface_map = {}
-        for device in self.topology['physical_topology'].get('devices', []):
-            if device.get('type') == 'hypervisor':
-                for interface in device.get('interfaces', []):
-                    interface_id = interface.get('id')
-                    physical_name = interface.get('physical_name')
+        for device in self.topology["physical_topology"].get("devices", []):
+            if device.get("type") == "hypervisor":
+                for interface in device.get("interfaces", []):
+                    interface_id = interface.get("id")
+                    physical_name = interface.get("physical_name")
                     if interface_id and physical_name:
                         interface_map[interface_id] = physical_name
 
         # Resolve ports in bridges
         for bridge in bridges:
-            if bridge.get('ports'):
+            if bridge.get("ports"):
                 resolved_ports = []
-                for port_id in bridge['ports']:
+                for port_id in bridge["ports"]:
                     if port_id in interface_map:
                         resolved_ports.append(interface_map[port_id])
                     else:
                         print(f"⚠️  Warning: Cannot resolve interface '{port_id}' - using as-is")
                         resolved_ports.append(port_id)
-                bridge['ports'] = resolved_ports
+                bridge["ports"] = resolved_ports
 
         return bridges
 
@@ -121,12 +123,12 @@ class TerraformGenerator:
     def generate_provider(self) -> bool:
         """Generate provider.tf with Proxmox configuration"""
         try:
-            template = self.jinja_env.get_template('terraform/provider.tf.j2')
+            template = self.jinja_env.get_template("terraform/provider.tf.j2")
 
             # Get Proxmox device from physical topology
             proxmox_device = None
-            for device in self.topology['physical_topology'].get('devices', []):
-                if device.get('type') == 'hypervisor' and device.get('role') == 'compute':
+            for device in self.topology["physical_topology"].get("devices", []):
+                if device.get("type") == "hypervisor" and device.get("role") == "compute":
                     proxmox_device = device
                     break
 
@@ -135,15 +137,12 @@ class TerraformGenerator:
 
             # Find management network for API endpoint
             mgmt_network = None
-            for network in self.topology['logical_topology'].get('networks', []):
-                if 'management' in network.get('id', ''):
+            for network in self.topology["logical_topology"].get("networks", []):
+                if "management" in network.get("id", ""):
                     mgmt_network = network
                     break
 
-            content = template.render(
-                proxmox_device=proxmox_device,
-                mgmt_network=mgmt_network
-            )
+            content = template.render(proxmox_device=proxmox_device, mgmt_network=mgmt_network)
 
             output_file = self.output_dir / "provider.tf"
             output_file.write_text(content)
@@ -157,11 +156,9 @@ class TerraformGenerator:
     def generate_versions(self) -> bool:
         """Generate versions.tf with required Terraform and provider versions"""
         try:
-            template = self.jinja_env.get_template('terraform/versions.tf.j2')
+            template = self.jinja_env.get_template("terraform/versions.tf.j2")
 
-            content = template.render(
-                topology_version=self.topology.get('version', '2.0.0')
-            )
+            content = template.render(topology_version=self.topology.get("version", "2.0.0"))
 
             output_file = self.output_dir / "versions.tf"
             output_file.write_text(content)
@@ -175,22 +172,20 @@ class TerraformGenerator:
     def generate_bridges(self) -> bool:
         """Generate bridges.tf with network bridge resources"""
         try:
-            template = self.jinja_env.get_template('terraform/bridges.tf.j2')
+            template = self.jinja_env.get_template("terraform/bridges.tf.j2")
 
             # Get bridges from topology
-            bridges = self.topology['logical_topology'].get('bridges', [])
+            bridges = self.topology["logical_topology"].get("bridges", [])
 
             # Make a copy to avoid modifying original topology
             import copy
+
             bridges = copy.deepcopy(bridges)
 
             # Resolve logical interface IDs to physical names
             bridges = self._resolve_interface_names(bridges)
 
-            content = template.render(
-                bridges=bridges,
-                topology_version=self.topology.get('version', '2.0.0')
-            )
+            content = template.render(bridges=bridges, topology_version=self.topology.get("version", "2.0.0"))
 
             output_file = self.output_dir / "bridges.tf"
             output_file.write_text(content)
@@ -200,23 +195,24 @@ class TerraformGenerator:
         except Exception as e:
             print(f"❌ Error generating bridges.tf: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
     def generate_vms(self) -> bool:
         """Generate vms.tf with VM resources"""
         try:
-            template = self.jinja_env.get_template('terraform/vms.tf.j2')
+            template = self.jinja_env.get_template("terraform/vms.tf.j2")
 
-            vms = self.topology['compute'].get('vms', [])
-            storage_map = {s['id']: s for s in self.topology.get('storage', [])}
-            bridge_map = {b['id']: b for b in self.topology['logical_topology'].get('bridges', [])}
+            vms = self.topology["compute"].get("vms", [])
+            storage_map = {s["id"]: s for s in self.topology.get("storage", [])}
+            bridge_map = {b["id"]: b for b in self.topology["logical_topology"].get("bridges", [])}
 
             content = template.render(
                 vms=vms,
                 storage_map=storage_map,
                 bridge_map=bridge_map,
-                topology_version=self.topology.get('version', '2.0.0')
+                topology_version=self.topology.get("version", "2.0.0"),
             )
 
             output_file = self.output_dir / "vms.tf"
@@ -231,17 +227,17 @@ class TerraformGenerator:
     def generate_lxc(self) -> bool:
         """Generate lxc.tf with LXC container resources"""
         try:
-            template = self.jinja_env.get_template('terraform/lxc.tf.j2')
+            template = self.jinja_env.get_template("terraform/lxc.tf.j2")
 
-            lxc_containers = self.topology['compute'].get('lxc', [])
-            storage_map = {s['id']: s for s in self.topology.get('storage', [])}
-            bridge_map = {b['id']: b for b in self.topology['logical_topology'].get('bridges', [])}
+            lxc_containers = self.topology["compute"].get("lxc", [])
+            storage_map = {s["id"]: s for s in self.topology.get("storage", [])}
+            bridge_map = {b["id"]: b for b in self.topology["logical_topology"].get("bridges", [])}
 
             content = template.render(
                 lxc_containers=lxc_containers,
                 storage_map=storage_map,
                 bridge_map=bridge_map,
-                topology_version=self.topology.get('version', '2.0.0')
+                topology_version=self.topology.get("version", "2.0.0"),
             )
 
             output_file = self.output_dir / "lxc.tf"
@@ -257,7 +253,7 @@ class TerraformGenerator:
         """Generate variables.tf and terraform.tfvars.example"""
         try:
             # variables.tf
-            vars_template = self.jinja_env.get_template('terraform/variables.tf.j2')
+            vars_template = self.jinja_env.get_template("terraform/variables.tf.j2")
             vars_content = vars_template.render()
 
             vars_file = self.output_dir / "variables.tf"
@@ -265,18 +261,16 @@ class TerraformGenerator:
             print(f"✓ Generated: {vars_file}")
 
             # terraform.tfvars.example
-            tfvars_template = self.jinja_env.get_template('terraform/terraform.tfvars.example.j2')
+            tfvars_template = self.jinja_env.get_template("terraform/terraform.tfvars.example.j2")
 
             # Get management network info
             mgmt_network = None
-            for network in self.topology['logical_topology'].get('networks', []):
-                if 'management' in network.get('id', ''):
+            for network in self.topology["logical_topology"].get("networks", []):
+                if "management" in network.get("id", ""):
                     mgmt_network = network
                     break
 
-            tfvars_content = tfvars_template.render(
-                mgmt_network=mgmt_network
-            )
+            tfvars_content = tfvars_template.render(mgmt_network=mgmt_network)
 
             tfvars_file = self.output_dir / "terraform.tfvars.example"
             tfvars_file.write_text(tfvars_content)
@@ -291,14 +285,14 @@ class TerraformGenerator:
     def generate_outputs(self) -> bool:
         """Generate outputs.tf with infrastructure outputs"""
         try:
-            template = self.jinja_env.get_template('terraform/outputs.tf.j2')
+            template = self.jinja_env.get_template("terraform/outputs.tf.j2")
 
             # Gather all data for outputs
-            bridges = self.topology['logical_topology'].get('bridges', [])
-            lxc_containers = self.topology['compute'].get('lxc', [])
-            vms = self.topology['compute'].get('vms', [])
-            storage = self.topology.get('storage', [])
-            devices = self.topology['physical_topology'].get('devices', [])
+            bridges = self.topology["logical_topology"].get("bridges", [])
+            lxc_containers = self.topology["compute"].get("lxc", [])
+            vms = self.topology["compute"].get("vms", [])
+            storage = self.topology.get("storage", [])
+            devices = self.topology["physical_topology"].get("devices", [])
 
             content = template.render(
                 bridges=bridges,
@@ -306,7 +300,7 @@ class TerraformGenerator:
                 vms=vms,
                 storage=storage,
                 devices=devices,
-                topology_version=self.topology.get('version', '2.0.0')
+                topology_version=self.topology.get("version", "2.0.0"),
             )
 
             output_file = self.output_dir / "outputs.tf"
@@ -320,13 +314,13 @@ class TerraformGenerator:
 
     def print_summary(self):
         """Print generation summary"""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("Terraform Generation Summary")
-        print("="*70)
+        print("=" * 70)
 
-        bridges = len(self.topology['logical_topology'].get('bridges', []))
-        vms = len(self.topology['compute'].get('vms', []))
-        lxc = len(self.topology['compute'].get('lxc', []))
+        bridges = len(self.topology["logical_topology"].get("bridges", []))
+        vms = len(self.topology["compute"].get("vms", []))
+        lxc = len(self.topology["compute"].get("lxc", []))
 
         print(f"\n✓ Generated Terraform configuration for:")
         print(f"  - {bridges} network bridges")
@@ -347,32 +341,22 @@ class TerraformGenerator:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate Terraform configuration from topology v3.0"
-    )
-    parser.add_argument(
-        "--topology",
-        default="topology.yaml",
-        help="Path to topology YAML file"
-    )
+    parser = argparse.ArgumentParser(description="Generate Terraform configuration from topology v3.0")
+    parser.add_argument("--topology", default="topology.yaml", help="Path to topology YAML file")
     parser.add_argument(
         "--output",
         default="generated/terraform",
-        help="Output directory for Terraform files (default: generated/terraform/)"
+        help="Output directory for Terraform files (default: generated/terraform/)",
     )
-    parser.add_argument(
-        "--templates",
-        default="scripts/templates",
-        help="Directory containing Jinja2 templates"
-    )
+    parser.add_argument("--templates", default="scripts/templates", help="Directory containing Jinja2 templates")
 
     args = parser.parse_args()
 
     generator = TerraformGenerator(args.topology, args.output, args.templates)
 
-    print("="*70)
+    print("=" * 70)
     print("Terraform Configuration Generator (Topology v3.0)")
-    print("="*70)
+    print("=" * 70)
     print()
 
     if not generator.load_topology():

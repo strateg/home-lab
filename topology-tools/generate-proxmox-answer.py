@@ -10,10 +10,10 @@ Example:
     python3 topology-tools/generate-proxmox-answer.py topology.yaml manual-scripts/bare-metal/answer.toml
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from scripts.generators.common import load_and_validate_layered_topology
 
@@ -32,12 +32,12 @@ class ProxmoxAnswerGenerator:
         self.topology, version_warning = load_and_validate_layered_topology(
             self.topology_path,
             required_sections=[
-                'L0_meta',
-                'L1_foundation',
-                'L2_network',
-                'L3_data',
-                'L5_application',
-                'L7_operations',
+                "L0_meta",
+                "L1_foundation",
+                "L2_network",
+                "L3_data",
+                "L5_application",
+                "L7_operations",
             ],
         )
         if version_warning:
@@ -48,11 +48,11 @@ class ProxmoxAnswerGenerator:
 
     def _extract_proxmox_node(self) -> Optional[Dict[str, Any]]:
         """Extract Proxmox hypervisor node from topology"""
-        devices = self.topology.get('L1_foundation', {}).get('devices', [])
+        devices = self.topology.get("L1_foundation", {}).get("devices", [])
 
         for device in devices:
             # Find hypervisor device (role can be 'compute', 'proxmox-ve', or 'hypervisor')
-            if device.get('type') == 'hypervisor':
+            if device.get("type") == "hypervisor":
                 return device
 
         return None
@@ -66,18 +66,18 @@ class ProxmoxAnswerGenerator:
 
         # Prefer SSD disk and resolve OS-level device from L3 storage mapping.
         for disk in disks:
-            if disk.get('type') == 'ssd':
-                disk_id = disk.get('id')
+            if disk.get("type") == "ssd":
+                disk_id = disk.get("id")
                 device_path = self._get_os_device_for_disk(disk_id)
                 if device_path:
-                    return device_path.replace('/dev/', '')
+                    return device_path.replace("/dev/", "")
 
         # Fallback: first disk with logical device mapping.
         if disks:
-            disk_id = disks[0].get('id')
+            disk_id = disks[0].get("id")
             device_path = self._get_os_device_for_disk(disk_id)
             if device_path:
-                return device_path.replace('/dev/', '')
+                return device_path.replace("/dev/", "")
 
         return "sda"
 
@@ -86,27 +86,25 @@ class ProxmoxAnswerGenerator:
         if not self.proxmox_node:
             return []
 
-        l1 = self.topology.get('L1_foundation', {}) or {}
-        media_registry = l1.get('media_registry', []) if isinstance(l1.get('media_registry'), list) else []
-        media_attachments = l1.get('media_attachments', []) if isinstance(l1.get('media_attachments'), list) else []
+        l1 = self.topology.get("L1_foundation", {}) or {}
+        media_registry = l1.get("media_registry", []) if isinstance(l1.get("media_registry"), list) else []
+        media_attachments = l1.get("media_attachments", []) if isinstance(l1.get("media_attachments"), list) else []
 
         media_by_id = {
-            media.get('id'): media
-            for media in media_registry
-            if isinstance(media, dict) and media.get('id')
+            media.get("id"): media for media in media_registry if isinstance(media, dict) and media.get("id")
         }
 
-        specs = self.proxmox_node.get('specs', {}) if isinstance(self.proxmox_node.get('specs'), dict) else {}
-        slots = specs.get('storage_slots', []) if isinstance(specs.get('storage_slots'), list) else []
-        slot_ids = [slot.get('id') for slot in slots if isinstance(slot, dict) and slot.get('id')]
+        specs = self.proxmox_node.get("specs", {}) if isinstance(self.proxmox_node.get("specs"), dict) else {}
+        slots = specs.get("storage_slots", []) if isinstance(specs.get("storage_slots"), list) else []
+        slot_ids = [slot.get("id") for slot in slots if isinstance(slot, dict) and slot.get("id")]
 
         attachments_by_slot: Dict[str, list[Dict[str, Any]]] = {}
         for attachment in media_attachments:
             if not isinstance(attachment, dict):
                 continue
-            if attachment.get('device_ref') != self.proxmox_node.get('id'):
+            if attachment.get("device_ref") != self.proxmox_node.get("id"):
                 continue
-            slot_ref = attachment.get('slot_ref')
+            slot_ref = attachment.get("slot_ref")
             if not slot_ref:
                 continue
             attachments_by_slot.setdefault(slot_ref, []).append(attachment)
@@ -116,10 +114,10 @@ class ProxmoxAnswerGenerator:
             slot_attachments = attachments_by_slot.get(slot_id, [])
             slot_attachments = sorted(
                 slot_attachments,
-                key=lambda item: (0 if item.get('state', 'present') == 'present' else 1, item.get('id', '')),
+                key=lambda item: (0 if item.get("state", "present") == "present" else 1, item.get("id", "")),
             )
             for attachment in slot_attachments:
-                media = media_by_id.get(attachment.get('media_ref'))
+                media = media_by_id.get(attachment.get("media_ref"))
                 if isinstance(media, dict):
                     disks.append(media)
 
@@ -130,13 +128,13 @@ class ProxmoxAnswerGenerator:
         if not disk_id:
             return None
 
-        l3_storage = self.topology.get('L3_data', {}).get('storage', [])
+        l3_storage = self.topology.get("L3_data", {}).get("storage", [])
         if not isinstance(l3_storage, list):
             return None
 
         for storage in l3_storage:
-            if storage.get('disk_ref') == disk_id and storage.get('os_device'):
-                return storage.get('os_device')
+            if storage.get("disk_ref") == disk_id and storage.get("os_device"):
+                return storage.get("os_device")
 
         return None
 
@@ -146,15 +144,15 @@ class ProxmoxAnswerGenerator:
             return "proxmox.home.local"
 
         # Get domain from DNS zone (default: home.local)
-        dns_zones = self.topology.get('L5_application', {}).get('dns', {}).get('zones', [])
+        dns_zones = self.topology.get("L5_application", {}).get("dns", {}).get("zones", [])
         if not isinstance(dns_zones, list):
             dns_zones = []
-        domain = 'home.local'
+        domain = "home.local"
         if dns_zones:
-            domain = dns_zones[0].get('domain', 'home.local')
+            domain = dns_zones[0].get("domain", "home.local")
 
         # Construct FQDN: {node_id}.{domain}
-        node_id = self.proxmox_node.get('id', 'proxmox')
+        node_id = self.proxmox_node.get("id", "proxmox")
         return f"{node_id}.{domain}"
 
     def _get_management_ip(self) -> Optional[Dict[str, str]]:
@@ -162,14 +160,14 @@ class ProxmoxAnswerGenerator:
         Extract management network IP configuration for Proxmox node
         Returns dict with 'ip', 'gateway', 'dns' or None for DHCP
         """
-        networks = self.topology.get('L2_network', {}).get('networks', [])
+        networks = self.topology.get("L2_network", {}).get("networks", [])
         if not isinstance(networks, list):
             return None
 
         # Find management network
         mgmt_network = None
         for net in networks:
-            if net.get('id') == 'net-management':
+            if net.get("id") == "net-management":
                 mgmt_network = net
                 break
 
@@ -177,19 +175,15 @@ class ProxmoxAnswerGenerator:
             return None
 
         # Find Proxmox node IP allocation
-        allocations = mgmt_network.get('ip_allocations', [])
+        allocations = mgmt_network.get("ip_allocations", [])
         for alloc in allocations:
-            if alloc.get('device_ref') == self.proxmox_node.get('id'):
+            if alloc.get("device_ref") == self.proxmox_node.get("id"):
                 # Extract IP from allocation
-                ip_cidr = alloc.get('ip')  # e.g., "10.0.99.1/24"
-                gateway = mgmt_network.get('gateway', '10.0.99.1')
-                dns_servers = mgmt_network.get('dns', ['1.1.1.1', '8.8.8.8'])
+                ip_cidr = alloc.get("ip")  # e.g., "10.0.99.1/24"
+                gateway = mgmt_network.get("gateway", "10.0.99.1")
+                dns_servers = mgmt_network.get("dns", ["1.1.1.1", "8.8.8.8"])
 
-                return {
-                    'cidr': ip_cidr,
-                    'gateway': gateway,
-                    'dns': dns_servers[0] if dns_servers else '1.1.1.1'
-                }
+                return {"cidr": ip_cidr, "gateway": gateway, "dns": dns_servers[0] if dns_servers else "1.1.1.1"}
 
         return None
 
@@ -201,16 +195,18 @@ class ProxmoxAnswerGenerator:
             SHA-512 password hash from topology.L7_operations.security.proxmox.root_password_hash
             Falls back to hardcoded default if not found in topology
         """
-        security = self.topology.get('L7_operations', {}).get('security', {})
-        proxmox_security = security.get('proxmox', {})
+        security = self.topology.get("L7_operations", {}).get("security", {})
+        proxmox_security = security.get("proxmox", {})
 
         # Read from topology (preferred)
-        hash_from_topology = proxmox_security.get('root_password_hash')
+        hash_from_topology = proxmox_security.get("root_password_hash")
         if hash_from_topology:
             return hash_from_topology
 
         # Fallback: hardcoded default (same as before for backward compatibility)
-        return "$6$Wx8sYKmgnwHk4BgS$eGr047.zvpBPesQF.sQ13IFcLdPSaIhqJ8eteA5Y0LSwq4Fp2vurgSN9LmWLjvxBPKJCRpt57l.vC9izxPQvn0"
+        return (
+            "$6$Wx8sYKmgnwHk4BgS$eGr047.zvpBPesQF.sQ13IFcLdPSaIhqJ8eteA5Y0LSwq4Fp2vurgSN9LmWLjvxBPKJCRpt57l.vC9izxPQvn0"
+        )
 
     def validate(self) -> bool:
         """
@@ -228,7 +224,7 @@ class ProxmoxAnswerGenerator:
             return False
 
         # Check node has ID
-        if not self.proxmox_node.get('id'):
+        if not self.proxmox_node.get("id"):
             self.validation_errors.append("Proxmox node missing 'id' field")
 
         # Check disk configuration
@@ -237,27 +233,25 @@ class ProxmoxAnswerGenerator:
             self.validation_errors.append("Proxmox node has no disks defined")
         else:
             # Check for system disk (SSD)
-            has_system_disk = any(d.get('type') == 'ssd' for d in disks)
+            has_system_disk = any(d.get("type") == "ssd" for d in disks)
             if not has_system_disk:
                 self.validation_warnings.append("No SSD found for system installation, will use first disk")
 
             # Check L3 provides OS-level disk mapping.
             for disk in disks:
-                disk_id = disk.get('id')
+                disk_id = disk.get("id")
                 if not self._get_os_device_for_disk(disk_id):
-                    self.validation_warnings.append(
-                        f"Disk {disk_id or 'unknown'} has no L3 storage.os_device mapping"
-                    )
+                    self.validation_warnings.append(f"Disk {disk_id or 'unknown'} has no L3 storage.os_device mapping")
 
         # Check network configuration
-        networks = self.topology.get('L2_network', {}).get('networks', [])
+        networks = self.topology.get("L2_network", {}).get("networks", [])
         if not isinstance(networks, list):
             networks = []
         if not networks:
             self.validation_warnings.append("No networks defined in topology")
 
         # Check DNS zones for hostname domain
-        dns_zones = self.topology.get('L5_application', {}).get('dns', {}).get('zones', [])
+        dns_zones = self.topology.get("L5_application", {}).get("dns", {}).get("zones", [])
         if not isinstance(dns_zones, list):
             dns_zones = []
         if not dns_zones:
@@ -266,7 +260,7 @@ class ProxmoxAnswerGenerator:
         # Check management network
         mgmt_network = None
         for net in networks:
-            if net.get('id') == 'net-management':
+            if net.get("id") == "net-management":
                 mgmt_network = net
                 break
 
@@ -274,11 +268,8 @@ class ProxmoxAnswerGenerator:
             self.validation_warnings.append("No management network (net-management) found, using DHCP")
         else:
             # Check if Proxmox node has IP allocation
-            allocations = mgmt_network.get('ip_allocations', [])
-            has_proxmox_ip = any(
-                alloc.get('device_ref') == self.proxmox_node.get('id')
-                for alloc in allocations
-            )
+            allocations = mgmt_network.get("ip_allocations", [])
+            has_proxmox_ip = any(alloc.get("device_ref") == self.proxmox_node.get("id") for alloc in allocations)
             if not has_proxmox_ip:
                 self.validation_warnings.append(
                     f"Proxmox node '{self.proxmox_node.get('id')}' has no IP allocation in management network"
@@ -309,18 +300,17 @@ class ProxmoxAnswerGenerator:
             if isinstance(value, str):
                 lines.append(f'{key} = "{value}"')
             elif isinstance(value, (int, float)):
-                lines.append(f'{key} = {value}')
+                lines.append(f"{key} = {value}")
             elif isinstance(value, list):
                 # Format list of strings
-                formatted_list = ', '.join(f'"{v}"' for v in value)
-                lines.append(f'{key} = [{formatted_list}]')
+                formatted_list = ", ".join(f'"{v}"' for v in value)
+                lines.append(f"{key} = [{formatted_list}]")
             elif isinstance(value, bool):
-                lines.append(f'{key} = {str(value).lower()}')
+                lines.append(f"{key} = {str(value).lower()}")
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
-    def generate(self, root_password_hash: Optional[str] = None,
-                 use_dhcp: bool = True) -> str:
+    def generate(self, root_password_hash: Optional[str] = None, use_dhcp: bool = True) -> str:
         """
         Generate answer.toml content
 
@@ -354,24 +344,22 @@ class ProxmoxAnswerGenerator:
 
         # Header
         sections.append("# Proxmox VE 9 Auto-Install Configuration")
-        sections.append(
-            f"# Generated from topology.yaml v{self.topology.get('L0_meta', {}).get('version', '4.0.0')}"
-        )
+        sections.append(f"# Generated from topology.yaml v{self.topology.get('L0_meta', {}).get('version', '4.0.0')}")
         sections.append("# DO NOT EDIT MANUALLY - Regenerate with topology-tools/generate-proxmox-answer.py")
         sections.append("# Documentation: https://pve.proxmox.com/wiki/Automated_Installation")
         sections.append("")
 
         # [global] section
         global_data = {
-            'keyboard': 'en-us',
-            'country': 'us',
-            'timezone': 'UTC',
-            'root_password': root_password_hash,
-            'mailto': 'admin@home.local',
-            'fqdn': hostname,
-            'reboot_mode': 'power-off',
+            "keyboard": "en-us",
+            "country": "us",
+            "timezone": "UTC",
+            "root_password": root_password_hash,
+            "mailto": "admin@home.local",
+            "fqdn": hostname,
+            "reboot_mode": "power-off",
         }
-        sections.append(self._format_toml_section('global', global_data))
+        sections.append(self._format_toml_section("global", global_data))
         sections.append("")
 
         # [disk-setup] section
@@ -381,10 +369,10 @@ class ProxmoxAnswerGenerator:
         sections.append("")
 
         disk_setup_data = {
-            'filesystem': 'ext4',
-            'disk_list': [primary_disk],
+            "filesystem": "ext4",
+            "disk_list": [primary_disk],
         }
-        sections.append(self._format_toml_section('disk-setup', disk_setup_data))
+        sections.append(self._format_toml_section("disk-setup", disk_setup_data))
         sections.append("")
 
         # LVM configuration
@@ -407,9 +395,9 @@ class ProxmoxAnswerGenerator:
         if use_dhcp:
             # DHCP configuration (recommended for initial setup)
             network_data = {
-                'source': 'from-dhcp',
+                "source": "from-dhcp",
             }
-            sections.append(self._format_toml_section('network', network_data))
+            sections.append(self._format_toml_section("network", network_data))
             sections.append("")
             sections.append("# Static IP configuration will be applied by post-install scripts")
         else:
@@ -417,16 +405,16 @@ class ProxmoxAnswerGenerator:
             mgmt_ip = self._get_management_ip()
             if mgmt_ip:
                 network_data = {
-                    'source': 'from-answer',
-                    'cidr': mgmt_ip['cidr'],
-                    'gateway': mgmt_ip['gateway'],
-                    'dns': mgmt_ip['dns'],
+                    "source": "from-answer",
+                    "cidr": mgmt_ip["cidr"],
+                    "gateway": mgmt_ip["gateway"],
+                    "dns": mgmt_ip["dns"],
                 }
-                sections.append(self._format_toml_section('network', network_data))
+                sections.append(self._format_toml_section("network", network_data))
             else:
                 # Fallback to DHCP if no management IP found
-                network_data = {'source': 'from-dhcp'}
-                sections.append(self._format_toml_section('network', network_data))
+                network_data = {"source": "from-dhcp"}
+                sections.append(self._format_toml_section("network", network_data))
                 sections.append("# No static management IP found in topology, using DHCP")
 
         sections.append("")
@@ -438,10 +426,10 @@ class ProxmoxAnswerGenerator:
         sections.append("")
 
         first_boot_data = {
-            'source': 'from-iso',
-            'ordering': 'fully-up',
+            "source": "from-iso",
+            "ordering": "fully-up",
         }
-        sections.append(self._format_toml_section('first-boot', first_boot_data))
+        sections.append(self._format_toml_section("first-boot", first_boot_data))
         sections.append("")
 
         # Notes
@@ -450,7 +438,9 @@ class ProxmoxAnswerGenerator:
         sections.append("# ============================================================")
         sections.append("#")
         sections.append("# This configuration will:")
-        sections.append(f"# 1. Install Proxmox VE 9 on {self.proxmox_node.get('specs', {}).get('model', 'Dell XPS L701X')}")
+        sections.append(
+            f"# 1. Install Proxmox VE 9 on {self.proxmox_node.get('specs', {}).get('model', 'Dell XPS L701X')}"
+        )
         sections.append(f"# 2. Hostname: {hostname}")
         sections.append(f"# 3. System disk: {primary_disk}")
         sections.append("# 4. Network: DHCP initially (configured by post-install scripts)")
@@ -463,10 +453,9 @@ class ProxmoxAnswerGenerator:
         sections.append("# 5. Apply Ansible configuration")
         sections.append("")
 
-        return '\n'.join(sections)
+        return "\n".join(sections)
 
-    def save(self, output_path: str, root_password_hash: Optional[str] = None,
-             use_dhcp: bool = True) -> None:
+    def save(self, output_path: str, root_password_hash: Optional[str] = None, use_dhcp: bool = True) -> None:
         """
         Generate and save answer.toml
 
@@ -495,7 +484,7 @@ class ProxmoxAnswerGenerator:
 def main():
     """CLI entry point"""
     parser = argparse.ArgumentParser(
-        description='Generate Proxmox answer.toml from topology.yaml',
+        description="Generate Proxmox answer.toml from topology.yaml",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -507,39 +496,25 @@ Examples:
 
   # Generate with static IP (not recommended for auto-install)
   %(prog)s topology.yaml answer.toml --static
-        """
+        """,
     )
 
     parser.add_argument(
-        'topology',
-        nargs='?',
-        default='topology.yaml',
-        help='Path to topology.yaml (default: topology.yaml)'
+        "topology", nargs="?", default="topology.yaml", help="Path to topology.yaml (default: topology.yaml)"
     )
 
     parser.add_argument(
-        'output',
-        nargs='?',
-        default='manual-scripts/bare-metal/answer.toml',
-        help='Output path for answer.toml (default: manual-scripts/bare-metal/answer.toml)'
+        "output",
+        nargs="?",
+        default="manual-scripts/bare-metal/answer.toml",
+        help="Output path for answer.toml (default: manual-scripts/bare-metal/answer.toml)",
     )
 
-    parser.add_argument(
-        '--password',
-        help='Root password hash (SHA-512). Generate with: openssl passwd -6 "password"'
-    )
+    parser.add_argument("--password", help='Root password hash (SHA-512). Generate with: openssl passwd -6 "password"')
 
-    parser.add_argument(
-        '--static',
-        action='store_true',
-        help='Use static IP from topology (default: DHCP)'
-    )
+    parser.add_argument("--static", action="store_true", help="Use static IP from topology (default: DHCP)")
 
-    parser.add_argument(
-        '--validate',
-        action='store_true',
-        help='Validate topology structure only (do not generate)'
-    )
+    parser.add_argument("--validate", action="store_true", help="Validate topology structure only (do not generate)")
 
     args = parser.parse_args()
 
@@ -567,11 +542,7 @@ Examples:
             return 0 if is_valid else 1
 
         # Generate answer.toml
-        generator.save(
-            args.output,
-            root_password_hash=args.password,
-            use_dhcp=not args.static
-        )
+        generator.save(args.output, root_password_hash=args.password, use_dhcp=not args.static)
 
         print("")
         print("  IMPORTANT:")
@@ -584,9 +555,10 @@ Examples:
     except Exception as e:
         print(f" Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

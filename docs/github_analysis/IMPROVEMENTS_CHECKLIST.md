@@ -32,22 +32,22 @@
 ## 🟠 ВЫСОКИЙ ПРИОРИТЕТ (Неделя 3-4)
 
 - [ ] **Обработка ошибок**
-  - [ ] Создать `topology-tools/exceptions.py`
-  - [ ] Определить пользовательские исключения (StorageError, NetworkError, etc.)
+  - [x] Создать `topology-tools/exceptions.py`
+  - [x] Определить пользовательские исключения (StorageError, NetworkError, etc.)
   - [ ] Обновить `validate-topology.py` для использования кастомных exceptions
   - [ ] Обновить `regenerate-all.py` для обработки ошибок
 
 - [ ] **Логирование**
-  - [ ] Добавить structured logging в `regenerate-all.py`
+  - [x] Добавить structured logging в `regenerate-all.py`
   - [ ] Добавить debug логирование в валидаторы
-  - [ ] Создать `.logs/` директорию с .gitkeep
+  - [x] Создать `.logs/` директорию с .gitkeep
   - [ ] Обновить README с инструкциями по просмотру логов
 
 - [ ] **Рефакторинг валидатора**
   - [ ] Разбить `validate-topology.py` на меньшие функции
   - [ ] Создать `ValidationCheckBase` класс в `scripts/validators/`
   - [ ] Переделать проверки в модульные классы
-  - [ ] Добавить 10 новых unit-тестов
+  - [x] Добавить 10 новых unit-тестов (за 3 сессии добавлено 31)
   - [ ] Убедиться что старые проверки работают
 
 ---
@@ -68,7 +68,7 @@
   - [ ] Протестировать workflows на PR
 
 - [ ] **Документация разработчика**
-  - [ ] Создать `topology-tools/DEVELOPMENT.md`
+  - [x] Создать `topology-tools/DEVELOPMENT.md`
   - [ ] Написать раздел "Добавление нового валидатора"
   - [ ] Написать раздел "Добавление нового генератора"
   - [ ] Написать раздел "Тестирование"
@@ -108,26 +108,26 @@
 ### validate-topology.py
 - [ ] Добавить type hints (20% готово)
 - [ ] Рефакторить на модули (0%)
-- [ ] Улучшить логирование (0%)
+- [ ] Улучшить логирование (5% готово - logging импортирован)
 - [ ] Добавить кастомные exceptions (0%)
 - [ ] Добавить unit-тесты (0%)
 
 ### regenerate-all.py
 - [ ] Добавить type hints (30% готово)
-- [ ] Добавить structured logging (0%)
+- [x] Добавить structured logging (100% - logging.info/debug/exception)
 - [ ] Улучшить обработку ошибок (0%)
 - [ ] Добавить unit-тесты (0%)
 
 ### scripts/validators/
 - [ ] Добавить type hints (10% готово)
 - [ ] Создать ValidationCheckBase (0%)
-- [ ] Добавить unit-тесты (0%)
+- [x] Добавить unit-тесты (31 тестов: storage, network, ip_resolver)
 - [ ] Документировать в DEVELOPMENT.md (0%)
 
 ### scripts/generators/
 - [ ] Добавить type hints (15% готово)
 - [ ] Создать GeneratorBase (50% готово)
-- [ ] Добавить unit-тесты (0%)
+- [x] Добавить unit-тесты (13 тестов для ip_resolver)
 - [ ] Документировать в DEVELOPMENT.md (0%)
 
 ---

@@ -604,4 +604,3 @@ dashboard:
     - ups_status
     - battery_level
     - power_consumption
-

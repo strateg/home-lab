@@ -30,6 +30,20 @@ repos:
   rev: v1.4.0
   hooks:
     - id: detect-secrets
+      exclude: |
+        (?x)^(
+          Migrated_and_archived/.*|
+          manual-scripts/.*|
+          topology-tools/fixtures/.*|
+          ansible/group_vars/.*\.yml\.example$|
+          ansible/.*\.sh$|
+          ansible/README\.md$|
+          bootstrap/.*|
+          configs/vpn/.*|
+          docs/guides/.*|
+          MIGRATION\.md|
+          \.secrets\.baseline
+        )$
 
 - repo: https://github.com/pre-commit/pre-commit-hooks
   rev: v4.5.0
@@ -37,6 +51,13 @@ repos:
     - id: trailing-whitespace
     - id: end-of-file-fixer
     - id: check-yaml
+      exclude: |
+        (?x)^(
+          topology\.yaml|
+          topology/.*\.yaml|
+          topology-tools/fixtures/.*\.yaml|
+          Migrated_and_archived/.*\.yaml
+        )$
     - id: check-added-large-files
 
 - repo: local

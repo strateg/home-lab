@@ -39,6 +39,8 @@
 # Linux
 # Local .terraform directories
 # Logs
+.logs/
+!.logs/.gitkeep
 # OS
 # OS / IDE
 # Old system (legacy, kept for reference)

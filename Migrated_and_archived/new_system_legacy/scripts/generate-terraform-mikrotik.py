@@ -23,11 +23,12 @@ the terraform-routeros provider. It reads the topology YAML files and creates:
   - outputs.tf      - Infrastructure outputs
 """
 
-import sys
 import argparse
 import shutil
+import sys
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+
 from jinja2 import Environment, FileSystemLoader
 
 # Import topology loader with !include support
@@ -58,9 +59,7 @@ class MikrotikTerraformGenerator:
 
         # Setup Jinja2 environment
         self.jinja_env = Environment(
-            loader=FileSystemLoader(str(self.templates_dir)),
-            trim_blocks=True,
-            lstrip_blocks=True
+            loader=FileSystemLoader(str(self.templates_dir)), trim_blocks=True, lstrip_blocks=True
         )
 
     def load_topology(self) -> bool:
@@ -70,14 +69,14 @@ class MikrotikTerraformGenerator:
             print(f"✓ Loaded topology: {self.topology_path}")
 
             # Validate v3.0 structure
-            required = ['version', 'physical_topology', 'logical_topology']
+            required = ["version", "physical_topology", "logical_topology"]
             for section in required:
                 if section not in self.topology:
                     print(f"❌ Missing required section: {section}")
                     return False
 
-            version = self.topology.get('version', '')
-            if not version.startswith('3.'):
+            version = self.topology.get("version", "")
+            if not version.startswith("3."):
                 print(f"⚠️  Warning: Topology version {version} - expected 3.x for MikroTik support")
 
             return True
@@ -92,8 +91,8 @@ class MikrotikTerraformGenerator:
         """Extract MikroTik-relevant data from topology"""
         try:
             # Find MikroTik device
-            for device in self.topology['physical_topology'].get('devices', []):
-                if device.get('id') == 'mikrotik-chateau':
+            for device in self.topology["physical_topology"].get("devices", []):
+                if device.get("id") == "mikrotik-chateau":
                     self.mikrotik_device = device
                     break
 
@@ -132,18 +131,19 @@ class MikrotikTerraformGenerator:
         except Exception as e:
             print(f"❌ Error extracting MikroTik data: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
     def _extract_networks(self):
         """Extract networks managed by MikroTik"""
-        for network in self.topology['logical_topology'].get('networks', []):
-            if network.get('managed_by_ref') == 'mikrotik-chateau':
+        for network in self.topology["logical_topology"].get("networks", []):
+            if network.get("managed_by_ref") == "mikrotik-chateau":
                 # Add interface name based on VLAN
-                if network.get('vlan'):
-                    network['interface_name'] = f"vlan{network['vlan']}"
+                if network.get("vlan"):
+                    network["interface_name"] = f"vlan{network['vlan']}"
                 else:
-                    network['interface_name'] = 'bridge-lan'
+                    network["interface_name"] = "bridge-lan"
                 self.networks.append(network)
 
         print(f"✓ Extracted {len(self.networks)} networks")
@@ -151,58 +151,62 @@ class MikrotikTerraformGenerator:
     def _extract_vlans(self):
         """Extract VLAN configurations"""
         for network in self.networks:
-            vlan_id = network.get('vlan')
+            vlan_id = network.get("vlan")
             if vlan_id:
-                self.vlans.append({
-                    'id': vlan_id,
-                    'name': network.get('name', f'VLAN {vlan_id}'),
-                    'network_ref': network.get('id'),
-                    'cidr': network.get('cidr'),
-                    'trust_zone_ref': network.get('trust_zone_ref'),
-                    'untagged_ports': [],  # To be populated if needed
-                })
+                self.vlans.append(
+                    {
+                        "id": vlan_id,
+                        "name": network.get("name", f"VLAN {vlan_id}"),
+                        "network_ref": network.get("id"),
+                        "cidr": network.get("cidr"),
+                        "trust_zone_ref": network.get("trust_zone_ref"),
+                        "untagged_ports": [],  # To be populated if needed
+                    }
+                )
 
         print(f"✓ Extracted {len(self.vlans)} VLANs")
 
     def _extract_lan_ports(self):
         """Extract LAN ports for bridge configuration"""
         # MikroTik Chateau has ether2-ether5 as LAN ports
-        for interface in self.mikrotik_device.get('interfaces', []):
-            if interface.get('type') == 'ethernet' and interface.get('role') == 'lan':
-                self.lan_ports.append({
-                    'name': interface.get('id', '').replace('if-mikrotik-', ''),
-                    'interface': interface.get('physical_name', interface.get('id')),
-                    'pvid': 1,
-                    'comment': interface.get('description', ''),
-                    'tagged_vlans': False,
-                })
+        for interface in self.mikrotik_device.get("interfaces", []):
+            if interface.get("type") == "ethernet" and interface.get("role") == "lan":
+                self.lan_ports.append(
+                    {
+                        "name": interface.get("id", "").replace("if-mikrotik-", ""),
+                        "interface": interface.get("physical_name", interface.get("id")),
+                        "pvid": 1,
+                        "comment": interface.get("description", ""),
+                        "tagged_vlans": False,
+                    }
+                )
 
         print(f"✓ Extracted {len(self.lan_ports)} LAN ports")
 
     def _extract_firewall_policies(self):
         """Extract firewall policies"""
-        policies = self.topology['logical_topology'].get('firewall_policies', [])
+        policies = self.topology["logical_topology"].get("firewall_policies", [])
 
         # Map zone refs to CIDRs
         zone_cidrs = {}
         for network in self.networks:
-            zone = network.get('trust_zone_ref')
-            if zone and network.get('cidr') and network.get('cidr') != 'dhcp':
-                zone_cidrs[zone] = network.get('cidr')
+            zone = network.get("trust_zone_ref")
+            if zone and network.get("cidr") and network.get("cidr") != "dhcp":
+                zone_cidrs[zone] = network.get("cidr")
 
         for policy in policies:
             # Add source CIDR if zone reference exists
-            if policy.get('source_network_ref'):
+            if policy.get("source_network_ref"):
                 for net in self.networks:
-                    if net.get('id') == policy['source_network_ref']:
-                        policy['source_cidr'] = net.get('cidr')
+                    if net.get("id") == policy["source_network_ref"]:
+                        policy["source_cidr"] = net.get("cidr")
                         break
 
             # Add destination CIDR
-            if policy.get('destination_network_ref'):
+            if policy.get("destination_network_ref"):
                 for net in self.networks:
-                    if net.get('id') == policy['destination_network_ref']:
-                        policy['destination_cidr'] = net.get('cidr')
+                    if net.get("id") == policy["destination_network_ref"]:
+                        policy["destination_cidr"] = net.get("cidr")
                         break
 
             self.firewall_policies.append(policy)
@@ -211,18 +215,18 @@ class MikrotikTerraformGenerator:
 
     def _extract_qos(self):
         """Extract QoS configuration"""
-        qos_config = self.topology['logical_topology'].get('qos', {})
+        qos_config = self.topology["logical_topology"].get("qos", {})
 
-        if qos_config.get('enabled'):
+        if qos_config.get("enabled"):
             self.qos = qos_config.copy()
 
             # Add target CIDRs to device limits
-            if 'device_limits' in self.qos:
-                for limit in self.qos['device_limits']:
-                    network_ref = limit.get('network_ref')
+            if "device_limits" in self.qos:
+                for limit in self.qos["device_limits"]:
+                    network_ref = limit.get("network_ref")
                     for net in self.networks:
-                        if net.get('id') == network_ref:
-                            limit['target_cidr'] = net.get('cidr')
+                        if net.get("id") == network_ref:
+                            limit["target_cidr"] = net.get("cidr")
                             break
 
             print(f"✓ Extracted QoS config with {len(self.qos.get('queues', []))} queues")
@@ -232,56 +236,55 @@ class MikrotikTerraformGenerator:
     def _extract_wireguard(self):
         """Extract WireGuard VPN configuration"""
         for network in self.networks:
-            if network.get('vpn_type') == 'wireguard':
+            if network.get("vpn_type") == "wireguard":
                 self.wireguard = {
-                    'enabled': True,
-                    'port': 51820,
-                    'server_ip': network.get('gateway', '10.0.200.1'),
-                    'network': network.get('cidr', '10.0.200.0/24'),
-                    'peers': [],  # Peers are added via terraform variables
+                    "enabled": True,
+                    "port": 51820,
+                    "server_ip": network.get("gateway", "10.0.200.1"),
+                    "network": network.get("cidr", "10.0.200.0/24"),
+                    "peers": [],  # Peers are added via terraform variables
                 }
                 print("✓ Extracted WireGuard configuration")
                 return
 
-        self.wireguard = {'enabled': False}
+        self.wireguard = {"enabled": False}
         print("ℹ  WireGuard VPN not configured in topology")
 
     def _extract_containers(self):
         """Extract container configuration from services"""
         # Services can be under 'services.items' (new structure) or 'services' (list)
-        services_data = self.topology.get('services', {})
+        services_data = self.topology.get("services", {})
         if isinstance(services_data, dict):
-            services = services_data.get('items', [])
+            services = services_data.get("items", [])
         else:
             services = services_data  # Backwards compatibility if it's a list
 
-        self.containers = {
-            'ram_limit_mb': 512,
-            'services': []
-        }
+        self.containers = {"ram_limit_mb": 512, "services": []}
 
         for service in services:
-            if isinstance(service, dict) and service.get('device_ref') == 'mikrotik-chateau':
-                if service.get('container'):
-                    self.containers['services'].append({
-                        'id': service.get('id'),
-                        'name': service.get('name'),
-                        'image': service.get('container_image'),
-                    })
+            if isinstance(service, dict) and service.get("device_ref") == "mikrotik-chateau":
+                if service.get("container"):
+                    self.containers["services"].append(
+                        {
+                            "id": service.get("id"),
+                            "name": service.get("name"),
+                            "image": service.get("container_image"),
+                        }
+                    )
 
         print(f"✓ Extracted {len(self.containers['services'])} container configurations")
 
     def _extract_dns(self):
         """Extract DNS records and settings"""
-        dns_config = self.topology['logical_topology'].get('dns', {})
+        dns_config = self.topology["logical_topology"].get("dns", {})
 
-        self.dns_settings = dns_config.get('settings', {})
+        self.dns_settings = dns_config.get("settings", {})
 
         # Extract records from zones
-        for zone in dns_config.get('zones', []):
-            domain = zone.get('domain', 'home.local')
-            for record in zone.get('records', []):
-                record['domain'] = domain
+        for zone in dns_config.get("zones", []):
+            domain = zone.get("domain", "home.local")
+            for record in zone.get("records", []):
+                record["domain"] = domain
                 self.dns_records.append(record)
 
         print(f"✓ Extracted {len(self.dns_records)} DNS records")
@@ -298,17 +301,17 @@ class MikrotikTerraformGenerator:
         print(f"📁 Created output directory: {self.output_dir}")
 
         success = True
-        success &= self.generate_file('provider.tf.j2', 'provider.tf')
-        success &= self.generate_file('variables.tf.j2', 'variables.tf')
-        success &= self.generate_file('interfaces.tf.j2', 'interfaces.tf')
-        success &= self.generate_file('addresses.tf.j2', 'addresses.tf')
-        success &= self.generate_file('dhcp.tf.j2', 'dhcp.tf')
-        success &= self.generate_file('dns.tf.j2', 'dns.tf')
-        success &= self.generate_file('firewall.tf.j2', 'firewall.tf')
-        success &= self.generate_file('qos.tf.j2', 'qos.tf')
-        success &= self.generate_file('vpn.tf.j2', 'vpn.tf')
-        success &= self.generate_file('containers.tf.j2', 'containers.tf')
-        success &= self.generate_file('outputs.tf.j2', 'outputs.tf')
+        success &= self.generate_file("provider.tf.j2", "provider.tf")
+        success &= self.generate_file("variables.tf.j2", "variables.tf")
+        success &= self.generate_file("interfaces.tf.j2", "interfaces.tf")
+        success &= self.generate_file("addresses.tf.j2", "addresses.tf")
+        success &= self.generate_file("dhcp.tf.j2", "dhcp.tf")
+        success &= self.generate_file("dns.tf.j2", "dns.tf")
+        success &= self.generate_file("firewall.tf.j2", "firewall.tf")
+        success &= self.generate_file("qos.tf.j2", "qos.tf")
+        success &= self.generate_file("vpn.tf.j2", "vpn.tf")
+        success &= self.generate_file("containers.tf.j2", "containers.tf")
+        success &= self.generate_file("outputs.tf.j2", "outputs.tf")
         success &= self.generate_tfvars_example()
 
         return success
@@ -319,28 +322,28 @@ class MikrotikTerraformGenerator:
             template = self.jinja_env.get_template(template_name)
 
             # Find MikroTik management IP
-            mikrotik_mgmt_ip = '192.168.88.1'
+            mikrotik_mgmt_ip = "192.168.88.1"
             for network in self.networks:
-                if network.get('id') == 'net-lan':
-                    mikrotik_mgmt_ip = network.get('gateway', '192.168.88.1')
+                if network.get("id") == "net-lan":
+                    mikrotik_mgmt_ip = network.get("gateway", "192.168.88.1")
                     break
 
             # Common context for all templates
             context = {
-                'topology_version': self.topology.get('version', '3.0.0'),
-                'mikrotik_device': self.mikrotik_device,
-                'mikrotik_mgmt_ip': mikrotik_mgmt_ip,
-                'networks': self.networks,
-                'vlans': self.vlans,
-                'lan_ports': self.lan_ports,
-                'firewall_policies': self.firewall_policies,
-                'qos': self.qos,
-                'wireguard': self.wireguard,
-                'containers': self.containers,
-                'dns_records': self.dns_records,
-                'dns_settings': self.dns_settings,
-                'dns_domain': 'home.local',
-                'dhcp_leases': self.dhcp_leases,
+                "topology_version": self.topology.get("version", "3.0.0"),
+                "mikrotik_device": self.mikrotik_device,
+                "mikrotik_mgmt_ip": mikrotik_mgmt_ip,
+                "networks": self.networks,
+                "vlans": self.vlans,
+                "lan_ports": self.lan_ports,
+                "firewall_policies": self.firewall_policies,
+                "qos": self.qos,
+                "wireguard": self.wireguard,
+                "containers": self.containers,
+                "dns_records": self.dns_records,
+                "dns_settings": self.dns_settings,
+                "dns_domain": "home.local",
+                "dhcp_leases": self.dhcp_leases,
             }
 
             content = template.render(**context)
@@ -353,6 +356,7 @@ class MikrotikTerraformGenerator:
         except Exception as e:
             print(f"❌ Error generating {output_name}: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
@@ -436,21 +440,13 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate MikroTik RouterOS Terraform configuration from topology v3.0"
     )
-    parser.add_argument(
-        "--topology",
-        default="topology.yaml",
-        help="Path to topology YAML file"
-    )
+    parser.add_argument("--topology", default="topology.yaml", help="Path to topology YAML file")
     parser.add_argument(
         "--output",
         default="generated/terraform-mikrotik",
-        help="Output directory for Terraform files (default: generated/terraform-mikrotik/)"
+        help="Output directory for Terraform files (default: generated/terraform-mikrotik/)",
     )
-    parser.add_argument(
-        "--templates",
-        default="scripts/templates",
-        help="Directory containing Jinja2 templates"
-    )
+    parser.add_argument("--templates", default="scripts/templates", help="Directory containing Jinja2 templates")
 
     args = parser.parse_args()
 

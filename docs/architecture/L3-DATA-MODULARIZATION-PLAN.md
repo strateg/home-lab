@@ -1,6 +1,6 @@
 # L3 Data Modularization Plan
 
-Date: 2026-02-22  
+Date: 2026-02-22
 Scope: `L3_data` split into modular structure with preserved behavior.
 
 ## Goal

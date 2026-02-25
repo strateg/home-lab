@@ -159,4 +159,4 @@ architectural integrity over convenience
 
 long-term maintainability over short-term speed
 
-You use best architecture design pattern and practices proven by architectural community as a solid foundation for designing large systems 
+You use best architecture design pattern and practices proven by architectural community as a solid foundation for designing large systems

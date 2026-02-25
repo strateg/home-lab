@@ -16,11 +16,11 @@ Requirements:
     pip install pyyaml jinja2 jsonschema
 """
 
-import sys
 import argparse
 import subprocess
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
 
 class RegenerateAll:
@@ -34,9 +34,9 @@ class RegenerateAll:
 
     def print_header(self, text: str):
         """Print section header"""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print(f"  {text}")
-        print("="*70 + "\n")
+        print("=" * 70 + "\n")
 
     def run_script(self, script_name: str, description: str) -> bool:
         """Run a Python script and capture result"""
@@ -56,7 +56,7 @@ class RegenerateAll:
                 ["python3", str(script_path), "--topology", self.topology_path],
                 capture_output=False,  # Show output in real-time
                 text=True,
-                check=True
+                check=True,
             )
             print(f"✅ {description} completed\n")
             return True
@@ -91,7 +91,9 @@ class RegenerateAll:
 
         # Step 3: Generate Terraform (MikroTik)
         self.print_header("Step 3/5: Generate Terraform (MikroTik)")
-        success_mikrotik = self.run_script("generate-terraform-mikrotik.py", "Generating MikroTik Terraform configuration")
+        success_mikrotik = self.run_script(
+            "generate-terraform-mikrotik.py", "Generating MikroTik Terraform configuration"
+        )
 
         # Step 4: Generate Ansible inventory
         self.print_header("Step 4/5: Generate Ansible Inventory")
@@ -115,8 +117,12 @@ class RegenerateAll:
         self.print_header("📊 Summary")
 
         print("Results:")
-        print(f"  {'✅' if success_terraform else '❌'} Terraform (Proxmox):  {'Success' if success_terraform else 'Failed'}")
-        print(f"  {'✅' if success_mikrotik else '❌'} Terraform (MikroTik): {'Success' if success_mikrotik else 'Failed'}")
+        print(
+            f"  {'✅' if success_terraform else '❌'} Terraform (Proxmox):  {'Success' if success_terraform else 'Failed'}"
+        )
+        print(
+            f"  {'✅' if success_mikrotik else '❌'} Terraform (MikroTik): {'Success' if success_mikrotik else 'Failed'}"
+        )
         print(f"  {'✅' if success_ansible else '❌'} Ansible:              {'Success' if success_ansible else 'Failed'}")
         print(f"  {'✅' if success_docs else '❌'} Documentation:        {'Success' if success_docs else 'Failed'}")
 
@@ -128,7 +134,7 @@ class RegenerateAll:
             for i, error in enumerate(self.errors, 1):
                 print(f"   {i}. {error}")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
 
         all_success = success_terraform and success_mikrotik and success_ansible and success_docs
         if all_success:
@@ -187,9 +193,7 @@ def main():
         description="Regenerate ALL files from topology.yaml (validate + terraform + ansible + docs)"
     )
     parser.add_argument(
-        "--topology",
-        default="topology.yaml",
-        help="Path to topology YAML file (default: topology.yaml)"
+        "--topology", default="topology.yaml", help="Path to topology YAML file (default: topology.yaml)"
     )
 
     args = parser.parse_args()

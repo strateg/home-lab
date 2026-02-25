@@ -9,7 +9,7 @@ metadata:
   environment: production
   author: dprohhorov
   created: '2025-10-06'
-  last_updated: '2026-02-23'
+  last_updated: '2026-02-25'
   description: Home lab infrastructure with MikroTik Chateau LTE7 ax as central router,
     Orange Pi 5 as application server, Proxmox as database/dev server
   changelog:

@@ -5,13 +5,13 @@ Claude Logger Agent
      JSON  Markdown.
 """
 
+import argparse
+import json
 import os
 import sys
-import json
-import argparse
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 try:
     import anthropic
@@ -22,29 +22,25 @@ except ImportError:
 
 
 class ClaudeLogger:
-    """     Claude API"""
+    """Claude API"""
 
     def __init__(self, api_key: Optional[str] = None, log_dir: str = "../../logs/claude-sessions"):
         """
-         
+
 
         Args:
             api_key: API  Anthropic (  ANTHROPIC_API_KEY  env)
-            log_dir:    
+            log_dir:
         """
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
-            raise ValueError(
-                " API   !\n"
-                "     : export ANTHROPIC_API_KEY='your-key'\n"
-                "        --api-key"
-            )
+            raise ValueError(" API   !\n" "     : export ANTHROPIC_API_KEY='your-key'\n" "        --api-key")
 
         self.client = anthropic.Anthropic(api_key=self.api_key)
         self.log_dir = Path(__file__).parent / log_dir
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
-        #   
+        #
         self.session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.session_file = self.log_dir / f"session_{self.session_id}.json"
         self.markdown_file = self.log_dir / f"session_{self.session_id}.md"
@@ -58,13 +54,13 @@ class ClaudeLogger:
         print()
 
     def save_logs(self):
-        """   JSON  Markdown """
+        """JSON  Markdown"""
         #  JSON
         session_data = {
             "session_id": self.session_id,
             "started_at": self.session_id,
             "model": self.model,
-            "conversation": self.conversation
+            "conversation": self.conversation,
         }
 
         with open(self.session_file, "w", encoding="utf-8") as f:
@@ -92,10 +88,10 @@ class ClaudeLogger:
 
     def chat(self, prompt: str, system: Optional[str] = None) -> str:
         """
-           Claude API   
+           Claude API
 
         Args:
-            prompt:  
+            prompt:
             system:   ()
 
         Returns:
@@ -109,44 +105,35 @@ class ClaudeLogger:
             #    API
             messages = [{"role": "user", "content": prompt}]
 
-            #   ,  
+            #   ,
             kwargs = {"model": self.model, "max_tokens": 4096, "messages": messages}
             if system:
                 kwargs["system"] = system
 
-            #  
+            #
             message = self.client.messages.create(**kwargs)
 
-            #  
+            #
             response = message.content[0].text
 
-            #  
-            self.conversation.append({
-                "timestamp": timestamp,
-                "prompt": prompt,
-                "response": response,
-                "model": self.model,
-                "system": system
-            })
+            #
+            self.conversation.append(
+                {"timestamp": timestamp, "prompt": prompt, "response": response, "model": self.model, "system": system}
+            )
 
-            #  
+            #
             self.save_logs()
 
             return response
 
         except Exception as e:
             error_msg = f" : {str(e)}"
-            self.conversation.append({
-                "timestamp": timestamp,
-                "prompt": prompt,
-                "response": error_msg,
-                "error": True
-            })
+            self.conversation.append({"timestamp": timestamp, "prompt": prompt, "response": error_msg, "error": True})
             self.save_logs()
             return error_msg
 
     def interactive_mode(self, system: Optional[str] = None):
-        """    Claude"""
+        """Claude"""
         print("   Claude Logger")
         print("    'exit'  'quit'  ")
         print("    'history'   ")
@@ -155,13 +142,13 @@ class ClaudeLogger:
 
         while True:
             try:
-                #   
+                #
                 user_input = input(" : ").strip()
 
                 if not user_input:
                     continue
 
-                # 
+                #
                 if user_input.lower() in ["exit", "quit", "q"]:
                     print(f"\n  .    {self.session_file}")
                     break
@@ -183,7 +170,7 @@ class ClaudeLogger:
                 #    Claude
                 response = self.chat(user_input, system=system)
 
-                #  
+                #
                 print(f"\n Claude:\n{response}\n")
 
             except KeyboardInterrupt:
@@ -194,40 +181,25 @@ class ClaudeLogger:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Claude Logger Agent -    Claude API"
-    )
+    parser = argparse.ArgumentParser(description="Claude Logger Agent -    Claude API")
+    parser.add_argument("--api-key", help="Anthropic API  (  ANTHROPIC_API_KEY env variable)")
     parser.add_argument(
-        "--api-key",
-        help="Anthropic API  (  ANTHROPIC_API_KEY env variable)"
+        "--model", default="claude-sonnet-4-20250514", help=" Claude   (default: claude-sonnet-4-20250514)"
     )
+    parser.add_argument("--system", help=" ")
+    parser.add_argument("--prompt", help="  (  )")
     parser.add_argument(
-        "--model",
-        default="claude-sonnet-4-20250514",
-        help=" Claude   (default: claude-sonnet-4-20250514)"
-    )
-    parser.add_argument(
-        "--system",
-        help=" "
-    )
-    parser.add_argument(
-        "--prompt",
-        help="  (  )"
-    )
-    parser.add_argument(
-        "--log-dir",
-        default="../../logs/claude-sessions",
-        help="   (default: ../../logs/claude-sessions)"
+        "--log-dir", default="../../logs/claude-sessions", help="   (default: ../../logs/claude-sessions)"
     )
 
     args = parser.parse_args()
 
     try:
-        #  
+        #
         agent = ClaudeLogger(api_key=args.api_key, log_dir=args.log_dir)
         agent.model = args.model
 
-        #     
+        #
         if args.prompt:
             response = agent.chat(args.prompt, system=args.system)
             print(response)

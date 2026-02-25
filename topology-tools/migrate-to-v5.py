@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Set
 
 import yaml
-
 from scripts.generators.common import load_topology_cached
 
 
@@ -45,9 +44,7 @@ def build_migration_report(topology: Dict[str, Any]) -> Dict[str, List[str]]:
             continue
         asset_id = asset.get("id", f"index-{idx}")
         placement_fields = [
-            key
-            for key in ("storage_ref", "storage_endpoint_ref", "mount_point_ref", "path")
-            if asset.get(key)
+            key for key in ("storage_ref", "storage_endpoint_ref", "mount_point_ref", "path") if asset.get(key)
         ]
         if placement_fields:
             report["L3_data"].append(
@@ -59,9 +56,7 @@ def build_migration_report(topology: Dict[str, Any]) -> Dict[str, List[str]]:
             continue
         lxc_id = lxc.get("id", f"index-{idx}")
         if lxc.get("type"):
-            report["L4_platform"].append(
-                f"lxc[{lxc_id}].type -> replace with platform_type + L5 service semantics"
-            )
+            report["L4_platform"].append(f"lxc[{lxc_id}].type -> replace with platform_type + L5 service semantics")
         if lxc.get("role"):
             report["L4_platform"].append(
                 f"lxc[{lxc_id}].role -> replace with resource_profile_ref + L5 service semantics"
@@ -70,11 +65,9 @@ def build_migration_report(topology: Dict[str, Any]) -> Dict[str, List[str]]:
             report["L4_platform"].append(
                 f"lxc[{lxc_id}].resources -> migrate to resource_profiles + resource_profile_ref"
             )
-        ansible_vars = ((lxc.get("ansible") or {}).get("vars") or {})
+        ansible_vars = (lxc.get("ansible") or {}).get("vars") or {}
         if isinstance(ansible_vars, dict) and ansible_vars:
-            report["L4_platform"].append(
-                f"lxc[{lxc_id}].ansible.vars -> move app config to L5 services[].config"
-            )
+            report["L4_platform"].append(f"lxc[{lxc_id}].ansible.vars -> move app config to L5 services[].config")
 
     for idx, service in enumerate(l5.get("services", []) or []):
         if not isinstance(service, dict):
@@ -86,9 +79,7 @@ def build_migration_report(topology: Dict[str, Any]) -> Dict[str, List[str]]:
             )
         legacy_refs = [ref for ref in ("device_ref", "vm_ref", "lxc_ref", "network_ref") if service.get(ref)]
         if legacy_refs:
-            report["L5_application"].append(
-                f"services[{svc_id}] legacy refs {legacy_refs} -> migrate to runtime.*"
-            )
+            report["L5_application"].append(f"services[{svc_id}] legacy refs {legacy_refs} -> migrate to runtime.*")
         if not service.get("runtime"):
             report["L5_application"].append(
                 f"services[{svc_id}] missing runtime -> add runtime.type + runtime.target_ref"
@@ -295,9 +286,7 @@ def _migrate_external_services(topology: Dict[str, Any]) -> Dict[str, int]:
                 base_slug = _slugify(docker_name or "docker-service")
                 candidate_id = f"svc-{base_slug or 'docker-service'}"
                 used_ids = {
-                    service.get("id")
-                    for service in services
-                    if isinstance(service, dict) and service.get("id")
+                    service.get("id") for service in services if isinstance(service, dict) and service.get("id")
                 }
                 suffix = 1
                 while candidate_id in used_ids:
@@ -476,9 +465,7 @@ def _migrate_lxc_ansible_vars_to_service_config(topology: Dict[str, Any]) -> int
             continue
 
         target_services = [
-            service
-            for service in services
-            if isinstance(service, dict) and _service_targets_lxc(service, lxc_id)
+            service for service in services if isinstance(service, dict) and _service_targets_lxc(service, lxc_id)
         ]
         if not target_services:
             continue
@@ -511,11 +498,7 @@ def _migrate_storage_endpoints(topology: Dict[str, Any]) -> int:
     l3 = topology.get("L3_data", {}) or {}
     legacy_storage = l3.get("storage", []) or []
     existing_endpoints = l3.get("storage_endpoints", []) or []
-    existing_ids = {
-        entry.get("id")
-        for entry in existing_endpoints
-        if isinstance(entry, dict) and entry.get("id")
-    }
+    existing_ids = {entry.get("id") for entry in existing_endpoints if isinstance(entry, dict) and entry.get("id")}
     attachment_by_device_media = {}
     for attachment in l1.get("media_attachments", []) or []:
         if not isinstance(attachment, dict):
@@ -592,13 +575,13 @@ def _drop_legacy_fields(topology: Dict[str, Any], *, external_services_ready: bo
         for vm in l4.get("vms", []) or []:
             if not isinstance(vm, dict):
                 continue
-            for volume in ((vm.get("storage") or {}).get("volumes") or []):
+            for volume in (vm.get("storage") or {}).get("volumes") or []:
                 if isinstance(volume, dict) and volume.get("data_asset_ref") == asset_id:
                     return True
         for lxc in l4.get("lxc", []) or []:
             if not isinstance(lxc, dict):
                 continue
-            for volume in ((lxc.get("storage") or {}).get("volumes") or []):
+            for volume in (lxc.get("storage") or {}).get("volumes") or []:
                 if isinstance(volume, dict) and volume.get("data_asset_ref") == asset_id:
                     return True
         return False
@@ -619,7 +602,9 @@ def _drop_legacy_fields(topology: Dict[str, Any], *, external_services_ready: bo
         if not isinstance(asset, dict):
             continue
         asset_id = asset.get("id")
-        placement_keys = [key for key in ("storage_ref", "storage_endpoint_ref", "mount_point_ref", "path") if key in asset]
+        placement_keys = [
+            key for key in ("storage_ref", "storage_endpoint_ref", "mount_point_ref", "path") if key in asset
+        ]
         if not placement_keys:
             continue
         if asset_id and _has_l4_data_asset_binding(asset_id):

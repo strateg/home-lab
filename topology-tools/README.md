@@ -298,4 +298,3 @@ Files in generated/ are automatically regenerated and auto-cleaned.
 - DO NOT commit generated/ to Git
 - DO edit topology.yaml as the single source of truth
 - DO edit ansible/playbooks/ and ansible/roles/ manually
-

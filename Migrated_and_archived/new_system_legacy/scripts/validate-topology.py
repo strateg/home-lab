@@ -10,18 +10,19 @@ Requirements:
     pip install jsonschema pyyaml
 """
 
-import sys
-import json
-import yaml
 import argparse
+import json
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional
+
+import yaml
 
 # Import topology loader with !include support
 from topology_loader import load_topology
 
 try:
-    from jsonschema import validate, Draft7Validator, ValidationError
+    from jsonschema import Draft7Validator, ValidationError, validate
     from jsonschema.exceptions import best_match
 except ImportError:
     print("❌ Error: jsonschema library not installed")
@@ -125,60 +126,60 @@ class SchemaValidator:
 
         # Collect all IDs
         ids = {
-            'devices': set(),
-            'networks': set(),
-            'bridges': set(),
-            'storage': set(),
-            'trust_zones': set(),
-            'vms': set(),
-            'lxc': set(),
-            'services': set(),
-            'templates': set()
+            "devices": set(),
+            "networks": set(),
+            "bridges": set(),
+            "storage": set(),
+            "trust_zones": set(),
+            "vms": set(),
+            "lxc": set(),
+            "services": set(),
+            "templates": set(),
         }
 
         # Extract device IDs
-        for device in self.topology.get('physical_topology', {}).get('devices', []):
-            ids['devices'].add(device.get('id'))
+        for device in self.topology.get("physical_topology", {}).get("devices", []):
+            ids["devices"].add(device.get("id"))
 
         # Extract network IDs
-        for network in self.topology.get('logical_topology', {}).get('networks', []):
-            ids['networks'].add(network.get('id'))
+        for network in self.topology.get("logical_topology", {}).get("networks", []):
+            ids["networks"].add(network.get("id"))
 
         # Extract bridge IDs
-        for bridge in self.topology.get('logical_topology', {}).get('bridges', []):
-            ids['bridges'].add(bridge.get('id'))
+        for bridge in self.topology.get("logical_topology", {}).get("bridges", []):
+            ids["bridges"].add(bridge.get("id"))
 
         # Extract storage IDs
-        for storage in self.topology.get('storage', []):
-            ids['storage'].add(storage.get('id'))
+        for storage in self.topology.get("storage", []):
+            ids["storage"].add(storage.get("id"))
 
         # Extract trust zone IDs
-        trust_zones = self.topology.get('logical_topology', {}).get('trust_zones', {})
-        ids['trust_zones'] = set(trust_zones.keys())
+        trust_zones = self.topology.get("logical_topology", {}).get("trust_zones", {})
+        ids["trust_zones"] = set(trust_zones.keys())
 
         # Extract VM IDs
-        for vm in self.topology.get('compute', {}).get('vms', []):
-            ids['vms'].add(vm.get('id'))
+        for vm in self.topology.get("compute", {}).get("vms", []):
+            ids["vms"].add(vm.get("id"))
 
         # Extract LXC IDs
-        for lxc in self.topology.get('compute', {}).get('lxc', []):
-            ids['lxc'].add(lxc.get('id'))
+        for lxc in self.topology.get("compute", {}).get("lxc", []):
+            ids["lxc"].add(lxc.get("id"))
 
         # Extract service IDs (handle both list and object with 'items' key)
-        services_data = self.topology.get('services', [])
+        services_data = self.topology.get("services", [])
         if isinstance(services_data, dict):
-            services_list = services_data.get('items', [])
+            services_list = services_data.get("items", [])
         else:
             services_list = services_data
         for service in services_list:
             if isinstance(service, dict):
-                ids['services'].add(service.get('id'))
+                ids["services"].add(service.get("id"))
 
         # Extract template IDs
-        for tpl in self.topology.get('compute', {}).get('templates', {}).get('lxc', []):
-            ids['templates'].add(tpl.get('id'))
-        for tpl in self.topology.get('compute', {}).get('templates', {}).get('vms', []):
-            ids['templates'].add(tpl.get('id'))
+        for tpl in self.topology.get("compute", {}).get("templates", {}).get("lxc", []):
+            ids["templates"].add(tpl.get("id"))
+        for tpl in self.topology.get("compute", {}).get("templates", {}).get("vms", []):
+            ids["templates"].add(tpl.get("id"))
 
         # Check references
         self._check_network_refs(ids)
@@ -189,135 +190,135 @@ class SchemaValidator:
 
     def _check_network_refs(self, ids: Dict[str, set]) -> None:
         """Check network reference consistency"""
-        for network in self.topology.get('logical_topology', {}).get('networks', []):
-            net_id = network.get('id')
+        for network in self.topology.get("logical_topology", {}).get("networks", []):
+            net_id = network.get("id")
 
             # Check trust_zone_ref
-            trust_zone_ref = network.get('trust_zone_ref')
-            if trust_zone_ref and trust_zone_ref not in ids['trust_zones']:
+            trust_zone_ref = network.get("trust_zone_ref")
+            if trust_zone_ref and trust_zone_ref not in ids["trust_zones"]:
                 self.errors.append(f"Network '{net_id}': trust_zone_ref '{trust_zone_ref}' does not exist")
 
             # Check bridge_ref
-            bridge_ref = network.get('bridge_ref')
-            if bridge_ref and bridge_ref not in ids['bridges']:
+            bridge_ref = network.get("bridge_ref")
+            if bridge_ref and bridge_ref not in ids["bridges"]:
                 self.errors.append(f"Network '{net_id}': bridge_ref '{bridge_ref}' does not exist")
 
             # Check managed_by_ref
-            managed_by_ref = network.get('managed_by_ref')
+            managed_by_ref = network.get("managed_by_ref")
             if managed_by_ref:
-                all_compute = ids['devices'] | ids['vms'] | ids['lxc']
+                all_compute = ids["devices"] | ids["vms"] | ids["lxc"]
                 if managed_by_ref not in all_compute:
                     self.errors.append(f"Network '{net_id}': managed_by_ref '{managed_by_ref}' does not exist")
 
     def _check_vm_refs(self, ids: Dict[str, set]) -> None:
         """Check VM reference consistency"""
-        for vm in self.topology.get('compute', {}).get('vms', []):
-            vm_id = vm.get('id')
+        for vm in self.topology.get("compute", {}).get("vms", []):
+            vm_id = vm.get("id")
 
             # Check device_ref
-            device_ref = vm.get('device_ref')
-            if device_ref and device_ref not in ids['devices']:
+            device_ref = vm.get("device_ref")
+            if device_ref and device_ref not in ids["devices"]:
                 self.errors.append(f"VM '{vm_id}': device_ref '{device_ref}' does not exist")
 
             # Check trust_zone_ref
-            trust_zone_ref = vm.get('trust_zone_ref')
-            if trust_zone_ref and trust_zone_ref not in ids['trust_zones']:
+            trust_zone_ref = vm.get("trust_zone_ref")
+            if trust_zone_ref and trust_zone_ref not in ids["trust_zones"]:
                 self.errors.append(f"VM '{vm_id}': trust_zone_ref '{trust_zone_ref}' does not exist")
 
             # Check template_ref
-            template_ref = vm.get('template_ref')
-            if template_ref and template_ref not in ids['templates']:
+            template_ref = vm.get("template_ref")
+            if template_ref and template_ref not in ids["templates"]:
                 self.errors.append(f"VM '{vm_id}': template_ref '{template_ref}' does not exist")
 
             # Check storage refs
-            for disk in vm.get('storage', []):
-                storage_ref = disk.get('storage_ref')
-                if storage_ref and storage_ref not in ids['storage']:
+            for disk in vm.get("storage", []):
+                storage_ref = disk.get("storage_ref")
+                if storage_ref and storage_ref not in ids["storage"]:
                     self.errors.append(f"VM '{vm_id}': storage_ref '{storage_ref}' does not exist")
 
             # Check network refs
-            for net in vm.get('networks', []):
-                bridge_ref = net.get('bridge_ref')
-                if bridge_ref and bridge_ref not in ids['bridges']:
+            for net in vm.get("networks", []):
+                bridge_ref = net.get("bridge_ref")
+                if bridge_ref and bridge_ref not in ids["bridges"]:
                     self.errors.append(f"VM '{vm_id}': bridge_ref '{bridge_ref}' does not exist")
 
     def _check_lxc_refs(self, ids: Dict[str, set]) -> None:
         """Check LXC reference consistency"""
-        for lxc in self.topology.get('compute', {}).get('lxc', []):
-            lxc_id = lxc.get('id')
+        for lxc in self.topology.get("compute", {}).get("lxc", []):
+            lxc_id = lxc.get("id")
 
             # Check device_ref
-            device_ref = lxc.get('device_ref')
-            if device_ref and device_ref not in ids['devices']:
+            device_ref = lxc.get("device_ref")
+            if device_ref and device_ref not in ids["devices"]:
                 self.errors.append(f"LXC '{lxc_id}': device_ref '{device_ref}' does not exist")
 
             # Check trust_zone_ref
-            trust_zone_ref = lxc.get('trust_zone_ref')
-            if trust_zone_ref and trust_zone_ref not in ids['trust_zones']:
+            trust_zone_ref = lxc.get("trust_zone_ref")
+            if trust_zone_ref and trust_zone_ref not in ids["trust_zones"]:
                 self.errors.append(f"LXC '{lxc_id}': trust_zone_ref '{trust_zone_ref}' does not exist")
 
             # Check template_ref
-            template_ref = lxc.get('template_ref')
-            if template_ref and template_ref not in ids['templates']:
+            template_ref = lxc.get("template_ref")
+            if template_ref and template_ref not in ids["templates"]:
                 self.errors.append(f"LXC '{lxc_id}': template_ref '{template_ref}' does not exist")
 
             # Check storage refs
-            rootfs = lxc.get('storage', {}).get('rootfs', {})
-            storage_ref = rootfs.get('storage_ref')
-            if storage_ref and storage_ref not in ids['storage']:
+            rootfs = lxc.get("storage", {}).get("rootfs", {})
+            storage_ref = rootfs.get("storage_ref")
+            if storage_ref and storage_ref not in ids["storage"]:
                 self.errors.append(f"LXC '{lxc_id}': rootfs storage_ref '{storage_ref}' does not exist")
 
     def _check_service_refs(self, ids: Dict[str, set]) -> None:
         """Check service reference consistency"""
         # Handle both list and object with 'items' key
-        services_data = self.topology.get('services', [])
+        services_data = self.topology.get("services", [])
         if isinstance(services_data, dict):
-            services_list = services_data.get('items', [])
+            services_list = services_data.get("items", [])
         else:
             services_list = services_data
         for service in services_list:
             if not isinstance(service, dict):
                 continue
-            svc_id = service.get('id')
+            svc_id = service.get("id")
 
             # Check device_ref
-            device_ref = service.get('device_ref')
-            if device_ref and device_ref not in ids['devices']:
+            device_ref = service.get("device_ref")
+            if device_ref and device_ref not in ids["devices"]:
                 self.errors.append(f"Service '{svc_id}': device_ref '{device_ref}' does not exist")
 
             # Check vm_ref
-            vm_ref = service.get('vm_ref')
-            if vm_ref and vm_ref not in ids['vms']:
+            vm_ref = service.get("vm_ref")
+            if vm_ref and vm_ref not in ids["vms"]:
                 self.errors.append(f"Service '{svc_id}': vm_ref '{vm_ref}' does not exist")
 
             # Check lxc_ref
-            lxc_ref = service.get('lxc_ref')
-            if lxc_ref and lxc_ref not in ids['lxc']:
+            lxc_ref = service.get("lxc_ref")
+            if lxc_ref and lxc_ref not in ids["lxc"]:
                 self.errors.append(f"Service '{svc_id}': lxc_ref '{lxc_ref}' does not exist")
 
             # Check network_ref
-            network_ref = service.get('network_ref')
-            if network_ref and network_ref not in ids['networks']:
+            network_ref = service.get("network_ref")
+            if network_ref and network_ref not in ids["networks"]:
                 self.errors.append(f"Service '{svc_id}': network_ref '{network_ref}' does not exist")
 
             # Check trust_zone_ref
-            trust_zone_ref = service.get('trust_zone_ref')
-            if trust_zone_ref and trust_zone_ref not in ids['trust_zones']:
+            trust_zone_ref = service.get("trust_zone_ref")
+            if trust_zone_ref and trust_zone_ref not in ids["trust_zones"]:
                 self.errors.append(f"Service '{svc_id}': trust_zone_ref '{trust_zone_ref}' does not exist")
 
     def _check_bridge_refs(self, ids: Dict[str, set]) -> None:
         """Check bridge reference consistency"""
-        for bridge in self.topology.get('logical_topology', {}).get('bridges', []):
-            bridge_id = bridge.get('id')
+        for bridge in self.topology.get("logical_topology", {}).get("bridges", []):
+            bridge_id = bridge.get("id")
 
             # Check device_ref
-            device_ref = bridge.get('device_ref')
-            if device_ref and device_ref not in ids['devices']:
+            device_ref = bridge.get("device_ref")
+            if device_ref and device_ref not in ids["devices"]:
                 self.errors.append(f"Bridge '{bridge_id}': device_ref '{device_ref}' does not exist")
 
             # Check network_ref
-            network_ref = bridge.get('network_ref')
-            if network_ref and network_ref not in ids['networks']:
+            network_ref = bridge.get("network_ref")
+            if network_ref and network_ref not in ids["networks"]:
                 self.errors.append(f"Bridge '{bridge_id}': network_ref '{network_ref}' does not exist")
 
     def check_version(self) -> None:
@@ -325,15 +326,15 @@ class SchemaValidator:
         if not self.topology:
             return
 
-        version = self.topology.get('version', '')
+        version = self.topology.get("version", "")
         if not version:
             self.warnings.append("No version specified in topology")
             return
 
         # Check for supported versions (2.x or 3.x)
-        if not (version.startswith('2.') or version.startswith('3.')):
+        if not (version.startswith("2.") or version.startswith("3.")):
             self.errors.append(f"Unsupported topology version: {version} (expected 2.x or 3.x)")
-        elif version.startswith('2.'):
+        elif version.startswith("2."):
             self.warnings.append(f"Topology version {version} is legacy. Consider upgrading to v3.x")
 
     def check_ip_overlaps(self) -> None:
@@ -345,16 +346,16 @@ class SchemaValidator:
         ip_allocations = {}  # network_id -> {ip: device_ref}
         global_ips = {}  # ip -> [(network_id, device_ref)]
 
-        for network in self.topology.get('logical_topology', {}).get('networks', []):
-            net_id = network.get('id', 'unknown')
+        for network in self.topology.get("logical_topology", {}).get("networks", []):
+            net_id = network.get("id", "unknown")
             ip_allocations[net_id] = {}
 
-            for alloc in network.get('ip_allocations', []):
-                ip = alloc.get('ip', '')
-                device_ref = alloc.get('device_ref') or alloc.get('vm_ref') or alloc.get('lxc_ref') or 'unknown'
+            for alloc in network.get("ip_allocations", []):
+                ip = alloc.get("ip", "")
+                device_ref = alloc.get("device_ref") or alloc.get("vm_ref") or alloc.get("lxc_ref") or "unknown"
 
                 # Strip CIDR notation if present for comparison
-                ip_addr = ip.split('/')[0] if ip else ''
+                ip_addr = ip.split("/")[0] if ip else ""
 
                 if not ip_addr:
                     continue
@@ -375,48 +376,48 @@ class SchemaValidator:
                 global_ips[ip_addr].append((net_id, device_ref))
 
         # Also check LXC container IPs
-        for lxc in self.topology.get('compute', {}).get('lxc', []):
-            lxc_id = lxc.get('id', 'unknown')
-            for net in lxc.get('networks', []):
-                ip = net.get('ip', '')
-                ip_addr = ip.split('/')[0] if ip else ''
+        for lxc in self.topology.get("compute", {}).get("lxc", []):
+            lxc_id = lxc.get("id", "unknown")
+            for net in lxc.get("networks", []):
+                ip = net.get("ip", "")
+                ip_addr = ip.split("/")[0] if ip else ""
                 if ip_addr:
                     if ip_addr not in global_ips:
                         global_ips[ip_addr] = []
-                    global_ips[ip_addr].append(('lxc-config', lxc_id))
+                    global_ips[ip_addr].append(("lxc-config", lxc_id))
 
         # Also check VM IPs
-        for vm in self.topology.get('compute', {}).get('vms', []):
-            vm_id = vm.get('id', 'unknown')
-            for net in vm.get('networks', []):
-                ip_config = net.get('ip_config', {})
+        for vm in self.topology.get("compute", {}).get("vms", []):
+            vm_id = vm.get("id", "unknown")
+            for net in vm.get("networks", []):
+                ip_config = net.get("ip_config", {})
                 if isinstance(ip_config, dict):
-                    ip = ip_config.get('address', '')
-                    ip_addr = ip.split('/')[0] if ip else ''
+                    ip = ip_config.get("address", "")
+                    ip_addr = ip.split("/")[0] if ip else ""
                     if ip_addr:
                         if ip_addr not in global_ips:
                             global_ips[ip_addr] = []
-                        global_ips[ip_addr].append(('vm-config', vm_id))
+                        global_ips[ip_addr].append(("vm-config", vm_id))
 
         # Warn about IPs that appear in multiple contexts (2+ = potential conflict)
         for ip_addr, locations in global_ips.items():
             if len(locations) >= 2:
-                loc_str = ', '.join([f"{net}:{dev}" for net, dev in locations])
+                loc_str = ", ".join([f"{net}:{dev}" for net, dev in locations])
                 self.warnings.append(f"IP {ip_addr} appears in {len(locations)} places: {loc_str}")
 
     def print_results(self) -> None:
         """Print validation results"""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
 
         if self.errors:
             print(f"❌ Validation FAILED - {len(self.errors)} error(s) found")
-            print("="*70)
+            print("=" * 70)
             print("\nErrors:")
             for i, error in enumerate(self.errors, 1):
                 print(f"  {i}. {error}")
         else:
             print("✅ Validation PASSED")
-            print("="*70)
+            print("=" * 70)
             print("\n✓ Topology version is compatible")
             print("✓ Topology is valid according to JSON Schema v7")
             print("✓ All references are consistent")
@@ -429,9 +430,9 @@ class SchemaValidator:
 
     def validate(self) -> bool:
         """Run full validation"""
-        print("="*70)
+        print("=" * 70)
         print("Topology Schema Validation (JSON Schema v7)")
-        print("="*70)
+        print("=" * 70)
         print()
 
         # Load files
@@ -441,7 +442,7 @@ class SchemaValidator:
         # Version check
         print("\n🏷️  Step 1: Checking topology version...")
         self.check_version()
-        version = self.topology.get('version', 'unknown')
+        version = self.topology.get("version", "unknown")
         print(f"✓ Topology version: {version}")
 
         # Schema validation
@@ -479,25 +480,10 @@ class SchemaValidator:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Validate topology.yaml against JSON Schema v7"
-    )
-    parser.add_argument(
-        "--topology",
-        default="topology.yaml",
-        help="Path to topology YAML file"
-    )
-    parser.add_argument(
-        "--schema",
-        default="schemas/topology-v3-schema.json",
-        help="Path to JSON Schema file"
-    )
-    parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Verbose output"
-    )
+    parser = argparse.ArgumentParser(description="Validate topology.yaml against JSON Schema v7")
+    parser.add_argument("--topology", default="topology.yaml", help="Path to topology YAML file")
+    parser.add_argument("--schema", default="schemas/topology-v3-schema.json", help="Path to JSON Schema file")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
 
     args = parser.parse_args()
 

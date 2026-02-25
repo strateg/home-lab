@@ -9,16 +9,18 @@ Requirements:
     pip install pyyaml jinja2
 """
 
-import sys
-import yaml
 import argparse
 import shutil
+import sys
 from pathlib import Path
 from typing import Dict, List
+
+import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 # Import topology loader with !include support
 from topology_loader import load_topology
+
 
 class AnsibleInventoryGenerator:
     """Generate Ansible inventory from topology v3.0"""
@@ -34,7 +36,7 @@ class AnsibleInventoryGenerator:
             loader=FileSystemLoader(str(self.templates_dir)),
             autoescape=select_autoescape(),
             trim_blocks=True,
-            lstrip_blocks=True
+            lstrip_blocks=True,
         )
 
     def load_topology(self) -> bool:
@@ -44,14 +46,14 @@ class AnsibleInventoryGenerator:
             print(f"✓ Loaded topology: {self.topology_path}")
 
             # Validate v3.0 structure
-            required = ['version', 'physical_topology', 'logical_topology', 'compute']
+            required = ["version", "physical_topology", "logical_topology", "compute"]
             for section in required:
                 if section not in self.topology:
                     print(f"❌ Missing required section: {section}")
                     return False
 
-            version = self.topology.get('version', '')
-            if not (version.startswith('2.') or version.startswith('3.')):
+            version = self.topology.get("version", "")
+            if not (version.startswith("2.") or version.startswith("3.")):
                 print(f"⚠️  Warning: Topology version {version} may not be compatible (expected 2.x or 3.x)")
 
             return True
@@ -83,40 +85,40 @@ class AnsibleInventoryGenerator:
     def generate_hosts(self) -> bool:
         """Generate hosts.yml inventory file"""
         try:
-            template = self.jinja_env.get_template('ansible/hosts.yml.j2')
+            template = self.jinja_env.get_template("ansible/hosts.yml.j2")
 
             # Extract hosts from compute section
-            vms = self.topology['compute'].get('vms', [])
-            lxc_containers = self.topology['compute'].get('lxc', [])
+            vms = self.topology["compute"].get("vms", [])
+            lxc_containers = self.topology["compute"].get("lxc", [])
 
             # Get network maps for IP resolution
-            networks = {n['id']: n for n in self.topology['logical_topology'].get('networks', [])}
+            networks = {n["id"]: n for n in self.topology["logical_topology"].get("networks", [])}
 
             # Build IP map from network allocations
             ip_map = {}  # device_ref -> ip
-            for network in self.topology['logical_topology'].get('networks', []):
-                for alloc in network.get('ip_allocations', []):
-                    device_ref = alloc.get('device_ref')
-                    ip = alloc.get('ip')
+            for network in self.topology["logical_topology"].get("networks", []):
+                for alloc in network.get("ip_allocations", []):
+                    device_ref = alloc.get("device_ref")
+                    ip = alloc.get("ip")
                     if device_ref and ip:
                         # Prefer management network IPs
-                        if 'management' in network.get('id', '') or device_ref not in ip_map:
+                        if "management" in network.get("id", "") or device_ref not in ip_map:
                             ip_map[device_ref] = ip
 
             # Build host information
             lxc_hosts = []
             for lxc in lxc_containers:
                 host_info = {
-                    'id': lxc['id'],
-                    'name': lxc['name'],
-                    'vmid': lxc['vmid'],
-                    'type': lxc.get('type', 'unknown'),
-                    'role': lxc.get('role', 'unknown'),
-                    'trust_zone': lxc.get('trust_zone_ref', 'unknown'),
-                    'ip': lxc['networks'][0]['ip'].split('/')[0] if lxc.get('networks') else None,
-                    'ansible_user': lxc['cloudinit'].get('user', 'root') if lxc.get('cloudinit') else 'root',
-                    'ansible_enabled': lxc.get('ansible', {}).get('enabled', False),
-                    'playbook': lxc.get('ansible', {}).get('playbook'),
+                    "id": lxc["id"],
+                    "name": lxc["name"],
+                    "vmid": lxc["vmid"],
+                    "type": lxc.get("type", "unknown"),
+                    "role": lxc.get("role", "unknown"),
+                    "trust_zone": lxc.get("trust_zone_ref", "unknown"),
+                    "ip": lxc["networks"][0]["ip"].split("/")[0] if lxc.get("networks") else None,
+                    "ansible_user": lxc["cloudinit"].get("user", "root") if lxc.get("cloudinit") else "root",
+                    "ansible_enabled": lxc.get("ansible", {}).get("enabled", False),
+                    "playbook": lxc.get("ansible", {}).get("playbook"),
                 }
                 lxc_hosts.append(host_info)
 
@@ -124,55 +126,55 @@ class AnsibleInventoryGenerator:
             for vm in vms:
                 # Find management interface IP
                 mgmt_ip = None
-                for nic in vm.get('networks', []):
-                    if nic.get('role') == 'management' and nic.get('ip_config'):
-                        ip_config = nic['ip_config']
+                for nic in vm.get("networks", []):
+                    if nic.get("role") == "management" and nic.get("ip_config"):
+                        ip_config = nic["ip_config"]
                         if isinstance(ip_config, dict):
-                            mgmt_ip = ip_config.get('address', '').split('/')[0]
+                            mgmt_ip = ip_config.get("address", "").split("/")[0]
                         break
 
                 host_info = {
-                    'id': vm['id'],
-                    'name': vm['name'],
-                    'vmid': vm['vmid'],
-                    'type': vm.get('type', 'unknown'),
-                    'role': vm.get('role', 'unknown'),
-                    'trust_zone': vm.get('trust_zone_ref', 'unknown'),
-                    'ip': mgmt_ip,
-                    'ansible_enabled': vm.get('ansible', {}).get('enabled', False),
+                    "id": vm["id"],
+                    "name": vm["name"],
+                    "vmid": vm["vmid"],
+                    "type": vm.get("type", "unknown"),
+                    "role": vm.get("role", "unknown"),
+                    "trust_zone": vm.get("trust_zone_ref", "unknown"),
+                    "ip": mgmt_ip,
+                    "ansible_enabled": vm.get("ansible", {}).get("enabled", False),
                 }
                 vm_hosts.append(host_info)
 
             # Extract physical devices that should be managed (SBC, servers)
             physical_hosts = []
-            managed_types = ['sbc', 'server']
-            for device in self.topology['physical_topology'].get('devices', []):
-                if device.get('type') in managed_types:
+            managed_types = ["sbc", "server"]
+            for device in self.topology["physical_topology"].get("devices", []):
+                if device.get("type") in managed_types:
                     # Get IP from ip_map (from network allocations)
-                    device_id = device['id']
+                    device_id = device["id"]
                     device_ip = ip_map.get(device_id)
 
                     host_info = {
-                        'id': device_id,
-                        'name': device['name'],
-                        'type': device.get('type', 'unknown'),
-                        'role': device.get('role', 'unknown'),
-                        'model': device.get('model', 'unknown'),
-                        'ip': device_ip,
-                        'ansible_enabled': True,  # Physical devices are assumed manageable
-                        'description': device.get('description', ''),
+                        "id": device_id,
+                        "name": device["name"],
+                        "type": device.get("type", "unknown"),
+                        "role": device.get("role", "unknown"),
+                        "model": device.get("model", "unknown"),
+                        "ip": device_ip,
+                        "ansible_enabled": True,  # Physical devices are assumed manageable
+                        "description": device.get("description", ""),
                     }
                     physical_hosts.append(host_info)
 
             # Group hosts by trust zones
-            trust_zones = self.topology['logical_topology'].get('trust_zones', {})
+            trust_zones = self.topology["logical_topology"].get("trust_zones", {})
 
             content = template.render(
                 lxc_hosts=lxc_hosts,
                 vm_hosts=vm_hosts,
                 physical_hosts=physical_hosts,
                 trust_zones=trust_zones,
-                topology_version=self.topology.get('version', '3.0.0')
+                topology_version=self.topology.get("version", "3.0.0"),
             )
 
             output_file = self.output_dir / "hosts.yml"
@@ -186,40 +188,41 @@ class AnsibleInventoryGenerator:
         except Exception as e:
             print(f"❌ Error generating hosts.yml: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
     def generate_group_vars(self) -> bool:
         """Generate group_vars/all.yml"""
         try:
-            template = self.jinja_env.get_template('ansible/group_vars_all.yml.j2')
+            template = self.jinja_env.get_template("ansible/group_vars_all.yml.j2")
 
             # Extract network information
-            networks = self.topology['logical_topology'].get('networks', [])
+            networks = self.topology["logical_topology"].get("networks", [])
 
             # Find management network
             mgmt_network = None
             for network in networks:
-                if 'management' in network.get('id', ''):
+                if "management" in network.get("id", ""):
                     mgmt_network = network
                     break
 
             # Find internal network
             internal_network = None
             for network in networks:
-                if 'internal' in network.get('id', ''):
+                if "internal" in network.get("id", ""):
                     internal_network = network
                     break
 
             # Get ansible configuration from topology
-            ansible_config = self.topology.get('ansible', {})
+            ansible_config = self.topology.get("ansible", {})
 
             content = template.render(
                 mgmt_network=mgmt_network,
                 internal_network=internal_network,
                 networks=networks,
                 ansible_config=ansible_config,
-                topology_version=self.topology.get('version', '3.0.0')
+                topology_version=self.topology.get("version", "3.0.0"),
             )
 
             group_vars_dir = self.output_dir / "group_vars"
@@ -237,7 +240,7 @@ class AnsibleInventoryGenerator:
     def generate_host_vars(self) -> bool:
         """Generate host_vars for each host"""
         try:
-            template = self.jinja_env.get_template('ansible/host_vars.yml.j2')
+            template = self.jinja_env.get_template("ansible/host_vars.yml.j2")
 
             host_vars_dir = self.output_dir / "host_vars"
             host_vars_dir.mkdir(parents=True, exist_ok=True)
@@ -245,19 +248,16 @@ class AnsibleInventoryGenerator:
             count = 0
 
             # Generate host_vars for LXC containers
-            for lxc in self.topology['compute'].get('lxc', []):
-                if not lxc.get('ansible', {}).get('enabled', False):
+            for lxc in self.topology["compute"].get("lxc", []):
+                if not lxc.get("ansible", {}).get("enabled", False):
                     continue
 
-                host_vars = lxc.get('ansible', {}).get('vars', {})
+                host_vars = lxc.get("ansible", {}).get("vars", {})
                 if not host_vars:
                     continue
 
                 content = template.render(
-                    host_id=lxc['id'],
-                    host_name=lxc['name'],
-                    host_type='lxc',
-                    host_vars=host_vars
+                    host_id=lxc["id"], host_name=lxc["name"], host_type="lxc", host_vars=host_vars
                 )
 
                 output_file = host_vars_dir / f"{lxc['name']}.yml"
@@ -277,13 +277,13 @@ class AnsibleInventoryGenerator:
 
     def print_summary(self):
         """Print generation summary"""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("Ansible Inventory Generation Summary")
-        print("="*70)
+        print("=" * 70)
 
-        lxc = len(self.topology['compute'].get('lxc', []))
-        vms = len(self.topology['compute'].get('vms', []))
-        services = len(self.topology.get('services', []))
+        lxc = len(self.topology["compute"].get("lxc", []))
+        vms = len(self.topology["compute"].get("vms", []))
+        services = len(self.topology.get("services", []))
 
         print(f"\n✓ Generated Ansible inventory for:")
         print(f"  - {lxc} LXC containers")
@@ -297,32 +297,22 @@ class AnsibleInventoryGenerator:
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate Ansible inventory from topology v3.0"
-    )
-    parser.add_argument(
-        "--topology",
-        default="topology.yaml",
-        help="Path to topology YAML file"
-    )
+    parser = argparse.ArgumentParser(description="Generate Ansible inventory from topology v3.0")
+    parser.add_argument("--topology", default="topology.yaml", help="Path to topology YAML file")
     parser.add_argument(
         "--output",
         default="generated/ansible/inventory/production",
-        help="Output directory for inventory files (default: generated/ansible/inventory/production/)"
+        help="Output directory for inventory files (default: generated/ansible/inventory/production/)",
     )
-    parser.add_argument(
-        "--templates",
-        default="scripts/templates",
-        help="Directory containing Jinja2 templates"
-    )
+    parser.add_argument("--templates", default="scripts/templates", help="Directory containing Jinja2 templates")
 
     args = parser.parse_args()
 
     generator = AnsibleInventoryGenerator(args.topology, args.output, args.templates)
 
-    print("="*70)
+    print("=" * 70)
     print("Ansible Inventory Generator (Topology v3.0)")
-    print("="*70)
+    print("=" * 70)
     print()
 
     if not generator.load_topology():

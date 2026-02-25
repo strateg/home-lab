@@ -139,22 +139,46 @@ class DiagramDocumentationGenerator:
             {"title": "Devices Inventory", "file": "devices.md", "description": "Hardware and platform inventory"},
         ],
         "phase1": [
-            {"title": "Power Links Topology", "file": "power-links-topology.md", "description": "Physical power cabling and feed paths"},
-            {"title": "Data Links Topology", "file": "data-links-topology.md", "description": "Physical data connectivity"},
-            {"title": "Icon Legend", "file": "icon-legend.md", "description": "Icon mapping used in professional diagrams"},
+            {
+                "title": "Power Links Topology",
+                "file": "power-links-topology.md",
+                "description": "Physical power cabling and feed paths",
+            },
+            {
+                "title": "Data Links Topology",
+                "file": "data-links-topology.md",
+                "description": "Physical data connectivity",
+            },
+            {
+                "title": "Icon Legend",
+                "file": "icon-legend.md",
+                "description": "Icon mapping used in professional diagrams",
+            },
             {"title": "Physical Topology", "file": "physical-topology.md", "description": "Physical devices and links"},
             {"title": "VLAN Topology", "file": "vlan-topology.md", "description": "VLAN segmentation and trunking"},
             {"title": "Trust Zones", "file": "trust-zones.md", "description": "Security zones and firewall matrix"},
-            {"title": "Service Dependencies", "file": "service-dependencies.md", "description": "Application dependency graph"},
+            {
+                "title": "Service Dependencies",
+                "file": "service-dependencies.md",
+                "description": "Application dependency graph",
+            },
         ],
         "phase2": [
-            {"title": "Storage Topology", "file": "storage-topology.md", "description": "Storage pools and data assets"},
+            {
+                "title": "Storage Topology",
+                "file": "storage-topology.md",
+                "description": "Storage pools and data assets",
+            },
             {"title": "Monitoring Topology", "file": "monitoring-topology.md", "description": "Observability pipeline"},
             {"title": "VPN Topology", "file": "vpn-topology.md", "description": "Remote access and VPN scope"},
         ],
         "phase3": [
             {"title": "QoS Topology", "file": "qos-topology.md", "description": "Traffic classes and limits"},
-            {"title": "Certificates Topology", "file": "certificates-topology.md", "description": "PKI and cert distribution"},
+            {
+                "title": "Certificates Topology",
+                "file": "certificates-topology.md",
+                "description": "PKI and cert distribution",
+            },
             {"title": "UPS Topology", "file": "ups-topology.md", "description": "Power protection and shutdown flow"},
         ],
     }
@@ -470,9 +494,7 @@ class DiagramDocumentationGenerator:
                 device_type_entries.append({"label": device_type, "icon": icon})
 
         observed_providers = {
-            (device.get("cloud") or {}).get("provider")
-            for device in devices
-            if isinstance(device, dict)
+            (device.get("cloud") or {}).get("provider") for device in devices if isinstance(device, dict)
         }
         provider_entries = [
             {"label": provider, "icon": self.CLOUD_PROVIDER_ICON.get(provider, "mdi:cloud-outline")}
@@ -504,8 +526,7 @@ class DiagramDocumentationGenerator:
             key=lambda policy: (policy.get("priority", 999999), policy.get("id", "")),
         )
         firewall_policy_map = {
-            policy.get("id"): policy for policy in firewall_policies
-            if isinstance(policy, dict) and policy.get("id")
+            policy.get("id"): policy for policy in firewall_policies if isinstance(policy, dict) and policy.get("id")
         }
         networks = self._sort_dicts(self.docs_generator._get_resolved_networks())
 
@@ -590,11 +611,7 @@ class DiagramDocumentationGenerator:
             if not vg_id:
                 continue
             devices_for_vg = sorted(
-                {
-                    partition_device.get(pv_ref)
-                    for pv_ref in (vg.get("pv_refs") or [])
-                    if partition_device.get(pv_ref)
-                }
+                {partition_device.get(pv_ref) for pv_ref in (vg.get("pv_refs") or []) if partition_device.get(pv_ref)}
             )
             if devices_for_vg:
                 vg_device[vg_id] = devices_for_vg[0]
@@ -780,9 +797,7 @@ class DiagramDocumentationGenerator:
         network_monitoring_icons = {nm.get("id"): "mdi:lan-check" for nm in network_monitoring if nm.get("id")}
         alert_icons = {alert.get("id"): self._alert_icon(alert) for alert in alerts if alert.get("id")}
         channel_icons = {
-            channel.get("id"): self._channel_icon(channel)
-            for channel in notification_channels
-            if channel.get("id")
+            channel.get("id"): self._channel_icon(channel) for channel in notification_channels if channel.get("id")
         }
         return self._render_document(
             "docs/monitoring-topology.md.j2",
@@ -835,8 +850,7 @@ class DiagramDocumentationGenerator:
             vpn_access.setdefault(source_network, set()).update(destinations)
 
         vpn_access_list = [
-            {"network_id": net_id, "destinations": sorted(list(zones))}
-            for net_id, zones in sorted(vpn_access.items())
+            {"network_id": net_id, "destinations": sorted(list(zones))} for net_id, zones in sorted(vpn_access.items())
         ]
 
         return self._render_document(
@@ -924,9 +938,7 @@ class DiagramDocumentationGenerator:
                 device_ref = protected_device.get("device_ref")
                 if not device_ref:
                     continue
-                protected_device_icons[device_ref] = self._device_icon(
-                    device_map.get(device_ref, {"id": device_ref})
-                )
+                protected_device_icons[device_ref] = self._device_icon(device_map.get(device_ref, {"id": device_ref}))
         return self._render_document(
             "docs/ups-topology.md.j2",
             "ups-topology.md",

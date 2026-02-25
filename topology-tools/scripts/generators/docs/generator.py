@@ -2,30 +2,31 @@
 Documentation generation core for topology v4.0.
 """
 
-import yaml
-import re
-import json
 import base64
 import copy
+import json
+import re
 import shutil
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import quote
+
+import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-from datetime import datetime
+from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
 
 from .docs_diagram import DiagramDocumentationGenerator
-from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
 
 
 class DocumentationGenerator:
     """Generate documentation from topology v4.0"""
 
     ICON_NODE_RE = re.compile(
-        r'^(?P<indent>\s*)(?P<node_id>[A-Za-z0-9_]+)@\{\s*'
+        r"^(?P<indent>\s*)(?P<node_id>[A-Za-z0-9_]+)@\{\s*"
         r'(?:(?!\}\s*$).)*?icon:\s*"(?P<icon>[^"]+)"'
         r'(?:(?!\}\s*$).)*?label:\s*"(?P<label>[^"]*)"'
-        r'(?:(?!\}\s*$).)*?\}\s*$'
+        r"(?:(?!\}\s*$).)*?\}\s*$"
     )
 
     def __init__(
@@ -51,11 +52,11 @@ class DocumentationGenerator:
             loader=FileSystemLoader(str(self.templates_dir)),
             autoescape=select_autoescape(),
             trim_blocks=True,
-            lstrip_blocks=True
+            lstrip_blocks=True,
         )
 
         # Add custom filters for Mermaid diagram generation
-        self.jinja_env.filters['mermaid_id'] = self._mermaid_id
+        self.jinja_env.filters["mermaid_id"] = self._mermaid_id
         self.diagram_generator = DiagramDocumentationGenerator(self)
 
     @property
@@ -204,8 +205,8 @@ class DocumentationGenerator:
     def _mermaid_id(value: str) -> str:
         """Convert string to valid Mermaid node ID (alphanumeric + underscore)"""
         if not value:
-            return 'unknown'
-        return value.replace('-', '_').replace('.', '_').replace(' ', '_').replace('/', '_')
+            return "unknown"
+        return value.replace("-", "_").replace(".", "_").replace(" ", "_").replace("/", "_")
 
     @staticmethod
     def _ip_without_cidr(value: str) -> str:
@@ -226,14 +227,10 @@ class DocumentationGenerator:
         l5 = self.topology.get("L5_application", {}) or {}
 
         lxc_map = {
-            item.get("id"): item
-            for item in (l4.get("lxc", []) or [])
-            if isinstance(item, dict) and item.get("id")
+            item.get("id"): item for item in (l4.get("lxc", []) or []) if isinstance(item, dict) and item.get("id")
         }
         vm_map = {
-            item.get("id"): item
-            for item in (l4.get("vms", []) or [])
-            if isinstance(item, dict) and item.get("id")
+            item.get("id"): item for item in (l4.get("vms", []) or []) if isinstance(item, dict) and item.get("id")
         }
         ip_allocations = l2.get("ip_allocations", []) or []
         alloc_by_network_device = {}
@@ -329,13 +326,13 @@ class DocumentationGenerator:
 
     def _get_resolved_networks(self):
         """Resolve L2 networks with optional network profile defaults."""
-        l2 = self.topology.get('L2_network', {})
-        profiles = l2.get('network_profiles', {}) or {}
+        l2 = self.topology.get("L2_network", {})
+        profiles = l2.get("network_profiles", {}) or {}
         resolved = []
 
-        for network in l2.get('networks', []) or []:
+        for network in l2.get("networks", []) or []:
             merged = {}
-            profile_ref = network.get('profile_ref')
+            profile_ref = network.get("profile_ref")
             if profile_ref and profile_ref in profiles and isinstance(profiles[profile_ref], dict):
                 merged.update(profiles[profile_ref])
             merged.update(network)
@@ -345,23 +342,21 @@ class DocumentationGenerator:
 
     def build_l1_storage_views(self) -> Dict[str, Any]:
         """Build pre-resolved storage rows per device from L1 media registry + attachments."""
-        l1 = self.topology.get('L1_foundation', {}) or {}
-        devices = l1.get('devices', []) or []
-        media_registry = l1.get('media_registry', []) if isinstance(l1.get('media_registry'), list) else []
-        media_attachments = l1.get('media_attachments', []) if isinstance(l1.get('media_attachments'), list) else []
+        l1 = self.topology.get("L1_foundation", {}) or {}
+        devices = l1.get("devices", []) or []
+        media_registry = l1.get("media_registry", []) if isinstance(l1.get("media_registry"), list) else []
+        media_attachments = l1.get("media_attachments", []) if isinstance(l1.get("media_attachments"), list) else []
 
         media_by_id = {
-            media.get('id'): media
-            for media in media_registry
-            if isinstance(media, dict) and media.get('id')
+            media.get("id"): media for media in media_registry if isinstance(media, dict) and media.get("id")
         }
 
         attachments_by_device_slot: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
         for attachment in media_attachments:
             if not isinstance(attachment, dict):
                 continue
-            device_ref = attachment.get('device_ref')
-            slot_ref = attachment.get('slot_ref')
+            device_ref = attachment.get("device_ref")
+            slot_ref = attachment.get("slot_ref")
             if not device_ref or not slot_ref:
                 continue
             attachments_by_device_slot.setdefault(device_ref, {}).setdefault(slot_ref, []).append(attachment)
@@ -370,55 +365,59 @@ class DocumentationGenerator:
         for device in devices:
             if not isinstance(device, dict):
                 continue
-            dev_id = device.get('id')
+            dev_id = device.get("id")
             if not dev_id:
                 continue
 
-            specs = device.get('specs', {}) if isinstance(device.get('specs'), dict) else {}
-            slots = specs.get('storage_slots', []) if isinstance(specs.get('storage_slots'), list) else []
+            specs = device.get("specs", {}) if isinstance(device.get("specs"), dict) else {}
+            slots = specs.get("storage_slots", []) if isinstance(specs.get("storage_slots"), list) else []
             device_rows: List[Dict[str, Any]] = []
 
             for slot in slots:
                 if not isinstance(slot, dict):
                     continue
-                slot_id = slot.get('id')
+                slot_id = slot.get("id")
                 slot_attachments = attachments_by_device_slot.get(dev_id, {}).get(slot_id, []) if slot_id else []
                 sorted_attachments = sorted(
                     slot_attachments,
-                    key=lambda item: (0 if item.get('state', 'present') == 'present' else 1, item.get('id', '')),
+                    key=lambda item: (0 if item.get("state", "present") == "present" else 1, item.get("id", "")),
                 )
 
                 if not sorted_attachments:
-                    device_rows.append({
-                        'slot_id': slot_id,
-                        'slot_bus': slot.get('bus'),
-                        'slot_mount': slot.get('mount'),
-                        'slot_name': slot.get('name'),
-                        'attachment_id': None,
-                        'attachment_state': 'empty',
-                        'media': None,
-                    })
+                    device_rows.append(
+                        {
+                            "slot_id": slot_id,
+                            "slot_bus": slot.get("bus"),
+                            "slot_mount": slot.get("mount"),
+                            "slot_name": slot.get("name"),
+                            "attachment_id": None,
+                            "attachment_state": "empty",
+                            "media": None,
+                        }
+                    )
                     continue
 
                 for attachment in sorted_attachments:
-                    media = media_by_id.get(attachment.get('media_ref'))
-                    device_rows.append({
-                        'slot_id': slot_id,
-                        'slot_bus': slot.get('bus'),
-                        'slot_mount': slot.get('mount'),
-                        'slot_name': slot.get('name'),
-                        'attachment_id': attachment.get('id'),
-                        'attachment_state': attachment.get('state', 'present'),
-                        'media': media,
-                    })
+                    media = media_by_id.get(attachment.get("media_ref"))
+                    device_rows.append(
+                        {
+                            "slot_id": slot_id,
+                            "slot_bus": slot.get("bus"),
+                            "slot_mount": slot.get("mount"),
+                            "slot_name": slot.get("name"),
+                            "attachment_id": attachment.get("id"),
+                            "attachment_state": attachment.get("state", "present"),
+                            "media": media,
+                        }
+                    )
 
             rows_by_device[dev_id] = device_rows
 
         return {
-            'rows_by_device': rows_by_device,
-            'media_by_id': media_by_id,
-            'media_registry': media_registry,
-            'media_attachments': media_attachments,
+            "rows_by_device": rows_by_device,
+            "media_by_id": media_by_id,
+            "media_registry": media_registry,
+            "media_attachments": media_attachments,
         }
 
     def resolve_storage_pools_for_docs(self) -> List[Dict[str, Any]]:
@@ -426,46 +425,46 @@ class DocumentationGenerator:
         Resolve storage pools for docs from legacy `storage` or `storage_endpoints`.
         For storage_endpoints, enrich with inferred device/media from the L3 storage chain.
         """
-        l1 = self.topology.get('L1_foundation', {}) or {}
-        l3 = self.topology.get('L3_data', {}) or {}
-        legacy_storage = l3.get('storage', []) or []
+        l1 = self.topology.get("L1_foundation", {}) or {}
+        l3 = self.topology.get("L3_data", {}) or {}
+        legacy_storage = l3.get("storage", []) or []
         if legacy_storage:
             return legacy_storage
 
         media_registry = {
-            media.get('id'): media
-            for media in (l1.get('media_registry', []) or [])
-            if isinstance(media, dict) and media.get('id')
+            media.get("id"): media
+            for media in (l1.get("media_registry", []) or [])
+            if isinstance(media, dict) and media.get("id")
         }
         attachments = {
-            attachment.get('id'): attachment
-            for attachment in (l1.get('media_attachments', []) or [])
-            if isinstance(attachment, dict) and attachment.get('id')
+            attachment.get("id"): attachment
+            for attachment in (l1.get("media_attachments", []) or [])
+            if isinstance(attachment, dict) and attachment.get("id")
         }
         partitions = {
-            item.get('id'): item
-            for item in (l3.get('partitions', []) or [])
-            if isinstance(item, dict) and item.get('id')
+            item.get("id"): item
+            for item in (l3.get("partitions", []) or [])
+            if isinstance(item, dict) and item.get("id")
         }
         volume_groups = {
-            item.get('id'): item
-            for item in (l3.get('volume_groups', []) or [])
-            if isinstance(item, dict) and item.get('id')
+            item.get("id"): item
+            for item in (l3.get("volume_groups", []) or [])
+            if isinstance(item, dict) and item.get("id")
         }
         logical_volumes = {
-            item.get('id'): item
-            for item in (l3.get('logical_volumes', []) or [])
-            if isinstance(item, dict) and item.get('id')
+            item.get("id"): item
+            for item in (l3.get("logical_volumes", []) or [])
+            if isinstance(item, dict) and item.get("id")
         }
         filesystems = {
-            item.get('id'): item
-            for item in (l3.get('filesystems', []) or [])
-            if isinstance(item, dict) and item.get('id')
+            item.get("id"): item
+            for item in (l3.get("filesystems", []) or [])
+            if isinstance(item, dict) and item.get("id")
         }
         mount_points = {
-            item.get('id'): item
-            for item in (l3.get('mount_points', []) or [])
-            if isinstance(item, dict) and item.get('id')
+            item.get("id"): item
+            for item in (l3.get("mount_points", []) or [])
+            if isinstance(item, dict) and item.get("id")
         }
 
         def _resolve_from_partition(
@@ -474,11 +473,11 @@ class DocumentationGenerator:
             media_type: str | None,
         ) -> tuple[str | None, str | None]:
             partition = partitions.get(partition_ref, {}) if partition_ref else {}
-            attachment_ref = partition.get('media_attachment_ref')
+            attachment_ref = partition.get("media_attachment_ref")
             attachment = attachments.get(attachment_ref, {}) if attachment_ref else {}
-            media = media_registry.get(attachment.get('media_ref'), {}) if attachment else {}
-            resolved_device = device_ref or attachment.get('device_ref')
-            resolved_media = media_type or media.get('type')
+            media = media_registry.get(attachment.get("media_ref"), {}) if attachment else {}
+            resolved_device = device_ref or attachment.get("device_ref")
+            resolved_media = media_type or media.get("type")
             return resolved_device, resolved_media
 
         def _resolve_from_lv(
@@ -487,68 +486,68 @@ class DocumentationGenerator:
             media_type: str | None,
         ) -> tuple[str | None, str | None]:
             lv = logical_volumes.get(lv_ref, {}) if lv_ref else {}
-            vg = volume_groups.get(lv.get('vg_ref'), {}) if lv else {}
-            for pv_ref in (vg.get('pv_refs') or []):
+            vg = volume_groups.get(lv.get("vg_ref"), {}) if lv else {}
+            for pv_ref in vg.get("pv_refs") or []:
                 device_ref, media_type = _resolve_from_partition(pv_ref, device_ref, media_type)
                 if device_ref and media_type:
                     break
             return device_ref, media_type
 
         resolved: List[Dict[str, Any]] = []
-        for endpoint in l3.get('storage_endpoints', []) or []:
+        for endpoint in l3.get("storage_endpoints", []) or []:
             if not isinstance(endpoint, dict):
                 continue
             item = copy.deepcopy(endpoint)
-            device_ref = item.get('device_ref')
-            media_type = item.get('media')
+            device_ref = item.get("device_ref")
+            media_type = item.get("media")
 
-            mount_point = mount_points.get(item.get('mount_point_ref'), {}) if item.get('mount_point_ref') else {}
+            mount_point = mount_points.get(item.get("mount_point_ref"), {}) if item.get("mount_point_ref") else {}
             if mount_point:
-                device_ref = device_ref or mount_point.get('device_ref')
-                if not item.get('path'):
-                    item['path'] = mount_point.get('path')
+                device_ref = device_ref or mount_point.get("device_ref")
+                if not item.get("path"):
+                    item["path"] = mount_point.get("path")
 
-            filesystem = filesystems.get(mount_point.get('filesystem_ref'), {}) if mount_point else {}
-            if filesystem.get('partition_ref'):
+            filesystem = filesystems.get(mount_point.get("filesystem_ref"), {}) if mount_point else {}
+            if filesystem.get("partition_ref"):
                 device_ref, media_type = _resolve_from_partition(
-                    filesystem.get('partition_ref'),
+                    filesystem.get("partition_ref"),
                     device_ref,
                     media_type,
                 )
-            elif filesystem.get('lv_ref'):
+            elif filesystem.get("lv_ref"):
                 device_ref, media_type = _resolve_from_lv(
-                    filesystem.get('lv_ref'),
+                    filesystem.get("lv_ref"),
                     device_ref,
                     media_type,
                 )
 
-            if item.get('lv_ref'):
-                device_ref, media_type = _resolve_from_lv(item.get('lv_ref'), device_ref, media_type)
-                if not item.get('path'):
-                    lv = logical_volumes.get(item.get('lv_ref'), {})
-                    vg = volume_groups.get(lv.get('vg_ref'), {}) if lv else {}
-                    vg_name = vg.get('name') or vg.get('id')
-                    lv_name = lv.get('name') or lv.get('id')
+            if item.get("lv_ref"):
+                device_ref, media_type = _resolve_from_lv(item.get("lv_ref"), device_ref, media_type)
+                if not item.get("path"):
+                    lv = logical_volumes.get(item.get("lv_ref"), {})
+                    vg = volume_groups.get(lv.get("vg_ref"), {}) if lv else {}
+                    vg_name = vg.get("name") or vg.get("id")
+                    lv_name = lv.get("name") or lv.get("id")
                     if vg_name and lv_name:
-                        item['path'] = f"{vg_name}/{lv_name}"
+                        item["path"] = f"{vg_name}/{lv_name}"
 
-            infer_from = endpoint.get('infer_from', {}) if isinstance(endpoint.get('infer_from'), dict) else {}
-            attachment_ref = infer_from.get('media_attachment_ref')
+            infer_from = endpoint.get("infer_from", {}) if isinstance(endpoint.get("infer_from"), dict) else {}
+            attachment_ref = infer_from.get("media_attachment_ref")
             attachment = attachments.get(attachment_ref, {}) if attachment_ref else {}
-            media = media_registry.get(attachment.get('media_ref'), {}) if attachment else {}
-            device_ref = device_ref or attachment.get('device_ref')
-            media_type = media_type or media.get('type')
+            media = media_registry.get(attachment.get("media_ref"), {}) if attachment else {}
+            device_ref = device_ref or attachment.get("device_ref")
+            media_type = media_type or media.get("type")
 
-            item['device_ref'] = device_ref
-            item['media'] = media_type
+            item["device_ref"] = device_ref
+            item["media"] = media_type
 
-            if not item.get('path'):
-                lv_name = infer_from.get('lv_name')
-                vg_name = infer_from.get('vg_name')
+            if not item.get("path"):
+                lv_name = infer_from.get("lv_name")
+                vg_name = infer_from.get("vg_name")
                 if vg_name and lv_name:
-                    item['path'] = f"{vg_name}/{lv_name}"
+                    item["path"] = f"{vg_name}/{lv_name}"
                 elif lv_name:
-                    item['path'] = lv_name
+                    item["path"] = lv_name
             resolved.append(item)
 
         return resolved
@@ -562,51 +561,51 @@ class DocumentationGenerator:
         For docker/baremetal runtimes, fallback endpoint inference is derived from
         active host OS installation root storage endpoint on the target device.
         """
-        l3 = self.topology.get('L3_data', {}) or {}
-        l4 = self.topology.get('L4_platform', {}) or {}
-        l5 = self.topology.get('L5_application', {}) or {}
-        data_assets = l3.get('data_assets', []) or []
+        l3 = self.topology.get("L3_data", {}) or {}
+        l4 = self.topology.get("L4_platform", {}) or {}
+        l5 = self.topology.get("L5_application", {}) or {}
+        data_assets = l3.get("data_assets", []) or []
 
         placement_map: Dict[str, Dict[str, set[str]]] = {}
         host_root_endpoint_by_device: Dict[str, str] = {}
 
-        for host_os in l4.get('host_operating_systems', []) or []:
+        for host_os in l4.get("host_operating_systems", []) or []:
             if not isinstance(host_os, dict):
                 continue
-            status = str(host_os.get('status', '')).strip().lower()
-            if status and status != 'active':
+            status = str(host_os.get("status", "")).strip().lower()
+            if status and status != "active":
                 continue
-            device_ref = host_os.get('device_ref')
-            installation = host_os.get('installation') if isinstance(host_os.get('installation'), dict) else {}
-            root_storage_ref = installation.get('root_storage_endpoint_ref')
+            device_ref = host_os.get("device_ref")
+            installation = host_os.get("installation") if isinstance(host_os.get("installation"), dict) else {}
+            root_storage_ref = installation.get("root_storage_endpoint_ref")
             if isinstance(device_ref, str) and device_ref and isinstance(root_storage_ref, str) and root_storage_ref:
                 host_root_endpoint_by_device.setdefault(device_ref, root_storage_ref)
 
         def _extract_service_mount_paths(service: Dict[str, Any]) -> List[str]:
             mount_paths: set[str] = set()
 
-            storage = service.get('storage') if isinstance(service.get('storage'), dict) else {}
-            path_single = storage.get('path')
+            storage = service.get("storage") if isinstance(service.get("storage"), dict) else {}
+            path_single = storage.get("path")
             if isinstance(path_single, str) and path_single:
                 mount_paths.add(path_single)
 
-            path_map = storage.get('paths') if isinstance(storage.get('paths'), dict) else {}
+            path_map = storage.get("paths") if isinstance(storage.get("paths"), dict) else {}
             for value in path_map.values():
                 if isinstance(value, str) and value:
                     mount_paths.add(value)
 
-            config = service.get('config') if isinstance(service.get('config'), dict) else {}
-            docker = config.get('docker') if isinstance(config.get('docker'), dict) else {}
-            volumes = docker.get('volumes') if isinstance(docker.get('volumes'), list) else []
+            config = service.get("config") if isinstance(service.get("config"), dict) else {}
+            docker = config.get("docker") if isinstance(config.get("docker"), dict) else {}
+            volumes = docker.get("volumes") if isinstance(docker.get("volumes"), list) else []
             for volume in volumes:
                 if isinstance(volume, str):
-                    host_path = volume.split(':', 1)[0].strip()
-                    if host_path.startswith('/'):
+                    host_path = volume.split(":", 1)[0].strip()
+                    if host_path.startswith("/"):
                         mount_paths.add(host_path)
                     continue
                 if isinstance(volume, dict):
-                    host_path = volume.get('source') or volume.get('host_path') or volume.get('src')
-                    if isinstance(host_path, str) and host_path.startswith('/'):
+                    host_path = volume.get("source") or volume.get("host_path") or volume.get("src")
+                    if isinstance(host_path, str) and host_path.startswith("/"):
                         mount_paths.add(host_path)
 
             return sorted(mount_paths)
@@ -623,85 +622,87 @@ class DocumentationGenerator:
             slot = placement_map.setdefault(
                 data_asset_ref,
                 {
-                    'storage_endpoint_refs': set(),
-                    'runtime_refs': set(),
-                    'mount_paths': set(),
-                    'placement_sources': set(),
+                    "storage_endpoint_refs": set(),
+                    "runtime_refs": set(),
+                    "mount_paths": set(),
+                    "placement_sources": set(),
                 },
             )
             if storage_ref:
-                slot['storage_endpoint_refs'].add(storage_ref)
+                slot["storage_endpoint_refs"].add(storage_ref)
             if runtime_ref:
-                slot['runtime_refs'].add(runtime_ref)
+                slot["runtime_refs"].add(runtime_ref)
             if mount_path:
-                slot['mount_paths'].add(mount_path)
+                slot["mount_paths"].add(mount_path)
             if source:
-                slot['placement_sources'].add(source)
+                slot["placement_sources"].add(source)
 
-        for lxc in l4.get('lxc', []) or []:
+        for lxc in l4.get("lxc", []) or []:
             if not isinstance(lxc, dict):
                 continue
-            runtime_ref = lxc.get('id')
-            storage = lxc.get('storage', {}) if isinstance(lxc.get('storage'), dict) else {}
+            runtime_ref = lxc.get("id")
+            storage = lxc.get("storage", {}) if isinstance(lxc.get("storage"), dict) else {}
 
-            rootfs = storage.get('rootfs', {}) if isinstance(storage.get('rootfs'), dict) else {}
+            rootfs = storage.get("rootfs", {}) if isinstance(storage.get("rootfs"), dict) else {}
             _register(
-                rootfs.get('data_asset_ref'),
-                rootfs.get('storage_endpoint_ref') or rootfs.get('storage_ref'),
+                rootfs.get("data_asset_ref"),
+                rootfs.get("storage_endpoint_ref") or rootfs.get("storage_ref"),
                 runtime_ref,
-                '/',
-                'l4-storage',
+                "/",
+                "l4-storage",
             )
 
-            for volume in storage.get('volumes', []) or []:
+            for volume in storage.get("volumes", []) or []:
                 if not isinstance(volume, dict):
                     continue
                 _register(
-                    volume.get('data_asset_ref'),
-                    volume.get('storage_endpoint_ref') or volume.get('storage_ref'),
+                    volume.get("data_asset_ref"),
+                    volume.get("storage_endpoint_ref") or volume.get("storage_ref"),
                     runtime_ref,
-                    volume.get('mount_path'),
-                    'l4-storage',
+                    volume.get("mount_path"),
+                    "l4-storage",
                 )
 
-        for vm in l4.get('vms', []) or []:
+        for vm in l4.get("vms", []) or []:
             if not isinstance(vm, dict):
                 continue
-            runtime_ref = vm.get('id')
-            for disk in vm.get('storage', []) or []:
+            runtime_ref = vm.get("id")
+            for disk in vm.get("storage", []) or []:
                 if not isinstance(disk, dict):
                     continue
                 _register(
-                    disk.get('data_asset_ref'),
-                    disk.get('storage_endpoint_ref') or disk.get('storage_ref'),
+                    disk.get("data_asset_ref"),
+                    disk.get("storage_endpoint_ref") or disk.get("storage_ref"),
                     runtime_ref,
-                    disk.get('mount_path') or disk.get('path') or disk.get('target'),
-                    'l4-storage',
+                    disk.get("mount_path") or disk.get("path") or disk.get("target"),
+                    "l4-storage",
                 )
 
-        for service in l5.get('services', []) or []:
+        for service in l5.get("services", []) or []:
             if not isinstance(service, dict):
                 continue
-            asset_refs = service.get('data_asset_refs') if isinstance(service.get('data_asset_refs'), list) else []
+            asset_refs = service.get("data_asset_refs") if isinstance(service.get("data_asset_refs"), list) else []
             if not asset_refs:
                 continue
 
-            runtime = service.get('runtime') if isinstance(service.get('runtime'), dict) else {}
-            runtime_type = str(runtime.get('type') or '').strip().lower()
-            runtime_target_ref = runtime.get('target_ref')
-            runtime_ref = runtime_target_ref if isinstance(runtime_target_ref, str) and runtime_target_ref else service.get('id')
-            storage_ref = runtime.get('storage_endpoint_ref') or runtime.get('storage_ref')
+            runtime = service.get("runtime") if isinstance(service.get("runtime"), dict) else {}
+            runtime_type = str(runtime.get("type") or "").strip().lower()
+            runtime_target_ref = runtime.get("target_ref")
+            runtime_ref = (
+                runtime_target_ref if isinstance(runtime_target_ref, str) and runtime_target_ref else service.get("id")
+            )
+            storage_ref = runtime.get("storage_endpoint_ref") or runtime.get("storage_ref")
 
             if (
                 not storage_ref
-                and runtime_type in {'docker', 'baremetal'}
+                and runtime_type in {"docker", "baremetal"}
                 and isinstance(runtime_target_ref, str)
                 and runtime_target_ref
             ):
                 storage_ref = host_root_endpoint_by_device.get(runtime_target_ref)
 
             mount_paths = _extract_service_mount_paths(service)
-            source = 'l5-runtime-host-root' if storage_ref and runtime_type in {'docker', 'baremetal'} else 'l5-runtime'
+            source = "l5-runtime-host-root" if storage_ref and runtime_type in {"docker", "baremetal"} else "l5-runtime"
 
             for asset_ref in asset_refs:
                 if not isinstance(asset_ref, str) or not asset_ref:
@@ -717,27 +718,27 @@ class DocumentationGenerator:
             if not isinstance(asset, dict):
                 continue
             item = copy.deepcopy(asset)
-            placement = placement_map.get(item.get('id'), {})
-            endpoint_refs = sorted(placement.get('storage_endpoint_refs', set()))
-            runtime_refs = sorted(placement.get('runtime_refs', set()))
-            mount_paths = sorted(placement.get('mount_paths', set()))
-            placement_sources = sorted(placement.get('placement_sources', set()))
+            placement = placement_map.get(item.get("id"), {})
+            endpoint_refs = sorted(placement.get("storage_endpoint_refs", set()))
+            runtime_refs = sorted(placement.get("runtime_refs", set()))
+            mount_paths = sorted(placement.get("mount_paths", set()))
+            placement_sources = sorted(placement.get("placement_sources", set()))
 
-            item['resolved_storage_endpoint_refs'] = endpoint_refs
-            item['resolved_runtime_refs'] = runtime_refs
-            item['resolved_mount_paths'] = mount_paths
-            item['placement_source'] = ', '.join(placement_sources) if placement_sources else 'l3-ownership'
+            item["resolved_storage_endpoint_refs"] = endpoint_refs
+            item["resolved_runtime_refs"] = runtime_refs
+            item["resolved_mount_paths"] = mount_paths
+            item["placement_source"] = ", ".join(placement_sources) if placement_sources else "l3-ownership"
             resolved_assets.append(item)
 
         return resolved_assets
 
     def _resolve_lxc_resources(self, lxc_containers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Resolve effective LXC resources from inline resources or resource profiles."""
-        l4 = self.topology.get('L4_platform', {}) or {}
+        l4 = self.topology.get("L4_platform", {}) or {}
         profile_map = {
-            profile.get('id'): profile
-            for profile in (l4.get('resource_profiles', []) or [])
-            if isinstance(profile, dict) and profile.get('id')
+            profile.get("id"): profile
+            for profile in (l4.get("resource_profiles", []) or [])
+            if isinstance(profile, dict) and profile.get("id")
         }
         resolved: List[Dict[str, Any]] = []
 
@@ -745,19 +746,19 @@ class DocumentationGenerator:
             if not isinstance(container, dict):
                 continue
             item = copy.deepcopy(container)
-            resources = item.get('resources') if isinstance(item.get('resources'), dict) else None
+            resources = item.get("resources") if isinstance(item.get("resources"), dict) else None
             if not resources:
-                profile_ref = item.get('resource_profile_ref')
+                profile_ref = item.get("resource_profile_ref")
                 profile = profile_map.get(profile_ref, {}) if profile_ref else {}
-                cpu = (profile.get('cpu') or {})
-                memory = (profile.get('memory') or {})
-                item['resources'] = {
-                    'cores': cpu.get('cores', 1),
-                    'memory_mb': memory.get('mb', 512),
-                    'swap_mb': memory.get('swap_mb', 0),
+                cpu = profile.get("cpu") or {}
+                memory = profile.get("memory") or {}
+                item["resources"] = {
+                    "cores": cpu.get("cores", 1),
+                    "memory_mb": memory.get("mb", 512),
+                    "swap_mb": memory.get("swap_mb", 0),
                 }
-            item.setdefault('type', item.get('platform_type', 'lxc'))
-            item.setdefault('role', item.get('resource_profile_ref', 'resource-profile'))
+            item.setdefault("type", item.get("platform_type", "lxc"))
+            item.setdefault("role", item.get("resource_profile_ref", "resource-profile"))
             resolved.append(item)
 
         return resolved
@@ -767,7 +768,7 @@ class DocumentationGenerator:
         try:
             self.topology, version_warning = load_and_validate_layered_topology(
                 self.topology_path,
-                required_sections=['L0_meta', 'L1_foundation', 'L2_network', 'L4_platform'],
+                required_sections=["L0_meta", "L1_foundation", "L2_network", "L4_platform"],
             )
             print(f"OK Loaded topology: {self.topology_path}")
 
@@ -796,7 +797,7 @@ class DocumentationGenerator:
         self._cleanup_legacy_docs_directories()
         print(f"DIR Created output directory: {self.output_dir}")
         self.generated_files = []
-        self.generated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        self.generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         success = True
         success &= self.generate_network_diagram()
@@ -871,7 +872,7 @@ class DocumentationGenerator:
         try:
             template = self.jinja_env.get_template(template_name)
             content = template.render(
-                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                topology_version=self.topology.get("L0_meta", {}).get("version", "4.0.0"),
                 **context,
             )
             content = self.transform_mermaid_icons_for_compat(content)
@@ -887,13 +888,13 @@ class DocumentationGenerator:
     def generate_network_diagram(self) -> bool:
         """Generate network diagram in Mermaid format"""
         try:
-            template = self.jinja_env.get_template('docs/network-diagram.md.j2')
+            template = self.jinja_env.get_template("docs/network-diagram.md.j2")
 
             networks = self._get_resolved_networks()
-            bridges = self.topology['L2_network'].get('bridges', [])
-            trust_zones = self.topology['L2_network'].get('trust_zones', {})
-            vms = self.topology['L4_platform'].get('vms', [])
-            lxc = self.topology['L4_platform'].get('lxc', [])
+            bridges = self.topology["L2_network"].get("bridges", [])
+            trust_zones = self.topology["L2_network"].get("trust_zones", {})
+            vms = self.topology["L4_platform"].get("vms", [])
+            lxc = self.topology["L4_platform"].get("lxc", [])
 
             content = template.render(
                 networks=networks,
@@ -902,25 +903,23 @@ class DocumentationGenerator:
                 vms=vms,
                 lxc=lxc,
                 network_icons={
-                    net.get('id'): self.diagram_generator._network_icon(net)
+                    net.get("id"): self.diagram_generator._network_icon(net)
                     for net in networks
-                    if isinstance(net, dict) and net.get('id')
+                    if isinstance(net, dict) and net.get("id")
                 },
                 lxc_icons={
-                    item.get('id'): (
-                        'mdi:docker'
-                        if 'docker' in str(item.get('type', '')).lower()
-                        else 'mdi:cube-outline'
+                    item.get("id"): (
+                        "mdi:docker" if "docker" in str(item.get("type", "")).lower() else "mdi:cube-outline"
                     )
                     for item in lxc
-                    if isinstance(item, dict) and item.get('id')
+                    if isinstance(item, dict) and item.get("id")
                 },
                 zone_icons=self.diagram_generator.ZONE_ICON_MAP,
                 use_mermaid_icons=self.mermaid_icons,
                 icon_mode=self.icon_mode,
                 mermaid_icon_runtime_hint=self.icon_runtime_hint(),
                 mermaid_icon_pack_hint=self.diagram_generator.ICON_PACK_HINT,
-                topology_version=self.topology.get('L0_meta', {}).get('version', '4.0.0'),
+                topology_version=self.topology.get("L0_meta", {}).get("version", "4.0.0"),
             )
             content = self.transform_mermaid_icons_for_compat(content)
 
@@ -933,6 +932,7 @@ class DocumentationGenerator:
         except Exception as e:
             print(f"ERROR Error generating network-diagram.md: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
@@ -942,15 +942,19 @@ class DocumentationGenerator:
 
         allocations = []
         for network in networks:
-            for allocation in network.get('ip_allocations', []) or []:
-                allocations.append({
-                    'network': network['id'],
-                    'cidr': network['cidr'],
-                    'ip': allocation['ip'],
-                    'device': allocation.get('device_ref', allocation.get('vm_ref', allocation.get('lxc_ref', 'unknown'))),
-                    'interface': allocation.get('interface', '-'),
-                    'description': allocation.get('description', '')
-                })
+            for allocation in network.get("ip_allocations", []) or []:
+                allocations.append(
+                    {
+                        "network": network["id"],
+                        "cidr": network["cidr"],
+                        "ip": allocation["ip"],
+                        "device": allocation.get(
+                            "device_ref", allocation.get("vm_ref", allocation.get("lxc_ref", "unknown"))
+                        ),
+                        "interface": allocation.get("interface", "-"),
+                        "description": allocation.get("description", ""),
+                    }
+                )
 
         return self._render_core_document(
             "docs/ip-allocation.md.j2",
@@ -961,29 +965,29 @@ class DocumentationGenerator:
 
     def generate_services_inventory(self) -> bool:
         """Generate services inventory"""
-        services = self.topology.get('L5_application', {}).get('services', [])
+        services = self.topology.get("L5_application", {}).get("services", [])
 
-        lxc_map = {lxc['id']: lxc for lxc in self.topology['L4_platform'].get('lxc', [])}
-        vm_map = {vm['id']: vm for vm in self.topology['L4_platform'].get('vms', [])}
+        lxc_map = {lxc["id"]: lxc for lxc in self.topology["L4_platform"].get("lxc", [])}
+        vm_map = {vm["id"]: vm for vm in self.topology["L4_platform"].get("vms", [])}
 
         enriched_services = []
         for service in services:
             enriched = service.copy()
 
-            if 'lxc_ref' in service:
-                host = lxc_map.get(service['lxc_ref'], {})
-                enriched['host_name'] = host.get('name', 'unknown')
-                enriched['host_type'] = 'LXC'
-            elif 'vm_ref' in service:
-                host = vm_map.get(service['vm_ref'], {})
-                enriched['host_name'] = host.get('name', 'unknown')
-                enriched['host_type'] = 'VM'
-            elif 'device_ref' in service:
-                enriched['host_name'] = service['device_ref']
-                enriched['host_type'] = 'Device'
+            if "lxc_ref" in service:
+                host = lxc_map.get(service["lxc_ref"], {})
+                enriched["host_name"] = host.get("name", "unknown")
+                enriched["host_type"] = "LXC"
+            elif "vm_ref" in service:
+                host = vm_map.get(service["vm_ref"], {})
+                enriched["host_name"] = host.get("name", "unknown")
+                enriched["host_type"] = "VM"
+            elif "device_ref" in service:
+                enriched["host_name"] = service["device_ref"]
+                enriched["host_type"] = "Device"
             else:
-                enriched['host_name'] = 'unknown'
-                enriched['host_type'] = 'unknown'
+                enriched["host_name"] = "unknown"
+                enriched["host_type"] = "unknown"
 
             enriched_services.append(enriched)
 
@@ -995,10 +999,10 @@ class DocumentationGenerator:
 
     def generate_devices_inventory(self) -> bool:
         """Generate devices inventory"""
-        devices = self.topology['L1_foundation'].get('devices', [])
-        vms = self.topology['L4_platform'].get('vms', [])
-        host_operating_systems = self.topology['L4_platform'].get('host_operating_systems', [])
-        lxc = self._resolve_lxc_resources(self.topology['L4_platform'].get('lxc', []))
+        devices = self.topology["L1_foundation"].get("devices", [])
+        vms = self.topology["L4_platform"].get("vms", [])
+        host_operating_systems = self.topology["L4_platform"].get("host_operating_systems", [])
+        lxc = self._resolve_lxc_resources(self.topology["L4_platform"].get("lxc", []))
         storage = self.resolve_storage_pools_for_docs()
         storage_views = self.build_l1_storage_views()
 
@@ -1010,26 +1014,26 @@ class DocumentationGenerator:
             host_operating_systems=host_operating_systems,
             lxc=lxc,
             storage=storage,
-            storage_rows_by_device=storage_views['rows_by_device'],
+            storage_rows_by_device=storage_views["rows_by_device"],
         )
 
     def generate_overview(self) -> bool:
         """Generate infrastructure overview"""
-        metadata = self.topology.get('L0_meta', {}).get('metadata', {})
-        devices = self.topology['L1_foundation'].get('devices', [])
-        networks = self.topology['L2_network'].get('networks', [])
-        vms = self.topology['L4_platform'].get('vms', [])
-        lxc = self.topology['L4_platform'].get('lxc', [])
-        services = self.topology.get('L5_application', {}).get('services', [])
+        metadata = self.topology.get("L0_meta", {}).get("metadata", {})
+        devices = self.topology["L1_foundation"].get("devices", [])
+        networks = self.topology["L2_network"].get("networks", [])
+        vms = self.topology["L4_platform"].get("vms", [])
+        lxc = self.topology["L4_platform"].get("lxc", [])
+        services = self.topology.get("L5_application", {}).get("services", [])
         storage = self.resolve_storage_pools_for_docs()
 
         stats = {
-            'total_devices': len(devices),
-            'total_vms': len(vms),
-            'total_lxc': len(lxc),
-            'total_networks': len(networks),
-            'total_services': len(services),
-            'total_storage': len(storage),
+            "total_devices": len(devices),
+            "total_vms": len(vms),
+            "total_lxc": len(lxc),
+            "total_networks": len(networks),
+            "total_services": len(services),
+            "total_storage": len(storage),
         }
 
         return self._render_core_document(
@@ -1041,9 +1045,9 @@ class DocumentationGenerator:
 
     def print_summary(self) -> None:
         """Print generation summary."""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("Documentation Generation Summary")
-        print("="*70)
+        print("=" * 70)
 
         print(f"\nOK Generated documentation:")
         print(f"  Core:")
@@ -1061,4 +1065,3 @@ class DocumentationGenerator:
         print(f"\nFiles created:")
         for file in sorted(self.output_dir.glob("*.md")):
             print(f"  - {file.name}")
-

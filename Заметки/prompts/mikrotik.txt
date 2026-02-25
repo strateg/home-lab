@@ -1467,7 +1467,7 @@
 
  Would you like to proceed?
 
- 
+
 ● План готов. Давайте я его финализирую и выйду из режима планирования.
 
 ● User approved Claude's plan
