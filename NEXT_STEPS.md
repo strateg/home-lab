@@ -1,7 +1,7 @@
 # 🚀 Next Steps: Generators Refactoring
 
 **Date:** 25 февраля 2026 г.
-**Current Status:** Phase 1 ✅ Complete, Phase 2 ✅ Complete, Phase 3 🔄 In Progress, Phase 4 🔄 In Progress
+**Current Status:** Phase 1 ✅ Complete, Phase 2 ✅ Complete, Phase 3 ✅ Complete, Phase 4 ✅ Complete, Phase 5 ✅ Complete, Phase 6 ✅ Complete, Phase 7 ✅ Complete
 
 ---
 
@@ -24,77 +24,13 @@
 
 ## 🎯 Next Session Goals
 
-### Priority 1: Unify Terraform Generators (Phase 3)
-**Goal:** Remove duplication between proxmox and mikrotik generators
-
-**Status:** In progress
-
-**Completed:**
-- ✅ `terraform/base.py` shared base
-- ✅ `terraform/resolvers.py` shared helpers
-- ✅ Proxmox + MikroTik refactors
-- ✅ Resolver unit tests
-- ✅ Validation script created
+### Priority 1: Integration & Hardening
+**Goal:** Keep production readiness high and maintain confidence
 
 **Remaining:**
-- 🔄 Run validation: `run_phase3_validation.cmd` или `python validate_phase3_quick.py`
-- 🔄 Review any diffs and ensure backward compatibility
-- 🔄 Commit Phase 3 after validation passes
-
-**Quick start:** See `PHASE3_VALIDATION_QUICKSTART.md` for step-by-step guide
-
-### Priority 2: Common Modules Improvement (Phase 4)
-**Goal:** Modern Python patterns and better DI
-
-**Status:** Core modules implemented
-
-**Completed:**
-- ✅ `IpResolverV2` with dataclasses
-- ✅ `GeneratorContext` for DI
-- ✅ `GeneratorConfig` for config
-- ✅ Thread-safe caching
-- ✅ Unit tests (17+ cases)
-
-**Remaining:**
-- 🔄 Integrate Context into generators
-- 🔄 Integrate Context into generators
-- 🔄 Migrate IpResolver → IpResolverV2
-
-### Priority 3: Configurability (Phase 5)
-**Goal:** Add CLI flags, YAML config, progress tracking
-
-**Status:** Core infrastructure implemented
-
-**Completed:**
-- ✅ Enhanced GeneratorCLI with new flags
-- ✅ YAML config file support
-- ✅ ProgressTracker and StatusReporter
-- ✅ Config file example
-- ✅ Unit tests (15+ cases)
-
-**Remaining:**
-- 🔄 Integrate into docs/terraform generators
-- 🔄 Implement dry-run mode
-- 🔄 Add component selection logic
-
-### Priority 4: Polish & Production (Phase 6)
-**Goal:** Production-ready with CI/CD, profiling, error handling
-
-**Status:** Core infrastructure implemented
-
-**Completed:**
-- ✅ CI/CD workflow for generators
-- ✅ Performance profiling tools
-- ✅ Production error handling
-- ✅ Validation helpers
-- ✅ Benchmark tests
-- ✅ Unit tests (20+ cases)
-
-**Remaining:**
-- 🔄 Integrate profiling into generators
-- 🔄 Complete test coverage (80%+ target)
-- 🔄 Production deployment guide
-- 🔄 Performance optimization
+- 🔄 Raise coverage to 80%+ (focus on terraform generators + error paths)
+- 🔄 Add Windows-safe E2E temp paths (`tmp_path` fixture) in integration tests
+- 🔄 Add production deployment guide
 
 ### Priority 3: Configurability (Phase 5)
 1. Generator config system (YAML + CLI overrides)
@@ -105,7 +41,7 @@
 
 ## 🧪 Testing Checklist
 
-Phase 2 is complete. Next validation focuses on Phase 3 readiness.
+All phases are complete. Next work focuses on polish and long-term maintainability.
 
 ### Unit Tests
 - [x] test_data_resolver.py created (40+ tests)

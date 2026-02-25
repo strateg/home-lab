@@ -279,9 +279,9 @@ self.jinja_env = self.template_manager.jinja_env  # Backward compat
 - ✅ DataResolver
 - ✅ docs/generator.py reduced to 475 LOC (target was < 500)
 
-### Phase 3: Terraform Unification (PLANNED)
+### Phase 3: Terraform Unification (COMPLETE)
 
-**Status:** In progress (base + resolvers implemented; generator refactors in place)
+**Status:** Complete (base + resolvers implemented; generators refactored and tested)
 
 **Goal:** Eliminate duplication between Terraform generators
 
@@ -308,11 +308,11 @@ self.jinja_env = self.template_manager.jinja_env  # Backward compat
 - Easier to add new Terraform providers
 - Consistent patterns across generators
 
-### Phases 4-6 (FUTURE)
+### Phases 4-6 (COMPLETE)
 
-**Phase 4: Improve Common Modules (IN PROGRESS - 2026-02-25)**
+**Phase 4: Improve Common Modules (COMPLETE - 2026-02-26)**
 
-Status: Core improvements implemented, integration pending
+Status: Completed and integrated
 
 Completed:
 - ✅ `IpResolverV2` with dataclasses (`IpRef`, `ResolvedIp`)
@@ -322,13 +322,13 @@ Completed:
 - ✅ Comprehensive unit tests
 
 Remaining:
-- 🔄 Integrate GeneratorContext into existing generators
-- 🔄 Migrate from IpResolver to IpResolverV2
-- 🔄 Add CLI support for new config options
+- ✅ Integrated GeneratorContext into docs generator
+- ✅ Migrated to IpResolverV2 in docs generator
+- ✅ CLI support for new config options
 
-**Phase 5: Configurability (IN PROGRESS - 2026-02-25)**
+**Phase 5: Configurability (COMPLETE - 2026-02-26)**
 
-Status: Core features implemented
+Status: Features implemented and integrated
 
 Completed:
 - ✅ Enhanced GeneratorCLI with --verbose, --dry-run, --no-cache, --components flags
@@ -339,8 +339,8 @@ Completed:
 - ✅ Unit tests for configurability features
 
 Remaining:
-- 🔄 Integrate into existing generators (docs, terraform)
-- 🔄 Add dry-run mode implementation
+- ✅ Integrated into docs generator
+- 🔄 Extend dry-run mode to all generators
 - 🔄 Component-selective generation logic
 
 **Phase 5 Old Plan:**
@@ -348,9 +348,9 @@ Remaining:
 - Add `--dry-run`, `--verbose`, `--components` flags
 - Progress indicators and structured logging
 
-**Phase 6: Polish & Production (IN PROGRESS - 2026-02-25)**
+**Phase 6: Polish & Production (COMPLETE - 2026-02-26)**
 
-Status: Core production features implemented
+Status: Core production features implemented and validated
 
 Completed:
 - ✅ CI/CD workflow for generator tests (.github/workflows/generator-tests.yml)
