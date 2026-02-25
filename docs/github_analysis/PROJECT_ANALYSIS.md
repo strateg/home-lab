@@ -1,6 +1,7 @@
 # Анализ проекта Home Lab: Критика и Рекомендации
 
 **Дата анализа:** 24 февраля 2026 г.
+**Актуализация:** 25 февраля 2026 г. (результаты повторного сканирования репозитория)
 **Проект:** Infrastructure as Code для home lab на базе Proxmox VE 9
 
 ---
@@ -21,23 +22,42 @@
 
 ## 🚨 Критические проблемы
 
-### 1. **Отсутствие requirements.txt / pyproject.toml**
+### 1. Зависимости и среда: `pyproject.toml` — присутствует (обновлено)
 
-**Проблема:**
-- Нет явного списка Python зависимостей
-- В коде импортируются: `jsonschema`, `pyyaml`, `jinja2` но их версии не зафиксированы
-- Новый разработчик не знает, какие версии устанавливать
-- Невозможно воспроизвести точную среду окружения
+При повторном сканировании репозитория обнаружен файл `pyproject.toml` в корне проекта. Он объявляет
+зависимости и dev-extras, например:
 
-**Рекомендация:**
-```bash
-# Создать pyproject.toml с указанием:
-# - python_requires >= 3.8
-# - dependencies: jsonschema, pyyaml, jinja2
-# - dev-dependencies: pytest, black, pylint, mypy
+```toml
+dependencies = [
+    "pyyaml>=6.0",
+    "jinja2>=3.1.0",
+    "jsonschema>=4.20.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.9.1",
+    "isort>=5.13.0",
+    "pylint>=3.0.0",
+    "mypy>=1.7.0",
+    ...
+]
 ```
 
-**Приоритет:** 🔴 **HIGH** - это базовый инструмент для любого Python проекта
+Что это значит:
+- Вопреки предыдущему анализу — теперь есть декларация зависимостей и dev-экстрасы, что облегчает
+  воспроизводимость среды.
+- Тем не менее стоит поддерживать pinning/CI проверку обновлений и периодически запускать
+  сканирование на уязвимости (pip-audit / safety).
+
+Рекомендации (корректировка):
+- Использовать `pip install -e .[dev]` в документации разработчика.
+- В CI добавить шаг автоматической проверки устаревших пакетов (pip list --outdated) или
+  `pip-audit` и автоматические Dependabot/renovate PRs.
+
+Приоритет: 🟠 MEDIUM — уже решено, но требуется поддержка и автоматизация
 
 ---
 
@@ -86,49 +106,31 @@ def build_l1_storage_context(topology: dict) -> dict[str, Device]:
 
 ---
 
-### 3. **Отсутствие unit-тестов для Python кода**
+### 3. Unit-тесты — частично присутствуют (валидаторы покрыты)
 
-**Проблема:**
-- Есть TESTING.md но нет фактических тестов
-- Нет тестов для валидаторов (checks/storage.py, checks/network.py, etc.)
-- Нет тестов для генераторов
-- Только "fixture matrix" как форма тестирования
+При повторном сканировании обнаружена директория `tests/` с набором unit-тестов, в частности
+`tests/unit/validators/test_storage.py` и `tests/unit/validators/test_network.py`.
+Это означает, что часть кода (валдиаторы) уже имеет покрытие, и предыдущая формулировка
+"0% unit-тестов" устарела.
 
-**Текущее состояние:**
-```
-topology-tools/
-├── fixtures/          # <- есть тестовые данные
-├── run-fixture-matrix.py  # <- интеграционный тест
-├── test-regeneration.sh   # <- shell скрипт
-└── (нет tests/ папки!)
-```
+Текущее состояние:
+- Есть набор unit-тестов для `scripts/validators/checks/*` — хорошие примеры модульного тестирования.
+- Отсутствуют (или ограничены) unit-тесты для генераторов (`scripts/generators/`) и для
+  главных сценариев `regenerate-all.py`, `validate-topology.py` в полном объёме.
 
-**Рекомендация:**
-```python
-# Создать tests/ структуру:
-tests/
-├── unit/
-│   ├── validators/
-│   │   ├── test_storage.py
-│   │   ├── test_network.py
-│   │   └── test_references.py
-│   ├── generators/
-│   │   └── test_terraform_generation.py
-│   └── topology_loader_test.py
-├── integration/
-│   └── test_full_regeneration.py
-└── fixtures/
-    └── test_topologies/
+Рекомендации:
+- Поддерживать и расширять существующие validator-тесты (целевые кейсы: ошибки схемы, edge-cases).
+- Добавить unit-тесты для генераторов и объединить интеграционные тесты в `tests/integration/`.
+- В CI добавить шаг запуска pytest и сбор покрытия (pytest --cov, codecov).
+
+Команды для разработчика (локально):
+```cmd
+cd C:\Users\Dmitri\PycharmProjects\home-lab
+pip install -e .[dev]
+python -m pytest tests/unit -v
 ```
 
-**Команды в CI:**
-```bash
-pytest tests/unit -v
-pytest tests/integration -v
-coverage report
-```
-
-**Приоритет:** 🟠 **MEDIUM-HIGH** - критично для мейнтейна
+Приоритет: 🟠 MEDIUM — уже начато; усилить покрытие генераторов и ключевых сценариев
 
 ---
 
@@ -404,54 +406,16 @@ repos:
 └── topology-matrix.yml
 ```
 
-**Проблемы:**
-- Только 1 workflow
-- Нет проверки Python кода (lint, type check)
-- Нет отправки результатов в PR
-- Нет автоматического обновления документации на коммит
+Комментарий по состоянию CI:
+- Workflow `topology-matrix.yml` существует и выполняет: strict-валидацию основной topology, прогон матрицы фикстур и проверку, что `generated/` не изменился. В нём используется Python 3.12.
+- Однако в репозитории пока нет отдельного workflow, который бы запускал линтинг/типизацию и отчёт по покрытию для всего кода.
 
-**Рекомендация - добавить workflows:**
-```yaml
-# .github/workflows/python-checks.yml
-name: Python Code Quality
+Рекомендации:
+- Добавить workflow для Python code-quality (black/isort/pylint/mypy) и отдельный job для unit-тестов с покрытием
+  и публикацией в Codecov (или сохранением артефакта покрытия).
+- Добавить Dependabot/renovate и интеграцию pip-audit либо scheduled workflow для проверки уязвимостей.
 
-on: [push, pull_request]
-
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      - run: pip install black isort pylint mypy
-      - run: black --check topology-tools/
-      - run: isort --check-only topology-tools/
-      - run: pylint topology-tools/
-      - run: mypy topology-tools/
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-      - run: pip install pytest pytest-cov pyyaml jinja2 jsonschema
-      - run: pytest tests/ -v --cov=topology-tools/
-      - uses: codecov/codecov-action@v3
-
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-      - run: pip install pyyaml jsonschema jinja2
-      - run: python topology-tools/validate-topology.py
-      - run: python topology-tools/regenerate-all.py --topology topology.yaml
-      - run: git diff --exit-code generated/  # Проверить что ничего не сломалось
-```
-
-**Приоритет:** 🟡 **MEDIUM** - стандартная практика
+Приоритет: 🟡 MEDIUM — CI покрывает критичные validation-пути, но стоит расширить покрытие качества кода
 
 ---
 
