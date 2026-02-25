@@ -5,12 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import threading
 from pathlib import Path
 from typing import Any, Dict, Sequence
 
 from topology_loader import load_topology
 
 CACHE_FORMAT_VERSION = 1
+
+# Thread-safe lock for cache operations
+_cache_lock = threading.Lock()
 
 
 def _cache_file_path(topology_path: Path) -> Path:
@@ -68,48 +72,52 @@ def load_topology_cached(topology_path: Path | str) -> Dict[str, Any]:
 
     Cache invalidation is based on metadata fingerprints for source YAML files.
     If cache read/write fails, this function gracefully falls back to direct load.
+    
+    Thread-safe: Multiple threads can safely call this concurrently.
     """
     topology_abs = Path(topology_path).resolve()
-    cache_file = _cache_file_path(topology_abs)
-    source_files = _collect_topology_sources(topology_abs)
-    current_fingerprint = _build_sources_fingerprint(source_files)
+    
+    with _cache_lock:
+        cache_file = _cache_file_path(topology_abs)
+        source_files = _collect_topology_sources(topology_abs)
+        current_fingerprint = _build_sources_fingerprint(source_files)
 
-    if cache_file.is_file():
+        if cache_file.is_file():
+            try:
+                payload = json.loads(cache_file.read_text(encoding="utf-8"))
+                if (
+                    isinstance(payload, dict)
+                    and payload.get("format") == CACHE_FORMAT_VERSION
+                    and payload.get("topology_path") == str(topology_abs)
+                    and payload.get("sources") == current_fingerprint
+                    and isinstance(payload.get("topology"), dict)
+                ):
+                    return payload["topology"]
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                # Corrupt/invalid cache is non-fatal; continue with direct load.
+                pass
+
+        topology = load_topology(str(topology_abs))
+
+        payload = {
+            "format": CACHE_FORMAT_VERSION,
+            "topology_path": str(topology_abs),
+            "sources": current_fingerprint,
+            "topology": topology,
+        }
         try:
-            payload = json.loads(cache_file.read_text(encoding="utf-8"))
-            if (
-                isinstance(payload, dict)
-                and payload.get("format") == CACHE_FORMAT_VERSION
-                and payload.get("topology_path") == str(topology_abs)
-                and payload.get("sources") == current_fingerprint
-                and isinstance(payload.get("topology"), dict)
-            ):
-                return payload["topology"]
-        except (OSError, json.JSONDecodeError, TypeError, ValueError):
-            # Corrupt/invalid cache is non-fatal; continue with direct load.
+            cache_file.parent.mkdir(parents=True, exist_ok=True)
+            temp_file = cache_file.with_suffix(".tmp")
+            temp_file.write_text(
+                json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
+                encoding="utf-8",
+            )
+            temp_file.replace(cache_file)
+        except (OSError, TypeError, ValueError):
+            # Non-fatal: keep working without persistent cache.
             pass
 
-    topology = load_topology(str(topology_abs))
-
-    payload = {
-        "format": CACHE_FORMAT_VERSION,
-        "topology_path": str(topology_abs),
-        "sources": current_fingerprint,
-        "topology": topology,
-    }
-    try:
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        temp_file = cache_file.with_suffix(".tmp")
-        temp_file.write_text(
-            json.dumps(payload, ensure_ascii=False, separators=(",", ":")),
-            encoding="utf-8",
-        )
-        temp_file.replace(cache_file)
-    except (OSError, TypeError, ValueError):
-        # Non-fatal: keep working without persistent cache.
-        pass
-
-    return topology
+        return topology
 
 
 def warm_topology_cache(topology_path: Path | str) -> Dict[str, Any]:

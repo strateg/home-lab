@@ -1,7 +1,7 @@
 # 🚀 Next Steps: Generators Refactoring
 
 **Date:** 25 февраля 2026 г.
-**Current Status:** Phase 1 ✅ Complete, Phase 2 ✅ Complete
+**Current Status:** Phase 1 ✅ Complete, Phase 2 ✅ Complete, Phase 3 🔄 In Progress, Phase 4 🔄 In Progress
 
 ---
 
@@ -41,10 +41,22 @@
 - 🔄 Review any diffs and ensure backward compatibility
 - 🔄 Commit Phase 3 after validation passes
 
-### Priority 2: Improve Common Modules (Phase 4)
-1. Refactor IP resolver with dataclasses
-2. Add GeneratorContext for DI
-3. Thread-safe caching improvements
+### Priority 2: Common Modules Improvement (Phase 4)
+**Goal:** Modern Python patterns and better DI
+
+**Status:** Core modules implemented
+
+**Completed:**
+- ✅ `IpResolverV2` with dataclasses
+- ✅ `GeneratorContext` for DI
+- ✅ `GeneratorConfig` for config
+- ✅ Thread-safe caching
+- ✅ Unit tests (17+ cases)
+
+**Remaining:**
+- 🔄 Integrate Context into generators
+- 🔄 Migrate IpResolver → IpResolverV2
+- 🔄 Add CLI flags (--verbose, --dry-run, --components)
 
 ### Priority 3: Configurability (Phase 5)
 1. Generator config system (YAML + CLI overrides)

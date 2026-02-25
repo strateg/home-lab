@@ -153,6 +153,61 @@ class MyTerraformGenerator(TerraformGeneratorBase):
         })
 ```
 
+#### 6. GeneratorContext & Modern IP Resolution (Phase 4)
+
+Phase 4 introduces dependency injection and modern IP resolution:
+
+**Using GeneratorContext:**
+```python
+from scripts.generators.common import GeneratorConfig, GeneratorContext
+from pathlib import Path
+
+# Create context
+config = GeneratorConfig(
+    topology_path=Path("topology.yaml"),
+    output_dir=Path("generated"),
+    templates_dir=Path("templates"),
+    verbose=True,
+)
+context = GeneratorContext(config=config)
+
+# Lazy-loaded services
+topology = context.topology
+ip_resolver = context.ip_resolver
+
+# Structured logging
+context.log_info("Starting generation...")
+context.log_verbose("Debug info...")  # Only if verbose=True
+context.log_warn("Warning message")
+
+# Selective generation
+if context.should_generate("bridges"):
+    generate_bridges()
+```
+
+**Modern IP Resolution:**
+```python
+from scripts.generators.common import IpRef, IpResolverV2
+
+# Type-safe IP resolution
+resolver = IpResolverV2(topology)
+
+# Create typed reference
+ref = IpRef(lxc_ref="lxc-app-1", network_ref="net-mgmt")
+resolved = resolver.resolve(ref)
+
+if resolved:
+    print(f"IP: {resolved.ip_without_cidr}")
+    print(f"Source: {resolved.source_type}/{resolved.source_id}")
+    print(f"Network: {resolved.network_ref}")
+
+# Backward compatibility
+resolved = resolver.resolve_dict({
+    "lxc_ref": "lxc-app-1",
+    "network_ref": "net-mgmt"
+})
+```
+
 ## How to Add a New Generator
 
 ### Step 1: Create Generator Class

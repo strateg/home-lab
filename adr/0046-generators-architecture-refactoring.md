@@ -310,10 +310,21 @@ self.jinja_env = self.template_manager.jinja_env  # Backward compat
 
 ### Phases 4-6 (FUTURE)
 
-**Phase 4: Improve Common Modules**
-- Refactor IP resolver with dataclasses
-- Add GeneratorContext for dependency injection
-- Thread-safe caching improvements
+**Phase 4: Improve Common Modules (IN PROGRESS - 2026-02-25)**
+
+Status: Core improvements implemented, integration pending
+
+Completed:
+- ✅ `IpResolverV2` with dataclasses (`IpRef`, `ResolvedIp`)
+- ✅ `GeneratorContext` for dependency injection
+- ✅ `GeneratorConfig` for centralized configuration
+- ✅ Thread-safe caching with locks
+- ✅ Comprehensive unit tests
+
+Remaining:
+- 🔄 Integrate GeneratorContext into existing generators
+- 🔄 Migrate from IpResolver to IpResolverV2
+- 🔄 Add CLI support for new config options
 
 **Phase 5: Configurability**
 - Generator config system (YAML + CLI overrides)

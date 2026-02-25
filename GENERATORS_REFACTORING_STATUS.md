@@ -7,7 +7,8 @@ Completed foundational refactoring of topology generators with significant progr
 - ✅ **Phase 1 COMPLETE**: Type system, test infrastructure, documentation
 - ✅ **Phase 2 COMPLETE**: IconManager, TemplateManager, DataResolver extracted
 - 🔄 **Phase 3 IN PROGRESS**: Terraform base + resolvers unified
-- 📊 **Impact**: 593 LOC removed from monolithic file, 240+ tests added, 3 reusable modules created
+- 🔄 **Phase 4 IN PROGRESS**: Common modules improvement (IpResolverV2, GeneratorContext)
+- 📊 **Impact**: 593 LOC removed from monolithic file, 260+ tests added, 6+ reusable modules created
 
 ---
 
@@ -137,10 +138,10 @@ Completed foundational refactoring of topology generators with significant progr
 ### Development Metrics
 | Metric | Value |
 |--------|-------|
-| New modules created | 8 |
-| Test files created | 11 |
-| Total test cases | 250+ |
-| Lines of test code | ~2700 |
+| New modules created | 10 |
+| Test files created | 12 |
+| Total test cases | 270+ |
+| Lines of test code | ~2900 |
 | Documentation pages | 5 |
 | ADRs created | 1 |
 
@@ -162,6 +163,15 @@ Completed foundational refactoring of topology generators with significant progr
 4. ✅ Added resolver unit tests
 5. ✅ Created validation script (`validate_terraform_generators.py`)
 6. 🔄 Run validation and verify backward compatibility
+
+### Phase 4: Common Modules Improvement (In Progress)
+1. ✅ Created `IpResolverV2` with dataclasses
+2. ✅ Created `GeneratorContext` for DI
+3. ✅ Created `GeneratorConfig` for centralized config
+4. ✅ Added thread-safe caching
+5. ✅ Added comprehensive unit tests
+6. 🔄 Integrate Context into existing generators
+7. 🔄 Migrate from IpResolver to IpResolverV2
 
 ### Phases 4-6: Enhancement
 - Improve common modules
