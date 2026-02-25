@@ -291,6 +291,100 @@ generator:
 python -m scripts.generators.docs.cli --config generator-config.yaml
 ```
 
+#### 8. Production Features: Profiling & Error Handling (Phase 6)
+
+Phase 6 adds production-ready features:
+
+**Performance profiling:**
+```python
+from scripts.generators.common import PerformanceProfiler
+
+profiler = PerformanceProfiler(enabled=True)
+
+def generate_all(self):
+    with profiler.measure("Load topology"):
+        topology = load_topology()
+
+    with profiler.measure("Generate templates"):
+        generate_templates()
+
+    with profiler.measure("Write files"):
+        write_output_files()
+
+    # Print performance summary
+    print(profiler.get_summary())
+
+    # Save report
+    profiler.save_report("performance-report.txt")
+```
+
+**Error handling:**
+```python
+from scripts.generators.common import ErrorHandler, ErrorSeverity, safe_execute
+
+handler = ErrorHandler(
+    continue_on_error=True,  # Keep going after errors
+    verbose=True,            # Show tracebacks
+)
+
+# Safe execution with automatic error handling
+success, topology = safe_execute(
+    load_topology,
+    handler,
+    "topology_loader",
+    "Load topology file",
+    "topology.yaml"
+)
+
+if not success:
+    print("Failed to load topology")
+    handler.raise_if_critical()
+
+# Manual error reporting
+if not some_validation():
+    handler.handle_error(
+        ErrorSeverity.WARNING,
+        "Validation failed but continuing",
+        "validator",
+        details="Some fields are missing",
+    )
+
+# Check results
+if handler.has_errors():
+    print(handler.get_summary())
+    sys.exit(1)
+```
+
+**Validation helpers:**
+```python
+from scripts.generators.common import validate_required_fields, validate_file_exists
+
+# Validate required fields
+validate_required_fields(
+    device,
+    ["id", "type", "name"],
+    "device_validator",
+    error_handler
+)
+
+# Validate file exists
+validate_file_exists(
+    topology_path,
+    "topology_loader",
+    error_handler
+)
+```
+
+**Timing decorator:**
+```python
+from scripts.generators.common import timed
+
+@timed
+def expensive_operation():
+    # Automatically prints: "⏱️  expensive_operation: 2.543s"
+    ...
+```
+
 ## How to Add a New Generator
 
 ### Step 1: Create Generator Class
