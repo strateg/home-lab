@@ -52,6 +52,8 @@ class GeneratorCLI:
 
     Provides common argument parsing and execution flow for all generators.
     Subclasses should override class attributes and optionally add_extra_arguments().
+
+    Phase 5: Enhanced with configurability features.
     """
 
     # Override in subclasses
@@ -59,6 +61,7 @@ class GeneratorCLI:
     banner: str = "Topology Generator (v4.0)"
     default_output: str = "generated/output"
     success_message: str = "Generation completed successfully!"
+    supports_components: bool = False  # Override to True to enable --components flag
 
     def __init__(self, generator_class: type) -> None:
         """Initialize CLI with the generator class to use.
@@ -74,7 +77,12 @@ class GeneratorCLI:
         Returns:
             Configured ArgumentParser instance.
         """
-        parser = argparse.ArgumentParser(description=self.description)
+        parser = argparse.ArgumentParser(
+            description=self.description,
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+
+        # Core arguments
         parser.add_argument(
             "--topology",
             default="topology.yaml",
@@ -90,6 +98,36 @@ class GeneratorCLI:
             default="topology-tools/templates",
             help="Directory containing Jinja2 templates",
         )
+
+        # Phase 5: Configurability flags
+        parser.add_argument(
+            "--verbose",
+            "-v",
+            action="store_true",
+            help="Enable verbose output",
+        )
+        parser.add_argument(
+            "--dry-run",
+            action="store_true",
+            help="Preview what would be generated without writing files",
+        )
+        parser.add_argument(
+            "--no-cache",
+            action="store_true",
+            help="Disable topology caching (force reload)",
+        )
+
+        if self.supports_components:
+            parser.add_argument(
+                "--components",
+                help="Comma-separated list of components to generate (e.g., bridges,vms,lxc)",
+            )
+
+        parser.add_argument(
+            "--config",
+            help="Path to YAML config file (overrides defaults)",
+        )
+
         self.add_extra_arguments(parser)
         return parser
 
@@ -147,6 +185,30 @@ class GeneratorCLI:
             Exit code: 0 for success, 1 for failure.
         """
         args = self.build_parser().parse_args(argv)
+
+        # Phase 5: Handle config file
+        if hasattr(args, "config") and args.config:
+            self._load_config_file(args)
+
+        # Phase 5: Verbose mode
+        if getattr(args, "verbose", False):
+            print(f"VERBOSE MODE ENABLED")
+            print(f"  Topology: {args.topology}")
+            print(f"  Output: {args.output}")
+            print(f"  Templates: {args.templates}")
+            if getattr(args, "dry_run", False):
+                print(f"  Dry-run: enabled")
+            if getattr(args, "no_cache", False):
+                print(f"  Cache: disabled")
+            print()
+
+        # Phase 5: Dry-run notice
+        if getattr(args, "dry_run", False):
+            print("=" * 70)
+            print("DRY-RUN MODE: No files will be written")
+            print("=" * 70)
+            print()
+
         generator = self.create_generator(args)
 
         print("=" * 70)
@@ -159,6 +221,38 @@ class GeneratorCLI:
 
         print(f"\nOK {self.success_message}\n")
         return 0
+
+    def _load_config_file(self, args: argparse.Namespace) -> None:
+        """Load configuration from YAML file.
+
+        Args:
+            args: Namespace to update with config values
+        """
+        from pathlib import Path
+
+        import yaml
+
+        config_path = Path(args.config)
+        if not config_path.exists():
+            print(f"WARN Config file not found: {config_path}")
+            return
+
+        try:
+            config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+            if not isinstance(config, dict):
+                print(f"WARN Invalid config file: {config_path}")
+                return
+
+            # Apply config values (CLI args take precedence)
+            for key, value in config.items():
+                if not hasattr(args, key) or getattr(args, key) is None:
+                    setattr(args, key, value)
+
+            if getattr(args, "verbose", False):
+                print(f"VERBOSE Loaded config from: {config_path}")
+
+        except Exception as e:
+            print(f"WARN Failed to load config: {e}")
 
 
 def run_cli(cli: GeneratorCLI, argv: Sequence[str] | None = None) -> int:

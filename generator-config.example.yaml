@@ -1,0 +1,41 @@
+# Example generator config file (YAML)
+# Phase 5: Configurability
+
+# Core settings
+topology: topology.yaml
+output: generated/terraform/proxmox
+templates: topology-tools/templates
+
+# Generation options
+verbose: false
+dry_run: false
+use_cache: true
+
+# Component selection (if supported by generator)
+# Uncomment to generate only specific components:
+# components:
+#   - bridges
+#   - vms
+#   - lxc
+
+# Generator-specific options
+# These vary by generator type
+generator:
+  # Proxmox specific
+  skip_networks: false
+  validate_storage: true
+
+  # MikroTik specific
+  # terraform_fmt: true
+  # skip_firewall: false
+
+# Progress and output
+progress:
+  show_progress: true
+  quiet: false
+
+# Advanced options
+advanced:
+  parallel: false
+  max_workers: 4
+  continue_on_error: false

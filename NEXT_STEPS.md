@@ -57,8 +57,25 @@
 
 **Remaining:**
 - 🔄 Integrate Context into generators
+- 🔄 Integrate Context into generators
 - 🔄 Migrate IpResolver → IpResolverV2
-- 🔄 Add CLI flags (--verbose, --dry-run, --components)
+
+### Priority 3: Configurability (Phase 5)
+**Goal:** Add CLI flags, YAML config, progress tracking
+
+**Status:** Core infrastructure implemented
+
+**Completed:**
+- ✅ Enhanced GeneratorCLI with new flags
+- ✅ YAML config file support
+- ✅ ProgressTracker and StatusReporter
+- ✅ Config file example
+- ✅ Unit tests (15+ cases)
+
+**Remaining:**
+- 🔄 Integrate into docs/terraform generators
+- 🔄 Implement dry-run mode
+- 🔄 Add component selection logic
 
 ### Priority 3: Configurability (Phase 5)
 1. Generator config system (YAML + CLI overrides)

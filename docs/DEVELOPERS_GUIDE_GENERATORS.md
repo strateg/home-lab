@@ -208,6 +208,89 @@ resolved = resolver.resolve_dict({
 })
 ```
 
+#### 7. CLI Configurability & Progress Tracking (Phase 5)
+
+Phase 5 adds configurability and progress tracking:
+
+**Enhanced CLI with flags:**
+```python
+from scripts.generators.common import GeneratorCLI
+
+class MyGeneratorCLI(GeneratorCLI):
+    description = "My custom generator"
+    banner = "My Generator v1.0"
+    supports_components = True  # Enable --components flag
+
+# CLI automatically supports:
+# --verbose, -v       : Verbose output
+# --dry-run          : Preview without writing
+# --no-cache         : Force reload
+# --config FILE      : Load YAML config
+# --components LIST  : Selective generation
+```
+
+**Progress tracking:**
+```python
+from scripts.generators.common import ProgressTracker
+
+def generate_all(self):
+    tracker = ProgressTracker(total_steps=5, verbose=args.verbose, dry_run=args.dry_run)
+
+    tracker.start("Generating Terraform configuration...")
+
+    tracker.step("Loading topology", "Reading topology.yaml")
+    topology = load_topology()
+    tracker.step_complete(True, f"Loaded {len(topology)} layers")
+
+    tracker.step("Generating bridges")
+    generate_bridges()
+    tracker.step_complete(True, "3 bridges")
+
+    tracker.step("Generating VMs")
+    if should_skip:
+        tracker.step_skip("No VMs defined")
+    else:
+        generate_vms()
+        tracker.step_complete()
+
+    tracker.finish(True, summary="Generated 5 files")
+```
+
+**Status reporting:**
+```python
+from scripts.generators.common import StatusReporter
+
+reporter = StatusReporter(verbose=args.verbose, dry_run=args.dry_run)
+
+reporter.info("Starting generation...")
+reporter.verbose_info("Debug: Loading templates...")  # Only if --verbose
+reporter.warn("Template not optimized")  # Tracked
+reporter.error("Failed to generate")  # Tracked
+reporter.dry_run_info("Would write: file.tf")  # Only if --dry-run
+
+if reporter.has_errors():
+    print(f"Generation failed: {reporter.get_summary()}")
+```
+
+**YAML config file:**
+```yaml
+# generator-config.yaml
+topology: topology.yaml
+output: generated/terraform
+verbose: true
+dry_run: false
+components: [bridges, vms, lxc]
+
+generator:
+  skip_networks: false
+  validate_storage: true
+```
+
+**Using config file:**
+```cmd
+python -m scripts.generators.docs.cli --config generator-config.yaml
+```
+
 ## How to Add a New Generator
 
 ### Step 1: Create Generator Class
