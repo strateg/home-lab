@@ -532,7 +532,7 @@ class DiagramDocumentationGenerator:
         """Generate trust zone security diagram."""
         trust_zones = self.topology["L2_network"].get("trust_zones", {})
         firewall_policies = sorted(
-            self.topology["L2_network"].get("firewall_policies", []),
+            self._as_list(self.topology["L2_network"].get("firewall_policies", [])),
             key=lambda policy: (policy.get("priority", 999999), policy.get("id", "")),
         )
         firewall_policy_map = {
