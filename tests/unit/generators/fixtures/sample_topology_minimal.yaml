@@ -1,0 +1,70 @@
+# Minimal test topology for unit tests
+# Part of Home Lab Topology v4.0.0 test fixtures
+
+L0_meta:
+  version: 4.0.0
+  metadata:
+    org: test-lab
+    environment: test
+    author: test
+    created: '2026-02-25'
+    description: Minimal test topology for generator unit tests
+
+L1_foundation:
+  locations:
+    loc-test:
+      id: loc-test
+      name: Test Location
+      type: rack
+
+  devices:
+    test-server-01:
+      id: test-server-01
+      type: server
+      name: test-server-01
+      device_class: compute
+      role: hypervisor
+      location_ref: loc-test
+      vendor: Test
+      model: Server-X1
+      interfaces:
+        eth0:
+          mac: "00:11:22:33:44:55"
+          speed_mbps: 1000
+
+L2_network:
+  networks:
+    net-mgmt:
+      id: net-mgmt
+      name: management
+      cidr: 192.168.1.0/24
+      gateway: 192.168.1.1
+      vlan_id: 10
+
+L3_data: {}
+
+L4_platform:
+  runtimes:
+    test-server-01:
+      device_ref: test-server-01
+      type: proxmox
+
+  resource_profiles:
+    small:
+      id: small
+      cpu: 2
+      memory_mb: 2048
+
+  vms:
+    test-vm-01:
+      id: test-vm-01
+      name: test-vm-01
+      runtime_ref: test-server-01
+      resource_profile_ref: small
+      os_type: linux
+
+L5_application: {}
+
+L6_observability: {}
+
+L7_operations: {}
