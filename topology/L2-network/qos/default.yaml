@@ -1,5 +1,5 @@
 enabled: true
-device_ref: rtr-mikrotik
+device_ref: mikrotik-chateau
 interface: ether1
 total_bandwidth:
   download_mbps: 100

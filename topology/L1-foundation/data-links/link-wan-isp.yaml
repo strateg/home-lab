@@ -1,6 +1,6 @@
 id: link-wan-isp
 endpoint_a:
-  device_ref: rtr-mikrotik
+  device_ref: mikrotik-chateau
   interface_ref: if-mikrotik-wan
 endpoint_b:
   external_ref: isp-uplink

@@ -1,5 +1,5 @@
 id: hos-rtr-mikrotik-routeros
-device_ref: rtr-mikrotik
+device_ref: mikrotik-chateau
 distribution: routeros
 version: "7.x"
 architecture: arm64

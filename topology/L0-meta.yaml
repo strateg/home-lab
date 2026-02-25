@@ -53,7 +53,7 @@ metadata:
 defaults:
   refs:
     security_policy_ref: sec-baseline
-    network_manager_device_ref: rtr-mikrotik
+    network_manager_device_ref: mikrotik-chateau
 security_policy:
 - id: sec-baseline
   description: Baseline security policy

@@ -2,7 +2,7 @@ id: plink-ups-main-rtr-mikrotik
 endpoint_a:
   device_ref: ups-main
 endpoint_b:
-  device_ref: rtr-mikrotik
+  device_ref: mikrotik-chateau
 mode: dc
 voltage_v: 24
 max_watts: 21.5

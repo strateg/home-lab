@@ -1,6 +1,6 @@
 id: link-rtr-mikrotik-srv-orangepi5
 endpoint_a:
-  device_ref: rtr-mikrotik
+  device_ref: mikrotik-chateau
   interface_ref: if-mikrotik-lan2
 endpoint_b:
   device_ref: srv-orangepi5

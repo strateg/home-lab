@@ -1,6 +1,6 @@
 id: link-lte-backhaul
 endpoint_a:
-  device_ref: rtr-mikrotik
+  device_ref: mikrotik-chateau
   interface_ref: if-mikrotik-lte
 endpoint_b:
   external_ref: mobile-operator-lte

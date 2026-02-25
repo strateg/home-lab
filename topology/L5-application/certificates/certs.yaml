@@ -11,7 +11,7 @@
     distribution:
     - device_ref: srv-gamayun
     - device_ref: srv-orangepi5
-    - device_ref: rtr-mikrotik
+    - device_ref: mikrotik-chateau
   certificates:
   - id: cert-nextcloud
     domain: nextcloud.home.local

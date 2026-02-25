@@ -8,13 +8,13 @@
     - type: A
       name: router
       ip: 192.168.88.1
-      device_ref: rtr-mikrotik
+      device_ref: mikrotik-chateau
       ttl: 3600
       description: MikroTik router
     - type: A
       name: mikrotik
       ip: 192.168.88.1
-      device_ref: rtr-mikrotik
+      device_ref: mikrotik-chateau
       ttl: 3600
       description: MikroTik router alias
     - type: A
@@ -80,13 +80,13 @@
     - type: A
       name: mqtt
       ip: 192.168.88.1
-      device_ref: rtr-mikrotik
+      device_ref: mikrotik-chateau
       ttl: 3600
       description: Mosquitto MQTT broker on MikroTik
     - type: A
       name: ntp
       ip: 192.168.88.1
-      device_ref: rtr-mikrotik
+      device_ref: mikrotik-chateau
       ttl: 3600
       description: NTP server on MikroTik
     - type: CNAME

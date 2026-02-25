@@ -1,7 +1,7 @@
 - id: health-mikrotik
   name: MikroTik Router Health
   description: Monitor MikroTik central router
-  device_ref: rtr-mikrotik
+  device_ref: mikrotik-chateau
   enabled: true
   critical: true
   checks:
@@ -45,7 +45,7 @@
 - id: health-lte-failover
   name: LTE Failover Status
   description: Monitor LTE modem and failover status
-  device_ref: rtr-mikrotik
+  device_ref: mikrotik-chateau
   enabled: true
   critical: true
   checks:

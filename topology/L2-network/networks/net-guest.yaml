@@ -12,7 +12,7 @@ bridge_ref: null
 vlan: 50
 description: Isolated guest WiFi network
 profile_ref: prof-virtual-vlan-wifi
-managed_by_ref: rtr-mikrotik
+managed_by_ref: mikrotik-chateau
 firewall_policy_refs:
   - fw-guest-isolated
   - fw-established-related

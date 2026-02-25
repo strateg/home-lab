@@ -1,7 +1,7 @@
 id: data-mikrotik-config
 name: MikroTik RouterOS Config
 type: config-export
-device_ref: rtr-mikrotik
+device_ref: mikrotik-chateau
 description: RouterOS configuration exports
 category: configuration
 criticality: critical

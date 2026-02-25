@@ -1,4 +1,4 @@
-id: rtr-mikrotik
+id: mikrotik-chateau
 name: MikroTik Chateau LTE7 ax
 type: router
 role: central-gateway

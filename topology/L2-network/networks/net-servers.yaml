@@ -12,7 +12,7 @@ bridge_ref: bridge-vmbr0
 vlan: 30
 description: Server network for Proxmox LXC and Orange Pi 5
 profile_ref: prof-virtual-vlan-wired
-managed_by_ref: rtr-mikrotik
+managed_by_ref: mikrotik-chateau
 reserved_ranges:
 - start: 10.0.30.1
   end: 10.0.30.9

@@ -1,6 +1,6 @@
 id: link-rtr-mikrotik-srv-gamayun
 endpoint_a:
-  device_ref: rtr-mikrotik
+  device_ref: mikrotik-chateau
   interface_ref: if-mikrotik-lan1
 endpoint_b:
   device_ref: srv-gamayun
