@@ -3,21 +3,22 @@ Terraform generator core for MikroTik RouterOS.
 """
 
 import re
-from pathlib import Path
 from typing import Any, Dict, List
 
-from jinja2 import Environment, FileSystemLoader
-from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
+from scripts.generators.terraform.base import TerraformGeneratorBase
 
 
-class MikrotikTerraformGenerator:
+class MikrotikTerraformGenerator(TerraformGeneratorBase):
     """Generate MikroTik RouterOS Terraform configs from topology v4.0"""
 
     def __init__(self, topology_path: str, output_dir: str, templates_dir: str = "topology-tools/templates"):
-        self.topology_path = Path(topology_path)
-        self.output_dir = Path(output_dir)
-        self.templates_dir = Path(templates_dir) / "terraform" / "mikrotik"
-        self.topology: Dict = {}
+        super().__init__(
+            topology_path=topology_path,
+            output_dir=output_dir,
+            templates_dir=templates_dir,
+            template_subdir="terraform/mikrotik",
+            autoescape=False,
+        )
 
         self.mikrotik_device: Dict = {}
         self.networks: List[Dict] = []
@@ -34,10 +35,6 @@ class MikrotikTerraformGenerator:
         self.interface_name_by_id: Dict[str, str] = {}
         self.wan_interface_name: str = "ether1"
         self.lte_interface_name: str = "lte1"
-
-        self.jinja_env = Environment(
-            loader=FileSystemLoader(str(self.templates_dir)), trim_blocks=True, lstrip_blocks=True
-        )
 
     @staticmethod
     def _network_list_name(network_id: str) -> str:
@@ -74,26 +71,9 @@ class MikrotikTerraformGenerator:
 
     def load_topology(self) -> bool:
         """Load topology YAML file (with !include support)"""
-        try:
-            self.topology, version_warning = load_and_validate_layered_topology(
-                self.topology_path,
-                required_sections=["L0_meta", "L1_foundation", "L2_network", "L5_application"],
-            )
-            print(f"OK Loaded topology: {self.topology_path}")
-
-            if version_warning:
-                print(f"WARN  {version_warning}")
-
-            return True
-        except ValueError as e:
-            print(f"ERROR {e}")
-            return False
-        except FileNotFoundError:
-            print(f"ERROR Topology file not found: {self.topology_path}")
-            return False
-        except Exception as e:
-            print(f"ERROR Error loading topology: {e}")
-            return False
+        return super().load_topology(
+            required_sections=["L0_meta", "L1_foundation", "L2_network", "L5_application"],
+        )
 
     def extract_mikrotik_data(self) -> bool:
         """Extract MikroTik-relevant data from topology"""
@@ -436,10 +416,7 @@ class MikrotikTerraformGenerator:
 
     def generate_all(self) -> bool:
         """Generate all Terraform files"""
-        if prepare_output_directory(self.output_dir):
-            print(f"CLEAN Cleaning output directory: {self.output_dir}")
-
-        print(f"DIR Created output directory: {self.output_dir}")
+        self.prepare_output()
 
         success = True
         success &= self.generate_file("provider.tf.j2", "provider.tf")
@@ -485,50 +462,35 @@ class MikrotikTerraformGenerator:
 
     def generate_file(self, template_name: str, output_name: str) -> bool:
         """Generate a single Terraform file from template"""
-        try:
-            template = self.jinja_env.get_template(template_name)
+        mikrotik_mgmt_ip = "192.168.88.1"
+        for network in self.networks:
+            if network.get("id") == "net-lan":
+                mikrotik_mgmt_ip = network.get("gateway", "192.168.88.1")
+                break
 
-            mikrotik_mgmt_ip = "192.168.88.1"
-            for network in self.networks:
-                if network.get("id") == "net-lan":
-                    mikrotik_mgmt_ip = network.get("gateway", "192.168.88.1")
-                    break
+        context = {
+            "topology_version": self.topology_version,
+            "mikrotik_device": self.mikrotik_device,
+            "mikrotik_mgmt_ip": mikrotik_mgmt_ip,
+            "networks": self.networks,
+            "vlans": self.vlans,
+            "lan_ports": self.lan_ports,
+            "firewall_policies": self.firewall_policies,
+            "firewall_address_lists": self.firewall_address_lists,
+            "wan_interface_name": self.wan_interface_name,
+            "lte_interface_name": self.lte_interface_name,
+            "lan_admin_list_name": self._network_list_name("net-lan"),
+            "management_list_name": self._zone_list_name("management"),
+            "qos": self.qos,
+            "wireguard": self.wireguard,
+            "containers": self.containers,
+            "dns_records": self.dns_records,
+            "dns_settings": self.dns_settings,
+            "dns_domain": "home.local",
+            "dhcp_leases": self.dhcp_leases,
+        }
 
-            context = {
-                "topology_version": self.topology.get("L0_meta", {}).get("version", "4.0.0"),
-                "mikrotik_device": self.mikrotik_device,
-                "mikrotik_mgmt_ip": mikrotik_mgmt_ip,
-                "networks": self.networks,
-                "vlans": self.vlans,
-                "lan_ports": self.lan_ports,
-                "firewall_policies": self.firewall_policies,
-                "firewall_address_lists": self.firewall_address_lists,
-                "wan_interface_name": self.wan_interface_name,
-                "lte_interface_name": self.lte_interface_name,
-                "lan_admin_list_name": self._network_list_name("net-lan"),
-                "management_list_name": self._zone_list_name("management"),
-                "qos": self.qos,
-                "wireguard": self.wireguard,
-                "containers": self.containers,
-                "dns_records": self.dns_records,
-                "dns_settings": self.dns_settings,
-                "dns_domain": "home.local",
-                "dhcp_leases": self.dhcp_leases,
-            }
-
-            content = template.render(**context)
-
-            output_file = self.output_dir / output_name
-            output_file.write_text(content, encoding="utf-8")
-            print(f"OK Generated: {output_file}")
-            return True
-
-        except Exception as e:
-            print(f"ERROR Error generating {output_name}: {e}")
-            import traceback
-
-            traceback.print_exc()
-            return False
+        return self.render_template(template_name, output_name, context)
 
     def generate_tfvars_example(self) -> bool:
         """Generate terraform.tfvars.example"""

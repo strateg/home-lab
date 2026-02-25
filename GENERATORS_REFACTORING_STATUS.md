@@ -6,7 +6,8 @@ Completed foundational refactoring of topology generators with significant progr
 
 - ✅ **Phase 1 COMPLETE**: Type system, test infrastructure, documentation
 - ✅ **Phase 2 COMPLETE**: IconManager, TemplateManager, DataResolver extracted
-- 📊 **Impact**: 593 LOC removed from monolithic file, 230+ tests added, 3 reusable modules created
+- 🔄 **Phase 3 IN PROGRESS**: Terraform base + resolvers unified
+- 📊 **Impact**: 593 LOC removed from monolithic file, 240+ tests added, 3 reusable modules created
 
 ---
 
@@ -137,9 +138,9 @@ Completed foundational refactoring of topology generators with significant progr
 | Metric | Value |
 |--------|-------|
 | New modules created | 8 |
-| Test files created | 10 |
-| Total test cases | 240+ |
-| Lines of test code | ~2600 |
+| Test files created | 11 |
+| Total test cases | 250+ |
+| Lines of test code | ~2700 |
 | Documentation pages | 5 |
 | ADRs created | 1 |
 
@@ -154,11 +155,12 @@ Completed foundational refactoring of topology generators with significant progr
 
 ## 🎯 Remaining Work
 
-### Phase 3: Terraform Unification
-1. Create terraform/base.py
-2. Create terraform/resolvers.py
-3. Refactor proxmox and mikrotik generators
-4. Add shared resolver tests
+### Phase 3: Terraform Unification (In Progress)
+1. ✅ Created `terraform/base.py` (shared base)
+2. ✅ Created `terraform/resolvers.py` (shared helpers)
+3. ✅ Refactored proxmox and mikrotik generators
+4. ✅ Added resolver unit tests
+5. 🔄 Validate outputs against existing templates
 
 ### Phases 4-6: Enhancement
 - Improve common modules

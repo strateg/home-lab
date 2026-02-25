@@ -27,11 +27,16 @@
 ### Priority 1: Unify Terraform Generators (Phase 3)
 **Goal:** Remove duplication between proxmox and mikrotik generators
 
-**Tasks:**
-1. Create `terraform/base.py` with TerraformGeneratorBase
-2. Create `terraform/resolvers.py` for shared resolution logic
-3. Refactor proxmox and mikrotik generators to inherit base
-4. Add unit tests for shared resolver logic
+**Status:** In progress
+
+**Completed:**
+- ✅ `terraform/base.py` shared base
+- ✅ `terraform/resolvers.py` shared helpers
+- ✅ Proxmox + MikroTik refactors
+- ✅ Resolver unit tests
+
+**Remaining:**
+- 🔄 Validate outputs vs. templates
 
 ### Priority 2: Improve Common Modules (Phase 4)
 1. Refactor IP resolver with dataclasses

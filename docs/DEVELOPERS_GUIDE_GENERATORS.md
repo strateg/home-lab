@@ -34,6 +34,7 @@ topology-tools/scripts/generators/
 │   └── cli.py               # CLI entry point
 ├── terraform/               # Terraform generators
 │   ├── base.py              # Shared base class
+│   ├── resolvers.py         # Shared Terraform resolvers
 │   ├── proxmox/             # Proxmox-specific
 │   │   ├── generator.py
 │   │   └── cli.py
@@ -126,6 +127,30 @@ topology, warning = load_and_validate_layered_topology(
     required_sections=["L0_meta", "L1_foundation", "L2_network"],
     expected_version_prefix="4.",
 )
+```
+
+#### 5. Terraform Base & Resolvers (Phase 3)
+
+Terraform generators now share a base class and resolver helpers:
+
+```python
+from scripts.generators.terraform.base import TerraformGeneratorBase
+from scripts.generators.terraform.resolvers import build_storage_map, resolve_lxc_resources
+
+class MyTerraformGenerator(TerraformGeneratorBase):
+    def load_topology(self) -> bool:
+        return super().load_topology(
+            required_sections=["L0_meta", "L1_foundation", "L2_network"],
+        )
+
+    def generate(self) -> bool:
+        storage_map = build_storage_map(self.topology, platform="proxmox")
+        lxc = resolve_lxc_resources(self.topology, self.topology["L4_platform"].get("lxc", []))
+        return self.render_template("terraform/proxmox/lxc.tf.j2", "lxc.tf", {
+            "storage_map": storage_map,
+            "lxc_containers": lxc,
+            "topology_version": self.topology_version,
+        })
 ```
 
 ## How to Add a New Generator

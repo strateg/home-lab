@@ -281,6 +281,8 @@ self.jinja_env = self.template_manager.jinja_env  # Backward compat
 
 ### Phase 3: Terraform Unification (PLANNED)
 
+**Status:** In progress (base + resolvers implemented; generator refactors in place)
+
 **Goal:** Eliminate duplication between Terraform generators
 
 **Approach:**
