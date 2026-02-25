@@ -99,6 +99,7 @@ Completed full modularization of `docs/generator.py` with IconManager, TemplateM
 - `tests/unit/generators/test_icons.py` (50+ test cases)
 - `tests/unit/generators/test_templates.py` (40+ test cases)
 - `tests/unit/generators/test_data_resolver.py` (40+ test cases)
+- `tests/unit/generators/test_diagrams.py` (10+ test cases)
 
 **Test Coverage:**
 - IconManager: >90% estimated
@@ -113,8 +114,8 @@ Completed full modularization of `docs/generator.py` with IconManager, TemplateM
 |--------|--------|-------|--------|
 | docs/generator.py LOC | 1068 | 475 | -593 (-55.5%) |
 | Modules created | 0 | 3 | +3 |
-| Test files | 0 | 3 | +3 |
-| Test cases | 0 | 130+ | +130+ |
+| Test files | 0 | 4 | +4 |
+| Test cases | 0 | 140+ | +140+ |
 | Code organization | Monolithic | Modular | ✅ Improved |
 
 ---

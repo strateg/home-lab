@@ -214,7 +214,17 @@ class DiagramDocumentationGenerator:
         return items
 
     @staticmethod
+    def _as_list(items):
+        """Normalize list-or-dict values to a list of items."""
+        if isinstance(items, list):
+            return items
+        if isinstance(items, dict):
+            return list(items.values())
+        return []
+
+    @staticmethod
     def _sort_dicts(items, key: str = "id"):
+        items = DiagramDocumentationGenerator._as_list(items)
         return sorted(items or [], key=lambda item: (item.get(key, ""), item.get("name", "")))
 
     @classmethod
@@ -255,7 +265,7 @@ class DiagramDocumentationGenerator:
             return False
 
     def _collect_link_graph_data(self, links_key: str) -> Tuple[List[Dict], Dict[str, Dict], List[str], List[Dict]]:
-        devices = self.topology["L1_foundation"].get("devices", [])
+        devices = self._as_list(self.topology["L1_foundation"].get("devices", []))
         links = self._sort_dicts(self.topology["L1_foundation"].get(links_key, []))
         device_map = {d.get("id"): d for d in devices if isinstance(d, dict) and d.get("id")}
 

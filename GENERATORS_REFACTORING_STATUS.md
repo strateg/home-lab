@@ -137,9 +137,9 @@ Completed foundational refactoring of topology generators with significant progr
 | Metric | Value |
 |--------|-------|
 | New modules created | 8 |
-| Test files created | 9 |
-| Total test cases | 230+ |
-| Lines of test code | ~2500 |
+| Test files created | 10 |
+| Total test cases | 240+ |
+| Lines of test code | ~2600 |
 | Documentation pages | 5 |
 | ADRs created | 1 |
 

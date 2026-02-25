@@ -251,6 +251,7 @@ pytest tests/unit/generators/test_topology.py -v
 pytest tests/unit/generators/test_icons.py -v
 pytest tests/unit/generators/test_templates.py -v
 pytest tests/unit/generators/test_data_resolver.py -v
+pytest tests/unit/generators/test_diagrams.py -v
 
 # Check coverage
 pytest tests/unit/generators/ --cov=scripts.generators --cov-report=html
@@ -278,7 +279,7 @@ python topology-tools/scripts/generators/docs/cli.py \
 
 ## Files Changed
 
-### Created (20 files)
+### Created (21 files)
 
 **Type System (3):**
 - `topology-tools/scripts/generators/types/__init__.py`
@@ -296,6 +297,9 @@ python topology-tools/scripts/generators/docs/cli.py \
 **DataResolver (2):**
 - `topology-tools/scripts/generators/docs/data/__init__.py`
 - `tests/unit/generators/test_data_resolver.py`
+
+**Diagrams (1):**
+- `tests/unit/generators/test_diagrams.py`
 
 **Test Infrastructure (4):**
 - `tests/unit/generators/conftest.py`
