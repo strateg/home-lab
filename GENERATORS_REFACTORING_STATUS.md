@@ -160,7 +160,8 @@ Completed foundational refactoring of topology generators with significant progr
 2. ✅ Created `terraform/resolvers.py` (shared helpers)
 3. ✅ Refactored proxmox and mikrotik generators
 4. ✅ Added resolver unit tests
-5. 🔄 Validate outputs against existing templates
+5. ✅ Created validation script (`validate_terraform_generators.py`)
+6. 🔄 Run validation and verify backward compatibility
 
 ### Phases 4-6: Enhancement
 - Improve common modules

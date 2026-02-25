@@ -34,9 +34,12 @@
 - ✅ `terraform/resolvers.py` shared helpers
 - ✅ Proxmox + MikroTik refactors
 - ✅ Resolver unit tests
+- ✅ Validation script created
 
 **Remaining:**
-- 🔄 Validate outputs vs. templates
+- 🔄 Run validation: `python validate_terraform_generators.py`
+- 🔄 Review any diffs and ensure backward compatibility
+- 🔄 Commit Phase 3 after validation passes
 
 ### Priority 2: Improve Common Modules (Phase 4)
 1. Refactor IP resolver with dataclasses
