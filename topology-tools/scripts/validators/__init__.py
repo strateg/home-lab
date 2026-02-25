@@ -10,8 +10,12 @@ Usage:
     from scripts.validators.checks import check_vlan_tags, check_bridge_refs
 """
 
+from . import base as base
+from . import runner as runner
 from .ids import collect_ids
 
 __all__ = [
     "collect_ids",
+    "runner",
+    "base",
 ]

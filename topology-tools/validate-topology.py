@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Set
 
 import yaml
 from scripts.generators.common import load_topology_cached
+from scripts.validators import runner as validators_runner
 from scripts.validators.checks.foundation import (
     check_device_taxonomy,
     check_file_placement,
@@ -227,35 +228,17 @@ class SchemaValidator:
         """Check that all *_ref fields point to existing IDs"""
         if not self.topology:
             return
-
-        ids = self._collect_ids()
-
-        self._check_file_placement()
-        self._check_modular_include_contract()
-        self._check_device_taxonomy(ids)
-        self._check_l0_contracts(ids)
-        self._check_network_refs(ids)
-        self._check_firewall_policy_addressability()
-        self._check_bridge_refs(ids)
-        self._check_data_links(ids)
-        self._check_power_links(ids)
-        self._check_l3_storage_refs(ids)
-        self._check_host_os_refs(ids)
-        self._check_vm_refs(ids)
-        self._check_lxc_refs(ids)
-        self._check_service_refs(ids)
-        self._check_dns_refs(ids)
-        self._check_certificate_refs(ids)
-        self._check_backup_refs(ids)
-        self._check_security_policy_refs(ids)
-        self._check_vlan_tags()
-        self._check_mtu_consistency()
-        self._check_vlan_zone_consistency()
-        self._check_reserved_ranges()
-        self._check_trust_zone_firewall_refs(ids)
-        self._check_ip_allocation_host_os_refs(ids)
-        self._check_runtime_network_reachability(ids)
-        self._check_single_active_os_per_device()
+        # Delegate to centralized runner which preserves ordering and builds ids once
+        validators_runner.run_all(
+            topology=self.topology or {},
+            topology_path=str(self.topology_path),
+            validator_policy=self.validator_policy,
+            policy_get=self._policy_get,
+            emit_by_severity=self._emit_by_severity,
+            errors=self.errors,
+            warnings=self.warnings,
+            strict_mode=self.strict_mode,
+        )
 
     def _check_file_placement(self) -> None:
         check_file_placement(
