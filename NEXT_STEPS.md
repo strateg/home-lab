@@ -37,9 +37,11 @@
 - ✅ Validation script created
 
 **Remaining:**
-- 🔄 Run validation: `python validate_terraform_generators.py`
+- 🔄 Run validation: `run_phase3_validation.cmd` или `python validate_phase3_quick.py`
 - 🔄 Review any diffs and ensure backward compatibility
 - 🔄 Commit Phase 3 after validation passes
+
+**Quick start:** See `PHASE3_VALIDATION_QUICKSTART.md` for step-by-step guide
 
 ### Priority 2: Common Modules Improvement (Phase 4)
 **Goal:** Modern Python patterns and better DI

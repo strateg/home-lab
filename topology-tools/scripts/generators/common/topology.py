@@ -72,11 +72,11 @@ def load_topology_cached(topology_path: Path | str) -> Dict[str, Any]:
 
     Cache invalidation is based on metadata fingerprints for source YAML files.
     If cache read/write fails, this function gracefully falls back to direct load.
-    
+
     Thread-safe: Multiple threads can safely call this concurrently.
     """
     topology_abs = Path(topology_path).resolve()
-    
+
     with _cache_lock:
         cache_file = _cache_file_path(topology_abs)
         source_files = _collect_topology_sources(topology_abs)
