@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   pull_request:
   workflow_dispatch:
+  schedule:
+    # Weekly run (UTC): every Monday at 03:00
+    - cron: '0 3 * * 1'
 
 jobs:
   lint-and-typecheck:
@@ -33,10 +36,10 @@ jobs:
         run: isort --check-only .
 
       - name: Mypy
-        run: mypy topology-tools || true
+        run: mypy --config-file pyproject.toml topology-tools
 
       - name: Pylint
-        run: pylint topology-tools || true
+        run: pylint topology-tools
 
   test:
     runs-on: ubuntu-latest
