@@ -60,7 +60,7 @@
   name: Bandwidth Monitoring
   description: Monitor network throughput
   enabled: true
-  device_ref: mikrotik-chateau
+  device_ref: rtr-mikrotik-chateau
   interfaces:
   - name: ether1
     type: wan

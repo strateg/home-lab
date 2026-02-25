@@ -11,7 +11,7 @@
     distribution:
     - device_ref: gamayun
     - device_ref: orangepi5
-    - device_ref: mikrotik-chateau
+    - device_ref: rtr-mikrotik-chateau
   certificates:
   - id: cert-nextcloud
     domain: nextcloud.home.local

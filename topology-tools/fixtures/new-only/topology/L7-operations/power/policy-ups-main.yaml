@@ -25,7 +25,7 @@ connection:
   monitoring_software: nut
   driver: usbhid-ups
 protected_devices:
-- device_ref: mikrotik-chateau
+- device_ref: rtr-mikrotik-chateau
   power_watts: 16
   priority: 1
   description: Router - critical for network

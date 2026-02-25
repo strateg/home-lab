@@ -13,7 +13,7 @@ bridge_ref: null
 vlan: null
 description: Main LAN network (WiFi + Wired)
 profile_ref: prof-virtual-bridge-mixed
-managed_by_ref: mikrotik-chateau
+managed_by_ref: rtr-mikrotik-chateau
 reserved_ranges:
 - start: 192.168.88.1
   end: 192.168.88.9
@@ -23,7 +23,7 @@ reserved_ranges:
   purpose: dhcp-pool
 ip_allocations:
 - ip: 192.168.88.1
-  host_os_ref: hos-mikrotik-chateau-routeros
+  host_os_ref: hos-rtr-mikrotik-chateau-routeros
   interface: bridge-lan
   description: MikroTik LAN gateway
 - ip: 192.168.88.2

@@ -27,7 +27,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik-chateau
     network_binding_ref: net-management
 - id: svc-adguard
   name: AdGuard Home
@@ -50,7 +50,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik-chateau
     network_binding_ref: net-lan
     image: adguard/adguardhome
 - id: svc-wireguard
@@ -69,7 +69,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: baremetal
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik-chateau
     network_binding_ref: net-vpn-home
 - id: svc-tailscale
   name: Tailscale
@@ -86,7 +86,7 @@
   security_policy_ref: sec-baseline
   runtime:
     type: docker
-    target_ref: mikrotik-chateau
+    target_ref: rtr-mikrotik-chateau
     network_binding_ref: net-tailscale
     image: tailscale/tailscale
 - id: svc-nextcloud

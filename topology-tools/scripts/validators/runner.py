@@ -5,7 +5,8 @@ from scripts.validators.checks.* and provides a single entrypoint for the
 validation pipeline. The implementation preserves the existing ordering used
 by `validate-topology.py`.
 """
-from typing import Any, Callable, Dict, List, Optional, Set
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 from .checks import foundation, governance, network, references, storage
 from .ids import collect_ids
@@ -13,7 +14,7 @@ from .ids import collect_ids
 
 def run_all(
     topology: Dict[str, Any],
-    topology_path: Optional[str],
+    topology_path: Optional[Union[Path, str]],
     validator_policy: Dict[str, Any],
     policy_get: Callable[[List[str], Any], Any],
     emit_by_severity: Callable[[str, str], None],
@@ -27,6 +28,10 @@ def run_all(
     intentionally imperative: it builds ids/storage_ctx once and then calls
     check functions in the original order.
     """
+
+    # Normalize topology_path to Path object
+    if topology_path is not None and not isinstance(topology_path, Path):
+        topology_path = Path(topology_path)
 
     # Collect cross-reference ids once
     ids: Dict[str, Set[str]] = collect_ids(topology or {})

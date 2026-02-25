@@ -265,7 +265,7 @@ backup:
     name: MikroTik Config Backup
     description: Export RouterOS configuration to Git repository
     targets:
-    - device_ref: mikrotik-chateau
+    - device_ref: rtr-mikrotik-chateau
       data_asset_ref: data-mikrotik-config
     type: config-export
     schedule: 0 4 * * *

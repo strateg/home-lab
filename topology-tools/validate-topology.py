@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 import yaml
+from topology_loader import load_topology
+
 from scripts.generators.common import load_topology_cached
 from scripts.validators import runner as validators_runner
 from scripts.validators.checks.foundation import (
@@ -52,9 +54,6 @@ from scripts.validators.checks.references import (
 )
 from scripts.validators.checks.storage import build_l1_storage_context, check_l3_storage_refs
 from scripts.validators.ids import collect_ids
-
-# Import topology loader with !include support
-from topology_loader import load_topology
 
 try:
     from jsonschema import Draft7Validator, ValidationError
@@ -231,7 +230,7 @@ class SchemaValidator:
         # Delegate to centralized runner which preserves ordering and builds ids once
         validators_runner.run_all(
             topology=self.topology or {},
-            topology_path=str(self.topology_path),
+            topology_path=self.topology_path,
             validator_policy=self.validator_policy,
             policy_get=self._policy_get,
             emit_by_severity=self._emit_by_severity,

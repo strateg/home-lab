@@ -8,13 +8,13 @@
     - type: A
       name: router
       ip: 192.168.88.1
-      device_ref: mikrotik-chateau
+      device_ref: rtr-mikrotik-chateau
       ttl: 3600
       description: MikroTik router
     - type: A
       name: mikrotik
       ip: 192.168.88.1
-      device_ref: mikrotik-chateau
+      device_ref: rtr-mikrotik-chateau
       ttl: 3600
       description: MikroTik router alias
     - type: A

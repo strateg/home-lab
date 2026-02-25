@@ -4,12 +4,13 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Set
 
 import yaml
+from yaml.tokens import AliasToken
+
 from scripts.validators.checks.storage import (
     build_l1_storage_context,
     check_device_storage_taxonomy,
     check_l1_media_inventory,
 )
-from yaml.tokens import AliasToken
 
 L1_NON_PHYSICAL_KEYS = ("services", "applications", "runtime")
 
@@ -31,15 +32,17 @@ def _check_expected_prefix(
         )
 
 
-def _is_fixture_topology(topology_path: Path) -> bool:
+def _is_fixture_topology(topology_path: "Path | None") -> bool:
     """Return True when validator is pointed to bundled fixture topology."""
+    if topology_path is None:
+        return False
     parts = {part.lower() for part in topology_path.resolve().parts}
     return "topology-tools" in parts and "fixtures" in parts
 
 
 def check_modular_include_contract(
     *,
-    topology_path: Path,
+    topology_path: "Path | None",
     errors: List[str],
 ) -> None:
     """
@@ -50,7 +53,7 @@ def check_modular_include_contract(
     - L2: networks
     - L4 (when modular tree exists): defaults/resource-profiles/workloads/templates
     """
-    if _is_fixture_topology(topology_path):
+    if topology_path is None or _is_fixture_topology(topology_path):
         # Keep fixture suites backward-compatible (legacy/new/mixed snapshots).
         return
 
@@ -208,7 +211,7 @@ def _check_device_file_path(
 
 def check_file_placement(
     *,
-    topology_path: Path,
+    topology_path: "Path | None",
     policy_get: Callable[[List[str], Any], Any],
     emit_by_severity: Callable[[str, str], None],
     warnings: List[str],
@@ -217,6 +220,8 @@ def check_file_placement(
     Validate that module objects are stored in expected directories.
     The object model (fields inside files) is authoritative; paths are validated against it.
     """
+    if topology_path is None:
+        return
     if not policy_get(["checks", "file_placement", "enabled"], True):
         return
 
