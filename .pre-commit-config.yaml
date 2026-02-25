@@ -1,8 +1,62 @@
+---
 repos:
+- repo: https://github.com/psf/black
+  rev: 23.9.1
+  hooks:
+    - id: black
+      language_version: python3.13
+
+- repo: https://github.com/PyCQA/isort
+  rev: 5.13.0
+  hooks:
+    - id: isort
+      args: ["--profile", "black"]
+
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v1.7.0
+  hooks:
+    - id: mypy
+      additional_dependencies: ["types-pyyaml", "types-jinja2"]
+      stages: [manual]
+
+- repo: https://github.com/adrienverge/yamllint
+  rev: v1.34.0
+  hooks:
+    - id: yamllint
+      args: ["--strict"]
+      stages: [manual]
+
+- repo: https://github.com/Yelp/detect-secrets
+  rev: v1.4.0
+  hooks:
+    - id: detect-secrets
+
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.5.0
+  hooks:
+    - id: trailing-whitespace
+    - id: end-of-file-fixer
+    - id: check-yaml
+    - id: check-added-large-files
+
 - repo: local
   hooks:
-  - id: update-l0-last-updated
-    name: Update L0 metadata.last_updated
-    entry: python topology-tools/scripts/hooks/update_l0_last_updated.py
-    language: system
-    pass_filenames: false
+    - id: update-l0-last-updated
+      name: Update L0 metadata.last_updated
+      entry: python topology-tools/scripts/hooks/update_l0_last_updated.py
+      language: system
+      pass_filenames: false
+    # Generators below require terraform/mermaid binaries
+    # Uncomment to enable locally or run on CI
+    # - id: validate-topology
+    #   name: Validate topology.yaml
+    #   entry: python topology-tools/validate-topology.py
+    #   args: ["--topology", "topology.yaml"]
+    #   language: system
+    #   pass_filenames: false
+    # - id: check-generated-files
+    #   name: Check generated files up-to-date
+    #   entry: python topology-tools/regenerate-all.py
+    #   args: ["--topology", "topology.yaml"]
+    #   language: system
+    #   pass_filenames: false
