@@ -1,4 +1,3 @@
-
 !**/vault.yml.example
 !*.pub
 !*.tfvars.example
@@ -75,6 +74,7 @@
 *.pem
 *.ppk
 *.py[cod]
+.coverage
 *.qcow2
 *.retry
 *.rpm
