@@ -10,7 +10,7 @@
 **Completed Today (26 февраля 2026):**
 - ✅ **Diagrams module extracted** (`docs/diagrams/` package created)
 - ✅ **Data module enhanced** (3 new doc-friendly methods)
-- ✅ **DocumentationGenerator simplified**: 517 → 405 LOC (-112 lines, 21.7% reduction)
+- ✅ **DocumentationGenerator simplified**: 517 → 404 LOC (-113 lines, 21.9% reduction)
 - ✅ **Network diagram generation** moved to diagrams module
 - ✅ **Service/device inventory logic** centralized in DataResolver
 - ✅ Backward compatibility maintained (shim for old imports)
@@ -24,9 +24,9 @@
 - ✅ Documentation (ADR + Guide)
 
 **Current State:**
-- `docs/generator.py`: 1068 → 405 LOC (-663 total, **target < 500 achieved ✅**)
+- `docs/generator.py`: 1068 → 404 LOC (-664 total, **target < 500 achieved ✅**)
 - `docs/diagrams/__init__.py`: 972 LOC (new module)
-- `docs/data/__init__.py`: 695 LOC (+98 from new methods)
+- `docs/data/__init__.py`: 696 LOC (+99 from new methods)
 - Test coverage: >75% for new modules
 - Zero breaking changes
 
@@ -87,17 +87,17 @@
 - [x] Network diagram generation correct (new location) ✅
 
 ### Manual Testing
-```bash
-# Generate docs with real topology
-python topology-tools/scripts/generators/docs/cli.py
+```cmd
+:: Generate docs with real topology
+python topology-tools\scripts\generators\docs\cli.py --topology topology.yaml --output generated\docs
 
-# Verify output
-ls generated/docs/
+:: Verify output
+dir generated\docs
 
-# Check for errors
-cat generated/docs/*.md
+:: Check for errors
+type generated\docs\*.md
 
-# Syntax check refactored files
+:: Syntax check refactored files
 python -m py_compile topology-tools\scripts\generators\docs\diagrams\__init__.py
 python -m py_compile topology-tools\scripts\generators\docs\data\__init__.py
 python -m py_compile topology-tools\scripts\generators\docs\generator.py
@@ -108,7 +108,7 @@ python -m py_compile topology-tools\scripts\generators\docs\generator.py
 ## 📊 Success Metrics
 
 ### Phase 2 Complete When:
-- [x] docs/generator.py < 500 LOC ✅ (achieved: 405 LOC)
+- [x] docs/generator.py < 500 LOC ✅ (achieved: 404 LOC)
 - [x] 4 extracted modules ✅ (icons, templates, diagrams, data)
 - [ ] All tests passing (>200 total)
 - [ ] Integration tests pass

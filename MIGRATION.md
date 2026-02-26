@@ -1,5 +1,7 @@
 # Migration to Infrastructure as Code
 
+> Note (26 февраля 2026): проект использует `topology.yaml` и `topology-tools/` в корне репозитория. Упоминания `new_system/` ниже относятся к исторической структуре и должны читаться как корневые пути.
+
 Complete migration guide from script-based infrastructure to Infrastructure as Code (Terraform + Ansible) for Proxmox VE 9 home lab on Dell XPS L701X.
 
 ## Table of Contents
@@ -35,7 +37,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 
 ### Target State (IaC)
 
-**Location**: `new_system/` directory
+**Location**: Root directory (корень репозитория)
 - Terraform for infrastructure provisioning
 - Ansible for configuration management
 - Declarative configuration (topology.yaml as source of truth)
@@ -45,9 +47,10 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 
 **Components**:
 - `topology.yaml` - Single source of truth (Infrastructure-as-Data)
-- `scripts/` - Generators (Python) from topology.yaml
-- `terraform/` - Provisioning modules (auto-generated from topology.yaml)
-- `ansible/` - Configuration roles (partially generated from topology.yaml)
+- `topology-tools/` - Generators (Python) and validators from topology.yaml
+- `terraform/` - Provisioning modules (source/templates)
+- `generated/` - Auto-generated configs (Terraform, Ansible, Docs)
+- `ansible/` - Configuration roles
 - `manual-scripts/bare-metal/` - Bare-metal auto-install
 - Git-based workflow
 
@@ -68,13 +71,13 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 **Goal**: Set up IaC structure without affecting current system
 
 **Tasks**:
-- ✅ Create directory structure (new_system/)
+- ✅ Create directory structure (root-level layout)
 - ✅ Create topology.yaml (Infrastructure-as-Data)
-- ✅ Set up Terraform base configuration (new_system/terraform/)
+- ✅ Set up Terraform base configuration (terraform/)
 - ✅ Create Terraform modules (network, storage)
-- ✅ Set up Ansible base configuration (new_system/ansible/)
+- ✅ Set up Ansible base configuration (ansible/)
 - ✅ Create Ansible roles (proxmox)
-- ✅ Create bare-metal installation scripts (new_system/manual-scripts/bare-metal/)
+- ✅ Create bare-metal installation scripts (manual-scripts/bare-metal/)
 - ✅ Initialize Git repository structure
 - ✅ Create .gitignore for secrets protection
 - ✅ Move old system to old_system/ directory
@@ -112,7 +115,7 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
 
 1. **Create Bootable USB**
    ```bash
-   cd new_system/manual-scripts/bare-metal/
+   cd manual-scripts/bare-metal/
    sudo ./run-create-usb.sh  # Interactive wrapper
    # Or: sudo ./create-uefi-autoinstall-proxmox-usb.sh /dev/sdX proxmox-ve_9.0-1.iso
    ```
@@ -172,13 +175,13 @@ Complete migration guide from script-based infrastructure to Infrastructure as C
    ```bash
    # From workstation
    cd ~/workspaces/projects/home-lab
-   scp -r new_system/ root@10.0.99.1:/root/home-lab/
+   scp -r topology.yaml topology-tools/ terraform/ ansible/ generated/ root@10.0.99.1:/root/home-lab/
    ```
 
 2. **Configure Terraform Variables**
    ```bash
    # On Proxmox
-   cd /root/home-lab/new_system/terraform
+   cd /root/home-lab/terraform
    cp terraform.tfvars.example terraform.tfvars
    vim terraform.tfvars
    ```

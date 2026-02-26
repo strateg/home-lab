@@ -238,18 +238,20 @@ topology.yaml (36 lines)
 ## File Structure
 
 ```
-new_system/
+home-lab/
 ├── topology.yaml              # Main entry point
-├── topology/                  # 13 modular YAML files
-├── scripts/                   # Python generators
-│   ├── generate-terraform.py          # Proxmox
-│   ├── generate-terraform-mikrotik.py # MikroTik (NEW)
+├── topology/                  # Modular YAML files
+├── topology-tools/            # Python generators and validators
+│   ├── validate-topology.py
+│   ├── generate-terraform-proxmox.py
+│   ├── generate-terraform-mikrotik.py
 │   ├── generate-ansible-inventory.py
-│   └── generate-docs.py
+│   ├── generate-docs.py
+│   └── scripts/generators/
 ├── generated/                 # Auto-generated configs
-│   ├── terraform/             # Proxmox Terraform
-│   ├── terraform-mikrotik/    # MikroTik Terraform (NEW)
-│   ├── ansible/inventory/
+│   ├── terraform/proxmox/
+│   ├── terraform/mikrotik/
+│   ├── ansible/
 │   └── docs/
 ├── deploy/                    # Deployment orchestration (NEW)
 │   ├── Makefile

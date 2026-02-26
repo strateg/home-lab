@@ -2,6 +2,8 @@
 
 Comprehensive testing guide for Infrastructure as Code (IaC) home lab on Proxmox VE 9.
 
+> Note (26 февраля 2026): актуальные пути — `topology.yaml` в корне репозитория и генераторы в `topology-tools/`. Если встречаются ссылки на `new_system/`, используйте корневые пути.
+
 ## Table of Contents
 
 1. [Overview](#overview)
