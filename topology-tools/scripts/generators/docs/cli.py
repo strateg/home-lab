@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 from typing import Sequence
 
-from scripts.generators.common import Generator, GeneratorCLI, run_cli
+# Handle both direct script execution and module import
+if __name__ == "__main__" and __package__ is None:
+    # Add project root to path when running as script
+    project_root = Path(__file__).resolve().parents[4]
+    sys.path.insert(0, str(project_root))
 
-from .generator import DocumentationGenerator
+from scripts.generators.common import Generator, GeneratorCLI, run_cli
+from scripts.generators.docs.generator import DocumentationGenerator
 
 
 class DocumentationCLI(GeneratorCLI):

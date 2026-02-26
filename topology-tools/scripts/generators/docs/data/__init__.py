@@ -594,3 +594,103 @@ class DataResolver:
 
         l5["services"] = services
         self.topology["L5_application"] = l5
+
+    def resolve_lxc_resources_for_docs(self) -> List[Dict[str, Any]]:
+        """Resolve effective LXC resources from inline resources or resource profiles.
+
+        Returns:
+            List of LXC containers with resolved resource specifications
+        """
+        l4 = self.topology.get("L4_platform", {}) or {}
+        lxc_containers = self._as_list(l4.get("lxc"))
+
+        profile_map = {
+            profile.get("id"): profile
+            for profile in (l4.get("resource_profiles", []) or [])
+            if isinstance(profile, dict) and profile.get("id")
+        }
+        resolved: List[Dict[str, Any]] = []
+
+        for container in lxc_containers:
+            if not isinstance(container, dict):
+                continue
+            item = copy.deepcopy(container)
+            resources = item.get("resources") if isinstance(item.get("resources"), dict) else None
+            if not resources:
+                profile_ref = item.get("resource_profile_ref")
+                profile = profile_map.get(profile_ref, {}) if profile_ref else {}
+                cpu = profile.get("cpu") or {}
+                memory = profile.get("memory") or {}
+                item["resources"] = {
+                    "cores": cpu.get("cores", 1),
+                    "memory_mb": memory.get("mb", 512),
+                    "swap_mb": memory.get("swap_mb", 0),
+                }
+            item.setdefault("type", item.get("platform_type", "lxc"))
+            item.setdefault("role", item.get("resource_profile_ref", "resource-profile"))
+            resolved.append(item)
+
+        return resolved
+
+    def resolve_services_inventory_for_docs(self) -> List[Dict[str, Any]]:
+        """Resolve services with enriched host information for documentation.
+
+        Returns:
+            List of services with host_name and host_type fields
+        """
+        l4 = self.topology.get("L4_platform", {}) or {}
+        l5 = self.topology.get("L5_application", {}) or {}
+        services = self._as_list(l5.get("services"))
+
+        lxc_map = {lxc["id"]: lxc for lxc in self._as_list(l4.get("lxc")) if isinstance(lxc, dict) and lxc.get("id")}
+        vm_map = {vm["id"]: vm for vm in self._as_list(l4.get("vms")) if isinstance(vm, dict) and vm.get("id")}
+
+        enriched_services = []
+        for service in services:
+            if not isinstance(service, dict):
+                continue
+            enriched = service.copy()
+
+            if "lxc_ref" in service:
+                host = lxc_map.get(service["lxc_ref"], {})
+                enriched["host_name"] = host.get("name", "unknown")
+                enriched["host_type"] = "LXC"
+            elif "vm_ref" in service:
+                host = vm_map.get(service["vm_ref"], {})
+                enriched["host_name"] = host.get("name", "unknown")
+                enriched["host_type"] = "VM"
+            elif "device_ref" in service:
+                enriched["host_name"] = service["device_ref"]
+                enriched["host_type"] = "Device"
+            else:
+                enriched["host_name"] = "unknown"
+                enriched["host_type"] = "unknown"
+
+            enriched_services.append(enriched)
+
+        return enriched_services
+
+    def resolve_devices_inventory_for_docs(self) -> Dict[str, Any]:
+        """Resolve complete devices inventory data for documentation.
+
+        Returns:
+            Dictionary with devices, vms, host_operating_systems, lxc, storage, storage_rows_by_device
+        """
+        l1 = self.topology.get("L1_foundation", {}) or {}
+        l4 = self.topology.get("L4_platform", {}) or {}
+
+        devices = self._as_list(l1.get("devices"))
+        vms = self._as_list(l4.get("vms"))
+        host_operating_systems = self._as_list(l4.get("host_operating_systems"))
+        lxc = self.resolve_lxc_resources_for_docs()
+        storage = self.resolve_storage_pools_for_docs()
+        storage_views = self.build_l1_storage_views()
+
+        return {
+            "devices": devices,
+            "vms": vms,
+            "host_operating_systems": host_operating_systems,
+            "lxc": lxc,
+            "storage": storage,
+            "storage_rows_by_device": storage_views["rows_by_device"],
+        }

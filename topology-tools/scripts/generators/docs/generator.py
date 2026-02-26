@@ -2,7 +2,6 @@
 Documentation generation core for topology v4.0.
 """
 
-import copy
 import re
 import shutil
 from datetime import datetime
@@ -181,37 +180,6 @@ class DocumentationGenerator:
         """Delegate to DataResolver for data asset resolution."""
         return self.data_resolver.resolve_data_assets_for_docs()
 
-    def _resolve_lxc_resources(self, lxc_containers: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Resolve effective LXC resources from inline resources or resource profiles."""
-        l4 = self.topology.get("L4_platform", {}) or {}
-        profile_map = {
-            profile.get("id"): profile
-            for profile in (l4.get("resource_profiles", []) or [])
-            if isinstance(profile, dict) and profile.get("id")
-        }
-        resolved: List[Dict[str, Any]] = []
-
-        for container in lxc_containers:
-            if not isinstance(container, dict):
-                continue
-            item = copy.deepcopy(container)
-            resources = item.get("resources") if isinstance(item.get("resources"), dict) else None
-            if not resources:
-                profile_ref = item.get("resource_profile_ref")
-                profile = profile_map.get(profile_ref, {}) if profile_ref else {}
-                cpu = profile.get("cpu") or {}
-                memory = profile.get("memory") or {}
-                item["resources"] = {
-                    "cores": cpu.get("cores", 1),
-                    "memory_mb": memory.get("mb", 512),
-                    "swap_mb": memory.get("swap_mb", 0),
-                }
-            item.setdefault("type", item.get("platform_type", "lxc"))
-            item.setdefault("role", item.get("resource_profile_ref", "resource-profile"))
-            resolved.append(item)
-
-        return resolved
-
     def load_topology(self) -> bool:
         """Load topology YAML file (with !include support)"""
         try:
@@ -335,55 +303,8 @@ class DocumentationGenerator:
             return False
 
     def generate_network_diagram(self) -> bool:
-        """Generate network diagram in Mermaid format"""
-        try:
-            template = self.jinja_env.get_template("docs/network-diagram.md.j2")
-
-            networks = self._get_resolved_networks()
-            bridges = self.topology["L2_network"].get("bridges", [])
-            trust_zones = self.topology["L2_network"].get("trust_zones", {})
-            vms = self.topology["L4_platform"].get("vms", [])
-            lxc = self.topology["L4_platform"].get("lxc", [])
-
-            content = template.render(
-                networks=networks,
-                bridges=bridges,
-                trust_zones=trust_zones,
-                vms=vms,
-                lxc=lxc,
-                network_icons={
-                    net.get("id"): self.diagram_generator._network_icon(net)
-                    for net in networks
-                    if isinstance(net, dict) and net.get("id")
-                },
-                lxc_icons={
-                    item.get("id"): (
-                        "mdi:docker" if "docker" in str(item.get("type", "")).lower() else "mdi:cube-outline"
-                    )
-                    for item in lxc
-                    if isinstance(item, dict) and item.get("id")
-                },
-                zone_icons=self.diagram_generator.ZONE_ICON_MAP,
-                use_mermaid_icons=self.mermaid_icons,
-                icon_mode=self.icon_mode,
-                mermaid_icon_runtime_hint=self.icon_runtime_hint(),
-                mermaid_icon_pack_hint=self.diagram_generator.ICON_PACK_HINT,
-                topology_version=self.topology.get("L0_meta", {}).get("version", "4.0.0"),
-            )
-            content = self.transform_mermaid_icons_for_compat(content)
-
-            output_file = self.output_dir / "network-diagram.md"
-            output_file.write_text(content, encoding="utf-8")
-            print(f"OK Generated: {output_file}")
-            self._register_generated_file("network-diagram.md")
-            return True
-
-        except Exception as e:
-            print(f"ERROR Error generating network-diagram.md: {e}")
-            import traceback
-
-            traceback.print_exc()
-            return False
+        """Generate network diagram in Mermaid format."""
+        return self.diagram_generator.generate_network_diagram()
 
     def generate_ip_allocation(self) -> bool:
         """Generate IP allocation table"""
@@ -414,31 +335,7 @@ class DocumentationGenerator:
 
     def generate_services_inventory(self) -> bool:
         """Generate services inventory"""
-        services = self.topology.get("L5_application", {}).get("services", [])
-
-        lxc_map = {lxc["id"]: lxc for lxc in self.topology["L4_platform"].get("lxc", [])}
-        vm_map = {vm["id"]: vm for vm in self.topology["L4_platform"].get("vms", [])}
-
-        enriched_services = []
-        for service in services:
-            enriched = service.copy()
-
-            if "lxc_ref" in service:
-                host = lxc_map.get(service["lxc_ref"], {})
-                enriched["host_name"] = host.get("name", "unknown")
-                enriched["host_type"] = "LXC"
-            elif "vm_ref" in service:
-                host = vm_map.get(service["vm_ref"], {})
-                enriched["host_name"] = host.get("name", "unknown")
-                enriched["host_type"] = "VM"
-            elif "device_ref" in service:
-                enriched["host_name"] = service["device_ref"]
-                enriched["host_type"] = "Device"
-            else:
-                enriched["host_name"] = "unknown"
-                enriched["host_type"] = "unknown"
-
-            enriched_services.append(enriched)
+        enriched_services = self.data_resolver.resolve_services_inventory_for_docs()
 
         return self._render_core_document(
             "docs/services.md.j2",
@@ -448,22 +345,12 @@ class DocumentationGenerator:
 
     def generate_devices_inventory(self) -> bool:
         """Generate devices inventory"""
-        devices = self.topology["L1_foundation"].get("devices", [])
-        vms = self.topology["L4_platform"].get("vms", [])
-        host_operating_systems = self.topology["L4_platform"].get("host_operating_systems", [])
-        lxc = self._resolve_lxc_resources(self.topology["L4_platform"].get("lxc", []))
-        storage = self.resolve_storage_pools_for_docs()
-        storage_views = self.build_l1_storage_views()
+        inventory = self.data_resolver.resolve_devices_inventory_for_docs()
 
         return self._render_core_document(
             "docs/devices.md.j2",
             "devices.md",
-            devices=devices,
-            vms=vms,
-            host_operating_systems=host_operating_systems,
-            lxc=lxc,
-            storage=storage,
-            storage_rows_by_device=storage_views["rows_by_device"],
+            **inventory,
         )
 
     def generate_overview(self) -> bool:
