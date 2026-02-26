@@ -255,9 +255,18 @@ class DiagramDocumentationGenerator:
                 **context,
             )
             content = self.docs_generator.transform_mermaid_icons_for_compat(content)
+
+            if self.docs_generator.dry_run:
+                if self.docs_generator.verbose:
+                    print(f"DRY-RUN: Would write {output_name} ({len(content)} bytes)")
+                self.docs_generator._register_generated_file(output_name)
+                return True
+
             output_file = self.output_dir / output_name
             output_file.write_text(content, encoding="utf-8")
-            print(f"OK Generated: {output_file}")
+
+            if not self.docs_generator.quiet:
+                print(f"OK Generated: {output_file}")
             self.docs_generator._register_generated_file(output_name)
             return True
         except Exception as e:
@@ -302,9 +311,17 @@ class DiagramDocumentationGenerator:
             )
             content = self.docs_generator.transform_mermaid_icons_for_compat(content)
 
+            if self.docs_generator.dry_run:
+                if self.docs_generator.verbose:
+                    print(f"DRY-RUN: Would write network-diagram.md ({len(content)} bytes)")
+                self.docs_generator._register_generated_file("network-diagram.md")
+                return True
+
             output_file = self.output_dir / "network-diagram.md"
             output_file.write_text(content, encoding="utf-8")
-            print(f"OK Generated: {output_file}")
+
+            if not self.docs_generator.quiet:
+                print(f"OK Generated: {output_file}")
             self.docs_generator._register_generated_file("network-diagram.md")
             return True
 
@@ -433,29 +450,37 @@ class DiagramDocumentationGenerator:
 
     def generate_all(self) -> bool:
         """Generate all diagram pages and index."""
+        return self.generate_all_selective(phase1=True, phase2=True, phase3=True)
+
+    def generate_all_selective(self, phase1: bool = True, phase2: bool = True, phase3: bool = True) -> bool:
+        """Generate diagram pages selectively by phase."""
         success = True
 
         # Visual diagrams (Phase 1)
-        success &= self.generate_power_links_topology()
-        success &= self.generate_data_links_topology()
-        success &= self.generate_icon_legend()
-        success &= self.generate_physical_topology()
-        success &= self.generate_vlan_topology()
-        success &= self.generate_trust_zones()
-        success &= self.generate_service_dependencies()
+        if phase1:
+            success &= self.generate_power_links_topology()
+            success &= self.generate_data_links_topology()
+            success &= self.generate_icon_legend()
+            success &= self.generate_physical_topology()
+            success &= self.generate_vlan_topology()
+            success &= self.generate_trust_zones()
+            success &= self.generate_service_dependencies()
 
         # Visual diagrams (Phase 2)
-        success &= self.generate_storage_topology()
-        success &= self.generate_monitoring_topology()
-        success &= self.generate_vpn_topology()
+        if phase2:
+            success &= self.generate_storage_topology()
+            success &= self.generate_monitoring_topology()
+            success &= self.generate_vpn_topology()
 
         # Visual diagrams (Phase 3)
-        success &= self.generate_qos_topology()
-        success &= self.generate_certificates_topology()
-        success &= self.generate_ups_topology()
+        if phase3:
+            success &= self.generate_qos_topology()
+            success &= self.generate_certificates_topology()
+            success &= self.generate_ups_topology()
 
-        # Index & navigation (Phase 4)
-        success &= self.generate_diagrams_index()
+        # Index & navigation (always generate if any phase selected)
+        if phase1 or phase2 or phase3:
+            success &= self.generate_diagrams_index()
 
         return success
 

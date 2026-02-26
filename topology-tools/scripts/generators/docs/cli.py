@@ -26,7 +26,30 @@ class DocumentationCLI(GeneratorCLI):
     success_message = "Documentation generation completed successfully!"
 
     def add_extra_arguments(self, parser: argparse.ArgumentParser) -> None:
-        """Add Mermaid icon-related arguments."""
+        """Add documentation generator specific arguments."""
+        # Version
+        parser.add_argument(
+            "--version",
+            action="version",
+            version="%(prog)s 4.0.0 (Topology Documentation Generator)",
+        )
+
+        # Output control
+        parser.add_argument(
+            "--quiet",
+            "-q",
+            action="store_true",
+            help="Minimal output (only errors), useful for CI/CD",
+        )
+
+        # Component selection
+        parser.add_argument(
+            "--components",
+            type=str,
+            help="Generate only specific components (comma-separated): core,diagrams,phase1,phase2,phase3",
+        )
+
+        # Mermaid icon options
         parser.add_argument(
             "--mermaid-icons",
             action="store_true",
@@ -54,14 +77,58 @@ class DocumentationCLI(GeneratorCLI):
         parser.set_defaults(mermaid_icons=True, mermaid_icon_nodes=False)
 
     def create_generator(self, args: argparse.Namespace) -> Generator:
-        """Create DocumentationGenerator with Mermaid options."""
-        return DocumentationGenerator(
+        """Create DocumentationGenerator with Mermaid options and validate inputs."""
+        # Validate topology file exists
+        topology_path = Path(args.topology)
+        if not topology_path.exists():
+            print(f"ERROR: Topology file not found: {topology_path}")
+            print(f"       Please check the path and try again.")
+            sys.exit(1)
+
+        if not topology_path.is_file():
+            print(f"ERROR: Topology path is not a file: {topology_path}")
+            sys.exit(1)
+
+        # Validate topology file is readable
+        try:
+            with open(topology_path, "r", encoding="utf-8") as f:
+                f.read(1)  # Try to read first byte
+        except PermissionError:
+            print(f"ERROR: Permission denied reading topology file: {topology_path}")
+            sys.exit(1)
+        except Exception as e:
+            print(f"ERROR: Cannot read topology file: {topology_path}")
+            print(f"       {type(e).__name__}: {e}")
+            sys.exit(1)
+
+        # Parse component selection
+        selected_components = None
+        if hasattr(args, "components") and args.components:
+            selected_components = [c.strip() for c in args.components.split(",")]
+            valid_components = {"core", "diagrams", "phase1", "phase2", "phase3", "all"}
+            invalid = set(selected_components) - valid_components
+            if invalid:
+                print(f"ERROR: Invalid components: {', '.join(invalid)}")
+                print(f"       Valid options: {', '.join(sorted(valid_components))}")
+                sys.exit(1)
+
+        generator = DocumentationGenerator(
             args.topology,
             args.output,
             args.templates,
             mermaid_icons=args.mermaid_icons,
             mermaid_icon_nodes=args.mermaid_icon_nodes,
         )
+
+        # Set flags on generator
+        if hasattr(args, "dry_run"):
+            generator.dry_run = args.dry_run
+        if hasattr(args, "quiet"):
+            generator.quiet = args.quiet
+        if selected_components:
+            generator.selected_components = selected_components
+
+        return generator
 
 
 def build_parser() -> argparse.ArgumentParser:

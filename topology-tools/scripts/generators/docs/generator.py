@@ -53,6 +53,12 @@ class DocumentationGenerator:
         self.generated_files: List[str] = []
         self.generated_at: str = ""
 
+        # CLI control flags (set by CLI after init)
+        self.dry_run = False
+        self.verbose = False
+        self.quiet = False
+        self.selected_components = None  # None = all, or list like ['core', 'diagrams']
+
         # Phase 4: Dependency injection and error handling
         self.error_handler = ErrorHandler(verbose=False)
         self.profiler = PerformanceProfiler(enabled=True)
@@ -197,33 +203,108 @@ class DocumentationGenerator:
 
             return True
         except ValueError as e:
-            print(f"ERROR {e}")
+            print(f"ERROR Validation error: {e}")
+            print(f"      File: {self.topology_path}")
+            print(f"      Hint: Run 'python topology-tools\\validate-topology.py' for detailed validation")
             return False
         except FileNotFoundError:
             print(f"ERROR Topology file not found: {self.topology_path}")
+            print(f"      Hint: Check the file path and try again")
             return False
         except yaml.YAMLError as e:
             print(f"ERROR YAML parse error: {e}")
+            print(f"      File: {self.topology_path}")
+            print(f"      Hint: Check YAML syntax (indentation, quotes, special characters)")
+            import traceback
+
+            traceback.print_exc()
+            return False
+        except Exception as e:
+            print(f"ERROR Unexpected error loading topology: {e}")
+            print(f"      File: {self.topology_path}")
+            import traceback
+
+            traceback.print_exc()
             return False
 
     def generate_all(self) -> bool:
         """Generate all documentation files"""
-        if prepare_output_directory(self.output_dir):
-            print(f"CLEAN Cleaning output directory: {self.output_dir}")
+        import time
 
-        self._cleanup_legacy_docs_directories()
-        print(f"DIR Created output directory: {self.output_dir}")
+        start_time = time.time()
+
+        if self.dry_run:
+            if not self.quiet:
+                print("DRY-RUN MODE: Files will not be written")
+
+        if not self.dry_run and prepare_output_directory(self.output_dir):
+            if not self.quiet:
+                print(f"CLEAN Cleaning output directory: {self.output_dir}")
+
+        if not self.dry_run:
+            self._cleanup_legacy_docs_directories()
+            if not self.quiet:
+                print(f"DIR Created output directory: {self.output_dir}")
+
         self.generated_files = []
         self.generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        # Determine which components to generate
+        components = self.selected_components or ["all"]
+        generate_core = "all" in components or "core" in components
+        generate_diagrams = "all" in components or "diagrams" in components
+        generate_phase1 = "all" in components or "phase1" in components or "diagrams" in components
+        generate_phase2 = "all" in components or "phase2" in components or "diagrams" in components
+        generate_phase3 = "all" in components or "phase3" in components or "diagrams" in components
+
         success = True
-        success &= self.generate_network_diagram()
-        success &= self.generate_ip_allocation()
-        success &= self.generate_services_inventory()
-        success &= self.generate_devices_inventory()
-        success &= self.generate_overview()
-        success &= self.diagram_generator.generate_all()
+        step = 0
+        total_steps = (
+            (5 if generate_core else 0)
+            + (7 if generate_phase1 else 0)
+            + (3 if generate_phase2 else 0)
+            + (3 if generate_phase3 else 0)
+            + 1  # navigation
+        )
+
+        def log_step(name: str):
+            nonlocal step
+            step += 1
+            if self.verbose:
+                print(f"[{step}/{total_steps}] Generating {name}...")
+
+        # Core documents
+        if generate_core:
+            log_step("network diagram")
+            success &= self.generate_network_diagram()
+
+            log_step("IP allocation")
+            success &= self.generate_ip_allocation()
+
+            log_step("services inventory")
+            success &= self.generate_services_inventory()
+
+            log_step("devices inventory")
+            success &= self.generate_devices_inventory()
+
+            log_step("overview")
+            success &= self.generate_overview()
+
+        # Diagrams (selective by phase)
+        if generate_phase1 or generate_phase2 or generate_phase3 or generate_diagrams:
+            success &= self.diagram_generator.generate_all_selective(
+                phase1=generate_phase1,
+                phase2=generate_phase2,
+                phase3=generate_phase3,
+            )
+
+        # Navigation
+        log_step("navigation index")
         success &= self._write_generation_artifacts()
+
+        elapsed = time.time() - start_time
+        if self.verbose:
+            print(f"\nGeneration completed in {elapsed:.2f}s")
 
         return success
 
@@ -265,6 +346,11 @@ class DocumentationGenerator:
         - _generated_at.txt: volatile generation timestamp.
         - _generated_files.txt: deterministic sorted list of generated docs files.
         """
+        if self.dry_run:
+            if self.verbose:
+                print(f"DRY-RUN: Would write _generated_at.txt and _generated_files.txt")
+            return True
+
         try:
             generated_at_file = self.output_dir / "_generated_at.txt"
             generated_files_file = self.output_dir / "_generated_files.txt"
@@ -277,8 +363,9 @@ class DocumentationGenerator:
                 encoding="utf-8",
             )
 
-            print(f"OK Generated: {generated_at_file}")
-            print(f"OK Generated: {generated_files_file}")
+            if not self.quiet:
+                print(f"OK Generated: {generated_at_file}")
+                print(f"OK Generated: {generated_files_file}")
             return True
         except Exception as e:
             print(f"ERROR Error generating docs metadata artifacts: {e}")
@@ -293,13 +380,28 @@ class DocumentationGenerator:
                 **context,
             )
             content = self.transform_mermaid_icons_for_compat(content)
+
+            if self.dry_run:
+                if self.verbose:
+                    print(f"DRY-RUN: Would write {output_name} ({len(content)} bytes)")
+                self._register_generated_file(output_name)
+                return True
+
             output_file = self.output_dir / output_name
             output_file.write_text(content, encoding="utf-8")
-            print(f"OK Generated: {output_file}")
+
+            if not self.quiet:
+                print(f"OK Generated: {output_file}")
             self._register_generated_file(output_name)
             return True
         except Exception as e:
             print(f"ERROR Error generating {output_name}: {e}")
+            print(f"      Context: topology version {self.topology.get('L0_meta', {}).get('version', 'unknown')}")
+            print(f"      Template: {template_name}")
+            print(f"      Output: {self.output_dir / output_name}")
+            import traceback
+
+            traceback.print_exc()
             return False
 
     def generate_network_diagram(self) -> bool:
