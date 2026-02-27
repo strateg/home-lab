@@ -13,7 +13,12 @@ compliance:
   pci_dss_compliant: false
   hipaa_compliant: false
 
+# === ACTIVE SECURITY POLICY ===
+# Reference to detailed policy in security/ directory
+active_security_policy: baseline  # See: security/baseline.yaml
+
 # === GLOBAL SECURITY CONSTRAINTS (affects all layers) ===
+# Summary of key constraints (details in security policy)
 security_constraints:
   encryption_required: true
   min_tls_version: "1.2"

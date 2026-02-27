@@ -243,6 +243,19 @@ cd deploy && make deploy-all
 | L6 | L6-observability.yaml | healthchecks, alerts, dashboards |
 | L7 | L7-operations.yaml | workflows, power_resilience, ansible_config, backup |
 
+### Naming Conventions
+
+Hierarchical naming ensures collision-free IDs at scale:
+
+| Entity | Pattern | Example |
+|--------|---------|---------|
+| Device | `{type}-{location}-{id}` | `rtr-home-mikrotik` |
+| Service | `svc-{domain}.{name}` | `svc-web.nextcloud` |
+| Alert | `alert-{domain}.{service}-{type}` | `alert-web.nextcloud-down` |
+| Dashboard | `dash-{layer}-{domain}` | `dash-app-web` |
+
+Defined in: `L0-meta/_index.yaml` under `naming:` key.
+
 ## ADR Policy (Mandatory)
 
 Architecture decisions must be documented in `adr/`.

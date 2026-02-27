@@ -1,0 +1,48 @@
+# Security Policy: Baseline
+# Standard production security policy for home-lab infrastructure
+#
+# Referenced by: L0-meta/_index.yaml active_security_policy
+# Used by: L1-L7 layers for security defaults
+
+id: baseline
+name: Baseline Security Policy
+description: Standard production security settings
+
+# Password requirements
+password_policy:
+  min_length: 16
+  require_special_chars: true
+  require_numbers: true
+  require_uppercase: true
+  expire_days: 90
+  history_count: 5
+
+# SSH hardening
+ssh_policy:
+  permit_root_login: prohibit-password
+  password_authentication: false
+  pubkey_authentication: true
+  idle_timeout_seconds: 600
+  max_auth_tries: 3
+
+# Firewall defaults
+firewall_policy:
+  default_input_action: drop
+  default_forward_action: drop
+  default_output_action: accept
+  log_blocked: true
+  rate_limiting: true
+
+# TLS/Encryption requirements
+encryption_policy:
+  tls_minimum_version: "1.2"
+  certificate_validation: required
+  encrypt_data_at_rest: false
+  encrypt_data_in_transit: true
+
+# Audit and logging
+audit_policy:
+  log_authentication: true
+  log_authorization: false
+  log_privileged_commands: true
+  retention_days: 30

@@ -54,6 +54,7 @@ from scripts.validators.checks.references import (
 )
 from scripts.validators.checks.storage import build_l1_storage_context, check_l3_storage_refs
 from scripts.validators.ids import collect_ids
+from validators.version_validator import VersionValidator
 
 try:
     from jsonschema import Draft7Validator, ValidationError
@@ -650,8 +651,24 @@ def main():
         action="store_true",
         help="Print legacy-to-new model migration checklist",
     )
+    parser.add_argument(
+        "--check-tools",
+        action="store_true",
+        help="Check installed tool versions against L0 requirements",
+    )
 
     args = parser.parse_args()
+
+    # Run tool version check if requested
+    if args.check_tools:
+        print("=" * 70)
+        print("Tool Version Validation")
+        print("=" * 70)
+        version_validator = VersionValidator()
+        tools_ok = version_validator.run()
+        if not tools_ok:
+            sys.exit(1)
+        print()  # Separator before topology validation
 
     validator = SchemaValidator(
         args.topology,

@@ -297,17 +297,20 @@ class VersionValidator:
         """Check if installed version matches requirement"""
         try:
             if required.startswith("~> "):
-                # ~> 1.5.0 means >= 1.5.0, < 1.6.0
+                # ~> 1.5.0 means >= 1.5.0, < 2.0.0 (pessimistic constraint)
                 min_ver = required[3:]
-                min_parts = min_ver.split(".")
-                inst_parts = installed.split(".")
+                min_parts = [int(p) for p in min_ver.split(".")]
+                inst_parts = [int(p) for p in installed.split(".")[:len(min_parts)]]
 
                 # Major version must match
-                if min_parts[0] != inst_parts[0]:
+                if inst_parts[0] != min_parts[0]:
                     return False
 
                 # Minor version must be >= required
-                return inst_parts[1] >= min_parts[1]
+                if len(min_parts) > 1 and len(inst_parts) > 1:
+                    return inst_parts[1] >= min_parts[1]
+
+                return True
 
             elif required.startswith(">= "):
                 return pkg_version.parse(installed) >= pkg_version.parse(required[3:])
@@ -315,7 +318,7 @@ class VersionValidator:
             else:
                 # Assume >= if no operator
                 return pkg_version.parse(installed) >= pkg_version.parse(required)
-        except:
+        except Exception:
             return False
 
     def _report(self) -> bool:
