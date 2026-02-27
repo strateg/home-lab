@@ -1,0 +1,100 @@
+# L0 Meta - Global Configuration Layer
+# This layer defines ONLY global settings that affect ALL layers (L1-L7)
+#
+# Edit this file then regenerate: python3 topology-tools/regenerate-all.py
+
+version: 4.0.0
+name: "Home Lab Infrastructure"
+description: "Layered topology with MikroTik Chateau, Orange Pi 5, Proxmox"
+
+# === GLOBAL COMPLIANCE (affects L1-L7) ===
+compliance:
+  gdpr_compliant: true
+  pci_dss_compliant: false
+  hipaa_compliant: false
+
+# === GLOBAL SECURITY CONSTRAINTS (affects all layers) ===
+security_constraints:
+  encryption_required: true
+  min_tls_version: "1.2"
+  authentication_required: true
+
+# === GLOBAL NAMING SCHEME (affects all layers for consistency) ===
+naming:
+  device_pattern: "{type}-{location}-{number}"
+  service_pattern: "svc-{domain}.{name}"
+  metric_pattern: "{layer}_{domain}_{metric}"
+
+# === TOOL VERSIONS (NEW! - for validation and generation) ===
+# These are checked by validators and used by generators
+# Updated: 2026-02-26 based on actual environment
+tools:
+  terraform:
+    core: ">= 1.0.0"  # Not installed in dev env, allow any >= 1.0
+    providers:
+      proxmox: "~> 0.45.0"
+      null: "~> 3.2.0"
+      local: "~> 2.4.0"
+
+  ansible:
+    core: ">= 2.10.0"  # Not installed in dev env, allow any >= 2.10
+    collections:
+      community.general: "~> 7.0.0"
+      community.proxmox: "~> 1.2.0"
+
+  python:
+    core: "~> 3.11.0"
+    packages:
+      pydantic: "~> 2.0"     # Will be installed
+      pyyaml: "~> 6.0"
+      jinja2: "~> 3.1"
+      requests: "~> 2.31"
+
+  other:
+    docker: "~> 28.0"  # Updated: 28.3.2 is OK (was expecting <= 24.0)
+    jq: ">= 1.6"      # Will be installed
+
+# === GENERATION STRATEGY (how to handle version mismatches) ===
+generation:
+  # strict: fail if tools don't match
+  # compatible: generate code compatible with installed version
+  # auto-migrate: auto-migrate breaking changes
+  compatibility_mode: "strict"
+
+  # What to do when breaking changes detected
+  breaking_changes_action: "warn"  # warn, fail, auto-migrate
+
+  # Add version information to generated code
+  document_with_versions: true
+
+# === VERSION REQUIREMENTS (affects all tools) ===
+version_requirements:
+  min_terraform: "1.0.0"
+  min_ansible: "2.10.0"
+  min_python: "3.9"
+
+# === METADATA ===
+metadata:
+  org: home-lab
+  author: dprohhorov
+  created: "2025-10-06"
+  last_updated: "2026-02-26"
+
+# === CHANGELOG ===
+changelog:
+  - version: 4.0.0
+    date: "2026-02-26"
+    changes:
+      - Minimal L0 with only global settings
+      - Tool versions for validation and generation
+      - Security constraints and compliance flags
+      - Naming scheme for consistency
+    rationale: "L0 is pure meta - only affects ALL layers"
+
+  - version: 3.0.0
+    date: "2026-02-16"
+    changes: Major architecture redesign with MikroTik Chateau
+
+  - version: 1.0.0
+    date: "2025-10-06"
+    changes: Initial Infrastructure-as-Data structure

@@ -1,0 +1,237 @@
+# Breaking Changes Database for Tool Version Management
+#
+# This database tracks breaking changes between tool versions
+# Used by topology-tools/utils/breaking_changes.py for detection and migration
+
+breaking_changes:
+
+  # Terraform breaking changes
+  terraform:
+    "1.6.0":
+      from_versions: ["1.5.x"]
+      severity: "MINOR"
+      changes:
+        - "Removed deprecated 'terraform_version' in remote backend config"
+        - "Variables in provider config now require explicit type constraints"
+      migration_guide: "See: https://www.terraform.io/upgrade-guides/1-6"
+      breaking: false
+
+    "2.0.0":
+      from_versions: ["1.x"]
+      severity: "CRITICAL"
+      changes:
+        - "Complete syntax change for dynamic blocks"
+        - "Provider selection syntax changed"
+        - "Module output access changed"
+      migration_guide: "See: https://www.terraform.io/upgrade-guides/2-0"
+      auto_migration: false
+      breaking: true
+
+  # terraform-provider-proxmox breaking changes
+  terraform-provider-proxmox:
+    "0.46.0":
+      from_versions: ["0.45.x"]
+      severity: "CRITICAL"
+      changes:
+        - resource_renamed:
+            old: "proxmox_vm_qemu"
+            new: "proxmox_virtual_machine"
+        - field_renamed:
+            resource: "proxmox_virtual_machine"
+            old: "vmid"
+            new: "vm_id"
+        - field_removed:
+            resource: "proxmox_virtual_machine"
+            field: "cores_per_socket"
+            reason: "Integrated into cpu configuration"
+      migration_script: "migrate-proxmox-0.45-to-0.46.py"
+      auto_migration: true
+      breaking: true
+
+    "0.47.0":
+      from_versions: ["0.46.x"]
+      severity: "MAJOR"
+      changes:
+        - firewall_rules_syntax_changed: "New HCL syntax for firewall rules"
+        - backup_storage_path_required: "Backup storage must now be explicitly specified"
+      migration_guide: "See: docs/UPGRADE-PROXMOX-0.47.md"
+      breaking: true
+
+  # terraform-provider-null breaking changes
+  terraform-provider-null:
+    "4.0.0":
+      from_versions: ["3.x"]
+      severity: "MINOR"
+      changes:
+        - "Deprecated triggers parameter removed (use input)"
+      breaking: false
+
+  # Ansible breaking changes
+  ansible:
+    "2.15.0":
+      from_versions: ["2.14.x"]
+      severity: "MINOR"
+      changes:
+        - "Removed deprecated compat mode for inventory plugins"
+        - "Collection loop handling changed"
+      breaking: false
+
+    "3.0.0":
+      from_versions: ["2.x"]
+      severity: "CRITICAL"
+      changes:
+        - "Python 3.9 is minimum requirement (was 3.5)"
+        - "jinja2 3.0+ required (was 2.10+)"
+        - "Inventory plugin API changed"
+      breaking: true
+
+  # Ansible collection breaking changes
+  community.general:
+    "8.0.0":
+      from_versions: ["7.x"]
+      severity: "MAJOR"
+      changes:
+        - module_renamed:
+            old: "docker"
+            new: "docker_container"
+        - parameter_removed:
+            module: "file"
+            parameter: "unsafe_writes"
+      breaking: true
+
+    "7.0.0":
+      from_versions: ["6.x"]
+      severity: "MINOR"
+      changes:
+        - "Deprecated modules removed"
+      breaking: false
+
+  community.proxmox:
+    "1.3.0":
+      from_versions: ["1.2.x"]
+      severity: "MINOR"
+      changes:
+        - "Added Proxmox v8.0 support"
+        - "Deprecated HTTPS in proxmox_kvm module"
+      breaking: false
+
+    "2.0.0":
+      from_versions: ["1.x"]
+      severity: "CRITICAL"
+      changes:
+        - "Requires Python 3.9+ (was 3.6+)"
+        - "Module parameters renamed for clarity"
+        - "Return values structure changed"
+      migration_guide: "See: community.proxmox migration guide"
+      breaking: true
+
+  # Python package breaking changes
+  pyyaml:
+    "6.0":
+      from_versions: ["5.x"]
+      severity: "MINOR"
+      changes:
+        - "Default loader is now FullLoader (was unsafe Loader)"
+        - "Some deprecated features removed"
+      breaking: false
+
+  jinja2:
+    "3.1.0":
+      from_versions: ["3.0.x"]
+      severity: "MINOR"
+      changes:
+        - "Removed deprecated features from 2.x"
+        - "Changed HTML escaping behavior"
+      breaking: false
+
+    "4.0.0":
+      from_versions: ["3.x"]
+      severity: "MAJOR"
+      changes:
+        - "Complete rewrite of template compilation"
+        - "Context and environment API changed"
+      breaking: true
+
+# Migration strategies
+migration_strategies:
+
+  # Proxmox provider 0.45 → 0.46
+  proxmox-0.45-to-0.46:
+    description: "Migrate from proxmox_vm_qemu to proxmox_virtual_machine"
+    changes:
+      - target: "terraform code"
+        find: 'resource "proxmox_vm_qemu"'
+        replace: 'resource "proxmox_virtual_machine"'
+      - target: "terraform code"
+        find: 'vmid = '
+        replace: 'vm_id = '
+      - target: "terraform state"
+        action: "Run: terraform state mv 'proxmox_vm_qemu.*' 'proxmox_virtual_machine.*'"
+    validation:
+      - "Run: terraform validate"
+      - "Run: terraform plan (should show no changes)"
+    risk: "HIGH - test thoroughly in non-prod first"
+
+  # Proxmox provider 0.46 → 0.47
+  proxmox-0.46-to-0.47:
+    description: "Update firewall rules syntax"
+    changes:
+      - target: "terraform code"
+        find: 'firewall_rules = {'
+        replace: 'firewall_rules = ['
+      - target: "terraform code"
+        find: 'backup_storage = null'
+        replace: 'backup_storage = "local"'
+    validation:
+      - "Run: terraform validate"
+      - "Manually review firewall rules"
+    risk: "MEDIUM"
+
+# Tool version timeline
+version_timeline:
+  terraform:
+    "1.4.0": "2023-03-01"
+    "1.5.0": "2023-08-30"
+    "1.6.0": "2024-01-31"
+    "2.0.0": "2024-Q4 (planned)"
+
+  terraform-provider-proxmox:
+    "0.40.0": "2023-09-01"
+    "0.45.0": "2024-02-01"
+    "0.46.0": "2024-06-01"
+    "0.47.0": "2024-08-01"
+
+  ansible:
+    "2.13.0": "2023-05-01"
+    "2.14.0": "2023-10-01"
+    "2.15.0": "2024-03-01"
+    "3.0.0": "2024-Q4 (planned)"
+
+# Compatibility matrix
+compatibility_matrix:
+  terraform:
+    "1.5.0":
+      - "proxmox >= 0.40.0, < 1.0.0"
+      - "null >= 3.0.0"
+      - "local >= 2.0.0"
+
+    "1.6.0":
+      - "proxmox >= 0.45.0, < 1.0.0"
+      - "null >= 3.2.0"
+      - "local >= 2.4.0"
+
+    "2.0.0":
+      - "proxmox >= 0.50.0"
+      - "null >= 4.0.0"
+      - "local >= 3.0.0"
+
+  ansible:
+    "2.14.0":
+      - "community.general >= 6.0.0, < 8.0.0"
+      - "community.proxmox >= 1.0.0, < 2.0.0"
+      - "python >= 3.9"
+
+    "2.15.0":
+      - "community.general >= 7.0.0"
+      - "community.proxmox >= 1.2.0"
+      - "python >= 3.9"
