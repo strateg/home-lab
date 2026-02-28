@@ -39,7 +39,7 @@ class MikrotikBootstrapDeployer:
         self.ssh_password = ssh_password
         self.ssh_port = ssh_port
         self.bootstrap_script = bootstrap_script or (
-            PROJECT_ROOT / "generated" / "bootstrap" / "mikrotik" / "init-terraform.rsc"
+            PROJECT_ROOT / "generated" / "bootstrap" / "rtr-mikrotik-chateau" / "init-terraform.rsc"
         )
 
     def check_connectivity(self) -> bool:
@@ -217,8 +217,8 @@ class MikrotikBootstrapDeployer:
         print(f"REST API: https://{self.router_ip}:8443")
         print()
         print("Next steps:")
-        print("  1. Copy terraform.tfvars to generated/terraform-mikrotik/")
-        print("  2. Run: cd generated/terraform-mikrotik && terraform apply")
+        print("  1. Copy terraform.tfvars to generated/terraform/mikrotik/")
+        print("  2. Run: cd generated/terraform/mikrotik && terraform apply")
         print()
 
         return True
@@ -252,7 +252,7 @@ def main():
     parser.add_argument(
         "--script",
         default=None,
-        help="Path to bootstrap script (default: generated/bootstrap/mikrotik/init-terraform.rsc)",
+        help="Path to bootstrap script (default: generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc)",
     )
     parser.add_argument(
         "--generate",

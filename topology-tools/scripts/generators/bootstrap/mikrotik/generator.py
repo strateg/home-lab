@@ -16,7 +16,7 @@ from jinja2 import Environment, FileSystemLoader
 SCRIPT_DIR = Path(__file__).resolve().parent
 TOPOLOGY_TOOLS_DIR = SCRIPT_DIR.parent.parent.parent.parent
 TEMPLATES_DIR = TOPOLOGY_TOOLS_DIR / "templates" / "bootstrap" / "mikrotik"
-DEFAULT_OUTPUT_DIR = TOPOLOGY_TOOLS_DIR.parent / "generated" / "bootstrap" / "mikrotik"
+DEFAULT_OUTPUT_DIR = TOPOLOGY_TOOLS_DIR.parent / "generated" / "bootstrap" / "rtr-mikrotik-chateau"
 
 
 class MikrotikBootstrapGenerator:

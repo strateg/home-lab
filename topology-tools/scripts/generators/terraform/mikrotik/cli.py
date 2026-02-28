@@ -16,7 +16,7 @@ class MikrotikTerraformCLI(GeneratorCLI):
 
     description = "Generate MikroTik RouterOS Terraform configuration from topology v4.0"
     banner = "MikroTik Terraform Generator (Topology v4.0)"
-    default_output = "generated/terraform-mikrotik"
+    default_output = "generated/terraform/mikrotik"
     success_message = "MikroTik Terraform generation completed successfully!"
 
     def run_generator(self, generator: MikrotikTerraformGenerator) -> bool:

@@ -16,7 +16,7 @@ class ProxmoxTerraformCLI(GeneratorCLI):
 
     description = "Generate Terraform configuration from topology v4.0"
     banner = "Terraform Configuration Generator (Topology v4.0)"
-    default_output = "generated/terraform"
+    default_output = "generated/terraform/proxmox"
     success_message = "Terraform generation completed successfully!"
 
 
