@@ -1,6 +1,6 @@
 # ADR 0050: Generated Directory Restructuring
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-02-28
 
 ## Context
