@@ -1,0 +1,166 @@
+# =============================================================================
+# MikroTik RouterOS - Terraform Bootstrap Script (Idempotent)
+# Generated from topology v{{ topology_version }}
+# Generated at: {{ generation_timestamp }}
+# =============================================================================
+#
+# This script enables REST API for Terraform management
+# Safe to run multiple times - all operations check for existing resources
+#
+# Usage:
+#   1. Connect via SSH: ssh admin@{{ router_ip }}
+#   2. Execute: /import init-terraform.rsc
+#   Or run via deployer: python deploy-mikrotik-bootstrap.py
+#
+# After running:
+#   - REST API: https://{{ router_ip }}:{{ api_port }}
+#   - User: {{ terraform_user }}
+# =============================================================================
+
+:local certName "rest-api-cert"
+:local groupName "{{ terraform_group }}"
+:local userName "{{ terraform_user }}"
+
+# --- System Identity ---
+:log info "Setting system identity..."
+/system identity set name="{{ router_name }}"
+
+# --- Create SSL Certificate (idempotent) ---
+:log info "Checking SSL certificate..."
+:if ([:len [/certificate find where name=$certName]] = 0) do={
+    :log info "Creating SSL certificate for REST API..."
+    /certificate add name=$certName common-name={{ router_hostname }}.{{ dns_domain }} \
+        days-valid=3650 key-size=2048 key-usage=key-encipherment,tls-server
+    :delay 2s
+    :do {
+        /certificate sign $certName
+        :delay 2s
+    } on-error={
+        :log warning "Certificate signing failed or already signed"
+    }
+} else={
+    :log info "SSL certificate already exists, skipping creation"
+}
+
+# --- Enable REST API ---
+:log info "Enabling REST API on port {{ api_port }}..."
+:do {
+    /ip service set www-ssl certificate=$certName disabled=no port={{ api_port }}
+} on-error={
+    :log warning "Could not set www-ssl certificate, may need manual configuration"
+}
+/ip service set www disabled=no port=80
+
+# Disable insecure services
+/ip service set telnet disabled=yes
+/ip service set ftp disabled=yes
+/ip service set api disabled=yes
+/ip service set api-ssl disabled=yes
+
+# --- Create Terraform Group (idempotent) ---
+:log info "Checking Terraform group..."
+:if ([:len [/user group find where name=$groupName]] = 0) do={
+    :log info "Creating Terraform group..."
+    /user group add name=$groupName \
+        policy=api,local,policy,read,reboot,sensitive,ssh,test,write
+} else={
+    :log info "Terraform group already exists, updating policy..."
+    /user group set [find where name=$groupName] \
+        policy=api,local,policy,read,reboot,sensitive,ssh,test,write
+}
+
+# --- Create Terraform User (idempotent) ---
+:log info "Checking Terraform user..."
+:if ([:len [/user find where name=$userName]] = 0) do={
+    :log info "Creating Terraform user..."
+    /user add name=$userName group=$groupName \
+        password="{{ terraform_password }}" \
+        comment="Terraform automation user - generated {{ generation_timestamp }}"
+} else={
+    :log info "Terraform user already exists, updating password and group..."
+    /user set [find where name=$userName] group=$groupName \
+        password="{{ terraform_password }}" \
+        comment="Terraform automation user - updated {{ generation_timestamp }}"
+}
+
+# --- Firewall: Allow REST API (idempotent) ---
+:log info "Configuring firewall rules..."
+
+# Helper: add firewall rule if not exists (by comment)
+:local addFwRuleIfMissing do={
+    :local ruleComment $1
+    :local chain $2
+    :local action $3
+    :local protocol $4
+    :local dstPort $5
+    :local srcAddr $6
+
+    :if ([:len [/ip firewall filter find where comment=$ruleComment]] = 0) do={
+        :log info ("Adding firewall rule: " . $ruleComment)
+        /ip firewall filter add chain=$chain action=$action protocol=$protocol \
+            dst-port=$dstPort src-address=$srcAddr comment=$ruleComment place-before=0
+    } else={
+        :log info ("Firewall rule exists: " . $ruleComment)
+    }
+}
+
+# Allow REST API from LAN
+:if ([:len [/ip firewall filter find where comment="Allow REST API from LAN"]] = 0) do={
+    :log info "Adding REST API firewall rule..."
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port={{ api_port }} \
+        src-address={{ lan_network }} comment="Allow REST API from LAN" place-before=0
+} else={
+    :log info "REST API firewall rule already exists"
+}
+
+# Allow WinBox from LAN (backup access)
+:if ([:len [/ip firewall filter find where comment="Allow WinBox from LAN"]] = 0) do={
+    :log info "Adding WinBox firewall rule..."
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port=8291 \
+        src-address={{ lan_network }} comment="Allow WinBox from LAN" place-before=0
+} else={
+    :log info "WinBox firewall rule already exists"
+}
+
+# Allow SSH from LAN
+:if ([:len [/ip firewall filter find where comment="Allow SSH from LAN"]] = 0) do={
+    :log info "Adding SSH firewall rule..."
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port=22 \
+        src-address={{ lan_network }} comment="Allow SSH from LAN" place-before=0
+} else={
+    :log info "SSH firewall rule already exists"
+}
+
+# --- DNS Configuration ---
+:log info "Configuring DNS..."
+/ip dns set servers={{ dns_servers | join(',') }} allow-remote-requests=yes
+
+# --- Backup Configuration ---
+:log info "Creating configuration backup..."
+:do {
+    /export file=pre-terraform-backup
+} on-error={
+    :log warning "Could not create backup file"
+}
+
+# --- Summary ---
+:log info "========================================"
+:log info "Bootstrap completed!"
+:log info "========================================"
+:log info "REST API: https://{{ router_ip }}:{{ api_port }}"
+:log info "User: {{ terraform_user }}"
+:log info "========================================"
+
+:put ""
+:put "=============================================="
+:put "MikroTik Bootstrap Complete!"
+:put "=============================================="
+:put ""
+:put "REST API: https://{{ router_ip }}:{{ api_port }}"
+:put "User:     {{ terraform_user }}"
+:put ""
+:put "Next steps:"
+:put "1. Test API: curl -k -u {{ terraform_user }}:PASSWORD https://{{ router_ip }}:{{ api_port }}/rest/system/identity"
+:put "2. Run Terraform: cd generated/terraform-mikrotik && terraform apply"
+:put ""
+:put "=============================================="

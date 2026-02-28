@@ -1,73 +1,70 @@
 # MikroTik Bootstrap Guide
 
-This guide prepares MikroTik Chateau LTE7 ax for Terraform automation.
+Prepare MikroTik Chateau LTE7 ax for Terraform automation via REST API.
 
-## Prerequisites
+## Scripts
 
-- MikroTik Chateau LTE7 ax with RouterOS 7.4+
-- Access to router via WinBox, WebFig, or SSH
-- USB SSD connected (for containers)
+| Script | Purpose | When to Use |
+|--------|---------|-------------|
+| `init-terraform.rsc` | Minimal - enable REST API only | After soft reset |
+| `bootstrap.rsc` | Full - REST API + containers + USB | Fresh setup with containers |
 
-## Quick Start
+## Quick Start (After Soft Reset)
 
-### Option 1: Import Script
+### 1. Connect to Router
 
-1. Download `bootstrap.rsc` to your computer
-2. Connect to MikroTik via WinBox
-3. Go to **Files** section
-4. Upload `bootstrap.rsc`
-5. Open **Terminal** and run:
-   ```
-   /import bootstrap.rsc
-   ```
-6. **Change the terraform password immediately!**
+After soft reset, MikroTik Chateau has default config:
+- IP: `192.168.88.1`
+- User: `admin` (no password)
+- Bridge on ether2-5, wlan1-2
 
-### Option 2: Manual Commands
+Connect via WinBox to `192.168.88.1`.
 
-Connect via Terminal (WinBox, WebFig, or SSH) and run:
+### 2. Run Init Script
+
+Open Terminal and paste:
+
+```routeros
+# Minimal: Enable REST API for Terraform
+/import init-terraform.rsc
+```
+
+Or run commands manually:
 
 ```routeros
 # 1. Create SSL certificate
-/certificate add name=local-cert common-name=mikrotik.home.local days-valid=3650
-/certificate sign local-cert
+/certificate add name=rest-api-cert common-name=router.lan days-valid=3650
+/certificate sign rest-api-cert
 
 # 2. Enable REST API
-/ip service set www-ssl certificate=local-cert disabled=no port=8443
+/ip service set www-ssl certificate=rest-api-cert disabled=no port=8443
 
 # 3. Create Terraform user
-/user group add name=terraform policy=api,read,write,policy,sensitive,test
-/user add name=terraform group=terraform password=YOUR_SECURE_PASSWORD
+/user group add name=terraform policy=api,local,policy,read,reboot,sensitive,ssh,test,write
+/user add name=terraform group=terraform password=YOUR_PASSWORD
 
-# 4. Allow API access from management network
+# 4. Allow API in firewall
 /ip firewall filter add chain=input action=accept protocol=tcp dst-port=8443 \
-    src-address=10.0.99.0/24 comment="Allow REST API"
-
-# 5. Enable container mode (requires reboot)
-/system/device-mode/update container=yes
-
-# 6. Reboot
-/system reboot
+    src-address=192.168.88.0/24 comment="Allow REST API from LAN" place-before=0
 ```
 
-## Post-Bootstrap Steps
-
-### 1. Configure USB Storage
-
-After connecting USB SSD:
+### 3. Change Password!
 
 ```routeros
-# Format USB drive
-/disk format-drive usb1 file-system=ext4 label=containers
-
-# Create container directories
-/file mkdir /usb1/containers
-/file mkdir /usb1/containers/adguard
-/file mkdir /usb1/containers/tailscale
+/user set terraform password=YourSecurePassword
 ```
 
-### 2. Configure Terraform Variables
+### 4. Test Connection
 
-Copy and edit `terraform.tfvars`:
+From your workstation:
+
+```bash
+curl -k -u terraform:YourSecurePassword https://192.168.88.1:8443/rest/system/identity
+```
+
+Expected: `{"name":"MikroTik-Chateau"}`
+
+### 5. Configure Terraform
 
 ```bash
 cd generated/terraform-mikrotik
@@ -78,107 +75,77 @@ Edit `terraform.tfvars`:
 ```hcl
 mikrotik_host     = "https://192.168.88.1:8443"
 mikrotik_username = "terraform"
-mikrotik_password = "your_secure_password"  # Change this!
-mikrotik_insecure = true  # For self-signed certificate
+mikrotik_password = "YourSecurePassword"
+mikrotik_insecure = true
 ```
 
-### 3. Test Connection
+### 6. Deploy
 
 ```bash
-curl -k -u terraform:password https://192.168.88.1:8443/rest/system/identity
-```
-
-Expected response:
-```json
-{"name":"MikroTik-Chateau"}
-```
-
-### 4. Run Terraform
-
-```bash
-cd generated/terraform-mikrotik
 terraform init
 terraform plan
 terraform apply
 ```
 
+## Full Bootstrap (With Containers)
+
+For full setup including AdGuard and Tailscale containers:
+
+```routeros
+/import bootstrap.rsc
+/system reboot  # Required for container mode
+```
+
+After reboot, connect USB SSD and run:
+```routeros
+/disk format-drive usb1 file-system=ext4 label=containers
+```
+
 ## Troubleshooting
+
+### Cannot Connect to 192.168.88.1
+
+After soft reset without Quick Set:
+1. Connect via MAC WinBox (WinBox → Neighbors)
+2. Or connect cable to ether2-5 and get DHCP
 
 ### REST API Not Responding
 
-1. Check service is enabled:
-   ```routeros
-   /ip service print where name=www-ssl
-   ```
+```routeros
+# Check service
+/ip service print where name=www-ssl
 
-2. Check certificate is valid:
-   ```routeros
-   /certificate print
-   ```
+# Check certificate
+/certificate print
 
-3. Check firewall rules:
-   ```routeros
-   /ip firewall filter print where dst-port=8443
-   ```
+# Check firewall
+/ip firewall filter print where dst-port=8443
+```
 
-### Container Mode Not Available
+### Terraform Auth Failed
 
-- Requires RouterOS 7.4 or later
-- Check version: `/system resource print`
-- Enable: `/system/device-mode/update container=yes`
-- **Reboot required** after enabling
+```routeros
+# Verify user
+/user print where name=terraform
 
-### USB Storage Issues
+# Reset password
+/user set terraform password=NewPassword
 
-1. Check USB is detected:
-   ```routeros
-   /disk print
-   ```
+# Check group permissions
+/user group print where name=terraform
+```
 
-2. Format if needed:
-   ```routeros
-   /disk format-drive usb1 file-system=ext4
-   ```
-
-### Terraform Authentication Failed
-
-1. Verify user exists:
-   ```routeros
-   /user print where name=terraform
-   ```
-
-2. Check user permissions:
-   ```routeros
-   /user group print where name=terraform
-   ```
-
-3. Reset password if needed:
-   ```routeros
-   /user set terraform password=new_password
-   ```
-
-## Security Notes
-
-1. **Change default password immediately** after bootstrap
-2. Consider restricting API access to management network only
-3. Use strong passwords (min 16 characters, mixed case, numbers, symbols)
-4. Regularly rotate credentials
-5. Keep RouterOS updated
-
-## Network Access After Bootstrap
-
-After Terraform applies the full configuration:
+## Network After Terraform Apply
 
 | Service | URL |
 |---------|-----|
-| WebFig | https://192.168.88.1/ |
-| REST API | https://192.168.88.1:8443/ |
+| WebFig | https://192.168.88.1 |
+| REST API | https://192.168.88.1:8443 |
 | WinBox | 192.168.88.1:8291 |
-| AdGuard | http://192.168.88.1:3000/ |
-| WireGuard | 192.168.88.1:51820 (UDP) |
 
-## Related Files
+## Security Notes
 
-- `bootstrap.rsc` - RouterOS bootstrap script
-- `generated/terraform-mikrotik/` - Generated Terraform configs
-- `deploy/phases/01-network.sh` - Network deployment script
+1. Change default password immediately
+2. Use strong passwords (16+ chars)
+3. Restrict API access to management network after initial setup
+4. Keep RouterOS updated
