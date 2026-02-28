@@ -26,6 +26,11 @@ TOPOLOGY_TOOLS_DIR := $(ROOT_DIR)/topology-tools
 GENERATED_DIR := $(ROOT_DIR)/generated
 ANSIBLE_DIR := $(ROOT_DIR)/ansible
 
+# Terraform directories (ADR 0050 structure)
+TF_MIKROTIK_DIR := $(GENERATED_DIR)/terraform/mikrotik
+TF_PROXMOX_DIR := $(GENERATED_DIR)/terraform/proxmox
+BOOTSTRAP_DIR := $(GENERATED_DIR)/bootstrap
+
 # Colors
 GREEN := \033[0;32m
 YELLOW := \033[0;33m
@@ -105,8 +110,8 @@ plan: plan-mikrotik plan-proxmox
 
 plan-mikrotik:
 	@echo "$(YELLOW)🔍 Planning MikroTik changes...$(NC)"
-	@if [ -f $(GENERATED_DIR)/terraform-mikrotik/terraform.tfvars ]; then \
-		cd $(GENERATED_DIR)/terraform-mikrotik && terraform init -upgrade && terraform plan; \
+	@if [ -f $(TF_MIKROTIK_DIR)/terraform.tfvars ]; then \
+		cd $(TF_MIKROTIK_DIR) && terraform init -upgrade && terraform plan; \
 	else \
 		echo "$(RED)⚠️  terraform.tfvars not found. Copy terraform.tfvars.example first.$(NC)"; \
 		exit 1; \
@@ -114,8 +119,8 @@ plan-mikrotik:
 
 plan-proxmox:
 	@echo "$(YELLOW)🔍 Planning Proxmox changes...$(NC)"
-	@if [ -f $(GENERATED_DIR)/terraform/terraform.tfvars ]; then \
-		cd $(GENERATED_DIR)/terraform && terraform init -upgrade && terraform plan; \
+	@if [ -f $(TF_PROXMOX_DIR)/terraform.tfvars ]; then \
+		cd $(TF_PROXMOX_DIR) && terraform init -upgrade && terraform plan; \
 	else \
 		echo "$(RED)⚠️  terraform.tfvars not found. Copy terraform.tfvars.example first.$(NC)"; \
 		exit 1; \
@@ -177,16 +182,16 @@ test:
 
 clean:
 	@echo "$(YELLOW)🧹 Cleaning generated files...$(NC)"
-	rm -rf $(GENERATED_DIR)/terraform-mikrotik/*.tf
-	rm -rf $(GENERATED_DIR)/terraform-mikrotik/.terraform
-	rm -f $(GENERATED_DIR)/terraform-mikrotik/terraform.tfstate*
+	rm -rf $(TF_MIKROTIK_DIR)/*.tf
+	rm -rf $(TF_MIKROTIK_DIR)/.terraform
+	rm -f $(TF_MIKROTIK_DIR)/terraform.tfstate*
 	@echo "$(GREEN)✓ Generated MikroTik files cleaned$(NC)"
 	@echo "$(YELLOW)Note: Proxmox terraform state preserved. Use 'make clean-all' to remove.$(NC)"
 
 clean-all: clean
-	rm -rf $(GENERATED_DIR)/terraform/*.tf
-	rm -rf $(GENERATED_DIR)/terraform/.terraform
-	rm -f $(GENERATED_DIR)/terraform/terraform.tfstate*
+	rm -rf $(TF_PROXMOX_DIR)/*.tf
+	rm -rf $(TF_PROXMOX_DIR)/.terraform
+	rm -f $(TF_PROXMOX_DIR)/terraform.tfstate*
 	@echo "$(GREEN)✓ All generated files cleaned$(NC)"
 
 bootstrap-info:
@@ -196,17 +201,17 @@ bootstrap-info:
 	@echo "║                                                                  ║"
 	@echo "║  1. MikroTik Bootstrap:                                          ║"
 	@echo "║     - Connect via WinBox to 192.168.88.1                         ║"
-	@echo "║     - Import: bootstrap/mikrotik/bootstrap.rsc                   ║"
+	@echo "║     - Import: generated/bootstrap/rtr-mikrotik-chateau/*.rsc     ║"
 	@echo "║     - Or run commands manually (see README)                      ║"
 	@echo "║                                                                  ║"
 	@echo "║  2. Proxmox Bootstrap:                                           ║"
-	@echo "║     - Use: manual-scripts/bare-metal/create-uefi-autoinstall-proxmox-usb.sh     ║"
+	@echo "║     - Use: generated/bootstrap/srv-gamayun/                      ║"
 	@echo "║     - Boot from USB, auto-install completes                      ║"
 	@echo "║     - Run post-install scripts                                   ║"
 	@echo "║                                                                  ║"
 	@echo "║  3. Orange Pi 5 Bootstrap:                                       ║"
+	@echo "║     - Use: generated/bootstrap/srv-orangepi5/cloud-init/         ║"
 	@echo "║     - Flash Armbian to NVMe with cloud-init                      ║"
-	@echo "║     - Configure network via cloud-init user-data                 ║"
 	@echo "║                                                                  ║"
 	@echo "║  After bootstrap, run: make deploy-all                           ║"
 	@echo "╚══════════════════════════════════════════════════════════════════╝"
@@ -217,11 +222,11 @@ bootstrap-info:
 
 init-mikrotik:
 	@echo "$(YELLOW)Initializing MikroTik Terraform...$(NC)"
-	cd $(GENERATED_DIR)/terraform-mikrotik && terraform init -upgrade
+	cd $(TF_MIKROTIK_DIR) && terraform init -upgrade
 
 init-proxmox:
 	@echo "$(YELLOW)Initializing Proxmox Terraform...$(NC)"
-	cd $(GENERATED_DIR)/terraform && terraform init -upgrade
+	cd $(TF_PROXMOX_DIR) && terraform init -upgrade
 
 init: init-mikrotik init-proxmox
 	@echo "$(GREEN)✓ All Terraform providers initialized$(NC)"

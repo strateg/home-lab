@@ -84,16 +84,21 @@ home-lab/
 │   ├── opi5/
 │   └── archive/
 ├── generated/                 # Auto-generated (DO NOT EDIT)
-│   ├── terraform/             # Proxmox Terraform
-│   ├── terraform-mikrotik/    # MikroTik Terraform
+│   ├── bootstrap/             # Device init scripts
+│   │   ├── rtr-mikrotik-chateau/  # MikroTik bootstrap
+│   │   ├── srv-gamayun/           # Proxmox bootstrap
+│   │   └── srv-orangepi5/         # OPi5 cloud-init
+│   ├── terraform/
+│   │   ├── mikrotik/          # MikroTik Terraform
+│   │   └── proxmox/           # Proxmox Terraform
 │   ├── ansible/inventory/     # Ansible inventory
 │   └── docs/                  # Documentation
-├── terraform -> generated/terraform/  # Symlink
+├── terraform -> generated/terraform/proxmox  # Symlink
 ├── ansible/                   # Playbooks and roles (manual)
 │   ├── playbooks/
 │   └── roles/
 ├── manual-scripts/bare-metal/                # Proxmox USB auto-install
-├── bootstrap/mikrotik/        # MikroTik initial setup
+├── bootstrap/mikrotik/        # MikroTik manual scripts (legacy)
 ├── deploy/                    # Deployment orchestration
 │   ├── Makefile
 │   └── phases/
@@ -125,15 +130,15 @@ python3 topology-tools/generate-ansible-inventory.py
 python3 topology-tools/generate-docs.py
 
 # 3. Plan and apply Terraform changes
-cd generated/terraform
+cd generated/terraform/proxmox
 terraform plan && terraform apply
 
-cd ../terraform-mikrotik
+cd ../mikrotik
 terraform plan && terraform apply
 
 # 4. Run Ansible if needed
-cd ../../ansible
-ansible-playbook playbooks/site.yml
+cd ../../../ansible
+ansible-playbook -i ../generated/ansible/inventory/production/hosts.yml playbooks/site.yml
 ```
 
 ### 2. Using Makefile (Recommended)
@@ -171,7 +176,7 @@ vim topology/L5-application.yaml
 python3 topology-tools/regenerate-all.py
 
 # 4. Apply Terraform (creates LXC)
-cd generated/terraform
+cd generated/terraform/proxmox
 terraform apply -target='proxmox_virtual_environment_container.new_container'
 
 # 5. Configure with Ansible
@@ -210,12 +215,12 @@ cd deploy && make deploy-all
 
 ### What Terraform Manages
 
-**Proxmox (generated/terraform/):**
+**Proxmox (generated/terraform/proxmox/):**
 - Network bridges (vmbr0-vmbr99)
 - VMs and LXC containers
 - Storage pools
 
-**MikroTik (generated/terraform-mikrotik/):**
+**MikroTik (generated/terraform/mikrotik/):**
 - Bridge and VLAN interfaces
 - IP addresses and DHCP
 - Firewall rules and NAT
@@ -331,32 +336,32 @@ python3 topology-tools/regenerate-all.py
 
 ```
 generated/
-├── terraform/              # Proxmox
-│   ├── provider.tf
-│   ├── bridges.tf
-│   ├── vms.tf
-│   ├── lxc.tf
-│   └── variables.tf
-├── terraform-mikrotik/     # MikroTik RouterOS
-│   ├── provider.tf
-│   ├── interfaces.tf
-│   ├── addresses.tf
-│   ├── dhcp.tf
-│   ├── firewall.tf
-│   ├── qos.tf
-│   ├── vpn.tf
-│   └── containers.tf
-├── ansible/inventory/      # Ansible
+├── bootstrap/                     # Device init scripts (ADR 0050)
+│   ├── rtr-mikrotik-chateau/      # MikroTik bootstrap
+│   │   ├── init-terraform.rsc
+│   │   └── terraform.tfvars
+│   ├── srv-gamayun/               # Proxmox bootstrap
+│   └── srv-orangepi5/             # OPi5 cloud-init
+├── terraform/
+│   ├── mikrotik/                  # MikroTik RouterOS
+│   │   ├── provider.tf
+│   │   ├── interfaces.tf
+│   │   ├── firewall.tf
+│   │   └── ...
+│   └── proxmox/                   # Proxmox infrastructure
+│       ├── provider.tf
+│       ├── bridges.tf
+│       ├── lxc.tf
+│       └── ...
+├── ansible/inventory/             # Ansible
 │   └── production/
 │       ├── hosts.yml
 │       ├── group_vars/
 │       └── host_vars/
-└── docs/                   # Documentation
+└── docs/                          # Documentation
     ├── overview.md
     ├── network-diagram.md
-    ├── ip-allocation.md
-    ├── services.md
-    └── devices.md
+    └── ...
 ```
 
 ## Common Pitfalls
@@ -364,7 +369,7 @@ generated/
 ### DON'T: Edit generated files
 ```bash
 # Wrong:
-vim generated/terraform/bridges.tf  # Will be overwritten!
+vim generated/terraform/proxmox/bridges.tf  # Will be overwritten!
 ```
 
 ### DO: Edit layer files and regenerate
