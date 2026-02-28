@@ -1,3 +1,6 @@
+# L6 Observability - Network Monitoring
+# IP derivation: target_ref resolves to IP via device_ref + network_ref (ADR 0044)
+
 - id: net-mon-internet
   name: Internet Connectivity
   description: Monitor primary and failover internet
@@ -32,23 +35,32 @@
     on_critical: true
     channels:
     - channel-email
+
 - id: net-mon-internal
   name: Internal Network Connectivity
   description: Monitor inter-VLAN connectivity
   enabled: true
   checks:
   - type: ping
-    from: 192.168.88.1
-    targets:
-    - 192.168.88.2
-    - 192.168.88.3
-    - 10.0.30.10
-    - 10.0.30.20
-    - 10.0.30.50
+    from_ref:
+      device_ref: rtr-mikrotik-chateau
+      network_ref: net-lan
+    target_refs:
+    - device_ref: srv-gamayun
+      network_ref: net-lan
+    - device_ref: srv-orangepi5
+      network_ref: net-lan
+    - lxc_ref: lxc-postgresql
+      network_ref: net-servers
+    - lxc_ref: lxc-redis
+      network_ref: net-servers
+    - device_ref: srv-orangepi5
+      network_ref: net-servers
     packet_loss_threshold: 5
   - type: traceroute
-    targets:
-    - 10.0.30.10
+    target_ref:
+      lxc_ref: lxc-postgresql
+      network_ref: net-servers
     expected_hops: 2
   interval: 120s
   notification:
@@ -56,11 +68,12 @@
     on_critical: true
     channels:
     - channel-email
+
 - id: net-mon-bandwidth
   name: Bandwidth Monitoring
   description: Monitor network throughput
   enabled: true
-  device_ref: mikrotik-chateau
+  device_ref: rtr-mikrotik-chateau
   interfaces:
   - name: ether1
     type: wan

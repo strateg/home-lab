@@ -1,9 +1,14 @@
-- id: alert-router-down
+# L6 Observability - Alerts
+# Naming convention: alert-<domain>.<service>-<type> (ADR 0048)
+# Domains: infra, app, power, ops, security, db, net
+
+# Infrastructure alerts
+- id: alert-infra.router-down
   name: Router Down
   description: MikroTik router is unreachable
   trigger:
     condition: ping_failed
-    target: 192.168.88.1
+    healthcheck_ref: health-mikrotik
     duration: 1m
   severity: critical
   channels:
@@ -12,7 +17,8 @@
   escalation:
     enabled: true
     delay: 5m
-- id: alert-internet-down
+
+- id: alert-infra.internet-down
   name: Internet Down
   description: No internet connectivity
   trigger:
@@ -23,22 +29,23 @@
   channels:
   - channel-email
   - channel-telegram
-- id: alert-lte-failover-active
+
+- id: alert-infra.lte-failover
   name: LTE Failover Active
   description: Primary WAN failed, using LTE backup
   trigger:
     condition: failover_active
-    primary: ether1
-    backup: lte1
+    healthcheck_ref: health-lte-failover
   severity: warning
   channels:
   - channel-email
   - channel-telegram
-- id: alert-disk-full
+
+- id: alert-infra.disk-critical
   name: Disk Space Critical
   description: Disk usage exceeds 90%
   trigger:
-    condition: disk_usage > 90%
+    condition: disk_usage_percent > 90
     duration: 5m
   severity: critical
   channels:
@@ -46,12 +53,34 @@
   escalation:
     enabled: true
     delay: 15m
-- id: alert-service-down
+
+- id: alert-infra.memory-critical
+  name: Memory Usage Critical
+  description: Memory usage exceeds 95%
+  trigger:
+    condition: memory_usage_percent > 95
+    duration: 5m
+  severity: critical
+  channels:
+  - channel-email
+
+- id: alert-infra.temperature-high
+  name: High Temperature
+  description: Device temperature is high
+  trigger:
+    condition: temperature_celsius > 75
+    duration: 5m
+  severity: warning
+  channels:
+  - channel-email
+
+# Application alerts
+- id: alert-app.service-down
   name: Critical Service Down
   description: A critical service is not running
   trigger:
-    condition: service_status != 'running'
-    services:
+    condition: service_status != running
+    service_refs:
     - svc-postgresql
     - svc-redis
     - svc-nextcloud
@@ -64,51 +93,42 @@
   escalation:
     enabled: true
     delay: 5m
-- id: alert-memory-critical
-  name: Memory Usage Critical
-  description: Memory usage exceeds 95%
-  trigger:
-    condition: memory_usage > 95%
-    duration: 5m
-  severity: critical
-  channels:
-  - channel-email
-- id: alert-ups-on-battery
+
+# Power alerts
+- id: alert-power.ups-battery
   name: UPS On Battery
   description: Power outage - UPS on battery
   trigger:
-    condition: ups_status == 'OB'
+    condition: ups_status == OB
+    healthcheck_ref: health-ups
   severity: warning
   channels:
   - channel-email
   - channel-telegram
-- id: alert-ups-low-battery
+
+- id: alert-power.ups-low
   name: UPS Low Battery
   description: UPS battery critically low
   trigger:
-    condition: battery_charge < 30%
+    condition: battery_charge_percent < 30
+    healthcheck_ref: health-ups
   severity: critical
   channels:
   - channel-email
   - channel-telegram
-- id: alert-temperature-high
-  name: High Temperature
-  description: Device temperature is high
-  trigger:
-    condition: temperature > 75
-    duration: 5m
-  severity: warning
-  channels:
-  - channel-email
-- id: alert-backup-failed
+
+# Operations alerts
+- id: alert-ops.backup-failed
   name: Backup Failed
   description: Backup job failed
   trigger:
-    condition: backup_status == 'failed'
+    condition: backup_status == failed
   severity: warning
   channels:
   - channel-email
-- id: alert-certificate-expiry
+
+# Security alerts
+- id: alert-security.cert-expiry
   name: Certificate Expiring
   description: SSL certificate expiring soon
   trigger:

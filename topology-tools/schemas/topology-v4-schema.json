@@ -1596,7 +1596,7 @@
       "type": "object",
       "required": ["id", "name", "trigger", "severity"],
       "properties": {
-        "id": { "type": "string", "pattern": "^alert-[a-z0-9-]+$" },
+        "id": { "type": "string", "pattern": "^alert-[a-z]+\\.[a-z0-9_-]+-[a-z-]+$" },
         "name": { "type": "string" },
         "description": { "type": "string" },
         "trigger": { "type": "object" },
