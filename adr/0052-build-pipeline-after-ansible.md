@@ -145,7 +145,23 @@ ADR 0052 is complete only when all of the following pass:
 6. release-safe checks confirm that no `local-secret` files enter published artifacts
 7. external validators can run either directly when installed or in strict mode in CI
 
-### 8. Explicitly Out Of Scope
+### 8. Bootstrap Packaging Uses Explicit Source Maps And May Be Skipped
+
+Bootstrap packaging must not auto-discover inputs from `bootstrap/` or `manual-scripts/`.
+
+Bootstrap packages are declared explicitly by canonical generated source roots such as:
+- `generated/bootstrap/rtr-mikrotik-chateau/`
+- `generated/bootstrap/srv-gamayun/`
+- `generated/bootstrap/srv-orangepi5/`
+
+If a canonical generated source root does not exist yet or has no assembled payload, the package must still appear in `dist/manifests/packages.json` with:
+- `status = skipped`
+- its canonical `source_roots`
+- no published payload
+
+This keeps the source map explicit without pretending that legacy manual bootstrap assets are already safe deploy packages.
+
+### 9. Explicitly Out Of Scope
 
 ADR 0052 does not perform:
 - `src/` repository restructuring

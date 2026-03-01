@@ -99,6 +99,7 @@ Assembler должен:
 - выпускать package manifests и top-level manifests
 - падать при попадании `local-secret` файлов в release-safe output
 - сообщать о missing required local inputs через manifest, а не через silent omission
+- оставлять bootstrap packages в `status=skipped`, если canonical generated source root ещё не готов
 
 Validation gate:
 

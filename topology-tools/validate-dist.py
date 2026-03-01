@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from utils.package_policy import validate_release_safe_tree
@@ -25,15 +27,22 @@ def validate_package_manifest_contract(package_id: str, manifest: dict) -> list[
     """Validate package-manifest semantics independently of external tools."""
     errors: list[str] = []
     package_class = manifest.get("package_class")
+    status = manifest.get("status")
     required_local_inputs = manifest.get("required_local_inputs", [])
 
     if package_class not in {"release-safe", "local-input-required"}:
         errors.append(f"{package_id}: unsupported package_class '{package_class}'")
 
+    if status not in {"ready", "skipped"}:
+        errors.append(f"{package_id}: unsupported status '{status}'")
+
+    if status == "skipped" and required_local_inputs:
+        errors.append(f"{package_id}: skipped package must not declare required_local_inputs")
+
     if package_class == "release-safe" and required_local_inputs:
         errors.append(f"{package_id}: release-safe package must not declare required_local_inputs")
 
-    if package_class == "local-input-required" and not required_local_inputs:
+    if status == "ready" and package_class == "local-input-required" and not required_local_inputs:
         errors.append(f"{package_id}: local-input-required package must declare required_local_inputs")
 
     return errors
@@ -53,27 +62,42 @@ def run_manifest_commands(
     """Run package validation commands with graceful missing-tool handling."""
     errors: list[str] = []
     skipped: list[str] = []
+    terraform_temp_dir = None
+    terraform_env = None
 
-    for command in commands:
-        binary = required_binary(command)
-        if shutil.which(binary) is None:
-            message = f"{package_id}: skipped '{command}' because '{binary}' is not installed"
-            if strict_external:
-                errors.append(message)
-            else:
-                skipped.append(message)
-            continue
+    try:
+        for command in commands:
+            binary = required_binary(command)
+            if shutil.which(binary) is None:
+                message = f"{package_id}: skipped '{command}' because '{binary}' is not installed"
+                if strict_external:
+                    errors.append(message)
+                else:
+                    skipped.append(message)
+                continue
 
-        result = subprocess.run(
-            command,
-            cwd=package_dir,
-            shell=True,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            errors.append(f"{package_id}: command failed '{command}'\n" f"{result.stdout}{result.stderr}".strip())
+            env = None
+            if binary == "terraform":
+                if terraform_temp_dir is None:
+                    terraform_temp_dir = tempfile.TemporaryDirectory(prefix="dist-validate-tf-")
+                    terraform_env = dict(os.environ)
+                    terraform_env["TF_DATA_DIR"] = terraform_temp_dir.name
+                env = terraform_env
+
+            result = subprocess.run(
+                command,
+                cwd=package_dir,
+                shell=True,
+                text=True,
+                capture_output=True,
+                check=False,
+                env=env,
+            )
+            if result.returncode != 0:
+                errors.append(f"{package_id}: command failed '{command}'\n" f"{result.stdout}{result.stderr}".strip())
+    finally:
+        if terraform_temp_dir is not None:
+            terraform_temp_dir.cleanup()
 
     return errors, skipped
 
@@ -111,6 +135,7 @@ def validate_dist(dist_root: Path, strict_external: bool, verbose: bool) -> bool
     packages = packages_payload.get("packages", {})
     publishable_packages = set(release_safe_payload.get("publishable_packages", []))
     non_publishable_packages = set(release_safe_payload.get("non_publishable_packages", []))
+    skipped_packages = set(release_safe_payload.get("skipped_packages", []))
 
     errors: list[str] = []
     skipped: list[str] = []
@@ -132,21 +157,32 @@ def validate_dist(dist_root: Path, strict_external: bool, verbose: bool) -> bool
         errors.extend(validate_package_manifest_contract(package_id, manifest))
 
         package_class = manifest.get("package_class")
-        if package_class == "release-safe" and package_id not in publishable_packages:
-            errors.append(f"{package_id}: release-safe package missing from release-safe publishable_packages")
-        if package_class != "release-safe" and package_id in publishable_packages:
-            errors.append(f"{package_id}: non-release-safe package must not be publishable")
-        if package_class != "release-safe" and package_id not in non_publishable_packages:
-            errors.append(f"{package_id}: non-release-safe package missing from non_publishable_packages")
+        status = manifest.get("status")
 
-        command_errors, command_skips = run_manifest_commands(
-            package_dir=package_dir,
-            package_id=package_id,
-            commands=manifest.get("validation_commands", []),
-            strict_external=strict_external,
-        )
-        errors.extend(command_errors)
-        skipped.extend(command_skips)
+        if status == "ready" and package_class == "release-safe" and package_id not in publishable_packages:
+            errors.append(f"{package_id}: release-safe package missing from release-safe publishable_packages")
+        if status == "ready" and package_class != "release-safe" and package_id in publishable_packages:
+            errors.append(f"{package_id}: non-release-safe package must not be publishable")
+        if status == "ready" and package_class != "release-safe" and package_id not in non_publishable_packages:
+            errors.append(f"{package_id}: non-release-safe package missing from non_publishable_packages")
+        if status == "skipped" and package_id in publishable_packages:
+            errors.append(f"{package_id}: skipped package must not be publishable")
+        if status == "skipped" and package_id not in skipped_packages:
+            errors.append(f"{package_id}: skipped package missing from release-safe skipped_packages")
+        if status == "skipped" and package_id not in non_publishable_packages:
+            errors.append(f"{package_id}: skipped package missing from non_publishable_packages")
+
+        if status == "ready":
+            command_errors, command_skips = run_manifest_commands(
+                package_dir=package_dir,
+                package_id=package_id,
+                commands=manifest.get("validation_commands", []),
+                strict_external=strict_external,
+            )
+            errors.extend(command_errors)
+            skipped.extend(command_skips)
+        else:
+            skipped.append(f"{package_id}: skipped package has no assembled payload yet")
 
     if verbose:
         print("=" * 70)
@@ -155,6 +191,7 @@ def validate_dist(dist_root: Path, strict_external: bool, verbose: bool) -> bool
         print(f"Dist root: {dist_root}")
         print(f"Manifest packages: {len(packages)}")
         print(f"Publishable packages: {len(publishable_packages)}")
+        print(f"Skipped packages: {len(skipped_packages)}")
         if skipped:
             print()
             print("Skipped external validations:")

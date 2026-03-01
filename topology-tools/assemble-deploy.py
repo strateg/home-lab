@@ -22,6 +22,31 @@ TERRAFORM_PACKAGES = {
     "control/terraform/mikrotik": TERRAFORM_ROOT / "mikrotik",
     "control/terraform/proxmox": TERRAFORM_ROOT / "proxmox",
 }
+BOOTSTRAP_ROOT = REPO_ROOT / "generated" / "bootstrap"
+BOOTSTRAP_PACKAGES = {
+    "bootstrap/rtr-mikrotik-chateau": {
+        "source_dir": BOOTSTRAP_ROOT / "rtr-mikrotik-chateau",
+        "package_class": "release-safe",
+        "required_local_inputs": [],
+        "validation_commands": [],
+    },
+    "bootstrap/srv-gamayun": {
+        "source_dir": BOOTSTRAP_ROOT / "srv-gamayun",
+        "package_class": "local-input-required",
+        "required_local_inputs": [
+            "bootstrap/srv-gamayun/answer.toml",
+        ],
+        "validation_commands": [],
+    },
+    "bootstrap/srv-orangepi5": {
+        "source_dir": BOOTSTRAP_ROOT / "srv-orangepi5",
+        "package_class": "local-input-required",
+        "required_local_inputs": [
+            "bootstrap/srv-orangepi5/cloud-init/user-data",
+        ],
+        "validation_commands": [],
+    },
+}
 ANSIBLE_PACKAGE_ID = "control/ansible"
 
 
@@ -78,6 +103,14 @@ def copy_tree_filtered(
         included.append(relpath(path, repo_root))
 
     return included, excluded
+
+
+def has_non_directory_content(path: Path) -> bool:
+    """Return True when a directory contains at least one file."""
+    if not path.exists() or not path.is_dir():
+        return False
+
+    return any(item.is_file() for item in path.rglob("*"))
 
 
 def build_ansible_cfg(source_cfg: Path, output_cfg: Path) -> None:
@@ -188,6 +221,41 @@ def assemble_terraform_package(package_id: str, source_dir: Path, dist_root: Pat
     return manifest
 
 
+def assemble_bootstrap_package(package_id: str, package_config: dict, dist_root: Path) -> PackageManifest:
+    """Assemble an explicit bootstrap package or mark it skipped."""
+    source_dir = package_config["source_dir"]
+    package_class = package_config["package_class"]
+    required_local_inputs = package_config.get("required_local_inputs", [])
+    validation_commands = package_config.get("validation_commands", [])
+
+    package_dir = dist_root / Path(package_id)
+    package_dir.mkdir(parents=True, exist_ok=True)
+
+    if not has_non_directory_content(source_dir):
+        manifest = PackageManifest(
+            package_id=package_id,
+            package_class=package_class,
+            source_roots=[relpath(source_dir, REPO_ROOT)],
+            status="skipped",
+            excluded_paths=[relpath(source_dir, REPO_ROOT)],
+        )
+        write_package_manifest(package_dir / "manifest.json", manifest)
+        return manifest
+
+    included_paths, excluded_paths = copy_tree_filtered(source_dir, package_dir, REPO_ROOT)
+    manifest = PackageManifest(
+        package_id=package_id,
+        package_class=package_class,
+        source_roots=[relpath(source_dir, REPO_ROOT)],
+        included_paths=sorted(included_paths),
+        excluded_paths=sorted(set(excluded_paths)),
+        required_local_inputs=required_local_inputs,
+        validation_commands=validation_commands,
+    )
+    write_package_manifest(package_dir / "manifest.json", manifest)
+    return manifest
+
+
 def write_top_level_manifests(dist_root: Path, manifests: list[PackageManifest]) -> None:
     """Write aggregate manifests under dist/manifests."""
     manifests_dir = dist_root / "manifests"
@@ -200,10 +268,15 @@ def write_top_level_manifests(dist_root: Path, manifests: list[PackageManifest])
         if manifest.status == "ready" and manifest.package_class == "release-safe"
     )
     non_publishable_packages = sorted(
-        manifest.package_id for manifest in manifests if manifest.package_class != "release-safe"
+        manifest.package_id
+        for manifest in manifests
+        if manifest.status != "ready" or manifest.package_class != "release-safe"
     )
+    skipped_packages = sorted(manifest.package_id for manifest in manifests if manifest.status == "skipped")
     local_inputs = {
-        manifest.package_id: manifest.required_local_inputs for manifest in manifests if manifest.required_local_inputs
+        manifest.package_id: manifest.required_local_inputs
+        for manifest in manifests
+        if manifest.status == "ready" and manifest.required_local_inputs
     }
     source_roots = {manifest.package_id: manifest.source_roots for manifest in manifests}
 
@@ -220,6 +293,7 @@ def write_top_level_manifests(dist_root: Path, manifests: list[PackageManifest])
             "schema_version": "1",
             "publishable_packages": publishable_packages,
             "non_publishable_packages": non_publishable_packages,
+            "skipped_packages": skipped_packages,
             "excluded_local_secret_patterns": LOCAL_SECRET_PATH_PATTERNS,
         },
     )
@@ -248,6 +322,8 @@ def assemble_dist(dist_root: Path = DEFAULT_DIST, verbose: bool = True) -> bool:
         manifests.append(assemble_ansible_package(dist_root))
         for package_id, source_dir in TERRAFORM_PACKAGES.items():
             manifests.append(assemble_terraform_package(package_id, source_dir, dist_root))
+        for package_id, package_config in BOOTSTRAP_PACKAGES.items():
+            manifests.append(assemble_bootstrap_package(package_id, package_config, dist_root))
         write_top_level_manifests(dist_root, manifests)
         violations = validate_release_safe_tree(dist_root)
         if violations:
@@ -266,7 +342,8 @@ def assemble_dist(dist_root: Path = DEFAULT_DIST, verbose: bool = True) -> bool:
         print(f"Output: {dist_root}")
         print()
         for manifest in manifests:
-            print(f"OK    {manifest.package_id} [{manifest.package_class}]")
+            marker = "SKIP" if manifest.status == "skipped" else "OK  "
+            print(f"{marker}  {manifest.package_id} [{manifest.package_class}]")
         print()
         print("Manifest schema version: 1")
         print()

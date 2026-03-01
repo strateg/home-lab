@@ -27,6 +27,7 @@ This guide describes the complete deployment strategy for the home lab infrastru
 │  dist/                                                                  │
 │  ├── control/ansible         ← Package-local ansible.cfg + inventory   │
 │  ├── control/terraform/*     ← Package-local Terraform roots           │
+│  ├── bootstrap/*             ← Explicit package map (ready or skipped) │
 │  └── manifests/              ← sources, local inputs, package contract │
 └────────────────────────────────────┬────────────────────────────────────┘
                                      │
@@ -205,6 +206,8 @@ make plan
 # Deploy everything (with confirmations)
 make deploy-all
 ```
+
+`make assemble-dist` also emits explicit bootstrap package entries. If a canonical generated bootstrap source is not ready yet, the package stays visible in `dist/manifests/packages.json` with `status=skipped` instead of silently disappearing.
 
 ### Individual Steps
 

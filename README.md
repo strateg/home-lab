@@ -251,6 +251,10 @@ make validate-dist
 - `make assemble-dist` собирает deploy-ready packages в `dist/`
 - `make validate-dist` проверяет manifests, release-safe policy и доступные внешние validators
 
+Примечание:
+- bootstrap packages в `dist/` теперь перечисляются явно через manifests
+- если canonical generated bootstrap source ещё не готов, пакет остаётся видимым с `status=skipped`
+
 **Пример вывода**:
 ```
 ============================================================
