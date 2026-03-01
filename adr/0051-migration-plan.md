@@ -42,6 +42,8 @@ ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
 1. Создаем ветку миграции
 2. Проверяем baseline
 3. Фиксируем текущие runtime-контракты
+4. Определяем hosts, которые еще существуют только в legacy manual inventory
+5. Добавляем missing durable hosts в topology как prerequisite до cutover
 
 ### Runtime-контракты
 
@@ -72,6 +74,10 @@ cd deploy && make validate
    - secret-local / vault-managed
 4. Фиксируем список tracked secret violations
 5. Для каждого значения определяем owner и целевой путь после миграции
+6. Отдельно помечаем legacy inventory values, которые:
+   - уже противоречат topology
+   - должны генерироваться
+   - описывают hosts, отсутствующие в topology
 
 ### Важно
 
@@ -95,12 +101,12 @@ docs(adr-0051): classify ansible inventory ownership and secret boundaries
 
 ---
 
-## Phase 2: Ввести `ansible/inventory-overrides/` и вынести секреты
+## Phase 2: Минимизировать `inventory-overrides/` и вынести секреты
 
 ### Что делаем
 
 1. Создаем `ansible/inventory-overrides/production/`
-2. Переносим туда tracked manual non-secret vars
+2. Переносим туда только tracked manual non-secret vars, которые действительно являются operator preferences или временными исключениями
 3. Переносим secret-bearing values в vault-managed local files или `.example` шаблоны
 4. Оставляем legacy inventory переходным источником только до cutover
 
@@ -111,6 +117,7 @@ docs(adr-0051): classify ansible inventory ownership and secret boundaries
 3. секреты допускаются только в local-only или vault-managed путях
 4. generated `host_vars` не переопределяются молча через manual override с тем же именем
 5. если intentional override нужен, это должно быть явно зафиксировано в assembler policy
+6. стабильные service facts вроде `ansible_user`, `service_port`, `cores` и `ram` не должны жить в overrides для topology-owned hosts
 
 ### Validation gate
 
@@ -128,7 +135,42 @@ refactor(adr-0051): separate ansible overrides from tracked secret values
 
 ---
 
-## Phase 3: Реализовать assembled runtime inventory
+## Phase 3: Расширить generator для topology-owned service runtime
+
+### Что делаем
+
+1. Выбираем canonical inventory hostname scheme на основе topology IDs
+2. Дорабатываем generator так, чтобы topology-owned hosts получали runtime facts из topology
+3. Для first-party LXC сервисов выводим как минимум:
+   - `ansible_user`
+   - `service_port`
+   - resource profile values, например `cores` и `ram`
+   - service group membership
+   - playbook binding metadata
+4. Убираем зависимость нормального runtime от legacy handwritten service facts
+
+### Минимальный ожидаемый результат
+
+1. `lxc-postgresql` и `lxc-redis` больше не зависят от tracked manual inventory для нормальной работы
+2. generated inventory уже несет нужные service facts для playbook routing
+3. `inventory-overrides` не используется как постоянный источник model data
+
+### Validation gate
+
+```bash
+python3 topology-tools/regenerate-all.py
+ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
+```
+
+### Коммит
+
+```text
+feat(adr-0051): generate topology-owned ansible runtime facts
+```
+
+---
+
+## Phase 4: Реализовать assembled runtime inventory
 
 ### Что делаем
 
@@ -147,7 +189,7 @@ refactor(adr-0051): separate ansible overrides from tracked secret values
 - runtime inventory содержит raw secret values из tracked source
 - manual `host_vars` конфликтуют с generated `host_vars` без explicit allowlist
 
-## Phase 3.5: Dry-Run Comparison
+## Phase 4.5: Dry-Run Comparison
 
 До cutover нужно параллельно сравнить old и new runtime inventory.
 
@@ -155,6 +197,7 @@ refactor(adr-0051): separate ansible overrides from tracked secret values
 1. список хостов
 2. список групп
 3. selected vars для 2-3 эталонных хостов
+4. topology-owned service facts для `lxc-postgresql` и `lxc-redis`
 
 Если differences intentional, они должны быть явно задокументированы в коммите cutover.
 
@@ -176,7 +219,7 @@ feat(adr-0051): add ansible runtime inventory assembler
 
 ---
 
-## Phase 4: Переключить runtime на assembled inventory
+## Phase 5: Переключить runtime на assembled inventory
 
 ### Что делаем
 
@@ -205,7 +248,7 @@ refactor(adr-0051): switch ansible runtime to assembled inventory
 
 ---
 
-## Phase 5: Удалить legacy manual inventory coupling
+## Phase 6: Удалить legacy manual inventory coupling
 
 ### Условия входа
 
@@ -236,7 +279,7 @@ refactor(adr-0051): remove legacy manual inventory coupling
 
 ---
 
-## Phase 6: Принять ADR
+## Phase 7: Принять ADR
 
 ADR можно переводить в `Accepted` только после того, как:
 
@@ -247,10 +290,10 @@ ADR можно переводить в `Accepted` только после тог
 
 ## Rollback
 
-Если после Phase 4 runtime inventory вызывает регрессии:
+Если после Phase 5 runtime inventory вызывает регрессии:
 1. вернуть `ansible/ansible.cfg` на previous inventory target
 2. вернуть `deploy/phases/03-services.sh` на previous inventory target
-3. не удалять legacy manual inventory files до прохождения Phase 5
+3. не удалять legacy manual inventory files до прохождения Phase 6
 4. зафиксировать rollback отдельным revertable commit
 
 ### Коммит

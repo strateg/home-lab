@@ -70,7 +70,50 @@ Rules:
 2. tracked manual overrides may extend runtime behavior, but must not redefine generated host topology
 3. service-level and operator-level overrides belong in `inventory-overrides`, not in generated inventory
 
-### 4. Effective Runtime Inventory Is Assembled
+### 4. Topology-Owned Service Hosts Must Be Generated
+
+For topology-modeled workloads and services, tracked manual inventory is treated as a legacy or planning artifact, not as a canonical source of runtime truth.
+
+This applies in particular to first-party LXC service hosts such as:
+- `lxc-postgresql`
+- `lxc-redis`
+
+Rules:
+1. canonical `inventory_hostname` must match the topology workload or device ID, e.g. `lxc-postgresql` and `lxc-redis`
+2. generated inventory must provide topology-owned runtime facts such as:
+   - connection user
+   - host address
+   - service port
+   - resource profile values such as cores and RAM
+   - service group membership
+   - playbook binding metadata
+3. if a host is still present only in legacy manual inventory, it must be added to topology before cutover
+4. `inventory-overrides` must not be used to introduce durable host definitions that are missing from topology
+5. display-oriented names such as `postgresql-db` or `redis-cache` may exist as metadata, but they must not replace the canonical inventory hostname
+
+The intent is to move modeled infrastructure facts into generation, not to preserve them as tracked handwritten inventory.
+
+### 5. Manual Authored Ansible Remains First-Class
+
+This ADR does not reduce the role of handwritten Ansible. Manual Ansible remains the right place for:
+- playbooks
+- roles
+- templates
+- handlers
+- maintenance workflows
+- recovery scenarios
+- one-off migration or remediation tasks
+
+These manual assets must integrate with generated runtime inventory rather than duplicate topology-owned service facts.
+
+Tracked `inventory-overrides` should remain minimal and focused on operator preferences or temporary, explicit exceptions such as:
+- SSH client arguments
+- feature flags
+- environment-specific log level
+
+If a value is expected to be stable, topology-owned, and required for normal service operation, it should be generated from topology instead of being maintained in overrides.
+
+### 6. Effective Runtime Inventory Is Assembled
 
 An explicit assembly step produces the effective inventory used by Ansible runtime:
 
@@ -97,7 +140,7 @@ Assembly rules:
 
 The goal is deterministic runtime behavior without inventing a YAML merge engine.
 
-### 5. Secret-Bearing Data Must Not Live In Tracked Inventory Source
+### 7. Secret-Bearing Data Must Not Live In Tracked Inventory Source
 
 Tracked inventory source files must not contain:
 - raw passwords
@@ -127,7 +170,7 @@ Examples:
 - encrypted vault content is allowed as `tracked-encrypted`
 - `.vault_pass` must remain `local-secret`
 
-### 6. `ansible.cfg` Must Target The Assembled Runtime Inventory
+### 8. `ansible.cfg` Must Target The Assembled Runtime Inventory
 
 After cutover, the default inventory in `ansible/ansible.cfg` must point to the runtime inventory directory, not a single `hosts.yml` file:
 
@@ -143,7 +186,7 @@ All operator-facing entrypoints must resolve inventory from one canonical place:
 
 Runtime code must not duplicate ad hoc inventory path logic in multiple places.
 
-### 7. Validation Requirements
+### 9. Validation Requirements
 
 ADR 0051 is complete only when all of the following pass:
 1. `python3 topology-tools/regenerate-all.py`
@@ -155,8 +198,9 @@ ADR 0051 is complete only when all of the following pass:
    - host list
    - group membership
    - selected hostvars on representative hosts
+7. topology-owned service hosts no longer depend on tracked manual inventory for normal runtime facts
 
-### 8. Rollback And Safety Rules
+### 10. Rollback And Safety Rules
 
 If assembled runtime inventory causes playbook regressions:
 1. `ansible/ansible.cfg` must be switchable back to the previous inventory target in one revertable commit
@@ -164,7 +208,7 @@ If assembled runtime inventory causes playbook regressions:
 3. legacy manual inventory files must not be deleted before the comparison and cutover gates are passed
 4. rollback must not require reconstructing deleted tracked files from memory or external state
 
-### 9. Explicitly Out Of Scope
+### 11. Explicitly Out Of Scope
 
 ADR 0051 does not decide:
 - `src/` repository restructuring
@@ -186,6 +230,7 @@ Those concerns are deferred to ADR 0052.
 4. Secret handling is clarified before broader packaging work
 5. Rollback becomes simpler because cutover and cleanup are separated
 6. ADR 0052 can build on a stable Ansible contract
+7. Manual Ansible scenarios stay supported without serving as a shadow inventory source
 
 ### Negative / Trade-offs
 
@@ -193,6 +238,7 @@ Those concerns are deferred to ADR 0052.
 2. The repository temporarily keeps both raw generated inventory and assembled runtime inventory
 3. Some tracked values may need manual extraction into vault-managed or local-only files
 4. The assembler needs explicit conflict handling for `host_vars` overrides
+5. Generator coverage must improve before some legacy manual inventory can be removed
 
 ## References
 
