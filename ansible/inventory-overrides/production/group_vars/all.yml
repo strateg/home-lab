@@ -1,0 +1,161 @@
+# Operator Overrides for All Hosts
+# These values extend/override generated inventory
+# Part of ADR 0051: Ansible Runtime, Inventory, and Secret Boundaries
+#
+# Rules:
+# - No raw secrets (passwords, tokens, private keys)
+# - No topology-owned facts (ansible_user, service_port, cores, ram)
+# - Extension vars must use ansible_extensions.* namespace
+
+# ============================================================
+# Environment Configuration
+# ============================================================
+
+environment: production
+datacenter: home-lab
+timezone: UTC
+
+# ============================================================
+# Network Configuration (Operator Preferences)
+# ============================================================
+
+# DNS Configuration (overrides generated dns_servers if needed)
+dns_nameservers:
+  - 192.168.20.1    # AdGuard Home (primary)
+  - 1.1.1.1         # Cloudflare DNS (fallback)
+  - 8.8.8.8         # Google DNS (fallback)
+
+# NTP Configuration
+ntp_servers:
+  - 0.pool.ntp.org
+  - 1.pool.ntp.org
+  - 2.pool.ntp.org
+
+# Domain Configuration
+domain_name: home.local
+search_domains:
+  - home.local
+
+# ============================================================
+# SSH Configuration (Operator Security Policy)
+# ============================================================
+
+ssh_port: 22
+ssh_permit_root_login: "yes"  # For lab environment only!
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+
+# ============================================================
+# Security Configuration (Operator Policy)
+# ============================================================
+
+# Firewall
+firewall_enabled: true
+firewall_default_policy: deny
+
+# Fail2ban
+fail2ban_enabled: true
+fail2ban_bantime: 3600
+fail2ban_maxretry: 5
+
+# Automatic updates (Debian/Ubuntu)
+unattended_upgrades_enabled: true
+unattended_upgrades_auto_reboot: false
+
+# ============================================================
+# Monitoring Configuration (Operator Preferences)
+# ============================================================
+
+# Prometheus Node Exporter
+node_exporter_enabled: true
+node_exporter_port: 9100
+
+# Logging
+log_level: info
+syslog_server: 10.0.30.70  # Prometheus LXC
+
+# ============================================================
+# Backup Configuration (Operator Policy)
+# ============================================================
+
+# Backup destination
+backup_storage: local-hdd
+backup_path: /mnt/hdd/dump
+
+# Retention policy
+backup_retention:
+  keep_last: 3
+  keep_daily: 7
+  keep_weekly: 4
+  keep_monthly: 6
+  keep_yearly: 1
+
+# Backup schedule
+backup_schedule:
+  daily: "02:00"
+  weekly: "03:00"
+  monthly: "04:00"
+
+# ============================================================
+# Package Management (Operator Preferences)
+# ============================================================
+
+# Common packages for all systems
+common_packages:
+  - vim
+  - git
+  - curl
+  - wget
+  - htop
+  - tmux
+  - ncdu
+  - iotop
+  - sysstat
+  - net-tools
+  - dnsutils
+  - traceroute
+  - tcpdump
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# ============================================================
+# Performance Tuning (Operator Preferences)
+# ============================================================
+
+# Swap configuration
+swap_enabled: true
+swap_size_mb: 2048
+swappiness: 10
+
+# File descriptor limits
+file_descriptor_limit: 65536
+
+# ============================================================
+# Feature Flags (Operator Toggles)
+# ============================================================
+
+features:
+  monitoring: true
+  backups: true
+  vpn_servers: true
+  fail2ban: true
+  unattended_upgrades: true
+  node_exporter: true
+
+# ============================================================
+# Tags for Resources
+# ============================================================
+
+default_tags:
+  - ansible-managed
+  - home-lab
+  - production
+
+# ============================================================
+# Ansible Extensions Namespace
+# Reserved for manual integrations (hooks, custom tasks, etc.)
+# See ADR 0051 section 6 for usage patterns
+# ============================================================
+
+ansible_extensions: {}

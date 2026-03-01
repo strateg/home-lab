@@ -9,6 +9,9 @@
 # API tokens
 # Ansible
 # Ansible Vault password files and encrypted secrets
+# ADR 0051: Ansible inventory-overrides secrets
+ansible/inventory-overrides/*/group_vars/all-secrets.yml
+ansible/inventory-overrides/*/host_vars/*-secrets.yml
 # Ansible vault password files
 # Backups
 # Build artifacts
