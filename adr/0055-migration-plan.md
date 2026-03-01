@@ -92,6 +92,22 @@ After real use:
 - move stable repeated patterns into topology/generator logic
 - keep `terraform-overrides/` narrow and exceptional
 
+## Phase 6: Post-Acceptance Documentation And Onboarding
+
+After ADR 0054 and ADR 0055 are accepted and implemented:
+- update `CLAUDE.md` directory structure to include both `local/` and `terraform-overrides/`
+- add a short onboarding diagram to `CLAUDE.md` that shows the three Terraform layers:
+  - generated baseline
+  - tracked overrides
+  - local inputs
+- make that diagram explain how those layers assemble into the final execution root
+
+## Future Follow-Up
+
+If Terraform overrides prove useful and a similar need emerges for configuration-management code beyond the current Ansible model, consider a separate future ADR for an Ansible extension layer.
+
+That future ADR should be justified by concrete use cases rather than created preemptively.
+
 ## Completion Criteria
 
 1. Terraform manual exceptions have a tracked home outside `generated/`

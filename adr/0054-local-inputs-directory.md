@@ -307,6 +307,13 @@ After tooling and docs are switched:
 - keep rollback behavior explicit where necessary
 - ensure preflight never treats old execution copies as canonical
 
+### Phase 5: Post-Acceptance Documentation Alignment
+
+After ADR 0054 is accepted and implementation is stable:
+- update `CLAUDE.md` directory structure to include `local/`
+- update operator onboarding docs to explain that `local/` is the canonical home of untracked operator inputs
+- keep this documentation focused on local inputs only, not tracked Terraform overrides
+
 ## References
 
 - ADR 0050: Generated Directory Restructuring
