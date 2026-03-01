@@ -1,4 +1,4 @@
-# ADR 0051: Build Pipeline and Target-Centric Deploy Packages
+# ADR 0051: Build Pipeline and Deploy Packages
 
 - Status: Proposed
 - Date: 2026-03-01
@@ -7,500 +7,309 @@
 
 ### Current Problems
 
-The project has evolved organically, resulting in several structural issues:
+The repository currently mixes three different kinds of artifacts:
 
-#### 1. Scattered Manual Sources
+1. Manual source files edited by humans:
+   - `ansible/`
+   - `bootstrap/`
+   - `manual-scripts/`
+   - `configs/`
+   - `scripts/`
 
-Manual scripts and configurations are spread across multiple directories:
+2. Generated output produced from topology:
+   - `generated/terraform/`
+   - `generated/ansible/`
+   - `generated/bootstrap/`
+   - `generated/docs/`
 
-| Directory | Content |
-|-----------|---------|
-| `ansible/` | Playbooks, roles, manual inventory |
-| `bootstrap/mikrotik/` | MikroTik bootstrap scripts |
-| `manual-scripts/bare-metal/` | Proxmox USB installer, post-install scripts |
-| `manual-scripts/opi5/` | Orange Pi 5 installation |
-| `manual-scripts/openwrt/` | OpenWRT scripts |
-| `configs/` | Device configs (GL.iNet, VPN) |
-| `scripts/` | Utility scripts |
+3. Runtime entrypoints and orchestration:
+   - `deploy/Makefile`
+   - `deploy/phases/*.sh`
+   - `topology/L7-operations.yaml`
 
-This fragmentation makes it difficult to understand what needs to be deployed where.
+This creates three classes of problems:
 
-#### 2. Duplication Between Manual and Generated
+#### 1. Source Layout Is Hard To Understand
 
-| Artifact | Manual Location | Generated Location |
-|----------|-----------------|-------------------|
-| MikroTik init-terraform.rsc | `bootstrap/mikrotik/init-terraform.rsc` | `generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc` |
-| Ansible inventory hosts.yml | `ansible/inventory/production/hosts.yml` | `generated/ansible/inventory/production/hosts.yml` |
-| Ansible group_vars/all.yml | `ansible/inventory/production/group_vars/all.yml` | `generated/ansible/inventory/production/group_vars/all.yml` |
+Manual inputs are spread across unrelated top-level directories. It is not obvious which files are:
+- canonical source
+- generated output
+- deploy-time runtime material
 
-The manual versions contain richer configuration (admin_users, backup policies, service registry), while generated versions contain only topology-derived data. No clear merge strategy exists.
+#### 2. Some Artifacts Exist In Both Manual And Generated Form
 
-#### 3. No Unified Deploy Artifact
+Examples already present in the repository:
 
-When deploying to a target device, there is no single directory containing everything needed:
-- Terraform files are in `generated/terraform/`
-- Ansible playbooks are in `ansible/playbooks/`
-- Ansible inventory is split between `ansible/inventory/` and `generated/ansible/inventory/`
-- Bootstrap scripts are scattered across multiple locations
+| Artifact | Manual / legacy path | Generated path |
+|----------|----------------------|----------------|
+| MikroTik bootstrap init script | `bootstrap/mikrotik/init-terraform.rsc` | `generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc` |
+| Ansible inventory `hosts.yml` | `ansible/inventory/production/hosts.yml` | `generated/ansible/inventory/production/hosts.yml` |
+| Ansible `group_vars/all.yml` | `ansible/inventory/production/group_vars/all.yml` | `generated/ansible/inventory/production/group_vars/all.yml` |
+| Proxmox `answer.toml` | `manual-scripts/bare-metal/answer.toml` | generated from topology by `topology-tools/generate-proxmox-answer.py` |
 
-#### 4. Unclear Deployment Flow
+The repository does not currently define a safe merge or ownership rule for these overlaps.
 
-The current `deploy/phases/` scripts assume a specific directory layout, but:
-- No clear "build" step assembles all artifacts
-- No validation that all required files exist
-- No versioning of deploy packages
+#### 3. Deployment Boundaries Do Not Match Execution Boundaries
+
+ADR 0050 intentionally organized generated output by tool and root module:
+- Terraform runs from a control machine against external APIs
+- Ansible runs from a control machine against multiple hosts
+- Bootstrap artifacts are device-local and imperative
+
+That means not every artifact can be meaningfully packaged as "everything for one target device":
+- Proxmox Terraform manages VMs and LXCs beyond the physical host
+- Ansible playbooks target `all`, `proxmox`, and `lxc_containers`, not a single device
+- Some artifacts are cross-target by design
 
 ### Requirements
 
-1. **Separation of Concerns**: Clear distinction between manual sources, generated output, and deploy artifacts
-2. **Target-Centric Packaging**: Each target device should have a self-contained deploy package
-3. **Merge Strategy**: Define how manual and generated content combine
-4. **CI/CD Ready**: Build process should produce versioned, deployable artifacts
-5. **Backward Compatible**: Existing workflows should continue to work during migration
+1. Separate manual sources, generated output, and deploy artifacts clearly
+2. Preserve ADR 0050 execution model and Terraform state boundaries
+3. Provide target-centric discoverability without pretending every tool is single-target
+4. Eliminate ambiguous ownership of duplicated artifacts
+5. Avoid packaging secrets into CI artifacts
+6. Migrate without breaking existing `deploy/` and Ansible workflows mid-flight
 
 ## Decision
 
-### 1. Consolidated Source Directory (`src/`)
+### 1. Consolidate Manual Sources Under `src/`
 
-All manual sources consolidate under `src/`:
+Manual, human-maintained inputs move under `src/`:
 
-```
+```text
 src/
 ├── ansible/
-│   ├── playbooks/              # Ansible playbooks
-│   ├── roles/                  # Ansible roles
-│   └── inventory-config/       # Manual inventory configuration
-│       ├── group_vars/
-│       │   └── all.yml         # Rich config: admin_users, backup, services
-│       └── host_vars/
-│           └── *.yml           # Per-host overrides
-│
+│   ├── ansible.cfg
+│   ├── requirements.yml
+│   ├── playbooks/
+│   ├── roles/
+│   ├── group_vars/
+│   ├── inventory-overrides/
+│   │   ├── group_vars/
+│   │   └── host_vars/
+│   └── README.md
 ├── bootstrap/
-│   ├── mikrotik/               # MikroTik manual scripts
-│   │   ├── bootstrap.rsc       # Initial bootstrap
-│   │   └── exported_config.rsc # Reference export
-│   ├── proxmox/                # Proxmox bare-metal
-│   │   ├── create-usb.sh       # USB installer creator
-│   │   ├── answer.toml         # Auto-install answers
-│   │   └── post-install/       # Post-installation scripts
-│   │       ├── 01-install-terraform.sh
-│   │       ├── 02-install-ansible.sh
-│   │       ├── 03-configure-storage.sh
-│   │       ├── 04-configure-network.sh
-│   │       ├── 05-init-git-repo.sh
-│   │       └── 06-enable-zswap.sh
-│   └── opi5/                   # Orange Pi 5
-│       └── install.sh
-│
-├── configs/                    # Device-specific configurations
-│   ├── glinet/
-│   │   ├── home/
-│   │   └── travel/
-│   └── vpn/
-│       ├── oracle-cloud/
-│       └── russia-vps/
-│
-└── scripts/                    # Utility scripts
-    └── *.sh
+│   ├── mikrotik/
+│   ├── proxmox/
+│   ├── opi5/
+│   └── openwrt/
+├── configs/
+└── scripts/
 ```
 
-### 2. Build Pipeline
+Notes:
+- `src/` contains only manual source artifacts
+- generated output remains in `generated/`
+- deploy-ready output is assembled into `dist/`
 
-```
-┌─────────────────┐
-│    topology/    │
-│     L0-L7       │
-└────────┬────────┘
-         │
-         │ [1] generate
-         ▼
-┌─────────────────┐          ┌─────────────────┐
-│   generated/    │          │      src/       │
-│   - terraform/  │          │   - ansible/    │
-│   - ansible/    │          │   - bootstrap/  │
-│   - bootstrap/  │          │   - configs/    │
-│   - docs/       │          └────────┬────────┘
-└────────┬────────┘                   │
-         │                            │
-         │         [2] assemble       │
-         └──────────────┬─────────────┘
-                        ▼
-               ┌─────────────────┐
-               │      dist/      │
-               │  (per-target    │
-               │   packages)     │
-               └────────┬────────┘
-                        │
-                        │ [3] deploy
-                        ▼
-               ┌─────────────────┐
-               │  Target Devices │
-               └─────────────────┘
-```
+### 2. Classify Artifacts Explicitly
 
-**Phase 1: Generate** (`make generate`)
-- Runs `topology-tools/regenerate-all.py`
-- Outputs to `generated/`
+Every deploy-related artifact must belong to one of these classes:
 
-**Phase 2: Assemble** (`make assemble`)
-- Runs `topology-tools/assemble-deploy.py`
-- Merges `generated/` + `src/` → `dist/`
-- Creates per-target packages
+| Class | Meaning | Example | CI artifact eligible |
+|-------|---------|---------|----------------------|
+| `manual-source` | Human-maintained source in git | `src/ansible/playbooks/site.yml` | Yes |
+| `generated` | Deterministic output from topology | `generated/ansible/inventory/production/hosts.yml` | Yes |
+| `assembled` | Runtime package built from manual + generated inputs | `dist/control/ansible/` | Yes, if release-safe |
+| `secret-local` | Local materialization containing secrets or machine-local values | `terraform.tfvars`, `.vault_pass`, production `answer.toml` | No |
 
-**Phase 3: Deploy** (`make deploy-<target>`)
-- Deploys specific target package
-- Or `make deploy-all` for full deployment
+Rules:
+- `terraform.tfvars` is never a committed or release-safe artifact
+- `.vault_pass`, private keys, provider credentials, and production password-bearing `answer.toml` are never included in CI-uploaded packages
+- CI may publish only release-safe `dist/` output
 
-### 3. Target-Centric Deploy Packages (`dist/`)
+### 3. Use Execution-Scope Packages, Not Fake Per-Target Packages
 
-Each target device gets a self-contained package:
+`dist/` packages are assembled by how they are executed:
 
-```
+```text
 dist/
-├── rtr-mikrotik-chateau/
+├── bootstrap/
+│   ├── rtr-mikrotik-chateau/
+│   │   ├── init-terraform.rsc
+│   │   ├── bootstrap.rsc
+│   │   └── README.md
+│   ├── srv-gamayun/
+│   │   ├── answer.toml.example
+│   │   ├── create-uefi-autoinstall-proxmox-usb.sh
+│   │   ├── post-install/
+│   │   └── README.md
+│   └── srv-orangepi5/
+│       ├── cloud-init/
+│       ├── install.sh
+│       └── README.md
+├── control/
 │   ├── terraform/
-│   │   ├── provider.tf
-│   │   ├── interfaces.tf
-│   │   ├── firewall.tf
-│   │   ├── dhcp.tf
-│   │   ├── dns.tf
-│   │   ├── vpn.tf
-│   │   ├── containers.tf
-│   │   ├── qos.tf
-│   │   └── terraform.tfvars
-│   ├── bootstrap/
-│   │   ├── init-terraform.rsc    # ← generated
-│   │   └── bootstrap.rsc         # ← src/bootstrap/mikrotik/
-│   ├── deploy.sh                 # Target-specific deploy script
-│   └── README.md
-│
-├── srv-gamayun/                  # Proxmox server
-│   ├── terraform/
-│   │   ├── provider.tf
-│   │   ├── bridges.tf
-│   │   ├── lxc.tf
-│   │   ├── vms.tf
-│   │   └── terraform.tfvars
-│   ├── ansible/
-│   │   ├── inventory/
-│   │   │   ├── hosts.yml         # ← generated
-│   │   │   ├── group_vars/
-│   │   │   │   └── all.yml       # ← MERGED (generated base + src/ overrides)
-│   │   │   └── host_vars/
-│   │   │       └── *.yml         # ← src/ansible/inventory-config/
-│   │   ├── playbooks/            # ← src/ansible/playbooks/
-│   │   └── roles/                # ← src/ansible/roles/
-│   ├── post-install/             # ← src/bootstrap/proxmox/post-install/
-│   ├── deploy.sh
-│   └── README.md
-│
-├── srv-orangepi5/
-│   ├── cloud-init/               # ← generated/bootstrap/srv-orangepi5/
-│   ├── install.sh                # ← src/bootstrap/opi5/
-│   ├── configs/                  # ← src/configs/ (relevant subset)
-│   ├── deploy.sh
-│   └── README.md
-│
-└── tools/
-    └── usb-installer/            # Proxmox USB installer
-        ├── create-usb.sh         # ← src/bootstrap/proxmox/
-        ├── answer.toml
-        └── README.md
+│   │   ├── mikrotik/
+│   │   └── proxmox/
+│   └── ansible/
+│       ├── ansible.cfg
+│       ├── requirements.yml
+│       ├── inventory/
+│       ├── playbooks/
+│       └── roles/
+└── manifests/
+    ├── targets/
+    │   ├── rtr-mikrotik-chateau.md
+    │   ├── srv-gamayun.md
+    │   └── srv-orangepi5.md
+    └── release-manifest.json
 ```
 
-### 4. Ansible Inventory Merge Strategy
+This preserves two important properties:
+- bootstrap remains device-centric
+- Terraform and Ansible remain control-plane centric
 
-The assembler merges Ansible inventory using overlay approach:
+Target-centric usability is provided by `dist/manifests/targets/*.md`, which points a human to the correct bootstrap and control-plane artifacts for that target.
 
-```yaml
-# dist/srv-gamayun/ansible/inventory/group_vars/all.yml
+### 4. Build Pipeline
 
-# ============================================================
-# BASE CONFIGURATION (from generated)
-# ============================================================
-# Source: generated/ansible/inventory/production/group_vars/all.yml
-
-networks:
-  net-servers:
-    cidr: "10.0.30.0/24"
-    gateway: "10.0.30.1"
-    vlan: 30
-# ... other generated content
-
-# ============================================================
-# EXTENDED CONFIGURATION (from src/)
-# ============================================================
-# Source: src/ansible/inventory-config/group_vars/all.yml
-
-admin_users:
-  - name: admin
-    ssh_keys: ["{{ lookup('file', '~/.ssh/id_rsa.pub') }}"]
-
-backup_retention:
-  keep_last: 3
-  keep_daily: 7
-
-services:
-  postgresql:
-    host: 10.0.30.10
-    port: 5432
-# ... other manual config
+```text
+topology/ + src/
+      |
+      | [1] generate
+      v
+ generated/
+      |
+      | [2] assemble
+      v
+    dist/
+      |
+      | [3] validate
+      v
+ release-safe packages
 ```
 
-**Merge Rules:**
-1. `hosts.yml`: Use generated version (topology is source of truth for hosts)
-2. `group_vars/all.yml`: Deep merge (generated base + src/ extensions)
-3. `host_vars/*.yml`: Copy from src/ (manual overrides only)
+Canonical commands during ADR 0051 migration:
+- `cd deploy && make generate`
+- `cd deploy && make assemble`
+- `cd deploy && make validate-dist`
 
-### 5. Assembler Implementation
+During this ADR, `deploy/Makefile` remains the canonical entrypoint. A root-level wrapper Makefile is optional and out of scope.
 
-New script `topology-tools/assemble-deploy.py`:
+### 5. Ansible Overlay Uses Layered Files, Not YAML Deep Merge
 
-```python
-class DeployAssembler:
-    """Assembles deploy packages from generated + src."""
+The assembler must not implement custom recursive merge semantics for `group_vars/all.yml`.
 
-    TARGETS = {
-        'rtr-mikrotik-chateau': {
-            'type': 'mikrotik',
-            'terraform': 'generated/terraform/mikrotik',
-            'bootstrap_generated': 'generated/bootstrap/rtr-mikrotik-chateau',
-            'bootstrap_manual': 'src/bootstrap/mikrotik',
-        },
-        'srv-gamayun': {
-            'type': 'proxmox',
-            'terraform': 'generated/terraform/proxmox',
-            'ansible_generated': 'generated/ansible/inventory/production',
-            'ansible_manual': 'src/ansible',
-            'bootstrap_manual': 'src/bootstrap/proxmox/post-install',
-        },
-        'srv-orangepi5': {
-            'type': 'sbc',
-            'bootstrap_generated': 'generated/bootstrap/srv-orangepi5',
-            'bootstrap_manual': 'src/bootstrap/opi5',
-        },
-    }
+Instead it assembles layered Ansible vars:
 
-    def assemble_all(self) -> bool:
-        """Assemble all target packages."""
-        for target, config in self.TARGETS.items():
-            self.assemble_target(target, config)
-        return True
-
-    def assemble_target(self, target: str, config: dict) -> None:
-        """Assemble single target package."""
-        dist_dir = Path(f'dist/{target}')
-        dist_dir.mkdir(parents=True, exist_ok=True)
-
-        # Copy terraform
-        if 'terraform' in config:
-            shutil.copytree(config['terraform'], dist_dir / 'terraform')
-
-        # Merge ansible
-        if 'ansible_generated' in config:
-            self.merge_ansible(
-                dist_dir / 'ansible',
-                config['ansible_generated'],
-                config['ansible_manual']
-            )
-
-        # Copy bootstrap (generated + manual)
-        if 'bootstrap_generated' in config:
-            shutil.copytree(config['bootstrap_generated'], dist_dir / 'bootstrap')
-        if 'bootstrap_manual' in config:
-            self.copy_manual_bootstrap(config['bootstrap_manual'], dist_dir / 'bootstrap')
-
-        # Generate deploy script
-        self.generate_deploy_script(target, config, dist_dir)
+```text
+dist/control/ansible/inventory/production/
+├── hosts.yml                         # generated
+├── group_vars/
+│   └── all/
+│       ├── 10-generated.yml         # from generated inventory
+│       └── 90-manual.yml            # from src/ansible/inventory-overrides/group_vars/all.yml
+└── host_vars/
+    ├── lxc-postgresql.yml           # generated or copied by explicit rule
+    └── srv-gamayun.yml              # manual override, if present
 ```
 
-### 6. Updated Makefile
+Rules:
+1. `hosts.yml` comes only from generated topology output
+2. generated `group_vars/all.yml` is copied as `group_vars/all/10-generated.yml`
+3. manual `src/ansible/inventory-overrides/group_vars/all.yml` becomes `group_vars/all/90-manual.yml`
+4. manual `host_vars/*.yml` are copied as overlays
+5. filename ordering, not custom YAML merge code, determines precedence
 
-```makefile
-# ============================================================
-# Build Pipeline
-# ============================================================
+This keeps precedence explicit and debuggable and avoids special handling for lists, Jinja expressions, and mixed scalar types.
 
-.PHONY: generate assemble build clean
+### 6. `answer.toml` Is Generated, Not Manual Source
 
-generate:
-	@echo "=== Generating from topology ==="
-	python3 topology-tools/regenerate-all.py
+`answer.toml` is produced from topology and may contain secret material.
 
-assemble: generate
-	@echo "=== Assembling deploy packages ==="
-	python3 topology-tools/assemble-deploy.py
+Therefore:
+- the source of truth is the generator plus topology
+- `src/bootstrap/proxmox/` stores the scripts and templates around USB creation
+- assembled `dist/bootstrap/srv-gamayun/answer.toml.example` may be release-safe
+- any production `answer.toml` with real password material is `secret-local`
 
-build: assemble
-	@echo "=== Build complete ==="
-	@echo "Deploy packages ready in dist/"
-	@ls -la dist/
+### 7. Compatibility Strategy
 
-clean:
-	rm -rf dist/
-	rm -rf generated/
+Migration must preserve working entrypoints until cutover is complete.
 
-# ============================================================
-# Target-specific Deployment
-# ============================================================
+Compatibility requirements:
+- `deploy/phases/*.sh` must continue to work during intermediate commits
+- Ansible runtime must keep a valid `ansible.cfg` plus working relative paths
+- `topology/L7-operations.yaml` and `topology-tools/regenerate-all.py` must be updated in the same cutover window as the runtime paths they describe
+- legacy paths may remain temporarily as wrappers, sync copies, or clearly marked compatibility shims
 
-deploy-mikrotik: build
-	@echo "=== Deploying to MikroTik ==="
-	cd dist/rtr-mikrotik-chateau && ./deploy.sh
+### 8. Validation Requirements
 
-deploy-proxmox: build
-	@echo "=== Deploying to Proxmox ==="
-	cd dist/srv-gamayun && ./deploy.sh
+Assembler output is valid only if all of the following pass:
 
-deploy-opi5: build
-	@echo "=== Deploying to Orange Pi 5 ==="
-	cd dist/srv-orangepi5 && ./deploy.sh
+1. `python3 topology-tools/regenerate-all.py`
+2. `ansible-inventory -i dist/control/ansible/inventory/production --list`
+3. `terraform validate` for each assembled Terraform root
+4. required bootstrap files exist for each declared target
+5. release-safe validation confirms no `secret-local` files are included in CI artifacts
 
-deploy-all: deploy-mikrotik deploy-proxmox deploy-opi5
+### 9. Explicitly Out Of Scope
 
-# ============================================================
-# CI/CD Targets
-# ============================================================
+This ADR does not perform:
+- topology device ID renaming such as `mikrotik-chateau` to `rtr-mikrotik-chateau`
+- Terraform state migration policy changes beyond ADR 0050
+- root-level Makefile introduction
+- full CI release automation for secret-bearing deploy bundles
 
-ci-build: build
-	@echo "=== Creating release artifact ==="
-	tar -czf home-lab-deploy-$(shell date +%Y%m%d-%H%M%S).tar.gz dist/
-
-ci-validate: build
-	@echo "=== Validating deploy packages ==="
-	cd dist/rtr-mikrotik-chateau/terraform && terraform validate
-	cd dist/srv-gamayun/terraform && terraform validate
-	cd dist/srv-gamayun/ansible && ansible-inventory -i inventory --list > /dev/null
-```
-
-### 7. CI/CD Integration
-
-```yaml
-# .github/workflows/build-deploy.yml
-name: Build Deploy Packages
-
-on:
-  push:
-    branches: [main]
-    paths:
-      - 'topology/**'
-      - 'src/**'
-      - 'topology-tools/**'
-  pull_request:
-    branches: [main]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install -r topology-tools/requirements.txt
-
-      - name: Generate from topology
-        run: make generate
-
-      - name: Assemble deploy packages
-        run: make assemble
-
-      - name: Validate packages
-        run: make ci-validate
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: deploy-packages-${{ github.sha }}
-          path: dist/
-          retention-days: 30
-
-  release:
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: deploy-packages-${{ github.sha }}
-
-      - name: Create release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: deploy-${{ github.run_number }}
-          files: |
-            dist/**/*
-```
+If device identity cleanup is desired, it must be handled by a separate ADR and migration plan.
 
 ## Consequences
 
 ### Positive
 
-1. **Clear Separation**: `topology/` → `generated/` → `dist/` pipeline is explicit
-2. **Target-Centric**: Each device has everything it needs in one directory
-3. **No Duplication**: Single source for each artifact type
-4. **Merge Strategy**: Defined rules for combining generated and manual content
-5. **CI/CD Ready**: Automated builds produce versioned artifacts
-6. **Self-Documenting**: Each `dist/<target>/` contains its own README
+1. Manual, generated, and assembled artifacts become distinct and auditable
+2. Packaging matches real execution boundaries
+3. Ansible precedence becomes deterministic without a custom merge engine
+4. CI artifact policy becomes compatible with secret hygiene
+5. Target-centric discoverability is preserved via manifests and bootstrap folders
 
 ### Negative / Trade-offs
 
-1. **Migration Required**: Existing scripts need to be moved to `src/`
-2. **Build Step**: Deployment now requires explicit `make build` step
-3. **Disk Space**: `dist/` duplicates some content from `src/` and `generated/`
-4. **Learning Curve**: Team needs to understand new workflow
+1. `dist/` is slightly less visually simple than "one directory per target"
+2. Migration requires temporary compatibility shims
+3. The assembler must understand both release-safe and local-only outputs
+4. Documentation and runbooks must be updated in lockstep with runtime paths
 
-### Migration Impact
+## Implementation Outline
 
-| Current Location | New Location |
-|------------------|--------------|
-| `ansible/playbooks/` | `src/ansible/playbooks/` |
-| `ansible/roles/` | `src/ansible/roles/` |
-| `ansible/inventory/production/group_vars/` | `src/ansible/inventory-config/group_vars/` |
-| `bootstrap/mikrotik/` | `src/bootstrap/mikrotik/` |
-| `manual-scripts/bare-metal/` | `src/bootstrap/proxmox/` |
-| `manual-scripts/opi5/` | `src/bootstrap/opi5/` |
-| `configs/` | `src/configs/` |
-| `scripts/` | `src/scripts/` |
+### Phase 1: Prepare Source Tree
 
-**Deprecated (to be removed):**
-- `ansible/inventory/production/hosts.yml` — use generated version
-- `bootstrap/mikrotik/init-terraform.rsc` — use generated version
-
-## Implementation Phases
-
-### Phase 1: Create `src/` Structure
-1. Create `src/` directory structure
-2. Move manual sources (preserve git history with `git mv`)
-3. Update `.gitignore` for `dist/`
+1. Create `src/` structure
+2. Move manual sources with `git mv`
+3. Keep existing runtime entrypoints working
 
 ### Phase 2: Implement Assembler
+
 1. Create `topology-tools/assemble-deploy.py`
-2. Implement target-specific assembly logic
-3. Implement Ansible inventory merge
+2. Assemble execution-scope packages in `dist/`
+3. Generate target manifests
+4. Add release-safe validation
 
-### Phase 3: Update Build System
-1. Update `deploy/Makefile` with new targets
-2. Create per-target `deploy.sh` scripts
-3. Add `ci-validate` target
+### Phase 3: Cut Over Runtime Paths
 
-### Phase 4: CI/CD Integration
-1. Create GitHub Actions workflow
-2. Add artifact upload
-3. Optional: auto-release on main
+1. Update `deploy/Makefile`
+2. Update `deploy/phases/*.sh`
+3. Update `topology/L7-operations.yaml`
+4. Update `topology-tools/regenerate-all.py`
+
+### Phase 4: Validate
+
+1. Regenerate all outputs
+2. Validate assembled Terraform roots
+3. Validate assembled Ansible inventory
+4. Verify bootstrap artifacts and manifests
 
 ### Phase 5: Cleanup
-1. Remove deprecated duplicate files
-2. Update CLAUDE.md with new workflow
-3. Update documentation
+
+1. Remove deprecated duplicates after cutover
+2. Remove temporary compatibility shims
+3. Update documentation and ADR status
 
 ## References
 
 - ADR 0050: Generated Directory Restructuring
 - ADR 0028: topology-tools Architecture Consolidation
-- CLAUDE.md: Project Guidelines
+- `deploy/Makefile`
+- `deploy/phases/03-services.sh`
+- `topology/L7-operations.yaml`

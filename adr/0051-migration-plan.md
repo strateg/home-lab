@@ -1,493 +1,344 @@
 # ADR 0051: Migration Plan
 
-План миграции к новой структуре с сохранением git history.
+План миграции к `src/` + `dist/` без поломки текущего workflow.
 
-## Принципы миграции
+## Цели
 
-1. Использовать `git mv` для сохранения истории
-2. Выполнять атомарные коммиты по фазам
-3. Обновлять ссылки в коде после каждой фазы
-4. Не ломать существующий workflow до завершения
+1. Разделить manual source, generated output и assembled deploy artifacts
+2. Не ломать текущие entrypoint'ы по пути миграции
+3. Не смешивать файловую реструктуризацию с отдельными семантическими миграциями
+4. Ввести validation gate после каждой фазы
+
+## Что не входит в этот план
+
+Этот план не делает:
+- переименование device ID `mikrotik-chateau -> rtr-mikrotik-chateau`
+- удаление topology alias'ов
+- публикацию secret-bearing артефактов в CI
+- немедленный перенос `deploy/Makefile` в корень репозитория
+
+Если понадобится cleanup device identity, это отдельная миграция.
+
+## Принципы
+
+1. Использовать `git mv` там, где реально переносится tracked file
+2. Делать атомарные коммиты с рабочим состоянием после каждого коммита
+3. Сначала добавлять совместимость, потом переключать runtime, потом удалять legacy
+4. Не принимать ADR как `Accepted`, пока assembler и validation не реализованы полностью
+5. Не полагаться на пустые директории как на результат коммита
+
+## Базовый validation gate
+
+Перед началом миграции нужно зафиксировать baseline:
+
+```bash
+git status
+python3 topology-tools/regenerate-all.py
+cd deploy && make validate
+ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
+```
+
+Если что-то из baseline уже не работает, сначала надо стабилизировать текущее состояние, потом мигрировать.
 
 ---
 
 ## Phase 0: Подготовка
 
-```bash
-# Убедиться что working tree чистый
-git status
+### Что делаем
 
-# Создать ветку миграции
+1. Создаем ветку миграции
+2. Проверяем baseline
+3. Фиксируем список runtime-зависимостей, которые нельзя ломать промежуточными коммитами
+
+### Runtime-контракты, которые должны остаться рабочими до cutover
+
+- `deploy/phases/*.sh`
+- `deploy/Makefile`
+- `ansible/ansible.cfg`
+- `topology/L7-operations.yaml`
+- `topology-tools/regenerate-all.py`
+
+### Команды
+
+```bash
 git checkout -b refactor/adr-0051-build-pipeline
+python3 topology-tools/regenerate-all.py
+cd deploy && make validate
+```
 
-# Обновить .gitignore
-cat >> .gitignore << 'EOF'
+### Коммит
 
-# ADR 0051: Build pipeline
-dist/
-EOF
+На этой фазе коммит не обязателен.
 
-git add .gitignore
-git commit -m "chore: prepare for ADR 0051 migration
+---
 
-Add dist/ to .gitignore"
+## Phase 1: Создать `src/` и перенести manual source без cutover runtime
+
+### Что делаем
+
+1. Создаем `src/`
+2. Переносим manual source в `src/`
+3. Оставляем совместимые точки входа, если runtime все еще ожидает старые пути
+
+### Важно
+
+- Не удалять `ansible/` целиком на этой фазе
+- Не удалять `bootstrap/` целиком на этой фазе
+- Не удалять `manual-scripts/`, если на них еще ссылаются runbook'и, docs или post-install скрипты
+- Для директорий, которые должны появиться в git до наполнения, использовать `.gitkeep`
+
+### Рекомендуемый scope переноса
+
+Переносить только manual source:
+- `ansible/playbooks -> src/ansible/playbooks`
+- `ansible/roles -> src/ansible/roles`
+- `ansible/group_vars -> src/ansible/group_vars`
+- `ansible/requirements.yml -> src/ansible/requirements.yml`
+- `ansible/vault-helper.sh -> src/ansible/vault-helper.sh`
+- `ansible/README.md -> src/ansible/README.md`
+- `bootstrap/mikrotik -> src/bootstrap/mikrotik`
+- `manual-scripts/bare-metal -> src/bootstrap/proxmox`
+- `manual-scripts/opi5 -> src/bootstrap/opi5`
+- `manual-scripts/openwrt -> src/bootstrap/openwrt`
+- `configs -> src/configs`
+- `scripts -> src/scripts`
+
+### Что не переносить как manual source
+
+- `generated/**`
+- production `terraform.tfvars`
+- `.vault_pass`
+- production `answer.toml` с реальными секретами
+
+### Особый случай: Ansible inventory override
+
+Не удалять сразу `ansible/inventory/production/group_vars/all.yml`.
+
+Сначала:
+1. скопировать или перенести manual-overrides в `src/ansible/inventory-overrides/`
+2. убедиться, что assembler умеет их корректно собирать
+3. только потом убирать legacy-path
+
+### Validation gate
+
+После этой фазы должно оставаться рабочим:
+
+```bash
+python3 topology-tools/regenerate-all.py
+cd deploy && make validate
+```
+
+### Коммит
+
+```text
+refactor(adr-0051): move manual sources to src with legacy runtime intact
 ```
 
 ---
 
-## Phase 1: Создание структуры `src/`
+## Phase 2: Реализовать assembler и release-safe validation
+
+### Что делаем
+
+1. Создаем `topology-tools/assemble-deploy.py`
+2. Собираем `dist/` по execution scope:
+   - `dist/bootstrap/<device-id>/`
+   - `dist/control/terraform/{mikrotik,proxmox}/`
+   - `dist/control/ansible/`
+   - `dist/manifests/targets/*.md`
+3. Добавляем deterministic overlay для Ansible без custom deep merge
+4. Добавляем проверку release-safe содержимого
+
+### Ansible strategy
+
+Assembler должен:
+- брать `generated/ansible/inventory/production/hosts.yml` как source of truth
+- копировать generated `group_vars/all.yml` в `group_vars/all/10-generated.yml`
+- копировать manual override в `group_vars/all/90-manual.yml`
+- копировать manual `host_vars/*.yml` как overlay
+
+### Что считать ошибкой assembler
+
+Assembler должен падать, если:
+- отсутствует обязательный generated input
+- отсутствует обязательный manual input для target manifest
+- в release-safe `dist/` попали `*.tfvars`, `.vault_pass`, private keys или production `answer.toml`
+
+### Validation gate
 
 ```bash
-# Создать директории
-mkdir -p src/ansible
-mkdir -p src/bootstrap
-mkdir -p src/configs
-mkdir -p src/scripts
+python3 topology-tools/regenerate-all.py
+python3 topology-tools/assemble-deploy.py
+ansible-inventory -i dist/control/ansible/inventory/production --list > /dev/null
+cd dist/control/terraform/mikrotik && terraform validate
+cd dist/control/terraform/proxmox && terraform validate
+```
 
-git add src/
-git commit -m "chore(adr-0051): create src/ directory structure"
+### Коммит
+
+```text
+feat(adr-0051): add deploy assembler and dist validation
 ```
 
 ---
 
-## Phase 2: Миграция Ansible
+## Phase 3: Подключить `deploy/` к assembled output
 
-### 2.1 Playbooks и Roles (просто перемещаем)
+### Что делаем
+
+1. Обновляем `deploy/Makefile`
+2. Обновляем `deploy/phases/*.sh`
+3. Переводим runtime на `dist/`, но при необходимости оставляем временный fallback
+
+### Правило cutover
+
+Все runtime entrypoint'ы должны переключаться в одном батче:
+- `deploy/Makefile`
+- `deploy/phases/03-services.sh`
+- другие `deploy/phases/*.sh`, если они читают старые пути
+
+Нельзя:
+- сначала удалить `ansible/`
+- потом в следующем коммите чинить `deploy/phases/03-services.sh`
+
+### Канонические команды после этой фазы
 
 ```bash
-# Переместить playbooks
-git mv ansible/playbooks src/ansible/playbooks
-
-# Переместить roles
-git mv ansible/roles src/ansible/roles
-
-# Переместить вспомогательные файлы
-git mv ansible/requirements.yml src/ansible/requirements.yml
-git mv ansible/vault-helper.sh src/ansible/vault-helper.sh
-
-# Переместить group_vars (общие, не inventory-specific)
-git mv ansible/group_vars src/ansible/group_vars
-
-git commit -m "refactor(adr-0051): move ansible playbooks, roles to src/
-
-- src/ansible/playbooks/ - all playbooks
-- src/ansible/roles/ - all roles
-- src/ansible/group_vars/ - vault and common vars
-- src/ansible/requirements.yml - galaxy requirements"
+cd deploy && make generate
+cd deploy && make assemble
+cd deploy && make validate-dist
 ```
 
-### 2.2 Manual Inventory Config
+### Validation gate
 
 ```bash
-# Создать директорию для manual inventory config
-mkdir -p src/ansible/inventory-config/group_vars
-mkdir -p src/ansible/inventory-config/host_vars
-
-# Переместить manual group_vars (богатая конфигурация)
-git mv ansible/inventory/production/group_vars/all.yml \
-       src/ansible/inventory-config/group_vars/all.yml
-
-# Удалить остатки manual inventory (hosts.yml будет generated)
-# ВАЖНО: hosts.yml дублирует generated, удаляем
-git rm ansible/inventory/production/hosts.yml
-
-# Удалить пустые директории
-rmdir ansible/inventory/production/group_vars 2>/dev/null || true
-rmdir ansible/inventory/production 2>/dev/null || true
-rmdir ansible/inventory/host_vars 2>/dev/null || true
-rmdir ansible/inventory/group_vars 2>/dev/null || true
-rmdir ansible/inventory 2>/dev/null || true
-
-git commit -m "refactor(adr-0051): consolidate ansible inventory config
-
-- src/ansible/inventory-config/group_vars/all.yml - manual rich config
-- Remove duplicate hosts.yml (use generated version)
-- Generated inventory remains in generated/ansible/inventory/"
+cd deploy && make generate
+cd deploy && make assemble
+cd deploy && make validate-dist
 ```
 
-### 2.3 Удалить пустую ansible/
+### Коммит
 
-```bash
-# Проверить что ansible/ пуста
-ls -la ansible/
-
-# Если пуста - удалить
-rmdir ansible 2>/dev/null || echo "ansible/ not empty, check contents"
-
-git commit -m "refactor(adr-0051): remove empty ansible/ directory" --allow-empty
+```text
+refactor(adr-0051): switch deploy runtime to assembled dist packages
 ```
 
 ---
 
-## Phase 3: Миграция Bootstrap Scripts
+## Phase 4: Обновить orchestration и документацию
 
-### 3.1 MikroTik Bootstrap
+### Что делаем
+
+Обновляем все документы и runbook'и, которые описывают старые пути:
+- `topology/L7-operations.yaml`
+- `topology-tools/regenerate-all.py`
+- `CLAUDE.md`
+- `README.md`
+- `docs/**`
+- `.github/workflows/**`
+
+### Важно
+
+CI в этом репозитории сейчас ставит зависимости через:
 
 ```bash
-# Переместить manual MikroTik scripts
-git mv bootstrap/mikrotik src/bootstrap/mikrotik
-
-git commit -m "refactor(adr-0051): move mikrotik bootstrap to src/
-
-Manual scripts:
-- src/bootstrap/mikrotik/bootstrap.rsc
-- src/bootstrap/mikrotik/exported_config.rsc
-- src/bootstrap/mikrotik/exported_config_safe.rsc
-
-Note: init-terraform.rsc duplicates generated version, will be removed"
+python -m pip install -e .[dev]
 ```
 
-### 3.2 Удалить дубликат init-terraform.rsc
+Поэтому новый workflow не должен переходить на несуществующий `topology-tools/requirements.txt`, пока такой файл реально не введен в проект.
 
-```bash
-# init-terraform.rsc генерируется в generated/bootstrap/rtr-mikrotik-chateau/
-# Удалить manual версию
-git rm src/bootstrap/mikrotik/init-terraform.rsc
+### Validation gate
 
-git commit -m "refactor(adr-0051): remove duplicate init-terraform.rsc
+1. Локальные команды из runbook'ов соответствуют реальным путям
+2. CI workflow использует реальный способ установки зависимостей
+3. `topology/L7-operations.yaml` больше не ссылается на legacy path
 
-Use generated version: generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc"
-```
+### Коммит
 
-### 3.3 Proxmox Bare-Metal
-
-```bash
-# Переместить bare-metal scripts
-git mv manual-scripts/bare-metal src/bootstrap/proxmox
-
-git commit -m "refactor(adr-0051): move proxmox bare-metal to src/bootstrap/
-
-- src/bootstrap/proxmox/create-uefi-autoinstall-proxmox-usb.sh
-- src/bootstrap/proxmox/answer.toml
-- src/bootstrap/proxmox/post-install/
-- src/bootstrap/proxmox/docs/"
-```
-
-### 3.4 Orange Pi 5
-
-```bash
-# Переместить OPi5 scripts
-git mv manual-scripts/opi5 src/bootstrap/opi5
-
-git commit -m "refactor(adr-0051): move opi5 scripts to src/bootstrap/"
-```
-
-### 3.5 OpenWRT Scripts
-
-```bash
-# Переместить OpenWRT scripts
-git mv manual-scripts/openwrt src/bootstrap/openwrt
-
-git commit -m "refactor(adr-0051): move openwrt scripts to src/bootstrap/"
-```
-
-### 3.6 Очистить manual-scripts/
-
-```bash
-# Проверить что осталось
-ls -la manual-scripts/
-
-# Удалить архив если не нужен
-git rm -r manual-scripts/archive 2>/dev/null || true
-
-# Logger - утилита, переместить в scripts
-git mv manual-scripts/claude-logger.py src/scripts/claude-logger.py
-git mv manual-scripts/requirements-logger.txt src/scripts/requirements-logger.txt
-git mv manual-scripts/LOGGER-README.md src/scripts/LOGGER-README.md
-
-# Удалить пустую директорию
-rmdir manual-scripts 2>/dev/null || true
-
-git commit -m "refactor(adr-0051): consolidate manual-scripts/
-
-- Logger utility moved to src/scripts/
-- Archive removed
-- manual-scripts/ directory removed"
+```text
+docs(adr-0051): update runbooks and CI to src/dist workflow
 ```
 
 ---
 
-## Phase 4: Миграция Configs
+## Phase 5: Удалить legacy path после cutover
+
+### Условия входа в фазу
+
+Эту фазу можно делать только если:
+
+1. assembler реализован полностью
+2. `deploy/` уже работает с `dist/`
+3. docs и runbook'и уже обновлены
+4. validation gate предыдущей фазы пройден
+
+### Что можно удалять
+
+Только реально deprecated path:
+- legacy manual inventory path
+- legacy duplicate bootstrap files
+- compatibility shims
+- старые директории, на которые больше нет runtime-ссылок
+
+### Что нельзя удалять в рамках этой фазы
+
+- `topology/L1-foundation/devices/owned/network/mikrotik-chateau.yaml`
+
+Это не cleanup path, а изменение topology identity.
+
+### Validation gate
 
 ```bash
-# Переместить configs
-git mv configs src/configs
+python3 topology-tools/regenerate-all.py
+python3 topology-tools/assemble-deploy.py
+cd deploy && make validate-dist
+git grep -n "ansible/|manual-scripts/|bootstrap/" -- . ":(exclude)Migrated_and_archived"
+```
 
-git commit -m "refactor(adr-0051): move configs to src/
+Последняя команда используется как ручная проверка оставшихся ссылок. Каждое совпадение надо просмотреть, а не удалять автоматически.
 
-- src/configs/glinet/ - GL.iNet router configs
-- src/configs/vpn/ - VPN configurations
-- src/configs/services/ - service configs"
+### Коммит
+
+```text
+refactor(adr-0051): remove legacy paths after src/dist cutover
 ```
 
 ---
 
-## Phase 5: Миграция Scripts
+## Phase 6: Принять ADR
 
-```bash
-# Переместить utility scripts
-git mv scripts/fix_whitespace.py src/scripts/fix_whitespace.py
-git mv scripts/*.cmd src/scripts/ 2>/dev/null || true
+ADR можно переводить в `Accepted` только после того, как:
 
-# Удалить пустую директорию
-rmdir scripts 2>/dev/null || true
+1. все validation gate пройдены
+2. assembler не skeleton, а рабочий инструмент
+3. `deploy/` реально использует `dist/`
+4. documentation и CI соответствуют реальному workflow
 
-git commit -m "refactor(adr-0051): move utility scripts to src/scripts/"
+### Коммит
+
+```text
+docs(adr-0051): accept ADR after successful cutover
 ```
 
 ---
 
-## Phase 6: Удалить пустую bootstrap/
+## Рекомендуемая последовательность коммитов
 
-```bash
-# Проверить
-ls -la bootstrap/
+1. `refactor(adr-0051): move manual sources to src with legacy runtime intact`
+2. `feat(adr-0051): add deploy assembler and dist validation`
+3. `refactor(adr-0051): switch deploy runtime to assembled dist packages`
+4. `docs(adr-0051): update runbooks and CI to src/dist workflow`
+5. `refactor(adr-0051): remove legacy paths after src/dist cutover`
+6. `docs(adr-0051): accept ADR after successful cutover`
 
-# Удалить README если есть
-git rm bootstrap/mikrotik/README.md 2>/dev/null || true
+## Критерии завершения
 
-# Удалить пустые директории
-rmdir bootstrap/mikrotik 2>/dev/null || true
-rmdir bootstrap 2>/dev/null || true
+Миграция считается завершенной, когда:
 
-git commit -m "refactor(adr-0051): remove empty bootstrap/ directory"
-```
-
----
-
-## Phase 7: Удалить дубликат MikroTik device
-
-```bash
-# Удалить дубликат (оставить rtr-mikrotik-chateau.yaml)
-git rm topology/L1-foundation/devices/owned/network/mikrotik-chateau.yaml
-
-git commit -m "fix(topology): remove duplicate mikrotik-chateau.yaml
-
-Keep rtr-mikrotik-chateau.yaml as canonical (follows naming convention)"
-```
-
----
-
-## Phase 8: Обновить ссылки в коде
-
-### 8.1 Обновить deploy/Makefile
-
-```bash
-# Обновить пути в Makefile
-# (потребуется редактирование)
-```
-
-### 8.2 Обновить CLAUDE.md
-
-```bash
-# Обновить документацию структуры
-# (потребуется редактирование)
-```
-
-### 8.3 Обновить .github/workflows (если есть)
-
-```bash
-# Обновить CI пути
-```
-
-```bash
-git add -A
-git commit -m "docs(adr-0051): update references to new src/ structure"
-```
-
----
-
-## Phase 9: Создать Assembler
-
-```bash
-# Создать assembler script
-cat > topology-tools/assemble-deploy.py << 'EOF'
-#!/usr/bin/env python3
-"""Assemble deploy packages from generated + src."""
-# TODO: Implement based on ADR 0051
-pass
-EOF
-
-chmod +x topology-tools/assemble-deploy.py
-
-git add topology-tools/assemble-deploy.py
-git commit -m "feat(adr-0051): add deploy package assembler skeleton"
-```
-
----
-
-## Phase 10: Финализация
-
-```bash
-# Обновить ADR статус
-sed -i 's/Status: Proposed/Status: Accepted/' adr/0051-build-pipeline-and-deploy-packages.md
-
-# Обновить дату
-sed -i 's/Date: 2026-03-01/Date: 2026-03-01 (Accepted)/' adr/0051-build-pipeline-and-deploy-packages.md
-
-git add adr/
-git commit -m "docs(adr-0051): accept ADR after migration complete"
-
-# Merge в main
-git checkout main
-git merge refactor/adr-0051-build-pipeline
-```
-
----
-
-## Итоговая структура после миграции
-
-```
-home-lab/
-├── topology/                      # L0-L7 (без изменений)
-├── topology-tools/                # Generators (без изменений)
-│   └── assemble-deploy.py         # NEW
-│
-├── src/                           # NEW: All manual sources
-│   ├── ansible/
-│   │   ├── playbooks/             # ← ansible/playbooks/
-│   │   ├── roles/                 # ← ansible/roles/
-│   │   ├── group_vars/            # ← ansible/group_vars/
-│   │   ├── inventory-config/      # ← ansible/inventory/production/group_vars/
-│   │   │   └── group_vars/
-│   │   │       └── all.yml
-│   │   ├── requirements.yml       # ← ansible/requirements.yml
-│   │   └── vault-helper.sh        # ← ansible/vault-helper.sh
-│   │
-│   ├── bootstrap/
-│   │   ├── mikrotik/              # ← bootstrap/mikrotik/
-│   │   │   ├── bootstrap.rsc
-│   │   │   ├── exported_config.rsc
-│   │   │   └── exported_config_safe.rsc
-│   │   ├── proxmox/               # ← manual-scripts/bare-metal/
-│   │   │   ├── create-uefi-autoinstall-proxmox-usb.sh
-│   │   │   ├── answer.toml
-│   │   │   ├── post-install/
-│   │   │   └── docs/
-│   │   ├── opi5/                  # ← manual-scripts/opi5/
-│   │   │   └── install.sh
-│   │   └── openwrt/               # ← manual-scripts/openwrt/
-│   │
-│   ├── configs/                   # ← configs/
-│   │   ├── glinet/
-│   │   ├── vpn/
-│   │   └── services/
-│   │
-│   └── scripts/                   # ← scripts/ + manual-scripts/*.py
-│       ├── claude-logger.py
-│       ├── fix_whitespace.py
-│       └── *.cmd
-│
-├── generated/                     # (без изменений)
-│   ├── terraform/
-│   ├── ansible/inventory/
-│   ├── bootstrap/
-│   └── docs/
-│
-├── dist/                          # NEW: Deploy packages (gitignored)
-│
-├── deploy/                        # (без изменений)
-├── tests/                         # (без изменений)
-├── docs/                          # (без изменений)
-└── adr/                           # (без изменений)
-```
-
----
-
-## Удалённые директории
-
-| Старый путь | Причина |
-|-------------|---------|
-| `ansible/` | Перемещено в `src/ansible/` |
-| `bootstrap/` | Перемещено в `src/bootstrap/` |
-| `manual-scripts/` | Перемещено в `src/bootstrap/` и `src/scripts/` |
-| `configs/` | Перемещено в `src/configs/` |
-| `scripts/` | Перемещено в `src/scripts/` |
-
-## Удалённые файлы (дубликаты)
-
-| Файл | Причина |
-|------|---------|
-| `ansible/inventory/production/hosts.yml` | Дубликат generated версии |
-| `bootstrap/mikrotik/init-terraform.rsc` | Дубликат generated версии |
-| `topology/L1-foundation/devices/owned/network/mikrotik-chateau.yaml` | Дубликат rtr-mikrotik-chateau.yaml |
-
----
-
-## Команды для выполнения (копипаст)
-
-```bash
-#!/bin/bash
-# Full migration script
-set -e
-
-echo "=== Phase 0: Preparation ==="
-git checkout -b refactor/adr-0051-build-pipeline
-echo "dist/" >> .gitignore
-git add .gitignore
-git commit -m "chore: prepare for ADR 0051 migration"
-
-echo "=== Phase 1: Create src/ structure ==="
-mkdir -p src/ansible src/bootstrap src/configs src/scripts
-git add src/
-git commit -m "chore(adr-0051): create src/ directory structure" --allow-empty
-
-echo "=== Phase 2: Migrate Ansible ==="
-git mv ansible/playbooks src/ansible/playbooks
-git mv ansible/roles src/ansible/roles
-git mv ansible/requirements.yml src/ansible/requirements.yml
-git mv ansible/vault-helper.sh src/ansible/vault-helper.sh
-git mv ansible/group_vars src/ansible/group_vars
-git commit -m "refactor(adr-0051): move ansible playbooks, roles to src/"
-
-mkdir -p src/ansible/inventory-config/group_vars
-mkdir -p src/ansible/inventory-config/host_vars
-git mv ansible/inventory/production/group_vars/all.yml src/ansible/inventory-config/group_vars/all.yml
-git rm ansible/inventory/production/hosts.yml
-git commit -m "refactor(adr-0051): consolidate ansible inventory config"
-
-echo "=== Phase 3: Migrate Bootstrap ==="
-git mv bootstrap/mikrotik src/bootstrap/mikrotik
-git commit -m "refactor(adr-0051): move mikrotik bootstrap to src/"
-
-git rm src/bootstrap/mikrotik/init-terraform.rsc
-git commit -m "refactor(adr-0051): remove duplicate init-terraform.rsc"
-
-git mv manual-scripts/bare-metal src/bootstrap/proxmox
-git commit -m "refactor(adr-0051): move proxmox bare-metal to src/bootstrap/"
-
-git mv manual-scripts/opi5 src/bootstrap/opi5
-git commit -m "refactor(adr-0051): move opi5 scripts to src/bootstrap/"
-
-git mv manual-scripts/openwrt src/bootstrap/openwrt
-git commit -m "refactor(adr-0051): move openwrt scripts to src/bootstrap/"
-
-git mv manual-scripts/claude-logger.py src/scripts/
-git mv manual-scripts/requirements-logger.txt src/scripts/
-git mv manual-scripts/LOGGER-README.md src/scripts/
-git rm -r manual-scripts/archive 2>/dev/null || true
-git commit -m "refactor(adr-0051): consolidate manual-scripts/"
-
-echo "=== Phase 4: Migrate Configs ==="
-git mv configs src/configs
-git commit -m "refactor(adr-0051): move configs to src/"
-
-echo "=== Phase 5: Migrate Scripts ==="
-git mv scripts/fix_whitespace.py src/scripts/
-git mv scripts/*.cmd src/scripts/ 2>/dev/null || true
-git commit -m "refactor(adr-0051): move utility scripts to src/scripts/"
-
-echo "=== Phase 6: Cleanup ==="
-# Remove empty directories (git doesn't track them)
-
-echo "=== Phase 7: Remove MikroTik duplicate ==="
-git rm topology/L1-foundation/devices/owned/network/mikrotik-chateau.yaml
-git commit -m "fix(topology): remove duplicate mikrotik-chateau.yaml"
-
-echo "=== Migration complete ==="
-echo "Next steps:"
-echo "1. Update deploy/Makefile paths"
-echo "2. Update CLAUDE.md documentation"
-echo "3. Create assembler script"
-echo "4. Test regeneration"
-```
+1. manual source живет в `src/`
+2. generated output живет в `generated/`
+3. assembled runtime output живет в `dist/`
+4. `deploy/` работает через `dist/`
+5. CI публикует только release-safe артефакты
+6. legacy path удалены
+7. отдельные semantic migration не были случайно смешаны с этой файловой реструктуризацией
