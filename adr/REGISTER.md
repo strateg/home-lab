@@ -51,5 +51,5 @@
 | [0048](0048-topology-v4-architecture-consolidation.md) | Topology v4 Architecture Consolidation | Accepted | 2026-02-28 | [0049](0049-mikrotik-bootstrap-automation.md), [0050](0050-generated-directory-restructuring.md) | - |
 | [0049](0049-mikrotik-bootstrap-automation.md) | MikroTik Bootstrap Automation | Proposed | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
 | [0050](0050-generated-directory-restructuring.md) | Generated Directory Restructuring | Accepted | 2026-02-28 | - | - |
-| [0051](0051-ansible-runtime-and-secrets.md) | Ansible Runtime, Inventory, and Secret Boundaries | Proposed | 2026-03-01 | - | - |
+| [0051](0051-ansible-runtime-and-secrets.md) | Ansible Runtime, Inventory, and Secret Boundaries | Accepted | 2026-03-01 | - | - |
 | [0052](0052-build-pipeline-after-ansible.md) | Build Pipeline and Deploy Packages After Ansible Stabilization | Proposed | 2026-03-01 | - | - |

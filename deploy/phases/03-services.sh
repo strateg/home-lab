@@ -11,21 +11,21 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ANSIBLE_DIR="$PROJECT_DIR/ansible"
-ALLOW_LEGACY_INVENTORY_FALLBACK="${ALLOW_LEGACY_INVENTORY_FALLBACK:-0}"
+GENERATED_INVENTORY_DIR="$PROJECT_DIR/generated/ansible/inventory/production"
+RUNTIME_INVENTORY_DIR="$PROJECT_DIR/generated/ansible/runtime/production"
+ASSEMBLER_SCRIPT="$PROJECT_DIR/topology-tools/assemble-ansible-runtime.py"
 
 for arg in "$@"; do
     case "$arg" in
-        --allow-legacy-inventory)
-            ALLOW_LEGACY_INVENTORY_FALLBACK=1
-            ;;
         -h|--help)
-            echo "Usage: $0 [--allow-legacy-inventory]"
+            echo "Usage: $0"
             echo ""
-            echo "Default behavior:"
-            echo "  - Uses generated inventory only: generated/ansible/inventory/production/hosts.yml"
-            echo "Compatibility mode:"
-            echo "  --allow-legacy-inventory or ALLOW_LEGACY_INVENTORY_FALLBACK=1"
-            echo "  - allows fallback to ansible/inventory/production/hosts.yml"
+            echo "Uses assembled runtime inventory:"
+            echo "  generated/ansible/runtime/production"
+            echo ""
+            echo "If runtime inventory is missing, the script assembles it from:"
+            echo "  - generated/ansible/inventory/production"
+            echo "  - ansible/inventory-overrides/production"
             exit 0
             ;;
     esac
@@ -56,28 +56,27 @@ if [ ! -d "$ANSIBLE_DIR" ]; then
     exit 1
 fi
 
-# Check inventory exists
-INVENTORY="$PROJECT_DIR/generated/ansible/inventory/production/hosts.yml"
-if [ ! -f "$INVENTORY" ]; then
-    if [ "$ALLOW_LEGACY_INVENTORY_FALLBACK" = "1" ]; then
-        echo -e "${YELLOW}⚠️  Generated inventory not found, falling back to legacy inventory (compat mode enabled)${NC}"
-        INVENTORY="$ANSIBLE_DIR/inventory/production/hosts.yml"
-    else
-        echo -e "${RED}❌ Generated inventory not found: $INVENTORY${NC}"
+# Check runtime inventory exists or assemble it
+INVENTORY="$RUNTIME_INVENTORY_DIR"
+if [ ! -f "$INVENTORY/hosts.yml" ]; then
+    echo -e "${YELLOW}Runtime inventory not found, assembling it now...${NC}"
+
+    if [ ! -f "$GENERATED_INVENTORY_DIR/hosts.yml" ]; then
+        echo -e "${RED}❌ Generated inventory not found: $GENERATED_INVENTORY_DIR/hosts.yml${NC}"
         echo "   Generate inventory first:"
-        echo "   python3 topology-tools/generate-ansible-inventory.py"
-        echo ""
-        echo "   Legacy fallback is disabled by default."
-        echo "   To enable temporarily:"
-        echo "   - pass --allow-legacy-inventory"
-        echo "   - or set ALLOW_LEGACY_INVENTORY_FALLBACK=1"
+        echo "   python3 topology-tools/regenerate-all.py"
+        exit 1
+    fi
+
+    if ! python3 "$ASSEMBLER_SCRIPT"; then
+        echo -e "${RED}❌ Failed to assemble runtime inventory${NC}"
         exit 1
     fi
 fi
 
-if [ ! -f "$INVENTORY" ]; then
-    echo -e "${RED}❌ No inventory file found!${NC}"
-    echo "   Run: python3 topology-tools/generate-ansible-inventory.py"
+if [ ! -f "$INVENTORY/hosts.yml" ]; then
+    echo -e "${RED}❌ No runtime inventory found!${NC}"
+    echo "   Run: python3 topology-tools/regenerate-all.py"
     exit 1
 fi
 

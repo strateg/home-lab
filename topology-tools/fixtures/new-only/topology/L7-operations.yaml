@@ -36,7 +36,7 @@ workflows:
       duration_min: 1
     - step: 7
       name: Run Ansible playbooks
-      command: cd ansible && ansible-playbook -i inventory/production/hosts.yml site.yml
+      command: cd ansible && ansible-playbook playbooks/site.yml
       duration_min: 20
   update_topology:
     name: Update Infrastructure Topology
@@ -232,7 +232,7 @@ ansible:
   - vault_nextcloud_db_password
   - vault_proxmox_api_token
   config:
-    inventory: inventory/production/hosts.yml
+    inventory: ../generated/ansible/runtime/production
     remote_user: root
     host_key_checking: false
     retry_files_enabled: false

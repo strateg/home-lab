@@ -187,8 +187,8 @@ output "next_steps" {
     🔧 Next steps:
 
     1. Apply Ansible configuration:
-       cd ../ansible
-       ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
+       cd ../../ansible
+       ansible-playbook playbooks/site.yml
 
     2. Access Proxmox Web UI:
 {% for device in devices %}
@@ -204,7 +204,8 @@ output "next_steps" {
        ./test-regeneration.sh
 
     4. Check connectivity:
-       ansible all -i ../ansible/inventory/production/hosts.yml -m ping
+       cd ../../ansible
+       ansible all -m ping
 
   EOT
 }

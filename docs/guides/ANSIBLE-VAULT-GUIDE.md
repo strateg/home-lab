@@ -92,7 +92,7 @@ head -1 group_vars/all/vault.yml
 
 ```bash
 # Test that Ansible can decrypt vault
-ansible all -m ping -i inventory/production/hosts.yml
+ansible all -m ping
 
 # View encrypted content (requires vault password)
 ansible-vault view group_vars/all/vault.yml
@@ -229,7 +229,7 @@ $CONFIG = array (
   'secret' => '{{ vault_nextcloud_secret }}',
   'dbuser' => 'nextcloud',
   'dbpassword' => '{{ vault_nextcloud_db_password }}',  // From vault
-  'dbhost' => '{{ hostvars["postgresql-db"].ansible_host }}',
+  'dbhost' => '{{ hostvars["lxc-postgresql"].ansible_host }}',
 );
 ```
 
@@ -500,7 +500,7 @@ ansible-vault rekey group_vars/all/vault.yml
 ansible-vault encrypt_string 'secret' --name 'vault_var'
 
 # Run playbook with vault
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
+ansible-playbook playbooks/site.yml
 
 # Run with different vault password
 ansible-playbook --vault-password-file=.vault_pass_prod playbooks/site.yml

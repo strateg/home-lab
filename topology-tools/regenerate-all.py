@@ -7,8 +7,9 @@ This script runs all generators in the correct order:
 2. Generate Terraform (Proxmox)
 3. Generate Terraform (MikroTik)
 4. Generate Ansible inventory
-5. Generate documentation
-6. Validate Mermaid rendering (optional)
+5. Assemble Ansible runtime inventory
+6. Generate documentation
+7. Validate Mermaid rendering (optional)
 
 Usage:
     python3 topology-tools/regenerate-all.py [--topology topology.yaml]
@@ -149,7 +150,7 @@ class RegenerateAll:
                     print("CACHE No existing topology cache to clear")
             except OSError as e:
                 print(f"WARN  Failed to clear topology cache: {e}")
-        total_steps = 6 if self.validate_mermaid else 5
+        total_steps = 7 if self.validate_mermaid else 6
 
         self.print_header(f"Step 1/{total_steps}: Validate Topology")
         validate_args = ["--topology", self.topology_path]
@@ -199,7 +200,13 @@ class RegenerateAll:
             ["--topology", self.topology_path],
         )
 
-        self.print_header(f"Step 5/{total_steps}: Generate Documentation")
+        self.print_header(f"Step 5/{total_steps}: Assemble Ansible Runtime Inventory")
+        success_ansible_runtime = self.run_script(
+            "assemble-ansible-runtime.py",
+            "Assembling Ansible runtime inventory",
+        )
+
+        self.print_header(f"Step 6/{total_steps}: Generate Documentation")
         self.cleanup_legacy_docs_outputs()
         success_docs = self.run_script(
             "generate-docs.py",
@@ -209,22 +216,37 @@ class RegenerateAll:
 
         success_mermaid = True
         if self.validate_mermaid:
-            self.print_header(f"Step 6/{total_steps}: Validate Mermaid Rendering")
+            self.print_header(f"Step 7/{total_steps}: Validate Mermaid Rendering")
             success_mermaid = self.run_script(
                 "validate-mermaid-render.py",
                 "Validating Mermaid renderability",
                 ["--docs-dir", "generated/docs", "--icon-mode", self.mermaid_icon_mode],
             )
 
-        self.print_summary(success_terraform, success_mikrotik, success_ansible, success_docs, success_mermaid)
+        self.print_summary(
+            success_terraform,
+            success_mikrotik,
+            success_ansible,
+            success_ansible_runtime,
+            success_docs,
+            success_mermaid,
+        )
 
-        return success_terraform and success_mikrotik and success_ansible and success_docs and success_mermaid
+        return (
+            success_terraform
+            and success_mikrotik
+            and success_ansible
+            and success_ansible_runtime
+            and success_docs
+            and success_mermaid
+        )
 
     def print_summary(
         self,
         success_terraform: bool,
         success_mikrotik: bool,
         success_ansible: bool,
+        success_ansible_runtime: bool,
         success_docs: bool,
         success_mermaid: bool,
     ):
@@ -244,6 +266,9 @@ class RegenerateAll:
         print(
             f"  {'OK' if success_ansible else 'ERROR'} Ansible:              {'Success' if success_ansible else 'Failed'}"
         )
+        print(
+            f"  {'OK' if success_ansible_runtime else 'ERROR'} Ansible Runtime:      {'Success' if success_ansible_runtime else 'Failed'}"
+        )
         print(f"  {'OK' if success_docs else 'ERROR'} Documentation:        {'Success' if success_docs else 'Failed'}")
         print(
             f"  {'OK' if success_mermaid else 'ERROR'} Mermaid Render:      {'Success' if success_mermaid else 'Failed'}"
@@ -259,7 +284,14 @@ class RegenerateAll:
 
         print("\n" + "=" * 70)
 
-        all_success = success_terraform and success_mikrotik and success_ansible and success_docs and success_mermaid
+        all_success = (
+            success_terraform
+            and success_mikrotik
+            and success_ansible
+            and success_ansible_runtime
+            and success_docs
+            and success_mermaid
+        )
         if all_success:
             print("\nOK All generators completed successfully!")
             print("\nDIR Generated files structure:")
@@ -285,6 +317,11 @@ class RegenerateAll:
             print("               hosts.yml")
             print("               group_vars/")
             print("               host_vars/")
+            print("       runtime/")
+            print("           production/")
+            print("               hosts.yml")
+            print("               group_vars/")
+            print("               host_vars/")
             print("    docs/")
             print("        overview.md")
             print("        network-diagram.md")
@@ -298,7 +335,7 @@ class RegenerateAll:
             print("   Or deploy manually:")
             print("      cd generated/terraform/mikrotik && terraform init && terraform apply")
             print("      cd generated/terraform/proxmox && terraform init && terraform apply")
-            print("      cd ansible && ansible-playbook -i generated/ansible/inventory/production/hosts.yml site.yml")
+            print("      cd ansible && ansible-playbook playbooks/site.yml")
         else:
             print("\nERROR Some generators failed. Check errors above.")
             print("   Fix issues and run again: python3 topology-tools/regenerate-all.py")

@@ -18,7 +18,9 @@ new_system/
 ├── generated/              # ⚠️  АВТО-ГЕНЕРАЦИЯ - НЕ РЕДАКТИРУЙ!
 │   ├── terraform/
 │   ├── ansible/
-│   │   └── inventory/
+│   │   ├── inventory/
+│   │   │   └── production/
+│   │   └── runtime/
 │   │       └── production/
 │   └── docs/
 ├── ansible/
@@ -42,8 +44,9 @@ python3 topology-tools/regenerate-all.py
 1. Очищает `generated/`
 2. Валидирует `topology.yaml`
 3. Генерирует Terraform → `generated/terraform/`
-4. Генерирует Ansible → `generated/ansible/`
-5. Генерирует документацию → `generated/docs/`
+4. Генерирует Ansible inventory input → `generated/ansible/inventory/production/`
+5. Собирает runtime inventory → `generated/ansible/runtime/production/`
+6. Генерирует документацию → `generated/docs/`
 
 **Время**: ~1 секунда
 
@@ -172,14 +175,15 @@ generated/terraform/
 ### Ansible (1 + 4 + 3 файла)
 
 ```
-generated/ansible/inventory/production/
-├── hosts.yml                   # Инвентарь
-├── group_vars/
-│   └── all.yml                 # Общие переменные
-└── host_vars/
-    ├── postgresql-db.yml       # Переменные для PostgreSQL
-    ├── redis-cache.yml         # Переменные для Redis
-    └── nextcloud.yml           # Переменные для Nextcloud
+generated/ansible/
+├── inventory/production/
+│   ├── hosts.yml               # Topology-derived inventory input
+│   └── group_vars/all.yml
+└── runtime/production/
+    ├── hosts.yml               # Operator-facing runtime inventory
+    └── group_vars/all/
+        ├── 10-generated.yml
+        └── 90-manual.yml
 ```
 
 ### Документация (5 файлов)

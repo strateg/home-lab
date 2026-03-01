@@ -385,11 +385,11 @@ After successful Proxmox installation:
    terraform init
    terraform apply
 
-   # Generate Ansible inventory
+   # Generate topology artifacts, including runtime inventory
    cd /root/home-lab/new_system
-   python3 topology-tools/generate-ansible-inventory.py
+   python3 topology-tools/regenerate-all.py --skip-mermaid-validate
    cd ansible
-   ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
+   ansible-playbook playbooks/site.yml
    ```
 
 ---

@@ -1,6 +1,6 @@
 # ADR 0051: Ansible Runtime, Inventory, and Secret Boundaries
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-03-01
 
 ## Context

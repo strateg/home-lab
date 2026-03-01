@@ -20,26 +20,26 @@ Ansible automation for home lab infrastructure.
 
 ```bash
 # Ping all hosts
-ansible all -m ping -i inventory/production/hosts.yml
+ansible all -m ping
 
 # Check specific group
-ansible lxc_containers -m ping -i inventory/production/hosts.yml
+ansible lxc_containers -m ping
 ```
 
 ### 3. Run Playbooks
 
 ```bash
 # Run all playbooks
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
+ansible-playbook playbooks/site.yml
 
 # Run specific playbook
-ansible-playbook -i inventory/production/hosts.yml playbooks/postgresql.yml
+ansible-playbook playbooks/postgresql.yml
 
 # Dry run (check mode)
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --check
+ansible-playbook playbooks/site.yml --check
 
 # Verbose output
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml -vvv
+ansible-playbook playbooks/site.yml -vvv
 ```
 
 ---
@@ -52,15 +52,12 @@ ansible/
 ├── vault-helper.sh                # Vault management script
 ├── requirements.yml               # External roles/collections
 │
-├── inventory/
+├── inventory-overrides/
 │   └── production/
-│       ├── hosts.yml              # Generated from topology.yaml
 │       ├── group_vars/
-│       │   └── all.yml            # Generated group variables
-│       └── host_vars/             # Generated host-specific variables
-│           ├── postgresql-db.yml
-│           ├── redis-cache.yml
-│           └── nextcloud.yml
+│       │   ├── all.yml            # Operator preferences
+│       │   └── all-secrets.yml.example
+│       └── host_vars/             # Optional extension flags
 │
 ├── group_vars/
 │   └── all/
@@ -142,39 +139,39 @@ ansible-galaxy install -r requirements.yml --force
 
 ```bash
 # Check disk space
-ansible all -m shell -a "df -h" -i inventory/production/hosts.yml
+ansible all -m shell -a "df -h"
 
 # Restart service
-ansible postgresql-db -m systemd -a "name=postgresql state=restarted" -i inventory/production/hosts.yml
+ansible lxc-postgresql -m systemd -a "name=postgresql state=restarted"
 
 # Update packages
-ansible all -m apt -a "upgrade=dist update_cache=yes" -i inventory/production/hosts.yml
+ansible all -m apt -a "upgrade=dist update_cache=yes"
 ```
 
 ### Limit Execution
 
 ```bash
 # Run only on specific host
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --limit postgresql-db
+ansible-playbook playbooks/site.yml --limit lxc-postgresql
 
 # Run only on specific group
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --limit lxc_containers
+ansible-playbook playbooks/site.yml --limit lxc_containers
 
 # Run on multiple hosts
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --limit "postgresql-db,redis-cache"
+ansible-playbook playbooks/site.yml --limit "lxc-postgresql,lxc-redis"
 ```
 
 ### Tags
 
 ```bash
 # List available tags
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --list-tags
+ansible-playbook playbooks/site.yml --list-tags
 
 # Run specific tags
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --tags "setup,config"
+ansible-playbook playbooks/site.yml --tags "setup,config"
 
 # Skip specific tags
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --skip-tags "backup"
+ansible-playbook playbooks/site.yml --skip-tags "backup"
 ```
 
 ---
@@ -183,12 +180,12 @@ ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --skip-tag
 
 ### Generated from topology.yaml
 
-Inventory files are **auto-generated** from `topology.yaml`:
+Inventory runtime is assembled from topology-generated inventory and manual overrides:
 
 ```bash
-# Regenerate inventory
+# Regenerate topology-derived inventory and assemble runtime
 cd ..
-python3 topology-tools/generate-ansible-inventory.py
+python3 topology-tools/regenerate-all.py --skip-mermaid-validate
 ```
 
 ### Host Groups
@@ -236,7 +233,7 @@ ssh -i ~/.ssh/id_ed25519 postgres@10.0.30.10
 ssh-keyscan -H 10.0.30.10
 
 # Verbose Ansible connection
-ansible postgresql-db -m ping -i inventory/production/hosts.yml -vvv
+ansible lxc-postgresql -m ping -vvv
 ```
 
 ### Playbook Errors
@@ -246,10 +243,10 @@ ansible postgresql-db -m ping -i inventory/production/hosts.yml -vvv
 ansible-playbook playbooks/site.yml --syntax-check
 
 # Dry run
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --check
+ansible-playbook playbooks/site.yml --check
 
 # Step-by-step execution
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --step
+ansible-playbook playbooks/site.yml --step
 ```
 
 ---
@@ -274,7 +271,7 @@ password: "my_secret_password"
   tasks: ...
 
 # ❌ Bad - hardcode hosts
-- hosts: postgresql-db
+- hosts: lxc-postgresql
   tasks: ...
 ```
 
@@ -324,7 +321,7 @@ password: "my_secret_password"
 ### ansible.cfg
 
 Key settings:
-- **Inventory**: `./inventory/production/hosts.yml`
+- **Inventory**: `../generated/ansible/runtime/production`
 - **Vault password**: `.vault_pass`
 - **SSH**: `StrictHostKeyChecking=no` (lab environment)
 - **Callbacks**: `profile_tasks`, `timer`
@@ -334,7 +331,7 @@ Key settings:
 
 ```bash
 # Use custom inventory
-export ANSIBLE_INVENTORY=./inventory/development/hosts.yml
+export ANSIBLE_INVENTORY=../generated/ansible/runtime/production
 
 # Use different vault password
 export ANSIBLE_VAULT_PASSWORD_FILE=.vault_pass_dev

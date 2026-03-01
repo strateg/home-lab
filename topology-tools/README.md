@@ -30,7 +30,7 @@ Single Source of Truth: `topology.yaml`
 
 Generated artifacts:
 - Terraform configurations (Proxmox + MikroTik)
-- Ansible inventory (hosts and variables)
+- Ansible inventory inputs and assembled runtime inventory
 - Network diagrams and inventories (Markdown)
 
 ## Scripts
@@ -105,6 +105,14 @@ Generate Ansible inventory from L1/L2/L4 and L7 (ansible config).
 Usage:
 ```bash
 python topology-tools/generate-ansible-inventory.py --topology topology.yaml --output generated/ansible/inventory/production
+```
+
+### assemble-ansible-runtime.py
+Assemble operator-facing Ansible runtime inventory from generated inventory and manual overrides.
+
+Usage:
+```bash
+python topology-tools/assemble-ansible-runtime.py
 ```
 
 ### generate-docs.py
@@ -272,6 +280,7 @@ generated/
   terraform/
   terraform-mikrotik/
   ansible/inventory/production/
+  ansible/runtime/production/
   docs/
 ```
 

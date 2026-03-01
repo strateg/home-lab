@@ -16,6 +16,7 @@ from typing import Dict
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+
 from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
 
 
@@ -329,8 +330,8 @@ class AnsibleInventoryGenerator:
         print(f"\nOK Output directory: {self.output_dir}")
         print(f"\nNext steps:")
         print(f"  1. Review generated inventory: {self.output_dir}/hosts.yml")
-        print(f"  2. Test connectivity: ansible all -i {self.output_dir}/hosts.yml -m ping")
-        print(f"  3. Run playbooks: ansible-playbook -i {self.output_dir}/hosts.yml playbooks/site.yml")
+        print("  2. Assemble runtime inventory: python3 topology-tools/assemble-ansible-runtime.py")
+        print("  3. Run playbooks: cd ansible && ansible-playbook playbooks/site.yml")
 
 
 def main():
