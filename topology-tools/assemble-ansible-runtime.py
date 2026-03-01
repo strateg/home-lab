@@ -21,66 +21,14 @@ import shutil
 import sys
 from pathlib import Path
 
+from utils.package_policy import validate_no_forbidden_topology_overrides, validate_no_secret_content
+
 # Paths relative to repository root
 REPO_ROOT = Path(__file__).parent.parent
 DEFAULT_ENV = "production"
 GENERATED_INV = REPO_ROOT / "generated" / "ansible" / "inventory" / DEFAULT_ENV
 MANUAL_INV = REPO_ROOT / "ansible/inventory-overrides/production"
 RUNTIME_INV = REPO_ROOT / "generated/ansible/runtime/production"
-
-# Secrets that must NOT appear in tracked source
-SECRET_PATTERNS = [
-    "password:",
-    "token:",
-    "private_key:",
-    "root_password_hash:",
-    "lookup('file'",
-    'lookup("file',
-    "vault_pass",
-]
-
-# Topology-owned facts that must NOT be overridden via manual host_vars
-# (ADR 0051 section 6.7: forbidden extension data)
-FORBIDDEN_OVERRIDE_PATTERNS = [
-    "ansible_user:",
-    "ansible_host:",
-    "vmid:",
-    "service_port:",
-    "cores:",
-    "memory_mb:",
-]
-
-
-def validate_no_secrets(path: Path) -> list[str]:
-    """Check file for secret patterns. Returns list of violations."""
-    if not path.exists():
-        return []
-
-    violations = []
-    content = path.read_text()
-    for pattern in SECRET_PATTERNS:
-        if pattern in content:
-            violations.append(f"{path}: contains secret pattern '{pattern}'")
-    return violations
-
-
-def validate_no_forbidden_overrides(path: Path, allowlist: list[str] = None) -> list[str]:
-    """Check host_vars for forbidden topology-owned fact overrides."""
-    if not path.exists():
-        return []
-
-    allowlist = allowlist or []
-    violations = []
-    content = path.read_text()
-
-    # Skip validation for files in allowlist
-    if path.name in allowlist:
-        return []
-
-    for pattern in FORBIDDEN_OVERRIDE_PATTERNS:
-        if pattern in content:
-            violations.append(f"{path}: overrides topology-owned fact '{pattern}' without explicit allowlist")
-    return violations
 
 
 def assemble_runtime_inventory(
@@ -143,7 +91,7 @@ def assemble_runtime_inventory(
     generated_gv = generated_dir / "group_vars" / "all.yml"
     if generated_gv.exists():
         # Validate no secrets in generated
-        violations = validate_no_secrets(generated_gv)
+        violations = validate_no_secret_content(generated_gv)
         errors.extend(violations)
 
         shutil.copy(generated_gv, group_vars_dir / "10-generated.yml")
@@ -154,7 +102,7 @@ def assemble_runtime_inventory(
     manual_gv = manual_dir / "group_vars" / "all.yml"
     if manual_gv.exists():
         # Validate no secrets in manual overrides
-        violations = validate_no_secrets(manual_gv)
+        violations = validate_no_secret_content(manual_gv)
         errors.extend(violations)
 
         shutil.copy(manual_gv, group_vars_dir / "90-manual.yml")
@@ -172,7 +120,7 @@ def assemble_runtime_inventory(
     generated_hv_dir = generated_dir / "host_vars"
     if generated_hv_dir.exists():
         for hv_file in generated_hv_dir.glob("*.yml"):
-            violations = validate_no_secrets(hv_file)
+            violations = validate_no_secret_content(hv_file)
             errors.extend(violations)
 
             shutil.copy(hv_file, host_vars_dir / hv_file.name)
@@ -188,11 +136,11 @@ def assemble_runtime_inventory(
                 continue
 
             # Validate no secrets
-            violations = validate_no_secrets(hv_file)
+            violations = validate_no_secret_content(hv_file)
             errors.extend(violations)
 
             # Validate no forbidden overrides (unless in allowlist)
-            violations = validate_no_forbidden_overrides(hv_file, allowlist)
+            violations = validate_no_forbidden_topology_overrides(hv_file, allowlist)
             errors.extend(violations)
 
             # Check for conflicts with generated host_vars
