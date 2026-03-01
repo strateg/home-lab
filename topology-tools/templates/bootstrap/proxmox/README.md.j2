@@ -1,0 +1,47 @@
+# Proxmox Bootstrap Package for `{{ device_id }}`
+
+Generated: `{{ generation_timestamp }}`
+
+This package is the canonical bootstrap payload for Proxmox auto-install under ADR 0052.
+
+Contents:
+- `{{ answer_example }}`: topology-derived example answer file
+- `{{ usb_script }}`: USB creation helper
+- `{{ post_install_dir }}/`: post-install scripts to run on the host after first boot
+
+Local inputs required:
+- materialized `{{ answer_file }}` with a real `root_password` SHA-512 hash
+- Proxmox VE ISO on the operator machine
+- target USB block device path
+
+Recommended workflow:
+
+```bash
+cp {{ answer_example }} {{ answer_file }}
+# Edit {{ answer_file }} and replace {{ "root_password = \"" }}REPLACE_WITH_SHA512_PASSWORD_HASH{{ "\"" }}
+sudo ./{{ usb_script }} /path/to/proxmox-ve.iso {{ answer_file }} /dev/sdX
+```
+
+Validation:
+
+```bash
+proxmox-auto-install-assistant validate-answer {{ answer_file }}
+```
+
+After installation:
+
+```bash
+scp -r {{ post_install_dir }} root@<proxmox-ip>:/root/
+ssh root@<proxmox-ip>
+cd /root/{{ post_install_dir }}
+./01-install-terraform.sh
+./02-install-ansible.sh
+./03-configure-storage.sh
+./04-configure-network.sh
+./05-init-git-repo.sh
+```
+
+Notes:
+- `{{ answer_example }}` is release-safe and intentionally does not contain a production password hash.
+- The packaged USB helper may try to auto-regenerate `answer.toml` from repository topology when run inside the repository. In `dist/`, use the materialized local `{{ answer_file }}`.
+- The canonical source for this package is generated output, not `manual-scripts/bare-metal/`.

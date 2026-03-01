@@ -1,6 +1,6 @@
 # ADR 0052: Deploy Package Assembly Over Accepted Ansible Runtime
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-03-01
 
 ## Context
@@ -144,6 +144,12 @@ ADR 0052 is complete only when all of the following pass:
 5. `release-safe.json` publishes only `release-safe` packages
 6. release-safe checks confirm that no `local-secret` files enter published artifacts
 7. external validators can run either directly when installed or in strict mode in CI
+
+These conditions are now implemented in repository tooling:
+- `topology-tools/assemble-deploy.py`
+- `topology-tools/validate-dist.py`
+- `deploy/Makefile` targets `assemble-dist` and `validate-dist`
+- explicit bootstrap packages for `rtr-mikrotik-chateau`, `srv-gamayun`, and `srv-orangepi5`
 
 ### 8. Bootstrap Packaging Uses Explicit Source Maps And May Be Skipped
 

@@ -77,6 +77,15 @@ The bootstrap script shows:
 
 See [PROXMOX-USB-AUTOINSTALL.md](PROXMOX-USB-AUTOINSTALL.md) for creating auto-install USB.
 
+Use `generated/bootstrap/srv-gamayun/`.
+
+The package contains:
+1. `answer.toml.example`
+2. `create-uefi-autoinstall-proxmox-usb.sh`
+3. `post-install/`
+
+Materialize a local `answer.toml` from `answer.toml.example`, then use the packaged USB helper with a Proxmox ISO and target USB device.
+
 #### Orange Pi 5 Bootstrap
 
 Use `generated/bootstrap/srv-orangepi5/cloud-init/`.
@@ -479,4 +488,4 @@ ssh root@192.168.88.2 "pvesh get /cluster/resources --type vm"
 
 ---
 
-**Last Updated**: 2026-02-17
+**Last Updated**: 2026-03-01

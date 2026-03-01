@@ -102,8 +102,10 @@ home-lab/
 
 1. **Создание загрузочного USB**
    ```cmd
-   cd manual-scripts\bare-metal
-   run-create-usb.sh
+   python topology-tools\generate-proxmox-bootstrap.py
+   cd generated\bootstrap\srv-gamayun
+   copy answer.toml.example answer.toml
+   create-uefi-autoinstall-proxmox-usb.sh C:\path\to\proxmox-ve.iso answer.toml \\.\PhysicalDriveN
    ```
 
 2. **Установка Proxmox**
@@ -133,7 +135,7 @@ home-lab/
    make configure
    ```
 
-Подробности в [manual-scripts/bare-metal/README.md](manual-scripts/bare-metal/README.md)
+Подробности в [docs/guides/PROXMOX-USB-AUTOINSTALL.md](docs/guides/PROXMOX-USB-AUTOINSTALL.md)
 
 ---
 
@@ -167,7 +169,7 @@ home-lab/
 - **[TESTING.md](TESTING.md)**: Руководство по тестированию
 - **[adr/](adr/)**: Architecture Decision Records
 - **[docs/guides/DEPLOYMENT-STRATEGY.md](docs/guides/DEPLOYMENT-STRATEGY.md)**: current generate, dist, and deploy workflow
-- **[manual-scripts/bare-metal/README.md](manual-scripts/bare-metal/README.md)**: Установка bare-metal
+- **[docs/guides/PROXMOX-USB-AUTOINSTALL.md](docs/guides/PROXMOX-USB-AUTOINSTALL.md)**: Установка bare-metal через generated bootstrap package
 - **[GENERATORS_REFACTORING_INDEX.md](GENERATORS_REFACTORING_INDEX.md)**: Документы по рефакторингу генераторов
 
 ## 🔐 Безопасность
@@ -253,6 +255,7 @@ make validate-dist
 
 Примечание:
 - bootstrap packages в `dist/` теперь перечисляются явно через manifests
+- `generated/bootstrap/rtr-mikrotik-chateau` и `generated/bootstrap/srv-gamayun` уже materialize canonical bootstrap payloads
 - если canonical generated bootstrap source ещё не готов, пакет остаётся видимым с `status=skipped`
 
 **Пример вывода**:

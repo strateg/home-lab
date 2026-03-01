@@ -2,6 +2,11 @@
 
 План миграции к explicit `dist/` assembly поверх уже принятого ADR 0051.
 
+Implementation note:
+- the repository now has ready package roots for `control/ansible`, `control/terraform/{mikrotik,proxmox}`, `bootstrap/rtr-mikrotik-chateau`, `bootstrap/srv-gamayun`, and `bootstrap/srv-orangepi5`
+- `deploy/Makefile` exposes `assemble-dist` and `validate-dist`
+- `validate-dist.py` and CI strict mode enforce the package contract
+
 ## Preconditions
 
 Перед началом этого плана должны быть выполнены условия ADR 0051:

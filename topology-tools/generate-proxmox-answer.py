@@ -7,7 +7,7 @@ Usage:
     python3 topology-tools/generate-proxmox-answer.py [topology.yaml] [output.toml]
 
 Example:
-    python3 topology-tools/generate-proxmox-answer.py topology.yaml manual-scripts/bare-metal/answer.toml
+    python3 topology-tools/generate-proxmox-answer.py topology.yaml answer.toml
 """
 
 import argparse
@@ -489,7 +489,7 @@ def main():
         epilog="""
 Examples:
   # Generate answer.toml with DHCP (recommended)
-  %(prog)s topology.yaml manual-scripts/bare-metal/answer.toml
+  %(prog)s topology.yaml answer.toml
 
   # Generate with custom password hash
   %(prog)s topology.yaml answer.toml --password "$(openssl passwd -6 'MyPassword')"
@@ -506,8 +506,8 @@ Examples:
     parser.add_argument(
         "output",
         nargs="?",
-        default="manual-scripts/bare-metal/answer.toml",
-        help="Output path for answer.toml (default: manual-scripts/bare-metal/answer.toml)",
+        default="answer.toml",
+        help="Output path for answer.toml (default: answer.toml)",
     )
 
     parser.add_argument("--password", help='Root password hash (SHA-512). Generate with: openssl passwd -6 "password"')

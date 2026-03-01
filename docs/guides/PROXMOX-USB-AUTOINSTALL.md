@@ -77,16 +77,20 @@ python3 topology-tools/generate-proxmox-answer.py --validate
 
 If validation fails, fix errors in `topology.yaml` before proceeding.
 
-### 2. Generate Answer File (Optional)
+### 2. Generate Bootstrap Package
 
-The USB creation script auto-generates `answer.toml`, but you can preview it:
+Generate the canonical bootstrap package first:
 
 ```bash
-# Generate answer.toml from topology
-python3 topology-tools/generate-proxmox-answer.py topology.yaml manual-scripts/bare-metal/answer.toml
+# Generate package under generated/bootstrap/srv-gamayun/
+python3 topology-tools/generate-proxmox-bootstrap.py
 
-# Review generated file
-cat manual-scripts/bare-metal/answer.toml
+# Materialize local answer.toml from the generated example
+cd generated/bootstrap/srv-gamayun
+cp answer.toml.example answer.toml
+
+# Review the topology-derived example
+cat answer.toml.example
 ```
 
 ### 3. Create Bootable USB
@@ -94,13 +98,13 @@ cat manual-scripts/bare-metal/answer.toml
 **⚠️ WARNING: This will ERASE all data on the USB drive!**
 
 ```bash
-cd /path/to/home-lab/new_system/bare-metal
+cd /path/to/home-lab/generated/bootstrap/srv-gamayun
 
 # Identify USB device (e.g., /dev/sdc)
 lsblk
 
-# Create bootable USB (auto-generates answer.toml from topology)
-sudo ./create-legacy-autoinstall-proxmox-usb.sh \
+# Create bootable USB using the materialized local answer.toml
+sudo ./create-uefi-autoinstall-proxmox-usb.sh \
     ~/Downloads/proxmox-ve_9.0-1.iso \
     answer.toml \
     /dev/sdc
@@ -194,7 +198,7 @@ This uses management network IP allocation from `topology.yaml`.
 openssl passwd -6 "YourStrongPassword"
 
 # Edit answer.toml and replace root_password value
-vim manual-scripts/bare-metal/answer.toml
+vim generated/bootstrap/srv-gamayun/answer.toml
 ```
 
 ---
@@ -307,7 +311,7 @@ python3 topology-tools/generate-proxmox-answer.py \
 Skip password prompt (uses default password):
 
 ```bash
-AUTO_CONFIRM=1 sudo ./create-legacy-autoinstall-proxmox-usb.sh \
+AUTO_CONFIRM=1 sudo ./create-uefi-autoinstall-proxmox-usb.sh \
     proxmox-ve_9.0-1.iso \
     answer.toml \
     /dev/sdc
@@ -318,14 +322,14 @@ AUTO_CONFIRM=1 sudo ./create-legacy-autoinstall-proxmox-usb.sh \
 If you don't want auto-generation from topology:
 
 ```bash
-# Create answer.toml manually
-vim manual-scripts/bare-metal/answer.toml
+# Create answer.toml manually from the generated example
+cp generated/bootstrap/srv-gamayun/answer.toml.example generated/bootstrap/srv-gamayun/answer.toml
+vim generated/bootstrap/srv-gamayun/answer.toml
 
-# Create USB without topology integration
-# (move topology.yaml temporarily or edit script)
-sudo ./create-legacy-autoinstall-proxmox-usb.sh \
+# Create USB without topology regeneration
+sudo ./create-uefi-autoinstall-proxmox-usb.sh \
     proxmox-ve_9.0-1.iso \
-    answer.toml \
+    generated/bootstrap/srv-gamayun/answer.toml \
     /dev/sdc
 ```
 
@@ -338,9 +342,9 @@ sudo ./create-legacy-autoinstall-proxmox-usb.sh \
 This USB creation process is part of the complete infrastructure workflow:
 
 ```
-topology.yaml  →  generate-proxmox-answer.py  →  answer.toml
+topology.yaml  →  generate-proxmox-bootstrap.py  →  generated/bootstrap/srv-gamayun/answer.toml.example
                                                         ↓
-    create-legacy-autoinstall-proxmox-usb.sh  ←  Proxmox ISO
+    materialize local answer.toml + create-uefi-autoinstall-proxmox-usb.sh  ←  Proxmox ISO
                         ↓
                   Bootable USB
                         ↓
@@ -400,8 +404,8 @@ After successful Proxmox installation:
 |------|---------|------------|
 | `topology.yaml` | Infrastructure source of truth | Manual |
 | `topology-tools/generate-proxmox-answer.py` | Answer file generator | Manual |
-| `manual-scripts/bare-metal/answer.toml` | Proxmox auto-install config | Generated |
-| `manual-scripts/bare-metal/create-legacy-autoinstall-proxmox-usb.sh` | USB creation script | Manual |
+| `generated/bootstrap/srv-gamayun/answer.toml.example` | Proxmox auto-install config example | Generated |
+| `generated/bootstrap/srv-gamayun/create-uefi-autoinstall-proxmox-usb.sh` | USB creation script | Generated package payload |
 | `/tmp/prepared-proxmox-*.iso` | Hybrid ISO with answer | Generated |
 
 ---
@@ -418,14 +422,12 @@ After successful Proxmox installation:
 ### answer.toml Handling
 
 ```bash
-# Check if answer.toml is gitignored
-git check-ignore -v manual-scripts/bare-metal/answer.toml
-
-# If not ignored, add to .gitignore
-echo "manual-scripts/bare-metal/answer.toml" >> .gitignore
+# Materialized answer.toml should remain local-only
+cp generated/bootstrap/srv-gamayun/answer.toml.example generated/bootstrap/srv-gamayun/answer.toml
+git check-ignore -v generated/bootstrap/srv-gamayun/answer.toml
 ```
 
-**Note**: Sample `answer.toml` with default password can be committed for reference, but production files should be gitignored.
+**Note**: `answer.toml.example` is release-safe and can stay tracked. Materialized `answer.toml` should remain local-only.
 
 ---
 

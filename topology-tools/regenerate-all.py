@@ -200,12 +200,17 @@ class RegenerateAll:
             "Generating MikroTik bootstrap package",
             ["--topology", self.topology_path],
         )
+        success_bootstrap_proxmox = self.run_script(
+            "generate-proxmox-bootstrap.py",
+            "Generating Proxmox bootstrap package",
+            ["--topology", self.topology_path],
+        )
         success_bootstrap_orangepi5 = self.run_script(
             "generate-orangepi5-cloud-init.py",
             "Generating Orange Pi 5 cloud-init package",
             ["--topology", self.topology_path],
         )
-        success_bootstrap = success_bootstrap_mikrotik and success_bootstrap_orangepi5
+        success_bootstrap = success_bootstrap_mikrotik and success_bootstrap_proxmox and success_bootstrap_orangepi5
 
         self.print_header(f"Step 5/{total_steps}: Generate Ansible Inventory")
         success_ansible = self.run_script(

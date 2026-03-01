@@ -131,7 +131,7 @@ Generate Proxmox `answer.toml` for unattended installation from layered topology
 
 Usage:
 ```bash
-python topology-tools/generate-proxmox-answer.py topology.yaml manual-scripts/bare-metal/answer.toml
+python topology-tools/generate-proxmox-answer.py topology.yaml answer.toml
 ```
 
 Reads:

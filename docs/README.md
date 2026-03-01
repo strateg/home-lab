@@ -55,7 +55,7 @@ See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete gui
 1. **Understand the architecture**: Read [TOPOLOGY-MODULAR.md](architecture/TOPOLOGY-MODULAR.md)
 2. **Learn deployment strategy**: Read [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md)
 3. **MikroTik setup**: Follow [MIKROTIK-TERRAFORM.md](guides/MIKROTIK-TERRAFORM.md)
-4. **Create Proxmox USB**: Follow [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md)
+4. **Create Proxmox USB**: Generate `generated/bootstrap/srv-gamayun/` and follow [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md)
 5. **Manage secrets**: Read [ANSIBLE-VAULT-GUIDE.md](guides/ANSIBLE-VAULT-GUIDE.md)
 
 ---
@@ -100,7 +100,7 @@ See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete gui
 |----------|-------------|--------|
 | [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) | Full deployment workflow with phases and dist assembly | UPDATED |
 | [MIKROTIK-TERRAFORM.md](guides/MIKROTIK-TERRAFORM.md) | MikroTik RouterOS automation | NEW |
-| [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md) | Proxmox auto-install USB creation | STABLE |
+| [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md) | Proxmox auto-install USB creation from generated bootstrap package | UPDATED |
 | [BRIDGES.md](guides/BRIDGES.md) | Network bridges (Terraform + manual) | STABLE |
 
 ### Infrastructure Setup
@@ -304,6 +304,6 @@ home-lab/
 
 ---
 
-**Last Updated**: 2026-02-17
+**Last Updated**: 2026-03-01
 **Documentation Version**: 3.0.0
 **Topology Version**: 3.0.0

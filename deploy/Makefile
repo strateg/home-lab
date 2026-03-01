@@ -107,6 +107,7 @@ generate-mikrotik:
 generate-bootstrap:
 	@echo "$(YELLOW)📝 Generating bootstrap packages...$(NC)"
 	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-mikrotik-bootstrap.py
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-proxmox-bootstrap.py
 	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-orangepi5-cloud-init.py
 
 generate-ansible:
@@ -231,6 +232,7 @@ bootstrap-info:
 	@echo "║                                                                  ║"
 	@echo "║  2. Proxmox Bootstrap:                                           ║"
 	@echo "║     - Use: generated/bootstrap/srv-gamayun/                      ║"
+	@echo "║     - Copy answer.toml.example to answer.toml                    ║"
 	@echo "║     - Boot from USB, auto-install completes                      ║"
 	@echo "║     - Run post-install scripts                                   ║"
 	@echo "║                                                                  ║"

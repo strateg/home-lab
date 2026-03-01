@@ -208,9 +208,11 @@ ansible-playbook playbooks/new-service.yml
 ### 4. Fresh Proxmox Installation
 
 ```bash
-# 1. Create bootable USB
-cd bare-metal
-sudo ./run-create-usb.sh  # Interactive wrapper
+# 1. Generate the canonical bootstrap package
+python3 topology-tools/generate-proxmox-bootstrap.py
+cd generated/bootstrap/srv-gamayun
+cp answer.toml.example answer.toml
+sudo ./create-uefi-autoinstall-proxmox-usb.sh /path/to/proxmox-ve.iso answer.toml /dev/sdX
 
 # 2. Boot and auto-install (15 min, automatic)
 
@@ -361,7 +363,7 @@ generated/
 │   ├── rtr-mikrotik-chateau/      # MikroTik bootstrap
 │   │   ├── init-terraform.rsc
 │   │   └── terraform.tfvars
-│   ├── srv-gamayun/               # Proxmox bootstrap
+│   ├── srv-gamayun/               # Proxmox bootstrap package
 │   └── srv-orangepi5/             # OPi5 cloud-init
 ├── terraform/
 │   ├── mikrotik/                  # MikroTik RouterOS
@@ -452,4 +454,7 @@ python3 topology-tools/validate-dist.py
 - `dist/control/ansible`
 - `dist/control/terraform/mikrotik`
 - `dist/control/terraform/proxmox`
+- `dist/bootstrap/rtr-mikrotik-chateau`
+- `dist/bootstrap/srv-gamayun`
+- `dist/bootstrap/srv-orangepi5`
 - `dist/manifests/*.json`
