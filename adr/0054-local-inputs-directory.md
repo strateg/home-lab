@@ -37,7 +37,7 @@ These directories must remain safely deletable at any time.
 
 This ADR covers only operator local inputs such as:
 - `terraform.tfvars`
-- `answer.toml`
+- `answer.toml` overrides
 - `user-data`
 
 It does not define tracked manual `.tf` extension files.
@@ -52,7 +52,7 @@ local/
 │   ├── mikrotik/terraform.tfvars
 │   └── proxmox/terraform.tfvars
 └── bootstrap/
-    ├── srv-gamayun/answer.toml
+    ├── srv-gamayun/answer.override.toml
     └── srv-orangepi5/cloud-init/user-data
 ```
 
@@ -71,12 +71,18 @@ The same canonical local inputs must feed both execution modes:
 |--------|--------|--------|
 | `local/terraform/mikrotik/terraform.tfvars` | `generated/terraform/mikrotik/terraform.tfvars` | `dist/control/terraform/mikrotik/terraform.tfvars` |
 | `local/terraform/proxmox/terraform.tfvars` | `generated/terraform/proxmox/terraform.tfvars` | `dist/control/terraform/proxmox/terraform.tfvars` |
-| `local/bootstrap/srv-gamayun/answer.toml` | `generated/bootstrap/srv-gamayun/answer.toml` | `dist/bootstrap/srv-gamayun/answer.toml` |
+| `local/bootstrap/srv-gamayun/answer.override.toml` | `generated/bootstrap/srv-gamayun/answer.toml` | `dist/bootstrap/srv-gamayun/answer.toml` |
 | `local/bootstrap/srv-orangepi5/cloud-init/user-data` | `generated/bootstrap/srv-orangepi5/cloud-init/user-data` | `dist/bootstrap/srv-orangepi5/cloud-init/user-data` |
 
 Preflight checks must validate `local/`, not stale execution copies.
 
 Tracked manual Terraform extensions, when present, are layered separately and are not sourced from `local/`.
+
+For `srv-gamayun`, the canonical generated baseline remains:
+- `generated/bootstrap/srv-gamayun/answer.toml.example`
+
+The local file is not a full replacement of the generated answer.
+It is an override input used to materialize the final execution copy.
 
 ### 4. Native Materialization May Be Integrated, Dist Materialization Remains Explicit
 
@@ -86,7 +92,27 @@ For operator UX:
 
 ADR 0054 does not require both modes to expose the same UX command. It requires both modes to use the same canonical source of truth: `local/`.
 
-### 5. Preflight Fails Explicitly On Missing Local Inputs
+### 5. `answer.toml` Is A Special Case: Generated Baseline Plus Local Override
+
+Unlike `terraform.tfvars`, `answer.toml` is mostly topology-derived and should not become a fully operator-owned canonical file.
+
+For Proxmox bootstrap:
+
+1. the generated baseline remains `generated/bootstrap/srv-gamayun/answer.toml.example`
+2. the canonical local file is `local/bootstrap/srv-gamayun/answer.override.toml`
+3. tooling materializes the final `answer.toml` for execution from:
+   - generated baseline
+   - local override
+
+This preserves topology ownership for the baseline while still allowing required local customization.
+
+The intended use of `answer.override.toml` is narrow. It should only cover fields that genuinely must remain operator-local, such as:
+- root password hash
+- other explicitly allowlisted bootstrap-time overrides, if such fields are introduced intentionally
+
+Operator workflows must not treat `answer.toml` as a long-lived hand-maintained source file.
+
+### 6. Preflight Fails Explicitly On Missing Local Inputs
 
 If a required local input is missing, preflight must fail with a clear message:
 
@@ -100,7 +126,17 @@ Create it from example:
 
 The system must not fall back to stale copies or empty defaults.
 
-### 6. Three Directories, Three Rules
+For Proxmox bootstrap, preflight should guide the operator differently:
+
+```text
+ERROR: local/bootstrap/srv-gamayun/answer.override.toml not found
+
+Create it from the generated baseline:
+  cp generated/bootstrap/srv-gamayun/answer.toml.example local/bootstrap/srv-gamayun/answer.override.toml
+  vim local/bootstrap/srv-gamayun/answer.override.toml
+```
+
+### 7. Three Directories, Three Rules
 
 | Directory | Disposable | Recovery |
 |-----------|------------|----------|
@@ -110,7 +146,7 @@ The system must not fall back to stale copies or empty defaults.
 
 This is the primary mental model for operator-owned inputs.
 
-### 7. Cleanup Safety Improves After Local Input Migration
+### 8. Cleanup Safety Improves After Local Input Migration
 
 Once operator-edited local inputs move out of `generated/`, cleanup of canonical generated roots becomes safer and more deterministic.
 
@@ -131,13 +167,26 @@ Before implementation is considered complete, each of these paths should get an 
 - archive for historical reference
 - relocate to `.cache/` or another non-canonical preview/debug root
 
-### 8. Ansible Secrets Remain Governed By ADR 0051
+### 9. `manual-scripts/bare-metal/` Remains A Source-Assets Layer
+
+`manual-scripts/bare-metal/` remains the home of reusable bootstrap scripts and source assets.
+
+It must not become the canonical home of operator-local Proxmox `answer.toml` state.
+
+That would mix:
+- reusable source assets
+- generated baseline material
+- operator-local runtime input
+
+ADR 0054 keeps those concerns separate.
+
+### 10. Ansible Secrets Remain Governed By ADR 0051
 
 Ansible vault files (`.vault_pass`, `vault.yml`) remain in `ansible/` as defined by ADR 0051.
 
 ADR 0054 covers Terraform and bootstrap inputs only.
 
-### 9. Out Of Scope
+### 11. Out Of Scope
 
 ADR 0054 does not:
 - change Ansible secret ownership from ADR 0051
@@ -155,6 +204,7 @@ ADR 0054 does not:
 3. simple mental model: three directories, three rules
 4. `native` and `dist` stop inventing separate canonical local-input locations
 5. preflight errors are actionable
+6. Proxmox bootstrap keeps topology ownership for baseline answer structure instead of drifting to a fully manual file
 
 ### Negative
 
@@ -162,6 +212,7 @@ ADR 0054 does not:
 2. existing operator inputs must be migrated once
 3. docs must be updated to reference `local/` instead of `generated/`
 4. native and dist workflows still need explicit tooling changes to consume `local/`
+5. `answer.toml` materialization is slightly more complex than plain file copying
 
 ## Migration Plan
 
@@ -183,6 +234,8 @@ Create the canonical `local/` structure and update:
 - native materialization
 - dist materialization
 
+For Proxmox bootstrap, implement generated-baseline-plus-override materialization rather than direct file copying.
+
 Do not use this phase to introduce tracked manual Terraform exceptions.
 Those belong to the separate extension contract from ADR 0055.
 
@@ -201,9 +254,18 @@ mkdir -p local/terraform/mikrotik local/terraform/proxmox
 mkdir -p local/bootstrap/srv-gamayun local/bootstrap/srv-orangepi5/cloud-init
 mv generated/terraform/mikrotik/terraform.tfvars local/terraform/mikrotik/terraform.tfvars
 mv generated/terraform/proxmox/terraform.tfvars local/terraform/proxmox/terraform.tfvars
-mv generated/bootstrap/srv-gamayun/answer.toml local/bootstrap/srv-gamayun/answer.toml
 mv generated/bootstrap/srv-orangepi5/cloud-init/user-data local/bootstrap/srv-orangepi5/cloud-init/user-data
 ```
+
+For `srv-gamayun`, do not migrate the full `answer.toml` as the new canonical local file.
+Instead:
+
+```text
+mkdir -p local/bootstrap/srv-gamayun
+cp generated/bootstrap/srv-gamayun/answer.toml local/bootstrap/srv-gamayun/answer.override.toml
+```
+
+Then reduce that file to the intended local override surface during implementation.
 
 Windows/PowerShell instructions should be provided in active docs when implementation starts.
 
