@@ -9,6 +9,8 @@ import hashlib
 import sys
 from pathlib import Path
 
+from utils.package_policy import is_local_secret_path
+
 REPO_ROOT = Path(__file__).parent.parent
 DEFAULT_DIST = REPO_ROOT / "dist"
 
@@ -37,6 +39,9 @@ def compare_file_sets(
     dist_files = {
         str(path.relative_to(dist_root)).replace("\\", "/"): path for path in dist_root.rglob("*") if path.is_file()
     }
+
+    native_files = {rel: path for rel, path in native_files.items() if not is_local_secret_path(Path(rel))}
+    dist_files = {rel: path for rel, path in dist_files.items() if not is_local_secret_path(Path(rel))}
 
     for ignored in ignored_native:
         native_files.pop(ignored, None)

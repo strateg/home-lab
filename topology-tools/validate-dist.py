@@ -48,6 +48,20 @@ def validate_package_manifest_contract(package_id: str, manifest: dict) -> list[
     return errors
 
 
+def resolve_required_input(dist_root: Path, package_id: str, package_dir: Path, raw_path: str) -> Path:
+    """Resolve a required input path from package metadata."""
+    input_path = Path(raw_path)
+    package_prefix = Path(package_id)
+
+    try:
+        if input_path.parts[: len(package_prefix.parts)] == package_prefix.parts:
+            return dist_root / input_path
+    except IndexError:
+        pass
+
+    return package_dir / input_path
+
+
 def required_binary(command: str) -> str:
     """Extract the executable name from a validation command."""
     return command.split()[0]
@@ -88,6 +102,11 @@ def run_manifest_commands(
                     shutil.copytree(package_dir, terraform_work_dir)
                 env = terraform_env
                 run_dir = terraform_work_dir
+            elif binary.startswith("ansible"):
+                env = dict(os.environ)
+                ansible_cfg = package_dir / "ansible.cfg"
+                if ansible_cfg.exists():
+                    env["ANSIBLE_CONFIG"] = str(ansible_cfg)
 
             result = subprocess.run(
                 command,
@@ -178,14 +197,24 @@ def validate_dist(dist_root: Path, strict_external: bool, verbose: bool) -> bool
             errors.append(f"{package_id}: skipped package missing from non_publishable_packages")
 
         if status == "ready":
-            command_errors, command_skips = run_manifest_commands(
-                package_dir=package_dir,
-                package_id=package_id,
-                commands=manifest.get("validation_commands", []),
-                strict_external=strict_external,
-            )
-            errors.extend(command_errors)
-            skipped.extend(command_skips)
+            missing_inputs = [
+                raw_path
+                for raw_path in manifest.get("required_local_inputs", [])
+                if not resolve_required_input(dist_root, package_id, package_dir, raw_path).exists()
+            ]
+            if missing_inputs:
+                skipped.append(
+                    f"{package_id}: skipped external validation until local inputs exist: {', '.join(missing_inputs)}"
+                )
+            else:
+                command_errors, command_skips = run_manifest_commands(
+                    package_dir=package_dir,
+                    package_id=package_id,
+                    commands=manifest.get("validation_commands", []),
+                    strict_external=strict_external,
+                )
+                errors.extend(command_errors)
+                skipped.extend(command_skips)
         else:
             skipped.append(f"{package_id}: skipped package has no assembled payload yet")
 
