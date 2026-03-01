@@ -23,9 +23,11 @@ else
 SHELL := bash
 endif
 PYTHON ?= /c/Windows/py.exe -3
+TERRAFORM ?= /c/Tools/Terraform/terraform.exe
 else
 SHELL := /bin/bash
 PYTHON ?= python3
+TERRAFORM ?= terraform
 endif
 
 .SHELLFLAGS := -lc
@@ -235,7 +237,7 @@ plan-mikrotik:
 		cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-native.py --target mikrotik --quiet; \
 	fi
 	@if [ -f $(TF_MIKROTIK_EXEC_DIR)/terraform.tfvars ]; then \
-		cd $(TF_MIKROTIK_EXEC_DIR) && terraform init -upgrade && terraform plan; \
+		cd $(TF_MIKROTIK_EXEC_DIR) && $(TERRAFORM) init -upgrade && $(TERRAFORM) plan; \
 	else \
 		if [ "$(DEPLOY_MODE)" = "dist" ]; then \
 			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/mikrotik/terraform.tfvars and run 'make materialize-dist-inputs'.$(NC)"; \
@@ -254,7 +256,7 @@ plan-proxmox:
 		cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-native.py --target proxmox --quiet; \
 	fi
 	@if [ -f $(TF_PROXMOX_EXEC_DIR)/terraform.tfvars ]; then \
-		cd $(TF_PROXMOX_EXEC_DIR) && terraform init -upgrade && terraform plan; \
+		cd $(TF_PROXMOX_EXEC_DIR) && $(TERRAFORM) init -upgrade && $(TERRAFORM) plan; \
 	else \
 		if [ "$(DEPLOY_MODE)" = "dist" ]; then \
 			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/proxmox/terraform.tfvars and run 'make materialize-dist-inputs'.$(NC)"; \
@@ -385,11 +387,11 @@ bootstrap-info:
 
 init-mikrotik:
 	@echo "$(YELLOW)Initializing MikroTik Terraform...$(NC)"
-	cd $(TF_MIKROTIK_EXEC_DIR) && terraform init -upgrade
+	cd $(TF_MIKROTIK_EXEC_DIR) && $(TERRAFORM) init -upgrade
 
 init-proxmox:
 	@echo "$(YELLOW)Initializing Proxmox Terraform...$(NC)"
-	cd $(TF_PROXMOX_EXEC_DIR) && terraform init -upgrade
+	cd $(TF_PROXMOX_EXEC_DIR) && $(TERRAFORM) init -upgrade
 
 init: init-mikrotik init-proxmox
 	@echo "$(GREEN)✓ All Terraform providers initialized$(NC)"
