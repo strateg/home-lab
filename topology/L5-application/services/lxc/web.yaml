@@ -1,0 +1,56 @@
+# LXC Web Services
+# Web applications running in Proxmox LXC containers
+
+- id: svc-nextcloud
+  name: Nextcloud
+  type: file-storage
+  port: 80
+  protocol: http
+  trust_zone_ref: servers-app
+  description: Nextcloud file sync and share
+  clients:
+  - service_ref: svc-postgresql
+  - service_ref: svc-redis
+  ip_refs:
+    self:
+      lxc_ref: lxc-nextcloud
+      network_ref: net-servers
+  security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-nextcloud
+    network_binding_ref: net-servers
+
+- id: svc-gitea
+  name: Gitea
+  type: web-application
+  port: 3000
+  protocol: http
+  trust_zone_ref: servers-app
+  description: Gitea git server
+  ip_refs:
+    self:
+      lxc_ref: lxc-gitea
+      network_ref: net-servers
+  security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-gitea
+    network_binding_ref: net-servers
+
+- id: svc-nginx-proxy
+  name: Nginx Reverse Proxy
+  type: proxy
+  port: 80
+  protocol: http
+  trust_zone_ref: servers-app
+  description: Nginx reverse proxy for web services
+  ip_refs:
+    self:
+      lxc_ref: lxc-nginx-proxy
+      network_ref: net-servers
+  security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-nginx-proxy
+    network_binding_ref: net-servers

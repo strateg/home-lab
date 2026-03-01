@@ -1,0 +1,19 @@
+# LXC Docker Services
+# Docker container host running in Proxmox LXC
+
+- id: svc-docker-host
+  name: Docker Host
+  type: web-application
+  port: 2375
+  protocol: tcp
+  trust_zone_ref: servers-app
+  description: Docker container host for various services
+  ip_refs:
+    self:
+      lxc_ref: lxc-docker
+      network_ref: net-servers
+  security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-docker
+    network_binding_ref: net-servers

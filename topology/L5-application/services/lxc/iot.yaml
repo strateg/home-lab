@@ -1,0 +1,19 @@
+# LXC IoT Services
+# Home automation running in Proxmox LXC containers
+
+- id: svc-homeassistant
+  name: Home Assistant
+  type: home-automation
+  port: 8123
+  protocol: http
+  trust_zone_ref: servers-app
+  description: Home Assistant home automation
+  ip_refs:
+    self:
+      lxc_ref: lxc-homeassistant
+      network_ref: net-servers
+  security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-homeassistant
+    network_binding_ref: net-servers

@@ -1,0 +1,7 @@
+id: profile-app-small
+name: Application Small
+cpu:
+  cores: 2
+memory:
+  mb: 2048
+  swap_mb: 1024

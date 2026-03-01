@@ -1,0 +1,36 @@
+# LXC Monitoring Services
+# Observability stack running in Proxmox LXC containers
+
+- id: svc-prometheus
+  name: Prometheus
+  type: monitoring
+  port: 9090
+  protocol: http
+  trust_zone_ref: servers-mon
+  description: Prometheus metrics collection
+  ip_refs:
+    self:
+      lxc_ref: lxc-prometheus
+      network_ref: net-servers
+  security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-prometheus
+    network_binding_ref: net-servers
+
+- id: svc-grafana
+  name: Grafana
+  type: visualization
+  port: 3000
+  protocol: http
+  trust_zone_ref: servers-mon
+  description: Grafana observability dashboards
+  ip_refs:
+    self:
+      lxc_ref: lxc-grafana
+      network_ref: net-servers
+  security_policy_ref: sec-baseline
+  runtime:
+    type: lxc
+    target_ref: lxc-grafana
+    network_binding_ref: net-servers

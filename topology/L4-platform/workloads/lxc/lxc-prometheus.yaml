@@ -1,0 +1,39 @@
+id: lxc-prometheus
+vmid: 206
+name: prometheus
+device_ref: srv-gamayun
+platform_type: lxc-unprivileged
+resource_profile_ref: profile-db-small
+template_ref: tpl-lxc-debian
+trust_zone_ref: servers-mon
+description: Prometheus metrics collection
+tags:
+- monitoring
+- production
+boot:
+  onboot: true
+  startup_order: 29
+storage:
+  rootfs:
+    storage_endpoint_ref: se-lvm
+    size_gb: 16
+networks:
+- interface: eth0
+  bridge_ref: bridge-vmbr0
+  network_ref: net-servers
+  gateway: 10.0.30.1
+  firewall: false
+  vlan_tag: 30
+  ip: 10.0.30.70/24
+dns:
+  nameserver: 192.168.88.1
+  searchdomain: home.local
+os:
+  type: debian
+  version: '12'
+cloudinit:
+  enabled: true
+  user: root
+ansible:
+  enabled: true
+  playbook: prometheus.yml
