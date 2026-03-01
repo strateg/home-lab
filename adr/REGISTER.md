@@ -53,3 +53,4 @@
 | [0050](0050-generated-directory-restructuring.md) | Generated Directory Restructuring | Accepted | 2026-02-28 | - | - |
 | [0051](0051-ansible-runtime-and-secrets.md) | Ansible Runtime, Inventory, and Secret Boundaries | Accepted | 2026-03-01 | - | - |
 | [0052](0052-build-pipeline-after-ansible.md) | Deploy Package Assembly Over Accepted Ansible Runtime | Accepted | 2026-03-01 | - | - |
+| [0053](0053-dist-first-deploy-cutover.md) | Optional Dist-First Deploy Cutover | Proposed | 2026-03-01 | - | - |

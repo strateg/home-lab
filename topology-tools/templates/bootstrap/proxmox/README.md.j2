@@ -44,4 +44,4 @@ cd /root/{{ post_install_dir }}
 Notes:
 - `{{ answer_example }}` is release-safe and intentionally does not contain a production password hash.
 - The packaged USB helper may try to auto-regenerate `answer.toml` from repository topology when run inside the repository. In `dist/`, use the materialized local `{{ answer_file }}`.
-- The canonical source for this package is generated output, not `manual-scripts/bare-metal/`.
+- The canonical source for this package is generated output, not the legacy source-asset tree.

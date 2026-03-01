@@ -106,7 +106,7 @@ home-lab/
 ├── ansible/                   # Playbooks and roles (manual)
 │   ├── playbooks/
 │   └── roles/
-├── manual-scripts/bare-metal/                # Proxmox USB auto-install
+├── manual bare-metal source assets           # Source assets for generated Proxmox bootstrap package
 ├── generated/bootstrap/       # Canonical bootstrap packages
 ├── Migrated_and_archived/     # Archived legacy bootstrap/manual flows
 ├── deploy/                    # Deployment orchestration

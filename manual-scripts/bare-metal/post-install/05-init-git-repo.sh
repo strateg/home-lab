@@ -286,7 +286,7 @@ if ! git rev-parse HEAD &> /dev/null; then
     mkdir -p ansible/playbooks
     mkdir -p ansible/inventory/<env>/host_vars
     mkdir -p ansible/inventory/<env>/group_vars
-    mkdir -p manual-scripts/bare-metal/post-install
+    mkdir -p generated/bootstrap/srv-gamayun/post-install
     mkdir -p docs
 
     touch terraform/modules/.gitkeep
@@ -298,7 +298,7 @@ if ! git rev-parse HEAD &> /dev/null; then
     git add .gitignore
     git add terraform/
     git add ansible/
-    git add manual-scripts/bare-metal/
+    git add generated/bootstrap/srv-gamayun/
     git add docs/
 
     # Create initial commit
