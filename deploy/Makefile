@@ -32,7 +32,7 @@ endif
 
 .PHONY: all help validate generate plan apply deploy-all clean
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
-.PHONY: configure test bootstrap-info assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides
+.PHONY: configure test bootstrap-info assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides check-terraform-override-flow
 .PHONY: plan-dist plan-mikrotik-dist plan-proxmox-dist apply-mikrotik-dist apply-proxmox-dist configure-dist deploy-all-dist require-dist
 
 # Directories (relative to deploy/)
@@ -94,6 +94,7 @@ help:
 	@echo "║    make materialize-dist-inputs - Copy local/ into dist/         ║"
 	@echo "║    make clean-generated-managed - Reset managed generated/ roots ║"
 	@echo "║    make assemble-terraform-overrides - Layer tracked .tf extras  ║"
+	@echo "║    make check-terraform-override-flow - Smoke-test ADR 0055      ║"
 	@echo "║                                                                  ║"
 	@echo "║  Planning (Dry Run):                                             ║"
 	@echo "║    make plan           - Show all Terraform plans                ║"
@@ -140,6 +141,11 @@ require-dist:
 assemble-terraform-overrides:
 	@echo "$(YELLOW)🧩 Assembling tracked Terraform overrides (ADR 0055)...$(NC)"
 	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-terraform-overrides.py
+
+check-terraform-override-flow:
+	@echo "$(YELLOW)🧪 Smoke-testing Terraform override flow (ADR 0055)...$(NC)"
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-terraform-override-flow.py
+	@echo "$(GREEN)✓ Terraform override flow passed$(NC)"
 
 clean-generated-managed:
 	@echo "$(YELLOW)🧹 Cleaning managed generated roots (ADR 0054)...$(NC)"

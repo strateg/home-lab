@@ -9,10 +9,18 @@ on:
       - 'topology-tools/assemble-ansible-runtime.py'
       - 'topology-tools/check-deploy-parity.py'
       - 'topology-tools/check-dist-package.py'
+      - 'topology-tools/check-terraform-override-flow.py'
+      - 'topology-tools/check-native-inputs.py'
+      - 'topology-tools/clean-generated.py'
+      - 'topology-tools/materialize-native-inputs.py'
       - 'topology-tools/materialize-dist-inputs.py'
+      - 'topology-tools/assemble-terraform-overrides.py'
       - 'topology-tools/validate-dist.py'
+      - 'terraform-overrides/**'
       - 'topology-tools/utils/**'
       - 'adr/0053-*.md'
+      - 'adr/0054-*.md'
+      - 'adr/0055-*.md'
       - 'docs/**'
       - 'ansible/**'
       - 'generated/**'
@@ -26,10 +34,18 @@ on:
       - 'topology-tools/assemble-ansible-runtime.py'
       - 'topology-tools/check-deploy-parity.py'
       - 'topology-tools/check-dist-package.py'
+      - 'topology-tools/check-terraform-override-flow.py'
+      - 'topology-tools/check-native-inputs.py'
+      - 'topology-tools/clean-generated.py'
+      - 'topology-tools/materialize-native-inputs.py'
       - 'topology-tools/materialize-dist-inputs.py'
+      - 'topology-tools/assemble-terraform-overrides.py'
       - 'topology-tools/validate-dist.py'
+      - 'terraform-overrides/**'
       - 'topology-tools/utils/**'
       - 'adr/0053-*.md'
+      - 'adr/0054-*.md'
+      - 'adr/0055-*.md'
       - 'docs/**'
       - 'ansible/**'
       - 'generated/**'
@@ -73,3 +89,6 @@ jobs:
 
       - name: Check native versus dist parity
         run: python topology-tools/check-deploy-parity.py
+
+      - name: Smoke-test Terraform override flow
+        run: python topology-tools/check-terraform-override-flow.py

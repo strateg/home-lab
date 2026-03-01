@@ -265,6 +265,7 @@ make clean-generated-managed
 - `make materialize-native-inputs` копирует canonical local inputs из `local/` в native execution roots
 - `make materialize-dist-inputs` копирует canonical local inputs из `local/` и Ansible vault inputs из `ansible/` в `dist/`
 - `make clean-generated-managed` очищает reproducible managed roots в `generated/`, не трогая `local/`
+- `make check-terraform-override-flow` smoke-test'ит tracked Terraform override layer end-to-end
 - `terraform-overrides/` содержит tracked additive Terraform exceptions поверх generated baseline
 - `dist/control/ansible` требует локальные `.vault_pass` и `group_vars/all/vault.yml`, но не тащит legacy `group_vars/all/vars.yml`
 
