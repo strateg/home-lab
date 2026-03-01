@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply tracked Terraform overrides onto native execution roots."""
+"""Apply tracked Terraform overrides onto native workspace execution roots."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def assemble(target: str | None, verbose: bool) -> int:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Apply tracked Terraform overrides to native execution roots")
+    parser = argparse.ArgumentParser(description="Apply tracked Terraform overrides to native workspace roots")
     parser.add_argument("--target", choices=sorted(TARGETS), help="Single target to assemble")
     parser.add_argument("-q", "--quiet", action="store_true", help="Suppress summary output")
     args = parser.parse_args()

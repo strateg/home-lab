@@ -91,7 +91,7 @@ cat > local/bootstrap/srv-gamayun/answer.override.toml <<'EOF'
 [global]
 root_password = "<SHA512_PASSWORD_HASH>"
 EOF
-cd deploy && make materialize-native-inputs && cd ..
+cd deploy && make assemble-native && cd ..
 
 # Review the topology-derived example
 cat generated/bootstrap/srv-gamayun/answer.toml.example
@@ -204,7 +204,7 @@ openssl passwd -6 "YourStrongPassword"
 # Update the canonical local override, then rematerialize answer.toml
 mkdir -p local/bootstrap/srv-gamayun
 vim local/bootstrap/srv-gamayun/answer.override.toml
-cd deploy && make materialize-native-inputs && cd ..
+cd deploy && make assemble-native && cd ..
 ```
 
 ---
@@ -334,7 +334,7 @@ cat > local/bootstrap/srv-gamayun/answer.override.toml <<'EOF'
 [global]
 root_password = "<SHA512_PASSWORD_HASH>"
 EOF
-cd deploy && make materialize-native-inputs
+cd deploy && make assemble-native
 cd ..
 
 # Create USB without topology regeneration
@@ -355,7 +355,7 @@ This USB creation process is part of the complete infrastructure workflow:
 ```
 topology.yaml  →  generate-proxmox-bootstrap.py  →  generated/bootstrap/srv-gamayun/answer.toml.example
                                                         ↓
- local/bootstrap/srv-gamayun/answer.override.toml + materialize-native-inputs
+ local/bootstrap/srv-gamayun/answer.override.toml + assemble-native
                                                         ↓
     generated/bootstrap/srv-gamayun/answer.toml + create-uefi-autoinstall-proxmox-usb.sh  ←  Proxmox ISO
                         ↓
@@ -398,7 +398,8 @@ After successful Proxmox installation:
 
    # Generate Terraform
    python3 topology-tools/generate-terraform.py
-   cd generated/terraform
+   cd deploy && make assemble-native && cd ..
+   cd .work/native/terraform/proxmox
    terraform init
    terraform apply
 

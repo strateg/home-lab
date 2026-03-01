@@ -124,10 +124,14 @@ class MikrotikBootstrapDeployer:
         """Build SSH command with options."""
         cmd = [
             "ssh",
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "ConnectTimeout=10",
-            "-p", str(self.ssh_port),
+            "-o",
+            "StrictHostKeyChecking=no",
+            "-o",
+            "UserKnownHostsFile=/dev/null",
+            "-o",
+            "ConnectTimeout=10",
+            "-p",
+            str(self.ssh_port),
         ]
 
         # Add password via sshpass if available and password provided
@@ -157,9 +161,12 @@ class MikrotikBootstrapDeployer:
                     curl_path,
                     "-k",  # Allow self-signed cert
                     "-s",  # Silent
-                    "-o", "/dev/null",
-                    "-w", "%{http_code}",
-                    "--connect-timeout", "5",
+                    "-o",
+                    "/dev/null",
+                    "-w",
+                    "%{http_code}",
+                    "--connect-timeout",
+                    "5",
                     f"https://{self.router_ip}:{api_port}/rest/system/identity",
                 ],
                 capture_output=True,
@@ -217,17 +224,16 @@ class MikrotikBootstrapDeployer:
         print(f"REST API: https://{self.router_ip}:8443")
         print()
         print("Next steps:")
-        print("  1. Copy terraform.tfvars to generated/terraform/mikrotik/")
-        print("  2. Run: cd generated/terraform/mikrotik && terraform apply")
+        print("  1. Copy terraform.tfvars to local/terraform/mikrotik/terraform.tfvars")
+        print("  2. Run: cd deploy && make assemble-native")
+        print("  3. Run: cd .work/native/terraform/mikrotik && terraform apply")
         print()
 
         return True
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Deploy MikroTik bootstrap script via SSH"
-    )
+    parser = argparse.ArgumentParser(description="Deploy MikroTik bootstrap script via SSH")
     parser.add_argument(
         "--router",
         default="192.168.88.1",
@@ -270,15 +276,16 @@ def main():
     # Generate if requested
     if args.generate:
         print("Generating bootstrap script from topology...")
-        from scripts.generators.bootstrap.mikrotik.generator import MikrotikBootstrapGenerator
         from topology_loader import load_topology
+
+        from scripts.generators.bootstrap.mikrotik.generator import MikrotikBootstrapGenerator
 
         topology = load_topology(args.topology)
         generator = MikrotikBootstrapGenerator(topology)
         result = generator.generate()
         print(f"OK Generated: {result['bootstrap_script']}")
         print()
-        script_path = Path(result['bootstrap_script'])
+        script_path = Path(result["bootstrap_script"])
     else:
         script_path = Path(args.script) if args.script else None
 

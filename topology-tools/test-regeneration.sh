@@ -173,7 +173,7 @@ print_header "Test 3: Validate Terraform Syntax"
 if ! command -v terraform &> /dev/null; then
     print_warning "Terraform not installed, skipping syntax validation"
 else
-    cd generated/terraform
+    cd .work/native/terraform/proxmox
 
     echo ""
     echo "Running terraform fmt check..."

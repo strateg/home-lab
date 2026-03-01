@@ -105,8 +105,8 @@ home-lab/
    python topology-tools\generate-proxmox-bootstrap.py
    mkdir local\bootstrap\srv-gamayun
    notepad local\bootstrap\srv-gamayun\answer.override.toml
-   cd deploy && make materialize-native-inputs
-   cd ..\generated\bootstrap\srv-gamayun
+   cd deploy && make assemble-native
+   cd ..\.work\native\bootstrap\srv-gamayun
    create-uefi-autoinstall-proxmox-usb.sh C:\path\to\proxmox-ve.iso answer.toml \\.\PhysicalDriveN
    ```
 
@@ -262,7 +262,8 @@ make clean-generated-managed
 - `make check-parity` сравнивает `native` и `dist` execution roots для Terraform и Ansible
 - `make check-native-ready` проверяет canonical local inputs для native execution
 - `make check-dist-ready` проверяет, что для `dist` execution материализованы package-local local inputs
-- `make materialize-native-inputs` копирует canonical local inputs из `local/` в native execution roots
+- `make assemble-native` собирает disposable native execution workspace в `.work/native/`
+- `make materialize-native-inputs` остаётся compat alias для `make assemble-native`
 - `make materialize-dist-inputs` копирует canonical local inputs из `local/` и Ansible vault inputs из `ansible/` в `dist/`
 - `make clean-generated-managed` очищает reproducible managed roots в `generated/`, не трогая `local/`
 - `make check-terraform-override-flow` smoke-test'ит tracked Terraform override layer end-to-end
@@ -272,7 +273,7 @@ make clean-generated-managed
 ### Deploy Modes
 
 `ADR 0053` вводит два явных execution mode для `deploy/`:
-- `native` — текущий default, использует `generated/terraform/*` и `ansible/`
+- `native` — текущий default, использует `.work/native/terraform/*`, `.work/native/bootstrap/*` и `ansible/`
 - `dist` — opt-in mode, исполняется только из `dist/control/**`
 
 ```cmd

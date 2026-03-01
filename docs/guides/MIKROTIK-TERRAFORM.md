@@ -98,7 +98,7 @@ curl -k -u terraform:YOUR_PASSWORD https://192.168.88.1:8443/rest/system/identit
 ### 1. Configure terraform.tfvars
 
 ```bash
-cd generated/terraform/mikrotik
+cd .work/native/terraform/mikrotik
 cp terraform.tfvars.example terraform.tfvars
 ```
 
@@ -155,7 +155,7 @@ wg genkey | tee phone_private.key | wg pubkey > phone_public.key
 ### Initialize and Plan
 
 ```bash
-cd generated/terraform/mikrotik
+cd .work/native/terraform/mikrotik
 terraform init
 terraform plan
 ```

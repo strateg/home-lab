@@ -56,4 +56,4 @@
 | [0053](0053-dist-first-deploy-cutover.md) | Optional Dist-First Deploy Cutover | Proposed | 2026-03-01 | - | - |
 | [0054](0054-local-inputs-directory.md) | Local Inputs Directory | Accepted | 2026-03-01 | - | - |
 | [0055](0055-manual-terraform-extension-layer.md) | Manual Terraform Extension Layer | Accepted | 2026-03-01 | - | - |
-| [0056](0056-native-execution-workspace.md) | Native Execution Workspace Outside Generated Roots | Proposed | 2026-03-01 | - | - |
+| [0056](0056-native-execution-workspace.md) | Native Execution Workspace Outside Generated Roots | Accepted | 2026-03-01 | - | - |

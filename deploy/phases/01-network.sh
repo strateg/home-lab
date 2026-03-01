@@ -17,7 +17,7 @@ DIST_CHECKER="$PROJECT_DIR/topology-tools/check-dist-package.py"
 
 case "$DEPLOY_MODE" in
     native)
-        TERRAFORM_DIR="$PROJECT_DIR/generated/terraform/mikrotik"
+        TERRAFORM_DIR="$PROJECT_DIR/.work/native/terraform/mikrotik"
         ;;
     dist)
         TERRAFORM_DIR="$DIST_ROOT/$DIST_PACKAGE_ID"
@@ -53,8 +53,7 @@ if [ "$DEPLOY_MODE" = "dist" ]; then
         exit 1
     fi
 else
-    python3 "$PROJECT_DIR/topology-tools/assemble-terraform-overrides.py" --target mikrotik --quiet
-    python3 "$PROJECT_DIR/topology-tools/materialize-native-inputs.py" --quiet
+    python3 "$PROJECT_DIR/topology-tools/assemble-native.py" --target mikrotik --quiet
 fi
 
 if [ ! -f "$TERRAFORM_DIR/terraform.tfvars" ]; then
@@ -64,7 +63,7 @@ if [ ! -f "$TERRAFORM_DIR/terraform.tfvars" ]; then
         echo "   cd deploy && make materialize-dist-inputs"
     else
         echo "   Create local/terraform/mikrotik/terraform.tfvars and run:"
-        echo "   cd deploy && make materialize-native-inputs"
+        echo "   cd deploy && make assemble-native"
     fi
     exit 1
 fi

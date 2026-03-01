@@ -43,7 +43,7 @@ python3 topology-tools/regenerate-all.py
 Эта одна команда:
 1. Очищает `generated/`
 2. Валидирует `topology.yaml`
-3. Генерирует Terraform → `generated/terraform/`
+3. Генерирует Terraform baseline → `generated/terraform/`
 4. Генерирует Ansible inventory input → `generated/ansible/inventory/<env>/`
 5. Собирает runtime inventory → `generated/ansible/runtime/production/`
 6. Генерирует документацию → `generated/docs/`
@@ -70,7 +70,8 @@ python3 topology-tools/regenerate-all.py
 ### 3. Просмотри изменения
 
 ```bash
-cd generated/terraform
+cd deploy && make assemble-native && cd ..
+cd .work/native/terraform/proxmox
 terraform plan
 ```
 
@@ -89,8 +90,9 @@ terraform apply
 Если нужно сгенерировать только одну часть:
 
 ```bash
-# Только Terraform
-python3 topology-tools/generate-terraform.py
+# Только Terraform baseline
+python3 topology-tools/generate-terraform-proxmox.py
+python3 topology-tools/generate-terraform-mikrotik.py
 
 # Только Ansible
 python3 topology-tools/generate-ansible-inventory.py
@@ -143,12 +145,12 @@ python3 topology-tools/generate-docs.py
 При запуске генератора:
 
 ```bash
-python3 topology-tools/generate-terraform.py
+python3 topology-tools/generate-terraform-proxmox.py
 
 # Вывод:
-🧹 Cleaning output directory: generated/terraform
-📁 Created output directory: generated/terraform
-✓ Generated: generated/terraform/provider.tf
+🧹 Cleaning output directory: generated/terraform/proxmox
+📁 Created output directory: generated/terraform/proxmox
+✓ Generated: generated/terraform/proxmox/provider.tf
 ...
 ```
 
@@ -164,12 +166,12 @@ python3 topology-tools/generate-terraform.py
 
 ```
 generated/terraform/
-├── provider.tf                 # Proxmox provider
-├── bridges.tf                  # Сетевые мосты (4)
-├── vms.tf                      # Виртуальные машины (1)
-├── lxc.tf                      # LXC контейнеры (3)
-├── variables.tf                # Переменные
-└── terraform.tfvars.example    # Пример переменных
+├── mikrotik/                   # Baseline RouterOS Terraform
+└── proxmox/                    # Baseline Proxmox Terraform
+
+.work/native/terraform/
+├── mikrotik/                   # Native execution root after assemble-native
+└── proxmox/                    # Native execution root after assemble-native
 ```
 
 ### Ansible (1 + 4 + 3 файла)
@@ -234,7 +236,8 @@ vim topology.yaml
 python3 topology-tools/regenerate-all.py
 
 # 3. Проверить изменения
-cd generated/terraform
+cd deploy && make assemble-native && cd ..
+cd .work/native/terraform/proxmox
 terraform plan
 # Plan: 1 to change (IP address)
 
@@ -262,7 +265,8 @@ python3 topology-tools/regenerate-all.py
 # ✓ Generated: hosts.yml (4 LXC containers)               ← было 3
 
 # 3. Terraform создаст новый контейнер
-cd generated/terraform
+cd deploy && make assemble-native && cd ..
+cd .work/native/terraform/proxmox
 terraform plan
 # Plan: 1 to add (lxc-monitoring)
 
@@ -318,7 +322,7 @@ python3 topology-tools/regenerate-all.py
 
 - [ ] Отредактировал `topology.yaml`
 - [ ] Запустил `python3 topology-tools/regenerate-all.py`
-- [ ] Проверил `terraform plan` в `generated/terraform/`
+- [ ] Проверил `terraform plan` в `.work/native/terraform/<target>/`
 - [ ] Применил изменения с `terraform apply`
 - [ ] Запустил Ansible (если нужно)
 - [ ] Закоммитил **только** `topology.yaml` (не `generated/`)

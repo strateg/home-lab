@@ -75,7 +75,7 @@ def smoke_test(verbose: bool) -> int:
         for target in TARGETS:
             run("topology-tools/assemble-terraform-overrides.py", "--target", target, "--quiet", quiet=True)
             assert_exists(
-                REPO_ROOT / "generated" / "terraform" / target / MARKER_NAMES[target],
+                REPO_ROOT / ".work" / "native" / "terraform" / target / MARKER_NAMES[target],
                 f"native override copy for {target}",
             )
 

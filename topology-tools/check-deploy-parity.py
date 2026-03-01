@@ -14,6 +14,7 @@ from utils.terraform_overrides import override_dir
 
 REPO_ROOT = Path(__file__).parent.parent
 DEFAULT_DIST = REPO_ROOT / "dist"
+DEFAULT_NATIVE = REPO_ROOT / ".work" / "native"
 
 
 def sha256(path: Path) -> str:
@@ -107,20 +108,20 @@ def compare_override_files(label: str, override_root: Path, package_root: Path) 
     return errors
 
 
-def check_parity(dist_root: Path, verbose: bool) -> int:
+def check_parity(dist_root: Path, native_root: Path, verbose: bool) -> int:
     """Run parity assertions for dist execution roots."""
     errors: list[str] = []
 
     terraform_pairs = [
-        ("control/terraform/mikrotik", REPO_ROOT / "generated" / "terraform" / "mikrotik"),
-        ("control/terraform/proxmox", REPO_ROOT / "generated" / "terraform" / "proxmox"),
+        ("control/terraform/mikrotik", native_root / "terraform" / "mikrotik"),
+        ("control/terraform/proxmox", native_root / "terraform" / "proxmox"),
     ]
-    for package_id, native_root in terraform_pairs:
+    for package_id, current_native_root in terraform_pairs:
         package_root = dist_root / package_id
         errors.extend(
             compare_file_sets(
                 label=package_id,
-                native_root=native_root,
+                native_root=current_native_root,
                 dist_root=package_root,
                 ignored_dist={"manifest.json"},
             )
@@ -173,6 +174,7 @@ def check_parity(dist_root: Path, verbose: bool) -> int:
 
     if verbose:
         print("OK deploy execution parity passed")
+        print(f"  native root: {native_root}")
         print(f"  dist root: {dist_root}")
 
     return 0
@@ -187,6 +189,12 @@ def main() -> None:
         help="Path to dist root",
     )
     parser.add_argument(
+        "--native",
+        type=Path,
+        default=DEFAULT_NATIVE,
+        help="Path to native workspace root",
+    )
+    parser.add_argument(
         "-q",
         "--quiet",
         action="store_true",
@@ -194,7 +202,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    sys.exit(check_parity(dist_root=args.dist, verbose=not args.quiet))
+    sys.exit(check_parity(dist_root=args.dist, native_root=args.native, verbose=not args.quiet))
 
 
 if __name__ == "__main__":

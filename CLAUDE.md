@@ -102,6 +102,9 @@ home-lab/
 │   ├── control/ansible/
 │   ├── control/terraform/
 │   └── manifests/
+├── .work/native/              # Disposable native execution workspace (ADR 0056)
+│   ├── terraform/
+│   └── bootstrap/
 ├── local/                     # Canonical untracked operator inputs (ADR 0054)
 │   ├── terraform/
 │   │   ├── mikrotik/terraform.tfvars
@@ -112,7 +115,7 @@ home-lab/
 ├── terraform-overrides/       # Tracked Terraform exception layer (ADR 0055)
 │   ├── mikrotik/
 │   └── proxmox/
-├── terraform -> generated/terraform/proxmox  # Symlink
+├── terraform -> generated/terraform/proxmox  # Legacy convenience symlink to baseline
 ├── ansible/                   # Playbooks and roles (manual)
 │   ├── playbooks/
 │   └── roles/
@@ -154,8 +157,9 @@ python3 topology-tools/generate-docs.py
 python3 topology-tools/assemble-deploy.py
 python3 topology-tools/validate-dist.py
 
-# 3. Plan and apply Terraform changes
-cd generated/terraform/proxmox
+# 3. Assemble native execution workspace and apply Terraform changes
+cd deploy && make assemble-native && cd ..
+cd .work/native/terraform/proxmox
 terraform plan && terraform apply
 
 cd ../mikrotik
@@ -214,7 +218,8 @@ vim topology/L5-application.yaml
 python3 topology-tools/regenerate-all.py
 
 # 4. Apply Terraform (creates LXC)
-cd generated/terraform/proxmox
+cd deploy && make assemble-native && cd ..
+cd .work/native/terraform/proxmox
 terraform apply -target='proxmox_virtual_environment_container.new_container'
 
 # 5. Configure with Ansible
@@ -229,8 +234,8 @@ ansible-playbook playbooks/new-service.yml
 python3 topology-tools/generate-proxmox-bootstrap.py
 mkdir -p local/bootstrap/srv-gamayun
 cp generated/bootstrap/srv-gamayun/answer.toml.example local/bootstrap/srv-gamayun/answer.override.toml
-cd deploy && make materialize-native-inputs && cd ..
-cd generated/bootstrap/srv-gamayun
+cd deploy && make assemble-native && cd ..
+cd .work/native/bootstrap/srv-gamayun
 sudo ./create-uefi-autoinstall-proxmox-usb.sh /path/to/proxmox-ve.iso answer.toml /dev/sdX
 
 # 2. Boot and auto-install (15 min, automatic)
@@ -257,12 +262,12 @@ cd deploy && make deploy-all
 
 ### What Terraform Manages
 
-**Proxmox (generated/terraform/proxmox/):**
+**Proxmox generated baseline (`generated/terraform/proxmox/`):**
 - Network bridges (vmbr0-vmbr99)
 - VMs and LXC containers
 - Storage pools
 
-**MikroTik (generated/terraform/mikrotik/):**
+**MikroTik generated baseline (`generated/terraform/mikrotik/`):**
 - Bridge and VLAN interfaces
 - IP addresses and DHCP
 - Firewall rules and NAT
@@ -413,7 +418,7 @@ generated/
 ### DON'T: Edit generated files
 ```bash
 # Wrong:
-vim generated/terraform/proxmox/bridges.tf  # Will be overwritten!
+vim generated/terraform/proxmox/bridges.tf  # Baseline; will be overwritten!
 ```
 
 ### DO: Edit layer files and regenerate
@@ -489,7 +494,7 @@ terraform-overrides/<target>/              # tracked additive exceptions
         +
 local/terraform/<target>/terraform.tfvars  # untracked operator inputs
         =
-execution root (native or dist)
+.work/native/terraform/<target>/ or dist/control/terraform/<target>/
 ```
 
 Rules:

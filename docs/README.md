@@ -36,7 +36,7 @@ docs/
 #    Import generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc
 
 # 2. Configure credentials
-cd generated/terraform/mikrotik
+cd .work/native/terraform/mikrotik
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with passwords and keys
 
@@ -159,7 +159,7 @@ make configure        # Phase 3: Services
 make test             # Phase 4: Verify
 ```
 
-`native` remains the default rollback path. `dist` execution is opt-in and runs only from `dist/control/**` package roots with manifest-driven local-input checks. `make materialize-native-inputs` materializes canonical `local/` inputs into native execution roots, and `make materialize-dist-inputs` copies those same canonical local inputs into `dist/`.
+`native` remains the default rollback path. `dist` execution is opt-in and runs only from `dist/control/**` package roots with manifest-driven local-input checks. `make assemble-native` materializes canonical `local/` inputs into `.work/native/`, `make materialize-native-inputs` remains a compatibility alias, and `make materialize-dist-inputs` copies those same canonical local inputs into `dist/`.
 
 Terraform also has a tracked exception layer under `terraform-overrides/`. Those files are additive reviewable overrides, not local inputs and not generated baseline.
 Use `make check-terraform-override-flow` to smoke-test that override layer through native assembly, `dist/`, manifests, and parity.

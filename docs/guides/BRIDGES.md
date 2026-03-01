@@ -63,7 +63,7 @@ This document provides:
 ### Deploy Bridges with Terraform
 
 ```bash
-cd generated/terraform
+cd .work/native/terraform/proxmox
 
 # 1. Upgrade provider to v0.85+
 terraform init -upgrade
@@ -104,7 +104,7 @@ ip addr show | grep vmbr
 
 ### What Gets Created
 
-From `generated/terraform/bridges.tf`:
+From generated baseline `generated/terraform/proxmox/bridges.tf`:
 
 ```hcl
 resource "proxmox_virtual_environment_network_linux_bridge" "bridge_vmbr0" {
@@ -606,7 +606,7 @@ After bridges are configured:
 
 2. **Proceed with Terraform:**
    ```bash
-   cd generated/terraform
+   cd .work/native/terraform/proxmox
    terraform init
    terraform plan
    terraform apply

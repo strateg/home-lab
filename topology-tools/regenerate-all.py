@@ -11,7 +11,7 @@ This script runs all generators in the correct order:
 6. Generate Ansible inventory
 7. Assemble Ansible runtime inventory
 8. Generate documentation
-9. Materialize native local inputs
+9. Assemble native execution workspace
 10. Validate Mermaid rendering (optional)
 
 Usage:
@@ -255,10 +255,10 @@ class RegenerateAll:
             ["--topology", self.topology_path],
         )
 
-        self.print_header(f"Step 9/{total_steps}: Materialize Native Local Inputs")
+        self.print_header(f"Step 9/{total_steps}: Assemble Native Workspace")
         success_native_inputs = self.run_script(
-            "materialize-native-inputs.py",
-            "Materializing native local inputs",
+            "assemble-native.py",
+            "Assembling native execution workspace",
         )
 
         success_mermaid = True
@@ -333,7 +333,7 @@ class RegenerateAll:
         )
         print(f"  {'OK' if success_docs else 'ERROR'} Documentation:        {'Success' if success_docs else 'Failed'}")
         print(
-            f"  {'OK' if success_native_inputs else 'ERROR'} Native Inputs:         {'Success' if success_native_inputs else 'Failed'}"
+            f"  {'OK' if success_native_inputs else 'ERROR'} Native Workspace:      {'Success' if success_native_inputs else 'Failed'}"
         )
         print(
             f"  {'OK' if success_mermaid else 'ERROR'} Mermaid Render:      {'Success' if success_mermaid else 'Failed'}"
@@ -396,13 +396,15 @@ class RegenerateAll:
             print("        ...")
 
             print("\nGEN Next steps:")
-            print("   1. Bootstrap MikroTik: import generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc")
+            print(
+                "   1. Bootstrap MikroTik: run 'cd deploy && make assemble-native' and import .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc"
+            )
             print("   2. Configure local/terraform and local/bootstrap overrides as needed")
             print("   3. Deploy using Makefile:")
             print("      cd deploy && make deploy-all")
             print("   Or deploy manually:")
-            print("      cd generated/terraform/mikrotik && terraform init && terraform apply")
-            print("      cd generated/terraform/proxmox && terraform init && terraform apply")
+            print("      cd .work/native/terraform/mikrotik && terraform init && terraform apply")
+            print("      cd .work/native/terraform/proxmox && terraform init && terraform apply")
             print("      cd ansible && ansible-playbook playbooks/site.yml")
         else:
             print("\nERROR Some generators failed. Check errors above.")

@@ -176,7 +176,7 @@ class MikrotikBootstrapGenerator:
 # Generated at: {context["generation_timestamp"]}
 # =============================================================================
 # Copy this file to local/terraform/mikrotik/terraform.tfvars and replace
-# placeholder values, then run `cd deploy && make materialize-native-inputs`.
+# placeholder values, then run `cd deploy && make assemble-native`.
 
 mikrotik_host     = "https://{context["router_ip"]}:{context["api_port"]}"
 mikrotik_username = "{context["terraform_user"]}"

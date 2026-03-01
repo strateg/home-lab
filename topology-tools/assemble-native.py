@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility alias for assembling the native execution workspace."""
+"""Assemble the disposable native execution workspace."""
 
 from __future__ import annotations
 
@@ -10,9 +10,7 @@ from utils.native_workspace import NATIVE_WORK_ROOT, TARGET_CHOICES, assemble_na
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Compatibility alias for assemble-native.py (ADR 0056 native workspace assembly)"
-    )
+    parser = argparse.ArgumentParser(description="Assemble the native execution workspace (ADR 0056)")
     parser.add_argument(
         "--target",
         choices=TARGET_CHOICES,
@@ -28,7 +26,7 @@ def main() -> None:
 
     report = assemble_native_workspace(target=args.target)
     if not args.quiet:
-        title = "Native Workspace Assembler (compat alias: materialize-native-inputs)"
+        title = "Native Workspace Assembler (ADR 0056)"
         if args.target:
             title = f"{title} - {args.target}"
         print_report(title, report, NATIVE_WORK_ROOT)

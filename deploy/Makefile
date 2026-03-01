@@ -30,9 +30,9 @@ endif
 
 .SHELLFLAGS := -lc
 
-.PHONY: all help validate generate plan apply deploy-all clean
+.PHONY: all help validate generate plan apply deploy-all clean status
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
-.PHONY: configure test bootstrap-info assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides check-terraform-override-flow
+.PHONY: configure test bootstrap-info assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides check-terraform-override-flow assemble-native
 .PHONY: plan-dist plan-mikrotik-dist plan-proxmox-dist apply-mikrotik-dist apply-proxmox-dist configure-dist deploy-all-dist require-dist
 
 # Directories (relative to deploy/)
@@ -41,6 +41,8 @@ TOPOLOGY_DIR := $(ROOT_DIR)
 TOPOLOGY_TOOLS_DIR := $(ROOT_DIR)/topology-tools
 GENERATED_DIR := $(ROOT_DIR)/generated
 DIST_DIR := $(ROOT_DIR)/dist
+WORK_DIR := $(ROOT_DIR)/.work
+NATIVE_WORK_DIR := $(WORK_DIR)/native
 ANSIBLE_DIR := $(ROOT_DIR)/ansible
 DEPLOY_MODE ?= native
 
@@ -48,6 +50,8 @@ DEPLOY_MODE ?= native
 TF_MIKROTIK_DIR := $(GENERATED_DIR)/terraform/mikrotik
 TF_PROXMOX_DIR := $(GENERATED_DIR)/terraform/proxmox
 BOOTSTRAP_DIR := $(GENERATED_DIR)/bootstrap
+NATIVE_TF_MIKROTIK_DIR := $(NATIVE_WORK_DIR)/terraform/mikrotik
+NATIVE_TF_PROXMOX_DIR := $(NATIVE_WORK_DIR)/terraform/proxmox
 DIST_ANSIBLE_DIR := $(DIST_DIR)/control/ansible
 DIST_TF_MIKROTIK_DIR := $(DIST_DIR)/control/terraform/mikrotik
 DIST_TF_PROXMOX_DIR := $(DIST_DIR)/control/terraform/proxmox
@@ -57,8 +61,8 @@ ifeq ($(DEPLOY_MODE),dist)
 TF_MIKROTIK_EXEC_DIR := $(DIST_TF_MIKROTIK_DIR)
 TF_PROXMOX_EXEC_DIR := $(DIST_TF_PROXMOX_DIR)
 else
-TF_MIKROTIK_EXEC_DIR := $(TF_MIKROTIK_DIR)
-TF_PROXMOX_EXEC_DIR := $(TF_PROXMOX_DIR)
+TF_MIKROTIK_EXEC_DIR := $(NATIVE_TF_MIKROTIK_DIR)
+TF_PROXMOX_EXEC_DIR := $(NATIVE_TF_PROXMOX_DIR)
 endif
 
 # Colors
@@ -85,12 +89,13 @@ help:
 	@echo "║  Validation & Generation:                                        ║"
 	@echo "║    make validate       - Validate topology YAML                  ║"
 	@echo "║    make generate       - Generate all configs from topology      ║"
+	@echo "║    make assemble-native - Assemble .work/native execution root   ║"
 	@echo "║    make assemble-dist  - Assemble deploy-ready dist packages     ║"
 	@echo "║    make validate-dist  - Validate assembled dist packages        ║"
 	@echo "║    make check-parity   - Compare native and dist execution roots ║"
 	@echo "║    make check-native-ready - Check canonical local/ inputs       ║"
 	@echo "║    make check-dist-ready - Check local inputs for dist mode      ║"
-	@echo "║    make materialize-native-inputs - Copy local/ into generated/  ║"
+	@echo "║    make materialize-native-inputs - Compat alias for native asm  ║"
 	@echo "║    make materialize-dist-inputs - Copy local/ into dist/         ║"
 	@echo "║    make clean-generated-managed - Reset managed generated/ roots ║"
 	@echo "║    make assemble-terraform-overrides - Layer tracked .tf extras  ║"
@@ -110,6 +115,7 @@ help:
 	@echo "║    make deploy-all-dist - Full deployment from dist packages     ║"
 	@echo "║                                                                  ║"
 	@echo "║  Utilities:                                                      ║"
+	@echo "║    make status         - Show source and workspace roots         ║"
 	@echo "║    make test           - Verify deployment health                ║"
 	@echo "║    make clean          - Clean generated files                   ║"
 	@echo "║    make bootstrap-info - Show bootstrap instructions             ║"
@@ -124,8 +130,13 @@ validate:
 	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/validate-topology.py
 	@echo "$(GREEN)✓ Topology validation passed$(NC)"
 
-generate: generate-terraform generate-mikrotik generate-bootstrap generate-ansible assemble-ansible generate-docs materialize-native-inputs
+generate: generate-terraform generate-mikrotik generate-bootstrap generate-ansible assemble-ansible generate-docs assemble-native
 	@echo "$(GREEN)✓ All configurations generated$(NC)"
+
+assemble-native:
+	@echo "$(YELLOW)📦 Assembling native execution workspace (ADR 0056)...$(NC)"
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-native.py
+	@echo "$(GREEN)✓ Native workspace assembled$(NC)"
 
 assemble-dist:
 	@echo "$(YELLOW)📦 Assembling deploy packages (ADR 0052)...$(NC)"
@@ -190,10 +201,10 @@ check-native-ready:
 	@echo "$(GREEN)✓ Native execution packages have required canonical local inputs$(NC)"
 
 materialize-native-inputs:
-	@echo "$(YELLOW)📥 Materializing native local inputs from local/ (ADR 0054)...$(NC)"
+	@echo "$(YELLOW)📥 Assembling native workspace via compatibility alias (ADR 0056)...$(NC)"
 	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/materialize-native-inputs.py
 
-check-parity: assemble-dist
+check-parity: assemble-native assemble-dist
 	@echo "$(YELLOW)⚖️  Checking native vs dist execution parity (ADR 0053)...$(NC)"
 	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-deploy-parity.py
 	@echo "$(GREEN)✓ Native and dist execution roots are in parity$(NC)"
@@ -221,7 +232,7 @@ plan-mikrotik:
 	@if [ "$(DEPLOY_MODE)" = "dist" ]; then \
 		cd $(TOPOLOGY_DIR) && $(PYTHON) $(DIST_PACKAGE_CHECKER) control/terraform/mikrotik; \
 	else \
-		cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-terraform-overrides.py --target mikrotik --quiet; \
+		cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-native.py --target mikrotik --quiet; \
 	fi
 	@if [ -f $(TF_MIKROTIK_EXEC_DIR)/terraform.tfvars ]; then \
 		cd $(TF_MIKROTIK_EXEC_DIR) && terraform init -upgrade && terraform plan; \
@@ -229,7 +240,8 @@ plan-mikrotik:
 		if [ "$(DEPLOY_MODE)" = "dist" ]; then \
 			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/mikrotik/terraform.tfvars and run 'make materialize-dist-inputs'.$(NC)"; \
 		else \
-			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/mikrotik/terraform.tfvars and run 'make materialize-native-inputs'.$(NC)"; \
+			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/mikrotik/terraform.tfvars and run 'make assemble-native'.$(NC)"; \
+			echo "$(YELLOW)    Canonical target is 'make assemble-native'; materialize-native-inputs remains a compat alias.$(NC)"; \
 		fi; \
 		exit 1; \
 	fi
@@ -239,7 +251,7 @@ plan-proxmox:
 	@if [ "$(DEPLOY_MODE)" = "dist" ]; then \
 		cd $(TOPOLOGY_DIR) && $(PYTHON) $(DIST_PACKAGE_CHECKER) control/terraform/proxmox; \
 	else \
-		cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-terraform-overrides.py --target proxmox --quiet; \
+		cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-native.py --target proxmox --quiet; \
 	fi
 	@if [ -f $(TF_PROXMOX_EXEC_DIR)/terraform.tfvars ]; then \
 		cd $(TF_PROXMOX_EXEC_DIR) && terraform init -upgrade && terraform plan; \
@@ -247,7 +259,8 @@ plan-proxmox:
 		if [ "$(DEPLOY_MODE)" = "dist" ]; then \
 			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/proxmox/terraform.tfvars and run 'make materialize-dist-inputs'.$(NC)"; \
 		else \
-			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/proxmox/terraform.tfvars and run 'make materialize-native-inputs'.$(NC)"; \
+			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/proxmox/terraform.tfvars and run 'make assemble-native'.$(NC)"; \
+			echo "$(YELLOW)    Canonical target is 'make assemble-native'; materialize-native-inputs remains a compat alias.$(NC)"; \
 		fi; \
 		exit 1; \
 	fi
@@ -349,18 +362,18 @@ bootstrap-info:
 	@echo "║                                                                  ║"
 	@echo "║  1. MikroTik Bootstrap:                                          ║"
 	@echo "║     - Connect via WinBox to 192.168.88.1                         ║"
-	@echo "║     - Import: generated/bootstrap/rtr-mikrotik-chateau/*.rsc     ║"
+	@echo "║     - Import: .work/native/bootstrap/rtr-mikrotik-chateau/*.rsc  ║"
 	@echo "║     - Or run commands manually (see README)                      ║"
 	@echo "║                                                                  ║"
 	@echo "║  2. Proxmox Bootstrap:                                           ║"
-	@echo "║     - Use: generated/bootstrap/srv-gamayun/                      ║"
+	@echo "║     - Use: .work/native/bootstrap/srv-gamayun/                   ║"
 	@echo "║     - Create local/bootstrap/srv-gamayun/answer.override.toml    ║"
-	@echo "║     - Run: make materialize-native-inputs                        ║"
+	@echo "║     - Run: make assemble-native                                  ║"
 	@echo "║     - Boot from USB, auto-install completes                      ║"
 	@echo "║     - Run post-install scripts                                   ║"
 	@echo "║                                                                  ║"
 	@echo "║  3. Orange Pi 5 Bootstrap:                                       ║"
-	@echo "║     - Use: generated/bootstrap/srv-orangepi5/cloud-init/         ║"
+	@echo "║     - Use: .work/native/bootstrap/srv-orangepi5/cloud-init/      ║"
 	@echo "║     - Copy meta-data and local user-data to boot media           ║"
 	@echo "║                                                                  ║"
 	@echo "║  After bootstrap, run: make deploy-all                           ║"
@@ -372,11 +385,22 @@ bootstrap-info:
 
 init-mikrotik:
 	@echo "$(YELLOW)Initializing MikroTik Terraform...$(NC)"
-	cd $(TF_MIKROTIK_DIR) && terraform init -upgrade
+	cd $(TF_MIKROTIK_EXEC_DIR) && terraform init -upgrade
 
 init-proxmox:
 	@echo "$(YELLOW)Initializing Proxmox Terraform...$(NC)"
-	cd $(TF_PROXMOX_DIR) && terraform init -upgrade
+	cd $(TF_PROXMOX_EXEC_DIR) && terraform init -upgrade
 
 init: init-mikrotik init-proxmox
 	@echo "$(GREEN)✓ All Terraform providers initialized$(NC)"
+
+status:
+	@echo "Source roots:"
+	@echo "  topology/              - layer definitions"
+	@echo "  terraform-overrides/   - tracked exceptions"
+	@echo "  local/                 - operator inputs"
+	@echo ""
+	@echo "Workspaces:"
+	@echo "  generated/             - deterministic baseline"
+	@echo "  .work/native/          - native execution"
+	@echo "  dist/                  - dist execution"

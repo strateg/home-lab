@@ -11,6 +11,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LOCAL_ROOT = REPO_ROOT / "local"
+NATIVE_WORK_ROOT = REPO_ROOT / ".work" / "native"
 
 
 @dataclass(frozen=True)
@@ -43,15 +44,15 @@ def native_standard_mappings(repo_root: Path = REPO_ROOT) -> list[CopyMapping]:
     return [
         CopyMapping(
             source=LOCAL_ROOT / "terraform" / "mikrotik" / "terraform.tfvars",
-            target=repo_root / "generated" / "terraform" / "mikrotik" / "terraform.tfvars",
+            target=repo_root / ".work" / "native" / "terraform" / "mikrotik" / "terraform.tfvars",
         ),
         CopyMapping(
             source=LOCAL_ROOT / "terraform" / "proxmox" / "terraform.tfvars",
-            target=repo_root / "generated" / "terraform" / "proxmox" / "terraform.tfvars",
+            target=repo_root / ".work" / "native" / "terraform" / "proxmox" / "terraform.tfvars",
         ),
         CopyMapping(
             source=LOCAL_ROOT / "bootstrap" / "srv-orangepi5" / "cloud-init" / "user-data",
-            target=repo_root / "generated" / "bootstrap" / "srv-orangepi5" / "cloud-init" / "user-data",
+            target=repo_root / ".work" / "native" / "bootstrap" / "srv-orangepi5" / "cloud-init" / "user-data",
         ),
     ]
 
@@ -79,7 +80,7 @@ def proxmox_answer_paths(repo_root: Path = REPO_ROOT) -> tuple[Path, Path, Path]
     return (
         repo_root / "generated" / "bootstrap" / "srv-gamayun" / "answer.toml.example",
         LOCAL_ROOT / "bootstrap" / "srv-gamayun" / "answer.override.toml",
-        repo_root / "generated" / "bootstrap" / "srv-gamayun" / "answer.toml",
+        repo_root / ".work" / "native" / "bootstrap" / "srv-gamayun" / "answer.toml",
     )
 
 

@@ -1,6 +1,6 @@
 # ADR 0056: Native Execution Workspace Outside Generated Roots
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-03-01
 
 ## Context

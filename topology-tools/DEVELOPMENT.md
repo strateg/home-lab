@@ -234,7 +234,7 @@ python topology-tools/validate-topology.py
 python topology-tools/regenerate-all.py
 
 # 3. Показать план
-cd generated/terraform && terraform plan
+cd ../.work/native/terraform/proxmox && terraform plan
 
 # 4. Применить
 terraform apply

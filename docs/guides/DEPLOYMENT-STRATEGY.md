@@ -243,7 +243,7 @@ make validate-dist      # Validate manifests and available external tools
 make check-parity       # Compare native and dist execution roots
 make check-native-ready # Check canonical local inputs for native execution
 make check-dist-ready   # Check local inputs required for dist execution
-make materialize-native-inputs  # Copy canonical local/ inputs into generated/
+make assemble-native           # Build .work/native from generated + overrides + local/
 make materialize-dist-inputs    # Copy canonical local/ inputs into dist
 
 # Planning (dry-run)
@@ -265,7 +265,7 @@ make test               # Run health checks
 
 `native`:
 - default mode
-- executes from `generated/terraform/*` and `ansible/`
+- executes from `.work/native/terraform/*`, `.work/native/bootstrap/*`, and `ansible/`
 - remains the rollback path
 
 `dist`:
@@ -478,7 +478,7 @@ ssh admin@192.168.88.1 "/import file=pre-terraform-backup.rsc"
 
 ```bash
 # Restore previous state
-cd generated/terraform/mikrotik
+cd .work/native/terraform/mikrotik
 cp terraform.tfstate.backup terraform.tfstate
 terraform plan  # Verify state matches reality
 ```

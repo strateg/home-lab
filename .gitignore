@@ -143,6 +143,7 @@ dist/
 ehthumbs.db
 generated/
 local/
+.work/
 id_*
 inventory/*/ec2.ini
 inventory/*/ec2.py

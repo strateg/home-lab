@@ -100,6 +100,8 @@ Usage:
 python topology-tools/generate-terraform-mikrotik.py --topology topology.yaml --output generated/terraform/mikrotik
 ```
 
+These commands generate baseline Terraform only. Native execution happens from `.work/native/terraform/<target>/` after `cd deploy && make assemble-native`.
+
 ### generate-ansible-inventory.py
 Generate Ansible inventory from L1/L2/L4 and L7 (ansible config).
 
@@ -310,3 +312,4 @@ Files in generated/ are automatically regenerated and auto-cleaned.
 - DO NOT commit generated/ to Git
 - DO edit topology.yaml as the single source of truth
 - DO edit ansible/playbooks/ and ansible/roles/ manually
+- DO use `.work/native/` for native execution-ready Terraform and bootstrap files
