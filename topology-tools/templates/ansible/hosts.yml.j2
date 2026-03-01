@@ -27,6 +27,23 @@ all:
           {% if host.playbook %}
           playbook: {{ host.playbook }}
           {% endif %}
+          {% if host.cores %}
+          # Resource profile (ADR 0051: topology-owned runtime facts)
+          cores: {{ host.cores }}
+          {% endif %}
+          {% if host.memory_mb %}
+          memory_mb: {{ host.memory_mb }}
+          {% endif %}
+          {% if host.service_type %}
+          # Service binding from L5 (ADR 0051: topology-owned runtime facts)
+          service_type: {{ host.service_type }}
+          {% endif %}
+          {% if host.service_port %}
+          service_port: {{ host.service_port }}
+          {% endif %}
+          {% if host.service_id %}
+          service_id: {{ host.service_id }}
+          {% endif %}
         {% endif %}
         {% endfor %}
     {% endif %}
@@ -100,13 +117,13 @@ all:
     {% endfor %}
 
     # ============================================================
-    # Service Type Groups
+    # Service Type Groups (ADR 0051: topology-driven service groups)
     # ============================================================
 
     databases:
       hosts:
         {% for host in lxc_hosts %}
-        {% if host.type == 'database' and host.ip %}
+        {% if host.service_type == 'database' and host.ip %}
         {{ host.inventory_name }}:
         {% endif %}
         {% endfor %}
@@ -114,7 +131,7 @@ all:
     web_applications:
       hosts:
         {% for host in lxc_hosts %}
-        {% if host.type == 'web-application' and host.ip %}
+        {% if host.service_type == 'web-application' and host.ip %}
         {{ host.inventory_name }}:
         {% endif %}
         {% endfor %}
@@ -122,7 +139,7 @@ all:
     cache_servers:
       hosts:
         {% for host in lxc_hosts %}
-        {% if host.type == 'cache' and host.ip %}
+        {% if host.service_type == 'cache' and host.ip %}
         {{ host.inventory_name }}:
         {% endif %}
         {% endfor %}

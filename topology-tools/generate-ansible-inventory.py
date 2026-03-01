@@ -27,6 +27,8 @@ class AnsibleInventoryGenerator:
         self.output_dir = Path(output_dir)
         self.templates_dir = Path(templates_dir)
         self.topology: Dict = {}
+        self.resource_profiles: Dict = {}
+        self.services_by_target: Dict = {}
 
         self.jinja_env = Environment(
             loader=FileSystemLoader(str(self.templates_dir)),
@@ -47,6 +49,12 @@ class AnsibleInventoryGenerator:
             if version_warning:
                 print(f"WARN  {version_warning}")
 
+            # Build resource profiles lookup
+            self._build_resource_profiles()
+
+            # Build services-by-target lookup for L5 service binding
+            self._build_services_lookup()
+
             return True
         except ValueError as e:
             print(f"ERROR {e}")
@@ -57,6 +65,35 @@ class AnsibleInventoryGenerator:
         except yaml.YAMLError as e:
             print(f"ERROR YAML parse error: {e}")
             return False
+
+    def _build_resource_profiles(self):
+        """Build lookup table for resource profiles"""
+        profiles = self.topology.get("L4_platform", {}).get("resource_profiles", [])
+        for profile in profiles:
+            profile_id = profile.get("id")
+            if profile_id:
+                self.resource_profiles[profile_id] = {
+                    "cores": profile.get("cpu", {}).get("cores", 1),
+                    "memory_mb": profile.get("memory", {}).get("mb", 512),
+                    "swap_mb": profile.get("memory", {}).get("swap_mb", 0),
+                }
+        print(f"  - Loaded {len(self.resource_profiles)} resource profiles")
+
+    def _build_services_lookup(self):
+        """Build lookup table mapping LXC/VM targets to their L5 services"""
+        services = self.topology.get("L5_application", {}).get("services", [])
+        for service in services:
+            runtime = service.get("runtime", {})
+            target_ref = runtime.get("target_ref")
+            if target_ref:
+                self.services_by_target[target_ref] = {
+                    "service_id": service.get("id"),
+                    "service_name": service.get("name"),
+                    "service_type": service.get("type"),
+                    "service_port": service.get("port"),
+                    "service_protocol": service.get("protocol", "tcp"),
+                }
+        print(f"  - Loaded {len(self.services_by_target)} service bindings")
 
     def generate_all(self) -> bool:
         """Generate all Ansible inventory files"""
@@ -93,9 +130,18 @@ class AnsibleInventoryGenerator:
 
             lxc_hosts = []
             for lxc in lxc_containers:
+                lxc_id = lxc["id"]
+
+                # Get resource profile info
+                profile_ref = lxc.get("resource_profile_ref")
+                profile = self.resource_profiles.get(profile_ref, {})
+
+                # Get service info from L5
+                service = self.services_by_target.get(lxc_id, {})
+
                 host_info = {
-                    "id": lxc["id"],
-                    "inventory_name": lxc["id"],
+                    "id": lxc_id,
+                    "inventory_name": lxc_id,
                     "name": lxc["name"],
                     "display_name": lxc["name"],
                     "vmid": lxc["vmid"],
@@ -106,6 +152,13 @@ class AnsibleInventoryGenerator:
                     "ansible_user": lxc["cloudinit"].get("user", "root") if lxc.get("cloudinit") else "root",
                     "ansible_enabled": lxc.get("ansible", {}).get("enabled", False),
                     "playbook": lxc.get("ansible", {}).get("playbook"),
+                    # Resource profile values (ADR 0051: topology-owned runtime facts)
+                    "cores": profile.get("cores"),
+                    "memory_mb": profile.get("memory_mb"),
+                    # Service binding from L5 (ADR 0051: topology-owned runtime facts)
+                    "service_id": service.get("service_id"),
+                    "service_type": service.get("service_type"),
+                    "service_port": service.get("service_port"),
                 }
                 lxc_hosts.append(host_info)
 
