@@ -2,6 +2,33 @@
 
 План миграции к безопасной Ansible-first модели без преждевременного перехода к `src/` и `dist/`.
 
+## Current State Analysis (2026-03-01)
+
+### Inventory Sources
+
+| Source | Path | Hosts | Status |
+|--------|------|-------|--------|
+| Manual | `ansible/inventory/production/` | 11 hosts | Operational |
+| Generated | `generated/ansible/inventory/production/` | 2 hosts | Partial |
+| Runtime (target) | `generated/ansible/runtime/production/` | TBD | Not exists |
+
+### Data Classification (Manual Inventory)
+
+**tracked-public** (→ inventory-overrides):
+- Hardware specs: `hardware.*`
+- Service lists: `services: []`
+- Network configs: `network.*`, `vpn_servers.*`
+- SSH settings: `ssh_*`, `ansible_*`
+- Admin users (без ключей)
+- Package lists, monitoring, backup config
+
+**local-secret** (→ .gitignore или vault):
+- SSH key lookups: `{{ lookup('file', '~/.ssh/...') }}`
+
+### Key Finding
+
+Topology содержит только 2 LXC хоста (postgresql, redis). Остальные 9 хостов в manual inventory не имеют topology representation. Это означает что manual inventory временно является authoritative для hosts structure, пока topology не будет дополнена.
+
 ## Цели
 
 1. Стабилизировать Ansible runtime до широкой реструктуризации репозитория
@@ -79,6 +106,49 @@ cd deploy && make validate
    - должны генерироваться
    - описывают hosts, отсутствующие в topology
 
+### Concrete File Analysis
+
+**ansible/inventory/production/hosts.yml** (309 lines):
+```yaml
+# tracked-public (keep in overrides):
+all.vars.ansible_python_interpreter     # operator preference
+all.vars.ansible_ssh_common_args        # operator preference
+all.vars.environment_name               # operator config
+all.vars.datacenter                     # operator config
+all.vars.dns_servers                    # operator config
+all.vars.ntp_servers                    # operator config
+proxmox.hosts.pve-xps.*                 # full host (not in topology)
+vms.children.firewalls.hosts.*          # full host (not in topology)
+routers.children.openwrt.hosts.*        # full host (not in topology)
+lxc.vars.*                              # operator defaults
+lxc.children.*.hosts.*                  # full hosts (partial in topology)
+```
+
+**ansible/inventory/production/group_vars/all.yml** (214 lines):
+```yaml
+# tracked-public (keep in overrides):
+environment, datacenter, timezone       # operator config
+dns_nameservers, ntp_servers            # operator config
+domain_name, search_domains             # operator config
+ssh_port, ssh_permit_root_login         # operator security policy
+firewall_*, fail2ban_*                  # operator security policy
+node_exporter_*, log_level              # operator monitoring
+backup_storage, backup_path             # operator backup
+backup_retention, backup_schedule       # operator backup
+common_packages                         # operator packages
+swap_*, file_descriptor_limit           # operator tuning
+services                                # service registry
+default_tags, features                  # operator config
+
+# local-secret (remove or vault):
+admin_users[*].ssh_keys with lookup()   # secret reference
+```
+
+### Secret Violations Found
+
+1. **Line 46**: `ssh_keys: - "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"`
+   - Action: Replace with vault-managed or `.example` placeholder
+
 ### Важно
 
 - не менять `ansible.cfg`
@@ -110,6 +180,56 @@ docs(adr-0051): classify ansible inventory ownership and secret boundaries
 3. Переносим secret-bearing values в vault-managed local files или `.example` шаблоны
 4. Оставляем legacy inventory переходным источником только до cutover
 
+### Concrete Operations
+
+```bash
+# Create directory structure
+mkdir -p ansible/inventory-overrides/production/group_vars
+mkdir -p ansible/inventory-overrides/production/host_vars
+
+# Move hosts.yml (contains full host definitions not in topology)
+git mv ansible/inventory/production/hosts.yml \
+       ansible/inventory-overrides/production/hosts.yml
+
+# Split group_vars/all.yml
+# 1. Create all.yml without secret lookups
+# 2. Create all.yml.example with placeholder for secrets
+```
+
+**New file: ansible/inventory-overrides/production/group_vars/all.yml**
+```yaml
+# Operator overrides for all hosts
+# These values extend/override generated inventory
+
+# Environment
+environment: production
+datacenter: home-lab
+timezone: UTC
+
+# DNS (overrides generated dns_servers)
+dns_nameservers:
+  - 192.168.20.1    # AdGuard Home
+  - 1.1.1.1         # Cloudflare
+
+# ... (rest of non-secret config)
+```
+
+**New file: ansible/inventory-overrides/production/group_vars/all.yml.example**
+```yaml
+# Local secrets - copy to all-secrets.yml and fill in values
+# all-secrets.yml is gitignored
+
+admin_users:
+  - name: admin
+    ssh_keys:
+      - "ssh-rsa AAAA... your-key-here"
+```
+
+**Add to .gitignore:**
+```
+ansible/inventory-overrides/production/group_vars/all-secrets.yml
+```
+
 ### Правила
 
 1. topology-derived host structure не копируется вручную в overrides
@@ -124,7 +244,8 @@ docs(adr-0051): classify ansible inventory ownership and secret boundaries
 ```bash
 python3 topology-tools/regenerate-all.py
 ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
-git grep -n "password\\|token\\|private_key\\|root_password_hash" ansible/inventory/production ansible/inventory-overrides
+git grep -n "password\\|token\\|private_key\\|root_password_hash\\|lookup.*file" ansible/inventory-overrides
+# Must return 0 results
 ```
 
 ### Коммит
@@ -182,6 +303,74 @@ feat(adr-0051): generate topology-owned ansible runtime facts
 4. Копируем generated `host_vars/*.yml`
 5. Копируем manual `host_vars/*.yml` как overlays по явному правилу конфликтов
 
+### Assembler Implementation
+
+**File: topology-tools/assemble-ansible-runtime.py**
+
+```python
+#!/usr/bin/env python3
+"""Assemble Ansible runtime inventory from generated and manual sources."""
+
+import shutil
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).parent.parent
+GENERATED_INV = REPO_ROOT / "generated/ansible/inventory/production"
+MANUAL_INV = REPO_ROOT / "ansible/inventory-overrides/production"
+RUNTIME_INV = REPO_ROOT / "generated/ansible/runtime/production"
+
+# Secrets that must NOT appear in tracked source
+SECRET_PATTERNS = [
+    "password:", "token:", "private_key:", "root_password_hash:",
+    "lookup('file'", 'lookup("file'
+]
+
+def validate_no_secrets(path: Path) -> list[str]:
+    """Check file for secret patterns."""
+    violations = []
+    for pattern in SECRET_PATTERNS:
+        if pattern in path.read_text():
+            violations.append(f"{path}: contains '{pattern}'")
+    return violations
+
+def assemble():
+    # Clean and create output
+    if RUNTIME_INV.exists():
+        shutil.rmtree(RUNTIME_INV)
+    RUNTIME_INV.mkdir(parents=True)
+
+    # 1. Copy generated hosts.yml
+    shutil.copy(GENERATED_INV / "hosts.yml", RUNTIME_INV / "hosts.yml")
+
+    # 2. Merge hosts from manual overrides (hosts not in topology)
+    # TODO: implement YAML merge for hosts
+
+    # 3. Create layered group_vars
+    group_vars = RUNTIME_INV / "group_vars/all"
+    group_vars.mkdir(parents=True)
+
+    # Generated becomes 10-generated.yml
+    shutil.copy(
+        GENERATED_INV / "group_vars/all.yml",
+        group_vars / "10-generated.yml"
+    )
+
+    # Manual becomes 90-manual.yml
+    if (MANUAL_INV / "group_vars/all.yml").exists():
+        shutil.copy(
+            MANUAL_INV / "group_vars/all.yml",
+            group_vars / "90-manual.yml"
+        )
+
+    # 4. Copy host_vars (generated first, then manual overlays)
+    # ...
+
+    print(f"Assembled runtime inventory: {RUNTIME_INV}")
+
+if __name__ == "__main__":
+    assemble()
+```
+
 ### Assembler обязан падать, если
 
 - нет generated inventory input
@@ -228,6 +417,32 @@ feat(adr-0051): add ansible runtime inventory assembler
 3. Обновляем runbook'и, которые ссылаются на raw inventory path
 4. Делаем assembled runtime inventory каноническим для операторов
 5. По возможности выносим inventory path в одно общее место конфигурации вместо дублирования
+
+### Concrete Changes
+
+**ansible/ansible.cfg** (line 9):
+```diff
+-inventory = ../generated/ansible/inventory/production/hosts.yml
++inventory = ../generated/ansible/runtime/production
+```
+
+Note: Changed from file to directory. Ansible will auto-discover hosts.yml and group_vars/.
+
+**deploy/phases/03-services.sh** (if hardcoded):
+```diff
+-INVENTORY="../generated/ansible/inventory/production/hosts.yml"
++INVENTORY="../generated/ansible/runtime/production"
+```
+
+**deploy/Makefile** (add assemble step):
+```makefile
+assemble-ansible:
+	python3 ../topology-tools/assemble-ansible-runtime.py
+
+generate: validate
+	python3 ../topology-tools/regenerate-all.py
+	$(MAKE) assemble-ansible
+```
 
 ### Validation gate
 
@@ -309,3 +524,94 @@ docs(adr-0051): accept ADR after successful cutover
 3. effective runtime inventory собирается детерминированно
 4. `deploy/` и `ansible.cfg` используют assembled runtime inventory
 5. репозиторий готов к ADR 0052
+
+---
+
+## Implementation Checklist
+
+### Phase 1 Commands
+```bash
+git checkout -b refactor/adr-0051-ansible-runtime
+python3 topology-tools/regenerate-all.py
+cd deploy && make validate
+# Document findings in this file
+git add adr/0051-migration-plan.md
+git commit -m "docs(adr-0051): classify ansible inventory ownership and secret boundaries"
+```
+
+### Phase 2 Commands
+```bash
+# Create directories
+mkdir -p ansible/inventory-overrides/production/group_vars
+mkdir -p ansible/inventory-overrides/production/host_vars
+
+# Move hosts.yml
+git mv ansible/inventory/production/hosts.yml \
+       ansible/inventory-overrides/production/hosts.yml
+
+# Split group_vars (manual: extract secrets)
+# Create all.yml without lookup() calls
+# Create all.yml.example with placeholders
+
+# Add to .gitignore
+echo "ansible/inventory-overrides/production/group_vars/all-secrets.yml" >> .gitignore
+
+# Validate no secrets in tracked files
+git grep -n "lookup.*file" ansible/inventory-overrides
+# Should return empty
+
+git add -A
+git commit -m "refactor(adr-0051): separate ansible overrides from tracked secret values"
+```
+
+### Phase 3 Commands
+```bash
+# Create assembler
+cat > topology-tools/assemble-ansible-runtime.py << 'EOF'
+#!/usr/bin/env python3
+# ... implementation ...
+EOF
+chmod +x topology-tools/assemble-ansible-runtime.py
+
+# Test assembly
+python3 topology-tools/assemble-ansible-runtime.py
+ansible-inventory -i generated/ansible/runtime/production --list > /dev/null
+
+git add topology-tools/assemble-ansible-runtime.py
+git commit -m "feat(adr-0051): add ansible runtime inventory assembler"
+```
+
+### Phase 4 Commands
+```bash
+# Update ansible.cfg
+sed -i 's|inventory = ../generated/ansible/inventory/production/hosts.yml|inventory = ../generated/ansible/runtime/production|' ansible/ansible.cfg
+
+# Update Makefile
+# Add assemble-ansible target
+
+# Test
+python3 topology-tools/assemble-ansible-runtime.py
+cd ansible && ansible-playbook playbooks/common.yml --syntax-check
+
+git add -A
+git commit -m "refactor(adr-0051): switch ansible runtime to assembled inventory"
+```
+
+### Phase 5 Commands
+```bash
+# Remove legacy (only after Phase 4 verified)
+rm -rf ansible/inventory/production/
+rmdir ansible/inventory/ 2>/dev/null || true
+
+git add -A
+git commit -m "refactor(adr-0051): remove legacy manual inventory coupling"
+```
+
+### Phase 6 Commands
+```bash
+# Update ADR status
+sed -i 's/Status: Proposed/Status: Accepted/' adr/0051-ansible-runtime-and-secrets.md
+
+git add adr/0051-ansible-runtime-and-secrets.md
+git commit -m "docs(adr-0051): accept ADR after successful cutover"
+```
