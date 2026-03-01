@@ -44,7 +44,7 @@ python3 topology-tools/regenerate-all.py
 1. Очищает `generated/`
 2. Валидирует `topology.yaml`
 3. Генерирует Terraform → `generated/terraform/`
-4. Генерирует Ansible inventory input → `generated/ansible/inventory/production/`
+4. Генерирует Ansible inventory input → `generated/ansible/inventory/<env>/`
 5. Собирает runtime inventory → `generated/ansible/runtime/production/`
 6. Генерирует документацию → `generated/docs/`
 

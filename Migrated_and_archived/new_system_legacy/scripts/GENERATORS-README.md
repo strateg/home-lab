@@ -54,10 +54,10 @@ Generates Ansible inventory and group variables from topology.
 
 **Usage**:
 ```bash
-python3 scripts/generate-ansible-inventory.py [--topology topology.yaml] [--output generated/ansible/inventory/production]
+python3 scripts/generate-ansible-inventory.py [--topology topology.yaml] [--output generated/ansible/inventory/<env>]
 ```
 
-**Output directory**: `generated/ansible/inventory/production/` (auto-cleaned before generation)
+**Output directory**: `generated/ansible/inventory/<env>/` (auto-cleaned before generation)
 
 **Generates**:
 - `hosts.yml` - Ansible inventory with groups
@@ -79,10 +79,10 @@ pip install pyyaml jinja2
 python3 scripts/generate-ansible-inventory.py
 
 # Test connectivity
-ansible all -i generated/ansible/inventory/production/hosts.yml -m ping
+ansible all -i generated/ansible/inventory/<env>/hosts.yml -m ping
 
 # Run playbooks
-ansible-playbook -i generated/ansible/inventory/production/hosts.yml playbooks/site.yml
+ansible-playbook -i generated/ansible/inventory/<env>/hosts.yml playbooks/site.yml
 ```
 
 ---

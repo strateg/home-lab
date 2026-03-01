@@ -19,6 +19,9 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
 
+DEFAULT_ENV = "production"
+DEFAULT_OUTPUT_DIR = Path("generated") / "ansible" / "inventory" / DEFAULT_ENV
+
 
 class AnsibleInventoryGenerator:
     """Generate Ansible inventory from topology v4.0"""
@@ -339,8 +342,8 @@ def main():
     parser.add_argument("--topology", default="topology.yaml", help="Path to topology YAML file")
     parser.add_argument(
         "--output",
-        default="generated/ansible/inventory/production",
-        help="Output directory for inventory files (default: generated/ansible/inventory/production/)",
+        default=str(DEFAULT_OUTPUT_DIR),
+        help=f"Output directory for inventory files (default: {DEFAULT_OUTPUT_DIR}/)",
     )
     parser.add_argument("--templates", default="topology-tools/templates", help="Directory containing Jinja2 templates")
 

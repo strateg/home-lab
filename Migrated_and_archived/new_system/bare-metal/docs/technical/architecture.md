@@ -146,7 +146,7 @@ terraform apply tfplan
 # 4. Apply Ansible (configure services)
 echo "[4/5] Configuring services with Ansible..."
 cd /mnt/pve/hdd/home-lab/generated/ansible
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml
 
 # 5. Verify deployment
 echo "[5/5] Verifying deployment..."
@@ -257,7 +257,7 @@ terraform show
 
 # Check Ansible inventory
 cd /mnt/pve/hdd/home-lab/generated/ansible
-ansible-inventory -i inventory/production/hosts.yml --list
+ansible-inventory -i inventory/<env>/hosts.yml --list
 ```
 
 ---

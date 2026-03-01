@@ -11,7 +11,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ANSIBLE_DIR="$PROJECT_DIR/ansible"
-GENERATED_INVENTORY_DIR="$PROJECT_DIR/generated/ansible/inventory/production"
+ANSIBLE_ENV="production"
+GENERATED_ANSIBLE_DIR="$PROJECT_DIR/generated/ansible"
+GENERATED_INVENTORY_DIR="$GENERATED_ANSIBLE_DIR/inventory/$ANSIBLE_ENV"
 RUNTIME_INVENTORY_DIR="$PROJECT_DIR/generated/ansible/runtime/production"
 ASSEMBLER_SCRIPT="$PROJECT_DIR/topology-tools/assemble-ansible-runtime.py"
 
@@ -24,7 +26,7 @@ for arg in "$@"; do
             echo "  generated/ansible/runtime/production"
             echo ""
             echo "If runtime inventory is missing, the script assembles it from:"
-            echo "  - generated/ansible/inventory/production"
+            echo "  - generated/ansible/inventory/$ANSIBLE_ENV"
             echo "  - ansible/inventory-overrides/production"
             exit 0
             ;;

@@ -163,10 +163,10 @@ default="generated/terraform"
 **generate-ansible-inventory.py**:
 ```python
 # Before
-default="ansible/inventory/production"
+default="ansible/inventory/<env>"
 
 # After
-default="generated/ansible/inventory/production"
+default="generated/ansible/inventory/<env>"
 ```
 
 **generate-docs.py**:
@@ -296,7 +296,7 @@ tree generated -L 4
 # Result:
 generated/
 ├── terraform/ (6 files)
-├── ansible/inventory/production/ (hosts.yml + group_vars + host_vars)
+├── ansible/inventory/<env>/ (hosts.yml + group_vars + host_vars)
 └── docs/ (5 markdown files)
 
 # 3. Re-run test (tests auto-cleanup)
@@ -369,7 +369,7 @@ python3 scripts/generate-terraform.py
 
 # Generate only Ansible
 python3 scripts/generate-ansible-inventory.py
-# Output: generated/ansible/inventory/production/
+# Output: generated/ansible/inventory/<env>/
 
 # Generate only docs
 python3 scripts/generate-docs.py

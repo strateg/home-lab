@@ -92,7 +92,7 @@ head -1 group_vars/all/vault.yml
 
 ```bash
 # Test that Ansible can decrypt vault
-ansible all -m ping -i inventory/production/hosts.yml
+ansible all -m ping -i inventory/<env>/hosts.yml
 
 # View encrypted content (requires vault password)
 ansible-vault view group_vars/all/vault.yml
@@ -500,7 +500,7 @@ ansible-vault rekey group_vars/all/vault.yml
 ansible-vault encrypt_string 'secret' --name 'vault_var'
 
 # Run playbook with vault
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml
 
 # Run with different vault password
 ansible-playbook --vault-password-file=.vault_pass_prod playbooks/site.yml

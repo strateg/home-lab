@@ -195,7 +195,7 @@ After running all scripts:
 6. **Run Ansible playbook**
    ```bash
    cd /root/home-lab/ansible
-   ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml
+   ansible-playbook -i inventory/<env>/hosts.yml playbooks/proxmox-setup.yml
    ```
 
 ## Troubleshooting

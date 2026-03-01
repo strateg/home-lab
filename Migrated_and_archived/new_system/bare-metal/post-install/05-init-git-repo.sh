@@ -284,14 +284,14 @@ if ! git rev-parse HEAD &> /dev/null; then
     mkdir -p terraform/modules
     mkdir -p ansible/roles
     mkdir -p ansible/playbooks
-    mkdir -p ansible/inventory/production/host_vars
-    mkdir -p ansible/inventory/production/group_vars
+    mkdir -p ansible/inventory/<env>/host_vars
+    mkdir -p ansible/inventory/<env>/group_vars
     mkdir -p bare-metal/post-install
     mkdir -p docs
 
     touch terraform/modules/.gitkeep
     touch ansible/playbooks/.gitkeep
-    touch ansible/inventory/production/host_vars/.gitkeep
+    touch ansible/inventory/<env>/host_vars/.gitkeep
     touch docs/.gitkeep
 
     # Add files to Git
@@ -396,7 +396,7 @@ echo "   terraform plan"
 echo ""
 echo "3. ${BLUE}Configure Ansible:${NC}"
 echo "   cd $PROJECT_DIR/ansible"
-echo "   ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml"
+echo "   ansible-playbook -i inventory/<env>/hosts.yml playbooks/proxmox-setup.yml"
 echo ""
 echo "4. ${BLUE}Version control:${NC}"
 echo "   git add ."

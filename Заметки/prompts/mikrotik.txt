@@ -1301,7 +1301,7 @@
 
  # Ansible
  configure:
-        cd ansible && ansible-playbook -i inventory/production/hosts.yml site.ym
+        cd ansible && ansible-playbook -i inventory/<env>/hosts.yml site.ym
 
  # Полное развертывание
  deploy-all: validate generate
@@ -1638,7 +1638,7 @@
 
      # Ansible
      configure:
-        cd ansible && ansible-playbook -i inventory/production/hosts.yml site.yml
+        cd ansible && ansible-playbook -i inventory/<env>/hosts.yml site.yml
 
      # Полное развертывание
      deploy-all: validate generate

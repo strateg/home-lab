@@ -111,7 +111,7 @@ output "next_steps" {
 
     1. Apply Ansible configuration:
        cd ../ansible
-       ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
+       ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml
 
     2. Access Proxmox Web UI:
        https://${var.mgmt_proxmox_ip}:8006

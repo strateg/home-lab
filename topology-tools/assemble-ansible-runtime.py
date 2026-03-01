@@ -23,7 +23,8 @@ from pathlib import Path
 
 # Paths relative to repository root
 REPO_ROOT = Path(__file__).parent.parent
-GENERATED_INV = REPO_ROOT / "generated/ansible/inventory/production"
+DEFAULT_ENV = "production"
+GENERATED_INV = REPO_ROOT / "generated" / "ansible" / "inventory" / DEFAULT_ENV
 MANUAL_INV = REPO_ROOT / "ansible/inventory-overrides/production"
 RUNTIME_INV = REPO_ROOT / "generated/ansible/runtime/production"
 
@@ -78,9 +79,7 @@ def validate_no_forbidden_overrides(path: Path, allowlist: list[str] = None) -> 
 
     for pattern in FORBIDDEN_OVERRIDE_PATTERNS:
         if pattern in content:
-            violations.append(
-                f"{path}: overrides topology-owned fact '{pattern}' without explicit allowlist"
-            )
+            violations.append(f"{path}: overrides topology-owned fact '{pattern}' without explicit allowlist")
     return violations
 
 
@@ -234,9 +233,7 @@ def assemble_runtime_inventory(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Assemble Ansible runtime inventory (ADR 0051)"
-    )
+    parser = argparse.ArgumentParser(description="Assemble Ansible runtime inventory (ADR 0051)")
     parser.add_argument(
         "--generated",
         type=Path,
@@ -263,7 +260,8 @@ def main():
         help="Host_vars files allowed to override topology-owned facts",
     )
     parser.add_argument(
-        "-q", "--quiet",
+        "-q",
+        "--quiet",
         action="store_true",
         help="Suppress verbose output",
     )

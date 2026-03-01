@@ -41,7 +41,7 @@ fi
 INVENTORY="$PROJECT_DIR/generated/ansible/inventory/hosts.yml"
 if [ ! -f "$INVENTORY" ]; then
     echo -e "${YELLOW}⚠️  Generated inventory not found, using default${NC}"
-    INVENTORY="$ANSIBLE_DIR/inventory/production/hosts.yml"
+    INVENTORY="$ANSIBLE_DIR/inventory/<env>/hosts.yml"
 fi
 
 if [ ! -f "$INVENTORY" ]; then

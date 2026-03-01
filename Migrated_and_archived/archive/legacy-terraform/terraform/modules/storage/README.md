@@ -179,7 +179,7 @@ pvesm add dir local-hdd --path /mnt/hdd --content backup,iso,vztmpl,snippets
 Or use Ansible role (recommended):
 
 ```bash
-ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml --tags storage
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/proxmox-setup.yml --tags storage
 ```
 
 ## Storage Operations

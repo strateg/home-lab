@@ -48,7 +48,7 @@ Generate Ansible inventory from L1/L2/L4 and L7 (ansible config).
 
 Usage:
 ```bash
-python topology-tools/generate-ansible-inventory.py --topology topology.yaml --output generated/ansible/inventory/production
+python topology-tools/generate-ansible-inventory.py --topology topology.yaml --output generated/ansible/inventory/<env>
 ```
 
 ### assemble-ansible-runtime.py
@@ -200,7 +200,7 @@ npm install --save-dev @mermaid-js/mermaid-cli @iconify-json/simple-icons @iconi
 generated/
   terraform/
   terraform-mikrotik/
-  ansible/inventory/production/
+  ansible/inventory/<env>/
   ansible/runtime/production/
   docs/
 ```
@@ -245,7 +245,7 @@ home-lab/
   generated/
     terraform/
     terraform-mikrotik/
-    ansible/inventory/production/
+    ansible/inventory/<env>/
     docs/
   topology-tools/
     generate-terraform-proxmox.py

@@ -93,20 +93,20 @@ None
 ### Full configuration
 
 ```bash
-ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/proxmox-setup.yml
 ```
 
 ### Specific tasks
 
 ```bash
 # Only configure repositories
-ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml --tags repositories
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/proxmox-setup.yml --tags repositories
 
 # Only configure networking
-ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml --tags networking
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/proxmox-setup.yml --tags networking
 
 # Skip monitoring
-ansible-playbook -i inventory/production/hosts.yml playbooks/proxmox-setup.yml --skip-tags monitoring
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/proxmox-setup.yml --skip-tags monitoring
 ```
 
 ## What This Role Configures

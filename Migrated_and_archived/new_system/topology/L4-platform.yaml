@@ -250,7 +250,7 @@ ansible_config:
       - encryption
       - user_ldap
   config:
-    inventory: inventory/production/hosts.yml
+    inventory: inventory/<env>/hosts.yml
     remote_user: root
     host_key_checking: false
     retry_files_enabled: false

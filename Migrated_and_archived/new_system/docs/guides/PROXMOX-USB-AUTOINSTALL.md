@@ -389,7 +389,7 @@ After successful Proxmox installation:
    cd /root/home-lab/new_system
    python3 scripts/generate-ansible-inventory.py
    cd ansible
-   ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
+   ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml
    ```
 
 ---

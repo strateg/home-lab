@@ -8,8 +8,8 @@
 
 | Source | Path | Hosts | Status |
 |--------|------|-------|--------|
-| Manual | `ansible/inventory/production/` | 11 hosts | Operational |
-| Generated | `generated/ansible/inventory/production/` | 2 hosts | Partial |
+| Manual | `ansible/inventory/<env>/` | 11 hosts | Operational |
+| Generated | `generated/ansible/inventory/<env>/` | 2 hosts | Partial |
 | Runtime (target) | `generated/ansible/runtime/production/` | TBD | Not exists |
 
 ### Data Classification (Manual Inventory)
@@ -59,7 +59,7 @@ Topology содержит только 2 LXC хоста (postgresql, redis). О�
 git status
 python3 topology-tools/regenerate-all.py
 cd deploy && make validate
-ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
+ansible-inventory -i generated/ansible/inventory/<env> --list > /dev/null
 ```
 
 ---
@@ -95,7 +95,7 @@ cd deploy && make validate
 
 ### Что делаем
 
-1. Инвентаризируем значения в `ansible/inventory/production/`
+1. Инвентаризируем значения в `ansible/inventory/<env>/`
 2. Инвентаризируем generated `group_vars` и `host_vars`
 3. Делим их на три класса:
    - topology-derived
@@ -111,7 +111,7 @@ cd deploy && make validate
 
 ### Concrete File Analysis
 
-**ansible/inventory/production/hosts.yml** (309 lines):
+**ansible/inventory/<env>/hosts.yml** (309 lines):
 ```yaml
 # tracked-public (keep in overrides):
 all.vars.ansible_python_interpreter     # operator preference
@@ -127,7 +127,7 @@ lxc.vars.*                              # operator defaults
 lxc.children.*.hosts.*                  # full hosts (partial in topology)
 ```
 
-**ansible/inventory/production/group_vars/all.yml** (214 lines):
+**ansible/inventory/<env>/group_vars/all.yml** (214 lines):
 ```yaml
 # tracked-public (keep in overrides):
 environment, datacenter, timezone       # operator config
@@ -248,7 +248,7 @@ ansible/inventory-overrides/production/group_vars/all-secrets.yml
 
 ```bash
 python3 topology-tools/regenerate-all.py
-ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
+ansible-inventory -i generated/ansible/inventory/<env> --list > /dev/null
 git grep -n "password\\|token\\|private_key\\|root_password_hash\\|lookup.*file" ansible/inventory-overrides
 # Must return 0 results
 ```
@@ -287,7 +287,7 @@ refactor(adr-0051): separate ansible overrides from tracked secret values
 
 ```bash
 python3 topology-tools/regenerate-all.py
-ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
+ansible-inventory -i generated/ansible/inventory/<env> --list > /dev/null
 ```
 
 ### Коммит
@@ -323,7 +323,7 @@ import shutil
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
-GENERATED_INV = REPO_ROOT / "generated/ansible/inventory/production"
+GENERATED_INV = REPO_ROOT / "generated/ansible/inventory/<env>"
 MANUAL_INV = REPO_ROOT / "ansible/inventory-overrides/production"
 RUNTIME_INV = REPO_ROOT / "generated/ansible/runtime/production"
 
@@ -403,7 +403,7 @@ if __name__ == "__main__":
 python3 topology-tools/regenerate-all.py
 python3 topology-tools/assemble-ansible-runtime.py
 ansible-inventory -i generated/ansible/runtime/production --list > /dev/null
-ansible-inventory -i generated/ansible/inventory/production --list > old-inventory.json
+ansible-inventory -i generated/ansible/inventory/<env> --list > old-inventory.json
 ansible-inventory -i generated/ansible/runtime/production --list > new-inventory.json
 ```
 
@@ -430,7 +430,7 @@ feat(adr-0051): add ansible runtime inventory assembler
 
 **ansible/ansible.cfg** (line 9):
 ```diff
--inventory = ../generated/ansible/inventory/production/hosts.yml
+-inventory = ../generated/ansible/inventory/<env>/hosts.yml
 +inventory = ../generated/ansible/runtime/production
 ```
 
@@ -438,7 +438,7 @@ Note: Changed from file to directory. Ansible will auto-discover hosts.yml and g
 
 **deploy/phases/03-services.sh** (if hardcoded):
 ```diff
--INVENTORY="../generated/ansible/inventory/production/hosts.yml"
+-INVENTORY="../generated/ansible/inventory/<env>/hosts.yml"
 +INVENTORY="../generated/ansible/runtime/production"
 ```
 
@@ -491,7 +491,7 @@ refactor(adr-0051): switch ansible runtime to assembled inventory
 python3 topology-tools/regenerate-all.py
 python3 topology-tools/assemble-ansible-runtime.py
 cd deploy && make validate
-git grep -n "ansible/inventory/production" -- . ":(exclude)Migrated_and_archived"
+git grep -n "ansible/inventory/<env>" -- . ":(exclude)Migrated_and_archived"
 ```
 
 ### Коммит
@@ -576,7 +576,7 @@ git commit -m "refactor(adr-0051): separate ansible overrides from tracked secre
 
 # Test generated inventory
 python3 topology-tools/regenerate-all.py
-ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
+ansible-inventory -i generated/ansible/inventory/<env> --list > /dev/null
 
 git add -A
 git commit -m "feat(adr-0051): generate topology-owned ansible runtime facts"

@@ -180,7 +180,7 @@ class RegenerateAll:
             print("   Or deploy manually:")
             print("      cd generated/terraform-mikrotik && terraform init && terraform apply")
             print("      cd generated/terraform && terraform init && terraform apply")
-            print("      cd ansible && ansible-playbook -i inventory/production/hosts.yml site.yml")
+            print("      cd ansible && ansible-playbook -i inventory/<env>/hosts.yml site.yml")
         else:
             print("\n❌ Some generators failed. Check errors above.")
             print("   Fix issues and run again: python3 scripts/regenerate-all.py")

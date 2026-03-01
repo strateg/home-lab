@@ -360,7 +360,7 @@ ansible-playbook playbooks/proxmox-setup.yml --tags repositories
 ansible-playbook playbooks/proxmox-setup.yml --check
 ```
 
-> **Note**: `ansible.cfg` использует сгенерированный inventory из `../generated/ansible/inventory/production/hosts.yml`
+> **Note**: `ansible.cfg` использует сгенерированный inventory из `../generated/ansible/inventory/<env>/hosts.yml`
 
 ## 📚 Документация
 

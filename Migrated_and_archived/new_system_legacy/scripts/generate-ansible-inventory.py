@@ -301,8 +301,8 @@ def main():
     parser.add_argument("--topology", default="topology.yaml", help="Path to topology YAML file")
     parser.add_argument(
         "--output",
-        default="generated/ansible/inventory/production",
-        help="Output directory for inventory files (default: generated/ansible/inventory/production/)",
+        default="generated/ansible/inventory/<env>",
+        help="Output directory for inventory files (default: generated/ansible/inventory/<env>/)",
     )
     parser.add_argument("--templates", default="scripts/templates", help="Directory containing Jinja2 templates")
 

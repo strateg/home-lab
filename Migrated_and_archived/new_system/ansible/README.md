@@ -20,26 +20,26 @@ Ansible automation for home lab infrastructure.
 
 ```bash
 # Ping all hosts
-ansible all -m ping -i inventory/production/hosts.yml
+ansible all -m ping -i inventory/<env>/hosts.yml
 
 # Check specific group
-ansible lxc_containers -m ping -i inventory/production/hosts.yml
+ansible lxc_containers -m ping -i inventory/<env>/hosts.yml
 ```
 
 ### 3. Run Playbooks
 
 ```bash
 # Run all playbooks
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml
 
 # Run specific playbook
-ansible-playbook -i inventory/production/hosts.yml playbooks/postgresql.yml
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/postgresql.yml
 
 # Dry run (check mode)
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --check
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml --check
 
 # Verbose output
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml -vvv
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml -vvv
 ```
 
 ---
@@ -142,39 +142,39 @@ ansible-galaxy install -r requirements.yml --force
 
 ```bash
 # Check disk space
-ansible all -m shell -a "df -h" -i inventory/production/hosts.yml
+ansible all -m shell -a "df -h" -i inventory/<env>/hosts.yml
 
 # Restart service
-ansible postgresql-db -m systemd -a "name=postgresql state=restarted" -i inventory/production/hosts.yml
+ansible postgresql-db -m systemd -a "name=postgresql state=restarted" -i inventory/<env>/hosts.yml
 
 # Update packages
-ansible all -m apt -a "upgrade=dist update_cache=yes" -i inventory/production/hosts.yml
+ansible all -m apt -a "upgrade=dist update_cache=yes" -i inventory/<env>/hosts.yml
 ```
 
 ### Limit Execution
 
 ```bash
 # Run only on specific host
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --limit postgresql-db
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml --limit postgresql-db
 
 # Run only on specific group
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --limit lxc_containers
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml --limit lxc_containers
 
 # Run on multiple hosts
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --limit "postgresql-db,redis-cache"
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml --limit "postgresql-db,redis-cache"
 ```
 
 ### Tags
 
 ```bash
 # List available tags
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --list-tags
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml --list-tags
 
 # Run specific tags
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --tags "setup,config"
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml --tags "setup,config"
 
 # Skip specific tags
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --skip-tags "backup"
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml --skip-tags "backup"
 ```
 
 ---
@@ -236,7 +236,7 @@ ssh -i ~/.ssh/id_ed25519 postgres@10.0.30.10
 ssh-keyscan -H 10.0.30.10
 
 # Verbose Ansible connection
-ansible postgresql-db -m ping -i inventory/production/hosts.yml -vvv
+ansible postgresql-db -m ping -i inventory/<env>/hosts.yml -vvv
 ```
 
 ### Playbook Errors
@@ -246,10 +246,10 @@ ansible postgresql-db -m ping -i inventory/production/hosts.yml -vvv
 ansible-playbook playbooks/site.yml --syntax-check
 
 # Dry run
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --check
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml --check
 
 # Step-by-step execution
-ansible-playbook -i inventory/production/hosts.yml playbooks/site.yml --step
+ansible-playbook -i inventory/<env>/hosts.yml playbooks/site.yml --step
 ```
 
 ---
@@ -324,7 +324,7 @@ password: "my_secret_password"
 ### ansible.cfg
 
 Key settings:
-- **Inventory**: `./inventory/production/hosts.yml`
+- **Inventory**: `./inventory/<env>/hosts.yml`
 - **Vault password**: `.vault_pass`
 - **SSH**: `StrictHostKeyChecking=no` (lab environment)
 - **Callbacks**: `profile_tasks`, `timer`

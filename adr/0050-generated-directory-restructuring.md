@@ -192,7 +192,7 @@ GENERATED_DIR := $(ROOT_DIR)/generated
 BOOTSTRAP_DIR := $(GENERATED_DIR)/bootstrap
 TF_MIKROTIK_DIR := $(GENERATED_DIR)/terraform/mikrotik
 TF_PROXMOX_DIR := $(GENERATED_DIR)/terraform/proxmox
-ANSIBLE_INVENTORY := $(GENERATED_DIR)/ansible/inventory/production
+ANSIBLE_INVENTORY := $(GENERATED_DIR)/ansible/inventory/<env>
 
 # Terraform targets
 plan-mikrotik:
@@ -351,7 +351,7 @@ make plan-proxmox
 
 **5.3 Test Ansible**
 ```bash
-ansible-inventory -i generated/ansible/inventory/production --list
+ansible-inventory -i generated/ansible/inventory/<env> --list
 ```
 
 **5.4 Clean up backups**

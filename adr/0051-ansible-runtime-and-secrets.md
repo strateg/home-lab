@@ -10,8 +10,8 @@ The repository currently has one high-risk coupling area: Ansible runtime, topol
 Current facts:
 - `deploy/phases/03-services.sh` changes into `ansible/` and expects playbooks and runtime config there
 - `ansible/ansible.cfg` uses relative paths tied to the current `ansible/` layout
-- `generated/ansible/inventory/production/` contains topology-derived inventory
-- `ansible/inventory/production/` still contains tracked manual inventory data
+- `generated/ansible/inventory/<env>/` contains topology-derived inventory
+- `ansible/inventory/<env>/` still contains tracked manual inventory data
 - tracked inventory files currently act as a mix of host model, operator overrides, and sometimes secret-adjacent operational data
 
 This makes a broad repository migration unsafe:
@@ -49,7 +49,7 @@ This is an explicit compatibility rule, not a permanent design endorsement.
 Generated topology-derived inventory remains authoritative for hosts and groups:
 
 ```text
-generated/ansible/inventory/production/
+generated/ansible/inventory/<env>/
 ├── hosts.yml
 ├── group_vars/
 └── host_vars/
@@ -66,7 +66,7 @@ ansible/inventory-overrides/production/
 ```
 
 Rules:
-1. `generated/ansible/inventory/production/hosts.yml` is the source of truth for topology-derived host structure
+1. `generated/ansible/inventory/<env>/hosts.yml` is the source of truth for topology-derived host structure
 2. tracked manual overrides may extend runtime behavior, but must not redefine generated host topology
 3. service-level and operator-level overrides belong in `inventory-overrides`, not in generated inventory
 
@@ -123,7 +123,7 @@ Ansible natively merges multiple inventory sources. During development or compar
 
 ```bash
 # Debugging/comparison pattern only
-ansible-inventory -i generated/ansible/inventory/production \
+ansible-inventory -i generated/ansible/inventory/<env> \
                   -i ansible/inventory-overrides/production
 ```
 
@@ -340,7 +340,7 @@ After cutover, the default inventory in `ansible/ansible.cfg` must point to the 
 ../generated/ansible/runtime/production/
 ```
 
-The raw generator output under `generated/ansible/inventory/production/` remains an intermediate artifact, not the operator-facing runtime target.
+The raw generator output under `generated/ansible/inventory/<env>/` remains an intermediate artifact, not the operator-facing runtime target.
 
 All operator-facing entrypoints must resolve inventory from one canonical place:
 - `ansible/ansible.cfg`, or
@@ -407,5 +407,5 @@ Those concerns are deferred to ADR 0052.
 - ADR 0050: Generated Directory Restructuring
 - `ansible/ansible.cfg`
 - `deploy/phases/03-services.sh`
-- `generated/ansible/inventory/production/`
+- `generated/ansible/inventory/<env>/`
 - ADR 0052

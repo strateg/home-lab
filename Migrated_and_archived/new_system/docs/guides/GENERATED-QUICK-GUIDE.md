@@ -172,7 +172,7 @@ generated/terraform/
 ### Ansible (1 + 4 + 3 файла)
 
 ```
-generated/ansible/inventory/production/
+generated/ansible/inventory/<env>/
 ├── hosts.yml                   # Инвентарь
 ├── group_vars/
 │   └── all.yml                 # Общие переменные

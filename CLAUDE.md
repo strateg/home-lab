@@ -138,7 +138,7 @@ terraform plan && terraform apply
 
 # 4. Run Ansible if needed
 cd ../../../ansible
-ansible-playbook -i ../generated/ansible/inventory/production/hosts.yml playbooks/site.yml
+ansible-playbook -i ../generated/ansible/inventory/<env>/hosts.yml playbooks/site.yml
 ```
 
 ### 2. Using Makefile (Recommended)

@@ -178,7 +178,7 @@ terraform plan  # Should show no changes or only expected changes
 
 # Test Ansible
 cd ../ansible
-ansible all -i inventory/production/hosts.yml -m ping
+ansible all -i inventory/<env>/hosts.yml -m ping
 ```
 
 ### Step 3: Document Remaining Items (Next Week)

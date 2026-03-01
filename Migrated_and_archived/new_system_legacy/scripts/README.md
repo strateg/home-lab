@@ -94,12 +94,12 @@ resource "proxmox_virtual_environment_vm" "opnsense" {
 
 **Usage**:
 ```bash
-python3 scripts/generate-ansible-inventory.py [--output ansible/inventory/production/]
+python3 scripts/generate-ansible-inventory.py [--output ansible/inventory/<env>/]
 ```
 
 **Generates**:
 ```
-ansible/inventory/production/
+ansible/inventory/<env>/
 ├── hosts.yml               # Generated inventory
 └── group_vars/
     └── all.yml            # Generated network variables

@@ -672,7 +672,7 @@ workflows:
 
       - step: 7
         name: "Run Ansible playbooks"
-        command: "cd ansible && ansible-playbook -i inventory/production/hosts.yml site.yml"
+        command: "cd ansible && ansible-playbook -i inventory/<env>/hosts.yml site.yml"
         duration: "20 min"
 
   update_topology:
