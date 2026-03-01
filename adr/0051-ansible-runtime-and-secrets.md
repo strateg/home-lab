@@ -113,7 +113,134 @@ Tracked `inventory-overrides` should remain minimal and focused on operator pref
 
 If a value is expected to be stable, topology-owned, and required for normal service operation, it should be generated from topology instead of being maintained in overrides.
 
-### 6. Effective Runtime Inventory Is Assembled
+### 6. Manual Extension Patterns
+
+Ansible developers may extend generated configurations without modifying generated files. The following patterns are supported:
+
+#### 6.1 Layered Inventory
+
+Ansible natively merges multiple inventory sources. The runtime inventory is assembled from:
+
+```bash
+# Effective command (handled by assembler)
+ansible-inventory -i generated/ansible/inventory/production \
+                  -i ansible/inventory-overrides/production
+```
+
+Variables from later sources override earlier ones according to Ansible variable precedence.
+
+#### 6.2 Hook Pattern (Pre/Post Tasks)
+
+Playbooks may include optional hook files for custom pre- and post-processing:
+
+```yaml
+# ansible/playbooks/postgresql.yml
+- hosts: lxc-postgresql
+  tasks:
+    - name: Include pre-tasks hook
+      include_tasks: "{{ item }}"
+      with_first_found:
+        - files:
+            - "hooks/postgresql-pre.yml"
+          skip: true
+
+    # Main tasks here...
+
+    - name: Include post-tasks hook
+      include_tasks: "{{ item }}"
+      with_first_found:
+        - files:
+            - "hooks/postgresql-post.yml"
+          skip: true
+```
+
+Hook files live in `ansible/playbooks/hooks/` and are manually authored.
+
+#### 6.3 Custom Roles
+
+Manual roles extend or wrap generated behavior:
+
+```text
+ansible/roles/
+├── postgresql/              # Base role (manual)
+├── postgresql-extensions/   # Custom extensions (manual)
+└── common/                  # Shared utilities (manual)
+```
+
+Playbooks compose roles as needed:
+
+```yaml
+- hosts: lxc-postgresql
+  roles:
+    - postgresql
+    - postgresql-extensions
+```
+
+#### 6.4 Conditional Custom Tasks
+
+Roles may conditionally include custom task files defined via inventory:
+
+```yaml
+# In role tasks/main.yml
+- name: Include custom tasks if defined
+  include_tasks: "{{ postgresql_custom_tasks }}"
+  when: postgresql_custom_tasks is defined
+```
+
+```yaml
+# In inventory-overrides/production/host_vars/lxc-postgresql.yml
+postgresql_custom_tasks: "custom/postgresql-replication.yml"
+```
+
+#### 6.5 vars_files With Optional Includes
+
+Playbooks may include optional variable files that override defaults:
+
+```yaml
+- hosts: lxc-postgresql
+  vars_files:
+    - vars/postgresql-defaults.yml
+    - "{{ lookup('first_found', params, errors='ignore') | default(omit) }}"
+  vars:
+    params:
+      files:
+        - vars/custom/postgresql.yml
+```
+
+#### 6.6 Extension Directory Structure
+
+```text
+ansible/
+├── playbooks/
+│   ├── site.yml                    # Main entry (manual)
+│   ├── postgresql.yml              # Service playbook (manual)
+│   └── hooks/
+│       ├── postgresql-pre.yml      # Pre-tasks hook (manual)
+│       └── postgresql-post.yml     # Post-tasks hook (manual)
+├── roles/
+│   ├── common/                     # Shared role (manual)
+│   ├── postgresql/                 # Base role (manual)
+│   └── postgresql-extensions/      # Extension role (manual)
+├── inventory-overrides/
+│   └── production/
+│       ├── group_vars/
+│       │   └── all.yml             # Operator preferences
+│       └── host_vars/
+│           └── lxc-postgresql.yml  # Per-host overrides
+└── vars/
+    └── custom/                     # Manual variable files
+        └── postgresql.yml
+```
+
+#### 6.7 Extension Rules
+
+1. Manual extensions must not duplicate topology-owned facts
+2. Hook files are optional; playbooks must handle their absence gracefully
+3. Custom roles should extend, not replace, base functionality
+4. Per-host overrides in `inventory-overrides/` should be minimal and intentional
+5. Extension patterns should be documented in playbook headers
+
+### 7. Effective Runtime Inventory Is Assembled
 
 An explicit assembly step produces the effective inventory used by Ansible runtime:
 
@@ -140,7 +267,7 @@ Assembly rules:
 
 The goal is deterministic runtime behavior without inventing a YAML merge engine.
 
-### 7. Secret-Bearing Data Must Not Live In Tracked Inventory Source
+### 8. Secret-Bearing Data Must Not Live In Tracked Inventory Source
 
 Tracked inventory source files must not contain:
 - raw passwords
@@ -170,7 +297,7 @@ Examples:
 - encrypted vault content is allowed as `tracked-encrypted`
 - `.vault_pass` must remain `local-secret`
 
-### 8. `ansible.cfg` Must Target The Assembled Runtime Inventory
+### 9. `ansible.cfg` Must Target The Assembled Runtime Inventory
 
 After cutover, the default inventory in `ansible/ansible.cfg` must point to the runtime inventory directory, not a single `hosts.yml` file:
 
@@ -186,7 +313,7 @@ All operator-facing entrypoints must resolve inventory from one canonical place:
 
 Runtime code must not duplicate ad hoc inventory path logic in multiple places.
 
-### 9. Validation Requirements
+### 10. Validation Requirements
 
 ADR 0051 is complete only when all of the following pass:
 1. `python3 topology-tools/regenerate-all.py`
@@ -200,7 +327,7 @@ ADR 0051 is complete only when all of the following pass:
    - selected hostvars on representative hosts
 7. topology-owned service hosts no longer depend on tracked manual inventory for normal runtime facts
 
-### 10. Rollback And Safety Rules
+### 11. Rollback And Safety Rules
 
 If assembled runtime inventory causes playbook regressions:
 1. `ansible/ansible.cfg` must be switchable back to the previous inventory target in one revertable commit
@@ -208,7 +335,7 @@ If assembled runtime inventory causes playbook regressions:
 3. legacy manual inventory files must not be deleted before the comparison and cutover gates are passed
 4. rollback must not require reconstructing deleted tracked files from memory or external state
 
-### 11. Explicitly Out Of Scope
+### 12. Explicitly Out Of Scope
 
 ADR 0051 does not decide:
 - `src/` repository restructuring
