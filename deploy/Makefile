@@ -17,7 +17,7 @@
 
 .PHONY: all help validate generate plan apply deploy-all clean
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
-.PHONY: configure test bootstrap-info
+.PHONY: configure test bootstrap-info assemble-ansible
 
 # Directories (relative to deploy/)
 ROOT_DIR := $(shell cd .. && pwd)
@@ -82,7 +82,7 @@ validate:
 	cd $(TOPOLOGY_DIR) && python3 topology-tools/validate-topology.py
 	@echo "$(GREEN)✓ Topology validation passed$(NC)"
 
-generate: generate-terraform generate-mikrotik generate-ansible generate-docs
+generate: generate-terraform generate-mikrotik generate-ansible assemble-ansible generate-docs
 	@echo "$(GREEN)✓ All configurations generated$(NC)"
 
 generate-terraform:
@@ -96,6 +96,10 @@ generate-mikrotik:
 generate-ansible:
 	@echo "$(YELLOW)📝 Generating Ansible inventory...$(NC)"
 	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-ansible-inventory.py
+
+assemble-ansible:
+	@echo "$(YELLOW)📝 Assembling Ansible runtime inventory (ADR 0051)...$(NC)"
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/assemble-ansible-runtime.py
 
 generate-docs:
 	@echo "$(YELLOW)📝 Generating documentation...$(NC)"
