@@ -54,3 +54,4 @@
 | [0051](0051-ansible-runtime-and-secrets.md) | Ansible Runtime, Inventory, and Secret Boundaries | Accepted | 2026-03-01 | - | - |
 | [0052](0052-build-pipeline-after-ansible.md) | Deploy Package Assembly Over Accepted Ansible Runtime | Accepted | 2026-03-01 | - | - |
 | [0053](0053-dist-first-deploy-cutover.md) | Optional Dist-First Deploy Cutover | Proposed | 2026-03-01 | - | - |
+| [0054](0054-separate-local-inputs-from-generated-outputs.md) | Separate Local Operator Inputs from Generated Outputs | Proposed | 2026-03-01 | - | - |
