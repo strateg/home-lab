@@ -1,35 +1,30 @@
 # ADR 0051: Migration Plan
 
-План миграции к `src/` + `dist/` без поломки текущего workflow.
+План миграции к безопасной Ansible-first модели без преждевременного перехода к `src/` и `dist/`.
 
 ## Цели
 
-1. Разделить manual source, generated output и assembled deploy artifacts
-2. Не ломать текущие entrypoint'ы по пути миграции
-3. Не смешивать файловую реструктуризацию с отдельными семантическими миграциями
-4. Ввести validation gate после каждой фазы
+1. Стабилизировать Ansible runtime до широкой реструктуризации репозитория
+2. Разделить topology-derived inventory, manual overrides и secret-bearing values
+3. Сохранить рабочий `deploy/` workflow на всем пути миграции
+4. Подготовить базу для ADR 0052 без смешивания решений
 
 ## Что не входит в этот план
 
 Этот план не делает:
-- переименование device ID `mikrotik-chateau -> rtr-mikrotik-chateau`
-- удаление topology alias'ов
-- публикацию secret-bearing артефактов в CI
-- немедленный перенос `deploy/Makefile` в корень репозитория
-
-Если понадобится cleanup device identity, это отдельная миграция.
+- перенос manual source в `src/`
+- ввод `dist/` deploy packages
+- переименование device ID
+- Terraform/bootstrap package assembly
 
 ## Принципы
 
-1. Использовать `git mv` там, где реально переносится tracked file
-2. Делать атомарные коммиты с рабочим состоянием после каждого коммита
-3. Сначала добавлять совместимость, потом переключать runtime, потом удалять legacy
-4. Не принимать ADR как `Accepted`, пока assembler и validation не реализованы полностью
-5. Не полагаться на пустые директории как на результат коммита
+1. Не ломать `ansible/` как runtime root, пока cutover не завершен
+2. Сначала определить ownership inventory данных, потом менять путь исполнения
+3. Не переносить секреты механически вместе с inventory файлами
+4. Не принимать ADR как `Accepted`, пока assembled runtime inventory не станет каноническим
 
 ## Базовый validation gate
-
-Перед началом миграции нужно зафиксировать baseline:
 
 ```bash
 git status
@@ -37,8 +32,6 @@ python3 topology-tools/regenerate-all.py
 cd deploy && make validate
 ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
 ```
-
-Если что-то из baseline уже не работает, сначала надо стабилизировать текущее состояние, потом мигрировать.
 
 ---
 
@@ -48,80 +41,44 @@ ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
 
 1. Создаем ветку миграции
 2. Проверяем baseline
-3. Фиксируем список runtime-зависимостей, которые нельзя ломать промежуточными коммитами
+3. Фиксируем текущие runtime-контракты
 
-### Runtime-контракты, которые должны остаться рабочими до cutover
+### Runtime-контракты
 
 - `deploy/phases/*.sh`
 - `deploy/Makefile`
 - `ansible/ansible.cfg`
-- `topology/L7-operations.yaml`
 - `topology-tools/regenerate-all.py`
 
 ### Команды
 
 ```bash
-git checkout -b refactor/adr-0051-build-pipeline
+git checkout -b refactor/adr-0051-ansible-runtime
 python3 topology-tools/regenerate-all.py
 cd deploy && make validate
 ```
 
-### Коммит
-
-На этой фазе коммит не обязателен.
-
 ---
 
-## Phase 1: Создать `src/` и перенести manual source без cutover runtime
+## Phase 1: Аудит inventory и секретов
 
 ### Что делаем
 
-1. Создаем `src/`
-2. Переносим manual source в `src/`
-3. Оставляем совместимые точки входа, если runtime все еще ожидает старые пути
+1. Инвентаризируем значения в `ansible/inventory/production/`
+2. Делим их на три класса:
+   - topology-derived
+   - manual non-secret override
+   - secret-local / vault-managed
+3. Фиксируем список tracked secret violations
 
 ### Важно
 
-- Не удалять `ansible/` целиком на этой фазе
-- Не удалять `bootstrap/` целиком на этой фазе
-- Не удалять `manual-scripts/`, если на них еще ссылаются runbook'и, docs или post-install скрипты
-- Для директорий, которые должны появиться в git до наполнения, использовать `.gitkeep`
-
-### Рекомендуемый scope переноса
-
-Переносить только manual source:
-- `ansible/playbooks -> src/ansible/playbooks`
-- `ansible/roles -> src/ansible/roles`
-- `ansible/group_vars -> src/ansible/group_vars`
-- `ansible/requirements.yml -> src/ansible/requirements.yml`
-- `ansible/vault-helper.sh -> src/ansible/vault-helper.sh`
-- `ansible/README.md -> src/ansible/README.md`
-- `bootstrap/mikrotik -> src/bootstrap/mikrotik`
-- `manual-scripts/bare-metal -> src/bootstrap/proxmox`
-- `manual-scripts/opi5 -> src/bootstrap/opi5`
-- `manual-scripts/openwrt -> src/bootstrap/openwrt`
-- `configs -> src/configs`
-- `scripts -> src/scripts`
-
-### Что не переносить как manual source
-
-- `generated/**`
-- production `terraform.tfvars`
-- `.vault_pass`
-- production `answer.toml` с реальными секретами
-
-### Особый случай: Ansible inventory override
-
-Не удалять сразу `ansible/inventory/production/group_vars/all.yml`.
-
-Сначала:
-1. скопировать или перенести manual-overrides в `src/ansible/inventory-overrides/`
-2. убедиться, что assembler умеет их корректно собирать
-3. только потом убирать legacy-path
+- не менять `ansible.cfg`
+- не переносить playbooks и roles
+- не трогать `deploy/phases/*.sh`
+- не смешивать эту фазу с `src/` migration
 
 ### Validation gate
-
-После этой фазы должно оставаться рабочим:
 
 ```bash
 python3 topology-tools/regenerate-all.py
@@ -131,176 +88,126 @@ cd deploy && make validate
 ### Коммит
 
 ```text
-refactor(adr-0051): move manual sources to src with legacy runtime intact
+docs(adr-0051): classify ansible inventory ownership and secret boundaries
 ```
 
 ---
 
-## Phase 2: Реализовать assembler и release-safe validation
+## Phase 2: Ввести `ansible/inventory-overrides/` и вынести секреты
 
 ### Что делаем
 
-1. Создаем `topology-tools/assemble-deploy.py`
-2. Собираем `dist/` по execution scope:
-   - `dist/bootstrap/<device-id>/`
-   - `dist/control/terraform/{mikrotik,proxmox}/`
-   - `dist/control/ansible/`
-   - `dist/manifests/targets/*.md`
-3. Добавляем deterministic overlay для Ansible без custom deep merge
-4. Добавляем проверку release-safe содержимого
+1. Создаем `ansible/inventory-overrides/production/`
+2. Переносим туда tracked manual non-secret vars
+3. Переносим secret-bearing values в vault-managed local files или `.example` шаблоны
+4. Оставляем legacy inventory переходным источником только до cutover
 
-### Ansible strategy
+### Правила
 
-Assembler должен:
-- брать `generated/ansible/inventory/production/hosts.yml` как source of truth
-- копировать generated `group_vars/all.yml` в `group_vars/all/10-generated.yml`
-- копировать manual override в `group_vars/all/90-manual.yml`
-- копировать manual `host_vars/*.yml` как overlay
-
-### Что считать ошибкой assembler
-
-Assembler должен падать, если:
-- отсутствует обязательный generated input
-- отсутствует обязательный manual input для target manifest
-- в release-safe `dist/` попали `*.tfvars`, `.vault_pass`, private keys или production `answer.toml`
+1. topology-derived host structure не копируется вручную в overrides
+2. tracked overrides не содержат raw secrets
+3. секреты допускаются только в local-only или vault-managed путях
 
 ### Validation gate
 
 ```bash
 python3 topology-tools/regenerate-all.py
-python3 topology-tools/assemble-deploy.py
-ansible-inventory -i dist/control/ansible/inventory/production --list > /dev/null
-cd dist/control/terraform/mikrotik && terraform validate
-cd dist/control/terraform/proxmox && terraform validate
+ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
+git grep -n "password\\|token\\|private_key\\|root_password_hash" ansible/inventory/production ansible/inventory-overrides
 ```
 
 ### Коммит
 
 ```text
-feat(adr-0051): add deploy assembler and dist validation
+refactor(adr-0051): separate ansible overrides from tracked secret values
 ```
 
 ---
 
-## Phase 3: Подключить `deploy/` к assembled output
+## Phase 3: Реализовать assembled runtime inventory
 
 ### Что делаем
 
-1. Обновляем `deploy/Makefile`
-2. Обновляем `deploy/phases/*.sh`
-3. Переводим runtime на `dist/`, но при необходимости оставляем временный fallback
+1. Создаем `topology-tools/assemble-ansible-runtime.py`
+2. Собираем effective runtime inventory в `generated/ansible/runtime/production/`
+3. Используем layered files:
+   - `10-generated.yml`
+   - `90-manual.yml`
+4. Копируем manual `host_vars/*.yml` как overlays
 
-### Правило cutover
+### Assembler обязан падать, если
 
-Все runtime entrypoint'ы должны переключаться в одном батче:
-- `deploy/Makefile`
-- `deploy/phases/03-services.sh`
-- другие `deploy/phases/*.sh`, если они читают старые пути
-
-Нельзя:
-- сначала удалить `ansible/`
-- потом в следующем коммите чинить `deploy/phases/03-services.sh`
-
-### Канонические команды после этой фазы
-
-```bash
-cd deploy && make generate
-cd deploy && make assemble
-cd deploy && make validate-dist
-```
+- нет generated inventory input
+- нет обязательного override input, объявленного как required
+- runtime inventory содержит raw secret values из tracked source
 
 ### Validation gate
 
 ```bash
-cd deploy && make generate
-cd deploy && make assemble
-cd deploy && make validate-dist
+python3 topology-tools/regenerate-all.py
+python3 topology-tools/assemble-ansible-runtime.py
+ansible-inventory -i generated/ansible/runtime/production --list > /dev/null
 ```
 
 ### Коммит
 
 ```text
-refactor(adr-0051): switch deploy runtime to assembled dist packages
+feat(adr-0051): add ansible runtime inventory assembler
 ```
 
 ---
 
-## Phase 4: Обновить orchestration и документацию
+## Phase 4: Переключить runtime на assembled inventory
 
 ### Что делаем
 
-Обновляем все документы и runbook'и, которые описывают старые пути:
-- `topology/L7-operations.yaml`
-- `topology-tools/regenerate-all.py`
-- `CLAUDE.md`
-- `README.md`
-- `docs/**`
-- `.github/workflows/**`
-
-### Важно
-
-CI в этом репозитории сейчас ставит зависимости через:
-
-```bash
-python -m pip install -e .[dev]
-```
-
-Поэтому новый workflow не должен переходить на несуществующий `topology-tools/requirements.txt`, пока такой файл реально не введен в проект.
+1. Обновляем `ansible/ansible.cfg`
+2. Обновляем `deploy/phases/03-services.sh`
+3. Обновляем runbook'и, которые ссылаются на raw inventory path
+4. Делаем assembled runtime inventory каноническим для операторов
 
 ### Validation gate
 
-1. Локальные команды из runbook'ов соответствуют реальным путям
-2. CI workflow использует реальный способ установки зависимостей
-3. `topology/L7-operations.yaml` больше не ссылается на legacy path
+```bash
+python3 topology-tools/assemble-ansible-runtime.py
+ansible-inventory -i generated/ansible/runtime/production --list > /dev/null
+cd deploy && make validate
+```
 
 ### Коммит
 
 ```text
-docs(adr-0051): update runbooks and CI to src/dist workflow
+refactor(adr-0051): switch ansible runtime to assembled inventory
 ```
 
 ---
 
-## Phase 5: Удалить legacy path после cutover
+## Phase 5: Удалить legacy manual inventory coupling
 
-### Условия входа в фазу
+### Условия входа
 
-Эту фазу можно делать только если:
-
-1. assembler реализован полностью
-2. `deploy/` уже работает с `dist/`
-3. docs и runbook'и уже обновлены
-4. validation gate предыдущей фазы пройден
+1. assembled runtime inventory работает
+2. `ansible.cfg` и `deploy/` уже используют его
+3. documentation уже обновлена
 
 ### Что можно удалять
 
-Только реально deprecated path:
-- legacy manual inventory path
-- legacy duplicate bootstrap files
-- compatibility shims
-- старые директории, на которые больше нет runtime-ссылок
-
-### Что нельзя удалять в рамках этой фазы
-
-- `topology/L1-foundation/devices/owned/network/mikrotik-chateau.yaml`
-
-Это не cleanup path, а изменение topology identity.
+- tracked manual inventory files, замененные override/source split
+- временные compatibility shims вокруг inventory
 
 ### Validation gate
 
 ```bash
 python3 topology-tools/regenerate-all.py
-python3 topology-tools/assemble-deploy.py
-cd deploy && make validate-dist
-git grep -n "ansible/|manual-scripts/|bootstrap/" -- . ":(exclude)Migrated_and_archived"
+python3 topology-tools/assemble-ansible-runtime.py
+cd deploy && make validate
+git grep -n "ansible/inventory/production" -- . ":(exclude)Migrated_and_archived"
 ```
-
-Последняя команда используется как ручная проверка оставшихся ссылок. Каждое совпадение надо просмотреть, а не удалять автоматически.
 
 ### Коммит
 
 ```text
-refactor(adr-0051): remove legacy paths after src/dist cutover
+refactor(adr-0051): remove legacy manual inventory coupling
 ```
 
 ---
@@ -309,10 +216,10 @@ refactor(adr-0051): remove legacy paths after src/dist cutover
 
 ADR можно переводить в `Accepted` только после того, как:
 
-1. все validation gate пройдены
-2. assembler не skeleton, а рабочий инструмент
-3. `deploy/` реально использует `dist/`
-4. documentation и CI соответствуют реальному workflow
+1. assembled runtime inventory реально используется
+2. tracked inventory больше не несет raw secrets
+3. documentation соответствует реальному workflow
+4. репозиторий готов к ADR 0052
 
 ### Коммит
 
@@ -320,25 +227,10 @@ ADR можно переводить в `Accepted` только после тог
 docs(adr-0051): accept ADR after successful cutover
 ```
 
----
-
-## Рекомендуемая последовательность коммитов
-
-1. `refactor(adr-0051): move manual sources to src with legacy runtime intact`
-2. `feat(adr-0051): add deploy assembler and dist validation`
-3. `refactor(adr-0051): switch deploy runtime to assembled dist packages`
-4. `docs(adr-0051): update runbooks and CI to src/dist workflow`
-5. `refactor(adr-0051): remove legacy paths after src/dist cutover`
-6. `docs(adr-0051): accept ADR after successful cutover`
-
 ## Критерии завершения
 
-Миграция считается завершенной, когда:
-
-1. manual source живет в `src/`
-2. generated output живет в `generated/`
-3. assembled runtime output живет в `dist/`
-4. `deploy/` работает через `dist/`
-5. CI публикует только release-safe артефакты
-6. legacy path удалены
-7. отдельные semantic migration не были случайно смешаны с этой файловой реструктуризацией
+1. topology-derived inventory отделен от manual overrides
+2. tracked secrets выведены из inventory source
+3. effective runtime inventory собирается детерминированно
+4. `deploy/` и `ansible.cfg` используют assembled runtime inventory
+5. репозиторий готов к ADR 0052
