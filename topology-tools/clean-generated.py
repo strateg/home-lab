@@ -20,6 +20,7 @@ MANAGED_ROOTS = [
 
 SAFE_SCRATCH_PATHS = [
     GENERATED_ROOT / ".fixture-matrix-debug",
+    GENERATED_ROOT / "migration",
     GENERATED_ROOT / "terraform-mikrotik",
     GENERATED_ROOT / "validation",
     GENERATED_ROOT / "tmp-answer.toml",

@@ -70,18 +70,19 @@ python topology-tools/migrate-to-v5.py --topology topology.yaml
 python topology-tools/migrate-to-v5.py --topology topology.yaml --json
 
 # Additive preview transform (writes new-model fields, keeps legacy fields)
-python topology-tools/migrate-to-v5.py --topology topology.yaml --apply --output-topology generated/migration/topology-v5-preview.yaml
+python topology-tools/migrate-to-v5.py --topology topology.yaml --apply --output-topology .cache/migration/topology-v5-preview.yaml
 
 # Cutover preview transform (drops migrated legacy fields when replacements exist)
-python topology-tools/migrate-to-v5.py --topology topology.yaml --apply --drop-legacy --output-topology topology-v5-cutover-preview.yaml
+python topology-tools/migrate-to-v5.py --topology topology.yaml --apply --drop-legacy --output-topology .cache/migration/topology-v5-cutover-preview.yaml
 
 # Validate cutover preview in strict mode
-python topology-tools/validate-topology.py --topology topology-v5-cutover-preview.yaml --strict
+python topology-tools/validate-topology.py --topology .cache/migration/topology-v5-cutover-preview.yaml --strict
 ```
 
 Notes:
 - `--drop-legacy` removes only legacy fields with safe replacement and reports pending items for manual migration.
-- For strict validation, place preview topology in project root (next to `topology/`) to keep placement checks active.
+- Migration previews are non-canonical scratch outputs and should live under `.cache/migration/`, not `generated/`.
+- For placement-sensitive validation behavior, copy the preview next to `topology/` temporarily and validate from there.
 
 ### generate-terraform-proxmox.py
 Generate Proxmox Terraform from L1/L2/L3/L4.
@@ -224,7 +225,7 @@ Validation runs in strict mode by default.
 Usage:
 ```bash
 python topology-tools/regenerate-all.py --topology topology.yaml
-python topology-tools/regenerate-all.py --topology topology-v5-cutover-preview.yaml
+python topology-tools/regenerate-all.py --topology .cache/migration/topology-v5-cutover-preview.yaml
 python topology-tools/regenerate-all.py --topology topology-tools/fixtures/legacy-only/topology.yaml --compat-validation
 python topology-tools/regenerate-all.py --topology topology.yaml --skip-mermaid-validate
 python topology-tools/regenerate-all.py --topology topology.yaml --fail-on-validation
@@ -278,10 +279,12 @@ Installed local hook:
 ```
 generated/
   terraform/
-  terraform-mikrotik/
   ansible/inventory/<env>/
   ansible/runtime/production/
   docs/
+
+.cache/
+  migration/
 ```
 
 ## Architecture Notes (v4)

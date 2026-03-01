@@ -199,7 +199,6 @@ npm install --save-dev @mermaid-js/mermaid-cli @iconify-json/simple-icons @iconi
 ```
 generated/
   terraform/
-  terraform-mikrotik/
   ansible/inventory/<env>/
   ansible/runtime/production/
   docs/
@@ -244,9 +243,11 @@ home-lab/
     L7-operations.yaml
   generated/
     terraform/
-    terraform-mikrotik/
     ansible/inventory/<env>/
+    ansible/runtime/<env>/
     docs/
+  .cache/
+    migration/
   topology-tools/
     generate-terraform-proxmox.py
     generate-terraform-mikrotik.py

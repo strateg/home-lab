@@ -180,7 +180,6 @@ ADR 0054 does not fully specify scratch/debug cleanup policy, but it does establ
 Tracked manual Terraform extensions do not weaken this cleanup boundary as long as they remain outside `generated/`.
 
 Known follow-up cleanup targets still exist and should be handled separately:
-- `generated/migration/`
 - `generated/validation/`
 - `generated/terraform-mikrotik/`
 - other scratch or legacy outputs
