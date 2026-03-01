@@ -40,6 +40,12 @@ The current model therefore weakens all of the following:
 - deploy reproducibility
 - operator ergonomics
 
+The repository also lacks an explicit taxonomy for what kinds of data may live under `generated/`.
+That ambiguity makes it difficult to answer basic operational questions such as:
+- what may be deleted before regeneration
+- what must be relocated before cleanup becomes safe
+- which files are merely materialized copies versus canonical operator-owned inputs
+
 ## Decision
 
 ### 1. Operator-Edited Local Inputs Must Not Live Under `generated/`
@@ -122,7 +128,70 @@ This is a primary goal of the refactor.
 
 However, cleanup must still be scoped to managed outputs and must not delete unrelated ad hoc work products unless those are also moved out of `generated/`.
 
-### 6. Scratch, Validation, And Debug Outputs Must Not Share The Canonical `generated/` Root
+### 6. Generated Output Taxonomy Must Be Explicit
+
+Files and directories related to generation must be classified into exactly one of these categories:
+
+1. `managed-generated`
+2. `materialized-local`
+3. `scratch`
+4. `legacy`
+
+Definitions:
+
+- `managed-generated`
+  Deterministic outputs owned by generators and safe to delete before regeneration.
+- `materialized-local`
+  Non-canonical execution copies produced from `.local/` for `native` or `dist` workflows.
+- `scratch`
+  Temporary debug, validation, preview, or comparison outputs that must not share the canonical `generated/` contract.
+- `legacy`
+  Deprecated paths kept only during migration or pending archival/removal.
+
+After ADR 0054 is implemented:
+- `generated/` should contain only `managed-generated`
+- `materialized-local` may exist transiently inside execution roots but must never be treated as canonical
+- `scratch` and `legacy` outputs must be relocated or removed
+
+### 7. Managed Cleanup Contract Must Be Explicit
+
+Managed cleanup is a specific pipeline step and is not equivalent to generic garbage collection.
+
+Managed cleanup must obey these rules:
+
+1. it runs before regeneration
+2. it deletes only canonical `managed-generated` roots
+3. it never touches `.local/`
+4. it may delete stale `materialized-local` copies from execution roots, because those copies are non-canonical
+5. it must not silently preserve unknown files under managed roots
+
+This means cleanup should fail closed against unknown state inside managed roots only after the repository no longer depends on mixed-use directories there.
+
+### 8. Canonical Managed Roots Must Be Enumerated
+
+After refactor, the canonical managed roots under `generated/` should be:
+
+- `generated/ansible/`
+- `generated/docs/`
+- `generated/bootstrap/`
+- `generated/terraform/`
+
+These roots are the intended scope of pre-regeneration cleanup.
+
+### 9. Scratch And Legacy Roots Must Be Enumerated And Removed From The Canonical Contract
+
+The following paths are not part of the canonical managed `generated/` contract and must be relocated, archived, or deleted:
+
+- `generated/.fixture-matrix-debug/`
+- `generated/validation/`
+- `generated/tmp-answer.toml`
+- `generated/migration/`
+- `generated/terraform-mikrotik/`
+- root-level legacy files directly under `generated/terraform/`, where they duplicate scoped roots
+
+They must not block the eventual ability to clean canonical managed roots before regeneration.
+
+### 10. Scratch, Validation, And Debug Outputs Must Not Share The Canonical `generated/` Root
 
 Temporary or comparison-oriented outputs such as:
 - fixture debug trees
@@ -137,7 +206,18 @@ should move to:
 
 They should not remain mixed into the main `generated/` tree.
 
-### 7. Preflight Checks Must Validate `.local/` Ownership Explicitly
+### 11. Materialized Copies Must Not Become Hidden State
+
+Materialization from `.local/` into execution roots is an execution convenience, not a storage contract.
+
+Rules:
+
+1. `.local/` is the only canonical source of operator-edited local inputs covered by ADR 0054
+2. execution copies in `generated/` or `dist/` are disposable
+3. if a canonical `.local/...` file is missing, preflight must fail explicitly
+4. the system must not treat a stale copy under `generated/` as an acceptable substitute for a missing `.local/...` file
+
+### 12. Preflight Checks Must Validate `.local/` Ownership Explicitly
 
 Execution preflight must validate canonical local inputs from `.local/`, not from incidental copies inside execution roots.
 
@@ -147,7 +227,7 @@ Required-input checks should answer:
 
 This makes operator workflow clearer and reduces hidden state.
 
-### 8. Out Of Scope
+### 13. Out Of Scope
 
 ADR 0054 does not:
 - redesign package classes from ADR 0052
@@ -166,6 +246,7 @@ Ansible local-secret handling remains governed by ADR 0051 and ADR 0053.
 3. stale files and legacy generated roots become easier to detect and remove
 4. `native` and `dist` workflows share one local-input contract
 5. operator intent becomes explicit: generated examples live in `generated/`, editable inputs live in `.local/`
+6. cleanup semantics become testable because managed roots and non-managed roots are explicitly separated
 
 ### Negative / Trade-offs
 
@@ -173,6 +254,7 @@ Ansible local-secret handling remains governed by ADR 0051 and ADR 0053.
 2. native deploy now depends on a materialization step instead of direct in-place editing under `generated/`
 3. docs and runbooks must be updated to stop instructing operators to edit files under `generated/`
 4. some helper scripts and preflight tooling must be rewritten to treat `.local/` as canonical
+5. scratch and preview tooling will need relocation out of familiar ad hoc `generated/` paths
 
 ## Alternatives Considered
 

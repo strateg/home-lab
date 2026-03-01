@@ -28,6 +28,15 @@
 - stale files копятся между запусками
 - preflight checks проверяют execution copies, а не canonical local ownership
 
+Для cleanup нужно различать два разных действия:
+
+1. `managed pre-clean`
+   Очистка canonical managed outputs перед regeneration.
+2. `garbage cleanup`
+   Удаление или перенос scratch/legacy outputs, которые вообще не должны жить в canonical `generated/`.
+
+Эти действия нельзя смешивать в одну неявную операцию.
+
 ## Non-Goals
 
 В рамках этого плана не выполняется:
@@ -46,6 +55,8 @@
 3. `scratch/debug`
 4. `legacy-generated`
 
+Также зафиксировать canonical managed roots и non-canonical roots отдельными списками.
+
 Minimum expected local-input inventory:
 - `generated/terraform/mikrotik/terraform.tfvars`
 - `generated/terraform/proxmox/terraform.tfvars`
@@ -61,6 +72,8 @@ rg -n "terraform.tfvars|answer.toml|user-data" generated/ docs/ deploy/ topology
 Результат:
 - явная migration map
 - список docs/scripts, которые ещё указывают оператору редактировать `generated/...`
+- список путей для `managed pre-clean`
+- список путей для `garbage cleanup`
 
 ## Phase 1: Introduce Canonical `.local/` Contract
 
@@ -97,6 +110,7 @@ Rules:
 - native execution roots receive copies into `generated/...`
 - dist execution roots receive copies into `dist/...`
 - missing `.local` files are reported explicitly
+- stale execution copies are non-canonical and may be deleted by cleanup/materialization logic
 
 Validation gate:
 
@@ -118,6 +132,7 @@ python topology-tools/materialize-dist-inputs.py
 - preflight validates canonical `.local/...`
 - execution still consumes copied files in `generated/...` or `dist/...`
 - operator is told to edit `.local/...`, not execution copies
+- missing `.local/...` must fail explicitly even if a stale copy still exists in an execution root
 
 ## Phase 4: Move Scratch And Legacy Outputs Out Of `generated/`
 
@@ -125,12 +140,17 @@ python topology-tools/materialize-dist-inputs.py
 - `generated/.fixture-matrix-debug/`
 - `generated/validation/`
 - `generated/tmp-answer.toml`
+- `generated/migration/`
 - legacy roots like `generated/terraform-mikrotik/`
+- root-level legacy files under `generated/terraform/`, when duplicated by scoped roots
 
 Target locations:
 - temp directories
 - `.cache/`
 - archived legacy locations when historically useful
+
+Результат:
+- canonical `generated/` no longer contains scratch or legacy roots that would interfere with managed cleanup
 
 ## Phase 5: Enable Managed Cleanup Before Regeneration
 
@@ -139,6 +159,7 @@ Target locations:
 1. add a managed cleanup step before `regenerate-all.py`
 2. clean canonical generated roots aggressively
 3. do not clean `.local/`
+4. treat stale execution copies as disposable
 
 Recommended cleanup scope:
 - `generated/ansible/`
@@ -147,6 +168,12 @@ Recommended cleanup scope:
 - `generated/terraform/`
 
 Only after legacy roots and scratch outputs are no longer colocated there.
+
+Managed pre-clean must not be used as a substitute for Phase 4 garbage cleanup.
+
+Validation expectations:
+- after pre-clean, regeneration must fully restore canonical managed roots
+- missing `.local/...` files must not be masked by old copies inside `generated/...`
 
 Validation gate:
 
@@ -175,3 +202,4 @@ python topology-tools/check-deploy-parity.py
 3. native and dist workflows both materialize from `.local/`
 4. regeneration can clean managed `generated/` roots safely
 5. active docs no longer instruct editing operator inputs directly inside `generated/`
+6. scratch and legacy outputs no longer share the canonical `generated/` contract
