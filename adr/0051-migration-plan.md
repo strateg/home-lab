@@ -29,6 +29,8 @@
 
 Topology содержит только 2 LXC хоста (postgresql, redis). Остальные 9 хостов в manual inventory не имеют topology representation. Это означает что manual inventory временно является authoritative для hosts structure, пока topology не будет дополнена.
 
+Полный runtime cutover на assembled inventory нельзя делать, пока topology не покроет все ansible-managed hosts, которые затрагиваются `common.yml` и другими operator entrypoint'ами.
+
 ## Цели
 
 1. Стабилизировать Ansible runtime до широкой реструктуризации репозитория
@@ -105,6 +107,7 @@ cd deploy && make validate
    - уже противоречат topology
    - должны генерироваться
    - описывают hosts, отсутствующие в topology
+7. Отдельно помечаем extension vars и проверяем, что они могут жить в dedicated namespace, не смешиваясь с topology-owned runtime facts
 
 ### Concrete File Analysis
 
@@ -171,7 +174,7 @@ docs(adr-0051): classify ansible inventory ownership and secret boundaries
 
 ---
 
-## Phase 2: Минимизировать `inventory-overrides/` и вынести секреты
+## Phase 2: Минимизировать `inventory-overrides/`, вынести секреты и отделить extension vars
 
 ### Что делаем
 
@@ -179,6 +182,7 @@ docs(adr-0051): classify ansible inventory ownership and secret boundaries
 2. Переносим туда только tracked manual non-secret vars, которые действительно являются operator preferences или временными исключениями
 3. Переносим secret-bearing values в vault-managed local files или `.example` шаблоны
 4. Оставляем legacy inventory переходным источником только до cutover
+5. Выделяем extension-specific values в dedicated namespace, например `ansible_extensions.*`
 
 ### Concrete Operations
 
@@ -186,10 +190,6 @@ docs(adr-0051): classify ansible inventory ownership and secret boundaries
 # Create directory structure
 mkdir -p ansible/inventory-overrides/production/group_vars
 mkdir -p ansible/inventory-overrides/production/host_vars
-
-# Move hosts.yml (contains full host definitions not in topology)
-git mv ansible/inventory/production/hosts.yml \
-       ansible/inventory-overrides/production/hosts.yml
 
 # Split group_vars/all.yml
 # 1. Create all.yml without secret lookups
@@ -210,6 +210,9 @@ timezone: UTC
 dns_nameservers:
   - 192.168.20.1    # AdGuard Home
   - 1.1.1.1         # Cloudflare
+
+# Extension namespace reserved for manual integrations
+ansible_extensions: {}
 
 # ... (rest of non-secret config)
 ```
@@ -238,6 +241,8 @@ ansible/inventory-overrides/production/group_vars/all-secrets.yml
 4. generated `host_vars` не переопределяются молча через manual override с тем же именем
 5. если intentional override нужен, это должно быть явно зафиксировано в assembler policy
 6. стабильные service facts вроде `ansible_user`, `service_port`, `cores` и `ram` не должны жить в overrides для topology-owned hosts
+7. manual extension vars должны жить в dedicated namespace, например `ansible_extensions.*`
+8. legacy `hosts.yml` не переносится в финальный `inventory-overrides`; он остается переходным источником до тех пор, пока topology coverage не будет завершен
 
 ### Validation gate
 
@@ -269,12 +274,14 @@ refactor(adr-0051): separate ansible overrides from tracked secret values
    - service group membership
    - playbook binding metadata
 4. Убираем зависимость нормального runtime от legacy handwritten service facts
+5. Заполняем service groups, чтобы playbooks могли таргетировать explicit topology-driven groups вместо substring heuristics
 
 ### Минимальный ожидаемый результат
 
 1. `lxc-postgresql` и `lxc-redis` больше не зависят от tracked manual inventory для нормальной работы
 2. generated inventory уже несет нужные service facts для playbook routing
 3. `inventory-overrides` не используется как постоянный источник model data
+4. generated inventory заполняет группы вроде `databases` и `cache_servers`
 
 ### Validation gate
 
@@ -302,6 +309,7 @@ feat(adr-0051): generate topology-owned ansible runtime facts
    - `90-manual.yml`
 4. Копируем generated `host_vars/*.yml`
 5. Копируем manual `host_vars/*.yml` как overlays по явному правилу конфликтов
+6. Разрешаем layering только для approved extension namespace и operator overrides
 
 ### Assembler Implementation
 
@@ -342,10 +350,7 @@ def assemble():
     # 1. Copy generated hosts.yml
     shutil.copy(GENERATED_INV / "hosts.yml", RUNTIME_INV / "hosts.yml")
 
-    # 2. Merge hosts from manual overrides (hosts not in topology)
-    # TODO: implement YAML merge for hosts
-
-    # 3. Create layered group_vars
+    # 2. Create layered group_vars
     group_vars = RUNTIME_INV / "group_vars/all"
     group_vars.mkdir(parents=True)
 
@@ -362,7 +367,7 @@ def assemble():
             group_vars / "90-manual.yml"
         )
 
-    # 4. Copy host_vars (generated first, then manual overlays)
+    # 3. Copy host_vars (generated first, then manual overlays)
     # ...
 
     print(f"Assembled runtime inventory: {RUNTIME_INV}")
@@ -377,6 +382,7 @@ if __name__ == "__main__":
 - нет обязательного override input, объявленного как required
 - runtime inventory содержит raw secret values из tracked source
 - manual `host_vars` конфликтуют с generated `host_vars` без explicit allowlist
+- manual overlays redefine topology-owned facts outside the approved extension namespace
 
 ## Phase 4.5: Dry-Run Comparison
 
@@ -387,6 +393,7 @@ if __name__ == "__main__":
 2. список групп
 3. selected vars для 2-3 эталонных хостов
 4. topology-owned service facts для `lxc-postgresql` и `lxc-redis`
+5. extension namespace values, если они заданы, не влияют на host identity и generated service facts
 
 Если differences intentional, они должны быть явно задокументированы в коммите cutover.
 
@@ -417,6 +424,7 @@ feat(adr-0051): add ansible runtime inventory assembler
 3. Обновляем runbook'и, которые ссылаются на raw inventory path
 4. Делаем assembled runtime inventory каноническим для операторов
 5. По возможности выносим inventory path в одно общее место конфигурации вместо дублирования
+6. Cutover выполняем только если topology coverage уже достаточен для всех ansible-managed hosts, задействованных operator workflows
 
 ### Concrete Changes
 
@@ -545,13 +553,10 @@ git commit -m "docs(adr-0051): classify ansible inventory ownership and secret b
 mkdir -p ansible/inventory-overrides/production/group_vars
 mkdir -p ansible/inventory-overrides/production/host_vars
 
-# Move hosts.yml
-git mv ansible/inventory/production/hosts.yml \
-       ansible/inventory-overrides/production/hosts.yml
-
 # Split group_vars (manual: extract secrets)
 # Create all.yml without lookup() calls
 # Create all.yml.example with placeholders
+# Add ansible_extensions namespace for manual integrations
 
 # Add to .gitignore
 echo "ansible/inventory-overrides/production/group_vars/all-secrets.yml" >> .gitignore
@@ -566,14 +571,22 @@ git commit -m "refactor(adr-0051): separate ansible overrides from tracked secre
 
 ### Phase 3 Commands
 ```bash
-# Create assembler
-cat > topology-tools/assemble-ansible-runtime.py << 'EOF'
-#!/usr/bin/env python3
-# ... implementation ...
-EOF
-chmod +x topology-tools/assemble-ansible-runtime.py
+# Extend generator to emit service groups and topology-owned runtime facts
+# Update postgresql/redis playbooks to target explicit generated groups or canonical hosts
 
-# Test assembly
+# Test generated inventory
+python3 topology-tools/regenerate-all.py
+ansible-inventory -i generated/ansible/inventory/production --list > /dev/null
+
+git add -A
+git commit -m "feat(adr-0051): generate topology-owned ansible runtime facts"
+```
+
+### Phase 4 Commands
+```bash
+# Create assembler
+# Ensure it layers only approved operator overrides and ansible_extensions namespace
+
 python3 topology-tools/assemble-ansible-runtime.py
 ansible-inventory -i generated/ansible/runtime/production --list > /dev/null
 
@@ -581,36 +594,27 @@ git add topology-tools/assemble-ansible-runtime.py
 git commit -m "feat(adr-0051): add ansible runtime inventory assembler"
 ```
 
-### Phase 4 Commands
+### Phase 5 Commands
 ```bash
-# Update ansible.cfg
-sed -i 's|inventory = ../generated/ansible/inventory/production/hosts.yml|inventory = ../generated/ansible/runtime/production|' ansible/ansible.cfg
-
-# Update Makefile
-# Add assemble-ansible target
-
-# Test
-python3 topology-tools/assemble-ansible-runtime.py
-cd ansible && ansible-playbook playbooks/common.yml --syntax-check
+# Update ansible.cfg and deploy scripts after topology coverage gate is satisfied
+# Point runtime to assembled inventory directory
+# Validate common/postgresql/redis syntax checks against assembled runtime
 
 git add -A
 git commit -m "refactor(adr-0051): switch ansible runtime to assembled inventory"
 ```
 
-### Phase 5 Commands
+### Phase 6 Commands
 ```bash
-# Remove legacy (only after Phase 4 verified)
-rm -rf ansible/inventory/production/
-rmdir ansible/inventory/ 2>/dev/null || true
+# Remove legacy manual inventory only after cutover is stable and topology coverage is complete
 
 git add -A
 git commit -m "refactor(adr-0051): remove legacy manual inventory coupling"
 ```
 
-### Phase 6 Commands
+### Phase 7 Commands
 ```bash
-# Update ADR status
-sed -i 's/Status: Proposed/Status: Accepted/' adr/0051-ansible-runtime-and-secrets.md
+# Update ADR status after successful cutover and cleanup
 
 git add adr/0051-ansible-runtime-and-secrets.md
 git commit -m "docs(adr-0051): accept ADR after successful cutover"

@@ -119,15 +119,17 @@ Ansible developers may extend generated configurations without modifying generat
 
 #### 6.1 Layered Inventory
 
-Ansible natively merges multiple inventory sources. The runtime inventory is assembled from:
+Ansible natively merges multiple inventory sources. During development or comparison work, maintainers may inspect behavior using:
 
 ```bash
-# Effective command (handled by assembler)
+# Debugging/comparison pattern only
 ansible-inventory -i generated/ansible/inventory/production \
                   -i ansible/inventory-overrides/production
 ```
 
 Variables from later sources override earlier ones according to Ansible variable precedence.
+
+This is not the canonical production runtime contract. The operator-facing runtime target remains the assembled inventory under `generated/ansible/runtime/production/`.
 
 #### 6.2 Hook Pattern (Pre/Post Tasks)
 
@@ -156,6 +158,15 @@ Playbooks may include optional hook files for custom pre- and post-processing:
 
 Hook files live in `ansible/playbooks/hooks/` and are manually authored.
 
+Hook naming contract:
+- `ansible/playbooks/hooks/<playbook>-pre.yml`
+- `ansible/playbooks/hooks/<playbook>-post.yml`
+
+Rules:
+1. hook files are optional
+2. baseline playbook execution must succeed when no hook files exist
+3. hook files may extend behavior, but must not become required sources of topology-owned runtime facts
+
 #### 6.3 Custom Roles
 
 Manual roles extend or wrap generated behavior:
@@ -183,13 +194,18 @@ Roles may conditionally include custom task files defined via inventory:
 ```yaml
 # In role tasks/main.yml
 - name: Include custom tasks if defined
-  include_tasks: "{{ postgresql_custom_tasks }}"
-  when: postgresql_custom_tasks is defined
+  include_tasks: "{{ ansible_extensions.postgresql.custom_tasks }}"
+  when:
+    - ansible_extensions is defined
+    - ansible_extensions.postgresql is defined
+    - ansible_extensions.postgresql.custom_tasks is defined
 ```
 
 ```yaml
 # In inventory-overrides/production/host_vars/lxc-postgresql.yml
-postgresql_custom_tasks: "custom/postgresql-replication.yml"
+ansible_extensions:
+  postgresql:
+    custom_tasks: "custom/postgresql-replication.yml"
 ```
 
 #### 6.5 vars_files With Optional Includes
@@ -226,7 +242,7 @@ ansible/
 │       ├── group_vars/
 │       │   └── all.yml             # Operator preferences
 │       └── host_vars/
-│           └── lxc-postgresql.yml  # Per-host overrides
+│           └── lxc-postgresql.yml  # Per-host extension flags
 └── vars/
     └── custom/                     # Manual variable files
         └── postgresql.yml
@@ -239,6 +255,24 @@ ansible/
 3. Custom roles should extend, not replace, base functionality
 4. Per-host overrides in `inventory-overrides/` should be minimal and intentional
 5. Extension patterns should be documented in playbook headers
+6. Extension-specific variables should live under a dedicated namespace such as `ansible_extensions.*`
+7. Base roles must run before extension roles
+8. Extension roles must not redefine topology-owned defaults or host identity
+
+Allowed extension data examples:
+- `ansible_extensions.postgresql.custom_tasks`
+- `ansible_extensions.postgresql.pre_hook_enabled`
+- `ansible_extensions.redis.post_hook_enabled`
+- operator-only feature toggles
+
+Forbidden extension data examples:
+- `ansible_user`
+- `ansible_host`
+- `vmid`
+- `service_port`
+- `cores`
+- `ram`
+- service configuration that already belongs to topology
 
 ### 7. Effective Runtime Inventory Is Assembled
 
@@ -264,6 +298,7 @@ Assembly rules:
    - fail by default, or
    - allow the override only via an explicit allowlist or `intentional_override` rule
 7. precedence is determined by filenames and copy order, not custom recursive deep merge logic
+8. extension variables under the approved extension namespace may be layered without redefining topology-owned facts
 
 The goal is deterministic runtime behavior without inventing a YAML merge engine.
 
