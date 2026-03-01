@@ -93,6 +93,16 @@ Forbidden extension content:
 - secrets embedded in tracked files
 - copies of generated baseline files
 
+#### Conflict Policy
+
+The extension layer must not be used to shadow or silently replace generated baseline files.
+
+Rules:
+- file-name shadowing of generated baseline files is forbidden
+- copying generated `.tf` files into `terraform-overrides/` and editing them is forbidden
+- overrides are expected to be additive or narrowly augmenting
+- if an override needs non-obvious coupling with the baseline, it should include a short rationale in an adjacent `README.md` or file comment
+
 ### 6. Extensions Should Add Or Narrowly Refine, Not Replace The Baseline
 
 The preferred use of the extension layer is additive.
@@ -116,6 +126,8 @@ When execution roots are assembled:
 
 The assembler must not silently source manual `.tf` files from arbitrary locations.
 
+If an override conflicts with the conflict policy above, assembly must fail instead of attempting best-effort merge semantics.
+
 ### 8. Parity And Validation Must Include Extensions
 
 Parity and validation logic must treat `terraform-overrides/` as part of the execution contract.
@@ -124,6 +136,9 @@ That means:
 - execution parity must compare assembled roots, not generated baseline only
 - validation must run against the fully layered execution root
 - docs must explain that `generated/terraform/*` alone is not the whole story once overrides exist
+- package manifests and provenance records must indicate when `terraform-overrides/<target>/` participated in assembly
+
+This is important so that `dist` packages and parity checks reflect the real execution contract rather than only the generated baseline.
 
 ### 9. Out Of Scope
 

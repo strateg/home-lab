@@ -27,6 +27,7 @@
 - ad hoc local `.tf` files near execution roots
 - docs telling operators to patch generated files
 - provider gaps currently handled outside topology
+- legacy generated roots that may hide prior manual workflows, such as `generated/terraform-mikrotik/`
 
 Result:
 - explicit backlog of real extension use cases
@@ -72,6 +73,8 @@ Introduce checks or conventions that reject:
 - `.tfstate`
 - `.terraform/`
 - obvious secret-bearing tracked files
+- file-name shadowing of generated baseline files
+- copied baseline `.tf` files edited under `terraform-overrides/`
 
 Preferably also require a short rationale comment or README for non-trivial overrides.
 

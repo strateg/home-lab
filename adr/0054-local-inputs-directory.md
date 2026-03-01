@@ -112,6 +112,21 @@ The intended use of `answer.override.toml` is narrow. It should only cover field
 
 Operator workflows must not treat `answer.toml` as a long-lived hand-maintained source file.
 
+#### Override Policy
+
+`answer.override.toml` must follow an explicit allowlist-based merge policy.
+
+Rules:
+- the generated baseline remains authoritative for topology-owned fields
+- the override file may change only explicitly allowlisted keys
+- non-allowlisted keys in the override must fail validation
+- the materializer must generate a final `answer.toml` from baseline plus allowed overrides, not accept a full replacement file
+
+Initial allowlist:
+- `global.root_password`
+
+Any additional allowed keys must be added intentionally and documented in the ADR or follow-up implementation docs.
+
 ### 6. Preflight Fails Explicitly On Missing Local Inputs
 
 If a required local input is missing, preflight must fail with a clear message:
@@ -146,7 +161,19 @@ Create it from the generated baseline:
 
 This is the primary mental model for operator-owned inputs.
 
-### 8. Cleanup Safety Improves After Local Input Migration
+### 8. Current Dist Materialization Is Transitional
+
+Current repository tooling still contains transitional behavior that copies dist local inputs from existing native roots instead of from `local/`.
+
+That is implementation debt, not the target architecture of ADR 0054.
+
+Implementation of ADR 0054 must update:
+- `topology-tools/materialize-dist-inputs.py`
+- related docs and runbooks
+
+so that canonical local input sourcing comes from `local/`, not from prior execution copies.
+
+### 9. Cleanup Safety Improves After Local Input Migration
 
 Once operator-edited local inputs move out of `generated/`, cleanup of canonical generated roots becomes safer and more deterministic.
 
@@ -167,7 +194,7 @@ Before implementation is considered complete, each of these paths should get an 
 - archive for historical reference
 - relocate to `.cache/` or another non-canonical preview/debug root
 
-### 9. `manual-scripts/bare-metal/` Remains A Source-Assets Layer
+### 10. `manual-scripts/bare-metal/` Remains A Source-Assets Layer
 
 `manual-scripts/bare-metal/` remains the home of reusable bootstrap scripts and source assets.
 
@@ -180,13 +207,13 @@ That would mix:
 
 ADR 0054 keeps those concerns separate.
 
-### 10. Ansible Secrets Remain Governed By ADR 0051
+### 11. Ansible Secrets Remain Governed By ADR 0051
 
 Ansible vault files (`.vault_pass`, `vault.yml`) remain in `ansible/` as defined by ADR 0051.
 
 ADR 0054 covers Terraform and bootstrap inputs only.
 
-### 11. Out Of Scope
+### 12. Out Of Scope
 
 ADR 0054 does not:
 - change Ansible secret ownership from ADR 0051
@@ -235,6 +262,10 @@ Create the canonical `local/` structure and update:
 - dist materialization
 
 For Proxmox bootstrap, implement generated-baseline-plus-override materialization rather than direct file copying.
+
+That implementation must also validate:
+- only allowlisted keys are present in `answer.override.toml`
+- the final `answer.toml` is always produced from baseline plus override, never accepted as a standalone local source file
 
 Do not use this phase to introduce tracked manual Terraform exceptions.
 Those belong to the separate extension contract from ADR 0055.
