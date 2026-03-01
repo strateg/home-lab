@@ -15,13 +15,28 @@
 #
 # =============================================================================
 
+ifeq ($(OS),Windows_NT)
+GIT_BASH := C:/Progra~1/Git/bin/bash.exe
+ifneq ("$(wildcard $(GIT_BASH))","")
+SHELL := $(GIT_BASH)
+else
+SHELL := bash
+endif
+PYTHON ?= /c/Windows/py.exe -3
+else
+SHELL := /bin/bash
+PYTHON ?= python3
+endif
+
+.SHELLFLAGS := -lc
+
 .PHONY: all help validate generate plan apply deploy-all clean
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
 .PHONY: configure test bootstrap-info assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready materialize-dist-inputs
-.PHONY: plan-dist plan-mikrotik-dist plan-proxmox-dist apply-mikrotik-dist apply-proxmox-dist configure-dist deploy-all-dist
+.PHONY: plan-dist plan-mikrotik-dist plan-proxmox-dist apply-mikrotik-dist apply-proxmox-dist configure-dist deploy-all-dist require-dist
 
 # Directories (relative to deploy/)
-ROOT_DIR := $(shell cd .. && pwd)
+ROOT_DIR := $(abspath ..)
 TOPOLOGY_DIR := $(ROOT_DIR)
 TOPOLOGY_TOOLS_DIR := $(ROOT_DIR)/topology-tools
 GENERATED_DIR := $(ROOT_DIR)/generated
@@ -101,7 +116,7 @@ help:
 
 validate:
 	@echo "$(YELLOW)📋 Validating topology...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/validate-topology.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/validate-topology.py
 	@echo "$(GREEN)✓ Topology validation passed$(NC)"
 
 generate: generate-terraform generate-mikrotik generate-bootstrap generate-ansible assemble-ansible generate-docs
@@ -109,55 +124,61 @@ generate: generate-terraform generate-mikrotik generate-bootstrap generate-ansib
 
 assemble-dist:
 	@echo "$(YELLOW)📦 Assembling deploy packages (ADR 0052)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/assemble-deploy.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-deploy.py
 	@echo "$(GREEN)✓ Dist packages assembled$(NC)"
+
+require-dist:
+	@if [ ! -f "$(DIST_DIR)/manifests/packages.json" ]; then \
+		echo "$(RED)⚠️  dist/ is not assembled. Run 'make assemble-dist' first.$(NC)"; \
+		exit 1; \
+	fi
 
 generate-terraform:
 	@echo "$(YELLOW)📝 Generating Terraform (Proxmox)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-terraform-proxmox.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-terraform-proxmox.py
 
 generate-mikrotik:
 	@echo "$(YELLOW)📝 Generating Terraform (MikroTik)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-terraform-mikrotik.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-terraform-mikrotik.py
 
 generate-bootstrap:
 	@echo "$(YELLOW)📝 Generating bootstrap packages...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-mikrotik-bootstrap.py
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-proxmox-bootstrap.py
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-orangepi5-cloud-init.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-mikrotik-bootstrap.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-proxmox-bootstrap.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-orangepi5-cloud-init.py
 
 generate-ansible:
 	@echo "$(YELLOW)📝 Generating Ansible inventory...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-ansible-inventory.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-ansible-inventory.py
 
 assemble-ansible:
 	@echo "$(YELLOW)📝 Assembling Ansible runtime inventory (ADR 0051)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/assemble-ansible-runtime.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-ansible-runtime.py
 
 generate-docs:
 	@echo "$(YELLOW)📝 Generating documentation...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-docs.py || true
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-docs.py || true
 
 validate-dist: assemble-dist
 	@echo "$(YELLOW)📋 Validating assembled dist packages...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/validate-dist.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/validate-dist.py
 	@echo "$(GREEN)✓ Dist package validation passed$(NC)"
 
 check-parity: assemble-dist
 	@echo "$(YELLOW)⚖️  Checking native vs dist execution parity (ADR 0053)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/check-deploy-parity.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-deploy-parity.py
 	@echo "$(GREEN)✓ Native and dist execution roots are in parity$(NC)"
 
-check-dist-ready: assemble-dist
+check-dist-ready: require-dist
 	@echo "$(YELLOW)🔐 Checking dist execution readiness (ADR 0053)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/check-dist-package.py control/terraform/mikrotik
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/check-dist-package.py control/terraform/proxmox
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/check-dist-package.py control/ansible
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-dist-package.py control/terraform/mikrotik
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-dist-package.py control/terraform/proxmox
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-dist-package.py control/ansible
 	@echo "$(GREEN)✓ Dist execution packages have required local inputs$(NC)"
 
-materialize-dist-inputs: assemble-dist
+materialize-dist-inputs: require-dist
 	@echo "$(YELLOW)📥 Materializing dist local inputs from native roots (ADR 0053)...$(NC)"
-	cd $(TOPOLOGY_DIR) && python3 topology-tools/materialize-dist-inputs.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/materialize-dist-inputs.py
 
 # =============================================================================
 # Terraform Planning
@@ -169,7 +190,7 @@ plan: plan-mikrotik plan-proxmox
 plan-mikrotik:
 	@echo "$(YELLOW)🔍 Planning MikroTik changes ($(DEPLOY_MODE))...$(NC)"
 	@if [ "$(DEPLOY_MODE)" = "dist" ]; then \
-		cd $(TOPOLOGY_DIR) && python3 $(DIST_PACKAGE_CHECKER) control/terraform/mikrotik; \
+		cd $(TOPOLOGY_DIR) && $(PYTHON) $(DIST_PACKAGE_CHECKER) control/terraform/mikrotik; \
 	fi
 	@if [ -f $(TF_MIKROTIK_EXEC_DIR)/terraform.tfvars ]; then \
 		cd $(TF_MIKROTIK_EXEC_DIR) && terraform init -upgrade && terraform plan; \
@@ -181,7 +202,7 @@ plan-mikrotik:
 plan-proxmox:
 	@echo "$(YELLOW)🔍 Planning Proxmox changes ($(DEPLOY_MODE))...$(NC)"
 	@if [ "$(DEPLOY_MODE)" = "dist" ]; then \
-		cd $(TOPOLOGY_DIR) && python3 $(DIST_PACKAGE_CHECKER) control/terraform/proxmox; \
+		cd $(TOPOLOGY_DIR) && $(PYTHON) $(DIST_PACKAGE_CHECKER) control/terraform/proxmox; \
 	fi
 	@if [ -f $(TF_PROXMOX_EXEC_DIR)/terraform.tfvars ]; then \
 		cd $(TF_PROXMOX_EXEC_DIR) && terraform init -upgrade && terraform plan; \
@@ -190,13 +211,13 @@ plan-proxmox:
 		exit 1; \
 	fi
 
-plan-dist: assemble-dist
+plan-dist: require-dist
 	@$(MAKE) DEPLOY_MODE=dist plan
 
-plan-mikrotik-dist: assemble-dist
+plan-mikrotik-dist: require-dist
 	@$(MAKE) DEPLOY_MODE=dist plan-mikrotik
 
-plan-proxmox-dist: assemble-dist
+plan-proxmox-dist: require-dist
 	@$(MAKE) DEPLOY_MODE=dist plan-proxmox
 
 # =============================================================================
@@ -213,10 +234,10 @@ apply-proxmox:
 	@echo "$(YELLOW)🚀 Applying Proxmox configuration ($(DEPLOY_MODE))...$(NC)"
 	DEPLOY_MODE=$(DEPLOY_MODE) ./phases/02-compute.sh
 
-apply-mikrotik-dist: assemble-dist
+apply-mikrotik-dist: require-dist
 	@$(MAKE) DEPLOY_MODE=dist apply-mikrotik
 
-apply-proxmox-dist: assemble-dist
+apply-proxmox-dist: require-dist
 	@$(MAKE) DEPLOY_MODE=dist apply-proxmox
 
 # =============================================================================
@@ -227,7 +248,7 @@ configure:
 	@echo "$(YELLOW)⚙️  Running Ansible playbooks ($(DEPLOY_MODE))...$(NC)"
 	DEPLOY_MODE=$(DEPLOY_MODE) ./phases/03-services.sh
 
-configure-dist: assemble-dist
+configure-dist: require-dist
 	@$(MAKE) DEPLOY_MODE=dist configure
 
 # =============================================================================
@@ -250,7 +271,7 @@ deploy-all: validate generate
 	./phases/04-verify.sh
 	@echo "$(GREEN)✅ Full deployment completed!$(NC)"
 
-deploy-all-dist: validate generate assemble-dist
+deploy-all-dist: require-dist
 	@$(MAKE) check-dist-ready
 	@$(MAKE) DEPLOY_MODE=dist deploy-all
 
