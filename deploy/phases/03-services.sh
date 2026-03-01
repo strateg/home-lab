@@ -10,24 +10,50 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ANSIBLE_DIR="$PROJECT_DIR/ansible"
+DEPLOY_MODE="${DEPLOY_MODE:-native}"
+DIST_ROOT="$PROJECT_DIR/dist"
+DIST_PACKAGE_ID="control/ansible"
+DIST_CHECKER="$PROJECT_DIR/topology-tools/check-dist-package.py"
 ANSIBLE_ENV="production"
 GENERATED_ANSIBLE_DIR="$PROJECT_DIR/generated/ansible"
 GENERATED_INVENTORY_DIR="$GENERATED_ANSIBLE_DIR/inventory/$ANSIBLE_ENV"
 RUNTIME_INVENTORY_DIR="$PROJECT_DIR/generated/ansible/runtime/production"
 ASSEMBLER_SCRIPT="$PROJECT_DIR/topology-tools/assemble-ansible-runtime.py"
 
+case "$DEPLOY_MODE" in
+    native)
+        ANSIBLE_DIR="$PROJECT_DIR/ansible"
+        INVENTORY="$RUNTIME_INVENTORY_DIR"
+        ;;
+    dist)
+        ANSIBLE_DIR="$DIST_ROOT/$DIST_PACKAGE_ID"
+        INVENTORY="$ANSIBLE_DIR/inventory"
+        ;;
+    *)
+        echo "ERROR Unsupported DEPLOY_MODE: $DEPLOY_MODE"
+        echo "      Expected: native or dist"
+        exit 1
+        ;;
+esac
+
 for arg in "$@"; do
     case "$arg" in
         -h|--help)
             echo "Usage: $0"
             echo ""
-            echo "Uses assembled runtime inventory:"
+            echo "Execution mode: DEPLOY_MODE=native|dist"
+            echo ""
+            echo "native inventory:"
             echo "  generated/ansible/runtime/production"
             echo ""
-            echo "If runtime inventory is missing, the script assembles it from:"
+            echo "dist inventory:"
+            echo "  dist/control/ansible/inventory"
+            echo ""
+            echo "In native mode, missing runtime inventory is assembled from:"
             echo "  - generated/ansible/inventory/$ANSIBLE_ENV"
             echo "  - ansible/inventory-overrides/production"
+            echo ""
+            echo "In dist mode, the script never falls back to native roots."
             exit 0
             ;;
     esac
@@ -44,6 +70,10 @@ echo "╔═══════════════════════�
 echo "║              PHASE 3: SERVICES CONFIGURATION (Ansible)               ║"
 echo "╚══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
+echo "Execution mode: $DEPLOY_MODE"
+echo "Ansible root: $ANSIBLE_DIR"
+echo "Inventory root: $INVENTORY"
+echo ""
 
 # Check prerequisites
 echo -e "${YELLOW}Checking prerequisites...${NC}"
@@ -58,27 +88,38 @@ if [ ! -d "$ANSIBLE_DIR" ]; then
     exit 1
 fi
 
-# Check runtime inventory exists or assemble it
-INVENTORY="$RUNTIME_INVENTORY_DIR"
-if [ ! -f "$INVENTORY/hosts.yml" ]; then
-    echo -e "${YELLOW}Runtime inventory not found, assembling it now...${NC}"
-
-    if [ ! -f "$GENERATED_INVENTORY_DIR/hosts.yml" ]; then
-        echo -e "${RED}❌ Generated inventory not found: $GENERATED_INVENTORY_DIR/hosts.yml${NC}"
-        echo "   Generate inventory first:"
-        echo "   python3 topology-tools/regenerate-all.py"
+if [ "$DEPLOY_MODE" = "dist" ]; then
+    if ! python3 "$DIST_CHECKER" "$DIST_PACKAGE_ID"; then
+        echo "   Assemble packages first: cd deploy && make assemble-dist"
         exit 1
     fi
+else
+    # Check runtime inventory exists or assemble it
+    if [ ! -f "$INVENTORY/hosts.yml" ]; then
+        echo -e "${YELLOW}Runtime inventory not found, assembling it now...${NC}"
 
-    if ! python3 "$ASSEMBLER_SCRIPT"; then
-        echo -e "${RED}❌ Failed to assemble runtime inventory${NC}"
-        exit 1
+        if [ ! -f "$GENERATED_INVENTORY_DIR/hosts.yml" ]; then
+            echo -e "${RED}❌ Generated inventory not found: $GENERATED_INVENTORY_DIR/hosts.yml${NC}"
+            echo "   Generate inventory first:"
+            echo "   python3 topology-tools/regenerate-all.py"
+            exit 1
+        fi
+
+        if ! python3 "$ASSEMBLER_SCRIPT"; then
+            echo -e "${RED}❌ Failed to assemble runtime inventory${NC}"
+            exit 1
+        fi
     fi
 fi
 
 if [ ! -f "$INVENTORY/hosts.yml" ]; then
-    echo -e "${RED}❌ No runtime inventory found!${NC}"
-    echo "   Run: python3 topology-tools/regenerate-all.py"
+    echo -e "${RED}❌ No inventory found at: $INVENTORY/hosts.yml${NC}"
+    if [ "$DEPLOY_MODE" = "dist" ]; then
+        echo "   Dist mode requires assembled package inventory and never falls back to native roots."
+        echo "   Run: cd deploy && make assemble-dist"
+    else
+        echo "   Run: python3 topology-tools/regenerate-all.py"
+    fi
     exit 1
 fi
 

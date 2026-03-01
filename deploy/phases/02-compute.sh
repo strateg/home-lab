@@ -10,7 +10,24 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-TERRAFORM_DIR="$PROJECT_DIR/generated/terraform"
+DEPLOY_MODE="${DEPLOY_MODE:-native}"
+DIST_ROOT="$PROJECT_DIR/dist"
+DIST_PACKAGE_ID="control/terraform/proxmox"
+DIST_CHECKER="$PROJECT_DIR/topology-tools/check-dist-package.py"
+
+case "$DEPLOY_MODE" in
+    native)
+        TERRAFORM_DIR="$PROJECT_DIR/generated/terraform/proxmox"
+        ;;
+    dist)
+        TERRAFORM_DIR="$DIST_ROOT/$DIST_PACKAGE_ID"
+        ;;
+    *)
+        echo "ERROR Unsupported DEPLOY_MODE: $DEPLOY_MODE"
+        echo "      Expected: native or dist"
+        exit 1
+        ;;
+esac
 
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -23,9 +40,19 @@ echo "╔═══════════════════════�
 echo "║                PHASE 2: COMPUTE DEPLOYMENT (Proxmox)                 ║"
 echo "╚══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
+echo "Execution mode: $DEPLOY_MODE"
+echo "Terraform root: $TERRAFORM_DIR"
+echo ""
 
 # Check prerequisites
 echo -e "${YELLOW}Checking prerequisites...${NC}"
+
+if [ "$DEPLOY_MODE" = "dist" ]; then
+    if ! python3 "$DIST_CHECKER" "$DIST_PACKAGE_ID"; then
+        echo "   Assemble packages first: cd deploy && make assemble-dist"
+        exit 1
+    fi
+fi
 
 if [ ! -f "$TERRAFORM_DIR/terraform.tfvars" ]; then
     echo -e "${RED}❌ terraform.tfvars not found!${NC}"
@@ -99,7 +126,7 @@ fi
 echo ""
 echo "Next steps:"
 echo "  - Wait for LXC containers to fully boot (~30 seconds)"
-echo "  - Run: ./phases/03-services.sh"
+echo "  - Run: DEPLOY_MODE=$DEPLOY_MODE ./phases/03-services.sh"
 
 # Cleanup plan file
 rm -f tfplan

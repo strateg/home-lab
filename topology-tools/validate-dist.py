@@ -64,6 +64,7 @@ def run_manifest_commands(
     skipped: list[str] = []
     terraform_temp_dir = None
     terraform_env = None
+    terraform_work_dir = None
 
     try:
         for command in commands:
@@ -77,16 +78,20 @@ def run_manifest_commands(
                 continue
 
             env = None
+            run_dir = package_dir
             if binary == "terraform":
                 if terraform_temp_dir is None:
                     terraform_temp_dir = tempfile.TemporaryDirectory(prefix="dist-validate-tf-")
                     terraform_env = dict(os.environ)
                     terraform_env["TF_DATA_DIR"] = terraform_temp_dir.name
+                    terraform_work_dir = Path(terraform_temp_dir.name) / "package"
+                    shutil.copytree(package_dir, terraform_work_dir)
                 env = terraform_env
+                run_dir = terraform_work_dir
 
             result = subprocess.run(
                 command,
-                cwd=package_dir,
+                cwd=run_dir,
                 shell=True,
                 text=True,
                 capture_output=True,

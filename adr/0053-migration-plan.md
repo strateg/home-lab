@@ -34,6 +34,9 @@ Validation gate:
 ```text
 cd deploy && make generate
 cd deploy && make plan
+cd deploy && make assemble-dist
+cd deploy && make validate-dist
+cd deploy && make check-parity
 ```
 
 Результат:
@@ -67,6 +70,8 @@ cd deploy && make plan
 - Terraform init/plan из `dist/control/terraform/*`
 - Ansible syntax/inventory checks из native root
 - Ansible syntax/inventory checks из `dist/control/ansible`
+- content parity через `cd deploy && make check-parity`
+- dist local-input readiness через `cd deploy && make check-dist-ready`
 
 Результат:
 - documented parity gaps
@@ -85,6 +90,7 @@ cd deploy && make plan
 - `native` remains available
 - operator can choose `dist` intentionally
 - local input requirements are surfaced before execution
+- documented runbook includes materialization and readiness checks before `dist` apply
 
 ## Phase 4: Optional Default Switch
 

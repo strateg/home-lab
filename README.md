@@ -246,13 +246,58 @@ cd deploy
 make generate
 make assemble-dist
 make validate-dist
+make check-parity
+make check-dist-ready
+make materialize-dist-inputs
 ```
 
 Что это делает:
 - `make generate` обновляет generated outputs и assembled Ansible runtime
 - `make assemble-dist` собирает deploy-ready packages в `dist/`
 - `make validate-dist` проверяет manifests, release-safe policy и доступные внешние validators
+- `make check-parity` сравнивает `native` и `dist` execution roots для Terraform и Ansible
+- `make check-dist-ready` проверяет, что для `dist` execution материализованы package-local local inputs
+- `make materialize-dist-inputs` копирует локальные `tfvars` и vault inputs из native roots в `dist/`, если они уже существуют
 - `dist/control/ansible` требует локальные `.vault_pass` и `group_vars/all/vault.yml`, но не тащит legacy `group_vars/all/vars.yml`
+
+### Deploy Modes
+
+`ADR 0053` вводит два явных execution mode для `deploy/`:
+- `native` — текущий default, использует `generated/terraform/*` и `ansible/`
+- `dist` — opt-in mode, исполняется только из `dist/control/**`
+
+```cmd
+cd deploy
+
+:: Native workflow
+make plan
+make apply-proxmox
+make configure
+
+:: Dist-first workflow
+make plan-dist
+make materialize-dist-inputs
+make check-dist-ready
+make apply-mikrotik-dist
+make apply-proxmox-dist
+make configure-dist
+make deploy-all-dist
+```
+
+В `dist` mode deploy tooling не делает fallback на native roots. Если package manifest требует локальные inputs, phase script завершится с явной ошибкой до запуска Terraform или Ansible.
+
+Рекомендуемый цикл для `dist` mode:
+
+```cmd
+cd deploy
+make generate
+make assemble-dist
+make validate-dist
+make check-parity
+make materialize-dist-inputs
+make check-dist-ready
+make plan-dist
+```
 
 Примечание:
 - bootstrap packages в `dist/` теперь перечисляются явно через manifests

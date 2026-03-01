@@ -7,8 +7,13 @@ on:
       - 'deploy/Makefile'
       - 'topology-tools/assemble-deploy.py'
       - 'topology-tools/assemble-ansible-runtime.py'
+      - 'topology-tools/check-deploy-parity.py'
+      - 'topology-tools/check-dist-package.py'
+      - 'topology-tools/materialize-dist-inputs.py'
       - 'topology-tools/validate-dist.py'
       - 'topology-tools/utils/**'
+      - 'adr/0053-*.md'
+      - 'docs/**'
       - 'ansible/**'
       - 'generated/**'
       - 'topology/**'
@@ -19,8 +24,13 @@ on:
       - 'deploy/Makefile'
       - 'topology-tools/assemble-deploy.py'
       - 'topology-tools/assemble-ansible-runtime.py'
+      - 'topology-tools/check-deploy-parity.py'
+      - 'topology-tools/check-dist-package.py'
+      - 'topology-tools/materialize-dist-inputs.py'
       - 'topology-tools/validate-dist.py'
       - 'topology-tools/utils/**'
+      - 'adr/0053-*.md'
+      - 'docs/**'
       - 'ansible/**'
       - 'generated/**'
       - 'topology/**'
@@ -60,3 +70,6 @@ jobs:
 
       - name: Strict validate dist packages
         run: python topology-tools/validate-dist.py --strict-external
+
+      - name: Check native versus dist parity
+        run: python topology-tools/check-deploy-parity.py

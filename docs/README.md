@@ -140,6 +140,13 @@ cd deploy && make deploy-all
 # Optional package assembly and validation
 make assemble-dist
 make validate-dist
+make check-parity
+make check-dist-ready
+make materialize-dist-inputs
+
+# Optional dist-first execution mode
+make plan-dist
+make deploy-all-dist
 
 # Or step by step
 make bootstrap-info   # Show bootstrap instructions
@@ -149,6 +156,8 @@ make apply-proxmox    # Phase 2: Compute
 make configure        # Phase 3: Services
 make test             # Phase 4: Verify
 ```
+
+`native` remains the default rollback path. `dist` execution is opt-in and runs only from `dist/control/**` package roots with manifest-driven local-input checks. `make materialize-dist-inputs` can copy already-existing local inputs from native roots into `dist/`.
 
 ---
 

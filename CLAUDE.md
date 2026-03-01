@@ -182,6 +182,13 @@ make plan-proxmox
 make apply-mikrotik
 make apply-proxmox
 make configure  # Ansible
+
+# Dist-first execution (ADR 0053, opt-in)
+make plan-dist
+make apply-mikrotik-dist
+make apply-proxmox-dist
+make configure-dist
+make deploy-all-dist
 ```
 
 ### 3. Deploy New LXC Container

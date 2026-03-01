@@ -17,7 +17,8 @@
 
 .PHONY: all help validate generate plan apply deploy-all clean
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
-.PHONY: configure test bootstrap-info assemble-ansible assemble-dist validate-dist generate-bootstrap
+.PHONY: configure test bootstrap-info assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready materialize-dist-inputs
+.PHONY: plan-dist plan-mikrotik-dist plan-proxmox-dist apply-mikrotik-dist apply-proxmox-dist configure-dist deploy-all-dist
 
 # Directories (relative to deploy/)
 ROOT_DIR := $(shell cd .. && pwd)
@@ -26,6 +27,7 @@ TOPOLOGY_TOOLS_DIR := $(ROOT_DIR)/topology-tools
 GENERATED_DIR := $(ROOT_DIR)/generated
 DIST_DIR := $(ROOT_DIR)/dist
 ANSIBLE_DIR := $(ROOT_DIR)/ansible
+DEPLOY_MODE ?= native
 
 # Terraform directories (ADR 0050 structure)
 TF_MIKROTIK_DIR := $(GENERATED_DIR)/terraform/mikrotik
@@ -34,6 +36,15 @@ BOOTSTRAP_DIR := $(GENERATED_DIR)/bootstrap
 DIST_ANSIBLE_DIR := $(DIST_DIR)/control/ansible
 DIST_TF_MIKROTIK_DIR := $(DIST_DIR)/control/terraform/mikrotik
 DIST_TF_PROXMOX_DIR := $(DIST_DIR)/control/terraform/proxmox
+DIST_PACKAGE_CHECKER := $(TOPOLOGY_TOOLS_DIR)/check-dist-package.py
+
+ifeq ($(DEPLOY_MODE),dist)
+TF_MIKROTIK_EXEC_DIR := $(DIST_TF_MIKROTIK_DIR)
+TF_PROXMOX_EXEC_DIR := $(DIST_TF_PROXMOX_DIR)
+else
+TF_MIKROTIK_EXEC_DIR := $(TF_MIKROTIK_DIR)
+TF_PROXMOX_EXEC_DIR := $(TF_PROXMOX_DIR)
+endif
 
 # Colors
 GREEN := \033[0;32m
@@ -61,17 +72,22 @@ help:
 	@echo "║    make generate       - Generate all configs from topology      ║"
 	@echo "║    make assemble-dist  - Assemble deploy-ready dist packages     ║"
 	@echo "║    make validate-dist  - Validate assembled dist packages        ║"
+	@echo "║    make check-parity   - Compare native and dist execution roots ║"
+	@echo "║    make check-dist-ready - Check local inputs for dist mode      ║"
+	@echo "║    make materialize-dist-inputs - Copy local inputs into dist    ║"
 	@echo "║                                                                  ║"
 	@echo "║  Planning (Dry Run):                                             ║"
 	@echo "║    make plan           - Show all Terraform plans                ║"
 	@echo "║    make plan-mikrotik  - Show MikroTik changes                   ║"
 	@echo "║    make plan-proxmox   - Show Proxmox changes                    ║"
+	@echo "║    make plan-dist      - Show all plans from dist packages       ║"
 	@echo "║                                                                  ║"
 	@echo "║  Deployment:                                                     ║"
 	@echo "║    make apply-mikrotik - Apply MikroTik configuration            ║"
 	@echo "║    make apply-proxmox  - Apply Proxmox configuration             ║"
 	@echo "║    make configure      - Run Ansible playbooks                   ║"
 	@echo "║    make deploy-all     - Full deployment (all phases)            ║"
+	@echo "║    make deploy-all-dist - Full deployment from dist packages     ║"
 	@echo "║                                                                  ║"
 	@echo "║  Utilities:                                                      ║"
 	@echo "║    make test           - Verify deployment health                ║"
@@ -127,6 +143,22 @@ validate-dist: assemble-dist
 	cd $(TOPOLOGY_DIR) && python3 topology-tools/validate-dist.py
 	@echo "$(GREEN)✓ Dist package validation passed$(NC)"
 
+check-parity: assemble-dist
+	@echo "$(YELLOW)⚖️  Checking native vs dist execution parity (ADR 0053)...$(NC)"
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/check-deploy-parity.py
+	@echo "$(GREEN)✓ Native and dist execution roots are in parity$(NC)"
+
+check-dist-ready: assemble-dist
+	@echo "$(YELLOW)🔐 Checking dist execution readiness (ADR 0053)...$(NC)"
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/check-dist-package.py control/terraform/mikrotik
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/check-dist-package.py control/terraform/proxmox
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/check-dist-package.py control/ansible
+	@echo "$(GREEN)✓ Dist execution packages have required local inputs$(NC)"
+
+materialize-dist-inputs: assemble-dist
+	@echo "$(YELLOW)📥 Materializing dist local inputs from native roots (ADR 0053)...$(NC)"
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/materialize-dist-inputs.py
+
 # =============================================================================
 # Terraform Planning
 # =============================================================================
@@ -135,44 +167,68 @@ plan: plan-mikrotik plan-proxmox
 	@echo "$(GREEN)✓ All plans generated$(NC)"
 
 plan-mikrotik:
-	@echo "$(YELLOW)🔍 Planning MikroTik changes...$(NC)"
-	@if [ -f $(TF_MIKROTIK_DIR)/terraform.tfvars ]; then \
-		cd $(TF_MIKROTIK_DIR) && terraform init -upgrade && terraform plan; \
+	@echo "$(YELLOW)🔍 Planning MikroTik changes ($(DEPLOY_MODE))...$(NC)"
+	@if [ "$(DEPLOY_MODE)" = "dist" ]; then \
+		cd $(TOPOLOGY_DIR) && python3 $(DIST_PACKAGE_CHECKER) control/terraform/mikrotik; \
+	fi
+	@if [ -f $(TF_MIKROTIK_EXEC_DIR)/terraform.tfvars ]; then \
+		cd $(TF_MIKROTIK_EXEC_DIR) && terraform init -upgrade && terraform plan; \
 	else \
 		echo "$(RED)⚠️  terraform.tfvars not found. Copy terraform.tfvars.example first.$(NC)"; \
 		exit 1; \
 	fi
 
 plan-proxmox:
-	@echo "$(YELLOW)🔍 Planning Proxmox changes...$(NC)"
-	@if [ -f $(TF_PROXMOX_DIR)/terraform.tfvars ]; then \
-		cd $(TF_PROXMOX_DIR) && terraform init -upgrade && terraform plan; \
+	@echo "$(YELLOW)🔍 Planning Proxmox changes ($(DEPLOY_MODE))...$(NC)"
+	@if [ "$(DEPLOY_MODE)" = "dist" ]; then \
+		cd $(TOPOLOGY_DIR) && python3 $(DIST_PACKAGE_CHECKER) control/terraform/proxmox; \
+	fi
+	@if [ -f $(TF_PROXMOX_EXEC_DIR)/terraform.tfvars ]; then \
+		cd $(TF_PROXMOX_EXEC_DIR) && terraform init -upgrade && terraform plan; \
 	else \
 		echo "$(RED)⚠️  terraform.tfvars not found. Copy terraform.tfvars.example first.$(NC)"; \
 		exit 1; \
 	fi
+
+plan-dist: assemble-dist
+	@$(MAKE) DEPLOY_MODE=dist plan
+
+plan-mikrotik-dist: assemble-dist
+	@$(MAKE) DEPLOY_MODE=dist plan-mikrotik
+
+plan-proxmox-dist: assemble-dist
+	@$(MAKE) DEPLOY_MODE=dist plan-proxmox
 
 # =============================================================================
 # Terraform Apply
 # =============================================================================
 
 apply-mikrotik:
-	@echo "$(YELLOW)🚀 Applying MikroTik configuration...$(NC)"
+	@echo "$(YELLOW)🚀 Applying MikroTik configuration ($(DEPLOY_MODE))...$(NC)"
 	@echo "$(RED)⚠️  This will modify your MikroTik router. Ensure you have console access!$(NC)"
 	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
-	./phases/01-network.sh
+	DEPLOY_MODE=$(DEPLOY_MODE) ./phases/01-network.sh
 
 apply-proxmox:
-	@echo "$(YELLOW)🚀 Applying Proxmox configuration...$(NC)"
-	./phases/02-compute.sh
+	@echo "$(YELLOW)🚀 Applying Proxmox configuration ($(DEPLOY_MODE))...$(NC)"
+	DEPLOY_MODE=$(DEPLOY_MODE) ./phases/02-compute.sh
+
+apply-mikrotik-dist: assemble-dist
+	@$(MAKE) DEPLOY_MODE=dist apply-mikrotik
+
+apply-proxmox-dist: assemble-dist
+	@$(MAKE) DEPLOY_MODE=dist apply-proxmox
 
 # =============================================================================
 # Ansible Configuration
 # =============================================================================
 
 configure:
-	@echo "$(YELLOW)⚙️  Running Ansible playbooks...$(NC)"
-	./phases/03-services.sh
+	@echo "$(YELLOW)⚙️  Running Ansible playbooks ($(DEPLOY_MODE))...$(NC)"
+	DEPLOY_MODE=$(DEPLOY_MODE) ./phases/03-services.sh
+
+configure-dist: assemble-dist
+	@$(MAKE) DEPLOY_MODE=dist configure
 
 # =============================================================================
 # Full Deployment
@@ -188,11 +244,15 @@ deploy-all: validate generate
 	@echo "  4. Verification"
 	@echo ""
 	@read -p "Continue with full deployment? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
-	./phases/01-network.sh
-	./phases/02-compute.sh
-	./phases/03-services.sh
+	DEPLOY_MODE=$(DEPLOY_MODE) ./phases/01-network.sh
+	DEPLOY_MODE=$(DEPLOY_MODE) ./phases/02-compute.sh
+	DEPLOY_MODE=$(DEPLOY_MODE) ./phases/03-services.sh
 	./phases/04-verify.sh
 	@echo "$(GREEN)✅ Full deployment completed!$(NC)"
+
+deploy-all-dist: validate generate assemble-dist
+	@$(MAKE) check-dist-ready
+	@$(MAKE) DEPLOY_MODE=dist deploy-all
 
 # =============================================================================
 # Verification

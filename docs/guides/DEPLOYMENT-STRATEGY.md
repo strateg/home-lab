@@ -219,6 +219,9 @@ make generate
 # Optional: assemble and validate deploy packages
 make assemble-dist
 make validate-dist
+make check-parity
+make check-dist-ready
+make materialize-dist-inputs
 
 # Preview changes
 make plan
@@ -237,6 +240,9 @@ make validate           # Check topology.yaml
 make generate           # Generate all configs
 make assemble-dist      # Assemble deploy-ready dist packages
 make validate-dist      # Validate manifests and available external tools
+make check-parity       # Compare native and dist execution roots
+make check-dist-ready   # Check local inputs required for dist execution
+make materialize-dist-inputs  # Copy existing native local inputs into dist
 
 # Planning (dry-run)
 make plan-mikrotik      # Show MikroTik changes
@@ -250,6 +256,104 @@ make configure          # Run Ansible
 # Verification
 make test               # Run health checks
 ```
+
+### Execution Modes
+
+`ADR 0053` adds an explicit operator choice between `native` and `dist` execution.
+
+`native`:
+- default mode
+- executes from `generated/terraform/*` and `ansible/`
+- remains the rollback path
+
+`dist`:
+- opt-in mode
+- executes only from `dist/control/terraform/*` and `dist/control/ansible`
+- never falls back silently to native roots
+- checks package manifests for required local inputs before execution
+
+```bash
+cd deploy
+
+# Native
+make plan
+make apply-mikrotik
+make apply-proxmox
+make configure
+
+# Dist
+make plan-dist
+make materialize-dist-inputs
+make check-dist-ready
+make apply-mikrotik-dist
+make apply-proxmox-dist
+make configure-dist
+make deploy-all-dist
+```
+
+Dist mode expects local inputs to be materialized in package roots, for example:
+- `dist/control/terraform/mikrotik/terraform.tfvars`
+- `dist/control/terraform/proxmox/terraform.tfvars`
+- `dist/control/ansible/.vault_pass`
+- `dist/control/ansible/group_vars/all/vault.yml`
+
+### Side-by-Side Validation
+
+Recommended operator workflow before a real `dist` apply:
+
+```bash
+cd deploy
+make generate
+make assemble-dist
+make validate-dist
+make check-parity
+make materialize-dist-inputs
+
+# Native baseline
+make plan
+
+# Dist preflight and dry-run
+make check-dist-ready
+make plan-dist
+```
+
+Interpretation:
+- if `make check-parity` fails, `dist` no longer matches native execution roots and should not be used
+- if `make check-dist-ready` fails, required package-local local inputs are incomplete and `dist` execution should stop before Terraform or Ansible runs
+- `native` remains the rollback path during this phase of ADR 0053
+
+### Dist Apply Runbook
+
+Use this when package parity is already green and you want an intentional `dist` execution:
+
+```bash
+cd deploy
+make generate
+make assemble-dist
+make validate-dist
+make check-parity
+
+# Copy any existing local inputs from native roots into dist
+make materialize-dist-inputs
+
+# Verify the dist packages are actually runnable on this machine
+make check-dist-ready
+
+# Dry-run first
+make plan-dist
+
+# Then execute by phase or end-to-end
+make apply-mikrotik-dist
+make apply-proxmox-dist
+make configure-dist
+# or
+make deploy-all-dist
+```
+
+Notes:
+- `make materialize-dist-inputs` only copies already existing local files; it does not invent secrets or `tfvars`
+- if `make check-dist-ready` still fails after materialization, create the missing files directly in `dist/control/**` or in the native roots and repeat materialization
+- rollback remains explicit: return to `make plan`, `make apply-*`, and `make configure` in `native` mode
 
 ### Utilities
 
