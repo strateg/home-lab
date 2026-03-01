@@ -105,8 +105,9 @@ generate-mikrotik:
 	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-terraform-mikrotik.py
 
 generate-bootstrap:
-	@echo "$(YELLOW)📝 Generating MikroTik bootstrap package...$(NC)"
+	@echo "$(YELLOW)📝 Generating bootstrap packages...$(NC)"
 	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-mikrotik-bootstrap.py
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-orangepi5-cloud-init.py
 
 generate-ansible:
 	@echo "$(YELLOW)📝 Generating Ansible inventory...$(NC)"
@@ -235,7 +236,7 @@ bootstrap-info:
 	@echo "║                                                                  ║"
 	@echo "║  3. Orange Pi 5 Bootstrap:                                       ║"
 	@echo "║     - Use: generated/bootstrap/srv-orangepi5/cloud-init/         ║"
-	@echo "║     - Flash Armbian to NVMe with cloud-init                      ║"
+	@echo "║     - Copy meta-data and local user-data to boot media           ║"
 	@echo "║                                                                  ║"
 	@echo "║  After bootstrap, run: make deploy-all                           ║"
 	@echo "╚══════════════════════════════════════════════════════════════════╝"

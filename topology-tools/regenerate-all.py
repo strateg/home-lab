@@ -6,7 +6,7 @@ This script runs all generators in the correct order:
 1. Validate topology
 2. Generate Terraform (Proxmox)
 3. Generate Terraform (MikroTik)
-4. Generate MikroTik bootstrap
+4. Generate bootstrap packages
 5. Generate Ansible inventory
 6. Assemble Ansible runtime inventory
 7. Generate documentation
@@ -194,12 +194,18 @@ class RegenerateAll:
             ["--topology", self.topology_path],
         )
 
-        self.print_header(f"Step 4/{total_steps}: Generate MikroTik Bootstrap")
-        success_bootstrap = self.run_script(
+        self.print_header(f"Step 4/{total_steps}: Generate Bootstrap Packages")
+        success_bootstrap_mikrotik = self.run_script(
             "generate-mikrotik-bootstrap.py",
             "Generating MikroTik bootstrap package",
             ["--topology", self.topology_path],
         )
+        success_bootstrap_orangepi5 = self.run_script(
+            "generate-orangepi5-cloud-init.py",
+            "Generating Orange Pi 5 cloud-init package",
+            ["--topology", self.topology_path],
+        )
+        success_bootstrap = success_bootstrap_mikrotik and success_bootstrap_orangepi5
 
         self.print_header(f"Step 5/{total_steps}: Generate Ansible Inventory")
         success_ansible = self.run_script(
@@ -275,7 +281,7 @@ class RegenerateAll:
             f"  {'OK' if success_mikrotik else 'ERROR'} Terraform (MikroTik): {'Success' if success_mikrotik else 'Failed'}"
         )
         print(
-            f"  {'OK' if success_bootstrap else 'ERROR'} Bootstrap (MikroTik): {'Success' if success_bootstrap else 'Failed'}"
+            f"  {'OK' if success_bootstrap else 'ERROR'} Bootstrap Packages:    {'Success' if success_bootstrap else 'Failed'}"
         )
         print(
             f"  {'OK' if success_ansible else 'ERROR'} Ansible:              {'Success' if success_ansible else 'Failed'}"

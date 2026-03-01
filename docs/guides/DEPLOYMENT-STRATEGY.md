@@ -56,7 +56,7 @@ This guide describes the complete deployment strategy for the home lab infrastru
 |--------|--------|------|
 | MikroTik | Enable REST API, create terraform user | WinBox/SSH |
 | Proxmox | Install from USB with answer.toml | Auto-installer |
-| Orange Pi 5 | Flash Armbian with cloud-init | USB/SD card |
+| Orange Pi 5 | Use generated cloud-init package | USB/SD card |
 
 #### MikroTik Bootstrap
 
@@ -76,6 +76,17 @@ The bootstrap script shows:
 #### Proxmox Bootstrap
 
 See [PROXMOX-USB-AUTOINSTALL.md](PROXMOX-USB-AUTOINSTALL.md) for creating auto-install USB.
+
+#### Orange Pi 5 Bootstrap
+
+Use `generated/bootstrap/srv-orangepi5/cloud-init/`.
+
+The package contains:
+1. `meta-data`
+2. `user-data.example`
+3. `README.md`
+
+Materialize a local `user-data` from `user-data.example`, then copy `meta-data` and the final `user-data` onto the Orange Pi cloud-init media.
 
 ---
 

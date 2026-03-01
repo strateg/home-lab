@@ -1,0 +1,29 @@
+# Orange Pi 5 Cloud-Init Package
+
+Generated from topology `{{ topology_version }}` at `{{ generation_timestamp }}`.
+
+This package is the canonical bootstrap source for `srv-orangepi5`.
+
+## Files
+
+- `meta-data`
+- `user-data.example`
+
+## Topology-derived values
+
+- Hostname: `{{ hostname }}`
+- FQDN: `{{ fqdn }}`
+- LAN IP reference: `{{ lan_ip or "not-modeled" }}`
+- Management IP reference: `{{ management_ip or "not-modeled" }}`
+
+## Materialization
+
+1. Review `user-data.example`.
+2. If needed, copy it to `user-data` and replace placeholder values.
+3. Place `meta-data` and the final `user-data` onto the Orange Pi cloud-init media.
+
+{% if has_topology_keys %}
+SSH authorized keys were taken from `L7_operations.security.ssh_keys` for `srv-orangepi5`.
+{% else %}
+No SSH keys were authorized for `srv-orangepi5` in topology. `user-data.example` therefore contains a placeholder key that must be replaced locally before first boot.
+{% endif %}
