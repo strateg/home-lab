@@ -7,10 +7,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is an **Infrastructure-as-Data** home lab project using **OSI-like layer architecture (v4.0)**. The topology is defined in **8 layer files** (L0-L7) in `topology/` directory, with `topology.yaml` as the main entry point. This is the **canonical source of truth** that generates:
 - Terraform configurations (Proxmox infrastructure)
 - Terraform configurations (MikroTik RouterOS)
-- Ansible inventory and variables
+- Ansible inventory and assembled runtime inventory
 - Network diagrams
 - IP allocation documentation
 - Service inventory
+- Deploy-ready `dist/` packages
 
 **Key Principle**: Edit `topology/L*.yaml` layers → regenerate everything → apply with Terraform/Ansible.
 
@@ -71,9 +72,12 @@ home-lab/
 │   └── L7-operations.yaml     # Workflows, backup
 ├── topology-tools/            # Topology-driven generators/validator
 │   ├── topology_loader.py
-│   ├── generate-terraform.py
+│   ├── generate-terraform-proxmox.py
 │   ├── generate-terraform-mikrotik.py
 │   ├── generate-ansible-inventory.py
+│   ├── assemble-ansible-runtime.py
+│   ├── assemble-deploy.py
+│   ├── validate-dist.py
 │   ├── generate-docs.py
 │   ├── validate-topology.py
 │   ├── regenerate-all.py
@@ -91,8 +95,13 @@ home-lab/
 │   ├── terraform/
 │   │   ├── mikrotik/          # MikroTik Terraform
 │   │   └── proxmox/           # Proxmox Terraform
-│   ├── ansible/inventory/     # Ansible inventory
+│   ├── ansible/inventory/     # Raw generated inventory
+│   ├── ansible/runtime/       # Assembled runtime inventory (ADR 0051)
 │   └── docs/                  # Documentation
+├── dist/                      # Assembled deploy packages (ADR 0052)
+│   ├── control/ansible/
+│   ├── control/terraform/
+│   └── manifests/
 ├── terraform -> generated/terraform/proxmox  # Symlink
 ├── ansible/                   # Playbooks and roles (manual)
 │   ├── playbooks/
@@ -124,10 +133,15 @@ python3 topology-tools/regenerate-all.py
 
 # Or step by step:
 python3 topology-tools/validate-topology.py
-python3 topology-tools/generate-terraform.py
+python3 topology-tools/generate-terraform-proxmox.py
 python3 topology-tools/generate-terraform-mikrotik.py
 python3 topology-tools/generate-ansible-inventory.py
+python3 topology-tools/assemble-ansible-runtime.py
 python3 topology-tools/generate-docs.py
+
+# Optional: assemble and validate deploy packages
+python3 topology-tools/assemble-deploy.py
+python3 topology-tools/validate-dist.py
 
 # 3. Plan and apply Terraform changes
 cd generated/terraform/proxmox
@@ -138,7 +152,7 @@ terraform plan && terraform apply
 
 # 4. Run Ansible if needed
 cd ../../../ansible
-ansible-playbook -i ../generated/ansible/inventory/<env>/hosts.yml playbooks/site.yml
+ansible-playbook playbooks/site.yml
 ```
 
 ### 2. Using Makefile (Recommended)
@@ -151,6 +165,12 @@ make validate
 
 # Generate all configs
 make generate
+
+# Assemble deploy packages
+make assemble-dist
+
+# Validate assembled dist
+make validate-dist
 
 # Full deployment
 make deploy-all
@@ -355,6 +375,8 @@ generated/
 │       └── ...
 ├── ansible/inventory/             # Ansible
 │   └── production/
+├── ansible/runtime/               # Assembled runtime inventory
+│   └── production/
 │       ├── hosts.yml
 │       ├── group_vars/
 │       └── host_vars/
@@ -415,3 +437,18 @@ When Claude Code helps with this repository:
 - Edit files in `generated/` directly
 - Create references from lower to higher layers
 - Hardcode IPs outside topology
+
+### Dist Assembly
+
+ADR 0052 adds explicit deploy package assembly:
+
+```bash
+python3 topology-tools/assemble-deploy.py
+python3 topology-tools/validate-dist.py
+```
+
+`dist/` is an assembled output layer, not a source-of-truth. Current package scope:
+- `dist/control/ansible`
+- `dist/control/terraform/mikrotik`
+- `dist/control/terraform/proxmox`
+- `dist/manifests/*.json`

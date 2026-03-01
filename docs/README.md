@@ -36,12 +36,15 @@ docs/
 #    Import bootstrap/mikrotik/bootstrap.rsc
 
 # 2. Configure credentials
-cd generated/terraform-mikrotik
+cd generated/terraform/mikrotik
 cp terraform.tfvars.example terraform.tfvars
 # Edit terraform.tfvars with passwords and keys
 
 # 3. Deploy everything
 cd deploy
+make generate
+make assemble-dist
+make validate-dist
 make deploy-all
 ```
 
@@ -95,7 +98,7 @@ See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete gui
 
 | Document | Description | Status |
 |----------|-------------|--------|
-| [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) | Full deployment workflow with phases | NEW |
+| [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) | Full deployment workflow with phases and dist assembly | UPDATED |
 | [MIKROTIK-TERRAFORM.md](guides/MIKROTIK-TERRAFORM.md) | MikroTik RouterOS automation | NEW |
 | [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md) | Proxmox auto-install USB creation | STABLE |
 | [BRIDGES.md](guides/BRIDGES.md) | Network bridges (Terraform + manual) | STABLE |
@@ -119,7 +122,7 @@ See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete gui
 
 ## Deployment Phases
 
-The infrastructure is deployed in 4 phases:
+The infrastructure is deployed in 4 runtime phases, with an additional package-assembly layer:
 
 | Phase | Target | Tool | Description |
 |-------|--------|------|-------------|
@@ -128,10 +131,15 @@ The infrastructure is deployed in 4 phases:
 | 2 | Proxmox | Terraform | LXC containers (PostgreSQL, Redis) |
 | 3 | All | Ansible | Service configuration |
 | 4 | All | Script | Verification checks |
+| Dist | control packages | Python + Make | Assembled deploy packages and manifests |
 
 ```bash
 # Full deployment command
 cd deploy && make deploy-all
+
+# Optional package assembly and validation
+make assemble-dist
+make validate-dist
 
 # Or step by step
 make bootstrap-info   # Show bootstrap instructions
@@ -174,31 +182,35 @@ make test             # Phase 4: Verify
 
 ### Infrastructure-as-Data
 
-Everything is defined in `topology.yaml` (single source of truth):
+Everything is defined in layered topology with `topology.yaml` as entry point:
 
 ```
-topology.yaml (36 lines)
-    ├── !include topology/physical.yaml
-    ├── !include topology/logical.yaml
-    ├── !include topology/compute.yaml
-    ├── !include topology/services.yaml
-    └── ... (13 modules total)
+topology.yaml
+    ├── !include topology/L0-meta.yaml
+    ├── !include topology/L1-foundation.yaml
+    ├── !include topology/L2-network.yaml
+    ├── !include topology/L3-data.yaml
+    └── ... (L4-L7)
            ↓
-    scripts/generate-*.py
+    topology-tools/*.py
            ↓
     generated/
-    ├── terraform/           # Proxmox
-    ├── terraform-mikrotik/  # MikroTik
+    ├── terraform/
     ├── ansible/inventory/
-    └── docs/
+    ├── ansible/runtime/
+    ├── docs/
+    dist/
+    ├── control/
+    └── manifests/
 ```
 
 ### Generated vs. Manual Files
 
-**Generated** (DO NOT EDIT):
+**Generated / Assembled** (DO NOT EDIT):
 - `generated/terraform/*.tf`
-- `generated/terraform-mikrotik/*.tf`
 - `generated/ansible/inventory/`
+- `generated/ansible/runtime/`
+- `dist/`
 - `generated/docs/`
 
 **Manual** (EDIT THESE):
@@ -246,13 +258,20 @@ home-lab/
 │   ├── generate-terraform-proxmox.py
 │   ├── generate-terraform-mikrotik.py
 │   ├── generate-ansible-inventory.py
+│   ├── assemble-ansible-runtime.py
+│   ├── assemble-deploy.py
+│   ├── validate-dist.py
 │   ├── generate-docs.py
 │   └── scripts/generators/
 ├── generated/                 # Auto-generated configs
 │   ├── terraform/proxmox/
 │   ├── terraform/mikrotik/
 │   ├── ansible/
-│   └── docs/
+│   └── ...
+├── dist/                      # Assembled deploy packages
+│   ├── control/ansible/
+│   ├── control/terraform/
+│   └── manifests/
 ├── deploy/                    # Deployment orchestration (NEW)
 │   ├── Makefile
 │   └── phases/

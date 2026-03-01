@@ -120,18 +120,14 @@ Validation gate:
 ```text
 python3 topology-tools/regenerate-all.py
 python3 topology-tools/assemble-deploy.py
-ansible-inventory -i dist/control/ansible/inventory --list
-cd dist/control/ansible && ansible-playbook --syntax-check playbooks/common.yml
-cd dist/control/ansible && ansible-playbook --syntax-check playbooks/postgresql.yml
-cd dist/control/ansible && ansible-playbook --syntax-check playbooks/redis.yml
-cd dist/control/terraform/mikrotik && terraform init -backend=false && terraform validate
-cd dist/control/terraform/proxmox && terraform init -backend=false && terraform validate
+python3 topology-tools/validate-dist.py
 ```
 
 Дополнительно:
 - secret scan по `dist/`
 - проверка, что `release-safe` package manifests не перечисляют запрещенные файлы
 - проверка, что `local-inputs.json` покрывает все непубликуемые operator-local dependencies
+- strict mode в CI должен использовать `python3 topology-tools/validate-dist.py --strict-external`
 
 ## Phase 4: Add Dist-Aware Deploy Targets
 

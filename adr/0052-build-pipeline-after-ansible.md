@@ -139,11 +139,11 @@ ADR 0052 is complete only when all of the following pass:
 
 1. `python3 topology-tools/regenerate-all.py`
 2. `python3 topology-tools/assemble-deploy.py`
-3. `ansible-inventory -i dist/control/ansible/inventory --list`
-4. playbook syntax checks succeed from `dist/control/ansible/`
-5. `terraform init -backend=false && terraform validate` for each assembled Terraform root
+3. `python3 topology-tools/validate-dist.py`
+4. package manifests accurately declare package class, source roots, required local inputs, and validation commands
+5. `release-safe.json` publishes only `release-safe` packages
 6. release-safe checks confirm that no `local-secret` files enter published artifacts
-7. package manifests accurately declare required local inputs for non-release-safe operations
+7. external validators can run either directly when installed or in strict mode in CI
 
 ### 8. Explicitly Out Of Scope
 

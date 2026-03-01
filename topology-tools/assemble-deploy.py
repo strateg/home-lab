@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import shutil
 import sys
 from pathlib import Path
@@ -179,7 +178,14 @@ def write_top_level_manifests(dist_root: Path, manifests: list[PackageManifest])
     manifests_dir.mkdir(parents=True, exist_ok=True)
 
     package_map = {manifest.package_id: manifest.to_dict() for manifest in manifests}
-    publishable_paths = sorted(manifest.package_id for manifest in manifests if manifest.status == "ready")
+    publishable_packages = sorted(
+        manifest.package_id
+        for manifest in manifests
+        if manifest.status == "ready" and manifest.package_class == "release-safe"
+    )
+    non_publishable_packages = sorted(
+        manifest.package_id for manifest in manifests if manifest.package_class != "release-safe"
+    )
     local_inputs = {
         manifest.package_id: manifest.required_local_inputs for manifest in manifests if manifest.required_local_inputs
     }
@@ -196,7 +202,8 @@ def write_top_level_manifests(dist_root: Path, manifests: list[PackageManifest])
         manifests_dir / "release-safe.json",
         {
             "schema_version": "1",
-            "publishable_paths": publishable_paths,
+            "publishable_packages": publishable_packages,
+            "non_publishable_packages": non_publishable_packages,
             "excluded_local_secret_patterns": LOCAL_SECRET_PATH_PATTERNS,
         },
     )

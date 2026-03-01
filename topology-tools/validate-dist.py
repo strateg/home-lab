@@ -21,6 +21,24 @@ def load_json(path: Path) -> dict:
     return json.loads(path.read_text())
 
 
+def validate_package_manifest_contract(package_id: str, manifest: dict) -> list[str]:
+    """Validate package-manifest semantics independently of external tools."""
+    errors: list[str] = []
+    package_class = manifest.get("package_class")
+    required_local_inputs = manifest.get("required_local_inputs", [])
+
+    if package_class not in {"release-safe", "local-input-required"}:
+        errors.append(f"{package_id}: unsupported package_class '{package_class}'")
+
+    if package_class == "release-safe" and required_local_inputs:
+        errors.append(f"{package_id}: release-safe package must not declare required_local_inputs")
+
+    if package_class == "local-input-required" and not required_local_inputs:
+        errors.append(f"{package_id}: local-input-required package must declare required_local_inputs")
+
+    return errors
+
+
 def required_binary(command: str) -> str:
     """Extract the executable name from a validation command."""
     return command.split()[0]
@@ -89,7 +107,10 @@ def validate_dist(dist_root: Path, strict_external: bool, verbose: bool) -> bool
         return False
 
     packages_payload = load_json(packages_manifest_path)
+    release_safe_payload = load_json(release_safe_path)
     packages = packages_payload.get("packages", {})
+    publishable_packages = set(release_safe_payload.get("publishable_packages", []))
+    non_publishable_packages = set(release_safe_payload.get("non_publishable_packages", []))
 
     errors: list[str] = []
     skipped: list[str] = []
@@ -108,6 +129,16 @@ def validate_dist(dist_root: Path, strict_external: bool, verbose: bool) -> bool
         if manifest.get("package_id") != package_id:
             errors.append(f"{package_id}: manifest package_id mismatch")
 
+        errors.extend(validate_package_manifest_contract(package_id, manifest))
+
+        package_class = manifest.get("package_class")
+        if package_class == "release-safe" and package_id not in publishable_packages:
+            errors.append(f"{package_id}: release-safe package missing from release-safe publishable_packages")
+        if package_class != "release-safe" and package_id in publishable_packages:
+            errors.append(f"{package_id}: non-release-safe package must not be publishable")
+        if package_class != "release-safe" and package_id not in non_publishable_packages:
+            errors.append(f"{package_id}: non-release-safe package missing from non_publishable_packages")
+
         command_errors, command_skips = run_manifest_commands(
             package_dir=package_dir,
             package_id=package_id,
@@ -123,6 +154,7 @@ def validate_dist(dist_root: Path, strict_external: bool, verbose: bool) -> bool
         print("=" * 70)
         print(f"Dist root: {dist_root}")
         print(f"Manifest packages: {len(packages)}")
+        print(f"Publishable packages: {len(publishable_packages)}")
         if skipped:
             print()
             print("Skipped external validations:")

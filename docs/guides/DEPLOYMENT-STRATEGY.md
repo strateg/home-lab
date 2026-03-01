@@ -14,10 +14,20 @@ This guide describes the complete deployment strategy for the home lab infrastru
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │  Python Generators                                                       │
-│  ├── generate-terraform.py           → generated/terraform/             │
-│  ├── generate-terraform-mikrotik.py  → generated/terraform-mikrotik/    │
-│  ├── generate-ansible-inventory.py   → generated/ansible/               │
-│  └── generate-docs.py                → generated/docs/                  │
+│  ├── generate-terraform-proxmox.py   → generated/terraform/proxmox/     │
+│  ├── generate-terraform-mikrotik.py  → generated/terraform/mikrotik/    │
+│  ├── generate-ansible-inventory.py   → generated/ansible/inventory/     │
+│  ├── assemble-ansible-runtime.py     → generated/ansible/runtime/       │
+│  ├── assemble-deploy.py              → dist/                            │
+│  └── validate-dist.py                → dist/manifests validation        │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  dist/                                                                  │
+│  ├── control/ansible         ← Package-local ansible.cfg + inventory   │
+│  ├── control/terraform/*     ← Package-local Terraform roots           │
+│  └── manifests/              ← sources, local inputs, package contract │
 └────────────────────────────────────┬────────────────────────────────────┘
                                      │
                                      ▼
@@ -182,8 +192,12 @@ cd deploy && make test
 ```bash
 cd deploy
 
-# Generate all configurations
+# Generate all configurations and assembled Ansible runtime
 make generate
+
+# Optional: assemble and validate deploy packages
+make assemble-dist
+make validate-dist
 
 # Preview changes
 make plan
@@ -198,6 +212,8 @@ make deploy-all
 # Validation & Generation
 make validate           # Check topology.yaml
 make generate           # Generate all configs
+make assemble-dist      # Assemble deploy-ready dist packages
+make validate-dist      # Validate manifests and available external tools
 
 # Planning (dry-run)
 make plan-mikrotik      # Show MikroTik changes
@@ -227,7 +243,7 @@ make clean              # Clean generated files
 ### terraform.tfvars (MikroTik)
 
 ```hcl
-# generated/terraform-mikrotik/terraform.tfvars
+# generated/terraform/mikrotik/terraform.tfvars
 mikrotik_host     = "https://192.168.88.1:8443"
 mikrotik_username = "terraform"
 mikrotik_password = "secure_password"
@@ -244,7 +260,7 @@ tailscale_authkey = "tskey-..."
 ### terraform.tfvars (Proxmox)
 
 ```hcl
-# generated/terraform/terraform.tfvars
+# generated/terraform/proxmox/terraform.tfvars
 proxmox_api_url      = "https://192.168.88.2:8006/api2/json"
 proxmox_api_token_id = "terraform@pam!terraform"
 proxmox_api_token    = "secret_token"
@@ -284,6 +300,7 @@ cd deploy && make validate
 
 ```bash
 make generate
+make assemble-dist
 ```
 
 ### 4. Review Changes
@@ -321,7 +338,7 @@ ssh admin@192.168.88.1 "/import file=pre-terraform-backup.rsc"
 
 ```bash
 # Restore previous state
-cd generated/terraform-mikrotik
+cd generated/terraform/mikrotik
 cp terraform.tfstate.backup terraform.tfstate
 terraform plan  # Verify state matches reality
 ```
@@ -400,7 +417,7 @@ ssh root@192.168.88.2 "pvesh get /cluster/resources --type vm"
    ansible all -m ping
    ```
 
-2. **Check inventory** in `generated/ansible/inventory/`
+2. **Check runtime inventory** in `generated/ansible/runtime/production/`
 
 3. **Run with verbose**:
    ```bash
