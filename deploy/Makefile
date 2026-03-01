@@ -17,19 +17,23 @@
 
 .PHONY: all help validate generate plan apply deploy-all clean
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
-.PHONY: configure test bootstrap-info assemble-ansible
+.PHONY: configure test bootstrap-info assemble-ansible assemble-dist validate-dist
 
 # Directories (relative to deploy/)
 ROOT_DIR := $(shell cd .. && pwd)
 TOPOLOGY_DIR := $(ROOT_DIR)
 TOPOLOGY_TOOLS_DIR := $(ROOT_DIR)/topology-tools
 GENERATED_DIR := $(ROOT_DIR)/generated
+DIST_DIR := $(ROOT_DIR)/dist
 ANSIBLE_DIR := $(ROOT_DIR)/ansible
 
 # Terraform directories (ADR 0050 structure)
 TF_MIKROTIK_DIR := $(GENERATED_DIR)/terraform/mikrotik
 TF_PROXMOX_DIR := $(GENERATED_DIR)/terraform/proxmox
 BOOTSTRAP_DIR := $(GENERATED_DIR)/bootstrap
+DIST_ANSIBLE_DIR := $(DIST_DIR)/control/ansible
+DIST_TF_MIKROTIK_DIR := $(DIST_DIR)/control/terraform/mikrotik
+DIST_TF_PROXMOX_DIR := $(DIST_DIR)/control/terraform/proxmox
 
 # Colors
 GREEN := \033[0;32m
@@ -55,6 +59,8 @@ help:
 	@echo "║  Validation & Generation:                                        ║"
 	@echo "║    make validate       - Validate topology YAML                  ║"
 	@echo "║    make generate       - Generate all configs from topology      ║"
+	@echo "║    make assemble-dist  - Assemble deploy-ready dist packages     ║"
+	@echo "║    make validate-dist  - Validate assembled dist packages        ║"
 	@echo "║                                                                  ║"
 	@echo "║  Planning (Dry Run):                                             ║"
 	@echo "║    make plan           - Show all Terraform plans                ║"
@@ -85,6 +91,11 @@ validate:
 generate: generate-terraform generate-mikrotik generate-ansible assemble-ansible generate-docs
 	@echo "$(GREEN)✓ All configurations generated$(NC)"
 
+assemble-dist:
+	@echo "$(YELLOW)📦 Assembling deploy packages (ADR 0052)...$(NC)"
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/assemble-deploy.py
+	@echo "$(GREEN)✓ Dist packages assembled$(NC)"
+
 generate-terraform:
 	@echo "$(YELLOW)📝 Generating Terraform (Proxmox)...$(NC)"
 	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-terraform-proxmox.py
@@ -104,6 +115,16 @@ assemble-ansible:
 generate-docs:
 	@echo "$(YELLOW)📝 Generating documentation...$(NC)"
 	cd $(TOPOLOGY_DIR) && python3 topology-tools/generate-docs.py || true
+
+validate-dist: assemble-dist
+	@echo "$(YELLOW)📋 Validating assembled dist packages...$(NC)"
+	cd $(DIST_ANSIBLE_DIR) && ansible-inventory -i inventory --list > /dev/null
+	cd $(DIST_ANSIBLE_DIR) && ansible-playbook --syntax-check playbooks/common.yml
+	cd $(DIST_ANSIBLE_DIR) && ansible-playbook --syntax-check playbooks/postgresql.yml
+	cd $(DIST_ANSIBLE_DIR) && ansible-playbook --syntax-check playbooks/redis.yml
+	cd $(DIST_TF_MIKROTIK_DIR) && terraform init -backend=false && terraform validate
+	cd $(DIST_TF_PROXMOX_DIR) && terraform init -backend=false && terraform validate
+	@echo "$(GREEN)✓ Dist package validation passed$(NC)"
 
 # =============================================================================
 # Terraform Planning

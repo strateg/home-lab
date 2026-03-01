@@ -25,6 +25,8 @@ FORBIDDEN_TOPOLOGY_OVERRIDE_PATTERNS = [
 ]
 
 LOCAL_SECRET_PATH_PATTERNS = [
+    ".terraform",
+    ".terraform/*",
     ".vault_pass",
     "*.pem",
     "*.key",
