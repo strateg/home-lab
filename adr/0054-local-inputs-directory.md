@@ -8,12 +8,13 @@
 
 ADR 0050 established `generated/` as the canonical home for generated artifacts.
 ADR 0052 established `dist/` as the assembled deploy package root.
+ADR 0053 established explicit `native` and `dist` execution modes.
 
-Both directories are **disposable by design**:
-- `rm -rf generated/` followed by `make generate` must restore full state
-- `rm -rf dist/` followed by `make assemble-dist` must restore full state
+Both directories are intended to be rebuildable:
+- `generated/` should be restorable from topology, generators, and canonical operator local inputs
+- `dist/` should be restorable from canonical source roots, `generated/`, and canonical operator local inputs
 
-This is a fundamental property of the build pipeline. Operators may delete these directories at any time without breaking the workflow.
+This is a fundamental property of the build pipeline. Operators should not lose canonical operator-owned state when `generated/` or `dist/` is rebuilt.
 
 However, the current repository stores operator-edited local inputs inside `generated/`:
 - `generated/terraform/mikrotik/terraform.tfvars`
@@ -35,79 +36,108 @@ These directories must remain safely deletable at any time.
 
 A dedicated `local/` directory holds all operator-edited inputs:
 
-```
+```text
 local/
-├── mikrotik.tfvars
-├── proxmox.tfvars
-├── gamayun.toml
-└── orangepi5-user-data
+├── terraform/
+│   ├── mikrotik/terraform.tfvars
+│   └── proxmox/terraform.tfvars
+└── bootstrap/
+    ├── srv-gamayun/answer.toml
+    └── srv-orangepi5/cloud-init/user-data
 ```
 
 Properties:
-- flat structure (no nesting)
+- structure mirrors package and execution layout
 - gitignored
 - operator-owned
 - survives `rm -rf generated/ dist/`
 
-### 3. Generation Copies Local Inputs Into Execution Roots
+### 3. Native And Dist Workflows Materialize From `local/`
 
-`make generate` (via `regenerate-all.py`) copies local inputs into execution roots:
+The same canonical local inputs must feed both execution modes:
 
-| Source | Target |
-|--------|--------|
-| `local/mikrotik.tfvars` | `generated/terraform/mikrotik/terraform.tfvars` |
-| `local/proxmox.tfvars` | `generated/terraform/proxmox/terraform.tfvars` |
-| `local/gamayun.toml` | `generated/bootstrap/srv-gamayun/answer.toml` |
-| `local/orangepi5-user-data` | `generated/bootstrap/srv-orangepi5/cloud-init/user-data` |
+| Canonical source | Native target | Dist target |
+|--------|--------|--------|
+| `local/terraform/mikrotik/terraform.tfvars` | `generated/terraform/mikrotik/terraform.tfvars` | `dist/control/terraform/mikrotik/terraform.tfvars` |
+| `local/terraform/proxmox/terraform.tfvars` | `generated/terraform/proxmox/terraform.tfvars` | `dist/control/terraform/proxmox/terraform.tfvars` |
+| `local/bootstrap/srv-gamayun/answer.toml` | `generated/bootstrap/srv-gamayun/answer.toml` | `dist/bootstrap/srv-gamayun/answer.toml` |
+| `local/bootstrap/srv-orangepi5/cloud-init/user-data` | `generated/bootstrap/srv-orangepi5/cloud-init/user-data` | `dist/bootstrap/srv-orangepi5/cloud-init/user-data` |
 
-This is not a separate "materialization" step. It is part of the standard generation workflow.
+Preflight checks must validate `local/`, not stale execution copies.
 
-### 4. Preflight Fails Explicitly On Missing Local Inputs
+### 4. Native Materialization May Be Integrated, Dist Materialization Remains Explicit
+
+For operator UX:
+- `native` workflow may integrate materialization into `make generate` or equivalent generation commands
+- `dist` workflow may keep materialization as an explicit step because assembled packages are already treated as execution contracts
+
+ADR 0054 does not require both modes to expose the same UX command. It requires both modes to use the same canonical source of truth: `local/`.
+
+### 5. Preflight Fails Explicitly On Missing Local Inputs
 
 If a required local input is missing, preflight must fail with a clear message:
 
-```
-ERROR: local/proxmox.tfvars not found
+```text
+ERROR: local/terraform/proxmox/terraform.tfvars not found
 
 Create it from example:
-  cp generated/terraform/proxmox/terraform.tfvars.example local/proxmox.tfvars
-  vim local/proxmox.tfvars
+  cp generated/terraform/proxmox/terraform.tfvars.example local/terraform/proxmox/terraform.tfvars
+  vim local/terraform/proxmox/terraform.tfvars
 ```
 
 The system must not fall back to stale copies or empty defaults.
 
-### 5. Three Directories, Three Rules
+### 6. Three Directories, Three Rules
 
 | Directory | Disposable | Recovery |
 |-----------|------------|----------|
-| `generated/` | Yes | `make generate` |
-| `dist/` | Yes | `make assemble-dist` |
+| `generated/` | Rebuildable | `make generate` plus `local/` |
+| `dist/` | Rebuildable | `make assemble-dist` plus `local/` |
 | `local/` | No | Operator creates manually |
 
-This is the complete mental model. No additional taxonomy required.
+This is the primary mental model for operator-owned inputs.
 
-### 6. Ansible Secrets Remain Governed By ADR 0051
+### 7. Cleanup Safety Improves After Local Input Migration
+
+Once operator-edited local inputs move out of `generated/`, cleanup of canonical generated roots becomes safer and more deterministic.
+
+ADR 0054 does not fully specify scratch/debug cleanup policy, but it does establish the prerequisite for that cleanup:
+- `generated/` should stop being a home for canonical operator-edited files
+- future cleanup work may then safely target generated roots without risking operator state loss
+
+Known follow-up cleanup targets still exist and should be handled separately:
+- `generated/migration/`
+- `generated/validation/`
+- `generated/terraform-mikrotik/`
+- other scratch or legacy outputs
+
+Before implementation is considered complete, each of these paths should get an explicit disposition:
+- delete as obsolete legacy output
+- archive for historical reference
+- relocate to `.cache/` or another non-canonical preview/debug root
+
+### 8. Ansible Secrets Remain Governed By ADR 0051
 
 Ansible vault files (`.vault_pass`, `vault.yml`) remain in `ansible/` as defined by ADR 0051.
 
 ADR 0054 covers Terraform and bootstrap inputs only.
 
-### 7. Out Of Scope
+### 9. Out Of Scope
 
 ADR 0054 does not:
 - change Ansible secret ownership from ADR 0051
 - redesign package classes from ADR 0052
-- address scratch/debug output cleanup (separate concern)
+- fully define scratch/debug output cleanup policy
 - introduce multi-environment local input layouts
 
 ## Consequences
 
 ### Positive
 
-1. `rm -rf generated/ dist/` is always safe
+1. after ADR 0054 is implemented, rebuilding `generated/` and `dist/` no longer risks losing canonical operator-owned inputs
 2. operator edits one place (`local/`)
 3. simple mental model: three directories, three rules
-4. no separate materialization step in workflow
+4. `native` and `dist` stop inventing separate canonical local-input locations
 5. preflight errors are actionable
 
 ### Negative
@@ -115,18 +145,55 @@ ADR 0054 does not:
 1. one new directory to understand
 2. existing operator inputs must be migrated once
 3. docs must be updated to reference `local/` instead of `generated/`
+4. native and dist workflows still need explicit tooling changes to consume `local/`
 
-## Migration
+## Migration Plan
 
-One-time migration for existing setups:
+### Phase 0: Inventory Current References
 
-```bash
-mkdir -p local
-mv generated/terraform/mikrotik/terraform.tfvars local/mikrotik.tfvars
-mv generated/terraform/proxmox/terraform.tfvars local/proxmox.tfvars
-mv generated/bootstrap/srv-gamayun/answer.toml local/gamayun.toml
-mv generated/bootstrap/srv-orangepi5/cloud-init/user-data local/orangepi5-user-data
+Identify all active code paths and docs that still instruct operators to edit `generated/...`.
+
+Minimum expected areas:
+- `deploy/phases/*.sh`
+- `deploy/Makefile`
+- bootstrap runbooks
+- Terraform guides
+
+### Phase 1: Introduce `local/` And Update Tooling
+
+Create the canonical `local/` structure and update:
+- native preflight
+- dist preflight
+- native materialization
+- dist materialization
+
+### Phase 2: Update Active Docs And Scripts
+
+Active operator-facing docs must stop teaching direct edits under `generated/...`.
+
+This phase must happen before old instructions can drift further into the workflow.
+
+### Phase 3: Migrate Existing Files
+
+For existing setups, move current local inputs into `local/`:
+
+```text
+mkdir -p local/terraform/mikrotik local/terraform/proxmox
+mkdir -p local/bootstrap/srv-gamayun local/bootstrap/srv-orangepi5/cloud-init
+mv generated/terraform/mikrotik/terraform.tfvars local/terraform/mikrotik/terraform.tfvars
+mv generated/terraform/proxmox/terraform.tfvars local/terraform/proxmox/terraform.tfvars
+mv generated/bootstrap/srv-gamayun/answer.toml local/bootstrap/srv-gamayun/answer.toml
+mv generated/bootstrap/srv-orangepi5/cloud-init/user-data local/bootstrap/srv-orangepi5/cloud-init/user-data
 ```
+
+Windows/PowerShell instructions should be provided in active docs when implementation starts.
+
+### Phase 4: Remove Legacy References
+
+After tooling and docs are switched:
+- remove stale guidance that edits `generated/...`
+- keep rollback behavior explicit where necessary
+- ensure preflight never treats old execution copies as canonical
 
 ## References
 
