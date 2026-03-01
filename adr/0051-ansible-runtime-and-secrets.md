@@ -88,8 +88,12 @@ Assembly rules:
 1. generated `hosts.yml` is copied unchanged
 2. generated `group_vars/all.yml` becomes `10-generated.yml`
 3. manual `inventory-overrides/production/group_vars/all.yml` becomes `90-manual.yml`
-4. manual `host_vars/*.yml` are copied as overlays
-5. precedence is determined by filenames, not custom recursive deep merge logic
+4. generated `host_vars/*.yml` are copied into the runtime inventory first
+5. manual `inventory-overrides/production/host_vars/*.yml` are copied as overlays
+6. if a manual `host_vars/<name>.yml` conflicts with a generated file of the same name, the assembler must:
+   - fail by default, or
+   - allow the override only via an explicit allowlist or `intentional_override` rule
+7. precedence is determined by filenames and copy order, not custom recursive deep merge logic
 
 The goal is deterministic runtime behavior without inventing a YAML merge engine.
 
@@ -103,22 +107,41 @@ Tracked inventory source files must not contain:
 - vault password material
 - environment-specific secrets that should be local-only
 
+The repository must classify Ansible-related data into three explicit classes:
+
+| Class | Description | Tracked |
+|-------|-------------|---------|
+| `tracked-public` | non-secret generated or manual configuration | Yes |
+| `tracked-encrypted` | encrypted values intended for version control, e.g. Ansible Vault payloads | Yes |
+| `local-secret` | live secret values, vault passwords, private keys, environment-local credentials | No |
+
 Allowed destinations for secret values:
-- vault-managed files under `ansible/group_vars/` or `ansible/host_vars/`
-- local-only files excluded by `.gitignore`
+- `tracked-encrypted` vault files under `ansible/group_vars/` or `ansible/host_vars/`
+- `local-secret` files excluded by `.gitignore`
 - `.example` templates that contain placeholders only
 
 Tracked inventory may reference vault variables, but must not embed live secret values directly.
 
+Examples:
+- `ansible/group_vars/all/vars.yml` should be `tracked-public`
+- encrypted vault content is allowed as `tracked-encrypted`
+- `.vault_pass` must remain `local-secret`
+
 ### 6. `ansible.cfg` Must Target The Assembled Runtime Inventory
 
-After cutover, the default inventory in `ansible/ansible.cfg` must point to:
+After cutover, the default inventory in `ansible/ansible.cfg` must point to the runtime inventory directory, not a single `hosts.yml` file:
 
 ```text
 ../generated/ansible/runtime/production/
 ```
 
 The raw generator output under `generated/ansible/inventory/production/` remains an intermediate artifact, not the operator-facing runtime target.
+
+All operator-facing entrypoints must resolve inventory from one canonical place:
+- `ansible/ansible.cfg`, or
+- a shared helper variable used by `deploy/Makefile` and `deploy/phases/*.sh`
+
+Runtime code must not duplicate ad hoc inventory path logic in multiple places.
 
 ### 7. Validation Requirements
 
@@ -128,8 +151,20 @@ ADR 0051 is complete only when all of the following pass:
 3. `ansible-inventory -i generated/ansible/runtime/production --list`
 4. playbook syntax checks succeed against the assembled runtime inventory
 5. tracked inventory source no longer carries raw secret values
+6. dry-run comparison shows that old and new runtime inventories are equivalent for:
+   - host list
+   - group membership
+   - selected hostvars on representative hosts
 
-### 8. Explicitly Out Of Scope
+### 8. Rollback And Safety Rules
+
+If assembled runtime inventory causes playbook regressions:
+1. `ansible/ansible.cfg` must be switchable back to the previous inventory target in one revertable commit
+2. `deploy/phases/03-services.sh` must retain a temporary compatibility path until the new runtime target is proven stable
+3. legacy manual inventory files must not be deleted before the comparison and cutover gates are passed
+4. rollback must not require reconstructing deleted tracked files from memory or external state
+
+### 9. Explicitly Out Of Scope
 
 ADR 0051 does not decide:
 - `src/` repository restructuring
@@ -149,13 +184,15 @@ Those concerns are deferred to ADR 0052.
 2. Ansible runtime becomes explicit and testable
 3. Topology-derived data and manual overrides get separate ownership
 4. Secret handling is clarified before broader packaging work
-5. ADR 0052 can build on a stable Ansible contract
+5. Rollback becomes simpler because cutover and cleanup are separated
+6. ADR 0052 can build on a stable Ansible contract
 
 ### Negative / Trade-offs
 
 1. The overall migration becomes intentionally two-stage
 2. The repository temporarily keeps both raw generated inventory and assembled runtime inventory
 3. Some tracked values may need manual extraction into vault-managed or local-only files
+4. The assembler needs explicit conflict handling for `host_vars` overrides
 
 ## References
 

@@ -65,11 +65,13 @@ cd deploy && make validate
 ### Что делаем
 
 1. Инвентаризируем значения в `ansible/inventory/production/`
-2. Делим их на три класса:
+2. Инвентаризируем generated `group_vars` и `host_vars`
+3. Делим их на три класса:
    - topology-derived
    - manual non-secret override
    - secret-local / vault-managed
-3. Фиксируем список tracked secret violations
+4. Фиксируем список tracked secret violations
+5. Для каждого значения определяем owner и целевой путь после миграции
 
 ### Важно
 
@@ -107,6 +109,8 @@ docs(adr-0051): classify ansible inventory ownership and secret boundaries
 1. topology-derived host structure не копируется вручную в overrides
 2. tracked overrides не содержат raw secrets
 3. секреты допускаются только в local-only или vault-managed путях
+4. generated `host_vars` не переопределяются молча через manual override с тем же именем
+5. если intentional override нужен, это должно быть явно зафиксировано в assembler policy
 
 ### Validation gate
 
@@ -133,13 +137,26 @@ refactor(adr-0051): separate ansible overrides from tracked secret values
 3. Используем layered files:
    - `10-generated.yml`
    - `90-manual.yml`
-4. Копируем manual `host_vars/*.yml` как overlays
+4. Копируем generated `host_vars/*.yml`
+5. Копируем manual `host_vars/*.yml` как overlays по явному правилу конфликтов
 
 ### Assembler обязан падать, если
 
 - нет generated inventory input
 - нет обязательного override input, объявленного как required
 - runtime inventory содержит raw secret values из tracked source
+- manual `host_vars` конфликтуют с generated `host_vars` без explicit allowlist
+
+## Phase 3.5: Dry-Run Comparison
+
+До cutover нужно параллельно сравнить old и new runtime inventory.
+
+Сравниваем:
+1. список хостов
+2. список групп
+3. selected vars для 2-3 эталонных хостов
+
+Если differences intentional, они должны быть явно задокументированы в коммите cutover.
 
 ### Validation gate
 
@@ -147,6 +164,8 @@ refactor(adr-0051): separate ansible overrides from tracked secret values
 python3 topology-tools/regenerate-all.py
 python3 topology-tools/assemble-ansible-runtime.py
 ansible-inventory -i generated/ansible/runtime/production --list > /dev/null
+ansible-inventory -i generated/ansible/inventory/production --list > old-inventory.json
+ansible-inventory -i generated/ansible/runtime/production --list > new-inventory.json
 ```
 
 ### Коммит
@@ -165,6 +184,7 @@ feat(adr-0051): add ansible runtime inventory assembler
 2. Обновляем `deploy/phases/03-services.sh`
 3. Обновляем runbook'и, которые ссылаются на raw inventory path
 4. Делаем assembled runtime inventory каноническим для операторов
+5. По возможности выносим inventory path в одно общее место конфигурации вместо дублирования
 
 ### Validation gate
 
@@ -172,6 +192,9 @@ feat(adr-0051): add ansible runtime inventory assembler
 python3 topology-tools/assemble-ansible-runtime.py
 ansible-inventory -i generated/ansible/runtime/production --list > /dev/null
 cd deploy && make validate
+cd ansible && ansible-playbook playbooks/common.yml --syntax-check
+cd ansible && ansible-playbook playbooks/postgresql.yml --syntax-check
+cd ansible && ansible-playbook playbooks/redis.yml --syntax-check
 ```
 
 ### Коммит
@@ -189,6 +212,7 @@ refactor(adr-0051): switch ansible runtime to assembled inventory
 1. assembled runtime inventory работает
 2. `ansible.cfg` и `deploy/` уже используют его
 3. documentation уже обновлена
+4. dry-run comparison завершен и differences понятны
 
 ### Что можно удалять
 
@@ -220,6 +244,14 @@ ADR можно переводить в `Accepted` только после тог
 2. tracked inventory больше не несет raw secrets
 3. documentation соответствует реальному workflow
 4. репозиторий готов к ADR 0052
+
+## Rollback
+
+Если после Phase 4 runtime inventory вызывает регрессии:
+1. вернуть `ansible/ansible.cfg` на previous inventory target
+2. вернуть `deploy/phases/03-services.sh` на previous inventory target
+3. не удалять legacy manual inventory files до прохождения Phase 5
+4. зафиксировать rollback отдельным revertable commit
 
 ### Коммит
 
