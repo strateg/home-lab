@@ -10,6 +10,9 @@ ADR 0050 established `generated/` as the canonical home for generated artifacts.
 ADR 0052 established `dist/` as the assembled deploy package root.
 ADR 0053 established explicit `native` and `dist` execution modes.
 
+Manual tracked Terraform extensions are a separate concern from operator local inputs.
+That exception layer is decided by ADR 0055 and is intentionally not modeled through `local/`.
+
 Both directories are intended to be rebuildable:
 - `generated/` should be restorable from topology, generators, and canonical operator local inputs
 - `dist/` should be restorable from canonical source roots, `generated/`, and canonical operator local inputs
@@ -32,6 +35,13 @@ Operator-edited inputs must not live in `generated/` or `dist/`.
 
 These directories must remain safely deletable at any time.
 
+This ADR covers only operator local inputs such as:
+- `terraform.tfvars`
+- `answer.toml`
+- `user-data`
+
+It does not define tracked manual `.tf` extension files.
+
 ### 2. Introduce `local/` Directory
 
 A dedicated `local/` directory holds all operator-edited inputs:
@@ -51,6 +61,7 @@ Properties:
 - gitignored
 - operator-owned
 - survives `rm -rf generated/ dist/`
+- contains local inputs only, not tracked extension code
 
 ### 3. Native And Dist Workflows Materialize From `local/`
 
@@ -64,6 +75,8 @@ The same canonical local inputs must feed both execution modes:
 | `local/bootstrap/srv-orangepi5/cloud-init/user-data` | `generated/bootstrap/srv-orangepi5/cloud-init/user-data` | `dist/bootstrap/srv-orangepi5/cloud-init/user-data` |
 
 Preflight checks must validate `local/`, not stale execution copies.
+
+Tracked manual Terraform extensions, when present, are layered separately and are not sourced from `local/`.
 
 ### 4. Native Materialization May Be Integrated, Dist Materialization Remains Explicit
 
@@ -105,6 +118,8 @@ ADR 0054 does not fully specify scratch/debug cleanup policy, but it does establ
 - `generated/` should stop being a home for canonical operator-edited files
 - future cleanup work may then safely target generated roots without risking operator state loss
 
+Tracked manual Terraform extensions do not weaken this cleanup boundary as long as they remain outside `generated/`.
+
 Known follow-up cleanup targets still exist and should be handled separately:
 - `generated/migration/`
 - `generated/validation/`
@@ -129,6 +144,7 @@ ADR 0054 does not:
 - redesign package classes from ADR 0052
 - fully define scratch/debug output cleanup policy
 - introduce multi-environment local input layouts
+- define tracked manual Terraform extension layers
 
 ## Consequences
 
@@ -167,6 +183,9 @@ Create the canonical `local/` structure and update:
 - native materialization
 - dist materialization
 
+Do not use this phase to introduce tracked manual Terraform exceptions.
+Those belong to the separate extension contract from ADR 0055.
+
 ### Phase 2: Update Active Docs And Scripts
 
 Active operator-facing docs must stop teaching direct edits under `generated/...`.
@@ -201,3 +220,4 @@ After tooling and docs are switched:
 - ADR 0051: Ansible Runtime, Inventory, and Secret Boundaries
 - ADR 0052: Deploy Package Assembly Over Accepted Ansible Runtime
 - ADR 0053: Optional Dist-First Deploy Cutover
+- ADR 0055: Manual Terraform Extension Layer
