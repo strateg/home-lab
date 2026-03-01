@@ -37,10 +37,16 @@ def ensure_clean_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def copy_tree_filtered(src: Path, dst: Path, repo_root: Path) -> tuple[list[str], list[str]]:
+def copy_tree_filtered(
+    src: Path,
+    dst: Path,
+    repo_root: Path,
+    excluded_names: set[str] | None = None,
+) -> tuple[list[str], list[str]]:
     """Copy a directory tree while excluding local-secret and transient paths."""
     included: list[str] = []
     excluded: list[str] = []
+    excluded_names = excluded_names or set()
 
     if not src.exists():
         raise FileNotFoundError(f"Source directory not found: {src}")
@@ -51,6 +57,10 @@ def copy_tree_filtered(src: Path, dst: Path, repo_root: Path) -> tuple[list[str]
             continue
 
         if any(part == "__pycache__" for part in rel.parts):
+            excluded.append(relpath(path, repo_root))
+            continue
+
+        if path.name in excluded_names:
             excluded.append(relpath(path, repo_root))
             continue
 
@@ -96,11 +106,17 @@ def assemble_ansible_package(dist_root: Path) -> PackageManifest:
 
     included_paths: list[str] = []
     excluded_paths: list[str] = []
+    excluded_names = {"README.md"}
 
     for directory_name in ["playbooks", "roles", "group_vars"]:
         source_dir = ANSIBLE_SOURCE / directory_name
         if source_dir.exists():
-            included, excluded = copy_tree_filtered(source_dir, package_dir / directory_name, REPO_ROOT)
+            included, excluded = copy_tree_filtered(
+                source_dir,
+                package_dir / directory_name,
+                REPO_ROOT,
+                excluded_names=excluded_names,
+            )
             included_paths.extend(included)
             excluded_paths.extend(excluded)
 
