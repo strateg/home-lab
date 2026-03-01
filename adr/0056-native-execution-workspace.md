@@ -128,6 +128,18 @@ The operator workflow may still expose the same commands:
 
 But those commands must assemble `.work/native/` before execution instead of mutating `generated/`.
 
+Target behavior after cutover:
+
+```text
+make generate -> generate-all + assemble-native
+```
+
+One operator command may still remain responsible for:
+- rebuilding deterministic baselines under `generated/`
+- assembling `.work/native/`
+
+That keeps the current operator ergonomics while changing the execution destination.
+
 ### 6. Native Materialization Becomes Native Assembly
 
 The current notion of `materialize-native-inputs.py` is too narrow for the target architecture.
@@ -146,6 +158,24 @@ Canonical target naming after cutover should become explicit:
 - or an equivalent clearly named native workspace assembly command
 
 The important requirement is that native assembly semantics become workspace assembly, not in-place mutation of `generated/`.
+
+Repository UX should also gain a simple status command, for example:
+
+```text
+make status
+
+Source roots:
+  topology/              - layer definitions
+  terraform-overrides/   - tracked exceptions
+  local/                 - operator inputs
+
+Workspaces:
+  .work/native/          - native execution
+  dist/                  - dist execution
+```
+
+This is not a source-of-truth command.
+It is an operator onboarding and diagnostics helper.
 
 ### 7. Preflight Checks Validate Canonical Inputs, Not Workspace Residue
 
@@ -184,6 +214,43 @@ Ansible remains governed by ADR 0051:
 - playbooks and roles remain under `ansible/`
 - runtime inventory remains under `generated/ansible/runtime/production/`
 - ADR 0056 does not move Ansible native execution into `.work/native/`
+
+Rationale:
+- Ansible does not currently use the same in-place mutable execution-root pattern as Terraform and bootstrap
+- ADR 0056 addresses the specific inconsistency introduced by native execution mutating generated Terraform and bootstrap roots
+- any future move for Ansible should be a separate decision with its own trade-offs
+
+### 10. Terraform State Is Workspace-Local
+
+Terraform state under `.work/native/terraform/<target>/` is workspace-local.
+
+That means:
+- it is disposable
+- it may be removed by explicit native cleanup
+- it must not be treated as canonical state for the repository
+
+Operators must choose one of two models:
+- use a remote backend for persistent state, or
+- accept that cleaning `.work/native/` also removes local state
+
+ADR 0056 does not require remote state immediately, but it makes the workspace-local nature of native state explicit.
+
+### 11. Directory Role Matrix
+
+After ADR 0056, the intended directory roles are:
+
+| Directory | Tracked | Disposable | Purpose |
+|-----------|---------|------------|---------|
+| `topology/` | Yes | No | source of truth |
+| `local/` | No | No | operator inputs |
+| `terraform-overrides/` | Yes | No | tracked exceptions |
+| `generated/` | No | Yes | pure baseline |
+| `.work/native/` | No | Yes | native execution |
+| `dist/` | No | Yes | dist execution |
+
+Rule of thumb:
+- three persistent roots: `topology/`, `local/`, `terraform-overrides/`
+- three disposable roots: `generated/`, `.work/native/`, `dist/`
 
 ## Consequences
 

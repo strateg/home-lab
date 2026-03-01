@@ -65,6 +65,19 @@ Compatibility note:
 - the target behavior must still become native workspace assembly
 - after cutover, a clearer name such as `make assemble-native` should be preferred
 
+## Phase 2.5: Terraform State Strategy
+
+Before the native cutover is considered complete, decide how native Terraform state is handled:
+- configure a remote backend, or
+- explicitly accept workspace-local state under `.work/native/terraform/<target>/`
+
+This decision must be reflected in:
+- native operator docs
+- cleanup commands
+- rollback guidance
+
+If remote backend setup is required for the environment, complete it before relying on `.work/native/` as the main operator path.
+
 ## Phase 3: Switch Native Deploy Paths
 
 Update native deploy commands to use `.work/native/`:
@@ -73,6 +86,20 @@ Update native deploy commands to use `.work/native/`:
 - bootstrap helper flows that need execution-ready files
 
 Native commands must stop reading execution copies from `generated/`.
+
+Target operator behavior after cutover:
+- `make generate` performs generation plus native assembly
+- `make assemble-native` becomes the explicit native workspace assembly command
+- `make materialize-native-inputs` may remain temporarily as a compatibility alias only
+
+## Phase 3.5: Update CI And Operator Diagnostics
+
+Update automation and helper commands to reflect the new native workspace:
+- CI checks that reason about native execution
+- parity checks, if they inspect native paths directly
+- operator diagnostics such as `make status`
+
+The intent is that `.work/native/` becomes visible as an execution workspace rather than an implicit internal detail.
 
 ## Phase 4: Update Docs And Examples
 
@@ -131,3 +158,5 @@ ADR 0056 is complete when:
 2. `generated/` contains no native execution copies
 3. `dist` behavior remains unchanged
 4. docs consistently describe the new workspace model
+5. native state handling is explicit: remote backend or accepted workspace-local state
+6. operator UX reflects the new contract, including `generate -> assemble-native`
