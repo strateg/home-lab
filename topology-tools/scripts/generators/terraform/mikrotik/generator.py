@@ -559,8 +559,9 @@ tailscale_authkey = \"\"  # From Tailscale admin console
         print(f"\nWARN  Prerequisites:")
         print("  1. Generate or review generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc")
         print("  2. Import the bootstrap script on MikroTik and replace the placeholder password")
-        print("  3. Copy terraform.tfvars.example to terraform.tfvars")
-        print("  4. Edit terraform.tfvars with your credentials")
+        print("  3. Copy terraform.tfvars.example to local/terraform/mikrotik/terraform.tfvars")
+        print("  4. Edit local/terraform/mikrotik/terraform.tfvars with your credentials")
+        print("  5. Run: cd deploy && make materialize-native-inputs")
 
         print(f"\nNext steps:")
         print(f"  1. cd {self.output_dir}")

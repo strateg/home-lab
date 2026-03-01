@@ -37,9 +37,10 @@ def main() -> int:
         print(f"{label:24} {path}")
     print()
     print("Next steps:")
-    print("  1. Copy answer.toml.example to answer.toml and set a real SHA-512 root password hash")
-    print("  2. Run create-uefi-autoinstall-proxmox-usb.sh with a Proxmox ISO and target USB device")
-    print("  3. After installation, use the packaged post-install scripts on the host")
+    print("  1. Create local/bootstrap/srv-gamayun/answer.override.toml with a real SHA-512 root password hash")
+    print("  2. Run: cd deploy && make materialize-native-inputs")
+    print("  3. Run create-uefi-autoinstall-proxmox-usb.sh with a Proxmox ISO and target USB device")
+    print("  4. After installation, use the packaged post-install scripts on the host")
     return 0
 
 

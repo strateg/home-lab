@@ -1,6 +1,9 @@
 !**/vault.yml.example
 !*.pub
 !*.tfvars.example
+!terraform-overrides/**/*.tf
+!terraform-overrides/**/*.tf.json
+!terraform-overrides/**/README.md
 !.gitkeep
 !/tmp/.gitkeep
 # !example_override.tf
@@ -139,6 +142,7 @@ credentials.json
 dist/
 ehthumbs.db
 generated/
+local/
 id_*
 inventory/*/ec2.ini
 inventory/*/ec2.py

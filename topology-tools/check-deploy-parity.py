@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from utils.package_policy import is_local_secret_path
+from utils.terraform_overrides import override_dir
 
 REPO_ROOT = Path(__file__).parent.parent
 DEFAULT_DIST = REPO_ROOT / "dist"
@@ -85,6 +86,27 @@ def check_ansible_cfg(package_root: Path) -> list[str]:
     return errors
 
 
+def compare_override_files(label: str, override_root: Path, package_root: Path) -> list[str]:
+    """Ensure tracked override files are present in the assembled dist package."""
+    if not override_root.exists():
+        return []
+
+    errors: list[str] = []
+    for path in sorted(override_root.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.name == "README.md":
+            continue
+        rel = path.relative_to(override_root)
+        target = package_root / rel
+        if not target.exists():
+            errors.append(f"{label}: missing override file in dist: {rel.as_posix()}")
+            continue
+        if sha256(path) != sha256(target):
+            errors.append(f"{label}: override content mismatch for {rel.as_posix()}")
+    return errors
+
+
 def check_parity(dist_root: Path, verbose: bool) -> int:
     """Run parity assertions for dist execution roots."""
     errors: list[str] = []
@@ -103,6 +125,9 @@ def check_parity(dist_root: Path, verbose: bool) -> int:
                 ignored_dist={"manifest.json"},
             )
         )
+        target = package_id.split("/")[-1]
+        override_root = override_dir(target)
+        errors.extend(compare_override_files(f"{package_id} overrides", override_root, package_root))
 
     ansible_package_root = dist_root / "control" / "ansible"
     errors.extend(

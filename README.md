@@ -103,8 +103,10 @@ home-lab/
 1. **Создание загрузочного USB**
    ```cmd
    python topology-tools\generate-proxmox-bootstrap.py
-   cd generated\bootstrap\srv-gamayun
-   copy answer.toml.example answer.toml
+   mkdir local\bootstrap\srv-gamayun
+   notepad local\bootstrap\srv-gamayun\answer.override.toml
+   cd deploy && make materialize-native-inputs
+   cd ..\generated\bootstrap\srv-gamayun
    create-uefi-autoinstall-proxmox-usb.sh C:\path\to\proxmox-ve.iso answer.toml \\.\PhysicalDriveN
    ```
 
@@ -247,17 +249,23 @@ make generate
 make assemble-dist
 make validate-dist
 make check-parity
+make check-native-ready
 make check-dist-ready
 make materialize-dist-inputs
+make clean-generated-managed
 ```
 
 Что это делает:
-- `make generate` обновляет generated outputs и assembled Ansible runtime
+- `make generate` обновляет generated outputs, assembled Ansible runtime и materialize-ит native local inputs из `local/`
 - `make assemble-dist` собирает deploy-ready packages в `dist/`
 - `make validate-dist` проверяет manifests, release-safe policy и доступные внешние validators
 - `make check-parity` сравнивает `native` и `dist` execution roots для Terraform и Ansible
+- `make check-native-ready` проверяет canonical local inputs для native execution
 - `make check-dist-ready` проверяет, что для `dist` execution материализованы package-local local inputs
-- `make materialize-dist-inputs` копирует локальные `tfvars` и vault inputs из native roots в `dist/`, если они уже существуют
+- `make materialize-native-inputs` копирует canonical local inputs из `local/` в native execution roots
+- `make materialize-dist-inputs` копирует canonical local inputs из `local/` и Ansible vault inputs из `ansible/` в `dist/`
+- `make clean-generated-managed` очищает reproducible managed roots в `generated/`, не трогая `local/`
+- `terraform-overrides/` содержит tracked additive Terraform exceptions поверх generated baseline
 - `dist/control/ansible` требует локальные `.vault_pass` и `group_vars/all/vault.yml`, но не тащит legacy `group_vars/all/vars.yml`
 
 ### Deploy Modes
@@ -300,6 +308,8 @@ make plan-dist
 ```
 
 Примечание:
+- Terraform local inputs должны жить в `local/terraform/**`, затем materialize-иться в execution roots
+- Proxmox bootstrap override должен жить в `local/bootstrap/srv-gamayun/answer.override.toml`
 - bootstrap packages в `dist/` теперь перечисляются явно через manifests
 - `generated/bootstrap/rtr-mikrotik-chateau` и `generated/bootstrap/srv-gamayun` уже materialize canonical bootstrap payloads
 - если canonical generated bootstrap source ещё не готов, пакет остаётся видимым с `status=skipped`

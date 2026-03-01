@@ -141,8 +141,10 @@ cd deploy && make deploy-all
 make assemble-dist
 make validate-dist
 make check-parity
+make check-native-ready
 make check-dist-ready
 make materialize-dist-inputs
+make clean-generated-managed
 
 # Optional dist-first execution mode
 make plan-dist
@@ -157,7 +159,9 @@ make configure        # Phase 3: Services
 make test             # Phase 4: Verify
 ```
 
-`native` remains the default rollback path. `dist` execution is opt-in and runs only from `dist/control/**` package roots with manifest-driven local-input checks. `make materialize-dist-inputs` can copy already-existing local inputs from native roots into `dist/`.
+`native` remains the default rollback path. `dist` execution is opt-in and runs only from `dist/control/**` package roots with manifest-driven local-input checks. `make materialize-native-inputs` materializes canonical `local/` inputs into native execution roots, and `make materialize-dist-inputs` copies those same canonical local inputs into `dist/`.
+
+Terraform also has a tracked exception layer under `terraform-overrides/`. Those files are additive reviewable overrides, not local inputs and not generated baseline.
 
 ---
 

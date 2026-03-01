@@ -91,8 +91,9 @@ def main():
     print("Next steps:")
     print("  1. Import or deploy the generated init-terraform.rsc")
     print("  2. Replace placeholder password after bootstrap or before import")
-    print("  3. Copy terraform.tfvars.example to generated/terraform/mikrotik/terraform.tfvars")
-    print("  4. Or manually: ssh admin@{} < {}".format(result["router_ip"], result["bootstrap_script"]))
+    print("  3. Copy terraform.tfvars.example to local/terraform/mikrotik/terraform.tfvars")
+    print("  4. Run: cd deploy && make materialize-native-inputs")
+    print("  5. Or manually: ssh admin@{} < {}".format(result["router_ip"], result["bootstrap_script"]))
     print()
 
 

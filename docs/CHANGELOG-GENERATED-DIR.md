@@ -283,7 +283,7 @@ Files in `generated/` directory are automatically regenerated:
 
 ```bash
 # 1. Clean test
-rm -rf generated
+python3 topology-tools/clean-generated.py
 python3 topology-tools/regenerate-all.py
 
 # Result:

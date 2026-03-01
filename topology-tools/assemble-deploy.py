@@ -10,6 +10,7 @@ from pathlib import Path
 
 from utils.package_manifest import PackageManifest, write_json_manifest, write_package_manifest
 from utils.package_policy import LOCAL_SECRET_PATH_PATTERNS, is_local_secret_path, validate_release_safe_tree
+from utils.terraform_overrides import apply_overrides, override_source_roots
 
 REPO_ROOT = Path(__file__).parent.parent
 DEFAULT_ENV = "production"
@@ -214,11 +215,19 @@ def assemble_terraform_package(package_id: str, source_dir: Path, dist_root: Pat
     package_dir = dist_root / Path(package_id)
     package_dir.mkdir(parents=True, exist_ok=True)
     included_paths, excluded_paths = copy_tree_filtered(source_dir, package_dir, REPO_ROOT)
+    target = package_id.split("/")[-1]
+    override_report = apply_overrides(target, package_dir)
+    if override_report.errors:
+        raise ValueError("; ".join(override_report.errors))
+
+    override_roots = override_source_roots(target)
+    for source, _destination in override_report.copied:
+        included_paths.append(relpath(source, REPO_ROOT))
 
     manifest = PackageManifest(
         package_id=package_id,
         package_class="local-input-required",
-        source_roots=[relpath(source_dir, REPO_ROOT)],
+        source_roots=[relpath(source_dir, REPO_ROOT), *override_roots],
         included_paths=sorted(included_paths),
         excluded_paths=sorted(set(excluded_paths)),
         required_local_inputs=[

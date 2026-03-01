@@ -52,12 +52,20 @@ if [ "$DEPLOY_MODE" = "dist" ]; then
         echo "   Assemble packages first: cd deploy && make assemble-dist"
         exit 1
     fi
+else
+    python3 "$PROJECT_DIR/topology-tools/assemble-terraform-overrides.py" --target proxmox --quiet
+    python3 "$PROJECT_DIR/topology-tools/materialize-native-inputs.py" --quiet
 fi
 
 if [ ! -f "$TERRAFORM_DIR/terraform.tfvars" ]; then
     echo -e "${RED}❌ terraform.tfvars not found!${NC}"
-    echo "   Copy terraform.tfvars.example and configure it:"
-    echo "   cp $TERRAFORM_DIR/terraform.tfvars.example $TERRAFORM_DIR/terraform.tfvars"
+    if [ "$DEPLOY_MODE" = "dist" ]; then
+        echo "   Create local/terraform/proxmox/terraform.tfvars and run:"
+        echo "   cd deploy && make materialize-dist-inputs"
+    else
+        echo "   Create local/terraform/proxmox/terraform.tfvars and run:"
+        echo "   cd deploy && make materialize-native-inputs"
+    fi
     exit 1
 fi
 

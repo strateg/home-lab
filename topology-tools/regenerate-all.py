@@ -4,13 +4,15 @@ Regenerate ALL files from topology.yaml (v4 layered)
 
 This script runs all generators in the correct order:
 1. Validate topology
-2. Generate Terraform (Proxmox)
-3. Generate Terraform (MikroTik)
-4. Generate bootstrap packages
-5. Generate Ansible inventory
-6. Assemble Ansible runtime inventory
-7. Generate documentation
-8. Validate Mermaid rendering (optional)
+2. Clean managed generated roots
+3. Generate Terraform (Proxmox)
+4. Generate Terraform (MikroTik)
+5. Generate bootstrap packages
+6. Generate Ansible inventory
+7. Assemble Ansible runtime inventory
+8. Generate documentation
+9. Materialize native local inputs
+10. Validate Mermaid rendering (optional)
 
 Usage:
     python3 topology-tools/regenerate-all.py [--topology topology.yaml]
@@ -133,6 +135,13 @@ class RegenerateAll:
                 print(f"WARN  {warning}")
                 self.errors.append(warning)
 
+    def clean_generated_roots(self) -> bool:
+        """Clean canonical generated roots and safe scratch leftovers before regeneration."""
+        return self.run_script(
+            "clean-generated.py",
+            "Cleaning managed generated roots",
+        )
+
     def run_all(self) -> bool:
         """Run all generators"""
         self.print_header("REGEN Regenerate All from topology.yaml (v4)")
@@ -151,7 +160,7 @@ class RegenerateAll:
                     print("CACHE No existing topology cache to clear")
             except OSError as e:
                 print(f"WARN  Failed to clear topology cache: {e}")
-        total_steps = 8 if self.validate_mermaid else 7
+        total_steps = 10 if self.validate_mermaid else 9
 
         self.print_header(f"Step 1/{total_steps}: Validate Topology")
         validate_args = ["--topology", self.topology_path]
@@ -165,7 +174,17 @@ class RegenerateAll:
         ):
             if self.fail_on_validation:
                 print("ERROR Validation failed, stopping due to fail-on-validation policy.")
-                self.print_summary(False, False, False, False, not self.validate_mermaid)
+                self.print_summary(
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    not self.validate_mermaid,
+                )
                 return False
             print("WARN  Validation failed, but continuing with generation...")
             print("   (Fix validation errors to ensure correct output)\n")
@@ -180,21 +199,24 @@ class RegenerateAll:
                 print(f"WARN  {warning}\n")
                 self.errors.append(warning)
 
-        self.print_header(f"Step 2/{total_steps}: Generate Terraform (Proxmox)")
+        self.print_header(f"Step 2/{total_steps}: Clean Generated Roots")
+        success_cleanup = self.clean_generated_roots()
+
+        self.print_header(f"Step 3/{total_steps}: Generate Terraform (Proxmox)")
         success_terraform = self.run_script(
             "generate-terraform-proxmox.py",
             "Generating Proxmox Terraform configuration",
             ["--topology", self.topology_path],
         )
 
-        self.print_header(f"Step 3/{total_steps}: Generate Terraform (MikroTik)")
+        self.print_header(f"Step 4/{total_steps}: Generate Terraform (MikroTik)")
         success_mikrotik = self.run_script(
             "generate-terraform-mikrotik.py",
             "Generating MikroTik Terraform configuration",
             ["--topology", self.topology_path],
         )
 
-        self.print_header(f"Step 4/{total_steps}: Generate Bootstrap Packages")
+        self.print_header(f"Step 5/{total_steps}: Generate Bootstrap Packages")
         success_bootstrap_mikrotik = self.run_script(
             "generate-mikrotik-bootstrap.py",
             "Generating MikroTik bootstrap package",
@@ -212,20 +234,20 @@ class RegenerateAll:
         )
         success_bootstrap = success_bootstrap_mikrotik and success_bootstrap_proxmox and success_bootstrap_orangepi5
 
-        self.print_header(f"Step 5/{total_steps}: Generate Ansible Inventory")
+        self.print_header(f"Step 6/{total_steps}: Generate Ansible Inventory")
         success_ansible = self.run_script(
             "generate-ansible-inventory.py",
             "Generating Ansible inventory",
             ["--topology", self.topology_path],
         )
 
-        self.print_header(f"Step 6/{total_steps}: Assemble Ansible Runtime Inventory")
+        self.print_header(f"Step 7/{total_steps}: Assemble Ansible Runtime Inventory")
         success_ansible_runtime = self.run_script(
             "assemble-ansible-runtime.py",
             "Assembling Ansible runtime inventory",
         )
 
-        self.print_header(f"Step 7/{total_steps}: Generate Documentation")
+        self.print_header(f"Step 8/{total_steps}: Generate Documentation")
         self.cleanup_legacy_docs_outputs()
         success_docs = self.run_script(
             "generate-docs.py",
@@ -233,9 +255,15 @@ class RegenerateAll:
             ["--topology", self.topology_path],
         )
 
+        self.print_header(f"Step 9/{total_steps}: Materialize Native Local Inputs")
+        success_native_inputs = self.run_script(
+            "materialize-native-inputs.py",
+            "Materializing native local inputs",
+        )
+
         success_mermaid = True
         if self.validate_mermaid:
-            self.print_header(f"Step 8/{total_steps}: Validate Mermaid Rendering")
+            self.print_header(f"Step 10/{total_steps}: Validate Mermaid Rendering")
             success_mermaid = self.run_script(
                 "validate-mermaid-render.py",
                 "Validating Mermaid renderability",
@@ -243,33 +271,39 @@ class RegenerateAll:
             )
 
         self.print_summary(
+            success_cleanup,
             success_terraform,
             success_mikrotik,
             success_bootstrap,
             success_ansible,
             success_ansible_runtime,
             success_docs,
+            success_native_inputs,
             success_mermaid,
         )
 
         return (
-            success_terraform
+            success_cleanup
+            and success_terraform
             and success_mikrotik
             and success_bootstrap
             and success_ansible
             and success_ansible_runtime
             and success_docs
+            and success_native_inputs
             and success_mermaid
         )
 
     def print_summary(
         self,
+        success_cleanup: bool,
         success_terraform: bool,
         success_mikrotik: bool,
         success_bootstrap: bool,
         success_ansible: bool,
         success_ansible_runtime: bool,
         success_docs: bool,
+        success_native_inputs: bool,
         success_mermaid: bool,
     ):
         """Print final summary"""
@@ -279,6 +313,9 @@ class RegenerateAll:
         self.print_header("SUMMARY Summary")
 
         print("Results:")
+        print(
+            f"  {'OK' if success_cleanup else 'ERROR'} Cleanup:              {'Success' if success_cleanup else 'Failed'}"
+        )
         print(
             f"  {'OK' if success_terraform else 'ERROR'} Terraform (Proxmox):  {'Success' if success_terraform else 'Failed'}"
         )
@@ -296,6 +333,9 @@ class RegenerateAll:
         )
         print(f"  {'OK' if success_docs else 'ERROR'} Documentation:        {'Success' if success_docs else 'Failed'}")
         print(
+            f"  {'OK' if success_native_inputs else 'ERROR'} Native Inputs:         {'Success' if success_native_inputs else 'Failed'}"
+        )
+        print(
             f"  {'OK' if success_mermaid else 'ERROR'} Mermaid Render:      {'Success' if success_mermaid else 'Failed'}"
         )
 
@@ -310,12 +350,14 @@ class RegenerateAll:
         print("\n" + "=" * 70)
 
         all_success = (
-            success_terraform
+            success_cleanup
+            and success_terraform
             and success_mikrotik
             and success_bootstrap
             and success_ansible
             and success_ansible_runtime
             and success_docs
+            and success_native_inputs
             and success_mermaid
         )
         if all_success:
@@ -355,7 +397,7 @@ class RegenerateAll:
 
             print("\nGEN Next steps:")
             print("   1. Bootstrap MikroTik: import generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc")
-            print("   2. Configure terraform.tfvars files in both directories")
+            print("   2. Configure local/terraform and local/bootstrap overrides as needed")
             print("   3. Deploy using Makefile:")
             print("      cd deploy && make deploy-all")
             print("   Or deploy manually:")

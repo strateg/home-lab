@@ -32,7 +32,7 @@ endif
 
 .PHONY: all help validate generate plan apply deploy-all clean
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
-.PHONY: configure test bootstrap-info assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready materialize-dist-inputs
+.PHONY: configure test bootstrap-info assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides
 .PHONY: plan-dist plan-mikrotik-dist plan-proxmox-dist apply-mikrotik-dist apply-proxmox-dist configure-dist deploy-all-dist require-dist
 
 # Directories (relative to deploy/)
@@ -88,8 +88,12 @@ help:
 	@echo "║    make assemble-dist  - Assemble deploy-ready dist packages     ║"
 	@echo "║    make validate-dist  - Validate assembled dist packages        ║"
 	@echo "║    make check-parity   - Compare native and dist execution roots ║"
+	@echo "║    make check-native-ready - Check canonical local/ inputs       ║"
 	@echo "║    make check-dist-ready - Check local inputs for dist mode      ║"
-	@echo "║    make materialize-dist-inputs - Copy local inputs into dist    ║"
+	@echo "║    make materialize-native-inputs - Copy local/ into generated/  ║"
+	@echo "║    make materialize-dist-inputs - Copy local/ into dist/         ║"
+	@echo "║    make clean-generated-managed - Reset managed generated/ roots ║"
+	@echo "║    make assemble-terraform-overrides - Layer tracked .tf extras  ║"
 	@echo "║                                                                  ║"
 	@echo "║  Planning (Dry Run):                                             ║"
 	@echo "║    make plan           - Show all Terraform plans                ║"
@@ -119,7 +123,7 @@ validate:
 	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/validate-topology.py
 	@echo "$(GREEN)✓ Topology validation passed$(NC)"
 
-generate: generate-terraform generate-mikrotik generate-bootstrap generate-ansible assemble-ansible generate-docs
+generate: generate-terraform generate-mikrotik generate-bootstrap generate-ansible assemble-ansible generate-docs materialize-native-inputs
 	@echo "$(GREEN)✓ All configurations generated$(NC)"
 
 assemble-dist:
@@ -132,6 +136,14 @@ require-dist:
 		echo "$(RED)⚠️  dist/ is not assembled. Run 'make assemble-dist' first.$(NC)"; \
 		exit 1; \
 	fi
+
+assemble-terraform-overrides:
+	@echo "$(YELLOW)🧩 Assembling tracked Terraform overrides (ADR 0055)...$(NC)"
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-terraform-overrides.py
+
+clean-generated-managed:
+	@echo "$(YELLOW)🧹 Cleaning managed generated roots (ADR 0054)...$(NC)"
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/clean-generated.py
 
 generate-terraform:
 	@echo "$(YELLOW)📝 Generating Terraform (Proxmox)...$(NC)"
@@ -164,6 +176,17 @@ validate-dist: assemble-dist
 	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/validate-dist.py
 	@echo "$(GREEN)✓ Dist package validation passed$(NC)"
 
+check-native-ready:
+	@echo "$(YELLOW)🔐 Checking native execution readiness (ADR 0054)...$(NC)"
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-native-inputs.py control/terraform/mikrotik
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-native-inputs.py control/terraform/proxmox
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-native-inputs.py control/ansible
+	@echo "$(GREEN)✓ Native execution packages have required canonical local inputs$(NC)"
+
+materialize-native-inputs:
+	@echo "$(YELLOW)📥 Materializing native local inputs from local/ (ADR 0054)...$(NC)"
+	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/materialize-native-inputs.py
+
 check-parity: assemble-dist
 	@echo "$(YELLOW)⚖️  Checking native vs dist execution parity (ADR 0053)...$(NC)"
 	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-deploy-parity.py
@@ -177,7 +200,7 @@ check-dist-ready: require-dist
 	@echo "$(GREEN)✓ Dist execution packages have required local inputs$(NC)"
 
 materialize-dist-inputs: require-dist
-	@echo "$(YELLOW)📥 Materializing dist local inputs from native roots (ADR 0053)...$(NC)"
+	@echo "$(YELLOW)📥 Materializing dist local inputs from local/ and ansible/ (ADR 0054)...$(NC)"
 	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/materialize-dist-inputs.py
 
 # =============================================================================
@@ -191,11 +214,17 @@ plan-mikrotik:
 	@echo "$(YELLOW)🔍 Planning MikroTik changes ($(DEPLOY_MODE))...$(NC)"
 	@if [ "$(DEPLOY_MODE)" = "dist" ]; then \
 		cd $(TOPOLOGY_DIR) && $(PYTHON) $(DIST_PACKAGE_CHECKER) control/terraform/mikrotik; \
+	else \
+		cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-terraform-overrides.py --target mikrotik --quiet; \
 	fi
 	@if [ -f $(TF_MIKROTIK_EXEC_DIR)/terraform.tfvars ]; then \
 		cd $(TF_MIKROTIK_EXEC_DIR) && terraform init -upgrade && terraform plan; \
 	else \
-		echo "$(RED)⚠️  terraform.tfvars not found. Copy terraform.tfvars.example first.$(NC)"; \
+		if [ "$(DEPLOY_MODE)" = "dist" ]; then \
+			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/mikrotik/terraform.tfvars and run 'make materialize-dist-inputs'.$(NC)"; \
+		else \
+			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/mikrotik/terraform.tfvars and run 'make materialize-native-inputs'.$(NC)"; \
+		fi; \
 		exit 1; \
 	fi
 
@@ -203,11 +232,17 @@ plan-proxmox:
 	@echo "$(YELLOW)🔍 Planning Proxmox changes ($(DEPLOY_MODE))...$(NC)"
 	@if [ "$(DEPLOY_MODE)" = "dist" ]; then \
 		cd $(TOPOLOGY_DIR) && $(PYTHON) $(DIST_PACKAGE_CHECKER) control/terraform/proxmox; \
+	else \
+		cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-terraform-overrides.py --target proxmox --quiet; \
 	fi
 	@if [ -f $(TF_PROXMOX_EXEC_DIR)/terraform.tfvars ]; then \
 		cd $(TF_PROXMOX_EXEC_DIR) && terraform init -upgrade && terraform plan; \
 	else \
-		echo "$(RED)⚠️  terraform.tfvars not found. Copy terraform.tfvars.example first.$(NC)"; \
+		if [ "$(DEPLOY_MODE)" = "dist" ]; then \
+			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/proxmox/terraform.tfvars and run 'make materialize-dist-inputs'.$(NC)"; \
+		else \
+			echo "$(RED)⚠️  terraform.tfvars not found. Create local/terraform/proxmox/terraform.tfvars and run 'make materialize-native-inputs'.$(NC)"; \
+		fi; \
 		exit 1; \
 	fi
 
@@ -313,7 +348,8 @@ bootstrap-info:
 	@echo "║                                                                  ║"
 	@echo "║  2. Proxmox Bootstrap:                                           ║"
 	@echo "║     - Use: generated/bootstrap/srv-gamayun/                      ║"
-	@echo "║     - Copy answer.toml.example to answer.toml                    ║"
+	@echo "║     - Create local/bootstrap/srv-gamayun/answer.override.toml    ║"
+	@echo "║     - Run: make materialize-native-inputs                        ║"
 	@echo "║     - Boot from USB, auto-install completes                      ║"
 	@echo "║     - Run post-install scripts                                   ║"
 	@echo "║                                                                  ║"

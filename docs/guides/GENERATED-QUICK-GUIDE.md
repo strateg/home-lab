@@ -288,8 +288,8 @@ python3 topology-tools/validate-topology.py
 ### "Файлы в неправильной структуре"
 
 ```bash
-# Удали generated/ и регенерируй
-rm -rf generated
+# Очисти только managed generated roots и регенерируй
+python3 topology-tools/clean-generated.py
 python3 topology-tools/regenerate-all.py
 ```
 

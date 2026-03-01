@@ -85,12 +85,16 @@ Generate the canonical bootstrap package first:
 # Generate package under generated/bootstrap/srv-gamayun/
 python3 topology-tools/generate-proxmox-bootstrap.py
 
-# Materialize local answer.toml from the generated example
-cd generated/bootstrap/srv-gamayun
-cp answer.toml.example answer.toml
+# Materialize local answer.toml from the generated baseline plus local override
+mkdir -p local/bootstrap/srv-gamayun
+cat > local/bootstrap/srv-gamayun/answer.override.toml <<'EOF'
+[global]
+root_password = "<SHA512_PASSWORD_HASH>"
+EOF
+cd deploy && make materialize-native-inputs && cd ..
 
 # Review the topology-derived example
-cat answer.toml.example
+cat generated/bootstrap/srv-gamayun/answer.toml.example
 ```
 
 ### 3. Create Bootable USB
@@ -197,8 +201,10 @@ This uses management network IP allocation from `topology.yaml`.
 # Generate new password hash
 openssl passwd -6 "YourStrongPassword"
 
-# Edit answer.toml and replace root_password value
-vim generated/bootstrap/srv-gamayun/answer.toml
+# Update the canonical local override, then rematerialize answer.toml
+mkdir -p local/bootstrap/srv-gamayun
+vim local/bootstrap/srv-gamayun/answer.override.toml
+cd deploy && make materialize-native-inputs && cd ..
 ```
 
 ---
@@ -322,9 +328,14 @@ AUTO_CONFIRM=1 sudo ./create-uefi-autoinstall-proxmox-usb.sh \
 If you don't want auto-generation from topology:
 
 ```bash
-# Create answer.toml manually from the generated example
-cp generated/bootstrap/srv-gamayun/answer.toml.example generated/bootstrap/srv-gamayun/answer.toml
-vim generated/bootstrap/srv-gamayun/answer.toml
+# Create a narrow local override, then materialize answer.toml
+mkdir -p local/bootstrap/srv-gamayun
+cat > local/bootstrap/srv-gamayun/answer.override.toml <<'EOF'
+[global]
+root_password = "<SHA512_PASSWORD_HASH>"
+EOF
+cd deploy && make materialize-native-inputs
+cd ..
 
 # Create USB without topology regeneration
 sudo ./create-uefi-autoinstall-proxmox-usb.sh \
@@ -344,7 +355,9 @@ This USB creation process is part of the complete infrastructure workflow:
 ```
 topology.yaml  →  generate-proxmox-bootstrap.py  →  generated/bootstrap/srv-gamayun/answer.toml.example
                                                         ↓
-    materialize local answer.toml + create-uefi-autoinstall-proxmox-usb.sh  ←  Proxmox ISO
+ local/bootstrap/srv-gamayun/answer.override.toml + materialize-native-inputs
+                                                        ↓
+    generated/bootstrap/srv-gamayun/answer.toml + create-uefi-autoinstall-proxmox-usb.sh  ←  Proxmox ISO
                         ↓
                   Bootable USB
                         ↓
@@ -422,12 +435,16 @@ After successful Proxmox installation:
 ### answer.toml Handling
 
 ```bash
-# Materialized answer.toml should remain local-only
-cp generated/bootstrap/srv-gamayun/answer.toml.example generated/bootstrap/srv-gamayun/answer.toml
-git check-ignore -v generated/bootstrap/srv-gamayun/answer.toml
+# Local override remains local-only
+mkdir -p local/bootstrap/srv-gamayun
+cat > local/bootstrap/srv-gamayun/answer.override.toml <<'EOF'
+[global]
+root_password = "<SHA512_PASSWORD_HASH>"
+EOF
+git check-ignore -v local/bootstrap/srv-gamayun/answer.override.toml
 ```
 
-**Note**: `answer.toml.example` is release-safe and can stay tracked. Materialized `answer.toml` should remain local-only.
+**Note**: `answer.toml.example` is release-safe and can stay tracked. Materialized `answer.toml` is generated from the release-safe baseline plus a local-only override and should not be edited as the canonical source.
 
 ---
 

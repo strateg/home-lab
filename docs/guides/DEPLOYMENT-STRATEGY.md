@@ -241,8 +241,10 @@ make generate           # Generate all configs
 make assemble-dist      # Assemble deploy-ready dist packages
 make validate-dist      # Validate manifests and available external tools
 make check-parity       # Compare native and dist execution roots
+make check-native-ready # Check canonical local inputs for native execution
 make check-dist-ready   # Check local inputs required for dist execution
-make materialize-dist-inputs  # Copy existing native local inputs into dist
+make materialize-native-inputs  # Copy canonical local/ inputs into generated/
+make materialize-dist-inputs    # Copy canonical local/ inputs into dist
 
 # Planning (dry-run)
 make plan-mikrotik      # Show MikroTik changes
@@ -297,6 +299,12 @@ Dist mode expects local inputs to be materialized in package roots, for example:
 - `dist/control/ansible/.vault_pass`
 - `dist/control/ansible/group_vars/all/vault.yml`
 
+Terraform execution may also include tracked additive overrides from:
+- `terraform-overrides/mikrotik/`
+- `terraform-overrides/proxmox/`
+
+Those files are reviewable exceptions layered on top of generated baseline. They are not a place for `terraform.tfvars`, state, or secrets.
+
 ### Side-by-Side Validation
 
 Recommended operator workflow before a real `dist` apply:
@@ -310,6 +318,7 @@ make check-parity
 make materialize-dist-inputs
 
 # Native baseline
+make check-native-ready
 make plan
 
 # Dist preflight and dry-run
@@ -333,7 +342,7 @@ make assemble-dist
 make validate-dist
 make check-parity
 
-# Copy any existing local inputs from native roots into dist
+# Copy canonical local inputs into dist package roots
 make materialize-dist-inputs
 
 # Verify the dist packages are actually runnable on this machine
@@ -352,7 +361,8 @@ make deploy-all-dist
 
 Notes:
 - `make materialize-dist-inputs` only copies already existing local files; it does not invent secrets or `tfvars`
-- if `make check-dist-ready` still fails after materialization, create the missing files directly in `dist/control/**` or in the native roots and repeat materialization
+- if `make check-dist-ready` still fails after materialization, create the missing files in `local/terraform/**` or `local/bootstrap/**`, then repeat materialization
+- tracked Terraform exceptions belong in `terraform-overrides/**`, not in `generated/terraform/**`
 - rollback remains explicit: return to `make plan`, `make apply-*`, and `make configure` in `native` mode
 
 ### Utilities
@@ -370,7 +380,7 @@ make clean              # Clean generated files
 ### terraform.tfvars (MikroTik)
 
 ```hcl
-# generated/terraform/mikrotik/terraform.tfvars
+# local/terraform/mikrotik/terraform.tfvars
 mikrotik_host     = "https://192.168.88.1:8443"
 mikrotik_username = "terraform"
 mikrotik_password = "secure_password"
@@ -387,7 +397,7 @@ tailscale_authkey = "tskey-..."
 ### terraform.tfvars (Proxmox)
 
 ```hcl
-# generated/terraform/proxmox/terraform.tfvars
+# local/terraform/proxmox/terraform.tfvars
 proxmox_api_url      = "https://192.168.88.2:8006/api2/json"
 proxmox_api_token_id = "terraform@pam!terraform"
 proxmox_api_token    = "secret_token"
