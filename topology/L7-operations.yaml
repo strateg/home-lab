@@ -481,6 +481,7 @@ security:
     purpose: Primary administration key
     authorized_for:
     - device_ref: srv-gamayun
+    - device_ref: srv-orangepi5
     - lxc_ref: lxc-postgresql
     - lxc_ref: lxc-redis
     created: '2025-10-06'
@@ -492,6 +493,7 @@ security:
     purpose: Ansible automation
     authorized_for:
     - device_ref: srv-gamayun
+    - device_ref: srv-orangepi5
     created: '2025-10-06'
     expires: null
   - id: ssh-backup
