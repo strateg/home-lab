@@ -84,6 +84,11 @@ That means ADR 0052 does not reopen:
 - secret placement
 - generated vs manual inventory ownership
 
+Package-local `group_vars` at the Ansible package root must stay minimal:
+- runtime defaults and operator overrides come from the assembled runtime inventory
+- local secret scaffolding such as `vault.yml.example` may be included
+- legacy `group_vars/all/vars.yml` style deploy defaults must not be used to create a second competing configuration layer
+
 Those questions are already decided by ADR 0051.
 
 ### 5. Package Classes Are Explicit

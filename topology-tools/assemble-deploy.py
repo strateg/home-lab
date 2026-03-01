@@ -141,7 +141,7 @@ def assemble_ansible_package(dist_root: Path) -> PackageManifest:
     excluded_paths: list[str] = []
     excluded_names = {"README.md"}
 
-    for directory_name in ["playbooks", "roles", "group_vars"]:
+    for directory_name in ["playbooks", "roles"]:
         source_dir = ANSIBLE_SOURCE / directory_name
         if source_dir.exists():
             included, excluded = copy_tree_filtered(
@@ -152,6 +152,17 @@ def assemble_ansible_package(dist_root: Path) -> PackageManifest:
             )
             included_paths.extend(included)
             excluded_paths.extend(excluded)
+
+    vault_example = ANSIBLE_SOURCE / "group_vars" / "all" / "vault.yml.example"
+    if vault_example.exists():
+        target = package_dir / "group_vars" / "all" / "vault.yml.example"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(vault_example, target)
+        included_paths.append(relpath(vault_example, REPO_ROOT))
+
+    legacy_vars = ANSIBLE_SOURCE / "group_vars" / "all" / "vars.yml"
+    if legacy_vars.exists():
+        excluded_paths.append(relpath(legacy_vars, REPO_ROOT))
 
     requirements_file = ANSIBLE_SOURCE / "requirements.yml"
     if requirements_file.exists():
@@ -182,6 +193,7 @@ def assemble_ansible_package(dist_root: Path) -> PackageManifest:
         excluded_paths=sorted(set(excluded_paths)),
         required_local_inputs=[
             ".vault_pass",
+            "group_vars/all/vault.yml",
         ],
         validation_commands=[
             "ansible-inventory -i inventory --list",

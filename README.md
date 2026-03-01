@@ -252,6 +252,7 @@ make validate-dist
 - `make generate` обновляет generated outputs и assembled Ansible runtime
 - `make assemble-dist` собирает deploy-ready packages в `dist/`
 - `make validate-dist` проверяет manifests, release-safe policy и доступные внешние validators
+- `dist/control/ansible` требует локальные `.vault_pass` и `group_vars/all/vault.yml`, но не тащит legacy `group_vars/all/vars.yml`
 
 Примечание:
 - bootstrap packages в `dist/` теперь перечисляются явно через manifests

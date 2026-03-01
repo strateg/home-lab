@@ -296,8 +296,11 @@ proxmox_api_token    = "secret_token"
 echo "your_vault_password" > ~/.vault_pass
 chmod 600 ~/.vault_pass
 
+# Materialize local vault file from the package scaffold
+cp dist/control/ansible/group_vars/all/vault.yml.example dist/control/ansible/group_vars/all/vault.yml
+
 # Encrypt sensitive variables
-ansible-vault encrypt ansible/group_vars/all/vault.yml
+ansible-vault encrypt dist/control/ansible/group_vars/all/vault.yml
 ```
 
 ---
