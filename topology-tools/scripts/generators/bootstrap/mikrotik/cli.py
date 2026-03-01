@@ -23,9 +23,7 @@ from .generator import MikrotikBootstrapGenerator
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate MikroTik bootstrap script from topology"
-    )
+    parser = argparse.ArgumentParser(description="Generate MikroTik bootstrap script from topology")
     parser.add_argument(
         "--topology",
         default="topology.yaml",
@@ -34,17 +32,12 @@ def main():
     parser.add_argument(
         "--output-dir",
         default=None,
-        help="Output directory (default: generated/bootstrap/mikrotik)",
+        help="Output directory (default: generated/bootstrap/rtr-mikrotik-chateau)",
     )
     parser.add_argument(
         "--password",
-        default=None,
-        help="Terraform user password (default: auto-generated)",
-    )
-    parser.add_argument(
-        "--show-password",
-        action="store_true",
-        help="Show generated password in output",
+        default="CHANGE_THIS_PASSWORD",
+        help="Terraform user password placeholder (default: CHANGE_THIS_PASSWORD)",
     )
 
     args = parser.parse_args()
@@ -87,23 +80,19 @@ def main():
     print("=" * 70)
     print()
     print(f"Bootstrap script: {result['bootstrap_script']}")
-    print(f"Terraform vars:   {result['terraform_vars']}")
+    print(f"TF vars example:  {result['terraform_vars_example']}")
     print()
     print(f"Router IP:        {result['router_ip']}")
     print(f"REST API URL:     {result['api_url']}")
     print(f"Terraform user:   {result['terraform_user']}")
-
-    if args.show_password:
-        print(f"Password:         {result['terraform_password']}")
-    else:
-        print("Password:         (hidden, see terraform.tfvars)")
+    print(f"Password value:   {result['terraform_password']}")
 
     print()
     print("Next steps:")
-    print("  1. Deploy bootstrap: python deploy-mikrotik-bootstrap.py")
-    print("  2. Or manually: ssh admin@{} < {}".format(
-        result['router_ip'], result['bootstrap_script']
-    ))
+    print("  1. Import or deploy the generated init-terraform.rsc")
+    print("  2. Replace placeholder password after bootstrap or before import")
+    print("  3. Copy terraform.tfvars.example to generated/terraform/mikrotik/terraform.tfvars")
+    print("  4. Or manually: ssh admin@{} < {}".format(result["router_ip"], result["bootstrap_script"]))
     print()
 
 

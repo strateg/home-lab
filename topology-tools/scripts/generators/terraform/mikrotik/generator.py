@@ -557,9 +557,10 @@ tailscale_authkey = \"\"  # From Tailscale admin console
         print(f"\nOK Output directory: {self.output_dir}")
 
         print(f"\nWARN  Prerequisites:")
-        print(f"  1. Enable REST API on MikroTik (see bootstrap/mikrotik/README.md)")
-        print(f"  2. Copy terraform.tfvars.example to terraform.tfvars")
-        print(f"  3. Edit terraform.tfvars with your credentials")
+        print("  1. Generate or review generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc")
+        print("  2. Import the bootstrap script on MikroTik and replace the placeholder password")
+        print("  3. Copy terraform.tfvars.example to terraform.tfvars")
+        print("  4. Edit terraform.tfvars with your credentials")
 
         print(f"\nNext steps:")
         print(f"  1. cd {self.output_dir}")

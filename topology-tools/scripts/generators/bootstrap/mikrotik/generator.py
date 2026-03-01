@@ -1,11 +1,5 @@
-"""
-MikroTik Bootstrap Script Generator
+"""Generate a release-safe MikroTik bootstrap package from topology."""
 
-Generates RouterOS bootstrap script from topology for Terraform automation.
-"""
-
-import secrets
-import string
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -17,6 +11,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 TOPOLOGY_TOOLS_DIR = SCRIPT_DIR.parent.parent.parent.parent
 TEMPLATES_DIR = TOPOLOGY_TOOLS_DIR / "templates" / "bootstrap" / "mikrotik"
 DEFAULT_OUTPUT_DIR = TOPOLOGY_TOOLS_DIR.parent / "generated" / "bootstrap" / "rtr-mikrotik-chateau"
+DEFAULT_TERRAFORM_PASSWORD_PLACEHOLDER = "CHANGE_THIS_PASSWORD"  # pragma: allowlist secret
 
 
 class MikrotikBootstrapGenerator:
@@ -26,11 +21,11 @@ class MikrotikBootstrapGenerator:
         self,
         topology: Dict[str, Any],
         output_dir: Optional[Path] = None,
-        terraform_password: Optional[str] = None,
+        terraform_password: str = DEFAULT_TERRAFORM_PASSWORD_PLACEHOLDER,
     ):
         self.topology = topology
         self.output_dir = Path(output_dir) if output_dir else DEFAULT_OUTPUT_DIR
-        self.terraform_password = terraform_password or self._generate_password()
+        self.terraform_password = terraform_password
 
         # Jinja2 environment
         self.env = Environment(
@@ -41,22 +36,6 @@ class MikrotikBootstrapGenerator:
 
         # Extract data from topology
         self._extract_config()
-
-    def _generate_password(self, length: int = 20) -> str:
-        """Generate a secure random password."""
-        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
-        # Ensure at least one of each required character type
-        password = [
-            secrets.choice(string.ascii_uppercase),
-            secrets.choice(string.ascii_lowercase),
-            secrets.choice(string.digits),
-            secrets.choice("!@#$%^&*"),
-        ]
-        # Fill the rest
-        password += [secrets.choice(alphabet) for _ in range(length - 4)]
-        # Shuffle
-        secrets.SystemRandom().shuffle(password)
-        return "".join(password)
 
     def _extract_config(self) -> None:
         """Extract configuration from topology."""
@@ -175,27 +154,29 @@ class MikrotikBootstrapGenerator:
         output_file = self.output_dir / "init-terraform.rsc"
         output_file.write_text(content)
 
-        # Generate terraform.tfvars
-        tfvars_content = self._generate_tfvars(context)
-        tfvars_file = self.output_dir / "terraform.tfvars"
+        # Generate release-safe terraform.tfvars example.
+        tfvars_content = self._generate_tfvars_example(context)
+        tfvars_file = self.output_dir / "terraform.tfvars.example"
         tfvars_file.write_text(tfvars_content)
 
         return {
             "bootstrap_script": str(output_file),
-            "terraform_vars": str(tfvars_file),
+            "terraform_vars_example": str(tfvars_file),
             "router_ip": self.router_ip,
             "api_url": f"https://{self.router_ip}:{context['api_port']}",
             "terraform_user": context["terraform_user"],
             "terraform_password": self.terraform_password,
         }
 
-    def _generate_tfvars(self, context: Dict[str, Any]) -> str:
-        """Generate terraform.tfvars file."""
-        return f'''# =============================================================================
-# MikroTik Terraform Variables
+    def _generate_tfvars_example(self, context: Dict[str, Any]) -> str:
+        """Generate a release-safe Terraform variables example file."""
+        return f"""# =============================================================================
+# MikroTik Terraform Variables Example
 # Generated from topology v{context["topology_version"]}
 # Generated at: {context["generation_timestamp"]}
 # =============================================================================
+# Copy this file to generated/terraform/mikrotik/terraform.tfvars and replace
+# placeholder values before running Terraform.
 
 mikrotik_host     = "https://{context["router_ip"]}:{context["api_port"]}"
 mikrotik_username = "{context["terraform_user"]}"
@@ -211,13 +192,13 @@ wireguard_peers = []
 # Container Configuration (optional)
 adguard_password  = ""
 tailscale_authkey = ""
-'''
+"""
 
 
 def generate_from_topology(
     topology: Dict[str, Any],
     output_dir: Optional[Path] = None,
-    terraform_password: Optional[str] = None,
+    terraform_password: str = DEFAULT_TERRAFORM_PASSWORD_PLACEHOLDER,
 ) -> Dict[str, Any]:
     """Convenience function to generate bootstrap script."""
     generator = MikrotikBootstrapGenerator(

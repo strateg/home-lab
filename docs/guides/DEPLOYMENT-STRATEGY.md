@@ -69,7 +69,7 @@ cd deploy && make bootstrap-info
 ```
 
 The bootstrap script shows:
-1. How to import `bootstrap/mikrotik/bootstrap.rsc`
+1. How to import `generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
 2. How to change the terraform password
 3. How to verify REST API access
 
