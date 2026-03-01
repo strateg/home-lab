@@ -1,52 +1,52 @@
-# ADR 0052: Build Pipeline and Deploy Packages After Ansible Stabilization
+# ADR 0052: Deploy Package Assembly Over Accepted Ansible Runtime
 
 - Status: Proposed
 - Date: 2026-03-01
 
 ## Context
 
-After ADR 0051, the repository is expected to have:
-- a stable Ansible runtime root
-- explicit ownership between generated inventory and manual overrides
-- tracked secret values removed from inventory source
-- a deterministic assembled Ansible runtime inventory
+ADR 0051 is now accepted and implemented. The repository already has:
+- a stable Ansible runtime root in `ansible/`
+- explicit ownership between topology-generated inventory and manual overrides
+- deterministic runtime inventory assembly under `generated/ansible/runtime/production/`
+- deployment entrypoints that use the assembled runtime inventory
 
-Only after that cleanup does it become safe to perform the broader repository restructuring that was previously attempted in one step.
+That changes the risk profile of the next migration step.
 
-The remaining problems are broader than Ansible:
-- manual source files are still scattered across top-level directories
-- deploy-time material is still not assembled explicitly
-- bootstrap, Terraform, and Ansible artifacts are still hard to inspect as one deploy workflow
-- CI has no clean notion of release-safe assembled packages
+The remaining problem is not Ansible runtime semantics anymore. The remaining problem is deploy assembly:
+- deploy inputs still live across several source roots
+- there is no explicit assembled `dist/` tree for operator-facing deployment use
+- Terraform, bootstrap, and Ansible outputs are still inspected through their native source/generation directories
+- CI does not yet have a precise release-safe artifact boundary
 
-The key lesson from the earlier combined approach is that packaging must be built on stable runtime contracts, not used to discover them mid-migration.
+The main lesson from the earlier combined design still holds: packaging must be built on top of stable runtime contracts, not used to discover them.
 
 ## Decision
 
 ### 1. ADR 0052 Depends On ADR 0051
 
-ADR 0052 must not be implemented until ADR 0051 is complete enough that:
+ADR 0052 builds on the accepted runtime contract from ADR 0051:
 - Ansible runtime inventory is already assembled deterministically
-- tracked inventory source is free of raw secrets
-- `deploy/` no longer depends on legacy manual inventory coupling
+- tracked inventory source is already separated from runtime output
+- `deploy/` already uses the runtime inventory contract from ADR 0051
 
-### 2. Manual Source Consolidates Under `src/`
+ADR 0052 must not reopen those decisions.
 
-Once the Ansible contract is clean, manual source can be moved safely:
+### 2. Current Source Roots Remain Canonical During ADR 0052
 
-```text
-src/
-├── ansible/
-├── bootstrap/
-├── configs/
-└── scripts/
-```
+ADR 0052 does not move manual source into `src/`.
 
-`src/` contains manual source only.
+The canonical source roots for this ADR remain the existing repository roots:
+- `ansible/`
+- `bootstrap/`
+- `configs/`
+- `manual-scripts/`
+- `scripts/`
+- `generated/`
 
-Generated topology output remains in `generated/`.
+`dist/` is introduced as assembled output only. It is not a new source-of-truth and it does not imply a source-layout migration.
 
-Assembled deploy-ready output is materialized in `dist/`.
+If a future repository cleanup still wants `src/`, it must be decided by a separate ADR after `dist/` assembly is proven stable.
 
 ### 3. `dist/` Uses Execution-Scope Packaging
 
@@ -66,7 +66,9 @@ dist/
 │       ├── roles/
 │       └── inventory/
 └── manifests/
-    └── targets/
+    ├── local-inputs.json
+    ├── release-safe.json
+    └── sources.json
 ```
 
 This keeps:
@@ -75,7 +77,7 @@ This keeps:
 
 ### 4. Ansible Packaging Consumes The Assembled Runtime Inventory From ADR 0051
 
-`dist/control/ansible/inventory/` must be assembled from the already-stabilized runtime inventory produced by ADR 0051, not from raw legacy inventory files.
+`dist/control/ansible/inventory/` must be copied from the already-stabilized runtime inventory produced by ADR 0051, not reassembled from raw inventory sources and not rebuilt via multi-`-i` layering during packaging.
 
 That means ADR 0052 does not reopen:
 - deep-merge semantics
@@ -84,35 +86,49 @@ That means ADR 0052 does not reopen:
 
 Those questions are already decided by ADR 0051.
 
-### 5. Secret-Local Artifacts Are Explicitly Excluded From Release-Safe Packages
+### 5. Package Classes Are Explicit
 
-The following are not release-safe:
+ADR 0052 defines two package classes:
+- `release-safe`
+- `local-input-required`
+
+`release-safe` means:
+- safe to publish in CI artifacts
+- contains no `local-secret` material as defined by ADR 0051
+- may contain templates, examples, manifests, and assembled public config
+
+`local-input-required` means:
+- usable for real deployment only after the operator provides local environment inputs
+- may reference required local files or values
+- must not embed those local inputs into a publishable artifact by default
+
+Examples of local inputs that are not release-safe:
 - `terraform.tfvars`
 - `.vault_pass`
 - private keys
 - production `answer.toml`
-- any generated file containing environment-specific secret values
+- any generated file containing environment-specific live secret values
 
-Release-safe bootstrap output may include templates or examples, but only if they are generated from scrubbed inputs and cannot accidentally embed live secret material.
+The package assembler must emit manifests that describe required local inputs instead of embedding them into release-safe output.
 
 ### 6. Build Pipeline Is Explicit
 
 The packaging pipeline becomes:
 
 ```text
-topology/ + src/
-      |
-      | [1] generate
-      v
- generated/
-      |
-      | [2] assemble-ansible-runtime
-      v
- generated/ansible/runtime/
-      |
-      | [3] assemble-deploy
-      v
- dist/
+topology/ + existing source roots
+          |
+          | [1] generate
+          v
+      generated/
+          |
+          | [2] assemble-ansible-runtime
+          v
+generated/ansible/runtime/
+          |
+          | [3] assemble-deploy
+          v
+        dist/
 ```
 
 Canonical commands remain under `deploy/Makefile` unless a later ADR changes that intentionally.
@@ -122,36 +138,42 @@ Canonical commands remain under `deploy/Makefile` unless a later ADR changes tha
 ADR 0052 is complete only when all of the following pass:
 
 1. `python3 topology-tools/regenerate-all.py`
-2. Ansible runtime assembly from ADR 0051
-3. deploy package assembly
-4. `ansible-inventory -i dist/control/ansible/inventory --list`
+2. `python3 topology-tools/assemble-deploy.py`
+3. `ansible-inventory -i dist/control/ansible/inventory --list`
+4. playbook syntax checks succeed from `dist/control/ansible/`
 5. `terraform init -backend=false && terraform validate` for each assembled Terraform root
-6. release-safe checks confirm that no secret-local files enter published artifacts
+6. release-safe checks confirm that no `local-secret` files enter published artifacts
+7. package manifests accurately declare required local inputs for non-release-safe operations
 
 ### 8. Explicitly Out Of Scope
 
-ADR 0052 still does not perform:
+ADR 0052 does not perform:
+- `src/` repository restructuring
 - topology device ID renaming
 - topology semantic cleanup unrelated to packaging
-- secret manager redesign beyond the boundaries already established in ADR 0051
+- secret-manager redesign beyond the boundaries already established in ADR 0051
+- changes to the accepted Ansible inventory ownership model from ADR 0051
 
 ## Consequences
 
 ### Positive
 
-1. The broad repository migration is now staged on a safer foundation
-2. `src/`, `generated/`, and `dist/` gain clear roles
+1. Deploy assembly is introduced without destabilizing the accepted Ansible runtime
+2. `dist/` becomes an explicit operator-facing output layer
 3. Deploy packages match execution boundaries
-4. CI packaging policy becomes enforceable
+4. CI artifact policy becomes enforceable through package classes and manifests
+5. A future source-layout migration can be evaluated separately with lower risk
 
 ### Negative / Trade-offs
 
-1. The migration is slower because it is intentionally staged
-2. There is a temporary period where both legacy and new source layouts coexist
-3. Packaging now depends on the successful completion of ADR 0051
+1. The repository keeps existing top-level source roots for now
+2. Packaging assembly adds another explicit build step to maintain
+3. Some operators may still prefer native source directories during the transition period
+4. A future `src/` migration, if still desired, requires another ADR instead of being bundled here
 
 ## References
 
 - ADR 0050: Generated Directory Restructuring
 - ADR 0051: Ansible Runtime, Inventory, and Secret Boundaries
 - `deploy/Makefile`
+- `topology-tools/assemble-ansible-runtime.py`
