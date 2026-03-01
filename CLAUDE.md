@@ -102,6 +102,16 @@ home-lab/
 │   ├── control/ansible/
 │   ├── control/terraform/
 │   └── manifests/
+├── local/                     # Canonical untracked operator inputs (ADR 0054)
+│   ├── terraform/
+│   │   ├── mikrotik/terraform.tfvars
+│   │   └── proxmox/terraform.tfvars
+│   └── bootstrap/
+│       ├── srv-gamayun/answer.override.toml
+│       └── srv-orangepi5/cloud-init/user-data
+├── terraform-overrides/       # Tracked Terraform exception layer (ADR 0055)
+│   ├── mikrotik/
+│   └── proxmox/
 ├── terraform -> generated/terraform/proxmox  # Symlink
 ├── ansible/                   # Playbooks and roles (manual)
 │   ├── playbooks/
@@ -217,8 +227,10 @@ ansible-playbook playbooks/new-service.yml
 ```bash
 # 1. Generate the canonical bootstrap package
 python3 topology-tools/generate-proxmox-bootstrap.py
+mkdir -p local/bootstrap/srv-gamayun
+cp generated/bootstrap/srv-gamayun/answer.toml.example local/bootstrap/srv-gamayun/answer.override.toml
+cd deploy && make materialize-native-inputs && cd ..
 cd generated/bootstrap/srv-gamayun
-cp answer.toml.example answer.toml
 sudo ./create-uefi-autoinstall-proxmox-usb.sh /path/to/proxmox-ve.iso answer.toml /dev/sdX
 
 # 2. Boot and auto-install (15 min, automatic)
@@ -349,7 +361,7 @@ Internet (LTE/WAN)
 - `*.pem`, `*.key`
 
 **Use:**
-- Terraform: `terraform.tfvars` (gitignored)
+- Terraform: `local/terraform/**/terraform.tfvars` (gitignored)
 - Ansible: Ansible Vault
 - API tokens: Environment variables
 
@@ -369,7 +381,7 @@ generated/
 ├── bootstrap/                     # Device init scripts (ADR 0050)
 │   ├── rtr-mikrotik-chateau/      # MikroTik bootstrap
 │   │   ├── init-terraform.rsc
-│   │   └── terraform.tfvars
+│   │   └── terraform.tfvars.example
 │   ├── srv-gamayun/               # Proxmox bootstrap package
 │   └── srv-orangepi5/             # OPi5 cloud-init
 ├── terraform/
@@ -465,3 +477,22 @@ python3 topology-tools/validate-dist.py
 - `dist/bootstrap/srv-gamayun`
 - `dist/bootstrap/srv-orangepi5`
 - `dist/manifests/*.json`
+
+### Terraform Execution Layers
+
+ADR 0055 introduces an explicit three-layer Terraform execution model:
+
+```text
+generated/terraform/<target>/              # topology-derived baseline
+        +
+terraform-overrides/<target>/              # tracked additive exceptions
+        +
+local/terraform/<target>/terraform.tfvars  # untracked operator inputs
+        =
+execution root (native or dist)
+```
+
+Rules:
+- never edit `generated/terraform/*` directly
+- use `terraform-overrides/*` only for reviewed tracked exceptions
+- keep secrets and environment-specific values in `local/`

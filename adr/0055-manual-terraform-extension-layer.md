@@ -1,6 +1,6 @@
 # ADR 0055: Manual Terraform Extension Layer
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-03-01
 
 ## Context

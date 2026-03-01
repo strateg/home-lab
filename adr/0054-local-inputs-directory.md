@@ -1,6 +1,6 @@
 # ADR 0054: Local Inputs Directory
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-03-01
 - Supersedes: 0054-separate-local-inputs-from-generated-outputs.md (draft, never accepted)
 
@@ -161,17 +161,13 @@ Create it from the generated baseline:
 
 This is the primary mental model for operator-owned inputs.
 
-### 8. Current Dist Materialization Is Transitional
+### 8. Dist Materialization Uses The Same Canonical Local Source
 
-Current repository tooling still contains transitional behavior that copies dist local inputs from existing native roots instead of from `local/`.
+`dist` materialization must source canonical operator inputs from `local/`, not from prior native execution copies.
 
-That is implementation debt, not the target architecture of ADR 0054.
-
-Implementation of ADR 0054 must update:
-- `topology-tools/materialize-dist-inputs.py`
-- related docs and runbooks
-
-so that canonical local input sourcing comes from `local/`, not from prior execution copies.
+That keeps `native` and `dist` aligned on one source of truth even though their operator UX remains different:
+- `native` may integrate materialization into generation-oriented commands
+- `dist` remains an explicit assembly-and-materialization workflow
 
 ### 9. Cleanup Safety Improves After Local Input Migration
 
@@ -238,7 +234,7 @@ ADR 0054 does not:
 1. one new directory to understand
 2. existing operator inputs must be migrated once
 3. docs must be updated to reference `local/` instead of `generated/`
-4. native and dist workflows still need explicit tooling changes to consume `local/`
+4. native and dist workflows need to keep their materialization logic aligned on `local/`
 5. `answer.toml` materialization is slightly more complex than plain file copying
 
 ## Migration Plan
