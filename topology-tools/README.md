@@ -96,7 +96,7 @@ Generate MikroTik RouterOS Terraform from L1/L2/L5.
 
 Usage:
 ```bash
-python topology-tools/generate-terraform-mikrotik.py --topology topology.yaml --output generated/terraform-mikrotik
+python topology-tools/generate-terraform-mikrotik.py --topology topology.yaml --output generated/terraform/mikrotik
 ```
 
 ### generate-ansible-inventory.py

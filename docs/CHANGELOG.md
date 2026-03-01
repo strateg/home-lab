@@ -41,12 +41,12 @@ All notable changes to the home lab infrastructure configuration.
   - `04-verify.sh`: Health verification
 
 #### Bootstrap System
-- **`bootstrap/mikrotik/bootstrap.rsc`**: RouterOS bootstrap script
+- **`Migrated_and_archived/archive/bootstrap-mikrotik-legacy/bootstrap.rsc`**: Legacy RouterOS bootstrap script
   - Enables REST API on port 8443
   - Creates terraform user with appropriate permissions
   - Enables container mode (RouterOS 7.4+)
   - Prepares USB storage for containers
-- **`bootstrap/mikrotik/README.md`**: Comprehensive bootstrap guide
+- **`Migrated_and_archived/archive/bootstrap-mikrotik-legacy/README.md`**: Legacy bootstrap guide
 
 #### Documentation
 - **`docs/guides/DEPLOYMENT-STRATEGY.md`**: Complete deployment workflow
@@ -84,7 +84,7 @@ All notable changes to the home lab infrastructure configuration.
 
 #### Generated Files
 ```
-generated/terraform-mikrotik/
+generated/terraform/mikrotik/
 ├── provider.tf         (36 lines)
 ├── variables.tf        (72 lines)
 ├── interfaces.tf       (154 lines)

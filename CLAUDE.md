@@ -107,7 +107,8 @@ home-lab/
 │   ├── playbooks/
 │   └── roles/
 ├── manual-scripts/bare-metal/                # Proxmox USB auto-install
-├── bootstrap/mikrotik/        # MikroTik manual scripts (legacy)
+├── generated/bootstrap/       # Canonical bootstrap packages
+├── Migrated_and_archived/     # Archived legacy bootstrap/manual flows
 ├── deploy/                    # Deployment orchestration
 │   ├── Makefile
 │   └── phases/

@@ -33,7 +33,7 @@ docs/
 
 ```bash
 # 1. Bootstrap MikroTik (one-time, manual via WinBox)
-#    Import bootstrap/mikrotik/bootstrap.rsc
+#    Import generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc
 
 # 2. Configure credentials
 cd generated/terraform/mikrotik
@@ -235,7 +235,7 @@ topology.yaml
 
 - **deploy/Makefile** - Convenient deployment commands
 - **Phase scripts** - Modular deployment (01-network, 02-compute, etc.)
-- **Bootstrap scripts** - MikroTik REST API setup
+- **Generated bootstrap packages** - Device bootstrap assets under `generated/bootstrap/`
 - **Verification** - Automated health checks
 
 ### NEW: Topology v3.0
@@ -271,12 +271,13 @@ home-lab/
 ├── dist/                      # Assembled deploy packages
 │   ├── control/ansible/
 │   ├── control/terraform/
+│   ├── bootstrap/
 │   └── manifests/
 ├── deploy/                    # Deployment orchestration (NEW)
 │   ├── Makefile
 │   └── phases/
-├── bootstrap/                 # One-time setup (NEW)
-│   └── mikrotik/
+├── bootstrap/                 # Legacy manual bootstrap assets
+├── Migrated_and_archived/     # Archived legacy flows and assets
 ├── ansible/                   # Playbooks and roles
 └── docs/                      # Documentation
 ```

@@ -43,12 +43,12 @@ Before Terraform can manage MikroTik, you must enable the REST API manually.
 
 ### Option 1: Import Script
 
-1. Download `bootstrap/mikrotik/bootstrap.rsc` to your computer
+1. Generate or locate `generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
 2. Connect to MikroTik via WinBox
-3. Go to **Files** → Upload `bootstrap.rsc`
+3. Go to **Files** → Upload `init-terraform.rsc`
 4. Open **Terminal** and run:
    ```routeros
-   /import bootstrap.rsc
+   /import init-terraform.rsc
    ```
 5. **Change the terraform password immediately!**
    ```routeros
@@ -98,7 +98,7 @@ curl -k -u terraform:YOUR_PASSWORD https://192.168.88.1:8443/rest/system/identit
 ### 1. Configure terraform.tfvars
 
 ```bash
-cd generated/terraform-mikrotik
+cd generated/terraform/mikrotik
 cp terraform.tfvars.example terraform.tfvars
 ```
 
@@ -155,7 +155,7 @@ wg genkey | tee phone_private.key | wg pubkey > phone_public.key
 ### Initialize and Plan
 
 ```bash
-cd generated/terraform-mikrotik
+cd generated/terraform/mikrotik
 terraform init
 terraform plan
 ```
