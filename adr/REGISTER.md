@@ -41,4 +41,14 @@
 | [0038](0038-network-binding-contracts-phase1.md) | Network Binding Contracts Phase 1 (Gradual Evolution) | Accepted | 2026-02-22 | [0037](0037-l2-network-substrate-and-workload-binding-contracts.md) | - |
 | [0039](0039-l4-host-os-installation-storage-contract-clarification.md) | Host OS Installation Storage Contract (Strict) | Accepted | 2026-02-23 | - | - |
 | [0040](0040-l0-l5-canonical-ownership-and-refactoring-plan.md) | L0-L5 Canonical Ownership and Refactoring Plan | Accepted | 2026-02-23 | - | - |
+| [0041](0041-l4-workload-network-attachment-typing.md) | L4 Workload Network Attachment Typing | Accepted | 2026-02-24 | - | - |
+| [0042](0042-l5-services-modularization.md) | L5 Services Modularization | Accepted | 2026-02-24 | - | - |
+| [0043](0043-l0-l5-harmonization-and-cognitive-load-reduction.md) | L0-L5 Harmonization and Cognitive Load Reduction | Accepted | 2026-02-24 | - | - |
+| [0044](0044-ip-derivation-from-refs.md) | IP Derivation from Refs | Accepted | 2026-02-24 | - | - |
+| [0045](0045-model-and-project-improvements.md) | Improvements to Project Model and Automation | Proposed | 2026-02-25 | - | - |
 | [0046](0046-generators-architecture-refactoring.md) | Generators Architecture Refactoring | Approved | 2026-02-25 | - | - |
+| [0047](0047-l6-observability-modularization.md) | L6 Observability Modularization | Partially Implemented | 2026-02-26 | - | - |
+| [0048](0048-topology-v4-architecture-consolidation.md) | Topology v4 Architecture Consolidation | Accepted | 2026-02-28 | [0049](0049-mikrotik-bootstrap-automation.md), [0050](0050-generated-directory-restructuring.md) | - |
+| [0049](0049-mikrotik-bootstrap-automation.md) | MikroTik Bootstrap Automation | Proposed | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
+| [0050](0050-generated-directory-restructuring.md) | Generated Directory Restructuring | Accepted | 2026-02-28 | - | - |
+| [0051](0051-build-pipeline-and-deploy-packages.md) | Build Pipeline and Target-Centric Deploy Packages | Proposed | 2026-03-01 | - | - |
