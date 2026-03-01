@@ -14,10 +14,12 @@ class PackageManifest:
     package_id: str
     package_class: str
     source_roots: list[str]
+    schema_version: str = "1"
     included_paths: list[str] = field(default_factory=list)
     excluded_paths: list[str] = field(default_factory=list)
     required_local_inputs: list[str] = field(default_factory=list)
     validation_commands: list[str] = field(default_factory=list)
+    assembled_from_runtime_contract: str | None = None
     status: str = "ready"
 
     def to_dict(self) -> dict:

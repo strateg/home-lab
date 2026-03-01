@@ -88,3 +88,20 @@ def is_local_secret_path(path: Path) -> bool:
         if any(fnmatch(candidate, pattern) for candidate in candidates):
             return True
     return False
+
+
+def find_local_secret_paths(root: Path) -> list[Path]:
+    """Return local-secret path violations under a directory tree."""
+    violations: list[Path] = []
+    if not root.exists():
+        return violations
+
+    for path in sorted(root.rglob("*")):
+        if is_local_secret_path(path.relative_to(root)):
+            violations.append(path)
+    return violations
+
+
+def validate_release_safe_tree(root: Path) -> list[str]:
+    """Validate that a tree does not contain local-secret path violations."""
+    return [f"{path}: matches local-secret path policy" for path in find_local_secret_paths(root)]

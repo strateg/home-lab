@@ -118,12 +118,7 @@ generate-docs:
 
 validate-dist: assemble-dist
 	@echo "$(YELLOW)📋 Validating assembled dist packages...$(NC)"
-	cd $(DIST_ANSIBLE_DIR) && ansible-inventory -i inventory --list > /dev/null
-	cd $(DIST_ANSIBLE_DIR) && ansible-playbook --syntax-check playbooks/common.yml
-	cd $(DIST_ANSIBLE_DIR) && ansible-playbook --syntax-check playbooks/postgresql.yml
-	cd $(DIST_ANSIBLE_DIR) && ansible-playbook --syntax-check playbooks/redis.yml
-	cd $(DIST_TF_MIKROTIK_DIR) && terraform init -backend=false && terraform validate
-	cd $(DIST_TF_PROXMOX_DIR) && terraform init -backend=false && terraform validate
+	cd $(TOPOLOGY_DIR) && python3 topology-tools/validate-dist.py
 	@echo "$(GREEN)✓ Dist package validation passed$(NC)"
 
 # =============================================================================

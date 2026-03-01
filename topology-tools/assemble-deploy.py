@@ -4,12 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 from pathlib import Path
 
 from utils.package_manifest import PackageManifest, write_json_manifest, write_package_manifest
-from utils.package_policy import LOCAL_SECRET_PATH_PATTERNS, is_local_secret_path
+from utils.package_policy import LOCAL_SECRET_PATH_PATTERNS, is_local_secret_path, validate_release_safe_tree
 
 REPO_ROOT = Path(__file__).parent.parent
 DEFAULT_ENV = "production"
@@ -128,6 +129,7 @@ def assemble_ansible_package(dist_root: Path) -> PackageManifest:
             relpath(ANSIBLE_SOURCE, REPO_ROOT),
             relpath(ANSIBLE_RUNTIME, REPO_ROOT),
         ],
+        assembled_from_runtime_contract="ADR 0051",
         included_paths=sorted(included_paths),
         excluded_paths=sorted(set(excluded_paths)),
         required_local_inputs=[
@@ -186,12 +188,14 @@ def write_top_level_manifests(dist_root: Path, manifests: list[PackageManifest])
     write_json_manifest(
         manifests_dir / "sources.json",
         {
+            "schema_version": "1",
             "packages": source_roots,
         },
     )
     write_json_manifest(
         manifests_dir / "release-safe.json",
         {
+            "schema_version": "1",
             "publishable_paths": publishable_paths,
             "excluded_local_secret_patterns": LOCAL_SECRET_PATH_PATTERNS,
         },
@@ -199,12 +203,14 @@ def write_top_level_manifests(dist_root: Path, manifests: list[PackageManifest])
     write_json_manifest(
         manifests_dir / "local-inputs.json",
         {
+            "schema_version": "1",
             "packages": local_inputs,
         },
     )
     write_json_manifest(
         manifests_dir / "packages.json",
         {
+            "schema_version": "1",
             "packages": package_map,
         },
     )
@@ -220,6 +226,12 @@ def assemble_dist(dist_root: Path = DEFAULT_DIST, verbose: bool = True) -> bool:
         for package_id, source_dir in TERRAFORM_PACKAGES.items():
             manifests.append(assemble_terraform_package(package_id, source_dir, dist_root))
         write_top_level_manifests(dist_root, manifests)
+        violations = validate_release_safe_tree(dist_root)
+        if violations:
+            print("ERROR Release-safe validation failed:")
+            for violation in violations:
+                print(f"  - {violation}")
+            return False
     except Exception as exc:  # noqa: BLE001
         print(f"ERROR Failed to assemble dist: {exc}")
         return False
@@ -232,6 +244,8 @@ def assemble_dist(dist_root: Path = DEFAULT_DIST, verbose: bool = True) -> bool:
         print()
         for manifest in manifests:
             print(f"OK    {manifest.package_id} [{manifest.package_class}]")
+        print()
+        print("Manifest schema version: 1")
         print()
         print("Top-level manifests:")
         print(f"  - {dist_root / 'manifests' / 'packages.json'}")
