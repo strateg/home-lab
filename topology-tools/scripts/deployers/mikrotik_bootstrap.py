@@ -2,7 +2,12 @@
 """
 MikroTik Bootstrap Deployer
 
-Deploy bootstrap script to MikroTik router via SSH.
+Legacy SSH-first helper for deploying a bootstrap script to a MikroTik router.
+
+This script is not the canonical ADR 0057 day-0 implementation.
+ADR 0057 defines `netinstall-cli` orchestrated by Ansible on the control node
+as the primary bootstrap path. This helper remains useful for manual recovery
+or compatibility scenarios where the router is already reachable over IP and SSH.
 
 Usage:
     python deploy-mikrotik-bootstrap.py [--router IP] [--user USER] [--password PASS]
@@ -24,7 +29,7 @@ sys.path.insert(0, str(TOPOLOGY_TOOLS_DIR))
 
 
 class MikrotikBootstrapDeployer:
-    """Deploy bootstrap script to MikroTik via SSH."""
+    """Legacy SSH-first deployer for manual recovery and compatibility use."""
 
     def __init__(
         self,

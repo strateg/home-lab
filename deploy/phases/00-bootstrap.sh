@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# Phase 0: Bootstrap Instructions
+# Phase 0: Bootstrap Runbook
 # =============================================================================
-# This script displays bootstrap instructions for manual setup
-# Bootstrap must be completed before automated deployment can begin
+# This script displays day-0 bootstrap guidance before automated deployment
+# Bootstrap must be completed before Terraform and Ansible phases can begin
 # =============================================================================
 
 set -e
@@ -20,21 +20,40 @@ echo "║                     PHASE 0: BOOTSTRAP                               �
 echo "╚══════════════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
-echo -e "${YELLOW}Bootstrap is a manual process that prepares devices for automation.${NC}"
+echo -e "${YELLOW}Bootstrap is the day-0 process that prepares devices for Terraform and Ansible.${NC}"
 echo ""
 
 echo -e "${GREEN}1. MikroTik Chateau LTE7 ax${NC}"
 echo "   ───────────────────────────────────────────────────────────────────"
-echo "   a) Connect to router via WinBox (192.168.88.1)"
-echo "   b) Enable REST API:"
+echo "   Preferred target path: Netinstall from the control node"
 echo ""
-echo "      /certificate add name=local-cert common-name=mikrotik.home.local days-valid=3650"
-echo "      /ip service set www-ssl certificate=local-cert disabled=no port=8443"
-echo "      /user group add name=terraform policy=api,read,write,policy,sensitive,test"
-echo "      /user add name=terraform group=terraform password=YOUR_SECURE_PASSWORD"
+echo "   a) Assemble the native execution workspace:"
+echo "      cd deploy && make assemble-native"
 echo ""
-echo "   c) Or import bootstrap script:"
-echo "      /import .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc"
+echo "   b) Confirm local prerequisites before reinstall:"
+echo "      - netinstall-cli is installed and in PATH"
+echo "      - the correct RouterOS .npk package is available locally"
+echo "      - install interface, client IP, and target MAC are known"
+echo "      - .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc exists"
+echo ""
+echo "   c) Put the router into Etherboot or Netinstall mode"
+echo ""
+echo "   d) Run Netinstall from the control node:"
+echo ""
+echo "      netinstall-cli -e --mac <router-mac> -i <install-iface> -a <client-ip> \\"
+echo "        -s .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc \\"
+echo "        /path/to/routeros-arm64.npk"
+echo ""
+echo "   Fallbacks if Netinstall is not available:"
+echo "   e) Manual WinBox import:"
+echo "      - Upload .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc"
+echo "      - Run: /import init-terraform.rsc"
+echo ""
+echo "   f) Legacy SSH-first helper for recovery only:"
+echo "      python topology-tools/scripts/deployers/mikrotik_bootstrap.py --router 192.168.88.1"
+echo ""
+echo "   g) Verify handover before Terraform:"
+echo "      curl -k -u terraform:<password> https://192.168.88.1:8443/rest/system/identity"
 echo ""
 
 echo -e "${GREEN}2. Proxmox VE (Dell XPS L701X)${NC}"
@@ -94,7 +113,8 @@ echo "      cd deploy && make deploy-all"
 echo ""
 
 echo -e "${GREEN}Bootstrap checklist:${NC}"
-echo "   [ ] MikroTik REST API enabled"
+echo "   [ ] MikroTik day-0 bootstrap completed"
+echo "   [ ] MikroTik management IP and API reachable"
 echo "   [ ] Proxmox installed and post-install completed"
 echo "   [ ] Orange Pi 5 booted with cloud-init"
 echo "   [ ] All devices reachable via SSH"

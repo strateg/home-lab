@@ -37,29 +37,59 @@ The home lab uses **MikroTik Chateau LTE7 ax** as the central router, configured
 
 ---
 
-## Bootstrap (One-Time Setup)
+## Bootstrap (Day-0, One-Time Setup)
 
-Before Terraform can manage MikroTik, you must enable the REST API manually.
+Terraform is the day-1 and day-2 owner. The target day-0 workflow is a control-node
+Netinstall run that applies the generated bootstrap script and then hands over into
+the normal Terraform flow.
 
-### Option 1: Import Script
+### Preferred Path: Netinstall-First Bootstrap
 
-1. Generate or locate `generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
+1. Assemble the native execution workspace:
+   ```bash
+   cd deploy
+   make assemble-native
+   ```
+2. Confirm the rendered bootstrap script exists at `.work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
+3. Confirm local prerequisites before reinstalling:
+   - `netinstall-cli` is installed and in `PATH`
+   - the correct RouterOS `.npk` package for the device architecture is available locally
+   - the control node is connected to the intended install segment
+   - the install interface, client IP, and target router MAC address are known
+4. Put the router into Etherboot or Netinstall mode
+5. Run Netinstall from the control node with the rendered bootstrap script:
+   ```bash
+   netinstall-cli \
+     -e \
+     --mac 00:11:22:33:44:55 \
+     -i <install-interface> \
+     -a <client-ip> \
+     -s .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc \
+     /path/to/routeros-arm64.npk
+   ```
+6. Verify the handover contract after boot:
+   - the management IP responds
+   - the RouterOS API answers on `https://<router-ip>:8443`
+   - the `terraform` user can authenticate
+
+### Fallback Option 1: Manual Script Import
+
+Use this when Netinstall is not available or you are recovering a router that is
+already reachable over IP.
+
+1. Run `cd deploy && make assemble-native`
 2. Connect to MikroTik via WinBox
-3. Go to **Files** → Upload `init-terraform.rsc`
+3. Go to **Files** and upload `.work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
 4. Open **Terminal** and run:
    ```routeros
    /import init-terraform.rsc
    ```
-5. **Change the terraform password immediately!**
+5. If you imported a placeholder password, change it immediately:
    ```routeros
    /user set terraform password=YOUR_SECURE_PASSWORD
    ```
-6. Reboot to enable container mode:
-   ```routeros
-   /system reboot
-   ```
 
-### Option 2: Manual Commands
+### Fallback Option 2: Manual Commands
 
 ```routeros
 # 1. Create SSL certificate
@@ -77,12 +107,18 @@ Before Terraform can manage MikroTik, you must enable the REST API manually.
 /ip firewall filter add chain=input action=accept protocol=tcp dst-port=8443 \
     src-address=10.0.99.0/24 comment="Allow REST API"
 
-# 5. Enable container mode (requires reboot)
+# 5. Optional: enable container mode if the first Terraform apply needs it
 /system/device-mode/update container=yes
 
-# 6. Reboot
+# 6. Reboot if device mode changed
 /system reboot
 ```
+
+### Compatibility Helper: Legacy SSH Deployer
+
+`topology-tools/scripts/deployers/mikrotik_bootstrap.py` remains available for
+manual recovery or compatibility scenarios where the router is already reachable
+over SSH. It is not the canonical ADR 0057 day-0 path.
 
 ### Verify REST API Access
 
@@ -393,7 +429,7 @@ If locked out:
 
 1. Connect via serial console or Netinstall
 2. Reset to defaults: `/system reset-configuration`
-3. Re-run bootstrap script
+3. Re-run the preferred Netinstall path or a documented fallback bootstrap path
 4. Apply Terraform configuration
 
 ---
@@ -418,4 +454,4 @@ If locked out:
 
 ---
 
-**Last Updated**: 2026-02-17
+**Last Updated**: 2026-03-02

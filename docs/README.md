@@ -32,8 +32,10 @@ docs/
 ### Full Deployment from Scratch
 
 ```bash
-# 1. Bootstrap MikroTik (one-time, manual via WinBox)
-#    Import generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc
+# 1. Bootstrap MikroTik (day-0)
+#    Preferred target path: follow `cd deploy && make bootstrap-info`
+#    and run Netinstall from the control node after `make assemble-native`
+#    Fallback: import `.work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
 
 # 2. Configure credentials
 cd .work/native/terraform/mikrotik
@@ -126,7 +128,7 @@ The infrastructure is deployed in 4 runtime phases, with an additional package-a
 
 | Phase | Target | Tool | Description |
 |-------|--------|------|-------------|
-| 0 | MikroTik | Manual | Bootstrap REST API (one-time) |
+| 0 | MikroTik | Netinstall-first with manual fallback | Day-0 bootstrap for Terraform handover |
 | 1 | MikroTik | Terraform | Network, firewall, VPN, containers |
 | 2 | Proxmox | Terraform | LXC containers (PostgreSQL, Redis) |
 | 3 | All | Ansible | Service configuration |
@@ -318,6 +320,6 @@ home-lab/
 
 ---
 
-**Last Updated**: 2026-03-01
+**Last Updated**: 2026-03-02
 **Documentation Version**: 3.0.0
 **Topology Version**: 3.0.0

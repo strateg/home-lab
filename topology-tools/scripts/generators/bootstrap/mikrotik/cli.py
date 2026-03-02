@@ -89,11 +89,11 @@ def main():
 
     print()
     print("Next steps:")
-    print("  1. Import or deploy the generated init-terraform.rsc")
-    print("  2. Replace placeholder password after bootstrap or before import")
-    print("  3. Copy terraform.tfvars.example to local/terraform/mikrotik/terraform.tfvars")
-    print("  4. Run: cd deploy && make assemble-native")
-    print("  5. Or manually: ssh admin@{} < {}".format(result["router_ip"], result["bootstrap_script"]))
+    print("  1. Preferred day-0 path: run 'cd deploy && make assemble-native'")
+    print("  2. Use netinstall-cli with .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc")
+    print("  3. Fallback only: import the generated init-terraform.rsc manually or use the legacy SSH helper")
+    print("  4. Replace placeholder password before real bootstrap or immediately after fallback import")
+    print("  5. Copy terraform.tfvars.example to local/terraform/mikrotik/terraform.tfvars")
     print()
 
 

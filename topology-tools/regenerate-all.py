@@ -397,10 +397,11 @@ class RegenerateAll:
 
             print("\nGEN Next steps:")
             print(
-                "   1. Bootstrap MikroTik: run 'cd deploy && make assemble-native' and import .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc"
+                "   1. Bootstrap MikroTik: run 'cd deploy && make assemble-native', then prefer Netinstall with .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc"
             )
-            print("   2. Configure local/terraform and local/bootstrap overrides as needed")
-            print("   3. Deploy using Makefile:")
+            print("   2. Use manual import or the legacy SSH helper only as a fallback or recovery path")
+            print("   3. Configure local/terraform and local/bootstrap overrides as needed")
+            print("   4. Deploy using Makefile:")
             print("      cd deploy && make deploy-all")
             print("   Or deploy manually:")
             print("      cd .work/native/terraform/mikrotik && terraform init && terraform apply")

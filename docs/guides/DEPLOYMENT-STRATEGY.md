@@ -36,7 +36,7 @@ This guide describes the complete deployment strategy for the home lab infrastru
 │  deploy/                                                                 │
 │  ├── Makefile              ← Orchestration commands                     │
 │  └── phases/                                                             │
-│      ├── 00-bootstrap.sh   ← Manual bootstrap instructions              │
+│      ├── 00-bootstrap.sh   ← Day-0 bootstrap runbook and fallbacks      │
 │      ├── 01-network.sh     ← MikroTik Terraform                         │
 │      ├── 02-compute.sh     ← Proxmox Terraform                          │
 │      ├── 03-services.sh    ← Ansible playbooks                          │
@@ -48,13 +48,13 @@ This guide describes the complete deployment strategy for the home lab infrastru
 
 ## Deployment Phases
 
-### Phase 0: Bootstrap (Manual, One-Time)
+### Phase 0: Bootstrap (Day-0, One-Time)
 
-**Purpose**: Enable automation access to all devices.
+**Purpose**: Establish the minimum handover state required for automation.
 
 | Device | Action | Tool |
 |--------|--------|------|
-| MikroTik | Enable REST API, create terraform user | WinBox/SSH |
+| MikroTik | Reinstall and hand over into Terraform bootstrap contract | `netinstall-cli` on the control node |
 | Proxmox | Install from USB with answer.toml | Auto-installer |
 | Orange Pi 5 | Use generated cloud-init package | USB/SD card |
 
@@ -68,10 +68,11 @@ cd deploy && make bootstrap-info
 ./phases/00-bootstrap.sh
 ```
 
-The bootstrap script shows:
-1. How to import `generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
-2. How to change the terraform password
-3. How to verify REST API access
+The bootstrap runbook shows:
+1. The preferred Netinstall-first day-0 path
+2. Required local prerequisites before reinstalling the router
+3. The fallback manual import path for already reachable devices
+4. How to verify the Terraform handover contract
 
 #### Proxmox Bootstrap
 
@@ -605,4 +606,4 @@ ssh root@192.168.88.2 "pvesh get /cluster/resources --type vm"
 
 ---
 
-**Last Updated**: 2026-03-01
+**Last Updated**: 2026-03-02

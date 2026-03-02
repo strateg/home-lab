@@ -120,7 +120,7 @@ help:
 	@echo "║    make status         - Show source and workspace roots         ║"
 	@echo "║    make test           - Verify deployment health                ║"
 	@echo "║    make clean          - Clean generated files                   ║"
-	@echo "║    make bootstrap-info - Show bootstrap instructions             ║"
+	@echo "║    make bootstrap-info - Show day-0 bootstrap runbook           ║"
 	@echo "╚══════════════════════════════════════════════════════════════════╝"
 
 # =============================================================================
@@ -363,9 +363,9 @@ bootstrap-info:
 	@echo "╠══════════════════════════════════════════════════════════════════╣"
 	@echo "║                                                                  ║"
 	@echo "║  1. MikroTik Bootstrap:                                          ║"
-	@echo "║     - Connect via WinBox to 192.168.88.1                         ║"
-	@echo "║     - Import: .work/native/bootstrap/rtr-mikrotik-chateau/*.rsc  ║"
-	@echo "║     - Or run commands manually (see README)                      ║"
+	@echo "║     - Preferred: Netinstall from control node                    ║"
+	@echo "║     - Render path: .work/native/bootstrap/rtr-mikrotik-chateau/  ║"
+	@echo "║     - Fallback: manual import or legacy SSH helper               ║"
 	@echo "║                                                                  ║"
 	@echo "║  2. Proxmox Bootstrap:                                           ║"
 	@echo "║     - Use: .work/native/bootstrap/srv-gamayun/                   ║"
