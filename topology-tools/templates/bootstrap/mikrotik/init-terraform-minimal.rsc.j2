@@ -1,0 +1,75 @@
+# =============================================================================
+# MikroTik RouterOS - Minimal Day-0 Bootstrap (Terraform Handover Only)
+# Generated from topology v{{ topology_version }}
+# Generated at: {{ generation_timestamp }}
+# =============================================================================
+#
+# MINIMAL BOOTSTRAP - Day-0 only (see ADR 0057)
+# Purpose: Establish minimum requirements for Terraform to take over
+# All day-1/2 configuration should be managed by Terraform
+#
+# =============================================================================
+
+# --- System Identity (Day-0 Required) ---
+:log info "Setting system identity..."
+/system identity set name="{{ router_name }}"
+
+# --- Create Terraform User Group (Day-0 Required) ---
+:log info "Checking Terraform group..."
+:if ([:len [/user group find where name="{{ terraform_group }}"]] = 0) do={
+    :log info "Creating Terraform group..."
+    /user group add name={{ terraform_group }} policy=api,read,write,policy,test,sensitive
+} else={
+    :log info "Terraform group already exists, updating policy..."
+    /user group set [find where name="{{ terraform_group }}"] policy=api,read,write,policy,test,sensitive
+}
+
+# --- Create Terraform User (Day-0 Required) ---
+:log info "Checking Terraform user..."
+:if ([:len [/user find where name="{{ terraform_user }}"]] = 0) do={
+    :log info "Creating Terraform user..."
+    /user add name={{ terraform_user }} group={{ terraform_group }} password="{{ terraform_password }}" comment="Terraform automation"
+} else={
+    :log info "Terraform user already exists, updating..."
+    /user set [find where name="{{ terraform_user }}"] group={{ terraform_group }} password="{{ terraform_password }}"
+}
+
+# --- Enable REST API (Day-0 Required) ---
+:log info "Enabling REST API..."
+# Note: Using built-in certificate, full cert management should be in Terraform
+/ip service set www-ssl disabled=no port={{ api_port }}
+
+# --- Disable Insecure Services (Day-0 Security) ---
+:log info "Disabling insecure services..."
+/ip service set telnet disabled=yes
+/ip service set ftp disabled=yes
+/ip service set api disabled=yes
+# Note: www-ssl (REST API) is enabled above, api-ssl is legacy
+
+# --- Firewall: Allow REST API (Day-0 Required) ---
+:log info "Configuring firewall for API access..."
+:if ([:len [/ip firewall filter find where comment="Allow REST API for Terraform"]] = 0) do={
+    :log info "Adding REST API firewall rule..."
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port={{ api_port }} \
+        src-address={{ mgmt_network }} comment="Allow REST API for Terraform" place-before=0
+} else={
+    :log info "REST API firewall rule already exists"
+}
+
+# --- Summary ---
+:log info "========================================"
+:log info "Minimal bootstrap completed!"
+:log info "REST API: https://{{ router_ip }}:{{ api_port }}"
+:log info "User: {{ terraform_user }}"
+:log info "Ready for Terraform handover"
+:log info "========================================"
+
+:put ""
+:put "=============================================="
+:put "MikroTik Minimal Bootstrap Complete!"
+:put "=============================================="
+:put "REST API: https://{{ router_ip }}:{{ api_port }}"
+:put "User:     {{ terraform_user }}"
+:put ""
+:put "Next: Apply Terraform configuration"
+:put "=============================================="
