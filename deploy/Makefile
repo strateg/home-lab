@@ -34,7 +34,7 @@ endif
 
 .PHONY: all help validate generate plan apply deploy-all clean status
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
-.PHONY: configure test bootstrap-info bootstrap-preflight bootstrap-netinstall bootstrap-postcheck assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides check-terraform-override-flow assemble-native
+.PHONY: configure test bootstrap-info bootstrap-setup-control-node bootstrap-provision-control-node bootstrap-preflight bootstrap-netinstall bootstrap-postcheck assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides check-terraform-override-flow assemble-native
 .PHONY: plan-dist plan-mikrotik-dist plan-proxmox-dist apply-mikrotik-dist apply-proxmox-dist configure-dist deploy-all-dist require-dist
 
 # Directories (relative to deploy/)
@@ -123,6 +123,8 @@ help:
 	@echo "║    make bootstrap-info - Show day-0 bootstrap runbook            ║"
 	@echo "║                                                                  ║"
 	@echo "║  Bootstrap Workflow (ADR 0057):                                  ║"
+	@echo "║    make bootstrap-setup-control-node - Install bootstrap tools     ║"
+	@echo "║    make bootstrap-provision-control-node - Provision via Ansible   ║"
 	@echo "║    make bootstrap-preflight  - Validate bootstrap prerequisites  ║"
 	@echo "║    make bootstrap-netinstall - Run MikroTik netinstall           ║"
 	@echo "║    make bootstrap-postcheck  - Verify bootstrap success          ║"
@@ -389,6 +391,15 @@ bootstrap-info:
 # =============================================================================
 # Bootstrap Workflow Targets (ADR 0057)
 # =============================================================================
+# Control-node setup
+bootstrap-setup-control-node:
+	@echo "$(YELLOW)🛠️  Installing control-node bootstrap prerequisites...$(NC)"
+	$(SHELL) phases/00-bootstrap-setup-control-node.sh
+
+bootstrap-provision-control-node:
+	@echo "$(YELLOW)🛠️  Provisioning control node via Ansible...$(NC)"
+	cd $(ANSIBLE_DIR) && ansible-playbook ../deploy/playbooks/provision-control-node.yml
+
 # Day-0 MikroTik bootstrap using netinstall-cli
 # See: adr/0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md
 #

@@ -1,0 +1,348 @@
+---
+# =============================================================================
+# Ansible Playbook: Control Node Bootstrap (netinstall-cli + dependencies)
+# =============================================================================
+#
+# Purpose: Automatically install netinstall-cli and all bootstrap dependencies
+#          on the control node (local machine running Terraform/Ansible)
+#
+# Usage:
+#   ansible-playbook deploy/playbooks/provision-control-node.yml
+#   ansible-playbook deploy/playbooks/provision-control-node.yml \
+#     -e "netinstall_version=7.20.8"
+#
+# Supports: Ubuntu, Debian, RedHat, CentOS, Fedora, macOS
+#
+# =============================================================================
+
+- name: Provision Control Node for MikroTik Bootstrap
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  vars:
+    # Versions (customize as needed)
+    netinstall_version: "{{ netinstall_version | default('7.20.8') }}"
+
+    # Installation paths
+    install_prefix: "/usr/local/bin"
+
+    # Network configuration
+    netinstall_download_timeout: 300
+
+  tasks:
+    # ========================================================================
+    # Preflight: Gather system information
+    # ========================================================================
+    - name: Display System Information
+      debug:
+        msg: |
+          System Information:
+            OS Family: {{ ansible_os_family }}
+            Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}
+            Architecture: {{ ansible_architecture }}
+            Python: {{ ansible_python_version }}
+
+    # ========================================================================
+    # DEBIAN/UBUNTU INSTALLATION
+    # ========================================================================
+    - name: Install on Debian/Ubuntu
+      block:
+        - name: Update apt cache
+          apt:
+            update_cache: yes
+            cache_valid_time: 3600
+          become: yes
+
+        - name: Check if netinstall-cli package is available
+          command: apt-cache search netinstall-cli
+          register: apt_search
+          changed_when: false
+          ignore_errors: yes
+
+        - name: Install netinstall-cli from package repository
+          apt:
+            name: netinstall-cli
+            state: present
+          become: yes
+          when: apt_search.stdout != ""
+          register: netinstall_apt_result
+          ignore_errors: yes
+
+        - name: Install netinstall-cli manually (fallback)
+          block:
+            - name: Create temporary directory for download
+              tempfile:
+                state: directory
+                prefix: netinstall-
+              register: netinstall_tmpdir
+
+            - name: Download netinstall tarball
+              get_url:
+                url: "https://download.mikrotik.com/routeros/{{ netinstall_version }}/netinstall-{{ netinstall_version }}.tar.gz"
+                dest: "{{ netinstall_tmpdir.path }}/netinstall.tar.gz"
+                timeout: "{{ netinstall_download_timeout }}"
+              register: netinstall_download
+
+            - name: Extract netinstall
+              unarchive:
+                src: "{{ netinstall_tmpdir.path }}/netinstall.tar.gz"
+                dest: "{{ netinstall_tmpdir.path }}"
+                remote_src: yes
+
+            - name: Install netinstall-cli binary
+              copy:
+                src: "{{ netinstall_tmpdir.path }}/netinstall"
+                dest: "{{ install_prefix }}/netinstall-cli"
+                mode: "0755"
+                remote_src: yes
+              become: yes
+
+            - name: Clean up temporary directory
+              file:
+                path: "{{ netinstall_tmpdir.path }}"
+                state: absent
+
+          when: netinstall_apt_result is failed or (apt_search.stdout == "")
+
+        - name: Install required packages
+          apt:
+            name: "{{ item }}"
+            state: present
+          become: yes
+          loop:
+            - wget
+            - curl
+            - python3
+            - python3-pip
+            - git
+            - openssh-client
+          ignore_errors: yes
+
+        - name: Install optional packages (Terraform, Ansible)
+          apt:
+            name: "{{ item }}"
+            state: present
+          become: yes
+          loop:
+            - ansible
+            - terraform
+          ignore_errors: yes
+          register: optional_packages_result
+
+      when: ansible_os_family == "Debian"
+
+    # ========================================================================
+    # REDHAT/CENTOS/FEDORA INSTALLATION
+    # ========================================================================
+    - name: Install on RedHat/CentOS/Fedora
+      block:
+        - name: Determine package manager (yum vs dnf)
+          set_fact:
+            pkg_mgr: "{{ 'dnf' if (ansible_distribution_major_version | int >= 22) or (ansible_distribution == 'Fedora') else 'yum' }}"
+
+        - name: Install netinstall-cli from repository
+          package:
+            name: netinstall-cli
+            state: present
+          become: yes
+          register: netinstall_yum_result
+          ignore_errors: yes
+
+        - name: Install netinstall-cli manually (fallback)
+          block:
+            - name: Create temporary directory for download
+              tempfile:
+                state: directory
+                prefix: netinstall-
+              register: netinstall_tmpdir
+
+            - name: Download netinstall tarball
+              get_url:
+                url: "https://download.mikrotik.com/routeros/{{ netinstall_version }}/netinstall-{{ netinstall_version }}.tar.gz"
+                dest: "{{ netinstall_tmpdir.path }}/netinstall.tar.gz"
+                timeout: "{{ netinstall_download_timeout }}"
+
+            - name: Extract netinstall
+              unarchive:
+                src: "{{ netinstall_tmpdir.path }}/netinstall.tar.gz"
+                dest: "{{ netinstall_tmpdir.path }}"
+                remote_src: yes
+
+            - name: Install netinstall-cli binary
+              copy:
+                src: "{{ netinstall_tmpdir.path }}/netinstall"
+                dest: "{{ install_prefix }}/netinstall-cli"
+                mode: "0755"
+                remote_src: yes
+              become: yes
+
+            - name: Clean up temporary directory
+              file:
+                path: "{{ netinstall_tmpdir.path }}"
+                state: absent
+
+          when: netinstall_yum_result is failed
+
+        - name: Install required packages
+          package:
+            name: "{{ item }}"
+            state: present
+          become: yes
+          loop:
+            - wget
+            - curl
+            - python3
+            - python3-pip
+            - git
+            - openssh-clients
+          ignore_errors: yes
+
+        - name: Install optional packages (Terraform, Ansible)
+          package:
+            name: "{{ item }}"
+            state: present
+          become: yes
+          loop:
+            - ansible
+            - terraform
+          ignore_errors: yes
+
+      when: ansible_os_family == "RedHat"
+
+    # ========================================================================
+    # MACOS INSTALLATION
+    # ========================================================================
+    - name: Install on macOS
+      block:
+        - name: Check if Homebrew is installed
+          command: which brew
+          register: homebrew_check
+          changed_when: false
+          ignore_errors: yes
+
+        - name: Fail if Homebrew not installed
+          fail:
+            msg: "Homebrew not found. Please install from: https://brew.sh"
+          when: homebrew_check.rc != 0
+
+        - name: Install netinstall-cli via Homebrew
+          community.general.homebrew:
+            name: mikrotik-netinstall
+            state: present
+          register: netinstall_brew_result
+          ignore_errors: yes
+
+        - name: Install netinstall-cli manually (fallback)
+          block:
+            - name: Create temporary directory for download
+              tempfile:
+                state: directory
+                prefix: netinstall-
+              register: netinstall_tmpdir
+
+            - name: Download netinstall tarball
+              get_url:
+                url: "https://download.mikrotik.com/routeros/{{ netinstall_version }}/netinstall-{{ netinstall_version }}.tar.gz"
+                dest: "{{ netinstall_tmpdir.path }}/netinstall.tar.gz"
+                timeout: "{{ netinstall_download_timeout }}"
+
+            - name: Extract netinstall
+              unarchive:
+                src: "{{ netinstall_tmpdir.path }}/netinstall.tar.gz"
+                dest: "{{ netinstall_tmpdir.path }}"
+                remote_src: yes
+
+            - name: Install netinstall-cli binary
+              copy:
+                src: "{{ netinstall_tmpdir.path }}/netinstall"
+                dest: "{{ install_prefix }}/netinstall-cli"
+                mode: "0755"
+                remote_src: yes
+              become: yes
+
+            - name: Clean up temporary directory
+              file:
+                path: "{{ netinstall_tmpdir.path }}"
+                state: absent
+
+          when: netinstall_brew_result is failed
+
+        - name: Install required packages via Homebrew
+          community.general.homebrew:
+            name: "{{ item }}"
+            state: present
+          loop:
+            - wget
+            - curl
+            - python3
+            - terraform
+            - ansible
+            - git
+          ignore_errors: yes
+
+      when: ansible_os_family == "Darwin"
+
+    # ========================================================================
+    # VERIFICATION
+    # ========================================================================
+    - name: Verify netinstall-cli installation
+      command: "{{ install_prefix }}/netinstall-cli --version"
+      register: netinstall_version_check
+      changed_when: false
+
+    - name: Display netinstall-cli version
+      debug:
+        msg: "netinstall-cli: {{ netinstall_version_check.stdout }}"
+
+    - name: Check other required tools
+      command: "which {{ item }}"
+      register: tool_check
+      loop:
+        - wget
+        - curl
+        - python3
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display tool locations
+      debug:
+        msg: |
+          Tool Locations:
+          {% for result in tool_check.results %}
+            {{ result.item }}: {{ result.stdout if result.rc == 0 else 'NOT FOUND' }}
+          {% endfor %}
+
+    # ========================================================================
+    # SUMMARY
+    # ========================================================================
+    - name: Bootstrap Installation Summary
+      debug:
+        msg: |
+          ════════════════════════════════════════════════════════════════
+          Control Node Bootstrap Complete!
+          ════════════════════════════════════════════════════════════════
+
+          Installed Tools:
+            ✓ netinstall-cli: {{ netinstall_version_check.stdout.split()[0] }}
+            ✓ Python 3
+            ✓ wget & curl
+            ✓ Git
+
+          Optional Tools:
+            {{ '✓ Terraform' if ansible_os_family in ['Debian', 'RedHat', 'Darwin'] else '⊘ Terraform' }}
+            {{ '✓ Ansible' if ansible_os_family in ['Debian', 'RedHat', 'Darwin'] else '⊘ Ansible' }}
+
+          Next Steps:
+            1. Run bootstrap preflight checks:
+               cd deploy && make bootstrap-preflight RESTORE_PATH=minimal
+
+            2. Execute MikroTik bootstrap when ready:
+               make bootstrap-netinstall RESTORE_PATH=minimal \
+                 MIKROTIK_BOOTSTRAP_MAC='<router-mac-address>'
+
+            3. Verify bootstrap success:
+               make bootstrap-postcheck \
+                 MIKROTIK_MGMT_IP='192.168.88.1' \
+                 MIKROTIK_TERRAFORM_PASSWORD='<password>'
+          ════════════════════════════════════════════════════════════════
