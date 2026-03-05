@@ -1,0 +1,76 @@
+---
+- name: ADR0057 MikroTik netinstall bootstrap
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    restore_path: "{{ restore_path | default('minimal') }}"
+    target_mac: "{{ target_mac | default('') }}"
+    mikrotik_bootstrap_script: "{{ mikrotik_bootstrap_script | default('') }}"
+    mikrotik_netinstall_interface: "{{ mikrotik_netinstall_interface | default('') }}"
+    mikrotik_netinstall_client_ip: "{{ mikrotik_netinstall_client_ip | default('') }}"
+    mikrotik_routeros_package: "{{ mikrotik_routeros_package | default('') }}"
+  tasks:
+    - name: Validate restore path
+      ansible.builtin.assert:
+        that:
+          - restore_path in ['minimal', 'rsc']
+        fail_msg: "Unsupported restore_path={{ restore_path }}. Supported: minimal, rsc"
+
+    - name: Validate required netinstall variables
+      ansible.builtin.assert:
+        that:
+          - target_mac | length > 0
+          - mikrotik_netinstall_interface | length > 0
+          - mikrotik_netinstall_client_ip | length > 0
+          - mikrotik_routeros_package | length > 0
+          - mikrotik_bootstrap_script | length > 0
+        fail_msg: "Missing required vars: target_mac, mikrotik_netinstall_interface, mikrotik_netinstall_client_ip, mikrotik_routeros_package, mikrotik_bootstrap_script"
+
+    - name: Check netinstall-cli availability
+      ansible.builtin.command: netinstall-cli --help
+      changed_when: false
+
+    - name: Check bootstrap script exists
+      ansible.builtin.stat:
+        path: "{{ mikrotik_bootstrap_script }}"
+      register: bootstrap_script_stat
+
+    - name: Fail if bootstrap script missing
+      ansible.builtin.fail:
+        msg: "Bootstrap script not found: {{ mikrotik_bootstrap_script }}"
+      when: not bootstrap_script_stat.stat.exists
+
+    - name: Check RouterOS package exists
+      ansible.builtin.stat:
+        path: "{{ mikrotik_routeros_package }}"
+      register: routeros_package_stat
+
+    - name: Fail if RouterOS package missing
+      ansible.builtin.fail:
+        msg: "RouterOS package not found: {{ mikrotik_routeros_package }}"
+      when: not routeros_package_stat.stat.exists
+
+    - name: Run netinstall-cli
+      ansible.builtin.command:
+        argv:
+          - netinstall-cli
+          - -e
+          - --mac
+          - "{{ target_mac }}"
+          - -i
+          - "{{ mikrotik_netinstall_interface }}"
+          - -a
+          - "{{ mikrotik_netinstall_client_ip }}"
+          - -s
+          - "{{ mikrotik_bootstrap_script }}"
+          - "{{ mikrotik_routeros_package }}"
+      register: netinstall_result
+      changed_when: true
+
+    - name: Show netinstall-cli summary
+      ansible.builtin.debug:
+        msg:
+          - "netinstall-cli completed for MAC {{ target_mac }}"
+          - "stdout: {{ netinstall_result.stdout | default('') }}"
+          - "stderr: {{ netinstall_result.stderr | default('') }}"

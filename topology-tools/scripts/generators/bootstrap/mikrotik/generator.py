@@ -15,7 +15,7 @@ DEFAULT_TERRAFORM_PASSWORD_PLACEHOLDER = "CHANGE_THIS_PASSWORD"  # pragma: allow
 
 
 class MikrotikBootstrapGenerator:
-    """Generate MikroTik bootstrap script from topology."""
+    """Generate MikroTik day-0 bootstrap script from topology."""
 
     def __init__(
         self,
@@ -109,6 +109,32 @@ class MikrotikBootstrapGenerator:
             self.router_ip = "192.168.88.1"
             self.lan_network = "192.168.88.0/24"
 
+        # Find management network for API access allowance.
+        mgmt_network = None
+
+        for net in networks:
+            if isinstance(net, dict) and net.get("id") in ("net-management", "net-mgmt"):
+                mgmt_network = net
+                break
+
+        if not mgmt_network:
+            for net in networks:
+                if not isinstance(net, dict):
+                    continue
+                net_id = net.get("id", "").lower()
+                net_name = net.get("name", "").lower()
+                managed_by = net.get("managed_by_ref", "").lower()
+                is_mgmt = "management" in net_id or "mgmt" in net_id or "management" in net_name or "mgmt" in net_name
+                if is_mgmt and "mikrotik" in managed_by:
+                    mgmt_network = net
+                    break
+
+        if mgmt_network:
+            mgmt_cidr = mgmt_network.get("cidr")
+            self.mgmt_network = mgmt_cidr if mgmt_cidr else self.lan_network
+        else:
+            self.mgmt_network = self.lan_network
+
     def _extract_dns_info(self) -> None:
         """Extract DNS configuration from L5."""
         l5 = self.topology.get("L5_application", {})
@@ -138,6 +164,7 @@ class MikrotikBootstrapGenerator:
             "router_hostname": self.router_hostname,
             "router_ip": self.router_ip,
             "lan_network": self.lan_network,
+            "mgmt_network": self.mgmt_network,
             "dns_domain": self.dns_domain,
             "dns_servers": self.dns_servers,
             "api_port": 8443,
@@ -146,8 +173,8 @@ class MikrotikBootstrapGenerator:
             "terraform_password": self.terraform_password,
         }
 
-        # Render template
-        template = self.env.get_template("init-terraform.rsc.j2")
+        # ADR 0057 canonical path: minimal day-0 handover template.
+        template = self.env.get_template("init-terraform-minimal.rsc.j2")
         content = template.render(**context)
 
         # Write output file
