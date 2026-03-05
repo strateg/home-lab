@@ -1,7 +1,7 @@
 # ADR 0057 Migration Plan
 
-- Status: Draft
-- Date: 2026-03-02
+- Status: Active
+- Date: 2026-03-05
 
 ## Purpose
 
@@ -22,7 +22,10 @@ to the ADR 0057 target state:
 
 Current repository behavior already provides:
 
-- tracked bootstrap template: `topology-tools/templates/bootstrap/mikrotik/init-terraform.rsc.j2`
+- tracked canonical bootstrap template: `topology-tools/templates/bootstrap/mikrotik/init-terraform-minimal.rsc.j2`
+- tracked compatibility templates:
+  - `topology-tools/templates/bootstrap/mikrotik/backup-restore-overrides.rsc.j2`
+  - `topology-tools/templates/bootstrap/mikrotik/exported-config-safe.rsc.j2`
 - generated release-safe bootstrap output: `generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
 - generated release-safe Terraform example: `generated/bootstrap/rtr-mikrotik-chateau/terraform.tfvars.example`
 - manual bootstrap documentation through `deploy/phases/00-bootstrap.sh`, `deploy/Makefile`, and docs under `docs/`
@@ -81,7 +84,9 @@ Create an explicit inventory of what already exists, what is legacy, and what mu
 ### Tasks
 
 1. inventory all existing MikroTik bootstrap-related assets:
-   - `topology-tools/templates/bootstrap/mikrotik/init-terraform.rsc.j2`
+   - `topology-tools/templates/bootstrap/mikrotik/init-terraform-minimal.rsc.j2`
+   - `topology-tools/templates/bootstrap/mikrotik/backup-restore-overrides.rsc.j2`
+   - `topology-tools/templates/bootstrap/mikrotik/exported-config-safe.rsc.j2`
    - `topology-tools/scripts/generators/bootstrap/mikrotik/generator.py`
    - `generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
    - `generated/bootstrap/rtr-mikrotik-chateau/terraform.tfvars.example`
@@ -89,7 +94,7 @@ Create an explicit inventory of what already exists, what is legacy, and what mu
    - `deploy/Makefile`
    - `docs/guides/MIKROTIK-TERRAFORM.md`
    - `docs/guides/DEPLOYMENT-STRATEGY.md`
-2. record the exact current bootstrap contract already embedded in `init-terraform.rsc.j2`
+2. record the exact current bootstrap contract already embedded in `init-terraform-minimal.rsc.j2`
 3. record which parts of `topology-tools/scripts/deployers/mikrotik_bootstrap.py` are legacy helper behavior and should not be promoted
 4. capture current operator expectations around `make bootstrap-info`, manual import, and `terraform.tfvars`
 
@@ -121,12 +126,12 @@ Lock down what the day-0 script is allowed to do and what must remain Terraform-
    - Terraform automation identity
    - minimum firewall allowance for API access
    - optional SSH recovery posture
-2. explicitly classify existing `init-terraform.rsc.j2` sections into:
+2. explicitly classify existing `init-terraform-minimal.rsc.j2` sections into:
    - required for day-0 handover
    - acceptable but optional compatibility logic
    - day-1 or day-2 logic that should move out of bootstrap if present
-3. decide whether `init-terraform.rsc.j2` remains the canonical tracked template during migration or whether a new minimal template is introduced
-4. decide whether the file name `init-terraform.rsc` remains during transition or is renamed at cutover
+3. keep `init-terraform-minimal.rsc.j2` as the canonical tracked template during migration
+4. keep the generated artifact name `init-terraform.rsc` for compatibility during transition
 
 ### Deliverables
 
@@ -307,17 +312,21 @@ Each phase should be checked against the same four questions:
 4. do not merge documentation that presents conflicting primary workflows
 5. do not broaden the bootstrap script beyond the minimal Terraform handover contract to work around Terraform issues
 
-## Open Decisions To Resolve During Implementation
+## Decision Snapshot
 
-1. Does the project keep `init-terraform.rsc` as the long-term filename for compatibility, or rename it after cutover?
-2. Which control-node wrapper becomes canonical: shell, Ansible, or another thin runner?
-3. Is optional SSH retained in the bootstrap contract by default, or only in recovery profiles?
-4. Does the existing template need to be reduced, or is it already close enough to the target minimal handover contract?
+Resolved:
+1. Canonical tracked template is `init-terraform-minimal.rsc.j2`.
+2. Generated artifact name remains `init-terraform.rsc` during transition.
+3. `backup` and `rsc` restore paths are compatibility-only, not default.
+
+Open:
+1. Which control-node wrapper is long-term canonical: current shell + Ansible split, or one unified runner?
+2. Should optional SSH stay enabled in compatibility profiles by default, or move to explicit recovery profiles only?
 
 ## References
 
 - `adr/0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md`
-- `topology-tools/templates/bootstrap/mikrotik/init-terraform.rsc.j2`
+- `topology-tools/templates/bootstrap/mikrotik/init-terraform-minimal.rsc.j2`
 - `topology-tools/scripts/generators/bootstrap/mikrotik/generator.py`
 - `topology-tools/scripts/deployers/mikrotik_bootstrap.py`
 - `deploy/phases/00-bootstrap.sh`

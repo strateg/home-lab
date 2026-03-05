@@ -125,7 +125,7 @@ setup-control-node:
 	$(TOPOLOGY_DIR)/deploy/phases/00-bootstrap-setup-control-node.sh
 	@echo "$(GREEN)✓ Control node ready for bootstrap$(NC)"
 
-bootstrap-all: bootstrap-preflight bootstrap-netinstall bootstrap-postcheck
+bootstrap-all: bootstrap-preflight bootstrap-netinstall bootstrap-postcheck bootstrap-terraform-check
 	@echo "$(GREEN)✓ Full bootstrap sequence completed$(NC)"
 ```
 

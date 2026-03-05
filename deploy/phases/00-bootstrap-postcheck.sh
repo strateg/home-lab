@@ -8,6 +8,7 @@ set -euo pipefail
 MGMT_IP="${1:-}"
 TERRAFORM_USER="${2:-}"
 TERRAFORM_PASSWORD="${3:-}"
+TERRAFORM_PASSWORD_FILE="${MIKROTIK_TERRAFORM_PASSWORD_FILE:-}"
 API_PORT="${API_PORT:-8443}"
 
 RED='\033[0;31m'
@@ -20,8 +21,20 @@ fail() {
     exit 1
 }
 
-if [ -z "$MGMT_IP" ] || [ -z "$TERRAFORM_USER" ] || [ -z "$TERRAFORM_PASSWORD" ]; then
-    fail "Usage: $0 <mgmt_ip> <terraform_user> <terraform_password>"
+if [ -z "$MGMT_IP" ] || [ -z "$TERRAFORM_USER" ]; then
+    fail "Usage: $0 <mgmt_ip> <terraform_user> [terraform_password]"
+fi
+
+if [ -z "$TERRAFORM_PASSWORD" ]; then
+    if [ -n "$TERRAFORM_PASSWORD_FILE" ] && [ -f "$TERRAFORM_PASSWORD_FILE" ]; then
+        TERRAFORM_PASSWORD="$(head -n1 "$TERRAFORM_PASSWORD_FILE" | tr -d '\r\n')"
+    else
+        fail "Terraform password not provided. Set MIKROTIK_TERRAFORM_PASSWORD or MIKROTIK_TERRAFORM_PASSWORD_FILE"
+    fi
+fi
+
+if [ -z "$TERRAFORM_PASSWORD" ]; then
+    fail "Terraform password is empty"
 fi
 
 if ! command -v curl >/dev/null 2>&1; then
@@ -38,9 +51,21 @@ if command -v ping >/dev/null 2>&1; then
     fi
 fi
 
+NETRC_FILE="$(mktemp)"
+cleanup() {
+    rm -f "$NETRC_FILE"
+}
+trap cleanup EXIT
+chmod 600 "$NETRC_FILE"
+cat >"$NETRC_FILE" <<EOF
+machine $MGMT_IP
+login $TERRAFORM_USER
+password $TERRAFORM_PASSWORD
+EOF
+
 HTTP_CODE="$(curl -k -s -o /dev/null -w "%{http_code}" \
     --connect-timeout 5 \
-    -u "${TERRAFORM_USER}:${TERRAFORM_PASSWORD}" \
+    --netrc-file "$NETRC_FILE" \
     "https://${MGMT_IP}:${API_PORT}/rest/system/identity" || true)"
 
 if [ "$HTTP_CODE" != "200" ]; then

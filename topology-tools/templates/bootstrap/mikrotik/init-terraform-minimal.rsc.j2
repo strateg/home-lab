@@ -14,6 +14,20 @@
 :log info "Setting system identity..."
 /system identity set name="{{ router_name }}"
 
+# --- Management Interface/IP (Day-0 Required) ---
+:log info "Ensuring management interface/IP for Terraform handover..."
+:local mgmtIf "{{ mgmt_interface }}"
+:if ([:len [/interface find where name=$mgmtIf]] = 0) do={
+    :log warning ("Interface '" . $mgmtIf . "' not found, falling back to 'bridge'")
+    :set mgmtIf "bridge"
+}
+:if ([:len [/ip address find where interface=$mgmtIf and address="{{ router_address }}"]] = 0) do={
+    :log info ("Adding management IP {{ router_address }} on " . $mgmtIf)
+    /ip address add address={{ router_address }} interface=$mgmtIf comment="Day-0 Terraform handover"
+} else={
+    :log info "Management IP already configured"
+}
+
 # --- Create Terraform User Group (Day-0 Required) ---
 :log info "Checking Terraform group..."
 :if ([:len [/user group find where name="{{ terraform_group }}"]] = 0) do={
@@ -51,7 +65,7 @@
 :if ([:len [/ip firewall filter find where comment="Allow REST API for Terraform"]] = 0) do={
     :log info "Adding REST API firewall rule..."
     /ip firewall filter add chain=input action=accept protocol=tcp dst-port={{ api_port }} \
-        src-address={{ mgmt_network }} comment="Allow REST API for Terraform" place-before=0
+        src-address={{ api_access_network }} comment="Allow REST API for Terraform" place-before=0
 } else={
     :log info "REST API firewall rule already exists"
 }

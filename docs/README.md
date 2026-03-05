@@ -39,7 +39,8 @@ docs/
 ```bash
 # 1. Bootstrap MikroTik (day-0)
 #    Preferred target path: follow `cd deploy && make bootstrap-info`
-#    and run Netinstall from the control node after `make assemble-native`
+#    and run `bootstrap-preflight -> bootstrap-netinstall -> bootstrap-postcheck -> bootstrap-terraform-check`
+#    from the control node after `make assemble-native`
 #    Fallback: import `.work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
 
 # 2. Configure credentials

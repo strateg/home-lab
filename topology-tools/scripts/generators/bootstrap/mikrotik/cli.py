@@ -93,10 +93,12 @@ def main():
     print("Next steps:")
     print("  1. Preferred day-0 path: run 'cd deploy && make assemble-native'")
     print("  2. Run: make bootstrap-preflight/bootstrap-netinstall/bootstrap-postcheck")
-    print("  3. Use RESTORE_PATH=minimal (preferred), backup, or rsc")
-    print("  4. Fallback only: import init-terraform.rsc manually or use legacy SSH helper")
-    print("  5. Replace placeholder password before real bootstrap or immediately after fallback import")
-    print("  6. Copy terraform.tfvars.example to local/terraform/mikrotik/terraform.tfvars")
+    print("  3. Use RESTORE_PATH=minimal (preferred); backup/rsc require ALLOW_NON_MINIMAL_RESTORE=true")
+    print("  4. For postcheck, prefer MIKROTIK_TERRAFORM_PASSWORD_FILE over plain CLI password")
+    print("  5. Run: make bootstrap-terraform-check")
+    print("  6. Fallback only: import init-terraform.rsc manually or use legacy SSH helper")
+    print("  7. Replace placeholder password before real bootstrap or immediately after fallback import")
+    print("  8. Copy terraform.tfvars.example to local/terraform/mikrotik/terraform.tfvars")
     print()
 
 

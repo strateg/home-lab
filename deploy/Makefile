@@ -34,7 +34,7 @@ endif
 
 .PHONY: all help validate generate plan apply deploy-all clean status
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
-.PHONY: configure test bootstrap-info bootstrap-setup-control-node bootstrap-provision-control-node setup-control-node setup-control-node-ansible bootstrap-all bootstrap-preflight bootstrap-netinstall bootstrap-postcheck assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides check-terraform-override-flow assemble-native
+.PHONY: configure test bootstrap-info bootstrap-setup-control-node bootstrap-provision-control-node setup-control-node setup-control-node-ansible bootstrap-all bootstrap-preflight bootstrap-netinstall bootstrap-postcheck bootstrap-terraform-check assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides check-terraform-override-flow assemble-native
 .PHONY: plan-dist plan-mikrotik-dist plan-proxmox-dist apply-mikrotik-dist apply-proxmox-dist configure-dist deploy-all-dist require-dist
 
 # Directories (relative to deploy/)
@@ -123,11 +123,12 @@ help:
 	@echo "║    make bootstrap-info - Show day-0 bootstrap runbook            ║"
 	@echo "║                                                                  ║"
 	@echo "║  Bootstrap Workflow (ADR 0057):                                  ║"
-	@echo "║    make bootstrap-setup-control-node - Install bootstrap tools     ║"
-	@echo "║    make bootstrap-provision-control-node - Provision via Ansible   ║"
+	@echo "║    make bootstrap-setup-control-node - Install bootstrap tools   ║"
+	@echo "║    make bootstrap-provision-control-node - Provision via Ansible ║"
 	@echo "║    make bootstrap-preflight  - Validate bootstrap prerequisites  ║"
 	@echo "║    make bootstrap-netinstall - Run MikroTik netinstall           ║"
 	@echo "║    make bootstrap-postcheck  - Verify bootstrap success          ║"
+	@echo "║    make bootstrap-terraform-check - Verify Terraform handover    ║"
 	@echo "╚══════════════════════════════════════════════════════════════════╝"
 
 # =============================================================================
@@ -405,7 +406,7 @@ setup-control-node: bootstrap-setup-control-node
 
 setup-control-node-ansible: bootstrap-provision-control-node
 
-bootstrap-all: bootstrap-preflight bootstrap-netinstall bootstrap-postcheck
+bootstrap-all: bootstrap-preflight bootstrap-netinstall bootstrap-postcheck bootstrap-terraform-check
 
 # Day-0 MikroTik bootstrap using netinstall-cli
 # See: adr/0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md
@@ -416,15 +417,18 @@ bootstrap-all: bootstrap-preflight bootstrap-netinstall bootstrap-postcheck
 #   MIKROTIK_NETINSTALL_INTERFACE - Install NIC on control node (e.g. enp3s0)
 #   MIKROTIK_NETINSTALL_CLIENT_IP - Control-node install IP in install segment
 #   MIKROTIK_ROUTEROS_PACKAGE - Path to RouterOS .npk package
+#   MIKROTIK_ROUTEROS_PACKAGE_SHA256 - Optional expected SHA256 of .npk package
 #   MIKROTIK_BOOTSTRAP_SCRIPT - Path to rendered bootstrap script
 #   MIKROTIK_MGMT_IP    - Management IP after bootstrap (for postcheck)
 #   MIKROTIK_TERRAFORM_PASSWORD - Terraform user password (for postcheck)
+#   MIKROTIK_TERRAFORM_PASSWORD_FILE - File containing Terraform user password
 #   MIKROTIK_TERRAFORM_USER - Terraform user name (default: terraform)
+#   ALLOW_NON_MINIMAL_RESTORE - Set true to allow backup/rsc restore paths (default: false)
 #
 # Workflow:
 #   1. make bootstrap-preflight RESTORE_PATH=minimal
 #   2. make bootstrap-netinstall RESTORE_PATH=minimal MIKROTIK_BOOTSTRAP_MAC=XX:XX:XX:XX:XX:XX
-#   3. make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD=xxx
+#   3. make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD_FILE=local/terraform/mikrotik/password.txt
 # =============================================================================
 
 # Default values
@@ -433,16 +437,23 @@ MIKROTIK_BOOTSTRAP_MAC ?=
 MIKROTIK_NETINSTALL_INTERFACE ?=
 MIKROTIK_NETINSTALL_CLIENT_IP ?=
 MIKROTIK_ROUTEROS_PACKAGE ?=
+MIKROTIK_ROUTEROS_PACKAGE_SHA256 ?=
 MIKROTIK_BOOTSTRAP_SCRIPT ?=
 MIKROTIK_MGMT_IP ?= 192.168.88.1
 MIKROTIK_TERRAFORM_USER ?= terraform
 MIKROTIK_TERRAFORM_PASSWORD ?=
+MIKROTIK_TERRAFORM_PASSWORD_FILE ?=
+ALLOW_NON_MINIMAL_RESTORE ?= false
 
 BOOTSTRAP_SCRIPT_BY_RESTORE := $(if $(filter backup,$(RESTORE_PATH)),$(ROOT_DIR)/.work/native/bootstrap/rtr-mikrotik-chateau/backup-restore-overrides.rsc,$(if $(filter rsc,$(RESTORE_PATH)),$(ROOT_DIR)/.work/native/bootstrap/rtr-mikrotik-chateau/exported-config-safe.rsc,$(ROOT_DIR)/.work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc))
 BOOTSTRAP_SCRIPT_RESOLVED := $(if $(MIKROTIK_BOOTSTRAP_SCRIPT),$(MIKROTIK_BOOTSTRAP_SCRIPT),$(BOOTSTRAP_SCRIPT_BY_RESTORE))
 
 bootstrap-preflight:
 	@echo "$(YELLOW)🔍 Running bootstrap preflight checks...$(NC)"
+	@if [ "$(RESTORE_PATH)" != "minimal" ] && [ "$(ALLOW_NON_MINIMAL_RESTORE)" != "true" ]; then \
+		echo "$(RED)Error: RESTORE_PATH=$(RESTORE_PATH) is compatibility-only. Use RESTORE_PATH=minimal or set ALLOW_NON_MINIMAL_RESTORE=true$(NC)"; \
+		exit 1; \
+	fi
 	@if [ -z "$(RESTORE_PATH)" ]; then \
 		echo "$(RED)Error: RESTORE_PATH not set. Use: minimal, backup, or rsc$(NC)"; \
 		exit 1; \
@@ -467,19 +478,31 @@ bootstrap-preflight:
 	@echo "  Install iface: $(MIKROTIK_NETINSTALL_INTERFACE)"
 	@echo "  Client IP: $(MIKROTIK_NETINSTALL_CLIENT_IP)"
 	@echo "  RouterOS pkg: $(MIKROTIK_ROUTEROS_PACKAGE)"
+	@if [ -n "$(MIKROTIK_ROUTEROS_PACKAGE_SHA256)" ]; then \
+		echo "  Package SHA256: $(MIKROTIK_ROUTEROS_PACKAGE_SHA256)"; \
+	fi
 	$(SHELL) phases/00-bootstrap-preflight.sh \
 		"$(RESTORE_PATH)" \
 		"$(BOOTSTRAP_SCRIPT_RESOLVED)" \
 		"$(MIKROTIK_NETINSTALL_INTERFACE)" \
 		"$(MIKROTIK_NETINSTALL_CLIENT_IP)" \
-		"$(MIKROTIK_ROUTEROS_PACKAGE)"
+		"$(MIKROTIK_ROUTEROS_PACKAGE)" \
+		"$(MIKROTIK_ROUTEROS_PACKAGE_SHA256)"
 	@echo "$(GREEN)✓ Preflight checks passed$(NC)"
 
 bootstrap-netinstall: bootstrap-preflight
 	@echo "$(YELLOW)🚀 Running MikroTik netinstall bootstrap...$(NC)"
+	@if [ "$(RESTORE_PATH)" != "minimal" ] && [ "$(ALLOW_NON_MINIMAL_RESTORE)" != "true" ]; then \
+		echo "$(RED)Error: RESTORE_PATH=$(RESTORE_PATH) is compatibility-only. Use RESTORE_PATH=minimal or set ALLOW_NON_MINIMAL_RESTORE=true$(NC)"; \
+		exit 1; \
+	fi
 	@if [ -z "$(MIKROTIK_BOOTSTRAP_MAC)" ]; then \
 		echo "$(RED)Error: MIKROTIK_BOOTSTRAP_MAC not set$(NC)"; \
 		echo "Usage: make bootstrap-netinstall MIKROTIK_BOOTSTRAP_MAC=XX:XX:XX:XX:XX:XX"; \
+		exit 1; \
+	fi
+	@if ! echo "$(MIKROTIK_BOOTSTRAP_MAC)" | grep -Eq '^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$$'; then \
+		echo "$(RED)Error: invalid MIKROTIK_BOOTSTRAP_MAC format: $(MIKROTIK_BOOTSTRAP_MAC)$(NC)"; \
 		exit 1; \
 	fi
 	@echo "  Restore path: $(RESTORE_PATH)"
@@ -500,14 +523,23 @@ bootstrap-postcheck:
 		echo "Usage: make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD=xxx"; \
 		exit 1; \
 	fi
-	@if [ -z "$(MIKROTIK_TERRAFORM_PASSWORD)" ]; then \
-		echo "$(RED)Error: MIKROTIK_TERRAFORM_PASSWORD not set$(NC)"; \
-		echo "Usage: make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD=xxx"; \
+	@if [ -z "$(MIKROTIK_TERRAFORM_PASSWORD)" ] && [ -z "$(MIKROTIK_TERRAFORM_PASSWORD_FILE)" ]; then \
+		echo "$(RED)Error: set MIKROTIK_TERRAFORM_PASSWORD or MIKROTIK_TERRAFORM_PASSWORD_FILE$(NC)"; \
+		echo "Usage: make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD_FILE=local/terraform/mikrotik/password.txt"; \
+		exit 1; \
+	fi
+	@if [ -n "$(MIKROTIK_TERRAFORM_PASSWORD_FILE)" ] && [ ! -f "$(MIKROTIK_TERRAFORM_PASSWORD_FILE)" ]; then \
+		echo "$(RED)Error: password file not found: $(MIKROTIK_TERRAFORM_PASSWORD_FILE)$(NC)"; \
 		exit 1; \
 	fi
 	@echo "  Management IP: $(MIKROTIK_MGMT_IP)"
+	MIKROTIK_TERRAFORM_PASSWORD_FILE="$(MIKROTIK_TERRAFORM_PASSWORD_FILE)" \
 	$(SHELL) phases/00-bootstrap-postcheck.sh "$(MIKROTIK_MGMT_IP)" "$(MIKROTIK_TERRAFORM_USER)" "$(MIKROTIK_TERRAFORM_PASSWORD)"
 	@echo "$(GREEN)✓ Post-checks passed - ready for Terraform$(NC)"
+
+bootstrap-terraform-check:
+	@echo "$(YELLOW)🧪 Running Terraform handover check...$(NC)"
+	@$(MAKE) plan-mikrotik
 
 # =============================================================================
 # Init targets (first-time setup)

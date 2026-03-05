@@ -57,4 +57,4 @@
 | [0054](0054-local-inputs-directory.md) | Local Inputs Directory | Accepted | 2026-03-01 | - | - |
 | [0055](0055-manual-terraform-extension-layer.md) | Manual Terraform Extension Layer | Accepted | 2026-03-01 | - | - |
 | [0056](0056-native-execution-workspace.md) | Native Execution Workspace Outside Generated Roots | Accepted | 2026-03-01 | - | - |
-| [0057](0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md) | MikroTik Chateau Netinstall Bootstrap and Terraform Handover | Proposed | 2026-03-02 | - | - |
+| [0057](0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md) | MikroTik Chateau Netinstall Bootstrap and Terraform Handover | Accepted | 2026-03-05 | - | - |

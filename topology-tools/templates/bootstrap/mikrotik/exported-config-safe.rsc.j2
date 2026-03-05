@@ -27,8 +27,13 @@
 
 # --- Management Interface Configuration ---
 :log info "Configuring management interface..."
-:if ([:len [/ip address find where interface="{{ mgmt_interface }}" and address="{{ router_ip }}/24"]] = 0) do={
-    /ip address add address={{ router_ip }}/24 interface={{ mgmt_interface }}
+:local mgmtIf "{{ mgmt_interface }}"
+:if ([:len [/interface find where name=$mgmtIf]] = 0) do={
+    :log warning ("Interface '" . $mgmtIf . "' not found, falling back to 'bridge'")
+    :set mgmtIf "bridge"
+}
+:if ([:len [/ip address find where interface=$mgmtIf and address="{{ router_address }}"]] = 0) do={
+    /ip address add address={{ router_address }} interface=$mgmtIf
 }
 
 # --- API User Group (with placeholder) ---
@@ -65,13 +70,13 @@
 # Allow REST API
 :if ([:len [/ip firewall filter find where comment="Allow REST API for Terraform"]] = 0) do={
     /ip firewall filter add chain=input action=accept protocol=tcp dst-port={{ api_port }} \
-        src-address={{ mgmt_network }} comment="Allow REST API for Terraform" place-before=0
+        src-address={{ api_access_network }} comment="Allow REST API for Terraform" place-before=0
 }
 
 # Allow SSH (optional, for recovery)
 :if ([:len [/ip firewall filter find where comment="Allow SSH from management"]] = 0) do={
     /ip firewall filter add chain=input action=accept protocol=tcp dst-port=22 \
-        src-address={{ mgmt_network }} comment="Allow SSH from management" place-before=1
+        src-address={{ api_access_network }} comment="Allow SSH from management" place-before=1
 }
 
 # --- Summary Log ---

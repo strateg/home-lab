@@ -27,6 +27,18 @@
           - mikrotik_bootstrap_script | length > 0
         fail_msg: "Missing required vars: target_mac, mikrotik_netinstall_interface, mikrotik_netinstall_client_ip, mikrotik_routeros_package, mikrotik_bootstrap_script"
 
+    - name: Validate target MAC format
+      ansible.builtin.assert:
+        that:
+          - target_mac is match('^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$')
+        fail_msg: "Invalid target_mac format: {{ target_mac }} (expected XX:XX:XX:XX:XX:XX)"
+
+    - name: Validate client IP format
+      ansible.builtin.assert:
+        that:
+          - mikrotik_netinstall_client_ip is match('^([0-9]{1,3}\\.){3}[0-9]{1,3}$')
+        fail_msg: "Invalid mikrotik_netinstall_client_ip format: {{ mikrotik_netinstall_client_ip }}"
+
     - name: Check netinstall-cli availability
       ansible.builtin.command: netinstall-cli --help
       changed_when: false

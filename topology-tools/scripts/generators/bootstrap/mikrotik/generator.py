@@ -1,5 +1,6 @@
 """Generate a release-safe MikroTik bootstrap package from topology."""
 
+import ipaddress
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -109,7 +110,25 @@ class MikrotikBootstrapGenerator:
         else:
             # Fallback to defaults
             self.router_ip = "192.168.88.1"
-            self.lan_network = "192.168.88.0/24"
+            self.lan_cidr = "192.168.88.0/24"
+            self.lan_network = self.lan_cidr
+
+        # Prefix-aware router address (avoid hardcoded /24 in templates).
+        try:
+            self.router_prefix = ipaddress.ip_network(self.lan_network, strict=False).prefixlen
+        except ValueError:
+            self.router_prefix = 24
+        self.router_address = f"{self.router_ip}/{self.router_prefix}"
+
+        # Prefer topology allocation hint for management interface if present.
+        if isinstance(lan_network, dict):
+            allocations = lan_network.get("ip_allocations", [])
+            for alloc in allocations:
+                if not isinstance(alloc, dict):
+                    continue
+                if alloc.get("ip") == self.router_ip and alloc.get("interface"):
+                    self.mgmt_interface = alloc["interface"]
+                    break
 
         # Find management network for API access allowance.
         mgmt_network = None
@@ -136,6 +155,17 @@ class MikrotikBootstrapGenerator:
             self.mgmt_network = mgmt_cidr if mgmt_cidr else self.lan_network
         else:
             self.mgmt_network = self.lan_network
+
+        # Day-0 API allowance should match the subnet used to reach router_ip.
+        self.api_access_network = self.lan_network
+        try:
+            router_addr = ipaddress.ip_address(self.router_ip)
+            mgmt_cidr = ipaddress.ip_network(self.mgmt_network, strict=False)
+            if router_addr in mgmt_cidr:
+                self.api_access_network = self.mgmt_network
+        except ValueError:
+            # Keep LAN fallback if topology values are malformed.
+            self.api_access_network = self.lan_network
 
     def _extract_dns_info(self) -> None:
         """Extract DNS configuration from L5."""
@@ -165,8 +195,10 @@ class MikrotikBootstrapGenerator:
             "router_name": self.router_name,
             "router_hostname": self.router_hostname,
             "router_ip": self.router_ip,
+            "router_address": self.router_address,
             "lan_network": self.lan_network,
             "mgmt_network": self.mgmt_network,
+            "api_access_network": self.api_access_network,
             "mgmt_interface": self.mgmt_interface,
             "dns_domain": self.dns_domain,
             "dns_servers": self.dns_servers,

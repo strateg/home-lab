@@ -50,27 +50,31 @@ the normal Terraform flow.
    cd deploy
    make assemble-native
    ```
-2. Confirm the rendered bootstrap script exists at `.work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
-3. Confirm local prerequisites before reinstalling:
-   - `netinstall-cli` is installed and in `PATH`
-   - the correct RouterOS `.npk` package for the device architecture is available locally
-   - the control node is connected to the intended install segment
-   - the install interface, client IP, and target router MAC address are known
-4. Put the router into Etherboot or Netinstall mode
-5. Run Netinstall from the control node with the rendered bootstrap script:
+2. Run preflight checks from the control node:
    ```bash
-   netinstall-cli \
-     -e \
-     --mac 00:11:22:33:44:55 \
-     -i <install-interface> \
-     -a <client-ip> \
-     -s .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc \
-     /path/to/routeros-arm64.npk
+   make bootstrap-preflight RESTORE_PATH=minimal \
+     MIKROTIK_NETINSTALL_INTERFACE=<install-interface> \
+     MIKROTIK_NETINSTALL_CLIENT_IP=<client-ip> \
+     MIKROTIK_ROUTEROS_PACKAGE=/path/to/routeros-arm64.npk \
+     MIKROTIK_ROUTEROS_PACKAGE_SHA256=<sha256-optional>
    ```
-6. Verify the handover contract after boot:
-   - the management IP responds
-   - the RouterOS API answers on `https://<router-ip>:8443`
-   - the `terraform` user can authenticate
+3. Put the router into Etherboot or Netinstall mode, then run:
+   ```bash
+   make bootstrap-netinstall RESTORE_PATH=minimal \
+     MIKROTIK_BOOTSTRAP_MAC=<router-mac> \
+     MIKROTIK_NETINSTALL_INTERFACE=<install-interface> \
+     MIKROTIK_NETINSTALL_CLIENT_IP=<client-ip> \
+     MIKROTIK_ROUTEROS_PACKAGE=/path/to/routeros-arm64.npk
+   ```
+4. Validate handover and Terraform connectivity:
+   ```bash
+   make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 \
+     MIKROTIK_TERRAFORM_PASSWORD_FILE=local/terraform/mikrotik/password.txt
+   make bootstrap-terraform-check
+   ```
+5. Compatibility-only restore paths:
+   - `RESTORE_PATH=backup` or `RESTORE_PATH=rsc`
+   - require `ALLOW_NON_MINIMAL_RESTORE=true`
 
 ### Fallback Option 1: Manual Script Import
 
@@ -123,7 +127,7 @@ over SSH. It is not the canonical ADR 0057 day-0 path.
 ### Verify REST API Access
 
 ```bash
-curl -k -u terraform:YOUR_PASSWORD https://192.168.88.1:8443/rest/system/identity
+curl -k --netrc-file local/terraform/mikrotik/api.netrc https://192.168.88.1:8443/rest/system/identity
 # Expected: {"name":"MikroTik-Chateau"}
 ```
 
@@ -437,7 +441,7 @@ If locked out:
 ## Security Considerations
 
 1. **Change default passwords** immediately after bootstrap
-2. **Restrict API access** to management network only
+2. **Restrict API access** to the intended Terraform/control-node subnet only
 3. **Use strong passwords** (16+ characters, mixed case, numbers, symbols)
 4. **Rotate credentials** regularly
 5. **Keep RouterOS updated** for security patches

@@ -1,7 +1,7 @@
 # ADR 0057: MikroTik Chateau Netinstall Bootstrap and Terraform Handover
 
-**Date:** 2026-03-02
-**Status:** Proposed
+**Date:** 2026-03-05
+**Status:** Accepted
 **Related:** ADR 0049 (MikroTik Bootstrap Automation), ADR 0054 (Local Inputs Directory), ADR 0055 (Manual Terraform Extension Layer), ADR 0056 (Native Execution Workspace)
 
 ---
@@ -31,10 +31,13 @@ The project needs a more rigorous target contract for day-0 without changing the
 
 Current repository behavior is:
 
-- `topology-tools/templates/bootstrap/mikrotik/init-terraform.rsc.j2` renders a Terraform-oriented bootstrap script
+- `topology-tools/templates/bootstrap/mikrotik/init-terraform-minimal.rsc.j2` renders the canonical day-0 handover script
+- compatibility templates exist for backup and export-assisted recovery:
+  - `topology-tools/templates/bootstrap/mikrotik/backup-restore-overrides.rsc.j2`
+  - `topology-tools/templates/bootstrap/mikrotik/exported-config-safe.rsc.j2`
 - `generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc` is the generated bootstrap artifact
 - `generated/bootstrap/rtr-mikrotik-chateau/terraform.tfvars.example` and `generated/terraform/mikrotik/terraform.tfvars.example` support the post-bootstrap Terraform phase
-- `deploy/phases/00-bootstrap.sh` and `make bootstrap-info` still describe a mostly manual bootstrap path
+- `deploy/phases/00-bootstrap.sh` and `make bootstrap-info` present Netinstall as default with fallback paths
 - `topology-tools/scripts/deployers/mikrotik_bootstrap.py` remains a legacy SSH-first helper, not a true day-0 mechanism
 
 ### Desired State
@@ -195,11 +198,15 @@ At minimum, the control-node workflow must verify:
 
 - `netinstall-cli` is installed and available in `PATH`
 - the correct RouterOS package files are available locally
+- the RouterOS package checksum is verified when an expected checksum is supplied
 - the intended install interface is known
 - the control node is on the correct installation segment
 - the rendered bootstrap artifact exists at the expected execution path
 
 If these checks fail, the workflow must stop before installation begins.
+
+The default restore profile is `minimal`.
+`backup` and `rsc` profiles are compatibility-only and require explicit operator opt-in.
 
 ---
 
@@ -230,8 +237,9 @@ The second and third classes are execution-time inputs and must not leak into tr
 
 ```routeros
 /user add name=terraform password=StrongPass group=full ; pragma: allowlist secret
-/ip service enable api-ssl
-/ip address add address=192.168.88.2/24 interface=bridge
+/ip service set www-ssl disabled=no port=8443
+/ip address add address=192.168.88.1/24 interface=bridge
+/ip firewall filter add chain=input action=accept protocol=tcp dst-port=8443 src-address=192.168.88.0/24
 ```
 
 The real template should additionally:
@@ -303,7 +311,7 @@ vault_mikrotik_terraform_password: "REDACTED"  # pragma: allowlist secret
 ```yaml
 - name: Render bootstrap script from Vault-backed values
   ansible.builtin.template:
-    src: templates/bootstrap/mikrotik/init-terraform.rsc.j2
+    src: templates/bootstrap/mikrotik/init-terraform-minimal.rsc.j2
     dest: .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc
     mode: "0600"
 ```
@@ -354,6 +362,6 @@ The implementation must explicitly manage three states:
 - ADR 0055: Manual Terraform Extension Layer
 - ADR 0056: Native Execution Workspace Outside Generated Roots
 - `adr/0057-migration-plan.md`
-- `topology-tools/templates/bootstrap/mikrotik/init-terraform.rsc.j2`
+- `topology-tools/templates/bootstrap/mikrotik/init-terraform-minimal.rsc.j2`
 - `topology-tools/scripts/deployers/mikrotik_bootstrap.py`
 - `deploy/phases/00-bootstrap.sh`
