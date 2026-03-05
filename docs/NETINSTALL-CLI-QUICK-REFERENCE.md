@@ -68,7 +68,8 @@ make bootstrap-netinstall \
 # Step 4: Verify bootstrap success
 make bootstrap-postcheck \
   MIKROTIK_MGMT_IP="192.168.88.1" \
-  MIKROTIK_TERRAFORM_PASSWORD="your-password" # pragma: allowlist secret
+  MIKROTIK_TERRAFORM_PASSWORD_FILE="local/terraform/mikrotik/password.txt" # pragma: allowlist secret
+make bootstrap-terraform-check
 ```
 
 ---
@@ -86,6 +87,7 @@ make bootstrap-netinstall RESTORE_PATH=minimal \
 Restore from previous backup + apply overrides
 ```bash
 make bootstrap-netinstall RESTORE_PATH=backup \
+  ALLOW_NON_MINIMAL_RESTORE=true \
   MIKROTIK_BOOTSTRAP_MAC="<mac-address>"
 ```
 
@@ -93,6 +95,7 @@ make bootstrap-netinstall RESTORE_PATH=backup \
 Import full exported configuration
 ```bash
 make bootstrap-netinstall RESTORE_PATH=rsc \
+  ALLOW_NON_MINIMAL_RESTORE=true \
   MIKROTIK_BOOTSTRAP_MAC="<mac-address>"
 ```
 
@@ -173,7 +176,8 @@ make setup-control-node
 # Run all bootstrap checks and execution
 make bootstrap-preflight RESTORE_PATH=minimal
 make bootstrap-netinstall RESTORE_PATH=minimal MIKROTIK_BOOTSTRAP_MAC=<mac>
-make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD=<pwd>
+make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD_FILE=local/terraform/mikrotik/password.txt
+make bootstrap-terraform-check
 
 # Verify status
 make status
@@ -251,7 +255,8 @@ This:
    ```bash
    make bootstrap-postcheck \
      MIKROTIK_MGMT_IP="192.168.88.1" \
-     MIKROTIK_TERRAFORM_PASSWORD="<password>"
+     MIKROTIK_TERRAFORM_PASSWORD_FILE="local/terraform/mikrotik/password.txt" # pragma: allowlist secret
+   make bootstrap-terraform-check
    ```
 
 ---

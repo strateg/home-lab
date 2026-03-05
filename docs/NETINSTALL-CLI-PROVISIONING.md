@@ -148,7 +148,8 @@ make bootstrap-netinstall \
 # Verify bootstrap success
 make bootstrap-postcheck \
   MIKROTIK_MGMT_IP="192.168.88.1" \
-  MIKROTIK_TERRAFORM_PASSWORD="your-password" # pragma: allowlist secret
+  MIKROTIK_TERRAFORM_PASSWORD_FILE="local/terraform/mikrotik/password.txt" # pragma: allowlist secret
+make bootstrap-terraform-check
 ```
 
 ---
@@ -448,6 +449,8 @@ cd deploy
 make setup-control-node
 make bootstrap-preflight RESTORE_PATH=minimal
 make bootstrap-netinstall RESTORE_PATH=minimal MIKROTIK_BOOTSTRAP_MAC="00:11:22:33:44:55"
+make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD_FILE=local/terraform/mikrotik/password.txt
+make bootstrap-terraform-check
 ```
 
 ---
@@ -468,3 +471,4 @@ make bootstrap-netinstall RESTORE_PATH=minimal MIKROTIK_BOOTSTRAP_MAC="00:11:22:
 2. Run `make setup-control-node` to install prerequisites
 3. Execute `make bootstrap-preflight` to validate everything
 4. Proceed with `make bootstrap-netinstall` when ready
+5. Validate handover with `make bootstrap-postcheck` and `make bootstrap-terraform-check`

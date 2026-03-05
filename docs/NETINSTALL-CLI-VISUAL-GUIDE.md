@@ -167,7 +167,8 @@ STEP 5: Verify bootstrap success
 │
 ├─ Run: make bootstrap-postcheck \
 │          MIKROTIK_MGMT_IP="192.168.88.1" \
-│          MIKROTIK_TERRAFORM_PASSWORD="terraform"
+│          MIKROTIK_TERRAFORM_PASSWORD_FILE="local/terraform/mikrotik/password.txt"
+├─ Run: make bootstrap-terraform-check
 ├─ Checks:
 │  ✓ MikroTik API accessible
 │  ✓ Terraform user configured
@@ -341,7 +342,8 @@ make bootstrap-preflight RESTORE_PATH=minimal
 make bootstrap-netinstall RESTORE_PATH=minimal MIKROTIK_BOOTSTRAP_MAC="<mac>"
 
 # Verify success (existing)
-make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1
+make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD_FILE=local/terraform/mikrotik/password.txt
+make bootstrap-terraform-check
 
 # Continue with deployment (existing)
 make plan

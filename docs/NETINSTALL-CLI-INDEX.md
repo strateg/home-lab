@@ -155,7 +155,8 @@ make bootstrap-netinstall \
 # 4. Verify success
 make bootstrap-postcheck \
   MIKROTIK_MGMT_IP="192.168.88.1" \
-  MIKROTIK_TERRAFORM_PASSWORD="your-password"
+  MIKROTIK_TERRAFORM_PASSWORD_FILE="local/terraform/mikrotik/password.txt"
+make bootstrap-terraform-check
 
 # 5. Continue deployment
 make deploy-all

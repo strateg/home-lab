@@ -279,7 +279,8 @@ make bootstrap-netinstall \
 # Step 5: Wait for reboot and verify
 make bootstrap-postcheck \
   MIKROTIK_MGMT_IP="192.168.88.1" \
-  MIKROTIK_TERRAFORM_PASSWORD="terraform" # pragma: allowlist secret
+  MIKROTIK_TERRAFORM_PASSWORD_FILE="local/terraform/mikrotik/password.txt" # pragma: allowlist secret
+make bootstrap-terraform-check
 
 # Step 6: Proceed with full deployment
 cd ..
