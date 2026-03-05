@@ -344,5 +344,6 @@
             3. Verify bootstrap success:
                make bootstrap-postcheck \
                  MIKROTIK_MGMT_IP='192.168.88.1' \
-                 MIKROTIK_TERRAFORM_PASSWORD='<password>'
+                 MIKROTIK_TERRAFORM_PASSWORD_FILE='local/terraform/mikrotik/password.txt'
+               make bootstrap-terraform-check
           ════════════════════════════════════════════════════════════════

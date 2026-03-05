@@ -39,3 +39,4 @@ Scope: `adr/0057-migration-plan.md` -> section "Target End State"
 2. Harden `deploy/Makefile` variables and pass explicit params into playbook.
 3. Make minimal template canonical in generator path and wire `mgmt_network`.
 4. Run smoke checks for all three bootstrap targets and generator output profile.
+5. Run real-hardware E2E using `adr/adr0057-analysis/HARDWARE-E2E-CHECKLIST.md` and attach evidence snippets.

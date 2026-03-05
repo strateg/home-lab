@@ -520,7 +520,7 @@ bootstrap-postcheck:
 	@echo "$(YELLOW)✅ Running bootstrap post-checks...$(NC)"
 	@if [ -z "$(MIKROTIK_MGMT_IP)" ]; then \
 		echo "$(RED)Error: MIKROTIK_MGMT_IP not set$(NC)"; \
-		echo "Usage: make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD=xxx"; \
+		echo "Usage: make bootstrap-postcheck MIKROTIK_MGMT_IP=192.168.88.1 MIKROTIK_TERRAFORM_PASSWORD_FILE=local/terraform/mikrotik/password.txt"; \
 		exit 1; \
 	fi
 	@if [ -z "$(MIKROTIK_TERRAFORM_PASSWORD)" ] && [ -z "$(MIKROTIK_TERRAFORM_PASSWORD_FILE)" ]; then \
