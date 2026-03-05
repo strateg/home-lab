@@ -1,0 +1,71 @@
+# =============================================================================
+# MikroTik RouterOS - Backup Restoration Overrides (Path B)
+# Generated from topology v{{ topology_version }}
+# Generated at: {{ generation_timestamp }}
+# =============================================================================
+#
+# BACKUP RESTORATION OVERRIDES - Day-0 only (see ADR 0057, Path B)
+# Purpose: Applied AFTER backup restore to override day-0 requirements
+#
+# Workflow:
+# 1. /system backup restore name=auto-before-reset-YYYYMMDD-HHMMSS.backup
+# 2. Then execute THIS script for day-0 overrides
+# 3. Handover to Terraform
+#
+# =============================================================================
+
+# --- System Identity (Day-0 Override) ---
+:log info "Setting system identity for day-0..."
+/system identity set name="{{ router_name }}"
+
+# --- Management Interface (Day-0 Override) ---
+# NOTE: If backup had different management IP, this overrides it
+:log info "Configuring management interface..."
+:if ([:len [/ip address find where interface="{{ mgmt_interface }}" and address="{{ router_ip }}/24"]] = 0) do={
+    :log info "Adding management IP..."
+    /ip address add address={{ router_ip }}/24 interface={{ mgmt_interface }}
+} else={
+    :log info "Management IP already configured"
+}
+
+# --- Create/Update Terraform User (Day-0 Override) ---
+:log info "Checking Terraform user..."
+:if ([:len [/user find where name="{{ terraform_user }}"]] = 0) do={
+    :log info "Creating Terraform user..."
+    /user add name={{ terraform_user }} group={{ terraform_group }} password="{{ terraform_password }}" comment="Terraform automation"
+} else={
+    :log info "Terraform user exists, updating password..."
+    /user set [find where name="{{ terraform_user }}"] password="{{ terraform_password }}"
+}
+
+# --- Enable REST API (Day-0 Override) ---
+:log info "Enabling REST API..."
+/ip service set www-ssl disabled=no port={{ api_port }}
+
+# --- Firewall: Allow REST API (Day-0 Override) ---
+:log info "Checking REST API firewall rule..."
+:if ([:len [/ip firewall filter find where comment="Allow REST API for Terraform"]] = 0) do={
+    :log info "Adding REST API firewall rule..."
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port={{ api_port }} \
+        src-address={{ mgmt_network }} comment="Allow REST API for Terraform" place-before=0
+} else={
+    :log info "REST API firewall rule already exists"
+}
+
+# --- Summary ---
+:log info "========================================"
+:log info "Backup restoration overrides completed!"
+:log info "REST API: https://{{ router_ip }}:{{ api_port }}"
+:log info "User: {{ terraform_user }}"
+:log info "Ready for Terraform handover"
+:log info "========================================"
+
+:put ""
+:put "=============================================="
+:put "Backup Restoration + Overrides Complete!"
+:put "=============================================="
+:put "REST API: https://{{ router_ip }}:{{ api_port }}"
+:put "User:     {{ terraform_user }}"
+:put ""
+:put "Next: Apply Terraform configuration"
+:put "=============================================="

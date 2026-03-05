@@ -34,7 +34,7 @@ endif
 
 .PHONY: all help validate generate plan apply deploy-all clean status
 .PHONY: plan-mikrotik plan-proxmox apply-mikrotik apply-proxmox
-.PHONY: configure test bootstrap-info bootstrap-setup-control-node bootstrap-provision-control-node bootstrap-preflight bootstrap-netinstall bootstrap-postcheck assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides check-terraform-override-flow assemble-native
+.PHONY: configure test bootstrap-info bootstrap-setup-control-node bootstrap-provision-control-node setup-control-node setup-control-node-ansible bootstrap-all bootstrap-preflight bootstrap-netinstall bootstrap-postcheck assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides check-terraform-override-flow assemble-native
 .PHONY: plan-dist plan-mikrotik-dist plan-proxmox-dist apply-mikrotik-dist apply-proxmox-dist configure-dist deploy-all-dist require-dist
 
 # Directories (relative to deploy/)
@@ -400,6 +400,13 @@ bootstrap-provision-control-node:
 	@echo "$(YELLOW)🛠️  Provisioning control node via Ansible...$(NC)"
 	cd $(ANSIBLE_DIR) && ansible-playbook ../deploy/playbooks/provision-control-node.yml
 
+# Compatibility aliases retained for older runbooks.
+setup-control-node: bootstrap-setup-control-node
+
+setup-control-node-ansible: bootstrap-provision-control-node
+
+bootstrap-all: bootstrap-preflight bootstrap-netinstall bootstrap-postcheck
+
 # Day-0 MikroTik bootstrap using netinstall-cli
 # See: adr/0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md
 #
@@ -426,10 +433,13 @@ MIKROTIK_BOOTSTRAP_MAC ?=
 MIKROTIK_NETINSTALL_INTERFACE ?=
 MIKROTIK_NETINSTALL_CLIENT_IP ?=
 MIKROTIK_ROUTEROS_PACKAGE ?=
-MIKROTIK_BOOTSTRAP_SCRIPT ?= $(ROOT_DIR)/.work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc
+MIKROTIK_BOOTSTRAP_SCRIPT ?=
 MIKROTIK_MGMT_IP ?= 192.168.88.1
 MIKROTIK_TERRAFORM_USER ?= terraform
 MIKROTIK_TERRAFORM_PASSWORD ?=
+
+BOOTSTRAP_SCRIPT_BY_RESTORE := $(if $(filter backup,$(RESTORE_PATH)),$(ROOT_DIR)/.work/native/bootstrap/rtr-mikrotik-chateau/backup-restore-overrides.rsc,$(if $(filter rsc,$(RESTORE_PATH)),$(ROOT_DIR)/.work/native/bootstrap/rtr-mikrotik-chateau/exported-config-safe.rsc,$(ROOT_DIR)/.work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc))
+BOOTSTRAP_SCRIPT_RESOLVED := $(if $(MIKROTIK_BOOTSTRAP_SCRIPT),$(MIKROTIK_BOOTSTRAP_SCRIPT),$(BOOTSTRAP_SCRIPT_BY_RESTORE))
 
 bootstrap-preflight:
 	@echo "$(YELLOW)🔍 Running bootstrap preflight checks...$(NC)"
@@ -453,12 +463,13 @@ bootstrap-preflight:
 		exit 1; \
 	fi
 	@echo "  Restore path: $(RESTORE_PATH)"
+	@echo "  Bootstrap script: $(BOOTSTRAP_SCRIPT_RESOLVED)"
 	@echo "  Install iface: $(MIKROTIK_NETINSTALL_INTERFACE)"
 	@echo "  Client IP: $(MIKROTIK_NETINSTALL_CLIENT_IP)"
 	@echo "  RouterOS pkg: $(MIKROTIK_ROUTEROS_PACKAGE)"
 	$(SHELL) phases/00-bootstrap-preflight.sh \
 		"$(RESTORE_PATH)" \
-		"$(MIKROTIK_BOOTSTRAP_SCRIPT)" \
+		"$(BOOTSTRAP_SCRIPT_RESOLVED)" \
 		"$(MIKROTIK_NETINSTALL_INTERFACE)" \
 		"$(MIKROTIK_NETINSTALL_CLIENT_IP)" \
 		"$(MIKROTIK_ROUTEROS_PACKAGE)"
@@ -476,7 +487,7 @@ bootstrap-netinstall: bootstrap-preflight
 	cd $(ANSIBLE_DIR) && ansible-playbook ../deploy/playbooks/bootstrap-netinstall.yml \
 		--extra-vars="restore_path=$(RESTORE_PATH)" \
 		--extra-vars="target_mac=$(MIKROTIK_BOOTSTRAP_MAC)" \
-		--extra-vars="mikrotik_bootstrap_script=$(MIKROTIK_BOOTSTRAP_SCRIPT)" \
+		--extra-vars="mikrotik_bootstrap_script=$(BOOTSTRAP_SCRIPT_RESOLVED)" \
 		--extra-vars="mikrotik_netinstall_interface=$(MIKROTIK_NETINSTALL_INTERFACE)" \
 		--extra-vars="mikrotik_netinstall_client_ip=$(MIKROTIK_NETINSTALL_CLIENT_IP)" \
 		--extra-vars="mikrotik_routeros_package=$(MIKROTIK_ROUTEROS_PACKAGE)"

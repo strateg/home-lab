@@ -14,8 +14,8 @@
     - name: Validate restore path
       ansible.builtin.assert:
         that:
-          - restore_path in ['minimal', 'rsc']
-        fail_msg: "Unsupported restore_path={{ restore_path }}. Supported: minimal, rsc"
+          - restore_path in ['minimal', 'backup', 'rsc']
+        fail_msg: "Unsupported restore_path={{ restore_path }}. Supported: minimal, backup, rsc"
 
     - name: Validate required netinstall variables
       ansible.builtin.assert:

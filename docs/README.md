@@ -11,6 +11,11 @@ docs/
 ├── README.md                    # You are here
 ├── CHANGELOG.md                 # Project changelog (v3.0.0)
 ├── CHANGELOG-GENERATED-DIR.md   # Generated directory changelog
+├── NETINSTALL-CLI-INDEX.md      # ADR0057 Netinstall docs index
+├── NETINSTALL-CLI-PROVISIONING.md # Control-node provisioning guide
+├── NETINSTALL-CLI-QUICK-REFERENCE.md # Netinstall command quick reference
+├── NETINSTALL-CLI-SETUP-OPTIONS.md # Setup methods comparison
+├── NETINSTALL-CLI-VISUAL-GUIDE.md # Visual bootstrap flow
 ├── guides/                      # Practical how-to guides
 │   ├── DEPLOYMENT-STRATEGY.md   # Full deployment workflow (NEW)
 │   ├── MIKROTIK-TERRAFORM.md    # MikroTik Terraform guide (NEW)
@@ -112,6 +117,16 @@ See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete gui
 | [GENERATED-QUICK-GUIDE.md](guides/GENERATED-QUICK-GUIDE.md) | Generated directory workflow | STABLE |
 | [RAM-OPTIMIZATION.md](guides/RAM-OPTIMIZATION.md) | RAM allocation for 8GB constraint | STABLE |
 | [ANSIBLE-VAULT-GUIDE.md](guides/ANSIBLE-VAULT-GUIDE.md) | Secrets management | STABLE |
+
+### Netinstall (ADR 0057)
+
+| Document | Description | Status |
+|----------|-------------|--------|
+| [NETINSTALL-CLI-INDEX.md](NETINSTALL-CLI-INDEX.md) | Entry point for Netinstall docs | NEW |
+| [NETINSTALL-CLI-QUICK-REFERENCE.md](NETINSTALL-CLI-QUICK-REFERENCE.md) | Operator command cheatsheet | NEW |
+| [NETINSTALL-CLI-PROVISIONING.md](NETINSTALL-CLI-PROVISIONING.md) | Control-node provisioning details | NEW |
+| [NETINSTALL-CLI-SETUP-OPTIONS.md](NETINSTALL-CLI-SETUP-OPTIONS.md) | Bash vs Ansible setup options | NEW |
+| [NETINSTALL-CLI-VISUAL-GUIDE.md](NETINSTALL-CLI-VISUAL-GUIDE.md) | Visual workflow and decision flow | NEW |
 
 ### Architecture
 

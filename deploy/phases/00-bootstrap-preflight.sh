@@ -26,13 +26,10 @@ if [ -z "$RESTORE_PATH" ] || [ -z "$BOOTSTRAP_SCRIPT" ] || [ -z "$NETINSTALL_IFA
 fi
 
 case "$RESTORE_PATH" in
-    minimal|rsc)
-        ;;
-    backup)
-        fail "RESTORE_PATH=backup is not implemented for netinstall workflow yet"
+    minimal|backup|rsc)
         ;;
     *)
-        fail "Unsupported RESTORE_PATH='$RESTORE_PATH' (expected: minimal or rsc)"
+        fail "Unsupported RESTORE_PATH='$RESTORE_PATH' (expected: minimal, backup, or rsc)"
         ;;
 esac
 

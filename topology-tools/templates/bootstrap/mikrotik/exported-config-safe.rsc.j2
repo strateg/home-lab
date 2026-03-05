@@ -1,0 +1,96 @@
+# =============================================================================
+# MikroTik RouterOS - Safe Exported Configuration (Path C)
+# Generated from topology v{{ topology_version }}
+# Generated at: {{ generation_timestamp }}
+# =============================================================================
+#
+# SAFE EXPORTED CONFIGURATION - Full config with placeholders (see ADR 0057, Path C)
+# Purpose: Full day-1 configuration that can be imported during boot
+#
+# ⚠️  SECURITY WARNING:
+# This is a SAFE VERSION with placeholders for sensitive values.
+# Passwords, keys, and secrets are marked as <PLACEHOLDER_*>.
+# After import, apply real credentials via minimal overrides.
+#
+# Workflow:
+# 1. Upload this file to device: exported_config_safe-YYYYMMDD-HHMMSS.rsc
+# 2. Execute: /import file-name=exported_config_safe-YYYYMMDD-HHMMSS.rsc
+# 3. Apply minimal overrides for day-0 requirements (user passwords, etc.)
+# 4. Handover to Terraform
+#
+# Non-destructive: Can be re-run without side effects due to existence checks
+# =============================================================================
+
+# --- System Identity ---
+:log info "Configuring system identity..."
+/system identity set name="{{ router_name }}"
+
+# --- Management Interface Configuration ---
+:log info "Configuring management interface..."
+:if ([:len [/ip address find where interface="{{ mgmt_interface }}" and address="{{ router_ip }}/24"]] = 0) do={
+    /ip address add address={{ router_ip }}/24 interface={{ mgmt_interface }}
+}
+
+# --- API User Group (with placeholder) ---
+:log info "Configuring API user group..."
+:if ([:len [/user group find where name="{{ terraform_group }}"]] = 0) do={
+    /user group add name={{ terraform_group }} policy=api,read,write,policy,test,sensitive
+}
+
+# --- Terraform Automation User (with placeholder password) ---
+:log info "Configuring Terraform user..."
+:if ([:len [/user find where name="{{ terraform_user }}"]] = 0) do={
+    /user add name={{ terraform_user }} group={{ terraform_group }} \
+        password="<PLACEHOLDER_TERRAFORM_PASSWORD>" comment="Terraform automation user"
+}
+
+# --- REST API Configuration ---
+:log info "Enabling REST API on port {{ api_port }}..."
+/ip service set www-ssl disabled=no port={{ api_port }}
+/ip service set telnet disabled=yes
+/ip service set ftp disabled=yes
+/ip service set api disabled=yes
+
+# --- DNS Configuration ---
+:log info "Configuring DNS..."
+:if ([:len [/ip dns find]] = 0) do={
+    /ip dns add servers={{ dns_servers | join(',') }} allow-remote-requests=yes
+} else={
+    /ip dns set servers={{ dns_servers | join(',') }} allow-remote-requests=yes
+}
+
+# --- Firewall: Management Access ---
+:log info "Configuring firewall rules for management..."
+
+# Allow REST API
+:if ([:len [/ip firewall filter find where comment="Allow REST API for Terraform"]] = 0) do={
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port={{ api_port }} \
+        src-address={{ mgmt_network }} comment="Allow REST API for Terraform" place-before=0
+}
+
+# Allow SSH (optional, for recovery)
+:if ([:len [/ip firewall filter find where comment="Allow SSH from management"]] = 0) do={
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port=22 \
+        src-address={{ mgmt_network }} comment="Allow SSH from management" place-before=1
+}
+
+# --- Summary Log ---
+:log info "========================================"
+:log info "Safe exported configuration import completed!"
+:log info "REST API: https://{{ router_ip }}:{{ api_port }}"
+:log info "User: {{ terraform_user }}"
+:log info "========================================"
+
+:put ""
+:put "=============================================="
+:put "Safe Exported Config Import Complete!"
+:put "=============================================="
+:put "REST API: https://{{ router_ip }}:{{ api_port }}"
+:put "User:     {{ terraform_user }}"
+:put ""
+:put "⚠️  IMPORTANT:"
+:put "This import used placeholder passwords."
+:put "Apply real credentials via override script."
+:put "Next: Apply override script with real passwords"
+:put "Then: Apply Terraform configuration"
+:put "=============================================="

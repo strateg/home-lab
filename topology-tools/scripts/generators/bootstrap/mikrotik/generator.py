@@ -74,6 +74,8 @@ class MikrotikBootstrapGenerator:
 
         # Router hostname (short name for certificate)
         self.router_hostname = "router"
+        # Fallback management interface for optional backup/rsc paths.
+        self.mgmt_interface = "bridge"
 
     def _extract_network_info(self) -> None:
         """Extract network configuration from L2."""
@@ -152,7 +154,7 @@ class MikrotikBootstrapGenerator:
         self.dns_servers = forwarders.get("upstream", ["1.1.1.1", "8.8.8.8"])
 
     def generate(self) -> Dict[str, Any]:
-        """Generate bootstrap script and return metadata."""
+        """Generate bootstrap scripts and return metadata."""
         # Ensure output directory exists
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -165,6 +167,7 @@ class MikrotikBootstrapGenerator:
             "router_ip": self.router_ip,
             "lan_network": self.lan_network,
             "mgmt_network": self.mgmt_network,
+            "mgmt_interface": self.mgmt_interface,
             "dns_domain": self.dns_domain,
             "dns_servers": self.dns_servers,
             "api_port": 8443,
@@ -173,21 +176,29 @@ class MikrotikBootstrapGenerator:
             "terraform_password": self.terraform_password,
         }
 
-        # ADR 0057 canonical path: minimal day-0 handover template.
-        template = self.env.get_template("init-terraform-minimal.rsc.j2")
-        content = template.render(**context)
-
-        # Write output file
+        # Path A (canonical): minimal day-0 handover template.
+        template_minimal = self.env.get_template("init-terraform-minimal.rsc.j2")
         output_file = self.output_dir / "init-terraform.rsc"
-        output_file.write_text(content)
+        output_file.write_text(template_minimal.render(**context), encoding="utf-8")
+
+        # Optional Path B/C artifacts used by compatibility runbooks.
+        template_backup = self.env.get_template("backup-restore-overrides.rsc.j2")
+        output_file_backup = self.output_dir / "backup-restore-overrides.rsc"
+        output_file_backup.write_text(template_backup.render(**context), encoding="utf-8")
+
+        template_rsc = self.env.get_template("exported-config-safe.rsc.j2")
+        output_file_rsc = self.output_dir / "exported-config-safe.rsc"
+        output_file_rsc.write_text(template_rsc.render(**context), encoding="utf-8")
 
         # Generate release-safe terraform.tfvars example.
         tfvars_content = self._generate_tfvars_example(context)
         tfvars_file = self.output_dir / "terraform.tfvars.example"
-        tfvars_file.write_text(tfvars_content)
+        tfvars_file.write_text(tfvars_content, encoding="utf-8")
 
         return {
             "bootstrap_script": str(output_file),
+            "bootstrap_script_backup": str(output_file_backup),
+            "bootstrap_script_rsc": str(output_file_rsc),
             "terraform_vars_example": str(tfvars_file),
             "router_ip": self.router_ip,
             "api_url": f"https://{self.router_ip}:{context['api_port']}",
