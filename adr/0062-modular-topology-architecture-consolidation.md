@@ -383,12 +383,27 @@ Exit criteria:
 
 Current measured status:
 
-- Phase 0 in progress:
+- Phase 0 in progress (workspace split completed, hardening completed):
   - created dual-lane roots `v4/` and `v5/`
   - moved legacy operational tree to `v4/` (`topology`, `topology-tools`, `tests`)
   - moved v4-dependent folders to `v4/` (`ansible`, `deploy`, `manual-scripts`, `terraform-overrides`, `local`)
   - switched legacy artifact roots to versioned `v4-*` naming
-- migration progress is design complete with initial workspace split implemented
+- restored v4 lane functional integrity after path split:
+  - fixed v4 runtime/generator/deploy path resolution for moved roots
+  - aligned native/dist/parity tooling to `v4/*` sources
+  - restored legacy compatibility for test/runtime callers using `topology.yaml` and `topology-tools/templates` defaults
+  - added v4 test bootstrap (`v4/tests/conftest.py`) for deterministic module resolution in dual-lane layout
+- v4 verification evidence (2026-03-06):
+  - `validate-topology` (strict): PASS
+  - `compile-topology` (strict model-lock): PASS
+  - `regenerate-all` (strict, fail-on-validation): PASS
+  - `make -f v4/deploy/Makefile validate`: PASS
+  - `make -f v4/deploy/Makefile generate`: PASS
+  - `make -f v4/deploy/Makefile assemble-dist`: PASS
+  - `make -f v4/deploy/Makefile check-parity`: PASS
+  - `check-terraform-override-flow`: PASS
+  - `pytest v4/tests`: PASS (`210 passed`, `1 skipped`)
+- migration progress is design complete with Phase 0 implementation operationally validated
 - class/object module coverage is minimal
 - v5-specific CI lanes are not operational yet
 
