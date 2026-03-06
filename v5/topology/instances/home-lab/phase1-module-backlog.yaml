@@ -1,0 +1,245 @@
+schema_version: 1
+phase: 1
+source_mapping: v5/topology/instances/home-lab/v4-to-v5-mapping.yaml
+gaps:
+  classes:
+  - class_ref: class.compute.workload.container
+    instances_count: 9
+    instance_refs:
+    - l4_lxc:lxc-docker
+    - l4_lxc:lxc-gitea
+    - l4_lxc:lxc-grafana
+    - l4_lxc:lxc-homeassistant
+    - l4_lxc:lxc-nextcloud
+    - l4_lxc:lxc-nginx-proxy
+    - l4_lxc:lxc-postgresql
+    - l4_lxc:lxc-prometheus
+    - l4_lxc:lxc-redis
+  - class_ref: class.service.monitoring
+    instances_count: 4
+    instance_refs:
+    - l5_services:svc-ntp
+    - l5_services:svc-prometheus@docker:srv-orangepi5
+    - l5_services:svc-prometheus@lxc:lxc-prometheus
+    - l5_services:svc-snmp
+  - class_ref: class.service.home_automation
+    instances_count: 3
+    instance_refs:
+    - l5_services:svc-homeassistant@docker:srv-orangepi5
+    - l5_services:svc-homeassistant@lxc:lxc-homeassistant
+    - l5_services:svc-mosquitto
+  - class_ref: class.service.web_application
+    instances_count: 3
+    instance_refs:
+    - l5_services:svc-docker-host
+    - l5_services:svc-gitea
+    - l5_services:svc-nextcloud@docker:srv-orangepi5
+  - class_ref: class.compute.cloud_vm
+    instances_count: 2
+    instance_refs:
+    - l1_devices:vps-hetzner-nuremberg
+    - l1_devices:vps-oracle-frankfurt
+  - class_ref: class.service.dns
+    instances_count: 2
+    instance_refs:
+    - l5_services:svc-adguard
+    - l5_services:svc-adguard-secondary
+  - class_ref: class.service.logging
+    instances_count: 2
+    instance_refs:
+    - l5_services:svc-loki
+    - l5_services:svc-syslog-forward
+  - class_ref: class.service.visualization
+    instances_count: 2
+    instance_refs:
+    - l5_services:svc-grafana@docker:srv-orangepi5
+    - l5_services:svc-grafana@lxc:lxc-grafana
+  - class_ref: class.service.vpn
+    instances_count: 2
+    instance_refs:
+    - l5_services:svc-tailscale
+    - l5_services:svc-wireguard
+  - class_ref: class.service.web_ui
+    instances_count: 2
+    instance_refs:
+    - l5_services:svc-mikrotik-ui
+    - l5_services:svc-proxmox-ui
+  - class_ref: class.compute.edge_node
+    instances_count: 1
+    instance_refs:
+    - l1_devices:srv-orangepi5
+  - class_ref: class.compute.hypervisor
+    instances_count: 1
+    instance_refs:
+    - l1_devices:srv-gamayun
+  - class_ref: class.power.pdu
+    instances_count: 1
+    instance_refs:
+    - l1_devices:pdu-rack
+  - class_ref: class.power.ups
+    instances_count: 1
+    instance_refs:
+    - l1_devices:ups-main
+  - class_ref: class.service.alerting
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-alertmanager
+  - class_ref: class.service.cache
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-redis
+  - class_ref: class.service.database
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-postgresql
+  - class_ref: class.service.file_storage
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-nextcloud@lxc:lxc-nextcloud
+  - class_ref: class.service.media_server
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-jellyfin
+  - class_ref: class.service.proxy
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-nginx-proxy
+  objects:
+  - object_ref: obj.proxmox.lxc.debian12.base
+    instances_count: 7
+    instance_refs:
+    - l4_lxc:lxc-docker
+    - l4_lxc:lxc-gitea
+    - l4_lxc:lxc-grafana
+    - l4_lxc:lxc-homeassistant
+    - l4_lxc:lxc-nextcloud
+    - l4_lxc:lxc-nginx-proxy
+    - l4_lxc:lxc-prometheus
+  - object_ref: obj.service.adguard
+    instances_count: 2
+    instance_refs:
+    - l5_services:svc-adguard
+    - l5_services:svc-adguard-secondary
+  - object_ref: obj.service.grafana
+    instances_count: 2
+    instance_refs:
+    - l5_services:svc-grafana@docker:srv-orangepi5
+    - l5_services:svc-grafana@lxc:lxc-grafana
+  - object_ref: obj.service.homeassistant
+    instances_count: 2
+    instance_refs:
+    - l5_services:svc-homeassistant@docker:srv-orangepi5
+    - l5_services:svc-homeassistant@lxc:lxc-homeassistant
+  - object_ref: obj.service.nextcloud
+    instances_count: 2
+    instance_refs:
+    - l5_services:svc-nextcloud@docker:srv-orangepi5
+    - l5_services:svc-nextcloud@lxc:lxc-nextcloud
+  - object_ref: obj.service.prometheus
+    instances_count: 2
+    instance_refs:
+    - l5_services:svc-prometheus@docker:srv-orangepi5
+    - l5_services:svc-prometheus@lxc:lxc-prometheus
+  - object_ref: obj.apc.backups.650va
+    instances_count: 1
+    instance_refs:
+    - l1_devices:ups-main
+  - object_ref: obj.glinet.slate_ax1800
+    instances_count: 1
+    instance_refs:
+    - l1_devices:rtr-slate
+  - object_ref: obj.hetzner.cloud_vm
+    instances_count: 1
+    instance_refs:
+    - l1_devices:vps-hetzner-nuremberg
+  - object_ref: obj.oracle.cloud_vm
+    instances_count: 1
+    instance_refs:
+    - l1_devices:vps-oracle-frankfurt
+  - object_ref: obj.orangepi.rk3588.debian
+    instances_count: 1
+    instance_refs:
+    - l1_devices:srv-orangepi5
+  - object_ref: obj.pdu.generic.managed
+    instances_count: 1
+    instance_refs:
+    - l1_devices:pdu-rack
+  - object_ref: obj.proxmox.lxc.debian12.postgresql
+    instances_count: 1
+    instance_refs:
+    - l4_lxc:lxc-postgresql
+  - object_ref: obj.proxmox.lxc.debian12.redis
+    instances_count: 1
+    instance_refs:
+    - l4_lxc:lxc-redis
+  - object_ref: obj.proxmox.ve
+    instances_count: 1
+    instance_refs:
+    - l1_devices:srv-gamayun
+  - object_ref: obj.service.alertmanager
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-alertmanager
+  - object_ref: obj.service.docker_host
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-docker-host
+  - object_ref: obj.service.gitea
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-gitea
+  - object_ref: obj.service.jellyfin
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-jellyfin
+  - object_ref: obj.service.loki
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-loki
+  - object_ref: obj.service.mikrotik.snmp
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-snmp
+  - object_ref: obj.service.mikrotik.web_ui
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-mikrotik-ui
+  - object_ref: obj.service.mosquitto
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-mosquitto
+  - object_ref: obj.service.nginx_proxy
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-nginx-proxy
+  - object_ref: obj.service.ntp
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-ntp
+  - object_ref: obj.service.postgresql
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-postgresql
+  - object_ref: obj.service.proxmox.web_ui
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-proxmox-ui
+  - object_ref: obj.service.redis
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-redis
+  - object_ref: obj.service.syslog_forwarder
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-syslog-forward
+  - object_ref: obj.service.tailscale
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-tailscale
+  - object_ref: obj.service.wireguard
+    instances_count: 1
+    instance_refs:
+    - l5_services:svc-wireguard
+  unassigned:
+    class_ref: []
+    object_ref: []

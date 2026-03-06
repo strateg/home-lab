@@ -388,7 +388,9 @@ Current measured status:
   - moved legacy operational tree to `v4/` (`topology`, `topology-tools`, `tests`)
   - moved v4-dependent folders to `v4/` (`ansible`, `deploy`, `manual-scripts`, `terraform-overrides`, `local`)
   - renamed artifact roots: `generated/` → `v4-generated/`, `dist/` → `v4-dist/`
-  - created v5 artifact roots: `v5-generated/`, `v5-dist/`
+  - created v5 artifact roots: `v5-generated/`, `v5-build/`, `v5-dist/`
+  - added lane commands: `validate-v4`, `validate-v5`, `build-v4`, `build-v5` (root `Makefile`, `scripts/lane.py`)
+  - enabled CI lane split via `.github/workflows/lane-validation.yml` (`validate-v4` job + `validate-v5` job)
   - fixed v4/terraform symlink to point to `../v4-generated/terraform/proxmox`
 - v5 module structure initialized:
   - moved `class-modules/` from v4/topology to v5/topology (router class defined)
@@ -409,9 +411,13 @@ Current measured status:
   - `make -f v4/deploy/Makefile check-parity`: PASS
   - `check-terraform-override-flow`: PASS
   - `pytest v4/tests`: PASS (`210 passed`, `1 skipped`)
-- migration progress: Phase 0 complete, ready for Phase 1 (inventory and mapping)
+- migration progress:
+  - Phase 0 complete
+  - Phase 1 mapping baseline completed for active L1/L4/L5 entities:
+    - `v5/topology/instances/home-lab/v4-to-v5-mapping.yaml` has planned `class_ref` + `object_ref` for all 44 entities (no `pending`)
+    - `v5/topology/instances/home-lab/phase1-module-backlog.yaml` captures all unresolved class/object module gaps for Phase 2/3
 - class/object module coverage is minimal (~5% classes, ~10% objects)
-- v5-specific CI lanes are not operational yet
+- v5-specific CI lane is scaffold-operational (structure/YAML/model-lock shape gate)
 
 This snapshot is informational and must be updated at each phase gate review.
 

@@ -1,0 +1,374 @@
+schema_version: 1
+migration_phase: 1
+generated_at: '2026-03-06T17:34:40+00:00'
+source:
+  topology: v4/topology.yaml
+  effective_json: v4-build/effective-topology.json
+summary:
+  l1_devices_total: 9
+  l4_vms_total: 0
+  l4_lxc_total: 9
+  l5_services_total: 26
+  l1_devices_status:
+    mapped: 2
+    pending: 0
+    gap: 7
+  l4_vms_status:
+    mapped: 0
+    pending: 0
+    gap: 0
+  l4_lxc_status:
+    mapped: 0
+    pending: 0
+    gap: 9
+  l5_services_status:
+    mapped: 0
+    pending: 0
+    gap: 26
+entities:
+  l1_devices:
+  - instance_id: mikrotik-chateau
+    source_id: mikrotik-chateau
+    class_ref: class.network.router
+    object_ref: obj.mikrotik.chateau_lte7_ax
+    status: mapped
+    notes: existing class/object module
+  - instance_id: pdu-rack
+    source_id: pdu-rack
+    class_ref: class.power.pdu
+    object_ref: obj.pdu.generic.managed
+    status: gap
+    notes: missing power distribution class/object modules
+  - instance_id: rtr-mikrotik-chateau
+    source_id: rtr-mikrotik-chateau
+    class_ref: class.network.router
+    object_ref: obj.mikrotik.chateau_lte7_ax
+    status: mapped
+    notes: existing class/object module
+  - instance_id: rtr-slate
+    source_id: rtr-slate
+    class_ref: class.network.router
+    object_ref: obj.glinet.slate_ax1800
+    status: gap
+    notes: missing object module for GL.iNet Slate AX1800
+  - instance_id: srv-gamayun
+    source_id: srv-gamayun
+    class_ref: class.compute.hypervisor
+    object_ref: obj.proxmox.ve
+    status: gap
+    notes: class/object pinned in model.lock, module files not created yet
+  - instance_id: srv-orangepi5
+    source_id: srv-orangepi5
+    class_ref: class.compute.edge_node
+    object_ref: obj.orangepi.rk3588.debian
+    status: gap
+    notes: missing edge-node class/object modules
+  - instance_id: ups-main
+    source_id: ups-main
+    class_ref: class.power.ups
+    object_ref: obj.apc.backups.650va
+    status: gap
+    notes: missing UPS class/object modules
+  - instance_id: vps-hetzner-nuremberg
+    source_id: vps-hetzner-nuremberg
+    class_ref: class.compute.cloud_vm
+    object_ref: obj.hetzner.cloud_vm
+    status: gap
+    notes: missing cloud-vm class/object modules
+  - instance_id: vps-oracle-frankfurt
+    source_id: vps-oracle-frankfurt
+    class_ref: class.compute.cloud_vm
+    object_ref: obj.oracle.cloud_vm
+    status: gap
+    notes: missing cloud-vm class/object modules
+  l4_vms: []
+  l4_lxc:
+  - instance_id: lxc-docker
+    source_id: lxc-docker
+    class_ref: class.compute.workload.container
+    object_ref: obj.proxmox.lxc.debian12.base
+    status: gap
+    notes: shared base object for tpl-lxc-debian; service semantics stay in L5
+  - instance_id: lxc-gitea
+    source_id: lxc-gitea
+    class_ref: class.compute.workload.container
+    object_ref: obj.proxmox.lxc.debian12.base
+    status: gap
+    notes: shared base object for tpl-lxc-debian; service semantics stay in L5
+  - instance_id: lxc-grafana
+    source_id: lxc-grafana
+    class_ref: class.compute.workload.container
+    object_ref: obj.proxmox.lxc.debian12.base
+    status: gap
+    notes: shared base object for tpl-lxc-debian; service semantics stay in L5
+  - instance_id: lxc-homeassistant
+    source_id: lxc-homeassistant
+    class_ref: class.compute.workload.container
+    object_ref: obj.proxmox.lxc.debian12.base
+    status: gap
+    notes: shared base object for tpl-lxc-debian; service semantics stay in L5
+  - instance_id: lxc-nextcloud
+    source_id: lxc-nextcloud
+    class_ref: class.compute.workload.container
+    object_ref: obj.proxmox.lxc.debian12.base
+    status: gap
+    notes: shared base object for tpl-lxc-debian; service semantics stay in L5
+  - instance_id: lxc-nginx-proxy
+    source_id: lxc-nginx-proxy
+    class_ref: class.compute.workload.container
+    object_ref: obj.proxmox.lxc.debian12.base
+    status: gap
+    notes: shared base object for tpl-lxc-debian; service semantics stay in L5
+  - instance_id: lxc-postgresql
+    source_id: lxc-postgresql
+    class_ref: class.compute.workload.container
+    object_ref: obj.proxmox.lxc.debian12.postgresql
+    status: gap
+    notes: template-specific object planned from tpl-lxc-postgresql
+  - instance_id: lxc-prometheus
+    source_id: lxc-prometheus
+    class_ref: class.compute.workload.container
+    object_ref: obj.proxmox.lxc.debian12.base
+    status: gap
+    notes: shared base object for tpl-lxc-debian; service semantics stay in L5
+  - instance_id: lxc-redis
+    source_id: lxc-redis
+    class_ref: class.compute.workload.container
+    object_ref: obj.proxmox.lxc.debian12.redis
+    status: gap
+    notes: template-specific object planned from tpl-lxc-redis
+  l5_services:
+  - instance_id: svc-adguard
+    source_id: svc-adguard
+    runtime_type: docker
+    runtime_target_ref: mikrotik-chateau
+    class_ref: class.service.dns
+    object_ref: obj.service.adguard
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-adguard-secondary
+    source_id: svc-adguard-secondary
+    runtime_type: docker
+    runtime_target_ref: srv-orangepi5
+    class_ref: class.service.dns
+    object_ref: obj.service.adguard
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-alertmanager
+    source_id: svc-alertmanager
+    runtime_type: docker
+    runtime_target_ref: srv-orangepi5
+    class_ref: class.service.alerting
+    object_ref: obj.service.alertmanager
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-docker-host
+    source_id: svc-docker-host
+    runtime_type: lxc
+    runtime_target_ref: lxc-docker
+    class_ref: class.service.web_application
+    object_ref: obj.service.docker_host
+    status: gap
+    notes: phase1 initial mapping; runtime=lxc stays in instance contract; module
+      not created yet
+  - instance_id: svc-gitea
+    source_id: svc-gitea
+    runtime_type: lxc
+    runtime_target_ref: lxc-gitea
+    class_ref: class.service.web_application
+    object_ref: obj.service.gitea
+    status: gap
+    notes: phase1 initial mapping; runtime=lxc stays in instance contract; module
+      not created yet
+  - instance_id: svc-grafana@docker:srv-orangepi5
+    source_id: svc-grafana
+    runtime_type: docker
+    runtime_target_ref: srv-orangepi5
+    class_ref: class.service.visualization
+    object_ref: obj.service.grafana
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-grafana@lxc:lxc-grafana
+    source_id: svc-grafana
+    runtime_type: lxc
+    runtime_target_ref: lxc-grafana
+    class_ref: class.service.visualization
+    object_ref: obj.service.grafana
+    status: gap
+    notes: phase1 initial mapping; runtime=lxc stays in instance contract; module
+      not created yet
+  - instance_id: svc-homeassistant@docker:srv-orangepi5
+    source_id: svc-homeassistant
+    runtime_type: docker
+    runtime_target_ref: srv-orangepi5
+    class_ref: class.service.home_automation
+    object_ref: obj.service.homeassistant
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-homeassistant@lxc:lxc-homeassistant
+    source_id: svc-homeassistant
+    runtime_type: lxc
+    runtime_target_ref: lxc-homeassistant
+    class_ref: class.service.home_automation
+    object_ref: obj.service.homeassistant
+    status: gap
+    notes: phase1 initial mapping; runtime=lxc stays in instance contract; module
+      not created yet
+  - instance_id: svc-jellyfin
+    source_id: svc-jellyfin
+    runtime_type: docker
+    runtime_target_ref: srv-orangepi5
+    class_ref: class.service.media_server
+    object_ref: obj.service.jellyfin
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-loki
+    source_id: svc-loki
+    runtime_type: docker
+    runtime_target_ref: srv-orangepi5
+    class_ref: class.service.logging
+    object_ref: obj.service.loki
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-mikrotik-ui
+    source_id: svc-mikrotik-ui
+    runtime_type: baremetal
+    runtime_target_ref: mikrotik-chateau
+    class_ref: class.service.web_ui
+    object_ref: obj.service.mikrotik.web_ui
+    status: gap
+    notes: phase1 initial mapping; runtime=baremetal stays in instance contract; module
+      not created yet
+  - instance_id: svc-mosquitto
+    source_id: svc-mosquitto
+    runtime_type: docker
+    runtime_target_ref: mikrotik-chateau
+    class_ref: class.service.home_automation
+    object_ref: obj.service.mosquitto
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-nextcloud@docker:srv-orangepi5
+    source_id: svc-nextcloud
+    runtime_type: docker
+    runtime_target_ref: srv-orangepi5
+    class_ref: class.service.web_application
+    object_ref: obj.service.nextcloud
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-nextcloud@lxc:lxc-nextcloud
+    source_id: svc-nextcloud
+    runtime_type: lxc
+    runtime_target_ref: lxc-nextcloud
+    class_ref: class.service.file_storage
+    object_ref: obj.service.nextcloud
+    status: gap
+    notes: phase1 initial mapping; runtime=lxc stays in instance contract; module
+      not created yet
+  - instance_id: svc-nginx-proxy
+    source_id: svc-nginx-proxy
+    runtime_type: lxc
+    runtime_target_ref: lxc-nginx-proxy
+    class_ref: class.service.proxy
+    object_ref: obj.service.nginx_proxy
+    status: gap
+    notes: phase1 initial mapping; runtime=lxc stays in instance contract; module
+      not created yet
+  - instance_id: svc-ntp
+    source_id: svc-ntp
+    runtime_type: baremetal
+    runtime_target_ref: mikrotik-chateau
+    class_ref: class.service.monitoring
+    object_ref: obj.service.ntp
+    status: gap
+    notes: phase1 initial mapping; runtime=baremetal stays in instance contract; module
+      not created yet
+  - instance_id: svc-postgresql
+    source_id: svc-postgresql
+    runtime_type: lxc
+    runtime_target_ref: lxc-postgresql
+    class_ref: class.service.database
+    object_ref: obj.service.postgresql
+    status: gap
+    notes: phase1 initial mapping; runtime=lxc stays in instance contract; module
+      not created yet
+  - instance_id: svc-prometheus@docker:srv-orangepi5
+    source_id: svc-prometheus
+    runtime_type: docker
+    runtime_target_ref: srv-orangepi5
+    class_ref: class.service.monitoring
+    object_ref: obj.service.prometheus
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-prometheus@lxc:lxc-prometheus
+    source_id: svc-prometheus
+    runtime_type: lxc
+    runtime_target_ref: lxc-prometheus
+    class_ref: class.service.monitoring
+    object_ref: obj.service.prometheus
+    status: gap
+    notes: phase1 initial mapping; runtime=lxc stays in instance contract; module
+      not created yet
+  - instance_id: svc-proxmox-ui
+    source_id: svc-proxmox-ui
+    runtime_type: baremetal
+    runtime_target_ref: srv-gamayun
+    class_ref: class.service.web_ui
+    object_ref: obj.service.proxmox.web_ui
+    status: gap
+    notes: phase1 initial mapping; runtime=baremetal stays in instance contract; module
+      not created yet
+  - instance_id: svc-redis
+    source_id: svc-redis
+    runtime_type: lxc
+    runtime_target_ref: lxc-redis
+    class_ref: class.service.cache
+    object_ref: obj.service.redis
+    status: gap
+    notes: phase1 initial mapping; runtime=lxc stays in instance contract; module
+      not created yet
+  - instance_id: svc-snmp
+    source_id: svc-snmp
+    runtime_type: baremetal
+    runtime_target_ref: mikrotik-chateau
+    class_ref: class.service.monitoring
+    object_ref: obj.service.mikrotik.snmp
+    status: gap
+    notes: phase1 initial mapping; runtime=baremetal stays in instance contract; module
+      not created yet
+  - instance_id: svc-syslog-forward
+    source_id: svc-syslog-forward
+    runtime_type: baremetal
+    runtime_target_ref: mikrotik-chateau
+    class_ref: class.service.logging
+    object_ref: obj.service.syslog_forwarder
+    status: gap
+    notes: phase1 initial mapping; runtime=baremetal stays in instance contract; module
+      not created yet
+  - instance_id: svc-tailscale
+    source_id: svc-tailscale
+    runtime_type: docker
+    runtime_target_ref: mikrotik-chateau
+    class_ref: class.service.vpn
+    object_ref: obj.service.tailscale
+    status: gap
+    notes: phase1 initial mapping; runtime=docker stays in instance contract; module
+      not created yet
+  - instance_id: svc-wireguard
+    source_id: svc-wireguard
+    runtime_type: baremetal
+    runtime_target_ref: mikrotik-chateau
+    class_ref: class.service.vpn
+    object_ref: obj.service.wireguard
+    status: gap
+    notes: phase1 initial mapping; runtime=baremetal stays in instance contract; module
+      not created yet

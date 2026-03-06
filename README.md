@@ -18,6 +18,10 @@ Main documents:
 Quick commands:
 
 ```powershell
-python v4/topology-tools/validate-topology.py --topology v4/topology.yaml --strict
-python v4/topology-tools/compile-topology.py --topology v4/topology.yaml --strict-model-lock
+make validate-v4
+make validate-v5
+make build-v4
+make build-v5
+make phase1-bootstrap
+make phase1-backlog
 ```

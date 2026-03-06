@@ -1,0 +1,48 @@
+name: Lane Validation
+
+on:
+  push:
+    branches: [ main, master, "feature/**", "fix/**", "topology/**" ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate-v4:
+    name: Validate v4 Lane
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml jinja2 jsonschema
+
+      - name: Run validate-v4
+        run: python scripts/lane.py validate-v4
+
+  validate-v5:
+    name: Validate v5 Lane
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml
+
+      - name: Run validate-v5
+        run: python scripts/lane.py validate-v5
