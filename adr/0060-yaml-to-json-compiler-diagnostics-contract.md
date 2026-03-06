@@ -31,7 +31,7 @@ Adopt a formal compile pipeline:
 1. `load` (YAML + include resolution)
 2. `normalize` (deterministic canonical structure)
 3. `resolve` (ID/reference checks + class-object-instance linkage checks)
-4. `validate` (JSON schema + semantic checks)
+4. `validate` (JSON schema + semantic checks, including capability contract checks)
 5. `emit` (canonical JSON and diagnostics artifacts)
 
 Source remains editable YAML. Canonical machine contract is JSON.
@@ -58,6 +58,7 @@ Add a versioned error catalog with stable codes:
 - `E1xxx` load/include/parse errors
 - `E2xxx` resolve and ID/reference contract errors
 - `E3xxx` emit/report errors
+- `E4xxx/W4xxx` model-lock/profile/capability contract errors and warnings
 - `W2xxx/W3xxx` non-fatal contract and semantic warnings
 - `I9xxx` informational messages
 
@@ -69,6 +70,12 @@ Introduce `topology-tools/compile-topology.py` as orchestration entry point for:
 - diagnostics (`report.json`, `report.txt`)
 
 The compiler integrates existing semantic validation runner and adds machine-first diagnostics envelope.
+
+Capability-focused diagnostics are required for:
+
+- missing object support for class required capabilities
+- invalid capability identifiers outside catalog (except `vendor.*`)
+- profile replacement that violates required capability signature
 
 ---
 

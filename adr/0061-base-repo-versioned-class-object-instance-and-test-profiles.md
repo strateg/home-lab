@@ -69,12 +69,33 @@ Supported per-instance actions:
 - merge additional `overrides`
 - optional disable/drop instance from effective topology
 
+Profile substitution compatibility rule:
+
+- replacement object must match class and satisfy required capability signature of the replaced instance role
+- `modeled` profile may reduce non-critical optional capabilities, but must preserve test target capabilities
+- `test-real` profile keeps hardware object and applies only behavioral overrides
+
+Recommended profile capability signatures:
+
+- `production-min`: baseline required by production contracts
+- `modeled-min`: baseline for simulation correctness
+- `test-real-min`: baseline + test-specific capabilities
+
 ### 4. Keep Human-Readable Top Layer on Instances
 
 Top-level topology authoring remains instance-centric and concise.
 Class/Object complexity is encapsulated in base modules.
 
 This keeps instance repos readable while maximizing module reuse.
+
+### 5. Complexity Reduction Rules for Capability Reuse
+
+To avoid model bloat across many repos:
+
+1. Reuse class capability packs before introducing new object-local capabilities
+2. Promote repeated object-local capabilities into class pack when reused in 2+ object modules
+3. Keep vendor-only capabilities under `vendor.*` namespace and out of class required set
+4. Limit profile overlays to operational differences; avoid embedding full object semantics into profile maps
 
 ---
 
@@ -109,6 +130,7 @@ This keeps instance repos readable while maximizing module reuse.
 - Class-Object-Instance contract: `adr/0059-repository-split-and-class-object-instance-module-contract.md`
 - Compiler/diagnostics contract: `adr/0060-yaml-to-json-compiler-diagnostics-contract.md`
 - Compiler implementation: `topology-tools/compile-topology.py`
+- Capability contract checker: `topology-tools/check-capability-contract.py`
 - model.lock bootstrap example: `topology/model.lock.example.yaml`
 - profile map bootstrap example: `topology/profile-map.example.yaml`
 - Error catalog: `topology-tools/data/error-catalog.yaml`

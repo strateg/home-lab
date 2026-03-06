@@ -51,6 +51,22 @@ Profile/model-lock flags:
 - `--strict-model-lock` upgrades missing pins to errors
 - Reference examples: `topology/model.lock.example.yaml`, `topology/profile-map.example.yaml`
 
+### check-capability-contract.py
+Validate simplified capability contract templates for `Class -> Object -> Instance`.
+
+Usage:
+```bash
+python topology-tools/check-capability-contract.py
+python topology-tools/check-capability-contract.py --catalog topology/class-modules/capability-catalog.example.yaml --packs topology/class-modules/capability-packs.example.yaml
+```
+
+Checks:
+- catalog capability IDs uniqueness
+- capability packs reference existing catalog entries
+- class files reference known capabilities/packs
+- object files satisfy class required capabilities
+- vendor-specific capabilities allowed only under `vendor.*`
+
 ### generate-terraform-proxmox.py
 Generate Proxmox Terraform from L1/L2/L3/L4.
 

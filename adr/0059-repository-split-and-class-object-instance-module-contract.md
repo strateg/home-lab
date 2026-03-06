@@ -28,6 +28,14 @@ At the same time, topology already models reusable concepts (`type: router`, `ty
 - **Object layer**: concrete implementations (MikroTik Chateau LTE7 ax, GL.iNet Slate AX1800, Proxmox, VMware, Linux, Windows, macOS)
 - **Instance layer**: deployed nodes in a concrete lab, inheriting class + object contracts with local overrides
 
+Capability modeling introduces an additional complexity risk:
+
+- over-fragmented class hierarchy
+- duplicated capabilities across similar objects
+- vendor-specific details leaking into class semantics
+
+The model needs explicit simplification rules to stay maintainable.
+
 ---
 
 ## Decision
@@ -129,6 +137,38 @@ Additive fields are introduced for explicit binding:
 - `implementation.version` (optional)
 
 Modules may consume either legacy or new fields during transitional phases, but new onboarding must use explicit class-object-instance bindings.
+
+### 8. Simplified Capability Model (Normative)
+
+Capabilities are modeled with three explicit layers:
+
+1. **Capability Catalog (class-module)**
+   - Canonical capability IDs and semantics
+   - Invariants and compatibility notes
+2. **Class Capability Contract**
+   - `required_capabilities`
+   - `optional_capabilities`
+   - `capability_packs` (predefined bundles such as `router-home`, `router-infra`)
+3. **Object Capability Binding**
+   - `enabled_capabilities` chosen from catalog/packs
+   - optional `vendor.*` extensions for non-portable behavior
+
+Complexity guardrails:
+
+- Avoid deep class inheritance for capability reuse; prefer catalog + packs
+- Keep capability identifiers flat and stable; no nested capability trees
+- Vendor-specific capability keys must be namespaced (`vendor.<name>.*`)
+
+Promotion/refactoring rule:
+
+- keep capability object-local while used by one object only
+- promote to class catalog/pack when reused by 2+ objects with same semantics
+
+Validation requirements:
+
+1. object must satisfy class `required_capabilities`
+2. object may only enable catalog capabilities (plus `vendor.*`)
+3. instance-level requests/overrides cannot require unsupported object capability
 
 ---
 
