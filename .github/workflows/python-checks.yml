@@ -24,6 +24,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: ADR consistency
+        run: python topology-tools/check-adr-consistency.py --strict-titles
+
       - name: Install dev dependencies
         run: |
           python -m pip install --upgrade pip

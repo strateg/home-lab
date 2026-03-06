@@ -40,3 +40,4 @@ This directory is mandatory for architecture governance in this repository.
 4. For consolidation, mark old ADRs as `Superseded` and link replacement ADR in both directions.
 5. Keep accepted decisions stable: update outcomes/status/references, avoid rewriting historical context.
 6. Link related commits, PRs, schema changes, and docs updates in `References`.
+7. Run ADR consistency check: `python topology-tools/check-adr-consistency.py --strict-titles`.

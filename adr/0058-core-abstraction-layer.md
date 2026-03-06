@@ -1,8 +1,8 @@
 # ADR 0058: Core Abstraction Layer and Device Module Architecture
 
 **Date:** 2026-03-06
-**Status:** Proposed
-**Related:** ADR 0057 (MikroTik Netinstall Bootstrap)
+**Status:** Superseded
+**Related:** ADR 0057 (MikroTik Netinstall Bootstrap), ADR 0059 (Class-Object-Instance Contract), ADR 0060 (YAML-to-JSON Compiler Diagnostics)
 
 ---
 
@@ -30,6 +30,20 @@ Network devices from different vendors perform the same logical functions at the
 
 The **what** (network topology, VLANs, firewall policies) is universal.
 The **how** (configuration syntax, initialization scripts, API protocols) is vendor-specific.
+
+### Harmonization Note (2026-03-06)
+
+This ADR remains the historical foundation for core/module separation and coupling analysis.
+Terminology and contracts are refined by later ADRs:
+
+- ADR 0059 defines the canonical `Class -> Object -> Instance` model
+- ADR 0060 defines the YAML-to-JSON compiler and structured diagnostics contract
+
+Terminology mapping from this ADR to ADR 0059:
+
+- `abstract type` -> `Class`
+- `implementation` -> `Object`
+- concrete topology device entry -> `Instance`
 
 ### Current State Analysis
 
@@ -392,6 +406,8 @@ After stabilization, evaluate splitting into:
 
 - Current project structure analysis (see below)
 - ADR 0057: MikroTik Netinstall Bootstrap
+- Superseded by ADR 0059 for model contract details
+- Extended by ADR 0060 for compiler/diagnostics execution contract
 - [Terraform Provider Plugin Architecture](https://developer.hashicorp.com/terraform/plugin)
 - [Ansible Collection Structure](https://docs.ansible.com/ansible/latest/dev_guide/developing_collections.html)
 

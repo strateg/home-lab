@@ -27,6 +27,21 @@ Notes:
 - strict mode is the default.
 - use `--compat` only for legacy/mixed migration fixtures.
 
+### compile-topology.py
+Compile YAML topology into canonical JSON and emit structured diagnostics for AI and humans.
+
+Usage:
+```bash
+python topology-tools/compile-topology.py --topology topology.yaml
+python topology-tools/compile-topology.py --topology topology.yaml --output-json build/effective-topology.json
+python topology-tools/compile-topology.py --topology topology.yaml --skip-semantic
+```
+
+Outputs:
+- `build/effective-topology.json` - canonical compiled topology (written only when no errors)
+- `build/diagnostics/report.json` - machine-readable diagnostics (`code`, `stage`, `path`, `hint`, `autofix`)
+- `build/diagnostics/report.txt` - human-readable diagnostics summary
+
 ### generate-terraform-proxmox.py
 Generate Proxmox Terraform from L1/L2/L3/L4.
 
