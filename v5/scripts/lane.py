@@ -8,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
 
 
@@ -54,8 +54,8 @@ def build_v4() -> None:
 
 
 def validate_v5() -> None:
-    run([PYTHON, "scripts/export_v5_instance_bindings.py"])
-    run([PYTHON, "scripts/validate_v5_scaffold.py"])
+    run([PYTHON, "v5/scripts/export_v5_instance_bindings.py"])
+    run([PYTHON, "v5/scripts/validate_v5_scaffold.py"])
     run(
         [
             PYTHON,

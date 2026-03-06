@@ -183,9 +183,11 @@ home-lab/
 |  |- ansible/
 |  |- deploy/
 |  |- manual-scripts/
+|  |- scripts/
 |  |- terraform-overrides/
 |  `- local/
 |- v5/                      # NEW lane (active migration and implementation)
+|  |- scripts/
 |  |- topology/
 |  |  |- topology.yaml
 |  |  |- class-modules/
@@ -232,13 +234,14 @@ Actions:
   - `ansible/ -> v4/ansible/`
   - `deploy/ -> v4/deploy/`
   - `manual-scripts/ -> v4/manual-scripts/`
+  - `scripts/ -> v4/scripts/`
   - `terraform-overrides/ -> v4/terraform-overrides/`
   - `local/ -> v4/local/`
 - rename legacy artifact roots:
   - `generated/ -> v4-generated/`
   - `build/ -> v4-build/`
   - `dist/ -> v4-dist/` (if present)
-- scaffold v5 roots: `v5/topology/`, `v5/topology-tools/`, `v5/tests/`
+- scaffold v5 roots: `v5/scripts/`, `v5/topology/`, `v5/topology-tools/`, `v5/tests/`
 - scaffold v5 artifact roots: `v5-generated/`, `v5-build/`, `v5-dist/`
 - update default output paths in moved v4 scripts to `v4-generated/`, `v4-build/`, `v4-dist/`
 - mark v4 lane as frozen in docs and CI policy
@@ -387,10 +390,10 @@ Current measured status:
 - Phase 0 completed (workspace split and artifact root renaming):
   - created dual-lane roots `v4/` and `v5/`
   - moved legacy operational tree to `v4/` (`topology`, `topology-tools`, `tests`)
-  - moved v4-dependent folders to `v4/` (`ansible`, `deploy`, `manual-scripts`, `terraform-overrides`, `local`)
+  - moved v4-dependent folders to `v4/` (`ansible`, `deploy`, `manual-scripts`, `scripts`, `terraform-overrides`, `local`)
   - renamed artifact roots: `generated/` → `v4-generated/`, `dist/` → `v4-dist/`
   - created v5 artifact roots: `v5-generated/`, `v5-build/`, `v5-dist/`
-  - added lane commands: `validate-v4`, `validate-v5`, `build-v4`, `build-v5` (root `Makefile`, `scripts/lane.py`)
+  - added lane commands: `validate-v4`, `validate-v5`, `build-v4`, `build-v5` (root `Makefile`, `v5/scripts/lane.py`)
   - enabled CI lane split via `.github/workflows/lane-validation.yml` (`validate-v4` job + `validate-v5` job)
   - fixed v4/terraform symlink to point to `../v4-generated/terraform/proxmox`
 - v5 module structure initialized:
@@ -424,7 +427,7 @@ Current measured status:
   - Phase 4 preparation started:
     - v5 topology manifest created: `v5/topology/topology.yaml`
     - normalized instance export created: `v5/topology/instances/home-lab/instance-bindings.yaml`
-    - export is generated from mapping via `scripts/export_v5_instance_bindings.py`
+    - export is generated from mapping via `v5/scripts/export_v5_instance_bindings.py`
     - v5 compiler introduced: `v5/topology-tools/compile-topology.py`
     - `validate-v5` now runs manifest/scaffold checks and strict model-lock compile into:
       - `v5-build/effective-topology.json`

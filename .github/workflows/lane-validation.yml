@@ -25,7 +25,7 @@ jobs:
           python -m pip install pyyaml jinja2 jsonschema
 
       - name: Run validate-v4
-        run: python scripts/lane.py validate-v4
+        run: python v5/scripts/lane.py validate-v4
 
   validate-v5:
     name: Validate v5 Lane
@@ -45,4 +45,4 @@ jobs:
           python -m pip install pyyaml
 
       - name: Run validate-v5
-        run: python scripts/lane.py validate-v5
+        run: python v5/scripts/lane.py validate-v5
