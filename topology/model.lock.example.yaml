@@ -1,0 +1,21 @@
+version: 1
+core_model_version: "1.0.0"
+
+# Pin class modules used by this instance repository.
+classes:
+  class.network.router:
+    version: "1.0.0"
+  class.compute.hypervisor:
+    version: "1.0.0"
+
+# Pin object modules and optional class compatibility.
+objects:
+  obj.mikrotik.chateau_lte7_ax:
+    version: "1.0.0"
+    class_ref: class.network.router
+  obj.mikrotik.chr:
+    version: "1.0.0"
+    class_ref: class.network.router
+  obj.proxmox.ve:
+    version: "1.0.0"
+    class_ref: class.compute.hypervisor

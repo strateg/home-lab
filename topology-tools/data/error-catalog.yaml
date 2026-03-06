@@ -61,6 +61,76 @@ codes:
     stage: resolve
     title: Partial implementation Binding
     hint: implementation.module and implementation.object should be set together.
+  E2301:
+    severity: error
+    stage: load
+    title: Profile Map Parse Error
+    hint: Fix YAML syntax in --profile-map file.
+  E2302:
+    severity: error
+    stage: load
+    title: Profile Map Contract Error
+    hint: Validate profile map shape (profiles/profile/instance_overrides).
+  W2301:
+    severity: warning
+    stage: load
+    title: Profile Map Missing or Mismatched
+    hint: Ensure --profile-map exists and profile name matches requested --profile.
+  W2302:
+    severity: warning
+    stage: load
+    title: Empty Profile Overrides
+    hint: No overrides resolved for selected profile.
+  W2303:
+    severity: warning
+    stage: resolve
+    title: Unknown Profile Override Target
+    hint: Remove stale instance override or create missing instance id.
+  I2301:
+    severity: info
+    stage: resolve
+    title: Profile Applied
+    hint: Profile overrides were applied to the effective topology.
+  E2401:
+    severity: error
+    stage: load
+    title: model.lock Parse Error
+    hint: Fix YAML syntax in model.lock.
+  E2402:
+    severity: error
+    stage: load
+    title: model.lock Contract Error
+    hint: model.lock root must be a mapping/object.
+  E2403:
+    severity: error
+    stage: validate
+    title: object-class Pin Mismatch
+    hint: Align instance class_ref with object pin class_ref in model.lock.
+  W2401:
+    severity: warning
+    stage: load
+    title: model.lock Missing
+    hint: Create model.lock or disable with --model-lock \"\" for exploratory runs.
+  W2402:
+    severity: warning
+    stage: validate
+    title: Unpinned Class Reference
+    hint: Add class_ref pin under model.lock classes/class_modules.
+  W2403:
+    severity: warning
+    stage: validate
+    title: Unpinned Object Reference
+    hint: Add object_ref pin under model.lock objects/object_modules.
+  W2404:
+    severity: warning
+    stage: validate
+    title: Empty model.lock Pins
+    hint: model.lock should define class and/or object pin maps.
+  I2401:
+    severity: info
+    stage: load
+    title: model.lock Loaded
+    hint: No action required.
   E3201:
     severity: error
     stage: validate

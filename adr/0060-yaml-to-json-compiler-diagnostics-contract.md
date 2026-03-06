@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-06
 **Status:** Proposed
-**Related:** ADR 0058 (Core Abstraction Layer), ADR 0059 (Repository Split and Class-Object-Instance Module Contract)
+**Related:** ADR 0058 (Core Abstraction Layer), ADR 0059 (Repository Split and Class-Object-Instance Module Contract), ADR 0061 (Base Repo with Versioned Class-Object-Instance and Test Profiles)
 
 ---
 
@@ -102,6 +102,8 @@ The compiler integrates existing semantic validation runner and adds machine-fir
 
 - Compiler entry point: `topology-tools/compile-topology.py`
 - Diagnostics schema: `topology-tools/schemas/diagnostics.schema.json`
+- model.lock schema: `topology-tools/schemas/model-lock.schema.json`
+- profile map schema: `topology-tools/schemas/profile-map.schema.json`
 - Error catalog: `topology-tools/data/error-catalog.yaml`
 - Existing validator orchestration: `topology-tools/scripts/validators/runner.py`
 - Existing validation CLI: `topology-tools/validate-topology.py`

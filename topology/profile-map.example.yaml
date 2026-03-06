@@ -1,0 +1,24 @@
+version: 1
+
+profiles:
+  production:
+    instance_overrides: {}
+
+  modeled:
+    # Replace selected hardware with virtual counterparts.
+    instance_overrides:
+      rtr-mikrotik-chateau:
+        class_ref: class.network.router
+        object_ref: obj.mikrotik.chr
+        patch:
+          metadata:
+            simulation_mode: true
+
+  test-real:
+    # Keep real hardware, but enable test behavior via overrides.
+    instance_overrides:
+      rtr-mikrotik-chateau:
+        overrides:
+          test_mode:
+            enabled: true
+            profile: smoke

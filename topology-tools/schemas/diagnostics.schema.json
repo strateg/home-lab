@@ -41,6 +41,15 @@
         },
         "error_catalog": {
           "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "profile_map": {
+          "type": "string"
+        },
+        "model_lock": {
+          "type": "string"
         }
       }
     },

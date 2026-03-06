@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-06
 **Status:** Proposed
-**Related:** ADR 0058 (Core Abstraction Layer and Device Module Architecture), ADR 0060 (YAML-to-JSON Compiler and Diagnostics Contract)
+**Related:** ADR 0058 (Core Abstraction Layer and Device Module Architecture), ADR 0060 (YAML-to-JSON Compiler and Diagnostics Contract), ADR 0061 (Base Repo with Versioned Class-Object-Instance and Test Profiles)
 **Supersedes:** ADR 0058 (model contract scope)
 
 ---

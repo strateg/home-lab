@@ -61,3 +61,4 @@
 | [0058](0058-core-abstraction-layer.md) | Core Abstraction Layer and Device Module Architecture | Superseded | 2026-03-06 | - | [0059](0059-repository-split-and-class-object-instance-module-contract.md) |
 | [0059](0059-repository-split-and-class-object-instance-module-contract.md) | Repository Split and Class-Object-Instance Module Contract | Proposed | 2026-03-06 | [0058](0058-core-abstraction-layer.md) | - |
 | [0060](0060-yaml-to-json-compiler-diagnostics-contract.md) | YAML-to-JSON Compiler and Diagnostics Contract | Proposed | 2026-03-06 | - | - |
+| [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | Base Repo with Versioned Class-Object-Instance and Test Profiles | Proposed | 2026-03-06 | - | - |

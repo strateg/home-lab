@@ -5,7 +5,7 @@ Compile topology YAML into canonical JSON with structured diagnostics.
 Pipeline stages:
 1. load      - read YAML and resolve includes
 2. normalize - deterministic canonicalization
-3. resolve   - id/ref checks + class-object linkage checks
+3. resolve   - id/ref checks + class-object-instance linkage checks
 4. validate  - JSON schema + semantic validators
 5. emit      - write effective JSON + diagnostics reports
 """
@@ -30,12 +30,16 @@ from scripts.validators import runner as validators_runner
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_SCHEMA_PATH = SCRIPT_DIR / "schemas" / "topology-v4-schema.json"
 DEFAULT_DIAGNOSTICS_SCHEMA_PATH = SCRIPT_DIR / "schemas" / "diagnostics.schema.json"
+DEFAULT_MODEL_LOCK_SCHEMA_PATH = SCRIPT_DIR / "schemas" / "model-lock.schema.json"
+DEFAULT_PROFILE_MAP_SCHEMA_PATH = SCRIPT_DIR / "schemas" / "profile-map.schema.json"
 DEFAULT_ERROR_CATALOG_PATH = SCRIPT_DIR / "data" / "error-catalog.yaml"
+DEFAULT_MODEL_LOCK_PATH = SCRIPT_DIR.parent / "topology" / "model.lock.yaml"
 DEFAULT_OUTPUT_JSON = SCRIPT_DIR.parent / "build" / "effective-topology.json"
 DEFAULT_DIAGNOSTICS_JSON = SCRIPT_DIR.parent / "build" / "diagnostics" / "report.json"
 DEFAULT_DIAGNOSTICS_TXT = SCRIPT_DIR.parent / "build" / "diagnostics" / "report.txt"
 
 _SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
+_DROP_NODE = object()
 
 
 def _now_utc_iso() -> str:
@@ -63,6 +67,17 @@ def _sorted_deep(value: Any) -> Any:
     if isinstance(value, list):
         return [_sorted_deep(item) for item in value]
     return value
+
+
+def _deep_merge_dict(base: Dict[str, Any], patch: Dict[str, Any]) -> Dict[str, Any]:
+    merged = dict(base)
+    for key, patch_value in patch.items():
+        base_value = merged.get(key)
+        if isinstance(base_value, dict) and isinstance(patch_value, dict):
+            merged[key] = _deep_merge_dict(base_value, patch_value)
+        else:
+            merged[key] = patch_value
+    return merged
 
 
 def _default_validator_policy() -> Dict[str, Any]:
@@ -99,11 +114,15 @@ class TopologyCompiler:
         schema_path: Path,
         diagnostics_schema_path: Path,
         error_catalog_path: Path,
+        model_lock_path: Optional[Path],
+        profile_name: str,
+        profile_map_path: Optional[Path],
         output_json_path: Path,
         diagnostics_json_path: Path,
         diagnostics_txt_path: Path,
         skip_schema: bool = False,
         skip_semantic: bool = False,
+        strict_model_lock: bool = False,
         heuristic_ref_checks: bool = False,
         max_diagnostics: int = 500,
     ) -> None:
@@ -111,11 +130,15 @@ class TopologyCompiler:
         self.schema_path = schema_path
         self.diagnostics_schema_path = diagnostics_schema_path
         self.error_catalog_path = error_catalog_path
+        self.model_lock_path = model_lock_path
+        self.profile_name = profile_name
+        self.profile_map_path = profile_map_path
         self.output_json_path = output_json_path
         self.diagnostics_json_path = diagnostics_json_path
         self.diagnostics_txt_path = diagnostics_txt_path
         self.skip_schema = skip_schema
         self.skip_semantic = skip_semantic
+        self.strict_model_lock = strict_model_lock
         self.heuristic_ref_checks = heuristic_ref_checks
         self.max_diagnostics = max_diagnostics
 
@@ -125,6 +148,7 @@ class TopologyCompiler:
 
         self.topology_raw: Optional[Dict[str, Any]] = None
         self.topology_effective: Optional[Dict[str, Any]] = None
+        self.model_lock: Optional[Dict[str, Any]] = None
 
     def _load_error_catalog(self) -> Dict[str, Dict[str, Any]]:
         if not self.error_catalog_path.exists():
@@ -251,8 +275,306 @@ class TopologyCompiler:
             return None
         return loaded
 
+    def _load_optional_yaml_mapping(
+        self, *, path: Path, code_parse: str, code_type: str, stage: str
+    ) -> Optional[Dict[str, Any]]:
+        try:
+            payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except yaml.YAMLError as exc:
+            mark = getattr(exc, "problem_mark", None)
+            source: Dict[str, Any] = {"file": str(path)}
+            if mark is not None:
+                source["line"] = int(mark.line) + 1
+                source["column"] = int(mark.column) + 1
+            self._emit_diag(
+                code=code_parse,
+                stage=stage,
+                message=f"YAML parse error: {exc}",
+                source=source,
+                confidence=0.95,
+            )
+            return None
+        except OSError as exc:
+            self._emit_diag(
+                code=code_parse,
+                stage=stage,
+                message=f"Cannot read YAML file: {exc}",
+                source={"file": str(path)},
+                confidence=1.0,
+            )
+            return None
+
+        if payload is None:
+            return {}
+        if not isinstance(payload, dict):
+            self._emit_diag(
+                code=code_type,
+                stage=stage,
+                message=f"Expected mapping/object at root, got: {type(payload).__name__}",
+                source={"file": str(path)},
+                confidence=1.0,
+            )
+            return None
+        return payload
+
+    def _validate_mapping_schema(
+        self,
+        *,
+        payload: Dict[str, Any],
+        schema_path: Path,
+        code: str,
+        stage: str,
+        source_file: Path,
+    ) -> bool:
+        if not schema_path.exists():
+            return True
+        try:
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return True
+        validator = Draft7Validator(schema)
+        errors = sorted(validator.iter_errors(payload), key=lambda err: list(err.absolute_path))
+        if not errors:
+            return True
+        first = errors[0]
+        path = _to_json_path(first.absolute_path)
+        self._emit_diag(
+            code=code,
+            stage=stage,
+            message=f"Schema validation failed for '{source_file}': {first.message}",
+            path=path,
+            source={"file": str(source_file)},
+            confidence=0.95,
+        )
+        return False
+
+    def _stage_load_model_lock(self) -> None:
+        if self.model_lock_path is None:
+            return
+        if not self.model_lock_path.exists():
+            severity = "error" if self.strict_model_lock else "warning"
+            self._emit_diag(
+                code="W2401",
+                stage="load",
+                severity=severity,
+                message=f"model.lock file not found: {self.model_lock_path}",
+                source={"file": str(self.model_lock_path)},
+                confidence=1.0,
+            )
+            return
+        payload = self._load_optional_yaml_mapping(
+            path=self.model_lock_path,
+            code_parse="E2401",
+            code_type="E2402",
+            stage="load",
+        )
+        if payload is None:
+            return
+        if not self._validate_mapping_schema(
+            payload=payload,
+            schema_path=DEFAULT_MODEL_LOCK_SCHEMA_PATH,
+            code="E2402",
+            stage="load",
+            source_file=self.model_lock_path,
+        ):
+            return
+        self.model_lock = payload
+        self._emit_diag(
+            code="I2401",
+            stage="load",
+            severity="info",
+            message=f"Loaded model.lock: {self.model_lock_path}",
+            source={"file": str(self.model_lock_path)},
+            confidence=1.0,
+        )
+
+    def _extract_profile_overrides(self, payload: Dict[str, Any], *, source_path: Path) -> Dict[str, Dict[str, Any]]:
+        # Supported formats:
+        # 1) instance_overrides: {<id>: {...}}
+        # 2) profiles: {production: {instance_overrides: {...}}, modeled: {...}}
+        profile_payload = payload
+        profiles = payload.get("profiles")
+        if isinstance(profiles, dict):
+            profile_payload = profiles.get(self.profile_name, {})
+            if not isinstance(profile_payload, dict):
+                self._emit_diag(
+                    code="E2302",
+                    stage="load",
+                    message=f"Profile '{self.profile_name}' exists but is not an object in profile map",
+                    source={"file": str(source_path)},
+                    confidence=1.0,
+                )
+                return {}
+        elif payload.get("profile") and payload.get("profile") != self.profile_name:
+            self._emit_diag(
+                code="W2301",
+                stage="load",
+                message=(
+                    f"Profile map declares profile '{payload.get('profile')}', "
+                    f"but compiler profile is '{self.profile_name}'"
+                ),
+                source={"file": str(source_path)},
+                confidence=0.8,
+            )
+
+        overrides = profile_payload.get("instance_overrides", {})
+        if not isinstance(overrides, dict):
+            self._emit_diag(
+                code="E2302",
+                stage="load",
+                message=f"'instance_overrides' must be an object in profile map for profile '{self.profile_name}'",
+                source={"file": str(source_path)},
+                confidence=1.0,
+            )
+            return {}
+
+        normalized: Dict[str, Dict[str, Any]] = {}
+        for instance_id, override in overrides.items():
+            if not isinstance(instance_id, str):
+                self._emit_diag(
+                    code="E2302",
+                    stage="load",
+                    message="instance_overrides keys must be strings",
+                    source={"file": str(source_path)},
+                    confidence=1.0,
+                )
+                continue
+            if not isinstance(override, dict):
+                self._emit_diag(
+                    code="E2302",
+                    stage="load",
+                    message=f"instance override for '{instance_id}' must be an object",
+                    source={"file": str(source_path)},
+                    confidence=1.0,
+                )
+                continue
+            normalized[instance_id] = dict(override)
+        return normalized
+
+    def _apply_profile_map(self, normalized: Dict[str, Any]) -> Dict[str, Any]:
+        if self.profile_map_path is None:
+            return normalized
+        if not self.profile_map_path.exists():
+            self._emit_diag(
+                code="W2301",
+                stage="load",
+                message=f"Profile map file not found: {self.profile_map_path}",
+                source={"file": str(self.profile_map_path)},
+                confidence=1.0,
+            )
+            return normalized
+
+        payload = self._load_optional_yaml_mapping(
+            path=self.profile_map_path,
+            code_parse="E2301",
+            code_type="E2302",
+            stage="load",
+        )
+        if payload is None:
+            return normalized
+        if not self._validate_mapping_schema(
+            payload=payload,
+            schema_path=DEFAULT_PROFILE_MAP_SCHEMA_PATH,
+            code="E2302",
+            stage="load",
+            source_file=self.profile_map_path,
+        ):
+            return normalized
+
+        overrides = self._extract_profile_overrides(payload, source_path=self.profile_map_path)
+        if not overrides:
+            self._emit_diag(
+                code="W2302",
+                stage="load",
+                message=f"No instance_overrides resolved for profile '{self.profile_name}'",
+                source={"file": str(self.profile_map_path)},
+                confidence=0.9,
+            )
+            return normalized
+
+        ids_before = self._collect_ids(normalized)
+        unknown = sorted(instance_id for instance_id in overrides.keys() if instance_id not in ids_before)
+        for instance_id in unknown:
+            self._emit_diag(
+                code="W2303",
+                stage="resolve",
+                message=f"Profile override target id '{instance_id}' does not exist in topology",
+                source={"file": str(self.profile_map_path)},
+                confidence=0.95,
+            )
+
+        applied = 0
+        dropped = 0
+
+        def transform(node: Any) -> Any:
+            nonlocal applied, dropped
+            if isinstance(node, list):
+                items: List[Any] = []
+                for item in node:
+                    transformed = transform(item)
+                    if transformed is _DROP_NODE:
+                        dropped += 1
+                        continue
+                    items.append(transformed)
+                return items
+
+            if isinstance(node, dict):
+                current = dict(node)
+                node_id = current.get("id")
+                if isinstance(node_id, str) and node_id in overrides:
+                    profile_override = overrides[node_id]
+                    applied += 1
+                    if profile_override.get("enabled") is False:
+                        return _DROP_NODE
+                    if "object_ref" in profile_override:
+                        current["object_ref"] = profile_override["object_ref"]
+                    if "class_ref" in profile_override:
+                        current["class_ref"] = profile_override["class_ref"]
+                    if isinstance(profile_override.get("overrides"), dict):
+                        existing_overrides = current.get("overrides")
+                        if not isinstance(existing_overrides, dict):
+                            existing_overrides = {}
+                        current["overrides"] = _deep_merge_dict(existing_overrides, profile_override["overrides"])
+                    if isinstance(profile_override.get("patch"), dict):
+                        current = _deep_merge_dict(current, profile_override["patch"])
+
+                transformed_dict: Dict[str, Any] = {}
+                for key, value in current.items():
+                    transformed_value = transform(value)
+                    if transformed_value is _DROP_NODE:
+                        continue
+                    transformed_dict[key] = transformed_value
+                return transformed_dict
+            return node
+
+        transformed = transform(normalized)
+        if transformed is _DROP_NODE:
+            self._emit_diag(
+                code="E2302",
+                stage="resolve",
+                message="Profile application removed root topology object, check profile map",
+                source={"file": str(self.profile_map_path)},
+                confidence=1.0,
+            )
+            return normalized
+
+        self._emit_diag(
+            code="I2301",
+            stage="resolve",
+            severity="info",
+            message=(
+                f"Applied profile '{self.profile_name}' from {self.profile_map_path}: "
+                f"overrides={applied}, dropped={dropped}"
+            ),
+            source={"file": str(self.profile_map_path)},
+            confidence=1.0,
+        )
+        return transformed
+
     def _stage_normalize(self, loaded: Dict[str, Any]) -> Dict[str, Any]:
         normalized = _sorted_deep(loaded)
+        normalized = self._apply_profile_map(normalized)
+        normalized = _sorted_deep(normalized)
         expected_sections = {
             "L0_meta",
             "L1_foundation",
@@ -387,6 +709,95 @@ class TopologyCompiler:
     def _stage_resolve(self, normalized: Dict[str, Any]) -> None:
         id_index = self._collect_ids(normalized)
         self._walk_for_refs(normalized, [], id_index)
+
+    def _iter_nodes(
+        self, node: Any, path_parts: Optional[List[Any]] = None
+    ) -> Iterable[Tuple[Dict[str, Any], List[Any]]]:
+        if path_parts is None:
+            path_parts = []
+        if isinstance(node, dict):
+            yield node, path_parts
+            for key, value in node.items():
+                yield from self._iter_nodes(value, path_parts + [key])
+            return
+        if isinstance(node, list):
+            for idx, item in enumerate(node):
+                yield from self._iter_nodes(item, path_parts + [idx])
+
+    def _stage_validate_model_lock(self, normalized: Dict[str, Any]) -> None:
+        if self.model_lock is None:
+            return
+
+        class_pins_raw = self.model_lock.get("classes", self.model_lock.get("class_modules", {}))
+        object_pins_raw = self.model_lock.get("objects", self.model_lock.get("object_modules", {}))
+        class_pins = class_pins_raw if isinstance(class_pins_raw, dict) else {}
+        object_pins = object_pins_raw if isinstance(object_pins_raw, dict) else {}
+
+        if not class_pins and not object_pins:
+            severity = "error" if self.strict_model_lock else "warning"
+            self._emit_diag(
+                code="W2404",
+                stage="validate",
+                severity=severity,
+                message="model.lock has no class/object pin maps (classes|objects)",
+                source={"file": str(self.model_lock_path)},
+                confidence=1.0,
+            )
+            return
+
+        for node, path_parts in self._iter_nodes(normalized):
+            object_ref = node.get("object_ref")
+            class_ref = node.get("class_ref")
+            if not isinstance(object_ref, str) and not isinstance(class_ref, str):
+                continue
+
+            path = _to_json_path(path_parts)
+            if isinstance(class_ref, str):
+                if class_ref not in class_pins:
+                    severity = "error" if self.strict_model_lock else "warning"
+                    self._emit_diag(
+                        code="W2402",
+                        stage="validate",
+                        severity=severity,
+                        message=f"class_ref '{class_ref}' is not pinned in model.lock",
+                        path=path,
+                        source={"file": str(self.model_lock_path)},
+                        confidence=0.95,
+                    )
+
+            if isinstance(object_ref, str):
+                if object_ref not in object_pins:
+                    severity = "error" if self.strict_model_lock else "warning"
+                    self._emit_diag(
+                        code="W2403",
+                        stage="validate",
+                        severity=severity,
+                        message=f"object_ref '{object_ref}' is not pinned in model.lock",
+                        path=path,
+                        source={"file": str(self.model_lock_path)},
+                        confidence=0.95,
+                    )
+                    continue
+
+                object_pin = object_pins.get(object_ref)
+                if isinstance(object_pin, dict):
+                    locked_class_ref = object_pin.get("class_ref")
+                    if (
+                        isinstance(class_ref, str)
+                        and isinstance(locked_class_ref, str)
+                        and class_ref != locked_class_ref
+                    ):
+                        self._emit_diag(
+                            code="E2403",
+                            stage="validate",
+                            message=(
+                                f"object_ref '{object_ref}' requires class_ref '{locked_class_ref}' "
+                                f"per model.lock, got '{class_ref}'"
+                            ),
+                            path=path,
+                            source={"file": str(self.model_lock_path)},
+                            confidence=1.0,
+                        )
 
     def _stage_validate_schema(self, normalized: Dict[str, Any]) -> None:
         if self.skip_schema:
@@ -579,6 +990,9 @@ class TopologyCompiler:
                 "topology": str(self.topology_path),
                 "schema": str(self.schema_path),
                 "error_catalog": str(self.error_catalog_path),
+                "profile": self.profile_name,
+                "profile_map": str(self.profile_map_path) if self.profile_map_path else "",
+                "model_lock": str(self.model_lock_path) if self.model_lock_path else "",
             },
             "outputs": {
                 "effective_json": str(self.output_json_path),
@@ -682,8 +1096,10 @@ class TopologyCompiler:
     def run(self) -> int:
         self.topology_raw = self._stage_load()
         if self.topology_raw is not None:
+            self._stage_load_model_lock()
             self.topology_effective = self._stage_normalize(self.topology_raw)
             self._stage_resolve(self.topology_effective)
+            self._stage_validate_model_lock(self.topology_effective)
             self._stage_validate_schema(self.topology_effective)
             self._stage_validate_semantic(self.topology_effective)
             self._stage_emit_effective_json(self.topology_effective)
@@ -730,8 +1146,30 @@ def _build_parser() -> argparse.ArgumentParser:
         default=str(DEFAULT_DIAGNOSTICS_TXT),
         help="Output path for human-readable diagnostics report",
     )
+    parser.add_argument(
+        "--profile",
+        default="production",
+        help="Compilation profile name (e.g. production, modeled, test-real)",
+    )
+    parser.add_argument(
+        "--profile-map",
+        help=(
+            "Optional YAML map with per-profile instance overrides "
+            "(object replacement, patch, disable) for simulation/test scenarios"
+        ),
+    )
+    parser.add_argument(
+        "--model-lock",
+        default=str(DEFAULT_MODEL_LOCK_PATH),
+        help="Path to model.lock YAML (set empty string to disable)",
+    )
     parser.add_argument("--skip-schema", action="store_true", help="Skip JSON schema validation stage")
     parser.add_argument("--skip-semantic", action="store_true", help="Skip semantic validator stage")
+    parser.add_argument(
+        "--strict-model-lock",
+        action="store_true",
+        help="Treat missing class/object pins in model.lock as errors",
+    )
     parser.add_argument(
         "--heuristic-ref-checks",
         action="store_true",
@@ -743,16 +1181,22 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _build_parser().parse_args(argv)
+    model_lock_path = Path(args.model_lock) if str(args.model_lock).strip() else None
+    profile_map_path = Path(args.profile_map) if args.profile_map else None
     compiler = TopologyCompiler(
         topology_path=Path(args.topology),
         schema_path=Path(args.schema),
         diagnostics_schema_path=Path(args.diagnostics_schema),
         error_catalog_path=Path(args.error_catalog),
+        model_lock_path=model_lock_path,
+        profile_name=str(args.profile).strip() or "production",
+        profile_map_path=profile_map_path,
         output_json_path=Path(args.output_json),
         diagnostics_json_path=Path(args.diagnostics_json),
         diagnostics_txt_path=Path(args.diagnostics_txt),
         skip_schema=bool(args.skip_schema),
         skip_semantic=bool(args.skip_semantic),
+        strict_model_lock=bool(args.strict_model_lock),
         heuristic_ref_checks=bool(args.heuristic_ref_checks),
         max_diagnostics=max(10, int(args.max_diagnostics)),
     )

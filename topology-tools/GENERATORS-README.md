@@ -35,12 +35,21 @@ Usage:
 python topology-tools/compile-topology.py --topology topology.yaml
 python topology-tools/compile-topology.py --topology topology.yaml --output-json build/effective-topology.json
 python topology-tools/compile-topology.py --topology topology.yaml --skip-semantic
+python topology-tools/compile-topology.py --topology topology.yaml --profile modeled --profile-map topology/profiles.yaml
+python topology-tools/compile-topology.py --topology topology.yaml --profile test-real --profile-map topology/profiles.yaml --strict-model-lock
 ```
 
 Outputs:
 - `build/effective-topology.json` - canonical compiled topology (written only when no errors)
 - `build/diagnostics/report.json` - machine-readable diagnostics (`code`, `stage`, `path`, `hint`, `autofix`)
 - `build/diagnostics/report.txt` - human-readable diagnostics summary
+
+Profile/model-lock flags:
+- `--profile <name>` selects environment profile (`production`, `modeled`, `test-real`, ...)
+- `--profile-map <file>` applies per-instance overlays for selected profile (replace `object_ref`, merge `overrides`, disable instance)
+- `--model-lock <file>` controls Class/Object version pins (`topology/model.lock.yaml` by default)
+- `--strict-model-lock` upgrades missing pins to errors
+- Reference examples: `topology/model.lock.example.yaml`, `topology/profile-map.example.yaml`
 
 ### generate-terraform-proxmox.py
 Generate Proxmox Terraform from L1/L2/L3/L4.

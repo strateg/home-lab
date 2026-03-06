@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://home-lab.local/schemas/profile-map.schema.json",
+  "title": "Topology Profile Map",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "type": [
+        "string",
+        "integer"
+      ]
+    },
+    "profile": {
+      "type": "string"
+    },
+    "instance_overrides": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/instanceOverride"
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "instance_overrides": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/$defs/instanceOverride"
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "instanceOverride": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "object_ref": {
+          "type": "string"
+        },
+        "class_ref": {
+          "type": "string"
+        },
+        "overrides": {
+          "type": "object"
+        },
+        "patch": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

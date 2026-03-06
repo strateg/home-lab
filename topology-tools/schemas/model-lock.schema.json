@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://home-lab.local/schemas/model-lock.schema.json",
+  "title": "Model Lock",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "type": [
+        "string",
+        "integer"
+      ]
+    },
+    "core_model_version": {
+      "type": "string"
+    },
+    "classes": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "version": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "class_modules": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "version": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "objects": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "class_ref": {
+                "type": "string"
+              },
+              "class_version": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "object_modules": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "version": {
+                "type": "string"
+              },
+              "class_ref": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
