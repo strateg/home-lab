@@ -12,6 +12,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_PATHS = (
+    "v5/topology/topology.yaml",
     "v5/topology",
     "v5/topology/class-modules",
     "v5/topology/object-modules",
@@ -84,12 +85,71 @@ def check_model_lock_shape(errors: list[dict[str, str]]) -> None:
             )
 
 
+def check_topology_manifest(errors: list[dict[str, str]]) -> None:
+    manifest_file = ROOT / "v5/topology/topology.yaml"
+    if not manifest_file.exists():
+        return
+
+    try:
+        payload = yaml.safe_load(manifest_file.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        errors.append(
+            {
+                "code": "V5_MANIFEST_PARSE_ERROR",
+                "path": "v5/topology/topology.yaml",
+                "message": f"topology manifest parsing failed: {exc}",
+            }
+        )
+        return
+
+    if not isinstance(payload, dict):
+        errors.append(
+            {
+                "code": "V5_MANIFEST_INVALID_ROOT",
+                "path": "v5/topology/topology.yaml",
+                "message": "topology manifest root must be a mapping/object.",
+            }
+        )
+        return
+
+    paths = payload.get("paths")
+    if not isinstance(paths, dict):
+        errors.append(
+            {
+                "code": "V5_MANIFEST_MISSING_PATHS",
+                "path": "v5/topology/topology.yaml",
+                "message": "topology manifest must contain 'paths' mapping.",
+            }
+        )
+        return
+
+    for key, rel_path in paths.items():
+        if not isinstance(rel_path, str) or not rel_path:
+            errors.append(
+                {
+                    "code": "V5_MANIFEST_INVALID_PATH_VALUE",
+                    "path": "v5/topology/topology.yaml",
+                    "message": f"path entry '{key}' must be non-empty string.",
+                }
+            )
+            continue
+        if not (ROOT / rel_path).exists():
+            errors.append(
+                {
+                    "code": "V5_MANIFEST_PATH_MISSING",
+                    "path": "v5/topology/topology.yaml",
+                    "message": f"path entry '{key}' points to missing path: {rel_path}",
+                }
+            )
+
+
 def main() -> int:
     errors: list[dict[str, str]] = []
 
     check_required_paths(errors)
     check_yaml_syntax(errors)
     check_model_lock_shape(errors)
+    check_topology_manifest(errors)
 
     if errors:
         print("v5 scaffold validation: FAIL")

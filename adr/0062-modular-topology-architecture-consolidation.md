@@ -187,6 +187,7 @@ home-lab/
 |  `- local/
 |- v5/                      # NEW lane (active migration and implementation)
 |  |- topology/
+|  |  |- topology.yaml
 |  |  |- class-modules/
 |  |  |- object-modules/
 |  |  |- instances/
@@ -421,6 +422,7 @@ Current measured status:
     - object module set expanded to 33 files under `v5/topology/object-modules/`
     - `v5/topology/instances/home-lab/phase1-module-backlog.yaml` currently has no unresolved class/object gaps
   - Phase 4 preparation started:
+    - v5 topology manifest created: `v5/topology/topology.yaml`
     - normalized instance export created: `v5/topology/instances/home-lab/instance-bindings.yaml`
     - export is generated from mapping via `scripts/export_v5_instance_bindings.py`
 - class/object module coverage for mapped entities is complete at scaffold level; capability depth remains iterative
