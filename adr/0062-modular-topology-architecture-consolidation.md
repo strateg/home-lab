@@ -22,12 +22,12 @@ Consolidation goals:
 
 Current implemented artifacts used by this ADR:
 
-- compiler entrypoint: `topology-tools/compile-topology.py`
-- diagnostics schema: `topology-tools/schemas/diagnostics.schema.json`
-- model lock schema: `topology-tools/schemas/model-lock.schema.json`
-- profile map schema: `topology-tools/schemas/profile-map.schema.json`
-- error catalog: `topology-tools/data/error-catalog.yaml`
-- capability checker: `topology-tools/check-capability-contract.py`
+- legacy compiler entrypoint: `v4/topology-tools/compile-topology.py`
+- diagnostics schema: `v4/topology-tools/schemas/diagnostics.schema.json`
+- model lock schema: `v4/topology-tools/schemas/model-lock.schema.json`
+- profile map schema: `v4/topology-tools/schemas/profile-map.schema.json`
+- error catalog: `v4/topology-tools/data/error-catalog.yaml`
+- capability checker: `v4/topology-tools/check-capability-contract.py`
 
 ---
 
@@ -180,7 +180,11 @@ home-lab/
 |  |- topology/
 |  |- topology-tools/
 |  |- tests/
-|  `- (no generated artifacts stored here)
+|  |- ansible/
+|  |- deploy/
+|  |- manual-scripts/
+|  |- terraform-overrides/
+|  `- local/
 |- v5/                      # NEW lane (active migration and implementation)
 |  |- topology/
 |  |  |- class-modules/
@@ -223,6 +227,12 @@ Actions:
 
 - move current operational tree into `v4/` (`topology`, `topology-tools`)
 - move current v4 tests into `v4/tests/`
+- move v4-dependent operational folders into `v4/`:
+  - `ansible/ -> v4/ansible/`
+  - `deploy/ -> v4/deploy/`
+  - `manual-scripts/ -> v4/manual-scripts/`
+  - `terraform-overrides/ -> v4/terraform-overrides/`
+  - `local/ -> v4/local/`
 - rename legacy artifact roots:
   - `generated/ -> v4-generated/`
   - `build/ -> v4-build/`
@@ -373,8 +383,12 @@ Exit criteria:
 
 Current measured status:
 
-- Phase 0 not started (`v4/` and `v5/` roots are not created yet)
-- migration progress is early-stage (design complete, implementation partial)
+- Phase 0 in progress:
+  - created dual-lane roots `v4/` and `v5/`
+  - moved legacy operational tree to `v4/` (`topology`, `topology-tools`, `tests`)
+  - moved v4-dependent folders to `v4/` (`ansible`, `deploy`, `manual-scripts`, `terraform-overrides`, `local`)
+  - switched legacy artifact roots to versioned `v4-*` naming
+- migration progress is design complete with initial workspace split implemented
 - class/object module coverage is minimal
 - v5-specific CI lanes are not operational yet
 
@@ -517,12 +531,12 @@ Rollback actions:
 
 ### Runtime Contracts
 
-- Compiler: `topology-tools/compile-topology.py`
-- Diagnostics schema: `topology-tools/schemas/diagnostics.schema.json`
-- Error catalog: `topology-tools/data/error-catalog.yaml`
-- model.lock schema: `topology-tools/schemas/model-lock.schema.json`
-- profile map schema: `topology-tools/schemas/profile-map.schema.json`
-- Capability checker: `topology-tools/check-capability-contract.py`
+- Compiler: `v4/topology-tools/compile-topology.py`
+- Diagnostics schema: `v4/topology-tools/schemas/diagnostics.schema.json`
+- Error catalog: `v4/topology-tools/data/error-catalog.yaml`
+- model.lock schema: `v4/topology-tools/schemas/model-lock.schema.json`
+- profile map schema: `v4/topology-tools/schemas/profile-map.schema.json`
+- Capability checker: `v4/topology-tools/check-capability-contract.py`
 
 ### Register
 
