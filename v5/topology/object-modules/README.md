@@ -1,11 +1,16 @@
-# Object Modules (Capability Templates)
+# Object Modules (v5)
 
-This directory contains object-level templates for Class -> Object -> Instance mapping.
+This directory contains object contracts for ADR 0062 (`Class -> Object -> Instance`).
 
-Object templates:
+Current object groups:
 
-- `mikrotik/obj.mikrotik.chateau_lte7_ax.yaml`
-- `mikrotik/obj.mikrotik.chr.yaml`
+- `mikrotik/` (existing router objects)
+- `glinet/` (travel-router object)
+- `proxmox/` (hypervisor + LXC object family)
+- `orangepi/` (edge-node object)
+- `cloud/` (cloud VM objects)
+- `power/` (UPS/PDU objects)
+- `service/` (L5 service objects)
 
 Rules reflected in templates:
 
@@ -13,8 +18,12 @@ Rules reflected in templates:
 - object enables capabilities via direct IDs and/or capability packs
 - vendor-only behavior is namespaced under `vendor.*`
 
-Validation:
+Validation (legacy checker, run with explicit v5 paths):
 
 ```bash
-python topology-tools/check-capability-contract.py
+python v4/topology-tools/check-capability-contract.py \
+  --catalog v5/topology/class-modules/capability-catalog.example.yaml \
+  --packs v5/topology/class-modules/capability-packs.example.yaml \
+  --classes-dir v5/topology/class-modules/classes \
+  --objects-dir v5/topology/object-modules
 ```

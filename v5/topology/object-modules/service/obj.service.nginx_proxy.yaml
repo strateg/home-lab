@@ -1,0 +1,8 @@
+id: obj.service.nginx_proxy
+version: 1.0.0
+class_ref: class.service.proxy
+model: Nginx Proxy
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.nginx_proxy.runtime
+- vendor.service.nginx_proxy.config

@@ -1,0 +1,8 @@
+id: obj.service.docker_host
+version: 1.0.0
+class_ref: class.service.web_application
+model: Docker Host
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.docker_host.runtime
+- vendor.service.docker_host.config

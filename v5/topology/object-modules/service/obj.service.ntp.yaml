@@ -1,0 +1,8 @@
+id: obj.service.ntp
+version: 1.0.0
+class_ref: class.service.monitoring
+model: Ntp
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.ntp.runtime
+- vendor.service.ntp.config

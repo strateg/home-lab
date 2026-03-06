@@ -1,0 +1,10 @@
+id: class.service.proxy
+version: 1.0.0
+title: Service Proxy
+summary: Reverse proxy and ingress routing service role.
+required_capabilities: []
+optional_capabilities: []
+capability_packs: []
+invariants:
+- object.class_ref must equal class.id
+- instance overrides must not violate class invariants

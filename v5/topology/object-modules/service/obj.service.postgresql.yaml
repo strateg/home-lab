@@ -1,0 +1,8 @@
+id: obj.service.postgresql
+version: 1.0.0
+class_ref: class.service.database
+model: Postgresql
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.postgresql.runtime
+- vendor.service.postgresql.config

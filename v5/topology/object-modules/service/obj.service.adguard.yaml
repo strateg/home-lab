@@ -1,0 +1,8 @@
+id: obj.service.adguard
+version: 1.0.0
+class_ref: class.service.dns
+model: Adguard
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.adguard.runtime
+- vendor.service.adguard.config

@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: validate-v4 validate-v5 build-v4 build-v5 phase1-bootstrap phase1-backlog
+.PHONY: validate-v4 validate-v5 build-v4 build-v5 phase1-bootstrap phase1-reconcile phase1-backlog
 
 validate-v4:
 	$(PYTHON) scripts/lane.py validate-v4
@@ -16,6 +16,9 @@ build-v5:
 
 phase1-bootstrap:
 	$(PYTHON) v5/topology-tools/bootstrap-phase1-mapping.py --refresh-effective
+
+phase1-reconcile:
+	$(PYTHON) scripts/reconcile_phase1_mapping.py
 
 phase1-backlog:
 	$(PYTHON) scripts/refresh_phase1_backlog.py

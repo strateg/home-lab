@@ -23,5 +23,6 @@ make validate-v5
 make build-v4
 make build-v5
 make phase1-bootstrap
+make phase1-reconcile
 make phase1-backlog
 ```

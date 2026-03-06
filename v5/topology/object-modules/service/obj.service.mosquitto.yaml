@@ -1,0 +1,8 @@
+id: obj.service.mosquitto
+version: 1.0.0
+class_ref: class.service.home_automation
+model: Mosquitto
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.mosquitto.runtime
+- vendor.service.mosquitto.config

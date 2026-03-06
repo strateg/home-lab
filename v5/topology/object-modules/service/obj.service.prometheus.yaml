@@ -1,0 +1,8 @@
+id: obj.service.prometheus
+version: 1.0.0
+class_ref: class.service.monitoring
+model: Prometheus
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.prometheus.runtime
+- vendor.service.prometheus.config

@@ -1,0 +1,8 @@
+id: obj.service.alertmanager
+version: 1.0.0
+class_ref: class.service.alerting
+model: Alertmanager
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.alertmanager.runtime
+- vendor.service.alertmanager.config

@@ -1,0 +1,8 @@
+id: obj.service.grafana
+version: 1.0.0
+class_ref: class.service.visualization
+model: Grafana
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.grafana.runtime
+- vendor.service.grafana.config

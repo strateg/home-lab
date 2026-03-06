@@ -1,0 +1,8 @@
+id: obj.apc.backups.650va
+version: 1.0.0
+class_ref: class.power.ups
+model: APC Back-UPS 650VA
+vendor: apc
+enabled_capabilities:
+- vendor.power.ups.battery_backup
+- vendor.power.ups.status.telemetry

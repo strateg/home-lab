@@ -1,0 +1,8 @@
+id: obj.service.gitea
+version: 1.0.0
+class_ref: class.service.web_application
+model: Gitea
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.gitea.runtime
+- vendor.service.gitea.config

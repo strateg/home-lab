@@ -1,0 +1,8 @@
+id: obj.service.syslog_forwarder
+version: 1.0.0
+class_ref: class.service.logging
+model: Syslog Forwarder
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.syslog_forwarder.runtime
+- vendor.service.syslog_forwarder.config

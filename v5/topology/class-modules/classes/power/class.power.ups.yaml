@@ -1,0 +1,10 @@
+id: class.power.ups
+version: 1.0.0
+title: Uninterruptible Power Supply
+summary: Power backup and battery state abstraction.
+required_capabilities: []
+optional_capabilities: []
+capability_packs: []
+invariants:
+- object.class_ref must equal class.id
+- instance overrides must not violate class invariants

@@ -1,0 +1,9 @@
+id: obj.proxmox.lxc.debian12.redis
+version: 1.0.0
+class_ref: class.compute.workload.container
+model: LXC Debian 12 Redis
+vendor: proxmox
+enabled_capabilities:
+- vendor.proxmox.runtime.lxc
+- vendor.debian.bookworm.base
+- vendor.service.redis.optimized

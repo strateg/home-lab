@@ -1,0 +1,8 @@
+id: obj.service.proxmox.web_ui
+version: 1.0.0
+class_ref: class.service.web_ui
+model: Proxmox Web Ui
+vendor: proxmox
+enabled_capabilities:
+- vendor.service.proxmox.web_ui.runtime
+- vendor.service.proxmox.web_ui.config

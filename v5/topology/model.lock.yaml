@@ -2,9 +2,47 @@ version: 1
 core_model_version: "1.0.0"
 
 classes:
+  class.compute.cloud_vm:
+    version: "1.0.0"
+  class.compute.edge_node:
+    version: "1.0.0"
   class.network.router:
     version: "1.0.0"
+  class.compute.workload.container:
+    version: "1.0.0"
   class.compute.hypervisor:
+    version: "1.0.0"
+  class.power.pdu:
+    version: "1.0.0"
+  class.power.ups:
+    version: "1.0.0"
+  class.service.alerting:
+    version: "1.0.0"
+  class.service.cache:
+    version: "1.0.0"
+  class.service.database:
+    version: "1.0.0"
+  class.service.dns:
+    version: "1.0.0"
+  class.service.file_storage:
+    version: "1.0.0"
+  class.service.home_automation:
+    version: "1.0.0"
+  class.service.logging:
+    version: "1.0.0"
+  class.service.media_server:
+    version: "1.0.0"
+  class.service.monitoring:
+    version: "1.0.0"
+  class.service.proxy:
+    version: "1.0.0"
+  class.service.visualization:
+    version: "1.0.0"
+  class.service.vpn:
+    version: "1.0.0"
+  class.service.web_application:
+    version: "1.0.0"
+  class.service.web_ui:
     version: "1.0.0"
 
 objects:

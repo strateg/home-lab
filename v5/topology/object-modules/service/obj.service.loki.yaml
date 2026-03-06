@@ -1,0 +1,8 @@
+id: obj.service.loki
+version: 1.0.0
+class_ref: class.service.logging
+model: Loki
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.loki.runtime
+- vendor.service.loki.config

@@ -1,0 +1,15 @@
+id: obj.glinet.slate_ax1800
+version: 1.0.0
+class_ref: class.network.router
+model: Slate AX1800
+vendor: glinet
+enabled_packs:
+- pack.router.home
+enabled_capabilities:
+- cap.router.routing.static
+- cap.router.nat
+- cap.router.firewall.stateful
+- cap.router.dhcp.server
+- cap.router.wireguard.endpoint
+- cap.router.vlan
+- vendor.glinet.openwrt.profile

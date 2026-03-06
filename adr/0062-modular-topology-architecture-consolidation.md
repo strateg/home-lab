@@ -413,10 +413,14 @@ Current measured status:
   - `pytest v4/tests`: PASS (`210 passed`, `1 skipped`)
 - migration progress:
   - Phase 0 complete
-  - Phase 1 mapping baseline completed for active L1/L4/L5 entities:
-    - `v5/topology/instances/home-lab/v4-to-v5-mapping.yaml` has planned `class_ref` + `object_ref` for all 44 entities (no `pending`)
-    - `v5/topology/instances/home-lab/phase1-module-backlog.yaml` captures all unresolved class/object module gaps for Phase 2/3
-- class/object module coverage is minimal (~5% classes, ~10% objects)
+  - Phase 1 mapping baseline completed and reconciled for active L1/L4/L5 entities:
+    - `v5/topology/instances/home-lab/v4-to-v5-mapping.yaml` has `class_ref` + `object_ref` for all 44 entities (`mapped=44`, `pending=0`, `gap=0`)
+    - duplicate L5 IDs are disambiguated with composite instance IDs (`service_id@runtime_type:target_ref`)
+  - Phase 2/3 scaffolding advanced:
+    - class module set expanded to 21 files under `v5/topology/class-modules/classes/`
+    - object module set expanded to 33 files under `v5/topology/object-modules/`
+    - `v5/topology/instances/home-lab/phase1-module-backlog.yaml` currently has no unresolved class/object gaps
+- class/object module coverage for mapped entities is complete at scaffold level; capability depth remains iterative
 - v5-specific CI lane is scaffold-operational (structure/YAML/model-lock shape gate)
 
 This snapshot is informational and must be updated at each phase gate review.

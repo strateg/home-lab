@@ -1,0 +1,8 @@
+id: obj.service.jellyfin
+version: 1.0.0
+class_ref: class.service.media_server
+model: Jellyfin
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.jellyfin.runtime
+- vendor.service.jellyfin.config

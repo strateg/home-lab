@@ -1,0 +1,9 @@
+id: obj.orangepi.rk3588.debian
+version: 1.0.0
+class_ref: class.compute.edge_node
+model: Orange Pi 5 RK3588 Debian
+vendor: orangepi
+enabled_capabilities:
+- vendor.arm64.rk3588.sbc
+- vendor.debian.bookworm.base
+- vendor.runtime.docker.host

@@ -1,0 +1,8 @@
+id: obj.pdu.generic.managed
+version: 1.0.0
+class_ref: class.power.pdu
+model: Generic Managed PDU
+vendor: generic
+enabled_capabilities:
+- vendor.power.pdu.switching
+- vendor.power.pdu.telemetry

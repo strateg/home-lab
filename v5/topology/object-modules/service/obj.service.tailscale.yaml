@@ -1,0 +1,8 @@
+id: obj.service.tailscale
+version: 1.0.0
+class_ref: class.service.vpn
+model: Tailscale
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.tailscale.runtime
+- vendor.service.tailscale.config

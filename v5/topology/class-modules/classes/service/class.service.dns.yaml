@@ -1,0 +1,10 @@
+id: class.service.dns
+version: 1.0.0
+title: Service DNS
+summary: DNS resolver/filter service role.
+required_capabilities: []
+optional_capabilities: []
+capability_packs: []
+invariants:
+- object.class_ref must equal class.id
+- instance overrides must not violate class invariants

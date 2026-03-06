@@ -1,0 +1,8 @@
+id: obj.service.mikrotik.web_ui
+version: 1.0.0
+class_ref: class.service.web_ui
+model: Mikrotik Web Ui
+vendor: mikrotik
+enabled_capabilities:
+- vendor.service.mikrotik.web_ui.runtime
+- vendor.service.mikrotik.web_ui.config

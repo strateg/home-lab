@@ -1,0 +1,10 @@
+id: class.service.vpn
+version: 1.0.0
+title: Service VPN
+summary: Encrypted tunnel endpoint service role.
+required_capabilities: []
+optional_capabilities: []
+capability_packs: []
+invariants:
+- object.class_ref must equal class.id
+- instance overrides must not violate class invariants

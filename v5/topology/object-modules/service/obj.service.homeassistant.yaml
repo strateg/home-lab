@@ -1,0 +1,8 @@
+id: obj.service.homeassistant
+version: 1.0.0
+class_ref: class.service.home_automation
+model: Homeassistant
+vendor: home-lab
+enabled_capabilities:
+- vendor.service.homeassistant.runtime
+- vendor.service.homeassistant.config
