@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at: '2026-03-06T17:44:24+00:00'
+generated_at: '2026-03-06T17:55:09+00:00'
 source_mapping: v5/topology/instances/home-lab/v4-to-v5-mapping.yaml
 instance_bindings:
   l1_devices:
@@ -243,7 +243,7 @@ instance_bindings:
   - id: svc-nextcloud@lxc:lxc-nextcloud
     source_id: svc-nextcloud
     class_ref: class.service.file_storage
-    object_ref: obj.service.nextcloud
+    object_ref: obj.service.nextcloud.file_storage
     status: mapped
     notes: module scaffold exists; runtime-specific behavior tuning pending
     runtime:

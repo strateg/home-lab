@@ -255,7 +255,7 @@ entities:
     runtime_type: lxc
     runtime_target_ref: lxc-nextcloud
     class_ref: class.service.file_storage
-    object_ref: obj.service.nextcloud
+    object_ref: obj.service.nextcloud.file_storage
     status: mapped
     notes: module scaffold exists; runtime-specific behavior tuning pending
   - instance_id: svc-nginx-proxy

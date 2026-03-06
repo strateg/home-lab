@@ -1,57 +1,148 @@
 version: 1
-core_model_version: "1.0.0"
-
+core_model_version: 1.0.0
 classes:
   class.compute.cloud_vm:
-    version: "1.0.0"
+    version: 1.0.0
   class.compute.edge_node:
-    version: "1.0.0"
-  class.network.router:
-    version: "1.0.0"
-  class.compute.workload.container:
-    version: "1.0.0"
+    version: 1.0.0
   class.compute.hypervisor:
-    version: "1.0.0"
+    version: 1.0.0
+  class.compute.workload.container:
+    version: 1.0.0
+  class.network.router:
+    version: 1.0.0
   class.power.pdu:
-    version: "1.0.0"
+    version: 1.0.0
   class.power.ups:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.alerting:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.cache:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.database:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.dns:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.file_storage:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.home_automation:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.logging:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.media_server:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.monitoring:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.proxy:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.visualization:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.vpn:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.web_application:
-    version: "1.0.0"
+    version: 1.0.0
   class.service.web_ui:
-    version: "1.0.0"
-
+    version: 1.0.0
 objects:
+  obj.apc.backups.650va:
+    version: 1.0.0
+    class_ref: class.power.ups
+  obj.glinet.slate_ax1800:
+    version: 1.0.0
+    class_ref: class.network.router
+  obj.hetzner.cloud_vm:
+    version: 1.0.0
+    class_ref: class.compute.cloud_vm
   obj.mikrotik.chateau_lte7_ax:
-    version: "1.0.0"
+    version: 1.0.0
     class_ref: class.network.router
   obj.mikrotik.chr:
-    version: "1.0.0"
+    version: 1.0.0
     class_ref: class.network.router
+  obj.oracle.cloud_vm:
+    version: 1.0.0
+    class_ref: class.compute.cloud_vm
+  obj.orangepi.rk3588.debian:
+    version: 1.0.0
+    class_ref: class.compute.edge_node
+  obj.pdu.generic.managed:
+    version: 1.0.0
+    class_ref: class.power.pdu
+  obj.proxmox.lxc.debian12.base:
+    version: 1.0.0
+    class_ref: class.compute.workload.container
+  obj.proxmox.lxc.debian12.postgresql:
+    version: 1.0.0
+    class_ref: class.compute.workload.container
+  obj.proxmox.lxc.debian12.redis:
+    version: 1.0.0
+    class_ref: class.compute.workload.container
   obj.proxmox.ve:
-    version: "1.0.0"
+    version: 1.0.0
     class_ref: class.compute.hypervisor
+  obj.service.adguard:
+    version: 1.0.0
+    class_ref: class.service.dns
+  obj.service.alertmanager:
+    version: 1.0.0
+    class_ref: class.service.alerting
+  obj.service.docker_host:
+    version: 1.0.0
+    class_ref: class.service.web_application
+  obj.service.gitea:
+    version: 1.0.0
+    class_ref: class.service.web_application
+  obj.service.grafana:
+    version: 1.0.0
+    class_ref: class.service.visualization
+  obj.service.homeassistant:
+    version: 1.0.0
+    class_ref: class.service.home_automation
+  obj.service.jellyfin:
+    version: 1.0.0
+    class_ref: class.service.media_server
+  obj.service.loki:
+    version: 1.0.0
+    class_ref: class.service.logging
+  obj.service.mikrotik.snmp:
+    version: 1.0.0
+    class_ref: class.service.monitoring
+  obj.service.mikrotik.web_ui:
+    version: 1.0.0
+    class_ref: class.service.web_ui
+  obj.service.mosquitto:
+    version: 1.0.0
+    class_ref: class.service.home_automation
+  obj.service.nextcloud:
+    version: 1.0.0
+    class_ref: class.service.web_application
+  obj.service.nextcloud.file_storage:
+    version: 1.0.0
+    class_ref: class.service.file_storage
+  obj.service.nginx_proxy:
+    version: 1.0.0
+    class_ref: class.service.proxy
+  obj.service.ntp:
+    version: 1.0.0
+    class_ref: class.service.monitoring
+  obj.service.postgresql:
+    version: 1.0.0
+    class_ref: class.service.database
+  obj.service.prometheus:
+    version: 1.0.0
+    class_ref: class.service.monitoring
+  obj.service.proxmox.web_ui:
+    version: 1.0.0
+    class_ref: class.service.web_ui
+  obj.service.redis:
+    version: 1.0.0
+    class_ref: class.service.cache
+  obj.service.syslog_forwarder:
+    version: 1.0.0
+    class_ref: class.service.logging
+  obj.service.tailscale:
+    version: 1.0.0
+    class_ref: class.service.vpn
+  obj.service.wireguard:
+    version: 1.0.0
+    class_ref: class.service.vpn

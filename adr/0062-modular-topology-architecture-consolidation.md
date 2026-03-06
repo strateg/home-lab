@@ -425,8 +425,13 @@ Current measured status:
     - v5 topology manifest created: `v5/topology/topology.yaml`
     - normalized instance export created: `v5/topology/instances/home-lab/instance-bindings.yaml`
     - export is generated from mapping via `scripts/export_v5_instance_bindings.py`
+    - v5 compiler introduced: `v5/topology-tools/compile-topology.py`
+    - `validate-v5` now runs manifest/scaffold checks and strict model-lock compile into:
+      - `v5-build/effective-topology.json`
+      - `v5-build/diagnostics/report.json`
+      - `v5-build/diagnostics/report.txt`
 - class/object module coverage for mapped entities is complete at scaffold level; capability depth remains iterative
-- v5-specific CI lane is scaffold-operational (structure/YAML/model-lock shape gate)
+- v5-specific CI lane runs scaffold gate and compile gate (strict model-lock)
 
 This snapshot is informational and must be updated at each phase gate review.
 

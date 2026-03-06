@@ -54,14 +54,24 @@ def build_v4() -> None:
 
 
 def validate_v5() -> None:
+    run([PYTHON, "scripts/export_v5_instance_bindings.py"])
     run([PYTHON, "scripts/validate_v5_scaffold.py"])
+    run(
+        [
+            PYTHON,
+            "v5/topology-tools/compile-topology.py",
+            "--topology",
+            "v5/topology/topology.yaml",
+            "--strict-model-lock",
+        ]
+    )
 
 
 def build_v5() -> None:
     for output_dir in ("v5-generated", "v5-build", "v5-dist"):
         (ROOT / output_dir).mkdir(parents=True, exist_ok=True)
     validate_v5()
-    print("[lane] INFO: v5 build is scaffold-level in Phase 0; compiler/generators are introduced in later phases.")
+    print("[lane] INFO: v5 build currently compiles canonical JSON; generators are introduced in later phases.")
 
 
 def parse_args() -> argparse.Namespace:
