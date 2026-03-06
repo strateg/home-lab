@@ -11,9 +11,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DEPLOY_MODE="${DEPLOY_MODE:-native}"
-DIST_ROOT="$PROJECT_DIR/dist"
+DIST_ROOT="$PROJECT_DIR/v4-dist"
 DIST_PACKAGE_ID="control/terraform/proxmox"
-DIST_CHECKER="$PROJECT_DIR/topology-tools/check-dist-package.py"
+DIST_CHECKER="$PROJECT_DIR/v4/topology-tools/check-dist-package.py"
 
 case "$DEPLOY_MODE" in
     native)
@@ -53,7 +53,7 @@ if [ "$DEPLOY_MODE" = "dist" ]; then
         exit 1
     fi
 else
-    python3 "$PROJECT_DIR/topology-tools/assemble-native.py" --target proxmox --quiet
+    python3 "$PROJECT_DIR/v4/topology-tools/assemble-native.py" --target proxmox --quiet
 fi
 
 if [ ! -f "$TERRAFORM_DIR/terraform.tfvars" ]; then

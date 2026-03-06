@@ -5,52 +5,52 @@ on:
     branches: [ main, master ]
     paths:
       - 'deploy/Makefile'
-      - 'topology-tools/assemble-deploy.py'
-      - 'topology-tools/assemble-ansible-runtime.py'
-      - 'topology-tools/check-deploy-parity.py'
-      - 'topology-tools/check-dist-package.py'
-      - 'topology-tools/check-terraform-override-flow.py'
-      - 'topology-tools/check-native-inputs.py'
-      - 'topology-tools/clean-generated.py'
-      - 'topology-tools/materialize-native-inputs.py'
-      - 'topology-tools/materialize-dist-inputs.py'
-      - 'topology-tools/assemble-terraform-overrides.py'
-      - 'topology-tools/validate-dist.py'
+      - 'v4/topology-tools/assemble-deploy.py'
+      - 'v4/topology-tools/assemble-ansible-runtime.py'
+      - 'v4/topology-tools/check-deploy-parity.py'
+      - 'v4/topology-tools/check-dist-package.py'
+      - 'v4/topology-tools/check-terraform-override-flow.py'
+      - 'v4/topology-tools/check-native-inputs.py'
+      - 'v4/topology-tools/clean-generated.py'
+      - 'v4/topology-tools/materialize-native-inputs.py'
+      - 'v4/topology-tools/materialize-dist-inputs.py'
+      - 'v4/topology-tools/assemble-terraform-overrides.py'
+      - 'v4/topology-tools/validate-dist.py'
       - 'terraform-overrides/**'
-      - 'topology-tools/utils/**'
+      - 'v4/topology-tools/utils/**'
       - 'adr/0053-*.md'
       - 'adr/0054-*.md'
       - 'adr/0055-*.md'
       - 'docs/**'
       - 'ansible/**'
-      - 'generated/**'
-      - 'topology/**'
-      - 'topology.yaml'
+      - 'v4-generated/**'
+      - 'v4/topology/**'
+      - 'v4/topology.yaml'
       - '.github/workflows/dist-validation.yml'
   pull_request:
     paths:
       - 'deploy/Makefile'
-      - 'topology-tools/assemble-deploy.py'
-      - 'topology-tools/assemble-ansible-runtime.py'
-      - 'topology-tools/check-deploy-parity.py'
-      - 'topology-tools/check-dist-package.py'
-      - 'topology-tools/check-terraform-override-flow.py'
-      - 'topology-tools/check-native-inputs.py'
-      - 'topology-tools/clean-generated.py'
-      - 'topology-tools/materialize-native-inputs.py'
-      - 'topology-tools/materialize-dist-inputs.py'
-      - 'topology-tools/assemble-terraform-overrides.py'
-      - 'topology-tools/validate-dist.py'
+      - 'v4/topology-tools/assemble-deploy.py'
+      - 'v4/topology-tools/assemble-ansible-runtime.py'
+      - 'v4/topology-tools/check-deploy-parity.py'
+      - 'v4/topology-tools/check-dist-package.py'
+      - 'v4/topology-tools/check-terraform-override-flow.py'
+      - 'v4/topology-tools/check-native-inputs.py'
+      - 'v4/topology-tools/clean-generated.py'
+      - 'v4/topology-tools/materialize-native-inputs.py'
+      - 'v4/topology-tools/materialize-dist-inputs.py'
+      - 'v4/topology-tools/assemble-terraform-overrides.py'
+      - 'v4/topology-tools/validate-dist.py'
       - 'terraform-overrides/**'
-      - 'topology-tools/utils/**'
+      - 'v4/topology-tools/utils/**'
       - 'adr/0053-*.md'
       - 'adr/0054-*.md'
       - 'adr/0055-*.md'
       - 'docs/**'
       - 'ansible/**'
-      - 'generated/**'
-      - 'topology/**'
-      - 'topology.yaml'
+      - 'v4-generated/**'
+      - 'v4/topology/**'
+      - 'v4/topology.yaml'
       - '.github/workflows/dist-validation.yml'
   workflow_dispatch:
 
@@ -79,16 +79,16 @@ jobs:
           python -m pip install ansible-core
 
       - name: Regenerate topology outputs
-        run: python topology-tools/regenerate-all.py --skip-mermaid-validate
+        run: python v4/topology-tools/regenerate-all.py --topology v4/topology.yaml --skip-mermaid-validate
 
       - name: Assemble dist packages
-        run: python topology-tools/assemble-deploy.py
+        run: python v4/topology-tools/assemble-deploy.py
 
       - name: Strict validate dist packages
-        run: python topology-tools/validate-dist.py --strict-external
+        run: python v4/topology-tools/validate-dist.py --strict-external
 
       - name: Check native versus dist parity
-        run: python topology-tools/check-deploy-parity.py
+        run: python v4/topology-tools/check-deploy-parity.py
 
       - name: Smoke-test Terraform override flow
-        run: python topology-tools/check-terraform-override-flow.py
+        run: python v4/topology-tools/check-terraform-override-flow.py

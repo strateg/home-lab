@@ -26,16 +26,16 @@ jobs:
         run: python -m pip install --upgrade pip pyyaml jinja2 jsonschema
 
       - name: Strict Validate Main Topology
-        run: python topology-tools/validate-topology.py --topology topology.yaml --strict --no-topology-cache
+        run: python v4/topology-tools/validate-topology.py --topology v4/topology.yaml --strict --no-topology-cache
 
       - name: Strict Regenerate Main Topology Outputs
-        run: python topology-tools/regenerate-all.py --topology topology.yaml --strict --skip-mermaid-validate --no-topology-cache
+        run: python v4/topology-tools/regenerate-all.py --topology v4/topology.yaml --strict --skip-mermaid-validate --no-topology-cache
 
       - name: Ensure No Legacy Fields In Main Topology
-        run: python topology-tools/migrate-to-v5.py --topology topology.yaml --fail-on-items
+        run: python v4/topology-tools/migrate-to-v5.py --topology v4/topology.yaml --fail-on-items
 
       - name: Ensure Canonical Generated Outputs Are Up To Date
-        run: git diff --exit-code -- generated
+        run: git diff --exit-code -- v4-generated
 
   fixture-matrix:
     runs-on: ubuntu-latest
@@ -52,4 +52,4 @@ jobs:
         run: python -m pip install --upgrade pip pyyaml jinja2 jsonschema
 
       - name: Run Legacy Mixed New Fixture Matrix
-        run: python topology-tools/run-fixture-matrix.py
+        run: python v4/topology-tools/run-fixture-matrix.py

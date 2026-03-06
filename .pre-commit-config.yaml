@@ -34,7 +34,7 @@ repos:
         (?x)^(
           Migrated_and_archived/.*|
           manual-scripts/.*|
-          topology-tools/fixtures/.*|
+          v4/topology-tools/fixtures/.*|
           ansible/group_vars/.*\.yml\.example$|
           ansible/.*\.sh$|
           ansible/README\.md$|
@@ -53,9 +53,9 @@ repos:
     - id: check-yaml
       exclude: |
         (?x)^(
-          topology\.yaml|
-          topology/.*\.yaml|
-          topology-tools/fixtures/.*\.yaml|
+          v4/topology\.yaml|
+          v4/topology/.*\.yaml|
+          v4/topology-tools/fixtures/.*\.yaml|
           Migrated_and_archived/.*\.yaml
         )$
     - id: check-added-large-files
@@ -64,20 +64,20 @@ repos:
   hooks:
     - id: update-l0-last-updated
       name: Update L0 metadata.last_updated
-      entry: python topology-tools/scripts/hooks/update_l0_last_updated.py
+      entry: python v4/topology-tools/scripts/hooks/update_l0_last_updated.py
       language: system
       pass_filenames: false
     # Generators below require terraform/mermaid binaries
     # Uncomment to enable locally or run on CI
     # - id: validate-topology
     #   name: Validate topology.yaml
-    #   entry: python topology-tools/validate-topology.py
-    #   args: ["--topology", "topology.yaml"]
+    #   entry: python v4/topology-tools/validate-topology.py
+    #   args: ["--topology", "v4/topology.yaml"]
     #   language: system
     #   pass_filenames: false
     # - id: check-generated-files
     #   name: Check generated files up-to-date
-    #   entry: python topology-tools/regenerate-all.py
-    #   args: ["--topology", "topology.yaml"]
+    #   entry: python v4/topology-tools/regenerate-all.py
+    #   args: ["--topology", "v4/topology.yaml"]
     #   language: system
     #   pass_filenames: false

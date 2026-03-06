@@ -40,9 +40,9 @@ endif
 # Directories (relative to deploy/)
 ROOT_DIR := $(abspath ..)
 TOPOLOGY_DIR := $(ROOT_DIR)
-TOPOLOGY_TOOLS_DIR := $(ROOT_DIR)/topology-tools
-GENERATED_DIR := $(ROOT_DIR)/generated
-DIST_DIR := $(ROOT_DIR)/dist
+TOPOLOGY_TOOLS_DIR := $(ROOT_DIR)/v4/topology-tools
+GENERATED_DIR := $(ROOT_DIR)/v4-generated
+DIST_DIR := $(ROOT_DIR)/v4-dist
 WORK_DIR := $(ROOT_DIR)/.work
 NATIVE_WORK_DIR := $(WORK_DIR)/native
 ANSIBLE_DIR := $(ROOT_DIR)/ansible
@@ -98,8 +98,8 @@ help:
 	@echo "║    make check-native-ready - Check canonical local/ inputs       ║"
 	@echo "║    make check-dist-ready - Check local inputs for dist mode      ║"
 	@echo "║    make materialize-native-inputs - Compat alias for native asm  ║"
-	@echo "║    make materialize-dist-inputs - Copy local/ into dist/         ║"
-	@echo "║    make clean-generated-managed - Reset managed generated/ roots ║"
+	@echo "║    make materialize-dist-inputs - Copy local/ into v4-dist/      ║"
+	@echo "║    make clean-generated-managed - Reset managed v4-generated/    ║"
 	@echo "║    make assemble-terraform-overrides - Layer tracked .tf extras  ║"
 	@echo "║    make check-terraform-override-flow - Smoke-test ADR 0055      ║"
 	@echo "║                                                                  ║"
@@ -137,7 +137,7 @@ help:
 
 validate:
 	@echo "$(YELLOW)📋 Validating topology...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/validate-topology.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/validate-topology.py
 	@echo "$(GREEN)✓ Topology validation passed$(NC)"
 
 generate: generate-terraform generate-mikrotik generate-bootstrap generate-ansible assemble-ansible generate-docs assemble-native
@@ -145,90 +145,90 @@ generate: generate-terraform generate-mikrotik generate-bootstrap generate-ansib
 
 assemble-native:
 	@echo "$(YELLOW)📦 Assembling native execution workspace (ADR 0056)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-native.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/assemble-native.py
 	@echo "$(GREEN)✓ Native workspace assembled$(NC)"
 
 assemble-dist:
 	@echo "$(YELLOW)📦 Assembling deploy packages (ADR 0052)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-deploy.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/assemble-deploy.py
 	@echo "$(GREEN)✓ Dist packages assembled$(NC)"
 
 require-dist:
 	@if [ ! -f "$(DIST_DIR)/manifests/packages.json" ]; then \
-		echo "$(RED)⚠️  dist/ is not assembled. Run 'make assemble-dist' first.$(NC)"; \
+		echo "$(RED)⚠️  v4-dist/ is not assembled. Run 'make assemble-dist' first.$(NC)"; \
 		exit 1; \
 	fi
 
 assemble-terraform-overrides:
 	@echo "$(YELLOW)🧩 Assembling tracked Terraform overrides (ADR 0055)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-terraform-overrides.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/assemble-terraform-overrides.py
 
 check-terraform-override-flow:
 	@echo "$(YELLOW)🧪 Smoke-testing Terraform override flow (ADR 0055)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-terraform-override-flow.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/check-terraform-override-flow.py
 	@echo "$(GREEN)✓ Terraform override flow passed$(NC)"
 
 clean-generated-managed:
 	@echo "$(YELLOW)🧹 Cleaning managed generated roots (ADR 0054)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/clean-generated.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/clean-generated.py
 
 generate-terraform:
 	@echo "$(YELLOW)📝 Generating Terraform (Proxmox)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-terraform-proxmox.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/generate-terraform-proxmox.py
 
 generate-mikrotik:
 	@echo "$(YELLOW)📝 Generating Terraform (MikroTik)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-terraform-mikrotik.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/generate-terraform-mikrotik.py
 
 generate-bootstrap:
 	@echo "$(YELLOW)📝 Generating bootstrap packages...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-mikrotik-bootstrap.py
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-proxmox-bootstrap.py
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-orangepi5-cloud-init.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/generate-mikrotik-bootstrap.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/generate-proxmox-bootstrap.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/generate-orangepi5-cloud-init.py
 
 generate-ansible:
 	@echo "$(YELLOW)📝 Generating Ansible inventory...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-ansible-inventory.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/generate-ansible-inventory.py
 
 assemble-ansible:
 	@echo "$(YELLOW)📝 Assembling Ansible runtime inventory (ADR 0051)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-ansible-runtime.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/assemble-ansible-runtime.py
 
 generate-docs:
 	@echo "$(YELLOW)📝 Generating documentation...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/generate-docs.py || true
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/generate-docs.py || true
 
 validate-dist: assemble-dist
 	@echo "$(YELLOW)📋 Validating assembled dist packages...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/validate-dist.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/validate-dist.py
 	@echo "$(GREEN)✓ Dist package validation passed$(NC)"
 
 check-native-ready:
 	@echo "$(YELLOW)🔐 Checking native execution readiness (ADR 0054)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-native-inputs.py control/terraform/mikrotik
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-native-inputs.py control/terraform/proxmox
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-native-inputs.py control/ansible
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/check-native-inputs.py control/terraform/mikrotik
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/check-native-inputs.py control/terraform/proxmox
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/check-native-inputs.py control/ansible
 	@echo "$(GREEN)✓ Native execution packages have required canonical local inputs$(NC)"
 
 materialize-native-inputs:
 	@echo "$(YELLOW)📥 Assembling native workspace via compatibility alias (ADR 0056)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/materialize-native-inputs.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/materialize-native-inputs.py
 
 check-parity: assemble-native assemble-dist
 	@echo "$(YELLOW)⚖️  Checking native vs dist execution parity (ADR 0053)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-deploy-parity.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/check-deploy-parity.py
 	@echo "$(GREEN)✓ Native and dist execution roots are in parity$(NC)"
 
 check-dist-ready: require-dist
 	@echo "$(YELLOW)🔐 Checking dist execution readiness (ADR 0053)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-dist-package.py control/terraform/mikrotik
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-dist-package.py control/terraform/proxmox
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/check-dist-package.py control/ansible
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/check-dist-package.py control/terraform/mikrotik
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/check-dist-package.py control/terraform/proxmox
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/check-dist-package.py control/ansible
 	@echo "$(GREEN)✓ Dist execution packages have required local inputs$(NC)"
 
 materialize-dist-inputs: require-dist
 	@echo "$(YELLOW)📥 Materializing dist local inputs from local/ and ansible/ (ADR 0054)...$(NC)"
-	cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/materialize-dist-inputs.py
+	cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/materialize-dist-inputs.py
 
 # =============================================================================
 # Terraform Planning
@@ -242,7 +242,7 @@ plan-mikrotik:
 	@if [ "$(DEPLOY_MODE)" = "dist" ]; then \
 		cd $(TOPOLOGY_DIR) && $(PYTHON) $(DIST_PACKAGE_CHECKER) control/terraform/mikrotik; \
 	else \
-		cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-native.py --target mikrotik --quiet; \
+		cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/assemble-native.py --target mikrotik --quiet; \
 	fi
 	@if [ -f $(TF_MIKROTIK_EXEC_DIR)/terraform.tfvars ]; then \
 		cd $(TF_MIKROTIK_EXEC_DIR) && $(TERRAFORM) init -upgrade && $(TERRAFORM) plan; \
@@ -261,7 +261,7 @@ plan-proxmox:
 	@if [ "$(DEPLOY_MODE)" = "dist" ]; then \
 		cd $(TOPOLOGY_DIR) && $(PYTHON) $(DIST_PACKAGE_CHECKER) control/terraform/proxmox; \
 	else \
-		cd $(TOPOLOGY_DIR) && $(PYTHON) topology-tools/assemble-native.py --target proxmox --quiet; \
+		cd $(TOPOLOGY_DIR) && $(PYTHON) v4/topology-tools/assemble-native.py --target proxmox --quiet; \
 	fi
 	@if [ -f $(TF_PROXMOX_EXEC_DIR)/terraform.tfvars ]; then \
 		cd $(TF_PROXMOX_EXEC_DIR) && $(TERRAFORM) init -upgrade && $(TERRAFORM) plan; \
@@ -558,11 +558,11 @@ init: init-mikrotik init-proxmox
 
 status:
 	@echo "Source roots:"
-	@echo "  topology/              - layer definitions"
+	@echo "  v4/topology/           - legacy layer definitions"
 	@echo "  terraform-overrides/   - tracked exceptions"
 	@echo "  local/                 - operator inputs"
 	@echo ""
 	@echo "Workspaces:"
-	@echo "  generated/             - deterministic baseline"
+	@echo "  v4-generated/          - deterministic baseline"
 	@echo "  .work/native/          - native execution"
-	@echo "  dist/                  - dist execution"
+	@echo "  v4-dist/               - dist execution"

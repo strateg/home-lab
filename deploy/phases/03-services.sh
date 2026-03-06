@@ -11,14 +11,14 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 DEPLOY_MODE="${DEPLOY_MODE:-native}"
-DIST_ROOT="$PROJECT_DIR/dist"
+DIST_ROOT="$PROJECT_DIR/v4-dist"
 DIST_PACKAGE_ID="control/ansible"
-DIST_CHECKER="$PROJECT_DIR/topology-tools/check-dist-package.py"
+DIST_CHECKER="$PROJECT_DIR/v4/topology-tools/check-dist-package.py"
 ANSIBLE_ENV="production"
-GENERATED_ANSIBLE_DIR="$PROJECT_DIR/generated/ansible"
+GENERATED_ANSIBLE_DIR="$PROJECT_DIR/v4-generated/ansible"
 GENERATED_INVENTORY_DIR="$GENERATED_ANSIBLE_DIR/inventory/$ANSIBLE_ENV"
-RUNTIME_INVENTORY_DIR="$PROJECT_DIR/generated/ansible/runtime/production"
-ASSEMBLER_SCRIPT="$PROJECT_DIR/topology-tools/assemble-ansible-runtime.py"
+RUNTIME_INVENTORY_DIR="$PROJECT_DIR/v4-generated/ansible/runtime/production"
+ASSEMBLER_SCRIPT="$PROJECT_DIR/v4/topology-tools/assemble-ansible-runtime.py"
 
 case "$DEPLOY_MODE" in
     native)
@@ -44,13 +44,13 @@ for arg in "$@"; do
             echo "Execution mode: DEPLOY_MODE=native|dist"
             echo ""
             echo "native inventory:"
-            echo "  generated/ansible/runtime/production"
+            echo "  v4-generated/ansible/runtime/production"
             echo ""
             echo "dist inventory:"
-            echo "  dist/control/ansible/inventory"
+            echo "  v4-dist/control/ansible/inventory"
             echo ""
             echo "In native mode, missing runtime inventory is assembled from:"
-            echo "  - generated/ansible/inventory/$ANSIBLE_ENV"
+            echo "  - v4-generated/ansible/inventory/$ANSIBLE_ENV"
             echo "  - ansible/inventory-overrides/production"
             echo ""
             echo "In dist mode, the script never falls back to native roots."
@@ -101,7 +101,7 @@ else
         if [ ! -f "$GENERATED_INVENTORY_DIR/hosts.yml" ]; then
             echo -e "${RED}❌ Generated inventory not found: $GENERATED_INVENTORY_DIR/hosts.yml${NC}"
             echo "   Generate inventory first:"
-            echo "   python3 topology-tools/regenerate-all.py"
+            echo "   python3 v4/topology-tools/regenerate-all.py --topology v4/topology.yaml"
             exit 1
         fi
 
@@ -118,7 +118,7 @@ if [ ! -f "$INVENTORY/hosts.yml" ]; then
         echo "   Dist mode requires assembled package inventory and never falls back to native roots."
         echo "   Run: cd deploy && make assemble-dist"
     else
-        echo "   Run: python3 topology-tools/regenerate-all.py"
+        echo "   Run: python3 v4/topology-tools/regenerate-all.py --topology v4/topology.yaml"
     fi
     exit 1
 fi

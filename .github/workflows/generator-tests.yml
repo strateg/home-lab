@@ -4,14 +4,14 @@ on:
   push:
     branches: [ main, master, feature/generator-* ]
     paths:
-      - 'topology-tools/scripts/generators/**'
-      - 'tests/unit/generators/**'
-      - 'topology.yaml'
-      - 'topology/**'
+      - 'v4/topology-tools/scripts/generators/**'
+      - 'v4/tests/unit/generators/**'
+      - 'v4/topology.yaml'
+      - 'v4/topology/**'
   pull_request:
     paths:
-      - 'topology-tools/scripts/generators/**'
-      - 'tests/unit/generators/**'
+      - 'v4/topology-tools/scripts/generators/**'
+      - 'v4/tests/unit/generators/**'
   workflow_dispatch:
 
 jobs:
@@ -46,9 +46,9 @@ jobs:
 
       - name: Run generator unit tests
         run: |
-          pytest tests/unit/generators/ \
+          pytest v4/tests/unit/generators/ \
             -v \
-            --cov=topology-tools/scripts/generators \
+            --cov=v4/topology-tools/scripts/generators \
             --cov-report=xml \
             --cov-report=term-missing \
             --durations=10
@@ -82,27 +82,27 @@ jobs:
 
       - name: Test docs generator
         run: |
-          python -m topology-tools.scripts.generators.docs.cli \
-            --topology topology.yaml \
-            --output generated/test/docs
+          python v4/topology-tools/generate-docs.py \
+            --topology v4/topology.yaml \
+            --output v4-generated/test/docs
 
       - name: Test Proxmox generator
         run: |
-          python -m topology-tools.scripts.generators.terraform.proxmox.cli \
-            --topology topology.yaml \
-            --output generated/test/terraform/proxmox
+          python v4/topology-tools/generate-terraform-proxmox.py \
+            --topology v4/topology.yaml \
+            --output v4-generated/test/terraform/proxmox
 
       - name: Verify generated files
         run: |
-          test -f generated/test/docs/overview.md
-          test -f generated/test/terraform/proxmox/versions.tf
+          test -f v4-generated/test/docs/overview.md
+          test -f v4-generated/test/terraform/proxmox/versions.tf
           echo "✓ All generators produced output"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: generated-outputs
-          path: generated/test/
+          path: v4-generated/test/
           retention-days: 7
 
   terraform-validation:
@@ -131,15 +131,15 @@ jobs:
 
       - name: Generate baseline
         run: |
-          python -m topology-tools.scripts.generators.terraform.proxmox.cli \
-            --topology topology.yaml \
-            --output generated/baseline/proxmox
+          python v4/topology-tools/generate-terraform-proxmox.py \
+            --topology v4/topology.yaml \
+            --output v4-generated/baseline/proxmox
 
       - name: Generate test output
         run: |
-          python -m topology-tools.scripts.generators.terraform.proxmox.cli \
-            --topology topology.yaml \
-            --output generated/test/proxmox
+          python v4/topology-tools/generate-terraform-proxmox.py \
+            --topology v4/topology.yaml \
+            --output v4-generated/test/proxmox
 
       - name: Compare outputs (backward compatibility)
         run: |
@@ -147,7 +147,7 @@ jobs:
 
       - name: Validate Terraform syntax
         run: |
-          cd generated/baseline/proxmox
+          cd v4-generated/baseline/proxmox
           terraform init -backend=false
           terraform validate
           terraform fmt -check
@@ -174,7 +174,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          pytest tests/benchmarks/ \
+          pytest v4/tests/benchmarks/ \
             --benchmark-only \
             --benchmark-json=benchmark-results.json \
             || true
