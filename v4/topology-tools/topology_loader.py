@@ -8,6 +8,8 @@ from typing import Any, Dict, Iterable
 
 import yaml
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 class IncludeLoader(yaml.SafeLoader):
     """Custom YAML loader with include directive support."""
@@ -71,6 +73,25 @@ yaml.add_constructor("!include", include_constructor, IncludeLoader)
 yaml.add_constructor("!include_dir_sorted", include_dir_sorted_constructor, IncludeLoader)
 
 
+def resolve_topology_path(topology_path: str | Path) -> Path:
+    """Resolve topology path with backward-compatible v4 fallback rules."""
+    topology_file = Path(topology_path)
+    candidates: list[Path] = [topology_file]
+
+    if not topology_file.is_absolute():
+        candidates.append(REPO_ROOT / topology_file)
+        candidates.append(REPO_ROOT / "v4" / topology_file)
+    else:
+        # Backward compatibility for callers that still resolve to <repo>/topology.yaml.
+        if topology_file.name == "topology.yaml":
+            candidates.append(REPO_ROOT / "v4" / "topology.yaml")
+
+    resolved = next((candidate for candidate in candidates if candidate.exists()), None)
+    if resolved is None:
+        raise FileNotFoundError(f"Topology file not found: {topology_path}")
+    return resolved
+
+
 def load_topology(topology_path: str) -> Dict[str, Any]:
     """
     Load topology YAML with !include support
@@ -90,12 +111,9 @@ def load_topology(topology_path: str) -> Dict[str, Any]:
         >>> print(topology['version'])
         2.2.0
     """
-    topology_file = Path(topology_path)
+    resolved = resolve_topology_path(topology_path)
 
-    if not topology_file.exists():
-        raise FileNotFoundError(f"Topology file not found: {topology_path}")
-
-    with open(topology_file, "r") as f:
+    with open(resolved, "r", encoding="utf-8") as f:
         topology = yaml.load(f, IncludeLoader)
 
     return topology
@@ -111,7 +129,12 @@ def validate_modular_structure(topology_path: str) -> bool:
     Returns:
         True if all modules exist, False otherwise
     """
-    topology_dir = Path(topology_path).parent / "topology"
+    try:
+        resolved = resolve_topology_path(topology_path)
+    except FileNotFoundError:
+        resolved = Path(topology_path)
+
+    topology_dir = resolved.parent / "topology"
 
     if not topology_dir.exists():
         print(f"WARN  Warning: topology/ directory not found")

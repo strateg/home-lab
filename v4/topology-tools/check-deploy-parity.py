@@ -134,14 +134,14 @@ def check_parity(dist_root: Path, native_root: Path, verbose: bool) -> int:
     errors.extend(
         compare_file_sets(
             label="control/ansible playbooks+roles",
-            native_root=REPO_ROOT / "ansible" / "playbooks",
+            native_root=REPO_ROOT / "v4" / "ansible" / "playbooks",
             dist_root=ansible_package_root / "playbooks",
         )
     )
     errors.extend(
         compare_file_sets(
             label="control/ansible roles",
-            native_root=REPO_ROOT / "ansible" / "roles",
+            native_root=REPO_ROOT / "v4" / "ansible" / "roles",
             dist_root=ansible_package_root / "roles",
             ignored_native={"proxmox/README.md"},
         )
@@ -154,12 +154,12 @@ def check_parity(dist_root: Path, native_root: Path, verbose: bool) -> int:
         )
     )
 
-    requirements_native = REPO_ROOT / "ansible" / "requirements.yml"
+    requirements_native = REPO_ROOT / "v4" / "ansible" / "requirements.yml"
     requirements_dist = ansible_package_root / "requirements.yml"
     if sha256(requirements_native) != sha256(requirements_dist):
         errors.append("control/ansible: requirements.yml differs from native source")
 
-    vault_example_native = REPO_ROOT / "ansible" / "group_vars" / "all" / "vault.yml.example"
+    vault_example_native = REPO_ROOT / "v4" / "ansible" / "group_vars" / "all" / "vault.yml.example"
     vault_example_dist = ansible_package_root / "group_vars" / "all" / "vault.yml.example"
     if sha256(vault_example_native) != sha256(vault_example_dist):
         errors.append("control/ansible: vault.yml.example differs from native source")

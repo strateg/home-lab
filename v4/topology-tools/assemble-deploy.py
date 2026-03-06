@@ -16,7 +16,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ENV = "production"
 DEFAULT_DIST = REPO_ROOT / "v4-dist"
 
-ANSIBLE_SOURCE = REPO_ROOT / "ansible"
+ANSIBLE_SOURCE = REPO_ROOT / "v4" / "ansible"
 ANSIBLE_RUNTIME = REPO_ROOT / "v4-generated" / "ansible" / "runtime" / DEFAULT_ENV
 TERRAFORM_ROOT = REPO_ROOT / "v4-generated" / "terraform"
 TERRAFORM_PACKAGES = {

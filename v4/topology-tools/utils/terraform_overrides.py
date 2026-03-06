@@ -9,7 +9,7 @@ from pathlib import Path
 from .package_policy import is_local_secret_path, validate_no_secret_content
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-OVERRIDES_ROOT = REPO_ROOT / "terraform-overrides"
+OVERRIDES_ROOT = REPO_ROOT / "v4" / "terraform-overrides"
 TERRAFORM_ROOT = REPO_ROOT / ".work" / "native" / "terraform"
 
 TARGETS = {

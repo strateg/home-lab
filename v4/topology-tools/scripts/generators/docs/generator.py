@@ -25,6 +25,8 @@ from .docs_diagram import DiagramDocumentationGenerator
 from .icons import IconManager
 from .templates import DEFAULT_FILTERS, TemplateManager
 
+REPO_ROOT = Path(__file__).resolve().parents[5]
+
 
 class DocumentationGenerator:
     """Generate documentation from topology v4.0"""
@@ -47,6 +49,12 @@ class DocumentationGenerator:
         self.topology_path = Path(topology_path)
         self.output_dir = Path(output_dir)
         self.templates_dir = Path(templates_dir)
+        if not self.templates_dir.is_absolute() and not self.templates_dir.exists():
+            candidates = [
+                REPO_ROOT / self.templates_dir,
+                REPO_ROOT / "v4" / self.templates_dir,
+            ]
+            self.templates_dir = next((candidate for candidate in candidates if candidate.exists()), self.templates_dir)
         self.mermaid_icons = mermaid_icons
         self.mermaid_icon_nodes = mermaid_icon_nodes
         self.topology: Dict = {}

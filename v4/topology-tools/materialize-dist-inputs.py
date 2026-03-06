@@ -20,11 +20,11 @@ def materialize_inputs(dist_root: Path, verbose: bool) -> int:
         copy_mappings(
             [
                 CopyMapping(
-                    source=REPO_ROOT / "ansible" / ".vault_pass",
+                    source=REPO_ROOT / "v4" / "ansible" / ".vault_pass",
                     target=dist_root / "control" / "ansible" / ".vault_pass",
                 ),
                 CopyMapping(
-                    source=REPO_ROOT / "ansible" / "group_vars" / "all" / "vault.yml",
+                    source=REPO_ROOT / "v4" / "ansible" / "group_vars" / "all" / "vault.yml",
                     target=dist_root / "control" / "ansible" / "group_vars" / "all" / "vault.yml",
                 ),
             ]

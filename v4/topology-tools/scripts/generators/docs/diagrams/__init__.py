@@ -186,6 +186,27 @@ class DiagramDocumentationGenerator:
     def __init__(self, docs_generator):
         self.docs_generator = docs_generator
 
+    def _is_dry_run(self) -> bool:
+        return bool(getattr(self.docs_generator, "dry_run", False))
+
+    def _is_verbose(self) -> bool:
+        return bool(getattr(self.docs_generator, "verbose", False))
+
+    def _is_quiet(self) -> bool:
+        return bool(getattr(self.docs_generator, "quiet", False))
+
+    def _icon_runtime_hint(self) -> str:
+        hint_fn = getattr(self.docs_generator, "icon_runtime_hint", None)
+        if callable(hint_fn):
+            return hint_fn()
+        return ""
+
+    def _transform_mermaid(self, content: str) -> str:
+        transform_fn = getattr(self.docs_generator, "transform_mermaid_icons_for_compat", None)
+        if callable(transform_fn):
+            return transform_fn(content)
+        return content
+
     @property
     def topology(self) -> Dict[str, Any]:
         return self.docs_generator.topology
@@ -247,17 +268,17 @@ class DiagramDocumentationGenerator:
                 topology_version=self.topology_version,
                 use_mermaid_icons=self.use_mermaid_icons,
                 icon_mode=getattr(self.docs_generator, "icon_mode", "none"),
-                mermaid_icon_runtime_hint=self.docs_generator.icon_runtime_hint(),
+                mermaid_icon_runtime_hint=self._icon_runtime_hint(),
                 mermaid_icon_pack_hint=self.ICON_PACK_HINT,
                 # Icon-node styling constants (available in all templates)
                 icon_node_defaults=self.ICON_NODE_DEFAULTS,
                 icon_node_circle=self.ICON_NODE_CIRCLE,
                 **context,
             )
-            content = self.docs_generator.transform_mermaid_icons_for_compat(content)
+            content = self._transform_mermaid(content)
 
-            if self.docs_generator.dry_run:
-                if self.docs_generator.verbose:
+            if self._is_dry_run():
+                if self._is_verbose():
                     print(f"DRY-RUN: Would write {output_name} ({len(content)} bytes)")
                 self.docs_generator._register_generated_file(output_name)
                 return True
@@ -265,7 +286,7 @@ class DiagramDocumentationGenerator:
             output_file = self.output_dir / output_name
             output_file.write_text(content, encoding="utf-8")
 
-            if not self.docs_generator.quiet:
+            if not self._is_quiet():
                 print(f"OK Generated: {output_file}")
             self.docs_generator._register_generated_file(output_name)
             return True
@@ -305,14 +326,14 @@ class DiagramDocumentationGenerator:
                 zone_icons=self.ZONE_ICON_MAP,
                 use_mermaid_icons=self.docs_generator.mermaid_icons,
                 icon_mode=self.docs_generator.icon_mode,
-                mermaid_icon_runtime_hint=self.docs_generator.icon_runtime_hint(),
+                mermaid_icon_runtime_hint=self._icon_runtime_hint(),
                 mermaid_icon_pack_hint=self.ICON_PACK_HINT,
                 topology_version=self.topology_version,
             )
-            content = self.docs_generator.transform_mermaid_icons_for_compat(content)
+            content = self._transform_mermaid(content)
 
-            if self.docs_generator.dry_run:
-                if self.docs_generator.verbose:
+            if self._is_dry_run():
+                if self._is_verbose():
                     print(f"DRY-RUN: Would write network-diagram.md ({len(content)} bytes)")
                 self.docs_generator._register_generated_file("network-diagram.md")
                 return True
@@ -320,7 +341,7 @@ class DiagramDocumentationGenerator:
             output_file = self.output_dir / "network-diagram.md"
             output_file.write_text(content, encoding="utf-8")
 
-            if not self.docs_generator.quiet:
+            if not self._is_quiet():
                 print(f"OK Generated: {output_file}")
             self.docs_generator._register_generated_file("network-diagram.md")
             return True

@@ -19,8 +19,8 @@ PACKAGE_INPUTS = {
         LOCAL_ROOT / "terraform" / "proxmox" / "terraform.tfvars",
     ],
     "control/ansible": [
-        REPO_ROOT / "ansible" / ".vault_pass",
-        REPO_ROOT / "ansible" / "group_vars" / "all" / "vault.yml",
+        REPO_ROOT / "v4" / "ansible" / ".vault_pass",
+        REPO_ROOT / "v4" / "ansible" / "group_vars" / "all" / "vault.yml",
     ],
     "bootstrap/srv-gamayun": [
         LOCAL_ROOT / "bootstrap" / "srv-gamayun" / "answer.override.toml",

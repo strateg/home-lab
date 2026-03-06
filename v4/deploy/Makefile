@@ -22,7 +22,6 @@ SHELL := $(GIT_BASH)
 else
 SHELL := bash
 endif
-PYTHON ?= /c/Windows/py.exe -3
 TERRAFORM ?= /c/Tools/Terraform/terraform.exe
 else
 SHELL := /bin/bash
@@ -37,16 +36,23 @@ endif
 .PHONY: configure test bootstrap-info bootstrap-setup-control-node bootstrap-provision-control-node setup-control-node setup-control-node-ansible bootstrap-all bootstrap-preflight bootstrap-netinstall bootstrap-postcheck bootstrap-terraform-check assemble-ansible assemble-dist validate-dist generate-bootstrap check-parity check-dist-ready check-native-ready materialize-dist-inputs materialize-native-inputs clean-generated-managed assemble-terraform-overrides check-terraform-override-flow assemble-native
 .PHONY: plan-dist plan-mikrotik-dist plan-proxmox-dist apply-mikrotik-dist apply-proxmox-dist configure-dist deploy-all-dist require-dist
 
-# Directories (relative to deploy/)
-ROOT_DIR := $(abspath ..)
+# Directories (anchored to this Makefile location)
+MAKEFILE_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+V4_DIR := $(abspath $(MAKEFILE_DIR)/..)
+ROOT_DIR := $(abspath $(V4_DIR)/..)
 TOPOLOGY_DIR := $(ROOT_DIR)
 TOPOLOGY_TOOLS_DIR := $(ROOT_DIR)/v4/topology-tools
 GENERATED_DIR := $(ROOT_DIR)/v4-generated
 DIST_DIR := $(ROOT_DIR)/v4-dist
 WORK_DIR := $(ROOT_DIR)/.work
 NATIVE_WORK_DIR := $(WORK_DIR)/native
-ANSIBLE_DIR := $(ROOT_DIR)/ansible
+ANSIBLE_DIR := $(V4_DIR)/ansible
 DEPLOY_MODE ?= native
+
+ifeq ($(OS),Windows_NT)
+# Prefer repository virtualenv when available to keep Python deps consistent.
+PYTHON ?= $(if $(wildcard $(ROOT_DIR)/.venv/Scripts/python.exe),$(ROOT_DIR)/.venv/Scripts/python.exe,/c/Windows/py.exe -3)
+endif
 
 # Terraform directories (ADR 0050 structure)
 TF_MIKROTIK_DIR := $(GENERATED_DIR)/terraform/mikrotik

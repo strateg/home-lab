@@ -9,7 +9,7 @@ import threading
 from pathlib import Path
 from typing import Any, Dict, Sequence
 
-from topology_loader import load_topology
+from topology_loader import load_topology, resolve_topology_path
 
 CACHE_FORMAT_VERSION = 1
 
@@ -75,7 +75,7 @@ def load_topology_cached(topology_path: Path | str) -> Dict[str, Any]:
 
     Thread-safe: Multiple threads can safely call this concurrently.
     """
-    topology_abs = Path(topology_path).resolve()
+    topology_abs = resolve_topology_path(topology_path).resolve()
 
     with _cache_lock:
         cache_file = _cache_file_path(topology_abs)
@@ -127,7 +127,7 @@ def warm_topology_cache(topology_path: Path | str) -> Dict[str, Any]:
 
 def clear_topology_cache(topology_path: Path | str) -> bool:
     """Delete cache file for a topology path if it exists."""
-    cache_file = _cache_file_path(Path(topology_path).resolve())
+    cache_file = _cache_file_path(resolve_topology_path(topology_path).resolve())
     if not cache_file.exists():
         return False
     cache_file.unlink()

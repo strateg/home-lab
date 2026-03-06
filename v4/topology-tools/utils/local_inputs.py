@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-LOCAL_ROOT = REPO_ROOT / "local"
+LOCAL_ROOT = REPO_ROOT / "v4" / "local"
 NATIVE_WORK_ROOT = REPO_ROOT / ".work" / "native"
 
 

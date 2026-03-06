@@ -27,7 +27,7 @@ from utils.package_policy import validate_no_forbidden_topology_overrides, valid
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ENV = "production"
 GENERATED_INV = REPO_ROOT / "v4-generated" / "ansible" / "inventory" / DEFAULT_ENV
-MANUAL_INV = REPO_ROOT / "ansible/inventory-overrides/production"
+MANUAL_INV = REPO_ROOT / "v4" / "ansible" / "inventory-overrides" / "production"
 RUNTIME_INV = REPO_ROOT / "v4-generated" / "ansible" / "runtime" / "production"
 
 

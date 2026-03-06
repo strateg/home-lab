@@ -10,6 +10,8 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
 
+REPO_ROOT = Path(__file__).resolve().parents[5]
+
 
 class TerraformGeneratorBase:
     """Common base for Terraform generators."""
@@ -25,6 +27,12 @@ class TerraformGeneratorBase:
         self.topology_path = Path(topology_path)
         self.output_dir = Path(output_dir)
         base_dir = Path(templates_dir)
+        if not base_dir.is_absolute() and not base_dir.exists():
+            candidates = [
+                REPO_ROOT / base_dir,
+                REPO_ROOT / "v4" / base_dir,
+            ]
+            base_dir = next((candidate for candidate in candidates if candidate.exists()), base_dir)
         self.templates_dir = base_dir / template_subdir if template_subdir else base_dir
         self.topology: Dict[str, Any] = {}
 

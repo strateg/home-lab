@@ -34,7 +34,7 @@ def write_markers() -> list[Path]:
     """Create temporary tracked override files for the smoke test."""
     created: list[Path] = []
     for target in TARGETS:
-        path = REPO_ROOT / "terraform-overrides" / target / MARKER_NAMES[target]
+        path = REPO_ROOT / "v4" / "terraform-overrides" / target / MARKER_NAMES[target]
         path.parent.mkdir(parents=True, exist_ok=True)
         marker = "# smoke-test override marker\n" "locals {\n" f"  codex_override_marker_{target} = true\n" "}\n"
         path.write_text(marker, encoding="utf-8")
@@ -62,7 +62,7 @@ def assert_manifest_provenance() -> None:
     for target in TARGETS:
         package_id = f"control/terraform/{target}"
         source_roots = packages[package_id]["source_roots"]
-        expected = f"terraform-overrides/{target}"
+        expected = f"v4/terraform-overrides/{target}"
         if expected not in source_roots:
             raise ValueError(f"{package_id} missing override provenance {expected}: {source_roots}")
 
@@ -73,15 +73,15 @@ def smoke_test(verbose: bool) -> int:
     try:
         created = write_markers()
 
-        run("topology-tools/regenerate-all.py", "--skip-mermaid-validate", quiet=not verbose)
+        run("v4/topology-tools/regenerate-all.py", "--skip-mermaid-validate", quiet=not verbose)
         for target in TARGETS:
-            run("topology-tools/assemble-terraform-overrides.py", "--target", target, "--quiet", quiet=True)
+            run("v4/topology-tools/assemble-terraform-overrides.py", "--target", target, "--quiet", quiet=True)
             assert_exists(
                 REPO_ROOT / ".work" / "native" / "terraform" / target / MARKER_NAMES[target],
                 f"native override copy for {target}",
             )
 
-        run("topology-tools/assemble-deploy.py", "-q", quiet=True)
+        run("v4/topology-tools/assemble-deploy.py", "-q", quiet=True)
         for target in TARGETS:
             assert_exists(
                 REPO_ROOT / "v4-dist" / "control" / "terraform" / target / MARKER_NAMES[target],
@@ -89,15 +89,15 @@ def smoke_test(verbose: bool) -> int:
             )
 
         assert_manifest_provenance()
-        run("topology-tools/check-deploy-parity.py", "-q", quiet=True)
+        run("v4/topology-tools/check-deploy-parity.py", "-q", quiet=True)
 
         if verbose:
             print("OK Terraform override flow smoke test passed")
         return 0
     finally:
         cleanup_markers(created)
-        run("topology-tools/regenerate-all.py", "--skip-mermaid-validate", quiet=True)
-        run("topology-tools/assemble-deploy.py", "-q", quiet=True)
+        run("v4/topology-tools/regenerate-all.py", "--skip-mermaid-validate", quiet=True)
+        run("v4/topology-tools/assemble-deploy.py", "-q", quiet=True)
 
 
 def main() -> None:

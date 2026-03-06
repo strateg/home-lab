@@ -59,7 +59,7 @@ class GeneratorCLI:
     # Override in subclasses
     description: str = "Generate configuration from topology v4.0"
     banner: str = "Topology Generator (v4.0)"
-    default_output: str = "v4-generated/output"
+    default_output: str = "generated/output"
     success_message: str = "Generation completed successfully!"
     supports_components: bool = False  # Override to True to enable --components flag
 
@@ -85,7 +85,7 @@ class GeneratorCLI:
         # Core arguments
         parser.add_argument(
             "--topology",
-            default="v4/topology.yaml",
+            default="topology.yaml",
             help="Path to topology YAML file",
         )
         parser.add_argument(
@@ -95,7 +95,7 @@ class GeneratorCLI:
         )
         parser.add_argument(
             "--templates",
-            default="v4/topology-tools/templates",
+            default="topology-tools/templates",
             help="Directory containing Jinja2 templates",
         )
 

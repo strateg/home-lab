@@ -15,7 +15,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 TOPOLOGY_TOOLS_DIR = SCRIPT_DIR.parent.parent.parent.parent
 TEMPLATES_DIR = TOPOLOGY_TOOLS_DIR / "templates" / "bootstrap" / "proxmox"
 REPO_ROOT = TOPOLOGY_TOOLS_DIR.parent.parent
-MANUAL_SOURCE_DIR = REPO_ROOT / "manual-scripts" / "bare-metal"
+MANUAL_SOURCE_DIR = REPO_ROOT / "v4" / "manual-scripts" / "bare-metal"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "v4-generated" / "bootstrap" / "srv-gamayun"
 PLACEHOLDER_ROOT_PASSWORD = "REPLACE_WITH_SHA512_PASSWORD_HASH"  # pragma: allowlist secret
 

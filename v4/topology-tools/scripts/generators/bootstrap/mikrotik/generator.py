@@ -157,16 +157,8 @@ class MikrotikBootstrapGenerator:
         else:
             self.mgmt_network = self.lan_network
 
-        # Day-0 API allowance should match the subnet used to reach router_ip.
-        self.api_access_network = self.lan_network
-        try:
-            router_addr = ipaddress.ip_address(self.router_ip)
-            mgmt_cidr = ipaddress.ip_network(self.mgmt_network, strict=False)
-            if router_addr in mgmt_cidr:
-                self.api_access_network = self.mgmt_network
-        except ValueError:
-            # Keep LAN fallback if topology values are malformed.
-            self.api_access_network = self.lan_network
+        # Day-0 API allowance is anchored to the management network when defined.
+        self.api_access_network = self.mgmt_network if mgmt_network else self.lan_network
 
     def _extract_dns_info(self) -> None:
         """Extract DNS configuration from L5."""

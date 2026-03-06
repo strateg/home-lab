@@ -30,17 +30,24 @@ class IconManager:
         "logos": "logos",
     }
 
-    def __init__(self, topology_path: Path, additional_search_roots: Optional[List[Path]] = None):
+    def __init__(
+        self,
+        topology_path: Optional[Path] = None,
+        additional_search_roots: Optional[List[Path]] = None,
+        icon_mode: Optional[str] = None,
+    ):
         """Initialize icon manager.
 
         Args:
             topology_path: Path to topology file (used for icon pack discovery)
             additional_search_roots: Additional directories to search for icon packs
+            icon_mode: Backward-compatible placeholder argument (unused)
         """
-        self.topology_path = topology_path
+        self.topology_path = topology_path or (Path.cwd() / "topology.yaml")
         self.additional_search_roots = additional_search_roots or []
         self._icon_pack_cache: Optional[Dict[str, Dict]] = None
         self._icon_data_uri_cache: Dict[str, str] = {}
+        self.icon_mode = icon_mode or "icon-nodes"
 
     def _icon_pack_search_dirs(self) -> List[Path]:
         """Discover candidate @iconify-json directories.
@@ -127,6 +134,10 @@ class IconManager:
             Dictionary mapping prefix to icon pack data
         """
         return self._load_icon_packs()
+
+    # Backward-compatible alias used by benchmark tests.
+    def scan_packs(self) -> Dict[str, Dict]:
+        return self.get_loaded_packs()
 
     def clear_cache(self) -> None:
         """Clear icon pack and data URI caches."""
