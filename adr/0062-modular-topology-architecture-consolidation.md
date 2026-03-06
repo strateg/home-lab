@@ -54,12 +54,17 @@ Hard rules:
 
 ### 1A. Dual-Axis Layer Contract (`L0 -> L7`) Is Normative
 
-v5 preserves v4 OSI-like layering as an orthogonal axis to `Class -> Object -> Instance`.
+v5 preserves v4 layered topology model (`L0 -> L7`, historically described as OSI-like) as an orthogonal axis to `Class -> Object -> Instance`.
 
 The two axes are independent and both mandatory:
 
 1. semantic axis: `Instance -> Object -> Class`
 2. placement axis: `L0 -> L7`
+
+Independence scope:
+
+- semantic composition (`Class -> Object -> Instance`) is independent from layer taxonomy semantics
+- placement is still constrained by `layer-contract.class_layers` and runtime dependency rules
 
 Layer contract source of truth:
 
@@ -90,6 +95,12 @@ Dependency direction rule:
 - dependencies must be downward unless relation-specific rule says otherwise
 - current enforced relation: `runtime.target_ref` from `L5` is allowed only to `L1` or `L4`
 
+Enforcement scope:
+
+- rules/entities with status `enforced` are blocking in `make validate-v5-layers`
+- rules/entities with status `planned`/`deferred` are normative target-state and non-blocking until promoted
+- direction keyword `lateral` is accepted as same-layer dependency intent
+
 Cross-layer dependency rules (normative target):
 
 | Relation | Source Layer | Target Layer | Direction | Status |
@@ -106,7 +117,7 @@ Cross-layer dependency rules (normative target):
 Transition timeline for layer strictness:
 
 1. from 2026-03-06: `instance-bindings.yaml` export emits explicit `layer` for every row
-2. from 2026-03-06: v5 validation blocks on layer-contract violations (`make validate-v5-layers`)
+2. from 2026-03-06: v5 validation blocks on enforced layer-contract violations (`make validate-v5-layers`)
 3. from 2026-03-06: v5 compile requires non-empty `layer` in each instance row
 
 ### 2. Simplified Capability Model (Normative)

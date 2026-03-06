@@ -16,6 +16,10 @@ DEFAULT_MANIFEST = ROOT / "v5/topology/topology.yaml"
 DEFAULT_VALID_LAYERS = ("L0", "L1", "L2", "L3", "L4", "L5", "L6", "L7")
 
 
+def _is_planned_status(value: Any) -> bool:
+    return isinstance(value, str) and value.lower() in {"planned", "deferred"}
+
+
 def _load_yaml_map(path: Path, *, errors: list[str]) -> dict[str, Any]:
     if not path.exists():
         errors.append(f"missing file: {path.relative_to(ROOT).as_posix()}")
@@ -135,6 +139,7 @@ def main() -> int:
             group_layers[group] = layer
 
     class_layers_cfg: dict[str, list[str]] = {}
+    class_layers_status: dict[str, str] = {}
     if not isinstance(class_layers_any, dict):
         errors.append("layer-contract.class_layers must be a mapping")
     else:
@@ -152,8 +157,14 @@ def main() -> int:
                 valid_layers=valid_layers,
                 errors=errors,
             )
+            status = cfg.get("status")
+            if status is not None and not isinstance(status, str):
+                errors.append(f"{path}.status: status must be string")
+                continue
             if allowed_layers:
                 class_layers_cfg[class_id] = allowed_layers
+                if isinstance(status, str):
+                    class_layers_status[class_id] = status
 
     runtime_rules: list[dict[str, Any]] = []
     if runtime_rules_any:
@@ -167,6 +178,7 @@ def main() -> int:
                     continue
                 relation = rule.get("relation")
                 direction = rule.get("direction", "")
+                status = rule.get("status", "")
                 source_layers = _normalize_layers(
                     rule.get("source_layers"),
                     path=f"{path}.source_layers",
@@ -182,8 +194,11 @@ def main() -> int:
                 if not isinstance(relation, str) or not relation:
                     errors.append(f"{path}.relation: relation must be non-empty string")
                     continue
-                if direction not in ("", "downward", "upward", "same"):
+                if direction not in ("", "downward", "upward", "same", "lateral"):
                     errors.append(f"{path}.direction: unsupported direction '{direction}'")
+                    continue
+                if status and not isinstance(status, str):
+                    errors.append(f"{path}.status: status must be string")
                     continue
                 runtime_rules.append(
                     {
@@ -191,6 +206,7 @@ def main() -> int:
                         "direction": direction,
                         "source_layers": source_layers,
                         "allowed_target_layers": target_layers,
+                        "status": status,
                     }
                 )
 
@@ -224,6 +240,8 @@ def main() -> int:
 
     for class_id in sorted(class_layers_cfg):
         if class_id not in class_payloads:
+            if _is_planned_status(class_layers_status.get(class_id)):
+                continue
             errors.append(f"layer-contract.class_layers has unknown class '{class_id}'")
 
     object_payloads: dict[str, dict[str, Any]] = {}
@@ -379,7 +397,9 @@ def main() -> int:
         matched_rules = [
             rule
             for rule in runtime_rules
-            if rule.get("relation") == "runtime.target_ref" and source_layer in set(rule.get("source_layers", []))
+            if rule.get("relation") == "runtime.target_ref"
+            and source_layer in set(rule.get("source_layers", []))
+            and not _is_planned_status(rule.get("status"))
         ]
         if not matched_rules:
             continue
@@ -398,7 +418,7 @@ def main() -> int:
             elif direction == "upward":
                 if layer_order.get(target_layer, -1) <= layer_order.get(source_layer, 99):
                     errors.append(f"{edge['path']}: upward dependency required, got {source_layer} -> {target_layer}")
-            elif direction == "same" and target_layer != source_layer:
+            elif direction in {"same", "lateral"} and target_layer != source_layer:
                 errors.append(f"{edge['path']}: same-layer dependency required, got {source_layer} -> {target_layer}")
 
     report = {
