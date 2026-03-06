@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 layer_model: osi-like
 layers:
   - L0
@@ -10,85 +10,193 @@ layers:
   - L6
   - L7
 
+# Layer semantics (informational)
+layer_semantics:
+  L0: meta        # Version, defaults, global policies
+  L1: foundation  # Physical devices, interfaces, power
+  L2: network     # Bridges, VLANs, firewall, QoS
+  L3: storage     # Pools, volumes, media
+  L4: platform    # VMs, LXC, workloads
+  L5: application # Services, certificates, DNS
+  L6: observability # Healthchecks, alerts, dashboards
+  L7: operations  # Workflows, backups, policies
+
+# Instance group to layer mapping
 group_layers:
+  l0_meta: L0
   l1_devices: L1
+  l2_network: L2
+  l3_storage: L3
   l4_vms: L4
   l4_lxc: L4
   l5_services: L5
+  l6_observability: L6
+  l7_operations: L7
 
 class_layers:
+  # L1 - Foundation (physical devices)
   class.compute.cloud_vm:
-    allowed_layers:
-      - L1
-      - L4
+    allowed_layers: [L1, L4]
   class.compute.edge_node:
-    allowed_layers:
-      - L1
-      - L4
+    allowed_layers: [L1, L4]
   class.compute.hypervisor:
-    allowed_layers:
-      - L1
-      - L4
-  class.compute.workload.container:
-    allowed_layers:
-      - L4
+    allowed_layers: [L1, L4]
   class.network.router:
-    allowed_layers:
-      - L1
+    allowed_layers: [L1]
   class.power.pdu:
-    allowed_layers:
-      - L1
+    allowed_layers: [L1]
   class.power.ups:
-    allowed_layers:
-      - L1
+    allowed_layers: [L1]
+
+  # L2 - Network (bridges, VLANs, firewall)
+  class.network.bridge:
+    allowed_layers: [L2]
+    status: planned
+  class.network.vlan:
+    allowed_layers: [L2]
+    status: planned
+  class.network.firewall_rule:
+    allowed_layers: [L2]
+    status: planned
+  class.network.firewall_policy:
+    allowed_layers: [L2]
+    status: planned
+  class.network.qos:
+    allowed_layers: [L2]
+    status: planned
+
+  # L3 - Storage (pools, volumes, media)
+  class.storage.pool:
+    allowed_layers: [L3]
+    status: planned
+  class.storage.volume:
+    allowed_layers: [L3]
+    status: planned
+  class.storage.media:
+    allowed_layers: [L3]
+    status: planned
+  class.storage.data_asset:
+    allowed_layers: [L3]
+    status: planned
+
+  # L4 - Platform (workloads)
+  class.compute.workload.container:
+    allowed_layers: [L4]
+  class.compute.workload.vm:
+    allowed_layers: [L4]
+    status: planned
+
+  # L5 - Application (services)
   class.service.alerting:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.cache:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.database:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.dns:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.file_storage:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.home_automation:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.logging:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.media_server:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.monitoring:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.proxy:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.visualization:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.vpn:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.web_application:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
   class.service.web_ui:
-    allowed_layers:
-      - L5
+    allowed_layers: [L5]
+
+  # L6 - Observability (monitoring infrastructure)
+  class.observability.healthcheck:
+    allowed_layers: [L6]
+    status: planned
+  class.observability.alert:
+    allowed_layers: [L6]
+    status: planned
+  class.observability.dashboard:
+    allowed_layers: [L6]
+    status: planned
+  class.observability.metric:
+    allowed_layers: [L6]
+    status: planned
+
+  # L7 - Operations (automation, policies)
+  class.operations.workflow:
+    allowed_layers: [L7]
+    status: planned
+  class.operations.backup:
+    allowed_layers: [L7]
+    status: planned
+  class.operations.policy:
+    allowed_layers: [L7]
+    status: planned
+  class.operations.schedule:
+    allowed_layers: [L7]
+    status: planned
 
 runtime_target_rules:
+  # L5 services run on L1 devices or L4 workloads (enforced)
   - relation: runtime.target_ref
     direction: downward
-    source_layers:
-      - L5
-    allowed_target_layers:
-      - L1
-      - L4
+    source_layers: [L5]
+    allowed_target_layers: [L1, L4]
+    status: enforced
+
+  # L4 workloads bind to L3 storage (planned)
+  - relation: storage.pool_ref
+    direction: downward
+    source_layers: [L4]
+    allowed_target_layers: [L3]
+    status: planned
+
+  # L5 services may bind to L3 storage volumes (planned)
+  - relation: storage.volume_ref
+    direction: downward
+    source_layers: [L5]
+    allowed_target_layers: [L3]
+    status: planned
+
+  # L4 workloads attach to L2 network bridges (planned)
+  - relation: network.bridge_ref
+    direction: downward
+    source_layers: [L4]
+    allowed_target_layers: [L2]
+    status: planned
+
+  # L1/L4 devices/workloads attach to L2 VLANs (planned)
+  - relation: network.vlan_ref
+    direction: downward
+    source_layers: [L1, L4]
+    allowed_target_layers: [L2]
+    status: planned
+
+  # L6 observability targets L1/L4/L5 entities (planned)
+  - relation: observability.target_ref
+    direction: downward
+    source_layers: [L6]
+    allowed_target_layers: [L1, L4, L5]
+    status: planned
+
+  # L7 operations target L1/L4/L5/L6 entities (planned)
+  - relation: operations.target_ref
+    direction: downward
+    source_layers: [L7]
+    allowed_target_layers: [L1, L4, L5, L6]
+    status: planned
+
+  # L1 power links are lateral within L1 (planned)
+  - relation: power.source_ref
+    direction: lateral
+    source_layers: [L1]
+    allowed_target_layers: [L1]
+    status: planned

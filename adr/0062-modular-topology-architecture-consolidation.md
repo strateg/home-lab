@@ -72,10 +72,36 @@ Current v5 layer scope (implemented):
 - object inherits class layer policy by default and may only narrow it (never widen)
 - every instance binding row must carry explicit `layer`
 
+Target v5 layer scope (full coverage):
+
+| Layer | Group | Class Domain | Status |
+|-------|-------|--------------|--------|
+| L0 | l0_meta | meta.* | deferred (no instances) |
+| L1 | l1_devices | compute.*, network.router, power.* | implemented |
+| L2 | l2_network | network.bridge, network.vlan, network.firewall | planned |
+| L3 | l3_storage | storage.pool, storage.volume, storage.media | planned |
+| L4 | l4_vms, l4_lxc | compute.workload.* | implemented |
+| L5 | l5_services | service.* | implemented |
+| L6 | l6_observability | observability.healthcheck, observability.alert, observability.dashboard | planned |
+| L7 | l7_operations | operations.workflow, operations.backup, operations.policy | planned |
+
 Dependency direction rule:
 
 - dependencies must be downward unless relation-specific rule says otherwise
 - current enforced relation: `runtime.target_ref` from `L5` is allowed only to `L1` or `L4`
+
+Cross-layer dependency rules (normative target):
+
+| Relation | Source Layer | Target Layer | Direction | Status |
+|----------|--------------|--------------|-----------|--------|
+| runtime.target_ref | L5 | L1, L4 | downward | enforced |
+| storage.pool_ref | L4 | L3 | downward | planned |
+| storage.volume_ref | L5 | L3 | downward | planned |
+| network.bridge_ref | L4 | L2 | downward | planned |
+| network.vlan_ref | L1, L4 | L2 | downward | planned |
+| observability.target_ref | L6 | L1, L4, L5 | downward | planned |
+| operations.target_ref | L7 | L1, L4, L5, L6 | downward | planned |
+| power.source_ref | L1 | L1 | lateral | planned |
 
 Transition timeline for layer strictness:
 
@@ -310,11 +336,32 @@ Exit criteria:
 - `instance-bindings.yaml` has explicit `layer` for every row
 - `make validate-v5-layers` passes with no layer/dependency violations
 
-### Phase 2 - Class Module Coverage
+### Phase 1B - L2/L3/L6/L7 Inventory and Mapping
 
 Objective:
 
-- create/complete class modules required by mapped entities
+- extend v4-to-v5 mapping to cover infrastructure layers (L2-L3) and operational layers (L6-L7)
+
+Actions:
+
+- inventory v4 L2 entities: bridges, VLANs, firewall rules, QoS policies
+- inventory v4 L3 entities: storage pools, volumes, media registry
+- inventory v4 L6 entities: healthchecks, alerts, dashboards
+- inventory v4 L7 entities: workflows, backup policies, power resilience rules
+- extend `v4-to-v5-mapping.yaml` with L2/L3/L6/L7 groups
+- extend `instance-bindings.yaml` export to include new groups
+
+Exit criteria:
+
+- 100% L2/L3/L6/L7 entities have planned `class_ref` and `object_ref`
+- `instance-bindings.yaml` includes `l2_network`, `l3_storage`, `l6_observability`, `l7_operations` groups
+- `layer-contract.yaml` includes `group_layers` mapping for all 8 layers
+
+### Phase 2 - Class Module Coverage (L1/L4/L5)
+
+Objective:
+
+- create/complete class modules required by mapped L1/L4/L5 entities
 
 Actions:
 
@@ -327,11 +374,30 @@ Exit criteria:
 - all mapped object targets reference existing class modules
 - every class module has explicit allowed layer policy in `layer-contract.yaml`
 
-### Phase 3 - Object Module Coverage
+### Phase 2B - Class Module Coverage (L2/L3/L6/L7)
 
 Objective:
 
-- create/complete object modules for all mapped implementations
+- create class modules for infrastructure and operational layers
+
+Actions:
+
+- define L2 classes: `class.network.bridge`, `class.network.vlan`, `class.network.firewall_rule`, `class.network.qos`
+- define L3 classes: `class.storage.pool`, `class.storage.volume`, `class.storage.media`
+- define L6 classes: `class.observability.healthcheck`, `class.observability.alert`, `class.observability.dashboard`
+- define L7 classes: `class.operations.workflow`, `class.operations.backup`, `class.operations.policy`
+- add cross-layer dependency rules to `layer-contract.yaml`
+
+Exit criteria:
+
+- all L2/L3/L6/L7 mapped objects reference existing class modules
+- cross-layer dependency rules are enforced in `validate-v5-layers`
+
+### Phase 3 - Object Module Coverage (L1/L4/L5)
+
+Objective:
+
+- create/complete object modules for all mapped L1/L4/L5 implementations
 
 Actions:
 
@@ -343,6 +409,24 @@ Exit criteria:
 
 - all mapped instance targets resolve to valid objects
 - all object modules satisfy layer inheritance rules
+
+### Phase 3B - Object Module Coverage (L2/L3/L6/L7)
+
+Objective:
+
+- create object modules for infrastructure and operational layers
+
+Actions:
+
+- define L2 objects: `obj.proxmox.bridge`, `obj.mikrotik.vlan`, `obj.mikrotik.firewall.*`
+- define L3 objects: `obj.proxmox.storage.lvm`, `obj.proxmox.storage.zfs`, `obj.nfs.volume`
+- define L6 objects: `obj.prometheus.alert`, `obj.grafana.dashboard`, `obj.uptime.healthcheck`
+- define L7 objects: `obj.ansible.workflow`, `obj.proxmox.backup`, `obj.mikrotik.scheduler`
+
+Exit criteria:
+
+- all L2/L3/L6/L7 instance targets resolve to valid objects
+- cross-layer references pass dependency direction validation
 
 ### Phase 4 - Topology Data Migration
 
