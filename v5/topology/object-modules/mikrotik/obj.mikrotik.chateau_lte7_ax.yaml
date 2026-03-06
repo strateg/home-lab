@@ -1,0 +1,19 @@
+id: obj.mikrotik.chateau_lte7_ax
+version: 1.0.0
+class_ref: class.network.router
+model: Chateau LTE7 ax
+vendor: mikrotik
+
+enabled_packs:
+  - pack.router.home
+
+enabled_capabilities:
+  - cap.router.routing.static
+  - cap.router.nat
+  - cap.router.firewall.stateful
+  - cap.router.dhcp.server
+  - cap.router.wireguard.endpoint
+  - cap.router.qos.basic
+  - cap.router.vlan
+  - vendor.mikrotik.container.runtime
+  - vendor.mikrotik.routeros.script

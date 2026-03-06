@@ -379,15 +379,21 @@ Exit criteria:
 
 ---
 
-## Implementation Status Snapshot (as of 2026-03-06)
+## Implementation Status Snapshot (as of 2026-03-06, updated)
 
 Current measured status:
 
-- Phase 0 in progress (workspace split completed, hardening completed):
+- Phase 0 completed (workspace split and artifact root renaming):
   - created dual-lane roots `v4/` and `v5/`
   - moved legacy operational tree to `v4/` (`topology`, `topology-tools`, `tests`)
   - moved v4-dependent folders to `v4/` (`ansible`, `deploy`, `manual-scripts`, `terraform-overrides`, `local`)
-  - switched legacy artifact roots to versioned `v4-*` naming
+  - renamed artifact roots: `generated/` → `v4-generated/`, `dist/` → `v4-dist/`
+  - created v5 artifact roots: `v5-generated/`, `v5-dist/`
+  - fixed v4/terraform symlink to point to `../v4-generated/terraform/proxmox`
+- v5 module structure initialized:
+  - moved `class-modules/` from v4/topology to v5/topology (router class defined)
+  - moved `object-modules/` from v4/topology to v5/topology (mikrotik objects defined)
+  - copied `model.lock.yaml` to v5/topology
 - restored v4 lane functional integrity after path split:
   - fixed v4 runtime/generator/deploy path resolution for moved roots
   - aligned native/dist/parity tooling to `v4/*` sources
@@ -403,8 +409,8 @@ Current measured status:
   - `make -f v4/deploy/Makefile check-parity`: PASS
   - `check-terraform-override-flow`: PASS
   - `pytest v4/tests`: PASS (`210 passed`, `1 skipped`)
-- migration progress is design complete with Phase 0 implementation operationally validated
-- class/object module coverage is minimal
+- migration progress: Phase 0 complete, ready for Phase 1 (inventory and mapping)
+- class/object module coverage is minimal (~5% classes, ~10% objects)
 - v5-specific CI lanes are not operational yet
 
 This snapshot is informational and must be updated at each phase gate review.
