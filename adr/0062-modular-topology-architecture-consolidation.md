@@ -369,6 +369,19 @@ Exit criteria:
 
 ---
 
+## Implementation Status Snapshot (as of 2026-03-06)
+
+Current measured status:
+
+- Phase 0 not started (`v4/` and `v5/` roots are not created yet)
+- migration progress is early-stage (design complete, implementation partial)
+- class/object module coverage is minimal
+- v5-specific CI lanes are not operational yet
+
+This snapshot is informational and must be updated at each phase gate review.
+
+---
+
 ## v5 Migration Completion Criteria (100%)
 
 Migration is considered 100% complete only when all criteria are true:
@@ -407,6 +420,53 @@ Minimum gates:
 
 ---
 
+## Operational Guardrails (Normative)
+
+### 1. CI Path Guard Enforcement
+
+Dual-lane path policy is enforced in CI with blocking checks:
+
+- v4-only changes are allowed under `v4/**`, `v4-build/**`, `v4-dist/**`, `v4-generated/**`
+- v5-only changes are allowed under `v5/**`, `v5-build/**`, `v5-dist/**`, `v5-generated/**`
+- PRs touching both lanes require explicit `dual-lane-approved` label and migration lead approval
+- adding tests outside `v4/tests/**` or `v5/tests/**` is rejected
+
+### 2. Parity Acceptance Criteria (Phase 6)
+
+Parity is semantic, not byte-for-byte.
+
+Critical artifacts (must pass with zero critical diffs):
+
+1. Terraform (MikroTik)
+2. Terraform (Proxmox)
+3. Ansible inventory
+
+High-priority artifacts (allowed only documented non-critical diffs):
+
+1. network diagrams
+2. topology documentation
+3. bootstrap scripts
+
+Escalation trigger:
+
+- critical parity differences >5% blocks cutover and requires root-cause review
+
+### 3. Rollback Trigger Criteria (Phase 8 and Stabilization)
+
+Rollback to v4 default lane is mandatory when any trigger occurs:
+
+1. production-profile v5 compile fails in 2 consecutive pipeline runs
+2. critical parity differences exceed 5% after declared parity complete
+3. production incident is traced to v5 lane output or runtime behavior
+
+Rollback actions:
+
+1. switch CI default lane back to v4
+2. freeze further v5 cutover changes
+3. open incident review with corrective action plan
+
+---
+
 ## Consequences
 
 ### Positive
@@ -439,8 +499,7 @@ Minimum gates:
 
 ## Open Questions
 
-1. exact CI implementation for dual-lane path guards (pre-commit vs CI-only)
-2. rollback window duration after v5 default cutover
+1. stabilization cycle exact duration before final v4 retirement (recommended baseline: 1 release cycle)
 
 ---
 
@@ -454,6 +513,7 @@ Minimum gates:
 - ADR 0060: `adr/0060-yaml-to-json-compiler-diagnostics-contract.md` (superseded)
 - ADR 0061: `adr/0061-base-repo-versioned-class-object-instance-and-test-profiles.md` (superseded)
 - ADR 0063: `adr/0063-plugin-microkernel-for-compiler-validators-generators.md` (proposed)
+- Analysis package: `adr/0062-analysis/`
 
 ### Runtime Contracts
 
