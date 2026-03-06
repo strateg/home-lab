@@ -1,8 +1,9 @@
 # ADR 0058: Core Abstraction Layer and Device Module Architecture
 
 **Date:** 2026-03-06
-**Status:** Superseded
-**Related:** ADR 0057 (MikroTik Netinstall Bootstrap), ADR 0059 (Class-Object-Instance Contract), ADR 0060 (YAML-to-JSON Compiler Diagnostics)
+**Status:** Superseded by ADR 0062
+**Related:** ADR 0057 (MikroTik Netinstall Bootstrap)
+**Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
 
 ---
 

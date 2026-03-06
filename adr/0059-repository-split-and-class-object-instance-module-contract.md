@@ -1,9 +1,10 @@
 # ADR 0059: Repository Split and Class-Object-Instance Module Contract
 
 **Date:** 2026-03-06
-**Status:** Proposed
+**Status:** Superseded by ADR 0062
 **Related:** ADR 0058 (Core Abstraction Layer and Device Module Architecture), ADR 0060 (YAML-to-JSON Compiler and Diagnostics Contract), ADR 0061 (Base Repo with Versioned Class-Object-Instance and Test Profiles)
 **Supersedes:** ADR 0058 (model contract scope)
+**Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
 
 ---
 

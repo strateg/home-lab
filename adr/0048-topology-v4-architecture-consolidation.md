@@ -4,6 +4,7 @@
 **Status:** Accepted
 **Supersedes:** ADR 0049 (all variants), 0050
 **Related:** ADR 0047 (L6 Observability Modularization)
+**Evolved By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md) (Topology v5)
 
 ---
 

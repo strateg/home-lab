@@ -1,8 +1,9 @@
 # ADR 0061: Base Repo with Versioned Class-Object-Instance and Test Profiles
 
 **Date:** 2026-03-06
-**Status:** Proposed
+**Status:** Superseded by ADR 0062
 **Related:** ADR 0059 (Class-Object-Instance Module Contract), ADR 0060 (YAML-to-JSON Compiler and Diagnostics Contract)
+**Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
 
 ---
 

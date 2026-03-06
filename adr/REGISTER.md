@@ -48,7 +48,7 @@
 | [0045](0045-model-and-project-improvements.md) | Improvements to project model, development workflow and automation | Proposed | 2026-02-25 | - | - |
 | [0046](0046-generators-architecture-refactoring.md) | Generators Architecture Refactoring | Approved | 2026-02-25 | - | - |
 | [0047](0047-l6-observability-modularization.md) | L6 Observability Modularization | Partially Implemented | 2026-02-26 | - | - |
-| [0048](0048-topology-v4-architecture-consolidation.md) | Topology v4 Architecture Consolidation | Accepted | 2026-02-28 | [0049](0049-mikrotik-bootstrap-automation.md), [0050](0050-generated-directory-restructuring.md) | - |
+| [0048](0048-topology-v4-architecture-consolidation.md) | **Topology v4** Architecture Consolidation | Accepted | 2026-02-28 | [0049](0049-mikrotik-bootstrap-automation.md), [0050](0050-generated-directory-restructuring.md) | Evolved by [0062](0062-modular-topology-architecture-consolidation.md) |
 | [0049](0049-mikrotik-bootstrap-automation.md) | MikroTik Bootstrap Automation | Proposed | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
 | [0050](0050-generated-directory-restructuring.md) | Generated Directory Restructuring | Accepted | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
 | [0051](0051-ansible-runtime-and-secrets.md) | Ansible Runtime, Inventory, and Secret Boundaries | Accepted | 2026-03-01 | - | - |
@@ -58,7 +58,8 @@
 | [0055](0055-manual-terraform-extension-layer.md) | Manual Terraform Extension Layer | Accepted | 2026-03-01 | - | - |
 | [0056](0056-native-execution-workspace.md) | Native Execution Workspace Outside Generated Roots | Accepted | 2026-03-01 | - | - |
 | [0057](0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md) | MikroTik Chateau Netinstall Bootstrap and Terraform Handover | Accepted | 2026-03-05 | - | - |
-| [0058](0058-core-abstraction-layer.md) | Core Abstraction Layer and Device Module Architecture | Superseded | 2026-03-06 | - | [0059](0059-repository-split-and-class-object-instance-module-contract.md) |
-| [0059](0059-repository-split-and-class-object-instance-module-contract.md) | Repository Split and Class-Object-Instance Module Contract | Proposed | 2026-03-06 | [0058](0058-core-abstraction-layer.md) | - |
-| [0060](0060-yaml-to-json-compiler-diagnostics-contract.md) | YAML-to-JSON Compiler and Diagnostics Contract | Proposed | 2026-03-06 | - | - |
-| [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | Base Repo with Versioned Class-Object-Instance and Test Profiles | Proposed | 2026-03-06 | - | - |
+| [0058](0058-core-abstraction-layer.md) | Core Abstraction Layer and Device Module Architecture | Superseded | 2026-03-06 | - | [0062](0062-modular-topology-architecture-consolidation.md) |
+| [0059](0059-repository-split-and-class-object-instance-module-contract.md) | Repository Split and Class-Object-Instance Module Contract | Superseded | 2026-03-06 | [0058](0058-core-abstraction-layer.md) | [0062](0062-modular-topology-architecture-consolidation.md) |
+| [0060](0060-yaml-to-json-compiler-diagnostics-contract.md) | YAML-to-JSON Compiler and Diagnostics Contract | Superseded | 2026-03-06 | - | [0062](0062-modular-topology-architecture-consolidation.md) |
+| [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | Base Repo with Versioned Class-Object-Instance and Test Profiles | Superseded | 2026-03-06 | - | [0062](0062-modular-topology-architecture-consolidation.md) |
+| [0062](0062-modular-topology-architecture-consolidation.md) | **Topology v5** — Modular Class-Object-Instance Architecture | Proposed | 2026-03-06 | [0058](0058-core-abstraction-layer.md), [0059](0059-repository-split-and-class-object-instance-module-contract.md), [0060](0060-yaml-to-json-compiler-diagnostics-contract.md), [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | - |
