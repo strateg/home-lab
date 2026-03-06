@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: validate-v4 validate-v5 build-v4 build-v5 phase1-bootstrap phase1-reconcile phase1-backlog
+.PHONY: validate-v4 validate-v5 build-v4 build-v5 phase1-bootstrap phase1-reconcile phase1-backlog phase4-export
 
 validate-v4:
 	$(PYTHON) scripts/lane.py validate-v4
@@ -22,3 +22,6 @@ phase1-reconcile:
 
 phase1-backlog:
 	$(PYTHON) scripts/refresh_phase1_backlog.py
+
+phase4-export:
+	$(PYTHON) scripts/export_v5_instance_bindings.py

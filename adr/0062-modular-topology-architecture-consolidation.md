@@ -420,6 +420,9 @@ Current measured status:
     - class module set expanded to 21 files under `v5/topology/class-modules/classes/`
     - object module set expanded to 33 files under `v5/topology/object-modules/`
     - `v5/topology/instances/home-lab/phase1-module-backlog.yaml` currently has no unresolved class/object gaps
+  - Phase 4 preparation started:
+    - normalized instance export created: `v5/topology/instances/home-lab/instance-bindings.yaml`
+    - export is generated from mapping via `scripts/export_v5_instance_bindings.py`
 - class/object module coverage for mapped entities is complete at scaffold level; capability depth remains iterative
 - v5-specific CI lane is scaffold-operational (structure/YAML/model-lock shape gate)
 
