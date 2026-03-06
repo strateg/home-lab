@@ -264,10 +264,13 @@ Actions:
 
 - build `v4-to-v5` mapping table for L1/L4/L5 entities
 - classify unresolved entities and capability gaps
+- run automated mapping/backlog/bindings gate (`make phase1-gate`)
 
 Exit criteria:
 
 - 100% active entities have planned `class_ref` and `object_ref`
+- `phase1-module-backlog.yaml` has zero unresolved gaps
+- `instance-bindings.yaml` is synchronized with mapping and `make phase1-gate` passes
 
 ### Phase 2 - Class Module Coverage
 
@@ -420,6 +423,9 @@ Current measured status:
   - Phase 1 mapping baseline completed and reconciled for active L1/L4/L5 entities:
     - `v5/topology/instances/home-lab/v4-to-v5-mapping.yaml` has `class_ref` + `object_ref` for all 44 entities (`mapped=44`, `pending=0`, `gap=0`)
     - duplicate L5 IDs are disambiguated with composite instance IDs (`service_id@runtime_type:target_ref`)
+    - automated phase gate added: `v5/scripts/validate_phase1_gate.py`
+    - lane command `phase1-gate` added (`make phase1-gate`) and included in `validate-v5` flow
+    - machine-readable gate report is exported to `v5-build/diagnostics/phase1-gate-report.json`
   - Phase 2/3 scaffolding advanced:
     - class module set expanded to 21 files under `v5/topology/class-modules/classes/`
     - object module set expanded to 33 files under `v5/topology/object-modules/`
@@ -465,16 +471,17 @@ Migration is considered 100% complete only when all criteria are true:
 Minimum gates:
 
 1. v4 lane compile/validate (stability gate)
-2. v5 lane compile/validate (progress gate)
-3. v4 test suite runs from `v4/tests/` only
-4. v5 test suite runs from `v5/tests/` only
-5. v4 lane writes artifacts only to `v4-build/`, `v4-dist/`, `v4-generated/`
-6. v5 lane writes artifacts only to `v5-build/`, `v5-dist/`, `v5-generated/`
-7. diagnostics report schema validation
-8. strict model-lock validation on v5 lane
-9. capability contract validation
-10. profile matrix (`production`, `modeled`, `test-real`) on v5 lane
-11. parity checks for production-critical generated artifacts
+2. phase-1 mapping/backlog/bindings gate (`make phase1-gate`)
+3. v5 lane compile/validate (progress gate)
+4. v4 test suite runs from `v4/tests/` only
+5. v5 test suite runs from `v5/tests/` only
+6. v4 lane writes artifacts only to `v4-build/`, `v4-dist/`, `v4-generated/`
+7. v5 lane writes artifacts only to `v5-build/`, `v5-dist/`, `v5-generated/`
+8. diagnostics report schema validation
+9. strict model-lock validation on v5 lane
+10. capability contract validation
+11. profile matrix (`production`, `modeled`, `test-real`) on v5 lane
+12. parity checks for production-critical generated artifacts
 
 ---
 

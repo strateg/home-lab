@@ -1,5 +1,5 @@
 schema_version: 1
-generated_at: '2026-03-06T18:02:45+00:00'
+generated_at: '2026-03-06T18:17:06+00:00'
 source_mapping: v5/topology/instances/home-lab/v4-to-v5-mapping.yaml
 instance_bindings:
   l1_devices:

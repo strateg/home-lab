@@ -25,6 +25,7 @@ make build-v5
 make phase1-bootstrap
 make phase1-reconcile
 make phase1-backlog
+make phase1-gate
 make phase4-sync-lock
 make phase4-export
 ```

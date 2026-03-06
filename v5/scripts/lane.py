@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
+PHASE1_REPORT_JSON = "v5-build/diagnostics/phase1-gate-report.json"
 
 
 def run(cmd: list[str]) -> None:
@@ -55,6 +56,7 @@ def build_v4() -> None:
 
 def validate_v5() -> None:
     run([PYTHON, "v5/scripts/export_v5_instance_bindings.py"])
+    run([PYTHON, "v5/scripts/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON])
     run([PYTHON, "v5/scripts/validate_v5_scaffold.py"])
     run(
         [
@@ -74,11 +76,16 @@ def build_v5() -> None:
     print("[lane] INFO: v5 build currently compiles canonical JSON; generators are introduced in later phases.")
 
 
+def phase1_gate() -> None:
+    run([PYTHON, "v5/scripts/export_v5_instance_bindings.py"])
+    run([PYTHON, "v5/scripts/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON])
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run lane-specific migration commands.")
     parser.add_argument(
         "command",
-        choices=("validate-v4", "validate-v5", "build-v4", "build-v5"),
+        choices=("validate-v4", "validate-v5", "build-v4", "build-v5", "phase1-gate"),
         help="Lane command to run.",
     )
     return parser.parse_args()
@@ -91,6 +98,7 @@ def main() -> int:
         "validate-v5": validate_v5,
         "build-v4": build_v4,
         "build-v5": build_v5,
+        "phase1-gate": phase1_gate,
     }
     handlers[args.command]()
     return 0

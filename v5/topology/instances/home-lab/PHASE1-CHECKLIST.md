@@ -27,6 +27,8 @@ Goal: map every active v4 entity (L1/L4/L5) to planned v5 `class_ref` + `object_
    - missing object implementation
    - profile-specific constraint (`production`, `modeled`, `test-real`)
 4. Validate consistency:
+   - `make phase1-gate`
+   - inspect `v5-build/diagnostics/phase1-gate-report.json` for machine-readable error context
    - `make validate-v4`
    - `make validate-v5`
 5. Freeze Phase 1 output:
@@ -39,3 +41,4 @@ Goal: map every active v4 entity (L1/L4/L5) to planned v5 `class_ref` + `object_
 - Every entity has planned `class_ref` and `object_ref`, or documented capability gap with owner/action.
 - Mapping file is committed and serves as baseline for Phase 2/3 module coverage work.
 - Backlog file contains actionable class/object module gaps grouped by references.
+- `make phase1-gate` returns `PASS` and reports zero unresolved gaps.
