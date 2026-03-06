@@ -1,12 +1,15 @@
 PYTHON ?= python
 
-.PHONY: validate-v4 validate-v5 build-v4 build-v5 phase1-bootstrap phase1-reconcile phase1-backlog phase1-gate phase4-sync-lock phase4-export
+.PHONY: validate-v4 validate-v5 validate-v5-layers build-v4 build-v5 phase1-bootstrap phase1-reconcile phase1-backlog phase1-gate phase4-sync-lock phase4-export
 
 validate-v4:
 	$(PYTHON) v5/scripts/lane.py validate-v4
 
 validate-v5:
 	$(PYTHON) v5/scripts/lane.py validate-v5
+
+validate-v5-layers:
+	$(PYTHON) v5/scripts/lane.py validate-v5-layers
 
 build-v4:
 	$(PYTHON) v5/scripts/lane.py build-v4

@@ -1,6 +1,7 @@
 # Class Modules (v5)
 
 This directory contains v5 class contracts for ADR 0062 (`Class -> Object -> Instance`).
+Layer placement for classes is governed by `v5/topology/layer-contract.yaml` (`class_layers` section).
 
 Current contents:
 

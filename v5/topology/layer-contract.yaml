@@ -1,0 +1,94 @@
+schema_version: 1
+layer_model: osi-like
+layers:
+  - L0
+  - L1
+  - L2
+  - L3
+  - L4
+  - L5
+  - L6
+  - L7
+
+group_layers:
+  l1_devices: L1
+  l4_vms: L4
+  l4_lxc: L4
+  l5_services: L5
+
+class_layers:
+  class.compute.cloud_vm:
+    allowed_layers:
+      - L1
+      - L4
+  class.compute.edge_node:
+    allowed_layers:
+      - L1
+      - L4
+  class.compute.hypervisor:
+    allowed_layers:
+      - L1
+      - L4
+  class.compute.workload.container:
+    allowed_layers:
+      - L4
+  class.network.router:
+    allowed_layers:
+      - L1
+  class.power.pdu:
+    allowed_layers:
+      - L1
+  class.power.ups:
+    allowed_layers:
+      - L1
+  class.service.alerting:
+    allowed_layers:
+      - L5
+  class.service.cache:
+    allowed_layers:
+      - L5
+  class.service.database:
+    allowed_layers:
+      - L5
+  class.service.dns:
+    allowed_layers:
+      - L5
+  class.service.file_storage:
+    allowed_layers:
+      - L5
+  class.service.home_automation:
+    allowed_layers:
+      - L5
+  class.service.logging:
+    allowed_layers:
+      - L5
+  class.service.media_server:
+    allowed_layers:
+      - L5
+  class.service.monitoring:
+    allowed_layers:
+      - L5
+  class.service.proxy:
+    allowed_layers:
+      - L5
+  class.service.visualization:
+    allowed_layers:
+      - L5
+  class.service.vpn:
+    allowed_layers:
+      - L5
+  class.service.web_application:
+    allowed_layers:
+      - L5
+  class.service.web_ui:
+    allowed_layers:
+      - L5
+
+runtime_target_rules:
+  - relation: runtime.target_ref
+    direction: downward
+    source_layers:
+      - L5
+    allowed_target_layers:
+      - L1
+      - L4

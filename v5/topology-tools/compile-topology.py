@@ -240,6 +240,7 @@ class V5Compiler:
                     )
                     continue
                 instance_id = row.get("id")
+                layer = row.get("layer")
                 class_ref = row.get("class_ref")
                 object_ref = row.get("object_ref")
 
@@ -279,11 +280,20 @@ class V5Compiler:
                         message="Instance row must define non-empty 'object_ref'.",
                         path=f"instance_bindings.{group_name}[{idx}].object_ref",
                     )
+                if not isinstance(layer, str) or not layer:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message="Instance row must define non-empty 'layer'.",
+                        path=f"instance_bindings.{group_name}[{idx}].layer",
+                    )
 
                 rows.append(
                     {
                         "group": group_name,
                         "id": instance_id,
+                        "layer": layer,
                         "source_id": row.get("source_id", instance_id),
                         "class_ref": class_ref,
                         "object_ref": object_ref,
@@ -513,6 +523,7 @@ class V5Compiler:
             effective_item = {
                 "id": row["id"],
                 "source_id": row.get("source_id", row["id"]),
+                "layer": row.get("layer"),
                 "class_ref": class_ref,
                 "object_ref": object_ref,
                 "status": row.get("status"),

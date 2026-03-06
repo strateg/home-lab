@@ -1,6 +1,7 @@
 # Object Modules (v5)
 
 This directory contains object contracts for ADR 0062 (`Class -> Object -> Instance`).
+Objects inherit layer placement from their class (`v5/topology/layer-contract.yaml`) unless they define a narrower `topology.allowed_layers` override.
 
 Current object groups:
 

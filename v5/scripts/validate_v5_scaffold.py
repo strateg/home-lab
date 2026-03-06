@@ -20,6 +20,7 @@ REQUIRED_PATHS = (
     "v5/topology-tools",
     "v5/tests",
     "v5/topology/model.lock.yaml",
+    "v5/topology/layer-contract.yaml",
     "v5-generated",
     "v5-build",
     "v5-dist",

@@ -15,14 +15,17 @@ This ADR is the single normative contract for v5.
 Consolidation goals:
 
 1. one model contract (`Class -> Object -> Instance`)
-2. one compiler/diagnostics contract (YAML source -> JSON canonical)
-3. one profile and version-lock governance model
-4. one migration plan from v4 to v5 that is implementation-ready
-5. explicit in-repo separation of legacy (v4) and new (v5) systems
+2. one topology layer contract (`L0 -> L7`) for placement and dependency direction
+3. one compiler/diagnostics contract (YAML source -> JSON canonical)
+4. one profile and version-lock governance model
+5. one migration plan from v4 to v5 that is implementation-ready
+6. explicit in-repo separation of legacy (v4) and new (v5) systems
 
 Current implemented artifacts used by this ADR:
 
 - legacy compiler entrypoint: `v4/topology-tools/compile-topology.py`
+- v5 compiler entrypoint: `v5/topology-tools/compile-topology.py`
+- v5 layer contract: `v5/topology/layer-contract.yaml`
 - diagnostics schema: `v4/topology-tools/schemas/diagnostics.schema.json`
 - model lock schema: `v4/topology-tools/schemas/model-lock.schema.json`
 - profile map schema: `v4/topology-tools/schemas/profile-map.schema.json`
@@ -48,6 +51,37 @@ Hard rules:
 - instance overrides must not violate class invariants
 - object must satisfy class required capabilities
 - instance must not request unsupported object capability
+
+### 1A. Dual-Axis Layer Contract (`L0 -> L7`) Is Normative
+
+v5 preserves v4 OSI-like layering as an orthogonal axis to `Class -> Object -> Instance`.
+
+The two axes are independent and both mandatory:
+
+1. semantic axis: `Instance -> Object -> Class`
+2. placement axis: `L0 -> L7`
+
+Layer contract source of truth:
+
+- `v5/topology/layer-contract.yaml`
+
+Current v5 layer scope (implemented):
+
+- mapped groups: `l1_devices -> L1`, `l4_vms -> L4`, `l4_lxc -> L4`, `l5_services -> L5`
+- class-to-layer policy is defined in `layer-contract.class_layers`
+- object inherits class layer policy by default and may only narrow it (never widen)
+- every instance binding row must carry explicit `layer`
+
+Dependency direction rule:
+
+- dependencies must be downward unless relation-specific rule says otherwise
+- current enforced relation: `runtime.target_ref` from `L5` is allowed only to `L1` or `L4`
+
+Transition timeline for layer strictness:
+
+1. from 2026-03-06: `instance-bindings.yaml` export emits explicit `layer` for every row
+2. from 2026-03-06: v5 validation blocks on layer-contract violations (`make validate-v5-layers`)
+3. from 2026-03-06: v5 compile requires non-empty `layer` in each instance row
 
 ### 2. Simplified Capability Model (Normative)
 
@@ -194,6 +228,7 @@ home-lab/
 |  |  |- object-modules/
 |  |  |- instances/
 |  |  |  `- home-lab/
+|  |  |- layer-contract.yaml
 |  |  |- model.lock.yaml
 |  |  `- profile-map.yaml
 |  |- topology-tools/
@@ -258,19 +293,22 @@ Exit criteria:
 
 Objective:
 
-- map all active v4 entities to target v5 class/object bindings
+- map all active v4 entities to target v5 class/object bindings and explicit layer placement
 
 Actions:
 
 - build `v4-to-v5` mapping table for L1/L4/L5 entities
 - classify unresolved entities and capability gaps
 - run automated mapping/backlog/bindings gate (`make phase1-gate`)
+- enforce layer contract gate for class/object/instance alignment (`make validate-v5-layers`)
 
 Exit criteria:
 
 - 100% active entities have planned `class_ref` and `object_ref`
 - `phase1-module-backlog.yaml` has zero unresolved gaps
 - `instance-bindings.yaml` is synchronized with mapping and `make phase1-gate` passes
+- `instance-bindings.yaml` has explicit `layer` for every row
+- `make validate-v5-layers` passes with no layer/dependency violations
 
 ### Phase 2 - Class Module Coverage
 
@@ -282,10 +320,12 @@ Actions:
 
 - define class contracts and capability packs
 - enforce capability checker coverage for new classes
+- maintain `layer-contract.class_layers` coverage for every class module
 
 Exit criteria:
 
 - all mapped object targets reference existing class modules
+- every class module has explicit allowed layer policy in `layer-contract.yaml`
 
 ### Phase 3 - Object Module Coverage
 
@@ -297,10 +337,12 @@ Actions:
 
 - define object contracts and supported capabilities
 - validate class/object compatibility
+- validate object layer overrides (if present) are subset of class layers
 
 Exit criteria:
 
 - all mapped instance targets resolve to valid objects
+- all object modules satisfy layer inheritance rules
 
 ### Phase 4 - Topology Data Migration
 
@@ -311,11 +353,13 @@ Objective:
 Actions:
 
 - add `class_ref` and `object_ref` for migrated entities in `v5/topology/instances/home-lab/`
+- add explicit `layer` for migrated entities in `v5/topology/instances/home-lab/`
 - keep legacy-only fields out of new files
 
 Exit criteria:
 
 - v5 compilation passes with no unresolved class/object links
+- v5 layer contract validation passes for instances and runtime target dependencies
 
 ### Phase 5 - Lock and Profile Operationalization
 
@@ -426,14 +470,20 @@ Current measured status:
     - automated phase gate added: `v5/scripts/validate_phase1_gate.py`
     - lane command `phase1-gate` added (`make phase1-gate`) and included in `validate-v5` flow
     - machine-readable gate report is exported to `v5-build/diagnostics/phase1-gate-report.json`
+    - normalized instance export includes explicit `layer` per row
+    - layer contract introduced: `v5/topology/layer-contract.yaml`
+    - automated layer validator added: `v5/scripts/validate_v5_layer_contract.py`
+    - machine-readable layer report is exported to `v5-build/diagnostics/layer-contract-report.json`
+    - lane command `validate-v5-layers` added (`make validate-v5-layers`) and included in `validate-v5` flow
   - Phase 2/3 scaffolding advanced:
     - class module set expanded to 21 files under `v5/topology/class-modules/classes/`
-    - object module set expanded to 33 files under `v5/topology/object-modules/`
+    - object module set expanded to 34 files under `v5/topology/object-modules/`
     - `v5/topology/instances/home-lab/phase1-module-backlog.yaml` currently has no unresolved class/object gaps
   - Phase 4 preparation started:
     - v5 topology manifest created: `v5/topology/topology.yaml`
     - normalized instance export created: `v5/topology/instances/home-lab/instance-bindings.yaml`
     - export is generated from mapping via `v5/scripts/export_v5_instance_bindings.py`
+    - v5 compiler/effective model now requires and carries explicit instance `layer`
     - v5 compiler introduced: `v5/topology-tools/compile-topology.py`
     - `validate-v5` now runs manifest/scaffold checks and strict model-lock compile into:
       - `v5-build/effective-topology.json`
@@ -453,16 +503,19 @@ Migration is considered 100% complete only when all criteria are true:
 1. repository structure is fully dual-lane (`v4/` frozen, `v5/` active/default)
 2. test suites are fully dual-lane (`v4/tests/` for legacy, `v5/tests/` for new system)
 3. all production-relevant entities in v5 have explicit `class_ref` and `object_ref`
-4. `v5/topology/model.lock.yaml` is complete and CI runs in strict mode
-5. `v5/topology/profile-map.yaml` includes `production`, `modeled`, `test-real` and all pass
-6. artifact roots are fully versioned (`v4-build`, `v4-dist`, `v4-generated`, `v5-build`, `v5-dist`, `v5-generated`)
-7. moved v4 scripts write only to `v4-*` artifact roots
-8. diagnostics schema validation passes on every v5 compile run
-9. capability contract checks pass for all v5 class/object modules
-10. production-critical generated artifacts reach approved parity vs v4 baseline
-11. plugin microkernel migration phase (ADR 0063) is complete for v5 lane
-12. v5 lane is default in CI and release workflow for at least one stabilization cycle
-13. rollback procedure from v5 default back to v4 lane is documented and tested
+4. all production-relevant entities in v5 have explicit `layer` and pass layer policy checks
+5. `v5/topology/layer-contract.yaml` has complete class layer coverage for active modules
+6. runtime dependency rules (at least `runtime.target_ref`) pass direction and allowed-target checks
+7. `v5/topology/model.lock.yaml` is complete and CI runs in strict mode
+8. `v5/topology/profile-map.yaml` includes `production`, `modeled`, `test-real` and all pass
+9. artifact roots are fully versioned (`v4-build`, `v4-dist`, `v4-generated`, `v5-build`, `v5-dist`, `v5-generated`)
+10. moved v4 scripts write only to `v4-*` artifact roots
+11. diagnostics schema validation passes on every v5 compile run
+12. capability contract checks pass for all v5 class/object modules
+13. production-critical generated artifacts reach approved parity vs v4 baseline
+14. plugin microkernel migration phase (ADR 0063) is complete for v5 lane
+15. v5 lane is default in CI and release workflow for at least one stabilization cycle
+16. rollback procedure from v5 default back to v4 lane is documented and tested
 
 ---
 
@@ -472,16 +525,17 @@ Minimum gates:
 
 1. v4 lane compile/validate (stability gate)
 2. phase-1 mapping/backlog/bindings gate (`make phase1-gate`)
-3. v5 lane compile/validate (progress gate)
-4. v4 test suite runs from `v4/tests/` only
-5. v5 test suite runs from `v5/tests/` only
-6. v4 lane writes artifacts only to `v4-build/`, `v4-dist/`, `v4-generated/`
-7. v5 lane writes artifacts only to `v5-build/`, `v5-dist/`, `v5-generated/`
-8. diagnostics report schema validation
-9. strict model-lock validation on v5 lane
-10. capability contract validation
-11. profile matrix (`production`, `modeled`, `test-real`) on v5 lane
-12. parity checks for production-critical generated artifacts
+3. v5 layer contract gate (`make validate-v5-layers`)
+4. v5 lane compile/validate (progress gate)
+5. v4 test suite runs from `v4/tests/` only
+6. v5 test suite runs from `v5/tests/` only
+7. v4 lane writes artifacts only to `v4-build/`, `v4-dist/`, `v4-generated/`
+8. v5 lane writes artifacts only to `v5-build/`, `v5-dist/`, `v5-generated/`
+9. diagnostics report schema validation
+10. strict model-lock validation on v5 lane
+11. capability contract validation
+12. profile matrix (`production`, `modeled`, `test-real`) on v5 lane
+13. parity checks for production-critical generated artifacts
 
 ---
 
@@ -557,7 +611,9 @@ Rollback actions:
    - Mitigation: profile matrix validation + parity gates
 3. Risk: capability sprawl during module expansion
    - Mitigation: catalog/packs policy + promotion rules
-4. Risk: plugin migration destabilizes pipeline
+4. Risk: layer drift (class/object/instance mismatch or upward dependencies)
+   - Mitigation: `layer-contract.yaml` + `validate-v5-layers` gate + explicit `instance.layer`
+5. Risk: plugin migration destabilizes pipeline
    - Mitigation: ADR 0063 phased adoption after parity baseline
 
 ---
@@ -582,7 +638,11 @@ Rollback actions:
 
 ### Runtime Contracts
 
-- Compiler: `v4/topology-tools/compile-topology.py`
+- v5 compiler: `v5/topology-tools/compile-topology.py`
+- v5 layer contract: `v5/topology/layer-contract.yaml`
+- v5 layer validator: `v5/scripts/validate_v5_layer_contract.py`
+- v5 phase1 gate: `v5/scripts/validate_phase1_gate.py`
+- legacy compiler: `v4/topology-tools/compile-topology.py`
 - Diagnostics schema: `v4/topology-tools/schemas/diagnostics.schema.json`
 - Error catalog: `v4/topology-tools/data/error-catalog.yaml`
 - model.lock schema: `v4/topology-tools/schemas/model-lock.schema.json`

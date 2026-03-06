@@ -15,6 +15,12 @@ ROOT = Path(__file__).resolve().parents[2]
 MAPPING_PATH = ROOT / "v5/topology/instances/home-lab/v4-to-v5-mapping.yaml"
 BACKLOG_PATH = ROOT / "v5/topology/instances/home-lab/phase1-module-backlog.yaml"
 BINDINGS_PATH = ROOT / "v5/topology/instances/home-lab/instance-bindings.yaml"
+GROUP_LAYER_MAP = {
+    "l1_devices": "L1",
+    "l4_vms": "L4",
+    "l4_lxc": "L4",
+    "l5_services": "L5",
+}
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -50,6 +56,7 @@ def _validate_binding_rows(
     rows_any: list[Any],
     errors: list[str],
 ) -> list[dict[str, Any]]:
+    expected_layer = GROUP_LAYER_MAP.get(group)
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
     for idx, row in enumerate(rows_any):
@@ -64,6 +71,11 @@ def _validate_binding_rows(
         if item_id in seen:
             errors.append(f"{path}: duplicate id '{item_id}' in group '{group}'")
         seen.add(item_id)
+        layer = row.get("layer")
+        if not isinstance(layer, str) or not layer:
+            errors.append(f"{path}: missing non-empty layer")
+        elif expected_layer is not None and layer != expected_layer:
+            errors.append(f"{path}: layer '{layer}' must be '{expected_layer}' for group '{group}'")
         rows.append(row)
     return rows
 

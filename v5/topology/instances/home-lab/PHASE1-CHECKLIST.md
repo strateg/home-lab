@@ -21,6 +21,7 @@ Goal: map every active v4 entity (L1/L4/L5) to planned v5 `class_ref` + `object_
    - set `class_ref`
    - set `object_ref` (or leave pending with explicit gap note)
    - set `status` to `mapped` or `gap`
+   - keep expected layer placement consistent (`l1_devices -> L1`, `l4_vms/l4_lxc -> L4`, `l5_services -> L5`)
    - for duplicated `L5` service IDs use composite IDs (`service_id@runtime_type:target_ref`)
 3. Fill capability notes for unresolved items:
    - missing class capability
@@ -28,7 +29,9 @@ Goal: map every active v4 entity (L1/L4/L5) to planned v5 `class_ref` + `object_
    - profile-specific constraint (`production`, `modeled`, `test-real`)
 4. Validate consistency:
    - `make phase1-gate`
+   - `make validate-v5-layers`
    - inspect `v5-build/diagnostics/phase1-gate-report.json` for machine-readable error context
+   - inspect `v5-build/diagnostics/layer-contract-report.json` for layer-contract errors
    - `make validate-v4`
    - `make validate-v5`
 5. Freeze Phase 1 output:
@@ -42,3 +45,4 @@ Goal: map every active v4 entity (L1/L4/L5) to planned v5 `class_ref` + `object_
 - Mapping file is committed and serves as baseline for Phase 2/3 module coverage work.
 - Backlog file contains actionable class/object module gaps grouped by references.
 - `make phase1-gate` returns `PASS` and reports zero unresolved gaps.
+- `make validate-v5-layers` returns `PASS` (class/object/instance layer contract is consistent).

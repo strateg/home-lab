@@ -20,6 +20,7 @@ Quick commands:
 ```powershell
 make validate-v4
 make validate-v5
+make validate-v5-layers
 make build-v4
 make build-v5
 make phase1-bootstrap

@@ -11,16 +11,24 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 MAPPING_PATH = ROOT / "v5/topology/instances/home-lab/v4-to-v5-mapping.yaml"
 OUTPUT_PATH = ROOT / "v5/topology/instances/home-lab/instance-bindings.yaml"
+GROUP_LAYER_MAP = {
+    "l1_devices": "L1",
+    "l4_vms": "L4",
+    "l4_lxc": "L4",
+    "l5_services": "L5",
+}
 
 
-def _normalize_rows(rows: list[dict], *, include_runtime: bool = False) -> list[dict]:
+def _normalize_rows(rows: list[dict], *, group: str, include_runtime: bool = False) -> list[dict]:
     normalized: list[dict] = []
+    layer = GROUP_LAYER_MAP[group]
     for row in rows:
         if not isinstance(row, dict):
             continue
         item = {
             "id": row.get("instance_id"),
             "source_id": row.get("source_id", row.get("instance_id")),
+            "layer": layer,
             "class_ref": row.get("class_ref"),
             "object_ref": row.get("object_ref"),
             "status": row.get("status", "pending"),
@@ -47,10 +55,12 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         "source_mapping": str(MAPPING_PATH.relative_to(ROOT).as_posix()),
         "instance_bindings": {
-            "l1_devices": _normalize_rows(entities.get("l1_devices", []) or []),
-            "l4_vms": _normalize_rows(entities.get("l4_vms", []) or []),
-            "l4_lxc": _normalize_rows(entities.get("l4_lxc", []) or []),
-            "l5_services": _normalize_rows(entities.get("l5_services", []) or [], include_runtime=True),
+            "l1_devices": _normalize_rows(entities.get("l1_devices", []) or [], group="l1_devices"),
+            "l4_vms": _normalize_rows(entities.get("l4_vms", []) or [], group="l4_vms"),
+            "l4_lxc": _normalize_rows(entities.get("l4_lxc", []) or [], group="l4_lxc"),
+            "l5_services": _normalize_rows(
+                entities.get("l5_services", []) or [], group="l5_services", include_runtime=True
+            ),
         },
     }
 

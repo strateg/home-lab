@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
 PHASE1_REPORT_JSON = "v5-build/diagnostics/phase1-gate-report.json"
+LAYER_REPORT_JSON = "v5-build/diagnostics/layer-contract-report.json"
 
 
 def run(cmd: list[str]) -> None:
@@ -57,6 +58,7 @@ def build_v4() -> None:
 def validate_v5() -> None:
     run([PYTHON, "v5/scripts/export_v5_instance_bindings.py"])
     run([PYTHON, "v5/scripts/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON])
+    run([PYTHON, "v5/scripts/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
     run([PYTHON, "v5/scripts/validate_v5_scaffold.py"])
     run(
         [
@@ -81,11 +83,16 @@ def phase1_gate() -> None:
     run([PYTHON, "v5/scripts/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON])
 
 
+def validate_v5_layers() -> None:
+    run([PYTHON, "v5/scripts/export_v5_instance_bindings.py"])
+    run([PYTHON, "v5/scripts/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run lane-specific migration commands.")
     parser.add_argument(
         "command",
-        choices=("validate-v4", "validate-v5", "build-v4", "build-v5", "phase1-gate"),
+        choices=("validate-v4", "validate-v5", "build-v4", "build-v5", "phase1-gate", "validate-v5-layers"),
         help="Lane command to run.",
     )
     return parser.parse_args()
@@ -99,6 +106,7 @@ def main() -> int:
         "build-v4": build_v4,
         "build-v5": build_v5,
         "phase1-gate": phase1_gate,
+        "validate-v5-layers": validate_v5_layers,
     }
     handlers[args.command]()
     return 0

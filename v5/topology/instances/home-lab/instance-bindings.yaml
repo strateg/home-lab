@@ -1,58 +1,67 @@
 schema_version: 1
-generated_at: '2026-03-06T18:17:06+00:00'
+generated_at: '2026-03-06T18:35:40+00:00'
 source_mapping: v5/topology/instances/home-lab/v4-to-v5-mapping.yaml
 instance_bindings:
   l1_devices:
   - id: mikrotik-chateau
     source_id: mikrotik-chateau
+    layer: L1
     class_ref: class.network.router
     object_ref: obj.mikrotik.chateau_lte7_ax
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: pdu-rack
     source_id: pdu-rack
+    layer: L1
     class_ref: class.power.pdu
     object_ref: obj.pdu.generic.managed
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: rtr-mikrotik-chateau
     source_id: rtr-mikrotik-chateau
+    layer: L1
     class_ref: class.network.router
     object_ref: obj.mikrotik.chateau_lte7_ax
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: rtr-slate
     source_id: rtr-slate
+    layer: L1
     class_ref: class.network.router
     object_ref: obj.glinet.slate_ax1800
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: srv-gamayun
     source_id: srv-gamayun
+    layer: L1
     class_ref: class.compute.hypervisor
     object_ref: obj.proxmox.ve
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: srv-orangepi5
     source_id: srv-orangepi5
+    layer: L1
     class_ref: class.compute.edge_node
     object_ref: obj.orangepi.rk3588.debian
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: ups-main
     source_id: ups-main
+    layer: L1
     class_ref: class.power.ups
     object_ref: obj.apc.backups.650va
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: vps-hetzner-nuremberg
     source_id: vps-hetzner-nuremberg
+    layer: L1
     class_ref: class.compute.cloud_vm
     object_ref: obj.hetzner.cloud_vm
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: vps-oracle-frankfurt
     source_id: vps-oracle-frankfurt
+    layer: L1
     class_ref: class.compute.cloud_vm
     object_ref: obj.oracle.cloud_vm
     status: mapped
@@ -61,54 +70,63 @@ instance_bindings:
   l4_lxc:
   - id: lxc-docker
     source_id: lxc-docker
+    layer: L4
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: lxc-gitea
     source_id: lxc-gitea
+    layer: L4
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: lxc-grafana
     source_id: lxc-grafana
+    layer: L4
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: lxc-homeassistant
     source_id: lxc-homeassistant
+    layer: L4
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: lxc-nextcloud
     source_id: lxc-nextcloud
+    layer: L4
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: lxc-nginx-proxy
     source_id: lxc-nginx-proxy
+    layer: L4
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: lxc-postgresql
     source_id: lxc-postgresql
+    layer: L4
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.postgresql
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: lxc-prometheus
     source_id: lxc-prometheus
+    layer: L4
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - id: lxc-redis
     source_id: lxc-redis
+    layer: L4
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.redis
     status: mapped
@@ -116,6 +134,7 @@ instance_bindings:
   l5_services:
   - id: svc-adguard
     source_id: svc-adguard
+    layer: L5
     class_ref: class.service.dns
     object_ref: obj.service.adguard
     status: mapped
@@ -125,6 +144,7 @@ instance_bindings:
       target_ref: mikrotik-chateau
   - id: svc-adguard-secondary
     source_id: svc-adguard-secondary
+    layer: L5
     class_ref: class.service.dns
     object_ref: obj.service.adguard
     status: mapped
@@ -134,6 +154,7 @@ instance_bindings:
       target_ref: srv-orangepi5
   - id: svc-alertmanager
     source_id: svc-alertmanager
+    layer: L5
     class_ref: class.service.alerting
     object_ref: obj.service.alertmanager
     status: mapped
@@ -143,6 +164,7 @@ instance_bindings:
       target_ref: srv-orangepi5
   - id: svc-docker-host
     source_id: svc-docker-host
+    layer: L5
     class_ref: class.service.web_application
     object_ref: obj.service.docker_host
     status: mapped
@@ -152,6 +174,7 @@ instance_bindings:
       target_ref: lxc-docker
   - id: svc-gitea
     source_id: svc-gitea
+    layer: L5
     class_ref: class.service.web_application
     object_ref: obj.service.gitea
     status: mapped
@@ -161,6 +184,7 @@ instance_bindings:
       target_ref: lxc-gitea
   - id: svc-grafana@docker:srv-orangepi5
     source_id: svc-grafana
+    layer: L5
     class_ref: class.service.visualization
     object_ref: obj.service.grafana
     status: mapped
@@ -170,6 +194,7 @@ instance_bindings:
       target_ref: srv-orangepi5
   - id: svc-grafana@lxc:lxc-grafana
     source_id: svc-grafana
+    layer: L5
     class_ref: class.service.visualization
     object_ref: obj.service.grafana
     status: mapped
@@ -179,6 +204,7 @@ instance_bindings:
       target_ref: lxc-grafana
   - id: svc-homeassistant@docker:srv-orangepi5
     source_id: svc-homeassistant
+    layer: L5
     class_ref: class.service.home_automation
     object_ref: obj.service.homeassistant
     status: mapped
@@ -188,6 +214,7 @@ instance_bindings:
       target_ref: srv-orangepi5
   - id: svc-homeassistant@lxc:lxc-homeassistant
     source_id: svc-homeassistant
+    layer: L5
     class_ref: class.service.home_automation
     object_ref: obj.service.homeassistant
     status: mapped
@@ -197,6 +224,7 @@ instance_bindings:
       target_ref: lxc-homeassistant
   - id: svc-jellyfin
     source_id: svc-jellyfin
+    layer: L5
     class_ref: class.service.media_server
     object_ref: obj.service.jellyfin
     status: mapped
@@ -206,6 +234,7 @@ instance_bindings:
       target_ref: srv-orangepi5
   - id: svc-loki
     source_id: svc-loki
+    layer: L5
     class_ref: class.service.logging
     object_ref: obj.service.loki
     status: mapped
@@ -215,6 +244,7 @@ instance_bindings:
       target_ref: srv-orangepi5
   - id: svc-mikrotik-ui
     source_id: svc-mikrotik-ui
+    layer: L5
     class_ref: class.service.web_ui
     object_ref: obj.service.mikrotik.web_ui
     status: mapped
@@ -224,6 +254,7 @@ instance_bindings:
       target_ref: mikrotik-chateau
   - id: svc-mosquitto
     source_id: svc-mosquitto
+    layer: L5
     class_ref: class.service.home_automation
     object_ref: obj.service.mosquitto
     status: mapped
@@ -233,6 +264,7 @@ instance_bindings:
       target_ref: mikrotik-chateau
   - id: svc-nextcloud@docker:srv-orangepi5
     source_id: svc-nextcloud
+    layer: L5
     class_ref: class.service.web_application
     object_ref: obj.service.nextcloud
     status: mapped
@@ -242,6 +274,7 @@ instance_bindings:
       target_ref: srv-orangepi5
   - id: svc-nextcloud@lxc:lxc-nextcloud
     source_id: svc-nextcloud
+    layer: L5
     class_ref: class.service.file_storage
     object_ref: obj.service.nextcloud.file_storage
     status: mapped
@@ -251,6 +284,7 @@ instance_bindings:
       target_ref: lxc-nextcloud
   - id: svc-nginx-proxy
     source_id: svc-nginx-proxy
+    layer: L5
     class_ref: class.service.proxy
     object_ref: obj.service.nginx_proxy
     status: mapped
@@ -260,6 +294,7 @@ instance_bindings:
       target_ref: lxc-nginx-proxy
   - id: svc-ntp
     source_id: svc-ntp
+    layer: L5
     class_ref: class.service.monitoring
     object_ref: obj.service.ntp
     status: mapped
@@ -269,6 +304,7 @@ instance_bindings:
       target_ref: mikrotik-chateau
   - id: svc-postgresql
     source_id: svc-postgresql
+    layer: L5
     class_ref: class.service.database
     object_ref: obj.service.postgresql
     status: mapped
@@ -278,6 +314,7 @@ instance_bindings:
       target_ref: lxc-postgresql
   - id: svc-prometheus@docker:srv-orangepi5
     source_id: svc-prometheus
+    layer: L5
     class_ref: class.service.monitoring
     object_ref: obj.service.prometheus
     status: mapped
@@ -287,6 +324,7 @@ instance_bindings:
       target_ref: srv-orangepi5
   - id: svc-prometheus@lxc:lxc-prometheus
     source_id: svc-prometheus
+    layer: L5
     class_ref: class.service.monitoring
     object_ref: obj.service.prometheus
     status: mapped
@@ -296,6 +334,7 @@ instance_bindings:
       target_ref: lxc-prometheus
   - id: svc-proxmox-ui
     source_id: svc-proxmox-ui
+    layer: L5
     class_ref: class.service.web_ui
     object_ref: obj.service.proxmox.web_ui
     status: mapped
@@ -305,6 +344,7 @@ instance_bindings:
       target_ref: srv-gamayun
   - id: svc-redis
     source_id: svc-redis
+    layer: L5
     class_ref: class.service.cache
     object_ref: obj.service.redis
     status: mapped
@@ -314,6 +354,7 @@ instance_bindings:
       target_ref: lxc-redis
   - id: svc-snmp
     source_id: svc-snmp
+    layer: L5
     class_ref: class.service.monitoring
     object_ref: obj.service.mikrotik.snmp
     status: mapped
@@ -323,6 +364,7 @@ instance_bindings:
       target_ref: mikrotik-chateau
   - id: svc-syslog-forward
     source_id: svc-syslog-forward
+    layer: L5
     class_ref: class.service.logging
     object_ref: obj.service.syslog_forwarder
     status: mapped
@@ -332,6 +374,7 @@ instance_bindings:
       target_ref: mikrotik-chateau
   - id: svc-tailscale
     source_id: svc-tailscale
+    layer: L5
     class_ref: class.service.vpn
     object_ref: obj.service.tailscale
     status: mapped
@@ -341,6 +384,7 @@ instance_bindings:
       target_ref: mikrotik-chateau
   - id: svc-wireguard
     source_id: svc-wireguard
+    layer: L5
     class_ref: class.service.vpn
     object_ref: obj.service.wireguard
     status: mapped
