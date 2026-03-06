@@ -2,23 +2,45 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Architecture Overview
+## ADR 0062 Migration Mode (authoritative)
 
-This is an **Infrastructure-as-Data** home lab project using **OSI-like layer architecture (v4.0)**. The topology is defined in **8 layer files** (L0-L7) in `topology/` directory, with `topology.yaml` as the main entry point. This is the **canonical source of truth** that generates:
+Repository is in dual-lane migration mode per `adr/0062-modular-topology-architecture-consolidation.md`.
+
+- `v4/` is the legacy lane (frozen except critical/parity fixes)
+- `v5/` is the active lane (Class -> Object -> Instance implementation)
+- v4 outputs: `v4-generated/`, `v4-build/`, `v4-dist/`
+- v5 outputs: `v5-generated/`, `v5-build/`, `v5-dist/`
+- v4 tests must stay in `v4/tests/`; v5 tests must stay in `v5/tests/`
+- new model/module/plugin development goes only into `v5/`
+
+Operational v4 roots already moved under `v4/`:
+
+- `v4/topology.yaml`, `v4/topology/`, `v4/topology-tools/`, `v4/tests/`
+- `v4/ansible/`, `v4/deploy/`, `v4/manual-scripts/`, `v4/terraform-overrides/`, `v4/local/`
+
+Path translation rule for legacy notes in this file:
+
+- legacy `topology*`, `topology-tools*`, `ansible*`, `deploy*`, `manual-scripts*`, `terraform-overrides*`, `local*`
+  must be interpreted as `v4/...` paths
+- legacy `generated/`, `build/`, `dist/` must be interpreted as `v4-generated/`, `v4-build/`, `v4-dist/`
+
+## Legacy v4 Architecture Overview (reference)
+
+This is an **Infrastructure-as-Data** home lab project using **OSI-like layer architecture (v4.0)**. The topology is defined in **8 layer files** (L0-L7) in `v4/topology/` directory, with `v4/topology.yaml` as the main entry point. This is the **canonical source of truth** that generates:
 - Terraform configurations (Proxmox infrastructure)
 - Terraform configurations (MikroTik RouterOS)
 - Ansible inventory and assembled runtime inventory
 - Network diagrams
 - IP allocation documentation
 - Service inventory
-- Deploy-ready `dist/` packages
+- Deploy-ready `v4-dist/` packages
 
-**Key Principle**: Edit `topology/L*.yaml` layers → regenerate everything → apply with Terraform/Ansible.
+**Key Principle**: Edit `v4/topology/L*.yaml` layers → regenerate everything → apply with Terraform/Ansible.
 
 ### OSI-Layer Architecture (v4.0)
 
-**Main File**: `topology.yaml` - Entry point with `!include` directives
-**Layers**: `topology/L0-L7.yaml` (8 files) - Organized by OSI-like principles
+**Main File**: `v4/topology.yaml` - Entry point with `!include` directives
+**Layers**: `v4/topology/L0-L7.yaml` (8 files) - Organized by OSI-like principles
 
 ```
 topology/
@@ -57,6 +79,31 @@ topology/
 - **Version Control**: Git
 
 ### Directory Structure
+
+Current normative layout (ADR 0062):
+
+```
+home-lab/
+├── v4/                      # legacy lane
+│   ├── topology.yaml
+│   ├── topology/
+│   ├── topology-tools/
+│   ├── tests/
+│   ├── ansible/
+│   ├── deploy/
+│   ├── manual-scripts/
+│   ├── terraform-overrides/
+│   └── local/
+├── v5/                      # new lane
+│   ├── topology/
+│   ├── topology-tools/
+│   └── tests/
+├── v4-generated/ v4-build/ v4-dist/
+├── v5-generated/ v5-build/ v5-dist/
+└── adr/
+```
+
+Legacy tree below is preserved for v4 reference and should be read through the path translation rule above.
 
 ```
 home-lab/

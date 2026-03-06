@@ -2,9 +2,9 @@
 # Phase 5: Configurability
 
 # Core settings
-topology: topology.yaml
-output: generated/terraform/proxmox
-templates: topology-tools/templates
+topology: v4/topology.yaml
+output: v4-generated/terraform/proxmox
+templates: v4/topology-tools/templates
 
 # Generation options
 verbose: false
