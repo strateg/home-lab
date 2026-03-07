@@ -843,3 +843,265 @@ capabilities:
     domain: operations
     layer: L7
     stability: stable
+
+  # ===========================================================================
+  # OS - Operating System (Derived capabilities per ADR 0064)
+  # Compiler derives these from software.os properties
+  # ===========================================================================
+
+  # OS Families
+  - id: cap.os.linux
+    title: Linux OS
+    summary: Linux-based operating system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.bsd
+    title: BSD OS
+    summary: BSD-based operating system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.windows
+    title: Windows OS
+    summary: Windows-based operating system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.routeros
+    title: RouterOS
+    summary: MikroTik RouterOS operating system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.proprietary
+    title: Proprietary OS
+    summary: Vendor-proprietary operating system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  # Linux Distributions
+  - id: cap.os.debian
+    title: Debian
+    summary: Debian Linux distribution.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.ubuntu
+    title: Ubuntu
+    summary: Ubuntu Linux distribution.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.alpine
+    title: Alpine Linux
+    summary: Alpine Linux distribution.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.fedora
+    title: Fedora
+    summary: Fedora Linux distribution.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.nixos
+    title: NixOS
+    summary: NixOS distribution.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.openwrt
+    title: OpenWrt
+    summary: OpenWrt router distribution.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  # Debian Releases
+  - id: cap.os.debian.12
+    title: Debian 12
+    summary: Debian 12 (Bookworm) release.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.debian.bookworm
+    title: Debian Bookworm
+    summary: Alias for Debian 12.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+    alias_for: cap.os.debian.12
+
+  - id: cap.os.debian.11
+    title: Debian 11
+    summary: Debian 11 (Bullseye) release.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.debian.bullseye
+    title: Debian Bullseye
+    summary: Alias for Debian 11.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+    alias_for: cap.os.debian.11
+
+  # Ubuntu Releases
+  - id: cap.os.ubuntu.2404
+    title: Ubuntu 24.04
+    summary: Ubuntu 24.04 LTS (Noble Numbat) release.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.ubuntu.2204
+    title: Ubuntu 22.04
+    summary: Ubuntu 22.04 LTS (Jammy Jellyfish) release.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  # Init Systems
+  - id: cap.os.init.systemd
+    title: Systemd Init
+    summary: Uses systemd init system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.init.openrc
+    title: OpenRC Init
+    summary: Uses OpenRC init system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.init.sysvinit
+    title: SysVinit Init
+    summary: Uses SysVinit init system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.init.busybox
+    title: BusyBox Init
+    summary: Uses BusyBox init system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.init.proprietary
+    title: Proprietary Init
+    summary: Uses vendor-proprietary init system.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  # Package Managers
+  - id: cap.os.pkg.apt
+    title: APT Package Manager
+    summary: Uses APT (Debian/Ubuntu) package manager.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.pkg.apk
+    title: APK Package Manager
+    summary: Uses APK (Alpine) package manager.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.pkg.dnf
+    title: DNF Package Manager
+    summary: Uses DNF (Fedora/RHEL) package manager.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.pkg.nix
+    title: Nix Package Manager
+    summary: Uses Nix package manager.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.os.pkg.opkg
+    title: OPKG Package Manager
+    summary: Uses OPKG (OpenWrt) package manager.
+    domain: os
+    layer: L0
+    stability: stable
+    derived: true
+
+  # CPU Architectures
+  - id: cap.arch.x86_64
+    title: x86-64 Architecture
+    summary: 64-bit x86 (AMD64/Intel 64) architecture.
+    domain: arch
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.arch.arm64
+    title: ARM64 Architecture
+    summary: 64-bit ARM (AArch64) architecture.
+    domain: arch
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.arch.armhf
+    title: ARMhf Architecture
+    summary: 32-bit ARM with hardware floating point.
+    domain: arch
+    layer: L0
+    stability: stable
+    derived: true
+
+  - id: cap.arch.riscv64
+    title: RISC-V 64 Architecture
+    summary: 64-bit RISC-V architecture.
+    domain: arch
+    layer: L0
+    stability: stable
+    derived: true

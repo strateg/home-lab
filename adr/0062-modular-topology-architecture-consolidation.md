@@ -224,5 +224,6 @@ ADR 0062 does not redefine plugin API details.
   - `adr/0055-manual-terraform-extension-layer.md`
   - `adr/0056-native-execution-workspace.md`
   - `adr/0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md`
-- Proposed extension:
+- Proposed extensions:
   - `adr/0063-plugin-microkernel-for-compiler-validators-generators.md`
+  - `adr/0064-os-taxonomy-object-property-model.md`
