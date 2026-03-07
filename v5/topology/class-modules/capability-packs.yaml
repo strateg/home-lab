@@ -1,0 +1,301 @@
+version: 2
+schema: capability-packs
+
+# Capability Packs - Reusable capability bundles for common profiles
+# Namespace: pack.<domain>.<profile>
+
+packs:
+
+  # ===========================================================================
+  # L1 - Router Packs
+  # ===========================================================================
+
+  - id: pack.router.home
+    title: Home Router
+    summary: Standard home router capabilities with VPN and QoS.
+    class_ref: class.network.router
+    capabilities:
+      - cap.router.routing.static
+      - cap.router.nat
+      - cap.router.firewall.stateful
+      - cap.router.dhcp.server
+      - cap.router.dns.resolver
+      - cap.router.wireguard.endpoint
+      - cap.router.qos.basic
+      - cap.router.vlan
+      - cap.router.wifi.ap
+
+  - id: pack.router.edge
+    title: Edge Router
+    summary: Edge router with LTE failover and basic routing.
+    class_ref: class.network.router
+    capabilities:
+      - cap.router.routing.static
+      - cap.router.nat
+      - cap.router.firewall.stateful
+      - cap.router.dhcp.server
+      - cap.router.lte
+      - cap.router.vlan
+
+  - id: pack.router.infra
+    title: Infrastructure Router
+    summary: Enterprise router with BGP and VRF support.
+    class_ref: class.network.router
+    capabilities:
+      - cap.router.routing.static
+      - cap.router.routing.dynamic
+      - cap.router.nat
+      - cap.router.firewall.stateful
+      - cap.router.firewall.zones
+      - cap.router.vlan
+      - cap.router.bgp
+      - cap.router.vrf
+
+  - id: pack.router.vpn_hub
+    title: VPN Hub Router
+    summary: VPN concentrator with multi-peer WireGuard support.
+    class_ref: class.network.router
+    capabilities:
+      - cap.router.routing.static
+      - cap.router.nat
+      - cap.router.firewall.stateful
+      - cap.router.wireguard.hub
+      - cap.router.qos.advanced
+
+  # ===========================================================================
+  # L1 - Compute Packs
+  # ===========================================================================
+
+  - id: pack.compute.hypervisor.standalone
+    title: Standalone Hypervisor
+    summary: Single-node hypervisor with local storage.
+    class_ref: class.compute.hypervisor
+    capabilities:
+      - cap.compute.virtualization.lxc
+      - cap.compute.virtualization.qemu
+      - cap.compute.storage.local
+      - cap.compute.storage.backup
+
+  - id: pack.compute.hypervisor.cluster
+    title: Cluster Hypervisor
+    summary: Cluster-capable hypervisor with HA and migration.
+    class_ref: class.compute.hypervisor
+    capabilities:
+      - cap.compute.virtualization.lxc
+      - cap.compute.virtualization.qemu
+      - cap.compute.clustering.node
+      - cap.compute.clustering.ha
+      - cap.compute.clustering.migration
+      - cap.compute.storage.local
+      - cap.compute.storage.shared
+      - cap.compute.storage.backup
+
+  - id: pack.compute.edge
+    title: Edge Compute Node
+    summary: Edge compute node with container support.
+    class_ref: class.compute.edge_node
+    capabilities:
+      - cap.compute.virtualization.docker
+      - cap.compute.virtualization.podman
+      - cap.compute.storage.local
+
+  # ===========================================================================
+  # L1 - Power Packs
+  # ===========================================================================
+
+  - id: pack.power.ups.basic
+    title: Basic UPS
+    summary: Battery backup with telemetry.
+    class_ref: class.power.ups
+    capabilities:
+      - cap.power.ups.battery
+      - cap.power.ups.surge
+      - cap.power.ups.telemetry
+
+  - id: pack.power.ups.smart
+    title: Smart UPS
+    summary: Smart UPS with graceful shutdown support.
+    class_ref: class.power.ups
+    capabilities:
+      - cap.power.ups.battery
+      - cap.power.ups.surge
+      - cap.power.ups.telemetry
+      - cap.power.ups.shutdown
+
+  - id: pack.power.pdu.managed
+    title: Managed PDU
+    summary: Managed PDU with switching and metering.
+    class_ref: class.power.pdu
+    capabilities:
+      - cap.power.pdu.switching
+      - cap.power.pdu.metering
+      - cap.power.pdu.scheduling
+
+  # ===========================================================================
+  # L3 - Storage Packs
+  # ===========================================================================
+
+  - id: pack.storage.local.basic
+    title: Basic Local Storage
+    summary: LVM-based local storage.
+    class_ref: class.storage.pool
+    capabilities:
+      - cap.storage.pool.lvm
+      - cap.storage.volume.thin
+      - cap.storage.volume.snapshot
+
+  - id: pack.storage.local.advanced
+    title: Advanced Local Storage
+    summary: ZFS-based storage with encryption.
+    class_ref: class.storage.pool
+    capabilities:
+      - cap.storage.pool.zfs
+      - cap.storage.volume.thin
+      - cap.storage.volume.snapshot
+      - cap.storage.volume.clone
+      - cap.storage.volume.encryption
+
+  - id: pack.storage.shared.nfs
+    title: NFS Shared Storage
+    summary: NFS-based shared storage.
+    class_ref: class.storage.pool
+    capabilities:
+      - cap.storage.pool.nfs
+      - cap.storage.volume.thin
+
+  # ===========================================================================
+  # L4 - Workload Packs
+  # ===========================================================================
+
+  - id: pack.workload.lxc.standard
+    title: Standard LXC Workload
+    summary: Standard LXC container with bridge networking.
+    class_ref: class.compute.workload.container
+    capabilities:
+      - cap.workload.runtime.lxc
+      - cap.workload.network.bridge
+      - cap.workload.storage.bind
+
+  - id: pack.workload.docker.standard
+    title: Standard Docker Workload
+    summary: Standard Docker container with bridge networking.
+    class_ref: class.compute.workload.container
+    capabilities:
+      - cap.workload.runtime.docker
+      - cap.workload.network.bridge
+      - cap.workload.storage.volume
+
+  - id: pack.workload.vm.standard
+    title: Standard VM Workload
+    summary: Standard QEMU/KVM virtual machine.
+    class_ref: class.compute.workload.vm
+    capabilities:
+      - cap.workload.runtime.qemu
+      - cap.workload.network.bridge
+      - cap.workload.storage.volume
+
+  # ===========================================================================
+  # L5 - Service Packs
+  # ===========================================================================
+
+  - id: pack.service.database.sql
+    title: SQL Database Service
+    summary: SQL database with replication support.
+    class_ref: class.service.database
+    capabilities:
+      - cap.service.database.sql
+      - cap.service.database.replication
+      - cap.service.monitoring.metrics
+
+  - id: pack.service.cache.redis
+    title: Redis Cache Service
+    summary: Redis cache with persistence.
+    class_ref: class.service.cache
+    capabilities:
+      - cap.service.cache.memory
+      - cap.service.cache.persistence
+      - cap.service.messaging.pubsub
+      - cap.service.monitoring.metrics
+
+  - id: pack.service.web.proxy
+    title: Web Proxy Service
+    summary: Reverse proxy with load balancing.
+    class_ref: class.service.proxy
+    capabilities:
+      - cap.service.web.http
+      - cap.service.web.websocket
+      - cap.service.web.reverse_proxy
+      - cap.service.web.load_balancer
+      - cap.service.monitoring.metrics
+
+  - id: pack.service.dns.adblock
+    title: DNS Ad-Blocking Service
+    summary: DNS resolver with content filtering.
+    class_ref: class.service.dns
+    capabilities:
+      - cap.service.dns.recursive
+      - cap.service.dns.filtering
+      - cap.service.monitoring.metrics
+
+  - id: pack.service.monitoring.prometheus
+    title: Prometheus Monitoring Service
+    summary: Metrics collection and storage.
+    class_ref: class.service.monitoring
+    capabilities:
+      - cap.service.monitoring.metrics
+      - cap.service.database.timeseries
+      - cap.service.web.http
+
+  - id: pack.service.vpn.mesh
+    title: VPN Mesh Service
+    summary: Tailscale mesh VPN service.
+    class_ref: class.service.vpn
+    capabilities:
+      - cap.service.vpn.tailscale
+      - cap.service.monitoring.metrics
+
+  # ===========================================================================
+  # L6 - Observability Packs
+  # ===========================================================================
+
+  - id: pack.observability.metrics
+    title: Metrics Observability
+    summary: Pull-based metrics collection with dashboards.
+    class_ref: class.observability.dashboard
+    capabilities:
+      - cap.observability.collection.pull
+      - cap.observability.alerting.threshold
+      - cap.observability.visualization.dashboard
+      - cap.observability.visualization.graph
+
+  - id: pack.observability.logs
+    title: Log Observability
+    summary: Push-based log collection.
+    class_ref: class.observability.dashboard
+    capabilities:
+      - cap.observability.collection.push
+      - cap.observability.alerting.threshold
+      - cap.observability.visualization.table
+
+  # ===========================================================================
+  # L7 - Operations Packs
+  # ===========================================================================
+
+  - id: pack.operations.backup.standard
+    title: Standard Backup
+    summary: Scheduled incremental backups with retention.
+    class_ref: class.operations.backup
+    capabilities:
+      - cap.operations.backup.full
+      - cap.operations.backup.incremental
+      - cap.operations.automation.scheduled
+      - cap.operations.policy.retention
+
+  - id: pack.operations.backup.snapshot
+    title: Snapshot Backup
+    summary: Snapshot-based backups with lifecycle management.
+    class_ref: class.operations.backup
+    capabilities:
+      - cap.operations.backup.snapshot
+      - cap.operations.automation.scheduled
+      - cap.operations.policy.lifecycle

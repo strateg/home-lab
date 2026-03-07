@@ -1,0 +1,845 @@
+version: 2
+schema: capability-catalog
+
+# Capability Catalog - Central registry of all standard capabilities
+# Namespace: cap.<domain>.<subdomain>.<capability>
+# Vendor capabilities (vendor.*) are NOT registered here - they are documented in object modules
+
+capabilities:
+
+  # ===========================================================================
+  # L1 - Foundation: Compute
+  # ===========================================================================
+
+  # Virtualization capabilities
+  - id: cap.compute.virtualization.lxc
+    title: LXC Container Runtime
+    summary: Supports LXC container workloads.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - id: cap.compute.virtualization.qemu
+    title: QEMU/KVM Virtual Machines
+    summary: Supports QEMU/KVM virtual machine workloads.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - id: cap.compute.virtualization.docker
+    title: Docker Container Runtime
+    summary: Supports Docker container workloads.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - id: cap.compute.virtualization.podman
+    title: Podman Container Runtime
+    summary: Supports Podman container workloads.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  # Clustering capabilities
+  - id: cap.compute.clustering.node
+    title: Cluster Node
+    summary: Can participate as a node in a compute cluster.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - id: cap.compute.clustering.ha
+    title: High Availability
+    summary: Supports HA failover and fencing.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - id: cap.compute.clustering.migration
+    title: Live Migration
+    summary: Supports live migration of workloads between nodes.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  # Compute storage backends
+  - id: cap.compute.storage.local
+    title: Local Storage
+    summary: Supports local disk storage backends.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - id: cap.compute.storage.shared
+    title: Shared Storage
+    summary: Supports shared/network storage backends (NFS, iSCSI, Ceph).
+    domain: compute
+    layer: L1
+    stability: stable
+
+  - id: cap.compute.storage.backup
+    title: Backup Storage
+    summary: Supports backup target storage.
+    domain: compute
+    layer: L1
+    stability: stable
+
+  # ===========================================================================
+  # L1 - Foundation: Network (Router)
+  # ===========================================================================
+
+  - id: cap.router.routing.static
+    title: Static Routing
+    summary: Supports static routes for IPv4/IPv6 traffic forwarding.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.routing.dynamic
+    title: Dynamic Routing
+    summary: Supports dynamic routing protocols (OSPF, RIP).
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.nat
+    title: NAT
+    summary: Supports source/destination network address translation.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.firewall.stateful
+    title: Stateful Firewall
+    summary: Supports stateful filtering policies.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.firewall.zones
+    title: Firewall Zones
+    summary: Supports zone-based firewall policies.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.dhcp.server
+    title: DHCP Server
+    summary: Supports DHCP lease management for local subnets.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.dhcp.relay
+    title: DHCP Relay
+    summary: Supports DHCP relay agent functionality.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.dns.resolver
+    title: DNS Resolver
+    summary: Supports recursive DNS resolution.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.dns.cache
+    title: DNS Cache
+    summary: Supports DNS response caching.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.wireguard.endpoint
+    title: WireGuard Endpoint
+    summary: Supports WireGuard tunnel endpoint mode.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.wireguard.hub
+    title: WireGuard Hub
+    summary: Supports WireGuard hub mode with multiple peers.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.qos.basic
+    title: Basic QoS
+    summary: Supports traffic priority and simple shaping.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.qos.advanced
+    title: Advanced QoS
+    summary: Supports HTB, queuing disciplines, and traffic classes.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.vlan
+    title: VLAN
+    summary: Supports 802.1Q VLAN interfaces and tagging.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.bgp
+    title: BGP
+    summary: Supports Border Gateway Protocol peering.
+    domain: network
+    layer: L1
+    stability: experimental
+
+  - id: cap.router.vrf
+    title: VRF
+    summary: Supports virtual routing and forwarding domains.
+    domain: network
+    layer: L1
+    stability: experimental
+
+  - id: cap.router.lte
+    title: LTE Connectivity
+    summary: Supports LTE/4G WAN connectivity.
+    domain: network
+    layer: L1
+    stability: stable
+
+  - id: cap.router.wifi.ap
+    title: WiFi Access Point
+    summary: Supports WiFi access point mode.
+    domain: network
+    layer: L1
+    stability: stable
+
+  # ===========================================================================
+  # L1 - Foundation: Power
+  # ===========================================================================
+
+  - id: cap.power.ups.battery
+    title: Battery Backup
+    summary: Provides battery backup power during outages.
+    domain: power
+    layer: L1
+    stability: stable
+
+  - id: cap.power.ups.surge
+    title: Surge Protection
+    summary: Provides surge and spike protection.
+    domain: power
+    layer: L1
+    stability: stable
+
+  - id: cap.power.ups.telemetry
+    title: UPS Telemetry
+    summary: Provides power status telemetry (load, battery, runtime).
+    domain: power
+    layer: L1
+    stability: stable
+
+  - id: cap.power.ups.shutdown
+    title: Graceful Shutdown
+    summary: Supports graceful shutdown signaling to connected hosts.
+    domain: power
+    layer: L1
+    stability: stable
+
+  - id: cap.power.pdu.switching
+    title: Outlet Switching
+    summary: Supports per-outlet power switching.
+    domain: power
+    layer: L1
+    stability: stable
+
+  - id: cap.power.pdu.metering
+    title: Power Metering
+    summary: Provides per-outlet power consumption metering.
+    domain: power
+    layer: L1
+    stability: stable
+
+  - id: cap.power.pdu.scheduling
+    title: Power Scheduling
+    summary: Supports scheduled power on/off for outlets.
+    domain: power
+    layer: L1
+    stability: stable
+
+  # ===========================================================================
+  # L2 - Network Infrastructure
+  # ===========================================================================
+
+  - id: cap.bridge.linux
+    title: Linux Bridge
+    summary: Supports Linux kernel bridge interfaces.
+    domain: bridge
+    layer: L2
+    stability: stable
+
+  - id: cap.bridge.ovs
+    title: Open vSwitch
+    summary: Supports Open vSwitch bridges.
+    domain: bridge
+    layer: L2
+    stability: stable
+
+  - id: cap.bridge.veth
+    title: Virtual Ethernet
+    summary: Supports veth pair interfaces.
+    domain: bridge
+    layer: L2
+    stability: stable
+
+  - id: cap.vlan.tagging
+    title: VLAN Tagging
+    summary: Supports 802.1Q VLAN tagging.
+    domain: vlan
+    layer: L2
+    stability: stable
+
+  - id: cap.vlan.trunking
+    title: VLAN Trunking
+    summary: Supports VLAN trunk ports with multiple VLANs.
+    domain: vlan
+    layer: L2
+    stability: stable
+
+  - id: cap.vlan.pvid
+    title: Port VLAN ID
+    summary: Supports native/untagged VLAN assignment.
+    domain: vlan
+    layer: L2
+    stability: stable
+
+  - id: cap.firewall.stateful
+    title: Stateful Filtering
+    summary: Supports connection tracking and stateful rules.
+    domain: firewall
+    layer: L2
+    stability: stable
+
+  - id: cap.firewall.zones
+    title: Security Zones
+    summary: Supports zone-based security policies.
+    domain: firewall
+    layer: L2
+    stability: stable
+
+  - id: cap.firewall.nat
+    title: NAT Rules
+    summary: Supports SNAT/DNAT/masquerade rules.
+    domain: firewall
+    layer: L2
+    stability: stable
+
+  - id: cap.firewall.logging
+    title: Firewall Logging
+    summary: Supports rule match logging.
+    domain: firewall
+    layer: L2
+    stability: stable
+
+  - id: cap.qos.shaping
+    title: Traffic Shaping
+    summary: Supports egress traffic shaping.
+    domain: qos
+    layer: L2
+    stability: stable
+
+  - id: cap.qos.policing
+    title: Traffic Policing
+    summary: Supports ingress traffic policing.
+    domain: qos
+    layer: L2
+    stability: stable
+
+  - id: cap.qos.marking
+    title: DSCP Marking
+    summary: Supports DSCP/ToS marking.
+    domain: qos
+    layer: L2
+    stability: stable
+
+  # ===========================================================================
+  # L3 - Storage
+  # ===========================================================================
+
+  - id: cap.storage.pool.lvm
+    title: LVM Storage Pool
+    summary: Supports LVM-based storage pools.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.pool.zfs
+    title: ZFS Storage Pool
+    summary: Supports ZFS-based storage pools.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.pool.ceph
+    title: Ceph Storage Pool
+    summary: Supports Ceph RBD storage pools.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.pool.nfs
+    title: NFS Storage Pool
+    summary: Supports NFS-mounted storage.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.pool.iscsi
+    title: iSCSI Storage Pool
+    summary: Supports iSCSI target storage.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.volume.thin
+    title: Thin Provisioning
+    summary: Supports thin-provisioned volumes.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.volume.snapshot
+    title: Volume Snapshots
+    summary: Supports point-in-time volume snapshots.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.volume.clone
+    title: Volume Cloning
+    summary: Supports fast volume cloning.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.volume.encryption
+    title: Volume Encryption
+    summary: Supports at-rest volume encryption.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.media.ssd
+    title: SSD Media
+    summary: Solid-state storage media.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.media.hdd
+    title: HDD Media
+    summary: Spinning disk storage media.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  - id: cap.storage.media.nvme
+    title: NVMe Media
+    summary: NVMe solid-state storage media.
+    domain: storage
+    layer: L3
+    stability: stable
+
+  # ===========================================================================
+  # L4 - Platform (Workloads)
+  # ===========================================================================
+
+  - id: cap.workload.runtime.lxc
+    title: LXC Runtime
+    summary: Runs as LXC container workload.
+    domain: workload
+    layer: L4
+    stability: stable
+
+  - id: cap.workload.runtime.docker
+    title: Docker Runtime
+    summary: Runs as Docker container workload.
+    domain: workload
+    layer: L4
+    stability: stable
+
+  - id: cap.workload.runtime.podman
+    title: Podman Runtime
+    summary: Runs as Podman container workload.
+    domain: workload
+    layer: L4
+    stability: stable
+
+  - id: cap.workload.runtime.qemu
+    title: QEMU/KVM Runtime
+    summary: Runs as QEMU/KVM virtual machine.
+    domain: workload
+    layer: L4
+    stability: stable
+
+  - id: cap.workload.network.bridge
+    title: Bridge Network
+    summary: Uses bridged network mode.
+    domain: workload
+    layer: L4
+    stability: stable
+
+  - id: cap.workload.network.macvlan
+    title: Macvlan Network
+    summary: Uses macvlan network mode.
+    domain: workload
+    layer: L4
+    stability: stable
+
+  - id: cap.workload.network.host
+    title: Host Network
+    summary: Uses host network namespace.
+    domain: workload
+    layer: L4
+    stability: stable
+
+  - id: cap.workload.storage.bind
+    title: Bind Mount Storage
+    summary: Uses bind mount volumes.
+    domain: workload
+    layer: L4
+    stability: stable
+
+  - id: cap.workload.storage.volume
+    title: Named Volume Storage
+    summary: Uses named volumes.
+    domain: workload
+    layer: L4
+    stability: stable
+
+  - id: cap.workload.storage.tmpfs
+    title: Tmpfs Storage
+    summary: Uses tmpfs mounts.
+    domain: workload
+    layer: L4
+    stability: stable
+
+  # ===========================================================================
+  # L5 - Application Services
+  # ===========================================================================
+
+  # Database capabilities
+  - id: cap.service.database.sql
+    title: SQL Database
+    summary: Provides SQL query interface.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.database.nosql
+    title: NoSQL Database
+    summary: Provides NoSQL/document database interface.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.database.timeseries
+    title: Time-Series Database
+    summary: Optimized for time-series data.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.database.graph
+    title: Graph Database
+    summary: Provides graph query interface.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.database.replication
+    title: Database Replication
+    summary: Supports primary-replica replication.
+    domain: service
+    layer: L5
+    stability: stable
+
+  # Cache capabilities
+  - id: cap.service.cache.memory
+    title: In-Memory Cache
+    summary: Provides in-memory key-value cache.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.cache.distributed
+    title: Distributed Cache
+    summary: Supports distributed/clustered caching.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.cache.persistence
+    title: Cache Persistence
+    summary: Supports cache persistence to disk.
+    domain: service
+    layer: L5
+    stability: stable
+
+  # Web capabilities
+  - id: cap.service.web.http
+    title: HTTP Server
+    summary: Serves HTTP/HTTPS traffic.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.web.websocket
+    title: WebSocket Server
+    summary: Supports WebSocket connections.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.web.grpc
+    title: gRPC Server
+    summary: Serves gRPC traffic.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.web.reverse_proxy
+    title: Reverse Proxy
+    summary: Provides reverse proxy functionality.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.web.load_balancer
+    title: Load Balancer
+    summary: Provides load balancing across backends.
+    domain: service
+    layer: L5
+    stability: stable
+
+  # Messaging capabilities
+  - id: cap.service.messaging.mqtt
+    title: MQTT Broker
+    summary: Provides MQTT message broker.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.messaging.amqp
+    title: AMQP Broker
+    summary: Provides AMQP message broker.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.messaging.pubsub
+    title: Pub/Sub Messaging
+    summary: Provides publish/subscribe messaging.
+    domain: service
+    layer: L5
+    stability: stable
+
+  # Monitoring export capabilities
+  - id: cap.service.monitoring.metrics
+    title: Metrics Export
+    summary: Exports metrics (Prometheus format).
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.monitoring.logs
+    title: Log Export
+    summary: Exports structured logs.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.monitoring.traces
+    title: Trace Export
+    summary: Exports distributed traces.
+    domain: service
+    layer: L5
+    stability: stable
+
+  # DNS capabilities
+  - id: cap.service.dns.authoritative
+    title: Authoritative DNS
+    summary: Provides authoritative DNS for zones.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.dns.recursive
+    title: Recursive DNS
+    summary: Provides recursive DNS resolution.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.dns.filtering
+    title: DNS Filtering
+    summary: Provides DNS-based content filtering.
+    domain: service
+    layer: L5
+    stability: stable
+
+  # VPN capabilities
+  - id: cap.service.vpn.wireguard
+    title: WireGuard VPN
+    summary: Provides WireGuard VPN service.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.vpn.tailscale
+    title: Tailscale VPN
+    summary: Provides Tailscale mesh VPN.
+    domain: service
+    layer: L5
+    stability: stable
+
+  - id: cap.service.vpn.openvpn
+    title: OpenVPN
+    summary: Provides OpenVPN service.
+    domain: service
+    layer: L5
+    stability: stable
+
+  # ===========================================================================
+  # L6 - Observability
+  # ===========================================================================
+
+  - id: cap.observability.collection.pull
+    title: Pull-Based Collection
+    summary: Collects data via pull/scrape model.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - id: cap.observability.collection.push
+    title: Push-Based Collection
+    summary: Receives data via push model.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - id: cap.observability.collection.agent
+    title: Agent-Based Collection
+    summary: Uses deployed agents for collection.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - id: cap.observability.alerting.threshold
+    title: Threshold Alerts
+    summary: Supports threshold-based alerting.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - id: cap.observability.alerting.anomaly
+    title: Anomaly Detection
+    summary: Supports anomaly-based alerting.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - id: cap.observability.alerting.composite
+    title: Composite Alerts
+    summary: Supports multi-condition composite alerts.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - id: cap.observability.visualization.dashboard
+    title: Dashboard Visualization
+    summary: Supports dashboard creation.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - id: cap.observability.visualization.graph
+    title: Graph Visualization
+    summary: Supports time-series graphs.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  - id: cap.observability.visualization.table
+    title: Table Visualization
+    summary: Supports tabular data display.
+    domain: observability
+    layer: L6
+    stability: stable
+
+  # ===========================================================================
+  # L7 - Operations
+  # ===========================================================================
+
+  - id: cap.operations.backup.full
+    title: Full Backup
+    summary: Supports full backup creation.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - id: cap.operations.backup.incremental
+    title: Incremental Backup
+    summary: Supports incremental backup creation.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - id: cap.operations.backup.snapshot
+    title: Snapshot Backup
+    summary: Supports snapshot-based backups.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - id: cap.operations.automation.scheduled
+    title: Scheduled Automation
+    summary: Supports scheduled/cron-based automation.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - id: cap.operations.automation.triggered
+    title: Event-Triggered Automation
+    summary: Supports event-triggered automation.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - id: cap.operations.automation.manual
+    title: Manual Automation
+    summary: Supports manually-invoked automation.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - id: cap.operations.policy.retention
+    title: Retention Policy
+    summary: Supports data retention policies.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - id: cap.operations.policy.lifecycle
+    title: Lifecycle Policy
+    summary: Supports resource lifecycle policies.
+    domain: operations
+    layer: L7
+    stability: stable
+
+  - id: cap.operations.policy.compliance
+    title: Compliance Policy
+    summary: Supports compliance/audit policies.
+    domain: operations
+    layer: L7
+    stability: stable

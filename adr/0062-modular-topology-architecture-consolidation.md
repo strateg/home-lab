@@ -64,6 +64,34 @@ Both are mandatory:
 
 Layer ownership and directional contracts from accepted ADRs remain in force and are enforced through v5 layer contract data.
 
+Layer contract source of truth: `v5/topology/layer-contract.yaml`
+
+Target v5 layer scope (full coverage):
+
+| Layer | Group | Class Domain | Status |
+|-------|-------|--------------|--------|
+| L0 | l0_meta | meta.* | deferred (no instances) |
+| L1 | l1_devices | compute.*, network.router, power.* | implemented |
+| L2 | l2_network | network.bridge, network.vlan, network.firewall | planned |
+| L3 | l3_storage | storage.pool, storage.volume, storage.media | planned |
+| L4 | l4_vms, l4_lxc | compute.workload.* | implemented |
+| L5 | l5_services | service.* | implemented |
+| L6 | l6_observability | observability.healthcheck, observability.alert, observability.dashboard | planned |
+| L7 | l7_operations | operations.workflow, operations.backup, operations.policy | planned |
+
+Cross-layer dependency rules (normative):
+
+| Relation | Source Layer | Target Layer | Direction | Status |
+|----------|--------------|--------------|-----------|--------|
+| runtime.target_ref | L5 | L1, L4 | downward | enforced |
+| storage.pool_ref | L4 | L3 | downward | planned |
+| storage.volume_ref | L5 | L3 | downward | planned |
+| network.bridge_ref | L4 | L2 | downward | planned |
+| network.vlan_ref | L1, L4 | L2 | downward | planned |
+| observability.target_ref | L6 | L1, L4, L5 | downward | planned |
+| operations.target_ref | L7 | L1, L4, L5, L6 | downward | planned |
+| power.source_ref | L1 | L1 | lateral | planned |
+
 ### 4. Capability Model Is Kept Simple
 
 Only three capability levels are normative:
@@ -72,11 +100,36 @@ Only three capability levels are normative:
 2. class contract (`required_capabilities`, `optional_capabilities`, `capability_packs`)
 3. object binding (`enabled_capabilities`, optional `enabled_packs`, optional `vendor.*`)
 
-Guardrails:
+#### 4.1 Namespace Convention
 
-- no deep capability inheritance trees
-- vendor-only keys must be namespaced as `vendor.*`
-- object-local capability is promoted to class-level pack/catalog when reused by 2+ objects with identical semantics
+```text
+cap.<domain>.<subdomain>.<capability>    # Standard capabilities (catalog-registered)
+vendor.<vendor>.<domain>.<capability>    # Vendor-specific extensions
+pack.<domain>.<profile>                  # Capability packs (reusable bundles)
+```
+
+#### 4.2 Domain Taxonomy (by layer)
+
+| Layer | Domain | Capability Prefix | Status |
+|-------|--------|-------------------|--------|
+| L1 | Compute | `cap.compute.*` | partial |
+| L1 | Network | `cap.router.*` | implemented |
+| L1 | Power | `cap.power.*` | planned |
+| L2 | Bridge/VLAN/Firewall/QoS | `cap.bridge.*`, `cap.vlan.*`, `cap.firewall.*`, `cap.qos.*` | planned |
+| L3 | Storage | `cap.storage.*` | planned |
+| L4 | Workload | `cap.workload.*` | planned |
+| L5 | Service | `cap.service.*` | planned |
+| L6 | Observability | `cap.observability.*` | planned |
+| L7 | Operations | `cap.operations.*` | planned |
+
+#### 4.3 Guardrails
+
+- no deep capability inheritance trees (max 1 level via packs)
+- capability IDs are flat and stable within domain
+- vendor-only capabilities must use `vendor.<vendor>.*` namespace
+- object-local capability is promoted to catalog when reused by 2+ objects with same semantics
+- capability packs must reference only catalog-registered capabilities
+- class required_capabilities must be subset of catalog
 
 ### 5. YAML Source, JSON Canonical Build Artifact
 

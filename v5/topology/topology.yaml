@@ -12,6 +12,6 @@ paths:
   model_lock: v5/topology/model.lock.yaml
   profile_map: v5/topology/profile-map.yaml
   layer_contract: v5/topology/layer-contract.yaml
-  capability_catalog: v5/topology/class-modules/classes/router/capability-catalog.yaml
-  capability_packs: v5/topology/class-modules/classes/router/capability-packs.yaml
+  capability_catalog: v5/topology/class-modules/capability-catalog.yaml
+  capability_packs: v5/topology/class-modules/capability-packs.yaml
   instance_bindings: v5/topology/instances/home-lab/instance-bindings.yaml
