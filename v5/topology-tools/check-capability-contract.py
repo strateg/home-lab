@@ -186,6 +186,89 @@ class CapabilityContractChecker:
                     expanded.add(cap)
         return expanded
 
+    @staticmethod
+    def _normalize_release_token(value: str) -> str:
+        return "".join(ch for ch in value.lower() if ch.isalnum())
+
+    def _derive_os_caps(self, *, object_id: str, obj: Dict[str, Any]) -> Set[str]:
+        software = obj.get("software")
+        if not isinstance(software, dict):
+            return set()
+        os_payload = software.get("os")
+        if not isinstance(os_payload, dict):
+            return set()
+
+        family = os_payload.get("family")
+        architecture = os_payload.get("architecture")
+        if not isinstance(family, str) or not family or not isinstance(architecture, str) or not architecture:
+            self._warn(
+                f"Object '{object_id}' has legacy/non-canonical software.os; "
+                "expected at least family+architecture for OS capability derivation"
+            )
+            return set()
+
+        distribution = os_payload.get("distribution")
+        release = os_payload.get("release")
+        release_id = os_payload.get("release_id")
+        codename = os_payload.get("codename")
+        init_system = os_payload.get("init_system")
+        package_manager = os_payload.get("package_manager")
+
+        if not isinstance(distribution, str) or not distribution:
+            distribution = None
+        if not isinstance(release, str) or not release:
+            release = None
+        if not isinstance(release_id, str) or not release_id:
+            release_id = None
+        if not isinstance(codename, str) or not codename:
+            codename = None
+        if not isinstance(init_system, str) or not init_system:
+            init_system = None
+        if not isinstance(package_manager, str) or not package_manager:
+            package_manager = None
+
+        if release and not release_id:
+            release_id = self._normalize_release_token(release)
+        if release and release_id:
+            if self._normalize_release_token(release) != self._normalize_release_token(release_id):
+                self._error(
+                    f"Object '{object_id}' software.os.release '{release}' "
+                    f"does not match release_id '{release_id}' after normalization"
+                )
+                return set()
+            release_id = self._normalize_release_token(release_id)
+
+        distro_inference: Dict[str, tuple[str, str]] = {
+            "debian": ("systemd", "apt"),
+            "ubuntu": ("systemd", "apt"),
+            "alpine": ("openrc", "apk"),
+            "fedora": ("systemd", "dnf"),
+            "nixos": ("systemd", "nix"),
+            "routeros": ("proprietary", "none"),
+            "openwrt": ("busybox", "opkg"),
+        }
+        if distribution and distribution in distro_inference:
+            default_init, default_pkg = distro_inference[distribution]
+            if init_system is None:
+                init_system = default_init
+            if package_manager is None:
+                package_manager = default_pkg
+
+        derived: Set[str] = set()
+        derived.add(f"cap.os.{family}")
+        if distribution:
+            derived.add(f"cap.os.{distribution}")
+        if distribution and release_id:
+            derived.add(f"cap.os.{distribution}.{release_id}")
+        if distribution and codename:
+            derived.add(f"cap.os.{distribution}.{codename}")
+        if init_system:
+            derived.add(f"cap.os.init.{init_system}")
+        if package_manager:
+            derived.add(f"cap.os.pkg.{package_manager}")
+        derived.add(f"cap.arch.{architecture}")
+        return derived
+
     def _validate_classes(
         self,
         *,
@@ -260,6 +343,11 @@ class CapabilityContractChecker:
                 pack_refs=enabled_packs,
                 packs=packs,
             )
+            derived_os_caps = self._derive_os_caps(object_id=object_id, obj=obj)
+            for cap in derived_os_caps:
+                if cap not in catalog_ids:
+                    self._warn(f"Object '{object_id}' derived capability '{cap}' is missing in capability catalog")
+
             for cap in expanded:
                 if cap.startswith("vendor."):
                     continue
@@ -269,7 +357,9 @@ class CapabilityContractChecker:
             class_def = class_map[class_ref]
             class_required = class_def.get("required_capabilities", []) or []
             class_required_set = set(cap for cap in class_required if isinstance(cap, str))
-            missing = sorted(cap for cap in class_required_set if cap not in expanded)
+            effective_caps = set(expanded)
+            effective_caps.update(derived_os_caps)
+            missing = sorted(cap for cap in class_required_set if cap not in effective_caps)
             if missing:
                 self._error(
                     f"Object '{object_id}' does not satisfy class '{class_ref}' required capabilities: {missing}"

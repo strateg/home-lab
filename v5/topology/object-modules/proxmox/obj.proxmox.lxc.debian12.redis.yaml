@@ -3,10 +3,23 @@ version: 1.0.0
 class_ref: class.compute.workload.container
 model: LXC Debian 12 Redis
 vendor: proxmox
+prerequisites:
+  os_ref: obj.os.debian.12.proxmox.lxc
+software:
+  os:
+    family: linux
+    distribution: debian
+    release: "12"
+    release_id: "12"
+    codename: bookworm
+    architecture: x86_64
+    init_system: systemd
+    package_manager: apt
+    kernel: linux
+    eol_date: "2028-06-30"
 enabled_capabilities:
 - cap.compute.workload.container
 - cap.compute.workload.linux_base
 vendor_capabilities:
 - vendor.proxmox.runtime.lxc
-- vendor.debian.bookworm.base
 - vendor.service.redis.optimized

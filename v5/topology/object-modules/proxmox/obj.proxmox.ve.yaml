@@ -3,6 +3,20 @@ version: 1.0.0
 class_ref: class.compute.hypervisor
 model: Proxmox VE 9
 vendor: proxmox
+prerequisites:
+  os_ref: obj.os.proxmox.ve.9
+software:
+  os:
+    family: linux
+    distribution: debian
+    release: "12"
+    release_id: "12"
+    codename: bookworm
+    architecture: x86_64
+    init_system: systemd
+    package_manager: apt
+    kernel: linux
+    eol_date: "2028-06-30"
 enabled_capabilities:
 - cap.compute.host.hypervisor
 - cap.compute.runtime.container_host

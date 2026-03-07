@@ -80,6 +80,8 @@ class V5Compiler:
 
         self._diagnostics: list[Diagnostic] = []
         self._error_hints = self._load_error_hints(error_catalog_path)
+        self._object_derived_caps: dict[str, list[str]] = {}
+        self._object_effective_os: dict[str, dict[str, Any]] = {}
 
     def _load_error_hints(self, path: Path) -> dict[str, str]:
         if not path.exists():
@@ -357,6 +359,158 @@ class V5Compiler:
                     expanded.add(cap)
         return expanded
 
+    @staticmethod
+    def _normalize_release_token(value: str) -> str:
+        return "".join(ch for ch in value.lower() if ch.isalnum())
+
+    def _derive_os_capabilities(
+        self,
+        *,
+        object_id: str,
+        object_payload: dict[str, Any],
+        catalog_ids: set[str],
+        path: str,
+    ) -> tuple[set[str], dict[str, Any] | None]:
+        software = object_payload.get("software")
+        if not isinstance(software, dict):
+            return set(), None
+        os_payload = software.get("os")
+        if not isinstance(os_payload, dict):
+            return set(), None
+
+        family = os_payload.get("family")
+        architecture = os_payload.get("architecture")
+        if not isinstance(family, str) or not family or not isinstance(architecture, str) or not architecture:
+            self.add_diag(
+                code="W3201",
+                severity="warning",
+                stage="validate",
+                message=(
+                    f"object '{object_id}' has legacy/non-canonical software.os; "
+                    "expected at least 'family' and 'architecture' for capability derivation."
+                ),
+                path=path,
+            )
+            return set(), None
+
+        distribution = os_payload.get("distribution")
+        release = os_payload.get("release")
+        release_id = os_payload.get("release_id")
+        codename = os_payload.get("codename")
+        init_system = os_payload.get("init_system")
+        package_manager = os_payload.get("package_manager")
+        kernel = os_payload.get("kernel")
+        eol_date = os_payload.get("eol_date")
+
+        if not isinstance(distribution, str) or not distribution:
+            distribution = None
+        if not isinstance(release, str) or not release:
+            release = None
+        if not isinstance(release_id, str) or not release_id:
+            release_id = None
+        if not isinstance(codename, str) or not codename:
+            codename = None
+        if not isinstance(init_system, str) or not init_system:
+            init_system = None
+        if not isinstance(package_manager, str) or not package_manager:
+            package_manager = None
+        if not isinstance(kernel, str) or not kernel:
+            kernel = None
+        if not isinstance(eol_date, str) or not eol_date:
+            eol_date = None
+
+        if release and not release_id:
+            release_id = self._normalize_release_token(release)
+        if release and release_id:
+            normalized_release = self._normalize_release_token(release)
+            normalized_release_id = self._normalize_release_token(release_id)
+            if normalized_release != normalized_release_id:
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=(
+                        f"object '{object_id}' software.os.release '{release}' does not match "
+                        f"release_id '{release_id}' after normalization."
+                    ),
+                    path=path,
+                )
+                return set(), None
+            release_id = normalized_release_id
+
+        distro_inference: dict[str, tuple[str, str]] = {
+            "debian": ("systemd", "apt"),
+            "ubuntu": ("systemd", "apt"),
+            "alpine": ("openrc", "apk"),
+            "fedora": ("systemd", "dnf"),
+            "nixos": ("systemd", "nix"),
+            "routeros": ("proprietary", "none"),
+            "openwrt": ("busybox", "opkg"),
+        }
+        if distribution and distribution in distro_inference:
+            default_init, default_pkg = distro_inference[distribution]
+            if init_system is None:
+                init_system = default_init
+            if package_manager is None:
+                package_manager = default_pkg
+
+        family_kernel_map = {
+            "linux": "linux",
+            "bsd": "bsd",
+            "windows": "nt",
+            "routeros": "proprietary",
+            "proprietary": "proprietary",
+        }
+        if kernel is None:
+            kernel = family_kernel_map.get(family)
+
+        derived: set[str] = set()
+        derived.add(f"cap.os.{family}")
+        if distribution:
+            derived.add(f"cap.os.{distribution}")
+        if distribution and release_id:
+            derived.add(f"cap.os.{distribution}.{release_id}")
+        if distribution and codename:
+            derived.add(f"cap.os.{distribution}.{codename}")
+        if init_system:
+            derived.add(f"cap.os.init.{init_system}")
+        if package_manager:
+            derived.add(f"cap.os.pkg.{package_manager}")
+        derived.add(f"cap.arch.{architecture}")
+
+        for cap in sorted(derived):
+            if cap not in catalog_ids:
+                self.add_diag(
+                    code="W3201",
+                    severity="warning",
+                    stage="validate",
+                    message=f"object '{object_id}' derived capability '{cap}' is missing in capability catalog.",
+                    path=path,
+                )
+
+        effective_os: dict[str, Any] = {
+            "family": family,
+            "architecture": architecture,
+        }
+        if distribution:
+            effective_os["distribution"] = distribution
+        if release:
+            effective_os["release"] = release
+        if release_id:
+            effective_os["release_id"] = release_id
+        if codename:
+            effective_os["codename"] = codename
+        if init_system:
+            effective_os["init_system"] = init_system
+        if package_manager:
+            effective_os["package_manager"] = package_manager
+        if kernel:
+            effective_os["kernel"] = kernel
+        if eol_date:
+            effective_os["eol_date"] = eol_date
+
+        return derived, effective_os
+
     def _validate_capability_contract(
         self,
         *,
@@ -490,6 +644,16 @@ class V5Compiler:
             if class_ref not in class_map:
                 continue
 
+            derived_os_caps, effective_os = self._derive_os_capabilities(
+                object_id=object_id,
+                object_payload=object_payload,
+                catalog_ids=catalog_ids,
+                path=path,
+            )
+            self._object_derived_caps[object_id] = sorted(derived_os_caps)
+            if effective_os:
+                self._object_effective_os[object_id] = effective_os
+
             enabled_caps = object_payload.get("enabled_capabilities", []) or []
             enabled_packs = object_payload.get("enabled_packs", []) or []
             vendor_caps = object_payload.get("vendor_capabilities", []) or []
@@ -554,8 +718,14 @@ class V5Compiler:
                         path=path,
                     )
 
-            expanded = self._expand_capabilities(direct_caps=enabled_caps, pack_refs=enabled_packs, packs_map=packs_map)
-            for cap in expanded:
+            expanded_declared = self._expand_capabilities(
+                direct_caps=enabled_caps,
+                pack_refs=enabled_packs,
+                packs_map=packs_map,
+            )
+            expanded_effective = set(expanded_declared)
+            expanded_effective.update(derived_os_caps)
+            for cap in expanded_declared:
                 if cap.startswith("vendor."):
                     continue
                 if cap not in catalog_ids:
@@ -579,7 +749,7 @@ class V5Compiler:
 
             class_allowed = class_cap_sets.get(class_ref, set())
             class_required = class_required_sets.get(class_ref, set())
-            missing = sorted(cap for cap in class_required if cap not in expanded)
+            missing = sorted(cap for cap in class_required if cap not in expanded_effective)
             if missing:
                 self.add_diag(
                     code="E3201",
@@ -589,7 +759,7 @@ class V5Compiler:
                     path=path,
                 )
 
-            for cap in sorted(expanded):
+            for cap in sorted(expanded_declared):
                 if cap.startswith("vendor."):
                     continue
                 if cap not in class_allowed:
@@ -939,11 +1109,20 @@ class V5Compiler:
                     "version": object_payload.get("version"),
                     "enabled_capabilities": object_payload.get("enabled_capabilities", []),
                     "enabled_packs": object_payload.get("enabled_packs", []),
+                    "derived_capabilities": self._object_derived_caps.get(object_ref, []),
                     "vendor_capabilities": object_payload.get("vendor_capabilities", []),
                     "vendor": object_payload.get("vendor"),
                     "model": object_payload.get("model"),
                 },
             }
+            effective_os = self._object_effective_os.get(object_ref)
+            if effective_os:
+                effective_item["object"]["software"] = {"os": effective_os}
+            prerequisites = object_payload.get("prerequisites")
+            if isinstance(prerequisites, dict):
+                os_ref = prerequisites.get("os_ref")
+                if isinstance(os_ref, str) and os_ref:
+                    effective_item["object"]["prerequisites"] = {"os_ref": os_ref}
             by_group.setdefault(group, []).append(effective_item)
 
         for group_rows in by_group.values():

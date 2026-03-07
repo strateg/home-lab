@@ -3,6 +3,13 @@ version: 1.0.0
 class_ref: class.compute.cloud_vm
 model: Oracle Cloud VM
 vendor: oracle
+prerequisites:
+  os_ref: obj.os.linux.generic.arm64
+software:
+  os:
+    family: linux
+    architecture: arm64
+    kernel: linux
 enabled_capabilities:
 - cap.compute.node.cloud_vm
 - cap.compute.workload.linux_base
