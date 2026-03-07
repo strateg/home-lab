@@ -9,6 +9,14 @@ from typing import Any, Dict, Iterable, List, Set
 
 import yaml
 
+ROOT = Path(__file__).resolve().parents[2]
+
+DEFAULT_TOPOLOGY = ROOT / "v5" / "topology" / "topology.yaml"
+DEFAULT_CATALOG = ROOT / "v5" / "topology" / "class-modules" / "classes" / "router" / "capability-catalog.yaml"
+DEFAULT_PACKS = ROOT / "v5" / "topology" / "class-modules" / "classes" / "router" / "capability-packs.yaml"
+DEFAULT_CLASSES_DIR = ROOT / "v5" / "topology" / "class-modules" / "classes"
+DEFAULT_OBJECTS_DIR = ROOT / "v5" / "topology" / "object-modules"
+
 
 def _load_yaml(path: Path) -> Any:
     with open(path, "r", encoding="utf-8") as handle:
@@ -295,26 +303,54 @@ class CapabilityContractChecker:
         return 1 if self.errors else 0
 
 
+def _resolve_path(path_str: str) -> Path:
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = ROOT / path
+    return path
+
+
+def _load_manifest_contract_paths(topology_path: Path) -> tuple[str | None, str | None]:
+    if not topology_path.exists():
+        return None, None
+    payload = _load_yaml(topology_path)
+    if not isinstance(payload, dict):
+        return None, None
+    paths = payload.get("paths")
+    if not isinstance(paths, dict):
+        return None, None
+    catalog_rel = paths.get("capability_catalog")
+    packs_rel = paths.get("capability_packs")
+    if isinstance(catalog_rel, str) and catalog_rel and isinstance(packs_rel, str) and packs_rel:
+        return catalog_rel, packs_rel
+    return None, None
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate class/object capability contract templates.")
     parser.add_argument(
+        "--topology",
+        default=str(DEFAULT_TOPOLOGY.relative_to(ROOT).as_posix()),
+        help="Topology manifest path used to resolve capability catalog/packs when not provided explicitly.",
+    )
+    parser.add_argument(
         "--catalog",
-        default="v5/topology/class-modules/classes/router/capability-catalog.yaml",
+        default=None,
         help="Capability catalog YAML path",
     )
     parser.add_argument(
         "--packs",
-        default="v5/topology/class-modules/classes/router/capability-packs.yaml",
+        default=None,
         help="Capability packs YAML path",
     )
     parser.add_argument(
         "--classes-dir",
-        default="v5/topology/class-modules/classes",
+        default=str(DEFAULT_CLASSES_DIR.relative_to(ROOT).as_posix()),
         help="Class module directory",
     )
     parser.add_argument(
         "--objects-dir",
-        default="v5/topology/object-modules",
+        default=str(DEFAULT_OBJECTS_DIR.relative_to(ROOT).as_posix()),
         help="Object module directory",
     )
     return parser
@@ -322,11 +358,27 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = _build_parser().parse_args()
+    topology_path = _resolve_path(args.topology)
+    catalog_arg = args.catalog
+    packs_arg = args.packs
+
+    if not catalog_arg or not packs_arg:
+        manifest_catalog, manifest_packs = _load_manifest_contract_paths(topology_path)
+        if not catalog_arg and manifest_catalog:
+            catalog_arg = manifest_catalog
+        if not packs_arg and manifest_packs:
+            packs_arg = manifest_packs
+
+    if not catalog_arg:
+        catalog_arg = str(DEFAULT_CATALOG.relative_to(ROOT).as_posix())
+    if not packs_arg:
+        packs_arg = str(DEFAULT_PACKS.relative_to(ROOT).as_posix())
+
     checker = CapabilityContractChecker(
-        catalog_path=Path(args.catalog),
-        packs_path=Path(args.packs),
-        classes_dir=Path(args.classes_dir),
-        objects_dir=Path(args.objects_dir),
+        catalog_path=_resolve_path(catalog_arg),
+        packs_path=_resolve_path(packs_arg),
+        classes_dir=_resolve_path(args.classes_dir),
+        objects_dir=_resolve_path(args.objects_dir),
     )
     return checker.run()
 

@@ -184,4 +184,4 @@ Phase sequence:
 - ADR 0062: Topology v5 - Modular Class-Object-Instance Architecture
 - Object modules: `v5/topology/object-modules/`
 - Manifest: `v5/topology/topology.yaml`
-- Capability catalog: `v5/topology/class-modules/capability-catalog.yaml`
+- Capability catalog (active via manifest): `v5/topology/class-modules/classes/router/capability-catalog.yaml`
