@@ -2,7 +2,9 @@ id: class.service.home_automation
 version: 1.0.0
 title: Service Home Automation
 summary: Home automation control and message service role.
-required_capabilities: []
+required_capabilities:
+- cap.service.home_automation.runtime
+- cap.service.home_automation.messaging
 optional_capabilities: []
 capability_packs: []
 invariants:

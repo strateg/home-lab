@@ -2,7 +2,9 @@ id: class.service.proxy
 version: 1.0.0
 title: Service Proxy
 summary: Reverse proxy and ingress routing service role.
-required_capabilities: []
+required_capabilities:
+- cap.service.proxy.runtime
+- cap.service.proxy.ingress
 optional_capabilities: []
 capability_packs: []
 invariants:

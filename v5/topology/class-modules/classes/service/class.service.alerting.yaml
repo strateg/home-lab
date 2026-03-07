@@ -2,7 +2,9 @@ id: class.service.alerting
 version: 1.0.0
 title: Service Alerting
 summary: Alert routing and notification service role.
-required_capabilities: []
+required_capabilities:
+- cap.service.alerting.runtime
+- cap.service.alerting.routing
 optional_capabilities: []
 capability_packs: []
 invariants:

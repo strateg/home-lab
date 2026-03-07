@@ -4,5 +4,8 @@ class_ref: class.service.database
 model: Postgresql
 vendor: home-lab
 enabled_capabilities:
+- cap.service.database.runtime
+- cap.service.database.persistence
+vendor_capabilities:
 - vendor.service.postgresql.runtime
 - vendor.service.postgresql.config

@@ -4,5 +4,8 @@ class_ref: class.service.logging
 model: Syslog Forwarder
 vendor: home-lab
 enabled_capabilities:
+- cap.service.logging.runtime
+- cap.service.logging.forwarding
+vendor_capabilities:
 - vendor.service.syslog_forwarder.runtime
 - vendor.service.syslog_forwarder.config

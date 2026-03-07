@@ -4,5 +4,8 @@ class_ref: class.service.web_ui
 model: Mikrotik Web Ui
 vendor: mikrotik
 enabled_capabilities:
+- cap.service.web_ui.runtime
+- cap.service.web_ui.management
+vendor_capabilities:
 - vendor.service.mikrotik.web_ui.runtime
 - vendor.service.mikrotik.web_ui.config

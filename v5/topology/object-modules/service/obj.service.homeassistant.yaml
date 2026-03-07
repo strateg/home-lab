@@ -4,5 +4,8 @@ class_ref: class.service.home_automation
 model: Homeassistant
 vendor: home-lab
 enabled_capabilities:
+- cap.service.home_automation.runtime
+- cap.service.home_automation.messaging
+vendor_capabilities:
 - vendor.service.homeassistant.runtime
 - vendor.service.homeassistant.config

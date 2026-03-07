@@ -29,7 +29,7 @@ entities:
   l1_devices:
   - instance_id: mikrotik-chateau
     source_id: mikrotik-chateau
-    class_ref: class.network.router
+    class_ref: class.router
     object_ref: obj.mikrotik.chateau_lte7_ax
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
@@ -41,13 +41,13 @@ entities:
     notes: module scaffold exists; capability profile tuning pending
   - instance_id: rtr-mikrotik-chateau
     source_id: rtr-mikrotik-chateau
-    class_ref: class.network.router
+    class_ref: class.router
     object_ref: obj.mikrotik.chateau_lte7_ax
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
   - instance_id: rtr-slate
     source_id: rtr-slate
-    class_ref: class.network.router
+    class_ref: class.router
     object_ref: obj.glinet.slate_ax1800
     status: mapped
     notes: module scaffold exists; capability profile tuning pending

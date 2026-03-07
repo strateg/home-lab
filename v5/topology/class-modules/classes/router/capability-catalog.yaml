@@ -1,0 +1,708 @@
+version: 1
+description: Router capability catalog for v5 topology
+
+# Capability naming convention: cap.net.<domain>.<specific_feature>[.<variant>]
+# OSI mapping is tracked as metadata and documentation, not encoded in ID.
+# Stability levels: stable | experimental | deprecated
+
+capabilities:
+  # ============================================================================
+  # ROUTING
+  # ============================================================================
+
+  - id: cap.net.routing.static
+    title: Static Routing
+    summary: Supports manual static routes for IPv4/IPv6 traffic forwarding
+    domain: routing
+    stability: stable
+    required_by:
+      - class.router
+
+  - id: cap.net.routing.dynamic
+    title: Dynamic Routing (RIP)
+    summary: Supports RIP routing protocol
+    domain: routing
+    stability: stable
+
+  - id: cap.net.routing.bgp
+    title: BGP Routing
+    summary: Supports Border Gateway Protocol peering for AS-level routing
+    domain: routing
+    stability: stable
+    enterprise: true
+
+  - id: cap.net.routing.ospf
+    title: OSPF Routing
+    summary: Supports Open Shortest Path First routing protocol
+    domain: routing
+    stability: stable
+    enterprise: true
+
+  - id: cap.net.routing.ecmp
+    title: Equal-Cost Multi-Path
+    summary: Supports load balancing across multiple equal-cost routes
+    domain: routing
+    stability: stable
+
+  - id: cap.net.routing.pcc
+    title: Per-Connection Classifier
+    summary: Supports per-connection load balancing (MikroTik-specific)
+    domain: routing
+    stability: stable
+    vendor_specific: mikrotik
+
+  - id: cap.net.routing.pbr
+    title: Policy-Based Routing
+    summary: Supports routing based on source IP, port, protocol, or other criteria
+    domain: routing
+    stability: stable
+
+  # ============================================================================
+  # NAT & FIREWALL
+  # ============================================================================
+
+  - id: cap.net.nat.masquerade
+    title: Source NAT (Masquerade)
+    summary: Supports source network address translation for WAN access
+    domain: nat
+    stability: stable
+    required_by:
+      - class.router
+
+  - id: cap.net.nat.dstnat
+    title: Destination NAT (Port Forwarding)
+    summary: Supports destination NAT for inbound port forwarding
+    domain: nat
+    stability: stable
+
+  - id: cap.net.firewall.stateful
+    title: Stateful Firewall
+    summary: Supports connection tracking and stateful filtering policies
+    domain: firewall
+    stability: stable
+    required_by:
+      - class.router
+
+  - id: cap.net.firewall.zone_based
+    title: Zone-Based Firewall
+    summary: Supports zone-based security policies (LAN/WAN/DMZ)
+    domain: firewall
+    stability: stable
+
+  - id: cap.net.firewall.layer7
+    title: Layer 7 Filtering
+    summary: Supports application-layer protocol detection and filtering
+    domain: firewall
+    stability: stable
+
+  # ============================================================================
+  # VPN
+  # ============================================================================
+
+  - id: cap.net.vpn.wireguard.server
+    title: WireGuard Server
+    summary: Supports WireGuard VPN tunnel endpoint mode (accepting connections)
+    domain: vpn
+    stability: stable
+
+  - id: cap.net.vpn.wireguard.client
+    title: WireGuard Client
+    summary: Supports WireGuard VPN client mode (connecting to remote server)
+    domain: vpn
+    stability: stable
+
+  - id: cap.net.vpn.openvpn.server
+    title: OpenVPN Server
+    summary: Supports OpenVPN server mode
+    domain: vpn
+    stability: stable
+
+  - id: cap.net.vpn.openvpn.client
+    title: OpenVPN Client
+    summary: Supports OpenVPN client mode
+    domain: vpn
+    stability: stable
+
+  - id: cap.net.vpn.ipsec
+    title: IPsec VPN
+    summary: Supports IPsec/IKEv2 VPN tunnels
+    domain: vpn
+    stability: stable
+
+  - id: cap.net.vpn.multi_instance
+    title: VPN Multi-Instance
+    summary: Supports running multiple VPN connections simultaneously
+    domain: vpn
+    stability: stable
+    note: "GL.iNet firmware 4.8.2+ feature"
+
+  - id: cap.net.vpn.policy_routing
+    title: VPN Policy Routing
+    summary: Supports per-client VPN routing by MAC address, domain, or destination IP
+    domain: vpn
+    stability: stable
+    note: "GL.iNet composite policy or MikroTik PBR"
+
+  # ============================================================================
+  # WiFi
+  # ============================================================================
+
+  - id: cap.net.wifi.dual_band
+    title: Dual-Band WiFi
+    summary: Supports simultaneous 2.4GHz and 5GHz wireless operation
+    domain: wifi
+    stability: stable
+
+  - id: cap.net.wifi.wifi6
+    title: WiFi 6 (802.11ax)
+    summary: Supports WiFi 6 (802.11ax) standard with OFDMA, MU-MIMO, BSS Coloring
+    domain: wifi
+    stability: stable
+
+  - id: cap.net.wifi.mu_mimo
+    title: Multi-User MIMO
+    summary: Supports simultaneous transmission to multiple clients
+    domain: wifi
+    stability: stable
+
+  - id: cap.net.wifi.beamforming
+    title: Beamforming
+    summary: Supports directed signal transmission to specific clients
+    domain: wifi
+    stability: stable
+
+  - id: cap.net.wifi.guest_network
+    title: Guest Network
+    summary: Supports isolated guest WiFi network with client isolation
+    domain: wifi
+    stability: stable
+
+  - id: cap.net.wifi.repeater_mode
+    title: WiFi Repeater/Client Mode
+    summary: Supports connecting to upstream WiFi network as client (repeater/bridge mode)
+    domain: wifi
+    stability: stable
+    note: "Essential for travel routers"
+
+  - id: cap.net.wifi.mesh
+    title: WiFi Mesh
+    summary: Supports mesh networking for seamless roaming
+    domain: wifi
+    stability: experimental
+
+  # ============================================================================
+  # WAN
+  # ============================================================================
+
+  - id: cap.net.wan.multi_wan
+    title: Multiple WAN Interfaces
+    summary: Supports multiple WAN connections (Ethernet + LTE, dual WAN)
+    domain: wan
+    stability: stable
+
+  - id: cap.net.wan.failover
+    title: WAN Failover
+    summary: Supports automatic failover between WAN interfaces
+    domain: wan
+    stability: stable
+
+  - id: cap.net.wan.load_balance
+    title: WAN Load Balancing
+    summary: Supports load balancing traffic across multiple WAN connections
+    domain: wan
+    stability: stable
+
+  - id: cap.net.wan.lte
+    title: LTE/Cellular WAN
+    summary: Supports built-in LTE modem for cellular connectivity
+    domain: wan
+    stability: stable
+
+  - id: cap.net.wan.pppoe
+    title: PPPoE Client/Server
+    summary: Supports PPPoE for DSL/fiber connections
+    domain: wan
+    stability: stable
+
+  # ============================================================================
+  # QoS
+  # ============================================================================
+
+  - id: cap.net.qos.basic
+    title: Basic QoS
+    summary: Supports simple traffic priority queues
+    domain: qos
+    stability: stable
+
+  - id: cap.net.qos.advanced
+    title: Advanced QoS
+    summary: Supports HTB (Hierarchical Token Bucket) and complex queue trees
+    domain: qos
+    stability: stable
+    note: "MikroTik RouterOS feature"
+
+  - id: cap.net.qos.sqm
+    title: Smart Queue Management (SQM)
+    summary: Supports CAKE or fq_codel algorithms for bufferbloat reduction
+    domain: qos
+    stability: stable
+    note: "OpenWRT SQM package"
+
+  # ============================================================================
+  # SERVICES
+  # ============================================================================
+
+  - id: cap.net.dhcp.server
+    title: DHCP Server
+    summary: Supports DHCP lease management for local subnets
+    domain: services
+    stability: stable
+    required_by:
+      - class.router
+
+  - id: cap.net.dhcp.relay
+    title: DHCP Relay
+    summary: Supports forwarding DHCP requests to external DHCP server
+    domain: services
+    stability: stable
+
+  - id: cap.net.dns.server
+    title: DNS Server/Resolver
+    summary: Supports local DNS resolution and caching
+    domain: services
+    stability: stable
+    required_by:
+      - class.router
+
+  - id: cap.net.dns.dot
+    title: DNS-over-TLS
+    summary: Supports encrypted DNS queries via TLS (Stubby, dnsdist)
+    domain: services
+    stability: stable
+
+  - id: cap.net.dns.doh
+    title: DNS-over-HTTPS
+    summary: Supports encrypted DNS queries via HTTPS (dnscrypt-proxy)
+    domain: services
+    stability: stable
+
+  - id: cap.net.dns.adblock
+    title: DNS-Based Ad Blocking
+    summary: Supports DNS filtering for ad blocking (AdGuard Home, Pi-hole)
+    domain: services
+    stability: stable
+
+  - id: cap.net.ntp.server
+    title: NTP Server
+    summary: Supports Network Time Protocol server for time synchronization
+    domain: services
+    stability: stable
+
+  - id: cap.net.snmp
+    title: SNMP Monitoring
+    summary: Supports SNMP v2c/v3 for remote monitoring
+    domain: services
+    stability: stable
+
+  # ============================================================================
+  # ADVANCED
+  # ============================================================================
+
+  - id: cap.net.vlan.8021q
+    title: VLAN (802.1Q)
+    summary: Supports VLAN tagging and trunk interfaces
+    domain: advanced
+    stability: stable
+
+  - id: cap.net.vrf
+    title: Virtual Routing & Forwarding (VRF)
+    summary: Supports isolated routing domains on single device
+    domain: advanced
+    stability: stable
+    enterprise: true
+
+  - id: cap.net.containers
+    title: Container Support
+    summary: Supports running Docker/container workloads on router
+    domain: advanced
+    stability: stable
+    note: "RouterOS v7 containers"
+
+  - id: cap.net.hotspot
+    title: Hotspot/Captive Portal
+    summary: Supports captive portal for guest authentication
+    domain: advanced
+    stability: stable
+
+  - id: cap.net.netflow
+    title: Netflow/IPFIX Export
+    summary: Supports exporting flow data for traffic analysis
+    domain: advanced
+    stability: stable
+
+  - id: cap.net.api.rest
+    title: REST API
+    summary: Supports RESTful API for automation and integration
+    domain: advanced
+    stability: stable
+
+  - id: cap.net.dyndns
+    title: Dynamic DNS Client
+    summary: Supports automatic DNS record updates for dynamic IP addresses
+    domain: advanced
+    stability: stable
+
+  # ============================================================================
+  # COMPUTE
+  # ============================================================================
+
+  - id: cap.compute.node.cloud_vm
+    title: Cloud VM Node
+    summary: Represents a virtual machine node hosted by cloud infrastructure
+    domain: compute
+    stability: stable
+    required_by:
+      - class.compute.cloud_vm
+
+  - id: cap.compute.node.edge
+    title: Edge Compute Node
+    summary: Represents a low-power edge host for local workloads
+    domain: compute
+    stability: stable
+    required_by:
+      - class.compute.edge_node
+
+  - id: cap.compute.host.hypervisor
+    title: Hypervisor Host
+    summary: Supports hosting of virtualized workloads as a hypervisor node
+    domain: compute
+    stability: stable
+    required_by:
+      - class.compute.hypervisor
+
+  - id: cap.compute.runtime.container_host
+    title: Container Host Runtime
+    summary: Supports running containerized workloads on the host
+    domain: compute
+    stability: stable
+    required_by:
+      - class.compute.edge_node
+      - class.compute.hypervisor
+
+  - id: cap.compute.runtime.vm_host
+    title: VM Host Runtime
+    summary: Supports running virtual machine workloads on the host
+    domain: compute
+    stability: stable
+    required_by:
+      - class.compute.hypervisor
+
+  - id: cap.compute.workload.container
+    title: Container Workload Contract
+    summary: Supports container workload semantics (allocation, lifecycle, execution)
+    domain: compute
+    stability: stable
+    required_by:
+      - class.compute.workload.container
+
+  - id: cap.compute.workload.linux_base
+    title: Linux Workload Base
+    summary: Supports Linux-based runtime and baseline OS contract expectations
+    domain: compute
+    stability: stable
+    required_by:
+      - class.compute.cloud_vm
+      - class.compute.edge_node
+      - class.compute.workload.container
+
+  - id: cap.compute.storage.zfs
+    title: ZFS Storage Substrate
+    summary: Supports ZFS-backed storage substrate for compute workloads
+    domain: compute
+    stability: stable
+
+  # ============================================================================
+  # POWER
+  # ============================================================================
+
+  - id: cap.power.ups.battery_backup
+    title: UPS Battery Backup
+    summary: Provides battery-backed power continuity for connected devices
+    domain: power
+    stability: stable
+    required_by:
+      - class.power.ups
+
+  - id: cap.power.ups.status_telemetry
+    title: UPS Status Telemetry
+    summary: Exposes UPS operational status and health telemetry
+    domain: power
+    stability: stable
+    required_by:
+      - class.power.ups
+
+  - id: cap.power.pdu.switching
+    title: Managed PDU Switching
+    summary: Supports remote outlet switching and power-control actions
+    domain: power
+    stability: stable
+    required_by:
+      - class.power.pdu
+
+  - id: cap.power.pdu.telemetry
+    title: Managed PDU Telemetry
+    summary: Exposes PDU load and outlet telemetry for observability and control
+    domain: power
+    stability: stable
+    required_by:
+      - class.power.pdu
+
+  # ============================================================================
+  # SERVICES
+  # ============================================================================
+
+  - id: cap.service.alerting.runtime
+    title: Alerting Runtime
+    summary: Runs alert aggregation and delivery workflows
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.alerting
+
+  - id: cap.service.alerting.routing
+    title: Alert Routing
+    summary: Supports rule-based alert routing to notification targets
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.alerting
+
+  - id: cap.service.cache.runtime
+    title: Cache Runtime
+    summary: Runs in-memory cache service process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.cache
+
+  - id: cap.service.cache.persistence
+    title: Cache Persistence
+    summary: Supports optional persistence and recovery for cache state
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.cache
+
+  - id: cap.service.database.runtime
+    title: Database Runtime
+    summary: Runs relational or document database service process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.database
+
+  - id: cap.service.database.persistence
+    title: Database Persistence
+    summary: Supports durable state persistence and recovery for databases
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.database
+
+  - id: cap.service.dns.runtime
+    title: DNS Runtime
+    summary: Runs DNS resolver/forwarder service process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.dns
+
+  - id: cap.service.dns.filtering
+    title: DNS Filtering
+    summary: Supports policy-based DNS filtering and blocklists
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.dns
+
+  - id: cap.service.file_storage.runtime
+    title: File Storage Runtime
+    summary: Runs file storage and sharing service process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.file_storage
+
+  - id: cap.service.file_storage.persistence
+    title: File Storage Persistence
+    summary: Supports durable storage for file-sharing state and content
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.file_storage
+
+  - id: cap.service.home_automation.runtime
+    title: Home Automation Runtime
+    summary: Runs home automation control service process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.home_automation
+
+  - id: cap.service.home_automation.messaging
+    title: Home Automation Messaging
+    summary: Supports automation event messaging and device integration
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.home_automation
+
+  - id: cap.service.logging.runtime
+    title: Logging Runtime
+    summary: Runs centralized logging service process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.logging
+
+  - id: cap.service.logging.forwarding
+    title: Log Forwarding
+    summary: Supports collection and forwarding of logs from upstream targets
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.logging
+
+  - id: cap.service.media_server.runtime
+    title: Media Server Runtime
+    summary: Runs media indexing and serving workloads
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.media_server
+
+  - id: cap.service.media_server.streaming
+    title: Media Streaming
+    summary: Supports streaming endpoints and playback session handling
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.media_server
+
+  - id: cap.service.monitoring.runtime
+    title: Monitoring Runtime
+    summary: Runs metrics and telemetry monitoring service process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.monitoring
+
+  - id: cap.service.monitoring.metrics
+    title: Metrics Processing
+    summary: Supports metrics scrape, aggregation, or export contract
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.monitoring
+
+  - id: cap.service.proxy.runtime
+    title: Proxy Runtime
+    summary: Runs reverse-proxy or ingress gateway process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.proxy
+
+  - id: cap.service.proxy.ingress
+    title: Ingress Routing
+    summary: Supports host/path-based ingress and upstream routing
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.proxy
+
+  - id: cap.service.visualization.runtime
+    title: Visualization Runtime
+    summary: Runs dashboards and data-visualization service process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.visualization
+
+  - id: cap.service.visualization.dashboard
+    title: Dashboard Rendering
+    summary: Supports dashboard rendering and panel composition
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.visualization
+
+  - id: cap.service.vpn.runtime
+    title: VPN Service Runtime
+    summary: Runs service-level VPN endpoint process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.vpn
+
+  - id: cap.service.vpn.tunnel
+    title: VPN Tunnel Contract
+    summary: Supports encrypted tunnel establishment and key/session handling
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.vpn
+
+  - id: cap.service.web_application.runtime
+    title: Web Application Runtime
+    summary: Runs generic web application service process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.web_application
+
+  - id: cap.service.web_application.http
+    title: Web Application HTTP Contract
+    summary: Supports HTTP(S) request/response service surface
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.web_application
+
+  - id: cap.service.web_ui.runtime
+    title: Web UI Runtime
+    summary: Runs administrative web interface process
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.web_ui
+
+  - id: cap.service.web_ui.management
+    title: Web UI Management Surface
+    summary: Supports authenticated management endpoints over web UI
+    domain: service
+    stability: stable
+    required_by:
+      - class.service.web_ui
+
+# Metadata
+metadata:
+  total_capabilities: 89
+  domains:
+    - routing
+    - nat
+    - firewall
+    - vpn
+    - wifi
+    - wan
+    - qos
+    - services
+    - advanced
+    - compute
+    - power
+    - service
+
+  stability_distribution:
+    stable: 88
+    experimental: 1
+    deprecated: 0

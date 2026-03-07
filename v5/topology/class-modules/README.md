@@ -5,20 +5,23 @@ Layer placement for classes is governed by `v5/topology/layer-contract.yaml` (`c
 
 Current contents:
 
-- capability catalog template (`capability-catalog.example.yaml`)
-- capability packs template (`capability-packs.example.yaml`)
 - class contracts under `classes/`:
-  - `network/`
+  - `router/`
   - `compute/`
   - `power/`
   - `service/`
+- router capabilities/packs are colocated with router class:
+  - `classes/router/capability-catalog.yaml`
+  - `classes/router/capability-packs.yaml`
+  - `classes/router/capability-id-migration.yaml`
+- capability IDs use generalized network namespace: `cap.net.*`
 
 Capability contract checker (legacy script, run with explicit v5 paths):
 
 ```bash
-python v4/topology-tools/check-capability-contract.py \
-  --catalog v5/topology/class-modules/capability-catalog.example.yaml \
-  --packs v5/topology/class-modules/capability-packs.example.yaml \
+python v5/topology-tools/check-capability-contract.py \
+  --catalog v5/topology/class-modules/classes/router/capability-catalog.yaml \
+  --packs v5/topology/class-modules/classes/router/capability-packs.yaml \
   --classes-dir v5/topology/class-modules/classes \
   --objects-dir v5/topology/object-modules
 ```

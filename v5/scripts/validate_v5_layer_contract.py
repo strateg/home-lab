@@ -210,10 +210,10 @@ def main() -> int:
                     }
                 )
 
-    class_files = _iter_yaml_files(class_modules_root)
+    class_files = [path for path in _iter_yaml_files(class_modules_root) if path.name.startswith("class.")]
     if not class_files:
         errors.append(f"class modules directory has no yaml files: {class_modules_root.relative_to(ROOT).as_posix()}")
-    object_files = _iter_yaml_files(object_modules_root)
+    object_files = [path for path in _iter_yaml_files(object_modules_root) if path.name.startswith("obj.")]
     if not object_files:
         errors.append(f"object modules directory has no yaml files: {object_modules_root.relative_to(ROOT).as_posix()}")
 

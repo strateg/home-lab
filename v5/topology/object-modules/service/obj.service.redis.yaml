@@ -4,5 +4,8 @@ class_ref: class.service.cache
 model: Redis
 vendor: home-lab
 enabled_capabilities:
+- cap.service.cache.runtime
+- cap.service.cache.persistence
+vendor_capabilities:
 - vendor.service.redis.runtime
 - vendor.service.redis.config

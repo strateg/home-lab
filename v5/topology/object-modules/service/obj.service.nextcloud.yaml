@@ -4,5 +4,8 @@ class_ref: class.service.web_application
 model: Nextcloud
 vendor: home-lab
 enabled_capabilities:
+- cap.service.web_application.runtime
+- cap.service.web_application.http
+vendor_capabilities:
 - vendor.service.nextcloud.runtime
 - vendor.service.nextcloud.config

@@ -1,15 +1,436 @@
 id: obj.glinet.slate_ax1800
 version: 1.0.0
-class_ref: class.network.router
-model: Slate AX1800
+class_ref: class.router
+title: GL.iNet Slate AX (GL-AXT1800)
 vendor: glinet
-enabled_packs:
-- pack.router.home
+model: GL-AXT1800
+
+description: |
+  GL.iNet Slate AX (GL-AXT1800) - Compact portable travel router with WiFi 6,
+  dual UI (GL.iNet + OpenWRT LuCI), advanced VPN client features, and WiFi
+  repeater mode. Perfect for travel, remote work, and secure hotel WiFi access.
+
+# ============================================================================
+# HARDWARE SPECIFICATIONS
+# ============================================================================
+
+hardware_specs:
+  form_factor: portable  # Key differentiator from MikroTik
+  dimensions:
+    length_mm: 100
+    width_mm: 68
+    height_mm: 22
+    weight_g: 150
+    mounting: none  # Compact travel router
+
+  cpu:
+    vendor: mediatek
+    model: MT7621A
+    architecture: mipsel
+    cores: 2
+    clock_mhz: 880
+    frequency_scaling: false
+
+  memory:
+    size_mb: 512
+    type: ddr3
+    bandwidth_mhz: 1200
+
+  storage:
+    size_mb: 128
+    type: nand_flash
+
+  # -------------------------------------------------------------------------
+  # INTERFACES
+  # -------------------------------------------------------------------------
+
+  interfaces:
+    ethernet:
+      - name: wan
+        role: wan
+        speed_mbps: 1000
+        standard: gbe
+        duplex: full
+        dsa: true  # DSA architecture (not swconfig)
+        physical_port: wan
+        description: Gigabit WAN port (blue)
+
+      - name: lan1
+        role: lan
+        speed_mbps: 1000
+        standard: gbe
+        duplex: full
+        dsa: true
+        physical_port: lan1
+        description: Gigabit LAN port 1 (yellow)
+
+      - name: lan2
+        role: lan
+        speed_mbps: 1000
+        standard: gbe
+        duplex: full
+        dsa: true
+        physical_port: lan2
+        description: Gigabit LAN port 2 (yellow)
+
+    wireless:
+      - name: wlan0
+        band: 5ghz
+        standard: 802.11ax
+        max_speed_mbps: 1200
+        mimo: 2x2
+        mu_mimo: true
+        beamforming: false  # Not documented
+        channel_width_mhz: [20, 40, 80]
+        chipset: MediaTek MT7915
+        antenna_type: internal
+        antenna_gain_dbi: 5
+        tx_power_dbm: 20
+        modes: [ap, sta, monitor]  # Supports client mode!
+        description: WiFi 6 5GHz radio
+
+      - name: wlan1
+        band: 2.4ghz
+        standard: 802.11ax
+        max_speed_mbps: 574
+        mimo: 2x2
+        mu_mimo: true
+        beamforming: false
+        channel_width_mhz: [20, 40]
+        chipset: MediaTek MT7915
+        antenna_type: internal
+        antenna_gain_dbi: 3
+        tx_power_dbm: 20
+        modes: [ap, sta, monitor]  # Supports client mode!
+        description: WiFi 6 2.4GHz radio
+
+    usb:
+      - name: usb1
+        version: '3.0'
+        type: type_a
+        max_current_ma: 900
+        usb_storage: true
+        usb_ethernet: true  # Can add USB Ethernet adapters
+        usb_tethering: true # Can use phone tethering
+        description: USB 3.0 for storage/Ethernet/tethering
+
+  # -------------------------------------------------------------------------
+  # POWER
+  # -------------------------------------------------------------------------
+
+  power:
+    input_voltage_vdc: [5, 12]
+    input_connector: usb_c
+    max_power_watts: 12
+    typical_power_watts: 6
+    idle_power_watts: 3.5
+    cooling: passive
+    operating_temp_celsius: [0, 40]
+
+  # -------------------------------------------------------------------------
+  # LED & CONTROLS
+  # -------------------------------------------------------------------------
+
+  indicators:
+    - name: power_led
+      type: rgb
+      colors: [white, blue, red, green]
+      description: RGB LED for status (white=normal, blue=WAN, red=error, green=VPN)
+
+    - name: reset_button
+      type: button
+      description: Reset button (10s hold = factory reset, U-Boot recovery)
+
+# ============================================================================
+# SOFTWARE
+# ============================================================================
+
+software:
+  os:
+    vendor: glinet
+    name: GL.iNet Firmware
+    version: 4.8.2
+    base: OpenWRT 23.05
+    architecture: mipsel
+    update_channel: stable
+    kernel_version: 5.15
+
+  ui:
+    - name: glinet_ui
+      port: 80
+      protocol: http
+      description: GL.iNet user-friendly UI
+      features:
+        - One-click VPN setup
+        - Traffic statistics
+        - AdGuard Home integration
+        - Repeater mode wizard
+
+    - name: openwrt_luci
+      port: 81
+      protocol: http
+      description: OpenWRT LuCI advanced interface
+      features:
+        - Full OpenWRT configuration
+        - Package management (opkg)
+        - Advanced networking
+        - Firewall rules
+
+  features:
+    - Dual UI (GL.iNet + LuCI)
+    - AdGuard Home integration
+    - One-click VPN client
+    - VPN multi-instance (firmware 4.8.2+)
+    - VPN composite policy routing
+    - WiFi repeater mode
+    - Guest network isolation
+    - IPv6 support
+    - ZeroTier
+
+  vpn_clients:
+    - wireguard
+    - openvpn
+    - zerotier
+
+  dns_features:
+    - dnsmasq
+    - stubby  # DNS-over-TLS
+    - dnscrypt-proxy  # DNS-over-HTTPS
+    - adguard_home
+
+# ============================================================================
+# ENABLED CAPABILITIES
+# Focused on TRAVEL VPN GATEWAY role
+# ============================================================================
+
 enabled_capabilities:
-- cap.router.routing.static
-- cap.router.nat
-- cap.router.firewall.stateful
-- cap.router.dhcp.server
-- cap.router.wireguard.endpoint
-- cap.router.vlan
-- vendor.glinet.openwrt.profile
+  # -------------------------------------------------------------------------
+  # REQUIRED (from class)
+  # -------------------------------------------------------------------------
+  - cap.net.routing.static
+  - cap.net.nat.masquerade
+  - cap.net.firewall.stateful
+  - cap.net.dhcp.server
+  - cap.net.dns.server
+
+  # -------------------------------------------------------------------------
+  # NAT & FIREWALL
+  # -------------------------------------------------------------------------
+  - cap.net.nat.dstnat             # Port forwarding
+  - cap.net.firewall.zone_based    # Zone-based firewall (LAN/WAN/VPN)
+
+  # -------------------------------------------------------------------------
+  # VPN (PRIMARY: CLIENT MODE!)
+  # -------------------------------------------------------------------------
+  - cap.net.vpn.wireguard.client   # PRIMARY: Connect to home WireGuard
+  - cap.net.vpn.wireguard.server   # Secondary: Can act as server
+  - cap.net.vpn.openvpn.client     # Alternative VPN client
+  - cap.net.vpn.openvpn.server     # Can act as OpenVPN server
+  - cap.net.vpn.multi_instance     # GL.iNet 4.8.2 feature!
+  - cap.net.vpn.policy_routing     # Per-MAC, per-domain routing
+
+  # -------------------------------------------------------------------------
+  # WiFi (WITH REPEATER MODE!)
+  # -------------------------------------------------------------------------
+  - cap.net.wifi.dual_band         # 2.4GHz + 5GHz
+  - cap.net.wifi.wifi6             # 802.11ax
+  - cap.net.wifi.mu_mimo           # MU-MIMO
+  - cap.net.wifi.guest_network     # Guest network with isolation
+  - cap.net.wifi.repeater_mode     # KEY: WiFi client mode for hotel WiFi!
+
+  # -------------------------------------------------------------------------
+  # QoS
+  # -------------------------------------------------------------------------
+  - cap.net.qos.sqm                # SQM with CAKE/fq_codel
+
+  # -------------------------------------------------------------------------
+  # SERVICES (PRIVACY-FOCUSED)
+  # -------------------------------------------------------------------------
+  - cap.net.dns.dot                # DNS-over-TLS (Stubby)
+  - cap.net.dns.doh                # DNS-over-HTTPS (dnscrypt-proxy)
+  - cap.net.dns.adblock            # AdGuard Home
+  - cap.net.dyndns                 # Dynamic DNS client
+
+  # -------------------------------------------------------------------------
+  # ADVANCED
+  # -------------------------------------------------------------------------
+  - cap.net.vlan.8021q             # VLAN support via LuCI
+
+# ============================================================================
+# ENABLED PACKS
+# ============================================================================
+
+enabled_packs:
+  - pack.router.travel_vpn            # Primary pack for travel use case
+
+# ============================================================================
+# VENDOR-SPECIFIC CAPABILITIES
+# ============================================================================
+
+vendor_capabilities:
+  - vendor.glinet.dual_ui             # GL.iNet UI + OpenWRT LuCI
+  - vendor.glinet.one_click_vpn       # One-click VPN connection
+  - vendor.glinet.traffic_stats       # Built-in traffic statistics
+  - vendor.glinet.goodcloud           # GoodCloud remote management
+  - vendor.glinet.repeater_wizard     # Easy WiFi repeater setup
+
+# ============================================================================
+# DEFAULTS
+# Default values for instances of this object
+# ============================================================================
+
+defaults:
+  role: travel_vpn_gateway
+  location: portable
+
+  management:
+    glinet_ui:
+      enabled: true
+      port: 80
+      protocol: http
+    luci:
+      enabled: true
+      port: 81
+      protocol: http
+    ssh:
+      enabled: true
+      port: 22
+
+  networking:
+    wan_interface: wan
+    lan_interfaces: [lan1, lan2]
+    lan_bridge: br-lan
+    default_lan_network: 192.168.8.0/24  # GL.iNet default
+    travel_lan_network: 192.168.20.0/24  # Customized for home use
+
+  wireless:
+    country: RU
+    default_ssid_prefix: GL-AXT1800
+    default_security: wpa3
+
+  vpn:
+    primary_mode: client  # Connect TO home, not FROM
+    autoconnect: true
+    killswitch: optional  # User configurable
+
+  repeater:
+    enabled_by_default: false  # Enable when traveling
+    preferred_band: 5ghz
+
+# ============================================================================
+# USE CASES
+# ============================================================================
+
+use_cases:
+  - Travel VPN gateway (hotel, airport, cafe WiFi)
+  - Remote work secure network bridge
+  - Hotel WiFi privacy enhancement
+  - Portable home network extension
+  - VPN gateway for non-VPN-capable devices
+  - Privacy-focused portable router
+
+# ============================================================================
+# TRAVEL MODE SCENARIOS
+# ============================================================================
+
+travel_scenarios:
+  hotel_ethernet:
+    description: Hotel provides Ethernet in room
+    setup:
+      - Connect hotel Ethernet to WAN port
+      - Enable VPN client to home
+      - Create WiFi AP for your devices
+
+  hotel_wifi:
+    description: Hotel provides WiFi only (most common)
+    setup:
+      - Enable WiFi repeater mode on wlan0 (5GHz)
+      - Connect to hotel WiFi as client
+      - Enable VPN client to home
+      - Create WiFi AP on wlan1 (2.4GHz) for your devices
+    benefits:
+      - Single VPN connection protects all devices
+      - No need to configure VPN on each device
+      - Can connect devices without VPN support (IoT, consoles)
+
+  phone_tethering:
+    description: Use phone 4G/5G when no WiFi available
+    setup:
+      - Connect phone via USB tethering
+      - Enable VPN client to home
+      - Create WiFi AP for your devices
+
+  usb_ethernet:
+    description: Expand LAN ports with USB Ethernet adapter
+    setup:
+      - Connect USB Ethernet adapter to USB 3.0 port
+      - Add to br-lan bridge
+      - Gain extra LAN port (total 3 ports)
+
+# ============================================================================
+# LIMITATIONS
+# ============================================================================
+
+limitations:
+  - Only 2 LAN ports (vs 4 on MikroTik)
+  - 512 MB RAM (vs 1024 MB on MikroTik)
+  - No LTE modem (must use external USB LTE modem or phone tethering)
+  - No BGP/OSPF support (consumer-grade firmware)
+  - No container support (OpenWRT, not RouterOS)
+  - No REST API (must use LuCI or SSH)
+  - CPU performance lower than MikroTik (MIPS vs ARM64)
+
+# ============================================================================
+# ADVANTAGES OVER MIKROTIK
+# ============================================================================
+
+advantages:
+  - Compact portable form factor (150g vs 680g)
+  - USB 3.0 (vs USB 2.0 on MikroTik)
+  - WiFi repeater mode (official support)
+  - VPN multi-instance (multiple VPN simultaneously)
+  - Per-client VPN policy routing (easier than MikroTik PBR)
+  - User-friendly GL.iNet UI for non-technical users
+  - One-click VPN setup
+  - Lower power consumption (6W vs 15W)
+  - USB-C power input (can use phone charger)
+  - Cheaper price point
+
+# ============================================================================
+# FIRMWARE UPDATES
+# ============================================================================
+
+firmware:
+  current_version: 4.8.2
+  release_date: 2024-11-15
+  update_method: web_ui_or_sysupgrade
+  backup_recommended: true
+
+  key_features_4_8_2:
+    - VPN multi-instance
+    - VPN composite policy routing
+    - IPv6 VPN support
+    - Guest network isolation improvements
+    - One-click log sending
+    - HTTPS for RTTY remote access
+
+  update_sources:
+    - https://dl.gl-inet.com/firmware/axt1800/release/
+    - https://docs.gl-inet.com/router/en/4/
+
+# ============================================================================
+# CHANGELOG
+# ============================================================================
+
+changelog:
+  - version: 1.0.0
+    date: 2026-03-07
+    changes:
+      - Initial object definition for v5
+      - Complete hardware specification
+      - 18 enabled capabilities (focused on travel/VPN)
+      - 1 capability pack (travel_vpn)
+      - WiFi repeater mode documented
+      - VPN multi-instance support added
+      - Travel scenarios documented
+      - Dual UI (GL.iNet + LuCI) documented

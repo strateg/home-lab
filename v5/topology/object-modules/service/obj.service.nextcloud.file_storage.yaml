@@ -4,5 +4,8 @@ class_ref: class.service.file_storage
 model: Nextcloud File Storage
 vendor: home-lab
 enabled_capabilities:
-  - vendor.service.nextcloud.file_storage.runtime
-  - vendor.service.nextcloud.file_storage.config
+- cap.service.file_storage.runtime
+- cap.service.file_storage.persistence
+vendor_capabilities:
+- vendor.service.nextcloud.file_storage.runtime
+- vendor.service.nextcloud.file_storage.config

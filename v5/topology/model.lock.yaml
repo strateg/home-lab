@@ -9,8 +9,8 @@ classes:
     version: 1.0.0
   class.compute.workload.container:
     version: 1.0.0
-  class.network.router:
-    version: 1.0.0
+  class.router:
+    version: 2.0.0
   class.power.pdu:
     version: 1.0.0
   class.power.ups:
@@ -49,16 +49,16 @@ objects:
     class_ref: class.power.ups
   obj.glinet.slate_ax1800:
     version: 1.0.0
-    class_ref: class.network.router
+    class_ref: class.router
   obj.hetzner.cloud_vm:
     version: 1.0.0
     class_ref: class.compute.cloud_vm
   obj.mikrotik.chateau_lte7_ax:
     version: 1.0.0
-    class_ref: class.network.router
+    class_ref: class.router
   obj.mikrotik.chr:
     version: 1.0.0
-    class_ref: class.network.router
+    class_ref: class.router
   obj.oracle.cloud_vm:
     version: 1.0.0
     class_ref: class.compute.cloud_vm

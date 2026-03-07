@@ -4,5 +4,8 @@ class_ref: class.compute.cloud_vm
 model: Hetzner Cloud VM
 vendor: hetzner
 enabled_capabilities:
+- cap.compute.node.cloud_vm
+- cap.compute.workload.linux_base
+vendor_capabilities:
 - vendor.cloud.vm.instance
 - vendor.cloud.provider.hetzner

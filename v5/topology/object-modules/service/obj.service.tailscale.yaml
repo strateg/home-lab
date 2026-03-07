@@ -4,5 +4,8 @@ class_ref: class.service.vpn
 model: Tailscale
 vendor: home-lab
 enabled_capabilities:
+- cap.service.vpn.runtime
+- cap.service.vpn.tunnel
+vendor_capabilities:
 - vendor.service.tailscale.runtime
 - vendor.service.tailscale.config

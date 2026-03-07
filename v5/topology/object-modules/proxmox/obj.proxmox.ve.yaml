@@ -4,6 +4,11 @@ class_ref: class.compute.hypervisor
 model: Proxmox VE 9
 vendor: proxmox
 enabled_capabilities:
+- cap.compute.host.hypervisor
+- cap.compute.runtime.container_host
+- cap.compute.runtime.vm_host
+- cap.compute.storage.zfs
+vendor_capabilities:
 - vendor.proxmox.cluster.node
 - vendor.proxmox.storage.zfs
 - vendor.proxmox.runtime.lxc

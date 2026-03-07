@@ -4,5 +4,8 @@ class_ref: class.service.dns
 model: Adguard
 vendor: home-lab
 enabled_capabilities:
+- cap.service.dns.runtime
+- cap.service.dns.filtering
+vendor_capabilities:
 - vendor.service.adguard.runtime
 - vendor.service.adguard.config

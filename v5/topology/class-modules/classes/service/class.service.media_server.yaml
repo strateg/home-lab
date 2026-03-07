@@ -2,7 +2,9 @@ id: class.service.media_server
 version: 1.0.0
 title: Service Media Server
 summary: Media indexing and streaming service role.
-required_capabilities: []
+required_capabilities:
+- cap.service.media_server.runtime
+- cap.service.media_server.streaming
 optional_capabilities: []
 capability_packs: []
 invariants:

@@ -4,5 +4,8 @@ class_ref: class.service.logging
 model: Loki
 vendor: home-lab
 enabled_capabilities:
+- cap.service.logging.runtime
+- cap.service.logging.forwarding
+vendor_capabilities:
 - vendor.service.loki.runtime
 - vendor.service.loki.config

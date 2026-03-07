@@ -1,19 +1,358 @@
 id: obj.mikrotik.chateau_lte7_ax
 version: 1.0.0
-class_ref: class.network.router
-model: Chateau LTE7 ax
+class_ref: class.router
+title: MikroTik Chateau LTE7 AX
 vendor: mikrotik
+model: S53UG+5HaxD2HaxD-TC&R11e-LTE7
 
-enabled_packs:
-  - pack.router.home
+description: |
+  MikroTik Chateau LTE7 AX - ARM64-based central home gateway with WiFi 6,
+  built-in LTE Cat 7 modem, RouterOS v7 container support, and comprehensive
+  routing/VPN features. Ideal for home/small office with failover requirements.
+
+# ============================================================================
+# HARDWARE SPECIFICATIONS
+# ============================================================================
+
+hardware_specs:
+  form_factor: desktop
+  dimensions:
+    length_mm: 220
+    width_mm: 165
+    height_mm: 40
+    weight_g: 680
+    mounting: desktop_stand
+
+  cpu:
+    vendor: qualcomm
+    model: IPQ-6010
+    architecture: arm64
+    cores: 4
+    base_clock_mhz: 864
+    max_clock_mhz: 1800
+    frequency_scaling: true
+
+  memory:
+    size_mb: 1024
+    type: ddr
+    bandwidth_mhz: 1600
+
+  storage:
+    size_mb: 128
+    type: nand_flash
+
+  # -------------------------------------------------------------------------
+  # INTERFACES
+  # -------------------------------------------------------------------------
+
+  interfaces:
+    ethernet:
+      - name: ether1
+        role: wan
+        speed_mbps: 2500
+        standard: 2.5gbe
+        duplex: full
+        poe: false
+        description: 2.5 GbE WAN port
+
+      - name: ether2
+        role: lan
+        speed_mbps: 1000
+        standard: gbe
+        duplex: full
+        poe: false
+        description: LAN port 1
+
+      - name: ether3
+        role: lan
+        speed_mbps: 1000
+        standard: gbe
+        duplex: full
+        poe: false
+        description: LAN port 2
+
+      - name: ether4
+        role: lan
+        speed_mbps: 1000
+        standard: gbe
+        duplex: full
+        poe: false
+        description: LAN port 3
+
+      - name: ether5
+        role: lan
+        speed_mbps: 1000
+        standard: gbe
+        duplex: full
+        poe: false
+        description: LAN port 4
+
+    wireless:
+      - name: wlan1
+        band: 5ghz
+        standard: 802.11ax
+        max_speed_mbps: 1200
+        mimo: 2x2
+        mu_mimo: true
+        beamforming: true
+        channel_width_mhz: [20, 40, 80]
+        chipset: Qualcomm QCN-5052
+        antenna_type: internal
+        antenna_gain_dbi: 6
+        tx_power_dbm: 20
+        description: WiFi 6 5GHz radio
+
+      - name: wlan2
+        band: 2.4ghz
+        standard: 802.11ax
+        max_speed_mbps: 574
+        mimo: 2x2
+        mu_mimo: true
+        channel_width_mhz: [20, 40]
+        chipset: Qualcomm QCN-5022
+        antenna_type: internal
+        antenna_gain_dbi: 3
+        tx_power_dbm: 20
+        description: WiFi 6 2.4GHz radio
+
+    cellular:
+      - name: lte1
+        modem: R11e-LTE7
+        category: 7
+        max_dl_mbps: 300
+        max_ul_mbps: 100
+        mimo_dl: 2x2
+        mimo_ul: 1x1
+        sim_type: micro_sim
+        sim_slots: 1
+        bands_lte_fdd: [1, 3, 5, 7, 8, 20, 28, 32]
+        bands_lte_tdd: [38, 40, 41]
+        bands_3g: [1, 3, 5, 8]
+        carrier_aggregation: true
+        description: LTE Cat 7 modem for WAN failover
+
+    usb:
+      - name: usb1
+        version: '2.0'
+        type: type_a
+        max_current_ma: 1000
+        usb_storage: true
+        usb_ethernet: false
+        description: USB 2.0 for container storage
+
+  # -------------------------------------------------------------------------
+  # POWER
+  # -------------------------------------------------------------------------
+
+  power:
+    input_voltage_vdc: [12, 28]
+    input_connector: barrel_jack
+    max_power_watts: 21.5
+    typical_power_watts: 15.5
+    idle_power_watts: 8.0
+    cooling: passive
+    thermal_design_power_watts: 21.5
+    operating_temp_celsius: [0, 40]
+
+# ============================================================================
+# SOFTWARE
+# ============================================================================
+
+software:
+  os:
+    vendor: mikrotik
+    name: RouterOS
+    version: v7
+    architecture: arm64
+    license_level: 4
+    update_channel: stable
+
+  features:
+    - Docker-compatible containers
+    - REST API
+    - TR-069 support
+    - WinBox management
+    - WebFig interface
+    - SSH/Telnet
+    - SNMP v2c/v3
+
+  container_runtime:
+    enabled: true
+    engine: containerD
+    storage: usb
+    max_containers: 10  # Practical limit with 1GB RAM
+
+# ============================================================================
+# ENABLED CAPABILITIES
+# Full list of supported capabilities from class.router
+# ============================================================================
 
 enabled_capabilities:
-  - cap.router.routing.static
-  - cap.router.nat
-  - cap.router.firewall.stateful
-  - cap.router.dhcp.server
-  - cap.router.wireguard.endpoint
-  - cap.router.qos.basic
-  - cap.router.vlan
-  - vendor.mikrotik.container.runtime
-  - vendor.mikrotik.routeros.script
+  # -------------------------------------------------------------------------
+  # REQUIRED (from class)
+  # -------------------------------------------------------------------------
+  - cap.net.routing.static
+  - cap.net.nat.masquerade
+  - cap.net.firewall.stateful
+  - cap.net.dhcp.server
+  - cap.net.dns.server
+
+  # -------------------------------------------------------------------------
+  # ROUTING
+  # -------------------------------------------------------------------------
+  - cap.net.routing.bgp            # BGP for enterprise/ISP
+  - cap.net.routing.ospf           # OSPF routing
+  - cap.net.routing.ecmp           # Equal-cost multi-path
+  - cap.net.routing.pcc            # Per-connection classifier (MikroTik)
+  - cap.net.routing.pbr            # Policy-based routing
+
+  # -------------------------------------------------------------------------
+  # NAT & FIREWALL
+  # -------------------------------------------------------------------------
+  - cap.net.nat.dstnat             # Port forwarding
+  - cap.net.firewall.layer7        # Layer 7 filtering
+
+  # -------------------------------------------------------------------------
+  # VPN
+  # -------------------------------------------------------------------------
+  - cap.net.vpn.wireguard.server   # WireGuard server (native)
+  - cap.net.vpn.wireguard.client   # WireGuard client
+  - cap.net.vpn.openvpn.server     # OpenVPN server
+  - cap.net.vpn.openvpn.client     # OpenVPN client
+  - cap.net.vpn.ipsec              # IPsec/IKEv2
+
+  # -------------------------------------------------------------------------
+  # WiFi
+  # -------------------------------------------------------------------------
+  - cap.net.wifi.dual_band         # 2.4GHz + 5GHz
+  - cap.net.wifi.wifi6             # 802.11ax
+  - cap.net.wifi.mu_mimo           # MU-MIMO on both bands
+  - cap.net.wifi.beamforming       # Beamforming
+  - cap.net.wifi.guest_network     # Guest network isolation
+
+  # -------------------------------------------------------------------------
+  # WAN
+  # -------------------------------------------------------------------------
+  - cap.net.wan.multi_wan          # Ethernet WAN + LTE
+  - cap.net.wan.failover           # Automatic WAN failover
+  - cap.net.wan.load_balance       # Load balancing (PCC)
+  - cap.net.wan.lte                # Built-in LTE Cat 7 modem
+  - cap.net.wan.pppoe              # PPPoE client/server
+
+  # -------------------------------------------------------------------------
+  # QoS
+  # -------------------------------------------------------------------------
+  - cap.net.qos.advanced           # HTB, queue trees, PCQ
+
+  # -------------------------------------------------------------------------
+  # SERVICES
+  # -------------------------------------------------------------------------
+  - cap.net.ntp.server             # NTP server
+  - cap.net.snmp                   # SNMP v2c/v3
+  - cap.net.dyndns                 # Dynamic DNS client
+
+  # -------------------------------------------------------------------------
+  # ADVANCED
+  # -------------------------------------------------------------------------
+  - cap.net.vlan.8021q             # VLAN tagging
+  - cap.net.vrf                    # Virtual routing & forwarding
+  - cap.net.containers             # RouterOS v7 containers
+  - cap.net.hotspot                # Captive portal
+  - cap.net.netflow                # Netflow/IPFIX export
+  - cap.net.api.rest               # REST API
+
+# ============================================================================
+# ENABLED PACKS
+# ============================================================================
+
+enabled_packs:
+  - pack.router.home_gateway          # Primary: home gateway role
+  - pack.router.enterprise            # Secondary: supports BGP/OSPF/VRF
+
+# ============================================================================
+# VENDOR-SPECIFIC CAPABILITIES
+# ============================================================================
+
+vendor_capabilities:
+  - vendor.mikrotik.winbox            # WinBox management tool
+  - vendor.mikrotik.the_dude          # The Dude network mapper
+  - vendor.mikrotik.routeros.container # RouterOS v7 containers
+  - vendor.mikrotik.lte_modem         # Built-in LTE modem
+  - vendor.mikrotik.capsman           # CAPsMAN WiFi controller
+  - vendor.mikrotik.userman           # User manager
+
+# ============================================================================
+# DEFAULTS
+# Default values for instances of this object
+# ============================================================================
+
+defaults:
+  role: central_gateway
+  location: home
+
+  management:
+    webfig:
+      enabled: true
+      port: 80
+      protocol: http
+    winbox:
+      enabled: true
+      port: 8291
+    ssh:
+      enabled: true
+      port: 22
+    rest_api:
+      enabled: false  # Enable manually if needed
+      port: 8000
+
+  networking:
+    wan_interface: ether1
+    lan_interfaces: [ether2, ether3, ether4, ether5]
+    lan_bridge: bridge1
+    default_lan_network: 192.168.88.0/24
+
+  wireless:
+    country: RU
+    default_ssid_prefix: MikroTik
+    default_security: wpa3
+
+  lte:
+    role: failover  # Primary role: WAN failover
+    apn: internet
+    check_interval_seconds: 60
+
+# ============================================================================
+# USE CASES
+# ============================================================================
+
+use_cases:
+  - Central home gateway with LTE failover
+  - Small office router with WiFi 6
+  - Home lab gateway with container support
+  - Self-hosted services gateway (AdGuard, Tailscale in containers)
+
+# ============================================================================
+# LIMITATIONS
+# ============================================================================
+
+limitations:
+  - USB 2.0 only (not USB 3.0)
+  - 1GB RAM limits container count
+  - No SFP/SFP+ ports
+  - No PoE output on LAN ports
+  - WiFi repeater mode not officially supported (RouterOS limitation)
+
+# ============================================================================
+# CHANGELOG
+# ============================================================================
+
+changelog:
+  - version: 1.0.0
+    date: 2026-03-07
+    changes:
+      - Initial object definition for v5
+      - Complete hardware specification
+      - 32 enabled capabilities
+      - 2 capability packs (home_gateway + enterprise)
+      - Container support documented
+      - LTE modem specifications added

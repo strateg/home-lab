@@ -2,7 +2,9 @@ id: class.service.cache
 version: 1.0.0
 title: Service Cache
 summary: In-memory caching service role.
-required_capabilities: []
+required_capabilities:
+- cap.service.cache.runtime
+- cap.service.cache.persistence
 optional_capabilities: []
 capability_packs: []
 invariants:

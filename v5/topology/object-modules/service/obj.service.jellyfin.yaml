@@ -4,5 +4,8 @@ class_ref: class.service.media_server
 model: Jellyfin
 vendor: home-lab
 enabled_capabilities:
+- cap.service.media_server.runtime
+- cap.service.media_server.streaming
+vendor_capabilities:
 - vendor.service.jellyfin.runtime
 - vendor.service.jellyfin.config

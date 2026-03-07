@@ -1,0 +1,139 @@
+id: class.router
+version: 2.0.0
+title: Router
+description: |
+  Base class for all routers with routing, NAT, firewall, and
+  optional VPN, WiFi, WAN failover, and advanced features.
+  Differentiation via capability packs (home_gateway, travel_vpn, enterprise).
+
+# ============================================================================
+# REQUIRED CAPABILITIES
+# All router objects MUST support these core capabilities
+# ============================================================================
+
+required_capabilities:
+  - cap.net.routing.static         # Static routes (IPv4/IPv6)
+  - cap.net.nat.masquerade         # Source NAT for WAN
+  - cap.net.firewall.stateful      # Stateful firewall
+  - cap.net.dhcp.server            # DHCP server
+  - cap.net.dns.server             # DNS resolver/caching
+
+# ============================================================================
+# OPTIONAL CAPABILITIES
+# Router objects MAY support these capabilities based on hardware/firmware
+# ============================================================================
+
+optional_capabilities:
+  # Routing
+  - cap.net.routing.dynamic        # RIP
+  - cap.net.routing.bgp            # BGP (enterprise)
+  - cap.net.routing.ospf           # OSPF (enterprise)
+  - cap.net.routing.ecmp           # Equal-cost multi-path
+  - cap.net.routing.pcc            # Per-connection classifier (MikroTik)
+  - cap.net.routing.pbr            # Policy-based routing
+
+  # NAT & Firewall
+  - cap.net.nat.dstnat             # Port forwarding
+  - cap.net.firewall.zone_based    # Zone-based policies
+  - cap.net.firewall.layer7        # Layer 7 filtering
+
+  # VPN
+  - cap.net.vpn.wireguard.server   # WireGuard server
+  - cap.net.vpn.wireguard.client   # WireGuard client
+  - cap.net.vpn.openvpn.server     # OpenVPN server
+  - cap.net.vpn.openvpn.client     # OpenVPN client
+  - cap.net.vpn.ipsec              # IPsec tunnels
+  - cap.net.vpn.multi_instance     # Multiple VPN instances
+  - cap.net.vpn.policy_routing     # Per-client VPN routing
+
+  # WiFi
+  - cap.net.wifi.dual_band         # 2.4GHz + 5GHz
+  - cap.net.wifi.wifi6             # 802.11ax
+  - cap.net.wifi.mu_mimo           # Multi-user MIMO
+  - cap.net.wifi.beamforming       # Beamforming
+  - cap.net.wifi.guest_network     # Guest network
+  - cap.net.wifi.repeater_mode     # WiFi client/repeater
+  - cap.net.wifi.mesh              # Mesh networking
+
+  # WAN
+  - cap.net.wan.multi_wan          # Multiple WAN interfaces
+  - cap.net.wan.failover           # WAN failover
+  - cap.net.wan.load_balance       # WAN load balancing
+  - cap.net.wan.lte                # LTE modem
+  - cap.net.wan.pppoe              # PPPoE client/server
+
+  # QoS
+  - cap.net.qos.basic              # Simple priority
+  - cap.net.qos.advanced           # HTB/queue trees
+  - cap.net.qos.sqm                # Smart Queue Management
+
+  # Services
+  - cap.net.dhcp.relay             # DHCP relay
+  - cap.net.dns.dot                # DNS-over-TLS
+  - cap.net.dns.doh                # DNS-over-HTTPS
+  - cap.net.dns.adblock            # DNS filtering
+  - cap.net.ntp.server             # NTP server
+  - cap.net.snmp                   # SNMP monitoring
+
+  # Advanced
+  - cap.net.vlan.8021q             # VLAN tagging
+  - cap.net.vrf                    # VRF (enterprise)
+  - cap.net.containers             # Container support
+  - cap.net.hotspot                # Captive portal
+  - cap.net.netflow                # Netflow export
+  - cap.net.api.rest               # REST API
+  - cap.net.dyndns                 # Dynamic DNS
+
+# ============================================================================
+# CAPABILITY PACKS
+# Pre-defined capability bundles for common router roles
+# ============================================================================
+
+capability_packs:
+  - pack.router.home_gateway          # Full-featured home gateway (MikroTik)
+  - pack.router.travel_vpn            # Travel VPN gateway (GL.iNet)
+  - pack.router.enterprise            # Enterprise routing (CCR, EdgeRouter)
+
+# ============================================================================
+# INVARIANTS
+# Rules that MUST be satisfied by objects and instances
+# ============================================================================
+
+invariants:
+  - object.enabled_capabilities must include all required_capabilities
+  - object.enabled_capabilities must be subset of (required + optional)
+  - instance.overrides must not disable required capabilities
+  - if object.enabled_packs specified, object must support all pack capabilities
+  - vendor_capabilities must use vendor.* prefix
+
+# ============================================================================
+# LAYER PLACEMENT
+# Defined in v5/topology/layer-contract.yaml
+# ============================================================================
+
+layer_policy:
+  allowed_layers: [L1]  # Routers are L1 (foundation) devices
+
+# ============================================================================
+# CHANGELOG
+# ============================================================================
+
+changelog:
+  - version: 2.0.0
+    date: 2026-03-07
+    changes:
+      - Renamed router class namespace to class.router (simplified naming)
+      - Expanded capability catalog from 10 to 49 capabilities
+      - Added capability domains (routing, nat, firewall, vpn, wifi, wan, qos, services, advanced)
+      - Created 3 capability packs (home_gateway, travel_vpn, enterprise)
+      - Split VPN capabilities into client vs server modes
+      - Added WiFi 6 and repeater mode capabilities
+      - Added multi-instance VPN and policy routing
+      - Added DNS privacy capabilities (DoT, DoH, AdGuard)
+      - Improved capability naming convention (cap.net.<domain>.<feature>)
+
+  - version: 1.0.0
+    date: 2026-03-06
+    changes:
+      - Initial class definition in legacy network-scoped namespace
+      - Basic routing, NAT, firewall capabilities

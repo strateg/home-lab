@@ -1,0 +1,104 @@
+version: 1
+description: Capability ID migration from router-scoped IDs to generalized net-scoped IDs
+effective_date: 2026-03-07
+breaking_change: true
+rule: "cap.router.* -> cap.net.*"
+mappings:
+  - old_id: cap.router.routing.static
+    new_id: cap.net.routing.static
+  - old_id: cap.router.routing.dynamic
+    new_id: cap.net.routing.dynamic
+  - old_id: cap.router.routing.bgp
+    new_id: cap.net.routing.bgp
+  - old_id: cap.router.routing.ospf
+    new_id: cap.net.routing.ospf
+  - old_id: cap.router.routing.ecmp
+    new_id: cap.net.routing.ecmp
+  - old_id: cap.router.routing.pcc
+    new_id: cap.net.routing.pcc
+  - old_id: cap.router.routing.pbr
+    new_id: cap.net.routing.pbr
+  - old_id: cap.router.nat.masquerade
+    new_id: cap.net.nat.masquerade
+  - old_id: cap.router.nat.dstnat
+    new_id: cap.net.nat.dstnat
+  - old_id: cap.router.firewall.stateful
+    new_id: cap.net.firewall.stateful
+  - old_id: cap.router.firewall.zone_based
+    new_id: cap.net.firewall.zone_based
+  - old_id: cap.router.firewall.layer7
+    new_id: cap.net.firewall.layer7
+  - old_id: cap.router.vpn.wireguard.server
+    new_id: cap.net.vpn.wireguard.server
+  - old_id: cap.router.vpn.wireguard.client
+    new_id: cap.net.vpn.wireguard.client
+  - old_id: cap.router.vpn.openvpn.server
+    new_id: cap.net.vpn.openvpn.server
+  - old_id: cap.router.vpn.openvpn.client
+    new_id: cap.net.vpn.openvpn.client
+  - old_id: cap.router.vpn.ipsec
+    new_id: cap.net.vpn.ipsec
+  - old_id: cap.router.vpn.multi_instance
+    new_id: cap.net.vpn.multi_instance
+  - old_id: cap.router.vpn.policy_routing
+    new_id: cap.net.vpn.policy_routing
+  - old_id: cap.router.wifi.dual_band
+    new_id: cap.net.wifi.dual_band
+  - old_id: cap.router.wifi.wifi6
+    new_id: cap.net.wifi.wifi6
+  - old_id: cap.router.wifi.mu_mimo
+    new_id: cap.net.wifi.mu_mimo
+  - old_id: cap.router.wifi.beamforming
+    new_id: cap.net.wifi.beamforming
+  - old_id: cap.router.wifi.guest_network
+    new_id: cap.net.wifi.guest_network
+  - old_id: cap.router.wifi.repeater_mode
+    new_id: cap.net.wifi.repeater_mode
+  - old_id: cap.router.wifi.mesh
+    new_id: cap.net.wifi.mesh
+  - old_id: cap.router.wan.multi_wan
+    new_id: cap.net.wan.multi_wan
+  - old_id: cap.router.wan.failover
+    new_id: cap.net.wan.failover
+  - old_id: cap.router.wan.load_balance
+    new_id: cap.net.wan.load_balance
+  - old_id: cap.router.wan.lte
+    new_id: cap.net.wan.lte
+  - old_id: cap.router.wan.pppoe
+    new_id: cap.net.wan.pppoe
+  - old_id: cap.router.qos.basic
+    new_id: cap.net.qos.basic
+  - old_id: cap.router.qos.advanced
+    new_id: cap.net.qos.advanced
+  - old_id: cap.router.qos.sqm
+    new_id: cap.net.qos.sqm
+  - old_id: cap.router.dhcp.server
+    new_id: cap.net.dhcp.server
+  - old_id: cap.router.dhcp.relay
+    new_id: cap.net.dhcp.relay
+  - old_id: cap.router.dns.server
+    new_id: cap.net.dns.server
+  - old_id: cap.router.dns.dot
+    new_id: cap.net.dns.dot
+  - old_id: cap.router.dns.doh
+    new_id: cap.net.dns.doh
+  - old_id: cap.router.dns.adblock
+    new_id: cap.net.dns.adblock
+  - old_id: cap.router.ntp.server
+    new_id: cap.net.ntp.server
+  - old_id: cap.router.snmp
+    new_id: cap.net.snmp
+  - old_id: cap.router.vlan.8021q
+    new_id: cap.net.vlan.8021q
+  - old_id: cap.router.vrf
+    new_id: cap.net.vrf
+  - old_id: cap.router.containers
+    new_id: cap.net.containers
+  - old_id: cap.router.hotspot
+    new_id: cap.net.hotspot
+  - old_id: cap.router.netflow
+    new_id: cap.net.netflow
+  - old_id: cap.router.api.rest
+    new_id: cap.net.api.rest
+  - old_id: cap.router.dyndns
+    new_id: cap.net.dyndns

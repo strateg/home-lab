@@ -63,6 +63,20 @@ def validate_v5() -> None:
     run(
         [
             PYTHON,
+            "v5/topology-tools/check-capability-contract.py",
+            "--catalog",
+            "v5/topology/class-modules/classes/router/capability-catalog.yaml",
+            "--packs",
+            "v5/topology/class-modules/classes/router/capability-packs.yaml",
+            "--classes-dir",
+            "v5/topology/class-modules/classes",
+            "--objects-dir",
+            "v5/topology/object-modules",
+        ]
+    )
+    run(
+        [
+            PYTHON,
             "v5/topology-tools/compile-topology.py",
             "--topology",
             "v5/topology/topology.yaml",

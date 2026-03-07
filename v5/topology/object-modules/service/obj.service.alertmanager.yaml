@@ -4,5 +4,8 @@ class_ref: class.service.alerting
 model: Alertmanager
 vendor: home-lab
 enabled_capabilities:
+- cap.service.alerting.runtime
+- cap.service.alerting.routing
+vendor_capabilities:
 - vendor.service.alertmanager.runtime
 - vendor.service.alertmanager.config

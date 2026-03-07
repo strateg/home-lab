@@ -2,7 +2,9 @@ id: class.service.logging
 version: 1.0.0
 title: Service Logging
 summary: Log ingest, forwarding, and retention service role.
-required_capabilities: []
+required_capabilities:
+- cap.service.logging.runtime
+- cap.service.logging.forwarding
 optional_capabilities: []
 capability_packs: []
 invariants:

@@ -1,0 +1,153 @@
+version: 1
+tool: topology-compiler
+codes:
+  E1001:
+    severity: error
+    stage: load
+    title: Topology File Missing
+    hint: Check --topology path and verify the file exists.
+  E1002:
+    severity: error
+    stage: load
+    title: Included File Missing
+    hint: Fix !include or !include_dir_sorted paths and rerun compilation.
+  E1003:
+    severity: error
+    stage: load
+    title: YAML Parse Error
+    hint: Fix YAML syntax near the reported line and column.
+  E1004:
+    severity: error
+    stage: load
+    title: Invalid Root Type
+    hint: Root topology document must be a mapping/object.
+  E1201:
+    severity: error
+    stage: validate
+    title: Schema File Missing
+    hint: Ensure topology schema exists or pass --schema with a valid path.
+  E1202:
+    severity: error
+    stage: validate
+    title: Schema Parse Error
+    hint: Fix JSON syntax in schema file.
+  E1203:
+    severity: error
+    stage: validate
+    title: Schema Validation Failed
+    hint: Update YAML so the compiled structure satisfies the schema.
+  E2101:
+    severity: error
+    stage: resolve
+    title: Unresolved Reference
+    hint: Point *_ref to an existing id or create the missing object.
+  E2102:
+    severity: error
+    stage: resolve
+    title: Duplicate ID
+    hint: IDs must be globally unique in the effective topology.
+  W2201:
+    severity: warning
+    stage: resolve
+    title: object_ref Without class_ref
+    hint: Add class_ref to keep class-object linkage explicit.
+  W2202:
+    severity: warning
+    stage: resolve
+    title: class_ref Without object_ref
+    hint: Add object_ref for concrete topology or confirm this is abstract topology.
+  W2203:
+    severity: warning
+    stage: resolve
+    title: Partial implementation Binding
+    hint: implementation.module and implementation.object should be set together.
+  E2301:
+    severity: error
+    stage: load
+    title: Profile Map Parse Error
+    hint: Fix YAML syntax in --profile-map file.
+  E2302:
+    severity: error
+    stage: load
+    title: Profile Map Contract Error
+    hint: Validate profile map shape (profiles/profile/instance_overrides).
+  W2301:
+    severity: warning
+    stage: load
+    title: Profile Map Missing or Mismatched
+    hint: Ensure --profile-map exists and profile name matches requested --profile.
+  W2302:
+    severity: warning
+    stage: load
+    title: Empty Profile Overrides
+    hint: No overrides resolved for selected profile.
+  W2303:
+    severity: warning
+    stage: resolve
+    title: Unknown Profile Override Target
+    hint: Remove stale instance override or create missing instance id.
+  I2301:
+    severity: info
+    stage: resolve
+    title: Profile Applied
+    hint: Profile overrides were applied to the effective topology.
+  E2401:
+    severity: error
+    stage: load
+    title: model.lock Parse Error
+    hint: Fix YAML syntax in model.lock.
+  E2402:
+    severity: error
+    stage: load
+    title: model.lock Contract Error
+    hint: model.lock root must be a mapping/object.
+  E2403:
+    severity: error
+    stage: validate
+    title: object-class Pin Mismatch
+    hint: Align instance class_ref with object pin class_ref in model.lock.
+  W2401:
+    severity: warning
+    stage: load
+    title: model.lock Missing
+    hint: Create model.lock or disable with --model-lock \"\" for exploratory runs.
+  W2402:
+    severity: warning
+    stage: validate
+    title: Unpinned Class Reference
+    hint: Add class_ref pin under model.lock classes/class_modules.
+  W2403:
+    severity: warning
+    stage: validate
+    title: Unpinned Object Reference
+    hint: Add object_ref pin under model.lock objects/object_modules.
+  W2404:
+    severity: warning
+    stage: validate
+    title: Empty model.lock Pins
+    hint: model.lock should define class and/or object pin maps.
+  I2401:
+    severity: info
+    stage: load
+    title: model.lock Loaded
+    hint: No action required.
+  E3201:
+    severity: error
+    stage: validate
+    title: Semantic Validation Failed
+    hint: Fix semantic contract violation reported by validator checks.
+  W3201:
+    severity: warning
+    stage: validate
+    title: Semantic Validation Warning
+    hint: Review warning and update topology if it indicates drift.
+  E3001:
+    severity: error
+    stage: emit
+    title: Effective JSON Emit Failed
+    hint: Check output path permissions and free disk space.
+  I9001:
+    severity: info
+    stage: emit
+    title: Compile Success
+    hint: No action required.

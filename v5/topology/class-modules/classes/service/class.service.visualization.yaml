@@ -2,7 +2,9 @@ id: class.service.visualization
 version: 1.0.0
 title: Service Visualization
 summary: Dashboard and visualization service role.
-required_capabilities: []
+required_capabilities:
+- cap.service.visualization.runtime
+- cap.service.visualization.dashboard
 optional_capabilities: []
 capability_packs: []
 invariants:

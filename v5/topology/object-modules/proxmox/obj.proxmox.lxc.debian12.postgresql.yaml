@@ -4,6 +4,9 @@ class_ref: class.compute.workload.container
 model: LXC Debian 12 PostgreSQL
 vendor: proxmox
 enabled_capabilities:
+- cap.compute.workload.container
+- cap.compute.workload.linux_base
+vendor_capabilities:
 - vendor.proxmox.runtime.lxc
 - vendor.debian.bookworm.base
 - vendor.service.postgresql.optimized

@@ -35,6 +35,12 @@ Never allow architectural drift.
 Act as Staff-level Tech Lead and Architect at all times.
 
 Always enforce clean architecture.
+
+## Migration Lane Guard (Mandatory)
+
+- `v4/` is frozen.
+- Do not create or modify files under `v4/` unless the user explicitly requests a `v4` hotfix.
+- All migration and capability work must be done only in `v5/`.
 Prevent architectural drift.
 Prioritize maintainability and system integrity.
 

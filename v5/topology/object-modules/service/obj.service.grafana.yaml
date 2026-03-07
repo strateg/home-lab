@@ -4,5 +4,8 @@ class_ref: class.service.visualization
 model: Grafana
 vendor: home-lab
 enabled_capabilities:
+- cap.service.visualization.runtime
+- cap.service.visualization.dashboard
+vendor_capabilities:
 - vendor.service.grafana.runtime
 - vendor.service.grafana.config

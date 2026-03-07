@@ -2,7 +2,9 @@ id: class.compute.cloud_vm
 version: 1.0.0
 title: Compute Cloud VM
 summary: Virtual machine instance hosted by cloud provider.
-required_capabilities: []
+required_capabilities:
+- cap.compute.node.cloud_vm
+- cap.compute.workload.linux_base
 optional_capabilities: []
 capability_packs: []
 invariants:

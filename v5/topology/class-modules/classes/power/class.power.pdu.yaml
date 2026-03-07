@@ -2,7 +2,9 @@ id: class.power.pdu
 version: 1.0.0
 title: Power Distribution Unit
 summary: Power distribution and outlet control abstraction.
-required_capabilities: []
+required_capabilities:
+- cap.power.pdu.switching
+- cap.power.pdu.telemetry
 optional_capabilities: []
 capability_packs: []
 invariants:

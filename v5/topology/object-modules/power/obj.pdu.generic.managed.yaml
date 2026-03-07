@@ -4,5 +4,8 @@ class_ref: class.power.pdu
 model: Generic Managed PDU
 vendor: generic
 enabled_capabilities:
+- cap.power.pdu.switching
+- cap.power.pdu.telemetry
+vendor_capabilities:
 - vendor.power.pdu.switching
 - vendor.power.pdu.telemetry

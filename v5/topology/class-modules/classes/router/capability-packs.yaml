@@ -1,0 +1,243 @@
+version: 1
+description: Router capability packs for v5 topology
+
+packs:
+  # ==========================================================================
+  # HOME GATEWAY PACK
+  # For: MikroTik Chateau LTE7 AX
+  # Role: Central home gateway with WiFi 6, LTE failover, containers
+  # ==========================================================================
+
+  - id: pack.router.home_gateway
+    title: Home Gateway Router Pack
+    class_ref: class.router
+    description: |
+      Full-featured home gateway pack with advanced routing, WiFi 6,
+      LTE failover, container support, and comprehensive services.
+      Suitable for MikroTik and similar prosumer/small business routers.
+
+    target_devices:
+      - MikroTik Chateau LTE7 AX
+      - MikroTik hAP ac³
+      - Similar prosumer routers
+
+    capabilities:
+      # Core routing (always included)
+      - cap.net.routing.static
+      - cap.net.routing.pbr
+      - cap.net.nat.masquerade
+      - cap.net.nat.dstnat
+      - cap.net.firewall.stateful
+      - cap.net.firewall.layer7
+
+      # WAN (multi-WAN with failover)
+      - cap.net.wan.multi_wan
+      - cap.net.wan.failover
+      - cap.net.wan.lte
+      - cap.net.wan.pppoe
+
+      # VPN (server + client)
+      - cap.net.vpn.wireguard.server
+      - cap.net.vpn.wireguard.client
+      - cap.net.vpn.ipsec
+
+      # WiFi (WiFi 6 with guest network)
+      - cap.net.wifi.dual_band
+      - cap.net.wifi.wifi6
+      - cap.net.wifi.mu_mimo
+      - cap.net.wifi.beamforming
+      - cap.net.wifi.guest_network
+
+      # Services (full suite)
+      - cap.net.dhcp.server
+      - cap.net.dns.server
+      - cap.net.ntp.server
+      - cap.net.snmp
+      - cap.net.dyndns
+
+      # Advanced features
+      - cap.net.qos.advanced
+      - cap.net.vlan.8021q
+      - cap.net.containers
+      - cap.net.netflow
+      - cap.net.api.rest
+
+    use_cases:
+      - Central home network gateway
+      - Small office router
+      - Lab/homelab central router
+      - Self-hosted services gateway
+
+    typical_roles:
+      - central_gateway
+      - home_router
+      - lab_gateway
+
+  # ==========================================================================
+  # TRAVEL VPN PACK
+  # For: GL.iNet Slate AX
+  # Role: Portable VPN gateway for travel with repeater mode
+  # ==========================================================================
+
+  - id: pack.router.travel_vpn
+    title: Travel VPN Gateway Pack
+    class_ref: class.router
+    description: |
+      Compact travel router pack optimized for VPN client mode, WiFi repeater,
+      and portable use. Features multi-instance VPN, policy routing, and
+      hotel WiFi connectivity. Suitable for GL.iNet and similar travel routers.
+
+    target_devices:
+      - GL.iNet Slate AX (GL-AXT1800)
+      - GL.iNet Flint (GL-AX1800)
+      - GL.iNet Beryl AX (GL-MT3000)
+      - Similar portable/travel routers
+
+    capabilities:
+      # Core routing
+      - cap.net.routing.static
+      - cap.net.nat.masquerade
+      - cap.net.nat.dstnat
+      - cap.net.firewall.stateful
+      - cap.net.firewall.zone_based
+
+      # VPN (focus on CLIENT mode!)
+      - cap.net.vpn.wireguard.client      # Primary: connect to home
+      - cap.net.vpn.wireguard.server      # Secondary: accept connections
+      - cap.net.vpn.openvpn.client        # Alternative VPN
+      - cap.net.vpn.multi_instance        # Multiple VPN simultaneously
+      - cap.net.vpn.policy_routing        # Per-client/domain VPN routing
+
+      # WiFi (with repeater mode!)
+      - cap.net.wifi.dual_band
+      - cap.net.wifi.wifi6
+      - cap.net.wifi.mu_mimo
+      - cap.net.wifi.guest_network
+      - cap.net.wifi.repeater_mode       # KEY: Connect to hotel WiFi
+
+      # Services (privacy-focused)
+      - cap.net.dhcp.server
+      - cap.net.dns.server
+      - cap.net.dns.dot                   # Encrypted DNS
+      - cap.net.dns.doh                   # Alternative encrypted DNS
+      - cap.net.dns.adblock               # AdGuard Home
+      - cap.net.dyndns
+
+      # QoS (optimized for variable connections)
+      - cap.net.qos.sqm                   # SQM for hotel WiFi
+
+      # Advanced
+      - cap.net.vlan.8021q
+
+    use_cases:
+      - Travel VPN gateway (hotel, airport, cafe)
+      - Remote work secure network
+      - Portable home network bridge
+      - Privacy-focused portable router
+
+    typical_roles:
+      - travel_vpn_gateway
+      - portable_router
+      - remote_bridge
+
+    notes: |
+      This pack emphasizes:
+      - VPN CLIENT over server (connect TO home, not FROM)
+      - WiFi repeater mode (upstream via WiFi, not just Ethernet)
+      - Multi-instance VPN (simultaneous tunnels)
+      - Privacy features (DoT, DoH, AdGuard)
+      - Compact form factor compatibility
+
+  # ==========================================================================
+  # ENTERPRISE ROUTING PACK
+  # For: Future enterprise-grade routers
+  # Role: Advanced routing with BGP, OSPF, VRF for enterprise networks
+  # ==========================================================================
+
+  - id: pack.router.enterprise
+    title: Enterprise Routing Pack
+    class_ref: class.router
+    description: |
+      Enterprise-grade routing pack with BGP, OSPF, VRF, and advanced
+      traffic engineering. Suitable for MikroTik CCR series, Ubiquiti
+      EdgeRouter, and similar enterprise routers.
+
+    target_devices:
+      - MikroTik CCR series
+      - MikroTik RB5009
+      - Ubiquiti EdgeRouter
+      - Cisco ISR (running OpenWRT)
+
+    capabilities:
+      # Advanced routing protocols
+      - cap.net.routing.static
+      - cap.net.routing.bgp              # AS-level routing
+      - cap.net.routing.ospf             # IGP routing
+      - cap.net.routing.ecmp             # Load balancing
+      - cap.net.routing.pbr              # Policy routing
+
+      # NAT & Firewall
+      - cap.net.nat.masquerade
+      - cap.net.nat.dstnat
+      - cap.net.firewall.stateful
+      - cap.net.firewall.zone_based
+
+      # VPN (server-focused)
+      - cap.net.vpn.wireguard.server
+      - cap.net.vpn.ipsec
+
+      # Services
+      - cap.net.dhcp.server
+      - cap.net.dhcp.relay
+      - cap.net.dns.server
+      - cap.net.snmp
+
+      # Advanced features
+      - cap.net.vlan.8021q
+      - cap.net.vrf                      # Virtual routing domains
+      - cap.net.qos.advanced             # HTB, queue trees
+      - cap.net.netflow                  # Traffic analysis
+      - cap.net.api.rest                 # Automation
+
+    use_cases:
+      - Enterprise network edge
+      - Data center routing
+      - ISP customer edge (CE)
+      - Multi-tenant routing
+
+    typical_roles:
+      - enterprise_router
+      - datacenter_gateway
+      - isp_edge
+
+    notes: |
+      This pack is currently PLANNED for future enterprise router additions.
+      No active instances use this pack yet.
+
+# Metadata
+metadata:
+  total_packs: 3
+  active_packs: 2  # home_gateway, travel_vpn
+  planned_packs: 1 # enterprise
+
+  pack_comparison:
+    home_gateway:
+      capabilities: 25
+      complexity: high
+      target: prosumer/small_business
+      form_factor: desktop
+      primary_role: central_gateway
+
+    travel_vpn:
+      capabilities: 18
+      complexity: medium
+      target: consumer/traveler
+      form_factor: portable
+      primary_role: travel_vpn_gateway
+
+    enterprise:
+      capabilities: 18
+      complexity: very_high
+      target: enterprise/isp
+      form_factor: rack_mount
+      primary_role: enterprise_router

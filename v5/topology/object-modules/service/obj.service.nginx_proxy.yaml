@@ -4,5 +4,8 @@ class_ref: class.service.proxy
 model: Nginx Proxy
 vendor: home-lab
 enabled_capabilities:
+- cap.service.proxy.runtime
+- cap.service.proxy.ingress
+vendor_capabilities:
 - vendor.service.nginx_proxy.runtime
 - vendor.service.nginx_proxy.config

@@ -2,7 +2,9 @@ id: class.compute.workload.container
 version: 1.0.0
 title: Compute Workload Container
 summary: Containerized workload runtime contract.
-required_capabilities: []
+required_capabilities:
+- cap.compute.workload.container
+- cap.compute.workload.linux_base
 optional_capabilities: []
 capability_packs: []
 invariants:

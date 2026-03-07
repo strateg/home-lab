@@ -1,15 +1,35 @@
 id: obj.mikrotik.chr
-version: 1.0.0
-class_ref: class.network.router
-model: Cloud Hosted Router
+version: 1.1.0
+class_ref: class.router
+title: MikroTik CHR (Cloud Hosted Router)
+description: |
+  Virtual RouterOS appliance for cloud or virtualized deployments.
+  Uses the same router capability contract as physical MikroTik routers,
+  without hardware-specific features such as WiFi or LTE modem.
 vendor: mikrotik
+model: CHR
 
 enabled_capabilities:
-  - cap.router.routing.static
-  - cap.router.nat
-  - cap.router.firewall.stateful
-  - cap.router.dhcp.server
-  - cap.router.wireguard.endpoint
-  - cap.router.qos.basic
-  - cap.router.vlan
+  - cap.net.routing.static
+  - cap.net.nat.masquerade
+  - cap.net.firewall.stateful
+  - cap.net.dhcp.server
+  - cap.net.dns.server
+  - cap.net.nat.dstnat
+  - cap.net.vpn.wireguard.server
+  - cap.net.vpn.wireguard.client
+  - cap.net.vpn.ipsec
+  - cap.net.vlan.8021q
+  - cap.net.api.rest
+  - cap.net.qos.basic
+
+vendor_capabilities:
   - vendor.mikrotik.routeros.script
+
+changelog:
+  - version: 1.1.0
+    date: 2026-03-07
+    changes:
+      - Removed legacy capability IDs (old flat NAT/WireGuard/VLAN aliases)
+      - Added required cap.net.dns.server for class.router compliance
+      - Moved vendor capability into vendor_capabilities

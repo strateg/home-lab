@@ -2,7 +2,9 @@ id: class.service.database
 version: 1.0.0
 title: Service Database
 summary: Stateful database service role.
-required_capabilities: []
+required_capabilities:
+- cap.service.database.runtime
+- cap.service.database.persistence
 optional_capabilities: []
 capability_packs: []
 invariants:

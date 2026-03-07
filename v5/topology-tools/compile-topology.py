@@ -17,7 +17,7 @@ DEFAULT_MANIFEST = REPO_ROOT / "v5" / "topology" / "topology.yaml"
 DEFAULT_OUTPUT_JSON = REPO_ROOT / "v5-build" / "effective-topology.json"
 DEFAULT_DIAGNOSTICS_JSON = REPO_ROOT / "v5-build" / "diagnostics" / "report.json"
 DEFAULT_DIAGNOSTICS_TXT = REPO_ROOT / "v5-build" / "diagnostics" / "report.txt"
-DEFAULT_ERROR_CATALOG = REPO_ROOT / "v4" / "topology-tools" / "data" / "error-catalog.yaml"
+DEFAULT_ERROR_CATALOG = REPO_ROOT / "v5" / "topology-tools" / "data" / "error-catalog.yaml"
 
 SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
 
@@ -128,7 +128,7 @@ class V5Compiler:
         )
 
     def _load_yaml(self, path: Path, *, code_missing: str, code_parse: str, stage: str) -> dict[str, Any] | None:
-        if not path.exists():
+        if not path.exists() or not path.is_file():
             self.add_diag(
                 code=code_missing,
                 severity="error",
@@ -139,7 +139,7 @@ class V5Compiler:
             return None
         try:
             payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        except yaml.YAMLError as exc:
+        except (OSError, yaml.YAMLError) as exc:
             self.add_diag(
                 code=code_parse,
                 severity="error",
@@ -165,9 +165,17 @@ class V5Compiler:
             return []
         return sorted(path for path in directory.rglob("*.yaml") if path.is_file())
 
+    @staticmethod
+    def _is_module_file(path: Path, module_type: str) -> bool:
+        if module_type == "class":
+            return path.name.startswith("class.")
+        if module_type == "object":
+            return path.name.startswith("obj.")
+        return True
+
     def _load_module_map(self, *, directory: Path, module_type: str) -> dict[str, dict[str, Any]]:
         module_map: dict[str, dict[str, Any]] = {}
-        files = list(self._iter_yaml_files(directory))
+        files = [path for path in self._iter_yaml_files(directory) if self._is_module_file(path, module_type)]
         if not files:
             self.add_diag(
                 code="E1001",
@@ -203,6 +211,398 @@ class V5Compiler:
                 continue
             module_map[item_id] = {"payload": payload, "path": path}
         return module_map
+
+    def _load_capability_contract(
+        self, *, catalog_path: Path, packs_path: Path
+    ) -> tuple[set[str], dict[str, dict[str, Any]]]:
+        catalog_ids: set[str] = set()
+        packs_map: dict[str, dict[str, Any]] = {}
+
+        catalog_payload = self._load_yaml(catalog_path, code_missing="E1001", code_parse="E1003", stage="load")
+        if catalog_payload is None:
+            return catalog_ids, packs_map
+        capabilities = catalog_payload.get("capabilities")
+        if not isinstance(capabilities, list):
+            self.add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message="capability catalog must define list key 'capabilities'.",
+                path=str(catalog_path.relative_to(REPO_ROOT).as_posix()),
+            )
+            return catalog_ids, packs_map
+        for idx, item in enumerate(capabilities):
+            path = f"{catalog_path.relative_to(REPO_ROOT).as_posix()}:capabilities[{idx}]"
+            if not isinstance(item, dict):
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message="capability entry must be object.",
+                    path=path,
+                )
+                continue
+            cap_id = item.get("id")
+            if not isinstance(cap_id, str) or not cap_id:
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message="capability entry missing non-empty id.",
+                    path=path,
+                )
+                continue
+            if cap_id in catalog_ids:
+                self.add_diag(
+                    code="E2102",
+                    severity="error",
+                    stage="resolve",
+                    message=f"duplicate capability id '{cap_id}' in catalog.",
+                    path=path,
+                )
+                continue
+            catalog_ids.add(cap_id)
+
+        packs_payload = self._load_yaml(packs_path, code_missing="E1001", code_parse="E1003", stage="load")
+        if packs_payload is None:
+            return catalog_ids, packs_map
+        packs = packs_payload.get("packs")
+        if not isinstance(packs, list):
+            self.add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message="capability packs file must define list key 'packs'.",
+                path=str(packs_path.relative_to(REPO_ROOT).as_posix()),
+            )
+            return catalog_ids, packs_map
+        for idx, item in enumerate(packs):
+            path = f"{packs_path.relative_to(REPO_ROOT).as_posix()}:packs[{idx}]"
+            if not isinstance(item, dict):
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message="capability pack entry must be object.",
+                    path=path,
+                )
+                continue
+            pack_id = item.get("id")
+            if not isinstance(pack_id, str) or not pack_id:
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message="capability pack entry missing non-empty id.",
+                    path=path,
+                )
+                continue
+            if pack_id in packs_map:
+                self.add_diag(
+                    code="E2102",
+                    severity="error",
+                    stage="resolve",
+                    message=f"duplicate capability pack id '{pack_id}'.",
+                    path=path,
+                )
+                continue
+            pack_caps = item.get("capabilities")
+            if not isinstance(pack_caps, list):
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"pack '{pack_id}' must define list key 'capabilities'.",
+                    path=path,
+                )
+                continue
+            for cap in pack_caps:
+                if not isinstance(cap, str):
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"pack '{pack_id}' has non-string capability entry.",
+                        path=path,
+                    )
+                    continue
+                if not cap.startswith("vendor.") and cap not in catalog_ids:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"pack '{pack_id}' references unknown capability '{cap}'.",
+                        path=path,
+                    )
+            packs_map[pack_id] = item
+        return catalog_ids, packs_map
+
+    def _expand_capabilities(
+        self,
+        *,
+        direct_caps: list[Any],
+        pack_refs: list[Any],
+        packs_map: dict[str, dict[str, Any]],
+    ) -> set[str]:
+        expanded: set[str] = set()
+        for cap in direct_caps:
+            if isinstance(cap, str):
+                expanded.add(cap)
+        for pack_ref in pack_refs:
+            if not isinstance(pack_ref, str):
+                continue
+            pack = packs_map.get(pack_ref, {})
+            for cap in pack.get("capabilities", []) or []:
+                if isinstance(cap, str):
+                    expanded.add(cap)
+        return expanded
+
+    def _validate_capability_contract(
+        self,
+        *,
+        class_map: dict[str, dict[str, Any]],
+        object_map: dict[str, dict[str, Any]],
+        catalog_ids: set[str],
+        packs_map: dict[str, dict[str, Any]],
+    ) -> None:
+        class_cap_sets: dict[str, set[str]] = {}
+        class_required_sets: dict[str, set[str]] = {}
+        for class_id, class_item in class_map.items():
+            class_payload = class_item["payload"]
+            required = class_payload.get("required_capabilities", []) or []
+            optional = class_payload.get("optional_capabilities", []) or []
+            pack_refs = class_payload.get("capability_packs", []) or []
+            path = str(class_item["path"].relative_to(REPO_ROOT).as_posix())
+
+            if not isinstance(required, list):
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"class '{class_id}' required_capabilities must be list.",
+                    path=path,
+                )
+                required = []
+            if not isinstance(optional, list):
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"class '{class_id}' optional_capabilities must be list.",
+                    path=path,
+                )
+                optional = []
+            if not isinstance(pack_refs, list):
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"class '{class_id}' capability_packs must be list.",
+                    path=path,
+                )
+                pack_refs = []
+
+            class_caps: set[str] = set()
+            class_required: set[str] = set()
+            for cap in required:
+                if not isinstance(cap, str) or not cap:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"class '{class_id}' has invalid required capability entry.",
+                        path=path,
+                    )
+                    continue
+                if cap not in catalog_ids:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"class '{class_id}' references unknown capability '{cap}'.",
+                        path=path,
+                    )
+                class_caps.add(cap)
+                class_required.add(cap)
+
+            for cap in optional:
+                if not isinstance(cap, str) or not cap:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"class '{class_id}' has invalid optional capability entry.",
+                        path=path,
+                    )
+                    continue
+                if cap not in catalog_ids:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"class '{class_id}' references unknown capability '{cap}'.",
+                        path=path,
+                    )
+                class_caps.add(cap)
+
+            for pack_ref in pack_refs:
+                if not isinstance(pack_ref, str) or not pack_ref:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"class '{class_id}' has invalid capability pack reference.",
+                        path=path,
+                    )
+                    continue
+                pack = packs_map.get(pack_ref)
+                if pack is None:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"class '{class_id}' references unknown capability pack '{pack_ref}'.",
+                        path=path,
+                    )
+                    continue
+                pack_class_ref = pack.get("class_ref")
+                if isinstance(pack_class_ref, str) and pack_class_ref and pack_class_ref != class_id:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=(f"class '{class_id}' references pack '{pack_ref}' bound to class '{pack_class_ref}'."),
+                        path=path,
+                    )
+                for cap in pack.get("capabilities", []) or []:
+                    if isinstance(cap, str):
+                        class_caps.add(cap)
+
+            class_cap_sets[class_id] = class_caps
+            class_required_sets[class_id] = class_required
+
+        for object_id, object_item in object_map.items():
+            object_payload = object_item["payload"]
+            path = str(object_item["path"].relative_to(REPO_ROOT).as_posix())
+            class_ref = object_payload.get("class_ref")
+            if not isinstance(class_ref, str) or not class_ref:
+                continue
+            if class_ref not in class_map:
+                continue
+
+            enabled_caps = object_payload.get("enabled_capabilities", []) or []
+            enabled_packs = object_payload.get("enabled_packs", []) or []
+            vendor_caps = object_payload.get("vendor_capabilities", []) or []
+            if not isinstance(enabled_caps, list):
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"object '{object_id}' enabled_capabilities must be list.",
+                    path=path,
+                )
+                enabled_caps = []
+            if not isinstance(enabled_packs, list):
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"object '{object_id}' enabled_packs must be list.",
+                    path=path,
+                )
+                enabled_packs = []
+            if vendor_caps and not isinstance(vendor_caps, list):
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"object '{object_id}' vendor_capabilities must be list when set.",
+                    path=path,
+                )
+                vendor_caps = []
+
+            for pack_ref in enabled_packs:
+                if not isinstance(pack_ref, str) or not pack_ref:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"object '{object_id}' has invalid enabled_packs entry.",
+                        path=path,
+                    )
+                    continue
+                pack = packs_map.get(pack_ref)
+                if pack is None:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"object '{object_id}' references unknown pack '{pack_ref}'.",
+                        path=path,
+                    )
+                    continue
+                pack_class_ref = pack.get("class_ref")
+                if isinstance(pack_class_ref, str) and pack_class_ref and pack_class_ref != class_ref:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"object '{object_id}' references pack '{pack_ref}' for class '{pack_class_ref}', "
+                            f"but object class_ref is '{class_ref}'."
+                        ),
+                        path=path,
+                    )
+
+            expanded = self._expand_capabilities(direct_caps=enabled_caps, pack_refs=enabled_packs, packs_map=packs_map)
+            for cap in expanded:
+                if cap.startswith("vendor."):
+                    continue
+                if cap not in catalog_ids:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"object '{object_id}' has unknown capability '{cap}'.",
+                        path=path,
+                    )
+
+            for cap in vendor_caps:
+                if not isinstance(cap, str) or not cap.startswith("vendor."):
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=f"object '{object_id}' has invalid vendor capability entry '{cap}'.",
+                        path=path,
+                    )
+
+            class_allowed = class_cap_sets.get(class_ref, set())
+            class_required = class_required_sets.get(class_ref, set())
+            missing = sorted(cap for cap in class_required if cap not in expanded)
+            if missing:
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"object '{object_id}' does not satisfy class '{class_ref}' required capabilities: {missing}",
+                    path=path,
+                )
+
+            for cap in sorted(expanded):
+                if cap.startswith("vendor."):
+                    continue
+                if cap not in class_allowed:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"object '{object_id}' capability '{cap}' is outside class '{class_ref}' "
+                            "required/optional/packs contract."
+                        ),
+                        path=path,
+                    )
 
     def _load_instance_rows(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         bindings = payload.get("instance_bindings")
@@ -539,6 +939,7 @@ class V5Compiler:
                     "version": object_payload.get("version"),
                     "enabled_capabilities": object_payload.get("enabled_capabilities", []),
                     "enabled_packs": object_payload.get("enabled_packs", []),
+                    "vendor_capabilities": object_payload.get("vendor_capabilities", []),
                     "vendor": object_payload.get("vendor"),
                     "model": object_payload.get("model"),
                 },
@@ -639,7 +1040,10 @@ class V5Compiler:
             "next_actions": self._build_next_actions(),
             "diagnostics": [item.as_dict() for item in self._diagnostics],
         }
-        self.diagnostics_json.write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
+        self.diagnostics_json.write_text(
+            json.dumps(report, ensure_ascii=True, indent=2, default=str),
+            encoding="utf-8",
+        )
 
         txt_lines = [
             "Topology v5 Compiler Diagnostics",
@@ -688,11 +1092,17 @@ class V5Compiler:
 
         class_modules_root = resolve_repo_path(str(manifest_paths.get("class_modules_root", "")))
         object_modules_root = resolve_repo_path(str(manifest_paths.get("object_modules_root", "")))
+        capability_catalog_path = resolve_repo_path(str(manifest_paths.get("capability_catalog", "")))
+        capability_packs_path = resolve_repo_path(str(manifest_paths.get("capability_packs", "")))
         instance_bindings_path = resolve_repo_path(str(manifest_paths.get("instance_bindings", "")))
         model_lock_path = resolve_repo_path(str(manifest_paths.get("model_lock", "")))
 
         class_map = self._load_module_map(directory=class_modules_root, module_type="class")
         object_map = self._load_module_map(directory=object_modules_root, module_type="object")
+        catalog_ids, packs_map = self._load_capability_contract(
+            catalog_path=capability_catalog_path,
+            packs_path=capability_packs_path,
+        )
 
         instance_payload = self._load_yaml(
             instance_bindings_path,
@@ -707,6 +1117,13 @@ class V5Compiler:
             lock_payload = self._load_yaml(model_lock_path, code_missing="E1001", code_parse="E2401", stage="load")
 
         self._validate_refs(rows=rows, class_map=class_map, object_map=object_map)
+        if catalog_ids:
+            self._validate_capability_contract(
+                class_map=class_map,
+                object_map=object_map,
+                catalog_ids=catalog_ids,
+                packs_map=packs_map,
+            )
         self._validate_model_lock(rows=rows, class_map=class_map, object_map=object_map, lock_payload=lock_payload)
 
         errors = sum(1 for item in self._diagnostics if item.severity == "error")
@@ -718,7 +1135,10 @@ class V5Compiler:
                 rows=rows,
             )
             self.output_json.parent.mkdir(parents=True, exist_ok=True)
-            self.output_json.write_text(json.dumps(effective_payload, ensure_ascii=True, indent=2), encoding="utf-8")
+            self.output_json.write_text(
+                json.dumps(effective_payload, ensure_ascii=True, indent=2, default=str),
+                encoding="utf-8",
+            )
             self.add_diag(
                 code="I9001",
                 severity="info",

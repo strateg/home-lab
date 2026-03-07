@@ -4,5 +4,8 @@ class_ref: class.service.monitoring
 model: Mikrotik Snmp
 vendor: mikrotik
 enabled_capabilities:
+- cap.service.monitoring.runtime
+- cap.service.monitoring.metrics
+vendor_capabilities:
 - vendor.service.mikrotik.snmp.runtime
 - vendor.service.mikrotik.snmp.config

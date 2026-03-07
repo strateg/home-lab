@@ -4,5 +4,8 @@ class_ref: class.service.web_ui
 model: Proxmox Web Ui
 vendor: proxmox
 enabled_capabilities:
+- cap.service.web_ui.runtime
+- cap.service.web_ui.management
+vendor_capabilities:
 - vendor.service.proxmox.web_ui.runtime
 - vendor.service.proxmox.web_ui.config

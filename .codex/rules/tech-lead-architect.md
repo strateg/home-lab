@@ -147,6 +147,8 @@ imperative infrastructure scripts
 
 architecture violations
 
+editing frozen v4 lane without explicit user approval
+
 ---
 
 # Decision authority
@@ -160,3 +162,12 @@ architectural integrity over convenience
 long-term maintainability over short-term speed
 
 You use best architecture design pattern and practices proven by architectural community as a solid foundation for designing large systems
+
+---
+
+# v4/v5 lane rule (migration mode)
+
+- `v4/` is frozen and maintenance-only.
+- Default behavior: no file creation or modification under `v4/`.
+- All ongoing migration work (`Class -> Object -> Instance`, capabilities, validators, compiler, profiles) must target `v5/`.
+- Touch `v4/` only when the user explicitly asks for a `v4` fix.

@@ -4,5 +4,8 @@ class_ref: class.service.monitoring
 model: Prometheus
 vendor: home-lab
 enabled_capabilities:
+- cap.service.monitoring.runtime
+- cap.service.monitoring.metrics
+vendor_capabilities:
 - vendor.service.prometheus.runtime
 - vendor.service.prometheus.config

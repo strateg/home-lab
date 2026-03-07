@@ -4,5 +4,8 @@ class_ref: class.service.home_automation
 model: Mosquitto
 vendor: home-lab
 enabled_capabilities:
+- cap.service.home_automation.runtime
+- cap.service.home_automation.messaging
+vendor_capabilities:
 - vendor.service.mosquitto.runtime
 - vendor.service.mosquitto.config

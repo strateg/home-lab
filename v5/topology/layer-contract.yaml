@@ -41,7 +41,7 @@ class_layers:
     allowed_layers: [L1, L4]
   class.compute.hypervisor:
     allowed_layers: [L1, L4]
-  class.network.router:
+  class.router:
     allowed_layers: [L1]
   class.power.pdu:
     allowed_layers: [L1]
