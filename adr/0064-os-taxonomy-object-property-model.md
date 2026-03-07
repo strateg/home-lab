@@ -1,4 +1,4 @@
-# ADR 0064: OS Taxonomy - Object Property Model
+# ADR 0064: OS Taxonomy - Infrastructure Prerequisite and Runtime Projection
 
 **Date:** 2026-03-08
 **Status:** Proposed
@@ -8,156 +8,138 @@
 
 ## Context
 
-The v5 topology model uses `Class -> Object -> Instance` semantics with capability-based feature declaration. Operating systems (OS) are fundamental to infrastructure modeling but currently lack a consistent taxonomy.
+The v5 model uses `Class -> Object -> Instance` and a capability contract (ADR 0062).
+Operating system is a deployment prerequisite, similar to hardware/firmware baseline, and must be modeled as infrastructure data.
 
-### Current State Analysis
+Current gaps:
 
-OS modeling is inconsistent across object modules:
-
-1. **Explicit OS section** (MikroTik):
-   ```yaml
-   software:
-     os:
-       vendor: mikrotik
-       name: RouterOS
-       version: v7
-       architecture: arm64
-   ```
-
-2. **Vendor capability encoding** (Proxmox LXC, OrangePi):
-   ```yaml
-   vendor_capabilities:
-     - vendor.debian.bookworm.base
-   ```
-
-3. **Implicit through class** (services):
-   - Service classes assume Linux base without explicit OS declaration
-
-### Problem Statement
-
-- No canonical OS schema for objects
-- OS constraints for services (e.g., "requires Debian 12") are not enforceable
-- Container runtime compatibility (systemd vs init) is implicit
-- Package manager assumptions are undocumented
-
-### Options Evaluated
-
-| Option | Description | Verdict |
-|--------|-------------|---------|
-| A | OS as Class | Rejected - OS is not deployable, violates Class semantics |
-| B | OS as Capability Domain | Partial - loses structured properties |
-| C | OS as Object Property + Derived Capabilities | **Recommended** |
+1. OS is modeled inconsistently (explicit in some objects, implicit `vendor.*` markers in others).
+2. Service/workload OS compatibility is not formally checkable.
+3. VM/LXC and cloud workloads need an explicit OS prerequisite contract (template/image/base).
+4. Init/package assumptions are implicit and drift-prone.
 
 ---
 
 ## Decision
 
-### 1. OS Is an Object Property, Not a Class
+### 1. OS Is an Infrastructure Prerequisite With Runtime Projection
 
-Operating systems are **properties of objects**, not deployable entities. The OS does not get its own class; instead, objects declare their OS through a structured `os` property.
+OS modeling is split into two linked representations:
 
-### 2. Canonical OS Property Schema
+1. **OS prerequisite object** (source artifact/profile): reusable infrastructure baseline.
+2. **Runtime OS projection** (`software.os`): effective OS facts on a concrete object.
 
-All objects with operating systems MUST declare `os` under `software`:
+This keeps OS in the infrastructure domain while preserving explicit runtime facts for validation and generation.
+
+### 2. `software.os` Is Canonical Effective Contract
+
+Objects that run an OS MUST expose canonical effective OS data:
 
 ```yaml
 software:
   os:
     family: linux | bsd | windows | routeros | proprietary
-    distribution: debian | ubuntu | alpine | fedora | nixos | routeros | openwrt | null
-    release: "12" | "22.04" | "3.18" | "7.x" | null
-    codename: bookworm | jammy | null
-    architecture: x86_64 | arm64 | armhf | riscv64
-    init_system: systemd | openrc | sysvinit | busybox | proprietary | null
-    package_manager: apt | apk | dnf | nix | opkg | null | none
+    distribution: debian | ubuntu | alpine | fedora | nixos | routeros | openwrt
+    release: "12" | "22.04" | "7"
+    release_id: "12" | "2204" | "7"   # normalized token used in capability IDs
+    codename: bookworm | jammy
+    architecture: x86_64 | arm64 | armhf | riscv64 | mipsel
+    init_system: systemd | openrc | sysvinit | busybox | proprietary
+    package_manager: apt | apk | dnf | nix | opkg | none
     kernel: linux | bsd | nt | proprietary
-    eol_date: "2028-06-30" | null  # ISO 8601 date
+    eol_date: "2028-06-30"             # ISO 8601
 ```
 
-#### Required Fields
+Normative rules:
 
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `family` | Yes | - | OS family (linux, bsd, windows, routeros, proprietary) |
-| `architecture` | Yes | - | CPU architecture |
-| `distribution` | No | null | Distribution name |
-| `release` | No | null | Version/release identifier |
-| `codename` | No | null | Release codename |
-| `init_system` | No | null | Init system (derived if null) |
-| `package_manager` | No | null | Package manager (derived if null) |
-| `kernel` | No | derived | Kernel type (derived from family) |
-| `eol_date` | No | null | End of life date |
+1. `family` and `architecture` are required for OS-bearing objects.
+2. `release_id` is required when `release` is set and MUST be normalized for IDs.
+3. `kernel` defaults from `family` if omitted.
+4. No OS section for objects that do not run OS (for example passive power units).
 
-### 3. Derived Capability Rules
+### 3. OS Prerequisite Reference (`prerequisites.os_ref`)
 
-The compiler MUST derive OS capabilities from `software.os` properties:
-
-```text
-os.family = linux           -> cap.os.linux
-os.distribution = debian    -> cap.os.debian
-os.release = 12             -> cap.os.debian.12
-os.init_system = systemd    -> cap.os.init.systemd
-os.package_manager = apt    -> cap.os.pkg.apt
-os.architecture = arm64     -> cap.arch.arm64
-```
-
-#### Derivation Matrix
-
-| Property | Derived Capability | Example |
-|----------|-------------------|---------|
-| `family: linux` | `cap.os.linux` | Linux base |
-| `family: bsd` | `cap.os.bsd` | BSD base |
-| `distribution: debian` | `cap.os.debian` | Debian family |
-| `distribution: alpine` | `cap.os.alpine` | Alpine Linux |
-| `distribution: routeros` | `cap.os.routeros` | MikroTik RouterOS |
-| `release: "12"` (debian) | `cap.os.debian.12` | Debian 12 |
-| `codename: bookworm` | `cap.os.debian.bookworm` | Alias for 12 |
-| `init_system: systemd` | `cap.os.init.systemd` | Systemd init |
-| `init_system: openrc` | `cap.os.init.openrc` | OpenRC init |
-| `package_manager: apt` | `cap.os.pkg.apt` | APT package manager |
-| `package_manager: apk` | `cap.os.pkg.apk` | Alpine APK |
-| `architecture: arm64` | `cap.arch.arm64` | ARM64 arch |
-| `architecture: x86_64` | `cap.arch.x86_64` | x86-64 arch |
-
-### 4. OS Capability Namespace
-
-New capability namespace for OS-derived capabilities:
-
-```text
-cap.os.<family>                      # OS family
-cap.os.<distribution>                # Distribution
-cap.os.<distribution>.<release>      # Distribution + release
-cap.os.init.<init_system>            # Init system
-cap.os.pkg.<package_manager>         # Package manager
-cap.arch.<architecture>              # CPU architecture
-```
-
-### 5. Service-to-Workload OS Compatibility
-
-Services MAY declare OS requirements in `requires`:
+Objects MAY reference a reusable OS prerequisite object:
 
 ```yaml
-# class.service.database
-requires:
-  os:
-    - cap.os.linux
-    - cap.os.init.systemd
-
-# Service can declare distribution preference
-# class.service.postgresql
-requires:
-  os:
-    - cap.os.debian | cap.os.ubuntu | cap.os.alpine
+prerequisites:
+  os_ref: obj.os.debian.12.generic
 ```
 
-The compiler validates that the target workload's derived OS capabilities satisfy service requirements.
+Policy by object type:
 
-### 6. Inference Rules for Init System and Package Manager
+1. **VM/LXC/cloud workload objects**: `prerequisites.os_ref` SHOULD be set (recommended as default policy).
+2. **Device objects with vendor firmware (router/appliance)**: direct `software.os` is allowed without `os_ref`.
+3. **OS-less objects**: `os_ref` and `software.os` are both absent.
 
-When `init_system` or `package_manager` are null, the compiler SHOULD infer:
+### 4. Precedence and Conflict Rules
 
-| Distribution | Default init_system | Default package_manager |
-|--------------|---------------------|-------------------------|
+Effective OS is resolved as:
+
+1. `os_ref` base OS data
+2. object-local `software.os` overrides
+
+Conflict policy:
+
+1. Overrides are allowed only for fields expected to vary per build (for example patch release).
+2. Conflicts in invariant fields (`family`, `distribution`, `architecture`) are compile errors.
+3. If both `release` and `release_id` are set, they MUST represent the same normalized release token.
+
+### 5. Derived Capabilities From Effective OS
+
+Compiler MUST derive capabilities from effective `software.os`:
+
+```text
+family=linux             -> cap.os.linux
+distribution=debian      -> cap.os.debian
+release_id=12            -> cap.os.debian.12
+codename=bookworm        -> cap.os.debian.bookworm (alias)
+init_system=systemd      -> cap.os.init.systemd
+package_manager=apt      -> cap.os.pkg.apt
+architecture=arm64       -> cap.arch.arm64
+```
+
+Namespace:
+
+```text
+cap.os.<family>
+cap.os.<distribution>
+cap.os.<distribution>.<release_id>
+cap.os.init.<init_system>
+cap.os.pkg.<package_manager>
+cap.arch.<architecture>
+```
+
+`cap.os.pkg.none` is valid for systems without package manager surface.
+
+### 6. Service/Workload OS Requirements
+
+OS requirements use structured logic under `requires.os`:
+
+```yaml
+requires:
+  os:
+    all:
+      - cap.os.linux
+      - cap.os.init.systemd
+    any:
+      - cap.os.debian
+      - cap.os.ubuntu
+      - cap.os.alpine
+```
+
+Semantics:
+
+1. `all`: every capability MUST be present.
+2. `any`: at least one capability MUST be present.
+3. If `any` is absent, only `all` is evaluated.
+
+### 7. Inference Rules
+
+When `init_system` or `package_manager` are omitted, compiler SHOULD infer by `distribution`:
+
+| Distribution | init_system | package_manager |
+|--------------|-------------|-----------------|
 | debian | systemd | apt |
 | ubuntu | systemd | apt |
 | alpine | openrc | apk |
@@ -166,33 +148,17 @@ When `init_system` or `package_manager` are null, the compiler SHOULD infer:
 | routeros | proprietary | none |
 | openwrt | busybox | opkg |
 
-### 7. Object Module Migration
+Explicit value wins over inferred value if not conflicting with immutable distro constraints.
 
-Existing objects SHOULD add explicit `software.os` section:
+### 8. Migration Contract
 
-**Before (implicit via vendor capability):**
-```yaml
-id: obj.proxmox.lxc.debian12.base
-vendor_capabilities:
-  - vendor.debian.bookworm.base
-```
+Phase sequence:
 
-**After (explicit OS property):**
-```yaml
-id: obj.proxmox.lxc.debian12.base
-software:
-  os:
-    family: linux
-    distribution: debian
-    release: "12"
-    codename: bookworm
-    architecture: x86_64
-    init_system: systemd
-    package_manager: apt
-    eol_date: "2028-06-30"
-```
-
-The `vendor.debian.bookworm.base` capability is deprecated in favor of derived `cap.os.debian.12`.
+1. Add validator support for `software.os`, `prerequisites.os_ref`, `requires.os`.
+2. Add compiler resolution and capability derivation for effective OS.
+3. Migrate objects from `vendor.<distro>.*` OS markers to canonical OS model.
+4. Keep compatibility warnings for legacy vendor OS markers during transition.
+5. Switch legacy vendor OS markers to hard errors after migration gate completion.
 
 ---
 
@@ -200,25 +166,16 @@ The `vendor.debian.bookworm.base` capability is deprecated in favor of derived `
 
 ### Positive
 
-1. Consistent OS modeling across all object types
-2. Enforceable service-to-workload OS compatibility checks
-3. Clear derivation rules for capability generation
-4. Structured data enables automated compliance checks (EOL dates)
-5. Init system and package manager are explicitly modeled
+1. OS becomes explicit infrastructure prerequisite, not implicit metadata.
+2. VM/LXC/cloud objects get auditable OS dependency links.
+3. Service-to-runtime compatibility becomes machine-checkable.
+4. Capability registry and OS taxonomy stay aligned through normalized `release_id`.
 
 ### Trade-offs
 
-1. Requires migration of existing objects to add `software.os`
-2. Compiler must implement derivation rules
-3. Slight increase in object module verbosity
-
-### Migration Path
-
-1. Add `software.os` schema to object module validator
-2. Update existing objects with explicit OS properties
-3. Implement capability derivation in compiler
-4. Deprecate `vendor.<distro>.*` OS capabilities
-5. Add service OS requirement validation
+1. More schema and compiler logic.
+2. Temporary dual-mode support during migration.
+3. Slightly higher verbosity in object modules.
 
 ---
 
@@ -226,4 +183,5 @@ The `vendor.debian.bookworm.base` capability is deprecated in favor of derived `
 
 - ADR 0062: Topology v5 - Modular Class-Object-Instance Architecture
 - Object modules: `v5/topology/object-modules/`
+- Manifest: `v5/topology/topology.yaml`
 - Capability catalog: `v5/topology/class-modules/capability-catalog.yaml`
