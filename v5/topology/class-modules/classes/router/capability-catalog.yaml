@@ -249,13 +249,13 @@ capabilities:
     note: "OpenWRT SQM package"
 
   # ============================================================================
-  # SERVICES
+  # NETWORK SERVICES
   # ============================================================================
 
   - id: cap.net.dhcp.server
     title: DHCP Server
     summary: Supports DHCP lease management for local subnets
-    domain: services
+    domain: service
     stability: stable
     required_by:
       - class.router
@@ -263,13 +263,13 @@ capabilities:
   - id: cap.net.dhcp.relay
     title: DHCP Relay
     summary: Supports forwarding DHCP requests to external DHCP server
-    domain: services
+    domain: service
     stability: stable
 
   - id: cap.net.dns.server
     title: DNS Server/Resolver
     summary: Supports local DNS resolution and caching
-    domain: services
+    domain: service
     stability: stable
     required_by:
       - class.router
@@ -277,31 +277,31 @@ capabilities:
   - id: cap.net.dns.dot
     title: DNS-over-TLS
     summary: Supports encrypted DNS queries via TLS (Stubby, dnsdist)
-    domain: services
+    domain: service
     stability: stable
 
   - id: cap.net.dns.doh
     title: DNS-over-HTTPS
     summary: Supports encrypted DNS queries via HTTPS (dnscrypt-proxy)
-    domain: services
+    domain: service
     stability: stable
 
   - id: cap.net.dns.adblock
     title: DNS-Based Ad Blocking
     summary: Supports DNS filtering for ad blocking (AdGuard Home, Pi-hole)
-    domain: services
+    domain: service
     stability: stable
 
   - id: cap.net.ntp.server
     title: NTP Server
     summary: Supports Network Time Protocol server for time synchronization
-    domain: services
+    domain: service
     stability: stable
 
   - id: cap.net.snmp
     title: SNMP Monitoring
     summary: Supports SNMP v2c/v3 for remote monitoring
-    domain: services
+    domain: service
     stability: stable
 
   # ============================================================================
@@ -311,45 +311,45 @@ capabilities:
   - id: cap.net.vlan.8021q
     title: VLAN (802.1Q)
     summary: Supports VLAN tagging and trunk interfaces
-    domain: advanced
+    domain: platform
     stability: stable
 
   - id: cap.net.vrf
     title: Virtual Routing & Forwarding (VRF)
     summary: Supports isolated routing domains on single device
-    domain: advanced
+    domain: platform
     stability: stable
     enterprise: true
 
   - id: cap.net.containers
     title: Container Support
     summary: Supports running Docker/container workloads on router
-    domain: advanced
+    domain: platform
     stability: stable
     note: "RouterOS v7 containers"
 
   - id: cap.net.hotspot
     title: Hotspot/Captive Portal
     summary: Supports captive portal for guest authentication
-    domain: advanced
+    domain: platform
     stability: stable
 
   - id: cap.net.netflow
     title: Netflow/IPFIX Export
     summary: Supports exporting flow data for traffic analysis
-    domain: advanced
+    domain: platform
     stability: stable
 
   - id: cap.net.api.rest
     title: REST API
     summary: Supports RESTful API for automation and integration
-    domain: advanced
+    domain: platform
     stability: stable
 
   - id: cap.net.dyndns
     title: Dynamic DNS Client
     summary: Supports automatic DNS record updates for dynamic IP addresses
-    domain: advanced
+    domain: platform
     stability: stable
 
   # ============================================================================
@@ -458,7 +458,7 @@ capabilities:
       - class.power.pdu
 
   # ============================================================================
-  # SERVICES
+  # APPLICATION SERVICES
   # ============================================================================
 
   - id: cap.service.alerting.runtime
@@ -696,11 +696,10 @@ metadata:
     - wifi
     - wan
     - qos
-    - services
-    - advanced
+    - service
+    - platform
     - compute
     - power
-    - service
 
   stability_distribution:
     stable: 88
