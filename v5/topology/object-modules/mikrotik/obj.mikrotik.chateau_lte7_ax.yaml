@@ -158,12 +158,22 @@ hardware_specs:
 # SOFTWARE
 # ============================================================================
 
+prerequisites:
+  os_ref: obj.os.routeros.7.arm64
+
 software:
   os:
+    family: routeros
+    distribution: routeros
+    release: "7"
+    release_id: "7"
+    architecture: arm64
+    init_system: proprietary
+    package_manager: none
+    kernel: proprietary
     vendor: mikrotik
     name: RouterOS
-    version: v7
-    architecture: arm64
+    vendor_version: v7
     license_level: 4
     update_channel: stable
 
