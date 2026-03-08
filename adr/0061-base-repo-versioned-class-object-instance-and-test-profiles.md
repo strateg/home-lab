@@ -1,9 +1,10 @@
 # ADR 0061: Base Repo with Versioned Class-Object-Instance and Test Profiles
 
 **Date:** 2026-03-06
-**Status:** Superseded by ADR 0062
+**Status:** Superseded by ADR 0062 (Harmonized with ADR 0064 on 2026-03-09)
 **Related:** ADR 0059 (Class-Object-Instance Module Contract), ADR 0060 (YAML-to-JSON Compiler and Diagnostics Contract)
 **Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
+**Harmonized With:** ADR 0064 (Firmware + OS Two-Entity Model)
 
 ---
 
@@ -15,6 +16,11 @@ The accepted architectural direction is `Class -> Object -> Instance`:
 - `Object` captures implementation behavior
 - `Instance` captures concrete deployment nodes and their links
 
+Canonical IDs follow stable prefixes:
+- `class.<domain>.<name>`
+- `obj.<domain>.<name>`
+- `inst.<domain>.<name>`
+
 We also need an explicit operational model for two testing realities:
 
 1. **Production network** (real devices and real service traffic)
@@ -22,9 +28,9 @@ We also need an explicit operational model for two testing realities:
 
 Additionally, production may use **test profiles on real devices** (feature-flag-like behavior) without replacing hardware.
 
-To keep this reproducible across many topology repositories, version and compatibility must be explicit through the chain:
+To keep this reproducible across many topology repositories, version and compatibility must be explicit through the canonical chain:
 
-`Class version -> Object version -> Instance selection`.
+`Instance.object_ref -> Object.class_ref -> Class(version compatibility)`.
 
 ---
 
@@ -70,6 +76,12 @@ Supported per-instance actions:
 - merge additional `overrides`
 - optional disable/drop instance from effective topology
 
+Software-stack actions for device/workload instances (aligned with ADR 0064):
+
+- set/replace `firmware_ref` to `inst.firmware.*` where class policy allows
+- set/replace `os_refs[]` to `inst.os.*` values, including multi-boot variants
+- preserve class/object-level cardinality and `multi_boot` constraints during profile substitution
+
 Profile substitution compatibility rule:
 
 - replacement object must match class and satisfy required capability signature of the replaced instance role
@@ -86,6 +98,7 @@ Recommended profile capability signatures:
 
 Top-level topology authoring remains instance-centric and concise.
 Class/Object complexity is encapsulated in base modules.
+Firmware/OS choices are instance-level bindings (`firmware_ref`, `os_refs[]`), not class-level OS subclass fields.
 
 This keeps instance repos readable while maximizing module reuse.
 
@@ -97,6 +110,7 @@ To avoid model bloat across many repos:
 2. Promote repeated object-local capabilities into class pack when reused in 2+ object modules
 3. Keep vendor-only capabilities under `vendor.*` namespace and out of class required set
 4. Limit profile overlays to operational differences; avoid embedding full object semantics into profile maps
+5. Treat `cap.firmware.*` and `cap.os.*` as derived from resolved software instances, not hand-authored per-instance literals
 
 ---
 
@@ -130,10 +144,10 @@ To avoid model bloat across many repos:
 
 - Class-Object-Instance contract: `adr/0059-repository-split-and-class-object-instance-module-contract.md`
 - Compiler/diagnostics contract: `adr/0060-yaml-to-json-compiler-diagnostics-contract.md`
-- Compiler implementation: `topology-tools/compile-topology.py`
-- Capability contract checker: `topology-tools/check-capability-contract.py`
-- model.lock bootstrap example: `topology/model.lock.example.yaml`
-- profile map bootstrap example: `topology/profile-map.example.yaml`
-- Error catalog: `topology-tools/data/error-catalog.yaml`
+- Compiler implementation: `v5/topology-tools/compile-topology.py`
+- Capability contract checker: `v5/topology-tools/check-capability-contract.py`
+- model.lock reference: `v5/topology/model.lock.yaml`
+- profile map reference: `v5/topology/profile-map.yaml`
+- Error catalog: `v5/topology-tools/data/error-catalog.yaml`
 - ADR register: `adr/REGISTER.md`
-- Commit: pending
+- Commit: harmonization pending

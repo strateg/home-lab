@@ -1,9 +1,10 @@
 # ADR 0060: YAML-to-JSON Compiler and Diagnostics Contract
 
 **Date:** 2026-03-06
-**Status:** Superseded by ADR 0062
+**Status:** Superseded by ADR 0062 (Harmonized with ADR 0064 on 2026-03-09)
 **Related:** ADR 0058 (Core Abstraction Layer), ADR 0059 (Repository Split and Class-Object-Instance Module Contract), ADR 0061 (Base Repo with Versioned Class-Object-Instance and Test Profiles)
 **Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
+**Harmonized With:** ADR 0064 (Firmware + OS Two-Entity Model)
 
 ---
 
@@ -12,6 +13,7 @@
 The project keeps YAML as a human-friendly source format. At the same time, we need strict machine checks for:
 
 - class-object-instance linkage integrity
+- firmware/OS instance linkage integrity (`firmware_ref`, `os_refs[]`)
 - stable AI repair loops
 - deterministic validation and error triage
 
@@ -32,7 +34,7 @@ Adopt a formal compile pipeline:
 1. `load` (YAML + include resolution)
 2. `normalize` (deterministic canonical structure)
 3. `resolve` (ID/reference checks + class-object-instance linkage checks)
-4. `validate` (JSON schema + semantic checks, including capability contract checks)
+4. `validate` (schema + semantic checks, including capability contract and software-instance checks)
 5. `emit` (canonical JSON and diagnostics artifacts)
 
 Source remains editable YAML. Canonical machine contract is JSON.
@@ -65,7 +67,7 @@ Add a versioned error catalog with stable codes:
 
 ### 4. Add Initial Compiler Entry Point
 
-Introduce `topology-tools/compile-topology.py` as orchestration entry point for:
+Introduce `v5/topology-tools/compile-topology.py` as orchestration entry point for:
 
 - canonical `effective-topology.json`
 - diagnostics (`report.json`, `report.txt`)
@@ -77,6 +79,13 @@ Capability-focused diagnostics are required for:
 - missing object support for class required capabilities
 - invalid capability identifiers outside catalog (except `vendor.*`)
 - profile replacement that violates required capability signature
+
+Software-focused diagnostics are required for:
+
+- missing or unresolved `firmware_ref` when class policy requires firmware
+- unresolved or class-incompatible `os_refs[]`
+- `multi_boot`/cardinality violations
+- architecture/install-model incompatibility between device, firmware, and OS instances
 
 ---
 
@@ -108,12 +117,9 @@ Capability-focused diagnostics are required for:
 
 ## References
 
-- Compiler entry point: `topology-tools/compile-topology.py`
-- Diagnostics schema: `topology-tools/schemas/diagnostics.schema.json`
-- model.lock schema: `topology-tools/schemas/model-lock.schema.json`
-- profile map schema: `topology-tools/schemas/profile-map.schema.json`
-- Error catalog: `topology-tools/data/error-catalog.yaml`
-- Existing validator orchestration: `topology-tools/scripts/validators/runner.py`
-- Existing validation CLI: `topology-tools/validate-topology.py`
+- Compiler entry point: `v5/topology-tools/compile-topology.py`
+- Capability diagnostics checker: `v5/topology-tools/check-capability-contract.py`
+- Error catalog: `v5/topology-tools/data/error-catalog.yaml`
+- Lane validator entry: `v5/scripts/lane.py`
 - ADR register: `adr/REGISTER.md`
-- Commit: pending
+- Commit: harmonization pending

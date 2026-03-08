@@ -1,10 +1,11 @@
 # ADR 0059: Repository Split and Class-Object-Instance Module Contract
 
 **Date:** 2026-03-06
-**Status:** Superseded by ADR 0062
+**Status:** Superseded by ADR 0062 (Harmonized with ADR 0064 on 2026-03-09)
 **Related:** ADR 0058 (Core Abstraction Layer and Device Module Architecture), ADR 0060 (YAML-to-JSON Compiler and Diagnostics Contract), ADR 0061 (Base Repo with Versioned Class-Object-Instance and Test Profiles)
 **Supersedes:** ADR 0058 (model contract scope)
 **Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
+**Harmonized With:** ADR 0064 (Firmware + OS Two-Entity Model)
 
 ---
 
@@ -25,8 +26,8 @@ The current codebase confirms the need for stronger boundaries:
 
 At the same time, topology already models reusable concepts (`type: router`, `type: hypervisor`, `model`, `class`), so the project is ready to formalize:
 
-- **Class layer**: abstract entities and semantics (router, switch, bridge, hypervisor, OS)
-- **Object layer**: concrete implementations (MikroTik Chateau LTE7 ax, GL.iNet Slate AX1800, Proxmox, VMware, Linux, Windows, macOS)
+- **Class layer**: abstract entities and semantics (router, switch, bridge, hypervisor, firmware, OS)
+- **Object layer**: concrete implementations (MikroTik Chateau LTE7 ax, GL.iNet Slate AX1800, Proxmox, VMware, RouterOS firmware, Linux, Windows, macOS)
 - **Instance layer**: deployed nodes in a concrete lab, inheriting class + object contracts with local overrides
 
 Capability modeling introduces an additional complexity risk:
@@ -51,9 +52,10 @@ All infrastructure entities are split into:
 
 Canonical examples:
 
-- `router` (class) -> `mikrotik_chateau_lte7_ax`, `glinet_slate_ax1800` (objects) -> `rtr-main-home`, `rtr-travel` (instances)
-- `hypervisor` (class) -> `proxmox`, `vmware` (objects) -> `hv-gamayun` (instance)
-- `host_os` (class) -> `linux`, `windows`, `macos` (objects) -> `hos-hv-gamayun-main` (instance)
+- `class.network.router` -> `obj.mikrotik.chateau_lte7_ax`, `obj.glinet.slate_ax1800` -> `inst.router.rtr-main-home`, `inst.router.rtr-travel`
+- `class.compute.hypervisor` -> `obj.proxmox.hypervisor`, `obj.vmware.hypervisor` -> `inst.hypervisor.hv-gamayun`
+- `class.firmware` -> `obj.firmware.mikrotik-routeros7`, `obj.firmware.kvm-ovmf` -> `inst.firmware.routeros-7-prod`, `inst.firmware.ovmf-lab`
+- `class.os` -> `obj.os.routeros-7`, `obj.os.debian-12` -> `inst.os.routeros-7-prod`, `inst.os.debian-12-lab`
 
 ### 2. Establish Inheritance and Merge Rules
 
@@ -136,6 +138,13 @@ Additive fields are introduced for explicit binding:
 - `implementation.module`
 - `implementation.object`
 - `implementation.version` (optional)
+- `firmware_ref`
+- `os_refs[]`
+
+Legacy software bindings are transitional and deprecated:
+
+- `bindings.firmware`
+- `os_primary`, `os_secondary`, `os_tertiary`
 
 Modules may consume either legacy or new fields during transitional phases, but new onboarding must use explicit class-object-instance bindings.
 
@@ -170,6 +179,7 @@ Validation requirements:
 1. object must satisfy class `required_capabilities`
 2. object may only enable catalog capabilities (plus `vendor.*`)
 3. instance-level requests/overrides cannot require unsupported object capability
+4. instance `firmware_ref`/`os_refs[]` must resolve to compatible `inst.firmware.*`/`inst.os.*` entities
 
 ---
 
@@ -242,9 +252,8 @@ Validation requirements:
 
 - Existing decision: `adr/0058-core-abstraction-layer.md`
 - Compiler/diagnostics execution contract: `adr/0060-yaml-to-json-compiler-diagnostics-contract.md`
-- Current hardcoded orchestration: `topology-tools/regenerate-all.py`
-- Current platform-specific references validator: `topology-tools/scripts/validators/checks/references.py`
-- Current object-bound generator example: `topology-tools/scripts/generators/terraform/mikrotik/generator.py`
-- Current resolver object-kind coupling: `topology-tools/scripts/generators/common/ip_resolver_v2.py`
+- Current v5 compiler orchestration: `v5/topology-tools/compile-topology.py`
+- Current v5 capability contract validator: `v5/topology-tools/check-capability-contract.py`
+- Current v5 lane entrypoint: `v5/scripts/lane.py`
 - ADR register: `adr/REGISTER.md`
-- Commit: pending (to be filled in implementation PR)
+- Commit: harmonization pending
