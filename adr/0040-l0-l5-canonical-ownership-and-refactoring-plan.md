@@ -3,8 +3,14 @@
 - Status: Accepted
 - Date: 2026-02-23
 - Updated: 2026-02-24
+- Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 
 ## Context
+
+Harmonization note (2026-03-09):
+- Layer ownership/refactoring decisions remain valid.
+- v5 software semantics map legacy `host_os_ref` intent to resolved OS instances from `os_refs[]` (ADR 0064).
+- L1/L2/L5 ownership boundaries are unchanged by the firmware/OS entity split.
 
 Topology `v4.0.0` is structurally valid and passes strict validation, but architecture review showed
 drift risks across `L0-L5`:

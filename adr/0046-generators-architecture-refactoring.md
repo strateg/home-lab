@@ -2,8 +2,13 @@
 
 - Status: Approved
 - Date: 2026-02-25
+- Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 
 ## Context
+
+Harmonization note (2026-03-09):
+- Generator refactoring goals remain valid.
+- For v5 topology compilation/generation flows, software-stack data is expected in ADR 0064 form (`class/object/instance` for firmware and OS with `firmware_ref`/`os_refs[]` bindings).
 
 The generator architecture analysis (documented in `docs/github_analysis/GENERATORS_REFACTORING_SUMMARY.md` and `GENERATORS_ANALYSIS_AND_REFACTORING_PLAN.md`) identified critical technical debt in `topology-tools/scripts/generators/`.
 

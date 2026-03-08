@@ -13,6 +13,7 @@ breaking_changes: false
 related:
   - "0037"
   - "0038"
+harmonized_with: "0064"
 ---
 
 # ADR 0041: L4 Workload Network Attachment Typing
@@ -31,6 +32,10 @@ related:
 | Result | Schema-enforced network attachment contracts for L4 workloads |
 
 ## Context
+
+### Harmonization Note (2026-03-09)
+
+This typed attachment contract remains valid. In v5 evolution, workload/device software context is resolved through firmware/OS instance bindings (`firmware_ref`, `os_refs[]`) per ADR 0064.
 
 ### Problem Statement
 

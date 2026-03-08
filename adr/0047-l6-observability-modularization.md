@@ -4,10 +4,15 @@
 **Updated:** 2026-03-01
 **Status:** Partially Implemented
 **Trigger:** Implement remaining phases when alerts > 50 OR services > 30
+**Harmonized With:** ADR 0064 (Firmware + OS Two-Entity Model)
 
 ---
 
 ## Context
+
+### Harmonization Note (2026-03-09)
+
+L6 modularization plan remains valid. In v5 semantics, target capability evaluation for observability checks should use effective capabilities derived from firmware/OS instance bindings (`firmware_ref`, `os_refs[]`) per ADR 0064.
 
 Current L6 observability layer has simple flat structure:
 - `alerts.yaml` - 11 alerts

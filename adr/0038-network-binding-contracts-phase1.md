@@ -13,6 +13,7 @@ related:
   - "0035"
   - "0036"
   - "0037"
+harmonized_with: "0064"
 ---
 
 # ADR 0038: Network Binding Contracts Phase 1 (Gradual Evolution)
@@ -32,6 +33,14 @@ related:
 | Result | Validated runtime→network reachability without over-engineering |
 
 ## Context
+
+### Harmonization Note (2026-03-09)
+
+`host_os_ref` in this v4 ADR is treated as a legacy term for runtime OS ownership.
+In v5 (ADR 0062 + ADR 0064), the same intent is modeled via OS instances:
+- `class.os -> obj.os.* -> inst.os.*`
+- device/workload binds OS via `os_refs[]`
+- validation resolves network ownership against referenced OS instance(s)
 
 ### Problem Statement
 

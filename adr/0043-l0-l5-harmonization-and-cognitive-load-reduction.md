@@ -12,6 +12,7 @@ breaking_changes: false
 related:
   - "0040"
   - "0042"
+harmonized_with: "0064"
 ---
 
 # ADR 0043: L0-L5 Harmonization and Cognitive Load Reduction
@@ -20,6 +21,10 @@ related:
 - Date: 2026-02-24
 
 ## Context
+
+### Harmonization Note (2026-03-09)
+
+Cross-layer harmonization principles remain valid. v5 extends semantics by resolving device software stack through explicit firmware/OS entities and instance refs (`firmware_ref`, `os_refs[]`) per ADR 0064.
 
 Cross-layer analysis of L0-L5 revealed several inconsistencies and cognitive load issues:
 

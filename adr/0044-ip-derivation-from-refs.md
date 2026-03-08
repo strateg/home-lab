@@ -11,6 +11,7 @@ breaking_changes: false
 related:
   - "0043"
   - "0040"
+harmonized_with: "0064"
 ---
 
 # ADR 0044: IP Derivation from Refs
@@ -19,6 +20,10 @@ related:
 - Date: 2026-02-24
 
 ## Context
+
+### Harmonization Note (2026-03-09)
+
+IP derivation intent remains valid. Where this ADR references `host_os_ref`, v5 maps that intent to resolved OS instances from `os_refs[]` on target entities (ADR 0064).
 
 L5 services contain 21+ hardcoded IP addresses that duplicate information from L2 (ip_allocations) and L4 (LXC networks). This violates DRY and creates maintenance burden when IPs change.
 

@@ -7,6 +7,7 @@ date: "2026-02-23"
 public_api:
   - "host_operating_systems[].installation.root_storage_endpoint_ref"
 breaking_changes: true
+harmonized_with: "0064"
 ---
 
 # ADR 0039: Host OS Installation Storage Contract (Strict)
@@ -24,6 +25,13 @@ breaking_changes: true
 | L3 prerequisite | Provide host root storage endpoints (`se-*-root`) |
 
 ## Context
+
+### Harmonization Note (2026-03-09)
+
+The storage-installation intent remains valid. Terminology is mapped for v5:
+- `host_operating_systems[]` maps to OS entity chain `class.os -> obj.os.* -> inst.os.*`
+- runtime binding to compute/router instances is instance-based (`os_refs[]`)
+- installation storage linkage stays explicit via storage endpoint references
 
 L4 host OS installation had mixed semantics:
 

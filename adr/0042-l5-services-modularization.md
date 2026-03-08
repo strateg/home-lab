@@ -11,6 +11,7 @@ breaking_changes: false
 related:
   - "0040"
   - "0041"
+harmonized_with: "0064"
 ---
 
 # ADR 0042: L5 Services Modularization
@@ -19,6 +20,10 @@ related:
 - Date: 2026-02-24
 
 ## Context
+
+### Harmonization Note (2026-03-09)
+
+Service modularization and ownership remain valid. In v5 semantics, service compatibility with targets is evaluated against effective capabilities derived from target firmware/OS instances (ADR 0064).
 
 L5 `services.yaml` grew to 531 lines containing 19 services across 4 runtime targets. This created several issues:
 
