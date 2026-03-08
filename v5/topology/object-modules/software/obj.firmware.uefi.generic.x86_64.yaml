@@ -1,4 +1,3 @@
-id: obj.firmware.uefi.generic.x86_64
 object: obj.firmware.uefi.generic.x86_64
 version: 1.0.0
 class_ref: class.firmware

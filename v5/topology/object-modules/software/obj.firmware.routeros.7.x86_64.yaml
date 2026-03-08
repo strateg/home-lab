@@ -1,4 +1,3 @@
-id: obj.firmware.routeros.7.x86_64
 object: obj.firmware.routeros.7.x86_64
 version: 1.0.0
 class_ref: class.firmware

@@ -221,9 +221,11 @@ def main() -> int:
     for path in class_files:
         payload = _load_yaml_map(path, errors=errors)
         class_id = payload.get("id")
+        if not isinstance(class_id, str) or not class_id:
+            class_id = payload.get("class")
         rel_path = path.relative_to(ROOT).as_posix()
         if not isinstance(class_id, str) or not class_id:
-            errors.append(f"{rel_path}: class module missing non-empty id")
+            errors.append(f"{rel_path}: class module missing non-empty id/class")
             continue
         if class_id in class_payloads:
             errors.append(f"{rel_path}: duplicate class id '{class_id}'")
@@ -250,11 +252,13 @@ def main() -> int:
     for path in object_files:
         payload = _load_yaml_map(path, errors=errors)
         object_id = payload.get("id")
+        if not isinstance(object_id, str) or not object_id:
+            object_id = payload.get("object")
         class_ref = payload.get("class_ref")
         rel_path = path.relative_to(ROOT).as_posix()
 
         if not isinstance(object_id, str) or not object_id:
-            errors.append(f"{rel_path}: object module missing non-empty id")
+            errors.append(f"{rel_path}: object module missing non-empty id/object")
             continue
         if object_id in object_payloads:
             errors.append(f"{rel_path}: duplicate object id '{object_id}'")

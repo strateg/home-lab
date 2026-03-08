@@ -1,4 +1,3 @@
-id: obj.firmware.uboot.generic.arm64
 object: obj.firmware.uboot.generic.arm64
 version: 1.0.0
 class_ref: class.firmware

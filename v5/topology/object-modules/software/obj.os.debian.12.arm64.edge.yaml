@@ -1,4 +1,3 @@
-id: obj.os.debian.12.arm64.edge
 object: obj.os.debian.12.arm64.edge
 version: 1.0.0
 class_ref: class.os

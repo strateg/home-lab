@@ -1,4 +1,3 @@
-id: obj.os.openwrt.glinet.4x
 object: obj.os.openwrt.glinet.4x
 version: 1.0.0
 class_ref: class.os

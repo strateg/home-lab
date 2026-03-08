@@ -9,14 +9,13 @@ description: |
 vendor: mikrotik
 model: CHR
 software_contract:
-  firmware_class_ref: class.firmware
-  os_class_refs:
-  - class.os
+  firmware_obj_ref: obj.firmware.routeros.7.x86_64
+  os_obj_refs:
+  - obj.os.routeros.7.x86_64
   os_cardinality:
     min: 1
     max: 1
   multi_boot: false
-
 enabled_capabilities:
   - cap.net.interface.ethernet
   - cap.net.l3.routing.static

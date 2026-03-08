@@ -159,14 +159,13 @@ hardware_specs:
 # ============================================================================
 
 software_contract:
-  firmware_class_ref: class.firmware
-  os_class_refs:
-  - class.os
+  firmware_obj_ref: obj.firmware.routeros.7.arm64
+  os_obj_refs:
+  - obj.os.routeros.7.arm64
   os_cardinality:
     min: 1
     max: 1
   multi_boot: false
-
 software:
   features:
     - Docker-compatible containers

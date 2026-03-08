@@ -1,4 +1,3 @@
-id: obj.os.debian.12.proxmox.lxc
 object: obj.os.debian.12.proxmox.lxc
 version: 1.0.0
 class_ref: class.os
