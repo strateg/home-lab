@@ -550,8 +550,7 @@ instance: pc-workstation-01
 object_ref: obj.pc
 
 firmware_ref: firmware.generic-uefi-2.8
-os_refs:
-  - os.debian-12-production
+os_refs: [os.debian-12-production]
 ```
 
 ```yaml
@@ -560,9 +559,7 @@ instance: pc-workstation-02
 object_ref: obj.pc
 
 firmware_ref: firmware.generic-uefi-2.8
-os_refs:
-  - os.windows-11-enterprise
-  - os.debian-12-production
+os_refs: [os.windows-11-enterprise, os.debian-12-production]
 ```
 
 ```yaml
@@ -571,8 +568,7 @@ instance: macbook-pro-01
 object_ref: obj.macbook
 
 firmware_ref: firmware.apple-m2-14.2
-os_refs:
-  - os.macos-14-production
+os_refs: [os.macos-14-production]
 ```
 
 ```yaml
@@ -581,8 +577,7 @@ instance: edge-mikrotik-chateau-01
 object_ref: obj.mikrotik-chateau-lte7ax
 
 firmware_ref: firmware.routeros-7-13-arm64
-os_refs:
-  - os.routeros-7-production
+os_refs: [os.routeros-7-production]
 ```
 
 ```yaml
@@ -591,9 +586,7 @@ instance: sbc-orangepi-02
 object_ref: obj.orange-pi-5
 
 firmware_ref: firmware.uboot-2023.07-arm64
-os_refs:
-  - os.debian-12-arm64-production
-  - os.ubuntu-2204-arm64-staging
+os_refs: [os.debian-12-arm64-production, os.ubuntu-2204-arm64-staging]
 ```
 
 ```yaml
@@ -615,9 +608,7 @@ instance: pc-workstation-02
 object_ref: obj.pc
 
 firmware_ref: firmware.generic-uefi-2.8
-os_refs:
-  - os.windows-11-enterprise
-  - os.debian-12-production
+os_refs: [os.windows-11-enterprise, os.debian-12-production]
 
 # Compiler derives:
 effective_capabilities:
@@ -655,13 +646,8 @@ Services declare requirements against firmware and OS capabilities:
 service: prometheus
 requires:
   capabilities:
-    all:
-      - cap.os.linux
-      - cap.os.init.systemd
-    any:
-      - cap.os.debian
-      - cap.os.ubuntu
-      - cap.os.alpine
+    all: [cap.os.linux, cap.os.init.systemd]
+    any: [cap.os.debian, cap.os.ubuntu, cap.os.alpine]
 
 # Validation against pc-workstation-02:
 #   os_refs includes debian-12-production
@@ -676,9 +662,7 @@ requires:
 service: routeros-mgmt
 requires:
   capabilities:
-    all:
-      - cap.firmware.mikrotik
-      - cap.os.routeros
+    all: [cap.firmware.mikrotik, cap.os.routeros]
 
 # Validation against edge-mikrotik-chateau-01:
 #   has cap.firmware.mikrotik
