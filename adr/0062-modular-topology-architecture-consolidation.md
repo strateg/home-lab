@@ -1,9 +1,10 @@
 # ADR 0062: Topology v5 - Modular Class-Object-Instance Architecture
 
 **Date:** 2026-03-06
-**Status:** Accepted
+**Status:** Accepted (Harmonized with ADR 0064 on 2026-03-09)
 **Supersedes:** ADR 0058, ADR 0059, ADR 0060, ADR 0061
 **Evolves:** ADR 0048 (Topology v4 Architecture Consolidation)
+**Extended by:** ADR 0064 (Firmware + OS Two-Entity Model)
 
 ---
 
@@ -19,6 +20,11 @@ The v5 migration must:
 4. avoid reopening already accepted domain decisions unless a new ADR explicitly does that
 
 The previous v5 decisions (0058-0061) defined direction, but in separate documents. This ADR is the single normative integration contract.
+
+ADR 0064 is approved as a normative extension and clarifies software-stack modeling:
+- firmware and OS are separate first-class entities
+- both follow the same `Class -> Object -> Instance` semantics
+- device bindings are instance-based (`firmware_ref`, `os_refs[]`)
 
 ---
 
@@ -52,6 +58,39 @@ Hard rules:
 - instance overrides MUST NOT violate class invariants
 - object MUST satisfy class required capabilities
 - instance MUST NOT request capabilities unsupported by the object
+- canonical identifiers MUST use stable prefixes:
+  - class: `class.<domain>.<name>`
+  - object: `obj.<domain>.<name>` + `class_ref`
+  - instance: `inst.<domain>.<name>` + `object_ref`
+
+#### 2.1 Software Stack Entity Contract (Harmonized with ADR 0064)
+
+Firmware and OS are modeled as separate entities with uniform semantics:
+
+- `class.firmware -> obj.firmware.* -> inst.firmware.*`
+- `class.os -> obj.os.* -> inst.os.*`
+
+Device/workload instances MUST reference software stack by instance refs:
+
+- `firmware_ref: inst.firmware.*` (required if class contract requires firmware)
+- `os_refs: [inst.os.*]` (0..N depending on class `os_policy` and cardinality)
+
+Legacy bindings are deprecated and non-normative in v5:
+
+- `bindings.firmware`
+- `os_primary`, `os_secondary`, `os_tertiary`
+- class-level OS subclass contracts (`os.firmware`, `os.installable`)
+
+Class/object contracts define class constraints and cardinality only.
+Concrete firmware/OS selection is made at instance level.
+
+#### 2.2 Multi-Boot Contract
+
+Multi-boot is represented only by `os_refs[]` plus class/object constraints:
+
+- `multi_boot: true` allows multiple OS instance refs
+- `multi_boot: false` requires at most one OS instance ref
+- service compatibility MUST be validated against effective capabilities of all referenced OS instances
 
 ### 3. Dual-Axis Contract Is Mandatory
 
@@ -71,7 +110,7 @@ Target v5 layer scope (full coverage):
 | Layer | Group | Class Domain | Status |
 |-------|-------|--------------|--------|
 | L0 | l0_meta | meta.* | deferred (no instances) |
-| L1 | l1_devices | compute.*, network.router, power.* | implemented |
+| L1 | l1_devices | compute.*, network.router, power.*, firmware, os | implemented |
 | L2 | l2_network | network.bridge, network.vlan, network.firewall | planned |
 | L3 | l3_storage | storage.pool, storage.volume, storage.media | planned |
 | L4 | l4_vms, l4_lxc | compute.workload.* | implemented |
@@ -83,6 +122,8 @@ Cross-layer dependency rules (normative):
 
 | Relation | Source Layer | Target Layer | Direction | Status |
 |----------|--------------|--------------|-----------|--------|
+| firmware_ref | L1, L4 | L1 (inst.firmware.*) | downward | enforced |
+| os_refs | L1, L4 | L1 (inst.os.*) | downward | enforced |
 | runtime.target_ref | L5 | L1, L4 | downward | enforced |
 | storage.pool_ref | L4 | L3 | downward | planned |
 | storage.volume_ref | L5 | L3 | downward | planned |
@@ -112,8 +153,10 @@ pack.<domain>.<profile>                  # Capability packs (reusable bundles)
 
 | Layer | Domain | Capability Prefix | Status |
 |-------|--------|-------------------|--------|
-| L1 | Compute | `cap.compute.*` | partial |
-| L1 | Network | `cap.router.*` | implemented |
+| L1 | Compute | `cap.compute.*`, `cap.arch.*` | partial |
+| L1 | Firmware | `cap.firmware.*` | implemented |
+| L1 | OS | `cap.os.*` | implemented |
+| L1 | Network | `cap.net.*` | implemented |
 | L1 | Power | `cap.power.*` | planned |
 | L2 | Bridge/VLAN/Firewall/QoS | `cap.bridge.*`, `cap.vlan.*`, `cap.firewall.*`, `cap.qos.*` | planned |
 | L3 | Storage | `cap.storage.*` | planned |
@@ -130,6 +173,7 @@ pack.<domain>.<profile>                  # Capability packs (reusable bundles)
 - object-local capability is promoted to catalog when reused by 2+ objects with same semantics
 - capability packs must reference only catalog-registered capabilities
 - class required_capabilities must be subset of catalog
+- software-derived capabilities (`cap.firmware.*`, `cap.os.*`) are computed from resolved firmware/OS instances and participate in effective capability validation
 
 ### 5. YAML Source, JSON Canonical Build Artifact
 
@@ -189,8 +233,9 @@ ADR 0062 does not redefine plugin API details.
 
 1. v5 migration stays close to accepted architectural history instead of rewriting it
 2. `Class -> Object -> Instance` becomes a single, testable model contract
-3. layer contracts and operational boundaries remain stable during migration
-4. diagnostics/lock/profile contracts make migration safer for CI and AI-assisted remediation
+3. firmware/OS modeling is explicit, uniform, and instance-resolved
+4. layer contracts and operational boundaries remain stable during migration
+5. diagnostics/lock/profile contracts make migration safer for CI and AI-assisted remediation
 
 ### Trade-offs and Risks
 
@@ -226,4 +271,5 @@ ADR 0062 does not redefine plugin API details.
   - `adr/0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md`
 - Proposed extensions:
   - `adr/0063-plugin-microkernel-for-compiler-validators-generators.md`
+- Canonical extension:
   - `adr/0064-os-taxonomy-object-property-model.md`
