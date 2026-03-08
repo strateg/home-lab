@@ -40,9 +40,9 @@ Previous approach conflated firmware and OS:
 ### Decision: Two First-Class Entities
 
 Software stack is now modeled as:
-- `class: firmware` -> `object: mikrotik-routeros7-firmware`
-- `class: os` -> `object: routeros-7`, `object: debian-12`, `object: macos-14`
-- Devices **bind** to both (firmware required, OS conditional)
+- `class.firmware` -> `obj.firmware.mikrotik-routeros7` -> `inst.firmware.routeros-7-1`
+- `class.os` -> `obj.os.routeros-7` -> `inst.os.routeros-7-prod`
+- Devices reference firmware/OS **instances** via `firmware_ref` and `os_refs`
 - OS types: `embedded` (part of firmware stack) or `installable` (independent)
 
 ---
@@ -105,12 +105,44 @@ class.compute (v1.0.0)
         +-- inst.compute.sbc-orangepi-01
 ```
 
+### Entity Categories
+
+Classes include a `categories` field for taxonomic classification:
+
+**Purpose:**
+- **Taxonomic clarity** - Categorize entities by role and nature
+- **Query support** - Enable filtering (e.g., "all infrastructure entities")
+- **Documentation** - Auto-generate entity taxonomies
+- **Validation** - Enforce category constraints
+
+**Standard categories:**
+
+| Category | Meaning | Examples |
+|----------|---------|----------|
+| `infrastructure` | Core infrastructure component | firmware, os, compute |
+| `prerequisite` | Required before other entities | firmware (before OS), os (before services) |
+| `runtime` | Provides execution environment | os, container runtime |
+| `hardware-bound` | Tied to physical/virtual hardware | firmware |
+| `virtual` | Virtual/software entity | VM firmware, virtual networks |
+| `host` | Hosts other entities | compute devices, hypervisors |
+
+**Relationship to capabilities:**
+- **Categories** answer "WHAT IS THIS?" (taxonomic)
+- **Capabilities** answer "WHAT CAN IT DO?" (functional)
+
+Example:
+```yaml
+# Categories: infrastructure, prerequisite, hardware-bound
+# Capabilities: cap.firmware.mikrotik, cap.firmware.routeros, cap.firmware.arch.x86_64
+```
+
 ### 1. Firmware Is a First-Class Entity (Always Required for Active Devices)
 
 ```yaml
 # Class definition
 class: class.firmware
 version: 1.0.0
+categories: [infrastructure, prerequisite, hardware-bound]
 
 properties:
   # Identification (required)
@@ -126,6 +158,9 @@ properties:
   # Hardware binding
   hardware_locked: boolean
   vendor_locked: boolean
+  
+  # Virtualization (optional)
+  virtual: boolean  # true for virtual firmware (VMs)
 
   # Lifecycle
   release_date: ISO8601
@@ -138,7 +173,14 @@ capabilities:
     - cap.firmware.{vendor}.{family}.{version_normalized}
     - cap.firmware.arch.{architecture}
     - cap.firmware.boot.{boot_stack}
+  conditional:
+    - cap.firmware.virtual (if virtual == true)
 ```
+
+**Categories explained:**
+- `infrastructure` - Core infrastructure component required for system operation
+- `prerequisite` - Must exist before OS/workloads can run
+- `hardware-bound` - Tied to physical or virtual hardware platform
 
 **Firmware object examples:**
 
@@ -228,6 +270,76 @@ properties:
 # - cap.firmware.arch.armhf
 ```
 
+**Virtual firmware (for VMs):**
+
+```yaml
+# KVM virtual BIOS
+object: obj.firmware.kvm-bios
+class_ref: class.firmware
+
+properties:
+  vendor: qemu
+  family: bios
+  version: "seabios-1.16.0"
+  architecture: x86_64
+  boot_stack: bios
+  hardware_locked: false
+  vendor_locked: false
+  virtual: true  # Indicates virtual firmware
+
+# Derived capabilities:
+# - cap.firmware.qemu
+# - cap.firmware.bios
+# - cap.firmware.virtual
+# - cap.firmware.arch.x86_64
+```
+
+```yaml
+# KVM OVMF (UEFI for VMs)
+object: obj.firmware.kvm-ovmf
+class_ref: class.firmware
+
+properties:
+  vendor: qemu
+  family: uefi
+  version: "edk2-20231129"
+  architecture: x86_64
+  boot_stack: uefi
+  hardware_locked: false
+  vendor_locked: false
+  virtual: true
+  secure_boot_capable: true
+
+# Derived capabilities:
+# - cap.firmware.qemu
+# - cap.firmware.uefi
+# - cap.firmware.virtual
+# - cap.firmware.secureboot
+# - cap.firmware.arch.x86_64
+```
+
+```yaml
+# VMware virtual firmware
+object: obj.firmware.vmware-efi
+class_ref: class.firmware
+
+properties:
+  vendor: vmware
+  family: uefi
+  version: "efi-2.7"
+  architecture: x86_64
+  boot_stack: uefi
+  hardware_locked: true
+  vendor_locked: true
+  virtual: true
+
+# Derived capabilities:
+# - cap.firmware.vmware
+# - cap.firmware.uefi
+# - cap.firmware.virtual
+# - cap.firmware.arch.x86_64
+```
+
 **Firmware instance examples:**
 
 ```yaml
@@ -253,6 +365,7 @@ deployment:
 # Class definition
 class: class.os
 version: 1.0.0
+categories: [infrastructure, prerequisite, runtime]
 
 properties:
   # Identification (required)
@@ -278,6 +391,28 @@ properties:
   # Installable-specific
   supports_multiboot: boolean
   base_image_format: qcow2 | ova | ami | iso | rootfs
+
+  # Lifecycle
+  eol_date: ISO8601
+
+capabilities:
+  dynamic:
+    - cap.os.{family}
+    - cap.os.{distribution}
+    - cap.os.{distribution}.{release_id}
+    - cap.os.{codename}
+    - cap.os.init.{init_system}
+    - cap.os.pkg.{package_manager}
+    - cap.arch.{architecture}
+  conditional:
+    - cap.os.embedded (if installation_model == embedded)
+    - cap.os.installable (if installation_model == installable)
+```
+
+**Categories explained:**
+- `infrastructure` - Core infrastructure component required for system operation
+- `prerequisite` - Must exist before services/workloads can run
+- `runtime` - Provides execution environment for applications and services
 
   # Lifecycle
   eol_date: ISO8601
@@ -578,6 +713,46 @@ os_refs: [inst.os.windows-11-prod, inst.os.debian-12-prod]
 ```
 
 ```yaml
+# KVM Virtual Machine
+object: obj.compute.kvm-vm
+class_ref: class.compute
+
+os_constraints:
+  installation_model: [installable]
+  multi_boot: false  # VMs typically single-boot
+  min_items: 1
+  max_items: 1
+
+# Instance
+instance: inst.compute.vm-app-01
+object_ref: obj.compute.kvm-vm
+
+firmware_ref: inst.firmware.kvm-ovmf-prod
+os_refs: [inst.os.debian-12-prod]
+hypervisor_ref: inst.compute.kvm-host-01  # Reference to hypervisor host
+```
+
+```yaml
+# VMware Virtual Machine
+object: obj.compute.vmware-vm
+class_ref: class.compute
+
+os_constraints:
+  installation_model: [installable]
+  multi_boot: false
+  min_items: 1
+  max_items: 1
+
+# Instance
+instance: inst.compute.vm-win-01
+object_ref: obj.compute.vmware-vm
+
+firmware_ref: inst.firmware.vmware-efi-v2.7
+os_refs: [inst.os.windows-server-2022]
+hypervisor_ref: inst.compute.esxi-host-01
+```
+
+```yaml
 # MacBook
 instance: inst.compute.macbook-pro-01
 object_ref: obj.compute.macbook
@@ -761,14 +936,24 @@ Explicit value in object overrides inference.
 
 | Device Type | Firmware Instance | OS Instances | OS Model | Notes |
 |-------------|-------------------|--------------|----------|-------|
-| **PC Single-boot** | generic-uefi-2.8 | debian-12-production | installable | User can change OS |
+| **PC Single-boot** | generic-uefi-2.8 | debian-12-prod | installable | User can change OS |
 | **PC Dual-boot** | generic-uefi-2.8 | windows-11 + debian-12 | installable | Both Windows and Linux |
-| **MacBook Pro** | apple-m2-14.2 | macos-14-production | embedded | Vendor-locked, no dual-boot |
+| **MacBook Pro** | apple-m2-14.2 | macos-14-prod | embedded | Vendor-locked, no dual-boot |
 | **Orange Pi 5** | uboot-2023.07-arm64 | debian-12-arm64 | installable | ARM SBC, SD card |
 | **Orange Pi 5 dual** | uboot-2023.07-arm64 | debian-12 + ubuntu-2204 | installable | Two ARM64 distros |
-| **MikroTik Chateau** | routeros-7-13-arm64 | routeros-7-production | embedded | Edge compute + routing |
+| **MikroTik Chateau** | routeros-7-13-arm64 | routeros-7-prod | embedded | Edge compute + routing |
 | **PDU APC** | apc-pdu-3.9.2 | (none) | N/A | Firmware-only |
-| **VM (KVM)** | virtual-bios-1.0 | debian-12-production | installable | Virtual firmware |
+| **VM (KVM)** | kvm-ovmf-prod | debian-12-prod | installable | Virtual UEFI firmware |
+| **VM (VMware)** | vmware-efi-v2.7 | windows-server-2022 | installable | VMware virtual firmware |
+| **VM (Hyper-V)** | hyperv-gen2-uefi | ubuntu-22.04 | installable | Gen2 UEFI firmware |
+
+**Virtualization notes:**
+- VMs have virtual firmware (KVM OVMF, VMware EFI, Hyper-V Gen2)
+- Virtual firmware provides same boot interface as physical
+- OS in VM is identical to physical machine OS
+- Each hypervisor has specific firmware objects
+- LXC containers: not covered (no firmware, shared kernel) - see future ADR
+- Docker containers: not covered (no OS layer) - see future ADR
 
 ### 9. Migration Contract: 5-Phase Transition
 
