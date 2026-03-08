@@ -290,10 +290,12 @@ capabilities:
     - cap.os.{codename}
     - cap.os.init.{init_system}
     - cap.os.pkg.{package_manager}
-    - cap.arch.{architecture}
+    # NOTE: cap.arch.* is NOT derived from OS - firmware is source of truth
   conditional:
     - cap.os.embedded (if installation_model == embedded)
     - cap.os.installable (if installation_model == installable)
+
+# OS.architecture is used for compatibility validation, not capability derivation
 ```
 
 **OS object examples:**
@@ -320,7 +322,7 @@ properties:
 # - cap.os.routeros
 # - cap.os.routeros.7
 # - cap.os.embedded
-# - cap.arch.arm64
+# (cap.arch.* from firmware, not OS)
 ```
 
 ```yaml
@@ -351,7 +353,6 @@ properties:
 # - cap.os.init.systemd
 # - cap.os.pkg.apt
 # - cap.os.installable
-# - cap.arch.x86_64
 ```
 
 ```yaml
@@ -381,7 +382,6 @@ properties:
 # - cap.os.init.systemd
 # - cap.os.pkg.apt
 # - cap.os.installable
-# - cap.arch.arm64
 ```
 
 ```yaml
@@ -410,7 +410,6 @@ properties:
 # - cap.os.init.launchd
 # - cap.os.pkg.brew
 # - cap.os.embedded
-# - cap.arch.arm64
 ```
 
 ```yaml
@@ -435,7 +434,6 @@ properties:
 # - cap.os.windows
 # - cap.os.windows.11
 # - cap.os.installable
-# - cap.arch.x86_64
 ```
 
 **OS instance examples:**
@@ -628,13 +626,12 @@ effective_capabilities:
   from_firmware:
     - cap.firmware.generic
     - cap.firmware.uefi
-    - cap.firmware.arch.x86_64
     - cap.firmware.boot.uefi
+    - cap.arch.x86_64           # architecture from firmware only
   from_os[0]:  # Windows
     - cap.os.windows
     - cap.os.windows.11
     - cap.os.installable
-    - cap.arch.x86_64
   from_os[1]:  # Debian
     - cap.os.linux
     - cap.os.debian
@@ -642,10 +639,9 @@ effective_capabilities:
     - cap.os.init.systemd
     - cap.os.pkg.apt
     - cap.os.installable
-    - cap.arch.x86_64
   combined:
-    - all firmware capabilities
-    - all OS capabilities from all os_refs
+    - all firmware capabilities (including cap.arch.*)
+    - all OS capabilities from all os_refs (without cap.arch.*)
 
 # This device can run services requiring Windows OR Linux
 ```
@@ -705,22 +701,30 @@ Compiler MUST enforce:
    - Each OS instance's object MUST be `class: os`
    - OS `installation_model` MUST match device `os_constraints`
 
-3. **Multi-boot validation:**
+3. **Architecture compatibility:**
+   - Firmware `architecture` is the hardware architecture (source of truth)
+   - OS `architecture` is the build target architecture
+   - OS `architecture` MUST equal firmware `architecture`
+   - All OS instances in `os_refs` MUST have same architecture as firmware
+   - Capability `cap.arch.*` is derived from firmware architecture only (single source)
+
+4. **Multi-boot validation:**
    - If `multi_boot: false`, `os_refs` MUST have exactly 1 item (when required)
    - If `multi_boot: true`, `os_refs` MAY have multiple items (up to `max_items`)
-   - All OS instances in `os_refs` MUST have compatible architecture
+   - All OS instances MUST satisfy architecture compatibility (rule 3)
 
-4. **Capability derivation:**
+5. **Capability derivation:**
    - Derive capabilities from firmware instance's object properties
    - Derive capabilities from ALL OS instances' object properties
+   - `cap.arch.*` derived from firmware only (not duplicated from OS)
    - Combine into device effective capability set
 
-5. **Service-device matching:**
+6. **Service-device matching:**
    - Service `requires.capabilities.all` -> device MUST have ALL listed
    - Service `requires.capabilities.any` -> device MUST have AT LEAST ONE
    - For multi-boot: service can be deployed to ANY compatible OS context
 
-6. **Version compatibility:**
+7. **Version compatibility:**
    - Object's `class_ref` resolved to class with matching version
    - Instance's `object_ref` resolved to object with compatible class version
    - Breaking class changes require major version bump
