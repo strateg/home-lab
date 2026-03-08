@@ -2,6 +2,7 @@ id: class.compute.edge_node
 version: 1.0.0
 title: Compute Edge Node
 summary: Low-power edge compute host for service runtime.
+os_policy: required
 required_capabilities:
 - cap.compute.node.edge
 - cap.compute.runtime.container_host

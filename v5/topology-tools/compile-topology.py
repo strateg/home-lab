@@ -521,11 +521,14 @@ class V5Compiler:
     ) -> None:
         class_cap_sets: dict[str, set[str]] = {}
         class_required_sets: dict[str, set[str]] = {}
+        class_os_policy: dict[str, str] = {}
+        valid_os_policies = {"required", "allowed", "forbidden"}
         for class_id, class_item in class_map.items():
             class_payload = class_item["payload"]
             required = class_payload.get("required_capabilities", []) or []
             optional = class_payload.get("optional_capabilities", []) or []
             pack_refs = class_payload.get("capability_packs", []) or []
+            os_policy_raw = class_payload.get("os_policy", "allowed")
             path = str(class_item["path"].relative_to(REPO_ROOT).as_posix())
 
             if not isinstance(required, list):
@@ -632,6 +635,21 @@ class V5Compiler:
                     if isinstance(cap, str):
                         class_caps.add(cap)
 
+            if not isinstance(os_policy_raw, str) or os_policy_raw not in valid_os_policies:
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=(
+                        f"class '{class_id}' has invalid os_policy '{os_policy_raw}'. "
+                        "Expected one of: required, allowed, forbidden."
+                    ),
+                    path=path,
+                )
+                class_os_policy[class_id] = "allowed"
+            else:
+                class_os_policy[class_id] = os_policy_raw
+
             class_cap_sets[class_id] = class_caps
             class_required_sets[class_id] = class_required
 
@@ -643,6 +661,36 @@ class V5Compiler:
                 continue
             if class_ref not in class_map:
                 continue
+
+            software_payload = object_payload.get("software")
+            has_os = isinstance(software_payload, dict) and isinstance(software_payload.get("os"), dict)
+            prerequisites_payload = object_payload.get("prerequisites")
+            has_os_ref = isinstance(prerequisites_payload, dict) and isinstance(
+                prerequisites_payload.get("os_ref"), str
+            )
+            os_policy = class_os_policy.get(class_ref, "allowed")
+            if os_policy == "required" and not has_os and not has_os_ref:
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=(
+                        f"object '{object_id}' class '{class_ref}' requires OS prerequisite "
+                        "(software.os or prerequisites.os_ref)."
+                    ),
+                    path=path,
+                )
+            if os_policy == "forbidden" and (has_os or has_os_ref):
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=(
+                        f"object '{object_id}' class '{class_ref}' forbids OS fields, "
+                        "but software.os/prerequisites.os_ref is set."
+                    ),
+                    path=path,
+                )
 
             derived_os_caps, effective_os = self._derive_os_capabilities(
                 object_id=object_id,
@@ -1101,6 +1149,7 @@ class V5Compiler:
                 "runtime": row.get("runtime"),
                 "class": {
                     "version": class_payload.get("version"),
+                    "os_policy": class_payload.get("os_policy", "allowed"),
                     "required_capabilities": class_payload.get("required_capabilities", []),
                     "optional_capabilities": class_payload.get("optional_capabilities", []),
                     "capability_packs": class_payload.get("capability_packs", []),

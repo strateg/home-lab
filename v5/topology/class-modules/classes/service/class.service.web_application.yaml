@@ -2,6 +2,7 @@ id: class.service.web_application
 version: 1.0.0
 title: Service Web Application
 summary: Generic web application service role.
+os_policy: forbidden
 required_capabilities:
 - cap.service.web_application.runtime
 - cap.service.web_application.http

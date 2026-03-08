@@ -72,6 +72,27 @@ Policy by object type:
 2. **Device objects with vendor firmware (router/appliance)**: direct `software.os` is allowed without `os_ref`.
 3. **OS-less objects**: `os_ref` and `software.os` are both absent.
 
+### 3.1 Class-Level OS Scope Policy
+
+Classes MUST declare `os_policy` to constrain where OS data is valid:
+
+```yaml
+os_policy: required | allowed | forbidden
+```
+
+Normative semantics:
+
+1. `required`: object MUST define at least one OS prerequisite source (`software.os` or `prerequisites.os_ref`).
+2. `allowed`: object MAY define OS data.
+3. `forbidden`: object MUST NOT define `software.os` or `prerequisites.os_ref`.
+
+Default v5 policy set:
+
+1. `class.compute.*`, `class.router` => `required`
+2. `class.power.*`, `class.service.*` => `forbidden`
+
+This enforces the infrastructure boundary: OS can exist on compute/router entities (including VM contexts), but never on passive media/link/power entities.
+
 ### 4. Precedence and Conflict Rules
 
 Effective OS is resolved as:
@@ -154,7 +175,7 @@ Explicit value wins over inferred value if not conflicting with immutable distro
 
 Phase sequence:
 
-1. Add validator support for `software.os`, `prerequisites.os_ref`, `requires.os`.
+1. Add validator support for `software.os`, `prerequisites.os_ref`, `requires.os`, and class `os_policy`.
 2. Add compiler resolution and capability derivation for effective OS.
 3. Migrate objects from `vendor.<distro>.*` OS markers to canonical OS model.
 4. Keep compatibility warnings for legacy vendor OS markers during transition.

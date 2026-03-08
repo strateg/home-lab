@@ -275,11 +275,14 @@ class CapabilityContractChecker:
         class_map: Dict[str, Dict[str, Any]],
         catalog_ids: Set[str],
         packs: Dict[str, Dict[str, Any]],
-    ) -> None:
+    ) -> Dict[str, str]:
+        os_policy_by_class: Dict[str, str] = {}
+        valid_os_policies = {"required", "allowed", "forbidden"}
         for class_id, class_def in class_map.items():
             required = class_def.get("required_capabilities", []) or []
             optional = class_def.get("optional_capabilities", []) or []
             pack_refs = class_def.get("capability_packs", []) or []
+            os_policy = class_def.get("os_policy", "allowed")
 
             if not isinstance(required, list):
                 self._error(f"Class '{class_id}' required_capabilities must be list")
@@ -305,10 +308,22 @@ class CapabilityContractChecker:
                 if pack_ref not in packs:
                     self._error(f"Class '{class_id}' references unknown capability pack '{pack_ref}'")
 
+            if not isinstance(os_policy, str) or os_policy not in valid_os_policies:
+                self._error(
+                    f"Class '{class_id}' has invalid os_policy '{os_policy}'. "
+                    "Expected one of: required, allowed, forbidden"
+                )
+                os_policy_by_class[class_id] = "allowed"
+            else:
+                os_policy_by_class[class_id] = os_policy
+
+        return os_policy_by_class
+
     def _validate_objects(
         self,
         *,
         class_map: Dict[str, Dict[str, Any]],
+        class_os_policies: Dict[str, str],
         catalog_ids: Set[str],
         packs: Dict[str, Dict[str, Any]],
         object_map: Dict[str, Dict[str, Any]],
@@ -321,6 +336,22 @@ class CapabilityContractChecker:
             if class_ref not in class_map:
                 self._error(f"Object '{object_id}' references unknown class '{class_ref}'")
                 continue
+
+            software = obj.get("software")
+            has_os = isinstance(software, dict) and isinstance(software.get("os"), dict)
+            prerequisites = obj.get("prerequisites")
+            has_os_ref = isinstance(prerequisites, dict) and isinstance(prerequisites.get("os_ref"), str)
+            os_policy = class_os_policies.get(class_ref, "allowed")
+            if os_policy == "required" and not has_os and not has_os_ref:
+                self._error(
+                    f"Object '{object_id}' class '{class_ref}' requires OS prerequisite "
+                    "(software.os or prerequisites.os_ref)"
+                )
+            if os_policy == "forbidden" and (has_os or has_os_ref):
+                self._error(
+                    f"Object '{object_id}' class '{class_ref}' forbids OS fields, "
+                    "but software.os/prerequisites.os_ref is set"
+                )
 
             enabled_caps = obj.get("enabled_capabilities", []) or []
             enabled_packs = obj.get("enabled_packs", []) or []
@@ -371,11 +402,13 @@ class CapabilityContractChecker:
         class_map = self._load_classes()
         object_map = self._load_objects()
 
+        class_os_policies: Dict[str, str] = {}
         if catalog_ids and class_map:
-            self._validate_classes(class_map=class_map, catalog_ids=catalog_ids, packs=packs)
+            class_os_policies = self._validate_classes(class_map=class_map, catalog_ids=catalog_ids, packs=packs)
         if catalog_ids and class_map and object_map:
             self._validate_objects(
                 class_map=class_map,
+                class_os_policies=class_os_policies,
                 catalog_ids=catalog_ids,
                 packs=packs,
                 object_map=object_map,

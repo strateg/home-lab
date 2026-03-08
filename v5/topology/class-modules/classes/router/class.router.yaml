@@ -5,6 +5,7 @@ description: |
   Base class for all routers with routing, NAT, firewall, and
   optional VPN, WiFi, uplink policies, and advanced features.
   Differentiation via capability packs (home_gateway, travel_vpn, enterprise).
+os_policy: required
 
 # ============================================================================
 # REQUIRED CAPABILITIES

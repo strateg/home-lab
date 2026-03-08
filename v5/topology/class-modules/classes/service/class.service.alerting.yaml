@@ -2,6 +2,7 @@ id: class.service.alerting
 version: 1.0.0
 title: Service Alerting
 summary: Alert routing and notification service role.
+os_policy: forbidden
 required_capabilities:
 - cap.service.alerting.runtime
 - cap.service.alerting.routing

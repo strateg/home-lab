@@ -2,6 +2,7 @@ id: class.compute.hypervisor
 version: 1.0.0
 title: Compute Hypervisor
 summary: Host platform that runs VM/LXC workloads.
+os_policy: required
 required_capabilities:
 - cap.compute.host.hypervisor
 - cap.compute.runtime.container_host
