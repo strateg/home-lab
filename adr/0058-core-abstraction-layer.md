@@ -1,9 +1,10 @@
 # ADR 0058: Core Abstraction Layer and Device Module Architecture
 
 **Date:** 2026-03-06
-**Status:** Superseded by ADR 0062
+**Status:** Superseded by ADR 0062 (Harmonized with ADR 0064 on 2026-03-09)
 **Related:** ADR 0057 (MikroTik Netinstall Bootstrap)
 **Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
+**Harmonized With:** ADR 0064 (Firmware + OS Two-Entity Model)
 
 ---
 
@@ -39,12 +40,19 @@ Terminology and contracts are refined by later ADRs:
 
 - ADR 0059 defines the canonical `Class -> Object -> Instance` model
 - ADR 0060 defines the YAML-to-JSON compiler and structured diagnostics contract
+- ADR 0062 consolidates the v5 integration contract
+- ADR 0064 standardizes firmware/OS as separate first-class entities with instance refs (`firmware_ref`, `os_refs[]`)
 
 Terminology mapping from this ADR to ADR 0059:
 
 - `abstract type` -> `Class`
 - `implementation` -> `Object`
 - concrete topology device entry -> `Instance`
+
+Software-stack mapping from this ADR to ADR 0064:
+
+- host software assumptions -> explicit `class.firmware` and `class.os` entities
+- per-device software choice -> instance-level `firmware_ref` + `os_refs[]`
 
 ### Current State Analysis
 
@@ -407,8 +415,8 @@ After stabilization, evaluate splitting into:
 
 - Current project structure analysis (see below)
 - ADR 0057: MikroTik Netinstall Bootstrap
-- Superseded by ADR 0059 for model contract details
-- Extended by ADR 0060 for compiler/diagnostics execution contract
+- Superseded by ADR 0062 for consolidated model contract details
+- Harmonized by ADR 0064 for firmware/OS two-entity semantics
 - [Terraform Provider Plugin Architecture](https://developer.hashicorp.com/terraform/plugin)
 - [Ansible Collection Structure](https://docs.ansible.com/ansible/latest/dev_guide/developing_collections.html)
 
