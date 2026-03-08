@@ -61,46 +61,56 @@ Software stack is now modeled as:
 **Canonical naming format:**
 
 ```yaml
+# Class definition (versioned)
+class: class.<domain>.<name>
+version: <semver>
+
 # Object definition
-object: <name>
-class_ref: class.<class_name>
+object: obj.<domain>.<name>
+class_ref: class.<domain>.<name>
 
 # Instance definition
-instance: <name>
-object_ref: obj.<object_name>
+instance: inst.<domain>.<name>
+object_ref: obj.<domain>.<name>
 ```
+
+**Version compatibility:**
+- Classes declare `version: <semver>` as separate field
+- References (`class_ref`, `object_ref`) do NOT include version
+- Compiler validates version compatibility during resolution
+- Breaking changes require major version bump
 
 **Example hierarchy:**
 
 ```
-Class: firmware
-  +-- Object: routeros-7
-  |     +-- Instance: routeros-7-1
-  |     +-- Instance: routeros-7-2
-  +-- Object: generic-uefi-x86
-        +-- Instance: generic-uefi-2.8
+class.firmware (v1.0.0)
+  +-- obj.firmware.routeros-7
+  |     +-- inst.firmware.routeros-7-prod
+  |     +-- inst.firmware.routeros-7-staging
+  +-- obj.firmware.generic-uefi-x86
+        +-- inst.firmware.uefi-2.8
 
-Class: os
-  +-- Object: debian-12
-  |     +-- Instance: debian-12-production
-  |     +-- Instance: debian-12-staging
-  +-- Object: windows-11
-        +-- Instance: windows-11-enterprise
+class.os (v1.0.0)
+  +-- obj.os.debian-12
+  |     +-- inst.os.debian-12-prod
+  |     +-- inst.os.debian-12-staging
+  +-- obj.os.windows-11
+        +-- inst.os.windows-11-enterprise
 
-Class: compute
-  +-- Object: pc
-  |     +-- Instance: pc-workstation-01
-  |     +-- Instance: pc-workstation-02
-  +-- Object: orange-pi-5
-        +-- Instance: sbc-orangepi-01
+class.compute (v1.0.0)
+  +-- obj.compute.pc
+  |     +-- inst.compute.pc-workstation-01
+  |     +-- inst.compute.pc-workstation-02
+  +-- obj.compute.orange-pi-5
+        +-- inst.compute.sbc-orangepi-01
 ```
 
 ### 1. Firmware Is a First-Class Entity (Always Required for Active Devices)
 
 ```yaml
 # Class definition
-class: firmware
-categories: [infrastructure, prerequisite, hardware-bound]
+class: class.firmware
+version: 1.0.0
 
 properties:
   # Identification (required)
@@ -134,7 +144,7 @@ capabilities:
 
 ```yaml
 # MikroTik RouterOS firmware
-object: mikrotik-routeros7
+object: obj.firmware.mikrotik-routeros7
 class_ref: class.firmware
 
 properties:
@@ -156,7 +166,7 @@ properties:
 
 ```yaml
 # Generic UEFI firmware
-object: generic-uefi-x86
+object: obj.firmware.generic-uefi-x86
 class_ref: class.firmware
 
 properties:
@@ -177,7 +187,7 @@ properties:
 
 ```yaml
 # U-Boot for ARM64 SBC
-object: generic-arm64-uboot
+object: obj.firmware.generic-arm64-uboot
 class_ref: class.firmware
 
 properties:
@@ -199,7 +209,7 @@ properties:
 
 ```yaml
 # PDU management firmware
-object: apc-pdu-mgmt
+object: obj.firmware.apc-pdu-mgmt
 class_ref: class.firmware
 
 properties:
@@ -221,8 +231,8 @@ properties:
 **Firmware instance examples:**
 
 ```yaml
-instance: routeros-7-13-arm64
-object_ref: obj.mikrotik-routeros7
+instance: inst.firmware.routeros-7-13-arm64
+object_ref: obj.firmware.mikrotik-routeros7
 
 deployment:
   installed_date: "2024-01-15"
@@ -230,8 +240,8 @@ deployment:
 ```
 
 ```yaml
-instance: generic-uefi-2.8
-object_ref: obj.generic-uefi-x86
+instance: inst.firmware.generic-uefi-2.8
+object_ref: obj.firmware.generic-uefi-x86
 
 deployment:
   installed_date: "2023-10-01"
@@ -241,8 +251,8 @@ deployment:
 
 ```yaml
 # Class definition
-class: os
-categories: [infrastructure, prerequisite, runtime]
+class: class.os
+version: 1.0.0
 
 properties:
   # Identification (required)
@@ -290,7 +300,7 @@ capabilities:
 
 ```yaml
 # RouterOS (embedded in firmware)
-object: routeros-7
+object: obj.os.routeros-7
 class_ref: class.os
 
 properties:
@@ -315,7 +325,7 @@ properties:
 
 ```yaml
 # Debian 12 (installable)
-object: debian-12
+object: obj.os.debian-12
 class_ref: class.os
 
 properties:
@@ -346,7 +356,7 @@ properties:
 
 ```yaml
 # Debian 12 ARM64 variant
-object: debian-12-arm64
+object: obj.os.debian-12-arm64
 class_ref: class.os
 
 properties:
@@ -376,7 +386,7 @@ properties:
 
 ```yaml
 # macOS (embedded, vendor-locked)
-object: macos-14
+object: obj.os.macos-14
 class_ref: class.os
 
 properties:
@@ -405,7 +415,7 @@ properties:
 
 ```yaml
 # Windows 11 (installable)
-object: windows-11
+object: obj.os.windows-11
 class_ref: class.os
 
 properties:
@@ -431,8 +441,8 @@ properties:
 **OS instance examples:**
 
 ```yaml
-instance: routeros-7-production
-object_ref: obj.routeros-7
+instance: inst.os.routeros-7-prod
+object_ref: obj.os.routeros-7
 
 deployment:
   installed_date: "2024-02-01"
@@ -440,8 +450,8 @@ deployment:
 ```
 
 ```yaml
-instance: debian-12-production
-object_ref: obj.debian-12
+instance: inst.os.debian-12-prod
+object_ref: obj.os.debian-12
 
 deployment:
   installed_date: "2024-01-10"
@@ -449,8 +459,8 @@ deployment:
 ```
 
 ```yaml
-instance: debian-12-arm64-production
-object_ref: obj.debian-12-arm64
+instance: inst.os.debian-12-arm64-prod
+object_ref: obj.os.debian-12-arm64
 
 deployment:
   installed_date: "2024-03-01"
@@ -464,15 +474,18 @@ Device instances reference **firmware instance** and **OS instances** directly u
 **Class level** defines binding constraints (types and cardinalities):
 
 ```yaml
-# class: compute
+# Class definition
+class: class.compute
+version: 1.0.0
+
 bindings:
   firmware:
     kind: single
-    class: firmware
+    class_ref: class.firmware
     required: true
   os:
     kind: array
-    class: os
+    class_ref: class.os
     min_items: 0
     max_items: 3
 
@@ -484,7 +497,7 @@ os_policy: conditional  # depends on device type
 
 ```yaml
 # PC object (supports multi-boot)
-object: pc
+object: obj.compute.pc
 class_ref: class.compute
 
 os_constraints:
@@ -496,7 +509,7 @@ os_constraints:
 
 ```yaml
 # MacBook object (vendor-locked, no multi-boot)
-object: macbook
+object: obj.compute.macbook
 class_ref: class.compute
 
 os_constraints:
@@ -509,7 +522,7 @@ os_constraints:
 
 ```yaml
 # Orange Pi 5 object (SBC, supports multi-boot)
-object: orange-pi-5
+object: obj.compute.orange-pi-5
 class_ref: class.compute
 
 os_constraints:
@@ -522,7 +535,7 @@ os_constraints:
 
 ```yaml
 # MikroTik Chateau object (embedded OS)
-object: mikrotik-chateau-lte7ax
+object: obj.compute.mikrotik-chateau-lte7ax
 class_ref: class.compute
 
 os_constraints:
@@ -534,7 +547,7 @@ os_constraints:
 
 ```yaml
 # PDU object (no OS)
-object: apc-pdu
+object: obj.power.apc-pdu
 class_ref: class.power
 
 os_constraints:
@@ -546,55 +559,55 @@ os_constraints:
 
 ```yaml
 # PC single-boot
-instance: pc-workstation-01
-object_ref: obj.pc
+instance: inst.compute.pc-workstation-01
+object_ref: obj.compute.pc
 
-firmware_ref: firmware.generic-uefi-2.8
-os_refs: [os.debian-12-production]
+firmware_ref: inst.firmware.generic-uefi-2.8
+os_refs: [inst.os.debian-12-prod]
 ```
 
 ```yaml
 # PC dual-boot
-instance: pc-workstation-02
-object_ref: obj.pc
+instance: inst.compute.pc-workstation-02
+object_ref: obj.compute.pc
 
-firmware_ref: firmware.generic-uefi-2.8
-os_refs: [os.windows-11-enterprise, os.debian-12-production]
+firmware_ref: inst.firmware.generic-uefi-2.8
+os_refs: [inst.os.windows-11-prod, inst.os.debian-12-prod]
 ```
 
 ```yaml
 # MacBook
-instance: macbook-pro-01
-object_ref: obj.macbook
+instance: inst.compute.macbook-pro-01
+object_ref: obj.compute.macbook
 
-firmware_ref: firmware.apple-m2-14.2
-os_refs: [os.macos-14-production]
+firmware_ref: inst.firmware.apple-m2-14.2
+os_refs: [inst.os.macos-14-prod]
 ```
 
 ```yaml
 # MikroTik Chateau LTE7ax
-instance: edge-mikrotik-chateau-01
-object_ref: obj.mikrotik-chateau-lte7ax
+instance: inst.compute.edge-mikrotik-chateau-01
+object_ref: obj.compute.mikrotik-chateau-lte7ax
 
-firmware_ref: firmware.routeros-7-13-arm64
-os_refs: [os.routeros-7-production]
+firmware_ref: inst.firmware.routeros-7-13-arm64
+os_refs: [inst.os.routeros-7-prod]
 ```
 
 ```yaml
 # Orange Pi 5 dual-boot
-instance: sbc-orangepi-02
-object_ref: obj.orange-pi-5
+instance: inst.compute.sbc-orangepi-02
+object_ref: obj.compute.orange-pi-5
 
-firmware_ref: firmware.uboot-2023.07-arm64
-os_refs: [os.debian-12-arm64-production, os.ubuntu-2204-arm64-staging]
+firmware_ref: inst.firmware.uboot-2023.07-arm64
+os_refs: [inst.os.debian-12-arm64-prod, inst.os.ubuntu-2204-arm64-staging]
 ```
 
 ```yaml
 # PDU (no OS)
-instance: pdu-rack-a-01
-object_ref: obj.apc-pdu
+instance: inst.power.pdu-rack-a-01
+object_ref: obj.power.apc-pdu
 
-firmware_ref: firmware.apc-pdu-3.9.2
+firmware_ref: inst.firmware.apc-pdu-3.9.2
 # os_refs: absent (forbidden by object constraints)
 ```
 
@@ -604,11 +617,11 @@ Compiler derives device capabilities from firmware instance and all OS instances
 
 ```yaml
 # Device instance: pc-workstation-02 (dual-boot Windows + Linux)
-instance: pc-workstation-02
-object_ref: obj.pc
+instance: inst.compute.pc-workstation-02
+object_ref: obj.compute.pc
 
-firmware_ref: firmware.generic-uefi-2.8
-os_refs: [os.windows-11-enterprise, os.debian-12-production]
+firmware_ref: inst.firmware.generic-uefi-2.8
+os_refs: [inst.os.windows-11-prod, inst.os.debian-12-prod]
 
 # Compiler derives:
 effective_capabilities:
@@ -707,6 +720,12 @@ Compiler MUST enforce:
    - Service `requires.capabilities.any` -> device MUST have AT LEAST ONE
    - For multi-boot: service can be deployed to ANY compatible OS context
 
+6. **Version compatibility:**
+   - Object's `class_ref` resolved to class with matching version
+   - Instance's `object_ref` resolved to object with compatible class version
+   - Breaking class changes require major version bump
+   - Compiler validates version compatibility during resolution phase
+
 ### 7. Inference Rules
 
 When `init_system` or `package_manager` are omitted from OS object, compiler SHOULD infer by `distribution`:
@@ -739,31 +758,31 @@ Explicit value in object overrides inference.
 
 ### 9. Migration Contract: 5-Phase Transition
 
-**Phase 1: Define firmware and OS classes** (weeks 1-2)
-- Define `class: firmware` with properties and capabilities
-- Define `class: os` with properties and capabilities
+**Phase 1: Define firmware and OS classes**
+- Define `class.firmware` with properties and capabilities
+- Define `class.os` with properties and capabilities
 - Create firmware objects for all active device types
 - Create OS objects for all distributions in use
 - No breaking changes (old model still works)
 
-**Phase 2: Create firmware and OS instances** (weeks 3-5)
+**Phase 2: Create firmware and OS instances**
 - Create firmware instances for deployed versions
 - Create OS instances for deployed versions
 - Implement compiler capability derivation
 - Devices can optionally use new model
 
-**Phase 3: Device instance migration** (weeks 6-7)
+**Phase 3: Device instance migration**
 - Migrate device instances to use `firmware_ref` and `os_refs`
 - Enable dual validation (both old and new models)
 - Migration tooling: auto-convert old -> new format
 - Migrate 50% of device instances
 
-**Phase 4: Deprecation** (week 8)
+**Phase 4: Deprecation**
 - Warn on old model usage
 - Require new model for new device instances
 - Migrate remaining 50%
 
-**Phase 5: Cleanup** (week 9+)
+**Phase 5: Cleanup**
 - Hard error on old model
 - Remove legacy code paths
 - Final validation
@@ -783,14 +802,14 @@ Explicit value in object overrides inference.
    - PC BIOS/UEFI firmware is explicit
 
 2. **Clear semantic distinction**
-   - `class: firmware` -> `object: mikrotik-routeros7` -> `instance: routeros-7-1`
-   - `class: os` -> `object: debian-12` -> `instance: debian-12-production`
+   - `class.firmware` -> `obj.firmware.mikrotik-routeros7` -> `inst.firmware.routeros-7-prod`
+   - `class.os` -> `obj.os.debian-12` -> `inst.os.debian-12-prod`
    - MikroTik has both firmware AND embedded OS (two entities, linked)
 
 3. **Instance references model**
    - Device instances reference firmware/OS instances directly
-   - `firmware_ref: firmware.generic-uefi-2.8`
-   - `os_refs: [os.debian-12-production, os.windows-11-enterprise]`
+   - `firmware_ref: inst.firmware.generic-uefi-2.8`
+   - `os_refs: [inst.os.debian-12-prod, inst.os.windows-11-prod]`
    - Clean references, no nested bindings
 
 4. **Capabilities from both layers**
@@ -826,32 +845,32 @@ Explicit value in object overrides inference.
 
 ## Implementation Checklist
 
-### Phase 1: Define Classes (weeks 1-2)
-- [ ] Define `class: firmware` with properties and capabilities
-- [ ] Define `class: os` with properties and capabilities
+### Phase 1: Define Classes
+- [ ] Define `class.firmware` with properties and capabilities
+- [ ] Define `class.os` with properties and capabilities
 - [ ] Document capability namespaces (`cap.firmware.*`, `cap.os.*`)
 - [ ] Create examples: PC, MacBook, MikroTik, PDU
 
-### Phase 2: Create Objects and Instances (weeks 3-5)
-- [ ] Create firmware objects (generic-uefi, mikrotik-routeros7, apc-pdu, etc.)
-- [ ] Create OS objects (debian-12, ubuntu-2204, routeros-7, macos-14, etc.)
+### Phase 2: Create Objects and Instances
+- [ ] Create firmware objects (obj.firmware.generic-uefi, obj.firmware.mikrotik-routeros7, etc.)
+- [ ] Create OS objects (obj.os.debian-12, obj.os.ubuntu-2204, obj.os.routeros-7, etc.)
 - [ ] Create firmware instances
 - [ ] Create OS instances
 - [ ] Implement compiler capability derivation
 
-### Phase 3: Device Migration (weeks 6-7)
+### Phase 3: Device Migration
 - [ ] Add `firmware_ref` and `os_refs` to device instance schema
-- [ ] Implement validation rules
+- [ ] Implement validation rules (including version compatibility)
 - [ ] Create migration tooling
 - [ ] Migrate 50% of devices
 - [ ] Enable dual validation
 
-### Phase 4: Deprecation (week 8)
+### Phase 4: Deprecation
 - [ ] Warn on old model usage
 - [ ] Require new model for new devices
 - [ ] Migrate remaining 50%
 
-### Phase 5: Cleanup (week 9+)
+### Phase 5: Cleanup
 - [ ] Hard error on old model
 - [ ] Remove legacy code
 - [ ] Final validation
@@ -881,4 +900,4 @@ Explicit value in object overrides inference.
 - **Embedded OS**: Part of firmware stack, not independently replaceable
 - **Installable OS**: Independent from firmware, user can change
 
-**Timeline**: Approved 2026-03-08, target completion 2026-05-17
+**Status**: Approved 2026-03-08
