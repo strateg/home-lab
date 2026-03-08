@@ -137,6 +137,8 @@ class CapabilityContractChecker:
                 continue
             class_id = payload.get("id")
             if not isinstance(class_id, str) or not class_id:
+                class_id = payload.get("class")
+            if not isinstance(class_id, str) or not class_id:
                 self._error(f"Class file missing id: {path}")
                 continue
             if class_id in result:
@@ -157,6 +159,8 @@ class CapabilityContractChecker:
                 self._error(f"Object file root must be object: {path}")
                 continue
             object_id = payload.get("id")
+            if not isinstance(object_id, str) or not object_id:
+                object_id = payload.get("object")
             if not isinstance(object_id, str) or not object_id:
                 self._error(f"Object file missing id: {path}")
                 continue
@@ -190,21 +194,72 @@ class CapabilityContractChecker:
     def _normalize_release_token(value: str) -> str:
         return "".join(ch for ch in value.lower() if ch.isalnum())
 
-    def _derive_os_caps(self, *, object_id: str, obj: Dict[str, Any]) -> Set[str]:
+    @staticmethod
+    def _default_firmware_policy(class_id: str) -> str:
+        if class_id.startswith("class.service."):
+            return "forbidden"
+        if class_id == "class.compute.workload.container":
+            return "forbidden"
+        if class_id.startswith("class.power."):
+            return "required"
+        if class_id in {
+            "class.router",
+            "class.compute.cloud_vm",
+            "class.compute.edge_node",
+            "class.compute.hypervisor",
+        }:
+            return "required"
+        return "allowed"
+
+    def _extract_os_properties(self, obj: Dict[str, Any]) -> Dict[str, Any] | None:
+        properties = obj.get("properties")
+        if isinstance(properties, dict):
+            family = properties.get("family")
+            architecture = properties.get("architecture")
+            if isinstance(family, str) and family and isinstance(architecture, str) and architecture:
+                return dict(properties)
         software = obj.get("software")
-        if not isinstance(software, dict):
+        if isinstance(software, dict):
+            os_payload = software.get("os")
+            if isinstance(os_payload, dict):
+                family = os_payload.get("family")
+                architecture = os_payload.get("architecture")
+                if isinstance(family, str) and family and isinstance(architecture, str) and architecture:
+                    return dict(os_payload)
+        return None
+
+    def _derive_firmware_caps(self, *, object_id: str, obj: Dict[str, Any]) -> Set[str]:
+        properties = obj.get("properties")
+        if not isinstance(properties, dict):
             return set()
-        os_payload = software.get("os")
+        vendor = properties.get("vendor")
+        family = properties.get("family")
+        architecture = properties.get("architecture")
+        boot_stack = properties.get("boot_stack")
+        virtual = properties.get("virtual")
+        if not isinstance(vendor, str) or not vendor or not isinstance(family, str) or not family:
+            return set()
+
+        derived: Set[str] = {f"cap.firmware.{vendor}", f"cap.firmware.{family}"}
+        if isinstance(architecture, str) and architecture:
+            derived.add(f"cap.firmware.arch.{architecture}")
+            derived.add(f"cap.arch.{architecture}")
+        if isinstance(boot_stack, str) and boot_stack:
+            derived.add(f"cap.firmware.boot.{boot_stack}")
+        if isinstance(virtual, bool) and virtual:
+            derived.add("cap.firmware.virtual")
+        return derived
+
+    def _derive_os_caps(self, *, object_id: str, obj: Dict[str, Any]) -> Set[str]:
+        if obj.get("class_ref") == "class.firmware":
+            return set()
+        os_payload = self._extract_os_properties(obj)
         if not isinstance(os_payload, dict):
             return set()
 
         family = os_payload.get("family")
         architecture = os_payload.get("architecture")
         if not isinstance(family, str) or not family or not isinstance(architecture, str) or not architecture:
-            self._warn(
-                f"Object '{object_id}' has legacy/non-canonical software.os; "
-                "expected at least family+architecture for OS capability derivation"
-            )
             return set()
 
         distribution = os_payload.get("distribution")
@@ -278,11 +333,13 @@ class CapabilityContractChecker:
     ) -> Dict[str, str]:
         os_policy_by_class: Dict[str, str] = {}
         valid_os_policies = {"required", "allowed", "forbidden"}
+        valid_firmware_policies = {"required", "allowed", "forbidden"}
         for class_id, class_def in class_map.items():
             required = class_def.get("required_capabilities", []) or []
             optional = class_def.get("optional_capabilities", []) or []
             pack_refs = class_def.get("capability_packs", []) or []
             os_policy = class_def.get("os_policy", "allowed")
+            firmware_policy = class_def.get("firmware_policy", self._default_firmware_policy(class_id))
 
             if not isinstance(required, list):
                 self._error(f"Class '{class_id}' required_capabilities must be list")
@@ -317,6 +374,12 @@ class CapabilityContractChecker:
             else:
                 os_policy_by_class[class_id] = os_policy
 
+            if not isinstance(firmware_policy, str) or firmware_policy not in valid_firmware_policies:
+                self._error(
+                    f"Class '{class_id}' has invalid firmware_policy '{firmware_policy}'. "
+                    "Expected one of: required, allowed, forbidden"
+                )
+
         return os_policy_by_class
 
     def _validate_objects(
@@ -338,19 +401,13 @@ class CapabilityContractChecker:
                 continue
 
             software = obj.get("software")
-            has_os = isinstance(software, dict) and isinstance(software.get("os"), dict)
             prerequisites = obj.get("prerequisites")
-            has_os_ref = isinstance(prerequisites, dict) and isinstance(prerequisites.get("os_ref"), str)
-            os_policy = class_os_policies.get(class_ref, "allowed")
-            if os_policy == "required" and not has_os and not has_os_ref:
-                self._error(
-                    f"Object '{object_id}' class '{class_ref}' requires OS prerequisite "
-                    "(software.os or prerequisites.os_ref)"
-                )
-            if os_policy == "forbidden" and (has_os or has_os_ref):
-                self._error(
-                    f"Object '{object_id}' class '{class_ref}' forbids OS fields, "
-                    "but software.os/prerequisites.os_ref is set"
+            has_legacy_os = isinstance(software, dict) and isinstance(software.get("os"), dict)
+            has_legacy_os_ref = isinstance(prerequisites, dict) and isinstance(prerequisites.get("os_ref"), str)
+            if has_legacy_os or has_legacy_os_ref:
+                self._warn(
+                    f"Object '{object_id}' still contains legacy software binding fields "
+                    "(software.os or prerequisites.os_ref); use instance-level firmware_ref/os_refs"
                 )
 
             enabled_caps = obj.get("enabled_capabilities", []) or []
@@ -375,7 +432,11 @@ class CapabilityContractChecker:
                 packs=packs,
             )
             derived_os_caps = self._derive_os_caps(object_id=object_id, obj=obj)
+            derived_firmware_caps = self._derive_firmware_caps(object_id=object_id, obj=obj)
             for cap in derived_os_caps:
+                if cap not in catalog_ids:
+                    self._warn(f"Object '{object_id}' derived capability '{cap}' is missing in capability catalog")
+            for cap in derived_firmware_caps:
                 if cap not in catalog_ids:
                     self._warn(f"Object '{object_id}' derived capability '{cap}' is missing in capability catalog")
 
@@ -390,6 +451,7 @@ class CapabilityContractChecker:
             class_required_set = set(cap for cap in class_required if isinstance(cap, str))
             effective_caps = set(expanded)
             effective_caps.update(derived_os_caps)
+            effective_caps.update(derived_firmware_caps)
             missing = sorted(cap for cap in class_required_set if cap not in effective_caps)
             if missing:
                 self._error(

@@ -13,6 +13,8 @@ MAPPING_PATH = ROOT / "v5/topology/instances/home-lab/v4-to-v5-mapping.yaml"
 OUTPUT_PATH = ROOT / "v5/topology/instances/home-lab/instance-bindings.yaml"
 GROUP_LAYER_MAP = {
     "l1_devices": "L1",
+    "l1_software_firmware": "L1",
+    "l1_software_os": "L1",
     "l4_vms": "L4",
     "l4_lxc": "L4",
     "l5_services": "L5",
@@ -34,6 +36,12 @@ def _normalize_rows(rows: list[dict], *, group: str, include_runtime: bool = Fal
             "status": row.get("status", "pending"),
             "notes": row.get("notes", ""),
         }
+        firmware_ref = row.get("firmware_ref")
+        if isinstance(firmware_ref, str) and firmware_ref:
+            item["firmware_ref"] = firmware_ref
+        os_refs = row.get("os_refs")
+        if isinstance(os_refs, list):
+            item["os_refs"] = [value for value in os_refs if isinstance(value, str) and value]
         if include_runtime:
             item["runtime"] = {
                 "type": row.get("runtime_type"),
@@ -56,6 +64,10 @@ def main() -> int:
         "source_mapping": str(MAPPING_PATH.relative_to(ROOT).as_posix()),
         "instance_bindings": {
             "l1_devices": _normalize_rows(entities.get("l1_devices", []) or [], group="l1_devices"),
+            "l1_software_firmware": _normalize_rows(
+                entities.get("l1_software_firmware", []) or [], group="l1_software_firmware"
+            ),
+            "l1_software_os": _normalize_rows(entities.get("l1_software_os", []) or [], group="l1_software_os"),
             "l4_vms": _normalize_rows(entities.get("l4_vms", []) or [], group="l4_vms"),
             "l4_lxc": _normalize_rows(entities.get("l4_lxc", []) or [], group="l4_lxc"),
             "l5_services": _normalize_rows(

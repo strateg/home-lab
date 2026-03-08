@@ -8,21 +8,14 @@ description: |
   without hardware-specific features such as WiFi or LTE modem.
 vendor: mikrotik
 model: CHR
-prerequisites:
-  os_ref: obj.os.routeros.7.x86_64
-software:
-  os:
-    family: routeros
-    distribution: routeros
-    release: "7"
-    release_id: "7"
-    architecture: x86_64
-    init_system: proprietary
-    package_manager: none
-    kernel: proprietary
-    vendor: mikrotik
-    name: RouterOS CHR
-    vendor_version: v7
+software_contract:
+  firmware_class_ref: class.firmware
+  os_class_refs:
+  - class.os
+  os_cardinality:
+    min: 1
+    max: 1
+  multi_boot: false
 
 enabled_capabilities:
   - cap.net.interface.ethernet

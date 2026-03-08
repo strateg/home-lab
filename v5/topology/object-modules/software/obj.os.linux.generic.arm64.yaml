@@ -1,0 +1,14 @@
+id: obj.os.linux.generic.arm64
+object: obj.os.linux.generic.arm64
+version: 1.0.0
+class_ref: class.os
+vendor: generic
+model: Generic Linux ARM64
+properties:
+  family: linux
+  architecture: arm64
+  init_system: systemd
+  package_manager: apt
+  installation_model: cloud_image
+enabled_capabilities: []
+enabled_packs: []

@@ -1,0 +1,17 @@
+id: obj.firmware.apc.backups.650va
+object: obj.firmware.apc.backups.650va
+version: 1.0.0
+class_ref: class.firmware
+vendor: apc
+model: APC Back-UPS 650VA Firmware
+properties:
+  vendor: generic
+  family: generic
+  version: 3.9.2
+  architecture: armhf
+  boot_stack: proprietary
+  virtual: false
+enabled_capabilities: []
+enabled_packs: []
+vendor_capabilities:
+- vendor.apc.ups.firmware

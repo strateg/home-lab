@@ -3,6 +3,11 @@ version: 1.0.0
 title: Power Distribution Unit
 summary: Power distribution and outlet control abstraction.
 os_policy: forbidden
+firmware_policy: required
+os_cardinality:
+  min: 0
+  max: 0
+multi_boot: false
 required_capabilities:
 - cap.power.pdu.switching
 - cap.power.pdu.telemetry

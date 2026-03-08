@@ -1,0 +1,15 @@
+id: obj.firmware.uefi.generic.x86_64
+object: obj.firmware.uefi.generic.x86_64
+version: 1.0.0
+class_ref: class.firmware
+vendor: generic
+model: Generic UEFI Firmware x86-64
+properties:
+  vendor: generic
+  family: uefi
+  version: '2.9'
+  architecture: x86_64
+  boot_stack: uefi
+  virtual: true
+enabled_capabilities: []
+enabled_packs: []

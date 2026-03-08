@@ -1,0 +1,15 @@
+id: obj.firmware.uboot.generic.arm64
+object: obj.firmware.uboot.generic.arm64
+version: 1.0.0
+class_ref: class.firmware
+vendor: generic
+model: Generic U-Boot Firmware ARM64
+properties:
+  vendor: generic
+  family: uboot
+  version: '2023.07'
+  architecture: arm64
+  boot_stack: uboot
+  virtual: false
+enabled_capabilities: []
+enabled_packs: []

@@ -43,6 +43,10 @@ classes:
     version: 1.0.0
   class.service.web_ui:
     version: 1.0.0
+  class.firmware:
+    version: 1.0.0
+  class.os:
+    version: 1.0.0
 objects:
   obj.apc.backups.650va:
     version: 1.0.0
@@ -57,7 +61,7 @@ objects:
     version: 1.0.0
     class_ref: class.router
   obj.mikrotik.chr:
-    version: 1.0.0
+    version: 1.1.0
     class_ref: class.router
   obj.oracle.cloud_vm:
     version: 1.0.0
@@ -146,3 +150,51 @@ objects:
   obj.service.wireguard:
     version: 1.0.0
     class_ref: class.service.vpn
+  obj.firmware.routeros.7.arm64:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.routeros.7.x86_64:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.openwrt.glinet.4x:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.uefi.generic.x86_64:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.uefi.generic.arm64:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.uboot.generic.arm64:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.apc.backups.650va:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.pdu.generic.managed:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.os.routeros.7.arm64:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.routeros.7.x86_64:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.openwrt.glinet.4x:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.debian.12.arm64.edge:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.debian.12.proxmox.lxc:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.proxmox.ve.9:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.linux.generic.x86_64:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.linux.generic.arm64:
+    version: 1.0.0
+    class_ref: class.os

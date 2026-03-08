@@ -3,6 +3,13 @@ version: 1.0.0
 title: Compute Workload Container
 summary: Containerized workload runtime contract.
 os_policy: required
+firmware_policy: forbidden
+os_cardinality:
+  min: 1
+  max: 1
+multi_boot: false
+allowed_os_install_models:
+- container_base
 required_capabilities:
 - cap.compute.workload.container
 - cap.compute.workload.linux_base

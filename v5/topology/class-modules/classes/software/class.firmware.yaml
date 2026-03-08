@@ -1,0 +1,14 @@
+id: class.firmware
+class: class.firmware
+version: 1.0.0
+title: Firmware Entity
+summary: Canonical firmware entity contract (class -> object -> instance).
+os_policy: forbidden
+firmware_policy: forbidden
+required_capabilities: []
+optional_capabilities: []
+capability_packs: []
+invariants:
+- object.class_ref must equal class.id
+- instance.object_ref must resolve to obj.firmware.*
+- instance overrides must not violate class invariants

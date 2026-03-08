@@ -3,13 +3,14 @@ version: 1.0.0
 class_ref: class.compute.cloud_vm
 model: Hetzner Cloud VM
 vendor: hetzner
-prerequisites:
-  os_ref: obj.os.linux.generic.x86_64
-software:
-  os:
-    family: linux
-    architecture: x86_64
-    kernel: linux
+software_contract:
+  firmware_class_ref: class.firmware
+  os_class_refs:
+  - class.os
+  os_cardinality:
+    min: 1
+    max: 1
+  multi_boot: false
 enabled_capabilities:
 - cap.compute.node.cloud_vm
 - cap.compute.workload.linux_base

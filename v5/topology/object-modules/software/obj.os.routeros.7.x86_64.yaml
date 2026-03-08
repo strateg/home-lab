@@ -1,0 +1,17 @@
+id: obj.os.routeros.7.x86_64
+object: obj.os.routeros.7.x86_64
+version: 1.0.0
+class_ref: class.os
+vendor: mikrotik
+model: RouterOS v7 x86-64
+properties:
+  family: routeros
+  distribution: routeros
+  release: '7'
+  release_id: '7'
+  architecture: x86_64
+  init_system: proprietary
+  package_manager: none
+  installation_model: embedded
+enabled_capabilities: []
+enabled_packs: []

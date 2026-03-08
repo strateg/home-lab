@@ -1,0 +1,20 @@
+id: obj.os.proxmox.ve.9
+object: obj.os.proxmox.ve.9
+version: 1.0.0
+class_ref: class.os
+vendor: proxmox
+model: Proxmox VE 9
+properties:
+  family: linux
+  distribution: debian
+  release: '12'
+  release_id: '12'
+  codename: bookworm
+  architecture: x86_64
+  init_system: systemd
+  package_manager: apt
+  installation_model: installable
+enabled_capabilities: []
+enabled_packs: []
+vendor_capabilities:
+- vendor.proxmox.ve.host

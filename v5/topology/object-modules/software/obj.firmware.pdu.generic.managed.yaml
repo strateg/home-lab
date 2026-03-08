@@ -1,0 +1,15 @@
+id: obj.firmware.pdu.generic.managed
+object: obj.firmware.pdu.generic.managed
+version: 1.0.0
+class_ref: class.firmware
+vendor: generic
+model: Managed PDU Firmware
+properties:
+  vendor: generic
+  family: generic
+  version: '1.0'
+  architecture: armhf
+  boot_stack: proprietary
+  virtual: false
+enabled_capabilities: []
+enabled_packs: []

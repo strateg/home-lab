@@ -1,0 +1,15 @@
+id: obj.os.openwrt.glinet.4x
+object: obj.os.openwrt.glinet.4x
+version: 1.0.0
+class_ref: class.os
+vendor: glinet
+model: OpenWrt GL.iNet 4.x
+properties:
+  family: linux
+  distribution: openwrt
+  architecture: mipsel
+  init_system: busybox
+  package_manager: opkg
+  installation_model: embedded
+enabled_capabilities: []
+enabled_packs: []

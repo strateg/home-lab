@@ -6,6 +6,13 @@ description: |
   optional VPN, WiFi, uplink policies, and advanced features.
   Differentiation via capability packs (home_gateway, travel_vpn, enterprise).
 os_policy: required
+firmware_policy: required
+os_cardinality:
+  min: 1
+  max: 1
+multi_boot: false
+allowed_os_install_models:
+  - embedded
 
 # ============================================================================
 # REQUIRED CAPABILITIES

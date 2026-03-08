@@ -1,0 +1,17 @@
+id: obj.firmware.routeros.7.arm64
+object: obj.firmware.routeros.7.arm64
+version: 1.0.0
+class_ref: class.firmware
+vendor: mikrotik
+model: RouterOS Firmware v7 ARM64
+properties:
+  vendor: mikrotik
+  family: routeros
+  version: '7'
+  architecture: arm64
+  boot_stack: proprietary
+  virtual: false
+enabled_capabilities: []
+enabled_packs: []
+vendor_capabilities:
+- vendor.mikrotik.routeros.firmware

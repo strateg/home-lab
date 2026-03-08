@@ -1,0 +1,17 @@
+id: obj.firmware.openwrt.glinet.4x
+object: obj.firmware.openwrt.glinet.4x
+version: 1.0.0
+class_ref: class.firmware
+vendor: glinet
+model: GL.iNet OpenWrt Firmware 4.x
+properties:
+  vendor: openwrt
+  family: openwrt
+  version: 4x
+  architecture: mipsel
+  boot_stack: uboot
+  virtual: false
+enabled_capabilities: []
+enabled_packs: []
+vendor_capabilities:
+- vendor.glinet.openwrt.firmware

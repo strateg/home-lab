@@ -25,6 +25,16 @@ summary:
     mapped: 26
     pending: 0
     gap: 0
+  l1_software_firmware_total: 8
+  l1_software_firmware_status:
+    mapped: 8
+    pending: 0
+    gap: 0
+  l1_software_os_total: 8
+  l1_software_os_status:
+    mapped: 8
+    pending: 0
+    gap: 0
 entities:
   l1_devices:
   - instance_id: mikrotik-chateau
@@ -33,54 +43,79 @@ entities:
     object_ref: obj.mikrotik.chateau_lte7_ax
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    firmware_ref: inst.firmware.routeros.7.arm64
+    os_refs:
+    - inst.os.routeros.7.arm64
   - instance_id: pdu-rack
     source_id: pdu-rack
     class_ref: class.power.pdu
     object_ref: obj.pdu.generic.managed
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    firmware_ref: inst.firmware.pdu.generic.managed
+    os_refs: []
   - instance_id: rtr-mikrotik-chateau
     source_id: rtr-mikrotik-chateau
     class_ref: class.router
     object_ref: obj.mikrotik.chateau_lte7_ax
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    firmware_ref: inst.firmware.routeros.7.arm64
+    os_refs:
+    - inst.os.routeros.7.arm64
   - instance_id: rtr-slate
     source_id: rtr-slate
     class_ref: class.router
     object_ref: obj.glinet.slate_ax1800
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    firmware_ref: inst.firmware.openwrt.glinet.4x
+    os_refs:
+    - inst.os.openwrt.glinet.4x
   - instance_id: srv-gamayun
     source_id: srv-gamayun
     class_ref: class.compute.hypervisor
     object_ref: obj.proxmox.ve
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    firmware_ref: inst.firmware.uefi.generic.x86_64
+    os_refs:
+    - inst.os.proxmox.ve.9
   - instance_id: srv-orangepi5
     source_id: srv-orangepi5
     class_ref: class.compute.edge_node
     object_ref: obj.orangepi.rk3588.debian
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    firmware_ref: inst.firmware.uboot.generic.arm64
+    os_refs:
+    - inst.os.debian.12.arm64.edge
   - instance_id: ups-main
     source_id: ups-main
     class_ref: class.power.ups
     object_ref: obj.apc.backups.650va
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    firmware_ref: inst.firmware.apc.backups.650va
+    os_refs: []
   - instance_id: vps-hetzner-nuremberg
     source_id: vps-hetzner-nuremberg
     class_ref: class.compute.cloud_vm
     object_ref: obj.hetzner.cloud_vm
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    firmware_ref: inst.firmware.uefi.generic.x86_64
+    os_refs:
+    - inst.os.linux.generic.x86_64
   - instance_id: vps-oracle-frankfurt
     source_id: vps-oracle-frankfurt
     class_ref: class.compute.cloud_vm
     object_ref: obj.oracle.cloud_vm
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    firmware_ref: inst.firmware.uefi.generic.arm64
+    os_refs:
+    - inst.os.linux.generic.arm64
   l4_vms: []
   l4_lxc:
   - instance_id: lxc-docker
@@ -89,54 +124,72 @@ entities:
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    os_refs:
+    - inst.os.debian.12.proxmox.lxc
   - instance_id: lxc-gitea
     source_id: lxc-gitea
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    os_refs:
+    - inst.os.debian.12.proxmox.lxc
   - instance_id: lxc-grafana
     source_id: lxc-grafana
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    os_refs:
+    - inst.os.debian.12.proxmox.lxc
   - instance_id: lxc-homeassistant
     source_id: lxc-homeassistant
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    os_refs:
+    - inst.os.debian.12.proxmox.lxc
   - instance_id: lxc-nextcloud
     source_id: lxc-nextcloud
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    os_refs:
+    - inst.os.debian.12.proxmox.lxc
   - instance_id: lxc-nginx-proxy
     source_id: lxc-nginx-proxy
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    os_refs:
+    - inst.os.debian.12.proxmox.lxc
   - instance_id: lxc-postgresql
     source_id: lxc-postgresql
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.postgresql
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    os_refs:
+    - inst.os.debian.12.proxmox.lxc
   - instance_id: lxc-prometheus
     source_id: lxc-prometheus
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.base
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    os_refs:
+    - inst.os.debian.12.proxmox.lxc
   - instance_id: lxc-redis
     source_id: lxc-redis
     class_ref: class.compute.workload.container
     object_ref: obj.proxmox.lxc.debian12.redis
     status: mapped
     notes: module scaffold exists; capability profile tuning pending
+    os_refs:
+    - inst.os.debian.12.proxmox.lxc
   l5_services:
   - instance_id: svc-adguard
     source_id: svc-adguard
@@ -346,3 +399,101 @@ entities:
     object_ref: obj.service.wireguard
     status: mapped
     notes: module scaffold exists; runtime-specific behavior tuning pending
+  l1_software_firmware:
+  - instance_id: inst.firmware.routeros.7.arm64
+    source_id: inst.firmware.routeros.7.arm64
+    class_ref: class.firmware
+    object_ref: obj.firmware.routeros.7.arm64
+    status: mapped
+    notes: ADR0064 firmware instance
+  - instance_id: inst.firmware.routeros.7.x86_64
+    source_id: inst.firmware.routeros.7.x86_64
+    class_ref: class.firmware
+    object_ref: obj.firmware.routeros.7.x86_64
+    status: mapped
+    notes: ADR0064 firmware instance
+  - instance_id: inst.firmware.openwrt.glinet.4x
+    source_id: inst.firmware.openwrt.glinet.4x
+    class_ref: class.firmware
+    object_ref: obj.firmware.openwrt.glinet.4x
+    status: mapped
+    notes: ADR0064 firmware instance
+  - instance_id: inst.firmware.uefi.generic.x86_64
+    source_id: inst.firmware.uefi.generic.x86_64
+    class_ref: class.firmware
+    object_ref: obj.firmware.uefi.generic.x86_64
+    status: mapped
+    notes: ADR0064 firmware instance
+  - instance_id: inst.firmware.uefi.generic.arm64
+    source_id: inst.firmware.uefi.generic.arm64
+    class_ref: class.firmware
+    object_ref: obj.firmware.uefi.generic.arm64
+    status: mapped
+    notes: ADR0064 firmware instance
+  - instance_id: inst.firmware.uboot.generic.arm64
+    source_id: inst.firmware.uboot.generic.arm64
+    class_ref: class.firmware
+    object_ref: obj.firmware.uboot.generic.arm64
+    status: mapped
+    notes: ADR0064 firmware instance
+  - instance_id: inst.firmware.apc.backups.650va
+    source_id: inst.firmware.apc.backups.650va
+    class_ref: class.firmware
+    object_ref: obj.firmware.apc.backups.650va
+    status: mapped
+    notes: ADR0064 firmware instance
+  - instance_id: inst.firmware.pdu.generic.managed
+    source_id: inst.firmware.pdu.generic.managed
+    class_ref: class.firmware
+    object_ref: obj.firmware.pdu.generic.managed
+    status: mapped
+    notes: ADR0064 firmware instance
+  l1_software_os:
+  - instance_id: inst.os.routeros.7.arm64
+    source_id: inst.os.routeros.7.arm64
+    class_ref: class.os
+    object_ref: obj.os.routeros.7.arm64
+    status: mapped
+    notes: ADR0064 os instance
+  - instance_id: inst.os.routeros.7.x86_64
+    source_id: inst.os.routeros.7.x86_64
+    class_ref: class.os
+    object_ref: obj.os.routeros.7.x86_64
+    status: mapped
+    notes: ADR0064 os instance
+  - instance_id: inst.os.openwrt.glinet.4x
+    source_id: inst.os.openwrt.glinet.4x
+    class_ref: class.os
+    object_ref: obj.os.openwrt.glinet.4x
+    status: mapped
+    notes: ADR0064 os instance
+  - instance_id: inst.os.proxmox.ve.9
+    source_id: inst.os.proxmox.ve.9
+    class_ref: class.os
+    object_ref: obj.os.proxmox.ve.9
+    status: mapped
+    notes: ADR0064 os instance
+  - instance_id: inst.os.debian.12.arm64.edge
+    source_id: inst.os.debian.12.arm64.edge
+    class_ref: class.os
+    object_ref: obj.os.debian.12.arm64.edge
+    status: mapped
+    notes: ADR0064 os instance
+  - instance_id: inst.os.debian.12.proxmox.lxc
+    source_id: inst.os.debian.12.proxmox.lxc
+    class_ref: class.os
+    object_ref: obj.os.debian.12.proxmox.lxc
+    status: mapped
+    notes: ADR0064 os instance
+  - instance_id: inst.os.linux.generic.x86_64
+    source_id: inst.os.linux.generic.x86_64
+    class_ref: class.os
+    object_ref: obj.os.linux.generic.x86_64
+    status: mapped
+    notes: ADR0064 os instance
+  - instance_id: inst.os.linux.generic.arm64
+    source_id: inst.os.linux.generic.arm64
+    class_ref: class.os
+    object_ref: obj.os.linux.generic.arm64
+    status: mapped
+    notes: ADR0064 os instance

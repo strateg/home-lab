@@ -707,8 +707,107 @@ capabilities:
       - class.service.web_ui
 
   # ============================================================================
-  # OS / ARCH (derived from software.os per ADR 0064)
+  # Firmware / OS / ARCH (derived from ADR 0064 software instance refs)
   # ============================================================================
+
+  # Firmware families/vendors
+  - id: cap.firmware.mikrotik
+    title: MikroTik Firmware
+    summary: MikroTik firmware family.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.openwrt
+    title: OpenWrt Firmware
+    summary: OpenWrt firmware family.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.generic
+    title: Generic Firmware
+    summary: Generic firmware profile.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.routeros
+    title: RouterOS Firmware Family
+    summary: RouterOS firmware stack.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.uefi
+    title: UEFI Firmware
+    summary: UEFI firmware stack.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.uboot
+    title: U-Boot Firmware
+    summary: U-Boot firmware stack.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.arch.x86_64
+    title: Firmware x86-64
+    summary: Firmware architecture x86-64.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.arch.arm64
+    title: Firmware ARM64
+    summary: Firmware architecture arm64.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.arch.armhf
+    title: Firmware ARMhf
+    summary: Firmware architecture armhf.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.arch.mipsel
+    title: Firmware MIPSel
+    summary: Firmware architecture mipsel.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.boot.uefi
+    title: UEFI Boot Stack
+    summary: UEFI boot process support.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.boot.uboot
+    title: U-Boot Stack
+    summary: U-Boot boot process support.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.boot.proprietary
+    title: Proprietary Boot Stack
+    summary: Proprietary vendor boot stack.
+    domain: firmware
+    stability: stable
+    derived: true
+
+  - id: cap.firmware.virtual
+    title: Virtual Firmware
+    summary: Firmware profile for virtualized compute.
+    domain: firmware
+    stability: stable
+    derived: true
 
   # OS Families
   - id: cap.os.linux
@@ -958,7 +1057,7 @@ capabilities:
 
 # Metadata
 metadata:
-  total_capabilities: 126
+  total_capabilities: 140
   domains:
     - routing
     - nat
@@ -974,10 +1073,11 @@ metadata:
     - platform
     - compute
     - power
+    - firmware
     - os
     - arch
 
   stability_distribution:
-    stable: 125
+    stable: 139
     experimental: 1
     deprecated: 0

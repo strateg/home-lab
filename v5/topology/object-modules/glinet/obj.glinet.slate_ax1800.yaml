@@ -145,24 +145,16 @@ hardware_specs:
 # SOFTWARE
 # ============================================================================
 
-prerequisites:
-  os_ref: obj.os.openwrt.glinet.4x
+software_contract:
+  firmware_class_ref: class.firmware
+  os_class_refs:
+  - class.os
+  os_cardinality:
+    min: 1
+    max: 1
+  multi_boot: false
 
 software:
-  os:
-    family: linux
-    distribution: openwrt
-    architecture: mipsel
-    init_system: busybox
-    package_manager: opkg
-    kernel: linux
-    vendor: glinet
-    name: GL.iNet Firmware
-    vendor_version: "4.8.2"
-    base: OpenWRT 23.05
-    update_channel: stable
-    kernel_version: "5.15"
-
   ui:
     - name: glinet_ui
       port: 80

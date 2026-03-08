@@ -3,6 +3,13 @@ version: 1.0.0
 title: Compute Hypervisor
 summary: Host platform that runs VM/LXC workloads.
 os_policy: required
+firmware_policy: required
+os_cardinality:
+  min: 1
+  max: 1
+multi_boot: false
+allowed_os_install_models:
+- installable
 required_capabilities:
 - cap.compute.host.hypervisor
 - cap.compute.runtime.container_host

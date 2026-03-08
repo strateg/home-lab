@@ -1,0 +1,14 @@
+id: obj.os.linux.generic.x86_64
+object: obj.os.linux.generic.x86_64
+version: 1.0.0
+class_ref: class.os
+vendor: generic
+model: Generic Linux x86-64
+properties:
+  family: linux
+  architecture: x86_64
+  init_system: systemd
+  package_manager: apt
+  installation_model: cloud_image
+enabled_capabilities: []
+enabled_packs: []
