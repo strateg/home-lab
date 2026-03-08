@@ -1,0 +1,3156 @@
+
+ ▐▛███▜▌   Claude Code v2.1.1
+▝▜█████▛▘  Opus 4.5 · Claude Pro
+  ▘▘ ▝▝    ~/workspaces/projects/home-lab
+
+❯ Проведи глубокий анализ четырёх связанных adr 58, 59, 60, 61. Дай критику и предложи оптимизацию по
+  сложности, и другие улучшния. Гармониируй жти четыре ADR
+
+● Let me read the four ADRs to analyze them deeply.
+
+● Read(adr/0058-core-abstraction-layer.md)
+  ⎿  Read 445 lines
+
+● Read(adr/0059-device-module-architecture.md)
+  ⎿  Error reading file
+
+● Read(adr/0060-capability-contract-system.md)
+  ⎿  Error reading file
+
+● Read(adr/0061-profile-aware-compiler.md)
+  ⎿  Error reading file
+
+● Let me search for the actual ADR files in the repository.
+
+● Search(pattern: "adr/*.md")
+  ⎿  Found 71 files (ctrl+o to expand)
+
+● Now let me read the correct ADR files.
+
+● Read(adr/0059-repository-split-and-class-object-instance-module-contract.md)
+  ⎿  Read 250 lines
+
+● Read(adr/0060-yaml-to-json-compiler-diagnostics-contract.md)
+  ⎿  Read 119 lines
+
+● Read(adr/0061-base-repo-versioned-class-object-instance-and-test-profiles.md)
+  ⎿  Read 139 lines
+
+● Now I have all four ADRs. Let me provide a deep analysis.
+
+  ---
+  Глубокий анализ ADR 0058-0061
+
+  1. Общая картина
+  ┌──────┬─────────────────────────────────────────────────────┬────────────┐
+  │ ADR  │                        Фокус                        │   Статус   │
+  ├──────┼─────────────────────────────────────────────────────┼────────────┤
+  │ 0058 │ Core/Module разделение, абстрактные типы устройств  │ Superseded │
+  ├──────┼─────────────────────────────────────────────────────┼────────────┤
+  │ 0059 │ Class→Object→Instance контракт, split репозитория   │ Proposed   │
+  ├──────┼─────────────────────────────────────────────────────┼────────────┤
+  │ 0060 │ YAML→JSON компилятор, структурированная диагностика │ Proposed   │
+  ├──────┼─────────────────────────────────────────────────────┼────────────┤
+  │ 0061 │ Base repo, model.lock, профили (prod/modeled/test)  │ Proposed   │
+  └──────┴─────────────────────────────────────────────────────┴────────────┘
+  ---
+  2. Критический анализ
+
+  2.1 Избыточная сложность (Over-Engineering)
+
+  Проблема: Архитектура спроектирована для масштабов enterprise, но применяется к home-lab с 3 устройствами.
+
+  Введённые концепции:
+  Class → Object → Instance        (3 уровня абстракции)
+  topology-core / topology-base    (2+ репозитория)
+  capability catalog + packs       (система capabilities)
+  model.lock                       (версионирование зависимостей)
+  profile overlays                 (3 типа профилей)
+  5-stage compiler pipeline        (compile chain)
+  E1xxx-I9xxx error catalog        (100+ кодов ошибок)
+
+  Вопрос: Оправдывает ли добавление GL.iNet или Ubiquiti такую сложность?
+
+  2.2 Терминологическая несогласованность
+  ┌────────────────┬───────────────────┬────────────────┬───────────────────────┐
+  │    ADR 0058    │     ADR 0059      │    ADR 0061    │       Что это?        │
+  ├────────────────┼───────────────────┼────────────────┼───────────────────────┤
+  │ abstract type  │ Class             │ Class          │ Абстрактный тип       │
+  ├────────────────┼───────────────────┼────────────────┼───────────────────────┤
+  │ implementation │ Object            │ Object         │ Реализация            │
+  ├────────────────┼───────────────────┼────────────────┼───────────────────────┤
+  │ device entry   │ Instance          │ Instance       │ Конкретное устройство │
+  ├────────────────┼───────────────────┼────────────────┼───────────────────────┤
+  │ topology-core/ │ topology-core     │ topology-base  │ Базовый репозиторий   │
+  ├────────────────┼───────────────────┼────────────────┼───────────────────────┤
+  │ —              │ home-lab-topology │ instance repos │ Конкретная топология  │
+  └────────────────┴───────────────────┴────────────────┴───────────────────────┘
+  Несогласованность topology-core vs topology-base — критическая путаница.
+
+  2.3 Преждевременное разделение репозиториев
+
+  ADR 0059 предлагает:
+  Repository A: topology-core
+  Repository B: home-lab-topology
+
+  ADR 0061 предлагает:
+  Base repo: topology-base
+  Instance repos: many (home-lab, office-lab, etc.)
+
+  Проблемы:
+  - Нет реальных внешних потребителей для topology-core
+  - Overhead на поддержку версионирования между репозиториями
+  - Текущий проект — единственный пользователь
+
+  2.4 Capability Model — чрезмерная формализация
+
+  ADR 0059 вводит трёхуровневую модель:
+  1. Capability Catalog (class-module)
+  2. Class Capability Contract (required/optional/packs)
+  3. Object Capability Binding (enabled + vendor.*)
+
+  Критика:
+  - capability_packs и promotion rules — enterprise patterns
+  - Для 3 устройств достаточно простого enum
+  - Vendor namespace (vendor.*) добавляет cognitive load без пользы
+
+  2.5 Compiler Pipeline — решение без проблемы
+
+  ADR 0060 предлагает 5-stage pipeline:
+  load → normalize → resolve → validate → emit
+
+  Вопросы:
+  - Текущий validate-topology.py работает
+  - JSON как canonical artifact — зачем, если YAML достаточен?
+  - AI repair loops — где реальный use-case?
+
+  2.6 Профили (prod/modeled/test-real)
+
+  ADR 0061 вводит:
+  production:   canonical production behavior
+  modeled:      virtual substitutions (CHR вместо hardware)
+  test-real:    test behavior on real devices
+
+  Критика:
+  - Home-lab = production (нет staging/prod separation)
+  - CHR substitution — edge case, не требующий формализации
+  - Три профиля умножают complexity × 3
+
+  ---
+  3. Структурные дефекты
+
+  3.1 Отсутствие MVP
+
+  Все ADR связаны циклическими зависимостями:
+  ADR 0058 ← superseded by → ADR 0059
+  ADR 0059 ← references → ADR 0060, ADR 0061
+  ADR 0060 ← references → ADR 0059
+  ADR 0061 ← references → ADR 0059, ADR 0060
+
+  Нет минимального работающего среза.
+
+  3.2 Размытые фазы миграции
+  ┌──────┬──────────┬───────────┐
+  │ ADR  │  Phases  │ Duration  │
+  ├──────┼──────────┼───────────┤
+  │ 0058 │ 5 phases │ 8 weeks   │
+  ├──────┼──────────┼───────────┤
+  │ 0059 │ 5 phases │ undefined │
+  ├──────┼──────────┼───────────┤
+  │ 0060 │ implicit │ undefined │
+  ├──────┼──────────┼───────────┤
+  │ 0061 │ implicit │ undefined │
+  └──────┴──────────┴───────────┘
+  Суммарно ~15+ phases без чёткой приоритизации.
+
+  3.3 Дублирование контента
+
+  - Раздел "Migration Plan" в 0058 и 0059 перекрывается
+  - Capability model описан в 0059 и уточнён в 0061
+  - Compiler поведение разбросано между 0059, 0060, 0061
+
+  ---
+  4. Предложения по оптимизации
+
+  4.1 Радикальное упрощение: один ADR вместо четырёх
+
+  Предлагаю консолидировать ADR 0058-0061 в один ADR 0062: Modular Device Architecture v2.
+
+  Структура:
+  # ADR 0062: Modular Device Architecture v2
+
+  ## 1. Device Module Contract (из 0058+0059)
+  - Простая модель: device_class + implementation
+  - Модули в topology-tools/modules/{vendor}/
+
+  ## 2. Validation Pipeline (из 0060)
+  - Расширение validate-topology.py
+  - JSON diagnostics как опция (--json-report)
+
+  ## 3. Future: Repository Split (отложено)
+  - Критерии для split: 3+ внешних потребителей
+
+  4.2 Упрощённая модель устройств
+
+  Вместо Class→Object→Instance:
+  # topology/L1-foundation.yaml
+  devices:
+    - id: rtr-mikrotik-chateau
+      device_class: router           # Абстрактный тип
+      implementation: mikrotik       # Модуль-генератор
+      model: "Chateau LTE7 ax"       # Информационное поле
+
+  Validation:
+  # topology-tools/modules/mikrotik/validator.py
+  def validate_device(device, topology):
+      assert device['device_class'] in ['router', 'switch']
+      # device-specific checks
+
+  4.3 Отказ от capability packs
+
+  Вместо capability catalog + packs + vendor.*:
+  # topology-tools/schemas/device-classes.yaml
+  device_classes:
+    router:
+      required: [routing, firewall]
+      optional: [dhcp, vpn, nat]
+    hypervisor:
+      required: [vm_hosting]
+      optional: [container_hosting, storage_management]
+
+  Validation в модуле:
+  # topology-tools/modules/mikrotik/validator.py
+  CAPABILITIES = {'routing', 'firewall', 'dhcp', 'vpn', 'nat', 'container_hosting'}
+
+  4.4 Отложенный repository split
+
+  Критерии для split:
+  1. ≥3 внешних репозиториев используют topology-core
+  2. Release cadence topology-core ≠ home-lab
+  3. Community contributions в core
+
+  До выполнения критериев — всё в одном репо.
+
+  4.5 Profile overlay → простой механизм
+
+  Вместо 3 формальных профилей:
+  # topology/overrides/test.yaml
+  instances:
+    rtr-mikrotik-chateau:
+      object_ref: mikrotik_chr  # CHR for testing
+
+  Использование:
+  python3 validate-topology.py --overlay topology/overrides/test.yaml
+
+  4.6 Compiler как evolution, не revolution
+
+  Вместо нового compile-topology.py:
+  # validate-topology.py improvements
+  def validate(topology, output_format='text'):
+      """
+      output_format: 'text' | 'json'
+      Returns structured diagnostics when json.
+      """
+
+  ---
+  5. Гармонизация: единый ADR
+
+  Предлагаемая структура ADR 0062:
+
+  # ADR 0062: Device Module Architecture
+
+  **Status:** Proposed
+  **Supersedes:** ADR 0058, ADR 0059, ADR 0060, ADR 0061
+
+  ## Context
+  Consolidates device abstraction proposals into minimal viable architecture.
+
+  ## Decision
+
+  ### 1. Device Model (simplified)
+  - device_class: abstract role (router, hypervisor, sbc)
+  - implementation: module reference (mikrotik, proxmox, orangepi5)
+  - Module provides: generator, validator, templates
+
+  ### 2. Module Structure
+  topology-tools/
+  └── modules/
+      ├── mikrotik/
+      │   ├── __init__.py
+      │   ├── generator.py
+      │   └── validator.py
+      ├── proxmox/
+      └── orangepi5/
+
+  ### 3. Validation Enhancements
+  - --json-report flag for machine-readable diagnostics
+  - Error codes: E1xxx (parse), E2xxx (reference), E3xxx (semantic)
+  - No separate compiler; extend validate-topology.py
+
+  ### 4. Deferred Decisions
+  - Repository split (criteria: 3+ external users)
+  - Capability packs (criteria: 5+ device types)
+  - Profile system (criteria: multi-environment deployments)
+
+  ## Migration
+  Phase 1: Create modules/ directory structure
+  Phase 2: Move vendor-specific code to modules
+  Phase 3: Add --json-report to validator
+
+  ## Consequences
+  + Simpler than 4-ADR approach
+  + Incremental complexity growth
+  - Less formal capability contracts (acceptable for current scale)
+
+  ---
+  6. Конкретные правки по каждому ADR
+
+  ADR 0058
+
+  - Действие: Mark as Superseded (уже сделано)
+  - Проблема: Терминология устарела (abstract type → Class)
+
+  ADR 0059
+
+  Рекомендации:
+  1. Удалить раздел "Target Two-Repository Topology" или пометить как "Future"
+  2. Упростить Capability Model до enumeration
+  3. Убрать "Phase 5: Repository Extraction" из mandatory phases
+
+  ADR 0060
+
+  Рекомендации:
+  1. Переименовать из "Compiler" в "Validation Pipeline Enhancements"
+  2. Не создавать отдельный compile-topology.py
+  3. Добавить --json-report в существующий validator
+
+  ADR 0061
+
+  Рекомендации:
+  1. Переименовать из "Base Repo" в "Future: Multi-Repository Model"
+  2. Статус: Deferred (не Proposed)
+  3. model.lock — только при фактическом split
+
+  ---
+  7. Итоговая таблица предложений
+  ┌───────────────────────┬────────────────┬────────────────────────────────────────────┐
+  │       Концепция       │ Текущий статус │                Рекомендация                │
+  ├───────────────────────┼────────────────┼────────────────────────────────────────────┤
+  │ Class→Object→Instance │ Proposed       │ Упростить до device_class + implementation │
+  ├───────────────────────┼────────────────┼────────────────────────────────────────────┤
+  │ Repository split      │ Proposed       │ Defer до критериев                         │
+  ├───────────────────────┼────────────────┼────────────────────────────────────────────┤
+  │ Capability packs      │ Proposed       │ Отказаться; простой enum                   │
+  ├───────────────────────┼────────────────┼────────────────────────────────────────────┤
+  │ YAML→JSON compiler    │ Proposed       │ Расширить validate-topology.py             │
+  ├───────────────────────┼────────────────┼────────────────────────────────────────────┤
+  │ model.lock            │ Proposed       │ Defer                                      │
+  ├───────────────────────┼────────────────┼────────────────────────────────────────────┤
+  │ Profile overlays      │ Proposed       │ Простой --overlay flag                     │
+  ├───────────────────────┼────────────────┼────────────────────────────────────────────┤
+  │ 5-stage pipeline      │ Proposed       │ Unnecessary; single-pass validation        │
+  ├───────────────────────┼────────────────┼────────────────────────────────────────────┤
+  │ Error catalog E1-I9   │ Proposed       │ Начать с E1xxx, E2xxx, E3xxx               │
+  ├───────────────────────┼────────────────┼────────────────────────────────────────────┤
+  │ Module manifests      │ Proposed       │ Python entry points достаточно             │
+  └───────────────────────┴────────────────┴────────────────────────────────────────────┘
+  ---
+  8. Альтернативный путь: сохранить 4 ADR, но с правками
+
+  Если консолидация в один ADR нежелательна:
+
+  1. ADR 0058 — оставить как historical reference
+  2. ADR 0059 — убрать repo split, оставить Class→Object→Instance
+  3. ADR 0060 — переформулировать как "Structured Validation Output"
+  4. ADR 0061 — пометить Status: Deferred
+
+  Добавить ADR Consistency Gate (уже есть в git log):
+  # .github/workflows/adr-consistency.yml
+  - Terminology alignment check
+  - Cross-reference validation
+  - Status coherence (no circular supersession)
+
+  ---
+  Хотите, чтобы я подготовил конкретные правки для гармонизации этих ADR или создал консолидированный ADR 0062?
+
+✻ Brewed for 1m 44s
+
+❯ Нет, основная идея разделить скрипты компиляции валидации генерации для бащового слоя и специфичные
+  срипты для конкретных  объектов. Схема Class->Object->Instance применима не только для оборудования
+  типа марщрутизаторов. Есть идея таким же образом моделировать гипервизоры типа Proxmox и VmWare, типа
+  class hypervisor-> object proxmox -> instance gamayun1. Я хочу выделить общий функционал и код в
+  базовый слой. Согласен с преждевременностью разделения репозитория на два репозитория. Сейчас только
+  один потребитель мой home-lab. Можно провести миграцию в одном репозитории разделив на подпапки. Также
+  мне важно имет схему компиляции YAML в JSON для лучшей обработки проекта AI агентами сохраняя
+  читаемость человеком. Проанализируй заново
+
+● Понял. Пересматриваю анализ с учётом ваших целей.
+
+  ---
+  Повторный анализ ADR 0058-0061
+
+  Уточнённые цели
+
+  1. Разделение кода: base layer (core) + object modules в одном репозитории
+  2. Class→Object→Instance: универсальная модель для всех сущностей (router, hypervisor, sbc, os...)
+  3. YAML→JSON компиляция: машиночитаемый формат для AI, человекочитаемый source
+  4. Без split репозитория: подпапки в одном репо
+
+  ---
+  1. Что в ADR сделано правильно
+
+  1.1 Class→Object→Instance — корректная абстракция
+
+  Class (семантика)     →  Object (реализация)      →  Instance (deployment)
+  ─────────────────────────────────────────────────────────────────────────
+  router                →  mikrotik_chateau         →  rtr-home-main
+  hypervisor            →  proxmox                  →  hv-gamayun
+  hypervisor            →  vmware_esxi              →  hv-office-1
+  host_os               →  debian_12                →  hos-gamayun-root
+  container_runtime     →  lxc                      →  ct-nginx-prod
+
+  Это позволяет:
+  - Переиспользовать валидаторы на уровне Class
+  - Менять Object без изменения Instance topology
+  - Добавлять новые Object (vmware, openwrt) без изменения core
+
+  1.2 YAML→JSON pipeline — обоснован
+
+  Human writes:     topology/*.yaml (readable)
+                         ↓
+  Compiler:         load → resolve → validate → emit
+                         ↓
+  AI consumes:      effective-topology.json (canonical)
+                    diagnostics.json (structured errors)
+
+  Ценность:
+  - AI-агенты получают детерминированный JSON
+  - Ошибки с JSONPath позволяют автоматический fix
+  - Человек продолжает редактировать YAML
+
+  1.3 Module isolation — правильное направление
+
+  topology-tools/
+  ├── core/                    # Class-level logic
+  │   ├── compiler.py
+  │   ├── validators/
+  │   └── schemas/
+  └── modules/                 # Object-level logic
+      ├── mikrotik/
+      ├── proxmox/
+      └── orangepi5/
+
+  ---
+  2. Что требует доработки
+
+  2.1 Терминологическая консистентность
+
+  Проблема: ADR 0059 говорит topology-core, ADR 0061 говорит topology-base.
+
+  Решение: Единая терминология:
+  ┌──────────┬─────────────────────────────────────────────────┬──────────────────────────────────┐
+  │  Термин  │                    Значение                     │           Расположение           │
+  ├──────────┼─────────────────────────────────────────────────┼──────────────────────────────────┤
+  │ core     │ Class-level код, компилятор, базовые валидаторы │ topology-tools/core/             │
+  ├──────────┼─────────────────────────────────────────────────┼──────────────────────────────────┤
+  │ modules  │ Object-level генераторы, валидаторы, templates  │ topology-tools/modules/{object}/ │
+  ├──────────┼─────────────────────────────────────────────────┼──────────────────────────────────┤
+  │ topology │ Instance-level данные                           │ topology/L*.yaml                 │
+  └──────────┴─────────────────────────────────────────────────┴──────────────────────────────────┘
+  2.2 ADR 0058 → 0059 переход неполный
+
+  ADR 0058 помечен Superseded, но ADR 0059 не включает всё из 0058:
+  - Потеряна детальная таблица coupling points
+  - Потерян Migration Plan с конкретными файлами
+
+  Решение: ADR 0059 должен явно включить или сослаться на Appendix из 0058.
+
+  2.3 Capability model — переусложнён
+
+  ADR 0059 вводит:
+  Capability Catalog → Class Contract → Object Binding → vendor.*
+
+  Проблема: 4 уровня для ~10 capabilities.
+
+  Упрощение:
+
+  # topology-tools/core/schemas/capabilities.yaml
+  capabilities:
+    routing:
+      description: "L3 packet forwarding"
+      classes: [router]
+    vm_hosting:
+      description: "Virtual machine lifecycle"
+      classes: [hypervisor]
+    container_hosting:
+      description: "Container lifecycle"
+      classes: [hypervisor, sbc, router]  # MikroTik containers
+
+  # В Object module:
+  # topology-tools/modules/mikrotik/__init__.py
+  MODULE = {
+      "classes": ["router"],
+      "capabilities": ["routing", "firewall", "dhcp", "nat", "container_hosting"],
+  }
+
+  Правило: vendor-specific capabilities только если нет generic equivalent.
+
+  2.4 Profile system — нужен, но проще
+
+  ADR 0061 вводит 3 профиля: production, modeled, test-real.
+
+  Упрощение до 2:
+  ┌─────────┬─────────────────────────────────────────────┐
+  │ Profile │                 Назначение                  │
+  ├─────────┼─────────────────────────────────────────────┤
+  │ default │ Production topology (реальные устройства)   │
+  ├─────────┼─────────────────────────────────────────────┤
+  │ virtual │ Замена hardware на virtual (CHR, nested VM) │
+  └─────────┴─────────────────────────────────────────────┘
+  # topology/profiles/virtual.yaml
+  replacements:
+    rtr-home-main:
+      object_ref: mikrotik_chr  # вместо mikrotik_chateau
+    hv-gamayun:
+      object_ref: proxmox_nested  # для тестов в VM
+
+  test-real — это просто default + feature flags в Instance overrides.
+
+  2.5 model.lock — отложить
+
+  Текущая реальность: один репозиторий, один потребитель.
+
+  Решение:
+  - Убрать из ADR 0061 как mandatory
+  - Добавить как "Future: version pinning when multi-repo"
+
+  2.6 Compiler vs Validator — уточнить границу
+
+  ADR 0060 вводит compile-topology.py, но validate-topology.py уже существует.
+
+  Решение: Compiler = Validator + emit JSON
+
+  validate-topology.py  →  переименовать в compile-topology.py
+                           или добавить --emit-json flag
+
+  Этапы:
+  1. load        (YAML + !include)      ← существует в topology_loader.py
+  2. resolve     (references)           ← существует в ip_resolver
+  3. validate    (schema + semantic)    ← существует в validators/
+  4. emit        (JSON + diagnostics)   ← ДОБАВИТЬ
+
+  ---
+  3. Предложенная гармонизация
+
+  3.1 Обновлённая структура ADR
+
+  ADR 0058: Superseded → Historical reference только
+  ADR 0059: Class-Object-Instance Contract + Module Architecture
+  ADR 0060: Compiler Pipeline (YAML→JSON + Diagnostics)
+  ADR 0061: Deferred → Profile System (когда понадобится multi-env)
+
+  3.2 Консолидированная архитектура
+
+  home-lab/
+  ├── topology/                          # Instance layer (L0-L7)
+  │   ├── L0-meta.yaml
+  │   ├── L1-foundation.yaml             # devices с class_ref, object_ref
+  │   ├── L2-network.yaml
+  │   ├── L3-data.yaml
+  │   ├── L4-platform.yaml               # workloads с class_ref, object_ref
+  │   ├── L5-application.yaml
+  │   ├── L6-observability.yaml
+  │   ├── L7-operations.yaml
+  │   └── profiles/                      # Profile overlays
+  │       └── virtual.yaml
+  │
+  ├── topology-tools/
+  │   ├── core/                          # Class-level (device-agnostic)
+  │   │   ├── __init__.py
+  │   │   ├── compiler.py                # load→resolve→validate→emit
+  │   │   ├── loader.py                  # YAML + !include
+  │   │   ├── resolver.py                # Reference resolution
+  │   │   ├── diagnostics.py             # Structured error output
+  │   │   ├── schemas/
+  │   │   │   ├── class-catalog.yaml     # router, hypervisor, sbc, host_os...
+  │   │   │   ├── capabilities.yaml      # routing, vm_hosting, container_hosting...
+  │   │   │   └── diagnostics.schema.json
+  │   │   └── validators/
+  │   │       ├── base.py                # ValidationCheck protocol
+  │   │       ├── references.py          # Cross-layer ref validation
+  │   │       ├── class_contract.py      # Class→Object→Instance chain
+  │   │       └── layer_boundaries.py    # L0-L7 direction rules
+  │   │
+  │   ├── modules/                       # Object-level (vendor-specific)
+  │   │   ├── __init__.py                # Module registry
+  │   │   ├── mikrotik/
+  │   │   │   ├── __init__.py            # MODULE manifest
+  │   │   │   ├── generator.py           # Terraform generator
+  │   │   │   ├── bootstrap.py           # Bootstrap generator
+  │   │   │   ├── validator.py           # MikroTik-specific checks
+  │   │   │   └── templates/
+  │   │   ├── proxmox/
+  │   │   │   ├── __init__.py
+  │   │   │   ├── generator.py
+  │   │   │   ├── bootstrap.py
+  │   │   │   ├── validator.py
+  │   │   │   └── templates/
+  │   │   ├── orangepi5/
+  │   │   │   └── ...
+  │   │   └── _generic/                  # Fallback for unknown objects
+  │   │       └── validator.py
+  │   │
+  │   ├── compile-topology.py            # Main entry point
+  │   ├── regenerate-all.py              # Orchestration
+  │   └── data/
+  │       └── error-catalog.yaml         # E1xxx, E2xxx, E3xxx codes
+  │
+  ├── generated/                         # Compiler outputs
+  │   ├── effective-topology.json        # Canonical merged topology
+  │   ├── diagnostics.json               # Structured errors for AI
+  │   ├── terraform/
+  │   ├── ansible/
+  │   └── docs/
+
+  3.3 Class-Object-Instance в topology
+
+  # topology/L1-foundation.yaml
+  devices:
+    - id: rtr-home-main
+      class_ref: router                    # → core/schemas/class-catalog.yaml
+      object_ref: mikrotik_chateau_lte7    # → modules/mikrotik/
+
+    - id: hv-gamayun
+      class_ref: hypervisor
+      object_ref: proxmox_ve_9
+
+    - id: sbc-orangepi5
+      class_ref: sbc
+      object_ref: orangepi5_rk3588s
+
+  # topology/L4-platform.yaml
+  host_os:
+    - id: hos-gamayun-root
+      class_ref: host_os
+      object_ref: debian_12
+      device_ref: hv-gamayun
+
+  lxc:
+    - id: lxc-nginx
+      class_ref: container
+      object_ref: lxc_proxmox              # Proxmox LXC implementation
+      host_ref: hv-gamayun
+
+  3.4 Module manifest (упрощённый)
+
+  # topology-tools/modules/mikrotik/__init__.py
+  MODULE = {
+      "id": "mikrotik",
+      "version": "1.0.0",
+      "classes": ["router", "switch"],
+      "objects": {
+          "mikrotik_chateau_lte7": {
+              "model": "Chateau LTE7 ax",
+              "capabilities": ["routing", "firewall", "nat", "dhcp", "vpn", "container_hosting"],
+          },
+          "mikrotik_chr": {
+              "model": "Cloud Hosted Router",
+              "capabilities": ["routing", "firewall", "nat", "dhcp", "vpn"],
+              "virtual": True,  # Для profile substitution
+          },
+      },
+      "generators": {
+          "terraform": "mikrotik.generator:TerraformGenerator",
+          "bootstrap": "mikrotik.bootstrap:BootstrapGenerator",
+      },
+      "validators": ["mikrotik.validator:MikrotikValidator"],
+  }
+
+  3.5 Compiler output
+
+  $ python3 topology-tools/compile-topology.py
+
+  # Outputs:
+  # generated/effective-topology.json    - merged canonical topology
+  # generated/diagnostics.json           - structured errors
+  # generated/diagnostics.txt            - human-readable report
+
+  // generated/diagnostics.json
+  {
+    "version": "1.0",
+    "status": "error",
+    "errors": [
+      {
+        "code": "E2001",
+        "severity": "error",
+        "message": "Unknown object_ref 'mikrotik_rb750' in device 'rtr-backup'",
+        "path": "$.devices[1].object_ref",
+        "source": {"file": "topology/L1-foundation.yaml", "line": 42},
+        "hint": "Available objects: mikrotik_chateau_lte7, mikrotik_chr"
+      }
+    ],
+    "warnings": [],
+    "summary": {"errors": 1, "warnings": 0}
+  }
+
+  ---
+  4. Конкретные правки в ADR
+
+  ADR 0059: Рекомендуемые изменения
+
+  - ### 3. Define Target Two-Repository Topology
+  + ### 3. Directory Structure (Single Repository)
+
+  - Planned split:
+  - 1. **Repository A: `topology-core`**
+  - 2. **Repository B: `home-lab-topology`**
+  + All code remains in one repository with clear directory boundaries:
+  +
+  + - `topology-tools/core/` — Class-level logic
+  + - `topology-tools/modules/` — Object-level implementations
+  + - `topology/` — Instance-level data
+  +
+  + Future repository split deferred until external consumers exist.
+
+  - ### 8. Simplified Capability Model (Normative)
+  + ### 8. Capability Model
+
+  - Three explicit layers:
+  - 1. Capability Catalog (class-module)
+  - 2. Class Capability Contract
+  - 3. Object Capability Binding
+  + Two layers:
+  + 1. **Capability Catalog** (`core/schemas/capabilities.yaml`)
+  +    - Canonical IDs and semantics
+  + 2. **Object Declaration** (in module manifest)
+  +    - List of enabled capabilities from catalog
+  +
+  + No capability packs in initial implementation.
+  + Vendor-specific capabilities: avoid; use generic equivalents.
+
+  ADR 0060: Рекомендуемые изменения
+
+    ## Decision
+
+  - ### 1. Keep YAML as Source, JSON as Canonical Build Artifact
+  + ### 1. Dual-Format Output
+
+  - Adopt a formal compile pipeline:
+  + Extend existing validation into compile pipeline:
+  +
+  + Entry point: `topology-tools/compile-topology.py`
+  + (replaces `validate-topology.py`)
+
+  + ### 2. Pipeline Stages
+  +
+    1. `load` (YAML + include resolution) — existing topology_loader.py
+    2. `resolve` (ID/reference + class-object-instance linkage) — extend ip_resolver
+    3. `validate` (JSON schema + semantic) — existing validators/
+  - 4. `emit` (canonical JSON and diagnostics artifacts)
+  + 4. `emit` — NEW: JSON artifacts
+  +
+  + Outputs:
+  + - `generated/effective-topology.json` — canonical merged model
+  + - `generated/diagnostics.json` — machine-readable errors
+  + - `generated/diagnostics.txt` — human-readable report
+
+  - ### 3. Standardize Error Catalog
+  + ### 3. Error Codes (Initial Set)
+
+  - Add a versioned error catalog with stable codes:
+  - - `E1xxx` load/include/parse errors
+  - - `E2xxx` resolve and ID/reference contract errors
+  - - `E3xxx` emit/report errors
+  - - `E4xxx/W4xxx` model-lock/profile/capability contract errors
+  - - `W2xxx/W3xxx` non-fatal contract and semantic warnings
+  - - `I9xxx` informational messages
+  + Initial error codes:
+  + - `E1xxx` — parse errors (YAML syntax, !include)
+  + - `E2xxx` — reference errors (unknown ID, broken link)
+  + - `E3xxx` — semantic errors (class-object mismatch, layer violation)
+  + - `W1xxx` — warnings
+  +
+  + Extended codes (E4xxx, I9xxx) added when needed.
+
+  ADR 0061: Рекомендуемые изменения
+
+  - **Status:** Proposed
+  + **Status:** Deferred
+
+    ## Context
+
+  + > **Note:** This ADR is deferred until multi-environment or multi-repository
+  + > requirements materialize. Current implementation uses simplified profile
+  + > mechanism described below.
+
+  - ### 1. Split Ownership into Base Repo and Multiple Instance Repos
+  + ### 1. Future: Repository Split
+  +
+  + Deferred. Criteria for activation:
+  + - 3+ external repositories depend on core
+  + - Different release cadence for core vs instance topologies
+
+  - ### 2. Introduce model.lock as Mandatory Version Contract
+  + ### 2. Future: Version Lock
+  +
+  + Deferred. Not needed while all code is in single repository.
+
+  - ### 3. Introduce Profile Overlay Contract for Runtime Variants
+  + ### 3. Profile Overlay (Simplified, Active Now)
+
+  - Profile overlays are external YAML maps applied during compilation:
+  - - `production` profile: canonical production behavior
+  - - `modeled` profile: virtual substitutions
+  - - `test-real` profile: test behavior on real devices
+  + Single optional overlay mechanism:
+  +
+  + ```bash
+  + python3 compile-topology.py --profile topology/profiles/virtual.yaml
+  + ```
+  +
+  + Profile file format:
+  + ```yaml
+  + # topology/profiles/virtual.yaml
+  + replacements:
+  +   rtr-home-main:
+  +     object_ref: mikrotik_chr
+  + ```
+  +
+  + Compatibility rule: replacement object must belong to same class.
+
+  ---
+  5. Упрощённый Migration Plan
+
+  Phase 1: Directory restructure (core/modules split)
+
+  # Создать структуру
+  mkdir -p topology-tools/{core,modules}
+  mkdir -p topology-tools/core/{schemas,validators}
+  mkdir -p topology-tools/modules/{mikrotik,proxmox,orangepi5}
+
+  # Переместить core код
+  mv topology-tools/topology_loader.py topology-tools/core/loader.py
+  mv topology-tools/scripts/validators/base.py topology-tools/core/validators/
+  mv topology-tools/schemas/*.schema.json topology-tools/core/schemas/
+
+  # Переместить module код
+  mv topology-tools/scripts/generators/terraform/mikrotik/* topology-tools/modules/mikrotik/
+  mv topology-tools/scripts/generators/bootstrap/mikrotik/* topology-tools/modules/mikrotik/
+
+  Phase 2: Add class_ref/object_ref to topology
+
+  # topology/L1-foundation.yaml - добавить поля
+  devices:
+    - id: rtr-mikrotik-chateau
+      type: router                    # legacy, keep for compatibility
+      class_ref: router               # NEW
+      object_ref: mikrotik_chateau    # NEW
+      implementation: mikrotik        # legacy, keep for compatibility
+
+  Phase 3: Implement compiler emit stage
+
+  # topology-tools/core/compiler.py
+  def compile(topology_path, profile=None, output_dir="generated/"):
+      topology = load(topology_path)
+      if profile:
+          topology = apply_profile(topology, profile)
+      resolved = resolve(topology)
+      diagnostics = validate(resolved)
+      emit_json(resolved, f"{output_dir}/effective-topology.json")
+      emit_diagnostics(diagnostics, output_dir)
+      return diagnostics
+
+  Phase 4: Module registry
+
+  # topology-tools/modules/__init__.py
+  from importlib import import_module
+
+  MODULES = {}
+
+  def register(module_path):
+      mod = import_module(module_path)
+      MODULES[mod.MODULE["id"]] = mod.MODULE
+
+  def get_module(object_ref):
+      for mod in MODULES.values():
+          if object_ref in mod["objects"]:
+              return mod
+      return None
+
+  # Auto-discover
+  for name in ["mikrotik", "proxmox", "orangepi5"]:
+      register(f"modules.{name}")
+
+  ---
+  6. Итог
+  ┌───────────────────────┬────────────────┬─────────────────────────────────────┐
+  │        Аспект         │   Было в ADR   │            Рекомендация             │
+  ├───────────────────────┼────────────────┼─────────────────────────────────────┤
+  │ Class→Object→Instance │ ✓ Правильно    │ Оставить как есть                   │
+  ├───────────────────────┼────────────────┼─────────────────────────────────────┤
+  │ YAML→JSON compiler    │ ✓ Правильно    │ Оставить, упростить error codes     │
+  ├───────────────────────┼────────────────┼─────────────────────────────────────┤
+  │ Repository split      │ Преждевременно │ Убрать, заменить на directory split │
+  ├───────────────────────┼────────────────┼─────────────────────────────────────┤
+  │ Capability packs      │ Переусложнено  │ Упростить до 2-level                │
+  ├───────────────────────┼────────────────┼─────────────────────────────────────┤
+  │ 3 profiles            │ Избыточно      │ 2 profiles (default + virtual)      │
+  ├───────────────────────┼────────────────┼─────────────────────────────────────┤
+  │ model.lock            │ Преждевременно │ Defer                               │
+  ├───────────────────────┼────────────────┼─────────────────────────────────────┤
+  │ Module manifests      │ ✓ Правильно    │ Упростить до Python dict            │
+  └───────────────────────┴────────────────┴─────────────────────────────────────┘
+  Хотите, чтобы я подготовил конкретные правки файлов ADR с этими изменениями?
+
+✻ Cooked for 1m 50s
+
+❯ Модули должны содержать как расширение топологии так и код в одной папке, не надо размазывать по
+  репозиторию этот код. topology-core  для классов class-modules, topology-modules для объектов
+  object-modules, topology/{project name example home-lab} для топлогии описанной в инстансах. Валижатор
+  как YAML так и валидатор emitted JSON. На основе JSON уже делаем результирующие артефакты. Всё должно
+  быть модульное. Додумывай
+
+● Понял. Продумываю полностью модульную архитектуру.
+
+  ---
+  Модульная архитектура: Class → Object → Instance
+
+  Принцип: каждый модуль — самодостаточный пакет
+
+  Модуль = Schema Extension + Validators + Generators + Templates
+
+  ---
+  1. Структура репозитория
+
+  home-lab/
+  │
+  ├── topology-core/                      # КЛАССЫ (Class-level)
+  │   ├── engine/                         # Движок компиляции
+  │   │   ├── __init__.py
+  │   │   ├── compiler.py                 # YAML → JSON pipeline
+  │   │   ├── loader.py                   # YAML + !include
+  │   │   ├── merger.py                   # Schema merging
+  │   │   ├── registry.py                 # Module discovery
+  │   │   ├── validator.py                # Validation orchestrator
+  │   │   └── generator.py                # Generation orchestrator
+  │   │
+  │   ├── schemas/                        # Базовые схемы
+  │   │   ├── topology.schema.yaml        # Корневая схема
+  │   │   ├── layer.schema.yaml           # L0-L7 contract
+  │   │   └── diagnostics.schema.yaml     # Error format
+  │   │
+  │   ├── classes/                        # CLASS-MODULES
+  │   │   ├── router/
+  │   │   │   ├── manifest.yaml           # Метаданные класса
+  │   │   │   ├── schema/
+  │   │   │   │   └── router.schema.yaml  # Поля для class: router
+  │   │   │   ├── capabilities.yaml       # routing, firewall, nat...
+  │   │   │   └── validators/
+  │   │   │       ├── yaml/
+  │   │   │       │   └── router_refs.py  # Валидация YAML
+  │   │   │       └── json/
+  │   │   │           └── router_contract.py  # Валидация JSON
+  │   │   │
+  │   │   ├── hypervisor/
+  │   │   │   ├── manifest.yaml
+  │   │   │   ├── schema/
+  │   │   │   │   └── hypervisor.schema.yaml
+  │   │   │   ├── capabilities.yaml       # vm_hosting, storage_management...
+  │   │   │   └── validators/
+  │   │   │
+  │   │   ├── sbc/
+  │   │   │   └── ...
+  │   │   │
+  │   │   ├── host_os/
+  │   │   │   └── ...
+  │   │   │
+  │   │   ├── container/
+  │   │   │   └── ...
+  │   │   │
+  │   │   └── network/                    # Класс для сетевых сущностей
+  │   │       ├── schema/
+  │   │       │   └── network.schema.yaml # vlan, bridge, firewall_rule
+  │   │       └── validators/
+  │   │
+  │   └── cli/
+  │       ├── compile.py                  # compile-topology CLI
+  │       └── generate.py                 # generate-artifacts CLI
+  │
+  ├── topology-modules/                   # ОБЪЕКТЫ (Object-level)
+  │   │
+  │   ├── mikrotik/                       # Object module: MikroTik
+  │   │   ├── manifest.yaml               # Метаданные + зависимости
+  │   │   ├── objects.yaml                # Каталог объектов (chateau, chr, rb750...)
+  │   │   │
+  │   │   ├── schema/                     # Расширение схемы
+  │   │   │   ├── device.schema.yaml      # mikrotik-specific device fields
+  │   │   │   └── network.schema.yaml     # mikrotik-specific network fields
+  │   │   │
+  │   │   ├── validators/
+  │   │   │   ├── yaml/
+  │   │   │   │   └── mikrotik_config.py  # Валидация source YAML
+  │   │   │   └── json/
+  │   │   │       └── mikrotik_contract.py # Валидация compiled JSON
+  │   │   │
+  │   │   ├── generators/
+  │   │   │   ├── terraform/
+  │   │   │   │   ├── __init__.py
+  │   │   │   │   ├── generator.py
+  │   │   │   │   └── templates/
+  │   │   │   │       ├── provider.tf.j2
+  │   │   │   │       ├── interfaces.tf.j2
+  │   │   │   │       └── firewall.tf.j2
+  │   │   │   │
+  │   │   │   └── bootstrap/
+  │   │   │       ├── __init__.py
+  │   │   │       ├── generator.py
+  │   │   │       └── templates/
+  │   │   │           └── init-terraform.rsc.j2
+  │   │   │
+  │   │   └── tests/
+  │   │       ├── test_validators.py
+  │   │       └── fixtures/
+  │   │
+  │   ├── proxmox/                        # Object module: Proxmox
+  │   │   ├── manifest.yaml
+  │   │   ├── objects.yaml                # proxmox_ve_8, proxmox_ve_9...
+  │   │   ├── schema/
+  │   │   │   ├── device.schema.yaml
+  │   │   │   ├── storage.schema.yaml     # proxmox storage pools
+  │   │   │   └── workload.schema.yaml    # lxc, vm specific
+  │   │   ├── validators/
+  │   │   ├── generators/
+  │   │   │   ├── terraform/
+  │   │   │   ├── bootstrap/
+  │   │   │   └── ansible/                # Proxmox-specific playbooks
+  │   │   └── tests/
+  │   │
+  │   ├── orangepi5/
+  │   │   ├── manifest.yaml
+  │   │   ├── objects.yaml
+  │   │   ├── schema/
+  │   │   ├── validators/
+  │   │   ├── generators/
+  │   │   │   └── bootstrap/              # cloud-init generator
+  │   │   └── tests/
+  │   │
+  │   ├── debian/                         # OS object module
+  │   │   ├── manifest.yaml
+  │   │   ├── objects.yaml                # debian_11, debian_12...
+  │   │   ├── schema/
+  │   │   ├── validators/
+  │   │   └── generators/
+  │   │       └── cloud-init/
+  │   │
+  │   └── lxc/                            # Container runtime object
+  │       ├── manifest.yaml
+  │       ├── objects.yaml                # lxc_proxmox, lxc_incus...
+  │       ├── schema/
+  │       └── validators/
+  │
+  ├── topology/                           # ИНСТАНСЫ (Instance-level)
+  │   │
+  │   └── home-lab/                       # Конкретный проект
+  │       ├── topology.yaml               # Entry point с !include
+  │       ├── L0-meta.yaml
+  │       ├── L1-foundation.yaml          # devices (instances)
+  │       ├── L2-network.yaml
+  │       ├── L3-data.yaml
+  │       ├── L4-platform.yaml            # workloads (instances)
+  │       ├── L5-application.yaml
+  │       ├── L6-observability.yaml
+  │       ├── L7-operations.yaml
+  │       │
+  │       ├── profiles/                   # Profile overlays
+  │       │   └── virtual.yaml
+  │       │
+  │       └── project.yaml                # Project manifest
+  │           # - required_classes
+  │           # - required_objects
+  │           # - module_overrides
+  │
+  └── generated/                          # Compiled outputs
+      └── home-lab/
+          ├── compiled/
+          │   ├── effective-topology.json # Canonical JSON
+          │   └── diagnostics.json
+          │
+          ├── terraform/
+          │   ├── mikrotik/
+          │   └── proxmox/
+          │
+          ├── ansible/
+          │   └── inventory/
+          │
+          ├── bootstrap/
+          │   ├── rtr-mikrotik-chateau/
+          │   ├── srv-gamayun/
+          │   └── srv-orangepi5/
+          │
+          └── docs/
+
+  ---
+  2. Манифесты модулей
+
+  2.1 Class manifest
+
+  # topology-core/classes/router/manifest.yaml
+  id: router
+  version: "1.0.0"
+  type: class
+
+  description: "Layer 3 packet forwarding device"
+
+  # Какие capabilities определяет этот класс
+  capabilities:
+    required:
+      - routing
+    optional:
+      - firewall
+      - nat
+      - dhcp_server
+      - vpn_endpoint
+      - container_hosting
+
+  # Схемы, которые этот класс добавляет
+  schema:
+    extends:
+      - "$ref: ../schemas/device.schema.yaml"
+    files:
+      - schema/router.schema.yaml
+
+  # Валидаторы
+  validators:
+    yaml:
+      - validators/yaml/router_refs.py:RouterRefsValidator
+    json:
+      - validators/json/router_contract.py:RouterContractValidator
+
+  # Зависимости от других классов
+  depends_on: []
+
+  2.2 Object manifest
+
+  # topology-modules/mikrotik/manifest.yaml
+  id: mikrotik
+  version: "1.0.0"
+  type: object
+
+  description: "MikroTik RouterOS devices"
+
+  # Какие классы реализует этот модуль
+  implements:
+    - router
+    - switch
+
+  # Объекты (конкретные модели/варианты)
+  objects:
+    - $include: objects.yaml
+
+  # Расширения схемы
+  schema:
+    files:
+      - schema/device.schema.yaml
+      - schema/network.schema.yaml
+
+  # Валидаторы
+  validators:
+    yaml:
+      - validators/yaml/mikrotik_config.py:MikrotikConfigValidator
+    json:
+      - validators/json/mikrotik_contract.py:MikrotikContractValidator
+
+  # Генераторы артефактов
+  generators:
+    terraform:
+      entry: generators/terraform/generator.py:MikrotikTerraformGenerator
+      outputs:
+        - "terraform/mikrotik/"
+    bootstrap:
+      entry: generators/bootstrap/generator.py:MikrotikBootstrapGenerator
+      outputs:
+        - "bootstrap/{instance_id}/"
+
+  # Зависимости
+  depends_on:
+    classes:
+      - router
+    objects: []
+
+  2.3 Objects catalog
+
+  # topology-modules/mikrotik/objects.yaml
+  objects:
+    mikrotik_chateau_lte7:
+      model: "Chateau LTE7 ax"
+      class: router
+      capabilities:
+        - routing
+        - firewall
+        - nat
+        - dhcp_server
+        - vpn_endpoint
+        - container_hosting
+      specs:
+        cpu_cores: 2
+        ram_mb: 1024
+        ports:
+          wan: 1
+          lan: 4
+        wireless: true
+        lte: true
+
+    mikrotik_chr:
+      model: "Cloud Hosted Router"
+      class: router
+      virtual: true
+      capabilities:
+        - routing
+        - firewall
+        - nat
+        - dhcp_server
+        - vpn_endpoint
+      # Может заменять hardware в virtual profile
+      substitutes_for:
+        - mikrotik_chateau_lte7
+        - mikrotik_rb750
+
+    mikrotik_crs326:
+      model: "CRS326-24G-2S+"
+      class: switch
+      capabilities:
+        - switching
+        - vlan
+        - spanning_tree
+
+  2.4 Project manifest
+
+  # topology/home-lab/project.yaml
+  id: home-lab
+  version: "1.0.0"
+
+  # Какие модули требуются
+  requires:
+    classes:
+      - router: ">=1.0.0"
+      - hypervisor: ">=1.0.0"
+      - sbc: ">=1.0.0"
+      - host_os: ">=1.0.0"
+      - container: ">=1.0.0"
+      - network: ">=1.0.0"
+
+    objects:
+      - mikrotik: ">=1.0.0"
+      - proxmox: ">=1.0.0"
+      - orangepi5: ">=1.0.0"
+      - debian: ">=1.0.0"
+      - lxc: ">=1.0.0"
+
+  # Профили
+  profiles:
+    default: null
+    virtual: profiles/virtual.yaml
+
+  # Переопределения для модулей (если нужно)
+  module_config:
+    mikrotik:
+      terraform_provider_version: ">=1.30.0"
+    proxmox:
+      api_version: "v2"
+
+  ---
+  3. Schema Extension System
+
+  3.1 Базовая схема (core)
+
+  # topology-core/schemas/topology.schema.yaml
+  $schema: "https://json-schema.org/draft/2020-12/schema"
+  $id: "topology.schema.yaml"
+
+  type: object
+  properties:
+    version:
+      type: string
+
+    devices:
+      type: array
+      items:
+        $ref: "#/$defs/device_base"
+
+    networks:
+      type: array
+      items:
+        $ref: "#/$defs/network_base"
+
+  $defs:
+    device_base:
+      type: object
+      required: [id, class_ref, object_ref]
+      properties:
+        id:
+          type: string
+          pattern: "^[a-z][a-z0-9-]*$"
+        class_ref:
+          type: string
+          description: "Reference to class module"
+        object_ref:
+          type: string
+          description: "Reference to object in object module"
+        # Extensible - modules add more properties
+      additionalProperties: true
+
+  3.2 Class schema extension
+
+  # topology-core/classes/router/schema/router.schema.yaml
+  $id: "class/router/device.schema.yaml"
+
+  # Extends base device schema when class_ref: router
+  allOf:
+    - $ref: "topology.schema.yaml#/$defs/device_base"
+    - properties:
+        class_ref:
+          const: router
+
+        # Router-specific fields
+        wan_interface:
+          type: string
+          description: "Primary WAN interface ID"
+
+        routing_protocol:
+          type: string
+          enum: [static, ospf, bgp]
+          default: static
+
+        firewall_enabled:
+          type: boolean
+          default: true
+
+  3.3 Object schema extension
+
+  # topology-modules/mikrotik/schema/device.schema.yaml
+  $id: "object/mikrotik/device.schema.yaml"
+
+  # Extends when object_ref starts with mikrotik_
+  allOf:
+    - $ref: "class/router/device.schema.yaml"
+    - properties:
+        # MikroTik-specific fields
+        routeros_version:
+          type: string
+          pattern: "^7\\.[0-9]+$"
+          default: "7.15"
+
+        ros_packages:
+          type: array
+          items:
+            type: string
+            enum: [container, iot, wifi-qcom, gps]
+
+        container_config:
+          type: object
+          properties:
+            registry:
+              type: string
+            ram_high:
+              type: string
+
+  ---
+  4. Compilation Pipeline
+
+  ┌─────────────────────────────────────────────────────────────────┐
+  │                      COMPILATION PIPELINE                        │
+  └─────────────────────────────────────────────────────────────────┘
+
+    topology/home-lab/L*.yaml
+             │
+             ▼
+  ┌──────────────────────┐
+  │  1. LOAD             │  Load YAML + resolve !include
+  │     (engine/loader)  │
+  └──────────────────────┘
+             │
+             ▼
+  ┌──────────────────────┐
+  │  2. DISCOVER         │  Find required class/object modules
+  │     (engine/registry)│  from class_ref/object_ref in topology
+  └──────────────────────┘
+             │
+             ▼
+  ┌──────────────────────┐
+  │  3. MERGE SCHEMA     │  Combine: base + class schemas + object schemas
+  │     (engine/merger)  │  Build unified validation schema
+  └──────────────────────┘
+             │
+             ▼
+  ┌──────────────────────┐
+  │  4. VALIDATE YAML    │  Run validators from all modules
+  │     (engine/validator)│  Class validators → Object validators
+  │                      │  Output: diagnostics (errors/warnings)
+  └──────────────────────┘
+             │
+             ▼ (if valid)
+  ┌──────────────────────┐
+  │  5. COMPILE          │  Transform YAML → canonical JSON
+  │     (engine/compiler)│  Resolve all references
+  │                      │  Apply profile overlay (if any)
+  │                      │  Merge class defaults → object defaults → instance
+  └──────────────────────┘
+             │
+             ▼
+  ┌──────────────────────┐
+  │  6. VALIDATE JSON    │  Run JSON validators from all modules
+  │     (engine/validator)│  Check compiled model integrity
+  │                      │  Output: diagnostics
+  └──────────────────────┘
+             │
+             ▼ (if valid)
+  ┌──────────────────────┐
+  │  7. EMIT             │  Write artifacts:
+  │     (engine/compiler)│  - effective-topology.json
+  │                      │  - diagnostics.json
+  └──────────────────────┘
+             │
+             ▼
+  ┌──────────────────────┐
+  │  8. GENERATE         │  Run generators from object modules
+  │     (engine/generator)│  Input: effective-topology.json
+  │                      │  Output: terraform/, ansible/, bootstrap/
+  └──────────────────────┘
+
+  ---
+  5. Validator Architecture
+
+  5.1 Base validator protocol
+
+  # topology-core/engine/validator.py
+  from abc import ABC, abstractmethod
+  from dataclasses import dataclass
+  from typing import List, Literal
+  from pathlib import Path
+
+  @dataclass
+  class Diagnostic:
+      code: str                              # E2001, W3002
+      severity: Literal["error", "warning", "info"]
+      message: str
+      path: str                              # JSONPath: $.devices[0].wan_interface
+      source: dict | None = None             # {file, line, column}
+      hint: str | None = None
+      autofix: dict | None = None            # {action, value}
+
+  class YamlValidator(ABC):
+      """Validates source YAML before compilation."""
+
+      @abstractmethod
+      def validate(self, yaml_data: dict, context: "ValidationContext") -> List[Diagnostic]:
+          pass
+
+  class JsonValidator(ABC):
+      """Validates compiled JSON after compilation."""
+
+      @abstractmethod
+      def validate(self, json_data: dict, context: "ValidationContext") -> List[Diagnostic]:
+          pass
+
+  @dataclass
+  class ValidationContext:
+      project_path: Path
+      topology: dict
+      merged_schema: dict
+      loaded_modules: dict                   # module_id -> module_manifest
+      profile: str | None
+
+  5.2 Class validator example
+
+  # topology-core/classes/router/validators/yaml/router_refs.py
+  from topology_core.engine.validator import YamlValidator, Diagnostic
+
+  class RouterRefsValidator(YamlValidator):
+      """Validates router-class devices in YAML source."""
+
+      def validate(self, yaml_data: dict, context) -> list[Diagnostic]:
+          diagnostics = []
+
+          for i, device in enumerate(yaml_data.get("devices", [])):
+              if device.get("class_ref") != "router":
+                  continue
+
+              # Check wan_interface references valid interface
+              wan = device.get("wan_interface")
+              if wan:
+                  interfaces = device.get("interfaces", [])
+                  interface_ids = [iface["id"] for iface in interfaces]
+                  if wan not in interface_ids:
+                      diagnostics.append(Diagnostic(
+                          code="E2101",
+                          severity="error",
+                          message=f"wan_interface '{wan}' not found in device interfaces",
+                          path=f"$.devices[{i}].wan_interface",
+                          hint=f"Available interfaces: {interface_ids}"
+                      ))
+
+          return diagnostics
+
+  5.3 Object validator example
+
+  # topology-modules/mikrotik/validators/json/mikrotik_contract.py
+  from topology_core.engine.validator import JsonValidator, Diagnostic
+
+  class MikrotikContractValidator(JsonValidator):
+      """Validates compiled MikroTik devices in JSON."""
+
+      def validate(self, json_data: dict, context) -> list[Diagnostic]:
+          diagnostics = []
+
+          for i, device in enumerate(json_data.get("devices", [])):
+              obj_ref = device.get("object_ref", "")
+              if not obj_ref.startswith("mikrotik_"):
+                  continue
+
+              # Validate container capability requirements
+              if "container_hosting" in device.get("enabled_capabilities", []):
+                  ros_version = device.get("routeros_version", "7.0")
+                  major, minor = map(int, ros_version.split("."))
+                  if major < 7 or (major == 7 and minor < 4):
+                      diagnostics.append(Diagnostic(
+                          code="E3201",
+                          severity="error",
+                          message="Container hosting requires RouterOS >= 7.4",
+                          path=f"$.devices[{i}].routeros_version",
+                          hint=f"Current version: {ros_version}"
+                      ))
+
+              # Validate object-specific constraints
+              obj_def = context.loaded_modules["mikrotik"]["objects"].get(obj_ref)
+              if obj_def and obj_def.get("virtual"):
+                  if device.get("lte_config"):
+                      diagnostics.append(Diagnostic(
+                          code="W3202",
+                          severity="warning",
+                          message="LTE config ignored on virtual CHR object",
+                          path=f"$.devices[{i}].lte_config"
+                      ))
+
+          return diagnostics
+
+  ---
+  6. Generator Architecture
+
+  6.1 Base generator protocol
+
+  # topology-core/engine/generator.py
+  from abc import ABC, abstractmethod
+  from dataclasses import dataclass
+  from pathlib import Path
+
+  @dataclass
+  class GeneratorContext:
+      topology: dict                         # effective-topology.json
+      output_dir: Path
+      module_path: Path                      # Path to module directory
+      templates_dir: Path                    # module_path / "generators" / type / "templates"
+      project_config: dict                   # project.yaml overrides
+
+  class ArtifactGenerator(ABC):
+      """Base for all generators."""
+
+      @abstractmethod
+      def get_type(self) -> str:
+          """Generator type: terraform, bootstrap, ansible, docs"""
+          pass
+
+      @abstractmethod
+      def get_instances(self, topology: dict) -> list[str]:
+          """Return instance IDs this generator handles."""
+          pass
+
+      @abstractmethod
+      def generate(self, context: GeneratorContext) -> list[Path]:
+          """Generate artifacts, return list of created files."""
+          pass
+
+  6.2 Object generator example
+
+  # topology-modules/mikrotik/generators/terraform/generator.py
+  from topology_core.engine.generator import ArtifactGenerator, GeneratorContext
+  from jinja2 import Environment, FileSystemLoader
+  from pathlib import Path
+
+  class MikrotikTerraformGenerator(ArtifactGenerator):
+
+      def get_type(self) -> str:
+          return "terraform"
+
+      def get_instances(self, topology: dict) -> list[str]:
+          """Find all mikrotik instances in topology."""
+          return [
+              d["id"] for d in topology.get("devices", [])
+              if d.get("object_ref", "").startswith("mikrotik_")
+          ]
+
+      def generate(self, context: GeneratorContext) -> list[Path]:
+          env = Environment(loader=FileSystemLoader(context.templates_dir))
+          created_files = []
+
+          # Extract MikroTik-specific data
+          data = self._extract_data(context.topology)
+
+          # Generate terraform files
+          templates = ["provider.tf.j2", "interfaces.tf.j2", "firewall.tf.j2",
+                       "dhcp.tf.j2", "vlans.tf.j2"]
+
+          output_path = context.output_dir / "terraform" / "mikrotik"
+          output_path.mkdir(parents=True, exist_ok=True)
+
+          for tpl_name in templates:
+              template = env.get_template(tpl_name)
+              output_file = output_path / tpl_name.replace(".j2", "")
+              output_file.write_text(template.render(**data))
+              created_files.append(output_file)
+
+          return created_files
+
+      def _extract_data(self, topology: dict) -> dict:
+          """Extract MikroTik-relevant data from compiled topology."""
+          mikrotik_devices = [
+              d for d in topology["devices"]
+              if d.get("object_ref", "").startswith("mikrotik_")
+          ]
+
+          return {
+              "devices": mikrotik_devices,
+              "networks": topology.get("networks", []),
+              "firewall_rules": self._extract_firewall(topology),
+              "vlans": self._extract_vlans(topology),
+              # ...
+          }
+
+  ---
+  7. Топология с class/object references
+
+  # topology/home-lab/L1-foundation.yaml
+  devices:
+    # Router instance
+    - id: rtr-home-main
+      class_ref: router
+      object_ref: mikrotik_chateau_lte7
+
+      # Class-level fields (from router class schema)
+      wan_interface: ether1
+      routing_protocol: static
+      firewall_enabled: true
+
+      # Object-level fields (from mikrotik object schema)
+      routeros_version: "7.15"
+      ros_packages:
+        - container
+        - iot
+
+      # Instance-level overrides
+      management_ip: 192.168.88.1
+
+      interfaces:
+        - id: ether1
+          type: ethernet
+          role: wan
+        - id: bridge-lan
+          type: bridge
+          role: lan
+          members: [ether2, ether3, ether4]
+
+    # Hypervisor instance
+    - id: hv-gamayun
+      class_ref: hypervisor
+      object_ref: proxmox_ve_9
+
+      # Class-level fields
+      vm_hosting: true
+      container_hosting: true
+
+      # Object-level fields
+      pve_version: "9.0"
+      cluster_enabled: false
+
+      # Instance-level
+      management_ip: 10.0.99.1
+
+      storage_pools:
+        - id: local-lvm
+          type: lvm
+        - id: local-hdd
+          type: directory
+
+    # SBC instance
+    - id: sbc-orangepi5
+      class_ref: sbc
+      object_ref: orangepi5_rk3588s
+
+      # Instance-level
+      management_ip: 10.0.10.5
+
+  # topology/home-lab/L4-platform.yaml
+  host_os:
+    - id: hos-gamayun-root
+      class_ref: host_os
+      object_ref: debian_12
+      host_ref: hv-gamayun
+
+      # Object-level
+      kernel_version: "6.1"
+
+      # Instance-level
+      root_password_hash: "$6$..."
+
+  lxc:
+    - id: lxc-nginx
+      class_ref: container
+      object_ref: lxc_proxmox
+
+      # Class-level
+      restart_policy: always
+
+      # Object-level (lxc_proxmox specific)
+      unprivileged: true
+      features:
+        nesting: true
+
+      # Instance-level
+      host_ref: hv-gamayun
+      template: debian-12-standard
+      memory_mb: 512
+
+      network:
+        - bridge_ref: vmbr10
+          ip: 10.0.10.100/24
+
+  ---
+  8. CLI Interface
+
+  # Compile topology (YAML → JSON + validation)
+  python3 -m topology_core.cli.compile \
+      --project topology/home-lab \
+      --output generated/home-lab/compiled \
+      --profile virtual                      # optional
+
+  # Output:
+  #   generated/home-lab/compiled/effective-topology.json
+  #   generated/home-lab/compiled/diagnostics.json
+  #   generated/home-lab/compiled/diagnostics.txt
+
+  # Generate artifacts from compiled JSON
+  python3 -m topology_core.cli.generate \
+      --input generated/home-lab/compiled/effective-topology.json \
+      --output generated/home-lab \
+      --generators terraform,bootstrap,ansible
+
+  # Output:
+  #   generated/home-lab/terraform/mikrotik/
+  #   generated/home-lab/terraform/proxmox/
+  #   generated/home-lab/bootstrap/rtr-home-main/
+  #   generated/home-lab/bootstrap/hv-gamayun/
+  #   generated/home-lab/ansible/inventory/
+
+  # All-in-one (compile + generate)
+  python3 -m topology_core.cli.compile \
+      --project topology/home-lab \
+      --output generated/home-lab \
+      --generate all
+
+  ---
+  9. Обновлённая диаграмма зависимостей
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                         topology-core/                               │
+  │  ┌───────────────────────────────────────────────────────────────┐  │
+  │  │                         engine/                                │  │
+  │  │   compiler.py  loader.py  merger.py  registry.py  validator.py│  │
+  │  │                         generator.py                           │  │
+  │  └───────────────────────────────────────────────────────────────┘  │
+  │                              │                                       │
+  │                              ▼                                       │
+  │  ┌───────────────────────────────────────────────────────────────┐  │
+  │  │                        classes/                                │  │
+  │  │   ┌─────────┐  ┌────────────┐  ┌─────┐  ┌─────────┐  ┌───────┐│  │
+  │  │   │ router  │  │ hypervisor │  │ sbc │  │ host_os │  │network││  │
+  │  │   └─────────┘  └────────────┘  └─────┘  └─────────┘  └───────┘│  │
+  │  └───────────────────────────────────────────────────────────────┘  │
+  └─────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     │ depends on
+                                     ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                       topology-modules/                              │
+  │  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  ┌──────────┐  │
+  │  │   mikrotik   │  │   proxmox    │  │  orangepi5  │  │  debian  │  │
+  │  │  implements: │  │  implements: │  │ implements: │  │implements│  │
+  │  │   router     │  │  hypervisor  │  │    sbc      │  │ host_os  │  │
+  │  │   switch     │  │              │  │             │  │          │  │
+  │  └──────────────┘  └──────────────┘  └─────────────┘  └──────────┘  │
+  │                                                                      │
+  │  ┌──────────────┐  ┌──────────────┐                                 │
+  │  │     lxc      │  │   docker     │  (future)                       │
+  │  │  implements: │  │  implements: │                                 │
+  │  │  container   │  │  container   │                                 │
+  │  └──────────────┘  └──────────────┘                                 │
+  └─────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     │ uses
+                                     ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                   topology/{project}/                                │
+  │  ┌─────────────────────────────────────────────────────────────────┐│
+  │  │                        home-lab/                                 ││
+  │  │   L0-L7.yaml  project.yaml  profiles/                           ││
+  │  │                                                                  ││
+  │  │   Instances reference objects which reference classes            ││
+  │  └─────────────────────────────────────────────────────────────────┘│
+  │                                                                      │
+  │  ┌─────────────────────────────────────────────────────────────────┐│
+  │  │                        office-lab/   (future)                    ││
+  │  └─────────────────────────────────────────────────────────────────┘│
+  └─────────────────────────────────────────────────────────────────────┘
+                                     │
+                                     │ compiled to
+                                     ▼
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │                      generated/{project}/                            │
+  │   compiled/                                                          │
+  │     effective-topology.json    ← canonical machine-readable          │
+  │     diagnostics.json           ← structured errors for AI            │
+  │                                                                      │
+  │   terraform/mikrotik/          ← generated by mikrotik module        │
+  │   terraform/proxmox/           ← generated by proxmox module         │
+  │   bootstrap/rtr-home-main/     ← generated by mikrotik module        │
+  │   bootstrap/hv-gamayun/        ← generated by proxmox module         │
+  │   ansible/inventory/           ← generated by core + modules         │
+  └─────────────────────────────────────────────────────────────────────┘
+
+  ---
+  10. Консолидация ADR
+
+  ADR 0058: оставить как historical
+
+  - Status: Superseded by ADR 0059
+  - Содержит полезный coupling analysis
+
+  ADR 0059: обновить
+
+  Title: "Class-Object-Instance Architecture and Module System"
+  Status: Proposed
+  Changes:
+    - Remove repository split (single repo with directories)
+    - Add full module structure (schema + validators + generators)
+    - Add project manifest
+    - Simplify capabilities (no packs)
+
+  ADR 0060: обновить
+
+  Title: "Compilation Pipeline and Structured Diagnostics"
+  Status: Proposed
+  Changes:
+    - Two-stage validation (YAML validators + JSON validators)
+    - Compilation produces effective-topology.json
+    - Generators consume JSON, not YAML
+
+  ADR 0061: обновить
+
+  Title: "Project Structure and Profile System"
+  Status: Proposed
+  Changes:
+    - Remove model.lock (single repo)
+    - Remove base repo / instance repos split
+    - Keep profile overlay mechanism (simplified)
+    - Add project.yaml manifest
+
+  ---
+  Хотите, чтобы я подготовил обновлённые тексты ADR с этой архитектурой?
+
+✻ Cogitated for 2m 26s
+
+❯ Сделать новый консолидационный adr для дальнейшего уточнения и планирования миграции
+
+● Write(adr/0062-modular-topology-architecture-consolidation.md)
+  ⎿  Wrote 1123 lines to adr/0062-modular-topology-architecture-consolidation.md
+     # ADR 0062: Modular Topology Architecture Consolidation
+     **Date:** 2026-03-06
+     **Status:** Proposed
+     **Supersedes:** ADR 0058, ADR 0059, ADR 0060, ADR 0061
+     ---
+     ## Context
+     … +1113 lines (ctrl+o to expand)
+
+● Теперь обновлю статусы superseded ADR и добавлю в регистр.
+
+● Read(adr/REGISTER.md)
+  ⎿  Read 65 lines
+
+● Теперь обновлю регистр и статусы в superseded ADR.
+
+● Update(adr/REGISTER.md)
+  ⎿  Added 5 lines, removed 4 lines
+      58   | [0055](0055-manual-terraform-extension-layer.md) | Manual Terraform Extension Layer |
+          Accepted | 2026-03-01 | - | - |
+      59   | [0056](0056-native-execution-workspace.md) | Native Execution Workspace Outside Generated
+           Roots | Accepted | 2026-03-01 | - | - |
+      60   | [0057](0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md) | MikroTik Chateau
+          Netinstall Bootstrap and Terraform Handover | Accepted | 2026-03-05 | - | - |
+      61 -| [0058](0058-core-abstraction-layer.md) | Core Abstraction Layer and Device Module
+         -Architecture | Superseded | 2026-03-06 | - | [0059](0059-repository-split-and-
+         -class-object-instance-module-contract.md) |
+      62 -| [0059](0059-repository-split-and-class-object-instance-module-contract.md) | Repository
+         -Split and Class-Object-Instance Module Contract | Proposed
+         - | 2026-03-06 | [0058](0058-core-abstraction-layer.md) | - |
+      63 -| [0060](0060-yaml-to-json-compiler-diagnostics-contract.md) | YAML-to-JSON Compiler and
+         -Diagnostics Contract | Proposed | 2026-03-06 | - | - |
+      64 -| [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | Base Repo
+         -with Versioned Class-Object-Instance and Test Profiles | Proposed | 2026-03-06 | - | - |
+      61 +| [0058](0058-core-abstraction-layer.md) | Core Abstraction Layer and Device Module
+         +Architecture | Superseded | 2026-03-06 | - | [0062](0062-modular-topology-architecture-
+         +consolidation.md) |
+      62 +| [0059](0059-repository-split-and-class-object-instance-module-contract.md) | Repository
+         +Split and Class-Object-Instance Module Contract | Superseded
+         + | 2026-03-06 | [0058](0058-core-abstraction-layer.md) | [0062](0062-
+         +modular-topology-architecture-consolidation.md) |
+      63 +| [0060](0060-yaml-to-json-compiler-diagnostics-contract.md) | YAML-to-JSON Compiler and
+         +Diagnostics Contract | Superseded | 2026-03-06 | - | [0062](0062-
+         +modular-topology-architecture-consolidation.md) |
+      64 +| [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | Base Repo
+         +with Versioned Class-Object-Instance and Test Profiles | Superseded | 2026-03-06 | - |
+         +[0062](0062-modular-topology-architecture-consolidation.md) |
+      65 + | [0062](0062-modular-topology-architecture-consolidation.md) | Modular Topology
+         +Architecture Consolidation | Proposed | 2026-03-06 | [0058](0058-core-abstraction-layer.md),
+         + [0059](0059-repository-split-and-class-object-instance-module-contract.md),
+         +[0060](0060-yaml-to-json-compiler-diagnostics-contract.md),
+         +[0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | - |
+
+● Update(adr/0058-core-abstraction-layer.md)
+  ⎿  Added 3 lines, removed 2 lines
+      1   # ADR 0058: Core Abstraction Layer and Device Module Architecture
+      2
+      3   **Date:** 2026-03-06
+      4 -**Status:** Superseded
+      5 - **Related:** ADR 0057 (MikroTik Netinstall Bootstrap), ADR 0059 (Class-Object-Instance
+        -Contract), ADR 0060 (YAML-to-JSON Compiler Diagnostics)
+      4 +**Status:** Superseded by ADR 0062
+      5 + **Related:** ADR 0057 (MikroTik Netinstall Bootstrap)
+      6 + **Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
+      7
+      8   ---
+      9
+
+● Update(adr/0059-repository-split-and-class-object-instance-module-contract.md)
+  ⎿  Added 2 lines, removed 1 line
+       1   # ADR 0059: Repository Split and Class-Object-Instance Module Contract
+       2
+       3   **Date:** 2026-03-06
+       4 - **Status:** Proposed
+       4 + **Status:** Superseded by ADR 0062
+       5   **Related:** ADR 0058 (Core Abstraction Layer and Device Module Architecture), ADR 0060
+          (YAML-to-JSON Compiler and Diagnostics Contract), ADR 0061 (Base Repo with Versioned
+          Class-Object-Instance and Test Profiles)
+       6   **Supersedes:** ADR 0058 (model contract scope)
+       7 + **Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
+       8
+       9   ---
+      10
+
+● Update(adr/0060-yaml-to-json-compiler-diagnostics-contract.md)
+  ⎿  Added 2 lines, removed 1 line
+      1   # ADR 0060: YAML-to-JSON Compiler and Diagnostics Contract
+      2
+      3   **Date:** 2026-03-06
+      4 - **Status:** Proposed
+      4 + **Status:** Superseded by ADR 0062
+      5   **Related:** ADR 0058 (Core Abstraction Layer), ADR 0059 (Repository Split and
+         Class-Object-Instance Module Contract), ADR 0061 (Base Repo with Versioned
+         Class-Object-Instance and Test Profiles)
+      6 + **Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
+      7
+      8   ---
+      9
+
+● Update(adr/0061-base-repo-versioned-class-object-instance-and-test-profiles.md)
+  ⎿  Added 2 lines, removed 1 line
+      1   # ADR 0061: Base Repo with Versioned Class-Object-Instance and Test Profiles
+      2
+      3   **Date:** 2026-03-06
+      4 - **Status:** Proposed
+      4 + **Status:** Superseded by ADR 0062
+      5   **Related:** ADR 0059 (Class-Object-Instance Module Contract), ADR 0060 (YAML-to-JSON
+         Compiler and Diagnostics Contract)
+      6 + **Superseded By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md)
+      7
+      8   ---
+      9
+
+● Консолидационный ADR создан. Вот что сделано:
+
+  Созданные и обновлённые файлы
+  Файл: adr/0062-modular-topology-architecture-consolidation.md
+  Действие: Создан
+  ────────────────────────────────────────
+  Файл: adr/0058-core-abstraction-layer.md
+  Действие: Status → Superseded by ADR 0062
+  ────────────────────────────────────────
+  Файл: adr/0059-repository-split-and-class-object-instance-module-contract.md
+  Действие: Status → Superseded by ADR 0062
+  ────────────────────────────────────────
+  Файл: adr/0060-yaml-to-json-compiler-diagnostics-contract.md
+  Действие: Status → Superseded by ADR 0062
+  ────────────────────────────────────────
+  Файл: adr/0061-base-repo-versioned-class-object-instance-and-test-profiles.md
+  Действие: Status → Superseded by ADR 0062
+  ────────────────────────────────────────
+  Файл: adr/REGISTER.md
+  Действие: Добавлен ADR 0062, обновлены статусы
+  Ключевые решения в ADR 0062
+
+  1. Три директории в одном репо:
+    - topology-core/ — классы + движок компиляции
+    - topology-modules/ — объекты (vendor-specific)
+    - topology/{project}/ — инстансы
+  2. Модуль = самодостаточный пакет:
+  {module}/
+  ├── manifest.yaml
+  ├── schema/
+  ├── validators/{yaml,json}/
+  ├── generators/{type}/templates/
+  └── tests/
+  3. Pipeline:
+  YAML → Load → Discover → Merge Schema → Validate YAML →
+  Compile → Validate JSON → Emit → Generate Artifacts
+  4. 10 фаз миграции — от scaffolding до stabilization
+
+  Следующие шаги
+
+  1. Ревью ADR 0062 и уточнение деталей
+  2. Phase 0: инвентаризация текущего кода
+  3. Phase 1: создание структуры директорий
+
+  Хотите уточнить или дополнить какую-либо часть ADR?
+
+✻ Crunched for 3m 41s
+
+❯ Это схема топологии версии 5. Уточнить во всех связанных с перезодом adr и дополнить план миграции
+
+● Понял. Обновлю ADR 0062 как Topology v5 и расширю план миграции.
+
+● Read(adr/0048-topology-v4-architecture-consolidation.md)
+  ⎿  Read 100 lines
+
+● Теперь обновлю ADR 0062 с версией v5 и расширенным планом миграции.
+
+● Update(adr/0062-modular-topology-architecture-consolidation.md)
+  ⎿  Added 14 lines, removed 1 line
+       1 - # ADR 0062: Modular Topology Architecture Consolidation
+       1 + # ADR 0062: Topology v5 — Modular Class-Object-Instance Architecture
+       2
+       3   **Date:** 2026-03-06
+       4   **Status:** Proposed
+       5   **Supersedes:** ADR 0058, ADR 0059, ADR 0060, ADR 0061
+       6 + **Evolves:** ADR 0048 (Topology v4 Architecture Consolidation)
+       7
+       8   ---
+       9
+      10   ## Context
+      11
+      12 + ### Evolution from Topology v4 to v5
+      13 +
+      14 + | Version | Focus | Key Features |
+      15 + |---------|-------|--------------|
+      16 + | v4.0 (ADR 0048) | Layer consolidation | 8-layer OSI model, L0 abstract policies, tool
+         +versioning |
+      17 + | **v5.0 (this ADR)** | Modular architecture | Class→Object→Instance, self-contained
+         +modules, YAML→JSON compilation |
+      18 +
+      19 + Topology v4 established the layer structure (L0-L7) and governance rules. Topology v5
+         +builds on this foundation by introducing **modular separation of concerns**:
+      20 + - **Classes** define abstract semantics (router, hypervisor, container)
+      21 + - **Objects** implement classes for specific vendors/products (MikroTik, Proxmox, LXC)
+      22 + - **Instances** deploy objects in concrete environments (home-lab, office-lab)
+      23 +
+      24   ### Problem Statement
+      25
+      26   ADRs 0058-0061 introduced the architectural direction for modular topology management but
+          suffered from:
+
+● Update(adr/0062-modular-topology-architecture-consolidation.md)
+  ⎿  Added 441 lines, removed 49 lines
+      749
+      750   ---
+      751
+      752 -## Migration Plan
+      752 +## Migration Plan: Topology v4 → v5
+      753
+      754 + ### Version Compatibility
+      755 +
+      756 + | Artifact | v4 (current) | v5 (target) | Migration Path |
+      757 + |----------|--------------|-------------|----------------|
+      758 + | Topology YAML | `topology/L*.yaml` | `topology/home-lab/L*.yaml` | Move + add
+          +class_ref/object_ref |
+      759 + | Validators | `topology-tools/scripts/validators/` | `topology-core/` +
+          +`topology-modules/` | Split by class/object |
+      760 + | Generators | `topology-tools/scripts/generators/` |
+          +`topology-modules/{object}/generators/` | Move to modules |
+      761 + | Schemas | `topology-tools/schemas/` | `topology-core/schemas/` + modules | Split by
+          +class/object |
+      762 + | Templates | `topology-tools/templates/` |
+          +`topology-modules/{object}/generators/{type}/templates/` | Move to modules |
+      763 +
+      764   ### Phase 0: Preparation (Current State Analysis)
+      765
+      766   **Objective:** Document current codebase for migration mapping.
+     ...
+       762   - [ ] Identify class-level vs object-level code in each file
+       763   - [ ] Create migration tracking document
+       764
+       765 + **Current Code Mapping:**
+       766 +
+       767 + ```
+       768 + topology-tools/scripts/validators/
+       769 + ├── checks/
+       770 + │   ├── foundation.py      → class:router, class:hypervisor, class:sbc
+       771 + │   ├── network.py         → class:network
+       772 + │   ├── platform.py        → class:container, class:host_os
+       773 + │   ├── references.py      → topology-core/engine/ (generic)
+       774 + │   └── governance.py      → topology-core/engine/ (generic)
+       775 + ├── base.py                → topology-core/engine/validator.py
+       776 + └── runner.py              → topology-core/engine/validator.py
+       777 +
+       778 + topology-tools/scripts/generators/
+       779 + ├── terraform/
+       780 + │   ├── mikrotik/          → topology-modules/mikrotik/generators/terraform/
+       781 + │   └── proxmox/           → topology-modules/proxmox/generators/terraform/
+       782 + ├── bootstrap/
+       783 + │   ├── mikrotik/          → topology-modules/mikrotik/generators/bootstrap/
+       784 + │   ├── proxmox/           → topology-modules/proxmox/generators/bootstrap/
+       785 + │   └── orangepi5/         → topology-modules/orangepi5/generators/bootstrap/
+       786 + ├── ansible/               → topology-modules/proxmox/generators/ansible/
+       787 + ├── docs/                  → topology-core/generators/docs/
+       788 + └── common/
+       789 +     ├── base.py            → topology-core/engine/generator.py
+       790 +     └── ip_resolver_v2.py  → topology-core/engine/resolver.py
+       791 +
+       792 + topology-tools/templates/
+       793 + ├── terraform/mikrotik/    → topology-modules/mikrotik/generators/terraform/templates/
+       794 + ├── terraform/proxmox/     → topology-modules/proxmox/generators/terraform/templates/
+       795 + ├── bootstrap/mikrotik/    → topology-modules/mikrotik/generators/bootstrap/templates/
+       796 + ├── bootstrap/proxmox/     → topology-modules/proxmox/generators/bootstrap/templates/
+       797 + └── bootstrap/orangepi5/   → topology-modules/orangepi5/generators/bootstrap/templates/
+       798 + ```
+       799 +
+       800   **Deliverables:**
+       801 -- `docs/migration/inventory.md` — Current code inventory
+       802 -- `docs/migration/mapping.md` — Source → target mapping
+       801 +- `docs/migration/v5-inventory.md` — Current code inventory
+       802 +- `docs/migration/v5-mapping.md` — Source → target mapping
+       803 + - `docs/migration/v5-tracking.md` — Phase progress tracking
+       804
+       805 + ---
+       806 +
+       807   ### Phase 1: Directory Scaffolding
+       808
+       809   **Objective:** Create new directory structure without moving code.
+       810
+       811 + **Commands:**
+       812 + ```bash
+       813 + # Create topology-core structure
+       814 + mkdir -p topology-core/{engine,schemas,classes,cli,data,tests}
+       815 + mkdir -p topology-core/classes/{router,hypervisor,sbc,host_os,container,network}
+       816 + for class in router hypervisor sbc host_os container network; do
+       817 +   mkdir -p topology-core/classes/$class/{schema,validators/{yaml,json}}
+       818 + done
+       819 +
+       820 + # Create topology-modules structure
+       821 + mkdir -p topology-modules/{mikrotik,proxmox,orangepi5,debian,lxc}
+       822 + for mod in mikrotik proxmox orangepi5 debian lxc; do
+       823 +   mkdir -p topology-modules/$mod/{schema,validators/{yaml,json},generators,tests}
+       824 + done
+       825 + mkdir -p topology-modules/mikrotik/generators/{terraform,bootstrap}/templates
+       826 + mkdir -p topology-modules/proxmox/generators/{terraform,bootstrap,ansible}/templates
+       827 + mkdir -p topology-modules/orangepi5/generators/bootstrap/templates
+       828 +
+       829 + # Create project topology structure
+       830 + mkdir -p topology/home-lab/profiles
+       831 + ```
+       832 +
+       833   **Tasks:**
+       834   - [ ] Create `topology-core/` directory structure
+       835   - [ ] Create `topology-modules/` directory structure
+       836 -- [ ] Create `topology/home-lab/` from current `topology/`
+       837 -- [ ] Add placeholder `manifest.yaml` in each module
+       836 +- [ ] Create `topology/home-lab/` directory
+       837 +- [ ] Add placeholder `manifest.yaml` in each class module
+       838 + - [ ] Add placeholder `manifest.yaml` in each object module
+       839 + - [ ] Add placeholder `objects.yaml` in each object module
+       840   - [ ] Add `project.yaml` in `topology/home-lab/`
+       841 + - [ ] Add `__init__.py` files for Python packages
+       842
+       843 + **Placeholder Files:**
+       844 +
+       845 + ```yaml
+       846 + # topology-core/classes/router/manifest.yaml
+       847 + id: router
+       848 + version: "0.1.0"
+       849 + type: class
+       850 + status: placeholder
+       851 + description: "Router class - to be implemented"
+       852 + ```
+       853 +
+       854 + ```yaml
+       855 + # topology-modules/mikrotik/manifest.yaml
+       856 + id: mikrotik
+       857 + version: "0.1.0"
+       858 + type: object
+       859 + status: placeholder
+       860 + implements: [router, switch]
+       861 + description: "MikroTik module - to be implemented"
+       862 + ```
+       863 +
+       864 + ```yaml
+       865 + # topology/home-lab/project.yaml
+       866 + id: home-lab
+       867 + version: "5.0.0"
+       868 + topology_version: "5.0"
+       869 + status: migration
+       870 + previous_version: "4.0"
+       871 + ```
+       872 +
+       873   **Deliverables:**
+       874   - Empty directory structure with manifests
+       875 -- No functional changes
+       875 +- No functional changes to existing code
+       876 + - Both v4 and v5 structures coexist
+       877
+       878 + **Verification:**
+       879 + ```bash
+       880 + # Structure check
+       881 + find topology-core -name "manifest.yaml" | wc -l  # Should be 6
+       882 + find topology-modules -name "manifest.yaml" | wc -l  # Should be 5
+       883 + test -f topology/home-lab/project.yaml && echo "OK"
+       884 + ```
+       885 +
+       886 + ---
+       887 +
+       888   ### Phase 2: Engine Bootstrap
+       889
+       890 -**Objective:** Implement minimal compilation engine.
+       890 +**Objective:** Implement minimal compilation engine that wraps existing validators.
+       891
+       892   **Tasks:**
+       893 - - [ ] Implement `topology-core/engine/loader.py` (extract from `topology_loader.py`)
+       893 + - [ ] Extract loader from `topology_loader.py` → `topology-core/engine/loader.py`
+       894   - [ ] Implement `topology-core/engine/registry.py` (module discovery)
+       895 -- [ ] Implement `topology-core/engine/diagnostics.py` (error formatting)
+       896 -- [ ] Implement `topology-core/engine/validator.py` (orchestration skeleton)
+       897 -- [ ] Implement `topology-core/cli/validate.py` (basic CLI)
+       895 +- [ ] Implement `topology-core/engine/diagnostics.py` (structured errors)
+       896 +- [ ] Implement `topology-core/engine/validator.py` (orchestration)
+       897 +- [ ] Implement `topology-core/cli/validate.py` (CLI wrapper)
+       898   - [ ] Add base schemas to `topology-core/schemas/`
+       899 + - [ ] Create `topology-core/data/error-catalog.yaml`
+       900
+       901 + **Key Files:**
+       902 +
+       903 + ```python
+       904 + # topology-core/engine/loader.py
+       905 + """
+       906 + Extract from topology-tools/topology_loader.py:
+       907 + - load_topology()
+       908 + - resolve_includes()
+       909 + - merge_layers()
+       910 + """
+       911 +
+       912 + # topology-core/engine/diagnostics.py
+       913 + """
+       914 + New implementation:
+       915 + - Diagnostic dataclass
+       916 + - DiagnosticsReport class
+       917 + - JSON/text formatters
+       918 + """
+       919 +
+       920 + # topology-core/engine/registry.py
+       921 + """
+       922 + New implementation:
+       923 + - discover_class_modules()
+       924 + - discover_object_modules()
+       925 + - load_module_manifest()
+       926 + - ModuleRegistry singleton
+       927 + """
+       928 + ```
+       929 +
+       930 + **CLI Interface:**
+       931 + ```bash
+       932 + # New v5 CLI (wraps existing validators initially)
+       933 + python -m topology_core.cli.validate --project topology/home-lab
+       934 +
+       935 + # Output: generated/home-lab/compiled/diagnostics.json
+       936 + ```
+       937 +
+       938   **Deliverables:**
+       939 -- Working `topology-core validate` command (delegates to existing validators)
+       940 -- Structured diagnostics output
+       939 +- Working `topology-core validate` command
+       940 +- Structured diagnostics output (JSON + text)
+       941 + - Backward compatible with existing topology
+       942
+       943 + **Verification:**
+       944 + ```bash
+       945 + # Run new validator, compare with existing
+       946 + python -m topology_core.cli.validate --project topology/home-lab > /tmp/v5-diag.json
+       947 + python topology-tools/validate-topology.py > /tmp/v4-diag.txt
+       948 + # Manual comparison of detected issues
+       949 + ```
+       950 +
+       951 + ---
+       952 +
+       953   ### Phase 3: First Class Module (router)
+       954
+       955 -**Objective:** Extract router class from existing code.
+       955 +**Objective:** Extract router class from existing validation code.
+       956
+       957 + **Source Analysis:**
+       958 + ```
+       959 + topology-tools/scripts/validators/checks/foundation.py
+       960 +   └── FoundationDevicesCheck
+       961 +       └── validate_device_type() — contains router logic
+       962 +
+       963 + topology-tools/schemas/
+       964 +   └── topology.schema.json — device schema with type: router
+       965 + ```
+       966 +
+       967   **Tasks:**
+       968   - [ ] Create `topology-core/classes/router/manifest.yaml`
+       969 + - [ ] Create `topology-core/classes/router/capabilities.yaml`
+       970   - [ ] Create `topology-core/classes/router/schema/router.schema.yaml`
+       971 -- [ ] Extract router validation logic to `classes/router/validators/`
+       972 - - [ ] Update topology files to use `class_ref: router`
+       973 - - [ ] Verify backward compatibility
+       971 +- [ ] Extract router validation → `classes/router/validators/yaml/router_validator.py`
+       972 + - [ ] Extract router contract checks →
+           +`classes/router/validators/json/router_contract.py`
+       973 + - [ ] Update `topology/home-lab/L1-foundation.yaml` to use `class_ref: router`
+       974 + - [ ] Update engine registry to load router class
+       975 + - [ ] Verify backward compatibility (both old and new fields work)
+       976
+       977 + **Topology Update:**
+       978 + ```yaml
+       979 + # topology/home-lab/L1-foundation.yaml
+       980 + devices:
+       981 +   - id: rtr-mikrotik-chateau
+       982 +     type: router                    # v4 field (keep for compatibility)
+       983 +     class_ref: router               # v5 field (add)
+       984 +     implementation: mikrotik        # v4 field (keep for compatibility)
+       985 +     # ... rest unchanged
+       986 + ```
+       987 +
+       988   **Deliverables:**
+       989   - Working router class module
+       990   - Updated topology with class_ref
+       991 + - Both v4 and v5 fields supported
+       992
+       993 + **Verification:**
+       994 + ```bash
+       995 + # Validate with new class
+       996 + python -m topology_core.cli.validate --project topology/home-lab
+       997 + # Check router class loaded
+       998 + grep "router" generated/home-lab/compiled/diagnostics.json
+       999 + ```
+      1000 +
+      1001 + ---
+      1002 +
+      1003   ### Phase 4: First Object Module (mikrotik)
+      1004
+      1005 -**Objective:** Extract MikroTik object module.
+      1005 +**Objective:** Extract MikroTik-specific code into self-contained module.
+      1006
+      1007 + **Source Analysis:**
+      1008 + ```
+      1009 + topology-tools/scripts/generators/terraform/mikrotik/
+      1010 + ├── generator.py                    → generators/terraform/generator.py
+      1011 + ├── resolvers.py                    → generators/terraform/resolvers.py (internal)
+      1012 + └── (uses templates/)
+      1013 +
+      1014 + topology-tools/scripts/generators/bootstrap/mikrotik/
+      1015 + ├── generator.py                    → generators/bootstrap/generator.py
+      1016 + └── (uses templates/)
+      1017 +
+      1018 + topology-tools/templates/terraform/mikrotik/
+      1019 + └── *.tf.j2                         → generators/terraform/templates/
+      1020 +
+      1021 + topology-tools/templates/bootstrap/mikrotik/
+      1022 + └── *.j2, *.rsc.j2                  → generators/bootstrap/templates/
+      1023 + ```
+      1024 +
+      1025   **Tasks:**
+      1026 -- [ ] Create `topology-modules/mikrotik/manifest.yaml`
+      1027 -- [ ] Create `topology-modules/mikrotik/objects.yaml`
+      1028 - - [ ] Move MikroTik schemas to `mikrotik/schema/`
+      1029 - - [ ] Move MikroTik validators to `mikrotik/validators/`
+      1030 - - [ ] Move MikroTik generators to `mikrotik/generators/`
+      1031 - - [ ] Move MikroTik templates to respective generator directories
+      1032 - - [ ] Update topology files to use `object_ref: mikrotik_*`
+      1033 - - [ ] Verify generated output parity
+      1026 +- [ ] Create `topology-modules/mikrotik/manifest.yaml` (full)
+      1027 +- [ ] Create `topology-modules/mikrotik/objects.yaml` (chateau, chr, etc.)
+      1028 + - [ ] Create `topology-modules/mikrotik/schema/device.schema.yaml`
+      1029 + - [ ] Create `topology-modules/mikrotik/schema/network.schema.yaml`
+      1030 + - [ ] Move validators → `mikrotik/validators/`
+      1031 + - [ ] Move terraform generator → `mikrotik/generators/terraform/`
+      1032 + - [ ] Move terraform templates → `mikrotik/generators/terraform/templates/`
+      1033 + - [ ] Move bootstrap generator → `mikrotik/generators/bootstrap/`
+      1034 + - [ ] Move bootstrap templates → `mikrotik/generators/bootstrap/templates/`
+      1035 + - [ ] Update imports in moved files
+      1036 + - [ ] Update topology: `object_ref: mikrotik_chateau_lte7`
+      1037 + - [ ] Register module in engine registry
+      1038 + - [ ] Verify generated output parity with v4
+      1039
+      1040 + **Topology Update:**
+      1041 + ```yaml
+      1042 + # topology/home-lab/L1-foundation.yaml
+      1043 + devices:
+      1044 +   - id: rtr-mikrotik-chateau
+      1045 +     type: router
+      1046 +     class_ref: router
+      1047 +     implementation: mikrotik        # v4 field
+      1048 +     object_ref: mikrotik_chateau_lte7  # v5 field (add)
+      1049 +     # ... rest unchanged
+      1050 + ```
+      1051 +
+      1052   **Deliverables:**
+      1053   - Self-contained mikrotik module
+      1054 -- Terraform/bootstrap generation working from module
+      1054 +- Terraform generation working from module
+      1055 + - Bootstrap generation working from module
+      1056 + - Generated output identical to v4
+      1057
+      1058 + **Verification:**
+      1059 + ```bash
+      1060 + # Generate with new module
+      1061 + python -m topology_core.cli.generate --project topology/home-lab --generators terraform
+      1062 +
+      1063 + # Compare outputs
+      1064 + diff -r generated/home-lab/terraform/mikrotik/ /tmp/v4-terraform-mikrotik/
+      1065 + ```
+      1066 +
+      1067 + ---
+      1068 +
+      1069   ### Phase 5: Remaining Class Modules
+      1070
+      1071 -**Objective:** Extract all class modules.
+      1071 +**Objective:** Extract all class modules following router pattern.
+      1072
+      1073 + **Class → Source Mapping:**
+      1074 +
+      1075 + | Class | Source Validators | Source Schema |
+      1076 + |-------|-------------------|---------------|
+      1077 + | hypervisor | `checks/foundation.py` | `topology.schema.json` |
+      1078 + | sbc | `checks/foundation.py` | `topology.schema.json` |
+      1079 + | host_os | `checks/platform.py` | `topology.schema.json` |
+      1080 + | container | `checks/platform.py` | `topology.schema.json` |
+      1081 + | network | `checks/network.py` | `topology.schema.json` |
+      1082 +
+      1083   **Tasks:**
+      1084   - [ ] Create `hypervisor` class module
+      1085 +   - [ ] manifest.yaml, capabilities.yaml
+      1086 +   - [ ] schema/hypervisor.schema.yaml
+      1087 +   - [ ] validators/yaml/, validators/json/
+      1088   - [ ] Create `sbc` class module
+      1089   - [ ] Create `host_os` class module
+      1090   - [ ] Create `container` class module
+      1091   - [ ] Create `network` class module
+      1092   - [ ] Update all topology files with class_ref
+      1093 + - [ ] Update engine to load all classes
+      1094 + - [ ] Verify all class validations work
+      1095
+      1096   **Deliverables:**
+      1097 -- All class modules operational
+      1097 +- All 6 class modules operational
+      1098 + - All topology entities have class_ref
+      1099
+      1100 + ---
+      1101 +
+      1102   ### Phase 6: Remaining Object Modules
+      1103
+      1104 -**Objective:** Extract all object modules.
+      1104 +**Objective:** Extract all object modules following mikrotik pattern.
+      1105
+      1106 + **Object → Source Mapping:**
+      1107 +
+      1108 + | Object | Generators | Templates |
+      1109 + |--------|------------|-----------|
+      1110 + | proxmox | terraform/, bootstrap/, ansible/ | terraform/proxmox/, bootstrap/proxmox/ |
+      1111 + | orangepi5 | bootstrap/ | bootstrap/orangepi5/ |
+      1112 + | debian | (cloud-init in proxmox) | — |
+      1113 + | lxc | (in proxmox generator) | — |
+      1114 +
+      1115   **Tasks:**
+      1116   - [ ] Create `proxmox` object module
+      1117 +   - [ ] manifest.yaml, objects.yaml (proxmox_ve_8, proxmox_ve_9)
+      1118 +   - [ ] schema/device.schema.yaml, storage.schema.yaml, workload.schema.yaml
+      1119 +   - [ ] validators/
+      1120 +   - [ ] generators/terraform/, bootstrap/, ansible/
+      1121   - [ ] Create `orangepi5` object module
+      1122 +   - [ ] manifest.yaml, objects.yaml
+      1123 +   - [ ] generators/bootstrap/
+      1124   - [ ] Create `debian` object module
+      1125 +   - [ ] manifest.yaml, objects.yaml (debian_11, debian_12)
+      1126 +   - [ ] generators/cloud-init/ (extract from proxmox)
+      1127   - [ ] Create `lxc` object module
+      1128 +   - [ ] manifest.yaml, objects.yaml (lxc_proxmox, lxc_incus)
+      1129 +   - [ ] Extract LXC-specific logic from proxmox
+      1130   - [ ] Update all topology files with object_ref
+      1131   - [ ] Verify all generators produce same output
+      1132
+      1133   **Deliverables:**
+      1134 -- All object modules operational
+      1135 -- Full generation parity with legacy system
+      1134 +- All 5 object modules operational
+      1135 +- Full generation parity with v4
+      1136
+      1137 + ---
+      1138 +
+      1139   ### Phase 7: Compiler Implementation
+      1140
+      1141 -**Objective:** Implement full YAML → JSON compilation.
+      1141 +**Objective:** Implement full YAML → JSON compilation pipeline.
+      1142
+      1143 + **Components:**
+      1144 + ```
+      1145 + topology-core/engine/
+      1146 + ├── merger.py      # Schema merging (base + class + object)
+      1147 + ├── compiler.py    # YAML → JSON transformation
+      1148 + └── resolver.py    # Reference resolution (extract from ip_resolver_v2.py)
+      1149 + ```
+      1150 +
+      1151   **Tasks:**
+      1152 - - [ ] Implement `topology-core/engine/merger.py` (schema merging)
+      1153 - - [ ] Implement `topology-core/engine/compiler.py` (YAML → JSON)
+      1152 + - [ ] Implement `merger.py` — combine schemas from loaded modules
+      1153 + - [ ] Implement `resolver.py` — resolve all ID references
+      1154 + - [ ] Implement `compiler.py` — full transformation pipeline
+      1155   - [ ] Implement `topology-core/cli/compile.py`
+      1156   - [ ] Generate `effective-topology.json`
+      1157 -- [ ] Update generators to consume JSON instead of YAML
+      1157 +- [ ] Update all generators to consume JSON instead of YAML
+      1158 + - [ ] Add JSON validators to all modules
+      1159
+      1160 + **Pipeline:**
+      1161 + ```
+      1162 + Input:  topology/home-lab/L*.yaml
+      1163 +         ↓
+      1164 + Load:   Merge YAML layers
+      1165 +         ↓
+      1166 + Schema: Merge base + class + object schemas
+      1167 +         ↓
+      1168 + Validate YAML: Run all YAML validators
+      1169 +         ↓
+      1170 + Compile: Resolve refs, apply defaults, transform
+      1171 +         ↓
+      1172 + Validate JSON: Run all JSON validators
+      1173 +         ↓
+      1174 + Output: generated/home-lab/compiled/effective-topology.json
+      1175 +         generated/home-lab/compiled/diagnostics.json
+      1176 + ```
+      1177 +
+      1178   **Deliverables:**
+      1179   - Working compilation pipeline
+      1180 - - Generators use compiled JSON
+      1180 + - `effective-topology.json` as canonical artifact
+      1181 + - All generators consume JSON
+      1182
+      1183 + ---
+      1184 +
+      1185   ### Phase 8: Profile System
+      1186
+      1187 -**Objective:** Implement profile overlays.
+      1187 +**Objective:** Implement profile overlays for environment variants.
+      1188
+      1189   **Tasks:**
+      1190   - [ ] Implement profile loading in compiler
+      1191   - [ ] Implement object substitution logic
+      1192 - - [ ] Add `--profile` flag to CLI
+      1192 + - [ ] Implement override merging
+      1193 + - [ ] Add `--profile` flag to compile CLI
+      1194   - [ ] Create `topology/home-lab/profiles/virtual.yaml`
+      1195 + - [ ] Add profile validation (class compatibility)
+      1196   - [ ] Verify virtual profile produces valid output
+      1197
+      1198 + **Profile Example:**
+      1199 + ```yaml
+      1200 + # topology/home-lab/profiles/virtual.yaml
+      1201 + description: "Virtual environment for testing"
+      1202 +
+      1203 + replacements:
+      1204 +   rtr-mikrotik-chateau:
+      1205 +     object_ref: mikrotik_chr
+      1206 +
+      1207 + overrides:
+      1208 +   rtr-mikrotik-chateau:
+      1209 +     routeros_license: "free"
+      1210 +
+      1211 + exclude:
+      1212 +   - sbc-orangepi5
+      1213 + ```
+      1214 +
+      1215   **Deliverables:**
+      1216   - Working profile system
+      1217   - Virtual profile for testing
+      1218 + - Profile validation integrated
+      1219
+      1220 + ---
+      1221 +
+      1222   ### Phase 9: Legacy Cleanup
+      1223
+      1224   **Objective:** Remove legacy code and finalize migration.
+      1225
+      1226   **Tasks:**
+      1227 -- [ ] Remove `topology-tools/scripts/` (migrated to modules)
+      1228 -- [ ] Remove `topology-tools/templates/` (migrated to modules)
+      1229 - - [ ] Update `regenerate-all.py` to use new CLI
+      1230 - - [ ] Update `deploy/Makefile` to use new CLI
+      1231 - - [ ] Update documentation
+      1232 - - [ ] Update CLAUDE.md
+      1227 +- [ ] Remove `topology-tools/scripts/generators/` (migrated)
+      1228 +- [ ] Remove `topology-tools/scripts/validators/checks/` (migrated)
+      1229 + - [ ] Remove `topology-tools/templates/` (migrated)
+      1230 + - [ ] Keep `topology-tools/` as thin wrapper calling `topology-core`
+      1231 + - [ ] Update `regenerate-all.py`:
+      1232 +   ```python
+      1233 +   # Old
+      1234 +   from scripts.generators.terraform.mikrotik import generator
+      1235 +   # New
+      1236 +   from topology_core.cli import build
+      1237 +   build.main(["--project", "topology/home-lab"])
+      1238 +   ```
+      1239 + - [ ] Update `deploy/Makefile`
+      1240 + - [ ] Move `topology/L*.yaml` → `topology/home-lab/L*.yaml`
+      1241 + - [ ] Update symlinks and paths
+      1242 + - [ ] Update CLAUDE.md with v5 structure
+      1243 + - [ ] Update all documentation
+      1244
+      1245   **Deliverables:**
+      1246 -- Clean codebase with no legacy duplication
+      1246 +- Clean codebase with no duplication
+      1247   - Updated documentation
+      1248 + - CLAUDE.md reflects v5
+      1249
+      1250 + ---
+      1251 +
+      1252   ### Phase 10: Stabilization
+      1253
+      1254   **Objective:** Ensure production readiness.
+      1255
+      1256   **Tasks:**
+      1257 -- [ ] Add comprehensive tests for engine
+      1258 -- [ ] Add tests for each module
+      1257 +- [ ] Add unit tests for `topology-core/engine/`
+      1258 +- [ ] Add unit tests for each class module
+      1259 + - [ ] Add unit tests for each object module
+      1260 + - [ ] Add integration tests (full pipeline)
+      1261 + - [ ] Add output parity tests (v4 vs v5 generation)
+      1262   - [ ] CI integration for validation
+      1263   - [ ] Performance benchmarking
+      1264   - [ ] Documentation review
+      1265 + - [ ] Create v5 migration guide
+      1266
+      1267 + **Test Coverage Targets:**
+      1268 + | Component | Target |
+      1269 + |-----------|--------|
+      1270 + | topology-core/engine/ | 90% |
+      1271 + | topology-core/classes/ | 80% |
+      1272 + | topology-modules/ | 80% |
+      1273 +
+      1274   **Deliverables:**
+      1275   - Test coverage > 80%
+      1276   - CI pipeline updated
+      1277 -- Production-ready system
+      1277 +- Production-ready v5 system
+      1278 + - Migration guide published
+      1279
+      1280   ---
+      1281
+      1282 + ### Migration Timeline
+      1283 +
+      1284 + ```
+      1285 + Phase 0-1:  Foundation          ████░░░░░░░░░░░░░░░░  10%
+      1286 + Phase 2:    Engine Bootstrap    ████████░░░░░░░░░░░░  20%
+      1287 + Phase 3-4:  First Modules       ████████████░░░░░░░░  40%
+      1288 + Phase 5-6:  All Modules         ████████████████░░░░  60%
+      1289 + Phase 7:    Compiler            ████████████████████  80%
+      1290 + Phase 8-10: Polish & Cleanup    ████████████████████  100%
+      1291 + ```
+      1292 +
+      1293 + ### Rollback Strategy
+      1294 +
+      1295 + At any phase, rollback is possible:
+      1296 + 1. Legacy `topology-tools/` remains functional until Phase 9
+      1297 + 2. Topology files support both v4 and v5 fields during migration
+      1298 + 3. Generated outputs can be compared for parity verification
+      1299 +
+      1300 + **Rollback command:**
+      1301 + ```bash
+      1302 + # If v5 generation fails, use v4
+      1303 + python topology-tools/regenerate-all.py  # v4 (legacy)
+      1304 + # vs
+      1305 + python -m topology_core.cli.build --project topology/home-lab  # v5 (new)
+      1306 + ```
+      1307 +
+      1308 + ---
+      1309 +
+      1310   ## Consequences
+      1311
+      1312   ### Positive
+
+● Теперь обновлю связь с ADR 0048 и добавлю информацию о v5 в регистр.
+
+● Update(adr/REGISTER.md)
+  ⎿  Added 1 line, removed 1 line
+      62   | [0059](0059-repository-split-and-class-object-instance-module-contract.md) | Repository
+          Split and Class-Object-Instance Module Contract | Superseded | 2026-03-06 |
+          [0058](0058-core-abstraction-layer.md) |
+          [0062](0062-modular-topology-architecture-consolidation.md) |
+      63   | [0060](0060-yaml-to-json-compiler-diagnostics-contract.md) | YAML-to-JSON Compiler and
+          Diagnostics Contract | Superseded | 2026-03-06 | - |
+          [0062](0062-modular-topology-architecture-consolidation.md) |
+      64   | [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | Base Repo
+          with Versioned Class-Object-Instance and Test Profiles | Superseded | 2026-03-06 | - |
+          [0062](0062-modular-topology-architecture-consolidation.md) |
+      65 -| [0062](0062-modular-topology-architecture-consolidation.md) | Modular Topology
+         - Architecture Consolidation
+         -| Proposed | 2026-03-06 | [0058](0058-core-abstraction-layer.md),
+         -[0059](0059-repository-split-and-class-object-instance-module-contract.md),
+         -[0060](0060-yaml-to-json-compiler-diagnostics-contract.md),
+         -[0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | - |
+      65 +| [0062](0062-modular-topology-architecture-consolidation.md) | **Topology v5** — Modular
+         +Class-Object-Instance Architecture
+         +| Proposed | 2026-03-06 | [0058](0058-core-abstraction-layer.md),
+         +[0059](0059-repository-split-and-class-object-instance-module-contract.md),
+         +[0060](0060-yaml-to-json-compiler-diagnostics-contract.md),
+         +[0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | - |
+
+❯ Это схема топологии версии 5. Уточнить во всех связанных с перезодом adr и дополнить план миграции
+
+❯ ПРодолжай
+
+● Update(adr/0048-topology-v4-architecture-consolidation.md)
+  ⎿  Added 1 line
+       4   **Status:** Accepted
+       5   **Supersedes:** ADR 0049 (all variants), 0050
+       6   **Related:** ADR 0047 (L6 Observability Modularization)
+       7 + **Evolved By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md) (Topology
+         +v5)
+       8
+       9   ---
+      10
+
+● Update(adr/REGISTER.md)
+  ⎿  Added 1 line, removed 1 line
+      48   | [0045](0045-model-and-project-improvements.md) | Improvements to project model,
+          development workflow and automation | Proposed | 2026-02-25 | - | - |
+      49   | [0046](0046-generators-architecture-refactoring.md) | Generators Architecture Refactoring
+           | Approved | 2026-02-25 | - | - |
+      50   | [0047](0047-l6-observability-modularization.md) | L6 Observability Modularization |
+          Partially Implemented | 2026-02-26 | - | - |
+      51 -| [0048](0048-topology-v4-architecture-consolidation.md) | Topology v4
+         - Architecture Consolidation | Accepted | 2026-02-28 |
+         -[0049](0049-mikrotik-bootstrap-automation.md),
+         -[0050](0050-generated-directory-restructuring.md) | - |
+      51 +| [0048](0048-topology-v4-architecture-consolidation.md) | **Topology v4**
+         + Architecture Consolidation | Accepted | 2026-02-28 |
+         +[0049](0049-mikrotik-bootstrap-automation.md),
+         +[0050](0050-generated-directory-restructuring.md) | Evolved by [0062](0062-
+         +modular-topology-architecture-consolidation.md) |
+      52   | [0049](0049-mikrotik-bootstrap-automation.md) | MikroTik Bootstrap Automation | Proposed
+          | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
+      53   | [0050](0050-generated-directory-restructuring.md) | Generated Directory Restructuring |
+          Accepted | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
+      54   | [0051](0051-ansible-runtime-and-secrets.md) | Ansible Runtime, Inventory, and Secret
+          Boundaries | Accepted | 2026-03-01 | - | - |
+
+● Добавлю раздел об эволюции версий и совместимости в ADR 0062.
+
+● Update(adr/0062-modular-topology-architecture-consolidation.md)
+  ⎿  Added 21 lines
+      21   - **Objects** implement classes for specific vendors/products (MikroTik, Proxmox, LXC)
+      22   - **Instances** deploy objects in concrete environments (home-lab, office-lab)
+      23
+      24 + ### Topology Version History
+      25 +
+      26 + | Version | ADR | Date | Key Changes |
+      27 + |---------|-----|------|-------------|
+      28 + | v1.0 | — | 2025 | Initial flat YAML structure |
+      29 + | v2.0 | — | 2025 | Layer separation (L0-L7 draft) |
+      30 + | v3.0 | 0027-0029 | 2026-02 | Consolidated layers, storage taxonomy |
+      31 + | v4.0 | 0048 | 2026-02-28 | OSI-like 8-layer model, L0 policies, tool versioning |
+      32 + | **v5.0** | **0062** | **2026-03-06** | **Class→Object→Instance, modular architecture,
+         +YAML→JSON compiler** |
+      33 +
+      34 + ### v4 → v5 Compatibility Matrix
+      35 +
+      36 + | Feature | v4 Syntax | v5 Syntax | Compatibility |
+      37 + |---------|-----------|-----------|---------------|
+      38 + | Device type | `type: router` | `class_ref: router` | Both supported during migration |
+      39 + | Implementation | `implementation: mikrotik` | `object_ref: mikrotik_chateau_lte7` | Both
+         +supported during migration |
+      40 + | Layer files | `topology/L*.yaml` | `topology/home-lab/L*.yaml` | Symlinks during
+         +migration |
+      41 + | Validation | `validate-topology.py` | `topology-core validate` | Both work, new wraps old
+         + |
+      42 + | Generation | `regenerate-all.py` | `topology-core build` | Both work during migration |
+      43 + | Output format | YAML consumed by generators | JSON consumed by generators | v5 compiles
+         +YAML→JSON |
+      44 +
+      45   ### Problem Statement
+      46
+      47   ADRs 0058-0061 introduced the architectural direction for modular topology management but
+          suffered from:
+
+● Проверю текущую структуру L0 для понимания, как указать версию.
+
+● Read(topology/L0-meta.yaml)
+  ⎿  Read 50 lines
+
+● Read(topology/L0-meta.yaml)
+  ⎿  Read 27 lines
+
+● Добавлю в ADR 0062 информацию об обновлении версии в L0-meta.yaml.
+
+● Update(adr/0062-modular-topology-architecture-consolidation.md)
+  ⎿  Added 24 lines
+      1321   Phase 8-10: Polish & Cleanup    ████████████████████  100%
+      1322   ```
+      1323
+      1324 + ### Version Update (End of Migration)
+      1325 +
+      1326 + After Phase 9 completion, update topology version:
+      1327 +
+      1328 + ```yaml
+      1329 + # topology/home-lab/L0-meta.yaml
+      1330 + version: 5.0.0  # Updated from 4.0.0
+      1331 + metadata:
+      1332 +   # ...
+      1333 +   changelog:
+      1334 +     - version: 5.0.0
+      1335 +       date: 'YYYY-MM-DD'
+      1336 +       changes: |
+      1337 +         Topology v5 — Modular Class-Object-Instance Architecture:
+      1338 +         - Introduced Class→Object→Instance model
+      1339 +         - Separated topology-core (classes) and topology-modules (objects)
+      1340 +         - YAML→JSON compilation pipeline
+      1341 +         - Structured diagnostics for AI tooling
+      1342 +         - Project-based topology structure (topology/home-lab/)
+      1343 +         - Profile overlays for environment variants
+      1344 + ```
+      1345 +
+      1346 + ---
+      1347 +
+      1348   ### Rollback Strategy
+      1349
+      1350   At any phase, rollback is possible:
+
+● Готово. Вот итог изменений:
+
+  Обновлённые файлы
+  Файл: adr/0062-modular-topology-architecture-consolidation.md
+  Изменения: Переименован в "Topology v5", добавлена история версий, матрица совместимости v4→v5, детальный
+    план миграции с командами
+  ────────────────────────────────────────
+  Файл: adr/0048-topology-v4-architecture-consolidation.md
+  Изменения: Добавлено Evolved By: ADR 0062 (Topology v5)
+  ────────────────────────────────────────
+  Файл: adr/REGISTER.md
+  Изменения: Обновлены названия с версиями (v4, v5), добавлена связь эволюции
+  Ключевые добавления в ADR 0062
+
+  1. История версий топологии
+
+  v1.0 → v2.0 → v3.0 → v4.0 (ADR 0048) → v5.0 (ADR 0062)
+
+  2. Матрица совместимости v4 → v5
+
+  - type: router ↔ class_ref: router
+  - implementation: mikrotik ↔ object_ref: mikrotik_chateau_lte7
+  - Оба синтаксиса поддерживаются во время миграции
+
+  3. Детальный план миграции (10 фаз)
+
+  - Конкретные команды для создания структуры
+  - Маппинг текущих файлов → целевые локации
+  - Placeholder файлы для каждой фазы
+  - Команды верификации
+  - Rollback strategy
+
+  4. Обновление версии в конце миграции
+
+  # topology/home-lab/L0-meta.yaml
+  version: 5.0.0
+  changelog:
+    - version: 5.0.0
+      changes: "Topology v5 — Modular Class-Object-Instance Architecture..."
+
+  Структура версий в ADR
+
+  ADR 0048: Topology v4 (Accepted)
+      │
+      └── Evolved By
+              │
+              ▼
+  ADR 0062: Topology v5 (Proposed)
+      │
+      └── Supersedes: ADR 0058, 0059, 0060, 0061
+
+  Хотите дополнить что-то ещё в плане миграции или начать реализацию Phase 0?
+
+✻ Crunched for 6m 33s
+
+❯ Зафиксируй
+
+● Bash(git status)
+  ⎿  On branch adr/0058-core-abstraction-layer
+     Your branch is up to date with 'origin/adr/0058-core-abstraction-layer'.
+     … +16 lines (ctrl+o to expand)
+
+● Bash(git diff --stat)
+  ⎿   adr/0048-topology-v4-architecture-consolidation.md            |  1 +
+      adr/0058-core-abstraction-layer.md                            |  5 +++--
+      ...ository-split-and-class-object-instance-module-contract.md |  3 ++-
+     … +4 lines (ctrl+o to expand)
+
+● Bash(git log --oneline -5)
+  ⎿  d3e232a architecture: add simplified capability templates and contract checker
+     92c98d6 architecture: add ADR 0061 and profile-aware Class->Object->Instance compiler flow
+     5dacf19 architecture: harmonize ADR 0058/0059/0060 and add ADR consistency gate
+     … +2 lines (ctrl+o to expand)
+
+● Bash(git add adr/0048-topology-v4-architecture-consolidation.md adr/0058-core-abstraction-layer.md
+      adr/0059-repository-split-and-class-object-instance-module-contrac…)
+  ⎿  (No content)
+
+● Bash(git commit -m "architecture: add ADR 0062 Topology v5 consolidation…)
+  ⎿  [adr/0058-core-abstraction-layer 8ed40aa] architecture: add ADR 0062 Topology v5 consolidation
+      7 files changed, 1588 insertions(+), 10 deletions(-)
+      create mode 100644 adr/0062-modular-topology-architecture-consolidation.md
+
+● Bash(git log --oneline -3 && echo "---" && git status)
+  ⎿  8ed40aa architecture: add ADR 0062 Topology v5 consolidation
+     d3e232a architecture: add simplified capability templates and contract checker
+     92c98d6 architecture: add ADR 0061 and profile-aware Class->Object->Instance compiler flow
+     … +10 lines (ctrl+o to expand)
+
+● Зафиксировано.
+
+  8ed40aa architecture: add ADR 0062 Topology v5 consolidation
+
+  Изменения:
+  - 7 файлов, +1588 строк
+  - Новый ADR 0062 (Topology v5)
+  - Обновлены статусы ADR 0058-0061 → Superseded
+  - Обновлён ADR 0048 → Evolved by 0062
+  - Обновлён REGISTER.md
+
+  Ветка adr/0058-core-abstraction-layer на 1 коммит впереди origin. Хотите push?
+
+✻ Worked for 41s
+
+❯ да
+
+● Bash(git push)
+  ⎿  Error: Exit code 128
+     ssh_askpass: exec(/usr/bin/ssh-askpass): No such file or directory
+     git@github.com: Permission denied (publickey).
+     fatal: Could not read from remote repository.
+
+     Please make sure you have the correct access rights
+     and the repository exists.
+
+● SSH ключ недоступен. Попробую через HTTPS:
+
+● Bash(git remote -v)
+  ⎿  origin     git@github.com:strateg/home-lab.git (fetch)
+     origin     git@github.com:strateg/home-lab.git (push)
+
+● Remote настроен через SSH, но ключ недоступен. Варианты:
+
+  1. Добавить SSH ключ в agent:
+  eval "$(ssh-agent -s)"
+  ssh-add ~/.ssh/id_ed25519  # или ваш ключ
+  git push
+
+  2. Push вручную из терминала с доступом к ключу:
+  git push origin adr/0058-core-abstraction-layer
+
+  Коммит готов, push можете сделать когда SSH доступен.
+
+❯ Обновил adr0062 проанализируй снова. Я думаю переусложнений нет, просто надо оптимищировать предложеную
+  модель
+
+● Read(adr/0062-modular-topology-architecture-consolidation.md)
+  ⎿  Read 1573 lines
+  ⎿  You've hit your limit · resets 6pm (Europe/Tallinn)
+     Opening your options…
+
+❯ tech-lead-architect проанализируй adr0062 и текущий статус проекта и дай рекомендции по улучшениям и
+  следующим шагам имплементации. Прочитай также adr/0062-analysis и суммируй
+
+
+● Агент нашёл директорию adr/0062-analysis/. Проверю её содержимое:
+
+● Search(pattern: "adr/0062-analysis/**/*")
+  ⎿  Found 8 files (ctrl+o to expand)
+
+● Bash(ls -la v4/topology/class-modules/ v4/topology/object-modules/ 2>/dev/null | head -30)
+  ⎿  v4/topology/class-modules/:
+     total 24
+     drwxr-xr-x  3 dmpr dmpr 4096 Mar  6 18:31 .
+     … +12 lines (ctrl+o to expand)
+
+● Read(adr/0062-analysis/SUMMARY-RU.md)
+  ⎿  Read 636 lines
+
+● Консолидированный анализ ADR 0062 и текущего состояния
+
+  Источники анализа
+
+  1. tech-lead-architect агент — провёл независимый анализ
+  2. adr/0062-analysis/ — 6 документов детального анализа + русскоязычное резюме
+
+  ---
+  Ключевые выводы
+
+  Архитектура: ✅ Хорошо спроектирована (95/100)
+
+  - Class→Object→Instance модель — стандартный паттерн, подходит для задачи
+  - Capability система упрощена до 3 уровней (каталог → класс → объект)
+  - Plugin microkernel (ADR 0063) — разумное расширение
+  - Dual-lane миграция — проверенный подход
+
+  Реализация: ⚠️ Расхождение с документацией
+  ┌────────────────┬───────────────────────┬────────────────────────────────┐
+  │   Компонент    │ Документация ADR 0062 │           Фактически           │
+  ├────────────────┼───────────────────────┼────────────────────────────────┤
+  │ v4/ директория │ ✅ Существует         │ ✅ Существует                  │
+  ├────────────────┼───────────────────────┼────────────────────────────────┤
+  │ v5/ директория │ ✅ Существует         │ ✅ Существует (scaffold)       │
+  ├────────────────┼───────────────────────┼────────────────────────────────┤
+  │ v4-generated/  │ ✅ Переименован       │ ❌ Всё ещё generated/          │
+  ├────────────────┼───────────────────────┼────────────────────────────────┤
+  │ v5-generated/  │ ✅ Создан             │ ❌ Не существует               │
+  ├────────────────┼───────────────────────┼────────────────────────────────┤
+  │ class-modules  │ в v5/                 │ ❌ В v4/ (неправильное место!) │
+  ├────────────────┼───────────────────────┼────────────────────────────────┤
+  │ object-modules │ в v5/                 │ ❌ В v4/ (неправильное место!) │
+  └────────────────┴───────────────────────┴────────────────────────────────┘
+  Прогресс: ~5%
+
+  Модули классов:     ██░░░░░░░░░░░░░░░░░░  5%   (1 из ~20)
+  Модули объектов:    ████░░░░░░░░░░░░░░░░  10%  (2 из ~20)
+  Instance данные:    ░░░░░░░░░░░░░░░░░░░░  0%   (все в v4 формате)
+  Инфраструктура v5:  ░░░░░░░░░░░░░░░░░░░░  0%
+
+  ---
+  Критические проблемы (P0)
+
+  1. Class/Object modules в неправильном месте
+
+  Сейчас:
+  v4/topology/class-modules/     ← НЕПРАВИЛЬНО (новые модули в legacy lane)
+  v4/topology/object-modules/    ← НЕПРАВИЛЬНО
+
+  Должно быть:
+  v5/topology/class-modules/     ← ПРАВИЛЬНО
+  v5/topology/object-modules/    ← ПРАВИЛЬНО
+
+  2. Артефакты не переименованы
+
+  Сейчас:                        Должно быть:
+  generated/                →    v4-generated/
+  dist/                     →    v4-dist/
+  (не существует)           →    v5-generated/
+  (не существует)           →    v5-dist/
+
+  ---
+  Немедленные действия (Неделя 1)
+
+  # 1. Переместить class/object modules в v5
+  mv v4/topology/class-modules/* v5/topology/class-modules/
+  mv v4/topology/object-modules/* v5/topology/object-modules/
+  mv v4/topology/model.lock.yaml v5/topology/
+
+  # 2. Переименовать артефакты
+  mv generated v4-generated
+  mv dist v4-dist
+  mkdir -p v5-generated v5-dist
+
+  # 3. Обновить symlinks в v4/
+  cd v4 && rm terraform && ln -s ../v4-generated/terraform/proxmox terraform
+
+  # 4. Обновить ADR 0062 status snapshot
+
+  ---
+  Оптимизации модели (рекомендации tech-lead)
+
+  Можно упростить (не критично):
+  ┌─────────────────────────┬─────────────────────────────────┬──────────────────────────────────────────────┐
+  │         Область         │             Текущее             │                  Упрощение                   │
+  ├─────────────────────────┼─────────────────────────────────┼──────────────────────────────────────────────┤
+  │ Профили                 │ 3                               │ Отложить modeled и test-real до стабилизации │
+  │                         │ (production/modeled/test-real)  │  v5                                          │
+  ├─────────────────────────┼─────────────────────────────────┼──────────────────────────────────────────────┤
+  │ Capability packs        │ Отдельный файл                  │ Inline в классы для малых deployments        │
+  ├─────────────────────────┼─────────────────────────────────┼──────────────────────────────────────────────┤
+  │ Plugin phases (ADR      │ 3 фазы                          │ Объединить фазы 1-2                          │
+  │ 0063)                   │                                 │                                              │
+  └─────────────────────────┴─────────────────────────────────┴──────────────────────────────────────────────┘
+  Сохранить как есть:
+
+  - Class→Object→Instance иерархия
+  - YAML→JSON компиляция
+  - Structured diagnostics
+  - Dual-lane миграция
+
+  ---
+  План следующих шагов
+
+  Немедленно (дни 1-3):
+
+  1. ☐ Переместить modules из v4/ в v5/
+  2. ☐ Переименовать artifact roots
+  3. ☐ Обновить symlinks и paths
+  4. ☐ Исправить ADR 0062 status snapshot
+
+  Неделя 2:
+
+  5. ☐ Завершить Фазу 1 (инвентаризация)
+  6. ☐ Определить приоритетные классы: hypervisor, sbc, container
+
+  Недели 3-4:
+
+  7. ☐ Реализовать class.compute.hypervisor
+  8. ☐ Реализовать obj.proxmox.ve
+  9. ☐ Создать первый v5 instance с class_ref/object_ref
+
+  ---
+  Риски и митигации
+  ┌──────────────────────────────┬─────────┬────────────────────────────────────────────┐
+  │             Риск             │ Уровень │                 Митигация                  │
+  ├──────────────────────────────┼─────────┼────────────────────────────────────────────┤
+  │ Путаница v4/v5               │ Высокий │ CI guards, pre-commit hooks                │
+  ├──────────────────────────────┼─────────┼────────────────────────────────────────────┤
+  │ Class/Object sprawl          │ Средний │ Review board, 2+ правило переиспользования │
+  ├──────────────────────────────┼─────────┼────────────────────────────────────────────┤
+  │ Migration stall              │ Средний │ Time-box фазы, MVP подход                  │
+  ├──────────────────────────────┼─────────┼────────────────────────────────────────────┤
+  │ Plugin complexity (ADR 0063) │ Низкий  │ Отложить до Фазы 7                         │
+  └──────────────────────────────┴─────────┴────────────────────────────────────────────┘
+  ---
+  Итоговая оценка
+
+  Дизайн:        ████████████████████  95/100 ✅
+  Реализация:    ██░░░░░░░░░░░░░░░░░░  10/100 ❌
+  Документация:  ██████████░░░░░░░░░░  55/100 ⚠️
+  Готовность:    █████████████░░░░░░░  65/100 ⚠️
+
+  Вердикт: Архитектура готова, нужно синхронизировать реализацию с документацией и продолжить выполнение плана миграции.
+
+  Хотите начать выполнение немедленных действий (перемещение modules, переименование artifacts)?

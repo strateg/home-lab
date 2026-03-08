@@ -439,8 +439,10 @@ properties:
 **OS instance examples:**
 
 ```yaml
+# Embedded OS - linked to firmware instance
 instance: inst.os.routeros-7-prod
 object_ref: obj.os.routeros-7
+embedded_in: inst.firmware.routeros-7-13-arm64  # firmware-OS link
 
 deployment:
   installed_date: "2024-02-01"
@@ -448,8 +450,10 @@ deployment:
 ```
 
 ```yaml
+# Installable OS - no firmware link (independent)
 instance: inst.os.debian-12-prod
 object_ref: obj.os.debian-12
+# embedded_in: absent (installable OS)
 
 deployment:
   installed_date: "2024-01-10"
@@ -701,36 +705,42 @@ Compiler MUST enforce:
    - Each OS instance's object MUST be `class: os`
    - OS `installation_model` MUST match device `os_constraints`
 
-3. **Architecture compatibility:**
+3. **Firmware-OS link (embedded_in):**
+   - If OS object has `installation_model: embedded`, OS instance MUST have `embedded_in`
+   - `embedded_in` MUST reference existing firmware instance
+   - Referenced firmware instance MUST be same as device's `firmware_ref`
+   - If OS object has `installation_model: installable`, `embedded_in` MUST be absent
+
+4. **Architecture compatibility:**
    - Firmware `architecture` is the hardware architecture (source of truth)
    - OS `architecture` is the build target architecture
    - OS `architecture` MUST equal firmware `architecture`
    - All OS instances in `os_refs` MUST have same architecture as firmware
    - Capability `cap.arch.*` is derived from firmware architecture only (single source)
 
-4. **Multi-boot validation:**
+5. **Multi-boot validation:**
    - If `multi_boot: false`, `os_refs` MUST have exactly 1 item (when required)
    - If `multi_boot: true`, `os_refs` MAY have multiple items (up to `max_items`)
-   - All OS instances MUST satisfy architecture compatibility (rule 3)
+   - All OS instances MUST satisfy architecture compatibility (rule 4)
 
-5. **Capability derivation:**
+6. **Capability derivation:**
    - Derive capabilities from firmware instance's object properties
    - Derive capabilities from ALL OS instances' object properties
    - `cap.arch.*` derived from firmware only (not duplicated from OS)
    - Combine into device effective capability set
 
-6. **Service-device matching:**
+7. **Service-device matching:**
    - Service `requires.capabilities.all` -> device MUST have ALL listed
    - Service `requires.capabilities.any` -> device MUST have AT LEAST ONE
    - For multi-boot: service can be deployed to ANY compatible OS context
 
-7. **Version compatibility:**
+8. **Version compatibility:**
    - Object's `class_ref` resolved to class with matching version
    - Instance's `object_ref` resolved to object with compatible class version
    - Breaking class changes require major version bump
    - Compiler validates version compatibility during resolution phase
 
-### 7. Inference Rules
+### 8. Inference Rules
 
 When `init_system` or `package_manager` are omitted from OS object, compiler SHOULD infer by `distribution`:
 
