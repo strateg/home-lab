@@ -10,18 +10,19 @@ vendor: mikrotik
 model: CHR
 
 enabled_capabilities:
-  - cap.net.routing.static
-  - cap.net.nat.masquerade
-  - cap.net.firewall.stateful
-  - cap.net.dhcp.server
-  - cap.net.dns.server
-  - cap.net.nat.dstnat
-  - cap.net.vpn.wireguard.server
-  - cap.net.vpn.wireguard.client
-  - cap.net.vpn.ipsec
-  - cap.net.vlan.8021q
-  - cap.net.api.rest
-  - cap.net.qos.basic
+  - cap.net.interface.ethernet
+  - cap.net.l3.routing.static
+  - cap.net.l3.translation.snat
+  - cap.net.l3.security.firewall.stateful
+  - cap.net.service.dhcp.server
+  - cap.net.service.dns.resolver
+  - cap.net.l3.translation.dnat
+  - cap.net.overlay.vpn.wireguard.server
+  - cap.net.overlay.vpn.wireguard.client
+  - cap.net.overlay.vpn.ipsec
+  - cap.net.l2.segmentation.vlan.8021q
+  - cap.net.management.api.rest
+  - cap.net.l3.qos.basic
 
 vendor_capabilities:
   - vendor.mikrotik.routeros.script
@@ -31,5 +32,5 @@ changelog:
     date: 2026-03-07
     changes:
       - Removed legacy capability IDs (old flat NAT/WireGuard/VLAN aliases)
-      - Added required cap.net.dns.server for class.router compliance
+      - Added required cap.net.service.dns.resolver for class.router compliance
       - Moved vendor capability into vendor_capabilities

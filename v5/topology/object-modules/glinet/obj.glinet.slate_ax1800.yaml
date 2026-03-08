@@ -2,7 +2,7 @@ id: obj.glinet.slate_ax1800
 version: 1.0.0
 class_ref: class.router
 title: GL.iNet Slate AX (GL-AXT1800)
-vendor: glinet
+vendor: GL.iNet
 model: GL-AXT1800
 
 description: |
@@ -215,54 +215,61 @@ enabled_capabilities:
   # -------------------------------------------------------------------------
   # REQUIRED (from class)
   # -------------------------------------------------------------------------
-  - cap.net.routing.static
-  - cap.net.nat.masquerade
-  - cap.net.firewall.stateful
-  - cap.net.dhcp.server
-  - cap.net.dns.server
+  - cap.net.interface.ethernet
+  - cap.net.l3.routing.static
+  - cap.net.l3.translation.snat
+  - cap.net.l3.security.firewall.stateful
+  - cap.net.service.dhcp.server
+  - cap.net.service.dns.resolver
 
   # -------------------------------------------------------------------------
   # NAT & FIREWALL
   # -------------------------------------------------------------------------
-  - cap.net.nat.dstnat             # Port forwarding
-  - cap.net.firewall.zone_based    # Zone-based firewall (LAN/WAN/VPN)
+  - cap.net.l3.translation.dnat             # Port forwarding
+  - cap.net.l3.security.firewall.zone_policy    # Zone-based firewall (LAN/WAN/VPN)
 
   # -------------------------------------------------------------------------
   # VPN (PRIMARY: CLIENT MODE!)
   # -------------------------------------------------------------------------
-  - cap.net.vpn.wireguard.client   # PRIMARY: Connect to home WireGuard
-  - cap.net.vpn.wireguard.server   # Secondary: Can act as server
-  - cap.net.vpn.openvpn.client     # Alternative VPN client
-  - cap.net.vpn.openvpn.server     # Can act as OpenVPN server
-  - cap.net.vpn.multi_instance     # GL.iNet 4.8.2 feature!
-  - cap.net.vpn.policy_routing     # Per-MAC, per-domain routing
+  - cap.net.overlay.vpn.wireguard.client   # PRIMARY: Connect to home WireGuard
+  - cap.net.overlay.vpn.wireguard.server   # Secondary: Can act as server
+  - cap.net.overlay.vpn.openvpn.client     # Alternative VPN client
+  - cap.net.overlay.vpn.openvpn.server     # Can act as OpenVPN server
+  - cap.net.overlay.vpn.multi_instance     # GL.iNet 4.8.2 feature!
+  - cap.net.overlay.vpn.policy_routing     # Per-MAC, per-domain routing
 
   # -------------------------------------------------------------------------
   # WiFi (WITH REPEATER MODE!)
   # -------------------------------------------------------------------------
-  - cap.net.wifi.dual_band         # 2.4GHz + 5GHz
-  - cap.net.wifi.wifi6             # 802.11ax
-  - cap.net.wifi.mu_mimo           # MU-MIMO
-  - cap.net.wifi.guest_network     # Guest network with isolation
-  - cap.net.wifi.repeater_mode     # KEY: WiFi client mode for hotel WiFi!
+  - cap.net.interface.wifi              # 802.11 wireless interfaces
+  - cap.net.interface.wifi.dual_band         # 2.4GHz + 5GHz
+  - cap.net.interface.wifi.wifi6             # 802.11ax
+  - cap.net.interface.wifi.mu_mimo           # MU-MIMO
+  - cap.net.l2.segmentation.guest_isolation  # Guest segment isolation (SSID/VLAN)
+  - cap.net.interface.wifi.repeater_mode     # KEY: WiFi client mode for hotel WiFi!
+
+  # -------------------------------------------------------------------------
+  # UPLINK INTERFACES
+  # -------------------------------------------------------------------------
+  - cap.net.interface.pppoe             # PPPoE uplink sessions
 
   # -------------------------------------------------------------------------
   # QoS
   # -------------------------------------------------------------------------
-  - cap.net.qos.sqm                # SQM with CAKE/fq_codel
+  - cap.net.l3.qos.sqm                # SQM with CAKE/fq_codel
 
   # -------------------------------------------------------------------------
   # SERVICES (PRIVACY-FOCUSED)
   # -------------------------------------------------------------------------
-  - cap.net.dns.dot                # DNS-over-TLS (Stubby)
-  - cap.net.dns.doh                # DNS-over-HTTPS (dnscrypt-proxy)
-  - cap.net.dns.adblock            # AdGuard Home
-  - cap.net.dyndns                 # Dynamic DNS client
+  - cap.net.service.dns.dot                # DNS-over-TLS (Stubby)
+  - cap.net.service.dns.doh                # DNS-over-HTTPS (dnscrypt-proxy)
+  - cap.net.service.dns.filtering            # AdGuard Home
+  - cap.net.service.dyndns                 # Dynamic DNS client
 
   # -------------------------------------------------------------------------
   # ADVANCED
   # -------------------------------------------------------------------------
-  - cap.net.vlan.8021q             # VLAN support via LuCI
+  - cap.net.l2.segmentation.vlan.8021q             # VLAN support via LuCI
 
 # ============================================================================
 # ENABLED PACKS

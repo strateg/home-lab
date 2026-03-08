@@ -201,75 +201,77 @@ enabled_capabilities:
   # -------------------------------------------------------------------------
   # REQUIRED (from class)
   # -------------------------------------------------------------------------
-  - cap.net.routing.static
-  - cap.net.nat.masquerade
-  - cap.net.firewall.stateful
-  - cap.net.dhcp.server
-  - cap.net.dns.server
+  - cap.net.interface.ethernet
+  - cap.net.l3.routing.static
+  - cap.net.l3.translation.snat
+  - cap.net.l3.security.firewall.stateful
+  - cap.net.service.dhcp.server
+  - cap.net.service.dns.resolver
 
   # -------------------------------------------------------------------------
   # ROUTING
   # -------------------------------------------------------------------------
-  - cap.net.routing.bgp            # BGP for enterprise/ISP
-  - cap.net.routing.ospf           # OSPF routing
-  - cap.net.routing.ecmp           # Equal-cost multi-path
-  - cap.net.routing.pcc            # Per-connection classifier (MikroTik)
-  - cap.net.routing.pbr            # Policy-based routing
+  - cap.net.l3.routing.dynamic.bgp            # BGP for enterprise/ISP
+  - cap.net.l3.routing.dynamic.ospf           # OSPF routing
+  - cap.net.l3.routing.ecmp           # Equal-cost multi-path
+  - cap.net.l3.routing.policy.pcc            # Per-connection classifier (MikroTik)
+  - cap.net.l3.routing.policy.pbr            # Policy-based routing
 
   # -------------------------------------------------------------------------
   # NAT & FIREWALL
   # -------------------------------------------------------------------------
-  - cap.net.nat.dstnat             # Port forwarding
-  - cap.net.firewall.layer7        # Layer 7 filtering
+  - cap.net.l3.translation.dnat             # Port forwarding
+  - cap.net.l3.security.firewall.l7_filtering        # Layer 7 filtering
 
   # -------------------------------------------------------------------------
   # VPN
   # -------------------------------------------------------------------------
-  - cap.net.vpn.wireguard.server   # WireGuard server (native)
-  - cap.net.vpn.wireguard.client   # WireGuard client
-  - cap.net.vpn.openvpn.server     # OpenVPN server
-  - cap.net.vpn.openvpn.client     # OpenVPN client
-  - cap.net.vpn.ipsec              # IPsec/IKEv2
+  - cap.net.overlay.vpn.wireguard.server   # WireGuard server (native)
+  - cap.net.overlay.vpn.wireguard.client   # WireGuard client
+  - cap.net.overlay.vpn.openvpn.server     # OpenVPN server
+  - cap.net.overlay.vpn.openvpn.client     # OpenVPN client
+  - cap.net.overlay.vpn.ipsec              # IPsec/IKEv2
 
   # -------------------------------------------------------------------------
   # WiFi
   # -------------------------------------------------------------------------
-  - cap.net.wifi.dual_band         # 2.4GHz + 5GHz
-  - cap.net.wifi.wifi6             # 802.11ax
-  - cap.net.wifi.mu_mimo           # MU-MIMO on both bands
-  - cap.net.wifi.beamforming       # Beamforming
-  - cap.net.wifi.guest_network     # Guest network isolation
+  - cap.net.interface.wifi              # 802.11 wireless interfaces
+  - cap.net.interface.wifi.dual_band         # 2.4GHz + 5GHz
+  - cap.net.interface.wifi.wifi6             # 802.11ax
+  - cap.net.interface.wifi.mu_mimo           # MU-MIMO on both bands
+  - cap.net.interface.wifi.beamforming       # Beamforming
+  - cap.net.l2.segmentation.guest_isolation  # Guest segment isolation (SSID/VLAN)
 
   # -------------------------------------------------------------------------
   # WAN
   # -------------------------------------------------------------------------
-  - cap.net.wan.multi_wan          # Ethernet WAN + LTE
-  - cap.net.wan.failover           # Automatic WAN failover
-  - cap.net.wan.load_balance       # Load balancing (PCC)
-  - cap.net.wan.lte                # Built-in LTE Cat 7 modem
-  - cap.net.wan.pppoe              # PPPoE client/server
+  - cap.net.l3.uplink.multi_uplink          # Ethernet WAN + LTE
+  - cap.net.l3.uplink.failover           # Automatic WAN failover
+  - cap.net.l3.uplink.load_balance       # Load balancing (PCC)
+  - cap.net.interface.lte                # Built-in LTE Cat 7 modem interface
+  - cap.net.interface.pppoe              # PPPoE client/server
 
   # -------------------------------------------------------------------------
   # QoS
   # -------------------------------------------------------------------------
-  - cap.net.qos.advanced           # HTB, queue trees, PCQ
+  - cap.net.l3.qos.advanced           # HTB, queue trees, PCQ
 
   # -------------------------------------------------------------------------
   # SERVICES
   # -------------------------------------------------------------------------
-  - cap.net.ntp.server             # NTP server
-  - cap.net.snmp                   # SNMP v2c/v3
-  - cap.net.dyndns                 # Dynamic DNS client
+  - cap.net.service.ntp.server             # NTP server
+  - cap.net.service.snmp                   # SNMP v2c/v3
+  - cap.net.service.dyndns                 # Dynamic DNS client
 
   # -------------------------------------------------------------------------
   # ADVANCED
   # -------------------------------------------------------------------------
-  - cap.net.vlan.8021q             # VLAN tagging
-  - cap.net.vrf                    # Virtual routing & forwarding
-  - cap.net.containers             # RouterOS v7 containers
-  - cap.net.hotspot                # Captive portal
-  - cap.net.netflow                # Netflow/IPFIX export
-  - cap.net.api.rest               # REST API
+  - cap.net.l2.segmentation.vlan.8021q             # VLAN tagging
+  - cap.net.l3.segmentation.vrf                    # Virtual routing & forwarding
+  - cap.net.platform.containers             # RouterOS v7 containers
+  - cap.net.service.portal.captive                # Captive portal
+  - cap.net.observability.netflow                # Netflow/IPFIX export
+  - cap.net.management.api.rest               # REST API
 
 # ============================================================================
 # ENABLED PACKS

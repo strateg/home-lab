@@ -23,44 +23,46 @@ packs:
 
     capabilities:
       # Core routing (always included)
-      - cap.net.routing.static
-      - cap.net.routing.pbr
-      - cap.net.nat.masquerade
-      - cap.net.nat.dstnat
-      - cap.net.firewall.stateful
-      - cap.net.firewall.layer7
+      - cap.net.interface.ethernet
+      - cap.net.l3.routing.static
+      - cap.net.l3.routing.policy.pbr
+      - cap.net.l3.translation.snat
+      - cap.net.l3.translation.dnat
+      - cap.net.l3.security.firewall.stateful
+      - cap.net.l3.security.firewall.l7_filtering
 
       # WAN (multi-WAN with failover)
-      - cap.net.wan.multi_wan
-      - cap.net.wan.failover
-      - cap.net.wan.lte
-      - cap.net.wan.pppoe
+      - cap.net.l3.uplink.multi_uplink
+      - cap.net.l3.uplink.failover
+      - cap.net.interface.wifi
+      - cap.net.interface.lte
+      - cap.net.interface.pppoe
 
       # VPN (server + client)
-      - cap.net.vpn.wireguard.server
-      - cap.net.vpn.wireguard.client
-      - cap.net.vpn.ipsec
+      - cap.net.overlay.vpn.wireguard.server
+      - cap.net.overlay.vpn.wireguard.client
+      - cap.net.overlay.vpn.ipsec
 
       # WiFi (WiFi 6 with guest network)
-      - cap.net.wifi.dual_band
-      - cap.net.wifi.wifi6
-      - cap.net.wifi.mu_mimo
-      - cap.net.wifi.beamforming
-      - cap.net.wifi.guest_network
+      - cap.net.interface.wifi.dual_band
+      - cap.net.interface.wifi.wifi6
+      - cap.net.interface.wifi.mu_mimo
+      - cap.net.interface.wifi.beamforming
+      - cap.net.l2.segmentation.guest_isolation
 
       # Services (full suite)
-      - cap.net.dhcp.server
-      - cap.net.dns.server
-      - cap.net.ntp.server
-      - cap.net.snmp
-      - cap.net.dyndns
+      - cap.net.service.dhcp.server
+      - cap.net.service.dns.resolver
+      - cap.net.service.ntp.server
+      - cap.net.service.snmp
+      - cap.net.service.dyndns
 
       # Advanced features
-      - cap.net.qos.advanced
-      - cap.net.vlan.8021q
-      - cap.net.containers
-      - cap.net.netflow
-      - cap.net.api.rest
+      - cap.net.l3.qos.advanced
+      - cap.net.l2.segmentation.vlan.8021q
+      - cap.net.platform.containers
+      - cap.net.observability.netflow
+      - cap.net.management.api.rest
 
     use_cases:
       - Central home network gateway
@@ -95,39 +97,41 @@ packs:
 
     capabilities:
       # Core routing
-      - cap.net.routing.static
-      - cap.net.nat.masquerade
-      - cap.net.nat.dstnat
-      - cap.net.firewall.stateful
-      - cap.net.firewall.zone_based
+      - cap.net.interface.ethernet
+      - cap.net.l3.routing.static
+      - cap.net.l3.translation.snat
+      - cap.net.l3.translation.dnat
+      - cap.net.l3.security.firewall.stateful
+      - cap.net.l3.security.firewall.zone_policy
 
       # VPN (focus on CLIENT mode!)
-      - cap.net.vpn.wireguard.client      # Primary: connect to home
-      - cap.net.vpn.wireguard.server      # Secondary: accept connections
-      - cap.net.vpn.openvpn.client        # Alternative VPN
-      - cap.net.vpn.multi_instance        # Multiple VPN simultaneously
-      - cap.net.vpn.policy_routing        # Per-client/domain VPN routing
+      - cap.net.overlay.vpn.wireguard.client      # Primary: connect to home
+      - cap.net.overlay.vpn.wireguard.server      # Secondary: accept connections
+      - cap.net.overlay.vpn.openvpn.client        # Alternative VPN
+      - cap.net.overlay.vpn.multi_instance        # Multiple VPN simultaneously
+      - cap.net.overlay.vpn.policy_routing        # Per-client/domain VPN routing
 
       # WiFi (with repeater mode!)
-      - cap.net.wifi.dual_band
-      - cap.net.wifi.wifi6
-      - cap.net.wifi.mu_mimo
-      - cap.net.wifi.guest_network
-      - cap.net.wifi.repeater_mode       # KEY: Connect to hotel WiFi
+      - cap.net.interface.wifi
+      - cap.net.interface.wifi.dual_band
+      - cap.net.interface.wifi.wifi6
+      - cap.net.interface.wifi.mu_mimo
+      - cap.net.l2.segmentation.guest_isolation
+      - cap.net.interface.wifi.repeater_mode       # KEY: Connect to hotel WiFi
 
       # Services (privacy-focused)
-      - cap.net.dhcp.server
-      - cap.net.dns.server
-      - cap.net.dns.dot                   # Encrypted DNS
-      - cap.net.dns.doh                   # Alternative encrypted DNS
-      - cap.net.dns.adblock               # AdGuard Home
-      - cap.net.dyndns
+      - cap.net.service.dhcp.server
+      - cap.net.service.dns.resolver
+      - cap.net.service.dns.dot                   # Encrypted DNS
+      - cap.net.service.dns.doh                   # Alternative encrypted DNS
+      - cap.net.service.dns.filtering               # AdGuard Home
+      - cap.net.service.dyndns
 
       # QoS (optimized for variable connections)
-      - cap.net.qos.sqm                   # SQM for hotel WiFi
+      - cap.net.l3.qos.sqm                   # SQM for hotel WiFi
 
       # Advanced
-      - cap.net.vlan.8021q
+      - cap.net.l2.segmentation.vlan.8021q
 
     use_cases:
       - Travel VPN gateway (hotel, airport, cafe)
@@ -170,34 +174,36 @@ packs:
 
     capabilities:
       # Advanced routing protocols
-      - cap.net.routing.static
-      - cap.net.routing.bgp              # AS-level routing
-      - cap.net.routing.ospf             # IGP routing
-      - cap.net.routing.ecmp             # Load balancing
-      - cap.net.routing.pbr              # Policy routing
+      - cap.net.interface.ethernet
+      - cap.net.l3.routing.static
+      - cap.net.l3.routing.dynamic.bgp              # AS-level routing
+      - cap.net.l3.routing.dynamic.ospf             # IGP routing
+      - cap.net.l3.routing.ecmp             # Load balancing
+      - cap.net.l3.routing.policy.pbr              # Policy routing
 
       # NAT & Firewall
-      - cap.net.nat.masquerade
-      - cap.net.nat.dstnat
-      - cap.net.firewall.stateful
-      - cap.net.firewall.zone_based
+      - cap.net.l3.translation.snat
+      - cap.net.l3.translation.dnat
+      - cap.net.l3.security.firewall.stateful
+      - cap.net.l3.security.firewall.zone_policy
 
       # VPN (server-focused)
-      - cap.net.vpn.wireguard.server
-      - cap.net.vpn.ipsec
+      - cap.net.overlay.vpn.wireguard.server
+      - cap.net.overlay.vpn.ipsec
 
       # Services
-      - cap.net.dhcp.server
-      - cap.net.dhcp.relay
-      - cap.net.dns.server
-      - cap.net.snmp
+      - cap.net.service.dhcp.server
+      - cap.net.service.dhcp.relay
+      - cap.net.service.dns.resolver
+      - cap.net.service.snmp
 
       # Advanced features
-      - cap.net.vlan.8021q
-      - cap.net.vrf                      # Virtual routing domains
-      - cap.net.qos.advanced             # HTB, queue trees
-      - cap.net.netflow                  # Traffic analysis
-      - cap.net.api.rest                 # Automation
+      - cap.net.interface.fiber
+      - cap.net.l2.segmentation.vlan.8021q
+      - cap.net.l3.segmentation.vrf                      # Virtual routing domains
+      - cap.net.l3.qos.advanced             # HTB, queue trees
+      - cap.net.observability.netflow                  # Traffic analysis
+      - cap.net.management.api.rest                 # Automation
 
     use_cases:
       - Enterprise network edge

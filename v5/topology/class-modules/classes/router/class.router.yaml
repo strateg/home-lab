@@ -3,7 +3,7 @@ version: 2.0.0
 title: Router
 description: |
   Base class for all routers with routing, NAT, firewall, and
-  optional VPN, WiFi, WAN failover, and advanced features.
+  optional VPN, WiFi, uplink policies, and advanced features.
   Differentiation via capability packs (home_gateway, travel_vpn, enterprise).
 
 # ============================================================================
@@ -12,11 +12,12 @@ description: |
 # ============================================================================
 
 required_capabilities:
-  - cap.net.routing.static         # Static routes (IPv4/IPv6)
-  - cap.net.nat.masquerade         # Source NAT for WAN
-  - cap.net.firewall.stateful      # Stateful firewall
-  - cap.net.dhcp.server            # DHCP server
-  - cap.net.dns.server             # DNS resolver/caching
+  - cap.net.interface.ethernet          # Base routed data interfaces
+  - cap.net.l3.routing.static         # Static routes (IPv4/IPv6)
+  - cap.net.l3.translation.snat        # Source NAT for upstream access
+  - cap.net.l3.security.firewall.stateful  # Stateful firewall
+  - cap.net.service.dhcp.server        # DHCP server
+  - cap.net.service.dns.resolver       # DNS resolver/caching
 
 # ============================================================================
 # OPTIONAL CAPABILITIES
@@ -25,64 +26,66 @@ required_capabilities:
 
 optional_capabilities:
   # Routing
-  - cap.net.routing.dynamic        # RIP
-  - cap.net.routing.bgp            # BGP (enterprise)
-  - cap.net.routing.ospf           # OSPF (enterprise)
-  - cap.net.routing.ecmp           # Equal-cost multi-path
-  - cap.net.routing.pcc            # Per-connection classifier (MikroTik)
-  - cap.net.routing.pbr            # Policy-based routing
+  - cap.net.l3.routing.dynamic.rip        # RIP
+  - cap.net.l3.routing.dynamic.bgp            # BGP (enterprise)
+  - cap.net.l3.routing.dynamic.ospf           # OSPF (enterprise)
+  - cap.net.l3.routing.ecmp           # Equal-cost multi-path
+  - cap.net.l3.routing.policy.pcc            # Per-connection classifier (MikroTik)
+  - cap.net.l3.routing.policy.pbr            # Policy-based routing
 
   # NAT & Firewall
-  - cap.net.nat.dstnat             # Port forwarding
-  - cap.net.firewall.zone_based    # Zone-based policies
-  - cap.net.firewall.layer7        # Layer 7 filtering
+  - cap.net.l3.translation.dnat             # Port forwarding
+  - cap.net.l3.security.firewall.zone_policy    # Zone-based policies
+  - cap.net.l3.security.firewall.l7_filtering        # Layer 7 filtering
 
   # VPN
-  - cap.net.vpn.wireguard.server   # WireGuard server
-  - cap.net.vpn.wireguard.client   # WireGuard client
-  - cap.net.vpn.openvpn.server     # OpenVPN server
-  - cap.net.vpn.openvpn.client     # OpenVPN client
-  - cap.net.vpn.ipsec              # IPsec tunnels
-  - cap.net.vpn.multi_instance     # Multiple VPN instances
-  - cap.net.vpn.policy_routing     # Per-client VPN routing
+  - cap.net.overlay.vpn.wireguard.server   # WireGuard server
+  - cap.net.overlay.vpn.wireguard.client   # WireGuard client
+  - cap.net.overlay.vpn.openvpn.server     # OpenVPN server
+  - cap.net.overlay.vpn.openvpn.client     # OpenVPN client
+  - cap.net.overlay.vpn.ipsec              # IPsec tunnels
+  - cap.net.overlay.vpn.multi_instance     # Multiple VPN instances
+  - cap.net.overlay.vpn.policy_routing     # Per-client VPN routing
 
   # WiFi
-  - cap.net.wifi.dual_band         # 2.4GHz + 5GHz
-  - cap.net.wifi.wifi6             # 802.11ax
-  - cap.net.wifi.mu_mimo           # Multi-user MIMO
-  - cap.net.wifi.beamforming       # Beamforming
-  - cap.net.wifi.guest_network     # Guest network
-  - cap.net.wifi.repeater_mode     # WiFi client/repeater
-  - cap.net.wifi.mesh              # Mesh networking
+  - cap.net.interface.wifi             # Wireless interface support
+  - cap.net.interface.wifi.dual_band         # 2.4GHz + 5GHz
+  - cap.net.interface.wifi.wifi6             # 802.11ax
+  - cap.net.interface.wifi.mu_mimo           # Multi-user MIMO
+  - cap.net.interface.wifi.beamforming       # Beamforming
+  - cap.net.l2.segmentation.guest_isolation  # Guest segment isolation (SSID/VLAN)
+  - cap.net.interface.wifi.repeater_mode     # WiFi client/repeater
+  - cap.net.interface.wifi.mesh              # Mesh networking
 
-  # WAN
-  - cap.net.wan.multi_wan          # Multiple WAN interfaces
-  - cap.net.wan.failover           # WAN failover
-  - cap.net.wan.load_balance       # WAN load balancing
-  - cap.net.wan.lte                # LTE modem
-  - cap.net.wan.pppoe              # PPPoE client/server
+  # Uplink policy
+  - cap.net.l3.uplink.multi_uplink          # Multiple WAN interfaces
+  - cap.net.l3.uplink.failover           # WAN failover
+  - cap.net.l3.uplink.load_balance       # WAN load balancing
+  - cap.net.interface.fiber              # Fiber uplink interfaces
+  - cap.net.interface.lte                # LTE modem
+  - cap.net.interface.pppoe              # PPPoE client/server
 
   # QoS
-  - cap.net.qos.basic              # Simple priority
-  - cap.net.qos.advanced           # HTB/queue trees
-  - cap.net.qos.sqm                # Smart Queue Management
+  - cap.net.l3.qos.basic              # Simple priority
+  - cap.net.l3.qos.advanced           # HTB/queue trees
+  - cap.net.l3.qos.sqm                # Smart Queue Management
 
   # Services
-  - cap.net.dhcp.relay             # DHCP relay
-  - cap.net.dns.dot                # DNS-over-TLS
-  - cap.net.dns.doh                # DNS-over-HTTPS
-  - cap.net.dns.adblock            # DNS filtering
-  - cap.net.ntp.server             # NTP server
-  - cap.net.snmp                   # SNMP monitoring
+  - cap.net.service.dhcp.relay             # DHCP relay
+  - cap.net.service.dns.dot                # DNS-over-TLS
+  - cap.net.service.dns.doh                # DNS-over-HTTPS
+  - cap.net.service.dns.filtering            # DNS filtering
+  - cap.net.service.ntp.server             # NTP server
+  - cap.net.service.snmp                   # SNMP monitoring
 
   # Advanced
-  - cap.net.vlan.8021q             # VLAN tagging
-  - cap.net.vrf                    # VRF (enterprise)
-  - cap.net.containers             # Container support
-  - cap.net.hotspot                # Captive portal
-  - cap.net.netflow                # Netflow export
-  - cap.net.api.rest               # REST API
-  - cap.net.dyndns                 # Dynamic DNS
+  - cap.net.l2.segmentation.vlan.8021q             # VLAN tagging
+  - cap.net.l3.segmentation.vrf                    # VRF (enterprise)
+  - cap.net.platform.containers             # Container support
+  - cap.net.service.portal.captive                # Captive portal
+  - cap.net.observability.netflow                # Netflow export
+  - cap.net.management.api.rest               # REST API
+  - cap.net.service.dyndns                 # Dynamic DNS
 
 # ============================================================================
 # CAPABILITY PACKS

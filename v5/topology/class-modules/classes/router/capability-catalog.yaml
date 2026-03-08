@@ -1,8 +1,9 @@
 version: 1
 description: Router capability catalog for v5 topology
 
-# Capability naming convention: cap.net.<domain>.<specific_feature>[.<variant>]
-# OSI mapping is tracked as metadata and documentation, not encoded in ID.
+# Capability naming convention: cap.net.<layer_or_axis>.<domain>.<feature>[.<variant>]
+# Interface capabilities describe medium/port types.
+# WAN/LAN is topology role/policy, not an interface capability.
 # Stability levels: stable | experimental | deprecated
 
 capabilities:
@@ -10,7 +11,7 @@ capabilities:
   # ROUTING
   # ============================================================================
 
-  - id: cap.net.routing.static
+  - id: cap.net.l3.routing.static
     title: Static Routing
     summary: Supports manual static routes for IPv4/IPv6 traffic forwarding
     domain: routing
@@ -18,40 +19,40 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.routing.dynamic
+  - id: cap.net.l3.routing.dynamic.rip
     title: Dynamic Routing (RIP)
     summary: Supports RIP routing protocol
     domain: routing
     stability: stable
 
-  - id: cap.net.routing.bgp
+  - id: cap.net.l3.routing.dynamic.bgp
     title: BGP Routing
     summary: Supports Border Gateway Protocol peering for AS-level routing
     domain: routing
     stability: stable
     enterprise: true
 
-  - id: cap.net.routing.ospf
+  - id: cap.net.l3.routing.dynamic.ospf
     title: OSPF Routing
     summary: Supports Open Shortest Path First routing protocol
     domain: routing
     stability: stable
     enterprise: true
 
-  - id: cap.net.routing.ecmp
+  - id: cap.net.l3.routing.ecmp
     title: Equal-Cost Multi-Path
     summary: Supports load balancing across multiple equal-cost routes
     domain: routing
     stability: stable
 
-  - id: cap.net.routing.pcc
+  - id: cap.net.l3.routing.policy.pcc
     title: Per-Connection Classifier
     summary: Supports per-connection load balancing (MikroTik-specific)
     domain: routing
     stability: stable
     vendor_specific: mikrotik
 
-  - id: cap.net.routing.pbr
+  - id: cap.net.l3.routing.policy.pbr
     title: Policy-Based Routing
     summary: Supports routing based on source IP, port, protocol, or other criteria
     domain: routing
@@ -61,7 +62,7 @@ capabilities:
   # NAT & FIREWALL
   # ============================================================================
 
-  - id: cap.net.nat.masquerade
+  - id: cap.net.l3.translation.snat
     title: Source NAT (Masquerade)
     summary: Supports source network address translation for WAN access
     domain: nat
@@ -69,13 +70,13 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.nat.dstnat
+  - id: cap.net.l3.translation.dnat
     title: Destination NAT (Port Forwarding)
     summary: Supports destination NAT for inbound port forwarding
     domain: nat
     stability: stable
 
-  - id: cap.net.firewall.stateful
+  - id: cap.net.l3.security.firewall.stateful
     title: Stateful Firewall
     summary: Supports connection tracking and stateful filtering policies
     domain: firewall
@@ -83,13 +84,13 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.firewall.zone_based
+  - id: cap.net.l3.security.firewall.zone_policy
     title: Zone-Based Firewall
     summary: Supports zone-based security policies (LAN/WAN/DMZ)
     domain: firewall
     stability: stable
 
-  - id: cap.net.firewall.layer7
+  - id: cap.net.l3.security.firewall.l7_filtering
     title: Layer 7 Filtering
     summary: Supports application-layer protocol detection and filtering
     domain: firewall
@@ -99,44 +100,44 @@ capabilities:
   # VPN
   # ============================================================================
 
-  - id: cap.net.vpn.wireguard.server
+  - id: cap.net.overlay.vpn.wireguard.server
     title: WireGuard Server
     summary: Supports WireGuard VPN tunnel endpoint mode (accepting connections)
     domain: vpn
     stability: stable
 
-  - id: cap.net.vpn.wireguard.client
+  - id: cap.net.overlay.vpn.wireguard.client
     title: WireGuard Client
     summary: Supports WireGuard VPN client mode (connecting to remote server)
     domain: vpn
     stability: stable
 
-  - id: cap.net.vpn.openvpn.server
+  - id: cap.net.overlay.vpn.openvpn.server
     title: OpenVPN Server
     summary: Supports OpenVPN server mode
     domain: vpn
     stability: stable
 
-  - id: cap.net.vpn.openvpn.client
+  - id: cap.net.overlay.vpn.openvpn.client
     title: OpenVPN Client
     summary: Supports OpenVPN client mode
     domain: vpn
     stability: stable
 
-  - id: cap.net.vpn.ipsec
+  - id: cap.net.overlay.vpn.ipsec
     title: IPsec VPN
     summary: Supports IPsec/IKEv2 VPN tunnels
     domain: vpn
     stability: stable
 
-  - id: cap.net.vpn.multi_instance
+  - id: cap.net.overlay.vpn.multi_instance
     title: VPN Multi-Instance
     summary: Supports running multiple VPN connections simultaneously
     domain: vpn
     stability: stable
     note: "GL.iNet firmware 4.8.2+ feature"
 
-  - id: cap.net.vpn.policy_routing
+  - id: cap.net.overlay.vpn.policy_routing
     title: VPN Policy Routing
     summary: Supports per-client VPN routing by MAC address, domain, or destination IP
     domain: vpn
@@ -144,104 +145,124 @@ capabilities:
     note: "GL.iNet composite policy or MikroTik PBR"
 
   # ============================================================================
-  # WiFi
+  # INTERFACES
   # ============================================================================
 
-  - id: cap.net.wifi.dual_band
+  - id: cap.net.interface.ethernet
+    title: Ethernet Interface
+    summary: Supports Ethernet data interfaces for routed or bridged traffic.
+    domain: interface
+    stability: stable
+    required_by:
+      - class.router
+
+  - id: cap.net.interface.wifi
+    title: WiFi Interface
+    summary: Supports IEEE 802.11 wireless data interfaces.
+    domain: interface
+    stability: stable
+
+  - id: cap.net.interface.fiber
+    title: Fiber Interface
+    summary: Supports fiber uplink interfaces (SFP/SFP+ or provider handoff).
+    domain: interface
+    stability: stable
+
+  - id: cap.net.interface.wifi.dual_band
     title: Dual-Band WiFi
     summary: Supports simultaneous 2.4GHz and 5GHz wireless operation
-    domain: wifi
+    domain: interface
     stability: stable
 
-  - id: cap.net.wifi.wifi6
+  - id: cap.net.interface.wifi.wifi6
     title: WiFi 6 (802.11ax)
     summary: Supports WiFi 6 (802.11ax) standard with OFDMA, MU-MIMO, BSS Coloring
-    domain: wifi
+    domain: interface
     stability: stable
 
-  - id: cap.net.wifi.mu_mimo
+  - id: cap.net.interface.wifi.mu_mimo
     title: Multi-User MIMO
     summary: Supports simultaneous transmission to multiple clients
-    domain: wifi
+    domain: interface
     stability: stable
 
-  - id: cap.net.wifi.beamforming
+  - id: cap.net.interface.wifi.beamforming
     title: Beamforming
     summary: Supports directed signal transmission to specific clients
-    domain: wifi
+    domain: interface
     stability: stable
 
-  - id: cap.net.wifi.guest_network
-    title: Guest Network
-    summary: Supports isolated guest WiFi network with client isolation
-    domain: wifi
+  - id: cap.net.l2.segmentation.guest_isolation
+    title: Guest Isolation Segment
+    summary: Supports isolated guest segment (typically separate VLAN/SSID).
+    domain: segmentation
     stability: stable
 
-  - id: cap.net.wifi.repeater_mode
+  - id: cap.net.interface.wifi.repeater_mode
     title: WiFi Repeater/Client Mode
     summary: Supports connecting to upstream WiFi network as client (repeater/bridge mode)
-    domain: wifi
+    domain: interface
     stability: stable
     note: "Essential for travel routers"
 
-  - id: cap.net.wifi.mesh
+  - id: cap.net.interface.wifi.mesh
     title: WiFi Mesh
     summary: Supports mesh networking for seamless roaming
-    domain: wifi
+    domain: interface
     stability: experimental
 
   # ============================================================================
-  # WAN
+  # UPLINK POLICY
   # ============================================================================
 
-  - id: cap.net.wan.multi_wan
+  - id: cap.net.l3.uplink.multi_uplink
     title: Multiple WAN Interfaces
     summary: Supports multiple WAN connections (Ethernet + LTE, dual WAN)
-    domain: wan
+    domain: uplink
     stability: stable
 
-  - id: cap.net.wan.failover
+  - id: cap.net.l3.uplink.failover
     title: WAN Failover
     summary: Supports automatic failover between WAN interfaces
-    domain: wan
+    domain: uplink
     stability: stable
 
-  - id: cap.net.wan.load_balance
+  - id: cap.net.l3.uplink.load_balance
     title: WAN Load Balancing
     summary: Supports load balancing traffic across multiple WAN connections
-    domain: wan
+    domain: uplink
     stability: stable
 
-  - id: cap.net.wan.lte
-    title: LTE/Cellular WAN
-    summary: Supports built-in LTE modem for cellular connectivity
-    domain: wan
+  - id: cap.net.interface.lte
+    title: LTE/Cellular Interface
+    summary: Supports LTE/5G cellular data interface.
+    domain: interface
     stability: stable
 
-  - id: cap.net.wan.pppoe
-    title: PPPoE Client/Server
-    summary: Supports PPPoE for DSL/fiber connections
-    domain: wan
+  - id: cap.net.interface.pppoe
+    title: PPPoE Interface
+    summary: Supports PPPoE session interfaces over Ethernet uplink.
+    domain: interface
     stability: stable
 
   # ============================================================================
   # QoS
   # ============================================================================
 
-  - id: cap.net.qos.basic
+  - id: cap.net.l3.qos.basic
     title: Basic QoS
     summary: Supports simple traffic priority queues
     domain: qos
     stability: stable
 
-  - id: cap.net.qos.advanced
+  - id: cap.net.l3.qos.advanced
     title: Advanced QoS
     summary: Supports HTB (Hierarchical Token Bucket) and complex queue trees
     domain: qos
     stability: stable
     note: "MikroTik RouterOS feature"
 
-  - id: cap.net.qos.sqm
+  - id: cap.net.l3.qos.sqm
     title: Smart Queue Management (SQM)
     summary: Supports CAKE or fq_codel algorithms for bufferbloat reduction
     domain: qos
@@ -252,7 +273,7 @@ capabilities:
   # NETWORK SERVICES
   # ============================================================================
 
-  - id: cap.net.dhcp.server
+  - id: cap.net.service.dhcp.server
     title: DHCP Server
     summary: Supports DHCP lease management for local subnets
     domain: service
@@ -260,13 +281,13 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.dhcp.relay
+  - id: cap.net.service.dhcp.relay
     title: DHCP Relay
     summary: Supports forwarding DHCP requests to external DHCP server
     domain: service
     stability: stable
 
-  - id: cap.net.dns.server
+  - id: cap.net.service.dns.resolver
     title: DNS Server/Resolver
     summary: Supports local DNS resolution and caching
     domain: service
@@ -274,31 +295,31 @@ capabilities:
     required_by:
       - class.router
 
-  - id: cap.net.dns.dot
+  - id: cap.net.service.dns.dot
     title: DNS-over-TLS
     summary: Supports encrypted DNS queries via TLS (Stubby, dnsdist)
     domain: service
     stability: stable
 
-  - id: cap.net.dns.doh
+  - id: cap.net.service.dns.doh
     title: DNS-over-HTTPS
     summary: Supports encrypted DNS queries via HTTPS (dnscrypt-proxy)
     domain: service
     stability: stable
 
-  - id: cap.net.dns.adblock
+  - id: cap.net.service.dns.filtering
     title: DNS-Based Ad Blocking
     summary: Supports DNS filtering for ad blocking (AdGuard Home, Pi-hole)
     domain: service
     stability: stable
 
-  - id: cap.net.ntp.server
+  - id: cap.net.service.ntp.server
     title: NTP Server
     summary: Supports Network Time Protocol server for time synchronization
     domain: service
     stability: stable
 
-  - id: cap.net.snmp
+  - id: cap.net.service.snmp
     title: SNMP Monitoring
     summary: Supports SNMP v2c/v3 for remote monitoring
     domain: service
@@ -308,48 +329,48 @@ capabilities:
   # ADVANCED
   # ============================================================================
 
-  - id: cap.net.vlan.8021q
+  - id: cap.net.l2.segmentation.vlan.8021q
     title: VLAN (802.1Q)
     summary: Supports VLAN tagging and trunk interfaces
-    domain: platform
+    domain: segmentation
     stability: stable
 
-  - id: cap.net.vrf
+  - id: cap.net.l3.segmentation.vrf
     title: Virtual Routing & Forwarding (VRF)
     summary: Supports isolated routing domains on single device
-    domain: platform
+    domain: segmentation
     stability: stable
     enterprise: true
 
-  - id: cap.net.containers
+  - id: cap.net.platform.containers
     title: Container Support
     summary: Supports running Docker/container workloads on router
     domain: platform
     stability: stable
     note: "RouterOS v7 containers"
 
-  - id: cap.net.hotspot
+  - id: cap.net.service.portal.captive
     title: Hotspot/Captive Portal
     summary: Supports captive portal for guest authentication
-    domain: platform
+    domain: service
     stability: stable
 
-  - id: cap.net.netflow
+  - id: cap.net.observability.netflow
     title: Netflow/IPFIX Export
     summary: Supports exporting flow data for traffic analysis
-    domain: platform
+    domain: observability
     stability: stable
 
-  - id: cap.net.api.rest
+  - id: cap.net.management.api.rest
     title: REST API
     summary: Supports RESTful API for automation and integration
-    domain: platform
+    domain: management
     stability: stable
 
-  - id: cap.net.dyndns
+  - id: cap.net.service.dyndns
     title: Dynamic DNS Client
     summary: Supports automatic DNS record updates for dynamic IP addresses
-    domain: platform
+    domain: service
     stability: stable
 
   # ============================================================================
@@ -937,16 +958,19 @@ capabilities:
 
 # Metadata
 metadata:
-  total_capabilities: 123
+  total_capabilities: 126
   domains:
     - routing
     - nat
     - firewall
     - vpn
-    - wifi
-    - wan
+    - interface
+    - uplink
     - qos
+    - segmentation
     - service
+    - management
+    - observability
     - platform
     - compute
     - power
@@ -954,6 +978,6 @@ metadata:
     - arch
 
   stability_distribution:
-    stable: 122
+    stable: 125
     experimental: 1
     deprecated: 0
