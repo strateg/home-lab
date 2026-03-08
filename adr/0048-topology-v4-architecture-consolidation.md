@@ -5,10 +5,18 @@
 **Supersedes:** ADR 0049 (all variants), 0050
 **Related:** ADR 0047 (L6 Observability Modularization)
 **Evolved By:** [ADR 0062](0062-modular-topology-architecture-consolidation.md) (Topology v5)
+**Harmonized With:** ADR 0064 (Firmware + OS Two-Entity Model)
 
 ---
 
 ## Context
+
+### Harmonization Note (2026-03-09)
+
+This ADR remains the accepted v4 architectural baseline. For v5 evolution, software stack semantics are clarified by ADR 0064:
+- firmware and OS are separate first-class entities
+- both follow `Class -> Object -> Instance`
+- device/workload bindings use instance refs (`firmware_ref`, `os_refs[]`)
 
 This ADR consolidates multiple related architectural decisions into a single coherent document:
 - L0 Meta Layer architecture (abstract policies only)

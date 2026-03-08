@@ -3,8 +3,13 @@
 - Status: Accepted
 - Date: 2026-03-01
 - Supersedes: 0054-separate-local-inputs-from-generated-outputs.md (draft, never accepted)
+- Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 
 ## Context
+
+Harmonization note (2026-03-09):
+- This ADR defines operator local-input placement and remains valid.
+- In v5 model terms, deployable device software stack is represented by firmware/OS instance references (`firmware_ref`, `os_refs[]`) according to ADR 0064.
 
 ADR 0050 established `generated/` as the canonical home for generated artifacts.
 ADR 0052 established `dist/` as the assembled deploy package root.

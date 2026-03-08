@@ -2,8 +2,13 @@
 
 - Status: Accepted
 - Date: 2026-03-01
+- Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 
 ## Context
+
+Harmonization note (2026-03-09):
+- This ADR defines deploy package assembly and remains valid.
+- Model-level software semantics in v5 are governed by ADR 0064: firmware and OS are separate entities with instance-level refs (`firmware_ref`, `os_refs[]`).
 
 ADR 0051 is now accepted and implemented. The repository already has:
 - a stable Ansible runtime root in `ansible/`

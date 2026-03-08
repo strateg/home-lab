@@ -2,8 +2,13 @@
 
 - Status: Accepted
 - Date: 2026-03-01
+- Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 
 ## Context
+
+Harmonization note (2026-03-09):
+- This ADR defines Ansible runtime/inventory/secret boundaries and remains valid.
+- In v5 semantics, device software stack resolution is instance-based (`firmware_ref`, `os_refs[]`) and does not change Ansible ownership boundaries defined here.
 
 The repository currently has one high-risk coupling area: Ansible runtime, topology-derived inventory, manual overrides, and secret-bearing values are mixed together while live deployment entrypoints still depend on them.
 

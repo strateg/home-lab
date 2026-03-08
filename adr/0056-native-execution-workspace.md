@@ -2,8 +2,13 @@
 
 - Status: Accepted
 - Date: 2026-03-01
+- Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 
 ## Context
+
+Harmonization note (2026-03-09):
+- This ADR defines execution workspace boundaries and remains valid.
+- For v5 topology semantics, software stack entities are modeled separately (`firmware`, `os`) and bound at instance level via `firmware_ref` and `os_refs[]` (ADR 0064).
 
 ADR 0054 is accepted and implemented:
 - canonical operator local inputs live under `local/`

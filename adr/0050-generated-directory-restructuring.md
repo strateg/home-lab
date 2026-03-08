@@ -2,8 +2,13 @@
 
 - Status: Accepted
 - Date: 2026-02-28
+- Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 
 ## Context
+
+Harmonization note (2026-03-09):
+- This ADR defines generated artifact layout and remains valid as a packaging/output contract.
+- In v5 topology semantics, software stack modeling uses explicit firmware/OS entities with instance refs (`firmware_ref`, `os_refs[]`) per ADR 0064.
 
 Current `generated/` structure is fragmented:
 

@@ -2,8 +2,13 @@
 
 - Status: Accepted
 - Date: 2026-03-01
+- Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 
 ## Context
+
+Harmonization note (2026-03-09):
+- This ADR defines tracked Terraform exception layering and remains valid.
+- Where topology semantics are referenced, v5 uses explicit firmware/OS entities and instance bindings (`firmware_ref`, `os_refs[]`) per ADR 0064.
 
 ADR 0052 established generated Terraform roots as canonical topology-derived outputs:
 - `generated/terraform/mikrotik/`

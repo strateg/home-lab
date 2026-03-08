@@ -3,10 +3,18 @@
 **Date:** 2026-03-05
 **Status:** Accepted
 **Related:** ADR 0049 (MikroTik Bootstrap Automation), ADR 0054 (Local Inputs Directory), ADR 0055 (Manual Terraform Extension Layer), ADR 0056 (Native Execution Workspace)
+**Harmonized With:** ADR 0064 (Firmware + OS Two-Entity Model)
 
 ---
 
 ## Context
+
+### Harmonization Note (2026-03-09)
+
+This ADR remains valid as an operational day-0/day-1 contract. In v5 semantics (ADR 0062 + ADR 0064), software stack references are modeled explicitly as:
+- `class.firmware -> obj.firmware.* -> inst.firmware.*`
+- `class.os -> obj.os.* -> inst.os.*`
+- device instance bindings via `firmware_ref` and `os_refs[]`
 
 ### Problem
 
