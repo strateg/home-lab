@@ -1050,6 +1050,17 @@ class V5Compiler:
                     )
                     os_refs = []
 
+                embedded_in = row.get("embedded_in")
+                if embedded_in is not None and (not isinstance(embedded_in, str) or not embedded_in):
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message="embedded_in must be non-empty string when set.",
+                        path=f"instance_bindings.{group_name}[{idx}].embedded_in",
+                    )
+                    embedded_in = None
+
                 normalized_os_refs: list[str] = []
                 if isinstance(os_refs, list):
                     for os_idx, os_ref in enumerate(os_refs):
@@ -1077,6 +1088,7 @@ class V5Compiler:
                         "runtime": row.get("runtime"),
                         "firmware_ref": firmware_ref if isinstance(firmware_ref, str) and firmware_ref else None,
                         "os_refs": normalized_os_refs,
+                        "embedded_in": embedded_in if isinstance(embedded_in, str) and embedded_in else None,
                     }
                 )
         return rows
@@ -1414,6 +1426,135 @@ class V5Compiler:
                     "os": resolved_os_effective,
                 },
             }
+
+    def _validate_embedded_in(
+        self,
+        *,
+        rows: list[dict[str, Any]],
+        object_map: dict[str, dict[str, Any]],
+    ) -> None:
+        """Validate embedded_in field for OS instances per ADR 0064."""
+        row_by_id: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            row_id = row.get("id")
+            if isinstance(row_id, str) and row_id:
+                row_by_id[row_id] = row
+
+        # Validate OS instances (class.os)
+        for row in rows:
+            class_ref = row.get("class_ref")
+            if class_ref != "class.os":
+                continue
+
+            row_id = row.get("id")
+            object_ref = row.get("object_ref")
+            embedded_in = row.get("embedded_in")
+            path = f"instance:{row.get('group')}:{row_id}"
+
+            if not isinstance(object_ref, str) or not object_ref:
+                continue
+
+            object_item = object_map.get(object_ref)
+            if object_item is None:
+                continue
+
+            object_payload = object_item.get("payload", {})
+            install_model = self._extract_os_installation_model(object_payload)
+
+            if install_model == "embedded":
+                # Embedded OS MUST have embedded_in
+                if not isinstance(embedded_in, str) or not embedded_in:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"OS instance '{row_id}' has installation_model=embedded "
+                            "but missing required 'embedded_in' field."
+                        ),
+                        path=path,
+                    )
+                else:
+                    # embedded_in MUST reference existing firmware instance
+                    firmware_row = row_by_id.get(embedded_in)
+                    if firmware_row is None:
+                        self.add_diag(
+                            code="E2101",
+                            severity="error",
+                            stage="resolve",
+                            message=f"OS instance '{row_id}' embedded_in references unknown instance '{embedded_in}'.",
+                            path=path,
+                        )
+                    elif firmware_row.get("class_ref") != "class.firmware":
+                        self.add_diag(
+                            code="E2403",
+                            severity="error",
+                            stage="validate",
+                            message=(
+                                f"OS instance '{row_id}' embedded_in '{embedded_in}' must reference "
+                                f"class.firmware, got '{firmware_row.get('class_ref')}'."
+                            ),
+                            path=path,
+                        )
+            elif install_model in ("installable", "cloud_image", "container_base"):
+                # Installable OS MUST NOT have embedded_in
+                if isinstance(embedded_in, str) and embedded_in:
+                    self.add_diag(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"OS instance '{row_id}' has installation_model={install_model} "
+                            "but embedded_in field is set (should be absent)."
+                        ),
+                        path=path,
+                    )
+
+        # Validate device instances: embedded OS's embedded_in must match device's firmware_ref
+        for row in rows:
+            class_ref = row.get("class_ref")
+            if class_ref in ("class.os", "class.firmware"):
+                continue  # Skip software instances
+
+            row_id = row.get("id")
+            firmware_ref = row.get("firmware_ref")
+            os_refs = row.get("os_refs", []) or []
+            path = f"instance:{row.get('group')}:{row_id}"
+
+            if not isinstance(firmware_ref, str) or not firmware_ref:
+                continue
+
+            for os_ref in os_refs:
+                if not isinstance(os_ref, str):
+                    continue
+                os_row = row_by_id.get(os_ref)
+                if os_row is None:
+                    continue
+
+                os_object_ref = os_row.get("object_ref")
+                if not isinstance(os_object_ref, str):
+                    continue
+                os_object_item = object_map.get(os_object_ref)
+                if os_object_item is None:
+                    continue
+
+                os_object_payload = os_object_item.get("payload", {})
+                install_model = self._extract_os_installation_model(os_object_payload)
+
+                if install_model == "embedded":
+                    os_embedded_in = os_row.get("embedded_in")
+                    if isinstance(os_embedded_in, str) and os_embedded_in != firmware_ref:
+                        self.add_diag(
+                            code="E3201",
+                            severity="error",
+                            stage="validate",
+                            message=(
+                                f"Device instance '{row_id}' uses embedded OS '{os_ref}' "
+                                f"whose embedded_in='{os_embedded_in}' does not match "
+                                f"device firmware_ref='{firmware_ref}'."
+                            ),
+                            path=path,
+                        )
 
     def _validate_model_lock(
         self,
@@ -1800,6 +1941,7 @@ class V5Compiler:
             lock_payload = self._load_yaml(model_lock_path, code_missing="E1001", code_parse="E2401", stage="load")
 
         self._validate_refs(rows=rows, class_map=class_map, object_map=object_map, catalog_ids=catalog_ids)
+        self._validate_embedded_in(rows=rows, object_map=object_map)
         if catalog_ids:
             self._validate_capability_contract(
                 class_map=class_map,

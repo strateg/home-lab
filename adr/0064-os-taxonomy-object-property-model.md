@@ -1038,13 +1038,13 @@ Explicit value in object overrides inference.
 - [x] Create OS objects (obj.os.debian.12.arm64.edge, obj.os.proxmox.ve.9, obj.os.routeros.7.arm64, etc.)
 - [x] Create firmware instances (inst.firmware.* in instance-bindings.yaml)
 - [x] Create OS instances (inst.os.* in instance-bindings.yaml)
-- [ ] Implement compiler capability derivation
+- [x] Implement compiler capability derivation
 
 ### Phase 3: Device Migration (COMPLETE - 100% migrated)
 - [x] Add `firmware_ref` and `os_refs` to device instance schema
 - [x] Migrate all L1 devices with firmware_ref/os_refs
 - [x] Migrate all L4 LXC containers with os_refs
-- [ ] Implement validation rules (including version compatibility)
+- [x] Implement validation rules (firmware_ref, os_refs, architecture, embedded_in)
 - [x] Add `embedded_in` field for embedded OS instances
 
 ### Phase 4: Deprecation
