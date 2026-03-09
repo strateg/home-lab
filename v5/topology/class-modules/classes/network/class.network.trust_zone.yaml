@@ -1,0 +1,62 @@
+id: class.network.trust_zone
+version: 1.0.0
+description: Security zone defining trust boundaries and default policies
+layer: L2
+
+properties:
+  required:
+    - name
+    - security_level
+  optional:
+    - description
+    - color
+    - isolated
+    - reserved
+    - default_firewall_policy_ref
+    - allowed_inbound
+    - allowed_outbound
+
+property_schemas:
+  name:
+    type: string
+    description: Human-readable zone name
+  security_level:
+    type: integer
+    minimum: 0
+    maximum: 10
+    description: Security level (0=untrusted, higher=more trusted)
+  color:
+    type: string
+    format: color
+    description: Display color for diagrams
+  isolated:
+    type: boolean
+    default: false
+    description: Zone is isolated from other zones
+  reserved:
+    type: boolean
+    default: false
+    description: System-reserved zone (untrusted, guest)
+  default_firewall_policy_ref:
+    type: string
+    format: instance_ref
+    target_class: class.network.firewall_policy
+  allowed_inbound:
+    type: array
+    items:
+      type: string
+    description: Default allowed inbound traffic patterns
+  allowed_outbound:
+    type: array
+    items:
+      type: string
+    description: Default allowed outbound traffic patterns
+
+required_capabilities: []
+
+optional_capabilities:
+  - cap.zone.isolated
+  - cap.zone.management
+  - cap.zone.dmz
+
+enabled_capabilities: []

@@ -1055,9 +1055,108 @@ capabilities:
     stability: stable
     derived: true
 
+  # ============================================================================
+  # L2 NETWORK (bridge, vlan, trust zone, firewall, qos)
+  # ============================================================================
+
+  # VLAN capabilities
+  - id: cap.vlan.tagged
+    title: VLAN 802.1Q Tagged
+    summary: VLAN supports IEEE 802.1Q tagging.
+    domain: l2_network
+    stability: stable
+
+  - id: cap.vlan.untagged
+    title: VLAN Untagged
+    summary: VLAN operates without tagging (native VLAN).
+    domain: l2_network
+    stability: stable
+
+  - id: cap.vlan.pvid
+    title: VLAN PVID
+    summary: VLAN is the port default (PVID).
+    domain: l2_network
+    stability: stable
+
+  # Bridge capabilities
+  - id: cap.bridge.vlan_aware
+    title: VLAN-Aware Bridge
+    summary: Bridge supports VLAN awareness.
+    domain: l2_network
+    stability: stable
+
+  - id: cap.bridge.vlan_filtering
+    title: VLAN Filtering Bridge
+    summary: Bridge performs VLAN filtering.
+    domain: l2_network
+    stability: stable
+
+  - id: cap.bridge.stp
+    title: STP Bridge
+    summary: Bridge supports Spanning Tree Protocol.
+    domain: l2_network
+    stability: stable
+
+  # Trust zone capabilities
+  - id: cap.zone.isolated
+    title: Isolated Zone
+    summary: Zone is isolated from other zones.
+    domain: l2_network
+    stability: stable
+
+  - id: cap.zone.management
+    title: Management Zone
+    summary: Zone is designated for management traffic.
+    domain: l2_network
+    stability: stable
+
+  - id: cap.zone.dmz
+    title: DMZ Zone
+    summary: Zone is a demilitarized zone.
+    domain: l2_network
+    stability: stable
+
+  # Firewall capabilities
+  - id: cap.firewall.stateful
+    title: Stateful Firewall
+    summary: Firewall maintains connection state.
+    domain: l2_network
+    stability: stable
+
+  - id: cap.firewall.connection_tracking
+    title: Connection Tracking
+    summary: Firewall tracks connections.
+    domain: l2_network
+    stability: stable
+
+  - id: cap.firewall.logging
+    title: Firewall Logging
+    summary: Firewall supports rule logging.
+    domain: l2_network
+    stability: stable
+
+  # QoS capabilities
+  - id: cap.qos.htb
+    title: HTB QoS
+    summary: Hierarchical Token Bucket queuing.
+    domain: l2_network
+    stability: stable
+
+  - id: cap.qos.sfq
+    title: SFQ QoS
+    summary: Stochastic Fair Queuing.
+    domain: l2_network
+    stability: stable
+
+  - id: cap.qos.fq_codel
+    title: FQ-CoDel QoS
+    summary: Fair Queuing with CoDel.
+    domain: l2_network
+    stability: stable
+
 # Metadata
 metadata:
-  total_capabilities: 140
+  total_capabilities: 158
   domains:
     - routing
     - nat
@@ -1076,6 +1175,7 @@ metadata:
     - firmware
     - os
     - arch
+    - l2_network
 
   stability_distribution:
     stable: 139

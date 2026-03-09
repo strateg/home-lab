@@ -1,0 +1,61 @@
+id: class.network.qos
+version: 1.0.0
+description: Quality of Service profile for traffic shaping
+layer: L2
+
+properties:
+  required:
+    - name
+  optional:
+    - description
+    - enabled
+    - max_bandwidth
+    - burst_limit
+    - priority
+    - queues
+
+property_schemas:
+  name:
+    type: string
+    description: QoS profile name
+  enabled:
+    type: boolean
+    default: true
+  max_bandwidth:
+    type: string
+    pattern: "^[0-9]+[KMG]$"
+    description: Maximum bandwidth (e.g., 100M, 1G)
+  burst_limit:
+    type: string
+    pattern: "^[0-9]+[KMG]$"
+    description: Burst limit for traffic shaping
+  priority:
+    type: integer
+    minimum: 1
+    maximum: 8
+    default: 4
+    description: Traffic priority (1=highest, 8=lowest)
+  queues:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        target:
+          type: string
+        max_limit:
+          type: string
+        burst_limit:
+          type: string
+        priority:
+          type: integer
+
+required_capabilities: []
+
+optional_capabilities:
+  - cap.qos.htb
+  - cap.qos.sfq
+  - cap.qos.fq_codel
+
+enabled_capabilities: []

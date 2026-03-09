@@ -1,0 +1,19 @@
+id: obj.network.trust_zone.management
+version: 1.0.0
+class_ref: class.network.trust_zone
+description: Management zone for infrastructure access
+
+properties:
+  name: Management Zone
+  security_level: 3
+  color: "#0066cc"
+  description: Infrastructure management (Proxmox UI, MikroTik UI)
+  isolated: false
+  reserved: false
+  allowed_inbound:
+    - from:admin-ips
+  allowed_outbound:
+    - any
+
+enabled_capabilities:
+  - cap.zone.management

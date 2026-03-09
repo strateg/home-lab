@@ -1,0 +1,59 @@
+id: network-capability-catalog
+version: 1.0.0
+description: L2 Network capability definitions
+
+capabilities:
+  # VLAN capabilities
+  - id: cap.vlan.tagged
+    description: VLAN supports 802.1Q tagging
+    layer: L2
+  - id: cap.vlan.untagged
+    description: VLAN operates without tagging (native)
+    layer: L2
+  - id: cap.vlan.pvid
+    description: VLAN is the port default (PVID)
+    layer: L2
+
+  # Bridge capabilities
+  - id: cap.bridge.vlan_aware
+    description: Bridge supports VLAN awareness
+    layer: L2
+  - id: cap.bridge.vlan_filtering
+    description: Bridge performs VLAN filtering
+    layer: L2
+  - id: cap.bridge.stp
+    description: Bridge supports Spanning Tree Protocol
+    layer: L2
+
+  # Trust zone capabilities
+  - id: cap.zone.isolated
+    description: Zone is isolated from other zones
+    layer: L2
+  - id: cap.zone.management
+    description: Zone is for management traffic
+    layer: L2
+  - id: cap.zone.dmz
+    description: Zone is a demilitarized zone
+    layer: L2
+
+  # Firewall capabilities
+  - id: cap.firewall.stateful
+    description: Firewall maintains connection state
+    layer: L2
+  - id: cap.firewall.connection_tracking
+    description: Firewall tracks connections
+    layer: L2
+  - id: cap.firewall.logging
+    description: Firewall supports rule logging
+    layer: L2
+
+  # QoS capabilities
+  - id: cap.qos.htb
+    description: Hierarchical Token Bucket queuing
+    layer: L2
+  - id: cap.qos.sfq
+    description: Stochastic Fair Queuing
+    layer: L2
+  - id: cap.qos.fq_codel
+    description: Fair Queuing with CoDel
+    layer: L2

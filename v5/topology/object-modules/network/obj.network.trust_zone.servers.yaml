@@ -1,0 +1,19 @@
+id: obj.network.trust_zone.servers
+version: 1.0.0
+class_ref: class.network.trust_zone
+description: Server zone for infrastructure services
+
+properties:
+  name: Servers Zone
+  security_level: 2
+  color: "#00cc00"
+  description: Server network for Proxmox LXC and edge devices
+  isolated: false
+  reserved: false
+  allowed_inbound:
+    - from:user:ports:53,123
+    - from:management
+  allowed_outbound:
+    - to:untrusted
+
+enabled_capabilities: []

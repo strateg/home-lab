@@ -57,19 +57,17 @@ class_layers:
   # L2 - Network (bridges, VLANs, firewall)
   class.network.bridge:
     allowed_layers: [L2]
-    status: planned
   class.network.vlan:
     allowed_layers: [L2]
-    status: planned
+  class.network.trust_zone:
+    allowed_layers: [L2]
   class.network.firewall_rule:
     allowed_layers: [L2]
     status: planned
   class.network.firewall_policy:
     allowed_layers: [L2]
-    status: planned
   class.network.qos:
     allowed_layers: [L2]
-    status: planned
 
   # L3 - Storage (pools, volumes, media)
   class.storage.pool:

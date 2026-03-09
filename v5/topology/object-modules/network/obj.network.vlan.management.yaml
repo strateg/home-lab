@@ -1,0 +1,16 @@
+id: obj.network.vlan.management
+version: 1.0.0
+class_ref: class.network.vlan
+description: Management VLAN for infrastructure access
+
+properties:
+  vlan_id: 99
+  cidr: 10.0.99.0/24
+  gateway: 10.0.99.1
+  mtu: 1500
+  dhcp_enabled: false
+  dns_servers:
+    - 192.168.88.1
+
+enabled_capabilities:
+  - cap.vlan.tagged

@@ -1,0 +1,51 @@
+id: class.network.bridge
+version: 1.0.0
+description: Virtual network bridge connecting multiple VLANs and interfaces
+layer: L2
+
+properties:
+  required:
+    - name
+  optional:
+    - description
+    - vlan_aware
+    - stp_enabled
+    - mtu
+    - mac_address
+    - host_ref
+
+property_schemas:
+  name:
+    type: string
+    pattern: "^[a-z][a-z0-9-]*$"
+    description: Bridge interface name (e.g., vmbr0, br-lan)
+  vlan_aware:
+    type: boolean
+    default: true
+    description: Bridge supports VLAN tagging
+  stp_enabled:
+    type: boolean
+    default: false
+    description: Spanning Tree Protocol enabled
+  mtu:
+    type: integer
+    default: 1500
+    minimum: 576
+    maximum: 9000
+  mac_address:
+    type: string
+    format: mac
+    description: Bridge MAC address (auto-assigned if not specified)
+  host_ref:
+    type: string
+    format: instance_ref
+    description: Device hosting this bridge
+
+required_capabilities: []
+
+optional_capabilities:
+  - cap.bridge.vlan_aware
+  - cap.bridge.vlan_filtering
+  - cap.bridge.stp
+
+enabled_capabilities: []

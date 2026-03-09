@@ -1,0 +1,18 @@
+id: obj.network.bridge.vmbr0
+version: 1.0.0
+class_ref: class.network.bridge
+description: Main Proxmox hypervisor bridge
+
+properties:
+  name: vmbr0
+  description: Primary VLAN-aware bridge on Proxmox
+  vlan_aware: true
+  stp_enabled: false
+  mtu: 1500
+
+enabled_capabilities:
+  - cap.bridge.vlan_aware
+  - cap.bridge.vlan_filtering
+
+vendor_capabilities:
+  - vendor.proxmox.bridge.linux

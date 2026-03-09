@@ -1,0 +1,60 @@
+id: class.network.firewall_policy
+version: 1.0.0
+description: Firewall policy containing ordered rules
+layer: L2
+
+properties:
+  required:
+    - name
+    - default_action
+  optional:
+    - description
+    - enabled
+    - priority
+    - rules
+
+property_schemas:
+  name:
+    type: string
+    description: Policy name
+  default_action:
+    type: string
+    enum: [accept, drop, reject]
+    description: Default action when no rule matches
+  enabled:
+    type: boolean
+    default: true
+  priority:
+    type: integer
+    default: 100
+    description: Policy evaluation priority (lower = first)
+  rules:
+    type: array
+    items:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [accept, drop, reject, log]
+        src_zone_ref:
+          type: string
+        dst_zone_ref:
+          type: string
+        protocol:
+          type: string
+          enum: [tcp, udp, icmp, any]
+        dst_ports:
+          type: array
+          items:
+            type: integer
+        comment:
+          type: string
+
+required_capabilities: []
+
+optional_capabilities:
+  - cap.firewall.stateful
+  - cap.firewall.connection_tracking
+  - cap.firewall.logging
+
+enabled_capabilities: []

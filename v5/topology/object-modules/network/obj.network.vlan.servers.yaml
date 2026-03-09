@@ -1,0 +1,16 @@
+id: obj.network.vlan.servers
+version: 1.0.0
+class_ref: class.network.vlan
+description: Server VLAN for Proxmox LXC and edge devices
+
+properties:
+  vlan_id: 30
+  cidr: 10.0.30.0/24
+  gateway: 10.0.30.1
+  mtu: 1500
+  dhcp_enabled: false
+  dns_servers:
+    - 192.168.88.1
+
+enabled_capabilities:
+  - cap.vlan.tagged

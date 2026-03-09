@@ -1,0 +1,68 @@
+id: class.network.vlan
+version: 1.0.0
+description: Network segment with VLAN tagging and IP addressing
+layer: L2
+
+properties:
+  required:
+    - vlan_id
+    - cidr
+    - gateway
+  optional:
+    - name
+    - description
+    - mtu
+    - dhcp_enabled
+    - dns_servers
+    - trust_zone_ref
+    - bridge_ref
+    - managed_by_ref
+
+property_schemas:
+  vlan_id:
+    type: integer
+    minimum: 1
+    maximum: 4094
+    description: IEEE 802.1Q VLAN identifier
+  cidr:
+    type: string
+    format: cidr
+    description: Network CIDR notation (e.g., 10.0.30.0/24)
+  gateway:
+    type: string
+    format: ipv4
+    description: Default gateway IP address
+  mtu:
+    type: integer
+    default: 1500
+    minimum: 576
+    maximum: 9000
+  dhcp_enabled:
+    type: boolean
+    default: false
+  dns_servers:
+    type: array
+    items:
+      type: string
+      format: ipv4
+  trust_zone_ref:
+    type: string
+    format: instance_ref
+    target_class: class.network.trust_zone
+  bridge_ref:
+    type: string
+    format: instance_ref
+    target_class: class.network.bridge
+  managed_by_ref:
+    type: string
+    format: instance_ref
+    target_class: class.router
+
+required_capabilities: []
+
+optional_capabilities:
+  - cap.vlan.tagged
+  - cap.vlan.untagged
+  - cap.vlan.pvid
+
+enabled_capabilities: []

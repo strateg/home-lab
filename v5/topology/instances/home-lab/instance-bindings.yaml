@@ -208,6 +208,50 @@ instance_bindings:
     object_ref: obj.os.linux.generic.arm64
     status: mapped
     notes: ADR0064 os instance
+  l2_network:
+  - id: inst.bridge.vmbr0
+    source_id: bridge-vmbr0
+    layer: L2
+    class_ref: class.network.bridge
+    object_ref: obj.network.bridge.vmbr0
+    status: mapped
+    notes: Primary Proxmox VLAN-aware bridge
+    host_ref: srv-gamayun
+  - id: inst.trust_zone.servers
+    source_id: trust-zone-servers
+    layer: L2
+    class_ref: class.network.trust_zone
+    object_ref: obj.network.trust_zone.servers
+    status: mapped
+    notes: Server zone for infrastructure services
+  - id: inst.trust_zone.management
+    source_id: trust-zone-management
+    layer: L2
+    class_ref: class.network.trust_zone
+    object_ref: obj.network.trust_zone.management
+    status: mapped
+    notes: Management zone for infrastructure access
+  - id: inst.vlan.servers
+    source_id: net-servers
+    layer: L2
+    class_ref: class.network.vlan
+    object_ref: obj.network.vlan.servers
+    status: mapped
+    notes: Server VLAN (VLAN 30)
+    bridge_ref: inst.bridge.vmbr0
+    trust_zone_ref: inst.trust_zone.servers
+    managed_by_ref: mikrotik-chateau
+  - id: inst.vlan.management
+    source_id: net-management
+    layer: L2
+    class_ref: class.network.vlan
+    object_ref: obj.network.vlan.management
+    status: mapped
+    notes: Management VLAN (VLAN 99)
+    bridge_ref: inst.bridge.vmbr0
+    trust_zone_ref: inst.trust_zone.management
+    managed_by_ref: mikrotik-chateau
+  l3_storage: []
   l4_vms: []
   l4_lxc:
   - id: lxc-docker
