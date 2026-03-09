@@ -154,22 +154,25 @@ instance_bindings:
     layer: L1
     class_ref: class.os
     object_ref: obj.os.routeros.7.arm64
+    embedded_in: inst.firmware.routeros.7.arm64
     status: mapped
-    notes: ADR0064 os instance
+    notes: ADR0064 embedded os instance
   - id: inst.os.routeros.7.x86_64
     source_id: inst.os.routeros.7.x86_64
     layer: L1
     class_ref: class.os
     object_ref: obj.os.routeros.7.x86_64
+    embedded_in: inst.firmware.routeros.7.x86_64
     status: mapped
-    notes: ADR0064 os instance
+    notes: ADR0064 embedded os instance
   - id: inst.os.openwrt.glinet.4x
     source_id: inst.os.openwrt.glinet.4x
     layer: L1
     class_ref: class.os
     object_ref: obj.os.openwrt.glinet.4x
+    embedded_in: inst.firmware.openwrt.glinet.4x
     status: mapped
-    notes: ADR0064 os instance
+    notes: ADR0064 embedded os instance
   - id: inst.os.proxmox.ve.9
     source_id: inst.os.proxmox.ve.9
     layer: L1

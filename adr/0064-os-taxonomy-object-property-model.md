@@ -1045,7 +1045,7 @@ Explicit value in object overrides inference.
 - [x] Migrate all L1 devices with firmware_ref/os_refs
 - [x] Migrate all L4 LXC containers with os_refs
 - [ ] Implement validation rules (including version compatibility)
-- [ ] Add `embedded_in` field for embedded OS instances
+- [x] Add `embedded_in` field for embedded OS instances
 
 ### Phase 4: Deprecation
 - [ ] Warn on old model usage
