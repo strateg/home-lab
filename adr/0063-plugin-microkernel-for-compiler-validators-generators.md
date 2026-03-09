@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-06
 **Status:** Proposed
-**Related:** ADR 0062 (Topology v5 - Modular Class-Object-Instance Architecture)
+**Related:** ADR 0062 (Topology v5 - Modular Class-Object-Instance Architecture), ADR 0065 (Plugin API Contract), ADR 0066 (Plugin Testing and CI Strategy)
 **Extends:** ADR 0062 section "Open Questions" (generator/plugin packaging and loading model)
 
 ---
@@ -35,8 +35,42 @@ Introduce a microkernel responsible only for:
 - dependency/order resolution between plugins
 - executing pipeline stages
 - aggregating diagnostics in canonical schema
+- wrapping plugin exceptions into error codes with source context
+- enforcing timeout limits per plugin (default: 30s)
 
 Microkernel must not contain vendor-specific logic.
+
+#### Error Handling and Recovery Strategy
+
+The microkernel applies this error handling policy:
+
+**Timeout (>30s per plugin):**
+- Hard kill plugin process/thread
+- Return TIMEOUT status
+- Emit critical diagnostic
+- Continue if stage is non-critical (validate), fail-fast if critical (compile)
+
+**Config Validation Error:**
+- Catch before stage execution
+- Return FAILED status
+- Hard error (fail-fast all stages)
+
+**Plugin Exception during execute():**
+- Catch exception and traceback
+- Include traceback in PluginResult.error_traceback
+- Return FAILED status
+- Emit error diagnostic with standardized code
+- Continue if stage is non-critical, fail-fast if critical
+
+**Missing Dependency:**
+- Detect in dependency resolution phase (pre-stage)
+- Fail-fast before stage execution
+- Emit critical diagnostic
+
+**Capability Mismatch:**
+- Detect in pre-flight checks before plugin execution
+- Fail-fast
+- Hard error before stage execution
 
 ### 2. Make Plugins the Primary Extension Mechanism
 
@@ -68,14 +102,16 @@ Base plugins are referenced the same way as module plugins and participate in th
 
 Each module manifest must declare plugins with explicit metadata:
 
-- `id` (globally unique)
+- `id` (globally unique, format: `{module_id}.{plugin_kind}.{specific_name}`)
 - `kind` (`compiler|validator_yaml|validator_json|generator`)
 - `entry` (`path.py:ClassName` or builtin alias)
-- `api_version` (plugin API compatibility)
-- `stages` (where it runs)
-- `order` (deterministic execution)
-- `depends_on` (plugin IDs)
-- optional `capabilities` and `config_schema`
+- `api_version` (plugin API compatibility, format: `major.x` e.g., `1.x`)
+- `stages` (where it runs: `validate|compile|generate`, multiple allowed)
+- `order` (deterministic execution within stage, higher number = later)
+- `depends_on` (list of plugin IDs that must execute before this one)
+- `config` (static configuration defaults as YAML)
+- `config_schema` (JSON Schema for config validation)
+- optional `capabilities` and `requires_capabilities`
 
 Example (abridged):
 
@@ -83,12 +119,54 @@ Example (abridged):
 plugins:
   - id: obj.mikrotik.validator.yaml.device
     kind: validator_yaml
-    entry: validators/yaml/device.py:MikrotikDeviceYamlValidator
+    entry: plugins/yaml_validators/device.py:MikrotikDeviceYamlValidator
     api_version: "1.x"
     stages: [validate]
     order: 200
     depends_on: []
+    config:
+      max_device_count: 1000
+      enable_strict: false
+    config_schema:
+      type: object
+      properties:
+        max_device_count:
+          type: integer
+          minimum: 1
+          default: 1000
+        enable_strict:
+          type: boolean
+          default: false
+      required: []
 ```
+
+#### Plugin Kinds Specification
+
+**compiler** - Transform and resolve Object Model
+- Input: `dict` (parsed YAML Object Model)
+- Output: `dict` (transformed Object Model in output_data)
+- Runs in: `compile` stage
+- Contract: Must not mutate input, return valid Object Model structure
+
+**validator_yaml** - Check source YAML syntax and semantics
+- Input: `dict` (parsed YAML), `str` (source file path)
+- Output: `List[PluginDiagnostic]` (validation issues)
+- Runs in: `validate` stage
+- Contract: Must provide source location (line/column) when available
+
+**validator_json** - Validate compiled Object Model consistency
+- Input: `dict` (compiled JSON), `str` (compiled file path)
+- Output: `List[PluginDiagnostic]` (consistency issues)
+- Runs in: `validate` stage
+- Contract: May reference outputs from compiler plugins via context
+
+**generator** - Emit artifacts (code, configs, docs)
+- Input: `dict` (compiled JSON), `Path` (output directory)
+- Output: File listing and metadata in output_data
+- Runs in: `generate` stage
+- Contract: Must create output_dir if not exists, support incremental generation
+
+Detailed interface specifications are provided in ADR 0065 (Plugin API Contract Specification).
 
 ### 6. Enforce Deterministic Execution
 
@@ -110,15 +188,57 @@ All plugin outcomes (success/warn/error/crash) must be emitted through canonical
 
 Kernel wraps plugin exceptions into stable error codes with source context when available.
 
+Each plugin emits `PluginResult` with standardized structure (see ADR 0064):
+
+```python
+@dataclass
+class PluginResult:
+    plugin_id: str
+    api_version: str
+    status: PluginStatus  # SUCCESS|PARTIAL|FAILED|TIMEOUT|SKIPPED
+    duration_ms: float
+    diagnostics: List[PluginDiagnostic]
+    output_data: Optional[Dict[str, Any]]  # transformed model or generated files
+    error_traceback: Optional[str]  # full exception traceback if crashed
+```
+
+Kernel aggregates all PluginResult objects into final diagnostics report with:
+- Plugin attribution (which plugin emitted this?)
+- Severity levels (ERROR > WARNING > INFO)
+- Source locations (file, line, column when available)
+- Error codes mapped to error-catalog.yaml descriptions
+
 ### 8. Version and Compatibility Rules
 
 Plugin load is allowed only when all are compatible:
 
-- kernel plugin API version
+- kernel plugin API version (e.g., plugin requires `1.x`, kernel supports `1.2`)
 - model version from `model.lock`
 - profile execution mode (`production|modeled|test-real`) when plugin declares restrictions
 
 Incompatibility is fail-fast before stage execution.
+
+**Compatibility Matrix:**
+
+A plugin with `api_version: "1.x"` is compatible with kernel supporting:
+- `1.0`, `1.1`, `1.2`, ..., `1.n` (minor version bumps)
+- NOT compatible with `2.x` or `0.x`
+
+Breaking changes require kernel major version bump. Kernel publishes compatibility matrix:
+
+```yaml
+kernel:
+  version: "0.5.0"
+  plugin_api_version: "1.2"
+  supported_api_versions:
+    - "1.x"  # plugins targeting 1.0 through 1.x work
+  model_versions:
+    - "0062-1.0"  # compatible model versions
+  execution_profiles:
+    - production
+    - modeled
+    - test-real
+```
 
 ---
 
@@ -155,30 +275,81 @@ Incompatibility is fail-fast before stage execution.
 
 ## Migration Plan
 
-### Phase 1
+### Phase 1 (Week 1)
 
-- add plugin manifest schema
-- add kernel plugin loader/registry
-- wrap existing generators as `generator` plugins without behavior changes
+- Define plugin API protocol with base classes
+- Implement kernel plugin loader/registry
+- Add manifest plugin schema with validation
+- Create PluginContext and PluginResult classes
+- Document in ADR 0065 (Plugin API Contract Specification)
 
-### Phase 2
+### Phase 2 (Week 2-3)
 
-- migrate existing YAML semantic checks into `validator_yaml` plugins
-- migrate compiled checks into `validator_json` plugins
-- keep parity with current diagnostics and outputs
+- Wrap existing generators as `generator` plugins without behavior changes
+- Migrate existing YAML semantic checks into `validator_yaml` plugins
+- Migrate compiled checks into `validator_json` plugins
+- Keep parity with current diagnostics and outputs
+- Add compatibility tests (plugin results match old validator output)
 
-### Phase 3
+### Phase 3 (Week 4-5)
 
-- extract compiler transforms into `compiler` plugins
-- remove residual hardcoded dispatch from orchestration
-- enforce plugin-only extension policy for new modules
+- Extract compiler transforms into `compiler` plugins
+- Implement context.subscribe() for inter-plugin communication
+- Remove residual hardcoded dispatch from orchestration
+- Enforce plugin-only extension policy for new modules
+
+### Phase 4 (Post-stabilization, 1-2 releases later)
+
+- Keep legacy dispatcher as fallback for 1-2 releases
+- Monitor error rates in production
+- Gather metrics on plugin execution times
+- Only after stabilization (zero fallback usage): full removal of legacy code
+
+---
+
+## Testing Requirements
+
+Every plugin must include:
+
+1. **Unit Tests** - Logic tested in isolation
+   - Valid input cases
+   - Error/edge cases
+   - Configuration validation
+   - Location context accuracy (for validators)
+
+2. **Contract Tests** - Plugin vs Kernel compatibility
+   - Plugin can be loaded from manifest
+   - Config is injected correctly
+   - Output format matches PluginResult contract
+   - Timeout is enforced
+
+3. **Integration Tests** - Full pipeline
+   - Plugin runs in correct stage
+   - Dependencies are honored (depends_on)
+   - Diagnostics appear in aggregated report
+   - Plugin results integrated with other plugins
+
+4. **Regression Tests** - Parity with legacy
+   - Output matches old validator (during migration)
+   - No new false positives/negatives
+   - No performance regression >10%
+
+CI must:
+- Run all plugin tests before merge
+- Collect plugin execution metrics
+- Alert if any plugin exceeds timeout threshold
+- Validate manifest completeness
 
 ---
 
 ## References
 
-- Consolidated architecture: `adr/0062-modular-topology-architecture-consolidation.md`
-- Compiler entrypoint: `topology-tools/compile-topology.py`
-- Diagnostics schema: `topology-tools/schemas/diagnostics.schema.json`
-- Error catalog: `topology-tools/data/error-catalog.yaml`
-- Capability checker baseline: `topology-tools/check-capability-contract.py`
+- ADR 0062: `adr/0062-modular-topology-architecture-consolidation.md`
+- ADR 0065: `adr/0065-plugin-api-contract-specification.md` (detailed API contracts)
+- ADR 0066: `adr/0066-plugin-testing-and-ci-strategy.md` (test pyramid and CI gates)
+- Plugin Authoring Guide: `docs/PLUGIN_AUTHORING_GUIDE.md`
+- Compiler entrypoint: `v5/topology-tools/compile-topology.py`
+- Diagnostics schema baseline: `v4/topology-tools/schemas/diagnostics.schema.json` (v5 copy to be introduced)
+- Error catalog: `v5/topology-tools/data/error-catalog.yaml`
+- Capability checker baseline: `v5/topology-tools/check-capability-contract.py`
+- Plugin API base classes target: `v5/topology_tools/plugin_api/` (to be created)
