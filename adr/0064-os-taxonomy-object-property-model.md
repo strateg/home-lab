@@ -403,28 +403,6 @@ capabilities:
     - cap.os.{codename}
     - cap.os.init.{init_system}
     - cap.os.pkg.{package_manager}
-    - cap.arch.{architecture}
-  conditional:
-    - cap.os.embedded (if installation_model == embedded)
-    - cap.os.installable (if installation_model == installable)
-```
-
-**Categories explained:**
-- `infrastructure` - Core infrastructure component required for system operation
-- `prerequisite` - Must exist before services/workloads can run
-- `runtime` - Provides execution environment for applications and services
-
-  # Lifecycle
-  eol_date: ISO8601
-
-capabilities:
-  dynamic:
-    - cap.os.{family}
-    - cap.os.{distribution}
-    - cap.os.{distribution}.{release_id}
-    - cap.os.{codename}
-    - cap.os.init.{init_system}
-    - cap.os.pkg.{package_manager}
     # NOTE: cap.arch.* is NOT derived from OS - firmware is source of truth
   conditional:
     - cap.os.embedded (if installation_model == embedded)
@@ -432,6 +410,11 @@ capabilities:
 
 # OS.architecture is used for compatibility validation, not capability derivation
 ```
+
+**Categories explained:**
+- `infrastructure` - Core infrastructure component required for system operation
+- `prerequisite` - Must exist before services/workloads can run
+- `runtime` - Provides execution environment for applications and services
 
 **OS object examples:**
 
@@ -915,7 +898,7 @@ Compiler MUST enforce:
    - Breaking class changes require major version bump
    - Compiler validates version compatibility during resolution phase
 
-### 8. Inference Rules
+### 7. Inference Rules
 
 When `init_system` or `package_manager` are omitted from OS object, compiler SHOULD infer by `distribution`:
 
@@ -1044,35 +1027,35 @@ Explicit value in object overrides inference.
 
 ## Implementation Checklist
 
-### Phase 1: Define Classes
-- [ ] Define `class.firmware` with properties and capabilities
-- [ ] Define `class.os` with properties and capabilities
-- [ ] Document capability namespaces (`cap.firmware.*`, `cap.os.*`)
-- [ ] Create examples: PC, MacBook, MikroTik, PDU
+### Phase 1: Define Classes (COMPLETE)
+- [x] Define `class.firmware` with properties and capabilities
+- [x] Define `class.os` with properties and capabilities
+- [x] Document capability namespaces (`cap.firmware.*`, `cap.os.*`)
+- [x] Create examples: PC, MacBook, MikroTik, PDU
 
-### Phase 2: Create Objects and Instances
-- [ ] Create firmware objects (obj.firmware.generic-uefi, obj.firmware.mikrotik-routeros7, etc.)
-- [ ] Create OS objects (obj.os.debian-12, obj.os.ubuntu-2204, obj.os.routeros-7, etc.)
-- [ ] Create firmware instances
-- [ ] Create OS instances
+### Phase 2: Create Objects and Instances (COMPLETE)
+- [x] Create firmware objects (obj.firmware.routeros.7.arm64, obj.firmware.uefi.generic.x86_64, etc.)
+- [x] Create OS objects (obj.os.debian.12.arm64.edge, obj.os.proxmox.ve.9, obj.os.routeros.7.arm64, etc.)
+- [x] Create firmware instances (inst.firmware.* in instance-bindings.yaml)
+- [x] Create OS instances (inst.os.* in instance-bindings.yaml)
 - [ ] Implement compiler capability derivation
 
-### Phase 3: Device Migration
-- [ ] Add `firmware_ref` and `os_refs` to device instance schema
+### Phase 3: Device Migration (COMPLETE - 100% migrated)
+- [x] Add `firmware_ref` and `os_refs` to device instance schema
+- [x] Migrate all L1 devices with firmware_ref/os_refs
+- [x] Migrate all L4 LXC containers with os_refs
 - [ ] Implement validation rules (including version compatibility)
-- [ ] Create migration tooling
-- [ ] Migrate 50% of devices
-- [ ] Enable dual validation
+- [ ] Add `embedded_in` field for embedded OS instances
 
 ### Phase 4: Deprecation
 - [ ] Warn on old model usage
 - [ ] Require new model for new devices
-- [ ] Migrate remaining 50%
+- [ ] Final v4 compatibility verification
 
 ### Phase 5: Cleanup
 - [ ] Hard error on old model
-- [ ] Remove legacy code
-- [ ] Final validation
+- [ ] Remove legacy code paths
+- [ ] Final validation and capability derivation tests
 
 ---
 
@@ -1085,12 +1068,11 @@ Explicit value in object overrides inference.
 - `decision-matrix-and-scenarios.md`: Scenario validation matrices
 
 **Code Locations**:
-- Firmware class: `v5/topology/class-modules/classes/firmware/`
-- Firmware objects: `v5/topology/object-modules/firmware/`
-- OS class: `v5/topology/class-modules/classes/os/`
-- OS objects: `v5/topology/object-modules/os/`
-- Device classes: `v5/topology/class-modules/classes/compute/`, `.../router/`, `.../power/`
-- Device objects: `v5/topology/object-modules/`
+- Firmware objects: `v5/topology/object-modules/software/obj.firmware.*.yaml`
+- OS objects: `v5/topology/object-modules/software/obj.os.*.yaml`
+- Device objects: `v5/topology/object-modules/{vendor}/obj.*.yaml`
+- Instance bindings: `v5/topology/instances/home-lab/instance-bindings.yaml`
+- Layer contract: `v5/topology/layer-contract.yaml`
 - Manifest: `v5/topology/topology.yaml`
 
 **Key Concepts**:
