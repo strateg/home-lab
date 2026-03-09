@@ -1154,9 +1154,70 @@ capabilities:
     domain: l2_network
     stability: stable
 
+  # ============================================================================
+  # L3 STORAGE (pool, volume, data asset)
+  # ============================================================================
+
+  # Storage pool capabilities
+  - id: cap.storage.pool.local
+    title: Local Storage Pool
+    summary: Pool is local to single node.
+    domain: l3_storage
+    stability: stable
+
+  - id: cap.storage.pool.shared
+    title: Shared Storage Pool
+    summary: Pool is shared across nodes.
+    domain: l3_storage
+    stability: stable
+
+  - id: cap.storage.pool.zfs
+    title: ZFS Storage Pool
+    summary: Pool uses ZFS filesystem.
+    domain: l3_storage
+    stability: stable
+
+  - id: cap.storage.pool.lvm
+    title: LVM Storage Pool
+    summary: Pool uses LVM.
+    domain: l3_storage
+    stability: stable
+
+  - id: cap.storage.pool.thin
+    title: Thin Provisioned Pool
+    summary: Pool supports thin provisioning.
+    domain: l3_storage
+    stability: stable
+
+  # Volume capabilities
+  - id: cap.storage.volume.persistent
+    title: Persistent Volume
+    summary: Volume data persists across restarts.
+    domain: l3_storage
+    stability: stable
+
+  - id: cap.storage.volume.snapshot
+    title: Snapshot Volume
+    summary: Volume supports snapshots.
+    domain: l3_storage
+    stability: stable
+
+  # Data asset capabilities
+  - id: cap.storage.asset.critical
+    title: Critical Data Asset
+    summary: Asset requires priority backup and protection.
+    domain: l3_storage
+    stability: stable
+
+  - id: cap.storage.asset.encrypted
+    title: Encrypted Data Asset
+    summary: Asset data is encrypted at rest.
+    domain: l3_storage
+    stability: stable
+
 # Metadata
 metadata:
-  total_capabilities: 158
+  total_capabilities: 167
   domains:
     - routing
     - nat
@@ -1176,6 +1237,7 @@ metadata:
     - os
     - arch
     - l2_network
+    - l3_storage
 
   stability_distribution:
     stable: 139

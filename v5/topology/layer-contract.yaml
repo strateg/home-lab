@@ -72,16 +72,10 @@ class_layers:
   # L3 - Storage (pools, volumes, media)
   class.storage.pool:
     allowed_layers: [L3]
-    status: planned
   class.storage.volume:
     allowed_layers: [L3]
-    status: planned
-  class.storage.media:
-    allowed_layers: [L3]
-    status: planned
   class.storage.data_asset:
     allowed_layers: [L3]
-    status: planned
 
   # L4 - Platform (workloads)
   class.compute.workload.container:

@@ -1,0 +1,58 @@
+id: class.storage.pool
+version: 1.0.0
+description: Storage pool providing capacity for volumes and workloads
+layer: L3
+
+properties:
+  required:
+    - name
+    - type
+  optional:
+    - description
+    - path
+    - content_types
+    - shared
+    - host_ref
+    - capacity_bytes
+    - used_bytes
+
+property_schemas:
+  name:
+    type: string
+    description: Storage pool name
+  type:
+    type: string
+    enum: [dir, lvm, lvmthin, zfspool, nfs, cifs, cephfs]
+    description: Storage pool type
+  path:
+    type: string
+    description: Mount path or pool identifier
+  content_types:
+    type: array
+    items:
+      type: string
+      enum: [images, rootdir, vztmpl, iso, backup, snippets]
+    description: Allowed content types
+  shared:
+    type: boolean
+    default: false
+    description: Pool is shared across nodes
+  host_ref:
+    type: string
+    format: instance_ref
+    description: Device hosting this pool
+  capacity_bytes:
+    type: integer
+    description: Total capacity in bytes
+  used_bytes:
+    type: integer
+    description: Used capacity in bytes
+
+required_capabilities: []
+
+optional_capabilities:
+  - cap.storage.pool.local
+  - cap.storage.pool.shared
+  - cap.storage.pool.zfs
+  - cap.storage.pool.lvm
+  - cap.storage.pool.thin

@@ -1,0 +1,44 @@
+id: class.storage.volume
+version: 1.0.0
+description: Logical volume attached to workloads
+layer: L3
+
+properties:
+  required:
+    - name
+    - size_bytes
+  optional:
+    - description
+    - pool_ref
+    - format
+    - mount_point
+    - readonly
+
+property_schemas:
+  name:
+    type: string
+    description: Volume name
+  size_bytes:
+    type: integer
+    description: Volume size in bytes
+  pool_ref:
+    type: string
+    format: instance_ref
+    target_class: class.storage.pool
+  format:
+    type: string
+    enum: [raw, qcow2, vmdk, subvol]
+    default: raw
+    description: Volume format
+  mount_point:
+    type: string
+    description: Mount point inside workload
+  readonly:
+    type: boolean
+    default: false
+
+required_capabilities: []
+
+optional_capabilities:
+  - cap.storage.volume.persistent
+  - cap.storage.volume.snapshot

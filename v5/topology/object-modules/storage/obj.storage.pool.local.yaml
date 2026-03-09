@@ -1,0 +1,14 @@
+id: obj.storage.pool.local
+version: 1.0.0
+class_ref: class.storage.pool
+description: Local directory storage on Proxmox
+
+properties:
+  name: local
+  type: dir
+  path: /var/lib/vz
+  content_types: [vztmpl, iso, backup, snippets]
+  shared: false
+
+enabled_capabilities:
+  - cap.storage.pool.local

@@ -1,0 +1,44 @@
+id: class.storage.data_asset
+version: 1.0.0
+description: Named data asset representing persistent data
+layer: L3
+
+properties:
+  required:
+    - name
+    - category
+  optional:
+    - description
+    - volume_ref
+    - path
+    - backup_policy
+    - retention_days
+
+property_schemas:
+  name:
+    type: string
+    description: Asset name
+  category:
+    type: string
+    enum: [config, database, media, backup, logs, cache, user_data]
+    description: Data category
+  volume_ref:
+    type: string
+    format: instance_ref
+    target_class: class.storage.volume
+  path:
+    type: string
+    description: Path within volume
+  backup_policy:
+    type: string
+    enum: [none, daily, weekly, monthly]
+    default: none
+  retention_days:
+    type: integer
+    default: 30
+
+required_capabilities: []
+
+optional_capabilities:
+  - cap.storage.asset.critical
+  - cap.storage.asset.encrypted

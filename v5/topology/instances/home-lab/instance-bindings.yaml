@@ -251,7 +251,23 @@ instance_bindings:
     bridge_ref: inst.bridge.vmbr0
     trust_zone_ref: inst.trust_zone.management
     managed_by_ref: mikrotik-chateau
-  l3_storage: []
+  l3_storage:
+  - id: inst.storage.pool.local
+    source_id: se-local
+    layer: L3
+    class_ref: class.storage.pool
+    object_ref: obj.storage.pool.local
+    status: mapped
+    notes: Local directory storage on Proxmox
+    host_ref: srv-gamayun
+  - id: inst.storage.pool.local_lvm
+    source_id: se-lvm
+    layer: L3
+    class_ref: class.storage.pool
+    object_ref: obj.storage.pool.local_lvm
+    status: mapped
+    notes: LVM thin storage on Proxmox SSD
+    host_ref: srv-gamayun
   l4_vms: []
   l4_lxc:
   - id: lxc-docker
