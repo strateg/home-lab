@@ -1,7 +1,7 @@
 # ADR 0063: Plugin Microkernel for Compiler, Validators, and Generators
 
 **Date:** 2026-03-06
-**Status:** Proposed
+**Status:** In Progress (Phase 1 Complete)
 **Related:** ADR 0062 (Topology v5 - Modular Class-Object-Instance Architecture)
 **Extends:** ADR 0062 section "Open Questions" (generator/plugin packaging and loading model)
 
@@ -175,10 +175,40 @@ Incompatibility is fail-fast before stage execution.
 
 ---
 
+## Implementation Checklist
+
+### Phase 1 - Plugin Infrastructure (Complete)
+
+- [x] Plugin manifest schema (`v5/topology-tools/schemas/plugin-manifest.schema.json`)
+- [x] Diagnostics schema with plugin attribution (`v5/topology-tools/schemas/diagnostics.schema.json`)
+- [x] Kernel package with base interfaces (`v5/topology-tools/kernel/`)
+  - [x] `plugin_base.py` - PluginBase, PluginKind, PluginContext, PluginResult
+  - [x] `plugin_registry.py` - PluginRegistry, PluginManifest, PluginSpec
+- [x] Error catalog with plugin error codes (`v5/topology-tools/data/error-catalog.yaml`)
+- [x] Base reference validator plugin (`v5/topology-tools/plugins/validators/reference_validator.py`)
+- [x] Plugin tests (`v5/tests/test_plugin_registry.py`)
+
+### Phase 2 - Validator Migration (Pending)
+
+- [ ] Migrate YAML semantic checks to `validator_yaml` plugins
+- [ ] Migrate compiled JSON checks to `validator_json` plugins
+- [ ] Integrate plugin execution into compile-topology.py
+- [ ] Maintain parity with current diagnostics output
+
+### Phase 3 - Compiler Transforms (Pending)
+
+- [ ] Extract compiler transforms into `compiler` plugins
+- [ ] Remove hardcoded dispatch from orchestration
+- [ ] Enforce plugin-only extension policy
+
+---
+
 ## References
 
 - Consolidated architecture: `adr/0062-modular-topology-architecture-consolidation.md`
-- Compiler entrypoint: `topology-tools/compile-topology.py`
-- Diagnostics schema: `topology-tools/schemas/diagnostics.schema.json`
-- Error catalog: `topology-tools/data/error-catalog.yaml`
-- Capability checker baseline: `topology-tools/check-capability-contract.py`
+- Compiler entrypoint: `v5/topology-tools/compile-topology.py`
+- Diagnostics schema: `v5/topology-tools/schemas/diagnostics.schema.json`
+- Error catalog: `v5/topology-tools/data/error-catalog.yaml`
+- Plugin manifest schema: `v5/topology-tools/schemas/plugin-manifest.schema.json`
+- Kernel package: `v5/topology-tools/kernel/`
+- Base plugins: `v5/topology-tools/plugins/`

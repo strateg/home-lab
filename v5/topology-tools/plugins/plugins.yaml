@@ -1,0 +1,10 @@
+schema_version: 1
+plugins:
+  - id: base.validator.references
+    kind: validator_json
+    entry: validators/reference_validator.py:ReferenceValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 100
+    depends_on: []
+    description: Validates all cross-entity references in compiled topology
