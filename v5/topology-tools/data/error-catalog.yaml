@@ -151,3 +151,69 @@ codes:
     stage: emit
     title: Compile Success
     hint: No action required.
+  # Plugin system errors (ADR 0063)
+  E4001:
+    severity: error
+    stage: load
+    title: Plugin Manifest Parse Error
+    hint: Fix YAML syntax in plugin manifest file.
+  E4002:
+    severity: error
+    stage: load
+    title: Plugin Manifest Schema Error
+    hint: Ensure manifest has required fields (id, kind, entry, api_version, stages, order).
+  E4003:
+    severity: error
+    stage: load
+    title: Plugin API Version Incompatible
+    hint: Update plugin to compatible API version or upgrade kernel.
+  E4004:
+    severity: error
+    stage: load
+    title: Plugin Entry Point Not Found
+    hint: Check plugin entry path and class name exist.
+  E4005:
+    severity: error
+    stage: load
+    title: Plugin Class Invalid
+    hint: Plugin class must inherit from PluginBase.
+  E4006:
+    severity: error
+    stage: load
+    title: Plugin Kind Mismatch
+    hint: Plugin class kind() must match manifest declaration.
+  E4007:
+    severity: error
+    stage: load
+    title: Plugin Dependency Missing
+    hint: Install or register required dependency plugin.
+  E4008:
+    severity: error
+    stage: load
+    title: Plugin Circular Dependency
+    hint: Remove circular depends_on references between plugins.
+  E4009:
+    severity: error
+    stage: load
+    title: Duplicate Plugin ID
+    hint: Plugin IDs must be globally unique across all manifests.
+  E4101:
+    severity: error
+    stage: validate
+    title: Plugin Execution Failed
+    hint: Check plugin error output and fix reported issue.
+  E4102:
+    severity: error
+    stage: validate
+    title: Plugin Crashed
+    hint: Plugin raised unhandled exception; check traceback.
+  W4001:
+    severity: warning
+    stage: load
+    title: No Plugins Loaded
+    hint: No plugin manifests found; using core-only validation.
+  I4001:
+    severity: info
+    stage: load
+    title: Plugins Loaded
+    hint: No action required.

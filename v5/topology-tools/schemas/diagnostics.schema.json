@@ -1,0 +1,318 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://home-lab.local/schemas/v5/diagnostics.schema.json",
+  "title": "Topology v5 Compiler Diagnostics Report",
+  "description": "Canonical diagnostics envelope for v5 compiler and plugin pipeline (ADR 0063)",
+  "type": "object",
+  "required": [
+    "report_version",
+    "tool",
+    "generated_at",
+    "inputs",
+    "outputs",
+    "summary",
+    "diagnostics"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "report_version": {
+      "type": "string",
+      "const": "2.0.0"
+    },
+    "tool": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "inputs": {
+      "type": "object",
+      "required": [
+        "topology",
+        "error_catalog"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "topology": {
+          "type": "string"
+        },
+        "schema": {
+          "type": "string"
+        },
+        "error_catalog": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "profile_map": {
+          "type": "string"
+        },
+        "model_lock": {
+          "type": "string"
+        },
+        "plugin_manifests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of plugin manifest files loaded"
+        }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "required": [
+        "effective_json",
+        "diagnostics_json",
+        "diagnostics_txt"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "effective_json": {
+          "type": "string"
+        },
+        "diagnostics_json": {
+          "type": "string"
+        },
+        "diagnostics_txt": {
+          "type": "string"
+        }
+      }
+    },
+    "plugins": {
+      "type": "object",
+      "description": "Plugin execution summary",
+      "properties": {
+        "loaded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "executed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "by_kind": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "execution_order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Plugin IDs in execution order"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "total",
+        "errors",
+        "warnings",
+        "infos",
+        "by_stage"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "errors": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warnings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "infos": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "by_stage": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "by_plugin": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Diagnostic count by plugin ID"
+        }
+      }
+    },
+    "next_actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "file",
+          "errors",
+          "warnings",
+          "primary_codes"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "warnings": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "primary_codes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[EWI][0-9]{4}$"
+            }
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "severity",
+          "stage",
+          "message",
+          "path",
+          "confidence"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[EWI][0-9]{4}$"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning",
+              "info"
+            ]
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "load",
+              "normalize",
+              "resolve",
+              "validate",
+              "emit"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "plugin_id": {
+            "type": "string",
+            "description": "ID of plugin that emitted this diagnostic"
+          },
+          "source": {
+            "type": "object",
+            "required": [
+              "file"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "file": {
+                "type": "string"
+              },
+              "line": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "column": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          },
+          "related": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "file",
+                "note"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "file": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "hint": {
+            "type": "string"
+          },
+          "autofix": {
+            "type": "object",
+            "required": [
+              "possible"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "possible": {
+                "type": "boolean"
+              },
+              "edit_type": {
+                "type": "string"
+              },
+              "candidate_values": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "root_cause_rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          }
+        }
+      }
+    }
+  }
+}
