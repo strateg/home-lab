@@ -1,7 +1,7 @@
 # ADR 0064: Software Stack Taxonomy - Firmware and OS as Separate Entities
 
 **Date:** 2026-03-08
-**Status:** Approved - Two-Entity Model (Firmware + OS)
+**Status:** Implemented - Two-Entity Model (Firmware + OS)
 **Extends:** ADR 0062 (Topology v5 - Modular Class-Object-Instance Architecture)
 **Replaces:** Previous property-based OS model
 **Analysis:** See `adr/0064-analysis/` for detailed decision rationale
@@ -1047,15 +1047,15 @@ Explicit value in object overrides inference.
 - [x] Implement validation rules (firmware_ref, os_refs, architecture, embedded_in)
 - [x] Add `embedded_in` field for embedded OS instances
 
-### Phase 4: Deprecation
-- [ ] Warn on old model usage
-- [ ] Require new model for new devices
-- [ ] Final v4 compatibility verification
+### Phase 4: Deprecation (COMPLETE)
+- [x] Warn on old model usage (W3201 for legacy software.os fields)
+- [x] Require new model for new devices (--require-new-model flag)
+- [x] Final v4 compatibility verification (all validators pass)
 
-### Phase 5: Cleanup
-- [ ] Hard error on old model
-- [ ] Remove legacy code paths
-- [ ] Final validation and capability derivation tests
+### Phase 5: Cleanup (COMPLETE)
+- [x] Hard error on old model (E3202 with --require-new-model)
+- [x] Remove legacy code paths (all objects migrated, no legacy fields)
+- [x] Final validation and capability derivation tests (test_adr0064_capability_derivation.py)
 
 ---
 

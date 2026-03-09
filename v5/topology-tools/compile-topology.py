@@ -69,6 +69,7 @@ class V5Compiler:
         error_catalog_path: Path,
         strict_model_lock: bool,
         fail_on_warning: bool,
+        require_new_model: bool,
     ) -> None:
         self.manifest_path = manifest_path
         self.output_json = output_json
@@ -77,6 +78,7 @@ class V5Compiler:
         self.error_catalog_path = error_catalog_path
         self.strict_model_lock = strict_model_lock
         self.fail_on_warning = fail_on_warning
+        self.require_new_model = require_new_model
 
         self._diagnostics: list[Diagnostic] = []
         self._error_hints = self._load_error_hints(error_catalog_path)
@@ -797,9 +799,11 @@ class V5Compiler:
                 prerequisites_payload.get("os_ref"), str
             )
             if has_legacy_os or has_legacy_os_ref:
+                severity = "error" if self.require_new_model else "warning"
+                code = "E3202" if self.require_new_model else "W3201"
                 self.add_diag(
-                    code="W3201",
-                    severity="warning",
+                    code=code,
+                    severity=severity,
                     stage="validate",
                     message=(
                         f"object '{object_id}' still contains legacy software binding fields "
@@ -2024,6 +2028,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Return non-zero exit code when warnings are present.",
     )
+    parser.add_argument(
+        "--require-new-model",
+        action="store_true",
+        help="Require ADR 0064 firmware_ref/os_refs model; legacy software.os fields are errors.",
+    )
     return parser
 
 
@@ -2037,6 +2046,7 @@ def main() -> int:
         error_catalog_path=resolve_repo_path(args.error_catalog),
         strict_model_lock=args.strict_model_lock,
         fail_on_warning=args.fail_on_warning,
+        require_new_model=args.require_new_model,
     )
     return compiler.run()
 
