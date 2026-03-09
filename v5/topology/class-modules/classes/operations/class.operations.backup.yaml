@@ -1,0 +1,46 @@
+id: class.operations.backup
+version: 1.0.0
+description: Backup job definition
+layer: L7
+
+properties:
+  required:
+    - name
+    - target_ref
+    - schedule
+  optional:
+    - description
+    - retention_days
+    - destination_ref
+    - compression
+    - encryption
+
+property_schemas:
+  name:
+    type: string
+  target_ref:
+    type: string
+    format: instance_ref
+    description: L1/L4/L5/L6 instance to backup
+  schedule:
+    type: string
+    description: Cron expression
+  retention_days:
+    type: integer
+    default: 30
+  destination_ref:
+    type: string
+    format: instance_ref
+    target_class: class.storage.pool
+  compression:
+    type: string
+    enum: [none, gzip, zstd, lz4]
+    default: zstd
+  encryption:
+    type: boolean
+    default: false
+
+required_capabilities: []
+optional_capabilities:
+  - cap.operations.backup.incremental
+  - cap.operations.backup.snapshot

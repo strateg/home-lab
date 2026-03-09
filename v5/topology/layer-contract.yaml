@@ -117,10 +117,8 @@ class_layers:
   # L6 - Observability (monitoring infrastructure)
   class.observability.healthcheck:
     allowed_layers: [L6]
-    status: planned
   class.observability.alert:
     allowed_layers: [L6]
-    status: planned
   class.observability.dashboard:
     allowed_layers: [L6]
     status: planned
@@ -134,7 +132,6 @@ class_layers:
     status: planned
   class.operations.backup:
     allowed_layers: [L7]
-    status: planned
   class.operations.policy:
     allowed_layers: [L7]
     status: planned

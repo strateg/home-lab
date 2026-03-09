@@ -1215,9 +1215,53 @@ capabilities:
     domain: l3_storage
     stability: stable
 
+  # ============================================================================
+  # L6 OBSERVABILITY (healthcheck, alert, dashboard)
+  # ============================================================================
+
+  - id: cap.observability.healthcheck.http
+    title: HTTP Healthcheck
+    summary: HTTP-based health check.
+    domain: l6_observability
+    stability: stable
+
+  - id: cap.observability.healthcheck.tcp
+    title: TCP Healthcheck
+    summary: TCP port health check.
+    domain: l6_observability
+    stability: stable
+
+  - id: cap.observability.alert.prometheus
+    title: Prometheus Alert
+    summary: Prometheus-compatible alert rule.
+    domain: l6_observability
+    stability: stable
+
+  - id: cap.observability.alert.routing
+    title: Alert Routing
+    summary: Supports alert routing rules.
+    domain: l6_observability
+    stability: stable
+
+  # ============================================================================
+  # L7 OPERATIONS (backup, workflow, policy)
+  # ============================================================================
+
+  - id: cap.operations.backup.incremental
+    title: Incremental Backup
+    summary: Supports incremental backups.
+    domain: l7_operations
+    stability: stable
+
+  - id: cap.operations.backup.snapshot
+    title: Snapshot Backup
+    summary: Supports snapshot-based backups.
+    domain: l7_operations
+    stability: stable
+
 # Metadata
 metadata:
-  total_capabilities: 167
+  total_capabilities: 173
   domains:
     - routing
     - nat
@@ -1238,6 +1282,8 @@ metadata:
     - arch
     - l2_network
     - l3_storage
+    - l6_observability
+    - l7_operations
 
   stability_distribution:
     stable: 139

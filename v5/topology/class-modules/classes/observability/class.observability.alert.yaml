@@ -1,0 +1,43 @@
+id: class.observability.alert
+version: 1.0.0
+description: Alert rule definition
+layer: L6
+
+properties:
+  required:
+    - name
+    - severity
+    - expression
+  optional:
+    - description
+    - for_duration
+    - labels
+    - annotations
+    - target_refs
+
+property_schemas:
+  name:
+    type: string
+  severity:
+    type: string
+    enum: [critical, warning, info]
+  expression:
+    type: string
+    description: PromQL or similar expression
+  for_duration:
+    type: string
+    default: "5m"
+  labels:
+    type: object
+  annotations:
+    type: object
+  target_refs:
+    type: array
+    items:
+      type: string
+      format: instance_ref
+
+required_capabilities: []
+optional_capabilities:
+  - cap.observability.alert.prometheus
+  - cap.observability.alert.routing
