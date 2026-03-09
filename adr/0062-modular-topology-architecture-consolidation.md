@@ -111,12 +111,12 @@ Target v5 layer scope (full coverage):
 |-------|-------|--------------|--------|
 | L0 | l0_meta | meta.* | deferred (no instances) |
 | L1 | l1_devices | compute.*, network.router, power.*, firmware, os | implemented |
-| L2 | l2_network | network.bridge, network.vlan, network.firewall | planned |
-| L3 | l3_storage | storage.pool, storage.volume, storage.media | planned |
+| L2 | l2_network | network.bridge, network.vlan, network.trust_zone, network.firewall_policy, network.qos | implemented |
+| L3 | l3_storage | storage.pool, storage.volume, storage.data_asset | implemented |
 | L4 | l4_vms, l4_lxc | compute.workload.* | implemented |
 | L5 | l5_services | service.* | implemented |
-| L6 | l6_observability | observability.healthcheck, observability.alert, observability.dashboard | planned |
-| L7 | l7_operations | operations.workflow, operations.backup, operations.policy | planned |
+| L6 | l6_observability | observability.healthcheck, observability.alert | implemented (partial) |
+| L7 | l7_operations | operations.backup | implemented (partial) |
 
 Cross-layer dependency rules (normative):
 
@@ -153,17 +153,17 @@ pack.<domain>.<profile>                  # Capability packs (reusable bundles)
 
 | Layer | Domain | Capability Prefix | Status |
 |-------|--------|-------------------|--------|
-| L1 | Compute | `cap.compute.*`, `cap.arch.*` | partial |
+| L1 | Compute | `cap.compute.*`, `cap.arch.*` | implemented |
 | L1 | Firmware | `cap.firmware.*` | implemented |
 | L1 | OS | `cap.os.*` | implemented |
 | L1 | Network | `cap.net.*` | implemented |
-| L1 | Power | `cap.power.*` | planned |
-| L2 | Bridge/VLAN/Firewall/QoS | `cap.bridge.*`, `cap.vlan.*`, `cap.firewall.*`, `cap.qos.*` | planned |
-| L3 | Storage | `cap.storage.*` | planned |
-| L4 | Workload | `cap.workload.*` | planned |
-| L5 | Service | `cap.service.*` | planned |
-| L6 | Observability | `cap.observability.*` | planned |
-| L7 | Operations | `cap.operations.*` | planned |
+| L1 | Power | `cap.power.*` | implemented |
+| L2 | Bridge/VLAN/Firewall/QoS | `cap.bridge.*`, `cap.vlan.*`, `cap.zone.*`, `cap.firewall.*`, `cap.qos.*` | implemented |
+| L3 | Storage | `cap.storage.pool.*`, `cap.storage.volume.*`, `cap.storage.asset.*` | implemented |
+| L4 | Workload | `cap.compute.workload.*` | implemented |
+| L5 | Service | `cap.service.*` | implemented |
+| L6 | Observability | `cap.observability.healthcheck.*`, `cap.observability.alert.*` | implemented |
+| L7 | Operations | `cap.operations.backup.*` | implemented |
 
 #### 4.3 Guardrails
 
