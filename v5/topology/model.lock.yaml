@@ -47,6 +47,32 @@ classes:
     version: 1.0.0
   class.os:
     version: 1.0.0
+  # L2 Network classes
+  class.network.bridge:
+    version: 1.0.0
+  class.network.vlan:
+    version: 1.0.0
+  class.network.trust_zone:
+    version: 1.0.0
+  class.network.firewall_policy:
+    version: 1.0.0
+  class.network.qos:
+    version: 1.0.0
+  # L3 Storage classes
+  class.storage.pool:
+    version: 1.0.0
+  class.storage.volume:
+    version: 1.0.0
+  class.storage.data_asset:
+    version: 1.0.0
+  # L6 Observability classes
+  class.observability.healthcheck:
+    version: 1.0.0
+  class.observability.alert:
+    version: 1.0.0
+  # L7 Operations classes
+  class.operations.backup:
+    version: 1.0.0
 objects:
   obj.apc.backups.650va:
     version: 1.0.0
@@ -198,3 +224,26 @@ objects:
   obj.os.linux.generic.arm64:
     version: 1.0.0
     class_ref: class.os
+  # L2 Network objects
+  obj.network.bridge.vmbr0:
+    version: 1.0.0
+    class_ref: class.network.bridge
+  obj.network.vlan.servers:
+    version: 1.0.0
+    class_ref: class.network.vlan
+  obj.network.vlan.management:
+    version: 1.0.0
+    class_ref: class.network.vlan
+  obj.network.trust_zone.servers:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.trust_zone.management:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  # L3 Storage objects
+  obj.storage.pool.local:
+    version: 1.0.0
+    class_ref: class.storage.pool
+  obj.storage.pool.local_lvm:
+    version: 1.0.0
+    class_ref: class.storage.pool

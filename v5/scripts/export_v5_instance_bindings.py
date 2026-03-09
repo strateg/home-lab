@@ -15,9 +15,13 @@ GROUP_LAYER_MAP = {
     "l1_devices": "L1",
     "l1_software_firmware": "L1",
     "l1_software_os": "L1",
+    "l2_network": "L2",
+    "l3_storage": "L3",
     "l4_vms": "L4",
     "l4_lxc": "L4",
     "l5_services": "L5",
+    "l6_observability": "L6",
+    "l7_operations": "L7",
 }
 
 
@@ -42,6 +46,15 @@ def _normalize_rows(rows: list[dict], *, group: str, include_runtime: bool = Fal
         os_refs = row.get("os_refs")
         if isinstance(os_refs, list):
             item["os_refs"] = [value for value in os_refs if isinstance(value, str) and value]
+        # ADR 0064: embedded_in for embedded OS instances
+        embedded_in = row.get("embedded_in")
+        if isinstance(embedded_in, str) and embedded_in:
+            item["embedded_in"] = embedded_in
+        # L2 network fields
+        for ref_field in ("host_ref", "bridge_ref", "trust_zone_ref", "managed_by_ref"):
+            ref_value = row.get(ref_field)
+            if isinstance(ref_value, str) and ref_value:
+                item[ref_field] = ref_value
         if include_runtime:
             item["runtime"] = {
                 "type": row.get("runtime_type"),
@@ -68,11 +81,15 @@ def main() -> int:
                 entities.get("l1_software_firmware", []) or [], group="l1_software_firmware"
             ),
             "l1_software_os": _normalize_rows(entities.get("l1_software_os", []) or [], group="l1_software_os"),
+            "l2_network": _normalize_rows(entities.get("l2_network", []) or [], group="l2_network"),
+            "l3_storage": _normalize_rows(entities.get("l3_storage", []) or [], group="l3_storage"),
             "l4_vms": _normalize_rows(entities.get("l4_vms", []) or [], group="l4_vms"),
             "l4_lxc": _normalize_rows(entities.get("l4_lxc", []) or [], group="l4_lxc"),
             "l5_services": _normalize_rows(
                 entities.get("l5_services", []) or [], group="l5_services", include_runtime=True
             ),
+            "l6_observability": _normalize_rows(entities.get("l6_observability", []) or [], group="l6_observability"),
+            "l7_operations": _normalize_rows(entities.get("l7_operations", []) or [], group="l7_operations"),
         },
     }
 

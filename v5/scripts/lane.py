@@ -56,7 +56,8 @@ def build_v4() -> None:
 
 
 def validate_v5() -> None:
-    run([PYTHON, "v5/scripts/export_v5_instance_bindings.py"])
+    # NOTE: export_v5_instance_bindings.py is NOT run here.
+    # instance-bindings.yaml is the canonical source; export is only for migration.
     run([PYTHON, "v5/scripts/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON])
     run([PYTHON, "v5/scripts/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
     run([PYTHON, "v5/scripts/validate_v5_scaffold.py"])
@@ -91,20 +92,35 @@ def build_v5() -> None:
 
 
 def phase1_gate() -> None:
-    run([PYTHON, "v5/scripts/export_v5_instance_bindings.py"])
+    # NOTE: export_v5_instance_bindings.py is NOT run here.
+    # instance-bindings.yaml is the canonical source; export is only for migration.
     run([PYTHON, "v5/scripts/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON])
 
 
 def validate_v5_layers() -> None:
-    run([PYTHON, "v5/scripts/export_v5_instance_bindings.py"])
+    # NOTE: export_v5_instance_bindings.py is NOT run here.
+    # instance-bindings.yaml is the canonical source; export is only for migration.
     run([PYTHON, "v5/scripts/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
+
+
+def export_v5_bindings() -> None:
+    """Export instance bindings from v4-to-v5-mapping.yaml (migration use only)."""
+    run([PYTHON, "v5/scripts/export_v5_instance_bindings.py"])
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run lane-specific migration commands.")
     parser.add_argument(
         "command",
-        choices=("validate-v4", "validate-v5", "build-v4", "build-v5", "phase1-gate", "validate-v5-layers"),
+        choices=(
+            "validate-v4",
+            "validate-v5",
+            "build-v4",
+            "build-v5",
+            "phase1-gate",
+            "validate-v5-layers",
+            "export-v5-bindings",
+        ),
         help="Lane command to run.",
     )
     return parser.parse_args()
@@ -119,6 +135,7 @@ def main() -> int:
         "build-v5": build_v5,
         "phase1-gate": phase1_gate,
         "validate-v5-layers": validate_v5_layers,
+        "export-v5-bindings": export_v5_bindings,
     }
     handlers[args.command]()
     return 0
