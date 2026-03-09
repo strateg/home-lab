@@ -1,0 +1,70 @@
+ Посоветуй разделение топологии на слои по новейшим подходам в практиках infrastructure-as-code. Хочу чтобы топология строилась по аналогу принципов OSI модели, нижние слои являются базой для верхних слоёв, идёт постепенная детализация системы
+  снизу вверх. И подключай tech-lead-architector тоде в помошники
+
+● tech-lead-architect(Design layered topology architecture)
+  ⎿  Done (11 tool uses · 76.1k tokens · 2m 58s)
+
+● Отличный архитектурный анализ от tech-lead агента. Вот ключевые выводы:
+
+  OSI-подобная архитектура топологии (v4.0)
+
+  ┌─────────────────────────────────────────────────────┐
+  │ L7: Operations    │ workflows, runbooks, docs       │ ← Самый абстрактный
+  ├─────────────────────────────────────────────────────┤
+  │ L6: Observability │ monitoring, alerts, dashboards  │
+  ├─────────────────────────────────────────────────────┤
+  │ L5: Application   │ services, ports, certificates   │
+  ├─────────────────────────────────────────────────────┤
+  │ L4: Platform      │ VMs, LXC, templates, ansible    │
+  ├─────────────────────────────────────────────────────┤
+  │ L3: Data          │ storage pools, backup policies  │
+  ├─────────────────────────────────────────────────────┤
+  │ L2: Network       │ networks, bridges, firewall     │
+  ├─────────────────────────────────────────────────────┤
+  │ L1: Foundation    │ devices, interfaces, MACs, UPS  │
+  ├─────────────────────────────────────────────────────┤
+  │ L0: Meta          │ version, defaults, policies     │ ← Фундамент
+  └─────────────────────────────────────────────────────┘
+           ▲
+           │ Референсы только ВНИЗ (никогда вверх)
+           ▼
+
+  Ключевые принципы
+
+  1. Зависимости только вниз — lxc_ref в L5 ссылается на L4, network_ref в L4 на L2
+  2. Генераторы обрабатывают L0→L7 — сначала разрешаются нижние слои
+  3. Изоляция изменений — изменение L5 не требует изменений в L1-L4
+
+  Новая структура файлов
+
+  topology/
+  ├── L0-meta.yaml          # version, defaults, policies
+  ├── L1-foundation.yaml    # devices, interfaces, UPS
+  ├── L2-network.yaml       # networks, bridges, trust_zones, firewall
+  ├── L3-data.yaml          # storage, backup_policies
+  ├── L4-platform.yaml      # vms, lxc, templates
+  ├── L5-application.yaml   # services, certificates
+  ├── L6-observability.yaml # healthchecks, alerts, dashboards
+  └── L7-operations.yaml    # workflows, runbooks, documentation
+
+  Пример референсов по слоям
+
+  # L4-platform.yaml
+  lxc:
+    - id: lxc-postgresql
+      device_ref: dev-gamayun      # → L1 (вниз)
+      trust_zone_ref: zone-servers # → L2 (вниз)
+      storage_ref: storage-lvm     # → L3 (вниз)
+      network_ref: net-servers     # → L2 (вниз)
+
+  # L5-application.yaml
+  services:
+    - id: svc-nextcloud
+      lxc_ref: lxc-postgresql      # → L4 (вниз)
+      network_ref: net-servers     # → L2 (вниз)
+      dependencies:
+        - service_ref: svc-redis   # → L5 (тот же слой, допустимо)
+
+  Хочешь начать миграцию на эту архитектуру? Могу создать скрипт миграции и обновить генераторы.
+
+✻ Sautéed for 3m 30s

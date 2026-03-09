@@ -6,22 +6,50 @@ This module handles:
 - Building the plugin dependency graph
 - Determining execution order
 - Managing plugin lifecycle
+- Config validation against config_schema
+- Timeout handling
+- Error recovery with traceback capture
 """
 
 from __future__ import annotations
 
+import concurrent.futures
 import importlib.util
+import json
 import sys
+import time
+import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Type
+from typing import Any, Callable, Optional, Type
 
 import yaml
 
-from .plugin_base import PluginBase, PluginKind, Stage
+try:
+    import jsonschema
+    HAS_JSONSCHEMA = True
+except ImportError:
+    HAS_JSONSCHEMA = False
 
-# Kernel API version - plugins must be compatible
-KERNEL_API_VERSION = "1.x"
+from .plugin_base import (
+    PluginBase,
+    PluginContext,
+    PluginDiagnostic,
+    PluginKind,
+    PluginResult,
+    PluginStatus,
+    Stage,
+)
+
+# Kernel version and compatibility matrix
+KERNEL_VERSION = "0.5.0"
+KERNEL_API_VERSION = "1.0"
+SUPPORTED_API_VERSIONS = ["1.x"]
+MODEL_VERSIONS = ["0062-1.0"]
+EXECUTION_PROFILES = ["production", "modeled", "test-real"]
+
+# Default timeout for plugin execution (seconds)
+DEFAULT_PLUGIN_TIMEOUT = 30.0
 
 
 @dataclass
@@ -36,10 +64,13 @@ class PluginSpec:
     order: int
     depends_on: list[str] = field(default_factory=list)
     capabilities: list[str] = field(default_factory=list)
+    requires_capabilities: list[str] = field(default_factory=list)
+    config: dict[str, Any] = field(default_factory=dict)
     config_schema: Optional[dict[str, Any]] = None
     profile_restrictions: Optional[list[str]] = None
     description: str = ""
     manifest_path: str = ""
+    timeout: float = DEFAULT_PLUGIN_TIMEOUT
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], manifest_path: str = "") -> PluginSpec:
@@ -53,10 +84,13 @@ class PluginSpec:
             order=data["order"],
             depends_on=data.get("depends_on", []),
             capabilities=data.get("capabilities", []),
+            requires_capabilities=data.get("requires_capabilities", []),
+            config=data.get("config", {}),
             config_schema=data.get("config_schema"),
             profile_restrictions=data.get("profile_restrictions"),
             description=data.get("description", ""),
             manifest_path=manifest_path,
+            timeout=data.get("timeout", DEFAULT_PLUGIN_TIMEOUT),
         )
 
 
@@ -101,6 +135,14 @@ class PluginCycleError(Exception):
         super().__init__(f"Circular plugin dependency: {' -> '.join(cycle)}")
 
 
+class PluginConfigError(Exception):
+    """Plugin configuration validation error."""
+
+    def __init__(self, plugin_id: str, message: str) -> None:
+        self.plugin_id = plugin_id
+        super().__init__(f"Plugin '{plugin_id}' config error: {message}")
+
+
 class PluginRegistry:
     """Registry for loading, resolving, and managing plugins."""
 
@@ -111,6 +153,7 @@ class PluginRegistry:
         self.instances: dict[str, PluginBase] = {}
         self.manifests: list[str] = []
         self._load_errors: list[str] = []
+        self._results: list[PluginResult] = []
 
     def load_manifest(self, manifest_path: Path) -> None:
         """Load plugins from a manifest file."""
@@ -138,15 +181,46 @@ class PluginRegistry:
         if not self._is_api_compatible(spec.api_version):
             raise PluginLoadError(
                 spec.id,
-                f"Incompatible API version {spec.api_version}, kernel requires {KERNEL_API_VERSION}",
+                f"Incompatible API version {spec.api_version}, kernel supports {SUPPORTED_API_VERSIONS}",
             )
 
     def _is_api_compatible(self, plugin_api: str) -> bool:
-        """Check if plugin API version is compatible with kernel."""
-        # Simple major version check: "1.x" is compatible with "1.x"
-        kernel_major = KERNEL_API_VERSION.split(".")[0]
+        """Check if plugin API version is compatible with kernel.
+
+        A plugin with api_version "1.x" is compatible with kernel supporting "1.x".
+        Major version must match.
+        """
         plugin_major = plugin_api.split(".")[0]
-        return kernel_major == plugin_major
+        for supported in SUPPORTED_API_VERSIONS:
+            kernel_major = supported.split(".")[0]
+            if plugin_major == kernel_major:
+                return True
+        return False
+
+    def validate_plugin_config(self, plugin_id: str) -> list[str]:
+        """Validate plugin config against its config_schema.
+
+        Returns list of validation errors (empty if valid).
+        """
+        if plugin_id not in self.specs:
+            return [f"Plugin not found: {plugin_id}"]
+
+        spec = self.specs[plugin_id]
+        if not spec.config_schema:
+            return []  # No schema to validate against
+
+        if not HAS_JSONSCHEMA:
+            return []  # Skip validation if jsonschema not available
+
+        errors: list[str] = []
+        try:
+            jsonschema.validate(instance=spec.config, schema=spec.config_schema)
+        except jsonschema.ValidationError as e:
+            errors.append(f"Config validation failed: {e.message}")
+        except jsonschema.SchemaError as e:
+            errors.append(f"Invalid config_schema: {e.message}")
+
+        return errors
 
     def resolve_dependencies(self) -> list[str]:
         """Resolve plugin dependencies and return execution order.
@@ -240,8 +314,14 @@ class PluginRegistry:
             raise PluginLoadError(plugin_id, "Plugin not found in registry")
 
         spec = self.specs[plugin_id]
+
+        # Validate config before loading
+        config_errors = self.validate_plugin_config(plugin_id)
+        if config_errors:
+            raise PluginConfigError(plugin_id, "; ".join(config_errors))
+
         plugin_class = self._load_entry_point(spec)
-        instance = plugin_class(plugin_id)
+        instance = plugin_class(plugin_id, spec.api_version)
 
         # Verify plugin kind matches spec
         if instance.kind != spec.kind:
@@ -293,9 +373,158 @@ class PluginRegistry:
 
         return plugin_class
 
+    def execute_plugin(
+        self,
+        plugin_id: str,
+        ctx: PluginContext,
+        stage: Stage,
+        timeout: Optional[float] = None,
+    ) -> PluginResult:
+        """Execute a single plugin with timeout and error handling.
+
+        Args:
+            plugin_id: Plugin ID to execute
+            ctx: Execution context
+            stage: Current pipeline stage
+            timeout: Timeout in seconds (uses plugin spec timeout if None)
+
+        Returns:
+            PluginResult with execution status and diagnostics
+        """
+        if plugin_id not in self.specs:
+            return PluginResult.failed(
+                plugin_id=plugin_id,
+                diagnostics=[
+                    PluginDiagnostic(
+                        code="E4004",
+                        severity="error",
+                        stage=stage.value,
+                        message=f"Plugin not found: {plugin_id}",
+                        path="kernel",
+                        plugin_id="kernel",
+                    )
+                ],
+            )
+
+        spec = self.specs[plugin_id]
+        effective_timeout = timeout if timeout is not None else spec.timeout
+
+        # Inject plugin config into context
+        ctx.config = spec.config.copy()
+
+        try:
+            plugin = self.load_plugin(plugin_id)
+        except (PluginLoadError, PluginConfigError) as e:
+            return PluginResult.failed(
+                plugin_id=plugin_id,
+                api_version=spec.api_version,
+                diagnostics=[
+                    PluginDiagnostic(
+                        code="E4004",
+                        severity="error",
+                        stage=stage.value,
+                        message=str(e),
+                        path="kernel",
+                        plugin_id="kernel",
+                    )
+                ],
+            )
+
+        # Execute with timeout
+        start_time = time.perf_counter()
+
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(plugin.execute, ctx, stage)
+                try:
+                    result = future.result(timeout=effective_timeout)
+                    duration_ms = (time.perf_counter() - start_time) * 1000
+                    # Update duration in result
+                    result.duration_ms = duration_ms
+                    self._results.append(result)
+                    return result
+                except concurrent.futures.TimeoutError:
+                    duration_ms = (time.perf_counter() - start_time) * 1000
+                    result = PluginResult.timeout(
+                        plugin_id=plugin_id,
+                        api_version=spec.api_version,
+                        duration_ms=duration_ms,
+                    )
+                    result.diagnostics.append(
+                        PluginDiagnostic(
+                            code="E4102",
+                            severity="error",
+                            stage=stage.value,
+                            message=f"Plugin exceeded timeout of {effective_timeout}s",
+                            path="kernel",
+                            plugin_id="kernel",
+                        )
+                    )
+                    self._results.append(result)
+                    return result
+        except Exception as e:
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            tb = traceback.format_exc()
+            result = PluginResult.failed(
+                plugin_id=plugin_id,
+                api_version=spec.api_version,
+                duration_ms=duration_ms,
+                error_traceback=tb,
+                diagnostics=[
+                    PluginDiagnostic(
+                        code="E4102",
+                        severity="error",
+                        stage=stage.value,
+                        message=f"Plugin crashed: {e}",
+                        path="kernel",
+                        plugin_id="kernel",
+                    )
+                ],
+            )
+            self._results.append(result)
+            return result
+
+    def execute_stage(
+        self,
+        stage: Stage,
+        ctx: PluginContext,
+        profile: Optional[str] = None,
+        fail_fast: bool = False,
+    ) -> list[PluginResult]:
+        """Execute all plugins for a stage.
+
+        Args:
+            stage: Pipeline stage to execute
+            ctx: Execution context
+            profile: Current execution profile
+            fail_fast: Stop on first failure
+
+        Returns:
+            List of PluginResult for each executed plugin
+        """
+        results: list[PluginResult] = []
+        plugin_ids = self.get_execution_order(stage, profile)
+
+        for plugin_id in plugin_ids:
+            result = self.execute_plugin(plugin_id, ctx, stage)
+            results.append(result)
+
+            # Store output for inter-plugin communication
+            if result.output_data:
+                ctx.plugin_outputs[plugin_id] = result.output_data
+
+            if fail_fast and result.status in (PluginStatus.FAILED, PluginStatus.TIMEOUT):
+                break
+
+        return results
+
     def get_load_errors(self) -> list[str]:
         """Return any errors encountered during manifest loading."""
         return self._load_errors.copy()
+
+    def get_all_results(self) -> list[PluginResult]:
+        """Return all plugin execution results."""
+        return self._results.copy()
 
     def get_stats(self) -> dict[str, Any]:
         """Return registry statistics."""
@@ -304,10 +533,29 @@ class PluginRegistry:
             kind = spec.kind.value
             by_kind[kind] = by_kind.get(kind, 0) + 1
 
+        by_status: dict[str, int] = {}
+        for result in self._results:
+            status = result.status.value
+            by_status[status] = by_status.get(status, 0) + 1
+
         return {
             "loaded": len(self.specs),
             "executed": len(self.instances),
             "failed": len(self._load_errors),
             "by_kind": by_kind,
+            "by_status": by_status,
             "manifests": self.manifests,
+            "execution_order": [r.plugin_id for r in self._results],
+        }
+
+    @staticmethod
+    def get_kernel_info() -> dict[str, Any]:
+        """Return kernel version and compatibility information."""
+        return {
+            "version": KERNEL_VERSION,
+            "plugin_api_version": KERNEL_API_VERSION,
+            "supported_api_versions": SUPPORTED_API_VERSIONS,
+            "model_versions": MODEL_VERSIONS,
+            "execution_profiles": EXECUTION_PROFILES,
+            "default_timeout": DEFAULT_PLUGIN_TIMEOUT,
         }

@@ -17,8 +17,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from kernel.plugin_base import (
-    Diagnostic,
     PluginContext,
+    PluginDiagnostic,
     PluginResult,
     Stage,
     ValidatorJsonPlugin,
@@ -30,7 +30,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         """Validate references in instance bindings."""
-        diagnostics: list[Diagnostic] = []
+        diagnostics: list[PluginDiagnostic] = []
 
         # Build lookup sets
         class_ids = set(ctx.classes.keys())
@@ -94,7 +94,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
                             stage=stage,
                             message=f"object_ref '{object_ref}' not found in loaded objects",
                             path=path,
-                            hint=f"Check object exists in object-modules directory",
+                            hint="Check object exists in object-modules directory",
                         )
                     )
 
@@ -158,5 +158,4 @@ class ReferenceValidator(ValidatorJsonPlugin):
                             )
                         )
 
-        has_errors = any(d.severity == "error" for d in diagnostics)
-        return PluginResult(success=not has_errors, diagnostics=diagnostics)
+        return self.make_result(diagnostics)

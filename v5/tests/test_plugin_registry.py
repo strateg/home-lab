@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
-"""Tests for v5 plugin registry (ADR 0063)."""
+"""Tests for v5 plugin registry (ADR 0063).
+
+Tests cover:
+- Manifest loading
+- Plugin instantiation
+- Execution order resolution
+- Plugin execution with timeout
+- Config validation
+- Error handling with traceback
+- Kernel info
+"""
 
 from __future__ import annotations
 
 import sys
-import tempfile
+import time
 from pathlib import Path
 
 # Add v5/topology-tools to path
@@ -16,11 +26,14 @@ from kernel import (
     PluginManifest,
     PluginSpec,
     PluginKind,
+    PluginStatus,
     PluginContext,
     PluginResult,
     ValidatorJsonPlugin,
+    KERNEL_VERSION,
+    KERNEL_API_VERSION,
 )
-from kernel.plugin_base import Stage
+from kernel.plugin_base import Stage, PluginDiagnostic
 
 
 def test_manifest_loading():
@@ -35,6 +48,8 @@ def test_manifest_loading():
     assert ref_plugin.id == "base.validator.references"
     assert ref_plugin.kind == PluginKind.VALIDATOR_JSON
     assert Stage.VALIDATE in ref_plugin.stages
+    assert ref_plugin.timeout == 30
+    assert ref_plugin.config == {"strict_mode": False}
     print("PASS: Manifest loading works")
 
 
@@ -67,6 +82,7 @@ def test_plugin_instantiation():
     plugin = registry.load_plugin("base.validator.references")
     assert plugin.plugin_id == "base.validator.references"
     assert plugin.kind == PluginKind.VALIDATOR_JSON
+    assert plugin.api_version == "1.x"
     print("PASS: Plugin instantiation works")
 
 
@@ -74,8 +90,6 @@ def test_plugin_execution():
     """Test executing a plugin."""
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
-
-    plugin = registry.load_plugin("base.validator.references")
 
     # Create minimal context
     ctx = PluginContext(
@@ -100,9 +114,11 @@ def test_plugin_execution():
         },
     )
 
-    result = plugin.execute(ctx, Stage.VALIDATE)
+    result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
     assert isinstance(result, PluginResult)
-    assert result.success  # No errors with valid refs
+    assert result.status == PluginStatus.SUCCESS
+    assert result.plugin_id == "base.validator.references"
+    assert result.duration_ms > 0
     print("PASS: Plugin execution works")
 
 
@@ -110,8 +126,6 @@ def test_plugin_detects_invalid_ref():
     """Test that plugin detects invalid references."""
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
-
-    plugin = registry.load_plugin("base.validator.references")
 
     # Create context with invalid class_ref
     ctx = PluginContext(
@@ -136,10 +150,68 @@ def test_plugin_detects_invalid_ref():
         },
     )
 
-    result = plugin.execute(ctx, Stage.VALIDATE)
-    assert not result.success  # Should fail with invalid refs
+    result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
     assert len(result.diagnostics) >= 2  # At least class_ref and object_ref errors
+    assert result.has_errors
     print("PASS: Plugin detects invalid references")
+
+
+def test_plugin_result_statuses():
+    """Test PluginResult factory methods."""
+    # Test success
+    result = PluginResult.success("test.plugin", duration_ms=100.0)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.duration_ms == 100.0
+
+    # Test partial (warnings)
+    result = PluginResult.partial("test.plugin")
+    assert result.status == PluginStatus.PARTIAL
+
+    # Test failed
+    result = PluginResult.failed("test.plugin", error_traceback="traceback here")
+    assert result.status == PluginStatus.FAILED
+    assert result.error_traceback == "traceback here"
+
+    # Test timeout
+    result = PluginResult.timeout("test.plugin", duration_ms=30000.0)
+    assert result.status == PluginStatus.TIMEOUT
+
+    # Test skipped
+    result = PluginResult.skipped("test.plugin", reason="dependency failed")
+    assert result.status == PluginStatus.SKIPPED
+    assert result.output_data == {"skip_reason": "dependency failed"}
+
+    print("PASS: PluginResult statuses work")
+
+
+def test_plugin_result_to_dict():
+    """Test PluginResult serialization."""
+    diag = PluginDiagnostic(
+        code="E2101",
+        severity="error",
+        stage="validate",
+        message="Test error",
+        path="test:path",
+        plugin_id="test.plugin",
+    )
+    result = PluginResult(
+        plugin_id="test.plugin",
+        api_version="1.x",
+        status=PluginStatus.FAILED,
+        duration_ms=50.0,
+        diagnostics=[diag],
+        error_traceback="test traceback",
+    )
+
+    d = result.to_dict()
+    assert d["plugin_id"] == "test.plugin"
+    assert d["api_version"] == "1.x"
+    assert d["status"] == "FAILED"
+    assert d["duration_ms"] == 50.0
+    assert len(d["diagnostics"]) == 1
+    assert d["error_traceback"] == "test traceback"
+    print("PASS: PluginResult serialization works")
 
 
 def test_registry_stats():
@@ -151,6 +223,58 @@ def test_registry_stats():
     assert stats["loaded"] >= 1
     assert "validator_json" in stats["by_kind"]
     print("PASS: Registry stats work")
+
+
+def test_kernel_info():
+    """Test kernel info retrieval."""
+    info = PluginRegistry.get_kernel_info()
+    assert info["version"] == KERNEL_VERSION
+    assert info["plugin_api_version"] == KERNEL_API_VERSION
+    assert "1.x" in info["supported_api_versions"]
+    assert info["default_timeout"] == 30.0
+    print("PASS: Kernel info works")
+
+
+def test_config_injection():
+    """Test that plugin config is injected into context."""
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    # Execute plugin - config should be injected
+    result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
+
+    # Config should have been injected
+    assert ctx.config == {"strict_mode": False}
+    print("PASS: Config injection works")
+
+
+def test_execute_stage():
+    """Test executing all plugins for a stage."""
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx)
+    assert len(results) >= 1
+    assert all(isinstance(r, PluginResult) for r in results)
+    print("PASS: Stage execution works")
 
 
 if __name__ == "__main__":
@@ -166,7 +290,12 @@ if __name__ == "__main__":
         test_plugin_instantiation,
         test_plugin_execution,
         test_plugin_detects_invalid_ref,
+        test_plugin_result_statuses,
+        test_plugin_result_to_dict,
         test_registry_stats,
+        test_kernel_info,
+        test_config_injection,
+        test_execute_stage,
     ]
 
     passed = 0
@@ -177,7 +306,9 @@ if __name__ == "__main__":
             test()
             passed += 1
         except Exception as e:
+            import traceback
             print(f"FAIL: {test.__name__}: {e}")
+            traceback.print_exc()
             failed += 1
 
     print()

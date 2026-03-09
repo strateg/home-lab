@@ -7,4 +7,15 @@ plugins:
     stages: [validate]
     order: 100
     depends_on: []
+    timeout: 30
+    config:
+      strict_mode: false
+    config_schema:
+      type: object
+      properties:
+        strict_mode:
+          type: boolean
+          default: false
+          description: If true, treat warnings as errors
+      required: []
     description: Validates all cross-entity references in compiled topology

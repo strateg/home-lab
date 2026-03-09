@@ -27,7 +27,7 @@
         "id": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_.]*$",
-          "description": "Globally unique plugin identifier (e.g., 'base.validator.references')"
+          "description": "Globally unique plugin identifier (format: {module_id}.{plugin_kind}.{specific_name})"
         },
         "kind": {
           "type": "string",
@@ -42,13 +42,13 @@
         "api_version": {
           "type": "string",
           "pattern": "^[0-9]+\\.x$",
-          "description": "Plugin API version compatibility (e.g., '1.x')"
+          "description": "Plugin API version compatibility (format: major.x, e.g., '1.x')"
         },
         "stages": {
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["load", "normalize", "resolve", "validate", "emit"]
+            "enum": ["validate", "compile", "generate"]
           },
           "minItems": 1,
           "description": "Pipeline stages where this plugin executes"
@@ -57,7 +57,7 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 9999,
-          "description": "Execution order within stage (lower runs first)"
+          "description": "Execution order within stage (higher number = later execution)"
         },
         "depends_on": {
           "type": "array",
@@ -65,7 +65,7 @@
             "type": "string"
           },
           "default": [],
-          "description": "Plugin IDs this plugin depends on"
+          "description": "Plugin IDs that must execute before this plugin"
         },
         "capabilities": {
           "type": "array",
@@ -75,9 +75,22 @@
           "default": [],
           "description": "Capabilities provided by this plugin"
         },
+        "requires_capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Capabilities required from context for this plugin to run"
+        },
+        "config": {
+          "type": "object",
+          "description": "Static configuration defaults (validated against config_schema)",
+          "additionalProperties": true
+        },
         "config_schema": {
           "type": "object",
-          "description": "Optional JSON Schema for plugin configuration"
+          "description": "JSON Schema for validating plugin configuration"
         },
         "profile_restrictions": {
           "type": "array",
@@ -86,6 +99,13 @@
             "enum": ["production", "modeled", "test-real"]
           },
           "description": "Profiles where this plugin is allowed to run (all if not specified)"
+        },
+        "timeout": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 300,
+          "default": 30,
+          "description": "Maximum execution time in seconds (default: 30s)"
         },
         "description": {
           "type": "string",
