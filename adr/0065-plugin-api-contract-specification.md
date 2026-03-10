@@ -1,8 +1,10 @@
 # ADR 0065: Plugin API Contract Specification
 
 **Date:** 2026-03-09
-**Status:** Proposed
+**Status:** Implemented
 **Related:** ADR 0062 (Topology v5 Architecture), ADR 0063 (Plugin Microkernel), ADR 0066 (Plugin Testing and CI Strategy)
+
+> **Implementation Note:** API implemented in `v5/topology-tools/kernel/` instead of proposed `v5/topology_tools/plugin_api/`. All contracts fulfilled.
 
 ---
 
@@ -179,11 +181,39 @@ Kernel timeout MUST produce:
 
 ---
 
+## Implementation Status
+
+### Implemented Contracts
+
+| Contract | Status | Location |
+|----------|--------|----------|
+| PluginStatus enum | ✓ | `kernel/plugin_base.py` |
+| PluginDiagnostic dataclass | ✓ | `kernel/plugin_base.py` |
+| PluginResult dataclass | ✓ | `kernel/plugin_base.py` |
+| PluginContext dataclass | ✓ | `kernel/plugin_base.py` |
+| BasePlugin abstract class | ✓ | `kernel/plugin_base.py` |
+| Plugin type classes | ✓ | `kernel/plugin_base.py` |
+| publish/subscribe | ✓ | `kernel/plugin_base.py` |
+| Config injection | ✓ | `kernel/plugin_registry.py` |
+| Config schema validation | ✓ | `kernel/plugin_registry.py` |
+| API version compatibility | ✓ | `kernel/plugin_registry.py` |
+| Manifest entry validation | ✓ | `kernel/plugin_registry.py` |
+| Timeout handling | ✓ | `kernel/plugin_registry.py` |
+| Error mapping | ✓ | `data/error-catalog.yaml` |
+
+### Deviations from Proposal
+
+1. **Package location**: Implemented in `v5/topology-tools/kernel/` instead of `v5/topology_tools/plugin_api/`
+2. **PluginSeverity enum**: Using strings ("error", "warning", "info") instead of enum
+3. **PluginLocation dataclass**: Using separate fields (source_file, source_line, source_column) in PluginDiagnostic
+
+---
+
 ## References
 
 - ADR 0062: `adr/0062-modular-topology-architecture-consolidation.md`
 - ADR 0063: `adr/0063-plugin-microkernel-for-compiler-validators-generators.md`
 - ADR 0066: `adr/0066-plugin-testing-and-ci-strategy.md`
-- Authoring guide: `docs/PLUGIN_AUTHORING_GUIDE.md`
-- Implementation examples: `docs/PLUGIN_IMPLEMENTATION_EXAMPLES.md`
+- Kernel package: `v5/topology-tools/kernel/`
+- Plugin tests: `v5/tests/test_plugin_registry.py`
 - Compiler baseline: `v5/topology-tools/compile-topology.py`

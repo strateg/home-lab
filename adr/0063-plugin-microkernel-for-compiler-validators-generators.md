@@ -375,9 +375,18 @@ CI must:
 - [x] Add dependency enforcement (only depends_on plugins can be queried)
 - [x] Add error handling for missing data/invalid dependencies
 - [x] Add tests for publish/subscribe (4 new tests, 16 total)
-- [ ] Extract compiler transforms into `compiler` plugins (deferred)
-- [ ] Remove hardcoded dispatch from orchestration (deferred)
-- [ ] Enforce plugin-only extension policy (deferred)
+- [x] Sample compiler plugin (`plugins/compilers/capability_compiler.py`)
+- [x] Sample validator using subscribe (`plugins/validators/capability_contract_validator.py`)
+- [x] Shared PluginContext across COMPILE and VALIDATE stages
+
+### Phase 4 - Full Migration (Deferred)
+
+The following items are deferred until plugin system is proven stable:
+
+- [ ] Extract all compiler transforms into `compiler` plugins
+- [ ] Remove hardcoded dispatch from orchestration
+- [ ] Enforce plugin-only extension policy for new modules
+- [ ] Migrate YAML semantic checks to `validator_yaml` plugins
 
 ---
 

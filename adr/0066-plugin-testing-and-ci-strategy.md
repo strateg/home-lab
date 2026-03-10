@@ -1,7 +1,7 @@
 # ADR 0066: Plugin Testing and CI Strategy
 
 **Date:** 2026-03-09
-**Status:** Proposed
+**Status:** Implemented
 **Related:** ADR 0063 (Plugin Microkernel), ADR 0065 (Plugin API Contract)
 
 ---
@@ -138,10 +138,36 @@ Plugin CI is considered ready when:
 
 ---
 
+## Implementation Status
+
+### Test Structure (Complete)
+
+```
+v5/tests/
+├── plugin_api/
+│   └── test_dataclasses.py      # 10 tests
+├── plugin_contract/
+│   └── test_manifest.py         # 7 tests
+├── plugin_integration/
+│   └── test_execution.py        # 7 tests
+├── plugin_regression/
+│   └── test_parity.py           # 1 placeholder
+└── test_plugin_registry.py      # 16 tests (original)
+```
+
+**Total: 41 tests passing**
+
+### CI Workflow (Pending)
+
+- [ ] Create `.github/workflows/plugin-validation.yml`
+- [ ] Add coverage reporting
+- [ ] Integrate with PR checks
+
+---
+
 ## References
 
 - ADR 0063: `adr/0063-plugin-microkernel-for-compiler-validators-generators.md`
 - ADR 0065: `adr/0065-plugin-api-contract-specification.md`
-- Lane workflow baseline: `.github/workflows/lane-validation.yml`
-- Python checks baseline: `.github/workflows/python-checks.yml`
+- Test locations: `v5/tests/plugin_*/`
 - v5 compiler baseline: `v5/topology-tools/compile-topology.py`
