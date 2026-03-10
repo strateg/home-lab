@@ -192,21 +192,16 @@ class V5Compiler:
             )
             self._plugin_registry = None
 
-    def _execute_plugins(
+    def _create_plugin_context(
         self,
         *,
-        stage: Stage,
         class_map: dict[str, dict[str, Any]],
         object_map: dict[str, dict[str, Any]],
         instance_bindings: dict[str, Any],
         lock_payload: dict[str, Any] | None,
-    ) -> None:
-        """Execute all plugins for a given stage."""
-        if not self._plugin_registry:
-            return
-
-        # Build plugin context
-        ctx = PluginContext(
+    ) -> PluginContext:
+        """Create a plugin context that persists across stages."""
+        return PluginContext(
             topology_path=str(self.manifest_path.relative_to(REPO_ROOT).as_posix()),
             profile="production",  # TODO: make configurable
             model_lock=lock_payload or {},
@@ -215,6 +210,21 @@ class V5Compiler:
             instance_bindings=instance_bindings,
             config={"strict_mode": self.strict_model_lock},
         )
+
+    def _execute_plugins(
+        self,
+        *,
+        stage: Stage,
+        ctx: PluginContext,
+    ) -> None:
+        """Execute all plugins for a given stage.
+
+        Args:
+            stage: Pipeline stage to execute
+            ctx: Shared plugin context (preserves published data across stages)
+        """
+        if not self._plugin_registry:
+            return
 
         # Execute plugins for stage
         results = self._plugin_registry.execute_stage(stage, ctx)
@@ -2083,6 +2093,19 @@ class V5Compiler:
         if model_lock_path.exists():
             lock_payload = self._load_yaml(model_lock_path, code_missing="E1001", code_parse="E2401", stage="load")
 
+        # Create shared plugin context (ADR 0063 Phase 3)
+        # Context persists across stages so publish/subscribe works
+        plugin_ctx: PluginContext | None = None
+        if self.enable_plugins:
+            plugin_ctx = self._create_plugin_context(
+                class_map=class_map,
+                object_map=object_map,
+                instance_bindings=instance_payload or {},
+                lock_payload=lock_payload,
+            )
+            # Execute compiler plugins first
+            self._execute_plugins(stage=Stage.COMPILE, ctx=plugin_ctx)
+
         self._validate_refs(rows=rows, class_map=class_map, object_map=object_map, catalog_ids=catalog_ids)
         self._validate_embedded_in(rows=rows, object_map=object_map)
         if catalog_ids:
@@ -2095,14 +2118,9 @@ class V5Compiler:
         self._validate_model_lock(rows=rows, class_map=class_map, object_map=object_map, lock_payload=lock_payload)
 
         # Execute validator plugins (ADR 0063)
-        if self.enable_plugins:
-            self._execute_plugins(
-                stage=Stage.VALIDATE,
-                class_map=class_map,
-                object_map=object_map,
-                instance_bindings=instance_payload or {},
-                lock_payload=lock_payload,
-            )
+        # Uses same context so validators can subscribe to compiler outputs
+        if self.enable_plugins and plugin_ctx:
+            self._execute_plugins(stage=Stage.VALIDATE, ctx=plugin_ctx)
 
         errors = sum(1 for item in self._diagnostics if item.severity == "error")
         if errors == 0:

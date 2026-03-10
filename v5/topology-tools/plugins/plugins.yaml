@@ -1,5 +1,22 @@
 schema_version: 1
 plugins:
+  # Compiler plugins (run in compile stage)
+  - id: base.compiler.capabilities
+    kind: compiler
+    entry: compilers/capability_compiler.py:CapabilityCompiler
+    api_version: "1.x"
+    stages: [compile]
+    order: 50
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Derives capabilities from class/object definitions (ADR 0063 Phase 3 example)
+
+  # Validator plugins (run in validate stage)
   - id: base.validator.references
     kind: validator_json
     entry: validators/reference_validator.py:ReferenceValidator
@@ -54,3 +71,18 @@ plugins:
       properties: {}
       required: []
     description: Validates embedded_in references for OS instances (ADR 0064)
+
+  - id: base.validator.capability_contract
+    kind: validator_json
+    entry: validators/capability_contract_validator.py:CapabilityContractValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 130
+    depends_on: [base.compiler.capabilities]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates capability contracts using compiler-derived data (ADR 0063 Phase 3 example)

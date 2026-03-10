@@ -45,11 +45,17 @@ def test_manifest_loading():
     assert manifest.schema_version == 1
     assert len(manifest.plugins) >= 1
 
-    ref_plugin = manifest.plugins[0]
-    assert ref_plugin.id == "base.validator.references"
+    # First plugin is now the compiler plugin
+    compiler_plugin = manifest.plugins[0]
+    assert compiler_plugin.id == "base.compiler.capabilities"
+    assert compiler_plugin.kind == PluginKind.COMPILER
+    assert Stage.COMPILE in compiler_plugin.stages
+    assert compiler_plugin.timeout == 30
+
+    # Find the reference validator plugin
+    ref_plugin = next(p for p in manifest.plugins if p.id == "base.validator.references")
     assert ref_plugin.kind == PluginKind.VALIDATOR_JSON
     assert Stage.VALIDATE in ref_plugin.stages
-    assert ref_plugin.timeout == 30
     assert ref_plugin.config == {"strict_mode": False}
     print("PASS: Manifest loading works")
 
