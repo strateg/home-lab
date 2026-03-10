@@ -22,19 +22,19 @@ V5_TOOLS = Path(__file__).resolve().parents[1] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import (
-    PluginRegistry,
-    PluginManifest,
-    PluginSpec,
-    PluginKind,
-    PluginStatus,
-    PluginContext,
-    PluginResult,
-    ValidatorJsonPlugin,
-    PluginDataExchangeError,
-    KERNEL_VERSION,
     KERNEL_API_VERSION,
+    KERNEL_VERSION,
+    PluginContext,
+    PluginDataExchangeError,
+    PluginKind,
+    PluginManifest,
+    PluginRegistry,
+    PluginResult,
+    PluginSpec,
+    PluginStatus,
+    ValidatorJsonPlugin,
 )
-from kernel.plugin_base import Stage, PluginDiagnostic
+from kernel.plugin_base import PluginDiagnostic, Stage
 
 
 def test_manifest_loading():
@@ -243,7 +243,7 @@ def test_kernel_info():
 
 
 def test_config_injection():
-    """Test that plugin config is injected into context."""
+    """Test runtime config is restored after plugin execution."""
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
 
@@ -254,14 +254,12 @@ def test_config_injection():
         classes={},
         objects={},
         instance_bindings={"instance_bindings": {}},
+        config={"runtime_flag": True},
     )
 
-    # Execute plugin - config should be injected
-    result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
-
-    # Config should have been injected
-    assert ctx.config == {"strict_mode": False}
-    print("PASS: Config injection works")
+    registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
+    assert ctx.config == {"runtime_flag": True}
+    print("PASS: Runtime config restore works")
 
 
 def test_execute_stage():
@@ -282,6 +280,72 @@ def test_execute_stage():
     assert len(results) >= 1
     assert all(isinstance(r, PluginResult) for r in results)
     print("PASS: Stage execution works")
+
+
+def test_timeout_does_not_block_pipeline():
+    """Timeout should return promptly instead of waiting for plugin completion."""
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    plugin = registry.load_plugin("base.validator.references")
+    original_execute = plugin.execute
+
+    def slow_execute(ctx: PluginContext, stage: Stage) -> PluginResult:
+        time.sleep(2.0)
+        return original_execute(ctx, stage)
+
+    plugin.execute = slow_execute  # type: ignore[assignment]
+    try:
+        start = time.perf_counter()
+        result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE, timeout=0.1)
+        elapsed = time.perf_counter() - start
+    finally:
+        plugin.execute = original_execute  # type: ignore[assignment]
+
+    assert result.status == PluginStatus.TIMEOUT
+    assert elapsed < 1.0
+    print("PASS: Timeout returns promptly")
+
+
+def test_runtime_config_takes_precedence():
+    """Runtime ctx.config values should override plugin defaults."""
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={"class.router": {"id": "class.router"}},
+        objects={"obj.test": {"id": "obj.test"}},
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "id": "test-device",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.test",
+                    }
+                ]
+            }
+        },
+        config={"strict_mode": True},
+    )
+
+    result = registry.execute_plugin("base.validator.model_lock", ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(d.code == "W2401" for d in result.diagnostics)
+    assert ctx.config == {"strict_mode": True}
+    print("PASS: Runtime config precedence works")
 
 
 def test_publish_subscribe_basic():
@@ -419,6 +483,8 @@ if __name__ == "__main__":
         test_kernel_info,
         test_config_injection,
         test_execute_stage,
+        test_timeout_does_not_block_pipeline,
+        test_runtime_config_takes_precedence,
         # ADR 0065 inter-plugin data exchange tests
         test_publish_subscribe_basic,
         test_publish_subscribe_dependency_check,
@@ -435,6 +501,7 @@ if __name__ == "__main__":
             passed += 1
         except Exception as e:
             import traceback
+
             print(f"FAIL: {test.__name__}: {e}")
             traceback.print_exc()
             failed += 1

@@ -18,12 +18,7 @@ from pathlib import Path
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from kernel import (
-    PluginRegistry,
-    PluginContext,
-    PluginResult,
-    PluginStatus,
-)
+from kernel import PluginContext, PluginRegistry, PluginResult, PluginStatus
 from kernel.plugin_base import Stage
 
 
@@ -127,7 +122,7 @@ def test_stage_execution():
 
 
 def test_config_injection():
-    """Test that plugin config is injected into context."""
+    """Test runtime config is restored after plugin execution."""
     registry = PluginRegistry(V5_TOOLS)
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
 
@@ -138,11 +133,12 @@ def test_config_injection():
         classes={},
         objects={},
         instance_bindings={"instance_bindings": {}},
+        config={"runtime_flag": True},
     )
 
     registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
-    assert ctx.config == {"strict_mode": False}
-    print("PASS: Config injection works")
+    assert ctx.config == {"runtime_flag": True}
+    print("PASS: Runtime config restore works")
 
 
 def test_registry_stats():
@@ -208,6 +204,7 @@ if __name__ == "__main__":
             passed += 1
         except Exception as e:
             import traceback
+
             print(f"FAIL: {test.__name__}: {e}")
             traceback.print_exc()
             failed += 1

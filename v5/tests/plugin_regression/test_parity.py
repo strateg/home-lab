@@ -1,65 +1,78 @@
 #!/usr/bin/env python3
-"""Regression tests for plugin vs legacy parity (ADR 0066 - Regression Tests).
-
-Tests cover:
-- Plugin validator output matches legacy validator output
-- Diagnostics format consistency
-- No false positives/negatives vs baseline
-
-Note: These tests are placeholders until legacy validators are fully migrated.
-"""
+"""Regression tests for plugin vs baseline compiler parity (ADR 0066)."""
 
 from __future__ import annotations
 
+import json
+import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
-# Add v5/topology-tools to path
-V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
-sys.path.insert(0, str(V5_TOOLS))
-
-
-def test_placeholder():
-    """Placeholder for regression tests.
-
-    Once validators are migrated from compile-topology.py to plugins,
-    this test should verify that:
-    1. Plugin produces same diagnostics as legacy code
-    2. No new false positives introduced
-    3. No errors missed that legacy code caught
-    """
-    print("PASS: Regression test placeholder (no legacy baseline yet)")
+REPO_ROOT = Path(__file__).resolve().parents[3]
+COMPILER = REPO_ROOT / "v5" / "topology-tools" / "compile-topology.py"
+TOPOLOGY = REPO_ROOT / "v5" / "topology" / "topology.yaml"
 
 
-if __name__ == "__main__":
-    print("=" * 60)
-    print("ADR 0066 Plugin Regression Tests")
-    print("=" * 60)
-    print()
-    print("Note: Regression tests require legacy baseline fixtures.")
-    print("These will be populated during migration from monolithic compiler.")
-    print()
+def _run_compile(tmp_path: Path, *, enable_plugins: bool) -> tuple[dict[str, Any], dict[str, Any]]:
+    suffix = "plugins" if enable_plugins else "baseline"
+    artifacts_dir = REPO_ROOT / "v5-build" / "test-artifacts" / tmp_path.name
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    output_json = artifacts_dir / f"effective-{suffix}.json"
+    diagnostics_json = artifacts_dir / f"report-{suffix}.json"
+    diagnostics_txt = artifacts_dir / f"report-{suffix}.txt"
 
-    tests = [
-        test_placeholder,
+    cmd = [
+        sys.executable,
+        str(COMPILER),
+        "--topology",
+        str(TOPOLOGY.relative_to(REPO_ROOT).as_posix()),
+        "--output-json",
+        str(output_json.relative_to(REPO_ROOT).as_posix()),
+        "--diagnostics-json",
+        str(diagnostics_json.relative_to(REPO_ROOT).as_posix()),
+        "--diagnostics-txt",
+        str(diagnostics_txt.relative_to(REPO_ROOT).as_posix()),
+        "--strict-model-lock",
     ]
+    if enable_plugins:
+        cmd.append("--enable-plugins")
 
-    passed = 0
-    failed = 0
+    completed = subprocess.run(
+        cmd,
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert completed.returncode == 0, (
+        f"Compiler failed with exit={completed.returncode}\n"
+        f"stdout:\n{completed.stdout}\n"
+        f"stderr:\n{completed.stderr}"
+    )
 
-    for test in tests:
-        try:
-            test()
-            passed += 1
-        except Exception as e:
-            import traceback
-            print(f"FAIL: {test.__name__}: {e}")
-            traceback.print_exc()
-            failed += 1
+    assert output_json.exists(), f"Missing output JSON: {output_json}"
+    assert diagnostics_json.exists(), f"Missing diagnostics JSON: {diagnostics_json}"
 
-    print()
-    print("=" * 60)
-    print(f"Results: {passed} passed, {failed} failed")
-    print("=" * 60)
+    effective = json.loads(output_json.read_text(encoding="utf-8"))
+    report = json.loads(diagnostics_json.read_text(encoding="utf-8"))
+    return effective, report
 
-    sys.exit(0 if failed == 0 else 1)
+
+def _without_generated_at(payload: dict[str, Any]) -> dict[str, Any]:
+    copied = dict(payload)
+    copied.pop("generated_at", None)
+    return copied
+
+
+def test_plugin_compile_parity(tmp_path: Path) -> None:
+    """Plugin-enabled compile should preserve baseline output and error count."""
+    baseline_output, baseline_report = _run_compile(tmp_path, enable_plugins=False)
+    plugin_output, plugin_report = _run_compile(tmp_path, enable_plugins=True)
+
+    assert plugin_report["summary"]["errors"] == baseline_report["summary"]["errors"]
+    assert _without_generated_at(plugin_output) == _without_generated_at(baseline_output)
+
+    # Ensure plugin execution was actually enabled.
+    plugin_diagnostics = plugin_report.get("diagnostics", [])
+    assert any(d.get("code") == "I4001" for d in plugin_diagnostics)

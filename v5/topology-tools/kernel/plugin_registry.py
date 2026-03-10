@@ -27,19 +27,12 @@ import yaml
 
 try:
     import jsonschema
+
     HAS_JSONSCHEMA = True
 except ImportError:
     HAS_JSONSCHEMA = False
 
-from .plugin_base import (
-    PluginBase,
-    PluginContext,
-    PluginDiagnostic,
-    PluginKind,
-    PluginResult,
-    PluginStatus,
-    Stage,
-)
+from .plugin_base import PluginBase, PluginContext, PluginDiagnostic, PluginKind, PluginResult, PluginStatus, Stage
 
 # Kernel version and compatibility matrix
 KERNEL_VERSION = "0.5.0"
@@ -409,12 +402,15 @@ class PluginRegistry:
         spec = self.specs[plugin_id]
         effective_timeout = timeout if timeout is not None else spec.timeout
 
-        # Inject plugin config into context
-        ctx.config = spec.config.copy()
+        # Merge plugin config defaults with runtime config.
+        # Runtime values (already present in ctx.config) take precedence.
+        base_config = ctx.config.copy()
+        ctx.config = {**spec.config, **base_config}
 
         try:
             plugin = self.load_plugin(plugin_id)
         except (PluginLoadError, PluginConfigError) as e:
+            ctx.config = base_config
             return PluginResult.failed(
                 plugin_id=plugin_id,
                 api_version=spec.api_version,
@@ -433,39 +429,43 @@ class PluginRegistry:
         # Set execution context for inter-plugin data exchange (ADR 0065)
         allowed_deps = set(spec.depends_on)
         ctx._set_execution_context(plugin_id, allowed_deps)
+        execution_context_set = True
 
         # Execute with timeout
         start_time = time.perf_counter()
+        timed_out = False
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
         try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(plugin.execute, ctx, stage)
-                try:
-                    result = future.result(timeout=effective_timeout)
-                    duration_ms = (time.perf_counter() - start_time) * 1000
-                    # Update duration in result
-                    result.duration_ms = duration_ms
-                    self._results.append(result)
-                    return result
-                except concurrent.futures.TimeoutError:
-                    duration_ms = (time.perf_counter() - start_time) * 1000
-                    result = PluginResult.timeout(
-                        plugin_id=plugin_id,
-                        api_version=spec.api_version,
-                        duration_ms=duration_ms,
+            future = executor.submit(plugin.execute, ctx, stage)
+            try:
+                result = future.result(timeout=effective_timeout)
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                # Update duration in result
+                result.duration_ms = duration_ms
+                self._results.append(result)
+                return result
+            except concurrent.futures.TimeoutError:
+                timed_out = True
+                future.cancel()
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                result = PluginResult.timeout(
+                    plugin_id=plugin_id,
+                    api_version=spec.api_version,
+                    duration_ms=duration_ms,
+                )
+                result.diagnostics.append(
+                    PluginDiagnostic(
+                        code="E4102",
+                        severity="error",
+                        stage=stage.value,
+                        message=f"Plugin exceeded timeout of {effective_timeout}s",
+                        path="kernel",
+                        plugin_id="kernel",
                     )
-                    result.diagnostics.append(
-                        PluginDiagnostic(
-                            code="E4102",
-                            severity="error",
-                            stage=stage.value,
-                            message=f"Plugin exceeded timeout of {effective_timeout}s",
-                            path="kernel",
-                            plugin_id="kernel",
-                        )
-                    )
-                    self._results.append(result)
-                    return result
+                )
+                self._results.append(result)
+                return result
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
             tb = traceback.format_exc()
@@ -488,8 +488,12 @@ class PluginRegistry:
             self._results.append(result)
             return result
         finally:
-            # Clear execution context
-            ctx._clear_execution_context()
+            # Do not wait for timed-out plugins; this avoids blocking the pipeline
+            # after we already returned TIMEOUT.
+            executor.shutdown(wait=not timed_out, cancel_futures=True)
+            if execution_context_set:
+                ctx._clear_execution_context()
+            ctx.config = base_config
 
     def execute_stage(
         self,
