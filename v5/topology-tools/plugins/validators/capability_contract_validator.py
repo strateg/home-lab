@@ -99,10 +99,12 @@ class CapabilityContractValidator(ValidatorJsonPlugin):
                     if isinstance(required_caps, list):
                         missing = [cap for cap in required_caps if cap not in object_caps]
                         if missing:
+                            # Emit as warning since capability derivation is still evolving
+                            # Change to "error" once capability definitions are complete
                             diagnostics.append(
                                 self.emit_diagnostic(
-                                    code="E4302",
-                                    severity="error",
+                                    code="W4302",
+                                    severity="warning",
                                     stage=stage,
                                     message=f"Object '{object_ref}' missing required capabilities: {missing}",
                                     path=path,

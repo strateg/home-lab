@@ -13,6 +13,9 @@ PYTHON = sys.executable
 PHASE1_REPORT_JSON = "v5-build/diagnostics/phase1-gate-report.json"
 LAYER_REPORT_JSON = "v5-build/diagnostics/layer-contract-report.json"
 
+# Global flag for plugin execution (ADR 0063)
+ENABLE_PLUGINS = False
+
 
 def run(cmd: list[str]) -> None:
     print(f"[lane] RUN: {' '.join(cmd)}", flush=True)
@@ -73,15 +76,16 @@ def validate_v5() -> None:
             "v5/topology/object-modules",
         ]
     )
-    run(
-        [
-            PYTHON,
-            "v5/topology-tools/compile-topology.py",
-            "--topology",
-            "v5/topology/topology.yaml",
-            "--strict-model-lock",
-        ]
-    )
+    compile_cmd = [
+        PYTHON,
+        "v5/topology-tools/compile-topology.py",
+        "--topology",
+        "v5/topology/topology.yaml",
+        "--strict-model-lock",
+    ]
+    if ENABLE_PLUGINS:
+        compile_cmd.append("--enable-plugins")
+    run(compile_cmd)
 
 
 def build_v5() -> None:
@@ -123,11 +127,18 @@ def parse_args() -> argparse.Namespace:
         ),
         help="Lane command to run.",
     )
+    parser.add_argument(
+        "--enable-plugins",
+        action="store_true",
+        help="Enable plugin execution in v5 compiler (ADR 0063).",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
+    global ENABLE_PLUGINS
     args = parse_args()
+    ENABLE_PLUGINS = args.enable_plugins
     handlers = {
         "validate-v4": validate_v4,
         "validate-v5": validate_v5,

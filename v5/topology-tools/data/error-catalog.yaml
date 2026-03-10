@@ -212,8 +212,28 @@ codes:
     stage: load
     title: No Plugins Loaded
     hint: No plugin manifests found; using core-only validation.
+  W4301:
+    severity: warning
+    stage: validate
+    title: Capability Data Unavailable
+    hint: Ensure compile stage runs before validate stage with compiler plugins.
+  W4302:
+    severity: warning
+    stage: validate
+    title: Missing Required Capabilities
+    hint: Add required capabilities to object definition or update class requirements.
   I4001:
     severity: info
     stage: load
     title: Plugins Loaded
+    hint: No action required.
+  I4201:
+    severity: info
+    stage: compile
+    title: Capabilities Derived
+    hint: No action required.
+  I4301:
+    severity: info
+    stage: validate
+    title: Capability Validation Started
     hint: No action required.
