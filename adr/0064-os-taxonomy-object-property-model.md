@@ -105,6 +105,19 @@ class.compute (v1.0.0)
         +-- inst.compute.sbc-orangepi-01
 ```
 
+### 0.1 Software Type vs Installed State (Normative Split)
+
+For firmware and OS, object and instance levels have different responsibilities:
+
+- **Object level (`obj.firmware.*`, `obj.os.*`)** defines software **type/track profile** (family, vendor, architecture, constraints, capabilities).
+- **Instance level (`inst.firmware.*`, `inst.os.*`)** defines **concrete installed state** on a deployed device.
+
+Required interpretation:
+
+1. Object-level `properties.version` describes profile lineage/track and is not a per-device patch pin.
+2. Concrete deployed version/build metadata belongs to firmware/OS instance deployment fields.
+3. Device identity metadata (serial number, MACs) belongs to device instance metadata, not object definitions.
+
 ### Entity Categories
 
 Classes include a `categories` field for taxonomic classification:
@@ -158,7 +171,7 @@ properties:
   # Hardware binding
   hardware_locked: boolean
   vendor_locked: boolean
-  
+
   # Virtualization (optional)
   virtual: boolean  # true for virtual firmware (VMs)
 
@@ -347,8 +360,10 @@ instance: inst.firmware.routeros-7-13-arm64
 object_ref: obj.firmware.mikrotik-routeros7
 
 deployment:
+  version: "7.13"
+  build: "7.13.5"
   installed_date: "2024-01-15"
-  patch_level: "7.13.5"
+  release_channel: stable
 ```
 
 ```yaml
@@ -356,6 +371,8 @@ instance: inst.firmware.generic-uefi-2.8
 object_ref: obj.firmware.generic-uefi-x86
 
 deployment:
+  version: "2.8"
+  build: "ovmf-2023.11"
   installed_date: "2023-10-01"
 ```
 
@@ -563,8 +580,9 @@ object_ref: obj.os.routeros-7
 embedded_in: inst.firmware.routeros-7-13-arm64  # firmware-OS link
 
 deployment:
+  version: "7.13"
+  build: "7.13.5"
   installed_date: "2024-02-01"
-  patch_level: "7.13.5"
 ```
 
 ```yaml
@@ -574,6 +592,8 @@ object_ref: obj.os.debian-12
 # embedded_in: absent (installable OS)
 
 deployment:
+  version: "12.5"
+  build: "debian-12.5-amd64-20240110"
   installed_date: "2024-01-10"
   kernel_version: "6.1.0-17"
 ```
@@ -583,6 +603,8 @@ instance: inst.os.debian-12-arm64-prod
 object_ref: obj.os.debian-12-arm64
 
 deployment:
+  version: "12.5"
+  build: "debian-12.5-arm64-20240301"
   installed_date: "2024-03-01"
   kernel_version: "6.1.0-18"
 ```
@@ -684,6 +706,11 @@ object_ref: obj.compute.pc
 
 firmware_ref: inst.firmware.generic-uefi-2.8
 os_refs: [inst.os.debian-12-prod]
+
+hardware_identity:
+  serial_number: "<SERIAL_PLACEHOLDER>"
+  mac_addresses:
+    primary: "aa:bb:cc:dd:ee:ff"
 ```
 
 ```yaml

@@ -38,10 +38,18 @@ instance_bindings:
     class_ref: class.router
     object_ref: obj.glinet.slate_ax1800
     status: mapped
-    notes: module scaffold exists; capability profile tuning pending
+    notes: Personal GL-AXT1800 router instance with device identity placeholders
     firmware_ref: inst.firmware.openwrt.glinet.4x
     os_refs:
     - inst.os.openwrt.glinet.4x
+    hardware_identity:
+      serial_number: "<TODO_SERIAL_NUMBER>"
+      mac_addresses:
+        wan: "<TODO_MAC_WAN>"
+        lan1: "<TODO_MAC_LAN1>"
+        lan2: "<TODO_MAC_LAN2>"
+        wlan0_5ghz: "<TODO_MAC_WLAN0>"
+        wlan1_2_4ghz: "<TODO_MAC_WLAN1>"
   - instance: srv-gamayun
     source_id: srv-gamayun
     layer: L1
@@ -112,7 +120,12 @@ instance_bindings:
     class_ref: class.firmware
     object_ref: obj.firmware.openwrt.glinet.4x
     status: mapped
-    notes: ADR0064 firmware instance
+    notes: ADR0064 firmware instance for rtr-slate (installed state is instance-level)
+    deployment:
+      version: "<TODO_FW_VERSION>"
+      build: "<TODO_FW_BUILD>"
+      release_channel: "<TODO_FW_CHANNEL>"
+      installed_at: "<TODO_FW_INSTALLED_AT_ISO8601>"
   - instance: inst.firmware.uefi.generic.x86_64
     source_id: inst.firmware.uefi.generic.x86_64
     layer: L1
@@ -172,7 +185,12 @@ instance_bindings:
     object_ref: obj.os.openwrt.glinet.4x
     embedded_in: inst.firmware.openwrt.glinet.4x
     status: mapped
-    notes: ADR0064 embedded os instance
+    notes: ADR0064 embedded os instance for rtr-slate (installed state is instance-level)
+    deployment:
+      version: "<TODO_OS_VERSION>"
+      build: "<TODO_OS_BUILD>"
+      kernel_version: "<TODO_OS_KERNEL_VERSION>"
+      installed_at: "<TODO_OS_INSTALLED_AT_ISO8601>"
   - instance: inst.os.proxmox.ve.9
     source_id: inst.os.proxmox.ve.9
     layer: L1

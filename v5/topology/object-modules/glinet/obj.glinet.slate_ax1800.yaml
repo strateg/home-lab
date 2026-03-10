@@ -153,6 +153,9 @@ software_contract:
     min: 1
     max: 1
   multi_boot: false
+  # Object defines software TYPE/track only.
+  # Installed version/build must be pinned at firmware/os instance level.
+  instance_pinning_required: true
 software:
   ui:
     - name: glinet_ui
@@ -403,16 +406,18 @@ advantages:
   - Cheaper price point
 
 # ============================================================================
-# FIRMWARE UPDATES
+# SOFTWARE TRACK (TYPE-LEVEL, NOT DEVICE INSTALL STATE)
 # ============================================================================
 
 firmware:
-  current_version: 4.8.2
-  release_date: 2024-11-15
+  track: glinet-openwrt-4x
+  # Concrete installed firmware version/build are instance-level fields
+  # in l1_software_firmware (see inst.firmware.openwrt.glinet.4x).
+  version_managed_at: firmware_instance
   update_method: web_ui_or_sysupgrade
   backup_recommended: true
 
-  key_features_4_8_2:
+  notable_4x_features:
     - VPN multi-instance
     - VPN composite policy routing
     - IPv6 VPN support
