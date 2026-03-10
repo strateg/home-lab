@@ -1,4 +1,4 @@
-id: class.storage.data_asset
+class: class.storage.data_asset
 version: 1.0.0
 description: Named data asset representing persistent data
 layer: L3

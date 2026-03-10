@@ -1,4 +1,4 @@
-id: obj.service.ntp
+object: obj.service.ntp
 version: 1.0.0
 class_ref: class.service.monitoring
 model: Ntp

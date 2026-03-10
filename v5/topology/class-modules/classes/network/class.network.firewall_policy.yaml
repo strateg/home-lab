@@ -1,4 +1,4 @@
-id: class.network.firewall_policy
+class: class.network.firewall_policy
 version: 1.0.0
 description: Firewall policy containing ordered rules
 layer: L2

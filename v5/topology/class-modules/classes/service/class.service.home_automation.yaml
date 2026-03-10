@@ -1,4 +1,4 @@
-id: class.service.home_automation
+class: class.service.home_automation
 version: 1.0.0
 title: Service Home Automation
 summary: Home automation control and message service role.

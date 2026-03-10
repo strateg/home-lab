@@ -1,4 +1,4 @@
-id: obj.storage.pool.local
+object: obj.storage.pool.local
 version: 1.0.0
 class_ref: class.storage.pool
 description: Local directory storage on Proxmox

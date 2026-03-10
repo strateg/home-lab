@@ -1,4 +1,4 @@
-id: class.service.vpn
+class: class.service.vpn
 version: 1.0.0
 title: Service VPN
 summary: Encrypted tunnel endpoint service role.

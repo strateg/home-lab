@@ -1,4 +1,4 @@
-id: class.service.dns
+class: class.service.dns
 version: 1.0.0
 title: Service DNS
 summary: DNS resolver/filter service role.

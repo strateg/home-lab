@@ -80,7 +80,7 @@ class CapabilityContractValidator(ValidatorJsonPlugin):
                 if not isinstance(row, dict):
                     continue
 
-                instance_id = row.get("id", "<unknown>")
+                instance_id = row.get("instance", "<unknown>")
                 object_ref = row.get("object_ref")
                 path = f"instance:{group_name}:{instance_id}"
 
@@ -108,7 +108,9 @@ class CapabilityContractValidator(ValidatorJsonPlugin):
                                     stage=stage,
                                     message=f"Object '{object_ref}' missing required capabilities: {missing}",
                                     path=path,
-                                    hint=f"Object has: {sorted(object_caps)}" if object_caps else "Object has no derived capabilities",
+                                    hint=f"Object has: {sorted(object_caps)}"
+                                    if object_caps
+                                    else "Object has no derived capabilities",
                                 )
                             )
 

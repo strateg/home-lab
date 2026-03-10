@@ -1,4 +1,4 @@
-id: class.compute.workload.container
+class: class.compute.workload.container
 version: 1.0.0
 title: Compute Workload Container
 summary: Containerized workload runtime contract.

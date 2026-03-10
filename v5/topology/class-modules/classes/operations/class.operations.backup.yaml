@@ -1,4 +1,4 @@
-id: class.operations.backup
+class: class.operations.backup
 version: 1.0.0
 description: Backup job definition
 layer: L7

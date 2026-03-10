@@ -1,4 +1,4 @@
-id: obj.service.nginx_proxy
+object: obj.service.nginx_proxy
 version: 1.0.0
 class_ref: class.service.proxy
 model: Nginx Proxy

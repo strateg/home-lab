@@ -1,4 +1,4 @@
-id: obj.service.nextcloud.file_storage
+object: obj.service.nextcloud.file_storage
 version: 1.0.0
 class_ref: class.service.file_storage
 model: Nextcloud File Storage

@@ -1,4 +1,4 @@
-id: class.service.logging
+class: class.service.logging
 version: 1.0.0
 title: Service Logging
 summary: Log ingest, forwarding, and retention service role.

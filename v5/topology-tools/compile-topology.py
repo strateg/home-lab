@@ -17,15 +17,7 @@ import yaml
 TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
-from kernel import (
-    PluginRegistry,
-    PluginContext,
-    PluginResult,
-    PluginDiagnostic,
-    PluginStatus,
-    Stage,
-    KERNEL_VERSION,
-)
+from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPO_ROOT / "v5" / "topology" / "topology.yaml"
@@ -345,17 +337,14 @@ class V5Compiler:
             payload = self._load_yaml(path, code_missing="E1001", code_parse="E1003", stage="load")
             if payload is None:
                 continue
-            item_id = payload.get("id")
-            if (not isinstance(item_id, str) or not item_id) and module_type == "class":
-                item_id = payload.get("class")
-            if (not isinstance(item_id, str) or not item_id) and module_type == "object":
-                item_id = payload.get("object")
+            module_key = "class" if module_type == "class" else "object"
+            item_id = payload.get(module_key)
             if not isinstance(item_id, str) or not item_id:
                 self.add_diag(
                     code="E3201",
                     severity="error",
                     stage="validate",
-                    message=f"{module_type} module is missing 'id'.",
+                    message=f"{module_type} module is missing '{module_key}'.",
                     path=str(path.relative_to(REPO_ROOT).as_posix()),
                 )
                 continue
@@ -364,7 +353,7 @@ class V5Compiler:
                     code="E2102",
                     severity="error",
                     stage="resolve",
-                    message=f"Duplicate {module_type} id '{item_id}'.",
+                    message=f"Duplicate {module_type} {module_key} '{item_id}'.",
                     path=str(path.relative_to(REPO_ROOT).as_posix()),
                 )
                 continue
@@ -1112,7 +1101,7 @@ class V5Compiler:
             return []
 
         rows: list[dict[str, Any]] = []
-        seen_ids: set[str] = set()
+        seen_instances: set[str] = set()
         for group_name, group_rows in bindings.items():
             if not isinstance(group_rows, list):
                 self.add_diag(
@@ -1134,7 +1123,7 @@ class V5Compiler:
                         path=f"instance_bindings.{group_name}[{idx}]",
                     )
                     continue
-                instance_id = row.get("id")
+                instance_id = row.get("instance")
                 layer = row.get("layer")
                 class_ref = row.get("class_ref")
                 object_ref = row.get("object_ref")
@@ -1146,20 +1135,20 @@ class V5Compiler:
                         code="E3201",
                         severity="error",
                         stage="validate",
-                        message="Instance row must define non-empty 'id'.",
-                        path=f"instance_bindings.{group_name}[{idx}].id",
+                        message="Instance row must define non-empty 'instance'.",
+                        path=f"instance_bindings.{group_name}[{idx}].instance",
                     )
                     continue
-                if instance_id in seen_ids:
+                if instance_id in seen_instances:
                     self.add_diag(
                         code="E2102",
                         severity="error",
                         stage="resolve",
-                        message=f"Duplicate instance id '{instance_id}'.",
+                        message=f"Duplicate instance '{instance_id}'.",
                         path=f"instance_bindings.{group_name}[{idx}]",
                     )
                     continue
-                seen_ids.add(instance_id)
+                seen_instances.add(instance_id)
 
                 if not isinstance(class_ref, str) or not class_ref:
                     self.add_diag(
@@ -1231,7 +1220,7 @@ class V5Compiler:
                 rows.append(
                     {
                         "group": group_name,
-                        "id": instance_id,
+                        "instance": instance_id,
                         "layer": layer,
                         "source_id": row.get("source_id", instance_id),
                         "class_ref": class_ref,
@@ -1258,14 +1247,14 @@ class V5Compiler:
         valid_firmware_policies = {"required", "allowed", "forbidden"}
         row_by_id: dict[str, dict[str, Any]] = {}
         for row in rows:
-            row_id = row.get("id")
+            row_id = row.get("instance")
             if isinstance(row_id, str) and row_id:
                 row_by_id[row_id] = row
 
         for row in rows:
             class_ref = row.get("class_ref")
             object_ref = row.get("object_ref")
-            path = f"instance:{row.get('group')}:{row.get('id')}"
+            path = f"instance:{row.get('group')}:{row.get('instance')}"
 
             if not isinstance(class_ref, str) or not class_ref:
                 continue
@@ -1309,8 +1298,8 @@ class V5Compiler:
         for row in rows:
             class_ref = row.get("class_ref")
             object_ref = row.get("object_ref")
-            row_id = row.get("id")
-            path = f"instance:{row.get('group')}:{row.get('id')}"
+            row_id = row.get("instance")
+            path = f"instance:{row.get('group')}:{row.get('instance')}"
             if not isinstance(class_ref, str) or not class_ref:
                 continue
             if not isinstance(object_ref, str) or not object_ref:
@@ -1339,10 +1328,7 @@ class V5Compiler:
                     code="E3201",
                     severity="error",
                     stage="validate",
-                    message=(
-                        f"instance '{row_id}' class '{class_ref}' requires firmware_ref "
-                        "(inst.firmware.*)."
-                    ),
+                    message=(f"instance '{row_id}' class '{class_ref}' requires firmware_ref " "(inst.firmware.*)."),
                     path=path,
                 )
             if firmware_policy == "forbidden" and isinstance(firmware_ref, str):
@@ -1469,9 +1455,7 @@ class V5Compiler:
                         code="E2403",
                         severity="error",
                         stage="validate",
-                        message=(
-                            f"instance '{row_id}' os_ref '{os_ref}' must reference class.os, got '{os_class}'."
-                        ),
+                        message=(f"instance '{row_id}' os_ref '{os_ref}' must reference class.os, got '{os_class}'."),
                         path=path,
                     )
                     continue
@@ -1515,7 +1499,7 @@ class V5Compiler:
             resolved_os_refs: list[str] = []
             resolved_os_effective: list[dict[str, Any]] = []
             for os_row in resolved_os_rows:
-                os_instance_id = os_row.get("id")
+                os_instance_id = os_row.get("instance")
                 os_object_ref = os_row.get("object_ref")
                 if not isinstance(os_object_ref, str):
                     continue
@@ -1568,7 +1552,7 @@ class V5Compiler:
                             ),
                             path=path,
                         )
-                resolved_os_refs.append(os_row.get("id"))
+                resolved_os_refs.append(os_row.get("instance"))
 
             self._instance_derived_caps[row_id] = sorted(derived_caps)
             self._instance_software_refs[row_id] = {
@@ -1589,7 +1573,7 @@ class V5Compiler:
         """Validate embedded_in field for OS instances per ADR 0064."""
         row_by_id: dict[str, dict[str, Any]] = {}
         for row in rows:
-            row_id = row.get("id")
+            row_id = row.get("instance")
             if isinstance(row_id, str) and row_id:
                 row_by_id[row_id] = row
 
@@ -1599,7 +1583,7 @@ class V5Compiler:
             if class_ref != "class.os":
                 continue
 
-            row_id = row.get("id")
+            row_id = row.get("instance")
             object_ref = row.get("object_ref")
             embedded_in = row.get("embedded_in")
             path = f"instance:{row.get('group')}:{row_id}"
@@ -1669,7 +1653,7 @@ class V5Compiler:
             if class_ref in ("class.os", "class.firmware"):
                 continue  # Skip software instances
 
-            row_id = row.get("id")
+            row_id = row.get("instance")
             firmware_ref = row.get("firmware_ref")
             os_refs = row.get("os_refs", []) or []
             path = f"instance:{row.get('group')}:{row_id}"
@@ -1760,7 +1744,7 @@ class V5Compiler:
         for row in rows:
             class_ref = row.get("class_ref")
             object_ref = row.get("object_ref")
-            path = f"instance:{row.get('group')}:{row.get('id')}"
+            path = f"instance:{row.get('group')}:{row.get('instance')}"
 
             if not isinstance(class_ref, str) or not class_ref:
                 continue
@@ -1875,8 +1859,8 @@ class V5Compiler:
             object_payload = object_map.get(object_ref, {}).get("payload", {})
 
             effective_item = {
-                "id": row["id"],
-                "source_id": row.get("source_id", row["id"]),
+                "instance": row["instance"],
+                "source_id": row.get("source_id", row["instance"]),
                 "layer": row.get("layer"),
                 "class_ref": class_ref,
                 "object_ref": object_ref,
@@ -1886,9 +1870,7 @@ class V5Compiler:
                 "class": {
                     "version": class_payload.get("version"),
                     "os_policy": class_payload.get("os_policy", "allowed"),
-                    "firmware_policy": class_payload.get(
-                        "firmware_policy", self._default_firmware_policy(class_ref)
-                    ),
+                    "firmware_policy": class_payload.get("firmware_policy", self._default_firmware_policy(class_ref)),
                     "os_cardinality": class_payload.get("os_cardinality"),
                     "multi_boot": class_payload.get("multi_boot", False),
                     "required_capabilities": class_payload.get("required_capabilities", []),
@@ -1905,12 +1887,12 @@ class V5Compiler:
                     "model": object_payload.get("model"),
                 },
             }
-            software_refs = self._instance_software_refs.get(row["id"], {})
+            software_refs = self._instance_software_refs.get(row["instance"], {})
             if software_refs:
                 effective_item["instance"] = {
                     "firmware_ref": software_refs.get("firmware_ref"),
                     "os_refs": software_refs.get("os_refs", []),
-                    "derived_capabilities": self._instance_derived_caps.get(row["id"], []),
+                    "derived_capabilities": self._instance_derived_caps.get(row["instance"], []),
                     "effective_software": software_refs.get("effective", {}),
                 }
             effective_os = self._object_effective_os.get(object_ref)
@@ -1924,7 +1906,7 @@ class V5Compiler:
             by_group.setdefault(group, []).append(effective_item)
 
         for group_rows in by_group.values():
-            group_rows.sort(key=lambda item: str(item.get("id", "")))
+            group_rows.sort(key=lambda item: str(item.get("instance", "")))
 
         class_index = {
             class_id: class_item["payload"]

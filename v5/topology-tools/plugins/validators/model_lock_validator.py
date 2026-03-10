@@ -11,13 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from kernel.plugin_base import (
-    PluginContext,
-    PluginDiagnostic,
-    PluginResult,
-    Stage,
-    ValidatorJsonPlugin,
-)
+from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
 
 
 class ModelLockValidator(ValidatorJsonPlugin):
@@ -63,7 +57,7 @@ class ModelLockValidator(ValidatorJsonPlugin):
                 if not isinstance(row, dict):
                     continue
 
-                instance_id = row.get("id", "<unknown>")
+                instance_id = row.get("instance", "<unknown>")
                 path = f"instance:{group_name}:{instance_id}"
 
                 # Validate class_ref is pinned

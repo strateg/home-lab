@@ -1,4 +1,4 @@
-id: obj.service.alertmanager
+object: obj.service.alertmanager
 version: 1.0.0
 class_ref: class.service.alerting
 model: Alertmanager

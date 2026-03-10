@@ -1,4 +1,4 @@
-id: obj.service.tailscale
+object: obj.service.tailscale
 version: 1.0.0
 class_ref: class.service.vpn
 model: Tailscale

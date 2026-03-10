@@ -1,4 +1,4 @@
-id: class.storage.volume
+class: class.storage.volume
 version: 1.0.0
 description: Logical volume attached to workloads
 layer: L3

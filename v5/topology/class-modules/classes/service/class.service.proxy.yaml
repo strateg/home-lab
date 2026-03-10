@@ -1,4 +1,4 @@
-id: class.service.proxy
+class: class.service.proxy
 version: 1.0.0
 title: Service Proxy
 summary: Reverse proxy and ingress routing service role.

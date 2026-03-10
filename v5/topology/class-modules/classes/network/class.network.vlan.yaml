@@ -1,4 +1,4 @@
-id: class.network.vlan
+class: class.network.vlan
 version: 1.0.0
 description: Network segment with VLAN tagging and IP addressing
 layer: L2

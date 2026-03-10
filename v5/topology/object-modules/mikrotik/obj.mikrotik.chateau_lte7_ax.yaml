@@ -1,4 +1,4 @@
-id: obj.mikrotik.chateau_lte7_ax
+object: obj.mikrotik.chateau_lte7_ax
 version: 1.0.0
 class_ref: class.router
 title: MikroTik Chateau LTE7 AX

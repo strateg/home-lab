@@ -1,4 +1,4 @@
-id: obj.hetzner.cloud_vm
+object: obj.hetzner.cloud_vm
 version: 1.0.0
 class_ref: class.compute.cloud_vm
 model: Hetzner Cloud VM

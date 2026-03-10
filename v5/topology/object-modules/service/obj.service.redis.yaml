@@ -1,4 +1,4 @@
-id: obj.service.redis
+object: obj.service.redis
 version: 1.0.0
 class_ref: class.service.cache
 model: Redis

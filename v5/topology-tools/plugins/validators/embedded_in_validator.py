@@ -13,13 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from kernel.plugin_base import (
-    PluginContext,
-    PluginDiagnostic,
-    PluginResult,
-    Stage,
-    ValidatorJsonPlugin,
-)
+from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
 
 
 class EmbeddedInValidator(ValidatorJsonPlugin):
@@ -34,15 +28,15 @@ class EmbeddedInValidator(ValidatorJsonPlugin):
         # Collect firmware instance IDs
         firmware_ids: set[str] = set()
         for row in bindings.get("l1_software_firmware", []):
-            if isinstance(row, dict) and row.get("id"):
-                firmware_ids.add(row["id"])
+            if isinstance(row, dict) and row.get("instance"):
+                firmware_ids.add(row["instance"])
 
         # Validate OS instances
         for row in bindings.get("l1_software_os", []):
             if not isinstance(row, dict):
                 continue
 
-            instance_id = row.get("id", "<unknown>")
+            instance_id = row.get("instance", "<unknown>")
             path = f"instance:l1_software_os:{instance_id}"
 
             embedded_in = row.get("embedded_in")

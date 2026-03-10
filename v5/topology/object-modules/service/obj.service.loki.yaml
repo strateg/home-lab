@@ -1,4 +1,4 @@
-id: obj.service.loki
+object: obj.service.loki
 version: 1.0.0
 class_ref: class.service.logging
 model: Loki

@@ -1,4 +1,4 @@
-id: class.service.file_storage
+class: class.service.file_storage
 version: 1.0.0
 title: Service File Storage
 summary: File storage and sharing service role.

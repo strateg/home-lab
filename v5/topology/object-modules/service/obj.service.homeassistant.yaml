@@ -1,4 +1,4 @@
-id: obj.service.homeassistant
+object: obj.service.homeassistant
 version: 1.0.0
 class_ref: class.service.home_automation
 model: Homeassistant

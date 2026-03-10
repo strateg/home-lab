@@ -1,4 +1,4 @@
-id: class.compute.hypervisor
+class: class.compute.hypervisor
 version: 1.0.0
 title: Compute Hypervisor
 summary: Host platform that runs VM/LXC workloads.

@@ -1,4 +1,4 @@
-id: obj.service.mosquitto
+object: obj.service.mosquitto
 version: 1.0.0
 class_ref: class.service.home_automation
 model: Mosquitto

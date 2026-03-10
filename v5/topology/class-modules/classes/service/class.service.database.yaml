@@ -1,4 +1,4 @@
-id: class.service.database
+class: class.service.database
 version: 1.0.0
 title: Service Database
 summary: Stateful database service role.

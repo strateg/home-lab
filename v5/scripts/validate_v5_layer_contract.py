@@ -220,12 +220,10 @@ def main() -> int:
     class_payloads: dict[str, dict[str, Any]] = {}
     for path in class_files:
         payload = _load_yaml_map(path, errors=errors)
-        class_id = payload.get("id")
-        if not isinstance(class_id, str) or not class_id:
-            class_id = payload.get("class")
+        class_id = payload.get("class")
         rel_path = path.relative_to(ROOT).as_posix()
         if not isinstance(class_id, str) or not class_id:
-            errors.append(f"{rel_path}: class module missing non-empty id/class")
+            errors.append(f"{rel_path}: class module missing non-empty class")
             continue
         if class_id in class_payloads:
             errors.append(f"{rel_path}: duplicate class id '{class_id}'")
@@ -251,14 +249,12 @@ def main() -> int:
     object_allowed_layers: dict[str, list[str]] = {}
     for path in object_files:
         payload = _load_yaml_map(path, errors=errors)
-        object_id = payload.get("id")
-        if not isinstance(object_id, str) or not object_id:
-            object_id = payload.get("object")
+        object_id = payload.get("object")
         class_ref = payload.get("class_ref")
         rel_path = path.relative_to(ROOT).as_posix()
 
         if not isinstance(object_id, str) or not object_id:
-            errors.append(f"{rel_path}: object module missing non-empty id/object")
+            errors.append(f"{rel_path}: object module missing non-empty object")
             continue
         if object_id in object_payloads:
             errors.append(f"{rel_path}: duplicate object id '{object_id}'")
@@ -322,16 +318,16 @@ def main() -> int:
                 errors.append(f"{path}: row must be object")
                 continue
 
-            row_id = row.get("id")
+            row_id = row.get("instance")
             row_layer = row.get("layer")
             class_ref = row.get("class_ref")
             object_ref = row.get("object_ref")
 
             if not isinstance(row_id, str) or not row_id:
-                errors.append(f"{path}: missing non-empty id")
+                errors.append(f"{path}: missing non-empty instance")
                 continue
             if row_id in instances_by_id:
-                errors.append(f"{path}: duplicate instance id '{row_id}'")
+                errors.append(f"{path}: duplicate instance '{row_id}'")
                 continue
             if not isinstance(row_layer, str) or not row_layer:
                 errors.append(f"{path}: missing non-empty layer")
@@ -371,7 +367,7 @@ def main() -> int:
                 errors.append(f"{path}: layer '{row_layer}' is not allowed by object '{object_ref}'")
 
             instances_by_id[row_id] = {
-                "id": row_id,
+                "instance": row_id,
                 "layer": row_layer,
                 "path": path,
             }

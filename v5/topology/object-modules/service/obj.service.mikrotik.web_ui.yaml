@@ -1,4 +1,4 @@
-id: obj.service.mikrotik.web_ui
+object: obj.service.mikrotik.web_ui
 version: 1.0.0
 class_ref: class.service.web_ui
 model: Mikrotik Web Ui

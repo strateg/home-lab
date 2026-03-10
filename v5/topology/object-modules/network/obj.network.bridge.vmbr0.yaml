@@ -1,4 +1,4 @@
-id: obj.network.bridge.vmbr0
+object: obj.network.bridge.vmbr0
 version: 1.0.0
 class_ref: class.network.bridge
 description: Main Proxmox hypervisor bridge

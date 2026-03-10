@@ -1,4 +1,4 @@
-id: obj.glinet.slate_ax1800
+object: obj.glinet.slate_ax1800
 version: 1.0.0
 class_ref: class.router
 title: GL.iNet Slate AX (GL-AXT1800)

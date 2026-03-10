@@ -1,4 +1,4 @@
-id: obj.proxmox.ve
+object: obj.proxmox.ve
 version: 1.0.0
 class_ref: class.compute.hypervisor
 model: Proxmox VE 9

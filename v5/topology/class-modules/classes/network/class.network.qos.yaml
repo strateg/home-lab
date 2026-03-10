@@ -1,4 +1,4 @@
-id: class.network.qos
+class: class.network.qos
 version: 1.0.0
 description: Quality of Service profile for traffic shaping
 layer: L2

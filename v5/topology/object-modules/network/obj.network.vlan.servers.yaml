@@ -1,4 +1,4 @@
-id: obj.network.vlan.servers
+object: obj.network.vlan.servers
 version: 1.0.0
 class_ref: class.network.vlan
 description: Server VLAN for Proxmox LXC and edge devices

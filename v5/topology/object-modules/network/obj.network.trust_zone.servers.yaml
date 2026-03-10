@@ -1,4 +1,4 @@
-id: obj.network.trust_zone.servers
+object: obj.network.trust_zone.servers
 version: 1.0.0
 class_ref: class.network.trust_zone
 description: Server zone for infrastructure services

@@ -13,7 +13,7 @@ MAPPING_PATH = ROOT / "v5/topology/instances/home-lab/v4-to-v5-mapping.yaml"
 BACKLOG_PATH = ROOT / "v5/topology/instances/home-lab/phase1-module-backlog.yaml"
 
 
-def collect_existing_ids(root: Path) -> set[str]:
+def collect_existing_ids(root: Path, key: str) -> set[str]:
     ids: set[str] = set()
     for path in sorted(root.rglob("*.yaml")):
         try:
@@ -21,7 +21,7 @@ def collect_existing_ids(root: Path) -> set[str]:
         except yaml.YAMLError:
             continue
         if isinstance(payload, dict):
-            item_id = payload.get("id")
+            item_id = payload.get(key)
             if isinstance(item_id, str) and item_id:
                 ids.add(item_id)
     return ids
@@ -34,8 +34,8 @@ def main() -> int:
     payload = yaml.safe_load(MAPPING_PATH.read_text(encoding="utf-8")) or {}
     entities = payload.get("entities") or {}
 
-    existing_class_ids = collect_existing_ids(ROOT / "v5/topology/class-modules")
-    existing_object_ids = collect_existing_ids(ROOT / "v5/topology/object-modules")
+    existing_class_ids = collect_existing_ids(ROOT / "v5/topology/class-modules", "class")
+    existing_object_ids = collect_existing_ids(ROOT / "v5/topology/object-modules", "object")
 
     class_gaps: dict[str, set[str]] = defaultdict(set)
     object_gaps: dict[str, set[str]] = defaultdict(set)

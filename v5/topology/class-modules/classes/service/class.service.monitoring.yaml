@@ -1,4 +1,4 @@
-id: class.service.monitoring
+class: class.service.monitoring
 version: 1.0.0
 title: Service Monitoring
 summary: Metrics collection and telemetry service role.

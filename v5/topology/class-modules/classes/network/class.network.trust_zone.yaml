@@ -1,4 +1,4 @@
-id: class.network.trust_zone
+class: class.network.trust_zone
 version: 1.0.0
 description: Security zone defining trust boundaries and default policies
 layer: L2

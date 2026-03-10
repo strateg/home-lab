@@ -13,7 +13,7 @@ CLASS_ROOT = ROOT / "v5/topology/class-modules/classes"
 OBJECT_ROOT = ROOT / "v5/topology/object-modules"
 
 
-def _collect_modules(root: Path) -> list[dict]:
+def _collect_modules(root: Path, key: str) -> list[dict]:
     items: list[dict] = []
     for path in sorted(root.rglob("*.yaml")):
         try:
@@ -21,7 +21,7 @@ def _collect_modules(root: Path) -> list[dict]:
         except yaml.YAMLError:
             continue
         if isinstance(payload, dict):
-            module_id = payload.get("id")
+            module_id = payload.get(key)
             if isinstance(module_id, str) and module_id:
                 items.append(payload)
     return items
@@ -34,8 +34,8 @@ def main() -> int:
         if not isinstance(lock_payload, dict):
             lock_payload = {}
 
-    classes = _collect_modules(CLASS_ROOT)
-    objects = _collect_modules(OBJECT_ROOT)
+    classes = _collect_modules(CLASS_ROOT, "class")
+    objects = _collect_modules(OBJECT_ROOT, "object")
 
     output = {
         "version": lock_payload.get("version", 1),
@@ -44,14 +44,14 @@ def main() -> int:
         "objects": {},
     }
 
-    for item in sorted(classes, key=lambda entry: entry["id"]):
-        output["classes"][item["id"]] = {"version": str(item.get("version", "1.0.0"))}
+    for item in sorted(classes, key=lambda entry: entry["class"]):
+        output["classes"][item["class"]] = {"version": str(item.get("version", "1.0.0"))}
 
-    for item in sorted(objects, key=lambda entry: entry["id"]):
+    for item in sorted(objects, key=lambda entry: entry["object"]):
         class_ref = item.get("class_ref")
         if not isinstance(class_ref, str) or not class_ref:
             continue
-        output["objects"][item["id"]] = {
+        output["objects"][item["object"]] = {
             "version": str(item.get("version", "1.0.0")),
             "class_ref": class_ref,
         }

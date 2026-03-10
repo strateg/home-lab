@@ -1,4 +1,4 @@
-id: class.observability.alert
+class: class.observability.alert
 version: 1.0.0
 description: Alert rule definition
 layer: L6

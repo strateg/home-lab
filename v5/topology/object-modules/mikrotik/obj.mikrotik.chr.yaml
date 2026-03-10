@@ -1,4 +1,4 @@
-id: obj.mikrotik.chr
+object: obj.mikrotik.chr
 version: 1.1.0
 class_ref: class.router
 title: MikroTik CHR (Cloud Hosted Router)

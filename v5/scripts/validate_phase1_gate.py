@@ -66,12 +66,12 @@ def _validate_binding_rows(
         if not isinstance(row, dict):
             errors.append(f"{path}: row must be object")
             continue
-        item_id = row.get("id")
+        item_id = row.get("instance")
         if not isinstance(item_id, str) or not item_id:
-            errors.append(f"{path}: missing non-empty id")
+            errors.append(f"{path}: missing non-empty instance")
             continue
         if item_id in seen:
-            errors.append(f"{path}: duplicate id '{item_id}' in group '{group}'")
+            errors.append(f"{path}: duplicate instance '{item_id}' in group '{group}'")
         seen.add(item_id)
         layer = row.get("layer")
         if not isinstance(layer, str) or not layer:
@@ -147,11 +147,11 @@ def _validate_bindings_sync(
             )
 
         mapping_by_id = _rows_by_id(mapping_rows, "instance_id")
-        bindings_by_id = _rows_by_id(binding_rows, "id")
+        bindings_by_id = _rows_by_id(binding_rows, "instance")
         for instance_id, mrow in mapping_by_id.items():
             brow = bindings_by_id.get(instance_id)
             if brow is None:
-                errors.append(f"instance-bindings.{group}: missing row for id '{instance_id}'")
+                errors.append(f"instance-bindings.{group}: missing row for instance '{instance_id}'")
                 continue
             if brow.get("class_ref") != mrow.get("class_ref"):
                 errors.append(f"instance-bindings.{group}:{instance_id}: class_ref mismatch")
@@ -162,7 +162,9 @@ def _validate_bindings_sync(
 
         for instance_id in bindings_by_id:
             if instance_id not in mapping_by_id:
-                errors.append(f"instance-bindings.{group}: unexpected id '{instance_id}' (not present in mapping)")
+                errors.append(
+                    f"instance-bindings.{group}: unexpected instance '{instance_id}' (not present in mapping)"
+                )
 
 
 def build_parser() -> argparse.ArgumentParser:

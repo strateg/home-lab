@@ -3,7 +3,7 @@ generated_at: '2026-03-08T23:24:31+00:00'
 source_mapping: v5/topology/instances/home-lab/v4-to-v5-mapping.yaml
 instance_bindings:
   l1_devices:
-  - id: mikrotik-chateau
+  - instance: mikrotik-chateau
     source_id: mikrotik-chateau
     layer: L1
     class_ref: class.router
@@ -13,7 +13,7 @@ instance_bindings:
     firmware_ref: inst.firmware.routeros.7.arm64
     os_refs:
     - inst.os.routeros.7.arm64
-  - id: pdu-rack
+  - instance: pdu-rack
     source_id: pdu-rack
     layer: L1
     class_ref: class.power.pdu
@@ -22,7 +22,7 @@ instance_bindings:
     notes: module scaffold exists; capability profile tuning pending
     firmware_ref: inst.firmware.pdu.generic.managed
     os_refs: []
-  - id: rtr-mikrotik-chateau
+  - instance: rtr-mikrotik-chateau
     source_id: rtr-mikrotik-chateau
     layer: L1
     class_ref: class.router
@@ -32,7 +32,7 @@ instance_bindings:
     firmware_ref: inst.firmware.routeros.7.arm64
     os_refs:
     - inst.os.routeros.7.arm64
-  - id: rtr-slate
+  - instance: rtr-slate
     source_id: rtr-slate
     layer: L1
     class_ref: class.router
@@ -42,7 +42,7 @@ instance_bindings:
     firmware_ref: inst.firmware.openwrt.glinet.4x
     os_refs:
     - inst.os.openwrt.glinet.4x
-  - id: srv-gamayun
+  - instance: srv-gamayun
     source_id: srv-gamayun
     layer: L1
     class_ref: class.compute.hypervisor
@@ -52,7 +52,7 @@ instance_bindings:
     firmware_ref: inst.firmware.uefi.generic.x86_64
     os_refs:
     - inst.os.proxmox.ve.9
-  - id: srv-orangepi5
+  - instance: srv-orangepi5
     source_id: srv-orangepi5
     layer: L1
     class_ref: class.compute.edge_node
@@ -62,7 +62,7 @@ instance_bindings:
     firmware_ref: inst.firmware.uboot.generic.arm64
     os_refs:
     - inst.os.debian.12.arm64.edge
-  - id: ups-main
+  - instance: ups-main
     source_id: ups-main
     layer: L1
     class_ref: class.power.ups
@@ -71,7 +71,7 @@ instance_bindings:
     notes: module scaffold exists; capability profile tuning pending
     firmware_ref: inst.firmware.apc.backups.650va
     os_refs: []
-  - id: vps-hetzner-nuremberg
+  - instance: vps-hetzner-nuremberg
     source_id: vps-hetzner-nuremberg
     layer: L1
     class_ref: class.compute.cloud_vm
@@ -81,7 +81,7 @@ instance_bindings:
     firmware_ref: inst.firmware.uefi.generic.x86_64
     os_refs:
     - inst.os.linux.generic.x86_64
-  - id: vps-oracle-frankfurt
+  - instance: vps-oracle-frankfurt
     source_id: vps-oracle-frankfurt
     layer: L1
     class_ref: class.compute.cloud_vm
@@ -92,56 +92,56 @@ instance_bindings:
     os_refs:
     - inst.os.linux.generic.arm64
   l1_software_firmware:
-  - id: inst.firmware.routeros.7.arm64
+  - instance: inst.firmware.routeros.7.arm64
     source_id: inst.firmware.routeros.7.arm64
     layer: L1
     class_ref: class.firmware
     object_ref: obj.firmware.routeros.7.arm64
     status: mapped
     notes: ADR0064 firmware instance
-  - id: inst.firmware.routeros.7.x86_64
+  - instance: inst.firmware.routeros.7.x86_64
     source_id: inst.firmware.routeros.7.x86_64
     layer: L1
     class_ref: class.firmware
     object_ref: obj.firmware.routeros.7.x86_64
     status: mapped
     notes: ADR0064 firmware instance
-  - id: inst.firmware.openwrt.glinet.4x
+  - instance: inst.firmware.openwrt.glinet.4x
     source_id: inst.firmware.openwrt.glinet.4x
     layer: L1
     class_ref: class.firmware
     object_ref: obj.firmware.openwrt.glinet.4x
     status: mapped
     notes: ADR0064 firmware instance
-  - id: inst.firmware.uefi.generic.x86_64
+  - instance: inst.firmware.uefi.generic.x86_64
     source_id: inst.firmware.uefi.generic.x86_64
     layer: L1
     class_ref: class.firmware
     object_ref: obj.firmware.uefi.generic.x86_64
     status: mapped
     notes: ADR0064 firmware instance
-  - id: inst.firmware.uefi.generic.arm64
+  - instance: inst.firmware.uefi.generic.arm64
     source_id: inst.firmware.uefi.generic.arm64
     layer: L1
     class_ref: class.firmware
     object_ref: obj.firmware.uefi.generic.arm64
     status: mapped
     notes: ADR0064 firmware instance
-  - id: inst.firmware.uboot.generic.arm64
+  - instance: inst.firmware.uboot.generic.arm64
     source_id: inst.firmware.uboot.generic.arm64
     layer: L1
     class_ref: class.firmware
     object_ref: obj.firmware.uboot.generic.arm64
     status: mapped
     notes: ADR0064 firmware instance
-  - id: inst.firmware.apc.backups.650va
+  - instance: inst.firmware.apc.backups.650va
     source_id: inst.firmware.apc.backups.650va
     layer: L1
     class_ref: class.firmware
     object_ref: obj.firmware.apc.backups.650va
     status: mapped
     notes: ADR0064 firmware instance
-  - id: inst.firmware.pdu.generic.managed
+  - instance: inst.firmware.pdu.generic.managed
     source_id: inst.firmware.pdu.generic.managed
     layer: L1
     class_ref: class.firmware
@@ -149,7 +149,7 @@ instance_bindings:
     status: mapped
     notes: ADR0064 firmware instance
   l1_software_os:
-  - id: inst.os.routeros.7.arm64
+  - instance: inst.os.routeros.7.arm64
     source_id: inst.os.routeros.7.arm64
     layer: L1
     class_ref: class.os
@@ -157,7 +157,7 @@ instance_bindings:
     embedded_in: inst.firmware.routeros.7.arm64
     status: mapped
     notes: ADR0064 embedded os instance
-  - id: inst.os.routeros.7.x86_64
+  - instance: inst.os.routeros.7.x86_64
     source_id: inst.os.routeros.7.x86_64
     layer: L1
     class_ref: class.os
@@ -165,7 +165,7 @@ instance_bindings:
     embedded_in: inst.firmware.routeros.7.x86_64
     status: mapped
     notes: ADR0064 embedded os instance
-  - id: inst.os.openwrt.glinet.4x
+  - instance: inst.os.openwrt.glinet.4x
     source_id: inst.os.openwrt.glinet.4x
     layer: L1
     class_ref: class.os
@@ -173,35 +173,35 @@ instance_bindings:
     embedded_in: inst.firmware.openwrt.glinet.4x
     status: mapped
     notes: ADR0064 embedded os instance
-  - id: inst.os.proxmox.ve.9
+  - instance: inst.os.proxmox.ve.9
     source_id: inst.os.proxmox.ve.9
     layer: L1
     class_ref: class.os
     object_ref: obj.os.proxmox.ve.9
     status: mapped
     notes: ADR0064 os instance
-  - id: inst.os.debian.12.arm64.edge
+  - instance: inst.os.debian.12.arm64.edge
     source_id: inst.os.debian.12.arm64.edge
     layer: L1
     class_ref: class.os
     object_ref: obj.os.debian.12.arm64.edge
     status: mapped
     notes: ADR0064 os instance
-  - id: inst.os.debian.12.proxmox.lxc
+  - instance: inst.os.debian.12.proxmox.lxc
     source_id: inst.os.debian.12.proxmox.lxc
     layer: L1
     class_ref: class.os
     object_ref: obj.os.debian.12.proxmox.lxc
     status: mapped
     notes: ADR0064 os instance
-  - id: inst.os.linux.generic.x86_64
+  - instance: inst.os.linux.generic.x86_64
     source_id: inst.os.linux.generic.x86_64
     layer: L1
     class_ref: class.os
     object_ref: obj.os.linux.generic.x86_64
     status: mapped
     notes: ADR0064 os instance
-  - id: inst.os.linux.generic.arm64
+  - instance: inst.os.linux.generic.arm64
     source_id: inst.os.linux.generic.arm64
     layer: L1
     class_ref: class.os
@@ -209,7 +209,7 @@ instance_bindings:
     status: mapped
     notes: ADR0064 os instance
   l2_network:
-  - id: inst.bridge.vmbr0
+  - instance: inst.bridge.vmbr0
     source_id: bridge-vmbr0
     layer: L2
     class_ref: class.network.bridge
@@ -217,21 +217,21 @@ instance_bindings:
     status: mapped
     notes: Primary Proxmox VLAN-aware bridge
     host_ref: srv-gamayun
-  - id: inst.trust_zone.servers
+  - instance: inst.trust_zone.servers
     source_id: trust-zone-servers
     layer: L2
     class_ref: class.network.trust_zone
     object_ref: obj.network.trust_zone.servers
     status: mapped
     notes: Server zone for infrastructure services
-  - id: inst.trust_zone.management
+  - instance: inst.trust_zone.management
     source_id: trust-zone-management
     layer: L2
     class_ref: class.network.trust_zone
     object_ref: obj.network.trust_zone.management
     status: mapped
     notes: Management zone for infrastructure access
-  - id: inst.vlan.servers
+  - instance: inst.vlan.servers
     source_id: net-servers
     layer: L2
     class_ref: class.network.vlan
@@ -241,7 +241,7 @@ instance_bindings:
     bridge_ref: inst.bridge.vmbr0
     trust_zone_ref: inst.trust_zone.servers
     managed_by_ref: mikrotik-chateau
-  - id: inst.vlan.management
+  - instance: inst.vlan.management
     source_id: net-management
     layer: L2
     class_ref: class.network.vlan
@@ -252,7 +252,7 @@ instance_bindings:
     trust_zone_ref: inst.trust_zone.management
     managed_by_ref: mikrotik-chateau
   l3_storage:
-  - id: inst.storage.pool.local
+  - instance: inst.storage.pool.local
     source_id: se-local
     layer: L3
     class_ref: class.storage.pool
@@ -260,7 +260,7 @@ instance_bindings:
     status: mapped
     notes: Local directory storage on Proxmox
     host_ref: srv-gamayun
-  - id: inst.storage.pool.local_lvm
+  - instance: inst.storage.pool.local_lvm
     source_id: se-lvm
     layer: L3
     class_ref: class.storage.pool
@@ -270,7 +270,7 @@ instance_bindings:
     host_ref: srv-gamayun
   l4_vms: []
   l4_lxc:
-  - id: lxc-docker
+  - instance: lxc-docker
     source_id: lxc-docker
     layer: L4
     class_ref: class.compute.workload.container
@@ -279,7 +279,7 @@ instance_bindings:
     notes: module scaffold exists; capability profile tuning pending
     os_refs:
     - inst.os.debian.12.proxmox.lxc
-  - id: lxc-gitea
+  - instance: lxc-gitea
     source_id: lxc-gitea
     layer: L4
     class_ref: class.compute.workload.container
@@ -288,7 +288,7 @@ instance_bindings:
     notes: module scaffold exists; capability profile tuning pending
     os_refs:
     - inst.os.debian.12.proxmox.lxc
-  - id: lxc-grafana
+  - instance: lxc-grafana
     source_id: lxc-grafana
     layer: L4
     class_ref: class.compute.workload.container
@@ -297,7 +297,7 @@ instance_bindings:
     notes: module scaffold exists; capability profile tuning pending
     os_refs:
     - inst.os.debian.12.proxmox.lxc
-  - id: lxc-homeassistant
+  - instance: lxc-homeassistant
     source_id: lxc-homeassistant
     layer: L4
     class_ref: class.compute.workload.container
@@ -306,7 +306,7 @@ instance_bindings:
     notes: module scaffold exists; capability profile tuning pending
     os_refs:
     - inst.os.debian.12.proxmox.lxc
-  - id: lxc-nextcloud
+  - instance: lxc-nextcloud
     source_id: lxc-nextcloud
     layer: L4
     class_ref: class.compute.workload.container
@@ -315,7 +315,7 @@ instance_bindings:
     notes: module scaffold exists; capability profile tuning pending
     os_refs:
     - inst.os.debian.12.proxmox.lxc
-  - id: lxc-nginx-proxy
+  - instance: lxc-nginx-proxy
     source_id: lxc-nginx-proxy
     layer: L4
     class_ref: class.compute.workload.container
@@ -324,7 +324,7 @@ instance_bindings:
     notes: module scaffold exists; capability profile tuning pending
     os_refs:
     - inst.os.debian.12.proxmox.lxc
-  - id: lxc-postgresql
+  - instance: lxc-postgresql
     source_id: lxc-postgresql
     layer: L4
     class_ref: class.compute.workload.container
@@ -333,7 +333,7 @@ instance_bindings:
     notes: module scaffold exists; capability profile tuning pending
     os_refs:
     - inst.os.debian.12.proxmox.lxc
-  - id: lxc-prometheus
+  - instance: lxc-prometheus
     source_id: lxc-prometheus
     layer: L4
     class_ref: class.compute.workload.container
@@ -342,7 +342,7 @@ instance_bindings:
     notes: module scaffold exists; capability profile tuning pending
     os_refs:
     - inst.os.debian.12.proxmox.lxc
-  - id: lxc-redis
+  - instance: lxc-redis
     source_id: lxc-redis
     layer: L4
     class_ref: class.compute.workload.container
@@ -352,7 +352,7 @@ instance_bindings:
     os_refs:
     - inst.os.debian.12.proxmox.lxc
   l5_services:
-  - id: svc-adguard
+  - instance: svc-adguard
     source_id: svc-adguard
     layer: L5
     class_ref: class.service.dns
@@ -362,7 +362,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: mikrotik-chateau
-  - id: svc-adguard-secondary
+  - instance: svc-adguard-secondary
     source_id: svc-adguard-secondary
     layer: L5
     class_ref: class.service.dns
@@ -372,7 +372,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: srv-orangepi5
-  - id: svc-alertmanager
+  - instance: svc-alertmanager
     source_id: svc-alertmanager
     layer: L5
     class_ref: class.service.alerting
@@ -382,7 +382,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: srv-orangepi5
-  - id: svc-docker-host
+  - instance: svc-docker-host
     source_id: svc-docker-host
     layer: L5
     class_ref: class.service.web_application
@@ -392,7 +392,7 @@ instance_bindings:
     runtime:
       type: lxc
       target_ref: lxc-docker
-  - id: svc-gitea
+  - instance: svc-gitea
     source_id: svc-gitea
     layer: L5
     class_ref: class.service.web_application
@@ -402,7 +402,7 @@ instance_bindings:
     runtime:
       type: lxc
       target_ref: lxc-gitea
-  - id: svc-grafana@docker:srv-orangepi5
+  - instance: svc-grafana@docker:srv-orangepi5
     source_id: svc-grafana
     layer: L5
     class_ref: class.service.visualization
@@ -412,7 +412,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: srv-orangepi5
-  - id: svc-grafana@lxc:lxc-grafana
+  - instance: svc-grafana@lxc:lxc-grafana
     source_id: svc-grafana
     layer: L5
     class_ref: class.service.visualization
@@ -422,7 +422,7 @@ instance_bindings:
     runtime:
       type: lxc
       target_ref: lxc-grafana
-  - id: svc-homeassistant@docker:srv-orangepi5
+  - instance: svc-homeassistant@docker:srv-orangepi5
     source_id: svc-homeassistant
     layer: L5
     class_ref: class.service.home_automation
@@ -432,7 +432,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: srv-orangepi5
-  - id: svc-homeassistant@lxc:lxc-homeassistant
+  - instance: svc-homeassistant@lxc:lxc-homeassistant
     source_id: svc-homeassistant
     layer: L5
     class_ref: class.service.home_automation
@@ -442,7 +442,7 @@ instance_bindings:
     runtime:
       type: lxc
       target_ref: lxc-homeassistant
-  - id: svc-jellyfin
+  - instance: svc-jellyfin
     source_id: svc-jellyfin
     layer: L5
     class_ref: class.service.media_server
@@ -452,7 +452,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: srv-orangepi5
-  - id: svc-loki
+  - instance: svc-loki
     source_id: svc-loki
     layer: L5
     class_ref: class.service.logging
@@ -462,7 +462,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: srv-orangepi5
-  - id: svc-mikrotik-ui
+  - instance: svc-mikrotik-ui
     source_id: svc-mikrotik-ui
     layer: L5
     class_ref: class.service.web_ui
@@ -472,7 +472,7 @@ instance_bindings:
     runtime:
       type: baremetal
       target_ref: mikrotik-chateau
-  - id: svc-mosquitto
+  - instance: svc-mosquitto
     source_id: svc-mosquitto
     layer: L5
     class_ref: class.service.home_automation
@@ -482,7 +482,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: mikrotik-chateau
-  - id: svc-nextcloud@docker:srv-orangepi5
+  - instance: svc-nextcloud@docker:srv-orangepi5
     source_id: svc-nextcloud
     layer: L5
     class_ref: class.service.web_application
@@ -492,7 +492,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: srv-orangepi5
-  - id: svc-nextcloud@lxc:lxc-nextcloud
+  - instance: svc-nextcloud@lxc:lxc-nextcloud
     source_id: svc-nextcloud
     layer: L5
     class_ref: class.service.file_storage
@@ -502,7 +502,7 @@ instance_bindings:
     runtime:
       type: lxc
       target_ref: lxc-nextcloud
-  - id: svc-nginx-proxy
+  - instance: svc-nginx-proxy
     source_id: svc-nginx-proxy
     layer: L5
     class_ref: class.service.proxy
@@ -512,7 +512,7 @@ instance_bindings:
     runtime:
       type: lxc
       target_ref: lxc-nginx-proxy
-  - id: svc-ntp
+  - instance: svc-ntp
     source_id: svc-ntp
     layer: L5
     class_ref: class.service.monitoring
@@ -522,7 +522,7 @@ instance_bindings:
     runtime:
       type: baremetal
       target_ref: mikrotik-chateau
-  - id: svc-postgresql
+  - instance: svc-postgresql
     source_id: svc-postgresql
     layer: L5
     class_ref: class.service.database
@@ -532,7 +532,7 @@ instance_bindings:
     runtime:
       type: lxc
       target_ref: lxc-postgresql
-  - id: svc-prometheus@docker:srv-orangepi5
+  - instance: svc-prometheus@docker:srv-orangepi5
     source_id: svc-prometheus
     layer: L5
     class_ref: class.service.monitoring
@@ -542,7 +542,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: srv-orangepi5
-  - id: svc-prometheus@lxc:lxc-prometheus
+  - instance: svc-prometheus@lxc:lxc-prometheus
     source_id: svc-prometheus
     layer: L5
     class_ref: class.service.monitoring
@@ -552,7 +552,7 @@ instance_bindings:
     runtime:
       type: lxc
       target_ref: lxc-prometheus
-  - id: svc-proxmox-ui
+  - instance: svc-proxmox-ui
     source_id: svc-proxmox-ui
     layer: L5
     class_ref: class.service.web_ui
@@ -562,7 +562,7 @@ instance_bindings:
     runtime:
       type: baremetal
       target_ref: srv-gamayun
-  - id: svc-redis
+  - instance: svc-redis
     source_id: svc-redis
     layer: L5
     class_ref: class.service.cache
@@ -572,7 +572,7 @@ instance_bindings:
     runtime:
       type: lxc
       target_ref: lxc-redis
-  - id: svc-snmp
+  - instance: svc-snmp
     source_id: svc-snmp
     layer: L5
     class_ref: class.service.monitoring
@@ -582,7 +582,7 @@ instance_bindings:
     runtime:
       type: baremetal
       target_ref: mikrotik-chateau
-  - id: svc-syslog-forward
+  - instance: svc-syslog-forward
     source_id: svc-syslog-forward
     layer: L5
     class_ref: class.service.logging
@@ -592,7 +592,7 @@ instance_bindings:
     runtime:
       type: baremetal
       target_ref: mikrotik-chateau
-  - id: svc-tailscale
+  - instance: svc-tailscale
     source_id: svc-tailscale
     layer: L5
     class_ref: class.service.vpn
@@ -602,7 +602,7 @@ instance_bindings:
     runtime:
       type: docker
       target_ref: mikrotik-chateau
-  - id: svc-wireguard
+  - instance: svc-wireguard
     source_id: svc-wireguard
     layer: L5
     class_ref: class.service.vpn

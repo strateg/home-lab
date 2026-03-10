@@ -1,4 +1,4 @@
-id: class.compute.cloud_vm
+class: class.compute.cloud_vm
 version: 1.0.0
 title: Compute Cloud VM
 summary: Virtual machine instance hosted by cloud provider.

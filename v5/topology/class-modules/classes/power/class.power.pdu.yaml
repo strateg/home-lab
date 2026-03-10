@@ -1,4 +1,4 @@
-id: class.power.pdu
+class: class.power.pdu
 version: 1.0.0
 title: Power Distribution Unit
 summary: Power distribution and outlet control abstraction.

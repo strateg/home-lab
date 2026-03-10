@@ -1,4 +1,4 @@
-id: obj.service.nextcloud
+object: obj.service.nextcloud
 version: 1.0.0
 class_ref: class.service.web_application
 model: Nextcloud

@@ -32,7 +32,7 @@ def _normalize_rows(rows: list[dict], *, group: str, include_runtime: bool = Fal
         if not isinstance(row, dict):
             continue
         item = {
-            "id": row.get("instance_id"),
+            "instance": row.get("instance_id"),
             "source_id": row.get("source_id", row.get("instance_id")),
             "layer": layer,
             "class_ref": row.get("class_ref"),

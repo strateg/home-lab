@@ -1,4 +1,4 @@
-id: obj.service.postgresql
+object: obj.service.postgresql
 version: 1.0.0
 class_ref: class.service.database
 model: Postgresql

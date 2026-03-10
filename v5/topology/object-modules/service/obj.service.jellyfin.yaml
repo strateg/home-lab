@@ -1,4 +1,4 @@
-id: obj.service.jellyfin
+object: obj.service.jellyfin
 version: 1.0.0
 class_ref: class.service.media_server
 model: Jellyfin

@@ -1,4 +1,4 @@
-id: obj.network.vlan.management
+object: obj.network.vlan.management
 version: 1.0.0
 class_ref: class.network.vlan
 description: Management VLAN for infrastructure access

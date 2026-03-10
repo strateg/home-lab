@@ -1,4 +1,4 @@
-id: obj.proxmox.lxc.debian12.redis
+object: obj.proxmox.lxc.debian12.redis
 version: 1.0.0
 class_ref: class.compute.workload.container
 model: LXC Debian 12 Redis

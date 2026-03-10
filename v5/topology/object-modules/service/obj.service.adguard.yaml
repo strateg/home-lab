@@ -1,4 +1,4 @@
-id: obj.service.adguard
+object: obj.service.adguard
 version: 1.0.0
 class_ref: class.service.dns
 model: Adguard

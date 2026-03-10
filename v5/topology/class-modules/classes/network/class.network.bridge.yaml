@@ -1,4 +1,4 @@
-id: class.network.bridge
+class: class.network.bridge
 version: 1.0.0
 description: Virtual network bridge connecting multiple VLANs and interfaces
 layer: L2

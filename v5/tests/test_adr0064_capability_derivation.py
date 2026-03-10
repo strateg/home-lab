@@ -48,7 +48,7 @@ def test_firmware_capabilities_derived() -> bool:
     # Check mikrotik-chateau device
     device = None
     for inst in data["instances"].get("l1_devices", []):
-        if inst["id"] == "mikrotik-chateau":
+        if inst["instance"] == "mikrotik-chateau":
             device = inst
             break
 
@@ -83,7 +83,7 @@ def test_os_capabilities_derived() -> bool:
     # Check mikrotik-chateau device
     device = None
     for inst in data["instances"].get("l1_devices", []):
-        if inst["id"] == "mikrotik-chateau":
+        if inst["instance"] == "mikrotik-chateau":
             device = inst
             break
 
@@ -118,7 +118,7 @@ def test_effective_software_populated() -> bool:
     # Check mikrotik-chateau device
     device = None
     for inst in data["instances"].get("l1_devices", []):
-        if inst["id"] == "mikrotik-chateau":
+        if inst["instance"] == "mikrotik-chateau":
             device = inst
             break
 
@@ -170,17 +170,17 @@ def test_firmware_ref_os_refs_present() -> bool:
         os_policy = class_data.get("os_policy", "allowed")
 
         if not firmware_ref:
-            print(f"FAIL: {inst['id']} missing firmware_ref")
+            print(f"FAIL: {inst['instance']} missing firmware_ref")
             all_pass = False
 
         # Only require os_refs if os_policy is "required"
         if os_policy == "required" and not os_refs:
-            print(f"FAIL: {inst['id']} missing os_refs (os_policy=required)")
+            print(f"FAIL: {inst['instance']} missing os_refs (os_policy=required)")
             all_pass = False
 
         # os_refs must be empty if os_policy is "forbidden"
         if os_policy == "forbidden" and os_refs:
-            print(f"FAIL: {inst['id']} has os_refs but os_policy=forbidden")
+            print(f"FAIL: {inst['instance']} has os_refs but os_policy=forbidden")
             all_pass = False
 
     if all_pass:
@@ -195,7 +195,7 @@ def test_arch_from_firmware_only() -> bool:
     # Check that architecture capability is present and consistent
     device = None
     for inst in data["instances"].get("l1_devices", []):
-        if inst["id"] == "mikrotik-chateau":
+        if inst["instance"] == "mikrotik-chateau":
             device = inst
             break
 

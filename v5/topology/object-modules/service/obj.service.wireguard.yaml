@@ -1,4 +1,4 @@
-id: obj.service.wireguard
+object: obj.service.wireguard
 version: 1.0.0
 class_ref: class.service.vpn
 model: Wireguard

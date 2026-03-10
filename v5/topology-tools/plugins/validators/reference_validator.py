@@ -16,13 +16,7 @@ from pathlib import Path
 # Add parent to path for kernel imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from kernel.plugin_base import (
-    PluginContext,
-    PluginDiagnostic,
-    PluginResult,
-    Stage,
-    ValidatorJsonPlugin,
-)
+from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
 
 
 class ReferenceValidator(ValidatorJsonPlugin):
@@ -43,20 +37,20 @@ class ReferenceValidator(ValidatorJsonPlugin):
         bindings = ctx.instance_bindings.get("instance_bindings", {})
 
         for row in bindings.get("l1_software_firmware", []):
-            if isinstance(row, dict) and row.get("id"):
-                firmware_ids.add(row["id"])
+            if isinstance(row, dict) and row.get("instance"):
+                firmware_ids.add(row["instance"])
 
         for row in bindings.get("l1_software_os", []):
-            if isinstance(row, dict) and row.get("id"):
-                os_ids.add(row["id"])
+            if isinstance(row, dict) and row.get("instance"):
+                os_ids.add(row["instance"])
 
         for row in bindings.get("l1_devices", []):
-            if isinstance(row, dict) and row.get("id"):
-                device_ids.add(row["id"])
+            if isinstance(row, dict) and row.get("instance"):
+                device_ids.add(row["instance"])
 
         for row in bindings.get("l4_lxc", []):
-            if isinstance(row, dict) and row.get("id"):
-                device_ids.add(row["id"])
+            if isinstance(row, dict) and row.get("instance"):
+                device_ids.add(row["instance"])
 
         # Validate each group
         for group_name, rows in bindings.items():
@@ -67,7 +61,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
                 if not isinstance(row, dict):
                     continue
 
-                instance_id = row.get("id", "<unknown>")
+                instance_id = row.get("instance", "<unknown>")
                 path = f"instance:{group_name}:{instance_id}"
 
                 # Validate class_ref

@@ -1,4 +1,4 @@
-id: class.service.web_application
+class: class.service.web_application
 version: 1.0.0
 title: Service Web Application
 summary: Generic web application service role.

@@ -1,4 +1,4 @@
-id: obj.proxmox.lxc.debian12.base
+object: obj.proxmox.lxc.debian12.base
 version: 1.0.0
 class_ref: class.compute.workload.container
 model: LXC Debian 12 Base

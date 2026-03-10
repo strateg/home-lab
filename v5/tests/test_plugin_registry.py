@@ -103,13 +103,13 @@ def test_plugin_execution():
         topology_path="test",
         profile="test",
         model_lock={},
-        classes={"class.router": {"id": "class.router"}},
-        objects={"obj.test": {"id": "obj.test"}},
+        classes={"class.router": {"class": "class.router"}},
+        objects={"obj.test": {"object": "obj.test"}},
         instance_bindings={
             "instance_bindings": {
                 "l1_devices": [
                     {
-                        "id": "test-device",
+                        "instance": "test-device",
                         "class_ref": "class.router",
                         "object_ref": "obj.test",
                     }
@@ -145,7 +145,7 @@ def test_plugin_detects_invalid_ref():
             "instance_bindings": {
                 "l1_devices": [
                     {
-                        "id": "test-device",
+                        "instance": "test-device",
                         "class_ref": "class.nonexistent",
                         "object_ref": "obj.nonexistent",
                     }
@@ -325,13 +325,13 @@ def test_runtime_config_takes_precedence():
         topology_path="test",
         profile="test",
         model_lock={},
-        classes={"class.router": {"id": "class.router"}},
-        objects={"obj.test": {"id": "obj.test"}},
+        classes={"class.router": {"class": "class.router"}},
+        objects={"obj.test": {"object": "obj.test"}},
         instance_bindings={
             "instance_bindings": {
                 "l1_devices": [
                     {
-                        "id": "test-device",
+                        "instance": "test-device",
                         "class_ref": "class.router",
                         "object_ref": "obj.test",
                     }

@@ -1,4 +1,4 @@
-id: obj.pdu.generic.managed
+object: obj.pdu.generic.managed
 version: 1.0.0
 class_ref: class.power.pdu
 model: Generic Managed PDU

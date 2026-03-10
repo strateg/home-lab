@@ -135,11 +135,9 @@ class CapabilityContractChecker:
             if not isinstance(payload, dict):
                 self._error(f"Class file root must be object: {path}")
                 continue
-            class_id = payload.get("id")
+            class_id = payload.get("class")
             if not isinstance(class_id, str) or not class_id:
-                class_id = payload.get("class")
-            if not isinstance(class_id, str) or not class_id:
-                self._error(f"Class file missing id: {path}")
+                self._error(f"Class file missing class: {path}")
                 continue
             if class_id in result:
                 self._error(f"Duplicate class id '{class_id}' ({path})")
@@ -158,11 +156,9 @@ class CapabilityContractChecker:
             if not isinstance(payload, dict):
                 self._error(f"Object file root must be object: {path}")
                 continue
-            object_id = payload.get("id")
+            object_id = payload.get("object")
             if not isinstance(object_id, str) or not object_id:
-                object_id = payload.get("object")
-            if not isinstance(object_id, str) or not object_id:
-                self._error(f"Object file missing id: {path}")
+                self._error(f"Object file missing object: {path}")
                 continue
             if object_id in result:
                 self._error(f"Duplicate object id '{object_id}' ({path})")

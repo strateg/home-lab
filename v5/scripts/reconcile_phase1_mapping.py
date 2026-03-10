@@ -13,7 +13,7 @@ CLASS_ROOT = ROOT / "v5/topology/class-modules"
 OBJECT_ROOT = ROOT / "v5/topology/object-modules"
 
 
-def collect_ids(root: Path) -> set[str]:
+def collect_ids(root: Path, key: str) -> set[str]:
     ids: set[str] = set()
     for path in sorted(root.rglob("*.yaml")):
         try:
@@ -21,7 +21,7 @@ def collect_ids(root: Path) -> set[str]:
         except yaml.YAMLError:
             continue
         if isinstance(payload, dict):
-            item_id = payload.get("id")
+            item_id = payload.get(key)
             if isinstance(item_id, str) and item_id:
                 ids.add(item_id)
     return ids
@@ -45,8 +45,8 @@ def main() -> int:
     payload = yaml.safe_load(MAPPING_PATH.read_text(encoding="utf-8")) or {}
     entities = payload.get("entities") or {}
 
-    class_ids = collect_ids(CLASS_ROOT)
-    object_ids = collect_ids(OBJECT_ROOT)
+    class_ids = collect_ids(CLASS_ROOT, "class")
+    object_ids = collect_ids(OBJECT_ROOT, "object")
 
     for _, rows in entities.items():
         if not isinstance(rows, list):
