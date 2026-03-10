@@ -1,0 +1,262 @@
+name: Plugin Validation
+
+on:
+  push:
+    branches: [main, master, adr/0058-*, feature/plugin-*]
+    paths:
+      - 'v5/topology-tools/kernel/**'
+      - 'v5/topology-tools/plugins/**'
+      - 'v5/tests/plugin_*/**'
+      - 'v5/topology-tools/compile-topology.py'
+  pull_request:
+    paths:
+      - 'v5/topology-tools/kernel/**'
+      - 'v5/topology-tools/plugins/**'
+      - 'v5/tests/plugin_*/**'
+      - 'v5/topology-tools/compile-topology.py'
+  workflow_dispatch:
+
+jobs:
+  plugin-api-unit:
+    name: Plugin API Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-dev.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pytest-cov pyyaml jsonschema
+
+      - name: Run plugin API unit tests
+        run: |
+          pytest v5/tests/plugin_api/ \
+            -v \
+            --cov=v5/topology-tools/kernel \
+            --cov-report=xml:coverage-api.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=80 \
+            --durations=10
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage-api.xml
+          flags: plugin-api
+          name: plugin-api-py${{ matrix.python-version }}
+
+  plugin-contract:
+    name: Plugin Contract Tests
+    runs-on: ubuntu-latest
+    needs: plugin-api-unit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pytest-cov pyyaml jsonschema
+
+      - name: Run plugin contract tests
+        run: |
+          pytest v5/tests/plugin_contract/ \
+            -v \
+            --cov=v5/topology-tools/kernel \
+            --cov-report=xml:coverage-contract.xml \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            --durations=10
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage-contract.xml
+          flags: plugin-contract
+          name: plugin-contract
+
+  plugin-integration:
+    name: Plugin Integration Tests
+    runs-on: ubuntu-latest
+    needs: plugin-contract
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pytest-cov pyyaml jsonschema
+
+      - name: Run plugin integration tests
+        run: |
+          pytest v5/tests/plugin_integration/ \
+            -v \
+            --cov=v5/topology-tools \
+            --cov-report=xml:coverage-integration.xml \
+            --cov-report=term-missing \
+            --durations=10
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage-integration.xml
+          flags: plugin-integration
+          name: plugin-integration
+
+  plugin-regression:
+    name: Plugin Regression Tests
+    runs-on: ubuntu-latest
+    needs: plugin-integration
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pyyaml jsonschema
+
+      - name: Run plugin regression tests
+        run: |
+          pytest v5/tests/plugin_regression/ \
+            -v \
+            --durations=10
+
+  manifest-validation:
+    name: Plugin Manifest Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install pyyaml jsonschema
+
+      - name: Validate plugin manifests
+        run: |
+          python -c "
+          import yaml
+          import jsonschema
+          import sys
+          from pathlib import Path
+
+          # Load schema
+          schema_path = Path('v5/topology-tools/plugins/plugin-manifest.schema.json')
+          with open(schema_path) as f:
+              import json
+              schema = json.load(f)
+
+          # Find and validate all manifests
+          manifest_path = Path('v5/topology-tools/plugins/plugins.yaml')
+          if manifest_path.exists():
+              with open(manifest_path) as f:
+                  manifest = yaml.safe_load(f)
+              try:
+                  jsonschema.validate(manifest, schema)
+                  print(f'✓ {manifest_path}: valid')
+              except jsonschema.ValidationError as e:
+                  print(f'✗ {manifest_path}: {e.message}')
+                  sys.exit(1)
+          else:
+              print('No manifest found')
+              sys.exit(1)
+
+          # Verify plugin entries exist
+          plugin_base = Path('v5/topology-tools/plugins')
+          for plugin in manifest.get('plugins', []):
+              entry = plugin.get('entry', '')
+              if ':' in entry:
+                  module_path = entry.split(':')[0]
+                  full_path = plugin_base / module_path
+                  if not full_path.exists():
+                      print(f'✗ Plugin {plugin[\"id\"]}: entry {module_path} not found')
+                      sys.exit(1)
+                  print(f'✓ Plugin {plugin[\"id\"]}: entry exists')
+
+          print('All manifests valid')
+          "
+
+  compile-with-plugins:
+    name: Compile with Plugins Enabled
+    runs-on: ubuntu-latest
+    needs: [plugin-api-unit, manifest-validation]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml jsonschema
+
+      - name: Run compiler with plugins
+        run: |
+          python v5/topology-tools/compile-topology.py \
+            --topology v5/topology/topology.yaml \
+            --enable-plugins \
+            --output v5-build/effective.json
+
+      - name: Verify output
+        run: |
+          test -f v5-build/effective.json
+          python -c "import json; json.load(open('v5-build/effective.json'))"
+          echo "✓ Compiled output is valid JSON"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-topology
+          path: v5-build/
+          retention-days: 7

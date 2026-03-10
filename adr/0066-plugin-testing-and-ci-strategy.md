@@ -157,11 +157,11 @@ v5/tests/
 
 **Total: 41 tests passing**
 
-### CI Workflow (Pending)
+### CI Workflow (Complete)
 
-- [ ] Create `.github/workflows/plugin-validation.yml`
-- [ ] Add coverage reporting
-- [ ] Integrate with PR checks
+- [x] Create `.github/workflows/plugin-validation.yml`
+- [x] Add coverage reporting (codecov integration)
+- [x] Integrate with PR checks (path-based triggers)
 
 ---
 
