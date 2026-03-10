@@ -63,7 +63,7 @@
 | [0060](0060-yaml-to-json-compiler-diagnostics-contract.md) | YAML-to-JSON Compiler and Diagnostics Contract | Superseded | 2026-03-06 | - | [0062](0062-modular-topology-architecture-consolidation.md) |
 | [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | Base Repo with Versioned Class-Object-Instance and Test Profiles | Superseded | 2026-03-06 | - | [0062](0062-modular-topology-architecture-consolidation.md) |
 | [0062](0062-modular-topology-architecture-consolidation.md) | Topology v5 - Modular Class-Object-Instance Architecture | Accepted | 2026-03-06 | [0058](0058-core-abstraction-layer.md), [0059](0059-repository-split-and-class-object-instance-module-contract.md), [0060](0060-yaml-to-json-compiler-diagnostics-contract.md), [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | - |
-| [0063](0063-plugin-microkernel-for-compiler-validators-generators.md) | Plugin Microkernel for Compiler, Validators, and Generators | Proposed | 2026-03-06 | - | - |
+| [0063](0063-plugin-microkernel-for-compiler-validators-generators.md) | Plugin Microkernel for Compiler, Validators, and Generators | Implemented | 2026-03-06 | - | - |
 | [0064](0064-os-taxonomy-object-property-model.md) | OS Taxonomy - Firmware and OS as Separate Entities | Implemented | 2026-03-08 | - | - |
 | [0065](0065-plugin-api-contract-specification.md) | Plugin API Contract Specification | Proposed | 2026-03-09 | - | - |
 | [0066](0066-plugin-testing-and-ci-strategy.md) | Plugin Testing and CI Strategy | Proposed | 2026-03-09 | - | - |

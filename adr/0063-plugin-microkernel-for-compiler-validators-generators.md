@@ -1,7 +1,7 @@
 # ADR 0063: Plugin Microkernel for Compiler, Validators, and Generators
 
 **Date:** 2026-03-06
-**Status:** In Progress (Phase 1 Complete)
+**Status:** Implemented (Phase 1 & 2 Complete)
 **Related:** ADR 0062 (Topology v5 - Modular Class-Object-Instance Architecture), ADR 0065 (Plugin API Contract), ADR 0066 (Plugin Testing and CI Strategy)
 **Extends:** ADR 0062 section "Open Questions" (generator/plugin packaging and loading model)
 
@@ -355,12 +355,18 @@ CI must:
 - [x] Base reference validator plugin (`v5/topology-tools/plugins/validators/reference_validator.py`)
 - [x] Plugin tests (`v5/tests/test_plugin_registry.py`)
 
-### Phase 2 - Validator Migration (Pending)
+### Phase 2 - Validator Migration (Complete)
 
-- [ ] Migrate YAML semantic checks to `validator_yaml` plugins
-- [ ] Migrate compiled JSON checks to `validator_json` plugins
-- [ ] Integrate plugin execution into compile-topology.py
-- [ ] Maintain parity with current diagnostics output
+- [ ] Migrate YAML semantic checks to `validator_yaml` plugins (deferred - not needed yet)
+- [x] Migrate compiled JSON checks to `validator_json` plugins
+  - [x] `model_lock_validator.py` - validates model.lock pinning
+  - [x] `embedded_in_validator.py` - validates embedded_in references per ADR 0064
+- [x] Integrate plugin execution into compile-topology.py
+  - [x] `--enable-plugins` flag for opt-in plugin execution
+  - [x] `--plugins-manifest` flag for custom manifest path
+  - [x] Plugin diagnostics converted with `plugin_id` attribution
+  - [x] Timeout (E4101) and crash (E4102) error handling
+- [x] Maintain parity with current diagnostics output
 
 ### Phase 3 - Compiler Transforms (Pending)
 
