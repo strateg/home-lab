@@ -221,6 +221,12 @@ class PluginResult:
         return any(d.severity == "warning" for d in self.diagnostics)
 
 
+class PluginDataExchangeError(Exception):
+    """Raised when plugin data exchange fails."""
+
+    pass
+
+
 @dataclass
 class PluginContext:
     """Execution context passed to plugins.
@@ -231,6 +237,10 @@ class PluginContext:
     - Model lock and profile information
     - Plugin configuration
     - Output directory for generators
+
+    Inter-Plugin Data Exchange (ADR 0065):
+    - publish(key, value): Store data for dependent plugins to access
+    - subscribe(plugin_id, key): Retrieve data from a plugin in depends_on list
     """
 
     # Core data
@@ -267,8 +277,99 @@ class PluginContext:
     # Compiled file path (for validator_json plugins)
     compiled_file: str = ""
 
-    # Previous plugin outputs (for inter-plugin communication)
+    # Previous plugin outputs (for inter-plugin communication) - legacy
     plugin_outputs: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    # Inter-plugin data exchange (ADR 0065)
+    # Set by registry before plugin execution
+    _current_plugin_id: str = field(default="", repr=False)
+    _allowed_dependencies: set[str] = field(default_factory=set, repr=False)
+    _published_data: dict[str, dict[str, Any]] = field(default_factory=dict, repr=False)
+
+    def publish(self, key: str, value: Any) -> None:
+        """Publish data for dependent plugins to access.
+
+        Args:
+            key: Data key (namespaced under current plugin_id)
+            value: Data value (must be JSON-serializable)
+
+        Raises:
+            PluginDataExchangeError: If no current plugin context is set
+        """
+        if not self._current_plugin_id:
+            raise PluginDataExchangeError(
+                "Cannot publish: no current plugin context. "
+                "Ensure plugin is executing through registry."
+            )
+        if self._current_plugin_id not in self._published_data:
+            self._published_data[self._current_plugin_id] = {}
+        self._published_data[self._current_plugin_id][key] = value
+
+    def subscribe(self, plugin_id: str, key: str) -> Any:
+        """Retrieve data published by another plugin.
+
+        Args:
+            plugin_id: ID of the plugin that published the data
+            key: Data key to retrieve
+
+        Returns:
+            The published value
+
+        Raises:
+            PluginDataExchangeError: If dependency not allowed or data not found
+        """
+        if not self._current_plugin_id:
+            raise PluginDataExchangeError(
+                "Cannot subscribe: no current plugin context. "
+                "Ensure plugin is executing through registry."
+            )
+        if plugin_id not in self._allowed_dependencies:
+            raise PluginDataExchangeError(
+                f"Plugin '{self._current_plugin_id}' cannot subscribe to '{plugin_id}': "
+                f"not in depends_on list. Allowed: {sorted(self._allowed_dependencies)}"
+            )
+        if plugin_id not in self._published_data:
+            raise PluginDataExchangeError(
+                f"Plugin '{plugin_id}' has not published any data. "
+                f"Ensure it runs before '{self._current_plugin_id}'."
+            )
+        plugin_data = self._published_data[plugin_id]
+        if key not in plugin_data:
+            raise PluginDataExchangeError(
+                f"Plugin '{plugin_id}' has not published key '{key}'. "
+                f"Available keys: {sorted(plugin_data.keys())}"
+            )
+        return plugin_data[key]
+
+    def get_published_keys(self, plugin_id: str) -> list[str]:
+        """Get list of keys published by a plugin.
+
+        Args:
+            plugin_id: ID of the plugin
+
+        Returns:
+            List of published keys, or empty list if none
+        """
+        return list(self._published_data.get(plugin_id, {}).keys())
+
+    def _set_execution_context(
+        self,
+        plugin_id: str,
+        allowed_dependencies: set[str],
+    ) -> None:
+        """Set execution context for a plugin (called by registry).
+
+        Args:
+            plugin_id: ID of the plugin about to execute
+            allowed_dependencies: Set of plugin IDs this plugin can subscribe to
+        """
+        self._current_plugin_id = plugin_id
+        self._allowed_dependencies = allowed_dependencies
+
+    def _clear_execution_context(self) -> None:
+        """Clear execution context after plugin completes (called by registry)."""
+        self._current_plugin_id = ""
+        self._allowed_dependencies = set()
 
 
 class PluginBase(ABC):

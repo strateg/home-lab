@@ -30,6 +30,7 @@ from kernel import (
     PluginContext,
     PluginResult,
     ValidatorJsonPlugin,
+    PluginDataExchangeError,
     KERNEL_VERSION,
     KERNEL_API_VERSION,
 )
@@ -277,6 +278,122 @@ def test_execute_stage():
     print("PASS: Stage execution works")
 
 
+def test_publish_subscribe_basic():
+    """Test basic publish/subscribe functionality."""
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+    )
+
+    # Set execution context (simulating registry behavior)
+    ctx._set_execution_context("plugin.producer", set())
+
+    # Publish data
+    ctx.publish("key1", {"data": "value1"})
+    ctx.publish("key2", [1, 2, 3])
+
+    ctx._clear_execution_context()
+
+    # Set up consumer plugin with dependency
+    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})
+
+    # Subscribe to data
+    data1 = ctx.subscribe("plugin.producer", "key1")
+    assert data1 == {"data": "value1"}
+
+    data2 = ctx.subscribe("plugin.producer", "key2")
+    assert data2 == [1, 2, 3]
+
+    # Get published keys
+    keys = ctx.get_published_keys("plugin.producer")
+    assert set(keys) == {"key1", "key2"}
+
+    ctx._clear_execution_context()
+    print("PASS: Basic publish/subscribe works")
+
+
+def test_publish_subscribe_dependency_check():
+    """Test that subscribe enforces dependency declaration."""
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+    )
+
+    # Producer publishes data
+    ctx._set_execution_context("plugin.producer", set())
+    ctx.publish("data", {"value": 42})
+    ctx._clear_execution_context()
+
+    # Consumer WITHOUT dependency should fail
+    ctx._set_execution_context("plugin.consumer", set())  # Empty depends_on
+
+    try:
+        ctx.subscribe("plugin.producer", "data")
+        assert False, "Should have raised PluginDataExchangeError"
+    except PluginDataExchangeError as e:
+        assert "not in depends_on list" in str(e)
+
+    ctx._clear_execution_context()
+    print("PASS: Subscribe dependency check works")
+
+
+def test_publish_subscribe_missing_data():
+    """Test subscribe error handling for missing data."""
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+    )
+
+    # Consumer with valid dependency but producer hasn't published
+    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})
+
+    try:
+        ctx.subscribe("plugin.producer", "nonexistent")
+        assert False, "Should have raised PluginDataExchangeError"
+    except PluginDataExchangeError as e:
+        assert "has not published any data" in str(e)
+
+    ctx._clear_execution_context()
+
+    # Producer publishes some data
+    ctx._set_execution_context("plugin.producer", set())
+    ctx.publish("existing_key", "value")
+    ctx._clear_execution_context()
+
+    # Consumer tries to get missing key
+    ctx._set_execution_context("plugin.consumer", {"plugin.producer"})
+
+    try:
+        ctx.subscribe("plugin.producer", "nonexistent_key")
+        assert False, "Should have raised PluginDataExchangeError"
+    except PluginDataExchangeError as e:
+        assert "has not published key" in str(e)
+
+    ctx._clear_execution_context()
+    print("PASS: Subscribe missing data error handling works")
+
+
+def test_publish_without_context():
+    """Test that publish fails without execution context."""
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+    )
+
+    # No execution context set
+    try:
+        ctx.publish("key", "value")
+        assert False, "Should have raised PluginDataExchangeError"
+    except PluginDataExchangeError as e:
+        assert "no current plugin context" in str(e)
+
+    print("PASS: Publish without context error works")
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("ADR 0063 Plugin Registry Tests")
@@ -296,6 +413,11 @@ if __name__ == "__main__":
         test_kernel_info,
         test_config_injection,
         test_execute_stage,
+        # ADR 0065 inter-plugin data exchange tests
+        test_publish_subscribe_basic,
+        test_publish_subscribe_dependency_check,
+        test_publish_subscribe_missing_data,
+        test_publish_without_context,
     ]
 
     passed = 0

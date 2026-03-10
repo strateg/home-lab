@@ -17,6 +17,7 @@ from .plugin_base import (
     PluginContext,
     PluginResult,
     PluginDiagnostic,
+    PluginDataExchangeError,
     Stage,
     CompilerPlugin,
     ValidatorYamlPlugin,
@@ -49,6 +50,7 @@ __all__ = [
     "PluginContext",
     "PluginResult",
     "PluginDiagnostic",
+    "PluginDataExchangeError",
     "Stage",
     # Plugin type classes
     "CompilerPlugin",

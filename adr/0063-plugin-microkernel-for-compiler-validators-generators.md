@@ -1,7 +1,7 @@
 # ADR 0063: Plugin Microkernel for Compiler, Validators, and Generators
 
 **Date:** 2026-03-06
-**Status:** Implemented (Phase 1 & 2 Complete)
+**Status:** Implemented (Phase 1, 2 & 3 Core Complete)
 **Related:** ADR 0062 (Topology v5 - Modular Class-Object-Instance Architecture), ADR 0065 (Plugin API Contract), ADR 0066 (Plugin Testing and CI Strategy)
 **Extends:** ADR 0062 section "Open Questions" (generator/plugin packaging and loading model)
 
@@ -368,11 +368,16 @@ CI must:
   - [x] Timeout (E4101) and crash (E4102) error handling
 - [x] Maintain parity with current diagnostics output
 
-### Phase 3 - Compiler Transforms (Pending)
+### Phase 3 - Inter-Plugin Communication (Complete)
 
-- [ ] Extract compiler transforms into `compiler` plugins
-- [ ] Remove hardcoded dispatch from orchestration
-- [ ] Enforce plugin-only extension policy
+- [x] Implement context.publish(key, value) for data publication
+- [x] Implement context.subscribe(plugin_id, key) for data retrieval
+- [x] Add dependency enforcement (only depends_on plugins can be queried)
+- [x] Add error handling for missing data/invalid dependencies
+- [x] Add tests for publish/subscribe (4 new tests, 16 total)
+- [ ] Extract compiler transforms into `compiler` plugins (deferred)
+- [ ] Remove hardcoded dispatch from orchestration (deferred)
+- [ ] Enforce plugin-only extension policy (deferred)
 
 ---
 

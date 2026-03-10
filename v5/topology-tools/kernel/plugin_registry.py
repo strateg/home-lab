@@ -430,6 +430,10 @@ class PluginRegistry:
                 ],
             )
 
+        # Set execution context for inter-plugin data exchange (ADR 0065)
+        allowed_deps = set(spec.depends_on)
+        ctx._set_execution_context(plugin_id, allowed_deps)
+
         # Execute with timeout
         start_time = time.perf_counter()
 
@@ -483,6 +487,9 @@ class PluginRegistry:
             )
             self._results.append(result)
             return result
+        finally:
+            # Clear execution context
+            ctx._clear_execution_context()
 
     def execute_stage(
         self,
