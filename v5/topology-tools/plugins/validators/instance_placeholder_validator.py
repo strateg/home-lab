@@ -1,0 +1,384 @@
+"""ADR 0068 validator plugin: typed instance placeholders in object templates.
+
+Validates object placeholder markers:
+- @required:<format>
+- @optional:<format>
+
+And enforces instance-level override policy:
+- only placeholder-marked paths may be overridden
+- required placeholders must be overridden per instance
+- override values must match declared format
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import ipaddress
+import re
+import sys
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
+
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
+
+_PLACEHOLDER_RE = re.compile(r"^@(required|optional):([a-z][a-z0-9_]*)$")
+DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[2] / "data" / "instance-field-formats.yaml"
+
+
+class InstancePlaceholderValidator(ValidatorJsonPlugin):
+    """Validate ADR0068 placeholder/override contract."""
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+
+        bindings = ctx.instance_bindings.get("instance_bindings")
+        if not isinstance(bindings, dict):
+            return self.make_result(diagnostics)
+
+        formats = self._load_format_registry(ctx, stage, diagnostics)
+        object_placeholders: dict[str, dict[tuple[Any, ...], dict[str, Any]]] = {}
+
+        for object_id, object_payload in ctx.objects.items():
+            if not isinstance(object_payload, dict):
+                continue
+            object_placeholders[object_id] = self._collect_object_placeholders(
+                object_id=object_id,
+                payload=object_payload,
+                formats=formats,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
+
+        for group_name, group_rows in bindings.items():
+            if not isinstance(group_rows, list):
+                continue
+            for row in group_rows:
+                if not isinstance(row, dict):
+                    continue
+                self._validate_instance_row(
+                    ctx=ctx,
+                    stage=stage,
+                    diagnostics=diagnostics,
+                    group_name=group_name,
+                    row=row,
+                    object_placeholders=object_placeholders,
+                    formats=formats,
+                )
+
+        return self.make_result(diagnostics)
+
+    def _load_format_registry(
+        self,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> dict[str, dict[str, Any]]:
+        configured = ctx.config.get("format_registry_path")
+        registry_path = Path(configured) if isinstance(configured, str) and configured else DEFAULT_FORMAT_REGISTRY
+        if not registry_path.is_absolute():
+            registry_path = (Path(__file__).resolve().parents[2] / registry_path).resolve()
+
+        try:
+            payload = yaml.safe_load(registry_path.read_text(encoding="utf-8")) or {}
+        except Exception as exc:  # pragma: no cover - defensive path
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message=f"Cannot load ADR0068 format registry '{registry_path}': {exc}",
+                    path="plugin:base.validator.instance_placeholders",
+                )
+            )
+            return {}
+
+        formats = payload.get("formats")
+        if not isinstance(formats, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message=f"ADR0068 format registry '{registry_path}' must contain mapping 'formats'.",
+                    path="plugin:base.validator.instance_placeholders",
+                )
+            )
+            return {}
+
+        result: dict[str, dict[str, Any]] = {}
+        for name, spec in formats.items():
+            if isinstance(name, str) and isinstance(spec, dict):
+                result[name] = spec
+        return result
+
+    def _collect_object_placeholders(
+        self,
+        *,
+        object_id: str,
+        payload: dict[str, Any],
+        formats: dict[str, dict[str, Any]],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> dict[tuple[Any, ...], dict[str, Any]]:
+        placeholders: dict[tuple[Any, ...], dict[str, Any]] = {}
+
+        def walk(node: Any, path: tuple[Any, ...]) -> None:
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    walk(value, path + (key,))
+                return
+            if isinstance(node, list):
+                for idx, item in enumerate(node):
+                    walk(item, path + (idx,))
+                return
+            if not isinstance(node, str):
+                return
+            if node.startswith("@@"):
+                return
+            if not node.startswith("@"):
+                return
+
+            match = _PLACEHOLDER_RE.fullmatch(node)
+            if not match:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E6801",
+                        severity="error",
+                        stage=stage,
+                        message=f"Invalid placeholder syntax '{node}'. Expected @required:<format> or @optional:<format>.",
+                        path=f"object:{object_id}:{self._format_path(path)}",
+                    )
+                )
+                return
+
+            mode, fmt = match.groups()
+            if fmt not in formats:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E6801",
+                        severity="error",
+                        stage=stage,
+                        message=f"Placeholder format '{fmt}' is not defined in format registry.",
+                        path=f"object:{object_id}:{self._format_path(path)}",
+                    )
+                )
+                return
+            placeholders[path] = {"required": mode == "required", "format": fmt}
+
+        walk(payload, ())
+        return placeholders
+
+    def _validate_instance_row(
+        self,
+        *,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        group_name: str,
+        row: dict[str, Any],
+        object_placeholders: dict[str, dict[tuple[Any, ...], dict[str, Any]]],
+        formats: dict[str, dict[str, Any]],
+    ) -> None:
+        object_ref = row.get("object_ref")
+        if not isinstance(object_ref, str) or object_ref not in ctx.objects:
+            return
+
+        instance_id = row.get("instance", "<unknown>")
+        path_prefix = f"instance:{group_name}:{instance_id}"
+        placeholders = object_placeholders.get(object_ref, {})
+        object_payload = ctx.objects.get(object_ref)
+        if not isinstance(object_payload, dict):
+            return
+
+        overrides_payload = row.get("instance_overrides")
+        if overrides_payload is None:
+            override_values: dict[tuple[Any, ...], Any] = {}
+        elif not isinstance(overrides_payload, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="instance_overrides must be an object when provided.",
+                    path=f"{path_prefix}.instance_overrides",
+                )
+            )
+            return
+        else:
+            override_values = {}
+            self._flatten_override_values(overrides_payload, (), override_values)
+
+        for override_path, value in override_values.items():
+            placeholder_spec = placeholders.get(override_path)
+            if placeholder_spec is None:
+                code = "E6803" if self._path_exists(object_payload, override_path) else "E6804"
+                message = (
+                    f"Override path '{self._format_path(override_path)}' is not marked as placeholder."
+                    if code == "E6803"
+                    else f"Override path '{self._format_path(override_path)}' does not exist in object template."
+                )
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code=code,
+                        severity="error",
+                        stage=stage,
+                        message=message,
+                        path=f"{path_prefix}.instance_overrides.{self._format_path(override_path)}",
+                    )
+                )
+                continue
+
+            fmt = placeholder_spec.get("format")
+            if not isinstance(fmt, str) or fmt not in formats:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E6805",
+                        severity="error",
+                        stage=stage,
+                        message=f"Unknown declared format '{fmt}' for override path '{self._format_path(override_path)}'.",
+                        path=f"{path_prefix}.instance_overrides.{self._format_path(override_path)}",
+                    )
+                )
+                continue
+
+            ok, reason = self._validate_format(value, formats[fmt])
+            if not ok:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E6805",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Override value for '{self._format_path(override_path)}' does not satisfy "
+                            f"format '{fmt}': {reason}"
+                        ),
+                        path=f"{path_prefix}.instance_overrides.{self._format_path(override_path)}",
+                    )
+                )
+
+        for placeholder_path, placeholder_spec in placeholders.items():
+            if placeholder_spec.get("required") and placeholder_path not in override_values:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E6802",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Required placeholder '{self._format_path(placeholder_path)}' is missing "
+                            "in instance_overrides."
+                        ),
+                        path=f"{path_prefix}.instance_overrides",
+                    )
+                )
+
+    def _flatten_override_values(
+        self,
+        node: Any,
+        path: tuple[Any, ...],
+        out: dict[tuple[Any, ...], Any],
+    ) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                self._flatten_override_values(value, path + (key,), out)
+            return
+        out[path] = node
+
+    def _path_exists(self, payload: Any, path: tuple[Any, ...]) -> bool:
+        node = payload
+        for token in path:
+            if isinstance(node, dict):
+                if token not in node:
+                    return False
+                node = node[token]
+                continue
+            if isinstance(node, list) and isinstance(token, int):
+                if token < 0 or token >= len(node):
+                    return False
+                node = node[token]
+                continue
+            return False
+        return True
+
+    def _validate_format(self, value: Any, spec: dict[str, Any]) -> tuple[bool, str]:
+        expected_type = spec.get("type")
+        if expected_type == "string":
+            if not isinstance(value, str):
+                return False, f"expected string, got {type(value).__name__}"
+        elif expected_type == "integer":
+            if not isinstance(value, int) or isinstance(value, bool):
+                return False, f"expected integer, got {type(value).__name__}"
+        elif expected_type == "number":
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                return False, f"expected number, got {type(value).__name__}"
+        elif expected_type == "boolean":
+            if not isinstance(value, bool):
+                return False, f"expected boolean, got {type(value).__name__}"
+
+        if value is None:
+            return False, "null is not allowed; omit optional field instead"
+
+        pattern = spec.get("pattern")
+        if isinstance(pattern, str):
+            try:
+                regex = re.compile(pattern)
+            except re.error as exc:  # pragma: no cover - registry error path
+                return False, f"invalid registry regex: {exc}"
+            if not isinstance(value, str) or regex.fullmatch(value) is None:
+                return False, "regex mismatch"
+
+        validator = spec.get("validator")
+        if validator == "ipv4":
+            try:
+                ipaddress.IPv4Address(str(value))
+            except Exception:
+                return False, "not a valid IPv4 address"
+        elif validator == "ipv6":
+            try:
+                ipaddress.IPv6Address(str(value))
+            except Exception:
+                return False, "not a valid IPv6 address"
+        elif validator == "cidr":
+            try:
+                ipaddress.ip_network(str(value), strict=False)
+            except Exception:
+                return False, "not a valid CIDR"
+        elif validator == "uri":
+            parsed = urlparse(str(value))
+            if not parsed.scheme or (not parsed.netloc and not parsed.path):
+                return False, "not a valid URI"
+        elif validator == "iso8601":
+            text = str(value)
+            if text.endswith("Z"):
+                text = text[:-1] + "+00:00"
+            try:
+                dt.datetime.fromisoformat(text)
+            except ValueError:
+                return False, "not a valid ISO8601 value"
+        elif isinstance(validator, str) and validator:
+            return False, f"unsupported validator '{validator}' in registry"
+
+        fmt_kind = spec.get("kind")
+        if fmt_kind == "regex" and spec.get("pattern") is None:
+            return False, "registry regex format requires pattern"
+        if spec.get("validator") is None and spec.get("pattern") is None and fmt_kind == "network":
+            return False, "network format requires validator"
+
+        return True, "ok"
+
+    def _format_path(self, path: tuple[Any, ...]) -> str:
+        if not path:
+            return "<root>"
+        parts: list[str] = []
+        for token in path:
+            if isinstance(token, int):
+                parts.append(f"[{token}]")
+            else:
+                if parts:
+                    parts.append(".")
+                parts.append(str(token))
+        return "".join(parts)

@@ -1,0 +1,68 @@
+schema_version: 1
+title: Instance Field Format Registry
+description: |
+  Canonical format registry for ADR 0068 placeholder tokens:
+  @(required|optional):<format>
+
+formats:
+  string:
+    kind: primitive
+    type: string
+    description: Any UTF-8 string.
+
+  int:
+    kind: primitive
+    type: integer
+    description: Signed integer value.
+
+  number:
+    kind: primitive
+    type: number
+    description: Numeric value (integer or float).
+
+  bool:
+    kind: primitive
+    type: boolean
+    description: Boolean value true/false.
+
+  mac:
+    kind: regex
+    type: string
+    pattern: "^(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$"
+    description: MAC address in colon-separated hex format.
+
+  ipv4:
+    kind: network
+    type: string
+    validator: ipv4
+    description: IPv4 address.
+
+  ipv6:
+    kind: network
+    type: string
+    validator: ipv6
+    description: IPv6 address.
+
+  cidr:
+    kind: network
+    type: string
+    validator: cidr
+    description: IPv4/IPv6 network in CIDR notation.
+
+  hostname:
+    kind: regex
+    type: string
+    pattern: "^(?=.{1,253}$)(?!-)[A-Za-z0-9-]{1,63}(?<!-)(\\.(?!-)[A-Za-z0-9-]{1,63}(?<!-))*$"
+    description: DNS hostname (RFC-compatible practical subset).
+
+  uri:
+    kind: uri
+    type: string
+    validator: uri
+    description: Absolute URI.
+
+  iso8601:
+    kind: datetime
+    type: string
+    validator: iso8601
+    description: ISO-8601 timestamp or date-time string.

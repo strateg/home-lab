@@ -86,3 +86,22 @@ plugins:
       properties: {}
       required: []
     description: Validates capability contracts using compiler-derived data (ADR 0063 Phase 3 example)
+
+  - id: base.validator.instance_placeholders
+    kind: validator_json
+    entry: validators/instance_placeholder_validator.py:InstancePlaceholderValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 140
+    depends_on: []
+    timeout: 30
+    config:
+      format_registry_path: data/instance-field-formats.yaml
+    config_schema:
+      type: object
+      properties:
+        format_registry_path:
+          type: string
+          description: Path to ADR0068 placeholder format registry.
+      required: []
+    description: Validates ADR0068 @required/@optional placeholders and instance_overrides.

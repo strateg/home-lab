@@ -237,3 +237,34 @@ codes:
     stage: validate
     title: Capability Validation Started
     hint: No action required.
+  # ADR 0068 placeholder validation
+  E6801:
+    severity: error
+    stage: validate
+    title: Invalid Placeholder Syntax
+    hint: Use @required:<format> or @optional:<format> with a format from instance-field-formats.yaml.
+  E6802:
+    severity: error
+    stage: validate
+    title: Required Override Missing
+    hint: Add missing required placeholder values under instance_overrides.
+  E6803:
+    severity: error
+    stage: validate
+    title: Override Path Not Marked
+    hint: Override only fields marked with @required or @optional in object template.
+  E6804:
+    severity: error
+    stage: validate
+    title: Override Path Not Found
+    hint: Ensure instance_overrides path exists in object template.
+  E6805:
+    severity: error
+    stage: validate
+    title: Override Format Validation Failed
+    hint: Provide value that matches declared placeholder format.
+  E6806:
+    severity: error
+    stage: validate
+    title: Unresolved Placeholder After Merge
+    hint: Ensure required placeholders are overridden and optional placeholders are omitted or resolved.
