@@ -19,3 +19,38 @@ plugins:
           description: If true, treat warnings as errors
       required: []
     description: Validates all cross-entity references in compiled topology
+
+  - id: base.validator.model_lock
+    kind: validator_json
+    entry: validators/model_lock_validator.py:ModelLockValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 110
+    depends_on: [base.validator.references]
+    timeout: 30
+    config:
+      strict_mode: false
+    config_schema:
+      type: object
+      properties:
+        strict_mode:
+          type: boolean
+          default: false
+          description: If true, require all refs to be pinned in model.lock
+      required: []
+    description: Validates that class_ref and object_ref are pinned in model.lock (ADR 0063)
+
+  - id: base.validator.embedded_in
+    kind: validator_json
+    entry: validators/embedded_in_validator.py:EmbeddedInValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 120
+    depends_on: [base.validator.references]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates embedded_in references for OS instances (ADR 0064)

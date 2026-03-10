@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -12,12 +13,27 @@ from typing import Any, Dict, Iterable, List, Tuple
 
 import yaml
 
+# Add kernel to path for plugin imports
+TOPOLOGY_TOOLS = Path(__file__).resolve().parent
+sys.path.insert(0, str(TOPOLOGY_TOOLS))
+
+from kernel import (
+    PluginRegistry,
+    PluginContext,
+    PluginResult,
+    PluginDiagnostic,
+    PluginStatus,
+    Stage,
+    KERNEL_VERSION,
+)
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPO_ROOT / "v5" / "topology" / "topology.yaml"
 DEFAULT_OUTPUT_JSON = REPO_ROOT / "v5-build" / "effective-topology.json"
 DEFAULT_DIAGNOSTICS_JSON = REPO_ROOT / "v5-build" / "diagnostics" / "report.json"
 DEFAULT_DIAGNOSTICS_TXT = REPO_ROOT / "v5-build" / "diagnostics" / "report.txt"
 DEFAULT_ERROR_CATALOG = REPO_ROOT / "v5" / "topology-tools" / "data" / "error-catalog.yaml"
+DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 
 SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
 
@@ -42,6 +58,7 @@ class Diagnostic:
     path: str
     confidence: float = 0.95
     hint: str | None = None
+    plugin_id: str | None = None
 
     def as_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -55,7 +72,23 @@ class Diagnostic:
         }
         if self.hint:
             payload["hint"] = self.hint
+        if self.plugin_id:
+            payload["plugin_id"] = self.plugin_id
         return payload
+
+    @classmethod
+    def from_plugin_diagnostic(cls, plugin_diag: PluginDiagnostic) -> "Diagnostic":
+        """Convert a PluginDiagnostic to a Diagnostic."""
+        return cls(
+            code=plugin_diag.code,
+            severity=plugin_diag.severity,
+            stage=plugin_diag.stage,
+            message=plugin_diag.message,
+            path=plugin_diag.path,
+            confidence=plugin_diag.confidence,
+            hint=plugin_diag.hint,
+            plugin_id=plugin_diag.plugin_id,
+        )
 
 
 class V5Compiler:
@@ -70,6 +103,8 @@ class V5Compiler:
         strict_model_lock: bool,
         fail_on_warning: bool,
         require_new_model: bool,
+        enable_plugins: bool = False,
+        plugins_manifest_path: Path | None = None,
     ) -> None:
         self.manifest_path = manifest_path
         self.output_json = output_json
@@ -79,6 +114,8 @@ class V5Compiler:
         self.strict_model_lock = strict_model_lock
         self.fail_on_warning = fail_on_warning
         self.require_new_model = require_new_model
+        self.enable_plugins = enable_plugins
+        self.plugins_manifest_path = plugins_manifest_path or DEFAULT_PLUGINS_MANIFEST
 
         self._diagnostics: list[Diagnostic] = []
         self._error_hints = self._load_error_hints(error_catalog_path)
@@ -86,6 +123,12 @@ class V5Compiler:
         self._object_effective_os: dict[str, dict[str, Any]] = {}
         self._instance_derived_caps: dict[str, list[str]] = {}
         self._instance_software_refs: dict[str, dict[str, Any]] = {}
+        self._plugin_registry: PluginRegistry | None = None
+        self._plugin_results: list[PluginResult] = []
+
+        # Initialize plugin registry if enabled
+        if self.enable_plugins:
+            self._init_plugin_registry()
 
     def _load_error_hints(self, path: Path) -> dict[str, str]:
         if not path.exists():
@@ -107,6 +150,102 @@ class V5Compiler:
             if isinstance(hint, str) and hint:
                 hints[code] = hint
         return hints
+
+    def _init_plugin_registry(self) -> None:
+        """Initialize the plugin registry from manifest."""
+        try:
+            self._plugin_registry = PluginRegistry(TOPOLOGY_TOOLS)
+            if self.plugins_manifest_path.exists():
+                self._plugin_registry.load_manifest(self.plugins_manifest_path)
+                load_errors = self._plugin_registry.get_load_errors()
+                for err in load_errors:
+                    self.add_diag(
+                        code="E4001",
+                        severity="error",
+                        stage="load",
+                        message=f"Plugin load error: {err}",
+                        path="plugins.yaml",
+                    )
+                self.add_diag(
+                    code="I4001",
+                    severity="info",
+                    stage="load",
+                    message=f"Plugin kernel v{KERNEL_VERSION} initialized with {len(self._plugin_registry.specs)} plugins",
+                    path="plugins.yaml",
+                    confidence=1.0,
+                )
+            else:
+                self.add_diag(
+                    code="W4001",
+                    severity="warning",
+                    stage="load",
+                    message=f"Plugin manifest not found: {self.plugins_manifest_path}",
+                    path="plugins.yaml",
+                )
+        except Exception as exc:
+            self.add_diag(
+                code="E4001",
+                severity="error",
+                stage="load",
+                message=f"Plugin registry initialization failed: {exc}",
+                path="plugins.yaml",
+            )
+            self._plugin_registry = None
+
+    def _execute_plugins(
+        self,
+        *,
+        stage: Stage,
+        class_map: dict[str, dict[str, Any]],
+        object_map: dict[str, dict[str, Any]],
+        instance_bindings: dict[str, Any],
+        lock_payload: dict[str, Any] | None,
+    ) -> None:
+        """Execute all plugins for a given stage."""
+        if not self._plugin_registry:
+            return
+
+        # Build plugin context
+        ctx = PluginContext(
+            topology_path=str(self.manifest_path.relative_to(REPO_ROOT).as_posix()),
+            profile="production",  # TODO: make configurable
+            model_lock=lock_payload or {},
+            classes={class_id: item["payload"] for class_id, item in class_map.items()},
+            objects={object_id: item["payload"] for object_id, item in object_map.items()},
+            instance_bindings=instance_bindings,
+            config={"strict_mode": self.strict_model_lock},
+        )
+
+        # Execute plugins for stage
+        results = self._plugin_registry.execute_stage(stage, ctx)
+        self._plugin_results.extend(results)
+
+        # Convert plugin diagnostics to compiler diagnostics
+        for result in results:
+            for plugin_diag in result.diagnostics:
+                diag = Diagnostic.from_plugin_diagnostic(plugin_diag)
+                self._diagnostics.append(diag)
+
+            # Add execution info diagnostic
+            if result.status == PluginStatus.TIMEOUT:
+                self.add_diag(
+                    code="E4101",
+                    severity="error",
+                    stage=str(stage.value),
+                    message=f"Plugin '{result.plugin_id}' timed out after {result.duration_ms:.0f}ms",
+                    path=f"plugin:{result.plugin_id}",
+                )
+            elif result.status == PluginStatus.FAILED and result.error_traceback:
+                # Extract last meaningful line from traceback
+                tb_lines = [line for line in result.error_traceback.strip().split("\n") if line.strip()]
+                error_msg = tb_lines[-1] if tb_lines else "unknown error"
+                self.add_diag(
+                    code="E4102",
+                    severity="error",
+                    stage=str(stage.value),
+                    message=f"Plugin '{result.plugin_id}' crashed: {error_msg}",
+                    path=f"plugin:{result.plugin_id}",
+                )
 
     def add_diag(
         self,
@@ -1955,6 +2094,16 @@ class V5Compiler:
             )
         self._validate_model_lock(rows=rows, class_map=class_map, object_map=object_map, lock_payload=lock_payload)
 
+        # Execute validator plugins (ADR 0063)
+        if self.enable_plugins:
+            self._execute_plugins(
+                stage=Stage.VALIDATE,
+                class_map=class_map,
+                object_map=object_map,
+                instance_bindings=instance_payload or {},
+                lock_payload=lock_payload,
+            )
+
         errors = sum(1 for item in self._diagnostics if item.severity == "error")
         if errors == 0:
             effective_payload = self._build_effective(
@@ -2033,6 +2182,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Require ADR 0064 firmware_ref/os_refs model; legacy software.os fields are errors.",
     )
+    parser.add_argument(
+        "--enable-plugins",
+        action="store_true",
+        help="Enable plugin execution (ADR 0063). Runs validator plugins after built-in validation.",
+    )
+    parser.add_argument(
+        "--plugins-manifest",
+        default=str(DEFAULT_PLUGINS_MANIFEST.relative_to(REPO_ROOT).as_posix()),
+        help="Path to plugin manifest YAML.",
+    )
     return parser
 
 
@@ -2047,6 +2206,8 @@ def main() -> int:
         strict_model_lock=args.strict_model_lock,
         fail_on_warning=args.fail_on_warning,
         require_new_model=args.require_new_model,
+        enable_plugins=args.enable_plugins,
+        plugins_manifest_path=resolve_repo_path(args.plugins_manifest),
     )
     return compiler.run()
 
