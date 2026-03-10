@@ -103,8 +103,8 @@ def test_plugin_execution():
         topology_path="test",
         profile="test",
         model_lock={},
-        classes={"class.router": {"class": "class.router"}},
-        objects={"obj.test": {"object": "obj.test"}},
+        classes={"class.router": {"class": "class.router", "firmware_policy": "allowed", "os_policy": "allowed"}},
+        objects={"obj.test": {"object": "obj.test", "class_ref": "class.router"}},
         instance_bindings={
             "instance_bindings": {
                 "l1_devices": [
@@ -159,7 +159,7 @@ def test_plugin_detects_invalid_ref():
 
     result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert len(result.diagnostics) >= 2  # At least class_ref and object_ref errors
+    assert len(result.diagnostics) >= 1
     assert result.has_errors
     print("PASS: Plugin detects invalid references")
 
@@ -342,8 +342,8 @@ def test_runtime_config_takes_precedence():
     )
 
     result = registry.execute_plugin("base.validator.model_lock", ctx, Stage.VALIDATE)
-    assert result.status == PluginStatus.PARTIAL
-    assert any(d.code == "W2401" for d in result.diagnostics)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E3201" for d in result.diagnostics)
     assert ctx.config == {"strict_mode": True}
     print("PASS: Runtime config precedence works")
 

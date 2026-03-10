@@ -268,3 +268,24 @@ codes:
     stage: validate
     title: Unresolved Placeholder After Merge
     hint: Ensure required placeholders are overridden and optional placeholders are omitted or resolved.
+  # ADR 0069 pipeline mode and parity controls
+  E6901:
+    severity: error
+    stage: validate
+    title: Pipeline Mode Misconfiguration
+    hint: plugin-first mode requires --enable-plugins and compiler-published compiled_json.
+  E6902:
+    severity: error
+    stage: validate
+    title: Parity Gate Failed
+    hint: Investigate plugin/legacy model drift before cutover.
+  W6901:
+    severity: warning
+    stage: validate
+    title: Effective Model Parity Drift
+    hint: Plugin effective model differs from legacy; investigate before cutover.
+  I6901:
+    severity: info
+    stage: validate
+    title: Pipeline Mode Activated
+    hint: Plugin-first effective model source is active.

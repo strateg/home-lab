@@ -1,0 +1,278 @@
+"""Capability contract loader compiler plugin (ADR 0069 WS2)."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+
+
+class CapabilityContractLoaderCompiler(CompilerPlugin):
+    """Load capability catalog + packs and publish normalized contract data."""
+
+    @staticmethod
+    def _rel(path: Path) -> str:
+        try:
+            return str(path.relative_to(REPO_ROOT).as_posix())
+        except ValueError:
+            return str(path)
+
+    def _load_yaml(
+        self,
+        *,
+        path: Path,
+        code_missing: str,
+        code_parse: str,
+        stage_name: str,
+        diagnostics: list[PluginDiagnostic],
+    ) -> dict[str, Any] | None:
+        if not path.exists() or not path.is_file():
+            diagnostics.append(
+                PluginDiagnostic(
+                    code=code_missing,
+                    severity="error",
+                    stage=stage_name,
+                    message=f"File does not exist: {path}",
+                    path=self._rel(path),
+                    plugin_id=self.plugin_id,
+                )
+            )
+            return None
+        try:
+            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError) as exc:
+            diagnostics.append(
+                PluginDiagnostic(
+                    code=code_parse,
+                    severity="error",
+                    stage=stage_name,
+                    message=f"YAML parse error: {exc}",
+                    path=self._rel(path),
+                    plugin_id=self.plugin_id,
+                )
+            )
+            return None
+        if not isinstance(payload, dict):
+            diagnostics.append(
+                PluginDiagnostic(
+                    code="E1004",
+                    severity="error",
+                    stage=stage_name,
+                    message="Expected mapping/object at YAML root.",
+                    path=self._rel(path),
+                    plugin_id=self.plugin_id,
+                )
+            )
+            return None
+        return payload
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+
+        owner = ctx.config.get("compilation_owner_capability_contract_data")
+        if owner is not None and owner != "plugin":
+            catalog_ids = ctx.config.get("capability_catalog_ids", [])
+            packs_map = ctx.config.get("capability_packs", {})
+            return self.make_result(
+                diagnostics,
+                output_data={"catalog_ids": catalog_ids, "packs_map": packs_map},
+            )
+
+        catalog_path_raw = ctx.config.get("capability_catalog_path")
+        packs_path_raw = ctx.config.get("capability_packs_path")
+        if not isinstance(catalog_path_raw, str) or not isinstance(packs_path_raw, str):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="Missing capability contract paths in plugin context config.",
+                    path="pipeline:capability_contract_loader",
+                )
+            )
+            return self.make_result(diagnostics, output_data={"catalog_ids": [], "packs_map": {}})
+
+        catalog_path = Path(catalog_path_raw)
+        packs_path = Path(packs_path_raw)
+        catalog_ids: set[str] = set()
+        packs_map: dict[str, dict[str, Any]] = {}
+
+        catalog_payload = self._load_yaml(
+            path=catalog_path,
+            code_missing="E1001",
+            code_parse="E1003",
+            stage_name="load",
+            diagnostics=diagnostics,
+        )
+        if catalog_payload is not None:
+            capabilities = catalog_payload.get("capabilities")
+            if not isinstance(capabilities, list):
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message="capability catalog must define list key 'capabilities'.",
+                        path=self._rel(catalog_path),
+                        plugin_id=self.plugin_id,
+                    )
+                )
+            else:
+                for idx, item in enumerate(capabilities):
+                    path = f"{self._rel(catalog_path)}:capabilities[{idx}]"
+                    if not isinstance(item, dict):
+                        diagnostics.append(
+                            PluginDiagnostic(
+                                code="E3201",
+                                severity="error",
+                                stage="validate",
+                                message="capability entry must be object.",
+                                path=path,
+                                plugin_id=self.plugin_id,
+                            )
+                        )
+                        continue
+                    cap_id = item.get("id")
+                    if not isinstance(cap_id, str) or not cap_id:
+                        diagnostics.append(
+                            PluginDiagnostic(
+                                code="E3201",
+                                severity="error",
+                                stage="validate",
+                                message="capability entry missing non-empty id.",
+                                path=path,
+                                plugin_id=self.plugin_id,
+                            )
+                        )
+                        continue
+                    if cap_id in catalog_ids:
+                        diagnostics.append(
+                            PluginDiagnostic(
+                                code="E2102",
+                                severity="error",
+                                stage="resolve",
+                                message=f"duplicate capability id '{cap_id}' in catalog.",
+                                path=path,
+                                plugin_id=self.plugin_id,
+                            )
+                        )
+                        continue
+                    catalog_ids.add(cap_id)
+
+        packs_payload = self._load_yaml(
+            path=packs_path,
+            code_missing="E1001",
+            code_parse="E1003",
+            stage_name="load",
+            diagnostics=diagnostics,
+        )
+        if packs_payload is not None:
+            packs = packs_payload.get("packs")
+            if not isinstance(packs, list):
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message="capability packs file must define list key 'packs'.",
+                        path=self._rel(packs_path),
+                        plugin_id=self.plugin_id,
+                    )
+                )
+            else:
+                for idx, item in enumerate(packs):
+                    path = f"{self._rel(packs_path)}:packs[{idx}]"
+                    if not isinstance(item, dict):
+                        diagnostics.append(
+                            PluginDiagnostic(
+                                code="E3201",
+                                severity="error",
+                                stage="validate",
+                                message="capability pack entry must be object.",
+                                path=path,
+                                plugin_id=self.plugin_id,
+                            )
+                        )
+                        continue
+                    pack_id = item.get("id")
+                    if not isinstance(pack_id, str) or not pack_id:
+                        diagnostics.append(
+                            PluginDiagnostic(
+                                code="E3201",
+                                severity="error",
+                                stage="validate",
+                                message="capability pack entry missing non-empty id.",
+                                path=path,
+                                plugin_id=self.plugin_id,
+                            )
+                        )
+                        continue
+                    if pack_id in packs_map:
+                        diagnostics.append(
+                            PluginDiagnostic(
+                                code="E2102",
+                                severity="error",
+                                stage="resolve",
+                                message=f"duplicate capability pack id '{pack_id}'.",
+                                path=path,
+                                plugin_id=self.plugin_id,
+                            )
+                        )
+                        continue
+                    pack_caps = item.get("capabilities")
+                    if not isinstance(pack_caps, list):
+                        diagnostics.append(
+                            PluginDiagnostic(
+                                code="E3201",
+                                severity="error",
+                                stage="validate",
+                                message=f"pack '{pack_id}' must define list key 'capabilities'.",
+                                path=path,
+                                plugin_id=self.plugin_id,
+                            )
+                        )
+                        continue
+                    for cap in pack_caps:
+                        if not isinstance(cap, str):
+                            diagnostics.append(
+                                PluginDiagnostic(
+                                    code="E3201",
+                                    severity="error",
+                                    stage="validate",
+                                    message=f"pack '{pack_id}' has non-string capability entry.",
+                                    path=path,
+                                    plugin_id=self.plugin_id,
+                                )
+                            )
+                            continue
+                        if not cap.startswith("vendor.") and cap not in catalog_ids:
+                            diagnostics.append(
+                                PluginDiagnostic(
+                                    code="E3201",
+                                    severity="error",
+                                    stage="validate",
+                                    message=f"pack '{pack_id}' references unknown capability '{cap}'.",
+                                    path=path,
+                                    plugin_id=self.plugin_id,
+                                )
+                            )
+                    packs_map[pack_id] = item
+
+        catalog_sorted = sorted(catalog_ids)
+        ctx.publish("catalog_ids", catalog_sorted)
+        ctx.publish("packs_map", packs_map)
+        ctx.config["capability_catalog_ids"] = catalog_sorted
+        ctx.config["capability_packs"] = packs_map
+
+        return self.make_result(
+            diagnostics,
+            output_data={"catalog_ids": catalog_sorted, "packs_map": packs_map},
+        )

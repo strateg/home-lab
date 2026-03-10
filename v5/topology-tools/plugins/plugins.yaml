@@ -7,7 +7,7 @@ plugins:
     api_version: "1.x"
     stages: [compile]
     order: 50
-    depends_on: []
+    depends_on: [base.compiler.module_loader]
     timeout: 30
     config: {}
     config_schema:
@@ -15,6 +15,81 @@ plugins:
       properties: {}
       required: []
     description: Derives capabilities from class/object definitions (ADR 0063 Phase 3 example)
+
+  - id: base.compiler.module_loader
+    kind: compiler
+    entry: compilers/module_loader_compiler.py:ModuleLoaderCompiler
+    api_version: "1.x"
+    stages: [compile]
+    order: 30
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Loads class/object module maps for plugin-first pipeline (ADR 0069).
+
+  - id: base.compiler.model_lock_loader
+    kind: compiler
+    entry: compilers/model_lock_loader_compiler.py:ModelLockLoaderCompiler
+    api_version: "1.x"
+    stages: [compile]
+    order: 35
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Loads model.lock payload for plugin-first pipeline (ADR 0069).
+
+  - id: base.compiler.instance_rows
+    kind: compiler
+    entry: compilers/instance_rows_compiler.py:InstanceRowsCompiler
+    api_version: "1.x"
+    stages: [compile]
+    order: 40
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Normalizes instance bindings rows for plugin-first pipeline (ADR 0069).
+
+  - id: base.compiler.capability_contract_loader
+    kind: compiler
+    entry: compilers/capability_contract_loader_compiler.py:CapabilityContractLoaderCompiler
+    api_version: "1.x"
+    stages: [compile]
+    order: 45
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Loads capability catalog and packs contract for plugin-first pipeline.
+
+  - id: base.compiler.effective_model
+    kind: compiler
+    entry: compilers/effective_model_compiler.py:EffectiveModelCompiler
+    api_version: "1.x"
+    stages: [compile]
+    order: 60
+    depends_on: [base.compiler.module_loader, base.compiler.capabilities]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Assembles candidate effective model in compile stage (ADR 0069 WS2).
 
   # Validator plugins (run in validate stage)
   - id: base.validator.references
@@ -78,7 +153,7 @@ plugins:
     api_version: "1.x"
     stages: [validate]
     order: 130
-    depends_on: [base.compiler.capabilities]
+    depends_on: []
     timeout: 30
     config: {}
     config_schema:
@@ -105,3 +180,38 @@ plugins:
           description: Path to ADR0068 placeholder format registry.
       required: []
     description: Validates ADR0068 @required/@optional placeholders and instance_overrides.
+
+  # Generator plugins (run in generate stage)
+  - id: base.generator.effective_json
+    kind: generator
+    entry: generators/effective_json_generator.py:EffectiveJsonGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 190
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Emits effective topology JSON from compiled model (ADR 0069 WS4).
+
+  - id: base.generator.effective_yaml
+    kind: generator
+    entry: generators/effective_yaml_generator.py:EffectiveYamlGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 200
+    depends_on: []
+    timeout: 30
+    config:
+      output_filename: effective-topology.yaml
+    config_schema:
+      type: object
+      properties:
+        output_filename:
+          type: string
+          description: Filename for generated effective YAML artifact.
+      required: []
+    description: Emits effective topology YAML from compiled model (ADR 0069 WS4 seed).
