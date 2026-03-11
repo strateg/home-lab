@@ -13,6 +13,12 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
+from legacy_capabilities import default_firmware_policy as legacy_default_firmware_policy
+from legacy_capabilities import derive_firmware_capabilities as legacy_derive_firmware_capabilities
+from legacy_capabilities import derive_os_capabilities as legacy_derive_os_capabilities
+from legacy_capabilities import extract_firmware_properties as legacy_extract_firmware_properties
+from legacy_capabilities import extract_os_properties as legacy_extract_os_properties
+from legacy_capabilities import normalize_release_token as legacy_normalize_release_token
 
 
 class CapabilityContractValidator(ValidatorJsonPlugin):
@@ -20,24 +26,11 @@ class CapabilityContractValidator(ValidatorJsonPlugin):
 
     @staticmethod
     def _normalize_release_token(value: str) -> str:
-        return "".join(ch for ch in value.lower() if ch.isalnum())
+        return legacy_normalize_release_token(value)
 
     @staticmethod
     def _default_firmware_policy(class_id: str) -> str:
-        if class_id.startswith("class.service."):
-            return "forbidden"
-        if class_id == "class.compute.workload.container":
-            return "forbidden"
-        if class_id.startswith("class.power."):
-            return "required"
-        if class_id in {
-            "class.router",
-            "class.compute.cloud_vm",
-            "class.compute.edge_node",
-            "class.compute.hypervisor",
-        }:
-            return "required"
-        return "allowed"
+        return legacy_default_firmware_policy(class_id)
 
     @staticmethod
     def _expand_capabilities(
@@ -61,28 +54,11 @@ class CapabilityContractValidator(ValidatorJsonPlugin):
 
     @staticmethod
     def _extract_firmware_properties(object_payload: dict[str, Any]) -> dict[str, Any]:
-        properties = object_payload.get("properties")
-        if isinstance(properties, dict):
-            return dict(properties)
-        return {}
+        return legacy_extract_firmware_properties(object_payload)
 
     def _extract_os_properties(self, object_payload: dict[str, Any]) -> dict[str, Any] | None:
-        properties = object_payload.get("properties")
-        if isinstance(properties, dict):
-            family = properties.get("family")
-            architecture = properties.get("architecture")
-            if isinstance(family, str) and family and isinstance(architecture, str) and architecture:
-                return dict(properties)
-
-        software = object_payload.get("software")
-        if isinstance(software, dict):
-            os_payload = software.get("os")
-            if isinstance(os_payload, dict):
-                family = os_payload.get("family")
-                architecture = os_payload.get("architecture")
-                if isinstance(family, str) and family and isinstance(architecture, str) and architecture:
-                    return dict(os_payload)
-        return None
+        _ = self
+        return legacy_extract_os_properties(object_payload)
 
     def _derive_firmware_capabilities(
         self,
@@ -94,36 +70,28 @@ class CapabilityContractValidator(ValidatorJsonPlugin):
         stage: Stage,
     ) -> tuple[set[str], list[PluginDiagnostic]]:
         diagnostics: list[PluginDiagnostic] = []
-        properties = self._extract_firmware_properties(object_payload)
-        vendor = properties.get("vendor")
-        family = properties.get("family")
-        architecture = properties.get("architecture")
-        boot_stack = properties.get("boot_stack")
-        virtual = properties.get("virtual")
+        stage_enum = stage
 
-        if not isinstance(vendor, str) or not vendor or not isinstance(family, str) or not family:
-            return set(), diagnostics
-
-        derived: set[str] = {f"cap.firmware.{vendor}", f"cap.firmware.{family}"}
-        if isinstance(architecture, str) and architecture:
-            derived.add(f"cap.firmware.arch.{architecture}")
-            derived.add(f"cap.arch.{architecture}")
-        if isinstance(boot_stack, str) and boot_stack:
-            derived.add(f"cap.firmware.boot.{boot_stack}")
-        if isinstance(virtual, bool) and virtual:
-            derived.add("cap.firmware.virtual")
-
-        for cap in sorted(derived):
-            if cap not in catalog_ids:
-                diagnostics.append(
-                    self.emit_diagnostic(
-                        code="W3201",
-                        severity="warning",
-                        stage=stage,
-                        message=f"firmware object '{object_id}' derived capability '{cap}' is missing in capability catalog.",
-                        path=path,
-                    )
+        def _add_diag(*, code: str, severity: str, stage: str, message: str, path: str) -> None:
+            _ = stage
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code=code,
+                    severity=severity,
+                    stage=stage_enum,
+                    message=message,
+                    path=path,
                 )
+            )
+
+        derived, _ = legacy_derive_firmware_capabilities(
+            object_id=object_id,
+            object_payload=object_payload,
+            catalog_ids=catalog_ids,
+            path=path,
+            add_diag=_add_diag,
+            emit_diagnostics=True,
+        )
         return derived, diagnostics
 
     def _derive_os_capabilities(
@@ -136,111 +104,28 @@ class CapabilityContractValidator(ValidatorJsonPlugin):
         stage: Stage,
     ) -> tuple[set[str], list[PluginDiagnostic]]:
         diagnostics: list[PluginDiagnostic] = []
-        class_ref = object_payload.get("class_ref")
-        if class_ref == "class.firmware":
-            return set(), diagnostics
-        os_payload = self._extract_os_properties(object_payload)
-        if not isinstance(os_payload, dict):
-            return set(), diagnostics
+        stage_enum = stage
 
-        family = os_payload.get("family")
-        architecture = os_payload.get("architecture")
-        if not isinstance(family, str) or not family or not isinstance(architecture, str) or not architecture:
-            return set(), diagnostics
-
-        distribution = os_payload.get("distribution")
-        release = os_payload.get("release")
-        release_id = os_payload.get("release_id")
-        codename = os_payload.get("codename")
-        init_system = os_payload.get("init_system")
-        package_manager = os_payload.get("package_manager")
-        kernel = os_payload.get("kernel")
-
-        if not isinstance(distribution, str) or not distribution:
-            distribution = None
-        if not isinstance(release, str) or not release:
-            release = None
-        if not isinstance(release_id, str) or not release_id:
-            release_id = None
-        if not isinstance(codename, str) or not codename:
-            codename = None
-        if not isinstance(init_system, str) or not init_system:
-            init_system = None
-        if not isinstance(package_manager, str) or not package_manager:
-            package_manager = None
-        if not isinstance(kernel, str) or not kernel:
-            kernel = None
-
-        if release and not release_id:
-            release_id = self._normalize_release_token(release)
-        if release and release_id:
-            normalized_release = self._normalize_release_token(release)
-            normalized_release_id = self._normalize_release_token(release_id)
-            if normalized_release != normalized_release_id:
-                diagnostics.append(
-                    self.emit_diagnostic(
-                        code="E3201",
-                        severity="error",
-                        stage=stage,
-                        message=(
-                            f"object '{object_id}' software.os.release '{release}' does not match "
-                            f"release_id '{release_id}' after normalization."
-                        ),
-                        path=path,
-                    )
+        def _add_diag(*, code: str, severity: str, stage: str, message: str, path: str) -> None:
+            _ = stage
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code=code,
+                    severity=severity,
+                    stage=stage_enum,
+                    message=message,
+                    path=path,
                 )
-                return set(), diagnostics
-            release_id = normalized_release_id
+            )
 
-        distro_inference: dict[str, tuple[str, str]] = {
-            "debian": ("systemd", "apt"),
-            "ubuntu": ("systemd", "apt"),
-            "alpine": ("openrc", "apk"),
-            "fedora": ("systemd", "dnf"),
-            "nixos": ("systemd", "nix"),
-            "routeros": ("proprietary", "none"),
-            "openwrt": ("busybox", "opkg"),
-        }
-        if distribution and distribution in distro_inference:
-            default_init, default_pkg = distro_inference[distribution]
-            if init_system is None:
-                init_system = default_init
-            if package_manager is None:
-                package_manager = default_pkg
-
-        family_kernel_map = {
-            "linux": "linux",
-            "bsd": "bsd",
-            "windows": "nt",
-            "routeros": "proprietary",
-            "proprietary": "proprietary",
-        }
-        if kernel is None:
-            kernel = family_kernel_map.get(family)
-
-        derived: set[str] = {f"cap.os.{family}", f"cap.arch.{architecture}"}
-        if distribution:
-            derived.add(f"cap.os.{distribution}")
-        if distribution and release_id:
-            derived.add(f"cap.os.{distribution}.{release_id}")
-        if distribution and codename:
-            derived.add(f"cap.os.{distribution}.{codename}")
-        if init_system:
-            derived.add(f"cap.os.init.{init_system}")
-        if package_manager:
-            derived.add(f"cap.os.pkg.{package_manager}")
-
-        for cap in sorted(derived):
-            if cap not in catalog_ids:
-                diagnostics.append(
-                    self.emit_diagnostic(
-                        code="W3201",
-                        severity="warning",
-                        stage=stage,
-                        message=f"object '{object_id}' derived capability '{cap}' is missing in capability catalog.",
-                        path=path,
-                    )
-                )
+        derived, _ = legacy_derive_os_capabilities(
+            object_id=object_id,
+            object_payload=object_payload,
+            catalog_ids=catalog_ids,
+            path=path,
+            add_diag=_add_diag,
+            emit_diagnostics=True,
+        )
         return derived, diagnostics
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
