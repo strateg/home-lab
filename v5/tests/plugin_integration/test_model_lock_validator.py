@@ -113,3 +113,46 @@ def test_model_lock_validator_matches_legacy_rules_when_plugin_owner():
     # Both class and object version mismatches produce W3201
     assert codes.count("W3201") >= 2
     assert any(d.code == "I2401" and d.stage == "load" for d in result.diagnostics)
+
+
+def test_model_lock_validator_reads_lock_and_rows_via_subscribe():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "validation_owner_model_lock": "plugin",
+            "strict_mode": False,
+        },
+        classes={"class.router": {"version": "1.0.0"}},
+        objects={"obj.router": {"version": "1.0.0"}},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    ctx._set_execution_context("base.compiler.model_lock_loader", set())
+    ctx.publish("model_lock_loaded", True)
+    ctx.publish("lock_payload", {"classes": {}, "objects": {}})
+    ctx._clear_execution_context()
+
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish(
+        "normalized_rows",
+        [
+            {
+                "group": "l1_devices",
+                "instance": "r1",
+                "class_ref": "class.router",
+                "object_ref": "obj.router",
+            }
+        ],
+    )
+    ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    codes = [d.code for d in result.diagnostics]
+    assert "I2401" in codes
+    assert "W2402" in codes
+    assert "W2403" in codes
+    assert "E2402" not in codes

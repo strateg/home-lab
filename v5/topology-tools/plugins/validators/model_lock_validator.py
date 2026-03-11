@@ -12,11 +12,31 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
+from kernel.plugin_base import (
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+    ValidatorJsonPlugin,
+)
 
 
 class ModelLockValidator(ValidatorJsonPlugin):
     """Validate model.lock pinning and version consistency."""
+
+    @staticmethod
+    def _subscribe_or_config(
+        ctx: PluginContext,
+        *,
+        plugin_id: str,
+        published_key: str,
+        config_key: str,
+    ) -> Any:
+        try:
+            return ctx.subscribe(plugin_id, published_key)
+        except PluginDataExchangeError:
+            return ctx.config.get(config_key)
 
     @staticmethod
     def _normalize_rows(bindings: dict[str, Any]) -> list[dict[str, Any]]:
@@ -44,6 +64,29 @@ class ModelLockValidator(ValidatorJsonPlugin):
                 )
         return rows
 
+    @staticmethod
+    def _rows_from_normalized_rows(rows_payload: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        seen_instances: set[str] = set()
+        for row in rows_payload:
+            if not isinstance(row, dict):
+                continue
+            instance_id = row.get("instance")
+            if not isinstance(instance_id, str) or not instance_id:
+                continue
+            if instance_id in seen_instances:
+                continue
+            seen_instances.add(instance_id)
+            rows.append(
+                {
+                    "group": row.get("group"),
+                    "instance": instance_id,
+                    "class_ref": row.get("class_ref"),
+                    "object_ref": row.get("object_ref"),
+                }
+            )
+        return rows
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
 
@@ -54,7 +97,13 @@ class ModelLockValidator(ValidatorJsonPlugin):
             return self.make_result(diagnostics)
 
         strict_mode = bool(ctx.config.get("strict_mode", False))
-        model_lock_loaded = bool(ctx.config.get("model_lock_loaded", False))
+        model_lock_loaded_raw = self._subscribe_or_config(
+            ctx,
+            plugin_id="base.compiler.model_lock_loader",
+            published_key="model_lock_loaded",
+            config_key="model_lock_loaded",
+        )
+        model_lock_loaded = bool(model_lock_loaded_raw)
 
         if not model_lock_loaded:
             if strict_mode:
@@ -92,7 +141,18 @@ class ModelLockValidator(ValidatorJsonPlugin):
             )
         )
 
-        lock_payload = ctx.model_lock if isinstance(ctx.model_lock, dict) else {}
+        lock_payload_raw = self._subscribe_or_config(
+            ctx,
+            plugin_id="base.compiler.model_lock_loader",
+            published_key="lock_payload",
+            config_key="model_lock_payload",
+        )
+        if isinstance(lock_payload_raw, dict):
+            lock_payload = lock_payload_raw
+        elif isinstance(ctx.model_lock, dict):
+            lock_payload = ctx.model_lock
+        else:
+            lock_payload = {}
         lock_classes = lock_payload.get("classes")
         lock_objects = lock_payload.get("objects")
         if not isinstance(lock_classes, dict) or not isinstance(lock_objects, dict):
@@ -108,10 +168,19 @@ class ModelLockValidator(ValidatorJsonPlugin):
             )
             return self.make_result(diagnostics)
 
-        bindings = ctx.instance_bindings.get("instance_bindings")
-        if not isinstance(bindings, dict):
-            return self.make_result(diagnostics)
-        rows = self._normalize_rows(bindings)
+        rows_payload = self._subscribe_or_config(
+            ctx,
+            plugin_id="base.compiler.instance_rows",
+            published_key="normalized_rows",
+            config_key="normalized_rows",
+        )
+        if isinstance(rows_payload, list):
+            rows = self._rows_from_normalized_rows(rows_payload)
+        else:
+            bindings = ctx.instance_bindings.get("instance_bindings")
+            if not isinstance(bindings, dict):
+                return self.make_result(diagnostics)
+            rows = self._normalize_rows(bindings)
 
         for row in rows:
             class_ref = row.get("class_ref")

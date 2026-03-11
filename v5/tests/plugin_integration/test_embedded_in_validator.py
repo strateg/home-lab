@@ -132,3 +132,42 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
     resolve_diags = [d for d in result.diagnostics if d.code == "E2101"]
     assert resolve_diags
     assert all(d.stage == "resolve" for d in resolve_diags)
+
+
+def test_embedded_in_validator_reads_rows_via_subscribe():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_embedded_in": "plugin"},
+        objects={
+            "obj.os.embedded": {
+                "object": "obj.os.embedded",
+                "class_ref": "class.os",
+                "properties": {"installation_model": "embedded"},
+            }
+        },
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish(
+        "normalized_rows",
+        [
+            {
+                "group": "l1_software_os",
+                "instance": "inst.os.subscribed",
+                "class_ref": "class.os",
+                "object_ref": "obj.os.embedded",
+                "embedded_in": None,
+                "os_refs": [],
+                "firmware_ref": None,
+            }
+        ],
+    )
+    ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E3201" for d in result.diagnostics)

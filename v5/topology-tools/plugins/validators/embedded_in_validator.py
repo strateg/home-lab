@@ -12,11 +12,31 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
+from kernel.plugin_base import (
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+    ValidatorJsonPlugin,
+)
 
 
 class EmbeddedInValidator(ValidatorJsonPlugin):
     """Validate embedded_in relationships for OS and device instances."""
+
+    @staticmethod
+    def _subscribe_or_config(
+        ctx: PluginContext,
+        *,
+        plugin_id: str,
+        published_key: str,
+        config_key: str,
+    ) -> Any:
+        try:
+            return ctx.subscribe(plugin_id, published_key)
+        except PluginDataExchangeError:
+            return ctx.config.get(config_key)
 
     @staticmethod
     def _extract_os_installation_model(object_payload: dict[str, Any]) -> str | None:
@@ -78,11 +98,19 @@ class EmbeddedInValidator(ValidatorJsonPlugin):
         if owner is not None and owner != "plugin":
             return self.make_result(diagnostics)
 
-        bindings = ctx.instance_bindings.get("instance_bindings")
-        if not isinstance(bindings, dict):
-            return self.make_result(diagnostics)
-
-        rows = self._normalize_rows(bindings)
+        rows_payload = self._subscribe_or_config(
+            ctx,
+            plugin_id="base.compiler.instance_rows",
+            published_key="normalized_rows",
+            config_key="normalized_rows",
+        )
+        if isinstance(rows_payload, list):
+            rows = [item for item in rows_payload if isinstance(item, dict)]
+        else:
+            bindings = ctx.instance_bindings.get("instance_bindings")
+            if not isinstance(bindings, dict):
+                return self.make_result(diagnostics)
+            rows = self._normalize_rows(bindings)
         row_by_id: dict[str, dict[str, Any]] = {}
         for row in rows:
             row_id = row.get("instance")

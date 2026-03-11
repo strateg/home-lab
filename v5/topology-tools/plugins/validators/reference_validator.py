@@ -20,11 +20,31 @@ from capability_derivation import extract_firmware_properties as shared_extract_
 from capability_derivation import extract_os_installation_model as shared_extract_os_installation_model
 from capability_derivation import extract_os_properties as shared_extract_os_properties
 from capability_derivation import normalize_release_token as shared_normalize_release_token
-from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
+from kernel.plugin_base import (
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+    ValidatorJsonPlugin,
+)
 
 
 class ReferenceValidator(ValidatorJsonPlugin):
     """Validate references, software binding policies, and compatibility rules."""
+
+    @staticmethod
+    def _subscribe_or_config(
+        ctx: PluginContext,
+        *,
+        plugin_id: str,
+        published_key: str,
+        config_key: str,
+    ) -> Any:
+        try:
+            return ctx.subscribe(plugin_id, published_key)
+        except PluginDataExchangeError:
+            return ctx.config.get(config_key)
 
     @staticmethod
     def _normalize_release_token(value: str) -> str:
@@ -181,7 +201,12 @@ class ReferenceValidator(ValidatorJsonPlugin):
             if isinstance(object_id, str) and isinstance(payload, dict):
                 object_map[object_id] = payload
 
-        raw_rows = ctx.config.get("normalized_rows")
+        raw_rows = self._subscribe_or_config(
+            ctx,
+            plugin_id="base.compiler.instance_rows",
+            published_key="normalized_rows",
+            config_key="normalized_rows",
+        )
         rows: list[dict[str, Any]] = []
         if isinstance(raw_rows, list):
             rows = [row for row in raw_rows if isinstance(row, dict)]
@@ -190,9 +215,13 @@ class ReferenceValidator(ValidatorJsonPlugin):
             if isinstance(bindings, dict):
                 rows = self._normalize_rows(bindings)
 
-        catalog_ids = {
-            item for item in (ctx.config.get("capability_catalog_ids") or []) if isinstance(item, str) and item
-        }
+        catalog_ids_raw = self._subscribe_or_config(
+            ctx,
+            plugin_id="base.compiler.capability_contract_loader",
+            published_key="catalog_ids",
+            config_key="capability_catalog_ids",
+        )
+        catalog_ids = {item for item in (catalog_ids_raw or []) if isinstance(item, str) and item}
 
         valid_os_policies = {"required", "allowed", "forbidden"}
         valid_firmware_policies = {"required", "allowed", "forbidden"}
