@@ -44,7 +44,7 @@ instance_schema:
     category:
       type: string
       enum: [cat5e, cat6, cat6a, cat7, cat8]
-      default: cat6
+      default: cat5e
     color:
       type: string
     connector_a:
