@@ -118,27 +118,6 @@ def test_effective_model_compiler_requires_subscribed_normalized_rows():
             }
         },
         config={},
-        plugin_outputs={
-            "custom.instance_rows_provider": {
-                "normalized_rows": [
-                    {
-                        "group": "l1_devices",
-                        "instance": "rtr-from-plugin-output",
-                        "layer": "L1",
-                        "source_id": "rtr-from-plugin-output",
-                        "class_ref": "class.router",
-                        "object_ref": "obj.router.test",
-                        "status": "modeled",
-                        "notes": "",
-                        "runtime": None,
-                        "firmware_ref": None,
-                        "os_refs": [],
-                        "embedded_in": None,
-                        "extensions": {"category": "cat5e"},
-                    }
-                ]
-            }
-        },
         instance_bindings={
             "instance_bindings": {
                 "l1_devices": [
@@ -176,7 +155,6 @@ def test_effective_model_compiler_reads_normalized_rows_via_subscribe():
             }
         },
         config={},
-        plugin_outputs={},
         instance_bindings={
             "instance_bindings": {
                 "l1_devices": [

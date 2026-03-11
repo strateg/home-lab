@@ -21,6 +21,22 @@ def _load_compiler_module():
     return module
 
 
+def _publish_minimal_compile_outputs(ctx) -> None:
+    ctx._set_execution_context("test.module_loader", set())
+    ctx.publish("class_map", {})
+    ctx.publish("object_map", {})
+    ctx._clear_execution_context()
+
+    ctx._set_execution_context("test.instance_rows", set())
+    ctx.publish("normalized_rows", [])
+    ctx._clear_execution_context()
+
+    ctx._set_execution_context("test.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx.publish("packs_map", {})
+    ctx._clear_execution_context()
+
+
 def test_pipeline_stage_order_and_compiled_context(monkeypatch):
     mod = _load_compiler_module()
     test_output_dir = mod.REPO_ROOT / "v5-build" / "test-stage-order"
@@ -55,15 +71,7 @@ def test_pipeline_stage_order_and_compiled_context(monkeypatch):
                 "objects": {},
                 "instances": {},
             }
-            ctx.plugin_outputs["base.compiler.module_loader"] = {
-                "class_map": {},
-                "object_map": {},
-            }
-            ctx.plugin_outputs["base.compiler.instance_rows"] = {"normalized_rows": []}
-            ctx.plugin_outputs["base.compiler.capability_contract_loader"] = {
-                "catalog_ids": [],
-                "packs_map": {},
-            }
+            _publish_minimal_compile_outputs(ctx)
         if stage.value == "generate":
             compiler.output_json.parent.mkdir(parents=True, exist_ok=True)
             compiler.output_json.write_text(json.dumps(ctx.compiled_json), encoding="utf-8")
@@ -139,15 +147,7 @@ def test_pipeline_mode_plugin_first_uses_plugin_compiled_json(monkeypatch):
     def _record_execute_plugins(*, stage, ctx):
         if stage.value == "compile":
             ctx.compiled_json = plugin_payload
-            ctx.plugin_outputs["base.compiler.module_loader"] = {
-                "class_map": {},
-                "object_map": {},
-            }
-            ctx.plugin_outputs["base.compiler.instance_rows"] = {"normalized_rows": []}
-            ctx.plugin_outputs["base.compiler.capability_contract_loader"] = {
-                "catalog_ids": [],
-                "packs_map": {},
-            }
+            _publish_minimal_compile_outputs(ctx)
         if stage.value == "generate":
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(json.dumps(ctx.compiled_json), encoding="utf-8")
@@ -245,15 +245,7 @@ def test_compiled_model_contract_rejects_incompatible_version(monkeypatch):
     def _record_execute_plugins(*, stage, ctx):
         if stage.value == "compile":
             ctx.compiled_json = plugin_payload
-            ctx.plugin_outputs["base.compiler.module_loader"] = {
-                "class_map": {},
-                "object_map": {},
-            }
-            ctx.plugin_outputs["base.compiler.instance_rows"] = {"normalized_rows": []}
-            ctx.plugin_outputs["base.compiler.capability_contract_loader"] = {
-                "catalog_ids": [],
-                "packs_map": {},
-            }
+            _publish_minimal_compile_outputs(ctx)
 
     monkeypatch.setattr(compiler, "_execute_plugins", _record_execute_plugins)
 
@@ -297,15 +289,7 @@ def test_runtime_profile_is_propagated_to_plugin_context(monkeypatch):
                 "objects": {},
                 "instances": {},
             }
-            ctx.plugin_outputs["base.compiler.module_loader"] = {
-                "class_map": {},
-                "object_map": {},
-            }
-            ctx.plugin_outputs["base.compiler.instance_rows"] = {"normalized_rows": []}
-            ctx.plugin_outputs["base.compiler.capability_contract_loader"] = {
-                "catalog_ids": [],
-                "packs_map": {},
-            }
+            _publish_minimal_compile_outputs(ctx)
         if stage.value == "generate":
             compiler.output_json.parent.mkdir(parents=True, exist_ok=True)
             compiler.output_json.write_text(json.dumps(ctx.compiled_json), encoding="utf-8")

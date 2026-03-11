@@ -29,22 +29,23 @@ def _inputs() -> CompileInputs:
 def test_compile_output_wiring_is_key_based_not_plugin_id_based():
     diagnostics = []
     inputs = _inputs()
-    plugin_ctx = SimpleNamespace(
-        plugin_outputs={
-            "custom.module_loader": {
-                "class_map": {"class.router": {"payload": {}}},
-                "object_map": {"obj.router": {"payload": {}}},
-            },
-            "custom.instance_rows": {"normalized_rows": [{"instance": "rtr-1"}]},
-            "custom.model_lock_loader": {
-                "lock_payload": {"core_model_version": "1.0.0"},
-                "model_lock_loaded": True,
-            },
-            "custom.capability_contract_loader": {
-                "catalog_ids": ["cap.net.interface.ethernet"],
-                "packs_map": {"pack.router.test": {"capabilities": []}},
-            },
+    published_data = {
+        "custom.module_loader": {
+            "class_map": {"class.router": {"payload": {}}},
+            "object_map": {"obj.router": {"payload": {}}},
         },
+        "custom.instance_rows": {"normalized_rows": [{"instance": "rtr-1"}]},
+        "custom.model_lock_loader": {
+            "lock_payload": {"core_model_version": "1.0.0"},
+            "model_lock_loaded": True,
+        },
+        "custom.capability_contract_loader": {
+            "catalog_ids": ["cap.net.interface.ethernet"],
+            "packs_map": {"pack.router.test": {"capabilities": []}},
+        },
+    }
+    plugin_ctx = SimpleNamespace(
+        get_published_data=lambda: published_data,
         config={},
         model_lock={},
     )
@@ -74,11 +75,12 @@ def test_compile_output_wiring_is_key_based_not_plugin_id_based():
 def test_compile_output_wiring_reports_ambiguous_output_key():
     diagnostics = []
     inputs = _inputs()
+    published_data = {
+        "plugin.a": {"normalized_rows": [{"instance": "rtr-a"}]},
+        "plugin.b": {"normalized_rows": [{"instance": "rtr-b"}]},
+    }
     plugin_ctx = SimpleNamespace(
-        plugin_outputs={
-            "plugin.a": {"normalized_rows": [{"instance": "rtr-a"}]},
-            "plugin.b": {"normalized_rows": [{"instance": "rtr-b"}]},
-        },
+        get_published_data=lambda: published_data,
         config={},
         model_lock={},
     )

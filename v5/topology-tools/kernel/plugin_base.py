@@ -277,9 +277,6 @@ class PluginContext:
     # Compiled file path (for validator_json plugins)
     compiled_file: str = ""
 
-    # Previous plugin outputs (legacy compatibility path)
-    plugin_outputs: dict[str, dict[str, Any]] = field(default_factory=dict)
-
     # Inter-plugin data exchange (ADR 0065)
     # Set by registry before plugin execution
     _current_plugin_id: str = field(default="", repr=False)
