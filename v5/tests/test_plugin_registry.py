@@ -17,6 +17,8 @@ import sys
 import time
 from pathlib import Path
 
+import yaml
+
 # Add v5/topology-tools to path
 V5_TOOLS = Path(__file__).resolve().parents[1] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
@@ -35,6 +37,11 @@ from kernel import (
     ValidatorJsonPlugin,
 )
 from kernel.plugin_base import PluginDiagnostic, Stage
+
+
+def _write_manifest(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
 def test_manifest_loading():
@@ -79,6 +86,108 @@ def test_execution_order():
     order = registry.get_execution_order(Stage.VALIDATE)
     assert "base.validator.references" in order
     print("PASS: Execution order works")
+
+
+def test_stage_order_prefers_order_over_manifest_insertion(tmp_path: Path):
+    """Independent plugins should be ordered by numeric order, not load order."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "zmod.validator_json.second",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 200,
+                "depends_on": [],
+            },
+            {
+                "id": "amod.validator_json.first",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "depends_on": [],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    order = registry.get_execution_order(Stage.VALIDATE)
+    assert order == ["amod.validator_json.first", "zmod.validator_json.second"]
+
+
+def test_stage_order_uses_id_as_tiebreaker(tmp_path: Path):
+    """Plugins with same order should be sorted lexically by plugin ID."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "zmod.validator_json.b",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "depends_on": [],
+            },
+            {
+                "id": "amod.validator_json.a",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "depends_on": [],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    order = registry.get_execution_order(Stage.VALIDATE)
+    assert order == ["amod.validator_json.a", "zmod.validator_json.b"]
+
+
+def test_stage_order_respects_depends_on_over_numeric_order(tmp_path: Path):
+    """Dependency relation must dominate numeric order."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "amod.validator_json.base",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 900,
+                "depends_on": [],
+            },
+            {
+                "id": "zmod.validator_json.dep",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 1,
+                "depends_on": ["amod.validator_json.base"],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    order = registry.get_execution_order(Stage.VALIDATE)
+    assert order == ["amod.validator_json.base", "zmod.validator_json.dep"]
 
 
 def test_plugin_instantiation():
@@ -474,6 +583,9 @@ if __name__ == "__main__":
         test_manifest_loading,
         test_registry_load,
         test_execution_order,
+        test_stage_order_prefers_order_over_manifest_insertion,
+        test_stage_order_uses_id_as_tiebreaker,
+        test_stage_order_respects_depends_on_over_numeric_order,
         test_plugin_instantiation,
         test_plugin_execution,
         test_plugin_detects_invalid_ref,

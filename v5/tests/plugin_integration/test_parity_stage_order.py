@@ -316,3 +316,42 @@ def test_runtime_profile_is_propagated_to_plugin_context(monkeypatch):
     exit_code = compiler.run()
     assert exit_code == 0
     assert seen_profiles == ["modeled", "modeled", "modeled"]
+
+
+def test_compile_stage_uses_fail_fast_in_registry(monkeypatch):
+    mod = _load_compiler_module()
+    test_output_dir = mod.REPO_ROOT / "v5-build" / "test-compile-fail-fast-flag"
+
+    compiler = mod.V5Compiler(
+        manifest_path=mod.DEFAULT_MANIFEST,
+        output_json=test_output_dir / "effective-topology.json",
+        diagnostics_json=test_output_dir / "diagnostics.json",
+        diagnostics_txt=test_output_dir / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+    )
+    assert compiler._plugin_registry is not None
+
+    calls: list[tuple[str, bool]] = []
+
+    def _fake_execute_stage(stage, ctx, profile=None, fail_fast=False):
+        _ = (ctx, profile)
+        calls.append((stage.value, fail_fast))
+        return []
+
+    monkeypatch.setattr(compiler._plugin_registry, "execute_stage", _fake_execute_stage)
+
+    ctx = mod.PluginContext(
+        topology_path="test",
+        profile="test-real",
+        model_lock={},
+    )
+
+    compiler._execute_plugins(stage=mod.Stage.COMPILE, ctx=ctx)
+    compiler._execute_plugins(stage=mod.Stage.VALIDATE, ctx=ctx)
+
+    assert calls == [("compile", True), ("validate", False)]

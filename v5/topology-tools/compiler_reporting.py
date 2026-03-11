@@ -26,9 +26,13 @@ def build_summary(diagnostics: list[Any]) -> tuple[dict[str, Any], int, int, int
     warnings = sum(1 for item in diagnostics if getattr(item, "severity", "") == "warning")
     infos = sum(1 for item in diagnostics if getattr(item, "severity", "") == "info")
     by_stage: dict[str, int] = {}
+    by_plugin: dict[str, int] = {}
     for item in diagnostics:
         stage = getattr(item, "stage", "")
         by_stage[stage] = by_stage.get(stage, 0) + 1
+        plugin_id = getattr(item, "plugin_id", None)
+        if isinstance(plugin_id, str) and plugin_id:
+            by_plugin[plugin_id] = by_plugin.get(plugin_id, 0) + 1
     summary = {
         "total": total,
         "errors": errors,
@@ -36,6 +40,8 @@ def build_summary(diagnostics: list[Any]) -> tuple[dict[str, Any], int, int, int
         "infos": infos,
         "by_stage": by_stage,
     }
+    if by_plugin:
+        summary["by_plugin"] = by_plugin
     return summary, total, errors, warnings, infos
 
 
@@ -77,6 +83,8 @@ def write_diagnostics_report(
     output_json: Path,
     repo_root: Path,
     now_iso: Callable[[], str],
+    plugin_stats: dict[str, Any] | None = None,
+    plugin_manifests: list[str] | None = None,
 ) -> tuple[int, int, int, int]:
     sort_diagnostics(diagnostics)
     summary, total, errors, warnings, infos = build_summary(diagnostics)
@@ -84,16 +92,20 @@ def write_diagnostics_report(
     diagnostics_json.parent.mkdir(parents=True, exist_ok=True)
     diagnostics_txt.parent.mkdir(parents=True, exist_ok=True)
 
-    report = {
-        "report_version": "1",
+    inputs: dict[str, Any] = {
+        "topology": str(topology_path.relative_to(repo_root).as_posix()),
+        "schema": "v5/topology/topology.yaml",
+        "error_catalog": str(error_catalog_path.relative_to(repo_root).as_posix()),
+        "model_lock": "v5/topology/model.lock.yaml",
+    }
+    if plugin_manifests:
+        inputs["plugin_manifests"] = plugin_manifests
+
+    report: dict[str, Any] = {
+        "report_version": "2.0.0",
         "tool": "topology-v5-compiler",
         "generated_at": now_iso(),
-        "inputs": {
-            "topology": str(topology_path.relative_to(repo_root).as_posix()),
-            "schema": "v5/topology/topology.yaml",
-            "error_catalog": str(error_catalog_path.relative_to(repo_root).as_posix()),
-            "model_lock": "v5/topology/model.lock.yaml",
-        },
+        "inputs": inputs,
         "outputs": {
             "effective_json": str(output_json.relative_to(repo_root).as_posix()),
             "diagnostics_json": str(diagnostics_json.relative_to(repo_root).as_posix()),
@@ -103,6 +115,14 @@ def write_diagnostics_report(
         "next_actions": build_next_actions(diagnostics),
         "diagnostics": [item.as_dict() for item in diagnostics],
     }
+    if isinstance(plugin_stats, dict):
+        report["plugins"] = {
+            "loaded": plugin_stats.get("loaded", 0),
+            "executed": plugin_stats.get("executed", 0),
+            "failed": plugin_stats.get("failed", 0),
+            "by_kind": plugin_stats.get("by_kind", {}),
+            "execution_order": plugin_stats.get("execution_order", []),
+        }
     diagnostics_json.write_text(
         json.dumps(report, ensure_ascii=True, indent=2, default=str),
         encoding="utf-8",

@@ -192,32 +192,41 @@ jobs:
               import json
               schema = json.load(f)
 
-          # Find and validate all manifests
-          manifest_path = Path('v5/topology-tools/plugins/plugins.yaml')
-          if manifest_path.exists():
-              with open(manifest_path) as f:
-                  manifest = yaml.safe_load(f)
-              try:
-                  jsonschema.validate(manifest, schema)
-                  print(f'✓ {manifest_path}: valid')
-              except jsonschema.ValidationError as e:
-                  print(f'✗ {manifest_path}: {e.message}')
-                  sys.exit(1)
-          else:
-              print('No manifest found')
+          # Find and validate all manifests (base + module-level)
+          manifests = [Path('v5/topology-tools/plugins/plugins.yaml')]
+          manifests += sorted(Path('v5/topology/class-modules').rglob('plugins.yaml'))
+          manifests += sorted(Path('v5/topology/object-modules').rglob('plugins.yaml'))
+
+          if not manifests:
+              print('No manifests discovered')
               sys.exit(1)
 
-          # Verify plugin entries exist
-          plugin_base = Path('v5/topology-tools/plugins')
-          for plugin in manifest.get('plugins', []):
-              entry = plugin.get('entry', '')
-              if ':' in entry:
-                  module_path = entry.split(':')[0]
-                  full_path = plugin_base / module_path
-                  if not full_path.exists():
-                      print(f'✗ Plugin {plugin[\"id\"]}: entry {module_path} not found')
-                      sys.exit(1)
-                  print(f'✓ Plugin {plugin[\"id\"]}: entry exists')
+          for manifest_path in manifests:
+              if not manifest_path.exists():
+                  print(f'ERROR {manifest_path}: missing')
+                  sys.exit(1)
+
+              with open(manifest_path) as f:
+                  manifest = yaml.safe_load(f)
+
+              try:
+                  jsonschema.validate(manifest, schema)
+                  print(f'OK {manifest_path}: schema valid')
+              except jsonschema.ValidationError as e:
+                  print(f'ERROR {manifest_path}: {e.message}')
+                  sys.exit(1)
+
+              # Verify plugin entries exist relative to manifest location.
+              manifest_dir = manifest_path.parent
+              for plugin in manifest.get('plugins', []):
+                  entry = plugin.get('entry', '')
+                  if ':' in entry:
+                      module_path = entry.split(':')[0]
+                      full_path = manifest_dir / module_path
+                      if not full_path.exists():
+                          print(f'ERROR Plugin {plugin[\"id\"]}: entry {module_path} not found in {manifest_dir}')
+                          sys.exit(1)
+                      print(f'OK Plugin {plugin[\"id\"]}: entry exists')
 
           print('All manifests valid')
           "

@@ -14,19 +14,21 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import yaml
+
 # Add v5/topology-tools to path
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from kernel import (
-    PluginRegistry,
-    PluginManifest,
-    PluginSpec,
+    KERNEL_API_VERSION,
+    KERNEL_VERSION,
+    SUPPORTED_API_VERSIONS,
     PluginKind,
     PluginLoadError,
-    KERNEL_VERSION,
-    KERNEL_API_VERSION,
-    SUPPORTED_API_VERSIONS,
+    PluginManifest,
+    PluginRegistry,
+    PluginSpec,
 )
 from kernel.plugin_base import Stage
 
@@ -128,6 +130,33 @@ def test_duplicate_plugin_id():
     print("PASS: Duplicate plugin ID detection works")
 
 
+def test_manifest_schema_rejects_unknown_fields(tmp_path: Path):
+    """Runtime loader must reject manifest entries violating schema."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.validator_json.extra",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "unexpected_field": "not_allowed",
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    try:
+        registry.load_manifest(manifest)
+        assert False, "Expected PluginLoadError for schema violation"
+    except PluginLoadError as exc:
+        assert "schema validation failed" in str(exc).lower()
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("ADR 0066 Plugin Contract Tests")
@@ -142,6 +171,7 @@ if __name__ == "__main__":
         test_kernel_info,
         test_plugin_instantiation,
         test_duplicate_plugin_id,
+        test_manifest_schema_rejects_unknown_fields,
     ]
 
     passed = 0
@@ -153,6 +183,7 @@ if __name__ == "__main__":
             passed += 1
         except Exception as e:
             import traceback
+
             print(f"FAIL: {test.__name__}: {e}")
             traceback.print_exc()
             failed += 1

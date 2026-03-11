@@ -280,7 +280,12 @@ class V5Compiler:
             return
 
         # Execute plugins for stage
-        results = self._plugin_registry.execute_stage(stage, ctx, profile=self.runtime_profile)
+        results = self._plugin_registry.execute_stage(
+            stage,
+            ctx,
+            profile=self.runtime_profile,
+            fail_fast=stage == Stage.COMPILE,
+        )
         self._plugin_results.extend(results)
 
         # Convert plugin diagnostics to compiler diagnostics
@@ -375,6 +380,8 @@ class V5Compiler:
         return payload
 
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
+        plugin_stats = self._plugin_registry.get_stats() if self._plugin_registry else None
+        plugin_manifests = self._plugin_registry.manifests if self._plugin_registry else None
         return write_diagnostics_report(
             diagnostics=self._diagnostics,
             diagnostics_json=self.diagnostics_json,
@@ -384,6 +391,8 @@ class V5Compiler:
             output_json=self.output_json,
             repo_root=REPO_ROOT,
             now_iso=utc_now,
+            plugin_stats=plugin_stats,
+            plugin_manifests=plugin_manifests,
         )
 
     def _print_summary(self, *, total: int, errors: int, warnings: int, infos: int, emit_effective: bool) -> None:

@@ -14,6 +14,7 @@ This module handles:
 from __future__ import annotations
 
 import concurrent.futures
+import heapq
 import importlib.util
 import json
 import sys
@@ -96,20 +97,24 @@ class PluginManifest:
     source_path: str
 
     @classmethod
+    def from_data(cls, data: dict[str, Any], source_path: str) -> PluginManifest:
+        """Load manifest from parsed dictionary."""
+        if data.get("schema_version") != 1:
+            raise ValueError(f"Unsupported manifest schema_version in {source_path}")
+
+        plugins = [PluginSpec.from_dict(p, source_path) for p in data.get("plugins", [])]
+        return cls(
+            schema_version=data["schema_version"],
+            plugins=plugins,
+            source_path=source_path,
+        )
+
+    @classmethod
     def from_file(cls, path: Path) -> PluginManifest:
         """Load manifest from YAML file."""
         with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
-
-        if data.get("schema_version") != 1:
-            raise ValueError(f"Unsupported manifest schema_version in {path}")
-
-        plugins = [PluginSpec.from_dict(p, str(path)) for p in data.get("plugins", [])]
-        return cls(
-            schema_version=data["schema_version"],
-            plugins=plugins,
-            source_path=str(path),
-        )
+        return cls.from_data(data, str(path))
 
 
 class PluginLoadError(Exception):
@@ -142,15 +147,59 @@ class PluginRegistry:
     def __init__(self, base_path: Path) -> None:
         """Initialize registry with base path for resolving plugin entries."""
         self.base_path = base_path
+        self.manifest_schema_path = self.base_path / "schemas" / "plugin-manifest.schema.json"
+        self._manifest_schema: Optional[dict[str, Any]] = None
         self.specs: dict[str, PluginSpec] = {}
         self.instances: dict[str, PluginBase] = {}
         self.manifests: list[str] = []
         self._load_errors: list[str] = []
         self._results: list[PluginResult] = []
 
+    def _get_manifest_schema(self) -> dict[str, Any]:
+        if self._manifest_schema is not None:
+            return self._manifest_schema
+
+        if not HAS_JSONSCHEMA:
+            raise PluginLoadError(
+                "manifest.schema",
+                "jsonschema dependency is required for plugin manifest validation.",
+            )
+        if not self.manifest_schema_path.exists():
+            raise PluginLoadError(
+                "manifest.schema",
+                f"Plugin manifest schema not found: {self.manifest_schema_path}",
+            )
+        try:
+            self._manifest_schema = json.loads(self.manifest_schema_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise PluginLoadError(
+                "manifest.schema",
+                f"Failed to load plugin manifest schema '{self.manifest_schema_path}': {exc}",
+            ) from exc
+        return self._manifest_schema
+
+    def _validate_manifest_payload(self, payload: dict[str, Any], *, manifest_path: Path) -> None:
+        schema = self._get_manifest_schema()
+        try:
+            jsonschema.validate(payload, schema)
+        except jsonschema.ValidationError as exc:
+            raise PluginLoadError(
+                "manifest.schema",
+                f"Manifest schema validation failed for {manifest_path}: {exc.message}",
+            ) from exc
+
     def load_manifest(self, manifest_path: Path) -> None:
         """Load plugins from a manifest file."""
-        manifest = PluginManifest.from_file(manifest_path)
+        try:
+            with open(manifest_path, encoding="utf-8") as f:
+                payload = yaml.safe_load(f) or {}
+        except (OSError, yaml.YAMLError) as exc:
+            raise PluginLoadError("manifest.load", f"Failed to parse manifest '{manifest_path}': {exc}") from exc
+        if not isinstance(payload, dict):
+            raise PluginLoadError("manifest.load", f"Manifest root must be mapping/object: {manifest_path}")
+
+        self._validate_manifest_payload(payload, manifest_path=manifest_path)
+        manifest = PluginManifest.from_data(payload, str(manifest_path))
         self.manifests.append(str(manifest_path))
 
         for spec in manifest.plugins:
@@ -271,22 +320,54 @@ class PluginRegistry:
         Returns:
             List of plugin IDs in execution order
         """
+        # Validate dependency graph globally (missing deps / cycles).
+        # Ordering itself is then resolved stage-locally.
+        self.resolve_dependencies()
+
         # Filter plugins for this stage
-        stage_plugins = [
-            spec
+        stage_plugins = {
+            spec.id: spec
             for spec in self.specs.values()
             if stage in spec.stages
             and (spec.profile_restrictions is None or profile is None or profile in spec.profile_restrictions)
-        ]
+        }
+        if not stage_plugins:
+            return []
 
-        # Sort by: dependency order, then numeric order, then ID (for stability)
-        dep_order = {pid: idx for idx, pid in enumerate(self.resolve_dependencies())}
+        # Stage-local topological ordering with deterministic ready-queue policy:
+        # depends_on -> order -> lexical id.
+        indegree: dict[str, int] = {plugin_id: 0 for plugin_id in stage_plugins}
+        outgoing: dict[str, list[str]] = {plugin_id: [] for plugin_id in stage_plugins}
 
-        def sort_key(spec: PluginSpec) -> tuple[int, int, str]:
-            return (dep_order.get(spec.id, 9999), spec.order, spec.id)
+        for plugin_id, spec in stage_plugins.items():
+            for dep_id in spec.depends_on:
+                if dep_id not in stage_plugins:
+                    # Cross-stage dependency: already validated globally; not part of this stage DAG.
+                    continue
+                indegree[plugin_id] += 1
+                outgoing[dep_id].append(plugin_id)
 
-        stage_plugins.sort(key=sort_key)
-        return [spec.id for spec in stage_plugins]
+        ready: list[tuple[int, str]] = []
+        for plugin_id, spec in stage_plugins.items():
+            if indegree[plugin_id] == 0:
+                heapq.heappush(ready, (spec.order, plugin_id))
+
+        ordered: list[str] = []
+        while ready:
+            _, plugin_id = heapq.heappop(ready)
+            ordered.append(plugin_id)
+            for dependent_id in outgoing[plugin_id]:
+                indegree[dependent_id] -= 1
+                if indegree[dependent_id] == 0:
+                    dependent_spec = stage_plugins[dependent_id]
+                    heapq.heappush(ready, (dependent_spec.order, dependent_id))
+
+        if len(ordered) != len(stage_plugins):
+            # Should not happen because global cycle check already ran, but keep defensive guard.
+            remaining = sorted(plugin_id for plugin_id, degree in indegree.items() if degree > 0)
+            raise PluginCycleError(remaining)
+
+        return ordered
 
     def load_plugin(self, plugin_id: str) -> PluginBase:
         """Load and instantiate a plugin by ID.
