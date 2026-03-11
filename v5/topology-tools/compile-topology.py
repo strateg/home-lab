@@ -19,6 +19,7 @@ TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
 from compiler_decisions import select_effective_payload
+from compiler_plugin_context import create_plugin_context
 from compiler_reporting import write_diagnostics_report
 from compiler_runtime import (
     apply_plugin_compile_outputs,
@@ -230,66 +231,37 @@ class V5Compiler:
         lock_payload: dict[str, Any] | None,
         source_manifest_digest: str,
     ) -> PluginContext:
-        """Create a plugin context that persists across stages."""
-        embedded_in_owner = self._validation_owner("embedded_in")
-        model_lock_owner = self._validation_owner("model_lock")
-        references_owner = self._validation_owner("references")
-        capability_contract_owner = self._validation_owner("capability_contract")
-        instance_rows_owner = self._compilation_owner("instance_rows")
-        capability_contract_data_owner = self._compilation_owner("capability_contract_data")
-        effective_json_owner = self._artifact_owner("effective_json")
-        class_module_paths = {
-            class_id: str(item.get("path", "").relative_to(REPO_ROOT).as_posix())
-            for class_id, item in class_map.items()
-            if isinstance(item, dict) and isinstance(item.get("path"), Path)
-        }
-        object_module_paths = {
-            object_id: str(item.get("path", "").relative_to(REPO_ROOT).as_posix())
-            for object_id, item in object_map.items()
-            if isinstance(item, dict) and isinstance(item.get("path"), Path)
-        }
-        return PluginContext(
-            topology_path=str(self.manifest_path.relative_to(REPO_ROOT).as_posix()),
-            profile=self.runtime_profile,
-            model_lock=lock_payload or {},
-            raw_yaml=manifest,
-            classes={class_id: item["payload"] for class_id, item in class_map.items()},
-            objects={object_id: item["payload"] for object_id, item in object_map.items()},
+        return create_plugin_context(
+            manifest_path=self.manifest_path,
+            repo_root=REPO_ROOT,
+            runtime_profile=self.runtime_profile,
+            strict_model_lock=self.strict_model_lock,
+            pipeline_mode=self.pipeline_mode,
+            parity_gate=self.parity_gate,
+            raw_manifest=manifest,
+            run_generated_at=self._run_generated_at or utc_now(),
+            compiled_model_version=COMPILED_MODEL_VERSION,
+            compiler_pipeline_version=COMPILER_PIPELINE_VERSION,
+            source_manifest_digest=source_manifest_digest,
+            class_modules_root=class_modules_root,
+            object_modules_root=object_modules_root,
+            class_map=class_map,
+            object_map=object_map,
             instance_bindings=instance_bindings,
-            config={
-                "strict_mode": self.strict_model_lock,
-                "pipeline_mode": self.pipeline_mode,
-                "parity_gate": self.parity_gate,
-                "compile_generated_at": self._run_generated_at or utc_now(),
-                "compiled_model_version": COMPILED_MODEL_VERSION,
-                "compiler_pipeline_version": COMPILER_PIPELINE_VERSION,
-                "source_manifest_digest": source_manifest_digest,
-                "runtime_profile": self.runtime_profile,
-                "validation_owner_embedded_in": embedded_in_owner,
-                "validation_owner_model_lock": model_lock_owner,
-                "validation_owner_references": references_owner,
-                "validation_owner_capability_contract": capability_contract_owner,
-                "compilation_owner_instance_rows": instance_rows_owner,
-                "compilation_owner_capability_contract_data": capability_contract_data_owner,
-                "model_lock_loaded": lock_payload is not None,
-                "generation_owner_effective_json": effective_json_owner,
-                "compilation_owner_module_maps": self._compilation_owner("module_maps"),
-                "compilation_owner_model_lock_data": self._compilation_owner("model_lock_data"),
-                "normalized_rows": rows,
-                "capability_catalog_ids": sorted(capability_catalog_ids),
-                "capability_packs": capability_packs,
-                "capability_catalog_path": str(capability_catalog_path),
-                "capability_packs_path": str(capability_packs_path),
-                "model_lock_path": str(model_lock_path),
-                "class_modules_root": str(class_modules_root),
-                "object_modules_root": str(object_modules_root),
-                "class_module_paths": class_module_paths,
-                "object_module_paths": object_module_paths,
-                "require_new_model": self.require_new_model,
-            },
-            output_dir=str(self.output_json.parent),
-            source_file=str(self.manifest_path),
-            compiled_file=str(self.output_json),
+            rows=rows,
+            capability_catalog_ids=capability_catalog_ids,
+            capability_packs=capability_packs,
+            capability_catalog_path=capability_catalog_path,
+            capability_packs_path=capability_packs_path,
+            model_lock_path=model_lock_path,
+            lock_payload=lock_payload,
+            output_dir=self.output_json.parent,
+            source_file=self.manifest_path,
+            compiled_file=self.output_json,
+            require_new_model=self.require_new_model,
+            validation_owner=self._validation_owner,
+            compilation_owner=self._compilation_owner,
+            artifact_owner=self._artifact_owner,
         )
 
     def _validation_owner(self, rule_name: str) -> str:
