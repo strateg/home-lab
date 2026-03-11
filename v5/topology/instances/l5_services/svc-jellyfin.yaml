@@ -1,0 +1,11 @@
+schema_version: 1
+instance: svc-jellyfin
+group: l5_services
+layer: L5
+object_ref: obj.service.jellyfin
+source_id: svc-jellyfin
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: docker
+  target_ref: srv-orangepi5

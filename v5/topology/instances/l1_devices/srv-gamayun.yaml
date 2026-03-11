@@ -1,0 +1,11 @@
+schema_version: 1
+instance: srv-gamayun
+group: l1_devices
+layer: L1
+object_ref: obj.proxmox.ve
+source_id: srv-gamayun
+status: mapped
+notes: module scaffold exists; capability profile tuning pending
+firmware_ref: inst.firmware.uefi.generic.x86_64
+os_refs:
+- inst.os.proxmox.ve.9

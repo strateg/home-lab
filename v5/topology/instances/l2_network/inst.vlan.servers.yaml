@@ -1,0 +1,11 @@
+schema_version: 1
+instance: inst.vlan.servers
+group: l2_network
+layer: L2
+object_ref: obj.network.vlan.servers
+source_id: net-servers
+status: mapped
+notes: Server VLAN (VLAN 30)
+bridge_ref: inst.bridge.vmbr0
+trust_zone_ref: inst.trust_zone.servers
+managed_by_ref: mikrotik-chateau

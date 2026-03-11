@@ -1,0 +1,11 @@
+schema_version: 1
+instance: svc-ntp
+group: l5_services
+layer: L5
+object_ref: obj.service.ntp
+source_id: svc-ntp
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: baremetal
+  target_ref: mikrotik-chateau

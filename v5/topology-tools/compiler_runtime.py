@@ -7,6 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+import yaml
+
+INSTANCE_SOURCE_MODES = {"auto", "sharded-only"}
+FILENAME_UNSAFE_INSTANCE_CHARS = set('<>:"/\\|?*')
+
 
 @dataclass
 class ManifestPathBundle:
@@ -14,7 +19,8 @@ class ManifestPathBundle:
     object_modules_root: Path
     capability_catalog_path: Path
     capability_packs_path: Path
-    instance_bindings_path: Path
+    layer_contract_path: Path
+    instances_root_path: Path | None
     model_lock_path: Path
 
 
@@ -27,6 +33,7 @@ class CompileInputs:
     instance_payload: dict[str, Any] | None
     rows: list[dict[str, Any]]
     lock_payload: dict[str, Any] | None
+    instance_source_mode: str
 
 
 def discover_plugin_manifests(
@@ -73,24 +80,319 @@ def resolve_manifest_paths(
     manifest_paths: dict[str, Any],
     resolve_repo_path: Callable[[str], Path],
 ) -> ManifestPathBundle:
+    def _optional_path(raw: Any) -> Path | None:
+        if not isinstance(raw, str):
+            return None
+        value = raw.strip()
+        if not value:
+            return None
+        return resolve_repo_path(value)
+
     return ManifestPathBundle(
         class_modules_root=resolve_repo_path(str(manifest_paths.get("class_modules_root", ""))),
         object_modules_root=resolve_repo_path(str(manifest_paths.get("object_modules_root", ""))),
         capability_catalog_path=resolve_repo_path(str(manifest_paths.get("capability_catalog", ""))),
         capability_packs_path=resolve_repo_path(str(manifest_paths.get("capability_packs", ""))),
-        instance_bindings_path=resolve_repo_path(str(manifest_paths.get("instance_bindings", ""))),
+        layer_contract_path=resolve_repo_path(str(manifest_paths.get("layer_contract", ""))),
+        instances_root_path=_optional_path(manifest_paths.get("instances_root")),
         model_lock_path=resolve_repo_path(str(manifest_paths.get("model_lock", ""))),
     )
+
+
+def resolve_instance_source_mode(
+    *,
+    requested_mode: str,
+    paths: ManifestPathBundle,
+) -> str:
+    _ = paths
+    if requested_mode == "sharded-only":
+        return "sharded-only"
+    return "sharded-only"
+
+
+def _diag_path(*, repo_root: Path, path: Path) -> str:
+    try:
+        return str(path.relative_to(repo_root).as_posix())
+    except ValueError:
+        return str(path.as_posix())
+
+
+def _contains_filename_unsafe_chars(value: str) -> bool:
+    return any(char in FILENAME_UNSAFE_INSTANCE_CHARS for char in value)
+
+
+def _load_group_layer_map(
+    *,
+    layer_contract_path: Path,
+    load_yaml: Callable[..., dict[str, Any] | None],
+    add_diag: Callable[..., None],
+    repo_root: Path,
+) -> dict[str, str]:
+    payload = load_yaml(
+        layer_contract_path,
+        code_missing="E1001",
+        code_parse="E1003",
+        stage="load",
+    )
+    if not isinstance(payload, dict):
+        return {}
+    group_layers = payload.get("group_layers")
+    if not isinstance(group_layers, dict):
+        add_diag(
+            code="E3201",
+            severity="error",
+            stage="validate",
+            message="layer-contract must contain mapping key 'group_layers'.",
+            path=_diag_path(repo_root=repo_root, path=layer_contract_path),
+        )
+        return {}
+    result: dict[str, str] = {}
+    for group_name, layer_name in group_layers.items():
+        if isinstance(group_name, str) and group_name and isinstance(layer_name, str) and layer_name:
+            result[group_name] = layer_name
+    return result
+
+
+def _load_sharded_instance_payload(
+    *,
+    instances_root: Path | None,
+    mode: str,
+    group_layer_map: dict[str, str],
+    add_diag: Callable[..., None],
+    repo_root: Path,
+) -> dict[str, Any] | None:
+    if instances_root is None:
+        if mode == "sharded-only":
+            add_diag(
+                code="E7107",
+                severity="error",
+                stage="load",
+                message="Sharded instance source requires paths.instances_root.",
+                path="v5/topology/topology.yaml:paths.instances_root",
+            )
+        return None
+    if not instances_root.exists() or not instances_root.is_dir():
+        if mode == "sharded-only":
+            add_diag(
+                code="E1001",
+                severity="error",
+                stage="load",
+                message=f"Directory does not exist: {instances_root}",
+                path=_diag_path(repo_root=repo_root, path=instances_root),
+            )
+        return None
+
+    grouped_rows: dict[str, list[dict[str, Any]]] = {}
+    seen_instances: dict[str, Path] = {}
+    shard_files = sorted(
+        (path for path in instances_root.rglob("*.yaml") if path.is_file()),
+        key=lambda item: item.relative_to(instances_root).as_posix().casefold(),
+    )
+    for path in shard_files:
+        relative_path = path.relative_to(instances_root).as_posix()
+        name = path.name
+        if any(part.startswith("_") for part in Path(relative_path).parts):
+            continue
+        if name == "project.yaml":
+            continue
+        if name == "instance-bindings.yaml":
+            add_diag(
+                code="E7105",
+                severity="error",
+                stage="load",
+                message="Legacy instance-bindings.yaml cannot be ingested from instances_root.",
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+
+        try:
+            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError) as exc:
+            add_diag(
+                code="E1003",
+                severity="error",
+                stage="load",
+                message=f"YAML parse error: {exc}",
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+        if not isinstance(payload, dict):
+            add_diag(
+                code="E1004",
+                severity="error",
+                stage="load",
+                message="Expected mapping/object at YAML root.",
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+        if "instance_bindings" in payload:
+            add_diag(
+                code="E7103",
+                severity="error",
+                stage="validate",
+                message="Sharded instance file must contain a single instance row, not 'instance_bindings'.",
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+
+        schema_version = payload.get("schema_version")
+        if not isinstance(schema_version, int) or schema_version != 1:
+            add_diag(
+                code="E7104",
+                severity="error",
+                stage="validate",
+                message=f"Unsupported schema_version '{schema_version}' in shard file.",
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+
+        required_keys = ("instance", "group", "layer", "object_ref")
+        missing = [key for key in required_keys if key not in payload]
+        if missing:
+            add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message=f"Instance shard is missing required keys: {', '.join(missing)}.",
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+
+        instance_id = payload.get("instance")
+        group_name = payload.get("group")
+        layer = payload.get("layer")
+        object_ref = payload.get("object_ref")
+        explicit_class_ref = payload.get("class_ref")
+        if not isinstance(instance_id, str) or not instance_id:
+            add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message="Instance shard must define non-empty 'instance'.",
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:instance",
+            )
+            continue
+        if _contains_filename_unsafe_chars(instance_id):
+            add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message=(
+                    f"Instance id '{instance_id}' contains filename-unsafe characters; "
+                    "use only cross-platform filename-safe symbols."
+                ),
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:instance",
+            )
+            continue
+        if path.stem != instance_id:
+            add_diag(
+                code="E7101",
+                severity="error",
+                stage="validate",
+                message=f"File basename '{path.stem}' must match instance '{instance_id}'.",
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+        if instance_id in seen_instances:
+            add_diag(
+                code="E7102",
+                severity="error",
+                stage="resolve",
+                message=(
+                    f"Duplicate instance '{instance_id}' in shard files: "
+                    f"{_diag_path(repo_root=repo_root, path=seen_instances[instance_id])} and "
+                    f"{_diag_path(repo_root=repo_root, path=path)}."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+        seen_instances[instance_id] = path
+
+        if not isinstance(group_name, str) or not group_name:
+            add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message="Instance shard must define non-empty 'group'.",
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:group",
+            )
+            continue
+        if not isinstance(layer, str) or not layer:
+            add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message="Instance shard must define non-empty 'layer'.",
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:layer",
+            )
+            continue
+        if not isinstance(object_ref, str) or not object_ref:
+            add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message="Instance shard must define non-empty 'object_ref'.",
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:object_ref",
+            )
+            continue
+        if explicit_class_ref is not None and (not isinstance(explicit_class_ref, str) or not explicit_class_ref):
+            add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message="If provided, class_ref must be non-empty string.",
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:class_ref",
+            )
+            continue
+        expected_layer = group_layer_map.get(group_name)
+        if expected_layer is None:
+            add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message=f"Unknown instance group '{group_name}' (missing in layer-contract group_layers).",
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:group",
+            )
+            continue
+        if layer != expected_layer:
+            add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message=f"Group '{group_name}' must use layer '{expected_layer}', got '{layer}'.",
+                path=f"{_diag_path(repo_root=repo_root, path=path)}:layer",
+            )
+            continue
+
+        row = dict(payload)
+        row.pop("schema_version", None)
+        row.pop("group", None)
+        if not isinstance(explicit_class_ref, str):
+            row.pop("class_ref", None)
+        grouped_rows.setdefault(group_name, []).append(row)
+
+    ordered_rows: dict[str, list[dict[str, Any]]] = {}
+    for group_name in sorted(grouped_rows):
+        group_rows = grouped_rows[group_name]
+        group_rows.sort(key=lambda item: str(item.get("instance", "")))
+        ordered_rows[group_name] = group_rows
+
+    if not ordered_rows:
+        return None
+    return {"instance_bindings": ordered_rows}
 
 
 def load_core_compile_inputs(
     *,
     paths: ManifestPathBundle,
+    instances_mode: str,
     compilation_owner: Callable[[str], str],
     load_module_map: Callable[..., dict[str, dict[str, Any]]],
     load_capability_contract: Callable[..., tuple[set[str], dict[str, dict[str, Any]]]],
     load_yaml: Callable[..., dict[str, Any] | None],
     load_instance_rows: Callable[[dict[str, Any]], list[dict[str, Any]]],
+    add_diag: Callable[..., None],
+    repo_root: Path,
 ) -> CompileInputs:
     if compilation_owner("module_maps") == "core":
         class_map = load_module_map(directory=paths.class_modules_root, module_type="class")
@@ -107,12 +409,24 @@ def load_core_compile_inputs(
     else:
         catalog_ids, packs_map = set(), {}
 
-    instance_payload = load_yaml(
-        paths.instance_bindings_path,
-        code_missing="E1001",
-        code_parse="E1003",
-        stage="load",
+    resolved_instances_mode = resolve_instance_source_mode(
+        requested_mode=instances_mode,
+        paths=paths,
     )
+    group_layer_map = _load_group_layer_map(
+        layer_contract_path=paths.layer_contract_path,
+        load_yaml=load_yaml,
+        add_diag=add_diag,
+        repo_root=repo_root,
+    )
+    instance_payload = _load_sharded_instance_payload(
+        instances_root=paths.instances_root_path,
+        mode=resolved_instances_mode,
+        group_layer_map=group_layer_map,
+        add_diag=add_diag,
+        repo_root=repo_root,
+    )
+
     if compilation_owner("instance_rows") == "core":
         rows = load_instance_rows(instance_payload or {})
     else:
@@ -130,6 +444,7 @@ def load_core_compile_inputs(
         instance_payload=instance_payload,
         rows=rows,
         lock_payload=lock_payload,
+        instance_source_mode=resolved_instances_mode,
     )
 
 

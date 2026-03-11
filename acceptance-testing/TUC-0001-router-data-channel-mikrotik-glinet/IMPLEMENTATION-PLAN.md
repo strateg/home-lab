@@ -10,8 +10,9 @@
    - `v5/topology/object-modules/network/obj.network.ethernet_cable.yaml`
    - `v5/topology/object-modules/network/obj.network.ethernet_channel.yaml`
    - Keep cable-specific runtime parameters (`length_m`, `shielding`, ...) at instance level.
-4. Add fixture rows in:
-   - `v5/topology/instances/home-lab/instance-bindings.yaml`
+4. Add fixture shard files in:
+   - `v5/topology/instances/l1_devices/inst.ethernet_cable.cat5e.yaml`
+   - `v5/topology/instances/l2_network/chan.eth.chateau_to_slate.yaml`
    - one cable (`physical_link`) and one channel (`data_link`) with bidirectional linkage.
 
 ## Workstream 2: Compiler Stability for Instance Extensions

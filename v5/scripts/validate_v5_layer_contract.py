@@ -63,6 +63,38 @@ def _iter_yaml_files(directory: Path) -> list[Path]:
     return sorted(path for path in directory.rglob("*.yaml") if path.is_file())
 
 
+def _load_instance_bindings_from_shards(instances_root: Path, *, errors: list[str]) -> dict[str, Any]:
+    if not instances_root.exists():
+        errors.append(f"missing directory: {instances_root.relative_to(ROOT).as_posix()}")
+        return {}
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for path in _iter_yaml_files(instances_root):
+        rel = path.relative_to(instances_root)
+        if any(part.startswith("_") for part in rel.parts):
+            continue
+        if path.name == "project.yaml":
+            continue
+        payload = _load_yaml_map(path, errors=errors)
+        if not payload:
+            continue
+        if "instance_bindings" in payload:
+            errors.append(
+                f"{path.relative_to(ROOT).as_posix()}: sharded instance file must not contain 'instance_bindings'"
+            )
+            continue
+        group = payload.get("group")
+        if not isinstance(group, str) or not group:
+            errors.append(f"{path.relative_to(ROOT).as_posix()}: missing non-empty group")
+            continue
+        row = dict(payload)
+        row.pop("schema_version", None)
+        row.pop("group", None)
+        grouped.setdefault(group, []).append(row)
+    for group_name in grouped:
+        grouped[group_name].sort(key=lambda item: str(item.get("instance", "")))
+    return {"instance_bindings": grouped}
+
+
 def _parse_object_layer_override(payload: dict[str, Any]) -> Any:
     topology = payload.get("topology")
     if not isinstance(topology, dict):
@@ -100,6 +132,7 @@ def main() -> int:
 
     class_modules_root = ROOT / str(manifest_paths.get("class_modules_root", ""))
     object_modules_root = ROOT / str(manifest_paths.get("object_modules_root", ""))
+    instances_root_path = ROOT / str(manifest_paths.get("instances_root", ""))
     instance_bindings_path = ROOT / str(manifest_paths.get("instance_bindings", ""))
     layer_contract_path = ROOT / str(manifest_paths.get("layer_contract", ""))
 
@@ -292,7 +325,10 @@ def main() -> int:
             )
         object_allowed_layers[object_id] = parsed_override
 
-    instance_bindings = _load_yaml_map(instance_bindings_path, errors=errors)
+    if isinstance(manifest_paths.get("instances_root"), str) and str(manifest_paths.get("instances_root", "")).strip():
+        instance_bindings = _load_instance_bindings_from_shards(instances_root_path, errors=errors)
+    else:
+        instance_bindings = _load_yaml_map(instance_bindings_path, errors=errors)
     bindings_any = instance_bindings.get("instance_bindings", {})
     if not isinstance(bindings_any, dict):
         errors.append("instance-bindings must contain mapping key 'instance_bindings'")
@@ -320,8 +356,8 @@ def main() -> int:
 
             row_id = row.get("instance")
             row_layer = row.get("layer")
-            class_ref = row.get("class_ref")
             object_ref = row.get("object_ref")
+            class_ref = row.get("class_ref")
 
             if not isinstance(row_id, str) or not row_id:
                 errors.append(f"{path}: missing non-empty instance")
@@ -340,18 +376,20 @@ def main() -> int:
                     f"{path}: layer '{row_layer}' must match group layer '{expected_group_layer}' for group '{group}'"
                 )
 
-            if not isinstance(class_ref, str) or not class_ref:
-                errors.append(f"{path}: missing non-empty class_ref")
-                continue
-            if class_ref not in class_payloads:
-                errors.append(f"{path}: unknown class_ref '{class_ref}'")
-                continue
-
             if not isinstance(object_ref, str) or not object_ref:
                 errors.append(f"{path}: missing non-empty object_ref")
                 continue
             if object_ref not in object_payloads:
                 errors.append(f"{path}: unknown object_ref '{object_ref}'")
+                continue
+
+            if not isinstance(class_ref, str) or not class_ref:
+                class_ref = object_class_refs.get(object_ref)
+            if not isinstance(class_ref, str) or not class_ref:
+                errors.append(f"{path}: missing non-empty class_ref and object-derived class_ref")
+                continue
+            if class_ref not in class_payloads:
+                errors.append(f"{path}: unknown class_ref '{class_ref}'")
                 continue
 
             object_class_ref = object_class_refs.get(object_ref)

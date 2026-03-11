@@ -1,6 +1,6 @@
 # ADR 0071: Sharded Instance Files and Flat `instances` Root
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-03-11
 - Related: ADR 0062, ADR 0063, ADR 0069, ADR 0070
 
@@ -17,7 +17,7 @@ This causes high cognitive load and operational friction:
 3. weak per-entity ownership
 4. difficult review and scenario isolation
 
-Runtime today also assumes one file path (`paths.instance_bindings`) and a pre-assembled payload.
+Legacy runtime previously assumed one monolithic file and required explicit `class_ref` in rows.
 
 ## Decision
 
@@ -29,7 +29,7 @@ Canonical authoring root:
 
 - `v5/topology/instances/`
 
-`v5/topology/instances/home-lab/` is deprecated for active authoring.
+Legacy monolith content is archived under `v5/topology/instances/_legacy-home-lab/`.
 
 ### 2. Storage Layout and File Contract
 
@@ -70,13 +70,13 @@ Strict rules:
 4. `instance` MUST be globally unique across all discovered files.
 5. Discovery order is lexicographic by relative path.
 6. Assembled in-group order is lexicographic by `instance`.
+7. `instance` MUST be filename-safe across platforms (no `<>:"/\\|?*`).
 
 ### 4. Path Contract
 
 `topology.yaml` contract:
 
 - canonical: `paths.instances_root`
-- temporary compatibility: `paths.instance_bindings` (deprecated)
 
 ### 5. Loader Responsibility and Plugin Compatibility
 
@@ -84,7 +84,7 @@ Loader MUST:
 
 1. discover instance files under `instances_root`
 2. validate one-row-per-file contract
-3. derive `class_ref` from `object_ref` (object contract)
+3. keep `class_ref` optional in shard authoring and derive/verify it during instance normalization
 4. assemble legacy-compatible in-memory payload:
 
 ```yaml
@@ -117,7 +117,7 @@ Loader MUST enforce:
 2. one-row-per-file
 3. `group`/`layer` consistency with `layer-contract.yaml`
 4. supported `schema_version`
-5. `class_ref` derivation integrity from `object_ref`
+5. `class_ref` derivation integrity from `object_ref` during compile normalization
 
 Minimum diagnostic set:
 
@@ -126,7 +126,6 @@ Minimum diagnostic set:
 - `E7103_MULTIROW_INSTANCE_FILE`
 - `E7104_UNSUPPORTED_INSTANCE_SCHEMA_VERSION`
 - `E7105_RESERVED_FILE_INGESTION_ATTEMPT`
-- `E7106_DUAL_SOURCE_CONFLICT`
 
 ### 7. Project Metadata
 
@@ -138,18 +137,13 @@ and not duplicated in shard files.
 
 ### 8. Migration and Cutover
 
-Staged migration:
+Completed cutover:
 
-1. introduce dual-read (`instance_bindings` + `instances_root`)
-2. provide splitter tool from monolith to shards
-3. switch default authoring/CI to `instances_root`
-4. retire legacy path after cutover evidence
-
-Dual-read conflict policy:
-
-1. If same `instance` exists in both legacy and sharded sources:
-   - `dual-read`: shard wins + warning
-   - `sharded-only`: hard error
+1. splitter tool delivered: `v5/topology-tools/split-instance-bindings.py`
+2. monolith split to per-instance shards in `v5/topology/instances/<group>/`
+3. compiler runtime switched to `sharded-only` instance source
+4. legacy path `paths.instance_bindings` removed from manifest
+5. service instance ids containing `:` were normalized to `.` for cross-platform shard filenames
 
 ## Consequences
 
@@ -164,12 +158,12 @@ Dual-read conflict policy:
 
 1. more files to manage in repository
 2. loader complexity increases (discovery + assembly + diagnostics)
-3. migration requires tooling and transitional compatibility checks
+3. migration required one-time split and path updates
 
 ### Compatibility Impact
 
 1. plugin contracts can stay stable because loader emits legacy-shaped assembled payload
-2. manifest path contract changes (`instances_root` introduced, `instance_bindings` deprecated)
+2. manifest path contract is now `paths.instances_root` only
 3. CI and docs must be updated to new authoring path
 
 ### Out of Scope
@@ -181,7 +175,8 @@ Dual-read conflict policy:
 ## References
 
 - `v5/topology/topology.yaml`
-- `v5/topology/instances/home-lab/instance-bindings.yaml`
+- `v5/topology/instances/project.yaml`
+- `v5/topology/instances/_legacy-home-lab/instance-bindings.yaml`
 - `v5/topology-tools/compiler_runtime.py`
 - `v5/topology-tools/plugins/compilers/instance_rows_compiler.py`
 - `v5/topology-tools/plugins/validators/reference_validator.py`

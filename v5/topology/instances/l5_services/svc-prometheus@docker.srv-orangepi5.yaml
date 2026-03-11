@@ -1,0 +1,11 @@
+schema_version: 1
+instance: svc-prometheus@docker.srv-orangepi5
+group: l5_services
+layer: L5
+object_ref: obj.service.prometheus
+source_id: svc-prometheus
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: docker
+  target_ref: srv-orangepi5

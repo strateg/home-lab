@@ -1,0 +1,19 @@
+schema_version: 1
+instance: rtr-slate
+group: l1_devices
+layer: L1
+object_ref: obj.glinet.slate_ax1800
+source_id: rtr-slate
+status: mapped
+notes: Personal GL-AXT1800 router instance with device identity placeholders
+firmware_ref: inst.firmware.openwrt.glinet.4x
+os_refs:
+- inst.os.openwrt.glinet.4x
+hardware_identity:
+  serial_number: <TODO_SERIAL_NUMBER>
+  mac_addresses:
+    wan: <TODO_MAC_WAN>
+    lan1: <TODO_MAC_LAN1>
+    lan2: <TODO_MAC_LAN2>
+    wlan0_5ghz: <TODO_MAC_WLAN0>
+    wlan1_2_4ghz: <TODO_MAC_WLAN1>

@@ -1,0 +1,10 @@
+schema_version: 1
+instance: pdu-rack
+group: l1_devices
+layer: L1
+object_ref: obj.pdu.generic.managed
+source_id: pdu-rack
+status: mapped
+notes: module scaffold exists; capability profile tuning pending
+firmware_ref: inst.firmware.pdu.generic.managed
+os_refs: []

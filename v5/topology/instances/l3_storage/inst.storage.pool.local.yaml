@@ -1,0 +1,9 @@
+schema_version: 1
+instance: inst.storage.pool.local
+group: l3_storage
+layer: L3
+object_ref: obj.storage.pool.local
+source_id: se-local
+status: mapped
+notes: Local directory storage on Proxmox
+host_ref: srv-gamayun

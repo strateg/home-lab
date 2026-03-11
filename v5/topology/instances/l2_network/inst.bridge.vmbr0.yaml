@@ -1,0 +1,9 @@
+schema_version: 1
+instance: inst.bridge.vmbr0
+group: l2_network
+layer: L2
+object_ref: obj.network.bridge.vmbr0
+source_id: bridge-vmbr0
+status: mapped
+notes: Primary Proxmox VLAN-aware bridge
+host_ref: srv-gamayun

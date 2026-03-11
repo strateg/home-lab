@@ -147,7 +147,9 @@ class CapabilityContractChecker:
 
     def _load_objects(self) -> Dict[str, Dict[str, Any]]:
         result: Dict[str, Dict[str, Any]] = {}
-        files = list(_iter_yaml_files(self.objects_dir))
+        # Object directories may also contain plugin manifests and helpers.
+        # Load only canonical object definition files.
+        files = [path for path in _iter_yaml_files(self.objects_dir) if path.name.startswith("obj.")]
         if not files:
             self._warn(f"No object files found under {self.objects_dir}")
             return result
