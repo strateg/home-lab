@@ -4,13 +4,11 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import yaml
 
@@ -18,7 +16,10 @@ import yaml
 TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
+from compiler_contract import canonicalize_payload, manifest_digest, validate_compiled_model_contract
 from compiler_decisions import select_effective_payload
+from compiler_legacy_bridge import LegacyDomainBridge
+from compiler_ownership import artifact_owner, compilation_owner, validation_owner
 from compiler_plugin_context import create_plugin_context
 from compiler_reporting import write_diagnostics_report
 from compiler_runtime import (
@@ -29,14 +30,6 @@ from compiler_runtime import (
 )
 from compiler_validation_flow import run_validation_flow
 from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
-from legacy_capabilities import default_firmware_policy as legacy_default_firmware_policy
-from legacy_capabilities import derive_firmware_capabilities as legacy_derive_firmware_capabilities
-from legacy_capabilities import derive_os_capabilities as legacy_derive_os_capabilities
-from legacy_capabilities import extract_architecture as legacy_extract_architecture
-from legacy_capabilities import extract_os_installation_model as legacy_extract_os_installation_model
-from legacy_effective import build_effective, compute_object_capability_projections, compute_reference_projections
-from legacy_loaders import load_capability_contract, load_instance_rows, load_module_map
-from legacy_validators import validate_capability_contract, validate_embedded_in, validate_model_lock, validate_refs
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPO_ROOT / "v5" / "topology" / "topology.yaml"
@@ -139,13 +132,34 @@ class V5Compiler:
 
         self._diagnostics: list[Diagnostic] = []
         self._error_hints = self._load_error_hints(error_catalog_path)
-        self._object_derived_caps: dict[str, list[str]] = {}
-        self._object_effective_os: dict[str, dict[str, Any]] = {}
-        self._instance_derived_caps: dict[str, list[str]] = {}
-        self._instance_software_refs: dict[str, dict[str, Any]] = {}
         self._plugin_registry: PluginRegistry | None = None
         self._plugin_results: list[PluginResult] = []
         self._run_generated_at: str | None = None
+        self._validation_owner = lambda rule_name: validation_owner(
+            enable_plugins=self.enable_plugins,
+            pipeline_mode=self.pipeline_mode,
+            rule_name=rule_name,
+        )
+        self._compilation_owner = lambda rule_name: compilation_owner(
+            enable_plugins=self.enable_plugins,
+            pipeline_mode=self.pipeline_mode,
+            rule_name=rule_name,
+        )
+        self._artifact_owner = lambda artifact_name: artifact_owner(
+            enable_plugins=self.enable_plugins,
+            pipeline_mode=self.pipeline_mode,
+            artifact_name=artifact_name,
+        )
+        self._legacy = LegacyDomainBridge(
+            add_diag=self.add_diag,
+            load_yaml=self._load_yaml,
+            repo_root=REPO_ROOT,
+            manifest_path=self.manifest_path,
+            require_new_model=self.require_new_model,
+            strict_model_lock=self.strict_model_lock,
+            compiled_model_version=COMPILED_MODEL_VERSION,
+            compiler_pipeline_version=COMPILER_PIPELINE_VERSION,
+        )
 
         # Initialize plugin registry if enabled
         if self.enable_plugins:
@@ -212,98 +226,6 @@ class V5Compiler:
                 path="plugins.yaml",
             )
             self._plugin_registry = None
-
-    def _create_plugin_context(
-        self,
-        *,
-        manifest: dict[str, Any],
-        class_modules_root: Path,
-        object_modules_root: Path,
-        class_map: dict[str, dict[str, Any]],
-        object_map: dict[str, dict[str, Any]],
-        instance_bindings: dict[str, Any],
-        rows: list[dict[str, Any]],
-        capability_catalog_ids: set[str],
-        capability_packs: dict[str, dict[str, Any]],
-        capability_catalog_path: Path,
-        capability_packs_path: Path,
-        model_lock_path: Path,
-        lock_payload: dict[str, Any] | None,
-        source_manifest_digest: str,
-    ) -> PluginContext:
-        return create_plugin_context(
-            manifest_path=self.manifest_path,
-            repo_root=REPO_ROOT,
-            runtime_profile=self.runtime_profile,
-            strict_model_lock=self.strict_model_lock,
-            pipeline_mode=self.pipeline_mode,
-            parity_gate=self.parity_gate,
-            raw_manifest=manifest,
-            run_generated_at=self._run_generated_at or utc_now(),
-            compiled_model_version=COMPILED_MODEL_VERSION,
-            compiler_pipeline_version=COMPILER_PIPELINE_VERSION,
-            source_manifest_digest=source_manifest_digest,
-            class_modules_root=class_modules_root,
-            object_modules_root=object_modules_root,
-            class_map=class_map,
-            object_map=object_map,
-            instance_bindings=instance_bindings,
-            rows=rows,
-            capability_catalog_ids=capability_catalog_ids,
-            capability_packs=capability_packs,
-            capability_catalog_path=capability_catalog_path,
-            capability_packs_path=capability_packs_path,
-            model_lock_path=model_lock_path,
-            lock_payload=lock_payload,
-            output_dir=self.output_json.parent,
-            source_file=self.manifest_path,
-            compiled_file=self.output_json,
-            require_new_model=self.require_new_model,
-            validation_owner=self._validation_owner,
-            compilation_owner=self._compilation_owner,
-            artifact_owner=self._artifact_owner,
-        )
-
-    def _validation_owner(self, rule_name: str) -> str:
-        """Return validation ownership for a domain rule during migration.
-
-        Ownership model:
-        - `core`: legacy built-in validator remains source of truth
-        - `plugin`: rule validated by plugin implementation
-        """
-        if not self.enable_plugins:
-            return "core"
-        if rule_name == "embedded_in" and self.pipeline_mode == "plugin-first":
-            return "plugin"
-        if rule_name == "model_lock" and self.pipeline_mode == "plugin-first":
-            return "plugin"
-        if rule_name == "references" and self.pipeline_mode == "plugin-first":
-            return "plugin"
-        if rule_name == "capability_contract" and self.pipeline_mode == "plugin-first":
-            return "plugin"
-        return "core"
-
-    def _compilation_owner(self, rule_name: str) -> str:
-        """Return compile-stage ownership for migration cutover."""
-        if not self.enable_plugins:
-            return "core"
-        if rule_name == "module_maps" and self.pipeline_mode == "plugin-first":
-            return "plugin"
-        if rule_name == "model_lock_data" and self.pipeline_mode == "plugin-first":
-            return "plugin"
-        if rule_name == "instance_rows" and self.pipeline_mode == "plugin-first":
-            return "plugin"
-        if rule_name == "capability_contract_data" and self.pipeline_mode == "plugin-first":
-            return "plugin"
-        return "core"
-
-    def _artifact_owner(self, artifact_name: str) -> str:
-        """Return artifact emission ownership for migration cutover."""
-        if not self.enable_plugins:
-            return "core"
-        if artifact_name == "effective_json" and self.pipeline_mode == "plugin-first":
-            return "plugin"
-        return "core"
 
     def _execute_plugins(
         self,
@@ -376,76 +298,11 @@ class V5Compiler:
             )
         )
 
-    @staticmethod
-    def _canonicalize_payload(payload: dict[str, Any]) -> str:
-        return json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"), default=str)
-
-    def _manifest_digest(self, manifest: dict[str, Any]) -> str:
-        canonical = self._canonicalize_payload(manifest)
-        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
     def _validate_compiled_model_contract(self, payload: dict[str, Any]) -> bool:
-        if not isinstance(payload, dict):
-            self.add_diag(
-                code="E6903",
-                severity="error",
-                stage="validate",
-                message="compiled_json payload must be an object.",
-                path="compiled_json",
-            )
-            return False
-
-        required_string_keys = (
-            "compiled_model_version",
-            "compiled_at",
-            "compiler_pipeline_version",
-            "source_manifest_digest",
-        )
-        has_errors = False
-        for key in required_string_keys:
-            value = payload.get(key)
-            if not isinstance(value, str) or not value:
-                has_errors = True
-                self.add_diag(
-                    code="E6903",
-                    severity="error",
-                    stage="validate",
-                    message=f"compiled model contract requires non-empty string key '{key}'.",
-                    path=f"compiled_json.{key}",
-                )
-
-        version = payload.get("compiled_model_version")
-        if isinstance(version, str) and version:
-            major = version.split(".", 1)[0]
-            if major not in SUPPORTED_COMPILED_MODEL_MAJOR:
-                has_errors = True
-                self.add_diag(
-                    code="E6903",
-                    severity="error",
-                    stage="validate",
-                    message=(
-                        f"incompatible compiled_model_version '{version}'; "
-                        f"supported majors: {sorted(SUPPORTED_COMPILED_MODEL_MAJOR)}."
-                    ),
-                    path="compiled_json.compiled_model_version",
-                )
-
-        return not has_errors
-
-    def _select_effective_payload(
-        self,
-        *,
-        legacy_payload: dict[str, Any],
-        plugin_payload: dict[str, Any] | None,
-    ) -> dict[str, Any]:
-        return select_effective_payload(
-            mode=self.pipeline_mode,
-            parity_gate=self.parity_gate,
-            enable_plugins=self.enable_plugins,
-            legacy_payload=legacy_payload,
-            plugin_payload=plugin_payload,
-            canonicalize_payload=self._canonicalize_payload,
+        return validate_compiled_model_contract(
+            payload=payload,
             add_diag=self.add_diag,
+            supported_compiled_model_major=SUPPORTED_COMPILED_MODEL_MAJOR,
         )
 
     def _load_yaml(self, path: Path, *, code_missing: str, code_parse: str, stage: str) -> dict[str, Any] | None:
@@ -480,236 +337,6 @@ class V5Compiler:
             return None
         return payload
 
-    def _load_module_map(self, *, directory: Path, module_type: str) -> dict[str, dict[str, Any]]:
-        return load_module_map(
-            directory=directory,
-            module_type=module_type,
-            load_yaml=lambda path, code_missing, code_parse, stage: self._load_yaml(
-                path, code_missing=code_missing, code_parse=code_parse, stage=stage
-            ),
-            add_diag=self.add_diag,
-            repo_root=REPO_ROOT,
-        )
-
-    def _load_capability_contract(
-        self, *, catalog_path: Path, packs_path: Path
-    ) -> tuple[set[str], dict[str, dict[str, Any]]]:
-        return load_capability_contract(
-            catalog_path=catalog_path,
-            packs_path=packs_path,
-            load_yaml=lambda path, code_missing, code_parse, stage: self._load_yaml(
-                path, code_missing=code_missing, code_parse=code_parse, stage=stage
-            ),
-            add_diag=self.add_diag,
-            repo_root=REPO_ROOT,
-        )
-
-    def _expand_capabilities(
-        self,
-        *,
-        direct_caps: list[Any],
-        pack_refs: list[Any],
-        packs_map: dict[str, dict[str, Any]],
-    ) -> set[str]:
-        expanded: set[str] = set()
-        for cap in direct_caps:
-            if isinstance(cap, str):
-                expanded.add(cap)
-        for pack_ref in pack_refs:
-            if not isinstance(pack_ref, str):
-                continue
-            pack = packs_map.get(pack_ref, {})
-            for cap in pack.get("capabilities", []) or []:
-                if isinstance(cap, str):
-                    expanded.add(cap)
-        return expanded
-
-    @staticmethod
-    def _default_firmware_policy(class_id: str) -> str:
-        return legacy_default_firmware_policy(class_id)
-
-    @staticmethod
-    def _extract_architecture(object_payload: dict[str, Any]) -> str | None:
-        return legacy_extract_architecture(object_payload)
-
-    @staticmethod
-    def _extract_os_installation_model(object_payload: dict[str, Any]) -> str | None:
-        return legacy_extract_os_installation_model(object_payload)
-
-    def _derive_firmware_capabilities(
-        self,
-        *,
-        object_id: str,
-        object_payload: dict[str, Any],
-        catalog_ids: set[str],
-        path: str,
-        emit_diagnostics: bool = True,
-    ) -> tuple[set[str], dict[str, Any] | None]:
-        return legacy_derive_firmware_capabilities(
-            object_id=object_id,
-            object_payload=object_payload,
-            catalog_ids=catalog_ids,
-            path=path,
-            add_diag=self.add_diag,
-            emit_diagnostics=emit_diagnostics,
-        )
-
-    def _derive_os_capabilities(
-        self,
-        *,
-        object_id: str,
-        object_payload: dict[str, Any],
-        catalog_ids: set[str],
-        path: str,
-        emit_diagnostics: bool = True,
-    ) -> tuple[set[str], dict[str, Any] | None]:
-        return legacy_derive_os_capabilities(
-            object_id=object_id,
-            object_payload=object_payload,
-            catalog_ids=catalog_ids,
-            path=path,
-            add_diag=self.add_diag,
-            emit_diagnostics=emit_diagnostics,
-        )
-
-    def _compute_reference_projections(
-        self,
-        *,
-        rows: list[dict[str, Any]],
-        class_map: dict[str, dict[str, Any]],
-        object_map: dict[str, dict[str, Any]],
-        catalog_ids: set[str],
-    ) -> None:
-        """Compute instance software/capability projections without diagnostics.
-
-        Used in plugin-first mode where reference diagnostics are owned by plugin
-        validator, while legacy effective payload still needs projection side effects.
-        """
-        _ = class_map
-        self._instance_derived_caps, self._instance_software_refs = compute_reference_projections(
-            rows=rows,
-            object_map=object_map,
-            catalog_ids=catalog_ids,
-            derive_firmware_capabilities=self._derive_firmware_capabilities,
-            derive_os_capabilities=self._derive_os_capabilities,
-        )
-
-    def _compute_object_capability_projections(
-        self,
-        *,
-        object_map: dict[str, dict[str, Any]],
-        catalog_ids: set[str],
-    ) -> None:
-        """Compute object-level capability projections without diagnostics."""
-        self._object_derived_caps, self._object_effective_os = compute_object_capability_projections(
-            object_map=object_map,
-            catalog_ids=catalog_ids,
-            derive_firmware_capabilities=self._derive_firmware_capabilities,
-            derive_os_capabilities=self._derive_os_capabilities,
-        )
-
-    def _validate_capability_contract(
-        self,
-        *,
-        class_map: dict[str, dict[str, Any]],
-        object_map: dict[str, dict[str, Any]],
-        catalog_ids: set[str],
-        packs_map: dict[str, dict[str, Any]],
-    ) -> None:
-        self._object_derived_caps, self._object_effective_os = validate_capability_contract(
-            class_map=class_map,
-            object_map=object_map,
-            catalog_ids=catalog_ids,
-            packs_map=packs_map,
-            require_new_model=self.require_new_model,
-            add_diag=self.add_diag,
-            default_firmware_policy=self._default_firmware_policy,
-            expand_capabilities=self._expand_capabilities,
-            derive_os_capabilities=self._derive_os_capabilities,
-            derive_firmware_capabilities=self._derive_firmware_capabilities,
-        )
-
-    def _load_instance_rows(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
-        return load_instance_rows(payload=payload, add_diag=self.add_diag)
-
-    def _validate_refs(
-        self,
-        *,
-        rows: list[dict[str, Any]],
-        class_map: dict[str, dict[str, Any]],
-        object_map: dict[str, dict[str, Any]],
-        catalog_ids: set[str],
-    ) -> None:
-        self._instance_derived_caps, self._instance_software_refs = validate_refs(
-            rows=rows,
-            class_map=class_map,
-            object_map=object_map,
-            catalog_ids=catalog_ids,
-            add_diag=self.add_diag,
-            default_firmware_policy=self._default_firmware_policy,
-            extract_architecture=self._extract_architecture,
-            extract_os_installation_model=self._extract_os_installation_model,
-            derive_firmware_capabilities=self._derive_firmware_capabilities,
-            derive_os_capabilities=self._derive_os_capabilities,
-        )
-
-    def _validate_embedded_in(
-        self,
-        *,
-        rows: list[dict[str, Any]],
-        object_map: dict[str, dict[str, Any]],
-    ) -> None:
-        validate_embedded_in(
-            rows=rows,
-            object_map=object_map,
-            add_diag=self.add_diag,
-            extract_os_installation_model=self._extract_os_installation_model,
-        )
-
-    def _validate_model_lock(
-        self,
-        *,
-        rows: list[dict[str, Any]],
-        class_map: dict[str, dict[str, Any]],
-        object_map: dict[str, dict[str, Any]],
-        lock_payload: dict[str, Any] | None,
-    ) -> None:
-        validate_model_lock(
-            rows=rows,
-            class_map=class_map,
-            object_map=object_map,
-            lock_payload=lock_payload,
-            strict_model_lock=self.strict_model_lock,
-            add_diag=self.add_diag,
-        )
-
-    def _build_effective(
-        self,
-        *,
-        manifest: dict[str, Any],
-        class_map: dict[str, dict[str, Any]],
-        object_map: dict[str, dict[str, Any]],
-        rows: list[dict[str, Any]],
-        source_manifest_digest: str,
-    ) -> dict[str, Any]:
-        compiled_at = self._run_generated_at or utc_now()
-        return build_effective(
-            manifest=manifest,
-            topology_manifest_path=str(self.manifest_path.relative_to(REPO_ROOT).as_posix()),
-            generated_at=compiled_at,
-            class_map=class_map,
-            object_map=object_map,
-            rows=rows,
-            object_derived_caps=self._object_derived_caps,
-            object_effective_os=self._object_effective_os,
-            instance_derived_caps=self._instance_derived_caps,
-            instance_software_refs=self._instance_software_refs,
-            default_firmware_policy=self._default_firmware_policy,
-            compiled_model_version=COMPILED_MODEL_VERSION,
-            compiler_pipeline_version=COMPILER_PIPELINE_VERSION,
-            source_manifest_digest=source_manifest_digest,
-        )
-
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
         return write_diagnostics_report(
             diagnostics=self._diagnostics,
@@ -722,14 +349,20 @@ class V5Compiler:
             now_iso=utc_now,
         )
 
+    def _print_summary(self, *, total: int, errors: int, warnings: int, infos: int, emit_effective: bool) -> None:
+        print(f"Compile summary: total={total} errors={errors} warnings={warnings} infos={infos}")
+        print(f"Diagnostics JSON: {self.diagnostics_json}")
+        print(f"Diagnostics TXT:  {self.diagnostics_txt}")
+        if emit_effective and errors == 0:
+            print(f"Effective JSON:   {self.output_json}")
+
     def run(self) -> int:
         self._run_generated_at = utc_now()
+        self._legacy.reset_state()
         manifest = self._load_yaml(self.manifest_path, code_missing="E1001", code_parse="E1003", stage="load")
         if manifest is None:
-            _, errors, warnings, infos = self._write_diagnostics()[0:4]
-            print(f"Compile summary: total={len(self._diagnostics)} errors={errors} warnings={warnings} infos={infos}")
-            print(f"Diagnostics JSON: {self.diagnostics_json}")
-            print(f"Diagnostics TXT:  {self.diagnostics_txt}")
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1
 
         manifest_paths = manifest.get("paths")
@@ -741,37 +374,40 @@ class V5Compiler:
                 message="topology manifest must contain mapping key 'paths'.",
                 path="v5/topology/topology.yaml",
             )
-            self._write_diagnostics()
-            print(
-                f"Compile summary: total={len(self._diagnostics)} "
-                f"errors={sum(1 for d in self._diagnostics if d.severity == 'error')} "
-                f"warnings={sum(1 for d in self._diagnostics if d.severity == 'warning')} "
-                f"infos={sum(1 for d in self._diagnostics if d.severity == 'info')}"
-            )
-            print(f"Diagnostics JSON: {self.diagnostics_json}")
-            print(f"Diagnostics TXT:  {self.diagnostics_txt}")
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1
 
         manifest_bundle = resolve_manifest_paths(
             manifest_paths=manifest_paths,
             resolve_repo_path=resolve_repo_path,
         )
-        source_manifest_digest = self._manifest_digest(manifest)
+        source_manifest_digest = manifest_digest(manifest)
         inputs = load_core_compile_inputs(
             paths=manifest_bundle,
             compilation_owner=self._compilation_owner,
-            load_module_map=self._load_module_map,
-            load_capability_contract=self._load_capability_contract,
+            load_module_map=self._legacy.load_module_map,
+            load_capability_contract=self._legacy.load_capability_contract,
             load_yaml=self._load_yaml,
-            load_instance_rows=self._load_instance_rows,
+            load_instance_rows=self._legacy.load_instance_rows,
         )
 
         # Create shared plugin context (ADR 0063 Phase 3)
         # Context persists across stages so publish/subscribe works
         plugin_ctx: PluginContext | None = None
         if self.enable_plugins:
-            plugin_ctx = self._create_plugin_context(
-                manifest=manifest,
+            plugin_ctx = create_plugin_context(
+                manifest_path=self.manifest_path,
+                repo_root=REPO_ROOT,
+                runtime_profile=self.runtime_profile,
+                strict_model_lock=self.strict_model_lock,
+                pipeline_mode=self.pipeline_mode,
+                parity_gate=self.parity_gate,
+                raw_manifest=manifest,
+                run_generated_at=self._run_generated_at or utc_now(),
+                compiled_model_version=COMPILED_MODEL_VERSION,
+                compiler_pipeline_version=COMPILER_PIPELINE_VERSION,
+                source_manifest_digest=source_manifest_digest,
                 class_modules_root=manifest_bundle.class_modules_root,
                 object_modules_root=manifest_bundle.object_modules_root,
                 class_map=inputs.class_map,
@@ -784,7 +420,13 @@ class V5Compiler:
                 capability_packs_path=manifest_bundle.capability_packs_path,
                 model_lock_path=manifest_bundle.model_lock_path,
                 lock_payload=inputs.lock_payload,
-                source_manifest_digest=source_manifest_digest,
+                output_dir=self.output_json.parent,
+                source_file=self.manifest_path,
+                compiled_file=self.output_json,
+                require_new_model=self.require_new_model,
+                validation_owner=self._validation_owner,
+                compilation_owner=self._compilation_owner,
+                artifact_owner=self._artifact_owner,
             )
             # Execute compiler plugins first
             self._execute_plugins(stage=Stage.COMPILE, ctx=plugin_ctx)
@@ -805,28 +447,34 @@ class V5Compiler:
             validation_owner=self._validation_owner,
             legacy_effective_needed=legacy_effective_needed,
             inputs=inputs,
-            validate_refs=self._validate_refs,
-            compute_reference_projections=self._compute_reference_projections,
-            validate_embedded_in=self._validate_embedded_in,
-            validate_capability_contract=self._validate_capability_contract,
-            compute_object_capability_projections=self._compute_object_capability_projections,
-            validate_model_lock=self._validate_model_lock,
+            validate_refs=self._legacy.validate_refs,
+            compute_reference_projections=self._legacy.compute_reference_projections,
+            validate_embedded_in=self._legacy.validate_embedded_in,
+            validate_capability_contract=self._legacy.validate_capability_contract,
+            compute_object_capability_projections=self._legacy.compute_object_capability_projections,
+            validate_model_lock=self._legacy.validate_model_lock,
         )
 
         # Build effective payload before validator/generator stages so plugins
         # share one compiled model contract (ADR 0069 WS1).
         legacy_effective_payload: dict[str, Any] = {}
         if legacy_effective_needed:
-            legacy_effective_payload = self._build_effective(
+            legacy_effective_payload = self._legacy.build_effective(
                 manifest=manifest,
+                generated_at=self._run_generated_at or utc_now(),
                 class_map=inputs.class_map,
                 object_map=inputs.object_map,
                 rows=inputs.rows,
                 source_manifest_digest=source_manifest_digest,
             )
-        effective_payload = self._select_effective_payload(
+        effective_payload = select_effective_payload(
+            mode=self.pipeline_mode,
+            parity_gate=self.parity_gate,
+            enable_plugins=self.enable_plugins,
             legacy_payload=legacy_effective_payload,
             plugin_payload=plugin_effective_payload,
+            canonicalize_payload=canonicalize_payload,
+            add_diag=self.add_diag,
         )
         if plugin_ctx:
             plugin_ctx.compiled_json = effective_payload
@@ -852,11 +500,7 @@ class V5Compiler:
         )
 
         total, errors, warnings, infos = self._write_diagnostics()
-        print(f"Compile summary: total={total} errors={errors} warnings={warnings} infos={infos}")
-        print(f"Diagnostics JSON: {self.diagnostics_json}")
-        print(f"Diagnostics TXT:  {self.diagnostics_txt}")
-        if errors == 0:
-            print(f"Effective JSON:   {self.output_json}")
+        self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=True)
 
         if errors > 0:
             return 1
@@ -927,7 +571,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--enable-plugins",
         action="store_true",
-        help="Enable plugin execution (ADR 0063). Runs validator plugins after built-in validation.",
+        help="Enable plugin execution (ADR 0063/0069). Executes compile/validate/generate plugin stages.",
     )
     parser.add_argument(
         "--plugins-manifest",

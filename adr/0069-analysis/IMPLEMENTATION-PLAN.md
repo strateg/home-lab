@@ -2,7 +2,7 @@
 
 **ADR:** `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md`
 **Date:** 2026-03-10
-**Status:** In Progress (WS1 implemented, WS2 started)
+**Status:** In Progress (WS1-WS5 refactor skeleton implemented; legacy cleanup in progress)
 **Cutover Checklist:** `adr/0069-analysis/CUTOVER-CHECKLIST.md`
 
 ---
@@ -181,6 +181,21 @@ Exit criteria:
 1. Core file size and complexity reduced substantially.
 2. No direct business-rule validation in core.
 3. Inherited ADR0005/0027/0028/0046/0050 guardrails pass checklist.
+
+Progress note (2026-03-11):
+
+1. `compile-topology.py` reduced to thin orchestration core (~558 LOC from ~2000+ baseline).
+2. Orchestration responsibilities extracted to dedicated helpers:
+   - `compiler_runtime.py`
+   - `compiler_decisions.py`
+   - `compiler_reporting.py`
+   - `compiler_validation_flow.py`
+   - `compiler_plugin_context.py`
+   - `compiler_contract.py`
+   - `compiler_ownership.py`
+3. Legacy domain rules/loaders/effective assembly isolated behind:
+   - `compiler_legacy_bridge.py`
+4. Core no longer contains inlined legacy validation/effective assembly logic; it delegates through explicit ownership + bridge boundaries.
 
 ---
 
