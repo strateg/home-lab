@@ -596,6 +596,51 @@ class PluginRegistry:
         """
         results: list[PluginResult] = []
         plugin_ids = self.get_execution_order(stage, profile)
+        available_capabilities: set[str] = set()
+        for spec in self.specs.values():
+            if (
+                spec.profile_restrictions is not None
+                and profile is not None
+                and profile not in spec.profile_restrictions
+            ):
+                continue
+            for capability in spec.capabilities:
+                if isinstance(capability, str) and capability:
+                    available_capabilities.add(capability)
+
+        preflight_diags: list[PluginDiagnostic] = []
+        for plugin_id in plugin_ids:
+            spec = self.specs.get(plugin_id)
+            if not isinstance(spec, PluginSpec):
+                continue
+            missing = sorted(
+                capability
+                for capability in spec.requires_capabilities
+                if isinstance(capability, str) and capability and capability not in available_capabilities
+            )
+            if missing:
+                preflight_diags.append(
+                    PluginDiagnostic(
+                        code="E4010",
+                        severity="error",
+                        stage=stage.value,
+                        message=(
+                            f"Plugin '{plugin_id}' requires missing capabilities: {missing}. "
+                            "Provide capability-producing plugins or adjust requires_capabilities."
+                        ),
+                        path=f"plugin:{plugin_id}",
+                        plugin_id="kernel",
+                    )
+                )
+        if preflight_diags:
+            result = PluginResult.failed(
+                plugin_id="kernel.capability_guard",
+                api_version=KERNEL_API_VERSION,
+                diagnostics=preflight_diags,
+            )
+            results.append(result)
+            self._results.append(result)
+            return results
 
         for plugin_id in plugin_ids:
             result = self.execute_plugin(plugin_id, ctx, stage)

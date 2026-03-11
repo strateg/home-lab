@@ -197,6 +197,11 @@ codes:
     stage: load
     title: Duplicate Plugin ID
     hint: Plugin IDs must be globally unique across all manifests.
+  E4010:
+    severity: error
+    stage: validate
+    title: Plugin Capability Mismatch
+    hint: Add capability-providing plugins or update requires_capabilities declarations.
   E4101:
     severity: error
     stage: validate

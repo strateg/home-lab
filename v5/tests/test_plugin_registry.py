@@ -391,6 +391,87 @@ def test_execute_stage():
     print("PASS: Stage execution works")
 
 
+def test_execute_stage_fails_on_capability_mismatch(tmp_path: Path):
+    """Stage execution must fail fast when requires_capabilities is unsatisfied."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "captest.validator_json.consumer",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "requires_capabilities": ["cap.kernel.missing"],
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test-real",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx)
+    assert len(results) == 1
+    assert results[0].plugin_id == "kernel.capability_guard"
+    assert results[0].status == PluginStatus.FAILED
+    assert any(diag.code == "E4010" for diag in results[0].diagnostics)
+
+
+def test_execute_stage_allows_when_capability_is_provided(tmp_path: Path):
+    """Requires-capabilities check should pass when provider plugin declares capability."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "captest.validator_json.provider",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 50,
+                "capabilities": ["cap.kernel.available"],
+            },
+            {
+                "id": "captest.validator_json.consumer",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "requires_capabilities": ["cap.kernel.available"],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test-real",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx)
+    assert len(results) == 2
+    assert all(result.plugin_id != "kernel.capability_guard" for result in results)
+
+
 def test_timeout_does_not_block_pipeline():
     """Timeout should return promptly instead of waiting for plugin completion."""
     registry = PluginRegistry(V5_TOOLS)
@@ -595,6 +676,8 @@ if __name__ == "__main__":
         test_kernel_info,
         test_config_injection,
         test_execute_stage,
+        test_execute_stage_fails_on_capability_mismatch,
+        test_execute_stage_allows_when_capability_is_provided,
         test_timeout_does_not_block_pipeline,
         test_runtime_config_takes_precedence,
         # ADR 0065 inter-plugin data exchange tests
