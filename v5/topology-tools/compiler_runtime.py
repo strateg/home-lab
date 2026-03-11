@@ -455,17 +455,43 @@ def apply_plugin_compile_outputs(
     compilation_owner: Callable[[str], str],
     add_diag: Callable[..., None],
 ) -> None:
+    def _plugin_outputs() -> dict[str, Any]:
+        outputs = plugin_ctx.plugin_outputs if isinstance(getattr(plugin_ctx, "plugin_outputs", None), dict) else {}
+        return outputs
+
+    def _find_output(*, key: str) -> list[tuple[str, Any]]:
+        matches: list[tuple[str, Any]] = []
+        for plugin_id, payload in _plugin_outputs().items():
+            if not isinstance(plugin_id, str):
+                continue
+            if not isinstance(payload, dict):
+                continue
+            if key in payload:
+                matches.append((plugin_id, payload[key]))
+        return matches
+
+    def _get_single_output(*, key: str) -> tuple[str, Any] | None:
+        matches = _find_output(key=key)
+        if not matches:
+            return None
+        if len(matches) == 1:
+            return matches[0]
+        add_diag(
+            code="E6901",
+            severity="error",
+            stage="validate",
+            message=(
+                f"Ambiguous plugin compile output for key '{key}': " f"{[plugin_id for plugin_id, _ in matches]}."
+            ),
+            path="pipeline:mode",
+        )
+        return None
+
     if compilation_owner("model_lock_data") == "plugin":
-        plugin_lock_payload = (
-            plugin_ctx.plugin_outputs.get("base.compiler.model_lock_loader", {}).get("lock_payload")
-            if isinstance(plugin_ctx.plugin_outputs, dict)
-            else None
-        )
-        plugin_lock_loaded = (
-            plugin_ctx.plugin_outputs.get("base.compiler.model_lock_loader", {}).get("model_lock_loaded")
-            if isinstance(plugin_ctx.plugin_outputs, dict)
-            else None
-        )
+        lock_payload_entry = _get_single_output(key="lock_payload")
+        lock_loaded_entry = _get_single_output(key="model_lock_loaded")
+        plugin_lock_payload = lock_payload_entry[1] if isinstance(lock_payload_entry, tuple) else None
+        plugin_lock_loaded = lock_loaded_entry[1] if isinstance(lock_loaded_entry, tuple) else None
         if isinstance(plugin_lock_payload, dict):
             inputs.lock_payload = plugin_lock_payload
             plugin_ctx.model_lock = plugin_lock_payload
@@ -475,16 +501,10 @@ def apply_plugin_compile_outputs(
             plugin_ctx.config["model_lock_loaded"] = isinstance(inputs.lock_payload, dict)
 
     if compilation_owner("module_maps") == "plugin":
-        plugin_class_map = (
-            plugin_ctx.plugin_outputs.get("base.compiler.module_loader", {}).get("class_map")
-            if isinstance(plugin_ctx.plugin_outputs, dict)
-            else None
-        )
-        plugin_object_map = (
-            plugin_ctx.plugin_outputs.get("base.compiler.module_loader", {}).get("object_map")
-            if isinstance(plugin_ctx.plugin_outputs, dict)
-            else None
-        )
+        class_map_entry = _get_single_output(key="class_map")
+        object_map_entry = _get_single_output(key="object_map")
+        plugin_class_map = class_map_entry[1] if isinstance(class_map_entry, tuple) else None
+        plugin_object_map = object_map_entry[1] if isinstance(object_map_entry, tuple) else None
         if isinstance(plugin_class_map, dict) and isinstance(plugin_object_map, dict):
             inputs.class_map = plugin_class_map
             inputs.object_map = plugin_object_map
@@ -501,11 +521,8 @@ def apply_plugin_compile_outputs(
             )
 
     if compilation_owner("instance_rows") == "plugin":
-        plugin_rows = (
-            plugin_ctx.plugin_outputs.get("base.compiler.instance_rows", {}).get("normalized_rows")
-            if isinstance(plugin_ctx.plugin_outputs, dict)
-            else None
-        )
+        rows_entry = _get_single_output(key="normalized_rows")
+        plugin_rows = rows_entry[1] if isinstance(rows_entry, tuple) else None
         if isinstance(plugin_rows, list):
             inputs.rows = [item for item in plugin_rows if isinstance(item, dict)]
         else:
@@ -522,16 +539,10 @@ def apply_plugin_compile_outputs(
         plugin_ctx.config["normalized_rows"] = inputs.rows
 
     if compilation_owner("capability_contract_data") == "plugin":
-        plugin_catalog_ids = (
-            plugin_ctx.plugin_outputs.get("base.compiler.capability_contract_loader", {}).get("catalog_ids")
-            if isinstance(plugin_ctx.plugin_outputs, dict)
-            else None
-        )
-        plugin_packs_map = (
-            plugin_ctx.plugin_outputs.get("base.compiler.capability_contract_loader", {}).get("packs_map")
-            if isinstance(plugin_ctx.plugin_outputs, dict)
-            else None
-        )
+        catalog_entry = _get_single_output(key="catalog_ids")
+        packs_entry = _get_single_output(key="packs_map")
+        plugin_catalog_ids = catalog_entry[1] if isinstance(catalog_entry, tuple) else None
+        plugin_packs_map = packs_entry[1] if isinstance(packs_entry, tuple) else None
         if isinstance(plugin_catalog_ids, list) and isinstance(plugin_packs_map, dict):
             inputs.catalog_ids = {item for item in plugin_catalog_ids if isinstance(item, str)}
             inputs.packs_map = plugin_packs_map
