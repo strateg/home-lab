@@ -66,3 +66,7 @@ def test_effective_model_compiler_publishes_candidate():
     assert isinstance(ctx.compiled_json, dict)
     assert "instances" in ctx.compiled_json
     assert "l1_devices" in ctx.compiled_json["instances"]
+    assert ctx.compiled_json["compiled_model_version"] == "1.0"
+    assert isinstance(ctx.compiled_json.get("compiled_at"), str)
+    assert isinstance(ctx.compiled_json.get("compiler_pipeline_version"), str)
+    assert isinstance(ctx.compiled_json.get("source_manifest_digest"), str)

@@ -59,9 +59,10 @@ def _run_compile(tmp_path: Path, *, enable_plugins: bool) -> tuple[dict[str, Any
     return effective, report
 
 
-def _without_generated_at(payload: dict[str, Any]) -> dict[str, Any]:
+def _without_runtime_timestamps(payload: dict[str, Any]) -> dict[str, Any]:
     copied = dict(payload)
     copied.pop("generated_at", None)
+    copied.pop("compiled_at", None)
     return copied
 
 
@@ -71,7 +72,7 @@ def test_plugin_compile_parity(tmp_path: Path) -> None:
     plugin_output, plugin_report = _run_compile(tmp_path, enable_plugins=True)
 
     assert plugin_report["summary"]["errors"] == baseline_report["summary"]["errors"]
-    assert _without_generated_at(plugin_output) == _without_generated_at(baseline_output)
+    assert _without_runtime_timestamps(plugin_output) == _without_runtime_timestamps(baseline_output)
 
     # Ensure plugin execution was actually enabled.
     plugin_diagnostics = plugin_report.get("diagnostics", [])

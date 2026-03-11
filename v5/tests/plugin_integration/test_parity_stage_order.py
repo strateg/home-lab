@@ -100,6 +100,10 @@ def test_pipeline_mode_plugin_first_uses_plugin_compiled_json(monkeypatch):
         "version": "plugin-first",
         "model": "plugin-candidate",
         "generated_at": "2026-03-11T00:00:00+00:00",
+        "compiled_model_version": "1.0",
+        "compiled_at": "2026-03-11T00:00:00+00:00",
+        "compiler_pipeline_version": "adr0069-ws2",
+        "source_manifest_digest": "test-manifest-digest",
         "topology_manifest": "test",
         "classes": {},
         "objects": {},
@@ -156,6 +160,10 @@ def test_parity_gate_fails_on_drift(monkeypatch):
         "version": "plugin-first",
         "model": "drift",
         "generated_at": "2026-03-11T00:00:00+00:00",
+        "compiled_model_version": "1.0",
+        "compiled_at": "2026-03-11T00:00:00+00:00",
+        "compiler_pipeline_version": "adr0069-ws2",
+        "source_manifest_digest": "test-manifest-digest",
         "topology_manifest": "test",
         "classes": {},
         "objects": {},
@@ -171,3 +179,85 @@ def test_parity_gate_fails_on_drift(monkeypatch):
     exit_code = compiler.run()
     assert exit_code == 1
     assert any(d.code == "E6902" for d in compiler._diagnostics)
+
+
+def test_compiled_model_contract_rejects_incompatible_version(monkeypatch):
+    mod = _load_compiler_module()
+    test_output_dir = mod.REPO_ROOT / "v5-build" / "test-compiled-contract-version"
+
+    compiler = mod.V5Compiler(
+        manifest_path=mod.DEFAULT_MANIFEST,
+        output_json=test_output_dir / "effective-topology.json",
+        diagnostics_json=test_output_dir / "diagnostics.json",
+        diagnostics_txt=test_output_dir / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        pipeline_mode="plugin-first",
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+    )
+
+    plugin_payload = {
+        "version": "plugin-first",
+        "model": "plugin-candidate",
+        "generated_at": "2026-03-11T00:00:00+00:00",
+        "compiled_model_version": "2.0",
+        "compiled_at": "2026-03-11T00:00:00+00:00",
+        "compiler_pipeline_version": "adr0069-ws2",
+        "source_manifest_digest": "test-manifest-digest",
+        "topology_manifest": "test",
+        "classes": {},
+        "objects": {},
+        "instances": {},
+    }
+
+    def _record_execute_plugins(*, stage, ctx):
+        if stage.value == "compile":
+            ctx.compiled_json = plugin_payload
+            ctx.plugin_outputs["base.compiler.module_loader"] = {
+                "class_map": {},
+                "object_map": {},
+            }
+            ctx.plugin_outputs["base.compiler.instance_rows"] = {"normalized_rows": []}
+            ctx.plugin_outputs["base.compiler.capability_contract_loader"] = {
+                "catalog_ids": [],
+                "packs_map": {},
+            }
+
+    monkeypatch.setattr(compiler, "_execute_plugins", _record_execute_plugins)
+
+    exit_code = compiler.run()
+    assert exit_code == 1
+    assert any(d.code == "E6903" for d in compiler._diagnostics)
+
+
+def test_runtime_profile_is_propagated_to_plugin_context(monkeypatch):
+    mod = _load_compiler_module()
+    test_output_dir = mod.REPO_ROOT / "v5-build" / "test-runtime-profile"
+
+    compiler = mod.V5Compiler(
+        manifest_path=mod.DEFAULT_MANIFEST,
+        output_json=test_output_dir / "effective-topology.json",
+        diagnostics_json=test_output_dir / "diagnostics.json",
+        diagnostics_txt=test_output_dir / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        runtime_profile="modeled",
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+    )
+
+    seen_profiles: list[str] = []
+
+    def _record_execute_plugins(*, stage, ctx):
+        seen_profiles.append(ctx.profile)
+
+    monkeypatch.setattr(compiler, "_execute_plugins", _record_execute_plugins)
+
+    exit_code = compiler.run()
+    assert exit_code == 0
+    assert seen_profiles == ["modeled", "modeled", "modeled"]

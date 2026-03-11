@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from dataclasses import dataclass
@@ -18,8 +19,9 @@ TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
 from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
+from legacy_effective import build_effective, compute_object_capability_projections, compute_reference_projections
 from legacy_loaders import load_capability_contract, load_instance_rows, load_module_map
-from legacy_validators import validate_embedded_in, validate_model_lock, validate_refs
+from legacy_validators import validate_capability_contract, validate_embedded_in, validate_model_lock, validate_refs
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPO_ROOT / "v5" / "topology" / "topology.yaml"
@@ -30,6 +32,10 @@ DEFAULT_ERROR_CATALOG = REPO_ROOT / "v5" / "topology-tools" / "data" / "error-ca
 DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 
 SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
+SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
+COMPILED_MODEL_VERSION = "1.0"
+COMPILER_PIPELINE_VERSION = "adr0069-ws2"
+SUPPORTED_COMPILED_MODEL_MAJOR = {"1"}
 
 
 def resolve_repo_path(value: str) -> Path:
@@ -97,6 +103,7 @@ class V5Compiler:
         strict_model_lock: bool,
         fail_on_warning: bool,
         require_new_model: bool,
+        runtime_profile: str = "production",
         pipeline_mode: str = "legacy",
         parity_gate: bool = False,
         enable_plugins: bool = False,
@@ -110,6 +117,7 @@ class V5Compiler:
         self.strict_model_lock = strict_model_lock
         self.fail_on_warning = fail_on_warning
         self.require_new_model = require_new_model
+        self.runtime_profile = runtime_profile
         self.pipeline_mode = pipeline_mode
         self.parity_gate = parity_gate
         self.enable_plugins = enable_plugins
@@ -207,6 +215,7 @@ class V5Compiler:
         capability_packs_path: Path,
         model_lock_path: Path,
         lock_payload: dict[str, Any] | None,
+        source_manifest_digest: str,
     ) -> PluginContext:
         """Create a plugin context that persists across stages."""
         embedded_in_owner = self._validation_owner("embedded_in")
@@ -228,7 +237,7 @@ class V5Compiler:
         }
         return PluginContext(
             topology_path=str(self.manifest_path.relative_to(REPO_ROOT).as_posix()),
-            profile="production",  # TODO: make configurable
+            profile=self.runtime_profile,
             model_lock=lock_payload or {},
             raw_yaml=manifest,
             classes={class_id: item["payload"] for class_id, item in class_map.items()},
@@ -239,6 +248,10 @@ class V5Compiler:
                 "pipeline_mode": self.pipeline_mode,
                 "parity_gate": self.parity_gate,
                 "compile_generated_at": self._run_generated_at or utc_now(),
+                "compiled_model_version": COMPILED_MODEL_VERSION,
+                "compiler_pipeline_version": COMPILER_PIPELINE_VERSION,
+                "source_manifest_digest": source_manifest_digest,
+                "runtime_profile": self.runtime_profile,
                 "validation_owner_embedded_in": embedded_in_owner,
                 "validation_owner_model_lock": model_lock_owner,
                 "validation_owner_references": references_owner,
@@ -323,7 +336,7 @@ class V5Compiler:
             return
 
         # Execute plugins for stage
-        results = self._plugin_registry.execute_stage(stage, ctx)
+        results = self._plugin_registry.execute_stage(stage, ctx, profile=self.runtime_profile)
         self._plugin_results.extend(results)
 
         # Convert plugin diagnostics to compiler diagnostics
@@ -381,6 +394,58 @@ class V5Compiler:
     @staticmethod
     def _canonicalize_payload(payload: dict[str, Any]) -> str:
         return json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"), default=str)
+
+    def _manifest_digest(self, manifest: dict[str, Any]) -> str:
+        canonical = self._canonicalize_payload(manifest)
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+    def _validate_compiled_model_contract(self, payload: dict[str, Any]) -> bool:
+        if not isinstance(payload, dict):
+            self.add_diag(
+                code="E6903",
+                severity="error",
+                stage="validate",
+                message="compiled_json payload must be an object.",
+                path="compiled_json",
+            )
+            return False
+
+        required_string_keys = (
+            "compiled_model_version",
+            "compiled_at",
+            "compiler_pipeline_version",
+            "source_manifest_digest",
+        )
+        has_errors = False
+        for key in required_string_keys:
+            value = payload.get(key)
+            if not isinstance(value, str) or not value:
+                has_errors = True
+                self.add_diag(
+                    code="E6903",
+                    severity="error",
+                    stage="validate",
+                    message=f"compiled model contract requires non-empty string key '{key}'.",
+                    path=f"compiled_json.{key}",
+                )
+
+        version = payload.get("compiled_model_version")
+        if isinstance(version, str) and version:
+            major = version.split(".", 1)[0]
+            if major not in SUPPORTED_COMPILED_MODEL_MAJOR:
+                has_errors = True
+                self.add_diag(
+                    code="E6903",
+                    severity="error",
+                    stage="validate",
+                    message=(
+                        f"incompatible compiled_model_version '{version}'; "
+                        f"supported majors: {sorted(SUPPORTED_COMPILED_MODEL_MAJOR)}."
+                    ),
+                    path="compiled_json.compiled_model_version",
+                )
+
+        return not has_errors
 
     def _select_effective_payload(
         self,
@@ -822,91 +887,14 @@ class V5Compiler:
         Used in plugin-first mode where reference diagnostics are owned by plugin
         validator, while legacy effective payload still needs projection side effects.
         """
-        row_by_id: dict[str, dict[str, Any]] = {}
-        for row in rows:
-            row_id = row.get("instance")
-            if isinstance(row_id, str) and row_id:
-                row_by_id[row_id] = row
-
-        self._instance_derived_caps = {}
-        self._instance_software_refs = {}
-
-        for row in rows:
-            class_ref = row.get("class_ref")
-            object_ref = row.get("object_ref")
-            row_id = row.get("instance")
-            path = f"instance:{row.get('group')}:{row.get('instance')}"
-            if not isinstance(class_ref, str) or not class_ref:
-                continue
-            if not isinstance(object_ref, str) or not object_ref:
-                continue
-            if not isinstance(row_id, str) or not row_id:
-                continue
-
-            firmware_ref = row.get("firmware_ref")
-            os_refs = row.get("os_refs", []) or []
-            if not isinstance(os_refs, list):
-                os_refs = []
-
-            firmware_row: dict[str, Any] | None = None
-            if isinstance(firmware_ref, str):
-                firmware_row = row_by_id.get(firmware_ref)
-
-            resolved_os_rows: list[dict[str, Any]] = []
-            for os_ref in os_refs:
-                os_row = row_by_id.get(os_ref)
-                if not isinstance(os_row, dict):
-                    continue
-                if os_row.get("class_ref") != "class.os":
-                    continue
-                resolved_os_rows.append(os_row)
-
-            firmware_effective: dict[str, Any] | None = None
-            derived_caps: set[str] = set()
-            if isinstance(firmware_row, dict):
-                firmware_object_ref = firmware_row.get("object_ref")
-                if isinstance(firmware_object_ref, str):
-                    firmware_object_payload = object_map.get(firmware_object_ref, {}).get("payload", {})
-                    fw_caps, fw_effective = self._derive_firmware_capabilities(
-                        object_id=firmware_object_ref,
-                        object_payload=firmware_object_payload,
-                        catalog_ids=catalog_ids,
-                        path=path,
-                        emit_diagnostics=False,
-                    )
-                    derived_caps.update(fw_caps)
-                    firmware_effective = fw_effective
-
-            resolved_os_refs: list[str] = []
-            resolved_os_effective: list[dict[str, Any]] = []
-            for os_row in resolved_os_rows:
-                os_instance_id = os_row.get("instance")
-                os_object_ref = os_row.get("object_ref")
-                if not isinstance(os_object_ref, str):
-                    continue
-                os_object_payload = object_map.get(os_object_ref, {}).get("payload", {})
-                os_caps, os_effective = self._derive_os_capabilities(
-                    object_id=os_object_ref,
-                    object_payload=os_object_payload,
-                    catalog_ids=catalog_ids,
-                    path=path,
-                    emit_diagnostics=False,
-                )
-                derived_caps.update(os_caps)
-                if isinstance(os_effective, dict):
-                    resolved_os_effective.append(os_effective)
-                if isinstance(os_instance_id, str):
-                    resolved_os_refs.append(os_instance_id)
-
-            self._instance_derived_caps[row_id] = sorted(derived_caps)
-            self._instance_software_refs[row_id] = {
-                "firmware_ref": firmware_ref if isinstance(firmware_ref, str) else None,
-                "os_refs": [ref for ref in resolved_os_refs if isinstance(ref, str)],
-                "effective": {
-                    "firmware": firmware_effective,
-                    "os": resolved_os_effective,
-                },
-            }
+        _ = class_map
+        self._instance_derived_caps, self._instance_software_refs = compute_reference_projections(
+            rows=rows,
+            object_map=object_map,
+            catalog_ids=catalog_ids,
+            derive_firmware_capabilities=self._derive_firmware_capabilities,
+            derive_os_capabilities=self._derive_os_capabilities,
+        )
 
     def _compute_object_capability_projections(
         self,
@@ -915,29 +903,12 @@ class V5Compiler:
         catalog_ids: set[str],
     ) -> None:
         """Compute object-level capability projections without diagnostics."""
-        self._object_derived_caps = {}
-        self._object_effective_os = {}
-        for object_id, object_item in object_map.items():
-            object_payload = object_item.get("payload", {})
-            if not isinstance(object_payload, dict):
-                continue
-            derived_os_caps, effective_os = self._derive_os_capabilities(
-                object_id=object_id,
-                object_payload=object_payload,
-                catalog_ids=catalog_ids,
-                path=f"object:{object_id}",
-                emit_diagnostics=False,
-            )
-            _derived_firmware_caps, _ = self._derive_firmware_capabilities(
-                object_id=object_id,
-                object_payload=object_payload,
-                catalog_ids=catalog_ids,
-                path=f"object:{object_id}",
-                emit_diagnostics=False,
-            )
-            self._object_derived_caps[object_id] = sorted(derived_os_caps)
-            if effective_os:
-                self._object_effective_os[object_id] = effective_os
+        self._object_derived_caps, self._object_effective_os = compute_object_capability_projections(
+            object_map=object_map,
+            catalog_ids=catalog_ids,
+            derive_firmware_capabilities=self._derive_firmware_capabilities,
+            derive_os_capabilities=self._derive_os_capabilities,
+        )
 
     def _validate_capability_contract(
         self,
@@ -947,316 +918,18 @@ class V5Compiler:
         catalog_ids: set[str],
         packs_map: dict[str, dict[str, Any]],
     ) -> None:
-        class_cap_sets: dict[str, set[str]] = {}
-        class_required_sets: dict[str, set[str]] = {}
-        valid_os_policies = {"required", "allowed", "forbidden"}
-        valid_firmware_policies = {"required", "allowed", "forbidden"}
-        for class_id, class_item in class_map.items():
-            class_payload = class_item["payload"]
-            required = class_payload.get("required_capabilities", []) or []
-            optional = class_payload.get("optional_capabilities", []) or []
-            pack_refs = class_payload.get("capability_packs", []) or []
-            os_policy_raw = class_payload.get("os_policy", "allowed")
-            firmware_policy_raw = class_payload.get("firmware_policy", self._default_firmware_policy(class_id))
-            path = str(class_item["path"].relative_to(REPO_ROOT).as_posix())
-
-            if not isinstance(required, list):
-                self.add_diag(
-                    code="E3201",
-                    severity="error",
-                    stage="validate",
-                    message=f"class '{class_id}' required_capabilities must be list.",
-                    path=path,
-                )
-                required = []
-            if not isinstance(optional, list):
-                self.add_diag(
-                    code="E3201",
-                    severity="error",
-                    stage="validate",
-                    message=f"class '{class_id}' optional_capabilities must be list.",
-                    path=path,
-                )
-                optional = []
-            if not isinstance(pack_refs, list):
-                self.add_diag(
-                    code="E3201",
-                    severity="error",
-                    stage="validate",
-                    message=f"class '{class_id}' capability_packs must be list.",
-                    path=path,
-                )
-                pack_refs = []
-
-            class_caps: set[str] = set()
-            class_required: set[str] = set()
-            for cap in required:
-                if not isinstance(cap, str) or not cap:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=f"class '{class_id}' has invalid required capability entry.",
-                        path=path,
-                    )
-                    continue
-                if cap not in catalog_ids:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=f"class '{class_id}' references unknown capability '{cap}'.",
-                        path=path,
-                    )
-                class_caps.add(cap)
-                class_required.add(cap)
-
-            for cap in optional:
-                if not isinstance(cap, str) or not cap:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=f"class '{class_id}' has invalid optional capability entry.",
-                        path=path,
-                    )
-                    continue
-                if cap not in catalog_ids:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=f"class '{class_id}' references unknown capability '{cap}'.",
-                        path=path,
-                    )
-                class_caps.add(cap)
-
-            for pack_ref in pack_refs:
-                if not isinstance(pack_ref, str) or not pack_ref:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=f"class '{class_id}' has invalid capability pack reference.",
-                        path=path,
-                    )
-                    continue
-                pack = packs_map.get(pack_ref)
-                if pack is None:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=f"class '{class_id}' references unknown capability pack '{pack_ref}'.",
-                        path=path,
-                    )
-                    continue
-                pack_class_ref = pack.get("class_ref")
-                if isinstance(pack_class_ref, str) and pack_class_ref and pack_class_ref != class_id:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=(f"class '{class_id}' references pack '{pack_ref}' bound to class '{pack_class_ref}'."),
-                        path=path,
-                    )
-                for cap in pack.get("capabilities", []) or []:
-                    if isinstance(cap, str):
-                        class_caps.add(cap)
-
-            if not isinstance(os_policy_raw, str) or os_policy_raw not in valid_os_policies:
-                self.add_diag(
-                    code="E3201",
-                    severity="error",
-                    stage="validate",
-                    message=(
-                        f"class '{class_id}' has invalid os_policy '{os_policy_raw}'. "
-                        "Expected one of: required, allowed, forbidden."
-                    ),
-                    path=path,
-                )
-
-            if not isinstance(firmware_policy_raw, str) or firmware_policy_raw not in valid_firmware_policies:
-                self.add_diag(
-                    code="E3201",
-                    severity="error",
-                    stage="validate",
-                    message=(
-                        f"class '{class_id}' has invalid firmware_policy '{firmware_policy_raw}'. "
-                        "Expected one of: required, allowed, forbidden."
-                    ),
-                    path=path,
-                )
-
-            class_cap_sets[class_id] = class_caps
-            class_required_sets[class_id] = class_required
-
-        for object_id, object_item in object_map.items():
-            object_payload = object_item["payload"]
-            path = str(object_item["path"].relative_to(REPO_ROOT).as_posix())
-            class_ref = object_payload.get("class_ref")
-            if not isinstance(class_ref, str) or not class_ref:
-                continue
-            if class_ref not in class_map:
-                continue
-
-            software_payload = object_payload.get("software")
-            prerequisites_payload = object_payload.get("prerequisites")
-            has_legacy_os = isinstance(software_payload, dict) and isinstance(software_payload.get("os"), dict)
-            has_legacy_os_ref = isinstance(prerequisites_payload, dict) and isinstance(
-                prerequisites_payload.get("os_ref"), str
-            )
-            if has_legacy_os or has_legacy_os_ref:
-                severity = "error" if self.require_new_model else "warning"
-                code = "E3202" if self.require_new_model else "W3201"
-                self.add_diag(
-                    code=code,
-                    severity=severity,
-                    stage="validate",
-                    message=(
-                        f"object '{object_id}' still contains legacy software binding fields "
-                        "(software.os or prerequisites.os_ref); migrate bindings to instance-level "
-                        "firmware_ref/os_refs."
-                    ),
-                    path=path,
-                )
-
-            derived_os_caps, effective_os = self._derive_os_capabilities(
-                object_id=object_id,
-                object_payload=object_payload,
-                catalog_ids=catalog_ids,
-                path=path,
-            )
-            derived_firmware_caps, _ = self._derive_firmware_capabilities(
-                object_id=object_id,
-                object_payload=object_payload,
-                catalog_ids=catalog_ids,
-                path=path,
-            )
-            self._object_derived_caps[object_id] = sorted(derived_os_caps)
-            if effective_os:
-                self._object_effective_os[object_id] = effective_os
-
-            enabled_caps = object_payload.get("enabled_capabilities", []) or []
-            enabled_packs = object_payload.get("enabled_packs", []) or []
-            vendor_caps = object_payload.get("vendor_capabilities", []) or []
-            if not isinstance(enabled_caps, list):
-                self.add_diag(
-                    code="E3201",
-                    severity="error",
-                    stage="validate",
-                    message=f"object '{object_id}' enabled_capabilities must be list.",
-                    path=path,
-                )
-                enabled_caps = []
-            if not isinstance(enabled_packs, list):
-                self.add_diag(
-                    code="E3201",
-                    severity="error",
-                    stage="validate",
-                    message=f"object '{object_id}' enabled_packs must be list.",
-                    path=path,
-                )
-                enabled_packs = []
-            if vendor_caps and not isinstance(vendor_caps, list):
-                self.add_diag(
-                    code="E3201",
-                    severity="error",
-                    stage="validate",
-                    message=f"object '{object_id}' vendor_capabilities must be list when set.",
-                    path=path,
-                )
-                vendor_caps = []
-
-            for pack_ref in enabled_packs:
-                if not isinstance(pack_ref, str) or not pack_ref:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=f"object '{object_id}' has invalid enabled_packs entry.",
-                        path=path,
-                    )
-                    continue
-                pack = packs_map.get(pack_ref)
-                if pack is None:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=f"object '{object_id}' references unknown pack '{pack_ref}'.",
-                        path=path,
-                    )
-                    continue
-                pack_class_ref = pack.get("class_ref")
-                if isinstance(pack_class_ref, str) and pack_class_ref and pack_class_ref != class_ref:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=(
-                            f"object '{object_id}' references pack '{pack_ref}' for class '{pack_class_ref}', "
-                            f"but object class_ref is '{class_ref}'."
-                        ),
-                        path=path,
-                    )
-
-            expanded_declared = self._expand_capabilities(
-                direct_caps=enabled_caps,
-                pack_refs=enabled_packs,
-                packs_map=packs_map,
-            )
-            expanded_effective = set(expanded_declared)
-            expanded_effective.update(derived_os_caps)
-            expanded_effective.update(derived_firmware_caps)
-            for cap in expanded_declared:
-                if cap.startswith("vendor."):
-                    continue
-                if cap not in catalog_ids:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=f"object '{object_id}' has unknown capability '{cap}'.",
-                        path=path,
-                    )
-
-            for cap in vendor_caps:
-                if not isinstance(cap, str) or not cap.startswith("vendor."):
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=f"object '{object_id}' has invalid vendor capability entry '{cap}'.",
-                        path=path,
-                    )
-
-            class_allowed = class_cap_sets.get(class_ref, set())
-            class_required = class_required_sets.get(class_ref, set())
-            missing = sorted(cap for cap in class_required if cap not in expanded_effective)
-            if missing:
-                self.add_diag(
-                    code="E3201",
-                    severity="error",
-                    stage="validate",
-                    message=f"object '{object_id}' does not satisfy class '{class_ref}' required capabilities: {missing}",
-                    path=path,
-                )
-
-            for cap in sorted(expanded_declared):
-                if cap.startswith("vendor."):
-                    continue
-                if cap not in class_allowed:
-                    self.add_diag(
-                        code="E3201",
-                        severity="error",
-                        stage="validate",
-                        message=(
-                            f"object '{object_id}' capability '{cap}' is outside class '{class_ref}' "
-                            "required/optional/packs contract."
-                        ),
-                        path=path,
-                    )
+        self._object_derived_caps, self._object_effective_os = validate_capability_contract(
+            class_map=class_map,
+            object_map=object_map,
+            catalog_ids=catalog_ids,
+            packs_map=packs_map,
+            require_new_model=self.require_new_model,
+            add_diag=self.add_diag,
+            default_firmware_policy=self._default_firmware_policy,
+            expand_capabilities=self._expand_capabilities,
+            derive_os_capabilities=self._derive_os_capabilities,
+            derive_firmware_capabilities=self._derive_firmware_capabilities,
+        )
 
     def _load_instance_rows(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         return load_instance_rows(payload=payload, add_diag=self.add_diag)
@@ -1319,83 +992,25 @@ class V5Compiler:
         class_map: dict[str, dict[str, Any]],
         object_map: dict[str, dict[str, Any]],
         rows: list[dict[str, Any]],
+        source_manifest_digest: str,
     ) -> dict[str, Any]:
-        by_group: dict[str, list[dict[str, Any]]] = {}
-        for row in rows:
-            group = row["group"]
-            class_ref = row["class_ref"]
-            object_ref = row["object_ref"]
-            class_payload = class_map.get(class_ref, {}).get("payload", {})
-            object_payload = object_map.get(object_ref, {}).get("payload", {})
-
-            effective_item = {
-                "instance": row["instance"],
-                "source_id": row.get("source_id", row["instance"]),
-                "layer": row.get("layer"),
-                "class_ref": class_ref,
-                "object_ref": object_ref,
-                "status": row.get("status"),
-                "notes": row.get("notes"),
-                "runtime": row.get("runtime"),
-                "class": {
-                    "version": class_payload.get("version"),
-                    "os_policy": class_payload.get("os_policy", "allowed"),
-                    "firmware_policy": class_payload.get("firmware_policy", self._default_firmware_policy(class_ref)),
-                    "os_cardinality": class_payload.get("os_cardinality"),
-                    "multi_boot": class_payload.get("multi_boot", False),
-                    "required_capabilities": class_payload.get("required_capabilities", []),
-                    "optional_capabilities": class_payload.get("optional_capabilities", []),
-                    "capability_packs": class_payload.get("capability_packs", []),
-                },
-                "object": {
-                    "version": object_payload.get("version"),
-                    "enabled_capabilities": object_payload.get("enabled_capabilities", []),
-                    "enabled_packs": object_payload.get("enabled_packs", []),
-                    "derived_capabilities": self._object_derived_caps.get(object_ref, []),
-                    "vendor_capabilities": object_payload.get("vendor_capabilities", []),
-                    "vendor": object_payload.get("vendor"),
-                    "model": object_payload.get("model"),
-                },
-            }
-            software_refs = self._instance_software_refs.get(row["instance"], {})
-            if software_refs:
-                effective_item["instance"] = {
-                    "firmware_ref": software_refs.get("firmware_ref"),
-                    "os_refs": software_refs.get("os_refs", []),
-                    "derived_capabilities": self._instance_derived_caps.get(row["instance"], []),
-                    "effective_software": software_refs.get("effective", {}),
-                }
-            effective_os = self._object_effective_os.get(object_ref)
-            if effective_os:
-                effective_item["object"]["software"] = {"os": effective_os}
-            prerequisites = object_payload.get("prerequisites")
-            if isinstance(prerequisites, dict):
-                os_ref = prerequisites.get("os_ref")
-                if isinstance(os_ref, str) and os_ref:
-                    effective_item["object"]["prerequisites"] = {"os_ref": os_ref}
-            by_group.setdefault(group, []).append(effective_item)
-
-        for group_rows in by_group.values():
-            group_rows.sort(key=lambda item: str(item.get("instance", "")))
-
-        class_index = {
-            class_id: class_item["payload"]
-            for class_id, class_item in sorted(class_map.items(), key=lambda item: item[0])
-        }
-        object_index = {
-            object_id: object_item["payload"]
-            for object_id, object_item in sorted(object_map.items(), key=lambda item: item[0])
-        }
-
-        return {
-            "version": manifest.get("version", "5.0.0"),
-            "model": manifest.get("model", "class-object-instance"),
-            "generated_at": self._run_generated_at or utc_now(),
-            "topology_manifest": str(self.manifest_path.relative_to(REPO_ROOT).as_posix()),
-            "classes": class_index,
-            "objects": object_index,
-            "instances": by_group,
-        }
+        compiled_at = self._run_generated_at or utc_now()
+        return build_effective(
+            manifest=manifest,
+            topology_manifest_path=str(self.manifest_path.relative_to(REPO_ROOT).as_posix()),
+            generated_at=compiled_at,
+            class_map=class_map,
+            object_map=object_map,
+            rows=rows,
+            object_derived_caps=self._object_derived_caps,
+            object_effective_os=self._object_effective_os,
+            instance_derived_caps=self._instance_derived_caps,
+            instance_software_refs=self._instance_software_refs,
+            default_firmware_policy=self._default_firmware_policy,
+            compiled_model_version=COMPILED_MODEL_VERSION,
+            compiler_pipeline_version=COMPILER_PIPELINE_VERSION,
+            source_manifest_digest=source_manifest_digest,
+        )
 
     def _build_summary(self) -> tuple[dict[str, Any], int, int, int, int]:
         total = len(self._diagnostics)
@@ -1526,6 +1141,7 @@ class V5Compiler:
         capability_packs_path = resolve_repo_path(str(manifest_paths.get("capability_packs", "")))
         instance_bindings_path = resolve_repo_path(str(manifest_paths.get("instance_bindings", "")))
         model_lock_path = resolve_repo_path(str(manifest_paths.get("model_lock", "")))
+        source_manifest_digest = self._manifest_digest(manifest)
 
         if self._compilation_owner("module_maps") == "core":
             class_map = self._load_module_map(directory=class_modules_root, module_type="class")
@@ -1575,6 +1191,7 @@ class V5Compiler:
                 capability_packs_path=capability_packs_path,
                 model_lock_path=model_lock_path,
                 lock_payload=lock_payload,
+                source_manifest_digest=source_manifest_digest,
             )
             # Execute compiler plugins first
             self._execute_plugins(stage=Stage.COMPILE, ctx=plugin_ctx)
@@ -1678,10 +1295,11 @@ class V5Compiler:
             if plugin_ctx is not None and isinstance(plugin_ctx.compiled_json, dict) and plugin_ctx.compiled_json
             else None
         )
+        legacy_effective_needed = self.pipeline_mode == "legacy" or self.parity_gate
 
         if self._validation_owner("references") == "core":
             self._validate_refs(rows=rows, class_map=class_map, object_map=object_map, catalog_ids=catalog_ids)
-        else:
+        elif legacy_effective_needed:
             self._compute_reference_projections(
                 rows=rows,
                 class_map=class_map,
@@ -1698,7 +1316,7 @@ class V5Compiler:
                     catalog_ids=catalog_ids,
                     packs_map=packs_map,
                 )
-            else:
+            elif legacy_effective_needed:
                 self._compute_object_capability_projections(
                     object_map=object_map,
                     catalog_ids=catalog_ids,
@@ -1708,26 +1326,30 @@ class V5Compiler:
 
         # Build effective payload before validator/generator stages so plugins
         # share one compiled model contract (ADR 0069 WS1).
-        effective_payload = self._build_effective(
-            manifest=manifest,
-            class_map=class_map,
-            object_map=object_map,
-            rows=rows,
-        )
+        legacy_effective_payload: dict[str, Any] = {}
+        if legacy_effective_needed:
+            legacy_effective_payload = self._build_effective(
+                manifest=manifest,
+                class_map=class_map,
+                object_map=object_map,
+                rows=rows,
+                source_manifest_digest=source_manifest_digest,
+            )
         effective_payload = self._select_effective_payload(
-            legacy_payload=effective_payload,
+            legacy_payload=legacy_effective_payload,
             plugin_payload=plugin_effective_payload,
         )
         if plugin_ctx:
             plugin_ctx.compiled_json = effective_payload
+        compiled_contract_ok = self._validate_compiled_model_contract(effective_payload)
 
         # Execute validator plugins (ADR 0063)
         # Uses same context so validators can subscribe to compiler outputs
-        if self.enable_plugins and plugin_ctx:
+        if compiled_contract_ok and self.enable_plugins and plugin_ctx:
             self._execute_plugins(stage=Stage.VALIDATE, ctx=plugin_ctx)
 
         errors = sum(1 for item in self._diagnostics if item.severity == "error")
-        if errors == 0:
+        if errors == 0 and compiled_contract_ok:
             # Execute generator plugins only on a valid compiled model.
             if self.enable_plugins and plugin_ctx:
                 self._execute_plugins(stage=Stage.GENERATE, ctx=plugin_ctx)
@@ -1821,6 +1443,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Require ADR 0064 firmware_ref/os_refs model; legacy software.os fields are errors.",
     )
     parser.add_argument(
+        "--profile",
+        choices=list(SUPPORTED_RUNTIME_PROFILES),
+        default="production",
+        help="Runtime execution profile for plugin restrictions and diagnostics.",
+    )
+    parser.add_argument(
         "--pipeline-mode",
         choices=["legacy", "plugin-first"],
         default="legacy",
@@ -1855,6 +1483,7 @@ def main() -> int:
         strict_model_lock=args.strict_model_lock,
         fail_on_warning=args.fail_on_warning,
         require_new_model=args.require_new_model,
+        runtime_profile=args.profile,
         pipeline_mode=args.pipeline_mode,
         parity_gate=args.parity_gate,
         enable_plugins=args.enable_plugins,

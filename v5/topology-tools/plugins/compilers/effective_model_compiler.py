@@ -7,6 +7,8 @@ assembly so parity gate can compare equivalent payloads.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +21,11 @@ from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, 
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _manifest_digest(payload: dict[str, Any]) -> str:
+    canonical = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 class EffectiveModelCompiler(CompilerPlugin):
@@ -454,10 +461,23 @@ class EffectiveModelCompiler(CompilerPlugin):
         generated_at = ctx.config.get("compile_generated_at")
         if not isinstance(generated_at, str) or not generated_at:
             generated_at = _utc_now()
+        compiled_model_version = ctx.config.get("compiled_model_version", "1.0")
+        if not isinstance(compiled_model_version, str) or not compiled_model_version:
+            compiled_model_version = "1.0"
+        compiler_pipeline_version = ctx.config.get("compiler_pipeline_version", "adr0069-ws2")
+        if not isinstance(compiler_pipeline_version, str) or not compiler_pipeline_version:
+            compiler_pipeline_version = "adr0069-ws2"
+        source_manifest_digest = ctx.config.get("source_manifest_digest")
+        if not isinstance(source_manifest_digest, str) or not source_manifest_digest:
+            source_manifest_digest = _manifest_digest(raw_manifest)
         candidate = {
             "version": raw_manifest.get("version", "5.0.0"),
             "model": raw_manifest.get("model", "class-object-instance"),
             "generated_at": generated_at,
+            "compiled_model_version": compiled_model_version,
+            "compiled_at": generated_at,
+            "compiler_pipeline_version": compiler_pipeline_version,
+            "source_manifest_digest": source_manifest_digest,
             "topology_manifest": ctx.topology_path,
             "classes": classes_index,
             "objects": objects_index,

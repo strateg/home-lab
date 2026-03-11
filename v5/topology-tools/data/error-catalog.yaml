@@ -279,6 +279,11 @@ codes:
     stage: validate
     title: Parity Gate Failed
     hint: Investigate plugin/legacy model drift before cutover.
+  E6903:
+    severity: error
+    stage: validate
+    title: Compiled Model Contract Violation
+    hint: Ensure compiled_json contains required metadata keys and supported compiled_model_version.
   W6901:
     severity: warning
     stage: validate
