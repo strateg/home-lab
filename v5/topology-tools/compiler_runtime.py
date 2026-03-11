@@ -455,7 +455,7 @@ def apply_plugin_compile_outputs(
     compilation_owner: Callable[[str], str],
     add_diag: Callable[..., None],
 ) -> None:
-    def _plugin_outputs() -> dict[str, Any]:
+    def _published_outputs() -> dict[str, Any]:
         published_getter = getattr(plugin_ctx, "get_published_data", None)
         if callable(published_getter):
             published_candidate = published_getter()
@@ -465,7 +465,7 @@ def apply_plugin_compile_outputs(
 
     def _find_output(*, key: str) -> list[tuple[str, Any]]:
         matches: list[tuple[str, Any]] = []
-        for plugin_id, payload in _plugin_outputs().items():
+        for plugin_id, payload in _published_outputs().items():
             if not isinstance(plugin_id, str):
                 continue
             if not isinstance(payload, dict):
