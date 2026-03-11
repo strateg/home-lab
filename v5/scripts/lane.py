@@ -72,7 +72,7 @@ def validate_v5() -> None:
             "--classes-dir",
             "v5/topology/class-modules/classes",
             "--objects-dir",
-            "v5/topology/object-modules",
+            "v5/topology/object-modules/objects",
         ]
     )
     compile_cmd = [
