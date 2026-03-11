@@ -10,10 +10,10 @@
 
 Original ADR 0063 provided architectural vision for plugin microkernel but lacked implementation details. This enhancement adds:
 
-1. **ADR 0064** - Plugin API Contract Specification (detailed interfaces)
+1. **ADR 0065** - Plugin API Contract Specification (detailed interfaces)
 2. **PLUGIN_AUTHORING_GUIDE.md** - Step-by-step guide for plugin developers
 3. **PLUGIN_IMPLEMENTATION_EXAMPLES.md** - Concrete, runnable code examples
-4. **ADR 0065** - Testing and CI strategy with required test patterns
+4. **ADR 0066** - Testing and CI strategy with required test patterns
 5. **ADR0063_QUICK_REFERENCE.md** - Quick lookup guide for all developers
 6. **Enhanced ADR 0063** - Updated original with missing critical details
 
@@ -24,7 +24,7 @@ Original ADR 0063 provided architectural vision for plugin microkernel but lacke
 ### Problem 1: No Plugin API Definition
 **Original Issue:** Only mentioned "plugin contract" without specifying actual interfaces
 
-**Solution (ADR 0064):**
+**Solution (ADR 0065):**
 - Defined base protocol with Python ABC classes
 - Specified PluginResult, PluginDiagnostic, PluginContext data classes
 - Created interface for each plugin kind (YAML validator, compiler, JSON validator, generator)
@@ -51,7 +51,7 @@ Original ADR 0063 provided architectural vision for plugin microkernel but lacke
 ### Problem 3: Configuration Injection Was Sketchy
 **Original Issue:** Mentioned config_schema but no implementation details
 
-**Solution (ADR 0064):**
+**Solution (ADR 0065):**
 - Defined PluginConfigManager class
 - Specified merge priority: env vars > global config > manifest defaults
 - Documented environment variable naming convention (TOPO_PLUGIN_ID_KEY)
@@ -63,7 +63,7 @@ Original ADR 0063 provided architectural vision for plugin microkernel but lacke
 ### Problem 4: Testing Strategy Missing
 **Original Issue:** No guidance on testing plugin-based code
 
-**Solution (ADR 0065):**
+**Solution (ADR 0066):**
 - Defined test pyramid: unit → contract → integration
 - Specified minimum test cases per plugin type (30+ cases documented)
 - Created test fixtures and patterns (mock_kernel, plugin_context, etc.)
@@ -108,7 +108,7 @@ Original ADR 0063 provided architectural vision for plugin microkernel but lacke
 ### Problem 7: Plugin Kinds Were Loosely Defined
 **Original Issue:** "compiler|validator_yaml|validator_json|generator" but no specs
 
-**Solution (ADR 0064 + PLUGIN_AUTHORING_GUIDE):**
+**Solution (ADR 0065 + PLUGIN_AUTHORING_GUIDE):**
 - Created dedicated class for each kind (CompilerPlugin, YamlValidatorPlugin, etc.)
 - Specified input/output types for each kind
 - Defined which stage each runs in
@@ -145,7 +145,7 @@ Original ADR 0063 provided architectural vision for plugin microkernel but lacke
 ### Problem 10: Diagnostics Aggregation Was Unclear
 **Original Issue:** "Aggregating diagnostics" but no schema or format
 
-**Solution (ADR 0064 + Enhanced ADR 0063):**
+**Solution (ADR 0065 + Enhanced ADR 0063):**
 - Specified PluginDiagnostic with fields: severity, code, message, location, context, timestamp
 - Defined severity levels: INFO, WARNING, ERROR, CRITICAL
 - Specified location format: {file, line, column}
@@ -161,13 +161,13 @@ Original ADR 0063 provided architectural vision for plugin microkernel but lacke
 | Aspect | Original ADR 0063 | Enhancement | Score |
 |--------|------------------|-------------|-------|
 | **Architecture vision** | ✅ Clear | (unchanged) | 10/10 |
-| **Plugin API spec** | ❌ Missing | ✅ ADR 0064 | 10/10 |
+| **Plugin API spec** | ❌ Missing | ✅ ADR 0065 | 10/10 |
 | **Plugin kinds** | ⚠️ Named, not specified | ✅ Detailed | 10/10 |
 | **Manifest spec** | ⚠️ Example only | ✅ Detailed | 9/10 |
 | **Error handling** | ⚠️ Vague | ✅ Detailed | 9/10 |
 | **Execution order** | ⚠️ Outlined | ✅ Algorithmic | 9/10 |
 | **Configuration** | ⚠️ Mentioned | ✅ Specified | 9/10 |
-| **Testing** | ❌ Missing | ✅ ADR 0065 | 10/10 |
+| **Testing** | ❌ Missing | ✅ ADR 0066 | 10/10 |
 | **Implementation examples** | ❌ Missing | ✅ Examples doc | 10/10 |
 | **Developer guide** | ❌ Missing | ✅ Authoring guide | 10/10 |
 | **Quick reference** | ❌ Missing | ✅ Reference guide | 10/10 |
@@ -184,26 +184,26 @@ Original ADR 0063 provided architectural vision for plugin microkernel but lacke
 The following can now proceed:
 
 ### 🟢 Ready for Kernel Implementation
-- ADR 0064 provides exact API to implement
+- ADR 0065 provides exact API to implement
 - Algorithm for execution order is specified
 - Error handling strategy is defined
-- CI gates are specified (ADR 0065)
+- CI gates are specified (ADR 0066)
 
 ### 🟢 Ready for Plugin Development
 - PLUGIN_AUTHORING_GUIDE provides step-by-step
 - PLUGIN_IMPLEMENTATION_EXAMPLES give copy-paste templates
 - Manifest spec is clear (enhanced ADR 0063)
-- Test requirements are explicit (ADR 0065)
+- Test requirements are explicit (ADR 0066)
 
 ### 🟢 Ready for Testing Strategy
-- Test pyramid is defined (ADR 0065)
+- Test pyramid is defined (ADR 0066)
 - Required test cases per type specified (30+ patterns)
 - CI workflow template provided
 - Coverage requirements: 80% unit, 70% contract
 
 ### 🟢 Ready for Migration Planning
-- Phase breakdown is detailed (ADR 0063 + 0065)
-- Regression test strategy defined (ADR 0065)
+- Phase breakdown is detailed (ADR 0063 + 0066)
+- Regression test strategy defined (ADR 0066)
 - Fallback/rollback strategy included
 - Timeline: 4 phases over ~3 months
 
@@ -281,14 +281,14 @@ docs/ADR0063_QUICK_REFERENCE.md
 ## 💡 Key Insights & Recommendations
 
 ### 1. **Start with Base Plugin Classes**
-Create abstract base classes first (ADR 0064) before wrapping existing code. This forces correct design.
+Create abstract base classes first (ADR 0065) before wrapping existing code. This forces correct design.
 
-**Recommendation:** Implement ADR 0064 classes in week 1 as foundation.
+**Recommendation:** Implement ADR 0065 classes in week 1 as foundation.
 
 ### 2. **Test Pyramid is Non-Negotiable**
 Unit tests alone won't catch ordering bugs. Need contract + integration tests.
 
-**Recommendation:** CI must enforce all three levels (ADR 0065).
+**Recommendation:** CI must enforce all three levels (ADR 0066).
 
 ### 3. **Config Schema Validation Early**
 Validate plugin config before stage execution to fail-fast on config errors.
@@ -308,7 +308,7 @@ Semantic error codes (DEV001, REF_UNKNOWN_DEVICE) must be catalogued and unique.
 ### 6. **Manifest Validation in CI**
 Catch manifest errors before runtime (typos in entry path, invalid JSON Schema, etc.).
 
-**Recommendation:** Implement manifest validator as ADR 0065 CI check.
+**Recommendation:** Implement manifest validator as ADR 0066 CI check.
 
 ### 7. **Timeout Enforcement is Essential**
 Default 30s timeout prevents runaway plugins from hanging the system.
@@ -337,7 +337,7 @@ Support for legacy validators during migration adds complexity.
 **Day 1-2:** Read these docs in order
 1. ADR0063_QUICK_REFERENCE.md (overview)
 2. ADR 0063 (architecture)
-3. ADR 0064 (API details)
+3. ADR 0065 (API details)
 
 **Day 3-4:** Study examples
 1. PLUGIN_IMPLEMENTATION_EXAMPLES.md
@@ -347,7 +347,7 @@ Support for legacy validators during migration adds complexity.
 **Day 5:** Write first plugin
 1. Follow PLUGIN_AUTHORING_GUIDE
 2. Use example as template
-3. Write tests per ADR 0065
+3. Write tests per ADR 0066
 4. Submit for review
 
 ---
@@ -358,10 +358,10 @@ Support for legacy validators during migration adds complexity.
 - [ ] Review all 5 new documents
 - [ ] Gather feedback from team
 - [ ] Identify implementation blockers
-- [ ] Assign kernel developer (for ADR 0064 implementation)
+- [ ] Assign kernel developer (for ADR 0065 implementation)
 
 ### Week 1 (Phase 1 Implementation)
-- [ ] Implement plugin API base classes (ADR 0064)
+- [ ] Implement plugin API base classes (ADR 0065)
 - [ ] Create manifest schema
 - [ ] Build kernel plugin loader/registry
 - [ ] Implement PluginConfigManager
@@ -419,8 +419,8 @@ Support for legacy validators during migration adds complexity.
 
 For questions about:
 - **Architecture:** Refer to ADR 0063
-- **API Details:** Refer to ADR 0064
-- **Testing:** Refer to ADR 0065
+- **API Details:** Refer to ADR 0065
+- **Testing:** Refer to ADR 0066
 - **Writing Plugins:** Refer to PLUGIN_AUTHORING_GUIDE.md
 - **Code Examples:** Refer to PLUGIN_IMPLEMENTATION_EXAMPLES.md
 - **Quick Lookup:** Refer to ADR0063_QUICK_REFERENCE.md

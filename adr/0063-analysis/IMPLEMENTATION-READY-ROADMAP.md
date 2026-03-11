@@ -1,8 +1,11 @@
 # ADR 0063/0065/0066 Implementation-Ready Roadmap
 
+> Historical note: this roadmap reflects pre-cutover implementation planning.
+> Runtime ownership, plugin-first cutover, parity gates, and rollback governance are now governed by `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md` and `adr/0069-analysis/*`.
+
 **Date:** 2026-03-09
 **Scope:** ADR 0063, ADR 0065, ADR 0066
-**Status:** Ready for execution (Phase 0)
+**Status:** Historical / Superseded by ADR 0069 cutover
 
 ---
 

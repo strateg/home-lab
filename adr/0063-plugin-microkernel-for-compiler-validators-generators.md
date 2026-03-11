@@ -10,17 +10,28 @@
 ## Context
 
 ADR 0062 fixed the Class -> Object -> Instance model and locked YAML -> JSON + diagnostics contracts.
-The next scaling bottleneck is runtime extensibility:
+At the time this ADR was introduced, the next scaling bottleneck was runtime extensibility:
 
-- compiler logic is still concentrated in core orchestration code
-- validators and generators are partially hardcoded by script paths
-- module behavior is not yet loaded via a single plugin contract
+- compiler logic was still concentrated in core orchestration code
+- validators and generators were partially hardcoded by script paths
+- module behavior was not yet loaded via a single plugin contract
+
+This ADR defines the foundational runtime model that later ADRs operationalize.
 
 We need one runtime model where:
 
 1. core is a microkernel
 2. class/object modules bring their own plugins
 3. shared reusable plugins can be provided by base layer
+
+### Relationship to Later ADRs
+
+This ADR remains the architectural foundation for runtime/plugin boundaries.
+Later ADRs refine or operationalize specific aspects:
+
+1. `ADR 0068` defines domain-level placeholder and explicit-override contracts executed within plugin-managed compile/validate flow.
+2. `ADR 0069` operationalizes plugin-first compiler cutover, thin orchestrator ownership, parity gates, and rollback governance.
+3. `ADR 0071` changes instance storage authoring to sharded files while preserving downstream plugin consumption of normalized assembled payload.
 
 ---
 
@@ -253,6 +264,11 @@ kernel:
     - test-real
 ```
 
+### 8A. Canonical Inter-Stage Compiled Model Boundary
+
+This ADR defines stage/plugin execution architecture.
+The canonical compiled-model handoff between `compile`, `validate`, and `generate` stages is later refined by `ADR 0069` as a versioned `ctx.compiled_json` contract.
+
 ---
 
 ## Consequences
@@ -271,6 +287,12 @@ kernel:
 2. manifest quality becomes critical for pipeline stability
 3. debugging requires clear plugin attribution in diagnostics
 
+### Clarified Boundary Consequences
+
+1. Source storage/layout changes are normalized before downstream plugin execution.
+2. Plugins consume normalized assembled payload or canonical compiled model, not arbitrary source-layout-specific file scans.
+3. Runtime evolution should preserve microkernel boundaries even when domain contracts or authoring formats evolve.
+
 ---
 
 ## Risks and Mitigations
@@ -287,6 +309,9 @@ kernel:
 ---
 
 ## Migration Plan
+
+This section is retained as historical migration summary for the original rollout of the plugin microkernel.
+Active plugin-first cutover governance, parity rules, rollback protocol, and thin-orchestrator ownership are defined by `ADR 0069` and its analysis documents.
 
 ### Phase 1 (Week 1)
 
@@ -414,3 +439,6 @@ CI must:
 - Kernel package: `v5/topology-tools/kernel/`
 - Base plugins: `v5/topology-tools/plugins/`
 - Plugin tests: `v5/tests/test_plugin_registry.py`
+- `adr/0068-object-yaml-as-instance-template-with-explicit-overrides.md`
+- `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md`
+- `adr/0071-sharded-instance-files-and-flat-instances-root.md`

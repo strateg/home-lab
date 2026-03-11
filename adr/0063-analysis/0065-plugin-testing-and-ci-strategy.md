@@ -1,5 +1,8 @@
 # Analysis Document: Plugin Testing and CI Strategy for ADR 0063
 
+> Historical note: this is an analysis/proposal artifact that predates the official implemented ADR.
+> The authoritative testing and CI ADR is `adr/0066-plugin-testing-and-ci-strategy.md`.
+
 **Date:** 2026-03-09
 **Status:** Analysis/Proposal
 **Related:** ADR 0063 (Plugin Microkernel)

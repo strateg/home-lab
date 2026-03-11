@@ -3,6 +3,9 @@
 **Created:** 2026-03-09
 **Purpose:** Central index for all ADR 0063 related documentation
 
+> Status note: `ADR 0063` is the foundational runtime ADR and is now implemented.
+> Historical planning artifacts under `adr/0063-analysis/` remain for traceability, while active runtime cutover governance is defined by `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md` and `adr/0069-analysis/*`.
+
 ---
 
 ## 📋 Documents Created
@@ -11,55 +14,45 @@
 
 #### **ADR 0063: Plugin Microkernel for Compiler, Validators, and Generators**
 - **Path:** `adr/0063-plugin-microkernel-for-compiler-validators-generators.md`
-- **Status:** Enhanced (original + improvements)
+- **Status:** Implemented foundational ADR (historical migration details retained for traceability)
 - **Audience:** Architects, Technical Leads, Decision Makers
 - **Key Content:**
   - Plugin microkernel architectural decision
-  - 8 key decisions (microkernel, plugin types, placement, reusability, manifest, determinism, diagnostics, versioning)
-  - Error handling strategy (timeout, config, exceptions, dependencies, capabilities)
-  - Detailed plugin kinds specification
-  - 4-phase migration plan with Phase 4 (post-stabilization)
+  - Foundational runtime/plugin boundary model
+  - Deterministic discovery, ordering, and diagnostics contracts
+  - Historical migration summary with handoff to ADR 0069 for plugin-first cutover governance
   - Testing requirements
   - Risks and mitigations
 - **Read Time:** 15-20 minutes
-- **When to Read:** First, to understand the big picture
+- **When to Read:** First, to understand the runtime architecture foundation
 
 ---
 
-#### **ADR 0064: Plugin API Contract Specification**
-- **Path:** `adr/0064-plugin-api-contract-specification.md`
-- **Status:** New, comprehensive
+#### **ADR 0065: Plugin API Contract Specification**
+- **Path:** `adr/0065-plugin-api-contract-specification.md`
+- **Status:** Implemented
 - **Audience:** Plugin Developers, Kernel Implementers
 - **Key Content:**
-  - BasePlugin abstract base class with Python code
-  - CompilerPlugin interface
-  - YamlValidatorPlugin interface
-  - JsonValidatorPlugin interface
-  - GeneratorPlugin interface
-  - PluginResult, PluginDiagnostic, PluginContext data classes
-  - Error handling strategy with 5 scenarios
-  - Configuration injection mechanism
-  - Plugin API versioning and compatibility
+  - Base plugin interfaces and execution contracts
+  - PluginResult, PluginDiagnostic, PluginContext data contracts
+  - Manifest entry validation, config injection, API compatibility
+  - Implemented contract notes and deviations from original proposal
 - **Read Time:** 20-30 minutes
-- **When to Read:** Before implementing plugins or kernel
+- **When to Read:** Before implementing plugins or kernel integrations
 
 ---
 
-#### **ADR 0065: Plugin Testing and CI Strategy**
-- **Path:** `adr/0065-plugin-testing-and-ci-strategy.md`
-- **Status:** New, comprehensive
+#### **ADR 0066: Plugin Testing and CI Strategy**
+- **Path:** `adr/0066-plugin-testing-and-ci-strategy.md`
+- **Status:** Implemented
 - **Audience:** QA Engineers, CI/DevOps, Plugin Developers
 - **Key Content:**
-  - Test pyramid (unit → contract → integration)
-  - 30+ required test cases per plugin type
-  - Test fixtures and patterns
-  - Manifest validation checks
-  - GitHub Actions CI workflow template
-  - Coverage requirements (80% unit, 70% contract)
-  - Regression testing strategy
-  - Test data management
-- **Read Time:** 25-35 minutes
-- **When to Read:** When planning testing strategy
+  - Test pyramid (unit → contract → integration → regression)
+  - Required test layers and CI adoption phases
+  - Implemented test structure and workflow status
+  - Coverage and regression gate expectations
+- **Read Time:** 20-30 minutes
+- **When to Read:** When planning or reviewing plugin validation and CI gates
 
 ---
 
@@ -237,7 +230,7 @@
 **Goal:** Set up testing infrastructure
 **Time:** ~2-3 hours
 
-1. **ADR 0065** (45 min)
+1. **ADR 0066** (45 min)
    - Read entire document
    - Understand test pyramid
    - Review required test cases
@@ -250,7 +243,7 @@
    - Pre-submission checklist
 
 4. **Set up CI/testing** (1.5+ hours)
-   - Create CI workflow from ADR 0065 template
+   - Create CI workflow from ADR 0066 template
    - Create test fixtures
    - Set up coverage reporting
 
@@ -271,7 +264,7 @@
    - Risks and mitigations
    - 4-phase migration plan
 
-3. **ADR 0065** - only Migration Phases (10 min)
+3. **ADR 0066** - only Migration Phases (10 min)
    - Timeline
    - Phase breakdown
    - Success metrics
@@ -299,7 +292,7 @@
 ### PLUGIN_AUTHORING_GUIDE References
 - **Based on:** ADR 0064 API contracts
 - **Examples from:** PLUGIN_IMPLEMENTATION_EXAMPLES
-- **Testing from:** ADR 0065
+- **Testing from:** ADR 0066
 
 ---
 
@@ -342,7 +335,7 @@ All documents include:
 | **Developer Onboarding** | ✅ Complete | Authoring Guide, Examples, Quick Ref | ✅ YES |
 | **Kernel Implementation** | ✅ Specified | ADR 0064, 0065 (CI) | ✅ YES |
 | **Plugin Development** | ✅ Specified | Authoring Guide, Examples | ✅ YES |
-| **Testing/CI** | ✅ Specified | ADR 0065 | ✅ YES |
+| **Testing/CI** | ✅ Specified | ADR 0066 | ✅ YES |
 | **Execution** | ⏳ Can start | All specs ready | ✅ YES |
 
 ---
@@ -356,10 +349,10 @@ All documents include:
 → Read: PLUGIN_AUTHORING_GUIDE.md + PLUGIN_IMPLEMENTATION_EXAMPLES.md
 
 **Question:** "What's the plugin API?"
-→ Read: ADR 0064
+→ Read: ADR 0065
 
 **Question:** "How do I test plugins?"
-→ Read: ADR 0065
+→ Read: ADR 0066
 
 **Question:** "What's the quick lookup?"
 → Read: ADR0063_QUICK_REFERENCE.md
@@ -387,8 +380,8 @@ All documents include:
 |------|----------|--------|--------|
 | 2026-03-06 | ADR 0063 | Original decision | Architecture Team |
 | 2026-03-09 | ADR 0063 | Enhanced with error handling, config, testing | Enhancement Session |
-| 2026-03-09 | ADR 0064 | New: Plugin API specification | Enhancement Session |
-| 2026-03-09 | ADR 0065 | New: Testing and CI strategy | Enhancement Session |
+| 2026-03-09 | ADR 0065 | New: Plugin API specification | Enhancement Session |
+| 2026-03-09 | ADR 0066 | New: Testing and CI strategy | Enhancement Session |
 | 2026-03-09 | PLUGIN_AUTHORING_GUIDE.md | New: Developer guide | Enhancement Session |
 | 2026-03-09 | PLUGIN_IMPLEMENTATION_EXAMPLES.md | New: Code examples | Enhancement Session |
 | 2026-03-09 | ADR0063_QUICK_REFERENCE.md | New: Quick lookup | Enhancement Session |

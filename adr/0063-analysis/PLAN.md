@@ -1,5 +1,8 @@
 # План дальнейшего анализа ADR 0063
 
+> Historical note: this document is a pre-implementation planning artifact for ADR 0063.
+> The plugin microkernel runtime is now implemented, and operational cutover/governance is further defined by `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md` and related analysis documents.
+
 ## Цель
 Подготовить обоснованное и безопасное решение для перехода к plugin-microkernel модели (compiler/validators/generators) без регрессий относительно ADR 0062/0064.
 

@@ -13,6 +13,7 @@ Generated artifacts are versioned by lane:
 Main documents:
 
 - `adr/0062-modular-topology-architecture-consolidation.md`
+- `adr/PLUGIN-RUNTIME-ADR-MAP.md`
 - `v4/README.md`
 
 Quick commands:
