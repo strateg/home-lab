@@ -202,6 +202,11 @@ codes:
     stage: validate
     title: Plugin Capability Mismatch
     hint: Add capability-providing plugins or update requires_capabilities declarations.
+  E4011:
+    severity: error
+    stage: validate
+    title: Unsupported Model Version
+    hint: Update model.lock core_model_version or kernel supported model_versions compatibility matrix.
   E4101:
     severity: error
     stage: validate

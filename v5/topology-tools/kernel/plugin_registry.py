@@ -17,6 +17,7 @@ import concurrent.futures
 import heapq
 import importlib.util
 import json
+import re
 import sys
 import time
 import traceback
@@ -596,6 +597,33 @@ class PluginRegistry:
         """
         results: list[PluginResult] = []
         plugin_ids = self.get_execution_order(stage, profile)
+        model_lock_loaded = bool(ctx.config.get("model_lock_loaded", False))
+        core_model_version = (
+            ctx.model_lock.get("core_model_version") if model_lock_loaded and isinstance(ctx.model_lock, dict) else None
+        )
+        if isinstance(core_model_version, str) and core_model_version:
+            if not self._is_model_version_compatible(core_model_version):
+                result = PluginResult.failed(
+                    plugin_id="kernel.model_version_guard",
+                    api_version=KERNEL_API_VERSION,
+                    diagnostics=[
+                        PluginDiagnostic(
+                            code="E4011",
+                            severity="error",
+                            stage=stage.value,
+                            message=(
+                                f"Unsupported core_model_version '{core_model_version}'. "
+                                f"Kernel supports: {MODEL_VERSIONS}"
+                            ),
+                            path="model.lock:core_model_version",
+                            plugin_id="kernel",
+                        )
+                    ],
+                )
+                results.append(result)
+                self._results.append(result)
+                return results
+
         available_capabilities: set[str] = set()
         for spec in self.specs.values():
             if (
@@ -654,6 +682,30 @@ class PluginRegistry:
                 break
 
         return results
+
+    @staticmethod
+    def _normalize_model_version(token: str) -> str | None:
+        if not isinstance(token, str):
+            return None
+        candidate = token.strip()
+        if not candidate:
+            return None
+        match = re.search(r"(\d+)\.(\d+)", candidate)
+        if not match:
+            return None
+        return f"{int(match.group(1))}.{int(match.group(2))}"
+
+    @classmethod
+    def _is_model_version_compatible(cls, core_model_version: str) -> bool:
+        normalized_core = cls._normalize_model_version(core_model_version)
+        if normalized_core is None:
+            return False
+        supported = {
+            normalized
+            for normalized in (cls._normalize_model_version(item) for item in MODEL_VERSIONS)
+            if normalized is not None
+        }
+        return normalized_core in supported
 
     def get_load_errors(self) -> list[str]:
         """Return any errors encountered during manifest loading."""
