@@ -197,3 +197,66 @@ def test_effective_model_compiler_reports_ambiguous_normalized_rows_output():
     assert result.status == PluginStatus.FAILED
     assert result.has_errors
     assert any(diag.code == "E6901" for diag in result.diagnostics)
+
+
+def test_effective_model_compiler_reads_normalized_rows_via_subscribe():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={
+            "obj.router.test": {
+                "object": "obj.router.test",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+            }
+        },
+        config={},
+        plugin_outputs={},
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "rtr-from-raw-bindings",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.router.test",
+                    }
+                ]
+            }
+        },
+    )
+
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish(
+        "normalized_rows",
+        [
+            {
+                "group": "l1_devices",
+                "instance": "rtr-from-subscribe",
+                "layer": "L1",
+                "source_id": "rtr-from-subscribe",
+                "class_ref": "class.router",
+                "object_ref": "obj.router.test",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {"length_m": 1},
+            }
+        ],
+    )
+    ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.SUCCESS
+    assert not result.has_errors
+    rows = ctx.compiled_json["instances"]["l1_devices"]
+    assert [row["instance_id"] for row in rows] == ["rtr-from-subscribe"]
+    assert rows[0]["instance_data"]["length_m"] == 1

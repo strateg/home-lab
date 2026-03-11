@@ -22,7 +22,14 @@ from capability_derivation import derive_os_capabilities as shared_derive_os_cap
 from capability_derivation import extract_firmware_properties as shared_extract_firmware_properties
 from capability_derivation import extract_os_properties as shared_extract_os_properties
 from capability_derivation import normalize_release_token as shared_normalize_release_token
-from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+from kernel.plugin_base import (
+    CompilerPlugin,
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+)
 
 
 def _utc_now() -> str:
@@ -189,6 +196,13 @@ class EffectiveModelCompiler(CompilerPlugin):
                 matches.append((plugin_id, payload[key]))
         return matches
 
+    @staticmethod
+    def _subscribe_or_none(ctx: PluginContext, *, plugin_id: str, key: str) -> Any:
+        try:
+            return ctx.subscribe(plugin_id, key)
+        except PluginDataExchangeError:
+            return None
+
     def _derive_object_effective(
         self, *, objects: dict[str, Any]
     ) -> tuple[dict[str, list[str]], dict[str, dict[str, Any]]]:
@@ -293,11 +307,15 @@ class EffectiveModelCompiler(CompilerPlugin):
             )
             return self.make_result(diagnostics)
 
-        plugin_rows = None
+        plugin_rows = self._subscribe_or_none(
+            ctx,
+            plugin_id="base.compiler.instance_rows",
+            key="normalized_rows",
+        )
         normalized_row_matches = self._collect_output_matches(ctx.plugin_outputs, key="normalized_rows")
-        if len(normalized_row_matches) == 1:
+        if not isinstance(plugin_rows, list) and len(normalized_row_matches) == 1:
             plugin_rows = normalized_row_matches[0][1]
-        elif len(normalized_row_matches) > 1:
+        elif not isinstance(plugin_rows, list) and len(normalized_row_matches) > 1:
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E6901",

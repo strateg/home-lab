@@ -82,7 +82,7 @@ plugins:
     api_version: "1.x"
     stages: [compile]
     order: 60
-    depends_on: [base.compiler.module_loader, base.compiler.capabilities]
+    depends_on: [base.compiler.module_loader, base.compiler.capabilities, base.compiler.instance_rows]
     timeout: 30
     config: {}
     config_schema:
