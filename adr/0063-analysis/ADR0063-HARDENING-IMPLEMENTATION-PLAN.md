@@ -101,7 +101,7 @@ Current plugin runtime is functional, but there are contract gaps against ADR006
 1. `python -m pytest -q -o addopts="" v5/tests/plugin_api`
 2. `python -m pytest -q -o addopts="" v5/tests/plugin_contract`
 3. `python -m pytest -q -o addopts="" v5/tests/plugin_integration`
-4. `python v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --enable-plugins`
+4. `python v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock`
 
 ## Risks and Controls
 

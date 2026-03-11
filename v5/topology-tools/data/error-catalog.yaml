@@ -319,7 +319,7 @@ codes:
     severity: error
     stage: validate
     title: Pipeline Mode Misconfiguration
-    hint: plugin-first mode requires --enable-plugins and compiler-published compiled_json.
+    hint: plugin-first mode requires compiler plugins to publish compiled_json and required compile outputs.
   E6903:
     severity: error
     stage: validate

@@ -374,7 +374,7 @@ CI must:
   - [x] `model_lock_validator.py` - validates model.lock pinning
   - [x] `embedded_in_validator.py` - validates embedded_in references per ADR 0064
 - [x] Integrate plugin execution into compile-topology.py
-  - [x] `--enable-plugins` flag for opt-in plugin execution
+  - [x] Plugin-first execution is default CLI behavior
   - [x] `--plugins-manifest` flag for custom manifest path
   - [x] Plugin diagnostics converted with `plugin_id` attribution
   - [x] Timeout (E4101) and crash (E4102) error handling

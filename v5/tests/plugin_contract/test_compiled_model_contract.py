@@ -31,7 +31,7 @@ def _compiler(mod):
         strict_model_lock=False,
         fail_on_warning=False,
         require_new_model=True,
-        enable_plugins=False,
+        enable_plugins=True,
     )
 
 

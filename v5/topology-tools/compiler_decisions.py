@@ -7,20 +7,9 @@ from typing import Any, Callable
 
 def select_effective_payload(
     *,
-    enable_plugins: bool,
     plugin_payload: dict[str, Any] | None,
     add_diag: Callable[..., None],
 ) -> dict[str, Any]:
-    if not enable_plugins:
-        add_diag(
-            code="E6901",
-            severity="error",
-            stage="validate",
-            message="pipeline_mode=plugin-first requires --enable-plugins.",
-            path="pipeline:mode",
-        )
-        return {}
-
     if plugin_payload is None:
         add_diag(
             code="E6901",

@@ -202,7 +202,7 @@ Progress note (2026-03-11):
 4. Core no longer contains inlined legacy validation/effective assembly logic; legacy runtime path is retired.
 5. Final cutover switch applied:
    - CLI default set to `--pipeline-mode plugin-first`.
-   - Plugin execution enabled by default (`--enable-plugins` optional; `--disable-plugins` kept only for diagnostics).
+   - Plugin execution is always enabled in CLI (plugin toggle flags removed).
    - CLI rejects `--pipeline-mode legacy` and `--parity-gate`; runtime guards (`E6904`, `E6905`) remain for non-CLI API callers.
    - No legacy core compile/validate/effective execution branches remain active in runtime pipeline.
 6. Added module-level plugin manifest discovery and deterministic merge:

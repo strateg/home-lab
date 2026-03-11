@@ -93,7 +93,7 @@ Tasks:
 
 1. Replace selected null/TODO fields with placeholders.
 2. Add corresponding `instance_overrides` values.
-3. Run compile with `--enable-plugins` and fix diagnostics.
+3. Run compile and fix diagnostics.
 
 Status: Pending.
 

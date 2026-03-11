@@ -117,6 +117,9 @@ class V5Compiler:
         enable_plugins: bool = True,
         plugins_manifest_path: Path | None = None,
     ) -> None:
+        if not enable_plugins:
+            raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
+
         self.manifest_path = manifest_path
         self.output_json = output_json
         self.diagnostics_json = diagnostics_json
@@ -154,9 +157,7 @@ class V5Compiler:
             artifact_name=artifact_name,
         )
 
-        # Initialize plugin registry if enabled
-        if self.enable_plugins:
-            self._init_plugin_registry()
+        self._init_plugin_registry()
 
     def _load_error_hints(self, path: Path) -> dict[str, str]:
         if not path.exists():
@@ -428,18 +429,6 @@ class V5Compiler:
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1
 
-        if not self.enable_plugins:
-            self.add_diag(
-                code="E6901",
-                severity="error",
-                stage="validate",
-                message="pipeline_mode=plugin-first requires --enable-plugins.",
-                path="pipeline:mode",
-            )
-            total, errors, warnings, infos = self._write_diagnostics()
-            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
-            return 1
-
         manifest = self._load_yaml(self.manifest_path, code_missing="E1001", code_parse="E1003", stage="load")
         if manifest is None:
             total, errors, warnings, infos = self._write_diagnostics()
@@ -525,7 +514,6 @@ class V5Compiler:
             else None
         )
         effective_payload = select_effective_payload(
-            enable_plugins=self.enable_plugins,
             plugin_payload=plugin_effective_payload,
             add_diag=self.add_diag,
         )
@@ -535,14 +523,14 @@ class V5Compiler:
 
         # Execute validator plugins (ADR 0063)
         # Uses same context so validators can subscribe to compiler outputs
-        if compiled_contract_ok and self.enable_plugins and plugin_ctx:
+        if compiled_contract_ok and plugin_ctx:
             self._execute_plugins(stage=Stage.VALIDATE, ctx=plugin_ctx)
 
         errors = sum(1 for item in self._diagnostics if item.severity == "error")
         emit_effective_artifact(
             errors=errors,
             compiled_contract_ok=compiled_contract_ok,
-            enable_plugins=self.enable_plugins,
+            enable_plugins=True,
             plugin_ctx=plugin_ctx,
             execute_plugins=lambda *, stage, ctx: self._execute_plugins(stage=Stage(stage), ctx=ctx),
             artifact_owner=self._artifact_owner,
@@ -623,19 +611,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pipeline mode (plugin-first only).",
     )
     parser.add_argument(
-        "--enable-plugins",
-        dest="enable_plugins",
-        action="store_true",
-        default=True,
-        help="Enable plugin execution (default).",
-    )
-    parser.add_argument(
-        "--disable-plugins",
-        dest="enable_plugins",
-        action="store_false",
-        help="Disable plugin execution (diagnostic mode; plugin-first will fail).",
-    )
-    parser.add_argument(
         "--plugins-manifest",
         default=str(DEFAULT_PLUGINS_MANIFEST.relative_to(REPO_ROOT).as_posix()),
         help="Path to plugin manifest YAML.",
@@ -658,7 +633,6 @@ def main() -> int:
         instance_source_mode=args.instance_source_mode,
         pipeline_mode=args.pipeline_mode,
         parity_gate=False,
-        enable_plugins=args.enable_plugins,
         plugins_manifest_path=resolve_repo_path(args.plugins_manifest),
     )
     return compiler.run()

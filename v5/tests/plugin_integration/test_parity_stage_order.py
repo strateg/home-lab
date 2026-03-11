@@ -88,27 +88,28 @@ def test_pipeline_stage_order_and_compiled_context(monkeypatch):
     assert seen_stages == ["compile", "validate", "generate"]
 
 
-def test_pipeline_mode_plugin_first_requires_plugins():
+def test_pipeline_mode_plugin_first_rejects_disabled_plugins_flag():
     mod = _load_compiler_module()
     test_output_dir = mod.REPO_ROOT / "v5-build" / "test-pipeline-mode-no-plugins"
 
-    compiler = mod.V5Compiler(
-        manifest_path=mod.DEFAULT_MANIFEST,
-        output_json=test_output_dir / "effective-topology.json",
-        diagnostics_json=test_output_dir / "diagnostics.json",
-        diagnostics_txt=test_output_dir / "diagnostics.txt",
-        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
-        strict_model_lock=False,
-        fail_on_warning=False,
-        require_new_model=True,
-        pipeline_mode="plugin-first",
-        enable_plugins=False,
-        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
-    )
-
-    exit_code = compiler.run()
-    assert exit_code == 1
-    assert any(d.code == "E6901" for d in compiler._diagnostics)
+    try:
+        mod.V5Compiler(
+            manifest_path=mod.DEFAULT_MANIFEST,
+            output_json=test_output_dir / "effective-topology.json",
+            diagnostics_json=test_output_dir / "diagnostics.json",
+            diagnostics_txt=test_output_dir / "diagnostics.txt",
+            error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+            strict_model_lock=False,
+            fail_on_warning=False,
+            require_new_model=True,
+            pipeline_mode="plugin-first",
+            enable_plugins=False,
+            plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+        )
+    except ValueError as exc:
+        assert "--disable-plugins is retired" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError for enable_plugins=False in plugin-first runtime")
 
 
 def test_pipeline_mode_plugin_first_uses_plugin_compiled_json(monkeypatch):

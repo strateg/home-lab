@@ -103,8 +103,7 @@ Add to `v5/topology-tools/plugins/plugins.yaml`:
 
 ```bash
 python3 v5/topology-tools/compile-topology.py \
-    --topology v5/topology/topology.yaml \
-    --enable-plugins
+    --topology v5/topology/topology.yaml
 ```
 
 ## Plugin Context
