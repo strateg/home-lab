@@ -18,6 +18,8 @@ import yaml
 TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
+from compiler_decisions import select_effective_payload
+from compiler_reporting import write_diagnostics_report
 from compiler_runtime import (
     apply_plugin_compile_outputs,
     emit_effective_artifact,
@@ -45,7 +47,6 @@ DEFAULT_DIAGNOSTICS_TXT = REPO_ROOT / "v5-build" / "diagnostics" / "report.txt"
 DEFAULT_ERROR_CATALOG = REPO_ROOT / "v5" / "topology-tools" / "data" / "error-catalog.yaml"
 DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 
-SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
 SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
 COMPILED_MODEL_VERSION = "1.0"
 COMPILER_PIPELINE_VERSION = "adr0069-ws2"
@@ -467,82 +468,15 @@ class V5Compiler:
         legacy_payload: dict[str, Any],
         plugin_payload: dict[str, Any] | None,
     ) -> dict[str, Any]:
-        mode = self.pipeline_mode
-
-        if self.parity_gate and not self.enable_plugins:
-            self.add_diag(
-                code="E6902",
-                severity="error",
-                stage="validate",
-                message="--parity-gate requires --enable-plugins to compare legacy and plugin outputs.",
-                path="pipeline:parity",
-            )
-
-        if mode == "legacy":
-            if plugin_payload is not None:
-                legacy_digest = self._canonicalize_payload(legacy_payload)
-                plugin_digest = self._canonicalize_payload(plugin_payload)
-                if legacy_digest != plugin_digest:
-                    if self.parity_gate:
-                        self.add_diag(
-                            code="E6902",
-                            severity="error",
-                            stage="validate",
-                            message="Parity gate failed: plugin effective model differs from legacy model.",
-                            path="pipeline:parity",
-                        )
-                    else:
-                        self.add_diag(
-                            code="W6901",
-                            severity="warning",
-                            stage="validate",
-                            message="Plugin effective model differs from legacy effective model (parity drift).",
-                            path="pipeline:mode",
-                        )
-            return legacy_payload
-
-        # plugin-first mode
-        if not self.enable_plugins:
-            self.add_diag(
-                code="E6901",
-                severity="error",
-                stage="validate",
-                message="pipeline_mode=plugin-first requires --enable-plugins.",
-                path="pipeline:mode",
-            )
-            return legacy_payload
-
-        if plugin_payload is None:
-            self.add_diag(
-                code="E6901",
-                severity="error",
-                stage="validate",
-                message="pipeline_mode=plugin-first requires compiler plugins to publish ctx.compiled_json.",
-                path="pipeline:mode",
-            )
-            return legacy_payload
-
-        if self.parity_gate:
-            legacy_digest = self._canonicalize_payload(legacy_payload)
-            plugin_digest = self._canonicalize_payload(plugin_payload)
-            if legacy_digest != plugin_digest:
-                self.add_diag(
-                    code="E6902",
-                    severity="error",
-                    stage="validate",
-                    message="Parity gate failed in plugin-first mode: plugin model is not parity-equivalent to legacy.",
-                    path="pipeline:parity",
-                )
-
-        self.add_diag(
-            code="I6901",
-            severity="info",
-            stage="validate",
-            message="Pipeline mode plugin-first is active; effective output source is plugin ctx.compiled_json.",
-            path="pipeline:mode",
-            confidence=1.0,
+        return select_effective_payload(
+            mode=self.pipeline_mode,
+            parity_gate=self.parity_gate,
+            enable_plugins=self.enable_plugins,
+            legacy_payload=legacy_payload,
+            plugin_payload=plugin_payload,
+            canonicalize_payload=self._canonicalize_payload,
+            add_diag=self.add_diag,
         )
-        return plugin_payload
 
     def _load_yaml(self, path: Path, *, code_missing: str, code_parse: str, stage: str) -> dict[str, Any] | None:
         if not path.exists() or not path.is_file():
@@ -818,98 +752,17 @@ class V5Compiler:
             source_manifest_digest=source_manifest_digest,
         )
 
-    def _build_summary(self) -> tuple[dict[str, Any], int, int, int, int]:
-        total = len(self._diagnostics)
-        errors = sum(1 for item in self._diagnostics if item.severity == "error")
-        warnings = sum(1 for item in self._diagnostics if item.severity == "warning")
-        infos = sum(1 for item in self._diagnostics if item.severity == "info")
-        by_stage: dict[str, int] = {}
-        for item in self._diagnostics:
-            by_stage[item.stage] = by_stage.get(item.stage, 0) + 1
-        summary = {
-            "total": total,
-            "errors": errors,
-            "warnings": warnings,
-            "infos": infos,
-            "by_stage": by_stage,
-        }
-        return summary, total, errors, warnings, infos
-
-    def _build_next_actions(self) -> list[dict[str, Any]]:
-        grouped: dict[str, dict[str, Any]] = {}
-        for diag in self._diagnostics:
-            file_key = diag.path.split(":")[0]
-            entry = grouped.setdefault(file_key, {"file": file_key, "errors": 0, "warnings": 0, "codes": []})
-            if diag.severity == "error":
-                entry["errors"] += 1
-            elif diag.severity == "warning":
-                entry["warnings"] += 1
-            entry["codes"].append(diag.code)
-
-        actions: list[dict[str, Any]] = []
-        for _, entry in sorted(grouped.items(), key=lambda item: (-item[1]["errors"], -item[1]["warnings"], item[0])):
-            primary_codes = sorted(set(entry["codes"]))[:3]
-            actions.append(
-                {
-                    "file": entry["file"],
-                    "errors": entry["errors"],
-                    "warnings": entry["warnings"],
-                    "primary_codes": primary_codes,
-                }
-            )
-        return actions
-
-    def _sort_diagnostics(self) -> None:
-        self._diagnostics.sort(
-            key=lambda item: (SEVERITY_ORDER.get(item.severity, 9), item.stage, item.code, item.path)
-        )
-
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
-        self._sort_diagnostics()
-        summary, total, errors, warnings, infos = self._build_summary()
-
-        self.diagnostics_json.parent.mkdir(parents=True, exist_ok=True)
-        self.diagnostics_txt.parent.mkdir(parents=True, exist_ok=True)
-
-        report = {
-            "report_version": "1",
-            "tool": "topology-v5-compiler",
-            "generated_at": utc_now(),
-            "inputs": {
-                "topology": str(self.manifest_path.relative_to(REPO_ROOT).as_posix()),
-                "schema": "v5/topology/topology.yaml",
-                "error_catalog": str(self.error_catalog_path.relative_to(REPO_ROOT).as_posix()),
-                "model_lock": "v5/topology/model.lock.yaml",
-            },
-            "outputs": {
-                "effective_json": str(self.output_json.relative_to(REPO_ROOT).as_posix()),
-                "diagnostics_json": str(self.diagnostics_json.relative_to(REPO_ROOT).as_posix()),
-                "diagnostics_txt": str(self.diagnostics_txt.relative_to(REPO_ROOT).as_posix()),
-            },
-            "summary": summary,
-            "next_actions": self._build_next_actions(),
-            "diagnostics": [item.as_dict() for item in self._diagnostics],
-        }
-        self.diagnostics_json.write_text(
-            json.dumps(report, ensure_ascii=True, indent=2, default=str),
-            encoding="utf-8",
+        return write_diagnostics_report(
+            diagnostics=self._diagnostics,
+            diagnostics_json=self.diagnostics_json,
+            diagnostics_txt=self.diagnostics_txt,
+            topology_path=self.manifest_path,
+            error_catalog_path=self.error_catalog_path,
+            output_json=self.output_json,
+            repo_root=REPO_ROOT,
+            now_iso=utc_now,
         )
-
-        txt_lines = [
-            "Topology v5 Compiler Diagnostics",
-            "================================",
-            "",
-            f"generated_at: {report['generated_at']}",
-            f"total={total} errors={errors} warnings={warnings} infos={infos}",
-            "",
-        ]
-        for item in self._diagnostics:
-            txt_lines.append(f"[{item.severity.upper()}] {item.code} ({item.stage}) {item.path}: {item.message}")
-            if item.hint:
-                txt_lines.append(f"  hint: {item.hint}")
-        self.diagnostics_txt.write_text("\n".join(txt_lines) + "\n", encoding="utf-8")
-
-        return total, errors, warnings, infos
 
     def run(self) -> int:
         self._run_generated_at = utc_now()
