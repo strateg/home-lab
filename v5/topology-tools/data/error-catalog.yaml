@@ -274,11 +274,6 @@ codes:
     stage: validate
     title: Pipeline Mode Misconfiguration
     hint: plugin-first mode requires --enable-plugins and compiler-published compiled_json.
-  E6902:
-    severity: error
-    stage: validate
-    title: Parity Gate Failed
-    hint: Investigate plugin/legacy model drift before cutover.
   E6903:
     severity: error
     stage: validate
@@ -294,11 +289,6 @@ codes:
     stage: validate
     title: Parity Gate Retired
     hint: Remove --parity-gate; parity checks were retired after plugin-first cutover.
-  W6901:
-    severity: warning
-    stage: validate
-    title: Effective Model Parity Drift
-    hint: Plugin effective model differs from legacy; investigate before cutover.
   I6901:
     severity: info
     stage: validate

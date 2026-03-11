@@ -14,8 +14,14 @@ Cutover outcome (2026-03-11):
 
 1. Default mode switched to `plugin-first`.
 2. Plugin execution enabled by default.
-3. Legacy runtime mode is explicitly rejected by compiler (`E6904`).
-4. Parity gate flag is retired post-cutover (`E6905`).
+3. CLI rejects `--pipeline-mode legacy`.
+4. CLI rejects `--parity-gate`.
+5. Runtime API guards remain for non-CLI callers (`E6904`, `E6905`).
+
+Note:
+
+1. This checklist is retained as historical cutover evidence.
+2. Items describing legacy fallback/rollback are archival and not current runtime policy.
 
 ---
 

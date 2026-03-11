@@ -111,14 +111,20 @@ Progress note (2026-03-10):
    - CLI: `--pipeline-mode legacy|plugin-first`
    - `legacy`: core effective payload remains authoritative
    - `plugin-first`: output source switches to plugin `ctx.compiled_json`
-6. Added parity drift diagnostic in legacy mode:
-   - `W6901` when plugin candidate differs from legacy payload.
-7. Added strict parity gate support:
+6. Added parity drift diagnostic in legacy mode (historical, retired after cutover):
+   - `W6901` when plugin candidate differed from legacy payload.
+7. Added strict parity gate support (historical, retired after cutover):
    - CLI: `--parity-gate`
    - `E6902` on parity mismatch or gate misconfiguration.
 8. Added initial generator plugin for effective YAML artifact:
    - `base.generator.effective_yaml`
    - `v5/topology-tools/plugins/generators/effective_yaml_generator.py`
+
+Retirement note (2026-03-11):
+
+1. CLI now allows only `--pipeline-mode plugin-first`.
+2. `--parity-gate` was removed from CLI.
+3. `legacy` and parity-gate behavior above is retained here as migration history only.
 
 ### WS3: Validation Decomposition Completion
 
@@ -189,18 +195,15 @@ Progress note (2026-03-11):
    - `compiler_runtime.py`
    - `compiler_decisions.py`
    - `compiler_reporting.py`
-   - `compiler_validation_flow.py`
    - `compiler_plugin_context.py`
    - `compiler_contract.py`
    - `compiler_ownership.py`
-3. Legacy domain rules/loaders/effective assembly isolated behind:
-   - `compiler_legacy_bridge.py`
-4. Core no longer contains inlined legacy validation/effective assembly logic; it delegates through explicit ownership + bridge boundaries.
+3. Interim helper modules used during migration (`compiler_validation_flow.py`, `compiler_legacy_bridge.py`) were removed at cutover finalization.
+4. Core no longer contains inlined legacy validation/effective assembly logic; legacy runtime path is retired.
 5. Final cutover switch applied:
    - CLI default set to `--pipeline-mode plugin-first`.
    - Plugin execution enabled by default (`--enable-plugins` optional; `--disable-plugins` kept only for diagnostics).
-   - Runtime rejects `--pipeline-mode legacy` with `E6904`.
-   - Runtime rejects `--parity-gate` post-cutover with `E6905`.
+   - CLI rejects `--pipeline-mode legacy` and `--parity-gate`; runtime guards (`E6904`, `E6905`) remain for non-CLI API callers.
    - No legacy core compile/validate/effective execution branches remain active in runtime pipeline.
 
 ---

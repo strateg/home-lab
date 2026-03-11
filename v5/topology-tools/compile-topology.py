@@ -556,14 +556,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--pipeline-mode",
-        choices=["legacy", "plugin-first"],
+        choices=["plugin-first"],
         default="plugin-first",
-        help="Pipeline mode (default plugin-first; legacy value is deprecated and rejected at runtime).",
-    )
-    parser.add_argument(
-        "--parity-gate",
-        action="store_true",
-        help="Fail compilation when plugin and legacy effective models are not parity-equivalent.",
+        help="Pipeline mode (plugin-first only).",
     )
     parser.add_argument(
         "--enable-plugins",
@@ -599,7 +594,7 @@ def main() -> int:
         require_new_model=args.require_new_model,
         runtime_profile=args.profile,
         pipeline_mode=args.pipeline_mode,
-        parity_gate=args.parity_gate,
+        parity_gate=False,
         enable_plugins=args.enable_plugins,
         plugins_manifest_path=resolve_repo_path(args.plugins_manifest),
     )
