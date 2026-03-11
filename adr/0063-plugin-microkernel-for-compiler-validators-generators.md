@@ -1,7 +1,7 @@
 # ADR 0063: Plugin Microkernel for Compiler, Validators, and Generators
 
 **Date:** 2026-03-06
-**Status:** Implemented (Phase 1-3 Complete, including module-level manifest discovery)
+**Status:** Implemented (plugin-first runtime; legacy fallback removed)
 **Related:** ADR 0062 (Topology v5 - Modular Class-Object-Instance Architecture), ADR 0065 (Plugin API Contract), ADR 0066 (Plugin Testing and CI Strategy)
 **Extends:** ADR 0062 section "Open Questions" (generator/plugin packaging and loading model)
 
@@ -311,12 +311,11 @@ kernel:
 - Remove residual hardcoded dispatch from orchestration
 - Enforce plugin-only extension policy for new modules
 
-### Phase 4 (Post-stabilization, 1-2 releases later)
+### Phase 4 (Post-stabilization)
 
-- Keep legacy dispatcher as fallback for 1-2 releases
-- Monitor error rates in production
-- Gather metrics on plugin execution times
-- Only after stabilization (zero fallback usage): full removal of legacy code
+- Superseded by ADR 0069 cutover implementation
+- Legacy dispatcher fallback is retired in runtime
+- Plugin-first execution is mandatory in `compile-topology.py`
 
 ---
 
@@ -393,14 +392,12 @@ CI must:
 - [x] Shared PluginContext across COMPILE and VALIDATE stages
 - [x] Module-level plugin manifest discovery and deterministic merge policy
 
-### Phase 4 - Full Migration (Deferred)
+### Phase 4 - Full Migration (Cutover Applied)
 
-The following items are deferred until plugin system is proven stable:
-
-- [ ] Extract all compiler transforms into `compiler` plugins
-- [ ] Remove hardcoded dispatch from orchestration
-- [ ] Enforce plugin-only extension policy for new modules
-- [ ] Migrate YAML semantic checks to `validator_yaml` plugins
+- [x] Legacy dispatcher removed from orchestrator runtime path
+- [x] Plugin-first pipeline is enforced
+- [x] Compile/validate data exchange uses publish/subscribe contracts
+- [ ] Migrate remaining YAML semantic checks to `validator_yaml` plugins (if/when needed)
 
 ---
 
@@ -409,7 +406,7 @@ The following items are deferred until plugin system is proven stable:
 - ADR 0062: `adr/0062-modular-topology-architecture-consolidation.md`
 - ADR 0065: `adr/0065-plugin-api-contract-specification.md` (detailed API contracts)
 - ADR 0066: `adr/0066-plugin-testing-and-ci-strategy.md` (test pyramid and CI gates)
-- Plugin Authoring Guide: `docs/PLUGIN_AUTHORING_GUIDE.md`
+- Plugin Authoring Guide: `v5/topology-tools/docs/PLUGIN_AUTHORING.md`
 - Compiler entrypoint: `v5/topology-tools/compile-topology.py`
 - Diagnostics schema: `v5/topology-tools/schemas/diagnostics.schema.json`
 - Plugin manifest schema: `v5/topology-tools/schemas/plugin-manifest.schema.json`

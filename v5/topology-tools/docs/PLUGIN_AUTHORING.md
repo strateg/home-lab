@@ -283,6 +283,10 @@ The registry enforces that:
 2. Dependencies are executed before dependents (respects `order` within stage)
 3. Cross-stage dependencies work (compile plugins run before validate plugins)
 
+Contract note:
+- compile-derived data must be consumed via `subscribe()`.
+- do not use `ctx.config` as a transport channel for compiler outputs.
+
 ## Manifest Schema
 
 Full manifest schema for reference:
@@ -402,10 +406,10 @@ plugins:
 ## Best Practices
 
 1. **Use standard error codes**: Register codes in `error-catalog.yaml`
-2. **Handle missing data gracefully**: Check for optional fields with `.get()`
+2. **Use subscribe-first contracts**: For required compile data, use `subscribe()` and emit explicit diagnostics on missing data
 3. **Provide helpful hints**: Include actionable fix suggestions
 4. **Respect timeouts**: Long-running plugins should checkpoint progress
-5. **Test independently**: Plugins should work without other plugins when possible
+5. **Test with declared dependencies**: Seed required published data in tests and keep `depends_on` accurate
 6. **Use warnings for evolving contracts**: Emit warnings for soft constraints, errors for hard failures
 7. **Document dependencies**: Clearly state what data you expect from `depends_on` plugins
 
