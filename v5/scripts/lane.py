@@ -59,9 +59,8 @@ def build_v4() -> None:
 
 
 def validate_v5() -> None:
-    # NOTE: export_v5_instance_bindings.py is NOT run here.
-    # instance-bindings.yaml is the canonical source; export is only for migration.
-    run([PYTHON, "v5/scripts/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON])
+    # NOTE: canonical instance source is ADR0071 shards under paths.instances_root.
+    # export_v5_instance_bindings.py is legacy migration helper only.
     run([PYTHON, "v5/scripts/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
     run([PYTHON, "v5/scripts/validate_v5_scaffold.py"])
     run(
@@ -71,7 +70,7 @@ def validate_v5() -> None:
             "--topology",
             "v5/topology/topology.yaml",
             "--classes-dir",
-            "v5/topology/class-modules/classes",
+            "v5/topology/class-modules",
             "--objects-dir",
             "v5/topology/object-modules",
         ]
@@ -96,14 +95,12 @@ def build_v5() -> None:
 
 
 def phase1_gate() -> None:
-    # NOTE: export_v5_instance_bindings.py is NOT run here.
-    # instance-bindings.yaml is the canonical source; export is only for migration.
+    # NOTE: phase1 gate validates archived legacy migration assets only.
     run([PYTHON, "v5/scripts/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON])
 
 
 def validate_v5_layers() -> None:
-    # NOTE: export_v5_instance_bindings.py is NOT run here.
-    # instance-bindings.yaml is the canonical source; export is only for migration.
+    # NOTE: export helper remains legacy-only and is not part of ADR0071 runtime.
     run([PYTHON, "v5/scripts/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
 
 

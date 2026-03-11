@@ -1,0 +1,8 @@
+schema_version: 1
+instance: inst.firmware.routeros.7.arm64
+group: l1_software_firmware
+layer: L1
+object_ref: obj.firmware.routeros.7.arm64
+source_id: inst.firmware.routeros.7.arm64
+status: mapped
+notes: ADR0064 firmware instance

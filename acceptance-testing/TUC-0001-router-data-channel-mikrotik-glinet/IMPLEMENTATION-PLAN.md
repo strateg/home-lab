@@ -3,15 +3,16 @@
 ## Workstream 1: Model Contracts
 
 1. Add class module:
-   - `v5/topology/class-modules/classes/network/class.network.physical_link.yaml` (OSI L1 physical link contract)
+   - `v5/topology/class-modules/network/class.network.physical_link.yaml` (OSI L1 physical link contract)
 2. Rework class module:
-   - `v5/topology/class-modules/classes/network/class.network.data_link.yaml` (OSI L2 logical channel contract)
+   - `v5/topology/class-modules/network/class.network.data_link.yaml` (OSI L2 logical channel contract)
 3. Add object modules:
    - `v5/topology/object-modules/network/obj.network.ethernet_cable.yaml`
    - `v5/topology/object-modules/network/obj.network.ethernet_channel.yaml`
    - Keep cable-specific runtime parameters (`length_m`, `shielding`, ...) at instance level.
-4. Add fixture rows in:
-   - `v5/topology/instances/home-lab/instance-bindings.yaml`
+4. Add fixture shard files in:
+   - `v5/topology/instances/l1_devices/inst.ethernet_cable.cat5e.yaml`
+   - `v5/topology/instances/l2_network/chan.eth.chateau_to_slate.yaml`
    - one cable (`physical_link`) and one channel (`data_link`) with bidirectional linkage.
 
 ## Workstream 2: Compiler Stability for Instance Extensions
@@ -25,7 +26,7 @@
 ## Workstream 3: Domain Validators (Module Plugins)
 
 1. Add class/object plugin manifests:
-   - `v5/topology/class-modules/classes/router/plugins.yaml`
+   - `v5/topology/class-modules/router/plugins.yaml`
    - `v5/topology/object-modules/mikrotik/plugins.yaml`
    - `v5/topology/object-modules/glinet/plugins.yaml`
    - `v5/topology/object-modules/network/plugins.yaml`

@@ -71,6 +71,7 @@ class InstanceRowsCompiler(CompilerPlugin):
                 object_ref = row.get("object_ref")
                 firmware_ref = row.get("firmware_ref")
                 os_refs = row.get("os_refs")
+                derived_class_ref: str | None = None
 
                 if not isinstance(instance_id, str) or not instance_id:
                     diagnostics.append(
@@ -97,16 +98,6 @@ class InstanceRowsCompiler(CompilerPlugin):
                     continue
                 seen_instances.add(instance_id)
 
-                if not isinstance(class_ref, str) or not class_ref:
-                    diagnostics.append(
-                        self.emit_diagnostic(
-                            code="E3201",
-                            severity="error",
-                            stage=stage,
-                            message="Instance row must define non-empty 'class_ref'.",
-                            path=f"instance_bindings.{group_name}[{idx}].class_ref",
-                        )
-                    )
                 if not isinstance(object_ref, str) or not object_ref:
                     diagnostics.append(
                         self.emit_diagnostic(
@@ -115,6 +106,42 @@ class InstanceRowsCompiler(CompilerPlugin):
                             stage=stage,
                             message="Instance row must define non-empty 'object_ref'.",
                             path=f"instance_bindings.{group_name}[{idx}].object_ref",
+                        )
+                    )
+                else:
+                    object_payload = ctx.objects.get(object_ref)
+                    if isinstance(object_payload, dict):
+                        candidate_class_ref = object_payload.get("class_ref")
+                        if isinstance(candidate_class_ref, str) and candidate_class_ref:
+                            derived_class_ref = candidate_class_ref
+
+                if not isinstance(class_ref, str) or not class_ref:
+                    class_ref = derived_class_ref
+                elif isinstance(derived_class_ref, str) and derived_class_ref and class_ref != derived_class_ref:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E2403",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Instance class_ref '{class_ref}' does not match object_ref '{object_ref}' "
+                                f"class_ref '{derived_class_ref}'."
+                            ),
+                            path=f"instance_bindings.{group_name}[{idx}].class_ref",
+                        )
+                    )
+
+                if not isinstance(class_ref, str) or not class_ref:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E3201",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                "Instance row must define non-empty 'class_ref' or provide "
+                                "object_ref with resolvable class_ref."
+                            ),
+                            path=f"instance_bindings.{group_name}[{idx}].class_ref",
                         )
                     )
                 if not isinstance(layer, str) or not layer:

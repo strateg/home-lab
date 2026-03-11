@@ -1,7 +1,7 @@
 # ADR 0064 Revision Proposal: Class-Based OS Model
 
-**Date:** 2026-03-08  
-**Status:** Proposal for Review  
+**Date:** 2026-03-08
+**Status:** Proposal for Review
 **Relates to:** ADR 0064 (Current: Property-Based Model)
 
 ---
@@ -172,7 +172,7 @@ capabilities:
 
 **Installable:**
 ```yaml
-# v5/topology/class-modules/classes/os/instances/debian-12-generic.yaml
+# v5/topology/class-modules/os/instances/debian-12-generic.yaml
 name: debian-12-generic
 class: os.installable
 
@@ -192,7 +192,7 @@ properties:
 
 **Firmware:**
 ```yaml
-# v5/topology/class-modules/classes/os/instances/routeros-7-firmware.yaml
+# v5/topology/class-modules/os/instances/routeros-7-firmware.yaml
 name: routeros-7-firmware
 class: os.firmware
 

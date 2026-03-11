@@ -1,0 +1,11 @@
+schema_version: 1
+instance: svc-postgresql
+group: l5_services
+layer: L5
+object_ref: obj.service.postgresql
+source_id: svc-postgresql
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: lxc
+  target_ref: lxc-postgresql

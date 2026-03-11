@@ -1,0 +1,10 @@
+schema_version: 1
+instance: lxc-prometheus
+group: l4_lxc
+layer: L4
+object_ref: obj.proxmox.lxc.debian12.base
+source_id: lxc-prometheus
+status: mapped
+notes: module scaffold exists; capability profile tuning pending
+os_refs:
+- inst.os.debian.12.proxmox.lxc

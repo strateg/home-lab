@@ -71,6 +71,22 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                     index[instance_id] = row
         return index
 
+    @staticmethod
+    def _resolve_class_ref(*, row: dict[str, Any], ctx: PluginContext) -> str | None:
+        class_ref = row.get("class_ref")
+        if isinstance(class_ref, str) and class_ref:
+            return class_ref
+        object_ref = row.get("object_ref")
+        if not isinstance(object_ref, str) or not object_ref:
+            return None
+        object_payload = ctx.objects.get(object_ref)
+        if not isinstance(object_payload, dict):
+            return None
+        candidate = object_payload.get("class_ref")
+        if isinstance(candidate, str) and candidate:
+            return candidate
+        return None
+
     def _validate_cable_row(
         self,
         *,
@@ -165,7 +181,7 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                     )
                 )
 
-        class_ref = row.get("class_ref")
+        class_ref = self._resolve_class_ref(row=row, ctx=ctx)
         if class_ref != "class.network.physical_link":
             diagnostics.append(
                 self.emit_diagnostic(
@@ -237,7 +253,7 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
             )
             return
 
-        channel_class_ref = channel_row.get("class_ref")
+        channel_class_ref = self._resolve_class_ref(row=channel_row, ctx=ctx)
         if channel_class_ref != "class.network.data_link":
             diagnostics.append(
                 self.emit_diagnostic(

@@ -1,0 +1,11 @@
+schema_version: 1
+instance: vps-oracle-frankfurt
+group: l1_devices
+layer: L1
+object_ref: obj.oracle.cloud_vm
+source_id: vps-oracle-frankfurt
+status: mapped
+notes: module scaffold exists; capability profile tuning pending
+firmware_ref: inst.firmware.uefi.generic.arm64
+os_refs:
+- inst.os.linux.generic.arm64

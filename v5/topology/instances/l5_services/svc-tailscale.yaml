@@ -1,0 +1,11 @@
+schema_version: 1
+instance: svc-tailscale
+group: l5_services
+layer: L5
+object_ref: obj.service.tailscale
+source_id: svc-tailscale
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: docker
+  target_ref: mikrotik-chateau

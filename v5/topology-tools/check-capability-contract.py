@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TOPOLOGY = ROOT / "v5" / "topology" / "topology.yaml"
 DEFAULT_CATALOG = ROOT / "v5" / "topology" / "class-modules" / "classes" / "router" / "capability-catalog.yaml"
 DEFAULT_PACKS = ROOT / "v5" / "topology" / "class-modules" / "classes" / "router" / "capability-packs.yaml"
-DEFAULT_CLASSES_DIR = ROOT / "v5" / "topology" / "class-modules" / "classes"
+DEFAULT_CLASSES_DIR = ROOT / "v5" / "topology" / "class-modules"
 DEFAULT_OBJECTS_DIR = ROOT / "v5" / "topology" / "object-modules"
 
 
@@ -147,7 +147,9 @@ class CapabilityContractChecker:
 
     def _load_objects(self) -> Dict[str, Dict[str, Any]]:
         result: Dict[str, Dict[str, Any]] = {}
-        files = list(_iter_yaml_files(self.objects_dir))
+        # Object directories may also contain plugin manifests and helpers.
+        # Load only canonical object definition files.
+        files = [path for path in _iter_yaml_files(self.objects_dir) if path.name.startswith("obj.")]
         if not files:
             self._warn(f"No object files found under {self.objects_dir}")
             return result

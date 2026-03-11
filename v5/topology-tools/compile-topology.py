@@ -39,6 +39,7 @@ DEFAULT_ERROR_CATALOG = REPO_ROOT / "v5" / "topology-tools" / "data" / "error-ca
 DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 
 SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
+SUPPORTED_INSTANCE_SOURCE_MODES = ("auto", "sharded-only")
 COMPILED_MODEL_VERSION = "1.0"
 COMPILER_PIPELINE_VERSION = "adr0069-ws2"
 SUPPORTED_COMPILED_MODEL_MAJOR = {"1"}
@@ -110,6 +111,7 @@ class V5Compiler:
         fail_on_warning: bool,
         require_new_model: bool,
         runtime_profile: str = "production",
+        instance_source_mode: str = "auto",
         pipeline_mode: str = "plugin-first",
         parity_gate: bool = False,
         enable_plugins: bool = True,
@@ -124,6 +126,7 @@ class V5Compiler:
         self.fail_on_warning = fail_on_warning
         self.require_new_model = require_new_model
         self.runtime_profile = runtime_profile
+        self.instance_source_mode = instance_source_mode
         self.pipeline_mode = pipeline_mode
         self.parity_gate = parity_gate
         self.enable_plugins = enable_plugins
@@ -462,11 +465,14 @@ class V5Compiler:
 
         inputs = load_core_compile_inputs(
             paths=manifest_bundle,
+            instances_mode=self.instance_source_mode,
             compilation_owner=self._compilation_owner,
             load_module_map=_legacy_path_disabled,
             load_capability_contract=_legacy_path_disabled,
             load_yaml=self._load_yaml,
             load_instance_rows=_legacy_path_disabled,
+            add_diag=self.add_diag,
+            repo_root=REPO_ROOT,
         )
 
         # Create shared plugin context (ADR 0063 Phase 3)
@@ -504,6 +510,7 @@ class V5Compiler:
             compilation_owner=self._compilation_owner,
             artifact_owner=self._artifact_owner,
         )
+        plugin_ctx.config["instance_source_mode"] = inputs.instance_source_mode
         # Execute compiler plugins first
         self._execute_plugins(stage=Stage.COMPILE, ctx=plugin_ctx)
         apply_plugin_compile_outputs(
@@ -605,6 +612,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Runtime execution profile for plugin restrictions and diagnostics.",
     )
     parser.add_argument(
+        "--instance-source-mode",
+        choices=list(SUPPORTED_INSTANCE_SOURCE_MODES),
+        default="auto",
+        help=("Instance source mode: sharded-only or auto " "(auto resolves to sharded-only)."),
+    )
+    parser.add_argument(
         "--pipeline-mode",
         choices=["plugin-first"],
         default="plugin-first",
@@ -643,6 +656,7 @@ def main() -> int:
         fail_on_warning=args.fail_on_warning,
         require_new_model=args.require_new_model,
         runtime_profile=args.profile,
+        instance_source_mode=args.instance_source_mode,
         pipeline_mode=args.pipeline_mode,
         parity_gate=False,
         enable_plugins=args.enable_plugins,

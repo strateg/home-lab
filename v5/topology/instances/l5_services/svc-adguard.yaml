@@ -1,0 +1,11 @@
+schema_version: 1
+instance: svc-adguard
+group: l5_services
+layer: L5
+object_ref: obj.service.adguard
+source_id: svc-adguard
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: docker
+  target_ref: mikrotik-chateau

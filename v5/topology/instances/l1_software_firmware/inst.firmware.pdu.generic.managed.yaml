@@ -1,0 +1,8 @@
+schema_version: 1
+instance: inst.firmware.pdu.generic.managed
+group: l1_software_firmware
+layer: L1
+object_ref: obj.firmware.pdu.generic.managed
+source_id: inst.firmware.pdu.generic.managed
+status: mapped
+notes: ADR0064 firmware instance

@@ -1,0 +1,11 @@
+schema_version: 1
+instance: inst.vlan.management
+group: l2_network
+layer: L2
+object_ref: obj.network.vlan.management
+source_id: net-management
+status: mapped
+notes: Management VLAN (VLAN 99)
+bridge_ref: inst.bridge.vmbr0
+trust_zone_ref: inst.trust_zone.management
+managed_by_ref: mikrotik-chateau

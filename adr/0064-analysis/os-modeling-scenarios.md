@@ -1,6 +1,6 @@
 # OS Modeling: Practical Scenarios
 
-**Date:** 2026-03-08  
+**Date:** 2026-03-08
 **Purpose:** Real-world examples comparing property and class models
 
 ---
@@ -49,7 +49,7 @@ requires:
 ### Class Model (Proposed)
 
 ```yaml
-# v5/topology/class-modules/classes/os/instances/debian-12-generic.yaml
+# v5/topology/class-modules/os/instances/debian-12-generic.yaml
 name: debian-12-generic
 class: os.installable
 
@@ -144,7 +144,7 @@ software:
 ### Class Model
 
 ```yaml
-# v5/topology/class-modules/classes/os/instances/routeros-7-firmware.yaml
+# v5/topology/class-modules/os/instances/routeros-7-firmware.yaml
 name: routeros-7-firmware
 class: os.firmware
 
@@ -159,7 +159,7 @@ properties:
   installation_model: firmware
   firmware_locked_to_hardware: true
   vendor_locked_release: true
-  
+
   # Device binding constraint
   hardware_class: router.mikrotik_rb3011
 
@@ -169,7 +169,7 @@ capabilities:
 ```
 
 ```yaml
-# v5/topology/class-modules/classes/router/instances/mikrotik-rb3011.yaml
+# v5/topology/class-modules/router/instances/mikrotik-rb3011.yaml
 name: router.mikrotik_rb3011
 inherits: router
 
@@ -256,7 +256,7 @@ software:
 ### Class Model
 
 ```yaml
-# v5/topology/class-modules/classes/compute/instances/vm-flexible.yaml
+# v5/topology/class-modules/compute/instances/vm-flexible.yaml
 name: compute.vm.flexible
 inherits: compute.vm
 
@@ -330,7 +330,7 @@ bindings:
 ### Property Model
 
 ```yaml
-# v5/topology/class-modules/classes/service/instances/prometheus.yaml
+# v5/topology/class-modules/service/instances/prometheus.yaml
 name: service.prometheus
 class: service
 
@@ -363,7 +363,7 @@ validation_at_deploy_time:
 ### Class Model
 
 ```yaml
-# v5/topology/class-modules/classes/service/instances/prometheus.yaml
+# v5/topology/class-modules/service/instances/prometheus.yaml
 name: service.prometheus
 class: service
 
@@ -430,13 +430,13 @@ Issues:
 
 ```yaml
 # Base OS
-# v5/topology/class-modules/classes/os/instances/debian-12-generic.yaml
+# v5/topology/class-modules/os/instances/debian-12-generic.yaml
 name: debian-12-generic
 class: os.installable
 # ... standard Debian 12 definition
 
 # Hardened variant
-# v5/topology/class-modules/classes/os/instances/debian-12-hardened.yaml
+# v5/topology/class-modules/os/instances/debian-12-hardened.yaml
 name: debian-12-hardened
 class: os.installable
 inherits: debian-12-generic
@@ -454,7 +454,7 @@ capabilities:
   - cap.security.apparmor
 
 # Minimal variant
-# v5/topology/class-modules/classes/os/instances/debian-12-minimal.yaml
+# v5/topology/class-modules/os/instances/debian-12-minimal.yaml
 name: debian-12-minimal
 class: os.installable
 inherits: debian-12-generic
@@ -513,7 +513,7 @@ Not supported. Would require major schema extension or custom workaround.
 
 ```yaml
 # Devices that support multiple OSes (e.g., Raspberry Pi)
-# v5/topology/class-modules/classes/compute/instances/compute.arm.multiboot.yaml
+# v5/topology/class-modules/compute/instances/compute.arm.multiboot.yaml
 name: compute.arm.multiboot
 inherits: compute.base
 

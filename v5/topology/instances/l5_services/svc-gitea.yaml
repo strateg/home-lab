@@ -1,0 +1,11 @@
+schema_version: 1
+instance: svc-gitea
+group: l5_services
+layer: L5
+object_ref: obj.service.gitea
+source_id: svc-gitea
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: lxc
+  target_ref: lxc-gitea

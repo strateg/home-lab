@@ -1,0 +1,11 @@
+schema_version: 1
+instance: vps-hetzner-nuremberg
+group: l1_devices
+layer: L1
+object_ref: obj.hetzner.cloud_vm
+source_id: vps-hetzner-nuremberg
+status: mapped
+notes: module scaffold exists; capability profile tuning pending
+firmware_ref: inst.firmware.uefi.generic.x86_64
+os_refs:
+- inst.os.linux.generic.x86_64

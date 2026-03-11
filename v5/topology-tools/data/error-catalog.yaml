@@ -237,6 +237,37 @@ codes:
     stage: validate
     title: Capability Validation Started
     hint: No action required.
+  # ADR 0071 sharded instances loader
+  E7101:
+    severity: error
+    stage: validate
+    title: Instance Filename Mismatch
+    hint: Rename shard file to <instance>.yaml so basename matches instance id.
+  E7102:
+    severity: error
+    stage: resolve
+    title: Duplicate Instance ID in Shards
+    hint: Ensure each instance id appears in exactly one shard file.
+  E7103:
+    severity: error
+    stage: validate
+    title: Invalid Shard File Shape
+    hint: Shard file must contain exactly one instance row (not instance_bindings root).
+  E7104:
+    severity: error
+    stage: validate
+    title: Unsupported Instance Schema Version
+    hint: Update shard schema_version or run migrator for this version.
+  E7105:
+    severity: error
+    stage: load
+    title: Reserved Shard File Ingestion Attempt
+    hint: Do not treat reserved metadata/helper files as instance shards.
+  E7107:
+    severity: error
+    stage: load
+    title: Missing Instance Source Configuration
+    hint: Configure paths.instances_root for selected source mode.
   # ADR 0068 placeholder validation
   E6801:
     severity: error

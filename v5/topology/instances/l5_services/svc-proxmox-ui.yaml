@@ -1,0 +1,11 @@
+schema_version: 1
+instance: svc-proxmox-ui
+group: l5_services
+layer: L5
+object_ref: obj.service.proxmox.web_ui
+source_id: svc-proxmox-ui
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: baremetal
+  target_ref: srv-gamayun

@@ -1,0 +1,11 @@
+schema_version: 1
+instance: svc-nextcloud@lxc.lxc-nextcloud
+group: l5_services
+layer: L5
+object_ref: obj.service.nextcloud.file_storage
+source_id: svc-nextcloud
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: lxc
+  target_ref: lxc-nextcloud

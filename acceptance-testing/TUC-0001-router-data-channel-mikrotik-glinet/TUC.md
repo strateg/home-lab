@@ -41,19 +41,20 @@ with stable compile/validate/generate behavior.
 ## Preconditions
 
 - Existing router class and object modules are present:
-  - `v5/topology/class-modules/classes/router/class.router.yaml`
+  - `v5/topology/class-modules/router/class.router.yaml`
   - `v5/topology/object-modules/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml`
   - `v5/topology/object-modules/glinet/obj.glinet.slate_ax1800.yaml`
 - Existing router instances are present:
-  - `v5/topology/instances/home-lab/instance-bindings.yaml`
+  - `v5/topology/instances/l1_devices/rtr-mikrotik-chateau.yaml`
+  - `v5/topology/instances/l1_devices/rtr-slate.yaml`
 - Plugin-first runtime is active.
 
 ## Inputs
 
 - Topology manifest:
   - `v5/topology/topology.yaml`
-- Instance bindings:
-  - `v5/topology/instances/home-lab/instance-bindings.yaml`
+- Instance shards root:
+  - `v5/topology/instances/`
 - Plugin manifests:
   - Base: `v5/topology-tools/plugins/plugins.yaml`
   - Module-level manifests discovered under:
