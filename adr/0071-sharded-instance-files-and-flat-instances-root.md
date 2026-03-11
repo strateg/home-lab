@@ -6,47 +6,46 @@
 
 ## Context
 
-`v5/topology/instances/home-lab/instance-bindings.yaml` currently stores all instance rows for the project in one file.
+Current storage uses a single project file:
 
-With active modeling this creates scaling problems:
+- `v5/topology/instances/home-lab/instance-bindings.yaml`
 
-1. high merge-conflict rate (many edits in one file)
-2. very large diff noise for small local changes
-3. weaker ownership boundaries for team work
-4. poor ergonomics for acceptance scenarios that add/modify only a few instances
+This causes high cognitive load and operational friction:
 
-Current compiler runtime also assumes a single file path (`paths.instance_bindings`) and passes one combined payload to plugins.
+1. frequent merge conflicts
+2. large diffs for tiny changes
+3. weak per-entity ownership
+4. difficult review and scenario isolation
+
+Runtime today also assumes one file path (`paths.instance_bindings`) and a pre-assembled payload.
 
 ## Decision
 
-Adopt a **sharded instance storage model** with one instance per file and remove the extra project nesting level under `instances/`.
+Adopt a **sharded instance model** with one instance per file and a flat project root under `v5/topology/instances/`.
 
 ### 1. Canonical Project Root
 
-Project instances MUST live directly under:
+Canonical authoring root:
 
 - `v5/topology/instances/`
 
 `v5/topology/instances/home-lab/` is deprecated for active authoring.
 
-### 2. One Instance Per File
+### 2. Storage Layout and File Contract
 
-Each instance is authored in its own YAML file.
+One file contains exactly one instance row.
 
 Recommended layout:
 
-- `v5/topology/instances/l1_devices/<instance-id>.yaml`
-- `v5/topology/instances/l2_network/<instance-id>.yaml`
-- ...
+- `v5/topology/instances/<group>/<instance>.yaml`
 
-Each file contains exactly one instance row as top-level object:
+Minimal file schema:
 
 ```yaml
 schema_version: 1
 instance: inst.ethernet_cable.cat5e
 group: l1_devices
 layer: L1
-class_ref: class.network.physical_link
 object_ref: obj.network.ethernet_cable
 status: modeled
 endpoint_a:
@@ -61,52 +60,96 @@ shielding: utp
 category: cat5e
 ```
 
-### 3. Compiler Input Contract
+### 3. Identity and Determinism Rules
 
-`topology.yaml` path contract is extended:
+Strict rules:
 
-- new canonical key: `paths.instances_root`
-- legacy key: `paths.instance_bindings` (deprecated compatibility path)
+1. `instance` is the global canonical identifier.
+2. File basename MUST equal instance id: `<instance>.yaml`.
+3. Basename mismatch is a hard error.
+4. `instance` MUST be globally unique across all discovered files.
+5. Discovery order is lexicographic by relative path.
+6. Assembled in-group order is lexicographic by `instance`.
 
-Compiler loader MUST:
+### 4. Path Contract
 
-1. discover instance files under `instances_root` deterministically (lexicographic path order)
+`topology.yaml` contract:
+
+- canonical: `paths.instances_root`
+- temporary compatibility: `paths.instance_bindings` (deprecated)
+
+### 5. Loader Responsibility and Plugin Compatibility
+
+Loader MUST:
+
+1. discover instance files under `instances_root`
 2. validate one-row-per-file contract
-3. assemble in-memory combined payload compatible with existing plugin context:
+3. derive `class_ref` from `object_ref` (object contract)
+4. assemble legacy-compatible in-memory payload:
 
 ```yaml
 instance_bindings:
   <group>: [ ...rows... ]
 ```
 
-This preserves current validator/compiler plugin interfaces while changing storage format.
+Downstream compiler/validator/generator plugins continue consuming assembled payload, not shard files directly.
 
-### 4. Deterministic Merge and Validation Rules
+Plugin boundary rule:
+
+1. `instances_root` stores data rows only (instance YAML files).
+2. There are no `instance-modules`.
+3. Plugin manifests and plugin code remain only in:
+   - `class-modules`
+   - `object-modules`
+4. Plugin discovery MUST NOT scan `instances_root`.
+
+Authoring rule:
+
+1. shard files MUST NOT require `class_ref`
+2. `class_ref` is derived by loader from `object_ref` chain
+3. if authored explicitly, it MUST match derived value or loader fails
+
+### 6. Validation Rules (Minimum)
 
 Loader MUST enforce:
 
-1. global uniqueness of `instance`
-2. required fields (`instance`, `group`, `layer`, `class_ref`, `object_ref`)
-3. group/layer consistency with `layer-contract.yaml`
-4. deterministic row order in assembled payload (by `instance` within group)
+1. required keys: `schema_version`, `instance`, `group`, `layer`, `object_ref`
+2. one-row-per-file
+3. `group`/`layer` consistency with `layer-contract.yaml`
+4. supported `schema_version`
+5. `class_ref` derivation integrity from `object_ref`
 
-### 5. Project Metadata
+Minimum diagnostic set:
 
-Project-level metadata that is not instance-specific (for example migration source pointers) SHOULD be moved to:
+- `E7101_INSTANCE_ID_FILENAME_MISMATCH`
+- `E7102_DUPLICATE_INSTANCE_ID`
+- `E7103_MULTIROW_INSTANCE_FILE`
+- `E7104_UNSUPPORTED_INSTANCE_SCHEMA_VERSION`
+- `E7105_RESERVED_FILE_INGESTION_ATTEMPT`
+- `E7106_DUAL_SOURCE_CONFLICT`
+
+### 7. Project Metadata
+
+Non-instance project metadata SHOULD be stored in:
 
 - `v5/topology/instances/project.yaml`
 
-and not repeated in per-instance files.
+and not duplicated in shard files.
 
-### 6. Migration and Cutover
+### 8. Migration and Cutover
 
-Migration is staged:
+Staged migration:
 
-1. add sharded loader support with dual-read mode
-2. provide splitter tool to convert legacy `instance-bindings.yaml` to per-instance files
-3. switch default authoring and CI checks to `instances_root`
-4. keep legacy single-file read as temporary compatibility mode
-5. remove legacy path after cutover evidence
+1. introduce dual-read (`instance_bindings` + `instances_root`)
+2. provide splitter tool from monolith to shards
+3. switch default authoring/CI to `instances_root`
+4. retire legacy path after cutover evidence
+
+Dual-read conflict policy:
+
+1. If same `instance` exists in both legacy and sharded sources:
+   - `dual-read`: shard wins + warning
+   - `sharded-only`: hard error
 
 ## Consequences
 
@@ -129,6 +172,12 @@ Migration is staged:
 2. manifest path contract changes (`instances_root` introduced, `instance_bindings` deprecated)
 3. CI and docs must be updated to new authoring path
 
+### Out of Scope
+
+1. no change to class/object semantics from ADR 0062
+2. no change to plugin stage ownership from ADR 0063/0069
+3. no change to generated artifact ownership
+
 ## References
 
 - `v5/topology/topology.yaml`
@@ -138,3 +187,5 @@ Migration is staged:
 - `v5/topology-tools/plugins/validators/reference_validator.py`
 - `v5/topology-tools/plugins/validators/model_lock_validator.py`
 - `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/TUC.md`
+- `adr/0071-analysis/IMPLEMENTATION-PLAN.md`
+- `adr/0071-analysis/CUTOVER-CHECKLIST.md`
