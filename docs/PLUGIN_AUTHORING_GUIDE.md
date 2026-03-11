@@ -1,9 +1,14 @@
 # Plugin Authoring Guide
 
-**Last Updated:** 2026-03-09
+**Last Updated:** 2026-03-11
 **Related:** ADR 0063, ADR 0064
 
 This guide helps topology module developers create plugins that integrate with the plugin microkernel.
+
+Runtime discovery policy (ADR0063):
+- Base manifest from CLI (`--plugins-manifest`) is loaded first.
+- Then `plugins.yaml` files from `class-modules/**` and `object-modules/**` are loaded.
+- Order is deterministic (lexicographic per root); duplicate plugin IDs are rejected.
 
 ---
 
@@ -78,10 +83,10 @@ class MikrotikDeviceYamlValidator(YamlValidatorPlugin):
         )
 ```
 
-### 2. Add to Module Manifest
+### 2. Add Module Plugin Manifest
 
 ```yaml
-# topology/object-modules/mikrotik/manifest.yaml
+# topology/object-modules/mikrotik/plugins.yaml
 
 module_id: obj.mikrotik
 module_version: "0.5.0"
@@ -258,7 +263,7 @@ class MyGenerator(GeneratorPlugin):
 
 ```
 topology/object-modules/mikrotik/
-├── manifest.yaml                    # Module manifest with plugin declarations
+├── plugins.yaml                     # Plugin manifest discovered by compiler
 ├── README.md
 ├── plugins/
 │   ├── __init__.py
@@ -610,7 +615,7 @@ def test_plugin_in_pipeline(kernel, test_yaml_file):
 4. Run `kernel.validate_manifest()` to catch manifest errors
 
 ```python
-result = kernel.validate_manifest("path/to/manifest.yaml")
+result = kernel.validate_manifest("path/to/plugins.yaml")
 if not result.is_valid:
     print(result.errors)
 ```

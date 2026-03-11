@@ -205,6 +205,10 @@ Progress note (2026-03-11):
    - Plugin execution enabled by default (`--enable-plugins` optional; `--disable-plugins` kept only for diagnostics).
    - CLI rejects `--pipeline-mode legacy` and `--parity-gate`; runtime guards (`E6904`, `E6905`) remain for non-CLI API callers.
    - No legacy core compile/validate/effective execution branches remain active in runtime pipeline.
+6. Added module-level plugin manifest discovery and deterministic merge:
+   - Load order: base manifest -> class module `**/plugins.yaml` -> object module `**/plugins.yaml`.
+   - Per-root lexicographic ordering for deterministic graph assembly.
+   - Duplicate plugin IDs across manifests are reported as load errors (`E4001`).
 
 ---
 

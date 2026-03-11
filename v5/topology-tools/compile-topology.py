@@ -23,6 +23,7 @@ from compiler_plugin_context import create_plugin_context
 from compiler_reporting import write_diagnostics_report
 from compiler_runtime import (
     apply_plugin_compile_outputs,
+    discover_plugin_manifests,
     emit_effective_artifact,
     load_core_compile_inputs,
     resolve_manifest_paths,
@@ -133,6 +134,7 @@ class V5Compiler:
         self._plugin_registry: PluginRegistry | None = None
         self._plugin_results: list[PluginResult] = []
         self._run_generated_at: str | None = None
+        self._plugin_manifests_loaded = False
         self._validation_owner = lambda rule_name: validation_owner(
             enable_plugins=self.enable_plugins,
             pipeline_mode=self.pipeline_mode,
@@ -175,36 +177,9 @@ class V5Compiler:
         return hints
 
     def _init_plugin_registry(self) -> None:
-        """Initialize the plugin registry from manifest."""
+        """Initialize empty plugin registry (manifests load in run())."""
         try:
             self._plugin_registry = PluginRegistry(TOPOLOGY_TOOLS)
-            if self.plugins_manifest_path.exists():
-                self._plugin_registry.load_manifest(self.plugins_manifest_path)
-                load_errors = self._plugin_registry.get_load_errors()
-                for err in load_errors:
-                    self.add_diag(
-                        code="E4001",
-                        severity="error",
-                        stage="load",
-                        message=f"Plugin load error: {err}",
-                        path="plugins.yaml",
-                    )
-                self.add_diag(
-                    code="I4001",
-                    severity="info",
-                    stage="load",
-                    message=f"Plugin kernel v{KERNEL_VERSION} initialized with {len(self._plugin_registry.specs)} plugins",
-                    path="plugins.yaml",
-                    confidence=1.0,
-                )
-            else:
-                self.add_diag(
-                    code="W4001",
-                    severity="warning",
-                    stage="load",
-                    message=f"Plugin manifest not found: {self.plugins_manifest_path}",
-                    path="plugins.yaml",
-                )
         except Exception as exc:
             self.add_diag(
                 code="E4001",
@@ -214,6 +189,77 @@ class V5Compiler:
                 path="plugins.yaml",
             )
             self._plugin_registry = None
+
+    def _path_for_diag(self, path: Path) -> str:
+        try:
+            return str(path.relative_to(REPO_ROOT).as_posix())
+        except ValueError:
+            return str(path.as_posix())
+
+    def _load_plugin_manifests(self, *, class_modules_root: Path, object_modules_root: Path) -> None:
+        """Load base + module plugin manifests in deterministic order."""
+        if not self._plugin_registry or self._plugin_manifests_loaded:
+            return
+
+        ordered_manifests = discover_plugin_manifests(
+            base_manifest_path=self.plugins_manifest_path,
+            class_modules_root=class_modules_root,
+            object_modules_root=object_modules_root,
+        )
+
+        loaded_count = 0
+        module_manifest_count = 0
+
+        for idx, manifest_path in enumerate(ordered_manifests):
+            if not manifest_path.exists():
+                if idx == 0:
+                    self.add_diag(
+                        code="W4001",
+                        severity="warning",
+                        stage="load",
+                        message=f"Plugin manifest not found: {manifest_path}",
+                        path=self._path_for_diag(manifest_path),
+                    )
+                continue
+
+            errors_before = len(self._plugin_registry.get_load_errors())
+            try:
+                self._plugin_registry.load_manifest(manifest_path)
+            except Exception as exc:
+                self.add_diag(
+                    code="E4001",
+                    severity="error",
+                    stage="load",
+                    message=f"Plugin manifest load failed: {exc}",
+                    path=self._path_for_diag(manifest_path),
+                )
+                continue
+            loaded_count += 1
+            if idx > 0:
+                module_manifest_count += 1
+
+            load_errors = self._plugin_registry.get_load_errors()
+            for err in load_errors[errors_before:]:
+                self.add_diag(
+                    code="E4001",
+                    severity="error",
+                    stage="load",
+                    message=f"Plugin load error: {err}",
+                    path=self._path_for_diag(manifest_path),
+                )
+
+        self._plugin_manifests_loaded = True
+        self.add_diag(
+            code="I4001",
+            severity="info",
+            stage="load",
+            message=(
+                f"Plugin kernel v{KERNEL_VERSION} initialized with {len(self._plugin_registry.specs)} plugins "
+                f"from {loaded_count} manifest(s), including {module_manifest_count} module-level manifest(s)."
+            ),
+            path=self._path_for_diag(self.plugins_manifest_path),
+            confidence=1.0,
+        )
 
     def _execute_plugins(
         self,
@@ -404,6 +450,10 @@ class V5Compiler:
         manifest_bundle = resolve_manifest_paths(
             manifest_paths=manifest_paths,
             resolve_repo_path=resolve_repo_path,
+        )
+        self._load_plugin_manifests(
+            class_modules_root=manifest_bundle.class_modules_root,
+            object_modules_root=manifest_bundle.object_modules_root,
         )
         source_manifest_digest = manifest_digest(manifest)
 

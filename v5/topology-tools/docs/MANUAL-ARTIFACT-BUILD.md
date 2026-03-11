@@ -14,6 +14,8 @@ python v5/topology-tools/compile-topology.py --help
 ```
 
 Проверьте, что доступен `v5/topology-tools/plugins/plugins.yaml`.
+Если в `v5/topology/class-modules/**` или `v5/topology/object-modules/**` есть `plugins.yaml`,
+они будут подхвачены автоматически (deterministic merge policy).
 
 ## 2. Полный ручной прогон (все этапы)
 

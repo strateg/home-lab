@@ -1,7 +1,7 @@
 # ADR 0063: Plugin Microkernel for Compiler, Validators, and Generators
 
 **Date:** 2026-03-06
-**Status:** Implemented (Phase 1, 2 & 3 Core Complete)
+**Status:** Implemented (Phase 1-3 Complete, including module-level manifest discovery)
 **Related:** ADR 0062 (Topology v5 - Modular Class-Object-Instance Architecture), ADR 0065 (Plugin API Contract), ADR 0066 (Plugin Testing and CI Strategy)
 **Extends:** ADR 0062 section "Open Questions" (generator/plugin packaging and loading model)
 
@@ -97,6 +97,19 @@ This keeps behavior colocated with class/object contracts.
 Allow reusable baseline plugins in core layer for cross-module reuse (for example common reference checks, shared emit helpers, generic diff checks).
 
 Base plugins are referenced the same way as module plugins and participate in the same ordering/dependency graph.
+
+### 4A. Deterministic Module-Level Manifest Discovery and Merge
+
+Runtime loads plugin manifests with deterministic merge policy:
+
+1. explicit base manifest from CLI/config (`--plugins-manifest`)
+2. module manifests discovered under class modules root (`**/plugins.yaml`)
+3. module manifests discovered under object modules root (`**/plugins.yaml`)
+
+Within each module root, manifests are sorted lexicographically by relative path.
+
+Duplicate plugin IDs across manifests are hard load errors (no override behavior).
+First-loaded definition is retained, duplicate declarations are rejected with diagnostics.
 
 ### 5. Standardize Manifest Plugin Contract
 
@@ -378,6 +391,7 @@ CI must:
 - [x] Sample compiler plugin (`plugins/compilers/capability_compiler.py`)
 - [x] Sample validator using subscribe (`plugins/validators/capability_contract_validator.py`)
 - [x] Shared PluginContext across COMPILE and VALIDATE stages
+- [x] Module-level plugin manifest discovery and deterministic merge policy
 
 ### Phase 4 - Full Migration (Deferred)
 
