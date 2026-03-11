@@ -18,11 +18,31 @@ from capability_derivation import derive_os_capabilities as shared_derive_os_cap
 from capability_derivation import extract_firmware_properties as shared_extract_firmware_properties
 from capability_derivation import extract_os_properties as shared_extract_os_properties
 from capability_derivation import normalize_release_token as shared_normalize_release_token
-from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
+from kernel.plugin_base import (
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+    ValidatorJsonPlugin,
+)
 
 
 class CapabilityContractValidator(ValidatorJsonPlugin):
     """Validate class/object capability contracts and derived capability coverage."""
+
+    @staticmethod
+    def _subscribe_or_config(
+        ctx: PluginContext,
+        *,
+        plugin_id: str,
+        published_key: str,
+        config_key: str,
+    ) -> Any:
+        try:
+            return ctx.subscribe(plugin_id, published_key)
+        except PluginDataExchangeError:
+            return ctx.config.get(config_key)
 
     @staticmethod
     def _normalize_release_token(value: str) -> str:
@@ -135,17 +155,36 @@ class CapabilityContractValidator(ValidatorJsonPlugin):
         if owner is not None and owner != "plugin":
             return self.make_result(diagnostics)
 
-        catalog_ids = {
-            item for item in (ctx.config.get("capability_catalog_ids") or []) if isinstance(item, str) and item
-        }
+        catalog_ids_raw = self._subscribe_or_config(
+            ctx,
+            plugin_id="base.compiler.capability_contract_loader",
+            published_key="catalog_ids",
+            config_key="capability_catalog_ids",
+        )
+        catalog_ids = {item for item in (catalog_ids_raw or []) if isinstance(item, str) and item}
         if not catalog_ids:
             return self.make_result(diagnostics)
 
-        packs_map_raw = ctx.config.get("capability_packs")
+        packs_map_raw = self._subscribe_or_config(
+            ctx,
+            plugin_id="base.compiler.capability_contract_loader",
+            published_key="packs_map",
+            config_key="capability_packs",
+        )
         packs_map = packs_map_raw if isinstance(packs_map_raw, dict) else {}
-        class_paths_raw = ctx.config.get("class_module_paths")
+        class_paths_raw = self._subscribe_or_config(
+            ctx,
+            plugin_id="base.compiler.module_loader",
+            published_key="class_module_paths",
+            config_key="class_module_paths",
+        )
         class_paths = class_paths_raw if isinstance(class_paths_raw, dict) else {}
-        object_paths_raw = ctx.config.get("object_module_paths")
+        object_paths_raw = self._subscribe_or_config(
+            ctx,
+            plugin_id="base.compiler.module_loader",
+            published_key="object_module_paths",
+            config_key="object_module_paths",
+        )
         object_paths = object_paths_raw if isinstance(object_paths_raw, dict) else {}
         require_new_model = bool(ctx.config.get("require_new_model", False))
 

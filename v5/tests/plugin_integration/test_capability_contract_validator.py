@@ -74,3 +74,51 @@ def test_capability_contract_validator_plugin_owner_detects_contract_errors():
     assert result.status == PluginStatus.FAILED
     codes = [d.code for d in result.diagnostics]
     assert "E3201" in codes
+
+
+def test_capability_contract_validator_reads_contract_data_via_subscribe():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "validation_owner_capability_contract": "plugin",
+            "require_new_model": False,
+        },
+        classes={
+            "class.router": {
+                "class": "class.router",
+                "required_capabilities": ["cap.net.a"],
+                "optional_capabilities": [],
+                "capability_packs": [],
+            }
+        },
+        objects={
+            "obj.router.bad": {
+                "object": "obj.router.bad",
+                "class_ref": "class.router",
+                "enabled_capabilities": ["cap.unknown"],
+                "enabled_packs": [],
+                "vendor_capabilities": [],
+            }
+        },
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    # Seed published data exactly as compiler plugins do in compile stage.
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", ["cap.net.a"])
+    ctx.publish("packs_map", {})
+    ctx._clear_execution_context()
+
+    ctx._set_execution_context("base.compiler.module_loader", set())
+    ctx.publish("class_module_paths", {})
+    ctx.publish("object_module_paths", {})
+    ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.FAILED
+    codes = [d.code for d in result.diagnostics]
+    assert "E3201" in codes
