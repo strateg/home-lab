@@ -12,15 +12,15 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from capability_derivation import default_firmware_policy as shared_default_firmware_policy
+from capability_derivation import derive_firmware_capabilities as shared_derive_firmware_capabilities
+from capability_derivation import derive_os_capabilities as shared_derive_os_capabilities
+from capability_derivation import extract_architecture as shared_extract_architecture
+from capability_derivation import extract_firmware_properties as shared_extract_firmware_properties
+from capability_derivation import extract_os_installation_model as shared_extract_os_installation_model
+from capability_derivation import extract_os_properties as shared_extract_os_properties
+from capability_derivation import normalize_release_token as shared_normalize_release_token
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
-from legacy_capabilities import default_firmware_policy as legacy_default_firmware_policy
-from legacy_capabilities import derive_firmware_capabilities as legacy_derive_firmware_capabilities
-from legacy_capabilities import derive_os_capabilities as legacy_derive_os_capabilities
-from legacy_capabilities import extract_architecture as legacy_extract_architecture
-from legacy_capabilities import extract_firmware_properties as legacy_extract_firmware_properties
-from legacy_capabilities import extract_os_installation_model as legacy_extract_os_installation_model
-from legacy_capabilities import extract_os_properties as legacy_extract_os_properties
-from legacy_capabilities import normalize_release_token as legacy_normalize_release_token
 
 
 class ReferenceValidator(ValidatorJsonPlugin):
@@ -28,27 +28,27 @@ class ReferenceValidator(ValidatorJsonPlugin):
 
     @staticmethod
     def _normalize_release_token(value: str) -> str:
-        return legacy_normalize_release_token(value)
+        return shared_normalize_release_token(value)
 
     @staticmethod
     def _extract_architecture(object_payload: dict[str, Any]) -> str | None:
-        return legacy_extract_architecture(object_payload)
+        return shared_extract_architecture(object_payload)
 
     @staticmethod
     def _extract_os_installation_model(object_payload: dict[str, Any]) -> str | None:
-        return legacy_extract_os_installation_model(object_payload)
+        return shared_extract_os_installation_model(object_payload)
 
     @staticmethod
     def _extract_firmware_properties(object_payload: dict[str, Any]) -> dict[str, Any]:
-        return legacy_extract_firmware_properties(object_payload)
+        return shared_extract_firmware_properties(object_payload)
 
     def _extract_os_properties(self, object_payload: dict[str, Any]) -> dict[str, Any] | None:
         _ = self
-        return legacy_extract_os_properties(object_payload)
+        return shared_extract_os_properties(object_payload)
 
     @staticmethod
     def _default_firmware_policy(class_id: str) -> str:
-        return legacy_default_firmware_policy(class_id)
+        return shared_default_firmware_policy(class_id)
 
     def _normalize_rows(self, bindings: dict[str, Any]) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
@@ -120,7 +120,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
                 )
             )
 
-        derived, effective = legacy_derive_firmware_capabilities(
+        derived, effective = shared_derive_firmware_capabilities(
             object_id=object_id,
             object_payload=object_payload,
             catalog_ids=catalog_ids,
@@ -154,7 +154,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
                 )
             )
 
-        derived, effective = legacy_derive_os_capabilities(
+        derived, effective = shared_derive_os_capabilities(
             object_id=object_id,
             object_payload=object_payload,
             catalog_ids=catalog_ids,

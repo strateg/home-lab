@@ -1,4 +1,4 @@
-"""Legacy capability derivation helpers extracted from compile-topology.py."""
+"""Shared capability derivation helpers for compiler/validator plugins."""
 
 from __future__ import annotations
 

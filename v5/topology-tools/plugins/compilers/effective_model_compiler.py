@@ -16,13 +16,13 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from capability_derivation import default_firmware_policy as shared_default_firmware_policy
+from capability_derivation import derive_firmware_capabilities as shared_derive_firmware_capabilities
+from capability_derivation import derive_os_capabilities as shared_derive_os_capabilities
+from capability_derivation import extract_firmware_properties as shared_extract_firmware_properties
+from capability_derivation import extract_os_properties as shared_extract_os_properties
+from capability_derivation import normalize_release_token as shared_normalize_release_token
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
-from legacy_capabilities import default_firmware_policy as legacy_default_firmware_policy
-from legacy_capabilities import derive_firmware_capabilities as legacy_derive_firmware_capabilities
-from legacy_capabilities import derive_os_capabilities as legacy_derive_os_capabilities
-from legacy_capabilities import extract_firmware_properties as legacy_extract_firmware_properties
-from legacy_capabilities import extract_os_properties as legacy_extract_os_properties
-from legacy_capabilities import normalize_release_token as legacy_normalize_release_token
 
 
 def _utc_now() -> str:
@@ -39,24 +39,24 @@ class EffectiveModelCompiler(CompilerPlugin):
 
     @staticmethod
     def _normalize_release_token(value: str) -> str:
-        return legacy_normalize_release_token(value)
+        return shared_normalize_release_token(value)
 
     @staticmethod
     def _default_firmware_policy(class_id: str) -> str:
-        return legacy_default_firmware_policy(class_id)
+        return shared_default_firmware_policy(class_id)
 
     @staticmethod
     def _extract_firmware_properties(object_payload: dict[str, Any]) -> dict[str, Any]:
-        return legacy_extract_firmware_properties(object_payload)
+        return shared_extract_firmware_properties(object_payload)
 
     def _extract_os_properties(self, object_payload: dict[str, Any]) -> dict[str, Any] | None:
         _ = self
-        return legacy_extract_os_properties(object_payload)
+        return shared_extract_os_properties(object_payload)
 
     def _derive_firmware_capabilities(
         self, *, object_payload: dict[str, Any]
     ) -> tuple[set[str], dict[str, Any] | None]:
-        return legacy_derive_firmware_capabilities(
+        return shared_derive_firmware_capabilities(
             object_id="plugin-effective-model",
             object_payload=object_payload,
             catalog_ids=set(),
@@ -66,7 +66,7 @@ class EffectiveModelCompiler(CompilerPlugin):
         )
 
     def _derive_os_capabilities(self, *, object_payload: dict[str, Any]) -> tuple[set[str], dict[str, Any] | None]:
-        return legacy_derive_os_capabilities(
+        return shared_derive_os_capabilities(
             object_id="plugin-effective-model",
             object_payload=object_payload,
             catalog_ids=set(),
