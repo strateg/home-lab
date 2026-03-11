@@ -1,0 +1,97 @@
+object: obj.ubiquiti.edgerouter_lite
+version: 1.0.0
+class_ref: class.router
+title: Ubiquiti EdgeRouter Lite
+vendor: ubiquiti
+model: ERLite-3
+
+description: |
+  Ubiquiti EdgeRouter Lite (ERLite-3) - Compact wired router for small offices
+  and remote offices with advanced routing, VPN, and traffic shaping. 3 GbE ports,
+  passive cooling, low power consumption.
+
+hardware_specs:
+  form_factor: compact
+  dimensions:
+    length_mm: 210
+    width_mm: 149
+    height_mm: 35
+    weight_g: 450
+    mounting: wall_mount
+
+  cpu:
+    vendor: cavium
+    model: OCTEON II
+    architecture: mips64
+    cores: 2
+    clock_mhz: 1000
+
+  memory:
+    size_mb: 512
+    type: ddr2
+
+  storage:
+    size_mb: 2048
+    type: nand_flash
+
+  interfaces:
+    ethernet:
+      - name: eth0
+        role: wan
+        speed_mbps: 1000
+        standard: gbe
+        duplex: full
+        poe: false
+        description: GbE WAN port
+
+      - name: eth1
+        role: lan
+        speed_mbps: 1000
+        standard: gbe
+        duplex: full
+        poe: false
+        description: GbE LAN port 1
+
+      - name: eth2
+        role: lan
+        speed_mbps: 1000
+        standard: gbe
+        duplex: full
+        poe: false
+        description: GbE LAN port 2
+
+  power:
+    input_voltage_vdc: 12
+    input_connector: barrel_jack
+    max_power_watts: 10
+    typical_power_watts: 5
+    idle_power_watts: 3
+    cooling: passive
+    operating_temp_celsius: [0, 40]
+
+software_contract:
+  firmware_obj_ref: obj.firmware.edgeos.ubiquiti
+  os_obj_refs:
+  - obj.os.edgeos.ubiquiti
+  os_cardinality:
+    min: 1
+    max: 1
+  multi_boot: false
+
+software:
+  features:
+    - Advanced routing (BGP, OSPF, RIP)
+    - IPSec and L2TP VPN
+    - Traffic shaping and QoS
+    - Firewall and NAT
+    - SSH/SNMP management
+    - Port mirroring
+
+enabled_capabilities:
+  - cap.net.interface.ethernet
+  - cap.net.l3.routing.static
+  - cap.net.l3.routing.bgp
+  - cap.net.l3.translation.snat
+  - cap.net.l3.security.firewall.stateful
+  - cap.net.vpn.ipsec
+  - cap.net.traffic.shaping.qos

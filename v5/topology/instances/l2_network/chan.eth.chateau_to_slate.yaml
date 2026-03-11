@@ -1,11 +1,11 @@
 schema_version: 1
-instance: chan.eth.chateau_to_slate
+instance: inst.chan.eth.chateau_to_slate
 group: l2_network
 layer: L2
 object_ref: obj.network.ethernet_channel
-source_id: chan.eth.chateau_to_slate
+source_id: inst.chan.eth.chateau_to_slate
 status: modeled
-notes: Ethernet data link created by inst.ethernet_cable.cat5e
+notes: Logical ethernet channel created over Cat5e cable between rtr-mikrotik-chateau and rtr-slate
 endpoint_a:
   device_ref: rtr-mikrotik-chateau
   port: ether2

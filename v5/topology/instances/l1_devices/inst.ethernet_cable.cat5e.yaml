@@ -12,7 +12,7 @@ endpoint_a:
 endpoint_b:
   device_ref: rtr-slate
   port: lan1
-creates_channel_ref: chan.eth.chateau_to_slate
+creates_channel_ref: inst.chan.eth.chateau_to_slate
 length_m: 3
 shielding: utp
 category: cat5e

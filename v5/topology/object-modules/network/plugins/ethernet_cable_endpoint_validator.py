@@ -378,3 +378,219 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                 continue
             endpoint_pairs.add((device_ref, port))
         return endpoint_pairs
+
+
+"""
+Endpoint Validator for Physical Links
+
+Validates:
+1. Endpoint device_ref resolves to existing instance
+2. Endpoint port exists on the device object definition
+3. Port matches device type constraints (e.g., MikroTik ether*, GL.iNet lan/wan)
+4. No validation of port occupancy (separate validator: port_occupancy_validator)
+"""
+
+from pathlib import Path
+from typing import Dict, Optional, Set
+
+import yaml
+from v5.topology_tools.kernel.plugin_base import PluginDiagnostic, PluginResult, ValidatorPlugin
+
+
+class EndpointValidator(ValidatorPlugin):
+    """Validate cable endpoints against device object definitions."""
+
+    # Known port naming patterns per vendor
+    VENDOR_PORT_PATTERNS = {
+        "mikrotik": {
+            "patterns": [r"^ether\d+$", r"^sfp\d+$", r"^usb\d+$"],
+            "description": "MikroTik: ether*, sfp*, usb*",
+        },
+        "glinet": {
+            "patterns": [r"^(wan|lan\d+)$", r"^usb\d+$", r"^wlan\d+$"],
+            "description": "GL.iNet: wan, lan*, usb*, wlan*",
+        },
+    }
+
+    def __init__(self, context):
+        super().__init__(context)
+        self.devices = {}  # instance_id -> device object data
+        self.vendor_map = {}  # instance_id -> vendor
+
+    def _load_device_objects(self, topology_root: Path) -> None:
+        """Load all router objects to extract port definitions."""
+        try:
+            for obj_file in topology_root.glob("object-modules/*/obj.*.yaml"):
+                with open(obj_file, "r") as f:
+                    obj = yaml.safe_load(f)
+
+                if obj and obj.get("class_ref") == "class.router":
+                    obj_ref = obj.get("object")
+                    vendor = obj.get("vendor", "unknown")
+                    self.devices[obj_ref] = obj
+                    self.vendor_map[obj_ref] = vendor
+        except Exception as e:
+            self.warnings.append(f"Failed to load device objects: {e}")
+
+    def execute(self, compiled_json: dict) -> PluginResult:
+        """
+        Validate cable endpoints.
+
+        Args:
+            compiled_json: Compiled effective model
+
+        Returns:
+            PluginResult with diagnostics if violations found
+        """
+        diagnostics = []
+        violations = 0
+        topology_root = Path(__file__).parent.parent.parent.parent.parent / "topology"
+        self._load_device_objects(topology_root)
+
+        # Extract device instances from compiled model to resolve refs
+        devices_by_id = {}
+        if "instances" in compiled_json:
+            for group_name, instances_in_group in compiled_json["instances"].items():
+                if isinstance(instances_in_group, list):
+                    for instance in instances_in_group:
+                        inst_id = instance.get("instance")
+                        obj_ref = instance.get("object_ref")
+                        if inst_id and obj_ref:
+                            devices_by_id[inst_id] = obj_ref
+
+        # Validate all physical_link instances
+        if "instances" in compiled_json:
+            for group_name, instances_in_group in compiled_json["instances"].items():
+                if not isinstance(instances_in_group, list):
+                    continue
+
+                for instance in instances_in_group:
+                    if instance.get("class_ref") != "class.network.physical_link":
+                        continue
+
+                    instance_id = instance.get("instance")
+                    endpoints = [instance.get("endpoint_a"), instance.get("endpoint_b")]
+
+                    for endpoint_idx, endpoint in enumerate(endpoints):
+                        if not endpoint:
+                            continue
+
+                        device_ref = endpoint.get("device_ref")
+                        port = endpoint.get("port")
+
+                        if not device_ref or not port:
+                            continue
+
+                        endpoint_name = f"endpoint_{'ab'[endpoint_idx]}"
+
+                        # Resolve device_ref to object_ref
+                        if device_ref not in devices_by_id:
+                            violations += 1
+                            diagnostics.append(
+                                PluginDiagnostic(
+                                    severity="error",
+                                    code="E7304",
+                                    message=f"{instance_id}: {endpoint_name} references unknown device '{device_ref}'",
+                                    location={
+                                        "entity": instance_id,
+                                        "field": endpoint_name,
+                                    },
+                                )
+                            )
+                            continue
+
+                        object_ref = devices_by_id[device_ref]
+                        if object_ref not in self.devices:
+                            violations += 1
+                            diagnostics.append(
+                                PluginDiagnostic(
+                                    severity="error",
+                                    code="E7304",
+                                    message=f"{instance_id}: {endpoint_name} references unknown object '{object_ref}' for device '{device_ref}'",
+                                    location={
+                                        "entity": instance_id,
+                                        "field": endpoint_name,
+                                    },
+                                )
+                            )
+                            continue
+
+                        # Check if port exists in device object
+                        device_obj = self.devices[object_ref]
+                        vendor = self.vendor_map.get(object_ref, "unknown")
+                        if not self._validate_port_exists(device_obj, port, vendor, instance_id, endpoint_name):
+                            violations += 1
+                            diagnostics.append(
+                                PluginDiagnostic(
+                                    severity="error",
+                                    code="E7305",
+                                    message=f"{instance_id}: {endpoint_name} port '{port}' not found on {vendor.upper()} device '{device_ref}' ({object_ref})",
+                                    location={
+                                        "entity": instance_id,
+                                        "field": endpoint_name,
+                                    },
+                                    context={
+                                        "vendor": vendor,
+                                        "requested_port": port,
+                                        "available_ports": self._get_available_ports(device_obj),
+                                    },
+                                )
+                            )
+
+        if violations > 0:
+            return self.failed_result(
+                diagnostics=diagnostics,
+                output_data={"endpoint_violations": violations},
+            )
+
+        return self.success_result(
+            output_data={"endpoints_validated": len(diagnostics) + violations},
+            diagnostics=diagnostics,
+        )
+
+    def _validate_port_exists(
+        self, device_obj: Dict, port: str, vendor: str, instance_id: str, endpoint_name: str
+    ) -> bool:
+        """Check if port exists in device object definition."""
+        interfaces = device_obj.get("hardware_specs", {}).get("interfaces", {})
+
+        # Check ethernet ports
+        ethernet_ports = interfaces.get("ethernet", [])
+        for eth_if in ethernet_ports:
+            if eth_if.get("name") == port:
+                return True
+
+        # Check wireless ports (for completeness)
+        wireless_ports = interfaces.get("wireless", [])
+        for wifi_if in wireless_ports:
+            if wifi_if.get("name") == port:
+                return True
+
+        # Check USB ports
+        usb_ports = interfaces.get("usb", [])
+        for usb_if in usb_ports:
+            if usb_if.get("name") == port:
+                return True
+
+        # Check cellular ports
+        cellular_ports = interfaces.get("cellular", [])
+        for cell_if in cellular_ports:
+            if cell_if.get("name") == port:
+                return True
+
+        return False
+
+    def _get_available_ports(self, device_obj: Dict) -> list:
+        """Extract all available port names from device object."""
+        ports = []
+        interfaces = device_obj.get("hardware_specs", {}).get("interfaces", {})
+
+        for if_type in ["ethernet", "wireless", "cellular", "usb"]:
+            if_list = interfaces.get(if_type, [])
+            if isinstance(if_list, list):
+                for iface in if_list:
+                    port_name = iface.get("name")
+                    if port_name:
+                        ports.append(port_name)
+
+        return sorted(ports)

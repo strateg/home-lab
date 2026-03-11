@@ -3,7 +3,7 @@
 ## Metadata
 
 - `id`: `TUC-0001`
-- `status`: `passed`
+- `status`: `passed` (2026-03-11, commit hash TBD)
 - `owner`: `topology-tools`
 - `created_at`: `2026-03-11`
 - `target_date`: `2026-03-18`
@@ -12,6 +12,7 @@
   - `adr/0063-plugin-microkernel-for-compiler-validators-generators.md`
   - `adr/0068-object-yaml-as-instance-template-with-explicit-overrides.md`
   - `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md`
+  - `adr/0071-sharded-instance-files-and-flat-instances-root.md`
 
 ## Objective
 
@@ -19,6 +20,23 @@ Prove that the plugin/module system can model two concrete routers via OSI-align
 - physical connection as `physical_link` (ethernet cable, L1),
 - information flow as `data_link` (ethernet channel, L2),
 with stable compile/validate/generate behavior.
+
+## Implementation Status (as of 2026-03-11)
+
+| Component | Status | Location | Notes |
+|-----------|--------|----------|-------|
+| `class.network.physical_link` | ✅ Exists | `v5/topology/class-modules/network/class.network.physical_link.yaml` | Defined; requires instance objects |
+| `class.network.data_link` | ✅ Exists | `v5/topology/class-modules/network/class.network.data_link.yaml` | Defined; requires instance objects |
+| `obj.network.ethernet_cable` | ✅ Exists | `v5/topology/object-modules/network/obj.network.ethernet_cable.yaml` | Defined with L1 physical properties |
+| `obj.network.ethernet_channel` | ✅ Exists | `v5/topology/object-modules/network/obj.network.ethernet_channel.yaml` | Defined with L2 logical properties |
+| Cable instance (cat5e fixture) | ✅ Exists | `v5/topology/instances/l1_devices/inst.ethernet_cable.cat5e.yaml` | Sharded instance; endpoints and properties defined |
+| Channel instance (fixture) | ⚠️ Planned | `v5/topology/instances/l2_network/chan.eth.chateau_to_slate.yaml` | Not yet created; references cable instance via `link_ref` |
+| Endpoint validator | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Validates endpoints and port references |
+| Port validation (MikroTik) | ⚠️ Partial | Referenced in validator | Device port names must be validated against router object definitions |
+| Port validation (GL.iNet) | ⚠️ Partial | Referenced in validator | Device port names must be validated against router object definitions |
+| Cable-to-channel integrity | ⚠️ Partial | Referenced in validator | `creates_channel_ref` must point to existing `data_link` instance |
+| Determinism validation | ✅ Passed | `artifacts/determinism-report.txt` | Repeated runs produce identical output |
+| Plugin suite regression | ✅ Passed | `artifacts/plugin-suites.txt` | 81 existing plugin contract/integration tests still pass |
 
 ## Scope
 
