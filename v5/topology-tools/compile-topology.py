@@ -18,6 +18,7 @@ import yaml
 TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
+from compiler_runtime import apply_plugin_compile_outputs, load_core_compile_inputs, resolve_manifest_paths
 from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
 from legacy_capabilities import default_firmware_policy as legacy_default_firmware_policy
 from legacy_capabilities import derive_firmware_capabilities as legacy_derive_firmware_capabilities
@@ -935,43 +936,19 @@ class V5Compiler:
             print(f"Diagnostics TXT:  {self.diagnostics_txt}")
             return 1
 
-        class_modules_root = resolve_repo_path(str(manifest_paths.get("class_modules_root", "")))
-        object_modules_root = resolve_repo_path(str(manifest_paths.get("object_modules_root", "")))
-        capability_catalog_path = resolve_repo_path(str(manifest_paths.get("capability_catalog", "")))
-        capability_packs_path = resolve_repo_path(str(manifest_paths.get("capability_packs", "")))
-        instance_bindings_path = resolve_repo_path(str(manifest_paths.get("instance_bindings", "")))
-        model_lock_path = resolve_repo_path(str(manifest_paths.get("model_lock", "")))
-        source_manifest_digest = self._manifest_digest(manifest)
-
-        if self._compilation_owner("module_maps") == "core":
-            class_map = self._load_module_map(directory=class_modules_root, module_type="class")
-            object_map = self._load_module_map(directory=object_modules_root, module_type="object")
-        else:
-            class_map = {}
-            object_map = {}
-        if self._compilation_owner("capability_contract_data") == "core":
-            catalog_ids, packs_map = self._load_capability_contract(
-                catalog_path=capability_catalog_path,
-                packs_path=capability_packs_path,
-            )
-        else:
-            catalog_ids, packs_map = set(), {}
-
-        instance_payload = self._load_yaml(
-            instance_bindings_path,
-            code_missing="E1001",
-            code_parse="E1003",
-            stage="load",
+        manifest_bundle = resolve_manifest_paths(
+            manifest_paths=manifest_paths,
+            resolve_repo_path=resolve_repo_path,
         )
-        if self._compilation_owner("instance_rows") == "core":
-            rows = self._load_instance_rows(instance_payload or {})
-        else:
-            rows = []
-
-        lock_payload = None
-        if self._compilation_owner("model_lock_data") == "core":
-            if model_lock_path.exists():
-                lock_payload = self._load_yaml(model_lock_path, code_missing="E1001", code_parse="E2401", stage="load")
+        source_manifest_digest = self._manifest_digest(manifest)
+        inputs = load_core_compile_inputs(
+            paths=manifest_bundle,
+            compilation_owner=self._compilation_owner,
+            load_module_map=self._load_module_map,
+            load_capability_contract=self._load_capability_contract,
+            load_yaml=self._load_yaml,
+            load_instance_rows=self._load_instance_rows,
+        )
 
         # Create shared plugin context (ADR 0063 Phase 3)
         # Context persists across stages so publish/subscribe works
@@ -979,117 +956,28 @@ class V5Compiler:
         if self.enable_plugins:
             plugin_ctx = self._create_plugin_context(
                 manifest=manifest,
-                class_modules_root=class_modules_root,
-                object_modules_root=object_modules_root,
-                class_map=class_map,
-                object_map=object_map,
-                instance_bindings=instance_payload or {},
-                rows=rows,
-                capability_catalog_ids=catalog_ids,
-                capability_packs=packs_map,
-                capability_catalog_path=capability_catalog_path,
-                capability_packs_path=capability_packs_path,
-                model_lock_path=model_lock_path,
-                lock_payload=lock_payload,
+                class_modules_root=manifest_bundle.class_modules_root,
+                object_modules_root=manifest_bundle.object_modules_root,
+                class_map=inputs.class_map,
+                object_map=inputs.object_map,
+                instance_bindings=inputs.instance_payload or {},
+                rows=inputs.rows,
+                capability_catalog_ids=inputs.catalog_ids,
+                capability_packs=inputs.packs_map,
+                capability_catalog_path=manifest_bundle.capability_catalog_path,
+                capability_packs_path=manifest_bundle.capability_packs_path,
+                model_lock_path=manifest_bundle.model_lock_path,
+                lock_payload=inputs.lock_payload,
                 source_manifest_digest=source_manifest_digest,
             )
             # Execute compiler plugins first
             self._execute_plugins(stage=Stage.COMPILE, ctx=plugin_ctx)
-
-            if self._compilation_owner("model_lock_data") == "plugin":
-                plugin_lock_payload = (
-                    plugin_ctx.plugin_outputs.get("base.compiler.model_lock_loader", {}).get("lock_payload")
-                    if isinstance(plugin_ctx.plugin_outputs, dict)
-                    else None
-                )
-                plugin_lock_loaded = (
-                    plugin_ctx.plugin_outputs.get("base.compiler.model_lock_loader", {}).get("model_lock_loaded")
-                    if isinstance(plugin_ctx.plugin_outputs, dict)
-                    else None
-                )
-                if isinstance(plugin_lock_payload, dict):
-                    lock_payload = plugin_lock_payload
-                    plugin_ctx.model_lock = plugin_lock_payload
-                if isinstance(plugin_lock_loaded, bool):
-                    plugin_ctx.config["model_lock_loaded"] = plugin_lock_loaded
-                else:
-                    plugin_ctx.config["model_lock_loaded"] = isinstance(lock_payload, dict)
-
-            if self._compilation_owner("module_maps") == "plugin":
-                plugin_class_map = (
-                    plugin_ctx.plugin_outputs.get("base.compiler.module_loader", {}).get("class_map")
-                    if isinstance(plugin_ctx.plugin_outputs, dict)
-                    else None
-                )
-                plugin_object_map = (
-                    plugin_ctx.plugin_outputs.get("base.compiler.module_loader", {}).get("object_map")
-                    if isinstance(plugin_ctx.plugin_outputs, dict)
-                    else None
-                )
-                if isinstance(plugin_class_map, dict) and isinstance(plugin_object_map, dict):
-                    class_map = plugin_class_map
-                    object_map = plugin_object_map
-                else:
-                    self.add_diag(
-                        code="E6901",
-                        severity="error",
-                        stage="validate",
-                        message=(
-                            "pipeline_mode=plugin-first requires compiler plugin "
-                            "'base.compiler.module_loader' to publish class_map and object_map."
-                        ),
-                        path="pipeline:mode",
-                    )
-
-            if self._compilation_owner("instance_rows") == "plugin":
-                plugin_rows = (
-                    plugin_ctx.plugin_outputs.get("base.compiler.instance_rows", {}).get("normalized_rows")
-                    if isinstance(plugin_ctx.plugin_outputs, dict)
-                    else None
-                )
-                if isinstance(plugin_rows, list):
-                    rows = [item for item in plugin_rows if isinstance(item, dict)]
-                else:
-                    self.add_diag(
-                        code="E6901",
-                        severity="error",
-                        stage="validate",
-                        message=(
-                            "pipeline_mode=plugin-first requires compiler plugin "
-                            "'base.compiler.instance_rows' to publish normalized_rows."
-                        ),
-                        path="pipeline:mode",
-                    )
-                plugin_ctx.config["normalized_rows"] = rows
-
-            if self._compilation_owner("capability_contract_data") == "plugin":
-                plugin_catalog_ids = (
-                    plugin_ctx.plugin_outputs.get("base.compiler.capability_contract_loader", {}).get("catalog_ids")
-                    if isinstance(plugin_ctx.plugin_outputs, dict)
-                    else None
-                )
-                plugin_packs_map = (
-                    plugin_ctx.plugin_outputs.get("base.compiler.capability_contract_loader", {}).get("packs_map")
-                    if isinstance(plugin_ctx.plugin_outputs, dict)
-                    else None
-                )
-                if isinstance(plugin_catalog_ids, list) and isinstance(plugin_packs_map, dict):
-                    catalog_ids = {item for item in plugin_catalog_ids if isinstance(item, str)}
-                    packs_map = plugin_packs_map
-                else:
-                    self.add_diag(
-                        code="E6901",
-                        severity="error",
-                        stage="validate",
-                        message=(
-                            "pipeline_mode=plugin-first requires compiler plugin "
-                            "'base.compiler.capability_contract_loader' to publish "
-                            "catalog_ids and packs_map."
-                        ),
-                        path="pipeline:mode",
-                    )
-                plugin_ctx.config["capability_catalog_ids"] = sorted(catalog_ids)
-                plugin_ctx.config["capability_packs"] = packs_map
+            apply_plugin_compile_outputs(
+                inputs=inputs,
+                plugin_ctx=plugin_ctx,
+                compilation_owner=self._compilation_owner,
+                add_diag=self.add_diag,
+            )
         plugin_effective_payload = (
             plugin_ctx.compiled_json
             if plugin_ctx is not None and isinstance(plugin_ctx.compiled_json, dict) and plugin_ctx.compiled_json
@@ -1098,31 +986,41 @@ class V5Compiler:
         legacy_effective_needed = self.pipeline_mode == "legacy" or self.parity_gate
 
         if self._validation_owner("references") == "core":
-            self._validate_refs(rows=rows, class_map=class_map, object_map=object_map, catalog_ids=catalog_ids)
+            self._validate_refs(
+                rows=inputs.rows,
+                class_map=inputs.class_map,
+                object_map=inputs.object_map,
+                catalog_ids=inputs.catalog_ids,
+            )
         elif legacy_effective_needed:
             self._compute_reference_projections(
-                rows=rows,
-                class_map=class_map,
-                object_map=object_map,
-                catalog_ids=catalog_ids,
+                rows=inputs.rows,
+                class_map=inputs.class_map,
+                object_map=inputs.object_map,
+                catalog_ids=inputs.catalog_ids,
             )
         if self._validation_owner("embedded_in") == "core":
-            self._validate_embedded_in(rows=rows, object_map=object_map)
-        if catalog_ids:
+            self._validate_embedded_in(rows=inputs.rows, object_map=inputs.object_map)
+        if inputs.catalog_ids:
             if self._validation_owner("capability_contract") == "core":
                 self._validate_capability_contract(
-                    class_map=class_map,
-                    object_map=object_map,
-                    catalog_ids=catalog_ids,
-                    packs_map=packs_map,
+                    class_map=inputs.class_map,
+                    object_map=inputs.object_map,
+                    catalog_ids=inputs.catalog_ids,
+                    packs_map=inputs.packs_map,
                 )
             elif legacy_effective_needed:
                 self._compute_object_capability_projections(
-                    object_map=object_map,
-                    catalog_ids=catalog_ids,
+                    object_map=inputs.object_map,
+                    catalog_ids=inputs.catalog_ids,
                 )
         if self._validation_owner("model_lock") == "core":
-            self._validate_model_lock(rows=rows, class_map=class_map, object_map=object_map, lock_payload=lock_payload)
+            self._validate_model_lock(
+                rows=inputs.rows,
+                class_map=inputs.class_map,
+                object_map=inputs.object_map,
+                lock_payload=inputs.lock_payload,
+            )
 
         # Build effective payload before validator/generator stages so plugins
         # share one compiled model contract (ADR 0069 WS1).
@@ -1130,9 +1028,9 @@ class V5Compiler:
         if legacy_effective_needed:
             legacy_effective_payload = self._build_effective(
                 manifest=manifest,
-                class_map=class_map,
-                object_map=object_map,
-                rows=rows,
+                class_map=inputs.class_map,
+                object_map=inputs.object_map,
+                rows=inputs.rows,
                 source_manifest_digest=source_manifest_digest,
             )
         effective_payload = self._select_effective_payload(
