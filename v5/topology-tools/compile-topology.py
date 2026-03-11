@@ -16,9 +16,8 @@ import yaml
 TOPOLOGY_TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOPOLOGY_TOOLS))
 
-from compiler_contract import canonicalize_payload, manifest_digest, validate_compiled_model_contract
+from compiler_contract import manifest_digest, validate_compiled_model_contract
 from compiler_decisions import select_effective_payload
-from compiler_legacy_bridge import LegacyDomainBridge
 from compiler_ownership import artifact_owner, compilation_owner, validation_owner
 from compiler_plugin_context import create_plugin_context
 from compiler_reporting import write_diagnostics_report
@@ -28,7 +27,6 @@ from compiler_runtime import (
     load_core_compile_inputs,
     resolve_manifest_paths,
 )
-from compiler_validation_flow import run_validation_flow
 from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -111,9 +109,9 @@ class V5Compiler:
         fail_on_warning: bool,
         require_new_model: bool,
         runtime_profile: str = "production",
-        pipeline_mode: str = "legacy",
+        pipeline_mode: str = "plugin-first",
         parity_gate: bool = False,
-        enable_plugins: bool = False,
+        enable_plugins: bool = True,
         plugins_manifest_path: Path | None = None,
     ) -> None:
         self.manifest_path = manifest_path
@@ -149,16 +147,6 @@ class V5Compiler:
             enable_plugins=self.enable_plugins,
             pipeline_mode=self.pipeline_mode,
             artifact_name=artifact_name,
-        )
-        self._legacy = LegacyDomainBridge(
-            add_diag=self.add_diag,
-            load_yaml=self._load_yaml,
-            repo_root=REPO_ROOT,
-            manifest_path=self.manifest_path,
-            require_new_model=self.require_new_model,
-            strict_model_lock=self.strict_model_lock,
-            compiled_model_version=COMPILED_MODEL_VERSION,
-            compiler_pipeline_version=COMPILER_PIPELINE_VERSION,
         )
 
         # Initialize plugin registry if enabled
@@ -358,7 +346,42 @@ class V5Compiler:
 
     def run(self) -> int:
         self._run_generated_at = utc_now()
-        self._legacy.reset_state()
+        if self.pipeline_mode != "plugin-first":
+            self.add_diag(
+                code="E6904",
+                severity="error",
+                stage="validate",
+                message=("pipeline_mode=legacy is retired after ADR0069 cutover; " "use --pipeline-mode plugin-first."),
+                path="pipeline:mode",
+            )
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
+
+        if self.parity_gate:
+            self.add_diag(
+                code="E6905",
+                severity="error",
+                stage="validate",
+                message="--parity-gate is not supported after plugin-first cutover.",
+                path="pipeline:parity",
+            )
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
+
+        if not self.enable_plugins:
+            self.add_diag(
+                code="E6901",
+                severity="error",
+                stage="validate",
+                message="pipeline_mode=plugin-first requires --enable-plugins.",
+                path="pipeline:mode",
+            )
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
+
         manifest = self._load_yaml(self.manifest_path, code_missing="E1001", code_parse="E1003", stage="load")
         if manifest is None:
             total, errors, warnings, infos = self._write_diagnostics()
@@ -383,97 +406,71 @@ class V5Compiler:
             resolve_repo_path=resolve_repo_path,
         )
         source_manifest_digest = manifest_digest(manifest)
+
+        def _legacy_path_disabled(*_args: Any, **_kwargs: Any) -> Any:
+            raise RuntimeError("legacy core compile path is disabled after ADR0069 cutover")
+
         inputs = load_core_compile_inputs(
             paths=manifest_bundle,
             compilation_owner=self._compilation_owner,
-            load_module_map=self._legacy.load_module_map,
-            load_capability_contract=self._legacy.load_capability_contract,
+            load_module_map=_legacy_path_disabled,
+            load_capability_contract=_legacy_path_disabled,
             load_yaml=self._load_yaml,
-            load_instance_rows=self._legacy.load_instance_rows,
+            load_instance_rows=_legacy_path_disabled,
         )
 
         # Create shared plugin context (ADR 0063 Phase 3)
         # Context persists across stages so publish/subscribe works
         plugin_ctx: PluginContext | None = None
-        if self.enable_plugins:
-            plugin_ctx = create_plugin_context(
-                manifest_path=self.manifest_path,
-                repo_root=REPO_ROOT,
-                runtime_profile=self.runtime_profile,
-                strict_model_lock=self.strict_model_lock,
-                pipeline_mode=self.pipeline_mode,
-                parity_gate=self.parity_gate,
-                raw_manifest=manifest,
-                run_generated_at=self._run_generated_at or utc_now(),
-                compiled_model_version=COMPILED_MODEL_VERSION,
-                compiler_pipeline_version=COMPILER_PIPELINE_VERSION,
-                source_manifest_digest=source_manifest_digest,
-                class_modules_root=manifest_bundle.class_modules_root,
-                object_modules_root=manifest_bundle.object_modules_root,
-                class_map=inputs.class_map,
-                object_map=inputs.object_map,
-                instance_bindings=inputs.instance_payload or {},
-                rows=inputs.rows,
-                capability_catalog_ids=inputs.catalog_ids,
-                capability_packs=inputs.packs_map,
-                capability_catalog_path=manifest_bundle.capability_catalog_path,
-                capability_packs_path=manifest_bundle.capability_packs_path,
-                model_lock_path=manifest_bundle.model_lock_path,
-                lock_payload=inputs.lock_payload,
-                output_dir=self.output_json.parent,
-                source_file=self.manifest_path,
-                compiled_file=self.output_json,
-                require_new_model=self.require_new_model,
-                validation_owner=self._validation_owner,
-                compilation_owner=self._compilation_owner,
-                artifact_owner=self._artifact_owner,
-            )
-            # Execute compiler plugins first
-            self._execute_plugins(stage=Stage.COMPILE, ctx=plugin_ctx)
-            apply_plugin_compile_outputs(
-                inputs=inputs,
-                plugin_ctx=plugin_ctx,
-                compilation_owner=self._compilation_owner,
-                add_diag=self.add_diag,
-            )
+        plugin_ctx = create_plugin_context(
+            manifest_path=self.manifest_path,
+            repo_root=REPO_ROOT,
+            runtime_profile=self.runtime_profile,
+            strict_model_lock=self.strict_model_lock,
+            pipeline_mode=self.pipeline_mode,
+            parity_gate=self.parity_gate,
+            raw_manifest=manifest,
+            run_generated_at=self._run_generated_at or utc_now(),
+            compiled_model_version=COMPILED_MODEL_VERSION,
+            compiler_pipeline_version=COMPILER_PIPELINE_VERSION,
+            source_manifest_digest=source_manifest_digest,
+            class_modules_root=manifest_bundle.class_modules_root,
+            object_modules_root=manifest_bundle.object_modules_root,
+            class_map=inputs.class_map,
+            object_map=inputs.object_map,
+            instance_bindings=inputs.instance_payload or {},
+            rows=inputs.rows,
+            capability_catalog_ids=inputs.catalog_ids,
+            capability_packs=inputs.packs_map,
+            capability_catalog_path=manifest_bundle.capability_catalog_path,
+            capability_packs_path=manifest_bundle.capability_packs_path,
+            model_lock_path=manifest_bundle.model_lock_path,
+            lock_payload=inputs.lock_payload,
+            output_dir=self.output_json.parent,
+            source_file=self.manifest_path,
+            compiled_file=self.output_json,
+            require_new_model=self.require_new_model,
+            validation_owner=self._validation_owner,
+            compilation_owner=self._compilation_owner,
+            artifact_owner=self._artifact_owner,
+        )
+        # Execute compiler plugins first
+        self._execute_plugins(stage=Stage.COMPILE, ctx=plugin_ctx)
+        apply_plugin_compile_outputs(
+            inputs=inputs,
+            plugin_ctx=plugin_ctx,
+            compilation_owner=self._compilation_owner,
+            add_diag=self.add_diag,
+        )
+
         plugin_effective_payload = (
             plugin_ctx.compiled_json
             if plugin_ctx is not None and isinstance(plugin_ctx.compiled_json, dict) and plugin_ctx.compiled_json
             else None
         )
-        legacy_effective_needed = self.pipeline_mode == "legacy" or self.parity_gate
-
-        run_validation_flow(
-            validation_owner=self._validation_owner,
-            legacy_effective_needed=legacy_effective_needed,
-            inputs=inputs,
-            validate_refs=self._legacy.validate_refs,
-            compute_reference_projections=self._legacy.compute_reference_projections,
-            validate_embedded_in=self._legacy.validate_embedded_in,
-            validate_capability_contract=self._legacy.validate_capability_contract,
-            compute_object_capability_projections=self._legacy.compute_object_capability_projections,
-            validate_model_lock=self._legacy.validate_model_lock,
-        )
-
-        # Build effective payload before validator/generator stages so plugins
-        # share one compiled model contract (ADR 0069 WS1).
-        legacy_effective_payload: dict[str, Any] = {}
-        if legacy_effective_needed:
-            legacy_effective_payload = self._legacy.build_effective(
-                manifest=manifest,
-                generated_at=self._run_generated_at or utc_now(),
-                class_map=inputs.class_map,
-                object_map=inputs.object_map,
-                rows=inputs.rows,
-                source_manifest_digest=source_manifest_digest,
-            )
         effective_payload = select_effective_payload(
-            mode=self.pipeline_mode,
-            parity_gate=self.parity_gate,
             enable_plugins=self.enable_plugins,
-            legacy_payload=legacy_effective_payload,
             plugin_payload=plugin_effective_payload,
-            canonicalize_payload=canonicalize_payload,
             add_diag=self.add_diag,
         )
         if plugin_ctx:
@@ -560,8 +557,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--pipeline-mode",
         choices=["legacy", "plugin-first"],
-        default="legacy",
-        help="Pipeline source mode for effective model selection.",
+        default="plugin-first",
+        help="Pipeline mode (default plugin-first; legacy value is deprecated and rejected at runtime).",
     )
     parser.add_argument(
         "--parity-gate",
@@ -570,8 +567,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--enable-plugins",
+        dest="enable_plugins",
         action="store_true",
-        help="Enable plugin execution (ADR 0063/0069). Executes compile/validate/generate plugin stages.",
+        default=True,
+        help="Enable plugin execution (default).",
+    )
+    parser.add_argument(
+        "--disable-plugins",
+        dest="enable_plugins",
+        action="store_false",
+        help="Disable plugin execution (diagnostic mode; plugin-first will fail).",
     )
     parser.add_argument(
         "--plugins-manifest",

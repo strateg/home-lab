@@ -2,13 +2,20 @@
 
 **ADR:** `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md`
 **Date:** 2026-03-10
-**Status:** Ready for use during cutover
+**Status:** Completed (2026-03-11, plugin-first default and legacy execution retired)
 
 ---
 
 ## Purpose
 
 Gate final switch to plugin-first pipeline and retirement of legacy in-core compile/validate/emit branches.
+
+Cutover outcome (2026-03-11):
+
+1. Default mode switched to `plugin-first`.
+2. Plugin execution enabled by default.
+3. Legacy runtime mode is explicitly rejected by compiler (`E6904`).
+4. Parity gate flag is retired post-cutover (`E6905`).
 
 ---
 

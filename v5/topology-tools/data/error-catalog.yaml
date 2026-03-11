@@ -284,6 +284,16 @@ codes:
     stage: validate
     title: Compiled Model Contract Violation
     hint: Ensure compiled_json contains required metadata keys and supported compiled_model_version.
+  E6904:
+    severity: error
+    stage: validate
+    title: Legacy Pipeline Retired
+    hint: Use --pipeline-mode plugin-first; legacy execution path is disabled.
+  E6905:
+    severity: error
+    stage: validate
+    title: Parity Gate Retired
+    hint: Remove --parity-gate; parity checks were retired after plugin-first cutover.
   W6901:
     severity: warning
     stage: validate

@@ -41,6 +41,32 @@ def test_pipeline_stage_order_and_compiled_context(monkeypatch):
     seen_stages: list[str] = []
 
     def _record_execute_plugins(*, stage, ctx):
+        if stage.value == "compile":
+            ctx.compiled_json = {
+                "version": "plugin-first",
+                "model": "test-stage-order",
+                "generated_at": "2026-03-11T00:00:00+00:00",
+                "compiled_model_version": "1.0",
+                "compiled_at": "2026-03-11T00:00:00+00:00",
+                "compiler_pipeline_version": "adr0069-ws2",
+                "source_manifest_digest": "test-manifest-digest",
+                "topology_manifest": "test",
+                "classes": {},
+                "objects": {},
+                "instances": {},
+            }
+            ctx.plugin_outputs["base.compiler.module_loader"] = {
+                "class_map": {},
+                "object_map": {},
+            }
+            ctx.plugin_outputs["base.compiler.instance_rows"] = {"normalized_rows": []}
+            ctx.plugin_outputs["base.compiler.capability_contract_loader"] = {
+                "catalog_ids": [],
+                "packs_map": {},
+            }
+        if stage.value == "generate":
+            compiler.output_json.parent.mkdir(parents=True, exist_ok=True)
+            compiler.output_json.write_text(json.dumps(ctx.compiled_json), encoding="utf-8")
         seen_stages.append(stage.value)
         if stage.value in {"validate", "generate"}:
             assert isinstance(ctx.compiled_json, dict)
@@ -137,9 +163,9 @@ def test_pipeline_mode_plugin_first_uses_plugin_compiled_json(monkeypatch):
     assert any(d.code == "I6901" for d in compiler._diagnostics)
 
 
-def test_parity_gate_fails_on_drift(monkeypatch):
+def test_pipeline_mode_legacy_is_rejected():
     mod = _load_compiler_module()
-    test_output_dir = mod.REPO_ROOT / "v5-build" / "test-parity-gate-drift"
+    test_output_dir = mod.REPO_ROOT / "v5-build" / "test-legacy-mode-rejected"
 
     compiler = mod.V5Compiler(
         manifest_path=mod.DEFAULT_MANIFEST,
@@ -151,34 +177,37 @@ def test_parity_gate_fails_on_drift(monkeypatch):
         fail_on_warning=False,
         require_new_model=True,
         pipeline_mode="legacy",
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+    )
+
+    exit_code = compiler.run()
+    assert exit_code == 1
+    assert any(d.code == "E6904" for d in compiler._diagnostics)
+
+
+def test_parity_gate_is_rejected_after_cutover():
+    mod = _load_compiler_module()
+    test_output_dir = mod.REPO_ROOT / "v5-build" / "test-parity-gate-retired"
+
+    compiler = mod.V5Compiler(
+        manifest_path=mod.DEFAULT_MANIFEST,
+        output_json=test_output_dir / "effective-topology.json",
+        diagnostics_json=test_output_dir / "diagnostics.json",
+        diagnostics_txt=test_output_dir / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        pipeline_mode="plugin-first",
         parity_gate=True,
         enable_plugins=True,
         plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
     )
 
-    plugin_payload = {
-        "version": "plugin-first",
-        "model": "drift",
-        "generated_at": "2026-03-11T00:00:00+00:00",
-        "compiled_model_version": "1.0",
-        "compiled_at": "2026-03-11T00:00:00+00:00",
-        "compiler_pipeline_version": "adr0069-ws2",
-        "source_manifest_digest": "test-manifest-digest",
-        "topology_manifest": "test",
-        "classes": {},
-        "objects": {},
-        "instances": {},
-    }
-
-    def _record_execute_plugins(*, stage, ctx):
-        if stage.value == "compile":
-            ctx.compiled_json = plugin_payload
-
-    monkeypatch.setattr(compiler, "_execute_plugins", _record_execute_plugins)
-
     exit_code = compiler.run()
     assert exit_code == 1
-    assert any(d.code == "E6902" for d in compiler._diagnostics)
+    assert any(d.code == "E6905" for d in compiler._diagnostics)
 
 
 def test_compiled_model_contract_rejects_incompatible_version(monkeypatch):
@@ -254,6 +283,32 @@ def test_runtime_profile_is_propagated_to_plugin_context(monkeypatch):
     seen_profiles: list[str] = []
 
     def _record_execute_plugins(*, stage, ctx):
+        if stage.value == "compile":
+            ctx.compiled_json = {
+                "version": "plugin-first",
+                "model": "test-runtime-profile",
+                "generated_at": "2026-03-11T00:00:00+00:00",
+                "compiled_model_version": "1.0",
+                "compiled_at": "2026-03-11T00:00:00+00:00",
+                "compiler_pipeline_version": "adr0069-ws2",
+                "source_manifest_digest": "test-manifest-digest",
+                "topology_manifest": "test",
+                "classes": {},
+                "objects": {},
+                "instances": {},
+            }
+            ctx.plugin_outputs["base.compiler.module_loader"] = {
+                "class_map": {},
+                "object_map": {},
+            }
+            ctx.plugin_outputs["base.compiler.instance_rows"] = {"normalized_rows": []}
+            ctx.plugin_outputs["base.compiler.capability_contract_loader"] = {
+                "catalog_ids": [],
+                "packs_map": {},
+            }
+        if stage.value == "generate":
+            compiler.output_json.parent.mkdir(parents=True, exist_ok=True)
+            compiler.output_json.write_text(json.dumps(ctx.compiled_json), encoding="utf-8")
         seen_profiles.append(ctx.profile)
 
     monkeypatch.setattr(compiler, "_execute_plugins", _record_execute_plugins)

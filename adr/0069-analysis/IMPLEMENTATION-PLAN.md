@@ -2,7 +2,7 @@
 
 **ADR:** `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md`
 **Date:** 2026-03-10
-**Status:** In Progress (WS1-WS5 refactor skeleton implemented; legacy cleanup in progress)
+**Status:** Cutover Completed (plugin-first default; legacy runtime path retired on 2026-03-11)
 **Cutover Checklist:** `adr/0069-analysis/CUTOVER-CHECKLIST.md`
 
 ---
@@ -196,6 +196,12 @@ Progress note (2026-03-11):
 3. Legacy domain rules/loaders/effective assembly isolated behind:
    - `compiler_legacy_bridge.py`
 4. Core no longer contains inlined legacy validation/effective assembly logic; it delegates through explicit ownership + bridge boundaries.
+5. Final cutover switch applied:
+   - CLI default set to `--pipeline-mode plugin-first`.
+   - Plugin execution enabled by default (`--enable-plugins` optional; `--disable-plugins` kept only for diagnostics).
+   - Runtime rejects `--pipeline-mode legacy` with `E6904`.
+   - Runtime rejects `--parity-gate` post-cutover with `E6905`.
+   - No legacy core compile/validate/effective execution branches remain active in runtime pipeline.
 
 ---
 

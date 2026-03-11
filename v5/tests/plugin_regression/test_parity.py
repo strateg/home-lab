@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for plugin vs baseline compiler parity (ADR 0066)."""
+"""Regression checks for plugin-first compiler cutover behavior (ADR 0069)."""
 
 from __future__ import annotations
 
@@ -7,15 +7,16 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 COMPILER = REPO_ROOT / "v5" / "topology-tools" / "compile-topology.py"
 TOPOLOGY = REPO_ROOT / "v5" / "topology" / "topology.yaml"
 
 
-def _run_compile(tmp_path: Path, *, enable_plugins: bool) -> tuple[dict[str, Any], dict[str, Any]]:
-    suffix = "plugins" if enable_plugins else "baseline"
+def _run_compile(
+    tmp_path: Path, *, enable_plugins: bool, pipeline_mode: str = "plugin-first"
+) -> tuple[int, Path, Path]:
+    suffix = "plugins" if enable_plugins else "no-plugins"
     artifacts_dir = REPO_ROOT / "v5-build" / "test-artifacts" / tmp_path.name
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     output_json = artifacts_dir / f"effective-{suffix}.json"
@@ -33,10 +34,14 @@ def _run_compile(tmp_path: Path, *, enable_plugins: bool) -> tuple[dict[str, Any
         str(diagnostics_json.relative_to(REPO_ROOT).as_posix()),
         "--diagnostics-txt",
         str(diagnostics_txt.relative_to(REPO_ROOT).as_posix()),
+        "--pipeline-mode",
+        pipeline_mode,
         "--strict-model-lock",
     ]
     if enable_plugins:
         cmd.append("--enable-plugins")
+    else:
+        cmd.append("--disable-plugins")
 
     completed = subprocess.run(
         cmd,
@@ -45,35 +50,28 @@ def _run_compile(tmp_path: Path, *, enable_plugins: bool) -> tuple[dict[str, Any
         capture_output=True,
         check=False,
     )
-    assert completed.returncode == 0, (
-        f"Compiler failed with exit={completed.returncode}\n"
-        f"stdout:\n{completed.stdout}\n"
-        f"stderr:\n{completed.stderr}"
-    )
+    return completed.returncode, output_json, diagnostics_json
 
+
+def test_plugin_first_compile_succeeds(tmp_path: Path) -> None:
+    """Plugin-first compile with plugins enabled should succeed."""
+    exit_code, output_json, diagnostics_json = _run_compile(tmp_path, enable_plugins=True)
+    assert exit_code == 0
     assert output_json.exists(), f"Missing output JSON: {output_json}"
     assert diagnostics_json.exists(), f"Missing diagnostics JSON: {diagnostics_json}"
 
-    effective = json.loads(output_json.read_text(encoding="utf-8"))
     report = json.loads(diagnostics_json.read_text(encoding="utf-8"))
-    return effective, report
+    diagnostics = report.get("diagnostics", [])
+    assert any(d.get("code") == "I4001" for d in diagnostics)
+    assert any(d.get("code") == "I6901" for d in diagnostics)
 
 
-def _without_runtime_timestamps(payload: dict[str, Any]) -> dict[str, Any]:
-    copied = dict(payload)
-    copied.pop("generated_at", None)
-    copied.pop("compiled_at", None)
-    return copied
+def test_compile_without_plugins_fails_after_cutover(tmp_path: Path) -> None:
+    """plugin-first mode without --enable-plugins must fail after cutover."""
+    exit_code, _output_json, diagnostics_json = _run_compile(tmp_path, enable_plugins=False)
+    assert exit_code == 1
+    assert diagnostics_json.exists(), f"Missing diagnostics JSON: {diagnostics_json}"
 
-
-def test_plugin_compile_parity(tmp_path: Path) -> None:
-    """Plugin-enabled compile should preserve baseline output and error count."""
-    baseline_output, baseline_report = _run_compile(tmp_path, enable_plugins=False)
-    plugin_output, plugin_report = _run_compile(tmp_path, enable_plugins=True)
-
-    assert plugin_report["summary"]["errors"] == baseline_report["summary"]["errors"]
-    assert _without_runtime_timestamps(plugin_output) == _without_runtime_timestamps(baseline_output)
-
-    # Ensure plugin execution was actually enabled.
-    plugin_diagnostics = plugin_report.get("diagnostics", [])
-    assert any(d.get("code") == "I4001" for d in plugin_diagnostics)
+    report = json.loads(diagnostics_json.read_text(encoding="utf-8"))
+    diagnostics = report.get("diagnostics", [])
+    assert any(d.get("code") == "E6901" for d in diagnostics)
