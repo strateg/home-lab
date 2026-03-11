@@ -1,0 +1,49 @@
+object: obj.network.ethernet_cable
+version: 1.0.0
+class_ref: class.network.data_channel
+description: Generic RJ45 ethernet patch cable object template
+
+properties:
+  bandwidth_mbps: 1000
+  medium: wired
+  duplex_mode: full
+  mtu: 1500
+  latency_ms: 0.1
+  reliability_tier: managed
+  protocol_family: ethernet
+  connector_type: rj45
+
+instance_schema:
+  required:
+    - endpoint_a
+    - endpoint_b
+    - length_m
+    - shielding
+  properties:
+    endpoint_a:
+      type: object
+      required: [device_ref, port]
+    endpoint_b:
+      type: object
+      required: [device_ref, port]
+    length_m:
+      type: number
+      minimum: 0.1
+      maximum: 1000
+    shielding:
+      type: string
+      enum: [utp, ftp, stp]
+    category:
+      type: string
+      enum: [cat5e, cat6, cat6a, cat7, cat8]
+      default: cat6
+    color:
+      type: string
+    connector_a:
+      type: string
+      default: rj45
+    connector_b:
+      type: string
+      default: rj45
+
+enabled_capabilities: []

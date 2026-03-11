@@ -1,0 +1,19 @@
+schema_version: 1
+plugins:
+  - id: object_network.validator_json.ethernet_cable_endpoints
+    kind: validator_json
+    entry: plugins/ethernet_cable_endpoint_validator.py:EthernetCableEndpointValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 243
+    depends_on:
+      - base.validator.references
+      - object_mikrotik.validator_json.router_ports
+      - object_glinet.validator_json.router_ports
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates ethernet cable instance endpoints against existing router instances and object ports.

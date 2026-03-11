@@ -1,0 +1,16 @@
+schema_version: 1
+plugins:
+  - id: object_glinet.validator_json.router_ports
+    kind: validator_json
+    entry: plugins/glinet_router_ports_validator.py:GlinetRouterPortsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 242
+    depends_on: [base.validator.references]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates GL.iNet router ethernet ports shape for endpoint-aware connectivity checks.
