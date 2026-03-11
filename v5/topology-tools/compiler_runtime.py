@@ -479,7 +479,7 @@ def apply_plugin_compile_outputs(
         add_diag(
             code="E6901",
             severity="error",
-            stage="validate",
+            stage="compile",
             message=(
                 f"Ambiguous plugin compile output for key '{key}': " f"{[plugin_id for plugin_id, _ in matches]}."
             ),
@@ -512,10 +512,10 @@ def apply_plugin_compile_outputs(
             add_diag(
                 code="E6901",
                 severity="error",
-                stage="validate",
+                stage="compile",
                 message=(
-                    "pipeline_mode=plugin-first requires compiler plugin "
-                    "'base.compiler.module_loader' to publish class_map and object_map."
+                    "pipeline_mode=plugin-first requires compiler outputs "
+                    "'class_map' and 'object_map' to be published by exactly one plugin."
                 ),
                 path="pipeline:mode",
             )
@@ -529,10 +529,10 @@ def apply_plugin_compile_outputs(
             add_diag(
                 code="E6901",
                 severity="error",
-                stage="validate",
+                stage="compile",
                 message=(
-                    "pipeline_mode=plugin-first requires compiler plugin "
-                    "'base.compiler.instance_rows' to publish normalized_rows."
+                    "pipeline_mode=plugin-first requires compiler output "
+                    "'normalized_rows' to be published by exactly one plugin."
                 ),
                 path="pipeline:mode",
             )
@@ -550,11 +550,10 @@ def apply_plugin_compile_outputs(
             add_diag(
                 code="E6901",
                 severity="error",
-                stage="validate",
+                stage="compile",
                 message=(
-                    "pipeline_mode=plugin-first requires compiler plugin "
-                    "'base.compiler.capability_contract_loader' to publish "
-                    "catalog_ids and packs_map."
+                    "pipeline_mode=plugin-first requires compiler outputs "
+                    "'catalog_ids' and 'packs_map' to be published by exactly one plugin."
                 ),
                 path="pipeline:mode",
             )

@@ -93,4 +93,5 @@ def test_compile_output_wiring_reports_ambiguous_output_key():
 
     assert diagnostics
     assert any(diag.get("code") == "E6901" for diag in diagnostics)
+    assert any(diag.get("stage") == "compile" for diag in diagnostics)
     assert any("Ambiguous plugin compile output" in str(diag.get("message")) for diag in diagnostics)

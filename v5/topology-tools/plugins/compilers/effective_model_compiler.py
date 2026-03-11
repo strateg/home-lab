@@ -171,6 +171,24 @@ class EffectiveModelCompiler(CompilerPlugin):
                 )
         return rows
 
+    @staticmethod
+    def _collect_output_matches(
+        plugin_outputs: Any,
+        *,
+        key: str,
+    ) -> list[tuple[str, Any]]:
+        if not isinstance(plugin_outputs, dict):
+            return []
+        matches: list[tuple[str, Any]] = []
+        for plugin_id, payload in plugin_outputs.items():
+            if not isinstance(plugin_id, str):
+                continue
+            if not isinstance(payload, dict):
+                continue
+            if key in payload:
+                matches.append((plugin_id, payload[key]))
+        return matches
+
     def _derive_object_effective(
         self, *, objects: dict[str, Any]
     ) -> tuple[dict[str, list[str]], dict[str, dict[str, Any]]]:
@@ -276,8 +294,22 @@ class EffectiveModelCompiler(CompilerPlugin):
             return self.make_result(diagnostics)
 
         plugin_rows = None
-        if isinstance(ctx.plugin_outputs, dict):
-            plugin_rows = ctx.plugin_outputs.get("base.compiler.instance_rows", {}).get("normalized_rows")
+        normalized_row_matches = self._collect_output_matches(ctx.plugin_outputs, key="normalized_rows")
+        if len(normalized_row_matches) == 1:
+            plugin_rows = normalized_row_matches[0][1]
+        elif len(normalized_row_matches) > 1:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E6901",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "Ambiguous compiler output 'normalized_rows' published by "
+                        f"{[plugin_id for plugin_id, _ in normalized_row_matches]}."
+                    ),
+                    path="pipeline:mode",
+                )
+            )
         config_rows = ctx.config.get("normalized_rows")
         if isinstance(plugin_rows, list):
             rows = [row for row in plugin_rows if isinstance(row, dict)]

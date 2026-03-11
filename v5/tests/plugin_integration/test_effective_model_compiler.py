@@ -96,3 +96,104 @@ def test_effective_model_compiler_publishes_candidate():
     assert isinstance(ctx.compiled_json.get("compiled_at"), str)
     assert isinstance(ctx.compiled_json.get("compiler_pipeline_version"), str)
     assert isinstance(ctx.compiled_json.get("source_manifest_digest"), str)
+
+
+def test_effective_model_compiler_reads_normalized_rows_by_key_not_plugin_id():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={
+            "obj.router.test": {
+                "object": "obj.router.test",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+            }
+        },
+        config={},
+        plugin_outputs={
+            "custom.instance_rows_provider": {
+                "normalized_rows": [
+                    {
+                        "group": "l1_devices",
+                        "instance": "rtr-from-plugin-output",
+                        "layer": "L1",
+                        "source_id": "rtr-from-plugin-output",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.router.test",
+                        "status": "modeled",
+                        "notes": "",
+                        "runtime": None,
+                        "firmware_ref": None,
+                        "os_refs": [],
+                        "embedded_in": None,
+                        "extensions": {"category": "cat5e"},
+                    }
+                ]
+            }
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "rtr-from-raw-bindings",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.router.test",
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.SUCCESS
+    assert not result.has_errors
+    rows = ctx.compiled_json["instances"]["l1_devices"]
+    assert [row["instance_id"] for row in rows] == ["rtr-from-plugin-output"]
+    assert rows[0]["instance_data"]["category"] == "cat5e"
+
+
+def test_effective_model_compiler_reports_ambiguous_normalized_rows_output():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
+        objects={
+            "obj.router.test": {
+                "object": "obj.router.test",
+                "version": "1.0.0",
+                "class_ref": "class.router",
+            }
+        },
+        config={},
+        plugin_outputs={
+            "plugin.a": {"normalized_rows": [{"instance": "a"}]},
+            "plugin.b": {"normalized_rows": [{"instance": "b"}]},
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "rtr-fallback",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.router.test",
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.FAILED
+    assert result.has_errors
+    assert any(diag.code == "E6901" for diag in result.diagnostics)
