@@ -37,11 +37,11 @@ class Stage(str, Enum):
 class PluginStatus(str, Enum):
     """Plugin execution status."""
 
-    SUCCESS = "SUCCESS"    # All checks passed, no errors
-    PARTIAL = "PARTIAL"    # Some checks passed, some warnings
-    FAILED = "FAILED"      # Plugin execution failed with errors
-    TIMEOUT = "TIMEOUT"    # Plugin exceeded timeout limit
-    SKIPPED = "SKIPPED"    # Plugin skipped (dependency failed, config invalid)
+    SUCCESS = "SUCCESS"  # All checks passed, no errors
+    PARTIAL = "PARTIAL"  # Some checks passed, some warnings
+    FAILED = "FAILED"  # Plugin execution failed with errors
+    TIMEOUT = "TIMEOUT"  # Plugin exceeded timeout limit
+    SKIPPED = "SKIPPED"  # Plugin skipped (dependency failed, config invalid)
 
 
 @dataclass
@@ -277,7 +277,7 @@ class PluginContext:
     # Compiled file path (for validator_json plugins)
     compiled_file: str = ""
 
-    # Previous plugin outputs (for inter-plugin communication) - legacy
+    # Previous plugin outputs (legacy compatibility path)
     plugin_outputs: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     # Inter-plugin data exchange (ADR 0065)
@@ -298,8 +298,7 @@ class PluginContext:
         """
         if not self._current_plugin_id:
             raise PluginDataExchangeError(
-                "Cannot publish: no current plugin context. "
-                "Ensure plugin is executing through registry."
+                "Cannot publish: no current plugin context. " "Ensure plugin is executing through registry."
             )
         if self._current_plugin_id not in self._published_data:
             self._published_data[self._current_plugin_id] = {}
@@ -320,8 +319,7 @@ class PluginContext:
         """
         if not self._current_plugin_id:
             raise PluginDataExchangeError(
-                "Cannot subscribe: no current plugin context. "
-                "Ensure plugin is executing through registry."
+                "Cannot subscribe: no current plugin context. " "Ensure plugin is executing through registry."
             )
         if plugin_id not in self._allowed_dependencies:
             raise PluginDataExchangeError(
@@ -336,8 +334,7 @@ class PluginContext:
         plugin_data = self._published_data[plugin_id]
         if key not in plugin_data:
             raise PluginDataExchangeError(
-                f"Plugin '{plugin_id}' has not published key '{key}'. "
-                f"Available keys: {sorted(plugin_data.keys())}"
+                f"Plugin '{plugin_id}' has not published key '{key}'. " f"Available keys: {sorted(plugin_data.keys())}"
             )
         return plugin_data[key]
 
@@ -351,6 +348,10 @@ class PluginContext:
             List of published keys, or empty list if none
         """
         return list(self._published_data.get(plugin_id, {}).keys())
+
+    def get_published_data(self) -> dict[str, dict[str, Any]]:
+        """Return published data map for orchestrator/runtime consumers."""
+        return {plugin_id: payload.copy() for plugin_id, payload in self._published_data.items()}
 
     def _set_execution_context(
         self,
@@ -498,7 +499,7 @@ class ValidatorJsonPlugin(PluginBase):
     Input: dict (compiled JSON), str (compiled file path via ctx.compiled_file)
     Output: List[PluginDiagnostic] (consistency issues)
     Runs in: validate stage
-    Contract: May reference outputs from compiler plugins via ctx.plugin_outputs
+    Contract: Should reference compiler data via ctx.subscribe(plugin_id, key)
     """
 
     @property

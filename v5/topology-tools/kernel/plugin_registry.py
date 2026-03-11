@@ -719,10 +719,6 @@ class PluginRegistry:
             result = self.execute_plugin(plugin_id, ctx, stage)
             results.append(result)
 
-            # Store output for inter-plugin communication
-            if result.output_data:
-                ctx.plugin_outputs[plugin_id] = result.output_data
-
             if fail_fast and result.status in (PluginStatus.FAILED, PluginStatus.TIMEOUT):
                 break
 

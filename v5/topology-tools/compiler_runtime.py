@@ -456,8 +456,23 @@ def apply_plugin_compile_outputs(
     add_diag: Callable[..., None],
 ) -> None:
     def _plugin_outputs() -> dict[str, Any]:
-        outputs = plugin_ctx.plugin_outputs if isinstance(getattr(plugin_ctx, "plugin_outputs", None), dict) else {}
-        return outputs
+        published: dict[str, Any] = {}
+        published_getter = getattr(plugin_ctx, "get_published_data", None)
+        if callable(published_getter):
+            published_candidate = published_getter()
+            if isinstance(published_candidate, dict):
+                published = published_candidate
+        published_attr = getattr(plugin_ctx, "_published_data", None)
+        if not published and isinstance(published_attr, dict):
+            published = published_attr
+        legacy_outputs = (
+            plugin_ctx.plugin_outputs if isinstance(getattr(plugin_ctx, "plugin_outputs", None), dict) else {}
+        )
+        if published and legacy_outputs:
+            return {**legacy_outputs, **published}
+        if published:
+            return published
+        return legacy_outputs
 
     def _find_output(*, key: str) -> list[tuple[str, Any]]:
         matches: list[tuple[str, Any]] = []
