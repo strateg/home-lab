@@ -254,7 +254,6 @@ jobs:
         run: |
           python v5/topology-tools/compile-topology.py \
             --topology v5/topology/topology.yaml \
-            --enable-plugins \
             --output-json v5-build/effective.json
 
       - name: Verify output

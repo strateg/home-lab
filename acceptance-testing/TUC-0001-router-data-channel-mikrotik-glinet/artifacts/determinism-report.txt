@@ -1,4 +1,4 @@
-deterministic_without_timestamps=True
+deterministic_without_timestamps=true
 l1_devices_count=10
 cable_row_found=true
 cable_class_ref=class.network.physical_link

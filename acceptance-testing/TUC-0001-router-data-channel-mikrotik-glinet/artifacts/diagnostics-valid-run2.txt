@@ -1,7 +1,7 @@
 Topology v5 Compiler Diagnostics
 ================================
 
-generated_at: 2026-03-11T15:50:15+00:00
+generated_at: 2026-03-11T19:24:05+00:00
 total=55 errors=0 warnings=0 infos=55
 
 [INFO] I4201 (compile) object:obj.apc.backups.650va: Derived 1 capabilities for object 'obj.apc.backups.650va'
