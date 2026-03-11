@@ -7,8 +7,8 @@
 2. Rework class module:
    - `v5/topology/class-modules/classes/network/class.network.data_link.yaml` (OSI L2 logical channel contract)
 3. Add object modules:
-   - `v5/topology/object-modules/objects/network/obj.network.ethernet_cable.yaml`
-   - `v5/topology/object-modules/objects/network/obj.network.ethernet_channel.yaml`
+   - `v5/topology/object-modules/network/obj.network.ethernet_cable.yaml`
+   - `v5/topology/object-modules/network/obj.network.ethernet_channel.yaml`
    - Keep cable-specific runtime parameters (`length_m`, `shielding`, ...) at instance level.
 4. Add fixture shard files in:
    - `v5/topology/instances/l1_devices/inst.ethernet_cable.cat5e.yaml`
@@ -27,9 +27,9 @@
 
 1. Add class/object plugin manifests:
    - `v5/topology/class-modules/classes/router/plugins.yaml`
-   - `v5/topology/object-modules/objects/mikrotik/plugins.yaml`
-   - `v5/topology/object-modules/objects/glinet/plugins.yaml`
-   - `v5/topology/object-modules/objects/network/plugins.yaml`
+   - `v5/topology/object-modules/mikrotik/plugins.yaml`
+   - `v5/topology/object-modules/glinet/plugins.yaml`
+   - `v5/topology/object-modules/network/plugins.yaml`
 2. Implement validators:
    - Router class validator (data-channel interface contract)
    - MikroTik object validator (ethernet field and port naming policy)

@@ -10,7 +10,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 LOCK_PATH = ROOT / "v5/topology/model.lock.yaml"
 CLASS_ROOT = ROOT / "v5/topology/class-modules/classes"
-OBJECT_ROOT = ROOT / "v5/topology/object-modules/objects"
+OBJECT_ROOT = ROOT / "v5/topology/object-modules"
 
 
 def _collect_modules(root: Path, key: str) -> list[dict]:

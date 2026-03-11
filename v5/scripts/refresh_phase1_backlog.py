@@ -35,7 +35,7 @@ def main() -> int:
     entities = payload.get("entities") or {}
 
     existing_class_ids = collect_existing_ids(ROOT / "v5/topology/class-modules", "class")
-    existing_object_ids = collect_existing_ids(ROOT / "v5/topology/object-modules/objects", "object")
+    existing_object_ids = collect_existing_ids(ROOT / "v5/topology/object-modules", "object")
 
     class_gaps: dict[str, set[str]] = defaultdict(set)
     object_gaps: dict[str, set[str]] = defaultdict(set)

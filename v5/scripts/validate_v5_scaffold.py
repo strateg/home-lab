@@ -16,7 +16,6 @@ REQUIRED_PATHS = (
     "v5/topology",
     "v5/topology/class-modules",
     "v5/topology/object-modules",
-    "v5/topology/object-modules/objects",
     "v5/topology/instances",
     "v5/topology/instances/project.yaml",
     "v5/topology-tools",

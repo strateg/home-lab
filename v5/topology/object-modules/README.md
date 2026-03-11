@@ -3,15 +3,15 @@
 This directory contains object contracts for ADR 0062 (`Class -> Object -> Instance`).
 Objects inherit layer placement from their class (`v5/topology/layer-contract.yaml`) unless they define a narrower `topology.allowed_layers` override.
 
-Current object groups (under `objects/`):
+Current object groups:
 
-- `objects/mikrotik/` (existing router objects)
-- `objects/glinet/` (travel-router object)
-- `objects/proxmox/` (hypervisor + LXC object family)
-- `objects/orangepi/` (edge-node object)
-- `objects/cloud/` (cloud VM objects)
-- `objects/power/` (UPS/PDU objects)
-- `objects/service/` (L5 service objects)
+- `mikrotik/` (existing router objects)
+- `glinet/` (travel-router object)
+- `proxmox/` (hypervisor + LXC object family)
+- `orangepi/` (edge-node object)
+- `cloud/` (cloud VM objects)
+- `power/` (UPS/PDU objects)
+- `service/` (L5 service objects)
 
 Rules reflected in templates:
 
@@ -26,5 +26,5 @@ python v5/topology-tools/check-capability-contract.py \
   --catalog v5/topology/class-modules/classes/router/capability-catalog.yaml \
   --packs v5/topology/class-modules/classes/router/capability-packs.yaml \
   --classes-dir v5/topology/class-modules/classes \
-  --objects-dir v5/topology/object-modules/objects
+  --objects-dir v5/topology/object-modules
 ```

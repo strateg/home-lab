@@ -15,7 +15,7 @@ DEFAULT_TOPOLOGY = ROOT / "v5" / "topology" / "topology.yaml"
 DEFAULT_CATALOG = ROOT / "v5" / "topology" / "class-modules" / "classes" / "router" / "capability-catalog.yaml"
 DEFAULT_PACKS = ROOT / "v5" / "topology" / "class-modules" / "classes" / "router" / "capability-packs.yaml"
 DEFAULT_CLASSES_DIR = ROOT / "v5" / "topology" / "class-modules" / "classes"
-DEFAULT_OBJECTS_DIR = ROOT / "v5" / "topology" / "object-modules" / "objects"
+DEFAULT_OBJECTS_DIR = ROOT / "v5" / "topology" / "object-modules"
 
 
 def _load_yaml(path: Path) -> Any:

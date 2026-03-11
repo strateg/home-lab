@@ -5,8 +5,8 @@
 1. Router class exists:
    - `v5/topology/class-modules/classes/router/class.router.yaml`
 2. Router objects exist:
-   - `v5/topology/object-modules/objects/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml`
-   - `v5/topology/object-modules/objects/glinet/obj.glinet.slate_ax1800.yaml`
+   - `v5/topology/object-modules/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml`
+   - `v5/topology/object-modules/glinet/obj.glinet.slate_ax1800.yaml`
 3. Router instances exist in bindings:
    - `rtr-mikrotik-chateau`
    - `rtr-slate`

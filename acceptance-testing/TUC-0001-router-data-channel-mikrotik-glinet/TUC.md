@@ -42,8 +42,8 @@ with stable compile/validate/generate behavior.
 
 - Existing router class and object modules are present:
   - `v5/topology/class-modules/classes/router/class.router.yaml`
-  - `v5/topology/object-modules/objects/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml`
-  - `v5/topology/object-modules/objects/glinet/obj.glinet.slate_ax1800.yaml`
+  - `v5/topology/object-modules/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml`
+  - `v5/topology/object-modules/glinet/obj.glinet.slate_ax1800.yaml`
 - Existing router instances are present:
   - `v5/topology/instances/l1_devices/rtr-mikrotik-chateau.yaml`
   - `v5/topology/instances/l1_devices/rtr-slate.yaml`
@@ -59,7 +59,7 @@ with stable compile/validate/generate behavior.
   - Base: `v5/topology-tools/plugins/plugins.yaml`
   - Module-level manifests discovered under:
     - `v5/topology/class-modules/**/plugins.yaml`
-    - `v5/topology/object-modules/objects/**/plugins.yaml`
+    - `v5/topology/object-modules/**/plugins.yaml`
 
 ## Expected Outcomes
 

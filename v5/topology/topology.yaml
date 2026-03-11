@@ -8,7 +8,7 @@ meta:
 
 paths:
   class_modules_root: v5/topology/class-modules/classes
-  object_modules_root: v5/topology/object-modules/objects
+  object_modules_root: v5/topology/object-modules
   model_lock: v5/topology/model.lock.yaml
   profile_map: v5/topology/profile-map.yaml
   layer_contract: v5/topology/layer-contract.yaml
