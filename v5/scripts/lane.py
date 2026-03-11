@@ -70,7 +70,7 @@ def validate_v5() -> None:
             "--topology",
             "v5/topology/topology.yaml",
             "--classes-dir",
-            "v5/topology/class-modules/classes",
+            "v5/topology/class-modules",
             "--objects-dir",
             "v5/topology/object-modules",
         ]

@@ -3,9 +3,9 @@
 ## Workstream 1: Model Contracts
 
 1. Add class module:
-   - `v5/topology/class-modules/classes/network/class.network.physical_link.yaml` (OSI L1 physical link contract)
+   - `v5/topology/class-modules/network/class.network.physical_link.yaml` (OSI L1 physical link contract)
 2. Rework class module:
-   - `v5/topology/class-modules/classes/network/class.network.data_link.yaml` (OSI L2 logical channel contract)
+   - `v5/topology/class-modules/network/class.network.data_link.yaml` (OSI L2 logical channel contract)
 3. Add object modules:
    - `v5/topology/object-modules/network/obj.network.ethernet_cable.yaml`
    - `v5/topology/object-modules/network/obj.network.ethernet_channel.yaml`
@@ -26,7 +26,7 @@
 ## Workstream 3: Domain Validators (Module Plugins)
 
 1. Add class/object plugin manifests:
-   - `v5/topology/class-modules/classes/router/plugins.yaml`
+   - `v5/topology/class-modules/router/plugins.yaml`
    - `v5/topology/object-modules/mikrotik/plugins.yaml`
    - `v5/topology/object-modules/glinet/plugins.yaml`
    - `v5/topology/object-modules/network/plugins.yaml`

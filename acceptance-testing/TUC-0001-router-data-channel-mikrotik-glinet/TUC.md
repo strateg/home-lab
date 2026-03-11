@@ -41,7 +41,7 @@ with stable compile/validate/generate behavior.
 ## Preconditions
 
 - Existing router class and object modules are present:
-  - `v5/topology/class-modules/classes/router/class.router.yaml`
+  - `v5/topology/class-modules/router/class.router.yaml`
   - `v5/topology/object-modules/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml`
   - `v5/topology/object-modules/glinet/obj.glinet.slate_ax1800.yaml`
 - Existing router instances are present:

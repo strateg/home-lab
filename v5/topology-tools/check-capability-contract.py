@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_TOPOLOGY = ROOT / "v5" / "topology" / "topology.yaml"
 DEFAULT_CATALOG = ROOT / "v5" / "topology" / "class-modules" / "classes" / "router" / "capability-catalog.yaml"
 DEFAULT_PACKS = ROOT / "v5" / "topology" / "class-modules" / "classes" / "router" / "capability-packs.yaml"
-DEFAULT_CLASSES_DIR = ROOT / "v5" / "topology" / "class-modules" / "classes"
+DEFAULT_CLASSES_DIR = ROOT / "v5" / "topology" / "class-modules"
 DEFAULT_OBJECTS_DIR = ROOT / "v5" / "topology" / "object-modules"
 
 
