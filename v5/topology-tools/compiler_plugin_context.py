@@ -48,16 +48,6 @@ def create_plugin_context(
     instance_rows_owner = compilation_owner("instance_rows")
     capability_contract_data_owner = compilation_owner("capability_contract_data")
     effective_json_owner = artifact_owner("effective_json")
-    class_module_paths = {
-        class_id: str(item.get("path", "").relative_to(repo_root).as_posix())
-        for class_id, item in class_map.items()
-        if isinstance(item, dict) and isinstance(item.get("path"), Path)
-    }
-    object_module_paths = {
-        object_id: str(item.get("path", "").relative_to(repo_root).as_posix())
-        for object_id, item in object_map.items()
-        if isinstance(item, dict) and isinstance(item.get("path"), Path)
-    }
     return PluginContext(
         topology_path=str(manifest_path.relative_to(repo_root).as_posix()),
         profile=runtime_profile,
@@ -81,20 +71,14 @@ def create_plugin_context(
             "validation_owner_capability_contract": capability_contract_owner,
             "compilation_owner_instance_rows": instance_rows_owner,
             "compilation_owner_capability_contract_data": capability_contract_data_owner,
-            "model_lock_loaded": lock_payload is not None,
             "generation_owner_effective_json": effective_json_owner,
             "compilation_owner_module_maps": compilation_owner("module_maps"),
             "compilation_owner_model_lock_data": compilation_owner("model_lock_data"),
-            "normalized_rows": rows,
-            "capability_catalog_ids": sorted(capability_catalog_ids),
-            "capability_packs": capability_packs,
             "capability_catalog_path": str(capability_catalog_path),
             "capability_packs_path": str(capability_packs_path),
             "model_lock_path": str(model_lock_path),
             "class_modules_root": str(class_modules_root),
             "object_modules_root": str(object_modules_root),
-            "class_module_paths": class_module_paths,
-            "object_module_paths": object_module_paths,
             "require_new_model": require_new_model,
         },
         output_dir=str(output_dir),

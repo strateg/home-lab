@@ -489,16 +489,10 @@ def apply_plugin_compile_outputs(
 
     if compilation_owner("model_lock_data") == "plugin":
         lock_payload_entry = _get_single_output(key="lock_payload")
-        lock_loaded_entry = _get_single_output(key="model_lock_loaded")
         plugin_lock_payload = lock_payload_entry[1] if isinstance(lock_payload_entry, tuple) else None
-        plugin_lock_loaded = lock_loaded_entry[1] if isinstance(lock_loaded_entry, tuple) else None
         if isinstance(plugin_lock_payload, dict):
             inputs.lock_payload = plugin_lock_payload
             plugin_ctx.model_lock = plugin_lock_payload
-        if isinstance(plugin_lock_loaded, bool):
-            plugin_ctx.config["model_lock_loaded"] = plugin_lock_loaded
-        else:
-            plugin_ctx.config["model_lock_loaded"] = isinstance(inputs.lock_payload, dict)
 
     if compilation_owner("module_maps") == "plugin":
         class_map_entry = _get_single_output(key="class_map")
@@ -536,7 +530,6 @@ def apply_plugin_compile_outputs(
                 ),
                 path="pipeline:mode",
             )
-        plugin_ctx.config["normalized_rows"] = inputs.rows
 
     if compilation_owner("capability_contract_data") == "plugin":
         catalog_entry = _get_single_output(key="catalog_ids")
@@ -557,8 +550,6 @@ def apply_plugin_compile_outputs(
                 ),
                 path="pipeline:mode",
             )
-        plugin_ctx.config["capability_catalog_ids"] = sorted(inputs.catalog_ids)
-        plugin_ctx.config["capability_packs"] = inputs.packs_map
 
 
 def emit_effective_artifact(

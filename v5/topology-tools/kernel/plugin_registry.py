@@ -599,10 +599,7 @@ class PluginRegistry:
         """
         results: list[PluginResult] = []
         plugin_ids = self.get_execution_order(stage, profile)
-        model_lock_loaded = bool(ctx.config.get("model_lock_loaded", False))
-        core_model_version = (
-            ctx.model_lock.get("core_model_version") if model_lock_loaded and isinstance(ctx.model_lock, dict) else None
-        )
+        core_model_version = ctx.model_lock.get("core_model_version") if isinstance(ctx.model_lock, dict) else None
         if isinstance(core_model_version, str) and core_model_version:
             if not self._is_model_version_compatible(core_model_version):
                 result = PluginResult.failed(

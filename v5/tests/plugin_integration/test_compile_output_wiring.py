@@ -68,7 +68,6 @@ def test_compile_output_wiring_is_key_based_not_plugin_id_based():
     assert inputs.catalog_ids == {"cap.net.interface.ethernet"}
     assert inputs.packs_map == {"pack.router.test": {"capabilities": []}}
     assert plugin_ctx.model_lock == {"core_model_version": "1.0.0"}
-    assert plugin_ctx.config["model_lock_loaded"] is True
     assert diagnostics == []
 
 
