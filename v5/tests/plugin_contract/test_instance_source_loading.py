@@ -21,10 +21,6 @@ def _load_yaml(path: Path, *, code_missing: str, code_parse: str, stage: str):
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-def _raise_if_called(*args, **kwargs):
-    raise AssertionError(f"unexpected call args={args} kwargs={kwargs}")
-
-
 def _write_layer_contract(path: Path) -> None:
     path.write_text(
         yaml.safe_dump(
@@ -115,11 +111,7 @@ def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> Non
     inputs = load_core_compile_inputs(
         paths=bundle,
         instances_mode="sharded-only",
-        compilation_owner=lambda _rule: "plugin",
-        load_module_map=_raise_if_called,
-        load_capability_contract=_raise_if_called,
         load_yaml=_load_yaml,
-        load_instance_rows=_raise_if_called,
         add_diag=_add_diag,
         repo_root=tmp_path,
     )
@@ -175,11 +167,7 @@ def test_load_core_compile_inputs_reports_group_layer_mismatch(tmp_path: Path) -
     inputs = load_core_compile_inputs(
         paths=bundle,
         instances_mode="sharded-only",
-        compilation_owner=lambda _rule: "plugin",
-        load_module_map=_raise_if_called,
-        load_capability_contract=_raise_if_called,
         load_yaml=_load_yaml,
-        load_instance_rows=_raise_if_called,
         add_diag=_add_diag,
         repo_root=tmp_path,
     )
@@ -230,11 +218,7 @@ def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: 
     inputs = load_core_compile_inputs(
         paths=bundle,
         instances_mode="sharded-only",
-        compilation_owner=lambda _rule: "plugin",
-        load_module_map=_raise_if_called,
-        load_capability_contract=_raise_if_called,
         load_yaml=_load_yaml,
-        load_instance_rows=_raise_if_called,
         add_diag=_add_diag,
         repo_root=tmp_path,
     )

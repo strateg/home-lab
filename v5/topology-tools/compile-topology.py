@@ -469,17 +469,10 @@ class V5Compiler:
         )
         source_manifest_digest = manifest_digest(manifest)
 
-        def _legacy_path_disabled(*_args: Any, **_kwargs: Any) -> Any:
-            raise RuntimeError("legacy core compile path is disabled after ADR0069 cutover")
-
         inputs = load_core_compile_inputs(
             paths=manifest_bundle,
             instances_mode=self.instance_source_mode,
-            compilation_owner=self._compilation_owner,
-            load_module_map=_legacy_path_disabled,
-            load_capability_contract=_legacy_path_disabled,
             load_yaml=self._load_yaml,
-            load_instance_rows=_legacy_path_disabled,
             add_diag=self.add_diag,
             repo_root=REPO_ROOT,
         )

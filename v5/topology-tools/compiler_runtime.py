@@ -386,28 +386,16 @@ def load_core_compile_inputs(
     *,
     paths: ManifestPathBundle,
     instances_mode: str,
-    compilation_owner: Callable[[str], str],
-    load_module_map: Callable[..., dict[str, dict[str, Any]]],
-    load_capability_contract: Callable[..., tuple[set[str], dict[str, dict[str, Any]]]],
     load_yaml: Callable[..., dict[str, Any] | None],
-    load_instance_rows: Callable[[dict[str, Any]], list[dict[str, Any]]],
     add_diag: Callable[..., None],
     repo_root: Path,
 ) -> CompileInputs:
-    if compilation_owner("module_maps") == "core":
-        class_map = load_module_map(directory=paths.class_modules_root, module_type="class")
-        object_map = load_module_map(directory=paths.object_modules_root, module_type="object")
-    else:
-        class_map = {}
-        object_map = {}
-
-    if compilation_owner("capability_contract_data") == "core":
-        catalog_ids, packs_map = load_capability_contract(
-            catalog_path=paths.capability_catalog_path,
-            packs_path=paths.capability_packs_path,
-        )
-    else:
-        catalog_ids, packs_map = set(), {}
+    # Plugin-first runtime: compile-derived maps and capability contracts
+    # are published by compiler plugins and wired later.
+    class_map: dict[str, dict[str, Any]] = {}
+    object_map: dict[str, dict[str, Any]] = {}
+    catalog_ids: set[str] = set()
+    packs_map: dict[str, dict[str, Any]] = {}
 
     resolved_instances_mode = resolve_instance_source_mode(
         requested_mode=instances_mode,
@@ -427,14 +415,10 @@ def load_core_compile_inputs(
         repo_root=repo_root,
     )
 
-    if compilation_owner("instance_rows") == "core":
-        rows = load_instance_rows(instance_payload or {})
-    else:
-        rows = []
-
+    # Normalized instance rows and model lock payload are plugin-owned
+    # in plugin-first mode.
+    rows: list[dict[str, Any]] = []
     lock_payload = None
-    if compilation_owner("model_lock_data") == "core" and paths.model_lock_path.exists():
-        lock_payload = load_yaml(paths.model_lock_path, code_missing="E1001", code_parse="E2401", stage="load")
 
     return CompileInputs(
         class_map=class_map,
