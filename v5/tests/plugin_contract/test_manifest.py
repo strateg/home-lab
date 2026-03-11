@@ -157,6 +157,30 @@ def test_manifest_schema_rejects_unknown_fields(tmp_path: Path):
         assert "schema validation failed" in str(exc).lower()
 
 
+def test_manifest_schema_accepts_model_versions(tmp_path: Path):
+    """model_versions is a valid optional plugin manifest field."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.validator_json.model_versions",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "model_versions": ["1.0", "2.0"],
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    assert "test.validator_json.model_versions" in registry.specs
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("ADR 0066 Plugin Contract Tests")
@@ -172,6 +196,7 @@ if __name__ == "__main__":
         test_plugin_instantiation,
         test_duplicate_plugin_id,
         test_manifest_schema_rejects_unknown_fields,
+        test_manifest_schema_accepts_model_versions,
     ]
 
     passed = 0

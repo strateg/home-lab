@@ -63,6 +63,7 @@ class PluginSpec:
     config: dict[str, Any] = field(default_factory=dict)
     config_schema: Optional[dict[str, Any]] = None
     profile_restrictions: Optional[list[str]] = None
+    model_versions: list[str] = field(default_factory=list)
     description: str = ""
     manifest_path: str = ""
     timeout: float = DEFAULT_PLUGIN_TIMEOUT
@@ -83,6 +84,7 @@ class PluginSpec:
             config=data.get("config", {}),
             config_schema=data.get("config_schema"),
             profile_restrictions=data.get("profile_restrictions"),
+            model_versions=data.get("model_versions", []),
             description=data.get("description", ""),
             manifest_path=manifest_path,
             timeout=data.get("timeout", DEFAULT_PLUGIN_TIMEOUT),
@@ -623,6 +625,52 @@ class PluginRegistry:
                 results.append(result)
                 self._results.append(result)
                 return results
+        model_version_diags: list[PluginDiagnostic] = []
+        for plugin_id in plugin_ids:
+            spec = self.specs.get(plugin_id)
+            if not isinstance(spec, PluginSpec):
+                continue
+            declared_model_versions = [item for item in spec.model_versions if isinstance(item, str) and item.strip()]
+            if not declared_model_versions:
+                continue
+            if not isinstance(core_model_version, str) or not core_model_version:
+                model_version_diags.append(
+                    PluginDiagnostic(
+                        code="E4012",
+                        severity="error",
+                        stage=stage.value,
+                        message=(
+                            f"Plugin '{plugin_id}' declares model_versions={declared_model_versions}, "
+                            "but model.lock core_model_version is unavailable."
+                        ),
+                        path=f"plugin:{plugin_id}",
+                        plugin_id="kernel",
+                    )
+                )
+                continue
+            if not self._is_model_version_in_set(core_model_version, declared_model_versions):
+                model_version_diags.append(
+                    PluginDiagnostic(
+                        code="E4011",
+                        severity="error",
+                        stage=stage.value,
+                        message=(
+                            f"Plugin '{plugin_id}' does not support core_model_version "
+                            f"'{core_model_version}'. Supported by plugin: {declared_model_versions}"
+                        ),
+                        path=f"plugin:{plugin_id}",
+                        plugin_id="kernel",
+                    )
+                )
+        if model_version_diags:
+            result = PluginResult.failed(
+                plugin_id="kernel.model_version_guard",
+                api_version=KERNEL_API_VERSION,
+                diagnostics=model_version_diags,
+            )
+            results.append(result)
+            self._results.append(result)
+            return results
 
         available_capabilities: set[str] = set()
         for spec in self.specs.values():
@@ -706,6 +754,18 @@ class PluginRegistry:
             if normalized is not None
         }
         return normalized_core in supported
+
+    @classmethod
+    def _is_model_version_in_set(cls, core_model_version: str, allowed_versions: list[str]) -> bool:
+        normalized_core = cls._normalize_model_version(core_model_version)
+        if normalized_core is None:
+            return False
+        normalized_allowed = {
+            normalized
+            for normalized in (cls._normalize_model_version(item) for item in allowed_versions)
+            if normalized is not None
+        }
+        return normalized_core in normalized_allowed
 
     def get_load_errors(self) -> list[str]:
         """Return any errors encountered during manifest loading."""

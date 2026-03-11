@@ -100,6 +100,13 @@
           },
           "description": "Profiles where this plugin is allowed to run (all if not specified)"
         },
+        "model_versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional model version compatibility declarations for this plugin."
+        },
         "timeout": {
           "type": "number",
           "minimum": 1,

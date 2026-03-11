@@ -544,6 +544,118 @@ def test_execute_stage_accepts_compatible_model_version(tmp_path: Path):
     assert all(result.plugin_id != "kernel.model_version_guard" for result in results)
 
 
+def test_execute_stage_fails_when_plugin_model_versions_incompatible(tmp_path: Path):
+    """Plugin-level model_versions restriction must be enforced."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "modeltest.validator_json.restricted",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "model_versions": ["2.0"],
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test-real",
+        model_lock={"core_model_version": "1.0.0"},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+        config={"model_lock_loaded": True},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx)
+    assert len(results) == 1
+    assert results[0].plugin_id == "kernel.model_version_guard"
+    assert results[0].status == PluginStatus.FAILED
+    assert any(diag.code == "E4011" for diag in results[0].diagnostics)
+
+
+def test_execute_stage_fails_when_plugin_model_versions_require_missing_context(tmp_path: Path):
+    """Plugin-level model_versions should fail if core_model_version context is missing."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "modeltest.validator_json.restricted",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "model_versions": ["1.0"],
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test-real",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+        config={"model_lock_loaded": False},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx)
+    assert len(results) == 1
+    assert results[0].plugin_id == "kernel.model_version_guard"
+    assert results[0].status == PluginStatus.FAILED
+    assert any(diag.code == "E4012" for diag in results[0].diagnostics)
+
+
+def test_execute_stage_allows_when_plugin_model_versions_match(tmp_path: Path):
+    """Plugin-level model_versions runs when restriction matches core model version."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "modeltest.validator_json.restricted",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "model_versions": ["1.0"],
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test-real",
+        model_lock={"core_model_version": "1.0.0"},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+        config={"model_lock_loaded": True},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx)
+    assert len(results) == 1
+    assert all(result.plugin_id != "kernel.model_version_guard" for result in results)
+
+
 def test_timeout_does_not_block_pipeline():
     """Timeout should return promptly instead of waiting for plugin completion."""
     registry = PluginRegistry(V5_TOOLS)
@@ -752,6 +864,9 @@ if __name__ == "__main__":
         test_execute_stage_allows_when_capability_is_provided,
         test_execute_stage_fails_on_unsupported_model_version,
         test_execute_stage_accepts_compatible_model_version,
+        test_execute_stage_fails_when_plugin_model_versions_incompatible,
+        test_execute_stage_fails_when_plugin_model_versions_require_missing_context,
+        test_execute_stage_allows_when_plugin_model_versions_match,
         test_timeout_does_not_block_pipeline,
         test_runtime_config_takes_precedence,
         # ADR 0065 inter-plugin data exchange tests

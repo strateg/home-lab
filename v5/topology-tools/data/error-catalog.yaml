@@ -207,6 +207,11 @@ codes:
     stage: validate
     title: Unsupported Model Version
     hint: Update model.lock core_model_version or kernel supported model_versions compatibility matrix.
+  E4012:
+    severity: error
+    stage: validate
+    title: Model Version Context Missing
+    hint: Ensure model.lock is loaded and core_model_version is defined when plugin declares model_versions.
   E4101:
     severity: error
     stage: validate
