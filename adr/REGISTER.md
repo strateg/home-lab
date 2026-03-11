@@ -70,3 +70,4 @@
 | [0067](0067-entity-specific-identifier-keys-in-yaml-authoring.md) | Entity-Specific Identifier Keys in YAML Authoring | Implemented | 2026-03-10 | - | - |
 | [0068](0068-object-yaml-as-instance-template-with-explicit-overrides.md) | Object YAML Template with Typed Instance Placeholders | Accepted | 2026-03-10 | - | - |
 | [0069](0069-plugin-first-compiler-refactor-and-thin-orchestrator.md) | Plugin-First Compiler Refactor and Thin Orchestrator | Proposed | 2026-03-10 | - | - |
+| [0070](0070-acceptance-testing-tuc-framework.md) | Acceptance Testing TUC Framework | Proposed | 2026-03-11 | - | - |
