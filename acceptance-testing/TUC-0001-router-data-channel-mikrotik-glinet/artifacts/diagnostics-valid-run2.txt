@@ -1,0 +1,64 @@
+Topology v5 Compiler Diagnostics
+================================
+
+generated_at: 2026-03-11T15:50:15+00:00
+total=55 errors=0 warnings=0 infos=55
+
+[INFO] I4201 (compile) object:obj.apc.backups.650va: Derived 1 capabilities for object 'obj.apc.backups.650va'
+[INFO] I4201 (compile) object:obj.firmware.apc.backups.650va: Derived 1 capabilities for object 'obj.firmware.apc.backups.650va'
+[INFO] I4201 (compile) object:obj.firmware.openwrt.glinet.4x: Derived 1 capabilities for object 'obj.firmware.openwrt.glinet.4x'
+[INFO] I4201 (compile) object:obj.firmware.pdu.generic.managed: Derived 1 capabilities for object 'obj.firmware.pdu.generic.managed'
+[INFO] I4201 (compile) object:obj.firmware.routeros.7.arm64: Derived 5 capabilities for object 'obj.firmware.routeros.7.arm64'
+[INFO] I4201 (compile) object:obj.firmware.routeros.7.x86_64: Derived 5 capabilities for object 'obj.firmware.routeros.7.x86_64'
+[INFO] I4201 (compile) object:obj.firmware.uboot.generic.arm64: Derived 3 capabilities for object 'obj.firmware.uboot.generic.arm64'
+[INFO] I4201 (compile) object:obj.firmware.uefi.generic.arm64: Derived 3 capabilities for object 'obj.firmware.uefi.generic.arm64'
+[INFO] I4201 (compile) object:obj.firmware.uefi.generic.x86_64: Derived 3 capabilities for object 'obj.firmware.uefi.generic.x86_64'
+[INFO] I4201 (compile) object:obj.glinet.slate_ax1800: Derived 1 capabilities for object 'obj.glinet.slate_ax1800'
+[INFO] I4201 (compile) object:obj.hetzner.cloud_vm: Derived 1 capabilities for object 'obj.hetzner.cloud_vm'
+[INFO] I4201 (compile) object:obj.mikrotik.chateau_lte7_ax: Derived 1 capabilities for object 'obj.mikrotik.chateau_lte7_ax'
+[INFO] I4201 (compile) object:obj.mikrotik.chr: Derived 1 capabilities for object 'obj.mikrotik.chr'
+[INFO] I4201 (compile) object:obj.oracle.cloud_vm: Derived 1 capabilities for object 'obj.oracle.cloud_vm'
+[INFO] I4201 (compile) object:obj.orangepi.rk3588.debian: Derived 1 capabilities for object 'obj.orangepi.rk3588.debian'
+[INFO] I4201 (compile) object:obj.os.debian.12.arm64.edge: Derived 6 capabilities for object 'obj.os.debian.12.arm64.edge'
+[INFO] I4201 (compile) object:obj.os.debian.12.proxmox.lxc: Derived 6 capabilities for object 'obj.os.debian.12.proxmox.lxc'
+[INFO] I4201 (compile) object:obj.os.linux.generic.arm64: Derived 5 capabilities for object 'obj.os.linux.generic.arm64'
+[INFO] I4201 (compile) object:obj.os.linux.generic.x86_64: Derived 5 capabilities for object 'obj.os.linux.generic.x86_64'
+[INFO] I4201 (compile) object:obj.os.openwrt.glinet.4x: Derived 4 capabilities for object 'obj.os.openwrt.glinet.4x'
+[INFO] I4201 (compile) object:obj.os.proxmox.ve.9: Derived 6 capabilities for object 'obj.os.proxmox.ve.9'
+[INFO] I4201 (compile) object:obj.os.routeros.7.arm64: Derived 5 capabilities for object 'obj.os.routeros.7.arm64'
+[INFO] I4201 (compile) object:obj.os.routeros.7.x86_64: Derived 5 capabilities for object 'obj.os.routeros.7.x86_64'
+[INFO] I4201 (compile) object:obj.pdu.generic.managed: Derived 1 capabilities for object 'obj.pdu.generic.managed'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.base: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.base'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.postgresql: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.postgresql'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.redis: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.redis'
+[INFO] I4201 (compile) object:obj.proxmox.ve: Derived 1 capabilities for object 'obj.proxmox.ve'
+[INFO] I4201 (compile) object:obj.service.adguard: Derived 1 capabilities for object 'obj.service.adguard'
+[INFO] I4201 (compile) object:obj.service.alertmanager: Derived 1 capabilities for object 'obj.service.alertmanager'
+[INFO] I4201 (compile) object:obj.service.docker_host: Derived 1 capabilities for object 'obj.service.docker_host'
+[INFO] I4201 (compile) object:obj.service.gitea: Derived 1 capabilities for object 'obj.service.gitea'
+[INFO] I4201 (compile) object:obj.service.grafana: Derived 1 capabilities for object 'obj.service.grafana'
+[INFO] I4201 (compile) object:obj.service.homeassistant: Derived 1 capabilities for object 'obj.service.homeassistant'
+[INFO] I4201 (compile) object:obj.service.jellyfin: Derived 1 capabilities for object 'obj.service.jellyfin'
+[INFO] I4201 (compile) object:obj.service.loki: Derived 1 capabilities for object 'obj.service.loki'
+[INFO] I4201 (compile) object:obj.service.mikrotik.snmp: Derived 1 capabilities for object 'obj.service.mikrotik.snmp'
+[INFO] I4201 (compile) object:obj.service.mikrotik.web_ui: Derived 1 capabilities for object 'obj.service.mikrotik.web_ui'
+[INFO] I4201 (compile) object:obj.service.mosquitto: Derived 1 capabilities for object 'obj.service.mosquitto'
+[INFO] I4201 (compile) object:obj.service.nextcloud: Derived 1 capabilities for object 'obj.service.nextcloud'
+[INFO] I4201 (compile) object:obj.service.nextcloud.file_storage: Derived 1 capabilities for object 'obj.service.nextcloud.file_storage'
+[INFO] I4201 (compile) object:obj.service.nginx_proxy: Derived 1 capabilities for object 'obj.service.nginx_proxy'
+[INFO] I4201 (compile) object:obj.service.ntp: Derived 1 capabilities for object 'obj.service.ntp'
+[INFO] I4201 (compile) object:obj.service.postgresql: Derived 1 capabilities for object 'obj.service.postgresql'
+[INFO] I4201 (compile) object:obj.service.prometheus: Derived 1 capabilities for object 'obj.service.prometheus'
+[INFO] I4201 (compile) object:obj.service.proxmox.web_ui: Derived 1 capabilities for object 'obj.service.proxmox.web_ui'
+[INFO] I4201 (compile) object:obj.service.redis: Derived 1 capabilities for object 'obj.service.redis'
+[INFO] I4201 (compile) object:obj.service.syslog_forwarder: Derived 1 capabilities for object 'obj.service.syslog_forwarder'
+[INFO] I4201 (compile) object:obj.service.tailscale: Derived 1 capabilities for object 'obj.service.tailscale'
+[INFO] I4201 (compile) object:obj.service.wireguard: Derived 1 capabilities for object 'obj.service.wireguard'
+[INFO] I9001 (emit) acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/artifacts/effective-valid-run2.json: Compile success.
+  hint: No action required.
+[INFO] I9001 (generate) generator:effective_yaml: Generated effective YAML artifact: C:\Users\Dmitri\PycharmProjects\home-lab\acceptance-testing\TUC-0001-router-data-channel-mikrotik-glinet\artifacts\effective-topology.yaml
+[INFO] I2401 (load) model.lock: model.lock loaded.
+[INFO] I4001 (load) v5/topology-tools/plugins/plugins.yaml: Plugin kernel v0.5.0 initialized with 17 plugins from 5 manifest(s), including 4 module-level manifest(s).
+  hint: No action required.
+[INFO] I6901 (validate) pipeline:mode: Pipeline mode plugin-first is active; effective output source is plugin ctx.compiled_json.
+  hint: Plugin-first effective model source is active.

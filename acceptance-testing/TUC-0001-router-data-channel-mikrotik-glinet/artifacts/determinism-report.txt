@@ -1,0 +1,7 @@
+deterministic_without_timestamps=True
+l1_devices_count=10
+cable_row_found=true
+cable_class_ref=class.network.physical_link
+cable_length_m=3
+cable_shielding=utp
+cable_category=cat5e

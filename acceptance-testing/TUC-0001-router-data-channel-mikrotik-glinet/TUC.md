@@ -3,7 +3,7 @@
 ## Metadata
 
 - `id`: `TUC-0001`
-- `status`: `planned`
+- `status`: `passed`
 - `owner`: `topology-tools`
 - `created_at`: `2026-03-11`
 - `target_date`: `2026-03-18`
@@ -83,8 +83,6 @@ with stable compile/validate/generate behavior.
 
 ## Risks and Open Questions
 
-- Current compile path normalizes rows into fixed shape; extension fields may be dropped.
-- `instance_overrides` are validated but currently not projected into compiled output.
-- Need explicit policy for port occupancy:
+- Port occupancy policy is still open:
   - allow many cables per port
   - or enforce single cable per port

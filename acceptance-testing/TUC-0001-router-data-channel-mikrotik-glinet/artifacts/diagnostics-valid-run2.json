@@ -1,0 +1,741 @@
+{
+  "report_version": "1",
+  "tool": "topology-v5-compiler",
+  "generated_at": "2026-03-11T15:50:15+00:00",
+  "inputs": {
+    "topology": "v5/topology/topology.yaml",
+    "schema": "v5/topology/topology.yaml",
+    "error_catalog": "v5/topology-tools/data/error-catalog.yaml",
+    "model_lock": "v5/topology/model.lock.yaml"
+  },
+  "outputs": {
+    "effective_json": "acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/artifacts/effective-valid-run2.json",
+    "diagnostics_json": "acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/artifacts/diagnostics-valid-run2.json",
+    "diagnostics_txt": "acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/artifacts/diagnostics-valid-run2.txt"
+  },
+  "summary": {
+    "total": 55,
+    "errors": 0,
+    "warnings": 0,
+    "infos": 55,
+    "by_stage": {
+      "compile": 50,
+      "emit": 1,
+      "generate": 1,
+      "load": 2,
+      "validate": 1
+    }
+  },
+  "next_actions": [
+    {
+      "file": "acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/artifacts/effective-valid-run2.json",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I9001"
+      ]
+    },
+    {
+      "file": "generator",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I9001"
+      ]
+    },
+    {
+      "file": "model.lock",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I2401"
+      ]
+    },
+    {
+      "file": "object",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I4201"
+      ]
+    },
+    {
+      "file": "pipeline",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I6901"
+      ]
+    },
+    {
+      "file": "v5/topology-tools/plugins/plugins.yaml",
+      "errors": 0,
+      "warnings": 0,
+      "primary_codes": [
+        "I4001"
+      ]
+    }
+  ],
+  "diagnostics": [
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.apc.backups.650va'",
+      "path": "object:obj.apc.backups.650va",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.firmware.apc.backups.650va'",
+      "path": "object:obj.firmware.apc.backups.650va",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.firmware.openwrt.glinet.4x'",
+      "path": "object:obj.firmware.openwrt.glinet.4x",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.firmware.pdu.generic.managed'",
+      "path": "object:obj.firmware.pdu.generic.managed",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.firmware.routeros.7.arm64'",
+      "path": "object:obj.firmware.routeros.7.arm64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.firmware.routeros.7.x86_64'",
+      "path": "object:obj.firmware.routeros.7.x86_64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 3 capabilities for object 'obj.firmware.uboot.generic.arm64'",
+      "path": "object:obj.firmware.uboot.generic.arm64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 3 capabilities for object 'obj.firmware.uefi.generic.arm64'",
+      "path": "object:obj.firmware.uefi.generic.arm64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 3 capabilities for object 'obj.firmware.uefi.generic.x86_64'",
+      "path": "object:obj.firmware.uefi.generic.x86_64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.glinet.slate_ax1800'",
+      "path": "object:obj.glinet.slate_ax1800",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.hetzner.cloud_vm'",
+      "path": "object:obj.hetzner.cloud_vm",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.mikrotik.chateau_lte7_ax'",
+      "path": "object:obj.mikrotik.chateau_lte7_ax",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.mikrotik.chr'",
+      "path": "object:obj.mikrotik.chr",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.oracle.cloud_vm'",
+      "path": "object:obj.oracle.cloud_vm",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.orangepi.rk3588.debian'",
+      "path": "object:obj.orangepi.rk3588.debian",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 6 capabilities for object 'obj.os.debian.12.arm64.edge'",
+      "path": "object:obj.os.debian.12.arm64.edge",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 6 capabilities for object 'obj.os.debian.12.proxmox.lxc'",
+      "path": "object:obj.os.debian.12.proxmox.lxc",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.os.linux.generic.arm64'",
+      "path": "object:obj.os.linux.generic.arm64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.os.linux.generic.x86_64'",
+      "path": "object:obj.os.linux.generic.x86_64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 4 capabilities for object 'obj.os.openwrt.glinet.4x'",
+      "path": "object:obj.os.openwrt.glinet.4x",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 6 capabilities for object 'obj.os.proxmox.ve.9'",
+      "path": "object:obj.os.proxmox.ve.9",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.os.routeros.7.arm64'",
+      "path": "object:obj.os.routeros.7.arm64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 5 capabilities for object 'obj.os.routeros.7.x86_64'",
+      "path": "object:obj.os.routeros.7.x86_64",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.pdu.generic.managed'",
+      "path": "object:obj.pdu.generic.managed",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.base'",
+      "path": "object:obj.proxmox.lxc.debian12.base",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.postgresql'",
+      "path": "object:obj.proxmox.lxc.debian12.postgresql",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.redis'",
+      "path": "object:obj.proxmox.lxc.debian12.redis",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.proxmox.ve'",
+      "path": "object:obj.proxmox.ve",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.adguard'",
+      "path": "object:obj.service.adguard",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.alertmanager'",
+      "path": "object:obj.service.alertmanager",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.docker_host'",
+      "path": "object:obj.service.docker_host",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.gitea'",
+      "path": "object:obj.service.gitea",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.grafana'",
+      "path": "object:obj.service.grafana",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.homeassistant'",
+      "path": "object:obj.service.homeassistant",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.jellyfin'",
+      "path": "object:obj.service.jellyfin",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.loki'",
+      "path": "object:obj.service.loki",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.mikrotik.snmp'",
+      "path": "object:obj.service.mikrotik.snmp",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.mikrotik.web_ui'",
+      "path": "object:obj.service.mikrotik.web_ui",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.mosquitto'",
+      "path": "object:obj.service.mosquitto",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.nextcloud'",
+      "path": "object:obj.service.nextcloud",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.nextcloud.file_storage'",
+      "path": "object:obj.service.nextcloud.file_storage",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.nginx_proxy'",
+      "path": "object:obj.service.nginx_proxy",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.ntp'",
+      "path": "object:obj.service.ntp",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.postgresql'",
+      "path": "object:obj.service.postgresql",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.prometheus'",
+      "path": "object:obj.service.prometheus",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.proxmox.web_ui'",
+      "path": "object:obj.service.proxmox.web_ui",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.redis'",
+      "path": "object:obj.service.redis",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.syslog_forwarder'",
+      "path": "object:obj.service.syslog_forwarder",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.tailscale'",
+      "path": "object:obj.service.tailscale",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I4201",
+      "severity": "info",
+      "stage": "compile",
+      "message": "Derived 1 capabilities for object 'obj.service.wireguard'",
+      "path": "object:obj.service.wireguard",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.compiler.capabilities"
+    },
+    {
+      "code": "I9001",
+      "severity": "info",
+      "stage": "emit",
+      "message": "Compile success.",
+      "path": "acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/artifacts/effective-valid-run2.json",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "hint": "No action required."
+    },
+    {
+      "code": "I9001",
+      "severity": "info",
+      "stage": "generate",
+      "message": "Generated effective YAML artifact: C:\\Users\\Dmitri\\PycharmProjects\\home-lab\\acceptance-testing\\TUC-0001-router-data-channel-mikrotik-glinet\\artifacts\\effective-topology.yaml",
+      "path": "generator:effective_yaml",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.generator.effective_yaml"
+    },
+    {
+      "code": "I2401",
+      "severity": "info",
+      "stage": "load",
+      "message": "model.lock loaded.",
+      "path": "model.lock",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "plugin_id": "base.validator.model_lock"
+    },
+    {
+      "code": "I4001",
+      "severity": "info",
+      "stage": "load",
+      "message": "Plugin kernel v0.5.0 initialized with 17 plugins from 5 manifest(s), including 4 module-level manifest(s).",
+      "path": "v5/topology-tools/plugins/plugins.yaml",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "hint": "No action required."
+    },
+    {
+      "code": "I6901",
+      "severity": "info",
+      "stage": "validate",
+      "message": "Pipeline mode plugin-first is active; effective output source is plugin ctx.compiled_json.",
+      "path": "pipeline:mode",
+      "confidence": 1.0,
+      "autofix": {
+        "possible": false
+      },
+      "hint": "Plugin-first effective model source is active."
+    }
+  ]
+}

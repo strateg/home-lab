@@ -5,6 +5,6 @@ This TUC validates OSI-aligned modeling of two router instances where:
 - an ethernet channel instance models information flow as `class.network.data_link` (L2),
 - the cable instance explicitly references the channel it creates.
 
-- Status: `planned`
+- Status: `passed`
 - Source use case: MikroTik Chateau LTE7 AX + GL.iNet Slate AX1800
 - Related ADRs: `0062`, `0063`, `0068`, `0069`

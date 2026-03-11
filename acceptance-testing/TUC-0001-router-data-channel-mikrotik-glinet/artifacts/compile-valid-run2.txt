@@ -1,0 +1,4 @@
+Compile summary: total=55 errors=0 warnings=0 infos=55
+Diagnostics JSON: C:\Users\Dmitri\PycharmProjects\home-lab\acceptance-testing\TUC-0001-router-data-channel-mikrotik-glinet\artifacts\diagnostics-valid-run2.json
+Diagnostics TXT:  C:\Users\Dmitri\PycharmProjects\home-lab\acceptance-testing\TUC-0001-router-data-channel-mikrotik-glinet\artifacts\diagnostics-valid-run2.txt
+Effective JSON:   C:\Users\Dmitri\PycharmProjects\home-lab\acceptance-testing\TUC-0001-router-data-channel-mikrotik-glinet\artifacts\effective-valid-run2.json

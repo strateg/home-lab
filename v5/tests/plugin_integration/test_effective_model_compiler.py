@@ -43,6 +43,28 @@ def test_effective_model_compiler_publishes_candidate():
                 "enabled_capabilities": ["cap.net.interface.ethernet"],
             }
         },
+        config={
+            "normalized_rows": [
+                {
+                    "group": "l1_devices",
+                    "instance": "rtr-1",
+                    "layer": "L1",
+                    "source_id": "rtr-1",
+                    "class_ref": "class.router",
+                    "object_ref": "obj.router.test",
+                    "status": "modeled",
+                    "notes": "",
+                    "runtime": None,
+                    "firmware_ref": None,
+                    "os_refs": [],
+                    "embedded_in": None,
+                    "extensions": {
+                        "length_m": 3,
+                        "endpoint_a": {"device_ref": "left", "port": "eth0"},
+                    },
+                }
+            ]
+        },
         instance_bindings={
             "instance_bindings": {
                 "l1_devices": [
@@ -66,6 +88,10 @@ def test_effective_model_compiler_publishes_candidate():
     assert isinstance(ctx.compiled_json, dict)
     assert "instances" in ctx.compiled_json
     assert "l1_devices" in ctx.compiled_json["instances"]
+    first_row = ctx.compiled_json["instances"]["l1_devices"][0]
+    assert first_row["instance_id"] == "rtr-1"
+    assert first_row["instance_data"]["length_m"] == 3
+    assert first_row["instance_data"]["endpoint_a"]["port"] == "eth0"
     assert ctx.compiled_json["compiled_model_version"] == "1.0"
     assert isinstance(ctx.compiled_json.get("compiled_at"), str)
     assert isinstance(ctx.compiled_json.get("compiler_pipeline_version"), str)

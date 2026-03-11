@@ -37,6 +37,22 @@ def _manifest_digest(payload: dict[str, Any]) -> str:
 class EffectiveModelCompiler(CompilerPlugin):
     """Assemble candidate effective model in compile stage."""
 
+    _RESERVED_ROW_KEYS = {
+        "instance",
+        "group",
+        "layer",
+        "source_id",
+        "class_ref",
+        "object_ref",
+        "status",
+        "notes",
+        "runtime",
+        "firmware_ref",
+        "os_refs",
+        "embedded_in",
+        "extensions",
+    }
+
     @staticmethod
     def _normalize_release_token(value: str) -> str:
         return shared_normalize_release_token(value)
@@ -76,7 +92,16 @@ class EffectiveModelCompiler(CompilerPlugin):
         )
 
     @staticmethod
-    def _normalize_instance_rows(raw_bindings: dict[str, Any]) -> list[dict[str, Any]]:
+    def _extract_extensions(row: dict[str, Any]) -> dict[str, Any]:
+        extensions: dict[str, Any] = {}
+        for key in sorted(row.keys()):
+            if key in EffectiveModelCompiler._RESERVED_ROW_KEYS:
+                continue
+            extensions[key] = row[key]
+        return extensions
+
+    @staticmethod
+    def _normalize_instance_rows(raw_bindings: dict[str, Any], *, objects: dict[str, Any]) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         seen_instances: set[str] = set()
         for group_name, group_rows in raw_bindings.items():
@@ -110,20 +135,38 @@ class EffectiveModelCompiler(CompilerPlugin):
                 if not isinstance(firmware_ref, str) or not firmware_ref:
                     firmware_ref = None
 
+                object_ref = row.get("object_ref")
+                class_ref = row.get("class_ref")
+                if (not isinstance(class_ref, str) or not class_ref) and isinstance(object_ref, str) and object_ref:
+                    object_payload = objects.get(object_ref)
+                    if isinstance(object_payload, dict):
+                        candidate = object_payload.get("class_ref")
+                        if isinstance(candidate, str) and candidate:
+                            class_ref = candidate
+                if not isinstance(class_ref, str) or not class_ref:
+                    class_ref = None
+                source_id = row.get("source_id", instance_id)
+                if not isinstance(source_id, str) or not source_id:
+                    source_id = instance_id
+                extensions = row.get("extensions")
+                if not isinstance(extensions, dict):
+                    extensions = EffectiveModelCompiler._extract_extensions(row)
+
                 rows.append(
                     {
                         "group": group_name,
                         "instance": instance_id,
                         "layer": row.get("layer"),
-                        "source_id": row.get("source_id", instance_id),
-                        "class_ref": row.get("class_ref"),
-                        "object_ref": row.get("object_ref"),
+                        "source_id": source_id,
+                        "class_ref": class_ref,
+                        "object_ref": object_ref,
                         "status": row.get("status", "pending"),
                         "notes": row.get("notes", ""),
                         "runtime": row.get("runtime"),
                         "firmware_ref": firmware_ref,
                         "os_refs": normalized_os_refs,
                         "embedded_in": embedded_in,
+                        "extensions": extensions,
                     }
                 )
         return rows
@@ -232,7 +275,16 @@ class EffectiveModelCompiler(CompilerPlugin):
             )
             return self.make_result(diagnostics)
 
-        rows = self._normalize_instance_rows(raw_bindings)
+        plugin_rows = None
+        if isinstance(ctx.plugin_outputs, dict):
+            plugin_rows = ctx.plugin_outputs.get("base.compiler.instance_rows", {}).get("normalized_rows")
+        config_rows = ctx.config.get("normalized_rows")
+        if isinstance(plugin_rows, list):
+            rows = [row for row in plugin_rows if isinstance(row, dict)]
+        elif isinstance(config_rows, list) and config_rows:
+            rows = [row for row in config_rows if isinstance(row, dict)]
+        else:
+            rows = self._normalize_instance_rows(raw_bindings, objects=ctx.objects)
         object_derived_caps, object_effective_os = self._derive_object_effective(objects=ctx.objects)
         instance_derived_caps, instance_software_refs = self._derive_instance_effective(rows=rows, objects=ctx.objects)
 
@@ -258,6 +310,7 @@ class EffectiveModelCompiler(CompilerPlugin):
                 object_payload = {}
 
             effective_item: dict[str, Any] = {
+                "instance_id": instance_id,
                 "instance": instance_id,
                 "source_id": row.get("source_id", instance_id),
                 "layer": row.get("layer"),
@@ -289,6 +342,9 @@ class EffectiveModelCompiler(CompilerPlugin):
                     "model": object_payload.get("model"),
                 },
             }
+            row_extensions = row.get("extensions")
+            if isinstance(row_extensions, dict) and row_extensions:
+                effective_item["instance_data"] = row_extensions
 
             software_refs = instance_software_refs.get(instance_id) if isinstance(instance_id, str) else None
             if isinstance(software_refs, dict):

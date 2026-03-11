@@ -14,6 +14,30 @@ from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, 
 class InstanceRowsCompiler(CompilerPlugin):
     """Normalize instance_bindings rows and emit row-shape diagnostics."""
 
+    _RESERVED_ROW_KEYS = {
+        "instance",
+        "group",
+        "layer",
+        "source_id",
+        "class_ref",
+        "object_ref",
+        "status",
+        "notes",
+        "runtime",
+        "firmware_ref",
+        "os_refs",
+        "embedded_in",
+    }
+
+    @classmethod
+    def _extract_extensions(cls, row: dict[str, Any]) -> dict[str, Any]:
+        extensions: dict[str, Any] = {}
+        for key in sorted(row.keys()):
+            if key in cls._RESERVED_ROW_KEYS:
+                continue
+            extensions[key] = row[key]
+        return extensions
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
 
@@ -205,12 +229,17 @@ class InstanceRowsCompiler(CompilerPlugin):
                             continue
                         normalized_os_refs.append(os_ref)
 
+                source_id = row.get("source_id", instance_id)
+                if not isinstance(source_id, str) or not source_id:
+                    source_id = instance_id
+                extensions = self._extract_extensions(row)
+
                 rows.append(
                     {
                         "group": group_name,
                         "instance": instance_id,
                         "layer": layer,
-                        "source_id": row.get("source_id", instance_id),
+                        "source_id": source_id,
                         "class_ref": class_ref,
                         "object_ref": object_ref,
                         "status": row.get("status", "pending"),
@@ -219,6 +248,7 @@ class InstanceRowsCompiler(CompilerPlugin):
                         "firmware_ref": firmware_ref if isinstance(firmware_ref, str) and firmware_ref else None,
                         "os_refs": normalized_os_refs,
                         "embedded_in": embedded_in if isinstance(embedded_in, str) and embedded_in else None,
+                        "extensions": extensions,
                     }
                 )
 

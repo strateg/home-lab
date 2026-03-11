@@ -1,5 +1,7 @@
 # TUC-0001 Implementation Plan
 
+Status: `completed` (2026-03-11)
+
 ## Workstream 1: Model Contracts
 
 1. Add class module:

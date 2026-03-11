@@ -51,6 +51,8 @@ def test_instance_rows_compiler_plugin_owner_normalizes_rows():
                         "layer": "L1",
                         "class_ref": "class.router",
                         "object_ref": "obj.router",
+                        "custom_flag": True,
+                        "endpoint_a": {"device_ref": "a", "port": "eth0"},
                     }
                 ]
             }
@@ -63,4 +65,6 @@ def test_instance_rows_compiler_plugin_owner_normalizes_rows():
     rows = result.output_data.get("normalized_rows")
     assert isinstance(rows, list)
     assert rows and rows[0]["instance"] == "dev-1"
+    assert rows[0]["extensions"]["custom_flag"] is True
+    assert rows[0]["extensions"]["endpoint_a"]["port"] == "eth0"
     assert "normalized_rows" in ctx.get_published_keys(PLUGIN_ID)

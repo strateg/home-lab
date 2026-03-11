@@ -1,8 +1,8 @@
 # ADR 0070: Acceptance Testing TUC Framework
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-03-11
-- Related: ADR 0062, ADR 0063, ADR 0066, ADR 0069
+- Related: ADR 0062, ADR 0063, ADR 0066, ADR 0069, ADR 0071
 
 ## Context
 
@@ -66,6 +66,17 @@ Create first scenario:
 
 for router-to-router data-channel modeling on plugin-first pipeline.
 
+### 7. Execution Evidence Contract
+
+Each TUC must capture evidence for:
+
+1. positive compile path (`effective*.json` + diagnostics),
+2. negative validation checks (automated tests and/or diagnostics),
+3. determinism report (at minimum: comparison policy and result),
+4. regression gate (`pytest` suites or equivalent).
+
+Evidence files are stored under the same TUC `artifacts/` folder.
+
 ## Consequences
 
 ### Positive
@@ -84,6 +95,7 @@ for router-to-router data-channel modeling on plugin-first pipeline.
 
 1. Existing ad-hoc acceptance notes should be moved into TUC folders when touched.
 2. New acceptance scenarios must follow TUC layout by default.
+3. TUC status must be kept in sync with matrix/evidence (`planned`, `in_progress`, `passed`, `failed`).
 
 ## References
 
