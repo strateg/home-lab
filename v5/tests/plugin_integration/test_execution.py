@@ -61,6 +61,24 @@ def test_plugin_execution():
             }
         },
     )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish(
+        "normalized_rows",
+        [
+            {
+                "group": "l1_devices",
+                "instance": "test-device",
+                "class_ref": "class.router",
+                "object_ref": "obj.test",
+                "firmware_ref": None,
+                "os_refs": [],
+            }
+        ],
+    )
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
     assert isinstance(result, PluginResult)
@@ -93,6 +111,24 @@ def test_plugin_detects_invalid_ref():
             }
         },
     )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish(
+        "normalized_rows",
+        [
+            {
+                "group": "l1_devices",
+                "instance": "test-device",
+                "class_ref": "class.nonexistent",
+                "object_ref": "obj.nonexistent",
+                "firmware_ref": None,
+                "os_refs": [],
+            }
+        ],
+    )
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin("base.validator.references", ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED

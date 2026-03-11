@@ -54,15 +54,17 @@ def test_reference_validator_detects_missing_refs_when_plugin_owner():
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
-        config={
-            "validation_owner_references": "plugin",
-            "normalized_rows": rows,
-            "capability_catalog_ids": [],
-        },
+        config={"validation_owner_references": "plugin"},
         classes={},
         objects={},
         instance_bindings={"instance_bindings": {}},
     )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
@@ -85,11 +87,7 @@ def test_reference_validator_enforces_required_software_policies():
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
-        config={
-            "validation_owner_references": "plugin",
-            "normalized_rows": rows,
-            "capability_catalog_ids": [],
-        },
+        config={"validation_owner_references": "plugin"},
         classes={
             "class.router": {
                 "class": "class.router",
@@ -101,6 +99,12 @@ def test_reference_validator_enforces_required_software_policies():
         objects={"obj.router": {"object": "obj.router", "class_ref": "class.router"}},
         instance_bindings={"instance_bindings": {}},
     )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED

@@ -120,6 +120,67 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
             }
         },
     )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish(
+        "normalized_rows",
+        [
+            {
+                "group": "l1_software_firmware",
+                "instance": "inst.fw.a",
+                "class_ref": "class.firmware",
+                "object_ref": "obj.firmware.a",
+            },
+            {
+                "group": "l1_software_firmware",
+                "instance": "inst.fw.b",
+                "class_ref": "class.firmware",
+                "object_ref": "obj.firmware.b",
+            },
+            {
+                "group": "l1_software_os",
+                "instance": "inst.os.missing",
+                "class_ref": "class.os",
+                "object_ref": "obj.os.embedded",
+            },
+            {
+                "group": "l1_software_os",
+                "instance": "inst.os.unknown-ref",
+                "class_ref": "class.os",
+                "object_ref": "obj.os.embedded",
+                "embedded_in": "inst.fw.unknown",
+            },
+            {
+                "group": "l1_software_os",
+                "instance": "inst.os.installable",
+                "class_ref": "class.os",
+                "object_ref": "obj.os.installable",
+                "embedded_in": "inst.fw.a",
+            },
+            {
+                "group": "l1_software_os",
+                "instance": "inst.os.wrong-class",
+                "class_ref": "class.os",
+                "object_ref": "obj.os.embedded",
+                "embedded_in": "inst.device.1",
+            },
+            {
+                "group": "l1_software_os",
+                "instance": "inst.os.mismatch",
+                "class_ref": "class.os",
+                "object_ref": "obj.os.embedded",
+                "embedded_in": "inst.fw.b",
+            },
+            {
+                "group": "l1_devices",
+                "instance": "inst.device.1",
+                "class_ref": "class.router",
+                "object_ref": "obj.device",
+                "firmware_ref": "inst.fw.a",
+                "os_refs": ["inst.os.mismatch"],
+            },
+        ],
+    )
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED

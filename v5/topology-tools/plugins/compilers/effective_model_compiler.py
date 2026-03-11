@@ -44,22 +44,6 @@ def _manifest_digest(payload: dict[str, Any]) -> str:
 class EffectiveModelCompiler(CompilerPlugin):
     """Assemble candidate effective model in compile stage."""
 
-    _RESERVED_ROW_KEYS = {
-        "instance",
-        "group",
-        "layer",
-        "source_id",
-        "class_ref",
-        "object_ref",
-        "status",
-        "notes",
-        "runtime",
-        "firmware_ref",
-        "os_refs",
-        "embedded_in",
-        "extensions",
-    }
-
     @staticmethod
     def _normalize_release_token(value: str) -> str:
         return shared_normalize_release_token(value)
@@ -99,109 +83,11 @@ class EffectiveModelCompiler(CompilerPlugin):
         )
 
     @staticmethod
-    def _extract_extensions(row: dict[str, Any]) -> dict[str, Any]:
-        extensions: dict[str, Any] = {}
-        for key in sorted(row.keys()):
-            if key in EffectiveModelCompiler._RESERVED_ROW_KEYS:
-                continue
-            extensions[key] = row[key]
-        return extensions
-
-    @staticmethod
-    def _normalize_instance_rows(raw_bindings: dict[str, Any], *, objects: dict[str, Any]) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
-        seen_instances: set[str] = set()
-        for group_name, group_rows in raw_bindings.items():
-            if not isinstance(group_rows, list):
-                continue
-
-            for row in group_rows:
-                if not isinstance(row, dict):
-                    continue
-
-                instance_id = row.get("instance")
-                if not isinstance(instance_id, str) or not instance_id:
-                    continue
-                if instance_id in seen_instances:
-                    continue
-                seen_instances.add(instance_id)
-
-                os_refs = row.get("os_refs")
-                if not isinstance(os_refs, list):
-                    os_refs = []
-                normalized_os_refs: list[str] = []
-                for os_ref in os_refs:
-                    if isinstance(os_ref, str) and os_ref:
-                        normalized_os_refs.append(os_ref)
-
-                embedded_in = row.get("embedded_in")
-                if not isinstance(embedded_in, str) or not embedded_in:
-                    embedded_in = None
-
-                firmware_ref = row.get("firmware_ref")
-                if not isinstance(firmware_ref, str) or not firmware_ref:
-                    firmware_ref = None
-
-                object_ref = row.get("object_ref")
-                class_ref = row.get("class_ref")
-                if (not isinstance(class_ref, str) or not class_ref) and isinstance(object_ref, str) and object_ref:
-                    object_payload = objects.get(object_ref)
-                    if isinstance(object_payload, dict):
-                        candidate = object_payload.get("class_ref")
-                        if isinstance(candidate, str) and candidate:
-                            class_ref = candidate
-                if not isinstance(class_ref, str) or not class_ref:
-                    class_ref = None
-                source_id = row.get("source_id", instance_id)
-                if not isinstance(source_id, str) or not source_id:
-                    source_id = instance_id
-                extensions = row.get("extensions")
-                if not isinstance(extensions, dict):
-                    extensions = EffectiveModelCompiler._extract_extensions(row)
-
-                rows.append(
-                    {
-                        "group": group_name,
-                        "instance": instance_id,
-                        "layer": row.get("layer"),
-                        "source_id": source_id,
-                        "class_ref": class_ref,
-                        "object_ref": object_ref,
-                        "status": row.get("status", "pending"),
-                        "notes": row.get("notes", ""),
-                        "runtime": row.get("runtime"),
-                        "firmware_ref": firmware_ref,
-                        "os_refs": normalized_os_refs,
-                        "embedded_in": embedded_in,
-                        "extensions": extensions,
-                    }
-                )
-        return rows
-
-    @staticmethod
-    def _collect_output_matches(
-        plugin_outputs: Any,
-        *,
-        key: str,
-    ) -> list[tuple[str, Any]]:
-        if not isinstance(plugin_outputs, dict):
-            return []
-        matches: list[tuple[str, Any]] = []
-        for plugin_id, payload in plugin_outputs.items():
-            if not isinstance(plugin_id, str):
-                continue
-            if not isinstance(payload, dict):
-                continue
-            if key in payload:
-                matches.append((plugin_id, payload[key]))
-        return matches
-
-    @staticmethod
-    def _subscribe_or_none(ctx: PluginContext, *, plugin_id: str, key: str) -> Any:
+    def _subscribe_required(ctx: PluginContext, *, plugin_id: str, key: str) -> Any:
         try:
             return ctx.subscribe(plugin_id, key)
-        except PluginDataExchangeError:
-            return None
+        except PluginDataExchangeError as exc:
+            raise PluginDataExchangeError(f"Missing required published key '{key}' from '{plugin_id}': {exc}") from exc
 
     def _derive_object_effective(
         self, *, objects: dict[str, Any]
@@ -294,47 +180,27 @@ class EffectiveModelCompiler(CompilerPlugin):
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
 
-        raw_bindings = ctx.instance_bindings.get("instance_bindings")
-        if not isinstance(raw_bindings, dict):
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E3201",
-                    severity="error",
-                    stage=stage,
-                    message="instance_bindings must contain mapping 'instance_bindings'.",
-                    path="instance_bindings",
-                )
+        plugin_rows: Any = None
+        try:
+            plugin_rows = self._subscribe_required(
+                ctx,
+                plugin_id="base.compiler.instance_rows",
+                key="normalized_rows",
             )
-            return self.make_result(diagnostics)
-
-        plugin_rows = self._subscribe_or_none(
-            ctx,
-            plugin_id="base.compiler.instance_rows",
-            key="normalized_rows",
-        )
-        normalized_row_matches = self._collect_output_matches(ctx.plugin_outputs, key="normalized_rows")
-        if not isinstance(plugin_rows, list) and len(normalized_row_matches) == 1:
-            plugin_rows = normalized_row_matches[0][1]
-        elif not isinstance(plugin_rows, list) and len(normalized_row_matches) > 1:
+        except PluginDataExchangeError as exc:
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E6901",
                     severity="error",
                     stage=stage,
-                    message=(
-                        "Ambiguous compiler output 'normalized_rows' published by "
-                        f"{[plugin_id for plugin_id, _ in normalized_row_matches]}."
-                    ),
+                    message=str(exc),
                     path="pipeline:mode",
                 )
             )
-        config_rows = ctx.config.get("normalized_rows")
         if isinstance(plugin_rows, list):
             rows = [row for row in plugin_rows if isinstance(row, dict)]
-        elif isinstance(config_rows, list) and config_rows:
-            rows = [row for row in config_rows if isinstance(row, dict)]
         else:
-            rows = self._normalize_instance_rows(raw_bindings, objects=ctx.objects)
+            rows = []
         object_derived_caps, object_effective_os = self._derive_object_effective(objects=ctx.objects)
         instance_derived_caps, instance_software_refs = self._derive_instance_effective(rows=rows, objects=ctx.objects)
 

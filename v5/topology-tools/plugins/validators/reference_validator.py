@@ -34,17 +34,18 @@ class ReferenceValidator(ValidatorJsonPlugin):
     """Validate references, software binding policies, and compatibility rules."""
 
     @staticmethod
-    def _subscribe_or_config(
+    def _subscribe_required(
         ctx: PluginContext,
         *,
         plugin_id: str,
         published_key: str,
-        config_key: str,
     ) -> Any:
         try:
             return ctx.subscribe(plugin_id, published_key)
-        except PluginDataExchangeError:
-            return ctx.config.get(config_key)
+        except PluginDataExchangeError as exc:
+            raise PluginDataExchangeError(
+                f"Missing required published key '{published_key}' from '{plugin_id}': {exc}"
+            ) from exc
 
     @staticmethod
     def _normalize_release_token(value: str) -> str:
@@ -69,52 +70,6 @@ class ReferenceValidator(ValidatorJsonPlugin):
     @staticmethod
     def _default_firmware_policy(class_id: str) -> str:
         return shared_default_firmware_policy(class_id)
-
-    def _normalize_rows(self, bindings: dict[str, Any]) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
-        seen_instances: set[str] = set()
-        for group_name, group_rows in bindings.items():
-            if not isinstance(group_rows, list):
-                continue
-            for row in group_rows:
-                if not isinstance(row, dict):
-                    continue
-                instance_id = row.get("instance")
-                if not isinstance(instance_id, str) or not instance_id:
-                    continue
-                if instance_id in seen_instances:
-                    continue
-                seen_instances.add(instance_id)
-
-                os_refs = row.get("os_refs")
-                if not isinstance(os_refs, list):
-                    os_refs = []
-                normalized_os_refs: list[str] = []
-                for os_ref in os_refs:
-                    if isinstance(os_ref, str) and os_ref:
-                        normalized_os_refs.append(os_ref)
-
-                firmware_ref = row.get("firmware_ref")
-                if not isinstance(firmware_ref, str) or not firmware_ref:
-                    firmware_ref = None
-
-                rows.append(
-                    {
-                        "group": group_name,
-                        "instance": instance_id,
-                        "layer": row.get("layer"),
-                        "source_id": row.get("source_id", instance_id),
-                        "class_ref": row.get("class_ref"),
-                        "object_ref": row.get("object_ref"),
-                        "status": row.get("status", "pending"),
-                        "notes": row.get("notes", ""),
-                        "runtime": row.get("runtime"),
-                        "firmware_ref": firmware_ref,
-                        "os_refs": normalized_os_refs,
-                        "embedded_in": row.get("embedded_in"),
-                    }
-                )
-        return rows
 
     def _derive_firmware_capabilities(
         self,
@@ -201,26 +156,33 @@ class ReferenceValidator(ValidatorJsonPlugin):
             if isinstance(object_id, str) and isinstance(payload, dict):
                 object_map[object_id] = payload
 
-        raw_rows = self._subscribe_or_config(
-            ctx,
-            plugin_id="base.compiler.instance_rows",
-            published_key="normalized_rows",
-            config_key="normalized_rows",
-        )
+        try:
+            raw_rows = self._subscribe_required(
+                ctx,
+                plugin_id="base.compiler.instance_rows",
+                published_key="normalized_rows",
+            )
+            catalog_ids_raw = self._subscribe_required(
+                ctx,
+                plugin_id="base.compiler.capability_contract_loader",
+                published_key="catalog_ids",
+            )
+        except PluginDataExchangeError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E6901",
+                    severity="error",
+                    stage=stage,
+                    message=str(exc),
+                    path="pipeline:mode",
+                )
+            )
+            return self.make_result(diagnostics)
+
         rows: list[dict[str, Any]] = []
         if isinstance(raw_rows, list):
             rows = [row for row in raw_rows if isinstance(row, dict)]
-        else:
-            bindings = ctx.instance_bindings.get("instance_bindings")
-            if isinstance(bindings, dict):
-                rows = self._normalize_rows(bindings)
 
-        catalog_ids_raw = self._subscribe_or_config(
-            ctx,
-            plugin_id="base.compiler.capability_contract_loader",
-            published_key="catalog_ids",
-            config_key="capability_catalog_ids",
-        )
         catalog_ids = {item for item in (catalog_ids_raw or []) if isinstance(item, str) and item}
 
         valid_os_policies = {"required", "allowed", "forbidden"}

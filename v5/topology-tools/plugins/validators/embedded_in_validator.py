@@ -26,17 +26,18 @@ class EmbeddedInValidator(ValidatorJsonPlugin):
     """Validate embedded_in relationships for OS and device instances."""
 
     @staticmethod
-    def _subscribe_or_config(
+    def _subscribe_required(
         ctx: PluginContext,
         *,
         plugin_id: str,
         published_key: str,
-        config_key: str,
     ) -> Any:
         try:
             return ctx.subscribe(plugin_id, published_key)
-        except PluginDataExchangeError:
-            return ctx.config.get(config_key)
+        except PluginDataExchangeError as exc:
+            raise PluginDataExchangeError(
+                f"Missing required published key '{published_key}' from '{plugin_id}': {exc}"
+            ) from exc
 
     @staticmethod
     def _extract_os_installation_model(object_payload: dict[str, Any]) -> str | None:
@@ -47,48 +48,6 @@ class EmbeddedInValidator(ValidatorJsonPlugin):
                 return model
         return None
 
-    @staticmethod
-    def _normalize_rows(bindings: dict[str, Any]) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
-        seen_instances: set[str] = set()
-        for group_name, group_rows in bindings.items():
-            if not isinstance(group_rows, list):
-                continue
-            for row in group_rows:
-                if not isinstance(row, dict):
-                    continue
-                instance_id = row.get("instance")
-                if not isinstance(instance_id, str) or not instance_id:
-                    continue
-                if instance_id in seen_instances:
-                    continue
-                seen_instances.add(instance_id)
-
-                os_refs = row.get("os_refs")
-                if not isinstance(os_refs, list):
-                    os_refs = []
-                normalized_os_refs = [os_ref for os_ref in os_refs if isinstance(os_ref, str) and os_ref]
-
-                firmware_ref = row.get("firmware_ref")
-                if not isinstance(firmware_ref, str) or not firmware_ref:
-                    firmware_ref = None
-                embedded_in = row.get("embedded_in")
-                if not isinstance(embedded_in, str) or not embedded_in:
-                    embedded_in = None
-
-                rows.append(
-                    {
-                        "group": group_name,
-                        "instance": instance_id,
-                        "class_ref": row.get("class_ref"),
-                        "object_ref": row.get("object_ref"),
-                        "firmware_ref": firmware_ref,
-                        "os_refs": normalized_os_refs,
-                        "embedded_in": embedded_in,
-                    }
-                )
-        return rows
-
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
 
@@ -98,19 +57,25 @@ class EmbeddedInValidator(ValidatorJsonPlugin):
         if owner is not None and owner != "plugin":
             return self.make_result(diagnostics)
 
-        rows_payload = self._subscribe_or_config(
-            ctx,
-            plugin_id="base.compiler.instance_rows",
-            published_key="normalized_rows",
-            config_key="normalized_rows",
-        )
-        if isinstance(rows_payload, list):
-            rows = [item for item in rows_payload if isinstance(item, dict)]
-        else:
-            bindings = ctx.instance_bindings.get("instance_bindings")
-            if not isinstance(bindings, dict):
-                return self.make_result(diagnostics)
-            rows = self._normalize_rows(bindings)
+        try:
+            rows_payload = self._subscribe_required(
+                ctx,
+                plugin_id="base.compiler.instance_rows",
+                published_key="normalized_rows",
+            )
+        except PluginDataExchangeError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E6901",
+                    severity="error",
+                    stage=stage,
+                    message=str(exc),
+                    path="pipeline:mode",
+                )
+            )
+            return self.make_result(diagnostics)
+
+        rows = [item for item in rows_payload if isinstance(item, dict)] if isinstance(rows_payload, list) else []
         row_by_id: dict[str, dict[str, Any]] = {}
         for row in rows:
             row_id = row.get("instance")

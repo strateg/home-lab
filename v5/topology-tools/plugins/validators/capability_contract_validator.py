@@ -31,18 +31,19 @@ from kernel.plugin_base import (
 class CapabilityContractValidator(ValidatorJsonPlugin):
     """Validate class/object capability contracts and derived capability coverage."""
 
-    @staticmethod
-    def _subscribe_or_config(
+    def _subscribe_required(
+        self,
         ctx: PluginContext,
         *,
         plugin_id: str,
         published_key: str,
-        config_key: str,
     ) -> Any:
         try:
             return ctx.subscribe(plugin_id, published_key)
-        except PluginDataExchangeError:
-            return ctx.config.get(config_key)
+        except PluginDataExchangeError as exc:
+            raise PluginDataExchangeError(
+                f"Missing required published key '{published_key}' from '{plugin_id}': {exc}"
+            ) from exc
 
     @staticmethod
     def _normalize_release_token(value: str) -> str:
@@ -155,36 +156,45 @@ class CapabilityContractValidator(ValidatorJsonPlugin):
         if owner is not None and owner != "plugin":
             return self.make_result(diagnostics)
 
-        catalog_ids_raw = self._subscribe_or_config(
-            ctx,
-            plugin_id="base.compiler.capability_contract_loader",
-            published_key="catalog_ids",
-            config_key="capability_catalog_ids",
-        )
+        try:
+            catalog_ids_raw = self._subscribe_required(
+                ctx,
+                plugin_id="base.compiler.capability_contract_loader",
+                published_key="catalog_ids",
+            )
+            packs_map_raw = self._subscribe_required(
+                ctx,
+                plugin_id="base.compiler.capability_contract_loader",
+                published_key="packs_map",
+            )
+            class_paths_raw = self._subscribe_required(
+                ctx,
+                plugin_id="base.compiler.module_loader",
+                published_key="class_module_paths",
+            )
+            object_paths_raw = self._subscribe_required(
+                ctx,
+                plugin_id="base.compiler.module_loader",
+                published_key="object_module_paths",
+            )
+        except PluginDataExchangeError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E6901",
+                    severity="error",
+                    stage=stage,
+                    message=str(exc),
+                    path="pipeline:mode",
+                )
+            )
+            return self.make_result(diagnostics)
+
         catalog_ids = {item for item in (catalog_ids_raw or []) if isinstance(item, str) and item}
         if not catalog_ids:
             return self.make_result(diagnostics)
 
-        packs_map_raw = self._subscribe_or_config(
-            ctx,
-            plugin_id="base.compiler.capability_contract_loader",
-            published_key="packs_map",
-            config_key="capability_packs",
-        )
         packs_map = packs_map_raw if isinstance(packs_map_raw, dict) else {}
-        class_paths_raw = self._subscribe_or_config(
-            ctx,
-            plugin_id="base.compiler.module_loader",
-            published_key="class_module_paths",
-            config_key="class_module_paths",
-        )
         class_paths = class_paths_raw if isinstance(class_paths_raw, dict) else {}
-        object_paths_raw = self._subscribe_or_config(
-            ctx,
-            plugin_id="base.compiler.module_loader",
-            published_key="object_module_paths",
-            config_key="object_module_paths",
-        )
         object_paths = object_paths_raw if isinstance(object_paths_raw, dict) else {}
         require_new_model = bool(ctx.config.get("require_new_model", False))
 

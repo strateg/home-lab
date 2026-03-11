@@ -46,8 +46,6 @@ def test_capability_contract_validator_plugin_owner_detects_contract_errors():
         model_lock={},
         config={
             "validation_owner_capability_contract": "plugin",
-            "capability_catalog_ids": ["cap.net.a"],
-            "capability_packs": {},
             "require_new_model": False,
         },
         classes={
@@ -69,6 +67,14 @@ def test_capability_contract_validator_plugin_owner_detects_contract_errors():
         },
         instance_bindings={"instance_bindings": {}},
     )
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", ["cap.net.a"])
+    ctx.publish("packs_map", {})
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.module_loader", set())
+    ctx.publish("class_module_paths", {})
+    ctx.publish("object_module_paths", {})
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED

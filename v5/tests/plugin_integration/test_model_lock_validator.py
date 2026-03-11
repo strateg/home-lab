@@ -52,13 +52,15 @@ def test_model_lock_validator_plugin_owner_missing_lock_strict_mode():
         model_lock={},
         config={
             "validation_owner_model_lock": "plugin",
-            "model_lock_loaded": False,
             "strict_mode": True,
         },
         classes={},
         objects={},
         instance_bindings={"instance_bindings": {}},
     )
+    ctx._set_execution_context("base.compiler.model_lock_loader", set())
+    ctx.publish("model_lock_loaded", False)
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
@@ -71,17 +73,9 @@ def test_model_lock_validator_matches_legacy_rules_when_plugin_owner():
     ctx = PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
-        model_lock={
-            "classes": {
-                "class.router": {"version": "1.1.0"},
-            },
-            "objects": {
-                "obj.router": {"version": "2.1.0", "class_ref": "class.switch"},
-            },
-        },
+        model_lock={},
         config={
             "validation_owner_model_lock": "plugin",
-            "model_lock_loaded": True,
             "strict_mode": False,
         },
         classes={
@@ -101,6 +95,29 @@ def test_model_lock_validator_matches_legacy_rules_when_plugin_owner():
             }
         },
     )
+    ctx._set_execution_context("base.compiler.model_lock_loader", set())
+    ctx.publish("model_lock_loaded", True)
+    ctx.publish(
+        "lock_payload",
+        {
+            "classes": {
+                "class.router": {"version": "1.1.0"},
+            },
+            "objects": {
+                "obj.router": {"version": "2.1.0", "class_ref": "class.switch"},
+            },
+        },
+    )
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish(
+        "normalized_rows",
+        [
+            {"group": "l1_devices", "instance": "r1", "class_ref": "class.router", "object_ref": "obj.router"},
+            {"group": "l1_devices", "instance": "r2", "class_ref": "class.unpinned", "object_ref": "obj.unpinned"},
+        ],
+    )
+    ctx._clear_execution_context()
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
