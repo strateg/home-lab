@@ -50,6 +50,24 @@ instance_bindings:
         lan2: "<TODO_MAC_LAN2>"
         wlan0_5ghz: "<TODO_MAC_WLAN0>"
         wlan1_2_4ghz: "<TODO_MAC_WLAN1>"
+  - instance: inst.ethernet_cable.cat5e
+    source_id: inst.ethernet_cable.cat5e
+    layer: L1
+    class_ref: class.network.physical_link
+    object_ref: obj.network.ethernet_cable
+    status: modeled
+    notes: Cat5e cable between rtr-mikrotik-chateau:ether2 and rtr-slate:lan1
+    endpoint_a:
+      device_ref: rtr-mikrotik-chateau
+      port: ether2
+    endpoint_b:
+      device_ref: rtr-slate
+      port: lan1
+    creates_channel_ref: chan.eth.chateau_to_slate
+    length_m: 3
+    shielding: utp
+    category: cat5e
+    color: gray
   - instance: srv-gamayun
     source_id: srv-gamayun
     layer: L1
@@ -227,6 +245,22 @@ instance_bindings:
     status: mapped
     notes: ADR0064 os instance
   l2_network:
+  - instance: chan.eth.chateau_to_slate
+    source_id: chan.eth.chateau_to_slate
+    layer: L2
+    class_ref: class.network.data_link
+    object_ref: obj.network.ethernet_channel
+    status: modeled
+    notes: Ethernet data link created by inst.ethernet_cable.cat5e
+    endpoint_a:
+      device_ref: rtr-mikrotik-chateau
+      port: ether2
+    endpoint_b:
+      device_ref: rtr-slate
+      port: lan1
+    link_ref: inst.ethernet_cable.cat5e
+    negotiated_speed_mbps: 1000
+    admin_state: up
   - instance: inst.bridge.vmbr0
     source_id: bridge-vmbr0
     layer: L2

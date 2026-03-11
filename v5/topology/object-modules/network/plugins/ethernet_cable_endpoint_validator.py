@@ -1,4 +1,4 @@
-"""Module-level validator for ethernet cable endpoint wiring."""
+"""Module-level validator for ethernet data-link endpoint wiring."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorJson
 
 
 class EthernetCableEndpointValidator(ValidatorJsonPlugin):
-    """Validate endpoint_a/endpoint_b wiring for ethernet cable instances."""
+    """Validate ethernet cable endpoints and created data-channel binding."""
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics = []
@@ -166,13 +166,13 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                 )
 
         class_ref = row.get("class_ref")
-        if class_ref != "class.network.data_channel":
+        if class_ref != "class.network.physical_link":
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E7304",
                     severity="error",
                     stage=stage,
-                    message=("Ethernet cable instance must use class_ref " "'class.network.data_channel'."),
+                    message=("Ethernet cable instance must use class_ref " "'class.network.physical_link'."),
                     path=f"{row_prefix}.class_ref",
                 )
             )
@@ -211,6 +211,121 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                 )
             )
 
+        creates_channel_ref = row.get("creates_channel_ref")
+        if not isinstance(creates_channel_ref, str) or not creates_channel_ref:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7307",
+                    severity="error",
+                    stage=stage,
+                    message="'creates_channel_ref' must be a non-empty string.",
+                    path=f"{row_prefix}.creates_channel_ref",
+                )
+            )
+            return
+
+        channel_row = instance_rows.get(creates_channel_ref)
+        if not isinstance(channel_row, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7307",
+                    severity="error",
+                    stage=stage,
+                    message=f"Cable references unknown data-channel instance '{creates_channel_ref}'.",
+                    path=f"{row_prefix}.creates_channel_ref",
+                )
+            )
+            return
+
+        channel_class_ref = channel_row.get("class_ref")
+        if channel_class_ref != "class.network.data_link":
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7307",
+                    severity="error",
+                    stage=stage,
+                    message=(f"Referenced instance '{creates_channel_ref}' must use " "'class.network.data_link'."),
+                    path=f"{row_prefix}.creates_channel_ref",
+                )
+            )
+
+        cable_instance_id = row.get("instance")
+        channel_link_ref = channel_row.get("link_ref")
+        if not isinstance(channel_link_ref, str) or not channel_link_ref:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7308",
+                    severity="error",
+                    stage=stage,
+                    message=f"Data-channel '{creates_channel_ref}' must define non-empty 'link_ref'.",
+                    path=f"instance:{creates_channel_ref}:link_ref",
+                )
+            )
+        elif isinstance(cable_instance_id, str) and cable_instance_id and channel_link_ref != cable_instance_id:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7308",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Data-channel '{creates_channel_ref}' link_ref must point back to "
+                        f"'{cable_instance_id}', got '{channel_link_ref}'."
+                    ),
+                    path=f"instance:{creates_channel_ref}:link_ref",
+                )
+            )
+
+        cable_endpoints = self._endpoint_set(row)
+        channel_endpoints = self._endpoint_set(channel_row)
+        if cable_endpoints and channel_endpoints and cable_endpoints != channel_endpoints:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7308",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Data-channel '{creates_channel_ref}' endpoints must match cable endpoints "
+                        "as an unordered pair."
+                    ),
+                    path=f"{row_prefix}.creates_channel_ref",
+                )
+            )
+
+        channel_object_ref = channel_row.get("object_ref")
+        channel_object = ctx.objects.get(channel_object_ref) if isinstance(channel_object_ref, str) else None
+        if isinstance(channel_object, dict):
+            properties = channel_object.get("properties")
+            if isinstance(properties, dict):
+                protocol_family = properties.get("protocol_family")
+                if isinstance(protocol_family, str) and protocol_family not in {"ieee_802_3", "ethernet"}:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7307",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Referenced channel object '{channel_object_ref}' must have "
+                                "properties.protocol_family compatible with ethernet."
+                            ),
+                            path=f"{row_prefix}.creates_channel_ref",
+                        )
+                    )
+
+                backing_link_class = properties.get("backing_link_class")
+                if isinstance(backing_link_class, str) and backing_link_class != "class.network.physical_link":
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7307",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Referenced channel object '{channel_object_ref}' must declare "
+                                "properties.backing_link_class='class.network.physical_link'."
+                            ),
+                            path=f"{row_prefix}.creates_channel_ref",
+                        )
+                    )
+
     @staticmethod
     def _extract_ethernet_ports(object_payload: Any) -> set[str]:
         if not isinstance(object_payload, dict):
@@ -231,3 +346,19 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                 if isinstance(name, str) and name:
                     ports.add(name)
         return ports
+
+    @staticmethod
+    def _endpoint_set(row: dict[str, Any]) -> set[tuple[str, str]]:
+        endpoint_pairs: set[tuple[str, str]] = set()
+        for endpoint_name in ("endpoint_a", "endpoint_b"):
+            endpoint = row.get(endpoint_name)
+            if not isinstance(endpoint, dict):
+                continue
+            device_ref = endpoint.get("device_ref")
+            port = endpoint.get("port")
+            if not isinstance(device_ref, str) or not device_ref:
+                continue
+            if not isinstance(port, str) or not port:
+                continue
+            endpoint_pairs.add((device_ref, port))
+        return endpoint_pairs

@@ -1,22 +1,26 @@
 object: obj.network.ethernet_cable
 version: 1.0.0
-class_ref: class.network.data_channel
-description: Generic RJ45 ethernet patch cable object template
+class_ref: class.network.physical_link
+description: Generic RJ45 ethernet patch cable object template (OSI L1)
 
 properties:
-  bandwidth_mbps: 1000
-  medium: wired
-  duplex_mode: full
-  mtu: 1500
+  link_type: ethernet
+  nominal_bandwidth_mbps: 1000
   latency_ms: 0.1
-  reliability_tier: managed
-  protocol_family: ethernet
+  jitter_ms: 0.02
+  packet_loss_percent: 0
+  medium: copper
+  duplex_mode: full
   connector_type: rj45
+  max_length_m: 100
+  propagation_delay_us_per_m: 0.005
+  osi_layer: 1
 
 instance_schema:
   required:
     - endpoint_a
     - endpoint_b
+    - creates_channel_ref
     - length_m
     - shielding
   properties:
@@ -26,6 +30,10 @@ instance_schema:
     endpoint_b:
       type: object
       required: [device_ref, port]
+    creates_channel_ref:
+      type: string
+      format: instance_ref
+      target_class: class.network.data_link
     length_m:
       type: number
       minimum: 0.1

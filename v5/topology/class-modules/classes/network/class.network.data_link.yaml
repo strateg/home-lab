@@ -1,0 +1,48 @@
+class: class.network.data_link
+version: 1.0.0
+description: Logical data channel for information flow between endpoints
+layer: L2
+
+properties:
+  required:
+    - mtu
+  optional:
+    - qos_class
+    - protocol_family
+    - osi_layers
+    - backing_link_class
+
+property_schemas:
+  mtu:
+    type: integer
+    minimum: 68
+    maximum: 9216
+    default: 1500
+    description: Maximum payload transfer unit (bytes) for channel frames/packets.
+  qos_class:
+    type: string
+    enum: [best_effort, assured, real_time]
+    default: best_effort
+  protocol_family:
+    type: string
+    default: ethernet
+    description: Protocol family carried by the channel (for example ethernet, 802.11).
+  osi_layers:
+    type: array
+    items:
+      type: integer
+      minimum: 1
+      maximum: 7
+    default: [2]
+    description: OSI layers represented by this channel model.
+  backing_link_class:
+    type: string
+    enum: [class.network.physical_link]
+    default: class.network.physical_link
+    description: Physical link class expected to realize this logical channel.
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []

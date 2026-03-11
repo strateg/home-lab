@@ -3,13 +3,16 @@
 ## Workstream 1: Model Contracts
 
 1. Add class module:
-   - `v5/topology/class-modules/classes/network/class.network.data_channel.yaml`
-   - Keep only channel-agnostic properties at class level.
-2. Add object module:
+   - `v5/topology/class-modules/classes/network/class.network.physical_link.yaml` (OSI L1 physical link contract)
+2. Rework class module:
+   - `v5/topology/class-modules/classes/network/class.network.data_link.yaml` (OSI L2 logical channel contract)
+3. Add object modules:
    - `v5/topology/object-modules/network/obj.network.ethernet_cable.yaml`
-   - Move cable-specific runtime parameters (`length_m`, `shielding`, ...) to instance-level schema.
-3. Add cable instance row in:
+   - `v5/topology/object-modules/network/obj.network.ethernet_channel.yaml`
+   - Keep cable-specific runtime parameters (`length_m`, `shielding`, ...) at instance level.
+4. Add fixture rows in:
    - `v5/topology/instances/home-lab/instance-bindings.yaml`
+   - one cable (`physical_link`) and one channel (`data_link`) with bidirectional linkage.
 
 ## Workstream 2: Compiler Stability for Instance Extensions
 
@@ -30,12 +33,13 @@
    - Router class validator (data-channel interface contract)
    - MikroTik object validator (ethernet field and port naming policy)
    - GL.iNet object validator (ethernet field and DSA constraints)
-   - Cable connectivity validator (endpoint refs and port existence)
+   - Cable connectivity validator (endpoint refs, port existence, and `physical_link -> data_link` integrity)
 
 ## Workstream 4: Acceptance Fixtures
 
 1. Add valid fixture:
    - cable between `rtr-mikrotik-chateau:ether2` and `rtr-slate:lan1`
+   - matching channel produced by cable via `creates_channel_ref`
 2. Add invalid fixtures:
    - unknown endpoint instance
    - unknown port

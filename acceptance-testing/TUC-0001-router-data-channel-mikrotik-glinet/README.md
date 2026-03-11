@@ -1,6 +1,9 @@
-# TUC-0001 Router Data Channel
+# TUC-0001 Router Data Link + Data Channel
 
-This TUC validates end-to-end modeling of two router instances connected by one ethernet cable instance, using class/object/instance modules and plugin-first compilation.
+This TUC validates OSI-aligned modeling of two router instances where:
+- an ethernet cable instance models physical connectivity as `class.network.physical_link` (L1),
+- an ethernet channel instance models information flow as `class.network.data_link` (L2),
+- the cable instance explicitly references the channel it creates.
 
 - Status: `planned`
 - Source use case: MikroTik Chateau LTE7 AX + GL.iNet Slate AX1800

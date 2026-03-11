@@ -1,0 +1,78 @@
+class: class.network.physical_link
+version: 1.0.0
+description: Physical data link medium between two device interfaces (OSI L1)
+layer: L1
+
+properties:
+  required:
+    - link_type
+    - nominal_bandwidth_mbps
+  optional:
+    - latency_ms
+    - jitter_ms
+    - packet_loss_percent
+    - medium
+    - duplex_mode
+    - connector_type
+    - max_length_m
+    - propagation_delay_us_per_m
+    - osi_layer
+
+property_schemas:
+  link_type:
+    type: string
+    enum: [ethernet, fiber, wireless, virtual]
+    description: Physical link technology.
+  nominal_bandwidth_mbps:
+    type: integer
+    minimum: 1
+    maximum: 1000000
+    description: Nominal physical link bandwidth in megabits per second.
+  latency_ms:
+    type: number
+    minimum: 0
+    default: 0
+    description: Typical one-way latency introduced by this physical link.
+  jitter_ms:
+    type: number
+    minimum: 0
+    default: 0
+    description: Latency variance introduced by this physical link.
+  packet_loss_percent:
+    type: number
+    minimum: 0
+    maximum: 100
+    default: 0
+    description: Expected packet loss on this physical link.
+  medium:
+    type: string
+    enum: [copper, optical, radio, virtual]
+    description: Physical medium used by the link.
+  duplex_mode:
+    type: string
+    enum: [simplex, half, full]
+    default: full
+  connector_type:
+    type: string
+    description: Physical connector family (for example rj45, sfp, n/a).
+  max_length_m:
+    type: number
+    minimum: 0
+    default: 100
+    description: Vendor or standard maximum supported length.
+  propagation_delay_us_per_m:
+    type: number
+    minimum: 0
+    default: 0.005
+    description: Approximate propagation delay per meter.
+  osi_layer:
+    type: integer
+    enum: [1]
+    default: 1
+    description: OSI layer classification for this class.
+
+required_capabilities: []
+
+optional_capabilities: []
+
+enabled_capabilities: []

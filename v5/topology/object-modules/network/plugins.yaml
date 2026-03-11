@@ -16,4 +16,4 @@ plugins:
       type: object
       properties: {}
       required: []
-    description: Validates ethernet cable instance endpoints against existing router instances and object ports.
+    description: Validates ethernet data-link endpoints and linkage to a created data-channel instance.

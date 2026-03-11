@@ -1,4 +1,4 @@
-# TUC-0001: Router-to-Router Ethernet Data Channel (MikroTik + GL.iNet)
+# TUC-0001: Router-to-Router Ethernet Data Link + Data Channel (MikroTik + GL.iNet)
 
 ## Metadata
 
@@ -15,18 +15,24 @@
 
 ## Objective
 
-Prove that the plugin/module system can model two concrete routers and their physical ethernet connection using class/object/instance contracts, with stable compile/validate/generate behavior.
+Prove that the plugin/module system can model two concrete routers via OSI-aligned contracts:
+- physical connection as `physical_link` (ethernet cable, L1),
+- information flow as `data_link` (ethernet channel, L2),
+with stable compile/validate/generate behavior.
 
 ## Scope
 
 - In scope:
-  - Generic class module for data channels (ethernet/wifi/fiber baseline): `class.network.data_channel`
-  - Object module for ethernet cable: `obj.network.ethernet_cable`
+  - Generic class module for physical links: `class.network.physical_link`
+  - Generic class module for logical channels: `class.network.data_link`
+  - Object module for ethernet cable (L1): `obj.network.ethernet_cable`
+  - Object module for ethernet channel (L2): `obj.network.ethernet_channel`
   - Two router instances:
     - `rtr-mikrotik-chateau`
     - `rtr-slate`
-  - One cable instance connecting router ports with instance-specific length
-  - Plugin validations for endpoint/port correctness
+  - One cable instance connecting router ports with instance-specific link properties
+  - One channel instance produced by the cable instance
+  - Plugin validations for endpoint/port correctness and `physical_link -> data_link` consistency
 - Out of scope:
   - L3 routing policy design between routers
   - Provisioning/runtime deployment generation
@@ -58,6 +64,7 @@ Prove that the plugin/module system can model two concrete routers and their phy
 
 - New class/object modules are compiled and visible in effective model.
 - Cable instance is validated against real object port definitions.
+- Cable instance references created channel instance (`creates_channel_ref`).
 - Invalid endpoint/port combinations return deterministic diagnostics.
 - No regression in existing plugin contract/integration tests.
 
@@ -65,10 +72,13 @@ Prove that the plugin/module system can model two concrete routers and their phy
 
 1. Compile succeeds with zero errors for the valid two-router + one-cable fixture.
 2. Cable endpoints must reference existing router instances and existing ethernet ports.
-3. Instance-specific cable properties (`length_m`, `shielding`) are preserved in compiled model.
-4. Invalid port name on either endpoint fails with stable diagnostic code.
-5. Duplicate connection endpoint usage policy is enforced (as defined in validator).
-6. Plugin order and output remain deterministic across repeated runs.
+3. Cable class is `class.network.physical_link`; channel class is `class.network.data_link`.
+4. Cable instance must declare `creates_channel_ref` pointing to an existing `data_link` instance.
+5. Cable and channel endpoints must match as an unordered endpoint pair.
+6. Instance-specific cable properties (`length_m`, `shielding`) are preserved in compiled model.
+7. Invalid port name on either endpoint fails with stable diagnostic code.
+8. Duplicate connection endpoint usage policy is enforced (as defined in validator).
+9. Plugin order and output remain deterministic across repeated runs.
 
 ## Risks and Open Questions
 

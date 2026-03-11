@@ -1,0 +1,42 @@
+object: obj.network.ethernet_channel
+version: 1.0.0
+class_ref: class.network.data_link
+description: Logical ethernet data channel created over a physical data link
+
+properties:
+  mtu: 1500
+  qos_class: best_effort
+  protocol_family: ieee_802_3
+  osi_layers: [2]
+  backing_link_class: class.network.physical_link
+
+instance_schema:
+  required:
+    - endpoint_a
+    - endpoint_b
+    - link_ref
+  properties:
+    endpoint_a:
+      type: object
+      required: [device_ref, port]
+    endpoint_b:
+      type: object
+      required: [device_ref, port]
+    link_ref:
+      type: string
+      format: instance_ref
+      target_class: class.network.physical_link
+    negotiated_speed_mbps:
+      type: integer
+      minimum: 1
+      maximum: 1000000
+    admin_state:
+      type: string
+      enum: [up, down]
+      default: up
+    vlan_id:
+      type: integer
+      minimum: 1
+      maximum: 4094
+
+enabled_capabilities: []

@@ -106,6 +106,19 @@ capability_packs:
   - pack.router.enterprise            # Enterprise routing (CCR, EdgeRouter)
 
 # ============================================================================
+# DATA CHANNEL INTERFACE CONTRACT (OSI-ALIGNED)
+# L1 data links terminate on router interfaces and create L2 data channels.
+# ============================================================================
+
+data_channel_interface_contract:
+  ethernet:
+    endpoint_field: hardware_specs.interfaces.ethernet[].name
+    supported_link_classes:
+      - class.network.physical_link
+    created_channel_class: class.network.data_link
+    osi_layers: [1, 2]
+
+# ============================================================================
 # INVARIANTS
 # Rules that MUST be satisfied by objects and instances
 # ============================================================================

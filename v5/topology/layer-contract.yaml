@@ -53,8 +53,12 @@ class_layers:
     allowed_layers: [L1]
   class.os:
     allowed_layers: [L1]
+  class.network.physical_link:
+    allowed_layers: [L1]
 
   # L2 - Network (bridges, VLANs, firewall)
+  class.network.data_link:
+    allowed_layers: [L2]
   class.network.bridge:
     allowed_layers: [L2]
   class.network.vlan:

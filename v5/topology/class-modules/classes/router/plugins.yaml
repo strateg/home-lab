@@ -13,4 +13,4 @@ plugins:
       type: object
       properties: {}
       required: []
-    description: Validates optional data-channel interface contract shape for class.router.
+    description: Validates OSI-aligned data-channel interface contract shape for class.router.

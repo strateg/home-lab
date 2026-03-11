@@ -10,7 +10,7 @@
 3. Router instances exist in bindings:
    - `rtr-mikrotik-chateau`
    - `rtr-slate`
-4. No existing data-channel class/object instance model for ethernet cable.
+4. No existing OSI-separated `physical_link` (L1) and `data_link` (L2) model for ethernet connectivity.
 
 ## Run History
 

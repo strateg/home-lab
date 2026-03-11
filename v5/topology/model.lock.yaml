@@ -48,6 +48,10 @@ classes:
   class.os:
     version: 1.0.0
   # L2 Network classes
+  class.network.physical_link:
+    version: 1.0.0
+  class.network.data_link:
+    version: 1.0.0
   class.network.bridge:
     version: 1.0.0
   class.network.vlan:
@@ -225,6 +229,12 @@ objects:
     version: 1.0.0
     class_ref: class.os
   # L2 Network objects
+  obj.network.ethernet_cable:
+    version: 1.0.0
+    class_ref: class.network.physical_link
+  obj.network.ethernet_channel:
+    version: 1.0.0
+    class_ref: class.network.data_link
   obj.network.bridge.vmbr0:
     version: 1.0.0
     class_ref: class.network.bridge
