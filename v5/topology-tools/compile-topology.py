@@ -26,15 +26,13 @@ from compiler_runtime import (
     load_core_compile_inputs,
     resolve_manifest_paths,
 )
+from compiler_validation_flow import run_validation_flow
 from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
 from legacy_capabilities import default_firmware_policy as legacy_default_firmware_policy
 from legacy_capabilities import derive_firmware_capabilities as legacy_derive_firmware_capabilities
 from legacy_capabilities import derive_os_capabilities as legacy_derive_os_capabilities
 from legacy_capabilities import extract_architecture as legacy_extract_architecture
-from legacy_capabilities import extract_firmware_properties as legacy_extract_firmware_properties
 from legacy_capabilities import extract_os_installation_model as legacy_extract_os_installation_model
-from legacy_capabilities import extract_os_properties as legacy_extract_os_properties
-from legacy_capabilities import normalize_release_token as legacy_normalize_release_token
 from legacy_effective import build_effective, compute_object_capability_projections, compute_reference_projections
 from legacy_loaders import load_capability_contract, load_instance_rows, load_module_map
 from legacy_validators import validate_capability_contract, validate_embedded_in, validate_model_lock, validate_refs
@@ -555,10 +553,6 @@ class V5Compiler:
         return expanded
 
     @staticmethod
-    def _normalize_release_token(value: str) -> str:
-        return legacy_normalize_release_token(value)
-
-    @staticmethod
     def _default_firmware_policy(class_id: str) -> str:
         return legacy_default_firmware_policy(class_id)
 
@@ -569,14 +563,6 @@ class V5Compiler:
     @staticmethod
     def _extract_os_installation_model(object_payload: dict[str, Any]) -> str | None:
         return legacy_extract_os_installation_model(object_payload)
-
-    @staticmethod
-    def _extract_firmware_properties(object_payload: dict[str, Any]) -> dict[str, Any]:
-        return legacy_extract_firmware_properties(object_payload)
-
-    def _extract_os_properties(self, object_payload: dict[str, Any]) -> dict[str, Any] | None:
-        _ = self
-        return legacy_extract_os_properties(object_payload)
 
     def _derive_firmware_capabilities(
         self,
@@ -843,42 +829,17 @@ class V5Compiler:
         )
         legacy_effective_needed = self.pipeline_mode == "legacy" or self.parity_gate
 
-        if self._validation_owner("references") == "core":
-            self._validate_refs(
-                rows=inputs.rows,
-                class_map=inputs.class_map,
-                object_map=inputs.object_map,
-                catalog_ids=inputs.catalog_ids,
-            )
-        elif legacy_effective_needed:
-            self._compute_reference_projections(
-                rows=inputs.rows,
-                class_map=inputs.class_map,
-                object_map=inputs.object_map,
-                catalog_ids=inputs.catalog_ids,
-            )
-        if self._validation_owner("embedded_in") == "core":
-            self._validate_embedded_in(rows=inputs.rows, object_map=inputs.object_map)
-        if inputs.catalog_ids:
-            if self._validation_owner("capability_contract") == "core":
-                self._validate_capability_contract(
-                    class_map=inputs.class_map,
-                    object_map=inputs.object_map,
-                    catalog_ids=inputs.catalog_ids,
-                    packs_map=inputs.packs_map,
-                )
-            elif legacy_effective_needed:
-                self._compute_object_capability_projections(
-                    object_map=inputs.object_map,
-                    catalog_ids=inputs.catalog_ids,
-                )
-        if self._validation_owner("model_lock") == "core":
-            self._validate_model_lock(
-                rows=inputs.rows,
-                class_map=inputs.class_map,
-                object_map=inputs.object_map,
-                lock_payload=inputs.lock_payload,
-            )
+        run_validation_flow(
+            validation_owner=self._validation_owner,
+            legacy_effective_needed=legacy_effective_needed,
+            inputs=inputs,
+            validate_refs=self._validate_refs,
+            compute_reference_projections=self._compute_reference_projections,
+            validate_embedded_in=self._validate_embedded_in,
+            validate_capability_contract=self._validate_capability_contract,
+            compute_object_capability_projections=self._compute_object_capability_projections,
+            validate_model_lock=self._validate_model_lock,
+        )
 
         # Build effective payload before validator/generator stages so plugins
         # share one compiled model contract (ADR 0069 WS1).
