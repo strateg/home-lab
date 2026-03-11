@@ -27,13 +27,13 @@ def test_instance_rows_compiler_skips_when_core_owner():
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
-        config={"compilation_owner_instance_rows": "core", "normalized_rows": [{"instance": "prebuilt"}]},
+        config={"compilation_owner_instance_rows": "core"},
         instance_bindings={"instance_bindings": {}},
     )
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.status == PluginStatus.SUCCESS
-    assert result.output_data == {"normalized_rows": [{"instance": "prebuilt"}]}
+    assert result.output_data == {"normalized_rows": []}
 
 
 def test_instance_rows_compiler_plugin_owner_normalizes_rows():

@@ -35,7 +35,7 @@ class ModelLockLoaderCompiler(CompilerPlugin):
                 diagnostics,
                 output_data={
                     "lock_payload": current_payload,
-                    "model_lock_loaded": bool(ctx.config.get("model_lock_loaded", False)),
+                    "model_lock_loaded": bool(current_payload),
                 },
             )
 
@@ -51,7 +51,6 @@ class ModelLockLoaderCompiler(CompilerPlugin):
                 )
             )
             ctx.model_lock = {}
-            ctx.config["model_lock_loaded"] = False
             return self.make_result(
                 diagnostics,
                 output_data={"lock_payload": {}, "model_lock_loaded": False},
@@ -60,7 +59,6 @@ class ModelLockLoaderCompiler(CompilerPlugin):
         lock_path = Path(lock_path_raw)
         if not lock_path.exists() or not lock_path.is_file():
             ctx.model_lock = {}
-            ctx.config["model_lock_loaded"] = False
             ctx.publish("lock_payload", {})
             ctx.publish("model_lock_loaded", False)
             return self.make_result(
@@ -82,7 +80,6 @@ class ModelLockLoaderCompiler(CompilerPlugin):
                 )
             )
             ctx.model_lock = {}
-            ctx.config["model_lock_loaded"] = False
             ctx.publish("lock_payload", {})
             ctx.publish("model_lock_loaded", False)
             return self.make_result(
@@ -102,7 +99,6 @@ class ModelLockLoaderCompiler(CompilerPlugin):
                 )
             )
             ctx.model_lock = {}
-            ctx.config["model_lock_loaded"] = False
             ctx.publish("lock_payload", {})
             ctx.publish("model_lock_loaded", False)
             return self.make_result(
@@ -111,7 +107,6 @@ class ModelLockLoaderCompiler(CompilerPlugin):
             )
 
         ctx.model_lock = payload
-        ctx.config["model_lock_loaded"] = True
         ctx.publish("lock_payload", payload)
         ctx.publish("model_lock_loaded", True)
         return self.make_result(

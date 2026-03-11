@@ -204,8 +204,6 @@ class ModuleLoaderCompiler(CompilerPlugin):
             for object_id, item in object_map.items()
             if isinstance(item, dict) and isinstance(item.get("payload"), dict)
         }
-        ctx.config["class_module_paths"] = class_paths
-        ctx.config["object_module_paths"] = object_paths
         ctx.publish("class_map", class_map)
         ctx.publish("object_map", object_map)
         ctx.publish("class_module_paths", class_paths)

@@ -43,7 +43,7 @@ class InstanceRowsCompiler(CompilerPlugin):
 
         owner = ctx.config.get("compilation_owner_instance_rows")
         if owner is not None and owner != "plugin":
-            return self.make_result(diagnostics, output_data={"normalized_rows": ctx.config.get("normalized_rows", [])})
+            return self.make_result(diagnostics, output_data={"normalized_rows": []})
 
         bindings_root = ctx.instance_bindings.get("instance_bindings")
         if not isinstance(bindings_root, dict):
@@ -58,7 +58,6 @@ class InstanceRowsCompiler(CompilerPlugin):
             )
             rows: list[dict[str, Any]] = []
             ctx.publish("normalized_rows", rows)
-            ctx.config["normalized_rows"] = rows
             return self.make_result(diagnostics, output_data={"normalized_rows": rows})
 
         rows = []
@@ -253,5 +252,4 @@ class InstanceRowsCompiler(CompilerPlugin):
                 )
 
         ctx.publish("normalized_rows", rows)
-        ctx.config["normalized_rows"] = rows
         return self.make_result(diagnostics, output_data={"normalized_rows": rows})

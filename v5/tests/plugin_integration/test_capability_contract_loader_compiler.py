@@ -27,16 +27,12 @@ def test_capability_contract_loader_skips_when_core_owner():
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
-        config={
-            "compilation_owner_capability_contract_data": "core",
-            "capability_catalog_ids": ["cap.a"],
-            "capability_packs": {"pack.a": {"id": "pack.a", "capabilities": ["cap.a"]}},
-        },
+        config={"compilation_owner_capability_contract_data": "core"},
     )
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.status == PluginStatus.SUCCESS
-    assert result.output_data["catalog_ids"] == ["cap.a"]
+    assert result.output_data["catalog_ids"] == []
 
 
 def test_capability_contract_loader_plugin_owner_loads_contract(tmp_path):
