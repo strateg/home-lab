@@ -33,9 +33,9 @@ with stable compile/validate/generate behavior.
 | Cable instance (cat5e fixture) | ✅ Exists | `v5/topology/instances/l1_devices/inst.ethernet_cable.cat5e.yaml` | Sharded instance; endpoints and properties defined |
 | Channel instance (fixture) | ✅ Exists | `v5/topology/instances/l2_network/inst.chan.eth.chateau_to_slate.yaml` | Created; references cable instance via `link_ref` |
 | Endpoint validator | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Validates endpoints and port references |
-| Port validation (MikroTik) | ⚠️ Partial | Referenced in validator | Device port names must be validated against router object definitions |
-| Port validation (GL.iNet) | ⚠️ Partial | Referenced in validator | Device port names must be validated against router object definitions |
-| Cable-to-channel integrity | ⚠️ Partial | Referenced in validator | `creates_channel_ref` must point to existing `data_link` instance |
+| Port validation (MikroTik) | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Covered by integration test for invalid MikroTik port (`E7305`) |
+| Port validation (GL.iNet) | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Covered by integration test for invalid GL.iNet port (`E7305`) |
+| Cable-to-channel integrity | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Validates `creates_channel_ref`, `link_ref` back-reference, and unordered endpoint match (`E7307/E7308`) |
 | L1 power-source relation (`power.source_ref`) | ✅ Exists | `v5/topology-tools/plugins/validators/power_source_refs_validator.py` | Validates L1 source class/layer, outlet occupancy, and cycle constraints |
 | Determinism validation | ✅ Passed | `artifacts/determinism-report.txt` | Repeated runs produce identical output |
 | Plugin suite regression | ✅ Passed | `artifacts/plugin-suites.txt` | 81 existing plugin contract/integration tests still pass |
