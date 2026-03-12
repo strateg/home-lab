@@ -132,6 +132,21 @@ plugins:
       required: []
     description: Validates that class_ref and object_ref are pinned in model.lock (ADR 0063)
 
+  - id: base.validator.power_source_refs
+    kind: validator_json
+    entry: validators/power_source_refs_validator.py:PowerSourceRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 115
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates ADR0062 L1 lateral relation power.source_ref and outlet occupancy constraints.
+
   - id: base.validator.embedded_in
     kind: validator_json
     entry: validators/embedded_in_validator.py:EmbeddedInValidator

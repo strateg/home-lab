@@ -437,6 +437,32 @@ codes:
     stage: validate
     title: Operations Target Reference Format Invalid
     hint: operations.target_ref must be a non-empty string instance id.
+  # ADR 0062 planned L1 power source relation
+  E7801:
+    severity: error
+    stage: validate
+    title: Power Source Target Not Found
+    hint: Ensure power.source_ref points to an existing L1 power-source instance.
+  E7802:
+    severity: error
+    stage: validate
+    title: Power Source Target Invalid
+    hint: power.source_ref must target class.power.pdu or class.power.ups on L1.
+  E7803:
+    severity: error
+    stage: validate
+    title: Power Source Source Layer Invalid
+    hint: power.source_ref is allowed from L1 source instances only.
+  E7804:
+    severity: error
+    stage: validate
+    title: Power Source Reference Format Invalid
+    hint: power.source_ref and optional power.outlet_ref must be non-empty strings.
+  E7805:
+    severity: error
+    stage: validate
+    title: Power Source Constraint Violation
+    hint: Resolve self-reference, cycle, or duplicate outlet occupancy in power wiring.
   I6901:
     severity: info
     stage: validate
