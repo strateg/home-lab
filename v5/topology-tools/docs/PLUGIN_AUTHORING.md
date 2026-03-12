@@ -60,7 +60,7 @@ class MyValidator(ValidatorJsonPlugin):
                 if not isinstance(row, dict):
                     continue
 
-                instance_id = row.get("id", "<unknown>")
+                instance_id = row.get("instance", "<unknown>")
                 # ... validation logic ...
 
                 if some_error_condition:
@@ -358,11 +358,11 @@ def test_validator_detects_error():
         topology_path="/test/topology.yaml",
         profile="test",
         model_lock={},
-        instance_bindings={
-            "instance_bindings": {
-                "devices": [{"id": "bad-device", "error_field": True}]
-            }
-        },
+                instance_bindings={
+                    "instance_bindings": {
+                        "devices": [{"instance": "bad-device", "error_field": True}]
+                    }
+                },
     )
     ctx._set_execution_context("test.validator", set())
 
@@ -411,6 +411,18 @@ plugins:
 5. **Test with declared dependencies**: Seed required published data in tests and keep `depends_on` accurate
 6. **Use warnings for evolving contracts**: Emit warnings for soft constraints, errors for hard failures
 7. **Document dependencies**: Clearly state what data you expect from `depends_on` plugins
+
+## ADR0068 Placeholder Policy Notes
+
+When working with `base.validator.instance_placeholders`:
+
+1. Placeholder tokens are reserved: `@required:<format>` and `@optional:<format>`.
+2. To keep a literal string that starts with a placeholder-looking token in object YAML, prefix with `@@` so it is not parsed as a placeholder marker.
+3. Instance payload must not contain unresolved placeholder tokens; validator emits `E6806`.
+4. Rollout policy is configurable in plugin config:
+   - `enforcement_mode: warn`
+   - `enforcement_mode: warn+gate-new` (strict for selected statuses via `gate_statuses`)
+   - `enforcement_mode: enforce` (strict for all rows)
 
 ## Pipeline Stages
 

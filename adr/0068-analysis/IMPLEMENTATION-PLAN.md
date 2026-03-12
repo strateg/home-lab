@@ -2,7 +2,7 @@
 
 **ADR:** `adr/0068-object-yaml-as-instance-template-with-explicit-overrides.md`
 **Date:** 2026-03-10
-**Status:** In Progress (Plugin-first implementation)
+**Status:** In Progress (runtime implemented; topology-wide migration ongoing)
 
 ---
 
@@ -87,15 +87,15 @@ Status: Implemented.
 Files:
 
 - `v5/topology/object-modules/**` (targeted)
-- `v5/topology/instances/home-lab/instance-bindings.yaml` (targeted)
+- `v5/topology/instances/**` (targeted sharded instance files)
 
 Tasks:
 
 1. Replace selected null/TODO fields with placeholders.
-2. Add corresponding `instance_overrides` values.
+2. Add corresponding instance values (`instance_overrides` and/or approved identity mappings such as `hardware_identity.mac_addresses`).
 3. Run compile and fix diagnostics.
 
-Status: Pending.
+Status: In Progress (router/network TUC scope migrated; broader topology sweep pending).
 
 ### Phase 5: Hardening and Contract Finalization
 
@@ -107,10 +107,10 @@ Files:
 Tasks:
 
 1. Add strict unresolved-placeholder policy (`E6806`) where applicable.
-2. Add optional profile-gated enforcement mode (`warn` -> `enforce`).
+2. Add optional profile-gated enforcement mode (`warn` -> `warn+gate-new` -> `enforce`).
 3. Document escape/literal conventions for reserved marker tokens.
 
-Status: Pending.
+Status: Implemented (runtime + tests for E6806 and enforcement modes + authoring docs addendum).
 
 ---
 
