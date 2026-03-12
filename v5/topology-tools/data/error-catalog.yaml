@@ -335,6 +335,27 @@ codes:
     stage: validate
     title: Parity Gate Retired
     hint: Remove --parity-gate; parity checks were retired after plugin-first cutover.
+  # ADR 0062 planned cross-layer storage relations
+  E7401:
+    severity: error
+    stage: validate
+    title: Storage Relation Target Not Found
+    hint: Ensure storage.pool_ref/storage.volume_ref points to an existing L3 storage instance.
+  E7402:
+    severity: error
+    stage: validate
+    title: Storage Relation Target Invalid
+    hint: storage.pool_ref must target class.storage.pool; storage.volume_ref must target class.storage.volume.
+  E7403:
+    severity: error
+    stage: validate
+    title: Storage Relation Source Layer Invalid
+    hint: storage.pool_ref is allowed from L4 only; storage.volume_ref is allowed from L5 only.
+  E7404:
+    severity: error
+    stage: validate
+    title: Storage Relation Reference Format Invalid
+    hint: storage.pool_ref/storage.volume_ref must be non-empty string instance ids.
   I6901:
     severity: info
     stage: validate

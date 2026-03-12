@@ -33,6 +33,23 @@ from kernel.plugin_base import (
 class ReferenceValidator(ValidatorJsonPlugin):
     """Validate references, software binding policies, and compatibility rules."""
 
+    _STORAGE_RELATION_RULES: tuple[dict[str, Any], ...] = (
+        {
+            "relation": "storage.pool_ref",
+            "field": "pool_ref",
+            "source_layers": {"L4"},
+            "target_layers": {"L3"},
+            "target_class": "class.storage.pool",
+        },
+        {
+            "relation": "storage.volume_ref",
+            "field": "volume_ref",
+            "source_layers": {"L5"},
+            "target_layers": {"L3"},
+            "target_class": "class.storage.volume",
+        },
+    )
+
     @staticmethod
     def _subscribe_required(
         ctx: PluginContext,
@@ -139,6 +156,107 @@ class ReferenceValidator(ValidatorJsonPlugin):
         )
         return derived, effective, diagnostics
 
+    @staticmethod
+    def _extract_storage_ref_candidate(
+        row: dict[str, Any],
+        *,
+        field: str,
+    ) -> tuple[Any | None, str | None]:
+        extensions = row.get("extensions")
+        if not isinstance(extensions, dict):
+            return None, None
+        if field in extensions:
+            return extensions.get(field), f"extensions.{field}"
+        storage_payload = extensions.get("storage")
+        if isinstance(storage_payload, dict) and field in storage_payload:
+            return storage_payload.get(field), f"extensions.storage.{field}"
+        return None, None
+
+    def _validate_storage_reference_relations(
+        self,
+        *,
+        rows: list[dict[str, Any]],
+        row_by_id: dict[str, dict[str, Any]],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> None:
+        for row in rows:
+            group_name = row.get("group")
+            row_id = row.get("instance")
+            row_layer = row.get("layer")
+            if not isinstance(group_name, str) or not isinstance(row_id, str):
+                continue
+            path_prefix = f"instance:{group_name}:{row_id}"
+
+            for rule in self._STORAGE_RELATION_RULES:
+                field = rule["field"]
+                relation = rule["relation"]
+                source_layers = rule["source_layers"]
+                target_layers = rule["target_layers"]
+                expected_target_class = rule["target_class"]
+
+                candidate, local_path = self._extract_storage_ref_candidate(row, field=field)
+                if local_path is None:
+                    continue
+                full_path = f"{path_prefix}.{local_path}"
+
+                if not isinstance(candidate, str) or not candidate:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7404",
+                            severity="error",
+                            stage=stage,
+                            message=(f"'{relation}' must be a non-empty instance id string in row '{row_id}'."),
+                            path=full_path,
+                        )
+                    )
+                    continue
+
+                if row_layer not in source_layers:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7403",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Row '{row_id}' layer '{row_layer}' cannot use relation '{relation}'; "
+                                f"allowed source layers: {sorted(source_layers)}."
+                            ),
+                            path=full_path,
+                        )
+                    )
+                    continue
+
+                target_row = row_by_id.get(candidate)
+                if not isinstance(target_row, dict):
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7401",
+                            severity="error",
+                            stage=stage,
+                            message=(f"Row '{row_id}' references unknown {relation} target '{candidate}'."),
+                            path=full_path,
+                        )
+                    )
+                    continue
+
+                target_layer = target_row.get("layer")
+                target_class = target_row.get("class_ref")
+                if target_layer not in target_layers or target_class != expected_target_class:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7402",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Target '{candidate}' is invalid for relation '{relation}': "
+                                f"expected class '{expected_target_class}' on layers {sorted(target_layers)}, "
+                                f"got class '{target_class}' on layer '{target_layer}'."
+                            ),
+                            path=full_path,
+                        )
+                    )
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
 
@@ -193,6 +311,14 @@ class ReferenceValidator(ValidatorJsonPlugin):
             row_id = row.get("instance")
             if isinstance(row_id, str) and row_id:
                 row_by_id[row_id] = row
+
+        # Phase 0: planned cross-layer storage relations from ADR0062.
+        self._validate_storage_reference_relations(
+            rows=rows,
+            row_by_id=row_by_id,
+            stage=stage,
+            diagnostics=diagnostics,
+        )
 
         # Phase 1: base class/object references.
         for row in rows:
