@@ -125,13 +125,13 @@ Cross-layer dependency rules (normative):
 | firmware_ref | L1, L4 | L1 (inst.firmware.*) | downward | enforced |
 | os_refs | L1, L4 | L1 (inst.os.*) | downward | enforced |
 | runtime.target_ref | L5 | L1, L4 | downward | enforced |
-| storage.pool_ref | L4 | L3 | downward | planned |
-| storage.volume_ref | L5 | L3 | downward | planned |
-| network.bridge_ref | L4 | L2 | downward | planned |
-| network.vlan_ref | L1, L4 | L2 | downward | planned |
-| observability.target_ref | L6 | L1, L4, L5 | downward | planned |
-| operations.target_ref | L7 | L1, L4, L5, L6 | downward | planned |
-| power.source_ref | L1 | L1 | lateral | planned |
+| storage.pool_ref | L4 | L3 | downward | enforced |
+| storage.volume_ref | L5 | L3 | downward | enforced |
+| network.bridge_ref | L4 | L2 | downward | enforced |
+| network.vlan_ref | L1, L4 | L2 | downward | enforced |
+| observability.target_ref | L6 | L1, L4, L5 | downward | enforced |
+| operations.target_ref | L7 | L1, L4, L5, L6 | downward | enforced |
+| power.source_ref | L1 | L1 | lateral | enforced |
 
 Execution tracker for planned relations:
 - `adr/0062-cross-layer-relations-execution-backlog.md`

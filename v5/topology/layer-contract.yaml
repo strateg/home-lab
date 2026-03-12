@@ -156,46 +156,46 @@ runtime_target_rules:
     direction: downward
     source_layers: [L4]
     allowed_target_layers: [L3]
-    status: planned
+    status: enforced
 
   # L5 services may bind to L3 storage volumes (planned)
   - relation: storage.volume_ref
     direction: downward
     source_layers: [L5]
     allowed_target_layers: [L3]
-    status: planned
+    status: enforced
 
   # L4 workloads attach to L2 network bridges (planned)
   - relation: network.bridge_ref
     direction: downward
     source_layers: [L4]
     allowed_target_layers: [L2]
-    status: planned
+    status: enforced
 
   # L1/L4 devices/workloads attach to L2 VLANs (planned)
   - relation: network.vlan_ref
     direction: downward
     source_layers: [L1, L4]
     allowed_target_layers: [L2]
-    status: planned
+    status: enforced
 
   # L6 observability targets L1/L4/L5 entities (planned)
   - relation: observability.target_ref
     direction: downward
     source_layers: [L6]
     allowed_target_layers: [L1, L4, L5]
-    status: planned
+    status: enforced
 
   # L7 operations target L1/L4/L5/L6 entities (planned)
   - relation: operations.target_ref
     direction: downward
     source_layers: [L7]
     allowed_target_layers: [L1, L4, L5, L6]
-    status: planned
+    status: enforced
 
   # L1 power links are lateral within L1 (planned)
   - relation: power.source_ref
     direction: lateral
     source_layers: [L1]
     allowed_target_layers: [L1]
-    status: planned
+    status: enforced
