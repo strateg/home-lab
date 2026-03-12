@@ -19,7 +19,6 @@
 Prove that the plugin/module system can model two concrete routers via OSI-aligned contracts:
 - physical connection as `physical_link` (ethernet cable, L1),
 - information flow as `data_link` (ethernet channel, L2),
-- lateral power wiring as `power.source_ref` (L1 -> L1),
 with stable compile/validate/generate behavior.
 
 ## Implementation Status (as of 2026-03-11)
@@ -36,7 +35,6 @@ with stable compile/validate/generate behavior.
 | Port validation (MikroTik) | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Covered by integration test for invalid MikroTik port (`E7305`) |
 | Port validation (GL.iNet) | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Covered by integration test for invalid GL.iNet port (`E7305`) |
 | Cable-to-channel integrity | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Validates `creates_channel_ref`, `link_ref` back-reference, and unordered endpoint match (`E7307/E7308`) |
-| L1 power-source relation (`power.source_ref`) | ✅ Exists | `v5/topology-tools/plugins/validators/power_source_refs_validator.py` | Validates L1 source class/layer, outlet occupancy, and cycle constraints |
 | Determinism validation | ✅ Passed | `artifacts/determinism-report.txt` | Repeated runs produce identical output |
 | Plugin suite regression | ✅ Passed | `artifacts/plugin-suites.txt` | 81 existing plugin contract/integration tests still pass |
 
@@ -86,7 +84,6 @@ with stable compile/validate/generate behavior.
 - New class/object modules are compiled and visible in effective model.
 - Cable instance is validated against real object port definitions.
 - Cable instance references created channel instance (`creates_channel_ref`).
-- L1 device power bindings (`power.source_ref`) are validated and preserved in compiled model.
 - Invalid endpoint/port combinations return deterministic diagnostics.
 - No regression in existing plugin contract/integration tests.
 
@@ -101,7 +98,6 @@ with stable compile/validate/generate behavior.
 7. Invalid port name on either endpoint fails with stable diagnostic code.
 8. Duplicate connection endpoint usage policy is enforced (as defined in validator).
 9. Plugin order and output remain deterministic across repeated runs.
-10. L1 `power.source_ref` wiring is valid (`router -> pdu -> ups`) with unique outlet assignment per source.
 
 ## Risks and Open Questions
 

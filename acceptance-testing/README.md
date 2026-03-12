@@ -22,3 +22,4 @@ This directory stores Testing Use Cases (TUC) and all related artifacts.
 ## Current TUCs
 
 - `TUC-0001-router-data-channel-mikrotik-glinet`
+- `TUC-0002-l1-power-source-chain`
