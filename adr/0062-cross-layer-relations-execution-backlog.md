@@ -12,9 +12,9 @@ Turn planned cross-layer relations into executable implementation units with own
 
 | Relation | Source -> Target | Primary Validator Owner | Diagnostic Seed | Acceptance Test Target | Status |
 |---|---|---|---|---|---|
-| `storage.pool_ref` | `L4 -> L3` | `v5/topology-tools/plugins/validators/reference_validator.py` (split to dedicated validator when rules exceed generic ref checks) | `E74xx` | `v5/tests/plugin_integration/test_l4_storage_refs.py` | planned |
-| `storage.volume_ref` | `L5 -> L3` | `v5/topology-tools/plugins/validators/reference_validator.py` (split to dedicated validator when rules exceed generic ref checks) | `E74xx` | `v5/tests/plugin_integration/test_l5_storage_refs.py` | planned |
-| `network.bridge_ref` | `L4 -> L2` | new validator plugin `base.validator.network_bridge_refs` | `E75xx` | `v5/tests/plugin_integration/test_l4_network_bridge_refs.py` | planned |
+| `storage.pool_ref` | `L4 -> L3` | `v5/topology-tools/plugins/validators/reference_validator.py` (split to dedicated validator when rules exceed generic ref checks) | `E74xx` | `v5/tests/plugin_integration/test_reference_validator.py` | implemented (phase-1) |
+| `storage.volume_ref` | `L5 -> L3` | `v5/topology-tools/plugins/validators/reference_validator.py` (split to dedicated validator when rules exceed generic ref checks) | `E74xx` | `v5/tests/plugin_integration/test_reference_validator.py` | implemented (phase-1) |
+| `network.bridge_ref` | `L4 -> L2` | `v5/topology-tools/plugins/validators/reference_validator.py` (current); optional split to dedicated plugin later | `E75xx` | `v5/tests/plugin_integration/test_reference_validator.py` | implemented (phase-1) |
 | `network.vlan_ref` | `L1/L4 -> L2` | new validator plugin `base.validator.network_vlan_refs` | `E75xx` | `v5/tests/plugin_integration/test_vlan_refs.py` | planned |
 | `observability.target_ref` | `L6 -> L1/L4/L5` | new validator plugin `base.validator.observability_targets` | `E76xx` | `v5/tests/plugin_integration/test_l6_observability_targets.py` | planned |
 | `operations.target_ref` | `L7 -> L1/L4/L5/L6` | new validator plugin `base.validator.operations_targets` | `E77xx` | `v5/tests/plugin_integration/test_l7_operations_targets.py` | planned |

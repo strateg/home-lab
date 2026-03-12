@@ -356,6 +356,27 @@ codes:
     stage: validate
     title: Storage Relation Reference Format Invalid
     hint: storage.pool_ref/storage.volume_ref must be non-empty string instance ids.
+  # ADR 0062 planned cross-layer network relations
+  E7501:
+    severity: error
+    stage: validate
+    title: Network Relation Target Not Found
+    hint: Ensure network.bridge_ref points to an existing L2 network instance.
+  E7502:
+    severity: error
+    stage: validate
+    title: Network Relation Target Invalid
+    hint: network.bridge_ref must target class.network.bridge on L2.
+  E7503:
+    severity: error
+    stage: validate
+    title: Network Relation Source Layer Invalid
+    hint: network.bridge_ref is allowed from L4 source instances only.
+  E7504:
+    severity: error
+    stage: validate
+    title: Network Relation Reference Format Invalid
+    hint: network.bridge_ref must be a non-empty string instance id.
   I6901:
     severity: info
     stage: validate

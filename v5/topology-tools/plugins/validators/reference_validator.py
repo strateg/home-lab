@@ -36,17 +36,48 @@ class ReferenceValidator(ValidatorJsonPlugin):
     _STORAGE_RELATION_RULES: tuple[dict[str, Any], ...] = (
         {
             "relation": "storage.pool_ref",
+            "namespace": "storage",
             "field": "pool_ref",
             "source_layers": {"L4"},
             "target_layers": {"L3"},
             "target_class": "class.storage.pool",
+            "codes": {
+                "not_found": "E7401",
+                "target_invalid": "E7402",
+                "source_invalid": "E7403",
+                "format_invalid": "E7404",
+            },
         },
         {
             "relation": "storage.volume_ref",
+            "namespace": "storage",
             "field": "volume_ref",
             "source_layers": {"L5"},
             "target_layers": {"L3"},
             "target_class": "class.storage.volume",
+            "codes": {
+                "not_found": "E7401",
+                "target_invalid": "E7402",
+                "source_invalid": "E7403",
+                "format_invalid": "E7404",
+            },
+        },
+    )
+
+    _NETWORK_RELATION_RULES: tuple[dict[str, Any], ...] = (
+        {
+            "relation": "network.bridge_ref",
+            "namespace": "network",
+            "field": "bridge_ref",
+            "source_layers": {"L4"},
+            "target_layers": {"L2"},
+            "target_class": "class.network.bridge",
+            "codes": {
+                "not_found": "E7501",
+                "target_invalid": "E7502",
+                "source_invalid": "E7503",
+                "format_invalid": "E7504",
+            },
         },
     )
 
@@ -157,28 +188,30 @@ class ReferenceValidator(ValidatorJsonPlugin):
         return derived, effective, diagnostics
 
     @staticmethod
-    def _extract_storage_ref_candidate(
+    def _extract_relation_ref_candidate(
         row: dict[str, Any],
         *,
+        namespace: str,
         field: str,
-    ) -> tuple[Any | None, str | None]:
+    ) -> tuple[Any | None, str | None, bool]:
         extensions = row.get("extensions")
         if not isinstance(extensions, dict):
-            return None, None
+            return None, None, False
         if field in extensions:
-            return extensions.get(field), f"extensions.{field}"
-        storage_payload = extensions.get("storage")
-        if isinstance(storage_payload, dict) and field in storage_payload:
-            return storage_payload.get(field), f"extensions.storage.{field}"
-        return None, None
+            return extensions.get(field), f"extensions.{field}", False
+        nested = extensions.get(namespace)
+        if isinstance(nested, dict) and field in nested:
+            return nested.get(field), f"extensions.{namespace}.{field}", True
+        return None, None, False
 
-    def _validate_storage_reference_relations(
+    def _validate_relation_rules(
         self,
         *,
         rows: list[dict[str, Any]],
         row_by_id: dict[str, dict[str, Any]],
         stage: Stage,
         diagnostics: list[PluginDiagnostic],
+        rules: tuple[dict[str, Any], ...],
     ) -> None:
         for row in rows:
             group_name = row.get("group")
@@ -188,14 +221,20 @@ class ReferenceValidator(ValidatorJsonPlugin):
                 continue
             path_prefix = f"instance:{group_name}:{row_id}"
 
-            for rule in self._STORAGE_RELATION_RULES:
+            for rule in rules:
                 field = rule["field"]
                 relation = rule["relation"]
+                namespace = rule["namespace"]
                 source_layers = rule["source_layers"]
                 target_layers = rule["target_layers"]
                 expected_target_class = rule["target_class"]
+                codes = rule["codes"]
 
-                candidate, local_path = self._extract_storage_ref_candidate(row, field=field)
+                candidate, local_path, namespaced = self._extract_relation_ref_candidate(
+                    row,
+                    namespace=namespace,
+                    field=field,
+                )
                 if local_path is None:
                     continue
                 full_path = f"{path_prefix}.{local_path}"
@@ -203,7 +242,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
                 if not isinstance(candidate, str) or not candidate:
                     diagnostics.append(
                         self.emit_diagnostic(
-                            code="E7404",
+                            code=codes["format_invalid"],
                             severity="error",
                             stage=stage,
                             message=(f"'{relation}' must be a non-empty instance id string in row '{row_id}'."),
@@ -213,9 +252,13 @@ class ReferenceValidator(ValidatorJsonPlugin):
                     continue
 
                 if row_layer not in source_layers:
+                    if not namespaced:
+                        # Flat field names may belong to class-local properties
+                        # (for example L2 vlan.bridge_ref). Ignore those here.
+                        continue
                     diagnostics.append(
                         self.emit_diagnostic(
-                            code="E7403",
+                            code=codes["source_invalid"],
                             severity="error",
                             stage=stage,
                             message=(
@@ -231,7 +274,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
                 if not isinstance(target_row, dict):
                     diagnostics.append(
                         self.emit_diagnostic(
-                            code="E7401",
+                            code=codes["not_found"],
                             severity="error",
                             stage=stage,
                             message=(f"Row '{row_id}' references unknown {relation} target '{candidate}'."),
@@ -245,7 +288,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
                 if target_layer not in target_layers or target_class != expected_target_class:
                     diagnostics.append(
                         self.emit_diagnostic(
-                            code="E7402",
+                            code=codes["target_invalid"],
                             severity="error",
                             stage=stage,
                             message=(
@@ -312,12 +355,20 @@ class ReferenceValidator(ValidatorJsonPlugin):
             if isinstance(row_id, str) and row_id:
                 row_by_id[row_id] = row
 
-        # Phase 0: planned cross-layer storage relations from ADR0062.
-        self._validate_storage_reference_relations(
+        # Phase 0: planned cross-layer relations from ADR0062.
+        self._validate_relation_rules(
             rows=rows,
             row_by_id=row_by_id,
             stage=stage,
             diagnostics=diagnostics,
+            rules=self._STORAGE_RELATION_RULES,
+        )
+        self._validate_relation_rules(
+            rows=rows,
+            row_by_id=row_by_id,
+            stage=stage,
+            diagnostics=diagnostics,
+            rules=self._NETWORK_RELATION_RULES,
         )
 
         # Phase 1: base class/object references.
