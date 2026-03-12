@@ -37,6 +37,7 @@ Ensure `power.outlet_ref` is validated against source object outlet inventory, n
 - `v5/topology/object-modules/power/obj.apc.backups.650va.yaml`
 - `v5/topology-tools/plugins/validators/power_source_refs_validator.py`
 - `v5/tests/plugin_integration/test_l1_power_source_refs.py`
+- `v5/tests/plugin_integration/test_tuc0003_power_outlet_inventory.py`
 
 ## Expected Outcomes
 
