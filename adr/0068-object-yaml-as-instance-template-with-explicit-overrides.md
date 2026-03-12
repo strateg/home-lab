@@ -209,6 +209,7 @@ Inline typed placeholders were chosen because they keep intent near the data whi
 - `adr/0062-modular-topology-architecture-consolidation.md`
 - `adr/0067-entity-specific-identifier-keys-in-yaml-authoring.md`
 - `v5/topology/object-modules/`
-- `v5/topology/instances/home-lab/instance-bindings.yaml`
+- `v5/topology/instances/`
+- `v5/topology/instances/_legacy-home-lab/instance-bindings.yaml` (historical archive)
 - `v5/topology-tools/data/instance-field-formats.yaml`
 - `v5/topology-tools/compile-topology.py`

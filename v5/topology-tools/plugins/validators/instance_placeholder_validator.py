@@ -28,6 +28,9 @@ from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, St
 
 _PLACEHOLDER_RE = re.compile(r"^@(required|optional):([a-z][a-z0-9_]*)$")
 DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[2] / "data" / "instance-field-formats.yaml"
+DEFAULT_ENFORCEMENT_MODE = "enforce"
+SUPPORTED_ENFORCEMENT_MODES = {"warn", "warn+gate-new", "enforce"}
+DEFAULT_GATE_STATUSES = {"modeled", "mapped"}
 
 
 class InstancePlaceholderValidator(ValidatorJsonPlugin):
@@ -40,6 +43,11 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
         if not isinstance(bindings, dict):
             return self.make_result(diagnostics)
 
+        enforcement_mode, gate_statuses = self._load_enforcement_policy(
+            ctx=ctx,
+            stage=stage,
+            diagnostics=diagnostics,
+        )
         formats = self._load_format_registry(ctx, stage, diagnostics)
         object_placeholders: dict[str, dict[tuple[Any, ...], dict[str, Any]]] = {}
 
@@ -68,6 +76,8 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                     row=row,
                     object_placeholders=object_placeholders,
                     formats=formats,
+                    enforcement_mode=enforcement_mode,
+                    gate_statuses=gate_statuses,
                 )
 
         return self.make_result(diagnostics)
@@ -115,6 +125,60 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
             if isinstance(name, str) and isinstance(spec, dict):
                 result[name] = spec
         return result
+
+    def _load_enforcement_policy(
+        self,
+        *,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> tuple[str, set[str]]:
+        mode = ctx.config.get("enforcement_mode", DEFAULT_ENFORCEMENT_MODE)
+        if not isinstance(mode, str) or mode not in SUPPORTED_ENFORCEMENT_MODES:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "Invalid ADR0068 enforcement_mode. " f"Expected one of: {sorted(SUPPORTED_ENFORCEMENT_MODES)}."
+                    ),
+                    path="plugin:base.validator.instance_placeholders.enforcement_mode",
+                )
+            )
+            mode = DEFAULT_ENFORCEMENT_MODE
+
+        gate_statuses_cfg = ctx.config.get("gate_statuses")
+        if gate_statuses_cfg is None:
+            return mode, set(DEFAULT_GATE_STATUSES)
+        if not isinstance(gate_statuses_cfg, list):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message="ADR0068 gate_statuses must be an array of strings when provided.",
+                    path="plugin:base.validator.instance_placeholders.gate_statuses",
+                )
+            )
+            return mode, set(DEFAULT_GATE_STATUSES)
+
+        gate_statuses: set[str] = set()
+        for idx, token in enumerate(gate_statuses_cfg):
+            if not isinstance(token, str) or not token.strip():
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E3201",
+                        severity="error",
+                        stage=stage,
+                        message="ADR0068 gate_statuses entries must be non-empty strings.",
+                        path=f"plugin:base.validator.instance_placeholders.gate_statuses[{idx}]",
+                    )
+                )
+                continue
+            gate_statuses.add(token.strip().lower())
+
+        return mode, (gate_statuses if gate_statuses else set(DEFAULT_GATE_STATUSES))
 
     def _collect_object_placeholders(
         self,
@@ -183,6 +247,8 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
         row: dict[str, Any],
         object_placeholders: dict[str, dict[tuple[Any, ...], dict[str, Any]]],
         formats: dict[str, dict[str, Any]],
+        enforcement_mode: str,
+        gate_statuses: set[str],
     ) -> None:
         object_ref = row.get("object_ref")
         if not isinstance(object_ref, str) or object_ref not in ctx.objects:
@@ -190,6 +256,11 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
 
         instance_id = row.get("instance", "<unknown>")
         path_prefix = f"instance:{group_name}:{instance_id}"
+        strict = self._is_strict_row(
+            row=row,
+            enforcement_mode=enforcement_mode,
+            gate_statuses=gate_statuses,
+        )
         placeholders = object_placeholders.get(object_ref, {})
         object_payload = ctx.objects.get(object_ref)
         if not isinstance(object_payload, dict):
@@ -213,6 +284,24 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
             override_values = {}
             self._flatten_override_values(overrides_payload, (), override_values)
 
+        unresolved_markers = self._collect_unresolved_markers(
+            row=row,
+            path_prefix=path_prefix,
+        )
+        for marker_path, marker_value in unresolved_markers:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E6806",
+                    severity=self._policy_severity(strict),
+                    stage=stage,
+                    message=(
+                        f"Unresolved placeholder marker '{marker_value}' found in instance payload; "
+                        "replace it with a concrete value."
+                    ),
+                    path=marker_path,
+                )
+            )
+
         # Compatibility bridge: allow instance identity map to provide values
         # for object ethernet[*].mac placeholders without explicit instance_overrides.
         derived_identity_overrides, derived_identity_sources = self._derive_hardware_identity_overrides(
@@ -235,7 +324,7 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                 diagnostics.append(
                     self.emit_diagnostic(
                         code=code,
-                        severity="error",
+                        severity=self._policy_severity(strict),
                         stage=stage,
                         message=message,
                         path=self._resolve_override_diagnostic_path(
@@ -252,7 +341,7 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="E6805",
-                        severity="error",
+                        severity=self._policy_severity(strict),
                         stage=stage,
                         message=f"Unknown declared format '{fmt}' for override path '{self._format_path(override_path)}'.",
                         path=self._resolve_override_diagnostic_path(
@@ -269,7 +358,7 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="E6805",
-                        severity="error",
+                        severity=self._policy_severity(strict),
                         stage=stage,
                         message=(
                             f"Override value for '{self._format_path(override_path)}' does not satisfy "
@@ -288,7 +377,7 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="E6802",
-                        severity="error",
+                        severity=self._policy_severity(strict),
                         stage=stage,
                         message=(
                             f"Required placeholder '{self._format_path(placeholder_path)}' is missing "
@@ -297,6 +386,62 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                         path=path_prefix,
                     )
                 )
+
+    @staticmethod
+    def _policy_severity(strict: bool) -> str:
+        return "error" if strict else "warning"
+
+    def _is_strict_row(
+        self,
+        *,
+        row: dict[str, Any],
+        enforcement_mode: str,
+        gate_statuses: set[str],
+    ) -> bool:
+        if enforcement_mode == "enforce":
+            return True
+        if enforcement_mode == "warn":
+            return False
+        row_status = row.get("status")
+        if not isinstance(row_status, str):
+            return False
+        return row_status.strip().lower() in gate_statuses
+
+    def _collect_unresolved_markers(
+        self,
+        *,
+        row: dict[str, Any],
+        path_prefix: str,
+    ) -> list[tuple[str, str]]:
+        found: list[tuple[str, str]] = []
+        seen: set[str] = set()
+
+        def walk(node: Any, path: tuple[Any, ...]) -> None:
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    walk(value, path + (key,))
+                return
+            if isinstance(node, list):
+                for idx, item in enumerate(node):
+                    walk(item, path + (idx,))
+                return
+            if not isinstance(node, str):
+                return
+            if _PLACEHOLDER_RE.fullmatch(node) is None:
+                return
+            formatted = self._format_path(path)
+            if formatted in seen:
+                return
+            seen.add(formatted)
+            found.append((f"{path_prefix}.{formatted}", node))
+
+        overrides_payload = row.get("instance_overrides")
+        if isinstance(overrides_payload, dict):
+            walk(overrides_payload, ("instance_overrides",))
+        hardware_identity = row.get("hardware_identity")
+        if isinstance(hardware_identity, dict):
+            walk(hardware_identity, ("hardware_identity",))
+        return found
 
     def _derive_hardware_identity_overrides(
         self,

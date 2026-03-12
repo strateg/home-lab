@@ -21,13 +21,21 @@ def _registry() -> PluginRegistry:
     return registry
 
 
-def _context(*, object_defaults: dict, instance_overrides: dict | None) -> PluginContext:
+def _context(
+    *,
+    object_defaults: dict,
+    instance_overrides: dict | None,
+    config: dict | None = None,
+    status: str | None = None,
+) -> PluginContext:
     row: dict = {
         "instance": "dev-1",
         "layer": "L1",
         "class_ref": "class.router",
         "object_ref": "obj.test.device",
     }
+    if isinstance(status, str) and status:
+        row["status"] = status
     if instance_overrides is not None:
         row["instance_overrides"] = instance_overrides
 
@@ -35,6 +43,7 @@ def _context(*, object_defaults: dict, instance_overrides: dict | None) -> Plugi
         topology_path="test",
         profile="test",
         model_lock={},
+        config=config or {},
         classes={"class.router": {"class": "class.router"}},
         objects={
             "obj.test.device": {
@@ -260,3 +269,42 @@ def test_placeholder_plugin_accepts_wireless_alias_and_cellular_mac():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert not result.has_errors
+
+
+def test_placeholder_plugin_detects_unresolved_instance_marker():
+    registry = _registry()
+    ctx = _context(
+        object_defaults={"hardware_identity": {"mac_wan": "@required:mac"}},
+        instance_overrides={"defaults": {"hardware_identity": {"mac_wan": "@required:mac"}}},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E6806" for d in result.diagnostics)
+
+
+def test_placeholder_plugin_warn_mode_downgrades_missing_required():
+    registry = _registry()
+    ctx = _context(
+        object_defaults={"hardware_identity": {"serial_number": "@required:string"}},
+        instance_overrides={"defaults": {"hardware_identity": {}}},
+        config={"enforcement_mode": "warn"},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(d.code == "E6802" and d.severity == "warning" for d in result.diagnostics)
+
+
+def test_placeholder_plugin_warn_gate_new_keeps_modeled_strict():
+    registry = _registry()
+    ctx = _context(
+        object_defaults={"hardware_identity": {"serial_number": "@required:string"}},
+        instance_overrides={"defaults": {"hardware_identity": {}}},
+        config={"enforcement_mode": "warn+gate-new", "gate_statuses": ["modeled"]},
+        status="modeled",
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E6802" and d.severity == "error" for d in result.diagnostics)

@@ -172,12 +172,25 @@ plugins:
     timeout: 30
     config:
       format_registry_path: data/instance-field-formats.yaml
+      enforcement_mode: enforce
+      gate_statuses: [modeled, mapped]
     config_schema:
       type: object
       properties:
         format_registry_path:
           type: string
           description: Path to ADR0068 placeholder format registry.
+        enforcement_mode:
+          type: string
+          enum: [warn, "warn+gate-new", enforce]
+          default: enforce
+          description: ADR0068 policy mode (warn rollout, warn+gate-new, strict enforce).
+        gate_statuses:
+          type: array
+          items:
+            type: string
+          default: [modeled, mapped]
+          description: Instance statuses treated as strict in warn+gate-new mode.
       required: []
     description: Validates ADR0068 @required/@optional placeholders and instance_overrides.
 

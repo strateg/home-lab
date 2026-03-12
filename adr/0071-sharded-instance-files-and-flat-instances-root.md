@@ -6,9 +6,9 @@
 
 ## Context
 
-Current storage uses a single project file:
+Before cutover, storage used a single project file:
 
-- `v5/topology/instances/home-lab/instance-bindings.yaml`
+- `v5/topology/instances/_legacy-home-lab/instance-bindings.yaml`
 
 This causes high cognitive load and operational friction:
 
@@ -54,7 +54,7 @@ endpoint_a:
 endpoint_b:
   device_ref: rtr-slate
   port: lan1
-creates_channel_ref: chan.eth.chateau_to_slate
+creates_channel_ref: inst.chan.eth.chateau_to_slate
 length_m: 3
 shielding: utp
 category: cat5e
