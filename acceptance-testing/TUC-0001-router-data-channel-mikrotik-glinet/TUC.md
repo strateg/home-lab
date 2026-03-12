@@ -36,7 +36,7 @@ with stable compile/validate/generate behavior.
 | Port validation (GL.iNet) | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Covered by integration test for invalid GL.iNet port (`E7305`) |
 | Cable-to-channel integrity | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Validates `creates_channel_ref`, `link_ref` back-reference, and unordered endpoint match (`E7307/E7308`) |
 | Determinism validation | ✅ Passed | `artifacts/determinism-report.txt` | Repeated runs produce identical output |
-| Plugin suite regression | ✅ Passed | `artifacts/plugin-suites.txt` | 81 existing plugin contract/integration tests still pass |
+| Plugin suite regression | ✅ Passed | `artifacts/plugin-suites.txt` | Regression suites are green; exact counts tracked in evidence logs |
 
 ## Scope
 

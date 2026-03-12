@@ -10,4 +10,4 @@
 
 ## Notes
 
-- Outlet inventory validation against source object catalogs is intentionally out of scope for TUC-0002.
+- Outlet inventory validation is tracked and validated in `TUC-0003-power-outlet-inventory`.

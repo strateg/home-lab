@@ -21,6 +21,6 @@ This directory stores Testing Use Cases (TUC) and all related artifacts.
 
 ## Current TUCs
 
-- `TUC-0001-router-data-channel-mikrotik-glinet`
-- `TUC-0002-l1-power-source-chain`
-- `TUC-0003-power-outlet-inventory`
+- `TUC-0001-router-data-channel-mikrotik-glinet` (L1 ethernet cable + L2 data_link modeling)
+- `TUC-0002-l1-power-source-chain` (L1 `power.source_ref` chain: router -> PDU -> UPS)
+- `TUC-0003-power-outlet-inventory` (`power.outlet_ref` validation against source outlet inventory)

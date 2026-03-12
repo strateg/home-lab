@@ -8,8 +8,8 @@ This TUC validates OSI-aligned modeling of two router instances where:
 ## Quick Facts
 
 - **Status:** `passed` (2026-03-11)
-- **Test Scenarios:** 11 (all passed)
-- **Plugin Tests:** 9 passed in TUC-specific suite; 81 passed in full regression suite
+- **TUC Test File:** `v5/tests/plugin_integration/test_tuc0001_router_data_link.py` (`9 passed`)
+- **Regression:** plugin integration regression suite green (see `EVIDENCE-LOG.md`)
 - **Evidence:** Compile runs with zero errors; determinism validated; all validators operational
 
 ## Why This Matters

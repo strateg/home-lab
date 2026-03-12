@@ -26,7 +26,7 @@ Prove that L1 power topology is modeled and validated via `power.source_ref` wit
   - Cycle detection in power graph
   - Compile-time preservation of power bindings in effective model
 - Out of scope:
-  - Physical outlet inventory schema on source objects
+  - Defining/expanding outlet inventory schema details (owned by `TUC-0003`)
   - Electrical load/capacity simulation
   - L2+ data-channel behavior
 
