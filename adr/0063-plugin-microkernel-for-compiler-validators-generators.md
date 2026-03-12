@@ -394,7 +394,7 @@ CI must:
 
 ### Phase 2 - Validator Migration (Complete)
 
-- [ ] Migrate YAML semantic checks to `validator_yaml` plugins (deferred - not needed yet)
+- [x] Decision recorded: migration of remaining YAML semantic checks to `validator_yaml` is deferred (no active unmet YAML-semantics scope in current runtime).
 - [x] Migrate compiled JSON checks to `validator_json` plugins
   - [x] `model_lock_validator.py` - validates model.lock pinning
   - [x] `embedded_in_validator.py` - validates embedded_in references per ADR 0064
@@ -422,7 +422,7 @@ CI must:
 - [x] Legacy dispatcher removed from orchestrator runtime path
 - [x] Plugin-first pipeline is enforced
 - [x] Compile/validate data exchange uses publish/subscribe contracts
-- [ ] Migrate remaining YAML semantic checks to `validator_yaml` plugins (if/when needed)
+- [x] Remaining YAML semantic checks migration is explicitly deferred and treated as non-goal for current cutover baseline; revisit only when a concrete YAML-stage contract gap appears.
 
 ---
 
