@@ -397,6 +397,46 @@ codes:
     stage: validate
     title: VLAN Relation Reference Format Invalid
     hint: network.vlan_ref must be a non-empty string instance id.
+  E7601:
+    severity: error
+    stage: validate
+    title: Observability Target Not Found
+    hint: Ensure observability.target_ref points to an existing L1/L4/L5 instance.
+  E7602:
+    severity: error
+    stage: validate
+    title: Observability Target Invalid
+    hint: observability.target_ref must target allowed layers L1/L4/L5.
+  E7603:
+    severity: error
+    stage: validate
+    title: Observability Source Layer Invalid
+    hint: observability.target_ref is allowed from L6 source instances only.
+  E7604:
+    severity: error
+    stage: validate
+    title: Observability Target Reference Format Invalid
+    hint: observability.target_ref must be a non-empty string instance id.
+  E7701:
+    severity: error
+    stage: validate
+    title: Operations Target Not Found
+    hint: Ensure operations.target_ref points to an existing L1/L4/L5/L6 instance.
+  E7702:
+    severity: error
+    stage: validate
+    title: Operations Target Invalid
+    hint: operations.target_ref must target allowed layers L1/L4/L5/L6.
+  E7703:
+    severity: error
+    stage: validate
+    title: Operations Source Layer Invalid
+    hint: operations.target_ref is allowed from L7 source instances only.
+  E7704:
+    severity: error
+    stage: validate
+    title: Operations Target Reference Format Invalid
+    hint: operations.target_ref must be a non-empty string instance id.
   I6901:
     severity: info
     stage: validate

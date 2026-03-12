@@ -757,3 +757,295 @@ def test_reference_validator_rejects_network_vlan_ref_format():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7514" for d in result.diagnostics)
+
+
+def test_reference_validator_accepts_valid_observability_target_relation():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l1_devices",
+            "instance": "inst.device.local",
+            "layer": "L1",
+            "class_ref": "class.router",
+            "object_ref": "obj.device.local",
+            "extensions": {},
+        },
+        {
+            "group": "l6_observability",
+            "instance": "inst.obs.local",
+            "layer": "L6",
+            "class_ref": "class.observability.healthcheck",
+            "object_ref": "obj.obs.local",
+            "extensions": {"observability": {"target_ref": "inst.device.local"}},
+        },
+    ]
+    classes = {
+        "class.router": {"class": "class.router", "firmware_policy": "forbidden", "os_policy": "forbidden"},
+        "class.observability.healthcheck": {"class": "class.observability.healthcheck"},
+    }
+    objects = {
+        "obj.device.local": {"object": "obj.device.local", "class_ref": "class.router"},
+        "obj.obs.local": {"object": "obj.obs.local", "class_ref": "class.observability.healthcheck"},
+    }
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes=classes,
+        objects=objects,
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not any(d.code.startswith("E760") for d in result.diagnostics)
+
+
+def test_reference_validator_rejects_observability_target_source_layer_violation():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l1_devices",
+            "instance": "inst.device.local",
+            "layer": "L1",
+            "class_ref": "class.router",
+            "object_ref": "obj.device.local",
+            "extensions": {},
+        },
+        {
+            "group": "l5_services",
+            "instance": "inst.svc.local",
+            "layer": "L5",
+            "class_ref": "class.service.database",
+            "object_ref": "obj.svc.local",
+            "extensions": {"observability": {"target_ref": "inst.device.local"}},
+        },
+    ]
+    classes = {
+        "class.router": {"class": "class.router", "firmware_policy": "forbidden", "os_policy": "forbidden"},
+        "class.service.database": {
+            "class": "class.service.database",
+            "firmware_policy": "forbidden",
+            "os_policy": "forbidden",
+        },
+    }
+    objects = {
+        "obj.device.local": {"object": "obj.device.local", "class_ref": "class.router"},
+        "obj.svc.local": {"object": "obj.svc.local", "class_ref": "class.service.database"},
+    }
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes=classes,
+        objects=objects,
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E7603" for d in result.diagnostics)
+
+
+def test_reference_validator_rejects_observability_target_invalid_layer():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l2_network",
+            "instance": "inst.vlan.local",
+            "layer": "L2",
+            "class_ref": "class.network.vlan",
+            "object_ref": "obj.vlan.local",
+            "extensions": {},
+        },
+        {
+            "group": "l6_observability",
+            "instance": "inst.obs.local",
+            "layer": "L6",
+            "class_ref": "class.observability.healthcheck",
+            "object_ref": "obj.obs.local",
+            "extensions": {"observability": {"target_ref": "inst.vlan.local"}},
+        },
+    ]
+    classes = {
+        "class.network.vlan": {"class": "class.network.vlan"},
+        "class.observability.healthcheck": {"class": "class.observability.healthcheck"},
+    }
+    objects = {
+        "obj.vlan.local": {"object": "obj.vlan.local", "class_ref": "class.network.vlan"},
+        "obj.obs.local": {"object": "obj.obs.local", "class_ref": "class.observability.healthcheck"},
+    }
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes=classes,
+        objects=objects,
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E7602" for d in result.diagnostics)
+
+
+def test_reference_validator_accepts_valid_operations_target_relation():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l6_observability",
+            "instance": "inst.obs.local",
+            "layer": "L6",
+            "class_ref": "class.observability.healthcheck",
+            "object_ref": "obj.obs.local",
+            "extensions": {},
+        },
+        {
+            "group": "l7_operations",
+            "instance": "inst.ops.local",
+            "layer": "L7",
+            "class_ref": "class.operations.backup",
+            "object_ref": "obj.ops.local",
+            "extensions": {"operations": {"target_ref": "inst.obs.local"}},
+        },
+    ]
+    classes = {
+        "class.observability.healthcheck": {"class": "class.observability.healthcheck"},
+        "class.operations.backup": {"class": "class.operations.backup"},
+    }
+    objects = {
+        "obj.obs.local": {"object": "obj.obs.local", "class_ref": "class.observability.healthcheck"},
+        "obj.ops.local": {"object": "obj.ops.local", "class_ref": "class.operations.backup"},
+    }
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes=classes,
+        objects=objects,
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not any(d.code.startswith("E770") for d in result.diagnostics)
+
+
+def test_reference_validator_rejects_operations_target_source_layer_violation():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l1_devices",
+            "instance": "inst.device.local",
+            "layer": "L1",
+            "class_ref": "class.router",
+            "object_ref": "obj.device.local",
+            "extensions": {},
+        },
+        {
+            "group": "l6_observability",
+            "instance": "inst.obs.local",
+            "layer": "L6",
+            "class_ref": "class.observability.healthcheck",
+            "object_ref": "obj.obs.local",
+            "extensions": {"operations": {"target_ref": "inst.device.local"}},
+        },
+    ]
+    classes = {
+        "class.router": {"class": "class.router", "firmware_policy": "forbidden", "os_policy": "forbidden"},
+        "class.observability.healthcheck": {"class": "class.observability.healthcheck"},
+    }
+    objects = {
+        "obj.device.local": {"object": "obj.device.local", "class_ref": "class.router"},
+        "obj.obs.local": {"object": "obj.obs.local", "class_ref": "class.observability.healthcheck"},
+    }
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes=classes,
+        objects=objects,
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E7703" for d in result.diagnostics)
+
+
+def test_reference_validator_rejects_operations_target_invalid_layer():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l2_network",
+            "instance": "inst.vlan.local",
+            "layer": "L2",
+            "class_ref": "class.network.vlan",
+            "object_ref": "obj.vlan.local",
+            "extensions": {},
+        },
+        {
+            "group": "l7_operations",
+            "instance": "inst.ops.local",
+            "layer": "L7",
+            "class_ref": "class.operations.backup",
+            "object_ref": "obj.ops.local",
+            "extensions": {"operations": {"target_ref": "inst.vlan.local"}},
+        },
+    ]
+    classes = {
+        "class.network.vlan": {"class": "class.network.vlan"},
+        "class.operations.backup": {"class": "class.operations.backup"},
+    }
+    objects = {
+        "obj.vlan.local": {"object": "obj.vlan.local", "class_ref": "class.network.vlan"},
+        "obj.ops.local": {"object": "obj.ops.local", "class_ref": "class.operations.backup"},
+    }
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes=classes,
+        objects=objects,
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E7702" for d in result.diagnostics)

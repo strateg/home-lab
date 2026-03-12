@@ -40,7 +40,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
             "field": "pool_ref",
             "source_layers": {"L4"},
             "target_layers": {"L3"},
-            "target_class": "class.storage.pool",
+            "target_classes": {"class.storage.pool"},
             "codes": {
                 "not_found": "E7401",
                 "target_invalid": "E7402",
@@ -54,7 +54,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
             "field": "volume_ref",
             "source_layers": {"L5"},
             "target_layers": {"L3"},
-            "target_class": "class.storage.volume",
+            "target_classes": {"class.storage.volume"},
             "codes": {
                 "not_found": "E7401",
                 "target_invalid": "E7402",
@@ -71,7 +71,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
             "field": "bridge_ref",
             "source_layers": {"L4"},
             "target_layers": {"L2"},
-            "target_class": "class.network.bridge",
+            "target_classes": {"class.network.bridge"},
             "codes": {
                 "not_found": "E7501",
                 "target_invalid": "E7502",
@@ -85,12 +85,46 @@ class ReferenceValidator(ValidatorJsonPlugin):
             "field": "vlan_ref",
             "source_layers": {"L1", "L4"},
             "target_layers": {"L2"},
-            "target_class": "class.network.vlan",
+            "target_classes": {"class.network.vlan"},
             "codes": {
                 "not_found": "E7511",
                 "target_invalid": "E7512",
                 "source_invalid": "E7513",
                 "format_invalid": "E7514",
+            },
+        },
+    )
+
+    _OBSERVABILITY_RELATION_RULES: tuple[dict[str, Any], ...] = (
+        {
+            "relation": "observability.target_ref",
+            "namespace": "observability",
+            "field": "target_ref",
+            "source_layers": {"L6"},
+            "target_layers": {"L1", "L4", "L5"},
+            "target_classes": None,
+            "codes": {
+                "not_found": "E7601",
+                "target_invalid": "E7602",
+                "source_invalid": "E7603",
+                "format_invalid": "E7604",
+            },
+        },
+    )
+
+    _OPERATIONS_RELATION_RULES: tuple[dict[str, Any], ...] = (
+        {
+            "relation": "operations.target_ref",
+            "namespace": "operations",
+            "field": "target_ref",
+            "source_layers": {"L7"},
+            "target_layers": {"L1", "L4", "L5", "L6"},
+            "target_classes": None,
+            "codes": {
+                "not_found": "E7701",
+                "target_invalid": "E7702",
+                "source_invalid": "E7703",
+                "format_invalid": "E7704",
             },
         },
     )
@@ -241,7 +275,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
                 namespace = rule["namespace"]
                 source_layers = rule["source_layers"]
                 target_layers = rule["target_layers"]
-                expected_target_class = rule["target_class"]
+                expected_target_classes = rule["target_classes"]
                 codes = rule["codes"]
 
                 candidate, local_path, namespaced = self._extract_relation_ref_candidate(
@@ -299,7 +333,16 @@ class ReferenceValidator(ValidatorJsonPlugin):
 
                 target_layer = target_row.get("layer")
                 target_class = target_row.get("class_ref")
-                if target_layer not in target_layers or target_class != expected_target_class:
+                target_layer_ok = target_layer in target_layers
+                target_class_ok = True
+                if isinstance(expected_target_classes, set):
+                    target_class_ok = target_class in expected_target_classes
+                if not target_layer_ok or not target_class_ok:
+                    class_expectation = (
+                        f"classes {sorted(expected_target_classes)}"
+                        if isinstance(expected_target_classes, set)
+                        else "any class"
+                    )
                     diagnostics.append(
                         self.emit_diagnostic(
                             code=codes["target_invalid"],
@@ -307,7 +350,7 @@ class ReferenceValidator(ValidatorJsonPlugin):
                             stage=stage,
                             message=(
                                 f"Target '{candidate}' is invalid for relation '{relation}': "
-                                f"expected class '{expected_target_class}' on layers {sorted(target_layers)}, "
+                                f"expected {class_expectation} on layers {sorted(target_layers)}, "
                                 f"got class '{target_class}' on layer '{target_layer}'."
                             ),
                             path=full_path,
@@ -383,6 +426,20 @@ class ReferenceValidator(ValidatorJsonPlugin):
             stage=stage,
             diagnostics=diagnostics,
             rules=self._NETWORK_RELATION_RULES,
+        )
+        self._validate_relation_rules(
+            rows=rows,
+            row_by_id=row_by_id,
+            stage=stage,
+            diagnostics=diagnostics,
+            rules=self._OBSERVABILITY_RELATION_RULES,
+        )
+        self._validate_relation_rules(
+            rows=rows,
+            row_by_id=row_by_id,
+            stage=stage,
+            diagnostics=diagnostics,
+            rules=self._OPERATIONS_RELATION_RULES,
         )
 
         # Phase 1: base class/object references.
