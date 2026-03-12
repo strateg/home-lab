@@ -133,6 +133,9 @@ Cross-layer dependency rules (normative):
 | operations.target_ref | L7 | L1, L4, L5, L6 | downward | planned |
 | power.source_ref | L1 | L1 | lateral | planned |
 
+Execution tracker for planned relations:
+- `adr/0062-cross-layer-relations-execution-backlog.md`
+
 ### 4. Capability Model Is Kept Simple
 
 Only three capability levels are normative:
