@@ -72,7 +72,7 @@ Note:
 
 - [ ] Legacy core branches are either deleted or hard-disabled.
 - [ ] Documentation updated to plugin-first architecture.
-- [ ] ADR0069 status can be promoted from `Proposed` to `Accepted`.
+- [x] ADR0069 status promoted from `Proposed` to `Accepted` (2026-03-12).
 
 ---
 

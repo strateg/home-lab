@@ -1,7 +1,7 @@
 # ADR 0069: Plugin-First Compiler Refactor and Thin Orchestrator
 
 **Date:** 2026-03-10
-**Status:** Proposed
+**Status:** Accepted (2026-03-12, cutover evidence confirmed)
 **Extends:** ADR 0063 (Plugin Microkernel), ADR 0068 (Typed instance placeholders)
 **Related:** ADR 0062 (v5 model contract), ADR 0065/0066 (plugin API and testing)
 **Implementation Plan:** `adr/0069-analysis/IMPLEMENTATION-PLAN.md`
@@ -89,9 +89,9 @@ Normative schema/versioning, compatibility rules, and fail-fast behavior are def
 
 ### 8. Status and Cutover Governance
 
-1. ADR status remains `Proposed` until cutover evidence is complete.
-2. Promotion to `Accepted` requires `CUTOVER-CHECKLIST.md` sections A-I fully green with linked evidence.
-3. Rollback protocol from `IMPLEMENTATION-PLAN.md` is mandatory for GO/NO-GO decision.
+1. Historical cutover phase required status `Proposed` until evidence was complete.
+2. Promotion criteria were defined by `CUTOVER-CHECKLIST.md` sections A-I with linked evidence.
+3. Rollback protocol from `IMPLEMENTATION-PLAN.md` was mandatory for GO/NO-GO decision during cutover.
 
 ---
 
@@ -132,6 +132,12 @@ Normative schema/versioning, compatibility rules, and fail-fast behavior are def
 ## Status Promotion Rule
 
 ADR status may move from `Proposed` to `Accepted` only when `adr/0069-analysis/CUTOVER-CHECKLIST.md` sections A-I are fully green with evidence.
+
+## Status Promotion Evidence (2026-03-12)
+
+1. Cutover completion is recorded in `adr/0069-analysis/CUTOVER-CHECKLIST.md` (`Status: Completed`).
+2. Runtime migration completion is recorded in `adr/0069-analysis/IMPLEMENTATION-PLAN.md` (`Status: Cutover Completed`).
+3. Plugin-first runtime is the enforced path in `v5/topology-tools/compile-topology.py`.
 
 ## References
 
