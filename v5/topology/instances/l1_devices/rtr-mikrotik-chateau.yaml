@@ -9,6 +9,9 @@ notes: module scaffold exists; capability profile tuning pending
 firmware_ref: inst.firmware.routeros.7.arm64
 os_refs:
 - inst.os.routeros.7.arm64
+power:
+  source_ref: pdu-rack
+  outlet_ref: outlet_01
 hardware_identity:
   serial_number: <TODO_SERIAL_NUMBER>
   mac_addresses:

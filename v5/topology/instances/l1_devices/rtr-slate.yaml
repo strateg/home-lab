@@ -9,6 +9,9 @@ notes: Personal GL-AXT1800 router instance with device identity placeholders
 firmware_ref: inst.firmware.openwrt.glinet.4x
 os_refs:
 - inst.os.openwrt.glinet.4x
+power:
+  source_ref: pdu-rack
+  outlet_ref: outlet_02
 hardware_identity:
   serial_number: <TODO_SERIAL_NUMBER>
   mac_addresses:

@@ -8,3 +8,5 @@ status: mapped
 notes: module scaffold exists; capability profile tuning pending
 firmware_ref: inst.firmware.pdu.generic.managed
 os_refs: []
+power:
+  source_ref: ups-main
