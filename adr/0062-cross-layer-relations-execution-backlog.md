@@ -18,7 +18,7 @@ Turn planned cross-layer relations into executable implementation units with own
 | `network.vlan_ref` | `L1/L4 -> L2` | `v5/topology-tools/plugins/validators/reference_validator.py` (current); optional split to dedicated plugin later | `E75xx` | `v5/tests/plugin_integration/test_reference_validator.py` | implemented (phase-1) |
 | `observability.target_ref` | `L6 -> L1/L4/L5` | `v5/topology-tools/plugins/validators/reference_validator.py` (current); optional split to dedicated plugin later | `E76xx` | `v5/tests/plugin_integration/test_reference_validator.py` | implemented (phase-1) |
 | `operations.target_ref` | `L7 -> L1/L4/L5/L6` | `v5/topology-tools/plugins/validators/reference_validator.py` (current); optional split to dedicated plugin later | `E77xx` | `v5/tests/plugin_integration/test_reference_validator.py` | implemented (phase-1) |
-| `power.source_ref` | `L1 -> L1` | new validator plugin `base.validator.power_source_refs` | `E78xx` | `v5/tests/plugin_integration/test_l1_power_source_refs.py` | implemented (phase-1) |
+| `power.source_ref` | `L1 -> L1` | new validator plugin `base.validator.power_source_refs` | `E78xx` | `v5/tests/plugin_integration/test_l1_power_source_refs.py` | implemented (phase-2, includes outlet inventory checks) |
 
 ## Sequencing
 

@@ -463,6 +463,11 @@ codes:
     stage: validate
     title: Power Source Constraint Violation
     hint: Resolve self-reference, cycle, or duplicate outlet occupancy in power wiring.
+  E7806:
+    severity: error
+    stage: validate
+    title: Power Outlet Inventory Violation
+    hint: Ensure power.outlet_ref is declared in source object outlet inventory.
   I6901:
     severity: info
     stage: validate

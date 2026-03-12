@@ -65,5 +65,4 @@ Prove that L1 power topology is modeled and validated via `power.source_ref` wit
 
 ## Risks and Open Questions
 
-- Outlet inventory is not yet modeled in source objects; validation is string-level + occupancy only.
-- Future TUC should formalize outlet catalog and compatibility checks.
+- Outlet inventory and strict outlet binding are covered by `TUC-0003-power-outlet-inventory`.

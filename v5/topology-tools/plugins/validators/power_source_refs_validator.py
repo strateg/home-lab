@@ -49,6 +49,33 @@ class PowerSourceRefsValidator(ValidatorJsonPlugin):
             return None
         return power_block
 
+    @staticmethod
+    def _extract_outlet_inventory(source_object_payload: Any) -> set[str]:
+        if not isinstance(source_object_payload, dict):
+            return set()
+        properties = source_object_payload.get("properties")
+        if not isinstance(properties, dict):
+            return set()
+
+        outlets_payload: Any = None
+        power_block = properties.get("power")
+        if isinstance(power_block, dict):
+            outlets_payload = power_block.get("outlets")
+        if outlets_payload is None:
+            outlets_payload = properties.get("outlets")
+
+        outlet_names: set[str] = set()
+        if isinstance(outlets_payload, list):
+            for item in outlets_payload:
+                if isinstance(item, str) and item:
+                    outlet_names.add(item)
+                    continue
+                if isinstance(item, dict):
+                    name = item.get("name")
+                    if isinstance(name, str) and name:
+                        outlet_names.add(name)
+        return outlet_names
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
 
@@ -187,6 +214,42 @@ class PowerSourceRefsValidator(ValidatorJsonPlugin):
                             severity="error",
                             stage=stage,
                             message="power.outlet_ref must be a non-empty string when set.",
+                            path=outlet_path,
+                        )
+                    )
+                    continue
+
+                source_object_ref = target_row.get("object_ref")
+                source_object_payload = (
+                    ctx.objects.get(source_object_ref)
+                    if isinstance(source_object_ref, str) and source_object_ref
+                    else None
+                )
+                outlet_inventory = self._extract_outlet_inventory(source_object_payload)
+                if not outlet_inventory:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7806",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Power source '{source_ref}' has no outlet inventory in object "
+                                f"'{source_object_ref}' but outlet_ref='{outlet_ref}' was provided."
+                            ),
+                            path=outlet_path,
+                        )
+                    )
+                    continue
+                if outlet_ref not in outlet_inventory:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7806",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Outlet '{outlet_ref}' is not declared by power source '{source_ref}' "
+                                f"(object '{source_object_ref}'). Known outlets: {sorted(outlet_inventory)}."
+                            ),
                             path=outlet_path,
                         )
                     )

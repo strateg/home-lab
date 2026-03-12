@@ -9,3 +9,14 @@ enabled_capabilities:
 vendor_capabilities:
 - vendor.power.pdu.switching
 - vendor.power.pdu.telemetry
+properties:
+  power:
+    outlets:
+    - outlet_01
+    - outlet_02
+    - outlet_03
+    - outlet_04
+    - outlet_05
+    - outlet_06
+    - outlet_07
+    - outlet_08

@@ -27,6 +27,29 @@ def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
     ctx._clear_execution_context()
 
 
+def _objects_with_power_inventory() -> dict:
+    return {
+        "obj.pdu.generic.managed": {
+            "object": "obj.pdu.generic.managed",
+            "class_ref": "class.power.pdu",
+            "properties": {"power": {"outlets": ["A1", "A2"]}},
+        },
+        "obj.apc.backups.650va": {
+            "object": "obj.apc.backups.650va",
+            "class_ref": "class.power.ups",
+            "properties": {"power": {"outlets": ["UPS1"]}},
+        },
+        "obj.router.a": {"object": "obj.router.a", "class_ref": "class.router"},
+        "obj.router.b": {"object": "obj.router.b", "class_ref": "class.router"},
+        "obj.router.src": {"object": "obj.router.src", "class_ref": "class.router"},
+        "obj.router.dst": {"object": "obj.router.dst", "class_ref": "class.router"},
+        "obj.lxc.app": {
+            "object": "obj.lxc.app",
+            "class_ref": "class.compute.workload.container",
+        },
+    }
+
+
 def test_power_source_validator_skips_when_core_is_owner():
     registry = _registry()
     ctx = PluginContext(
@@ -87,7 +110,7 @@ def test_power_source_validator_accepts_valid_l1_chain_and_outlets():
         model_lock={},
         config={},
         classes={},
-        objects={},
+        objects=_objects_with_power_inventory(),
         instance_bindings={"instance_bindings": {}},
     )
     _publish_rows(ctx, rows)
@@ -115,7 +138,7 @@ def test_power_source_validator_rejects_unknown_target():
         model_lock={},
         config={},
         classes={},
-        objects={},
+        objects=_objects_with_power_inventory(),
         instance_bindings={"instance_bindings": {}},
     )
     _publish_rows(ctx, rows)
@@ -151,7 +174,7 @@ def test_power_source_validator_rejects_source_layer_violation():
         model_lock={},
         config={},
         classes={},
-        objects={},
+        objects=_objects_with_power_inventory(),
         instance_bindings={"instance_bindings": {}},
     )
     _publish_rows(ctx, rows)
@@ -187,7 +210,7 @@ def test_power_source_validator_rejects_invalid_target_class():
         model_lock={},
         config={},
         classes={},
-        objects={},
+        objects=_objects_with_power_inventory(),
         instance_bindings={"instance_bindings": {}},
     )
     _publish_rows(ctx, rows)
@@ -231,7 +254,7 @@ def test_power_source_validator_rejects_reference_format_errors():
         model_lock={},
         config={},
         classes={},
-        objects={},
+        objects=_objects_with_power_inventory(),
         instance_bindings={"instance_bindings": {}},
     )
     _publish_rows(ctx, rows)
@@ -275,7 +298,7 @@ def test_power_source_validator_rejects_duplicate_outlet_occupancy():
         model_lock={},
         config={},
         classes={},
-        objects={},
+        objects=_objects_with_power_inventory(),
         instance_bindings={"instance_bindings": {}},
     )
     _publish_rows(ctx, rows)
@@ -293,7 +316,7 @@ def test_power_source_validator_rejects_cycles():
             "instance": "pdu-a",
             "layer": "L1",
             "class_ref": "class.power.pdu",
-            "object_ref": "obj.pdu.a",
+            "object_ref": "obj.pdu.generic.managed",
             "extensions": {"power": {"source_ref": "ups-b"}},
         },
         {
@@ -301,7 +324,7 @@ def test_power_source_validator_rejects_cycles():
             "instance": "ups-b",
             "layer": "L1",
             "class_ref": "class.power.ups",
-            "object_ref": "obj.ups.b",
+            "object_ref": "obj.apc.backups.650va",
             "extensions": {"power": {"source_ref": "pdu-a"}},
         },
     ]
@@ -311,7 +334,7 @@ def test_power_source_validator_rejects_cycles():
         model_lock={},
         config={},
         classes={},
-        objects={},
+        objects=_objects_with_power_inventory(),
         instance_bindings={"instance_bindings": {}},
     )
     _publish_rows(ctx, rows)
@@ -319,3 +342,39 @@ def test_power_source_validator_rejects_cycles():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7805" for d in result.diagnostics)
+
+
+def test_power_source_validator_rejects_unknown_outlet_in_inventory():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l1_devices",
+            "instance": "pdu-rack",
+            "layer": "L1",
+            "class_ref": "class.power.pdu",
+            "object_ref": "obj.pdu.generic.managed",
+            "extensions": {},
+        },
+        {
+            "group": "l1_devices",
+            "instance": "rtr-a",
+            "layer": "L1",
+            "class_ref": "class.router",
+            "object_ref": "obj.router.a",
+            "extensions": {"power": {"source_ref": "pdu-rack", "outlet_ref": "A9"}},
+        },
+    ]
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={},
+        classes={},
+        objects=_objects_with_power_inventory(),
+        instance_bindings={"instance_bindings": {}},
+    )
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E7806" for d in result.diagnostics)

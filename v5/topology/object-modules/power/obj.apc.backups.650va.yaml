@@ -9,3 +9,10 @@ enabled_capabilities:
 vendor_capabilities:
 - vendor.power.ups.battery_backup
 - vendor.power.ups.status.telemetry
+properties:
+  power:
+    outlets:
+    - outlet_battery_01
+    - outlet_battery_02
+    - outlet_surge_01
+    - outlet_surge_02
