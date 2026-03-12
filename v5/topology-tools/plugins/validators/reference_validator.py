@@ -79,6 +79,20 @@ class ReferenceValidator(ValidatorJsonPlugin):
                 "format_invalid": "E7504",
             },
         },
+        {
+            "relation": "network.vlan_ref",
+            "namespace": "network",
+            "field": "vlan_ref",
+            "source_layers": {"L1", "L4"},
+            "target_layers": {"L2"},
+            "target_class": "class.network.vlan",
+            "codes": {
+                "not_found": "E7511",
+                "target_invalid": "E7512",
+                "source_invalid": "E7513",
+                "format_invalid": "E7514",
+            },
+        },
     )
 
     @staticmethod

@@ -537,3 +537,223 @@ def test_reference_validator_rejects_network_bridge_target_class_mismatch():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7502" for d in result.diagnostics)
+
+
+def test_reference_validator_accepts_valid_network_vlan_relation():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l2_network",
+            "instance": "inst.vlan.local",
+            "layer": "L2",
+            "class_ref": "class.network.vlan",
+            "object_ref": "obj.vlan.local",
+            "extensions": {},
+        },
+        {
+            "group": "l4_lxc",
+            "instance": "inst.workload.local",
+            "layer": "L4",
+            "class_ref": "class.compute.workload.container",
+            "object_ref": "obj.workload.local",
+            "extensions": {"network": {"vlan_ref": "inst.vlan.local"}},
+        },
+    ]
+    classes = {
+        "class.network.vlan": {"class": "class.network.vlan"},
+        "class.compute.workload.container": {"class": "class.compute.workload.container"},
+    }
+    objects = {
+        "obj.vlan.local": {"object": "obj.vlan.local", "class_ref": "class.network.vlan"},
+        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"},
+    }
+
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes=classes,
+        objects=objects,
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not any(d.code.startswith("E751") for d in result.diagnostics)
+
+
+def test_reference_validator_rejects_unknown_network_vlan_target():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l4_lxc",
+            "instance": "inst.workload.local",
+            "layer": "L4",
+            "class_ref": "class.compute.workload.container",
+            "object_ref": "obj.workload.local",
+            "extensions": {"network": {"vlan_ref": "inst.vlan.missing"}},
+        }
+    ]
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes={"class.compute.workload.container": {"class": "class.compute.workload.container"}},
+        objects={
+            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"}
+        },
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E7511" for d in result.diagnostics)
+
+
+def test_reference_validator_rejects_network_vlan_source_layer_violation():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l2_network",
+            "instance": "inst.vlan.local",
+            "layer": "L2",
+            "class_ref": "class.network.vlan",
+            "object_ref": "obj.vlan.local",
+            "extensions": {},
+        },
+        {
+            "group": "l5_services",
+            "instance": "inst.service.local",
+            "layer": "L5",
+            "class_ref": "class.service.database",
+            "object_ref": "obj.service.local",
+            "extensions": {"network": {"vlan_ref": "inst.vlan.local"}},
+        },
+    ]
+    classes = {
+        "class.network.vlan": {"class": "class.network.vlan"},
+        "class.service.database": {"class": "class.service.database"},
+    }
+    objects = {
+        "obj.vlan.local": {"object": "obj.vlan.local", "class_ref": "class.network.vlan"},
+        "obj.service.local": {"object": "obj.service.local", "class_ref": "class.service.database"},
+    }
+
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes=classes,
+        objects=objects,
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E7513" for d in result.diagnostics)
+
+
+def test_reference_validator_rejects_network_vlan_target_class_mismatch():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l2_network",
+            "instance": "inst.bridge.local",
+            "layer": "L2",
+            "class_ref": "class.network.bridge",
+            "object_ref": "obj.bridge.local",
+            "extensions": {},
+        },
+        {
+            "group": "l4_lxc",
+            "instance": "inst.workload.local",
+            "layer": "L4",
+            "class_ref": "class.compute.workload.container",
+            "object_ref": "obj.workload.local",
+            "extensions": {"network": {"vlan_ref": "inst.bridge.local"}},
+        },
+    ]
+    classes = {
+        "class.network.bridge": {"class": "class.network.bridge"},
+        "class.compute.workload.container": {"class": "class.compute.workload.container"},
+    }
+    objects = {
+        "obj.bridge.local": {"object": "obj.bridge.local", "class_ref": "class.network.bridge"},
+        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"},
+    }
+
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes=classes,
+        objects=objects,
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E7512" for d in result.diagnostics)
+
+
+def test_reference_validator_rejects_network_vlan_ref_format():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l4_lxc",
+            "instance": "inst.workload.local",
+            "layer": "L4",
+            "class_ref": "class.compute.workload.container",
+            "object_ref": "obj.workload.local",
+            "extensions": {"network": {"vlan_ref": []}},
+        }
+    ]
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"validation_owner_references": "plugin"},
+        classes={"class.compute.workload.container": {"class": "class.compute.workload.container"}},
+        objects={
+            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"}
+        },
+        instance_bindings={"instance_bindings": {}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    ctx.publish("catalog_ids", [])
+    ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E7514" for d in result.diagnostics)

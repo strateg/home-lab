@@ -377,6 +377,26 @@ codes:
     stage: validate
     title: Network Relation Reference Format Invalid
     hint: network.bridge_ref must be a non-empty string instance id.
+  E7511:
+    severity: error
+    stage: validate
+    title: VLAN Relation Target Not Found
+    hint: Ensure network.vlan_ref points to an existing L2 VLAN instance.
+  E7512:
+    severity: error
+    stage: validate
+    title: VLAN Relation Target Invalid
+    hint: network.vlan_ref must target class.network.vlan on L2.
+  E7513:
+    severity: error
+    stage: validate
+    title: VLAN Relation Source Layer Invalid
+    hint: network.vlan_ref is allowed from L1 and L4 source instances only.
+  E7514:
+    severity: error
+    stage: validate
+    title: VLAN Relation Reference Format Invalid
+    hint: network.vlan_ref must be a non-empty string instance id.
   I6901:
     severity: info
     stage: validate
