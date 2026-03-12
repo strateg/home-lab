@@ -124,3 +124,139 @@ def test_placeholder_plugin_detects_unknown_format_token():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E6801" for d in result.diagnostics)
+
+
+def test_placeholder_plugin_accepts_hardware_identity_mac_addresses():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={"class.router": {"class": "class.router"}},
+        objects={
+            "obj.test.router": {
+                "object": "obj.test.router",
+                "hardware_specs": {
+                    "interfaces": {
+                        "ethernet": [
+                            {"name": "wan", "mac": "@optional:mac"},
+                            {"name": "lan1", "mac": "@optional:mac"},
+                        ]
+                    }
+                },
+            }
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "router-1",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.test.router",
+                        "hardware_identity": {
+                            "mac_addresses": {
+                                "wan": "AA:BB:CC:DD:EE:01",
+                                "lan1": "AA:BB:CC:DD:EE:02",
+                            }
+                        },
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not result.has_errors
+
+
+def test_placeholder_plugin_rejects_invalid_hardware_identity_mac():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={"class.router": {"class": "class.router"}},
+        objects={
+            "obj.test.router": {
+                "object": "obj.test.router",
+                "hardware_specs": {
+                    "interfaces": {
+                        "ethernet": [
+                            {"name": "wan", "mac": "@optional:mac"},
+                        ]
+                    }
+                },
+            }
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "router-1",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.test.router",
+                        "hardware_identity": {
+                            "mac_addresses": {
+                                "wan": "INVALID-MAC",
+                            }
+                        },
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E6805" for d in result.diagnostics)
+    assert any("hardware_identity.mac_addresses.wan" in d.path for d in result.diagnostics)
+
+
+def test_placeholder_plugin_accepts_wireless_alias_and_cellular_mac():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={"class.router": {"class": "class.router"}},
+        objects={
+            "obj.test.router": {
+                "object": "obj.test.router",
+                "hardware_specs": {
+                    "interfaces": {
+                        "wireless": [
+                            {"name": "wlan0", "band": "5ghz", "mac": "@optional:mac"},
+                        ],
+                        "cellular": [
+                            {"name": "lte1", "mac": "@optional:mac"},
+                        ],
+                    }
+                },
+            }
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "router-1",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.test.router",
+                        "hardware_identity": {
+                            "mac_addresses": {
+                                "wlan0_5ghz": "AA:BB:CC:DD:EE:10",
+                                "lte1": "AA:BB:CC:DD:EE:20",
+                            }
+                        },
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not result.has_errors

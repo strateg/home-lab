@@ -213,6 +213,16 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
             override_values = {}
             self._flatten_override_values(overrides_payload, (), override_values)
 
+        # Compatibility bridge: allow instance identity map to provide values
+        # for object ethernet[*].mac placeholders without explicit instance_overrides.
+        derived_identity_overrides, derived_identity_sources = self._derive_hardware_identity_overrides(
+            row=row,
+            object_payload=object_payload,
+            placeholders=placeholders,
+        )
+        for path_key, derived_value in derived_identity_overrides.items():
+            override_values.setdefault(path_key, derived_value)
+
         for override_path, value in override_values.items():
             placeholder_spec = placeholders.get(override_path)
             if placeholder_spec is None:
@@ -228,7 +238,11 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                         severity="error",
                         stage=stage,
                         message=message,
-                        path=f"{path_prefix}.instance_overrides.{self._format_path(override_path)}",
+                        path=self._resolve_override_diagnostic_path(
+                            path_prefix=path_prefix,
+                            override_path=override_path,
+                            derived_sources=derived_identity_sources,
+                        ),
                     )
                 )
                 continue
@@ -241,7 +255,11 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                         severity="error",
                         stage=stage,
                         message=f"Unknown declared format '{fmt}' for override path '{self._format_path(override_path)}'.",
-                        path=f"{path_prefix}.instance_overrides.{self._format_path(override_path)}",
+                        path=self._resolve_override_diagnostic_path(
+                            path_prefix=path_prefix,
+                            override_path=override_path,
+                            derived_sources=derived_identity_sources,
+                        ),
                     )
                 )
                 continue
@@ -257,7 +275,11 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                             f"Override value for '{self._format_path(override_path)}' does not satisfy "
                             f"format '{fmt}': {reason}"
                         ),
-                        path=f"{path_prefix}.instance_overrides.{self._format_path(override_path)}",
+                        path=self._resolve_override_diagnostic_path(
+                            path_prefix=path_prefix,
+                            override_path=override_path,
+                            derived_sources=derived_identity_sources,
+                        ),
                     )
                 )
 
@@ -270,11 +292,87 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                         stage=stage,
                         message=(
                             f"Required placeholder '{self._format_path(placeholder_path)}' is missing "
-                            "in instance_overrides."
+                            "in instance payload."
                         ),
-                        path=f"{path_prefix}.instance_overrides",
+                        path=path_prefix,
                     )
                 )
+
+    def _derive_hardware_identity_overrides(
+        self,
+        *,
+        row: dict[str, Any],
+        object_payload: dict[str, Any],
+        placeholders: dict[tuple[Any, ...], dict[str, Any]],
+    ) -> tuple[dict[tuple[Any, ...], Any], dict[tuple[Any, ...], str]]:
+        hardware_identity = row.get("hardware_identity")
+        if not isinstance(hardware_identity, dict):
+            return {}, {}
+        mac_addresses = hardware_identity.get("mac_addresses")
+        if not isinstance(mac_addresses, dict):
+            return {}, {}
+
+        derived: dict[tuple[Any, ...], Any] = {}
+        source_paths: dict[tuple[Any, ...], str] = {}
+        for path in placeholders:
+            if not path:
+                continue
+            if path[-1] != "mac":
+                continue
+            candidate_keys = self._interface_identity_candidate_keys(object_payload, path[:-1])
+            if not candidate_keys:
+                continue
+            for key in candidate_keys:
+                if key in mac_addresses:
+                    derived[path] = mac_addresses[key]
+                    source_paths[path] = f"hardware_identity.mac_addresses.{key}"
+                    break
+        return derived, source_paths
+
+    def _interface_identity_candidate_keys(
+        self,
+        object_payload: dict[str, Any],
+        interface_path: tuple[Any, ...],
+    ) -> list[str]:
+        iface_name = self._get_path_value(object_payload, interface_path + ("name",))
+        if not isinstance(iface_name, str) or not iface_name:
+            return []
+        keys = [iface_name]
+        # Backward-compatible alias for existing instance naming style:
+        # wlan0 + band 5ghz => wlan0_5ghz ; wlan1 + 2.4ghz => wlan1_2_4ghz.
+        band = self._get_path_value(object_payload, interface_path + ("band",))
+        if isinstance(band, str) and band:
+            normalized_band = band.replace(".", "_").replace("-", "_")
+            keys.append(f"{iface_name}_{normalized_band}")
+        return keys
+
+    def _resolve_override_diagnostic_path(
+        self,
+        *,
+        path_prefix: str,
+        override_path: tuple[Any, ...],
+        derived_sources: dict[tuple[Any, ...], str],
+    ) -> str:
+        source_path = derived_sources.get(override_path)
+        if source_path:
+            return f"{path_prefix}.{source_path}"
+        return f"{path_prefix}.instance_overrides.{self._format_path(override_path)}"
+
+    def _get_path_value(self, payload: Any, path: tuple[Any, ...]) -> Any:
+        node = payload
+        for token in path:
+            if isinstance(node, dict):
+                if token not in node:
+                    return None
+                node = node[token]
+                continue
+            if isinstance(node, list):
+                if not isinstance(token, int) or token < 0 or token >= len(node):
+                    return None
+                node = node[token]
+                continue
+            return None
+        return node
 
     def _flatten_override_values(
         self,

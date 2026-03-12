@@ -90,8 +90,10 @@ software:
 enabled_capabilities:
   - cap.net.interface.ethernet
   - cap.net.l3.routing.static
-  - cap.net.l3.routing.bgp
+  - cap.net.l3.routing.dynamic.bgp
   - cap.net.l3.translation.snat
   - cap.net.l3.security.firewall.stateful
-  - cap.net.vpn.ipsec
-  - cap.net.traffic.shaping.qos
+  - cap.net.service.dhcp.server
+  - cap.net.service.dns.resolver
+  - cap.net.overlay.vpn.ipsec
+  - cap.net.l3.qos.advanced

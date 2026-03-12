@@ -12,8 +12,8 @@ os_refs:
 hardware_identity:
   serial_number: <TODO_SERIAL_NUMBER>
   mac_addresses:
-    wan: <TODO_MAC_WAN>
-    lan1: <TODO_MAC_LAN1>
-    lan2: <TODO_MAC_LAN2>
-    wlan0_5ghz: <TODO_MAC_WLAN0>
-    wlan1_2_4ghz: <TODO_MAC_WLAN1>
+    wan: "02:AA:10:00:00:01"
+    lan1: "02:AA:10:00:00:02"
+    lan2: "02:AA:10:00:00:03"
+    wlan0_5ghz: "02:AA:10:00:00:11"
+    wlan1_2_4ghz: "02:AA:10:00:00:12"

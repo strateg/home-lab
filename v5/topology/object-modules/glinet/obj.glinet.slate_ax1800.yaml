@@ -47,6 +47,7 @@ hardware_specs:
   interfaces:
     ethernet:
       - name: wan
+        mac: "@optional:mac"
         role: wan
         speed_mbps: 1000
         standard: gbe
@@ -56,6 +57,7 @@ hardware_specs:
         description: Gigabit WAN port (blue)
 
       - name: lan1
+        mac: "@optional:mac"
         role: lan
         speed_mbps: 1000
         standard: gbe
@@ -65,6 +67,7 @@ hardware_specs:
         description: Gigabit LAN port 1 (yellow)
 
       - name: lan2
+        mac: "@optional:mac"
         role: lan
         speed_mbps: 1000
         standard: gbe
@@ -75,6 +78,7 @@ hardware_specs:
 
     wireless:
       - name: wlan0
+        mac: "@optional:mac"
         band: 5ghz
         standard: 802.11ax
         max_speed_mbps: 1200
@@ -90,6 +94,7 @@ hardware_specs:
         description: WiFi 6 5GHz radio
 
       - name: wlan1
+        mac: "@optional:mac"
         band: 2.4ghz
         standard: 802.11ax
         max_speed_mbps: 574

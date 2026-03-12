@@ -58,14 +58,14 @@ def _base_bindings() -> dict[str, Any]:
                     "object_ref": "obj.network.ethernet_cable",
                     "endpoint_a": {"device_ref": "rtr-mikrotik-chateau", "port": "ether2"},
                     "endpoint_b": {"device_ref": "rtr-slate", "port": "lan1"},
-                    "creates_channel_ref": "chan.eth.chateau_to_slate",
+                    "creates_channel_ref": "inst.chan.eth.chateau_to_slate",
                     "length_m": 3,
                     "shielding": "utp",
                 },
             ],
             "l2_network": [
                 {
-                    "instance": "chan.eth.chateau_to_slate",
+                    "instance": "inst.chan.eth.chateau_to_slate",
                     "class_ref": "class.network.data_link",
                     "object_ref": "obj.network.ethernet_channel",
                     "endpoint_a": {"device_ref": "rtr-mikrotik-chateau", "port": "ether2"},
@@ -188,7 +188,7 @@ def test_tuc0001_network_validator_requires_created_channel_ref():
 
 def test_tuc0001_network_validator_rejects_channel_link_mismatch():
     def _modify(ctx: PluginContext) -> None:
-        channel = _find_row(ctx.instance_bindings, instance_id="chan.eth.chateau_to_slate")
+        channel = _find_row(ctx.instance_bindings, instance_id="inst.chan.eth.chateau_to_slate")
         channel["link_ref"] = "inst.ethernet_cable.other"
 
     result = _run_network_validator(_modify)
@@ -198,7 +198,7 @@ def test_tuc0001_network_validator_rejects_channel_link_mismatch():
 
 def test_tuc0001_network_validator_rejects_endpoint_pair_mismatch():
     def _modify(ctx: PluginContext) -> None:
-        channel = _find_row(ctx.instance_bindings, instance_id="chan.eth.chateau_to_slate")
+        channel = _find_row(ctx.instance_bindings, instance_id="inst.chan.eth.chateau_to_slate")
         channel["endpoint_b"]["port"] = "wan"
 
     result = _run_network_validator(_modify)
