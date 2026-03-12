@@ -122,3 +122,47 @@ def test_tuc0003_validator_rejects_undeclared_outlet():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E7806" for d in result.diagnostics)
+
+
+def test_tuc0003_validator_rejects_outlet_when_source_has_no_inventory():
+    registry = _registry()
+    rows = [
+        {
+            "group": "l1_devices",
+            "instance": "pdu-rack",
+            "layer": "L1",
+            "class_ref": "class.power.pdu",
+            "object_ref": "obj.pdu.generic.managed",
+            "extensions": {},
+        },
+        {
+            "group": "l1_devices",
+            "instance": "router-1",
+            "layer": "L1",
+            "class_ref": "class.router",
+            "object_ref": "obj.router.1",
+            "extensions": {"power": {"source_ref": "pdu-rack", "outlet_ref": "outlet_01"}},
+        },
+    ]
+    objects = {
+        "obj.pdu.generic.managed": {
+            "object": "obj.pdu.generic.managed",
+            "class_ref": "class.power.pdu",
+            # no properties.power.outlets on purpose
+        },
+        "obj.router.1": {"object": "obj.router.1", "class_ref": "class.router"},
+    }
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={},
+        classes={},
+        objects=objects,
+        instance_bindings={"instance_bindings": {}},
+    )
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E7806" for d in result.diagnostics)
