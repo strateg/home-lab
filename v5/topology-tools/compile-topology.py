@@ -35,6 +35,7 @@ DEFAULT_MANIFEST = REPO_ROOT / "v5" / "topology" / "topology.yaml"
 DEFAULT_OUTPUT_JSON = REPO_ROOT / "v5-build" / "effective-topology.json"
 DEFAULT_DIAGNOSTICS_JSON = REPO_ROOT / "v5-build" / "diagnostics" / "report.json"
 DEFAULT_DIAGNOSTICS_TXT = REPO_ROOT / "v5-build" / "diagnostics" / "report.txt"
+DEFAULT_ARTIFACTS_ROOT = REPO_ROOT / "v5-generated"
 DEFAULT_ERROR_CATALOG = REPO_ROOT / "v5" / "topology-tools" / "data" / "error-catalog.yaml"
 DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 
@@ -106,6 +107,7 @@ class V5Compiler:
         output_json: Path,
         diagnostics_json: Path,
         diagnostics_txt: Path,
+        artifacts_root: Path,
         error_catalog_path: Path,
         strict_model_lock: bool,
         fail_on_warning: bool,
@@ -124,6 +126,7 @@ class V5Compiler:
         self.output_json = output_json
         self.diagnostics_json = diagnostics_json
         self.diagnostics_txt = diagnostics_txt
+        self.artifacts_root = artifacts_root
         self.error_catalog_path = error_catalog_path
         self.strict_model_lock = strict_model_lock
         self.fail_on_warning = fail_on_warning
@@ -491,6 +494,7 @@ class V5Compiler:
             model_lock_path=manifest_bundle.model_lock_path,
             lock_payload=inputs.lock_payload,
             output_dir=self.output_json.parent,
+            generator_artifacts_root=self.artifacts_root,
             source_file=self.manifest_path,
             compiled_file=self.output_json,
             require_new_model=self.require_new_model,
@@ -578,6 +582,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to error catalog YAML.",
     )
     parser.add_argument(
+        "--artifacts-root",
+        default=str(DEFAULT_ARTIFACTS_ROOT.relative_to(REPO_ROOT).as_posix()),
+        help="Root directory for generator-produced deployable artifacts (for example terraform/ansible/bootstrap).",
+    )
+    parser.add_argument(
         "--strict-model-lock",
         action="store_true",
         help="Treat unpinned class/object references as errors.",
@@ -625,6 +634,7 @@ def main() -> int:
         output_json=resolve_repo_path(args.output_json),
         diagnostics_json=resolve_repo_path(args.diagnostics_json),
         diagnostics_txt=resolve_repo_path(args.diagnostics_txt),
+        artifacts_root=resolve_repo_path(args.artifacts_root),
         error_catalog_path=resolve_repo_path(args.error_catalog),
         strict_model_lock=args.strict_model_lock,
         fail_on_warning=args.fail_on_warning,

@@ -77,6 +77,7 @@ python -c "import json;d=json.load(open('v5-build/diagnostics/report.json',encod
 - `--fail-on-warning` — завершает с ненулевым кодом, если есть предупреждения.
 - `--require-new-model` — требует ADR0064-модель (`firmware_ref/os_refs`).
 - `--instance-source-mode sharded-only` — читает экземпляры только из `paths.instances_root` (ADR0071).
+- `--artifacts-root v5-generated` — корень для deployable-артефактов generator-плагинов (Terraform/Ansible/bootstrap).
 
 ## 5. Ограничения после cutover ADR0069
 

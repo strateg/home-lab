@@ -31,6 +31,7 @@ def create_plugin_context(
     model_lock_path: Path,
     lock_payload: dict[str, Any] | None,
     output_dir: Path,
+    generator_artifacts_root: Path,
     source_file: Path,
     compiled_file: Path,
     require_new_model: bool,
@@ -38,6 +39,11 @@ def create_plugin_context(
     compilation_owner: Callable[[str], str],
     artifact_owner: Callable[[str], str],
 ) -> PluginContext:
+    try:
+        artifacts_root_value = str(generator_artifacts_root.relative_to(repo_root).as_posix())
+    except ValueError:
+        artifacts_root_value = str(generator_artifacts_root.as_posix())
+
     embedded_in_owner = validation_owner("embedded_in")
     model_lock_owner = validation_owner("model_lock")
     references_owner = validation_owner("references")
@@ -77,6 +83,7 @@ def create_plugin_context(
             "class_modules_root": str(class_modules_root),
             "object_modules_root": str(object_modules_root),
             "require_new_model": require_new_model,
+            "generator_artifacts_root": artifacts_root_value,
         },
         output_dir=str(output_dir),
         source_file=str(source_file),
