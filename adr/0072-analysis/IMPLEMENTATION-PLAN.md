@@ -36,26 +36,44 @@ sops --version
 age --version
 ```
 
-### 0.2 Generate age Key
-
-```bash
-# Create key directory
-mkdir -p ~/.config/sops/age
-
-# Generate keypair
-age-keygen -o ~/.config/sops/age/keys.txt
-
-# Output shows public key:
-# Public key: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-```
-
-**CRITICAL:** Backup `~/.config/sops/age/keys.txt` securely.
-
-### 0.3 Create Repository Structure
+### 0.2 Create Repository Structure
 
 ```bash
 mkdir -p secrets/{hardware,terraform,ansible,bootstrap}
+mkdir -p scripts
 ```
+
+### 0.3 Generate Master Key (One-Time)
+
+```bash
+# Generate age keypair to temporary file
+age-keygen > /tmp/master.key
+
+# View the generated key (save public key for next step)
+cat /tmp/master.key
+# Output:
+# # created: 2026-03-15T12:00:00Z
+# # public key: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# AGE-SECRET-KEY-1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+# Extract public key to repository
+grep "public key:" /tmp/master.key | cut -d: -f2 | tr -d ' ' > secrets/master.key.pub
+
+# Encrypt private key with passphrase (REMEMBER THIS PASSPHRASE!)
+age -p -o secrets/master.key.age /tmp/master.key
+# Enter passphrase: <your-secure-passphrase>
+# Confirm passphrase: <your-secure-passphrase>
+
+# Securely delete plaintext key
+shred -u /tmp/master.key
+
+# Verify passphrase works
+age -d secrets/master.key.age
+# Enter passphrase → should display key content
+# Press Ctrl+C to cancel (don't need to save output)
+```
+
+**CRITICAL:** Remember your passphrase! Write it on paper and store securely.
 
 ### 0.4 Create SOPS Configuration
 
@@ -63,85 +81,132 @@ mkdir -p secrets/{hardware,terraform,ansible,bootstrap}
 
 ```yaml
 creation_rules:
-  # Hardware identities
-  - path_regex: hardware/.*\.yaml$
+  # All YAML files encrypted with master key
+  - path_regex: \.yaml$
     age: >-
-      age1YOUR_PUBLIC_KEY_HERE
-
-  # Terraform secrets
-  - path_regex: terraform/.*\.yaml$
-    age: >-
-      age1YOUR_PUBLIC_KEY_HERE
-
-  # Ansible secrets
-  - path_regex: ansible/.*\.yaml$
-    age: >-
-      age1YOUR_PUBLIC_KEY_HERE
-
-  # Bootstrap secrets
-  - path_regex: bootstrap/.*\.yaml$
-    age: >-
-      age1YOUR_PUBLIC_KEY_HERE
+      age1COPY_PUBLIC_KEY_FROM_master.key.pub
 ```
 
-### 0.5 Create Recipients File
+Replace the age1... line with actual content from `secrets/master.key.pub`.
 
-**File:** `secrets/age-recipients.txt`
+### 0.5 Create Unlock/Lock Scripts
 
-```text
-# SOPS age recipients
-# Add public keys here for multi-user access
-# Format: age1... # username/purpose
+**File:** `scripts/unlock-secrets.sh`
 
-age1YOUR_PUBLIC_KEY_HERE # primary operator
+```bash
+#!/bin/bash
+set -e
+
+KEYS_DIR="${HOME}/.config/sops/age"
+KEYS_FILE="${KEYS_DIR}/keys.txt"
+MASTER_KEY="secrets/master.key.age"
+
+if [ -f "$KEYS_FILE" ]; then
+    echo "✓ Secrets already unlocked"
+    exit 0
+fi
+
+if [ ! -f "$MASTER_KEY" ]; then
+    echo "✗ Master key not found: $MASTER_KEY"
+    exit 1
+fi
+
+mkdir -p "$KEYS_DIR"
+echo "Decrypting master key..."
+age -d "$MASTER_KEY" > "$KEYS_FILE"
+chmod 600 "$KEYS_FILE"
+echo "✓ Secrets unlocked"
+echo "  Run './scripts/lock-secrets.sh' when done"
+```
+
+**File:** `scripts/lock-secrets.sh`
+
+```bash
+#!/bin/bash
+set -e
+
+KEYS_FILE="${HOME}/.config/sops/age/keys.txt"
+
+if [ -f "$KEYS_FILE" ]; then
+    shred -u "$KEYS_FILE" 2>/dev/null || rm -f "$KEYS_FILE"
+    echo "✓ Secrets locked"
+else
+    echo "✓ Secrets were not unlocked"
+fi
+```
+
+```bash
+chmod +x scripts/unlock-secrets.sh scripts/lock-secrets.sh
 ```
 
 ### 0.6 Update .gitignore
 
-```gitignore
-# age private keys (NEVER commit)
-*.age-key
-keys.txt
+Add to `.gitignore`:
 
-# Decrypted secret files (temporary)
-secrets/**/*.dec.yaml
-secrets/**/*.dec.json
+```gitignore
+# SOPS/age temporary files
+.config/sops/
+keys.txt
+*.dec.yaml
+*.dec.json
 .work/*.tfvars
 ```
 
 ### 0.7 Add Pre-commit Hook
 
-**File:** `.pre-commit-config.yaml` (update)
+Update `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
-  - repo: https://github.com/getsops/sops
-    rev: v3.8.1
+  - repo: local
     hooks:
-      - id: sops-diff
-        name: Detect unencrypted secrets
-        entry: bash -c 'for f in secrets/**/*.yaml; do sops -d "$f" > /dev/null 2>&1 || echo "WARNING: $f may not be encrypted"; done'
+      - id: sops-encryption-check
+        name: Verify SOPS encryption
+        entry: bash -c 'for f in secrets/{hardware,terraform,ansible,bootstrap}/*.yaml 2>/dev/null; do grep -q "^sops:" "$f" || { echo "ERROR: $f is not encrypted!"; exit 1; }; done'
         language: system
         files: ^secrets/.*\.yaml$
+        pass_filenames: false
 ```
 
 ### 0.8 Verification
 
 ```bash
-# Create test secret
+# 1. Unlock secrets
+./scripts/unlock-secrets.sh
+# Enter passphrase
+
+# 2. Create test secret
 echo "test_secret: hello_world" > secrets/test.yaml
 
-# Encrypt
+# 3. Encrypt
 sops -e -i secrets/test.yaml
 
-# Verify encryption
-cat secrets/test.yaml  # Should show ENC[AES256_GCM,...]
+# 4. Verify encryption
+cat secrets/test.yaml
+# Should show:
+# test_secret: ENC[AES256_GCM,data:...,iv:...,tag:...]
+# sops:
+#     age:
+#         - recipient: age1...
 
-# Decrypt
-sops -d secrets/test.yaml  # Should show plaintext
+# 5. Decrypt
+sops -d secrets/test.yaml
+# Should show: test_secret: hello_world
 
-# Cleanup
+# 6. Cleanup
 rm secrets/test.yaml
+
+# 7. Lock secrets
+./scripts/lock-secrets.sh
+```
+
+### 0.9 Commit Phase 0
+
+```bash
+git add secrets/.sops.yaml secrets/master.key.age secrets/master.key.pub
+git add scripts/unlock-secrets.sh scripts/lock-secrets.sh
+git add .gitignore .pre-commit-config.yaml
+git commit -m "feat(secrets): implement SOPS + age with passphrase-protected master key"
 ```
 
 ---

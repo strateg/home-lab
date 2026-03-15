@@ -100,19 +100,210 @@ creation_rules:
     # Additional recipients can be added for team access
 ```
 
-### 5. Key Management
+### 5. Key Management: Password-Protected Master Key in Repository
 
-| Key Type | Location | Tracked |
-|----------|----------|---------|
-| age private key | `~/.config/sops/age/keys.txt` or `$SOPS_AGE_KEY_FILE` | No (operator-local) |
-| age public keys | `secrets/age-recipients.txt` | Yes |
-| SOPS config | `secrets/.sops.yaml` | Yes |
+**Problem:** Where to store the age private key?
+- External storage (1Password, etc.) creates dependency
+- `~/.config/sops/age/keys.txt` is not versioned, risk of loss
+- Different keys per machine breaks portability
 
-**Key generation:**
-```bash
-age-keygen -o ~/.config/sops/age/keys.txt
-# Add public key to secrets/age-recipients.txt
+**Solution:** Store the age private key IN the repository, encrypted with a passphrase.
+
+#### 5.1 Two-Level Encryption Architecture
+
 ```
+┌─────────────────────────────────────────────────────────────┐
+│                    OPERATOR MEMORY                          │
+│                                                             │
+│                    ┌──────────────┐                         │
+│                    │  Passphrase  │                         │
+│                    └──────┬───────┘                         │
+│                           │                                 │
+└───────────────────────────┼─────────────────────────────────┘
+                            │ unlocks
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    REPOSITORY (tracked)                     │
+│                                                             │
+│  secrets/master.key.age ◄──── age private key (encrypted)  │
+│         │                                                   │
+│         │ unlocks                                           │
+│         ▼                                                   │
+│  secrets/hardware/*.yaml ◄──── hardware identities          │
+│  secrets/terraform/*.yaml ◄─── terraform credentials        │
+│  secrets/ansible/*.yaml ◄───── ansible secrets              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**One passphrase unlocks everything.**
+
+#### 5.2 Repository Key Structure
+
+```
+secrets/
+├── .sops.yaml              # SOPS configuration (tracked)
+├── master.key.age          # Passphrase-encrypted age private key (tracked)
+├── master.key.pub          # age public key (tracked, for reference)
+├── hardware/               # SOPS-encrypted with master key
+├── terraform/              # SOPS-encrypted with master key
+├── ansible/                # SOPS-encrypted with master key
+└── bootstrap/              # SOPS-encrypted with master key
+```
+
+| File | Encryption | Tracked |
+|------|------------|---------|
+| `master.key.age` | age passphrase (`age -p`) | Yes |
+| `master.key.pub` | None (public) | Yes |
+| `*.yaml` in subdirs | SOPS + age (master key) | Yes |
+| Passphrase | Operator memory | No |
+
+#### 5.3 Key Generation (One-Time Setup)
+
+```bash
+# 1. Generate age keypair
+age-keygen > /tmp/master.key
+# Output:
+# # created: 2026-03-15T12:00:00Z
+# # public key: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+# AGE-SECRET-KEY-1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+# 2. Extract public key
+grep "public key:" /tmp/master.key | cut -d: -f2 | tr -d ' ' > secrets/master.key.pub
+
+# 3. Encrypt private key with passphrase
+age -p -o secrets/master.key.age /tmp/master.key
+# Enter passphrase (REMEMBER THIS!)
+
+# 4. Securely delete plaintext key
+shred -u /tmp/master.key
+
+# 5. Verify decryption works
+age -d secrets/master.key.age
+# Enter passphrase → should show key content
+```
+
+#### 5.4 Daily Workflow: Unlocking Secrets
+
+**Option A: Unlock once per session**
+```bash
+# Decrypt master key to temporary location
+age -d secrets/master.key.age > ~/.config/sops/age/keys.txt
+# Enter passphrase once
+
+# Now all sops commands work
+sops -d secrets/hardware/rtr-mikrotik-chateau.yaml
+
+# End of session: remove plaintext key
+rm ~/.config/sops/age/keys.txt
+```
+
+**Option B: Unlock script (recommended)**
+```bash
+#!/bin/bash
+# scripts/unlock-secrets.sh
+
+KEYS_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
+
+if [ -f "$KEYS_FILE" ]; then
+    echo "Secrets already unlocked"
+    exit 0
+fi
+
+mkdir -p "$(dirname "$KEYS_FILE")"
+age -d secrets/master.key.age > "$KEYS_FILE"
+chmod 600 "$KEYS_FILE"
+echo "Secrets unlocked. Run 'lock-secrets.sh' when done."
+```
+
+```bash
+#!/bin/bash
+# scripts/lock-secrets.sh
+
+KEYS_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
+[ -f "$KEYS_FILE" ] && shred -u "$KEYS_FILE"
+echo "Secrets locked."
+```
+
+**Option C: Environment variable (CI/CD)**
+```bash
+# Passphrase in env, decrypt key inline
+export SOPS_AGE_KEY=$(echo "$MASTER_KEY_PASSPHRASE" | age -d secrets/master.key.age)
+sops -d secrets/hardware/rtr-mikrotik-chateau.yaml
+```
+
+#### 5.5 CI/CD Integration
+
+GitHub Actions with single secret:
+
+```yaml
+# .github/workflows/deploy.yml
+env:
+  MASTER_KEY_PASSPHRASE: ${{ secrets.MASTER_KEY_PASSPHRASE }}
+
+jobs:
+  deploy:
+    steps:
+      - name: Unlock secrets
+        run: |
+          export SOPS_AGE_KEY=$(echo "$MASTER_KEY_PASSPHRASE" | age -d secrets/master.key.age)
+          sops -d secrets/terraform/proxmox.yaml > /tmp/proxmox.yaml
+```
+
+#### 5.6 Passphrase Requirements
+
+| Requirement | Minimum |
+|-------------|---------|
+| Length | 20+ characters |
+| Entropy | High (passphrase, not password) |
+| Storage | Human memory only (no digital copies) |
+| Backup | Printed paper in secure location |
+
+**Recommended format:** 5-6 random words (diceware)
+```
+correct-horse-battery-staple-router-network
+```
+
+#### 5.7 Key Rotation
+
+```bash
+# 1. Decrypt all secrets with old key
+./scripts/unlock-secrets.sh  # old passphrase
+
+# 2. Generate new keypair
+age-keygen > /tmp/new-master.key
+
+# 3. Re-encrypt all secrets with new key
+for f in secrets/{hardware,terraform,ansible,bootstrap}/*.yaml; do
+    sops -d "$f" | sops -e --age "$(cat /tmp/new-master.key.pub)" /dev/stdin > "$f.new"
+    mv "$f.new" "$f"
+done
+
+# 4. Update SOPS config with new public key
+# Edit secrets/.sops.yaml
+
+# 5. Encrypt new key with new passphrase
+age -p -o secrets/master.key.age /tmp/new-master.key
+
+# 6. Update public key reference
+grep "public key:" /tmp/new-master.key | cut -d: -f2 | tr -d ' ' > secrets/master.key.pub
+
+# 7. Cleanup
+shred -u /tmp/new-master.key
+
+# 8. Commit
+git add secrets/
+git commit -m "chore(secrets): rotate master key"
+```
+
+#### 5.8 Recovery Scenarios
+
+| Scenario | Recovery |
+|----------|----------|
+| Forgot passphrase | Cannot recover. Generate new key, re-collect all secrets. |
+| Lost repo access | Clone from remote, enter passphrase. |
+| Compromised passphrase | Rotate key immediately (5.7). |
+| New team member | Share passphrase securely (in person, Signal, etc.). |
 
 ### 6. Encrypted File Format
 
@@ -202,27 +393,30 @@ steps:
 
 1. **Single source of truth** for all secrets
 2. **Versioned secrets** - hardware identities tracked in git (encrypted)
-3. **Portable** - clone repo, add key, deploy
+3. **Fully portable** - clone repo, enter passphrase, deploy (no external key storage)
 4. **Auditable** - git history shows when secrets changed (not what)
-5. **Multi-recipient** - team members can have their own keys
-6. **Diff-friendly** - YAML keys visible in diffs
-7. **No Ansible Vault password** required at compile time
-8. **CI/CD ready** - single secret (age key) to configure
+5. **One passphrase** - memorize one passphrase instead of managing multiple keys
+6. **No key loss risk** - master key is in repository, only passphrase needed
+7. **Diff-friendly** - YAML keys visible in diffs
+8. **CI/CD ready** - single secret (passphrase) to configure
 
 ### Negative
 
 1. **New tooling** - operators must install `sops` and `age`
 2. **Migration effort** - existing Ansible Vault files must be converted
-3. **Key backup critical** - losing age private key = losing access to secrets
+3. **Passphrase critical** - forgetting passphrase = re-collect all secrets
 4. **Learning curve** - team must learn SOPS workflow
+5. **Session unlock** - must decrypt master key each session
 
 ### Risks and Mitigation
 
 | Risk | Mitigation |
 |------|------------|
-| Key loss | Document key backup procedure; multiple recipients |
+| Forgot passphrase | Print passphrase on paper, store in secure physical location |
+| Passphrase compromised | Rotate master key immediately (documented procedure) |
 | Accidental plaintext commit | Pre-commit hook validates encryption |
 | SOPS/age version drift | Pin versions in documentation |
+| Temporary key file left behind | Lock script with `shred`; CI uses env var only |
 
 ---
 
@@ -230,11 +424,15 @@ steps:
 
 ### Phase 0: Tooling Setup
 
-- [ ] Document age key generation
-- [ ] Create `secrets/.sops.yaml`
-- [ ] Create `secrets/age-recipients.txt`
+- [ ] Install `age` and `sops` on operator machine
+- [ ] Generate master keypair with `age-keygen`
+- [ ] Encrypt master key with passphrase (`age -p`)
+- [ ] Create `secrets/master.key.age` (tracked)
+- [ ] Create `secrets/master.key.pub` (tracked)
+- [ ] Create `secrets/.sops.yaml` with public key
+- [ ] Create `scripts/unlock-secrets.sh` and `scripts/lock-secrets.sh`
 - [ ] Add pre-commit hook for SOPS validation
-- [ ] Update `.gitignore` for age keys
+- [ ] Update `.gitignore` for temporary decrypted keys
 
 ### Phase 1: Hardware Identities (Priority)
 
@@ -268,12 +466,15 @@ steps:
 
 ## Validation Criteria
 
-1. [ ] `sops -d secrets/hardware/*.yaml` works with operator key
-2. [ ] `compile-topology.py` resolves hardware identities from SOPS
-3. [ ] Terraform apply works with SOPS-decrypted credentials
-4. [ ] Ansible playbooks work without `.vault_pass`
-5. [ ] Pre-commit hook blocks plaintext secrets
-6. [ ] CI/CD pipeline can decrypt with repository secret
+1. [ ] `age -d secrets/master.key.age` decrypts with passphrase
+2. [ ] `./scripts/unlock-secrets.sh` enables SOPS decryption
+3. [ ] `sops -d secrets/hardware/*.yaml` works after unlock
+4. [ ] `compile-topology.py` resolves hardware identities from SOPS
+5. [ ] Terraform apply works with SOPS-decrypted credentials
+6. [ ] Ansible playbooks work without `.vault_pass`
+7. [ ] Pre-commit hook blocks plaintext secrets
+8. [ ] CI/CD pipeline decrypts with `MASTER_KEY_PASSPHRASE` secret
+9. [ ] `./scripts/lock-secrets.sh` removes temporary key file
 
 ---
 
