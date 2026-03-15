@@ -1,6 +1,6 @@
 # ADR 0046: Generators Architecture Refactoring
 
-- Status: Approved
+- Status: Implemented (All 6 phases complete)
 - Date: 2026-02-25
 - Harmonized With: ADR 0064 (Firmware + OS Two-Entity Model)
 
