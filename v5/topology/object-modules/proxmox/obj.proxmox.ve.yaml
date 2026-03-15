@@ -3,6 +3,21 @@ version: 1.0.0
 class_ref: class.compute.hypervisor
 model: Proxmox VE 9
 vendor: proxmox
+hardware_specs:
+  interfaces:
+    ethernet:
+    - name: eno1
+      role: trunk_uplink
+      speed_mbps: 1000
+      standard: gbe
+      duplex: full
+      description: Primary trunk uplink to core router
+    - name: enp2s0
+      role: spare
+      speed_mbps: 1000
+      standard: gbe
+      duplex: full
+      description: Secondary ethernet interface (spare)
 software_contract:
   firmware_obj_ref: obj.firmware.uefi.generic.x86_64
   os_obj_refs:

@@ -3,6 +3,15 @@ version: 1.0.0
 class_ref: class.compute.edge_node
 model: Orange Pi 5 RK3588 Debian
 vendor: orangepi
+hardware_specs:
+  interfaces:
+    ethernet:
+    - name: eth0
+      role: trunk_uplink
+      speed_mbps: 1000
+      standard: gbe
+      duplex: full
+      description: Primary wired uplink to core router
 software_contract:
   firmware_obj_ref: obj.firmware.uboot.generic.arm64
   os_obj_refs:

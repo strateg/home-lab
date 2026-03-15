@@ -1,288 +1,371 @@
 # V5 Production Readiness Plan
 
-**Created:** 2026-03-15
-**Goal:** Enable real home network modeling and deployment through v5 lane
-**Current State:** v5 compiles topology to effective JSON, but cannot generate deployable artifacts
+**Created:** 2026-03-15  
+**Revised:** 2026-03-15  
+**Goal:** Enable real home network modeling and deployment through v5 lane  
+**Current State:** plugin-first compiler is operational, but v5 still lacks deployable Terraform/Ansible/bootstrap artifacts
 
 ---
 
 ## Executive Summary
 
 v5 architecture is model-complete with:
-- 14 plugins (6 compilers, 6 validators, 2 generators)
-- 33 classes, 62 objects, 68+ instances
-- 7 cross-layer relations enforced
-- Plugin microkernel operational
+- plugin microkernel runtime in production path
+- compile -> validate -> generate stage wiring
+- contract validators and diagnostics in place
 
-**Blocking Gap:** No Terraform/Ansible/Bootstrap generators in v5.
+**Blocking gap:** deployment generators are missing from v5.
 
-This plan delivers v5 generator plugins to achieve deployment parity with v4.
+This revised plan adds:
+- a mandatory baseline stabilization phase before generator work
+- explicit artifact output ownership and path contract
+- projection layer between compiled model and templates
+- parity gates in each implementation phase (not only at the end)
+- realistic migration scope for template and tool parity
 
 ---
 
-## Phase 1: Generator Plugin Framework
+## Planning Principles (Normative)
 
-**Duration estimate:** 1 week
+1. **Baseline first:** do not start generator implementation while `validate-v5` is red.
+2. **Projection-first generation:** generator templates must consume stable projection views, not raw topology internals.
+3. **Single artifact contract:** output roots and ownership must be fixed before first non-trivial generator lands.
+4. **Continuous parity:** every generator phase includes parity and syntax validation gates.
+5. **Secret-safe by default:** committed artifacts remain examples/placeholders only.
+
+---
+
+## Phase 0: Baseline Stabilization (New)
+
+**Duration estimate:** 2-3 days  
 **Prerequisite:** None
-**Deliverables:**
 
-### 1.1 Generator Plugin Base Infrastructure
+### 0.1 Data Consistency Fixes
 
-- [ ] Create `v5/topology-tools/plugins/generators/base_generator.py`
-  - Abstract base for all generator plugins
-  - Template loading helpers (Jinja2)
-  - Output file management
-  - Deterministic ordering utilities
+- [x] Resolve canonical instance reference drift in v5 shards (for example `target_ref` aliases vs canonical instance IDs).
+- [x] Ensure layer-contract validation and compile validation both pass on the same source set.
+- [x] Remove stale references to legacy migration-only instance identifiers where runtime expects canonical IDs.
+- [x] Complete baseline local wired network modeling for active LAN devices with explicit endpoint ports and linked L1/L2 instances.
 
-- [ ] Define generator plugin contract in `plugins.yaml`
-  - Stage: generate
-  - Order: 200+ (after effective_json/yaml)
-  - Input: `ctx.compiled_json` from compile stage
+### 0.2 Runtime/Output Contract Freeze
 
-- [ ] Add generator integration tests
+- [ ] Define artifact target roots for v5 generators (`v5-generated/...`) and keep `v5-build/...` for compiler artifacts/diagnostics.
+- [ ] Add an explicit generator output root config contract to plugin context.
+- [ ] Keep backward-compatible CLI behavior while introducing explicit generator artifact root wiring.
+
+### 0.3 Baseline Gate
+
+- [x] Required green commands:
+  - `make validate-v5`
+  - `python v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock`
+- [x] Capture baseline diagnostics snapshot in `v5-build/diagnostics/`.
+
+### Phase 0 Definition of Done
+
+- [x] `validate-v5` is green.
+- [x] compile diagnostics have zero errors in strict mode.
+- [ ] output ownership contract is documented and approved.
+
+---
+
+## Phase 1: Generator SDK and Output Contract
+
+**Duration estimate:** 1 week  
+**Prerequisite:** Phase 0
+
+### 1.1 Generator Base Infrastructure
+
+- [ ] Create `v5/topology-tools/plugins/generators/base_generator.py`:
+  - shared Jinja2 environment/bootstrap
+  - deterministic collection ordering helpers
+  - atomic file write helper (tmp + rename)
+  - standardized generated-file manifest output
+
+- [ ] Add generator plugin contract conventions to `v5/topology-tools/plugins/plugins.yaml`:
+  - stage: `generate`
+  - order: after `effective_json`/`effective_yaml`
+  - input: `ctx.compiled_json` (authoritative), not disk file reads
+
+- [ ] Add tests:
   - `v5/tests/plugin_integration/test_generator_base.py`
+  - deterministic output order test
+  - atomic write behavior test
 
-### 1.2 Template Migration Strategy
+### 1.2 Template Migration Inventory (Corrected Scope)
 
-- [ ] Analyze v4 templates in `v4/topology-tools/templates/`
-  - `terraform/proxmox/` (6 templates)
-  - `terraform/mikrotik/` (7 templates)
-  - `ansible/` (inventory templates)
+- [ ] Inventory v4 templates for migration:
+  - `terraform/proxmox`: `provider`, `versions`, `bridges`, `vms`, `lxc`, `variables`, `outputs`, `terraform.tfvars.example`
+  - `terraform/mikrotik`: `provider`, `interfaces`, `firewall`, `dhcp`, `dns`, `addresses`, `qos`, `vpn`, `containers`, `variables`, `outputs`
+  - `ansible`: `hosts`, `group_vars_all`, `host_vars`
+  - `bootstrap/*`: proxmox, mikrotik, orangepi5
 
-- [ ] Create v5 template directory structure
-  ```
-  v5/topology-tools/templates/
-  ├── terraform/
-  │   ├── proxmox/
-  │   └── mikrotik/
-  └── ansible/
-  ```
+- [ ] Create v5 template layout:
+  - `v5/topology-tools/templates/terraform/proxmox/`
+  - `v5/topology-tools/templates/terraform/mikrotik/`
+  - `v5/topology-tools/templates/ansible/`
+  - `v5/topology-tools/templates/bootstrap/`
 
-- [ ] Document template variable mapping (v4 topology → v5 effective model)
+### Phase 1 Definition of Done
+
+- [ ] generator base is used by at least one real generator plugin.
+- [ ] generator output contract is test-covered.
+- [ ] template inventory + mapping matrix is documented.
 
 ---
 
-## Phase 2: Terraform Proxmox Generator
+## Phase 2: Projection Layer (Compiled Model -> Tool Views)
 
-**Duration estimate:** 1 week
+**Duration estimate:** 4-5 days  
 **Prerequisite:** Phase 1
-**Deliverables:**
 
-### 2.1 Generator Plugin Implementation
+### 2.1 Implement Projections
 
-- [ ] Create `v5/topology-tools/plugins/generators/terraform_proxmox_generator.py`
-  - Read L4 LXC/VM instances from effective model
-  - Read L2 bridges from effective model
-  - Read L3 storage pools from effective model
-  - Generate: `provider.tf`, `bridges.tf`, `lxc.tf`, `vms.tf`, `variables.tf`, `outputs.tf`
+- [ ] Create projection helpers in `v5/topology-tools/plugins/generators/projections.py`:
+  - `build_proxmox_projection(compiled_json)`
+  - `build_mikrotik_projection(compiled_json)`
+  - `build_ansible_projection(compiled_json)`
+  - `build_bootstrap_projection(compiled_json)`
 
-- [ ] Register in `plugins.yaml`
-  ```yaml
-  - id: base.generator.terraform_proxmox
-    kind: generator
-    entry: plugins/generators/terraform_proxmox_generator.py:TerraformProxmoxGenerator
-    api_version: "1.x"
-    stages: [generate]
-    order: 210
-    depends_on: [base.generator.effective_json]
-  ```
+- [ ] Ensure projections are:
+  - deterministic (stable sort keys)
+  - schema-checked
+  - independent from template-specific naming quirks
 
-### 2.2 Template Adaptation
+### 2.2 Projection Contract Tests
 
-- [ ] Port templates from v4, adapting to v5 effective model structure
-- [ ] Handle Class→Object→Instance resolution in templates
-- [ ] Preserve v4 output format for parity testing
+- [ ] Add unit tests with golden snapshots for projection outputs.
+- [ ] Add negative tests for missing mandatory fields and malformed refs.
 
-### 2.3 Parity Testing
+### Phase 2 Definition of Done
 
-- [ ] Create `v5/tests/plugin_regression/test_terraform_proxmox_parity.py`
-- [ ] Compare v5-generated vs v4-generated Terraform
-- [ ] Document intentional differences
+- [ ] templates can render using projections without reaching into raw compiled internals.
+- [ ] projection snapshots are stable between runs.
 
 ---
 
-## Phase 3: Terraform MikroTik Generator
+## Phase 3: Terraform Proxmox Generator
 
-**Duration estimate:** 1 week
-**Prerequisite:** Phase 1
-**Deliverables:**
+**Duration estimate:** 1-1.5 weeks  
+**Prerequisite:** Phase 2
 
-### 3.1 Generator Plugin Implementation
+### 3.1 Generator Implementation
 
-- [ ] Create `v5/topology-tools/plugins/generators/terraform_mikrotik_generator.py`
-  - Read L1 router instances with capabilities
-  - Read L2 network configuration (VLANs, bridges, firewall)
-  - Generate: `provider.tf`, `interfaces.tf`, `firewall.tf`, `dhcp.tf`, `vpn.tf`, `qos.tf`, `containers.tf`
+- [ ] Create `v5/topology-tools/plugins/generators/terraform_proxmox_generator.py`.
+- [ ] Generate:
+  - `provider.tf`
+  - `versions.tf`
+  - `bridges.tf`
+  - `vms.tf`
+  - `lxc.tf`
+  - `variables.tf`
+  - `outputs.tf`
+  - `terraform.tfvars.example`
 
-- [ ] Register in `plugins.yaml`
-  ```yaml
-  - id: base.generator.terraform_mikrotik
-    kind: generator
-    entry: plugins/generators/terraform_mikrotik_generator.py:TerraformMikrotikGenerator
-    api_version: "1.x"
-    stages: [generate]
-    order: 220
-    depends_on: [base.generator.effective_json]
-  ```
+### 3.2 Registration and Wiring
 
-### 3.2 Capability-Driven Generation
+- [ ] Register plugin in `plugins.yaml` with explicit order/depends_on and output path config.
 
-- [ ] Use router capabilities from effective model to conditionally generate resources
-- [ ] Handle MikroTik-specific vs GL.iNet-specific features
+### 3.3 Parity and Syntax Gates
 
-### 3.3 Parity Testing
+- [ ] Add `v5/tests/plugin_regression/test_terraform_proxmox_parity.py`.
+- [ ] Compare generated files against v4 baseline (with documented intentional diffs).
+- [ ] Run `terraform fmt -check` and `terraform validate` in CI for generated Proxmox output.
 
-- [ ] Create `v5/tests/plugin_regression/test_terraform_mikrotik_parity.py`
+### Phase 3 Definition of Done
 
----
-
-## Phase 4: Ansible Inventory Generator
-
-**Duration estimate:** 1 week
-**Prerequisite:** Phase 1
-**Deliverables:**
-
-### 4.1 Generator Plugin Implementation
-
-- [ ] Create `v5/topology-tools/plugins/generators/ansible_inventory_generator.py`
-  - Read L4 workloads (LXC, VMs) from effective model
-  - Read L5 services and their deployment targets
-  - Generate: `hosts.yml`, `group_vars/`, `host_vars/`
-
-- [ ] Register in `plugins.yaml`
-  ```yaml
-  - id: base.generator.ansible_inventory
-    kind: generator
-    entry: plugins/generators/ansible_inventory_generator.py:AnsibleInventoryGenerator
-    api_version: "1.x"
-    stages: [generate]
-    order: 230
-    depends_on: [base.generator.effective_json]
-  ```
-
-### 4.2 Runtime Inventory Assembly
-
-- [ ] Implement runtime inventory assembly (ADR 0051 compliance)
-- [ ] Handle secret placeholders for Ansible Vault integration
-
-### 4.3 Parity Testing
-
-- [ ] Create `v5/tests/plugin_regression/test_ansible_inventory_parity.py`
+- [ ] Proxmox Terraform output is generated in `v5-generated/terraform/proxmox/`.
+- [ ] parity gate is green (or only approved diffs remain).
 
 ---
 
-## Phase 5: Bootstrap Generators
+## Phase 4: Terraform MikroTik Generator
 
-**Duration estimate:** 1 week
-**Prerequisite:** Phases 2-4
-**Deliverables:**
+**Duration estimate:** 1-1.5 weeks  
+**Prerequisite:** Phase 2
 
-### 5.1 Proxmox Bootstrap Generator
+### 4.1 Generator Implementation
 
-- [ ] Create `v5/topology-tools/plugins/generators/bootstrap_proxmox_generator.py`
-- [ ] Generate: `answer.toml`, post-install scripts
-- [ ] Register in `plugins.yaml` (order: 240)
+- [ ] Create `v5/topology-tools/plugins/generators/terraform_mikrotik_generator.py`.
+- [ ] Generate:
+  - `provider.tf`
+  - `interfaces.tf`
+  - `firewall.tf`
+  - `dhcp.tf`
+  - `dns.tf`
+  - `addresses.tf`
+  - `qos.tf`
+  - `vpn.tf`
+  - `containers.tf`
+  - `variables.tf`
+  - `outputs.tf`
+  - `terraform.tfvars.example`
 
-### 5.2 MikroTik Bootstrap Generator
+### 4.2 Capability-Driven Behavior
 
-- [ ] Create `v5/topology-tools/plugins/generators/bootstrap_mikrotik_generator.py`
-- [ ] Generate: `init-terraform.rsc`, `terraform.tfvars.example`
-- [ ] Register in `plugins.yaml` (order: 250)
+- [ ] Drive optional resource generation from effective capabilities and platform traits.
+- [ ] Keep device-specific branching in projection layer, not templates.
 
-### 5.3 Orange Pi Bootstrap Generator
+### 4.3 Parity and Syntax Gates
 
-- [ ] Create `v5/topology-tools/plugins/generators/bootstrap_orangepi_generator.py`
-- [ ] Generate: cloud-init `user-data`, `meta-data`
-- [ ] Register in `plugins.yaml` (order: 260)
+- [ ] Add `v5/tests/plugin_regression/test_terraform_mikrotik_parity.py`.
+- [ ] Run `terraform fmt -check` and `terraform validate` in CI for generated MikroTik output.
 
----
+### Phase 4 Definition of Done
 
-## Phase 6: Hardware Identity Capture
-
-**Duration estimate:** 3 days
-**Prerequisite:** None (can run in parallel)
-**Deliverables:**
-
-### 6.1 Discovery Script
-
-- [ ] Create `v5/topology-tools/discover-hardware-identity.py`
-  - SSH to devices, capture MACs, serials
-  - Output YAML patch for instance files
-  - Support: MikroTik (SSH/API), Linux (SSH), Proxmox (SSH)
-
-### 6.2 Instance Updates
-
-- [ ] Replace placeholders in `v5/topology/instances/l1_devices/`
-  - `rtr-mikrotik-chateau.yaml`: real MACs, serial
-  - `rtr-slate.yaml`: real MACs, serial
-  - `srv-gamayun.yaml`: real MACs, serial
-  - `srv-orangepi5.yaml`: real MACs, serial
-
-### 6.3 Enable E6806 Enforcement
-
-- [ ] Update `instance_placeholder_validator.py` enforcement mode
-- [ ] Verify no unresolved `@required:*` placeholders remain
+- [ ] MikroTik Terraform output is generated in `v5-generated/terraform/mikrotik/`.
+- [ ] parity gate is green (or only approved diffs remain).
 
 ---
 
-## Phase 7: Integration and Validation
+## Phase 5: Ansible Inventory Generator and Runtime Assembly
 
-**Duration estimate:** 1 week
-**Prerequisite:** Phases 2-6
-**Deliverables:**
+**Duration estimate:** 1 week  
+**Prerequisite:** Phase 2
 
-### 7.1 V4/V5 Parity Gate
+### 5.1 Generator Implementation
 
-- [ ] Create unified parity test suite
-- [ ] Document all intentional differences
-- [ ] Add CI job for parity validation
+- [ ] Create `v5/topology-tools/plugins/generators/ansible_inventory_generator.py`.
+- [ ] Generate:
+  - `hosts.yml`
+  - `group_vars/all.yml`
+  - `host_vars/*.yml`
 
-### 7.2 End-to-End Workflow
+### 5.2 Runtime Assembly (ADR 0051 Compliance)
 
-- [ ] Test full pipeline: `compile-topology.py` → generators → artifacts
-- [ ] Validate generated Terraform with `terraform validate`
-- [ ] Validate generated Ansible with `ansible-inventory --list`
+- [ ] Implement runtime inventory assembly flow for environment-specific materialization.
+- [ ] Keep secrets externalized; committed inventory remains safe placeholders/examples.
 
-### 7.3 Deployment Dry-Run
+### 5.3 Parity and Validation
 
-- [ ] `terraform plan` against test environment
-- [ ] Ansible `--check` mode validation
-- [ ] Document any blockers
+- [ ] Add `v5/tests/plugin_regression/test_ansible_inventory_parity.py`.
+- [ ] Validate generated inventory with `ansible-inventory --list`.
+
+### Phase 5 Definition of Done
+
+- [ ] Ansible inventory output is generated in `v5-generated/ansible/inventory/production/`.
+- [ ] parity and inventory validation are green.
 
 ---
 
-## Phase 8: Documentation and Cutover
+## Phase 6: Bootstrap Generators
 
-**Duration estimate:** 3 days
-**Prerequisite:** Phase 7
-**Deliverables:**
+**Duration estimate:** 1 week  
+**Prerequisite:** Phases 3-5
 
-### 8.1 Update CLAUDE.md
+### 6.1 Proxmox Bootstrap
 
-- [ ] Make v5 primary lane for new work
-- [ ] Document v5 workflow commands
-- [ ] Mark v4 as maintenance-only
+- [ ] Create `v5/topology-tools/plugins/generators/bootstrap_proxmox_generator.py`.
+- [ ] Generate:
+  - `answer.toml.example`
+  - post-install scripts package
+  - README/run instructions
 
-### 8.2 Operational Runbook
+### 6.2 MikroTik Bootstrap
 
-- [ ] Create `v5/docs/DEPLOYMENT.md`
-- [ ] Document secret management workflow
-- [ ] Document rollback procedures
+- [ ] Create `v5/topology-tools/plugins/generators/bootstrap_mikrotik_generator.py`.
+- [ ] Generate:
+  - `init-terraform.rsc`
+  - `backup-restore-overrides.rsc`
+  - `terraform.tfvars.example`
 
-### 8.3 ADR Updates
+### 6.3 Orange Pi Bootstrap
 
-- [ ] Create ADR for v5 generator architecture
-- [ ] Update ADR 0062 with cutover milestone
-- [ ] Archive superseded v4 ADRs
+- [ ] Create `v5/topology-tools/plugins/generators/bootstrap_orangepi_generator.py`.
+- [ ] Generate:
+  - cloud-init `user-data.example`
+  - `meta-data`
+  - README
+
+### Phase 6 Definition of Done
+
+- [ ] bootstrap artifacts are generated under `v5-generated/bootstrap/<device-id>/`.
+- [ ] all committed bootstrap outputs are release-safe (no real secrets).
+
+---
+
+## Phase 7: Hardware Identity Capture and Placeholder Closure
+
+**Duration estimate:** 3-4 days  
+**Prerequisite:** Can run in parallel after Phase 3 starts
+
+### 7.1 Discovery Utility
+
+- [ ] Create `v5/topology-tools/discover-hardware-identity.py`:
+  - SSH/API collection for MAC and serial where available
+  - YAML patch output for instance shard updates
+
+### 7.2 Instance Updates
+
+- [ ] Replace placeholder identities in `v5/topology/instances/l1_devices/` where still unresolved.
+- [ ] Ensure identity fields satisfy ADR0068 format rules.
+
+### 7.3 Enforcement Gate
+
+- [ ] Keep `E6806` enforcement mode in strict mode.
+- [ ] Add CI check that blocks unresolved placeholder markers in strict profiles.
+
+### Phase 7 Definition of Done
+
+- [ ] no unresolved placeholder markers remain in strict-gated instance shards.
+- [ ] identity capture process is repeatable and documented.
+
+---
+
+## Phase 8: Integration, CI Hardening, and Cutover
+
+**Duration estimate:** 1 week  
+**Prerequisite:** Phases 3-7
+
+### 8.1 Unified End-to-End Gate
+
+- [ ] Add E2E workflow:
+  - compile topology
+  - run generator plugins
+  - run Terraform validation
+  - run Ansible inventory validation
+
+### 8.2 Deployment Dry-Run
+
+- [ ] Execute `terraform plan` in test environment for both targets.
+- [ ] Execute Ansible `--check` on representative hosts.
+- [ ] Record blockers and rollback actions.
+
+### 8.3 Documentation and ADR Updates
+
+- [ ] Update `README.md` and `README-РУССКИЙ.md` with v5 deploy workflow.
+- [ ] Update `v5/topology-tools/docs/MANUAL-ARTIFACT-BUILD.md` with new artifact roots.
+- [ ] Create ADR for v5 generator architecture and update ADR cutover milestones.
+- [ ] Mark v4 lane as maintenance-only once v5 deployment gate is stable.
+
+### Phase 8 Definition of Done
+
+- [ ] v5 lane is operational for deployable artifacts.
+- [ ] CI gate is fully green on plugin/generator/parity checks.
+- [ ] runbook and rollback docs are complete.
+
+---
+
+## Cross-Phase Quality Gates
+
+| Gate | Required In |
+|------|-------------|
+| `make validate-v5` green | Every phase entry |
+| Plugin manifest schema validation | Every plugin change |
+| Deterministic output test | All generators |
+| Parity tests vs v4 baseline | Phases 3-6 |
+| Terraform `fmt` + `validate` | Phases 3-4, Phase 8 |
+| `ansible-inventory --list` | Phase 5, Phase 8 |
+| Secret-safe artifact scan | Phases 6-8 |
 
 ---
 
 ## Success Criteria
 
-1. **Generator Parity:** v5 generates equivalent Terraform/Ansible to v4
-2. **No Placeholders:** All instance files have real hardware identities
-3. **CI Green:** All parity and integration tests pass
-4. **Deployable:** `terraform apply` and `ansible-playbook` succeed on real hardware
+1. **Generator parity:** v5 emits Terraform/Ansible/bootstrap outputs equivalent to v4 baseline (except approved diffs).
+2. **Deterministic artifacts:** repeated runs produce stable outputs.
+3. **Strict placeholder compliance:** unresolved placeholder markers are blocked in strict mode.
+4. **Deployable workflow:** `terraform plan/apply` and Ansible runs succeed in test environment using v5-generated artifacts.
+5. **Operational cutover:** v5 is default lane for new deployment work; v4 remains maintenance-only.
 
 ---
 
@@ -290,34 +373,34 @@ This plan delivers v5 generator plugins to achieve deployment parity with v4.
 
 | Risk | Mitigation |
 |------|------------|
-| Template incompatibility | Maintain v4 templates as reference; incremental porting |
-| Model structure mismatch | Create mapping layer in generator plugins |
-| Secret leakage | Add secret detection to CI; use placeholders in committed files |
-| Regression in v4 | Keep v4 frozen; no changes during v5 development |
+| Baseline instability delays generator work | Mandatory Phase 0 gate; no generator implementation before green baseline |
+| Template incompatibility | Projection layer + incremental migration with per-generator parity tests |
+| Hidden schema drift in compiled model | Projection contract tests with snapshot/golden coverage |
+| Secret leakage in generated outputs | Example-only committed artifacts + CI scanning |
+| v4 regression during migration | Freeze v4 logic; use v4 outputs as reference baseline only |
 
 ---
 
 ## Dependencies
 
 ```
-Phase 1 (Framework)
-    ├── Phase 2 (Proxmox TF)
-    ├── Phase 3 (MikroTik TF)
-    └── Phase 4 (Ansible)
-            └── Phase 5 (Bootstrap)
-                    └── Phase 7 (Integration)
-                            └── Phase 8 (Cutover)
+Phase 0 (Baseline)
+    └── Phase 1 (Generator SDK)
+            └── Phase 2 (Projection Layer)
+                    ├── Phase 3 (Terraform Proxmox)
+                    ├── Phase 4 (Terraform MikroTik)
+                    └── Phase 5 (Ansible)
+                            └── Phase 6 (Bootstrap)
+                                    └── Phase 8 (Integration/Cutover)
 
-Phase 6 (Hardware) ──────────────────┘
+Phase 7 (Hardware Identity) ─────────────┘
 ```
-
-Phase 6 can run in parallel with Phases 2-5.
 
 ---
 
 ## Tracking
 
-Progress will be tracked in:
-- GitHub Issues (one per phase)
-- This document (checkbox updates)
-- ADR status updates as milestones complete
+Progress is tracked in:
+- GitHub Issues (one issue per phase + sub-task checklist)
+- this document (checkbox updates + DoD status)
+- ADR status updates at milestone completion

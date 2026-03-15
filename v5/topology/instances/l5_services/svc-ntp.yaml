@@ -8,4 +8,4 @@ status: mapped
 notes: module scaffold exists; runtime-specific behavior tuning pending
 runtime:
   type: baremetal
-  target_ref: mikrotik-chateau
+  target_ref: rtr-mikrotik-chateau
