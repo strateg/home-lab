@@ -2,7 +2,9 @@
 
 **ADR:** `adr/0068-object-yaml-as-instance-template-with-explicit-overrides.md`
 **Date:** 2026-03-10
+**Updated:** 2026-03-15
 **Status:** In Progress (runtime implemented; topology-wide migration ongoing)
+**Operator Guide:** `adr/0068-analysis/OPERATOR-WORKFLOW.md`
 
 ---
 
