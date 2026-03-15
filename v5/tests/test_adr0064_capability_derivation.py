@@ -48,7 +48,7 @@ def test_compiler_succeeds(effective_topology: dict) -> None:
 
 
 def test_firmware_capabilities_derived(effective_topology: dict) -> None:
-    device = _find_instance(effective_topology, "mikrotik-chateau")
+    device = _find_instance(effective_topology, "rtr-mikrotik-chateau")
     derived_caps = device.get("instance", {}).get("derived_capabilities", [])
 
     expected_firmware_caps = [
@@ -62,7 +62,7 @@ def test_firmware_capabilities_derived(effective_topology: dict) -> None:
 
 
 def test_os_capabilities_derived(effective_topology: dict) -> None:
-    device = _find_instance(effective_topology, "mikrotik-chateau")
+    device = _find_instance(effective_topology, "rtr-mikrotik-chateau")
     derived_caps = device.get("instance", {}).get("derived_capabilities", [])
 
     expected_os_caps = [
@@ -76,7 +76,7 @@ def test_os_capabilities_derived(effective_topology: dict) -> None:
 
 
 def test_effective_software_populated(effective_topology: dict) -> None:
-    device = _find_instance(effective_topology, "mikrotik-chateau")
+    device = _find_instance(effective_topology, "rtr-mikrotik-chateau")
     effective_software = device.get("instance", {}).get("effective_software", {})
 
     firmware = effective_software.get("firmware")
@@ -90,13 +90,21 @@ def test_effective_software_populated(effective_topology: dict) -> None:
 
 
 def test_firmware_ref_os_refs_present(effective_topology: dict) -> None:
+    # Skip non-compute entities (cables, passive components)
+    skip_prefixes = ("inst.ethernet_cable", "inst.cable", "inst.patch")
+
     for inst in effective_topology["instances"].get("l1_devices", []):
         instance_data = inst.get("instance", {})
+        instance_name = inst.get("source_id") or inst.get("instance")
+
+        # Skip passive components that don't have firmware
+        if any(instance_name.startswith(prefix) for prefix in skip_prefixes):
+            continue
+
         firmware_ref = instance_data.get("firmware_ref")
         os_refs = instance_data.get("os_refs", [])
         class_data = inst.get("class", {})
         os_policy = class_data.get("os_policy", "allowed")
-        instance_name = inst.get("source_id") or inst.get("instance")
 
         assert firmware_ref, f"{instance_name} missing firmware_ref"
         if os_policy == "required":
@@ -106,7 +114,7 @@ def test_firmware_ref_os_refs_present(effective_topology: dict) -> None:
 
 
 def test_arch_from_firmware_only(effective_topology: dict) -> None:
-    device = _find_instance(effective_topology, "mikrotik-chateau")
+    device = _find_instance(effective_topology, "rtr-mikrotik-chateau")
     derived_caps = device.get("instance", {}).get("derived_capabilities", [])
     arch_caps = [cap for cap in derived_caps if cap.startswith("cap.arch.")]
 

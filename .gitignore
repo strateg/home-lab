@@ -133,6 +133,8 @@ ansible/inventory-overrides/*/host_vars/*-secrets.yml
 Desktop.ini
 Thumbs.db
 __pycache__/
+.venv/
+.pytest_cache/
 api_keys.txt
 backups/
 build/
