@@ -41,6 +41,7 @@ repos:
           bootstrap/.*|
           configs/vpn/.*|
           docs/guides/.*|
+          secrets/.*\.yaml$|
           MIGRATION\.md|
           \.secrets\.baseline
         )$
@@ -81,3 +82,9 @@ repos:
     #   args: ["--topology", "v4/topology.yaml"]
     #   language: system
     #   pass_filenames: false
+    - id: sops-encryption-check
+      name: Verify SOPS encryption
+      entry: bash -c 'for f in secrets/{hardware,terraform,ansible,bootstrap}/*.yaml 2>/dev/null; do [ -f "$f" ] && grep -q "^sops:" "$f" || { echo "ERROR: $f is not encrypted!"; exit 1; }; done; exit 0'
+      language: system
+      files: ^secrets/.*\.yaml$
+      pass_filenames: false

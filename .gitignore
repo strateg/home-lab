@@ -135,6 +135,11 @@ Thumbs.db
 __pycache__/
 .venv/
 .pytest_cache/
+
+# SOPS/age temporary files
+keys.txt
+*.dec.yaml
+*.dec.json
 api_keys.txt
 backups/
 build/
