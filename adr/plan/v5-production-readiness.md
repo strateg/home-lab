@@ -49,9 +49,9 @@ This revised plan adds:
 
 ### 0.2 Runtime/Output Contract Freeze
 
-- [ ] Define artifact target roots for v5 generators (`v5-generated/...`) and keep `v5-build/...` for compiler artifacts/diagnostics.
-- [ ] Add an explicit generator output root config contract to plugin context.
-- [ ] Keep backward-compatible CLI behavior while introducing explicit generator artifact root wiring.
+- [x] Define artifact target roots for v5 generators (`v5-generated/...`) and keep `v5-build/...` for compiler artifacts/diagnostics.
+- [x] Add an explicit generator output root config contract to plugin context.
+- [x] Keep backward-compatible CLI behavior while introducing explicit generator artifact root wiring.
 
 ### 0.3 Baseline Gate
 
@@ -75,7 +75,7 @@ This revised plan adds:
 
 ### 1.1 Generator Base Infrastructure
 
-- [ ] Create `v5/topology-tools/plugins/generators/base_generator.py`:
+- [x] Create `v5/topology-tools/plugins/generators/base_generator.py`:
   - shared Jinja2 environment/bootstrap
   - deterministic collection ordering helpers
   - atomic file write helper (tmp + rename)
@@ -86,7 +86,7 @@ This revised plan adds:
   - order: after `effective_json`/`effective_yaml`
   - input: `ctx.compiled_json` (authoritative), not disk file reads
 
-- [ ] Add tests:
+- [x] Add tests:
   - `v5/tests/plugin_integration/test_generator_base.py`
   - deterministic output order test
   - atomic write behavior test

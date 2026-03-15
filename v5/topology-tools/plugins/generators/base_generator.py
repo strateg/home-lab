@@ -1,0 +1,63 @@
+"""Shared utilities for generator plugins."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
+
+from kernel.plugin_base import GeneratorPlugin, PluginContext
+
+
+class BaseGenerator(GeneratorPlugin):
+    """Common helper methods for generator plugins."""
+
+    _template_env: Environment | None = None
+    _template_root: Path | None = None
+
+    def artifacts_root(self, ctx: PluginContext) -> Path:
+        value = ctx.config.get("generator_artifacts_root")
+        if isinstance(value, str) and value.strip():
+            return Path(value)
+        if isinstance(ctx.output_dir, str) and ctx.output_dir:
+            return Path(ctx.output_dir)
+        return Path.cwd()
+
+    def resolve_output_path(self, ctx: PluginContext, *parts: str) -> Path:
+        return self.artifacts_root(ctx).joinpath(*parts)
+
+    @staticmethod
+    def write_text_atomic(path: Path, content: str, *, encoding: str = "utf-8") -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = path.parent / f".{path.name}.tmp"
+        tmp_path.write_text(content, encoding=encoding)
+        tmp_path.replace(path)
+
+    @staticmethod
+    def sort_records(records: list[dict[str, Any]], *, key: str) -> list[dict[str, Any]]:
+        return sorted(records, key=lambda item: str(item.get(key, "")))
+
+    def template_root(self, ctx: PluginContext) -> Path:
+        raw = ctx.config.get("generator_templates_root")
+        if isinstance(raw, str) and raw.strip():
+            return Path(raw)
+        return Path("v5/topology-tools/templates")
+
+    def template_env(self, ctx: PluginContext) -> Environment:
+        root = self.template_root(ctx)
+        if self._template_env is None or self._template_root != root:
+            self._template_root = root
+            self._template_env = Environment(
+                loader=FileSystemLoader(str(root)),
+                autoescape=False,
+                trim_blocks=True,
+                lstrip_blocks=True,
+                keep_trailing_newline=True,
+                undefined=StrictUndefined,
+            )
+        return self._template_env
+
+    def render_template(self, ctx: PluginContext, template_name: str, context: dict[str, Any]) -> str:
+        template = self.template_env(ctx).get_template(template_name)
+        return template.render(**context)
