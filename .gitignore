@@ -170,3 +170,4 @@ temp/
 terraform.rc
 user-data-*.yml
 .cache
+Заметки/hardware_info.txt
