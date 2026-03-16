@@ -324,27 +324,98 @@ sops:
             ...
 ```
 
-### 7. Compile-Time Secret Resolution
+### 7. v5 Compiler Integration
 
-The v5 compiler will support secret injection:
+#### 7.1 SecretsOverlayCompiler Plugin
 
-```bash
-# Option A: Decrypt at compile time
-sops -d secrets/hardware/rtr-mikrotik-chateau.yaml | \
-  python3 v5/topology-tools/compile-topology.py --hardware-overlay -
+The v5 topology compiler resolves secrets through a dedicated `SecretsOverlayCompiler` plugin that runs after instance loading but before effective model assembly.
 
-# Option B: Compiler with SOPS integration
-python3 v5/topology-tools/compile-topology.py --secrets-dir secrets/
+**Plugin registration** (`plugins.yaml`):
+```yaml
+- id: base.compiler.secrets_overlay
+  kind: compiler
+  entry: compilers/secrets_overlay_compiler.py:SecretsOverlayCompiler
+  api_version: "1.x"
+  stages: [compile]
+  order: 42  # After instance_rows (40), before capability_contract_loader (45)
+  depends_on: [base.compiler.instance_rows]
+  config:
+    secrets_root: secrets/hardware
+    mode: inject  # inject | passthrough
+    require_unlock: true
 ```
 
-Instance files reference secrets by path:
+#### 7.2 Resolution Modes
+
+| Mode | CLI Flag | Behavior |
+|------|----------|----------|
+| inject | `--secrets-mode inject` | Decrypt SOPS secrets, merge into instances |
+| passthrough | `--secrets-mode passthrough` | Skip secret resolution, retain placeholders |
+| strict | `--secrets-mode strict` | Require all hardware identities resolved |
+
+**Usage:**
+```bash
+# With secrets (requires unlocked SOPS)
+python3 v5/topology-tools/compile-topology.py --secrets-mode inject
+
+# Without secrets (CI, dry-run)
+python3 v5/topology-tools/compile-topology.py --secrets-mode passthrough
+```
+
+#### 7.3 Instance-Secret Matching
+
+Secrets are matched by instance ID convention (implicit matching):
+
+```
+v5/topology/instances/l1_devices/rtr-mikrotik-chateau.yaml
+  └── instance: rtr-mikrotik-chateau
+        ↓ matches by filename
+secrets/hardware/rtr-mikrotik-chateau.yaml
+  └── instance: rtr-mikrotik-chateau  # Must match
+```
+
+#### 7.4 Merge Behavior
+
+The compiler performs deep-merge with secret values taking precedence:
 
 ```yaml
-# v5/topology/instances/l1_devices/rtr-mikrotik-chateau.yaml
-instance: rtr-mikrotik-chateau
+# Instance (placeholder):
 hardware_identity:
-  _secret_ref: secrets/hardware/rtr-mikrotik-chateau.yaml
+  serial_number: <TODO_SERIAL_NUMBER>
+  mac_addresses:
+    ether1: "02:AA:00:00:00:01"
+
+# Secret (real values):
+hardware_identity:
+  serial_number: "ABC123XYZ"
+  mac_addresses:
+    ether1: "AA:BB:CC:DD:EE:01"
+
+# Merged result:
+hardware_identity:
+  serial_number: "ABC123XYZ"           # From secret
+  mac_addresses:
+    ether1: "AA:BB:CC:DD:EE:01"        # From secret
 ```
+
+#### 7.5 Secret Categories and Resolution Timing
+
+| Category | Directory | Resolution | Output Artifact |
+|----------|-----------|------------|-----------------|
+| Hardware Identity | `secrets/hardware/` | Compile-time | Generated Terraform, Ansible |
+| Terraform Credentials | `secrets/terraform/` | Apply-time | `.work/native/terraform/*/terraform.tfvars` |
+| Ansible Secrets | `secrets/ansible/` | Run-time | SOPS lookup in playbooks |
+| Bootstrap Secrets | `secrets/bootstrap/` | Manual | USB installer |
+
+Hardware identities are **compile-time secrets** because:
+1. MAC addresses are needed in Terraform MikroTik DHCP reservations
+2. Serial numbers are needed in Ansible inventory for asset tracking
+3. These values are static and part of infrastructure definition
+
+Credentials are **runtime secrets** because:
+1. API tokens should not be embedded in generated files
+2. Passwords may rotate independently of infrastructure
+3. Reduced blast radius if generated files are exposed
 
 ### 8. Ansible Integration
 
@@ -373,17 +444,65 @@ terraform-apply-proxmox:
 
 ### 10. CI/CD Integration
 
-For GitHub Actions:
+#### 10.1 GitHub Actions with Compile-Time Secrets
 
 ```yaml
 # .github/workflows/deploy.yml
 env:
-  SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+  DEVKEY_PASSPHRASE: ${{ secrets.DEVKEY_PASSPHRASE }}
 
-steps:
-  - name: Decrypt secrets
-    run: sops -d secrets/terraform/proxmox.yaml > /tmp/secrets.yaml
+jobs:
+  compile-and-deploy:
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y age
+          wget -q https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -O sops
+          chmod +x sops && sudo mv sops /usr/local/bin/
+
+      - name: Unlock secrets
+        run: |
+          mkdir -p ~/.config/sops/age
+          echo "$DEVKEY_PASSPHRASE" | age -d secrets/devkey.age > ~/.config/sops/age/keys.txt
+          chmod 600 ~/.config/sops/age/keys.txt
+
+      - name: Compile with secrets
+        run: python3 v5/topology-tools/compile-topology.py --secrets-mode inject
+
+      - name: Generate Terraform
+        run: |
+          python3 v5/topology-tools/generate-terraform-proxmox.py
+          ./scripts/generate-tfvars.sh proxmox
+
+      - name: Terraform Apply
+        run: |
+          cd .work/native/terraform/proxmox
+          terraform init && terraform apply -auto-approve
+
+      - name: Lock secrets
+        if: always()
+        run: shred -u ~/.config/sops/age/keys.txt 2>/dev/null || true
+
+  validate-only:
+    # No secrets needed for validation
+    steps:
+      - name: Compile (passthrough)
+        run: python3 v5/topology-tools/compile-topology.py --secrets-mode passthrough
+
+      - name: Validate schema
+        run: python3 v5/topology-tools/validate-topology.py
 ```
+
+#### 10.2 Secret Scopes in CI/CD
+
+| Job Type | Secrets Mode | Requires DEVKEY_PASSPHRASE |
+|----------|--------------|---------------------------|
+| Validate | passthrough | No |
+| Plan | inject | Yes |
+| Apply | inject | Yes |
+| Docs generation | passthrough | No |
 
 ---
 
