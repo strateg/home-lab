@@ -1,7 +1,7 @@
 # ADR 0072: Unified Secrets Management with SOPS and age
 
 **Date:** 2026-03-15
-**Status:** Proposed
+**Status:** Implemented
 **Supersedes:** ADR 0051 (secret storage sections), ADR 0054 (secret-bearing local inputs)
 
 ---
