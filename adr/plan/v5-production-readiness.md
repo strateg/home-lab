@@ -81,7 +81,7 @@ This revised plan adds:
   - atomic file write helper (tmp + rename)
   - standardized generated-file manifest output
 
-- [ ] Add generator plugin contract conventions to `v5/topology-tools/plugins/plugins.yaml`:
+- [x] Add generator plugin contract conventions to `v5/topology-tools/plugins/plugins.yaml`:
   - stage: `generate`
   - order: after `effective_json`/`effective_yaml`
   - input: `ctx.compiled_json` (authoritative), not disk file reads
@@ -93,13 +93,13 @@ This revised plan adds:
 
 ### 1.2 Template Migration Inventory (Corrected Scope)
 
-- [ ] Inventory v4 templates for migration:
+- [x] Inventory v4 templates for migration:
   - `terraform/proxmox`: `provider`, `versions`, `bridges`, `vms`, `lxc`, `variables`, `outputs`, `terraform.tfvars.example`
   - `terraform/mikrotik`: `provider`, `interfaces`, `firewall`, `dhcp`, `dns`, `addresses`, `qos`, `vpn`, `containers`, `variables`, `outputs`
   - `ansible`: `hosts`, `group_vars_all`, `host_vars`
   - `bootstrap/*`: proxmox, mikrotik, orangepi5
 
-- [ ] Create v5 template layout:
+- [x] Create v5 template layout:
   - `v5/topology-tools/templates/terraform/proxmox/`
   - `v5/topology-tools/templates/terraform/mikrotik/`
   - `v5/topology-tools/templates/ansible/`
@@ -107,9 +107,9 @@ This revised plan adds:
 
 ### Phase 1 Definition of Done
 
-- [ ] generator base is used by at least one real generator plugin.
-- [ ] generator output contract is test-covered.
-- [ ] template inventory + mapping matrix is documented.
+- [x] generator base is used by at least one real generator plugin.
+- [x] generator output contract is test-covered.
+- [x] template inventory + mapping matrix is documented.
 
 ---
 
