@@ -210,6 +210,24 @@ plugins:
     description: Validates ADR0068 @required/@optional placeholders and instance_overrides.
 
   # Generator plugins (run in generate stage)
+  #
+  # Generator Plugin Contract Conventions:
+  # --------------------------------------
+  # - stage: generate
+  # - order: 190-199 for core generators (effective_json, effective_yaml)
+  #          200-299 for infrastructure generators (terraform, ansible)
+  #          300-399 for bootstrap generators
+  # - input: ctx.compiled_json (authoritative compiled model)
+  # - output: files written to artifacts_root via base_generator helpers
+  # - depends_on: typically [] (generators are independent after compile stage)
+  #
+  # Template-based generators should:
+  # 1. Extend BaseGenerator from generators/base_generator.py
+  # 2. Build projection view from ctx.compiled_json (not raw topology)
+  # 3. Use render_template() with projection as context
+  # 4. Use write_text_atomic() for deterministic file writes
+  # 5. Use sort_records() for stable output ordering
+  #
   - id: base.generator.effective_json
     kind: generator
     entry: generators/effective_json_generator.py:EffectiveJsonGenerator
