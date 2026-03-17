@@ -24,13 +24,13 @@ This repository uses **SOPS + age** for unified secrets management. All sensitiv
 ┌─────────────────────────────────────────────────────────────┐
 │                    REPOSITORY (tracked)                     │
 │                                                             │
-│  secrets/master.key.age ◄──── age private key (encrypted)  │
+│  secrets/devkey.age ◄────── age private key (encrypted)    │
 │         │                                                   │
 │         │ unlocks                                           │
 │         ▼                                                   │
-│  secrets/hardware/*.yaml ◄──── hardware identities          │
-│  secrets/terraform/*.yaml ◄─── terraform credentials        │
-│  secrets/ansible/*.yaml ◄───── ansible secrets              │
+│  secrets/instances/*.yaml ◄── instance secrets (side-car)  │
+│  secrets/terraform/*.yaml ◄── terraform credentials        │
+│  secrets/ansible/*.yaml ◄──── ansible secrets              │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -85,7 +85,7 @@ Before working with encrypted files:
 # Enter your passphrase when prompted
 ```
 
-This decrypts the master key to `~/.config/sops/age/keys.txt`.
+This decrypts the devkey to `~/.config/sops/age/keys.txt`.
 
 **Verification:**
 ```bash
@@ -98,7 +98,7 @@ ls -la ~/.config/sops/age/keys.txt
 #### View decrypted content
 
 ```bash
-sops -d secrets/hardware/rtr-mikrotik-chateau.yaml
+sops -d secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 #### Edit encrypted file
@@ -106,7 +106,7 @@ sops -d secrets/hardware/rtr-mikrotik-chateau.yaml
 Opens in your `$EDITOR` with decrypted content, re-encrypts on save:
 
 ```bash
-sops secrets/hardware/rtr-mikrotik-chateau.yaml
+sops secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 #### Encrypt a new file
@@ -142,21 +142,25 @@ This securely deletes the plaintext key from `~/.config/sops/age/keys.txt`.
 
 ```
 secrets/
-├── .sops.yaml              # SOPS configuration (public key)
-├── master.key.age          # Encrypted master key (passphrase-protected)
-├── master.key.pub          # Public key (for reference)
-├── hardware/               # Hardware identities
+├── .sops.yaml              # SOPS configuration (age recipients)
+├── devkey.age              # Dev key (daily operations, passphrase-protected)
+├── devkey.pub              # Dev public key
+├── masterkey.age           # Recovery key (offline backup, passphrase-protected)
+├── masterkey.pub           # Recovery public key
+├── instances/              # Instance-level secrets (side-car files)
 │   ├── rtr-mikrotik-chateau.yaml
 │   ├── rtr-slate.yaml
 │   ├── srv-gamayun.yaml
 │   └── srv-orangepi5.yaml
 ├── terraform/              # Terraform credentials
-│   └── .gitkeep
+│   ├── proxmox.yaml
+│   └── mikrotik.yaml
 ├── ansible/                # Ansible secrets
-│   └── .gitkeep
+│   └── vault.yaml
 └── bootstrap/              # Bootstrap secrets
-    └── .gitkeep
 ```
+
+Each file in `secrets/instances/` corresponds to an instance in `v5/topology/instances/` by matching `instance` ID. The compiler merges decrypted side-car values into instance rows, replacing `<TODO_*>` placeholders.
 
 ---
 
@@ -175,7 +179,7 @@ ssh admin@192.168.88.1
 
 Copy values to secrets file:
 ```bash
-sops secrets/hardware/rtr-mikrotik-chateau.yaml
+sops secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 ### GL.iNet (OpenWrt)
@@ -250,7 +254,7 @@ sops -e -i secrets/path/to/file.yaml
 ### Forgot passphrase
 
 **Recovery:** Not possible. You must:
-1. Generate new master key
+1. Generate new devkey
 2. Re-collect all secrets from source systems
 3. Re-encrypt with new key
 
@@ -260,18 +264,18 @@ sops -e -i secrets/path/to/file.yaml
 
 ## Key Rotation
 
-Rotate the master key periodically or if compromised:
+Rotate the devkey periodically or if compromised:
 
 ```bash
 # 1. Unlock with current passphrase
 ./scripts/unlock-secrets.sh
 
 # 2. Generate new keypair
-age-keygen > /tmp/new-master.key
-NEW_PUB=$(grep "public key:" /tmp/new-master.key | cut -d: -f2 | tr -d ' ')
+age-keygen > /tmp/new-devkey.key
+NEW_PUB=$(grep "public key:" /tmp/new-devkey.key | cut -d: -f2 | tr -d ' ')
 
 # 3. Re-encrypt all secrets with new key
-for f in secrets/{hardware,terraform,ansible,bootstrap}/*.yaml; do
+for f in secrets/{instances,terraform,ansible,bootstrap}/*.yaml; do
     [ -f "$f" ] || continue
     sops -d "$f" | sops -e --age "$NEW_PUB" /dev/stdin > "$f.new"
     mv "$f.new" "$f"
@@ -281,18 +285,18 @@ done
 sed -i "s/age1.*/$NEW_PUB/" secrets/.sops.yaml
 
 # 5. Encrypt new key with NEW passphrase
-age -p -o secrets/master.key.age /tmp/new-master.key
-echo "$NEW_PUB" > secrets/master.key.pub
+age -p -o secrets/devkey.age /tmp/new-devkey.key
+echo "$NEW_PUB" > secrets/devkey.pub
 
 # 6. Cleanup
-shred -u /tmp/new-master.key
+shred -u /tmp/new-devkey.key
 
 # 7. Lock old session
 ./scripts/lock-secrets.sh
 
 # 8. Commit
 git add secrets/
-git commit -m "chore(secrets): rotate master key"
+git commit -m "chore(secrets): rotate devkey"
 ```
 
 ---
@@ -301,12 +305,12 @@ git commit -m "chore(secrets): rotate master key"
 
 ### GitHub Actions
 
-Add single secret `MASTER_KEY_PASSPHRASE` to repository secrets.
+Add single secret `DEVKEY_PASSPHRASE` to repository secrets.
 
 ```yaml
 # .github/workflows/deploy.yml
 env:
-  MASTER_KEY_PASSPHRASE: ${{ secrets.MASTER_KEY_PASSPHRASE }}
+  DEVKEY_PASSPHRASE: ${{ secrets.DEVKEY_PASSPHRASE }}
 
 jobs:
   deploy:
@@ -322,17 +326,16 @@ jobs:
       - name: Unlock secrets
         run: |
           mkdir -p ~/.config/sops/age
-          echo "$MASTER_KEY_PASSPHRASE" | age -d secrets/master.key.age > ~/.config/sops/age/keys.txt
+          echo "$DEVKEY_PASSPHRASE" | age -d secrets/devkey.age > ~/.config/sops/age/keys.txt
           chmod 600 ~/.config/sops/age/keys.txt
 
-      - name: Use secrets
+      - name: Compile with secrets
         run: |
-          sops -d secrets/terraform/proxmox.yaml > /tmp/proxmox.yaml
-          # ... use decrypted secrets
+          python v5/topology-tools/compile-topology.py --secrets-mode inject
 
       - name: Cleanup
         if: always()
-        run: rm -f ~/.config/sops/age/keys.txt /tmp/*.yaml
+        run: rm -f ~/.config/sops/age/keys.txt
 ```
 
 ---
@@ -369,10 +372,12 @@ jobs:
 |------|---------|
 | Unlock secrets | `./scripts/unlock-secrets.sh` |
 | Lock secrets | `./scripts/lock-secrets.sh` |
-| View file | `sops -d secrets/path/file.yaml` |
-| Edit file | `sops secrets/path/file.yaml` |
-| Encrypt new file | `sops -e -i secrets/path/file.yaml` |
+| View file | `sops -d secrets/instances/rtr-mikrotik-chateau.yaml` |
+| Edit file | `sops secrets/instances/rtr-mikrotik-chateau.yaml` |
+| Encrypt new file | `sops -e -i secrets/instances/new-device.yaml` |
 | Check status | `ls ~/.config/sops/age/keys.txt` |
+| Compile with secrets | `python v5/topology-tools/compile-topology.py --secrets-mode inject` |
+| Compile without secrets | `python v5/topology-tools/compile-topology.py --secrets-mode passthrough` |
 
 ---
 

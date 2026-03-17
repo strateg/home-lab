@@ -1,7 +1,8 @@
-"""Instance rows normalization compiler plugin (ADR 0069 WS2/WS3)."""
+"""Instance rows normalization compiler plugin (ADR 0069 WS2/WS3, ADR 0072 side-car secrets)."""
 
 from __future__ import annotations
 
+import copy
 import re
 import subprocess
 import sys
@@ -57,16 +58,16 @@ class InstanceRowsCompiler(CompilerPlugin):
             return normalized
         return "passthrough"
 
-    def _collect_unresolved_hardware_identity_paths(self, row: dict[str, Any]) -> list[str]:
-        hardware_identity = row.get("hardware_identity")
-        if not isinstance(hardware_identity, dict):
-            return []
-
+    def _collect_all_placeholder_paths(self, row: dict[str, Any]) -> list[str]:
+        """Walk entire row and collect paths to all <TODO_*> placeholders."""
         unresolved: list[str] = []
 
         def walk(node: Any, path: str) -> None:
             if isinstance(node, dict):
                 for key, value in node.items():
+                    # Skip reserved/metadata keys
+                    if key in ("sops", "_source_file"):
+                        continue
                     child_path = f"{path}.{key}" if path else str(key)
                     walk(value, child_path)
                 return
@@ -80,57 +81,50 @@ class InstanceRowsCompiler(CompilerPlugin):
             if self._TODO_MARKER_RE.fullmatch(node):
                 unresolved.append(path)
 
-        walk(hardware_identity, "hardware_identity")
+        walk(row, "")
         return unresolved
 
-    def _decrypt_row_from_source(
+    def _decrypt_sidecar_file(
         self,
         *,
-        source_path: Path,
+        sidecar_path: Path,
         instance_id: str,
         stage: Stage,
         diagnostics: list[PluginDiagnostic],
-        path_hint: str,
+        row_path: str,
+        mode: str,
     ) -> dict[str, Any] | None:
-        if not source_path.exists() or not source_path.is_file():
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E7202",
-                    severity="error",
-                    stage=stage,
-                    message=f"Instance source file not found for secret decryption: {source_path}",
-                    path=path_hint,
-                )
-            )
-            return None
-
-        command = ["sops", "-d", str(source_path)]
+        """Decrypt side-car secrets file using sops."""
+        command = ["sops", "-d", str(sidecar_path)]
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=False)
         except OSError as exc:
+            severity = "error" if mode == "strict" else "warning"
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E7200",
-                    severity="error",
+                    severity=severity,
                     stage=stage,
-                    message=f"Failed to execute sops while decrypting in-place fields for '{instance_id}': {exc}",
-                    path=path_hint,
+                    message=f"Failed to execute sops for side-car secrets '{instance_id}': {exc}",
+                    path=row_path,
                 )
             )
             return None
 
         if result.returncode != 0:
             stderr = (result.stderr or "").strip()
+            severity = "error" if mode == "strict" else "warning"
+            code = "E7201" if mode == "strict" else "W7210"
             diagnostics.append(
                 self.emit_diagnostic(
-                    code="E7201",
-                    severity="error",
+                    code=code,
+                    severity=severity,
                     stage=stage,
                     message=(
-                        f"Failed to decrypt in-place fields for instance '{instance_id}'. "
+                        f"Failed to decrypt side-car secrets for '{instance_id}'. "
                         f"sops exit={result.returncode}. {stderr}"
                     ),
-                    path=path_hint,
+                    path=row_path,
                 )
             )
             return None
@@ -143,8 +137,8 @@ class InstanceRowsCompiler(CompilerPlugin):
                     code="E7203",
                     severity="error",
                     stage=stage,
-                    message=f"Decrypted instance YAML parse failed for '{instance_id}': {exc}",
-                    path=path_hint,
+                    message=f"Side-car YAML parse failed for '{instance_id}': {exc}",
+                    path=row_path,
                 )
             )
             return None
@@ -155,59 +149,114 @@ class InstanceRowsCompiler(CompilerPlugin):
                     code="E7203",
                     severity="error",
                     stage=stage,
-                    message=f"Decrypted instance payload must be object/mapping for '{instance_id}'.",
-                    path=path_hint,
+                    message=f"Side-car payload must be object/mapping for '{instance_id}'.",
+                    path=row_path,
                 )
             )
             return None
 
         return payload
 
-    def _resolve_inplace_secrets(
+    def _merge_placeholders(
         self,
-        *,
         row: dict[str, Any],
+        secrets: dict[str, Any],
         instance_id: str,
         stage: Stage,
         diagnostics: list[PluginDiagnostic],
         row_path: str,
         mode: str,
     ) -> dict[str, Any]:
+        """Deep merge: replace <TODO_*> placeholders with values from decrypted secrets."""
+        result = copy.deepcopy(row)
+
+        def walk_and_replace(target: Any, source: Any, path: str) -> Any:
+            if isinstance(target, dict) and isinstance(source, dict):
+                for key in target:
+                    if key in source:
+                        target[key] = walk_and_replace(target[key], source[key], f"{path}.{key}")
+                return target
+
+            if isinstance(target, str) and self._TODO_MARKER_RE.fullmatch(target):
+                # Target is placeholder - replace with secret value if available
+                if source is not None and not isinstance(source, dict):
+                    return source
+                elif mode == "strict":
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7211",
+                            severity="error",
+                            stage=stage,
+                            message=f"Placeholder '{target}' at '{path}' has no matching secret value.",
+                            path=row_path,
+                        )
+                    )
+                return target
+
+            # Non-placeholder values are preserved unchanged
+            return target
+
+        for key in secrets:
+            if key in ("instance", "sops"):
+                continue
+            if key in result:
+                result[key] = walk_and_replace(result[key], secrets[key], key)
+
+        return result
+
+    def _resolve_sidecar_secrets(
+        self,
+        *,
+        row: dict[str, Any],
+        instance_id: str,
+        secrets_root: Path,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        row_path: str,
+        mode: str,
+    ) -> dict[str, Any]:
+        """Merge decrypted side-car secrets into instance row, replacing placeholders only."""
         if mode == "passthrough":
             return row
 
-        has_sops_metadata = isinstance(row.get("sops"), dict)
-        if not has_sops_metadata:
+        # Look for side-car file
+        sidecar_path = secrets_root / "instances" / f"{instance_id}.yaml"
+        if not sidecar_path.exists():
+            # No side-car file - check if strict mode needs to fail on placeholders
+            if mode == "strict":
+                unresolved = self._collect_all_placeholder_paths(row)
+                if unresolved:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7210",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Strict mode: instance '{instance_id}' has unresolved placeholders "
+                                f"but no side-car secrets file at {sidecar_path.name}. "
+                                f"Placeholders: {', '.join(unresolved[:5])}"
+                                + (f" (+{len(unresolved) - 5} more)" if len(unresolved) > 5 else "")
+                            ),
+                            path=row_path,
+                        )
+                    )
             return row
 
-        source_file = row.get("_source_file")
-        if not isinstance(source_file, str) or not source_file:
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E7207",
-                    severity="error",
-                    stage=stage,
-                    message=(
-                        f"Cannot decrypt in-place fields for instance '{instance_id}': "
-                        "source file path is missing."
-                    ),
-                    path=row_path,
-                )
-            )
-            return row
-
-        decrypted_payload = self._decrypt_row_from_source(
-            source_path=Path(source_file),
+        # Decrypt side-car file
+        decrypted = self._decrypt_sidecar_file(
+            sidecar_path=sidecar_path,
             instance_id=instance_id,
             stage=stage,
             diagnostics=diagnostics,
-            path_hint=row_path,
+            row_path=row_path,
+            mode=mode,
         )
-        if decrypted_payload is None:
+        if decrypted is None:
             return row
 
-        payload_instance = decrypted_payload.get("instance")
-        if isinstance(payload_instance, str) and payload_instance and payload_instance != instance_id:
+        # Validate instance ID match
+        sidecar_instance = decrypted.get("instance")
+        if isinstance(sidecar_instance, str) and sidecar_instance and sidecar_instance != instance_id:
             severity = "error" if mode == "strict" else "warning"
             diagnostics.append(
                 self.emit_diagnostic(
@@ -215,8 +264,8 @@ class InstanceRowsCompiler(CompilerPlugin):
                     severity=severity,
                     stage=stage,
                     message=(
-                        f"Decrypted instance mismatch: row instance '{instance_id}' "
-                        f"!= payload instance '{payload_instance}'."
+                        f"Side-car instance mismatch: row instance '{instance_id}' "
+                        f"!= side-car instance '{sidecar_instance}'."
                     ),
                     path=row_path,
                 )
@@ -224,15 +273,18 @@ class InstanceRowsCompiler(CompilerPlugin):
             if mode == "strict":
                 return row
 
-        resolved_row = dict(decrypted_payload)
-        resolved_row.pop("schema_version", None)
-        resolved_row.pop("group", None)
-        resolved_row.pop("sops", None)
-        if not isinstance(resolved_row.get("class_ref"), str):
-            resolved_row.pop("class_ref", None)
-        resolved_row.pop("hardware_identity_secret_ref", None)
-        resolved_row["_source_file"] = source_file
-        return resolved_row
+        # Merge placeholders
+        merged_row = self._merge_placeholders(
+            row=row,
+            secrets=decrypted,
+            instance_id=instance_id,
+            stage=stage,
+            diagnostics=diagnostics,
+            row_path=row_path,
+            mode=mode,
+        )
+
+        return merged_row
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -259,6 +311,16 @@ class InstanceRowsCompiler(CompilerPlugin):
         rows = []
         seen_instances: set[str] = set()
         mode = self._resolve_secrets_mode(ctx)
+
+        # Resolve secrets_root path (relative to repo_root)
+        secrets_root_str = ctx.config.get("secrets_root", "secrets")
+        repo_root = ctx.config.get("repo_root")
+        if isinstance(repo_root, str) and repo_root:
+            secrets_root = Path(repo_root) / secrets_root_str
+        else:
+            # Fallback: resolve relative to topology-tools parent
+            secrets_root = Path(__file__).resolve().parents[4] / secrets_root_str
+
         for group_name, group_rows in bindings_root.items():
             if not isinstance(group_rows, list):
                 diagnostics.append(
@@ -313,9 +375,10 @@ class InstanceRowsCompiler(CompilerPlugin):
                     continue
                 seen_instances.add(instance_id)
 
-                row = self._resolve_inplace_secrets(
+                row = self._resolve_sidecar_secrets(
                     row=row,
                     instance_id=instance_id,
+                    secrets_root=secrets_root,
                     stage=stage,
                     diagnostics=diagnostics,
                     row_path=row_path,
@@ -323,7 +386,7 @@ class InstanceRowsCompiler(CompilerPlugin):
                 )
 
                 if mode == "strict":
-                    unresolved_paths = self._collect_unresolved_hardware_identity_paths(row)
+                    unresolved_paths = self._collect_all_placeholder_paths(row)
                     for unresolved_path in unresolved_paths:
                         diagnostics.append(
                             self.emit_diagnostic(
@@ -331,7 +394,7 @@ class InstanceRowsCompiler(CompilerPlugin):
                                 severity="error",
                                 stage=stage,
                                 message=(
-                                    "Strict secrets mode requires resolved hardware identity field: "
+                                    f"Strict secrets mode requires resolved placeholder: "
                                     f"'{unresolved_path}' in instance '{instance_id}'."
                                 ),
                                 path=row_path,

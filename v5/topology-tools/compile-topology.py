@@ -116,6 +116,7 @@ class V5Compiler:
         runtime_profile: str = "production",
         instance_source_mode: str = "auto",
         secrets_mode: str = "passthrough",
+        secrets_root: str = "secrets",
         pipeline_mode: str = "plugin-first",
         parity_gate: bool = False,
         enable_plugins: bool = True,
@@ -136,6 +137,7 @@ class V5Compiler:
         self.runtime_profile = runtime_profile
         self.instance_source_mode = instance_source_mode
         self.secrets_mode = secrets_mode
+        self.secrets_root = secrets_root
         self.pipeline_mode = pipeline_mode
         self.parity_gate = parity_gate
         self.enable_plugins = enable_plugins
@@ -502,6 +504,7 @@ class V5Compiler:
             compiled_file=self.output_json,
             require_new_model=self.require_new_model,
             secrets_mode=self.secrets_mode,
+            secrets_root=self.secrets_root,
             validation_owner=self._validation_owner,
             compilation_owner=self._compilation_owner,
             artifact_owner=self._artifact_owner,
@@ -624,6 +627,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Secrets resolution mode for instance fields: inject, passthrough, or strict.",
     )
     parser.add_argument(
+        "--secrets-root",
+        default="secrets",
+        help="Root directory for side-car secret files (relative to repo root).",
+    )
+    parser.add_argument(
         "--pipeline-mode",
         choices=["plugin-first"],
         default="plugin-first",
@@ -652,6 +660,7 @@ def main() -> int:
         runtime_profile=args.profile,
         instance_source_mode=args.instance_source_mode,
         secrets_mode=args.secrets_mode,
+        secrets_root=args.secrets_root,
         pipeline_mode=args.pipeline_mode,
         parity_gate=False,
         plugins_manifest_path=resolve_repo_path(args.plugins_manifest),
