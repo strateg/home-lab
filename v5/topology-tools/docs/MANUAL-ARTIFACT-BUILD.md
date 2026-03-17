@@ -6,12 +6,19 @@
 
 ## 1. Подготовка
 
+Рекомендуется сначала пройти общий setup:
+
+- `v5/topology-tools/docs/ENVIRONMENT-SETUP.md`
+
 Из корня репозитория:
 
 ```powershell
 python --version
 python v5/topology-tools/compile-topology.py --help
 ```
+
+Если используете `--secrets-mode inject|strict`, проверьте что установлен `sops`
+и настроен age-ключ (`SOPS_AGE_KEY_FILE` или дефолтный путь ОС).
 
 Проверьте, что доступен `v5/topology-tools/plugins/plugins.yaml`.
 Если в `v5/topology/class-modules/**` или `v5/topology/object-modules/**` есть `plugins.yaml`,

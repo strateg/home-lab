@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -27,7 +31,12 @@ class InstanceRowsCompiler(CompilerPlugin):
         "firmware_ref",
         "os_refs",
         "embedded_in",
+        "sops",
+        "_source_file",
+        "hardware_identity_secret_ref",
     }
+
+    _TODO_MARKER_RE = re.compile(r"^<TODO_[A-Z0-9_]+>$")
 
     @classmethod
     def _extract_extensions(cls, row: dict[str, Any]) -> dict[str, Any]:
@@ -37,6 +46,193 @@ class InstanceRowsCompiler(CompilerPlugin):
                 continue
             extensions[key] = row[key]
         return extensions
+
+    @staticmethod
+    def _resolve_secrets_mode(ctx: PluginContext) -> str:
+        mode = ctx.config.get("secrets_mode", "passthrough")
+        if not isinstance(mode, str):
+            return "passthrough"
+        normalized = mode.strip().lower()
+        if normalized in {"inject", "passthrough", "strict"}:
+            return normalized
+        return "passthrough"
+
+    def _collect_unresolved_hardware_identity_paths(self, row: dict[str, Any]) -> list[str]:
+        hardware_identity = row.get("hardware_identity")
+        if not isinstance(hardware_identity, dict):
+            return []
+
+        unresolved: list[str] = []
+
+        def walk(node: Any, path: str) -> None:
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    child_path = f"{path}.{key}" if path else str(key)
+                    walk(value, child_path)
+                return
+            if isinstance(node, list):
+                for idx, value in enumerate(node):
+                    child_path = f"{path}[{idx}]"
+                    walk(value, child_path)
+                return
+            if not isinstance(node, str):
+                return
+            if self._TODO_MARKER_RE.fullmatch(node):
+                unresolved.append(path)
+
+        walk(hardware_identity, "hardware_identity")
+        return unresolved
+
+    def _decrypt_row_from_source(
+        self,
+        *,
+        source_path: Path,
+        instance_id: str,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        path_hint: str,
+    ) -> dict[str, Any] | None:
+        if not source_path.exists() or not source_path.is_file():
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7202",
+                    severity="error",
+                    stage=stage,
+                    message=f"Instance source file not found for secret decryption: {source_path}",
+                    path=path_hint,
+                )
+            )
+            return None
+
+        command = ["sops", "-d", str(source_path)]
+        try:
+            result = subprocess.run(command, capture_output=True, text=True, check=False)
+        except OSError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7200",
+                    severity="error",
+                    stage=stage,
+                    message=f"Failed to execute sops while decrypting in-place fields for '{instance_id}': {exc}",
+                    path=path_hint,
+                )
+            )
+            return None
+
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7201",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Failed to decrypt in-place fields for instance '{instance_id}'. "
+                        f"sops exit={result.returncode}. {stderr}"
+                    ),
+                    path=path_hint,
+                )
+            )
+            return None
+
+        try:
+            payload = yaml.safe_load(result.stdout) or {}
+        except yaml.YAMLError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7203",
+                    severity="error",
+                    stage=stage,
+                    message=f"Decrypted instance YAML parse failed for '{instance_id}': {exc}",
+                    path=path_hint,
+                )
+            )
+            return None
+
+        if not isinstance(payload, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7203",
+                    severity="error",
+                    stage=stage,
+                    message=f"Decrypted instance payload must be object/mapping for '{instance_id}'.",
+                    path=path_hint,
+                )
+            )
+            return None
+
+        return payload
+
+    def _resolve_inplace_secrets(
+        self,
+        *,
+        row: dict[str, Any],
+        instance_id: str,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        row_path: str,
+        mode: str,
+    ) -> dict[str, Any]:
+        if mode == "passthrough":
+            return row
+
+        has_sops_metadata = isinstance(row.get("sops"), dict)
+        if not has_sops_metadata:
+            return row
+
+        source_file = row.get("_source_file")
+        if not isinstance(source_file, str) or not source_file:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7207",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Cannot decrypt in-place fields for instance '{instance_id}': "
+                        "source file path is missing."
+                    ),
+                    path=row_path,
+                )
+            )
+            return row
+
+        decrypted_payload = self._decrypt_row_from_source(
+            source_path=Path(source_file),
+            instance_id=instance_id,
+            stage=stage,
+            diagnostics=diagnostics,
+            path_hint=row_path,
+        )
+        if decrypted_payload is None:
+            return row
+
+        payload_instance = decrypted_payload.get("instance")
+        if isinstance(payload_instance, str) and payload_instance and payload_instance != instance_id:
+            severity = "error" if mode == "strict" else "warning"
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7205",
+                    severity=severity,
+                    stage=stage,
+                    message=(
+                        f"Decrypted instance mismatch: row instance '{instance_id}' "
+                        f"!= payload instance '{payload_instance}'."
+                    ),
+                    path=row_path,
+                )
+            )
+            if mode == "strict":
+                return row
+
+        resolved_row = dict(decrypted_payload)
+        resolved_row.pop("schema_version", None)
+        resolved_row.pop("group", None)
+        resolved_row.pop("sops", None)
+        if not isinstance(resolved_row.get("class_ref"), str):
+            resolved_row.pop("class_ref", None)
+        resolved_row.pop("hardware_identity_secret_ref", None)
+        resolved_row["_source_file"] = source_file
+        return resolved_row
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -62,6 +258,7 @@ class InstanceRowsCompiler(CompilerPlugin):
 
         rows = []
         seen_instances: set[str] = set()
+        mode = self._resolve_secrets_mode(ctx)
         for group_name, group_rows in bindings_root.items():
             if not isinstance(group_rows, list):
                 diagnostics.append(
@@ -88,13 +285,8 @@ class InstanceRowsCompiler(CompilerPlugin):
                     )
                     continue
 
+                row_path = f"instance_bindings.{group_name}[{idx}]"
                 instance_id = row.get("instance")
-                layer = row.get("layer")
-                class_ref = row.get("class_ref")
-                object_ref = row.get("object_ref")
-                firmware_ref = row.get("firmware_ref")
-                os_refs = row.get("os_refs")
-                derived_class_ref: str | None = None
 
                 if not isinstance(instance_id, str) or not instance_id:
                     diagnostics.append(
@@ -120,6 +312,38 @@ class InstanceRowsCompiler(CompilerPlugin):
                     )
                     continue
                 seen_instances.add(instance_id)
+
+                row = self._resolve_inplace_secrets(
+                    row=row,
+                    instance_id=instance_id,
+                    stage=stage,
+                    diagnostics=diagnostics,
+                    row_path=row_path,
+                    mode=mode,
+                )
+
+                if mode == "strict":
+                    unresolved_paths = self._collect_unresolved_hardware_identity_paths(row)
+                    for unresolved_path in unresolved_paths:
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="E7208",
+                                severity="error",
+                                stage=stage,
+                                message=(
+                                    "Strict secrets mode requires resolved hardware identity field: "
+                                    f"'{unresolved_path}' in instance '{instance_id}'."
+                                ),
+                                path=row_path,
+                            )
+                        )
+
+                layer = row.get("layer")
+                class_ref = row.get("class_ref")
+                object_ref = row.get("object_ref")
+                firmware_ref = row.get("firmware_ref")
+                os_refs = row.get("os_refs")
+                derived_class_ref: str | None = None
 
                 if not isinstance(object_ref, str) or not object_ref:
                     diagnostics.append(

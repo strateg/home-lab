@@ -54,12 +54,23 @@ plugins:
     order: 40
     depends_on: []
     timeout: 30
-    config: {}
+    config:
+      secrets_mode: passthrough
+      require_unlock: true
     config_schema:
       type: object
-      properties: {}
+      properties:
+        secrets_mode:
+          type: string
+          enum: [inject, passthrough, strict]
+          default: passthrough
+          description: Whether to decrypt in-place SOPS-encrypted instance fields.
+        require_unlock:
+          type: boolean
+          default: true
+          description: Emit error when decryption fails due to missing unlocked age key.
       required: []
-    description: Normalizes instance bindings rows for plugin-first pipeline (ADR 0069).
+    description: Normalizes instance bindings rows and optionally overlays decrypted secrets (ADR 0072).
 
   - id: base.compiler.capability_contract_loader
     kind: compiler

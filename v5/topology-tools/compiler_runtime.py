@@ -369,6 +369,7 @@ def _load_sharded_instance_payload(
         row.pop("group", None)
         if not isinstance(explicit_class_ref, str):
             row.pop("class_ref", None)
+        row["_source_file"] = str(path)
         grouped_rows.setdefault(group_name, []).append(row)
 
     ordered_rows: dict[str, list[dict[str, Any]]] = {}

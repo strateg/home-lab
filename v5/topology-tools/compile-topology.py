@@ -41,6 +41,7 @@ DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 
 SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
 SUPPORTED_INSTANCE_SOURCE_MODES = ("auto", "sharded-only")
+SUPPORTED_SECRETS_MODES = ("inject", "passthrough", "strict")
 COMPILED_MODEL_VERSION = "1.0"
 COMPILER_PIPELINE_VERSION = "adr0069-ws2"
 SUPPORTED_COMPILED_MODEL_MAJOR = {"1"}
@@ -114,6 +115,7 @@ class V5Compiler:
         require_new_model: bool,
         runtime_profile: str = "production",
         instance_source_mode: str = "auto",
+        secrets_mode: str = "passthrough",
         pipeline_mode: str = "plugin-first",
         parity_gate: bool = False,
         enable_plugins: bool = True,
@@ -133,6 +135,7 @@ class V5Compiler:
         self.require_new_model = require_new_model
         self.runtime_profile = runtime_profile
         self.instance_source_mode = instance_source_mode
+        self.secrets_mode = secrets_mode
         self.pipeline_mode = pipeline_mode
         self.parity_gate = parity_gate
         self.enable_plugins = enable_plugins
@@ -498,6 +501,7 @@ class V5Compiler:
             source_file=self.manifest_path,
             compiled_file=self.output_json,
             require_new_model=self.require_new_model,
+            secrets_mode=self.secrets_mode,
             validation_owner=self._validation_owner,
             compilation_owner=self._compilation_owner,
             artifact_owner=self._artifact_owner,
@@ -614,6 +618,12 @@ def build_parser() -> argparse.ArgumentParser:
         help=("Instance source mode: sharded-only or auto " "(auto resolves to sharded-only)."),
     )
     parser.add_argument(
+        "--secrets-mode",
+        choices=list(SUPPORTED_SECRETS_MODES),
+        default="passthrough",
+        help="Secrets resolution mode for instance fields: inject, passthrough, or strict.",
+    )
+    parser.add_argument(
         "--pipeline-mode",
         choices=["plugin-first"],
         default="plugin-first",
@@ -641,6 +651,7 @@ def main() -> int:
         require_new_model=args.require_new_model,
         runtime_profile=args.profile,
         instance_source_mode=args.instance_source_mode,
+        secrets_mode=args.secrets_mode,
         pipeline_mode=args.pipeline_mode,
         parity_gate=False,
         plugins_manifest_path=resolve_repo_path(args.plugins_manifest),

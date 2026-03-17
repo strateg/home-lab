@@ -15,6 +15,8 @@ Main documents:
 - `adr/0062-modular-topology-architecture-consolidation.md`
 - `adr/PLUGIN-RUNTIME-ADR-MAP.md`
 - `v4/README.md`
+- `v5/topology-tools/docs/ENVIRONMENT-SETUP.md`
+- `v5/topology-tools/docs/MANUAL-ARTIFACT-BUILD.md`
 
 Quick commands:
 

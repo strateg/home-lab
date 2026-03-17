@@ -1,7 +1,7 @@
 # ADR 0072: Unified Secrets Management with SOPS and age
 
-**Date:** 2026-03-15
-**Status:** Implemented
+**Date:** 2026-03-17
+**Status:** Accepted (rollout in progress)
 **Supersedes:** ADR 0051 (secret storage sections), ADR 0054 (secret-bearing local inputs)
 
 ---
@@ -12,497 +12,239 @@ The repository currently uses multiple inconsistent mechanisms for secret storag
 
 | Mechanism | Location | Use Case | Problems |
 |-----------|----------|----------|----------|
-| Ansible Vault | `ansible/group_vars/*/vault.yml` | Ansible secrets | Requires vault password at every ansible run |
+| Ansible Vault | `ansible/group_vars/*/vault.yml` | Ansible secrets | Separate workflow and key material |
 | local/ directory | `local/terraform/*.tfvars` | Terraform credentials | Not versioned, not portable |
-| .gitignore patterns | Various | Ad-hoc secret exclusion | No encryption, data loss risk |
+| .gitignore patterns | Various | Ad-hoc secret exclusion | No encryption, data-loss risk |
 | Placeholder values | `v5/topology/instances/` | Hardware identities | Blocks production deployment |
 
 This creates operational problems:
 
-1. **No single source of truth** for secret management
-2. **Key management fragmentation** - different passwords/keys per mechanism
-3. **Hardware identities cannot be committed** - MAC addresses, serial numbers remain placeholders
-4. **Ansible Vault requires password** at compile time if secrets are needed
-5. **local/ files are not versioned** - risk of data loss, not portable across machines
+1. No single source of truth for secret management.
+2. Key management fragmentation across tools.
+3. Hardware identities cannot be committed in plaintext.
+4. Local-only secret files are not portable.
 
-### Hardware Identity Problem
+### Cross-Platform Gap
 
-Instance files contain sensitive hardware identifiers:
+The current secret workflow examples are mostly POSIX shell (`bash`, `/tmp`, `grep`, `shred`, `chmod`).
+That is not sufficient for operators on Windows PowerShell.
 
-```yaml
-# Current state - placeholders
-hardware_identity:
-  serial_number: <TODO_SERIAL_NUMBER>
-  mac_addresses:
-    ether1: "02:AA:20:00:00:01"  # Fake placeholder
-```
+Cross-platform operation is required for this repository:
 
-These must be real values for production deployment but cannot be committed in plaintext to a public repository.
+- Linux/macOS (POSIX shell)
+- Windows (PowerShell)
+- CI runners (GitHub Actions Ubuntu)
 
 ---
 
 ## Decision
 
-### 1. Adopt SOPS + age as the Single Secret Management Solution
+### 1. Adopt SOPS + age as the single secret management solution
 
-All secrets in the repository will be managed through [SOPS](https://github.com/getsops/sops) with [age](https://github.com/FiloSottile/age) encryption.
+All secrets in the repository are stored as SOPS-encrypted YAML and encrypted with age recipients.
 
-**Why SOPS + age:**
+### 2. Standardize on repository-tracked encrypted keys (dev + recovery)
 
-| Feature | SOPS + age | Ansible Vault | git-crypt |
-|---------|------------|---------------|-----------|
-| Per-file encryption | Yes | Yes | Yes |
-| Selective field encryption | Yes | No | No |
-| Key rotation | Simple | Manual re-encrypt | Complex |
-| No GPG required | Yes | Yes | No |
-| CI/CD friendly | Yes | Yes | Limited |
-| Diff-friendly | Yes (keys visible) | No | No |
-| Multi-recipient | Yes | No | Yes |
+We use a two-key model:
 
-### 2. Deprecate All Other Secret Mechanisms
+- `devkey.age`: daily operations (regular unlock)
+- `masterkey.age`: recovery-only key
 
-| Current Mechanism | Migration Target | Timeline |
-|-------------------|------------------|----------|
-| Ansible Vault | SOPS-encrypted YAML | Phase 2 |
-| `local/*.tfvars` (secrets only) | SOPS-encrypted files | Phase 2 |
-| Placeholder hardware IDs | SOPS-encrypted instance overlays | Phase 1 |
+Both files are tracked in git **encrypted with passphrase**.
+Passphrases are never stored in git.
 
-**Note:** `local/` directory remains for non-secret operator preferences (e.g., feature flags, environment selection). Only secret-bearing content migrates to SOPS.
+### 3. Enforce cross-platform secret workflows
 
-### 3. Repository Secret Structure
+Secret operations must be runnable on Linux/macOS and Windows.
 
+Normative rule:
+
+- Required operator workflows must provide either:
+  - dual wrappers (`.sh` and `.ps1`), or
+  - one Python CLI entrypoint.
+
+Bash-only commands in this ADR are illustrative unless an equivalent PowerShell path is defined.
+
+### 4. Integrate secrets directly into `topology-tools`
+
+Hardware secrets are resolved during compile in plugin-first pipeline.
+The integration point is `InstanceRowsCompiler`, which resolves decrypted secret values before final row normalization.
+
+### 5. Keep human-readable instance IDs and in-place encrypted fields
+
+Policy:
+
+- `instance` ID is human-readable and stable.
+- Encrypted hardware values are stored in the same instance shard next to target fields.
+- No additional indirection fields (`hardware_identity_secret_ref`) and no extra nesting wrappers are required.
+
+---
+
+## Repository Secret Structure
+
+```text
+secrets/
+├── .sops.yaml
+├── devkey.age
+├── devkey.pub
+├── masterkey.age
+├── masterkey.pub
+├── terraform/
+│   ├── proxmox.yaml
+│   └── mikrotik.yaml
+├── ansible/
+│   └── vault.yaml
+└── bootstrap/
 ```
-secrets/                              # SOPS-encrypted files root
-├── .sops.yaml                        # SOPS configuration (tracked)
-├── age-recipients.txt                # Public keys for encryption (tracked)
-├── hardware/                         # Hardware identities
-│   ├── rtr-mikrotik-chateau.yaml    # Encrypted MAC/serial
-│   ├── rtr-slate.yaml
-│   ├── srv-gamayun.yaml
-│   └── srv-orangepi5.yaml
-├── terraform/                        # Terraform secrets
-│   ├── proxmox.yaml                 # API tokens, passwords
-│   └── mikrotik.yaml                # RouterOS credentials
-├── ansible/                          # Ansible secrets
-│   └── vault.yaml                   # Migrated from Ansible Vault
-└── bootstrap/                        # Bootstrap secrets
-    └── proxmox-root-password.yaml
-```
 
-### 4. SOPS Configuration
+### SOPS configuration
 
 ```yaml
 # secrets/.sops.yaml
 creation_rules:
   - path_regex: \.yaml$
     age: >-
-      age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-    # Additional recipients can be added for team access
+      age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,
+      age1yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
 ```
 
-### 5. Key Management: Password-Protected Master Key in Repository
+`age[0]` is dev recipient, `age[1]` is recovery recipient.
 
-**Problem:** Where to store the age private key?
-- External storage (1Password, etc.) creates dependency
-- `~/.config/sops/age/keys.txt` is not versioned, risk of loss
-- Different keys per machine breaks portability
+---
 
-**Solution:** Store the age private key IN the repository, encrypted with a passphrase.
+## Key Management Workflow
 
-#### 5.1 Two-Level Encryption Architecture
+### 1) Key generation
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    OPERATOR MEMORY                          │
-│                                                             │
-│                    ┌──────────────┐                         │
-│                    │  Passphrase  │                         │
-│                    └──────┬───────┘                         │
-│                           │                                 │
-└───────────────────────────┼─────────────────────────────────┘
-                            │ unlocks
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    REPOSITORY (tracked)                     │
-│                                                             │
-│  secrets/master.key.age ◄──── age private key (encrypted)  │
-│         │                                                   │
-│         │ unlocks                                           │
-│         ▼                                                   │
-│  secrets/hardware/*.yaml ◄──── hardware identities          │
-│  secrets/terraform/*.yaml ◄─── terraform credentials        │
-│  secrets/ansible/*.yaml ◄───── ansible secrets              │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+Canonical repository key files:
 
-**One passphrase unlocks everything.**
+- `secrets/devkey.age`, `secrets/devkey.pub`
+- `secrets/masterkey.age`, `secrets/masterkey.pub`
 
-#### 5.2 Repository Key Structure
+### 2) Unlock for active session
 
-```
-secrets/
-├── .sops.yaml              # SOPS configuration (tracked)
-├── master.key.age          # Passphrase-encrypted age private key (tracked)
-├── master.key.pub          # age public key (tracked, for reference)
-├── hardware/               # SOPS-encrypted with master key
-├── terraform/              # SOPS-encrypted with master key
-├── ansible/                # SOPS-encrypted with master key
-└── bootstrap/              # SOPS-encrypted with master key
-```
+Use `SOPS_AGE_KEY_FILE` explicitly to avoid OS-specific path ambiguity.
 
-| File | Encryption | Tracked |
-|------|------------|---------|
-| `master.key.age` | age passphrase (`age -p`) | Yes |
-| `master.key.pub` | None (public) | Yes |
-| `*.yaml` in subdirs | SOPS + age (master key) | Yes |
-| Passphrase | Operator memory | No |
+Recommended defaults:
 
-#### 5.3 Key Generation (One-Time Setup)
+| Platform | Default key file |
+|----------|------------------|
+| Linux/macOS | `$HOME/.config/sops/age/keys.txt` |
+| Windows | `$env:APPDATA\sops\age\keys.txt` |
 
-```bash
-# 1. Generate age keypair
-age-keygen > /tmp/master.key
-# Output:
-# # created: 2026-03-15T12:00:00Z
-# # public key: age1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-# AGE-SECRET-KEY-1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+### 3) Lock after use
 
-# 2. Extract public key
-grep "public key:" /tmp/master.key | cut -d: -f2 | tr -d ' ' > secrets/master.key.pub
+Delete the plaintext temporary key file on session end.
 
-# 3. Encrypt private key with passphrase
-age -p -o secrets/master.key.age /tmp/master.key
-# Enter passphrase (REMEMBER THIS!)
+Security note:
 
-# 4. Securely delete plaintext key
-shred -u /tmp/master.key
+- Do not rely on `shred` as a universal guarantee (filesystem/SSD dependent).
+- Primary control is minimizing plaintext lifetime and location.
 
-# 5. Verify decryption works
-age -d secrets/master.key.age
-# Enter passphrase → should show key content
-```
+### 4) Rotation
 
-#### 5.4 Daily Workflow: Unlocking Secrets
+Key rotation must re-encrypt all files in `secrets/{terraform,ansible,bootstrap}` and instance shards with encrypted hardware fields, then update `secrets/.sops.yaml`.
 
-**Option A: Unlock once per session**
-```bash
-# Decrypt master key to temporary location
-age -d secrets/master.key.age > ~/.config/sops/age/keys.txt
-# Enter passphrase once
+---
 
-# Now all sops commands work
-sops -d secrets/hardware/rtr-mikrotik-chateau.yaml
+## `topology-tools` Integration
 
-# End of session: remove plaintext key
-rm ~/.config/sops/age/keys.txt
-```
+### Plugin registration
 
-**Option B: Unlock script (recommended)**
-```bash
-#!/bin/bash
-# scripts/unlock-secrets.sh
-
-KEYS_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
-
-if [ -f "$KEYS_FILE" ]; then
-    echo "Secrets already unlocked"
-    exit 0
-fi
-
-mkdir -p "$(dirname "$KEYS_FILE")"
-age -d secrets/master.key.age > "$KEYS_FILE"
-chmod 600 "$KEYS_FILE"
-echo "Secrets unlocked. Run 'lock-secrets.sh' when done."
-```
-
-```bash
-#!/bin/bash
-# scripts/lock-secrets.sh
-
-KEYS_FILE="${SOPS_AGE_KEY_FILE:-$HOME/.config/sops/age/keys.txt}"
-[ -f "$KEYS_FILE" ] && shred -u "$KEYS_FILE"
-echo "Secrets locked."
-```
-
-**Option C: Environment variable (CI/CD)**
-```bash
-# Passphrase in env, decrypt key inline
-export SOPS_AGE_KEY=$(echo "$MASTER_KEY_PASSPHRASE" | age -d secrets/master.key.age)
-sops -d secrets/hardware/rtr-mikrotik-chateau.yaml
-```
-
-#### 5.5 CI/CD Integration
-
-GitHub Actions with single secret:
+Secret resolution is configured on `base.compiler.instance_rows`.
 
 ```yaml
-# .github/workflows/deploy.yml
-env:
-  MASTER_KEY_PASSPHRASE: ${{ secrets.MASTER_KEY_PASSPHRASE }}
-
-jobs:
-  deploy:
-    steps:
-      - name: Unlock secrets
-        run: |
-          export SOPS_AGE_KEY=$(echo "$MASTER_KEY_PASSPHRASE" | age -d secrets/master.key.age)
-          sops -d secrets/terraform/proxmox.yaml > /tmp/proxmox.yaml
-```
-
-#### 5.6 Passphrase Requirements
-
-| Requirement | Minimum |
-|-------------|---------|
-| Length | 20+ characters |
-| Entropy | High (passphrase, not password) |
-| Storage | Human memory only (no digital copies) |
-| Backup | Printed paper in secure location |
-
-**Recommended format:** 5-6 random words (diceware)
-```
-correct-horse-battery-staple-router-network
-```
-
-#### 5.7 Key Rotation
-
-```bash
-# 1. Decrypt all secrets with old key
-./scripts/unlock-secrets.sh  # old passphrase
-
-# 2. Generate new keypair
-age-keygen > /tmp/new-master.key
-
-# 3. Re-encrypt all secrets with new key
-for f in secrets/{hardware,terraform,ansible,bootstrap}/*.yaml; do
-    sops -d "$f" | sops -e --age "$(cat /tmp/new-master.key.pub)" /dev/stdin > "$f.new"
-    mv "$f.new" "$f"
-done
-
-# 4. Update SOPS config with new public key
-# Edit secrets/.sops.yaml
-
-# 5. Encrypt new key with new passphrase
-age -p -o secrets/master.key.age /tmp/new-master.key
-
-# 6. Update public key reference
-grep "public key:" /tmp/new-master.key | cut -d: -f2 | tr -d ' ' > secrets/master.key.pub
-
-# 7. Cleanup
-shred -u /tmp/new-master.key
-
-# 8. Commit
-git add secrets/
-git commit -m "chore(secrets): rotate master key"
-```
-
-#### 5.8 Recovery Scenarios
-
-| Scenario | Recovery |
-|----------|----------|
-| Forgot passphrase | Cannot recover. Generate new key, re-collect all secrets. |
-| Lost repo access | Clone from remote, enter passphrase. |
-| Compromised passphrase | Rotate key immediately (5.7). |
-| New team member | Share passphrase securely (in person, Signal, etc.). |
-
-### 6. Encrypted File Format
-
-SOPS encrypts values while keeping keys visible (diff-friendly):
-
-```yaml
-# secrets/hardware/rtr-mikrotik-chateau.yaml (encrypted)
-hardware_identity:
-    serial_number: ENC[AES256_GCM,data:xxxxx,iv:xxxxx,tag:xxxxx]
-    mac_addresses:
-        ether1: ENC[AES256_GCM,data:xxxxx,iv:xxxxx,tag:xxxxx]
-        ether2: ENC[AES256_GCM,data:xxxxx,iv:xxxxx,tag:xxxxx]
-sops:
-    age:
-        - recipient: age1xxxxxxxxx
-          enc: |
-            -----BEGIN AGE ENCRYPTED FILE-----
-            ...
-```
-
-### 7. v5 Compiler Integration
-
-#### 7.1 SecretsOverlayCompiler Plugin
-
-The v5 topology compiler resolves secrets through a dedicated `SecretsOverlayCompiler` plugin that runs after instance loading but before effective model assembly.
-
-**Plugin registration** (`plugins.yaml`):
-```yaml
-- id: base.compiler.secrets_overlay
+# v5/topology-tools/plugins/plugins.yaml
+- id: base.compiler.instance_rows
   kind: compiler
-  entry: compilers/secrets_overlay_compiler.py:SecretsOverlayCompiler
+  entry: compilers/instance_rows_compiler.py:InstanceRowsCompiler
   api_version: "1.x"
   stages: [compile]
-  order: 42  # After instance_rows (40), before capability_contract_loader (45)
-  depends_on: [base.compiler.instance_rows]
+  order: 40
+  depends_on: []
   config:
-    secrets_root: secrets/hardware
-    mode: inject  # inject | passthrough
+    secrets_mode: inject  # inject | passthrough | strict
     require_unlock: true
 ```
 
-#### 7.2 Resolution Modes
+### Runtime behavior
 
-| Mode | CLI Flag | Behavior |
-|------|----------|----------|
-| inject | `--secrets-mode inject` | Decrypt SOPS secrets, merge into instances |
-| passthrough | `--secrets-mode passthrough` | Skip secret resolution, retain placeholders |
-| strict | `--secrets-mode strict` | Require all hardware identities resolved |
+- `inject`: decrypt in-place encrypted instance fields and write plaintext values into compile model.
+- `passthrough`: skip decryption and keep encrypted markers/placeholders as-is.
+- `strict`: fail compile if encrypted required fields cannot be decrypted/resolved.
 
-**Usage:**
-```bash
-# With secrets (requires unlocked SOPS)
-python3 v5/topology-tools/compile-topology.py --secrets-mode inject
+In `inject`/`strict` modes, `ctx.compiled_json` MUST contain decrypted values for encrypted instance fields after merge.
 
-# Without secrets (CI, dry-run)
-python3 v5/topology-tools/compile-topology.py --secrets-mode passthrough
-```
+### CLI contract
 
-#### 7.3 Instance-Secret Matching
+`compile-topology.py` must expose:
 
-Secrets are matched by instance ID convention (implicit matching):
+- `--secrets-mode inject|passthrough|strict`
 
-```
+This value is passed into plugin context config and consumed by `base.compiler.instance_rows`.
+
+### In-place encrypted fields
+
+Encrypted values are colocated with target fields in the same instance file.
+Compiler resolves in-place encrypted fields based on SOPS metadata in the same instance file, without auxiliary mapping fields.
+
+```text
 v5/topology/instances/l1_devices/rtr-mikrotik-chateau.yaml
-  └── instance: rtr-mikrotik-chateau
-        ↓ matches by filename
-secrets/hardware/rtr-mikrotik-chateau.yaml
-  └── instance: rtr-mikrotik-chateau  # Must match
+  instance: rtr-mikrotik-chateau
+  hardware_identity:
+    serial_number: ENC[...]
+    mac_addresses:
+      ether1: ENC[...]
+  sops:
+    ...
 ```
 
-#### 7.4 Merge Behavior
+---
 
-The compiler performs deep-merge with secret values taking precedence:
+## Ansible and Terraform Integration
+
+### Ansible
+
+Replace Ansible Vault payloads with SOPS-encrypted `secrets/ansible/vault.yaml`.
+Playbooks must use SOPS decryption path (CLI or SOPS-aware plugin) and must not require `.vault_pass`.
+
+### Terraform
+
+Generate runtime `terraform.tfvars` from SOPS at apply time.
+
+Target output path:
+
+- `.work/native/terraform/<target>/terraform.tfvars`
+
+Generated tfvars are ephemeral artifacts and must be removed after apply.
+
+---
+
+## CI/CD Integration
+
+Canonical CI secret name:
+
+- `DEVKEY_PASSPHRASE`
+
+Canonical encrypted key file for routine CI jobs:
+
+- `secrets/devkey.age`
+
+GitHub Actions unlock step:
 
 ```yaml
-# Instance (placeholder):
-hardware_identity:
-  serial_number: <TODO_SERIAL_NUMBER>
-  mac_addresses:
-    ether1: "02:AA:00:00:00:01"
-
-# Secret (real values):
-hardware_identity:
-  serial_number: "ABC123XYZ"
-  mac_addresses:
-    ether1: "AA:BB:CC:DD:EE:01"
-
-# Merged result:
-hardware_identity:
-  serial_number: "ABC123XYZ"           # From secret
-  mac_addresses:
-    ether1: "AA:BB:CC:DD:EE:01"        # From secret
-```
-
-#### 7.5 Secret Categories and Resolution Timing
-
-| Category | Directory | Resolution | Output Artifact |
-|----------|-----------|------------|-----------------|
-| Hardware Identity | `secrets/hardware/` | Compile-time | Generated Terraform, Ansible |
-| Terraform Credentials | `secrets/terraform/` | Apply-time | `.work/native/terraform/*/terraform.tfvars` |
-| Ansible Secrets | `secrets/ansible/` | Run-time | SOPS lookup in playbooks |
-| Bootstrap Secrets | `secrets/bootstrap/` | Manual | USB installer |
-
-Hardware identities are **compile-time secrets** because:
-1. MAC addresses are needed in Terraform MikroTik DHCP reservations
-2. Serial numbers are needed in Ansible inventory for asset tracking
-3. These values are static and part of infrastructure definition
-
-Credentials are **runtime secrets** because:
-1. API tokens should not be embedded in generated files
-2. Passwords may rotate independently of infrastructure
-3. Reduced blast radius if generated files are exposed
-
-### 8. Ansible Integration
-
-Replace Ansible Vault with SOPS:
-
-```yaml
-# ansible/playbooks/site.yml
-- hosts: all
-  vars_files:
-    - "{{ lookup('pipe', 'sops -d ../../secrets/ansible/vault.yaml') }}"
-```
-
-Or use the [sops-ansible](https://github.com/mozilla/sops#ansible) community integration.
-
-### 9. Terraform Integration
-
-Generate tfvars from SOPS at apply time:
-
-```bash
-# deploy/Makefile
-terraform-apply-proxmox:
-    sops -d secrets/terraform/proxmox.yaml > .work/terraform.tfvars
-    terraform -chdir=.work/native/terraform/proxmox apply -var-file=terraform.tfvars
-    rm .work/terraform.tfvars
-```
-
-### 10. CI/CD Integration
-
-#### 10.1 GitHub Actions with Compile-Time Secrets
-
-```yaml
-# .github/workflows/deploy.yml
 env:
   DEVKEY_PASSPHRASE: ${{ secrets.DEVKEY_PASSPHRASE }}
 
-jobs:
-  compile-and-deploy:
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install tools
-        run: |
-          sudo apt-get update && sudo apt-get install -y age
-          wget -q https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -O sops
-          chmod +x sops && sudo mv sops /usr/local/bin/
-
-      - name: Unlock secrets
-        run: |
-          mkdir -p ~/.config/sops/age
-          echo "$DEVKEY_PASSPHRASE" | age -d secrets/devkey.age > ~/.config/sops/age/keys.txt
-          chmod 600 ~/.config/sops/age/keys.txt
-
-      - name: Compile with secrets
-        run: python3 v5/topology-tools/compile-topology.py --secrets-mode inject
-
-      - name: Generate Terraform
-        run: |
-          python3 v5/topology-tools/generate-terraform-proxmox.py
-          ./scripts/generate-tfvars.sh proxmox
-
-      - name: Terraform Apply
-        run: |
-          cd .work/native/terraform/proxmox
-          terraform init && terraform apply -auto-approve
-
-      - name: Lock secrets
-        if: always()
-        run: shred -u ~/.config/sops/age/keys.txt 2>/dev/null || true
-
-  validate-only:
-    # No secrets needed for validation
-    steps:
-      - name: Compile (passthrough)
-        run: python3 v5/topology-tools/compile-topology.py --secrets-mode passthrough
-
-      - name: Validate schema
-        run: python3 v5/topology-tools/validate-topology.py
+steps:
+  - name: Unlock secrets
+    run: |
+      mkdir -p ~/.config/sops/age
+      echo "$DEVKEY_PASSPHRASE" | age -d secrets/devkey.age > ~/.config/sops/age/keys.txt
+      chmod 600 ~/.config/sops/age/keys.txt
 ```
 
-#### 10.2 Secret Scopes in CI/CD
-
-| Job Type | Secrets Mode | Requires DEVKEY_PASSPHRASE |
-|----------|--------------|---------------------------|
-| Validate | passthrough | No |
-| Plan | inject | Yes |
-| Apply | inject | Yes |
-| Docs generation | passthrough | No |
+Recovery key (`masterkey.age`) is excluded from routine CI usage.
 
 ---
 
@@ -510,90 +252,75 @@ jobs:
 
 ### Positive
 
-1. **Single source of truth** for all secrets
-2. **Versioned secrets** - hardware identities tracked in git (encrypted)
-3. **Fully portable** - clone repo, enter passphrase, deploy (no external key storage)
-4. **Auditable** - git history shows when secrets changed (not what)
-5. **One passphrase** - memorize one passphrase instead of managing multiple keys
-6. **No key loss risk** - master key is in repository, only passphrase needed
-7. **Diff-friendly** - YAML keys visible in diffs
-8. **CI/CD ready** - single secret (passphrase) to configure
+1. Single secret system across Ansible/Terraform/topology compile.
+2. Encrypted secrets become versioned and portable.
+3. Hardware identity placeholders can be removed safely.
+4. CI configuration uses one routine passphrase secret.
 
 ### Negative
 
-1. **New tooling** - operators must install `sops` and `age`
-2. **Migration effort** - existing Ansible Vault files must be converted
-3. **Passphrase critical** - forgetting passphrase = re-collect all secrets
-4. **Learning curve** - team must learn SOPS workflow
-5. **Session unlock** - must decrypt master key each session
+1. Operators must install `sops` and `age`.
+2. Existing Vault/local workflows need migration.
+3. Passphrase hygiene remains a critical operational dependency.
+4. Cross-platform wrappers/tooling must be maintained.
 
-### Risks and Mitigation
+### Risks and mitigations
 
 | Risk | Mitigation |
 |------|------------|
-| Forgot passphrase | Print passphrase on paper, store in secure physical location |
-| Passphrase compromised | Rotate master key immediately (documented procedure) |
-| Accidental plaintext commit | Pre-commit hook validates encryption |
-| SOPS/age version drift | Pin versions in documentation |
-| Temporary key file left behind | Lock script with `shred`; CI uses env var only |
+| Passphrase loss | Keep recovery procedure and offline backup policy |
+| Passphrase compromise | Rotate recipients and re-encrypt immediately |
+| Plaintext key left on disk | Lock workflow + explicit `SOPS_AGE_KEY_FILE` + short session lifetime |
+| Shell drift (`bash` vs `pwsh`) | Require dual wrappers or Python entrypoint for required ops |
+| Missing in-place secret resolution at compile | `--secrets-mode strict` for deploy pipelines |
 
 ---
 
 ## Migration Plan
 
-### Phase 0: Tooling Setup
+### Phase 0: Tooling and cross-platform baseline
 
-- [ ] Install `age` and `sops` on operator machine
-- [ ] Generate master keypair with `age-keygen`
-- [ ] Encrypt master key with passphrase (`age -p`)
-- [ ] Create `secrets/master.key.age` (tracked)
-- [ ] Create `secrets/master.key.pub` (tracked)
-- [ ] Create `secrets/.sops.yaml` with public key
-- [ ] Create `scripts/unlock-secrets.sh` and `scripts/lock-secrets.sh`
-- [ ] Add pre-commit hook for SOPS validation
-- [ ] Update `.gitignore` for temporary decrypted keys
+- [ ] Ensure `sops` + `age` install instructions for Linux/macOS/Windows.
+- [ ] Standardize on `devkey.age` and `masterkey.age` naming in docs/scripts.
+- [ ] Provide required unlock/lock workflows for both `sh` and `pwsh` (or Python CLI).
+- [ ] Add pre-commit validation to block plaintext secrets.
 
-### Phase 1: Hardware Identities (Priority)
+### Phase 1: Hardware identities + compiler integration
 
-- [ ] Create `secrets/hardware/*.yaml` structure
-- [ ] Collect real hardware identities
-- [ ] Encrypt and commit
-- [ ] Update compiler to resolve `_secret_ref`
-- [ ] Remove placeholder values from instances
+- [ ] Implement in-place SOPS field decryption in `base.compiler.instance_rows`.
+- [ ] Add `--secrets-mode` to `compile-topology.py`.
+- [ ] Encrypt hardware identity fields directly in `v5/topology/instances/l1_devices/*.yaml`.
+- [ ] Remove placeholder hardware values and remove `hardware_identity_secret_ref` usage.
 
-### Phase 2: Terraform Secrets
+### Phase 2: Terraform secrets
 
-- [ ] Migrate `local/terraform/*.tfvars` secrets to SOPS
-- [ ] Update Makefile for SOPS decryption
-- [ ] Keep non-secret preferences in `local/`
+- [ ] Migrate secret-bearing `local/terraform/*.tfvars` data to `secrets/terraform/*.yaml`.
+- [ ] Keep `local/` only for non-secret operator preferences.
 
-### Phase 3: Ansible Secrets
+### Phase 3: Ansible secrets
 
-- [ ] Convert Ansible Vault files to SOPS format
-- [ ] Update playbooks for SOPS lookup
-- [ ] Remove `.vault_pass` workflow
-- [ ] Update documentation
+- [ ] Convert Ansible Vault payloads to `secrets/ansible/vault.yaml`.
+- [ ] Remove `.vault_pass` runtime dependency.
 
-### Phase 4: Cleanup
+### Phase 4: Cleanup and ADR alignment
 
-- [ ] Remove deprecated secret patterns from `.gitignore`
-- [ ] Update ADR 0051 status to "Superseded by ADR 0072"
-- [ ] Update ADR 0054 to clarify `local/` is for non-secrets only
-- [ ] Update CLAUDE.md
+- [ ] Update ADR 0051 status to superseded by ADR 0072.
+- [ ] Update ADR 0054 clarifying `local/` is non-secret.
+- [ ] Align helper scripts, docs, and CI examples with this ADR naming.
 
 ---
 
 ## Validation Criteria
 
-1. [ ] `age -d secrets/master.key.age` decrypts with passphrase
-2. [ ] `./scripts/unlock-secrets.sh` enables SOPS decryption
-3. [ ] `sops -d secrets/hardware/*.yaml` works after unlock
-4. [ ] `compile-topology.py` resolves hardware identities from SOPS
-5. [ ] Terraform apply works with SOPS-decrypted credentials
-6. [ ] Ansible playbooks work without `.vault_pass`
-7. [ ] Pre-commit hook blocks plaintext secrets
-8. [ ] CI/CD pipeline decrypts with `MASTER_KEY_PASSPHRASE` secret
-9. [ ] `./scripts/lock-secrets.sh` removes temporary key file
+1. `sops -d` works for instance shard files that contain encrypted hardware fields on Linux/macOS and Windows.
+2. `compile-topology.py --secrets-mode inject` resolves in-place encrypted hardware fields.
+3. `compile-topology.py --secrets-mode passthrough` works without unlocking secrets.
+4. `compile-topology.py --secrets-mode strict` fails on unresolved required hardware fields.
+5. `ctx.compiled_json` in inject/strict modes contains decrypted merged instance fields (no placeholder values for resolved secret paths).
+6. Terraform apply path consumes SOPS-derived tfvars and cleans ephemeral file.
+7. Ansible runs without `.vault_pass`.
+8. Pre-commit hook blocks plaintext secret artifacts.
+9. CI decrypts routine secrets via `DEVKEY_PASSPHRASE` and `secrets/devkey.age`.
 
 ---
 
