@@ -87,7 +87,7 @@ creation_rules:
     Write-Host "Keys generated successfully."
     Write-Host "Next steps:"
     Write-Host "  1. ./scripts/unlock-secrets.ps1"
-    Write-Host "  2. Re-encrypt secrets: cd secrets && for f in */*.yaml; do sops updatekeys -y ""$f""; done"
+    Write-Host "  2. Re-encrypt secrets (PowerShell): Get-ChildItem secrets -Recurse -Filter *.yaml | ForEach-Object { sops updatekeys -y $_.FullName }"
 } finally {
     if (Test-Path $tmpDev) {
         Remove-Item -Force $tmpDev

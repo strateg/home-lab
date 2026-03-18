@@ -235,6 +235,8 @@ jobs:
     name: Compile with Plugins Enabled
     runs-on: ubuntu-latest
     needs: [plugin-api-unit, manifest-validation]
+    env:
+      DEVKEY_PASSPHRASE: ${{ secrets.DEVKEY_PASSPHRASE }}
 
     steps:
       - name: Checkout
@@ -250,11 +252,43 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml jsonschema
 
-      - name: Run compiler with plugins
+      - name: Install age and sops
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y age
+          SOPS_VERSION="3.12.1"
+          curl -L "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.amd64" -o sops
+          chmod +x sops
+          sudo mv sops /usr/local/bin/sops
+
+      - name: Unlock secrets
+        if: ${{ env.DEVKEY_PASSPHRASE != '' }}
+        run: |
+          mkdir -p ~/.config/sops/age
+          echo "$DEVKEY_PASSPHRASE" | age -d secrets/devkey.age > ~/.config/sops/age/keys.txt
+          chmod 600 ~/.config/sops/age/keys.txt
+
+      - name: Run compiler with plugins (inject)
+        if: ${{ env.DEVKEY_PASSPHRASE != '' }}
         run: |
           python v5/topology-tools/compile-topology.py \
             --topology v5/topology/topology.yaml \
+            --secrets-mode inject \
             --output-json v5-build/effective.json
+
+      - name: Run compiler with plugins (passthrough fallback)
+        if: ${{ env.DEVKEY_PASSPHRASE == '' }}
+        run: |
+          echo "DEVKEY_PASSPHRASE is not configured, running passthrough compile fallback."
+          python v5/topology-tools/compile-topology.py \
+            --topology v5/topology/topology.yaml \
+            --secrets-mode passthrough \
+            --output-json v5-build/effective.json
+
+      - name: Cleanup secrets key
+        if: always()
+        run: |
+          rm -f ~/.config/sops/age/keys.txt
 
       - name: Verify output
         run: |

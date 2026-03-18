@@ -371,3 +371,33 @@ def test_sidecar_instance_mismatch_does_not_merge_in_inject(monkeypatch):
     assert hw_identity.get("serial_number") == "<TODO_SERIAL_NUMBER>"
     diag_codes = [d.code for d in result.diagnostics]
     assert "E7205" in diag_codes
+
+
+def test_hardware_identity_secret_ref_is_forbidden():
+    """Legacy indirection field must be rejected explicitly."""
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"compilation_owner_instance_rows": "plugin"},
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "legacy-device",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.router",
+                        "hardware_identity_secret_ref": "secret.legacy.id",
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(
+        d.code == "E3201" and "hardware_identity_secret_ref" in d.message for d in result.diagnostics
+    )

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -12,11 +13,19 @@ ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
 PHASE1_REPORT_JSON = "v5-build/diagnostics/phase1-gate-report.json"
 LAYER_REPORT_JSON = "v5-build/diagnostics/layer-contract-report.json"
+SUPPORTED_SECRETS_MODES = {"inject", "passthrough", "strict"}
 
 
 def run(cmd: list[str]) -> None:
     print(f"[lane] RUN: {' '.join(cmd)}", flush=True)
     subprocess.run(cmd, cwd=ROOT, check=True)
+
+
+def _resolve_secrets_mode() -> str:
+    value = os.environ.get("V5_SECRETS_MODE", "inject").strip().lower()
+    if value in SUPPORTED_SECRETS_MODES:
+        return value
+    return "inject"
 
 
 def validate_v4() -> None:
@@ -72,6 +81,7 @@ def validate_v5() -> None:
             "v5/topology/object-modules",
         ]
     )
+    secrets_mode = _resolve_secrets_mode()
     run(
         [
             PYTHON,
@@ -79,6 +89,8 @@ def validate_v5() -> None:
             "--topology",
             "v5/topology/topology.yaml",
             "--strict-model-lock",
+            "--secrets-mode",
+            secrets_mode,
         ]
     )
 

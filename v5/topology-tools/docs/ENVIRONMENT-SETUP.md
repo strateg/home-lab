@@ -147,6 +147,8 @@ python v5/topology-tools/compile-topology.py --secrets-mode inject
 
 - `passthrough` работает без SOPS-ключей.
 - `inject` требует корректную установку `sops` и доступ к age-ключу.
+- `make validate-v5` использует `inject` по умолчанию (через `v5/scripts/lane.py`).
+  Для локального override можно задать `V5_SECRETS_MODE=passthrough`.
 
 ## 7. Официальные источники
 

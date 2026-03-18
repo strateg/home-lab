@@ -394,6 +394,20 @@ class InstanceRowsCompiler(CompilerPlugin):
                     continue
                 seen_instances.add(instance_id)
 
+                if "hardware_identity_secret_ref" in row:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E3201",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                "Field 'hardware_identity_secret_ref' is deprecated and forbidden. "
+                                "Store encrypted secret data adjacent to target fields."
+                            ),
+                            path=f"instance_bindings.{group_name}[{idx}].hardware_identity_secret_ref",
+                        )
+                    )
+
                 row = self._resolve_sidecar_secrets(
                     row=row,
                     instance_id=instance_id,
