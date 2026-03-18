@@ -10,6 +10,9 @@ description: |
   dual UI (GL.iNet + OpenWRT LuCI), advanced VPN client features, and WiFi
   repeater mode. Perfect for travel, remote work, and secure hotel WiFi access.
 
+hardware_identity:
+  serial_number: "@optional_secret:string"
+
 # ============================================================================
 # HARDWARE SPECIFICATIONS
 # ============================================================================

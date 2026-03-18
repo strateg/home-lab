@@ -697,3 +697,129 @@ def test_annotation_resolver_formats_validate_secret_values(monkeypatch):
     rows = result.output_data.get("normalized_rows", [])
     wan_value = rows[0]["extensions"]["hardware_identity"]["mac_addresses"]["wan"]
     assert wan_value == "@optional_secret:mac"
+
+
+def test_object_level_secret_annotation_resolves_serial_without_instance_marker(monkeypatch):
+    class FakeResult:
+        def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+
+    def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
+        return FakeResult(
+            returncode=0,
+            stdout=(
+                "instance: rtr-slate\n"
+                "hardware_identity:\n"
+                "  serial_number: SECRET-SN-OBJ\n"
+            ),
+        )
+
+    monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
+
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_instance_rows": "plugin",
+            "secrets_mode": "inject",
+            "secrets_root": "v5/secrets",
+            "require_unlock": True,
+            "repo_root": str(V5_TOOLS.parent.parent),
+        },
+        objects={
+            "obj.glinet.slate_ax1800": {
+                "object": "obj.glinet.slate_ax1800",
+                "hardware_identity": {
+                    "serial_number": "@optional_secret:string",
+                },
+            }
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "rtr-slate",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.glinet.slate_ax1800",
+                        "hardware_identity": {},
+                    }
+                ]
+            }
+        },
+    )
+
+    annotation_result = registry.execute_plugin("base.compiler.annotation_resolver", ctx, Stage.COMPILE)
+    assert annotation_result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert not result.has_errors
+    rows = result.output_data.get("normalized_rows", [])
+    serial = rows[0]["extensions"]["hardware_identity"]["serial_number"]
+    assert serial == "SECRET-SN-OBJ"
+
+
+def test_object_level_typed_secret_annotation_rejects_invalid_scalar(monkeypatch):
+    class FakeResult:
+        def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+
+    def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
+        return FakeResult(
+            returncode=0,
+            stdout=(
+                "instance: rtr-slate\n"
+                "hardware_identity:\n"
+                "  serial_number: 12345\n"
+            ),
+        )
+
+    monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
+
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_instance_rows": "plugin",
+            "secrets_mode": "inject",
+            "secrets_root": "v5/secrets",
+            "require_unlock": True,
+            "repo_root": str(V5_TOOLS.parent.parent),
+        },
+        objects={
+            "obj.glinet.slate_ax1800": {
+                "object": "obj.glinet.slate_ax1800",
+                "hardware_identity": {
+                    "serial_number": "@optional_secret:string",
+                },
+            }
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "rtr-slate",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.glinet.slate_ax1800",
+                        "hardware_identity": {},
+                    }
+                ]
+            }
+        },
+    )
+
+    annotation_result = registry.execute_plugin("base.compiler.annotation_resolver", ctx, Stage.COMPILE)
+    assert annotation_result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(d.code == "E7213" for d in result.diagnostics)
+    rows = result.output_data.get("normalized_rows", [])
+    assert "serial_number" not in rows[0]["extensions"]["hardware_identity"]

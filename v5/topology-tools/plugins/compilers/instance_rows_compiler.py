@@ -402,7 +402,21 @@ class InstanceRowsCompiler(CompilerPlugin):
                     if key in target:
                         target[key] = walk_and_replace(target[key], source_value, child_path)
                     else:
-                        target[key] = copy.deepcopy(source_value)
+                        if self._is_scalar(source_value):
+                            child_spec = self._extract_annotation_spec(path=child_path, row_annotations=row_annotations)
+                            if self._validate_secret_typed_value(
+                                instance_id=instance_id,
+                                path=child_path,
+                                value=source_value,
+                                annotation_spec=child_spec,
+                                annotation_formats=annotation_formats,
+                                stage=stage,
+                                diagnostics=diagnostics,
+                                row_path=row_path,
+                            ):
+                                target[key] = copy.deepcopy(source_value)
+                        else:
+                            target[key] = copy.deepcopy(source_value)
                 return target
 
             if isinstance(target, list) and isinstance(source, list):
@@ -532,7 +546,22 @@ class InstanceRowsCompiler(CompilerPlugin):
             if key in result:
                 result[key] = walk_and_replace(result[key], secrets[key], key)
             else:
-                result[key] = copy.deepcopy(secrets[key])
+                source_value = secrets[key]
+                if self._is_scalar(source_value):
+                    key_spec = self._extract_annotation_spec(path=key, row_annotations=row_annotations)
+                    if self._validate_secret_typed_value(
+                        instance_id=instance_id,
+                        path=key,
+                        value=source_value,
+                        annotation_spec=key_spec,
+                        annotation_formats=annotation_formats,
+                        stage=stage,
+                        diagnostics=diagnostics,
+                        row_path=row_path,
+                    ):
+                        result[key] = copy.deepcopy(source_value)
+                else:
+                    result[key] = copy.deepcopy(source_value)
 
         return result
 
@@ -652,6 +681,7 @@ class InstanceRowsCompiler(CompilerPlugin):
         mode = self._resolve_secrets_mode(ctx)
         require_unlock = self._resolve_require_unlock(ctx)
         row_annotations_by_instance: dict[str, dict[str, dict[str, Any]]] = {}
+        object_secret_annotations_by_object: dict[str, dict[str, dict[str, Any]]] = {}
         annotation_formats: dict[str, dict[str, Any]] = {}
 
         try:
@@ -660,6 +690,13 @@ class InstanceRowsCompiler(CompilerPlugin):
                 row_annotations_by_instance = subscribed_rows
         except PluginDataExchangeError:
             row_annotations_by_instance = {}
+
+        try:
+            subscribed_objects = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "object_secret_annotations")
+            if isinstance(subscribed_objects, dict):
+                object_secret_annotations_by_object = subscribed_objects
+        except PluginDataExchangeError:
+            object_secret_annotations_by_object = {}
 
         try:
             subscribed_formats = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "annotation_formats")
@@ -762,6 +799,19 @@ class InstanceRowsCompiler(CompilerPlugin):
                 row_annotations = row_annotations_by_instance.get(instance_id)
                 if not isinstance(row_annotations, dict):
                     row_annotations = self._collect_row_annotations(row)
+                object_secret_annotations: dict[str, dict[str, Any]] = {}
+                object_ref_for_annotations = row.get("object_ref")
+                if isinstance(object_ref_for_annotations, str):
+                    candidate_object_annotations = object_secret_annotations_by_object.get(object_ref_for_annotations)
+                    if isinstance(candidate_object_annotations, dict):
+                        object_secret_annotations = candidate_object_annotations
+                merged_secret_annotations: dict[str, dict[str, Any]] = {}
+                for path, spec in object_secret_annotations.items():
+                    if isinstance(path, str) and isinstance(spec, dict):
+                        merged_secret_annotations[path] = spec
+                for path, spec in row_annotations.items():
+                    if isinstance(path, str) and isinstance(spec, dict):
+                        merged_secret_annotations[path] = spec
 
                 row = self._resolve_sidecar_secrets(
                     row=row,
@@ -772,12 +822,12 @@ class InstanceRowsCompiler(CompilerPlugin):
                     row_path=row_path,
                     mode=mode,
                     require_unlock=require_unlock,
-                    row_annotations=row_annotations,
+                    row_annotations=merged_secret_annotations,
                     annotation_formats=annotation_formats,
                 )
 
                 if mode == "strict":
-                    unresolved_paths = self._collect_all_placeholder_paths(row, row_annotations=row_annotations)
+                    unresolved_paths = self._collect_all_placeholder_paths(row, row_annotations=merged_secret_annotations)
                     for unresolved_path in unresolved_paths:
                         diagnostics.append(
                             self.emit_diagnostic(
