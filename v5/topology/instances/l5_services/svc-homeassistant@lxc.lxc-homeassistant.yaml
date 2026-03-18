@@ -1,8 +1,8 @@
-schema_version: 1
 instance: svc-homeassistant@lxc.lxc-homeassistant
+object_ref: obj.service.homeassistant
 group: l5_services
 layer: L5
-object_ref: obj.service.homeassistant
+version: 1.0.0
 source_id: svc-homeassistant
 status: mapped
 notes: module scaffold exists; runtime-specific behavior tuning pending

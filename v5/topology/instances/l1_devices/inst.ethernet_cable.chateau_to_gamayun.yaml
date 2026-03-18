@@ -1,8 +1,8 @@
-schema_version: 1
 instance: inst.ethernet_cable.chateau_to_gamayun
+object_ref: obj.network.ethernet_cable
 group: l1_devices
 layer: L1
-object_ref: obj.network.ethernet_cable
+version: 1.0.0
 source_id: link-rtr-mikrotik-srv-gamayun
 status: mapped
 notes: Wired trunk link carrying management and server VLANs between Chateau and Proxmox

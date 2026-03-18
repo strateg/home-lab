@@ -79,7 +79,7 @@ def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> Non
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "schema_version": 1,
+                "version": "1.0.0",
                 "instance": "inst.router.a",
                 "group": "l1_devices",
                 "layer": "L1",
@@ -135,7 +135,7 @@ def test_load_core_compile_inputs_reports_group_layer_mismatch(tmp_path: Path) -
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "schema_version": 1,
+                "version": "1.0.0",
                 "instance": "inst.router.a",
                 "group": "l1_devices",
                 "layer": "L2",
@@ -186,7 +186,7 @@ def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: 
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "schema_version": 1,
+                "version": "1.0.0",
                 "instance": "inst.router:bad",
                 "group": "l1_devices",
                 "layer": "L1",

@@ -1,8 +1,8 @@
-schema_version: 1
 instance: ups-main
+object_ref: obj.apc.backups.650va
 group: l1_devices
 layer: L1
-object_ref: obj.apc.backups.650va
+version: 1.0.0
 source_id: ups-main
 status: mapped
 notes: module scaffold exists; capability profile tuning pending

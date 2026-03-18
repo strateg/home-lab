@@ -6,12 +6,14 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
+import re
 
 import yaml
 
 from identifier_policy import contains_unsafe_identifier_chars
 
 INSTANCE_SOURCE_MODES = {"auto", "sharded-only"}
+_INSTANCE_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 
 
 @dataclass
@@ -116,6 +118,14 @@ def _diag_path(*, repo_root: Path, path: Path) -> str:
         return str(path.relative_to(repo_root).as_posix())
     except ValueError:
         return str(path.as_posix())
+
+
+def _is_supported_instance_version(value: str) -> bool:
+    match = _INSTANCE_VERSION_RE.fullmatch(value.strip())
+    if match is None:
+        return False
+    major = int(match.group(1))
+    return major == 1
 
 
 def _load_group_layer_map(
@@ -232,13 +242,20 @@ def _load_sharded_instance_payload(
             )
             continue
 
+        shard_version = payload.get("version")
         schema_version = payload.get("schema_version")
-        if not isinstance(schema_version, int) or schema_version != 1:
+        has_supported_version = isinstance(shard_version, str) and _is_supported_instance_version(shard_version)
+        has_supported_legacy = isinstance(schema_version, int) and schema_version == 1
+        if not has_supported_version and not has_supported_legacy:
             add_diag(
                 code="E7104",
                 severity="error",
                 stage="validate",
-                message=f"Unsupported schema_version '{schema_version}' in shard file.",
+                message=(
+                    "Unsupported shard version metadata. "
+                    f"version='{shard_version}', schema_version='{schema_version}'. "
+                    "Use 'version: 1.0.0'."
+                ),
                 path=_diag_path(repo_root=repo_root, path=path),
             )
             continue
@@ -363,6 +380,7 @@ def _load_sharded_instance_payload(
 
         row = dict(payload)
         row.pop("schema_version", None)
+        row.pop("version", None)
         row.pop("group", None)
         if not isinstance(explicit_class_ref, str):
             row.pop("class_ref", None)

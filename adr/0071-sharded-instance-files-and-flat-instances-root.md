@@ -42,11 +42,11 @@ Recommended layout:
 Minimal file schema:
 
 ```yaml
-schema_version: 1
 instance: inst.ethernet_cable.cat5e
+object_ref: obj.network.ethernet_cable
 group: l1_devices
 layer: L1
-object_ref: obj.network.ethernet_cable
+version: 1.0.0
 status: modeled
 endpoint_a:
   device_ref: rtr-mikrotik-chateau
@@ -71,6 +71,7 @@ Strict rules:
 5. Discovery order is lexicographic by relative path.
 6. Assembled in-group order is lexicographic by `instance`.
 7. `instance` MUST be filename-safe across platforms (no `<>:"/\\|?*`).
+8. Canonical top-level key order in shard files is: `instance`, `object_ref`, `group`, `layer`, `version`, then other fields.
 
 ### 4. Path Contract
 
@@ -113,10 +114,10 @@ Authoring rule:
 
 Loader MUST enforce:
 
-1. required keys: `schema_version`, `instance`, `group`, `layer`, `object_ref`
+1. required keys: `instance`, `version`, `group`, `layer`, `object_ref`
 2. one-row-per-file
 3. `group`/`layer` consistency with `layer-contract.yaml`
-4. supported `schema_version`
+4. supported shard `version` (semver, major `1`; e.g. `1.0.0`)
 5. `class_ref` derivation integrity from `object_ref` during compile normalization
 
 Minimum diagnostic set:

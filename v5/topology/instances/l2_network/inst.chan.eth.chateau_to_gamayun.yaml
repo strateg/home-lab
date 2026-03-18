@@ -1,8 +1,8 @@
-schema_version: 1
 instance: inst.chan.eth.chateau_to_gamayun
+object_ref: obj.network.ethernet_channel
 group: l2_network
 layer: L2
-object_ref: obj.network.ethernet_channel
+version: 1.0.0
 source_id: link-rtr-mikrotik-srv-gamayun
 status: mapped
 notes: Logical ethernet channel for Chateau to Proxmox trunk uplink

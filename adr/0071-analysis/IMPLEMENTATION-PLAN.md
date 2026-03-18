@@ -47,7 +47,7 @@ Files:
 Deliver:
 
 1. Deterministic shard discovery.
-2. One-row-per-file, required keys, schema-version checks.
+2. One-row-per-file, required keys, shard version checks (`version: 1.0.0`).
 3. Keep `class_ref` optional in shard files and derive/verify via compiler normalization.
 4. Identity checks (`basename == instance`, global uniqueness).
 5. E71xx diagnostics.

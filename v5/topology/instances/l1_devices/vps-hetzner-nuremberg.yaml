@@ -1,8 +1,8 @@
-schema_version: 1
 instance: vps-hetzner-nuremberg
+object_ref: obj.hetzner.cloud_vm
 group: l1_devices
 layer: L1
-object_ref: obj.hetzner.cloud_vm
+version: 1.0.0
 source_id: vps-hetzner-nuremberg
 status: mapped
 notes: module scaffold exists; capability profile tuning pending

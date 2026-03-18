@@ -1,8 +1,8 @@
-schema_version: 1
 instance: inst.vlan.management
+object_ref: obj.network.vlan.management
 group: l2_network
 layer: L2
-object_ref: obj.network.vlan.management
+version: 1.0.0
 source_id: net-management
 status: mapped
 notes: Management VLAN (VLAN 99)

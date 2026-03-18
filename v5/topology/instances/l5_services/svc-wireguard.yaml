@@ -1,8 +1,8 @@
-schema_version: 1
 instance: svc-wireguard
+object_ref: obj.service.wireguard
 group: l5_services
 layer: L5
-object_ref: obj.service.wireguard
+version: 1.0.0
 source_id: svc-wireguard
 status: mapped
 notes: module scaffold exists; runtime-specific behavior tuning pending

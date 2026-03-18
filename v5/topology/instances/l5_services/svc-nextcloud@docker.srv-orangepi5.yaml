@@ -1,8 +1,8 @@
-schema_version: 1
 instance: svc-nextcloud@docker.srv-orangepi5
+object_ref: obj.service.nextcloud
 group: l5_services
 layer: L5
-object_ref: obj.service.nextcloud
+version: 1.0.0
 source_id: svc-nextcloud
 status: mapped
 notes: module scaffold exists; runtime-specific behavior tuning pending

@@ -1,8 +1,8 @@
-schema_version: 1
 instance: inst.ethernet_cable.cat5e
+object_ref: obj.network.ethernet_cable
 group: l1_devices
 layer: L1
-object_ref: obj.network.ethernet_cable
+version: 1.0.0
 source_id: inst.ethernet_cable.cat5e
 status: modeled
 notes: Cat5e cable between rtr-mikrotik-chateau:ether2 and rtr-slate:lan1

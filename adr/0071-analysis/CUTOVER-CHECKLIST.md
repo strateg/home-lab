@@ -18,7 +18,7 @@
 - [x] `basename(file) == instance` is enforced.
 - [x] Global uniqueness of `instance` is enforced.
 - [x] One-row-per-file is enforced.
-- [x] Required keys (`schema_version`, `instance`, `group`, `layer`, `object_ref`) + supported `schema_version` are enforced.
+- [x] Required keys (`instance`, `version`, `group`, `layer`, `object_ref`) + supported shard version are enforced.
 - [x] `class_ref` is derived/verified from `object_ref` in compile normalization.
 - [x] Group/layer consistency checks are enforced.
 

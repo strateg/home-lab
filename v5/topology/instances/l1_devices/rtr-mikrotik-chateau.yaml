@@ -1,8 +1,8 @@
-schema_version: 1
 instance: rtr-mikrotik-chateau
+object_ref: obj.mikrotik.chateau_lte7_ax
 group: l1_devices
 layer: L1
-object_ref: obj.mikrotik.chateau_lte7_ax
+version: 1.0.0
 source_id: rtr-mikrotik-chateau
 status: mapped
 notes: module scaffold exists; capability profile tuning pending

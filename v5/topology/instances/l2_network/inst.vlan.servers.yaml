@@ -1,8 +1,8 @@
-schema_version: 1
 instance: inst.vlan.servers
+object_ref: obj.network.vlan.servers
 group: l2_network
 layer: L2
-object_ref: obj.network.vlan.servers
+version: 1.0.0
 source_id: net-servers
 status: mapped
 notes: Server VLAN (VLAN 30)

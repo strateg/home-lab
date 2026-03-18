@@ -1,8 +1,8 @@
-schema_version: 1
 instance: lxc-postgresql
+object_ref: obj.proxmox.lxc.debian12.postgresql
 group: l4_lxc
 layer: L4
-object_ref: obj.proxmox.lxc.debian12.postgresql
+version: 1.0.0
 source_id: lxc-postgresql
 status: mapped
 notes: module scaffold exists; capability profile tuning pending

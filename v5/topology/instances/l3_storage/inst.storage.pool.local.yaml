@@ -1,8 +1,8 @@
-schema_version: 1
 instance: inst.storage.pool.local
+object_ref: obj.storage.pool.local
 group: l3_storage
 layer: L3
-object_ref: obj.storage.pool.local
+version: 1.0.0
 source_id: se-local
 status: mapped
 notes: Local directory storage on Proxmox

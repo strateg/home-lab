@@ -1,8 +1,8 @@
-schema_version: 1
 instance: inst.os.debian.12.arm64.edge
+object_ref: obj.os.debian.12.arm64.edge
 group: l1_software_os
 layer: L1
-object_ref: obj.os.debian.12.arm64.edge
+version: 1.0.0
 source_id: inst.os.debian.12.arm64.edge
 status: mapped
 notes: ADR0064 os instance

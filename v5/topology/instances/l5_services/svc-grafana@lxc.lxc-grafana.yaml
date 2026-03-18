@@ -1,8 +1,8 @@
-schema_version: 1
 instance: svc-grafana@lxc.lxc-grafana
+object_ref: obj.service.grafana
 group: l5_services
 layer: L5
-object_ref: obj.service.grafana
+version: 1.0.0
 source_id: svc-grafana
 status: mapped
 notes: module scaffold exists; runtime-specific behavior tuning pending

@@ -1,11 +1,12 @@
-schema_version: 1
 instance: inst.ethernet_cable.chateau_to_orangepi5
+object_ref: obj.network.ethernet_cable
 group: l1_devices
 layer: L1
-object_ref: obj.network.ethernet_cable
+version: 1.0.0
 source_id: link-rtr-mikrotik-srv-orangepi5
 status: mapped
-notes: Wired uplink carrying management and server VLANs between Chateau and Orange Pi 5
+notes: Wired uplink carrying management and server VLANs between Chateau and Orange
+  Pi 5
 endpoint_a:
   device_ref: rtr-mikrotik-chateau
   port: ether4

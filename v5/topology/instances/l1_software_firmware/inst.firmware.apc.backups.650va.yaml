@@ -1,8 +1,8 @@
-schema_version: 1
 instance: inst.firmware.apc.backups.650va
+object_ref: obj.firmware.apc.backups.650va
 group: l1_software_firmware
 layer: L1
-object_ref: obj.firmware.apc.backups.650va
+version: 1.0.0
 source_id: inst.firmware.apc.backups.650va
 status: mapped
 notes: ADR0064 firmware instance

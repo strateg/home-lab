@@ -1,8 +1,8 @@
-schema_version: 1
 instance: srv-orangepi5
+object_ref: obj.orangepi.rk3588.debian
 group: l1_devices
 layer: L1
-object_ref: obj.orangepi.rk3588.debian
+version: 1.0.0
 source_id: srv-orangepi5
 status: mapped
 notes: module scaffold exists; capability profile tuning pending

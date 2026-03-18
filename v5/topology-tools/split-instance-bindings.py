@@ -60,11 +60,11 @@ def _sanitize_row(
         rewrite_map[instance_id] = normalized_instance_id
 
     payload: dict[str, Any] = {
-        "schema_version": 1,
         "instance": normalized_instance_id,
+        "object_ref": row.get("object_ref"),
         "group": group_name,
         "layer": row.get("layer"),
-        "object_ref": row.get("object_ref"),
+        "version": "1.0.0",
     }
     if not drop_class_ref and isinstance(row.get("class_ref"), str) and row.get("class_ref"):
         payload["class_ref"] = row["class_ref"]

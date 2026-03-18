@@ -1,8 +1,8 @@
-schema_version: 1
 instance: svc-redis
+object_ref: obj.service.redis
 group: l5_services
 layer: L5
-object_ref: obj.service.redis
+version: 1.0.0
 source_id: svc-redis
 status: mapped
 notes: module scaffold exists; runtime-specific behavior tuning pending

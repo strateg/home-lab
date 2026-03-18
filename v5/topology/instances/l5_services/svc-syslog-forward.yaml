@@ -1,8 +1,8 @@
-schema_version: 1
 instance: svc-syslog-forward
+object_ref: obj.service.syslog_forwarder
 group: l5_services
 layer: L5
-object_ref: obj.service.syslog_forwarder
+version: 1.0.0
 source_id: svc-syslog-forward
 status: mapped
 notes: module scaffold exists; runtime-specific behavior tuning pending

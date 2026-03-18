@@ -1,8 +1,8 @@
-schema_version: 1
 instance: inst.os.proxmox.ve.9
+object_ref: obj.os.proxmox.ve.9
 group: l1_software_os
 layer: L1
-object_ref: obj.os.proxmox.ve.9
+version: 1.0.0
 source_id: inst.os.proxmox.ve.9
 status: mapped
 notes: ADR0064 os instance

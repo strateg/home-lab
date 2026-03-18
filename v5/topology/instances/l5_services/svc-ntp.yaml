@@ -1,8 +1,8 @@
-schema_version: 1
 instance: svc-ntp
+object_ref: obj.service.ntp
 group: l5_services
 layer: L5
-object_ref: obj.service.ntp
+version: 1.0.0
 source_id: svc-ntp
 status: mapped
 notes: module scaffold exists; runtime-specific behavior tuning pending

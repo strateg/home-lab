@@ -1,8 +1,8 @@
-schema_version: 1
 instance: svc-alertmanager
+object_ref: obj.service.alertmanager
 group: l5_services
 layer: L5
-object_ref: obj.service.alertmanager
+version: 1.0.0
 source_id: svc-alertmanager
 status: mapped
 notes: module scaffold exists; runtime-specific behavior tuning pending
