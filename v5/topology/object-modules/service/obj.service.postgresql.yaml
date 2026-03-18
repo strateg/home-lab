@@ -1,6 +1,6 @@
 object: obj.service.postgresql
-version: 1.0.0
 class_ref: class.service.database
+version: 1.0.0
 model: Postgresql
 vendor: home-lab
 enabled_capabilities:

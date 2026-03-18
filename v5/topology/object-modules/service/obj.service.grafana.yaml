@@ -1,6 +1,6 @@
 object: obj.service.grafana
-version: 1.0.0
 class_ref: class.service.visualization
+version: 1.0.0
 model: Grafana
 vendor: home-lab
 enabled_capabilities:

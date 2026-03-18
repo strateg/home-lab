@@ -1,6 +1,6 @@
 object: obj.hetzner.cloud_vm
-version: 1.0.0
 class_ref: class.compute.cloud_vm
+version: 1.0.0
 model: Hetzner Cloud VM
 vendor: hetzner
 software_contract:

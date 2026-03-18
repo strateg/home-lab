@@ -1,6 +1,6 @@
 object: obj.service.mikrotik.snmp
-version: 1.0.0
 class_ref: class.service.monitoring
+version: 1.0.0
 model: Mikrotik Snmp
 vendor: mikrotik
 enabled_capabilities:

@@ -1,6 +1,6 @@
 object: obj.service.docker_host
-version: 1.0.0
 class_ref: class.service.web_application
+version: 1.0.0
 model: Docker Host
 vendor: home-lab
 enabled_capabilities:

@@ -1,6 +1,6 @@
 object: obj.os.openwrt.glinet.4x
-version: 1.0.0
 class_ref: class.os
+version: 1.0.0
 vendor: glinet
 model: OpenWrt GL.iNet 4.x
 properties:

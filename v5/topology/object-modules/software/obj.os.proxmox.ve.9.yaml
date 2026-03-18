@@ -1,6 +1,6 @@
 object: obj.os.proxmox.ve.9
-version: 1.0.0
 class_ref: class.os
+version: 1.0.0
 vendor: proxmox
 model: Proxmox VE 9
 properties:

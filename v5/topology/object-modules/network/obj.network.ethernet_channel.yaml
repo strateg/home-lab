@@ -1,6 +1,6 @@
 object: obj.network.ethernet_channel
-version: 1.0.0
 class_ref: class.network.data_link
+version: 1.0.0
 description: Logical ethernet data channel created over a physical data link
 
 properties:

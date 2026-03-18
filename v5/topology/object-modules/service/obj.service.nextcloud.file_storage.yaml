@@ -1,6 +1,6 @@
 object: obj.service.nextcloud.file_storage
-version: 1.0.0
 class_ref: class.service.file_storage
+version: 1.0.0
 model: Nextcloud File Storage
 vendor: home-lab
 enabled_capabilities:

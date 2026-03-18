@@ -1,6 +1,6 @@
 object: obj.service.alertmanager
-version: 1.0.0
 class_ref: class.service.alerting
+version: 1.0.0
 model: Alertmanager
 vendor: home-lab
 enabled_capabilities:

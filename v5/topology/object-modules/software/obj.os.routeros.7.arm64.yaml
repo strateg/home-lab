@@ -1,6 +1,6 @@
 object: obj.os.routeros.7.arm64
-version: 1.0.0
 class_ref: class.os
+version: 1.0.0
 vendor: mikrotik
 model: RouterOS v7 ARM64
 properties:

@@ -1,6 +1,6 @@
 object: obj.firmware.uefi.generic.arm64
-version: 1.0.0
 class_ref: class.firmware
+version: 1.0.0
 vendor: generic
 model: Generic UEFI Firmware ARM64
 properties:

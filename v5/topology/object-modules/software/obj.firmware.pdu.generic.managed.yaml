@@ -1,6 +1,6 @@
 object: obj.firmware.pdu.generic.managed
-version: 1.0.0
 class_ref: class.firmware
+version: 1.0.0
 vendor: generic
 model: Managed PDU Firmware
 properties:

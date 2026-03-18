@@ -1,6 +1,6 @@
 object: obj.os.linux.generic.x86_64
-version: 1.0.0
 class_ref: class.os
+version: 1.0.0
 vendor: generic
 model: Generic Linux x86-64
 properties:

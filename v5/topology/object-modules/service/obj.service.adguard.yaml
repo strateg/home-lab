@@ -1,6 +1,6 @@
 object: obj.service.adguard
-version: 1.0.0
 class_ref: class.service.dns
+version: 1.0.0
 model: Adguard
 vendor: home-lab
 enabled_capabilities:

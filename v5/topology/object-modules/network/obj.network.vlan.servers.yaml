@@ -1,6 +1,6 @@
 object: obj.network.vlan.servers
-version: 1.0.0
 class_ref: class.network.vlan
+version: 1.0.0
 description: Server VLAN for Proxmox LXC and edge devices
 
 properties:

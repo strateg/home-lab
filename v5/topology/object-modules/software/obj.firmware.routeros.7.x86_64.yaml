@@ -1,6 +1,6 @@
 object: obj.firmware.routeros.7.x86_64
-version: 1.0.0
 class_ref: class.firmware
+version: 1.0.0
 vendor: mikrotik
 model: RouterOS Firmware v7 x86-64
 properties:

@@ -1,6 +1,6 @@
 object: obj.firmware.uboot.generic.arm64
-version: 1.0.0
 class_ref: class.firmware
+version: 1.0.0
 vendor: generic
 model: Generic U-Boot Firmware ARM64
 properties:

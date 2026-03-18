@@ -1,6 +1,6 @@
 object: obj.glinet.slate_ax1800
-version: 1.0.0
 class_ref: class.router
+version: 1.0.0
 title: GL.iNet Slate AX (GL-AXT1800)
 vendor: GL.iNet
 model: GL-AXT1800

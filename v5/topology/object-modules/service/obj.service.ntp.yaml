@@ -1,6 +1,6 @@
 object: obj.service.ntp
-version: 1.0.0
 class_ref: class.service.monitoring
+version: 1.0.0
 model: Ntp
 vendor: home-lab
 enabled_capabilities:

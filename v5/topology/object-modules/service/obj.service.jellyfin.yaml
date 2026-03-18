@@ -1,6 +1,6 @@
 object: obj.service.jellyfin
-version: 1.0.0
 class_ref: class.service.media_server
+version: 1.0.0
 model: Jellyfin
 vendor: home-lab
 enabled_capabilities:

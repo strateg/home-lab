@@ -1,6 +1,6 @@
 object: obj.service.gitea
-version: 1.0.0
 class_ref: class.service.web_application
+version: 1.0.0
 model: Gitea
 vendor: home-lab
 enabled_capabilities:

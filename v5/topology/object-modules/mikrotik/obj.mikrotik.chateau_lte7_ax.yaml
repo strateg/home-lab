@@ -1,6 +1,6 @@
 object: obj.mikrotik.chateau_lte7_ax
-version: 1.0.0
 class_ref: class.router
+version: 1.0.0
 title: MikroTik Chateau LTE7 AX
 vendor: mikrotik
 model: S53UG+5HaxD2HaxD-TC&R11e-LTE7
