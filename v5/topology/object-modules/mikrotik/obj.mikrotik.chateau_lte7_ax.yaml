@@ -10,6 +10,9 @@ description: |
   built-in LTE Cat 7 modem, RouterOS v7 container support, and comprehensive
   routing/VPN features. Ideal for home/small office with failover requirements.
 
+hardware_identity:
+  serial_number: "@optional_secret:string"
+
 # ============================================================================
 # HARDWARE SPECIFICATIONS
 # ============================================================================

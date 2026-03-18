@@ -13,5 +13,4 @@ power:
   source_ref: pdu-rack
   outlet_ref: outlet_01
 hardware_identity:
-  serial_number: "@secret"
   mac_addresses: {}
