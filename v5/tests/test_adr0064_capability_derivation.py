@@ -90,23 +90,22 @@ def test_effective_software_populated(effective_topology: dict) -> None:
 
 
 def test_firmware_ref_os_refs_present(effective_topology: dict) -> None:
-    # Skip non-compute entities (cables, passive components)
-    skip_prefixes = ("inst.ethernet_cable", "inst.cable", "inst.patch")
-
     for inst in effective_topology["instances"].get("l1_devices", []):
         instance_data = inst.get("instance", {})
         instance_name = inst.get("source_id") or inst.get("instance")
-
-        # Skip passive components that don't have firmware
-        if any(instance_name.startswith(prefix) for prefix in skip_prefixes):
+        if not isinstance(instance_data, dict):
             continue
 
         firmware_ref = instance_data.get("firmware_ref")
         os_refs = instance_data.get("os_refs", [])
         class_data = inst.get("class", {})
+        firmware_policy = class_data.get("firmware_policy", "allowed")
         os_policy = class_data.get("os_policy", "allowed")
 
-        assert firmware_ref, f"{instance_name} missing firmware_ref"
+        if firmware_policy == "required":
+            assert firmware_ref, f"{instance_name} missing firmware_ref (firmware_policy=required)"
+        if firmware_policy == "forbidden":
+            assert not firmware_ref, f"{instance_name} has firmware_ref but firmware_policy=forbidden"
         if os_policy == "required":
             assert os_refs, f"{instance_name} missing os_refs (os_policy=required)"
         if os_policy == "forbidden":

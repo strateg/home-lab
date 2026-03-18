@@ -108,7 +108,7 @@ class V5Compiler:
         output_json: Path,
         diagnostics_json: Path,
         diagnostics_txt: Path,
-        artifacts_root: Path,
+        artifacts_root: Path | None = None,
         error_catalog_path: Path,
         strict_model_lock: bool,
         fail_on_warning: bool,
@@ -129,7 +129,7 @@ class V5Compiler:
         self.output_json = output_json
         self.diagnostics_json = diagnostics_json
         self.diagnostics_txt = diagnostics_txt
-        self.artifacts_root = artifacts_root
+        self.artifacts_root = artifacts_root or DEFAULT_ARTIFACTS_ROOT
         self.error_catalog_path = error_catalog_path
         self.strict_model_lock = strict_model_lock
         self.fail_on_warning = fail_on_warning
