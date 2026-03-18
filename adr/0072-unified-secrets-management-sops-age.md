@@ -75,7 +75,7 @@ The integration point is `InstanceRowsCompiler`, which resolves decrypted secret
 Policy:
 
 - Instance files in `v5/topology/instances/` contain human-readable placeholders (`<TODO_*>`) for secret fields.
-- Encrypted secret values are stored in side-car files under `secrets/instances/{instance_id}.yaml`.
+- Encrypted secret values are stored in side-car files under `v5/secrets/instances/{instance_id}.yaml`.
 - Compiler merges decrypted side-car values into instance rows, replacing placeholders only.
 - Non-placeholder fields in instance files are preserved unchanged.
 - No additional indirection fields (`hardware_identity_secret_ref`) required.
@@ -85,7 +85,7 @@ Policy:
 ## Repository Secret Structure
 
 ```text
-secrets/
+v5/secrets/
 ├── .sops.yaml
 ├── devkey.age
 ├── devkey.pub
@@ -104,12 +104,12 @@ secrets/
 └── bootstrap/                    # Bootstrap secrets
 ```
 
-Each file in `secrets/instances/` corresponds to an instance in `v5/topology/instances/` by matching `instance` ID.
+Each file in `v5/secrets/instances/` corresponds to an instance in `v5/topology/instances/` by matching `instance` ID.
 
 ### SOPS configuration
 
 ```yaml
-# secrets/.sops.yaml
+# v5/secrets/.sops.yaml
 creation_rules:
   - path_regex: \.yaml$
     age: >-
@@ -127,8 +127,8 @@ creation_rules:
 
 Canonical repository key files:
 
-- `secrets/devkey.age`, `secrets/devkey.pub`
-- `secrets/masterkey.age`, `secrets/masterkey.pub`
+- `v5/secrets/devkey.age`, `v5/secrets/devkey.pub`
+- `v5/secrets/masterkey.age`, `v5/secrets/masterkey.pub`
 
 ### 2) Unlock for active session
 
@@ -152,7 +152,7 @@ Security note:
 
 ### 4) Rotation
 
-Key rotation must re-encrypt all files in `secrets/{instances,terraform,ansible,bootstrap}`, then update `secrets/.sops.yaml`.
+Key rotation must re-encrypt all files in `v5/secrets/{instances,terraform,ansible,bootstrap}`, then update `v5/secrets/.sops.yaml`.
 
 ---
 
@@ -179,7 +179,7 @@ Secret resolution is configured on `base.compiler.instance_rows`.
 
 ### Runtime behavior
 
-- `inject`: find side-car file in `secrets/instances/`, decrypt, and merge values into instance row replacing placeholders.
+- `inject`: find side-car file in `v5/secrets/instances/`, decrypt, and merge values into instance row replacing placeholders.
 - `passthrough`: skip side-car lookup, keep placeholders as-is in compiled output.
 - `strict`: same as `inject`, but fail compile if any placeholder remains unresolved after merge.
 
@@ -196,7 +196,7 @@ These values are passed into plugin context config and consumed by `base.compile
 
 ### Side-car encrypted files
 
-Secret values are stored in separate side-car files under `secrets/instances/`.
+Secret values are stored in separate side-car files under `v5/secrets/instances/`.
 Each side-car file contains only the secret fields that should be merged into the corresponding instance.
 
 **Instance file** (human-readable, tracked):
@@ -216,7 +216,7 @@ hardware_identity:
 
 **Side-car file** (encrypted, tracked):
 ```yaml
-# secrets/instances/rtr-mikrotik-chateau.yaml (SOPS-encrypted)
+# v5/secrets/instances/rtr-mikrotik-chateau.yaml (SOPS-encrypted)
 instance: rtr-mikrotik-chateau
 hardware_identity:
   serial_number: ENC[AES256_GCM,data:...,iv:...,tag:...]
@@ -240,7 +240,7 @@ hardware_identity:
 
 ### Merge algorithm
 
-1. For each instance row, look for `secrets/instances/{instance_id}.yaml`.
+1. For each instance row, look for `v5/secrets/instances/{instance_id}.yaml`.
 2. If side-car exists, decrypt it with `sops -d`.
 3. Deep-walk instance row: for each field with `<TODO_*>` placeholder, replace with corresponding value from decrypted side-car.
 4. Fields without placeholders are never modified.
@@ -252,7 +252,7 @@ hardware_identity:
 
 ### Ansible
 
-Replace Ansible Vault payloads with SOPS-encrypted `secrets/ansible/vault.yaml`.
+Replace Ansible Vault payloads with SOPS-encrypted `v5/secrets/ansible/vault.yaml`.
 Playbooks must use SOPS decryption path (CLI or SOPS-aware plugin) and must not require `.vault_pass`.
 
 ### Terraform
@@ -275,7 +275,7 @@ Canonical CI secret name:
 
 Canonical encrypted key file for routine CI jobs:
 
-- `secrets/devkey.age`
+- `v5/secrets/devkey.age`
 
 GitHub Actions unlock step:
 
@@ -287,7 +287,7 @@ steps:
   - name: Unlock secrets
     run: |
       mkdir -p ~/.config/sops/age
-      echo "$DEVKEY_PASSPHRASE" | age -d secrets/devkey.age > ~/.config/sops/age/keys.txt
+      echo "$DEVKEY_PASSPHRASE" | age -d v5/secrets/devkey.age > ~/.config/sops/age/keys.txt
       chmod 600 ~/.config/sops/age/keys.txt
 ```
 
@@ -334,22 +334,22 @@ Recovery key (`masterkey.age`) is excluded from routine CI usage.
 
 ### Phase 1: Side-car secrets + compiler integration
 
-- [x] Create `secrets/instances/` directory for instance-level side-car secrets.
+- [x] Create `v5/secrets/instances/` directory for instance-level side-car secrets.
 - [x] Implement side-car lookup and placeholder merge in `base.compiler.instance_rows`.
 - [x] Add `--secrets-mode` and `--secrets-root` to `compile-topology.py`.
-- [x] Migrate existing `secrets/hardware/*.yaml` to `secrets/instances/*.yaml`.
+- [x] Migrate existing `v5/secrets/hardware/*.yaml` to `v5/secrets/instances/*.yaml`.
 - [x] Keep placeholders (`<TODO_*>`) in instance files for unresolved secrets.
 - [x] Remove `hardware_identity_secret_ref` field usage.
 
 ### Phase 2: Terraform secrets
 
-- [x] Migrate secret-bearing `local/terraform/*.tfvars` data to `secrets/terraform/*.yaml`.
+- [x] Migrate secret-bearing `local/terraform/*.tfvars` data to `v5/secrets/terraform/*.yaml`.
 - [x] Keep `local/` only for non-secret operator preferences.
 - [x] Add `scripts/generate-tfvars.py` to generate runtime tfvars from SOPS.
 
 ### Phase 3: Ansible secrets
 
-- [x] Convert Ansible Vault payloads to `secrets/ansible/vault.yaml`.
+- [x] Convert Ansible Vault payloads to `v5/secrets/ansible/vault.yaml`.
 - [x] Remove `.vault_pass` runtime dependency (v5 only; v4 legacy preserved).
 
 ### Phase 4: Cleanup and ADR alignment
@@ -362,7 +362,7 @@ Recovery key (`masterkey.age`) is excluded from routine CI usage.
 
 ## Validation Criteria
 
-1. `sops -d secrets/instances/{instance_id}.yaml` works on Linux/macOS and Windows when unlocked.
+1. `sops -d v5/secrets/instances/{instance_id}.yaml` works on Linux/macOS and Windows when unlocked.
 2. `compile-topology.py --secrets-mode inject` merges decrypted side-car values, replacing `<TODO_*>` placeholders.
 3. `compile-topology.py --secrets-mode passthrough` works without unlocking secrets; placeholders remain in output.
 4. `compile-topology.py --secrets-mode strict` fails if any `<TODO_*>` placeholder remains unresolved.
@@ -370,8 +370,8 @@ Recovery key (`masterkey.age`) is excluded from routine CI usage.
 6. Non-placeholder fields in instance files are never modified by side-car merge.
 7. Terraform apply path consumes SOPS-derived tfvars and cleans ephemeral file.
 8. Ansible runs without `.vault_pass`.
-9. Pre-commit hook blocks plaintext secret artifacts in `secrets/`.
-10. CI decrypts routine secrets via `DEVKEY_PASSPHRASE` and `secrets/devkey.age`.
+9. Pre-commit hook blocks plaintext secret artifacts in `v5/secrets/`.
+10. CI decrypts routine secrets via `DEVKEY_PASSPHRASE` and `v5/secrets/devkey.age`.
 
 ---
 

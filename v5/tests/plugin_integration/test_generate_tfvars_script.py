@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SCRIPT_PATH = REPO_ROOT / "scripts" / "generate-tfvars.py"
+SCRIPT_PATH = REPO_ROOT / "v5" / "scripts" / "generate-tfvars.py"
 
 
 def _load_module():
@@ -55,7 +55,7 @@ def test_decrypt_yaml_missing_sops_reports_runtime_error(monkeypatch):
 def test_generate_and_cleanup_mikrotik_tfvars(tmp_path: Path, monkeypatch):
     module = _load_module()
 
-    secret_file = tmp_path / "secrets" / "terraform" / "mikrotik.yaml"
+    secret_file = tmp_path / "v5" / "secrets" / "terraform" / "mikrotik.yaml"
     secret_file.parent.mkdir(parents=True, exist_ok=True)
     secret_file.write_text("dummy: value\n", encoding="utf-8")
 
@@ -87,6 +87,7 @@ def test_generate_and_cleanup_mikrotik_tfvars(tmp_path: Path, monkeypatch):
     }
 
     monkeypatch.setattr(module, "_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(module, "_v5_root", lambda: tmp_path / "v5")
     monkeypatch.setattr(module, "_decrypt_yaml", lambda _: payload)
 
     assert module._generate_tfvars("mikrotik") == 0

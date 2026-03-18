@@ -387,7 +387,7 @@ class InstanceRowsCompiler(CompilerPlugin):
         require_unlock = self._resolve_require_unlock(ctx)
 
         # Resolve secrets_root path (relative to repo_root)
-        secrets_root_str = ctx.config.get("secrets_root", "secrets")
+        secrets_root_str = ctx.config.get("secrets_root", "v5/secrets")
         repo_root = ctx.config.get("repo_root")
         if isinstance(repo_root, str) and repo_root:
             secrets_root = Path(repo_root) / secrets_root_str

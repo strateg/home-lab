@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-SECRETS_DIR="${REPO_ROOT}/secrets"
+WORKSPACE_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+SECRETS_DIR="${WORKSPACE_ROOT}/v5/secrets"
 
 echo "=== SOPS/age Key Generator ==="
 echo ""
@@ -55,7 +55,7 @@ echo ""
 echo "=== Keys generated successfully ==="
 echo ""
 echo "Next steps:"
-echo "  1. ./scripts/unlock-secrets.sh"
-echo "  2. Re-encrypt secrets: cd secrets && for f in */*.yaml; do sops updatekeys -y \"\$f\"; done"
+echo "  1. ./v5/scripts/unlock-secrets.sh"
+echo "  2. Re-encrypt secrets: cd v5/secrets && for f in */*.yaml; do sops updatekeys -y \"\$f\"; done"
 echo ""
 echo "IMPORTANT: Store masterkey passphrase securely (paper, safe)!"

@@ -15,6 +15,10 @@ import yaml
 
 
 def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _v5_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
@@ -152,7 +156,7 @@ def _cleanup_tfvars(target: str) -> int:
 def _generate_tfvars(target: str) -> int:
     """Generate terraform.tfvars for target from SOPS secrets."""
     repo_root = _repo_root()
-    secret_file = repo_root / "secrets" / "terraform" / f"{target}.yaml"
+    secret_file = _v5_root() / "secrets" / "terraform" / f"{target}.yaml"
     output_dir = repo_root / ".work" / "native" / "terraform" / target
     output_file = output_dir / "terraform.tfvars"
 

@@ -81,7 +81,7 @@ def test_sidecar_merge_passthrough_preserves_placeholders():
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "passthrough",
-            "secrets_root": "secrets",
+            "secrets_root": "v5/secrets",
             "repo_root": str(V5_TOOLS.parent.parent),
         },
         instance_bindings={
@@ -122,7 +122,7 @@ def test_sidecar_missing_inject_mode_no_error():
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "secrets",
+            "secrets_root": "v5/secrets",
             "repo_root": str(V5_TOOLS.parent.parent),
         },
         instance_bindings={
@@ -158,7 +158,7 @@ def test_sidecar_missing_strict_mode_with_placeholders_emits_error():
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "strict",
-            "secrets_root": "secrets",
+            "secrets_root": "v5/secrets",
             "repo_root": str(V5_TOOLS.parent.parent),
         },
         instance_bindings={
@@ -194,7 +194,7 @@ def test_placeholder_non_placeholders_preserved():
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "secrets",
+            "secrets_root": "v5/secrets",
             "repo_root": str(V5_TOOLS.parent.parent),
         },
         instance_bindings={
@@ -246,7 +246,7 @@ def test_sidecar_decrypt_failure_inject_require_unlock_emits_error(monkeypatch):
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "secrets",
+            "secrets_root": "v5/secrets",
             "repo_root": str(V5_TOOLS.parent.parent),
         },
         instance_bindings={
@@ -292,7 +292,7 @@ def test_sidecar_decrypt_failure_inject_require_unlock_false_is_warning(monkeypa
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "secrets",
+            "secrets_root": "v5/secrets",
             "require_unlock": False,
             "repo_root": str(V5_TOOLS.parent.parent),
         },
@@ -346,7 +346,7 @@ def test_sidecar_instance_mismatch_does_not_merge_in_inject(monkeypatch):
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "secrets",
+            "secrets_root": "v5/secrets",
             "require_unlock": False,
             "repo_root": str(V5_TOOLS.parent.parent),
         },
@@ -467,7 +467,7 @@ def test_sidecar_secret_annotations_are_replaced(monkeypatch):
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "secrets",
+            "secrets_root": "v5/secrets",
             "require_unlock": True,
             "repo_root": str(V5_TOOLS.parent.parent),
         },
@@ -526,7 +526,7 @@ def test_sidecar_plaintext_conflict_emits_error(monkeypatch):
         config={
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
-            "secrets_root": "secrets",
+            "secrets_root": "v5/secrets",
             "require_unlock": True,
             "repo_root": str(V5_TOOLS.parent.parent),
         },

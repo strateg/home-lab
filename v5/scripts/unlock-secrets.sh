@@ -3,8 +3,8 @@ set -e
 
 KEYS_DIR="${HOME}/.config/sops/age"
 KEYS_FILE="${KEYS_DIR}/keys.txt"
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEVKEY="${REPO_ROOT}/secrets/devkey.age"
+WORKSPACE_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+DEVKEY="${WORKSPACE_ROOT}/v5/secrets/devkey.age"
 
 if [ -f "$KEYS_FILE" ]; then
     echo "✓ Secrets already unlocked"
@@ -21,4 +21,4 @@ echo "Decrypting devkey..."
 age -d "$DEVKEY" > "$KEYS_FILE"
 chmod 600 "$KEYS_FILE"
 echo "✓ Secrets unlocked"
-echo "  Run './scripts/lock-secrets.sh' when done"
+echo "  Run './v5/scripts/lock-secrets.sh' when done"

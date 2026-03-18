@@ -8,7 +8,7 @@
 
 ## Overview
 
-This repository uses **SOPS + age** for unified secrets management. All sensitive data (hardware identities, credentials, API tokens) is encrypted and stored in the `secrets/` directory.
+This repository uses **SOPS + age** for unified secrets management. All sensitive data (hardware identities, credentials, API tokens) is encrypted and stored in the `v5/secrets/` directory.
 
 ### Architecture
 
@@ -24,13 +24,13 @@ This repository uses **SOPS + age** for unified secrets management. All sensitiv
 ┌─────────────────────────────────────────────────────────────┐
 │                    REPOSITORY (tracked)                     │
 │                                                             │
-│  secrets/devkey.age ◄────── age private key (encrypted)    │
+│  v5/secrets/devkey.age ◄────── age private key (encrypted)    │
 │         │                                                   │
 │         │ unlocks                                           │
 │         ▼                                                   │
-│  secrets/instances/*.yaml ◄── instance secrets (side-car)  │
-│  secrets/terraform/*.yaml ◄── terraform credentials        │
-│  secrets/ansible/*.yaml ◄──── ansible secrets              │
+│  v5/secrets/instances/*.yaml ◄── instance secrets (side-car)  │
+│  v5/secrets/terraform/*.yaml ◄── terraform credentials        │
+│  v5/secrets/ansible/*.yaml ◄──── ansible secrets              │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -88,12 +88,12 @@ rage-keygen --version
 Before working with encrypted files:
 
 ```bash
-./scripts/unlock-secrets.sh
+./v5/scripts/unlock-secrets.sh
 # Enter your passphrase when prompted
 ```
 
 ```powershell
-./scripts/unlock-secrets.ps1
+./v5/scripts/unlock-secrets.ps1
 ```
 
 This decrypts the devkey to the default SOPS age key path (`~/.config/sops/age/keys.txt` on Linux/macOS, `%APPDATA%\sops\age\keys.txt` on Windows).
@@ -109,7 +109,7 @@ ls -la ~/.config/sops/age/keys.txt
 #### View decrypted content
 
 ```bash
-sops -d secrets/instances/rtr-mikrotik-chateau.yaml
+sops -d v5/secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 #### Edit encrypted file
@@ -117,23 +117,23 @@ sops -d secrets/instances/rtr-mikrotik-chateau.yaml
 Opens in your `$EDITOR` with decrypted content, re-encrypts on save:
 
 ```bash
-sops secrets/instances/rtr-mikrotik-chateau.yaml
+sops v5/secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 #### Encrypt a new file
 
 ```bash
 # Create plaintext file
-cat > secrets/terraform/new-service.yaml << 'EOF'
+cat > v5/secrets/terraform/new-service.yaml << 'EOF'
 api_key: "your-secret-key"
 password: "your-password"
 EOF
 
 # Encrypt in place
-sops -e -i secrets/terraform/new-service.yaml
+sops -e -i v5/secrets/terraform/new-service.yaml
 
 # Verify encryption
-head -5 secrets/terraform/new-service.yaml
+head -5 v5/secrets/terraform/new-service.yaml
 # Should show: api_key: ENC[AES256_GCM,data:...,iv:...,tag:...]
 ```
 
@@ -142,11 +142,11 @@ head -5 secrets/terraform/new-service.yaml
 When done working:
 
 ```bash
-./scripts/lock-secrets.sh
+./v5/scripts/lock-secrets.sh
 ```
 
 ```powershell
-./scripts/lock-secrets.ps1
+./v5/scripts/lock-secrets.ps1
 ```
 
 This removes the plaintext key from the default SOPS age key path.
@@ -156,7 +156,7 @@ This removes the plaintext key from the default SOPS age key path.
 ## Directory Structure
 
 ```
-secrets/
+v5/secrets/
 ├── .sops.yaml              # SOPS configuration (age recipients)
 ├── devkey.age              # Dev key (daily operations, passphrase-protected)
 ├── devkey.pub              # Dev public key
@@ -175,7 +175,7 @@ secrets/
 └── bootstrap/              # Bootstrap secrets
 ```
 
-Each file in `secrets/instances/` corresponds to an instance in `v5/topology/instances/` by matching `instance` ID. The compiler merges decrypted side-car values into instance rows, replacing `<TODO_*>` placeholders.
+Each file in `v5/secrets/instances/` corresponds to an instance in `v5/topology/instances/` by matching `instance` ID. The compiler merges decrypted side-car values into instance rows, replacing `<TODO_*>` placeholders.
 
 ---
 
@@ -194,7 +194,7 @@ ssh admin@192.168.88.1
 
 Copy values to secrets file:
 ```bash
-sops secrets/instances/rtr-mikrotik-chateau.yaml
+sops v5/secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 ### GL.iNet (OpenWrt)
@@ -246,24 +246,24 @@ ip -o link show | awk '{print $2, $(NF-2)}'
 
 **Fix:**
 ```bash
-./scripts/unlock-secrets.sh
+./v5/scripts/unlock-secrets.sh
 # Enter correct passphrase
 ```
 
 ### "sops: no matching creation rule"
 
-**Cause:** File not in `secrets/` directory or wrong extension.
+**Cause:** File not in `v5/secrets/` directory or wrong extension.
 
-**Fix:** Ensure file is in `secrets/**/*.yaml` path.
+**Fix:** Ensure file is in `v5/secrets/**/*.yaml` path.
 
 ### Pre-commit hook fails: "ERROR: file is not encrypted!"
 
-**Cause:** Attempting to commit plaintext YAML in `secrets/`.
+**Cause:** Attempting to commit plaintext YAML in `v5/secrets/`.
 
 **Fix:**
 ```bash
-./scripts/unlock-secrets.sh
-sops -e -i secrets/path/to/file.yaml
+./v5/scripts/unlock-secrets.sh
+sops -e -i v5/secrets/path/to/file.yaml
 ```
 
 ### Forgot passphrase
@@ -283,34 +283,34 @@ Rotate the devkey periodically or if compromised:
 
 ```bash
 # 1. Unlock with current passphrase
-./scripts/unlock-secrets.sh
+./v5/scripts/unlock-secrets.sh
 
 # 2. Generate new keypair
 age-keygen > /tmp/new-devkey.key
 NEW_PUB=$(grep "public key:" /tmp/new-devkey.key | cut -d: -f2 | tr -d ' ')
 
 # 3. Re-encrypt all secrets with new key
-for f in secrets/{instances,terraform,ansible,bootstrap}/*.yaml; do
+for f in v5/secrets/{instances,terraform,ansible,bootstrap}/*.yaml; do
     [ -f "$f" ] || continue
     sops -d "$f" | sops -e --age "$NEW_PUB" /dev/stdin > "$f.new"
     mv "$f.new" "$f"
 done
 
 # 4. Update .sops.yaml
-sed -i "s/age1.*/$NEW_PUB/" secrets/.sops.yaml
+sed -i "s/age1.*/$NEW_PUB/" v5/secrets/.sops.yaml
 
 # 5. Encrypt new key with NEW passphrase
-age -p -o secrets/devkey.age /tmp/new-devkey.key
-echo "$NEW_PUB" > secrets/devkey.pub
+age -p -o v5/secrets/devkey.age /tmp/new-devkey.key
+echo "$NEW_PUB" > v5/secrets/devkey.pub
 
 # 6. Cleanup
 shred -u /tmp/new-devkey.key
 
 # 7. Lock old session
-./scripts/lock-secrets.sh
+./v5/scripts/lock-secrets.sh
 
 # 8. Commit
-git add secrets/
+git add v5/secrets/
 git commit -m "chore(secrets): rotate devkey"
 ```
 
@@ -341,7 +341,7 @@ jobs:
       - name: Unlock secrets
         run: |
           mkdir -p ~/.config/sops/age
-          echo "$DEVKEY_PASSPHRASE" | age -d secrets/devkey.age > ~/.config/sops/age/keys.txt
+          echo "$DEVKEY_PASSPHRASE" | age -d v5/secrets/devkey.age > ~/.config/sops/age/keys.txt
           chmod 600 ~/.config/sops/age/keys.txt
 
       - name: Compile with secrets
@@ -359,16 +359,16 @@ jobs:
 
 1. **Lock secrets when not in use**
    ```bash
-   ./scripts/lock-secrets.sh
+   ./v5/scripts/lock-secrets.sh
    ```
 
 2. **Never commit plaintext secrets**
    - Pre-commit hook will block unencrypted files
-   - Always verify with `head -5 secrets/file.yaml` before commit
+   - Always verify with `head -5 v5/secrets/file.yaml` before commit
 
 3. **Use `sops` command for editing**
    - Never manually edit encrypted files
-   - Use `sops secrets/file.yaml` to edit
+   - Use `sops v5/secrets/file.yaml` to edit
 
 4. **Backup passphrase physically**
    - Write on paper
@@ -385,16 +385,16 @@ jobs:
 
 | Task | Command |
 |------|---------|
-| Unlock secrets | `./scripts/unlock-secrets.sh` or `./scripts/unlock-secrets.ps1` |
-| Lock secrets | `./scripts/lock-secrets.sh` or `./scripts/lock-secrets.ps1` |
-| View file | `sops -d secrets/instances/rtr-mikrotik-chateau.yaml` |
-| Edit file | `sops secrets/instances/rtr-mikrotik-chateau.yaml` |
-| Encrypt new file | `sops -e -i secrets/instances/new-device.yaml` |
+| Unlock secrets | `./v5/scripts/unlock-secrets.sh` or `./v5/scripts/unlock-secrets.ps1` |
+| Lock secrets | `./v5/scripts/lock-secrets.sh` or `./v5/scripts/lock-secrets.ps1` |
+| View file | `sops -d v5/secrets/instances/rtr-mikrotik-chateau.yaml` |
+| Edit file | `sops v5/secrets/instances/rtr-mikrotik-chateau.yaml` |
+| Encrypt new file | `sops -e -i v5/secrets/instances/new-device.yaml` |
 | Check status | `ls ~/.config/sops/age/keys.txt` |
 | Compile with secrets | `python v5/topology-tools/compile-topology.py --secrets-mode inject` |
 | Compile without secrets | `python v5/topology-tools/compile-topology.py --secrets-mode passthrough` |
-| Generate Terraform tfvars | `python scripts/generate-tfvars.py all` |
-| Cleanup Terraform tfvars | `python scripts/generate-tfvars.py all --cleanup` |
+| Generate Terraform tfvars | `python v5/scripts/generate-tfvars.py all` |
+| Cleanup Terraform tfvars | `python v5/scripts/generate-tfvars.py all --cleanup` |
 
 ---
 

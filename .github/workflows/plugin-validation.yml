@@ -265,7 +265,7 @@ jobs:
         if: ${{ env.DEVKEY_PASSPHRASE != '' }}
         run: |
           mkdir -p ~/.config/sops/age
-          echo "$DEVKEY_PASSPHRASE" | age -d secrets/devkey.age > ~/.config/sops/age/keys.txt
+          echo "$DEVKEY_PASSPHRASE" | age -d v5/secrets/devkey.age > ~/.config/sops/age/keys.txt
           chmod 600 ~/.config/sops/age/keys.txt
 
       - name: Run compiler with plugins (inject)

@@ -41,7 +41,7 @@ repos:
           bootstrap/.*|
           configs/vpn/.*|
           docs/guides/.*|
-          secrets/.*\.yaml$|
+          v5/secrets/.*\.yaml$|
           MIGRATION\.md|
           \.secrets\.baseline
         )$
@@ -84,7 +84,7 @@ repos:
     #   pass_filenames: false
     - id: sops-encryption-check
       name: Verify SOPS encryption
-      entry: python scripts/check-sops-encryption.py
+      entry: python v5/scripts/check-sops-encryption.py
       language: system
-      files: ^secrets/.*\.yaml$
+      files: ^v5/secrets/.*\.yaml$
       pass_filenames: false

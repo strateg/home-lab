@@ -97,41 +97,41 @@ $env:SOPS_AGE_KEY_FILE = "$env:APPDATA\sops\age\keys.txt"
 Разблокировка ключа:
 
 ```bash
-./scripts/unlock-secrets.sh
+./v5/scripts/unlock-secrets.sh
 ```
 
 ```powershell
-./scripts/unlock-secrets.ps1
+./v5/scripts/unlock-secrets.ps1
 ```
 
 Блокировка ключа:
 
 ```bash
-./scripts/lock-secrets.sh
+./v5/scripts/lock-secrets.sh
 ```
 
 ```powershell
-./scripts/lock-secrets.ps1
+./v5/scripts/lock-secrets.ps1
 ```
 
 Recovery unlock:
 
 ```bash
-./scripts/unlock-secrets-recovery.sh
+./v5/scripts/unlock-secrets-recovery.sh
 ```
 
 ```powershell
-./scripts/unlock-secrets-recovery.ps1
+./v5/scripts/unlock-secrets-recovery.ps1
 ```
 
 Генерация terraform tfvars из SOPS:
 
 ```bash
-./scripts/generate-tfvars.sh proxmox
+./v5/scripts/generate-tfvars.sh proxmox
 ```
 
 ```powershell
-./scripts/generate-tfvars.ps1 proxmox
+./v5/scripts/generate-tfvars.ps1 proxmox
 ```
 
 ## 6. Проверка `topology-tools`

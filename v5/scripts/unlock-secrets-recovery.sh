@@ -6,8 +6,8 @@ set -e
 
 KEYS_DIR="${HOME}/.config/sops/age"
 KEYS_FILE="${KEYS_DIR}/keys.txt"
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MASTERKEY="${REPO_ROOT}/secrets/masterkey.age"
+WORKSPACE_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+MASTERKEY="${WORKSPACE_ROOT}/v5/secrets/masterkey.age"
 
 if [ -f "$KEYS_FILE" ]; then
     echo "⚠ Keys file already exists: $KEYS_FILE"
@@ -25,4 +25,4 @@ echo "⚠ RECOVERY MODE - Decrypting masterkey..."
 age -d "$MASTERKEY" > "$KEYS_FILE"
 chmod 600 "$KEYS_FILE"
 echo "✓ Secrets unlocked (via masterkey)"
-echo "  Run './scripts/lock-secrets.sh' when done"
+echo "  Run './v5/scripts/lock-secrets.sh' when done"

@@ -116,7 +116,7 @@ class V5Compiler:
         runtime_profile: str = "production",
         instance_source_mode: str = "auto",
         secrets_mode: str = "passthrough",
-        secrets_root: str = "secrets",
+        secrets_root: str = "v5/secrets",
         pipeline_mode: str = "plugin-first",
         parity_gate: bool = False,
         enable_plugins: bool = True,
@@ -628,7 +628,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--secrets-root",
-        default="secrets",
+        default="v5/secrets",
         help="Root directory for side-car secret files (relative to repo root).",
     )
     parser.add_argument(
