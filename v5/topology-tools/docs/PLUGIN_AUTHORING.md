@@ -424,6 +424,50 @@ When working with `base.validator.instance_placeholders`:
    - `enforcement_mode: warn+gate-new` (strict for selected statuses via `gate_statuses`)
    - `enforcement_mode: enforce` (strict for all rows)
 
+## ADR0073 Secret Annotation Notes
+
+Secret-aware annotations are also valid field markers:
+
+1. `@secret`
+2. `@required_secret:<format>`
+3. `@optional_secret:<format>`
+
+Compiler integration is split into two plugins:
+
+1. `base.compiler.annotation_resolver` parses annotations and publishes:
+   - `object_annotations`
+   - `object_secret_annotations`
+   - `row_annotations_by_instance`
+   - `annotation_formats`
+2. `base.compiler.instance_rows` consumes published annotation data for side-car secret merge and typed secret validation.
+
+If your plugin needs annotation metadata, declare explicit dependency and subscribe:
+
+```yaml
+- id: my.compiler.consumer
+  kind: compiler
+  entry: compilers/my_consumer.py:MyConsumer
+  stages: [compile]
+  depends_on: [base.compiler.annotation_resolver]
+```
+
+```python
+row_annotations = ctx.subscribe(
+    "base.compiler.annotation_resolver",
+    "row_annotations_by_instance",
+)
+formats = ctx.subscribe(
+    "base.compiler.annotation_resolver",
+    "annotation_formats",
+)
+```
+
+Diagnostics used by secret merge flow:
+
+1. `E7211`: unresolved secret marker in strict semantics
+2. `E7212`: plaintext and decrypted side-car conflict on same path
+3. `E7213`: decrypted value does not satisfy typed annotation format
+
 ## Pipeline Stages
 
 ```

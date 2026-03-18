@@ -1,14 +1,19 @@
 # Secrets Management Guide
 
-**ADR:** [0072-unified-secrets-management-sops-age.md](../adr/0072-unified-secrets-management-sops-age.md)
+**ADR:** [0072-unified-secrets-management-sops-age.md](../adr/0072-unified-secrets-management-sops-age.md), [0073-field-annotations-and-secret-conflict-resolution.md](../adr/0073-field-annotations-and-secret-conflict-resolution.md)
 **Status:** Implemented
-**Last Updated:** 2026-03-16
+**Last Updated:** 2026-03-18
 
 ---
 
 ## Overview
 
 This repository uses **SOPS + age** for unified secrets management. All sensitive data (hardware identities, credentials, API tokens) is encrypted and stored in the `v5/secrets/` directory.
+
+At compile time, secrets are merged into instance rows by the plugin pipeline:
+
+- `base.compiler.annotation_resolver` parses field annotations and publishes annotation metadata.
+- `base.compiler.instance_rows` decrypts side-car files and resolves secret fields in `inject/strict`.
 
 ### Architecture
 
@@ -175,7 +180,44 @@ v5/secrets/
 └── bootstrap/              # Bootstrap secrets
 ```
 
-Each file in `v5/secrets/instances/` corresponds to an instance in `v5/topology/instances/` by matching `instance` ID. The compiler merges decrypted side-car values into instance rows, replacing `<TODO_*>` placeholders.
+Each file in `v5/secrets/instances/` corresponds to an instance in `v5/topology/instances/` by matching `instance` ID.
+
+Naming rule:
+
+- side-car file name MUST be exactly `<instance>.yaml`
+- for `instance: rtr-slate` the side-car path is `v5/secrets/instances/rtr-slate.yaml`
+
+Secret resolution rule:
+
+- use annotations near the field (`@secret`, `@required_secret:<type>`, `@optional_secret:<type>`)
+- compiler resolves annotated secret paths from decrypted side-car payload
+- deep merge is generic (no hardcoded domain paths)
+- side-car may materialize missing nested keys during merge
+
+Conflict and validation policy:
+
+- `E7212`: plaintext value conflicts with side-car value on same path
+- `E7211`: secret annotation/placeholder unresolved in strict semantics
+- `E7213`: decrypted secret value does not satisfy typed annotation format (for example `@optional_secret:mac`)
+
+## Secret Annotations (ADR 0073)
+
+Use one annotation token per field:
+
+- `@secret` - secret value without explicit type
+- `@required_secret:<type>` - required secret with typed format
+- `@optional_secret:<type>` - optional secret with typed format
+
+Examples:
+
+```yaml
+hardware_identity:
+  serial_number: "@secret"
+  mac_addresses:
+    wan: "@optional_secret:mac"
+```
+
+Typed formats are resolved via `v5/topology-tools/data/instance-field-formats.yaml`.
 
 ---
 
@@ -392,6 +434,7 @@ jobs:
 | Encrypt new file | `sops -e -i v5/secrets/instances/new-device.yaml` |
 | Check status | `ls ~/.config/sops/age/keys.txt` |
 | Compile with secrets | `python v5/topology-tools/compile-topology.py --secrets-mode inject` |
+| Compile with strict secret policy | `python v5/topology-tools/compile-topology.py --secrets-mode strict` |
 | Compile without secrets | `python v5/topology-tools/compile-topology.py --secrets-mode passthrough` |
 | Generate Terraform tfvars | `python v5/scripts/generate-tfvars.py all` |
 | Cleanup Terraform tfvars | `python v5/scripts/generate-tfvars.py all --cleanup` |
