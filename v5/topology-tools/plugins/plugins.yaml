@@ -46,13 +46,32 @@ plugins:
       required: []
     description: Loads model.lock payload for plugin-first pipeline (ADR 0069).
 
+  - id: base.compiler.annotation_resolver
+    kind: compiler
+    entry: compilers/annotation_resolver_compiler.py:AnnotationResolverCompiler
+    api_version: "1.x"
+    stages: [compile]
+    order: 38
+    depends_on: []
+    timeout: 30
+    config:
+      format_registry_path: data/instance-field-formats.yaml
+    config_schema:
+      type: object
+      properties:
+        format_registry_path:
+          type: string
+          description: Path to annotation value format registry.
+      required: []
+    description: Parses field annotations once and publishes normalized annotation indexes.
+
   - id: base.compiler.instance_rows
     kind: compiler
     entry: compilers/instance_rows_compiler.py:InstanceRowsCompiler
     api_version: "1.x"
     stages: [compile]
     order: 40
-    depends_on: []
+    depends_on: [base.compiler.annotation_resolver]
     timeout: 30
     config:
       secrets_mode: passthrough

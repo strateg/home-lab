@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import copy
+import datetime as dt
+import ipaddress
 import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 
@@ -15,12 +18,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from field_annotations import parse_field_annotation
 from identifier_policy import contains_unsafe_identifier_chars
-from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+from kernel.plugin_base import (
+    CompilerPlugin,
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+)
 
 
 class InstanceRowsCompiler(CompilerPlugin):
     """Normalize instance_bindings rows and emit row-shape diagnostics."""
 
+    _ANNOTATION_PLUGIN_ID = "base.compiler.annotation_resolver"
     _RESERVED_ROW_KEYS = {
         "instance",
         "group",
@@ -73,9 +84,82 @@ class InstanceRowsCompiler(CompilerPlugin):
                 return True
         return True
 
-    def _collect_all_placeholder_paths(self, row: dict[str, Any]) -> list[str]:
+    @staticmethod
+    def _format_path(path: tuple[Any, ...]) -> str:
+        if not path:
+            return "<root>"
+        parts: list[str] = []
+        for token in path:
+            if isinstance(token, int):
+                parts.append(f"[{token}]")
+            else:
+                if parts:
+                    parts.append(".")
+                parts.append(str(token))
+        return "".join(parts)
+
+    @staticmethod
+    def _annotation_payload(annotation: Any) -> dict[str, Any]:
+        return {
+            "name": annotation.name,
+            "value_type": annotation.value_type,
+            "required": annotation.required,
+            "optional": annotation.optional,
+            "secret": annotation.secret,
+        }
+
+    def _collect_row_annotations(self, row: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        annotations: dict[str, dict[str, Any]] = {}
+
+        def walk(node: Any, path: tuple[Any, ...]) -> None:
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    walk(value, path + (key,))
+                return
+            if isinstance(node, list):
+                for idx, value in enumerate(node):
+                    walk(value, path + (idx,))
+                return
+            if not isinstance(node, str) or not node.startswith("@") or node.startswith("@@"):
+                return
+            annotation, annotation_error = parse_field_annotation(node)
+            if annotation_error is not None or annotation is None:
+                return
+            annotations[self._format_path(path)] = self._annotation_payload(annotation)
+
+        walk(row, ())
+        return annotations
+
+    @staticmethod
+    def _extract_annotation_spec(
+        *,
+        path: str,
+        row_annotations: dict[str, dict[str, Any]] | None,
+    ) -> dict[str, Any] | None:
+        if not isinstance(row_annotations, dict):
+            return None
+        spec = row_annotations.get(path)
+        if isinstance(spec, dict):
+            return spec
+        return None
+
+    @staticmethod
+    def _is_scalar(value: Any) -> bool:
+        return not isinstance(value, dict) and not isinstance(value, list)
+
+    def _collect_all_placeholder_paths(
+        self,
+        row: dict[str, Any],
+        *,
+        row_annotations: dict[str, dict[str, Any]] | None = None,
+    ) -> list[str]:
         """Walk row and collect unresolved secret marker paths."""
         unresolved: list[str] = []
+        secret_paths = {
+            path
+            for path, spec in (row_annotations or {}).items()
+            if isinstance(spec, dict) and bool(spec.get("secret"))
+        }
 
         def walk(node: Any, path: str) -> None:
             if isinstance(node, dict):
@@ -96,12 +180,127 @@ class InstanceRowsCompiler(CompilerPlugin):
             if self._TODO_MARKER_RE.fullmatch(node):
                 unresolved.append(path)
                 return
-            annotation, annotation_error = parse_field_annotation(node)
-            if annotation_error is None and annotation is not None and annotation.secret:
+            if path in secret_paths and node.startswith("@"):
                 unresolved.append(path)
+                return
+            if row_annotations is None:
+                annotation, annotation_error = parse_field_annotation(node)
+                if annotation_error is None and annotation is not None and annotation.secret:
+                    unresolved.append(path)
 
         walk(row, "")
         return unresolved
+
+    def _validate_format(self, value: Any, spec: dict[str, Any]) -> tuple[bool, str]:
+        expected_type = spec.get("type")
+        if expected_type == "string":
+            if not isinstance(value, str):
+                return False, f"expected string, got {type(value).__name__}"
+        elif expected_type == "integer":
+            if not isinstance(value, int) or isinstance(value, bool):
+                return False, f"expected integer, got {type(value).__name__}"
+        elif expected_type == "number":
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                return False, f"expected number, got {type(value).__name__}"
+        elif expected_type == "boolean":
+            if not isinstance(value, bool):
+                return False, f"expected boolean, got {type(value).__name__}"
+
+        if value is None:
+            return False, "null is not allowed; omit optional field instead"
+
+        pattern = spec.get("pattern")
+        if isinstance(pattern, str):
+            try:
+                regex = re.compile(pattern)
+            except re.error as exc:  # pragma: no cover - registry error path
+                return False, f"invalid registry regex: {exc}"
+            if not isinstance(value, str) or regex.fullmatch(value) is None:
+                return False, "regex mismatch"
+
+        validator = spec.get("validator")
+        if validator == "ipv4":
+            try:
+                ipaddress.IPv4Address(str(value))
+            except Exception:
+                return False, "not a valid IPv4 address"
+        elif validator == "ipv6":
+            try:
+                ipaddress.IPv6Address(str(value))
+            except Exception:
+                return False, "not a valid IPv6 address"
+        elif validator == "cidr":
+            try:
+                ipaddress.ip_network(str(value), strict=False)
+            except Exception:
+                return False, "not a valid CIDR"
+        elif validator == "uri":
+            parsed = urlparse(str(value))
+            if not parsed.scheme or (not parsed.netloc and not parsed.path):
+                return False, "not a valid URI"
+        elif validator == "iso8601":
+            text = str(value)
+            if text.endswith("Z"):
+                text = text[:-1] + "+00:00"
+            try:
+                dt.datetime.fromisoformat(text)
+            except ValueError:
+                return False, "not a valid ISO8601 value"
+        elif isinstance(validator, str) and validator:
+            return False, f"unsupported validator '{validator}' in registry"
+
+        return True, "ok"
+
+    def _validate_secret_typed_value(
+        self,
+        *,
+        instance_id: str,
+        path: str,
+        value: Any,
+        annotation_spec: dict[str, Any] | None,
+        annotation_formats: dict[str, dict[str, Any]] | None,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        row_path: str,
+    ) -> bool:
+        if not isinstance(annotation_spec, dict):
+            return True
+        value_type = annotation_spec.get("value_type")
+        if not isinstance(value_type, str) or not value_type:
+            return True
+        if not isinstance(annotation_formats, dict) or not annotation_formats:
+            return True
+        format_spec = annotation_formats.get(value_type)
+        if not isinstance(format_spec, dict):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7213",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Secret value format '{value_type}' is not defined for "
+                        f"'{instance_id}' at '{path}'."
+                    ),
+                    path=row_path,
+                )
+            )
+            return False
+        ok, reason = self._validate_format(value, format_spec)
+        if not ok:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7213",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Secret value for '{instance_id}' at '{path}' does not match "
+                        f"annotation format '{value_type}': {reason}."
+                    ),
+                    path=row_path,
+                )
+            )
+            return False
+        return True
 
     def _decrypt_sidecar_file(
         self,
@@ -187,15 +386,23 @@ class InstanceRowsCompiler(CompilerPlugin):
         diagnostics: list[PluginDiagnostic],
         row_path: str,
         mode: str,
+        row_annotations: dict[str, dict[str, Any]] | None,
+        annotation_formats: dict[str, dict[str, Any]] | None,
     ) -> dict[str, Any]:
         """Deep merge: replace <TODO_*> placeholders with values from decrypted secrets."""
         result = copy.deepcopy(row)
 
         def walk_and_replace(target: Any, source: Any, path: str) -> Any:
+            annotation_spec = self._extract_annotation_spec(path=path, row_annotations=row_annotations)
+            secret_by_index = bool(annotation_spec and annotation_spec.get("secret"))
+
             if isinstance(target, dict) and isinstance(source, dict):
-                for key in target:
-                    if key in source:
-                        target[key] = walk_and_replace(target[key], source[key], f"{path}.{key}")
+                for key, source_value in source.items():
+                    child_path = f"{path}.{key}" if path else str(key)
+                    if key in target:
+                        target[key] = walk_and_replace(target[key], source_value, child_path)
+                    else:
+                        target[key] = copy.deepcopy(source_value)
                 return target
 
             if isinstance(target, list) and isinstance(source, list):
@@ -204,10 +411,21 @@ class InstanceRowsCompiler(CompilerPlugin):
                 return target
 
             if isinstance(target, str) and self._TODO_MARKER_RE.fullmatch(target):
-                # Target is placeholder - replace with secret value if available
-                if source is not None and not isinstance(source, dict):
-                    return source
-                elif mode == "strict":
+                # Target is placeholder - replace with secret value if available.
+                if self._is_scalar(source):
+                    if self._validate_secret_typed_value(
+                        instance_id=instance_id,
+                        path=path,
+                        value=source,
+                        annotation_spec=annotation_spec,
+                        annotation_formats=annotation_formats,
+                        stage=stage,
+                        diagnostics=diagnostics,
+                        row_path=row_path,
+                    ):
+                        return source
+                    return target
+                if mode == "strict":
                     diagnostics.append(
                         self.emit_diagnostic(
                             code="E7211",
@@ -219,7 +437,37 @@ class InstanceRowsCompiler(CompilerPlugin):
                     )
                 return target
 
+            if secret_by_index and isinstance(target, str) and target.startswith("@"):
+                if self._is_scalar(source):
+                    if self._validate_secret_typed_value(
+                        instance_id=instance_id,
+                        path=path,
+                        value=source,
+                        annotation_spec=annotation_spec,
+                        annotation_formats=annotation_formats,
+                        stage=stage,
+                        diagnostics=diagnostics,
+                        row_path=row_path,
+                    ):
+                        return source
+                    return target
+                if mode == "strict":
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7211",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Secret annotation at '{path}' has no matching secret value "
+                                f"for instance '{instance_id}'."
+                            ),
+                            path=row_path,
+                        )
+                    )
+                return target
+
             if isinstance(target, str) and target.startswith("@"):
+                # Fallback path for direct plugin execution without annotation_resolver dependency.
                 annotation, annotation_error = parse_field_annotation(target)
                 if annotation_error is not None:
                     diagnostics.append(
@@ -233,8 +481,20 @@ class InstanceRowsCompiler(CompilerPlugin):
                     )
                     return target
                 if annotation is not None and annotation.secret:
-                    if source is not None and not isinstance(source, dict):
-                        return source
+                    temp_spec = self._annotation_payload(annotation)
+                    if self._is_scalar(source):
+                        if self._validate_secret_typed_value(
+                            instance_id=instance_id,
+                            path=path,
+                            value=source,
+                            annotation_spec=temp_spec,
+                            annotation_formats=annotation_formats,
+                            stage=stage,
+                            diagnostics=diagnostics,
+                            row_path=row_path,
+                        ):
+                            return source
+                        return target
                     if mode == "strict":
                         diagnostics.append(
                             self.emit_diagnostic(
@@ -247,7 +507,7 @@ class InstanceRowsCompiler(CompilerPlugin):
                         )
                     return target
 
-            if source is not None and not isinstance(source, dict) and not isinstance(source, list):
+            if self._is_scalar(source):
                 if target is not None and target != source:
                     diagnostics.append(
                         self.emit_diagnostic(
@@ -263,7 +523,7 @@ class InstanceRowsCompiler(CompilerPlugin):
                         )
                     )
 
-            # Non-placeholder values are preserved unchanged
+            # Non-placeholder values are preserved unchanged.
             return target
 
         for key in secrets:
@@ -271,6 +531,8 @@ class InstanceRowsCompiler(CompilerPlugin):
                 continue
             if key in result:
                 result[key] = walk_and_replace(result[key], secrets[key], key)
+            else:
+                result[key] = copy.deepcopy(secrets[key])
 
         return result
 
@@ -285,6 +547,8 @@ class InstanceRowsCompiler(CompilerPlugin):
         row_path: str,
         mode: str,
         require_unlock: bool,
+        row_annotations: dict[str, dict[str, Any]] | None,
+        annotation_formats: dict[str, dict[str, Any]] | None,
     ) -> dict[str, Any]:
         """Merge decrypted side-car secrets into instance row, replacing placeholders only."""
         if mode == "passthrough":
@@ -295,7 +559,7 @@ class InstanceRowsCompiler(CompilerPlugin):
         if not sidecar_path.exists():
             # No side-car file - check if strict mode needs to fail on placeholders
             if mode == "strict":
-                unresolved = self._collect_all_placeholder_paths(row)
+                unresolved = self._collect_all_placeholder_paths(row, row_annotations=row_annotations)
                 if unresolved:
                     diagnostics.append(
                         self.emit_diagnostic(
@@ -355,6 +619,8 @@ class InstanceRowsCompiler(CompilerPlugin):
             diagnostics=diagnostics,
             row_path=row_path,
             mode=mode,
+            row_annotations=row_annotations,
+            annotation_formats=annotation_formats,
         )
 
         return merged_row
@@ -385,6 +651,22 @@ class InstanceRowsCompiler(CompilerPlugin):
         seen_instances: set[str] = set()
         mode = self._resolve_secrets_mode(ctx)
         require_unlock = self._resolve_require_unlock(ctx)
+        row_annotations_by_instance: dict[str, dict[str, dict[str, Any]]] = {}
+        annotation_formats: dict[str, dict[str, Any]] = {}
+
+        try:
+            subscribed_rows = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "row_annotations_by_instance")
+            if isinstance(subscribed_rows, dict):
+                row_annotations_by_instance = subscribed_rows
+        except PluginDataExchangeError:
+            row_annotations_by_instance = {}
+
+        try:
+            subscribed_formats = ctx.subscribe(self._ANNOTATION_PLUGIN_ID, "annotation_formats")
+            if isinstance(subscribed_formats, dict):
+                annotation_formats = subscribed_formats
+        except PluginDataExchangeError:
+            annotation_formats = {}
 
         # Resolve secrets_root path (relative to repo_root)
         secrets_root_str = ctx.config.get("secrets_root", "v5/secrets")
@@ -477,6 +759,10 @@ class InstanceRowsCompiler(CompilerPlugin):
                         )
                     )
 
+                row_annotations = row_annotations_by_instance.get(instance_id)
+                if not isinstance(row_annotations, dict):
+                    row_annotations = self._collect_row_annotations(row)
+
                 row = self._resolve_sidecar_secrets(
                     row=row,
                     instance_id=instance_id,
@@ -486,10 +772,12 @@ class InstanceRowsCompiler(CompilerPlugin):
                     row_path=row_path,
                     mode=mode,
                     require_unlock=require_unlock,
+                    row_annotations=row_annotations,
+                    annotation_formats=annotation_formats,
                 )
 
                 if mode == "strict":
-                    unresolved_paths = self._collect_all_placeholder_paths(row)
+                    unresolved_paths = self._collect_all_placeholder_paths(row, row_annotations=row_annotations)
                     for unresolved_path in unresolved_paths:
                         diagnostics.append(
                             self.emit_diagnostic(

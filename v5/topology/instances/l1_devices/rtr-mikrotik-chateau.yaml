@@ -14,12 +14,4 @@ power:
   outlet_ref: outlet_01
 hardware_identity:
   serial_number: "@secret"
-  mac_addresses:
-    ether1: "@optional_secret:mac"
-    ether2: "@optional_secret:mac"
-    ether3: "@optional_secret:mac"
-    ether4: "@optional_secret:mac"
-    ether5: "@optional_secret:mac"
-    wlan1_5ghz: "@optional_secret:mac"
-    wlan2_2_4ghz: "@optional_secret:mac"
-    lte1: "@optional_secret:mac"
+  mac_addresses: {}

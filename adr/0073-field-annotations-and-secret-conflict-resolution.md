@@ -21,9 +21,26 @@ Also, `<TODO_...>` markers leak implementation details and are redundant when se
 
 ## Decision
 
-### 1) Introduce a centralized annotation registry and parser
+### 1) Introduce a dedicated compiler plugin for annotation processing
 
-All supported field annotations are defined in a single module:
+Annotation parsing and indexing is moved into separate compiler plugin:
+
+- `base.compiler.annotation_resolver`
+- implementation: `v5/topology-tools/plugins/compilers/annotation_resolver_compiler.py`
+
+This plugin is responsible for:
+
+- loading format registry (`data/instance-field-formats.yaml`)
+- parsing annotations in objects and instance rows
+- publishing normalized indexes to plugin data exchange:
+  - `object_annotations`
+  - `object_secret_annotations`
+  - `row_annotations_by_instance`
+  - `annotation_formats`
+
+`base.compiler.instance_rows` consumes these published artifacts (with local fallback for direct single-plugin execution in tests/debug mode).
+
+All supported annotation token definitions remain centralized in:
 
 - `v5/topology-tools/field_annotations.py`
 
@@ -56,14 +73,25 @@ Combined semantics are expressed as a single composed annotation name (not multi
 
 In `inject/strict` secrets modes:
 
+- Secret resolution is path-generic and MUST NOT rely on hardcoded domain paths (for example `hardware_identity.mac_addresses`).
 - Fields marked with secret annotations are resolved from side-car decrypted data.
+- Missing keys can be materialized from side-car payload during deep merge (generic behavior), so instance files do not need per-key annotation duplication when structure is intentionally delegated to encrypted side-car data.
 - If a plaintext value conflicts with side-car value on the same path, compilation emits hard error `E7212`.
 - Plaintext is not silently overwritten for non-secret-marked fields.
 - In `strict`, unresolved secret annotations emit error (`E7211`/existing strict unresolved checks).
 
 This removes ambiguity and prevents accidental secret drift between cleartext and encrypted sources.
 
-### 5) Migration direction
+### 5) Type semantics for annotations
+
+`@name:type` binds a concrete format type to the annotated field value.
+
+- Type token determines expected value format (for example `mac`, `string`, `ipv4`).
+- Format names are resolved through centralized format registry.
+- Validation/processing components MUST preserve and use annotation type information as part of annotation parsing and resolution logic.
+- In `instance_rows` merge, decrypted values for typed secret annotations are validated against published format specs; violations emit `E7213`.
+
+### 6) Migration direction
 
 - Replace `<TODO_...>` markers on secret-bearing paths with explicit secret annotations.
 - Keep non-secret fields as plain values.
@@ -95,8 +123,10 @@ Applied in this change for:
 ## Validation Criteria
 
 1. Annotation parsing across validators/compilers uses `field_annotations.py`.
-2. `@optional_secret:mac` and `@secret` are accepted by validators.
-3. Secret-annotated fields are resolved from side-car data in `inject/strict`.
-4. Plaintext vs side-car mismatches trigger `E7212`.
-5. Full test suite remains green after migration.
-
+2. `base.compiler.annotation_resolver` publishes annotation indexes and format map.
+3. `base.compiler.instance_rows` consumes published annotation data via plugin data exchange.
+4. `@optional_secret:mac` and `@secret` are accepted by validators.
+5. Secret-annotated fields are resolved from side-car data in `inject/strict`.
+6. Typed secret values are validated against registry and invalid values emit `E7213`.
+7. Plaintext vs side-car mismatches trigger `E7212`.
+8. Full test suite remains green after migration.
