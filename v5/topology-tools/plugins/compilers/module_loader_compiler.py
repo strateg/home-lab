@@ -10,6 +10,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from identifier_policy import contains_unsafe_identifier_chars
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -131,6 +132,21 @@ class ModuleLoaderCompiler(CompilerPlugin):
                         stage="validate",
                         message=f"{module_type} module is missing '{module_key}'.",
                         path=self._rel(path),
+                        plugin_id=self.plugin_id,
+                    )
+                )
+                continue
+            if contains_unsafe_identifier_chars(item_id):
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E3201",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"{module_type} id '{item_id}' contains filename-unsafe characters; "
+                            "use only cross-platform filename-safe symbols."
+                        ),
+                        path=f"{self._rel(path)}:{module_key}",
                         plugin_id=self.plugin_id,
                     )
                 )

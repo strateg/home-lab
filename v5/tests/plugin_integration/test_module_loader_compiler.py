@@ -66,3 +66,37 @@ def test_module_loader_plugin_owner_loads_modules(tmp_path):
     assert result.status == PluginStatus.SUCCESS
     assert "class.router" in ctx.classes
     assert "obj.router" in ctx.objects
+
+
+def test_module_loader_rejects_unsafe_class_and_object_ids(tmp_path):
+    registry = _registry()
+    class_dir = tmp_path / "class-modules"
+    object_dir = tmp_path / "object-modules"
+    class_dir.mkdir()
+    object_dir.mkdir()
+    (class_dir / "class.router.yaml").write_text(
+        "class: class.router:bad\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+    (object_dir / "obj.router.yaml").write_text(
+        "object: obj.router?bad\nclass_ref: class.router\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_module_maps": "plugin",
+            "class_modules_root": str(class_dir),
+            "object_modules_root": str(object_dir),
+        },
+    )
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status in {PluginStatus.PARTIAL, PluginStatus.SUCCESS, PluginStatus.FAILED}
+    assert result.has_errors
+    errors = [d for d in result.diagnostics if d.code == "E3201" and d.severity == "error"]
+    assert any("class id" in d.message and "filename-unsafe" in d.message for d in errors)
+    assert any("object id" in d.message and "filename-unsafe" in d.message for d in errors)

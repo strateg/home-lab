@@ -13,6 +13,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from identifier_policy import contains_unsafe_identifier_chars
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 
@@ -380,6 +381,20 @@ class InstanceRowsCompiler(CompilerPlugin):
                         )
                     )
                     continue
+                if contains_unsafe_identifier_chars(instance_id):
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E3201",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"instance id '{instance_id}' contains filename-unsafe characters; "
+                                "use only cross-platform filename-safe symbols."
+                            ),
+                            path=f"instance_bindings.{group_name}[{idx}].instance",
+                        )
+                    )
+                    continue
                 if instance_id in seen_instances:
                     diagnostics.append(
                         PluginDiagnostic(
@@ -442,6 +457,21 @@ class InstanceRowsCompiler(CompilerPlugin):
                 os_refs = row.get("os_refs")
                 derived_class_ref: str | None = None
 
+                if isinstance(class_ref, str) and class_ref and contains_unsafe_identifier_chars(class_ref):
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E3201",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"class_ref '{class_ref}' contains filename-unsafe characters; "
+                                "use only cross-platform filename-safe symbols."
+                            ),
+                            path=f"instance_bindings.{group_name}[{idx}].class_ref",
+                        )
+                    )
+                    class_ref = None
+
                 if not isinstance(object_ref, str) or not object_ref:
                     diagnostics.append(
                         self.emit_diagnostic(
@@ -453,11 +483,25 @@ class InstanceRowsCompiler(CompilerPlugin):
                         )
                     )
                 else:
-                    object_payload = ctx.objects.get(object_ref)
-                    if isinstance(object_payload, dict):
-                        candidate_class_ref = object_payload.get("class_ref")
-                        if isinstance(candidate_class_ref, str) and candidate_class_ref:
-                            derived_class_ref = candidate_class_ref
+                    if contains_unsafe_identifier_chars(object_ref):
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="E3201",
+                                severity="error",
+                                stage=stage,
+                                message=(
+                                    f"object_ref '{object_ref}' contains filename-unsafe characters; "
+                                    "use only cross-platform filename-safe symbols."
+                                ),
+                                path=f"instance_bindings.{group_name}[{idx}].object_ref",
+                            )
+                        )
+                    else:
+                        object_payload = ctx.objects.get(object_ref)
+                        if isinstance(object_payload, dict):
+                            candidate_class_ref = object_payload.get("class_ref")
+                            if isinstance(candidate_class_ref, str) and candidate_class_ref:
+                                derived_class_ref = candidate_class_ref
 
                 if not isinstance(class_ref, str) or not class_ref:
                     class_ref = derived_class_ref

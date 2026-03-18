@@ -4,12 +4,13 @@
 from __future__ import annotations
 
 import argparse
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+from identifier_policy import contains_unsafe_identifier_chars, normalize_identifier_for_filename
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT = REPO_ROOT / "v5" / "topology" / "instances" / "_legacy-home-lab" / "instance-bindings.yaml"
@@ -24,17 +25,16 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return payload
 
 
-_INVALID_FILENAME_CHARS_RE = re.compile(r'[<>:"/\\|?*]+')
-
-
 def _normalize_instance_id(*, instance_id: str, allow_sanitize: bool) -> tuple[str, bool]:
-    candidate = _INVALID_FILENAME_CHARS_RE.sub(".", instance_id).strip(" .")
+    candidate = normalize_identifier_for_filename(instance_id)
     changed = candidate != instance_id
     if changed and not allow_sanitize:
         raise ValueError(
             f"instance id '{instance_id}' contains filename-unsafe characters; "
             "rerun with --sanitize-instance-ids or rename the instance id."
         )
+    if contains_unsafe_identifier_chars(candidate):
+        raise ValueError(f"instance id '{instance_id}' cannot be normalized safely")
     if not candidate:
         raise ValueError(f"instance id '{instance_id}' cannot be normalized to non-empty filename")
     return candidate, changed

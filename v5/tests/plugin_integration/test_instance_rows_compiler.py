@@ -401,3 +401,38 @@ def test_hardware_identity_secret_ref_is_forbidden():
     assert any(
         d.code == "E3201" and "hardware_identity_secret_ref" in d.message for d in result.diagnostics
     )
+
+
+def test_instance_rows_compiler_rejects_unsafe_identifiers():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"compilation_owner_instance_rows": "plugin"},
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "inst:bad",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.router",
+                    },
+                    {
+                        "instance": "inst.good",
+                        "layer": "L1",
+                        "class_ref": "class.router:bad",
+                        "object_ref": "obj.router?bad",
+                    },
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    e3201_messages = [d.message for d in result.diagnostics if d.code == "E3201"]
+    assert any("instance id 'inst:bad'" in message for message in e3201_messages)
+    assert any("class_ref 'class.router:bad'" in message for message in e3201_messages)
+    assert any("object_ref 'obj.router?bad'" in message for message in e3201_messages)

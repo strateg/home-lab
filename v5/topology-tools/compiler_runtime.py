@@ -9,8 +9,9 @@ from typing import Any, Callable
 
 import yaml
 
+from identifier_policy import contains_unsafe_identifier_chars
+
 INSTANCE_SOURCE_MODES = {"auto", "sharded-only"}
-FILENAME_UNSAFE_INSTANCE_CHARS = set('<>:"/\\|?*')
 
 
 @dataclass
@@ -115,10 +116,6 @@ def _diag_path(*, repo_root: Path, path: Path) -> str:
         return str(path.relative_to(repo_root).as_posix())
     except ValueError:
         return str(path.as_posix())
-
-
-def _contains_filename_unsafe_chars(value: str) -> bool:
-    return any(char in FILENAME_UNSAFE_INSTANCE_CHARS for char in value)
 
 
 def _load_group_layer_map(
@@ -272,7 +269,7 @@ def _load_sharded_instance_payload(
                 path=f"{_diag_path(repo_root=repo_root, path=path)}:instance",
             )
             continue
-        if _contains_filename_unsafe_chars(instance_id):
+        if contains_unsafe_identifier_chars(instance_id):
             add_diag(
                 code="E3201",
                 severity="error",
