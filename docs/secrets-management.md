@@ -68,9 +68,16 @@ sops --version  # Expected: 3.9.x
 brew install age sops
 ```
 
-#### Windows (WSL)
+#### Windows (PowerShell)
 
-Same as Ubuntu/Debian instructions above.
+```powershell
+winget install --id SecretsOPerationS.SOPS -e --accept-package-agreements --accept-source-agreements
+winget install --id str4d.rage -e --accept-package-agreements --accept-source-agreements
+
+sops --version
+rage --version
+rage-keygen --version
+```
 
 ---
 
@@ -85,7 +92,11 @@ Before working with encrypted files:
 # Enter your passphrase when prompted
 ```
 
-This decrypts the devkey to `~/.config/sops/age/keys.txt`.
+```powershell
+./scripts/unlock-secrets.ps1
+```
+
+This decrypts the devkey to the default SOPS age key path (`~/.config/sops/age/keys.txt` on Linux/macOS, `%APPDATA%\sops\age\keys.txt` on Windows).
 
 **Verification:**
 ```bash
@@ -134,7 +145,11 @@ When done working:
 ./scripts/lock-secrets.sh
 ```
 
-This securely deletes the plaintext key from `~/.config/sops/age/keys.txt`.
+```powershell
+./scripts/lock-secrets.ps1
+```
+
+This removes the plaintext key from the default SOPS age key path.
 
 ---
 
@@ -370,8 +385,8 @@ jobs:
 
 | Task | Command |
 |------|---------|
-| Unlock secrets | `./scripts/unlock-secrets.sh` |
-| Lock secrets | `./scripts/lock-secrets.sh` |
+| Unlock secrets | `./scripts/unlock-secrets.sh` or `./scripts/unlock-secrets.ps1` |
+| Lock secrets | `./scripts/lock-secrets.sh` or `./scripts/lock-secrets.ps1` |
 | View file | `sops -d secrets/instances/rtr-mikrotik-chateau.yaml` |
 | Edit file | `sops secrets/instances/rtr-mikrotik-chateau.yaml` |
 | Encrypt new file | `sops -e -i secrets/instances/new-device.yaml` |

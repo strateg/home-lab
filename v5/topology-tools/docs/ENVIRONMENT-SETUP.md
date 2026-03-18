@@ -87,7 +87,54 @@ rage-keygen -o "$env:APPDATA\sops\age\keys.txt"
 $env:SOPS_AGE_KEY_FILE = "$env:APPDATA\sops\age\keys.txt"
 ```
 
-## 5. Проверка `topology-tools`
+## 5. Рабочие скрипты secret workflow (Linux / Windows)
+
+Скрипты в `scripts/` теперь доступны в двух вариантах:
+
+- Linux/macOS (`bash`): `*.sh`
+- Windows (`PowerShell`): `*.ps1`
+
+Разблокировка ключа:
+
+```bash
+./scripts/unlock-secrets.sh
+```
+
+```powershell
+./scripts/unlock-secrets.ps1
+```
+
+Блокировка ключа:
+
+```bash
+./scripts/lock-secrets.sh
+```
+
+```powershell
+./scripts/lock-secrets.ps1
+```
+
+Recovery unlock:
+
+```bash
+./scripts/unlock-secrets-recovery.sh
+```
+
+```powershell
+./scripts/unlock-secrets-recovery.ps1
+```
+
+Генерация terraform tfvars из SOPS:
+
+```bash
+./scripts/generate-tfvars.sh proxmox
+```
+
+```powershell
+./scripts/generate-tfvars.ps1 proxmox
+```
+
+## 6. Проверка `topology-tools`
 
 Из корня репозитория:
 
@@ -101,7 +148,7 @@ python v5/topology-tools/compile-topology.py --secrets-mode inject
 - `passthrough` работает без SOPS-ключей.
 - `inject` требует корректную установку `sops` и доступ к age-ключу.
 
-## 6. Официальные источники
+## 7. Официальные источники
 
 - SOPS: https://github.com/getsops/sops
 - age (rage): https://github.com/age-sops/age

@@ -58,6 +58,19 @@ class InstanceRowsCompiler(CompilerPlugin):
             return normalized
         return "passthrough"
 
+    @staticmethod
+    def _resolve_require_unlock(ctx: PluginContext) -> bool:
+        value = ctx.config.get("require_unlock", True)
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"0", "false", "no", "off"}:
+                return False
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+        return True
+
     def _collect_all_placeholder_paths(self, row: dict[str, Any]) -> list[str]:
         """Walk entire row and collect paths to all <TODO_*> placeholders."""
         unresolved: list[str] = []
@@ -93,13 +106,15 @@ class InstanceRowsCompiler(CompilerPlugin):
         diagnostics: list[PluginDiagnostic],
         row_path: str,
         mode: str,
+        require_unlock: bool,
     ) -> dict[str, Any] | None:
         """Decrypt side-car secrets file using sops."""
         command = ["sops", "-d", str(sidecar_path)]
+        fail_hard = mode == "strict" or require_unlock
         try:
             result = subprocess.run(command, capture_output=True, text=True, check=False)
         except OSError as exc:
-            severity = "error" if mode == "strict" else "warning"
+            severity = "error" if fail_hard else "warning"
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E7200",
@@ -113,8 +128,8 @@ class InstanceRowsCompiler(CompilerPlugin):
 
         if result.returncode != 0:
             stderr = (result.stderr or "").strip()
-            severity = "error" if mode == "strict" else "warning"
-            code = "E7201" if mode == "strict" else "W7210"
+            severity = "error" if fail_hard else "warning"
+            code = "E7201" if fail_hard else "W7210"
             diagnostics.append(
                 self.emit_diagnostic(
                     code=code,
@@ -214,6 +229,7 @@ class InstanceRowsCompiler(CompilerPlugin):
         diagnostics: list[PluginDiagnostic],
         row_path: str,
         mode: str,
+        require_unlock: bool,
     ) -> dict[str, Any]:
         """Merge decrypted side-car secrets into instance row, replacing placeholders only."""
         if mode == "passthrough":
@@ -250,6 +266,7 @@ class InstanceRowsCompiler(CompilerPlugin):
             diagnostics=diagnostics,
             row_path=row_path,
             mode=mode,
+            require_unlock=require_unlock,
         )
         if decrypted is None:
             return row
@@ -257,7 +274,8 @@ class InstanceRowsCompiler(CompilerPlugin):
         # Validate instance ID match
         sidecar_instance = decrypted.get("instance")
         if isinstance(sidecar_instance, str) and sidecar_instance and sidecar_instance != instance_id:
-            severity = "error" if mode == "strict" else "warning"
+            mismatch_is_error = mode == "strict" or require_unlock
+            severity = "error" if mismatch_is_error else "warning"
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E7205",
@@ -270,8 +288,8 @@ class InstanceRowsCompiler(CompilerPlugin):
                     path=row_path,
                 )
             )
-            if mode == "strict":
-                return row
+            # Mismatch means side-car cannot be trusted for this row in any mode.
+            return row
 
         # Merge placeholders
         merged_row = self._merge_placeholders(
@@ -311,6 +329,7 @@ class InstanceRowsCompiler(CompilerPlugin):
         rows = []
         seen_instances: set[str] = set()
         mode = self._resolve_secrets_mode(ctx)
+        require_unlock = self._resolve_require_unlock(ctx)
 
         # Resolve secrets_root path (relative to repo_root)
         secrets_root_str = ctx.config.get("secrets_root", "secrets")
@@ -383,6 +402,7 @@ class InstanceRowsCompiler(CompilerPlugin):
                     diagnostics=diagnostics,
                     row_path=row_path,
                     mode=mode,
+                    require_unlock=require_unlock,
                 )
 
                 if mode == "strict":

@@ -84,7 +84,7 @@ repos:
     #   pass_filenames: false
     - id: sops-encryption-check
       name: Verify SOPS encryption
-      entry: bash -c 'for f in secrets/{instances,terraform,ansible,bootstrap}/*.yaml 2>/dev/null; do [ -f "$f" ] && grep -q "^sops:" "$f" || { echo "ERROR: $f is not encrypted!"; exit 1; }; done; exit 0'
+      entry: python scripts/check-sops-encryption.py
       language: system
       files: ^secrets/.*\.yaml$
       pass_filenames: false
