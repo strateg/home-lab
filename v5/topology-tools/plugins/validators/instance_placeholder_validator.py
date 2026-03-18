@@ -24,9 +24,9 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from field_annotations import parse_field_annotation
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
 
-_PLACEHOLDER_RE = re.compile(r"^@(required|optional):([a-z][a-z0-9_]*)$")
 DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[2] / "data" / "instance-field-formats.yaml"
 DEFAULT_ENFORCEMENT_MODE = "enforce"
 SUPPORTED_ENFORCEMENT_MODES = {"warn", "warn+gate-new", "enforce"}
@@ -207,20 +207,37 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
             if not node.startswith("@"):
                 return
 
-            match = _PLACEHOLDER_RE.fullmatch(node)
-            if not match:
+            annotation, annotation_error = parse_field_annotation(node)
+            if annotation_error:
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="E6801",
                         severity="error",
                         stage=stage,
-                        message=f"Invalid placeholder syntax '{node}'. Expected @required:<format> or @optional:<format>.",
+                        message=f"Invalid annotation '{node}': {annotation_error}.",
+                        path=f"object:{object_id}:{self._format_path(path)}",
+                    )
+                )
+                return
+            if annotation is None:
+                return
+            if not annotation.required and not annotation.optional:
+                # Marker without required/optional semantics (e.g. @secret)
+                # is valid, but not part of ADR0068 override contract.
+                return
+            fmt = annotation.value_type
+            if not isinstance(fmt, str) or not fmt:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E6801",
+                        severity="error",
+                        stage=stage,
+                        message=f"Annotation '{node}' must declare value type suffix ':<format>'.",
                         path=f"object:{object_id}:{self._format_path(path)}",
                     )
                 )
                 return
 
-            mode, fmt = match.groups()
             if fmt not in formats:
                 diagnostics.append(
                     self.emit_diagnostic(
@@ -232,7 +249,7 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                     )
                 )
                 return
-            placeholders[path] = {"required": mode == "required", "format": fmt}
+            placeholders[path] = {"required": annotation.required, "format": fmt, "secret": annotation.secret}
 
         walk(payload, ())
         return placeholders
@@ -427,7 +444,11 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                 return
             if not isinstance(node, str):
                 return
-            if _PLACEHOLDER_RE.fullmatch(node) is None:
+            annotation, annotation_error = parse_field_annotation(node)
+            if annotation_error is not None or annotation is None:
+                return
+            if annotation.secret:
+                # Secret markers are resolved by side-car secrets flow.
                 return
             formatted = self._format_path(path)
             if formatted in seen:
@@ -469,7 +490,13 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                 continue
             for key in candidate_keys:
                 if key in mac_addresses:
-                    derived[path] = mac_addresses[key]
+                    value = mac_addresses[key]
+                    if isinstance(value, str):
+                        annotation, annotation_error = parse_field_annotation(value)
+                        if annotation_error is None and annotation is not None:
+                            # Annotation marker is not a concrete override value.
+                            continue
+                    derived[path] = value
                     source_paths[path] = f"hardware_identity.mac_addresses.{key}"
                     break
         return derived, source_paths

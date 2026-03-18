@@ -13,6 +13,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from field_annotations import parse_field_annotation
 from identifier_policy import contains_unsafe_identifier_chars
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
@@ -73,7 +74,7 @@ class InstanceRowsCompiler(CompilerPlugin):
         return True
 
     def _collect_all_placeholder_paths(self, row: dict[str, Any]) -> list[str]:
-        """Walk entire row and collect paths to all <TODO_*> placeholders."""
+        """Walk row and collect unresolved secret marker paths."""
         unresolved: list[str] = []
 
         def walk(node: Any, path: str) -> None:
@@ -93,6 +94,10 @@ class InstanceRowsCompiler(CompilerPlugin):
             if not isinstance(node, str):
                 return
             if self._TODO_MARKER_RE.fullmatch(node):
+                unresolved.append(path)
+                return
+            annotation, annotation_error = parse_field_annotation(node)
+            if annotation_error is None and annotation is not None and annotation.secret:
                 unresolved.append(path)
 
         walk(row, "")
@@ -193,6 +198,11 @@ class InstanceRowsCompiler(CompilerPlugin):
                         target[key] = walk_and_replace(target[key], source[key], f"{path}.{key}")
                 return target
 
+            if isinstance(target, list) and isinstance(source, list):
+                for idx in range(min(len(target), len(source))):
+                    target[idx] = walk_and_replace(target[idx], source[idx], f"{path}[{idx}]")
+                return target
+
             if isinstance(target, str) and self._TODO_MARKER_RE.fullmatch(target):
                 # Target is placeholder - replace with secret value if available
                 if source is not None and not isinstance(source, dict):
@@ -208,6 +218,50 @@ class InstanceRowsCompiler(CompilerPlugin):
                         )
                     )
                 return target
+
+            if isinstance(target, str) and target.startswith("@"):
+                annotation, annotation_error = parse_field_annotation(target)
+                if annotation_error is not None:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E3201",
+                            severity="error",
+                            stage=stage,
+                            message=f"Invalid annotation '{target}' at '{path}': {annotation_error}.",
+                            path=row_path,
+                        )
+                    )
+                    return target
+                if annotation is not None and annotation.secret:
+                    if source is not None and not isinstance(source, dict):
+                        return source
+                    if mode == "strict":
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="E7211",
+                                severity="error",
+                                stage=stage,
+                                message=f"Secret annotation '{target}' at '{path}' has no matching secret value.",
+                                path=row_path,
+                            )
+                        )
+                    return target
+
+            if source is not None and not isinstance(source, dict) and not isinstance(source, list):
+                if target is not None and target != source:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7212",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Secret conflict at '{path}' in instance '{instance_id}': "
+                                "plaintext value differs from decrypted side-car value. "
+                                "Use @secret/@*_secret marker or remove plaintext value."
+                            ),
+                            path=row_path,
+                        )
+                    )
 
             # Non-placeholder values are preserved unchanged
             return target

@@ -308,3 +308,46 @@ def test_placeholder_plugin_warn_gate_new_keeps_modeled_strict():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(d.code == "E6802" and d.severity == "error" for d in result.diagnostics)
+
+
+def test_placeholder_plugin_accepts_optional_secret_annotations():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={"class.router": {"class": "class.router"}},
+        objects={
+            "obj.test.router": {
+                "object": "obj.test.router",
+                "hardware_specs": {
+                    "interfaces": {
+                        "ethernet": [
+                            {"name": "wan", "mac": "@optional_secret:mac"},
+                        ]
+                    }
+                },
+            }
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "router-1",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.test.router",
+                        "hardware_identity": {
+                            "mac_addresses": {
+                                "wan": "@optional_secret:mac",
+                            }
+                        },
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not result.has_errors

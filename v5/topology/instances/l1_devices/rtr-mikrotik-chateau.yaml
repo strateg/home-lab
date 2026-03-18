@@ -13,13 +13,13 @@ power:
   source_ref: pdu-rack
   outlet_ref: outlet_01
 hardware_identity:
-  serial_number: <TODO_SERIAL_NUMBER>
+  serial_number: "@secret"
   mac_addresses:
-    ether1: "02:AA:20:00:00:01"
-    ether2: "02:AA:20:00:00:02"
-    ether3: "02:AA:20:00:00:03"
-    ether4: "02:AA:20:00:00:04"
-    ether5: "02:AA:20:00:00:05"
-    wlan1_5ghz: "02:AA:20:00:00:11"
-    wlan2_2_4ghz: "02:AA:20:00:00:12"
-    lte1: "02:AA:20:00:00:21"
+    ether1: "@optional_secret:mac"
+    ether2: "@optional_secret:mac"
+    ether3: "@optional_secret:mac"
+    ether4: "@optional_secret:mac"
+    ether5: "@optional_secret:mac"
+    wlan1_5ghz: "@optional_secret:mac"
+    wlan2_2_4ghz: "@optional_secret:mac"
+    lte1: "@optional_secret:mac"

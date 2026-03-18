@@ -72,3 +72,5 @@
 | [0069](0069-plugin-first-compiler-refactor-and-thin-orchestrator.md) | Plugin-First Compiler Refactor and Thin Orchestrator | Proposed | 2026-03-10 | - | - |
 | [0070](0070-acceptance-testing-tuc-framework.md) | Acceptance Testing TUC Framework | Proposed | 2026-03-11 | - | - |
 | [0071](0071-sharded-instance-files-and-flat-instances-root.md) | Sharded Instance Files and Flat `instances` Root | Proposed | 2026-03-11 | - | - |
+| [0072](0072-unified-secrets-management-sops-age.md) | Unified Secrets Management with SOPS and age | Accepted (implemented) | 2026-03-17 | [0051](0051-ansible-runtime-and-secrets.md), [0054](0054-local-inputs-directory.md) | - |
+| [0073](0073-field-annotations-and-secret-conflict-resolution.md) | Field Annotation System and Secret Conflict Resolution | Accepted (implemented) | 2026-03-18 | - | - |

@@ -436,3 +436,120 @@ def test_instance_rows_compiler_rejects_unsafe_identifiers():
     assert any("instance id 'inst:bad'" in message for message in e3201_messages)
     assert any("class_ref 'class.router:bad'" in message for message in e3201_messages)
     assert any("object_ref 'obj.router?bad'" in message for message in e3201_messages)
+
+
+def test_sidecar_secret_annotations_are_replaced(monkeypatch):
+    class FakeResult:
+        def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+
+    def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
+        return FakeResult(
+            returncode=0,
+            stdout=(
+                "instance: rtr-slate\n"
+                "hardware_identity:\n"
+                "  serial_number: SECRET-SN-001\n"
+                "  mac_addresses:\n"
+                "    wan: AA:BB:CC:DD:EE:01\n"
+            ),
+        )
+
+    monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
+
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_instance_rows": "plugin",
+            "secrets_mode": "inject",
+            "secrets_root": "secrets",
+            "require_unlock": True,
+            "repo_root": str(V5_TOOLS.parent.parent),
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "rtr-slate",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.router",
+                        "hardware_identity": {
+                            "serial_number": "@secret",
+                            "mac_addresses": {
+                                "wan": "@optional_secret:mac",
+                            },
+                        },
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert not result.has_errors
+    rows = result.output_data.get("normalized_rows", [])
+    hw_identity = rows[0]["extensions"].get("hardware_identity", {})
+    assert hw_identity.get("serial_number") == "SECRET-SN-001"
+    assert hw_identity.get("mac_addresses", {}).get("wan") == "AA:BB:CC:DD:EE:01"
+
+
+def test_sidecar_plaintext_conflict_emits_error(monkeypatch):
+    class FakeResult:
+        def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+
+    def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
+        return FakeResult(
+            returncode=0,
+            stdout=(
+                "instance: rtr-slate\n"
+                "hardware_identity:\n"
+                "  serial_number: SECRET-SN-001\n"
+            ),
+        )
+
+    monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
+
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_instance_rows": "plugin",
+            "secrets_mode": "inject",
+            "secrets_root": "secrets",
+            "require_unlock": True,
+            "repo_root": str(V5_TOOLS.parent.parent),
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "rtr-slate",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.router",
+                        "hardware_identity": {
+                            "serial_number": "PLAINTEXT-SN",
+                        },
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(d.code == "E7212" for d in result.diagnostics)
+    rows = result.output_data.get("normalized_rows", [])
+    hw_identity = rows[0]["extensions"].get("hardware_identity", {})
+    assert hw_identity.get("serial_number") == "PLAINTEXT-SN"
