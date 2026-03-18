@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -19,7 +20,12 @@ def _repo_root() -> Path:
 
 def _decrypt_yaml(secret_file: Path) -> dict[str, Any]:
     command = ["sops", "-d", str(secret_file)]
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+    except FileNotFoundError as exc:
+        raise RuntimeError("sops binary is not available in PATH. Install sops first.") from exc
+    except OSError as exc:
+        raise RuntimeError(f"Failed to execute sops for '{secret_file}': {exc}") from exc
     if result.returncode != 0:
         stderr = (result.stderr or "").strip()
         raise RuntimeError(f"sops decryption failed for '{secret_file}' (exit={result.returncode}): {stderr}")
@@ -41,26 +47,10 @@ def _require_scalar(node: Any, *, path: str) -> Any:
     return node
 
 
-def _render_list(items: list[Any]) -> str:
-    """Render a list of objects as HCL."""
-    if not items:
-        return "[]"
-    parts = []
-    for item in items:
-        if isinstance(item, dict):
-            obj_lines = []
-            for k, v in item.items():
-                if isinstance(v, bool):
-                    rendered = "true" if v else "false"
-                elif isinstance(v, list):
-                    rendered = str(v)  # Simple fallback
-                else:
-                    rendered = _render_string(v)
-                obj_lines.append(f"    {k} = {rendered}")
-            parts.append("  {\n" + "\n".join(obj_lines) + "\n  }")
-        else:
-            parts.append(f"  {_render_string(item)}")
-    return "[\n" + ",\n".join(parts) + "\n]"
+def _render_object_key(key: str) -> str:
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+        return key
+    return _render_string(key)
 
 
 def _render_string(value: Any) -> str:
@@ -68,15 +58,40 @@ def _render_string(value: Any) -> str:
     return f'"{escaped}"'
 
 
+def _render_value(value: Any, *, indent: int = 0) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return str(value)
+    if value is None:
+        return "null"
+    if isinstance(value, str):
+        return _render_string(value)
+    if isinstance(value, list):
+        if not value:
+            return "[]"
+        child_indent = " " * (indent + 2)
+        rendered_items = [f"{child_indent}{_render_value(item, indent=indent + 2)}" for item in value]
+        return "[\n" + ",\n".join(rendered_items) + "\n" + (" " * indent) + "]"
+    if isinstance(value, dict):
+        if not value:
+            return "{}"
+        child_indent = " " * (indent + 2)
+        rendered_lines: list[str] = []
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise RuntimeError("Object keys must be strings for tfvars rendering.")
+            rendered_lines.append(
+                f"{child_indent}{_render_object_key(key)} = {_render_value(item, indent=indent + 2)}"
+            )
+        return "{\n" + "\n".join(rendered_lines) + "\n" + (" " * indent) + "}"
+    raise RuntimeError(f"Unsupported value type for tfvars rendering: {type(value).__name__}")
+
+
 def _render_tfvars(values: dict[str, Any]) -> str:
     lines: list[str] = []
     for key, value in values.items():
-        if isinstance(value, bool):
-            rendered = "true" if value else "false"
-        elif isinstance(value, list):
-            rendered = _render_list(value)
-        else:
-            rendered = _render_string(_require_scalar(value, path=key))
+        rendered = _render_value(value, indent=0)
         lines.append(f"{key} = {rendered}")
     return "\n".join(lines) + "\n"
 
