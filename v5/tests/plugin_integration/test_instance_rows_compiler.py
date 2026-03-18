@@ -638,6 +638,88 @@ def test_sidecar_uses_object_secret_annotations_without_instance_mac_duplication
     assert macs.get("wlan0_5ghz") == "AA:BB:CC:DD:EE:10"
 
 
+def test_object_interface_mac_annotations_resolve_without_instance_hardware_identity(monkeypatch):
+    class FakeResult:
+        def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+
+    def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
+        return FakeResult(
+            returncode=0,
+            stdout=(
+                "instance: rtr-slate\n"
+                "hardware_identity:\n"
+                "  serial_number: SECRET-SN-001\n"
+                "  mac_addresses:\n"
+                "    wan: AA:BB:CC:DD:EE:01\n"
+                "    lan1: AA:BB:CC:DD:EE:02\n"
+                "    lan2: AA:BB:CC:DD:EE:03\n"
+                "    wlan0_5ghz: AA:BB:CC:DD:EE:10\n"
+            ),
+        )
+
+    monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
+
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_instance_rows": "plugin",
+            "secrets_mode": "inject",
+            "secrets_root": "v5/secrets",
+            "require_unlock": True,
+            "repo_root": str(V5_TOOLS.parent.parent),
+        },
+        objects={
+            "obj.glinet.slate_ax1800": {
+                "object": "obj.glinet.slate_ax1800",
+                "hardware_specs": {
+                    "interfaces": {
+                        "ethernet": [
+                            {"name": "wan", "mac": "@optional_secret:mac"},
+                            {"name": "lan1", "mac": "@optional_secret:mac"},
+                            {"name": "lan2", "mac": "@optional_secret:mac"},
+                        ],
+                        "wireless": [
+                            {"name": "wlan0", "band": "5ghz", "mac": "@optional_secret:mac"},
+                        ],
+                    }
+                },
+                "hardware_identity": {"serial_number": "@optional_secret:string"},
+            }
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "l1_devices": [
+                    {
+                        "instance": "rtr-slate",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.glinet.slate_ax1800",
+                    }
+                ]
+            }
+        },
+    )
+
+    annotation_result = registry.execute_plugin("base.compiler.annotation_resolver", ctx, Stage.COMPILE)
+    assert annotation_result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert not result.has_errors
+    rows = result.output_data.get("normalized_rows", [])
+    hw_identity = rows[0]["extensions"].get("hardware_identity", {})
+    assert hw_identity.get("serial_number") == "SECRET-SN-001"
+    macs = hw_identity.get("mac_addresses", {})
+    assert macs.get("wan") == "AA:BB:CC:DD:EE:01"
+    assert macs.get("lan1") == "AA:BB:CC:DD:EE:02"
+    assert macs.get("lan2") == "AA:BB:CC:DD:EE:03"
+    assert macs.get("wlan0_5ghz") == "AA:BB:CC:DD:EE:10"
+
+
 def test_annotation_resolver_formats_validate_secret_values(monkeypatch):
     class FakeResult:
         def __init__(self, returncode: int, stdout: str = "", stderr: str = "") -> None:

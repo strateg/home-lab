@@ -416,7 +416,10 @@ class InstanceRowsCompiler(CompilerPlugin):
                             ):
                                 target[key] = copy.deepcopy(source_value)
                         else:
-                            target[key] = copy.deepcopy(source_value)
+                            if isinstance(source_value, dict):
+                                target[key] = walk_and_replace({}, source_value, child_path)
+                            else:
+                                target[key] = copy.deepcopy(source_value)
                 return target
 
             if isinstance(target, list) and isinstance(source, list):
@@ -561,7 +564,10 @@ class InstanceRowsCompiler(CompilerPlugin):
                     ):
                         result[key] = copy.deepcopy(source_value)
                 else:
-                    result[key] = copy.deepcopy(source_value)
+                    if isinstance(source_value, dict):
+                        result[key] = walk_and_replace({}, source_value, key)
+                    else:
+                        result[key] = copy.deepcopy(source_value)
 
         return result
 

@@ -12,5 +12,3 @@ os_refs:
 power:
   source_ref: pdu-rack
   outlet_ref: outlet_01
-hardware_identity:
-  mac_addresses: {}
