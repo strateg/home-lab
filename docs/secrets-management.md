@@ -393,6 +393,8 @@ jobs:
 | Check status | `ls ~/.config/sops/age/keys.txt` |
 | Compile with secrets | `python v5/topology-tools/compile-topology.py --secrets-mode inject` |
 | Compile without secrets | `python v5/topology-tools/compile-topology.py --secrets-mode passthrough` |
+| Generate Terraform tfvars | `python scripts/generate-tfvars.py all` |
+| Cleanup Terraform tfvars | `python scripts/generate-tfvars.py all --cleanup` |
 
 ---
 

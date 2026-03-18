@@ -1,7 +1,7 @@
 # ADR 0072: Unified Secrets Management with SOPS and age
 
 **Date:** 2026-03-17
-**Status:** Accepted (rollout in progress)
+**Status:** Accepted (implemented)
 **Supersedes:** ADR 0051 (secret storage sections), ADR 0054 (secret-bearing local inputs)
 
 ---
@@ -343,19 +343,20 @@ Recovery key (`masterkey.age`) is excluded from routine CI usage.
 
 ### Phase 2: Terraform secrets
 
-- [ ] Migrate secret-bearing `local/terraform/*.tfvars` data to `secrets/terraform/*.yaml`.
-- [ ] Keep `local/` only for non-secret operator preferences.
+- [x] Migrate secret-bearing `local/terraform/*.tfvars` data to `secrets/terraform/*.yaml`.
+- [x] Keep `local/` only for non-secret operator preferences.
+- [x] Add `scripts/generate-tfvars.py` to generate runtime tfvars from SOPS.
 
 ### Phase 3: Ansible secrets
 
-- [ ] Convert Ansible Vault payloads to `secrets/ansible/vault.yaml`.
-- [ ] Remove `.vault_pass` runtime dependency.
+- [x] Convert Ansible Vault payloads to `secrets/ansible/vault.yaml`.
+- [x] Remove `.vault_pass` runtime dependency (v5 only; v4 legacy preserved).
 
 ### Phase 4: Cleanup and ADR alignment
 
-- [ ] Update ADR 0051 status to superseded by ADR 0072.
-- [ ] Update ADR 0054 clarifying `local/` is non-secret.
-- [ ] Align helper scripts, docs, and CI examples with this ADR naming.
+- [x] Update ADR 0051 status to superseded by ADR 0072.
+- [x] Update ADR 0054 clarifying `local/` is non-secret.
+- [x] Align helper scripts, docs, and CI examples with this ADR naming.
 
 ---
 

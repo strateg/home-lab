@@ -41,6 +41,28 @@ def _require_scalar(node: Any, *, path: str) -> Any:
     return node
 
 
+def _render_list(items: list[Any]) -> str:
+    """Render a list of objects as HCL."""
+    if not items:
+        return "[]"
+    parts = []
+    for item in items:
+        if isinstance(item, dict):
+            obj_lines = []
+            for k, v in item.items():
+                if isinstance(v, bool):
+                    rendered = "true" if v else "false"
+                elif isinstance(v, list):
+                    rendered = str(v)  # Simple fallback
+                else:
+                    rendered = _render_string(v)
+                obj_lines.append(f"    {k} = {rendered}")
+            parts.append("  {\n" + "\n".join(obj_lines) + "\n  }")
+        else:
+            parts.append(f"  {_render_string(item)}")
+    return "[\n" + ",\n".join(parts) + "\n]"
+
+
 def _render_string(value: Any) -> str:
     escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
     return f'"{escaped}"'
@@ -51,6 +73,8 @@ def _render_tfvars(values: dict[str, Any]) -> str:
     for key, value in values.items():
         if isinstance(value, bool):
             rendered = "true" if value else "false"
+        elif isinstance(value, list):
+            rendered = _render_list(value)
         else:
             rendered = _render_string(_require_scalar(value, path=key))
         lines.append(f"{key} = {rendered}")
@@ -73,12 +97,16 @@ def _build_mikrotik_values(payload: dict[str, Any]) -> dict[str, Any]:
     mikrotik = _require_mapping(payload.get("mikrotik"), path="mikrotik")
     wireguard = _require_mapping(payload.get("wireguard"), path="wireguard")
     containers = _require_mapping(payload.get("containers"), path="containers")
+    peers = wireguard.get("peers", [])
+    if not isinstance(peers, list):
+        peers = []
     return {
         "mikrotik_host": _require_scalar(mikrotik.get("host"), path="mikrotik.host"),
         "mikrotik_username": _require_scalar(mikrotik.get("username"), path="mikrotik.username"),
         "mikrotik_password": _require_scalar(mikrotik.get("password"), path="mikrotik.password"),
         "mikrotik_insecure": bool(mikrotik.get("insecure")),
         "wireguard_private_key": _require_scalar(wireguard.get("private_key"), path="wireguard.private_key"),
+        "wireguard_peers": peers,
         "adguard_password": _require_scalar(containers.get("adguard_password"), path="containers.adguard_password"),
         "tailscale_authkey": _require_scalar(containers.get("tailscale_authkey"), path="containers.tailscale_authkey"),
     }
@@ -92,14 +120,25 @@ def _build_values(target: str, payload: dict[str, Any]) -> dict[str, Any]:
     raise RuntimeError(f"Unsupported target: {target}")
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate terraform.tfvars from SOPS-encrypted YAML secrets.")
-    parser.add_argument("target", choices=["proxmox", "mikrotik"], help="Terraform target name.")
-    args = parser.parse_args()
-
+def _cleanup_tfvars(target: str) -> int:
+    """Remove generated terraform.tfvars for target."""
     repo_root = _repo_root()
-    secret_file = repo_root / "secrets" / "terraform" / f"{args.target}.yaml"
-    output_dir = repo_root / ".work" / "native" / "terraform" / args.target
+    output_file = repo_root / ".work" / "native" / "terraform" / target / "terraform.tfvars"
+
+    if not output_file.exists():
+        print(f"Skip: {output_file} (not found)")
+        return 0
+
+    output_file.unlink()
+    print(f"Removed: {output_file}")
+    return 0
+
+
+def _generate_tfvars(target: str) -> int:
+    """Generate terraform.tfvars for target from SOPS secrets."""
+    repo_root = _repo_root()
+    secret_file = repo_root / "secrets" / "terraform" / f"{target}.yaml"
+    output_dir = repo_root / ".work" / "native" / "terraform" / target
     output_file = output_dir / "terraform.tfvars"
 
     if not secret_file.exists():
@@ -112,7 +151,7 @@ def main() -> int:
 
     try:
         payload = _decrypt_yaml(secret_file)
-        values = _build_values(args.target, payload)
+        values = _build_values(target, payload)
         content = _render_tfvars(values)
     except RuntimeError as exc:
         print(f"Error: {exc}", file=sys.stderr)
@@ -126,6 +165,32 @@ def main() -> int:
         pass
     print(f"Generated: {output_file}")
     return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Generate terraform.tfvars from SOPS-encrypted YAML secrets.")
+    parser.add_argument(
+        "target",
+        choices=["proxmox", "mikrotik", "all"],
+        help="Terraform target name (or 'all' for both).",
+    )
+    parser.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Remove generated tfvars instead of generating.",
+    )
+    args = parser.parse_args()
+
+    targets = ["proxmox", "mikrotik"] if args.target == "all" else [args.target]
+    action = _cleanup_tfvars if args.cleanup else _generate_tfvars
+
+    exit_code = 0
+    for target in targets:
+        result = action(target)
+        if result != 0:
+            exit_code = result
+
+    return exit_code
 
 
 if __name__ == "__main__":
