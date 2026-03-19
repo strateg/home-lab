@@ -202,8 +202,8 @@ This revised plan adds:
 
 ### 4.2 Capability-Driven Behavior
 
-- [ ] Drive optional resource generation from effective capabilities and platform traits.
-- [ ] Keep device-specific branching in projection layer, not templates.
+- [x] Drive optional resource generation from effective capabilities and platform traits.
+- [x] Keep device-specific branching in projection layer, not templates.
 
 ### 4.3 Parity and Syntax Gates
 
@@ -232,8 +232,8 @@ This revised plan adds:
 
 ### 5.2 Runtime Assembly (ADR 0051 Compliance)
 
-- [ ] Implement runtime inventory assembly flow for environment-specific materialization.
-- [ ] Keep secrets externalized; committed inventory remains safe placeholders/examples.
+- [x] Implement runtime inventory assembly flow for environment-specific materialization.
+- [x] Keep secrets externalized; committed inventory remains safe placeholders/examples.
 
 ### 5.3 Parity and Validation
 

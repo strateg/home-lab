@@ -268,8 +268,8 @@ Implemented:
 
 Open items (from production readiness plan):
 
-1. Capability-driven behavior in MikroTik generator (Phase 4.2).
-2. Runtime inventory assembly flow (Phase 5.2).
+1. ~~Capability-driven behavior in MikroTik generator (Phase 4.2).~~ **DONE**
+2. ~~Runtime inventory assembly flow (Phase 5.2).~~ **DONE**
 3. Hardware identity capture utility and strict placeholder closure (Phase 7).
 4. End-to-end deployment dry-run and cutover runbook completion (Phase 8).
 
