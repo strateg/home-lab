@@ -1,0 +1,16 @@
+all:
+  children:
+    l1_devices:
+      hosts:
+{% if device_hosts %}{% for host in device_hosts %}
+        {{ host.instance_id }}:
+{% endfor %}{% else %}
+        {}
+{% endif %}
+    l4_lxc:
+      hosts:
+{% if lxc_hosts %}{% for host in lxc_hosts %}
+        {{ host.instance_id }}:
+{% endfor %}{% else %}
+        {}
+{% endif %}

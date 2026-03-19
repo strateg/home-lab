@@ -1,0 +1,7 @@
+output "projection_counts" {
+  value = {
+    proxmox_nodes = {{ proxmox_nodes_count }}
+    lxc           = {{ lxc_count }}
+    services      = {{ services_count }}
+  }
+}

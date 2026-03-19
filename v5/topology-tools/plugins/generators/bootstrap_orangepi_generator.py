@@ -52,9 +52,21 @@ class BootstrapOrangePiGenerator(BaseGenerator):
                 continue
             cloud_init_root = self.resolve_output_path(ctx, "bootstrap", instance_id, "cloud-init")
             files = {
-                cloud_init_root / "user-data.example": _user_data(instance_id),
-                cloud_init_root / "meta-data": _meta_data(instance_id),
-                cloud_init_root / "README.md": _readme(instance_id),
+                cloud_init_root / "user-data.example": self.render_template(
+                    ctx,
+                    "bootstrap/orangepi/user-data.example.j2",
+                    {"instance_id": instance_id},
+                ),
+                cloud_init_root / "meta-data": self.render_template(
+                    ctx,
+                    "bootstrap/orangepi/meta-data.j2",
+                    {"instance_id": instance_id},
+                ),
+                cloud_init_root / "README.md": self.render_template(
+                    ctx,
+                    "bootstrap/orangepi/readme.md.j2",
+                    {"instance_id": instance_id},
+                ),
             }
             for path, content in files.items():
                 self.write_text_atomic(path, content)
@@ -73,41 +85,3 @@ class BootstrapOrangePiGenerator(BaseGenerator):
             diagnostics=diagnostics,
             output_data={"bootstrap_orangepi_files": written},
         )
-
-
-def _user_data(instance_id: str) -> str:
-    return (
-        "#cloud-config\n"
-        f"hostname: {instance_id}\n"
-        "users:\n"
-        "  - default\n"
-        "  - name: opi\n"
-        "    sudo: ALL=(ALL) NOPASSWD:ALL\n"
-        "    shell: /bin/bash\n"
-        "    ssh_authorized_keys:\n"
-        "      - <TODO_SSH_PUBLIC_KEY>\n"
-        "package_update: true\n"
-        "packages:\n"
-        "  - curl\n"
-        "  - git\n"
-        "runcmd:\n"
-        "  - echo \"baseline cloud-init placeholder\"\n"
-    )
-
-
-def _meta_data(instance_id: str) -> str:
-    return (
-        f"instance-id: {instance_id}\n"
-        f"local-hostname: {instance_id}\n"
-    )
-
-
-def _readme(instance_id: str) -> str:
-    return (
-        f"# Orange Pi Cloud-Init: {instance_id}\n\n"
-        "Generated files:\n"
-        "- `user-data.example`\n"
-        "- `meta-data`\n\n"
-        "All values are examples/placeholders and are safe to commit.\n"
-    )
-

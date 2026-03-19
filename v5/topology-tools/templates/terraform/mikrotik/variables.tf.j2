@@ -1,0 +1,54 @@
+variable "mikrotik_host" {
+  description = "MikroTik router URL (https://ip:port)"
+  type        = string
+}
+
+variable "mikrotik_username" {
+  description = "MikroTik API username"
+  type        = string
+  default     = "terraform"
+}
+
+variable "mikrotik_password" {
+  description = "MikroTik API password"
+  type        = string
+  sensitive   = true
+}
+
+variable "mikrotik_insecure" {
+  description = "Skip TLS certificate verification"
+  type        = bool
+  default     = true
+}
+
+variable "wireguard_private_key" {
+  description = "WireGuard private key"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "wireguard_peers" {
+  description = "WireGuard peers list"
+  type = list(object({
+    name        = string
+    public_key  = string
+    allowed_ips = list(string)
+    comment     = optional(string)
+  }))
+  default = []
+}
+
+variable "adguard_password" {
+  description = "AdGuard Home admin password (hash)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "tailscale_authkey" {
+  description = "Tailscale auth key"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

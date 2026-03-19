@@ -52,10 +52,26 @@ class BootstrapMikroTikGenerator(BaseGenerator):
                 continue
             node_root = self.resolve_output_path(ctx, "bootstrap", instance_id)
             files = {
-                node_root / "init-terraform.rsc": _init_terraform(instance_id),
-                node_root / "backup-restore-overrides.rsc": _backup_overrides(instance_id),
-                node_root / "terraform.tfvars.example": _tfvars_example(),
-                node_root / "README.md": _readme(instance_id),
+                node_root / "init-terraform.rsc": self.render_template(
+                    ctx,
+                    "bootstrap/mikrotik/init-terraform.rsc.j2",
+                    {"instance_id": instance_id},
+                ),
+                node_root / "backup-restore-overrides.rsc": self.render_template(
+                    ctx,
+                    "bootstrap/mikrotik/backup-restore-overrides.rsc.j2",
+                    {"instance_id": instance_id},
+                ),
+                node_root / "terraform.tfvars.example": self.render_template(
+                    ctx,
+                    "bootstrap/mikrotik/terraform.tfvars.example.j2",
+                    {},
+                ),
+                node_root / "README.md": self.render_template(
+                    ctx,
+                    "bootstrap/mikrotik/readme.md.j2",
+                    {"instance_id": instance_id},
+                ),
             }
             for path, content in files.items():
                 self.write_text_atomic(path, content)
@@ -74,40 +90,3 @@ class BootstrapMikroTikGenerator(BaseGenerator):
             diagnostics=diagnostics,
             output_data={"bootstrap_mikrotik_files": written},
         )
-
-
-def _init_terraform(instance_id: str) -> str:
-    return (
-        f"# Baseline RouterOS bootstrap script for {instance_id}\n"
-        ":log info \"Initialize Terraform API user (placeholder)\"\n"
-        "# /user add name=terraform group=full password=<TODO_PASSWORD>\n"
-        "# /ip service enable api-ssl\n"
-    )
-
-
-def _backup_overrides(instance_id: str) -> str:
-    return (
-        f"# Baseline backup/restore overrides for {instance_id}\n"
-        ":log info \"Apply backup-safe overrides (placeholder)\"\n"
-    )
-
-
-def _tfvars_example() -> str:
-    return (
-        'mikrotik_host = "https://192.168.88.1:8443"\n'
-        'mikrotik_username = "terraform"\n'
-        'mikrotik_password = "<TODO_MIKROTIK_PASSWORD>"\n'
-        "mikrotik_insecure = true\n"
-    )
-
-
-def _readme(instance_id: str) -> str:
-    return (
-        f"# MikroTik Bootstrap: {instance_id}\n\n"
-        "Generated files:\n"
-        "- `init-terraform.rsc`\n"
-        "- `backup-restore-overrides.rsc`\n"
-        "- `terraform.tfvars.example`\n\n"
-        "All values are examples/placeholders and are safe to commit.\n"
-    )
-

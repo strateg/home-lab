@@ -1,0 +1,16 @@
+variable "proxmox_api_url" {
+  type        = string
+  description = "Proxmox API endpoint URL"
+}
+
+variable "proxmox_api_token" {
+  type        = string
+  description = "Proxmox API token"
+  sensitive   = true
+}
+
+variable "proxmox_insecure" {
+  type        = bool
+  description = "Skip TLS verification for API connection"
+  default     = true
+}

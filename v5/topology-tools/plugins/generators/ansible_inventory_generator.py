@@ -5,9 +5,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
-
-import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -56,15 +53,22 @@ class AnsibleInventoryGenerator(BaseGenerator):
         device_hosts = [row for row in hosts_rows if row.get("inventory_group") == "l1_devices"]
         lxc_hosts = [row for row in hosts_rows if row.get("inventory_group") == "l4_lxc"]
 
-        hosts_yml_content = _render_hosts_yaml(device_hosts=device_hosts, lxc_hosts=lxc_hosts)
-        group_vars_content = _render_group_vars_all(host_count=len(hosts_rows))
-
         written: list[str] = []
         hosts_path = out_root / "hosts.yml"
+        hosts_yml_content = self.render_template(
+            ctx,
+            "ansible/inventory/hosts.yml.j2",
+            {"device_hosts": device_hosts, "lxc_hosts": lxc_hosts},
+        )
         self.write_text_atomic(hosts_path, hosts_yml_content)
         written.append(str(hosts_path))
 
         group_vars_path = group_vars_dir / "all.yml"
+        group_vars_content = self.render_template(
+            ctx,
+            "ansible/inventory/group_vars_all.yml.j2",
+            {"host_count": len(hosts_rows)},
+        )
         self.write_text_atomic(group_vars_path, group_vars_content)
         written.append(str(group_vars_path))
 
@@ -78,7 +82,24 @@ class AnsibleInventoryGenerator(BaseGenerator):
             if not instance_id:
                 continue
             host_var_path = host_vars_dir / f"{instance_id}.yml"
-            host_var_content = _render_host_vars(instance_id=instance_id, row=row)
+            host_var_content = self.render_template(
+                ctx,
+                "ansible/inventory/host_vars.yml.j2",
+                {
+                    "instance_id": instance_id,
+                    "object_ref": row.get("object_ref", ""),
+                    "inventory_group": row.get("inventory_group", ""),
+                    "ansible_host": str(row.get("management_ip") or instance_id),
+                    "metadata_json": json.dumps(
+                        {
+                            "class_ref": row.get("class_ref"),
+                            "status": row.get("status"),
+                        },
+                        ensure_ascii=True,
+                        sort_keys=True,
+                    ),
+                },
+            )
             self.write_text_atomic(host_var_path, host_var_content)
             written.append(str(host_var_path))
 
@@ -99,46 +120,3 @@ class AnsibleInventoryGenerator(BaseGenerator):
                 "ansible_inventory_files": written,
             },
         )
-
-
-def _render_hosts_yaml(*, device_hosts: list[dict[str, Any]], lxc_hosts: list[dict[str, Any]]) -> str:
-    payload = {
-        "all": {
-            "children": {
-                "l1_devices": {
-                    "hosts": {str(row["instance_id"]): None for row in device_hosts},
-                },
-                "l4_lxc": {
-                    "hosts": {str(row["instance_id"]): None for row in lxc_hosts},
-                },
-            },
-        },
-    }
-    return yaml.safe_dump(payload, sort_keys=False, allow_unicode=False)
-
-
-def _render_group_vars_all(*, host_count: int) -> str:
-    payload = {
-        "topology_lane": "v5",
-        "inventory_profile": "production",
-        "inventory_host_count": host_count,
-    }
-    return yaml.safe_dump(payload, sort_keys=False, allow_unicode=False)
-
-
-def _render_host_vars(*, instance_id: str, row: dict[str, Any]) -> str:
-    payload = {
-        "instance_id": instance_id,
-        "object_ref": row.get("object_ref", ""),
-        "inventory_group": row.get("inventory_group", ""),
-        "ansible_host": str(row.get("management_ip") or instance_id),
-        "metadata_json": json.dumps(
-            {
-                "class_ref": row.get("class_ref"),
-                "status": row.get("status"),
-            },
-            ensure_ascii=True,
-            sort_keys=True,
-        ),
-    }
-    return yaml.safe_dump(payload, sort_keys=False, allow_unicode=False)

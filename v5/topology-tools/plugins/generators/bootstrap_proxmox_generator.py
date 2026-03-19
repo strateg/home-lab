@@ -46,27 +46,58 @@ class BootstrapProxmoxGenerator(BaseGenerator):
 
         nodes = projection.get("proxmox_nodes", [])
         written: list[str] = []
+        script_actions = {
+            "01-install-terraform.sh": "Install Terraform runtime (placeholder).",
+            "02-install-ansible.sh": "Install Ansible runtime (placeholder).",
+            "03-configure-storage.sh": "Configure storage pools (placeholder).",
+            "04-configure-network.sh": "Configure network bridge and VLANs (placeholder).",
+            "05-init-git-repo.sh": "Initialize git workspace (placeholder).",
+            "06-enable-zswap.sh": "Enable zswap tuning (placeholder).",
+        }
         for row in nodes:
             instance_id = str(row.get("instance_id", "")).strip()
             if not instance_id:
                 continue
             node_root = self.resolve_output_path(ctx, "bootstrap", instance_id)
             scripts_root = node_root / "post-install"
-
-            files = {
-                node_root / "answer.toml.example": _answer_toml(instance_id),
-                node_root / "README.md": _readme(instance_id),
-                scripts_root / "01-install-terraform.sh": _script("Install Terraform runtime (placeholder)."),
-                scripts_root / "02-install-ansible.sh": _script("Install Ansible runtime (placeholder)."),
-                scripts_root / "03-configure-storage.sh": _script("Configure storage pools (placeholder)."),
-                scripts_root / "04-configure-network.sh": _script("Configure network bridge and VLANs (placeholder)."),
-                scripts_root / "05-init-git-repo.sh": _script("Initialize git workspace (placeholder)."),
-                scripts_root / "06-enable-zswap.sh": _script("Enable zswap tuning (placeholder)."),
-                scripts_root / "README.md": _scripts_readme(),
-            }
-            for path, content in files.items():
-                self.write_text_atomic(path, content)
-                written.append(str(path))
+            self.write_text_atomic(
+                node_root / "answer.toml.example",
+                self.render_template(
+                    ctx,
+                    "bootstrap/proxmox/answer.toml.example.j2",
+                    {"instance_id": instance_id},
+                ),
+            )
+            written.append(str(node_root / "answer.toml.example"))
+            self.write_text_atomic(
+                node_root / "README.md",
+                self.render_template(
+                    ctx,
+                    "bootstrap/proxmox/readme.md.j2",
+                    {"instance_id": instance_id},
+                ),
+            )
+            written.append(str(node_root / "README.md"))
+            for script_name, action in script_actions.items():
+                script_path = scripts_root / script_name
+                self.write_text_atomic(
+                    script_path,
+                    self.render_template(
+                        ctx,
+                        "bootstrap/proxmox/script.sh.j2",
+                        {"action": action},
+                    ),
+                )
+                written.append(str(script_path))
+            self.write_text_atomic(
+                scripts_root / "README.md",
+                self.render_template(
+                    ctx,
+                    "bootstrap/proxmox/post-install-readme.md.j2",
+                    {},
+                ),
+            )
+            written.append(str(scripts_root / "README.md"))
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -81,50 +112,3 @@ class BootstrapProxmoxGenerator(BaseGenerator):
             diagnostics=diagnostics,
             output_data={"bootstrap_proxmox_files": written},
         )
-
-
-def _answer_toml(instance_id: str) -> str:
-    return (
-        "# Proxmox unattended install answer file (example)\n"
-        f"# instance_id: {instance_id}\n\n"
-        "[global]\n"
-        'keyboard = "en-us"\n'
-        'fqdn = "proxmox.local"\n'
-        'mailto = "admin@example.local"\n'
-        "timezone = \"UTC\"\n\n"
-        "[network]\n"
-        "source = \"from-dhcp\"\n\n"
-        "[disks]\n"
-        "filesystem = \"zfs\"\n"
-        "disk_list = [\"/dev/sda\"]\n\n"
-        "[first_boot]\n"
-        "enabled = true\n"
-    )
-
-
-def _readme(instance_id: str) -> str:
-    return (
-        f"# Proxmox Bootstrap: {instance_id}\n\n"
-        "This directory contains baseline bootstrap artifacts generated from v5 projections.\n\n"
-        "Files:\n"
-        "- `answer.toml.example`: unattended installer example values.\n"
-        "- `post-install/`: placeholder post-install scripts package.\n\n"
-        "All values are examples/placeholders and are safe to commit.\n"
-    )
-
-
-def _script(action: str) -> str:
-    return (
-        "#!/usr/bin/env bash\n"
-        "set -euo pipefail\n\n"
-        f'echo "{action}"\n'
-    )
-
-
-def _scripts_readme() -> str:
-    return (
-        "# Post-install Script Package\n\n"
-        "Baseline placeholder scripts are generated in deterministic order.\n"
-        "Replace command bodies during parity implementation.\n"
-    )
-

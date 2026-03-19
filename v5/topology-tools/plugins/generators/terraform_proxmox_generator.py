@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -59,21 +58,37 @@ class TerraformProxmoxGenerator(BaseGenerator):
         lxc_rows = projection.get("lxc", [])
         lxc_instances = [str(row.get("instance_id", "")) for row in lxc_rows]
         service_instances = [str(row.get("instance_id", "")) for row in projection.get("services", [])]
+        proxmox_api_url = "https://proxmox.local:8006/api2/json"
+        if proxmox_nodes:
+            proxmox_api_url = f"https://{proxmox_nodes[0]}:8006/api2/json"
 
-        files: dict[str, str] = {
-            "versions.tf": _versions_tf(),
-            "provider.tf": _provider_tf(),
-            "variables.tf": _variables_tf(),
-            "bridges.tf": _bridges_tf(proxmox_nodes),
-            "lxc.tf": _lxc_tf(lxc_instances),
-            "vms.tf": _vms_tf(),
-            "outputs.tf": _outputs_tf(proxmox_nodes, lxc_instances, service_instances),
-            "terraform.tfvars.example": _tfvars_example(proxmox_nodes),
+        render_context = {
+            "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),
+            "proxmox_provider_source": str(ctx.config.get("proxmox_provider_source", "bpg/proxmox")),
+            "proxmox_provider_version": str(ctx.config.get("proxmox_provider_version", ">= 0.66.0")),
+            "proxmox_nodes_list_expr": _render_string_list(proxmox_nodes),
+            "lxc_instances_list_expr": _render_string_list(lxc_instances),
+            "proxmox_nodes_count": len(proxmox_nodes),
+            "lxc_count": len(lxc_instances),
+            "services_count": len(service_instances),
+            "proxmox_api_url": proxmox_api_url,
+        }
+
+        templates: dict[str, str] = {
+            "versions.tf": "terraform/proxmox/versions.tf.j2",
+            "provider.tf": "terraform/proxmox/provider.tf.j2",
+            "variables.tf": "terraform/proxmox/variables.tf.j2",
+            "bridges.tf": "terraform/proxmox/bridges.tf.j2",
+            "lxc.tf": "terraform/proxmox/lxc.tf.j2",
+            "vms.tf": "terraform/proxmox/vms.tf.j2",
+            "outputs.tf": "terraform/proxmox/outputs.tf.j2",
+            "terraform.tfvars.example": "terraform/proxmox/terraform.tfvars.example.j2",
         }
 
         written: list[str] = []
-        for filename, content in files.items():
+        for filename, template_name in templates.items():
             output_path = out_dir / filename
+            content = self.render_template(ctx, template_name, render_context)
             self.write_text_atomic(output_path, content)
             written.append(str(output_path))
 
@@ -97,97 +112,3 @@ class TerraformProxmoxGenerator(BaseGenerator):
                 "terraform_proxmox_files": written,
             },
         )
-
-
-def _versions_tf() -> str:
-    return (
-        'terraform {\n'
-        '  required_version = ">= 1.6.0"\n'
-        "  required_providers {\n"
-        "    proxmox = {\n"
-        '      source  = "bpg/proxmox"\n'
-        '      version = ">= 0.66.0"\n'
-        "    }\n"
-        "  }\n"
-        "}\n"
-    )
-
-
-def _provider_tf() -> str:
-    return (
-        "provider \"proxmox\" {\n"
-        "  endpoint  = var.proxmox_api_url\n"
-        "  api_token = var.proxmox_api_token\n"
-        "  insecure  = var.proxmox_insecure\n"
-        "}\n"
-    )
-
-
-def _variables_tf() -> str:
-    return (
-        "variable \"proxmox_api_url\" {\n"
-        "  type        = string\n"
-        "  description = \"Proxmox API endpoint URL\"\n"
-        "}\n\n"
-        "variable \"proxmox_api_token\" {\n"
-        "  type        = string\n"
-        "  description = \"Proxmox API token\"\n"
-        "  sensitive   = true\n"
-        "}\n\n"
-        "variable \"proxmox_insecure\" {\n"
-        "  type        = bool\n"
-        "  description = \"Skip TLS verification for API connection\"\n"
-        "  default     = true\n"
-        "}\n"
-    )
-
-
-def _bridges_tf(proxmox_nodes: list[str]) -> str:
-    return (
-        "# Baseline projection output; bridge resources are added in parity phase.\n"
-        "locals {\n"
-        f"  proxmox_nodes = {_render_string_list(proxmox_nodes)}\n"
-        "}\n"
-    )
-
-
-def _lxc_tf(lxc_instances: list[str]) -> str:
-    return (
-        "# Baseline projection output; LXC resource rendering is added in parity phase.\n"
-        "locals {\n"
-        f"  lxc_instances = {_render_string_list(lxc_instances)}\n"
-        "}\n"
-    )
-
-
-def _vms_tf() -> str:
-    return (
-        "# Baseline projection output; VM resource rendering is added in parity phase.\n"
-        "locals {\n"
-        "  vm_instances = []\n"
-        "}\n"
-    )
-
-
-def _outputs_tf(proxmox_nodes: list[str], lxc_instances: list[str], service_instances: list[str]) -> str:
-    return (
-        "output \"projection_counts\" {\n"
-        "  value = {\n"
-        f"    proxmox_nodes = {len(proxmox_nodes)}\n"
-        f"    lxc           = {len(lxc_instances)}\n"
-        f"    services      = {len(service_instances)}\n"
-        "  }\n"
-        "}\n"
-    )
-
-
-def _tfvars_example(proxmox_nodes: list[str]) -> str:
-    default_endpoint = "https://proxmox.local:8006/api2/json"
-    if proxmox_nodes:
-        default_endpoint = f"https://{proxmox_nodes[0]}:8006/api2/json"
-    return (
-        f'proxmox_api_url = "{default_endpoint}"\n'
-        'proxmox_api_token = "<TODO_PROXMOX_API_TOKEN>"\n'
-        "proxmox_insecure = true\n"
-    )
-

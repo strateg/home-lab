@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
-from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -58,25 +57,42 @@ class TerraformMikroTikGenerator(BaseGenerator):
         routers = [str(row.get("instance_id", "")) for row in projection.get("routers", [])]
         networks = [str(row.get("instance_id", "")) for row in projection.get("networks", [])]
         services = [str(row.get("instance_id", "")) for row in projection.get("services", [])]
+        mikrotik_host = "https://192.168.88.1:8443"
+        if routers:
+            mikrotik_host = f"https://{routers[0]}:8443"
 
-        files: dict[str, str] = {
-            "provider.tf": _provider_tf(),
-            "interfaces.tf": _interfaces_tf(routers),
-            "firewall.tf": _firewall_tf(networks),
-            "dhcp.tf": _dhcp_tf(networks),
-            "dns.tf": _dns_tf(),
-            "addresses.tf": _addresses_tf(networks),
-            "qos.tf": _qos_tf(),
-            "vpn.tf": _vpn_tf(),
-            "containers.tf": _containers_tf(services),
-            "variables.tf": _variables_tf(),
-            "outputs.tf": _outputs_tf(routers, networks, services),
-            "terraform.tfvars.example": _tfvars_example(routers),
+        render_context = {
+            "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),
+            "mikrotik_provider_source": str(ctx.config.get("mikrotik_provider_source", "terraform-routeros/routeros")),
+            "mikrotik_provider_version": str(ctx.config.get("mikrotik_provider_version", "~> 1.40")),
+            "routers_list_expr": _render_string_list(routers),
+            "networks_list_expr": _render_string_list(networks),
+            "services_list_expr": _render_string_list(services),
+            "routers_count": len(routers),
+            "networks_count": len(networks),
+            "services_count": len(services),
+            "mikrotik_host": mikrotik_host,
+        }
+
+        templates: dict[str, str] = {
+            "provider.tf": "terraform/mikrotik/provider.tf.j2",
+            "interfaces.tf": "terraform/mikrotik/interfaces.tf.j2",
+            "firewall.tf": "terraform/mikrotik/firewall.tf.j2",
+            "dhcp.tf": "terraform/mikrotik/dhcp.tf.j2",
+            "dns.tf": "terraform/mikrotik/dns.tf.j2",
+            "addresses.tf": "terraform/mikrotik/addresses.tf.j2",
+            "qos.tf": "terraform/mikrotik/qos.tf.j2",
+            "vpn.tf": "terraform/mikrotik/vpn.tf.j2",
+            "containers.tf": "terraform/mikrotik/containers.tf.j2",
+            "variables.tf": "terraform/mikrotik/variables.tf.j2",
+            "outputs.tf": "terraform/mikrotik/outputs.tf.j2",
+            "terraform.tfvars.example": "terraform/mikrotik/terraform.tfvars.example.j2",
         }
 
         written: list[str] = []
-        for filename, content in files.items():
+        for filename, template_name in templates.items():
             output_path = out_dir / filename
+            content = self.render_template(ctx, template_name, render_context)
             self.write_text_atomic(output_path, content)
             written.append(str(output_path))
 
@@ -100,175 +116,3 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 "terraform_mikrotik_files": written,
             },
         )
-
-
-def _provider_tf() -> str:
-    return (
-        'terraform {\n'
-        '  required_version = ">= 1.6.0"\n'
-        "  required_providers {\n"
-        "    routeros = {\n"
-        '      source  = "terraform-routeros/routeros"\n'
-        '      version = "~> 1.40"\n'
-        "    }\n"
-        "  }\n"
-        "}\n\n"
-        'provider "routeros" {\n'
-        "  hosturl  = var.mikrotik_host\n"
-        "  username = var.mikrotik_username\n"
-        "  password = var.mikrotik_password\n"
-        "  insecure = var.mikrotik_insecure\n"
-        "}\n"
-    )
-
-
-def _variables_tf() -> str:
-    return (
-        'variable "mikrotik_host" {\n'
-        "  description = \"MikroTik router URL (https://ip:port)\"\n"
-        "  type        = string\n"
-        "}\n\n"
-        'variable "mikrotik_username" {\n'
-        "  description = \"MikroTik API username\"\n"
-        "  type        = string\n"
-        "  default     = \"terraform\"\n"
-        "}\n\n"
-        'variable "mikrotik_password" {\n'
-        "  description = \"MikroTik API password\"\n"
-        "  type        = string\n"
-        "  sensitive   = true\n"
-        "}\n\n"
-        'variable "mikrotik_insecure" {\n'
-        "  description = \"Skip TLS certificate verification\"\n"
-        "  type        = bool\n"
-        "  default     = true\n"
-        "}\n\n"
-        'variable "wireguard_private_key" {\n'
-        "  description = \"WireGuard private key\"\n"
-        "  type        = string\n"
-        "  sensitive   = true\n"
-        "  default     = \"\"\n"
-        "}\n\n"
-        'variable "wireguard_peers" {\n'
-        "  description = \"WireGuard peers list\"\n"
-        "  type = list(object({\n"
-        "    name        = string\n"
-        "    public_key  = string\n"
-        "    allowed_ips = list(string)\n"
-        "    comment     = optional(string)\n"
-        "  }))\n"
-        "  default = []\n"
-        "}\n\n"
-        'variable "adguard_password" {\n'
-        "  description = \"AdGuard Home admin password (hash)\"\n"
-        "  type        = string\n"
-        "  sensitive   = true\n"
-        "  default     = \"\"\n"
-        "}\n\n"
-        'variable "tailscale_authkey" {\n'
-        "  description = \"Tailscale auth key\"\n"
-        "  type        = string\n"
-        "  sensitive   = true\n"
-        "  default     = \"\"\n"
-        "}\n"
-    )
-
-
-def _interfaces_tf(routers: list[str]) -> str:
-    return (
-        "# Baseline projection output; detailed interface resources are added in parity phase.\n"
-        "locals {\n"
-        f"  mikrotik_routers = {_render_string_list(routers)}\n"
-        "}\n"
-    )
-
-
-def _firewall_tf(networks: list[str]) -> str:
-    return (
-        "# Baseline projection output; firewall resources are added in parity phase.\n"
-        "locals {\n"
-        f"  mikrotik_networks_for_firewall = {_render_string_list(networks)}\n"
-        "}\n"
-    )
-
-
-def _dhcp_tf(networks: list[str]) -> str:
-    return (
-        "# Baseline projection output; DHCP resources are added in parity phase.\n"
-        "locals {\n"
-        f"  mikrotik_networks_for_dhcp = {_render_string_list(networks)}\n"
-        "}\n"
-    )
-
-
-def _dns_tf() -> str:
-    return (
-        "# Baseline projection output; DNS resources are added in parity phase.\n"
-        "locals {\n"
-        "  mikrotik_dns_enabled = true\n"
-        "}\n"
-    )
-
-
-def _addresses_tf(networks: list[str]) -> str:
-    return (
-        "# Baseline projection output; address resources are added in parity phase.\n"
-        "locals {\n"
-        f"  mikrotik_networks_for_addresses = {_render_string_list(networks)}\n"
-        "}\n"
-    )
-
-
-def _qos_tf() -> str:
-    return (
-        "# Baseline projection output; QoS resources are added in parity phase.\n"
-        "locals {\n"
-        "  mikrotik_qos_profiles = []\n"
-        "}\n"
-    )
-
-
-def _vpn_tf() -> str:
-    return (
-        "# Baseline projection output; WireGuard resources are added in parity phase.\n"
-        "locals {\n"
-        "  wireguard_interface_name = \"wg_home\"\n"
-        "}\n"
-    )
-
-
-def _containers_tf(services: list[str]) -> str:
-    return (
-        "# Baseline projection output; container resources are added in parity phase.\n"
-        "locals {\n"
-        f"  mikrotik_service_instances = {_render_string_list(services)}\n"
-        "}\n"
-    )
-
-
-def _outputs_tf(routers: list[str], networks: list[str], services: list[str]) -> str:
-    return (
-        'output "projection_counts" {\n'
-        "  value = {\n"
-        f"    routers  = {len(routers)}\n"
-        f"    networks = {len(networks)}\n"
-        f"    services = {len(services)}\n"
-        "  }\n"
-        "}\n"
-    )
-
-
-def _tfvars_example(routers: list[str]) -> str:
-    default_host = "https://192.168.88.1:8443"
-    if routers:
-        default_host = f"https://{routers[0]}:8443"
-    return (
-        f'mikrotik_host = "{default_host}"\n'
-        'mikrotik_username = "terraform"\n'
-        'mikrotik_password = "<TODO_MIKROTIK_PASSWORD>"\n'
-        "mikrotik_insecure = true\n"
-        'wireguard_private_key = "<TODO_WG_PRIVATE_KEY>"\n'
-        "wireguard_peers = []\n"
-        'adguard_password = "<TODO_ADGUARD_PASSWORD_HASH>"\n'
-        'tailscale_authkey = "<TODO_TAILSCALE_AUTHKEY>"\n'
-    )

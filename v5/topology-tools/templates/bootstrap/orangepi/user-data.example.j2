@@ -1,0 +1,15 @@
+#cloud-config
+hostname: {{ instance_id }}
+users:
+  - default
+  - name: opi
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - <TODO_SSH_PUBLIC_KEY>
+package_update: true
+packages:
+  - curl
+  - git
+runcmd:
+  - echo "baseline cloud-init placeholder"

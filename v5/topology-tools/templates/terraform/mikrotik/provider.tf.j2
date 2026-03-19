@@ -1,0 +1,16 @@
+terraform {
+  required_version = "{{ terraform_version }}"
+  required_providers {
+    routeros = {
+      source  = "{{ mikrotik_provider_source }}"
+      version = "{{ mikrotik_provider_version }}"
+    }
+  }
+}
+
+provider "routeros" {
+  hosturl  = var.mikrotik_host
+  username = var.mikrotik_username
+  password = var.mikrotik_password
+  insecure = var.mikrotik_insecure
+}

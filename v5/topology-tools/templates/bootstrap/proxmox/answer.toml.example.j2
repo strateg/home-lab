@@ -1,0 +1,18 @@
+# Proxmox unattended install answer file (example)
+# instance_id: {{ instance_id }}
+
+[global]
+keyboard = "en-us"
+fqdn = "proxmox.local"
+mailto = "admin@example.local"
+timezone = "UTC"
+
+[network]
+source = "from-dhcp"
+
+[disks]
+filesystem = "zfs"
+disk_list = ["/dev/sda"]
+
+[first_boot]
+enabled = true
