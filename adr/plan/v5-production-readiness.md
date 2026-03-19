@@ -169,7 +169,7 @@ This revised plan adds:
 
 - [ ] Add `v5/tests/plugin_regression/test_terraform_proxmox_parity.py`.
 - [ ] Compare generated files against v4 baseline (with documented intentional diffs).
-- [ ] Run `terraform fmt -check` and `terraform validate` in CI for generated Proxmox output.
+- [x] Run `terraform fmt -check` and `terraform validate` in CI for generated Proxmox output.
 
 ### Phase 3 Definition of Done
 
@@ -208,7 +208,7 @@ This revised plan adds:
 ### 4.3 Parity and Syntax Gates
 
 - [ ] Add `v5/tests/plugin_regression/test_terraform_mikrotik_parity.py`.
-- [ ] Run `terraform fmt -check` and `terraform validate` in CI for generated MikroTik output.
+- [x] Run `terraform fmt -check` and `terraform validate` in CI for generated MikroTik output.
 
 ### Phase 4 Definition of Done
 
@@ -238,7 +238,7 @@ This revised plan adds:
 ### 5.3 Parity and Validation
 
 - [ ] Add `v5/tests/plugin_regression/test_ansible_inventory_parity.py`.
-- [ ] Validate generated inventory with `ansible-inventory --list`.
+- [x] Validate generated inventory with `ansible-inventory --list`.
 
 ### Phase 5 Definition of Done
 

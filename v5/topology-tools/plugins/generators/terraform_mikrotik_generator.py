@@ -151,7 +151,7 @@ def _variables_tf() -> str:
         "}\n\n"
         'variable "wireguard_peers" {\n'
         "  description = \"WireGuard peers list\"\n"
-        "  type        = list(object({\n"
+        "  type = list(object({\n"
         "    name        = string\n"
         "    public_key  = string\n"
         "    allowed_ips = list(string)\n"
@@ -272,4 +272,3 @@ def _tfvars_example(routers: list[str]) -> str:
         'adguard_password = "<TODO_ADGUARD_PASSWORD_HASH>"\n'
         'tailscale_authkey = "<TODO_TAILSCALE_AUTHKEY>"\n'
     )
-
