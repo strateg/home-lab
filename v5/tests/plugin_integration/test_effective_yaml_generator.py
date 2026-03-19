@@ -34,7 +34,7 @@ def test_effective_yaml_generator_writes_file(tmp_path):
         compiled_json={
             "version": "5.0.0",
             "model": "class-object-instance",
-            "instances": {"l1_devices": []},
+            "instances": {"devices": []},
         },
         output_dir=str(output_dir),
     )

@@ -1,0 +1,17 @@
+instance: inst.chan.eth.chateau_to_orangepi5
+object_ref: obj.network.ethernet_channel
+group: network
+layer: L2
+version: 1.0.0
+source_id: link-rtr-mikrotik-srv-orangepi5
+status: mapped
+notes: Logical ethernet channel for Chateau to Orange Pi wired uplink
+endpoint_a:
+  device_ref: rtr-mikrotik-chateau
+  port: ether4
+endpoint_b:
+  device_ref: srv-orangepi5
+  port: eth0
+link_ref: inst.ethernet_cable.chateau_to_orangepi5
+negotiated_speed_mbps: 1000
+admin_state: up

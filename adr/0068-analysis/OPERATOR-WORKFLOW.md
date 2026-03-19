@@ -103,7 +103,7 @@ ssh root@10.0.99.1 'ip link show | grep ether'
 Edit the instance file and add values under `instance_overrides` or directly in fields:
 
 ```yaml
-# v5/topology/instances/l1_devices/rtr-mikrotik-chateau.yaml
+# v5/topology/instances/L1-foundation/devices/rtr-mikrotik-chateau.yaml
 schema_version: 1
 instance: rtr-mikrotik-chateau
 object_ref: obj.mikrotik.chateau_lte7_ax

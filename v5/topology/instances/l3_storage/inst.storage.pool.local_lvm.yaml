@@ -1,9 +1,0 @@
-instance: inst.storage.pool.local_lvm
-object_ref: obj.storage.pool.local_lvm
-group: l3_storage
-layer: L3
-version: 1.0.0
-source_id: se-lvm
-status: mapped
-notes: LVM thin storage on Proxmox SSD
-host_ref: srv-gamayun

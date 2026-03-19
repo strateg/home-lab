@@ -1,0 +1,10 @@
+instance: lxc-grafana
+object_ref: obj.proxmox.lxc.debian12.base
+group: lxc
+layer: L4
+version: 1.0.0
+source_id: lxc-grafana
+status: mapped
+notes: module scaffold exists; capability profile tuning pending
+os_refs:
+- inst.os.debian.12.proxmox.lxc

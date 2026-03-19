@@ -296,7 +296,7 @@ This revised plan adds:
 
 ### 7.2 Instance Updates
 
-- [ ] Replace placeholder identities in `v5/topology/instances/l1_devices/` where still unresolved.
+- [ ] Replace placeholder identities in `v5/topology/instances/L1-foundation/devices/` where still unresolved.
 - [ ] Ensure identity fields satisfy ADR0068 format rules.
 
 ### 7.3 Enforcement Gate

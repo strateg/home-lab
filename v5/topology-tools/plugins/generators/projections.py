@@ -246,35 +246,35 @@ class BootstrapDevice:
 def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for Proxmox Terraform generator."""
     groups = _instance_groups(compiled_json)
-    l1_devices = groups.get("l1_devices", [])
-    l4_lxc = groups.get("l4_lxc", [])
-    l5_services = groups.get("l5_services", [])
+    devices = groups.get("devices", [])
+    lxc = groups.get("lxc", [])
+    input_service_rows = groups.get("services", [])
 
     proxmox_nodes: list[dict[str, Any]] = []
-    for idx, row in enumerate(l1_devices):
+    for idx, row in enumerate(devices):
         object_ref = _require_non_empty_str(
             row,
             field="object_ref",
-            path=f"compiled_json.instances.l1_devices[{idx}]",
+            path=f"compiled_json.instances.devices[{idx}]",
         )
         if object_ref == "obj.proxmox.ve":
-            _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.l1_devices[{idx}]")
+            _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
             proxmox_nodes.append(row)
 
     lxc_rows: list[dict[str, Any]] = []
     lxc_targets: set[str] = set()
-    for idx, row in enumerate(l4_lxc):
-        instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.l4_lxc[{idx}]")
-        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.l4_lxc[{idx}]")
+    for idx, row in enumerate(lxc):
+        instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.lxc[{idx}]")
+        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.lxc[{idx}]")
         lxc_rows.append(row)
         lxc_targets.add(instance_id)
 
     service_rows: list[dict[str, Any]] = []
-    for idx, row in enumerate(l5_services):
-        instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.l5_services[{idx}]")
+    for idx, row in enumerate(input_service_rows):
+        instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.services[{idx}]")
         runtime = row.get("runtime")
         if runtime and not isinstance(runtime, dict):
-            raise ProjectionError(f"compiled_json.instances.l5_services[{idx}].runtime must be mapping/object")
+            raise ProjectionError(f"compiled_json.instances.services[{idx}].runtime must be mapping/object")
         target_ref = runtime.get("target_ref") if isinstance(runtime, dict) else None
         if isinstance(target_ref, str) and target_ref in lxc_targets:
             service_rows.append(row)
@@ -294,47 +294,47 @@ def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator."""
     groups = _instance_groups(compiled_json)
-    l1_devices = groups.get("l1_devices", [])
-    l2_network = groups.get("l2_network", [])
-    l5_services = groups.get("l5_services", [])
+    devices = groups.get("devices", [])
+    network = groups.get("network", [])
+    service_rows = groups.get("services", [])
 
     routers: list[dict[str, Any]] = []
     router_ids: set[str] = set()
-    for idx, row in enumerate(l1_devices):
+    for idx, row in enumerate(devices):
         object_ref = _require_non_empty_str(
             row,
             field="object_ref",
-            path=f"compiled_json.instances.l1_devices[{idx}]",
+            path=f"compiled_json.instances.devices[{idx}]",
         )
-        instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.l1_devices[{idx}]")
+        instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
         if object_ref.startswith("obj.mikrotik."):
             routers.append(row)
             router_ids.add(instance_id)
 
     networks: list[dict[str, Any]] = []
-    for idx, row in enumerate(l2_network):
-        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.l2_network[{idx}]")
-        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.l2_network[{idx}]")
+    for idx, row in enumerate(network):
+        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.network[{idx}]")
+        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.network[{idx}]")
         networks.append(row)
 
-    services: list[dict[str, Any]] = []
-    for idx, row in enumerate(l5_services):
-        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.l5_services[{idx}]")
+    selected_services: list[dict[str, Any]] = []
+    for idx, row in enumerate(service_rows):
+        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.services[{idx}]")
         runtime = row.get("runtime")
         if runtime and not isinstance(runtime, dict):
-            raise ProjectionError(f"compiled_json.instances.l5_services[{idx}].runtime must be mapping/object")
+            raise ProjectionError(f"compiled_json.instances.services[{idx}].runtime must be mapping/object")
         target_ref = runtime.get("target_ref") if isinstance(runtime, dict) else None
         if isinstance(target_ref, str) and target_ref in router_ids:
-            services.append(row)
+            selected_services.append(row)
 
     return {
         "routers": _sorted_rows(routers),
         "networks": _sorted_rows(networks),
-        "services": _sorted_rows(services),
+        "services": _sorted_rows(selected_services),
         "counts": {
             "routers": len(routers),
             "networks": len(networks),
-            "services": len(services),
+            "services": len(selected_services),
         },
     }
 
@@ -342,23 +342,23 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for Ansible inventory generator."""
     groups = _instance_groups(compiled_json)
-    l1_devices = groups.get("l1_devices", [])
-    l4_lxc = groups.get("l4_lxc", [])
+    devices = groups.get("devices", [])
+    lxc = groups.get("lxc", [])
 
     hosts: list[dict[str, Any]] = []
-    for idx, row in enumerate(l1_devices):
-        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.l1_devices[{idx}]")
-        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.l1_devices[{idx}]")
+    for idx, row in enumerate(devices):
+        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
+        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.devices[{idx}]")
         if not _is_ansible_host_candidate(row):
             continue
         host = deepcopy(row)
-        host["inventory_group"] = "l1_devices"
+        host["inventory_group"] = "devices"
         hosts.append(host)
-    for idx, row in enumerate(l4_lxc):
-        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.l4_lxc[{idx}]")
-        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.l4_lxc[{idx}]")
+    for idx, row in enumerate(lxc):
+        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.lxc[{idx}]")
+        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.lxc[{idx}]")
         host = deepcopy(row)
-        host["inventory_group"] = "l4_lxc"
+        host["inventory_group"] = "lxc"
         hosts.append(host)
 
     return {
@@ -372,19 +372,19 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for bootstrap generators."""
     groups = _instance_groups(compiled_json)
-    l1_devices = groups.get("l1_devices", [])
+    devices = groups.get("devices", [])
 
     proxmox_nodes: list[dict[str, Any]] = []
     mikrotik_nodes: list[dict[str, Any]] = []
     orangepi_nodes: list[dict[str, Any]] = []
 
-    for idx, row in enumerate(l1_devices):
+    for idx, row in enumerate(devices):
         object_ref = _require_non_empty_str(
             row,
             field="object_ref",
-            path=f"compiled_json.instances.l1_devices[{idx}]",
+            path=f"compiled_json.instances.devices[{idx}]",
         )
-        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.l1_devices[{idx}]")
+        _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
         if object_ref == "obj.proxmox.ve":
             proxmox_nodes.append(row)
         if object_ref.startswith("obj.mikrotik."):

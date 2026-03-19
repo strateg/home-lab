@@ -27,15 +27,15 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
 def _compiled_fixture() -> dict:
     return {
         "instances": {
-            "l1_devices": [
+            "devices": [
                 {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
                 {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
             ],
-            "l2_network": [
+            "network": [
                 {"instance_id": "inst.net.wan", "object_ref": "obj.network.l2_segment"},
                 {"instance_id": "inst.net.lan", "object_ref": "obj.network.l2_segment"},
             ],
-            "l5_services": [
+            "services": [
                 {"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}},
                 {"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}},
             ],
@@ -75,7 +75,7 @@ def test_terraform_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
 
 def test_terraform_mikrotik_generator_reports_projection_error(tmp_path: Path) -> None:
     generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
-    ctx = _ctx(tmp_path, {"instances": {"l1_devices": [{}]}})
+    ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})
 
     result = generator.execute(ctx, Stage.GENERATE)
 

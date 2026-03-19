@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-03-11
+- Revised: 2026-03-19
 - Related: ADR 0062, ADR 0063, ADR 0069, ADR 0070
 
 ## Context
@@ -21,7 +22,8 @@ Legacy runtime previously assumed one monolithic file and required explicit `cla
 
 ## Decision
 
-Adopt a **sharded instance model** with one instance per file and a flat project root under `v5/topology/instances/`.
+Adopt a **sharded instance model** with one instance per file under `v5/topology/instances/`,
+organized by canonical layer bucket and instance group.
 
 ### 1. Canonical Project Root
 
@@ -37,14 +39,14 @@ One file contains exactly one instance row.
 
 Recommended layout:
 
-- `v5/topology/instances/<group>/<instance>.yaml`
+- `v5/topology/instances/<layer-bucket>/<group>/<instance>.yaml`
 
 Minimal file schema:
 
 ```yaml
 instance: inst.ethernet_cable.cat5e
 object_ref: obj.network.ethernet_cable
-group: l1_devices
+group: devices
 layer: L1
 version: 1.0.0
 status: modeled
@@ -72,6 +74,10 @@ Strict rules:
 6. Assembled in-group order is lexicographic by `instance`.
 7. `instance` MUST be filename-safe across platforms (no `<>:"/\\|?*`).
 8. Canonical top-level key order in shard files is: `instance`, `object_ref`, `group`, `layer`, `version`, then other fields.
+9. Relative shard path under `instances_root` MUST be exactly `<layer-bucket>/<group>/<instance>.yaml`.
+10. `<layer-bucket>` MUST match layer:
+   - `L0-meta`, `L1-foundation`, `L2-network`, `L3-data`, `L4-platform`, `L5-application`, `L6-observability`, `L7-operations`.
+11. `<group>` directory name MUST match shard field `group`.
 
 ### 4. Path Contract
 
@@ -127,6 +133,8 @@ Minimum diagnostic set:
 - `E7103_MULTIROW_INSTANCE_FILE`
 - `E7104_UNSUPPORTED_INSTANCE_SCHEMA_VERSION`
 - `E7105_RESERVED_FILE_INGESTION_ATTEMPT`
+- `E7108_INSTANCE_PATH_LAYER_BUCKET_MISMATCH`
+- `E7109_INSTANCE_PATH_GROUP_DIR_MISMATCH`
 
 ### 7. Project Metadata
 
@@ -141,7 +149,7 @@ and not duplicated in shard files.
 Completed cutover:
 
 1. splitter tool delivered: `v5/topology-tools/split-instance-bindings.py`
-2. monolith split to per-instance shards in `v5/topology/instances/<group>/`
+2. monolith split to per-instance shards in `v5/topology/instances/<layer-bucket>/<group>/`
 3. compiler runtime switched to `sharded-only` instance source
 4. legacy path `paths.instance_bindings` removed from manifest
 5. service instance ids containing `:` were normalized to `.` for cross-platform shard filenames

@@ -1,8 +1,0 @@
-instance: inst.firmware.uefi.generic.arm64
-object_ref: obj.firmware.uefi.generic.arm64
-group: l1_software_firmware
-layer: L1
-version: 1.0.0
-source_id: inst.firmware.uefi.generic.arm64
-status: mapped
-notes: ADR0064 firmware instance

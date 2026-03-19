@@ -1,8 +1,0 @@
-instance: inst.trust_zone.management
-object_ref: obj.network.trust_zone.management
-group: l2_network
-layer: L2
-version: 1.0.0
-source_id: trust-zone-management
-status: mapped
-notes: Management zone for infrastructure access

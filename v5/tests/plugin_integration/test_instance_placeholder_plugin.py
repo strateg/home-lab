@@ -51,7 +51,7 @@ def _context(
                 "defaults": object_defaults,
             }
         },
-        instance_bindings={"instance_bindings": {"l1_devices": [row]}},
+        instance_bindings={"instance_bindings": {"devices": [row]}},
     )
 
 
@@ -157,7 +157,7 @@ def test_placeholder_plugin_accepts_hardware_identity_mac_addresses():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "router-1",
                         "layer": "L1",
@@ -201,7 +201,7 @@ def test_placeholder_plugin_rejects_invalid_hardware_identity_mac():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "router-1",
                         "layer": "L1",
@@ -248,7 +248,7 @@ def test_placeholder_plugin_accepts_wireless_alias_and_cellular_mac():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "router-1",
                         "layer": "L1",
@@ -331,7 +331,7 @@ def test_placeholder_plugin_accepts_optional_secret_annotations():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "router-1",
                         "layer": "L1",

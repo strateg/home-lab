@@ -1,8 +1,0 @@
-instance: inst.trust_zone.servers
-object_ref: obj.network.trust_zone.servers
-group: l2_network
-layer: L2
-version: 1.0.0
-source_id: trust-zone-servers
-status: mapped
-notes: Server zone for infrastructure services

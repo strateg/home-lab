@@ -46,7 +46,7 @@ def test_effective_model_compiler_publishes_candidate():
         config={},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-1",
                         "layer": "L1",
@@ -62,7 +62,7 @@ def test_effective_model_compiler_publishes_candidate():
         "normalized_rows",
         [
             {
-                "group": "l1_devices",
+                "group": "devices",
                 "instance": "rtr-1",
                 "layer": "L1",
                 "source_id": "rtr-1",
@@ -91,8 +91,8 @@ def test_effective_model_compiler_publishes_candidate():
     assert "effective_model_candidate" in keys
     assert isinstance(ctx.compiled_json, dict)
     assert "instances" in ctx.compiled_json
-    assert "l1_devices" in ctx.compiled_json["instances"]
-    first_row = ctx.compiled_json["instances"]["l1_devices"][0]
+    assert "devices" in ctx.compiled_json["instances"]
+    first_row = ctx.compiled_json["instances"]["devices"][0]
     assert first_row["instance_id"] == "rtr-1"
     assert first_row["instance_data"]["length_m"] == 3
     assert first_row["instance_data"]["endpoint_a"]["port"] == "eth0"
@@ -120,7 +120,7 @@ def test_effective_model_compiler_requires_subscribed_normalized_rows():
         config={},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-from-raw-bindings",
                         "layer": "L1",
@@ -157,7 +157,7 @@ def test_effective_model_compiler_reads_normalized_rows_via_subscribe():
         config={},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-from-raw-bindings",
                         "layer": "L1",
@@ -174,7 +174,7 @@ def test_effective_model_compiler_reads_normalized_rows_via_subscribe():
         "normalized_rows",
         [
             {
-                "group": "l1_devices",
+                "group": "devices",
                 "instance": "rtr-from-subscribe",
                 "layer": "L1",
                 "source_id": "rtr-from-subscribe",
@@ -196,6 +196,6 @@ def test_effective_model_compiler_reads_normalized_rows_via_subscribe():
 
     assert result.status == PluginStatus.SUCCESS
     assert not result.has_errors
-    rows = ctx.compiled_json["instances"]["l1_devices"]
+    rows = ctx.compiled_json["instances"]["devices"]
     assert [row["instance_id"] for row in rows] == ["rtr-from-subscribe"]
     assert rows[0]["instance_data"]["length_m"] == 1

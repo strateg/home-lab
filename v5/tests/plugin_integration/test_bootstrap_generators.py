@@ -29,7 +29,7 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
 def _compiled_fixture() -> dict:
     return {
         "instances": {
-            "l1_devices": [
+            "devices": [
                 {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
                 {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
                 {"instance_id": "srv-orangepi5", "object_ref": "obj.orangepi.rk3588.debian"},
@@ -73,7 +73,7 @@ def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> N
 
 
 def test_bootstrap_generators_report_projection_error(tmp_path: Path) -> None:
-    ctx = _ctx(tmp_path, {"instances": {"l1_devices": [{}]}})
+    ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})
     generators = [
         (BootstrapProxmoxGenerator("base.generator.bootstrap_proxmox"), "E9401"),
         (BootstrapMikroTikGenerator("base.generator.bootstrap_mikrotik"), "E9501"),

@@ -49,7 +49,7 @@ def test_power_source_validator_accepts_valid_l1_chain_and_outlets():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "ups-main",
             "layer": "L1",
             "class_ref": "class.power.ups",
@@ -57,7 +57,7 @@ def test_power_source_validator_accepts_valid_l1_chain_and_outlets():
             "extensions": {},
         },
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "pdu-rack",
             "layer": "L1",
             "class_ref": "class.power.pdu",
@@ -65,7 +65,7 @@ def test_power_source_validator_accepts_valid_l1_chain_and_outlets():
             "extensions": {"power": {"source_ref": "ups-main"}},
         },
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "rtr-a",
             "layer": "L1",
             "class_ref": "class.router",
@@ -73,7 +73,7 @@ def test_power_source_validator_accepts_valid_l1_chain_and_outlets():
             "extensions": {"power": {"source_ref": "pdu-rack", "outlet_ref": "A1"}},
         },
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "rtr-b",
             "layer": "L1",
             "class_ref": "class.router",
@@ -101,7 +101,7 @@ def test_power_source_validator_rejects_unknown_target():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "rtr-a",
             "layer": "L1",
             "class_ref": "class.router",
@@ -129,7 +129,7 @@ def test_power_source_validator_rejects_source_layer_violation():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "pdu-rack",
             "layer": "L1",
             "class_ref": "class.power.pdu",
@@ -137,7 +137,7 @@ def test_power_source_validator_rejects_source_layer_violation():
             "extensions": {},
         },
         {
-            "group": "l4_lxc",
+            "group": "lxc",
             "instance": "lxc-app",
             "layer": "L4",
             "class_ref": "class.compute.workload.container",
@@ -165,7 +165,7 @@ def test_power_source_validator_rejects_invalid_target_class():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "router-source",
             "layer": "L1",
             "class_ref": "class.router",
@@ -173,7 +173,7 @@ def test_power_source_validator_rejects_invalid_target_class():
             "extensions": {},
         },
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "router-target",
             "layer": "L1",
             "class_ref": "class.router",
@@ -201,7 +201,7 @@ def test_power_source_validator_rejects_reference_format_errors():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "rtr-a",
             "layer": "L1",
             "class_ref": "class.router",
@@ -209,7 +209,7 @@ def test_power_source_validator_rejects_reference_format_errors():
             "extensions": {"power": {"source_ref": []}},
         },
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "rtr-b",
             "layer": "L1",
             "class_ref": "class.router",
@@ -217,7 +217,7 @@ def test_power_source_validator_rejects_reference_format_errors():
             "extensions": {"power": {"source_ref": "ups-main", "outlet_ref": []}},
         },
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "ups-main",
             "layer": "L1",
             "class_ref": "class.power.ups",
@@ -245,7 +245,7 @@ def test_power_source_validator_rejects_duplicate_outlet_occupancy():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "pdu-rack",
             "layer": "L1",
             "class_ref": "class.power.pdu",
@@ -253,7 +253,7 @@ def test_power_source_validator_rejects_duplicate_outlet_occupancy():
             "extensions": {},
         },
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "rtr-a",
             "layer": "L1",
             "class_ref": "class.router",
@@ -261,7 +261,7 @@ def test_power_source_validator_rejects_duplicate_outlet_occupancy():
             "extensions": {"power": {"source_ref": "pdu-rack", "outlet_ref": "A1"}},
         },
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "rtr-b",
             "layer": "L1",
             "class_ref": "class.router",
@@ -289,7 +289,7 @@ def test_power_source_validator_rejects_cycles():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "pdu-a",
             "layer": "L1",
             "class_ref": "class.power.pdu",
@@ -297,7 +297,7 @@ def test_power_source_validator_rejects_cycles():
             "extensions": {"power": {"source_ref": "ups-b"}},
         },
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "ups-b",
             "layer": "L1",
             "class_ref": "class.power.ups",

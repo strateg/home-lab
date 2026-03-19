@@ -1,0 +1,11 @@
+instance: srv-orangepi5
+object_ref: obj.orangepi.rk3588.debian
+group: devices
+layer: L1
+version: 1.0.0
+source_id: srv-orangepi5
+status: mapped
+notes: module scaffold exists; capability profile tuning pending
+firmware_ref: inst.firmware.uboot.generic.arm64
+os_refs:
+- inst.os.debian.12.arm64.edge

@@ -32,7 +32,7 @@ def test_model_lock_validator_skips_when_core_is_owner():
         objects={"obj.router": {"version": "1.0.0"}},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {"instance": "r1", "class_ref": "class.router", "object_ref": "obj.router"},
                 ]
             }
@@ -88,7 +88,7 @@ def test_model_lock_validator_matches_legacy_rules_when_plugin_owner():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {"instance": "r1", "class_ref": "class.router", "object_ref": "obj.router"},
                     {"instance": "r2", "class_ref": "class.unpinned", "object_ref": "obj.unpinned"},
                 ]
@@ -113,8 +113,8 @@ def test_model_lock_validator_matches_legacy_rules_when_plugin_owner():
     ctx.publish(
         "normalized_rows",
         [
-            {"group": "l1_devices", "instance": "r1", "class_ref": "class.router", "object_ref": "obj.router"},
-            {"group": "l1_devices", "instance": "r2", "class_ref": "class.unpinned", "object_ref": "obj.unpinned"},
+            {"group": "devices", "instance": "r1", "class_ref": "class.router", "object_ref": "obj.router"},
+            {"group": "devices", "instance": "r2", "class_ref": "class.unpinned", "object_ref": "obj.unpinned"},
         ],
     )
     ctx._clear_execution_context()
@@ -157,7 +157,7 @@ def test_model_lock_validator_reads_lock_and_rows_via_subscribe():
         "normalized_rows",
         [
             {
-                "group": "l1_devices",
+                "group": "devices",
                 "instance": "r1",
                 "class_ref": "class.router",
                 "object_ref": "obj.router",

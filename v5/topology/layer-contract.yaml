@@ -23,17 +23,17 @@ layer_semantics:
 
 # Instance group to layer mapping
 group_layers:
-  l0_meta: L0
-  l1_devices: L1
-  l1_software_firmware: L1
-  l1_software_os: L1
-  l2_network: L2
-  l3_storage: L3
-  l4_vms: L4
-  l4_lxc: L4
-  l5_services: L5
-  l6_observability: L6
-  l7_operations: L7
+  meta: L0
+  devices: L1
+  software_firmware: L1
+  software_os: L1
+  network: L2
+  storage: L3
+  vms: L4
+  lxc: L4
+  services: L5
+  observability: L6
+  operations: L7
 
 class_layers:
   # L1 - Foundation (physical devices)

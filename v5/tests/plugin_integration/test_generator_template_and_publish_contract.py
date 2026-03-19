@@ -38,9 +38,9 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
             TerraformProxmoxGenerator("base.generator.terraform_proxmox"),
             {
                 "instances": {
-                    "l1_devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}],
-                    "l4_lxc": [{"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"}],
-                    "l5_services": [{"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}}],
+                    "devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}],
+                    "lxc": [{"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"}],
+                    "services": [{"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}}],
                 }
             },
             8,
@@ -49,9 +49,9 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
             TerraformMikroTikGenerator("base.generator.terraform_mikrotik"),
             {
                 "instances": {
-                    "l1_devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}],
-                    "l2_network": [{"instance_id": "inst.net.lan", "object_ref": "obj.network.l2_segment"}],
-                    "l5_services": [{"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}}],
+                    "devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}],
+                    "network": [{"instance_id": "inst.net.lan", "object_ref": "obj.network.l2_segment"}],
+                    "services": [{"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}}],
                 }
             },
             12,
@@ -60,25 +60,25 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
             AnsibleInventoryGenerator("base.generator.ansible_inventory"),
             {
                 "instances": {
-                    "l1_devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}],
-                    "l4_lxc": [{"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"}],
+                    "devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}],
+                    "lxc": [{"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"}],
                 }
             },
             4,
         ),
         (
             BootstrapProxmoxGenerator("base.generator.bootstrap_proxmox"),
-            {"instances": {"l1_devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}]}},
+            {"instances": {"devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}]}},
             9,
         ),
         (
             BootstrapMikroTikGenerator("base.generator.bootstrap_mikrotik"),
-            {"instances": {"l1_devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}]}},
+            {"instances": {"devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}]}},
             4,
         ),
         (
             BootstrapOrangePiGenerator("base.generator.bootstrap_orangepi"),
-            {"instances": {"l1_devices": [{"instance_id": "srv-opi", "object_ref": "obj.orangepi.rk3588.debian"}]}},
+            {"instances": {"devices": [{"instance_id": "srv-opi", "object_ref": "obj.orangepi.rk3588.debian"}]}},
             3,
         ),
     ],
@@ -119,9 +119,9 @@ def test_generator_outputs_are_template_rendered(
             TerraformProxmoxGenerator("base.generator.terraform_proxmox"),
             {
                 "instances": {
-                    "l1_devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}],
-                    "l4_lxc": [{"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"}],
-                    "l5_services": [{"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}}],
+                    "devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}],
+                    "lxc": [{"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"}],
+                    "services": [{"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}}],
                 }
             },
             "terraform_proxmox_files",
@@ -130,9 +130,9 @@ def test_generator_outputs_are_template_rendered(
             TerraformMikroTikGenerator("base.generator.terraform_mikrotik"),
             {
                 "instances": {
-                    "l1_devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}],
-                    "l2_network": [{"instance_id": "inst.net.lan", "object_ref": "obj.network.l2_segment"}],
-                    "l5_services": [{"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}}],
+                    "devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}],
+                    "network": [{"instance_id": "inst.net.lan", "object_ref": "obj.network.l2_segment"}],
+                    "services": [{"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}}],
                 }
             },
             "terraform_mikrotik_files",
@@ -141,25 +141,25 @@ def test_generator_outputs_are_template_rendered(
             AnsibleInventoryGenerator("base.generator.ansible_inventory"),
             {
                 "instances": {
-                    "l1_devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}],
-                    "l4_lxc": [{"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"}],
+                    "devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}],
+                    "lxc": [{"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"}],
                 }
             },
             "ansible_inventory_files",
         ),
         (
             BootstrapProxmoxGenerator("base.generator.bootstrap_proxmox"),
-            {"instances": {"l1_devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}]}},
+            {"instances": {"devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}]}},
             "bootstrap_proxmox_files",
         ),
         (
             BootstrapMikroTikGenerator("base.generator.bootstrap_mikrotik"),
-            {"instances": {"l1_devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}]}},
+            {"instances": {"devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}]}},
             "bootstrap_mikrotik_files",
         ),
         (
             BootstrapOrangePiGenerator("base.generator.bootstrap_orangepi"),
-            {"instances": {"l1_devices": [{"instance_id": "srv-opi", "object_ref": "obj.orangepi.rk3588.debian"}]}},
+            {"instances": {"devices": [{"instance_id": "srv-opi", "object_ref": "obj.orangepi.rk3588.debian"}]}},
             "bootstrap_orangepi_files",
         ),
     ],

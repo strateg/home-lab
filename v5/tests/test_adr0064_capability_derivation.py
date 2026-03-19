@@ -25,7 +25,7 @@ def _run_compiler() -> subprocess.CompletedProcess[str]:
 
 
 def _find_instance(data: dict, instance_name: str) -> dict:
-    for inst in data["instances"].get("l1_devices", []):
+    for inst in data["instances"].get("devices", []):
         instance_field = inst.get("instance")
         if isinstance(instance_field, str) and instance_field == instance_name:
             return inst
@@ -90,7 +90,7 @@ def test_effective_software_populated(effective_topology: dict) -> None:
 
 
 def test_firmware_ref_os_refs_present(effective_topology: dict) -> None:
-    for inst in effective_topology["instances"].get("l1_devices", []):
+    for inst in effective_topology["instances"].get("devices", []):
         instance_data = inst.get("instance", {})
         instance_name = inst.get("source_id") or inst.get("instance")
         if not isinstance(instance_data, dict):

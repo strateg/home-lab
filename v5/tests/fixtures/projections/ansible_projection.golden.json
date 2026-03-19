@@ -5,29 +5,29 @@
   "hosts": [
     {
       "instance_id": "lxc-grafana",
-      "inventory_group": "l4_lxc",
+      "inventory_group": "lxc",
       "object_ref": "obj.proxmox.lxc.debian12.base"
     },
     {
       "instance_id": "lxc-redis",
-      "inventory_group": "l4_lxc",
+      "inventory_group": "lxc",
       "object_ref": "obj.proxmox.lxc.debian12.redis"
     },
     {
       "instance_id": "rtr-mk",
-      "inventory_group": "l1_devices",
+      "inventory_group": "devices",
       "management_ip": "192.168.88.1",
       "object_ref": "obj.mikrotik.chateau_lte7_ax"
     },
     {
       "instance_id": "srv-gamayun",
-      "inventory_group": "l1_devices",
+      "inventory_group": "devices",
       "management_ip": "10.10.10.2",
       "object_ref": "obj.proxmox.ve"
     },
     {
       "instance_id": "srv-orangepi5",
-      "inventory_group": "l1_devices",
+      "inventory_group": "devices",
       "management_ip": "10.10.10.22",
       "object_ref": "obj.orangepi.rk3588.debian"
     }

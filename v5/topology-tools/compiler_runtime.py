@@ -14,6 +14,16 @@ from identifier_policy import contains_unsafe_identifier_chars
 
 INSTANCE_SOURCE_MODES = {"auto", "sharded-only"}
 _INSTANCE_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+_LAYER_BUCKETS: dict[str, str] = {
+    "L0": "L0-meta",
+    "L1": "L1-foundation",
+    "L2": "L2-network",
+    "L3": "L3-data",
+    "L4": "L4-platform",
+    "L5": "L5-application",
+    "L6": "L6-observability",
+    "L7": "L7-operations",
+}
 
 
 @dataclass
@@ -197,8 +207,9 @@ def _load_sharded_instance_payload(
     )
     for path in shard_files:
         relative_path = path.relative_to(instances_root).as_posix()
+        relative_parts = Path(relative_path).parts
         name = path.name
-        if any(part.startswith("_") for part in Path(relative_path).parts):
+        if any(part.startswith("_") for part in relative_parts):
             continue
         if name == "project.yaml":
             continue
@@ -375,6 +386,42 @@ def _load_sharded_instance_payload(
                 stage="validate",
                 message=f"Group '{group_name}' must use layer '{expected_layer}', got '{layer}'.",
                 path=f"{_diag_path(repo_root=repo_root, path=path)}:layer",
+            )
+            continue
+        if len(relative_parts) != 3:
+            add_diag(
+                code="E7108",
+                severity="error",
+                stage="validate",
+                message=(
+                    "Instance shard path must be exactly "
+                    "'<layer-bucket>/<group>/<instance>.yaml' under instances_root."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+        expected_bucket = _LAYER_BUCKETS.get(layer)
+        layer_bucket = str(relative_parts[0])
+        group_dir = str(relative_parts[1])
+        if isinstance(expected_bucket, str) and expected_bucket and layer_bucket != expected_bucket:
+            add_diag(
+                code="E7108",
+                severity="error",
+                stage="validate",
+                message=(
+                    f"Layer bucket '{layer_bucket}' does not match layer '{layer}'. "
+                    f"Expected '{expected_bucket}'."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+        if group_dir != group_name:
+            add_diag(
+                code="E7109",
+                severity="error",
+                stage="validate",
+                message=f"Group directory '{group_dir}' must match shard group '{group_name}'.",
+                path=_diag_path(repo_root=repo_root, path=path),
             )
             continue
 

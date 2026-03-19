@@ -1,0 +1,11 @@
+instance: inst.vlan.servers
+object_ref: obj.network.vlan.servers
+group: network
+layer: L2
+version: 1.0.0
+source_id: net-servers
+status: mapped
+notes: Server VLAN (VLAN 30)
+bridge_ref: inst.bridge.vmbr0
+trust_zone_ref: inst.trust_zone.servers
+managed_by_ref: rtr-mikrotik-chateau

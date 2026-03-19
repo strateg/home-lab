@@ -41,7 +41,7 @@ def _registry_for_network_validator() -> PluginRegistry:
 def _base_bindings() -> dict[str, Any]:
     return {
         "instance_bindings": {
-            "l1_devices": [
+            "devices": [
                 {
                     "instance": "rtr-mikrotik-chateau",
                     "class_ref": "class.router",
@@ -63,7 +63,7 @@ def _base_bindings() -> dict[str, Any]:
                     "shielding": "utp",
                 },
             ],
-            "l2_network": [
+            "network": [
                 {
                     "instance": "inst.chan.eth.chateau_to_slate",
                     "class_ref": "class.network.data_link",
@@ -227,7 +227,7 @@ def test_tuc0001_compile_preserves_cable_instance_data(tmp_path: Path):
     exit_code = compiler.run()
     assert exit_code == 0
     payload = json.loads(output_json.read_text(encoding="utf-8"))
-    l1_rows = payload.get("instances", {}).get("l1_devices", [])
+    l1_rows = payload.get("instances", {}).get("devices", [])
     cable_row = next((row for row in l1_rows if row.get("source_id") == "inst.ethernet_cable.cat5e"), None)
     assert isinstance(cable_row, dict)
     assert cable_row.get("class_ref") == "class.network.physical_link"
@@ -261,7 +261,7 @@ def test_tuc0001_compile_preserves_power_source_bindings(tmp_path: Path):
     exit_code = compiler.run()
     assert exit_code == 0
     payload = json.loads(output_json.read_text(encoding="utf-8"))
-    l1_rows = payload.get("instances", {}).get("l1_devices", [])
+    l1_rows = payload.get("instances", {}).get("devices", [])
     by_source_id = {row.get("source_id"): row for row in l1_rows if isinstance(row, dict)}
 
     mikrotik = by_source_id.get("rtr-mikrotik-chateau")

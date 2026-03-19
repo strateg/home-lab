@@ -1,13 +1,13 @@
 all:
   children:
-    l1_devices:
+    devices:
       hosts:
 {% if device_hosts %}{% for host in device_hosts %}
         {{ host.instance_id }}:
 {% endfor %}{% else %}
         {}
 {% endif %}
-    l4_lxc:
+    lxc:
       hosts:
 {% if lxc_hosts %}{% for host in lxc_hosts %}
         {{ host.instance_id }}:

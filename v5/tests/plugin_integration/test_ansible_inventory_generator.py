@@ -29,11 +29,11 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
 def _compiled_fixture() -> dict:
     return {
         "instances": {
-            "l1_devices": [
+            "devices": [
                 {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
                 {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
             ],
-            "l4_lxc": [
+            "lxc": [
                 {"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"},
             ],
         }
@@ -56,13 +56,13 @@ def test_ansible_inventory_generator_writes_expected_files(tmp_path: Path) -> No
 
     hosts_payload = yaml.safe_load((root / "hosts.yml").read_text(encoding="utf-8"))
     children = hosts_payload["all"]["children"]
-    assert list(children["l1_devices"]["hosts"].keys()) == ["rtr-mk", "srv-gamayun"]
-    assert list(children["l4_lxc"]["hosts"].keys()) == ["lxc-redis"]
+    assert list(children["devices"]["hosts"].keys()) == ["rtr-mk", "srv-gamayun"]
+    assert list(children["lxc"]["hosts"].keys()) == ["lxc-redis"]
 
 
 def test_ansible_inventory_generator_reports_projection_error(tmp_path: Path) -> None:
     generator = AnsibleInventoryGenerator("base.generator.ansible_inventory")
-    ctx = _ctx(tmp_path, {"instances": {"l1_devices": [{}]}})
+    ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})
 
     result = generator.execute(ctx, Stage.GENERATE)
 

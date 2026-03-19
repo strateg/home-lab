@@ -1098,7 +1098,7 @@ Explicit value in object overrides inference.
 - Firmware objects: `v5/topology/object-modules/software/obj.firmware.*.yaml`
 - OS objects: `v5/topology/object-modules/software/obj.os.*.yaml`
 - Device objects: `v5/topology/object-modules/{vendor}/obj.*.yaml`
-- Instance shards (canonical): `v5/topology/instances/<group>/<instance>.yaml`
+- Instance shards (canonical): `v5/topology/instances/<layer-bucket>/<group>/<instance>.yaml`
 - Legacy monolith archive: `v5/topology/instances/_legacy-home-lab/instance-bindings.yaml`
 - Layer contract: `v5/topology/layer-contract.yaml`
 - Manifest: `v5/topology/topology.yaml`

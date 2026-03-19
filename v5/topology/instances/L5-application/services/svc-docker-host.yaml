@@ -1,0 +1,11 @@
+instance: svc-docker-host
+object_ref: obj.service.docker_host
+group: services
+layer: L5
+version: 1.0.0
+source_id: svc-docker-host
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: lxc
+  target_ref: lxc-docker

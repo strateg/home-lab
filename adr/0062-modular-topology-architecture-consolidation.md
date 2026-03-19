@@ -109,14 +109,14 @@ Target v5 layer scope (full coverage):
 
 | Layer | Group | Class Domain | Status |
 |-------|-------|--------------|--------|
-| L0 | l0_meta | meta.* | deferred (no instances) |
-| L1 | l1_devices | compute.*, network.router, power.*, firmware, os | implemented |
-| L2 | l2_network | network.bridge, network.vlan, network.trust_zone, network.firewall_policy, network.qos | implemented |
-| L3 | l3_storage | storage.pool, storage.volume, storage.data_asset | implemented |
-| L4 | l4_vms, l4_lxc | compute.workload.* | implemented |
-| L5 | l5_services | service.* | implemented |
-| L6 | l6_observability | observability.healthcheck, observability.alert | implemented (partial) |
-| L7 | l7_operations | operations.backup | implemented (partial) |
+| L0 | meta | meta.* | deferred (no instances) |
+| L1 | devices | compute.*, network.router, power.*, firmware, os | implemented |
+| L2 | network | network.bridge, network.vlan, network.trust_zone, network.firewall_policy, network.qos | implemented |
+| L3 | storage | storage.pool, storage.volume, storage.data_asset | implemented |
+| L4 | vms, lxc | compute.workload.* | implemented |
+| L5 | services | service.* | implemented |
+| L6 | observability | observability.healthcheck, observability.alert | implemented (partial) |
+| L7 | operations | operations.backup | implemented (partial) |
 
 Cross-layer dependency rules (normative):
 

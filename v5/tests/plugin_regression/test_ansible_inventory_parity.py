@@ -32,7 +32,7 @@ def test_ansible_inventory_lxc_hosts_match_v4_baseline(generated_artifacts_root:
     v5_hosts = yaml.safe_load((v5_root / "hosts.yml").read_text(encoding="utf-8")) or {}
 
     v4_lxc_hosts = _hosts(v4_hosts, "all", "children", "lxc_containers", "hosts")
-    v5_lxc_hosts = _hosts(v5_hosts, "all", "children", "l4_lxc", "hosts")
+    v5_lxc_hosts = _hosts(v5_hosts, "all", "children", "lxc", "hosts")
     assert v5_lxc_hosts == v4_lxc_hosts
 
 

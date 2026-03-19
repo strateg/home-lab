@@ -201,10 +201,10 @@ Each side-car file contains only the secret fields that should be merged into th
 
 **Instance file** (human-readable, tracked):
 ```yaml
-# v5/topology/instances/l1_devices/rtr-mikrotik-chateau.yaml
+# v5/topology/instances/L1-foundation/devices/rtr-mikrotik-chateau.yaml
 schema_version: 1
 instance: rtr-mikrotik-chateau
-group: l1_devices
+group: devices
 layer: L1
 object_ref: obj.mikrotik.chateau_lte7_ax
 hardware_identity:

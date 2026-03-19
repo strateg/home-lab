@@ -1,0 +1,11 @@
+instance: svc-syslog-forward
+object_ref: obj.service.syslog_forwarder
+group: services
+layer: L5
+version: 1.0.0
+source_id: svc-syslog-forward
+status: mapped
+notes: module scaffold exists; runtime-specific behavior tuning pending
+runtime:
+  type: baremetal
+  target_ref: rtr-mikrotik-chateau

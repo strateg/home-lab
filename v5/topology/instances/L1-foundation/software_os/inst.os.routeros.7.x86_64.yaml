@@ -1,0 +1,9 @@
+instance: inst.os.routeros.7.x86_64
+object_ref: obj.os.routeros.7.x86_64
+group: software_os
+layer: L1
+version: 1.0.0
+source_id: inst.os.routeros.7.x86_64
+embedded_in: inst.firmware.routeros.7.x86_64
+status: mapped
+notes: ADR0064 embedded os instance

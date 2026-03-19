@@ -27,15 +27,15 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
 def _compiled_fixture() -> dict:
     return {
         "instances": {
-            "l1_devices": [
+            "devices": [
                 {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
                 {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
             ],
-            "l4_lxc": [
+            "lxc": [
                 {"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"},
                 {"instance_id": "lxc-grafana", "object_ref": "obj.proxmox.lxc.debian12.base"},
             ],
-            "l5_services": [
+            "services": [
                 {"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}},
                 {"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}},
             ],
@@ -71,7 +71,7 @@ def test_terraform_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
 
 def test_terraform_proxmox_generator_reports_projection_error(tmp_path: Path) -> None:
     generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
-    ctx = _ctx(tmp_path, {"instances": {"l1_devices": [{}]}})
+    ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})
 
     result = generator.execute(ctx, Stage.GENERATE)
 

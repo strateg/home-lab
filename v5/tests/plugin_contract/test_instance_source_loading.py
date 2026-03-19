@@ -27,7 +27,7 @@ def _write_layer_contract(path: Path) -> None:
             {
                 "schema_version": 1,
                 "group_layers": {
-                    "l1_devices": "L1",
+                    "devices": "L1",
                 },
             },
             sort_keys=False,
@@ -74,14 +74,14 @@ def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> Non
     _write_layer_contract(layer_contract_path)
 
     shard_root = tmp_path / "instances"
-    shard_file = shard_root / "l1_devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
             {
                 "version": "1.0.0",
                 "instance": "inst.router.a",
-                "group": "l1_devices",
+                "group": "devices",
                 "layer": "L1",
                 "object_ref": "obj.shard.router",
             },
@@ -118,7 +118,7 @@ def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> Non
 
     assert inputs.instance_source_mode == "sharded-only"
     assert isinstance(inputs.instance_payload, dict)
-    rows = inputs.instance_payload["instance_bindings"]["l1_devices"]
+    rows = inputs.instance_payload["instance_bindings"]["devices"]
     assert len(rows) == 1
     assert rows[0]["instance"] == "inst.router.a"
     assert rows[0]["object_ref"] == "obj.shard.router"
@@ -130,14 +130,14 @@ def test_load_core_compile_inputs_reports_group_layer_mismatch(tmp_path: Path) -
     _write_layer_contract(layer_contract_path)
 
     shard_root = tmp_path / "instances"
-    shard_file = shard_root / "l1_devices" / "inst.router.a.yaml"
+    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
             {
                 "version": "1.0.0",
                 "instance": "inst.router.a",
-                "group": "l1_devices",
+                "group": "devices",
                 "layer": "L2",
                 "object_ref": "obj.shard.router",
             },
@@ -181,14 +181,14 @@ def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: 
     _write_layer_contract(layer_contract_path)
 
     shard_root = tmp_path / "instances"
-    shard_file = shard_root / "l1_devices" / "inst.router.bad.yaml"
+    shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.bad.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
         yaml.safe_dump(
             {
                 "version": "1.0.0",
                 "instance": "inst.router:bad",
-                "group": "l1_devices",
+                "group": "devices",
                 "layer": "L1",
                 "object_ref": "obj.shard.router",
             },
@@ -225,3 +225,105 @@ def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: 
 
     assert inputs.instance_payload is None
     assert any(item.get("code") == "E3201" and "filename-unsafe" in item.get("message", "") for item in diagnostics)
+
+
+def test_load_core_compile_inputs_rejects_wrong_layer_bucket(tmp_path: Path) -> None:
+    layer_contract_path = tmp_path / "layer-contract.yaml"
+    _write_layer_contract(layer_contract_path)
+
+    shard_root = tmp_path / "instances"
+    shard_file = shard_root / "L2-network" / "devices" / "inst.router.a.yaml"
+    shard_file.parent.mkdir(parents=True, exist_ok=True)
+    shard_file.write_text(
+        yaml.safe_dump(
+            {
+                "version": "1.0.0",
+                "instance": "inst.router.a",
+                "group": "devices",
+                "layer": "L1",
+                "object_ref": "obj.shard.router",
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    bundle = resolve_manifest_paths(
+        manifest_paths={
+            "class_modules_root": "classes",
+            "object_modules_root": "objects",
+            "capability_catalog": "catalog.yaml",
+            "capability_packs": "packs.yaml",
+            "layer_contract": str(layer_contract_path),
+            "instances_root": str(shard_root),
+            "model_lock": "model.lock.yaml",
+        },
+        resolve_repo_path=lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value,
+    )
+
+    diagnostics: list[dict[str, str]] = []
+
+    def _add_diag(**kwargs):
+        diagnostics.append(kwargs)
+
+    inputs = load_core_compile_inputs(
+        paths=bundle,
+        instances_mode="sharded-only",
+        load_yaml=_load_yaml,
+        add_diag=_add_diag,
+        repo_root=tmp_path,
+    )
+
+    assert inputs.instance_payload is None
+    assert any(item.get("code") == "E7108" for item in diagnostics)
+
+
+def test_load_core_compile_inputs_rejects_group_directory_mismatch(tmp_path: Path) -> None:
+    layer_contract_path = tmp_path / "layer-contract.yaml"
+    _write_layer_contract(layer_contract_path)
+
+    shard_root = tmp_path / "instances"
+    shard_file = shard_root / "L1-foundation" / "network" / "inst.router.a.yaml"
+    shard_file.parent.mkdir(parents=True, exist_ok=True)
+    shard_file.write_text(
+        yaml.safe_dump(
+            {
+                "version": "1.0.0",
+                "instance": "inst.router.a",
+                "group": "devices",
+                "layer": "L1",
+                "object_ref": "obj.shard.router",
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    bundle = resolve_manifest_paths(
+        manifest_paths={
+            "class_modules_root": "classes",
+            "object_modules_root": "objects",
+            "capability_catalog": "catalog.yaml",
+            "capability_packs": "packs.yaml",
+            "layer_contract": str(layer_contract_path),
+            "instances_root": str(shard_root),
+            "model_lock": "model.lock.yaml",
+        },
+        resolve_repo_path=lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value,
+    )
+
+    diagnostics: list[dict[str, str]] = []
+
+    def _add_diag(**kwargs):
+        diagnostics.append(kwargs)
+
+    inputs = load_core_compile_inputs(
+        paths=bundle,
+        instances_mode="sharded-only",
+        load_yaml=_load_yaml,
+        add_diag=_add_diag,
+        repo_root=tmp_path,
+    )
+
+    assert inputs.instance_payload is None
+    assert any(item.get("code") == "E7109" for item in diagnostics)

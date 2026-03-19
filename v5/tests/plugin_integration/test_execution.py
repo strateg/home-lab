@@ -51,7 +51,7 @@ def test_plugin_execution():
         objects={"obj.test": {"object": "obj.test", "class_ref": "class.router"}},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "test-device",
                         "class_ref": "class.router",
@@ -66,7 +66,7 @@ def test_plugin_execution():
         "normalized_rows",
         [
             {
-                "group": "l1_devices",
+                "group": "devices",
                 "instance": "test-device",
                 "class_ref": "class.router",
                 "object_ref": "obj.test",
@@ -101,7 +101,7 @@ def test_plugin_detects_invalid_ref():
         objects={},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "test-device",
                         "class_ref": "class.nonexistent",
@@ -116,7 +116,7 @@ def test_plugin_detects_invalid_ref():
         "normalized_rows",
         [
             {
-                "group": "l1_devices",
+                "group": "devices",
                 "instance": "test-device",
                 "class_ref": "class.nonexistent",
                 "object_ref": "obj.nonexistent",

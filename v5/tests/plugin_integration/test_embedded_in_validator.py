@@ -33,7 +33,7 @@ def test_embedded_in_validator_skips_when_core_is_owner():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_software_os": [
+                "software_os": [
                     {
                         "instance": "inst.os.1",
                         "class_ref": "class.os",
@@ -73,11 +73,11 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_software_firmware": [
+                "software_firmware": [
                     {"instance": "inst.fw.a", "class_ref": "class.firmware", "object_ref": "obj.firmware.a"},
                     {"instance": "inst.fw.b", "class_ref": "class.firmware", "object_ref": "obj.firmware.b"},
                 ],
-                "l1_software_os": [
+                "software_os": [
                     {
                         "instance": "inst.os.missing",
                         "class_ref": "class.os",
@@ -108,7 +108,7 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
                         "embedded_in": "inst.fw.b",
                     },
                 ],
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "inst.device.1",
                         "class_ref": "class.router",
@@ -125,53 +125,53 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
         "normalized_rows",
         [
             {
-                "group": "l1_software_firmware",
+                "group": "software_firmware",
                 "instance": "inst.fw.a",
                 "class_ref": "class.firmware",
                 "object_ref": "obj.firmware.a",
             },
             {
-                "group": "l1_software_firmware",
+                "group": "software_firmware",
                 "instance": "inst.fw.b",
                 "class_ref": "class.firmware",
                 "object_ref": "obj.firmware.b",
             },
             {
-                "group": "l1_software_os",
+                "group": "software_os",
                 "instance": "inst.os.missing",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.embedded",
             },
             {
-                "group": "l1_software_os",
+                "group": "software_os",
                 "instance": "inst.os.unknown-ref",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.embedded",
                 "embedded_in": "inst.fw.unknown",
             },
             {
-                "group": "l1_software_os",
+                "group": "software_os",
                 "instance": "inst.os.installable",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.installable",
                 "embedded_in": "inst.fw.a",
             },
             {
-                "group": "l1_software_os",
+                "group": "software_os",
                 "instance": "inst.os.wrong-class",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.embedded",
                 "embedded_in": "inst.device.1",
             },
             {
-                "group": "l1_software_os",
+                "group": "software_os",
                 "instance": "inst.os.mismatch",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.embedded",
                 "embedded_in": "inst.fw.b",
             },
             {
-                "group": "l1_devices",
+                "group": "devices",
                 "instance": "inst.device.1",
                 "class_ref": "class.router",
                 "object_ref": "obj.device",
@@ -217,7 +217,7 @@ def test_embedded_in_validator_reads_rows_via_subscribe():
         "normalized_rows",
         [
             {
-                "group": "l1_software_os",
+                "group": "software_os",
                 "instance": "inst.os.subscribed",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.embedded",

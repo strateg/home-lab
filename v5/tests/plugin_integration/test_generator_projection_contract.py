@@ -69,7 +69,7 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
                     {
                         "instance_id": "host-probe",
                         "object_ref": "obj.probe.device",
-                        "inventory_group": "l1_devices",
+                        "inventory_group": "devices",
                     }
                 ],
                 "counts": {"hosts": 1},

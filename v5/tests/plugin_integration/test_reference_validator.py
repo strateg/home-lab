@@ -42,7 +42,7 @@ def test_reference_validator_detects_missing_refs_when_plugin_owner():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "inst.dev.1",
             "class_ref": "class.router",
             "object_ref": "obj.router",
@@ -75,7 +75,7 @@ def test_reference_validator_enforces_required_software_policies():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "inst.dev.2",
             "class_ref": "class.router",
             "object_ref": "obj.router",
@@ -129,7 +129,7 @@ def test_reference_validator_reads_rows_and_catalog_via_subscribe():
         "normalized_rows",
         [
             {
-                "group": "l1_devices",
+                "group": "devices",
                 "instance": "inst.dev.subscribed",
                 "class_ref": "class.router",
                 "object_ref": "obj.router",
@@ -153,7 +153,7 @@ def test_reference_validator_accepts_valid_storage_relations():
     registry = _registry()
     rows = [
         {
-            "group": "l3_storage",
+            "group": "storage",
             "instance": "inst.pool.local",
             "layer": "L3",
             "class_ref": "class.storage.pool",
@@ -161,7 +161,7 @@ def test_reference_validator_accepts_valid_storage_relations():
             "extensions": {},
         },
         {
-            "group": "l3_storage",
+            "group": "storage",
             "instance": "inst.vol.local",
             "layer": "L3",
             "class_ref": "class.storage.volume",
@@ -169,7 +169,7 @@ def test_reference_validator_accepts_valid_storage_relations():
             "extensions": {},
         },
         {
-            "group": "l4_lxc",
+            "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
             "class_ref": "class.compute.workload.container",
@@ -177,7 +177,7 @@ def test_reference_validator_accepts_valid_storage_relations():
             "extensions": {"storage": {"pool_ref": "inst.pool.local"}},
         },
         {
-            "group": "l5_services",
+            "group": "services",
             "instance": "inst.service.local",
             "layer": "L5",
             "class_ref": "class.service.database",
@@ -223,7 +223,7 @@ def test_reference_validator_rejects_unknown_storage_relation_target():
     registry = _registry()
     rows = [
         {
-            "group": "l4_lxc",
+            "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
             "class_ref": "class.compute.workload.container",
@@ -258,7 +258,7 @@ def test_reference_validator_rejects_storage_relation_source_layer_violation():
     registry = _registry()
     rows = [
         {
-            "group": "l3_storage",
+            "group": "storage",
             "instance": "inst.pool.local",
             "layer": "L3",
             "class_ref": "class.storage.pool",
@@ -266,7 +266,7 @@ def test_reference_validator_rejects_storage_relation_source_layer_violation():
             "extensions": {},
         },
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "inst.router.local",
             "layer": "L1",
             "class_ref": "class.router",
@@ -308,7 +308,7 @@ def test_reference_validator_rejects_storage_relation_target_class_mismatch():
     registry = _registry()
     rows = [
         {
-            "group": "l3_storage",
+            "group": "storage",
             "instance": "inst.pool.local",
             "layer": "L3",
             "class_ref": "class.storage.pool",
@@ -316,7 +316,7 @@ def test_reference_validator_rejects_storage_relation_target_class_mismatch():
             "extensions": {},
         },
         {
-            "group": "l5_services",
+            "group": "services",
             "instance": "inst.service.local",
             "layer": "L5",
             "class_ref": "class.service.database",
@@ -358,7 +358,7 @@ def test_reference_validator_accepts_valid_network_bridge_relation():
     registry = _registry()
     rows = [
         {
-            "group": "l2_network",
+            "group": "network",
             "instance": "inst.bridge.local",
             "layer": "L2",
             "class_ref": "class.network.bridge",
@@ -366,7 +366,7 @@ def test_reference_validator_accepts_valid_network_bridge_relation():
             "extensions": {},
         },
         {
-            "group": "l4_lxc",
+            "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
             "class_ref": "class.compute.workload.container",
@@ -408,7 +408,7 @@ def test_reference_validator_rejects_unknown_network_bridge_target():
     registry = _registry()
     rows = [
         {
-            "group": "l4_lxc",
+            "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
             "class_ref": "class.compute.workload.container",
@@ -443,7 +443,7 @@ def test_reference_validator_rejects_network_bridge_source_layer_violation():
     registry = _registry()
     rows = [
         {
-            "group": "l2_network",
+            "group": "network",
             "instance": "inst.bridge.local",
             "layer": "L2",
             "class_ref": "class.network.bridge",
@@ -451,7 +451,7 @@ def test_reference_validator_rejects_network_bridge_source_layer_violation():
             "extensions": {},
         },
         {
-            "group": "l5_services",
+            "group": "services",
             "instance": "inst.service.local",
             "layer": "L5",
             "class_ref": "class.service.database",
@@ -493,7 +493,7 @@ def test_reference_validator_rejects_network_bridge_target_class_mismatch():
     registry = _registry()
     rows = [
         {
-            "group": "l2_network",
+            "group": "network",
             "instance": "inst.vlan.local",
             "layer": "L2",
             "class_ref": "class.network.vlan",
@@ -501,7 +501,7 @@ def test_reference_validator_rejects_network_bridge_target_class_mismatch():
             "extensions": {},
         },
         {
-            "group": "l4_lxc",
+            "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
             "class_ref": "class.compute.workload.container",
@@ -543,7 +543,7 @@ def test_reference_validator_accepts_valid_network_vlan_relation():
     registry = _registry()
     rows = [
         {
-            "group": "l2_network",
+            "group": "network",
             "instance": "inst.vlan.local",
             "layer": "L2",
             "class_ref": "class.network.vlan",
@@ -551,7 +551,7 @@ def test_reference_validator_accepts_valid_network_vlan_relation():
             "extensions": {},
         },
         {
-            "group": "l4_lxc",
+            "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
             "class_ref": "class.compute.workload.container",
@@ -593,7 +593,7 @@ def test_reference_validator_rejects_unknown_network_vlan_target():
     registry = _registry()
     rows = [
         {
-            "group": "l4_lxc",
+            "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
             "class_ref": "class.compute.workload.container",
@@ -628,7 +628,7 @@ def test_reference_validator_rejects_network_vlan_source_layer_violation():
     registry = _registry()
     rows = [
         {
-            "group": "l2_network",
+            "group": "network",
             "instance": "inst.vlan.local",
             "layer": "L2",
             "class_ref": "class.network.vlan",
@@ -636,7 +636,7 @@ def test_reference_validator_rejects_network_vlan_source_layer_violation():
             "extensions": {},
         },
         {
-            "group": "l5_services",
+            "group": "services",
             "instance": "inst.service.local",
             "layer": "L5",
             "class_ref": "class.service.database",
@@ -678,7 +678,7 @@ def test_reference_validator_rejects_network_vlan_target_class_mismatch():
     registry = _registry()
     rows = [
         {
-            "group": "l2_network",
+            "group": "network",
             "instance": "inst.bridge.local",
             "layer": "L2",
             "class_ref": "class.network.bridge",
@@ -686,7 +686,7 @@ def test_reference_validator_rejects_network_vlan_target_class_mismatch():
             "extensions": {},
         },
         {
-            "group": "l4_lxc",
+            "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
             "class_ref": "class.compute.workload.container",
@@ -728,7 +728,7 @@ def test_reference_validator_rejects_network_vlan_ref_format():
     registry = _registry()
     rows = [
         {
-            "group": "l4_lxc",
+            "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
             "class_ref": "class.compute.workload.container",
@@ -763,7 +763,7 @@ def test_reference_validator_accepts_valid_observability_target_relation():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "inst.device.local",
             "layer": "L1",
             "class_ref": "class.router",
@@ -771,7 +771,7 @@ def test_reference_validator_accepts_valid_observability_target_relation():
             "extensions": {},
         },
         {
-            "group": "l6_observability",
+            "group": "observability",
             "instance": "inst.obs.local",
             "layer": "L6",
             "class_ref": "class.observability.healthcheck",
@@ -811,7 +811,7 @@ def test_reference_validator_rejects_observability_target_source_layer_violation
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "inst.device.local",
             "layer": "L1",
             "class_ref": "class.router",
@@ -819,7 +819,7 @@ def test_reference_validator_rejects_observability_target_source_layer_violation
             "extensions": {},
         },
         {
-            "group": "l5_services",
+            "group": "services",
             "instance": "inst.svc.local",
             "layer": "L5",
             "class_ref": "class.service.database",
@@ -863,7 +863,7 @@ def test_reference_validator_rejects_observability_target_invalid_layer():
     registry = _registry()
     rows = [
         {
-            "group": "l2_network",
+            "group": "network",
             "instance": "inst.vlan.local",
             "layer": "L2",
             "class_ref": "class.network.vlan",
@@ -871,7 +871,7 @@ def test_reference_validator_rejects_observability_target_invalid_layer():
             "extensions": {},
         },
         {
-            "group": "l6_observability",
+            "group": "observability",
             "instance": "inst.obs.local",
             "layer": "L6",
             "class_ref": "class.observability.healthcheck",
@@ -911,7 +911,7 @@ def test_reference_validator_accepts_valid_operations_target_relation():
     registry = _registry()
     rows = [
         {
-            "group": "l6_observability",
+            "group": "observability",
             "instance": "inst.obs.local",
             "layer": "L6",
             "class_ref": "class.observability.healthcheck",
@@ -919,7 +919,7 @@ def test_reference_validator_accepts_valid_operations_target_relation():
             "extensions": {},
         },
         {
-            "group": "l7_operations",
+            "group": "operations",
             "instance": "inst.ops.local",
             "layer": "L7",
             "class_ref": "class.operations.backup",
@@ -959,7 +959,7 @@ def test_reference_validator_rejects_operations_target_source_layer_violation():
     registry = _registry()
     rows = [
         {
-            "group": "l1_devices",
+            "group": "devices",
             "instance": "inst.device.local",
             "layer": "L1",
             "class_ref": "class.router",
@@ -967,7 +967,7 @@ def test_reference_validator_rejects_operations_target_source_layer_violation():
             "extensions": {},
         },
         {
-            "group": "l6_observability",
+            "group": "observability",
             "instance": "inst.obs.local",
             "layer": "L6",
             "class_ref": "class.observability.healthcheck",
@@ -1007,7 +1007,7 @@ def test_reference_validator_rejects_operations_target_invalid_layer():
     registry = _registry()
     rows = [
         {
-            "group": "l2_network",
+            "group": "network",
             "instance": "inst.vlan.local",
             "layer": "L2",
             "class_ref": "class.network.vlan",
@@ -1015,7 +1015,7 @@ def test_reference_validator_rejects_operations_target_invalid_layer():
             "extensions": {},
         },
         {
-            "group": "l7_operations",
+            "group": "operations",
             "instance": "inst.ops.local",
             "layer": "L7",
             "class_ref": "class.operations.backup",

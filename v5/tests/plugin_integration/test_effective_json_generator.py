@@ -25,7 +25,7 @@ def _registry() -> PluginRegistry:
 def test_effective_json_generator_writes_compiled_file(tmp_path):
     registry = _registry()
     output_path = tmp_path / "artifacts" / "effective-topology.json"
-    payload = {"version": "5.0.0", "model": "class-object-instance", "instances": {"l1_devices": []}}
+    payload = {"version": "5.0.0", "model": "class-object-instance", "instances": {"devices": []}}
 
     ctx = PluginContext(
         topology_path="v5/topology/topology.yaml",

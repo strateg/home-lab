@@ -182,24 +182,24 @@ def main() -> int:
     l5 = payload.get("L5_application", {}) or {}
 
     existing_entities = load_existing_mapping(output_path)
-    l1_devices = build_rows(
+    devices = build_rows(
         l1.get("devices", []) or [],
         "id",
-        build_existing_index(existing_entities, "l1_devices"),
+        build_existing_index(existing_entities, "devices"),
     )
-    l4_vms = build_rows(
+    vms = build_rows(
         l4.get("vms", []) or [],
         "id",
-        build_existing_index(existing_entities, "l4_vms"),
+        build_existing_index(existing_entities, "vms"),
     )
-    l4_lxc = build_rows(
+    lxc = build_rows(
         l4.get("lxc", []) or [],
         "id",
-        build_existing_index(existing_entities, "l4_lxc"),
+        build_existing_index(existing_entities, "lxc"),
     )
-    l5_services = build_l5_rows(
+    services = build_l5_rows(
         l5.get("services", []) or [],
-        build_existing_index(existing_entities, "l5_services"),
+        build_existing_index(existing_entities, "services"),
     )
 
     output = {
@@ -211,20 +211,20 @@ def main() -> int:
             "effective_json": str(Path(args.effective_json).as_posix()),
         },
         "summary": {
-            "l1_devices_total": len(l1_devices),
-            "l4_vms_total": len(l4_vms),
-            "l4_lxc_total": len(l4_lxc),
-            "l5_services_total": len(l5_services),
-            "l1_devices_status": count_by_status(l1_devices),
-            "l4_vms_status": count_by_status(l4_vms),
-            "l4_lxc_status": count_by_status(l4_lxc),
-            "l5_services_status": count_by_status(l5_services),
+            "devices_total": len(devices),
+            "vms_total": len(vms),
+            "lxc_total": len(lxc),
+            "services_total": len(services),
+            "devices_status": count_by_status(devices),
+            "vms_status": count_by_status(vms),
+            "lxc_status": count_by_status(lxc),
+            "services_status": count_by_status(services),
         },
         "entities": {
-            "l1_devices": l1_devices,
-            "l4_vms": l4_vms,
-            "l4_lxc": l4_lxc,
-            "l5_services": l5_services,
+            "devices": devices,
+            "vms": vms,
+            "lxc": lxc,
+            "services": services,
         },
     }
 

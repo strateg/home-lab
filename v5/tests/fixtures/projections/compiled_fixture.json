@@ -1,6 +1,6 @@
 {
   "instances": {
-    "l1_devices": [
+    "devices": [
       {
         "instance_id": "rtr-mk",
         "object_ref": "obj.mikrotik.chateau_lte7_ax",
@@ -22,7 +22,7 @@
         "object_ref": "obj.network.ethernet_cable"
       }
     ],
-    "l4_lxc": [
+    "lxc": [
       {
         "instance_id": "lxc-redis",
         "object_ref": "obj.proxmox.lxc.debian12.redis"
@@ -32,7 +32,7 @@
         "object_ref": "obj.proxmox.lxc.debian12.base"
       }
     ],
-    "l2_network": [
+    "network": [
       {
         "instance_id": "inst.net.wan",
         "object_ref": "obj.network.l2_segment"
@@ -42,7 +42,7 @@
         "object_ref": "obj.network.l2_segment"
       }
     ],
-    "l5_services": [
+    "services": [
       {
         "instance_id": "svc-redis",
         "runtime": {

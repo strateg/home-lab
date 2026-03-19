@@ -46,7 +46,7 @@ def test_instance_rows_compiler_plugin_owner_normalizes_rows():
         config={"compilation_owner_instance_rows": "plugin"},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "dev-1",
                         "layer": "L1",
@@ -86,7 +86,7 @@ def test_sidecar_merge_passthrough_preserves_placeholders():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "test-device",
                         "layer": "L1",
@@ -127,7 +127,7 @@ def test_sidecar_missing_inject_mode_no_error():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "nonexistent-device",
                         "layer": "L1",
@@ -163,7 +163,7 @@ def test_sidecar_missing_strict_mode_with_placeholders_emits_error():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "nonexistent-strict-device",
                         "layer": "L1",
@@ -199,7 +199,7 @@ def test_placeholder_non_placeholders_preserved():
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "preserve-test",
                         "layer": "L1",
@@ -251,7 +251,7 @@ def test_sidecar_decrypt_failure_inject_require_unlock_emits_error(monkeypatch):
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-mikrotik-chateau",
                         "layer": "L1",
@@ -298,7 +298,7 @@ def test_sidecar_decrypt_failure_inject_require_unlock_false_is_warning(monkeypa
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-mikrotik-chateau",
                         "layer": "L1",
@@ -352,7 +352,7 @@ def test_sidecar_instance_mismatch_does_not_merge_in_inject(monkeypatch):
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-mikrotik-chateau",
                         "layer": "L1",
@@ -383,7 +383,7 @@ def test_hardware_identity_secret_ref_is_forbidden():
         config={"compilation_owner_instance_rows": "plugin"},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "legacy-device",
                         "layer": "L1",
@@ -412,7 +412,7 @@ def test_instance_rows_compiler_rejects_unsafe_identifiers():
         config={"compilation_owner_instance_rows": "plugin"},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "inst:bad",
                         "layer": "L1",
@@ -473,7 +473,7 @@ def test_sidecar_secret_annotations_are_replaced(monkeypatch):
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-slate",
                         "layer": "L1",
@@ -532,7 +532,7 @@ def test_sidecar_plaintext_conflict_emits_error(monkeypatch):
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-slate",
                         "layer": "L1",
@@ -610,7 +610,7 @@ def test_sidecar_uses_object_secret_annotations_without_instance_mac_duplication
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-slate",
                         "layer": "L1",
@@ -694,7 +694,7 @@ def test_object_interface_mac_annotations_resolve_without_instance_hardware_iden
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-slate",
                         "layer": "L1",
@@ -754,7 +754,7 @@ def test_annotation_resolver_formats_validate_secret_values(monkeypatch):
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-slate",
                         "layer": "L1",
@@ -822,7 +822,7 @@ def test_object_level_secret_annotation_resolves_serial_without_instance_marker(
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-slate",
                         "layer": "L1",
@@ -885,7 +885,7 @@ def test_object_level_typed_secret_annotation_rejects_invalid_scalar(monkeypatch
         },
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "rtr-slate",
                         "layer": "L1",

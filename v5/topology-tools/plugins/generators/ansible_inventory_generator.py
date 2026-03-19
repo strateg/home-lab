@@ -52,8 +52,8 @@ class AnsibleInventoryGenerator(BaseGenerator):
         group_vars_dir = out_root / "group_vars"
 
         hosts_rows = projection.get("hosts", [])
-        device_hosts = [row for row in hosts_rows if row.get("inventory_group") == "l1_devices"]
-        lxc_hosts = [row for row in hosts_rows if row.get("inventory_group") == "l4_lxc"]
+        device_hosts = [row for row in hosts_rows if row.get("inventory_group") == "devices"]
+        lxc_hosts = [row for row in hosts_rows if row.get("inventory_group") == "lxc"]
 
         written: list[str] = []
         hosts_path = out_root / "hosts.yml"

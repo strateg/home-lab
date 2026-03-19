@@ -216,16 +216,16 @@ def test_plugin_execution():
         objects={"obj.test": {"object": "obj.test", "class_ref": "class.router"}},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "test-device",
                         "class_ref": "class.router",
                         "object_ref": "obj.test",
                     }
                 ],
-                "l1_software_firmware": [],
-                "l1_software_os": [],
-                "l4_lxc": [],
+                "software_firmware": [],
+                "software_os": [],
+                "lxc": [],
             }
         },
     )
@@ -234,7 +234,7 @@ def test_plugin_execution():
         "normalized_rows",
         [
             {
-                "group": "l1_devices",
+                "group": "devices",
                 "instance": "test-device",
                 "class_ref": "class.router",
                 "object_ref": "obj.test",
@@ -270,16 +270,16 @@ def test_plugin_detects_invalid_ref():
         objects={},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "test-device",
                         "class_ref": "class.nonexistent",
                         "object_ref": "obj.nonexistent",
                     }
                 ],
-                "l1_software_firmware": [],
-                "l1_software_os": [],
-                "l4_lxc": [],
+                "software_firmware": [],
+                "software_os": [],
+                "lxc": [],
             }
         },
     )
@@ -289,7 +289,7 @@ def test_plugin_detects_invalid_ref():
         "normalized_rows",
         [
             {
-                "group": "l1_devices",
+                "group": "devices",
                 "instance": "test-device",
                 "class_ref": "class.nonexistent",
                 "object_ref": "obj.nonexistent",
@@ -740,7 +740,7 @@ def test_runtime_config_takes_precedence():
         objects={"obj.test": {"object": "obj.test"}},
         instance_bindings={
             "instance_bindings": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance": "test-device",
                         "class_ref": "class.router",

@@ -1,0 +1,12 @@
+instance: pdu-rack
+object_ref: obj.pdu.generic.managed
+group: devices
+layer: L1
+version: 1.0.0
+source_id: pdu-rack
+status: mapped
+notes: module scaffold exists; capability profile tuning pending
+firmware_ref: inst.firmware.pdu.generic.managed
+os_refs: []
+power:
+  source_ref: ups-main

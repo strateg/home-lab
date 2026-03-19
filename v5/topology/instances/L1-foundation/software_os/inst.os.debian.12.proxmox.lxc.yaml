@@ -1,0 +1,8 @@
+instance: inst.os.debian.12.proxmox.lxc
+object_ref: obj.os.debian.12.proxmox.lxc
+group: software_os
+layer: L1
+version: 1.0.0
+source_id: inst.os.debian.12.proxmox.lxc
+status: mapped
+notes: ADR0064 os instance

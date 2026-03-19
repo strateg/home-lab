@@ -98,8 +98,8 @@ This removes ambiguity and prevents accidental secret drift between cleartext an
 
 Applied in this change for:
 
-- `v5/topology/instances/l1_devices/rtr-slate.yaml`
-- `v5/topology/instances/l1_devices/rtr-mikrotik-chateau.yaml`
+- `v5/topology/instances/L1-foundation/devices/rtr-slate.yaml`
+- `v5/topology/instances/L1-foundation/devices/rtr-mikrotik-chateau.yaml`
 - related object templates switched from `@optional:mac` to `@optional_secret:mac` for secret MAC paths.
 
 ---
