@@ -1,7 +1,7 @@
 # ADR 0074: V5 Generator Architecture (Contract-First)
 
-**Date:** 2026-03-19  
-**Status:** Accepted (implementation in progress)  
+**Date:** 2026-03-19
+**Status:** Final
 **Depends on:** ADR 0050, ADR 0051, ADR 0055, ADR 0056, ADR 0063, ADR 0065, ADR 0066, ADR 0069
 
 ---
@@ -179,7 +179,59 @@ Generator diagnostics MUST use stable code ranges:
 - `E96xx`: Bootstrap Orange Pi generator
 
 New generator families must reserve non-overlapping ranges before implementation.
-Shared precondition code `E3001` is reserved for common “compiled_json missing/empty” failure and is allowed across generator families.
+Shared precondition code `E3001` is reserved for common "compiled_json missing/empty" failure and is allowed across generator families.
+
+### D9. Generator Configuration Contract
+
+Generator plugins consume two global configuration keys:
+
+1. `generator_artifacts_root`: Output directory for generated artifacts. Defaults to `ctx.output_dir` if unset.
+2. `generator_templates_root`: Root directory for Jinja2 template lookup. Defaults to `v5/topology-tools/templates`.
+
+Per-generator configuration keys are declared in `plugins.yaml` under `config` and `config_schema`. Common patterns:
+
+| Key Pattern | Used By | Purpose |
+|-------------|---------|---------|
+| `terraform_version` | terraform_* generators | Version constraint for versions.tf |
+| `*_provider_source` | terraform_* generators | Provider source address |
+| `*_provider_version` | terraform_* generators | Provider version constraint |
+| `inventory_profile` | ansible_inventory | Profile folder name |
+| `topology_lane` | ansible_inventory | Logical lane tag |
+
+Undeclared config keys consumed by generator code are prohibited.
+
+### D10. Template Directory Structure
+
+All Jinja2 templates reside under `v5/topology-tools/templates/`:
+
+```
+templates/
+  terraform/
+    proxmox/
+      provider.tf.j2, versions.tf.j2, bridges.tf.j2,
+      lxc.tf.j2, vms.tf.j2, variables.tf.j2,
+      outputs.tf.j2, terraform.tfvars.example.j2
+    mikrotik/
+      provider.tf.j2, interfaces.tf.j2, firewall.tf.j2,
+      dhcp.tf.j2, dns.tf.j2, addresses.tf.j2, qos.tf.j2,
+      vpn.tf.j2, containers.tf.j2, variables.tf.j2,
+      outputs.tf.j2, terraform.tfvars.example.j2
+  ansible/
+    inventory/
+      hosts.yml.j2, group_vars_all.yml.j2, host_vars.yml.j2
+  bootstrap/
+    proxmox/
+      answer.toml.example.j2, readme.md.j2, script.sh.j2
+    mikrotik/
+      init-terraform.rsc.j2, backup-restore-overrides.rsc.j2,
+      terraform.tfvars.example.j2, readme.md.j2
+    orangepi/
+      user-data.example.j2, meta-data.j2, readme.md.j2
+```
+
+Templates use Jinja2 with `StrictUndefined` mode - missing variables raise errors.
+
+Inventory of all templates is tracked in `templates/TEMPLATE-INVENTORY.md`.
 
 ---
 
@@ -204,14 +256,15 @@ Shared precondition code `E3001` is reserved for common “compiled_json missing
 
 Implemented:
 
-1. Projection helpers and negative tests.
+1. Projection helpers with negative tests and typed dataclasses.
 2. Projection golden snapshots and input-order stability tests.
 3. Baseline generators for Terraform, Ansible inventory, and bootstrap artifacts.
-4. External Jinja2 templates for all current generator outputs.
-5. CI syntax gates for generated Terraform and Ansible inventory.
+4. External Jinja2 templates for all deployment generators.
+5. CI syntax gates: `terraform fmt -check`, `terraform validate`, `ansible-inventory --list`.
 6. Regression parity test suites for Proxmox, MikroTik, and Ansible outputs.
 7. Generator metadata publishing contract (`generated_dir`, `generated_files`, family-specific keys).
-8. Secret-safety scan gate in CI for generated artifacts.
+8. Secret-safety scan gate in CI for generated artifacts (regex-based leak detection).
+9. Generator projection-only contract tests (verifies generators don't access raw compiled_json internals).
 
 Open items (from production readiness plan):
 
@@ -219,39 +272,95 @@ Open items (from production readiness plan):
 2. Runtime inventory assembly flow (Phase 5.2).
 3. Hardware identity capture utility and strict placeholder closure (Phase 7).
 4. End-to-end deployment dry-run and cutover runbook completion (Phase 8).
-5. Secret-safety scan gate for generated artifacts (Phase 8).
 
 ---
 
 ## Compliance Mapping
 
-1. Projection contract + snapshots:
+| ADR Decision | Verification | Test/Gate |
+|--------------|--------------|-----------|
+| D1 (Projection-first) | Unit + Contract | `test_projection_helpers.py`, `test_generator_projection_contract.py` |
+| D2 (Determinism) | Snapshot stability | `test_projection_snapshots.py` |
+| D3 (Output ownership) | Integration | `test_terraform_*_generator.py` |
+| D4 (Plugin ordering) | Manifest schema | `test_manifest.py` |
+| D5 (Jinja2 templates) | Template contract | `test_generator_template_and_publish_contract.py` |
+| D6 (Validation gates) | CI pipeline | `plugin-validation.yml` |
+| D7 (Extension model) | Publish contract | `test_generator_template_and_publish_contract.py` |
+| D8 (Diagnostics) | Code ranges | Generator implementation |
+| D9 (Config contract) | Schema validation | `plugins.yaml` config_schema |
+| D10 (Template structure) | File existence | CI compile step |
+
+Test files:
+
+1. Projection contract:
    - `v5/tests/plugin_integration/test_projection_helpers.py`
    - `v5/tests/plugin_integration/test_projection_snapshots.py`
    - `v5/tests/plugin_integration/test_generator_projection_contract.py`
 
-2. Generator integration tests:
+2. Generator integration:
    - `v5/tests/plugin_integration/test_terraform_proxmox_generator.py`
    - `v5/tests/plugin_integration/test_terraform_mikrotik_generator.py`
    - `v5/tests/plugin_integration/test_ansible_inventory_generator.py`
    - `v5/tests/plugin_integration/test_bootstrap_generators.py`
    - `v5/tests/plugin_integration/test_generator_template_and_publish_contract.py`
 
-3. Regression parity tests:
+3. Regression parity:
    - `v5/tests/plugin_regression/test_terraform_proxmox_parity.py`
    - `v5/tests/plugin_regression/test_terraform_mikrotik_parity.py`
    - `v5/tests/plugin_regression/test_ansible_inventory_parity.py`
 
 4. CI gates:
-   - `.github/workflows/plugin-validation.yml`
+   - `.github/workflows/plugin-validation.yml` (terraform fmt/validate, ansible-inventory, secret-safety scan)
+
+---
+
+## Next Steps for Implementation
+
+Based on open items:
+
+1. **Phase 4.2 - Capability-driven MikroTik generation**:
+   - Update `build_mikrotik_projection()` to include capability flags
+   - Add conditional logic in templates for optional resources (WireGuard, containers)
+   - Add tests for capability-gated output variations
+
+2. **Phase 5.2 - Runtime inventory assembly**:
+   - Create `assemble-ansible-runtime.py` for v5
+   - Implement environment-specific variable materialization
+   - Keep secrets externalized per ADR 0051
+
+3. **Phase 7 - Hardware identity capture**:
+   - Create `discover-hardware-identity.py` utility
+   - Generate YAML patches for instance updates
+   - Integrate with E6806 strict placeholder enforcement
+
+4. **Phase 8 - E2E validation**:
+   - Execute `terraform plan` with generated artifacts
+   - Execute `ansible-playbook --check` validation
+   - Complete deployment runbook documentation
 
 ---
 
 ## References
 
-- `adr/plan/v5-production-readiness.md`
-- `v5/topology-tools/plugins/plugins.yaml`
-- `v5/topology-tools/plugins/generators/base_generator.py`
-- `v5/topology-tools/plugins/generators/projections.py`
-- `v5/topology-tools/kernel/plugin_base.py`
-- ADR 0050, ADR 0051, ADR 0055, ADR 0056, ADR 0063, ADR 0065, ADR 0066, ADR 0069
+Implementation:
+
+- `v5/topology-tools/plugins/generators/base_generator.py` - BaseGenerator with template/atomic write helpers
+- `v5/topology-tools/plugins/generators/projections.py` - Projection builders and typed dataclasses
+- `v5/topology-tools/plugins/plugins.yaml` - Plugin manifest with ordering and config_schema
+- `v5/topology-tools/templates/` - Jinja2 template files
+- `v5/topology-tools/kernel/plugin_base.py` - Plugin base classes
+
+Planning:
+
+- `adr/plan/v5-production-readiness.md` - Phase tracking
+
+Related ADRs:
+
+- ADR 0050: Generated Directory Restructuring
+- ADR 0051: Ansible Runtime Inventory Ownership
+- ADR 0055: Manual Terraform Extension Layer
+- ADR 0056: Native Execution Workspace
+- ADR 0063: Plugin Microkernel Architecture
+- ADR 0065: Staged Plugin Implementation
+- ADR 0066: Instance Shard Validation
+- ADR 0069: Plugin-First Compiler Pipeline
