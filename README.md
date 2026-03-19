@@ -2,8 +2,8 @@
 
 Repository is split into two migration lanes:
 
-- `v4/` - legacy operational topology/runtime (frozen except critical fixes)
-- `v5/` - new Class -> Object -> Instance architecture (active migration)
+- `v5/` - default lane (Class -> Object -> Instance architecture)
+- `v4/` - legacy maintenance lane (critical fixes and regression checks only)
 
 Generated artifacts are versioned by lane:
 
@@ -21,15 +21,20 @@ Main documents:
 Quick commands:
 
 ```powershell
-make validate-v4
 make validate-v5
 make validate-v5-layers
-make build-v4
 make build-v5
+make phase1-gate
+```
+
+v4 maintenance commands:
+
+```powershell
+make validate-v4
+make build-v4
 make phase1-bootstrap
 make phase1-reconcile
 make phase1-backlog
-make phase1-gate
 make phase4-sync-lock
 make phase4-export
 ```
