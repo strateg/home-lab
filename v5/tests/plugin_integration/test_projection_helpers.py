@@ -24,21 +24,21 @@ def _compiled_fixture() -> dict:
     return {
         "instances": {
             "l1_devices": [
-                {"instance": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
-                {"instance": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
-                {"instance": "srv-orangepi5", "object_ref": "obj.orangepi.rk3588.debian"},
+                {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
+                {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
+                {"instance_id": "srv-orangepi5", "object_ref": "obj.orangepi.rk3588.debian"},
             ],
             "l4_lxc": [
-                {"instance": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"},
-                {"instance": "lxc-grafana", "object_ref": "obj.proxmox.lxc.debian12.base"},
+                {"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"},
+                {"instance_id": "lxc-grafana", "object_ref": "obj.proxmox.lxc.debian12.base"},
             ],
             "l2_network": [
-                {"instance": "inst.net.lan", "object_ref": "obj.network.l2_segment"},
-                {"instance": "inst.net.wan", "object_ref": "obj.network.l2_segment"},
+                {"instance_id": "inst.net.lan", "object_ref": "obj.network.l2_segment"},
+                {"instance_id": "inst.net.wan", "object_ref": "obj.network.l2_segment"},
             ],
             "l5_services": [
-                {"instance": "svc-redis", "runtime": {"target_ref": "lxc-redis"}},
-                {"instance": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}},
+                {"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}},
+                {"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}},
             ],
         }
     }
@@ -46,21 +46,21 @@ def _compiled_fixture() -> dict:
 
 def test_proxmox_projection_is_stable_and_scoped() -> None:
     projection = build_proxmox_projection(_compiled_fixture())
-    assert [row["instance"] for row in projection["proxmox_nodes"]] == ["srv-gamayun"]
-    assert [row["instance"] for row in projection["lxc"]] == ["lxc-grafana", "lxc-redis"]
-    assert [row["instance"] for row in projection["services"]] == ["svc-redis"]
+    assert [row["instance_id"] for row in projection["proxmox_nodes"]] == ["srv-gamayun"]
+    assert [row["instance_id"] for row in projection["lxc"]] == ["lxc-grafana", "lxc-redis"]
+    assert [row["instance_id"] for row in projection["services"]] == ["svc-redis"]
 
 
 def test_mikrotik_projection_is_stable_and_scoped() -> None:
     projection = build_mikrotik_projection(_compiled_fixture())
-    assert [row["instance"] for row in projection["routers"]] == ["rtr-mk"]
-    assert [row["instance"] for row in projection["networks"]] == ["inst.net.lan", "inst.net.wan"]
-    assert [row["instance"] for row in projection["services"]] == ["svc-snmp"]
+    assert [row["instance_id"] for row in projection["routers"]] == ["rtr-mk"]
+    assert [row["instance_id"] for row in projection["networks"]] == ["inst.net.lan", "inst.net.wan"]
+    assert [row["instance_id"] for row in projection["services"]] == ["svc-snmp"]
 
 
 def test_ansible_projection_contains_hosts_from_l1_and_l4() -> None:
     projection = build_ansible_projection(_compiled_fixture())
-    assert [row["instance"] for row in projection["hosts"]] == [
+    assert [row["instance_id"] for row in projection["hosts"]] == [
         "lxc-grafana",
         "lxc-redis",
         "rtr-mk",
@@ -71,9 +71,9 @@ def test_ansible_projection_contains_hosts_from_l1_and_l4() -> None:
 
 def test_bootstrap_projection_selects_target_devices() -> None:
     projection = build_bootstrap_projection(_compiled_fixture())
-    assert [row["instance"] for row in projection["proxmox_nodes"]] == ["srv-gamayun"]
-    assert [row["instance"] for row in projection["mikrotik_nodes"]] == ["rtr-mk"]
-    assert [row["instance"] for row in projection["orangepi_nodes"]] == ["srv-orangepi5"]
+    assert [row["instance_id"] for row in projection["proxmox_nodes"]] == ["srv-gamayun"]
+    assert [row["instance_id"] for row in projection["mikrotik_nodes"]] == ["rtr-mk"]
+    assert [row["instance_id"] for row in projection["orangepi_nodes"]] == ["srv-orangepi5"]
 
 
 @pytest.mark.parametrize(
@@ -92,10 +92,10 @@ def test_projection_requires_instances_mapping(builder) -> None:
 
 def test_projection_requires_required_fields() -> None:
     payload = _compiled_fixture()
-    payload["instances"]["l4_lxc"][0]["instance"] = ""
+    payload["instances"]["l4_lxc"][0]["instance_id"] = ""
     with pytest.raises(
         ProjectionError,
-        match=r"compiled_json\.instances\.l4_lxc\[0\]\.instance must be non-empty string",
+        match=r"compiled_json\.instances\.l4_lxc\[0\]\.instance_id must be non-empty string",
     ):
         build_proxmox_projection(payload)
 
