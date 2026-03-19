@@ -167,14 +167,14 @@ This revised plan adds:
 
 ### 3.3 Parity and Syntax Gates
 
-- [ ] Add `v5/tests/plugin_regression/test_terraform_proxmox_parity.py`.
-- [ ] Compare generated files against v4 baseline (with documented intentional diffs).
+- [x] Add `v5/tests/plugin_regression/test_terraform_proxmox_parity.py`.
+- [x] Compare generated files against v4 baseline (with documented intentional diffs).
 - [x] Run `terraform fmt -check` and `terraform validate` in CI for generated Proxmox output.
 
 ### Phase 3 Definition of Done
 
 - [x] Proxmox Terraform output is generated in `v5-generated/terraform/proxmox/`.
-- [ ] parity gate is green (or only approved diffs remain).
+- [x] parity gate is green (or only approved diffs remain).
 
 ---
 
@@ -207,13 +207,13 @@ This revised plan adds:
 
 ### 4.3 Parity and Syntax Gates
 
-- [ ] Add `v5/tests/plugin_regression/test_terraform_mikrotik_parity.py`.
+- [x] Add `v5/tests/plugin_regression/test_terraform_mikrotik_parity.py`.
 - [x] Run `terraform fmt -check` and `terraform validate` in CI for generated MikroTik output.
 
 ### Phase 4 Definition of Done
 
-- [ ] MikroTik Terraform output is generated in `v5-generated/terraform/mikrotik/`.
-- [ ] parity gate is green (or only approved diffs remain).
+- [x] MikroTik Terraform output is generated in `v5-generated/terraform/mikrotik/`.
+- [x] parity gate is green (or only approved diffs remain).
 
 ---
 
@@ -237,13 +237,13 @@ This revised plan adds:
 
 ### 5.3 Parity and Validation
 
-- [ ] Add `v5/tests/plugin_regression/test_ansible_inventory_parity.py`.
+- [x] Add `v5/tests/plugin_regression/test_ansible_inventory_parity.py`.
 - [x] Validate generated inventory with `ansible-inventory --list`.
 
 ### Phase 5 Definition of Done
 
 - [x] Ansible inventory output is generated in `v5-generated/ansible/inventory/production/`.
-- [ ] parity and inventory validation are green.
+- [x] parity and inventory validation are green.
 
 ---
 
