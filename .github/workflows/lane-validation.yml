@@ -1,4 +1,4 @@
-name: Lane Validation
+name: Lane Validation (v5 default)
 
 on:
   push:
@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate-v4:
-    name: Validate v4 Lane
+  validate-v4-maintenance:
+    name: Validate v4 Lane (maintenance)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,11 +25,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml jinja2 jsonschema
 
-      - name: Run validate-v4
+      - name: Run validate-v4 (manual maintenance)
         run: python v5/scripts/lane.py validate-v4
 
   validate-v5:
-    name: Validate v5 Lane
+    name: Validate v5 Lane (default)
     runs-on: ubuntu-latest
     env:
       DEVKEY_PASSPHRASE: ${{ secrets.DEVKEY_PASSPHRASE }}
