@@ -5,12 +5,12 @@ source:
   topology: v4/topology.yaml
   effective_json: v4-build/effective-topology.json
 summary:
-  l1_devices_total: 9
+  l1_devices_total: 10
   l4_vms_total: 0
   l4_lxc_total: 9
   l5_services_total: 26
   l1_devices_status:
-    mapped: 9
+    mapped: 10
     pending: 0
     gap: 0
   l4_vms_status:
@@ -72,6 +72,12 @@ entities:
     firmware_ref: inst.firmware.openwrt.glinet.4x
     os_refs:
     - inst.os.openwrt.glinet.4x
+  - instance_id: inst.ethernet_cable.cat5e
+    source_id: inst.ethernet_cable.cat5e
+    class_ref: class.network.physical_link
+    object_ref: obj.network.ethernet_cable
+    status: mapped
+    notes: Cat5e cable between rtr-mikrotik-chateau:ether2 and rtr-slate:lan1
   - instance_id: srv-gamayun
     source_id: srv-gamayun
     class_ref: class.compute.hypervisor

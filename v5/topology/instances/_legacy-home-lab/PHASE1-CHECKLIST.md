@@ -8,8 +8,8 @@ Goal: map every active v4 entity (L1/L4/L5) to planned v5 `class_ref` + `object_
 - `v4-build/effective-topology.json`
 - `v5/topology/class-modules/**`
 - `v5/topology/object-modules/**`
-- `v5/topology/instances/home-lab/v4-to-v5-mapping.yaml`
-- `v5/topology/instances/home-lab/phase1-module-backlog.yaml`
+- `v5/topology/instances/_legacy-home-lab/v4-to-v5-mapping.yaml`
+- `v5/topology/instances/_legacy-home-lab/phase1-module-backlog.yaml`
 
 ## Workflow
 

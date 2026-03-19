@@ -1,6 +1,6 @@
 schema_version: 1
 generated_at: '2026-03-08T23:24:31+00:00'
-source_mapping: v5/topology/instances/home-lab/v4-to-v5-mapping.yaml
+source_mapping: v5/topology/instances/_legacy-home-lab/v4-to-v5-mapping.yaml
 instance_bindings:
   l1_devices:
   - instance: mikrotik-chateau
@@ -55,7 +55,7 @@ instance_bindings:
     layer: L1
     class_ref: class.network.physical_link
     object_ref: obj.network.ethernet_cable
-    status: modeled
+    status: mapped
     notes: Cat5e cable between rtr-mikrotik-chateau:ether2 and rtr-slate:lan1
     endpoint_a:
       device_ref: rtr-mikrotik-chateau
