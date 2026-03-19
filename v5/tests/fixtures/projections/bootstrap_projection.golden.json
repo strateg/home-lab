@@ -1,0 +1,28 @@
+{
+  "counts": {
+    "mikrotik_nodes": 1,
+    "orangepi_nodes": 1,
+    "proxmox_nodes": 1
+  },
+  "mikrotik_nodes": [
+    {
+      "instance_id": "rtr-mk",
+      "management_ip": "192.168.88.1",
+      "object_ref": "obj.mikrotik.chateau_lte7_ax"
+    }
+  ],
+  "orangepi_nodes": [
+    {
+      "instance_id": "srv-orangepi5",
+      "management_ip": "10.10.10.22",
+      "object_ref": "obj.orangepi.rk3588.debian"
+    }
+  ],
+  "proxmox_nodes": [
+    {
+      "instance_id": "srv-gamayun",
+      "management_ip": "10.10.10.2",
+      "object_ref": "obj.proxmox.ve"
+    }
+  ]
+}

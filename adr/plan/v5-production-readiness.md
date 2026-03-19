@@ -1,7 +1,7 @@
 # V5 Production Readiness Plan
 
 **Created:** 2026-03-15  
-**Revised:** 2026-03-15  
+**Revised:** 2026-03-19  
 **Goal:** Enable real home network modeling and deployment through v5 lane  
 **Current State:** plugin-first compiler is operational, but v5 still lacks deployable Terraform/Ansible/bootstrap artifacts
 
@@ -133,13 +133,13 @@ This revised plan adds:
 
 ### 2.2 Projection Contract Tests
 
-- [ ] Add unit tests with golden snapshots for projection outputs.
+- [x] Add unit tests with golden snapshots for projection outputs.
 - [x] Add negative tests for missing mandatory fields and malformed refs.
 
 ### Phase 2 Definition of Done
 
-- [ ] templates can render using projections without reaching into raw compiled internals.
-- [ ] projection snapshots are stable between runs.
+- [x] templates can render using projections without reaching into raw compiled internals.
+- [x] projection snapshots are stable between runs.
 
 ---
 

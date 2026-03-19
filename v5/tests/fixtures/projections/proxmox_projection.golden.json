@@ -1,0 +1,32 @@
+{
+  "counts": {
+    "lxc": 2,
+    "proxmox_nodes": 1,
+    "services": 1
+  },
+  "lxc": [
+    {
+      "instance_id": "lxc-grafana",
+      "object_ref": "obj.proxmox.lxc.debian12.base"
+    },
+    {
+      "instance_id": "lxc-redis",
+      "object_ref": "obj.proxmox.lxc.debian12.redis"
+    }
+  ],
+  "proxmox_nodes": [
+    {
+      "instance_id": "srv-gamayun",
+      "management_ip": "10.10.10.2",
+      "object_ref": "obj.proxmox.ve"
+    }
+  ],
+  "services": [
+    {
+      "instance_id": "svc-redis",
+      "runtime": {
+        "target_ref": "lxc-redis"
+      }
+    }
+  ]
+}

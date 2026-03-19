@@ -1,0 +1,60 @@
+{
+  "instances": {
+    "l1_devices": [
+      {
+        "instance_id": "rtr-mk",
+        "object_ref": "obj.mikrotik.chateau_lte7_ax",
+        "management_ip": "192.168.88.1"
+      },
+      {
+        "instance_id": "srv-gamayun",
+        "object_ref": "obj.proxmox.ve",
+        "management_ip": "10.10.10.2"
+      },
+      {
+        "instance_id": "srv-orangepi5",
+        "object_ref": "obj.orangepi.rk3588.debian",
+        "management_ip": "10.10.10.22"
+      },
+      {
+        "instance_id": "inst.ethernet_cable.cat5e",
+        "class_ref": "class.network.physical_link",
+        "object_ref": "obj.network.ethernet_cable"
+      }
+    ],
+    "l4_lxc": [
+      {
+        "instance_id": "lxc-redis",
+        "object_ref": "obj.proxmox.lxc.debian12.redis"
+      },
+      {
+        "instance_id": "lxc-grafana",
+        "object_ref": "obj.proxmox.lxc.debian12.base"
+      }
+    ],
+    "l2_network": [
+      {
+        "instance_id": "inst.net.wan",
+        "object_ref": "obj.network.l2_segment"
+      },
+      {
+        "instance_id": "inst.net.lan",
+        "object_ref": "obj.network.l2_segment"
+      }
+    ],
+    "l5_services": [
+      {
+        "instance_id": "svc-redis",
+        "runtime": {
+          "target_ref": "lxc-redis"
+        }
+      },
+      {
+        "instance_id": "svc-snmp",
+        "runtime": {
+          "target_ref": "rtr-mk"
+        }
+      }
+    ]
+  }
+}
