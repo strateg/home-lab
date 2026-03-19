@@ -254,32 +254,32 @@ This revised plan adds:
 
 ### 6.1 Proxmox Bootstrap
 
-- [ ] Create `v5/topology-tools/plugins/generators/bootstrap_proxmox_generator.py`.
-- [ ] Generate:
+- [x] Create `v5/topology-tools/plugins/generators/bootstrap_proxmox_generator.py`.
+- [x] Generate:
   - `answer.toml.example`
   - post-install scripts package
   - README/run instructions
 
 ### 6.2 MikroTik Bootstrap
 
-- [ ] Create `v5/topology-tools/plugins/generators/bootstrap_mikrotik_generator.py`.
-- [ ] Generate:
+- [x] Create `v5/topology-tools/plugins/generators/bootstrap_mikrotik_generator.py`.
+- [x] Generate:
   - `init-terraform.rsc`
   - `backup-restore-overrides.rsc`
   - `terraform.tfvars.example`
 
 ### 6.3 Orange Pi Bootstrap
 
-- [ ] Create `v5/topology-tools/plugins/generators/bootstrap_orangepi_generator.py`.
-- [ ] Generate:
+- [x] Create `v5/topology-tools/plugins/generators/bootstrap_orangepi_generator.py`.
+- [x] Generate:
   - cloud-init `user-data.example`
   - `meta-data`
   - README
 
 ### Phase 6 Definition of Done
 
-- [ ] bootstrap artifacts are generated under `v5-generated/bootstrap/<device-id>/`.
-- [ ] all committed bootstrap outputs are release-safe (no real secrets).
+- [x] bootstrap artifacts are generated under `v5-generated/bootstrap/<device-id>/`.
+- [x] all committed bootstrap outputs are release-safe (no real secrets).
 
 ---
 

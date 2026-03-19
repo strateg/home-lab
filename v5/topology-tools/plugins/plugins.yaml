@@ -341,3 +341,48 @@ plugins:
       properties: {}
       required: []
     description: Emits baseline Ansible inventory artifacts from v5 projections (Phase 5 bootstrap).
+
+  - id: base.generator.bootstrap_proxmox
+    kind: generator
+    entry: generators/bootstrap_proxmox_generator.py:BootstrapProxmoxGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 310
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Emits baseline bootstrap artifacts for Proxmox nodes (Phase 6 bootstrap).
+
+  - id: base.generator.bootstrap_mikrotik
+    kind: generator
+    entry: generators/bootstrap_mikrotik_generator.py:BootstrapMikroTikGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 320
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Emits baseline bootstrap artifacts for MikroTik routers (Phase 6 bootstrap).
+
+  - id: base.generator.bootstrap_orangepi
+    kind: generator
+    entry: generators/bootstrap_orangepi_generator.py:BootstrapOrangePiGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 330
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Emits baseline cloud-init bootstrap artifacts for Orange Pi nodes (Phase 6 bootstrap).
