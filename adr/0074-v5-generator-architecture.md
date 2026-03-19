@@ -106,64 +106,138 @@ def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
   description: Emits Proxmox Terraform HCL from v5 projections.
 ```
 
-### D3: Template Organization Strategy (Refined)
+### D3: Template Organization Strategy (Mandatory Jinja2)
 
-**Decision**: Use a **pragmatic hybrid approach** - inline templates for simple/stable artifacts, Jinja2 files for complex/evolving artifacts.
+**Decision**: All generation templates MUST be external Jinja2 files. Inline string templates in Python code are **prohibited**.
 
-#### Classification Criteria
+#### Rationale
 
-| Criterion | Inline Template | Jinja2 File |
-|-----------|-----------------|-------------|
-| **Lines of HCL/YAML** | < 50 lines | >= 50 lines |
-| **Iteration complexity** | Single resource or simple list | Nested loops, conditionals |
-| **Change frequency** | Stable after initial development | Evolving with new features |
-| **Cross-generator reuse** | None | Shared partials (provider blocks) |
-| **Operator customization** | Not needed | Extension hook required |
+1. **Separation of Concerns**: Template content (HCL/YAML/RSC) belongs in template files, not Python code
+2. **Syntax Highlighting**: IDE support for HCL/YAML syntax in `.j2` files
+3. **Reviewability**: Template changes are visible in diffs without Python noise
+4. **Reusability**: Jinja2 `{% include %}` and `{% extends %}` enable DRY templates
+5. **Operator Customization**: External templates enable D8 extension hooks
+6. **Consistency**: Single approach across all generators
 
-#### Recommended Organization
+#### Mandatory Template Directory Structure
 
-**Phase 1 (Current - Baseline)**: Keep inline templates for all generators. This is working and passing CI gates.
-
-**Phase 2 (Parity Milestone)**: Extract to Jinja2 files when:
-- Any single template function exceeds 100 lines
-- Template reuse opportunity emerges (e.g., shared `versions.tf` across targets)
-- Operator customization is requested
-
-**Template Directory Structure (When Extracted)**:
 ```
 v5/topology-tools/templates/
-  _partials/                       # Shared fragments
-    terraform_versions.tf.j2       # Reusable version block
-    terraform_header.tf.j2         # DO NOT EDIT header
+  _partials/                       # Shared fragments (REQUIRED)
+    header.j2                      # "DO NOT EDIT - generated from topology"
+    terraform_versions.tf.j2       # Shared provider version block
+    terraform_provider_proxmox.tf.j2
+    terraform_provider_mikrotik.tf.j2
   terraform/
     proxmox/
-      main.tf.j2                   # Full resource file (not split per-resource)
+      provider.tf.j2
+      versions.tf.j2
+      bridges.tf.j2
+      lxc.tf.j2
+      vms.tf.j2
       variables.tf.j2
+      outputs.tf.j2
+      terraform.tfvars.example.j2
     mikrotik/
-      main.tf.j2
+      provider.tf.j2
+      versions.tf.j2
+      interfaces.tf.j2
+      firewall.tf.j2
+      dhcp.tf.j2
+      dns.tf.j2
+      addresses.tf.j2
+      qos.tf.j2
+      vpn.tf.j2
+      containers.tf.j2
       variables.tf.j2
+      outputs.tf.j2
+      terraform.tfvars.example.j2
   ansible/
-    inventory.yml.j2
+    hosts.yml.j2
+    group_vars_all.yml.j2
+    host_vars.yml.j2
   bootstrap/
-    {device-type}/
-      {artifact}.j2
+    proxmox/
+      answer.toml.j2
+      post-install/
+        01-install-terraform.sh.j2
+        02-install-ansible.sh.j2
+        03-configure-storage.sh.j2
+        04-configure-network.sh.j2
+        05-init-git-repo.sh.j2
+        06-final-reboot.sh.j2
+      README.md.j2
+    mikrotik/
+      init-terraform.rsc.j2
+      backup-restore-overrides.rsc.j2
+      terraform.tfvars.example.j2
+      README.md.j2
+    orangepi/
+      user-data.j2
+      meta-data.j2
+      README.md.j2
 ```
 
-#### Key Difference from v4
+#### Template Conventions
 
-v4 splits into fine-grained files (`lxc.tf.j2`, `vms.tf.j2`, `bridges.tf.j2`). v5 prefers:
-- **Single `main.tf.j2` per target** containing all resource definitions
-- **Projection layer handles categorization** - templates receive pre-sorted, typed data
-- **Fewer files = simpler mental model** for operators
+**Header Partial** (included in all generated files):
+```jinja2
+{# _partials/header.j2 #}
+# =============================================================================
+# GENERATED FILE - DO NOT EDIT
+# Generated from: v5/topology/topology.yaml
+# Generator: {{ generator_name }}
+# Timestamp: {{ generation_timestamp }}
+# =============================================================================
+```
 
-This aligns with the generator's responsibility: emit deterministic output from projections, not organize Terraform files.
+**Template Structure Pattern**:
+```jinja2
+{# terraform/proxmox/lxc.tf.j2 #}
+{% include "_partials/header.j2" %}
 
-#### Inline-to-File Extraction Pattern
+{% for lxc in lxc_containers | sort(attribute='instance_id') %}
+resource "proxmox_virtual_environment_container" "{{ lxc.instance_id | replace('-', '_') }}" {
+  description = "{{ lxc.description | default('Managed by Terraform') }}"
+  node_name   = "{{ node_name }}"
+  vm_id       = {{ lxc.vmid }}
 
-When extracting, preserve the Python function structure:
+  # ... resource configuration
+}
+
+{% endfor %}
+```
+
+#### Generator Implementation Pattern
+
+Generators MUST use `render_template()` from `BaseGenerator`:
 
 ```python
-# Before (inline):
+class TerraformProxmoxGenerator(BaseGenerator):
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        projection = build_proxmox_projection(ctx.compiled_json)
+
+        # Each output file uses a template
+        files = {
+            "provider.tf": self.render_template(ctx, "terraform/proxmox/provider.tf.j2", {
+                "api_url": projection["api_url"],
+            }),
+            "lxc.tf": self.render_template(ctx, "terraform/proxmox/lxc.tf.j2", {
+                "lxc_containers": projection["lxc"],
+                "node_name": projection["node_name"],
+            }),
+            # ... other files
+        }
+
+        for filename, content in files.items():
+            path = self.resolve_output_path(ctx, "terraform/proxmox", filename)
+            self.write_text_atomic(path, content)
+```
+
+#### Anti-Pattern: Inline Templates (PROHIBITED)
+
+```python
+# ❌ WRONG - inline template in Python code
 def _lxc_tf(lxc_instances: list[str]) -> str:
     return (
         "# Baseline projection output\n"
@@ -172,19 +246,39 @@ def _lxc_tf(lxc_instances: list[str]) -> str:
         "}\n"
     )
 
-# After (external template):
+# ✅ CORRECT - external Jinja2 template
 def _lxc_tf(self, ctx: PluginContext, projection: dict) -> str:
     return self.render_template(ctx, "terraform/proxmox/lxc.tf.j2", {
-        "lxc_instances": projection["lxc"],
+        "lxc_containers": projection["lxc"],
     })
 ```
 
-#### Migration Path Guardrails
+#### Migration Plan for Existing Inline Templates
 
-1. **Never mix inline and external** for the same generator - use one approach per generator class
-2. **Snapshot test before extraction** - capture current output as golden file
-3. **Post-extraction diff** - verify byte-identical output after migration
-4. **CI gate enforcement** - `terraform fmt -check` and `terraform validate` remain mandatory
+Current generators use inline templates and MUST be migrated:
+
+| Generator | Status | Migration Priority |
+|-----------|--------|-------------------|
+| `terraform_proxmox_generator.py` | ⚠️ Inline | P1 - High |
+| `terraform_mikrotik_generator.py` | ⚠️ Inline | P1 - High |
+| `ansible_inventory_generator.py` | ⚠️ Inline | P2 - Medium |
+| `bootstrap_proxmox_generator.py` | ⚠️ Inline | P2 - Medium |
+| `bootstrap_mikrotik_generator.py` | ⚠️ Inline | P2 - Medium |
+| `bootstrap_orangepi_generator.py` | ⚠️ Inline | P2 - Medium |
+
+**Migration Steps**:
+1. Create template file in `v5/topology-tools/templates/`
+2. Extract inline string content to template
+3. Replace inline function with `render_template()` call
+4. Run snapshot test to verify identical output
+5. Run CI gates (`terraform fmt -check`, `terraform validate`)
+
+#### Template Validation
+
+Templates MUST be validated:
+1. **Jinja2 Syntax**: Parse all `.j2` files on startup
+2. **Required Variables**: Document expected context variables in template header
+3. **Output Validation**: Generated content passes tool-specific validation (terraform fmt, yamllint)
 
 ### D4: Terraform Provider Versioning Strategy
 
