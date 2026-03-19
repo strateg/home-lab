@@ -73,6 +73,16 @@ def _instance_groups(compiled_json: dict[str, Any]) -> dict[str, list[dict[str, 
     return groups
 
 
+def _is_ansible_host_candidate(row: dict[str, Any]) -> bool:
+    class_ref = str(row.get("class_ref", ""))
+    object_ref = str(row.get("object_ref", ""))
+    if class_ref == "class.network.physical_link":
+        return False
+    if object_ref == "obj.network.ethernet_cable":
+        return False
+    return True
+
+
 def _get_instance_data(row: dict[str, Any], path: str, default: Any = None) -> Any:
     """Get a value from row by dot-separated path, checking both top-level and nested fields."""
     parts = path.split(".")
@@ -339,6 +349,8 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     for idx, row in enumerate(l1_devices):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.l1_devices[{idx}]")
         _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.l1_devices[{idx}]")
+        if not _is_ansible_host_candidate(row):
+            continue
         host = deepcopy(row)
         host["inventory_group"] = "l1_devices"
         hosts.append(host)

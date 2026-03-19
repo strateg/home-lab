@@ -326,3 +326,18 @@ plugins:
       properties: {}
       required: []
     description: Emits baseline Terraform artifacts for MikroTik from v5 projections (Phase 4 bootstrap).
+
+  - id: base.generator.ansible_inventory
+    kind: generator
+    entry: generators/ansible_inventory_generator.py:AnsibleInventoryGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 230
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Emits baseline Ansible inventory artifacts from v5 projections (Phase 5 bootstrap).

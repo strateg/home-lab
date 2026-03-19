@@ -224,8 +224,8 @@ This revised plan adds:
 
 ### 5.1 Generator Implementation
 
-- [ ] Create `v5/topology-tools/plugins/generators/ansible_inventory_generator.py`.
-- [ ] Generate:
+- [x] Create `v5/topology-tools/plugins/generators/ansible_inventory_generator.py`.
+- [x] Generate:
   - `hosts.yml`
   - `group_vars/all.yml`
   - `host_vars/*.yml`
@@ -242,7 +242,7 @@ This revised plan adds:
 
 ### Phase 5 Definition of Done
 
-- [ ] Ansible inventory output is generated in `v5-generated/ansible/inventory/production/`.
+- [x] Ansible inventory output is generated in `v5-generated/ansible/inventory/production/`.
 - [ ] parity and inventory validation are green.
 
 ---

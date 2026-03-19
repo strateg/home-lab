@@ -27,6 +27,11 @@ def _compiled_fixture() -> dict:
                 {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
                 {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
                 {"instance_id": "srv-orangepi5", "object_ref": "obj.orangepi.rk3588.debian"},
+                {
+                    "instance_id": "inst.ethernet_cable.cat5e",
+                    "class_ref": "class.network.physical_link",
+                    "object_ref": "obj.network.ethernet_cable",
+                },
             ],
             "l4_lxc": [
                 {"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"},
@@ -67,6 +72,7 @@ def test_ansible_projection_contains_hosts_from_l1_and_l4() -> None:
         "srv-gamayun",
         "srv-orangepi5",
     ]
+    assert "inst.ethernet_cable.cat5e" not in [row["instance_id"] for row in projection["hosts"]]
 
 
 def test_bootstrap_projection_selects_target_devices() -> None:
