@@ -79,5 +79,6 @@ Adopt strict, non-transitional entity-specific keys.
 - `adr/0060-yaml-to-json-compiler-diagnostics-contract.md`
 - `adr/0063-plugin-microkernel-for-compiler-validators-generators.md`
 - `v5/topology-tools/compile-topology.py`
-- `v5/topology/instances/home-lab/instance-bindings.yaml`
+- `v5/topology/instances/`
+- `v5/topology/instances/_legacy-home-lab/instance-bindings.yaml` (historical archive)
 - `v5/tests/test_plugin_registry.py`

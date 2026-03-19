@@ -1063,8 +1063,8 @@ Explicit value in object overrides inference.
 ### Phase 2: Create Objects and Instances (COMPLETE)
 - [x] Create firmware objects (obj.firmware.routeros.7.arm64, obj.firmware.uefi.generic.x86_64, etc.)
 - [x] Create OS objects (obj.os.debian.12.arm64.edge, obj.os.proxmox.ve.9, obj.os.routeros.7.arm64, etc.)
-- [x] Create firmware instances (inst.firmware.* in instance-bindings.yaml)
-- [x] Create OS instances (inst.os.* in instance-bindings.yaml)
+- [x] Create firmware instances (inst.firmware.* in ADR0071 shard files under `v5/topology/instances/`)
+- [x] Create OS instances (inst.os.* in ADR0071 shard files under `v5/topology/instances/`)
 - [x] Implement compiler capability derivation
 
 ### Phase 3: Device Migration (COMPLETE - 100% migrated)
@@ -1098,7 +1098,8 @@ Explicit value in object overrides inference.
 - Firmware objects: `v5/topology/object-modules/software/obj.firmware.*.yaml`
 - OS objects: `v5/topology/object-modules/software/obj.os.*.yaml`
 - Device objects: `v5/topology/object-modules/{vendor}/obj.*.yaml`
-- Instance bindings: `v5/topology/instances/home-lab/instance-bindings.yaml`
+- Instance shards (canonical): `v5/topology/instances/<group>/<instance>.yaml`
+- Legacy monolith archive: `v5/topology/instances/_legacy-home-lab/instance-bindings.yaml`
 - Layer contract: `v5/topology/layer-contract.yaml`
 - Manifest: `v5/topology/topology.yaml`
 
