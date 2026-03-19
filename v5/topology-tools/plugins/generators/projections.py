@@ -73,6 +73,20 @@ def _instance_groups(compiled_json: dict[str, Any]) -> dict[str, list[dict[str, 
     return groups
 
 
+def _group_rows(
+    groups: dict[str, list[dict[str, Any]]],
+    *,
+    canonical: str,
+    legacy: str | None = None,
+) -> list[dict[str, Any]]:
+    """Return rows for canonical group name with optional legacy fallback."""
+    if canonical in groups:
+        return groups[canonical]
+    if legacy is not None and legacy in groups:
+        return groups[legacy]
+    return []
+
+
 def _is_ansible_host_candidate(row: dict[str, Any]) -> bool:
     class_ref = str(row.get("class_ref", ""))
     object_ref = str(row.get("object_ref", ""))
@@ -246,9 +260,9 @@ class BootstrapDevice:
 def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for Proxmox Terraform generator."""
     groups = _instance_groups(compiled_json)
-    devices = groups.get("devices", [])
-    lxc = groups.get("lxc", [])
-    input_service_rows = groups.get("services", [])
+    devices = _group_rows(groups, canonical="devices", legacy="l1_devices")
+    lxc = _group_rows(groups, canonical="lxc", legacy="l4_lxc")
+    input_service_rows = _group_rows(groups, canonical="services", legacy="l5_services")
 
     proxmox_nodes: list[dict[str, Any]] = []
     for idx, row in enumerate(devices):
@@ -291,12 +305,73 @@ def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _extract_capabilities(row: dict[str, Any]) -> set[str]:
+    """Extract capability IDs from instance row."""
+    caps: set[str] = set()
+    # Check capabilities field (list of cap IDs)
+    raw_caps = row.get("capabilities")
+    if isinstance(raw_caps, list):
+        for cap in raw_caps:
+            if isinstance(cap, str):
+                caps.add(cap)
+    # Check derived_capabilities from object
+    derived = row.get("derived_capabilities")
+    if isinstance(derived, list):
+        for cap in derived:
+            if isinstance(cap, str):
+                caps.add(cap)
+    return caps
+
+
+def _derive_mikrotik_capability_flags(routers: list[dict[str, Any]]) -> dict[str, bool]:
+    """Derive capability flags for MikroTik generation.
+
+    Returns dict of boolean flags for conditional resource generation.
+    If ANY router has a capability, the flag is True.
+    """
+    all_caps: set[str] = set()
+    for router in routers:
+        all_caps.update(_extract_capabilities(router))
+
+    # Also check object_ref patterns for implicit capabilities
+    for router in routers:
+        object_ref = router.get("object_ref", "")
+        # Chateau models have LTE and containers support
+        if "chateau" in object_ref.lower():
+            all_caps.add("cap.net.interface.lte")
+            all_caps.add("cap.net.platform.containers")
+
+    return {
+        # VPN capabilities
+        "has_wireguard": any(
+            cap.startswith("cap.net.overlay.vpn.wireguard") for cap in all_caps
+        ),
+        "has_openvpn": any(
+            cap.startswith("cap.net.overlay.vpn.openvpn") for cap in all_caps
+        ),
+        "has_ipsec": "cap.net.overlay.vpn.ipsec" in all_caps,
+        # Container support (RouterOS 7+)
+        "has_containers": "cap.net.platform.containers" in all_caps,
+        # QoS capabilities
+        "has_qos_basic": "cap.net.l3.qos.basic" in all_caps,
+        "has_qos_advanced": "cap.net.l3.qos.advanced" in all_caps,
+        # Interface capabilities
+        "has_lte": "cap.net.interface.lte" in all_caps,
+        "has_wifi": "cap.net.interface.wifi" in all_caps,
+        # VLAN support
+        "has_vlan": "cap.net.l2.segmentation.vlan.8021q" in all_caps,
+        # Multi-WAN
+        "has_multi_wan": "cap.net.l3.uplink.multi_uplink" in all_caps,
+        "has_failover": "cap.net.l3.uplink.failover" in all_caps,
+    }
+
+
 def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator."""
     groups = _instance_groups(compiled_json)
-    devices = groups.get("devices", [])
-    network = groups.get("network", [])
-    service_rows = groups.get("services", [])
+    devices = _group_rows(groups, canonical="devices", legacy="l1_devices")
+    network = _group_rows(groups, canonical="network", legacy="l2_network")
+    service_rows = _group_rows(groups, canonical="services", legacy="l5_services")
 
     routers: list[dict[str, Any]] = []
     router_ids: set[str] = set()
@@ -327,10 +402,14 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         if isinstance(target_ref, str) and target_ref in router_ids:
             selected_services.append(row)
 
+    # Derive capability flags for conditional generation
+    capability_flags = _derive_mikrotik_capability_flags(routers)
+
     return {
         "routers": _sorted_rows(routers),
         "networks": _sorted_rows(networks),
         "services": _sorted_rows(selected_services),
+        "capabilities": capability_flags,
         "counts": {
             "routers": len(routers),
             "networks": len(networks),
@@ -342,8 +421,8 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for Ansible inventory generator."""
     groups = _instance_groups(compiled_json)
-    devices = groups.get("devices", [])
-    lxc = groups.get("lxc", [])
+    devices = _group_rows(groups, canonical="devices", legacy="l1_devices")
+    lxc = _group_rows(groups, canonical="lxc", legacy="l4_lxc")
 
     hosts: list[dict[str, Any]] = []
     for idx, row in enumerate(devices):
@@ -372,7 +451,7 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for bootstrap generators."""
     groups = _instance_groups(compiled_json)
-    devices = groups.get("devices", [])
+    devices = _group_rows(groups, canonical="devices", legacy="l1_devices")
 
     proxmox_nodes: list[dict[str, Any]] = []
     mikrotik_nodes: list[dict[str, Any]] = []

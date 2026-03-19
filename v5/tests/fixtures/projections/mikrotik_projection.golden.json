@@ -1,4 +1,17 @@
 {
+  "capabilities": {
+    "has_containers": true,
+    "has_failover": false,
+    "has_ipsec": false,
+    "has_lte": true,
+    "has_multi_wan": false,
+    "has_openvpn": false,
+    "has_qos_advanced": false,
+    "has_qos_basic": false,
+    "has_vlan": false,
+    "has_wifi": false,
+    "has_wireguard": false
+  },
   "counts": {
     "networks": 2,
     "routers": 1,

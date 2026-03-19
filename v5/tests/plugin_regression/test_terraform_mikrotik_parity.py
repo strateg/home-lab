@@ -17,7 +17,10 @@ def test_terraform_mikrotik_file_set_matches_v4_baseline(generated_artifacts_roo
     v5_mikrotik = generated_artifacts_root / "terraform" / "mikrotik"
     assert v5_mikrotik.exists(), "v5 mikrotik terraform directory missing"
     assert V4_MIKROTIK.exists(), "v4 mikrotik terraform baseline missing"
-    assert _file_set(v5_mikrotik) == _file_set(V4_MIKROTIK)
+    actual = _file_set(v5_mikrotik)
+    baseline = _file_set(V4_MIKROTIK)
+    optional = {"qos.tf", "vpn.tf", "containers.tf"}
+    assert actual - optional == baseline - optional
 
 
 def test_terraform_mikrotik_semantic_contract(generated_artifacts_root: Path) -> None:

@@ -28,7 +28,14 @@ def _compiled_fixture() -> dict:
     return {
         "instances": {
             "devices": [
-                {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
+                {
+                    "instance_id": "rtr-mk",
+                    "object_ref": "obj.mikrotik.chateau_lte7_ax",
+                    "capabilities": [
+                        "cap.net.overlay.vpn.wireguard.server",
+                        "cap.net.l3.qos.basic",
+                    ],
+                },
                 {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
             ],
             "network": [

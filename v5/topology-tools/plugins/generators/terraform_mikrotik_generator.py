@@ -61,6 +61,12 @@ class TerraformMikroTikGenerator(BaseGenerator):
         if routers:
             mikrotik_host = f"https://{routers[0]}:8443"
 
+        # Extract capability flags from projection
+        caps = projection.get("capabilities", {})
+        has_wireguard = caps.get("has_wireguard", False)
+        has_containers = caps.get("has_containers", False)
+        has_qos = caps.get("has_qos_basic", False) or caps.get("has_qos_advanced", False)
+
         render_context = {
             "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),
             "mikrotik_provider_source": str(ctx.config.get("mikrotik_provider_source", "terraform-routeros/routeros")),
@@ -72,8 +78,14 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "networks_count": len(networks),
             "services_count": len(services),
             "mikrotik_host": mikrotik_host,
+            # Capability flags for conditional blocks in templates
+            "has_wireguard": has_wireguard,
+            "has_containers": has_containers,
+            "has_qos": has_qos,
+            **caps,  # Include all capability flags
         }
 
+        # Core templates (always generated)
         templates: dict[str, str] = {
             "provider.tf": "terraform/mikrotik/provider.tf.j2",
             "interfaces.tf": "terraform/mikrotik/interfaces.tf.j2",
@@ -81,13 +93,18 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "dhcp.tf": "terraform/mikrotik/dhcp.tf.j2",
             "dns.tf": "terraform/mikrotik/dns.tf.j2",
             "addresses.tf": "terraform/mikrotik/addresses.tf.j2",
-            "qos.tf": "terraform/mikrotik/qos.tf.j2",
-            "vpn.tf": "terraform/mikrotik/vpn.tf.j2",
-            "containers.tf": "terraform/mikrotik/containers.tf.j2",
             "variables.tf": "terraform/mikrotik/variables.tf.j2",
             "outputs.tf": "terraform/mikrotik/outputs.tf.j2",
             "terraform.tfvars.example": "terraform/mikrotik/terraform.tfvars.example.j2",
         }
+
+        # Capability-driven templates (only generated if capability present)
+        if has_qos:
+            templates["qos.tf"] = "terraform/mikrotik/qos.tf.j2"
+        if has_wireguard:
+            templates["vpn.tf"] = "terraform/mikrotik/vpn.tf.j2"
+        if has_containers:
+            templates["containers.tf"] = "terraform/mikrotik/containers.tf.j2"
 
         written: list[str] = []
         for filename, template_name in templates.items():
@@ -96,6 +113,16 @@ class TerraformMikroTikGenerator(BaseGenerator):
             self.write_text_atomic(output_path, content)
             written.append(str(output_path))
 
+        # Build capability summary for diagnostic
+        cap_summary_parts = []
+        if has_wireguard:
+            cap_summary_parts.append("wireguard")
+        if has_containers:
+            cap_summary_parts.append("containers")
+        if has_qos:
+            cap_summary_parts.append("qos")
+        cap_summary = ",".join(cap_summary_parts) if cap_summary_parts else "none"
+
         diagnostics.append(
             self.emit_diagnostic(
                 code="I9201",
@@ -103,7 +130,8 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 stage=stage,
                 message=(
                     "generated baseline MikroTik Terraform artifacts: "
-                    f"routers={len(routers)} networks={len(networks)} services={len(services)}"
+                    f"routers={len(routers)} networks={len(networks)} services={len(services)} "
+                    f"caps=[{cap_summary}]"
                 ),
                 path=str(out_dir),
             )

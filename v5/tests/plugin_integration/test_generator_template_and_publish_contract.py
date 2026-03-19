@@ -54,7 +54,7 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
                     "services": [{"instance_id": "svc-snmp", "runtime": {"target_ref": "rtr-mk"}}],
                 }
             },
-            12,
+            10,
         ),
         (
             AnsibleInventoryGenerator("base.generator.ansible_inventory"),
