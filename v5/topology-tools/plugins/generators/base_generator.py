@@ -7,7 +7,7 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from kernel.plugin_base import GeneratorPlugin, PluginContext
+from kernel.plugin_base import GeneratorPlugin, PluginContext, PluginDataExchangeError
 
 
 class BaseGenerator(GeneratorPlugin):
@@ -61,3 +61,16 @@ class BaseGenerator(GeneratorPlugin):
     def render_template(self, ctx: PluginContext, template_name: str, context: dict[str, Any]) -> str:
         template = self.template_env(ctx).get_template(template_name)
         return template.render(**context)
+
+    @staticmethod
+    def publish_if_possible(ctx: PluginContext, key: str, value: Any) -> bool:
+        """Publish generated metadata when plugin executes through registry context.
+
+        Direct unit/integration calls often bypass registry and have no execution
+        context; in that case publish is skipped and caller can rely on output_data.
+        """
+        try:
+            ctx.publish(key, value)
+            return True
+        except PluginDataExchangeError:
+            return False

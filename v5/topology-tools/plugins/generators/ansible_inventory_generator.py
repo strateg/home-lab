@@ -45,7 +45,9 @@ class AnsibleInventoryGenerator(BaseGenerator):
             )
             return self.make_result(diagnostics)
 
-        out_root = self.resolve_output_path(ctx, "ansible", "inventory", "production")
+        inventory_profile = str(ctx.config.get("inventory_profile", "production"))
+        topology_lane = str(ctx.config.get("topology_lane", "v5"))
+        out_root = self.resolve_output_path(ctx, "ansible", "inventory", inventory_profile)
         host_vars_dir = out_root / "host_vars"
         group_vars_dir = out_root / "group_vars"
 
@@ -67,7 +69,11 @@ class AnsibleInventoryGenerator(BaseGenerator):
         group_vars_content = self.render_template(
             ctx,
             "ansible/inventory/group_vars_all.yml.j2",
-            {"host_count": len(hosts_rows)},
+            {
+                "host_count": len(hosts_rows),
+                "topology_lane": topology_lane,
+                "inventory_profile": inventory_profile,
+            },
         )
         self.write_text_atomic(group_vars_path, group_vars_content)
         written.append(str(group_vars_path))
@@ -112,6 +118,9 @@ class AnsibleInventoryGenerator(BaseGenerator):
                 path=str(out_root),
             )
         )
+        self.publish_if_possible(ctx, "generated_dir", str(out_root))
+        self.publish_if_possible(ctx, "generated_files", written)
+        self.publish_if_possible(ctx, "ansible_inventory_files", written)
 
         return self.make_result(
             diagnostics=diagnostics,

@@ -19,3 +19,16 @@ def test_terraform_mikrotik_file_set_matches_v4_baseline(generated_artifacts_roo
     assert V4_MIKROTIK.exists(), "v4 mikrotik terraform baseline missing"
     assert _file_set(v5_mikrotik) == _file_set(V4_MIKROTIK)
 
+
+def test_terraform_mikrotik_semantic_contract(generated_artifacts_root: Path) -> None:
+    v5_mikrotik = generated_artifacts_root / "terraform" / "mikrotik"
+    provider_tf = (v5_mikrotik / "provider.tf").read_text(encoding="utf-8")
+    variables_tf = (v5_mikrotik / "variables.tf").read_text(encoding="utf-8")
+    tfvars_example = (v5_mikrotik / "terraform.tfvars.example").read_text(encoding="utf-8")
+
+    assert 'provider "routeros"' in provider_tf
+    assert "required_providers" in provider_tf
+    assert 'source  = "terraform-routeros/routeros"' in provider_tf
+    assert 'variable "mikrotik_password"' in variables_tf
+    assert "<TODO_MIKROTIK_PASSWORD>" in tfvars_example
+

@@ -108,6 +108,9 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 path=str(out_dir),
             )
         )
+        self.publish_if_possible(ctx, "generated_dir", str(out_dir))
+        self.publish_if_possible(ctx, "generated_files", written)
+        self.publish_if_possible(ctx, "terraform_mikrotik_files", written)
 
         return self.make_result(
             diagnostics=diagnostics,

@@ -42,3 +42,15 @@ def test_ansible_inventory_host_vars_intentional_extension(generated_artifacts_r
     host_vars_files = sorted((v5_root / "host_vars").glob("*.yml"))
     assert host_vars_files, "v5 host_vars extension is expected and must not be empty"
 
+
+def test_ansible_inventory_semantic_contract(generated_artifacts_root: Path) -> None:
+    v5_root = generated_artifacts_root / "ansible" / "inventory" / "production"
+    group_vars = yaml.safe_load((v5_root / "group_vars" / "all.yml").read_text(encoding="utf-8")) or {}
+    hosts_payload = yaml.safe_load((v5_root / "hosts.yml").read_text(encoding="utf-8")) or {}
+
+    assert group_vars.get("topology_lane") == "v5"
+    assert group_vars.get("inventory_profile") == "production"
+    assert "inventory_host_count" in group_vars
+    assert "all" in hosts_payload
+    assert "children" in hosts_payload["all"]
+

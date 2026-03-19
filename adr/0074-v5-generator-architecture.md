@@ -105,6 +105,9 @@ Current canonical IDs:
 
 Generators SHOULD be dependency-light (`depends_on: []`) unless they explicitly consume published data from another generator.
 
+All generator config keys consumed by code MUST be declared in `plugins.yaml` `config_schema`.
+Undeclared ad-hoc config keys are not allowed.
+
 ### D5. Rendering Strategy (Jinja2-Only)
 
 All deployment artifact files MUST be rendered from external Jinja2 templates under `v5/topology-tools/templates/`.
@@ -128,7 +131,10 @@ Four gate levels:
    - `terraform fmt -check`
    - `terraform validate`
    - `ansible-inventory --list`
-4. Regression parity gates against v4 baselines (with explicit allowlist for intentional diffs).
+4. Regression parity gates with explicit levels:
+   - L1: artifact file-set parity (required)
+   - L2: semantic content contract checks (required)
+   - L3: full-content parity/allowlist (optional, phase-scoped)
 
 Secret-safety scanning of generated artifacts is REQUIRED before production cutover (Phase 8), even if implementation is staged.
 
@@ -149,6 +155,18 @@ Constraints:
 For Tier 2 subscribe-based hooks, data exchange MUST use `ctx.publish/ctx.subscribe` contract.
 Returning only `output_data` is not sufficient for inter-plugin subscription.
 
+Base generators publish the following metadata keys when executed via registry context:
+
+1. `generated_dir`: output root directory for the generator invocation.
+2. `generated_files`: full list of written files.
+3. Family-specific file key:
+   - `terraform_proxmox_files`
+   - `terraform_mikrotik_files`
+   - `ansible_inventory_files`
+   - `bootstrap_proxmox_files`
+   - `bootstrap_mikrotik_files`
+   - `bootstrap_orangepi_files`
+
 ### D8. Diagnostics Contract
 
 Generator diagnostics MUST use stable code ranges:
@@ -161,6 +179,7 @@ Generator diagnostics MUST use stable code ranges:
 - `E96xx`: Bootstrap Orange Pi generator
 
 New generator families must reserve non-overlapping ranges before implementation.
+Shared precondition code `E3001` is reserved for common “compiled_json missing/empty” failure and is allowed across generator families.
 
 ---
 
@@ -191,6 +210,8 @@ Implemented:
 4. External Jinja2 templates for all current generator outputs.
 5. CI syntax gates for generated Terraform and Ansible inventory.
 6. Regression parity test suites for Proxmox, MikroTik, and Ansible outputs.
+7. Generator metadata publishing contract (`generated_dir`, `generated_files`, family-specific keys).
+8. Secret-safety scan gate in CI for generated artifacts.
 
 Open items (from production readiness plan):
 
@@ -214,6 +235,7 @@ Open items (from production readiness plan):
    - `v5/tests/plugin_integration/test_terraform_mikrotik_generator.py`
    - `v5/tests/plugin_integration/test_ansible_inventory_generator.py`
    - `v5/tests/plugin_integration/test_bootstrap_generators.py`
+   - `v5/tests/plugin_integration/test_generator_template_and_publish_contract.py`
 
 3. Regression parity tests:
    - `v5/tests/plugin_regression/test_terraform_proxmox_parity.py`

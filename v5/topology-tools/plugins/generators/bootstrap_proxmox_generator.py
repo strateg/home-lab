@@ -108,6 +108,9 @@ class BootstrapProxmoxGenerator(BaseGenerator):
                 path=str(self.resolve_output_path(ctx, "bootstrap")),
             )
         )
+        self.publish_if_possible(ctx, "generated_dir", str(self.resolve_output_path(ctx, "bootstrap")))
+        self.publish_if_possible(ctx, "generated_files", written)
+        self.publish_if_possible(ctx, "bootstrap_proxmox_files", written)
         return self.make_result(
             diagnostics=diagnostics,
             output_data={"bootstrap_proxmox_files": written},

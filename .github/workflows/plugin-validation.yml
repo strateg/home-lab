@@ -325,6 +325,49 @@ jobs:
           test -f v5-generated/ansible/inventory/production/hosts.yml
           ansible-inventory -i v5-generated/ansible/inventory/production/hosts.yml --list > /dev/null
 
+      - name: Secret-safety scan for generated artifacts
+        run: |
+          python - <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          root = Path("v5-generated")
+          if not root.exists():
+              print("ERROR: v5-generated directory is missing")
+              sys.exit(1)
+
+          secret_assignment = re.compile(
+              r'(?i)\b(api_token|token|password|authkey|private_key|secret)\b\s*[:=]\s*["\']([^"\']+)["\']'
+          )
+
+          allowed_prefixes = ("<TODO_", "var.", "${", "{{")
+          findings: list[str] = []
+
+          for path in sorted(root.rglob("*")):
+              if not path.is_file():
+                  continue
+              text = path.read_text(encoding="utf-8", errors="ignore")
+              for lineno, line in enumerate(text.splitlines(), start=1):
+                  match = secret_assignment.search(line)
+                  if not match:
+                      continue
+                  value = match.group(2).strip()
+                  if not value:
+                      continue
+                  if value.startswith(allowed_prefixes):
+                      continue
+                  findings.append(f"{path}:{lineno}: {line.strip()}")
+
+          if findings:
+              print("ERROR: potential secret leaks found in generated artifacts:")
+              for row in findings:
+                  print(f"  - {row}")
+              sys.exit(1)
+
+          print("Secret-safety scan passed")
+          PY
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:

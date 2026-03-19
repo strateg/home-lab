@@ -305,10 +305,22 @@ plugins:
     order: 210
     depends_on: []
     timeout: 30
-    config: {}
+    config:
+      terraform_version: ">= 1.6.0"
+      proxmox_provider_source: "bpg/proxmox"
+      proxmox_provider_version: ">= 0.66.0"
     config_schema:
       type: object
-      properties: {}
+      properties:
+        terraform_version:
+          type: string
+          description: Terraform CLI version constraint for versions.tf.
+        proxmox_provider_source:
+          type: string
+          description: Terraform provider source address for Proxmox.
+        proxmox_provider_version:
+          type: string
+          description: Terraform provider version constraint for Proxmox provider.
       required: []
     description: Emits baseline Terraform artifacts for Proxmox from v5 projections (Phase 3 bootstrap).
 
@@ -320,10 +332,22 @@ plugins:
     order: 220
     depends_on: []
     timeout: 30
-    config: {}
+    config:
+      terraform_version: ">= 1.6.0"
+      mikrotik_provider_source: "terraform-routeros/routeros"
+      mikrotik_provider_version: "~> 1.40"
     config_schema:
       type: object
-      properties: {}
+      properties:
+        terraform_version:
+          type: string
+          description: Terraform CLI version constraint for provider block.
+        mikrotik_provider_source:
+          type: string
+          description: Terraform provider source address for RouterOS provider.
+        mikrotik_provider_version:
+          type: string
+          description: Terraform provider version constraint for RouterOS provider.
       required: []
     description: Emits baseline Terraform artifacts for MikroTik from v5 projections (Phase 4 bootstrap).
 
@@ -335,10 +359,18 @@ plugins:
     order: 230
     depends_on: []
     timeout: 30
-    config: {}
+    config:
+      inventory_profile: production
+      topology_lane: v5
     config_schema:
       type: object
-      properties: {}
+      properties:
+        inventory_profile:
+          type: string
+          description: Inventory profile folder name under ansible/inventory.
+        topology_lane:
+          type: string
+          description: Logical lane tag exported to group_vars/all.yml.
       required: []
     description: Emits baseline Ansible inventory artifacts from v5 projections (Phase 5 bootstrap).
 
