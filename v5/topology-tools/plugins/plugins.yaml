@@ -296,3 +296,18 @@ plugins:
           description: Filename for generated effective YAML artifact.
       required: []
     description: Emits effective topology YAML from compiled model (ADR 0069 WS4 seed).
+
+  - id: base.generator.terraform_proxmox
+    kind: generator
+    entry: generators/terraform_proxmox_generator.py:TerraformProxmoxGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 210
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Emits baseline Terraform artifacts for Proxmox from v5 projections (Phase 3 bootstrap).

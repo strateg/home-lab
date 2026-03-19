@@ -150,8 +150,8 @@ This revised plan adds:
 
 ### 3.1 Generator Implementation
 
-- [ ] Create `v5/topology-tools/plugins/generators/terraform_proxmox_generator.py`.
-- [ ] Generate:
+- [x] Create `v5/topology-tools/plugins/generators/terraform_proxmox_generator.py`.
+- [x] Generate:
   - `provider.tf`
   - `versions.tf`
   - `bridges.tf`
@@ -163,7 +163,7 @@ This revised plan adds:
 
 ### 3.2 Registration and Wiring
 
-- [ ] Register plugin in `plugins.yaml` with explicit order/depends_on and output path config.
+- [x] Register plugin in `plugins.yaml` with explicit order/depends_on and output path config.
 
 ### 3.3 Parity and Syntax Gates
 
@@ -173,7 +173,7 @@ This revised plan adds:
 
 ### Phase 3 Definition of Done
 
-- [ ] Proxmox Terraform output is generated in `v5-generated/terraform/proxmox/`.
+- [x] Proxmox Terraform output is generated in `v5-generated/terraform/proxmox/`.
 - [ ] parity gate is green (or only approved diffs remain).
 
 ---
