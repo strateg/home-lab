@@ -311,3 +311,18 @@ plugins:
       properties: {}
       required: []
     description: Emits baseline Terraform artifacts for Proxmox from v5 projections (Phase 3 bootstrap).
+
+  - id: base.generator.terraform_mikrotik
+    kind: generator
+    entry: generators/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 220
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Emits baseline Terraform artifacts for MikroTik from v5 projections (Phase 4 bootstrap).
