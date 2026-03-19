@@ -120,13 +120,13 @@ This revised plan adds:
 
 ### 2.1 Implement Projections
 
-- [ ] Create projection helpers in `v5/topology-tools/plugins/generators/projections.py`:
+- [x] Create projection helpers in `v5/topology-tools/plugins/generators/projections.py`:
   - `build_proxmox_projection(compiled_json)`
   - `build_mikrotik_projection(compiled_json)`
   - `build_ansible_projection(compiled_json)`
   - `build_bootstrap_projection(compiled_json)`
 
-- [ ] Ensure projections are:
+- [x] Ensure projections are:
   - deterministic (stable sort keys)
   - schema-checked
   - independent from template-specific naming quirks
@@ -134,7 +134,7 @@ This revised plan adds:
 ### 2.2 Projection Contract Tests
 
 - [ ] Add unit tests with golden snapshots for projection outputs.
-- [ ] Add negative tests for missing mandatory fields and malformed refs.
+- [x] Add negative tests for missing mandatory fields and malformed refs.
 
 ### Phase 2 Definition of Done
 
