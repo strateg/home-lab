@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -90,122 +91,8 @@ def _create_fixture_repo(tmp_path: Path, *, min_framework_version: str = "5.0.0"
     return repo_root, topology_manifest, project_manifest
 
 
-def test_generate_and_verify_framework_lock_success(tmp_path: Path):
-    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
-    generate = subprocess.run(
-        [
-            sys.executable,
-            str(GENERATE_SCRIPT),
-            "--repo-root",
-            str(repo_root),
-            "--topology",
-            str(topology_manifest),
-            "--force",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert generate.returncode == 0, generate.stderr
-
-    verify = subprocess.run(
-        [
-            sys.executable,
-            str(VERIFY_SCRIPT),
-            "--repo-root",
-            str(repo_root),
-            "--topology",
-            str(topology_manifest),
-            "--strict",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
-    assert "OK" in verify.stdout
-
-
-def test_verify_detects_integrity_mismatch(tmp_path: Path):
-    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
-    generate = subprocess.run(
-        [
-            sys.executable,
-            str(GENERATE_SCRIPT),
-            "--repo-root",
-            str(repo_root),
-            "--topology",
-            str(topology_manifest),
-            "--force",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert generate.returncode == 0, generate.stderr
-
-    framework_manifest = repo_root / "v5" / "topology" / "framework.yaml"
-    payload = yaml.safe_load(framework_manifest.read_text(encoding="utf-8"))
-    payload["framework_release_channel"] = "tampered"
-    framework_manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
-
-    verify = subprocess.run(
-        [
-            sys.executable,
-            str(VERIFY_SCRIPT),
-            "--repo-root",
-            str(repo_root),
-            "--topology",
-            str(topology_manifest),
-            "--strict",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert verify.returncode != 0
-    assert "E7824" in verify.stdout
-
-
-def test_verify_detects_framework_version_too_old(tmp_path: Path):
-    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path, min_framework_version="6.0.0")
-    generate = subprocess.run(
-        [
-            sys.executable,
-            str(GENERATE_SCRIPT),
-            "--repo-root",
-            str(repo_root),
-            "--topology",
-            str(topology_manifest),
-            "--force",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert generate.returncode == 0, generate.stderr
-
-    verify = subprocess.run(
-        [
-            sys.executable,
-            str(VERIFY_SCRIPT),
-            "--repo-root",
-            str(repo_root),
-            "--topology",
-            str(topology_manifest),
-            "--strict",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    assert verify.returncode != 0
-    assert "E7811" in verify.stdout
-
-
-def test_verify_detects_missing_package_attestations(tmp_path: Path):
-    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
-    generate = subprocess.run(
+def _run_generate(repo_root: Path, topology_manifest: Path, *, source: str = "git") -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
         [
             sys.executable,
             str(GENERATE_SCRIPT),
@@ -214,13 +101,70 @@ def test_verify_detects_missing_package_attestations(tmp_path: Path):
             "--topology",
             str(topology_manifest),
             "--source",
-            "package",
+            source,
             "--force",
         ],
         text=True,
         capture_output=True,
         check=False,
     )
+
+
+def _run_verify(repo_root: Path, topology_manifest: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [
+            sys.executable,
+            str(VERIFY_SCRIPT),
+            "--repo-root",
+            str(repo_root),
+            "--topology",
+            str(topology_manifest),
+            "--strict",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def test_generate_and_verify_framework_lock_success(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    generate = _run_generate(repo_root, topology_manifest)
+    assert generate.returncode == 0, generate.stderr
+
+    verify = _run_verify(repo_root, topology_manifest)
+    assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
+    assert "OK" in verify.stdout
+
+
+def test_verify_detects_integrity_mismatch(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    generate = _run_generate(repo_root, topology_manifest)
+    assert generate.returncode == 0, generate.stderr
+
+    framework_manifest = repo_root / "v5" / "topology" / "framework.yaml"
+    payload = yaml.safe_load(framework_manifest.read_text(encoding="utf-8"))
+    payload["framework_release_channel"] = "tampered"
+    framework_manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    verify = _run_verify(repo_root, topology_manifest)
+    assert verify.returncode != 0
+    assert "E7824" in verify.stdout
+
+
+def test_verify_detects_framework_version_too_old(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path, min_framework_version="6.0.0")
+    generate = _run_generate(repo_root, topology_manifest)
+    assert generate.returncode == 0, generate.stderr
+
+    verify = _run_verify(repo_root, topology_manifest)
+    assert verify.returncode != 0
+    assert "E7811" in verify.stdout
+
+
+def test_verify_detects_missing_package_attestations(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    generate = _run_generate(repo_root, topology_manifest, source="package")
     assert generate.returncode == 0, generate.stderr
 
     lock_path = repo_root / "v5" / "projects" / "home-lab" / "framework.lock.yaml"
@@ -230,20 +174,7 @@ def test_verify_detects_missing_package_attestations(tmp_path: Path):
     payload.pop("sbom", None)
     lock_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
-    verify = subprocess.run(
-        [
-            sys.executable,
-            str(VERIFY_SCRIPT),
-            "--repo-root",
-            str(repo_root),
-            "--topology",
-            str(topology_manifest),
-            "--strict",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    verify = _run_verify(repo_root, topology_manifest)
     assert verify.returncode != 0
     assert "E7825" in verify.stdout
     assert "E7826" in verify.stdout
@@ -254,20 +185,7 @@ def test_verify_bypasses_revision_mismatch_in_monorepo_mode(tmp_path: Path):
     repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
     _git_init_and_commit(repo_root)
 
-    generate = subprocess.run(
-        [
-            sys.executable,
-            str(GENERATE_SCRIPT),
-            "--repo-root",
-            str(repo_root),
-            "--topology",
-            str(topology_manifest),
-            "--force",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    generate = _run_generate(repo_root, topology_manifest)
     assert generate.returncode == 0, generate.stderr
 
     lock_path = repo_root / "v5" / "projects" / "home-lab" / "framework.lock.yaml"
@@ -275,22 +193,73 @@ def test_verify_bypasses_revision_mismatch_in_monorepo_mode(tmp_path: Path):
     payload["framework"]["revision"] = "deadbeef"
     lock_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
-    verify = subprocess.run(
-        [
-            sys.executable,
-            str(VERIFY_SCRIPT),
-            "--repo-root",
-            str(repo_root),
-            "--topology",
-            str(topology_manifest),
-            "--strict",
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    verify = _run_verify(repo_root, topology_manifest)
     assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
     assert "E7823" not in verify.stdout
+
+
+def test_verify_detects_framework_version_above_project_max(tmp_path: Path):
+    repo_root, topology_manifest, project_manifest = _create_fixture_repo(tmp_path)
+    project_payload = yaml.safe_load(project_manifest.read_text(encoding="utf-8"))
+    project_payload["project_max_framework_version"] = "4.9.9"
+    project_manifest.write_text(yaml.safe_dump(project_payload, sort_keys=False), encoding="utf-8")
+
+    generate = _run_generate(repo_root, topology_manifest)
+    assert generate.returncode == 0, generate.stderr
+
+    verify = _run_verify(repo_root, topology_manifest)
+    assert verify.returncode != 0
+    assert "E7811" in verify.stdout
+
+
+def test_verify_detects_project_schema_outside_supported_range(tmp_path: Path):
+    repo_root, topology_manifest, project_manifest = _create_fixture_repo(tmp_path)
+    project_payload = yaml.safe_load(project_manifest.read_text(encoding="utf-8"))
+    project_payload["project_schema_version"] = "2.1.0"
+    project_manifest.write_text(yaml.safe_dump(project_payload, sort_keys=False), encoding="utf-8")
+
+    generate = _run_generate(repo_root, topology_manifest)
+    assert generate.returncode == 0, generate.stderr
+
+    verify = _run_verify(repo_root, topology_manifest)
+    assert verify.returncode != 0
+    assert "E7812" in verify.stdout
+
+
+@pytest.mark.parametrize(
+    ("project_contract_revision", "lock_contract_revision", "expect_ok"),
+    [
+        (1, 1, True),
+        (2, 1, False),
+    ],
+)
+def test_verify_contract_revision_matrix(
+    tmp_path: Path,
+    project_contract_revision: int,
+    lock_contract_revision: int,
+    expect_ok: bool,
+):
+    repo_root, topology_manifest, project_manifest = _create_fixture_repo(tmp_path)
+
+    project_payload = yaml.safe_load(project_manifest.read_text(encoding="utf-8"))
+    project_payload["project_contract_revision"] = project_contract_revision
+    project_manifest.write_text(yaml.safe_dump(project_payload, sort_keys=False), encoding="utf-8")
+
+    generate = _run_generate(repo_root, topology_manifest)
+    assert generate.returncode == 0, generate.stderr
+
+    lock_path = repo_root / "v5" / "projects" / "home-lab" / "framework.lock.yaml"
+    lock_payload = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+    lock_payload["project_contract_revision"] = lock_contract_revision
+    lock_path.write_text(yaml.safe_dump(lock_payload, sort_keys=False), encoding="utf-8")
+
+    verify = _run_verify(repo_root, topology_manifest)
+    if expect_ok:
+        assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
+        assert "E7813" not in verify.stdout
+    else:
+        assert verify.returncode != 0
+        assert "E7813" in verify.stdout
 
 
 def test_verify_detects_revision_mismatch_when_framework_is_external_repo(tmp_path: Path):
