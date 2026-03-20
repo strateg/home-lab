@@ -6,7 +6,7 @@ meta:
   status: migration
   source_migration: v4-to-v5
 
-paths:
+framework:
   class_modules_root: v5/topology/class-modules
   object_modules_root: v5/topology/object-modules
   model_lock: v5/topology/model.lock.yaml
@@ -14,4 +14,7 @@ paths:
   layer_contract: v5/topology/layer-contract.yaml
   capability_catalog: v5/topology/class-modules/router/capability-catalog.yaml
   capability_packs: v5/topology/class-modules/router/capability-packs.yaml
-  instances_root: v5/topology/instances
+
+project:
+  active: home-lab
+  projects_root: v5/projects

@@ -36,35 +36,57 @@ def _write_layer_contract(path: Path) -> None:
     )
 
 
-def test_resolve_manifest_paths_supports_optional_instance_sources(tmp_path: Path) -> None:
-    manifest_paths = {
-        "class_modules_root": "classes",
-        "object_modules_root": "objects",
-        "capability_catalog": "catalog.yaml",
-        "capability_packs": "packs.yaml",
-        "layer_contract": "layer-contract.yaml",
-        "model_lock": "model.lock.yaml",
-    }
-    bundle = resolve_manifest_paths(
-        manifest_paths=manifest_paths,
-        resolve_repo_path=lambda value: tmp_path / value,
-    )
-
-    assert bundle.instances_root_path is None
-
-
-def test_resolve_instance_source_mode_auto_resolves_to_sharded_only(tmp_path: Path) -> None:
-    bundle = resolve_manifest_paths(
-        manifest_paths={
+def _resolve_bundle(
+    tmp_path: Path,
+    *,
+    layer_contract_path: Path,
+    instances_root: str,
+) -> object:
+    project_root = tmp_path / "projects" / "test"
+    project_root.mkdir(parents=True, exist_ok=True)
+    (project_root / "secrets").mkdir(parents=True, exist_ok=True)
+    return resolve_manifest_paths(
+        framework_paths={
             "class_modules_root": "classes",
             "object_modules_root": "objects",
             "capability_catalog": "catalog.yaml",
             "capability_packs": "packs.yaml",
-            "layer_contract": "layer-contract.yaml",
-            "instances_root": "instances",
+            "layer_contract": str(layer_contract_path),
             "model_lock": "model.lock.yaml",
         },
-        resolve_repo_path=lambda value: tmp_path / value,
+        project_id="test",
+        project_root=project_root,
+        project_manifest={
+            "instances_root": instances_root,
+            "secrets_root": "secrets",
+        },
+        resolve_repo_path=lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value,
+    )
+
+
+def test_resolve_manifest_paths_reads_project_relative_paths(tmp_path: Path) -> None:
+    layer_contract_path = tmp_path / "layer-contract.yaml"
+    _write_layer_contract(layer_contract_path)
+
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
+    )
+
+    assert bundle.instances_root_path == tmp_path / "projects" / "test" / "instances"
+    assert bundle.secrets_root_path == tmp_path / "projects" / "test" / "secrets"
+    assert bundle.project_id == "test"
+    assert bundle.project_manifest_path == tmp_path / "projects" / "test" / "project.yaml"
+
+
+def test_resolve_instance_source_mode_auto_resolves_to_sharded_only(tmp_path: Path) -> None:
+    layer_contract_path = tmp_path / "layer-contract.yaml"
+    _write_layer_contract(layer_contract_path)
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
     )
     assert resolve_instance_source_mode(requested_mode="auto", paths=bundle) == "sharded-only"
 
@@ -73,7 +95,8 @@ def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> Non
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
 
-    shard_root = tmp_path / "instances"
+    project_root = tmp_path / "projects" / "test"
+    shard_root = project_root / "instances"
     shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
@@ -90,17 +113,10 @@ def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> Non
         encoding="utf-8",
     )
 
-    bundle = resolve_manifest_paths(
-        manifest_paths={
-            "class_modules_root": "classes",
-            "object_modules_root": "objects",
-            "capability_catalog": "catalog.yaml",
-            "capability_packs": "packs.yaml",
-            "layer_contract": str(layer_contract_path),
-            "instances_root": str(shard_root),
-            "model_lock": "model.lock.yaml",
-        },
-        resolve_repo_path=lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value,
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
     )
 
     diagnostics: list[dict[str, str]] = []
@@ -129,7 +145,8 @@ def test_load_core_compile_inputs_reports_group_layer_mismatch(tmp_path: Path) -
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
 
-    shard_root = tmp_path / "instances"
+    project_root = tmp_path / "projects" / "test"
+    shard_root = project_root / "instances"
     shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
@@ -146,17 +163,10 @@ def test_load_core_compile_inputs_reports_group_layer_mismatch(tmp_path: Path) -
         encoding="utf-8",
     )
 
-    bundle = resolve_manifest_paths(
-        manifest_paths={
-            "class_modules_root": "classes",
-            "object_modules_root": "objects",
-            "capability_catalog": "catalog.yaml",
-            "capability_packs": "packs.yaml",
-            "layer_contract": str(layer_contract_path),
-            "instances_root": str(shard_root),
-            "model_lock": "model.lock.yaml",
-        },
-        resolve_repo_path=lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value,
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
     )
 
     diagnostics: list[dict[str, str]] = []
@@ -180,7 +190,8 @@ def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: 
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
 
-    shard_root = tmp_path / "instances"
+    project_root = tmp_path / "projects" / "test"
+    shard_root = project_root / "instances"
     shard_file = shard_root / "L1-foundation" / "devices" / "inst.router.bad.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
@@ -197,17 +208,10 @@ def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: 
         encoding="utf-8",
     )
 
-    bundle = resolve_manifest_paths(
-        manifest_paths={
-            "class_modules_root": "classes",
-            "object_modules_root": "objects",
-            "capability_catalog": "catalog.yaml",
-            "capability_packs": "packs.yaml",
-            "layer_contract": str(layer_contract_path),
-            "instances_root": str(shard_root),
-            "model_lock": "model.lock.yaml",
-        },
-        resolve_repo_path=lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value,
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
     )
 
     diagnostics: list[dict[str, str]] = []
@@ -231,7 +235,8 @@ def test_load_core_compile_inputs_rejects_wrong_layer_bucket(tmp_path: Path) -> 
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
 
-    shard_root = tmp_path / "instances"
+    project_root = tmp_path / "projects" / "test"
+    shard_root = project_root / "instances"
     shard_file = shard_root / "L2-network" / "devices" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
@@ -248,17 +253,10 @@ def test_load_core_compile_inputs_rejects_wrong_layer_bucket(tmp_path: Path) -> 
         encoding="utf-8",
     )
 
-    bundle = resolve_manifest_paths(
-        manifest_paths={
-            "class_modules_root": "classes",
-            "object_modules_root": "objects",
-            "capability_catalog": "catalog.yaml",
-            "capability_packs": "packs.yaml",
-            "layer_contract": str(layer_contract_path),
-            "instances_root": str(shard_root),
-            "model_lock": "model.lock.yaml",
-        },
-        resolve_repo_path=lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value,
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
     )
 
     diagnostics: list[dict[str, str]] = []
@@ -282,7 +280,8 @@ def test_load_core_compile_inputs_rejects_group_directory_mismatch(tmp_path: Pat
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
 
-    shard_root = tmp_path / "instances"
+    project_root = tmp_path / "projects" / "test"
+    shard_root = project_root / "instances"
     shard_file = shard_root / "L1-foundation" / "network" / "inst.router.a.yaml"
     shard_file.parent.mkdir(parents=True, exist_ok=True)
     shard_file.write_text(
@@ -299,17 +298,10 @@ def test_load_core_compile_inputs_rejects_group_directory_mismatch(tmp_path: Pat
         encoding="utf-8",
     )
 
-    bundle = resolve_manifest_paths(
-        manifest_paths={
-            "class_modules_root": "classes",
-            "object_modules_root": "objects",
-            "capability_catalog": "catalog.yaml",
-            "capability_packs": "packs.yaml",
-            "layer_contract": str(layer_contract_path),
-            "instances_root": str(shard_root),
-            "model_lock": "model.lock.yaml",
-        },
-        resolve_repo_path=lambda value: Path(value) if Path(value).is_absolute() else tmp_path / value,
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
     )
 
     diagnostics: list[dict[str, str]] = []

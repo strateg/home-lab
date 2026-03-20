@@ -1,0 +1,15 @@
+schema_version: 1
+project_schema_version: 1.0.0
+project: home-lab
+status: migration
+project_min_framework_version: 5.0.0
+project_contract_revision: 1
+instances_root: instances
+secrets_root: secrets
+generation:
+  output_mode: project-qualified
+generated_at: '2026-03-11T14:57:34+00:00'
+migrated_from: v5/projects/home-lab/_legacy/instance-bindings.yaml
+legacy_metadata:
+  generated_at: '2026-03-08T23:24:31+00:00'
+  source_mapping: v5/projects/home-lab/_legacy/v4-to-v5-mapping.yaml

@@ -16,8 +16,7 @@ REQUIRED_PATHS = (
     "v5/topology",
     "v5/topology/class-modules",
     "v5/topology/object-modules",
-    "v5/topology/instances",
-    "v5/topology/instances/project.yaml",
+    "v5/projects",
     "v5/topology-tools",
     "v5/tests",
     "v5/topology/model.lock.yaml",
@@ -26,7 +25,16 @@ REQUIRED_PATHS = (
     "v5-build",
     "v5-dist",
 )
-LEGACY_PATH_KEYS = ("instance_bindings",)
+REQUIRED_FRAMEWORK_KEYS = (
+    "class_modules_root",
+    "object_modules_root",
+    "model_lock",
+    "layer_contract",
+    "capability_catalog",
+    "capability_packs",
+)
+REQUIRED_PROJECT_KEYS = ("active", "projects_root")
+REQUIRED_PROJECT_MANIFEST_KEYS = ("instances_root", "secrets_root")
 
 
 def check_required_paths(errors: list[dict[str, str]]) -> None:
@@ -115,24 +123,46 @@ def check_topology_manifest(errors: list[dict[str, str]]) -> None:
         )
         return
 
-    paths = payload.get("paths")
-    if not isinstance(paths, dict):
+    if "paths" in payload:
         errors.append(
             {
-                "code": "V5_MANIFEST_MISSING_PATHS",
-                "path": "v5/topology/topology.yaml",
-                "message": "topology manifest must contain 'paths' mapping.",
+                "code": "E7808",
+                "path": "v5/topology/topology.yaml:paths",
+                "message": "Legacy manifest contract section 'paths' is unsupported in strict-only mode.",
             }
         )
         return
 
-    for key, rel_path in paths.items():
-        if not isinstance(rel_path, str) or not rel_path:
+    framework = payload.get("framework")
+    if not isinstance(framework, dict):
+        errors.append(
+            {
+                "code": "V5_MANIFEST_MISSING_FRAMEWORK",
+                "path": "v5/topology/topology.yaml",
+                "message": "topology manifest must contain 'framework' mapping.",
+            }
+        )
+        return
+
+    project = payload.get("project")
+    if not isinstance(project, dict):
+        errors.append(
+            {
+                "code": "V5_MANIFEST_MISSING_PROJECT",
+                "path": "v5/topology/topology.yaml",
+                "message": "topology manifest must contain 'project' mapping.",
+            }
+        )
+        return
+
+    for key in REQUIRED_FRAMEWORK_KEYS:
+        rel_path = framework.get(key)
+        if not isinstance(rel_path, str) or not rel_path.strip():
             errors.append(
                 {
                     "code": "V5_MANIFEST_INVALID_PATH_VALUE",
                     "path": "v5/topology/topology.yaml",
-                    "message": f"path entry '{key}' must be non-empty string.",
+                    "message": f"framework entry '{key}' must be non-empty string.",
                 }
             )
             continue
@@ -141,19 +171,98 @@ def check_topology_manifest(errors: list[dict[str, str]]) -> None:
                 {
                     "code": "V5_MANIFEST_PATH_MISSING",
                     "path": "v5/topology/topology.yaml",
-                    "message": f"path entry '{key}' points to missing path: {rel_path}",
+                    "message": f"framework entry '{key}' points to missing path: {rel_path}",
                 }
             )
 
-    for legacy_key in LEGACY_PATH_KEYS:
-        if legacy_key in paths:
+    for key in REQUIRED_PROJECT_KEYS:
+        value = project.get(key)
+        if not isinstance(value, str) or not value.strip():
             errors.append(
                 {
-                    "code": "E7808",
-                    "path": f"v5/topology/topology.yaml:paths.{legacy_key}",
-                    "message": (
-                        f"Legacy manifest contract key 'paths.{legacy_key}' is unsupported in strict-only mode."
-                    ),
+                    "code": "V5_MANIFEST_INVALID_PATH_VALUE",
+                    "path": "v5/topology/topology.yaml",
+                    "message": f"project entry '{key}' must be non-empty string.",
+                }
+            )
+    active = project.get("active")
+    projects_root = project.get("projects_root")
+    if not isinstance(active, str) or not active.strip():
+        return
+    if not isinstance(projects_root, str) or not projects_root.strip():
+        return
+
+    projects_root_path = ROOT / projects_root
+    if not projects_root_path.exists():
+        errors.append(
+            {
+                "code": "V5_MANIFEST_PATH_MISSING",
+                "path": "v5/topology/topology.yaml",
+                "message": f"project.projects_root points to missing path: {projects_root}",
+            }
+        )
+        return
+    project_root = projects_root_path / active
+    project_manifest = project_root / "project.yaml"
+    if not project_manifest.exists():
+        errors.append(
+            {
+                "code": "V5_MANIFEST_PATH_MISSING",
+                "path": "v5/topology/topology.yaml",
+                "message": f"project manifest is missing: {project_manifest.relative_to(ROOT).as_posix()}",
+            }
+        )
+        return
+
+    try:
+        project_payload = yaml.safe_load(project_manifest.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        errors.append(
+            {
+                "code": "V5_MANIFEST_PARSE_ERROR",
+                "path": str(project_manifest.relative_to(ROOT).as_posix()),
+                "message": f"project manifest parsing failed: {exc}",
+            }
+        )
+        return
+    if not isinstance(project_payload, dict):
+        errors.append(
+            {
+                "code": "V5_MANIFEST_INVALID_ROOT",
+                "path": str(project_manifest.relative_to(ROOT).as_posix()),
+                "message": "project manifest root must be a mapping/object.",
+            }
+        )
+        return
+
+    declared_project = project_payload.get("project")
+    if isinstance(declared_project, str) and declared_project and declared_project != active:
+        errors.append(
+            {
+                "code": "V5_MANIFEST_INVALID_PATH_VALUE",
+                "path": str(project_manifest.relative_to(ROOT).as_posix()),
+                "message": f"project manifest project '{declared_project}' does not match active '{active}'.",
+            }
+        )
+
+    for key in REQUIRED_PROJECT_MANIFEST_KEYS:
+        rel_path = project_payload.get(key)
+        if not isinstance(rel_path, str) or not rel_path.strip():
+            errors.append(
+                {
+                    "code": "V5_MANIFEST_INVALID_PATH_VALUE",
+                    "path": str(project_manifest.relative_to(ROOT).as_posix()),
+                    "message": f"project manifest key '{key}' must be non-empty string.",
+                }
+            )
+            continue
+        candidate = (project_root / rel_path).resolve()
+        if not candidate.exists():
+            errors.append(
+                {
+                    "code": "V5_MANIFEST_PATH_MISSING",
+                    "path": str(project_manifest.relative_to(ROOT).as_posix()),
+                    "message": f"project manifest key '{key}' points to missing path: {candidate}",
                 }
             )
 

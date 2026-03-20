@@ -12,8 +12,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 
 DEFAULT_TOPOLOGY = ROOT / "v5" / "topology" / "topology.yaml"
-DEFAULT_CATALOG = ROOT / "v5" / "topology" / "class-modules" / "classes" / "router" / "capability-catalog.yaml"
-DEFAULT_PACKS = ROOT / "v5" / "topology" / "class-modules" / "classes" / "router" / "capability-packs.yaml"
+DEFAULT_CATALOG = ROOT / "v5" / "topology" / "class-modules" / "router" / "capability-catalog.yaml"
+DEFAULT_PACKS = ROOT / "v5" / "topology" / "class-modules" / "router" / "capability-packs.yaml"
 DEFAULT_CLASSES_DIR = ROOT / "v5" / "topology" / "class-modules"
 DEFAULT_OBJECTS_DIR = ROOT / "v5" / "topology" / "object-modules"
 
@@ -499,11 +499,11 @@ def _load_manifest_contract_paths(topology_path: Path) -> tuple[str | None, str 
     payload = _load_yaml(topology_path)
     if not isinstance(payload, dict):
         return None, None
-    paths = payload.get("paths")
-    if not isinstance(paths, dict):
+    framework = payload.get("framework")
+    if not isinstance(framework, dict):
         return None, None
-    catalog_rel = paths.get("capability_catalog")
-    packs_rel = paths.get("capability_packs")
+    catalog_rel = framework.get("capability_catalog")
+    packs_rel = framework.get("capability_packs")
     if isinstance(catalog_rel, str) and catalog_rel and isinstance(packs_rel, str) and packs_rel:
         return catalog_rel, packs_rel
     return None, None

@@ -125,22 +125,42 @@ def main() -> int:
     if not manifest_path.is_absolute():
         manifest_path = ROOT / manifest_path
     manifest = _load_yaml_map(manifest_path, errors=errors)
-    manifest_paths = manifest.get("paths") if isinstance(manifest, dict) else None
-    if not isinstance(manifest_paths, dict):
-        errors.append("topology manifest must contain mapping key 'paths'")
-        manifest_paths = {}
+    if isinstance(manifest, dict) and "paths" in manifest:
+        errors.append("E7808: legacy manifest contract section 'paths' is unsupported in strict-only mode")
 
-    class_modules_root = ROOT / str(manifest_paths.get("class_modules_root", ""))
-    object_modules_root = ROOT / str(manifest_paths.get("object_modules_root", ""))
-    instances_root_path = ROOT / str(manifest_paths.get("instances_root", ""))
-    instance_bindings_raw = manifest_paths.get("instance_bindings")
-    instance_bindings_path = ROOT / str(instance_bindings_raw or "")
-    layer_contract_path = ROOT / str(manifest_paths.get("layer_contract", ""))
+    framework = manifest.get("framework") if isinstance(manifest, dict) else None
+    if not isinstance(framework, dict):
+        errors.append("topology manifest must contain mapping key 'framework'")
+        framework = {}
+    project = manifest.get("project") if isinstance(manifest, dict) else None
+    if not isinstance(project, dict):
+        errors.append("topology manifest must contain mapping key 'project'")
+        project = {}
 
-    if isinstance(instance_bindings_raw, str) and instance_bindings_raw.strip():
-        errors.append(
-            "E7808: legacy manifest contract key 'paths.instance_bindings' is unsupported in strict-only mode"
-        )
+    class_modules_root = ROOT / str(framework.get("class_modules_root", ""))
+    object_modules_root = ROOT / str(framework.get("object_modules_root", ""))
+    layer_contract_path = ROOT / str(framework.get("layer_contract", ""))
+
+    project_id = project.get("active")
+    projects_root = project.get("projects_root")
+    project_root_path = None
+    if isinstance(project_id, str) and project_id.strip() and isinstance(projects_root, str) and projects_root.strip():
+        project_root_path = ROOT / projects_root / project_id
+    else:
+        errors.append("topology manifest project.active and project.projects_root must be non-empty strings")
+
+    instances_root_path: Path | None = None
+    project_manifest_path: Path | None = None
+    if isinstance(project_root_path, Path):
+        project_manifest_path = project_root_path / "project.yaml"
+        project_manifest = _load_yaml_map(project_manifest_path, errors=errors)
+        instances_root_rel = project_manifest.get("instances_root")
+        if isinstance(instances_root_rel, str) and instances_root_rel.strip():
+            instances_root_path = (project_root_path / instances_root_rel).resolve()
+        else:
+            errors.append(
+                "E7808: project manifest must define non-empty instances_root for strict-only instance source contract"
+            )
 
     layer_contract = _load_yaml_map(layer_contract_path, errors=errors)
     valid_layers = set(DEFAULT_VALID_LAYERS)
@@ -331,10 +351,10 @@ def main() -> int:
             )
         object_allowed_layers[object_id] = parsed_override
 
-    if isinstance(manifest_paths.get("instances_root"), str) and str(manifest_paths.get("instances_root", "")).strip():
+    if isinstance(instances_root_path, Path):
         instance_bindings = _load_instance_bindings_from_shards(instances_root_path, errors=errors)
     else:
-        errors.append("E7808: topology manifest must define non-empty paths.instances_root in strict-only mode")
+        errors.append("E7808: topology project manifest must define non-empty instances_root in strict-only mode")
         instance_bindings = {}
     bindings_any = instance_bindings.get("instance_bindings", {})
     if not isinstance(bindings_any, dict):
@@ -475,9 +495,12 @@ def main() -> int:
             "layer_contract": layer_contract_path.relative_to(ROOT).as_posix()
             if layer_contract_path.exists()
             else str(layer_contract_path),
-            "instance_bindings": instance_bindings_path.relative_to(ROOT).as_posix()
-            if instance_bindings_path.exists()
-            else str(instance_bindings_path),
+            "project_manifest": project_manifest_path.relative_to(ROOT).as_posix()
+            if isinstance(project_manifest_path, Path) and project_manifest_path.exists()
+            else str(project_manifest_path or ""),
+            "instances_root": instances_root_path.relative_to(ROOT).as_posix()
+            if isinstance(instances_root_path, Path) and instances_root_path.exists()
+            else str(instances_root_path or ""),
         },
         "summary": {
             "classes": len(class_payloads),

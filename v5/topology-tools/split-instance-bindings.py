@@ -13,7 +13,7 @@ import yaml
 from identifier_policy import contains_unsafe_identifier_chars, normalize_identifier_for_filename
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_INPUT = REPO_ROOT / "v5" / "topology" / "instances" / "_legacy-home-lab" / "instance-bindings.yaml"
+DEFAULT_INPUT = REPO_ROOT / "v5" / "projects" / "home-lab" / "_legacy" / "instance-bindings.yaml"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "v5" / "topology" / "instances"
 DEFAULT_PROJECT_FILE = DEFAULT_OUTPUT_ROOT / "project.yaml"
 

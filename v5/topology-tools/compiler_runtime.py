@@ -34,7 +34,11 @@ class ManifestPathBundle:
     capability_packs_path: Path
     layer_contract_path: Path
     instances_root_path: Path | None
+    secrets_root_path: Path | None
     model_lock_path: Path
+    project_id: str
+    project_root: Path
+    project_manifest_path: Path
 
 
 @dataclass
@@ -90,25 +94,35 @@ def discover_plugin_manifests(
 
 def resolve_manifest_paths(
     *,
-    manifest_paths: dict[str, Any],
+    framework_paths: dict[str, Any],
+    project_id: str,
+    project_root: Path,
+    project_manifest: dict[str, Any],
     resolve_repo_path: Callable[[str], Path],
 ) -> ManifestPathBundle:
-    def _optional_path(raw: Any) -> Path | None:
+    def _project_relative_path(raw: Any) -> Path | None:
         if not isinstance(raw, str):
             return None
         value = raw.strip()
         if not value:
             return None
-        return resolve_repo_path(value)
+        candidate = Path(value)
+        if candidate.is_absolute():
+            return candidate
+        return project_root / candidate
 
     return ManifestPathBundle(
-        class_modules_root=resolve_repo_path(str(manifest_paths.get("class_modules_root", ""))),
-        object_modules_root=resolve_repo_path(str(manifest_paths.get("object_modules_root", ""))),
-        capability_catalog_path=resolve_repo_path(str(manifest_paths.get("capability_catalog", ""))),
-        capability_packs_path=resolve_repo_path(str(manifest_paths.get("capability_packs", ""))),
-        layer_contract_path=resolve_repo_path(str(manifest_paths.get("layer_contract", ""))),
-        instances_root_path=_optional_path(manifest_paths.get("instances_root")),
-        model_lock_path=resolve_repo_path(str(manifest_paths.get("model_lock", ""))),
+        class_modules_root=resolve_repo_path(str(framework_paths.get("class_modules_root", ""))),
+        object_modules_root=resolve_repo_path(str(framework_paths.get("object_modules_root", ""))),
+        capability_catalog_path=resolve_repo_path(str(framework_paths.get("capability_catalog", ""))),
+        capability_packs_path=resolve_repo_path(str(framework_paths.get("capability_packs", ""))),
+        layer_contract_path=resolve_repo_path(str(framework_paths.get("layer_contract", ""))),
+        instances_root_path=_project_relative_path(project_manifest.get("instances_root")),
+        secrets_root_path=_project_relative_path(project_manifest.get("secrets_root")),
+        model_lock_path=resolve_repo_path(str(framework_paths.get("model_lock", ""))),
+        project_id=project_id,
+        project_root=project_root,
+        project_manifest_path=project_root / "project.yaml",
     )
 
 
@@ -177,6 +191,7 @@ def _load_sharded_instance_payload(
     group_layer_map: dict[str, str],
     add_diag: Callable[..., None],
     repo_root: Path,
+    project_manifest_path: Path,
 ) -> dict[str, Any] | None:
     if instances_root is None:
         if mode == "sharded-only":
@@ -184,8 +199,8 @@ def _load_sharded_instance_payload(
                 code="E7107",
                 severity="error",
                 stage="load",
-                message="Sharded instance source requires paths.instances_root.",
-                path="v5/topology/topology.yaml:paths.instances_root",
+                message="Sharded instance source requires non-empty project instances_root.",
+                path=f"{_diag_path(repo_root=repo_root, path=project_manifest_path)}:instances_root",
             )
         return None
     if not instances_root.exists() or not instances_root.is_dir():
@@ -476,6 +491,7 @@ def load_core_compile_inputs(
         group_layer_map=group_layer_map,
         add_diag=add_diag,
         repo_root=repo_root,
+        project_manifest_path=paths.project_manifest_path,
     )
 
     # Normalized instance rows and model lock payload are plugin-owned

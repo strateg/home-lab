@@ -4,7 +4,7 @@ set -e
 KEYS_DIR="${HOME}/.config/sops/age"
 KEYS_FILE="${KEYS_DIR}/keys.txt"
 WORKSPACE_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-DEVKEY="${WORKSPACE_ROOT}/v5/secrets/devkey.age"
+DEVKEY="${WORKSPACE_ROOT}/v5/projects/home-lab/secrets/devkey.age"
 
 if [ -f "$KEYS_FILE" ]; then
     echo "✓ Secrets already unlocked"

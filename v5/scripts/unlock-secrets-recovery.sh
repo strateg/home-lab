@@ -7,7 +7,7 @@ set -e
 KEYS_DIR="${HOME}/.config/sops/age"
 KEYS_FILE="${KEYS_DIR}/keys.txt"
 WORKSPACE_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-MASTERKEY="${WORKSPACE_ROOT}/v5/secrets/masterkey.age"
+MASTERKEY="${WORKSPACE_ROOT}/v5/projects/home-lab/secrets/masterkey.age"
 
 if [ -f "$KEYS_FILE" ]; then
     echo "⚠ Keys file already exists: $KEYS_FILE"

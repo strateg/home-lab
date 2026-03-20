@@ -9,8 +9,8 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-MAPPING_PATH = ROOT / "v5/topology/instances/_legacy-home-lab/v4-to-v5-mapping.yaml"
-BACKLOG_PATH = ROOT / "v5/topology/instances/_legacy-home-lab/phase1-module-backlog.yaml"
+MAPPING_PATH = ROOT / "v5/projects/home-lab/_legacy/v4-to-v5-mapping.yaml"
+BACKLOG_PATH = ROOT / "v5/projects/home-lab/_legacy/phase1-module-backlog.yaml"
 
 
 def collect_existing_ids(root: Path, key: str) -> set[str]:

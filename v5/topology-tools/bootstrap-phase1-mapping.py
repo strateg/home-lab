@@ -25,7 +25,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output",
-        default="v5/topology/instances/_legacy-home-lab/v4-to-v5-mapping.yaml",
+        default="v5/projects/home-lab/_legacy/v4-to-v5-mapping.yaml",
         help="Output mapping YAML path.",
     )
     parser.add_argument(

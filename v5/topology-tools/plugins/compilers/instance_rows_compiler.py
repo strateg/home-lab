@@ -712,7 +712,7 @@ class InstanceRowsCompiler(CompilerPlugin):
             annotation_formats = {}
 
         # Resolve secrets_root path (relative to repo_root)
-        secrets_root_str = ctx.config.get("secrets_root", "v5/secrets")
+        secrets_root_str = ctx.config.get("secrets_root", "v5/projects/home-lab/secrets")
         repo_root = ctx.config.get("repo_root")
         if isinstance(repo_root, str) and repo_root:
             secrets_root = Path(repo_root) / secrets_root_str

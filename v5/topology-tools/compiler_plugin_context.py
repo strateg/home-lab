@@ -23,6 +23,9 @@ def create_plugin_context(
     source_manifest_digest: str,
     class_modules_root: Path,
     object_modules_root: Path,
+    project_id: str,
+    project_root: Path,
+    project_manifest_path: Path,
     class_map: dict[str, dict[str, Any]],
     object_map: dict[str, dict[str, Any]],
     instance_bindings: dict[str, Any],
@@ -42,9 +45,22 @@ def create_plugin_context(
     artifact_owner: Callable[[str], str],
 ) -> PluginContext:
     try:
+        topology_path_value = str(manifest_path.relative_to(repo_root).as_posix())
+    except ValueError:
+        topology_path_value = str(manifest_path.as_posix())
+
+    try:
         artifacts_root_value = str(generator_artifacts_root.relative_to(repo_root).as_posix())
     except ValueError:
         artifacts_root_value = str(generator_artifacts_root.as_posix())
+    try:
+        project_root_value = str(project_root.relative_to(repo_root).as_posix())
+    except ValueError:
+        project_root_value = str(project_root.as_posix())
+    try:
+        project_manifest_value = str(project_manifest_path.relative_to(repo_root).as_posix())
+    except ValueError:
+        project_manifest_value = str(project_manifest_path.as_posix())
 
     embedded_in_owner = validation_owner("embedded_in")
     model_lock_owner = validation_owner("model_lock")
@@ -54,7 +70,7 @@ def create_plugin_context(
     capability_contract_data_owner = compilation_owner("capability_contract_data")
     effective_json_owner = artifact_owner("effective_json")
     return PluginContext(
-        topology_path=str(manifest_path.relative_to(repo_root).as_posix()),
+        topology_path=topology_path_value,
         profile=runtime_profile,
         model_lock=lock_payload or {},
         raw_yaml=raw_manifest,
@@ -84,6 +100,9 @@ def create_plugin_context(
             "model_lock_path": str(model_lock_path),
             "class_modules_root": str(class_modules_root),
             "object_modules_root": str(object_modules_root),
+            "project_id": project_id,
+            "project_root": project_root_value,
+            "project_manifest_path": project_manifest_value,
             "require_new_model": require_new_model,
             "generator_artifacts_root": artifacts_root_value,
             "secrets_mode": secrets_mode,

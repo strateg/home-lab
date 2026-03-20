@@ -42,7 +42,16 @@ DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
 SUPPORTED_INSTANCE_SOURCE_MODES = ("auto", "sharded-only")
 SUPPORTED_SECRETS_MODES = ("inject", "passthrough", "strict")
-LEGACY_PATH_KEYS = ("instance_bindings",)
+REQUIRED_FRAMEWORK_KEYS = (
+    "class_modules_root",
+    "object_modules_root",
+    "model_lock",
+    "layer_contract",
+    "capability_catalog",
+    "capability_packs",
+)
+REQUIRED_PROJECT_KEYS = ("active", "projects_root")
+REQUIRED_PROJECT_MANIFEST_KEYS = ("instances_root", "secrets_root")
 COMPILED_MODEL_VERSION = "1.0"
 COMPILER_PIPELINE_VERSION = "adr0069-ws2"
 SUPPORTED_COMPILED_MODEL_MAJOR = {"1"}
@@ -117,7 +126,7 @@ class V5Compiler:
         runtime_profile: str = "production",
         instance_source_mode: str = "auto",
         secrets_mode: str = "passthrough",
-        secrets_root: str = "v5/secrets",
+        secrets_root: str = "",
         pipeline_mode: str = "plugin-first",
         parity_gate: bool = False,
         enable_plugins: bool = True,
@@ -364,7 +373,7 @@ class V5Compiler:
                 severity="error",
                 stage=stage,
                 message=f"File does not exist: {path}",
-                path=str(path.relative_to(REPO_ROOT).as_posix()),
+                path=self._path_for_diag(path),
             )
             return None
         try:
@@ -375,7 +384,7 @@ class V5Compiler:
                 severity="error",
                 stage=stage,
                 message=f"YAML parse error: {exc}",
-                path=str(path.relative_to(REPO_ROOT).as_posix()),
+                path=self._path_for_diag(path),
             )
             return None
         if not isinstance(payload, dict):
@@ -384,7 +393,7 @@ class V5Compiler:
                 severity="error",
                 stage=stage,
                 message="Expected mapping/object at YAML root.",
-                path=str(path.relative_to(REPO_ROOT).as_posix()),
+                path=self._path_for_diag(path),
             )
             return None
         return payload
@@ -444,37 +453,120 @@ class V5Compiler:
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1
 
-        manifest_paths = manifest.get("paths")
-        if not isinstance(manifest_paths, dict):
+        legacy_paths = manifest.get("paths")
+        if legacy_paths is not None:
             self.add_diag(
-                code="E3201",
+                code="E7808",
                 severity="error",
                 stage="validate",
-                message="topology manifest must contain mapping key 'paths'.",
-                path="v5/topology/topology.yaml",
+                message="Legacy manifest contract section 'paths' is unsupported in strict-only mode.",
+                path="v5/topology/topology.yaml:paths",
             )
             total, errors, warnings, infos = self._write_diagnostics()
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1
 
-        legacy_paths = [key for key in LEGACY_PATH_KEYS if key in manifest_paths]
-        for key in legacy_paths:
+        framework_paths = manifest.get("framework")
+        if not isinstance(framework_paths, dict):
             self.add_diag(
-                code="E7808",
+                code="E3201",
                 severity="error",
                 stage="validate",
-                message=f"Legacy manifest contract key 'paths.{key}' is unsupported in strict-only mode.",
-                path=f"v5/topology/topology.yaml:paths.{key}",
+                message="topology manifest must contain mapping key 'framework'.",
+                path="v5/topology/topology.yaml:framework",
             )
-        if legacy_paths:
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
+
+        project_section = manifest.get("project")
+        if not isinstance(project_section, dict):
+            self.add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message="topology manifest must contain mapping key 'project'.",
+                path="v5/topology/topology.yaml:project",
+            )
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
+
+        for key in REQUIRED_FRAMEWORK_KEYS:
+            value = framework_paths.get(key)
+            if not isinstance(value, str) or not value.strip():
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"framework.{key} must be non-empty string.",
+                    path=f"v5/topology/topology.yaml:framework.{key}",
+                )
+
+        for key in REQUIRED_PROJECT_KEYS:
+            value = project_section.get(key)
+            if not isinstance(value, str) or not value.strip():
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"project.{key} must be non-empty string.",
+                    path=f"v5/topology/topology.yaml:project.{key}",
+                )
+        if any(item.severity == "error" for item in self._diagnostics):
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
+
+        project_id = str(project_section["active"]).strip()
+        projects_root_path = resolve_repo_path(str(project_section["projects_root"]).strip())
+        project_root = projects_root_path / project_id
+        project_manifest_path = project_root / "project.yaml"
+        project_manifest = self._load_yaml(project_manifest_path, code_missing="E1001", code_parse="E1003", stage="load")
+        if project_manifest is None:
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
+
+        for key in REQUIRED_PROJECT_MANIFEST_KEYS:
+            value = project_manifest.get(key)
+            if not isinstance(value, str) or not value.strip():
+                self.add_diag(
+                    code="E3201",
+                    severity="error",
+                    stage="validate",
+                    message=f"project manifest key '{key}' must be non-empty string.",
+                    path=f"{self._path_for_diag(project_manifest_path)}:{key}",
+                )
+        if any(item.severity == "error" for item in self._diagnostics):
             total, errors, warnings, infos = self._write_diagnostics()
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1
 
         manifest_bundle = resolve_manifest_paths(
-            manifest_paths=manifest_paths,
+            framework_paths=framework_paths,
+            project_id=project_id,
+            project_root=project_root,
+            project_manifest=project_manifest,
             resolve_repo_path=resolve_repo_path,
         )
+        if self.secrets_root.strip():
+            configured_secrets_root = self.secrets_root.strip()
+            secrets_root_value = self._path_for_diag(resolve_repo_path(configured_secrets_root))
+        elif manifest_bundle.secrets_root_path is not None:
+            secrets_root_value = self._path_for_diag(manifest_bundle.secrets_root_path)
+        else:
+            self.add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message="project manifest must resolve non-empty secrets_root path.",
+                path=f"{self._path_for_diag(project_manifest_path)}:secrets_root",
+            )
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
+
         self._load_plugin_manifests(
             class_modules_root=manifest_bundle.class_modules_root,
             object_modules_root=manifest_bundle.object_modules_root,
@@ -506,6 +598,9 @@ class V5Compiler:
             source_manifest_digest=source_manifest_digest,
             class_modules_root=manifest_bundle.class_modules_root,
             object_modules_root=manifest_bundle.object_modules_root,
+            project_id=manifest_bundle.project_id,
+            project_root=manifest_bundle.project_root,
+            project_manifest_path=manifest_bundle.project_manifest_path,
             class_map=inputs.class_map,
             object_map=inputs.object_map,
             instance_bindings=inputs.instance_payload or {},
@@ -519,7 +614,7 @@ class V5Compiler:
             compiled_file=self.output_json,
             require_new_model=self.require_new_model,
             secrets_mode=self.secrets_mode,
-            secrets_root=self.secrets_root,
+            secrets_root=secrets_root_value,
             validation_owner=self._validation_owner,
             compilation_owner=self._compilation_owner,
             artifact_owner=self._artifact_owner,
@@ -643,8 +738,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--secrets-root",
-        default="v5/secrets",
-        help="Root directory for side-car secret files (relative to repo root).",
+        default="",
+        help=(
+            "Optional root directory for side-car secret files (relative to repo root). "
+            "When omitted, uses project manifest secrets_root."
+        ),
     )
     parser.add_argument(
         "--pipeline-mode",

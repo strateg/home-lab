@@ -65,7 +65,7 @@ def build_v4() -> None:
 
 
 def validate_v5() -> None:
-    # NOTE: canonical instance source is ADR0071 shards under paths.instances_root.
+    # NOTE: canonical instance source is ADR0071 shards under project manifest instances_root.
     # export_v5_instance_bindings.py is legacy migration helper only.
     run([PYTHON, "v5/scripts/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
     run([PYTHON, "v5/scripts/validate_v5_scaffold.py"])

@@ -75,7 +75,7 @@ plugins:
     timeout: 30
     config:
       secrets_mode: passthrough
-      secrets_root: v5/secrets
+      secrets_root: v5/projects/home-lab/secrets
       require_unlock: true
     config_schema:
       type: object
@@ -87,7 +87,7 @@ plugins:
           description: Side-car secrets merge mode (ADR 0072).
         secrets_root:
           type: string
-          default: v5/secrets
+          default: v5/projects/home-lab/secrets
           description: Root directory for side-car secret files (relative to repo root).
         require_unlock:
           type: boolean

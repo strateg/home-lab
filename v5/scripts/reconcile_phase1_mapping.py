@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-MAPPING_PATH = ROOT / "v5/topology/instances/_legacy-home-lab/v4-to-v5-mapping.yaml"
+MAPPING_PATH = ROOT / "v5/projects/home-lab/_legacy/v4-to-v5-mapping.yaml"
 CLASS_ROOT = ROOT / "v5/topology/class-modules"
 OBJECT_ROOT = ROOT / "v5/topology/object-modules"
 

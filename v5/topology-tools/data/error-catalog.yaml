@@ -282,7 +282,7 @@ codes:
     severity: error
     stage: load
     title: Missing Instance Source Configuration
-    hint: Configure paths.instances_root for selected source mode.
+    hint: Configure project manifest instances_root for selected source mode.
   # ADR 0068 placeholder validation
   E6801:
     severity: error
@@ -467,7 +467,7 @@ codes:
     severity: error
     stage: validate
     title: Legacy Paths Contract Unsupported
-    hint: Remove legacy paths.instance_bindings and use paths.instances_root only.
+    hint: Remove legacy paths section and use framework/project manifest contract.
   I6901:
     severity: info
     stage: validate

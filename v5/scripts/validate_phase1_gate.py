@@ -12,9 +12,9 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-MAPPING_PATH = ROOT / "v5/topology/instances/_legacy-home-lab/v4-to-v5-mapping.yaml"
-BACKLOG_PATH = ROOT / "v5/topology/instances/_legacy-home-lab/phase1-module-backlog.yaml"
-BINDINGS_PATH = ROOT / "v5/topology/instances/_legacy-home-lab/instance-bindings.yaml"
+MAPPING_PATH = ROOT / "v5/projects/home-lab/_legacy/v4-to-v5-mapping.yaml"
+BACKLOG_PATH = ROOT / "v5/projects/home-lab/_legacy/phase1-module-backlog.yaml"
+BINDINGS_PATH = ROOT / "v5/projects/home-lab/_legacy/instance-bindings.yaml"
 GROUP_LAYER_MAP = {
     "l1_devices": "L1",
     "l1_firmware": "L1",
