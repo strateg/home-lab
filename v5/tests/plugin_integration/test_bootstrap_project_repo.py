@@ -78,6 +78,14 @@ def _fake_extracted_framework_repo(tmp_path: Path) -> Path:
     return root
 
 
+def _fake_seed_project_root(tmp_path: Path) -> Path:
+    root = tmp_path / "seed-project"
+    _write(root / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml", "instance: vm.seed\n")
+    _write(root / "secrets" / "instances" / "vm.seed.yaml", "secret: value\n")
+    _write(root / "overrides" / "ansible" / "inventory-overrides" / "production" / "group_vars.yml", "a: b\n")
+    return root
+
+
 def test_bootstrap_project_repo_generates_manifests_and_lock(tmp_path: Path) -> None:
     framework_root = _fake_framework_repo(tmp_path)
     output_root = tmp_path / "project"
@@ -164,3 +172,31 @@ def test_bootstrap_project_repo_can_wire_framework_submodule(tmp_path: Path) -> 
     assert (output_root / ".gitmodules").exists()
     assert (output_root / "framework" / "framework.yaml").exists()
     assert (output_root / "framework.lock.yaml").exists()
+
+
+def test_bootstrap_project_repo_can_seed_project_data(tmp_path: Path) -> None:
+    framework_root = _fake_extracted_framework_repo(tmp_path)
+    seed_root = _fake_seed_project_root(tmp_path)
+    output_root = tmp_path / "project-seeded"
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--framework-root",
+            str(framework_root),
+            "--output-root",
+            str(output_root),
+            "--project-id",
+            "home-lab",
+            "--seed-project-root",
+            str(seed_root),
+            "--force",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stdout + "\n" + run.stderr
+    assert (output_root / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml").exists()
+    assert (output_root / "secrets" / "instances" / "vm.seed.yaml").exists()
+    assert (output_root / "overrides" / "ansible" / "inventory-overrides" / "production" / "group_vars.yml").exists()

@@ -62,6 +62,12 @@ def parse_args() -> argparse.Namespace:
         help="Minimum compatible framework version.",
     )
     parser.add_argument(
+        "--seed-project-root",
+        type=Path,
+        default=None,
+        help="Optional existing project root to copy instances/secrets/overrides from.",
+    )
+    parser.add_argument(
         "--framework-submodule-url",
         default="",
         help="Optional framework repository URL/path for git submodule wiring.",
@@ -145,6 +151,18 @@ def _wire_framework_submodule(
     return submodule_root
 
 
+def _copy_tree_if_exists(*, source_root: Path, target_root: Path, relative: str, force: bool) -> None:
+    source = source_root / relative
+    if not source.exists():
+        return
+    destination = target_root / relative
+    if destination.exists():
+        if not force:
+            return
+        shutil.rmtree(destination)
+    shutil.copytree(source, destination)
+
+
 def _detect_framework_manifest(framework_root: Path) -> tuple[Path, str]:
     monorepo_manifest = framework_root / "v5" / "topology" / "framework.yaml"
     extracted_manifest = framework_root / "framework.yaml"
@@ -181,6 +199,7 @@ def main() -> int:
     project_id = str(args.project_id).strip()
     submodule_url = str(args.framework_submodule_url).strip()
     submodule_mount = str(args.framework_submodule_path).strip() or "framework"
+    seed_project_root = args.seed_project_root.resolve() if isinstance(args.seed_project_root, Path) else None
     if not project_id:
         print("ERROR: --project-id must be non-empty")
         return 2
@@ -241,6 +260,25 @@ def main() -> int:
     (output_root / "secrets").mkdir(parents=True, exist_ok=True)
     (output_root / "overrides").mkdir(parents=True, exist_ok=True)
     (output_root / "generated").mkdir(parents=True, exist_ok=True)
+    if seed_project_root is not None:
+        _copy_tree_if_exists(
+            source_root=seed_project_root,
+            target_root=output_root,
+            relative="instances",
+            force=bool(args.force),
+        )
+        _copy_tree_if_exists(
+            source_root=seed_project_root,
+            target_root=output_root,
+            relative="secrets",
+            force=bool(args.force),
+        )
+        _copy_tree_if_exists(
+            source_root=seed_project_root,
+            target_root=output_root,
+            relative="overrides",
+            force=bool(args.force),
+        )
 
     template_root = Path(__file__).resolve().parents[2] / "docs" / "framework" / "templates"
     validate_template = template_root / "project-validate.yml"
@@ -290,6 +328,7 @@ def main() -> int:
                 "",
                 f"- framework_submodule_url: {submodule_url or '<not-set>'}",
                 f"- framework_submodule_path: {submodule_mount}",
+                f"- seed_project_root: {str(seed_project_root) if seed_project_root else '<not-set>'}",
                 "",
                 "Next steps:",
                 f"1. Add framework as git submodule under ./{submodule_mount} (or keep existing wiring).",
