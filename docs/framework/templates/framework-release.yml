@@ -21,38 +21,54 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Resolve framework layout
+        run: |
+          if [ -f framework.yaml ] && [ -d topology-tools ]; then
+            echo "FRAMEWORK_MANIFEST=framework.yaml" >> "$GITHUB_ENV"
+            echo "FRAMEWORK_TOOLS=topology-tools" >> "$GITHUB_ENV"
+            echo "TEST_ROOT=tests" >> "$GITHUB_ENV"
+          else
+            echo "FRAMEWORK_MANIFEST=v5/topology/framework.yaml" >> "$GITHUB_ENV"
+            echo "FRAMEWORK_TOOLS=v5/topology-tools" >> "$GITHUB_ENV"
+            echo "TEST_ROOT=v5/tests" >> "$GITHUB_ENV"
+          fi
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .[dev]
+          python -m pip install pyyaml pytest
 
       - name: Run framework-focused tests
         run: |
           python -m pytest -o addopts= \
-            v5/tests/plugin_api \
-            v5/tests/plugin_contract \
-            v5/tests/plugin_integration/test_framework_lock.py \
-            v5/tests/plugin_integration/test_build_framework_distribution.py \
-            v5/tests/plugin_integration/test_extract_framework_worktree.py
+            "$TEST_ROOT/plugin_api" \
+            "$TEST_ROOT/plugin_contract" \
+            "$TEST_ROOT/plugin_integration/test_framework_lock.py" \
+            "$TEST_ROOT/plugin_integration/test_build_framework_distribution.py" \
+            "$TEST_ROOT/plugin_integration/test_extract_framework_worktree.py" \
+            "$TEST_ROOT/plugin_integration/test_extract_framework_history.py"
 
       - name: Build framework distribution
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          python v5/topology-tools/build-framework-distribution.py \
+          python "$FRAMEWORK_TOOLS/build-framework-distribution.py" \
+            --repo-root . \
+            --framework-manifest "$FRAMEWORK_MANIFEST" \
+            --output-root framework-dist \
             --version "$VERSION" \
             --archive-format both
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          path: v5-dist/framework
+          path: framework-dist
           format: spdx-json
-          output-file: v5-dist/framework/sbom.spdx.json
+          output-file: framework-dist/sbom.spdx.json
 
       - name: Generate provenance placeholder
         run: |
-          mkdir -p v5-dist/framework/provenance
-          cat > v5-dist/framework/provenance/provenance.json <<'JSON'
+          mkdir -p framework-dist/provenance
+          cat > framework-dist/provenance/provenance.json <<'JSON'
           {
             "schema_version": 1,
             "predicate_type": "https://slsa.dev/provenance/v1",
@@ -60,8 +76,23 @@ jobs:
           }
           JSON
 
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign checksums
+        run: |
+          CHECKSUM_FILE="$(find framework-dist -name checksums.sha256 | head -n1)"
+          if [ -z "$CHECKSUM_FILE" ]; then
+            echo "checksums.sha256 not found"
+            exit 1
+          fi
+          cosign sign-blob --yes \
+            --output-signature "${CHECKSUM_FILE}.sig" \
+            --output-certificate "${CHECKSUM_FILE}.crt" \
+            "$CHECKSUM_FILE"
+
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
           name: framework-release-${{ github.ref_name }}
-          path: v5-dist/framework/**
+          path: framework-dist/**

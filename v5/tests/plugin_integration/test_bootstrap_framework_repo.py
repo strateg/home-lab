@@ -70,3 +70,40 @@ def test_bootstrap_framework_repo_outputs_expected_layout(tmp_path: Path) -> Non
     assert (output_root / "tests" / "plugin_api" / "test_api.py").exists()
     assert (output_root / ".github" / "workflows" / "release.yml").exists()
     assert (output_root / "BOOTSTRAP-NOTES.md").exists()
+
+
+def test_bootstrap_framework_repo_preserve_history_mode(tmp_path: Path) -> None:
+    source_root = _fake_repo(tmp_path)
+    output_root = tmp_path / "framework-repo-history"
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--repo-root",
+            str(source_root),
+            "--output-root",
+            str(output_root),
+            "--include-tests",
+            "--preserve-history",
+            "--force",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stdout + "\n" + run.stderr
+    assert (output_root / ".git").exists()
+    assert (output_root / "framework.yaml").exists()
+
+    commits = subprocess.run(
+        ["git", "rev-list", "--count", "HEAD"],
+        cwd=output_root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert commits.returncode == 0, commits.stdout + "\n" + commits.stderr
+    assert int((commits.stdout or "0").strip()) >= 2
+
+    notes = (output_root / "BOOTSTRAP-NOTES.md").read_text(encoding="utf-8")
+    assert "preserve_history: True" in notes

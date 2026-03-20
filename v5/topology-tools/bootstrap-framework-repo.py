@@ -55,6 +55,11 @@ def parse_args() -> argparse.Namespace:
         help="Overwrite output directory when it already exists.",
     )
     parser.add_argument(
+        "--preserve-history",
+        action="store_true",
+        help="Use history-preserving extraction flow (git filter-based).",
+    )
+    parser.add_argument(
         "--init-git",
         action="store_true",
         help="Initialize git repository and create initial commit in output root.",
@@ -71,9 +76,10 @@ def main() -> int:
     source_repo = args.repo_root.resolve()
     output_root = args.output_root.resolve()
 
-    extract_script = source_repo / "v5" / "topology-tools" / "extract-framework-worktree.py"
+    extract_script_name = "extract-framework-history.py" if args.preserve_history else "extract-framework-worktree.py"
+    extract_script = source_repo / "v5" / "topology-tools" / extract_script_name
     if not extract_script.exists():
-        fallback_script = Path(__file__).resolve().parent / "extract-framework-worktree.py"
+        fallback_script = Path(__file__).resolve().parent / extract_script_name
         if fallback_script.exists():
             extract_script = fallback_script
         else:
@@ -115,6 +121,7 @@ def main() -> int:
                 f"- source_repo: {source_repo}",
                 f"- source_revision: {_git_revision(source_repo)}",
                 f"- include_tests: {bool(args.include_tests)}",
+                f"- preserve_history: {bool(args.preserve_history)}",
                 "",
                 "Next steps:",
                 "1. Review extracted files and release workflow.",

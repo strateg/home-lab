@@ -29,15 +29,28 @@ class BuildConfig:
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    tools_dir = Path(__file__).resolve().parent
+    parent = tools_dir.parent
+    if (parent / "framework.yaml").exists():
+        return parent
+    if parent.name == "v5":
+        return parent.parent
+    return parent.parent
 
 
 def _default_framework_manifest() -> Path:
-    return _default_repo_root() / "v5" / "topology" / "framework.yaml"
+    repo_root = _default_repo_root()
+    extracted_manifest = repo_root / "framework.yaml"
+    if extracted_manifest.exists():
+        return extracted_manifest
+    return repo_root / "v5" / "topology" / "framework.yaml"
 
 
 def _default_output_root() -> Path:
-    return _default_repo_root() / "v5-dist" / "framework"
+    repo_root = _default_repo_root()
+    if (repo_root / "v5").exists():
+        return repo_root / "v5-dist" / "framework"
+    return repo_root / "dist" / "framework"
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:

@@ -23,6 +23,15 @@ def _load_module():
     return module
 
 
+def _load_module_from(path: Path):
+    spec = importlib.util.spec_from_file_location("build_framework_distribution_extracted", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def test_build_distribution_creates_archives_manifest_and_checksums(tmp_path: Path):
     mod = _load_module()
     repo_root = tmp_path / "repo"
@@ -82,3 +91,20 @@ def test_build_distribution_creates_archives_manifest_and_checksums(tmp_path: Pa
     file_paths = {item["path"] for item in payload["files"]}
     assert "v5/topology/class-modules.yaml" in file_paths
     assert "v5/topology-tools/tool.py" in file_paths
+
+
+def test_default_paths_detect_extracted_layout(tmp_path: Path):
+    framework_root = tmp_path / "framework"
+    tools_root = framework_root / "topology-tools"
+    tools_root.mkdir(parents=True, exist_ok=True)
+
+    framework_manifest = framework_root / "framework.yaml"
+    framework_manifest.write_text("schema_version: 1\nframework_id: test\n", encoding="utf-8")
+
+    copied_script = tools_root / "build-framework-distribution.py"
+    copied_script.write_text(SCRIPT_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    mod = _load_module_from(copied_script)
+
+    assert mod._default_repo_root() == framework_root
+    assert mod._default_framework_manifest() == framework_manifest
+    assert mod._default_output_root() == framework_root / "dist" / "framework"
