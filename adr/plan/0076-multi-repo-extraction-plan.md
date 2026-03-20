@@ -535,3 +535,4 @@ Wave 4 (Cutover) ◄───────────────────┘
 Wave 3 incremental progress (2026-03-20):
 
 1. strict `framework.lock` verification wired into current CI entrypoints before lane/compile execution.
+2. operator workflow document added: `docs/framework/OPERATOR-WORKFLOWS.md`.

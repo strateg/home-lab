@@ -146,6 +146,7 @@ See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete gui
 |----------|-------------|--------|
 | [FRAMEWORK-V5.md](framework/FRAMEWORK-V5.md) | Framework/project contract, paths, commands, diagnostics | NEW |
 | [SUBMODULE-ROLL-OUT.md](framework/SUBMODULE-ROLL-OUT.md) | Submodule-first rollout for framework + project repos | NEW |
+| [OPERATOR-WORKFLOWS.md](framework/OPERATOR-WORKFLOWS.md) | Lock verify/update/rollback workflows for strict runtime | NEW |
 
 ### Runbooks
 

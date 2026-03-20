@@ -200,3 +200,4 @@ python v5/topology-tools/verify-framework-lock.py --strict
 - `v5/topology-tools/docs/MANUAL-ARTIFACT-BUILD.md`
 - `docs/release-notes/2026-03-20-v5-framework-project-cutover.md`
 - `docs/framework/SUBMODULE-ROLL-OUT.md`
+- `docs/framework/OPERATOR-WORKFLOWS.md`
