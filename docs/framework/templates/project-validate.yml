@@ -23,19 +23,29 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml jsonschema jinja2
 
+      - name: Resolve framework paths
+        run: |
+          if [ -f framework/topology-tools/verify-framework-lock.py ]; then
+            echo "FRAMEWORK_TOOLS=framework/topology-tools" >> "$GITHUB_ENV"
+            echo "FRAMEWORK_MANIFEST=framework/framework.yaml" >> "$GITHUB_ENV"
+          else
+            echo "FRAMEWORK_TOOLS=framework/v5/topology-tools" >> "$GITHUB_ENV"
+            echo "FRAMEWORK_MANIFEST=framework/v5/topology/framework.yaml" >> "$GITHUB_ENV"
+          fi
+
       - name: Verify framework lock
         run: |
-          python framework/v5/topology-tools/verify-framework-lock.py \
+          python "$FRAMEWORK_TOOLS/verify-framework-lock.py" \
             --strict \
             --project-root . \
             --project-manifest ./project.yaml \
             --framework-root ./framework \
-            --framework-manifest ./framework/v5/topology/framework.yaml \
+            --framework-manifest "$FRAMEWORK_MANIFEST" \
             --lock-file ./framework.lock.yaml
 
       - name: Compile topology
         run: |
-          python framework/v5/topology-tools/compile-topology.py \
+          python "$FRAMEWORK_TOOLS/compile-topology.py" \
             --repo-root . \
             --topology ./topology.yaml \
             --secrets-mode passthrough \

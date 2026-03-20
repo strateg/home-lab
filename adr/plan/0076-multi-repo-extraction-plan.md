@@ -541,6 +541,7 @@ Wave 3 incremental progress (2026-03-20):
 4. `compile-topology.py` supports `--repo-root` override and `framework.root` for external project repos.
 5. added project repository bootstrap utility: `v5/topology-tools/bootstrap-project-repo.py`.
 6. lock/bootstrap runtime supports both monorepo and extracted framework manifest layouts.
+7. project CI workflow template now autodetects framework tools path for both layouts.
 
 Wave 4 incremental progress (2026-03-20):
 

@@ -124,7 +124,13 @@ python v5/topology-tools/compile-topology.py `
 Для external project-репозитория через submodule:
 
 ```powershell
-python framework/v5/topology-tools/compile-topology.py `
+if (Test-Path .\framework\topology-tools\compile-topology.py) {
+  $frameworkTools = ".\framework\topology-tools"
+} else {
+  $frameworkTools = ".\framework\v5\topology-tools"
+}
+
+python "$frameworkTools/compile-topology.py" `
   --repo-root . `
   --topology .\topology.yaml `
   --secrets-mode passthrough
