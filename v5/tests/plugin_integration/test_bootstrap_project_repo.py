@@ -18,6 +18,18 @@ def _write(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def _git(path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", *args], cwd=path, text=True, capture_output=True, check=False)
+
+
+def _git_init_and_commit(path: Path) -> None:
+    assert _git(path, "init").returncode == 0
+    assert _git(path, "config", "user.name", "Test User").returncode == 0
+    assert _git(path, "config", "user.email", "test@example.com").returncode == 0
+    assert _git(path, "add", ".").returncode == 0
+    assert _git(path, "commit", "-m", "fixture").returncode == 0
+
+
 def _fake_framework_repo(tmp_path: Path) -> Path:
     root = tmp_path / "framework"
     _write(
@@ -119,4 +131,36 @@ def test_bootstrap_project_repo_supports_extracted_framework_layout(tmp_path: Pa
     framework_payload = topology_payload["framework"]
     assert framework_payload["class_modules_root"] == "framework/class-modules"
     assert framework_payload["object_modules_root"] == "framework/object-modules"
+    assert (output_root / "framework.lock.yaml").exists()
+
+
+def test_bootstrap_project_repo_can_wire_framework_submodule(tmp_path: Path) -> None:
+    framework_root = _fake_extracted_framework_repo(tmp_path)
+    _git_init_and_commit(framework_root)
+
+    output_root = tmp_path / "project-submodule"
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--framework-root",
+            str(framework_root),
+            "--output-root",
+            str(output_root),
+            "--project-id",
+            "home-lab",
+            "--init-git",
+            "--framework-submodule-url",
+            str(framework_root),
+            "--framework-submodule-path",
+            "framework",
+            "--force",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stdout + "\n" + run.stderr
+    assert (output_root / ".gitmodules").exists()
+    assert (output_root / "framework" / "framework.yaml").exists()
     assert (output_root / "framework.lock.yaml").exists()

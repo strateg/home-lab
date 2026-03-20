@@ -211,6 +211,9 @@ python v5/topology-tools/bootstrap-project-repo.py `
   --framework-root . `
   --output-root v5-build/project-bootstrap/new-project `
   --project-id new-project `
+  --init-git `
+  --framework-submodule-url https://github.com/<org>/infra-topology-framework.git `
+  --framework-submodule-path framework `
   --force
 ```
 

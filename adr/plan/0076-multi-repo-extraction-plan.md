@@ -543,6 +543,7 @@ Wave 3 incremental progress (2026-03-20):
 6. lock/bootstrap runtime supports both monorepo and extracted framework manifest layouts.
 7. project CI workflow template now autodetects framework tools path for both layouts.
 8. compiler supports root-level `project.yaml` fallback when `projects_root: "."` (external project repo layout).
+9. bootstrap-project utility can initialize git repo and wire framework submodule directly (`--framework-submodule-url`).
 
 Wave 4 incremental progress (2026-03-20):
 

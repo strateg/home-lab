@@ -55,6 +55,9 @@ python v5/topology-tools/bootstrap-project-repo.py \
   --framework-root <framework-source-root> \
   --output-root <new-project-repo-root> \
   --project-id home-lab \
+  --init-git \
+  --framework-submodule-url <infra-topology-framework-url> \
+  --framework-submodule-path framework \
   --force
 ```
 

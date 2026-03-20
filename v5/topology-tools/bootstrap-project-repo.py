@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import yaml
+
+from framework_lock import default_framework_manifest_path
 
 
 def _default_repo_root() -> Path:
@@ -59,6 +62,21 @@ def parse_args() -> argparse.Namespace:
         help="Minimum compatible framework version.",
     )
     parser.add_argument(
+        "--framework-submodule-url",
+        default="",
+        help="Optional framework repository URL/path for git submodule wiring.",
+    )
+    parser.add_argument(
+        "--framework-submodule-path",
+        default="framework",
+        help="Submodule mount path inside project repository (default: framework).",
+    )
+    parser.add_argument(
+        "--init-git",
+        action="store_true",
+        help="Initialize git repository in output root before optional submodule wiring.",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Overwrite existing files when present.",
@@ -78,8 +96,53 @@ def _write_if_missing(path: Path, content: str, *, force: bool) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, text=True, capture_output=True, check=False)
+def _run(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, text=True, capture_output=True, check=False, cwd=cwd)
+
+
+def _ensure_git_repo(output_root: Path) -> None:
+    if (output_root / ".git").exists():
+        return
+    initialized = _run(["git", "init"], cwd=output_root)
+    if initialized.returncode != 0:
+        raise RuntimeError(f"cannot initialize git repo:\n{initialized.stdout}\n{initialized.stderr}")
+
+
+def _wire_framework_submodule(
+    *,
+    output_root: Path,
+    submodule_url: str,
+    submodule_path: str,
+    force: bool,
+) -> Path:
+    normalized_url = submodule_url.strip()
+    if not normalized_url:
+        return output_root
+
+    _ensure_git_repo(output_root)
+
+    mount = submodule_path.strip() or "framework"
+    submodule_root = output_root / mount
+    git_marker = submodule_root / ".git"
+    if submodule_root.exists() and not git_marker.exists() and force:
+        shutil.rmtree(submodule_root)
+
+    if not submodule_root.exists():
+        added = _run(
+            ["git", "-c", "protocol.file.allow=always", "submodule", "add", normalized_url, mount],
+            cwd=output_root,
+        )
+        if added.returncode != 0:
+            raise RuntimeError(f"cannot add framework submodule:\n{added.stdout}\n{added.stderr}")
+
+    updated = _run(
+        ["git", "-c", "protocol.file.allow=always", "submodule", "update", "--init", "--recursive", mount],
+        cwd=output_root,
+    )
+    if updated.returncode != 0:
+        raise RuntimeError(f"cannot update framework submodule:\n{updated.stdout}\n{updated.stderr}")
+
+    return submodule_root
 
 
 def _detect_framework_manifest(framework_root: Path) -> tuple[Path, str]:
@@ -94,13 +157,13 @@ def _detect_framework_manifest(framework_root: Path) -> tuple[Path, str]:
     )
 
 
-def _topology_framework_section(layout: str) -> dict[str, str]:
+def _topology_framework_section(layout: str, *, framework_mount: str) -> dict[str, str]:
     if layout == "monorepo":
-        prefix = "framework/v5/topology"
+        prefix = f"{framework_mount}/v5/topology"
     else:
-        prefix = "framework"
+        prefix = framework_mount
     return {
-        "root": "framework",
+        "root": framework_mount,
         "class_modules_root": f"{prefix}/class-modules",
         "object_modules_root": f"{prefix}/object-modules",
         "model_lock": f"{prefix}/model.lock.yaml",
@@ -116,17 +179,39 @@ def main() -> int:
     framework_root = args.framework_root.resolve()
     output_root = args.output_root.resolve()
     project_id = str(args.project_id).strip()
+    submodule_url = str(args.framework_submodule_url).strip()
+    submodule_mount = str(args.framework_submodule_path).strip() or "framework"
     if not project_id:
         print("ERROR: --project-id must be non-empty")
         return 2
 
     try:
-        framework_manifest, framework_layout = _detect_framework_manifest(framework_root)
+        _framework_manifest, framework_layout = _detect_framework_manifest(framework_root)
     except FileNotFoundError as exc:
         print(f"ERROR: {exc}")
         return 2
 
     output_root.mkdir(parents=True, exist_ok=True)
+    if args.init_git:
+        try:
+            _ensure_git_repo(output_root)
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}")
+            return 2
+
+    framework_root_for_lock = framework_root
+    if submodule_url:
+        try:
+            framework_root_for_lock = _wire_framework_submodule(
+                output_root=output_root,
+                submodule_url=submodule_url,
+                submodule_path=submodule_mount,
+                force=bool(args.force),
+            )
+        except RuntimeError as exc:
+            print(f"ERROR: {exc}")
+            return 2
+
     topology_path = output_root / "topology.yaml"
     project_manifest_path = output_root / "project.yaml"
     lock_path = output_root / "framework.lock.yaml"
@@ -134,7 +219,7 @@ def main() -> int:
     topology_payload = {
         "version": "5.0.0",
         "model": "class-object-instance",
-        "framework": _topology_framework_section(framework_layout),
+        "framework": _topology_framework_section(framework_layout, framework_mount=submodule_mount),
         "project": {
             "active": project_id,
             "projects_root": ".",
@@ -179,9 +264,9 @@ def main() -> int:
             "--project-manifest",
             str(project_manifest_path),
             "--framework-root",
-            str(framework_root),
+            str(framework_root_for_lock),
             "--framework-manifest",
-            str(framework_manifest),
+            str(default_framework_manifest_path(framework_root_for_lock)),
             "--lock-file",
             str(lock_path),
             "--force",
@@ -194,15 +279,20 @@ def main() -> int:
         return generate.returncode
 
     notes = output_root / "BOOTSTRAP-NOTES.md"
-    tools_prefix = "framework/v5/topology-tools" if framework_layout == "monorepo" else "framework/topology-tools"
+    tools_prefix = (
+        f"{submodule_mount}/v5/topology-tools" if framework_layout == "monorepo" else f"{submodule_mount}/topology-tools"
+    )
     _write_if_missing(
         notes,
         "\n".join(
             [
                 "# Project Repo Bootstrap Notes",
                 "",
+                f"- framework_submodule_url: {submodule_url or '<not-set>'}",
+                f"- framework_submodule_path: {submodule_mount}",
+                "",
                 "Next steps:",
-                "1. Add framework as git submodule under ./framework",
+                f"1. Add framework as git submodule under ./{submodule_mount} (or keep existing wiring).",
                 "2. Update validate workflow secrets/runner settings as needed",
                 "3. Run strict gates:",
                 f"   - python {tools_prefix}/verify-framework-lock.py --strict",
