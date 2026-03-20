@@ -547,6 +547,7 @@ Wave 3 incremental progress (2026-03-20):
 10. local integration coverage added for submodule wiring bootstrap flow (`test_bootstrap_project_repo_can_wire_framework_submodule`).
 11. added seeded bootstrap mode (`--seed-project-root`) to copy real instances/secrets/overrides into external project repo rehearsal.
 12. local external-project rehearsal passed with extracted framework submodule (`verify-framework-lock` + `compile-topology` -> `PASS`).
+13. GitHub-backed submodule rehearsal passed for lock verification and compile in `passthrough` secrets mode (`bootstrap-project-repo.py --framework-submodule-url https://github.com/strateg/infra-topology-framework.git --seed-project-root v5/projects/home-lab`; `verify-framework-lock --strict` -> `OK`, `compile-topology --secrets-mode passthrough` -> `PASS`).
 
 Wave 4 incremental progress (2026-03-20):
 
