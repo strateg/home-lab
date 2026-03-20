@@ -152,6 +152,8 @@ python v5/topology-tools/generate-framework-lock.py --force
 python v5/topology-tools/verify-framework-lock.py --strict
 ```
 
+`compile-topology.py` в strict-runtime выполняет ту же проверку lock автоматически перед загрузкой модулей.
+
 ---
 
 ## 7. Добавление нового проекта

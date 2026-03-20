@@ -213,11 +213,11 @@ E7828:
 
 ### Definition of Done (Wave 0)
 
-1. [ ] `framework.yaml` created and schema documented
-2. [ ] `framework.lock.yaml` template created
-3. [ ] E7821-E7828 registered in error catalog
-4. [ ] Compatibility contract fields mapped to ADR 0075 requirements
-5. [ ] Existing tests remain green
+1. [x] `framework.yaml` created and schema documented
+2. [x] `framework.lock.yaml` template created
+3. [x] E7821-E7828 registered in error catalog
+4. [x] Compatibility contract fields mapped to ADR 0075 requirements
+5. [x] Existing tests remain green
 
 ---
 
@@ -262,11 +262,11 @@ Standardize one verification entrypoint to avoid drift:
 
 ### Definition of Done (Wave 1)
 
-1. [ ] Lock loader implemented with tests
-2. [ ] Compiler enforces strict lock by default
-3. [ ] Lock generator utility working
-4. [ ] Integration tests for E7822/E7823/E7824/E7825/E7826/E7828
-5. [ ] Negative tests for tampered lock and missing attestation
+1. [x] Lock loader implemented with tests
+2. [x] Compiler enforces strict lock by default
+3. [x] Lock generator utility working
+4. [x] Integration tests for E7822/E7823/E7824/E7825/E7826/E7828
+5. [x] Negative tests for tampered lock and missing attestation
 
 ---
 
@@ -526,8 +526,8 @@ Wave 4 (Cutover) ◄───────────────────┘
 
 ## Execution Status
 
-- [ ] Wave 0: Preparation and Baseline Lock
-- [ ] Wave 1: Lock Verification Runtime
+- [x] Wave 0: Preparation and Baseline Lock
+- [x] Wave 1: Lock Verification Runtime
 - [ ] Wave 2: Framework Repository Extraction
 - [ ] Wave 3: Project Repository Restructure
 - [ ] Wave 4: Cutover and Validation

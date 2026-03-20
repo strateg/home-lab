@@ -28,6 +28,8 @@ from compiler_runtime import (
     load_core_compile_inputs,
     resolve_manifest_paths,
 )
+from framework_lock import resolve_paths as resolve_framework_lock_paths
+from framework_lock import verify_framework_lock
 from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +44,7 @@ DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
 SUPPORTED_INSTANCE_SOURCE_MODES = ("auto", "sharded-only")
 SUPPORTED_SECRETS_MODES = ("inject", "passthrough", "strict")
+FRAMEWORK_LOCK_LOAD_CODES = {"E7821", "E7822"}
 REQUIRED_FRAMEWORK_KEYS = (
     "class_modules_root",
     "object_modules_root",
@@ -398,6 +401,57 @@ class V5Compiler:
             return None
         return payload
 
+    def _verify_framework_lock(
+        self,
+        *,
+        project_id: str,
+        project_root: Path,
+        project_manifest_path: Path,
+    ) -> bool:
+        try:
+            lock_paths = resolve_framework_lock_paths(
+                repo_root=REPO_ROOT,
+                topology_path=self.manifest_path,
+                project_id=project_id,
+                project_root=project_root,
+                project_manifest_path=project_manifest_path,
+                framework_root=REPO_ROOT,
+                framework_manifest_path=REPO_ROOT / "v5" / "topology" / "framework.yaml",
+                lock_path=None,
+            )
+        except (OSError, ValueError) as exc:
+            self.add_diag(
+                code="E7827",
+                severity="error",
+                stage="load",
+                message=f"framework lock path resolution failed: {exc}",
+                path=self._path_for_diag(self.manifest_path),
+            )
+            return False
+
+        try:
+            verification = verify_framework_lock(paths=lock_paths, strict=True)
+        except (OSError, ValueError) as exc:
+            self.add_diag(
+                code="E7827",
+                severity="error",
+                stage="validate",
+                message=f"framework lock verification failed: {exc}",
+                path=self._path_for_diag(lock_paths.lock_path),
+            )
+            return False
+
+        for item in verification.diagnostics:
+            stage = "load" if item.code in FRAMEWORK_LOCK_LOAD_CODES else "validate"
+            self.add_diag(
+                code=item.code,
+                severity=item.severity,
+                stage=stage,
+                message=item.message,
+                path=item.path,
+            )
+        return verification.ok
+
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
         plugin_stats = self._plugin_registry.get_stats() if self._plugin_registry else None
         plugin_manifests = self._plugin_registry.manifests if self._plugin_registry else None
@@ -539,6 +593,15 @@ class V5Compiler:
                     path=f"{self._path_for_diag(project_manifest_path)}:{key}",
                 )
         if any(item.severity == "error" for item in self._diagnostics):
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
+
+        if not self._verify_framework_lock(
+            project_id=project_id,
+            project_root=project_root,
+            project_manifest_path=project_manifest_path,
+        ):
             total, errors, warnings, infos = self._write_diagnostics()
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1

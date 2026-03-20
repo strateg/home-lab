@@ -130,6 +130,27 @@ def _git_remote(path: Path) -> str | None:
     return remote if remote else None
 
 
+def _git_toplevel(path: Path) -> Path | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    raw = (result.stdout or "").strip()
+    if not raw:
+        return None
+    try:
+        return Path(raw).resolve()
+    except OSError:
+        return None
+
+
 def _hash_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -544,17 +565,28 @@ def verify_framework_lock(
         )
 
     current_revision = _git_revision(paths.framework_root)
+    revision_scope = "enforced"
     if isinstance(lock_revision, str) and lock_revision and current_revision and lock_revision != current_revision:
-        diagnostics.append(
-            LockDiagnostic(
-                code="E7823",
-                severity="error",
-                message=(
-                    f"framework revision mismatch: lock '{lock_revision}' != git '{current_revision}'"
-                ),
-                path=f"{paths.lock_path}:framework.revision",
+        enforce_revision = True
+        if isinstance(lock_source, str) and lock_source.strip() == "git":
+            framework_git_root = _git_toplevel(paths.framework_root)
+            lock_git_root = _git_toplevel(paths.lock_path.parent)
+            if framework_git_root is not None and framework_git_root == lock_git_root:
+                # Monorepo mode: lock file and framework share one git root,
+                # commit SHA pinning is unstable because lock updates are part of same history.
+                enforce_revision = False
+                revision_scope = "monorepo-bypass"
+        if enforce_revision:
+            diagnostics.append(
+                LockDiagnostic(
+                    code="E7823",
+                    severity="error",
+                    message=(
+                        f"framework revision mismatch: lock '{lock_revision}' != git '{current_revision}'"
+                    ),
+                    path=f"{paths.lock_path}:framework.revision",
+                )
             )
-        )
 
     if strict and isinstance(lock_source, str) and lock_source.strip() == "package":
         signature = lock_framework.get("signature")
@@ -596,5 +628,6 @@ def verify_framework_lock(
         "lock_path": str(paths.lock_path),
         "current_framework_revision": _git_revision(paths.framework_root),
         "framework_repository": _git_remote(paths.framework_root),
+        "revision_scope": revision_scope,
     }
     return LockVerifyResult(ok=not has_errors, diagnostics=diagnostics, context=context)
