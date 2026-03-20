@@ -177,6 +177,7 @@ python v5/topology-tools/cutover-readiness-report.py --quick
 ```
 
 `compile-topology.py` в strict-runtime выполняет ту же проверку lock автоматически перед загрузкой модулей.
+Подробный dry-run до production cutover: `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`.
 
 ---
 
@@ -235,4 +236,5 @@ python v5/topology-tools/bootstrap-project-repo.py `
 - `docs/release-notes/2026-03-20-v5-framework-project-cutover.md`
 - `docs/framework/SUBMODULE-ROLL-OUT.md`
 - `docs/framework/OPERATOR-WORKFLOWS.md`
+- `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`
 - `docs/framework/templates/framework-release.yml`

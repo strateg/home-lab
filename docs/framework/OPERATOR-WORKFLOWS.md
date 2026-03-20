@@ -104,6 +104,8 @@ python v5/topology-tools/verify-framework-lock.py --strict
 python v5/topology-tools/cutover-readiness-report.py --quick
 ```
 
+Полный e2e dry-run чеклист: `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`.
+
 Шаблон workflow для внешнего project-репозитория:
 
 - `docs/framework/templates/project-validate.yml`

@@ -1,7 +1,7 @@
 # ADR 0076: Framework Distribution and Multi-Repository Extraction (Stage 2)
 
 **Date:** 2026-03-20
-**Status:** Proposed
+**Status:** Accepted
 **Depends on:** ADR 0075
 
 ---
@@ -188,4 +188,5 @@ Trade-offs:
 - ADR 0075: monorepo framework/project boundary (required precursor)
 - ADR 0074: generator architecture in project-aware runtime
 - Diagnostics catalog: `docs/diagnostics-catalog.md`
+- Cutover dry-run runbook: `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`
 - Implementation plan: `adr/plan/0076-multi-repo-extraction-plan.md`

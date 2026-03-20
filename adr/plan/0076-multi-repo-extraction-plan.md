@@ -1,7 +1,7 @@
 # ADR 0076: Multi-Repository Extraction Plan
 
 **Date:** 2026-03-20
-**Status:** Draft
+**Status:** Active
 **Prerequisite:** ADR 0075 completed (2026-03-20)
 **Depends on:** ADR 0074, ADR 0075
 
@@ -442,6 +442,7 @@ Document and test:
 3. [x] Rollback procedure verified
 4. [ ] Production cutover complete
 5. [x] No legacy/fallback execution paths remain in runtime entrypoints
+6. [x] E2E dry-run runbook documented for pre-cutover rehearsal
 
 ---
 
@@ -539,6 +540,7 @@ Wave 3 incremental progress (2026-03-20):
 3. external project CI template added: `docs/framework/templates/project-validate.yml`.
 4. `compile-topology.py` supports `--repo-root` override and `framework.root` for external project repos.
 5. added project repository bootstrap utility: `v5/topology-tools/bootstrap-project-repo.py`.
+6. lock/bootstrap runtime supports both monorepo and extracted framework manifest layouts.
 
 Wave 4 incremental progress (2026-03-20):
 
@@ -550,6 +552,7 @@ Wave 4 incremental progress (2026-03-20):
 6. strict runtime entrypoint audit utility added and wired into primary CI workflows.
 7. local full validation run passed (`python -m pytest -o addopts= v5/tests -q` -> `294 passed`; `lane.py validate-v5` -> `PASS`).
 8. added cutover readiness reporting utility: `v5/topology-tools/cutover-readiness-report.py`.
+9. added e2e dry-run runbook: `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`.
 
 Wave 2 incremental progress (2026-03-20):
 
