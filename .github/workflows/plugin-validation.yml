@@ -267,6 +267,9 @@ jobs:
           )
           echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
 
+      - name: Verify framework lock (strict)
+        run: python v5/topology-tools/verify-framework-lock.py --strict
+
       - name: Install age and sops
         run: |
           sudo apt-get update

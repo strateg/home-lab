@@ -531,3 +531,7 @@ Wave 4 (Cutover) ◄───────────────────┘
 - [ ] Wave 2: Framework Repository Extraction
 - [ ] Wave 3: Project Repository Restructure
 - [ ] Wave 4: Cutover and Validation
+
+Wave 3 incremental progress (2026-03-20):
+
+1. strict `framework.lock` verification wired into current CI entrypoints before lane/compile execution.
