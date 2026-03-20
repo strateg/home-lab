@@ -190,6 +190,16 @@ python v5/topology-tools/audit-strict-runtime-entrypoints.py
 4. Запустить `lane.py validate-v5`.
 5. Прогнать компиляцию с `--artifacts-root` и проверить `v5-generated/<new-project>/...`.
 
+Или использовать bootstrap helper:
+
+```powershell
+python v5/topology-tools/bootstrap-project-repo.py `
+  --framework-root . `
+  --output-root v5-build/project-bootstrap/new-project `
+  --project-id new-project `
+  --force
+```
+
 ---
 
 ## 8. Диагностики и troubleshooting

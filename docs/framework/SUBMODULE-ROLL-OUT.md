@@ -48,6 +48,16 @@ git submodule add <infra-topology-framework-url> framework
 git submodule update --init --recursive
 ```
 
+Bootstrap helper for project skeleton + lock:
+
+```bash
+python v5/topology-tools/bootstrap-project-repo.py \
+  --framework-root <framework-source-root> \
+  --output-root <new-project-repo-root> \
+  --project-id home-lab \
+  --force
+```
+
 ### B) Create meta-repo with two submodules
 
 ```bash
