@@ -18,12 +18,20 @@ class DummyGenerator(BaseGenerator):
         return self.make_result([])
 
 
-def _ctx(tmp_path: Path, *, artifacts_root: Path, templates_root: Path | None = None) -> PluginContext:
+def _ctx(
+    tmp_path: Path,
+    *,
+    artifacts_root: Path,
+    templates_root: Path | None = None,
+    project_id: str | None = None,
+) -> PluginContext:
     config = {
         "generator_artifacts_root": str(artifacts_root),
     }
     if templates_root is not None:
         config["generator_templates_root"] = str(templates_root)
+    if project_id is not None:
+        config["project_id"] = project_id
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
@@ -57,3 +65,15 @@ def test_base_generator_renders_template_from_configured_root(tmp_path: Path) ->
 
     rendered = generator.render_template(ctx, "sample.j2", {"name": "home-lab"})
     assert rendered == "hello home-lab"
+
+
+def test_base_generator_qualifies_artifacts_root_by_project(tmp_path: Path) -> None:
+    artifacts_root = tmp_path / "artifacts"
+    generator = DummyGenerator("dummy.generator")
+    ctx = _ctx(tmp_path, artifacts_root=artifacts_root, project_id="home-lab")
+
+    output_path = generator.resolve_output_path(ctx, "terraform", "proxmox", "provider.tf")
+    generator.write_text_atomic(output_path, "resource \"x\" \"y\" {}")
+
+    assert output_path == artifacts_root / "home-lab" / "terraform" / "proxmox" / "provider.tf"
+    assert output_path.exists()

@@ -9,10 +9,21 @@ import uuid
 from pathlib import Path
 
 import pytest
+import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 COMPILER = REPO_ROOT / "v5" / "topology-tools" / "compile-topology.py"
 TOPOLOGY = REPO_ROOT / "v5" / "topology" / "topology.yaml"
+
+
+def _active_project_id() -> str:
+    payload = yaml.safe_load(TOPOLOGY.read_text(encoding="utf-8")) or {}
+    project = payload.get("project", {})
+    if isinstance(project, dict):
+        active = project.get("active")
+        if isinstance(active, str) and active.strip():
+            return active.strip()
+    return "home-lab"
 
 
 @pytest.fixture(scope="session")
@@ -55,4 +66,4 @@ def generated_artifacts_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
         f"stdout:\n{completed.stdout}\n"
         f"stderr:\n{completed.stderr}"
     )
-    return generated_root
+    return generated_root / _active_project_id()

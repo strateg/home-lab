@@ -16,13 +16,29 @@ class BaseGenerator(GeneratorPlugin):
     _template_env: Environment | None = None
     _template_root: Path | None = None
 
+    @staticmethod
+    def project_id(ctx: PluginContext) -> str | None:
+        value = ctx.config.get("project_id")
+        if isinstance(value, str):
+            project = value.strip()
+            if project:
+                return project
+        return None
+
     def artifacts_root(self, ctx: PluginContext) -> Path:
         value = ctx.config.get("generator_artifacts_root")
         if isinstance(value, str) and value.strip():
-            return Path(value)
-        if isinstance(ctx.output_dir, str) and ctx.output_dir:
-            return Path(ctx.output_dir)
-        return Path.cwd()
+            root = Path(value)
+        elif isinstance(ctx.output_dir, str) and ctx.output_dir:
+            root = Path(ctx.output_dir)
+        else:
+            root = Path.cwd()
+        project = self.project_id(ctx)
+        if not project:
+            return root
+        if root.name == project:
+            return root
+        return root / project
 
     def resolve_output_path(self, ctx: PluginContext, *parts: str) -> Path:
         return self.artifacts_root(ctx).joinpath(*parts)

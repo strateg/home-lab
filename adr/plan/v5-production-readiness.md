@@ -173,7 +173,7 @@ This revised plan adds:
 
 ### Phase 3 Definition of Done
 
-- [x] Proxmox Terraform output is generated in `v5-generated/terraform/proxmox/`.
+- [x] Proxmox Terraform output is generated in `v5-generated/<project>/terraform/proxmox/`.
 - [x] parity gate is green (or only approved diffs remain).
 
 ---
@@ -212,7 +212,7 @@ This revised plan adds:
 
 ### Phase 4 Definition of Done
 
-- [x] MikroTik Terraform output is generated in `v5-generated/terraform/mikrotik/`.
+- [x] MikroTik Terraform output is generated in `v5-generated/<project>/terraform/mikrotik/`.
 - [x] parity gate is green (or only approved diffs remain).
 
 ---
@@ -242,7 +242,7 @@ This revised plan adds:
 
 ### Phase 5 Definition of Done
 
-- [x] Ansible inventory output is generated in `v5-generated/ansible/inventory/production/`.
+- [x] Ansible inventory output is generated in `v5-generated/<project>/ansible/inventory/production/`.
 - [x] parity and inventory validation are green.
 
 ---
@@ -278,7 +278,7 @@ This revised plan adds:
 
 ### Phase 6 Definition of Done
 
-- [x] bootstrap artifacts are generated under `v5-generated/bootstrap/<device-id>/`.
+- [x] bootstrap artifacts are generated under `v5-generated/<project>/bootstrap/<device-id>/`.
 - [x] all committed bootstrap outputs are release-safe (no real secrets).
 
 ---
