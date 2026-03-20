@@ -24,6 +24,7 @@ def _ctx(
     artifacts_root: Path,
     templates_root: Path | None = None,
     project_id: str | None = None,
+    repo_root: Path | None = None,
 ) -> PluginContext:
     config = {
         "generator_artifacts_root": str(artifacts_root),
@@ -32,6 +33,8 @@ def _ctx(
         config["generator_templates_root"] = str(templates_root)
     if project_id is not None:
         config["project_id"] = project_id
+    if repo_root is not None:
+        config["repo_root"] = str(repo_root)
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
@@ -77,3 +80,29 @@ def test_base_generator_qualifies_artifacts_root_by_project(tmp_path: Path) -> N
 
     assert output_path == artifacts_root / "home-lab" / "terraform" / "proxmox" / "provider.tf"
     assert output_path.exists()
+
+
+def test_base_generator_resolves_default_templates_in_extracted_layout(tmp_path: Path) -> None:
+    repo_root = tmp_path / "framework"
+    templates_root = repo_root / "topology-tools" / "templates"
+    templates_root.mkdir(parents=True, exist_ok=True)
+    (templates_root / "sample.j2").write_text("hello {{ name }}", encoding="utf-8")
+
+    generator = DummyGenerator("dummy.generator")
+    ctx = _ctx(tmp_path, artifacts_root=tmp_path / "artifacts", repo_root=repo_root)
+
+    rendered = generator.render_template(ctx, "sample.j2", {"name": "framework"})
+    assert rendered == "hello framework"
+
+
+def test_base_generator_resolves_default_templates_in_monorepo_layout(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    templates_root = repo_root / "v5" / "topology-tools" / "templates"
+    templates_root.mkdir(parents=True, exist_ok=True)
+    (templates_root / "sample.j2").write_text("hello {{ name }}", encoding="utf-8")
+
+    generator = DummyGenerator("dummy.generator")
+    ctx = _ctx(tmp_path, artifacts_root=tmp_path / "artifacts", repo_root=repo_root)
+
+    rendered = generator.render_template(ctx, "sample.j2", {"name": "monorepo"})
+    assert rendered == "hello monorepo"

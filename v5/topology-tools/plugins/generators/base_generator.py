@@ -58,6 +58,15 @@ class BaseGenerator(GeneratorPlugin):
         raw = ctx.config.get("generator_templates_root")
         if isinstance(raw, str) and raw.strip():
             return Path(raw)
+        repo_root_raw = ctx.config.get("repo_root")
+        if isinstance(repo_root_raw, str) and repo_root_raw.strip():
+            repo_root = Path(repo_root_raw.strip())
+            extracted = repo_root / "topology-tools" / "templates"
+            if extracted.exists():
+                return extracted
+            monorepo = repo_root / "v5" / "topology-tools" / "templates"
+            if monorepo.exists():
+                return monorepo
         return Path("v5/topology-tools/templates")
 
     def template_env(self, ctx: PluginContext) -> Environment:
