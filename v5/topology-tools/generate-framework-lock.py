@@ -68,7 +68,7 @@ def parse_args() -> argparse.Namespace:
         "--framework-manifest",
         type=Path,
         default=None,
-        help="Framework manifest path (default: <framework-root>/v5/topology/framework.yaml).",
+        help="Framework manifest path (default: auto-detect <framework-root>/v5/topology/framework.yaml or <framework-root>/framework.yaml).",
     )
     parser.add_argument(
         "--lock-file",

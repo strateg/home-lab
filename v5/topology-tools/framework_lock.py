@@ -42,6 +42,16 @@ class ResolvedPaths:
     project_id: str
 
 
+def default_framework_manifest_path(framework_root: Path) -> Path:
+    monorepo_manifest = framework_root / "v5" / "topology" / "framework.yaml"
+    extracted_manifest = framework_root / "framework.yaml"
+    if monorepo_manifest.exists():
+        return monorepo_manifest
+    if extracted_manifest.exists():
+        return extracted_manifest
+    return monorepo_manifest
+
+
 def _load_yaml(path: Path) -> dict[str, Any]:
     payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     if not isinstance(payload, dict):
@@ -245,7 +255,7 @@ def resolve_paths(
     resolved_framework_manifest = (
         framework_manifest_path.resolve()
         if isinstance(framework_manifest_path, Path)
-        else resolved_framework_root / "v5" / "topology" / "framework.yaml"
+        else default_framework_manifest_path(resolved_framework_root)
     )
 
     resolved_project_root: Path | None = project_root.resolve() if isinstance(project_root, Path) else None

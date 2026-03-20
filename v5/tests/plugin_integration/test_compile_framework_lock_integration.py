@@ -144,3 +144,36 @@ def test_compile_fails_when_framework_integrity_mismatch(monkeypatch, tmp_path: 
 
     assert exit_code == 1
     assert any(diag.code == "E7824" for diag in compiler._diagnostics)
+
+
+def test_compile_lock_check_uses_extracted_framework_manifest_when_present(monkeypatch, tmp_path: Path) -> None:
+    mod = _load_compiler_module()
+    repo_root, topology_path, project_manifest_path, error_catalog_path = _create_minimal_repo(tmp_path)
+    monkeypatch.setattr(mod, "REPO_ROOT", repo_root)
+
+    _write_yaml(
+        repo_root / "framework-extracted" / "framework.yaml",
+        {
+            "schema_version": 1,
+            "framework_id": "home-lab-v5-framework",
+            "framework_api_version": "5.0.0",
+            "supported_project_schema_range": ">=1.0.0 <2.0.0",
+            "distribution": {
+                "layout_version": 1,
+                "include": [
+                    "framework.yaml",
+                ],
+            },
+        },
+    )
+
+    compiler = _create_compiler(mod, topology_path=topology_path, error_catalog_path=error_catalog_path)
+    ok = compiler._verify_framework_lock(
+        project_id="home-lab",
+        project_root=repo_root / "v5" / "projects" / "home-lab",
+        project_manifest_path=project_manifest_path,
+        framework_paths={"root": "framework-extracted"},
+    )
+    assert ok is False
+    assert any(diag.code == "E7822" for diag in compiler._diagnostics)
+    assert not any(diag.code == "E7821" for diag in compiler._diagnostics)

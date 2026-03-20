@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+import sys
 from pathlib import Path
 
 import yaml
@@ -81,6 +82,35 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, text=True, capture_output=True, check=False)
 
 
+def _detect_framework_manifest(framework_root: Path) -> tuple[Path, str]:
+    monorepo_manifest = framework_root / "v5" / "topology" / "framework.yaml"
+    extracted_manifest = framework_root / "framework.yaml"
+    if monorepo_manifest.exists():
+        return monorepo_manifest, "monorepo"
+    if extracted_manifest.exists():
+        return extracted_manifest, "extracted"
+    raise FileNotFoundError(
+        f"framework manifest not found in supported locations: {monorepo_manifest} or {extracted_manifest}"
+    )
+
+
+def _topology_framework_section(layout: str) -> dict[str, str]:
+    if layout == "monorepo":
+        prefix = "framework/v5/topology"
+    else:
+        prefix = "framework"
+    return {
+        "root": "framework",
+        "class_modules_root": f"{prefix}/class-modules",
+        "object_modules_root": f"{prefix}/object-modules",
+        "model_lock": f"{prefix}/model.lock.yaml",
+        "profile_map": f"{prefix}/profile-map.yaml",
+        "layer_contract": f"{prefix}/layer-contract.yaml",
+        "capability_catalog": f"{prefix}/class-modules/router/capability-catalog.yaml",
+        "capability_packs": f"{prefix}/class-modules/router/capability-packs.yaml",
+    }
+
+
 def main() -> int:
     args = parse_args()
     framework_root = args.framework_root.resolve()
@@ -90,9 +120,10 @@ def main() -> int:
         print("ERROR: --project-id must be non-empty")
         return 2
 
-    framework_manifest = framework_root / "v5" / "topology" / "framework.yaml"
-    if not framework_manifest.exists():
-        print(f"ERROR: framework manifest not found: {framework_manifest}")
+    try:
+        framework_manifest, framework_layout = _detect_framework_manifest(framework_root)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}")
         return 2
 
     output_root.mkdir(parents=True, exist_ok=True)
@@ -103,16 +134,7 @@ def main() -> int:
     topology_payload = {
         "version": "5.0.0",
         "model": "class-object-instance",
-        "framework": {
-            "root": "framework",
-            "class_modules_root": "framework/v5/topology/class-modules",
-            "object_modules_root": "framework/v5/topology/object-modules",
-            "model_lock": "framework/v5/topology/model.lock.yaml",
-            "profile_map": "framework/v5/topology/profile-map.yaml",
-            "layer_contract": "framework/v5/topology/layer-contract.yaml",
-            "capability_catalog": "framework/v5/topology/class-modules/router/capability-catalog.yaml",
-            "capability_packs": "framework/v5/topology/class-modules/router/capability-packs.yaml",
-        },
+        "framework": _topology_framework_section(framework_layout),
         "project": {
             "active": project_id,
             "projects_root": ".",
@@ -148,7 +170,7 @@ def main() -> int:
     generate_lock_script = script_root / "generate-framework-lock.py"
     generate = _run(
         [
-            "python",
+            sys.executable,
             str(generate_lock_script),
             "--repo-root",
             str(output_root),
@@ -172,6 +194,7 @@ def main() -> int:
         return generate.returncode
 
     notes = output_root / "BOOTSTRAP-NOTES.md"
+    tools_prefix = "framework/v5/topology-tools" if framework_layout == "monorepo" else "framework/topology-tools"
     _write_if_missing(
         notes,
         "\n".join(
@@ -182,8 +205,8 @@ def main() -> int:
                 "1. Add framework as git submodule under ./framework",
                 "2. Update validate workflow secrets/runner settings as needed",
                 "3. Run strict gates:",
-                "   - python framework/v5/topology-tools/verify-framework-lock.py --strict",
-                "   - python framework/v5/topology-tools/compile-topology.py --repo-root . --topology ./topology.yaml",
+                f"   - python {tools_prefix}/verify-framework-lock.py --strict",
+                f"   - python {tools_prefix}/compile-topology.py --repo-root . --topology ./topology.yaml",
                 "",
             ]
         ),

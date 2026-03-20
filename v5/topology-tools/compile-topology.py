@@ -28,6 +28,7 @@ from compiler_runtime import (
     load_core_compile_inputs,
     resolve_manifest_paths,
 )
+from framework_lock import default_framework_manifest_path
 from framework_lock import resolve_paths as resolve_framework_lock_paths
 from framework_lock import verify_framework_lock
 from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
@@ -423,7 +424,7 @@ class V5Compiler:
                 project_root=project_root,
                 project_manifest_path=project_manifest_path,
                 framework_root=lock_framework_root,
-                framework_manifest_path=lock_framework_root / "v5" / "topology" / "framework.yaml",
+                framework_manifest_path=default_framework_manifest_path(lock_framework_root),
                 lock_path=None,
             )
         except (OSError, ValueError) as exc:

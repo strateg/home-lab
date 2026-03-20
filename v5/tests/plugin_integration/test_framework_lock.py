@@ -354,3 +354,87 @@ def test_verify_detects_revision_mismatch_when_framework_is_external_repo(tmp_pa
     )
     assert verify.returncode != 0
     assert "E7823" in verify.stdout
+
+
+def test_generate_and_verify_support_extracted_framework_manifest_auto_detect(tmp_path: Path):
+    framework_root = tmp_path / "framework-repo"
+    project_root = tmp_path / "project-repo"
+    project_manifest = project_root / "project.yaml"
+    lock_path = project_root / "framework.lock.yaml"
+
+    _write_yaml(
+        framework_root / "framework.yaml",
+        {
+            "schema_version": 1,
+            "framework_id": "home-lab-v5-framework",
+            "framework_api_version": "5.0.0",
+            "supported_project_schema_range": ">=1.0.0 <2.0.0",
+            "distribution": {
+                "layout_version": 1,
+                "include": [
+                    "framework.yaml",
+                ],
+            },
+        },
+    )
+    _write_yaml(
+        project_manifest,
+        {
+            "schema_version": 1,
+            "project_schema_version": "1.0.0",
+            "project": "home-lab",
+            "project_min_framework_version": "5.0.0",
+            "project_contract_revision": 1,
+            "instances_root": "instances",
+            "secrets_root": "secrets",
+        },
+    )
+    _git_init_and_commit(framework_root)
+
+    generate = subprocess.run(
+        [
+            sys.executable,
+            str(GENERATE_SCRIPT),
+            "--repo-root",
+            str(project_root),
+            "--topology",
+            str(project_root / "missing-topology.yaml"),
+            "--project-root",
+            str(project_root),
+            "--project-manifest",
+            str(project_manifest),
+            "--framework-root",
+            str(framework_root),
+            "--lock-file",
+            str(lock_path),
+            "--force",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert generate.returncode == 0, generate.stdout + "\n" + generate.stderr
+
+    verify = subprocess.run(
+        [
+            sys.executable,
+            str(VERIFY_SCRIPT),
+            "--repo-root",
+            str(project_root),
+            "--topology",
+            str(project_root / "missing-topology.yaml"),
+            "--project-root",
+            str(project_root),
+            "--project-manifest",
+            str(project_manifest),
+            "--framework-root",
+            str(framework_root),
+            "--lock-file",
+            str(lock_path),
+            "--strict",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
