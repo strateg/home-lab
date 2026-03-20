@@ -352,9 +352,9 @@ Based on open items:
    - Keep secrets externalized per ADR 0051
 
 3. **Phase 7 - Hardware identity capture**:
-   - Create `discover-hardware-identity.py` utility
-   - Generate YAML patches for instance updates
-   - Integrate with E6806 strict placeholder enforcement
+   - Use `discover-hardware-identity.py` utility for annotation-driven patch generation
+   - Generate YAML patches for encrypted side-car updates (`v5-build/hardware-identity-patches/<project>/`)
+   - Keep strict placeholder enforcement scoped to secret-annotated paths
 
 4. **Phase 8 - E2E validation**:
    - Execute `terraform plan` with generated artifacts

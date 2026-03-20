@@ -92,3 +92,37 @@ python -c "import json;d=json.load(open('v5-build/diagnostics/report.json',encod
 - `--parity-gate` удален из CLI.
 - `--enable-plugins` и `--disable-plugins` удалены из CLI.
 - Единственный рабочий путь сборки: `plugin-first` через плагины.
+
+## 6. Hardware Identity Patch Flow (ADR0074 Wave 2.4)
+
+Для закрытия секретных hardware identity полей по аннотациям используйте:
+
+```powershell
+python v5/topology-tools/discover-hardware-identity.py `
+  --topology v5/topology/topology.yaml `
+  --project home-lab
+```
+
+Результат:
+
+- patch-файлы `v5-build/hardware-identity-patches/<project>/<instance>.yaml`
+- поля формируются из секретных аннотаций `hardware_identity.*` и интерфейсных `@*_secret:mac`.
+
+Если есть внешний дамп обнаруженных значений:
+
+```powershell
+python v5/topology-tools/discover-hardware-identity.py `
+  --discovery-file v5-build/hardware-identity-discovery.yaml `
+  --only-discovered
+```
+
+Где `discovery-file` может быть формата:
+
+```yaml
+instances:
+  rtr-slate:
+    hardware_identity:
+      serial_number: GL-AXT1800-12345
+      mac_addresses:
+        wan: "AA:BB:CC:DD:EE:FF"
+```

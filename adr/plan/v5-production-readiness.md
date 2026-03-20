@@ -290,13 +290,13 @@ This revised plan adds:
 
 ### 7.1 Discovery Utility
 
-- [ ] Create `v5/topology-tools/discover-hardware-identity.py`:
+- [x] Create `v5/topology-tools/discover-hardware-identity.py`:
   - SSH/API collection for MAC and serial where available
   - YAML patch output for instance shard updates
 
 ### 7.2 Instance Updates
 
-- [ ] Replace placeholder identities in `v5/topology/instances/L1-foundation/devices/` where still unresolved.
+- [ ] Replace placeholder identities in `v5/projects/home-lab/instances/L1-foundation/devices/` where still unresolved.
 - [ ] Ensure identity fields satisfy ADR0068 format rules.
 
 ### 7.3 Enforcement Gate

@@ -134,7 +134,7 @@ def test_sidecar_missing_inject_mode_no_error():
                         "class_ref": "class.router",
                         "object_ref": "obj.router",
                         "hardware_identity": {
-                            "serial_number": "<TODO_SERIAL_NUMBER>",
+                            "serial_number": "@optional_secret:string",
                         },
                     }
                 ]
@@ -170,7 +170,7 @@ def test_sidecar_missing_strict_mode_with_placeholders_emits_error():
                         "class_ref": "class.router",
                         "object_ref": "obj.router",
                         "hardware_identity": {
-                            "serial_number": "<TODO_SERIAL_NUMBER>",
+                            "serial_number": "@optional_secret:string",
                         },
                     }
                 ]
@@ -182,6 +182,42 @@ def test_sidecar_missing_strict_mode_with_placeholders_emits_error():
     # Strict mode should emit errors for unresolved placeholders
     error_codes = [d.code for d in result.diagnostics if d.severity == "error"]
     assert "E7210" in error_codes or "E7208" in error_codes
+
+
+def test_strict_mode_ignores_non_secret_todo_placeholders():
+    """Strict secrets mode must not fail on TODO markers outside secret annotation paths."""
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="v5/topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_instance_rows": "plugin",
+            "secrets_mode": "strict",
+            "secrets_root": "v5/projects/home-lab/secrets",
+            "repo_root": str(V5_TOOLS.parent.parent),
+        },
+        instance_bindings={
+            "instance_bindings": {
+                "firmware": [
+                    {
+                        "instance": "inst.firmware.test",
+                        "layer": "L1",
+                        "class_ref": "class.firmware",
+                        "object_ref": "obj.firmware",
+                        "deployment": {
+                            "version": "<TODO_FW_VERSION>",
+                        },
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    error_codes = [d.code for d in result.diagnostics if d.severity == "error"]
+    assert "E7208" not in error_codes
+    assert "E7210" not in error_codes
 
 
 def test_placeholder_non_placeholders_preserved():

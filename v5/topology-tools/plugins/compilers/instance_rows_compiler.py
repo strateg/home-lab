@@ -178,7 +178,11 @@ class InstanceRowsCompiler(CompilerPlugin):
             if not isinstance(node, str):
                 return
             if self._TODO_MARKER_RE.fullmatch(node):
-                unresolved.append(path)
+                # Strict secrets mode must enforce unresolved placeholders only for
+                # secret-annotated paths. When annotation index is unavailable
+                # (direct single-plugin execution), keep legacy strict behavior.
+                if path in secret_paths or row_annotations is None:
+                    unresolved.append(path)
                 return
             if path in secret_paths and node.startswith("@"):
                 unresolved.append(path)
