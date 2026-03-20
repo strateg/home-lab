@@ -359,7 +359,8 @@ Based on open items:
 4. **Phase 8 - E2E validation**:
    - Execute `terraform plan` with generated artifacts
    - Execute `ansible-playbook --check` validation
-   - Complete deployment runbook documentation
+   - Complete deployment runbook documentation (`docs/runbooks/V5-E2E-DRY-RUN.md`)
+   - Runtime status: runbook is published; environment execution remains rollout-gated
 
 ---
 
@@ -373,6 +374,7 @@ Implementation:
 - `v5/topology-tools/templates/` - Jinja2 template files
 - `v5/topology-tools/kernel/plugin_base.py` - Plugin base classes
 - `docs/diagnostics-catalog.md` - diagnostic ownership and non-overlap index
+- `docs/runbooks/V5-E2E-DRY-RUN.md` - end-to-end dry-run procedure and acceptance gates
 
 Planning:
 

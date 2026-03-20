@@ -1,7 +1,7 @@
 # ADR 0075: Monorepo Framework/Project Boundary (Stage 1)
 
 **Date:** 2026-03-20
-**Status:** Proposed
+**Status:** Accepted
 **Depends on:** ADR 0062, ADR 0071, ADR 0072
 **Blocks:** ADR 0074 remaining rollout tasks (project-aware generation)
 

@@ -18,6 +18,8 @@ docs/
 ├── NETINSTALL-CLI-VISUAL-GUIDE.md # Visual bootstrap flow
 ├── framework/                   # v5 framework/project contract docs
 │   └── FRAMEWORK-V5.md          # Framework boundaries and operator workflow (NEW)
+├── runbooks/                    # Operational runbooks
+│   └── V5-E2E-DRY-RUN.md        # End-to-end dry-run procedure (NEW)
 ├── guides/                      # Practical how-to guides
 │   ├── DEPLOYMENT-STRATEGY.md   # Full deployment workflow (NEW)
 │   ├── MIKROTIK-TERRAFORM.md    # MikroTik Terraform guide (NEW)
@@ -143,6 +145,12 @@ See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete gui
 | Document | Description | Status |
 |----------|-------------|--------|
 | [FRAMEWORK-V5.md](framework/FRAMEWORK-V5.md) | Framework/project contract, paths, commands, diagnostics | NEW |
+
+### Runbooks
+
+| Document | Description | Status |
+|----------|-------------|--------|
+| [V5-E2E-DRY-RUN.md](runbooks/V5-E2E-DRY-RUN.md) | E2E dry-run gate for Terraform/Ansible cutover | NEW |
 
 ---
 

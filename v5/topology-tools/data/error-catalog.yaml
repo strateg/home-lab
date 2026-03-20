@@ -272,7 +272,7 @@ codes:
     severity: error
     stage: validate
     title: Unsupported Instance Schema Version
-    hint: Update shard schema_version or run migrator for this version.
+    hint: 'Use strict shard contract version: 1.0.0; schema_version is no longer supported.'
   E7105:
     severity: error
     stage: load
@@ -468,6 +468,22 @@ codes:
     stage: validate
     title: Legacy Paths Contract Unsupported
     hint: Remove legacy paths section and use framework/project manifest contract.
+  # ADR 0075/0076 framework-project compatibility (reserved for staged adoption)
+  E7811:
+    severity: error
+    stage: validate
+    title: Framework Version Too Old
+    hint: Upgrade framework to satisfy project_min_framework_version from project manifest.
+  E7812:
+    severity: error
+    stage: validate
+    title: Project Schema Not Supported
+    hint: Upgrade framework runtime or migrate project manifest schema version.
+  E7813:
+    severity: error
+    stage: validate
+    title: Contract Migration Required
+    hint: Run project contract migrator before compiling with current strict runtime.
   I6901:
     severity: info
     stage: validate

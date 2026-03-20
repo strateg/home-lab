@@ -1,7 +1,7 @@
 # Master Migration Plan: ADR0075 -> ADR0074
 
 **Дата:** 2026-03-20
-**Статус:** Completed (2026-03-20)
+**Статус:** Completed for Waves 1-3 (2026-03-20); E2E environment dry-run pending
 **Последовательность:** Сначала ADR0075 (Stage 1), затем закрытие оставшихся задач ADR0074
 
 ---
@@ -175,6 +175,8 @@
 - [x] Wave 2.4: hardware identity patch utility + secret-scoped strict placeholder closure
 - [x] Wave 3: legacy fallback removal from strict model paths/projections
 - [x] Wave 3: CI/workflow/documentation cutover updates
+- [x] Phase 8 runbook published: `docs/runbooks/V5-E2E-DRY-RUN.md`
+- [ ] Phase 8 environment execution (`terraform plan` + `ansible --check`) in controlled lab window
 - [x] Final validation:
   - `python -m pytest v5/tests -q -o addopts=''` -> `271 passed`
   - `V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5` -> `PASS`

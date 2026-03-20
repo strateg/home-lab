@@ -42,6 +42,14 @@ For exact titles/hints/severity, always use:
 
 - `E7808`: legacy `paths.*` contract detected (unsupported in strict-only mode)
 
+Compatibility/versioning range for framework/project contract:
+
+- `E7811`: framework version too old
+- `E7812`: project schema not supported
+- `E7813`: contract migration required
+
+Note: `E7811..E7813` are cataloged and reserved; runtime activation is staged with ADR 0076 work.
+
 Notes:
 
 1. `E7801..E7805` are already used by L1 power source relation validation.
