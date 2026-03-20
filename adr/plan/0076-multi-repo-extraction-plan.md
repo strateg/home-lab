@@ -574,3 +574,4 @@ Wave 2 incremental progress (2026-03-20):
 7. framework bootstrap supports `--preserve-history`; local dry-run passed with extracted repo test gate (`49 passed`).
 8. extracted repo distribution build dry-run passed (`build-framework-distribution.py --version 1.0.0-rc1`).
 9. extracted framework release workflow commit is prepared locally (`ci: add framework release workflow for tag builds`) but remote push is blocked until GitHub auth token with `workflow` scope is used.
+10. blocker removed: release workflow commit pushed to `infra-topology-framework/main` (`56061ba`) and first tag `v1.0.0` published to remote.
