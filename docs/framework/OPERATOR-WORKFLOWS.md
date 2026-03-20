@@ -47,6 +47,19 @@ python v5/scripts/lane.py validate-v5
 3. Повторить strict verify и compile.
 4. Зафиксировать rollback-коммит с явным указанием причины.
 
+Перед rollback в релизном окне рекомендуется выполнить rehearsal:
+
+```powershell
+python v5/topology-tools/rehearse-framework-rollback.py
+```
+
+Команда проверяет:
+
+1. текущий lock strict-valid;
+2. lock можно регенерировать из текущего контракта;
+3. регенерированный lock повторно проходит strict verify;
+4. contract-ключи lock не дрейфуют между текущим и регенерированным вариантом.
+
 ---
 
 ## Version Skew Policy

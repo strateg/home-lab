@@ -537,3 +537,8 @@ Wave 3 incremental progress (2026-03-20):
 1. strict `framework.lock` verification wired into current CI entrypoints before lane/compile execution.
 2. operator workflow document added: `docs/framework/OPERATOR-WORKFLOWS.md`.
 3. external project CI template added: `docs/framework/templates/project-validate.yml`.
+
+Wave 4 incremental progress (2026-03-20):
+
+1. compatibility matrix tests expanded for `E7811/E7812/E7813`.
+2. rollback rehearsal utility added: `v5/topology-tools/rehearse-framework-rollback.py`.

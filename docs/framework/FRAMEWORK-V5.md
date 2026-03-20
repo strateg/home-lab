@@ -150,6 +150,7 @@ python v5/topology-tools/build-framework-distribution.py `
 ```powershell
 python v5/topology-tools/generate-framework-lock.py --force
 python v5/topology-tools/verify-framework-lock.py --strict
+python v5/topology-tools/rehearse-framework-rollback.py
 ```
 
 `compile-topology.py` в strict-runtime выполняет ту же проверку lock автоматически перед загрузкой модулей.
