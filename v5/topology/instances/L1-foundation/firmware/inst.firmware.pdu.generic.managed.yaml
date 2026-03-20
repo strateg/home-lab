@@ -1,6 +1,6 @@
 instance: inst.firmware.pdu.generic.managed
 object_ref: obj.firmware.pdu.generic.managed
-group: software_firmware
+group: firmware
 layer: L1
 version: 1.0.0
 source_id: inst.firmware.pdu.generic.managed

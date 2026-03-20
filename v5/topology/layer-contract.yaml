@@ -26,7 +26,7 @@ group_layers:
   meta: L0
   devices: L1
   data-links: L1
-  software_firmware: L1
+  firmware: L1
   software_os: L1
   network: L2
   storage: L3

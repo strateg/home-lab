@@ -73,7 +73,7 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
         },
         instance_bindings={
             "instance_bindings": {
-                "software_firmware": [
+                "firmware": [
                     {"instance": "inst.fw.a", "class_ref": "class.firmware", "object_ref": "obj.firmware.a"},
                     {"instance": "inst.fw.b", "class_ref": "class.firmware", "object_ref": "obj.firmware.b"},
                 ],
@@ -125,13 +125,13 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
         "normalized_rows",
         [
             {
-                "group": "software_firmware",
+                "group": "firmware",
                 "instance": "inst.fw.a",
                 "class_ref": "class.firmware",
                 "object_ref": "obj.firmware.a",
             },
             {
-                "group": "software_firmware",
+                "group": "firmware",
                 "instance": "inst.fw.b",
                 "class_ref": "class.firmware",
                 "object_ref": "obj.firmware.b",

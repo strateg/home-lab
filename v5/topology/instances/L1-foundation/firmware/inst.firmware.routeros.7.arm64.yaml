@@ -1,6 +1,6 @@
 instance: inst.firmware.routeros.7.arm64
 object_ref: obj.firmware.routeros.7.arm64
-group: software_firmware
+group: firmware
 layer: L1
 version: 1.0.0
 source_id: inst.firmware.routeros.7.arm64

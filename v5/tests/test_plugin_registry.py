@@ -223,7 +223,7 @@ def test_plugin_execution():
                         "object_ref": "obj.test",
                     }
                 ],
-                "software_firmware": [],
+                "firmware": [],
                 "software_os": [],
                 "lxc": [],
             }
@@ -277,7 +277,7 @@ def test_plugin_detects_invalid_ref():
                         "object_ref": "obj.nonexistent",
                     }
                 ],
-                "software_firmware": [],
+                "firmware": [],
                 "software_os": [],
                 "lxc": [],
             }

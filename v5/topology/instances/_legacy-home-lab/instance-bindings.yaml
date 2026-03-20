@@ -117,7 +117,7 @@ instance_bindings:
     firmware_ref: inst.firmware.uefi.generic.arm64
     os_refs:
     - inst.os.linux.generic.arm64
-  l1_software_firmware:
+  l1_firmware:
   - instance: inst.firmware.routeros.7.arm64
     source_id: inst.firmware.routeros.7.arm64
     layer: L1

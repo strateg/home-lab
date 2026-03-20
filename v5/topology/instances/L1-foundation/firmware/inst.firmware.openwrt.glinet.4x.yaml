@@ -1,6 +1,6 @@
 instance: inst.firmware.openwrt.glinet.4x
 object_ref: obj.firmware.openwrt.glinet.4x
-group: software_firmware
+group: firmware
 layer: L1
 version: 1.0.0
 source_id: inst.firmware.openwrt.glinet.4x

@@ -25,8 +25,8 @@ summary:
     mapped: 26
     pending: 0
     gap: 0
-  l1_software_firmware_total: 8
-  l1_software_firmware_status:
+  l1_firmware_total: 8
+  l1_firmware_status:
     mapped: 8
     pending: 0
     gap: 0
@@ -405,7 +405,7 @@ entities:
     object_ref: obj.service.wireguard
     status: mapped
     notes: module scaffold exists; runtime-specific behavior tuning pending
-  l1_software_firmware:
+  l1_firmware:
   - instance_id: inst.firmware.routeros.7.arm64
     source_id: inst.firmware.routeros.7.arm64
     class_ref: class.firmware

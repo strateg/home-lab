@@ -420,7 +420,7 @@ advantages:
 firmware:
   track: glinet-openwrt-4x
   # Concrete installed firmware version/build are instance-level fields
-  # in l1_software_firmware (see inst.firmware.openwrt.glinet.4x).
+  # in l1_firmware (see inst.firmware.openwrt.glinet.4x).
   version_managed_at: firmware_instance
   update_method: web_ui_or_sysupgrade
   backup_recommended: true
