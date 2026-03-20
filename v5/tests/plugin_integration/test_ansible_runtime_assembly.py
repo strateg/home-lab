@@ -31,6 +31,24 @@ class TestRuntimeAssemblyImports:
         assert hasattr(module, "validate_no_secret_content")
         assert hasattr(module, "validate_no_forbidden_overrides")
 
+    def test_load_active_project_from_topology(self, tmp_path: Path) -> None:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "assemble_ansible_runtime",
+            V5_TOOLS / "assemble-ansible-runtime.py",
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        topology = tmp_path / "topology.yaml"
+        topology.write_text(
+            "version: 5.0.0\nproject:\n  active: test-lab\n  projects_root: v5/projects\n",
+            encoding="utf-8",
+        )
+
+        assert module._load_active_project(topology) == "test-lab"
+
 
 class TestSecretValidation:
     """Tests for secret content validation."""

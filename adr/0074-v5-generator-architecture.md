@@ -70,10 +70,10 @@ Required mechanisms:
 
 Output roots are fixed:
 
-- `v5-generated/terraform/proxmox/`
-- `v5-generated/terraform/mikrotik/`
-- `v5-generated/ansible/inventory/production/`
-- `v5-generated/bootstrap/<device-id>/`
+- `v5-generated/<project>/terraform/proxmox/`
+- `v5-generated/<project>/terraform/mikrotik/`
+- `v5-generated/<project>/ansible/inventory/production/`
+- `v5-generated/<project>/bootstrap/<device-id>/`
 
 Generated root is baseline-only:
 
@@ -347,8 +347,8 @@ Based on open items:
    - Add tests for capability-gated output variations
 
 2. **Phase 5.2 - Runtime inventory assembly**:
-   - Create `assemble-ansible-runtime.py` for v5
-   - Implement environment-specific variable materialization
+   - Keep `assemble-ansible-runtime.py` project-aware (`v5/projects/<project>/ansible/inventory-overrides/<env>`)
+   - Keep generated/runtime inventory under `v5-generated/<project>/ansible/...`
    - Keep secrets externalized per ADR 0051
 
 3. **Phase 7 - Hardware identity capture**:
