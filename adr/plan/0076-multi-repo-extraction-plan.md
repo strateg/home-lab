@@ -544,6 +544,7 @@ Wave 3 incremental progress (2026-03-20):
 7. project CI workflow template now autodetects framework tools path for both layouts.
 8. compiler supports root-level `project.yaml` fallback when `projects_root: "."` (external project repo layout).
 9. bootstrap-project utility can initialize git repo and wire framework submodule directly (`--framework-submodule-url`).
+10. local integration coverage added for submodule wiring bootstrap flow (`test_bootstrap_project_repo_can_wire_framework_submodule`).
 
 Wave 4 incremental progress (2026-03-20):
 
@@ -553,11 +554,11 @@ Wave 4 incremental progress (2026-03-20):
 4. strict lock verify + rollback rehearsal added to `python-checks` pipeline.
 5. compatibility matrix validator wired into primary CI workflows.
 6. strict runtime entrypoint audit utility added and wired into primary CI workflows.
-7. local full validation run passed (`python -m pytest -o addopts= v5/tests -q` -> `305 passed`; `lane.py validate-v5` -> `PASS`).
+7. local full validation run passed (`python -m pytest -o addopts= v5/tests -q` -> `306 passed`; `lane.py validate-v5` -> `PASS`).
 8. added cutover readiness reporting utility: `v5/topology-tools/cutover-readiness-report.py`.
 9. added e2e dry-run runbook: `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`.
 10. strict readiness gates re-run after extracted-layout updates (`verify-framework-lock`, `rehearse-framework-rollback`, `validate-framework-compatibility-matrix`, `audit-strict-runtime-entrypoints`, `cutover-readiness-report --quick`) -> `PASS`.
-11. post-hardening full suite re-run passed (`305 passed` + `lane validate-v5 PASS`).
+11. post-hardening full suite re-run passed (`306 passed` + `lane validate-v5 PASS`).
 
 Wave 2 incremental progress (2026-03-20):
 
