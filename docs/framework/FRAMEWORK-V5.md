@@ -126,9 +126,20 @@ python v5/topology-tools/compile-topology.py `
 ```powershell
 if (Test-Path .\framework\topology-tools\compile-topology.py) {
   $frameworkTools = ".\framework\topology-tools"
+  $frameworkManifest = ".\framework\framework.yaml"
 } else {
   $frameworkTools = ".\framework\v5\topology-tools"
+  $frameworkManifest = ".\framework\v5\topology\framework.yaml"
 }
+
+python "$frameworkTools/verify-framework-lock.py" `
+  --repo-root . `
+  --project-root . `
+  --project-manifest .\project.yaml `
+  --framework-root .\framework `
+  --framework-manifest "$frameworkManifest" `
+  --lock-file .\framework.lock.yaml `
+  --strict
 
 python "$frameworkTools/compile-topology.py" `
   --repo-root . `

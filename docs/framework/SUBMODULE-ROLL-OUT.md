@@ -100,8 +100,16 @@ python "$FRAMEWORK_TOOLS/generate-framework-lock.py" \
 4. CI MUST run strict verifier before compile:
 
 ```bash
-python "$FRAMEWORK_TOOLS/verify-framework-lock.py" --strict
-python "$FRAMEWORK_TOOLS/compile-topology.py" --repo-root . --topology ./topology.yaml
+python "$FRAMEWORK_TOOLS/verify-framework-lock.py" \
+  --repo-root . \
+  --project-root . \
+  --project-manifest ./project.yaml \
+  --framework-root ./framework \
+  --framework-manifest "$FRAMEWORK_MANIFEST" \
+  --lock-file ./framework.lock.yaml \
+  --strict
+
+python "$FRAMEWORK_TOOLS/compile-topology.py" --repo-root . --topology ./topology.yaml --secrets-mode passthrough
 ```
 
 Ready-to-use workflow template:

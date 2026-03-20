@@ -35,20 +35,8 @@ jobs:
 
       - name: Verify framework lock
         run: |
-          python "$FRAMEWORK_TOOLS/verify-framework-lock.py" \
-            --strict \
-            --project-root . \
-            --project-manifest ./project.yaml \
-            --framework-root ./framework \
-            --framework-manifest "$FRAMEWORK_MANIFEST" \
-            --lock-file ./framework.lock.yaml
+          python "$FRAMEWORK_TOOLS/verify-framework-lock.py" --repo-root . --project-root . --project-manifest ./project.yaml --framework-root ./framework --framework-manifest "$FRAMEWORK_MANIFEST" --lock-file ./framework.lock.yaml --strict
 
       - name: Compile topology
         run: |
-          python "$FRAMEWORK_TOOLS/compile-topology.py" \
-            --repo-root . \
-            --topology ./topology.yaml \
-            --secrets-mode passthrough \
-            --output-json ./generated/effective-topology.json \
-            --diagnostics-json ./generated/diagnostics.json \
-            --diagnostics-txt ./generated/diagnostics.txt
+          python "$FRAMEWORK_TOOLS/compile-topology.py" --repo-root . --topology ./topology.yaml --secrets-mode passthrough --output-json ./generated/effective-topology.json --diagnostics-json ./generated/diagnostics.json --diagnostics-txt ./generated/diagnostics.txt
