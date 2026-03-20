@@ -153,6 +153,11 @@ python v5/topology-tools/discover-hardware-identity.py `
 python v5/topology-tools/build-framework-distribution.py `
   --version 1.0.0 `
   --archive-format both
+
+python v5/topology-tools/extract-framework-worktree.py `
+  --output-root v5-build/framework-extract `
+  --include-tests `
+  --force
 ```
 
 ### Генерация и проверка framework lock
