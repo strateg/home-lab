@@ -437,11 +437,11 @@ Document and test:
 
 ### Definition of Done (Wave 4)
 
-1. [ ] Parity tests pass
-2. [ ] Version skew matrix validated
-3. [ ] Rollback procedure verified
+1. [x] Parity tests pass
+2. [x] Version skew matrix validated
+3. [x] Rollback procedure verified
 4. [ ] Production cutover complete
-5. [ ] No legacy/fallback execution paths remain in runtime entrypoints
+5. [x] No legacy/fallback execution paths remain in runtime entrypoints
 
 ---
 
@@ -546,6 +546,7 @@ Wave 4 incremental progress (2026-03-20):
 3. rollback rehearsal gate wired into primary validation workflows.
 4. strict lock verify + rollback rehearsal added to `python-checks` pipeline.
 5. compatibility matrix validator wired into primary CI workflows.
+6. strict runtime entrypoint audit utility added and wired into primary CI workflows.
 
 Wave 2 incremental progress (2026-03-20):
 

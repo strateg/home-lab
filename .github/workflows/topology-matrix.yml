@@ -50,6 +50,9 @@ jobs:
       - name: Validate framework compatibility matrix
         run: python v5/topology-tools/validate-framework-compatibility-matrix.py
 
+      - name: Audit strict runtime entrypoints
+        run: python v5/topology-tools/audit-strict-runtime-entrypoints.py
+
       - name: Install age and sops
         run: |
           sudo apt-get update

@@ -75,6 +75,12 @@ python v5/topology-tools/rehearse-framework-rollback.py
 python v5/topology-tools/validate-framework-compatibility-matrix.py
 ```
 
+Для контроля отсутствия legacy/fallback поведения в runtime entrypoints:
+
+```powershell
+python v5/topology-tools/audit-strict-runtime-entrypoints.py
+```
+
 ---
 
 ## CI Gates
