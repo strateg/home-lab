@@ -364,3 +364,19 @@ Related ADRs:
 - ADR 0065: Staged Plugin Implementation
 - ADR 0066: Instance Shard Validation
 - ADR 0069: Plugin-First Compiler Pipeline
+
+---
+
+## Sequencing Note (2026-03-20)
+
+Execution sequencing is constrained by ADR 0075:
+
+1. Complete ADR 0075 Stage 1 (monorepo framework/project boundary and project-aware path resolution).
+2. Then finalize ADR 0074 remaining rollout items in project-aware mode:
+   - runtime inventory assembly path ownership,
+   - generator output root qualification by project context,
+   - final cutover runbooks and E2E deployment gates.
+
+Reason: completing these items before ADR 0075 creates guaranteed rework of generator/runtime path contracts.
+
+Execution plan reference: `adr/plan/0075-0074-master-migration-plan.md`.

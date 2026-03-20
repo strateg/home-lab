@@ -74,5 +74,6 @@
 | [0071](0071-sharded-instance-files-and-flat-instances-root.md) | Sharded Instance Files and Flat `instances` Root | Proposed | 2026-03-11 | - | - |
 | [0072](0072-unified-secrets-management-sops-age.md) | Unified Secrets Management with SOPS and age | Accepted (implemented) | 2026-03-17 | [0051](0051-ansible-runtime-and-secrets.md), [0054](0054-local-inputs-directory.md) | - |
 | [0073](0073-field-annotations-and-secret-conflict-resolution.md) | Field Annotation System and Secret Conflict Resolution | Accepted (implemented) | 2026-03-18 | - | - |
-| [0074](0074-v5-generator-architecture.md) | V5 Generator Architecture | Proposed | 2026-03-19 | - | - |
-| [0075](0075-framework-project-separation.md) | Framework and Project Separation in V5 Topology | Proposed | 2026-03-20 | - | - |
+| [0074](0074-v5-generator-architecture.md) | V5 Generator Architecture | Final | 2026-03-19 | - | - |
+| [0075](0075-framework-project-separation.md) | Monorepo Framework/Project Boundary (Stage 1) | Proposed | 2026-03-20 | - | - |
+| [0076](0076-framework-distribution-and-multi-repository-extraction.md) | Framework Distribution and Multi-Repository Extraction (Stage 2) | Proposed | 2026-03-20 | - | - |
