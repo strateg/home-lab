@@ -11,7 +11,7 @@ from typing import Any, Callable
 
 import yaml
 
-from framework_lock import _load_yaml, resolve_paths, verify_framework_lock
+from framework_lock import _git_revision, _load_yaml, resolve_paths, verify_framework_lock
 
 
 @dataclass(frozen=True)
@@ -140,6 +140,11 @@ def _run_case(
         project_payload = dict(project_manifest_payload)
         lock_copy = dict(lock_payload)
         case.mutate(framework_payload, project_payload, lock_copy)
+        if case.name != "missing_lock":
+            framework_block = lock_copy.get("framework")
+            current_revision = _git_revision(baseline_paths.framework_root)
+            if isinstance(framework_block, dict) and isinstance(current_revision, str) and current_revision:
+                framework_block["revision"] = current_revision
 
         _write_yaml(temp_framework_manifest, framework_payload)
         _write_yaml(temp_project_manifest, project_payload)

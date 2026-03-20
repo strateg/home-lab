@@ -66,6 +66,9 @@ jobs:
       - name: Rehearse framework rollback flow
         run: python v5/topology-tools/rehearse-framework-rollback.py
 
+      - name: Validate framework compatibility matrix
+        run: python v5/topology-tools/validate-framework-compatibility-matrix.py
+
       - name: Install age and sops
         run: |
           sudo apt-get update

@@ -69,6 +69,12 @@ python v5/topology-tools/rehearse-framework-rollback.py
 3. Несовместимая схема проекта возвращает `E7812`.
 4. Устаревшая ревизия контракта lock возвращает `E7813`.
 
+Для регрессионной проверки матрицы (baseline + expected-fail сценарии):
+
+```powershell
+python v5/topology-tools/validate-framework-compatibility-matrix.py
+```
+
 ---
 
 ## CI Gates

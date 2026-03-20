@@ -166,6 +166,7 @@ python v5/topology-tools/extract-framework-worktree.py `
 python v5/topology-tools/generate-framework-lock.py --force
 python v5/topology-tools/verify-framework-lock.py --strict
 python v5/topology-tools/rehearse-framework-rollback.py
+python v5/topology-tools/validate-framework-compatibility-matrix.py
 ```
 
 `compile-topology.py` в strict-runtime выполняет ту же проверку lock автоматически перед загрузкой модулей.

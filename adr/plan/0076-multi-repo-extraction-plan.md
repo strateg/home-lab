@@ -545,6 +545,7 @@ Wave 4 incremental progress (2026-03-20):
 2. rollback rehearsal utility added: `v5/topology-tools/rehearse-framework-rollback.py`.
 3. rollback rehearsal gate wired into primary validation workflows.
 4. strict lock verify + rollback rehearsal added to `python-checks` pipeline.
+5. compatibility matrix validator wired into primary CI workflows.
 
 Wave 2 incremental progress (2026-03-20):
 
