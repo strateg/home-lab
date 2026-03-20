@@ -44,6 +44,12 @@ jobs:
       - name: Pylint
         run: pylint v4/topology-tools
 
+      - name: Verify framework lock (strict)
+        run: python v5/topology-tools/verify-framework-lock.py --strict
+
+      - name: Rehearse framework rollback flow
+        run: python v5/topology-tools/rehearse-framework-rollback.py
+
       - name: Validate v5 lane (passthrough)
         run: V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5
 
