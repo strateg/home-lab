@@ -553,3 +553,4 @@ Wave 2 incremental progress (2026-03-20):
 1. added extraction bootstrap utility: `v5/topology-tools/extract-framework-worktree.py`.
 2. added integration tests for extraction utility.
 3. added framework release workflow template: `docs/framework/templates/framework-release.yml`.
+4. added repository bootstrap utility: `v5/topology-tools/bootstrap-framework-repo.py`.

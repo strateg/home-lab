@@ -158,6 +158,11 @@ python v5/topology-tools/extract-framework-worktree.py `
   --output-root v5-build/framework-extract `
   --include-tests `
   --force
+
+python v5/topology-tools/bootstrap-framework-repo.py `
+  --output-root v5-build/infra-topology-framework-bootstrap `
+  --include-tests `
+  --force
 ```
 
 ### Генерация и проверка framework lock
