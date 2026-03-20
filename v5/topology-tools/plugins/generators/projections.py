@@ -77,14 +77,9 @@ def _group_rows(
     groups: dict[str, list[dict[str, Any]]],
     *,
     canonical: str,
-    legacy: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Return rows for canonical group name with optional legacy fallback."""
-    if canonical in groups:
-        return groups[canonical]
-    if legacy is not None and legacy in groups:
-        return groups[legacy]
-    return []
+    """Return rows for canonical group name only (strict model)."""
+    return groups.get(canonical, [])
 
 
 def _is_ansible_host_candidate(row: dict[str, Any]) -> bool:
@@ -260,9 +255,9 @@ class BootstrapDevice:
 def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for Proxmox Terraform generator."""
     groups = _instance_groups(compiled_json)
-    devices = _group_rows(groups, canonical="devices", legacy="l1_devices")
-    lxc = _group_rows(groups, canonical="lxc", legacy="l4_lxc")
-    input_service_rows = _group_rows(groups, canonical="services", legacy="l5_services")
+    devices = _group_rows(groups, canonical="devices")
+    lxc = _group_rows(groups, canonical="lxc")
+    input_service_rows = _group_rows(groups, canonical="services")
 
     proxmox_nodes: list[dict[str, Any]] = []
     for idx, row in enumerate(devices):
@@ -369,9 +364,9 @@ def _derive_mikrotik_capability_flags(routers: list[dict[str, Any]]) -> dict[str
 def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator."""
     groups = _instance_groups(compiled_json)
-    devices = _group_rows(groups, canonical="devices", legacy="l1_devices")
-    network = _group_rows(groups, canonical="network", legacy="l2_network")
-    service_rows = _group_rows(groups, canonical="services", legacy="l5_services")
+    devices = _group_rows(groups, canonical="devices")
+    network = _group_rows(groups, canonical="network")
+    service_rows = _group_rows(groups, canonical="services")
 
     routers: list[dict[str, Any]] = []
     router_ids: set[str] = set()
@@ -421,8 +416,8 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for Ansible inventory generator."""
     groups = _instance_groups(compiled_json)
-    devices = _group_rows(groups, canonical="devices", legacy="l1_devices")
-    lxc = _group_rows(groups, canonical="lxc", legacy="l4_lxc")
+    devices = _group_rows(groups, canonical="devices")
+    lxc = _group_rows(groups, canonical="lxc")
 
     hosts: list[dict[str, Any]] = []
     for idx, row in enumerate(devices):
@@ -451,7 +446,7 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for bootstrap generators."""
     groups = _instance_groups(compiled_json)
-    devices = _group_rows(groups, canonical="devices", legacy="l1_devices")
+    devices = _group_rows(groups, canonical="devices")
 
     proxmox_nodes: list[dict[str, Any]] = []
     mikrotik_nodes: list[dict[str, Any]] = []

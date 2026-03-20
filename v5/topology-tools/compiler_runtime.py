@@ -269,18 +269,16 @@ def _load_sharded_instance_payload(
             continue
 
         shard_version = payload.get("version")
-        schema_version = payload.get("schema_version")
         has_supported_version = isinstance(shard_version, str) and _is_supported_instance_version(shard_version)
-        has_supported_legacy = isinstance(schema_version, int) and schema_version == 1
-        if not has_supported_version and not has_supported_legacy:
+        if not has_supported_version:
             add_diag(
                 code="E7104",
                 severity="error",
                 stage="validate",
                 message=(
                     "Unsupported shard version metadata. "
-                    f"version='{shard_version}', schema_version='{schema_version}'. "
-                    "Use 'version: 1.0.0'."
+                    f"version='{shard_version}'. "
+                    "Use strict contract 'version: 1.0.0'; 'schema_version' is not supported."
                 ),
                 path=_diag_path(repo_root=repo_root, path=path),
             )

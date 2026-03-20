@@ -131,6 +131,24 @@ class TestMikroTikProjectionCapabilities:
     def test_projection_includes_capabilities(self) -> None:
         compiled_json = {
             "instances": {
+                "devices": [
+                    {
+                        "instance_id": "rtr-test",
+                        "object_ref": "obj.mikrotik.test",
+                        "capabilities": ["cap.net.overlay.vpn.wireguard.server"],
+                    }
+                ],
+                "network": [],
+                "services": [],
+            }
+        }
+        projection = build_mikrotik_projection(compiled_json)
+        assert "capabilities" in projection
+        assert projection["capabilities"]["has_wireguard"] is True
+
+    def test_projection_does_not_use_legacy_group_names(self) -> None:
+        compiled_json = {
+            "instances": {
                 "l1_devices": [
                     {
                         "instance_id": "rtr-test",
@@ -143,8 +161,8 @@ class TestMikroTikProjectionCapabilities:
             }
         }
         projection = build_mikrotik_projection(compiled_json)
-        assert "capabilities" in projection
-        assert projection["capabilities"]["has_wireguard"] is True
+        assert projection["counts"]["routers"] == 0
+        assert projection["capabilities"]["has_wireguard"] is False
 
 
 class TestMikroTikGeneratorCapabilityDriven:
@@ -165,15 +183,15 @@ class TestMikroTikGeneratorCapabilityDriven:
     ) -> None:
         compiled_json = {
             "instances": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance_id": "rtr-test",
                         "object_ref": "obj.mikrotik.test",
                         "capabilities": ["cap.net.overlay.vpn.wireguard.server"],
                     }
                 ],
-                "l2_network": [],
-                "l5_services": [],
+                "network": [],
+                "services": [],
             }
         }
         ctx = self._ctx(tmp_path, compiled_json)
@@ -190,15 +208,15 @@ class TestMikroTikGeneratorCapabilityDriven:
     ) -> None:
         compiled_json = {
             "instances": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance_id": "rtr-test",
                         "object_ref": "obj.mikrotik.test",
                         # No wireguard capability
                     }
                 ],
-                "l2_network": [],
-                "l5_services": [],
+                "network": [],
+                "services": [],
             }
         }
         ctx = self._ctx(tmp_path, compiled_json)
@@ -214,14 +232,14 @@ class TestMikroTikGeneratorCapabilityDriven:
         """Chateau models should generate containers.tf (implicit capability)."""
         compiled_json = {
             "instances": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance_id": "rtr-mikrotik-chateau",
                         "object_ref": "obj.mikrotik.chateau_lte7_ax",
                     }
                 ],
-                "l2_network": [],
-                "l5_services": [],
+                "network": [],
+                "services": [],
             }
         }
         ctx = self._ctx(tmp_path, compiled_json)
@@ -237,14 +255,14 @@ class TestMikroTikGeneratorCapabilityDriven:
         """Core Terraform files should always be generated."""
         compiled_json = {
             "instances": {
-                "l1_devices": [
+                "devices": [
                     {
                         "instance_id": "rtr-test",
                         "object_ref": "obj.mikrotik.test",
                     }
                 ],
-                "l2_network": [],
-                "l5_services": [],
+                "network": [],
+                "services": [],
             }
         }
         ctx = self._ctx(tmp_path, compiled_json)
