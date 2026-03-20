@@ -173,6 +173,7 @@ python v5/topology-tools/verify-framework-lock.py --strict
 python v5/topology-tools/rehearse-framework-rollback.py
 python v5/topology-tools/validate-framework-compatibility-matrix.py
 python v5/topology-tools/audit-strict-runtime-entrypoints.py
+python v5/topology-tools/cutover-readiness-report.py --quick
 ```
 
 `compile-topology.py` в strict-runtime выполняет ту же проверку lock автоматически перед загрузкой модулей.

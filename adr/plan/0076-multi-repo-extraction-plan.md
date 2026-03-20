@@ -549,6 +549,7 @@ Wave 4 incremental progress (2026-03-20):
 5. compatibility matrix validator wired into primary CI workflows.
 6. strict runtime entrypoint audit utility added and wired into primary CI workflows.
 7. local full validation run passed (`python -m pytest -o addopts= v5/tests -q` -> `294 passed`; `lane.py validate-v5` -> `PASS`).
+8. added cutover readiness reporting utility: `v5/topology-tools/cutover-readiness-report.py`.
 
 Wave 2 incremental progress (2026-03-20):
 
