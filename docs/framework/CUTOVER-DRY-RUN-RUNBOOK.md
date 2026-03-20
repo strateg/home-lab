@@ -88,6 +88,9 @@ python v5/topology-tools/bootstrap-project-repo.py `
 3. `v5-build/project-bootstrap/home-lab/framework.lock.yaml`
 4. `v5-build/project-bootstrap/home-lab/.github/workflows/validate.yml`
 
+Примечание: bootstrap-скелетон содержит пустые `instances/` и `secrets/`.
+Полноценный compile/generate PASS ожидается только после переноса проектных данных.
+
 ---
 
 ## Phase E: Exit Criteria

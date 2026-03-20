@@ -74,8 +74,8 @@ def _copy_path(source: Path, target: Path) -> None:
     shutil.copy2(source, target)
 
 
-def _mapping_rows(*, include_tests: bool) -> list[dict[str, str]]:
-    rows = [
+def _mapping_rows(*, include_tests: bool) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = [
         {"source": "v5/topology/framework.yaml", "target": "framework.yaml"},
         {"source": "v5/topology/class-modules", "target": "class-modules"},
         {"source": "v5/topology/object-modules", "target": "object-modules"},
@@ -91,7 +91,8 @@ def _mapping_rows(*, include_tests: bool) -> list[dict[str, str]]:
                 {"source": "v5/tests/plugin_contract", "target": "tests/plugin_contract"},
                 {"source": "v5/tests/plugin_integration", "target": "tests/plugin_integration"},
                 {"source": "v5/tests/plugin_regression", "target": "tests/plugin_regression"},
-                {"source": "v5/tests/conftest.py", "target": "tests/conftest.py"},
+                # conftest.py is optional because some repositories keep test fixtures self-contained.
+                {"source": "v5/tests/conftest.py", "target": "tests/conftest.py", "optional": True},
             ]
         )
     return rows
@@ -102,7 +103,7 @@ def _write_manifest(
     output_root: Path,
     repo_root: Path,
     include_tests: bool,
-    rows: list[dict[str, str]],
+    rows: list[dict[str, Any]],
 ) -> None:
     payload: dict[str, Any] = {
         "schema_version": 1,
@@ -113,6 +114,38 @@ def _write_manifest(
         "mappings": rows,
     }
     manifest_path = output_root / "extraction-manifest.yaml"
+    manifest_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+def _rewrite_framework_manifest_for_extracted_layout(output_root: Path) -> None:
+    manifest_path = output_root / "framework.yaml"
+    if not manifest_path.exists():
+        return
+    payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(payload, dict):
+        return
+    distribution = payload.get("distribution")
+    if not isinstance(distribution, dict):
+        return
+    include = distribution.get("include")
+    if not isinstance(include, list):
+        return
+
+    rewritten: list[str] = []
+    for item in include:
+        if not isinstance(item, str):
+            continue
+        value = item.strip()
+        if not value:
+            continue
+        if value.startswith("v5/topology/"):
+            rewritten.append(value.removeprefix("v5/topology/"))
+            continue
+        if value == "v5/topology-tools" or value.startswith("v5/topology-tools/"):
+            rewritten.append(value.removeprefix("v5/"))
+            continue
+        rewritten.append(value)
+    distribution["include"] = rewritten
     manifest_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
@@ -134,9 +167,13 @@ def main() -> int:
         source = (repo_root / row["source"]).resolve()
         target = (output_root / row["target"]).resolve()
         if not source.exists():
+            if bool(row.get("optional")):
+                continue
             print(f"ERROR: source path missing: {source}")
             return 1
         _copy_path(source, target)
+
+    _rewrite_framework_manifest_for_extracted_layout(output_root)
 
     _write_manifest(
         output_root=output_root,

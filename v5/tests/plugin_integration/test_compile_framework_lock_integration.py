@@ -177,3 +177,78 @@ def test_compile_lock_check_uses_extracted_framework_manifest_when_present(monke
     assert ok is False
     assert any(diag.code == "E7822" for diag in compiler._diagnostics)
     assert not any(diag.code == "E7821" for diag in compiler._diagnostics)
+
+
+def test_compile_parser_defaults_catalog_and_plugins_to_script_paths() -> None:
+    mod = _load_compiler_module()
+    parser = mod.build_parser()
+    args = parser.parse_args([])
+    assert Path(args.error_catalog) == mod.DEFAULT_ERROR_CATALOG
+    assert Path(args.plugins_manifest) == mod.DEFAULT_PLUGINS_MANIFEST
+
+
+def test_compile_supports_project_manifest_at_projects_root(monkeypatch, tmp_path: Path) -> None:
+    mod = _load_compiler_module()
+    repo_root = tmp_path / "project-repo"
+    topology_path = repo_root / "topology.yaml"
+    project_manifest_path = repo_root / "project.yaml"
+    framework_manifest_path = repo_root / "framework" / "framework.yaml"
+    error_catalog_path = repo_root / "error-catalog.yaml"
+
+    _write_yaml(
+        topology_path,
+        {
+            "version": "5.0.0",
+            "model": "class-object-instance",
+            "framework": {
+                "root": "framework",
+                "class_modules_root": "framework/class-modules",
+                "object_modules_root": "framework/object-modules",
+                "model_lock": "framework/model.lock.yaml",
+                "profile_map": "framework/profile-map.yaml",
+                "layer_contract": "framework/layer-contract.yaml",
+                "capability_catalog": "framework/class-modules/router/capability-catalog.yaml",
+                "capability_packs": "framework/class-modules/router/capability-packs.yaml",
+            },
+            "project": {
+                "active": "home-lab",
+                "projects_root": ".",
+            },
+        },
+    )
+    _write_yaml(
+        project_manifest_path,
+        {
+            "schema_version": 1,
+            "project_schema_version": "1.0.0",
+            "project": "home-lab",
+            "project_min_framework_version": "5.0.0",
+            "project_contract_revision": 1,
+            "instances_root": "instances",
+            "secrets_root": "secrets",
+        },
+    )
+    _write_yaml(
+        framework_manifest_path,
+        {
+            "schema_version": 1,
+            "framework_id": "home-lab-v5-framework",
+            "framework_api_version": "5.0.0",
+            "supported_project_schema_range": ">=1.0.0 <2.0.0",
+            "distribution": {
+                "layout_version": 1,
+                "include": [
+                    "framework.yaml",
+                ],
+            },
+        },
+    )
+    _write_yaml(error_catalog_path, {"version": 1, "tool": "topology-compiler", "codes": {}})
+    monkeypatch.setattr(mod, "REPO_ROOT", repo_root)
+
+    compiler = _create_compiler(mod, topology_path=topology_path, error_catalog_path=error_catalog_path)
+    exit_code = compiler.run()
+
+    assert exit_code == 1
+    assert any(diag.code == "E7822" for diag in compiler._diagnostics)
+    assert not any("home-lab/project.yaml" in diag.path for diag in compiler._diagnostics if diag.code == "E1001")

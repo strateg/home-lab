@@ -39,7 +39,7 @@ DEFAULT_OUTPUT_JSON = REPO_ROOT / "v5-build" / "effective-topology.json"
 DEFAULT_DIAGNOSTICS_JSON = REPO_ROOT / "v5-build" / "diagnostics" / "report.json"
 DEFAULT_DIAGNOSTICS_TXT = REPO_ROOT / "v5-build" / "diagnostics" / "report.txt"
 DEFAULT_ARTIFACTS_ROOT = REPO_ROOT / "v5-generated"
-DEFAULT_ERROR_CATALOG = REPO_ROOT / "v5" / "topology-tools" / "data" / "error-catalog.yaml"
+DEFAULT_ERROR_CATALOG = TOPOLOGY_TOOLS / "data" / "error-catalog.yaml"
 DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 
 SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
@@ -584,6 +584,10 @@ class V5Compiler:
         projects_root_path = resolve_repo_path(str(project_section["projects_root"]).strip())
         project_root = projects_root_path / project_id
         project_manifest_path = project_root / "project.yaml"
+        root_level_project_manifest = projects_root_path / "project.yaml"
+        if not project_manifest_path.exists() and root_level_project_manifest.exists():
+            project_root = projects_root_path
+            project_manifest_path = root_level_project_manifest
         project_manifest = self._load_yaml(project_manifest_path, code_missing="E1001", code_parse="E1003", stage="load")
         if project_manifest is None:
             total, errors, warnings, infos = self._write_diagnostics()
@@ -772,8 +776,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--error-catalog",
-        default=str(DEFAULT_ERROR_CATALOG.relative_to(REPO_ROOT).as_posix()),
-        help="Path to error catalog YAML.",
+        default=str(DEFAULT_ERROR_CATALOG.as_posix()),
+        help="Path to error catalog YAML (defaults to compiler script directory).",
     )
     parser.add_argument(
         "--artifacts-root",
@@ -829,8 +833,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--plugins-manifest",
-        default=str(DEFAULT_PLUGINS_MANIFEST.relative_to(REPO_ROOT).as_posix()),
-        help="Path to plugin manifest YAML.",
+        default=str(DEFAULT_PLUGINS_MANIFEST.as_posix()),
+        help="Path to plugin manifest YAML (defaults to compiler script directory).",
     )
     return parser
 

@@ -73,6 +73,13 @@ def build_next_actions(diagnostics: list[Any]) -> list[dict[str, Any]]:
     return actions
 
 
+def _report_path(path: Path, repo_root: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(repo_root.resolve()).as_posix())
+    except ValueError:
+        return str(path.resolve().as_posix())
+
+
 def write_diagnostics_report(
     *,
     diagnostics: list[Any],
@@ -93,9 +100,9 @@ def write_diagnostics_report(
     diagnostics_txt.parent.mkdir(parents=True, exist_ok=True)
 
     inputs: dict[str, Any] = {
-        "topology": str(topology_path.relative_to(repo_root).as_posix()),
+        "topology": _report_path(topology_path, repo_root),
         "schema": "v5/topology/topology.yaml",
-        "error_catalog": str(error_catalog_path.relative_to(repo_root).as_posix()),
+        "error_catalog": _report_path(error_catalog_path, repo_root),
         "model_lock": "v5/topology/model.lock.yaml",
     }
     if plugin_manifests:
@@ -107,9 +114,9 @@ def write_diagnostics_report(
         "generated_at": now_iso(),
         "inputs": inputs,
         "outputs": {
-            "effective_json": str(output_json.relative_to(repo_root).as_posix()),
-            "diagnostics_json": str(diagnostics_json.relative_to(repo_root).as_posix()),
-            "diagnostics_txt": str(diagnostics_txt.relative_to(repo_root).as_posix()),
+            "effective_json": _report_path(output_json, repo_root),
+            "diagnostics_json": _report_path(diagnostics_json, repo_root),
+            "diagnostics_txt": _report_path(diagnostics_txt, repo_root),
         },
         "summary": summary,
         "next_actions": build_next_actions(diagnostics),

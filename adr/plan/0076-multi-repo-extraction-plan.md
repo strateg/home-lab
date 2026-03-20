@@ -542,6 +542,7 @@ Wave 3 incremental progress (2026-03-20):
 5. added project repository bootstrap utility: `v5/topology-tools/bootstrap-project-repo.py`.
 6. lock/bootstrap runtime supports both monorepo and extracted framework manifest layouts.
 7. project CI workflow template now autodetects framework tools path for both layouts.
+8. compiler supports root-level `project.yaml` fallback when `projects_root: "."` (external project repo layout).
 
 Wave 4 incremental progress (2026-03-20):
 
@@ -562,3 +563,4 @@ Wave 2 incremental progress (2026-03-20):
 2. added integration tests for extraction utility.
 3. added framework release workflow template: `docs/framework/templates/framework-release.yml`.
 4. added repository bootstrap utility: `v5/topology-tools/bootstrap-framework-repo.py`.
+5. extraction utility rewrites `framework.yaml` distribution include paths to extracted layout and treats `v5/tests/conftest.py` as optional.

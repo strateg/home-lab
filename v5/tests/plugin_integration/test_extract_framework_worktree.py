@@ -18,9 +18,32 @@ def _write(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def _make_fake_repo(tmp_path: Path) -> Path:
+def _make_fake_repo(tmp_path: Path, *, include_conftest: bool = True) -> Path:
     root = tmp_path / "repo"
-    _write(root / "v5" / "topology" / "framework.yaml", "schema_version: 1\nframework_id: test\n")
+    _write(
+        root / "v5" / "topology" / "framework.yaml",
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "framework_id": "test",
+                "framework_api_version": "5.0.0",
+                "supported_project_schema_range": ">=1.0.0 <2.0.0",
+                "distribution": {
+                    "layout_version": 1,
+                    "include": [
+                        "v5/topology/framework.yaml",
+                        "v5/topology/class-modules",
+                        "v5/topology/object-modules",
+                        "v5/topology/layer-contract.yaml",
+                        "v5/topology/model.lock.yaml",
+                        "v5/topology/profile-map.yaml",
+                        "v5/topology-tools",
+                    ],
+                },
+            },
+            sort_keys=False,
+        ),
+    )
     _write(root / "v5" / "topology" / "layer-contract.yaml", "schema_version: 1\n")
     _write(root / "v5" / "topology" / "model.lock.yaml", "schema_version: 1\n")
     _write(root / "v5" / "topology" / "profile-map.yaml", "schema_version: 1\n")
@@ -31,7 +54,8 @@ def _make_fake_repo(tmp_path: Path) -> Path:
     _write(root / "v5" / "tests" / "plugin_contract" / "test_contract.py", "def test_ok():\n    assert True\n")
     _write(root / "v5" / "tests" / "plugin_integration" / "test_integration.py", "def test_ok():\n    assert True\n")
     _write(root / "v5" / "tests" / "plugin_regression" / "test_regression.py", "def test_ok():\n    assert True\n")
-    _write(root / "v5" / "tests" / "conftest.py", "# test\n")
+    if include_conftest:
+        _write(root / "v5" / "tests" / "conftest.py", "# test\n")
     return root
 
 
@@ -61,6 +85,12 @@ def test_extract_worktree_without_tests(tmp_path: Path) -> None:
     manifest = yaml.safe_load((output_root / "extraction-manifest.yaml").read_text(encoding="utf-8"))
     assert manifest["schema_version"] == 1
     assert manifest["include_tests"] is False
+    extracted_manifest = yaml.safe_load((output_root / "framework.yaml").read_text(encoding="utf-8"))
+    include = extracted_manifest["distribution"]["include"]
+    assert "framework.yaml" in include
+    assert "class-modules" in include
+    assert "topology-tools" in include
+    assert all(not str(item).startswith("v5/") for item in include)
 
 
 def test_extract_worktree_with_tests(tmp_path: Path) -> None:
@@ -86,3 +116,26 @@ def test_extract_worktree_with_tests(tmp_path: Path) -> None:
     assert (output_root / "tests" / "plugin_integration" / "test_integration.py").exists()
     manifest = yaml.safe_load((output_root / "extraction-manifest.yaml").read_text(encoding="utf-8"))
     assert manifest["include_tests"] is True
+
+
+def test_extract_worktree_with_tests_without_conftest(tmp_path: Path) -> None:
+    repo_root = _make_fake_repo(tmp_path, include_conftest=False)
+    output_root = tmp_path / "extract"
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--repo-root",
+            str(repo_root),
+            "--output-root",
+            str(output_root),
+            "--include-tests",
+            "--force",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stdout + "\n" + run.stderr
+    assert (output_root / "tests" / "plugin_api" / "test_api.py").exists()
+    assert (output_root / "tests" / "conftest.py").exists() is False
