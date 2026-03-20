@@ -32,6 +32,10 @@ def _default_output_json() -> Path:
     return _default_repo_root() / "v5-build" / "diagnostics" / "cutover-readiness.json"
 
 
+def _default_cutover_state_json(repo_root: Path) -> Path:
+    return repo_root / "docs" / "framework" / "adr0076-cutover-state.json"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate ADR0076 cutover readiness report.")
     parser.add_argument(
@@ -50,6 +54,15 @@ def parse_args() -> argparse.Namespace:
         "--quick",
         action="store_true",
         help="Run core strict gates only (skip full test suite and lane validation).",
+    )
+    parser.add_argument(
+        "--cutover-state-json",
+        type=Path,
+        default=None,
+        help=(
+            "Optional JSON file with manual production cutover completion state. "
+            "Default: <repo-root>/docs/framework/adr0076-cutover-state.json."
+        ),
     )
     return parser.parse_args()
 
@@ -115,11 +128,26 @@ def _gate_commands(repo_root: Path, *, quick: bool) -> list[tuple[str, list[str]
     return commands
 
 
+def _load_cutover_state(state_path: Path) -> dict[str, Any] | None:
+    if not state_path.exists():
+        return None
+    try:
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def main() -> int:
     args = parse_args()
     repo_root = args.repo_root.resolve()
     output_json = args.output_json.resolve()
     quick = bool(args.quick)
+    cutover_state_json = (
+        args.cutover_state_json.resolve()
+        if isinstance(args.cutover_state_json, Path)
+        else _default_cutover_state_json(repo_root)
+    )
 
     results: list[dict[str, Any]] = []
     failures: list[str] = []
@@ -142,6 +170,13 @@ def main() -> int:
                 print(result.stderr.strip())
 
     output_json.parent.mkdir(parents=True, exist_ok=True)
+    cutover_state = _load_cutover_state(cutover_state_json)
+    production_cutover_complete = bool(
+        isinstance(cutover_state, dict) and cutover_state.get("production_cutover_complete") is True
+    )
+    pending_external_steps: list[str] = []
+    if not production_cutover_complete:
+        pending_external_steps.append("production cutover announcement and freeze switch")
     report = {
         "schema_version": 1,
         "generated_at": datetime.now(UTC).isoformat(),
@@ -154,10 +189,13 @@ def main() -> int:
         },
         "gates": results,
         "ready_for_cutover": len(failures) == 0,
-        "pending_external_steps": [
-            "production cutover announcement and freeze switch",
-        ],
+        "production_cutover_complete": production_cutover_complete,
+        "ready_for_operational_baseline": len(failures) == 0 and production_cutover_complete,
+        "cutover_state_json": str(cutover_state_json),
+        "pending_external_steps": pending_external_steps,
     }
+    if cutover_state is not None:
+        report["cutover_state"] = cutover_state
     output_json.write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding="utf-8")
     print(f"[cutover] report: {output_json}")
     return 0 if not failures else 1

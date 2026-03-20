@@ -32,4 +32,5 @@ Migration to strict project-aware v5 layout is complete for the active project (
 
 ## Follow-up
 
-ADR0076 multi-repository extraction remains separate and is not part of this cutover release.
+ADR0076 multi-repository extraction was completed in a separate change window:
+`docs/release-notes/2026-03-20-adr0076-production-cutover.md`.

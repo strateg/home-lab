@@ -440,7 +440,7 @@ Document and test:
 1. [x] Parity tests pass
 2. [x] Version skew matrix validated
 3. [x] Rollback procedure verified
-4. [ ] Production cutover complete
+4. [x] Production cutover complete
 5. [x] No legacy/fallback execution paths remain in runtime entrypoints
 6. [x] E2E dry-run runbook documented for pre-cutover rehearsal
 
@@ -531,7 +531,7 @@ Wave 4 (Cutover) ◄───────────────────┘
 - [x] Wave 1: Lock Verification Runtime
 - [x] Wave 2: Framework Repository Extraction
 - [x] Wave 3: Project Repository Restructure
-- [ ] Wave 4: Cutover and Validation
+- [x] Wave 4: Cutover and Validation
 
 Wave 3 incremental progress (2026-03-20):
 
@@ -566,6 +566,7 @@ Wave 4 incremental progress (2026-03-20):
 10. strict readiness gates re-run after extracted-layout updates (`verify-framework-lock`, `rehearse-framework-rollback`, `validate-framework-compatibility-matrix`, `audit-strict-runtime-entrypoints`, `cutover-readiness-report --quick`) -> `PASS`.
 11. post-hardening full suite re-run passed (`306 passed` + `lane validate-v5 PASS`).
 12. cutover readiness report pending manual steps narrowed to final production announcement/freeze switch (framework extraction and project submodule wiring no longer listed as pending).
+13. production announcement/freeze switch recorded (`docs/framework/adr0076-cutover-state.json`); readiness report now marks operational baseline complete when strict gates are green.
 
 Wave 2 incremental progress (2026-03-20):
 

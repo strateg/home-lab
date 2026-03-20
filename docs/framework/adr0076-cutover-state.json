@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "adr": "0076",
+  "production_cutover_complete": true,
+  "completed_at": "2026-03-20T20:00:00Z",
+  "change_window": "2026-03-20-adr0076-wave4-cutover",
+  "announcement": "ADR0076 production cutover announced; strict multi-repo flow is the operational baseline.",
+  "freeze_switch": "legacy integrated flow frozen; cutover dry-run gates are mandatory before framework lock updates.",
+  "evidence": [
+    "docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md",
+    "docs/framework/OPERATOR-WORKFLOWS.md",
+    "v5/topology-tools/cutover-readiness-report.py",
+    "docs/release-notes/2026-03-20-adr0076-production-cutover.md"
+  ]
+}

@@ -104,6 +104,16 @@ python v5/topology-tools/verify-framework-lock.py --strict
 python v5/topology-tools/cutover-readiness-report.py --quick
 ```
 
+После production cutover состояние фиксируется в:
+
+- `docs/framework/adr0076-cutover-state.json`
+
+Ожидаемые поля readiness-отчета после cutover:
+
+1. `production_cutover_complete: true`
+2. `ready_for_operational_baseline: true`
+3. `pending_external_steps: []`
+
 Полный e2e dry-run чеклист: `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`.
 
 Шаблон workflow для внешнего project-репозитория:
