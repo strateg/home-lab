@@ -153,6 +153,7 @@ v4-dist/
 v5-dist/
 ehthumbs.db
 generated/
+generated-artifacts/
 v4-generated/
 v5-generated/
 local/
