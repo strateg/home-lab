@@ -1,6 +1,6 @@
 instance: ups-main
 object_ref: obj.apc.backups.650va
-group: devices
+group: power
 layer: L1
 version: 1.0.0
 source_id: ups-main
