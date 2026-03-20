@@ -30,6 +30,7 @@ group_layers:
   firmware: L1
   software_os: L1
   network: L2
+  data-channels: L2
   storage: L3
   vms: L4
   lxc: L4
