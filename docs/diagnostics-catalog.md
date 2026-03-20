@@ -50,6 +50,25 @@ Compatibility/versioning range for framework/project contract:
 
 Note: `E7811..E7813` are cataloged and reserved; runtime activation is staged with ADR 0076 work.
 
+---
+
+## Framework Distribution Contract (ADR 0076)
+
+Reserved range `E7821..E7828` for framework dependency/lock hard errors:
+
+- `E7821`: framework dependency not resolvable
+- `E7822`: framework lock missing in strict mode
+- `E7823`: lock revision mismatch
+- `E7824`: integrity hash mismatch
+- `E7825`: missing or invalid artifact signature
+- `E7826`: missing provenance attestation
+- `E7827`: lock contract violation
+- `E7828`: SBOM missing
+
+Note: These codes are reserved; runtime implementation is staged per `adr/plan/0076-multi-repo-extraction-plan.md`.
+
+---
+
 Notes:
 
 1. `E7801..E7805` are already used by L1 power source relation validation.

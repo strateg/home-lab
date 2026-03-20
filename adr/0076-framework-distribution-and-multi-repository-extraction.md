@@ -153,3 +153,4 @@ Trade-offs:
 - ADR 0075: monorepo framework/project boundary (required precursor)
 - ADR 0074: generator architecture in project-aware runtime
 - Diagnostics catalog: `docs/diagnostics-catalog.md`
+- Implementation plan: `adr/plan/0076-multi-repo-extraction-plan.md`

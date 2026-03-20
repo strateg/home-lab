@@ -6,8 +6,15 @@ This directory contains implementation plans for major development efforts.
 
 | Plan | Status | Description |
 |------|--------|-------------|
+| [0076-multi-repo-extraction-plan.md](0076-multi-repo-extraction-plan.md) | Draft | Framework extraction and multi-repo distribution |
 | [v5-production-readiness.md](v5-production-readiness.md) | Active | Master plan for v5 deployment capability |
-| [phase1-generator-framework.md](phase1-generator-framework.md) | Not Started | Generator plugin infrastructure |
+| [phase1-generator-framework.md](phase1-generator-framework.md) | Superseded | Generator plugin infrastructure (see ADR 0074) |
+
+## Completed Plans
+
+| Plan | Completed | Description |
+|------|-----------|-------------|
+| [0075-0074-master-migration-plan.md](0075-0074-master-migration-plan.md) | 2026-03-20 | Framework/project separation + generator completion |
 
 ## Plan Structure
 
