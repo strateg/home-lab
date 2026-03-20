@@ -543,3 +543,4 @@ Wave 4 incremental progress (2026-03-20):
 
 1. compatibility matrix tests expanded for `E7811/E7812/E7813`.
 2. rollback rehearsal utility added: `v5/topology-tools/rehearse-framework-rollback.py`.
+3. rollback rehearsal gate wired into primary validation workflows.

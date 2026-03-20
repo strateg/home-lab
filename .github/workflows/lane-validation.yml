@@ -63,6 +63,9 @@ jobs:
       - name: Verify framework lock (strict)
         run: python v5/topology-tools/verify-framework-lock.py --strict
 
+      - name: Rehearse framework rollback flow
+        run: python v5/topology-tools/rehearse-framework-rollback.py
+
       - name: Install age and sops
         run: |
           sudo apt-get update
