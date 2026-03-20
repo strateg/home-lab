@@ -27,7 +27,7 @@ Included here:
 
 1. Framework/project boundary inside current repository.
 2. Project-aware path resolution and validation.
-3. Backward-compatible transition from legacy `paths.*` contract.
+3. Strict project-only contract (no legacy `paths.*` fallback semantics).
 
 Explicitly out of scope:
 
@@ -68,9 +68,9 @@ v5/
 
 ### Root Manifest Contract
 
-`v5/topology/topology.yaml` MUST gain explicit `framework:` and `project:` sections.
+`v5/topology/topology.yaml` MUST define explicit `framework:` and `project:` sections.
 
-`paths:` remains supported only as transitional fallback.
+Legacy `paths.*` resolution is not part of the target system contract for this ADR and MUST NOT be used by default runtime paths.
 
 ```
 version: 5.1.0
@@ -112,7 +112,6 @@ generation:
 New code range for framework/project separation is reserved to avoid collision with existing network codes:
 
 - `E7801..E7809`
-- `W7810..W7819`
 
 Reserved semantics:
 
@@ -123,16 +122,35 @@ Reserved semantics:
 - `E7805`: project `secrets_root` missing/invalid
 - `E7806`: project path escapes repository root
 - `E7807`: cross-project reference detected
-- `W7810`: legacy `paths.*` fallback in use
-- `W7811`: project secrets path using global fallback (`v5/secrets`)
+- `E7808`: legacy `paths.*` contract detected (unsupported)
 
-### Compatibility Window
+## Compatibility Contract (Normative)
 
-For one transition window:
+Framework and project compatibility is explicit and machine-validated.
 
-1. Compiler resolves new `framework/project` contract first.
-2. If absent, compiler falls back to legacy `paths.*`.
-3. Fallback emits warning `W7810`.
+Project metadata in `project.yaml` MUST define:
+
+- `project_schema_version` (SemVer)
+- `project_min_framework_version` (SemVer lower bound)
+- `project_max_framework_version` (optional upper bound, inclusive)
+- `project_contract_revision` (integer, monotonic)
+
+Framework metadata MUST define:
+
+- `framework_api_version` (SemVer)
+- `supported_project_schema_range` (SemVer range)
+
+Generation/compile MUST stop with an error when:
+
+1. framework version is below `project_min_framework_version`;
+2. project schema is outside `supported_project_schema_range`;
+3. contract revision requires migration steps not applied.
+
+Recommended error codes:
+
+- `E7811`: Framework version too old
+- `E7812`: Project schema not supported
+- `E7813`: Contract migration required
 
 ## Why ADR 0074 Must Follow ADR 0075
 
@@ -147,30 +165,30 @@ Therefore sequence is fixed:
 
 ## Migration Plan (Stage 1)
 
-### Phase 1: Contract Introduction (Non-breaking)
+### Phase 1: Contract Introduction (Breaking by Design)
 
 1. Add `framework:` and `project:` parsing to compiler runtime.
-2. Keep `paths.*` fallback.
-3. Add diagnostics `E780x/W781x` and tests.
+2. Add diagnostics `E780x` and tests.
+3. Fail fast on legacy `paths.*` usage (`E7808`).
 
 ### Phase 2: Directory Migration
 
 1. Move `v5/topology/instances/` -> `v5/projects/home-lab/instances/`.
 2. Move legacy migration artifacts to `v5/projects/home-lab/_legacy/`.
-3. Move secrets sidecars to `v5/projects/home-lab/secrets/` (or explicitly pin fallback with warning).
+3. Move secrets sidecars to `v5/projects/home-lab/secrets/`.
 4. Update root manifest to project path.
 
 ### Phase 3: Tooling and Script Rewire
 
 1. Update validators/scripts that hardcode `v5/topology/instances`.
 2. Update scaffold and lane checks to expect project root.
-3. Keep compatibility adapters only where migration safety requires them.
+3. Remove compatibility adapters that preserve legacy `paths.*` behavior.
 
-### Phase 4: Transition Closure
+### Phase 4: Closure
 
-1. Flip default behavior to project-only resolution.
-2. Keep legacy mode behind explicit compatibility flag.
-3. Record cutover baseline and remove stale documentation paths.
+1. Enforce project-only resolution in all runtime entrypoints.
+2. Remove stale documentation paths and deprecated settings.
+3. Record cutover baseline for ADR 0074 sequencing.
 
 ## Consequences
 
@@ -183,18 +201,18 @@ Positive:
 Trade-offs:
 
 1. One-time path migration across scripts/tests/docs.
-2. Temporary dual-path support adds complexity during transition window.
+2. Hard cutover requires coordinated updates without fallback safety net.
 
 ## Implementation Checklist
 
 - [ ] Introduce `framework/project` manifest contract in compiler runtime.
-- [ ] Add `E780x/W781x` catalog entries and tests.
+- [ ] Add `E780x` catalog entries and tests.
 - [ ] Create `v5/projects/home-lab/project.yaml`.
 - [ ] Move `instances` to project root.
 - [ ] Move/archive `_legacy-home-lab` under project root.
 - [ ] Rewire scripts and validation gates to project root.
 - [ ] Enable project-aware secrets root.
-- [ ] Add transition warning for legacy `paths.*`.
+- [ ] Remove legacy `paths.*` readers from runtime path resolution.
 - [ ] Publish cutover note for ADR 0074 sequencing.
 
 ## References
@@ -205,3 +223,4 @@ Trade-offs:
 - ADR 0074: generator architecture (execution sequence depends on this ADR)
 - ADR 0076: framework distribution and multi-repo extraction (Stage 2)
 - Master migration plan: `adr/plan/0075-0074-master-migration-plan.md`
+- Diagnostics catalog: `docs/diagnostics-catalog.md`

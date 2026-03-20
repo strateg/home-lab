@@ -340,3 +340,49 @@ def test_compile_stage_uses_fail_fast_in_registry(monkeypatch):
     compiler._execute_plugins(stage=mod.Stage.VALIDATE, ctx=ctx)
 
     assert calls == [("compile", True), ("validate", False)]
+
+
+def test_strict_only_rejects_legacy_instance_bindings_path():
+    mod = _load_compiler_module()
+    test_output_dir = mod.REPO_ROOT / "v5-build" / "test-strict-only-legacy-paths"
+    topology_path = test_output_dir / "topology.yaml"
+    topology_path.parent.mkdir(parents=True, exist_ok=True)
+    topology_path.write_text(
+        json.dumps(
+            {
+                "version": "5.0.0",
+                "model": "class-object-instance",
+                "paths": {
+                    "class_modules_root": "v5/topology/class-modules",
+                    "object_modules_root": "v5/topology/object-modules",
+                    "capability_catalog": "v5/topology/class-modules/router/capability-catalog.yaml",
+                    "capability_packs": "v5/topology/class-modules/router/capability-packs.yaml",
+                    "layer_contract": "v5/topology/layer-contract.yaml",
+                    "model_lock": "v5/topology/model.lock.yaml",
+                    "instances_root": "v5/topology/instances",
+                    "instance_bindings": "v5/topology/instances/_legacy-home-lab/instance-bindings.yaml",
+                },
+            },
+            ensure_ascii=True,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    compiler = mod.V5Compiler(
+        manifest_path=topology_path,
+        output_json=test_output_dir / "effective-topology.json",
+        diagnostics_json=test_output_dir / "diagnostics.json",
+        diagnostics_txt=test_output_dir / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+    )
+
+    exit_code = compiler.run()
+
+    assert exit_code == 1
+    assert any(d.code == "E7808" for d in compiler._diagnostics)

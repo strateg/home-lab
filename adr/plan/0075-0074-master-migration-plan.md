@@ -40,8 +40,8 @@
 ### 1.1 Manifest Contract
 
 1. Добавить в `v5/topology/topology.yaml` секции `framework:` и `project:`.
-2. Оставить `paths:` как временный fallback.
-3. Реализовать предупреждение при fallback (`W7810`).
+2. Убрать использование `paths:` из runtime контракта.
+3. Ввести hard-error `E7808` при обнаружении legacy `paths.*`.
 
 ### 1.2 Project Root Introduction
 
@@ -51,13 +51,13 @@
    - `v5/topology/instances/_legacy-home-lab` -> `v5/projects/home-lab/_legacy`
 3. Перевести секреты на project-root:
    - целевой путь: `v5/projects/home-lab/secrets`
-   - временно допускается fallback на `v5/secrets` с `W7811`.
+   - без fallback на `v5/secrets` в strict-профиле.
 
 ### 1.3 Compiler/Runtime Refactor
 
 1. Обновить path resolution в `compile-topology.py` и `compiler_runtime.py`.
 2. Обновить plugin context (`secrets_root`, `generator_artifacts_root`) с project-awareness.
-3. Добавить диагностики `E7801..E7807`, `W7810..W7811`.
+3. Добавить диагностики `E7801..E7808` и валидацию strict-only контракта.
 
 ### 1.4 Script and Validation Refactor
 
@@ -68,15 +68,15 @@
 ### 1.5 Tests
 
 1. Обновить unit/integration tests на новый контракт путей.
-2. Добавить тесты fallback-режима legacy `paths`.
-3. Добавить негативные тесты на `E780x`.
+2. Добавить негативные тесты на `E7808` (legacy paths запрещены).
+3. Убрать сценарии fallback из актуального тестового контура.
 
 ### Definition of Done
 
 1. Все тесты green.
 2. `validate-v5` green.
-3. Компилятор работает в project-aware режиме без `paths`.
-4. Legacy fallback покрыт тестами и выдает warning.
+3. Компилятор работает в project-aware strict-only режиме.
+4. Любой legacy `paths.*` приводит к `E7808`.
 
 ---
 
@@ -120,7 +120,7 @@
 
 ### Задачи
 
-1. Удалить/запретить legacy fallback по флагу strict mode.
+1. Удалить legacy fallback полностью (не только по флагу).
 2. Обновить документацию (`README`, operator workflow, manual artifact build).
 3. Зафиксировать release notes: migration completed.
 
@@ -141,9 +141,9 @@
 ## Risk Register
 
 1. **Path drift в скриптах**: закрывать через central path resolver и contract tests.
-2. **Секреты не переехали в project-root**: временный fallback + warning + deadline removal.
+2. **Секреты не переехали в project-root**: блокировать release до миграции.
 3. **Повторный рефакторинг генераторов**: избегается строгой последовательностью 0075 -> 0074.
-4. **Диагностики конфликтуют по кодам**: использовать только диапазон `E780x/W781x` для 0075.
+4. **Диагностики конфликтуют по кодам**: для strict-only контракта использовать `E7808`; новые проектные коды выносить в отдельный диапазон без пересечений.
 
 ---
 
@@ -152,7 +152,7 @@
 1. `feat(0075): manifest contract framework/project + diagnostics`
 2. `refactor(0075): move instances to v5/projects/home-lab`
 3. `refactor(0075): rewire scripts and validators to project root`
-4. `test(0075): add project-aware and legacy-fallback coverage`
+4. `test(0075): add strict-only project-aware coverage (E7808)`
 5. `refactor(0074): project-qualified generator output roots`
 6. `feat(0074): runtime assembly project-aware`
 7. `docs: cutover and operator workflow update`

@@ -55,15 +55,35 @@ Each project MUST maintain `framework.lock.yaml` containing:
 2. source (git/package)
 3. immutable revision (commit or artifact digest)
 4. integrity hash
+5. lock generation timestamp
 
 Compiler MUST verify lock consistency before compile in strict mode.
+Release CI MUST run in strict mode.
+
+## Artifact Trust Baseline (Normative)
+
+All distributed framework artifacts MUST satisfy minimum trust and reproducibility requirements.
+
+Mandatory controls:
+
+1. Locked dependency graph for release builds.
+2. Provenance attestation attached to each artifact.
+3. Cryptographic signature for release artifacts.
+4. SBOM published with each release.
+5. Verification step in consumer CI before execution.
+
+Recommended hard errors:
+
+- `E7825`: missing or invalid artifact signature
+- `E7826`: missing provenance attestation
+- `E7827`: lock contract violation
+- `E7828`: SBOM missing
 
 ## Diagnostics Reservation
 
 To avoid conflicts with existing ranges, reserve:
 
 - `E7821..E7829` for framework dependency/lock hard errors
-- `W7830..W7839` for framework drift/deprecation warnings
 
 Examples:
 
@@ -71,7 +91,10 @@ Examples:
 - `E7822`: framework lock missing in strict mode
 - `E7823`: lock revision mismatch
 - `E7824`: integrity hash mismatch
-- `W7830`: framework update available but not pinned
+- `E7825`: missing or invalid artifact signature
+- `E7826`: missing provenance attestation
+- `E7827`: lock contract violation
+- `E7828`: SBOM missing
 
 ## Migration Stages
 
@@ -89,9 +112,28 @@ Examples:
 
 ### Stage 2.3: CI and Operational Cutover
 
-1. Enforce lock verification in CI.
+1. Enforce strict lock verification in CI.
 2. Run compile/generate/validate gates against external framework dependency.
 3. Document upgrade workflow (`pin`, `verify`, `update`).
+4. Validate rollback path in CI simulation before production cutover.
+
+## Multi-Repo Cutover Readiness Gates
+
+Cutover from integrated repository flow to multi-repository flow is Go/No-Go gated.
+
+Go criteria:
+
+1. Functional parity: golden tests pass with equivalent generated outputs.
+2. Determinism: repeated builds produce equivalent artifacts under canonical normalization.
+3. Compatibility: version-skew tests pass (`N`, `N-1`, `N+1` policy).
+4. Rollback: documented and rehearsed rollback procedure validated in CI simulation.
+5. Observability: diagnostics and dependency health metrics visible in dashboards.
+
+No-Go triggers:
+
+1. Any unresolved `E782x` in release candidate.
+2. Unverified artifact provenance/signature.
+3. Regression in generation determinism beyond approved threshold.
 
 ## Consequences
 
@@ -110,3 +152,4 @@ Trade-offs:
 
 - ADR 0075: monorepo framework/project boundary (required precursor)
 - ADR 0074: generator architecture in project-aware runtime
+- Diagnostics catalog: `docs/diagnostics-catalog.md`

@@ -181,6 +181,29 @@ Generator diagnostics MUST use stable code ranges:
 New generator families must reserve non-overlapping ranges before implementation.
 Shared precondition code `E3001` is reserved for common "compiled_json missing/empty" failure and is allowed across generator families.
 
+Cross-ADR code alignment:
+
+- `E780x`: framework/project contract failures (ADR 0075)
+- `E782x`: framework distribution/lock integrity failures (ADR 0076)
+
+## Diagnostic Governance (Normative)
+
+To keep diagnostics stable across framework/project boundaries and distribution stages, diagnostic codes are a versioned contract.
+
+Rules:
+
+1. Code identifiers (`E####`, `W####`) are immutable once released.
+2. Message text may be clarified, but semantic meaning MUST remain backward-compatible.
+3. New codes MUST be registered in a central catalog before release.
+4. Reuse of retired codes is forbidden.
+5. CI MUST fail on unknown or duplicate code registrations.
+
+Severity policy:
+
+1. Local development: `E####` blocks generation completion; warnings are allowed.
+2. CI mainline: any `E####` fails pipeline.
+3. Release CI: any `E####` fails pipeline; policy-selected warnings MAY be promoted to failure.
+
 ### D9. Generator Configuration Contract
 
 Generator plugins consume two global configuration keys:
@@ -349,6 +372,7 @@ Implementation:
 - `v5/topology-tools/plugins/plugins.yaml` - Plugin manifest with ordering and config_schema
 - `v5/topology-tools/templates/` - Jinja2 template files
 - `v5/topology-tools/kernel/plugin_base.py` - Plugin base classes
+- `docs/diagnostics-catalog.md` - diagnostic ownership and non-overlap index
 
 Planning:
 

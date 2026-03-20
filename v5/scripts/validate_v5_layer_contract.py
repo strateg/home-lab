@@ -133,8 +133,14 @@ def main() -> int:
     class_modules_root = ROOT / str(manifest_paths.get("class_modules_root", ""))
     object_modules_root = ROOT / str(manifest_paths.get("object_modules_root", ""))
     instances_root_path = ROOT / str(manifest_paths.get("instances_root", ""))
-    instance_bindings_path = ROOT / str(manifest_paths.get("instance_bindings", ""))
+    instance_bindings_raw = manifest_paths.get("instance_bindings")
+    instance_bindings_path = ROOT / str(instance_bindings_raw or "")
     layer_contract_path = ROOT / str(manifest_paths.get("layer_contract", ""))
+
+    if isinstance(instance_bindings_raw, str) and instance_bindings_raw.strip():
+        errors.append(
+            "E7808: legacy manifest contract key 'paths.instance_bindings' is unsupported in strict-only mode"
+        )
 
     layer_contract = _load_yaml_map(layer_contract_path, errors=errors)
     valid_layers = set(DEFAULT_VALID_LAYERS)
@@ -328,7 +334,8 @@ def main() -> int:
     if isinstance(manifest_paths.get("instances_root"), str) and str(manifest_paths.get("instances_root", "")).strip():
         instance_bindings = _load_instance_bindings_from_shards(instances_root_path, errors=errors)
     else:
-        instance_bindings = _load_yaml_map(instance_bindings_path, errors=errors)
+        errors.append("E7808: topology manifest must define non-empty paths.instances_root in strict-only mode")
+        instance_bindings = {}
     bindings_any = instance_bindings.get("instance_bindings", {})
     if not isinstance(bindings_any, dict):
         errors.append("instance-bindings must contain mapping key 'instance_bindings'")

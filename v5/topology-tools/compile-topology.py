@@ -42,6 +42,7 @@ DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
 SUPPORTED_INSTANCE_SOURCE_MODES = ("auto", "sharded-only")
 SUPPORTED_SECRETS_MODES = ("inject", "passthrough", "strict")
+LEGACY_PATH_KEYS = ("instance_bindings",)
 COMPILED_MODEL_VERSION = "1.0"
 COMPILER_PIPELINE_VERSION = "adr0069-ws2"
 SUPPORTED_COMPILED_MODEL_MAJOR = {"1"}
@@ -452,6 +453,20 @@ class V5Compiler:
                 message="topology manifest must contain mapping key 'paths'.",
                 path="v5/topology/topology.yaml",
             )
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
+
+        legacy_paths = [key for key in LEGACY_PATH_KEYS if key in manifest_paths]
+        for key in legacy_paths:
+            self.add_diag(
+                code="E7808",
+                severity="error",
+                stage="validate",
+                message=f"Legacy manifest contract key 'paths.{key}' is unsupported in strict-only mode.",
+                path=f"v5/topology/topology.yaml:paths.{key}",
+            )
+        if legacy_paths:
             total, errors, warnings, infos = self._write_diagnostics()
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1

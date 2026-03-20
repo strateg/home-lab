@@ -463,6 +463,11 @@ codes:
     stage: validate
     title: Power Source Constraint Violation
     hint: Resolve self-reference, cycle, or duplicate outlet occupancy in power wiring.
+  E7808:
+    severity: error
+    stage: validate
+    title: Legacy Paths Contract Unsupported
+    hint: Remove legacy paths.instance_bindings and use paths.instances_root only.
   I6901:
     severity: info
     stage: validate

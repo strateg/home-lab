@@ -26,6 +26,7 @@ REQUIRED_PATHS = (
     "v5-build",
     "v5-dist",
 )
+LEGACY_PATH_KEYS = ("instance_bindings",)
 
 
 def check_required_paths(errors: list[dict[str, str]]) -> None:
@@ -141,6 +142,18 @@ def check_topology_manifest(errors: list[dict[str, str]]) -> None:
                     "code": "V5_MANIFEST_PATH_MISSING",
                     "path": "v5/topology/topology.yaml",
                     "message": f"path entry '{key}' points to missing path: {rel_path}",
+                }
+            )
+
+    for legacy_key in LEGACY_PATH_KEYS:
+        if legacy_key in paths:
+            errors.append(
+                {
+                    "code": "E7808",
+                    "path": f"v5/topology/topology.yaml:paths.{legacy_key}",
+                    "message": (
+                        f"Legacy manifest contract key 'paths.{legacy_key}' is unsupported in strict-only mode."
+                    ),
                 }
             )
 
