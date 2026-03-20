@@ -217,3 +217,4 @@ python v5/topology-tools/rehearse-framework-rollback.py
 - `docs/release-notes/2026-03-20-v5-framework-project-cutover.md`
 - `docs/framework/SUBMODULE-ROLL-OUT.md`
 - `docs/framework/OPERATOR-WORKFLOWS.md`
+- `docs/framework/templates/framework-release.yml`

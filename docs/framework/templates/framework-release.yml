@@ -1,0 +1,67 @@
+name: Framework Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: Run framework-focused tests
+        run: |
+          python -m pytest -o addopts= \
+            v5/tests/plugin_api \
+            v5/tests/plugin_contract \
+            v5/tests/plugin_integration/test_framework_lock.py \
+            v5/tests/plugin_integration/test_build_framework_distribution.py \
+            v5/tests/plugin_integration/test_extract_framework_worktree.py
+
+      - name: Build framework distribution
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python v5/topology-tools/build-framework-distribution.py \
+            --version "$VERSION" \
+            --archive-format both
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: v5-dist/framework
+          format: spdx-json
+          output-file: v5-dist/framework/sbom.spdx.json
+
+      - name: Generate provenance placeholder
+        run: |
+          mkdir -p v5-dist/framework/provenance
+          cat > v5-dist/framework/provenance/provenance.json <<'JSON'
+          {
+            "schema_version": 1,
+            "predicate_type": "https://slsa.dev/provenance/v1",
+            "note": "Replace placeholder with real provenance attestation pipeline output."
+          }
+          JSON
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: framework-release-${{ github.ref_name }}
+          path: v5-dist/framework/**
