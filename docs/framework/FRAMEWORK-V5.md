@@ -165,9 +165,15 @@ python v5/topology-tools/extract-framework-worktree.py `
   --include-tests `
   --force
 
+python v5/topology-tools/extract-framework-history.py `
+  --output-root v5-build/infra-topology-framework-history `
+  --include-tests `
+  --force
+
 python v5/topology-tools/bootstrap-framework-repo.py `
   --output-root v5-build/infra-topology-framework-bootstrap `
   --include-tests `
+  --preserve-history `
   --force
 ```
 

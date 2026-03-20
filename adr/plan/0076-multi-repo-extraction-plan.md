@@ -565,3 +565,6 @@ Wave 2 incremental progress (2026-03-20):
 3. added framework release workflow template: `docs/framework/templates/framework-release.yml`.
 4. added repository bootstrap utility: `v5/topology-tools/bootstrap-framework-repo.py`.
 5. extraction utility rewrites `framework.yaml` distribution include paths to extracted layout and treats `v5/tests/conftest.py` as optional.
+6. added history-preserving extraction utility: `v5/topology-tools/extract-framework-history.py`.
+7. framework bootstrap supports `--preserve-history`; local dry-run passed with extracted repo test gate (`49 passed`).
+8. extracted repo distribution build dry-run passed (`build-framework-distribution.py --version 1.0.0-rc1`).

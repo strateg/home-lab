@@ -60,6 +60,7 @@ python v5/topology-tools/cutover-readiness-report.py
 python v5/topology-tools/bootstrap-framework-repo.py `
   --output-root v5-build/infra-topology-framework-bootstrap `
   --include-tests `
+  --preserve-history `
   --force
 ```
 
@@ -68,6 +69,18 @@ python v5/topology-tools/bootstrap-framework-repo.py `
 1. `v5-build/infra-topology-framework-bootstrap/framework.yaml`
 2. `v5-build/infra-topology-framework-bootstrap/topology-tools/`
 3. `v5-build/infra-topology-framework-bootstrap/.github/workflows/release.yml`
+
+Framework-focused test gate (локальный аналог release CI):
+
+```powershell
+python -m pytest -o addopts= `
+  v5-build/infra-topology-framework-bootstrap/tests/plugin_api `
+  v5-build/infra-topology-framework-bootstrap/tests/plugin_contract `
+  v5-build/infra-topology-framework-bootstrap/tests/plugin_integration/test_framework_lock.py `
+  v5-build/infra-topology-framework-bootstrap/tests/plugin_integration/test_build_framework_distribution.py `
+  v5-build/infra-topology-framework-bootstrap/tests/plugin_integration/test_extract_framework_worktree.py `
+  v5-build/infra-topology-framework-bootstrap/tests/plugin_integration/test_extract_framework_history.py -q
+```
 
 ---
 
