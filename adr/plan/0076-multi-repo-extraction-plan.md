@@ -393,9 +393,9 @@ Create `docs/operator-workflows.md`:
 ### Definition of Done (Wave 3)
 
 1. [ ] Framework wired as submodule
-2. [ ] Project compiles against external framework
-3. [ ] Lock verification in CI
-4. [ ] Operator documentation complete
+2. [x] Project compiles against external framework
+3. [x] Lock verification in CI
+4. [x] Operator documentation complete
 
 ---
 
