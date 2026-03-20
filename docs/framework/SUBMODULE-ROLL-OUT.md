@@ -82,6 +82,10 @@ python framework/v5/topology-tools/verify-framework-lock.py --strict
 python framework/v5/topology-tools/compile-topology.py --topology ./topology.yaml
 ```
 
+Ready-to-use workflow template:
+
+- `docs/framework/templates/project-validate.yml`
+
 ---
 
 ## Update Workflow

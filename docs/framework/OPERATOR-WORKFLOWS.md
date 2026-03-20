@@ -72,3 +72,7 @@ python v5/topology-tools/verify-framework-lock.py --strict
 2. compile
 3. validate/project gates
 4. terraform/ansible syntax checks
+
+Шаблон workflow для внешнего project-репозитория:
+
+- `docs/framework/templates/project-validate.yml`

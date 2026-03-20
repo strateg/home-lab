@@ -1,0 +1,43 @@
+name: Validate Project (framework submodule)
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyyaml jsonschema jinja2
+
+      - name: Verify framework lock
+        run: |
+          python framework/v5/topology-tools/verify-framework-lock.py \
+            --strict \
+            --project-root . \
+            --project-manifest ./project.yaml \
+            --framework-root ./framework \
+            --framework-manifest ./framework/v5/topology/framework.yaml \
+            --lock-file ./framework.lock.yaml
+
+      - name: Compile topology
+        run: |
+          python framework/v5/topology-tools/compile-topology.py \
+            --topology ./topology.yaml \
+            --secrets-mode passthrough \
+            --output-json ./generated/effective-topology.json \
+            --diagnostics-json ./generated/diagnostics.json \
+            --diagnostics-txt ./generated/diagnostics.txt
