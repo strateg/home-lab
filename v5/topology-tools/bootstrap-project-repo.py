@@ -320,6 +320,9 @@ def main() -> int:
     tools_prefix = (
         f"{submodule_mount}/v5/topology-tools" if framework_layout == "monorepo" else f"{submodule_mount}/topology-tools"
     )
+    framework_manifest_rel = (
+        f"{submodule_mount}/v5/topology/framework.yaml" if framework_layout == "monorepo" else f"{submodule_mount}/framework.yaml"
+    )
     _write_if_missing(
         notes,
         "\n".join(
@@ -334,8 +337,15 @@ def main() -> int:
                 f"1. Add framework as git submodule under ./{submodule_mount} (or keep existing wiring).",
                 "2. Update validate workflow secrets/runner settings as needed",
                 "3. Run strict gates:",
-                f"   - python {tools_prefix}/verify-framework-lock.py --strict",
-                f"   - python {tools_prefix}/compile-topology.py --repo-root . --topology ./topology.yaml",
+                (
+                    f"   - python {tools_prefix}/verify-framework-lock.py --repo-root . --project-root . "
+                    f"--project-manifest project.yaml --framework-root {submodule_mount} "
+                    f"--framework-manifest {framework_manifest_rel} --strict"
+                ),
+                (
+                    f"   - python {tools_prefix}/compile-topology.py --repo-root . --topology ./topology.yaml "
+                    "--secrets-mode passthrough"
+                ),
                 "",
             ]
         ),
