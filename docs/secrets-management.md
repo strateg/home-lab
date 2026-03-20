@@ -2,13 +2,17 @@
 
 **ADR:** [0072-unified-secrets-management-sops-age.md](../adr/0072-unified-secrets-management-sops-age.md), [0073-field-annotations-and-secret-conflict-resolution.md](../adr/0073-field-annotations-and-secret-conflict-resolution.md)
 **Status:** Implemented
-**Last Updated:** 2026-03-18
+**Last Updated:** 2026-03-20
 
 ---
 
 ## Overview
 
-This repository uses **SOPS + age** for unified secrets management. All sensitive data (hardware identities, credentials, API tokens) is encrypted and stored in the `v5/secrets/` directory.
+This repository uses **SOPS + age** for unified secrets management. All sensitive data (hardware identities, credentials, API tokens) is encrypted and stored in project scope:
+
+- `v5/projects/<project>/secrets/`
+
+Examples in this guide use `home-lab` as active project.
 
 At compile time, secrets are merged into instance rows by the plugin pipeline:
 
@@ -29,13 +33,13 @@ At compile time, secrets are merged into instance rows by the plugin pipeline:
 ┌─────────────────────────────────────────────────────────────┐
 │                    REPOSITORY (tracked)                     │
 │                                                             │
-│  v5/secrets/devkey.age ◄────── age private key (encrypted)    │
+│  v5/projects/home-lab/secrets/devkey.age ◄────── age private key (encrypted)    │
 │         │                                                   │
 │         │ unlocks                                           │
 │         ▼                                                   │
-│  v5/secrets/instances/*.yaml ◄── instance secrets (side-car)  │
-│  v5/secrets/terraform/*.yaml ◄── terraform credentials        │
-│  v5/secrets/ansible/*.yaml ◄──── ansible secrets              │
+│  v5/projects/home-lab/secrets/instances/*.yaml ◄── instance secrets (side-car)  │
+│  v5/projects/home-lab/secrets/terraform/*.yaml ◄── terraform credentials        │
+│  v5/projects/home-lab/secrets/ansible/*.yaml ◄──── ansible secrets              │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -114,7 +118,7 @@ ls -la ~/.config/sops/age/keys.txt
 #### View decrypted content
 
 ```bash
-sops -d v5/secrets/instances/rtr-mikrotik-chateau.yaml
+sops -d v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 #### Edit encrypted file
@@ -122,23 +126,23 @@ sops -d v5/secrets/instances/rtr-mikrotik-chateau.yaml
 Opens in your `$EDITOR` with decrypted content, re-encrypts on save:
 
 ```bash
-sops v5/secrets/instances/rtr-mikrotik-chateau.yaml
+sops v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 #### Encrypt a new file
 
 ```bash
 # Create plaintext file
-cat > v5/secrets/terraform/new-service.yaml << 'EOF'
+cat > v5/projects/home-lab/secrets/terraform/new-service.yaml << 'EOF'
 api_key: "your-secret-key"
 password: "your-password"
 EOF
 
 # Encrypt in place
-sops -e -i v5/secrets/terraform/new-service.yaml
+sops -e -i v5/projects/home-lab/secrets/terraform/new-service.yaml
 
 # Verify encryption
-head -5 v5/secrets/terraform/new-service.yaml
+head -5 v5/projects/home-lab/secrets/terraform/new-service.yaml
 # Should show: api_key: ENC[AES256_GCM,data:...,iv:...,tag:...]
 ```
 
@@ -161,7 +165,7 @@ This removes the plaintext key from the default SOPS age key path.
 ## Directory Structure
 
 ```
-v5/secrets/
+v5/projects/home-lab/secrets/
 ├── .sops.yaml              # SOPS configuration (age recipients)
 ├── devkey.age              # Dev key (daily operations, passphrase-protected)
 ├── devkey.pub              # Dev public key
@@ -180,12 +184,12 @@ v5/secrets/
 └── bootstrap/              # Bootstrap secrets
 ```
 
-Each file in `v5/secrets/instances/` corresponds to an instance in `v5/topology/instances/` by matching `instance` ID.
+Each file in `v5/projects/home-lab/secrets/instances/` corresponds to an instance in `v5/projects/home-lab/instances/` by matching `instance` ID.
 
 Naming rule:
 
 - side-car file name MUST be exactly `<instance>.yaml`
-- for `instance: rtr-slate` the side-car path is `v5/secrets/instances/rtr-slate.yaml`
+- for `instance: rtr-slate` the side-car path is `v5/projects/home-lab/secrets/instances/rtr-slate.yaml`
 
 Secret resolution rule:
 
@@ -236,7 +240,7 @@ ssh admin@192.168.88.1
 
 Copy values to secrets file:
 ```bash
-sops v5/secrets/instances/rtr-mikrotik-chateau.yaml
+sops v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 ### GL.iNet (OpenWrt)
@@ -294,18 +298,18 @@ ip -o link show | awk '{print $2, $(NF-2)}'
 
 ### "sops: no matching creation rule"
 
-**Cause:** File not in `v5/secrets/` directory or wrong extension.
+**Cause:** File not in `v5/projects/home-lab/secrets/` directory or wrong extension.
 
-**Fix:** Ensure file is in `v5/secrets/**/*.yaml` path.
+**Fix:** Ensure file is in `v5/projects/home-lab/secrets/**/*.yaml` path.
 
 ### Pre-commit hook fails: "ERROR: file is not encrypted!"
 
-**Cause:** Attempting to commit plaintext YAML in `v5/secrets/`.
+**Cause:** Attempting to commit plaintext YAML in `v5/projects/home-lab/secrets/`.
 
 **Fix:**
 ```bash
 ./v5/scripts/unlock-secrets.sh
-sops -e -i v5/secrets/path/to/file.yaml
+sops -e -i v5/projects/home-lab/secrets/path/to/file.yaml
 ```
 
 ### Forgot passphrase
@@ -332,18 +336,18 @@ age-keygen > /tmp/new-devkey.key
 NEW_PUB=$(grep "public key:" /tmp/new-devkey.key | cut -d: -f2 | tr -d ' ')
 
 # 3. Re-encrypt all secrets with new key
-for f in v5/secrets/{instances,terraform,ansible,bootstrap}/*.yaml; do
+for f in v5/projects/home-lab/secrets/{instances,terraform,ansible,bootstrap}/*.yaml; do
     [ -f "$f" ] || continue
     sops -d "$f" | sops -e --age "$NEW_PUB" /dev/stdin > "$f.new"
     mv "$f.new" "$f"
 done
 
 # 4. Update .sops.yaml
-sed -i "s/age1.*/$NEW_PUB/" v5/secrets/.sops.yaml
+sed -i "s/age1.*/$NEW_PUB/" v5/projects/home-lab/secrets/.sops.yaml
 
 # 5. Encrypt new key with NEW passphrase
-age -p -o v5/secrets/devkey.age /tmp/new-devkey.key
-echo "$NEW_PUB" > v5/secrets/devkey.pub
+age -p -o v5/projects/home-lab/secrets/devkey.age /tmp/new-devkey.key
+echo "$NEW_PUB" > v5/projects/home-lab/secrets/devkey.pub
 
 # 6. Cleanup
 shred -u /tmp/new-devkey.key
@@ -352,7 +356,7 @@ shred -u /tmp/new-devkey.key
 ./v5/scripts/lock-secrets.sh
 
 # 8. Commit
-git add v5/secrets/
+git add v5/projects/home-lab/secrets/
 git commit -m "chore(secrets): rotate devkey"
 ```
 
@@ -383,7 +387,7 @@ jobs:
       - name: Unlock secrets
         run: |
           mkdir -p ~/.config/sops/age
-          echo "$DEVKEY_PASSPHRASE" | age -d v5/secrets/devkey.age > ~/.config/sops/age/keys.txt
+          echo "$DEVKEY_PASSPHRASE" | age -d v5/projects/home-lab/secrets/devkey.age > ~/.config/sops/age/keys.txt
           chmod 600 ~/.config/sops/age/keys.txt
 
       - name: Compile with secrets
@@ -406,11 +410,11 @@ jobs:
 
 2. **Never commit plaintext secrets**
    - Pre-commit hook will block unencrypted files
-   - Always verify with `head -5 v5/secrets/file.yaml` before commit
+   - Always verify with `head -5 v5/projects/home-lab/secrets/file.yaml` before commit
 
 3. **Use `sops` command for editing**
    - Never manually edit encrypted files
-   - Use `sops v5/secrets/file.yaml` to edit
+   - Use `sops v5/projects/home-lab/secrets/file.yaml` to edit
 
 4. **Backup passphrase physically**
    - Write on paper
@@ -429,9 +433,9 @@ jobs:
 |------|---------|
 | Unlock secrets | `./v5/scripts/unlock-secrets.sh` or `./v5/scripts/unlock-secrets.ps1` |
 | Lock secrets | `./v5/scripts/lock-secrets.sh` or `./v5/scripts/lock-secrets.ps1` |
-| View file | `sops -d v5/secrets/instances/rtr-mikrotik-chateau.yaml` |
-| Edit file | `sops v5/secrets/instances/rtr-mikrotik-chateau.yaml` |
-| Encrypt new file | `sops -e -i v5/secrets/instances/new-device.yaml` |
+| View file | `sops -d v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml` |
+| Edit file | `sops v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml` |
+| Encrypt new file | `sops -e -i v5/projects/home-lab/secrets/instances/new-device.yaml` |
 | Check status | `ls ~/.config/sops/age/keys.txt` |
 | Compile with secrets | `python v5/topology-tools/compile-topology.py --secrets-mode inject` |
 | Compile with strict secret policy | `python v5/topology-tools/compile-topology.py --secrets-mode strict` |

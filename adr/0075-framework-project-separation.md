@@ -205,15 +205,15 @@ Trade-offs:
 
 ## Implementation Checklist
 
-- [ ] Introduce `framework/project` manifest contract in compiler runtime.
-- [ ] Add `E780x` catalog entries and tests.
-- [ ] Create `v5/projects/home-lab/project.yaml`.
-- [ ] Move `instances` to project root.
-- [ ] Move/archive `_legacy-home-lab` under project root.
-- [ ] Rewire scripts and validation gates to project root.
-- [ ] Enable project-aware secrets root.
-- [ ] Remove legacy `paths.*` readers from runtime path resolution.
-- [ ] Publish cutover note for ADR 0074 sequencing.
+- [x] Introduce `framework/project` manifest contract in compiler runtime.
+- [x] Add `E780x` catalog entries and tests.
+- [x] Create `v5/projects/home-lab/project.yaml`.
+- [x] Move `instances` to project root.
+- [x] Move/archive `_legacy-home-lab` under project root.
+- [x] Rewire scripts and validation gates to project root.
+- [x] Enable project-aware secrets root.
+- [x] Remove legacy `paths.*` readers from runtime path resolution.
+- [x] Publish cutover note for ADR 0074 sequencing.
 
 ## References
 

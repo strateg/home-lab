@@ -10,10 +10,25 @@ Generated artifacts are versioned by lane:
 - `v4-generated/`, `v4-build/`, `v4-dist/`
 - `v5-generated/`, `v5-build/`, `v5-dist/`
 
+v5 generator outputs are project-qualified:
+
+- `v5-generated/<project>/terraform/...`
+- `v5-generated/<project>/ansible/...`
+- `v5-generated/<project>/bootstrap/...`
+
+Project runtime inputs are stored under:
+
+- `v5/projects/<project>/instances/`
+- `v5/projects/<project>/secrets/`
+- `v5/projects/<project>/ansible/inventory-overrides/`
+
 Main documents:
 
 - `adr/0062-modular-topology-architecture-consolidation.md`
 - `adr/PLUGIN-RUNTIME-ADR-MAP.md`
+- `adr/0075-framework-project-separation.md`
+- `adr/0074-v5-generator-architecture.md`
+- `docs/release-notes/2026-03-20-v5-framework-project-cutover.md`
 - `v4/README.md`
 - `v5/topology-tools/docs/ENVIRONMENT-SETUP.md`
 - `v5/topology-tools/docs/MANUAL-ARTIFACT-BUILD.md`

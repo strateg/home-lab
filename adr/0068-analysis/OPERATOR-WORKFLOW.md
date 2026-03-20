@@ -8,10 +8,10 @@
 
 ## Overview
 
-ADR 0068 introduces typed placeholders in object templates that must be resolved by instance values. This document describes the operator workflow for:
+ADR 0068/0073 introduce typed field annotations in object templates and instance payloads. This document describes the operator workflow for:
 
 1. Understanding placeholder syntax
-2. Resolving required values (hardware identities, IPs, etc.)
+2. Resolving secret and required values (hardware identities, IPs, etc.)
 3. Configuring enforcement modes
 4. Troubleshooting validation errors
 
@@ -19,16 +19,16 @@ ADR 0068 introduces typed placeholders in object templates that must be resolved
 
 ## Placeholder Syntax
 
-Object templates use inline markers for fields that vary per instance:
+Object templates use inline annotations for fields that vary per instance:
 
 ```yaml
 # Object template (obj.mikrotik.chateau_lte7_ax.yaml)
 defaults:
   hardware_identity:
-    serial_number: @required:string
+    serial_number: @optional_secret:string
     mac_addresses:
-      ether1: @required:mac
-      ether2: @optional:mac
+      ether1: @optional_secret:mac
+      ether2: @optional_secret:mac
   management:
     ipv4: @required:ipv4
 ```
@@ -37,8 +37,11 @@ defaults:
 
 | Marker | Meaning |
 |--------|---------|
-| `@required:<format>` | Instance MUST provide this value |
-| `@optional:<format>` | Instance MAY provide this value |
+| `@required:<format>` | Instance MUST provide this non-secret value |
+| `@optional:<format>` | Instance MAY provide this non-secret value |
+| `@required_secret:<format>` | MUST be provided via encrypted side-car secret |
+| `@optional_secret:<format>` | MAY be provided via encrypted side-car secret |
+| `@secret` | Secret value without explicit format |
 
 ### Supported Formats
 
@@ -64,16 +67,16 @@ Format registry: `v5/topology-tools/data/instance-field-formats.yaml`
 
 ### Step 1: Identify Required Fields
 
-Run compiler to see unresolved placeholders:
+Run compiler in strict secret mode to find unresolved secret annotations:
 
 ```bash
-.venv/bin/python3 v5/topology-tools/compile-topology.py --verbose
+python v5/topology-tools/compile-topology.py --secrets-mode strict
 ```
 
-Look for `E6806` warnings/errors:
+Look for unresolved secret diagnostics:
 
 ```
-W6806: Unresolved placeholder '@required:mac' at path 'defaults.hardware_identity.mac_addresses.ether1'
+E7208: Strict secrets mode requires resolved placeholder: 'hardware_identity.mac_addresses.wan'
 ```
 
 ### Step 2: Gather Real Values
@@ -98,40 +101,28 @@ ssh root@10.0.99.1 'dmidecode -s system-serial-number'
 ssh root@10.0.99.1 'ip link show | grep ether'
 ```
 
-### Step 3: Update Instance File
+### Step 3: Update Encrypted Side-Car
 
-Edit the instance file and add values under `instance_overrides` or directly in fields:
+Do not store real secrets in instance shard files.
+Use per-instance encrypted side-car in project scope:
 
 ```yaml
-# v5/topology/instances/L1-foundation/devices/rtr-mikrotik-chateau.yaml
-schema_version: 1
+# v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml (encrypted via sops)
 instance: rtr-mikrotik-chateau
-object_ref: obj.mikrotik.chateau_lte7_ax
-# ...
-
-# Option A: Direct fields (if schema allows)
 hardware_identity:
   serial_number: "HFG1234567"
   mac_addresses:
-    ether1: "AA:BB:CC:DD:EE:01"
-    ether2: "AA:BB:CC:DD:EE:02"
-
-# Option B: instance_overrides section
-instance_overrides:
-  defaults:
-    hardware_identity:
-      serial_number: "HFG1234567"
-      mac_addresses:
-        ether1: "AA:BB:CC:DD:EE:01"
+    wan: "AA:BB:CC:DD:EE:01"
+    lan1: "AA:BB:CC:DD:EE:02"
 ```
 
 ### Step 4: Validate
 
 ```bash
-.venv/bin/python3 v5/topology-tools/compile-topology.py
+python v5/topology-tools/compile-topology.py --secrets-mode inject
 ```
 
-Success: no `E6806` errors.
+Success: no `E7208`/`E7210` strict secret resolution errors.
 
 ---
 
@@ -191,19 +182,11 @@ In `v5/topology-tools/plugins/plugins.yaml`:
 4. Run compiler to validate
 5. Generate Terraform/Ansible
 
-### Scenario 2: Placeholder Value Unknown
+### Scenario 2: Value Unknown Yet
 
-If you don't know a value yet (e.g., device not purchased):
-
-```yaml
-# Use TODO marker (will trigger E6806 warning)
-hardware_identity:
-  serial_number: "<TODO_SERIAL_NUMBER>"
-  mac_addresses:
-    ether1: "02:00:00:00:00:01"  # Placeholder MAC (locally administered)
-```
-
-Locally administered MACs start with `02:`, `06:`, `0A:`, or `0E:`.
+If value is still unknown, keep field unresolved in side-car and run with
+`--secrets-mode passthrough` during migration. Production strict gates should
+remain blocked until secrets are resolved.
 
 ### Scenario 3: Optional Field Not Needed
 
@@ -221,19 +204,25 @@ hardware_identity:
 
 ---
 
-## Discovery Script (Future)
-
-A hardware discovery script is planned:
+## Discovery Script
 
 ```bash
-# Future: auto-discover and patch instance files
-python3 v5/topology-tools/discover-hardware-identity.py \
-  --device rtr-mikrotik-chateau \
-  --ssh admin@192.168.88.1 \
-  --output-patch
+python v5/topology-tools/discover-hardware-identity.py \
+  --topology v5/topology/topology.yaml \
+  --project home-lab
 ```
 
-See: `adr/plan/v5-production-readiness.md` Phase 6.
+This generates per-instance patch templates in:
+
+- `v5-build/hardware-identity-patches/<project>/`
+
+You can provide discovered values via:
+
+```bash
+python v5/topology-tools/discover-hardware-identity.py \
+  --discovery-file v5-build/hardware-identity-discovery.yaml \
+  --only-discovered
+```
 
 ---
 
