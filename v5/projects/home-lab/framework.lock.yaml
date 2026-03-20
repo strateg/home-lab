@@ -1,0 +1,11 @@
+schema_version: 1
+project_schema_version: 1.0.0
+project_contract_revision: 1
+framework:
+  id: home-lab-v5-framework
+  version: 5.0.0
+  source: git
+  repository: https://github.com/strateg/home-lab.git
+  revision: 9517f33a92d106b3e0a17c4d7ea9e6b23f0a7c32
+  integrity: sha256-5608531770c97702817280af4e73bdfde1cef406ef7b879d6d1acd808b8c3c25
+locked_at: '2026-03-20T13:22:22.218040+00:00'

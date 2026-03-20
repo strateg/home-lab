@@ -1,6 +1,6 @@
 schema_version: 1
 framework_id: home-lab-v5-framework
-framework_api_version: 1.0.0
+framework_api_version: 5.0.0
 framework_release_channel: snapshot
 supported_project_schema_range: ">=1.0.0 <2.0.0"
 

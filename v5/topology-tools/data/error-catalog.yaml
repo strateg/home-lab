@@ -484,6 +484,46 @@ codes:
     stage: validate
     title: Contract Migration Required
     hint: Run project contract migrator before compiling with current strict runtime.
+  E7821:
+    severity: error
+    stage: load
+    title: Framework Dependency Not Resolvable
+    hint: Check framework source path, URL, or dependency fetch policy.
+  E7822:
+    severity: error
+    stage: load
+    title: Framework Lock Missing
+    hint: Generate framework.lock.yaml and commit it before strict verification.
+  E7823:
+    severity: error
+    stage: validate
+    title: Framework Lock Revision Mismatch
+    hint: Lock revision differs from current framework revision; update lock or checkout matching revision.
+  E7824:
+    severity: error
+    stage: validate
+    title: Framework Integrity Hash Mismatch
+    hint: Lock integrity hash does not match framework files; regenerate lock from trusted source.
+  E7825:
+    severity: error
+    stage: validate
+    title: Framework Signature Missing or Invalid
+    hint: Provide valid signature metadata for package-based framework source.
+  E7826:
+    severity: error
+    stage: validate
+    title: Framework Provenance Missing
+    hint: Provide provenance attestation metadata for package-based framework source.
+  E7827:
+    severity: error
+    stage: validate
+    title: Framework Lock Contract Violation
+    hint: Fix framework.lock.yaml schema/fields to match contract.
+  E7828:
+    severity: error
+    stage: validate
+    title: Framework SBOM Missing
+    hint: Provide SBOM metadata for package-based framework source.
   I6901:
     severity: info
     stage: validate

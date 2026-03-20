@@ -145,6 +145,13 @@ python v5/topology-tools/build-framework-distribution.py `
   --archive-format both
 ```
 
+### Генерация и проверка framework lock
+
+```powershell
+python v5/topology-tools/generate-framework-lock.py --force
+python v5/topology-tools/verify-framework-lock.py --strict
+```
+
 ---
 
 ## 7. Добавление нового проекта
