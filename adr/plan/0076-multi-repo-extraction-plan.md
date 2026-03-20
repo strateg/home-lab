@@ -537,6 +537,7 @@ Wave 3 incremental progress (2026-03-20):
 1. strict `framework.lock` verification wired into current CI entrypoints before lane/compile execution.
 2. operator workflow document added: `docs/framework/OPERATOR-WORKFLOWS.md`.
 3. external project CI template added: `docs/framework/templates/project-validate.yml`.
+4. `compile-topology.py` supports `--repo-root` override and `framework.root` for external project repos.
 
 Wave 4 incremental progress (2026-03-20):
 

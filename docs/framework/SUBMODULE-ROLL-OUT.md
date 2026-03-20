@@ -79,12 +79,14 @@ python framework/v5/topology-tools/generate-framework-lock.py \
 
 ```bash
 python framework/v5/topology-tools/verify-framework-lock.py --strict
-python framework/v5/topology-tools/compile-topology.py --topology ./topology.yaml
+python framework/v5/topology-tools/compile-topology.py --repo-root . --topology ./topology.yaml
 ```
 
 Ready-to-use workflow template:
 
 - `docs/framework/templates/project-validate.yml`
+
+`./topology.yaml` in project-repository layout should define `framework.root: framework` and framework paths relative to project repo root.
 
 ---
 

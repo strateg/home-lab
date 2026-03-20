@@ -407,7 +407,14 @@ class V5Compiler:
         project_id: str,
         project_root: Path,
         project_manifest_path: Path,
+        framework_paths: dict[str, Any],
     ) -> bool:
+        framework_root_value = framework_paths.get("root")
+        if isinstance(framework_root_value, str) and framework_root_value.strip():
+            lock_framework_root = resolve_repo_path(framework_root_value.strip())
+        else:
+            lock_framework_root = REPO_ROOT
+
         try:
             lock_paths = resolve_framework_lock_paths(
                 repo_root=REPO_ROOT,
@@ -415,8 +422,8 @@ class V5Compiler:
                 project_id=project_id,
                 project_root=project_root,
                 project_manifest_path=project_manifest_path,
-                framework_root=REPO_ROOT,
-                framework_manifest_path=REPO_ROOT / "v5" / "topology" / "framework.yaml",
+                framework_root=lock_framework_root,
+                framework_manifest_path=lock_framework_root / "v5" / "topology" / "framework.yaml",
                 lock_path=None,
             )
         except (OSError, ValueError) as exc:
@@ -601,6 +608,7 @@ class V5Compiler:
             project_id=project_id,
             project_root=project_root,
             project_manifest_path=project_manifest_path,
+            framework_paths=framework_paths,
         ):
             total, errors, warnings, infos = self._write_diagnostics()
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
@@ -737,6 +745,11 @@ class V5Compiler:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Compile v5 topology manifest into canonical JSON.")
     parser.add_argument(
+        "--repo-root",
+        default=str(REPO_ROOT.as_posix()),
+        help="Repository root for resolving relative paths.",
+    )
+    parser.add_argument(
         "--topology",
         default=str(DEFAULT_MANIFEST.relative_to(REPO_ROOT).as_posix()),
         help="Path to v5 topology manifest YAML.",
@@ -823,6 +836,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = build_parser().parse_args()
+    global REPO_ROOT
+    REPO_ROOT = Path(args.repo_root).resolve()
     compiler = V5Compiler(
         manifest_path=resolve_repo_path(args.topology),
         output_json=resolve_repo_path(args.output_json),

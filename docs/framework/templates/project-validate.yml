@@ -36,6 +36,7 @@ jobs:
       - name: Compile topology
         run: |
           python framework/v5/topology-tools/compile-topology.py \
+            --repo-root . \
             --topology ./topology.yaml \
             --secrets-mode passthrough \
             --output-json ./generated/effective-topology.json \

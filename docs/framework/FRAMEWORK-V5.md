@@ -114,10 +114,20 @@ python v5/scripts/lane.py validate-v5
 
 ```powershell
 python v5/topology-tools/compile-topology.py `
+  --repo-root . `
   --topology v5/topology/topology.yaml `
   --strict-model-lock `
   --secrets-mode passthrough `
   --artifacts-root v5-generated
+```
+
+Для external project-репозитория через submodule:
+
+```powershell
+python framework/v5/topology-tools/compile-topology.py `
+  --repo-root . `
+  --topology .\topology.yaml `
+  --secrets-mode passthrough
 ```
 
 ### Сборка ansible runtime inventory
