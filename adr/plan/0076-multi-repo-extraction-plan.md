@@ -548,6 +548,7 @@ Wave 3 incremental progress (2026-03-20):
 11. added seeded bootstrap mode (`--seed-project-root`) to copy real instances/secrets/overrides into external project repo rehearsal.
 12. local external-project rehearsal passed with extracted framework submodule (`verify-framework-lock` + `compile-topology` -> `PASS`).
 13. GitHub-backed submodule rehearsal passed for lock verification and compile in `passthrough` secrets mode (`bootstrap-project-repo.py --framework-submodule-url https://github.com/strateg/infra-topology-framework.git --seed-project-root v5/projects/home-lab`; `verify-framework-lock --strict` -> `OK`, `compile-topology --secrets-mode passthrough` -> `PASS`).
+14. generator template lookup fixed for extracted framework layout (`repo_root/topology-tools/templates` with monorepo fallback) and covered by integration tests to prevent regressions during external project compilation.
 
 Wave 4 incremental progress (2026-03-20):
 
@@ -577,3 +578,4 @@ Wave 2 incremental progress (2026-03-20):
 10. blocker removed: release workflow commit pushed to `infra-topology-framework/main` (`56061ba`) and first tag `v1.0.0` published to remote.
 11. release workflow hardened for GitHub runner dependencies (`jinja2`, `jsonschema`) and CRLF-safe bash commands.
 12. successful tagged release `v1.0.3` confirmed in GitHub Actions (`Framework Release` -> `success`) with signed checksums, provenance placeholder, and SBOM artifacts.
+13. follow-up hotfix release `v1.0.4` published after extracted-layout generator template root fix; release workflow run completed `success` with framework artifact + SBOM.
