@@ -1,7 +1,7 @@
 # Master Migration Plan: ADR0075 -> ADR0074
 
 **Дата:** 2026-03-20
-**Статус:** Draft for execution
+**Статус:** Completed (2026-03-20)
 **Последовательность:** Сначала ADR0075 (Stage 1), затем закрытие оставшихся задач ADR0074
 
 ---
@@ -164,3 +164,17 @@
 1. `python -m pytest v5/tests -q -o addopts=''`
 2. `V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5`
 3. Для Wave 2+: локальные проверки generator gates (terraform/ansible) на project-qualified output.
+
+---
+
+## Execution Status (2026-03-20)
+
+- [x] Wave 1: framework/project manifest contract + project root migration + strict diagnostics (`E7808`)
+- [x] Wave 2.1: project-qualified generator output roots
+- [x] Wave 2.2: project-aware ansible runtime assembly
+- [x] Wave 2.4: hardware identity patch utility + secret-scoped strict placeholder closure
+- [x] Wave 3: legacy fallback removal from strict model paths/projections
+- [x] Wave 3: CI/workflow/documentation cutover updates
+- [x] Final validation:
+  - `python -m pytest v5/tests -q -o addopts=''` -> `271 passed`
+  - `V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5` -> `PASS`
