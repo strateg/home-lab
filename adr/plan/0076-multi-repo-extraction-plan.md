@@ -11,6 +11,8 @@
 
 This plan details the staged extraction of the v5 topology framework into a dedicated repository, enabling independent versioning and multi-project consumption.
 
+Execution mode for this plan is strict-by-default: no legacy fallback semantics for framework/project resolution.
+
 ---
 
 ## Current State (Post-0075)
@@ -83,6 +85,16 @@ home-lab/
 
 ---
 
+## Global Acceptance Gates (All Waves)
+
+1. Determinism gate: repeated generation produces equivalent artifacts under canonical normalization.
+2. Contract gate: framework/project compatibility checks are enforced as hard errors.
+3. Supply-chain gate: signed framework artifacts + provenance + SBOM are verified in CI.
+4. Rollback gate: rollback procedure is rehearsed and passes CI simulation.
+5. Observability gate: E7808/E781x/E782x diagnostics are visible in CI logs and dashboards.
+
+---
+
 ## Wave 0: Preparation and Baseline Lock
 
 ### 0.1 Framework Manifest Contract
@@ -122,6 +134,16 @@ framework:
   repository: https://github.com/<org>/infra-topology-framework.git
   revision: <commit-sha>
   integrity: sha256-<hash>
+  signature:
+    issuer: https://token.actions.githubusercontent.com
+    subject: https://github.com/<org>/infra-topology-framework/.github/workflows/release.yml@refs/tags/v1.0.0
+    verified: true
+provenance:
+  predicate_type: https://slsa.dev/provenance/v1
+  uri: https://github.com/<org>/infra-topology-framework/releases/download/v1.0.0/provenance.json
+sbom:
+  format: spdx-json
+  uri: https://github.com/<org>/infra-topology-framework/releases/download/v1.0.0/sbom.spdx.json
 locked_at: 2026-03-20T12:00:00Z
 ```
 
@@ -177,8 +199,9 @@ E7828:
 
 1. [ ] `framework.yaml` created and schema documented
 2. [ ] `framework.lock.yaml` template created
-3. [ ] E7821-E7828 registered in error-catalog.yaml
-4. [ ] Existing tests remain green
+3. [ ] E7821-E7828 registered in error catalog
+4. [ ] Compatibility contract fields mapped to ADR 0075 requirements
+5. [ ] Existing tests remain green
 
 ---
 
@@ -190,19 +213,20 @@ E7828:
 
 Responsibilities:
 - Parse `framework.lock.yaml`
-- Validate schema version
+- Validate schema version and required trust metadata
 - Verify integrity hash against framework directory
-- Emit E7822/E7823/E7824 on violations
+- Verify signature/provenance/SBOM presence and policy requirements
+- Emit E7822/E7823/E7824/E7825/E7826/E7828 on violations
 
 ### 1.2 Compiler Integration
 
 **File:** `v5/topology-tools/compile-topology.py`
 
 Changes:
-- Add `--strict-lock` flag (default: warn)
+- Remove warn-mode lock behavior; strict lock verification is default
 - Load `framework.lock.yaml` from project root
 - Verify lock before loading framework modules
-- Block compilation on E782x errors in strict mode
+- Block compilation on any E782x violation
 
 ### 1.3 Lock Generation Utility
 
@@ -212,13 +236,21 @@ Features:
 - Compute SHA256 hash of framework directory
 - Emit lock file with current timestamp
 - Support `--source git|local|package`
+- Record provenance and SBOM URIs for release artifacts
+
+### 1.4 Verification Utility Naming Alignment
+
+Standardize one verification entrypoint to avoid drift:
+- Canonical tool: `v5/topology-tools/verify-framework-lock.py`
+- `compile-topology.py` calls the same verification module internally
 
 ### Definition of Done (Wave 1)
 
 1. [ ] Lock loader implemented with tests
-2. [ ] Compiler respects lock in strict mode
+2. [ ] Compiler enforces strict lock by default
 3. [ ] Lock generator utility working
-4. [ ] Integration tests for E7822/E7823/E7824
+4. [ ] Integration tests for E7822/E7823/E7824/E7825/E7826/E7828
+5. [ ] Negative tests for tampered lock and missing attestation
 
 ---
 
@@ -266,8 +298,12 @@ jobs:
         run: pytest tests/ -q
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
+      - name: Generate provenance
+        run: echo "Generate SLSA provenance artifact"
       - name: Sign release
         uses: sigstore/cosign-installer@v3
+      - name: Verify signature in CI
+        run: echo "Verify produced signature before publish"
       - name: Create release with attestation
         run: |
           # Create tarball
@@ -280,7 +316,7 @@ jobs:
 1. [ ] Framework repository created
 2. [ ] All framework code extracted with history
 3. [ ] Framework CI pipeline operational
-4. [ ] First tagged release (v1.0.0) with SBOM
+4. [ ] First tagged release (v1.0.0) includes signature, provenance, and SBOM
 
 ---
 
@@ -288,10 +324,10 @@ jobs:
 
 ### 3.1 Add Framework as Submodule
 
-```bash
+```cmd
 cd home-lab
 git submodule add https://github.com/<org>/infra-topology-framework.git framework
-git submodule update --init
+git submodule update --init --recursive
 ```
 
 ### 3.2 Update Path Resolution
@@ -325,7 +361,7 @@ jobs:
       - name: Verify lock
         run: python framework/topology-tools/verify-framework-lock.py --strict
       - name: Compile
-        run: python framework/topology-tools/compile-topology.py --strict-lock
+        run: python framework/topology-tools/compile-topology.py
       - name: Validate
         run: python framework/topology-tools/validate-project.py
 ```
@@ -355,7 +391,7 @@ Verify:
 1. Generated Terraform matches pre-extraction baseline
 2. Generated Ansible inventory matches
 3. Bootstrap artifacts match
-4. All 271+ tests pass
+4. Existing repository test suite passes in strict mode
 
 ### 4.2 Version Skew Testing
 
@@ -363,6 +399,9 @@ Test compatibility matrix:
 - Project N with Framework N
 - Project N with Framework N-1
 - Project N with Framework N+1 (preview)
+
+Enforce expected outcomes from compatibility contract:
+- unsupported combinations fail with E7811/E7812/E7813
 
 ### 4.3 Rollback Rehearsal
 
@@ -374,10 +413,11 @@ Document and test:
 
 ### 4.4 Production Cutover
 
-1. Archive monorepo v5/ structure
+1. Archive monorepo `v5/` framework-internal structure after verification freeze
 2. Switch CI to multi-repo flow
-3. Update CLAUDE.md and documentation
+3. Update `CLAUDE.md` and migration documentation
 4. Announce migration complete
+5. Mark strict-only policy as operational baseline
 
 ### Definition of Done (Wave 4)
 
@@ -385,6 +425,7 @@ Document and test:
 2. [ ] Version skew matrix validated
 3. [ ] Rollback procedure verified
 4. [ ] Production cutover complete
+5. [ ] No legacy/fallback execution paths remain in runtime entrypoints
 
 ---
 
@@ -397,6 +438,17 @@ Document and test:
 | Submodule update friction | Document clear update workflow |
 | Lock verification performance | Cache hash computation |
 | Breaking changes in framework | Semantic versioning + compatibility range |
+| Provenance/signature drift between releases | Enforce release checklist and CI verify step |
+| Lock/schema drift across repos | Shared contract tests in both repositories |
+
+---
+
+## RACI (Execution Ownership)
+
+- Framework Maintainer: framework repo release, signature/provenance/SBOM publication
+- Project Maintainer: lock updates, project CI enforcement, rollout coordination
+- CI/SRE Owner: OIDC/cosign setup, verification gates, rollback rehearsal automation
+- Architecture Owner: compatibility policy, diagnostics governance, final cutover approval
 
 ---
 
@@ -419,19 +471,19 @@ feat(0076-wave4): cutover to multi-repo flow
 
 ## Control Commands (Each Wave)
 
-```bash
-# Wave 0-1: Monorepo validation
-python -m pytest v5/tests -q -o addopts=''
-V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5
+```cmd
+:: Wave 0-1: Monorepo validation
+python -m pytest v5\tests -q -o addopts=''
+set V5_SECRETS_MODE=passthrough && python v5\scripts\lane.py validate-v5
 
-# Wave 2: Framework repo validation
+:: Wave 2: Framework repo validation
 cd infra-topology-framework
-pytest tests/ -q
+pytest tests\ -q
 
-# Wave 3-4: Project repo validation
+:: Wave 3-4: Project repo validation
 cd home-lab
-python framework/topology-tools/verify-framework-lock.py --strict
-python framework/topology-tools/compile-topology.py --strict-lock
+python framework\topology-tools\verify-framework-lock.py --strict
+python framework\topology-tools\compile-topology.py
 ```
 
 ---

@@ -20,6 +20,11 @@ Next architectural step is distribution and lifecycle separation:
 
 Adopt staged extraction from monorepo separation to multi-repo distribution.
 
+Strict-policy inheritance from ADR 0075 is preserved:
+
+1. no legacy fallback execution modes for framework/project resolution;
+2. lock and compatibility verification are blocking checks in strict mode.
+
 ### Target Model
 
 1. `infra-topology-framework` repository contains:
@@ -85,6 +90,10 @@ To avoid conflicts with existing ranges, reserve:
 
 - `E7821..E7829` for framework dependency/lock hard errors
 
+Compatibility diagnostics remain in ADR 0075 range:
+
+- `E7811..E7813` for framework/project version and migration compatibility checks
+
 Examples:
 
 - `E7821`: framework dependency not resolvable
@@ -95,6 +104,12 @@ Examples:
 - `E7826`: missing provenance attestation
 - `E7827`: lock contract violation
 - `E7828`: SBOM missing
+
+Naming convention (normative):
+
+1. Lock creation utility: `generate-framework-lock.py`
+2. Lock verification utility: `verify-framework-lock.py`
+3. Compiler path MUST reuse the same verification module as `verify-framework-lock.py` (no parallel verifier implementations).
 
 ## Migration Stages
 

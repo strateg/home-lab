@@ -184,6 +184,7 @@ Shared precondition code `E3001` is reserved for common "compiled_json missing/e
 Cross-ADR code alignment:
 
 - `E780x`: framework/project contract failures (ADR 0075)
+- `E781x`: framework/project compatibility failures (ADR 0075 staged checks)
 - `E782x`: framework distribution/lock integrity failures (ADR 0076)
 
 ## Diagnostic Governance (Normative)

@@ -109,20 +109,17 @@ generation:
 
 ### Validation and Diagnostics
 
-New code range for framework/project separation is reserved to avoid collision with existing network codes:
+Strict-policy diagnostics are aligned with the canonical catalog:
 
-- `E7801..E7809`
+- `E7808`: legacy `paths.*` contract detected (unsupported, implemented in Stage 1)
+- `E7811`: framework version too old (reserved for staged compatibility checks)
+- `E7812`: project schema not supported (reserved for staged compatibility checks)
+- `E7813`: contract migration required (reserved for staged compatibility checks)
 
-Reserved semantics:
+Important:
 
-- `E7801`: invalid/missing `project` section in root manifest
-- `E7802`: active project not found under `projects_root`
-- `E7803`: invalid `project.yaml` schema
-- `E7804`: project `instances_root` missing
-- `E7805`: project `secrets_root` missing/invalid
-- `E7806`: project path escapes repository root
-- `E7807`: cross-project reference detected
-- `E7808`: legacy `paths.*` contract detected (unsupported)
+1. `E7801..E7805` are already used by L1 power-source relation validation.
+2. Framework/project compatibility checks (`E7811..E7813`) are staged for ADR 0076 implementation.
 
 ## Compatibility Contract (Normative)
 
