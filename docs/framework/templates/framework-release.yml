@@ -36,27 +36,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pyyaml pytest
+          python -m pip install pyyaml jinja2 jsonschema pytest
 
       - name: Run framework-focused tests
         run: |
-          python -m pytest -o addopts= \
-            "$TEST_ROOT/plugin_api" \
-            "$TEST_ROOT/plugin_contract" \
-            "$TEST_ROOT/plugin_integration/test_framework_lock.py" \
-            "$TEST_ROOT/plugin_integration/test_build_framework_distribution.py" \
-            "$TEST_ROOT/plugin_integration/test_extract_framework_worktree.py" \
-            "$TEST_ROOT/plugin_integration/test_extract_framework_history.py"
+          python -m pytest -o addopts= "$TEST_ROOT/plugin_api" "$TEST_ROOT/plugin_contract" "$TEST_ROOT/plugin_integration/test_framework_lock.py" "$TEST_ROOT/plugin_integration/test_build_framework_distribution.py" "$TEST_ROOT/plugin_integration/test_extract_framework_worktree.py" "$TEST_ROOT/plugin_integration/test_extract_framework_history.py"
 
       - name: Build framework distribution
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          python "$FRAMEWORK_TOOLS/build-framework-distribution.py" \
-            --repo-root . \
-            --framework-manifest "$FRAMEWORK_MANIFEST" \
-            --output-root framework-dist \
-            --version "$VERSION" \
-            --archive-format both
+          python "$FRAMEWORK_TOOLS/build-framework-distribution.py" --repo-root . --framework-manifest "$FRAMEWORK_MANIFEST" --output-root framework-dist --version "$VERSION" --archive-format both
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
@@ -86,10 +75,7 @@ jobs:
             echo "checksums.sha256 not found"
             exit 1
           fi
-          cosign sign-blob --yes \
-            --output-signature "${CHECKSUM_FILE}.sig" \
-            --output-certificate "${CHECKSUM_FILE}.crt" \
-            "$CHECKSUM_FILE"
+          cosign sign-blob --yes --output-signature "${CHECKSUM_FILE}.sig" --output-certificate "${CHECKSUM_FILE}.crt" "$CHECKSUM_FILE"
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
