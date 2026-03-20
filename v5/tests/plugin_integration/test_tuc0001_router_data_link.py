@@ -261,7 +261,8 @@ def test_tuc0001_compile_preserves_power_source_bindings(tmp_path: Path):
     exit_code = compiler.run()
     assert exit_code == 0
     payload = json.loads(output_json.read_text(encoding="utf-8"))
-    l1_rows = payload.get("instances", {}).get("devices", [])
+    instances = payload.get("instances", {})
+    l1_rows = instances.get("devices", []) + instances.get("power", [])
     by_source_id = {row.get("source_id"): row for row in l1_rows if isinstance(row, dict)}
 
     mikrotik = by_source_id.get("rtr-mikrotik-chateau")
