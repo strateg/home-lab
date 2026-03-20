@@ -10,8 +10,24 @@ from pathlib import Path
 
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-SCRIPT_PATH = REPO_ROOT / "v5" / "topology-tools" / "build-framework-distribution.py"
+
+def _detect_repo_root() -> Path:
+    current = Path(__file__).resolve()
+    for candidate in [current.parent, *current.parents]:
+        if (candidate / "topology-tools").is_dir() or (candidate / "v5" / "topology-tools").is_dir():
+            return candidate
+    return current.parents[3]
+
+
+def _tools_root(repo_root: Path) -> Path:
+    extracted = repo_root / "topology-tools"
+    if extracted.is_dir():
+        return extracted
+    return repo_root / "v5" / "topology-tools"
+
+
+REPO_ROOT = _detect_repo_root()
+SCRIPT_PATH = _tools_root(REPO_ROOT) / "build-framework-distribution.py"
 
 
 def _load_module():

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import stat
 import shutil
 import subprocess
 import tempfile
@@ -95,9 +96,14 @@ def _remove_if_exists(path: Path) -> None:
     if not path.exists():
         return
     if path.is_dir():
-        shutil.rmtree(path)
+        shutil.rmtree(path, onerror=_on_rmtree_error)
     else:
         path.unlink()
+
+
+def _on_rmtree_error(func, path: str, _exc_info) -> None:
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
 
 
 def _normalize_layout(*, repo_root: Path, include_tests: bool) -> None:
@@ -165,9 +171,12 @@ def main() -> int:
         if not args.force:
             print(f"ERROR: output directory already exists: {output_root} (use --force to overwrite)")
             return 2
-        shutil.rmtree(output_root)
+        shutil.rmtree(output_root, onerror=_on_rmtree_error)
 
-    with tempfile.TemporaryDirectory(prefix="framework-history-extract-") as tmp:
+    temp_parent = output_root.parent if output_root.parent.exists() else source_root.parent
+    temp_parent.mkdir(parents=True, exist_ok=True)
+
+    with tempfile.TemporaryDirectory(prefix="framework-history-extract-", dir=str(temp_parent)) as tmp:
         temp_root = Path(tmp)
         clone_root = temp_root / "repo"
         cloned = _run(["git", "clone", "--no-local", str(source_root), str(clone_root)])

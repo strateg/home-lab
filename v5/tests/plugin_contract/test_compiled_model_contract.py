@@ -8,9 +8,24 @@ import sys
 from pathlib import Path
 
 
+def _detect_repo_root() -> Path:
+    current = Path(__file__).resolve()
+    for candidate in [current.parent, *current.parents]:
+        if (candidate / "topology-tools").is_dir() or (candidate / "v5" / "topology-tools").is_dir():
+            return candidate
+    return current.parents[3]
+
+
+def _tools_root(repo_root: Path) -> Path:
+    extracted = repo_root / "topology-tools"
+    if extracted.is_dir():
+        return extracted
+    return repo_root / "v5" / "topology-tools"
+
+
 def _load_compiler_module():
-    repo_root = Path(__file__).resolve().parents[3]
-    module_path = repo_root / "v5" / "topology-tools" / "compile-topology.py"
+    repo_root = _detect_repo_root()
+    module_path = _tools_root(repo_root) / "compile-topology.py"
     spec = importlib.util.spec_from_file_location("compile_topology_module_contract", module_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Cannot load module from {module_path}")
