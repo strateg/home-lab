@@ -564,6 +564,7 @@ Wave 4 incremental progress (2026-03-20):
 9. added e2e dry-run runbook: `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`.
 10. strict readiness gates re-run after extracted-layout updates (`verify-framework-lock`, `rehearse-framework-rollback`, `validate-framework-compatibility-matrix`, `audit-strict-runtime-entrypoints`, `cutover-readiness-report --quick`) -> `PASS`.
 11. post-hardening full suite re-run passed (`306 passed` + `lane validate-v5 PASS`).
+12. cutover readiness report pending manual steps narrowed to final production announcement/freeze switch (framework extraction and project submodule wiring no longer listed as pending).
 
 Wave 2 incremental progress (2026-03-20):
 

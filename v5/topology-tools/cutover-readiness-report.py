@@ -155,8 +155,6 @@ def main() -> int:
         "gates": results,
         "ready_for_cutover": len(failures) == 0,
         "pending_external_steps": [
-            "framework repository creation/extraction execution",
-            "project repository submodule wiring execution",
             "production cutover announcement and freeze switch",
         ],
     }
