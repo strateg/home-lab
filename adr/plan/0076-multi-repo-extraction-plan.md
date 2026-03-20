@@ -13,6 +13,12 @@ This plan details the staged extraction of the v5 topology framework into a dedi
 
 Execution mode for this plan is strict-by-default: no legacy fallback semantics for framework/project resolution.
 
+Initial execution profile is **submodule-first**:
+
+1. framework continues development in current source repository;
+2. project repositories consume framework via git submodule + `framework.lock.yaml`;
+3. physical extraction/split of framework repository is optional follow-up once flow stabilizes.
+
 ---
 
 ## Current State (Post-0075)
@@ -82,6 +88,16 @@ home-lab/
     └── workflows/
         └── validate.yml             # Lock verification + compile
 ```
+
+### Optional Meta-Repository: `infra-stacks`
+
+```
+infra-stacks/
+├── infra-topology-framework/        # git submodule
+└── home-lab/                        # git submodule
+```
+
+This layout is convenient for coordinated updates while preserving independent repos.
 
 ---
 
@@ -254,7 +270,7 @@ Standardize one verification entrypoint to avoid drift:
 
 ---
 
-## Wave 2: Framework Repository Extraction
+## Wave 2: Framework Repository Extraction (Optional)
 
 ### 2.1 Repository Creation
 
@@ -311,7 +327,7 @@ jobs:
           # Attach SBOM and provenance
 ```
 
-### Definition of Done (Wave 2)
+### Definition of Done (Wave 2, if extraction executed)
 
 1. [ ] Framework repository created
 2. [ ] All framework code extracted with history

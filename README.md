@@ -30,6 +30,7 @@ Main documents:
 - `adr/0074-v5-generator-architecture.md`
 - `docs/release-notes/2026-03-20-v5-framework-project-cutover.md`
 - `docs/framework/FRAMEWORK-V5.md`
+- `docs/framework/SUBMODULE-ROLL-OUT.md`
 - `docs/runbooks/V5-E2E-DRY-RUN.md`
 - `v4/README.md`
 - `v5/topology-tools/docs/ENVIRONMENT-SETUP.md`

@@ -137,6 +137,14 @@ python v5/topology-tools/discover-hardware-identity.py `
   --project home-lab
 ```
 
+### Сборка framework distribution
+
+```powershell
+python v5/topology-tools/build-framework-distribution.py `
+  --version 1.0.0 `
+  --archive-format both
+```
+
 ---
 
 ## 7. Добавление нового проекта
@@ -182,3 +190,4 @@ python v5/topology-tools/discover-hardware-identity.py `
 - `v5/topology-tools/docs/ENVIRONMENT-SETUP.md`
 - `v5/topology-tools/docs/MANUAL-ARTIFACT-BUILD.md`
 - `docs/release-notes/2026-03-20-v5-framework-project-cutover.md`
+- `docs/framework/SUBMODULE-ROLL-OUT.md`

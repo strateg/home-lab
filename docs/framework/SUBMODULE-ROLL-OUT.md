@@ -1,0 +1,88 @@
+# Framework + Project via Git Submodules
+
+**Status:** Draft rollout guide  
+**Updated:** 2026-03-20  
+**ADR:** 0076
+
+---
+
+## Goal
+
+Подключать новые project-репозитории к framework без немедленного полного extraction framework-кода из текущего источника разработки.
+
+---
+
+## Recommended Model
+
+### Option A (default): project repo + framework submodule
+
+```
+home-lab/
+├── framework/                # git submodule -> infra-topology-framework
+├── project.yaml
+├── instances/
+├── secrets/
+└── framework.lock.yaml
+```
+
+### Option B: orchestration meta-repo with two submodules
+
+```
+infra-stacks/
+├── infra-topology-framework/ # git submodule
+└── home-lab/                 # git submodule
+```
+
+Option B удобен, если нужно обновлять framework и project в одном orchestration PR.
+
+---
+
+## Bootstrap Commands
+
+### A) Create project repo with framework submodule
+
+```bash
+mkdir home-lab && cd home-lab
+git init
+git submodule add <infra-topology-framework-url> framework
+git submodule update --init --recursive
+```
+
+### B) Create meta-repo with two submodules
+
+```bash
+mkdir infra-stacks && cd infra-stacks
+git init
+git submodule add <infra-topology-framework-url> infra-topology-framework
+git submodule add <home-lab-project-url> home-lab
+git submodule update --init --recursive
+```
+
+---
+
+## Lock/Verify Contract
+
+1. Project MUST keep `framework.lock.yaml`.
+2. Lock stores framework source/revision/integrity metadata.
+3. CI MUST run strict verifier before compile:
+
+```bash
+python framework/v5/topology-tools/verify-framework-lock.py --strict
+python framework/v5/topology-tools/compile-topology.py --topology ./topology.yaml
+```
+
+---
+
+## Update Workflow
+
+1. Update framework submodule to target revision.
+2. Regenerate `framework.lock.yaml`.
+3. Run strict verify + compile + tests.
+4. Commit submodule pointer + updated lock in one PR.
+
+---
+
+## Notes
+
+1. This guide defines submodule-first rollout.
+2. Full framework extraction remains optional stage in ADR0076.

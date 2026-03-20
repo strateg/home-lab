@@ -25,6 +25,12 @@ Strict-policy inheritance from ADR 0075 is preserved:
 1. no legacy fallback execution modes for framework/project resolution;
 2. lock and compatibility verification are blocking checks in strict mode.
 
+Pragmatic rollout policy (initial):
+
+1. framework development remains in the current repository (acts as `infra-topology-framework` source);
+2. project repositories consume framework via git submodule;
+3. full repository extraction is optional and can be executed later without changing lock/verify contracts.
+
 ### Target Model
 
 1. `infra-topology-framework` repository contains:
@@ -45,6 +51,20 @@ Strict-policy inheritance from ADR 0075 is preserved:
    - git submodule (initial default)
    - package release (later)
    - local path (development only)
+
+### Submodule Topology (Recommended Initial Rollout)
+
+Two valid layouts:
+
+1. **Project repository only**:
+   - repo: `home-lab`
+   - submodule: `framework/ -> infra-topology-framework`
+2. **Orchestration meta-repository**:
+   - repo: `infra-stacks`
+   - submodule: `infra-topology-framework/`
+   - submodule: `home-lab/`
+
+Both layouts use the same `framework.lock.yaml` and verification policy.
 
 ## Non-Goals
 
