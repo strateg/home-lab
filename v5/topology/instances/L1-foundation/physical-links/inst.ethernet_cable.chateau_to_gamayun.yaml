@@ -1,6 +1,6 @@
 instance: inst.ethernet_cable.chateau_to_gamayun
 object_ref: obj.network.ethernet_cable
-group: data-links
+group: physical-links
 layer: L1
 version: 1.0.0
 source_id: link-rtr-mikrotik-srv-gamayun

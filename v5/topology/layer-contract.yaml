@@ -25,7 +25,7 @@ layer_semantics:
 group_layers:
   meta: L0
   devices: L1
-  data-links: L1
+  physical-links: L1
   firmware: L1
   software_os: L1
   network: L2
