@@ -179,7 +179,7 @@ instance_bindings:
     object_ref: obj.firmware.pdu.generic.managed
     status: mapped
     notes: ADR0064 firmware instance
-  l1_software_os:
+  l1_os:
   - instance: inst.os.routeros.7.arm64
     source_id: inst.os.routeros.7.arm64
     layer: L1

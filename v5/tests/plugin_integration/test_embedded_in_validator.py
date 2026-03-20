@@ -33,7 +33,7 @@ def test_embedded_in_validator_skips_when_core_is_owner():
         },
         instance_bindings={
             "instance_bindings": {
-                "software_os": [
+                "os": [
                     {
                         "instance": "inst.os.1",
                         "class_ref": "class.os",
@@ -77,7 +77,7 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
                     {"instance": "inst.fw.a", "class_ref": "class.firmware", "object_ref": "obj.firmware.a"},
                     {"instance": "inst.fw.b", "class_ref": "class.firmware", "object_ref": "obj.firmware.b"},
                 ],
-                "software_os": [
+                "os": [
                     {
                         "instance": "inst.os.missing",
                         "class_ref": "class.os",
@@ -137,34 +137,34 @@ def test_embedded_in_validator_matches_legacy_rules_when_plugin_owner():
                 "object_ref": "obj.firmware.b",
             },
             {
-                "group": "software_os",
+                "group": "os",
                 "instance": "inst.os.missing",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.embedded",
             },
             {
-                "group": "software_os",
+                "group": "os",
                 "instance": "inst.os.unknown-ref",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.embedded",
                 "embedded_in": "inst.fw.unknown",
             },
             {
-                "group": "software_os",
+                "group": "os",
                 "instance": "inst.os.installable",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.installable",
                 "embedded_in": "inst.fw.a",
             },
             {
-                "group": "software_os",
+                "group": "os",
                 "instance": "inst.os.wrong-class",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.embedded",
                 "embedded_in": "inst.device.1",
             },
             {
-                "group": "software_os",
+                "group": "os",
                 "instance": "inst.os.mismatch",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.embedded",
@@ -217,7 +217,7 @@ def test_embedded_in_validator_reads_rows_via_subscribe():
         "normalized_rows",
         [
             {
-                "group": "software_os",
+                "group": "os",
                 "instance": "inst.os.subscribed",
                 "class_ref": "class.os",
                 "object_ref": "obj.os.embedded",

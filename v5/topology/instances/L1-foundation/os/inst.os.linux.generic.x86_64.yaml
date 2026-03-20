@@ -1,6 +1,6 @@
 instance: inst.os.linux.generic.x86_64
 object_ref: obj.os.linux.generic.x86_64
-group: software_os
+group: os
 layer: L1
 version: 1.0.0
 source_id: inst.os.linux.generic.x86_64

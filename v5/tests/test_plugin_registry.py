@@ -224,7 +224,7 @@ def test_plugin_execution():
                     }
                 ],
                 "firmware": [],
-                "software_os": [],
+                "os": [],
                 "lxc": [],
             }
         },
@@ -278,7 +278,7 @@ def test_plugin_detects_invalid_ref():
                     }
                 ],
                 "firmware": [],
-                "software_os": [],
+                "os": [],
                 "lxc": [],
             }
         },

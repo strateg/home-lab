@@ -28,7 +28,7 @@ group_layers:
   physical-links: L1
   power: L1
   firmware: L1
-  software_os: L1
+  os: L1
   network: L2
   data-channels: L2
   storage: L3

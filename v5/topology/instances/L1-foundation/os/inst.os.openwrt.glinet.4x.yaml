@@ -1,6 +1,6 @@
 instance: inst.os.openwrt.glinet.4x
 object_ref: obj.os.openwrt.glinet.4x
-group: software_os
+group: os
 layer: L1
 version: 1.0.0
 source_id: inst.os.openwrt.glinet.4x

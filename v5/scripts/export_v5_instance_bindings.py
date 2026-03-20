@@ -14,7 +14,7 @@ OUTPUT_PATH = ROOT / "v5/topology/instances/_legacy-home-lab/instance-bindings.y
 GROUP_LAYER_MAP = {
     "l1_devices": "L1",
     "l1_firmware": "L1",
-    "l1_software_os": "L1",
+    "l1_os": "L1",
     "l2_network": "L2",
     "l3_storage": "L3",
     "l4_vms": "L4",
@@ -80,7 +80,7 @@ def main() -> int:
             "l1_firmware": _normalize_rows(
                 entities.get("l1_firmware", []) or [], group="l1_firmware"
             ),
-            "l1_software_os": _normalize_rows(entities.get("l1_software_os", []) or [], group="l1_software_os"),
+            "l1_os": _normalize_rows(entities.get("l1_os", []) or [], group="l1_os"),
             "l2_network": _normalize_rows(entities.get("l2_network", []) or [], group="l2_network"),
             "l3_storage": _normalize_rows(entities.get("l3_storage", []) or [], group="l3_storage"),
             "l4_vms": _normalize_rows(entities.get("l4_vms", []) or [], group="l4_vms"),

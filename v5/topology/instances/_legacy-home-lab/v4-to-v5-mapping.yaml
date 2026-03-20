@@ -30,8 +30,8 @@ summary:
     mapped: 8
     pending: 0
     gap: 0
-  l1_software_os_total: 8
-  l1_software_os_status:
+  l1_os_total: 8
+  l1_os_status:
     mapped: 8
     pending: 0
     gap: 0
@@ -454,7 +454,7 @@ entities:
     object_ref: obj.firmware.pdu.generic.managed
     status: mapped
     notes: ADR0064 firmware instance
-  l1_software_os:
+  l1_os:
   - instance_id: inst.os.routeros.7.arm64
     source_id: inst.os.routeros.7.arm64
     class_ref: class.os
