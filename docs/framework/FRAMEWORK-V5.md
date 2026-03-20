@@ -228,6 +228,23 @@ python v5/topology-tools/bootstrap-project-repo.py `
 - `E7104`: неверный формат версии shard (`version: 1.0.0` обязателен)
 - `E7101/E7108/E7109`: нарушение shard path/id contract
 - `E7208/E7210`: strict secrets unresolved paths
+- `E7824`: `framework.lock.yaml` не совпадает с текущим содержимым framework
+
+Быстрые исправления:
+
+- `E7824`:
+  `python v5/topology-tools/generate-framework-lock.py --force`
+  затем
+  `python v5/topology-tools/verify-framework-lock.py --strict`
+- `E7200` (`Failed to execute sops`):
+  установить `sops` и `age` из `v5/topology-tools/docs/ENVIRONMENT-SETUP.md`;
+  для dry-run без локального decrypt использовать `--secrets-mode passthrough`.
+- `git remote add origin ...` -> `remote origin already exists`:
+  использовать `git remote set-url origin <url>` (или удалить/переименовать текущий remote).
+- Push отклонен ошибкой GitHub `without 'workflow' scope` при изменении `.github/workflows/*`:
+  переавторизоваться токеном с правом `workflow` и повторить push.
+- Push по SSH с `Permission denied (publickey)`:
+  добавить SSH key в GitHub и использовать `git@github.com:<org>/<repo>.git`.
 
 Полный каталог:
 
