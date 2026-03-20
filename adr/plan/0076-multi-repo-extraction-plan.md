@@ -545,6 +545,8 @@ Wave 3 incremental progress (2026-03-20):
 8. compiler supports root-level `project.yaml` fallback when `projects_root: "."` (external project repo layout).
 9. bootstrap-project utility can initialize git repo and wire framework submodule directly (`--framework-submodule-url`).
 10. local integration coverage added for submodule wiring bootstrap flow (`test_bootstrap_project_repo_can_wire_framework_submodule`).
+11. added seeded bootstrap mode (`--seed-project-root`) to copy real instances/secrets/overrides into external project repo rehearsal.
+12. local external-project rehearsal passed with extracted framework submodule (`verify-framework-lock` + `compile-topology` -> `PASS`).
 
 Wave 4 incremental progress (2026-03-20):
 

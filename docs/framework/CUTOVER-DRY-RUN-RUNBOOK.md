@@ -88,9 +88,13 @@ python -m pytest -o addopts= `
 
 ```powershell
 python v5/topology-tools/bootstrap-project-repo.py `
-  --framework-root . `
+  --framework-root v5-build/infra-topology-framework-bootstrap `
   --output-root v5-build/project-bootstrap/home-lab `
   --project-id home-lab `
+  --seed-project-root v5/projects/home-lab `
+  --init-git `
+  --framework-submodule-url D:/Workspaces/PycharmProjects/home-lab/v5-build/infra-topology-framework-bootstrap `
+  --framework-submodule-path framework `
   --force
 ```
 
@@ -101,8 +105,28 @@ python v5/topology-tools/bootstrap-project-repo.py `
 3. `v5-build/project-bootstrap/home-lab/framework.lock.yaml`
 4. `v5-build/project-bootstrap/home-lab/.github/workflows/validate.yml`
 
-Примечание: bootstrap-скелетон содержит пустые `instances/` и `secrets/`.
-Полноценный compile/generate PASS ожидается только после переноса проектных данных.
+Strict compile rehearsal для external project layout:
+
+```powershell
+python v5-build/project-bootstrap/home-lab/framework/topology-tools/verify-framework-lock.py `
+  --repo-root v5-build/project-bootstrap/home-lab `
+  --topology topology.yaml `
+  --project-root v5-build/project-bootstrap/home-lab `
+  --project-manifest v5-build/project-bootstrap/home-lab/project.yaml `
+  --framework-root v5-build/project-bootstrap/home-lab/framework `
+  --lock-file v5-build/project-bootstrap/home-lab/framework.lock.yaml `
+  --strict
+
+python v5-build/project-bootstrap/home-lab/framework/topology-tools/compile-topology.py `
+  --repo-root v5-build/project-bootstrap/home-lab `
+  --topology topology.yaml `
+  --strict-model-lock `
+  --secrets-mode passthrough `
+  --output-json generated/effective-topology.json `
+  --diagnostics-json generated/diagnostics.json `
+  --diagnostics-txt generated/diagnostics.txt `
+  --artifacts-root generated-artifacts
+```
 
 ---
 
