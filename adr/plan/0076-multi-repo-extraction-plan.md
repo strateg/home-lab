@@ -392,7 +392,7 @@ Create `docs/operator-workflows.md`:
 
 ### Definition of Done (Wave 3)
 
-1. [ ] Framework wired as submodule
+1. [x] Framework wired as submodule
 2. [x] Project compiles against external framework
 3. [x] Lock verification in CI
 4. [x] Operator documentation complete
@@ -530,7 +530,7 @@ Wave 4 (Cutover) ◄───────────────────┘
 - [x] Wave 0: Preparation and Baseline Lock
 - [x] Wave 1: Lock Verification Runtime
 - [x] Wave 2: Framework Repository Extraction
-- [ ] Wave 3: Project Repository Restructure
+- [x] Wave 3: Project Repository Restructure
 - [ ] Wave 4: Cutover and Validation
 
 Wave 3 incremental progress (2026-03-20):
