@@ -16,6 +16,8 @@ docs/
 ├── NETINSTALL-CLI-QUICK-REFERENCE.md # Netinstall command quick reference
 ├── NETINSTALL-CLI-SETUP-OPTIONS.md # Setup methods comparison
 ├── NETINSTALL-CLI-VISUAL-GUIDE.md # Visual bootstrap flow
+├── framework/                   # v5 framework/project contract docs
+│   └── FRAMEWORK-V5.md          # Framework boundaries and operator workflow (NEW)
 ├── guides/                      # Practical how-to guides
 │   ├── DEPLOYMENT-STRATEGY.md   # Full deployment workflow (NEW)
 │   ├── MIKROTIK-TERRAFORM.md    # MikroTik Terraform guide (NEW)
@@ -135,6 +137,12 @@ See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete gui
 |----------|-------------|--------|
 | [TOPOLOGY-MODULAR.md](architecture/TOPOLOGY-MODULAR.md) | Modular topology structure | UPDATED |
 | [MIGRATION-V1-TO-V2.md](architecture/MIGRATION-V1-TO-V2.md) | Migration guide v1→v2 | ARCHIVED |
+
+### Framework (v5)
+
+| Document | Description | Status |
+|----------|-------------|--------|
+| [FRAMEWORK-V5.md](framework/FRAMEWORK-V5.md) | Framework/project contract, paths, commands, diagnostics | NEW |
 
 ---
 

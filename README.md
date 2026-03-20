@@ -29,6 +29,7 @@ Main documents:
 - `adr/0075-framework-project-separation.md`
 - `adr/0074-v5-generator-architecture.md`
 - `docs/release-notes/2026-03-20-v5-framework-project-cutover.md`
+- `docs/framework/FRAMEWORK-V5.md`
 - `v4/README.md`
 - `v5/topology-tools/docs/ENVIRONMENT-SETUP.md`
 - `v5/topology-tools/docs/MANUAL-ARTIFACT-BUILD.md`
