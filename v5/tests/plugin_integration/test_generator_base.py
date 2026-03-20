@@ -25,6 +25,7 @@ def _ctx(
     templates_root: Path | None = None,
     project_id: str | None = None,
     repo_root: Path | None = None,
+    class_modules_root: Path | None = None,
 ) -> PluginContext:
     config = {
         "generator_artifacts_root": str(artifacts_root),
@@ -35,6 +36,8 @@ def _ctx(
         config["project_id"] = project_id
     if repo_root is not None:
         config["repo_root"] = str(repo_root)
+    if class_modules_root is not None:
+        config["class_modules_root"] = str(class_modules_root)
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
@@ -106,3 +109,24 @@ def test_base_generator_resolves_default_templates_in_monorepo_layout(tmp_path: 
 
     rendered = generator.render_template(ctx, "sample.j2", {"name": "monorepo"})
     assert rendered == "hello monorepo"
+
+
+def test_base_generator_resolves_templates_for_project_submodule_layout(tmp_path: Path) -> None:
+    project_repo = tmp_path / "project-repo"
+    framework_root = project_repo / "framework"
+    templates_root = framework_root / "topology-tools" / "templates"
+    class_modules_root = framework_root / "class-modules"
+    templates_root.mkdir(parents=True, exist_ok=True)
+    class_modules_root.mkdir(parents=True, exist_ok=True)
+    (templates_root / "sample.j2").write_text("hello {{ name }}", encoding="utf-8")
+
+    generator = DummyGenerator("dummy.generator")
+    ctx = _ctx(
+        tmp_path,
+        artifacts_root=tmp_path / "artifacts",
+        repo_root=project_repo,
+        class_modules_root=class_modules_root,
+    )
+
+    rendered = generator.render_template(ctx, "sample.j2", {"name": "submodule"})
+    assert rendered == "hello submodule"
