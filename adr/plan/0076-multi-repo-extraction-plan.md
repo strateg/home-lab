@@ -550,6 +550,7 @@ Wave 3 incremental progress (2026-03-20):
 13. GitHub-backed submodule rehearsal passed for lock verification and compile in `passthrough` secrets mode (`bootstrap-project-repo.py --framework-submodule-url https://github.com/strateg/infra-topology-framework.git --seed-project-root v5/projects/home-lab`; `verify-framework-lock --strict` -> `OK`, `compile-topology --secrets-mode passthrough` -> `PASS`).
 14. generator template lookup fixed for extracted framework layout (`repo_root/topology-tools/templates` with monorepo fallback) and covered by integration tests to prevent regressions during external project compilation.
 15. external project rehearsal re-validated against framework tag `v1.0.5`: lock generation + strict verify + compile in `passthrough` mode passed (`project-repo-home-lab-v104`).
+16. bootstrap-project notes now emit runnable strict gate commands for project-submodule layout (explicit project/framework path flags + passthrough compile rehearsal).
 
 Wave 4 incremental progress (2026-03-20):
 
@@ -583,3 +584,4 @@ Wave 2 incremental progress (2026-03-20):
 13. follow-up hotfix release `v1.0.4` published after extracted-layout generator template root fix; release workflow run completed `success` with framework artifact + SBOM.
 14. follow-up hotfix release `v1.0.5` published for project-submodule template path handling; release workflow run completed `success`.
 15. follow-up hotfix release `v1.0.6` published for bootstrap strict-gate note command correctness; release workflow run completed `success`.
+16. follow-up hotfix release `v1.0.7` published to align cutover-readiness pending-manual scope with completed Wave 2/3 milestones; release workflow run completed `success`.
