@@ -13,6 +13,8 @@
 1. ADR0076 (multi-repo distribution + lock/trust contract),
 2. ADR0077 (Task-first developer orchestration).
 
+Пошаговая операторская инструкция: `docs/framework/FRAMEWORK-RELEASE-GUIDE.md`.
+
 ---
 
 ## Release Principles

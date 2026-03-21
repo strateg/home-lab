@@ -53,7 +53,7 @@ tasks:
   release-preflight:
     desc: Run local release preflight (quality + strict + framework-focused tests)
     deps:
-      - validate:quality
+      - :validate:quality
       - release-ci
 
   release-build:

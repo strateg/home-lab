@@ -4,47 +4,47 @@ tasks:
   local:
     desc: Local pre-push gate mirroring mandatory CI checks
     deps:
-      - validate:quality
-      - framework:strict
-      - validate:v5-passthrough
-      - validate:phase1-gate
-      - test:fixture-matrix-v4
-      - test:v4
-      - test:v5
+      - :validate:quality
+      - :framework:strict
+      - :validate:v5-passthrough
+      - :validate:phase1-gate
+      - :test:fixture-matrix-v4
+      - :test:v4
+      - :test:v5
 
   python-checks-core:
     desc: Core strict checks used by python-checks workflow
     deps:
-      - framework:strict
-      - validate:v5-passthrough
+      - :framework:strict
+      - :validate:v5-passthrough
 
   lane-v5-inject:
     desc: Lane validation core via task (inject mode)
     deps:
-      - framework:strict
-      - validate:v5
+      - :framework:strict
+      - :validate:v5
 
   lane-v5-passthrough:
     desc: Lane validation core via task (passthrough mode)
     deps:
-      - framework:strict
-      - validate:v5-passthrough
+      - :framework:strict
+      - :validate:v5-passthrough
 
   topology-mainline-inject:
     desc: Topology matrix strict mainline via task (inject mode)
     deps:
-      - framework:strict
-      - validate:v5
-      - validate:phase1-gate
+      - :framework:strict
+      - :validate:v5
+      - :validate:phase1-gate
 
   topology-mainline-passthrough:
     desc: Topology matrix strict mainline via task (passthrough mode)
     deps:
-      - framework:strict
-      - validate:v5-passthrough
-      - validate:phase1-gate
+      - :framework:strict
+      - :validate:v5-passthrough
+      - :validate:phase1-gate
 
   topology-fixture-matrix:
     desc: Topology matrix legacy fixture lane
     deps:
-      - test:fixture-matrix-v4
+      - :test:fixture-matrix-v4

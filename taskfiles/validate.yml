@@ -9,18 +9,18 @@ tasks:
   lint:
     desc: Run formatting/linting checks (black + isort)
     cmds:
-      - "black --check ."
-      - "isort --check-only ."
+      - "{{.PYTHON}} -m black --check ."
+      - "{{.PYTHON}} -m isort --check-only ."
 
   typecheck:
     desc: Run mypy static checks
     cmds:
-      - "mypy --config-file pyproject.toml v4/topology-tools"
+      - "{{.PYTHON}} -m mypy --config-file pyproject.toml v4/topology-tools"
 
   pylint:
     desc: Run pylint checks
     cmds:
-      - "pylint v4/topology-tools"
+      - "{{.PYTHON}} -m pylint v4/topology-tools"
 
   quality:
     desc: Aggregate local quality gate (ADR + lint + typecheck + pylint)

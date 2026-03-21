@@ -148,6 +148,7 @@ See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete gui
 | [SUBMODULE-ROLL-OUT.md](framework/SUBMODULE-ROLL-OUT.md) | Submodule-first rollout for framework + project repos | NEW |
 | [OPERATOR-WORKFLOWS.md](framework/OPERATOR-WORKFLOWS.md) | Lock verify/update/rollback workflows for strict runtime | NEW |
 | [PROJECT-BOOTSTRAP-AND-FRAMEWORK-INTEGRATION.md](framework/PROJECT-BOOTSTRAP-AND-FRAMEWORK-INTEGRATION.md) | Project bootstrap, framework wiring, and joint compile flow | NEW |
+| [FRAMEWORK-RELEASE-GUIDE.md](framework/FRAMEWORK-RELEASE-GUIDE.md) | Step-by-step framework release guide (preflight, tag, artifacts, rollback) | NEW |
 | [INFRA-TOPOLOGY-FRAMEWORK-RELEASE-PROCESS.md](framework/INFRA-TOPOLOGY-FRAMEWORK-RELEASE-PROCESS.md) | Release process for infra-topology-framework (ADR0076+ADR0077) | NEW |
 | [framework-release.yml](framework/templates/framework-release.yml) | Template workflow for framework release packaging/SBOM/provenance | NEW |
 
