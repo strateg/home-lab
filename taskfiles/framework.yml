@@ -1,0 +1,36 @@
+version: "3"
+
+tasks:
+  verify-lock:
+    desc: Verify framework.lock in strict mode
+    cmds:
+      - "{{.PYTHON}} v5/topology-tools/verify-framework-lock.py --strict"
+
+  compile:
+    desc: Compile topology with strict model lock and passthrough secrets
+    cmds:
+      - "{{.PYTHON}} v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough"
+
+  rollback-rehearsal:
+    desc: Rehearse framework lock rollback path
+    cmds:
+      - "{{.PYTHON}} v5/topology-tools/rehearse-framework-rollback.py"
+
+  compatibility-matrix:
+    desc: Validate framework/project compatibility matrix
+    cmds:
+      - "{{.PYTHON}} v5/topology-tools/validate-framework-compatibility-matrix.py"
+
+  audit-entrypoints:
+    desc: Audit strict runtime entrypoints
+    cmds:
+      - "{{.PYTHON}} v5/topology-tools/audit-strict-runtime-entrypoints.py"
+
+  strict:
+    desc: Run ADR0076 strict framework gates
+    deps:
+      - verify-lock
+      - rollback-rehearsal
+      - compatibility-matrix
+      - audit-entrypoints
+

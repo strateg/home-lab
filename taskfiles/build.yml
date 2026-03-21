@@ -1,0 +1,38 @@
+version: "3"
+
+tasks:
+  v4:
+    desc: Build v4 lane artifacts
+    cmds:
+      - "{{.PYTHON}} v5/scripts/lane.py build-v4"
+
+  v5:
+    desc: Build v5 lane artifacts
+    cmds:
+      - "{{.PYTHON}} v5/scripts/lane.py build-v5"
+
+  phase1-bootstrap:
+    desc: Refresh phase1 migration bootstrap map
+    cmds:
+      - "{{.PYTHON}} v5/topology-tools/bootstrap-phase1-mapping.py --refresh-effective"
+
+  phase1-reconcile:
+    desc: Reconcile phase1 mapping
+    cmds:
+      - "{{.PYTHON}} v5/scripts/reconcile_phase1_mapping.py"
+
+  phase1-backlog:
+    desc: Refresh phase1 backlog report
+    cmds:
+      - "{{.PYTHON}} v5/scripts/refresh_phase1_backlog.py"
+
+  phase4-sync-lock:
+    desc: Sync v5 model lock
+    cmds:
+      - "{{.PYTHON}} v5/scripts/sync_v5_model_lock.py"
+
+  phase4-export:
+    desc: Export v5 instance bindings (legacy migration helper)
+    cmds:
+      - "{{.PYTHON}} v5/scripts/export_v5_instance_bindings.py"
+

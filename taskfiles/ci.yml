@@ -1,0 +1,15 @@
+version: "3"
+
+tasks:
+  local:
+    desc: Local pre-push gate mirroring mandatory strict checks
+    deps:
+      - framework:strict
+      - validate:v5-passthrough
+      - test:v5
+
+  python-checks-core:
+    desc: Core strict checks used by python-checks workflow
+    deps:
+      - framework:strict
+      - validate:v5-passthrough

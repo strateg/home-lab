@@ -1,0 +1,12 @@
+version: "3"
+
+tasks:
+  init:
+    desc: Initialize a new standalone project repo with framework submodule (requires FRAMEWORK_SUBMODULE_URL)
+    cmds:
+      - "{{.PYTHON}} v5/topology-tools/init-project-repo.py --output-root {{.PROJECT_ROOT}} --project-id {{.PROJECT_ID}} --framework-submodule-url {{.FRAMEWORK_SUBMODULE_URL}} --framework-submodule-path {{.FRAMEWORK_SUBMODULE_PATH}} --force"
+
+  bootstrap:
+    desc: Bootstrap project repo manifests/lock for an existing framework root
+    cmds:
+      - "{{.PYTHON}} v5/topology-tools/bootstrap-project-repo.py --framework-root {{.FRAMEWORK_SUBMODULE_PATH}} --output-root {{.PROJECT_ROOT}} --project-id {{.PROJECT_ID}} --force"

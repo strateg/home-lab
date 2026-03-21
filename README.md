@@ -39,20 +39,37 @@ Main documents:
 Quick commands:
 
 ```powershell
-make validate-v5
-make validate-v5-layers
-make build-v5
-make phase1-gate
+task validate:v5
+task validate:v5-layers
+task build:v5
+task validate:phase1-gate
+task framework:strict
+task ci:local
 ```
 
 v4 maintenance commands:
 
 ```powershell
-make validate-v4
-make build-v4
-make phase1-bootstrap
-make phase1-reconcile
-make phase1-backlog
-make phase4-sync-lock
-make phase4-export
+task validate:v4
+task build:v4
+task build:phase1-bootstrap
+task build:phase1-reconcile
+task build:phase1-backlog
+task build:phase4-sync-lock
+task build:phase4-export
 ```
+
+Project bootstrap (new repo + framework submodule):
+
+```powershell
+task project:init -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_SUBMODULE_URL=https://github.com/<org>/infra-topology-framework.git
+```
+
+`Makefile` is kept as a compatibility shim and delegates to `task` where possible.
+
+If `task` is not installed yet:
+
+- Windows (`winget`): `winget install Task.Task`
+- macOS (`brew`): `brew install go-task/tap/go-task`
+- Linux (`snap`): `sudo snap install task --classic`
+- Verify: `task --version`

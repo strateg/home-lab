@@ -1,0 +1,18 @@
+version: "3"
+
+tasks:
+  all:
+    desc: Run all tests (v4 + v5)
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= -q"
+
+  v4:
+    desc: Run v4 tests
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= v4/tests -q"
+
+  v5:
+    desc: Run v5 tests
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= v5/tests -q"
+

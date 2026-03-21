@@ -1,0 +1,53 @@
+version: "3"
+
+vars:
+  PYTHON: '{{default "python" .PYTHON}}'
+  PROJECT_ID: '{{default "home-lab" .PROJECT_ID}}'
+  PROJECT_ROOT: '{{default "." .PROJECT_ROOT}}'
+  FRAMEWORK_SUBMODULE_URL: '{{.FRAMEWORK_SUBMODULE_URL}}'
+  FRAMEWORK_SUBMODULE_PATH: '{{default "framework" .FRAMEWORK_SUBMODULE_PATH}}'
+
+includes:
+  validate:
+    taskfile: ./taskfiles/validate.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
+  build:
+    taskfile: ./taskfiles/build.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
+  test:
+    taskfile: ./taskfiles/test.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
+  framework:
+    taskfile: ./taskfiles/framework.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
+      PROJECT_ID: "{{.PROJECT_ID}}"
+      PROJECT_ROOT: "{{.PROJECT_ROOT}}"
+  project:
+    taskfile: ./taskfiles/project.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
+      PROJECT_ID: "{{.PROJECT_ID}}"
+      PROJECT_ROOT: "{{.PROJECT_ROOT}}"
+      FRAMEWORK_SUBMODULE_URL: "{{.FRAMEWORK_SUBMODULE_URL}}"
+      FRAMEWORK_SUBMODULE_PATH: "{{.FRAMEWORK_SUBMODULE_PATH}}"
+  ci:
+    taskfile: ./taskfiles/ci.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
