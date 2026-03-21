@@ -28,7 +28,7 @@ Strict-policy inheritance from ADR 0075 is preserved:
 Pragmatic rollout policy (initial):
 
 1. framework development remains in the current repository (acts as `infra-topology-framework` source);
-2. project repositories consume framework via git submodule;
+2. project repositories consume framework via git submodule or package artifact (`zip`);
 3. full repository extraction is optional and can be executed later without changing lock/verify contracts.
 
 ### Target Model
@@ -49,7 +49,7 @@ Pragmatic rollout policy (initial):
 
 3. Projects consume framework by one of supported methods:
    - git submodule (initial default)
-   - package release (later)
+   - package release (`zip` artifact, package lock mode)
    - local path (development only)
 
 ### Submodule Topology (Recommended Initial Rollout)
@@ -65,6 +65,20 @@ Two valid layouts:
    - submodule: `home-lab/`
 
 Both layouts use the same `framework.lock.yaml` and verification policy.
+
+### Package Artifact Workflow (Project Bootstrap)
+
+In addition to submodule mode, projects may bootstrap from a built framework distribution artifact:
+
+1. Build framework distribution (`zip` + checksums + manifest).
+2. Initialize project repository from artifact (`project:init-from-dist` / `init-project-repo.py --framework-dist-zip ...`).
+3. Generate lock in package mode:
+   - `framework.source: package`
+   - artifact reference in `framework.repository` (for example, file URI or release URL)
+   - package trust metadata (`signature`, `provenance`, `sbom`) for strict verification.
+4. Run strict verify + compile gates before first project commit.
+
+This workflow is intended for teams that do not want git submodule coupling and prefer release-artifact pinning.
 
 ## Non-Goals
 
@@ -143,13 +157,15 @@ Naming convention (normative):
 
 1. Create standalone project repository.
 2. Import project data from `v5/projects/home-lab`.
-3. Wire framework dependency + lock.
+3. Wire framework dependency + lock using one of two flows:
+   - submodule flow (`project:init`)
+   - package artifact flow (`project:init-from-dist`, lock source `package`).
 
 ### Stage 2.3: CI and Operational Cutover
 
 1. Enforce strict lock verification in CI.
 2. Run compile/generate/validate gates against external framework dependency.
-3. Document upgrade workflow (`pin`, `verify`, `update`).
+3. Document upgrade workflow (`pin`, `verify`, `update`) for both submodule and package modes.
 4. Validate rollback path in CI simulation before production cutover.
 
 ## Multi-Repo Cutover Readiness Gates
@@ -189,4 +205,6 @@ Trade-offs:
 - ADR 0074: generator architecture in project-aware runtime
 - Diagnostics catalog: `docs/diagnostics-catalog.md`
 - Cutover dry-run runbook: `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`
+- Project bootstrap and integration guide: `docs/framework/PROJECT-BOOTSTRAP-AND-FRAMEWORK-INTEGRATION.md`
+- Framework release guide: `docs/framework/FRAMEWORK-RELEASE-GUIDE.md`
 - Implementation plan: `adr/plan/0076-multi-repo-extraction-plan.md`
