@@ -24,6 +24,11 @@ python v5/topology-tools/compile-topology.py --help
 Если в `v5/topology/class-modules/**` или `v5/topology/object-modules/**` есть `plugins.yaml`,
 они будут подхвачены автоматически (deterministic merge policy).
 
+Важно (ADR0078):
+
+1. центральный `v5/topology-tools/plugins/plugins.yaml` содержит только shared/global плагины;
+2. object-specific генераторы и их регистрация должны находиться в `v5/topology/object-modules/**`.
+
 ## 2. Полный ручной прогон (все этапы)
 
 ```powershell

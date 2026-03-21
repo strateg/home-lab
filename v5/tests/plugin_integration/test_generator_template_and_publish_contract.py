@@ -3,21 +3,49 @@
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
 import pytest
 
+V5_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage  # noqa: E402
 from plugins.generators.ansible_inventory_generator import AnsibleInventoryGenerator  # noqa: E402
-from plugins.generators.bootstrap_mikrotik_generator import BootstrapMikroTikGenerator  # noqa: E402
-from plugins.generators.bootstrap_orangepi_generator import BootstrapOrangePiGenerator  # noqa: E402
-from plugins.generators.bootstrap_proxmox_generator import BootstrapProxmoxGenerator  # noqa: E402
-from plugins.generators.terraform_mikrotik_generator import TerraformMikroTikGenerator  # noqa: E402
-from plugins.generators.terraform_proxmox_generator import TerraformProxmoxGenerator  # noqa: E402
+
+
+def _load_generator_class(module_rel_path: str, class_name: str):
+    module_path = V5_ROOT / module_rel_path
+    spec = importlib.util.spec_from_file_location(f"test_{class_name.lower()}_module", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return getattr(module, class_name)
+
+
+BootstrapMikroTikGenerator = _load_generator_class(
+    "topology/object-modules/mikrotik/plugins/bootstrap_mikrotik_generator.py",
+    "BootstrapMikroTikGenerator",
+)
+BootstrapOrangePiGenerator = _load_generator_class(
+    "topology/object-modules/orangepi/plugins/bootstrap_orangepi_generator.py",
+    "BootstrapOrangePiGenerator",
+)
+BootstrapProxmoxGenerator = _load_generator_class(
+    "topology/object-modules/proxmox/plugins/bootstrap_proxmox_generator.py",
+    "BootstrapProxmoxGenerator",
+)
+TerraformMikroTikGenerator = _load_generator_class(
+    "topology/object-modules/mikrotik/plugins/terraform_mikrotik_generator.py",
+    "TerraformMikroTikGenerator",
+)
+TerraformProxmoxGenerator = _load_generator_class(
+    "topology/object-modules/proxmox/plugins/terraform_proxmox_generator.py",
+    "TerraformProxmoxGenerator",
+)
 
 
 def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:

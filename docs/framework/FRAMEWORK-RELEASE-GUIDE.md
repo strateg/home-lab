@@ -2,7 +2,7 @@
 
 **Status:** Active  
 **Updated:** 2026-03-21  
-**ADRs:** 0076, 0077
+**ADRs:** 0076, 0077, 0078
 
 ---
 
@@ -56,6 +56,7 @@ task framework:release-preflight
 2. v5 lane validate (`validate:v5-passthrough`)
 3. ADR0076 strict gates (`framework:strict`)
 4. framework-focused release tests (`framework:release-tests`)
+5. ADR0078 ownership checks (module manifests + object-local templates)
 
 ### 3.3 Сборка релизного дистрибутива
 
@@ -131,6 +132,22 @@ No-Go:
 1. отсутствует любой из файлов выше;
 2. CI verify-step не прошел;
 3. есть unresolved `E781x/E782x`.
+
+### 5.1 ADR0078 Ownership Quick Check
+
+Перед публикацией убедиться:
+
+1. object-specific генераторы не зарегистрированы в `v5/topology-tools/plugins/plugins.yaml`;
+2. object-specific шаблоны не остались в `v5/topology-tools/templates/terraform` и `v5/topology-tools/templates/bootstrap`;
+3. object-specific генераторы зарегистрированы в `v5/topology/object-modules/**/plugins.yaml`.
+
+Быстрая проверка:
+
+```powershell
+rg "base.generator.(terraform_mikrotik|terraform_proxmox|bootstrap_mikrotik|bootstrap_proxmox|bootstrap_orangepi)" v5/topology-tools/plugins/plugins.yaml
+Get-ChildItem v5/topology-tools/templates/terraform -Recurse -File
+Get-ChildItem v5/topology-tools/templates/bootstrap -Recurse -File
+```
 
 ---
 

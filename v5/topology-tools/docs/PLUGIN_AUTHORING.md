@@ -80,7 +80,14 @@ class MyValidator(ValidatorJsonPlugin):
 
 ### 2. Register in Manifest
 
-Add to `v5/topology-tools/plugins/plugins.yaml`:
+Registration policy:
+
+1. Shared/global plugins (cross-object) are registered in:
+   - `v5/topology-tools/plugins/plugins.yaml`
+2. Object-scoped plugins are registered in object module manifest:
+   - `v5/topology/object-modules/<object-id>/plugins.yaml`
+
+Example for shared/global plugin (central manifest):
 
 ```yaml
 - id: my.validator.custom
@@ -99,12 +106,37 @@ Add to `v5/topology-tools/plugins/plugins.yaml`:
   description: My custom validation plugin
 ```
 
+Example for object-scoped plugin (module manifest):
+
+```yaml
+- id: object_mikrotik.validator_json.router_ports
+  kind: validator_json
+  entry: plugins/mikrotik_router_ports_validator.py:MikrotikRouterPortsValidator
+  api_version: "1.x"
+  stages: [validate]
+  order: 241
+  depends_on: [base.validator.references]
+  timeout: 30
+  config: {}
+  config_schema:
+    type: object
+    properties: {}
+    required: []
+  description: Validates MikroTik router ports.
+```
+
 ### 3. Run with Plugins
 
 ```bash
 python3 v5/topology-tools/compile-topology.py \
     --topology v5/topology/topology.yaml
 ```
+
+Manifest discovery order is deterministic:
+
+1. base manifest (`v5/topology-tools/plugins/plugins.yaml`)
+2. class module manifests (`v5/topology/class-modules/**/plugins.yaml`)
+3. object module manifests (`v5/topology/object-modules/**/plugins.yaml`)
 
 ## Plugin Context
 

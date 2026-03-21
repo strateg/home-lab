@@ -3,14 +3,27 @@
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
+V5_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
-from plugins.generators.terraform_mikrotik_generator import TerraformMikroTikGenerator
+
+
+def _load_generator_class():
+    module_path = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py"
+    spec = importlib.util.spec_from_file_location("test_object_mikrotik_terraform_generator", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.TerraformMikroTikGenerator
+
+
+TerraformMikroTikGenerator = _load_generator_class()
 
 
 def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
