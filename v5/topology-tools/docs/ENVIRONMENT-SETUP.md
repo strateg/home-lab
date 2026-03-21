@@ -10,12 +10,29 @@
 - Python 3.11+ (рекомендуется 3.12+)
 - Доступ к репозиторию `home-lab`
 - Для `inject/strict`: установленный `sops` и `age`-совместимый инструмент
+- Для orchestration ADR0077: установленный `go-task` (`task`)
 
 Проверка:
 
 ```bash
 python --version
 ```
+
+## 1.1 Автоматический setup (рекомендуется)
+
+Linux/macOS:
+
+```bash
+./v5/scripts/setup-dev-environment.sh
+```
+
+Windows (PowerShell):
+
+```powershell
+./v5/scripts/setup-dev-environment.ps1
+```
+
+Скрипты устанавливают `sops`, `age/rage`, `task` и Python dev-зависимости (`pip install -e .[dev]`).
 
 ## 2. Linux (Ubuntu/Debian)
 
@@ -28,7 +45,16 @@ age --version
 age-keygen --version
 ```
 
-### 2.2 Установка `sops`
+### 2.3 Установка `task` (go-task)
+
+```bash
+sudo apt install -y go-task || true
+task --version
+```
+
+Если пакет `go-task` отсутствует в репозитории, используйте `./v5/scripts/setup-dev-environment.sh`.
+
+### 2.4 Установка `sops`
 
 Вариант с фиксированной версией (пример):
 
@@ -54,6 +80,12 @@ winget install --id SecretsOPerationS.SOPS -e --accept-package-agreements --acce
 winget install --id str4d.rage -e --accept-package-agreements --accept-source-agreements
 ```
 
+### 3.3 Установка `task`
+
+```powershell
+winget install --id Task.Task -e --accept-package-agreements --accept-source-agreements
+```
+
 `rage` и `rage-keygen` полностью подходят для SOPS age-бэкенда.
 
 Проверка после перезапуска PowerShell:
@@ -62,6 +94,7 @@ winget install --id str4d.rage -e --accept-package-agreements --accept-source-ag
 sops --version
 rage --version
 rage-keygen --version
+task --version
 ```
 
 ## 4. Файл ключа для SOPS age
