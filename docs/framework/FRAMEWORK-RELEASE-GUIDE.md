@@ -38,7 +38,13 @@ task --version
 
 ## 3. Local Release Candidate
 
-### 3.1 Полный preflight
+### 3.1 Синхронизировать lock перед preflight
+
+```powershell
+task framework:lock-refresh
+```
+
+### 3.2 Полный preflight
 
 ```powershell
 task framework:release-preflight
@@ -46,11 +52,12 @@ task framework:release-preflight
 
 Включает:
 
-1. v5 lane validate (`validate:v5-passthrough`)
-2. ADR0076 strict gates (`framework:strict`)
-3. framework-focused release tests (`framework:release-tests`)
+1. lock refresh (`framework:lock-refresh`)
+2. v5 lane validate (`validate:v5-passthrough`)
+3. ADR0076 strict gates (`framework:strict`)
+4. framework-focused release tests (`framework:release-tests`)
 
-### 3.2 Сборка релизного дистрибутива
+### 3.3 Сборка релизного дистрибутива
 
 ```powershell
 task framework:release-build FRAMEWORK_VERSION=1.0.8
@@ -63,7 +70,7 @@ task framework:release-build FRAMEWORK_VERSION=1.0.8
 3. `v5-dist/framework/<framework-id>/1.0.8/checksums.sha256`
 4. `v5-dist/framework/<framework-id>/1.0.8/framework-dist-manifest.json`
 
-### 3.3 Подготовка standalone framework repo кандидата
+### 3.4 Подготовка standalone framework repo кандидата
 
 ```powershell
 task framework:release-bootstrap
@@ -75,7 +82,7 @@ task framework:release-bootstrap
 2. `v5-build/infra-topology-framework-bootstrap/topology-tools/`
 3. `v5-build/infra-topology-framework-bootstrap/.github/workflows/release.yml`
 
-### 3.4 Один агрегированный запуск
+### 3.5 Один агрегированный запуск
 
 ```powershell
 task framework:release-candidate FRAMEWORK_VERSION=1.0.8

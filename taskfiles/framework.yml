@@ -6,6 +6,11 @@ vars:
   FRAMEWORK_BOOTSTRAP_OUTPUT: '{{default "v5-build/infra-topology-framework-bootstrap" .FRAMEWORK_BOOTSTRAP_OUTPUT}}'
 
 tasks:
+  lock-refresh:
+    desc: Regenerate framework.lock for active project in topology manifest
+    cmds:
+      - "{{.PYTHON}} v5/topology-tools/generate-framework-lock.py --topology v5/topology/topology.yaml --force"
+
   verify-lock:
     desc: Verify framework.lock in strict mode
     cmds:
@@ -51,10 +56,11 @@ tasks:
       - release-tests
 
   release-preflight:
-    desc: Run local v5-only release preflight (strict + validate:v5-passthrough + framework-focused tests)
-    deps:
-      - release-ci
-      - :validate:v5-passthrough
+    desc: Run local v5-only release preflight (lock refresh + strict + validate:v5-passthrough + framework-focused tests)
+    cmds:
+      - task framework:lock-refresh
+      - task framework:release-ci
+      - task validate:v5-passthrough
 
   release-build:
     desc: Build framework distribution archives for release
