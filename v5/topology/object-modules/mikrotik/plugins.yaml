@@ -14,3 +14,45 @@ plugins:
       properties: {}
       required: []
     description: Validates MikroTik router ethernet ports shape for endpoint-aware connectivity checks.
+
+  - id: base.generator.terraform_mikrotik
+    kind: generator
+    entry: plugins/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 220
+    depends_on: []
+    timeout: 30
+    config:
+      terraform_version: ">= 1.6.0"
+      mikrotik_provider_source: "terraform-routeros/routeros"
+      mikrotik_provider_version: "~> 1.40"
+    config_schema:
+      type: object
+      properties:
+        terraform_version:
+          type: string
+          description: Terraform CLI version constraint for provider block.
+        mikrotik_provider_source:
+          type: string
+          description: Terraform provider source address for RouterOS provider.
+        mikrotik_provider_version:
+          type: string
+          description: Terraform provider version constraint for RouterOS provider.
+      required: []
+    description: Emits baseline Terraform artifacts for MikroTik from v5 projections (Phase 4 bootstrap).
+
+  - id: base.generator.bootstrap_mikrotik
+    kind: generator
+    entry: plugins/bootstrap_mikrotik_generator.py:BootstrapMikroTikGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 320
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Emits baseline bootstrap artifacts for MikroTik routers (Phase 6 bootstrap).

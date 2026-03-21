@@ -1,0 +1,16 @@
+schema_version: 1
+plugins:
+  - id: base.generator.bootstrap_orangepi
+    kind: generator
+    entry: plugins/bootstrap_orangepi_generator.py:BootstrapOrangePiGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 330
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Emits baseline cloud-init bootstrap artifacts for Orange Pi nodes (Phase 6 bootstrap).

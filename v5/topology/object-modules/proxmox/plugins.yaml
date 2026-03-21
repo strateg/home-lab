@@ -1,0 +1,43 @@
+schema_version: 1
+plugins:
+  - id: base.generator.terraform_proxmox
+    kind: generator
+    entry: plugins/terraform_proxmox_generator.py:TerraformProxmoxGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 210
+    depends_on: []
+    timeout: 30
+    config:
+      terraform_version: ">= 1.6.0"
+      proxmox_provider_source: "bpg/proxmox"
+      proxmox_provider_version: ">= 0.66.0"
+    config_schema:
+      type: object
+      properties:
+        terraform_version:
+          type: string
+          description: Terraform CLI version constraint for versions.tf.
+        proxmox_provider_source:
+          type: string
+          description: Terraform provider source address for Proxmox.
+        proxmox_provider_version:
+          type: string
+          description: Terraform provider version constraint for Proxmox provider.
+      required: []
+    description: Emits baseline Terraform artifacts for Proxmox from v5 projections (Phase 3 bootstrap).
+
+  - id: base.generator.bootstrap_proxmox
+    kind: generator
+    entry: plugins/bootstrap_proxmox_generator.py:BootstrapProxmoxGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 310
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Emits baseline bootstrap artifacts for Proxmox nodes (Phase 6 bootstrap).
