@@ -23,13 +23,13 @@ python --version
 Linux/macOS:
 
 ```bash
-./v5/scripts/setup-dev-environment.sh
+./v5/scripts/environment/setup-dev-environment.sh
 ```
 
 Windows (PowerShell):
 
 ```powershell
-./v5/scripts/setup-dev-environment.ps1
+./v5/scripts/environment/setup-dev-environment.ps1
 ```
 
 Скрипты устанавливают `sops`, `age/rage`, `task` и Python dev-зависимости (`pip install -e .[dev]`).
@@ -52,7 +52,7 @@ sudo apt install -y go-task || true
 task --version
 ```
 
-Если пакет `go-task` отсутствует в репозитории, используйте `./v5/scripts/setup-dev-environment.sh`.
+Если пакет `go-task` отсутствует в репозитории, используйте `./v5/scripts/environment/setup-dev-environment.sh`.
 
 ### 2.4 Установка `sops`
 
@@ -130,41 +130,41 @@ $env:SOPS_AGE_KEY_FILE = "$env:APPDATA\sops\age\keys.txt"
 Разблокировка ключа:
 
 ```bash
-./v5/scripts/unlock-secrets.sh
+./v5/scripts/secrets/unlock-secrets.sh
 ```
 
 ```powershell
-./v5/scripts/unlock-secrets.ps1
+./v5/scripts/secrets/unlock-secrets.ps1
 ```
 
 Блокировка ключа:
 
 ```bash
-./v5/scripts/lock-secrets.sh
+./v5/scripts/secrets/lock-secrets.sh
 ```
 
 ```powershell
-./v5/scripts/lock-secrets.ps1
+./v5/scripts/secrets/lock-secrets.ps1
 ```
 
 Recovery unlock:
 
 ```bash
-./v5/scripts/unlock-secrets-recovery.sh
+./v5/scripts/secrets/unlock-secrets-recovery.sh
 ```
 
 ```powershell
-./v5/scripts/unlock-secrets-recovery.ps1
+./v5/scripts/secrets/unlock-secrets-recovery.ps1
 ```
 
 Генерация terraform tfvars из SOPS:
 
 ```bash
-./v5/scripts/generate-tfvars.sh proxmox
+./v5/scripts/terraform/generate-tfvars.sh proxmox
 ```
 
 ```powershell
-./v5/scripts/generate-tfvars.ps1 proxmox
+./v5/scripts/terraform/generate-tfvars.ps1 proxmox
 ```
 
 ## 6. Проверка `topology-tools`
@@ -182,7 +182,7 @@ python v5/topology-tools/compile-topology.py --secrets-mode inject
 - `inject` требует корректную установку `sops` и доступ к age-ключу.
 - В `inject/strict` секретные поля резолвятся по аннотациям (`@secret`, `@*_secret:<type>`) через `base.compiler.annotation_resolver`.
 - Типовые несоответствия расшифрованных значений возвращают диагностику `E7213`; конфликт plaintext vs side-car — `E7212`.
-- `make validate-v5` использует `inject` по умолчанию (через `v5/scripts/lane.py`).
+- `make validate-v5` использует `inject` по умолчанию (через `v5/scripts/orchestration/lane.py`).
   Для локального override можно задать `V5_SECRETS_MODE=passthrough`.
 
 ## 7. Официальные источники

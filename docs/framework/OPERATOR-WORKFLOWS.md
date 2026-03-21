@@ -17,7 +17,7 @@
 ```powershell
 python v5/topology-tools/verify-framework-lock.py --strict
 python v5/topology-tools/compile-topology.py --secrets-mode passthrough --strict-model-lock
-python v5/scripts/lane.py validate-v5
+python v5/scripts/orchestration/lane.py validate-v5
 ```
 
 Любая ошибка `E781x/E782x` блокирует дальнейший прогон.

@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 PYTHON = sys.executable
 PHASE1_REPORT_JSON = "v5-build/diagnostics/phase1-gate-report.json"
 LAYER_REPORT_JSON = "v5-build/diagnostics/layer-contract-report.json"
@@ -67,8 +67,8 @@ def build_v4() -> None:
 def validate_v5() -> None:
     # NOTE: canonical instance source is ADR0071 shards under project manifest instances_root.
     # export_v5_instance_bindings.py is legacy migration helper only.
-    run([PYTHON, "v5/scripts/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
-    run([PYTHON, "v5/scripts/validate_v5_scaffold.py"])
+    run([PYTHON, "v5/scripts/validation/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
+    run([PYTHON, "v5/scripts/validation/validate_v5_scaffold.py"])
     run(
         [
             PYTHON,
@@ -104,17 +104,17 @@ def build_v5() -> None:
 
 def phase1_gate() -> None:
     # NOTE: phase1 gate validates archived legacy migration assets only.
-    run([PYTHON, "v5/scripts/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON])
+    run([PYTHON, "v5/scripts/validation/validate_phase1_gate.py", "--report-json", PHASE1_REPORT_JSON])
 
 
 def validate_v5_layers() -> None:
     # NOTE: export helper remains legacy-only and is not part of ADR0071 runtime.
-    run([PYTHON, "v5/scripts/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
+    run([PYTHON, "v5/scripts/validation/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
 
 
 def export_v5_bindings() -> None:
     """Export instance bindings from v4-to-v5-mapping.yaml (migration use only)."""
-    run([PYTHON, "v5/scripts/export_v5_instance_bindings.py"])
+    run([PYTHON, "v5/scripts/model/export_v5_instance_bindings.py"])
 
 
 def parse_args() -> argparse.Namespace:

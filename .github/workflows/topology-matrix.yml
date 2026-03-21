@@ -71,16 +71,16 @@ jobs:
 
       - name: Strict Validate Main Topology (inject)
         if: ${{ env.DEVKEY_PASSPHRASE != '' }}
-        run: python v5/scripts/lane.py validate-v5
+        run: python v5/scripts/orchestration/lane.py validate-v5
 
       - name: Strict Validate Main Topology (passthrough fallback)
         if: ${{ env.DEVKEY_PASSPHRASE == '' }}
         run: |
           echo "DEVKEY_PASSPHRASE is not configured, running passthrough validation fallback."
-          V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5
+          V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5
 
       - name: Validate Phase1 Legacy Mapping Gate
-        run: python v5/scripts/lane.py phase1-gate
+        run: python v5/scripts/orchestration/lane.py phase1-gate
 
       - name: Cleanup secrets key
         if: always()

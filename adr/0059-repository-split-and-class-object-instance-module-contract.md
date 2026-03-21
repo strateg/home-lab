@@ -254,6 +254,6 @@ Validation requirements:
 - Compiler/diagnostics execution contract: `adr/0060-yaml-to-json-compiler-diagnostics-contract.md`
 - Current v5 compiler orchestration: `v5/topology-tools/compile-topology.py`
 - Current v5 capability contract validator: `v5/topology-tools/check-capability-contract.py`
-- Current v5 lane entrypoint: `v5/scripts/lane.py`
+- Current v5 lane entrypoint: `v5/scripts/orchestration/lane.py`
 - ADR register: `adr/REGISTER.md`
 - Commit: harmonization pending

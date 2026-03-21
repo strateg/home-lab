@@ -24,7 +24,7 @@
 
 1. Зафиксировать baseline:
    - `python -m pytest v5/tests -q -o addopts=''`
-   - `V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5`
+   - `V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5`
 2. Ввести временный change freeze на изменения генераторов вне контекста 0075.
 3. Подготовить migration branch и контрольные артефакты (`v5-build/diagnostics/*`).
 
@@ -61,9 +61,9 @@
 
 ### 1.4 Script and Validation Refactor
 
-1. Обновить `v5/scripts/validate_v5_scaffold.py`.
-2. Обновить `v5/scripts/validate_v5_layer_contract.py`.
-3. Обновить `v5/scripts/lane.py` и phase/mapping scripts с жестких путей на project-root.
+1. Обновить `v5/scripts/validation/validate_v5_scaffold.py`.
+2. Обновить `v5/scripts/validation/validate_v5_layer_contract.py`.
+3. Обновить `v5/scripts/orchestration/lane.py` и phase/mapping scripts с жестких путей на project-root.
 
 ### 1.5 Tests
 
@@ -162,7 +162,7 @@
 ## Контрольные команды (каждая волна)
 
 1. `python -m pytest v5/tests -q -o addopts=''`
-2. `V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5`
+2. `V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5`
 3. Для Wave 2+: локальные проверки generator gates (terraform/ansible) на project-qualified output.
 
 ---
@@ -179,4 +179,4 @@
 - [ ] Phase 8 environment execution (`terraform plan` + `ansible --check`) in controlled lab window
 - [x] Final validation:
   - `python -m pytest v5/tests -q -o addopts=''` -> `271 passed`
-  - `V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5` -> `PASS`
+  - `V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5` -> `PASS`

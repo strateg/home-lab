@@ -10,14 +10,14 @@ function Resolve-AgeBinary {
     throw "Neither 'age' nor 'rage' is installed or available in PATH."
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+$v5Root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $keysDir = if ($IsWindows) {
     Join-Path $env:APPDATA "sops\\age"
 } else {
     Join-Path $HOME ".config/sops/age"
 }
 $keysFile = Join-Path $keysDir "keys.txt"
-$devKey = Join-Path $repoRoot "secrets\\devkey.age"
+$devKey = Join-Path $v5Root "secrets\\devkey.age"
 
 if (Test-Path $keysFile) {
     Write-Host "Secrets are already unlocked."
@@ -40,4 +40,4 @@ if ($LASTEXITCODE -ne 0) {
 
 $keyMaterial | Out-File -FilePath $keysFile -Encoding ascii -NoNewline
 Write-Host "Secrets unlocked."
-Write-Host "Run './v5/scripts/lock-secrets.ps1' when done."
+Write-Host "Run './v5/scripts/secrets/lock-secrets.ps1' when done."

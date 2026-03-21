@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 TASK_VERSION="${TASK_VERSION:-3.45.4}"
 SOPS_VERSION="${SOPS_VERSION:-3.12.1}"
 SKIP_PYTHON_DEPS="${SKIP_PYTHON_DEPS:-0}"
@@ -127,7 +127,7 @@ main() {
         Darwin*) install_macos ;;
         *)
             log "Unsupported OS in this script: $os"
-            log "For Windows use: ./v5/scripts/setup-dev-environment.ps1"
+            log "For Windows use: ./v5/scripts/environment/setup-dev-environment.ps1"
             return 1
             ;;
     esac

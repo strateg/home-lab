@@ -491,7 +491,7 @@ feat(0076-wave4): cutover to multi-repo flow
 ```cmd
 :: Wave 0-1: Monorepo validation
 python -m pytest v5\tests -q -o addopts=''
-set V5_SECRETS_MODE=passthrough && python v5\scripts\lane.py validate-v5
+set V5_SECRETS_MODE=passthrough && python v5\scripts\orchestration\lane.py validate-v5
 
 :: Wave 2: Framework repo validation
 cd infra-topology-framework

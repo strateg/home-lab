@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for scripts/generate-tfvars.py helpers."""
+"""Tests for scripts/terraform/generate-tfvars.py helpers."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SCRIPT_PATH = REPO_ROOT / "v5" / "scripts" / "generate-tfvars.py"
+SCRIPT_PATH = REPO_ROOT / "v5" / "scripts" / "terraform" / "generate-tfvars.py"
 
 
 def _load_module():

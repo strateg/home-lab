@@ -40,7 +40,7 @@ def _validate_encrypted_payload(node: Any, *, path: str, parent_key: str | None 
 
 
 def main() -> int:
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     errors: list[str] = []
 
     for subdir in SECRET_SUBDIRS:

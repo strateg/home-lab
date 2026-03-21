@@ -68,7 +68,7 @@ jobs:
           python v5/topology-tools/rehearse-framework-rollback.py
           python v5/topology-tools/validate-framework-compatibility-matrix.py
           python v5/topology-tools/audit-strict-runtime-entrypoints.py
-          V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5
+          V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5
 
   test-v4-maintenance:
     name: Test v4 (maintenance)

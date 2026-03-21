@@ -130,7 +130,7 @@ Deliverables:
   - architecture mismatch
   - installation model mismatch
   - forbidden OS policy violations
-- Add gate in `v5/scripts/lane.py validate-v5` for ADR0064 contract checks.
+- Add gate in `v5/scripts/orchestration/lane.py validate-v5` for ADR0064 contract checks.
 
 DoD:
 - All new fixtures pass in success cases and fail in negative cases with expected diagnostics.
@@ -176,7 +176,7 @@ ADR 0064 implementation is complete when:
 2. Legacy software fields are absent from authored v5 topology.
 3. Compiler/checker enforce type, existence, cardinality, and compatibility rules.
 4. Effective capabilities include instance-derived `cap.firmware.*` and `cap.os.*`.
-5. `python v5/scripts/lane.py validate-v5` passes cleanly on main topology and fixtures.
+5. `python v5/scripts/orchestration/lane.py validate-v5` passes cleanly on main topology and fixtures.
 
 ## 8. Immediate Next Tasks (Start Order)
 

@@ -135,5 +135,5 @@ python v4/topology-tools/check-adr-consistency.py --strict-titles
 # (Phase 0 from this roadmap)
 
 # 3) Run baseline v5 checks before plugin changes
-python v5/scripts/lane.py validate-v5
+python v5/scripts/orchestration/lane.py validate-v5
 ```

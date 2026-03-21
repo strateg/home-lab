@@ -97,12 +97,12 @@ rage-keygen --version
 Before working with encrypted files:
 
 ```bash
-./v5/scripts/unlock-secrets.sh
+./v5/scripts/secrets/unlock-secrets.sh
 # Enter your passphrase when prompted
 ```
 
 ```powershell
-./v5/scripts/unlock-secrets.ps1
+./v5/scripts/secrets/unlock-secrets.ps1
 ```
 
 This decrypts the devkey to the default SOPS age key path (`~/.config/sops/age/keys.txt` on Linux/macOS, `%APPDATA%\sops\age\keys.txt` on Windows).
@@ -151,11 +151,11 @@ head -5 v5/projects/home-lab/secrets/terraform/new-service.yaml
 When done working:
 
 ```bash
-./v5/scripts/lock-secrets.sh
+./v5/scripts/secrets/lock-secrets.sh
 ```
 
 ```powershell
-./v5/scripts/lock-secrets.ps1
+./v5/scripts/secrets/lock-secrets.ps1
 ```
 
 This removes the plaintext key from the default SOPS age key path.
@@ -292,7 +292,7 @@ ip -o link show | awk '{print $2, $(NF-2)}'
 
 **Fix:**
 ```bash
-./v5/scripts/unlock-secrets.sh
+./v5/scripts/secrets/unlock-secrets.sh
 # Enter correct passphrase
 ```
 
@@ -308,7 +308,7 @@ ip -o link show | awk '{print $2, $(NF-2)}'
 
 **Fix:**
 ```bash
-./v5/scripts/unlock-secrets.sh
+./v5/scripts/secrets/unlock-secrets.sh
 sops -e -i v5/projects/home-lab/secrets/path/to/file.yaml
 ```
 
@@ -329,7 +329,7 @@ Rotate the devkey periodically or if compromised:
 
 ```bash
 # 1. Unlock with current passphrase
-./v5/scripts/unlock-secrets.sh
+./v5/scripts/secrets/unlock-secrets.sh
 
 # 2. Generate new keypair
 age-keygen > /tmp/new-devkey.key
@@ -353,7 +353,7 @@ echo "$NEW_PUB" > v5/projects/home-lab/secrets/devkey.pub
 shred -u /tmp/new-devkey.key
 
 # 7. Lock old session
-./v5/scripts/lock-secrets.sh
+./v5/scripts/secrets/lock-secrets.sh
 
 # 8. Commit
 git add v5/projects/home-lab/secrets/
@@ -405,7 +405,7 @@ jobs:
 
 1. **Lock secrets when not in use**
    ```bash
-   ./v5/scripts/lock-secrets.sh
+   ./v5/scripts/secrets/lock-secrets.sh
    ```
 
 2. **Never commit plaintext secrets**
@@ -431,8 +431,8 @@ jobs:
 
 | Task | Command |
 |------|---------|
-| Unlock secrets | `./v5/scripts/unlock-secrets.sh` or `./v5/scripts/unlock-secrets.ps1` |
-| Lock secrets | `./v5/scripts/lock-secrets.sh` or `./v5/scripts/lock-secrets.ps1` |
+| Unlock secrets | `./v5/scripts/secrets/unlock-secrets.sh` or `./v5/scripts/secrets/unlock-secrets.ps1` |
+| Lock secrets | `./v5/scripts/secrets/lock-secrets.sh` or `./v5/scripts/secrets/lock-secrets.ps1` |
 | View file | `sops -d v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml` |
 | Edit file | `sops v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml` |
 | Encrypt new file | `sops -e -i v5/projects/home-lab/secrets/instances/new-device.yaml` |
@@ -440,8 +440,8 @@ jobs:
 | Compile with secrets | `python v5/topology-tools/compile-topology.py --secrets-mode inject` |
 | Compile with strict secret policy | `python v5/topology-tools/compile-topology.py --secrets-mode strict` |
 | Compile without secrets | `python v5/topology-tools/compile-topology.py --secrets-mode passthrough` |
-| Generate Terraform tfvars | `python v5/scripts/generate-tfvars.py all` |
-| Cleanup Terraform tfvars | `python v5/scripts/generate-tfvars.py all --cleanup` |
+| Generate Terraform tfvars | `python v5/scripts/terraform/generate-tfvars.py all` |
+| Cleanup Terraform tfvars | `python v5/scripts/terraform/generate-tfvars.py all --cleanup` |
 
 ---
 

@@ -107,7 +107,7 @@ Ansible runtime assembly:
 
 ```powershell
 $env:V5_SECRETS_MODE='passthrough'
-python v5/scripts/lane.py validate-v5
+python v5/scripts/orchestration/lane.py validate-v5
 ```
 
 ### Полная компиляция + генерация

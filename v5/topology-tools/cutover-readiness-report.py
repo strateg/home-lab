@@ -120,7 +120,7 @@ def _gate_commands(repo_root: Path, *, quick: bool) -> list[tuple[str, list[str]
                 ),
                 (
                     "lane_validate_v5",
-                    [python, "v5/scripts/lane.py", "validate-v5"],
+                    [python, "v5/scripts/orchestration/lane.py", "validate-v5"],
                     {"V5_SECRETS_MODE": "passthrough"},
                 ),
             ]

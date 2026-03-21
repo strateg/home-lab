@@ -26,7 +26,7 @@ jobs:
           python -m pip install pyyaml jinja2 jsonschema
 
       - name: Run validate-v4 (manual maintenance)
-        run: python v5/scripts/lane.py validate-v4
+        run: python v5/scripts/orchestration/lane.py validate-v4
 
   validate-v5:
     name: Validate v5 Lane (default)
@@ -90,13 +90,13 @@ jobs:
 
       - name: Run validate-v5 (inject)
         if: ${{ env.DEVKEY_PASSPHRASE != '' }}
-        run: python v5/scripts/lane.py validate-v5
+        run: python v5/scripts/orchestration/lane.py validate-v5
 
       - name: Run validate-v5 (passthrough fallback)
         if: ${{ env.DEVKEY_PASSPHRASE == '' }}
         run: |
           echo "DEVKEY_PASSPHRASE is not configured, running passthrough validation fallback."
-          V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5
+          V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5
 
       - name: Cleanup secrets key
         if: always()

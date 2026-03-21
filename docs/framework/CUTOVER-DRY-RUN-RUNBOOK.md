@@ -17,7 +17,7 @@
 ## Prerequisites
 
 1. Рабочее дерево чистое (`git status` без незакоммиченных изменений).
-2. Python окружение готово для `v5/tests` и `v5/scripts/lane.py`.
+2. Python окружение готово для `v5/tests` и `v5/scripts/orchestration/lane.py`.
 3. Текущий проект: `v5/projects/home-lab`.
 
 ---

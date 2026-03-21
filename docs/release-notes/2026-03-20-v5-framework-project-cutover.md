@@ -28,7 +28,7 @@ Migration to strict project-aware v5 layout is complete for the active project (
 1. Use project-qualified paths for all v5 runtime data and generated artifacts.
 2. Keep secrets in project side-car scope; do not store real secrets in instance shards.
 3. Validate via:
-   - `V5_SECRETS_MODE=passthrough python v5/scripts/lane.py validate-v5`
+   - `V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5`
 
 ## Follow-up
 

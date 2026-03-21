@@ -120,6 +120,6 @@ Software-focused diagnostics are required for:
 - Compiler entry point: `v5/topology-tools/compile-topology.py`
 - Capability diagnostics checker: `v5/topology-tools/check-capability-contract.py`
 - Error catalog: `v5/topology-tools/data/error-catalog.yaml`
-- Lane validator entry: `v5/scripts/lane.py`
+- Lane validator entry: `v5/scripts/orchestration/lane.py`
 - ADR register: `adr/REGISTER.md`
 - Commit: harmonization pending

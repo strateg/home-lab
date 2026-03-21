@@ -32,7 +32,7 @@
 
 ```powershell
 $env:V5_SECRETS_MODE='inject'
-python v5/scripts/lane.py validate-v5
+python v5/scripts/orchestration/lane.py validate-v5
 ```
 
 ### 3.2 Generate artifacts (project-qualified)

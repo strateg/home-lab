@@ -15,8 +15,8 @@ Goal: map every active v4 entity (L1/L4/L5) to planned v5 `class_ref` + `object_
 
 1. Refresh inventory baseline:
    - `python v5/topology-tools/bootstrap-phase1-mapping.py --refresh-effective`
-   - `python v5/scripts/reconcile_phase1_mapping.py`
-   - `python v5/scripts/refresh_phase1_backlog.py`
+   - `python v5/scripts/phase1/reconcile_phase1_mapping.py`
+   - `python v5/scripts/phase1/refresh_phase1_backlog.py`
 2. For each `instance_id` in mapping file:
    - set `class_ref`
    - set `object_ref` (or leave pending with explicit gap note)

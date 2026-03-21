@@ -11,7 +11,7 @@
 Developer orchestration is currently split across:
 
 1. root `Makefile` (limited migration wrappers);
-2. direct Python entrypoints (`v5/scripts/lane.py`, `v5/topology-tools/*.py`);
+2. direct Python entrypoints (`v5/scripts/orchestration/lane.py`, `v5/topology-tools/*.py`);
 3. CI workflows that mostly duplicate command chains directly.
 
 Current pain points:
@@ -31,7 +31,7 @@ Adopt **go-task** (`Taskfile.yml`) as the primary developer orchestration layer 
 
 1. `Taskfile.yml` is orchestration-only: sequencing, dependency graph, defaults, environment wiring.
 2. Python scripts remain execution-only: business logic, compilation, validation, generation.
-3. Task targets MUST call existing entrypoints (`v5/scripts/lane.py`, `v5/topology-tools/*.py`) instead of re-implementing logic in Task commands.
+3. Task targets MUST call existing entrypoints (`v5/scripts/orchestration/lane.py`, `v5/topology-tools/*.py`) instead of re-implementing logic in Task commands.
 4. Root `Makefile` remains a compatibility shim during migration and delegates to `task` where applicable.
 
 ### Task topology (normative)
@@ -171,6 +171,6 @@ Root `Taskfile.yml` includes modular task catalogs:
 
 - `README.md`
 - `Makefile`
-- `v5/scripts/lane.py`
+- `v5/scripts/orchestration/lane.py`
 - `.github/workflows/lane-validation.yml`
 - `.github/workflows/python-checks.yml`

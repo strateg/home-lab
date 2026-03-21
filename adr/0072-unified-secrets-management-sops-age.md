@@ -345,7 +345,7 @@ Recovery key (`masterkey.age`) is excluded from routine CI usage.
 
 - [x] Migrate secret-bearing `local/terraform/*.tfvars` data to `v5/secrets/terraform/*.yaml`.
 - [x] Keep `local/` only for non-secret operator preferences.
-- [x] Add `scripts/generate-tfvars.py` to generate runtime tfvars from SOPS.
+- [x] Add `scripts/terraform/generate-tfvars.py` to generate runtime tfvars from SOPS.
 
 ### Phase 3: Ansible secrets
 

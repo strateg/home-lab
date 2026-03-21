@@ -12,7 +12,7 @@ import yaml
 
 def _load_scaffold_module():
     repo_root = Path(__file__).resolve().parents[2]
-    module_path = repo_root / "v5" / "scripts" / "validate_v5_scaffold.py"
+    module_path = repo_root / "v5" / "scripts" / "validation" / "validate_v5_scaffold.py"
     spec = importlib.util.spec_from_file_location("validate_v5_scaffold_module", module_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Cannot load module from {module_path}")

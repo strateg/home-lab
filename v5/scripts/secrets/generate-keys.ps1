@@ -28,8 +28,8 @@ function Read-PublicKey([string]$path) {
     return $matchLine.Matches[0].Groups[1].Value
 }
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
-$secretsDir = Join-Path $repoRoot "secrets"
+$v5Root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$secretsDir = Join-Path $v5Root "secrets"
 $devKeyEnc = Join-Path $secretsDir "devkey.age"
 $devKeyPubFile = Join-Path $secretsDir "devkey.pub"
 $masterKeyEnc = Join-Path $secretsDir "masterkey.age"
@@ -86,7 +86,7 @@ creation_rules:
     Write-Host ""
     Write-Host "Keys generated successfully."
     Write-Host "Next steps:"
-    Write-Host "  1. ./v5/scripts/unlock-secrets.ps1"
+    Write-Host "  1. ./v5/scripts/secrets/unlock-secrets.ps1"
     Write-Host "  2. Re-encrypt secrets (PowerShell): Get-ChildItem v5/projects/home-lab/secrets -Recurse -Filter *.yaml | ForEach-Object { sops updatekeys -y $_.FullName }"
 } finally {
     if (Test-Path $tmpDev) {
