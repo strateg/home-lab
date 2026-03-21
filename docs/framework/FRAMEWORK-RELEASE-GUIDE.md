@@ -46,7 +46,7 @@ task framework:release-preflight
 
 Включает:
 
-1. `validate:quality`
+1. v5 lane validate (`validate:v5-passthrough`)
 2. ADR0076 strict gates (`framework:strict`)
 3. framework-focused release tests (`framework:release-tests`)
 

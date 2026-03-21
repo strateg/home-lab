@@ -44,7 +44,7 @@ task framework:release-candidate -- FRAMEWORK_VERSION=1.0.8
 
 Что делает pipeline:
 
-1. `framework:release-preflight` -> quality + strict lock gates + framework-focused tests.
+1. `framework:release-preflight` -> v5 lane validate + strict lock gates + framework-focused tests.
 2. `framework:release-build` -> сборка дистрибутива (`zip`, `tar.gz`, `checksums`, dist manifest).
 3. `framework:release-bootstrap` -> подготовка standalone `infra-topology-framework` кандидата с release workflow шаблоном.
 

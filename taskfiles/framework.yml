@@ -51,10 +51,10 @@ tasks:
       - release-tests
 
   release-preflight:
-    desc: Run local release preflight (quality + strict + framework-focused tests)
+    desc: Run local v5-only release preflight (strict + validate:v5-passthrough + framework-focused tests)
     deps:
-      - :validate:quality
       - release-ci
+      - :validate:v5-passthrough
 
   release-build:
     desc: Build framework distribution archives for release

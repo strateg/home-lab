@@ -25,7 +25,7 @@
 | Full local quality chain | `task validate:quality` |
 | `python v5/topology-tools/verify-framework-lock.py --strict && python v5/topology-tools/rehearse-framework-rollback.py && python v5/topology-tools/validate-framework-compatibility-matrix.py && python v5/topology-tools/audit-strict-runtime-entrypoints.py` | `task framework:strict` |
 | Framework release CI parity chain (`framework:strict` + framework-focused test suite) | `task framework:release-ci` |
-| Local framework release preflight (`validate:quality` + strict + framework-focused tests) | `task framework:release-preflight` |
+| Local framework release preflight (`validate:v5-passthrough` + strict + framework-focused tests) | `task framework:release-preflight` |
 | `python v5/topology-tools/build-framework-distribution.py --version <version> --archive-format both` | `task framework:release-build -- FRAMEWORK_VERSION=<version>` |
 | Framework release candidate preparation (preflight + dist + bootstrap extracted repo) | `task framework:release-candidate -- FRAMEWORK_VERSION=<version>` |
 | `python -m pytest -o addopts= v4/tests -q` | `task test:v4` |
