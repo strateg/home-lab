@@ -101,7 +101,7 @@ def _check_missing_lock_rejected(verify_script: Path) -> AuditCheckResult:
             framework_manifest,
             {
                 "schema_version": 1,
-                "framework_id": "home-lab-v5-framework",
+                "framework_id": "infra-topology-framework",
                 "framework_api_version": "5.0.0",
                 "supported_project_schema_range": ">=1.0.0 <2.0.0",
                 "distribution": {"layout_version": 1, "include": ["v5/topology/framework.yaml"]},

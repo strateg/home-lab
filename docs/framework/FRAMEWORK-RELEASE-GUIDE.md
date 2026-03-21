@@ -53,7 +53,7 @@ task framework:release-preflight
 ### 3.2 Сборка релизного дистрибутива
 
 ```powershell
-task framework:release-build -- FRAMEWORK_VERSION=1.0.8
+task framework:release-build FRAMEWORK_VERSION=1.0.8
 ```
 
 Ожидаемые файлы:
@@ -78,7 +78,7 @@ task framework:release-bootstrap
 ### 3.4 Один агрегированный запуск
 
 ```powershell
-task framework:release-candidate -- FRAMEWORK_VERSION=1.0.8
+task framework:release-candidate FRAMEWORK_VERSION=1.0.8
 ```
 
 ---

@@ -2,10 +2,10 @@ schema_version: 1
 project_schema_version: 1.0.0
 project_contract_revision: 1
 framework:
-  id: home-lab-v5-framework
+  id: infra-topology-framework
   version: 5.0.0
   source: git
   repository: https://github.com/strateg/home-lab.git
-  revision: 990dca4c1131f0fe07afd5817cc223b537017769
-  integrity: sha256-1996b2af21247db7f4253565e1204960b0b3b7ceb3b42234761310b586b819f2
-locked_at: '2026-03-21T10:49:51.064695+00:00'
+  revision: 2e5fd28e01decd0f5dd4f23d10b28b17be6c6ce7
+  integrity: sha256-db635408f95267e549d57f57503e213d4f66165d7947297f609f33f0d6e880be
+locked_at: '2026-03-21T11:16:08.908586+00:00'

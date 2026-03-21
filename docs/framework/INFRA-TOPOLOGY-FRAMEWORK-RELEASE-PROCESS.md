@@ -32,14 +32,14 @@
 
 ```powershell
 task framework:release-preflight
-task framework:release-build -- FRAMEWORK_VERSION=1.0.8
+task framework:release-build FRAMEWORK_VERSION=1.0.8
 task framework:release-bootstrap
 ```
 
 Или единым прогоном:
 
 ```powershell
-task framework:release-candidate -- FRAMEWORK_VERSION=1.0.8
+task framework:release-candidate FRAMEWORK_VERSION=1.0.8
 ```
 
 Что делает pipeline:

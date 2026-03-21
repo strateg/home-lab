@@ -1,7 +1,7 @@
 version: "3"
 
 vars:
-  FRAMEWORK_VERSION: '{{default "0.0.0-dev" .FRAMEWORK_VERSION}}'
+  FRAMEWORK_VERSION: '{{.FRAMEWORK_VERSION}}'
   FRAMEWORK_DIST_OUTPUT: '{{default "v5-dist/framework" .FRAMEWORK_DIST_OUTPUT}}'
   FRAMEWORK_BOOTSTRAP_OUTPUT: '{{default "v5-build/infra-topology-framework-bootstrap" .FRAMEWORK_BOOTSTRAP_OUTPUT}}'
 
@@ -58,6 +58,9 @@ tasks:
 
   release-build:
     desc: Build framework distribution archives for release
+    requires:
+      vars:
+        - FRAMEWORK_VERSION
     cmds:
       - "{{.PYTHON}} v5/topology-tools/build-framework-distribution.py --repo-root . --framework-manifest v5/topology/framework.yaml --output-root {{.FRAMEWORK_DIST_OUTPUT}} --version {{.FRAMEWORK_VERSION}} --archive-format both"
 
@@ -68,6 +71,9 @@ tasks:
 
   release-candidate:
     desc: Prepare full framework release candidate bundle (preflight + dist + bootstrap)
+    requires:
+      vars:
+        - FRAMEWORK_VERSION
     deps:
       - release-preflight
       - release-build

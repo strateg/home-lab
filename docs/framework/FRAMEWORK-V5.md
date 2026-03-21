@@ -108,7 +108,7 @@ Ansible runtime assembly:
 ```powershell
 task framework:strict
 task framework:release-preflight
-task framework:release-candidate -- FRAMEWORK_VERSION=1.0.8
+task framework:release-candidate FRAMEWORK_VERSION=1.0.8
 ```
 
 ### Валидация lane
@@ -175,7 +175,7 @@ python v5/topology-tools/discover-hardware-identity.py `
 ### Сборка framework distribution
 
 ```powershell
-task framework:release-build -- FRAMEWORK_VERSION=1.0.8
+task framework:release-build FRAMEWORK_VERSION=1.0.8
 task framework:release-bootstrap
 
 python v5/topology-tools/build-framework-distribution.py `
