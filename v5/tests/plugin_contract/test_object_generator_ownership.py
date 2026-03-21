@@ -37,9 +37,12 @@ OBJECT_TEMPLATE_ROOTS = [
     V5_ROOT / "topology" / "object-modules" / "orangepi" / "templates",
 ]
 
-TOOLS_OBJECT_TEMPLATE_DIRS = [
-    V5_ROOT / "topology-tools" / "templates" / "terraform",
-    V5_ROOT / "topology-tools" / "templates" / "bootstrap",
+LEGACY_OBJECT_TEMPLATE_DIRS = [
+    V5_ROOT / "topology-tools" / "templates" / "terraform" / "mikrotik",
+    V5_ROOT / "topology-tools" / "templates" / "terraform" / "proxmox",
+    V5_ROOT / "topology-tools" / "templates" / "bootstrap" / "mikrotik",
+    V5_ROOT / "topology-tools" / "templates" / "bootstrap" / "proxmox",
+    V5_ROOT / "topology-tools" / "templates" / "bootstrap" / "orangepi",
 ]
 
 
@@ -81,7 +84,7 @@ def test_object_generator_registration_is_owned_by_module_manifests() -> None:
 
 def test_object_specific_templates_are_not_stored_in_tools_domain() -> None:
     leaked_files: list[Path] = []
-    for root in TOOLS_OBJECT_TEMPLATE_DIRS:
+    for root in LEGACY_OBJECT_TEMPLATE_DIRS:
         if not root.exists():
             continue
         leaked_files.extend(path for path in root.rglob("*") if path.is_file())

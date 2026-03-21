@@ -52,7 +52,7 @@ tasks:
   release-tests:
     desc: Run framework-focused release test suite
     cmds:
-      - "{{.PYTHON}} -m pytest -o addopts= v5/tests/plugin_api v5/tests/plugin_contract v5/tests/plugin_integration/test_framework_lock.py v5/tests/plugin_integration/test_build_framework_distribution.py v5/tests/plugin_integration/test_extract_framework_worktree.py v5/tests/plugin_integration/test_extract_framework_history.py v5/tests/plugin_integration/test_generator_base.py -q"
+      - "{{.PYTHON}} -m pytest -o addopts= v5/tests/plugin_api v5/tests/plugin_contract v5/tests/plugin_integration/test_framework_lock.py v5/tests/plugin_integration/test_build_framework_distribution.py v5/tests/plugin_integration/test_extract_framework_worktree.py v5/tests/plugin_integration/test_extract_framework_history.py v5/tests/plugin_integration/test_generator_base.py v5/tests/plugin_integration/test_terraform_mikrotik_generator.py v5/tests/plugin_integration/test_terraform_proxmox_generator.py v5/tests/plugin_integration/test_bootstrap_generators.py v5/tests/plugin_integration/test_generator_projection_contract.py v5/tests/plugin_integration/test_generator_template_and_publish_contract.py v5/tests/plugin_integration/test_module_manifest_discovery.py v5/tests/plugin_integration/test_strict_runtime_entrypoint_audit.py -q"
 
   release-ci:
     desc: Run release CI parity gate (strict + framework-focused tests)
