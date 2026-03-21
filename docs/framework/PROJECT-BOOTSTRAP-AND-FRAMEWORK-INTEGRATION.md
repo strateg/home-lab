@@ -8,7 +8,7 @@
 
 ## Цель
 
-Документ описывает, как создать отдельный project-репозиторий, подключить framework (через submodule) и выполнить совместную компиляцию в strict-flow.
+Документ описывает, как создать отдельный project-репозиторий, подключить framework (через submodule или distribution zip) и выполнить совместную компиляцию в strict-flow.
 
 ---
 
@@ -32,6 +32,24 @@ python v5/topology-tools/init-project-repo.py `
 4. Создает структуру каталогов `instances/L0-meta ... instances/L7-operations` + group-каталоги из `layer-contract.yaml`.
 5. Добавляет минимальный compilable starter profile.
 6. Выполняет `verify-framework-lock --strict` и `compile-topology` (если не задан `--skip-compile-check`).
+
+Если нужно подключение через готовый distribution zip (package mode):
+
+```powershell
+python v5/topology-tools/init-project-repo.py `
+  --output-root D:/work/new-project `
+  --project-id home-lab `
+  --framework-dist-zip D:/artifacts/infra-topology-framework-1.0.8.zip `
+  --framework-dist-version 1.0.8 `
+  --force
+```
+
+В package mode:
+
+1. zip распаковывается в `./framework`;
+2. `framework.lock.yaml` генерируется с `framework.source: package`;
+3. в lock сохраняется `framework.repository` (по умолчанию `file://...` URI zip-артефакта);
+4. strict verify/compile выполняются по распакованному framework дереву.
 
 ---
 

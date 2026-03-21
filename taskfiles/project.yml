@@ -3,8 +3,19 @@ version: "3"
 tasks:
   init:
     desc: Initialize a new standalone project repo with framework submodule (requires FRAMEWORK_SUBMODULE_URL)
+    requires:
+      vars:
+        - FRAMEWORK_SUBMODULE_URL
     cmds:
       - "{{.PYTHON}} v5/topology-tools/init-project-repo.py --output-root {{.PROJECT_ROOT}} --project-id {{.PROJECT_ID}} --framework-submodule-url {{.FRAMEWORK_SUBMODULE_URL}} --framework-submodule-path {{.FRAMEWORK_SUBMODULE_PATH}} --force"
+
+  init-from-dist:
+    desc: Initialize a new standalone project repo with framework distribution zip (requires FRAMEWORK_DIST_ZIP)
+    requires:
+      vars:
+        - FRAMEWORK_DIST_ZIP
+    cmds:
+      - "{{.PYTHON}} v5/topology-tools/init-project-repo.py --output-root {{.PROJECT_ROOT}} --project-id {{.PROJECT_ID}} --framework-dist-zip {{.FRAMEWORK_DIST_ZIP}} --framework-submodule-path {{.FRAMEWORK_SUBMODULE_PATH}} {{if .FRAMEWORK_DIST_VERSION}}--framework-dist-version {{.FRAMEWORK_DIST_VERSION}}{{end}} {{if .FRAMEWORK_DIST_REPOSITORY}}--framework-dist-repository {{.FRAMEWORK_DIST_REPOSITORY}}{{end}} --force"
 
   bootstrap:
     desc: Bootstrap project repo manifests/lock for an existing framework root

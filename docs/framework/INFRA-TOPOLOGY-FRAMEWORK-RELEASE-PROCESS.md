@@ -95,6 +95,12 @@ task framework:release-candidate FRAMEWORK_VERSION=1.0.8
    ```
 4. Закоммитить submodule pointer + `framework.lock.yaml` одним PR.
 
+Для package-based onboarding нового проекта можно использовать:
+
+```powershell
+task project:init-from-dist -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_DIST_ZIP=D:/artifacts/infra-topology-framework-1.0.8.zip FRAMEWORK_DIST_VERSION=1.0.8
+```
+
 ---
 
 ## Release Checklist (Go/No-Go)

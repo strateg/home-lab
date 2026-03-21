@@ -147,6 +147,18 @@ python framework/topology-tools/compile-topology.py --repo-root . --topology .\t
 
 4. Закоммитить submodule pointer + `framework.lock.yaml` одним PR.
 
+### 6.1 Bootstrap нового project repo из zip-артефакта
+
+```powershell
+task project:init-from-dist -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_DIST_ZIP=D:/artifacts/infra-topology-framework-1.0.8.zip FRAMEWORK_DIST_VERSION=1.0.8
+```
+
+Результат:
+
+1. framework распакован в `new-project/framework/`;
+2. `framework.lock.yaml` использует `framework.source: package`;
+3. проект готов к strict verify/compile без git submodule.
+
 ---
 
 ## 7. Rollback / Hotfix

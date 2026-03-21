@@ -45,6 +45,11 @@ Root `Taskfile.yml` includes modular task catalogs:
 5. `taskfiles/project.yml`
 6. `taskfiles/ci.yml`
 
+`project:*` namespace MUST cover both framework dependency models for project bootstrap:
+
+1. git submodule flow (`project:init`)
+2. distribution artifact flow (`project:init-from-dist`)
+
 ### Naming and graph policy (normative)
 
 1. Task naming uses explicit namespaces:
@@ -148,7 +153,7 @@ Root `Taskfile.yml` includes modular task catalogs:
 
 ## Acceptance Criteria
 
-1. `Taskfile.yml` covers mandatory developer workflows: `validate`, `test`, `build`, `lint/typecheck`, `framework strict gates`, and `project init/bootstrap`.
+1. `Taskfile.yml` covers mandatory developer workflows: `validate`, `test`, `build`, `lint/typecheck`, `framework strict gates`, and `project init/bootstrap` for both submodule and distribution artifact dependency modes.
 2. Root developer orchestration uses Task-only entrypoints (no root Makefile shim).
 3. `Taskfile.yml` includes ADR0076 strict gates and new project bootstrap flow.
 4. At least one primary CI workflow executes through `task` targets without regressions.
@@ -164,6 +169,7 @@ Root `Taskfile.yml` includes modular task catalogs:
 3. CI cutover is applied to primary workflows with explicit and reversible fallback switches (`USE_TASK_ORCHESTRATION`, `ALLOW_TASK_FALLBACK`).
 4. `go-task` version policy is enforced by CI pin (`3.45.4`) and documented as local minimum.
 5. Legacy-command mapping and KPI evidence source are recorded in `adr/0077-analysis/IMPLEMENTATION-EVIDENCE.md`.
+6. `project:init-from-dist` added for package-based project bootstrap from framework distribution zip (ADR0076 package source path).
 
 ---
 

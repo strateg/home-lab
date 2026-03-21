@@ -69,6 +69,12 @@ Project bootstrap (new repo + framework submodule):
 task project:init -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_SUBMODULE_URL=https://github.com/<org>/infra-topology-framework.git
 ```
 
+Project bootstrap (new repo + framework distribution zip):
+
+```powershell
+task project:init-from-dist -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_DIST_ZIP=D:/artifacts/infra-topology-framework-1.0.8.zip FRAMEWORK_DIST_VERSION=1.0.8
+```
+
 Root orchestration is Task-only (`Taskfile.yml` + `taskfiles/*`).
 
 Minimum supported `go-task` version: `3.45.4` (CI is pinned to the same version).

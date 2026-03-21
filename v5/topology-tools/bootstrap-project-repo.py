@@ -334,7 +334,12 @@ def main() -> int:
                 f"- seed_project_root: {str(seed_project_root) if seed_project_root else '<not-set>'}",
                 "",
                 "Next steps:",
-                f"1. Add framework as git submodule under ./{submodule_mount} (or keep existing wiring).",
+                (
+                    f"1. Keep framework wired under ./{submodule_mount} via git submodule."
+                    if submodule_url
+                    else f"1. Keep framework sources mounted under ./{submodule_mount} "
+                    "(package extract/vendor sync/local mirror)."
+                ),
                 "2. Update validate workflow secrets/runner settings as needed",
                 "3. Run strict gates:",
                 (

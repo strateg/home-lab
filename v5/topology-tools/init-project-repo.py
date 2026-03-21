@@ -4,12 +4,17 @@
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import zipfile
 from pathlib import Path
 
 import yaml
+
+SEMVER_FROM_DIST_NAME_RE = re.compile(r".*-(\d+\.\d+\.\d+)\.zip$", re.IGNORECASE)
 
 
 LAYER_BUCKETS: dict[str, str] = {
@@ -98,6 +103,51 @@ def _wire_framework_submodule(*, project_root: Path, submodule_url: str, submodu
     return submodule_root
 
 
+def _extract_framework_distribution_zip(
+    *,
+    project_root: Path,
+    zip_path: Path,
+    framework_path: str,
+    force: bool,
+) -> Path:
+    if not zip_path.exists() or not zip_path.is_file():
+        raise FileNotFoundError(f"framework distribution zip not found: {zip_path}")
+
+    mount = framework_path.strip() or "framework"
+    framework_root = project_root / mount
+    if framework_root.exists():
+        if not force:
+            raise RuntimeError(f"framework path already exists: {framework_root} (use --force to overwrite)")
+        if framework_root.is_dir():
+            shutil.rmtree(framework_root)
+        else:
+            framework_root.unlink()
+
+    with tempfile.TemporaryDirectory(prefix="framework-dist-extract-") as tmp_dir:
+        staging_root = Path(tmp_dir).resolve()
+        with zipfile.ZipFile(zip_path) as archive:
+            archive.extractall(staging_root)
+
+        entries = sorted(staging_root.iterdir(), key=lambda item: item.name)
+        source_root = entries[0] if len(entries) == 1 and entries[0].is_dir() else staging_root
+        shutil.copytree(source_root, framework_root)
+
+    return framework_root
+
+
+def _resolve_framework_manifest_only(framework_root: Path) -> Path:
+    extracted_manifest = framework_root / "framework.yaml"
+    if extracted_manifest.exists():
+        return extracted_manifest
+    monorepo_manifest = framework_root / "v5" / "topology" / "framework.yaml"
+    if monorepo_manifest.exists():
+        return monorepo_manifest
+    raise FileNotFoundError(
+        "cannot resolve framework manifest; expected extracted (framework.yaml) "
+        "or monorepo (v5/topology/framework.yaml)"
+    )
+
+
 def _resolve_framework_tools(framework_root: Path) -> tuple[Path, Path]:
     extracted_tools = framework_root / "topology-tools"
     extracted_manifest = framework_root / "framework.yaml"
@@ -132,6 +182,65 @@ def _bootstrap_project(*, framework_root: Path, output_root: Path, project_id: s
     )
     if run.returncode != 0:
         raise RuntimeError(f"bootstrap-project-repo failed:\n{run.stdout}\n{run.stderr}")
+
+
+def _resolve_distribution_version(*, zip_path: Path, version_override: str, framework_manifest_path: Path) -> str:
+    normalized_override = version_override.strip()
+    if normalized_override:
+        return normalized_override
+
+    name_match = SEMVER_FROM_DIST_NAME_RE.match(zip_path.name)
+    if name_match is not None:
+        return name_match.group(1)
+
+    payload = yaml.safe_load(framework_manifest_path.read_text(encoding="utf-8")) or {}
+    if isinstance(payload, dict):
+        version = payload.get("framework_api_version")
+        if isinstance(version, str) and version.strip():
+            return version.strip()
+    raise RuntimeError(
+        f"cannot resolve framework distribution version from zip name '{zip_path.name}' or framework manifest"
+    )
+
+
+def _regenerate_lock_for_package(
+    *,
+    project_root: Path,
+    framework_root: Path,
+    framework_manifest: Path,
+    lock_path: Path,
+    repository: str,
+    version: str,
+) -> None:
+    generate_script = Path(__file__).resolve().parent / "generate-framework-lock.py"
+    run = _run(
+        [
+            sys.executable,
+            str(generate_script),
+            "--repo-root",
+            str(project_root),
+            "--project-root",
+            str(project_root),
+            "--project-manifest",
+            str(project_root / "project.yaml"),
+            "--framework-root",
+            str(framework_root),
+            "--framework-manifest",
+            str(framework_manifest),
+            "--lock-file",
+            str(lock_path),
+            "--source",
+            "package",
+            "--version",
+            version,
+            "--repository",
+            repository,
+            "--force",
+        ],
+        cwd=project_root,
+    )
+    if run.returncode != 0:
+        raise RuntimeError(f"generate-framework-lock --source package failed:\n{run.stdout}\n{run.stderr}")
 
 
 def _load_group_layers(project_root: Path) -> dict[str, str]:
@@ -242,14 +351,33 @@ def _verify_and_compile(*, project_root: Path, framework_root: Path, framework_m
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Initialize new standalone project repo with framework submodule.")
+    parser = argparse.ArgumentParser(description="Initialize new standalone project repo with framework dependency.")
     parser.add_argument("--output-root", type=Path, default=_default_output_root(), help="Target project root.")
     parser.add_argument("--project-id", required=True, help="Project identifier.")
-    parser.add_argument("--framework-submodule-url", required=True, help="Framework git URL/path for submodule wiring.")
+    source_group = parser.add_mutually_exclusive_group(required=True)
+    source_group.add_argument(
+        "--framework-submodule-url",
+        help="Framework git URL/path for submodule wiring.",
+    )
+    source_group.add_argument(
+        "--framework-dist-zip",
+        type=Path,
+        help="Framework distribution zip artifact path (package dependency mode).",
+    )
     parser.add_argument(
         "--framework-submodule-path",
         default="framework",
-        help="Submodule path in project repository (default: framework).",
+        help="Framework mount path in project repository (default: framework).",
+    )
+    parser.add_argument(
+        "--framework-dist-version",
+        default="",
+        help="Framework distribution version override for package lock mode (default: infer from zip name).",
+    )
+    parser.add_argument(
+        "--framework-dist-repository",
+        default="",
+        help="Repository/registry reference for package lock mode (default: file URI of zip artifact).",
     )
     parser.add_argument(
         "--starter-profile",
@@ -269,21 +397,49 @@ def main() -> int:
     if not project_id:
         print("ERROR: --project-id must be non-empty")
         return 2
-    framework_submodule_url = str(args.framework_submodule_url).strip()
-    if not framework_submodule_url:
-        print("ERROR: --framework-submodule-url must be non-empty")
-        return 2
+    framework_submodule_url = str(args.framework_submodule_url or "").strip()
+    framework_dist_zip = args.framework_dist_zip.resolve() if isinstance(args.framework_dist_zip, Path) else None
 
     try:
         _ensure_empty_project_root(output_root, force=bool(args.force))
         _ensure_git_repo(output_root)
-        framework_root = _wire_framework_submodule(
-            project_root=output_root,
-            submodule_url=framework_submodule_url,
-            submodule_path=str(args.framework_submodule_path),
-            force=bool(args.force),
-        )
+        mount_path = str(args.framework_submodule_path)
+        if framework_dist_zip is not None:
+            framework_root = _extract_framework_distribution_zip(
+                project_root=output_root,
+                zip_path=framework_dist_zip,
+                framework_path=mount_path,
+                force=bool(args.force),
+            )
+        else:
+            if not framework_submodule_url:
+                print("ERROR: --framework-submodule-url must be non-empty")
+                return 2
+            framework_root = _wire_framework_submodule(
+                project_root=output_root,
+                submodule_url=framework_submodule_url,
+                submodule_path=mount_path,
+                force=bool(args.force),
+            )
         _bootstrap_project(framework_root=framework_root, output_root=output_root, project_id=project_id)
+        if framework_dist_zip is not None:
+            framework_manifest = _resolve_framework_manifest_only(framework_root)
+            dist_version = _resolve_distribution_version(
+                zip_path=framework_dist_zip,
+                version_override=str(args.framework_dist_version),
+                framework_manifest_path=framework_manifest,
+            )
+            repository = str(args.framework_dist_repository).strip()
+            if not repository:
+                repository = framework_dist_zip.resolve().as_uri()
+            _regenerate_lock_for_package(
+                project_root=output_root,
+                framework_root=framework_root,
+                framework_manifest=framework_manifest,
+                lock_path=output_root / "framework.lock.yaml",
+                repository=repository,
+                version=dist_version,
+            )
         group_layers = _load_group_layers(output_root)
         _create_layer_structure(output_root, group_layers=group_layers)
         if args.starter_profile == "minimal-compilable":
@@ -301,7 +457,11 @@ def main() -> int:
         return 1
 
     print(f"Project initialized: {output_root}")
-    print(f"Framework submodule: {framework_root}")
+    framework_source = "distribution-zip" if framework_dist_zip is not None else "git-submodule"
+    print(f"Framework source: {framework_source}")
+    print(f"Framework root: {framework_root}")
+    if framework_dist_zip is not None:
+        print(f"Framework artifact: {framework_dist_zip}")
     print("Layer structure: L0-L7 created")
     print(f"Starter profile: {args.starter_profile}")
     if args.skip_compile_check:
