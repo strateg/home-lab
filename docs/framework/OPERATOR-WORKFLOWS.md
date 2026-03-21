@@ -38,6 +38,14 @@ python v5/scripts/orchestration/lane.py validate-v5
 4. Прогнать compile + validate-v5.
 5. Закоммитить обновления framework + lock вместе.
 
+### Framework Lock Commit Policy
+
+Для рабочих feature-веток:
+
+1. `framework.lock.yaml` не обновляется в каждом промежуточном коммите.
+2. Lock фиксируется только в момент подготовки к `merge`/`release`.
+3. Перед финальным коммитом lock обязательно регенерируется и проходит `verify-framework-lock --strict`.
+
 ---
 
 ## Rollback Flow

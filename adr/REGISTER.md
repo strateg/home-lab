@@ -46,15 +46,15 @@
 | [0043](0043-l0-l5-harmonization-and-cognitive-load-reduction.md) | L0-L5 Harmonization and Cognitive Load Reduction | Accepted | 2026-02-24 | - | - |
 | [0044](0044-ip-derivation-from-refs.md) | IP Derivation from Refs | Accepted | 2026-02-24 | - | - |
 | [0045](0045-model-and-project-improvements.md) | Improvements to project model, development workflow and automation | Proposed | 2026-02-25 | - | - |
-| [0046](0046-generators-architecture-refactoring.md) | Generators Architecture Refactoring | Approved | 2026-02-25 | - | - |
+| [0046](0046-generators-architecture-refactoring.md) | Generators Architecture Refactoring | Implemented (All 6 phases complete) | 2026-02-25 | - | - |
 | [0047](0047-l6-observability-modularization.md) | L6 Observability Modularization | Partially Implemented | 2026-02-26 | - | - |
 | [0048](0048-topology-v4-architecture-consolidation.md) | Topology v4 Architecture Consolidation | Accepted | 2026-02-28 | [0049](0049-mikrotik-bootstrap-automation.md), [0050](0050-generated-directory-restructuring.md) | - |
 | [0049](0049-mikrotik-bootstrap-automation.md) | MikroTik Bootstrap Automation | Proposed | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
 | [0050](0050-generated-directory-restructuring.md) | Generated Directory Restructuring | Accepted | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
-| [0051](0051-ansible-runtime-and-secrets.md) | Ansible Runtime, Inventory, and Secret Boundaries | Accepted | 2026-03-01 | - | - |
+| [0051](0051-ansible-runtime-and-secrets.md) | Ansible Runtime, Inventory, and Secret Boundaries | Accepted | 2026-03-01 | - | [0072](0072-unified-secrets-management-sops-age.md) |
 | [0052](0052-build-pipeline-after-ansible.md) | Deploy Package Assembly Over Accepted Ansible Runtime | Accepted | 2026-03-01 | - | - |
 | [0053](0053-dist-first-deploy-cutover.md) | Optional Dist-First Deploy Cutover | Proposed | 2026-03-01 | - | - |
-| [0054](0054-local-inputs-directory.md) | Local Inputs Directory | Accepted | 2026-03-01 | - | - |
+| [0054](0054-local-inputs-directory.md) | Local Inputs Directory | Accepted | 2026-03-01 | - | [0072](0072-unified-secrets-management-sops-age.md) |
 | [0055](0055-manual-terraform-extension-layer.md) | Manual Terraform Extension Layer | Accepted | 2026-03-01 | - | - |
 | [0056](0056-native-execution-workspace.md) | Native Execution Workspace Outside Generated Roots | Accepted | 2026-03-01 | - | - |
 | [0057](0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md) | MikroTik Chateau Netinstall Bootstrap and Terraform Handover | Accepted | 2026-03-05 | - | - |
@@ -63,18 +63,18 @@
 | [0060](0060-yaml-to-json-compiler-diagnostics-contract.md) | YAML-to-JSON Compiler and Diagnostics Contract | Superseded | 2026-03-06 | - | [0062](0062-modular-topology-architecture-consolidation.md) |
 | [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | Base Repo with Versioned Class-Object-Instance and Test Profiles | Superseded | 2026-03-06 | - | [0062](0062-modular-topology-architecture-consolidation.md) |
 | [0062](0062-modular-topology-architecture-consolidation.md) | Topology v5 - Modular Class-Object-Instance Architecture | Accepted | 2026-03-06 | [0058](0058-core-abstraction-layer.md), [0059](0059-repository-split-and-class-object-instance-module-contract.md), [0060](0060-yaml-to-json-compiler-diagnostics-contract.md), [0061](0061-base-repo-versioned-class-object-instance-and-test-profiles.md) | - |
-| [0063](0063-plugin-microkernel-for-compiler-validators-generators.md) | Plugin Microkernel for Compiler, Validators, and Generators | Implemented | 2026-03-06 | - | - |
-| [0064](0064-os-taxonomy-object-property-model.md) | OS Taxonomy - Firmware and OS as Separate Entities | Implemented | 2026-03-08 | - | - |
+| [0063](0063-plugin-microkernel-for-compiler-validators-generators.md) | Plugin Microkernel for Compiler, Validators, and Generators | Implemented (plugin-first runtime; legacy fallback removed) | 2026-03-06 | - | - |
+| [0064](0064-os-taxonomy-object-property-model.md) | Software Stack Taxonomy - Firmware and OS as Separate Entities | Implemented - Two-Entity Model (Firmware + OS) | 2026-03-08 | - | - |
 | [0065](0065-plugin-api-contract-specification.md) | Plugin API Contract Specification | Implemented | 2026-03-09 | - | - |
 | [0066](0066-plugin-testing-and-ci-strategy.md) | Plugin Testing and CI Strategy | Implemented | 2026-03-09 | - | - |
-| [0067](0067-entity-specific-identifier-keys-in-yaml-authoring.md) | Entity-Specific Identifier Keys in YAML Authoring | Implemented | 2026-03-10 | - | - |
+| [0067](0067-entity-specific-identifier-keys-in-yaml-authoring.md) | Entity-Specific Identifier Keys in YAML Authoring | Implemented (Hard Cutover) | 2026-03-10 | - | - |
 | [0068](0068-object-yaml-as-instance-template-with-explicit-overrides.md) | Object YAML Template with Typed Instance Placeholders | Accepted | 2026-03-10 | - | - |
-| [0069](0069-plugin-first-compiler-refactor-and-thin-orchestrator.md) | Plugin-First Compiler Refactor and Thin Orchestrator | Proposed | 2026-03-10 | - | - |
-| [0070](0070-acceptance-testing-tuc-framework.md) | Acceptance Testing TUC Framework | Proposed | 2026-03-11 | - | - |
-| [0071](0071-sharded-instance-files-and-flat-instances-root.md) | Sharded Instance Files and Flat `instances` Root | Proposed | 2026-03-11 | - | - |
+| [0069](0069-plugin-first-compiler-refactor-and-thin-orchestrator.md) | Plugin-First Compiler Refactor and Thin Orchestrator | Accepted | 2026-03-10 | - | - |
+| [0070](0070-acceptance-testing-tuc-framework.md) | Acceptance Testing TUC Framework | Accepted | 2026-03-11 | - | - |
+| [0071](0071-sharded-instance-files-and-flat-instances-root.md) | Sharded Instance Files and Flat `instances` Root | Accepted | 2026-03-11 | - | - |
 | [0072](0072-unified-secrets-management-sops-age.md) | Unified Secrets Management with SOPS and age | Accepted (implemented) | 2026-03-17 | [0051](0051-ansible-runtime-and-secrets.md), [0054](0054-local-inputs-directory.md) | - |
 | [0073](0073-field-annotations-and-secret-conflict-resolution.md) | Field Annotation System and Secret Conflict Resolution | Accepted (implemented) | 2026-03-18 | - | - |
-| [0074](0074-v5-generator-architecture.md) | V5 Generator Architecture | Final | 2026-03-19 | - | - |
-| [0075](0075-framework-project-separation.md) | Monorepo Framework/Project Boundary (Stage 1) | Proposed | 2026-03-20 | - | - |
+| [0074](0074-v5-generator-architecture.md) | V5 Generator Architecture (Contract-First) | Final | 2026-03-19 | - | - |
+| [0075](0075-framework-project-separation.md) | Monorepo Framework/Project Boundary (Stage 1) | Accepted | 2026-03-20 | - | - |
 | [0076](0076-framework-distribution-and-multi-repository-extraction.md) | Framework Distribution and Multi-Repository Extraction (Stage 2) | Accepted | 2026-03-20 | - | - |
 | [0077](0077-go-task-developer-orchestration.md) | Go-Task as Developer Orchestration Layer | Accepted | 2026-03-21 | - | - |
