@@ -31,6 +31,14 @@ MODULE_MANIFESTS = [
     V5_ROOT / "topology" / "object-modules" / "orangepi" / "plugins.yaml",
 ]
 
+OBJECT_GENERATOR_PLUGIN_FILES = [
+    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "bootstrap_mikrotik_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "terraform_proxmox_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "bootstrap_proxmox_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "orangepi" / "plugins" / "bootstrap_orangepi_generator.py",
+]
+
 OBJECT_TEMPLATE_ROOTS = [
     V5_ROOT / "topology" / "object-modules" / "mikrotik" / "templates",
     V5_ROOT / "topology" / "object-modules" / "proxmox" / "templates",
@@ -80,6 +88,16 @@ def test_object_generator_registration_is_owned_by_module_manifests() -> None:
         module_ids.update(_plugin_ids(manifest_path))
     missing = sorted(OBJECT_GENERATOR_IDS.difference(module_ids))
     assert missing == [], f"Object-specific generators missing from module manifests: {missing}"
+
+
+def test_object_generators_do_not_mutate_sys_path() -> None:
+    leaked: list[Path] = []
+    for plugin_file in OBJECT_GENERATOR_PLUGIN_FILES:
+        assert plugin_file.exists(), f"Missing object generator plugin: {plugin_file}"
+        body = plugin_file.read_text(encoding="utf-8")
+        if "sys.path.insert(" in body:
+            leaked.append(plugin_file)
+    assert leaked == [], f"Object generators must not mutate sys.path: {leaked}"
 
 
 def test_object_specific_templates_are_not_stored_in_tools_domain() -> None:

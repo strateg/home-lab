@@ -214,3 +214,28 @@ All must be true:
 4. Central `v5/topology-tools/plugins/plugins.yaml` contains only shared/global plugins.
 5. Object-specific compatibility shims are removed.
 6. Verification matrix and release smoke gate pass.
+
+---
+
+## 9. Compatibility Gate Evidence (2026-03-21)
+
+Recorded one full local release cycle after shim removal:
+
+1. Full v5 tests:
+   - `python -m pytest -o addopts= v5/tests -q`
+   - Result: `317 passed, 3 skipped`
+2. Framework release preflight chain:
+   - strict framework gates (`verify-framework-lock`, rollback rehearsal, compatibility matrix, strict runtime audit)
+   - ADR0078 ownership contract (`v5/tests/plugin_contract/test_object_generator_ownership.py`)
+   - v5 lane validate (`V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5`)
+   - Result: PASS
+3. Framework distribution build:
+   - `python v5/topology-tools/build-framework-distribution.py --repo-root . --framework-manifest v5/topology/framework.yaml --output-root v5-dist/framework --version 1.0.8 --archive-format both`
+   - Result: PASS (`infra-topology-framework-1.0.8.zip` / `.tar.gz`)
+4. Zip bootstrap smoke:
+   - `python v5/topology-tools/init-project-repo.py --output-root v5-build/adr0078-cycle-project --project-id adr0078-cycle --framework-dist-zip ...infra-topology-framework-1.0.8.zip --framework-dist-version 1.0.8 --framework-submodule-path framework --force`
+   - Result: `Compile check: PASS`
+
+Conclusion:
+
+1. Compatibility gate objective ("one full release cycle without shim-origin failures") is satisfied for ADR0078 Waves 1-4 scope.
