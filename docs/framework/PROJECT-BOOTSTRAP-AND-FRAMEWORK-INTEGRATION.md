@@ -47,6 +47,7 @@ python v5/topology-tools/init-project-repo.py `
 В package mode:
 
 1. zip распаковывается в `./framework`;
+   ожидаемый layout после распаковки: `framework.yaml`, `class-modules/`, `object-modules/`, `topology-tools/` (без вложенного `v5/`).
 2. `framework.lock.yaml` генерируется с `framework.source: package`;
 3. в lock сохраняется `framework.repository` (по умолчанию `file://...` URI zip-артефакта);
 4. strict verify/compile выполняются по распакованному framework дереву.
