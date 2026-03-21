@@ -1,7 +1,7 @@
 # ADR 0076: Multi-Repository Extraction Plan
 
 **Date:** 2026-03-20
-**Status:** Active
+**Status:** Completed
 **Prerequisite:** ADR 0075 completed (2026-03-20)
 **Depends on:** ADR 0074, ADR 0075
 
@@ -586,3 +586,8 @@ Wave 2 incremental progress (2026-03-20):
 14. follow-up hotfix release `v1.0.5` published for project-submodule template path handling; release workflow run completed `success`.
 15. follow-up hotfix release `v1.0.6` published for bootstrap strict-gate note command correctness; release workflow run completed `success`.
 16. follow-up hotfix release `v1.0.7` published to align cutover-readiness pending-manual scope with completed Wave 2/3 milestones; release workflow run completed `success`.
+
+Post-cutover maintenance (2026-03-21):
+
+1. strict ADR0076 gates re-validated after latest repository changes (`verify-framework-lock --strict`, `rehearse-framework-rollback`, `validate-framework-compatibility-matrix`, `audit-strict-runtime-entrypoints`, `cutover-readiness-report --quick`) -> `PASS`.
+2. framework lock update policy documented for project workflow: refresh and commit `framework.lock.yaml` only in pre-merge/pre-release windows.
