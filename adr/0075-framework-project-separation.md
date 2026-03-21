@@ -60,8 +60,9 @@ v5/
 └── projects/
     └── home-lab/
         ├── project.yaml
-        ├── instances/
-        │   └── <layer-bucket>/<group>/<instance>.yaml
+        ├── topology/
+        │   └── instances/
+        │       └── <layer-bucket>/<group>/<instance>.yaml
         ├── secrets/               # project-local secret sidecars
         └── _legacy/               # archived migration artifacts
 ```
@@ -100,7 +101,7 @@ schema_version: 1
 project: home-lab
 status: production
 
-instances_root: instances
+instances_root: topology/instances
 secrets_root: secrets
 
 generation:
@@ -170,14 +171,14 @@ Therefore sequence is fixed:
 
 ### Phase 2: Directory Migration
 
-1. Move `v5/topology/instances/` -> `v5/projects/home-lab/instances/`.
+1. Move `v5/topology/instances/` -> `v5/projects/home-lab/topology/instances/`.
 2. Move legacy migration artifacts to `v5/projects/home-lab/_legacy/`.
 3. Move secrets sidecars to `v5/projects/home-lab/secrets/`.
 4. Update root manifest to project path.
 
 ### Phase 3: Tooling and Script Rewire
 
-1. Update validators/scripts that hardcode `v5/topology/instances`.
+1. Update validators/scripts that hardcode `v5/topology/instances` and `v5/projects/home-lab/instances`.
 2. Update scaffold and lane checks to expect project root.
 3. Remove compatibility adapters that preserve legacy `paths.*` behavior.
 
@@ -205,7 +206,7 @@ Trade-offs:
 - [x] Introduce `framework/project` manifest contract in compiler runtime.
 - [x] Add `E780x` catalog entries and tests.
 - [x] Create `v5/projects/home-lab/project.yaml`.
-- [x] Move `instances` to project root.
+- [x] Move `instances` to project-local `topology/instances`.
 - [x] Move/archive `_legacy-home-lab` under project root.
 - [x] Rewire scripts and validation gates to project root.
 - [x] Enable project-aware secrets root.

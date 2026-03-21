@@ -34,14 +34,16 @@ Pragmatic rollout policy (initial):
 ### Target Model
 
 1. `infra-topology-framework` repository contains:
-   - `class-modules/`
-   - `object-modules/`
+   - `topology/class-modules/`
+   - `topology/object-modules/`
+   - `topology/layer-contract.yaml`
+   - `topology/model.lock.yaml`
+   - `topology/profile-map.yaml`
    - `topology-tools/`
-   - `layer-contract.yaml`
    - `framework.yaml`
 
 2. Project repositories contain:
-   - `instances/`
+   - `topology/instances/`
    - `secrets/`
    - `project.yaml`
    - `framework.lock.yaml`
