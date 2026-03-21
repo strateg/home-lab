@@ -2,18 +2,18 @@
 
 **Date:** 2026-03-21  
 **ADR:** `adr/0078-object-module-local-template-layout.md`  
-**Status:** Proposed (execution-ready)
+**Status:** Finalized (execution baseline approved)
 
 ---
 
 ## 1. Objective
 
-Complete ADR0078 end-state for `v5`:
+Reach ADR0078 target state for `v5`:
 
-1. Object-specific generator code lives in `object-modules/<object-id>/plugins`.
-2. Object-specific templates live in `object-modules/<object-id>/templates/<generator-id>`.
-3. Object-specific plugin registration is owned by module manifests (`object-modules/**/plugins.yaml`).
-4. Transitional shims in `topology-tools/plugins/generators` are removed after validation window.
+1. Object-specific generator code is located only in `object-modules/<object-id>/plugins`.
+2. Object-specific templates are located only in `object-modules/<object-id>/templates/<generator-id>`.
+3. Object-specific generator registration is owned by module manifests (`object-modules/**/plugins.yaml`).
+4. Transitional shims in `v5/topology-tools/plugins/generators` are removed after compatibility gate.
 
 ---
 
@@ -35,54 +35,51 @@ Out of scope (shared/global generators):
 
 ---
 
-## 3. Current State Snapshot
+## 3. Baseline (2026-03-21)
 
-Implemented:
+Already implemented:
 
-1. Generator implementations are already moved to:
+1. Object-specific generator implementations exist in:
    - `v5/topology/object-modules/mikrotik/plugins/`
    - `v5/topology/object-modules/proxmox/plugins/`
    - `v5/topology/object-modules/orangepi/plugins/`
-2. Central manifest already points to moved generator files:
+2. Central manifest points to moved generator files:
    - `v5/topology-tools/plugins/plugins.yaml`
-3. MikroTik terraform templates are already local:
+3. MikroTik terraform templates are already co-located:
    - `v5/topology/object-modules/mikrotik/templates/terraform/`
 
-Remaining gaps:
+Open gaps:
 
-1. `proxmox` and `orangepi` do not own generator registration in their own `plugins.yaml`.
+1. `proxmox` and `orangepi` do not yet own generator registration in local `plugins.yaml`.
 2. Object-specific templates still remain in `v5/topology-tools/templates` for proxmox/bootstrap flows.
-3. Compatibility shim modules still exist in:
-   - `v5/topology-tools/plugins/generators/*` (for moved object-specific generators)
+3. Compatibility shims still exist for moved generators in `v5/topology-tools/plugins/generators/`.
 4. Authoring/operational docs still describe central-registration-first flow.
 
 ---
 
-## 4. Execution Waves
+## 4. Execution Plan
 
-## Wave 1: Finish Template Co-location
+### Wave 1: Complete Template Co-location
 
 Changes:
 
-1. Move templates from `v5/topology-tools/templates/terraform/proxmox/*` to:
+1. Move `v5/topology-tools/templates/terraform/proxmox/*` to:
    - `v5/topology/object-modules/proxmox/templates/terraform/*`
-2. Move templates from `v5/topology-tools/templates/bootstrap/proxmox/*` to:
+2. Move `v5/topology-tools/templates/bootstrap/proxmox/*` to:
    - `v5/topology/object-modules/proxmox/templates/bootstrap/*`
-3. Move templates from `v5/topology-tools/templates/bootstrap/mikrotik/*` to:
+3. Move `v5/topology-tools/templates/bootstrap/mikrotik/*` to:
    - `v5/topology/object-modules/mikrotik/templates/bootstrap/*`
-4. Move templates from `v5/topology-tools/templates/bootstrap/orangepi/*` to:
+4. Move `v5/topology-tools/templates/bootstrap/orangepi/*` to:
    - `v5/topology/object-modules/orangepi/templates/bootstrap/*`
-5. Add/adjust `template_root()` for proxmox/orangepi/mikrotik bootstrap generators to prefer object-local paths (same resolution policy as ADR0078).
+5. Add/adjust generator `template_root()` resolution for proxmox/orangepi/bootstrap generators to prefer object-local templates.
 6. Update `v5/topology-tools/templates/TEMPLATE-INVENTORY.md`.
 
 Exit criteria:
 
-1. Object-specific generators render successfully without object templates under `topology-tools/templates`.
-2. Generator integration tests pass.
+1. No object-specific templates are required from `v5/topology-tools/templates`.
+2. Generator integration checks pass.
 
----
-
-## Wave 2: Module-Owned Plugin Registration
+### Wave 2: Move Registration Ownership to Module Manifests
 
 Changes:
 
@@ -91,78 +88,67 @@ Changes:
 3. Add `v5/topology/object-modules/orangepi/plugins.yaml` with orangepi generator entry.
 4. Remove object-specific generator entries from:
    - `v5/topology-tools/plugins/plugins.yaml`
-5. Keep plugin IDs stable (no renames), preserve order/dependency semantics.
+5. Keep plugin IDs stable (no renames), preserve ordering/dependency semantics.
 
 Exit criteria:
 
-1. `discover_plugin_manifests()` order remains deterministic.
-2. Compile + generate loads all object-specific generators only from module manifests.
-3. No duplicate plugin ID diagnostics (`E4001`).
+1. `discover_plugin_manifests()` remains deterministic.
+2. No duplicate plugin IDs (`E4001`).
+3. Compile/generate uses module-owned generator registration only.
 
----
-
-## Wave 3: Shim Removal and Import Hardening
+### Wave 3: Remove Compatibility Shims
 
 Changes:
 
-1. Remove compatibility shim files:
+1. Remove shim files:
    - `v5/topology-tools/plugins/generators/terraform_mikrotik_generator.py`
    - `v5/topology-tools/plugins/generators/bootstrap_mikrotik_generator.py`
    - `v5/topology-tools/plugins/generators/terraform_proxmox_generator.py`
    - `v5/topology-tools/plugins/generators/bootstrap_proxmox_generator.py`
    - `v5/topology-tools/plugins/generators/bootstrap_orangepi_generator.py`
-2. Update tests/imports to use object-module generator modules directly where needed.
-3. Add guard checks (test or grep-based CI check) to prevent re-introduction of object-specific generator shims.
+2. Update tests/imports that still reference shim modules.
+3. Add guard check (test or CI grep) preventing reintroduction of object-specific shims.
 
 Exit criteria:
 
-1. No runtime dependency on shim modules.
-2. Generator tests and projection-contract tests pass without shims.
+1. No runtime/import dependency on shim modules.
+2. Projection/template/publish contract tests pass without shims.
 
----
-
-## Wave 4: Docs and Release Workflow Alignment
+### Wave 4: Docs and Release Alignment
 
 Changes:
 
-1. Update plugin authoring docs:
+1. Update:
    - `v5/topology-tools/docs/PLUGIN_AUTHORING.md`
-2. Update manual build docs:
    - `v5/topology-tools/docs/MANUAL-ARTIFACT-BUILD.md`
-3. Update release guide/checklists to include ADR0078 checks:
-   - no object-specific generator entries in central manifest,
+2. Update release checklists/guides with ADR0078 gates:
+   - no object-specific entries in central generator manifest,
    - no object-specific templates under `topology-tools/templates`.
-4. Regenerate framework lock:
+3. Regenerate lock:
    - `v5/projects/home-lab/framework.lock.yaml`
 
 Exit criteria:
 
-1. Documentation reflects module-owned registration model.
-2. Release preflight includes ADR0078 verification steps.
+1. Docs reflect module-owned registration model.
+2. Release preflight includes explicit ADR0078 verification.
 
----
-
-## Wave 5 (Optional): Projection Ownership Split
+### Wave 5: Projection Ownership Split (Deferred, Non-blocking)
 
 Goal:
 
-1. Reduce object-specific logic in shared projection module:
+1. Move object-specific projection builders out of:
    - `v5/topology-tools/plugins/generators/projections.py`
 
-Changes:
+Note:
 
-1. Move object-specific projection builders to object modules.
-2. Keep shared projection helpers in tools domain.
-
-Exit criteria:
-
-1. Shared tools module contains only cross-object projection primitives.
+1. Not required for ADR0078 DoD.
+2. Can be scheduled as ADR0078-B follow-up hardening.
 
 ---
 
-## 5. Verification Matrix (Minimum)
+## 5. Verification Matrix
 
-Run for each completed wave batch:
+Required after each wave batch:
 
 1. `python -m pytest -o addopts= v5/tests/plugin_integration/test_terraform_mikrotik_generator.py -q`
 2. `python -m pytest -o addopts= v5/tests/plugin_integration/test_terraform_proxmox_generator.py -q`
@@ -173,45 +159,45 @@ Run for each completed wave batch:
 7. `python -m pytest -o addopts= v5/tests/plugin_integration/test_strict_runtime_entrypoint_audit.py -q`
 8. `python v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough`
 
-Distribution smoke check (required before release):
+Release smoke gate (mandatory):
 
 1. Build framework distribution zip.
-2. Init project from distribution zip.
-3. Run strict compile in initialized project context.
+2. Initialize a fresh project from distribution zip.
+3. Run strict compile in that initialized project.
 
 ---
 
 ## 6. Risks and Controls
 
-1. Risk: missing templates after move.
-   - Control: wave-by-wave tests + explicit template inventory update.
-2. Risk: plugin load regressions from manifest split.
-   - Control: deterministic manifest discovery tests + duplicate ID checks.
-3. Risk: hidden dependencies on shims.
-   - Control: shim-removal wave with import guard and CI check.
-4. Risk: release artifact drift.
-   - Control: framework lock regeneration + distribution smoke test from zip bootstrap.
+1. Risk: template not found after relocation.
+   - Control: wave-local test matrix + inventory update in same commit.
+2. Risk: manifest split introduces duplicate IDs/load regressions.
+   - Control: manifest-discovery and duplicate-ID diagnostics checks.
+3. Risk: hidden dependencies on shim modules.
+   - Control: explicit shim-removal wave + anti-regression guard.
+4. Risk: distribution/lock drift.
+   - Control: lock regeneration + distribution smoke gate.
 
 ---
 
 ## 7. Rollback
 
-If a wave fails acceptance:
+If acceptance fails in any wave:
 
-1. Restore previous plugin entrypoints in `v5/topology-tools/plugins/plugins.yaml`.
-2. Keep/restore compatibility shims for failed scope.
-3. Restore previous template roots for affected generators.
-4. Re-run strict validation matrix before next attempt.
+1. Restore prior manifest ownership in `v5/topology-tools/plugins/plugins.yaml`.
+2. Restore shims for failed scope.
+3. Restore prior template roots for affected generators.
+4. Re-run full verification matrix before retry.
 
 ---
 
 ## 8. Definition of Done (ADR0078)
 
-All conditions must be true:
+All must be true:
 
-1. Object-specific generator code is only in `object-modules/<object-id>/plugins`.
-2. Object-specific templates are only in `object-modules/<object-id>/templates`.
-3. Object-specific plugin registration is in module manifests.
+1. Object-specific generator code exists only in `object-modules/<object-id>/plugins`.
+2. Object-specific templates exist only in `object-modules/<object-id>/templates`.
+3. Object-specific registration is owned by module manifests.
 4. Central `v5/topology-tools/plugins/plugins.yaml` contains only shared/global plugins.
-5. Compatibility shims are removed.
-6. Verification matrix and distribution smoke checks pass.
+5. Object-specific compatibility shims are removed.
+6. Verification matrix and release smoke gate pass.

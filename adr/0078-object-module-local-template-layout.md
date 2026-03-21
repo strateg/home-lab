@@ -173,6 +173,70 @@ Ownership:
 
 ---
 
+## Implementation Plan (Phase-Gated)
+
+### Phase 0: Inventory and Baseline
+
+1. Build a complete inventory of object-scoped generators, templates, and plugin entrypoints in scope.
+2. Capture baseline validation status (strict compile, plugin integration tests, and distribution smoke generation).
+3. Produce a migration checklist artifact for tracked execution.
+
+**Go/No-Go:** proceed only when inventory is complete and baseline validations are green.
+
+**Exit artifacts:**
+- inventory/checklist document for ADR 0078 migration scope;
+- baseline validation report snapshot.
+
+### Phase 1: Physical Move (No Manifest Cutover)
+
+1. Move object templates to `v5/topology/object-modules/<object-id>/templates/<generator-id>/`.
+2. Move object-scoped plugins to `v5/topology/object-modules/<object-id>/plugins/`.
+3. Keep legacy resolution/fallback active while validating moved layout.
+
+**Go/No-Go:** proceed only if moved paths compile and test with fallback still enabled.
+
+**Exit artifacts:**
+- migrated files under object-module paths;
+- updated inventory showing new canonical locations.
+
+### Phase 2: Manifest Cutover and Lock Regeneration
+
+1. Update `v5/topology-tools/plugins/plugins.yaml` entrypoints to object-module plugin paths.
+2. Regenerate `v5/projects/home-lab/framework.lock.yaml`.
+3. Run strict compile, plugin integration tests, and distribution smoke generation.
+
+**Go/No-Go:** proceed only if all validations pass without object-specific path overrides.
+
+**Exit artifacts:**
+- plugin manifest entrypoints switched to object-module plugins;
+- regenerated framework lock aligned with runtime resolution.
+
+### Phase 3: Compatibility Window (One Release Cycle)
+
+1. Keep temporary compatibility shims/fallback for migrated objects for one validated release cycle.
+2. Track fallback usage in CI/tests and treat any fallback hit for migrated objects as a blocking signal.
+3. Fix residual path/import issues before legacy removal.
+
+**Go/No-Go:** proceed only after one full release cycle with zero fallback hits for migrated objects.
+
+**Exit artifacts:**
+- CI evidence of zero fallback hits;
+- closure note for compatibility window.
+
+### Phase 4: Legacy Cleanup and Finalization
+
+1. Remove object-specific legacy templates/plugins from `topology-tools/*` roots.
+2. Remove temporary shims used only for migration compatibility.
+3. Update inventories/references and rerun full validation pipeline.
+
+**Go/No-Go:** finalize only when post-cleanup validations are green.
+
+**Exit artifacts:**
+- legacy object-specific assets removed from tools domain;
+- final migration completion record.
+
+---
+
 ## Migration Notes
 
 1. Move template files physically to object module `templates/` subtree.
@@ -210,6 +274,8 @@ Minimum verification set per migration batch:
 3. Strict compile and plugin integration tests pass with object-local templates/plugins.
 4. Framework distribution includes migrated templates/plugins under object module paths.
 5. Compatibility shims for migrated objects are removed after one validated release cycle with no fallback hits in CI/tests.
+6. For each migration batch, an inventory/checklist artifact and validation evidence exist before and after manifest cutover.
+7. Post-cleanup validation passes after removing legacy object-specific assets from `topology-tools/*`.
 
 ---
 
@@ -226,3 +292,4 @@ Minimum verification set per migration batch:
 - `v5/projects/home-lab/framework.lock.yaml`
 - `v5/tests/plugin_integration/test_generator_projection_contract.py`
 - `v5/tests/plugin_integration/test_generator_template_and_publish_contract.py`
+- `adr/0078-analysis/IMPLEMENTATION-PLAN.md`
