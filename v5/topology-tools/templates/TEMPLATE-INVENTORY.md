@@ -9,14 +9,16 @@
 ```
 v5/topology-tools/templates/
 ├── terraform/
-│   ├── proxmox/           # Proxmox VE Terraform templates
-│   └── mikrotik/          # MikroTik RouterOS Terraform templates
+│   └── proxmox/           # Proxmox VE Terraform templates
 ├── ansible/
 │   └── inventory/         # Ansible inventory templates
 └── bootstrap/
     ├── proxmox/           # Proxmox bootstrap templates
     ├── mikrotik/          # MikroTik bootstrap templates
     └── orangepi/          # Orange Pi cloud-init templates
+
+v5/topology/object-modules/mikrotik/templates/
+└── terraform/             # MikroTik RouterOS Terraform templates
 ```
 
 ---
@@ -40,18 +42,18 @@ v5/topology-tools/templates/
 
 | Template | V4 Source | V5 Status | Generator |
 |----------|-----------|-----------|-----------|
-| `provider.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/provider.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `interfaces.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/interfaces.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `firewall.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/firewall.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `dhcp.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/dhcp.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `dns.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/dns.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `addresses.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/addresses.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `qos.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/qos.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `vpn.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/vpn.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `containers.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/containers.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `variables.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/variables.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `outputs.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/outputs.tf.j2` | Complete | `terraform_mikrotik_generator.py` |
-| `terraform.tfvars.example.j2` | `v4/topology-tools/templates/terraform-mikrotik/terraform.tfvars.example.j2` | Complete | `terraform_mikrotik_generator.py` |
+| `provider.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/provider.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `interfaces.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/interfaces.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `firewall.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/firewall.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `dhcp.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/dhcp.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `dns.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/dns.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `addresses.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/addresses.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `qos.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/qos.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `vpn.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/vpn.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `containers.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/containers.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `variables.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/variables.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `outputs.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/outputs.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `terraform.tfvars.example.j2` | `v4/topology-tools/templates/terraform-mikrotik/terraform.tfvars.example.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
 
 ---
 

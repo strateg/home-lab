@@ -23,6 +23,24 @@ def _render_string_list(items: list[str]) -> str:
 class TerraformMikroTikGenerator(BaseGenerator):
     """Emit baseline Terraform files from mikrotik projection."""
 
+    def template_root(self, ctx: PluginContext) -> Path:
+        raw = ctx.config.get("generator_templates_root")
+        if isinstance(raw, str) and raw.strip():
+            return Path(raw)
+
+        candidates: list[Path] = []
+        object_modules_root_raw = ctx.config.get("object_modules_root")
+        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
+            candidates.append(Path(object_modules_root_raw.strip()) / "mikrotik" / "templates")
+        topology_path_raw = getattr(ctx, "topology_path", None)
+        if isinstance(topology_path_raw, str) and topology_path_raw.strip():
+            candidates.append(Path(topology_path_raw.strip()).parent / "object-modules" / "mikrotik" / "templates")
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return super().template_root(ctx)
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         payload = ctx.compiled_json
@@ -87,24 +105,24 @@ class TerraformMikroTikGenerator(BaseGenerator):
 
         # Core templates (always generated)
         templates: dict[str, str] = {
-            "provider.tf": "terraform/mikrotik/provider.tf.j2",
-            "interfaces.tf": "terraform/mikrotik/interfaces.tf.j2",
-            "firewall.tf": "terraform/mikrotik/firewall.tf.j2",
-            "dhcp.tf": "terraform/mikrotik/dhcp.tf.j2",
-            "dns.tf": "terraform/mikrotik/dns.tf.j2",
-            "addresses.tf": "terraform/mikrotik/addresses.tf.j2",
-            "variables.tf": "terraform/mikrotik/variables.tf.j2",
-            "outputs.tf": "terraform/mikrotik/outputs.tf.j2",
-            "terraform.tfvars.example": "terraform/mikrotik/terraform.tfvars.example.j2",
+            "provider.tf": "terraform/provider.tf.j2",
+            "interfaces.tf": "terraform/interfaces.tf.j2",
+            "firewall.tf": "terraform/firewall.tf.j2",
+            "dhcp.tf": "terraform/dhcp.tf.j2",
+            "dns.tf": "terraform/dns.tf.j2",
+            "addresses.tf": "terraform/addresses.tf.j2",
+            "variables.tf": "terraform/variables.tf.j2",
+            "outputs.tf": "terraform/outputs.tf.j2",
+            "terraform.tfvars.example": "terraform/terraform.tfvars.example.j2",
         }
 
         # Capability-driven templates (only generated if capability present)
         if has_qos:
-            templates["qos.tf"] = "terraform/mikrotik/qos.tf.j2"
+            templates["qos.tf"] = "terraform/qos.tf.j2"
         if has_wireguard:
-            templates["vpn.tf"] = "terraform/mikrotik/vpn.tf.j2"
+            templates["vpn.tf"] = "terraform/vpn.tf.j2"
         if has_containers:
-            templates["containers.tf"] = "terraform/mikrotik/containers.tf.j2"
+            templates["containers.tf"] = "terraform/containers.tf.j2"
 
         written: list[str] = []
         for filename, template_name in templates.items():
