@@ -36,6 +36,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} v5/topology-tools/audit-strict-runtime-entrypoints.py"
 
+  adr0078-ownership:
+    desc: Verify ADR0078 object-generator/template ownership boundaries
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= v5/tests/plugin_contract/test_object_generator_ownership.py -q"
+
   strict:
     desc: Run ADR0076 strict framework gates
     deps:
@@ -59,6 +64,7 @@ tasks:
     desc: Run local v5-only release preflight (lock refresh + strict + validate:v5-passthrough + framework-focused tests)
     cmds:
       - task framework:lock-refresh
+      - task framework:adr0078-ownership
       - task framework:release-ci
       - task validate:v5-passthrough
 

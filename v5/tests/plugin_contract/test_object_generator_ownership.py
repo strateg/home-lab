@@ -31,6 +31,17 @@ MODULE_MANIFESTS = [
     V5_ROOT / "topology" / "object-modules" / "orangepi" / "plugins.yaml",
 ]
 
+OBJECT_TEMPLATE_ROOTS = [
+    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "templates",
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "templates",
+    V5_ROOT / "topology" / "object-modules" / "orangepi" / "templates",
+]
+
+TOOLS_OBJECT_TEMPLATE_DIRS = [
+    V5_ROOT / "topology-tools" / "templates" / "terraform",
+    V5_ROOT / "topology-tools" / "templates" / "bootstrap",
+]
+
 
 def _plugin_ids(manifest_path: Path) -> set[str]:
     payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
@@ -66,3 +77,17 @@ def test_object_generator_registration_is_owned_by_module_manifests() -> None:
         module_ids.update(_plugin_ids(manifest_path))
     missing = sorted(OBJECT_GENERATOR_IDS.difference(module_ids))
     assert missing == [], f"Object-specific generators missing from module manifests: {missing}"
+
+
+def test_object_specific_templates_are_not_stored_in_tools_domain() -> None:
+    leaked_files: list[Path] = []
+    for root in TOOLS_OBJECT_TEMPLATE_DIRS:
+        if not root.exists():
+            continue
+        leaked_files.extend(path for path in root.rglob("*") if path.is_file())
+    assert leaked_files == [], f"Object-specific templates must not exist in tools domain: {leaked_files}"
+
+
+def test_object_specific_templates_exist_in_object_modules() -> None:
+    missing_roots = [path for path in OBJECT_TEMPLATE_ROOTS if not path.exists()]
+    assert missing_roots == [], f"Missing object template roots: {missing_roots}"

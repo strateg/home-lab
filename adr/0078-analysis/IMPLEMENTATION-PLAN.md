@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-21  
 **ADR:** `adr/0078-object-module-local-template-layout.md`  
-**Status:** Finalized (execution baseline approved)
+**Status:** In progress (Wave 1-4 implemented; Wave 5 deferred)
 
 ---
 
@@ -54,6 +54,14 @@ Open gaps:
 2. Object-specific templates still remain in `v5/topology-tools/templates` for proxmox/bootstrap flows.
 3. Compatibility shims still exist for moved generators in `v5/topology-tools/plugins/generators/`.
 4. Authoring/operational docs still describe central-registration-first flow.
+
+Implementation status update (2026-03-21):
+
+1. Wave 1 completed: object-specific templates moved to object modules.
+2. Wave 2 completed: object-specific generator registration moved to module manifests.
+3. Wave 3 completed: compatibility shims removed from tools generator package.
+4. Wave 4 completed: docs updated and release preflight includes explicit ADR0078 ownership check.
+5. Wave 5 remains deferred (non-blocking hardening).
 
 ---
 
