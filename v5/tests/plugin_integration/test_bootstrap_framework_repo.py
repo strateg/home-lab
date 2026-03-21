@@ -65,7 +65,7 @@ def test_bootstrap_framework_repo_outputs_expected_layout(tmp_path: Path) -> Non
     )
     assert run.returncode == 0, run.stdout + "\n" + run.stderr
     assert (output_root / "framework.yaml").exists()
-    assert (output_root / "class-modules").exists()
+    assert (output_root / "topology" / "class-modules").exists()
     assert (output_root / "topology-tools").exists()
     assert (output_root / "tests" / "plugin_api" / "test_api.py").exists()
     assert (output_root / ".github" / "workflows" / "release.yml").exists()

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -28,7 +29,10 @@ def test_ansible_inventory_core_files_exist(generated_artifacts_root: Path) -> N
 
 def test_ansible_inventory_lxc_hosts_match_v4_baseline(generated_artifacts_root: Path) -> None:
     v5_root = generated_artifacts_root / "ansible" / "inventory" / "production"
-    v4_hosts = yaml.safe_load((V4_INVENTORY_ROOT / "hosts.yml").read_text(encoding="utf-8")) or {}
+    v4_hosts_path = V4_INVENTORY_ROOT / "hosts.yml"
+    if not v4_hosts_path.exists():
+        pytest.skip(f"v4 inventory baseline missing: {v4_hosts_path}")
+    v4_hosts = yaml.safe_load(v4_hosts_path.read_text(encoding="utf-8")) or {}
     v5_hosts = yaml.safe_load((v5_root / "hosts.yml").read_text(encoding="utf-8")) or {}
 
     v4_lxc_hosts = _hosts(v4_hosts, "all", "children", "lxc_containers", "hosts")
