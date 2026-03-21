@@ -17,6 +17,24 @@ from plugins.generators.projections import ProjectionError, build_bootstrap_proj
 class BootstrapProxmoxGenerator(BaseGenerator):
     """Emit baseline bootstrap bundle for Proxmox nodes."""
 
+    def template_root(self, ctx: PluginContext) -> Path:
+        raw = ctx.config.get("generator_templates_root")
+        if isinstance(raw, str) and raw.strip():
+            return Path(raw)
+
+        candidates: list[Path] = []
+        object_modules_root_raw = ctx.config.get("object_modules_root")
+        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
+            candidates.append(Path(object_modules_root_raw.strip()) / "proxmox" / "templates")
+        topology_path_raw = getattr(ctx, "topology_path", None)
+        if isinstance(topology_path_raw, str) and topology_path_raw.strip():
+            candidates.append(Path(topology_path_raw.strip()).parent / "object-modules" / "proxmox" / "templates")
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return super().template_root(ctx)
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         payload = ctx.compiled_json
@@ -66,7 +84,7 @@ class BootstrapProxmoxGenerator(BaseGenerator):
                 node_root / "answer.toml.example",
                 self.render_template(
                     ctx,
-                    "bootstrap/proxmox/answer.toml.example.j2",
+                    "bootstrap/answer.toml.example.j2",
                     {"instance_id": instance_id},
                 ),
             )
@@ -75,7 +93,7 @@ class BootstrapProxmoxGenerator(BaseGenerator):
                 node_root / "README.md",
                 self.render_template(
                     ctx,
-                    "bootstrap/proxmox/readme.md.j2",
+                    "bootstrap/readme.md.j2",
                     {"instance_id": instance_id},
                 ),
             )
@@ -86,7 +104,7 @@ class BootstrapProxmoxGenerator(BaseGenerator):
                     script_path,
                     self.render_template(
                         ctx,
-                        "bootstrap/proxmox/script.sh.j2",
+                        "bootstrap/script.sh.j2",
                         {"action": action},
                     ),
                 )
@@ -95,7 +113,7 @@ class BootstrapProxmoxGenerator(BaseGenerator):
                 scripts_root / "README.md",
                 self.render_template(
                     ctx,
-                    "bootstrap/proxmox/post-install-readme.md.j2",
+                    "bootstrap/post-install-readme.md.j2",
                     {},
                 ),
             )

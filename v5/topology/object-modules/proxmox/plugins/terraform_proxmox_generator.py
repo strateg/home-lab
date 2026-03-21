@@ -25,6 +25,24 @@ def _render_string_list(items: list[str]) -> str:
 class TerraformProxmoxGenerator(BaseGenerator):
     """Emit baseline Terraform files from proxmox projection."""
 
+    def template_root(self, ctx: PluginContext) -> Path:
+        raw = ctx.config.get("generator_templates_root")
+        if isinstance(raw, str) and raw.strip():
+            return Path(raw)
+
+        candidates: list[Path] = []
+        object_modules_root_raw = ctx.config.get("object_modules_root")
+        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
+            candidates.append(Path(object_modules_root_raw.strip()) / "proxmox" / "templates")
+        topology_path_raw = getattr(ctx, "topology_path", None)
+        if isinstance(topology_path_raw, str) and topology_path_raw.strip():
+            candidates.append(Path(topology_path_raw.strip()).parent / "object-modules" / "proxmox" / "templates")
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return super().template_root(ctx)
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         payload = ctx.compiled_json
@@ -77,14 +95,14 @@ class TerraformProxmoxGenerator(BaseGenerator):
         }
 
         templates: dict[str, str] = {
-            "versions.tf": "terraform/proxmox/versions.tf.j2",
-            "provider.tf": "terraform/proxmox/provider.tf.j2",
-            "variables.tf": "terraform/proxmox/variables.tf.j2",
-            "bridges.tf": "terraform/proxmox/bridges.tf.j2",
-            "lxc.tf": "terraform/proxmox/lxc.tf.j2",
-            "vms.tf": "terraform/proxmox/vms.tf.j2",
-            "outputs.tf": "terraform/proxmox/outputs.tf.j2",
-            "terraform.tfvars.example": "terraform/proxmox/terraform.tfvars.example.j2",
+            "versions.tf": "terraform/versions.tf.j2",
+            "provider.tf": "terraform/provider.tf.j2",
+            "variables.tf": "terraform/variables.tf.j2",
+            "bridges.tf": "terraform/bridges.tf.j2",
+            "lxc.tf": "terraform/lxc.tf.j2",
+            "vms.tf": "terraform/vms.tf.j2",
+            "outputs.tf": "terraform/outputs.tf.j2",
+            "terraform.tfvars.example": "terraform/terraform.tfvars.example.j2",
         }
 
         written: list[str] = []

@@ -17,6 +17,24 @@ from plugins.generators.projections import ProjectionError, build_bootstrap_proj
 class BootstrapMikroTikGenerator(BaseGenerator):
     """Emit baseline bootstrap bundle for MikroTik routers."""
 
+    def template_root(self, ctx: PluginContext) -> Path:
+        raw = ctx.config.get("generator_templates_root")
+        if isinstance(raw, str) and raw.strip():
+            return Path(raw)
+
+        candidates: list[Path] = []
+        object_modules_root_raw = ctx.config.get("object_modules_root")
+        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
+            candidates.append(Path(object_modules_root_raw.strip()) / "mikrotik" / "templates")
+        topology_path_raw = getattr(ctx, "topology_path", None)
+        if isinstance(topology_path_raw, str) and topology_path_raw.strip():
+            candidates.append(Path(topology_path_raw.strip()).parent / "object-modules" / "mikrotik" / "templates")
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return super().template_root(ctx)
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         payload = ctx.compiled_json
@@ -56,22 +74,22 @@ class BootstrapMikroTikGenerator(BaseGenerator):
             files = {
                 node_root / "init-terraform.rsc": self.render_template(
                     ctx,
-                    "bootstrap/mikrotik/init-terraform.rsc.j2",
+                    "bootstrap/init-terraform.rsc.j2",
                     {"instance_id": instance_id},
                 ),
                 node_root / "backup-restore-overrides.rsc": self.render_template(
                     ctx,
-                    "bootstrap/mikrotik/backup-restore-overrides.rsc.j2",
+                    "bootstrap/backup-restore-overrides.rsc.j2",
                     {"instance_id": instance_id},
                 ),
                 node_root / "terraform.tfvars.example": self.render_template(
                     ctx,
-                    "bootstrap/mikrotik/terraform.tfvars.example.j2",
+                    "bootstrap/terraform.tfvars.example.j2",
                     {},
                 ),
                 node_root / "README.md": self.render_template(
                     ctx,
-                    "bootstrap/mikrotik/readme.md.j2",
+                    "bootstrap/readme.md.j2",
                     {"instance_id": instance_id},
                 ),
             }

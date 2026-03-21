@@ -17,6 +17,24 @@ from plugins.generators.projections import ProjectionError, build_bootstrap_proj
 class BootstrapOrangePiGenerator(BaseGenerator):
     """Emit baseline cloud-init bundle for Orange Pi nodes."""
 
+    def template_root(self, ctx: PluginContext) -> Path:
+        raw = ctx.config.get("generator_templates_root")
+        if isinstance(raw, str) and raw.strip():
+            return Path(raw)
+
+        candidates: list[Path] = []
+        object_modules_root_raw = ctx.config.get("object_modules_root")
+        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
+            candidates.append(Path(object_modules_root_raw.strip()) / "orangepi" / "templates")
+        topology_path_raw = getattr(ctx, "topology_path", None)
+        if isinstance(topology_path_raw, str) and topology_path_raw.strip():
+            candidates.append(Path(topology_path_raw.strip()).parent / "object-modules" / "orangepi" / "templates")
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return super().template_root(ctx)
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         payload = ctx.compiled_json
@@ -56,17 +74,17 @@ class BootstrapOrangePiGenerator(BaseGenerator):
             files = {
                 cloud_init_root / "user-data.example": self.render_template(
                     ctx,
-                    "bootstrap/orangepi/user-data.example.j2",
+                    "bootstrap/user-data.example.j2",
                     {"instance_id": instance_id},
                 ),
                 cloud_init_root / "meta-data": self.render_template(
                     ctx,
-                    "bootstrap/orangepi/meta-data.j2",
+                    "bootstrap/meta-data.j2",
                     {"instance_id": instance_id},
                 ),
                 cloud_init_root / "README.md": self.render_template(
                     ctx,
-                    "bootstrap/orangepi/readme.md.j2",
+                    "bootstrap/readme.md.j2",
                     {"instance_id": instance_id},
                 ),
             }
