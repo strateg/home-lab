@@ -158,6 +158,8 @@ def test_init_project_repo_creates_l0_l7_structure_and_submodule(tmp_path: Path)
     assert (output_root / "topology.yaml").exists()
     assert (output_root / "project.yaml").exists()
     assert (output_root / "framework.lock.yaml").exists()
+    assert (output_root / "Taskfile.yml").exists()
+    assert (output_root / "taskfiles" / "project.yml").exists()
 
     for bucket in (
         "L0-meta",
@@ -169,10 +171,12 @@ def test_init_project_repo_creates_l0_l7_structure_and_submodule(tmp_path: Path)
         "L6-observability",
         "L7-operations",
     ):
-        assert (output_root / "instances" / bucket).exists()
+        assert (output_root / "topology" / "instances" / bucket).exists()
 
-    assert (output_root / "instances" / "L1-foundation" / "firmware" / "inst.firmware.apc.backups.650va.yaml").exists()
-    assert (output_root / "instances" / "L1-foundation" / "power" / "ups-main.yaml").exists()
+    assert (
+        output_root / "topology" / "instances" / "L1-foundation" / "firmware" / "inst.firmware.apc.backups.650va.yaml"
+    ).exists()
+    assert (output_root / "topology" / "instances" / "L1-foundation" / "power" / "ups-main.yaml").exists()
 
 
 def test_init_project_repo_default_flow_passes_strict_compile_with_real_framework(tmp_path: Path) -> None:

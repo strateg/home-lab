@@ -13,6 +13,8 @@ import yaml
 
 from framework_lock import default_framework_manifest_path
 
+PROJECT_INSTANCES_ROOT = "topology/instances"
+
 
 def _default_repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -151,16 +153,25 @@ def _wire_framework_submodule(
     return submodule_root
 
 
-def _copy_tree_if_exists(*, source_root: Path, target_root: Path, relative: str, force: bool) -> None:
-    source = source_root / relative
+def _copy_tree_if_exists(
+    *,
+    source_root: Path,
+    target_root: Path,
+    source_relative: str,
+    force: bool,
+    target_relative: str | None = None,
+) -> bool:
+    source = source_root / source_relative
     if not source.exists():
-        return
-    destination = target_root / relative
+        return False
+    destination_relative = target_relative if isinstance(target_relative, str) and target_relative.strip() else source_relative
+    destination = target_root / destination_relative
     if destination.exists():
         if not force:
-            return
+            return True
         shutil.rmtree(destination)
     shutil.copytree(source, destination)
+    return True
 
 
 def _detect_framework_manifest(framework_root: Path) -> tuple[Path, str]:
@@ -236,6 +247,80 @@ def _topology_framework_section(layout: str, *, framework_mount: str, framework_
     }
 
 
+def _write_task_bundle(
+    *,
+    output_root: Path,
+    framework_mount: str,
+    tools_prefix: str,
+    framework_manifest_rel: str,
+    force: bool,
+) -> None:
+    root_taskfile = "\n".join(
+        [
+            'version: "3"',
+            "",
+            "vars:",
+            '  PYTHON: \'{{default "python" .PYTHON}}\'',
+            '  PROJECT_ROOT: \'{{default "." .PROJECT_ROOT}}\'',
+            '  FRAMEWORK_ROOT: \'{{default "' + framework_mount + '" .FRAMEWORK_ROOT}}\'',
+            '  FRAMEWORK_TOOLS_ROOT: \'{{default "' + tools_prefix + '" .FRAMEWORK_TOOLS_ROOT}}\'',
+            '  FRAMEWORK_MANIFEST: \'{{default "' + framework_manifest_rel + '" .FRAMEWORK_MANIFEST}}\'',
+            '  TOPOLOGY_FILE: \'{{default "topology.yaml" .TOPOLOGY_FILE}}\'',
+            '  PROJECT_MANIFEST: \'{{default "project.yaml" .PROJECT_MANIFEST}}\'',
+            "",
+            "includes:",
+            "  project:",
+            "    taskfile: ./taskfiles/project.yml",
+            "    dir: .",
+            "    vars:",
+            '      PYTHON: "{{.PYTHON}}"',
+            '      PROJECT_ROOT: "{{.PROJECT_ROOT}}"',
+            '      FRAMEWORK_ROOT: "{{.FRAMEWORK_ROOT}}"',
+            '      FRAMEWORK_TOOLS_ROOT: "{{.FRAMEWORK_TOOLS_ROOT}}"',
+            '      FRAMEWORK_MANIFEST: "{{.FRAMEWORK_MANIFEST}}"',
+            '      TOPOLOGY_FILE: "{{.TOPOLOGY_FILE}}"',
+            '      PROJECT_MANIFEST: "{{.PROJECT_MANIFEST}}"',
+            "",
+            "tasks:",
+            "  default:",
+            "    desc: List available tasks",
+            "    cmds:",
+            "      - task --list",
+            "",
+        ]
+    )
+    project_taskfile = "\n".join(
+        [
+            'version: "3"',
+            "",
+            "tasks:",
+            "  lock:generate:",
+            "    desc: Regenerate framework.lock.yaml from mounted framework",
+            "    cmds:",
+            '      - "{{.PYTHON}} {{.FRAMEWORK_TOOLS_ROOT}}/generate-framework-lock.py --repo-root \\"{{.PROJECT_ROOT}}\\" --project-root \\"{{.PROJECT_ROOT}}\\" --project-manifest \\"{{.PROJECT_MANIFEST}}\\" --framework-root \\"{{.FRAMEWORK_ROOT}}\\" --framework-manifest \\"{{.FRAMEWORK_MANIFEST}}\\" --lock-file \\"{{.PROJECT_ROOT}}/framework.lock.yaml\\" --force"',
+            "",
+            "  lock:verify:",
+            "    desc: Verify framework.lock.yaml in strict mode",
+            "    cmds:",
+            '      - "{{.PYTHON}} {{.FRAMEWORK_TOOLS_ROOT}}/verify-framework-lock.py --repo-root \\"{{.PROJECT_ROOT}}\\" --project-root \\"{{.PROJECT_ROOT}}\\" --project-manifest \\"{{.PROJECT_MANIFEST}}\\" --framework-root \\"{{.FRAMEWORK_ROOT}}\\" --framework-manifest \\"{{.FRAMEWORK_MANIFEST}}\\" --lock-file \\"{{.PROJECT_ROOT}}/framework.lock.yaml\\" --strict"',
+            "",
+            "  compile:",
+            "    desc: Compile topology in strict mode",
+            "    cmds:",
+            '      - "{{.PYTHON}} {{.FRAMEWORK_TOOLS_ROOT}}/compile-topology.py --repo-root \\"{{.PROJECT_ROOT}}\\" --topology \\"{{.TOPOLOGY_FILE}}\\" --secrets-mode passthrough --strict-model-lock --output-json \\"{{.PROJECT_ROOT}}/generated/effective-topology.json\\" --diagnostics-json \\"{{.PROJECT_ROOT}}/generated/diagnostics.json\\" --diagnostics-txt \\"{{.PROJECT_ROOT}}/generated/diagnostics.txt\\" --artifacts-root \\"{{.PROJECT_ROOT}}/generated-artifacts\\""',
+            "",
+            "  validate:",
+            "    desc: Verify lock and compile topology",
+            "    deps:",
+            "      - lock:verify",
+            "      - compile",
+            "",
+        ]
+    )
+    _write_if_missing(output_root / "Taskfile.yml", root_taskfile, force=force)
+    _write_if_missing(output_root / "taskfiles" / "project.yml", project_taskfile, force=force)
+
+
 def main() -> int:
     args = parse_args()
     framework_root = args.framework_root.resolve()
@@ -298,33 +383,42 @@ def main() -> int:
         "project": project_id,
         "project_min_framework_version": str(args.project_min_framework_version).strip(),
         "project_contract_revision": int(args.project_contract_revision),
-        "instances_root": "instances",
+        "instances_root": PROJECT_INSTANCES_ROOT,
         "secrets_root": "secrets",
     }
 
     _write_yaml(topology_path, topology_payload)
     _write_yaml(project_manifest_path, project_payload)
-    (output_root / "instances").mkdir(parents=True, exist_ok=True)
+    (output_root / PROJECT_INSTANCES_ROOT).mkdir(parents=True, exist_ok=True)
     (output_root / "secrets").mkdir(parents=True, exist_ok=True)
     (output_root / "overrides").mkdir(parents=True, exist_ok=True)
     (output_root / "generated").mkdir(parents=True, exist_ok=True)
     if seed_project_root is not None:
+        copied_instances = _copy_tree_if_exists(
+            source_root=seed_project_root,
+            target_root=output_root,
+            source_relative=PROJECT_INSTANCES_ROOT,
+            target_relative=PROJECT_INSTANCES_ROOT,
+            force=bool(args.force),
+        )
+        if not copied_instances:
+            _copy_tree_if_exists(
+                source_root=seed_project_root,
+                target_root=output_root,
+                source_relative="instances",
+                target_relative=PROJECT_INSTANCES_ROOT,
+                force=bool(args.force),
+            )
         _copy_tree_if_exists(
             source_root=seed_project_root,
             target_root=output_root,
-            relative="instances",
+            source_relative="secrets",
             force=bool(args.force),
         )
         _copy_tree_if_exists(
             source_root=seed_project_root,
             target_root=output_root,
-            relative="secrets",
-            force=bool(args.force),
-        )
-        _copy_tree_if_exists(
-            source_root=seed_project_root,
-            target_root=output_root,
-            relative="overrides",
+            source_relative="overrides",
             force=bool(args.force),
         )
 
@@ -399,10 +493,21 @@ def main() -> int:
                     f"   - python {tools_prefix}/compile-topology.py --repo-root . --topology ./topology.yaml "
                     "--secrets-mode passthrough"
                 ),
+                "4. Use task shortcuts:",
+                "   - task project:lock:verify",
+                "   - task project:compile",
+                "   - task project:validate",
                 "",
             ]
         ),
         force=args.force,
+    )
+    _write_task_bundle(
+        output_root=output_root,
+        framework_mount=submodule_mount,
+        tools_prefix=tools_prefix,
+        framework_manifest_rel=framework_manifest_rel,
+        force=bool(args.force),
     )
 
     print(f"Project repository bootstrap prepared: {output_root}")

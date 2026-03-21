@@ -273,8 +273,23 @@ def _touch_gitkeep(path: Path) -> None:
     (path / ".gitkeep").write_text("", encoding="utf-8")
 
 
-def _create_layer_structure(project_root: Path, *, group_layers: dict[str, str]) -> None:
-    instances_root = project_root / "instances"
+def _resolve_project_instances_root(project_root: Path) -> Path:
+    project_manifest_path = project_root / "project.yaml"
+    payload = yaml.safe_load(project_manifest_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"project manifest must be mapping: {project_manifest_path}")
+    instances_root = payload.get("instances_root")
+    if isinstance(instances_root, str) and instances_root.strip():
+        return project_root / instances_root.strip()
+    return project_root / "topology" / "instances"
+
+
+def _create_layer_structure(
+    project_root: Path,
+    *,
+    group_layers: dict[str, str],
+    instances_root: Path,
+) -> None:
     for bucket in LAYER_BUCKETS.values():
         _touch_gitkeep(instances_root / bucket)
 
@@ -292,8 +307,7 @@ def _create_layer_structure(project_root: Path, *, group_layers: dict[str, str])
     _touch_gitkeep(project_root / "generated-artifacts")
 
 
-def _write_starter_files(project_root: Path) -> None:
-    instances_root = project_root / "instances"
+def _write_starter_files(*, instances_root: Path) -> None:
     for relative, content in STARTER_FILES.items():
         path = instances_root / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -441,9 +455,10 @@ def main() -> int:
                 version=dist_version,
             )
         group_layers = _load_group_layers(output_root)
-        _create_layer_structure(output_root, group_layers=group_layers)
+        instances_root = _resolve_project_instances_root(output_root)
+        _create_layer_structure(output_root, group_layers=group_layers, instances_root=instances_root)
         if args.starter_profile == "minimal-compilable":
-            _write_starter_files(output_root)
+            _write_starter_files(instances_root=instances_root)
         if not args.skip_compile_check:
             tools_root, framework_manifest = _resolve_framework_tools(framework_root)
             _verify_and_compile(

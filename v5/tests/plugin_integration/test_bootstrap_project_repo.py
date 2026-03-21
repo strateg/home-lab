@@ -67,20 +67,20 @@ def _fake_extracted_framework_repo(tmp_path: Path) -> Path:
                     "layout_version": 1,
                     "include": [
                         "framework.yaml",
-                        "class-modules",
+                        "topology/class-modules",
                     ],
                 },
             },
             sort_keys=False,
         ),
     )
-    _write(root / "class-modules" / "router" / "class.router.test.yaml", "class: test\n")
+    _write(root / "topology" / "class-modules" / "router" / "class.router.test.yaml", "class: test\n")
     return root
 
 
 def _fake_seed_project_root(tmp_path: Path) -> Path:
     root = tmp_path / "seed-project"
-    _write(root / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml", "instance: vm.seed\n")
+    _write(root / "topology" / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml", "instance: vm.seed\n")
     _write(root / "secrets" / "instances" / "vm.seed.yaml", "secret: value\n")
     _write(root / "overrides" / "ansible" / "inventory-overrides" / "production" / "group_vars.yml", "a: b\n")
     return root
@@ -109,9 +109,11 @@ def test_bootstrap_project_repo_generates_manifests_and_lock(tmp_path: Path) -> 
     assert (output_root / "topology.yaml").exists()
     assert (output_root / "project.yaml").exists()
     assert (output_root / "framework.lock.yaml").exists()
-    assert (output_root / "instances").exists()
+    assert (output_root / "topology" / "instances").exists()
     assert (output_root / "secrets").exists()
     assert (output_root / "BOOTSTRAP-NOTES.md").exists()
+    assert (output_root / "Taskfile.yml").exists()
+    assert (output_root / "taskfiles" / "project.yml").exists()
 
 
 def test_bootstrap_project_repo_supports_extracted_framework_layout(tmp_path: Path) -> None:
@@ -137,8 +139,8 @@ def test_bootstrap_project_repo_supports_extracted_framework_layout(tmp_path: Pa
 
     topology_payload = yaml.safe_load((output_root / "topology.yaml").read_text(encoding="utf-8"))
     framework_payload = topology_payload["framework"]
-    assert framework_payload["class_modules_root"] == "framework/class-modules"
-    assert framework_payload["object_modules_root"] == "framework/object-modules"
+    assert framework_payload["class_modules_root"] == "framework/topology/class-modules"
+    assert framework_payload["object_modules_root"] == "framework/topology/object-modules"
     assert (output_root / "framework.lock.yaml").exists()
 
 
@@ -197,6 +199,6 @@ def test_bootstrap_project_repo_can_seed_project_data(tmp_path: Path) -> None:
         check=False,
     )
     assert run.returncode == 0, run.stdout + "\n" + run.stderr
-    assert (output_root / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml").exists()
+    assert (output_root / "topology" / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml").exists()
     assert (output_root / "secrets" / "instances" / "vm.seed.yaml").exists()
     assert (output_root / "overrides" / "ansible" / "inventory-overrides" / "production" / "group_vars.yml").exists()

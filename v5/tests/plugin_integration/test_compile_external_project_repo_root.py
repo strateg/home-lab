@@ -62,7 +62,7 @@ def test_compile_with_external_project_repo_root(tmp_path: Path) -> None:
             "project": "home-lab",
             "project_min_framework_version": "5.0.0",
             "project_contract_revision": 1,
-            "instances_root": str(REPO_ROOT / "v5" / "projects" / "home-lab" / "instances"),
+            "instances_root": str(REPO_ROOT / "v5" / "projects" / "home-lab" / "topology" / "instances"),
             "secrets_root": str(REPO_ROOT / "v5" / "projects" / "home-lab" / "secrets"),
         },
     )

@@ -132,7 +132,7 @@ def _check_missing_lock_rejected(verify_script: Path) -> AuditCheckResult:
                 "project": "home-lab",
                 "project_min_framework_version": "5.0.0",
                 "project_contract_revision": 1,
-                "instances_root": "instances",
+                "instances_root": "topology/instances",
                 "secrets_root": "secrets",
             },
         )
