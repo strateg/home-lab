@@ -1,6 +1,35 @@
 version: "3"
 
 tasks:
+  adr-consistency:
+    desc: Validate ADR metadata/title consistency
+    cmds:
+      - "{{.PYTHON}} v4/topology-tools/check-adr-consistency.py --strict-titles"
+
+  lint:
+    desc: Run formatting/linting checks (black + isort)
+    cmds:
+      - "black --check ."
+      - "isort --check-only ."
+
+  typecheck:
+    desc: Run mypy static checks
+    cmds:
+      - "mypy --config-file pyproject.toml v4/topology-tools"
+
+  pylint:
+    desc: Run pylint checks
+    cmds:
+      - "pylint v4/topology-tools"
+
+  quality:
+    desc: Aggregate local quality gate (ADR + lint + typecheck + pylint)
+    deps:
+      - adr-consistency
+      - lint
+      - typecheck
+      - pylint
+
   v4:
     desc: Validate v4 lane
     cmds:

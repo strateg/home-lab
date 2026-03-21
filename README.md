@@ -39,11 +39,13 @@ Main documents:
 Quick commands:
 
 ```powershell
+task validate:quality
 task validate:v5
 task validate:v5-layers
 task build:v5
 task validate:phase1-gate
 task framework:strict
+task ci:python-checks-core
 task ci:local
 ```
 
@@ -66,6 +68,8 @@ task project:init -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEW
 ```
 
 `Makefile` is kept as a compatibility shim and delegates to `task` where possible.
+
+Minimum supported `go-task` version: `3.45.4` (CI is pinned to the same version).
 
 If `task` is not installed yet:
 

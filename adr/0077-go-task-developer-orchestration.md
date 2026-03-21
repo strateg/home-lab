@@ -1,7 +1,7 @@
 # ADR 0077: Go-Task as Developer Orchestration Layer
 
 **Date:** 2026-03-21
-**Status:** Proposed
+**Status:** Accepted
 **Depends on:** ADR 0074, ADR 0075, ADR 0076
 
 ---
@@ -157,6 +157,16 @@ Root `Taskfile.yml` includes modular task catalogs:
 
 ---
 
+## Implementation Status (2026-03-21)
+
+1. Task namespaces cover `validate`, `test`, `build`, `framework`, `project`, and `ci`, including explicit `lint/typecheck` targets.
+2. Root `Makefile` remains a thin compatibility shim with task-first execution and explicit legacy fallback.
+3. CI cutover is applied to primary workflows with explicit and reversible fallback switches (`USE_TASK_ORCHESTRATION`, `ALLOW_TASK_FALLBACK`).
+4. `go-task` version policy is enforced by CI pin (`3.45.4`) and documented as local minimum.
+5. Legacy-command mapping and KPI evidence source are recorded in `adr/0077-analysis/IMPLEMENTATION-EVIDENCE.md`.
+
+---
+
 ## Success Metrics (KPI)
 
 1. At least 90% of local developer orchestration commands run through `task` targets during the stabilization window.
@@ -174,3 +184,5 @@ Root `Taskfile.yml` includes modular task catalogs:
 - `v5/scripts/orchestration/lane.py`
 - `.github/workflows/lane-validation.yml`
 - `.github/workflows/python-checks.yml`
+- `.github/workflows/topology-matrix.yml`
+- `adr/0077-analysis/IMPLEMENTATION-EVIDENCE.md`

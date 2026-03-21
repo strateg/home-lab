@@ -1,6 +1,11 @@
 version: "3"
 
 tasks:
+  fixture-matrix-v4:
+    desc: Run legacy v4 fixture validation matrix
+    cmds:
+      - "{{.PYTHON}} v4/topology-tools/run-fixture-matrix.py"
+
   all:
     desc: Run all tests (v4 + v5)
     cmds:
@@ -15,4 +20,3 @@ tasks:
     desc: Run v5 tests
     cmds:
       - "{{.PYTHON}} -m pytest -o addopts= v5/tests -q"
-

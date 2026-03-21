@@ -50,6 +50,8 @@ jobs:
       - name: Setup Task CLI
         if: ${{ env.USE_TASK_ORCHESTRATION == '1' }}
         uses: arduino/setup-task@v2
+        with:
+          version: 3.45.4
 
       - name: Run strict gates via Task (with explicit fallback)
         run: |

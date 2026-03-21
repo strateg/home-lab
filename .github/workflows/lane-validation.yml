@@ -11,6 +11,9 @@ jobs:
     name: Validate v4 Lane (maintenance)
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    env:
+      USE_TASK_ORCHESTRATION: "1"
+      ALLOW_TASK_FALLBACK: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,13 +28,33 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml jinja2 jsonschema
 
-      - name: Run validate-v4 (manual maintenance)
-        run: python v5/scripts/orchestration/lane.py validate-v4
+      - name: Setup Task CLI
+        if: ${{ env.USE_TASK_ORCHESTRATION == '1' }}
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.45.4
+
+      - name: Run validate-v4 (manual maintenance, task-first with fallback)
+        run: |
+          set -e
+          if [ "${USE_TASK_ORCHESTRATION}" = "1" ]; then
+            if task validate:v4; then
+              exit 0
+            fi
+            if [ "${ALLOW_TASK_FALLBACK}" != "1" ]; then
+              echo "Task orchestration failed and fallback is disabled."
+              exit 1
+            fi
+            echo "Task orchestration failed; executing legacy fallback chain."
+          fi
+          python v5/scripts/orchestration/lane.py validate-v4
 
   validate-v5:
     name: Validate v5 Lane (default)
     runs-on: ubuntu-latest
     env:
+      USE_TASK_ORCHESTRATION: "1"
+      ALLOW_TASK_FALLBACK: "1"
       DEVKEY_PASSPHRASE: ${{ secrets.DEVKEY_PASSPHRASE }}
     steps:
       - name: Checkout
@@ -60,17 +83,11 @@ jobs:
           )
           echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
 
-      - name: Verify framework lock (strict)
-        run: python v5/topology-tools/verify-framework-lock.py --strict
-
-      - name: Rehearse framework rollback flow
-        run: python v5/topology-tools/rehearse-framework-rollback.py
-
-      - name: Validate framework compatibility matrix
-        run: python v5/topology-tools/validate-framework-compatibility-matrix.py
-
-      - name: Audit strict runtime entrypoints
-        run: python v5/topology-tools/audit-strict-runtime-entrypoints.py
+      - name: Setup Task CLI
+        if: ${{ env.USE_TASK_ORCHESTRATION == '1' }}
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.45.4
 
       - name: Install age and sops
         run: |
@@ -88,15 +105,37 @@ jobs:
           echo "$DEVKEY_PASSPHRASE" | age -d "v5/projects/${PROJECT_ID}/secrets/devkey.age" > ~/.config/sops/age/keys.txt
           chmod 600 ~/.config/sops/age/keys.txt
 
-      - name: Run validate-v5 (inject)
-        if: ${{ env.DEVKEY_PASSPHRASE != '' }}
-        run: python v5/scripts/orchestration/lane.py validate-v5
-
-      - name: Run validate-v5 (passthrough fallback)
-        if: ${{ env.DEVKEY_PASSPHRASE == '' }}
+      - name: Run strict lane gate (task-first with explicit fallback)
         run: |
-          echo "DEVKEY_PASSPHRASE is not configured, running passthrough validation fallback."
-          V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5
+          set -e
+          if [ "${USE_TASK_ORCHESTRATION}" = "1" ]; then
+            if [ -n "${DEVKEY_PASSPHRASE}" ]; then
+              if task ci:lane-v5-inject; then
+                exit 0
+              fi
+            else
+              if task ci:lane-v5-passthrough; then
+                exit 0
+              fi
+            fi
+            if [ "${ALLOW_TASK_FALLBACK}" != "1" ]; then
+              echo "Task orchestration failed and fallback is disabled."
+              exit 1
+            fi
+            echo "Task orchestration failed; executing legacy fallback chain."
+          fi
+
+          python v5/topology-tools/verify-framework-lock.py --strict
+          python v5/topology-tools/rehearse-framework-rollback.py
+          python v5/topology-tools/validate-framework-compatibility-matrix.py
+          python v5/topology-tools/audit-strict-runtime-entrypoints.py
+
+          if [ -n "${DEVKEY_PASSPHRASE}" ]; then
+            python v5/scripts/orchestration/lane.py validate-v5
+          else
+            echo "DEVKEY_PASSPHRASE is not configured, running passthrough validation fallback."
+            V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5
+          fi
 
       - name: Cleanup secrets key
         if: always()

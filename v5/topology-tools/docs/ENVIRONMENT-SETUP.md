@@ -11,6 +11,7 @@
 - Доступ к репозиторию `home-lab`
 - Для `inject/strict`: установленный `sops` и `age`-совместимый инструмент
 - Для orchestration ADR0077: установленный `go-task` (`task`)
+- Минимальная поддерживаемая версия `go-task`: `3.45.4` (в CI зафиксирована та же версия)
 
 Проверка:
 
@@ -50,6 +51,12 @@ age-keygen --version
 ```bash
 sudo apt install -y go-task || true
 task --version
+```
+
+Если установленная версия ниже `3.45.4`, используйте установочный скрипт c pinned-версией:
+
+```bash
+TASK_VERSION=3.45.4 ./v5/scripts/environment/setup-dev-environment.sh
 ```
 
 Если пакет `go-task` отсутствует в репозитории, используйте `./v5/scripts/environment/setup-dev-environment.sh`.
