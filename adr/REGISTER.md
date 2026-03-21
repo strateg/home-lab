@@ -78,4 +78,4 @@
 | [0075](0075-framework-project-separation.md) | Monorepo Framework/Project Boundary (Stage 1) | Accepted | 2026-03-20 | - | - |
 | [0076](0076-framework-distribution-and-multi-repository-extraction.md) | Framework Distribution and Multi-Repository Extraction (Stage 2) | Accepted | 2026-03-20 | - | - |
 | [0077](0077-go-task-developer-orchestration.md) | Go-Task as Developer Orchestration Layer | Accepted | 2026-03-21 | - | - |
-| [0078](0078-object-module-local-template-layout.md) | Object-Module Local Template Layout | Accepted | 2026-03-21 | - | - |
+| [0078](0078-object-module-local-template-layout.md) | Object-Module Local Templates and Generator Plugins Layout | Accepted | 2026-03-21 | - | - |

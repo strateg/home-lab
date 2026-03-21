@@ -299,7 +299,7 @@ plugins:
 
   - id: base.generator.terraform_proxmox
     kind: generator
-    entry: generators/terraform_proxmox_generator.py:TerraformProxmoxGenerator
+    entry: ../../topology/object-modules/proxmox/plugins/terraform_proxmox_generator.py:TerraformProxmoxGenerator
     api_version: "1.x"
     stages: [generate]
     order: 210
@@ -326,7 +326,7 @@ plugins:
 
   - id: base.generator.terraform_mikrotik
     kind: generator
-    entry: generators/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
+    entry: ../../topology/object-modules/mikrotik/plugins/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
     api_version: "1.x"
     stages: [generate]
     order: 220
@@ -376,7 +376,7 @@ plugins:
 
   - id: base.generator.bootstrap_proxmox
     kind: generator
-    entry: generators/bootstrap_proxmox_generator.py:BootstrapProxmoxGenerator
+    entry: ../../topology/object-modules/proxmox/plugins/bootstrap_proxmox_generator.py:BootstrapProxmoxGenerator
     api_version: "1.x"
     stages: [generate]
     order: 310
@@ -391,7 +391,7 @@ plugins:
 
   - id: base.generator.bootstrap_mikrotik
     kind: generator
-    entry: generators/bootstrap_mikrotik_generator.py:BootstrapMikroTikGenerator
+    entry: ../../topology/object-modules/mikrotik/plugins/bootstrap_mikrotik_generator.py:BootstrapMikroTikGenerator
     api_version: "1.x"
     stages: [generate]
     order: 320
@@ -406,7 +406,7 @@ plugins:
 
   - id: base.generator.bootstrap_orangepi
     kind: generator
-    entry: generators/bootstrap_orangepi_generator.py:BootstrapOrangePiGenerator
+    entry: ../../topology/object-modules/orangepi/plugins/bootstrap_orangepi_generator.py:BootstrapOrangePiGenerator
     api_version: "1.x"
     stages: [generate]
     order: 330

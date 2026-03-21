@@ -1,0 +1,92 @@
+"""Generator plugin that emits baseline Orange Pi bootstrap artifacts."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+TOOLS_ROOT = Path(__file__).resolve().parents[4] / "topology-tools"
+if str(TOOLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(TOOLS_ROOT))
+
+from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
+from plugins.generators.base_generator import BaseGenerator
+from plugins.generators.projections import ProjectionError, build_bootstrap_projection
+
+
+class BootstrapOrangePiGenerator(BaseGenerator):
+    """Emit baseline cloud-init bundle for Orange Pi nodes."""
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+        payload = ctx.compiled_json
+        if not isinstance(payload, dict) or not payload:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3001",
+                    severity="error",
+                    stage=stage,
+                    message="compiled_json is empty; cannot generate Orange Pi bootstrap artifacts.",
+                    path="generator:bootstrap_orangepi",
+                )
+            )
+            return self.make_result(diagnostics)
+
+        try:
+            projection = build_bootstrap_projection(payload)
+        except ProjectionError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E9601",
+                    severity="error",
+                    stage=stage,
+                    message=f"failed to build bootstrap projection: {exc}",
+                    path="generator:bootstrap_orangepi",
+                )
+            )
+            return self.make_result(diagnostics)
+
+        nodes = projection.get("orangepi_nodes", [])
+        written: list[str] = []
+        for row in nodes:
+            instance_id = str(row.get("instance_id", "")).strip()
+            if not instance_id:
+                continue
+            cloud_init_root = self.resolve_output_path(ctx, "bootstrap", instance_id, "cloud-init")
+            files = {
+                cloud_init_root / "user-data.example": self.render_template(
+                    ctx,
+                    "bootstrap/orangepi/user-data.example.j2",
+                    {"instance_id": instance_id},
+                ),
+                cloud_init_root / "meta-data": self.render_template(
+                    ctx,
+                    "bootstrap/orangepi/meta-data.j2",
+                    {"instance_id": instance_id},
+                ),
+                cloud_init_root / "README.md": self.render_template(
+                    ctx,
+                    "bootstrap/orangepi/readme.md.j2",
+                    {"instance_id": instance_id},
+                ),
+            }
+            for path, content in files.items():
+                self.write_text_atomic(path, content)
+                written.append(str(path))
+
+        diagnostics.append(
+            self.emit_diagnostic(
+                code="I9601",
+                severity="info",
+                stage=stage,
+                message=f"generated baseline Orange Pi bootstrap artifacts: nodes={len(nodes)}",
+                path=str(self.resolve_output_path(ctx, "bootstrap")),
+            )
+        )
+        self.publish_if_possible(ctx, "generated_dir", str(self.resolve_output_path(ctx, "bootstrap")))
+        self.publish_if_possible(ctx, "generated_files", written)
+        self.publish_if_possible(ctx, "bootstrap_orangepi_files", written)
+        return self.make_result(
+            diagnostics=diagnostics,
+            output_data={"bootstrap_orangepi_files": written},
+        )

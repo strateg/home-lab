@@ -3,20 +3,40 @@
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
 import pytest
 
-V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
+V5_ROOT = Path(__file__).resolve().parents[2]
+V5_TOOLS = V5_ROOT / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage  # noqa: E402
-from plugins.generators import (  # noqa: E402
-    ansible_inventory_generator as ansible_module,
-    bootstrap_proxmox_generator as bootstrap_proxmox_module,
-    terraform_mikrotik_generator as mikrotik_module,
-    terraform_proxmox_generator as proxmox_module,
+from plugins.generators import ansible_inventory_generator as ansible_module  # noqa: E402
+
+
+def _load_module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+proxmox_module = _load_module(
+    "object_proxmox_terraform_generator",
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "terraform_proxmox_generator.py",
+)
+mikrotik_module = _load_module(
+    "object_mikrotik_terraform_generator",
+    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py",
+)
+bootstrap_proxmox_module = _load_module(
+    "object_proxmox_bootstrap_generator",
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "bootstrap_proxmox_generator.py",
 )
 
 
