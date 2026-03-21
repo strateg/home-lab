@@ -279,6 +279,16 @@ Minimum verification set per migration batch:
 
 ---
 
+## Implementation Status (2026-03-21)
+
+1. Wave 1 complete: object-specific templates moved from `topology-tools/templates` to object modules.
+2. Wave 2 complete: object-specific generator registration moved to module manifests.
+3. Wave 3 complete: object-specific compatibility shims removed from `v5/topology-tools/plugins/generators/`.
+4. Wave 4 complete: docs and release preflight updated with ADR0078 ownership checks.
+5. Wave 5 deferred: projection ownership split remains optional hardening.
+
+---
+
 ## References
 
 - `v5/topology/object-modules/mikrotik/templates/terraform/`

@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-21  
 **ADR:** `adr/0078-object-module-local-template-layout.md`  
-**Status:** In progress (Wave 1-4 implemented; Wave 5 deferred)
+**Status:** Completed (Wave 1-4 closed; Wave 5 deferred)
 
 ---
 
@@ -62,6 +62,11 @@ Implementation status update (2026-03-21):
 3. Wave 3 completed: compatibility shims removed from tools generator package.
 4. Wave 4 completed: docs updated and release preflight includes explicit ADR0078 ownership check.
 5. Wave 5 remains deferred (non-blocking hardening).
+
+Closure note:
+
+1. ADR0078 Definition of Done is satisfied for mandatory scope (Waves 1-4).
+2. Remaining Wave 5 work is explicitly deferred and does not block release process.
 
 ---
 
