@@ -6,6 +6,9 @@ vars:
   PROJECT_ROOT: '{{default "." .PROJECT_ROOT}}'
   FRAMEWORK_SUBMODULE_URL: '{{.FRAMEWORK_SUBMODULE_URL}}'
   FRAMEWORK_SUBMODULE_PATH: '{{default "framework" .FRAMEWORK_SUBMODULE_PATH}}'
+  FRAMEWORK_VERSION: '{{default "0.0.0-dev" .FRAMEWORK_VERSION}}'
+  FRAMEWORK_DIST_OUTPUT: '{{default "v5-dist/framework" .FRAMEWORK_DIST_OUTPUT}}'
+  FRAMEWORK_BOOTSTRAP_OUTPUT: '{{default "v5-build/infra-topology-framework-bootstrap" .FRAMEWORK_BOOTSTRAP_OUTPUT}}'
 
 includes:
   validate:
@@ -30,6 +33,9 @@ includes:
       PYTHON: "{{.PYTHON}}"
       PROJECT_ID: "{{.PROJECT_ID}}"
       PROJECT_ROOT: "{{.PROJECT_ROOT}}"
+      FRAMEWORK_VERSION: "{{.FRAMEWORK_VERSION}}"
+      FRAMEWORK_DIST_OUTPUT: "{{.FRAMEWORK_DIST_OUTPUT}}"
+      FRAMEWORK_BOOTSTRAP_OUTPUT: "{{.FRAMEWORK_BOOTSTRAP_OUTPUT}}"
   project:
     taskfile: ./taskfiles/project.yml
     dir: .

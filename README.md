@@ -45,6 +45,8 @@ task validate:v5-layers
 task build:v5
 task validate:phase1-gate
 task framework:strict
+task framework:release-preflight
+task framework:release-candidate -- FRAMEWORK_VERSION=1.0.8
 task ci:python-checks-core
 task ci:local
 ```

@@ -103,6 +103,14 @@ Ansible runtime assembly:
 
 ## 6. Стандартные команды
 
+### Task-first orchestration (ADR0077)
+
+```powershell
+task framework:strict
+task framework:release-preflight
+task framework:release-candidate -- FRAMEWORK_VERSION=1.0.8
+```
+
 ### Валидация lane
 
 ```powershell
@@ -167,6 +175,9 @@ python v5/topology-tools/discover-hardware-identity.py `
 ### Сборка framework distribution
 
 ```powershell
+task framework:release-build -- FRAMEWORK_VERSION=1.0.8
+task framework:release-bootstrap
+
 python v5/topology-tools/build-framework-distribution.py `
   --version 1.0.0 `
   --archive-format both
@@ -265,7 +276,9 @@ python v5/topology-tools/bootstrap-project-repo.py `
 
 ## 9. Ограничения текущей стадии
 
-- ADR0076 multi-repository extraction не входит в этот runtime contract.
+- ADR0076/ADR0077 уже являются operational baseline.
+- Для релизного процесса `infra-topology-framework` использовать
+  `docs/framework/INFRA-TOPOLOGY-FRAMEWORK-RELEASE-PROCESS.md`.
 - Framework рассчитан на strict-only path/model contract без legacy fallback.
 
 ---
@@ -281,4 +294,5 @@ python v5/topology-tools/bootstrap-project-repo.py `
 - `docs/framework/SUBMODULE-ROLL-OUT.md`
 - `docs/framework/OPERATOR-WORKFLOWS.md`
 - `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`
+- `docs/framework/INFRA-TOPOLOGY-FRAMEWORK-RELEASE-PROCESS.md`
 - `docs/framework/templates/framework-release.yml`

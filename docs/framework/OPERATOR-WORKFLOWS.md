@@ -14,6 +14,14 @@
 
 ## Baseline Validation Flow
 
+Task-first (рекомендуется):
+
+```powershell
+task framework:strict
+```
+
+Эквивалентный прямой chain:
+
 ```powershell
 python v5/topology-tools/verify-framework-lock.py --strict
 python v5/topology-tools/compile-topology.py --secrets-mode passthrough --strict-model-lock
@@ -123,6 +131,7 @@ python v5/topology-tools/cutover-readiness-report.py --quick
 3. `pending_external_steps: []`
 
 Полный e2e dry-run чеклист: `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`.
+Релизный процесс framework: `docs/framework/INFRA-TOPOLOGY-FRAMEWORK-RELEASE-PROCESS.md`.
 
 Шаблон workflow для внешнего project-репозитория:
 

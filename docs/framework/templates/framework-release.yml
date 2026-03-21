@@ -5,6 +5,27 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without 'v' prefix (required outside tag runs)"
+        required: false
+        type: string
+      use_task_orchestration:
+        description: "Try Task orchestration before legacy command chain"
+        required: false
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "0"
+      allow_task_fallback:
+        description: "Allow fallback to legacy commands if task target fails"
+        required: false
+        default: "1"
+        type: choice
+        options:
+          - "1"
+          - "0"
 
 jobs:
   release:
@@ -12,6 +33,9 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    env:
+      USE_TASK_ORCHESTRATION: ${{ github.event.inputs.use_task_orchestration || '1' }}
+      ALLOW_TASK_FALLBACK: ${{ github.event.inputs.allow_task_fallback || '1' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,6 +44,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Setup Task CLI
+        if: ${{ env.USE_TASK_ORCHESTRATION == '1' }}
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.45.4
 
       - name: Resolve framework layout
         run: |
@@ -33,19 +63,68 @@ jobs:
             echo "TEST_ROOT=v5/tests" >> "$GITHUB_ENV"
           fi
 
+      - name: Resolve release version
+        run: |
+          set -e
+          VERSION_INPUT="${{ github.event.inputs.version }}"
+          if [ -n "$VERSION_INPUT" ]; then
+            VERSION="$VERSION_INPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            echo "workflow_dispatch outside tag requires explicit input: version"
+            exit 1
+          fi
+          VERSION="${VERSION#v}"
+          if [ -z "$VERSION" ]; then
+            echo "resolved empty release version"
+            exit 1
+          fi
+          echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=v$VERSION" >> "$GITHUB_ENV"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install pyyaml jinja2 jsonschema pytest
 
-      - name: Run framework-focused tests
+      - name: Run release preflight (task-first with explicit fallback)
         run: |
+          set -e
+          if [ "${USE_TASK_ORCHESTRATION}" = "1" ] && [ -f Taskfile.yml ]; then
+            if task framework:release-ci; then
+              exit 0
+            fi
+            if [ "${ALLOW_TASK_FALLBACK}" != "1" ]; then
+              echo "Task orchestration failed and fallback is disabled."
+              exit 1
+            fi
+            echo "Task orchestration failed; executing legacy fallback chain."
+          fi
+          if [ "$TEST_ROOT" = "v5/tests" ]; then
+            python "$FRAMEWORK_TOOLS/verify-framework-lock.py" --strict
+            python "$FRAMEWORK_TOOLS/rehearse-framework-rollback.py"
+            python "$FRAMEWORK_TOOLS/validate-framework-compatibility-matrix.py"
+            python "$FRAMEWORK_TOOLS/audit-strict-runtime-entrypoints.py"
+          else
+            echo "Skipping project-lock strict gates for extracted framework repository layout."
+          fi
           python -m pytest -o addopts= "$TEST_ROOT/plugin_api" "$TEST_ROOT/plugin_contract" "$TEST_ROOT/plugin_integration/test_framework_lock.py" "$TEST_ROOT/plugin_integration/test_build_framework_distribution.py" "$TEST_ROOT/plugin_integration/test_extract_framework_worktree.py" "$TEST_ROOT/plugin_integration/test_extract_framework_history.py" "$TEST_ROOT/plugin_integration/test_generator_base.py"
 
       - name: Build framework distribution
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          python "$FRAMEWORK_TOOLS/build-framework-distribution.py" --repo-root . --framework-manifest "$FRAMEWORK_MANIFEST" --output-root framework-dist --version "$VERSION" --archive-format both
+          set -e
+          if [ "${USE_TASK_ORCHESTRATION}" = "1" ] && [ -f Taskfile.yml ]; then
+            if task framework:release-build FRAMEWORK_VERSION="$RELEASE_VERSION" FRAMEWORK_DIST_OUTPUT="framework-dist"; then
+              exit 0
+            fi
+            if [ "${ALLOW_TASK_FALLBACK}" != "1" ]; then
+              echo "Task orchestration failed and fallback is disabled."
+              exit 1
+            fi
+            echo "Task orchestration failed; executing legacy fallback chain."
+          fi
+          python "$FRAMEWORK_TOOLS/build-framework-distribution.py" --repo-root . --framework-manifest "$FRAMEWORK_MANIFEST" --output-root framework-dist --version "$RELEASE_VERSION" --archive-format both
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
@@ -77,8 +156,48 @@ jobs:
           fi
           cosign sign-blob --yes --output-signature "${CHECKSUM_FILE}.sig" --output-certificate "${CHECKSUM_FILE}.crt" "$CHECKSUM_FILE"
 
+      - name: Verify release bundle completeness
+        run: |
+          set -e
+          CHECKSUM_FILE="$(find framework-dist -name checksums.sha256 -print -quit)"
+          MANIFEST_FILE="$(find framework-dist -name framework-dist-manifest.json -print -quit)"
+          ZIP_FILE="$(find framework-dist -name '*.zip' -print -quit)"
+          TAR_FILE="$(find framework-dist -name '*.tar.gz' -print -quit)"
+          if [ -z "$CHECKSUM_FILE" ] || [ -z "$MANIFEST_FILE" ] || [ -z "$ZIP_FILE" ] || [ -z "$TAR_FILE" ]; then
+            echo "Missing distribution files in framework-dist"
+            exit 1
+          fi
+          for required in "framework-dist/sbom.spdx.json" "framework-dist/provenance/provenance.json" "${CHECKSUM_FILE}.sig" "${CHECKSUM_FILE}.crt"; do
+            if [ ! -f "$required" ]; then
+              echo "Required release file missing: $required"
+              exit 1
+            fi
+          done
+          IDENTITY_REGEX="^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/(tags|heads)/.+$"
+          cosign verify-blob \
+            --certificate "${CHECKSUM_FILE}.crt" \
+            --signature "${CHECKSUM_FILE}.sig" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            --certificate-identity-regexp "$IDENTITY_REGEX" \
+            "$CHECKSUM_FILE"
+
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: framework-release-${{ github.ref_name }}
+          name: framework-release-${{ env.RELEASE_TAG }}
           path: framework-dist/**
+
+      - name: Publish GitHub release assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            framework-dist/**/*.zip
+            framework-dist/**/*.tar.gz
+            framework-dist/**/checksums.sha256
+            framework-dist/**/checksums.sha256.sig
+            framework-dist/**/checksums.sha256.crt
+            framework-dist/**/framework-dist-manifest.json
+            framework-dist/sbom.spdx.json
+            framework-dist/provenance/provenance.json
