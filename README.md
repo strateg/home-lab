@@ -67,7 +67,7 @@ Project bootstrap (new repo + framework submodule):
 task project:init -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_SUBMODULE_URL=https://github.com/<org>/infra-topology-framework.git
 ```
 
-`Makefile` is kept as a compatibility shim and delegates to `task` where possible.
+Root orchestration is Task-only (`Taskfile.yml` + `taskfiles/*`).
 
 Minimum supported `go-task` version: `3.45.4` (CI is pinned to the same version).
 

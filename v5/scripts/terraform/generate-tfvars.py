@@ -165,7 +165,7 @@ def _generate_tfvars(target: str) -> int:
         return 1
     if not output_dir.exists():
         print(f"Error: output directory not found: {output_dir}", file=sys.stderr)
-        print("Run 'make assemble-native' first.", file=sys.stderr)
+        print("Create '.work/native/terraform/<target>/' before generating tfvars.", file=sys.stderr)
         return 1
 
     try:

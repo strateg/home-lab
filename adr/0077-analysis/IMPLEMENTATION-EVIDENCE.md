@@ -60,7 +60,7 @@ Stabilization evidence is collected from:
    - count of jobs with `USE_TASK_ORCHESTRATION=1`.
    - count of jobs still running direct non-task chains.
 3. Local command-surface sampling:
-   - weekly review of documented/automated entrypoints (`README`, `Makefile`, `taskfiles/*`) to ensure Task-first growth.
+   - weekly review of documented/automated entrypoints (`README`, `Taskfile.yml`, `taskfiles/*`) to ensure Task-first growth.
 
 Review cadence:
 

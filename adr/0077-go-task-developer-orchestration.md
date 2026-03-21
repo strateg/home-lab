@@ -10,7 +10,7 @@
 
 Developer orchestration is currently split across:
 
-1. root `Makefile` (limited migration wrappers);
+1. root `Taskfile.yml` + modular `taskfiles/*`;
 2. direct Python entrypoints (`v5/scripts/orchestration/lane.py`, `v5/topology-tools/*.py`);
 3. CI workflows that mostly duplicate command chains directly.
 
@@ -32,7 +32,7 @@ Adopt **go-task** (`Taskfile.yml`) as the primary developer orchestration layer 
 1. `Taskfile.yml` is orchestration-only: sequencing, dependency graph, defaults, environment wiring.
 2. Python scripts remain execution-only: business logic, compilation, validation, generation.
 3. Task targets MUST call existing entrypoints (`v5/scripts/orchestration/lane.py`, `v5/topology-tools/*.py`) instead of re-implementing logic in Task commands.
-4. Root `Makefile` remains a compatibility shim during migration and delegates to `task` where applicable.
+4. No root `Makefile` orchestration shim is used in the final state; root developer orchestration is Task-only.
 
 ### Task topology (normative)
 
@@ -98,7 +98,7 @@ Root `Taskfile.yml` includes modular task catalogs:
 ### Trade-offs
 
 1. Additional dependency: `go-task` binary in developer and CI environments.
-2. Transition period with dual surfaces (`Taskfile.yml` + compatibility `Makefile`).
+2. Migration requires consolidating historical command aliases into Task namespaces.
 3. Requires naming/governance discipline to avoid Taskfile sprawl.
 4. Requires temporary CI dual-mode support during cutover.
 
@@ -115,7 +115,7 @@ Root `Taskfile.yml` includes modular task catalogs:
 ### Wave 1: Parity bootstrap
 
 1. Add root `Taskfile.yml` and modular includes under `taskfiles/`.
-2. Implement parity targets for current root `Makefile` commands.
+2. Implement parity targets for existing local command chains.
 3. Publish `task --list` onboarding and install docs.
 
 ### Wave 2: Strict gate coverage
@@ -132,8 +132,8 @@ Root `Taskfile.yml` includes modular task catalogs:
 
 ### Wave 4: Legacy cleanup
 
-1. Keep or retire root `Makefile` shim based on adoption and platform needs.
-2. If retained, limit it to thin aliases only.
+1. Retire root `Makefile` shim after Task adoption and platform validation.
+2. Remove remaining root-orchestration docs/automation references to `make`.
 3. Enforce policy: all new developer workflows are Task-first.
 
 ---
@@ -149,7 +149,7 @@ Root `Taskfile.yml` includes modular task catalogs:
 ## Acceptance Criteria
 
 1. `Taskfile.yml` covers mandatory developer workflows: `validate`, `test`, `build`, `lint/typecheck`, `framework strict gates`, and `project init/bootstrap`.
-2. Root `Makefile` compatibility aliases are mapped to Task targets for transition period workflows.
+2. Root developer orchestration uses Task-only entrypoints (no root Makefile shim).
 3. `Taskfile.yml` includes ADR0076 strict gates and new project bootstrap flow.
 4. At least one primary CI workflow executes through `task` targets without regressions.
 5. Developer docs reference `task` as canonical local orchestrator.
@@ -160,7 +160,7 @@ Root `Taskfile.yml` includes modular task catalogs:
 ## Implementation Status (2026-03-21)
 
 1. Task namespaces cover `validate`, `test`, `build`, `framework`, `project`, and `ci`, including explicit `lint/typecheck` targets.
-2. Root `Makefile` remains a thin compatibility shim with task-first execution and explicit legacy fallback.
+2. Root `Makefile` orchestration shim is retired; Task namespaces are the only root orchestration surface.
 3. CI cutover is applied to primary workflows with explicit and reversible fallback switches (`USE_TASK_ORCHESTRATION`, `ALLOW_TASK_FALLBACK`).
 4. `go-task` version policy is enforced by CI pin (`3.45.4`) and documented as local minimum.
 5. Legacy-command mapping and KPI evidence source are recorded in `adr/0077-analysis/IMPLEMENTATION-EVIDENCE.md`.
@@ -180,7 +180,6 @@ Root `Taskfile.yml` includes modular task catalogs:
 ## References
 
 - `README.md`
-- `Makefile`
 - `v5/scripts/orchestration/lane.py`
 - `.github/workflows/lane-validation.yml`
 - `.github/workflows/python-checks.yml`

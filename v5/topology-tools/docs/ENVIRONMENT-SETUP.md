@@ -189,7 +189,7 @@ python v5/topology-tools/compile-topology.py --secrets-mode inject
 - `inject` требует корректную установку `sops` и доступ к age-ключу.
 - В `inject/strict` секретные поля резолвятся по аннотациям (`@secret`, `@*_secret:<type>`) через `base.compiler.annotation_resolver`.
 - Типовые несоответствия расшифрованных значений возвращают диагностику `E7213`; конфликт plaintext vs side-car — `E7212`.
-- `make validate-v5` использует `inject` по умолчанию (через `v5/scripts/orchestration/lane.py`).
+- `task validate:v5` использует `inject` по умолчанию (через `v5/scripts/orchestration/lane.py`).
   Для локального override можно задать `V5_SECRETS_MODE=passthrough`.
 
 ## 7. Официальные источники
