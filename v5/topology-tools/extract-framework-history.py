@@ -67,20 +67,32 @@ def _rewrite_framework_manifest_for_extracted_layout(repo_root: Path) -> None:
     if not isinstance(include, list):
         return
 
+    def _normalize_include_path(value: str) -> str:
+        raw = value.strip()
+        if raw.startswith("v5/topology/"):
+            return raw.removeprefix("v5/")
+        if raw == "v5/topology-tools" or raw.startswith("v5/topology-tools/"):
+            return raw.removeprefix("v5/")
+        return raw
+
     rewritten: list[str] = []
     for item in include:
-        if not isinstance(item, str):
+        if isinstance(item, str):
+            value = item.strip()
+            if not value:
+                continue
+            rewritten.append(_normalize_include_path(value))
             continue
-        value = item.strip()
-        if not value:
+        if isinstance(item, dict):
+            source = item.get("from")
+            target = item.get("to")
+            source_value = source.strip() if isinstance(source, str) else ""
+            target_value = target.strip() if isinstance(target, str) else ""
+            candidate = target_value or source_value
+            if not candidate:
+                continue
+            rewritten.append(_normalize_include_path(candidate))
             continue
-        if value.startswith("v5/topology/"):
-            rewritten.append(value.removeprefix("v5/topology/"))
-            continue
-        if value == "v5/topology-tools" or value.startswith("v5/topology-tools/"):
-            rewritten.append(value.removeprefix("v5/"))
-            continue
-        rewritten.append(value)
     distribution["include"] = rewritten
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
@@ -112,11 +124,11 @@ def _normalize_layout(*, repo_root: Path, include_tests: bool) -> None:
     stage.mkdir(parents=True, exist_ok=True)
 
     _move_if_exists(repo_root / "topology" / "framework.yaml", stage / "framework.yaml")
-    _move_if_exists(repo_root / "topology" / "class-modules", stage / "class-modules")
-    _move_if_exists(repo_root / "topology" / "object-modules", stage / "object-modules")
-    _move_if_exists(repo_root / "topology" / "layer-contract.yaml", stage / "layer-contract.yaml")
-    _move_if_exists(repo_root / "topology" / "model.lock.yaml", stage / "model.lock.yaml")
-    _move_if_exists(repo_root / "topology" / "profile-map.yaml", stage / "profile-map.yaml")
+    _move_if_exists(repo_root / "topology" / "class-modules", stage / "topology" / "class-modules")
+    _move_if_exists(repo_root / "topology" / "object-modules", stage / "topology" / "object-modules")
+    _move_if_exists(repo_root / "topology" / "layer-contract.yaml", stage / "topology" / "layer-contract.yaml")
+    _move_if_exists(repo_root / "topology" / "model.lock.yaml", stage / "topology" / "model.lock.yaml")
+    _move_if_exists(repo_root / "topology" / "profile-map.yaml", stage / "topology" / "profile-map.yaml")
     _move_if_exists(repo_root / "topology-tools", stage / "topology-tools")
 
     if include_tests:

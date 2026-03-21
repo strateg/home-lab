@@ -47,13 +47,13 @@ def _make_fake_repo(tmp_path: Path, *, include_conftest: bool = True) -> Path:
                 "distribution": {
                     "layout_version": 1,
                     "include": [
-                        "v5/topology/framework.yaml",
-                        "v5/topology/class-modules",
-                        "v5/topology/object-modules",
-                        "v5/topology/layer-contract.yaml",
-                        "v5/topology/model.lock.yaml",
-                        "v5/topology/profile-map.yaml",
-                        "v5/topology-tools",
+                        {"from": "v5/topology/framework.yaml", "to": "framework.yaml"},
+                        {"from": "v5/topology/class-modules", "to": "topology/class-modules"},
+                        {"from": "v5/topology/object-modules", "to": "topology/object-modules"},
+                        {"from": "v5/topology/layer-contract.yaml", "to": "topology/layer-contract.yaml"},
+                        {"from": "v5/topology/model.lock.yaml", "to": "topology/model.lock.yaml"},
+                        {"from": "v5/topology/profile-map.yaml", "to": "topology/profile-map.yaml"},
+                        {"from": "v5/topology-tools", "to": "topology-tools"},
                     ],
                 },
             },
@@ -94,8 +94,8 @@ def test_extract_worktree_without_tests(tmp_path: Path) -> None:
     )
     assert run.returncode == 0, run.stdout + "\n" + run.stderr
     assert (output_root / "framework.yaml").exists()
-    assert (output_root / "class-modules").exists()
-    assert (output_root / "object-modules").exists()
+    assert (output_root / "topology" / "class-modules").exists()
+    assert (output_root / "topology" / "object-modules").exists()
     assert (output_root / "topology-tools").exists()
     assert (output_root / "tests").exists() is False
     manifest = yaml.safe_load((output_root / "extraction-manifest.yaml").read_text(encoding="utf-8"))
@@ -104,7 +104,7 @@ def test_extract_worktree_without_tests(tmp_path: Path) -> None:
     extracted_manifest = yaml.safe_load((output_root / "framework.yaml").read_text(encoding="utf-8"))
     include = extracted_manifest["distribution"]["include"]
     assert "framework.yaml" in include
-    assert "class-modules" in include
+    assert "topology/class-modules" in include
     assert "topology-tools" in include
     assert all(not str(item).startswith("v5/") for item in include)
 

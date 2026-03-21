@@ -45,9 +45,9 @@ def _fake_extracted_framework_repo(tmp_path: Path) -> Path:
                     "layout_version": 1,
                     "include": [
                         "framework.yaml",
-                        "layer-contract.yaml",
-                        "class-modules",
-                        "object-modules",
+                        "topology/layer-contract.yaml",
+                        "topology/class-modules",
+                        "topology/object-modules",
                     ],
                 },
             },
@@ -55,7 +55,7 @@ def _fake_extracted_framework_repo(tmp_path: Path) -> Path:
         ),
     )
     _write(
-        root / "layer-contract.yaml",
+        root / "topology" / "layer-contract.yaml",
         yaml.safe_dump(
             {
                 "schema_version": 1,
@@ -73,15 +73,15 @@ def _fake_extracted_framework_repo(tmp_path: Path) -> Path:
             sort_keys=False,
         ),
     )
-    _write(root / "class-modules" / ".gitkeep", "")
-    _write(root / "object-modules" / ".gitkeep", "")
+    _write(root / "topology" / "class-modules" / ".gitkeep", "")
+    _write(root / "topology" / "object-modules" / ".gitkeep", "")
     return root
 
 
 def _fake_framework_distribution_zip(tmp_path: Path, *, version: str = "1.2.3") -> Path:
     dist_root = tmp_path / "dist-payload" / f"infra-topology-framework-{version}"
     _write(
-        dist_root / "v5" / "topology" / "framework.yaml",
+        dist_root / "framework.yaml",
         yaml.safe_dump(
             {
                 "schema_version": 1,
@@ -91,12 +91,12 @@ def _fake_framework_distribution_zip(tmp_path: Path, *, version: str = "1.2.3") 
                 "distribution": {
                     "layout_version": 1,
                     "include": [
-                        "v5/topology/framework.yaml",
-                        "v5/topology/layer-contract.yaml",
-                        "v5/topology/model.lock.yaml",
-                        "v5/topology/profile-map.yaml",
-                        "v5/topology/class-modules",
-                        "v5/topology/object-modules",
+                        "framework.yaml",
+                        "topology/layer-contract.yaml",
+                        "topology/model.lock.yaml",
+                        "topology/profile-map.yaml",
+                        "topology/class-modules",
+                        "topology/object-modules",
                     ],
                 },
             },
@@ -104,7 +104,7 @@ def _fake_framework_distribution_zip(tmp_path: Path, *, version: str = "1.2.3") 
         ),
     )
     _write(
-        dist_root / "v5" / "topology" / "layer-contract.yaml",
+        dist_root / "topology" / "layer-contract.yaml",
         yaml.safe_dump(
             {
                 "schema_version": 1,
@@ -116,10 +116,10 @@ def _fake_framework_distribution_zip(tmp_path: Path, *, version: str = "1.2.3") 
             sort_keys=False,
         ),
     )
-    _write(dist_root / "v5" / "topology" / "model.lock.yaml", "schema_version: 1\n")
-    _write(dist_root / "v5" / "topology" / "profile-map.yaml", "profiles: {}\n")
-    _write(dist_root / "v5" / "topology" / "class-modules" / ".gitkeep", "")
-    _write(dist_root / "v5" / "topology" / "object-modules" / ".gitkeep", "")
+    _write(dist_root / "topology" / "model.lock.yaml", "schema_version: 1\n")
+    _write(dist_root / "topology" / "profile-map.yaml", "profiles: {}\n")
+    _write(dist_root / "topology" / "class-modules" / ".gitkeep", "")
+    _write(dist_root / "topology" / "object-modules" / ".gitkeep", "")
 
     zip_path = tmp_path / f"infra-topology-framework-{version}.zip"
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -220,7 +220,7 @@ def test_init_project_repo_can_use_distribution_zip_package_dependency(tmp_path:
     )
     assert run.returncode == 0, run.stdout + "\n" + run.stderr
     assert not (output_root / ".gitmodules").exists()
-    assert (output_root / "framework" / "v5" / "topology" / "framework.yaml").exists()
+    assert (output_root / "framework" / "framework.yaml").exists()
     lock_payload = yaml.safe_load((output_root / "framework.lock.yaml").read_text(encoding="utf-8")) or {}
     framework_payload = lock_payload.get("framework", {})
     assert framework_payload.get("source") == "package"

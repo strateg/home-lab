@@ -7,7 +7,7 @@ import hashlib
 import re
 import subprocess
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
@@ -180,6 +180,42 @@ def _excluded(path: str, patterns: list[str]) -> bool:
     return False
 
 
+def _normalize_target_path(value: str) -> str:
+    normalized = value.replace("\\", "/").strip().strip("/")
+    if not normalized:
+        raise ValueError("framework distribution include target path is empty")
+    if ".." in PurePosixPath(normalized).parts:
+        raise ValueError(f"framework distribution include target path must not contain '..': {value}")
+    return normalized
+
+
+def _parse_distribution_includes(includes: list[Any]) -> list[tuple[str, str]]:
+    parsed: list[tuple[str, str]] = []
+    for item in includes:
+        if isinstance(item, str):
+            source = item.strip()
+            if not source:
+                continue
+            parsed.append((source, _normalize_target_path(source)))
+            continue
+        if isinstance(item, dict):
+            source_raw = item.get("from")
+            target_raw = item.get("to")
+            if not isinstance(source_raw, str) or not source_raw.strip():
+                raise ValueError("framework distribution.include mapping requires non-empty 'from'")
+            source = source_raw.strip()
+            if isinstance(target_raw, str) and target_raw.strip():
+                target = _normalize_target_path(target_raw)
+            else:
+                target = _normalize_target_path(source)
+            parsed.append((source, target))
+            continue
+        raise ValueError("framework distribution.include entries must be string or mapping {from,to}")
+    if not parsed:
+        raise ValueError("framework distribution.include has no valid entries")
+    return parsed
+
+
 def collect_framework_files(
     *,
     framework_root: Path,
@@ -191,32 +227,37 @@ def collect_framework_files(
     includes = distribution.get("include")
     if not isinstance(includes, list) or not includes:
         raise ValueError("framework distribution.include must be non-empty list")
-    include_paths = [str(item).strip() for item in includes if isinstance(item, str) and item.strip()]
-    if not include_paths:
-        raise ValueError("framework distribution.include has no valid entries")
+    include_paths = _parse_distribution_includes(includes)
     excludes = [str(item).strip() for item in distribution.get("exclude_globs", []) if isinstance(item, str)]
 
     rows: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for include in include_paths:
-        candidate = (framework_root / include).resolve()
+    seen_targets: set[str] = set()
+    for include_source, include_target in include_paths:
+        candidate = (framework_root / include_source).resolve()
         if not candidate.exists():
-            raise FileNotFoundError(f"framework include path does not exist: {include}")
+            raise FileNotFoundError(f"framework include path does not exist: {include_source}")
         if candidate.is_file():
-            rel = candidate.relative_to(framework_root).as_posix()
-            if rel in seen or _excluded(rel, excludes):
+            source_rel = candidate.relative_to(framework_root).as_posix()
+            if _excluded(source_rel, excludes):
                 continue
-            rows.append({"path": rel, "size": candidate.stat().st_size, "sha256": _hash_file(candidate)})
-            seen.add(rel)
+            target_rel = include_target
+            if target_rel in seen_targets:
+                raise ValueError(f"duplicate framework distribution target path: {target_rel}")
+            rows.append({"path": target_rel, "size": candidate.stat().st_size, "sha256": _hash_file(candidate)})
+            seen_targets.add(target_rel)
             continue
         for path in sorted(candidate.rglob("*")):
             if not path.is_file():
                 continue
-            rel = path.relative_to(framework_root).as_posix()
-            if rel in seen or _excluded(rel, excludes):
+            source_rel = path.relative_to(framework_root).as_posix()
+            if _excluded(source_rel, excludes):
                 continue
-            rows.append({"path": rel, "size": path.stat().st_size, "sha256": _hash_file(path)})
-            seen.add(rel)
+            rel_under_include = path.relative_to(candidate).as_posix()
+            target_rel = PurePosixPath(include_target, rel_under_include).as_posix()
+            if target_rel in seen_targets:
+                raise ValueError(f"duplicate framework distribution target path: {target_rel}")
+            rows.append({"path": target_rel, "size": path.stat().st_size, "sha256": _hash_file(path)})
+            seen_targets.add(target_rel)
     rows.sort(key=lambda item: str(item["path"]))
     return rows
 

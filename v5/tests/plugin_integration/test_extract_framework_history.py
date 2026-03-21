@@ -51,13 +51,13 @@ def _init_fixture_repo(tmp_path: Path) -> Path:
                 "distribution": {
                     "layout_version": 1,
                     "include": [
-                        "v5/topology/framework.yaml",
-                        "v5/topology/class-modules",
-                        "v5/topology/object-modules",
-                        "v5/topology/layer-contract.yaml",
-                        "v5/topology/model.lock.yaml",
-                        "v5/topology/profile-map.yaml",
-                        "v5/topology-tools",
+                        {"from": "v5/topology/framework.yaml", "to": "framework.yaml"},
+                        {"from": "v5/topology/class-modules", "to": "topology/class-modules"},
+                        {"from": "v5/topology/object-modules", "to": "topology/object-modules"},
+                        {"from": "v5/topology/layer-contract.yaml", "to": "topology/layer-contract.yaml"},
+                        {"from": "v5/topology/model.lock.yaml", "to": "topology/model.lock.yaml"},
+                        {"from": "v5/topology/profile-map.yaml", "to": "topology/profile-map.yaml"},
+                        {"from": "v5/topology-tools", "to": "topology-tools"},
                     ],
                 },
             },
@@ -105,7 +105,7 @@ def test_extract_framework_history_preserves_git_and_normalizes_layout(tmp_path:
     assert run.returncode == 0, run.stdout + "\n" + run.stderr
     assert (output_root / ".git").exists()
     assert (output_root / "framework.yaml").exists()
-    assert (output_root / "class-modules").exists()
+    assert (output_root / "topology" / "class-modules").exists()
     assert (output_root / "topology-tools").exists()
     assert (output_root / "tests" / "plugin_api" / "test_api.py").exists()
 

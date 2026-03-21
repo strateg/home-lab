@@ -175,20 +175,64 @@ def _detect_framework_manifest(framework_root: Path) -> tuple[Path, str]:
     )
 
 
-def _topology_framework_section(layout: str, *, framework_mount: str) -> dict[str, str]:
+def _mounted_path(framework_root: Path, framework_mount: str, candidates: list[str]) -> str:
+    for relative in candidates:
+        if (framework_root / relative).exists():
+            return f"{framework_mount}/{relative}"
+    return f"{framework_mount}/{candidates[0]}"
+
+
+def _topology_framework_section(layout: str, *, framework_mount: str, framework_root: Path) -> dict[str, str]:
     if layout == "monorepo":
         prefix = f"{framework_mount}/v5/topology"
-    else:
-        prefix = framework_mount
+        return {
+            "root": framework_mount,
+            "class_modules_root": f"{prefix}/class-modules",
+            "object_modules_root": f"{prefix}/object-modules",
+            "model_lock": f"{prefix}/model.lock.yaml",
+            "profile_map": f"{prefix}/profile-map.yaml",
+            "layer_contract": f"{prefix}/layer-contract.yaml",
+            "capability_catalog": f"{prefix}/class-modules/router/capability-catalog.yaml",
+            "capability_packs": f"{prefix}/class-modules/router/capability-packs.yaml",
+        }
+
     return {
         "root": framework_mount,
-        "class_modules_root": f"{prefix}/class-modules",
-        "object_modules_root": f"{prefix}/object-modules",
-        "model_lock": f"{prefix}/model.lock.yaml",
-        "profile_map": f"{prefix}/profile-map.yaml",
-        "layer_contract": f"{prefix}/layer-contract.yaml",
-        "capability_catalog": f"{prefix}/class-modules/router/capability-catalog.yaml",
-        "capability_packs": f"{prefix}/class-modules/router/capability-packs.yaml",
+        "class_modules_root": _mounted_path(
+            framework_root,
+            framework_mount,
+            ["topology/class-modules", "class-modules"],
+        ),
+        "object_modules_root": _mounted_path(
+            framework_root,
+            framework_mount,
+            ["topology/object-modules", "object-modules"],
+        ),
+        "model_lock": _mounted_path(
+            framework_root,
+            framework_mount,
+            ["topology/model.lock.yaml", "model.lock.yaml"],
+        ),
+        "profile_map": _mounted_path(
+            framework_root,
+            framework_mount,
+            ["topology/profile-map.yaml", "profile-map.yaml"],
+        ),
+        "layer_contract": _mounted_path(
+            framework_root,
+            framework_mount,
+            ["topology/layer-contract.yaml", "layer-contract.yaml"],
+        ),
+        "capability_catalog": _mounted_path(
+            framework_root,
+            framework_mount,
+            ["topology/class-modules/router/capability-catalog.yaml", "class-modules/router/capability-catalog.yaml"],
+        ),
+        "capability_packs": _mounted_path(
+            framework_root,
+            framework_mount,
+            ["topology/class-modules/router/capability-packs.yaml", "class-modules/router/capability-packs.yaml"],
+        ),
     }
 
 
@@ -238,7 +282,11 @@ def main() -> int:
     topology_payload = {
         "version": "5.0.0",
         "model": "class-object-instance",
-        "framework": _topology_framework_section(framework_layout, framework_mount=submodule_mount),
+        "framework": _topology_framework_section(
+            framework_layout,
+            framework_mount=submodule_mount,
+            framework_root=framework_root_for_lock,
+        ),
         "project": {
             "active": project_id,
             "projects_root": ".",

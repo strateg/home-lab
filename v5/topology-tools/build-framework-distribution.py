@@ -12,7 +12,7 @@ import tarfile
 import zipfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
@@ -79,61 +79,116 @@ def _is_excluded(relative_path: str, patterns: list[str]) -> bool:
     return False
 
 
+def _normalize_target_path(value: str) -> str:
+    normalized = value.replace("\\", "/").strip().strip("/")
+    if not normalized:
+        raise ValueError("distribution include target path is empty")
+    if ".." in PurePosixPath(normalized).parts:
+        raise ValueError(f"distribution include target path must not contain '..': {value}")
+    return normalized
+
+
+def _parse_distribution_includes(includes: list[Any]) -> list[tuple[str, str]]:
+    parsed: list[tuple[str, str]] = []
+    for item in includes:
+        if isinstance(item, str):
+            source = item.strip()
+            if not source:
+                continue
+            parsed.append((source, _normalize_target_path(source)))
+            continue
+        if isinstance(item, dict):
+            source_raw = item.get("from")
+            target_raw = item.get("to")
+            if not isinstance(source_raw, str) or not source_raw.strip():
+                raise ValueError("distribution.include mapping requires non-empty 'from' field")
+            source = source_raw.strip()
+            if isinstance(target_raw, str) and target_raw.strip():
+                target = _normalize_target_path(target_raw)
+            else:
+                target = _normalize_target_path(source)
+            parsed.append((source, target))
+            continue
+        raise ValueError("distribution.include entries must be string or mapping {from,to}")
+    if not parsed:
+        raise ValueError("distribution.include contains no valid paths")
+    return parsed
+
+
 def _collect_sources(
     *,
     repo_root: Path,
-    includes: list[str],
+    includes: list[tuple[str, str]],
     excludes: list[str],
-) -> list[Path]:
-    collected: list[Path] = []
-    seen: set[str] = set()
+) -> list[tuple[Path, str]]:
+    collected: list[tuple[Path, str]] = []
+    seen_targets: set[str] = set()
 
-    for include in includes:
-        include_path = (repo_root / include).resolve()
+    for include_source, include_target in includes:
+        include_path = (repo_root / include_source).resolve()
         if not include_path.exists():
-            raise FileNotFoundError(f"Included path does not exist: {include}")
+            raise FileNotFoundError(f"Included path does not exist: {include_source}")
         if include_path.is_file():
-            rel = include_path.relative_to(repo_root).as_posix()
-            if _is_excluded(rel, excludes):
+            source_rel = include_path.relative_to(repo_root).as_posix()
+            if _is_excluded(source_rel, excludes):
                 continue
-            if rel not in seen:
-                collected.append(include_path)
-                seen.add(rel)
+            target_rel = include_target
+            if target_rel in seen_targets:
+                raise ValueError(f"duplicate distribution target path: {target_rel}")
+            collected.append((include_path, target_rel))
+            seen_targets.add(target_rel)
             continue
         for path in sorted(include_path.rglob("*")):
             if not path.is_file():
                 continue
-            rel = path.relative_to(repo_root).as_posix()
-            if _is_excluded(rel, excludes):
+            source_rel = path.relative_to(repo_root).as_posix()
+            if _is_excluded(source_rel, excludes):
                 continue
-            if rel in seen:
-                continue
-            collected.append(path)
-            seen.add(rel)
+            rel_under_include = path.relative_to(include_path).as_posix()
+            target_rel = PurePosixPath(include_target, rel_under_include).as_posix()
+            if target_rel in seen_targets:
+                raise ValueError(f"duplicate distribution target path: {target_rel}")
+            collected.append((path, target_rel))
+            seen_targets.add(target_rel)
     return collected
 
 
 def _copy_sources_to_staging(
     *,
-    repo_root: Path,
     staging_root: Path,
-    sources: list[Path],
+    sources: list[tuple[Path, str]],
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
-    for source in sources:
-        rel = source.relative_to(repo_root)
-        target = staging_root / rel
+    for source, target_rel in sources:
+        target = staging_root / target_rel
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
         result.append(
             {
-                "path": rel.as_posix(),
+                "path": target_rel,
                 "size": target.stat().st_size,
                 "sha256": _sha256_file(target),
             }
         )
     result.sort(key=lambda item: str(item["path"]))
     return result
+
+
+def _rewrite_staged_framework_manifest(
+    *,
+    staging_root: Path,
+    manifest_target: str,
+    include_mappings: list[tuple[str, str]],
+) -> None:
+    manifest_path = staging_root / manifest_target
+    if not manifest_path.exists():
+        return
+    payload = _load_yaml(manifest_path)
+    distribution = payload.get("distribution")
+    if not isinstance(distribution, dict):
+        return
+    distribution["include"] = [target for _, target in include_mappings]
+    manifest_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
 def _write_manifest(
@@ -196,9 +251,7 @@ def build_distribution(config: BuildConfig) -> int:
     includes = distribution_payload.get("include")
     if not isinstance(includes, list) or not includes:
         raise ValueError("distribution.include must be non-empty list")
-    include_values = [str(item).strip() for item in includes if isinstance(item, str) and item.strip()]
-    if not include_values:
-        raise ValueError("distribution.include contains no valid paths")
+    include_values = _parse_distribution_includes(includes)
 
     excludes_raw = distribution_payload.get("exclude_globs", [])
     excludes = [str(item).strip() for item in excludes_raw if isinstance(item, str) and item.strip()]
@@ -221,10 +274,29 @@ def build_distribution(config: BuildConfig) -> int:
     staging_root.mkdir(parents=True, exist_ok=True)
 
     files = _copy_sources_to_staging(
-        repo_root=config.repo_root,
         staging_root=staging_root,
         sources=sources,
     )
+
+    framework_manifest_source = config.framework_manifest.resolve()
+    manifest_target = ""
+    for source, target in sources:
+        if source.resolve() == framework_manifest_source:
+            manifest_target = target
+            break
+    if manifest_target:
+        _rewrite_staged_framework_manifest(
+            staging_root=staging_root,
+            manifest_target=manifest_target,
+            include_mappings=include_values,
+        )
+        for item in files:
+            if str(item.get("path")) != manifest_target:
+                continue
+            rewritten_path = staging_root / manifest_target
+            item["size"] = rewritten_path.stat().st_size
+            item["sha256"] = _sha256_file(rewritten_path)
+            break
     _write_manifest(
         output_dir=release_dir,
         framework_payload=framework_payload,

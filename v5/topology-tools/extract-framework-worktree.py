@@ -77,11 +77,11 @@ def _copy_path(source: Path, target: Path) -> None:
 def _mapping_rows(*, include_tests: bool) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = [
         {"source": "v5/topology/framework.yaml", "target": "framework.yaml"},
-        {"source": "v5/topology/class-modules", "target": "class-modules"},
-        {"source": "v5/topology/object-modules", "target": "object-modules"},
-        {"source": "v5/topology/layer-contract.yaml", "target": "layer-contract.yaml"},
-        {"source": "v5/topology/model.lock.yaml", "target": "model.lock.yaml"},
-        {"source": "v5/topology/profile-map.yaml", "target": "profile-map.yaml"},
+        {"source": "v5/topology/class-modules", "target": "topology/class-modules"},
+        {"source": "v5/topology/object-modules", "target": "topology/object-modules"},
+        {"source": "v5/topology/layer-contract.yaml", "target": "topology/layer-contract.yaml"},
+        {"source": "v5/topology/model.lock.yaml", "target": "topology/model.lock.yaml"},
+        {"source": "v5/topology/profile-map.yaml", "target": "topology/profile-map.yaml"},
         {"source": "v5/topology-tools", "target": "topology-tools"},
     ]
     if include_tests:
@@ -131,20 +131,32 @@ def _rewrite_framework_manifest_for_extracted_layout(output_root: Path) -> None:
     if not isinstance(include, list):
         return
 
+    def _normalize_include_path(value: str) -> str:
+        raw = value.strip()
+        if raw.startswith("v5/topology/"):
+            return raw.removeprefix("v5/")
+        if raw == "v5/topology-tools" or raw.startswith("v5/topology-tools/"):
+            return raw.removeprefix("v5/")
+        return raw
+
     rewritten: list[str] = []
     for item in include:
-        if not isinstance(item, str):
+        if isinstance(item, str):
+            value = item.strip()
+            if not value:
+                continue
+            rewritten.append(_normalize_include_path(value))
             continue
-        value = item.strip()
-        if not value:
+        if isinstance(item, dict):
+            source = item.get("from")
+            target = item.get("to")
+            source_value = source.strip() if isinstance(source, str) else ""
+            target_value = target.strip() if isinstance(target, str) else ""
+            candidate = target_value or source_value
+            if not candidate:
+                continue
+            rewritten.append(_normalize_include_path(candidate))
             continue
-        if value.startswith("v5/topology/"):
-            rewritten.append(value.removeprefix("v5/topology/"))
-            continue
-        if value == "v5/topology-tools" or value.startswith("v5/topology-tools/"):
-            rewritten.append(value.removeprefix("v5/"))
-            continue
-        rewritten.append(value)
     distribution["include"] = rewritten
     manifest_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 

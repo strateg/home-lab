@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import zipfile
 from pathlib import Path
 
 import yaml
@@ -124,3 +125,71 @@ def test_default_paths_detect_extracted_layout(tmp_path: Path):
     assert mod._default_repo_root() == framework_root
     assert mod._default_framework_manifest() == framework_manifest
     assert mod._default_output_root() == framework_root / "dist" / "framework"
+
+
+def test_build_distribution_supports_include_mapping_with_topology_targets(tmp_path: Path):
+    mod = _load_module()
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir(parents=True, exist_ok=True)
+
+    source_framework = repo_root / "v5" / "topology"
+    source_tools = repo_root / "v5" / "topology-tools"
+    (source_framework / "class-modules").mkdir(parents=True, exist_ok=True)
+    source_tools.mkdir(parents=True, exist_ok=True)
+    (source_framework / "class-modules" / "class.yaml").write_text("class: test\n", encoding="utf-8")
+    (source_tools / "compile-topology.py").write_text("print('ok')\n", encoding="utf-8")
+
+    framework_manifest = source_framework / "framework.yaml"
+    framework_manifest.write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "framework_id": "infra-topology-framework",
+                "framework_api_version": "1.0.0",
+                "framework_release_channel": "snapshot",
+                "supported_project_schema_range": ">=1.0.0 <2.0.0",
+                "distribution": {
+                    "layout_version": 1,
+                    "include": [
+                        {"from": "v5/topology/framework.yaml", "to": "framework.yaml"},
+                        {"from": "v5/topology/class-modules", "to": "topology/class-modules"},
+                        {"from": "v5/topology-tools", "to": "topology-tools"},
+                    ],
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    output_root = repo_root / "v5-dist" / "framework"
+    config = mod.BuildConfig(
+        repo_root=repo_root,
+        framework_manifest=framework_manifest,
+        output_root=output_root,
+        version="2.0.0",
+        archive_format="both",
+        keep_staging=False,
+    )
+    result = mod.build_distribution(config)
+    assert result == 0
+
+    release_dir = output_root / "infra-topology-framework" / "2.0.0"
+    manifest_path = release_dir / "framework-dist-manifest.json"
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    file_paths = {item["path"] for item in payload["files"]}
+    assert "framework.yaml" in file_paths
+    assert "topology/class-modules/class.yaml" in file_paths
+    assert "topology-tools/compile-topology.py" in file_paths
+    assert all(not path.startswith("v5/") for path in file_paths)
+
+    archive_path = release_dir / "infra-topology-framework-2.0.0.zip"
+    with zipfile.ZipFile(archive_path) as archive:
+        framework_yaml = archive.read("infra-topology-framework-2.0.0/framework.yaml").decode("utf-8")
+    framework_payload = yaml.safe_load(framework_yaml) or {}
+    distribution = framework_payload.get("distribution", {})
+    include = distribution.get("include", [])
+    assert "framework.yaml" in include
+    assert "topology/class-modules" in include
+    assert "topology-tools" in include
+    assert all(not str(item).startswith("v5/") for item in include)
