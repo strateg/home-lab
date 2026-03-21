@@ -21,11 +21,29 @@ This caused practical issues:
 
 For object-scoped generators (for example MikroTik/Proxmox/OrangePi), templates and plugin implementation are part of object module implementation, not global tooling infrastructure.
 
+An object-scoped generator in this ADR means a generator whose templates and plugin logic are owned by one object module and are not intended as cross-object shared infrastructure.
+
+---
+
+## Decision Drivers
+
+1. Keep object implementation assets colocated under one ownership root.
+2. Improve framework/project portability by reducing hidden tool-domain coupling.
+3. Make packaging and extraction deterministic for generated project consumption.
+4. Preserve compatibility for shared/global generators and templates.
+
 ---
 
 ## Decision
 
 Move object-specific templates and generator plugin code into corresponding object modules.
+
+Classification rule (normative):
+
+1. A generator is **object-scoped** when both are true:
+   - it targets one object namespace (`obj.<vendor_or_object>.*`);
+   - its templates are not reused as cross-object shared infrastructure.
+2. A generator is **shared/global** when it emits cross-object artifacts (for example effective model exports or inventory aggregation) and does not belong to one object module ownership root.
 
 ### Normative layout
 
@@ -63,6 +81,23 @@ Generators MUST resolve templates in this order:
 
 Framework distribution packaging MUST include object-local templates and object-local generator plugins together with object modules, so generated projects can run without hidden dependencies on tool-internal paths.
 
+### Plugin manifest policy
+
+1. During transition, central `v5/topology-tools/plugins/plugins.yaml` MAY reference object-module plugin paths.
+2. Target end-state: object-module `plugins.yaml` manifests own object-scoped plugin registration.
+3. Duplicate plugin IDs across central and module manifests are forbidden and treated as hard manifest load errors.
+
+---
+
+## Alternatives Considered
+
+1. Keep all object templates/plugins in `topology-tools/*`.
+   - Rejected: keeps ownership split and increases packaging coupling to tool internals.
+2. Keep physical files in `topology-tools/*` and map ownership only via plugin registry metadata.
+   - Rejected: improves discoverability but does not solve self-contained module portability.
+3. Chosen approach: move object assets physically into object modules and keep shared/global assets in tools domain.
+   - Accepted: best alignment with ownership boundaries and distribution portability.
+
 ---
 
 ## Non-Goals
@@ -91,6 +126,53 @@ Framework distribution packaging MUST include object-local templates and object-
 
 ---
 
+## Risks and Mitigations
+
+1. Risk: import/entrypoint regressions after plugin relocation.
+   - Mitigation: plugin manifest validation and strict compile/integration checks in CI.
+2. Risk: template duplication or stale copies across old/new roots.
+   - Mitigation: inventory diff checks and migration checklist gate before release.
+3. Risk: framework lock/distribution drift from runtime resolution behavior.
+   - Mitigation: rebuild lock, validate packaged artifact structure, and run smoke generation from distribution layout.
+4. Risk: migration stalls with permanent compatibility shims.
+   - Mitigation: define shim sunset policy with objective removal gate and owner.
+
+---
+
+## Compatibility Strategy (Shim Sunset)
+
+Compatibility shims in `v5/topology-tools/plugins/generators/*` are transitional only.
+
+Removal gate (all required):
+
+1. One full release cycle passes with no shim-origin failures in CI.
+2. Repository grep shows no runtime imports that require shim modules.
+3. Plugin loading/integration tests pass against object-module plugin paths.
+4. Distribution smoke test from zip-based project bootstrap passes.
+
+Ownership:
+
+1. Runtime maintainers own shim removal readiness evidence.
+2. Release owner signs off shim removal in release notes/checklist.
+
+---
+
+## Rollout and Rollback
+
+### Rollout
+
+1. Migrate object modules in bounded batches (for example: MikroTik -> Proxmox -> OrangePi).
+2. After each batch, update plugin manifest entrypoints and regenerate framework lock.
+3. Keep compatibility shims only for validated transition window.
+
+### Rollback
+
+1. Trigger rollback if strict compile or plugin integration tests fail for migrated objects.
+2. Rollback action: restore previous plugin manifest entrypoints and retain legacy template root resolution.
+3. Re-run validation gates before re-attempting migration.
+
+---
+
 ## Migration Notes
 
 1. Move template files physically to object module `templates/` subtree.
@@ -102,12 +184,32 @@ Framework distribution packaging MUST include object-local templates and object-
 
 ---
 
+## Verification Matrix
+
+Minimum verification set per migration batch:
+
+1. Unit/integration generators:
+   - `v5/tests/plugin_integration/test_terraform_mikrotik_generator.py`
+   - `v5/tests/plugin_integration/test_terraform_proxmox_generator.py`
+   - `v5/tests/plugin_integration/test_bootstrap_generators.py`
+2. Projection-contract enforcement:
+   - `v5/tests/plugin_integration/test_generator_projection_contract.py`
+3. Template/publish contract:
+   - `v5/tests/plugin_integration/test_generator_template_and_publish_contract.py`
+4. Runtime strict audit:
+   - `v5/tests/plugin_integration/test_strict_runtime_entrypoint_audit.py`
+5. Strict compile gate:
+   - `python v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough`
+
+---
+
 ## Acceptance Criteria
 
 1. Object-specific templates are no longer required from `topology-tools/templates` for migrated objects.
 2. Object-specific generator plugin entrypoints resolve from `object-modules/<object-id>/plugins`.
 3. Strict compile and plugin integration tests pass with object-local templates/plugins.
 4. Framework distribution includes migrated templates/plugins under object module paths.
+5. Compatibility shims for migrated objects are removed after one validated release cycle with no fallback hits in CI/tests.
 
 ---
 
@@ -122,3 +224,5 @@ Framework distribution packaging MUST include object-local templates and object-
 - `v5/topology-tools/plugins/plugins.yaml`
 - `v5/topology-tools/templates/TEMPLATE-INVENTORY.md`
 - `v5/projects/home-lab/framework.lock.yaml`
+- `v5/tests/plugin_integration/test_generator_projection_contract.py`
+- `v5/tests/plugin_integration/test_generator_template_and_publish_contract.py`
