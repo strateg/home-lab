@@ -25,6 +25,24 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
     _DEVICE_RUNTIME_TYPES = {"docker", "baremetal"}
     _ACTIVE_STATUSES = {"active", "mapped", "modeled"}
     _INSTALL_REQUIRED_HOST_TYPES = {"baremetal", "hypervisor"}
+    _ARCH_ALIASES = {
+        "x86_64": "x86_64",
+        "amd64": "x86_64",
+        "x86": "i386",
+        "i386": "i386",
+        "arm64": "arm64",
+        "aarch64": "arm64",
+        "riscv64": "riscv64",
+        "riscv": "riscv64",
+    }
+    _CANONICAL_ARCH_VALUES = {"x86_64", "arm64", "riscv64", "i386"}
+    _CAPABILITY_ALLOWED_HOST_TYPES = {
+        "lxc": {"hypervisor"},
+        "vm": {"hypervisor"},
+        "docker": {"baremetal", "hypervisor"},
+        "container": {"embedded", "baremetal", "hypervisor"},
+        "cloudinit": {"hypervisor", "baremetal"},
+    }
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -161,6 +179,29 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                         )
 
             extensions = self._extensions(os_row)
+            host_type_raw = extensions.get("host_type")
+            host_type = str(host_type_raw).strip().lower() if isinstance(host_type_raw, str) else ""
+
+            self._validate_extension_architecture(
+                os_id=os_id,
+                host_type=host_type,
+                extensions=extensions,
+                bound_devices=bound_devices,
+                ctx=ctx,
+                row_by_id=row_by_id,
+                stage=stage,
+                diagnostics=diagnostics,
+                row_prefix=row_prefix,
+            )
+            self._validate_host_type_capability_contract(
+                os_id=os_id,
+                host_type=host_type,
+                extensions=extensions,
+                stage=stage,
+                diagnostics=diagnostics,
+                row_prefix=row_prefix,
+            )
+
             installation = extensions.get("installation")
             if installation is not None and not isinstance(installation, dict):
                 diagnostics.append(
@@ -218,7 +259,6 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                         row_prefix=row_prefix,
                     )
 
-            host_type = extensions.get("host_type")
             if host_type in self._INSTALL_REQUIRED_HOST_TYPES:
                 if not installation:
                     diagnostics.append(
@@ -226,7 +266,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                             code="E7894",
                             severity="error",
                             stage=stage,
-                            message=f"OS '{os_id}' host_type '{host_type}' requires installation object.",
+                            message=f"OS '{os_id}' host_type '{host_type_raw}' requires installation object.",
                             path=f"{row_prefix}.host_type",
                         )
                     )
@@ -237,7 +277,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                             severity="error",
                             stage=stage,
                             message=(
-                                f"OS '{os_id}' host_type '{host_type}' requires "
+                                f"OS '{os_id}' host_type '{host_type_raw}' requires "
                                 "installation.root_storage_endpoint_ref."
                             ),
                             path=f"{row_prefix}.installation.root_storage_endpoint_ref",
@@ -295,6 +335,111 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                 )
             )
 
+    def _validate_extension_architecture(
+        self,
+        *,
+        os_id: str,
+        host_type: str,
+        extensions: dict[str, Any],
+        bound_devices: list[str],
+        ctx: PluginContext,
+        row_by_id: dict[str, dict[str, Any]],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        row_prefix: str,
+    ) -> None:
+        del host_type
+        raw_arch = extensions.get("architecture")
+        if not isinstance(raw_arch, str) or not raw_arch.strip():
+            return
+        normalized = self._normalize_arch(raw_arch)
+        if raw_arch != normalized:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7895",
+                    severity="error",
+                    stage=stage,
+                    message=f"OS '{os_id}': architecture '{raw_arch}' must be canonical; use '{normalized}'.",
+                    path=f"{row_prefix}.architecture",
+                )
+            )
+        if normalized and normalized not in self._CANONICAL_ARCH_VALUES:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7895",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"OS '{os_id}': architecture '{raw_arch}' normalizes to unsupported '{normalized}'."
+                    ),
+                    path=f"{row_prefix}.architecture",
+                )
+            )
+            return
+        if not normalized:
+            return
+        for device_id in bound_devices:
+            device_row = row_by_id.get(device_id)
+            if not isinstance(device_row, dict):
+                continue
+            device_arch_raw = self._row_architecture(ctx=ctx, row=device_row)
+            device_arch = self._normalize_arch(device_arch_raw)
+            if device_arch and device_arch != normalized:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7895",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"OS '{os_id}' extension architecture '{raw_arch}' does not match "
+                            f"device '{device_id}' architecture '{device_arch_raw}'."
+                        ),
+                        path=f"{row_prefix}.architecture",
+                    )
+                )
+
+    def _validate_host_type_capability_contract(
+        self,
+        *,
+        os_id: str,
+        host_type: str,
+        extensions: dict[str, Any],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        row_prefix: str,
+    ) -> None:
+        capabilities = extensions.get("capabilities")
+        if capabilities is None:
+            return
+        if not isinstance(capabilities, list):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7896",
+                    severity="error",
+                    stage=stage,
+                    message=f"OS '{os_id}': capabilities must be a list when set.",
+                    path=f"{row_prefix}.capabilities",
+                )
+            )
+            return
+        for idx, capability in enumerate(capabilities):
+            if not isinstance(capability, str):
+                continue
+            normalized_cap = capability.strip().lower()
+            allowed_host_types = self._CAPABILITY_ALLOWED_HOST_TYPES.get(normalized_cap)
+            if allowed_host_types and host_type and host_type not in allowed_host_types:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7896",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"OS '{os_id}': capability '{capability}' is not valid for host_type '{host_type}'."
+                        ),
+                        path=f"{row_prefix}.capabilities[{idx}]",
+                    )
+                )
+
     @staticmethod
     def _extract_device_ref(row: dict[str, Any]) -> Any:
         extensions = HostOsRefsValidator._extensions(row)
@@ -321,6 +466,13 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
         if isinstance(architecture, str) and architecture:
             return architecture
         return None
+
+    @classmethod
+    def _normalize_arch(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+        normalized = value.strip().lower()
+        return cls._ARCH_ALIASES.get(normalized, normalized)
 
     def _has_active_os_binding(self, *, device_row: dict[str, Any], row_by_id: dict[str, dict[str, Any]]) -> bool:
         os_refs = device_row.get("os_refs")

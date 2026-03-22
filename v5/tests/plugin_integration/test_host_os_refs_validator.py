@@ -226,6 +226,72 @@ def test_host_os_refs_validator_requires_installation_for_baremetal_host_type():
     assert any(diag.code == "E7894" for diag in result.diagnostics)
 
 
+def test_host_os_refs_validator_rejects_non_canonical_architecture_extension_value():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "extensions": {"architecture": "amd64"},
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7895" for diag in result.diagnostics)
+
+
+def test_host_os_refs_validator_rejects_unsupported_architecture_extension_value():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "extensions": {"architecture": "mipsel"},
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7895" for diag in result.diagnostics)
+
+
+def test_host_os_refs_validator_rejects_capability_not_allowed_for_host_type():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "extensions": {"host_type": "embedded", "capabilities": ["vm"]},
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7896" for diag in result.diagnostics)
+
+
 def test_host_os_refs_validator_requires_compiler_rows():
     registry = _registry()
     ctx = _context()
