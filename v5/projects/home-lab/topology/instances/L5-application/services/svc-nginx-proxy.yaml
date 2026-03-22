@@ -5,7 +5,14 @@ layer: L5
 version: 1.0.0
 source_id: svc-nginx-proxy
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Nginx reverse proxy running on LXC container
+
+port: 80
+protocol: http
+trust_zone_ref: inst.trust_zone.servers
+description: Nginx reverse proxy for web services
+
 runtime:
   type: lxc
   target_ref: lxc-nginx-proxy
+  network_binding_ref: inst.vlan.servers

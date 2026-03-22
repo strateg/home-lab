@@ -5,7 +5,31 @@ layer: L5
 version: 1.0.0
 source_id: svc-postgresql
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: PostgreSQL database server
+
+port: 5432
+protocol: tcp
+trust_zone_ref: inst.trust_zone.servers
+description: PostgreSQL database server for Nextcloud and homelab apps
+
 runtime:
   type: lxc
   target_ref: lxc-postgresql
+  network_binding_ref: inst.vlan.servers
+
+clients:
+  - svc-nextcloud@lxc.lxc-nextcloud
+
+data_asset_refs:
+  - inst.data_asset.postgresql_db
+  - inst.data_asset.postgresql_dumps
+
+databases:
+  - name: nextcloud
+    user: nextcloud
+  - name: homelab
+    user: app
+
+config:
+  postgresql_version: "16"
+  postgresql_listen_addresses: 10.0.30.10

@@ -5,7 +5,25 @@ layer: L5
 version: 1.0.0
 source_id: svc-ntp
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Network Time Protocol server (native RouterOS)
+
+port: 123
+protocol: udp
+trust_zone_ref: inst.trust_zone.servers
+description: NTP server providing time synchronization for all LAN clients
+critical: true
+
+features:
+  - Stratum 2 NTP server
+  - GPS/LTE time source fallback
+  - Serves all LAN clients
+
+clients:
+  - network_ref: inst.vlan.lan
+  - network_ref: inst.vlan.servers
+  - network_ref: inst.vlan.iot
+
 runtime:
   type: baremetal
   target_ref: rtr-mikrotik-chateau
+  network_binding_ref: inst.vlan.lan

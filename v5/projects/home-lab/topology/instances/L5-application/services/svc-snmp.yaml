@@ -5,7 +5,28 @@ layer: L5
 version: 1.0.0
 source_id: svc-snmp
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: SNMP agent for Prometheus monitoring (native RouterOS)
+
+port: 161
+protocol: udp
+trust_zone_ref: inst.trust_zone.management
+description: SNMP agent for Prometheus monitoring
+
+features:
+  - SNMPv2c/v3 support
+  - Interface statistics
+  - System health metrics
+  - Traffic counters
+
+clients:
+  - service_ref: svc-prometheus@lxc.lxc-prometheus
+
+security:
+  allowed_from:
+    - inst.vlan.servers
+    - inst.vlan.management
+
 runtime:
   type: baremetal
   target_ref: rtr-mikrotik-chateau
+  network_binding_ref: inst.vlan.management

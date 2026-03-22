@@ -5,7 +5,30 @@ layer: L5
 version: 1.0.0
 source_id: svc-prometheus
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Prometheus metrics collection running on LXC container
+
+port: 9090
+protocol: http
+trust_zone_ref: inst.trust_zone.servers
+description: Prometheus metrics collection and storage
+
+features:
+  - Metrics scraping from all infrastructure
+  - Long-term storage
+  - PromQL query engine
+  - Alert rule evaluation
+
+scrape_targets:
+  - name: mikrotik
+    type: snmp
+  - name: proxmox
+    type: node_exporter
+  - name: postgresql
+    type: postgres_exporter
+  - name: redis
+    type: redis_exporter
+
 runtime:
   type: lxc
   target_ref: lxc-prometheus
+  network_binding_ref: inst.vlan.servers

@@ -5,7 +5,27 @@ layer: L5
 version: 1.0.0
 source_id: svc-grafana
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Grafana dashboards and visualization (Docker on Orange Pi 5)
+
+port: 3000
+protocol: http
+trust_zone_ref: inst.trust_zone.servers
+domain: grafana.home.local
+url: http://grafana.home.local:3000
+description: Grafana dashboards and visualization
+
+dependencies:
+  - service_ref: svc-prometheus@docker.srv-orangepi5
+
+config:
+  docker:
+    ports:
+      - 3000:3000
+    volumes:
+      - /mnt/nvme/grafana:/var/lib/grafana
+
 runtime:
   type: docker
   target_ref: srv-orangepi5
+  network_binding_ref: inst.vlan.servers
+  image: grafana/grafana:latest

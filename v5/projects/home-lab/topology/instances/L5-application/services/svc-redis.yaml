@@ -5,7 +5,26 @@ layer: L5
 version: 1.0.0
 source_id: svc-redis
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Redis cache server
+
+port: 6379
+protocol: tcp
+trust_zone_ref: inst.trust_zone.servers
+description: Redis cache server for Nextcloud
+
 runtime:
   type: lxc
   target_ref: lxc-redis
+  network_binding_ref: inst.vlan.servers
+
+clients:
+  - svc-nextcloud@lxc.lxc-nextcloud
+
+data_asset_refs:
+  - inst.data_asset.redis
+
+config:
+  redis_port: 6379
+  redis_bind: 10.0.30.20
+  redis_maxmemory: 256mb
+  redis_maxmemory_policy: allkeys-lru

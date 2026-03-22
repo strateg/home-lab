@@ -5,7 +5,24 @@ layer: L5
 version: 1.0.0
 source_id: svc-wireguard
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: WireGuard VPN server (native RouterOS)
+
+port: 51820
+protocol: udp
+trust_zone_ref: inst.trust_zone.user
+vpn_type: wireguard
+description: WireGuard VPN server for full LAN access
+critical: true
+
 runtime:
   type: baremetal
   target_ref: rtr-mikrotik-chateau
+  network_binding_ref: inst.vlan.lan
+
+features:
+  - Full LAN access
+  - Works over LTE failover
+  - Low latency
+
+data_asset_refs:
+  - inst.data_asset.wireguard

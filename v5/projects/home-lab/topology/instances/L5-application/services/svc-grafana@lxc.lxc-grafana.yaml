@@ -5,7 +5,17 @@ layer: L5
 version: 1.0.0
 source_id: svc-grafana
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Grafana observability dashboards running on LXC container
+
+port: 3000
+protocol: http
+trust_zone_ref: inst.trust_zone.servers
+description: Grafana dashboards and visualization
+
+dependencies:
+  - service_ref: svc-prometheus@lxc.lxc-prometheus
+
 runtime:
   type: lxc
   target_ref: lxc-grafana
+  network_binding_ref: inst.vlan.servers

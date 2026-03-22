@@ -5,7 +5,30 @@ layer: L5
 version: 1.0.0
 source_id: svc-homeassistant
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Home Assistant smart home automation (Docker on Orange Pi 5)
+
+port: 8123
+protocol: http
+trust_zone_ref: inst.trust_zone.servers
+domain: ha.home.local
+url: http://ha.home.local:8123
+description: Home Assistant smart home automation
+optional: true
+
+features:
+  - Zigbee support (with USB adapter)
+  - Z-Wave support (with USB adapter)
+  - GPIO access
+
+config:
+  docker:
+    ports:
+      - 8123:8123
+    volumes:
+      - /mnt/nvme/homeassistant:/config
+
 runtime:
   type: docker
   target_ref: srv-orangepi5
+  network_binding_ref: inst.vlan.servers
+  image: homeassistant/home-assistant:stable

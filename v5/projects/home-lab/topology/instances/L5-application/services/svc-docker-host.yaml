@@ -5,7 +5,14 @@ layer: L5
 version: 1.0.0
 source_id: svc-docker-host
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Docker container host running on LXC container
+
+port: 2375
+protocol: tcp
+trust_zone_ref: inst.trust_zone.servers
+description: Docker container host for various services
+
 runtime:
   type: lxc
   target_ref: lxc-docker
+  network_binding_ref: inst.vlan.servers

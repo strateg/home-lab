@@ -5,7 +5,34 @@ layer: L5
 version: 1.0.0
 source_id: svc-prometheus
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Prometheus metrics collection (Docker on Orange Pi 5)
+
+port: 9090
+protocol: http
+trust_zone_ref: inst.trust_zone.servers
+description: Prometheus metrics collection
+
+scrape_targets:
+  - name: mikrotik
+    type: snmp
+  - name: proxmox
+    type: node_exporter
+  - name: srv-orangepi5
+    type: node_exporter
+  - name: postgresql
+    type: postgres_exporter
+  - name: redis
+    type: redis_exporter
+
+config:
+  docker:
+    ports:
+      - 9090:9090
+    volumes:
+      - /mnt/nvme/prometheus:/prometheus
+
 runtime:
   type: docker
   target_ref: srv-orangepi5
+  network_binding_ref: inst.vlan.servers
+  image: prom/prometheus:latest

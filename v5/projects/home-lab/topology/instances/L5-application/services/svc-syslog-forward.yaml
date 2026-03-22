@@ -5,7 +5,26 @@ layer: L5
 version: 1.0.0
 source_id: svc-syslog-forward
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Syslog forwarding to Loki (native RouterOS)
+
+protocol: udp
+trust_zone_ref: inst.trust_zone.servers
+description: Syslog forwarding to Loki for centralized logging
+
+features:
+  - Forward all RouterOS logs
+  - Firewall log forwarding
+  - DHCP lease logs
+  - VPN connection logs
+
+dependencies:
+  - service_ref: svc-loki
+
+config:
+  remote_port: 1514
+  facility: local0
+
 runtime:
   type: baremetal
   target_ref: rtr-mikrotik-chateau
+  network_binding_ref: inst.vlan.servers

@@ -5,7 +5,32 @@ layer: L5
 version: 1.0.0
 source_id: svc-adguard
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: AdGuard Home DNS filtering and ad blocking
+
+ports:
+  dns_udp: 53
+  dns_tcp: 53
+  web_ui: 3000
+protocol: http
+trust_zone_ref: inst.trust_zone.servers
+description: DNS filtering and ad blocking (container on MikroTik)
+critical: true
+
 runtime:
   type: docker
   target_ref: rtr-mikrotik-chateau
+  network_binding_ref: inst.vlan.lan
+  image: adguard/adguardhome
+  resources:
+    memory_mb: 128
+    memory_limit_mb: 256
+
+features:
+  - DNS-over-HTTPS upstream
+  - DNS-over-TLS upstream
+  - Ad blocking
+  - Tracker blocking
+  - Parental controls
+
+data_asset_refs:
+  - inst.data_asset.adguard

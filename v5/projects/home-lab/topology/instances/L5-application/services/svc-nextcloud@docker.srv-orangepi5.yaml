@@ -5,7 +5,39 @@ layer: L5
 version: 1.0.0
 source_id: svc-nextcloud
 status: mapped
-notes: module scaffold exists; runtime-specific behavior tuning pending
+notes: Nextcloud file sharing and collaboration (Docker on Orange Pi 5)
+
+ports:
+  https: 443
+  http: 80
+protocol: https
+trust_zone_ref: inst.trust_zone.servers
+domain: nextcloud.home.local
+url: https://nextcloud.home.local
+description: Nextcloud file sharing and collaboration
+
+dependencies:
+  - service_ref: svc-postgresql
+  - service_ref: svc-redis
+
+storage:
+  type: nvme
+  path: /mnt/nvme/nextcloud
+
+config:
+  docker:
+    ports:
+      - 443:443
+      - 80:80
+    volumes:
+      - /mnt/nvme/nextcloud/data:/var/www/html/data
+      - /mnt/nvme/nextcloud/config:/var/www/html/config
+
+security:
+  https_redirect: true
+
 runtime:
   type: docker
   target_ref: srv-orangepi5
+  network_binding_ref: inst.vlan.servers
+  image: nextcloud:28
