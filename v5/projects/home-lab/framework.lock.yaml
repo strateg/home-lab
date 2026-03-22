@@ -6,6 +6,6 @@ framework:
   version: 5.0.0
   source: git
   repository: https://github.com/strateg/home-lab.git
-  revision: ef67b76eb71df719f0fc41299678d54c8b53df77
-  integrity: sha256-20610ba545926bdd3ac5b4279cb7d231719d4b697c9d4e9218ec1680d29a4314
-locked_at: '2026-03-22T21:07:13.371534+00:00'
+  revision: 577e5f0c79e58e2447fe9be26cceb93830a5b30b
+  integrity: sha256-153478a4a41e38a52e9ecd4d47eb29b4de256381acc334dc96eb928edd17dfe6
+locked_at: '2026-03-22T21:30:00.892879+00:00'

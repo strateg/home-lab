@@ -25,7 +25,7 @@
 | network.py | `check_vlan_tags` | `base.validator.network_vlan_tags` | Covered/Partial | Disable v4 check after fixture parity lock. |
 | network.py | `check_network_refs` | `base.validator.references`, `base.validator.network_core_refs` | Covered/Partial | Keep v4 fallback for advanced policy/profile scope; core bridge/trust-zone/manager refs parity and payload-shape parity are covered in v5 fixtures. |
 | network.py | `check_bridge_refs` | `base.validator.network_core_refs` | Covered/Partial | Disable v4 check after fixture parity lock. |
-| network.py | `check_data_links` | `object_network.validator_json.ethernet_cable_endpoints` | Partial | Keep v4 fallback for non-ethernet legacy scope. |
+| network.py | `check_data_links` | `object_network.validator_json.ethernet_cable_endpoints` | Covered/Partial | Disable v4 check after release preflight confirms non-ethernet endpoint/power_delivery parity fixtures. |
 | network.py | `check_power_links` | `base.validator.power_source_refs` | Covered/Partial | Disable v4 check after edge-case fixtures. |
 | network.py | `check_mtu_consistency` | `base.validator.network_mtu_consistency` | Covered/Partial | Disable v4 check after fixture parity lock. |
 | network.py | `check_vlan_zone_consistency` | `base.validator.network_vlan_zone_consistency` | Covered/Partial | Disable v4 check after warning parity review. |
@@ -90,8 +90,6 @@
 1. `check_network_refs` / `check_reserved_ranges` / `check_firewall_policy_addressability` /
    `check_ip_allocation_host_os_refs` / `check_runtime_network_reachability`:
    - non-VLAN legacy payload shapes (включая mixed legacy profiles) требуют отдельного parity fixture набора.
-2. `check_data_links`:
-   - за пределами ethernet scope (non-ethernet legacy data-link ветки) coverage остается в v4 fallback.
 
 ### 5.4 Storage
 

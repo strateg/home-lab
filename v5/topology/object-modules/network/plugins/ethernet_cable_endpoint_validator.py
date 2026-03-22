@@ -1,4 +1,4 @@
-"""Module-level validator for ethernet data-link endpoint wiring."""
+"""Module-level validator for ethernet and legacy data-link endpoint wiring."""
 
 from __future__ import annotations
 
@@ -14,10 +14,15 @@ from kernel.plugin_base import (
 
 
 class EthernetCableEndpointValidator(ValidatorJsonPlugin):
-    """Validate ethernet cable endpoints and created data-channel binding."""
+    """Validate ethernet cable contracts and legacy data-link endpoint semantics."""
 
     _PORT_INVENTORY_PLUGIN_ID = "base.validator.ethernet_port_inventory"
     _PORT_INVENTORY_KEY = "ethernet_ports_by_object"
+    _LEGACY_ENDPOINT_CODE = "E7309"
+    _LEGACY_POWER_DELIVERY_CODE = "E7310"
+    _PROVIDER_INSTANCE_SUBSTRATE = "provider-instance"
+    _PROVIDER_INSTANCE_CLASSES = {"class.compute.cloud_vm"}
+    _LEGACY_LINK_CLASSES = {"class.network.data_link", "class.network.physical_link"}
 
     @staticmethod
     def _subscribe_required(
@@ -65,22 +70,39 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
         except PluginDataExchangeError:
             # Fallback keeps standalone plugin execution deterministic in isolated tests.
             ethernet_inventory = {}
+
         instance_rows = self._build_instance_index(bindings)
+        interface_owner_map = self._build_interface_owner_map(
+            instance_rows=instance_rows,
+            ctx=ctx,
+        )
+
         for group_name, rows in bindings.items():
             if not isinstance(rows, list):
                 continue
             for index, row in enumerate(rows):
                 if not isinstance(row, dict):
                     continue
-                if not self._is_ethernet_cable_row(row):
-                    continue
                 prefix = f"instance_bindings.{group_name}[{index}]"
-                self._validate_cable_row(
+                if self._is_ethernet_cable_row(row):
+                    self._validate_cable_row(
+                        ctx=ctx,
+                        row=row,
+                        row_prefix=prefix,
+                        instance_rows=instance_rows,
+                        ethernet_inventory=ethernet_inventory,
+                        stage=stage,
+                        diagnostics=diagnostics,
+                    )
+                    continue
+                if not self._is_legacy_data_link_row(row=row, ctx=ctx):
+                    continue
+                self._validate_legacy_data_link_row(
                     ctx=ctx,
                     row=row,
                     row_prefix=prefix,
                     instance_rows=instance_rows,
-                    ethernet_inventory=ethernet_inventory,
+                    interface_owner_map=interface_owner_map,
                     stage=stage,
                     diagnostics=diagnostics,
                 )
@@ -91,6 +113,14 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
     def _is_ethernet_cable_row(row: dict[str, Any]) -> bool:
         object_ref = row.get("object_ref")
         return object_ref == "obj.network.ethernet_cable"
+
+    def _is_legacy_data_link_row(self, *, row: dict[str, Any], ctx: PluginContext) -> bool:
+        if self._is_ethernet_cable_row(row):
+            return False
+        class_ref = self._resolve_class_ref(row=row, ctx=ctx)
+        if class_ref not in self._LEGACY_LINK_CLASSES:
+            return False
+        return any(isinstance(row.get(name), dict) for name in ("endpoint_a", "endpoint_b"))
 
     @staticmethod
     def _build_instance_index(bindings: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -226,7 +256,7 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                     code="E7304",
                     severity="error",
                     stage=stage,
-                    message=("Ethernet cable instance must use class_ref " "'class.network.physical_link'."),
+                    message="Ethernet cable instance must use class_ref 'class.network.physical_link'.",
                     path=f"{row_prefix}.class_ref",
                 )
             )
@@ -298,7 +328,7 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                     code="E7307",
                     severity="error",
                     stage=stage,
-                    message=(f"Referenced instance '{creates_channel_ref}' must use " "'class.network.data_link'."),
+                    message=f"Referenced instance '{creates_channel_ref}' must use 'class.network.data_link'.",
                     path=f"{row_prefix}.creates_channel_ref",
                 )
             )
@@ -377,8 +407,244 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                                 "properties.backing_link_class='class.network.physical_link'."
                             ),
                             path=f"{row_prefix}.creates_channel_ref",
+                        )
+                    )
+
+    def _validate_legacy_data_link_row(
+        self,
+        *,
+        ctx: PluginContext,
+        row: dict[str, Any],
+        row_prefix: str,
+        instance_rows: dict[str, dict[str, Any]],
+        interface_owner_map: dict[str, set[str]],
+        stage: Stage,
+        diagnostics: list[Any],
+    ) -> None:
+        for endpoint_name in ("endpoint_a", "endpoint_b"):
+            endpoint = row.get(endpoint_name)
+            if not isinstance(endpoint, dict):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code=self._LEGACY_ENDPOINT_CODE,
+                        severity="error",
+                        stage=stage,
+                        message=f"'{endpoint_name}' must be an object in legacy data-link contract.",
+                        path=f"{row_prefix}.{endpoint_name}",
                     )
                 )
+                continue
+
+            device_ref = endpoint.get("device_ref")
+            external_ref = endpoint.get("external_ref")
+            interface_ref = endpoint.get("interface_ref")
+            if not isinstance(interface_ref, str) or not interface_ref:
+                port = endpoint.get("port")
+                interface_ref = port if isinstance(port, str) and port else None
+
+            if not isinstance(device_ref, str) or not device_ref:
+                device_ref = None
+            if not isinstance(external_ref, str) or not external_ref:
+                external_ref = None
+
+            if device_ref is None and external_ref is None:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code=self._LEGACY_ENDPOINT_CODE,
+                        severity="error",
+                        stage=stage,
+                        message=f"'{endpoint_name}' must define either device_ref or external_ref.",
+                        path=f"{row_prefix}.{endpoint_name}",
+                    )
+                )
+                continue
+
+            if device_ref is not None:
+                device_row = instance_rows.get(device_ref)
+                if not isinstance(device_row, dict):
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code=self._LEGACY_ENDPOINT_CODE,
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Legacy data-link endpoint '{endpoint_name}' references unknown "
+                                f"device_ref '{device_ref}'."
+                            ),
+                            path=f"{row_prefix}.{endpoint_name}.device_ref",
+                        )
+                    )
+                    continue
+                if self._is_provider_instance_device_row(row=device_row, ctx=ctx):
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code=self._LEGACY_ENDPOINT_CODE,
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Legacy data-link endpoint '{endpoint_name}' device_ref '{device_ref}' "
+                                "cannot target provider-instance devices."
+                            ),
+                            path=f"{row_prefix}.{endpoint_name}.device_ref",
+                        )
+                    )
+
+            if interface_ref is not None:
+                owners = interface_owner_map.get(interface_ref, set())
+                if not owners:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code=self._LEGACY_ENDPOINT_CODE,
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Legacy data-link endpoint '{endpoint_name}' interface_ref "
+                                f"'{interface_ref}' does not exist."
+                            ),
+                            path=f"{row_prefix}.{endpoint_name}.interface_ref",
+                        )
+                    )
+                    continue
+                if device_ref is not None and device_ref not in owners:
+                    owner_hint = ", ".join(sorted(owners))
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code=self._LEGACY_ENDPOINT_CODE,
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"Legacy data-link endpoint '{endpoint_name}' interface_ref '{interface_ref}' "
+                                f"belongs to '{owner_hint}', not '{device_ref}'."
+                            ),
+                            path=f"{row_prefix}.{endpoint_name}.interface_ref",
+                        )
+                    )
+
+        power_delivery = row.get("power_delivery")
+        if not isinstance(power_delivery, dict):
+            return
+
+        medium = self._resolve_row_medium(row=row, ctx=ctx)
+        link_type = self._resolve_row_link_type(row=row, ctx=ctx)
+        is_ethernet = medium == "ethernet" or link_type == "ethernet"
+        if not is_ethernet:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code=self._LEGACY_POWER_DELIVERY_CODE,
+                    severity="error",
+                    stage=stage,
+                    message="power_delivery is allowed only for ethernet data links.",
+                    path=f"{row_prefix}.power_delivery",
+                )
+            )
+
+        mode = power_delivery.get("mode")
+        if mode is not None and mode != "poe":
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code=self._LEGACY_POWER_DELIVERY_CODE,
+                    severity="error",
+                    stage=stage,
+                    message="power_delivery.mode must be 'poe' for data links.",
+                    path=f"{row_prefix}.power_delivery.mode",
+                )
+            )
+
+    def _build_interface_owner_map(
+        self,
+        *,
+        instance_rows: dict[str, dict[str, Any]],
+        ctx: PluginContext,
+    ) -> dict[str, set[str]]:
+        owners: dict[str, set[str]] = {}
+        for instance_id, row in instance_rows.items():
+            layer = row.get("layer")
+            if isinstance(layer, str) and layer and layer != "L1":
+                continue
+            class_ref = self._resolve_class_ref(row=row, ctx=ctx)
+            if class_ref in self._LEGACY_LINK_CLASSES:
+                continue
+            object_ref = row.get("object_ref")
+            object_payload = ctx.objects.get(object_ref) if isinstance(object_ref, str) else None
+            for interface_name in self._extract_interface_names(object_payload):
+                owners.setdefault(interface_name, set()).add(instance_id)
+        return owners
+
+    @staticmethod
+    def _extract_interface_names(object_payload: Any) -> set[str]:
+        if not isinstance(object_payload, dict):
+            return set()
+        hardware_specs = object_payload.get("hardware_specs")
+        if not isinstance(hardware_specs, dict):
+            return set()
+        interfaces = hardware_specs.get("interfaces")
+        if not isinstance(interfaces, dict):
+            return set()
+
+        names: set[str] = set()
+        for entries in interfaces.values():
+            if not isinstance(entries, list):
+                continue
+            for item in entries:
+                if not isinstance(item, dict):
+                    continue
+                name = item.get("name")
+                if isinstance(name, str) and name:
+                    names.add(name)
+        return names
+
+    def _resolve_row_medium(self, *, row: dict[str, Any], ctx: PluginContext) -> str | None:
+        medium = row.get("medium")
+        if isinstance(medium, str) and medium:
+            return medium.strip().lower()
+
+        object_ref = row.get("object_ref")
+        object_payload = ctx.objects.get(object_ref) if isinstance(object_ref, str) else None
+        if not isinstance(object_payload, dict):
+            return None
+        properties = object_payload.get("properties")
+        if not isinstance(properties, dict):
+            return None
+        candidate = properties.get("medium")
+        if isinstance(candidate, str) and candidate:
+            return candidate.strip().lower()
+        return None
+
+    def _resolve_row_link_type(self, *, row: dict[str, Any], ctx: PluginContext) -> str | None:
+        link_type = row.get("link_type")
+        if isinstance(link_type, str) and link_type:
+            return link_type.strip().lower()
+
+        object_ref = row.get("object_ref")
+        object_payload = ctx.objects.get(object_ref) if isinstance(object_ref, str) else None
+        if not isinstance(object_payload, dict):
+            return None
+        properties = object_payload.get("properties")
+        if not isinstance(properties, dict):
+            return None
+        candidate = properties.get("link_type")
+        if isinstance(candidate, str) and candidate:
+            return candidate.strip().lower()
+        return None
+
+    def _is_provider_instance_device_row(self, *, row: dict[str, Any], ctx: PluginContext) -> bool:
+        class_ref = self._resolve_class_ref(row=row, ctx=ctx)
+        if isinstance(class_ref, str) and class_ref in self._PROVIDER_INSTANCE_CLASSES:
+            return True
+
+        substrate = row.get("substrate")
+        if isinstance(substrate, str) and substrate.strip().lower() == self._PROVIDER_INSTANCE_SUBSTRATE:
+            return True
+
+        object_ref = row.get("object_ref")
+        object_payload = ctx.objects.get(object_ref) if isinstance(object_ref, str) else None
+        if not isinstance(object_payload, dict):
+            return False
+        properties = object_payload.get("properties")
+        if not isinstance(properties, dict):
+            return False
+        object_substrate = properties.get("substrate")
+        return isinstance(object_substrate, str) and object_substrate.strip().lower() == self._PROVIDER_INSTANCE_SUBSTRATE
 
     @staticmethod
     def _extract_ethernet_ports(object_payload: Any) -> set[str]:

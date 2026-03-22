@@ -88,7 +88,7 @@ Legend:
 | `check_vlan_tags` | `base.validator.network_vlan_tags` | Covered/Partial | Добавлен validator для workload vlan_tag consistency (mismatch/missing/non-vlan-aware bridge warnings). |
 | `check_network_refs` | `base.validator.references` + `base.validator.network_core_refs` | Covered/Partial | Добавлена core проверка VLAN refs (bridge/trust_zone/managed_by) с parity для object/extension/top-level payload путей; policy scope всё ещё шире в v4. |
 | `check_bridge_refs` | `base.validator.network_core_refs` | Covered/Partial | Добавлена bridge.host_ref existence/layer validation. |
-| `check_data_links` | `object_network.validator_json.ethernet_cable_endpoints` | Partial | Закрыта ethernet data-link ветка (`E7304-E7308`), не весь legacy scope. |
+| `check_data_links` | `object_network.validator_json.ethernet_cable_endpoints` | Covered/Partial | Расширен validator на legacy/non-ethernet endpoint semantics (`device_ref/external_ref`, `interface_ref` ownership, provider-instance запрет, `power_delivery` medium/mode) + parity fixture. |
 | `check_power_links` | `base.validator.power_source_refs` | Covered/Partial | Основная семантика power.source_ref/occupancy есть; проверить parity по edge cases. |
 | `check_mtu_consistency` | `base.validator.network_mtu_consistency` | Covered/Partial | Добавлен validator для jumbo_frames=true при mtu<=1500. |
 | `check_vlan_zone_consistency` | `base.validator.network_vlan_zone_consistency` | Covered/Partial | Добавлен warning-based validator для VLAN id vs trust-zone vlan_ids контракта. |

@@ -15,4 +15,4 @@ plugins:
       type: object
       properties: {}
       required: []
-    description: Validates ethernet data-link endpoints and linkage to a created data-channel instance.
+    description: Validates ethernet cable/channel contracts and legacy data-link endpoint semantics.
