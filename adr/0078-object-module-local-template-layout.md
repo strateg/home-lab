@@ -476,32 +476,32 @@ Ownership:
 
 ### Phase 6: Instance Isolation and Cross-Object Boundary Enforcement
 
-1. **Instance literal cleanup:**
-   - audit all object-level generators for hardcoded IPs, hostnames, ports;
-   - refactor to derive values from projection or ctx.config;
-   - add instance-literal-scan test to CI.
+1. **Instance literal cleanup (completed 2026-03-22):**
+   - audited object-level generators for hardcoded IPs/hostnames;
+   - refactored endpoint resolution to projection/config-first flow;
+   - added enforcement in plugin contract boundary tests.
 
-2. **Cross-object import prohibition:**
-   - add `test_object_modules_do_not_cross_import()` to plugin contract tests;
-   - scan all `object-modules/*/plugins/*.py` for forbidden import patterns;
-   - fix any violations found.
+2. **Cross-object import prohibition (completed 2026-03-22):**
+   - added `test_object_modules_do_not_cross_import_other_object_modules()` to plugin contract tests;
+   - added AST-based scan across `object-modules/*/plugins/*.py`;
+   - violations are hard failures.
 
-3. **Dynamic object discovery:**
-   - replace `OBJECT_PROJECTION_PATHS` dict with discovery function;
-   - add `@lru_cache` for performance;
-   - add test verifying discovery finds all expected modules.
+3. **Dynamic object discovery (completed 2026-03-22):**
+   - replaced `OBJECT_PROJECTION_PATHS` static dict with dynamic discovery;
+   - added `@lru_cache` for discovered paths;
+   - added discovery integration tests.
 
-4. **Capability-template externalization:**
+4. **Capability-template externalization (pending):**
    - move capability-template mappings from generator code to `plugins.yaml`;
    - update generators to read mappings from config;
    - add schema validation for capability config.
 
-**Go/No-Go:** proceed only when all instance literals are removed, cross-object tests pass, and discovery is dynamic.
+**Go/No-Go:** proceed to Phase 7 only when capability-template mappings are externalized and validated.
 
 **Exit artifacts:**
-- `test_instance_literal_isolation.py` passing in CI;
-- `test_object_modules_do_not_cross_import()` passing;
-- `test_dynamic_object_discovery()` passing;
+- `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts` passing;
+- `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import_other_object_modules` passing;
+- `v5/tests/plugin_integration/test_object_projection_loader.py` passing;
 - capability mappings externalized in all object module manifests.
 
 ### Phase 7: Projection Architecture Consolidation
@@ -562,14 +562,14 @@ Minimum verification set per migration batch:
 Additional verification for Phase 6-7:
 
 6. Instance isolation enforcement:
-   - `v5/tests/plugin_contract/test_instance_literal_isolation.py`
+   - `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts`
    - regex scan for IP patterns: `\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`
    - regex scan for hostname patterns: `\b[a-z][\w-]*\.(local|home|lan|internal)\b`
 7. Cross-object import prohibition:
-   - `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import`
+   - `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import_other_object_modules`
    - AST scan for `from topology.object_modules.<other>` patterns
 8. Dynamic object discovery:
-   - `v5/tests/plugin_contract/test_dynamic_object_discovery.py`
+   - `v5/tests/plugin_integration/test_object_projection_loader.py`
    - verify no hardcoded object module paths in framework code
 9. Capability-template externalization:
    - `v5/tests/plugin_contract/test_capability_template_config.py`
@@ -613,20 +613,22 @@ Phase 6-7 acceptance criteria:
    - `adr/0078-analysis/IMPLEMENTATION-PLAN.md`
    - `adr/plan/0078-plugin-layering-and-v4-v5-migration-plan.md`
 
-**Phase 6-7 status (added 2026-03-22):**
+**Phase 6-7 status (updated 2026-03-22):**
 
 5. Phase 6 (Instance Isolation and Cross-Object Boundary Enforcement):
-   - Status: **Ready for execution**
-   - Known violations identified:
-     - hardcoded IPs in `terraform_mikrotik_generator.py:64` and `terraform_proxmox_generator.py:65`;
-     - hardcoded object paths in `object_projection_loader.py:14-18`;
-     - no cross-object import test exists.
-   - Required tests: `test_instance_literal_isolation.py`, `test_object_modules_do_not_cross_import()`.
+   - Status: **Partially completed**
+   - Completed:
+     - removed hardcoded instance endpoints from object terraform generators;
+     - switched projection loader to dynamic discovery;
+     - added cross-object import and literal endpoint enforcement in plugin contract tests;
+     - added discovery coverage in integration tests.
+   - Remaining:
+     - capability-template externalization to plugin config (`WP9`).
 
 6. Phase 7 (Projection Architecture Consolidation):
-   - Status: **Ready for execution** (after Phase 6)
+   - Status: **Ready for execution** (after WP9)
    - Current state: hybrid architecture (core + object + _shared);
-   - Target: clear ownership boundaries with documented discovery contract.
+   - Target: clear ownership boundaries with documented discovery contract and ownership tests.
 
 ---
 
@@ -647,8 +649,7 @@ Phase 6-7 acceptance criteria:
 - `v5/tests/plugin_integration/test_generator_projection_contract.py`
 - `v5/tests/plugin_integration/test_generator_template_and_publish_contract.py`
 - `v5/tests/plugin_contract/test_plugin_level_boundaries.py`
-- `v5/tests/plugin_contract/test_instance_literal_isolation.py` (Phase 6)
-- `v5/tests/plugin_contract/test_dynamic_object_discovery.py` (Phase 6)
+- `v5/tests/plugin_integration/test_object_projection_loader.py` (Phase 6)
 - `v5/tests/plugin_contract/test_capability_template_config.py` (Phase 6)
 - `v5/tests/plugin_contract/test_projection_ownership_boundaries.py` (Phase 7)
 - `adr/0078-analysis/IMPLEMENTATION-PLAN.md`

@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-21
 **ADR:** `adr/0078-object-module-local-template-layout.md`
-**Status:** Completed for generator scope; Phase 6-7 added for boundary enforcement
+**Status:** Active for boundary hardening (generator scope complete; Wave 9-10 pending)
 **Amended:** 2026-03-22 (compilers/validators/generators unified rules)
 **Amended:** 2026-03-22 (instance isolation, cross-object boundaries, dynamic discovery)
 
@@ -293,373 +293,65 @@ Ready-to-start sequence:
 
 ---
 
-## 11. Phase 6: Instance Isolation and Cross-Object Boundary Enforcement (2026-03-22)
+## 11. Phase 6-10 Execution Update (2026-03-22)
 
-**Goal:** Enforce strict boundaries identified during code analysis.
+Status summary:
 
-### Wave 6: Instance Literal Cleanup
+1. **Wave 6 (instance literal cleanup): completed**
+   - hardcoded endpoint literals removed from object terraform generators;
+   - endpoint resolution is projection/config-first.
+2. **Wave 7 (cross-object import prohibition): completed**
+   - added AST-based cross-object import guard in `test_plugin_level_boundaries.py`.
+3. **Wave 8 (dynamic object discovery): completed**
+   - replaced static projection path mapping with dynamic discovery + cache;
+   - added discovery coverage in `test_object_projection_loader.py`.
+4. **Wave 9 (capability-template externalization): pending**
+   - capability->template mapping still hardcoded in generator code.
+5. **Wave 10 (projection ownership consolidation): pending**
+   - ownership guard tests and consolidation pass still to be finalized.
 
-**Problem:** Object-level generators contain hardcoded instance-specific data.
+Remaining execution scope:
 
-**Known violations:**
-
-1. `v5/topology/object-modules/mikrotik/plugins/terraform_mikrotik_generator.py:64`:
-   ```python
-   mikrotik_host = "https://192.168.88.1:8443"
-   ```
-
-2. `v5/topology/object-modules/proxmox/plugins/terraform_proxmox_generator.py:65`:
-   ```python
-   proxmox_api_url = "https://proxmox.local:8006/api2/json"
-   ```
-
-**Changes:**
-
-1. Refactor generators to derive API URLs from projection data:
-   ```python
-   # Before
-   mikrotik_host = "https://192.168.88.1:8443"
-   if routers:
-       mikrotik_host = f"https://{routers[0]}:8443"
-
-   # After
-   def _resolve_api_url(self, projection: dict, ctx: PluginContext) -> str:
-       """Derive API URL from projection or config."""
-       if projection.get("routers"):
-           host = projection["routers"][0]
-       else:
-           host = ctx.config.get("default_api_host", "${MIKROTIK_HOST}")
-       port = ctx.config.get("api_port", 8443)
-       return f"https://{host}:{port}"
-   ```
-
-2. Add `api_host` and `api_port` to plugin manifest config schema.
-
-3. Create `v5/tests/plugin_contract/test_instance_literal_isolation.py`:
-   ```python
-   """Test that object-level plugins don't contain instance-specific literals."""
-
-   import re
-   from pathlib import Path
-
-   # Patterns for instance-specific literals
-   IP_PATTERN = re.compile(r'\b(?:192\.168|10\.0|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b')
-   HOSTNAME_PATTERN = re.compile(r'\b[a-z][\w-]*\.(local|home|lan|internal)\b', re.I)
-
-   def test_no_hardcoded_ips_in_object_generators():
-       object_plugins = Path("v5/topology/object-modules").rglob("plugins/*.py")
-       violations = []
-       for plugin_file in object_plugins:
-           if plugin_file.name.startswith("_"):
-               continue
-           content = plugin_file.read_text()
-           for match in IP_PATTERN.finditer(content):
-               violations.append(f"{plugin_file}:{match.group()}")
-       assert not violations, f"Hardcoded IPs found: {violations}"
-
-   def test_no_hardcoded_hostnames_in_object_generators():
-       object_plugins = Path("v5/topology/object-modules").rglob("plugins/*.py")
-       violations = []
-       for plugin_file in object_plugins:
-           if plugin_file.name.startswith("_"):
-               continue
-           content = plugin_file.read_text()
-           for match in HOSTNAME_PATTERN.finditer(content):
-               violations.append(f"{plugin_file}:{match.group()}")
-       assert not violations, f"Hardcoded hostnames found: {violations}"
-   ```
-
-**Exit criteria:**
-
-1. No hardcoded IPs in object-level generator code.
-2. No hardcoded hostnames in object-level generator code.
-3. `test_instance_literal_isolation.py` passes in CI.
+1. Externalize capability-template mapping to module config and validate schema.
+2. Add dedicated ownership-boundary checks for projection builders (core/object/_shared).
+3. Update authoring docs with finalized import/discovery/capability contracts.
 
 ---
 
-### Wave 7: Cross-Object Import Prohibition
+## 12. Verification Matrix (Current + Remaining)
 
-**Problem:** No enforcement prevents object modules from importing each other.
+Mandatory gates (current baseline):
 
-**Changes:**
+1. `python -m pytest -o addopts= v5/tests/plugin_contract/test_plugin_level_boundaries.py -q`
+2. `python -m pytest -o addopts= v5/tests/plugin_integration/test_object_projection_loader.py -q`
+3. `python -m pytest -o addopts= v5/tests/plugin_integration/test_terraform_mikrotik_generator.py v5/tests/plugin_integration/test_terraform_proxmox_generator.py -q`
+4. `python -m pytest -o addopts= v5/tests/plugin_integration -q`
+5. `python v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough`
+6. `python v5/topology-tools/verify-framework-lock.py --strict`
 
-1. Add test to `v5/tests/plugin_contract/test_plugin_level_boundaries.py`:
-   ```python
-   def test_object_modules_do_not_cross_import():
-       """Verify object modules don't import from each other."""
-       import ast
-       from pathlib import Path
+Additional gates for remaining Wave 9-10 scope:
 
-       object_modules_root = Path("v5/topology/object-modules")
-       violations = []
-
-       for obj_dir in object_modules_root.iterdir():
-           if not obj_dir.is_dir() or obj_dir.name.startswith("_"):
-               continue
-
-           for py_file in (obj_dir / "plugins").rglob("*.py"):
-               content = py_file.read_text()
-               tree = ast.parse(content)
-
-               for node in ast.walk(tree):
-                   if isinstance(node, (ast.Import, ast.ImportFrom)):
-                       module = getattr(node, "module", None) or ""
-                       for alias in getattr(node, "names", []):
-                           full_name = f"{module}.{alias.name}" if module else alias.name
-                           # Check for cross-object imports
-                           if "object_modules." in full_name or "object-modules/" in full_name:
-                               for other_obj in object_modules_root.iterdir():
-                                   if other_obj.name != obj_dir.name and other_obj.name in full_name:
-                                       violations.append(
-                                           f"{py_file}: imports from {other_obj.name}"
-                                       )
-
-       assert not violations, f"Cross-object imports found:\n" + "\n".join(violations)
-   ```
-
-2. Document allowed import patterns in `PLUGIN_AUTHORING.md`:
-   - `from topology.object_modules._shared.plugins import ...` ✓
-   - `from plugins.generators.base_generator import ...` ✓
-   - `from topology.object_modules.proxmox.plugins import ...` ✗ (in mikrotik module)
-
-**Exit criteria:**
-
-1. No cross-object imports in any object module.
-2. Test added to `test_plugin_level_boundaries.py`.
-3. Documentation updated.
+1. capability-template config contract test (new)
+2. projection ownership boundary contract test (new)
 
 ---
 
-### Wave 8: Dynamic Object Discovery
+## 13. Risks and Controls (Remaining Scope)
 
-**Problem:** `object_projection_loader.py` contains hardcoded object module paths.
-
-**Known violation:**
-
-```python
-# v5/topology-tools/plugins/generators/object_projection_loader.py:14-18
-OBJECT_PROJECTION_PATHS: dict[str, Path] = {
-    "proxmox": OBJECT_MODULES_ROOT / "proxmox" / "plugins" / "projections.py",
-    "mikrotik": OBJECT_MODULES_ROOT / "mikrotik" / "plugins" / "projections.py",
-}
-```
-
-**Changes:**
-
-1. Replace static dict with discovery function:
-   ```python
-   from functools import lru_cache
-   from pathlib import Path
-
-   OBJECT_MODULES_ROOT = Path(__file__).parent.parent.parent.parent / "topology" / "object-modules"
-
-   @lru_cache(maxsize=1)
-   def discover_object_projection_modules() -> dict[str, Path]:
-       """Dynamically discover projection modules from filesystem."""
-       result = {}
-       for obj_dir in OBJECT_MODULES_ROOT.iterdir():
-           if not obj_dir.is_dir():
-               continue
-           if obj_dir.name.startswith("_"):
-               continue
-           projection_path = obj_dir / "plugins" / "projections.py"
-           if projection_path.exists():
-               result[obj_dir.name] = projection_path
-       return result
-
-   def load_object_projection_module(object_id: str):
-       """Load projection module for given object ID."""
-       available = discover_object_projection_modules()
-       if object_id not in available:
-           raise ValueError(
-               f"Unknown object_id '{object_id}'. "
-               f"Available: {list(available.keys())}"
-           )
-       # ... rest of loading logic
-   ```
-
-2. Add test `v5/tests/plugin_contract/test_dynamic_object_discovery.py`:
-   ```python
-   def test_no_hardcoded_object_module_paths():
-       """Verify framework code uses dynamic discovery."""
-       from pathlib import Path
-
-       loader_path = Path("v5/topology-tools/plugins/generators/object_projection_loader.py")
-       content = loader_path.read_text()
-
-       # Check for hardcoded object IDs
-       assert "\"proxmox\":" not in content, "Hardcoded 'proxmox' mapping found"
-       assert "\"mikrotik\":" not in content, "Hardcoded 'mikrotik' mapping found"
-
-   def test_discovery_finds_all_modules():
-       """Verify discovery finds all expected object modules."""
-       from v5.topology_tools.plugins.generators.object_projection_loader import (
-           discover_object_projection_modules
-       )
-
-       discovered = discover_object_projection_modules()
-       expected = {"proxmox", "mikrotik"}  # Add new modules here
-
-       assert expected.issubset(set(discovered.keys())), \
-           f"Missing modules: {expected - set(discovered.keys())}"
-   ```
-
-**Exit criteria:**
-
-1. `OBJECT_PROJECTION_PATHS` dict replaced with discovery function.
-2. No hardcoded object IDs in loader code.
-3. Discovery test passes.
+1. Risk: capability externalization changes generator output unexpectedly.
+   - Control: artifact snapshot/integration tests before and after refactor.
+2. Risk: projection ownership split introduces duplicate helpers or regressions.
+   - Control: explicit ownership test and `_shared` helper inventory.
+3. Risk: schema/config drift across module manifests.
+   - Control: strict manifest validation + plugin contract suite in CI.
 
 ---
 
-### Wave 9: Capability-Template Externalization
-
-**Problem:** Generators contain hardcoded capability-to-template mappings.
-
-**Known violation:**
-
-```python
-# v5/topology/object-modules/mikrotik/plugins/terraform_mikrotik_generator.py:106-111
-if has_qos:
-    templates["qos.tf"] = "terraform/qos.tf.j2"
-if has_wireguard:
-    templates["vpn.tf"] = "terraform/vpn.tf.j2"
-if has_containers:
-    templates["containers.tf"] = "terraform/containers.tf.j2"
-```
-
-**Changes:**
-
-1. Add capability mappings to `v5/topology/object-modules/mikrotik/plugins.yaml`:
-   ```yaml
-   generators:
-     - id: obj_mikrotik.generator.terraform
-       # ... existing config ...
-       config:
-         capability_templates:
-           - capability: capabilities.qos
-             template: terraform/qos.tf.j2
-             output: qos.tf
-           - capability: capabilities.wireguard
-             template: terraform/vpn.tf.j2
-             output: vpn.tf
-           - capability: capabilities.containers
-             template: terraform/containers.tf.j2
-             output: containers.tf
-   ```
-
-2. Refactor generator to read from config:
-   ```python
-   def _get_capability_templates(
-       self, projection: dict, ctx: PluginContext
-   ) -> dict[str, str]:
-       """Resolve templates based on projection capabilities and config."""
-       templates = {}
-       cap_configs = ctx.config.get("capability_templates", [])
-
-       for cap_config in cap_configs:
-           capability_path = cap_config["capability"]
-           if self._check_capability(projection, capability_path):
-               templates[cap_config["output"]] = cap_config["template"]
-
-       return templates
-
-   def _check_capability(self, projection: dict, capability_path: str) -> bool:
-       """Check if capability is enabled in projection."""
-       parts = capability_path.split(".")
-       value = projection
-       for part in parts:
-           if isinstance(value, dict):
-               value = value.get(part)
-           else:
-               return False
-       return bool(value)
-   ```
-
-3. Add test `v5/tests/plugin_contract/test_capability_template_config.py`:
-   ```python
-   def test_generators_use_config_for_capability_templates():
-       """Verify generators don't hardcode capability-template mappings."""
-       from pathlib import Path
-       import re
-
-       # Pattern for hardcoded capability checks
-       HARDCODED_PATTERN = re.compile(
-           r'if\s+has_(qos|wireguard|containers|vpn):\s*\n\s*templates\[',
-           re.MULTILINE
-       )
-
-       violations = []
-       for gen_file in Path("v5/topology/object-modules").rglob("*_generator.py"):
-           content = gen_file.read_text()
-           if HARDCODED_PATTERN.search(content):
-               violations.append(str(gen_file))
-
-       assert not violations, f"Hardcoded capability templates in: {violations}"
-   ```
-
-**Exit criteria:**
-
-1. Capability-template mappings moved to plugin config.
-2. Generators read mappings from config.
-3. No hardcoded `if has_*:` patterns in generator code.
-4. Config schema validates capability mappings.
-
----
-
-## 12. Verification Matrix (Phase 6-7)
-
-Required after each wave:
-
-1. Instance isolation:
-   - `python -m pytest v5/tests/plugin_contract/test_instance_literal_isolation.py -q`
-
-2. Cross-object import:
-   - `python -m pytest v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import -q`
-
-3. Dynamic discovery:
-   - `python -m pytest v5/tests/plugin_contract/test_dynamic_object_discovery.py -q`
-
-4. Capability templates:
-   - `python -m pytest v5/tests/plugin_contract/test_capability_template_config.py -q`
-
-5. Full plugin contract suite:
-   - `python -m pytest v5/tests/plugin_contract -q`
-
-6. Regression check:
-   - `python -m pytest v5/tests/plugin_integration -q`
-   - `python v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough`
-
----
-
-## 13. Risks and Controls (Phase 6-7)
-
-1. Risk: refactoring breaks existing generator output.
-   - Control: snapshot tests for generated artifacts.
-   - Control: run full parity suite before/after each wave.
-
-2. Risk: dynamic discovery misses new modules.
-   - Control: explicit test for expected module set.
-   - Control: CI failure on discovery mismatch.
-
-3. Risk: config schema changes break existing manifests.
-   - Control: backwards-compatible schema evolution.
-   - Control: validate all manifests in CI.
-
-4. Risk: regex patterns have false positives.
-   - Control: explicit allowlist for legitimate patterns.
-   - Control: review flagged patterns manually.
-
----
-
-## 14. Definition of Done (Phase 6-7)
+## 14. Definition of Done (Wave 9-10)
 
 All must be true:
 
-1. No hardcoded IPs or hostnames in object-level generators.
-2. No cross-object imports in object modules.
-3. Object module discovery is fully dynamic.
-4. Capability-template mappings are in config, not code.
-5. All new tests pass in CI.
-6. Full regression suite passes.
-7. Framework lock regenerated and validated.
+1. Capability-template mappings are fully externalized to module config.
+2. Generators consume capability-template mappings via config only.
+3. Projection ownership boundaries (core/object/_shared) are documented and test-enforced.
+4. Plugin contract suite, full integration suite, strict compile, and lock verification are green.

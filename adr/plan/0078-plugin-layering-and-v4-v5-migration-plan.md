@@ -1,7 +1,7 @@
 # Plugin Layering + v4->v5 Migration Plan
 
 **Date:** 2026-03-22
-**Status:** Completed (Waves A-F); Phase 6-7 added for boundary enforcement
+**Status:** Active (Waves A-F completed; WP9-WP10 execution pending)
 **Related ADRs:** 0063, 0069, 0074, 0078
 **See also:** `adr/plan/0078-v5-unified-plugin-refactor-prep.md` (WP6-WP10)
 
@@ -383,7 +383,7 @@ Wave F completed:
 
 Closure evidence (2026-03-22):
 
-1. `python -m pytest -o addopts= v5/tests/plugin_integration -q` -> PASS (`442 passed`).
+1. `python -m pytest -o addopts= v5/tests/plugin_integration -q` -> PASS (`449 passed`).
 2. `task test:parity-v4-v5` -> PASS (`37 passed`).
 3. `python v5/topology-tools/cutover-readiness-report.py --output v5-build/diagnostics/cutover-readiness-full-latest.json` -> PASS (all non-quick gates green).
 
@@ -391,19 +391,19 @@ Closure evidence (2026-03-22):
 
 ## 8. Phase 6-7: Boundary Enforcement (2026-03-22)
 
-**Status:** Ready for execution
+**Status:** In progress (WP6-WP8 completed; WP9-WP10 pending)
 
 After code audit, additional violations were identified that require new waves:
 
 ### Known Violations
 
-| Type | Location | Issue |
-|------|----------|-------|
-| Instance literal | `mikrotik/terraform_mikrotik_generator.py:64` | Hardcoded `192.168.88.1` |
-| Instance literal | `proxmox/terraform_proxmox_generator.py:65` | Hardcoded `proxmox.local` |
-| Hardcoded paths | `object_projection_loader.py:14-18` | Static `OBJECT_PROJECTION_PATHS` dict |
-| Capability coupling | `terraform_mikrotik_generator.py:106-111` | Hardcoded capability→template mapping |
-| Missing enforcement | `test_plugin_level_boundaries.py` | No cross-object import scan |
+| Type | Location | Issue | State |
+|------|----------|-------|-------|
+| Instance literal | `mikrotik/terraform_mikrotik_generator.py` | Hardcoded endpoint removed | Resolved |
+| Instance literal | `proxmox/terraform_proxmox_generator.py` | Hardcoded endpoint removed | Resolved |
+| Hardcoded paths | `object_projection_loader.py` | Static mapping replaced by discovery | Resolved |
+| Missing enforcement | `test_plugin_level_boundaries.py` | Cross-object import scan added | Resolved |
+| Capability coupling | `terraform_mikrotik_generator.py` | Hardcoded capability→template mapping | Pending |
 
 ### New Work Packages
 
@@ -418,24 +418,24 @@ Detailed implementation tracked in `adr/plan/0078-v5-unified-plugin-refactor-pre
 ### Execution Order
 
 ```
-Batch B: WP6 (Instance Isolation)
+Batch B: WP6 (Instance Isolation) - completed
     ↓
-Batch C: WP7 (Cross-Object Boundaries)
+Batch C: WP7 (Cross-Object Boundaries) - completed
     ↓
-Batch D: WP8 (Dynamic Discovery)
+Batch D: WP8 (Dynamic Discovery) - completed
     ↓
-Batch E: WP9 (Capability Externalization)
+Batch E: WP9 (Capability Externalization) - pending
     ↓
-Batch F: WP10 (Projection Consolidation)
+Batch F: WP10 (Projection Consolidation) - pending
 ```
 
 ### New Tests Required
 
-1. `v5/tests/plugin_contract/test_instance_literal_isolation.py`
-2. `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import`
-3. `v5/tests/plugin_contract/test_dynamic_object_discovery.py`
-4. `v5/tests/plugin_contract/test_capability_template_config.py`
-5. `v5/tests/plugin_contract/test_projection_ownership_boundaries.py`
+1. `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts`
+2. `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import_other_object_modules`
+3. `v5/tests/plugin_integration/test_object_projection_loader.py`
+4. `v5/tests/plugin_contract/test_capability_template_config.py` (new, pending)
+5. `v5/tests/plugin_contract/test_projection_ownership_boundaries.py` (new, pending)
 
 ### Extended Acceptance Criteria
 

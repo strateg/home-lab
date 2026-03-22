@@ -1,7 +1,7 @@
 # ADR0078: v5 Unified Plugin Refactor Preparation
 
 **Date:** 2026-03-22
-**Status:** Ready for execution
+**Status:** In progress (WP6-WP8 completed; WP9-WP10 pending)
 **Amended:** 2026-03-22 (WP6-WP10 added for boundary enforcement)
 **Related:** `adr/0078-object-module-local-template-layout.md`, `adr/plan/0078-plugin-layering-and-v4-v5-migration-plan.md`
 
@@ -53,15 +53,15 @@
    - какой глобальный плагин оркестрирует какие specialized плагины;
    - какой контракт заменяет прямую зависимость.
 
-### 3.1 Known Violations (2026-03-22 Audit)
+### 3.1 Violation Status (2026-03-22)
 
-| Violation Type | Location | Details |
-|----------------|----------|---------|
-| Instance literal | `mikrotik/plugins/terraform_mikrotik_generator.py:64` | Hardcoded IP `192.168.88.1` |
-| Instance literal | `proxmox/plugins/terraform_proxmox_generator.py:65` | Hardcoded hostname `proxmox.local` |
-| Hardcoded paths | `object_projection_loader.py:14-18` | Static dict `OBJECT_PROJECTION_PATHS` |
-| Capability coupling | `terraform_mikrotik_generator.py:106-111` | Hardcoded `if has_qos/wireguard/containers` |
-| Missing test | `test_plugin_level_boundaries.py` | No cross-object import scan |
+| Violation Type | Location | Details | State |
+|----------------|----------|---------|-------|
+| Instance literal | `mikrotik/plugins/terraform_mikrotik_generator.py` | Hardcoded IP removed; config/projection resolution added | Resolved |
+| Instance literal | `proxmox/plugins/terraform_proxmox_generator.py` | Hardcoded hostname removed; config/projection resolution added | Resolved |
+| Hardcoded paths | `object_projection_loader.py` | Static mapping replaced with dynamic discovery | Resolved |
+| Missing test | `test_plugin_level_boundaries.py` | Cross-object import scan added | Resolved |
+| Capability coupling | `terraform_mikrotik_generator.py` | Hardcoded `if has_qos/wireguard/containers` mapping | Pending |
 
 ---
 
@@ -110,32 +110,14 @@
 
 **Цель:** Убрать все instance-specific литералы из object-level кода.
 
-**Scope:**
-- Сканировать все `object-modules/*/plugins/*.py` на IP-адреса и hostnames;
-- Рефакторить генераторы на получение данных из projection/config;
-- Добавить CI enforcement.
+**Execution result (done):**
 
-**Tasks:**
+1. Hardcoded endpoints removed from object terraform generators.
+2. API endpoint resolution moved to config/projection-first flow.
+3. CI enforcement added in:
+   - `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts`
 
-1. Создать `v5/tests/plugin_contract/test_instance_literal_isolation.py`:
-   ```python
-   IP_PATTERN = re.compile(r'\b(?:192\.168|10\.0|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b')
-   HOSTNAME_PATTERN = re.compile(r'\b[a-z][\w-]*\.(local|home|lan|internal)\b', re.I)
-   ```
-
-2. Рефакторить `terraform_mikrotik_generator.py`:
-   - Удалить `mikrotik_host = "https://192.168.88.1:8443"`
-   - Добавить `_resolve_api_url(projection, ctx)` method
-
-3. Рефакторить `terraform_proxmox_generator.py`:
-   - Удалить `proxmox_api_url = "https://proxmox.local:8006/api2/json"`
-   - Добавить `_resolve_api_url(projection, ctx)` method
-
-4. Добавить `api_host`, `api_port` в config schema генераторов.
-
-**Exit criteria:**
-- `test_instance_literal_isolation.py` проходит;
-- Нет hardcoded IPs/hostnames в object plugins.
+**Exit criteria:** completed.
 
 ---
 
@@ -143,22 +125,13 @@
 
 **Цель:** Запретить импорты между object modules.
 
-**Tasks:**
+**Execution result (done):**
 
-1. Добавить тест `test_object_modules_do_not_cross_import()` в `test_plugin_level_boundaries.py`:
-   ```python
-   # Scan for patterns like:
-   # from topology.object_modules.proxmox import ...
-   # inside mikrotik module
-   ```
+1. AST-based cross-object import guard added in:
+   - `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import_other_object_modules`
+2. Current object plugin tree passes contract checks.
 
-2. Проверить текущее состояние и зафиксировать violations.
-
-3. Документировать allowed vs prohibited import patterns в `PLUGIN_AUTHORING.md`.
-
-**Exit criteria:**
-- Тест добавлен и проходит;
-- Документация обновлена.
+**Exit criteria:** completed.
 
 ---
 
@@ -166,20 +139,13 @@
 
 **Цель:** Убрать hardcoded object paths из framework кода.
 
-**Tasks:**
+**Execution result (done):**
 
-1. Рефакторить `v5/topology-tools/plugins/generators/object_projection_loader.py`:
-   - Заменить `OBJECT_PROJECTION_PATHS` dict на `discover_object_projection_modules()`;
-   - Добавить `@lru_cache` для performance.
+1. `object_projection_loader.py` switched to filesystem discovery + `@lru_cache`.
+2. Discovery behavior covered by:
+   - `v5/tests/plugin_integration/test_object_projection_loader.py`.
 
-2. Создать `v5/tests/plugin_contract/test_dynamic_object_discovery.py`:
-   - Проверить что discovery находит все ожидаемые modules;
-   - Проверить отсутствие hardcoded paths.
-
-**Exit criteria:**
-- Нет статических object ID mappings;
-- Discovery test проходит;
-- Добавление нового object module не требует изменения framework.
+**Exit criteria:** completed.
 
 ---
 
@@ -234,11 +200,11 @@
 Рекомендуемый порядок выполнения:
 
 1. **Batch A**: Core Import Hygiene (WP1-WP5 completed)
-2. **Batch B**: Instance Isolation (WP6)
-3. **Batch C**: Cross-Object Boundaries (WP7)
-4. **Batch D**: Dynamic Discovery (WP8)
-5. **Batch E**: Capability Externalization (WP9)
-6. **Batch F**: Projection Consolidation (WP10)
+2. **Batch B**: Instance Isolation (WP6 completed)
+3. **Batch C**: Cross-Object Boundaries (WP7 completed)
+4. **Batch D**: Dynamic Discovery (WP8 completed)
+5. **Batch E**: Capability Externalization (WP9 pending)
+6. **Batch F**: Projection Consolidation (WP10 pending)
 
 После каждого batch:
 - Regenerate framework lock;
@@ -249,13 +215,13 @@
 
 ## 9. Extended Mandatory Gates
 
-Для WP6-WP10 добавляются gates:
+Для remaining scope (WP9-WP10) сохраняются и/или добавляются gates:
 
-1. `python -m pytest v5/tests/plugin_contract/test_instance_literal_isolation.py -q`
-2. `python -m pytest v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import -q`
-3. `python -m pytest v5/tests/plugin_contract/test_dynamic_object_discovery.py -q`
-4. `python -m pytest v5/tests/plugin_contract/test_capability_template_config.py -q`
-5. `python -m pytest v5/tests/plugin_contract/test_projection_ownership_boundaries.py -q`
+1. `python -m pytest -o addopts= v5/tests/plugin_contract/test_plugin_level_boundaries.py -q`
+2. `python -m pytest -o addopts= v5/tests/plugin_integration/test_object_projection_loader.py -q`
+3. `python -m pytest -o addopts= v5/tests/plugin_integration -q`
+4. `python -m pytest -o addopts= v5/tests/plugin_contract/test_capability_template_config.py -q` (new)
+5. `python -m pytest -o addopts= v5/tests/plugin_contract/test_projection_ownership_boundaries.py -q` (new)
 
 Все gates должны быть green перед release.
 
@@ -265,8 +231,8 @@
 
 К существующим критериям добавляются:
 
-6. WP6: No instance literals in object plugins.
-7. WP7: No cross-object imports.
-8. WP8: Object discovery is dynamic.
-9. WP9: Capability templates in config.
-10. WP10: Projection ownership boundaries documented and tested.
+6. WP6: No instance literals in object plugins. (done)
+7. WP7: No cross-object imports. (done)
+8. WP8: Object discovery is dynamic. (done)
+9. WP9: Capability templates in config. (pending)
+10. WP10: Projection ownership boundaries documented and tested. (pending)
