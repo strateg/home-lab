@@ -292,8 +292,14 @@ Wave D in progress:
    - `base.validator.certificate_refs`
    - `base.validator.backup_refs`
    - `base.validator.security_policy_refs`
+   - `base.validator.host_os_refs`
+   - extended `base.validator.vm_refs` / `base.validator.lxc_refs` with host_os-device binding parity (`os_refs` membership, host_os_ref requirement for multi-active bindings)
 6. Added draft deprecation matrix:
    - `adr/plan/0078-v4-validator-deprecation-matrix.md`
 7. Added v4/v5 side-by-side parity fixture:
    - `v5/tests/plugin_integration/test_storage_l3_v4_v5_warning_parity.py`
    - `v5/tests/plugin_integration/test_service_refs_v4_v5_parity.py`
+   - `v5/tests/plugin_integration/test_network_refs_v4_v5_parity.py`
+   - `v5/tests/plugin_integration/test_governance_v4_v5_parity.py`
+   - `v5/tests/plugin_integration/test_host_os_refs_v4_v5_parity.py`
+   - `v5/tests/plugin_integration/test_vm_lxc_host_os_v4_v5_parity.py`

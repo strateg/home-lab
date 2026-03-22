@@ -542,6 +542,51 @@ plugins:
       required: []
     description: Validates security_policy_ref links against security policy rows.
 
+  - id: base.validator.vm_refs
+    kind: validator_json
+    entry: validators/vm_refs_validator.py:VmRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 139
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates VM row refs (device/trust-zone/host-os/networks/storage).
+
+  - id: base.validator.lxc_refs
+    kind: validator_json
+    entry: validators/lxc_refs_validator.py:LxcRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 140
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates LXC row refs (device/trust-zone/host-os/networks/storage).
+
+  - id: base.validator.host_os_refs
+    kind: validator_json
+    entry: validators/host_os_refs_validator.py:HostOsRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 141
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates runtime targets have active host OS bindings when OS inventory exists.
+
   - id: base.validator.storage_l3_refs
     kind: validator_json
     entry: validators/storage_l3_refs_validator.py:StorageL3RefsValidator

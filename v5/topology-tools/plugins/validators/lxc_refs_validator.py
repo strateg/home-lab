@@ -1,0 +1,336 @@
+"""LXC reference validator."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from kernel.plugin_base import (
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+    ValidatorJsonPlugin,
+)
+
+
+class LxcRefsValidator(ValidatorJsonPlugin):
+    """Validate LXC row references (device/trust-zone/host-os/networks/storage)."""
+
+    _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
+    _ROWS_KEY = "normalized_rows"
+    _LXC_CLASS = "class.compute.workload.container"
+    _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+        try:
+            rows_payload = ctx.subscribe(self._ROWS_PLUGIN_ID, self._ROWS_KEY)
+        except PluginDataExchangeError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7880",
+                    severity="error",
+                    stage=stage,
+                    message=f"lxc_refs validator requires normalized rows: {exc}",
+                    path="pipeline:validate",
+                )
+            )
+            return self.make_result(diagnostics)
+
+        rows = [item for item in rows_payload if isinstance(item, dict)] if isinstance(rows_payload, list) else []
+        row_by_id: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            row_id = row.get("instance")
+            if isinstance(row_id, str) and row_id:
+                row_by_id[row_id] = row
+
+        for row in rows:
+            if row.get("class_ref") != self._LXC_CLASS:
+                continue
+            row_id = row.get("instance")
+            group = row.get("group")
+            row_prefix = f"instance:{group}:{row_id}"
+            extensions = self._extensions(row)
+            device_ref = extensions.get("device_ref")
+            host_os_ref = extensions.get("host_os_ref")
+            device_row = row_by_id.get(device_ref) if isinstance(device_ref, str) else None
+
+            self._validate_ref(
+                row_id=row_id,
+                field_name="device_ref",
+                value=device_ref,
+                row_by_id=row_by_id,
+                expected=lambda target: target.get("layer") == "L1",
+                expected_label="L1 device instance",
+                code="E7881",
+                stage=stage,
+                path=f"{row_prefix}.device_ref",
+                diagnostics=diagnostics,
+            )
+            self._validate_ref(
+                row_id=row_id,
+                field_name="trust_zone_ref",
+                value=extensions.get("trust_zone_ref"),
+                row_by_id=row_by_id,
+                expected=lambda target: target.get("class_ref") == "class.network.trust_zone",
+                expected_label="class.network.trust_zone instance",
+                code="E7882",
+                stage=stage,
+                path=f"{row_prefix}.trust_zone_ref",
+                diagnostics=diagnostics,
+            )
+            self._validate_ref(
+                row_id=row_id,
+                field_name="host_os_ref",
+                value=host_os_ref,
+                row_by_id=row_by_id,
+                expected=lambda target: target.get("class_ref") == "class.os",
+                expected_label="class.os instance",
+                code="E7883",
+                stage=stage,
+                path=f"{row_prefix}.host_os_ref",
+                diagnostics=diagnostics,
+            )
+            if isinstance(host_os_ref, str) and host_os_ref and isinstance(device_row, dict):
+                device_os_refs = device_row.get("os_refs")
+                if isinstance(device_os_refs, list) and device_os_refs and host_os_ref not in device_os_refs:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7883",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"LXC '{row_id}' host_os_ref '{host_os_ref}' is not listed in "
+                                f"device '{device_ref}' os_refs."
+                            ),
+                            path=f"{row_prefix}.host_os_ref",
+                        )
+                    )
+            if host_os_ref is None and isinstance(device_row, dict):
+                active_os_refs = self._active_os_refs(device_row=device_row, row_by_id=row_by_id)
+                if len(active_os_refs) > 1:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7883",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"LXC '{row_id}' device '{device_ref}' has multiple active OS bindings "
+                                f"{sorted(active_os_refs)}; host_os_ref is required."
+                            ),
+                            path=f"{row_prefix}.host_os_ref",
+                        )
+                    )
+            self._validate_ref(
+                row_id=row_id,
+                field_name="template_ref",
+                value=extensions.get("template_ref"),
+                row_by_id=row_by_id,
+                expected=lambda target: True,
+                expected_label="known instance",
+                code="E7884",
+                stage=stage,
+                path=f"{row_prefix}.template_ref",
+                diagnostics=diagnostics,
+            )
+
+            networks = extensions.get("networks")
+            if networks is not None and not isinstance(networks, list):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7885",
+                        severity="error",
+                        stage=stage,
+                        message="LXC networks must be a list when set.",
+                        path=f"{row_prefix}.networks",
+                    )
+                )
+            elif isinstance(networks, list):
+                for idx, nic in enumerate(networks):
+                    if not isinstance(nic, dict):
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="E7885",
+                                severity="error",
+                                stage=stage,
+                                message="LXC network entries must be objects.",
+                                path=f"{row_prefix}.networks[{idx}]",
+                            )
+                        )
+                        continue
+                    self._validate_ref(
+                        row_id=row_id,
+                        field_name="network_ref",
+                        value=nic.get("network_ref"),
+                        row_by_id=row_by_id,
+                        expected=lambda target: target.get("class_ref") == "class.network.vlan",
+                        expected_label="class.network.vlan instance",
+                        code="E7885",
+                        stage=stage,
+                        path=f"{row_prefix}.networks[{idx}].network_ref",
+                        diagnostics=diagnostics,
+                    )
+
+            storage = extensions.get("storage")
+            if storage is None:
+                continue
+            if not isinstance(storage, dict):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7886",
+                        severity="error",
+                        stage=stage,
+                        message="LXC storage must be an object when set.",
+                        path=f"{row_prefix}.storage",
+                    )
+                )
+                continue
+
+            rootfs = storage.get("rootfs")
+            if isinstance(rootfs, dict):
+                rootfs_storage_ref = rootfs.get("storage_endpoint_ref")
+                if rootfs_storage_ref is None:
+                    rootfs_storage_ref = rootfs.get("storage_ref")
+                self._validate_ref(
+                    row_id=row_id,
+                    field_name="rootfs.storage_ref",
+                    value=rootfs_storage_ref,
+                    row_by_id=row_by_id,
+                    expected=lambda target: target.get("class_ref") == "class.storage.storage_endpoint",
+                    expected_label="class.storage.storage_endpoint instance",
+                    code="E7886",
+                    stage=stage,
+                    path=f"{row_prefix}.storage.rootfs.storage_ref",
+                    diagnostics=diagnostics,
+                )
+                self._validate_ref(
+                    row_id=row_id,
+                    field_name="rootfs.data_asset_ref",
+                    value=rootfs.get("data_asset_ref"),
+                    row_by_id=row_by_id,
+                    expected=lambda target: target.get("class_ref") == "class.storage.data_asset",
+                    expected_label="class.storage.data_asset instance",
+                    code="E7887",
+                    stage=stage,
+                    path=f"{row_prefix}.storage.rootfs.data_asset_ref",
+                    diagnostics=diagnostics,
+                )
+
+            volumes = storage.get("volumes")
+            if volumes is None:
+                continue
+            if not isinstance(volumes, list):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7886",
+                        severity="error",
+                        stage=stage,
+                        message="LXC storage.volumes must be a list when set.",
+                        path=f"{row_prefix}.storage.volumes",
+                    )
+                )
+                continue
+            for idx, volume in enumerate(volumes):
+                if not isinstance(volume, dict):
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7886",
+                            severity="error",
+                            stage=stage,
+                            message="LXC storage.volumes entries must be objects.",
+                            path=f"{row_prefix}.storage.volumes[{idx}]",
+                        )
+                    )
+                    continue
+                volume_storage_ref = volume.get("storage_endpoint_ref")
+                if volume_storage_ref is None:
+                    volume_storage_ref = volume.get("storage_ref")
+                self._validate_ref(
+                    row_id=row_id,
+                    field_name="volume.storage_ref",
+                    value=volume_storage_ref,
+                    row_by_id=row_by_id,
+                    expected=lambda target: target.get("class_ref") == "class.storage.storage_endpoint",
+                    expected_label="class.storage.storage_endpoint instance",
+                    code="E7886",
+                    stage=stage,
+                    path=f"{row_prefix}.storage.volumes[{idx}].storage_ref",
+                    diagnostics=diagnostics,
+                )
+                self._validate_ref(
+                    row_id=row_id,
+                    field_name="volume.data_asset_ref",
+                    value=volume.get("data_asset_ref"),
+                    row_by_id=row_by_id,
+                    expected=lambda target: target.get("class_ref") == "class.storage.data_asset",
+                    expected_label="class.storage.data_asset instance",
+                    code="E7887",
+                    stage=stage,
+                    path=f"{row_prefix}.storage.volumes[{idx}].data_asset_ref",
+                    diagnostics=diagnostics,
+                )
+
+        return self.make_result(diagnostics)
+
+    def _validate_ref(
+        self,
+        *,
+        row_id: Any,
+        field_name: str,
+        value: Any,
+        row_by_id: dict[str, dict[str, Any]],
+        expected: Any,
+        expected_label: str,
+        code: str,
+        stage: Stage,
+        path: str,
+        diagnostics: list[PluginDiagnostic],
+    ) -> None:
+        if value is None:
+            return
+        if not isinstance(value, str) or not value:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code=code,
+                    severity="error",
+                    stage=stage,
+                    message=f"LXC '{row_id}' {field_name} must be a non-empty string when set.",
+                    path=path,
+                )
+            )
+            return
+        target = row_by_id.get(value)
+        if not isinstance(target, dict) or not expected(target):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code=code,
+                    severity="error",
+                    stage=stage,
+                    message=f"LXC '{row_id}' {field_name} '{value}' must reference a valid {expected_label}.",
+                    path=path,
+                )
+            )
+
+    @staticmethod
+    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
+        extensions = row.get("extensions")
+        if isinstance(extensions, dict):
+            return extensions
+        return {}
+
+    def _active_os_refs(self, *, device_row: dict[str, Any], row_by_id: dict[str, dict[str, Any]]) -> set[str]:
+        active_refs: set[str] = set()
+        os_refs = device_row.get("os_refs")
+        if not isinstance(os_refs, list):
+            return active_refs
+        for os_ref in os_refs:
+            if not isinstance(os_ref, str) or not os_ref:
+                continue
+            os_row = row_by_id.get(os_ref)
+            if not isinstance(os_row, dict) or os_row.get("class_ref") != "class.os":
+                continue
+            status = str(os_row.get("status") or "").strip().lower()
+            if not status or status in self._ACTIVE_OS_STATUSES:
+                active_refs.add(os_ref)
+        return active_refs

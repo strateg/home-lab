@@ -50,6 +50,9 @@
 32. `object_network.validator_json.ethernet_cable_endpoints`
 33. `object_mikrotik.validator_json.router_ports`
 34. `object_glinet.validator_json.router_ports`
+35. `base.validator.vm_refs`
+36. `base.validator.lxc_refs`
+37. `base.validator.host_os_refs`
 
 ---
 
@@ -100,9 +103,9 @@ Legend:
 
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
-| `check_host_os_refs` | `base.validator.embedded_in` + `base.validator.references` + `base.validator.runtime_target_os_binding` | Partial | Добавлена runtime-target OS binding проверка; остаётся расширить parity по host_os/storage-specific правилам. |
-| `check_vm_refs` | `base.validator.references` | Partial | |
-| `check_lxc_refs` | `base.validator.references` | Partial | |
+| `check_host_os_refs` | `base.validator.embedded_in` + `base.validator.references` + `base.validator.runtime_target_os_binding` + `base.validator.host_os_refs` | Covered/Partial | Добавлен host_os thin-wrapper для runtime-target device OS binding parity; остаётся расширить parity по host_os installation/storage-specific правилам. |
+| `check_vm_refs` | `base.validator.references` + `base.validator.vm_refs` | Covered/Partial | Добавлен VM thin-wrapper (`device_ref/trust_zone_ref/host_os_ref/template_ref/networks/storage`) + host_os/device binding parity (`os_refs` membership, host_os_ref required on multi-active bindings). |
+| `check_lxc_refs` | `base.validator.references` + `base.validator.lxc_refs` | Covered/Partial | Добавлен LXC thin-wrapper (`device_ref/trust_zone_ref/host_os_ref/template_ref/networks/storage rootfs/volumes`) + host_os/device binding parity (`os_refs` membership, host_os_ref required on multi-active bindings). |
 | `check_service_refs` | `base.validator.references` + `base.validator.service_runtime_refs` + `base.validator.runtime_target_os_binding` + `base.validator.service_dependency_refs` | Partial | Добавлены runtime/service-dependency validators; legacy service policy checks всё ещё шире. |
 | `check_dns_refs` | `base.validator.references` + `base.validator.dns_refs` | Covered/Partial | Добавлен DNS thin-wrapper для record refs (`device_ref/lxc_ref/service_ref`) в DNS service rows. |
 | `check_certificate_refs` | `base.validator.references` + `base.validator.certificate_refs` | Covered/Partial | Добавлен thin-wrapper для `service_ref` и `used_by[].service_ref` в certificate rows. |
@@ -139,4 +142,4 @@ Legend:
 
 1. Верифицировать draft deprecation-матрицу `adr/plan/0078-v4-validator-deprecation-matrix.md` на owner review и cutover gates.
 2. Запланировать cutover: перевести `base.validator.references` в более узкий scope после закрепления parity thin-wrappers.
-3. Расширить side-by-side snapshot на network/governance warning-semantics parity fixtures (storage+service baseline уже добавлен).
+3. Расширить `base.validator.host_os_refs` parity для host_os installation/storage-specific контрактов (`root_storage_endpoint_ref`, host_type-policy).
