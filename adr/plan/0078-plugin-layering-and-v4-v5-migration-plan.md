@@ -248,3 +248,28 @@ Exit:
 6. Wave F
 
 После закрытия Wave F обновить статус плана на `Completed` и синхронизировать связанные ADR implementation status sections.
+
+### Progress Snapshot (2026-03-22)
+
+Completed:
+
+1. **Wave A**: removed `sys.path.insert(...)` from v5 plugin code (compilers/validators/generators), registry/manifest tests green.
+2. **Wave C**: removed legacy orphan `port_occupancy_validator.py` from active path.
+3. **Wave B**: introduced `base.validator.ethernet_port_inventory`; rewired `object_network.validator_json.ethernet_cable_endpoints` from object-vendor hard deps to upper-level contract.
+
+Wave D in progress:
+
+1. Added mapping document: `adr/plan/0078-wave-d-v4-validator-mapping.md`.
+2. Added D1 validators:
+   - `base.validator.governance_contract`
+   - `base.validator.foundation_layout`
+3. Added D2 validators (partial v4 parity):
+   - `base.validator.network_ip_overlap`
+   - `base.validator.single_active_os`
+   - `base.validator.network_reserved_ranges`
+   - `base.validator.network_trust_zone_firewall_refs`
+   - `base.validator.network_firewall_addressability`
+   - `base.validator.runtime_target_os_binding`
+   - `base.validator.storage_l3_refs`
+   - `base.validator.network_ip_allocation_host_os_refs`
+   - `base.validator.network_vlan_zone_consistency`

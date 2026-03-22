@@ -88,3 +88,30 @@ def test_governance_contract_validator_warns_on_meta_project_mismatch():
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.PARTIAL
     assert any(diag.code == "E7806" for diag in result.diagnostics)
+
+
+def test_governance_contract_validator_rejects_metadata_date_order():
+    registry = _registry()
+    manifest = _valid_manifest()
+    manifest["meta"]["metadata"] = {
+        "created": "2026-03-22",
+        "last_updated": "2026-03-01",
+    }
+
+    result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7808" for diag in result.diagnostics)
+
+
+def test_governance_contract_validator_warns_on_changelog_version_gap():
+    registry = _registry()
+    manifest = _valid_manifest()
+    manifest["meta"]["metadata"] = {
+        "created": "2026-03-01",
+        "last_updated": "2026-03-22",
+        "changelog": [{"version": "5.0.1", "note": "next release"}],
+    }
+
+    result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7810" for diag in result.diagnostics)

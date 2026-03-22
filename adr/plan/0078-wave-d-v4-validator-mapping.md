@@ -51,9 +51,9 @@ Legend:
 
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
-| `check_l0_contracts` | `base.validator.governance_contract` | Partial | Добавлен v5 governance contract validator; нужно расширить parity по refs/defaults/changelog логике. |
+| `check_l0_contracts` | `base.validator.governance_contract` | Partial | Добавлен v5 governance contract validator (framework/project/meta + metadata dates/changelog); нужно расширить parity по refs/defaults. |
 | `check_version` | `base.validator.governance_contract` + compiler/model contract checks | Covered/Partial | Проверка major-version добавлена в plugin; parity по v4 warning semantics можно расширять отдельно. |
-| `check_ip_overlaps` | new `base.validator.network.ip_overlap` | Gap | Нет отдельного overlap validator в v5 plugins. |
+| `check_ip_overlaps` | `base.validator.network_ip_overlap` | Partial | Добавлен duplicate IP detector по normalized rows; можно расширить parity по network-scoped error/warning semantics. |
 
 ### 3.3 Network
 
@@ -65,19 +65,19 @@ Legend:
 | `check_data_links` | `object_network.validator_json.ethernet_cable_endpoints` | Partial | Закрыта ethernet data-link ветка (`E7304-E7308`), не весь legacy scope. |
 | `check_power_links` | `base.validator.power_source_refs` | Covered/Partial | Основная семантика power.source_ref/occupancy есть; проверить parity по edge cases. |
 | `check_mtu_consistency` | new `base.validator.network.mtu_consistency` | Gap | |
-| `check_vlan_zone_consistency` | new `base.validator.network.vlan_zone_consistency` | Gap | |
-| `check_reserved_ranges` | new `base.validator.network.reserved_ranges` | Gap | |
-| `check_trust_zone_firewall_refs` | new `base.validator.network.trust_zone_firewall_refs` | Gap | |
-| `check_firewall_policy_addressability` | new `base.validator.network.firewall_addressability` | Gap | |
-| `check_ip_allocation_host_os_refs` | new `base.validator.network.ip_allocation_host_os_refs` | Gap | |
+| `check_vlan_zone_consistency` | `base.validator.network_vlan_zone_consistency` | Covered/Partial | Добавлен warning-based validator для VLAN id vs trust-zone vlan_ids контракта. |
+| `check_reserved_ranges` | `base.validator.network_reserved_ranges` | Partial | Добавлен validator для VLAN reserved_ranges (границы CIDR + overlap); можно расширить на все network object shapes при необходимости. |
+| `check_trust_zone_firewall_refs` | `base.validator.network_trust_zone_firewall_refs` | Covered/Partial | Добавлен validator для default_firewall_policy_ref trust-zone instances. |
+| `check_firewall_policy_addressability` | `base.validator.network_firewall_addressability` | Partial | Добавлен warning-based validator для addressability refs (dhcp network refs / zones without static CIDR). |
+| `check_ip_allocation_host_os_refs` | `base.validator.network_ip_allocation_host_os_refs` | Partial | Добавлен validator для host_os_ref/device_ref consistency внутри network ip_allocations. |
 | `check_runtime_network_reachability` | new `base.validator.network.runtime_reachability` | Gap | |
-| `check_single_active_os_per_device` | new `base.validator.network.single_active_os_per_device` | Gap | |
+| `check_single_active_os_per_device` | `base.validator.single_active_os` | Covered/Partial | Добавлен single-active-os validator по normalized rows; при необходимости расширить parity под legacy host_operating_systems inventory. |
 
 ### 3.4 References
 
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
-| `check_host_os_refs` | `base.validator.embedded_in` + `base.validator.references` | Partial | |
+| `check_host_os_refs` | `base.validator.embedded_in` + `base.validator.references` + `base.validator.runtime_target_os_binding` | Partial | Добавлена runtime-target OS binding проверка; остаётся расширить parity по host_os/storage-specific правилам. |
 | `check_vm_refs` | `base.validator.references` | Partial | |
 | `check_lxc_refs` | `base.validator.references` | Partial | |
 | `check_service_refs` | `base.validator.references` | Partial | |
@@ -92,7 +92,7 @@ Legend:
 |---|---|---|---|
 | `check_device_storage_taxonomy` | new `base.validator.storage.device_taxonomy` | Gap | |
 | `check_l1_media_inventory` | new `base.validator.storage.media_inventory` | Gap | |
-| `check_l3_storage_refs` | `base.validator.references` | Partial | Есть relation validation, но не весь storage parity set. |
+| `check_l3_storage_refs` | `base.validator.references` + `base.validator.storage_l3_refs` | Partial | Добавлен L3 storage refs validator (volume->pool, data_asset->volume); расширить parity для partition/vg/lv/filesystem/mount/storage_endpoint. |
 
 ---
 

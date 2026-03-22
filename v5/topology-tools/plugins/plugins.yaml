@@ -212,6 +212,141 @@ plugins:
       required: []
     description: Validates ADR0062 L1 lateral relation power.source_ref and outlet occupancy constraints.
 
+  - id: base.validator.network_ip_overlap
+    kind: validator_json
+    entry: validators/network_ip_overlap_validator.py:NetworkIpOverlapValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 116
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Detects duplicate IP reuse across normalized instance rows.
+
+  - id: base.validator.single_active_os
+    kind: validator_json
+    entry: validators/single_active_os_validator.py:SingleActiveOsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 117
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Enforces at most one active OS ref per device row.
+
+  - id: base.validator.network_reserved_ranges
+    kind: validator_json
+    entry: validators/network_reserved_ranges_validator.py:NetworkReservedRangesValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 118
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates VLAN reserved_ranges ranges, bounds, and overlaps.
+
+  - id: base.validator.network_trust_zone_firewall_refs
+    kind: validator_json
+    entry: validators/network_trust_zone_firewall_refs_validator.py:NetworkTrustZoneFirewallRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 119
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates trust-zone default firewall policy references.
+
+  - id: base.validator.network_firewall_addressability
+    kind: validator_json
+    entry: validators/network_firewall_addressability_validator.py:NetworkFirewallAddressabilityValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 121
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Warns when firewall policy refs cannot resolve to static address sets.
+
+  - id: base.validator.runtime_target_os_binding
+    kind: validator_json
+    entry: validators/runtime_target_os_binding_validator.py:RuntimeTargetOsBindingValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 122
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Warns when docker/baremetal service runtime targets lack os_refs bindings.
+
+  - id: base.validator.network_ip_allocation_host_os_refs
+    kind: validator_json
+    entry: validators/network_ip_allocation_host_os_refs_validator.py:NetworkIpAllocationHostOsRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 124
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates network ip_allocations host_os_ref/device_ref consistency.
+
+  - id: base.validator.network_vlan_zone_consistency
+    kind: validator_json
+    entry: validators/network_vlan_zone_consistency_validator.py:NetworkVlanZoneConsistencyValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 125
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Warns when VLAN id is outside trust-zone vlan_ids contract.
+
+  - id: base.validator.storage_l3_refs
+    kind: validator_json
+    entry: validators/storage_l3_refs_validator.py:StorageL3RefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 123
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates L3 storage references (volume->pool, data_asset->volume).
+
   - id: base.validator.embedded_in
     kind: validator_json
     entry: validators/embedded_in_validator.py:EmbeddedInValidator

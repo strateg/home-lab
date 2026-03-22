@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorYamlPlugin
@@ -110,7 +111,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
 
         meta = raw.get("meta")
         if isinstance(meta, dict):
-            self._validate_meta(meta=meta, stage=stage, diagnostics=diagnostics, project=project)
+            self._validate_meta(meta=meta, stage=stage, diagnostics=diagnostics, project=project, version=version)
 
         return self.make_result(diagnostics)
 
@@ -119,6 +120,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         *,
         meta: dict[str, Any],
         project: Any,
+        version: Any,
         stage: Stage,
         diagnostics: list[Any],
     ) -> None:
@@ -162,3 +164,64 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
                     path="topology:meta.status",
                 )
             )
+
+        metadata = meta.get("metadata")
+        if isinstance(metadata, dict):
+            self._validate_metadata(
+                metadata=metadata,
+                version=version,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
+
+    def _validate_metadata(
+        self,
+        *,
+        metadata: dict[str, Any],
+        version: Any,
+        stage: Stage,
+        diagnostics: list[Any],
+    ) -> None:
+        created = metadata.get("created")
+        last_updated = metadata.get("last_updated")
+        if isinstance(created, str) and isinstance(last_updated, str):
+            try:
+                created_dt = datetime.strptime(created, "%Y-%m-%d").date()
+                updated_dt = datetime.strptime(last_updated, "%Y-%m-%d").date()
+                if updated_dt < created_dt:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7808",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"meta.metadata.last_updated '{last_updated}' is earlier than "
+                                f"created '{created}'."
+                            ),
+                            path="topology:meta.metadata.last_updated",
+                        )
+                    )
+            except ValueError:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W7809",
+                        severity="warning",
+                        stage=stage,
+                        message="meta.metadata.created/last_updated should use YYYY-MM-DD format.",
+                        path="topology:meta.metadata",
+                    )
+                )
+
+        changelog = metadata.get("changelog")
+        if isinstance(version, str) and version and isinstance(changelog, list) and changelog:
+            has_version = any(isinstance(entry, dict) and entry.get("version") == version for entry in changelog)
+            if not has_version:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W7810",
+                        severity="warning",
+                        stage=stage,
+                        message=f"meta.metadata.changelog does not contain current version '{version}'.",
+                        path="topology:meta.metadata.changelog",
+                    )
+                )
