@@ -1,10 +1,55 @@
 instance: lxc-gitea
-object_ref: obj.proxmox.lxc.debian12.base
+object_ref: obj.proxmox.lxc.debian12.gitea
 group: lxc
 layer: L4
 version: 1.0.0
 source_id: lxc-gitea
 status: mapped
-notes: module scaffold exists; capability profile tuning pending
+notes: Gitea self-hosted Git service
+
+vmid: 203
+hostname: gitea
+description: Gitea self-hosted Git service
+tags:
+  - git
+  - production
+
+host_ref: srv-gamayun
+trust_zone_ref: inst.trust_zone.servers
+
 os_refs:
-- inst.os.debian.12.proxmox.lxc
+  - inst.os.debian.12.proxmox.lxc
+
+resources:
+  cores: 2
+  memory_mb: 2048
+  swap_mb: 1024
+
+boot:
+  onboot: true
+  startup_order: 21
+
+storage:
+  rootfs:
+    pool_ref: inst.storage.pool.local_lvm
+    size_gb: 8
+
+network:
+  interface: eth0
+  bridge_ref: inst.bridge.vmbr0
+  vlan_ref: inst.vlan.servers
+  ip: 10.0.30.40/24
+  gateway: 10.0.30.1
+  firewall: false
+
+dns:
+  nameserver: 192.168.88.1
+  searchdomain: home.local
+
+cloudinit:
+  enabled: true
+  user: root
+
+ansible:
+  enabled: true
+  playbook: gitea.yml

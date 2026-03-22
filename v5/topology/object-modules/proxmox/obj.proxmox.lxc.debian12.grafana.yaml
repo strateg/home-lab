@@ -1,0 +1,19 @@
+object: obj.proxmox.lxc.debian12.grafana
+class_ref: class.compute.workload.container
+version: 1.0.0
+model: LXC Debian 12 Grafana
+vendor: proxmox
+description: Grafana observability dashboards container
+software_contract:
+  os_obj_refs:
+  - obj.os.debian.12.proxmox.lxc
+  os_cardinality:
+    min: 1
+    max: 1
+  multi_boot: false
+enabled_capabilities:
+- cap.compute.workload.container
+- cap.compute.workload.linux_base
+vendor_capabilities:
+- vendor.proxmox.runtime.lxc
+- vendor.service.grafana.dashboard

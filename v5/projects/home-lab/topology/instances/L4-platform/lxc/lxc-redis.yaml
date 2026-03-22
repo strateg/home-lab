@@ -5,6 +5,55 @@ layer: L4
 version: 1.0.0
 source_id: lxc-redis
 status: mapped
-notes: module scaffold exists; capability profile tuning pending
+notes: Redis Cache Server
+
+vmid: 201
+hostname: redis-cache
+description: Redis Cache Server
+tags:
+  - cache
+  - production
+
+host_ref: srv-gamayun
+trust_zone_ref: inst.trust_zone.servers
+
 os_refs:
-- inst.os.debian.12.proxmox.lxc
+  - inst.os.debian.12.proxmox.lxc
+
+resources:
+  cores: 1
+  memory_mb: 512
+  swap_mb: 512
+
+boot:
+  onboot: true
+  startup_order: 11
+
+storage:
+  rootfs:
+    pool_ref: inst.storage.pool.local_lvm
+    size_gb: 4
+  volumes:
+    - mount_path: /var/lib/redis
+      pool_ref: inst.storage.pool.local_lvm
+      size_gb: 4
+
+network:
+  interface: eth0
+  bridge_ref: inst.bridge.vmbr0
+  vlan_ref: inst.vlan.servers
+  ip: 10.0.30.20/24
+  gateway: 10.0.30.1
+  firewall: false
+
+dns:
+  nameserver: 192.168.88.1
+  searchdomain: home.local
+
+cloudinit:
+  enabled: true
+  user: redis
+
+ansible:
+  enabled: true
+  playbook: redis.yml

@@ -5,6 +5,58 @@ layer: L4
 version: 1.0.0
 source_id: lxc-postgresql
 status: mapped
-notes: module scaffold exists; capability profile tuning pending
+notes: PostgreSQL Database Server
+
+vmid: 200
+hostname: postgresql-db
+description: PostgreSQL Database Server
+tags:
+  - database
+  - production
+
+host_ref: srv-gamayun
+trust_zone_ref: inst.trust_zone.servers
+
 os_refs:
-- inst.os.debian.12.proxmox.lxc
+  - inst.os.debian.12.proxmox.lxc
+
+resources:
+  cores: 2
+  memory_mb: 1024
+  swap_mb: 1024
+
+boot:
+  onboot: true
+  startup_order: 10
+
+storage:
+  rootfs:
+    pool_ref: inst.storage.pool.local_lvm
+    size_gb: 8
+  volumes:
+    - mount_path: /var/lib/postgresql/data
+      pool_ref: inst.storage.pool.local_lvm
+      size_gb: 20
+    - mount_path: /var/backups/postgresql
+      pool_ref: inst.storage.pool.local_hdd
+      size_gb: 50
+
+network:
+  interface: eth0
+  bridge_ref: inst.bridge.vmbr0
+  vlan_ref: inst.vlan.servers
+  ip: 10.0.30.10/24
+  gateway: 10.0.30.1
+  firewall: false
+
+dns:
+  nameserver: 192.168.88.1
+  searchdomain: home.local
+
+cloudinit:
+  enabled: true
+  user: postgres
+
+ansible:
+  enabled: true
+  playbook: postgresql.yml

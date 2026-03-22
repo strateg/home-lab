@@ -1,10 +1,55 @@
 instance: lxc-nextcloud
-object_ref: obj.proxmox.lxc.debian12.base
+object_ref: obj.proxmox.lxc.debian12.nextcloud
 group: lxc
 layer: L4
 version: 1.0.0
 source_id: lxc-nextcloud
 status: mapped
-notes: module scaffold exists; capability profile tuning pending
+notes: Nextcloud file sync and collaboration
+
+vmid: 202
+hostname: nextcloud
+description: Nextcloud file sync and collaboration
+tags:
+  - web
+  - production
+
+host_ref: srv-gamayun
+trust_zone_ref: inst.trust_zone.servers
+
 os_refs:
-- inst.os.debian.12.proxmox.lxc
+  - inst.os.debian.12.proxmox.lxc
+
+resources:
+  cores: 2
+  memory_mb: 2048
+  swap_mb: 1024
+
+boot:
+  onboot: true
+  startup_order: 20
+
+storage:
+  rootfs:
+    pool_ref: inst.storage.pool.local_lvm
+    size_gb: 20
+
+network:
+  interface: eth0
+  bridge_ref: inst.bridge.vmbr0
+  vlan_ref: inst.vlan.servers
+  ip: 10.0.30.30/24
+  gateway: 10.0.30.1
+  firewall: false
+
+dns:
+  nameserver: 192.168.88.1
+  searchdomain: home.local
+
+cloudinit:
+  enabled: true
+  user: root
+
+ansible:
+  enabled: true
+  playbook: nextcloud.yml
