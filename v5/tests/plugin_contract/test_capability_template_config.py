@@ -9,6 +9,7 @@ import yaml
 
 V5_ROOT = Path(__file__).resolve().parents[2]
 MIKROTIK_MANIFEST = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins.yaml"
+PROXMOX_MANIFEST = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins.yaml"
 MIKROTIK_GENERATOR = (
     V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py"
 )
@@ -45,6 +46,8 @@ def test_mikrotik_manifest_externalizes_capability_template_mapping() -> None:
         assert isinstance(row.get("output_file"), str) and row.get("output_file"), (
             f"capability_templates[{idx}].output_file must be non-empty string"
         )
+    assert "mikrotik_api_host" in config
+    assert "mikrotik_host" in config
 
 
 def test_mikrotik_manifest_schema_declares_capability_template_structure() -> None:
@@ -61,6 +64,20 @@ def test_mikrotik_manifest_schema_declares_capability_template_structure() -> No
     assert isinstance(required, list), "capability_templates.items.required must be a list"
     for field in ("capability_key", "template", "output_file"):
         assert field in required, f"capability_templates.items.required must include '{field}'"
+    assert "mikrotik_api_host" in properties
+    assert "mikrotik_host" in properties
+
+
+def test_proxmox_manifest_schema_declares_api_url_override() -> None:
+    plugin = _plugin_entry(PROXMOX_MANIFEST, "base.generator.terraform_proxmox")
+    config = plugin.get("config")
+    assert isinstance(config, dict), "Generator config must be a mapping"
+    assert "proxmox_api_url" in config
+    schema = plugin.get("config_schema")
+    assert isinstance(schema, dict), "Generator config_schema must be a mapping"
+    properties = schema.get("properties")
+    assert isinstance(properties, dict), "Generator config_schema.properties must be a mapping"
+    assert "proxmox_api_url" in properties
 
 
 def test_mikrotik_generator_has_no_hardcoded_capability_template_fallbacks() -> None:

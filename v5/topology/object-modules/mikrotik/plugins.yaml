@@ -27,6 +27,8 @@ plugins:
       terraform_version: ">= 1.6.0"
       mikrotik_provider_source: "terraform-routeros/routeros"
       mikrotik_provider_version: "~> 1.40"
+      mikrotik_api_host: ""
+      mikrotik_host: ""
       # Capability-driven template mappings (ADR0078 WP9)
       capability_templates:
         - capability_key: has_qos
@@ -50,6 +52,12 @@ plugins:
         mikrotik_provider_version:
           type: string
           description: Terraform provider version constraint for RouterOS provider.
+        mikrotik_api_host:
+          type: string
+          description: Optional full RouterOS API endpoint URL override.
+        mikrotik_host:
+          type: string
+          description: Legacy alias for mikrotik_api_host (kept for compatibility).
         capability_templates:
           type: array
           description: Capability-driven template mappings for conditional artifact generation.

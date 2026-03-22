@@ -12,6 +12,7 @@ plugins:
       terraform_version: ">= 1.6.0"
       proxmox_provider_source: "bpg/proxmox"
       proxmox_provider_version: ">= 0.66.0"
+      proxmox_api_url: ""
     config_schema:
       type: object
       properties:
@@ -24,6 +25,9 @@ plugins:
         proxmox_provider_version:
           type: string
           description: Terraform provider version constraint for Proxmox provider.
+        proxmox_api_url:
+          type: string
+          description: Optional full Proxmox API endpoint URL override.
       required: []
     description: Emits baseline Terraform artifacts for Proxmox from v5 projections (Phase 3 bootstrap).
 
