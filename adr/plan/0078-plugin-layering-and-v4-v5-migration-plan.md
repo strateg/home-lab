@@ -1,7 +1,7 @@
 # Plugin Layering + v4->v5 Migration Plan
 
 **Date:** 2026-03-22  
-**Status:** Active  
+**Status:** Completed  
 **Related ADRs:** 0063, 0069, 0074, 0078
 
 ---
@@ -146,9 +146,9 @@ Migration batches:
 Tasks:
 
 - [x] Создать mapping: `v4 check_*` -> `v5 plugin id + stage`.
-- [ ] Портировать логику с минимальным поведением drift.
-- [ ] Добавить contract/integration tests в `v5/tests/plugin_integration`.
-- [ ] Зафиксировать deprecation legacy v4 checks.
+- [x] Портировать логику с минимальным поведением drift.
+- [x] Добавить contract/integration tests в `v5/tests/plugin_integration`.
+- [x] Зафиксировать deprecation legacy v4 checks.
 
 Verification:
 
@@ -257,7 +257,7 @@ Completed:
 2. **Wave C**: removed legacy orphan `port_occupancy_validator.py` from active path.
 3. **Wave B**: introduced `base.validator.ethernet_port_inventory`; rewired `object_network.validator_json.ethernet_cable_endpoints` from object-vendor hard deps to upper-level contract.
 
-Wave D in progress:
+Wave D completed:
 
 1. Added mapping document: `adr/plan/0078-wave-d-v4-validator-mapping.md`.
 2. Added D1 validators:
@@ -288,6 +288,13 @@ Wave D in progress:
    - extended `base.validator.network_runtime_reachability` with top-level payload parity and active-only host_os reachability alignment
    - extended `base.validator.network_firewall_addressability` with top-level payload parity for network/policy refs
    - extended `base.validator.network_core_refs` with object/extension/top-level payload parity for core VLAN/bridge refs
+   - extended `base.validator.service_runtime_refs` with v4-aligned legacy/runtime contracts parity:
+     - legacy service fields deprecation warnings (`container`, `native`, `container_image`, `config.docker.host_ip`, `ip`)
+     - https certificate intent warning (`security.ssl_certificate`)
+     - runtime + legacy refs warning parity
+     - legacy refs existence checks (`device_ref`, `vm_ref`, `lxc_ref`, `network_ref`, `trust_zone_ref`)
+     - runtime target device host OS inventory parity (active/mapped/modeled statuses)
+     - docker/baremetal host metadata checks when `capabilities` / `host_type` are declared
 4. Started D4 storage parity validators:
    - `base.validator.storage_device_taxonomy`
    - `base.validator.storage_media_inventory`
@@ -308,7 +315,7 @@ Wave D in progress:
    - extended `base.validator.vm_refs` / `base.validator.lxc_refs` with legacy top-level field parity (resolved host capabilities, storage endpoint platform, architecture/deprecation paths without `extensions`)
    - extended `base.validator.lxc_refs` with legacy field deprecation warnings parity (`type`, `role`, `resources`, `ansible.vars` app keys)
    - added legacy top-level field parity fallback for host_os/vm/lxc refs validators (non-extension paths for `architecture`, `host_type`, `capabilities`, `installation`, `platform`, and legacy LXC deprecation fields)
-6. Added draft deprecation matrix:
+6. Added deprecation matrix:
    - `adr/plan/0078-v4-validator-deprecation-matrix.md`
 7. Added v4/v5 side-by-side parity fixture:
    - `v5/tests/plugin_integration/test_storage_l3_v4_v5_warning_parity.py`
@@ -330,7 +337,7 @@ Wave D in progress:
    - quick mode: PASS
    - non-quick mode: PASS (`verify_framework_lock`, `rehearse_rollback`, `validate_compatibility_matrix`, `audit_strict_entrypoints`, `pytest_v4_v5_parity`, `pytest_v5`, `lane_validate_v5`)
 
-Wave E in progress:
+Wave E completed:
 
 1. Added docs projection contract + core generator:
    - `base.generator.docs`
@@ -343,7 +350,7 @@ Wave E in progress:
    - `v5/tests/plugin_integration/test_docs_generator.py`
 4. Updated `build-v5` orchestration message/contract to reflect generator-enabled runtime.
 
-Wave F in progress:
+Wave F completed:
 
 1. Updated `taskfiles/validate.yml`:
    - default `quality` path is now v5-focused (`quality-v5`)
@@ -357,3 +364,9 @@ Wave F in progress:
 4. Updated `v5/scripts/orchestration/lane.py` and `taskfiles/build.yml` labels:
    - v5 lane marked default
    - v4 lanes explicitly marked legacy compatibility.
+
+Closure evidence (2026-03-22):
+
+1. `python -m pytest -o addopts= v5/tests/plugin_integration -q` -> PASS (`442 passed`).
+2. `task test:parity-v4-v5` -> PASS (`37 passed`).
+3. `python v5/topology-tools/cutover-readiness-report.py --output v5-build/diagnostics/cutover-readiness-full-latest.json` -> PASS (all non-quick gates green).

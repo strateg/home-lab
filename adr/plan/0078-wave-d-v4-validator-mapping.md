@@ -1,7 +1,7 @@
 # Wave D Mapping: v4 Validators -> v5 Plugins
 
 **Date:** 2026-03-22  
-**Status:** Active (Wave D in progress)  
+**Status:** Completed (Wave D parity coverage established)  
 **Parent plan:** `adr/plan/0078-plugin-layering-and-v4-v5-migration-plan.md`
 
 ---
@@ -138,8 +138,11 @@ Legend:
 
 ---
 
-## 5. Immediate Next Steps
+## 5. Closure Notes
 
-1. Верифицировать draft deprecation-матрицу `adr/plan/0078-v4-validator-deprecation-matrix.md` на owner review и cutover gates.
-2. Запланировать cutover: перевести `base.validator.references` в более узкий scope после закрепления parity thin-wrappers.
-3. Зафиксировать staged cutover gate для отключения v4 `check_host_os_refs` / `check_vm_refs` / `check_lxc_refs` после release preflight на project fixtures.
+1. Draft deprecation matrix переведена в staged-cutover planning документ: `adr/plan/0078-v4-validator-deprecation-matrix.md`.
+2. Parity gates зафиксированы в рабочем lane:
+   - `task test:parity-v4-v5`
+   - `task ci:topology-parity-v4-v5`
+3. `cutover-readiness-report` (non-quick) включает обязательный gate `pytest_v4_v5_parity`.
+4. Остаточные `Partial` строки в таблице являются контролируемыми legacy-совместимостями и не блокируют v5 default lane.

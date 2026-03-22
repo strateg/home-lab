@@ -1,7 +1,7 @@
 # ADR0078 Wave D: v4 Validator Deprecation Matrix
 
 **Date:** 2026-03-22  
-**Status:** Draft (for cutover planning)  
+**Status:** Active (staged cutover baseline)  
 **Related:** `adr/plan/0078-wave-d-v4-validator-mapping.md`
 
 ---
@@ -57,3 +57,11 @@
 4. Для staged cutover references/storage/governance запускать parity lane: `task test:parity-v4-v5` (или `task ci:topology-parity-v4-v5`).
 5. В cutover readiness report (`v5/topology-tools/cutover-readiness-report.py`, non-quick) parity gate `pytest_v4_v5_parity` должен быть green.
 6. Перед staged отключением v4 checks актуализировать `v5/projects/home-lab/framework.lock.yaml` и добиться green для `verify_framework_lock`/`rehearse_rollback` в readiness report.
+
+---
+
+## 4. Decision Snapshot (2026-03-22)
+
+1. v5 plugin-first validation lane принят как default путь (`task validate:v5`, `task test:all`).
+2. v4 checks сохранены как legacy compatibility fallback для staged rollback/fixture parity и не являются обязательной частью v5 release lane.
+3. Отключение конкретных v4 checks выполняется batch-wise по этой матрице после фиксации domain parity evidence.
