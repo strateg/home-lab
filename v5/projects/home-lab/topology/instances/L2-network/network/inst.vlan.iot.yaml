@@ -1,0 +1,11 @@
+instance: inst.vlan.iot
+object_ref: obj.network.vlan.iot
+group: network
+layer: L2
+version: 1.0.0
+source_id: net-iot
+status: mapped
+notes: IoT network for smart home devices (isolated)
+trust_zone_ref: inst.trust_zone.iot
+managed_by_ref: rtr-mikrotik-chateau
+dhcp_range: 192.168.40.100-192.168.40.200

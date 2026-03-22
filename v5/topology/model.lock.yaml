@@ -262,6 +262,46 @@ objects:
   obj.network.wifi_ap_channel:
     version: 1.0.0
     class_ref: class.network.data_link
+  # Additional trust zones
+  obj.network.trust_zone.untrusted:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.trust_zone.user:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.trust_zone.iot:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.trust_zone.guest:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  # Additional VLANs
+  obj.network.vlan.lan:
+    version: 1.0.0
+    class_ref: class.network.vlan
+  obj.network.vlan.iot:
+    version: 1.0.0
+    class_ref: class.network.vlan
+  obj.network.vlan.guest:
+    version: 1.0.0
+    class_ref: class.network.vlan
+  # Firewall policies
+  obj.network.firewall_policy.established_related:
+    version: 1.0.0
+    class_ref: class.network.firewall_policy
+  obj.network.firewall_policy.default_deny:
+    version: 1.0.0
+    class_ref: class.network.firewall_policy
+  obj.network.firewall_policy.iot_isolated:
+    version: 1.0.0
+    class_ref: class.network.firewall_policy
+  obj.network.firewall_policy.guest_isolated:
+    version: 1.0.0
+    class_ref: class.network.firewall_policy
+  # QoS profiles
+  obj.network.qos.wan_shaping:
+    version: 1.0.0
+    class_ref: class.network.qos
   # L3 Storage objects
   obj.storage.pool.local:
     version: 1.0.0

@@ -1,0 +1,13 @@
+object: obj.network.firewall_policy.default_deny
+class_ref: class.network.firewall_policy
+version: 1.0.0
+description: Default deny policy - drop all unmatched traffic
+
+properties:
+  name: Default Deny
+  default_action: drop
+  enabled: true
+  priority: 1000
+  rules: []
+
+enabled_capabilities: []

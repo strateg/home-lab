@@ -1,0 +1,33 @@
+object: obj.network.firewall_policy.guest_isolated
+class_ref: class.network.firewall_policy
+version: 1.0.0
+description: Guest isolation - only internet access allowed
+
+properties:
+  name: Guest Isolation
+  default_action: drop
+  enabled: true
+  priority: 300
+  rules:
+    - action: drop
+      src_zone_ref: guest
+      dst_zone_ref: servers
+      protocol: any
+      comment: Guest cannot access servers
+    - action: drop
+      src_zone_ref: guest
+      dst_zone_ref: management
+      protocol: any
+      comment: Guest cannot access management
+    - action: drop
+      src_zone_ref: guest
+      dst_zone_ref: user
+      protocol: any
+      comment: Guest cannot access user network
+    - action: drop
+      src_zone_ref: guest
+      dst_zone_ref: iot
+      protocol: any
+      comment: Guest cannot access IoT
+
+enabled_capabilities: []

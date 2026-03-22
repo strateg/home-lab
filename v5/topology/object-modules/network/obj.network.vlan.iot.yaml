@@ -1,0 +1,16 @@
+object: obj.network.vlan.iot
+class_ref: class.network.vlan
+version: 1.0.0
+description: IoT network for smart home devices (isolated)
+
+properties:
+  vlan_id: 40
+  cidr: 192.168.40.0/24
+  gateway: 192.168.40.1
+  mtu: 1500
+  dhcp_enabled: true
+  dns_servers:
+    - 192.168.88.1
+
+enabled_capabilities:
+  - cap.vlan.tagged

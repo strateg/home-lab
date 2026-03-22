@@ -1,0 +1,21 @@
+instance: inst.qos.wan_shaping
+object_ref: obj.network.qos.wan_shaping
+group: qos
+layer: L2
+version: 1.0.0
+source_id: qos-wan
+status: mapped
+notes: WAN traffic shaping for balanced bandwidth allocation
+managed_by_ref: rtr-mikrotik-chateau
+interface: ether1
+total_bandwidth:
+  download_mbps: 100
+  upload_mbps: 20
+device_limits:
+  - network_ref: inst.vlan.iot
+    download_limit_mbps: 10
+    upload_limit_mbps: 5
+  - network_ref: inst.vlan.guest
+    download_limit_mbps: 20
+    upload_limit_mbps: 10
+    per_host_limit: true

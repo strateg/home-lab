@@ -1,0 +1,18 @@
+object: obj.network.firewall_policy.established_related
+class_ref: class.network.firewall_policy
+version: 1.0.0
+description: Allow established and related connections (stateful tracking)
+
+properties:
+  name: Allow Established/Related
+  default_action: accept
+  enabled: true
+  priority: 1
+  rules:
+    - action: accept
+      protocol: any
+      comment: Allow established and related connections
+
+enabled_capabilities:
+  - cap.firewall.stateful
+  - cap.firewall.connection_tracking

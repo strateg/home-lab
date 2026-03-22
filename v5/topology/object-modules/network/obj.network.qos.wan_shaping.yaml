@@ -1,0 +1,36 @@
+object: obj.network.qos.wan_shaping
+class_ref: class.network.qos
+version: 1.0.0
+description: WAN traffic shaping profile with queue hierarchy
+
+properties:
+  name: WAN Traffic Shaping
+  enabled: true
+  max_bandwidth: 100M
+  queues:
+    - name: VoIP & Video Calls
+      priority: 1
+      max_limit: 30M
+      burst_limit: 50M
+    - name: Gaming
+      priority: 2
+      max_limit: 40M
+      burst_limit: 60M
+    - name: Interactive
+      priority: 3
+      max_limit: 60M
+    - name: Streaming
+      priority: 4
+      max_limit: 80M
+    - name: Web Browsing
+      priority: 5
+      max_limit: 70M
+    - name: Bulk Transfer
+      priority: 6
+      max_limit: 90M
+    - name: Downloads & P2P
+      priority: 8
+      max_limit: 95M
+
+enabled_capabilities:
+  - cap.qos.htb

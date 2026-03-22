@@ -1,0 +1,10 @@
+instance: inst.fw.iot_isolated
+object_ref: obj.network.firewall_policy.iot_isolated
+group: firewall
+layer: L2
+version: 1.0.0
+source_id: fw-iot-isolated
+status: mapped
+notes: IoT isolation - block access to internal networks
+managed_by_ref: rtr-mikrotik-chateau
+applies_to_zone_ref: inst.trust_zone.iot

@@ -1,0 +1,16 @@
+object: obj.network.vlan.lan
+class_ref: class.network.vlan
+version: 1.0.0
+description: Main LAN network (native/untagged on MikroTik bridge)
+
+properties:
+  vlan_id: 1
+  cidr: 192.168.88.0/24
+  gateway: 192.168.88.1
+  mtu: 1500
+  dhcp_enabled: true
+  dns_servers:
+    - 192.168.88.1
+
+enabled_capabilities:
+  - cap.vlan.pvid

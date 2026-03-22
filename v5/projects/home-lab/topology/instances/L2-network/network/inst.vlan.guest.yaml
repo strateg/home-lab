@@ -1,0 +1,11 @@
+instance: inst.vlan.guest
+object_ref: obj.network.vlan.guest
+group: network
+layer: L2
+version: 1.0.0
+source_id: net-guest
+status: mapped
+notes: Guest WiFi network (isolated, internet only)
+trust_zone_ref: inst.trust_zone.guest
+managed_by_ref: rtr-mikrotik-chateau
+dhcp_range: 192.168.30.100-192.168.30.200

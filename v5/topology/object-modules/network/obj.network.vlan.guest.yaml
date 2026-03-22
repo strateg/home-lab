@@ -1,0 +1,17 @@
+object: obj.network.vlan.guest
+class_ref: class.network.vlan
+version: 1.0.0
+description: Guest WiFi network (isolated, internet only)
+
+properties:
+  vlan_id: 50
+  cidr: 192.168.30.0/24
+  gateway: 192.168.30.1
+  mtu: 1500
+  dhcp_enabled: true
+  dns_servers:
+    - 1.1.1.1
+    - 8.8.8.8
+
+enabled_capabilities:
+  - cap.vlan.tagged

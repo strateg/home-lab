@@ -1,0 +1,10 @@
+instance: inst.fw.default_deny
+object_ref: obj.network.firewall_policy.default_deny
+group: firewall
+layer: L2
+version: 1.0.0
+source_id: fw-default-deny
+status: mapped
+notes: Default deny policy - drop all unmatched traffic
+managed_by_ref: rtr-mikrotik-chateau
+chain: forward

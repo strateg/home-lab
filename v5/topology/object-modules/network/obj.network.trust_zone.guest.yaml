@@ -1,0 +1,19 @@
+object: obj.network.trust_zone.guest
+class_ref: class.network.trust_zone
+version: 1.0.0
+description: Isolated guest WiFi zone (internet only)
+
+properties:
+  name: Guest Zone
+  security_level: 0
+  color: "#999999"
+  description: Guest WiFi (isolated, internet only)
+  isolated: true
+  reserved: true
+  allowed_inbound:
+    - established
+  allowed_outbound:
+    - to:untrusted
+
+enabled_capabilities:
+  - cap.zone.isolated

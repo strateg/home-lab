@@ -1,0 +1,8 @@
+instance: inst.trust_zone.guest
+object_ref: obj.network.trust_zone.guest
+group: network
+layer: L2
+version: 1.0.0
+source_id: trust-zone-guest
+status: mapped
+notes: Isolated guest WiFi zone

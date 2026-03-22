@@ -1,0 +1,19 @@
+object: obj.network.trust_zone.untrusted
+class_ref: class.network.trust_zone
+version: 1.0.0
+description: External untrusted networks (ISP, Internet, LTE)
+
+properties:
+  name: Untrusted Zone
+  security_level: 0
+  color: "#ff0000"
+  description: External networks (ISP, Internet, LTE)
+  isolated: false
+  reserved: true
+  allowed_inbound:
+    - established
+    - related
+  allowed_outbound:
+    - any
+
+enabled_capabilities: []

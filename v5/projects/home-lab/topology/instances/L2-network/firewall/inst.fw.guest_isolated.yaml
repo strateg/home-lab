@@ -1,0 +1,10 @@
+instance: inst.fw.guest_isolated
+object_ref: obj.network.firewall_policy.guest_isolated
+group: firewall
+layer: L2
+version: 1.0.0
+source_id: fw-guest-isolated
+status: mapped
+notes: Guest isolation - only internet access allowed
+managed_by_ref: rtr-mikrotik-chateau
+applies_to_zone_ref: inst.trust_zone.guest

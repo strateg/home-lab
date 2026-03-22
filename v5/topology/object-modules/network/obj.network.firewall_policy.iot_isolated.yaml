@@ -1,0 +1,28 @@
+object: obj.network.firewall_policy.iot_isolated
+class_ref: class.network.firewall_policy
+version: 1.0.0
+description: IoT isolation - block access to internal networks
+
+properties:
+  name: IoT Isolation
+  default_action: drop
+  enabled: true
+  priority: 300
+  rules:
+    - action: drop
+      src_zone_ref: iot
+      dst_zone_ref: servers
+      protocol: any
+      comment: IoT cannot access servers
+    - action: drop
+      src_zone_ref: iot
+      dst_zone_ref: management
+      protocol: any
+      comment: IoT cannot access management
+    - action: drop
+      src_zone_ref: iot
+      dst_zone_ref: user
+      protocol: any
+      comment: IoT cannot access user network
+
+enabled_capabilities: []

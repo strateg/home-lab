@@ -1,0 +1,15 @@
+instance: inst.vlan.lan
+object_ref: obj.network.vlan.lan
+group: network
+layer: L2
+version: 1.0.0
+source_id: net-lan
+status: mapped
+notes: Main LAN network (native/PVID on MikroTik bridge)
+trust_zone_ref: inst.trust_zone.user
+managed_by_ref: rtr-mikrotik-chateau
+dhcp_range: 192.168.88.100-192.168.88.200
+reserved_ranges:
+  - start: 192.168.88.1
+    end: 192.168.88.9
+    purpose: infrastructure

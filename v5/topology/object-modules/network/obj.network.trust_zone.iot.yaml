@@ -1,0 +1,19 @@
+object: obj.network.trust_zone.iot
+class_ref: class.network.trust_zone
+version: 1.0.0
+description: Isolated IoT zone for smart home devices
+
+properties:
+  name: IoT Zone
+  security_level: 1
+  color: "#ff6600"
+  description: Smart home devices (isolated)
+  isolated: true
+  reserved: false
+  allowed_inbound:
+    - established
+  allowed_outbound:
+    - to:untrusted
+
+enabled_capabilities:
+  - cap.zone.isolated

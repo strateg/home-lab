@@ -1,0 +1,19 @@
+object: obj.network.trust_zone.user
+class_ref: class.network.trust_zone
+version: 1.0.0
+description: End-user devices zone (WiFi, LAN, VPN clients)
+
+properties:
+  name: User Zone
+  security_level: 1
+  color: "#ffcc00"
+  description: End-user devices (WiFi, LAN, VPN clients)
+  isolated: false
+  reserved: false
+  allowed_inbound:
+    - established
+  allowed_outbound:
+    - to:untrusted
+    - to:servers:ports:80,443,5432,6379
+
+enabled_capabilities: []

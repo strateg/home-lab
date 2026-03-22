@@ -31,6 +31,8 @@ group_layers:
   os: L1
   network: L2
   data-channels: L2
+  firewall: L2
+  qos: L2
   storage: L3
   vms: L4
   lxc: L4
