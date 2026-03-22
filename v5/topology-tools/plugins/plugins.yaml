@@ -332,6 +332,66 @@ plugins:
       required: []
     description: Warns when VLAN id is outside trust-zone vlan_ids contract.
 
+  - id: base.validator.network_core_refs
+    kind: validator_json
+    entry: validators/network_core_refs_validator.py:NetworkCoreRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 126
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates VLAN/bridge core refs (bridge/trust-zone/manager/host).
+
+  - id: base.validator.network_vlan_tags
+    kind: validator_json
+    entry: validators/network_vlan_tags_validator.py:NetworkVlanTagsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 127
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates workload vlan_tag consistency against VLAN network contracts.
+
+  - id: base.validator.network_mtu_consistency
+    kind: validator_json
+    entry: validators/network_mtu_consistency_validator.py:NetworkMtuConsistencyValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 128
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates jumbo_frames and mtu consistency in VLAN networks.
+
+  - id: base.validator.service_runtime_refs
+    kind: validator_json
+    entry: validators/service_runtime_refs_validator.py:ServiceRuntimeRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 129
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates service runtime target_ref/network_binding_ref contracts.
+
   - id: base.validator.storage_l3_refs
     kind: validator_json
     entry: validators/storage_l3_refs_validator.py:StorageL3RefsValidator

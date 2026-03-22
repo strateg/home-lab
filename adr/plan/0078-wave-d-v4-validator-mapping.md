@@ -59,12 +59,12 @@ Legend:
 
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
-| `check_vlan_tags` | new `base.validator.network.vlan_tags` | Gap | |
-| `check_network_refs` | `base.validator.references` | Partial | Базовые relation checks есть, но не весь v4 policy/ruleset. |
-| `check_bridge_refs` | `base.validator.references` | Partial | |
+| `check_vlan_tags` | `base.validator.network_vlan_tags` | Covered/Partial | Добавлен validator для workload vlan_tag consistency (mismatch/missing/non-vlan-aware bridge warnings). |
+| `check_network_refs` | `base.validator.references` + `base.validator.network_core_refs` | Partial | Добавлена core проверка VLAN refs (bridge/trust_zone/managed_by); policy scope всё ещё шире в v4. |
+| `check_bridge_refs` | `base.validator.network_core_refs` | Covered/Partial | Добавлена bridge.host_ref existence/layer validation. |
 | `check_data_links` | `object_network.validator_json.ethernet_cable_endpoints` | Partial | Закрыта ethernet data-link ветка (`E7304-E7308`), не весь legacy scope. |
 | `check_power_links` | `base.validator.power_source_refs` | Covered/Partial | Основная семантика power.source_ref/occupancy есть; проверить parity по edge cases. |
-| `check_mtu_consistency` | new `base.validator.network.mtu_consistency` | Gap | |
+| `check_mtu_consistency` | `base.validator.network_mtu_consistency` | Covered/Partial | Добавлен validator для jumbo_frames=true при mtu<=1500. |
 | `check_vlan_zone_consistency` | `base.validator.network_vlan_zone_consistency` | Covered/Partial | Добавлен warning-based validator для VLAN id vs trust-zone vlan_ids контракта. |
 | `check_reserved_ranges` | `base.validator.network_reserved_ranges` | Partial | Добавлен validator для VLAN reserved_ranges (границы CIDR + overlap); можно расширить на все network object shapes при необходимости. |
 | `check_trust_zone_firewall_refs` | `base.validator.network_trust_zone_firewall_refs` | Covered/Partial | Добавлен validator для default_firewall_policy_ref trust-zone instances. |
@@ -80,7 +80,7 @@ Legend:
 | `check_host_os_refs` | `base.validator.embedded_in` + `base.validator.references` + `base.validator.runtime_target_os_binding` | Partial | Добавлена runtime-target OS binding проверка; остаётся расширить parity по host_os/storage-specific правилам. |
 | `check_vm_refs` | `base.validator.references` | Partial | |
 | `check_lxc_refs` | `base.validator.references` | Partial | |
-| `check_service_refs` | `base.validator.references` | Partial | |
+| `check_service_refs` | `base.validator.references` + `base.validator.service_runtime_refs` + `base.validator.runtime_target_os_binding` | Partial | Добавлен runtime refs validator (type/target/network_binding); legacy service policy checks ещё шире. |
 | `check_dns_refs` | `base.validator.references` | Partial | |
 | `check_certificate_refs` | `base.validator.references` | Partial | |
 | `check_backup_refs` | `base.validator.references` | Partial | |

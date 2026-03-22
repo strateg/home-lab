@@ -273,3 +273,7 @@ Wave D in progress:
    - `base.validator.storage_l3_refs`
    - `base.validator.network_ip_allocation_host_os_refs`
    - `base.validator.network_vlan_zone_consistency`
+   - `base.validator.network_core_refs`
+   - `base.validator.network_vlan_tags`
+   - `base.validator.network_mtu_consistency`
+   - `base.validator.service_runtime_refs`
