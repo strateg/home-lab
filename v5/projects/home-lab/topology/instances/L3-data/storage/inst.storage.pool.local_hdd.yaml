@@ -1,0 +1,9 @@
+instance: inst.storage.pool.local_hdd
+object_ref: obj.storage.pool.local_hdd
+group: storage
+layer: L3
+version: 1.0.0
+source_id: se-hdd
+status: mapped
+notes: HDD 500GB - Backups, ISOs, Templates
+host_ref: srv-gamayun

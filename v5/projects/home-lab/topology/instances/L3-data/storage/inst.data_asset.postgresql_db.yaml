@@ -1,0 +1,13 @@
+instance: inst.data_asset.postgresql_db
+object_ref: obj.storage.data_asset.database
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-postgresql-db
+status: mapped
+notes: Primary PostgreSQL data volume
+host_ref: srv-gamayun
+criticality: critical
+backup_policy: daily
+engine: postgresql
+engine_version: "16"

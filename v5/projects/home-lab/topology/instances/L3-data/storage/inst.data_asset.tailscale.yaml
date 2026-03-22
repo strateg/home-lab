@@ -1,0 +1,11 @@
+instance: inst.data_asset.tailscale
+object_ref: obj.storage.data_asset.config
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-tailscale
+status: mapped
+notes: Tailscale state and configuration (USB storage)
+host_ref: mikrotik-chateau
+criticality: high
+backup_policy: daily

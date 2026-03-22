@@ -1,0 +1,10 @@
+instance: inst.data_asset.jellyfin
+object_ref: obj.storage.data_asset.config
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-jellyfin-config
+status: mapped
+notes: Jellyfin configuration
+host_ref: srv-orangepi5
+criticality: medium

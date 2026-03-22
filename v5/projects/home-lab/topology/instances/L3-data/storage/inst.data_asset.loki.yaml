@@ -1,0 +1,11 @@
+instance: inst.data_asset.loki
+object_ref: obj.storage.data_asset.logs
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-loki
+status: mapped
+notes: Loki log storage chunks and index
+host_ref: srv-orangepi5
+criticality: medium
+engine: loki

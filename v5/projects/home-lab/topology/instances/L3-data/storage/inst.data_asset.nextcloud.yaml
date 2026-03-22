@@ -1,0 +1,11 @@
+instance: inst.data_asset.nextcloud
+object_ref: obj.storage.data_asset.media
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-nextcloud
+status: mapped
+notes: Nextcloud data and config
+host_ref: srv-orangepi5
+criticality: critical
+backup_policy: weekly

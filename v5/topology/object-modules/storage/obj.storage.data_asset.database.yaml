@@ -1,0 +1,11 @@
+object: obj.storage.data_asset.database
+class_ref: class.storage.data_asset
+version: 1.0.0
+description: Database data asset for persistent DBMS storage
+
+properties:
+  category: database
+  backup_policy: daily
+
+enabled_capabilities:
+  - cap.storage.asset.critical

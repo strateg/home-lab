@@ -1,0 +1,12 @@
+instance: inst.data_asset.adguard
+object_ref: obj.storage.data_asset.config
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-adguard
+status: mapped
+notes: AdGuard Home configuration and work data (USB storage)
+host_ref: mikrotik-chateau
+criticality: high
+backup_policy: daily
+engine: adguard

@@ -257,3 +257,24 @@ objects:
   obj.storage.pool.local_lvm:
     version: 1.0.0
     class_ref: class.storage.pool
+  obj.storage.pool.local_hdd:
+    version: 1.0.0
+    class_ref: class.storage.pool
+  obj.storage.data_asset.database:
+    version: 1.0.0
+    class_ref: class.storage.data_asset
+  obj.storage.data_asset.config:
+    version: 1.0.0
+    class_ref: class.storage.data_asset
+  obj.storage.data_asset.media:
+    version: 1.0.0
+    class_ref: class.storage.data_asset
+  obj.storage.data_asset.logs:
+    version: 1.0.0
+    class_ref: class.storage.data_asset
+  obj.storage.data_asset.cache:
+    version: 1.0.0
+    class_ref: class.storage.data_asset
+  obj.storage.data_asset.backup:
+    version: 1.0.0
+    class_ref: class.storage.data_asset

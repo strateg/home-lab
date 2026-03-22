@@ -1,0 +1,10 @@
+object: obj.storage.data_asset.cache
+class_ref: class.storage.data_asset
+version: 1.0.0
+description: Cache data asset for ephemeral cache storage
+
+properties:
+  category: cache
+  backup_policy: none
+
+enabled_capabilities: []

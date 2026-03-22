@@ -1,0 +1,11 @@
+instance: inst.data_asset.postgresql_dumps
+object_ref: obj.storage.data_asset.backup
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-postgresql-dumps
+status: mapped
+notes: pg_dump artifacts
+host_ref: srv-gamayun
+criticality: high
+backup_policy: monthly

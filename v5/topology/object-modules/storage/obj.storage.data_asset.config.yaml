@@ -1,0 +1,10 @@
+object: obj.storage.data_asset.config
+class_ref: class.storage.data_asset
+version: 1.0.0
+description: Configuration data asset for service configs and state
+
+properties:
+  category: config
+  backup_policy: daily
+
+enabled_capabilities: []

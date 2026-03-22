@@ -1,0 +1,11 @@
+instance: inst.data_asset.adguard_secondary
+object_ref: obj.storage.data_asset.config
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-adguard-secondary
+status: mapped
+notes: Secondary AdGuard configuration and query logs
+host_ref: srv-orangepi5
+criticality: low
+engine: adguard

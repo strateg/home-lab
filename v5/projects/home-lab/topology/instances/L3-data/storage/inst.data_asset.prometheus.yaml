@@ -1,0 +1,12 @@
+instance: inst.data_asset.prometheus
+object_ref: obj.storage.data_asset.logs
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-prometheus
+status: mapped
+notes: Prometheus TSDB
+host_ref: srv-orangepi5
+criticality: high
+backup_policy: weekly
+engine: prometheus

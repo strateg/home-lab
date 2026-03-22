@@ -1,0 +1,13 @@
+instance: inst.data_asset.redis
+object_ref: obj.storage.data_asset.cache
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-redis-db
+status: mapped
+notes: Redis data volume
+host_ref: srv-gamayun
+criticality: high
+backup_policy: daily
+engine: redis
+engine_version: "7"

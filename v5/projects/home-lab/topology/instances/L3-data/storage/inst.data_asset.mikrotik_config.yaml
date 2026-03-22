@@ -1,0 +1,11 @@
+instance: inst.data_asset.mikrotik_config
+object_ref: obj.storage.data_asset.config
+group: storage
+layer: L3
+version: 1.0.0
+source_id: data-mikrotik-config
+status: mapped
+notes: RouterOS configuration exports
+host_ref: mikrotik-chateau
+criticality: critical
+backup_policy: daily

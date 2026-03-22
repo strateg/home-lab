@@ -1,0 +1,10 @@
+object: obj.storage.data_asset.logs
+class_ref: class.storage.data_asset
+version: 1.0.0
+description: Logs and metrics data asset for observability data
+
+properties:
+  category: logs
+  backup_policy: weekly
+
+enabled_capabilities: []
