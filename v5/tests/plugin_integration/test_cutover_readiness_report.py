@@ -3,14 +3,26 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = REPO_ROOT / "v5" / "topology-tools" / "cutover-readiness-report.py"
 GENERATE_LOCK = REPO_ROOT / "v5" / "topology-tools" / "generate-framework-lock.py"
+
+
+def _load_cutover_module() -> Any:
+    spec = importlib.util.spec_from_file_location("cutover_readiness_report", SCRIPT)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load cutover readiness module from {SCRIPT}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_cutover_readiness_report_quick_mode(tmp_path: Path) -> None:
@@ -114,3 +126,16 @@ def test_cutover_readiness_report_marks_operational_baseline_when_manual_step_do
     assert report["production_cutover_complete"] is True
     assert report["ready_for_operational_baseline"] is True
     assert report["pending_external_steps"] == []
+
+
+def test_cutover_readiness_report_non_quick_includes_v4_v5_parity_gate() -> None:
+    module = _load_cutover_module()
+    gate_names = [name for name, _command, _env in module._gate_commands(REPO_ROOT, quick=False)]
+    assert "pytest_v4_v5_parity" in gate_names
+
+    parity_entry = next(
+        (command for name, command, _env in module._gate_commands(REPO_ROOT, quick=False) if name == "pytest_v4_v5_parity"),
+        None,
+    )
+    assert parity_entry is not None
+    assert "v5/tests/plugin_integration/test_network_ip_overlap_v4_v5_parity.py" in parity_entry

@@ -13,6 +13,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+PARITY_TEST_PATHS = [
+    "v5/tests/plugin_integration/test_governance_v4_v5_parity.py",
+    "v5/tests/plugin_integration/test_network_refs_v4_v5_parity.py",
+    "v5/tests/plugin_integration/test_network_ip_overlap_v4_v5_parity.py",
+    "v5/tests/plugin_integration/test_service_refs_v4_v5_parity.py",
+    "v5/tests/plugin_integration/test_storage_l3_v4_v5_warning_parity.py",
+    "v5/tests/plugin_integration/test_host_os_refs_v4_v5_parity.py",
+    "v5/tests/plugin_integration/test_vm_lxc_host_os_v4_v5_parity.py",
+]
+
 
 @dataclass(frozen=True)
 class GateResult:
@@ -113,6 +123,11 @@ def _gate_commands(repo_root: Path, *, quick: bool) -> list[tuple[str, list[str]
     if not quick:
         commands.extend(
             [
+                (
+                    "pytest_v4_v5_parity",
+                    [python, "-m", "pytest", "-o", "addopts=", *PARITY_TEST_PATHS, "-q"],
+                    None,
+                ),
                 (
                     "pytest_v5",
                     [python, "-m", "pytest", "-o", "addopts=", "v5/tests", "-q"],

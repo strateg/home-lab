@@ -316,6 +316,8 @@ Wave D in progress:
    - `task test:parity-v4-v5`
    - `task ci:topology-parity-v4-v5`
    - wired into `task ci:local-with-legacy`
+9. Updated cutover readiness reporting:
+   - `v5/topology-tools/cutover-readiness-report.py` non-quick mode now includes `pytest_v4_v5_parity` gate
 
 Wave E in progress:
 
