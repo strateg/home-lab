@@ -103,7 +103,7 @@ Legend:
 
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
-| `check_host_os_refs` | `base.validator.embedded_in` + `base.validator.references` + `base.validator.runtime_target_os_binding` + `base.validator.host_os_refs` | Covered/Partial | Добавлен host_os thin-wrapper для runtime-target device OS binding parity; остаётся расширить parity по host_os installation/storage-specific правилам. |
+| `check_host_os_refs` | `base.validator.embedded_in` + `base.validator.references` + `base.validator.runtime_target_os_binding` + `base.validator.host_os_refs` | Covered/Partial | Добавлен host_os thin-wrapper: runtime-target device OS binding parity + host_os architecture/device parity + installation.root_storage_endpoint_ref mount-device consistency + host_type installation requirement. Остаётся parity по capability/strict canonical-arch edge semantics. |
 | `check_vm_refs` | `base.validator.references` + `base.validator.vm_refs` | Covered/Partial | Добавлен VM thin-wrapper (`device_ref/trust_zone_ref/host_os_ref/template_ref/networks/storage`) + host_os/device binding parity (`os_refs` membership, host_os_ref required on multi-active bindings). |
 | `check_lxc_refs` | `base.validator.references` + `base.validator.lxc_refs` | Covered/Partial | Добавлен LXC thin-wrapper (`device_ref/trust_zone_ref/host_os_ref/template_ref/networks/storage rootfs/volumes`) + host_os/device binding parity (`os_refs` membership, host_os_ref required on multi-active bindings). |
 | `check_service_refs` | `base.validator.references` + `base.validator.service_runtime_refs` + `base.validator.runtime_target_os_binding` + `base.validator.service_dependency_refs` | Partial | Добавлены runtime/service-dependency validators; legacy service policy checks всё ещё шире. |
@@ -142,4 +142,4 @@ Legend:
 
 1. Верифицировать draft deprecation-матрицу `adr/plan/0078-v4-validator-deprecation-matrix.md` на owner review и cutover gates.
 2. Запланировать cutover: перевести `base.validator.references` в более узкий scope после закрепления parity thin-wrappers.
-3. Расширить `base.validator.host_os_refs` parity для host_os installation/storage-specific контрактов (`root_storage_endpoint_ref`, host_type-policy).
+3. Расширить `base.validator.host_os_refs` parity для host_os capability-policy/strict canonical-architecture edge semantics.

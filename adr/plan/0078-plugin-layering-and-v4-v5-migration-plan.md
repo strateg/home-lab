@@ -293,6 +293,7 @@ Wave D in progress:
    - `base.validator.backup_refs`
    - `base.validator.security_policy_refs`
    - `base.validator.host_os_refs`
+   - extended `base.validator.host_os_refs` with host_os architecture/device parity and installation/root-storage mount-device consistency checks
    - extended `base.validator.vm_refs` / `base.validator.lxc_refs` with host_os-device binding parity (`os_refs` membership, host_os_ref requirement for multi-active bindings)
 6. Added draft deprecation matrix:
    - `adr/plan/0078-v4-validator-deprecation-matrix.md`

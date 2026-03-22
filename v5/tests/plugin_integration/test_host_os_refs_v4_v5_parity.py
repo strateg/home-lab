@@ -35,13 +35,13 @@ def _registry() -> PluginRegistry:
     return registry
 
 
-def _context() -> PluginContext:
+def _context(*, objects: dict | None = None) -> PluginContext:
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
         classes={},
-        objects={},
+        objects=objects or {},
         instance_bindings={"instance_bindings": {}},
     )
 
@@ -90,3 +90,119 @@ def test_runtime_target_without_host_os_binding_is_error_in_v4_and_v5():
     )
     result = registry.execute_plugin(V5_HOST_OS_PLUGIN_ID, ctx, Stage.VALIDATE)
     assert any(diag.code == "E7892" for diag in result.diagnostics)
+
+
+def test_host_os_architecture_mismatch_is_error_in_v4_and_v5():
+    v4_module = _load_v4_references_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_host_os_refs(
+        topology={
+            "L1_foundation": {
+                "devices": [{"id": "srv-a", "specs": {"cpu": {"architecture": "arm64"}}}],
+            },
+            "L3_data": {"storage_endpoints": [], "mount_points": []},
+            "L4_platform": {"host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a", "architecture": "x86_64"}]},
+        },
+        ids={
+            "devices": {"srv-a"},
+            "storage_endpoints": set(),
+        },
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("does not match device 'srv-a' architecture" in message for message in v4_errors)
+
+    registry = _registry()
+    ctx = _context(
+        objects={
+            "obj.device.arm64": {"object": "obj.device.arm64", "hardware_specs": {"cpu": {"architecture": "arm64"}}},
+            "obj.os.x86_64": {"object": "obj.os.x86_64", "class_ref": "class.os", "properties": {"architecture": "x86_64"}},
+        }
+    )
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "object_ref": "obj.device.arm64",
+                "os_refs": ["inst.os.a"],
+            },
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "object_ref": "obj.os.x86_64",
+            },
+        ],
+    )
+    result = registry.execute_plugin(V5_HOST_OS_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "E7891" for diag in result.diagnostics)
+
+
+def test_host_os_root_storage_mount_device_mismatch_is_error_in_v4_and_v5():
+    v4_module = _load_v4_references_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_host_os_refs(
+        topology={
+            "L1_foundation": {"devices": [{"id": "srv-a"}, {"id": "srv-b"}]},
+            "L3_data": {
+                "storage_endpoints": [{"id": "endpoint-a", "mount_point_ref": "mount-a"}],
+                "mount_points": [{"id": "mount-a", "device_ref": "srv-b"}],
+            },
+            "L4_platform": {
+                "host_operating_systems": [
+                    {
+                        "id": "hos-a",
+                        "device_ref": "srv-a",
+                        "installation": {"root_storage_endpoint_ref": "endpoint-a"},
+                    }
+                ]
+            },
+        },
+        ids={
+            "devices": {"srv-a", "srv-b"},
+            "storage_endpoints": {"endpoint-a"},
+        },
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("points to mount point on device 'srv-b', expected 'srv-a'" in message for message in v4_errors)
+
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {"group": "devices", "instance": "srv-b", "class_ref": "class.router", "layer": "L1", "os_refs": []},
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "extensions": {"installation": {"root_storage_endpoint_ref": "endpoint-a"}},
+            },
+            {
+                "group": "storage",
+                "instance": "endpoint-a",
+                "class_ref": "class.storage.storage_endpoint",
+                "layer": "L3",
+                "extensions": {"mount_point_ref": "mount-a"},
+            },
+            {
+                "group": "storage",
+                "instance": "mount-a",
+                "class_ref": "class.storage.mount_point",
+                "layer": "L3",
+                "extensions": {"device_ref": "srv-b"},
+            },
+        ],
+    )
+    result = registry.execute_plugin(V5_HOST_OS_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "E7893" for diag in result.diagnostics)

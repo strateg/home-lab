@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from capability_derivation import extract_architecture as shared_extract_architecture
 from kernel.plugin_base import (
     PluginContext,
     PluginDataExchangeError,
@@ -23,6 +24,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
     _SERVICE_PREFIX = "class.service."
     _DEVICE_RUNTIME_TYPES = {"docker", "baremetal"}
     _ACTIVE_STATUSES = {"active", "mapped", "modeled"}
+    _INSTALL_REQUIRED_HOST_TYPES = {"baremetal", "hypervisor"}
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -42,6 +44,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
 
         rows = [item for item in rows_payload if isinstance(item, dict)] if isinstance(rows_payload, list) else []
         row_by_id: dict[str, dict[str, Any]] = {}
+        os_to_devices: dict[str, set[str]] = {}
         has_host_os_inventory = False
         for row in rows:
             row_id = row.get("instance")
@@ -49,6 +52,26 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                 row_by_id[row_id] = row
             if row.get("class_ref") == "class.os":
                 has_host_os_inventory = True
+        for row in rows:
+            if row.get("layer") != "L1":
+                continue
+            device_id = row.get("instance")
+            if not isinstance(device_id, str) or not device_id:
+                continue
+            os_refs = row.get("os_refs")
+            if not isinstance(os_refs, list):
+                continue
+            for os_ref in os_refs:
+                if isinstance(os_ref, str) and os_ref:
+                    os_to_devices.setdefault(os_ref, set()).add(device_id)
+
+        self._validate_host_os_inventory_contracts(
+            ctx=ctx,
+            row_by_id=row_by_id,
+            os_to_devices=os_to_devices,
+            stage=stage,
+            diagnostics=diagnostics,
+        )
 
         # v4 behavior: enforce runtime target OS presence only when host_os inventory exists.
         if not has_host_os_inventory:
@@ -100,11 +123,203 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
 
         return self.make_result(diagnostics)
 
+    def _validate_host_os_inventory_contracts(
+        self,
+        *,
+        ctx: PluginContext,
+        row_by_id: dict[str, dict[str, Any]],
+        os_to_devices: dict[str, set[str]],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> None:
+        for os_id, os_row in row_by_id.items():
+            if os_row.get("class_ref") != "class.os":
+                continue
+            group = os_row.get("group")
+            row_prefix = f"instance:{group}:{os_id}"
+            bound_devices = sorted(os_to_devices.get(os_id, set()))
+
+            os_arch = self._row_architecture(ctx=ctx, row=os_row)
+            if os_arch:
+                for device_id in bound_devices:
+                    device_row = row_by_id.get(device_id)
+                    if not isinstance(device_row, dict):
+                        continue
+                    device_arch = self._row_architecture(ctx=ctx, row=device_row)
+                    if device_arch and device_arch != os_arch:
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="E7891",
+                                severity="error",
+                                stage=stage,
+                                message=(
+                                    f"OS '{os_id}' architecture '{os_arch}' does not match "
+                                    f"device '{device_id}' architecture '{device_arch}'."
+                                ),
+                                path=f"{row_prefix}.architecture",
+                            )
+                        )
+
+            extensions = self._extensions(os_row)
+            installation = extensions.get("installation")
+            if installation is not None and not isinstance(installation, dict):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7893",
+                        severity="error",
+                        stage=stage,
+                        message=f"OS '{os_id}' installation must be an object when set.",
+                        path=f"{row_prefix}.installation",
+                    )
+                )
+                installation = {}
+            if not isinstance(installation, dict):
+                installation = {}
+
+            root_storage_endpoint_ref = installation.get("root_storage_endpoint_ref")
+            if root_storage_endpoint_ref is not None:
+                if not isinstance(root_storage_endpoint_ref, str) or not root_storage_endpoint_ref:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7893",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"OS '{os_id}' installation.root_storage_endpoint_ref "
+                                "must be a non-empty string when set."
+                            ),
+                            path=f"{row_prefix}.installation.root_storage_endpoint_ref",
+                        )
+                    )
+                    root_storage_endpoint_ref = None
+            if isinstance(root_storage_endpoint_ref, str) and root_storage_endpoint_ref:
+                endpoint_row = row_by_id.get(root_storage_endpoint_ref)
+                if not isinstance(endpoint_row, dict) or endpoint_row.get("class_ref") != "class.storage.storage_endpoint":
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7893",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"OS '{os_id}' installation.root_storage_endpoint_ref '{root_storage_endpoint_ref}' "
+                                "must reference class.storage.storage_endpoint."
+                            ),
+                            path=f"{row_prefix}.installation.root_storage_endpoint_ref",
+                        )
+                    )
+                else:
+                    self._validate_root_storage_mount_device(
+                        os_id=os_id,
+                        endpoint_row=endpoint_row,
+                        row_by_id=row_by_id,
+                        bound_devices=bound_devices,
+                        stage=stage,
+                        diagnostics=diagnostics,
+                        row_prefix=row_prefix,
+                    )
+
+            host_type = extensions.get("host_type")
+            if host_type in self._INSTALL_REQUIRED_HOST_TYPES:
+                if not installation:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7894",
+                            severity="error",
+                            stage=stage,
+                            message=f"OS '{os_id}' host_type '{host_type}' requires installation object.",
+                            path=f"{row_prefix}.host_type",
+                        )
+                    )
+                elif not isinstance(root_storage_endpoint_ref, str) or not root_storage_endpoint_ref:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7894",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"OS '{os_id}' host_type '{host_type}' requires "
+                                "installation.root_storage_endpoint_ref."
+                            ),
+                            path=f"{row_prefix}.installation.root_storage_endpoint_ref",
+                        )
+                    )
+
+    def _validate_root_storage_mount_device(
+        self,
+        *,
+        os_id: str,
+        endpoint_row: dict[str, Any],
+        row_by_id: dict[str, dict[str, Any]],
+        bound_devices: list[str],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        row_prefix: str,
+    ) -> None:
+        endpoint_ext = self._extensions(endpoint_row)
+        mount_point_ref = endpoint_ext.get("mount_point_ref")
+        if not isinstance(mount_point_ref, str) or not mount_point_ref:
+            return
+        mount_row = row_by_id.get(mount_point_ref)
+        if not isinstance(mount_row, dict) or mount_row.get("class_ref") != "class.storage.mount_point":
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7893",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"OS '{os_id}' root storage endpoint mount_point_ref '{mount_point_ref}' "
+                        "must reference class.storage.mount_point."
+                    ),
+                    path=f"{row_prefix}.installation.root_storage_endpoint_ref",
+                )
+            )
+            return
+        mount_ext = self._extensions(mount_row)
+        mount_device_ref = mount_ext.get("device_ref")
+        if (
+            isinstance(mount_device_ref, str)
+            and mount_device_ref
+            and bound_devices
+            and mount_device_ref not in set(bound_devices)
+        ):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7893",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"OS '{os_id}' installation.root_storage_endpoint_ref points to mount point "
+                        f"on device '{mount_device_ref}', expected one of {bound_devices}."
+                    ),
+                    path=f"{row_prefix}.installation.root_storage_endpoint_ref",
+                )
+            )
+
     @staticmethod
     def _extract_device_ref(row: dict[str, Any]) -> Any:
+        extensions = HostOsRefsValidator._extensions(row)
+        if extensions:
+            return extensions.get("device_ref")
+        return None
+
+    @staticmethod
+    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
         extensions = row.get("extensions")
         if isinstance(extensions, dict):
-            return extensions.get("device_ref")
+            return extensions
+        return {}
+
+    @staticmethod
+    def _row_architecture(*, ctx: PluginContext, row: dict[str, Any]) -> str | None:
+        object_ref = row.get("object_ref")
+        if not isinstance(object_ref, str) or not object_ref:
+            return None
+        object_payload = ctx.objects.get(object_ref)
+        if not isinstance(object_payload, dict):
+            return None
+        architecture = shared_extract_architecture(object_payload)
+        if isinstance(architecture, str) and architecture:
+            return architecture
         return None
 
     def _has_active_os_binding(self, *, device_row: dict[str, Any], row_by_id: dict[str, dict[str, Any]]) -> bool:

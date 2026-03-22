@@ -21,13 +21,13 @@ def _registry() -> PluginRegistry:
     return registry
 
 
-def _context() -> PluginContext:
+def _context(*, objects: dict | None = None) -> PluginContext:
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
         classes={},
-        objects={},
+        objects=objects or {},
         instance_bindings={"instance_bindings": {}},
     )
 
@@ -128,6 +128,102 @@ def test_host_os_refs_validator_skips_check_when_host_os_inventory_absent():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
+
+
+def test_host_os_refs_validator_rejects_architecture_mismatch_between_os_and_device():
+    registry = _registry()
+    ctx = _context(
+        objects={
+            "obj.device.arm64": {"object": "obj.device.arm64", "hardware_specs": {"cpu": {"architecture": "arm64"}}},
+            "obj.os.x86_64": {"object": "obj.os.x86_64", "class_ref": "class.os", "properties": {"architecture": "x86_64"}},
+        }
+    )
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "object_ref": "obj.device.arm64",
+                "os_refs": ["inst.os.a"],
+            },
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "object_ref": "obj.os.x86_64",
+                "status": "mapped",
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7891" for diag in result.diagnostics)
+
+
+def test_host_os_refs_validator_rejects_root_storage_endpoint_on_other_device():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {"group": "devices", "instance": "srv-b", "class_ref": "class.router", "layer": "L1", "os_refs": []},
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "status": "mapped",
+                "extensions": {"installation": {"root_storage_endpoint_ref": "endpoint-a"}},
+            },
+            {
+                "group": "storage",
+                "instance": "endpoint-a",
+                "class_ref": "class.storage.storage_endpoint",
+                "layer": "L3",
+                "extensions": {"mount_point_ref": "mount-a"},
+            },
+            {
+                "group": "storage",
+                "instance": "mount-a",
+                "class_ref": "class.storage.mount_point",
+                "layer": "L3",
+                "extensions": {"device_ref": "srv-b"},
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7893" for diag in result.diagnostics)
+
+
+def test_host_os_refs_validator_requires_installation_for_baremetal_host_type():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "status": "mapped",
+                "extensions": {"host_type": "baremetal"},
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7894" for diag in result.diagnostics)
 
 
 def test_host_os_refs_validator_requires_compiler_rows():
