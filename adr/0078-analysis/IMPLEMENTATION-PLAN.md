@@ -308,7 +308,7 @@ Status summary:
 4. **Wave 9 (capability-template externalization): completed**
    - added `capability_templates` config section to `mikrotik/plugins.yaml`;
    - refactored `terraform_mikrotik_generator.py` with `_get_capability_templates()` method;
-   - added `_DEFAULT_CAPABILITY_TEMPLATES` fallback for backwards compatibility;
+   - removed hardcoded fallback mapping from generator code (manifest config is source of truth);
    - created `test_capability_template_config.py` with 3 contract tests.
 5. **Wave 10 (projection ownership consolidation): completed**
    - created `test_projection_ownership_boundaries.py` with 6 contract tests;
@@ -332,11 +332,11 @@ All mandatory gates (all passing):
 7. `python -m pytest -o addopts= v5/tests/plugin_contract/test_capability_template_config.py -q`
 8. `python -m pytest -o addopts= v5/tests/plugin_contract/test_projection_ownership_boundaries.py -q`
 
-**All gates green (2026-03-22):** 45 plugin_contract tests + 486 plugin_integration tests passing.
+**All gates green (2026-03-22):** 43 plugin_contract tests + 450 plugin_integration tests passing.
 
 ---
 
-## 13. Risks and Controls (Remaining Scope)
+## 13. Risks and Controls (Post-Completion)
 
 1. Risk: capability externalization changes generator output unexpectedly.
    - Control: artifact snapshot/integration tests before and after refactor.

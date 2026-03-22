@@ -491,12 +491,12 @@ Ownership:
    - added `@lru_cache` for discovered paths;
    - added discovery integration tests.
 
-4. **Capability-template externalization (pending):**
+4. **Capability-template externalization (completed 2026-03-22):**
    - move capability-template mappings from generator code to `plugins.yaml`;
    - update generators to read mappings from config;
    - add schema validation for capability config.
 
-**Go/No-Go:** proceed to Phase 7 only when capability-template mappings are externalized and validated.
+**Go/No-Go:** Phase 6 is closed; proceed with final Phase 7 consolidation gates.
 
 **Exit artifacts:**
 - `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts` passing;
@@ -616,19 +616,18 @@ Phase 6-7 acceptance criteria:
 **Phase 6-7 status (updated 2026-03-22):**
 
 5. Phase 6 (Instance Isolation and Cross-Object Boundary Enforcement):
-   - Status: **Partially completed**
+   - Status: **Completed**
    - Completed:
      - removed hardcoded instance endpoints from object terraform generators;
      - switched projection loader to dynamic discovery;
      - added cross-object import and literal endpoint enforcement in plugin contract tests;
      - added discovery coverage in integration tests.
-   - Remaining:
-     - capability-template externalization to plugin config (`WP9`).
+      - externalized capability-template mappings to module config and added contract tests.
 
 6. Phase 7 (Projection Architecture Consolidation):
-   - Status: **Ready for execution** (after WP9)
+   - Status: **Completed**
    - Current state: hybrid architecture (core + object + _shared);
-   - Target: clear ownership boundaries with documented discovery contract and ownership tests.
+   - Result: ownership boundaries are documented and enforced by dedicated contract tests.
 
 ---
 

@@ -1,7 +1,7 @@
 # Plugin Layering + v4->v5 Migration Plan
 
 **Date:** 2026-03-22
-**Status:** Active (Waves A-F completed; WP9-WP10 execution pending)
+**Status:** Completed (Waves A-F + WP6-WP10 completed)
 **Related ADRs:** 0063, 0069, 0074, 0078
 **See also:** `adr/plan/0078-v5-unified-plugin-refactor-prep.md` (WP6-WP10)
 
@@ -391,7 +391,7 @@ Closure evidence (2026-03-22):
 
 ## 8. Phase 6-7: Boundary Enforcement (2026-03-22)
 
-**Status:** In progress (WP6-WP8 completed; WP9-WP10 pending)
+**Status:** Completed (WP6-WP10)
 
 After code audit, additional violations were identified that require new waves:
 
@@ -403,7 +403,7 @@ After code audit, additional violations were identified that require new waves:
 | Instance literal | `proxmox/terraform_proxmox_generator.py` | Hardcoded endpoint removed | Resolved |
 | Hardcoded paths | `object_projection_loader.py` | Static mapping replaced by discovery | Resolved |
 | Missing enforcement | `test_plugin_level_boundaries.py` | Cross-object import scan added | Resolved |
-| Capability coupling | `terraform_mikrotik_generator.py` | Hardcoded capability→template mapping | Pending |
+| Capability coupling | `terraform_mikrotik_generator.py` | Capability mapping externalized to manifest config + contract tests | Resolved |
 
 ### New Work Packages
 
@@ -424,9 +424,9 @@ Batch C: WP7 (Cross-Object Boundaries) - completed
     ↓
 Batch D: WP8 (Dynamic Discovery) - completed
     ↓
-Batch E: WP9 (Capability Externalization) - pending
+Batch E: WP9 (Capability Externalization) - completed
     ↓
-Batch F: WP10 (Projection Consolidation) - pending
+Batch F: WP10 (Projection Consolidation) - completed
 ```
 
 ### New Tests Required
@@ -434,8 +434,8 @@ Batch F: WP10 (Projection Consolidation) - pending
 1. `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts`
 2. `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import_other_object_modules`
 3. `v5/tests/plugin_integration/test_object_projection_loader.py`
-4. `v5/tests/plugin_contract/test_capability_template_config.py` (new, pending)
-5. `v5/tests/plugin_contract/test_projection_ownership_boundaries.py` (new, pending)
+4. `v5/tests/plugin_contract/test_capability_template_config.py`
+5. `v5/tests/plugin_contract/test_projection_ownership_boundaries.py`
 
 ### Extended Acceptance Criteria
 
@@ -444,3 +444,5 @@ Batch F: WP10 (Projection Consolidation) - pending
 3. Object module discovery is fully dynamic.
 4. Capability-template mappings externalized to config.
 5. Projection ownership boundaries documented and tested.
+
+**Result:** all acceptance criteria for boundary-enforcement waves are satisfied.

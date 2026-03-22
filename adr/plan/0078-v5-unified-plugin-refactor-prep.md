@@ -62,7 +62,7 @@
 | Instance literal | `proxmox/plugins/terraform_proxmox_generator.py` | Hardcoded hostname removed; config/projection resolution added | Resolved |
 | Hardcoded paths | `object_projection_loader.py` | Static mapping replaced with dynamic discovery | Resolved |
 | Missing test | `test_plugin_level_boundaries.py` | Cross-object import scan added | Resolved |
-| Capability coupling | `terraform_mikrotik_generator.py` | Hardcoded `if has_qos/wireguard/containers` mapping | Pending |
+| Capability coupling | `terraform_mikrotik_generator.py` | Mapping externalized to manifest `capability_templates`; hardcoded selection removed from code | Resolved |
 
 ---
 
@@ -218,7 +218,7 @@
 
 ## 9. Extended Mandatory Gates
 
-Для remaining scope (WP9-WP10) сохраняются и/или добавляются gates:
+Финальные release gates:
 
 1. `python -m pytest -o addopts= v5/tests/plugin_contract/test_plugin_level_boundaries.py -q`
 2. `python -m pytest -o addopts= v5/tests/plugin_integration/test_object_projection_loader.py -q`
