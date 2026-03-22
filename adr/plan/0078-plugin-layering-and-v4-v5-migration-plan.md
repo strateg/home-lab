@@ -1,8 +1,9 @@
 # Plugin Layering + v4->v5 Migration Plan
 
-**Date:** 2026-03-22  
-**Status:** Completed  
+**Date:** 2026-03-22
+**Status:** Completed (Waves A-F); Phase 6-7 added for boundary enforcement
 **Related ADRs:** 0063, 0069, 0074, 0078
+**See also:** `adr/plan/0078-v5-unified-plugin-refactor-prep.md` (WP6-WP10)
 
 ---
 
@@ -385,3 +386,61 @@ Closure evidence (2026-03-22):
 1. `python -m pytest -o addopts= v5/tests/plugin_integration -q` -> PASS (`442 passed`).
 2. `task test:parity-v4-v5` -> PASS (`37 passed`).
 3. `python v5/topology-tools/cutover-readiness-report.py --output v5-build/diagnostics/cutover-readiness-full-latest.json` -> PASS (all non-quick gates green).
+
+---
+
+## 8. Phase 6-7: Boundary Enforcement (2026-03-22)
+
+**Status:** Ready for execution
+
+After code audit, additional violations were identified that require new waves:
+
+### Known Violations
+
+| Type | Location | Issue |
+|------|----------|-------|
+| Instance literal | `mikrotik/terraform_mikrotik_generator.py:64` | Hardcoded `192.168.88.1` |
+| Instance literal | `proxmox/terraform_proxmox_generator.py:65` | Hardcoded `proxmox.local` |
+| Hardcoded paths | `object_projection_loader.py:14-18` | Static `OBJECT_PROJECTION_PATHS` dict |
+| Capability coupling | `terraform_mikrotik_generator.py:106-111` | Hardcoded capability→template mapping |
+| Missing enforcement | `test_plugin_level_boundaries.py` | No cross-object import scan |
+
+### New Work Packages
+
+Detailed implementation tracked in `adr/plan/0078-v5-unified-plugin-refactor-prep.md`:
+
+1. **WP6: Instance Literal Isolation** — remove hardcoded IPs/hostnames from generators
+2. **WP7: Cross-Object Import Prohibition** — add enforcement test
+3. **WP8: Dynamic Object Discovery** — replace hardcoded module paths
+4. **WP9: Capability-Template Externalization** — move mappings to config
+5. **WP10: Projection Architecture Consolidation** — document ownership boundaries
+
+### Execution Order
+
+```
+Batch B: WP6 (Instance Isolation)
+    ↓
+Batch C: WP7 (Cross-Object Boundaries)
+    ↓
+Batch D: WP8 (Dynamic Discovery)
+    ↓
+Batch E: WP9 (Capability Externalization)
+    ↓
+Batch F: WP10 (Projection Consolidation)
+```
+
+### New Tests Required
+
+1. `v5/tests/plugin_contract/test_instance_literal_isolation.py`
+2. `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import`
+3. `v5/tests/plugin_contract/test_dynamic_object_discovery.py`
+4. `v5/tests/plugin_contract/test_capability_template_config.py`
+5. `v5/tests/plugin_contract/test_projection_ownership_boundaries.py`
+
+### Extended Acceptance Criteria
+
+1. No hardcoded IPs/hostnames in object-level generators.
+2. No cross-object imports between object modules.
+3. Object module discovery is fully dynamic.
+4. Capability-template mappings externalized to config.
+5. Projection ownership boundaries documented and tested.

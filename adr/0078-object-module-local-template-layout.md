@@ -4,6 +4,7 @@
 **Status:** Accepted
 **Depends on:** ADR 0062, ADR 0074, ADR 0076, ADR 0077
 **Amended:** 2026-03-22 (scope extended to compilers/validators/generators)
+**Amended:** 2026-03-22 (instance isolation, cross-object import prohibition, dynamic discovery)
 
 ---
 
@@ -77,6 +78,170 @@ All compilers/validators/generators MUST be built by common rules:
 6. Global plugins that do not contain class/object-specific names MUST be moved to global/core infrastructure level.
 7. Global plugins MUST orchestrate specific plugins through interfaces or equivalent design patterns.
 8. Plugin design MUST remain SOLID-compliant.
+
+### Instance isolation contract (normative)
+
+Object-level plugins MUST NOT contain instance-specific data:
+
+1. **Prohibited patterns in object-level code:**
+   - hardcoded IP addresses (e.g., `192.168.88.1`, `10.0.10.1`);
+   - hardcoded hostnames or FQDNs (e.g., `proxmox.local`, `mikrotik.home`);
+   - hardcoded port numbers tied to specific deployments;
+   - hardcoded filesystem paths referencing specific instance data;
+   - any literal values that belong to a specific deployment instance.
+
+2. **Allowed patterns:**
+   - protocol defaults (e.g., `https://`, port `8006` for Proxmox API);
+   - placeholder templates (e.g., `https://${host}:${port}`);
+   - values derived from projection data at runtime;
+   - configurable defaults via `ctx.config` or plugin manifest `config` section.
+
+3. **Enforcement:**
+   - CI MUST run instance-literal scan on all object-level plugin code;
+   - regex patterns for IP addresses, common hostnames, and deployment-specific literals;
+   - violations block merge and require explicit exception with justification.
+
+4. **Configuration injection pattern:**
+   ```python
+   # WRONG - hardcoded instance data
+   api_url = "https://192.168.88.1:8443"
+
+   # CORRECT - derived from projection or config
+   api_url = ctx.config.get("api_url") or f"https://{projection.host}:{projection.port}"
+   ```
+
+### Cross-object import prohibition (normative)
+
+Object modules MUST NOT import from each other:
+
+1. **Prohibited:**
+   - `from topology.object_modules.proxmox.plugins import ...` in mikrotik module;
+   - `from topology.object_modules.mikrotik.plugins import ...` in network module;
+   - any direct import path crossing object module boundaries.
+
+2. **Allowed:**
+   - imports from `object_modules/_shared/` (shared utilities);
+   - imports from `topology-tools/` (framework infrastructure);
+   - imports from `class-modules/` (upper-level contracts);
+   - standard library and external dependencies.
+
+3. **Enforcement:**
+   - `test_plugin_level_boundaries.py` MUST include cross-object import scan;
+   - AST-based or regex scan of all `*.py` files under `object-modules/*/plugins/`;
+   - violations are hard test failures.
+
+4. **Rationale:**
+   - object modules must be independently extractable;
+   - cross-object coupling prevents module portability;
+   - shared logic belongs in `_shared/` or upper levels.
+
+### Dynamic object module discovery (normative)
+
+Framework MUST NOT hardcode object module paths:
+
+1. **Prohibited:**
+   ```python
+   OBJECT_PROJECTION_PATHS = {
+       "proxmox": Path("...proxmox/plugins/projections.py"),
+       "mikrotik": Path("...mikrotik/plugins/projections.py"),
+   }
+   ```
+
+2. **Required pattern:**
+   ```python
+   def discover_object_projections(object_modules_root: Path) -> dict[str, Path]:
+       """Dynamically discover projection modules from filesystem."""
+       return {
+           obj_dir.name: obj_dir / "plugins" / "projections.py"
+           for obj_dir in object_modules_root.iterdir()
+           if obj_dir.is_dir()
+           and not obj_dir.name.startswith("_")
+           and (obj_dir / "plugins" / "projections.py").exists()
+       }
+   ```
+
+3. **Benefits:**
+   - adding new object module requires no framework code changes;
+   - Open-Closed Principle compliance;
+   - reduced maintenance burden.
+
+4. **Migration:**
+   - replace `OBJECT_PROJECTION_PATHS` dict with discovery function;
+   - add caching via `@lru_cache` for performance;
+   - add test verifying discovery finds all expected modules.
+
+### Capability-template externalization (normative)
+
+Generator capability-to-template mappings MUST be externalized:
+
+1. **Prohibited:**
+   ```python
+   if has_qos:
+       templates["qos.tf"] = "terraform/qos.tf.j2"
+   if has_wireguard:
+       templates["vpn.tf"] = "terraform/vpn.tf.j2"
+   ```
+
+2. **Required pattern in `plugins.yaml`:**
+   ```yaml
+   config:
+     capability_templates:
+       qos:
+         enabled_by: capabilities.qos
+         template: terraform/qos.tf.j2
+         output: qos.tf
+       wireguard:
+         enabled_by: capabilities.wireguard
+         template: terraform/vpn.tf.j2
+         output: vpn.tf
+       containers:
+         enabled_by: capabilities.containers
+         template: terraform/containers.tf.j2
+         output: containers.tf
+   ```
+
+3. **Generator implementation:**
+   ```python
+   def get_capability_templates(self, projection: dict, config: dict) -> dict:
+       """Resolve templates based on capability flags and config."""
+       templates = {}
+       for cap_id, cap_config in config.get("capability_templates", {}).items():
+           if self._check_capability(projection, cap_config["enabled_by"]):
+               templates[cap_config["output"]] = cap_config["template"]
+       return templates
+   ```
+
+4. **Benefits:**
+   - adding new capability requires only config change;
+   - generator code remains stable;
+   - capability-template relationships are declarative and auditable.
+
+### Projection architecture consolidation (normative)
+
+Projection ownership MUST follow clear hierarchy:
+
+1. **Core/shared projections** (`topology-tools/plugins/generators/projections.py`):
+   - `build_ansible_projection()` - cross-object inventory;
+   - `build_docs_projection()` - cross-object documentation;
+   - `build_effective_model_projection()` - model export.
+
+2. **Object-specific projections** (`object-modules/<id>/plugins/projections.py`):
+   - `build_mikrotik_projection()` - MikroTik-specific;
+   - `build_proxmox_projection()` - Proxmox-specific.
+
+3. **Shared utilities** (`object-modules/_shared/plugins/`):
+   - `bootstrap_projections.py` - shared bootstrap helpers;
+   - `projection_helpers.py` - common transformation utilities.
+
+4. **Prohibited:**
+   - object-specific projection logic in core projections module;
+   - core projection logic in object-specific modules;
+   - duplicate projection builders across modules.
+
+5. **Discovery contract:**
+   - core projections are imported directly from tools;
+   - object projections are discovered via `load_object_projection_module()`;
+   - shared utilities are imported from `_shared`.
 
 ### Normative layout
 
@@ -172,6 +337,16 @@ Framework distribution packaging MUST include object-local templates and object-
    - Mitigation: define shim sunset policy with objective removal gate and owner.
 5. Risk: new cross-level coupling appears during v5 refactoring of validators/compilers.
    - Mitigation: enforce plugin-level boundary tests and staged cutover parity gates.
+6. Risk: instance-specific literals leak into object-level generators.
+   - Mitigation: automated regex scan in CI for IP addresses, hostnames, and deployment-specific patterns.
+7. Risk: cross-object imports bypass isolation boundary.
+   - Mitigation: AST/regex scan in `test_plugin_level_boundaries.py` with hard test failure.
+8. Risk: hardcoded object module paths break when new modules are added.
+   - Mitigation: replace static mappings with dynamic discovery; add discovery coverage test.
+9. Risk: capability-template coupling creates maintenance burden.
+   - Mitigation: externalize mappings to plugin config; validate config schema on load.
+10. Risk: projection architecture drift between core and object modules.
+    - Mitigation: enforce ownership boundaries via test; document consolidation policy.
 
 ---
 
@@ -299,6 +474,61 @@ Ownership:
 - unified refactor inventory and backlog document;
 - updated ADR0078-related implementation plan with execution waves for all plugin families.
 
+### Phase 6: Instance Isolation and Cross-Object Boundary Enforcement
+
+1. **Instance literal cleanup:**
+   - audit all object-level generators for hardcoded IPs, hostnames, ports;
+   - refactor to derive values from projection or ctx.config;
+   - add instance-literal-scan test to CI.
+
+2. **Cross-object import prohibition:**
+   - add `test_object_modules_do_not_cross_import()` to plugin contract tests;
+   - scan all `object-modules/*/plugins/*.py` for forbidden import patterns;
+   - fix any violations found.
+
+3. **Dynamic object discovery:**
+   - replace `OBJECT_PROJECTION_PATHS` dict with discovery function;
+   - add `@lru_cache` for performance;
+   - add test verifying discovery finds all expected modules.
+
+4. **Capability-template externalization:**
+   - move capability-template mappings from generator code to `plugins.yaml`;
+   - update generators to read mappings from config;
+   - add schema validation for capability config.
+
+**Go/No-Go:** proceed only when all instance literals are removed, cross-object tests pass, and discovery is dynamic.
+
+**Exit artifacts:**
+- `test_instance_literal_isolation.py` passing in CI;
+- `test_object_modules_do_not_cross_import()` passing;
+- `test_dynamic_object_discovery()` passing;
+- capability mappings externalized in all object module manifests.
+
+### Phase 7: Projection Architecture Consolidation
+
+1. **Audit projection ownership:**
+   - document all projection builders by location and purpose;
+   - identify any misplaced projections (object-specific in core, core in object).
+
+2. **Consolidate shared utilities:**
+   - move common helpers to `_shared/plugins/projection_helpers.py`;
+   - update imports across all modules.
+
+3. **Enforce ownership boundaries:**
+   - add test verifying core projections don't contain object-specific logic;
+   - add test verifying object projections don't duplicate core logic.
+
+4. **Document projection discovery:**
+   - formalize `load_object_projection_module()` contract;
+   - document fallback and error handling semantics.
+
+**Go/No-Go:** proceed only when projection ownership is clear and tested.
+
+**Exit artifacts:**
+- projection ownership inventory document;
+- `test_projection_ownership_boundaries.py` passing;
+- updated `_shared/plugins/` with consolidated helpers.
+
 ---
 
 ## Migration Notes
@@ -329,6 +559,25 @@ Minimum verification set per migration batch:
 5. Strict compile gate:
    - `python v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough`
 
+Additional verification for Phase 6-7:
+
+6. Instance isolation enforcement:
+   - `v5/tests/plugin_contract/test_instance_literal_isolation.py`
+   - regex scan for IP patterns: `\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`
+   - regex scan for hostname patterns: `\b[a-z][\w-]*\.(local|home|lan|internal)\b`
+7. Cross-object import prohibition:
+   - `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import`
+   - AST scan for `from topology.object_modules.<other>` patterns
+8. Dynamic object discovery:
+   - `v5/tests/plugin_contract/test_dynamic_object_discovery.py`
+   - verify no hardcoded object module paths in framework code
+9. Capability-template externalization:
+   - `v5/tests/plugin_contract/test_capability_template_config.py`
+   - verify generators read capability mappings from config, not code
+10. Projection ownership boundaries:
+    - `v5/tests/plugin_contract/test_projection_ownership_boundaries.py`
+    - verify no object-specific logic in core projections
+
 ---
 
 ## Acceptance Criteria
@@ -343,6 +592,14 @@ Minimum verification set per migration batch:
 8. Compilers/validators/generators follow the same four-level contract and interface-driven orchestration model.
 9. v5 refactor backlog for unified rules is prepared and linked from ADR0078 implementation artifacts.
 
+Phase 6-7 acceptance criteria:
+
+10. Object-level generators contain no hardcoded instance-specific literals (IPs, hostnames).
+11. Object modules do not import from each other (cross-object import prohibition enforced).
+12. Object module discovery is fully dynamic (no hardcoded module paths in framework).
+13. Capability-template mappings are externalized to plugin config (not hardcoded in generator code).
+14. Projection ownership boundaries are documented and tested (core vs object vs shared).
+
 ---
 
 ## Implementation Status (2026-03-22)
@@ -356,6 +613,21 @@ Minimum verification set per migration batch:
    - `adr/0078-analysis/IMPLEMENTATION-PLAN.md`
    - `adr/plan/0078-plugin-layering-and-v4-v5-migration-plan.md`
 
+**Phase 6-7 status (added 2026-03-22):**
+
+5. Phase 6 (Instance Isolation and Cross-Object Boundary Enforcement):
+   - Status: **Ready for execution**
+   - Known violations identified:
+     - hardcoded IPs in `terraform_mikrotik_generator.py:64` and `terraform_proxmox_generator.py:65`;
+     - hardcoded object paths in `object_projection_loader.py:14-18`;
+     - no cross-object import test exists.
+   - Required tests: `test_instance_literal_isolation.py`, `test_object_modules_do_not_cross_import()`.
+
+6. Phase 7 (Projection Architecture Consolidation):
+   - Status: **Ready for execution** (after Phase 6)
+   - Current state: hybrid architecture (core + object + _shared);
+   - Target: clear ownership boundaries with documented discovery contract.
+
 ---
 
 ## References
@@ -366,10 +638,19 @@ Minimum verification set per migration batch:
 - `v5/topology/object-modules/proxmox/plugins/terraform_proxmox_generator.py`
 - `v5/topology/object-modules/proxmox/plugins/bootstrap_proxmox_generator.py`
 - `v5/topology/object-modules/orangepi/plugins/bootstrap_orangepi_generator.py`
+- `v5/topology/object-modules/_shared/plugins/bootstrap_projections.py`
 - `v5/topology-tools/plugins/plugins.yaml`
+- `v5/topology-tools/plugins/generators/object_projection_loader.py`
+- `v5/topology-tools/plugins/generators/projections.py`
 - `v5/topology-tools/templates/TEMPLATE-INVENTORY.md`
 - `v5/projects/home-lab/framework.lock.yaml`
 - `v5/tests/plugin_integration/test_generator_projection_contract.py`
 - `v5/tests/plugin_integration/test_generator_template_and_publish_contract.py`
+- `v5/tests/plugin_contract/test_plugin_level_boundaries.py`
+- `v5/tests/plugin_contract/test_instance_literal_isolation.py` (Phase 6)
+- `v5/tests/plugin_contract/test_dynamic_object_discovery.py` (Phase 6)
+- `v5/tests/plugin_contract/test_capability_template_config.py` (Phase 6)
+- `v5/tests/plugin_contract/test_projection_ownership_boundaries.py` (Phase 7)
 - `adr/0078-analysis/IMPLEMENTATION-PLAN.md`
 - `adr/plan/0078-v5-unified-plugin-refactor-prep.md`
+- `adr/plan/0078-plugin-layering-and-v4-v5-migration-plan.md`
