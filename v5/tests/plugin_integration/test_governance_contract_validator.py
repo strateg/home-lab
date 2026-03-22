@@ -51,6 +51,12 @@ def _context(raw_yaml: dict) -> PluginContext:
     )
 
 
+def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+
+
 def test_governance_contract_validator_accepts_valid_manifest():
     registry = _registry()
     result = registry.execute_plugin(PLUGIN_ID, _context(_valid_manifest()), Stage.VALIDATE)
@@ -115,3 +121,30 @@ def test_governance_contract_validator_warns_on_changelog_version_gap():
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.PARTIAL
     assert any(diag.code == "W7810" for diag in result.diagnostics)
+
+
+def test_governance_contract_validator_rejects_unknown_default_security_policy_ref():
+    registry = _registry()
+    manifest = _valid_manifest()
+    manifest["meta"]["defaults"] = {"refs": {"security_policy_ref": "fw-missing"}}
+    ctx = _context(manifest)
+    _publish_rows(ctx, [])
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7811" for diag in result.diagnostics)
+
+
+def test_governance_contract_validator_rejects_network_manager_ref_outside_l1():
+    registry = _registry()
+    manifest = _valid_manifest()
+    manifest["meta"]["defaults"] = {"refs": {"network_manager_device_ref": "inst.net.mgr"}}
+    ctx = _context(manifest)
+    _publish_rows(
+        ctx,
+        [{"group": "services", "instance": "inst.net.mgr", "class_ref": "class.service.web_ui", "layer": "L5"}],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7812" for diag in result.diagnostics)

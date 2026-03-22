@@ -5,7 +5,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorYamlPlugin
+from kernel.plugin_base import (
+    PluginContext,
+    PluginDataExchangeError,
+    PluginResult,
+    Stage,
+    ValidatorYamlPlugin,
+)
 
 
 class GovernanceContractValidator(ValidatorYamlPlugin):
@@ -20,6 +26,8 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         "capability_packs",
     )
     _ALLOWED_STATUSES = {"migration", "active", "deprecated"}
+    _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
+    _ROWS_KEY = "normalized_rows"
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics = []
@@ -112,6 +120,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         meta = raw.get("meta")
         if isinstance(meta, dict):
             self._validate_meta(meta=meta, stage=stage, diagnostics=diagnostics, project=project, version=version)
+            self._validate_default_refs(meta=meta, ctx=ctx, stage=stage, diagnostics=diagnostics)
 
         return self.make_result(diagnostics)
 
@@ -223,5 +232,79 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
                         stage=stage,
                         message=f"meta.metadata.changelog does not contain current version '{version}'.",
                         path="topology:meta.metadata.changelog",
+                    )
+                )
+
+    def _validate_default_refs(
+        self,
+        *,
+        meta: dict[str, Any],
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[Any],
+    ) -> None:
+        defaults = meta.get("defaults")
+        refs = defaults.get("refs") if isinstance(defaults, dict) else None
+        if not isinstance(refs, dict):
+            return
+
+        sec_ref = refs.get("security_policy_ref")
+        mgr_ref = refs.get("network_manager_device_ref")
+        if not isinstance(sec_ref, str) and not isinstance(mgr_ref, str):
+            return
+
+        rows: list[dict[str, Any]] = []
+        try:
+            rows_payload = ctx.subscribe(self._ROWS_PLUGIN_ID, self._ROWS_KEY)
+            if isinstance(rows_payload, list):
+                rows = [item for item in rows_payload if isinstance(item, dict)]
+        except PluginDataExchangeError:
+            rows = []
+
+        row_by_id: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            row_id = row.get("instance")
+            if isinstance(row_id, str) and row_id:
+                row_by_id[row_id] = row
+
+        if isinstance(sec_ref, str) and sec_ref:
+            sec_row = row_by_id.get(sec_ref)
+            if not isinstance(sec_row, dict):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7811",
+                        severity="error",
+                        stage=stage,
+                        message=f"meta.defaults.refs.security_policy_ref '{sec_ref}' does not reference a known instance.",
+                        path="topology:meta.defaults.refs.security_policy_ref",
+                    )
+                )
+
+        if isinstance(mgr_ref, str) and mgr_ref:
+            mgr_row = row_by_id.get(mgr_ref)
+            if not isinstance(mgr_row, dict):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7812",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"meta.defaults.refs.network_manager_device_ref '{mgr_ref}' "
+                            "does not reference a known instance."
+                        ),
+                        path="topology:meta.defaults.refs.network_manager_device_ref",
+                    )
+                )
+            elif mgr_row.get("layer") != "L1":
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7812",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"meta.defaults.refs.network_manager_device_ref '{mgr_ref}' must target layer L1, "
+                            f"got '{mgr_row.get('layer')}'."
+                        ),
+                        path="topology:meta.defaults.refs.network_manager_device_ref",
                     )
                 )

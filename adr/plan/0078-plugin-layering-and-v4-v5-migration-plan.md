@@ -265,6 +265,7 @@ Wave D in progress:
    - `base.validator.foundation_layout`
    - `base.validator.foundation_include_contract`
    - `base.validator.foundation_device_taxonomy`
+   - extended `base.validator.governance_contract` with defaults refs parity checks (`meta.defaults.refs.security_policy_ref`, `meta.defaults.refs.network_manager_device_ref`)
 3. Added D2 validators (partial v4 parity):
    - `base.validator.network_ip_overlap`
    - `base.validator.single_active_os`

@@ -47,6 +47,12 @@ def _context(raw_yaml: dict[str, Any]) -> PluginContext:
     )
 
 
+def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish("normalized_rows", rows)
+    ctx._clear_execution_context()
+
+
 def test_metadata_date_format_warning_is_emitted_in_v4_and_v5():
     v4_module = _load_v4_governance_checks_module()
     v4_errors: list[str] = []
@@ -135,3 +141,75 @@ def test_changelog_missing_current_version_warning_is_emitted_in_v4_and_v5():
         Stage.VALIDATE,
     )
     assert any(diag.code == "W7810" for diag in result.diagnostics)
+
+
+def test_default_security_policy_ref_missing_is_error_in_v4_and_v5():
+    v4_module = _load_v4_governance_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_l0_contracts(
+        topology={"L0_meta": {"defaults": {"refs": {"security_policy_ref": "sp-missing"}}}},
+        ids={"security_policies": set(), "devices": set()},
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("security_policy_ref 'sp-missing' does not exist" in message for message in v4_errors)
+
+    registry = _registry()
+    ctx = _context(
+        {
+            "version": "5.0.0",
+            "model": "class-object-instance",
+            "framework": {
+                "class_modules_root": "v5/topology/class-modules",
+                "object_modules_root": "v5/topology/object-modules",
+                "model_lock": "v5/topology/model.lock.yaml",
+                "layer_contract": "v5/topology/layer-contract.yaml",
+                "capability_catalog": "v5/topology/class-modules/router/capability-catalog.yaml",
+                "capability_packs": "v5/topology/class-modules/router/capability-packs.yaml",
+            },
+            "project": {"active": "home-lab", "projects_root": "v5/projects"},
+            "meta": {"instance": "home-lab", "status": "active", "defaults": {"refs": {"security_policy_ref": "sp-missing"}}},
+        }
+    )
+    _publish_rows(ctx, [])
+    result = registry.execute_plugin(V5_GOVERNANCE_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "E7811" for diag in result.diagnostics)
+
+
+def test_default_network_manager_ref_missing_is_error_in_v4_and_v5():
+    v4_module = _load_v4_governance_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_l0_contracts(
+        topology={"L0_meta": {"defaults": {"refs": {"network_manager_device_ref": "dev-missing"}}}},
+        ids={"security_policies": set(), "devices": set()},
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("network_manager_device_ref 'dev-missing' does not exist" in message for message in v4_errors)
+
+    registry = _registry()
+    ctx = _context(
+        {
+            "version": "5.0.0",
+            "model": "class-object-instance",
+            "framework": {
+                "class_modules_root": "v5/topology/class-modules",
+                "object_modules_root": "v5/topology/object-modules",
+                "model_lock": "v5/topology/model.lock.yaml",
+                "layer_contract": "v5/topology/layer-contract.yaml",
+                "capability_catalog": "v5/topology/class-modules/router/capability-catalog.yaml",
+                "capability_packs": "v5/topology/class-modules/router/capability-packs.yaml",
+            },
+            "project": {"active": "home-lab", "projects_root": "v5/projects"},
+            "meta": {
+                "instance": "home-lab",
+                "status": "active",
+                "defaults": {"refs": {"network_manager_device_ref": "dev-missing"}},
+            },
+        }
+    )
+    _publish_rows(ctx, [])
+    result = registry.execute_plugin(V5_GOVERNANCE_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "E7812" for diag in result.diagnostics)
