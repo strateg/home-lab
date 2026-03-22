@@ -120,3 +120,32 @@ def test_network_runtime_reachability_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7843" for diag in result.diagnostics)
+
+
+def test_network_runtime_reachability_validator_supports_top_level_network_fields():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[2].pop("extensions")  # type: ignore[index]
+    rows[2]["ip_allocations"] = [{"device_ref": "srv-a", "host_os_ref": "inst.os.a"}]  # type: ignore[index]
+    rows[3].pop("extensions")  # type: ignore[index]
+    rows[3]["networks"] = [{"network_ref": "inst.vlan.a"}]  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_network_runtime_reachability_validator_treats_mapped_host_os_as_unreachable():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[1]["status"] = "mapped"  # type: ignore[index]
+    rows[-1]["runtime"] = {"type": "docker", "target_ref": "srv-a", "network_binding_ref": "inst.vlan.a"}
+    rows[2]["extensions"] = {"ip_allocations": [{"host_os_ref": "inst.os.a"}]}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7844" for diag in result.diagnostics)

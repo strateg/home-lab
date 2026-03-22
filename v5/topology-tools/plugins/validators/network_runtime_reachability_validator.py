@@ -19,6 +19,7 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
 
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
+    _HOST_OS_ACTIVE_STATUS = "active"
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -59,7 +60,7 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
 
             if class_ref == "class.os":
                 status = str(row.get("status") or "").strip().lower()
-                if status and status not in {"active", "mapped", "modeled"}:
+                if status and status != self._HOST_OS_ACTIVE_STATUS:
                     continue
                 for device_row in rows:
                     if not isinstance(device_row, dict):
@@ -197,6 +198,8 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
         extensions = row.get("extensions")
         if isinstance(extensions, dict) and key in extensions:
             return extensions.get(key)
+        if key in row:
+            return row.get(key)
         object_ref = row.get("object_ref")
         object_payload = ctx.objects.get(object_ref) if isinstance(object_ref, str) else None
         properties = object_payload.get("properties") if isinstance(object_payload, dict) else None
