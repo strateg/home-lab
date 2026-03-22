@@ -285,7 +285,7 @@ Minimum verification set per migration batch:
 2. Wave 2 complete: object-specific generator registration moved to module manifests.
 3. Wave 3 complete: object-specific compatibility shims removed from `v5/topology-tools/plugins/generators/`.
 4. Wave 4 complete: docs and release preflight updated with ADR0078 ownership checks.
-5. Wave 5 deferred: projection ownership split remains optional hardening.
+5. Wave 5 complete: object-specific projection builders moved out of shared tools module.
 6. Compatibility gate evidence captured in `adr/0078-analysis/IMPLEMENTATION-PLAN.md` (section 9).
 
 ---

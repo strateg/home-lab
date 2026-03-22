@@ -11,13 +11,20 @@ import pytest
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from plugins.generators.projections import (  # noqa: E402
-    ProjectionError,
-    build_ansible_projection,
-    build_bootstrap_projection,
-    build_mikrotik_projection,
-    build_proxmox_projection,
+from plugins.generators.object_projection_loader import (  # noqa: E402
+    load_bootstrap_projection_module,
+    load_object_projection_module,
 )
+from plugins.generators.projections import build_ansible_projection  # noqa: E402
+
+_PROXMOX_PROJECTIONS = load_object_projection_module("proxmox")
+_MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
+_BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
+
+ProjectionError = _PROXMOX_PROJECTIONS.ProjectionError
+build_proxmox_projection = _PROXMOX_PROJECTIONS.build_proxmox_projection
+build_mikrotik_projection = _MIKROTIK_PROJECTIONS.build_mikrotik_projection
+build_bootstrap_projection = _BOOTSTRAP_PROJECTIONS.build_bootstrap_projection
 
 
 def _compiled_fixture() -> dict:

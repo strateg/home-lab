@@ -14,11 +14,12 @@ V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage  # noqa: E402
-from plugins.generators.projections import (  # noqa: E402
-    _derive_mikrotik_capability_flags,
-    _extract_capabilities,
-    build_mikrotik_projection,
-)
+from plugins.generators.object_projection_loader import load_object_projection_module  # noqa: E402
+
+_MIKROTIK_PROJECTIONS = load_object_projection_module("mikrotik")
+_derive_mikrotik_capability_flags = _MIKROTIK_PROJECTIONS._derive_mikrotik_capability_flags
+_extract_capabilities = _MIKROTIK_PROJECTIONS._extract_capabilities
+build_mikrotik_projection = _MIKROTIK_PROJECTIONS.build_mikrotik_projection
 
 def _load_generator_class():
     module_path = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py"

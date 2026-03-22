@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-21  
 **ADR:** `adr/0078-object-module-local-template-layout.md`  
-**Status:** Completed (Wave 1-4 closed; Wave 5 deferred)
+**Status:** Completed (Waves 1-5 closed)
 
 ---
 
@@ -61,12 +61,11 @@ Implementation status update (2026-03-21):
 2. Wave 2 completed: object-specific generator registration moved to module manifests.
 3. Wave 3 completed: compatibility shims removed from tools generator package.
 4. Wave 4 completed: docs updated and release preflight includes explicit ADR0078 ownership check.
-5. Wave 5 remains deferred (non-blocking hardening).
+5. Wave 5 completed: object-specific projection builders moved out of shared tools module.
 
 Closure note:
 
-1. ADR0078 Definition of Done is satisfied for mandatory scope (Waves 1-4).
-2. Remaining Wave 5 work is explicitly deferred and does not block release process.
+1. ADR0078 scope in this plan is fully closed (Waves 1-5).
 
 ---
 
@@ -145,17 +144,27 @@ Exit criteria:
 1. Docs reflect module-owned registration model.
 2. Release preflight includes explicit ADR0078 verification.
 
-### Wave 5: Projection Ownership Split (Deferred, Non-blocking)
+### Wave 5: Projection Ownership Split
 
 Goal:
 
 1. Move object-specific projection builders out of:
    - `v5/topology-tools/plugins/generators/projections.py`
 
-Note:
+Changes:
 
-1. Not required for ADR0078 DoD.
-2. Can be scheduled as ADR0078-B follow-up hardening.
+1. Move object-specific projection builders to object-owned modules:
+   - `v5/topology/object-modules/proxmox/plugins/projections.py`
+   - `v5/topology/object-modules/mikrotik/plugins/projections.py`
+   - `v5/topology/object-modules/_shared/plugins/bootstrap_projections.py`
+2. Keep only shared/global projection builder(s) in:
+   - `v5/topology-tools/plugins/generators/projections.py`
+3. Add ownership guard checks so object-specific projection builders are not reintroduced in shared tools module.
+
+Exit criteria:
+
+1. Object generators resolve projection helpers from object-owned modules.
+2. Shared `projections.py` contains only shared/global projection helpers.
 
 ---
 
@@ -238,4 +247,4 @@ Recorded one full local release cycle after shim removal:
 
 Conclusion:
 
-1. Compatibility gate objective ("one full release cycle without shim-origin failures") is satisfied for ADR0078 Waves 1-4 scope.
+1. Compatibility gate objective ("one full release cycle without shim-origin failures") remains satisfied; Wave 5 applies ownership hardening on top.

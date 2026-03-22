@@ -109,6 +109,36 @@ Allow reusable baseline plugins in core layer for cross-module reuse (for exampl
 
 Base plugins are referenced the same way as module plugins and participate in the same ordering/dependency graph.
 
+### 4B. Four-Level Plugin Boundary Contract (Normative)
+
+All plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`) follow one boundary model with four levels:
+
+1. **Global infrastructure/core level** (`v5/topology-tools/plugins/*`)
+2. **Class level** (`v5/topology/class-modules/**/plugins/*`)
+3. **Object level** (`v5/topology/object-modules/**/plugins/*`)
+4. **Instance level** (project/runtime-specific plugins when introduced)
+
+Boundary rules:
+
+1. Class-level plugins MUST NOT hardcode object identifiers (`obj.*`) or instance identifiers (`inst.*`).
+2. Object-level plugins MUST NOT hardcode instance identifiers (`inst.*`).
+3. Instance-level plugins own instance-specific behavior and may reference concrete instance identifiers.
+4. Global/core plugins provide shared infrastructure and reusable contracts, and MUST avoid embedding project-instance-specific behavior.
+
+Dependency direction rules:
+
+1. A plugin may depend only on interfaces/abstractions defined at the same level or a higher level.
+2. Concrete implementations consumed by a lower level are provided by a higher level (Dependency Inversion Principle).
+3. Downward concrete coupling (for example class-level plugin importing object-specific behavior directly) is forbidden.
+
+SOLID applies to plugin design at all levels:
+
+1. **S**ingle Responsibility: one plugin focuses on one coherent contract.
+2. **O**pen/Closed: extend via new plugins/adapters, not by editing unrelated stable plugins.
+3. **L**iskov Substitution: implementation variants remain contract-compatible.
+4. **I**nterface Segregation: narrow per-stage/per-purpose plugin interfaces.
+5. **D**ependency Inversion: depend on abstractions, not level-specific concrete details.
+
 ### 4A. Deterministic Module-Level Manifest Discovery and Merge
 
 Runtime loads plugin manifests with deterministic merge policy:
@@ -370,6 +400,11 @@ Every plugin must include:
    - Output matches old validator (during migration)
    - No new false positives/negatives
    - No performance regression >10%
+
+5. **Level-Boundary Contract Tests** - Layered plugin ownership
+   - Class-level plugins do not hardcode `obj.*` / `inst.*`
+   - Object-level plugins do not hardcode `inst.*`
+   - Enforced by `v5/tests/plugin_contract/test_plugin_level_boundaries.py`
 
 CI must:
 - Run all plugin tests before merge

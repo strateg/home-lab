@@ -53,6 +53,18 @@ LEGACY_OBJECT_TEMPLATE_DIRS = [
     V5_ROOT / "topology-tools" / "templates" / "bootstrap" / "orangepi",
 ]
 
+SHARED_PROJECTIONS_FILE = V5_ROOT / "topology-tools" / "plugins" / "generators" / "projections.py"
+OBJECT_PROJECTION_FILES = [
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "projections.py",
+    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "projections.py",
+    V5_ROOT / "topology" / "object-modules" / "_shared" / "plugins" / "bootstrap_projections.py",
+]
+OBJECT_PROJECTION_BUILDERS = (
+    "def build_proxmox_projection(",
+    "def build_mikrotik_projection(",
+    "def build_bootstrap_projection(",
+)
+
 
 def _plugin_ids(manifest_path: Path) -> set[str]:
     payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
@@ -112,3 +124,17 @@ def test_object_specific_templates_are_not_stored_in_tools_domain() -> None:
 def test_object_specific_templates_exist_in_object_modules() -> None:
     missing_roots = [path for path in OBJECT_TEMPLATE_ROOTS if not path.exists()]
     assert missing_roots == [], f"Missing object template roots: {missing_roots}"
+
+
+def test_object_projection_builders_are_not_implemented_in_shared_tools_module() -> None:
+    body = SHARED_PROJECTIONS_FILE.read_text(encoding="utf-8")
+    leaked = [signature for signature in OBJECT_PROJECTION_BUILDERS if signature in body]
+    assert leaked == [], (
+        "Object-specific projection builders must be owned by object modules, not shared tools module: "
+        f"{leaked}"
+    )
+
+
+def test_object_projection_modules_exist() -> None:
+    missing = [path for path in OBJECT_PROJECTION_FILES if not path.exists()]
+    assert missing == [], f"Missing object projection modules: {missing}"

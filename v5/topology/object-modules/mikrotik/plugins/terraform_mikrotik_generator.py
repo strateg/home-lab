@@ -7,7 +7,11 @@ from pathlib import Path
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.base_generator import BaseGenerator
-from plugins.generators.projections import ProjectionError, build_mikrotik_projection
+from plugins.generators.object_projection_loader import load_object_projection_module
+
+_PROJECTIONS = load_object_projection_module("mikrotik")
+ProjectionError = _PROJECTIONS.ProjectionError
+build_mikrotik_projection = _PROJECTIONS.build_mikrotik_projection
 
 
 def _render_string_list(items: list[str]) -> str:
