@@ -71,6 +71,30 @@ When evaluating any technical decision, systematically assess:
 5. **Stateful Scripts**: Prefer declarative configs over imperative bash scripts
 6. **Resource Overcommitment**: Don't exceed available RAM budget
 
+## Plugin Level Boundaries (Mandatory)
+
+Enforce the 4-level plugin architecture in all reviews and implementation guidance:
+
+1. Global infrastructure/core level
+2. Class level
+3. Object level
+4. Instance level
+
+Rules:
+
+1. Class-level plugins must not reference `obj.*` or `inst.*`.
+2. Object-level plugins must not reference `inst.*`.
+3. A plugin may call interfaces defined at its own level or higher only.
+4. Those interfaces may be implemented by higher levels (dependency inversion).
+5. These constraints apply to all plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`).
+6. Use SOLID principles when designing/refactoring plugins.
+
+Scope variants:
+
+1. Class level may include class-global plugins and class-specific plugins.
+2. Object level may include object-global plugins and object-specific plugins.
+3. If a class/object plugin has no class/object-specific identifiers, it should be migrated to global core level.
+
 ## ADR Governance (Mandatory)
 
 For every architectural decision, you must enforce ADR logging:

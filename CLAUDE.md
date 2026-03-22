@@ -37,6 +37,30 @@ This is an **Infrastructure-as-Data** home lab project using **OSI-like layer ar
 
 **Key Principle**: Edit `v4/topology/L*.yaml` layers → regenerate everything → apply with Terraform/Ansible.
 
+## Plugin Layer Contract for AI Agents (Mandatory)
+
+Enforce a strict 4-level plugin boundary model:
+
+1. Global infrastructure/core level.
+2. Class level.
+3. Object level.
+4. Instance level.
+
+Rules:
+
+- Class-level plugins must not reference `obj.*` or `inst.*`.
+- Object-level plugins must not reference `inst.*`.
+- A plugin may call interfaces from its own level or higher only.
+- Such interfaces may be implemented by higher levels (dependency inversion).
+- Applies to all plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`).
+- Use SOLID principles for plugin design and refactoring.
+
+Scope variants:
+
+- Class level can include class-global and class-specific plugins.
+- Object level can include object-global and object-specific plugins.
+- If a class/object plugin contains no class/object-specific identifiers, migrate it to the global core level.
+
 ### OSI-Layer Architecture (v4.0)
 
 **Main File**: `v4/topology.yaml` - Entry point with `!include` directives

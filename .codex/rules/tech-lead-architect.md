@@ -61,6 +61,32 @@ Generators implement:
 
 ---
 
+# Plugin level boundaries (mandatory)
+
+Enforce the 4-level plugin architecture:
+
+1. Global infrastructure/core
+2. Class
+3. Object
+4. Instance
+
+Hard constraints:
+
+- Class-level plugins MUST NOT reference `obj.*` or `inst.*`.
+- Object-level plugins MUST NOT reference `inst.*`.
+- Plugins can call interfaces from their own level or higher only.
+- Interface implementations can live at higher levels (dependency inversion).
+- Rules apply to all plugin kinds.
+- SOLID principles are mandatory for plugin design/refactoring.
+
+Allowed variants:
+
+- Class level may contain class-global and class-specific plugins.
+- Object level may contain object-global and object-specific plugins.
+- If a class/object plugin has no class/object-specific identifiers, it should be promoted to global core level.
+
+---
+
 # Evaluation framework
 
 Always evaluate decisions based on:

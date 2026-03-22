@@ -45,3 +45,27 @@ Prevent architectural drift.
 Prioritize maintainability and system integrity.
 
 Architecture-changing work is not done until ADR documentation is updated.
+
+## Plugin Layer Contract (Mandatory)
+
+All AI agents must enforce a 4-level plugin boundary model:
+
+1. Global infrastructure/core level.
+2. Class level.
+3. Object level.
+4. Instance level.
+
+Rules:
+
+- Class-level plugins must not mention `obj.*` or `inst.*`.
+- Object-level plugins must not mention `inst.*`.
+- A plugin may depend on interfaces defined at its own level or higher.
+- Those interfaces may be implemented by higher levels (DIP-style inversion).
+- Applies to all plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`).
+- Use SOLID principles in plugin refactoring decisions.
+
+Scope variants:
+
+- Class level can include class-global plugins and class-specific plugins.
+- Object level can include object-global plugins and object-specific plugins.
+- If a class/object plugin has no class/object-specific identifiers, move it to global core level.
