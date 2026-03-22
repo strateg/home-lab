@@ -28,11 +28,7 @@ The v5 topology compiler uses a microkernel architecture where validation, compi
 # v5/topology-tools/plugins/validators/my_validator.py
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from kernel.plugin_base import (
     PluginContext,
@@ -443,6 +439,32 @@ plugins:
 5. **Test with declared dependencies**: Seed required published data in tests and keep `depends_on` accurate
 6. **Use warnings for evolving contracts**: Emit warnings for soft constraints, errors for hard failures
 7. **Document dependencies**: Clearly state what data you expect from `depends_on` plugins
+
+## ADR0078 Boundary Rules
+
+For object-scoped plugins (compilers/validators/generators), follow these rules:
+
+1. Do not hardcode instance-specific endpoints in object plugin Python code (private IP or `.local` URLs).
+2. Do not import peer object modules directly; object-to-object imports are forbidden.
+3. Use dynamic object projection discovery via `load_object_projection_module()`; do not add static object path maps.
+4. Capability-driven generator templates must be configured in module manifest `config.capability_templates`.
+5. Keep object-specific logic in object modules; keep cross-object projection logic in shared/core modules.
+
+Example `capability_templates` config in object module manifest:
+
+```yaml
+config:
+  capability_templates:
+    - capability_key: has_qos
+      template: terraform/qos.tf.j2
+      output_file: qos.tf
+    - capability_key: has_wireguard
+      template: terraform/vpn.tf.j2
+      output_file: vpn.tf
+    - capability_key: has_containers
+      template: terraform/containers.tf.j2
+      output_file: containers.tf
+```
 
 ## ADR0068 Placeholder Policy Notes
 
