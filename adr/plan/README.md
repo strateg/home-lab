@@ -8,6 +8,7 @@ This directory contains implementation plans for major development efforts.
 |------|--------|-------------|
 | [0076-multi-repo-extraction-plan.md](0076-multi-repo-extraction-plan.md) | Draft | Framework extraction and multi-repo distribution |
 | [0078-plugin-layering-and-v4-v5-migration-plan.md](0078-plugin-layering-and-v4-v5-migration-plan.md) | Active | Plugin level-boundary hardening + staged v4->v5 tooling migration |
+| [0078-wave-d-v4-validator-mapping.md](0078-wave-d-v4-validator-mapping.md) | Active | Detailed mapping of legacy v4 validator checks to v5 plugin targets |
 | [v5-production-readiness.md](v5-production-readiness.md) | Active | Master plan for v5 deployment capability |
 | [phase1-generator-framework.md](phase1-generator-framework.md) | Superseded | Generator plugin infrastructure (see ADR 0074) |
 

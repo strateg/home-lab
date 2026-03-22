@@ -6,11 +6,7 @@ ownership from core validation in plugin-first mode.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from kernel.plugin_base import (
     PluginContext,
@@ -20,7 +16,6 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
-
 
 class EmbeddedInValidator(ValidatorJsonPlugin):
     """Validate embedded_in relationships for OS and device instances."""

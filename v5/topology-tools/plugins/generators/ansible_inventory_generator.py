@@ -3,15 +3,10 @@
 from __future__ import annotations
 
 import json
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.projections import ProjectionError, build_ansible_projection
-
 
 class AnsibleInventoryGenerator(BaseGenerator):
     """Emit baseline Ansible inventory from ansible projection."""

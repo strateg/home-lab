@@ -3,13 +3,9 @@
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
 from kernel.plugin_base import GeneratorPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
-
 
 class EffectiveJsonGenerator(GeneratorPlugin):
     """Emit canonical effective JSON artifact from compiled_json."""

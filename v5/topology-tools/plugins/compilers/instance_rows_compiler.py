@@ -7,14 +7,11 @@ import datetime as dt
 import ipaddress
 import re
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 import yaml
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from field_annotations import parse_field_annotation
 from identifier_policy import contains_unsafe_identifier_chars
@@ -26,7 +23,6 @@ from kernel.plugin_base import (
     PluginResult,
     Stage,
 )
-
 
 class InstanceRowsCompiler(CompilerPlugin):
     """Normalize instance_bindings rows and emit row-shape diagnostics."""

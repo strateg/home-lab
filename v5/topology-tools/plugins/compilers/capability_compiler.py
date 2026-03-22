@@ -12,11 +12,7 @@ Example of inter-plugin data exchange:
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from kernel.plugin_base import (
     CompilerPlugin,
@@ -25,7 +21,6 @@ from kernel.plugin_base import (
     PluginResult,
     Stage,
 )
-
 
 class CapabilityCompiler(CompilerPlugin):
     """Derives capabilities from class and object definitions.

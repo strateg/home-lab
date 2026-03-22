@@ -9,12 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sys
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from capability_derivation import default_firmware_policy as shared_default_firmware_policy
 from capability_derivation import derive_firmware_capabilities as shared_derive_firmware_capabilities
@@ -31,15 +27,12 @@ from kernel.plugin_base import (
     Stage,
 )
 
-
 def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-
 
 def _manifest_digest(payload: dict[str, Any]) -> str:
     canonical = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
 
 class EffectiveModelCompiler(CompilerPlugin):
     """Assemble candidate effective model in compile stage."""

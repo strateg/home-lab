@@ -4,11 +4,49 @@ from __future__ import annotations
 
 from typing import Any
 
-from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorJsonPlugin
+from kernel.plugin_base import (
+    PluginContext,
+    PluginDataExchangeError,
+    PluginResult,
+    Stage,
+    ValidatorJsonPlugin,
+)
 
 
 class EthernetCableEndpointValidator(ValidatorJsonPlugin):
     """Validate ethernet cable endpoints and created data-channel binding."""
+
+    _PORT_INVENTORY_PLUGIN_ID = "base.validator.ethernet_port_inventory"
+    _PORT_INVENTORY_KEY = "ethernet_ports_by_object"
+
+    @staticmethod
+    def _subscribe_required(
+        ctx: PluginContext,
+        *,
+        plugin_id: str,
+        published_key: str,
+    ) -> Any:
+        try:
+            return ctx.subscribe(plugin_id, published_key)
+        except PluginDataExchangeError as exc:
+            raise PluginDataExchangeError(
+                f"Missing required published key '{published_key}' from '{plugin_id}': {exc}"
+            ) from exc
+
+    @staticmethod
+    def _normalize_inventory(raw_inventory: Any) -> dict[str, set[str]]:
+        normalized: dict[str, set[str]] = {}
+        if not isinstance(raw_inventory, dict):
+            return normalized
+        for object_id, ports in raw_inventory.items():
+            if not isinstance(object_id, str) or not object_id:
+                continue
+            if not isinstance(ports, list):
+                continue
+            normalized_ports = {port for port in ports if isinstance(port, str) and port}
+            if normalized_ports:
+                normalized[object_id] = normalized_ports
+        return normalized
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics = []
@@ -16,6 +54,17 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
         if not isinstance(bindings, dict):
             return self.make_result(diagnostics)
 
+        ethernet_inventory: dict[str, set[str]] = {}
+        try:
+            raw_inventory = self._subscribe_required(
+                ctx,
+                plugin_id=self._PORT_INVENTORY_PLUGIN_ID,
+                published_key=self._PORT_INVENTORY_KEY,
+            )
+            ethernet_inventory = self._normalize_inventory(raw_inventory)
+        except PluginDataExchangeError:
+            # Fallback keeps standalone plugin execution deterministic in isolated tests.
+            ethernet_inventory = {}
         instance_rows = self._build_instance_index(bindings)
         for group_name, rows in bindings.items():
             if not isinstance(rows, list):
@@ -31,6 +80,7 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                     row=row,
                     row_prefix=prefix,
                     instance_rows=instance_rows,
+                    ethernet_inventory=ethernet_inventory,
                     stage=stage,
                     diagnostics=diagnostics,
                 )
@@ -79,6 +129,7 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
         row: dict[str, Any],
         row_prefix: str,
         instance_rows: dict[str, dict[str, Any]],
+        ethernet_inventory: dict[str, set[str]],
         stage: Stage,
         diagnostics: list[Any],
     ) -> None:
@@ -135,8 +186,10 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                 continue
 
             object_ref = device_row.get("object_ref")
-            object_payload = ctx.objects.get(object_ref) if isinstance(object_ref, str) else None
-            ethernet_ports = self._extract_ethernet_ports(object_payload)
+            ethernet_ports = ethernet_inventory.get(object_ref, set()) if isinstance(object_ref, str) else set()
+            if not ethernet_ports and isinstance(object_ref, str):
+                object_payload = ctx.objects.get(object_ref)
+                ethernet_ports = self._extract_ethernet_ports(object_payload)
             if not ethernet_ports:
                 diagnostics.append(
                     self.emit_diagnostic(
@@ -324,8 +377,8 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
                                 "properties.backing_link_class='class.network.physical_link'."
                             ),
                             path=f"{row_prefix}.creates_channel_ref",
-                        )
                     )
+                )
 
     @staticmethod
     def _extract_ethernet_ports(object_payload: Any) -> set[str]:

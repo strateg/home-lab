@@ -6,11 +6,7 @@ Ownership can be switched to plugin in plugin-first mode.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from typing import Any
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from capability_derivation import default_firmware_policy as shared_default_firmware_policy
 from capability_derivation import derive_firmware_capabilities as shared_derive_firmware_capabilities
@@ -26,7 +22,6 @@ from kernel.plugin_base import (
     Stage,
     ValidatorJsonPlugin,
 )
-
 
 class CapabilityContractValidator(ValidatorJsonPlugin):
     """Validate class/object capability contracts and derived capability coverage."""

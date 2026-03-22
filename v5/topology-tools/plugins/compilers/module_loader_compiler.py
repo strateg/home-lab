@@ -2,19 +2,15 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
 from identifier_policy import contains_unsafe_identifier_chars
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-
 
 class ModuleLoaderCompiler(CompilerPlugin):
     """Load class/object module YAML files for plugin-first pipeline."""

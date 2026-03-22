@@ -197,6 +197,21 @@ plugins:
       required: []
     description: Validates embedded_in references for OS instances (ADR 0064)
 
+  - id: base.validator.ethernet_port_inventory
+    kind: validator_json
+    entry: validators/ethernet_port_inventory_validator.py:EthernetPortInventoryValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 125
+    depends_on: [base.validator.references]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Publishes object ethernet port inventory for endpoint validators.
+
   - id: base.validator.capability_contract
     kind: validator_json
     entry: validators/capability_contract_validator.py:CapabilityContractValidator

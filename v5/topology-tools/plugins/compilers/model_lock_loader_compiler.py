@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-
 
 class ModelLockLoaderCompiler(CompilerPlugin):
     """Load and parse model.lock data for plugin-first pipeline."""

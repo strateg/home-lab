@@ -2,19 +2,15 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
 from field_annotations import FieldAnnotation, parse_field_annotation
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[2] / "data" / "instance-field-formats.yaml"
-
 
 class AnnotationResolverCompiler(CompilerPlugin):
     """Parse annotations once and publish normalized annotation indexes."""

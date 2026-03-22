@@ -66,10 +66,10 @@
 
 Tasks:
 
-- [ ] Удалить `sys.path.insert(...)` из `v5/topology-tools/plugins/compilers/*.py`.
-- [ ] Удалить `sys.path.insert(...)` из `v5/topology-tools/plugins/validators/*.py`.
-- [ ] Удалить `sys.path.insert(...)` из `v5/topology-tools/plugins/generators/*.py`.
-- [ ] Убедиться, что загрузка через `PluginRegistry` покрывает все импорты.
+- [x] Удалить `sys.path.insert(...)` из `v5/topology-tools/plugins/compilers/*.py`.
+- [x] Удалить `sys.path.insert(...)` из `v5/topology-tools/plugins/validators/*.py`.
+- [x] Удалить `sys.path.insert(...)` из `v5/topology-tools/plugins/generators/*.py`.
+- [x] Убедиться, что загрузка через `PluginRegistry` покрывает все импорты.
 
 Verification:
 
@@ -89,9 +89,9 @@ Exit:
 
 Tasks:
 
-- [ ] Вынести абстрактный контракт ethernet-port inventory в class/global plugin (например class.router contract или base validator contract).
-- [ ] Переподключить `object_network.validator_json.ethernet_cable_endpoints` на контракт верхнего уровня вместо конкретных object plugins.
-- [ ] Сохранить текущую диагностическую семантику (`E7304-E7308`).
+- [x] Вынести абстрактный контракт ethernet-port inventory в class/global plugin (например class.router contract или base validator contract).
+- [x] Переподключить `object_network.validator_json.ethernet_cable_endpoints` на контракт верхнего уровня вместо конкретных object plugins.
+- [x] Сохранить текущую диагностическую семантику (`E7304-E7308`).
 
 Target files:
 
@@ -117,8 +117,8 @@ Exit:
 
 Tasks:
 
-- [ ] Выбрать один вариант:
-- [ ] Вариант 1: удалить файл как неиспользуемый.
+- [x] Выбрать один вариант:
+- [x] Вариант 1: удалить файл как неиспользуемый.
 - [ ] Вариант 2: мигрировать на `ValidatorJsonPlugin`, зарегистрировать в `v5/topology/object-modules/network/plugins.yaml`, покрыть тестами.
 
 Verification:

@@ -8,8 +8,7 @@ plugins:
     order: 243
     depends_on:
       - base.validator.references
-      - object_mikrotik.validator_json.router_ports
-      - object_glinet.validator_json.router_ports
+      - base.validator.ethernet_port_inventory
     timeout: 30
     config: {}
     config_schema:
