@@ -10,6 +10,7 @@
 v5/topology-tools/templates/
 ├── ansible/
 │   └── inventory/         # Ansible inventory templates
+├── docs/                  # Baseline markdown docs templates
 └── (shared templates only)
 
 v5/topology/object-modules/mikrotik/templates/
@@ -67,6 +68,16 @@ v5/topology/object-modules/orangepi/templates/
 | `hosts.yml.j2` | `v4/topology-tools/templates/ansible/hosts.yml.j2` | Complete | `ansible_inventory_generator.py` |
 | `group_vars_all.yml.j2` | `v4/topology-tools/templates/ansible/group_vars_all.yml.j2` | Complete | `ansible_inventory_generator.py` |
 | `host_vars.yml.j2` | `v4/topology-tools/templates/ansible/host_vars.yml.j2` | Complete | `ansible_inventory_generator.py` |
+
+---
+
+## Docs Templates
+
+| Template | V4 Source | V5 Status | Generator |
+|----------|-----------|-----------|-----------|
+| `overview.md.j2` | `v4/topology-tools/templates/docs/overview.md.j2` | Seed Complete (projection-first baseline) | `docs_generator.py` |
+| `devices.md.j2` | `v4/topology-tools/templates/docs/devices.md.j2` | Seed Complete (projection-first baseline) | `docs_generator.py` |
+| `services.md.j2` | `v4/topology-tools/templates/docs/services.md.j2` | Seed Complete (projection-first baseline) | `docs_generator.py` |
 
 ---
 

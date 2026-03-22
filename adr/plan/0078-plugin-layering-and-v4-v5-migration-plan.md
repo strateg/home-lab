@@ -174,10 +174,10 @@ Priority order:
 
 Tasks:
 
-- [ ] Спроектировать projection contract для docs generation.
-- [ ] Реализовать v5 docs generator plugin + templates.
-- [ ] Добавить integration tests для docs artifacts.
-- [ ] Обновить build/release pipelines под новый plugin.
+- [x] Спроектировать projection contract для docs generation.
+- [x] Реализовать v5 docs generator plugin + templates.
+- [x] Добавить integration tests для docs artifacts.
+- [x] Обновить build/release pipelines под новый plugin.
 
 Verification:
 
@@ -305,3 +305,16 @@ Wave D in progress:
    - `v5/tests/plugin_integration/test_governance_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_host_os_refs_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_vm_lxc_host_os_v4_v5_parity.py`
+
+Wave E in progress:
+
+1. Added docs projection contract + core generator:
+   - `base.generator.docs`
+   - `v5/topology-tools/plugins/generators/projections.py:build_docs_projection`
+2. Added docs templates (projection-first baseline):
+   - `v5/topology-tools/templates/docs/overview.md.j2`
+   - `v5/topology-tools/templates/docs/devices.md.j2`
+   - `v5/topology-tools/templates/docs/services.md.j2`
+3. Added integration coverage for docs generator:
+   - `v5/tests/plugin_integration/test_docs_generator.py`
+4. Updated `build-v5` orchestration message/contract to reflect generator-enabled runtime.
