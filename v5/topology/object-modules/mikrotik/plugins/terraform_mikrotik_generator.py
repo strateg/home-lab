@@ -24,8 +24,23 @@ def _render_string_list(items: list[str]) -> str:
 class TerraformMikroTikGenerator(BaseGenerator):
     """Emit baseline Terraform files from mikrotik projection."""
 
+    _DEFAULT_MIKROTIK_HOST = "mikrotik.invalid"
+    _DEFAULT_MIKROTIK_PORT = 8443
+
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="mikrotik")
+
+    @classmethod
+    def _resolve_mikrotik_host(cls, *, ctx: PluginContext, routers: list[str]) -> str:
+        configured_host = ctx.config.get("mikrotik_api_host")
+        if not configured_host:
+            configured_host = ctx.config.get("mikrotik_host")
+        configured_host_str = str(configured_host).strip() if isinstance(configured_host, str) else ""
+        if configured_host_str:
+            return configured_host_str
+        if routers:
+            return f"https://{routers[0]}:{cls._DEFAULT_MIKROTIK_PORT}"
+        return f"https://{cls._DEFAULT_MIKROTIK_HOST}:{cls._DEFAULT_MIKROTIK_PORT}"
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -61,9 +76,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
         routers = [str(row.get("instance_id", "")) for row in projection.get("routers", [])]
         networks = [str(row.get("instance_id", "")) for row in projection.get("networks", [])]
         services = [str(row.get("instance_id", "")) for row in projection.get("services", [])]
-        mikrotik_host = "https://192.168.88.1:8443"
-        if routers:
-            mikrotik_host = f"https://{routers[0]}:8443"
+        mikrotik_host = self._resolve_mikrotik_host(ctx=ctx, routers=routers)
 
         # Extract capability flags from projection
         caps = projection.get("capabilities", {})

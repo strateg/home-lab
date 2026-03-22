@@ -90,3 +90,30 @@ def test_terraform_proxmox_generator_reports_projection_error(tmp_path: Path) ->
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9101" for diag in result.diagnostics)
+
+
+def test_terraform_proxmox_generator_derives_api_url_from_projection(tmp_path: Path) -> None:
+    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    tfvars = (tmp_path / "generated" / "terraform" / "proxmox" / "terraform.tfvars.example").read_text(
+        encoding="utf-8"
+    )
+    assert 'proxmox_api_url = "https://srv-gamayun:8006/api2/json"' in tfvars
+
+
+def test_terraform_proxmox_generator_prefers_configured_api_url(tmp_path: Path) -> None:
+    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+    ctx.config["proxmox_api_url"] = "https://pve-api.example.invalid:8443/api2/json"
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    tfvars = (tmp_path / "generated" / "terraform" / "proxmox" / "terraform.tfvars.example").read_text(
+        encoding="utf-8"
+    )
+    assert 'proxmox_api_url = "https://pve-api.example.invalid:8443/api2/json"' in tfvars

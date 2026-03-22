@@ -24,8 +24,22 @@ def _render_string_list(items: list[str]) -> str:
 class TerraformProxmoxGenerator(BaseGenerator):
     """Emit baseline Terraform files from proxmox projection."""
 
+    _DEFAULT_PROXMOX_HOST = "proxmox.invalid"
+    _DEFAULT_PROXMOX_PORT = 8006
+    _DEFAULT_PROXMOX_API_PATH = "api2/json"
+
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="proxmox")
+
+    @classmethod
+    def _resolve_proxmox_api_url(cls, *, ctx: PluginContext, proxmox_nodes: list[str]) -> str:
+        configured_url = ctx.config.get("proxmox_api_url")
+        configured_url_str = str(configured_url).strip() if isinstance(configured_url, str) else ""
+        if configured_url_str:
+            return configured_url_str
+        if proxmox_nodes:
+            return f"https://{proxmox_nodes[0]}:{cls._DEFAULT_PROXMOX_PORT}/{cls._DEFAULT_PROXMOX_API_PATH}"
+        return f"https://{cls._DEFAULT_PROXMOX_HOST}:{cls._DEFAULT_PROXMOX_PORT}/{cls._DEFAULT_PROXMOX_API_PATH}"
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -62,9 +76,7 @@ class TerraformProxmoxGenerator(BaseGenerator):
         lxc_rows = projection.get("lxc", [])
         lxc_instances = [str(row.get("instance_id", "")) for row in lxc_rows]
         service_instances = [str(row.get("instance_id", "")) for row in projection.get("services", [])]
-        proxmox_api_url = "https://proxmox.local:8006/api2/json"
-        if proxmox_nodes:
-            proxmox_api_url = f"https://{proxmox_nodes[0]}:8006/api2/json"
+        proxmox_api_url = self._resolve_proxmox_api_url(ctx=ctx, proxmox_nodes=proxmox_nodes)
 
         render_context = {
             "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),
