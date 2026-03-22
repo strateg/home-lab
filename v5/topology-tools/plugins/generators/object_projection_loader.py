@@ -11,12 +11,6 @@ from types import ModuleType
 
 V5_ROOT = Path(__file__).resolve().parents[3]
 OBJECT_MODULES_ROOT = V5_ROOT / "topology" / "object-modules"
-
-OBJECT_PROJECTION_PATHS: dict[str, Path] = {
-    "proxmox": OBJECT_MODULES_ROOT / "proxmox" / "plugins" / "projections.py",
-    "mikrotik": OBJECT_MODULES_ROOT / "mikrotik" / "plugins" / "projections.py",
-}
-
 BOOTSTRAP_PROJECTION_PATH = OBJECT_MODULES_ROOT / "_shared" / "plugins" / "bootstrap_projections.py"
 
 
@@ -34,11 +28,30 @@ def _load_module(*, module_name: str, module_path: Path) -> ModuleType:
     return module
 
 
+def discover_object_projection_paths(*, object_modules_root: Path = OBJECT_MODULES_ROOT) -> dict[str, Path]:
+    paths: dict[str, Path] = {}
+    if not object_modules_root.exists():
+        return paths
+    for object_dir in sorted(object_modules_root.iterdir(), key=lambda entry: entry.name):
+        if not object_dir.is_dir():
+            continue
+        candidate = object_dir / "plugins" / "projections.py"
+        if candidate.exists():
+            paths[object_dir.name] = candidate
+    return paths
+
+
+@lru_cache(maxsize=1)
+def _object_projection_paths() -> dict[str, Path]:
+    return discover_object_projection_paths()
+
+
 @lru_cache(maxsize=None)
 def load_object_projection_module(object_id: str) -> ModuleType:
-    module_path = OBJECT_PROJECTION_PATHS.get(object_id)
+    paths = _object_projection_paths()
+    module_path = paths.get(object_id)
     if module_path is None:
-        known = ", ".join(sorted(OBJECT_PROJECTION_PATHS))
+        known = ", ".join(sorted(paths))
         raise ValueError(f"Unknown object projection module '{object_id}'. Known: {known}")
     return _load_module(module_name=f"_object_projection_{object_id}", module_path=module_path)
 
