@@ -19,6 +19,7 @@ tasks:
       - :validate:v5-passthrough
       - :validate:phase1-gate
       - :test:fixture-matrix-v4
+      - :test:parity-v4-v5
       - :test:v4
       - :test:v5
 
@@ -58,3 +59,8 @@ tasks:
     desc: Topology matrix legacy fixture lane
     deps:
       - :test:fixture-matrix-v4
+
+  topology-parity-v4-v5:
+    desc: Topology matrix v4-v5 parity lane
+    deps:
+      - :test:parity-v4-v5

@@ -16,6 +16,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} -m pytest -o addopts= -q"
 
+  parity-v4-v5:
+    desc: Run v4-v5 parity regression suite for migrated validators
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= v5/tests/plugin_integration/test_governance_v4_v5_parity.py v5/tests/plugin_integration/test_network_refs_v4_v5_parity.py v5/tests/plugin_integration/test_service_refs_v4_v5_parity.py v5/tests/plugin_integration/test_storage_l3_v4_v5_warning_parity.py v5/tests/plugin_integration/test_host_os_refs_v4_v5_parity.py v5/tests/plugin_integration/test_vm_lxc_host_os_v4_v5_parity.py -q"
+
   v4:
     desc: Run v4 tests
     cmds:

@@ -54,3 +54,4 @@
 1. Для каждой строки с `Partial` должен быть зафиксирован parity fixture в `v5/tests/plugin_integration`.
 2. Перед отключением v4 check: прогонить v5 target plugins и сравнить diagnostics baseline на регрессионной выборке.
 3. После отключения набора v4 checks: обновить `taskfiles/validate.yml` и release preflight lane под v5-only validation path.
+4. Для staged cutover references/storage/governance запускать parity lane: `task test:parity-v4-v5` (или `task ci:topology-parity-v4-v5`).

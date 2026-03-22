@@ -310,6 +310,10 @@ Wave D in progress:
    - `v5/tests/plugin_integration/test_governance_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_host_os_refs_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_vm_lxc_host_os_v4_v5_parity.py`
+8. Added dedicated parity gate tasking for staged cutover:
+   - `task test:parity-v4-v5`
+   - `task ci:topology-parity-v4-v5`
+   - wired into `task ci:local-with-legacy`
 
 Wave E in progress:
 
