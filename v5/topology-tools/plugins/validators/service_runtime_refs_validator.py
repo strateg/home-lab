@@ -29,6 +29,10 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
     _DOCKER_CAPABILITIES = {"docker", "container"}
     _BAREMETAL_ALLOWED_HOST_TYPES = {"baremetal", "embedded", "hypervisor"}
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
+    _EXTERNAL_SERVICES_DEPRECATION = (
+        "L5_application.external_services is deprecated; "
+        "model Docker/Baremetal workloads via services[].runtime."
+    )
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -47,6 +51,11 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
             return self.make_result(diagnostics)
 
         rows = [item for item in rows_payload if isinstance(item, dict)] if isinstance(rows_payload, list) else []
+        self._warn_on_legacy_external_services(
+            ctx=ctx,
+            stage=stage,
+            diagnostics=diagnostics,
+        )
         row_by_id: dict[str, dict[str, Any]] = {}
         active_host_os_by_device: dict[str, list[dict[str, Any]]] = {}
         has_host_os_inventory = any(row.get("class_ref") == "class.os" for row in rows)
@@ -210,6 +219,40 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
                 )
 
         return self.make_result(diagnostics)
+
+    def _warn_on_legacy_external_services(
+        self,
+        *,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> None:
+        sources = (
+            ("L5_application.external_services", self._extract_external_services(ctx.raw_yaml)),
+            ("compiled_json.L5_application.external_services", self._extract_external_services(ctx.compiled_json)),
+        )
+        for path, external_services in sources:
+            if not external_services:
+                continue
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W7845",
+                    severity="warning",
+                    stage=stage,
+                    message=self._EXTERNAL_SERVICES_DEPRECATION,
+                    path=path,
+                )
+            )
+            return
+
+    @staticmethod
+    def _extract_external_services(payload: Any) -> Any:
+        if not isinstance(payload, dict):
+            return None
+        l5_payload = payload.get("L5_application")
+        if not isinstance(l5_payload, dict):
+            return None
+        return l5_payload.get("external_services")
 
     def _validate_service_legacy_contracts(
         self,

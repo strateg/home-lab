@@ -38,7 +38,7 @@
 | references.py | `check_host_os_refs` | `base.validator.references`, `base.validator.embedded_in`, `base.validator.runtime_target_os_binding`, `base.validator.host_os_refs` | Covered/Partial | Move to staged cutover after release preflight confirms parity on project fixtures (including non-extension host_os payload paths). |
 | references.py | `check_vm_refs` | `base.validator.references`, `base.validator.vm_refs` | Covered/Partial | Move to staged cutover after release preflight confirms architecture/capability/storage/bridge parity on project fixtures. |
 | references.py | `check_lxc_refs` | `base.validator.references`, `base.validator.lxc_refs` | Covered/Partial | Move to staged cutover after release preflight confirms architecture/capability/storage/deprecation parity on project fixtures. |
-| references.py | `check_service_refs` | `base.validator.references`, `base.validator.service_runtime_refs`, `base.validator.service_dependency_refs`, `base.validator.runtime_target_os_binding` | Partial | Disable v4 check after remaining legacy service policy rules are moved. |
+| references.py | `check_service_refs` | `base.validator.references`, `base.validator.service_runtime_refs`, `base.validator.service_dependency_refs`, `base.validator.runtime_target_os_binding` | Covered/Partial | Disable v4 check after release preflight confirms runtime/dependency/external_services warning parity on project fixtures. |
 | references.py | `check_dns_refs` | `base.validator.references`, `base.validator.dns_refs` | Covered/Partial | Disable v4 check after DNS fixture parity lock. |
 | references.py | `check_certificate_refs` | `base.validator.references`, `base.validator.certificate_refs` | Covered/Partial | Disable v4 check after certificate fixture parity lock. |
 | references.py | `check_backup_refs` | `base.validator.references`, `base.validator.backup_refs` | Covered/Partial | Disable v4 check after backup fixture parity lock. |
@@ -93,18 +93,12 @@
 2. `check_data_links`:
    - за пределами ethernet scope (non-ethernet legacy data-link ветки) coverage остается в v4 fallback.
 
-### 5.4 References
-
-1. `check_service_refs`:
-   - оставшиеся legacy service policy rules за пределами уже перенесённых runtime/refs/deprecation контрактов
-     (донастройка полного cutover path).
-
-### 5.5 Storage
+### 5.4 Storage
 
 1. `check_device_storage_taxonomy` / `check_l1_media_inventory` / `check_l3_storage_refs`:
    - hardware/media edge fixtures и часть infer_from warning edge-cases должны быть закрыты parity fixtures.
 
-### 5.6 Tracking Rule
+### 5.5 Tracking Rule
 
 1. Каждый пункт выше должен получить:
    - отдельный parity fixture (или обновление существующего),

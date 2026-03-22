@@ -245,3 +245,41 @@ def test_service_runtime_docker_requires_container_capability_in_v4_and_v5():
     )
     result = registry.execute_plugin(RUNTIME_PLUGIN_ID, ctx, Stage.VALIDATE)
     assert any(diag.code == "E7841" for diag in result.diagnostics)
+
+
+def test_external_services_deprecation_warning_matches_v4_and_v5():
+    v4_module = _load_v4_reference_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_service_refs(
+        topology={
+            "L5_application": {
+                "services": [],
+                "external_services": [{"id": "legacy-external"}],
+            }
+        },
+        ids={
+            "devices": set(),
+            "vms": set(),
+            "lxc": set(),
+            "networks": set(),
+            "trust_zones": set(),
+            "data_assets": set(),
+            "services": set(),
+        },
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("external_services is deprecated" in message for message in v4_warnings)
+
+    registry = _registry()
+    ctx = _context()
+    ctx.raw_yaml = {
+        "L5_application": {
+            "services": [],
+            "external_services": [{"id": "legacy-external"}],
+        }
+    }
+    _publish_rows(ctx, [])
+    result = registry.execute_plugin(RUNTIME_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any("external_services is deprecated" in diag.message for diag in result.diagnostics)

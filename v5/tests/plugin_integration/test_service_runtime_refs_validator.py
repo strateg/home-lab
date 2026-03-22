@@ -143,6 +143,17 @@ def test_service_runtime_refs_validator_warns_on_runtime_with_legacy_refs():
     assert any(diag.code == "W7845" for diag in result.diagnostics)
 
 
+def test_service_runtime_refs_validator_warns_on_legacy_external_services_payload():
+    registry = _registry()
+    ctx = _context()
+    ctx.raw_yaml = {"L5_application": {"external_services": [{"id": "legacy-ext"}]}}
+    _publish_rows(ctx, [])
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any("external_services is deprecated" in diag.message for diag in result.diagnostics)
+
+
 def test_service_runtime_refs_validator_rejects_docker_runtime_without_container_capability():
     registry = _registry()
     ctx = _context()
