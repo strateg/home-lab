@@ -253,6 +253,15 @@ objects:
   obj.network.trust_zone.management:
     version: 1.0.0
     class_ref: class.network.trust_zone
+  obj.network.wan_uplink:
+    version: 1.0.0
+    class_ref: class.network.data_link
+  obj.network.lte_channel:
+    version: 1.0.0
+    class_ref: class.network.data_link
+  obj.network.wifi_ap_channel:
+    version: 1.0.0
+    class_ref: class.network.data_link
   # L3 Storage objects
   obj.storage.pool.local:
     version: 1.0.0

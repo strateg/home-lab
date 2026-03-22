@@ -1,0 +1,40 @@
+object: obj.network.lte_channel
+class_ref: class.network.data_link
+version: 1.0.0
+description: LTE/cellular data channel to mobile operator network
+
+properties:
+  mtu: 1500
+  qos_class: best_effort
+  protocol_family: lte
+  osi_layers: [2, 3]
+
+instance_schema:
+  required:
+    - endpoint_a
+    - external_endpoint
+  properties:
+    endpoint_a:
+      type: object
+      required: [device_ref, port]
+      description: Local device LTE interface
+    external_endpoint:
+      type: string
+      description: Mobile operator network reference
+    max_speed_mbps:
+      type: integer
+      minimum: 1
+      maximum: 10000
+    admin_state:
+      type: string
+      enum: [up, down, standby]
+      default: standby
+    role:
+      type: string
+      enum: [primary, failover]
+      default: failover
+    apn:
+      type: string
+      description: Access Point Name for carrier
+
+enabled_capabilities: []

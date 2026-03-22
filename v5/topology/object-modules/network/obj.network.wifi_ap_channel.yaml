@@ -1,0 +1,39 @@
+object: obj.network.wifi_ap_channel
+class_ref: class.network.data_link
+version: 1.0.0
+description: WiFi access point channel for wireless client connectivity
+
+properties:
+  mtu: 1500
+  qos_class: best_effort
+  protocol_family: ieee_802_11
+  osi_layers: [1, 2]
+
+instance_schema:
+  required:
+    - endpoint_a
+    - client_segment
+  properties:
+    endpoint_a:
+      type: object
+      required: [device_ref, port]
+      description: AP radio interface
+    client_segment:
+      type: string
+      description: Wireless client segment identifier
+    band:
+      type: string
+      enum: [2.4ghz, 5ghz, 6ghz]
+    max_speed_mbps:
+      type: integer
+      minimum: 1
+      maximum: 10000
+    admin_state:
+      type: string
+      enum: [up, down]
+      default: up
+    ssid:
+      type: string
+      description: Network SSID (optional, may be in secrets)
+
+enabled_capabilities: []

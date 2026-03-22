@@ -1,0 +1,17 @@
+instance: inst.chan.wifi.24ghz_clients
+object_ref: obj.network.wifi_ap_channel
+group: data-channels
+layer: L2
+version: 1.0.0
+source_id: link-wifi-24ghz-clients
+status: mapped
+notes: WiFi 2.4GHz client access on router AP interface
+endpoint_a:
+  device_ref: rtr-mikrotik-chateau
+  port: wlan2
+endpoint_b:
+  external_ref: wifi-clients-24ghz
+  type: wireless-clients
+band: 2.4ghz
+max_speed_mbps: 574
+admin_state: up

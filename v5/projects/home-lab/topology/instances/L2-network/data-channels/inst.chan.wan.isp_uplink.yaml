@@ -1,0 +1,17 @@
+instance: inst.chan.wan.isp_uplink
+object_ref: obj.network.wan_uplink
+group: data-channels
+layer: L2
+version: 1.0.0
+source_id: link-wan-isp
+status: mapped
+notes: Primary WAN uplink from router to ISP edge/ONT
+endpoint_a:
+  device_ref: rtr-mikrotik-chateau
+  port: ether1
+endpoint_b:
+  external_ref: isp-uplink
+  type: isp-ont
+negotiated_speed_mbps: 2500
+admin_state: up
+role: primary

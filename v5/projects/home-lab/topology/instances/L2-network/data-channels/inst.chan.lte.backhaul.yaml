@@ -1,0 +1,17 @@
+instance: inst.chan.lte.backhaul
+object_ref: obj.network.lte_channel
+group: data-channels
+layer: L2
+version: 1.0.0
+source_id: link-lte-backhaul
+status: mapped
+notes: LTE backhaul used as WAN failover path
+endpoint_a:
+  device_ref: rtr-mikrotik-chateau
+  port: lte1
+endpoint_b:
+  external_ref: mobile-operator-lte
+  type: lte-tower
+max_speed_mbps: 300
+admin_state: standby
+role: failover
