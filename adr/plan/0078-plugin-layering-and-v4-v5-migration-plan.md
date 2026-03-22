@@ -296,6 +296,8 @@ Wave D in progress:
    - extended `base.validator.host_os_refs` with host_os architecture/device parity and installation/root-storage mount-device consistency checks
    - extended `base.validator.host_os_refs` with host_type/capabilities compatibility and canonical architecture checks (extension-level parity)
    - extended `base.validator.vm_refs` / `base.validator.lxc_refs` with host_os-device binding parity (`os_refs` membership, host_os_ref requirement for multi-active bindings)
+   - extended `base.validator.vm_refs` / `base.validator.lxc_refs` with resolved-host capability parity, bridge refs parity, storage endpoint platform parity, and guest/template/host architecture parity checks
+   - extended `base.validator.lxc_refs` with legacy field deprecation warnings parity (`type`, `role`, `resources`, `ansible.vars` app keys)
 6. Added draft deprecation matrix:
    - `adr/plan/0078-v4-validator-deprecation-matrix.md`
 7. Added v4/v5 side-by-side parity fixture:

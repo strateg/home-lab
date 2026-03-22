@@ -21,13 +21,13 @@ def _registry() -> PluginRegistry:
     return registry
 
 
-def _context() -> PluginContext:
+def _context(*, objects: dict | None = None) -> PluginContext:
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
         classes={},
-        objects={},
+        objects=objects or {},
         instance_bindings={"instance_bindings": {}},
     )
 
@@ -129,3 +129,81 @@ def test_vm_refs_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7870" for diag in result.diagnostics)
+
+
+def test_vm_refs_validator_rejects_storage_endpoint_with_non_proxmox_platform():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[4]["extensions"] = {"platform": "ceph"}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7876" for diag in result.diagnostics)
+
+
+def test_vm_refs_validator_rejects_resolved_host_os_without_vm_capability():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[0]["os_refs"] = ["os-a"]  # type: ignore[index]
+    rows[3]["status"] = "active"  # type: ignore[index]
+    rows[3]["extensions"] = {"capabilities": ["docker"]}  # type: ignore[index]
+    rows[-1]["extensions"].pop("host_os_ref")  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7877" for diag in result.diagnostics)
+
+
+def test_vm_refs_validator_warns_on_guest_template_architecture_mismatch():
+    registry = _registry()
+    ctx = _context(objects={"obj.vm.template.arm64": {"properties": {"architecture": "arm64"}}})
+    rows = _base_rows()
+    rows.append(
+        {
+            "group": "templates",
+            "instance": "tmpl-arm64",
+            "class_ref": "class.compute.cloud_vm",
+            "layer": "L4",
+            "object_ref": "obj.vm.template.arm64",
+        }
+    )
+    rows[-2]["extensions"]["template_ref"] = "tmpl-arm64"  # type: ignore[index]
+    rows[-2]["extensions"]["os"] = {"architecture": "x86_64"}  # type: ignore[index]
+    rows[-2]["extensions"].pop("host_os_ref")  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "W7877" for diag in result.diagnostics)
+
+
+def test_vm_refs_validator_rejects_template_architecture_not_matching_resolved_host_os():
+    registry = _registry()
+    ctx = _context(
+        objects={
+            "obj.os.x86_64": {"properties": {"architecture": "x86_64"}},
+            "obj.vm.template.arm64": {"properties": {"architecture": "arm64"}},
+        }
+    )
+    rows = _base_rows()
+    rows[0]["os_refs"] = ["os-a"]  # type: ignore[index]
+    rows[3]["status"] = "active"  # type: ignore[index]
+    rows[3]["object_ref"] = "obj.os.x86_64"  # type: ignore[index]
+    rows.append(
+        {
+            "group": "templates",
+            "instance": "tmpl-arm64",
+            "class_ref": "class.compute.cloud_vm",
+            "layer": "L4",
+            "object_ref": "obj.vm.template.arm64",
+        }
+    )
+    rows[-2]["extensions"]["template_ref"] = "tmpl-arm64"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7877" for diag in result.diagnostics)

@@ -21,13 +21,13 @@ def _registry() -> PluginRegistry:
     return registry
 
 
-def _context() -> PluginContext:
+def _context(*, objects: dict | None = None) -> PluginContext:
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
         classes={},
-        objects={},
+        objects=objects or {},
         instance_bindings={"instance_bindings": {}},
     )
 
@@ -133,3 +133,72 @@ def test_lxc_refs_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7880" for diag in result.diagnostics)
+
+
+def test_lxc_refs_validator_rejects_rootfs_storage_endpoint_with_non_proxmox_platform():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[4]["extensions"] = {"platform": "nfs"}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7886" for diag in result.diagnostics)
+
+
+def test_lxc_refs_validator_rejects_resolved_host_os_without_lxc_capability():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[0]["os_refs"] = ["os-a"]  # type: ignore[index]
+    rows[3]["status"] = "active"  # type: ignore[index]
+    rows[3]["extensions"] = {"capabilities": ["docker"]}  # type: ignore[index]
+    rows[-1]["extensions"].pop("host_os_ref")  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7888" for diag in result.diagnostics)
+
+
+def test_lxc_refs_validator_warns_on_guest_template_architecture_mismatch():
+    registry = _registry()
+    ctx = _context(objects={"obj.lxc.template.arm64": {"properties": {"architecture": "arm64"}}})
+    rows = _base_rows()
+    rows.append(
+        {
+            "group": "templates",
+            "instance": "tmpl-arm64",
+            "class_ref": "class.compute.workload.container",
+            "layer": "L4",
+            "object_ref": "obj.lxc.template.arm64",
+        }
+    )
+    rows[-2]["extensions"]["template_ref"] = "tmpl-arm64"  # type: ignore[index]
+    rows[-2]["extensions"]["os"] = {"architecture": "x86_64"}  # type: ignore[index]
+    rows[-2]["extensions"].pop("host_os_ref")  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "W7888" for diag in result.diagnostics)
+
+
+def test_lxc_refs_validator_keeps_deprecation_warnings_without_storage_section():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["extensions"] = {  # type: ignore[index]
+        "device_ref": "srv-a",
+        "trust_zone_ref": "tz-a",
+        "host_os_ref": "os-a",
+        "type": "legacy",
+        "role": "legacy",
+        "resources": {"cpu": 1},
+        "ansible": {"vars": {"postgresql_version": "16"}},
+    }
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    warning_codes = [diag.code for diag in result.diagnostics if diag.severity == "warning"]
+    assert warning_codes.count("W7888") >= 4

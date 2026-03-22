@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from capability_derivation import extract_architecture as shared_extract_architecture
 from kernel.plugin_base import (
     PluginContext,
     PluginDataExchangeError,
@@ -21,6 +22,16 @@ class VmRefsValidator(ValidatorJsonPlugin):
     _ROWS_KEY = "normalized_rows"
     _VM_CLASS = "class.compute.cloud_vm"
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
+    _ARCH_ALIASES = {
+        "x86_64": "x86_64",
+        "amd64": "x86_64",
+        "x86": "i386",
+        "i386": "i386",
+        "arm64": "arm64",
+        "aarch64": "arm64",
+        "riscv64": "riscv64",
+        "riscv": "riscv64",
+    }
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -54,7 +65,9 @@ class VmRefsValidator(ValidatorJsonPlugin):
             extensions = self._extensions(row)
             device_ref = extensions.get("device_ref")
             host_os_ref = extensions.get("host_os_ref")
+            template_ref = extensions.get("template_ref")
             device_row = row_by_id.get(device_ref) if isinstance(device_ref, str) else None
+            host_os_row = row_by_id.get(host_os_ref) if isinstance(host_os_ref, str) else None
 
             self._validate_ref(
                 row_id=row_id,
@@ -125,7 +138,7 @@ class VmRefsValidator(ValidatorJsonPlugin):
             self._validate_ref(
                 row_id=row_id,
                 field_name="template_ref",
-                value=extensions.get("template_ref"),
+                value=template_ref,
                 row_by_id=row_by_id,
                 expected=lambda target: True,
                 expected_label="known instance",
@@ -134,7 +147,6 @@ class VmRefsValidator(ValidatorJsonPlugin):
                 path=f"{row_prefix}.template_ref",
                 diagnostics=diagnostics,
             )
-
             networks = extensions.get("networks")
             if networks is not None and not isinstance(networks, list):
                 diagnostics.append(
@@ -169,6 +181,18 @@ class VmRefsValidator(ValidatorJsonPlugin):
                         code="E7875",
                         stage=stage,
                         path=f"{row_prefix}.networks[{idx}].network_ref",
+                        diagnostics=diagnostics,
+                    )
+                    self._validate_ref(
+                        row_id=row_id,
+                        field_name="bridge_ref",
+                        value=nic.get("bridge_ref"),
+                        row_by_id=row_by_id,
+                        expected=lambda target: target.get("class_ref") == "class.network.bridge",
+                        expected_label="class.network.bridge instance",
+                        code="E7875",
+                        stage=stage,
+                        path=f"{row_prefix}.networks[{idx}].bridge_ref",
                         diagnostics=diagnostics,
                     )
 
@@ -211,8 +235,147 @@ class VmRefsValidator(ValidatorJsonPlugin):
                         path=f"{row_prefix}.storage[{idx}].storage_ref",
                         diagnostics=diagnostics,
                     )
+                    if isinstance(storage_ref, str):
+                        storage_target = row_by_id.get(storage_ref)
+                        if (
+                            isinstance(storage_target, dict)
+                            and storage_target.get("class_ref") == "class.storage.storage_endpoint"
+                        ):
+                            platform = self._extensions(storage_target).get("platform")
+                            if isinstance(platform, str) and platform.strip() and platform.strip().lower() != "proxmox":
+                                diagnostics.append(
+                                    self.emit_diagnostic(
+                                        code="E7876",
+                                        severity="error",
+                                        stage=stage,
+                                        message=(
+                                            f"VM '{row_id}' storage reference '{storage_ref}' has platform "
+                                            f"'{platform}', expected 'proxmox'."
+                                        ),
+                                        path=f"{row_prefix}.storage[{idx}].storage_ref",
+                                    )
+                                )
+
+            resolved_host_os_row = self._resolve_host_os_row(
+                host_os_ref=host_os_ref,
+                host_os_row=host_os_row,
+                device_row=device_row,
+                row_by_id=row_by_id,
+            )
+            self._validate_required_capability(
+                row_id=row_id,
+                row_prefix=row_prefix,
+                required_capability="vm",
+                resolved_host_os_row=resolved_host_os_row,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
+            self._validate_architecture_semantics(
+                ctx=ctx,
+                row=row,
+                row_id=row_id,
+                row_prefix=row_prefix,
+                template_ref=template_ref,
+                resolved_host_os_row=resolved_host_os_row,
+                row_by_id=row_by_id,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
 
         return self.make_result(diagnostics)
+
+    def _validate_architecture_semantics(
+        self,
+        *,
+        ctx: PluginContext,
+        row: dict[str, Any],
+        row_id: Any,
+        row_prefix: str,
+        template_ref: Any,
+        resolved_host_os_row: dict[str, Any] | None,
+        row_by_id: dict[str, dict[str, Any]],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> None:
+        guest_arch = self._guest_architecture(row)
+        template_arch = ""
+        if isinstance(template_ref, str) and template_ref:
+            template_row = row_by_id.get(template_ref)
+            if isinstance(template_row, dict):
+                template_arch = self._normalize_arch(self._row_architecture(ctx=ctx, row=template_row))
+        host_arch = self._normalize_arch(self._row_architecture(ctx=ctx, row=resolved_host_os_row))
+
+        if guest_arch and template_arch and guest_arch != template_arch:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W7877",
+                    severity="warning",
+                    stage=stage,
+                    message=(
+                        f"VM '{row_id}': guest architecture '{guest_arch}' conflicts with template "
+                        f"architecture '{template_arch}'; workload value takes precedence."
+                    ),
+                    path=f"{row_prefix}.os.architecture",
+                )
+            )
+        if host_arch and template_arch and host_arch != template_arch:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7877",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"VM '{row_id}': template architecture '{template_arch}' does not match "
+                        f"resolved host OS architecture '{host_arch}'."
+                    ),
+                    path=f"{row_prefix}.template_ref",
+                )
+            )
+        if host_arch and guest_arch and host_arch != guest_arch:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7877",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"VM '{row_id}': guest architecture '{guest_arch}' does not match "
+                        f"resolved host OS architecture '{host_arch}'."
+                    ),
+                    path=f"{row_prefix}.os.architecture",
+                )
+            )
+
+    def _validate_required_capability(
+        self,
+        *,
+        row_id: Any,
+        row_prefix: str,
+        required_capability: str,
+        resolved_host_os_row: dict[str, Any] | None,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> None:
+        if not isinstance(resolved_host_os_row, dict):
+            return
+        host_os_ref = resolved_host_os_row.get("instance")
+        host_caps = self._extensions(resolved_host_os_row).get("capabilities")
+        if not isinstance(host_caps, list):
+            return
+        normalized_caps = {str(item).strip().lower() for item in host_caps if isinstance(item, str)}
+        if required_capability in normalized_caps:
+            return
+        diagnostics.append(
+            self.emit_diagnostic(
+                code="E7877",
+                severity="error",
+                stage=stage,
+                message=(
+                    f"VM '{row_id}' resolved host OS '{host_os_ref}' lacks required capability "
+                    f"'{required_capability}'."
+                ),
+                path=f"{row_prefix}.host_os_ref",
+            )
+        )
 
     def _validate_ref(
         self,
@@ -260,6 +423,55 @@ class VmRefsValidator(ValidatorJsonPlugin):
         if isinstance(extensions, dict):
             return extensions
         return {}
+
+    def _resolve_host_os_row(
+        self,
+        *,
+        host_os_ref: Any,
+        host_os_row: Any,
+        device_row: Any,
+        row_by_id: dict[str, dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        if isinstance(host_os_ref, str) and isinstance(host_os_row, dict) and host_os_row.get("class_ref") == "class.os":
+            return host_os_row
+        if not isinstance(device_row, dict):
+            return None
+        active_os_refs = sorted(self._active_os_refs(device_row=device_row, row_by_id=row_by_id))
+        if len(active_os_refs) == 1:
+            resolved = row_by_id.get(active_os_refs[0])
+            if isinstance(resolved, dict) and resolved.get("class_ref") == "class.os":
+                return resolved
+        return None
+
+    def _guest_architecture(self, row: dict[str, Any]) -> str:
+        extensions = self._extensions(row)
+        os_payload = extensions.get("os")
+        if isinstance(os_payload, dict):
+            architecture = os_payload.get("architecture")
+            return self._normalize_arch(architecture)
+        return ""
+
+    @staticmethod
+    def _row_architecture(*, ctx: PluginContext, row: Any) -> str | None:
+        if not isinstance(row, dict):
+            return None
+        object_ref = row.get("object_ref")
+        if not isinstance(object_ref, str) or not object_ref:
+            return None
+        object_payload = ctx.objects.get(object_ref)
+        if not isinstance(object_payload, dict):
+            return None
+        architecture = shared_extract_architecture(object_payload)
+        if isinstance(architecture, str) and architecture:
+            return architecture
+        return None
+
+    @classmethod
+    def _normalize_arch(cls, value: Any) -> str:
+        if not isinstance(value, str):
+            return ""
+        normalized = value.strip().lower()
+        return cls._ARCH_ALIASES.get(normalized, normalized)
 
     def _active_os_refs(self, *, device_row: dict[str, Any], row_by_id: dict[str, dict[str, Any]]) -> set[str]:
         active_refs: set[str] = set()
