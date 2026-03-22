@@ -180,13 +180,21 @@ class TestMikroTikGeneratorCapabilityDriven:
     """Tests for capability-driven file generation."""
 
     def _ctx(self, tmp_path: Path, compiled_json: dict) -> PluginContext:
+        capability_templates = [
+            {"capability_key": "has_qos", "template": "terraform/qos.tf.j2", "output_file": "qos.tf"},
+            {"capability_key": "has_wireguard", "template": "terraform/vpn.tf.j2", "output_file": "vpn.tf"},
+            {"capability_key": "has_containers", "template": "terraform/containers.tf.j2", "output_file": "containers.tf"},
+        ]
         return PluginContext(
             topology_path="v5/topology/topology.yaml",
             profile="test",
             model_lock={},
             compiled_json=compiled_json,
             output_dir=str(tmp_path / "build"),
-            config={"generator_artifacts_root": str(tmp_path / "generated")},
+            config={
+                "generator_artifacts_root": str(tmp_path / "generated"),
+                "capability_templates": capability_templates,
+            },
         )
 
     def test_generates_vpn_tf_when_wireguard_capability(

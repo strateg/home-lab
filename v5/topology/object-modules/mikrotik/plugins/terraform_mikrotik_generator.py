@@ -42,23 +42,17 @@ class TerraformMikroTikGenerator(BaseGenerator):
             return f"https://{routers[0]}:{cls._DEFAULT_MIKROTIK_PORT}"
         return f"https://{cls._DEFAULT_MIKROTIK_HOST}:{cls._DEFAULT_MIKROTIK_PORT}"
 
-    # Default capability-template mappings (fallback if not in config)
-    _DEFAULT_CAPABILITY_TEMPLATES = [
-        {"capability_key": "has_qos", "template": "terraform/qos.tf.j2", "output_file": "qos.tf"},
-        {"capability_key": "has_wireguard", "template": "terraform/vpn.tf.j2", "output_file": "vpn.tf"},
-        {"capability_key": "has_containers", "template": "terraform/containers.tf.j2", "output_file": "containers.tf"},
-    ]
-
     def _get_capability_templates(
         self, capabilities: dict, ctx: PluginContext
     ) -> dict[str, str]:
         """Resolve capability-driven templates from config.
 
         Returns dict mapping output_file -> template_path for enabled capabilities.
-        Falls back to hardcoded defaults if capability_templates not in config.
         """
         result: dict[str, str] = {}
-        cap_templates = ctx.config.get("capability_templates", self._DEFAULT_CAPABILITY_TEMPLATES)
+        cap_templates = ctx.config.get("capability_templates")
+        if not isinstance(cap_templates, list):
+            return result
 
         for mapping in cap_templates:
             if not isinstance(mapping, dict):
