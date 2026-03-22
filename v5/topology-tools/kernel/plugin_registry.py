@@ -150,6 +150,7 @@ class PluginRegistry:
     def __init__(self, base_path: Path) -> None:
         """Initialize registry with base path for resolving plugin entries."""
         self.base_path = base_path
+        self._ensure_import_path(self.base_path)
         self.manifest_schema_path = self.base_path / "schemas" / "plugin-manifest.schema.json"
         self._manifest_schema: Optional[dict[str, Any]] = None
         self.specs: dict[str, PluginSpec] = {}
@@ -157,6 +158,12 @@ class PluginRegistry:
         self.manifests: list[str] = []
         self._load_errors: list[str] = []
         self._results: list[PluginResult] = []
+
+    @staticmethod
+    def _ensure_import_path(path: Path) -> None:
+        candidate = str(path.resolve())
+        if candidate not in sys.path:
+            sys.path.insert(0, candidate)
 
     def _get_manifest_schema(self) -> dict[str, Any]:
         if self._manifest_schema is not None:
@@ -429,6 +436,9 @@ class PluginRegistry:
             full_module_path = self.base_path / module_path
             if not full_module_path.exists():
                 raise PluginLoadError(spec.id, f"Module not found: {module_path}")
+
+        # Module-level plugins may import sibling helpers; keep module directory importable.
+        self._ensure_import_path(full_module_path.parent)
 
         # Load module dynamically
         module_name = f"_plugin_{spec.id.replace('.', '_')}"

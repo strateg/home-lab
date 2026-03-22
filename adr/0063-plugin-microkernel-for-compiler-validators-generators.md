@@ -124,6 +124,9 @@ Boundary rules:
 2. Object-level plugins MUST NOT hardcode instance identifiers (`inst.*`).
 3. Instance-level plugins own instance-specific behavior and may reference concrete instance identifiers.
 4. Global/core plugins provide shared infrastructure and reusable contracts, and MUST avoid embedding project-instance-specific behavior.
+5. Class level can contain class-global plugins and class-specific plugins.
+6. Object level can contain object-global plugins and object-specific plugins.
+7. If a class/object plugin does not contain class/object-specific identifiers, it SHOULD be migrated to global infrastructure/core level.
 
 Dependency direction rules:
 
@@ -404,6 +407,8 @@ Every plugin must include:
 5. **Level-Boundary Contract Tests** - Layered plugin ownership
    - Class-level plugins do not hardcode `obj.*` / `inst.*`
    - Object-level plugins do not hardcode `inst.*`
+   - Class/object plugins do not mutate `sys.path`
+   - Class/object non-generator plugins without class/object-specific names are flagged for migration to global/core
    - Enforced by `v5/tests/plugin_contract/test_plugin_level_boundaries.py`
 
 CI must:

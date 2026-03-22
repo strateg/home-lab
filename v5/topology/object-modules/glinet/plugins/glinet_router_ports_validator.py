@@ -2,22 +2,6 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-
-def _resolve_topology_tools() -> Path | None:
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / "topology-tools"
-        if candidate.is_dir():
-            return candidate
-    return None
-
-
-TOPOLOGY_TOOLS = _resolve_topology_tools()
-if TOPOLOGY_TOOLS and str(TOPOLOGY_TOOLS) not in sys.path:
-    sys.path.insert(0, str(TOPOLOGY_TOOLS))
-
 from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorJsonPlugin
 
 

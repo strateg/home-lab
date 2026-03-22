@@ -83,6 +83,25 @@ class BaseGenerator(GeneratorPlugin):
                     return candidate
         return Path("v5/topology-tools/templates")
 
+    def object_template_root(self, ctx: PluginContext, *, object_id: str) -> Path:
+        """Resolve templates for object-module generators with ADR0078 fallback order."""
+        raw = ctx.config.get("generator_templates_root")
+        if isinstance(raw, str) and raw.strip():
+            return Path(raw)
+
+        candidates: list[Path] = []
+        object_modules_root_raw = ctx.config.get("object_modules_root")
+        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
+            candidates.append(Path(object_modules_root_raw.strip()) / object_id / "templates")
+        topology_path_raw = getattr(ctx, "topology_path", None)
+        if isinstance(topology_path_raw, str) and topology_path_raw.strip():
+            candidates.append(Path(topology_path_raw.strip()).parent / "object-modules" / object_id / "templates")
+
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return self.template_root(ctx)
+
     def template_env(self, ctx: PluginContext) -> Environment:
         root = self.template_root(ctx)
         if self._template_env is None or self._template_root != root:

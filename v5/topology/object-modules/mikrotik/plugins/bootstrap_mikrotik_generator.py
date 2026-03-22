@@ -17,22 +17,7 @@ class BootstrapMikroTikGenerator(BaseGenerator):
     """Emit baseline bootstrap bundle for MikroTik routers."""
 
     def template_root(self, ctx: PluginContext) -> Path:
-        raw = ctx.config.get("generator_templates_root")
-        if isinstance(raw, str) and raw.strip():
-            return Path(raw)
-
-        candidates: list[Path] = []
-        object_modules_root_raw = ctx.config.get("object_modules_root")
-        if isinstance(object_modules_root_raw, str) and object_modules_root_raw.strip():
-            candidates.append(Path(object_modules_root_raw.strip()) / "mikrotik" / "templates")
-        topology_path_raw = getattr(ctx, "topology_path", None)
-        if isinstance(topology_path_raw, str) and topology_path_raw.strip():
-            candidates.append(Path(topology_path_raw.strip()).parent / "object-modules" / "mikrotik" / "templates")
-
-        for candidate in candidates:
-            if candidate.exists():
-                return candidate
-        return super().template_root(ctx)
+        return self.object_template_root(ctx, object_id="mikrotik")
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
