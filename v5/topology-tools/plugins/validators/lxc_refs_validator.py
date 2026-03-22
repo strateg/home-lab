@@ -419,7 +419,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
         if not isinstance(resolved_host_os_row, dict):
             return
         host_os_ref = resolved_host_os_row.get("instance")
-        host_caps = self._extensions(resolved_host_os_row).get("capabilities")
+        host_caps = self._capabilities(resolved_host_os_row)
         if not isinstance(host_caps, list):
             return
         normalized_caps = {str(item).strip().lower() for item in host_caps if isinstance(item, str)}
@@ -454,7 +454,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
             return
         if storage_target.get("class_ref") != "class.storage.storage_endpoint":
             return
-        platform = self._extensions(storage_target).get("platform")
+        platform = self._storage_platform(storage_target)
         if isinstance(platform, str) and platform.strip() and platform.strip().lower() != "proxmox":
             diagnostics.append(
                 self.emit_diagnostic(
@@ -478,8 +478,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
         stage: Stage,
         diagnostics: list[PluginDiagnostic],
     ) -> None:
-        extensions = self._extensions(row)
-        if extensions.get("type") is not None:
+        if self._legacy_field(row, "type") is not None:
             diagnostics.append(
                 self.emit_diagnostic(
                     code="W7888",
@@ -489,7 +488,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
                     path=f"{row_prefix}.type",
                 )
             )
-        if extensions.get("role") is not None:
+        if self._legacy_field(row, "role") is not None:
             diagnostics.append(
                 self.emit_diagnostic(
                     code="W7888",
@@ -499,7 +498,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
                     path=f"{row_prefix}.role",
                 )
             )
-        if extensions.get("resources") is not None:
+        if self._legacy_field(row, "resources") is not None:
             diagnostics.append(
                 self.emit_diagnostic(
                     code="W7888",
@@ -509,7 +508,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
                     path=f"{row_prefix}.resources",
                 )
             )
-        ansible_payload = extensions.get("ansible")
+        ansible_payload = self._legacy_field(row, "ansible")
         ansible_vars = ansible_payload.get("vars") if isinstance(ansible_payload, dict) else None
         if isinstance(ansible_vars, dict):
             app_key_prefixes = (
@@ -603,6 +602,8 @@ class LxcRefsValidator(ValidatorJsonPlugin):
     def _guest_architecture(self, row: dict[str, Any]) -> str:
         extensions = self._extensions(row)
         os_payload = extensions.get("os")
+        if not isinstance(os_payload, dict):
+            os_payload = row.get("os")
         if isinstance(os_payload, dict):
             architecture = os_payload.get("architecture")
             return self._normalize_arch(architecture)
@@ -613,15 +614,41 @@ class LxcRefsValidator(ValidatorJsonPlugin):
         if not isinstance(row, dict):
             return None
         object_ref = row.get("object_ref")
-        if not isinstance(object_ref, str) or not object_ref:
-            return None
-        object_payload = ctx.objects.get(object_ref)
-        if not isinstance(object_payload, dict):
-            return None
-        architecture = shared_extract_architecture(object_payload)
-        if isinstance(architecture, str) and architecture:
-            return architecture
+        if isinstance(object_ref, str) and object_ref:
+            object_payload = ctx.objects.get(object_ref)
+            if isinstance(object_payload, dict):
+                architecture = shared_extract_architecture(object_payload)
+                if isinstance(architecture, str) and architecture:
+                    return architecture
+        extensions = LxcRefsValidator._extensions(row)
+        ext_arch = extensions.get("architecture")
+        if isinstance(ext_arch, str) and ext_arch:
+            return ext_arch
+        row_arch = row.get("architecture")
+        if isinstance(row_arch, str) and row_arch:
+            return row_arch
         return None
+
+    @staticmethod
+    def _capabilities(row: dict[str, Any]) -> Any:
+        extensions = LxcRefsValidator._extensions(row)
+        if "capabilities" in extensions:
+            return extensions.get("capabilities")
+        return row.get("capabilities")
+
+    @staticmethod
+    def _storage_platform(row: dict[str, Any]) -> Any:
+        extensions = LxcRefsValidator._extensions(row)
+        if "platform" in extensions:
+            return extensions.get("platform")
+        return row.get("platform")
+
+    @staticmethod
+    def _legacy_field(row: dict[str, Any], field_name: str) -> Any:
+        extensions = LxcRefsValidator._extensions(row)
+        if field_name in extensions:
+            return extensions.get(field_name)
+        return row.get(field_name)
 
     @classmethod
     def _normalize_arch(cls, value: Any) -> str:

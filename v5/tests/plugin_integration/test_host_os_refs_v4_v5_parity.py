@@ -292,3 +292,90 @@ def test_host_os_capability_host_type_mismatch_is_error_in_v4_and_v5():
     )
     result = registry.execute_plugin(V5_HOST_OS_PLUGIN_ID, ctx, Stage.VALIDATE)
     assert any(diag.code == "E7896" for diag in result.diagnostics)
+
+
+def test_host_os_top_level_architecture_is_validated_in_v4_and_v5():
+    v4_module = _load_v4_references_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_host_os_refs(
+        topology={
+            "L1_foundation": {"devices": [{"id": "srv-a", "specs": {"cpu": {"architecture": "x86_64"}}}]},
+            "L3_data": {"storage_endpoints": [], "mount_points": []},
+            "L4_platform": {"host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a", "architecture": "amd64"}]},
+        },
+        ids={
+            "devices": {"srv-a"},
+            "storage_endpoints": set(),
+        },
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("must be canonical; use 'x86_64'" in message for message in v4_errors)
+
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "architecture": "amd64",
+            },
+        ],
+    )
+    result = registry.execute_plugin(V5_HOST_OS_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "E7895" for diag in result.diagnostics)
+
+
+def test_host_os_top_level_capability_host_type_mismatch_is_error_in_v4_and_v5():
+    v4_module = _load_v4_references_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_host_os_refs(
+        topology={
+            "L1_foundation": {"devices": [{"id": "srv-a", "specs": {"cpu": {"architecture": "x86_64"}}}]},
+            "L3_data": {"storage_endpoints": [], "mount_points": []},
+            "L4_platform": {
+                "host_operating_systems": [
+                    {
+                        "id": "hos-a",
+                        "device_ref": "srv-a",
+                        "architecture": "x86_64",
+                        "host_type": "embedded",
+                        "capabilities": ["vm"],
+                    }
+                ]
+            },
+        },
+        ids={
+            "devices": {"srv-a"},
+            "storage_endpoints": set(),
+        },
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("capability 'vm' is not valid for host_type 'embedded'" in message for message in v4_errors)
+
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "host_type": "embedded",
+                "capabilities": ["vm"],
+            },
+        ],
+    )
+    result = registry.execute_plugin(V5_HOST_OS_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "E7896" for diag in result.diagnostics)

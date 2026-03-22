@@ -143,6 +143,18 @@ def test_vm_refs_validator_rejects_storage_endpoint_with_non_proxmox_platform():
     assert any(diag.code == "E7876" for diag in result.diagnostics)
 
 
+def test_vm_refs_validator_rejects_storage_endpoint_with_non_proxmox_top_level_platform():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[4]["platform"] = "ceph"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7876" for diag in result.diagnostics)
+
+
 def test_vm_refs_validator_rejects_resolved_host_os_without_vm_capability():
     registry = _registry()
     ctx = _context()
@@ -150,6 +162,21 @@ def test_vm_refs_validator_rejects_resolved_host_os_without_vm_capability():
     rows[0]["os_refs"] = ["os-a"]  # type: ignore[index]
     rows[3]["status"] = "active"  # type: ignore[index]
     rows[3]["extensions"] = {"capabilities": ["docker"]}  # type: ignore[index]
+    rows[-1]["extensions"].pop("host_os_ref")  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7877" for diag in result.diagnostics)
+
+
+def test_vm_refs_validator_rejects_resolved_host_os_without_top_level_vm_capability():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[0]["os_refs"] = ["os-a"]  # type: ignore[index]
+    rows[3]["status"] = "active"  # type: ignore[index]
+    rows[3]["capabilities"] = ["docker"]  # type: ignore[index]
     rows[-1]["extensions"].pop("host_os_ref")  # type: ignore[index]
     _publish_rows(ctx, rows)
 

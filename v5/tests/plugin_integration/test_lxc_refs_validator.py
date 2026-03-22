@@ -147,6 +147,18 @@ def test_lxc_refs_validator_rejects_rootfs_storage_endpoint_with_non_proxmox_pla
     assert any(diag.code == "E7886" for diag in result.diagnostics)
 
 
+def test_lxc_refs_validator_rejects_rootfs_storage_endpoint_with_non_proxmox_top_level_platform():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[4]["platform"] = "nfs"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7886" for diag in result.diagnostics)
+
+
 def test_lxc_refs_validator_rejects_resolved_host_os_without_lxc_capability():
     registry = _registry()
     ctx = _context()
@@ -154,6 +166,21 @@ def test_lxc_refs_validator_rejects_resolved_host_os_without_lxc_capability():
     rows[0]["os_refs"] = ["os-a"]  # type: ignore[index]
     rows[3]["status"] = "active"  # type: ignore[index]
     rows[3]["extensions"] = {"capabilities": ["docker"]}  # type: ignore[index]
+    rows[-1]["extensions"].pop("host_os_ref")  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7888" for diag in result.diagnostics)
+
+
+def test_lxc_refs_validator_rejects_resolved_host_os_without_top_level_lxc_capability():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[0]["os_refs"] = ["os-a"]  # type: ignore[index]
+    rows[3]["status"] = "active"  # type: ignore[index]
+    rows[3]["capabilities"] = ["docker"]  # type: ignore[index]
     rows[-1]["extensions"].pop("host_os_ref")  # type: ignore[index]
     _publish_rows(ctx, rows)
 
@@ -197,6 +224,25 @@ def test_lxc_refs_validator_keeps_deprecation_warnings_without_storage_section()
         "resources": {"cpu": 1},
         "ansible": {"vars": {"postgresql_version": "16"}},
     }
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    warning_codes = [diag.code for diag in result.diagnostics if diag.severity == "warning"]
+    assert warning_codes.count("W7888") >= 4
+
+
+def test_lxc_refs_validator_keeps_top_level_deprecation_warnings_without_storage_section():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1].pop("extensions")  # type: ignore[index]
+    rows[-1]["device_ref"] = "srv-a"  # type: ignore[index]
+    rows[-1]["trust_zone_ref"] = "tz-a"  # type: ignore[index]
+    rows[-1]["host_os_ref"] = "os-a"  # type: ignore[index]
+    rows[-1]["type"] = "legacy"  # type: ignore[index]
+    rows[-1]["role"] = "legacy"  # type: ignore[index]
+    rows[-1]["resources"] = {"cpu": 1}  # type: ignore[index]
+    rows[-1]["ansible"] = {"vars": {"postgresql_version": "16"}}  # type: ignore[index]
     _publish_rows(ctx, rows)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)

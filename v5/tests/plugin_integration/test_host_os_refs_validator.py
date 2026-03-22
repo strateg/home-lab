@@ -248,6 +248,28 @@ def test_host_os_refs_validator_rejects_non_canonical_architecture_extension_val
     assert any(diag.code == "E7895" for diag in result.diagnostics)
 
 
+def test_host_os_refs_validator_rejects_non_canonical_architecture_top_level_value():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "architecture": "amd64",
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7895" for diag in result.diagnostics)
+
+
 def test_host_os_refs_validator_rejects_unsupported_architecture_extension_value():
     registry = _registry()
     ctx = _context()
@@ -290,6 +312,52 @@ def test_host_os_refs_validator_rejects_capability_not_allowed_for_host_type():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7896" for diag in result.diagnostics)
+
+
+def test_host_os_refs_validator_rejects_capability_not_allowed_for_top_level_host_type():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "os",
+                "instance": "inst.os.a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "host_type": "embedded",
+                "capabilities": ["vm"],
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7896" for diag in result.diagnostics)
+
+
+def test_host_os_refs_validator_reads_workload_device_ref_from_top_level():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": []},
+            {"group": "os", "instance": "inst.os.b", "class_ref": "class.os", "layer": "L1", "status": "active"},
+            {
+                "group": "vms",
+                "instance": "vm-a",
+                "class_ref": "class.compute.cloud_vm",
+                "layer": "L4",
+                "device_ref": "srv-a",
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7892" for diag in result.diagnostics)
 
 
 def test_host_os_refs_validator_requires_compiler_rows():

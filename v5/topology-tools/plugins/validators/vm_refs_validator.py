@@ -241,7 +241,7 @@ class VmRefsValidator(ValidatorJsonPlugin):
                             isinstance(storage_target, dict)
                             and storage_target.get("class_ref") == "class.storage.storage_endpoint"
                         ):
-                            platform = self._extensions(storage_target).get("platform")
+                            platform = self._storage_platform(storage_target)
                             if isinstance(platform, str) and platform.strip() and platform.strip().lower() != "proxmox":
                                 diagnostics.append(
                                     self.emit_diagnostic(
@@ -358,7 +358,7 @@ class VmRefsValidator(ValidatorJsonPlugin):
         if not isinstance(resolved_host_os_row, dict):
             return
         host_os_ref = resolved_host_os_row.get("instance")
-        host_caps = self._extensions(resolved_host_os_row).get("capabilities")
+        host_caps = self._capabilities(resolved_host_os_row)
         if not isinstance(host_caps, list):
             return
         normalized_caps = {str(item).strip().lower() for item in host_caps if isinstance(item, str)}
@@ -446,6 +446,8 @@ class VmRefsValidator(ValidatorJsonPlugin):
     def _guest_architecture(self, row: dict[str, Any]) -> str:
         extensions = self._extensions(row)
         os_payload = extensions.get("os")
+        if not isinstance(os_payload, dict):
+            os_payload = row.get("os")
         if isinstance(os_payload, dict):
             architecture = os_payload.get("architecture")
             return self._normalize_arch(architecture)
@@ -456,15 +458,34 @@ class VmRefsValidator(ValidatorJsonPlugin):
         if not isinstance(row, dict):
             return None
         object_ref = row.get("object_ref")
-        if not isinstance(object_ref, str) or not object_ref:
-            return None
-        object_payload = ctx.objects.get(object_ref)
-        if not isinstance(object_payload, dict):
-            return None
-        architecture = shared_extract_architecture(object_payload)
-        if isinstance(architecture, str) and architecture:
-            return architecture
+        if isinstance(object_ref, str) and object_ref:
+            object_payload = ctx.objects.get(object_ref)
+            if isinstance(object_payload, dict):
+                architecture = shared_extract_architecture(object_payload)
+                if isinstance(architecture, str) and architecture:
+                    return architecture
+        extensions = VmRefsValidator._extensions(row)
+        ext_arch = extensions.get("architecture")
+        if isinstance(ext_arch, str) and ext_arch:
+            return ext_arch
+        row_arch = row.get("architecture")
+        if isinstance(row_arch, str) and row_arch:
+            return row_arch
         return None
+
+    @staticmethod
+    def _capabilities(row: dict[str, Any]) -> Any:
+        extensions = VmRefsValidator._extensions(row)
+        if "capabilities" in extensions:
+            return extensions.get("capabilities")
+        return row.get("capabilities")
+
+    @staticmethod
+    def _storage_platform(row: dict[str, Any]) -> Any:
+        extensions = VmRefsValidator._extensions(row)
+        if "platform" in extensions:
+            return extensions.get("platform")
+        return row.get("platform")
 
     @classmethod
     def _normalize_arch(cls, value: Any) -> str:

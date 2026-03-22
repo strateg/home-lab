@@ -178,7 +178,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                             )
                         )
 
-            extensions = self._extensions(os_row)
+            extensions = self._host_os_payload(os_row)
             host_type_raw = extensions.get("host_type")
             host_type = str(host_type_raw).strip().lower() if isinstance(host_type_raw, str) else ""
 
@@ -263,21 +263,21 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                 if not installation:
                     diagnostics.append(
                         self.emit_diagnostic(
-                            code="E7894",
-                            severity="error",
-                            stage=stage,
-                            message=f"OS '{os_id}' host_type '{host_type_raw}' requires installation object.",
-                            path=f"{row_prefix}.host_type",
+                    code="E7894",
+                    severity="error",
+                    stage=stage,
+                    message=f"OS '{os_id}' host_type '{host_type_raw}' requires installation object.",
+                    path=f"{row_prefix}.host_type",
                         )
                     )
                 elif not isinstance(root_storage_endpoint_ref, str) or not root_storage_endpoint_ref:
                     diagnostics.append(
                         self.emit_diagnostic(
-                            code="E7894",
-                            severity="error",
-                            stage=stage,
-                            message=(
-                                f"OS '{os_id}' host_type '{host_type_raw}' requires "
+                    code="E7894",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"OS '{os_id}' host_type '{host_type_raw}' requires "
                                 "installation.root_storage_endpoint_ref."
                             ),
                             path=f"{row_prefix}.installation.root_storage_endpoint_ref",
@@ -391,7 +391,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                         severity="error",
                         stage=stage,
                         message=(
-                            f"OS '{os_id}' extension architecture '{raw_arch}' does not match "
+                            f"OS '{os_id}' architecture '{raw_arch}' does not match "
                             f"device '{device_id}' architecture '{device_arch_raw}'."
                         ),
                         path=f"{row_prefix}.architecture",
@@ -443,9 +443,17 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
     @staticmethod
     def _extract_device_ref(row: dict[str, Any]) -> Any:
         extensions = HostOsRefsValidator._extensions(row)
-        if extensions:
+        if "device_ref" in extensions:
             return extensions.get("device_ref")
-        return None
+        return row.get("device_ref")
+
+    @staticmethod
+    def _host_os_payload(row: dict[str, Any]) -> dict[str, Any]:
+        payload = dict(HostOsRefsValidator._extensions(row))
+        for key in ("architecture", "capabilities", "host_type", "installation"):
+            if key not in payload and key in row:
+                payload[key] = row.get(key)
+        return payload
 
     @staticmethod
     def _extensions(row: dict[str, Any]) -> dict[str, Any]:
@@ -457,14 +465,19 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
     @staticmethod
     def _row_architecture(*, ctx: PluginContext, row: dict[str, Any]) -> str | None:
         object_ref = row.get("object_ref")
-        if not isinstance(object_ref, str) or not object_ref:
-            return None
-        object_payload = ctx.objects.get(object_ref)
-        if not isinstance(object_payload, dict):
-            return None
-        architecture = shared_extract_architecture(object_payload)
-        if isinstance(architecture, str) and architecture:
-            return architecture
+        if isinstance(object_ref, str) and object_ref:
+            object_payload = ctx.objects.get(object_ref)
+            if isinstance(object_payload, dict):
+                architecture = shared_extract_architecture(object_payload)
+                if isinstance(architecture, str) and architecture:
+                    return architecture
+        extensions = HostOsRefsValidator._extensions(row)
+        ext_arch = extensions.get("architecture")
+        if isinstance(ext_arch, str) and ext_arch:
+            return ext_arch
+        row_arch = row.get("architecture")
+        if isinstance(row_arch, str) and row_arch:
+            return row_arch
         return None
 
     @classmethod
