@@ -23,7 +23,7 @@
 | governance.py | `check_version` | `base.validator.governance_contract` | Covered/Partial | Disable v4 check after warning-semantics parity confirmation. |
 | governance.py | `check_ip_overlaps` | `base.validator.network_ip_overlap` | Covered/Partial | Disable v4 check after parity review for non-network legacy payload paths. |
 | network.py | `check_vlan_tags` | `base.validator.network_vlan_tags` | Covered/Partial | Disable v4 check after fixture parity lock. |
-| network.py | `check_network_refs` | `base.validator.references`, `base.validator.network_core_refs` | Partial | Keep v4 fallback while expanding policy scope. |
+| network.py | `check_network_refs` | `base.validator.references`, `base.validator.network_core_refs` | Covered/Partial | Keep v4 fallback for advanced policy/profile scope; core bridge/trust-zone/manager refs parity and payload-shape parity are covered in v5 fixtures. |
 | network.py | `check_bridge_refs` | `base.validator.network_core_refs` | Covered/Partial | Disable v4 check after fixture parity lock. |
 | network.py | `check_data_links` | `object_network.validator_json.ethernet_cable_endpoints` | Partial | Keep v4 fallback for non-ethernet legacy scope. |
 | network.py | `check_power_links` | `base.validator.power_source_refs` | Covered/Partial | Disable v4 check after edge-case fixtures. |

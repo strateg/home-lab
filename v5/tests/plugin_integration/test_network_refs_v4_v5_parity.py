@@ -20,6 +20,7 @@ V4_NETWORK_CHECKS = (
 V5_MTU_PLUGIN_ID = "base.validator.network_mtu_consistency"
 V5_REACHABILITY_PLUGIN_ID = "base.validator.network_runtime_reachability"
 V5_FIREWALL_ADDRESSABILITY_PLUGIN_ID = "base.validator.network_firewall_addressability"
+V5_NETWORK_CORE_REFS_PLUGIN_ID = "base.validator.network_core_refs"
 
 
 def _load_v4_network_checks_module() -> Any:
@@ -336,3 +337,51 @@ def test_firewall_addressability_dhcp_warning_is_emitted_in_v4_and_v5():
     )
     result = registry.execute_plugin(V5_FIREWALL_ADDRESSABILITY_PLUGIN_ID, ctx, Stage.VALIDATE)
     assert any(diag.code == "W7824" for diag in result.diagnostics)
+
+
+def test_network_bridge_ref_missing_is_error_in_v4_and_v5():
+    v4_module = _load_v4_network_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_network_refs(
+        topology={
+            "L1_foundation": {"devices": [{"id": "rtr-a", "class": "network"}]},
+            "L2_network": {
+                "network_profiles": {},
+                "trust_zones": {"zone-a": {}},
+                "firewall_policies": [],
+                "networks": [{"id": "net-a", "bridge_ref": "bridge-missing", "trust_zone_ref": "zone-a"}],
+            },
+        },
+        ids={
+            "bridges": set(),
+            "trust_zones": {"zone-a"},
+            "network_profiles": set(),
+            "devices": {"rtr-a"},
+            "interfaces": set(),
+            "firewall_policies": set(),
+        },
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("bridge_ref 'bridge-missing' does not exist" in message for message in v4_errors)
+
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "rtr-a", "class_ref": "class.router", "layer": "L1"},
+            {"group": "network", "instance": "zone-a", "class_ref": "class.network.trust_zone", "layer": "L2"},
+            {
+                "group": "network",
+                "instance": "net-a",
+                "class_ref": "class.network.vlan",
+                "layer": "L2",
+                "bridge_ref": "bridge-missing",
+                "trust_zone_ref": "zone-a",
+            },
+        ],
+    )
+    result = registry.execute_plugin(V5_NETWORK_CORE_REFS_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "E7833" for diag in result.diagnostics)

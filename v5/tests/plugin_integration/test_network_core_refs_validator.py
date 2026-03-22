@@ -21,13 +21,13 @@ def _registry() -> PluginRegistry:
     return registry
 
 
-def _context() -> PluginContext:
+def _context(*, objects: dict | None = None) -> PluginContext:
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
         classes={},
-        objects={},
+        objects=objects or {},
         instance_bindings={"instance_bindings": {}},
     )
 
@@ -111,3 +111,44 @@ def test_network_core_refs_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7837" for diag in result.diagnostics)
+
+
+def test_network_core_refs_validator_supports_top_level_fields():
+    registry = _registry()
+    ctx = _context()
+    rows = _valid_rows()
+    rows[3]["host_ref"] = rows[3]["extensions"].pop("host_ref")  # type: ignore[index]
+    rows[-1]["bridge_ref"] = rows[-1]["extensions"].pop("bridge_ref")  # type: ignore[index]
+    rows[-1]["trust_zone_ref"] = rows[-1]["extensions"].pop("trust_zone_ref")  # type: ignore[index]
+    rows[-1]["managed_by_ref"] = rows[-1]["extensions"].pop("managed_by_ref")  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_network_core_refs_validator_supports_object_property_fields():
+    registry = _registry()
+    ctx = _context(
+        objects={
+            "obj.bridge.a": {"properties": {"host_ref": "srv-a"}},
+            "obj.vlan.a": {
+                "properties": {
+                    "bridge_ref": "inst.bridge.a",
+                    "trust_zone_ref": "inst.zone.a",
+                    "managed_by_ref": "rtr-a",
+                }
+            },
+        }
+    )
+    rows = _valid_rows()
+    rows[3].pop("extensions")  # type: ignore[index]
+    rows[3]["object_ref"] = "obj.bridge.a"  # type: ignore[index]
+    rows[-1].pop("extensions")  # type: ignore[index]
+    rows[-1]["object_ref"] = "obj.vlan.a"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

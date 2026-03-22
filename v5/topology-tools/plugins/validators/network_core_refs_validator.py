@@ -46,15 +46,16 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
         for row in rows:
             class_ref = row.get("class_ref")
             if class_ref == "class.network.vlan":
-                self._validate_vlan_refs(row=row, row_by_id=row_by_id, stage=stage, diagnostics=diagnostics)
+                self._validate_vlan_refs(ctx=ctx, row=row, row_by_id=row_by_id, stage=stage, diagnostics=diagnostics)
             elif class_ref == "class.network.bridge":
-                self._validate_bridge_refs(row=row, row_by_id=row_by_id, stage=stage, diagnostics=diagnostics)
+                self._validate_bridge_refs(ctx=ctx, row=row, row_by_id=row_by_id, stage=stage, diagnostics=diagnostics)
 
         return self.make_result(diagnostics)
 
     def _validate_vlan_refs(
         self,
         *,
+        ctx: PluginContext,
         row: dict[str, Any],
         row_by_id: dict[str, dict[str, Any]],
         stage: Stage,
@@ -65,6 +66,7 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
         row_prefix = f"instance:{group}:{row_id}"
 
         self._validate_ref(
+            ctx=ctx,
             row=row,
             row_by_id=row_by_id,
             field="bridge_ref",
@@ -76,6 +78,7 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
             path=f"{row_prefix}.bridge_ref",
         )
         self._validate_ref(
+            ctx=ctx,
             row=row,
             row_by_id=row_by_id,
             field="trust_zone_ref",
@@ -87,6 +90,7 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
             path=f"{row_prefix}.trust_zone_ref",
         )
         self._validate_ref(
+            ctx=ctx,
             row=row,
             row_by_id=row_by_id,
             field="managed_by_ref",
@@ -101,6 +105,7 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
     def _validate_bridge_refs(
         self,
         *,
+        ctx: PluginContext,
         row: dict[str, Any],
         row_by_id: dict[str, dict[str, Any]],
         stage: Stage,
@@ -110,7 +115,7 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
         group = row.get("group")
         row_prefix = f"instance:{group}:{row_id}"
 
-        host_ref = self._resolve_field(row=row, key="host_ref")
+        host_ref = self._resolve_field(ctx=ctx, row=row, key="host_ref")
         if host_ref is None:
             return
         if not isinstance(host_ref, str) or not host_ref:
@@ -151,6 +156,7 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
     def _validate_ref(
         self,
         *,
+        ctx: PluginContext,
         row: dict[str, Any],
         row_by_id: dict[str, dict[str, Any]],
         field: str,
@@ -161,7 +167,7 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
         diagnostics: list[PluginDiagnostic],
         path: str,
     ) -> None:
-        value = self._resolve_field(row=row, key=field)
+        value = self._resolve_field(ctx=ctx, row=row, key=field)
         if value is None:
             return
         if not isinstance(value, str) or not value:
@@ -204,8 +210,15 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
                 )
             )
 
-    def _resolve_field(self, *, row: dict[str, Any], key: str) -> Any:
+    def _resolve_field(self, *, ctx: PluginContext, row: dict[str, Any], key: str) -> Any:
         extensions = row.get("extensions")
-        if isinstance(extensions, dict):
+        if isinstance(extensions, dict) and key in extensions:
             return extensions.get(key)
+        if key in row:
+            return row.get(key)
+        object_ref = row.get("object_ref")
+        object_payload = ctx.objects.get(object_ref) if isinstance(object_ref, str) else None
+        properties = object_payload.get("properties") if isinstance(object_payload, dict) else None
+        if isinstance(properties, dict):
+            return properties.get(key)
         return None

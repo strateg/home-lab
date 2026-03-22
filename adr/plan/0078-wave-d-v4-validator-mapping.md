@@ -86,7 +86,7 @@ Legend:
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
 | `check_vlan_tags` | `base.validator.network_vlan_tags` | Covered/Partial | Добавлен validator для workload vlan_tag consistency (mismatch/missing/non-vlan-aware bridge warnings). |
-| `check_network_refs` | `base.validator.references` + `base.validator.network_core_refs` | Partial | Добавлена core проверка VLAN refs (bridge/trust_zone/managed_by); policy scope всё ещё шире в v4. |
+| `check_network_refs` | `base.validator.references` + `base.validator.network_core_refs` | Covered/Partial | Добавлена core проверка VLAN refs (bridge/trust_zone/managed_by) с parity для object/extension/top-level payload путей; policy scope всё ещё шире в v4. |
 | `check_bridge_refs` | `base.validator.network_core_refs` | Covered/Partial | Добавлена bridge.host_ref existence/layer validation. |
 | `check_data_links` | `object_network.validator_json.ethernet_cable_endpoints` | Partial | Закрыта ethernet data-link ветка (`E7304-E7308`), не весь legacy scope. |
 | `check_power_links` | `base.validator.power_source_refs` | Covered/Partial | Основная семантика power.source_ref/occupancy есть; проверить parity по edge cases. |
