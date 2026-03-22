@@ -62,6 +62,9 @@ classes:
     version: 1.0.0
   class.network.qos:
     version: 1.0.0
+  # L1 Storage media class
+  class.storage.media:
+    version: 1.0.0
   # L3 Storage classes
   class.storage.pool:
     version: 1.0.0
@@ -278,3 +281,19 @@ objects:
   obj.storage.data_asset.backup:
     version: 1.0.0
     class_ref: class.storage.data_asset
+  # L1 Storage media objects
+  obj.storage.media.sata_ssd_180gb:
+    version: 1.0.0
+    class_ref: class.storage.media
+  obj.storage.media.sata_hdd_500gb:
+    version: 1.0.0
+    class_ref: class.storage.media
+  obj.storage.media.nvme_512gb:
+    version: 1.0.0
+    class_ref: class.storage.media
+  obj.storage.media.qspi_flash_16mb:
+    version: 1.0.0
+    class_ref: class.storage.media
+  obj.storage.media.cloud_volume:
+    version: 1.0.0
+    class_ref: class.storage.media

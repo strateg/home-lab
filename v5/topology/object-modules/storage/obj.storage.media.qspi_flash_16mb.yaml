@@ -1,0 +1,15 @@
+object: obj.storage.media.qspi_flash_16mb
+class_ref: class.storage.media
+version: 1.0.0
+description: 16MB onboard QSPI flash for firmware/bootloader storage
+
+properties:
+  media_type: flash
+  size_gb: 0.016
+  form_factor: onboard-chip
+  bus_types: [qspi, onboard]
+  rotational: false
+  bootable: true
+  removable: false
+
+enabled_capabilities: []

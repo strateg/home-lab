@@ -1,0 +1,56 @@
+class: class.storage.media
+version: 1.0.0
+description: Physical or virtual storage media (disks, flash, volumes)
+layer: L1
+
+properties:
+  required:
+    - media_type
+    - size_gb
+  optional:
+    - form_factor
+    - bus_types
+    - rotational
+    - bootable
+    - removable
+    - virtual
+
+property_schemas:
+  media_type:
+    type: string
+    enum: [ssd, hdd, nvme, flash, virtual]
+    description: Storage media technology type
+  size_gb:
+    type: number
+    minimum: 0
+    description: Capacity in gigabytes
+  form_factor:
+    type: string
+    enum: [2.5in, 3.5in, m2-2280, m2-2242, onboard-chip, virtual]
+    description: Physical form factor
+  bus_types:
+    type: array
+    items:
+      type: string
+      enum: [sata, sas, pcie, m2, nvme, usb, qspi, onboard, virtual]
+    description: Supported bus interfaces
+  rotational:
+    type: boolean
+    default: false
+    description: True for spinning disks (HDD)
+  bootable:
+    type: boolean
+    default: false
+    description: Can be used as boot device
+  removable:
+    type: boolean
+    default: false
+    description: Hot-swappable or removable media
+  virtual:
+    type: boolean
+    default: false
+    description: Provider-managed virtual storage
+
+required_capabilities: []
+
+optional_capabilities: []

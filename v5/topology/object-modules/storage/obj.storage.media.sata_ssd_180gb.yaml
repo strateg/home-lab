@@ -1,0 +1,15 @@
+object: obj.storage.media.sata_ssd_180gb
+class_ref: class.storage.media
+version: 1.0.0
+description: 180GB 2.5" SATA SSD for system/application storage
+
+properties:
+  media_type: ssd
+  size_gb: 180
+  form_factor: 2.5in
+  bus_types: [sata]
+  rotational: false
+  bootable: true
+  removable: false
+
+enabled_capabilities: []

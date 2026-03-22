@@ -1,0 +1,16 @@
+object: obj.storage.media.cloud_volume
+class_ref: class.storage.media
+version: 1.0.0
+description: Provider-managed virtual block storage volume
+
+properties:
+  media_type: virtual
+  size_gb: 0
+  form_factor: virtual
+  bus_types: [virtual]
+  rotational: false
+  bootable: true
+  removable: false
+  virtual: true
+
+enabled_capabilities: []

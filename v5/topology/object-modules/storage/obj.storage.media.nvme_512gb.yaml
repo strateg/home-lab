@@ -1,0 +1,15 @@
+object: obj.storage.media.nvme_512gb
+class_ref: class.storage.media
+version: 1.0.0
+description: 512GB M.2 NVMe SSD for high-performance system storage
+
+properties:
+  media_type: nvme
+  size_gb: 512
+  form_factor: m2-2280
+  bus_types: [m2, pcie, nvme]
+  rotational: false
+  bootable: true
+  removable: false
+
+enabled_capabilities: []
