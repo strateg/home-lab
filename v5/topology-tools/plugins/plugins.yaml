@@ -172,6 +172,21 @@ plugins:
       required: []
     description: Validates deterministic v5 project instances directory contract.
 
+  - id: base.validator.foundation_file_placement
+    kind: validator_yaml
+    entry: validators/foundation_file_placement_validator.py:FoundationFilePlacementValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 96
+    depends_on: [base.validator.foundation_include_contract]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates policy-driven placement of instance YAML files in project instances tree.
+
   - id: base.validator.foundation_device_taxonomy
     kind: validator_json
     entry: validators/foundation_device_taxonomy_validator.py:FoundationDeviceTaxonomyValidator

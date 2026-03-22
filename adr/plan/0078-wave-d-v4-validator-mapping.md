@@ -70,7 +70,7 @@ Legend:
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
 | `check_modular_include_contract` | `base.validator.foundation_include_contract` | Covered/Partial | Добавлен validator структуры `project/topology/instances` + запрет `_index.yaml`; возможна донастройка под дополнительные domain-specific контракты. |
-| `check_file_placement` | `base.validator.foundation_layout` + future `base.validator.foundation.file_placement` | Partial | Добавлен baseline root/layout validator; policy-driven directory taxonomy ещё не перенесена. |
+| `check_file_placement` | `base.validator.foundation_layout` + `base.validator.foundation_file_placement` | Covered/Partial | Добавлен policy-driven placement validator (`layer/group/instance` path taxonomy + filename/id contract); staged cutover зависит от release preflight warning parity на project fixtures. |
 | `check_device_taxonomy` | `base.validator.foundation_device_taxonomy` + `base.validator.references` + `base.validator.capability_contract` | Covered/Partial | Добавлен L1 group/class taxonomy validator; parity можно расширять дополнительными hardware/storage checks. |
 
 ### 3.2 Governance

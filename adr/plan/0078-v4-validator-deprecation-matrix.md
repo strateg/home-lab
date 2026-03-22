@@ -17,7 +17,7 @@
 | v4 module | v4 check | v5 replacement plugins | Parity | Cutover action |
 |---|---|---|---|---|
 | foundation.py | `check_modular_include_contract` | `base.validator.foundation_include_contract` | Covered/Partial | Disable v4 check after fixture parity lock. |
-| foundation.py | `check_file_placement` | `base.validator.foundation_layout` (+ future dedicated file_placement plugin) | Partial | Keep v4 as fallback until policy taxonomy parity is complete. |
+| foundation.py | `check_file_placement` | `base.validator.foundation_layout`, `base.validator.foundation_file_placement` | Covered/Partial | Disable v4 check after release preflight confirms placement warnings parity on project fixtures. |
 | foundation.py | `check_device_taxonomy` | `base.validator.foundation_device_taxonomy`, `base.validator.references`, `base.validator.capability_contract` | Covered/Partial | Disable v4 check once storage-related edge fixtures are merged. |
 | governance.py | `check_l0_contracts` | `base.validator.governance_contract` | Covered/Partial | Keep v4 fallback only for legacy class-taxonomy coupling of network_manager_device_ref; defaults refs existence parity is covered in v5 fixtures. |
 | governance.py | `check_version` | `base.validator.governance_contract` | Covered/Partial | Disable v4 check after warning-semantics parity confirmation. |
@@ -75,8 +75,8 @@
 ### 5.1 Foundation
 
 1. `check_file_placement`:
-   - незакрытая policy-таксономия размещения файлов вне baseline layout checks;
-   - требуется отдельный policy-driven validator или расширение `base.validator.foundation_layout`.
+   - policy-driven validator added (`base.validator.foundation_file_placement`);
+   - staged cutover still requires release preflight parity lock for warning semantics.
 
 ### 5.2 Governance
 
