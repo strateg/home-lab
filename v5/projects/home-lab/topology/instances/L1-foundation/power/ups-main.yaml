@@ -8,3 +8,6 @@ status: mapped
 notes: module scaffold exists; capability profile tuning pending
 firmware_ref: inst.firmware.apc.backups.650va
 os_refs: []
+power:
+  external_source: utility-grid
+  max_watts: 390

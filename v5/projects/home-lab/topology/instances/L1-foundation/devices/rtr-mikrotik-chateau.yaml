@@ -10,5 +10,7 @@ firmware_ref: inst.firmware.routeros.7.arm64
 os_refs:
 - inst.os.routeros.7.arm64
 power:
-  source_ref: pdu-rack
-  outlet_ref: outlet_01
+  source_ref: ups-main
+  mode: dc
+  voltage_v: 24
+  max_watts: 21.5

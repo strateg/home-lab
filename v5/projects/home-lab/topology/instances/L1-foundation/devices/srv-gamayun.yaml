@@ -9,3 +9,6 @@ notes: module scaffold exists; capability profile tuning pending
 firmware_ref: inst.firmware.uefi.generic.x86_64
 os_refs:
 - inst.os.proxmox.ve.9
+power:
+  source_ref: pdu-rack
+  max_watts: 65

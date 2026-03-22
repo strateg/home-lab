@@ -9,3 +9,6 @@ notes: module scaffold exists; capability profile tuning pending
 firmware_ref: inst.firmware.uboot.generic.arm64
 os_refs:
 - inst.os.debian.12.arm64.edge
+power:
+  source_ref: pdu-rack
+  max_watts: 20
