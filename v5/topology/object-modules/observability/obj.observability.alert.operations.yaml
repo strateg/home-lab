@@ -1,0 +1,16 @@
+object: obj.observability.alert.operations
+class_ref: class.observability.alert
+version: 1.0.0
+description: Operations alerts (backup failed, scheduled tasks)
+
+properties:
+  domains:
+    - ops
+  severity_levels:
+    - critical
+    - warning
+    - info
+
+capabilities:
+  - cap.observability.alert.prometheus
+  - cap.observability.alert.routing

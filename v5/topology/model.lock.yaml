@@ -367,3 +367,38 @@ objects:
   obj.storage.media.cloud_volume:
     version: 1.0.0
     class_ref: class.storage.media
+  # L6 Observability objects - Healthchecks
+  obj.observability.healthcheck.device:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.observability.healthcheck.lxc:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.observability.healthcheck.service:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.observability.healthcheck.network:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.observability.healthcheck.ups:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.observability.healthcheck.lte:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  # L6 Observability objects - Alerts
+  obj.observability.alert.infrastructure:
+    version: 1.0.0
+    class_ref: class.observability.alert
+  obj.observability.alert.application:
+    version: 1.0.0
+    class_ref: class.observability.alert
+  obj.observability.alert.power:
+    version: 1.0.0
+    class_ref: class.observability.alert
+  obj.observability.alert.operations:
+    version: 1.0.0
+    class_ref: class.observability.alert
+  obj.observability.alert.security:
+    version: 1.0.0
+    class_ref: class.observability.alert

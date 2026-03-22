@@ -1,0 +1,16 @@
+object: obj.observability.healthcheck.lxc
+class_ref: class.observability.healthcheck
+version: 1.0.0
+description: LXC container health monitoring
+
+properties:
+  check_types:
+    - lxc_status
+    - port
+    - process
+    - memory_usage
+    - disk_usage
+
+capabilities:
+  - cap.observability.healthcheck.lxc
+  - cap.observability.healthcheck.tcp

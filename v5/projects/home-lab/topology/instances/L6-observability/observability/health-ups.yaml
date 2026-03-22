@@ -1,0 +1,53 @@
+instance: health-ups
+object_ref: obj.observability.healthcheck.ups
+group: observability
+layer: L6
+version: 1.0.0
+source_id: health-ups
+status: mapped
+notes: UPS health and power monitoring
+
+name: UPS Health
+description: Monitor UPS status via NUT
+target_ref: ups-main
+enabled: true
+critical: true
+
+checks:
+  - type: ups_status
+    expected:
+      - OL
+      - OB
+    critical_states:
+      - LB
+      - RB
+      - FSD
+  - type: battery_charge
+    warning_threshold: 50
+    critical_threshold: 30
+    unit: percent
+  - type: battery_runtime
+    warning_threshold: 600
+    critical_threshold: 300
+    unit: seconds
+  - type: load
+    warning_threshold: 80
+    critical_threshold: 90
+    unit: percent
+  - type: input_voltage
+    warning_low: 200
+    warning_high: 250
+    critical_low: 180
+    critical_high: 260
+    unit: volts
+
+interval: 30s
+timeout: 5s
+
+notification:
+  on_warning: true
+  on_critical: true
+  on_battery: true
+  channels:
+    - channel-email
+    - channel-telegram

@@ -1,0 +1,19 @@
+instance: alert-infra.temperature-high
+object_ref: obj.observability.alert.infrastructure
+group: observability
+layer: L6
+version: 1.0.0
+source_id: alert-infra.temperature-high
+status: mapped
+notes: Warning alert for high temperature
+
+name: High Temperature
+description: Device temperature is high
+severity: warning
+
+trigger:
+  condition: temperature_celsius > 75
+  duration: 5m
+
+channels:
+  - channel-email

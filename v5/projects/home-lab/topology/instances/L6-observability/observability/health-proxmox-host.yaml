@@ -1,0 +1,60 @@
+instance: health-proxmox-host
+object_ref: obj.observability.healthcheck.device
+group: observability
+layer: L6
+version: 1.0.0
+source_id: health-proxmox-host
+status: mapped
+notes: Proxmox hypervisor health monitoring
+
+name: Proxmox Host Health
+description: Monitor Proxmox hypervisor health
+target_ref: srv-gamayun
+enabled: true
+critical: true
+
+checks:
+  - type: ping
+    packet_loss_threshold: 10
+  - type: cpu_usage
+    warning_threshold: 80
+    critical_threshold: 95
+    unit: percent
+  - type: memory_usage
+    warning_threshold: 85
+    critical_threshold: 95
+    unit: percent
+  - type: disk_usage
+    warning_threshold: 80
+    critical_threshold: 90
+    unit: percent
+    paths:
+      - /
+      - /mnt/hdd
+  - type: load_average
+    warning_threshold: 3.0
+    critical_threshold: 4.0
+    period: 15min
+  - type: service
+    services:
+      - pvestatd
+      - pvedaemon
+      - pveproxy
+      - pvescheduler
+    expected_state: running
+  - type: temperature
+    warning_threshold: 75
+    critical_threshold: 85
+    unit: celsius
+  - type: port
+    ports: [8006, 22]
+    protocol: tcp
+
+interval: 60s
+timeout: 10s
+
+notification:
+  on_warning: true
+  on_critical: true
+  channels:
+    - channel-email

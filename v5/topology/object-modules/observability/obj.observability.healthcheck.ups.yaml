@@ -1,0 +1,16 @@
+object: obj.observability.healthcheck.ups
+class_ref: class.observability.healthcheck
+version: 1.0.0
+description: UPS health and power monitoring
+
+properties:
+  check_types:
+    - ups_status
+    - battery_charge
+    - battery_runtime
+    - load
+    - input_voltage
+
+capabilities:
+  - cap.observability.healthcheck.nut
+  - cap.observability.healthcheck.snmp

@@ -1,0 +1,47 @@
+instance: health-redis
+object_ref: obj.observability.healthcheck.service
+group: observability
+layer: L6
+version: 1.0.0
+source_id: health-redis
+status: mapped
+notes: Redis cache health monitoring
+
+name: Redis Cache Health
+description: Monitor Redis LXC and cache service
+target_ref: lxc-redis
+service_ref: svc-redis
+enabled: true
+critical: true
+
+checks:
+  - type: lxc_status
+    expected_state: running
+  - type: port
+    port: 6379
+    protocol: tcp
+  - type: process
+    process: redis-server
+    min_instances: 1
+  - type: redis_ping
+    command: PING
+    expected_result: PONG
+  - type: redis_memory
+    warning_threshold: 200
+    critical_threshold: 250
+    unit: MB
+  - type: redis_keys
+    warning_threshold: 100000
+    critical_threshold: 500000
+  - type: memory_usage
+    warning_threshold: 80
+    critical_threshold: 90
+
+interval: 60s
+timeout: 5s
+
+notification:
+  on_warning: true
+  on_critical: true
+  channels:
+    - channel-email

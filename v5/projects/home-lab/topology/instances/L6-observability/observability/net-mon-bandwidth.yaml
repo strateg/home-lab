@@ -1,0 +1,27 @@
+instance: net-mon-bandwidth
+object_ref: obj.observability.healthcheck.network
+group: observability
+layer: L6
+version: 1.0.0
+source_id: net-mon-bandwidth
+status: mapped
+notes: Network bandwidth monitoring
+
+name: Bandwidth Monitoring
+description: Monitor network throughput
+target_ref: rtr-mikrotik-chateau
+enabled: true
+
+interfaces:
+  - name: ether1
+    type: wan
+    expected_speed_mbps: 100
+  - name: lte1
+    type: wan-backup
+    expected_speed_mbps: 50
+  - name: ether2
+    type: lan
+    expected_speed_mbps: 1000
+
+interval: 60s
+timeout: 10s

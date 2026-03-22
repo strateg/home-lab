@@ -1,0 +1,18 @@
+instance: alert-security.cert-expiry
+object_ref: obj.observability.alert.security
+group: observability
+layer: L6
+version: 1.0.0
+source_id: alert-security.cert-expiry
+status: mapped
+notes: Warning alert for certificate expiry
+
+name: Certificate Expiring
+description: SSL certificate expiring soon
+severity: warning
+
+trigger:
+  condition: cert_days_remaining < 14
+
+channels:
+  - channel-email

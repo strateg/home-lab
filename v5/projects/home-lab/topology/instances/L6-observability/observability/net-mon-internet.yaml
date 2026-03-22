@@ -1,0 +1,44 @@
+instance: net-mon-internet
+object_ref: obj.observability.healthcheck.network
+group: observability
+layer: L6
+version: 1.0.0
+source_id: net-mon-internet
+status: mapped
+notes: Internet connectivity monitoring
+
+name: Internet Connectivity
+description: Monitor primary and failover internet
+enabled: true
+critical: true
+
+checks:
+  - type: ping
+    targets:
+      - 8.8.8.8
+      - 1.1.1.1
+      - 208.67.222.222
+    packet_loss_threshold: 20
+    latency_warning_ms: 50
+    latency_critical_ms: 200
+  - type: dns
+    nameservers:
+      - 8.8.8.8
+      - 1.1.1.1
+    query: google.com
+    timeout_ms: 2000
+  - type: http
+    urls:
+      - https://www.google.com
+      - https://www.cloudflare.com
+    expected_status: [200, 301, 302]
+    timeout_ms: 5000
+
+interval: 60s
+timeout: 10s
+
+notification:
+  on_warning: true
+  on_critical: true
+  channels:
+    - channel-email

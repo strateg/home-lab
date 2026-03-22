@@ -1,0 +1,15 @@
+object: obj.observability.healthcheck.lte
+class_ref: class.observability.healthcheck
+version: 1.0.0
+description: LTE/mobile failover monitoring
+
+properties:
+  check_types:
+    - interface_status
+    - lte_signal
+    - failover_status
+    - sim_status
+
+capabilities:
+  - cap.observability.healthcheck.lte
+  - cap.observability.healthcheck.snmp

@@ -1,0 +1,17 @@
+object: obj.observability.healthcheck.network
+class_ref: class.observability.healthcheck
+version: 1.0.0
+description: Network connectivity and bandwidth monitoring
+
+properties:
+  check_types:
+    - ping
+    - dns
+    - http
+    - traceroute
+    - bandwidth
+
+capabilities:
+  - cap.observability.healthcheck.icmp
+  - cap.observability.healthcheck.dns
+  - cap.observability.healthcheck.http

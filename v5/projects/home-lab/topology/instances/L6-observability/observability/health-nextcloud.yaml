@@ -1,0 +1,43 @@
+instance: health-nextcloud
+object_ref: obj.observability.healthcheck.service
+group: observability
+layer: L6
+version: 1.0.0
+source_id: health-nextcloud
+status: mapped
+notes: Nextcloud application health monitoring
+
+name: Nextcloud Application Health
+description: Monitor Nextcloud on Orange Pi 5
+target_ref: srv-orangepi5
+service_ref: svc-nextcloud@docker.srv-orangepi5
+enabled: true
+critical: true
+
+checks:
+  - type: http
+    path: /status.php
+    scheme: https
+    expected_status: 200
+    expected_content: installed.*true
+    ssl_verify: false
+    timeout: 10s
+  - type: http
+    path: /ocs/v2.php/apps/serverinfo/api/v1/info
+    scheme: https
+    expected_status: 200
+    auth: true
+    ssl_verify: false
+  - type: docker_container
+    name: nextcloud
+    expected_state: running
+    health_check: true
+
+interval: 120s
+timeout: 15s
+
+notification:
+  on_warning: true
+  on_critical: true
+  channels:
+    - channel-email

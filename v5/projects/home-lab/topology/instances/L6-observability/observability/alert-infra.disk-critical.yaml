@@ -1,0 +1,23 @@
+instance: alert-infra.disk-critical
+object_ref: obj.observability.alert.infrastructure
+group: observability
+layer: L6
+version: 1.0.0
+source_id: alert-infra.disk-critical
+status: mapped
+notes: Critical alert for disk space
+
+name: Disk Space Critical
+description: Disk usage exceeds 90%
+severity: critical
+
+trigger:
+  condition: disk_usage_percent > 90
+  duration: 5m
+
+channels:
+  - channel-email
+
+escalation:
+  enabled: true
+  delay: 15m

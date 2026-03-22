@@ -1,0 +1,52 @@
+instance: health-postgresql
+object_ref: obj.observability.healthcheck.service
+group: observability
+layer: L6
+version: 1.0.0
+source_id: health-postgresql
+status: mapped
+notes: PostgreSQL database health monitoring
+
+name: PostgreSQL Database Health
+description: Monitor PostgreSQL LXC and database service
+target_ref: lxc-postgresql
+service_ref: svc-postgresql
+enabled: true
+critical: true
+
+checks:
+  - type: lxc_status
+    expected_state: running
+  - type: port
+    port: 5432
+    protocol: tcp
+  - type: process
+    process: postgres
+    min_instances: 1
+  - type: query
+    query: SELECT 1
+    expected_result: '1'
+    timeout: 5s
+  - type: connection_count
+    warning_threshold: 80
+    critical_threshold: 95
+    max_connections: 100
+  - type: replication_lag
+    enabled: false
+    warning_threshold_seconds: 60
+    critical_threshold_seconds: 300
+  - type: disk_usage
+    warning_threshold: 75
+    critical_threshold: 85
+  - type: memory_usage
+    warning_threshold: 80
+    critical_threshold: 90
+
+interval: 30s
+timeout: 10s
+
+notification:
+  on_warning: true
+  on_critical: true
+  channels:
+    - channel-email

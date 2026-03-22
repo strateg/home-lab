@@ -1,0 +1,17 @@
+object: obj.observability.healthcheck.service
+class_ref: class.observability.healthcheck
+version: 1.0.0
+description: Service health monitoring (databases, caches, web apps)
+
+properties:
+  check_types:
+    - http
+    - query
+    - redis_ping
+    - connection_count
+    - docker_container
+
+capabilities:
+  - cap.observability.healthcheck.http
+  - cap.observability.healthcheck.database
+  - cap.observability.healthcheck.redis

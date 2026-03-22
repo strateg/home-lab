@@ -1,0 +1,57 @@
+instance: health-lte-failover
+object_ref: obj.observability.healthcheck.lte
+group: observability
+layer: L6
+version: 1.0.0
+source_id: health-lte-failover
+status: mapped
+notes: LTE modem and failover status monitoring
+
+name: LTE Failover Status
+description: Monitor LTE modem and failover status
+target_ref: rtr-mikrotik-chateau
+enabled: true
+critical: true
+
+checks:
+  - type: interface_status
+    interface: lte1
+    expected: running
+    alert_on_down: false
+  - type: lte_signal
+    interface: lte1
+    metrics:
+      rssi:
+        warning_threshold: -85
+        critical_threshold: -100
+        unit: dBm
+      rsrp:
+        warning_threshold: -100
+        critical_threshold: -120
+        unit: dBm
+      rsrq:
+        warning_threshold: -12
+        critical_threshold: -15
+        unit: dB
+      sinr:
+        warning_threshold: 5
+        critical_threshold: 0
+        unit: dB
+  - type: failover_status
+    primary_interface: ether1
+    backup_interface: lte1
+    alert_on_failover: true
+    alert_on_failback: true
+  - type: sim_status
+    expected: ready
+
+interval: 60s
+timeout: 15s
+
+notification:
+  on_warning: true
+  on_critical: true
+  on_failover: true
+  channels:
+    - channel-email
+    - channel-telegram

@@ -1,0 +1,16 @@
+object: obj.observability.alert.power
+class_ref: class.observability.alert
+version: 1.0.0
+description: Power alerts (UPS battery, power outage)
+
+properties:
+  domains:
+    - power
+  severity_levels:
+    - critical
+    - warning
+    - info
+
+capabilities:
+  - cap.observability.alert.prometheus
+  - cap.observability.alert.routing

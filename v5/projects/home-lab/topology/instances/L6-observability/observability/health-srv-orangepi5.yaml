@@ -1,0 +1,57 @@
+instance: health-srv-orangepi5
+object_ref: obj.observability.healthcheck.device
+group: observability
+layer: L6
+version: 1.0.0
+source_id: health-srv-orangepi5
+status: mapped
+notes: Orange Pi 5 application server health monitoring
+
+name: Orange Pi 5 Health
+description: Monitor Orange Pi 5 application server
+target_ref: srv-orangepi5
+enabled: true
+critical: true
+
+checks:
+  - type: ping
+    packet_loss_threshold: 10
+  - type: cpu_usage
+    warning_threshold: 75
+    critical_threshold: 90
+  - type: memory_usage
+    warning_threshold: 80
+    critical_threshold: 95
+  - type: disk_usage
+    warning_threshold: 75
+    critical_threshold: 85
+    paths:
+      - /
+      - /mnt/nvme
+  - type: temperature
+    warning_threshold: 70
+    critical_threshold: 80
+    sensor: cpu-thermal
+  - type: docker
+    check_daemon: true
+    containers:
+      - name: nextcloud
+        expected_state: running
+      - name: jellyfin
+        expected_state: running
+      - name: prometheus
+        expected_state: running
+      - name: grafana
+        expected_state: running
+  - type: port
+    ports: [80, 443, 8096, 9090, 3000]
+    protocol: tcp
+
+interval: 60s
+timeout: 10s
+
+notification:
+  on_warning: true
+  on_critical: true
+  channels:
+    - channel-email

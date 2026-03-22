@@ -1,0 +1,21 @@
+instance: alert-infra.internet-down
+object_ref: obj.observability.alert.infrastructure
+group: observability
+layer: L6
+version: 1.0.0
+source_id: alert-infra.internet-down
+status: mapped
+notes: Critical alert for internet connectivity loss
+
+name: Internet Down
+description: No internet connectivity
+severity: critical
+
+trigger:
+  condition: all_checks_failed
+  healthcheck_ref: net-mon-internet
+  duration: 2m
+
+channels:
+  - channel-email
+  - channel-telegram

@@ -1,0 +1,16 @@
+object: obj.observability.alert.security
+class_ref: class.observability.alert
+version: 1.0.0
+description: Security alerts (certificate expiry, intrusion)
+
+properties:
+  domains:
+    - security
+  severity_levels:
+    - critical
+    - warning
+    - info
+
+capabilities:
+  - cap.observability.alert.prometheus
+  - cap.observability.alert.routing

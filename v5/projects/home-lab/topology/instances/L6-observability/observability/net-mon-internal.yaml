@@ -1,0 +1,35 @@
+instance: net-mon-internal
+object_ref: obj.observability.healthcheck.network
+group: observability
+layer: L6
+version: 1.0.0
+source_id: net-mon-internal
+status: mapped
+notes: Internal network connectivity monitoring
+
+name: Internal Network Connectivity
+description: Monitor inter-VLAN connectivity
+enabled: true
+critical: true
+
+checks:
+  - type: ping
+    from_ref: rtr-mikrotik-chateau
+    targets:
+      - srv-gamayun
+      - srv-orangepi5
+      - lxc-postgresql
+      - lxc-redis
+    packet_loss_threshold: 5
+  - type: traceroute
+    target_ref: lxc-postgresql
+    expected_hops: 2
+
+interval: 120s
+timeout: 15s
+
+notification:
+  on_warning: true
+  on_critical: true
+  channels:
+    - channel-email
