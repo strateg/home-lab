@@ -42,6 +42,40 @@ class TerraformMikroTikGenerator(BaseGenerator):
             return f"https://{routers[0]}:{cls._DEFAULT_MIKROTIK_PORT}"
         return f"https://{cls._DEFAULT_MIKROTIK_HOST}:{cls._DEFAULT_MIKROTIK_PORT}"
 
+    # Default capability-template mappings (fallback if not in config)
+    _DEFAULT_CAPABILITY_TEMPLATES = [
+        {"capability_key": "has_qos", "template": "terraform/qos.tf.j2", "output_file": "qos.tf"},
+        {"capability_key": "has_wireguard", "template": "terraform/vpn.tf.j2", "output_file": "vpn.tf"},
+        {"capability_key": "has_containers", "template": "terraform/containers.tf.j2", "output_file": "containers.tf"},
+    ]
+
+    def _get_capability_templates(
+        self, capabilities: dict, ctx: PluginContext
+    ) -> dict[str, str]:
+        """Resolve capability-driven templates from config.
+
+        Returns dict mapping output_file -> template_path for enabled capabilities.
+        Falls back to hardcoded defaults if capability_templates not in config.
+        """
+        result: dict[str, str] = {}
+        cap_templates = ctx.config.get("capability_templates", self._DEFAULT_CAPABILITY_TEMPLATES)
+
+        for mapping in cap_templates:
+            if not isinstance(mapping, dict):
+                continue
+            cap_key = mapping.get("capability_key", "")
+            template = mapping.get("template", "")
+            output_file = mapping.get("output_file", "")
+
+            if not cap_key or not template or not output_file:
+                continue
+
+            # Check if capability is enabled in projection
+            if capabilities.get(cap_key, False):
+                result[output_file] = template
+
+        return result
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         payload = ctx.compiled_json
@@ -80,9 +114,9 @@ class TerraformMikroTikGenerator(BaseGenerator):
 
         # Extract capability flags from projection
         caps = projection.get("capabilities", {})
-        has_wireguard = caps.get("has_wireguard", False)
-        has_containers = caps.get("has_containers", False)
+        # Normalize has_qos for backwards compatibility (can be basic or advanced)
         has_qos = caps.get("has_qos_basic", False) or caps.get("has_qos_advanced", False)
+        normalized_caps = {**caps, "has_qos": has_qos}
 
         render_context = {
             "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),
@@ -96,10 +130,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "services_count": len(services),
             "mikrotik_host": mikrotik_host,
             # Capability flags for conditional blocks in templates
-            "has_wireguard": has_wireguard,
-            "has_containers": has_containers,
-            "has_qos": has_qos,
-            **caps,  # Include all capability flags
+            **normalized_caps,
         }
 
         # Core templates (always generated)
@@ -115,13 +146,9 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "terraform.tfvars.example": "terraform/terraform.tfvars.example.j2",
         }
 
-        # Capability-driven templates (only generated if capability present)
-        if has_qos:
-            templates["qos.tf"] = "terraform/qos.tf.j2"
-        if has_wireguard:
-            templates["vpn.tf"] = "terraform/vpn.tf.j2"
-        if has_containers:
-            templates["containers.tf"] = "terraform/containers.tf.j2"
+        # Capability-driven templates from config (ADR0078 WP9)
+        capability_templates = self._get_capability_templates(normalized_caps, ctx)
+        templates.update(capability_templates)
 
         written: list[str] = []
         for filename, template_name in templates.items():
@@ -130,14 +157,8 @@ class TerraformMikroTikGenerator(BaseGenerator):
             self.write_text_atomic(output_path, content)
             written.append(str(output_path))
 
-        # Build capability summary for diagnostic
-        cap_summary_parts = []
-        if has_wireguard:
-            cap_summary_parts.append("wireguard")
-        if has_containers:
-            cap_summary_parts.append("containers")
-        if has_qos:
-            cap_summary_parts.append("qos")
+        # Build capability summary for diagnostic (based on which templates were added)
+        cap_summary_parts = list(capability_templates.keys())
         cap_summary = ",".join(cap_summary_parts) if cap_summary_parts else "none"
 
         diagnostics.append(

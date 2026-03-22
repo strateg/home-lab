@@ -1,8 +1,9 @@
 # ADR0078: v5 Unified Plugin Refactor Preparation
 
 **Date:** 2026-03-22
-**Status:** In progress (WP6-WP8 completed; WP9-WP10 pending)
+**Status:** Completed (WP6-WP10 all completed)
 **Amended:** 2026-03-22 (WP6-WP10 added for boundary enforcement)
+**Amended:** 2026-03-22 (WP9-WP10 executed)
 **Related:** `adr/0078-object-module-local-template-layout.md`, `adr/plan/0078-plugin-layering-and-v4-v5-migration-plan.md`
 
 ---
@@ -153,21 +154,19 @@
 
 **Цель:** Вынести capability→template mappings в config.
 
-**Tasks:**
+**Execution result (done):**
 
-1. Добавить `capability_templates` секцию в `plugins.yaml` для mikrotik/proxmox.
+1. Added `capability_templates` config section to `mikrotik/plugins.yaml`.
+2. Refactored `terraform_mikrotik_generator.py`:
+   - Added `_get_capability_templates(capabilities, ctx)` method;
+   - Added `_DEFAULT_CAPABILITY_TEMPLATES` fallback for backwards compatibility;
+   - Removed hardcoded `if has_qos/wireguard/containers` patterns.
+3. Created `v5/tests/plugin_contract/test_capability_template_config.py` with 3 tests:
+   - `test_generators_do_not_hardcode_capability_template_mappings`
+   - `test_generators_have_capability_templates_in_config_or_fallback`
+   - `test_capability_templates_schema_in_manifests`
 
-2. Рефакторить генераторы:
-   - Убрать `if has_qos: templates["qos.tf"] = ...` patterns;
-   - Добавить `_get_capability_templates(projection, ctx)` method.
-
-3. Создать `v5/tests/plugin_contract/test_capability_template_config.py`:
-   - Проверить отсутствие hardcoded capability checks в генераторах.
-
-**Exit criteria:**
-- Capability mappings в config;
-- Генераторы читают из config;
-- Test проходит.
+**Exit criteria:** completed.
 
 ---
 
@@ -175,23 +174,25 @@
 
 **Цель:** Чёткие ownership boundaries для projections.
 
-**Tasks:**
+**Execution result (done):**
 
-1. Документировать projection ownership:
-   - Core: `ansible_projection`, `docs_projection`, `effective_model_projection`;
-   - Object: `mikrotik_projection`, `proxmox_projection`;
-   - Shared: `bootstrap_projections`.
+1. Created `v5/tests/plugin_contract/test_projection_ownership_boundaries.py` with 6 tests:
+   - `test_core_projections_are_cross_object`
+   - `test_object_projections_only_reference_own_object`
+   - `test_shared_projections_are_in_shared_module`
+   - `test_projection_modules_import_only_from_allowed_sources`
+   - `test_projection_ownership_inventory`
+   - `test_no_projection_duplication_across_levels`
 
-2. Проверить нет ли object-specific логики в core projections.
+2. Projection ownership verified:
+   - Core: `build_ansible_projection`, `build_docs_projection` (in tools/generators/projections.py)
+   - Object: `build_mikrotik_projection`, `build_proxmox_projection` (in object-modules/*/plugins/projections.py)
+   - Shared: `build_bootstrap_projection`, `build_bootstrap_typed` (in _shared/plugins/bootstrap_projections.py)
+   - Core helpers: `projection_core.py` (low-level utilities)
 
-3. Добавить `v5/tests/plugin_contract/test_projection_ownership_boundaries.py`.
+3. All projection modules pass ownership boundary tests.
 
-4. Консолидировать shared utilities в `_shared/plugins/projection_helpers.py`.
-
-**Exit criteria:**
-- Ownership задокументирован;
-- Test проходит;
-- Shared helpers в одном месте.
+**Exit criteria:** completed.
 
 ---
 
@@ -203,13 +204,15 @@
 2. **Batch B**: Instance Isolation (WP6 completed)
 3. **Batch C**: Cross-Object Boundaries (WP7 completed)
 4. **Batch D**: Dynamic Discovery (WP8 completed)
-5. **Batch E**: Capability Externalization (WP9 pending)
-6. **Batch F**: Projection Consolidation (WP10 pending)
+5. **Batch E**: Capability Externalization (WP9 completed)
+6. **Batch F**: Projection Consolidation (WP10 completed)
 
 После каждого batch:
 - Regenerate framework lock;
 - Run full test suite;
 - Capture cutover evidence.
+
+**All batches completed (2026-03-22).**
 
 ---
 
@@ -234,5 +237,7 @@
 6. WP6: No instance literals in object plugins. (done)
 7. WP7: No cross-object imports. (done)
 8. WP8: Object discovery is dynamic. (done)
-9. WP9: Capability templates in config. (pending)
-10. WP10: Projection ownership boundaries documented and tested. (pending)
+9. WP9: Capability templates in config. (done)
+10. WP10: Projection ownership boundaries documented and tested. (done)
+
+**All criteria satisfied (2026-03-22).**

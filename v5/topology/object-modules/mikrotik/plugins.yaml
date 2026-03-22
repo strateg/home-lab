@@ -27,6 +27,17 @@ plugins:
       terraform_version: ">= 1.6.0"
       mikrotik_provider_source: "terraform-routeros/routeros"
       mikrotik_provider_version: "~> 1.40"
+      # Capability-driven template mappings (ADR0078 WP9)
+      capability_templates:
+        - capability_key: has_qos
+          template: terraform/qos.tf.j2
+          output_file: qos.tf
+        - capability_key: has_wireguard
+          template: terraform/vpn.tf.j2
+          output_file: vpn.tf
+        - capability_key: has_containers
+          template: terraform/containers.tf.j2
+          output_file: containers.tf
     config_schema:
       type: object
       properties:
@@ -39,6 +50,22 @@ plugins:
         mikrotik_provider_version:
           type: string
           description: Terraform provider version constraint for RouterOS provider.
+        capability_templates:
+          type: array
+          description: Capability-driven template mappings for conditional artifact generation.
+          items:
+            type: object
+            properties:
+              capability_key:
+                type: string
+                description: Key in projection capabilities dict to check.
+              template:
+                type: string
+                description: Template path relative to object template root.
+              output_file:
+                type: string
+                description: Output filename for generated artifact.
+            required: [capability_key, template, output_file]
       required: []
     description: Emits baseline Terraform artifacts for MikroTik from v5 projections (Phase 4 bootstrap).
 

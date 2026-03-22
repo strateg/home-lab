@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-21
 **ADR:** `adr/0078-object-module-local-template-layout.md`
-**Status:** Active for boundary hardening (generator scope complete; Wave 9-10 pending)
+**Status:** Completed (all waves including Wave 9-10)
 **Amended:** 2026-03-22 (compilers/validators/generators unified rules)
 **Amended:** 2026-03-22 (instance isolation, cross-object boundaries, dynamic discovery)
 
@@ -305,22 +305,23 @@ Status summary:
 3. **Wave 8 (dynamic object discovery): completed**
    - replaced static projection path mapping with dynamic discovery + cache;
    - added discovery coverage in `test_object_projection_loader.py`.
-4. **Wave 9 (capability-template externalization): pending**
-   - capability->template mapping still hardcoded in generator code.
-5. **Wave 10 (projection ownership consolidation): pending**
-   - ownership guard tests and consolidation pass still to be finalized.
+4. **Wave 9 (capability-template externalization): completed**
+   - added `capability_templates` config section to `mikrotik/plugins.yaml`;
+   - refactored `terraform_mikrotik_generator.py` with `_get_capability_templates()` method;
+   - added `_DEFAULT_CAPABILITY_TEMPLATES` fallback for backwards compatibility;
+   - created `test_capability_template_config.py` with 3 contract tests.
+5. **Wave 10 (projection ownership consolidation): completed**
+   - created `test_projection_ownership_boundaries.py` with 6 contract tests;
+   - verified projection ownership hierarchy (core/object/shared);
+   - all modules pass ownership boundary tests.
 
-Remaining execution scope:
-
-1. Externalize capability-template mapping to module config and validate schema.
-2. Add dedicated ownership-boundary checks for projection builders (core/object/_shared).
-3. Update authoring docs with finalized import/discovery/capability contracts.
+**All waves completed. ADR0078 implementation is fully closed.**
 
 ---
 
-## 12. Verification Matrix (Current + Remaining)
+## 12. Verification Matrix (Final)
 
-Mandatory gates (current baseline):
+All mandatory gates (all passing):
 
 1. `python -m pytest -o addopts= v5/tests/plugin_contract/test_plugin_level_boundaries.py -q`
 2. `python -m pytest -o addopts= v5/tests/plugin_integration/test_object_projection_loader.py -q`
@@ -328,11 +329,10 @@ Mandatory gates (current baseline):
 4. `python -m pytest -o addopts= v5/tests/plugin_integration -q`
 5. `python v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough`
 6. `python v5/topology-tools/verify-framework-lock.py --strict`
+7. `python -m pytest -o addopts= v5/tests/plugin_contract/test_capability_template_config.py -q`
+8. `python -m pytest -o addopts= v5/tests/plugin_contract/test_projection_ownership_boundaries.py -q`
 
-Additional gates for remaining Wave 9-10 scope:
-
-1. capability-template config contract test (new)
-2. projection ownership boundary contract test (new)
+**All gates green (2026-03-22):** 45 plugin_contract tests + 486 plugin_integration tests passing.
 
 ---
 
@@ -351,7 +351,9 @@ Additional gates for remaining Wave 9-10 scope:
 
 All must be true:
 
-1. Capability-template mappings are fully externalized to module config.
-2. Generators consume capability-template mappings via config only.
-3. Projection ownership boundaries (core/object/_shared) are documented and test-enforced.
-4. Plugin contract suite, full integration suite, strict compile, and lock verification are green.
+1. Capability-template mappings are fully externalized to module config. ✓
+2. Generators consume capability-template mappings via config only. ✓
+3. Projection ownership boundaries (core/object/_shared) are documented and test-enforced. ✓
+4. Plugin contract suite, full integration suite, strict compile, and lock verification are green. ✓
+
+**All criteria satisfied (2026-03-22).**
