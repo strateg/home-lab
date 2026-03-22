@@ -109,3 +109,51 @@ def test_network_reserved_ranges_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7819" for diag in result.diagnostics)
+
+
+def test_network_reserved_ranges_validator_supports_extensions_payload():
+    registry = _registry()
+    ctx = _context()
+    rows = _rows()
+    rows[0]["extensions"] = {  # type: ignore[index]
+        "cidr": "10.0.30.0/24",
+        "reserved_ranges": [
+            {"start": "10.0.30.10", "end": "10.0.30.20", "purpose": "infra"},
+            {"start": "10.0.30.15", "end": "10.0.30.25", "purpose": "overlap"},
+        ],
+    }
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7820" for diag in result.diagnostics)
+
+
+def test_network_reserved_ranges_validator_supports_top_level_payload():
+    registry = _registry()
+    ctx = _context()
+    rows = _rows()
+    rows[0]["cidr"] = "10.0.30.0/24"  # type: ignore[index]
+    rows[0]["reserved_ranges"] = [  # type: ignore[index]
+        {"start": "10.0.31.10", "end": "10.0.31.20", "purpose": "bad"},
+    ]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7820" for diag in result.diagnostics)
+
+
+def test_network_reserved_ranges_validator_skips_dhcp_cidr():
+    registry = _registry()
+    ctx = _context()
+    rows = _rows()
+    rows[0]["cidr"] = "dhcp"  # type: ignore[index]
+    rows[0]["reserved_ranges"] = [  # type: ignore[index]
+        {"start": "10.0.30.10", "end": "10.0.30.20", "purpose": "ignored"},
+    ]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

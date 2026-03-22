@@ -56,18 +56,12 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
         row_id = row.get("instance")
         group = row.get("group")
         row_prefix = f"instance:{group}:{row_id}"
-        object_ref = row.get("object_ref")
-
-        object_payload = ctx.objects.get(object_ref) if isinstance(object_ref, str) else None
-        properties = object_payload.get("properties") if isinstance(object_payload, dict) else None
-        if not isinstance(properties, dict):
-            return
-
-        cidr = properties.get("cidr")
-        reserved_ranges = properties.get("reserved_ranges")
+        cidr, reserved_ranges, ranges_path = self._network_payload(ctx=ctx, row=row, row_prefix=row_prefix)
         if not isinstance(reserved_ranges, list) or not reserved_ranges:
             return
         if not isinstance(cidr, str) or not cidr:
+            return
+        if cidr.strip().lower() == "dhcp":
             return
 
         try:
@@ -84,7 +78,7 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
                         severity="error",
                         stage=stage,
                         message=f"reserved_ranges[{idx}] must be an object with start/end.",
-                        path=f"{row_prefix}.reserved_ranges[{idx}]",
+                        path=f"{ranges_path}[{idx}]",
                     )
                 )
                 continue
@@ -99,7 +93,7 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
                         severity="error",
                         stage=stage,
                         message=f"reserved_ranges[{idx}] must define non-empty start and end.",
-                        path=f"{row_prefix}.reserved_ranges[{idx}]",
+                        path=f"{ranges_path}[{idx}]",
                     )
                 )
                 continue
@@ -114,7 +108,7 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
                         severity="error",
                         stage=stage,
                         message=f"reserved_ranges[{idx}] has invalid IP address: {exc}.",
-                        path=f"{row_prefix}.reserved_ranges[{idx}]",
+                        path=f"{ranges_path}[{idx}]",
                     )
                 )
                 continue
@@ -128,7 +122,7 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
                         message=(
                             f"reserved range {start_str}-{end_str} is outside CIDR '{cidr}' for '{row_id}'."
                         ),
-                        path=f"{row_prefix}.reserved_ranges[{idx}]",
+                        path=f"{ranges_path}[{idx}]",
                     )
                 )
                 continue
@@ -140,7 +134,7 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
                         severity="error",
                         stage=stage,
                         message=f"reserved range start '{start_str}' must not be greater than end '{end_str}'.",
-                        path=f"{row_prefix}.reserved_ranges[{idx}]",
+                        path=f"{ranges_path}[{idx}]",
                     )
                 )
                 continue
@@ -161,6 +155,31 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
                                 f"reserved ranges overlap in '{row_id}': "
                                 f"{start1}-{end1} ({purpose1}) and {start2}-{end2} ({purpose2})."
                             ),
-                            path=f"{row_prefix}.reserved_ranges",
+                            path=ranges_path,
                         )
                     )
+
+    @staticmethod
+    def _network_payload(*, ctx: PluginContext, row: dict[str, Any], row_prefix: str) -> tuple[Any, Any, str]:
+        extensions = row.get("extensions") if isinstance(row.get("extensions"), dict) else {}
+        object_ref = row.get("object_ref")
+        object_payload = ctx.objects.get(object_ref) if isinstance(object_ref, str) else None
+        properties = object_payload.get("properties") if isinstance(object_payload, dict) else None
+        object_cidr = properties.get("cidr") if isinstance(properties, dict) else None
+        object_ranges = properties.get("reserved_ranges") if isinstance(properties, dict) else None
+
+        if isinstance(extensions, dict) and "reserved_ranges" in extensions:
+            cidr = extensions.get("cidr")
+            if cidr is None:
+                cidr = row.get("cidr")
+            if cidr is None:
+                cidr = object_cidr
+            return cidr, extensions.get("reserved_ranges"), f"{row_prefix}.extensions.reserved_ranges"
+        if "reserved_ranges" in row:
+            cidr = row.get("cidr")
+            if cidr is None:
+                cidr = object_cidr
+            return cidr, row.get("reserved_ranges"), f"{row_prefix}.reserved_ranges"
+        if isinstance(properties, dict):
+            return object_cidr, object_ranges, f"{row_prefix}.reserved_ranges"
+        return None, None, f"{row_prefix}.reserved_ranges"

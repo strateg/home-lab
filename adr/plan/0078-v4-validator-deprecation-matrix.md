@@ -29,7 +29,7 @@
 | network.py | `check_power_links` | `base.validator.power_source_refs` | Covered/Partial | Disable v4 check after edge-case fixtures. |
 | network.py | `check_mtu_consistency` | `base.validator.network_mtu_consistency` | Covered/Partial | Disable v4 check after fixture parity lock. |
 | network.py | `check_vlan_zone_consistency` | `base.validator.network_vlan_zone_consistency` | Covered/Partial | Disable v4 check after warning parity review. |
-| network.py | `check_reserved_ranges` | `base.validator.network_reserved_ranges` | Partial | Keep v4 fallback for wider legacy shape coverage. |
+| network.py | `check_reserved_ranges` | `base.validator.network_reserved_ranges` | Covered/Partial | Keep v4 fallback only for non-VLAN legacy shapes not yet modeled in v5 fixtures. |
 | network.py | `check_trust_zone_firewall_refs` | `base.validator.network_trust_zone_firewall_refs` | Covered/Partial | Disable v4 check after fixture parity lock. |
 | network.py | `check_firewall_policy_addressability` | `base.validator.network_firewall_addressability` | Partial | Keep v4 fallback until warnings parity is locked. |
 | network.py | `check_ip_allocation_host_os_refs` | `base.validator.network_ip_allocation_host_os_refs` | Partial | Disable v4 check after host-os edge fixture coverage. |

@@ -17,6 +17,7 @@ PARITY_TEST_PATHS = [
     "v5/tests/plugin_integration/test_governance_v4_v5_parity.py",
     "v5/tests/plugin_integration/test_network_refs_v4_v5_parity.py",
     "v5/tests/plugin_integration/test_network_ip_overlap_v4_v5_parity.py",
+    "v5/tests/plugin_integration/test_network_reserved_ranges_v4_v5_parity.py",
     "v5/tests/plugin_integration/test_service_refs_v4_v5_parity.py",
     "v5/tests/plugin_integration/test_storage_l3_v4_v5_warning_parity.py",
     "v5/tests/plugin_integration/test_host_os_refs_v4_v5_parity.py",

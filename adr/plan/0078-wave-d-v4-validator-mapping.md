@@ -92,7 +92,7 @@ Legend:
 | `check_power_links` | `base.validator.power_source_refs` | Covered/Partial | Основная семантика power.source_ref/occupancy есть; проверить parity по edge cases. |
 | `check_mtu_consistency` | `base.validator.network_mtu_consistency` | Covered/Partial | Добавлен validator для jumbo_frames=true при mtu<=1500. |
 | `check_vlan_zone_consistency` | `base.validator.network_vlan_zone_consistency` | Covered/Partial | Добавлен warning-based validator для VLAN id vs trust-zone vlan_ids контракта. |
-| `check_reserved_ranges` | `base.validator.network_reserved_ranges` | Partial | Добавлен validator для VLAN reserved_ranges (границы CIDR + overlap); можно расширить на все network object shapes при необходимости. |
+| `check_reserved_ranges` | `base.validator.network_reserved_ranges` | Covered/Partial | Добавлен validator для VLAN reserved_ranges (границы CIDR + overlap) с parity для object/extension/top-level payload путей и skip-семантикой для `cidr=dhcp`; можно расширить на non-VLAN network object shapes при необходимости. |
 | `check_trust_zone_firewall_refs` | `base.validator.network_trust_zone_firewall_refs` | Covered/Partial | Добавлен validator для default_firewall_policy_ref trust-zone instances. |
 | `check_firewall_policy_addressability` | `base.validator.network_firewall_addressability` | Partial | Добавлен warning-based validator для addressability refs (dhcp network refs / zones without static CIDR). |
 | `check_ip_allocation_host_os_refs` | `base.validator.network_ip_allocation_host_os_refs` | Partial | Добавлен validator для host_os_ref/device_ref consistency внутри network ip_allocations. |
