@@ -121,6 +121,8 @@ class NetworkFirewallAddressabilityValidator(ValidatorJsonPlugin):
         extensions = row.get("extensions")
         if isinstance(extensions, dict) and key in extensions:
             return extensions.get(key)
+        if key in row:
+            return row.get(key)
         object_ref = row.get("object_ref")
         object_payload = ctx.objects.get(object_ref) if isinstance(object_ref, str) else None
         properties = object_payload.get("properties") if isinstance(object_payload, dict) else None

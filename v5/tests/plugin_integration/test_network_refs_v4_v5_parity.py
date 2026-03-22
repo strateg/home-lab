@@ -19,6 +19,7 @@ V4_NETWORK_CHECKS = (
 )
 V5_MTU_PLUGIN_ID = "base.validator.network_mtu_consistency"
 V5_REACHABILITY_PLUGIN_ID = "base.validator.network_runtime_reachability"
+V5_FIREWALL_ADDRESSABILITY_PLUGIN_ID = "base.validator.network_firewall_addressability"
 
 
 def _load_v4_network_checks_module() -> Any:
@@ -286,3 +287,52 @@ def test_runtime_reachability_top_level_network_fields_match_v4_and_v5():
     )
     result = registry.execute_plugin(V5_REACHABILITY_PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.diagnostics == []
+
+
+def test_firewall_addressability_dhcp_warning_is_emitted_in_v4_and_v5():
+    v4_module = _load_v4_network_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_firewall_policy_addressability(
+        topology={
+            "L2_network": {
+                "networks": [{"id": "net-a", "cidr": "dhcp", "trust_zone_ref": "zone-a"}],
+                "firewall_policies": [{"id": "fw-a", "source_network_ref": "net-a", "source_zone_ref": "zone-a"}],
+            }
+        },
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("resolves to dynamic CIDR ('dhcp')" in message for message in v4_warnings)
+
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "network",
+                "instance": "zone-a",
+                "class_ref": "class.network.trust_zone",
+                "layer": "L2",
+            },
+            {
+                "group": "network",
+                "instance": "net-a",
+                "class_ref": "class.network.vlan",
+                "layer": "L2",
+                "cidr": "dhcp",
+                "trust_zone_ref": "zone-a",
+            },
+            {
+                "group": "network",
+                "instance": "fw-a",
+                "class_ref": "class.network.firewall_policy",
+                "layer": "L2",
+                "source_network_ref": "net-a",
+                "source_zone_ref": "zone-a",
+            },
+        ],
+    )
+    result = registry.execute_plugin(V5_FIREWALL_ADDRESSABILITY_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "W7824" for diag in result.diagnostics)

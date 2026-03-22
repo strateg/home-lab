@@ -31,7 +31,7 @@
 | network.py | `check_vlan_zone_consistency` | `base.validator.network_vlan_zone_consistency` | Covered/Partial | Disable v4 check after warning parity review. |
 | network.py | `check_reserved_ranges` | `base.validator.network_reserved_ranges` | Covered/Partial | Keep v4 fallback only for non-VLAN legacy shapes not yet modeled in v5 fixtures. |
 | network.py | `check_trust_zone_firewall_refs` | `base.validator.network_trust_zone_firewall_refs` | Covered/Partial | Disable v4 check after fixture parity lock. |
-| network.py | `check_firewall_policy_addressability` | `base.validator.network_firewall_addressability` | Partial | Keep v4 fallback until warnings parity is locked. |
+| network.py | `check_firewall_policy_addressability` | `base.validator.network_firewall_addressability` | Covered/Partial | Keep v4 fallback only for non-VLAN legacy shape review; warnings parity for core payload paths is locked in v5 fixtures. |
 | network.py | `check_ip_allocation_host_os_refs` | `base.validator.network_ip_allocation_host_os_refs` | Covered/Partial | Disable v4 check after non-VLAN legacy shape review; parity for required-ref and deprecation warning semantics is covered in v5 fixtures. |
 | network.py | `check_runtime_network_reachability` | `base.validator.network_runtime_reachability` | Covered/Partial | Disable v4 check after non-VLAN/network-profile legacy shape review; active-only + payload-path parity fixtures are covered. |
 | network.py | `check_single_active_os_per_device` | `base.validator.single_active_os` | Covered/Partial | Disable v4 check after legacy inventory parity decision. |
