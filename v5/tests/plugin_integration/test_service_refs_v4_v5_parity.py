@@ -15,6 +15,7 @@ from kernel import PluginContext, PluginRegistry
 from kernel.plugin_base import Stage
 
 PLUGIN_ID = "base.validator.service_dependency_refs"
+RUNTIME_PLUGIN_ID = "base.validator.service_runtime_refs"
 V4_REFS_CHECKS = (
     Path(__file__).resolve().parents[3] / "v4" / "topology-tools" / "scripts" / "validators" / "checks" / "references.py"
 )
@@ -145,3 +146,102 @@ def test_service_dependency_ref_missing_is_error_in_v4_and_v5():
     )
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert any(diag.code == "E7850" for diag in result.diagnostics)
+
+
+def test_service_runtime_mixed_with_legacy_refs_warns_in_v4_and_v5():
+    v4_module = _load_v4_reference_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_service_refs(
+        topology={
+            "L5_application": {
+                "services": [
+                    {
+                        "id": "svc-a",
+                        "device_ref": "srv-a",
+                        "runtime": {"type": "docker", "target_ref": "srv-a"},
+                    }
+                ]
+            }
+        },
+        ids={
+            "devices": {"srv-a"},
+            "vms": set(),
+            "lxc": set(),
+            "networks": set(),
+            "trust_zones": set(),
+            "data_assets": set(),
+            "services": {"svc-a"},
+        },
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("mixing runtime with legacy *_ref fields" in message for message in v4_warnings)
+
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1"},
+            {
+                "group": "services",
+                "instance": "svc-a",
+                "class_ref": "class.service.web_ui",
+                "layer": "L5",
+                "device_ref": "srv-a",
+                "runtime": {"type": "docker", "target_ref": "srv-a"},
+            },
+        ],
+    )
+    result = registry.execute_plugin(RUNTIME_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "W7845" for diag in result.diagnostics)
+
+
+def test_service_runtime_docker_requires_container_capability_in_v4_and_v5():
+    v4_module = _load_v4_reference_checks_module()
+    v4_errors: list[str] = []
+    v4_warnings: list[str] = []
+    v4_module.check_service_refs(
+        topology={
+            "L4_platform": {
+                "host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a", "status": "active", "capabilities": ["vm"]}],
+            },
+            "L5_application": {
+                "services": [
+                    {"id": "svc-a", "runtime": {"type": "docker", "target_ref": "srv-a"}},
+                ]
+            },
+        },
+        ids={
+            "devices": {"srv-a"},
+            "vms": set(),
+            "lxc": set(),
+            "networks": set(),
+            "trust_zones": set(),
+            "data_assets": set(),
+            "services": {"svc-a"},
+        },
+        errors=v4_errors,
+        warnings=v4_warnings,
+    )
+    assert any("requires host capability 'docker' or 'container'" in message for message in v4_errors)
+
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["hos-a"]},
+            {"group": "os", "instance": "hos-a", "class_ref": "class.os", "layer": "L1", "status": "active", "capabilities": ["vm"]},
+            {
+                "group": "services",
+                "instance": "svc-a",
+                "class_ref": "class.service.web_ui",
+                "layer": "L5",
+                "runtime": {"type": "docker", "target_ref": "srv-a"},
+            },
+        ],
+    )
+    result = registry.execute_plugin(RUNTIME_PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert any(diag.code == "E7841" for diag in result.diagnostics)
