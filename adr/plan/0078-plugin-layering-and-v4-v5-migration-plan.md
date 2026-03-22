@@ -285,8 +285,15 @@ Wave D in progress:
    - `base.validator.storage_device_taxonomy`
    - `base.validator.storage_media_inventory`
    - expanded `base.validator.storage_l3_refs` (partition/vg/lv/filesystem/mount/storage_endpoint refs)
+   - added `storage_l3_refs` parity checks for `infer_from.*` consistency and data-asset backup policy linkage
+   - added targeted warning-parity fixtures for `infer_from`/backup-policy edge semantics
 5. Added D3 references thin-wrappers:
    - `base.validator.dns_refs`
    - `base.validator.certificate_refs`
    - `base.validator.backup_refs`
    - `base.validator.security_policy_refs`
+6. Added draft deprecation matrix:
+   - `adr/plan/0078-v4-validator-deprecation-matrix.md`
+7. Added v4/v5 side-by-side parity fixture:
+   - `v5/tests/plugin_integration/test_storage_l3_v4_v5_warning_parity.py`
+   - `v5/tests/plugin_integration/test_service_refs_v4_v5_parity.py`

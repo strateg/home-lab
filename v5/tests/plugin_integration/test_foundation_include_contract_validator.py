@@ -14,21 +14,21 @@ from kernel.plugin_base import Stage
 
 PLUGIN_ID = "base.validator.foundation_include_contract"
 
-REQUIRED_DIRS = (
-    "topology/instances/L0-meta/meta",
-    "topology/instances/L1-foundation/devices",
-    "topology/instances/L1-foundation/firmware",
-    "topology/instances/L1-foundation/os",
-    "topology/instances/L1-foundation/physical-links",
-    "topology/instances/L1-foundation/power",
-    "topology/instances/L2-network/data-channels",
-    "topology/instances/L2-network/network",
-    "topology/instances/L3-data/storage",
-    "topology/instances/L4-platform/lxc",
-    "topology/instances/L4-platform/vms",
-    "topology/instances/L5-application/services",
-    "topology/instances/L6-observability/observability",
-    "topology/instances/L7-operations/operations",
+REQUIRED_INSTANCE_DIRS = (
+    "L0-meta/meta",
+    "L1-foundation/devices",
+    "L1-foundation/firmware",
+    "L1-foundation/os",
+    "L1-foundation/physical-links",
+    "L1-foundation/power",
+    "L2-network/data-channels",
+    "L2-network/network",
+    "L3-data/storage",
+    "L4-platform/lxc",
+    "L4-platform/vms",
+    "L5-application/services",
+    "L6-observability/observability",
+    "L7-operations/operations",
 )
 
 
@@ -38,12 +38,22 @@ def _registry() -> PluginRegistry:
     return registry
 
 
-def _context(project_root: str | None) -> PluginContext:
+def _context(
+    project_root: str | None,
+    *,
+    repo_root: str | None = None,
+    project_manifest_path: str | None = None,
+    topology_path: str = "v5/topology/topology.yaml",
+) -> PluginContext:
     config = {}
     if project_root is not None:
         config["project_root"] = project_root
+    if repo_root is not None:
+        config["repo_root"] = repo_root
+    if project_manifest_path is not None:
+        config["project_manifest_path"] = project_manifest_path
     return PluginContext(
-        topology_path="v5/topology/topology.yaml",
+        topology_path=topology_path,
         profile="test",
         model_lock={},
         raw_yaml={},
@@ -54,9 +64,10 @@ def _context(project_root: str | None) -> PluginContext:
     )
 
 
-def _build_tree(root: Path) -> None:
-    for rel in REQUIRED_DIRS:
-        (root / rel).mkdir(parents=True, exist_ok=True)
+def _build_tree(root: Path, *, direct_instances_root: bool = False) -> None:
+    base = root if direct_instances_root else (root / "topology" / "instances")
+    for rel in REQUIRED_INSTANCE_DIRS:
+        (base / rel).mkdir(parents=True, exist_ok=True)
 
 
 def test_foundation_include_contract_validator_accepts_valid_tree(tmp_path: Path):
@@ -94,3 +105,59 @@ def test_foundation_include_contract_validator_requires_project_root():
     result = registry.execute_plugin(PLUGIN_ID, _context(None), Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7845" for diag in result.diagnostics)
+
+
+def test_foundation_include_contract_validator_resolves_relative_project_root_from_repo_root(tmp_path: Path):
+    repo_root = tmp_path / "external-repo"
+    project_root = repo_root / "home-lab"
+    _build_tree(project_root)
+
+    registry = _registry()
+    result = registry.execute_plugin(
+        PLUGIN_ID,
+        _context("home-lab", repo_root=str(repo_root)),
+        Stage.VALIDATE,
+    )
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_foundation_include_contract_validator_resolves_relative_project_root_from_topology_parent(tmp_path: Path):
+    repo_root = tmp_path / "external-repo"
+    project_root = repo_root / "home-lab"
+    _build_tree(project_root)
+    topology_path = repo_root / "topology.yaml"
+    topology_path.write_text("version: 5.0.0\n", encoding="utf-8")
+
+    registry = _registry()
+    result = registry.execute_plugin(
+        PLUGIN_ID,
+        _context("home-lab", topology_path=str(topology_path)),
+        Stage.VALIDATE,
+    )
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_foundation_include_contract_validator_uses_instances_root_from_project_manifest(tmp_path: Path):
+    repo_root = tmp_path / "external-repo"
+    project_root = repo_root / "home-lab"
+    instances_root = tmp_path / "shared-instances"
+    _build_tree(instances_root, direct_instances_root=True)
+
+    project_root.mkdir(parents=True, exist_ok=True)
+    project_manifest = project_root / "project.yaml"
+    project_manifest.write_text(f"instances_root: {instances_root.as_posix()}\n", encoding="utf-8")
+
+    registry = _registry()
+    result = registry.execute_plugin(
+        PLUGIN_ID,
+        _context(
+            "home-lab",
+            repo_root=str(repo_root),
+            project_manifest_path=str(project_manifest),
+        ),
+        Stage.VALIDATE,
+    )
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

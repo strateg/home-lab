@@ -115,7 +115,7 @@ Legend:
 |---|---|---|---|
 | `check_device_storage_taxonomy` | `base.validator.storage_device_taxonomy` | Covered/Partial | Добавлен validator L1 storage slot/media taxonomy (slot duplicates, deprecated inline media, mount/bus compatibility, removable/virtual contracts). |
 | `check_l1_media_inventory` | `base.validator.storage_media_inventory` | Covered/Partial | Добавлен validator media registry + media attachment consistency (`device_ref/slot_ref/media_ref`, `present` exclusivity per slot/media, mount/bus compatibility). |
-| `check_l3_storage_refs` | `base.validator.references` + `base.validator.storage_l3_refs` | Covered/Partial | Расширен L3 storage refs validator: `volume->pool`, `data_asset->volume`, `partition/media_attachment`, `vg/pv_refs`, `lv/vg_ref`, `filesystem(lv|partition)`, `mount_point/filesystem`, `storage_endpoint(lv|mount_point)`. Остаются legacy infer_from/backup-policy edge-cases. |
+| `check_l3_storage_refs` | `base.validator.references` + `base.validator.storage_l3_refs` | Covered/Partial | Расширен L3 storage refs validator: `volume->pool`, `data_asset->volume`, `partition/media_attachment`, `vg/pv_refs`, `lv/vg_ref`, `filesystem(lv|partition)`, `mount_point/filesystem`, `storage_endpoint(lv|mount_point)` + `infer_from.*` consistency и data-asset backup policy linkage checks. |
 
 ---
 
@@ -137,6 +137,6 @@ Legend:
 
 ## 5. Immediate Next Steps
 
-1. Закрыть remaining edge-cases `check_l3_storage_refs`: `infer_from.*` consistency и backup-policy linkage parity.
-2. Подготовить deprecation-матрицу `v4 check_* -> v5 plugin id` для финального отключения v4 validators.
-3. Запланировать cutover: перевести `base.validator.references` в более узкий scope после закрепления parity thin-wrappers.
+1. Верифицировать draft deprecation-матрицу `adr/plan/0078-v4-validator-deprecation-matrix.md` на owner review и cutover gates.
+2. Запланировать cutover: перевести `base.validator.references` в более узкий scope после закрепления parity thin-wrappers.
+3. Расширить side-by-side snapshot на network/governance warning-semantics parity fixtures (storage+service baseline уже добавлен).

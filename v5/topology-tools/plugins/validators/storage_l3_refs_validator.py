@@ -42,6 +42,9 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
             row_id = row.get("instance")
             if isinstance(row_id, str) and row_id:
                 row_by_id[row_id] = row
+        backup_policy_ids = self._collect_backup_policy_ids(rows)
+        volume_groups_by_name = self._collect_name_index(rows, class_ref="class.storage.volume_group")
+        logical_volumes_by_name = self._collect_name_index(rows, class_ref="class.storage.logical_volume")
 
         for row in rows:
             class_ref = row.get("class_ref")
@@ -64,6 +67,12 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
                     expected_classes={"class.storage.volume"},
                     expected_layers={"L3"},
                     code="E7832",
+                    stage=stage,
+                    diagnostics=diagnostics,
+                )
+                self._validate_data_asset_backup_policies(
+                    row=row,
+                    backup_policy_ids=backup_policy_ids,
                     stage=stage,
                     diagnostics=diagnostics,
                 )
@@ -117,6 +126,8 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
                 self._validate_storage_endpoint_refs(
                     row=row,
                     row_by_id=row_by_id,
+                    volume_groups_by_name=volume_groups_by_name,
+                    logical_volumes_by_name=logical_volumes_by_name,
                     stage=stage,
                     diagnostics=diagnostics,
                 )
@@ -318,9 +329,15 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
         *,
         row: dict[str, Any],
         row_by_id: dict[str, dict[str, Any]],
+        volume_groups_by_name: dict[str, str],
+        logical_volumes_by_name: dict[str, str],
         stage: Stage,
         diagnostics: list[PluginDiagnostic],
     ) -> None:
+        row_id = row.get("instance")
+        group = row.get("group")
+        row_prefix = f"instance:{group}:{row_id}"
+
         self._validate_ref(
             row=row,
             row_by_id=row_by_id,
@@ -331,6 +348,361 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
             stage=stage,
             diagnostics=diagnostics,
         )
+
+        extensions = self._extensions(row)
+        endpoint_path = extensions.get("path")
+        has_path = isinstance(endpoint_path, str) and bool(endpoint_path.strip())
+        has_lv_ref = isinstance(extensions.get("lv_ref"), str) and bool(str(extensions.get("lv_ref")).strip())
+        has_mount_ref = isinstance(extensions.get("mount_point_ref"), str) and bool(
+            str(extensions.get("mount_point_ref")).strip()
+        )
+
+        infer_from_raw = extensions.get("infer_from")
+        if infer_from_raw is None:
+            has_infer_from = False
+            infer_from: dict[str, Any] = {}
+        elif isinstance(infer_from_raw, dict):
+            infer_from = infer_from_raw
+            has_infer_from = bool(infer_from)
+        else:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7866",
+                    severity="error",
+                    stage=stage,
+                    message="'infer_from' must be an object when set.",
+                    path=f"{row_prefix}.infer_from",
+                )
+            )
+            infer_from = {}
+            has_infer_from = False
+
+        if not any((has_lv_ref, has_mount_ref, has_path, has_infer_from)):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W7866",
+                    severity="warning",
+                    stage=stage,
+                    message="storage_endpoint should define lv_ref, mount_point_ref, path, or infer_from.",
+                    path=row_prefix,
+                )
+            )
+
+        if not has_infer_from:
+            return
+
+        endpoint_type = extensions.get("type")
+        media_attachment_ref = infer_from.get("media_attachment_ref")
+        vg_name = infer_from.get("vg_name")
+        lv_name = infer_from.get("lv_name")
+        expected_vg_id: str | None = None
+
+        if media_attachment_ref is not None:
+            if not isinstance(media_attachment_ref, str) or not media_attachment_ref:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7866",
+                        severity="error",
+                        stage=stage,
+                        message="'infer_from.media_attachment_ref' must be a non-empty instance id string.",
+                        path=f"{row_prefix}.infer_from.media_attachment_ref",
+                    )
+                )
+            else:
+                media_row = row_by_id.get(media_attachment_ref)
+                media_class = media_row.get("class_ref") if isinstance(media_row, dict) else None
+                if not isinstance(media_row, dict) or media_class != "class.storage.media_attachment":
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7866",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"'infer_from.media_attachment_ref' '{media_attachment_ref}' must reference "
+                                "class.storage.media_attachment."
+                            ),
+                            path=f"{row_prefix}.infer_from.media_attachment_ref",
+                        )
+                    )
+        elif endpoint_type == "lvmthin":
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7866",
+                    severity="error",
+                    stage=stage,
+                    message="'infer_from.media_attachment_ref' is required for storage_endpoint type 'lvmthin'.",
+                    path=f"{row_prefix}.infer_from.media_attachment_ref",
+                )
+            )
+
+        if vg_name is None:
+            if endpoint_type == "lvmthin":
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7866",
+                        severity="error",
+                        stage=stage,
+                        message="'infer_from.vg_name' is required for storage_endpoint type 'lvmthin'.",
+                        path=f"{row_prefix}.infer_from.vg_name",
+                    )
+                )
+        elif not isinstance(vg_name, str) or not vg_name.strip():
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7866",
+                    severity="error",
+                    stage=stage,
+                    message="'infer_from.vg_name' must be a non-empty string when set.",
+                    path=f"{row_prefix}.infer_from.vg_name",
+                )
+            )
+        else:
+            expected_vg_id = volume_groups_by_name.get(vg_name.strip())
+            if expected_vg_id is None:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W7867",
+                        severity="warning",
+                        stage=stage,
+                        message=f"'infer_from.vg_name' '{vg_name}' is not present in storage volume_groups.",
+                        path=f"{row_prefix}.infer_from.vg_name",
+                    )
+                )
+
+        if lv_name is None:
+            if endpoint_type == "lvmthin":
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7866",
+                        severity="error",
+                        stage=stage,
+                        message="'infer_from.lv_name' is required for storage_endpoint type 'lvmthin'.",
+                        path=f"{row_prefix}.infer_from.lv_name",
+                    )
+                )
+        elif not isinstance(lv_name, str) or not lv_name.strip():
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7866",
+                    severity="error",
+                    stage=stage,
+                    message="'infer_from.lv_name' must be a non-empty string when set.",
+                    path=f"{row_prefix}.infer_from.lv_name",
+                )
+            )
+        else:
+            logical_volume_id = logical_volumes_by_name.get(lv_name.strip())
+            if logical_volume_id is None:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W7868",
+                        severity="warning",
+                        stage=stage,
+                        message=f"'infer_from.lv_name' '{lv_name}' is not present in storage logical_volumes.",
+                        path=f"{row_prefix}.infer_from.lv_name",
+                    )
+                )
+            elif expected_vg_id:
+                logical_volume_row = row_by_id.get(logical_volume_id)
+                logical_volume_vg_ref = (
+                    self._get_extension_field(logical_volume_row, "vg_ref") if isinstance(logical_volume_row, dict) else None
+                )
+                if isinstance(logical_volume_vg_ref, str) and logical_volume_vg_ref != expected_vg_id:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="W7868",
+                            severity="warning",
+                            stage=stage,
+                            message=(
+                                f"'infer_from.lv_name' '{lv_name}' belongs to vg '{logical_volume_vg_ref}', "
+                                f"expected '{expected_vg_id}'."
+                            ),
+                            path=f"{row_prefix}.infer_from.lv_name",
+                        )
+                    )
+
+        if endpoint_type == "lvmthin" and isinstance(media_attachment_ref, str) and media_attachment_ref and expected_vg_id:
+            expected_vg_row = row_by_id.get(expected_vg_id)
+            expected_vg_pv_refs = (
+                self._get_extension_field(expected_vg_row, "pv_refs") if isinstance(expected_vg_row, dict) else None
+            )
+            if isinstance(expected_vg_pv_refs, list) and expected_vg_pv_refs:
+                pv_matches_attachment = False
+                for pv_ref in expected_vg_pv_refs:
+                    if not isinstance(pv_ref, str):
+                        continue
+                    partition_row = row_by_id.get(pv_ref)
+                    if not isinstance(partition_row, dict):
+                        continue
+                    partition_attachment = self._get_extension_field(partition_row, "media_attachment_ref")
+                    if partition_attachment == media_attachment_ref:
+                        pv_matches_attachment = True
+                        break
+                if not pv_matches_attachment:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7866",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"'infer_from.media_attachment_ref' '{media_attachment_ref}' is not linked to any "
+                                f"pv_refs in volume group '{expected_vg_id}'."
+                            ),
+                            path=f"{row_prefix}.infer_from.media_attachment_ref",
+                        )
+                    )
+
+        if has_lv_ref or has_mount_ref:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W7866",
+                    severity="warning",
+                    stage=stage,
+                    message="infer_from should not be combined with lv_ref or mount_point_ref in storage_endpoint.",
+                    path=row_prefix,
+                )
+            )
+
+    def _validate_data_asset_backup_policies(
+        self,
+        *,
+        row: dict[str, Any],
+        backup_policy_ids: set[str],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> None:
+        row_id = row.get("instance")
+        group = row.get("group")
+        row_prefix = f"instance:{group}:{row_id}"
+        extensions = self._extensions(row)
+
+        category = extensions.get("category")
+        criticality = extensions.get("criticality")
+        engine = extensions.get("engine")
+
+        engine_required_categories = {"database", "cache", "timeseries", "search-index", "object-storage"}
+        if isinstance(category, str) and category in engine_required_categories and not engine:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7868",
+                    severity="error",
+                    stage=stage,
+                    message=f"Data asset '{row_id}' category '{category}' requires 'engine'.",
+                    path=f"{row_prefix}.engine",
+                )
+            )
+
+        backup_policy_refs = extensions.get("backup_policy_refs")
+        if backup_policy_refs is not None and not isinstance(backup_policy_refs, list):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7867",
+                    severity="error",
+                    stage=stage,
+                    message="'backup_policy_refs' must be a list when set.",
+                    path=f"{row_prefix}.backup_policy_refs",
+                )
+            )
+            backup_policy_refs = []
+
+        normalized_refs: list[str] = []
+        if isinstance(backup_policy_refs, list):
+            for idx, value in enumerate(backup_policy_refs):
+                if not isinstance(value, str) or not value:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7867",
+                            severity="error",
+                            stage=stage,
+                            message="'backup_policy_refs' entries must be non-empty strings.",
+                            path=f"{row_prefix}.backup_policy_refs[{idx}]",
+                        )
+                    )
+                    continue
+                normalized_refs.append(value)
+                if value not in backup_policy_ids:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E7867",
+                            severity="error",
+                            stage=stage,
+                            message=f"Data asset '{row_id}' backup_policy_ref '{value}' does not exist.",
+                            path=f"{row_prefix}.backup_policy_refs[{idx}]",
+                        )
+                    )
+
+        backup_policy = extensions.get("backup_policy")
+        if backup_policy is not None:
+            if not isinstance(backup_policy, str) or not backup_policy:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7867",
+                        severity="error",
+                        stage=stage,
+                        message="'backup_policy' must be a non-empty string when set.",
+                        path=f"{row_prefix}.backup_policy",
+                    )
+                )
+            elif backup_policy not in {"none", "daily", "weekly", "monthly"} and backup_policy not in backup_policy_ids:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W7869",
+                        severity="warning",
+                        stage=stage,
+                        message=(
+                            f"Data asset '{row_id}' backup_policy '{backup_policy}' is not a known schedule alias "
+                            "and not a known backup policy instance id."
+                        ),
+                        path=f"{row_prefix}.backup_policy",
+                    )
+                )
+
+        has_backup_binding = bool(normalized_refs) or (
+            isinstance(backup_policy, str) and backup_policy and backup_policy != "none"
+        )
+        if criticality in {"high", "critical"} and not has_backup_binding:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7867",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"Data asset '{row_id}' criticality '{criticality}' requires backup policy binding "
+                        "(backup_policy_refs or backup_policy)."
+                    ),
+                    path=row_prefix,
+                )
+            )
+
+    def _collect_backup_policy_ids(self, rows: list[dict[str, Any]]) -> set[str]:
+        policy_ids: set[str] = set()
+        for row in rows:
+            if row.get("class_ref") != "class.operations.backup":
+                continue
+            row_id = row.get("instance")
+            if isinstance(row_id, str) and row_id:
+                policy_ids.add(row_id)
+        return policy_ids
+
+    def _collect_name_index(self, rows: list[dict[str, Any]], *, class_ref: str) -> dict[str, str]:
+        index: dict[str, str] = {}
+        for row in rows:
+            if row.get("class_ref") != class_ref:
+                continue
+            row_id = row.get("instance")
+            if not isinstance(row_id, str) or not row_id:
+                continue
+            name = self._get_extension_field(row, "name")
+            if isinstance(name, str) and name.strip():
+                index[name.strip()] = row_id
+        return index
+
+    @staticmethod
+    def _extensions(row: dict[str, Any]) -> dict[str, Any]:
+        extensions = row.get("extensions")
+        if isinstance(extensions, dict):
+            return extensions
+        return {}
         self._validate_ref(
             row=row,
             row_by_id=row_by_id,
