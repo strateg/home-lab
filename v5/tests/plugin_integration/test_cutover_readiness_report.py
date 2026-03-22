@@ -140,3 +140,4 @@ def test_cutover_readiness_report_non_quick_includes_v4_v5_parity_gate() -> None
     assert parity_entry is not None
     assert "v5/tests/plugin_integration/test_network_ip_overlap_v4_v5_parity.py" in parity_entry
     assert "v5/tests/plugin_integration/test_network_reserved_ranges_v4_v5_parity.py" in parity_entry
+    assert "v5/tests/plugin_integration/test_network_ip_allocation_host_os_refs_v4_v5_parity.py" in parity_entry

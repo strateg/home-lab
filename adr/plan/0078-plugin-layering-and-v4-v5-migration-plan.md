@@ -283,6 +283,7 @@ Wave D in progress:
    - `base.validator.service_dependency_refs`
    - extended `base.validator.network_ip_overlap` with network-scoped duplicate allocation errors (`ip_allocations`) plus global overlap warnings parity
    - extended `base.validator.network_reserved_ranges` with object/extension/top-level payload parity and `cidr=dhcp` skip semantics
+   - extended `base.validator.network_ip_allocation_host_os_refs` with required-ref parity (`host_os_ref|device_ref`), deprecation warning suggestion parity, and object/extension/top-level payload support
 4. Started D4 storage parity validators:
    - `base.validator.storage_device_taxonomy`
    - `base.validator.storage_media_inventory`
@@ -311,6 +312,7 @@ Wave D in progress:
    - `v5/tests/plugin_integration/test_network_refs_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_network_ip_overlap_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_network_reserved_ranges_v4_v5_parity.py`
+   - `v5/tests/plugin_integration/test_network_ip_allocation_host_os_refs_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_governance_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_host_os_refs_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_vm_lxc_host_os_v4_v5_parity.py`

@@ -95,7 +95,7 @@ Legend:
 | `check_reserved_ranges` | `base.validator.network_reserved_ranges` | Covered/Partial | Добавлен validator для VLAN reserved_ranges (границы CIDR + overlap) с parity для object/extension/top-level payload путей и skip-семантикой для `cidr=dhcp`; можно расширить на non-VLAN network object shapes при необходимости. |
 | `check_trust_zone_firewall_refs` | `base.validator.network_trust_zone_firewall_refs` | Covered/Partial | Добавлен validator для default_firewall_policy_ref trust-zone instances. |
 | `check_firewall_policy_addressability` | `base.validator.network_firewall_addressability` | Partial | Добавлен warning-based validator для addressability refs (dhcp network refs / zones without static CIDR). |
-| `check_ip_allocation_host_os_refs` | `base.validator.network_ip_allocation_host_os_refs` | Partial | Добавлен validator для host_os_ref/device_ref consistency внутри network ip_allocations. |
+| `check_ip_allocation_host_os_refs` | `base.validator.network_ip_allocation_host_os_refs` | Covered/Partial | Добавлен validator для host_os_ref/device_ref consistency внутри network ip_allocations + parity для правил `either host_os_ref or device_ref required`, deprecation warning по `device_ref` (c suggestion) и object/extension/top-level payload путей. |
 | `check_runtime_network_reachability` | `base.validator.network_runtime_reachability` | Covered/Partial | Добавлен warning-based validator reachability для runtime.network_binding_ref (lxc/vm/docker/baremetal). |
 | `check_single_active_os_per_device` | `base.validator.single_active_os` | Covered/Partial | Добавлен single-active-os validator по normalized rows; при необходимости расширить parity под legacy host_operating_systems inventory. |
 

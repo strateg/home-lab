@@ -112,3 +112,46 @@ def test_network_ip_allocation_host_os_refs_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7827" for diag in result.diagnostics)
+
+
+def test_network_ip_allocation_host_os_refs_validator_requires_host_or_device_ref():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "os", "instance": "inst.os.a", "class_ref": "class.os"},
+            {
+                "group": "network",
+                "instance": "inst.vlan.a",
+                "class_ref": "class.network.vlan",
+                "extensions": {"ip_allocations": [{"ip": "10.0.30.10"}]},
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7827" for diag in result.diagnostics)
+
+
+def test_network_ip_allocation_host_os_refs_validator_supports_top_level_payload():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "os", "instance": "inst.os.a", "class_ref": "class.os"},
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "os_refs": ["inst.os.a"]},
+            {
+                "group": "network",
+                "instance": "inst.vlan.a",
+                "class_ref": "class.network.vlan",
+                "ip_allocations": [{"ip": "10.0.30.10", "device_ref": "srv-a"}],
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7828" for diag in result.diagnostics)

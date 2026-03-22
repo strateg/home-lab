@@ -32,7 +32,7 @@
 | network.py | `check_reserved_ranges` | `base.validator.network_reserved_ranges` | Covered/Partial | Keep v4 fallback only for non-VLAN legacy shapes not yet modeled in v5 fixtures. |
 | network.py | `check_trust_zone_firewall_refs` | `base.validator.network_trust_zone_firewall_refs` | Covered/Partial | Disable v4 check after fixture parity lock. |
 | network.py | `check_firewall_policy_addressability` | `base.validator.network_firewall_addressability` | Partial | Keep v4 fallback until warnings parity is locked. |
-| network.py | `check_ip_allocation_host_os_refs` | `base.validator.network_ip_allocation_host_os_refs` | Partial | Disable v4 check after host-os edge fixture coverage. |
+| network.py | `check_ip_allocation_host_os_refs` | `base.validator.network_ip_allocation_host_os_refs` | Covered/Partial | Disable v4 check after non-VLAN legacy shape review; parity for required-ref and deprecation warning semantics is covered in v5 fixtures. |
 | network.py | `check_runtime_network_reachability` | `base.validator.network_runtime_reachability` | Covered/Partial | Disable v4 check after reachability fixture lock. |
 | network.py | `check_single_active_os_per_device` | `base.validator.single_active_os` | Covered/Partial | Disable v4 check after legacy inventory parity decision. |
 | references.py | `check_host_os_refs` | `base.validator.references`, `base.validator.embedded_in`, `base.validator.runtime_target_os_binding`, `base.validator.host_os_refs` | Covered/Partial | Move to staged cutover after release preflight confirms parity on project fixtures (including non-extension host_os payload paths). |
