@@ -70,6 +70,56 @@ def test_network_ip_overlap_validator_reports_duplicate_ips():
     assert any(diag.code == "W7816" for diag in result.diagnostics)
 
 
+def test_network_ip_overlap_validator_reports_duplicate_network_ip_allocations_as_error():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "network",
+                "instance": "vlan-a",
+                "class_ref": "class.network.vlan",
+                "layer": "L2",
+                "extensions": {
+                    "ip_allocations": [
+                        {"ip": "10.20.30.10/24", "device_ref": "srv-a"},
+                        {"ip": "10.20.30.10/24", "vm_ref": "vm-a"},
+                    ]
+                },
+            }
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7817" for diag in result.diagnostics)
+
+
+def test_network_ip_overlap_validator_reports_duplicate_network_ip_allocations_from_top_level_payload():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "network",
+                "instance": "vlan-a",
+                "class_ref": "class.network.vlan",
+                "layer": "L2",
+                "ip_allocations": [
+                    {"ip": "10.20.30.11/24", "device_ref": "srv-a"},
+                    {"ip": "10.20.30.11/24", "lxc_ref": "lxc-a"},
+                ],
+            }
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7817" for diag in result.diagnostics)
+
+
 def test_network_ip_overlap_validator_requires_compiler_rows():
     registry = _registry()
     ctx = _context()

@@ -281,6 +281,7 @@ Wave D in progress:
    - `base.validator.service_runtime_refs`
    - `base.validator.network_runtime_reachability`
    - `base.validator.service_dependency_refs`
+   - extended `base.validator.network_ip_overlap` with network-scoped duplicate allocation errors (`ip_allocations`) plus global overlap warnings parity
 4. Started D4 storage parity validators:
    - `base.validator.storage_device_taxonomy`
    - `base.validator.storage_media_inventory`
@@ -307,6 +308,7 @@ Wave D in progress:
    - `v5/tests/plugin_integration/test_storage_l3_v4_v5_warning_parity.py`
    - `v5/tests/plugin_integration/test_service_refs_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_network_refs_v4_v5_parity.py`
+   - `v5/tests/plugin_integration/test_network_ip_overlap_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_governance_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_host_os_refs_v4_v5_parity.py`
    - `v5/tests/plugin_integration/test_vm_lxc_host_os_v4_v5_parity.py`

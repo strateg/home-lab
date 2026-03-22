@@ -21,7 +21,7 @@
 | foundation.py | `check_device_taxonomy` | `base.validator.foundation_device_taxonomy`, `base.validator.references`, `base.validator.capability_contract` | Covered/Partial | Disable v4 check once storage-related edge fixtures are merged. |
 | governance.py | `check_l0_contracts` | `base.validator.governance_contract` | Partial | Keep v4 fallback for refs/defaults edge paths. |
 | governance.py | `check_version` | `base.validator.governance_contract` | Covered/Partial | Disable v4 check after warning-semantics parity confirmation. |
-| governance.py | `check_ip_overlaps` | `base.validator.network_ip_overlap` | Partial | Disable v4 check after scoped network semantics parity review. |
+| governance.py | `check_ip_overlaps` | `base.validator.network_ip_overlap` | Covered/Partial | Disable v4 check after parity review for non-network legacy payload paths. |
 | network.py | `check_vlan_tags` | `base.validator.network_vlan_tags` | Covered/Partial | Disable v4 check after fixture parity lock. |
 | network.py | `check_network_refs` | `base.validator.references`, `base.validator.network_core_refs` | Partial | Keep v4 fallback while expanding policy scope. |
 | network.py | `check_bridge_refs` | `base.validator.network_core_refs` | Covered/Partial | Disable v4 check after fixture parity lock. |

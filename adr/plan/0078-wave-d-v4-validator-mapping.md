@@ -79,7 +79,7 @@ Legend:
 |---|---|---|---|
 | `check_l0_contracts` | `base.validator.governance_contract` | Partial | Добавлен v5 governance contract validator (framework/project/meta + metadata dates/changelog); нужно расширить parity по refs/defaults. |
 | `check_version` | `base.validator.governance_contract` + compiler/model contract checks | Covered/Partial | Проверка major-version добавлена в plugin; parity по v4 warning semantics можно расширять отдельно. |
-| `check_ip_overlaps` | `base.validator.network_ip_overlap` | Partial | Добавлен duplicate IP detector по normalized rows; можно расширить parity по network-scoped error/warning semantics. |
+| `check_ip_overlaps` | `base.validator.network_ip_overlap` | Covered/Partial | Добавлен duplicate IP detector по normalized rows + network-scoped duplicate IP allocation errors (`ip_allocations`) с глобальными overlap warnings (v4-style). |
 
 ### 3.3 Network
 
