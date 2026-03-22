@@ -146,3 +146,4 @@ Legend:
    - `task ci:topology-parity-v4-v5`
 3. `cutover-readiness-report` (non-quick) включает обязательный gate `pytest_v4_v5_parity`.
 4. Остаточные `Partial` строки в таблице являются контролируемыми legacy-совместимостями и не блокируют v5 default lane.
+5. Конкретный список remaining `Partial` gaps закреплен в `adr/plan/0078-v4-validator-deprecation-matrix.md` (section 5).

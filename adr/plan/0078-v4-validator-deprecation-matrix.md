@@ -65,3 +65,48 @@
 1. v5 plugin-first validation lane принят как default путь (`task validate:v5`, `task test:all`).
 2. v4 checks сохранены как legacy compatibility fallback для staged rollback/fixture parity и не являются обязательной частью v5 release lane.
 3. Отключение конкретных v4 checks выполняется batch-wise по этой матрице после фиксации domain parity evidence.
+
+---
+
+## 5. Remaining Partial Gaps (Tracked Baseline)
+
+Ниже зафиксированы конкретные остаточные области для строк со статусом `Partial`/`Covered/Partial`.
+
+### 5.1 Foundation
+
+1. `check_file_placement`:
+   - незакрытая policy-таксономия размещения файлов вне baseline layout checks;
+   - требуется отдельный policy-driven validator или расширение `base.validator.foundation_layout`.
+
+### 5.2 Governance
+
+1. `check_version`:
+   - edge parity по warning semantics для legacy version payload paths.
+2. `check_l0_contracts`:
+   - legacy coupling edge-cases вокруг class-taxonomy совместимости при defaults refs.
+
+### 5.3 Network
+
+1. `check_network_refs` / `check_reserved_ranges` / `check_firewall_policy_addressability` /
+   `check_ip_allocation_host_os_refs` / `check_runtime_network_reachability`:
+   - non-VLAN legacy payload shapes (включая mixed legacy profiles) требуют отдельного parity fixture набора.
+2. `check_data_links`:
+   - за пределами ethernet scope (non-ethernet legacy data-link ветки) coverage остается в v4 fallback.
+
+### 5.4 References
+
+1. `check_service_refs`:
+   - оставшиеся legacy service policy rules за пределами уже перенесённых runtime/refs/deprecation контрактов
+     (донастройка полного cutover path).
+
+### 5.5 Storage
+
+1. `check_device_storage_taxonomy` / `check_l1_media_inventory` / `check_l3_storage_refs`:
+   - hardware/media edge fixtures и часть infer_from warning edge-cases должны быть закрыты parity fixtures.
+
+### 5.6 Tracking Rule
+
+1. Каждый пункт выше должен получить:
+   - отдельный parity fixture (или обновление существующего),
+   - ссылку на commit с green `task test:parity-v4-v5`,
+   - обновление соответствующей строки матрицы до `Covered` перед отключением v4 fallback.

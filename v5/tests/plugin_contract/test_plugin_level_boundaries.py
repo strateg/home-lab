@@ -3,9 +3,13 @@
 
 from __future__ import annotations
 
+import ast
+import ipaddress
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import urlparse
 
 import yaml
 
@@ -62,6 +66,16 @@ def _collect_text_violations(files: Iterable[Path], *, forbidden_markers: tuple[
             rel = file_path.relative_to(V5_ROOT).as_posix()
             violations.append(f"{rel}: forbidden markers {leaked}")
     return violations
+
+
+def _iter_object_plugin_python_files() -> list[Path]:
+    files: list[Path] = []
+    for object_dir in sorted(path for path in OBJECT_MANIFEST_ROOT.iterdir() if path.is_dir()):
+        plugins_dir = object_dir / "plugins"
+        if not plugins_dir.exists():
+            continue
+        files.extend(sorted(path for path in plugins_dir.rglob("*.py") if path.is_file()))
+    return files
 
 
 def test_class_level_plugins_do_not_reference_object_or_instance_ids() -> None:
@@ -143,4 +157,63 @@ def test_class_and_object_non_generator_plugins_are_specific_to_their_scope() ->
     assert object_violations == [], (
         "Object-level non-generator plugins without object-specific names should move to core/global level: "
         f"{object_violations}"
+    )
+
+
+def test_object_modules_do_not_cross_import_other_object_modules() -> None:
+    object_ids = {path.name for path in OBJECT_MANIFEST_ROOT.iterdir() if path.is_dir() and path.name != "_shared"}
+    violations: list[str] = []
+
+    for file_path in _iter_object_plugin_python_files():
+        rel = file_path.relative_to(OBJECT_MANIFEST_ROOT).as_posix()
+        owner = rel.split("/", 1)[0]
+        if owner == "_shared":
+            continue
+
+        tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
+        import_targets: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                import_targets.extend(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and isinstance(node.module, str):
+                import_targets.append(node.module)
+
+        for target in import_targets:
+            lowered = target.lower()
+            if "object_modules" not in lowered and "object-modules" not in lowered:
+                continue
+            segments = {token for token in re.split(r"[^a-z0-9_]+", lowered) if token}
+            referenced = sorted((segments & object_ids) - {owner})
+            if referenced:
+                violations.append(f"{rel}: imports {target} -> {referenced}")
+
+    assert violations == [], f"Object modules must not import peer object modules directly: {violations}"
+
+
+def test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts() -> None:
+    violations: list[str] = []
+    for file_path in _iter_object_plugin_python_files():
+        rel = file_path.relative_to(V5_ROOT).as_posix()
+        tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+                continue
+            literal = node.value.strip()
+            if "://" not in literal:
+                continue
+            parsed = urlparse(literal)
+            host = (parsed.hostname or "").strip().lower()
+            if not host:
+                continue
+            is_private_ip = False
+            try:
+                is_private_ip = ipaddress.ip_address(host).is_private
+            except ValueError:
+                is_private_ip = False
+            if is_private_ip or host.endswith(".local"):
+                violations.append(f"{rel}: hardcoded endpoint '{literal}'")
+
+    assert violations == [], (
+        "Object-level plugin Python files must not hardcode private-IP or .local URL endpoints: "
+        f"{violations}"
     )
