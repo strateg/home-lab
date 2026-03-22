@@ -56,3 +56,4 @@
 3. После отключения набора v4 checks: обновить `taskfiles/validate.yml` и release preflight lane под v5-only validation path.
 4. Для staged cutover references/storage/governance запускать parity lane: `task test:parity-v4-v5` (или `task ci:topology-parity-v4-v5`).
 5. В cutover readiness report (`v5/topology-tools/cutover-readiness-report.py`, non-quick) parity gate `pytest_v4_v5_parity` должен быть green.
+6. Перед staged отключением v4 checks актуализировать `v5/projects/home-lab/framework.lock.yaml` и добиться green для `verify_framework_lock`/`rehearse_rollback` в readiness report.
