@@ -2,12 +2,12 @@ version: "3"
 
 tasks:
   v4:
-    desc: Build v4 lane artifacts
+    desc: Build v4 lane artifacts (legacy compatibility)
     cmds:
       - "{{.PYTHON}} v5/scripts/orchestration/lane.py build-v4"
 
   v5:
-    desc: Build v5 lane artifacts
+    desc: Build v5 lane artifacts (default)
     cmds:
       - "{{.PYTHON}} v5/scripts/orchestration/lane.py build-v5"
 

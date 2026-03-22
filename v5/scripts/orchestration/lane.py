@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lane-specific command dispatcher for v4/v5 migration workflows."""
+"""Lane-specific command dispatcher (v5 default runtime + legacy v4 lanes)."""
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ def _resolve_secrets_mode() -> str:
 
 
 def validate_v4() -> None:
+    print("[lane] WARN: validate-v4 is a legacy compatibility lane.", flush=True)
     run(
         [
             PYTHON,
@@ -51,6 +52,7 @@ def validate_v4() -> None:
 
 
 def build_v4() -> None:
+    print("[lane] WARN: build-v4 is a legacy compatibility lane.", flush=True)
     run(
         [
             PYTHON,

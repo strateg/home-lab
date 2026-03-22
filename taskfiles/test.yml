@@ -2,12 +2,17 @@ version: "3"
 
 tasks:
   fixture-matrix-v4:
-    desc: Run legacy v4 fixture validation matrix
+    desc: Run legacy v4 fixture validation matrix (non-blocking for default v5 lane)
     cmds:
       - "{{.PYTHON}} v4/topology-tools/run-fixture-matrix.py"
 
   all:
-    desc: Run all tests (v4 + v5)
+    desc: Run default v5 tests
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= v5/tests -q"
+
+  all-with-legacy:
+    desc: Run full tests (v4 + v5)
     cmds:
       - "{{.PYTHON}} -m pytest -o addopts= -q"
 

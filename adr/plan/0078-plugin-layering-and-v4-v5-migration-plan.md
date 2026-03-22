@@ -197,9 +197,9 @@ Exit:
 
 Tasks:
 
-- [ ] Обновить `taskfiles/validate.yml` (убрать v4-only quality hooks из v5 пути).
-- [ ] Обновить `taskfiles/test.yml` (v4 fixture matrix отдельно, не блокирует v5 release lane).
-- [ ] Обновить `v5/scripts/orchestration/lane.py` текст и цепочки под фактический generator-enabled runtime.
+- [x] Обновить `taskfiles/validate.yml` (убрать v4-only quality hooks из v5 пути).
+- [x] Обновить `taskfiles/test.yml` (v4 fixture matrix отдельно, не блокирует v5 release lane).
+- [x] Обновить `v5/scripts/orchestration/lane.py` текст и цепочки под фактический generator-enabled runtime.
 
 Verification:
 
@@ -318,3 +318,18 @@ Wave E in progress:
 3. Added integration coverage for docs generator:
    - `v5/tests/plugin_integration/test_docs_generator.py`
 4. Updated `build-v5` orchestration message/contract to reflect generator-enabled runtime.
+
+Wave F in progress:
+
+1. Updated `taskfiles/validate.yml`:
+   - default `quality` path is now v5-focused (`quality-v5`)
+   - legacy v4 static hooks moved to `quality-legacy-v4`
+2. Updated `taskfiles/test.yml`:
+   - default `test:all` runs v5 tests
+   - legacy-inclusive matrix moved to `test:all-with-legacy`
+3. Updated `taskfiles/ci.yml`:
+   - `ci:local` no longer blocks on v4 fixture/test lanes
+   - `ci:local-with-legacy` preserves full legacy regression path
+4. Updated `v5/scripts/orchestration/lane.py` and `taskfiles/build.yml` labels:
+   - v5 lane marked default
+   - v4 lanes explicitly marked legacy compatibility.
