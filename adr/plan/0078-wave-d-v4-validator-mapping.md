@@ -44,15 +44,15 @@ Legend:
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
 | `check_modular_include_contract` | new `base.validator.foundation.include_contract` | Gap | В v5 нет отдельного plugin-first include-contract валидатора. |
-| `check_file_placement` | new `base.validator.foundation.file_placement` | Gap | Требуется перенос policy-driven file placement lint. |
+| `check_file_placement` | `base.validator.foundation_layout` + future `base.validator.foundation.file_placement` | Partial | Добавлен baseline root/layout validator; policy-driven directory taxonomy ещё не перенесена. |
 | `check_device_taxonomy` | `base.validator.references` + `base.validator.capability_contract` | Partial | Нужен отдельный taxonomy plugin для parity с v4 foundation checks. |
 
 ### 3.2 Governance
 
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
-| `check_l0_contracts` | new `base.validator.governance.contracts` | Gap | Нет прямого аналога с проверками metadata/default refs. |
-| `check_version` | compiler/model contract checks | Superseded/Partial | Версионирование частично закрыто compile contract, но без parity с v4 warning/format logic. |
+| `check_l0_contracts` | `base.validator.governance_contract` | Partial | Добавлен v5 governance contract validator; нужно расширить parity по refs/defaults/changelog логике. |
+| `check_version` | `base.validator.governance_contract` + compiler/model contract checks | Covered/Partial | Проверка major-version добавлена в plugin; parity по v4 warning semantics можно расширять отдельно. |
 | `check_ip_overlaps` | new `base.validator.network.ip_overlap` | Gap | Нет отдельного overlap validator в v5 plugins. |
 
 ### 3.3 Network

@@ -127,6 +127,36 @@ plugins:
     description: Assembles candidate effective model in compile stage (ADR 0069 WS2).
 
   # Validator plugins (run in validate stage)
+  - id: base.validator.governance_contract
+    kind: validator_yaml
+    entry: validators/governance_contract_validator.py:GovernanceContractValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 90
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates v5 root governance contract (version/model/framework/project/meta).
+
+  - id: base.validator.foundation_layout
+    kind: validator_yaml
+    entry: validators/foundation_layout_validator.py:FoundationLayoutValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 95
+    depends_on: [base.validator.governance_contract]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates class/object module root paths and baseline YAML/plugin layout.
+
   - id: base.validator.references
     kind: validator_json
     entry: validators/reference_validator.py:ReferenceValidator

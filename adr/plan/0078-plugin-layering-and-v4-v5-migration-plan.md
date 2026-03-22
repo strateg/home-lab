@@ -145,7 +145,7 @@ Migration batches:
 
 Tasks:
 
-- [ ] Создать mapping: `v4 check_*` -> `v5 plugin id + stage`.
+- [x] Создать mapping: `v4 check_*` -> `v5 plugin id + stage`.
 - [ ] Портировать логику с минимальным поведением drift.
 - [ ] Добавить contract/integration tests в `v5/tests/plugin_integration`.
 - [ ] Зафиксировать deprecation legacy v4 checks.
