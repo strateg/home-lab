@@ -118,6 +118,8 @@ All plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`) f
 3. **Object level** (`v5/topology/object-modules/**/plugins/*`)
 4. **Instance level** (project/runtime-specific plugins when introduced)
 
+All project code follows SOLID principles.
+
 Boundary rules:
 
 1. Class-level plugins MUST NOT hardcode object identifiers (`obj.*`) or instance identifiers (`inst.*`).
@@ -127,6 +129,7 @@ Boundary rules:
 5. Class level can contain class-global plugins and class-specific plugins.
 6. Object level can contain object-global plugins and object-specific plugins.
 7. If a class/object plugin does not contain class/object-specific identifiers, it SHOULD be migrated to global infrastructure/core level.
+8. Global plugins manage specific plugins through interfaces implemented by specific plugins or other design patterns that preserve level boundaries.
 
 Dependency direction rules:
 

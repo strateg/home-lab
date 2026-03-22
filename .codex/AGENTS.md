@@ -55,14 +55,16 @@ All AI agents must enforce a 4-level plugin boundary model:
 3. Object level.
 4. Instance level.
 
+All project code must follow SOLID principles.
+
 Rules:
 
 - Class-level plugins must not mention `obj.*` or `inst.*`.
 - Object-level plugins must not mention `inst.*`.
 - A plugin may depend on interfaces defined at its own level or higher.
 - Those interfaces may be implemented by higher levels (DIP-style inversion).
+- Global plugins manage specific plugins through interfaces implemented by specific plugins or through other design patterns that preserve level boundaries.
 - Applies to all plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`).
-- Use SOLID principles in plugin refactoring decisions.
 
 Scope variants:
 

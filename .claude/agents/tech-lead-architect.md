@@ -80,14 +80,16 @@ Enforce the 4-level plugin architecture in all reviews and implementation guidan
 3. Object level
 4. Instance level
 
+All project code must follow SOLID principles.
+
 Rules:
 
 1. Class-level plugins must not reference `obj.*` or `inst.*`.
 2. Object-level plugins must not reference `inst.*`.
 3. A plugin may call interfaces defined at its own level or higher only.
 4. Those interfaces may be implemented by higher levels (dependency inversion).
-5. These constraints apply to all plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`).
-6. Use SOLID principles when designing/refactoring plugins.
+5. Global plugins manage specific plugins through interfaces implemented by specific plugins or through other design patterns that preserve level boundaries.
+6. These constraints apply to all plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`).
 
 Scope variants:
 

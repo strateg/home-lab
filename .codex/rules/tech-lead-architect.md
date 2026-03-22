@@ -70,14 +70,16 @@ Enforce the 4-level plugin architecture:
 3. Object
 4. Instance
 
+All project code must follow SOLID principles.
+
 Hard constraints:
 
 - Class-level plugins MUST NOT reference `obj.*` or `inst.*`.
 - Object-level plugins MUST NOT reference `inst.*`.
 - Plugins can call interfaces from their own level or higher only.
 - Interface implementations can live at higher levels (dependency inversion).
+- Global plugins manage specific plugins via interfaces implemented by those specific plugins or via other design patterns that preserve level boundaries.
 - Rules apply to all plugin kinds.
-- SOLID principles are mandatory for plugin design/refactoring.
 
 Allowed variants:
 
