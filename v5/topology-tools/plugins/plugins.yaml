@@ -452,6 +452,96 @@ plugins:
       required: []
     description: Validates service data_asset_refs and dependency service_ref links.
 
+  - id: base.validator.storage_device_taxonomy
+    kind: validator_json
+    entry: validators/storage_device_taxonomy_validator.py:StorageDeviceTaxonomyValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 133
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates L1 storage slot/media taxonomy on device rows.
+
+  - id: base.validator.storage_media_inventory
+    kind: validator_json
+    entry: validators/storage_media_inventory_validator.py:StorageMediaInventoryValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 134
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates L1 media registry and attachment consistency contracts.
+
+  - id: base.validator.dns_refs
+    kind: validator_json
+    entry: validators/dns_refs_validator.py:DnsRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 135
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates DNS record refs (device/lxc/service) in service DNS rows.
+
+  - id: base.validator.certificate_refs
+    kind: validator_json
+    entry: validators/certificate_refs_validator.py:CertificateRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 136
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates certificate service refs and used_by service links.
+
+  - id: base.validator.backup_refs
+    kind: validator_json
+    entry: validators/backup_refs_validator.py:BackupRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 137
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates backup targets and destination pool references.
+
+  - id: base.validator.security_policy_refs
+    kind: validator_json
+    entry: validators/security_policy_refs_validator.py:SecurityPolicyRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 138
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates security_policy_ref links against security policy rows.
+
   - id: base.validator.storage_l3_refs
     kind: validator_json
     entry: validators/storage_l3_refs_validator.py:StorageL3RefsValidator

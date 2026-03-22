@@ -281,4 +281,12 @@ Wave D in progress:
    - `base.validator.service_runtime_refs`
    - `base.validator.network_runtime_reachability`
    - `base.validator.service_dependency_refs`
-   - `base.validator.network_runtime_reachability`
+4. Started D4 storage parity validators:
+   - `base.validator.storage_device_taxonomy`
+   - `base.validator.storage_media_inventory`
+   - expanded `base.validator.storage_l3_refs` (partition/vg/lv/filesystem/mount/storage_endpoint refs)
+5. Added D3 references thin-wrappers:
+   - `base.validator.dns_refs`
+   - `base.validator.certificate_refs`
+   - `base.validator.backup_refs`
+   - `base.validator.security_policy_refs`

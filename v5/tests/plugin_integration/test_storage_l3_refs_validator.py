@@ -117,3 +117,120 @@ def test_storage_l3_refs_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7830" for diag in result.diagnostics)
+
+
+def test_storage_l3_refs_validator_validates_filesystem_mount_chain():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "storage", "instance": "inst.storage.pool.a", "class_ref": "class.storage.pool", "layer": "L3"},
+            {
+                "group": "storage",
+                "instance": "inst.storage.volume.a",
+                "class_ref": "class.storage.volume",
+                "layer": "L3",
+                "extensions": {"pool_ref": "inst.storage.pool.a"},
+            },
+            {
+                "group": "storage",
+                "instance": "inst.storage.partition.a",
+                "class_ref": "class.storage.partition",
+                "layer": "L3",
+            },
+            {
+                "group": "storage",
+                "instance": "inst.storage.vg.a",
+                "class_ref": "class.storage.volume_group",
+                "layer": "L3",
+                "extensions": {"pv_refs": ["inst.storage.partition.a"]},
+            },
+            {
+                "group": "storage",
+                "instance": "inst.storage.lv.a",
+                "class_ref": "class.storage.logical_volume",
+                "layer": "L3",
+                "extensions": {"vg_ref": "inst.storage.vg.a"},
+            },
+            {
+                "group": "storage",
+                "instance": "inst.storage.fs.a",
+                "class_ref": "class.storage.filesystem",
+                "layer": "L3",
+                "extensions": {"lv_ref": "inst.storage.lv.a"},
+            },
+            {
+                "group": "storage",
+                "instance": "inst.storage.mount.a",
+                "class_ref": "class.storage.mount_point",
+                "layer": "L3",
+                "extensions": {"filesystem_ref": "inst.storage.fs.a"},
+            },
+            {
+                "group": "storage",
+                "instance": "inst.storage.endpoint.a",
+                "class_ref": "class.storage.storage_endpoint",
+                "layer": "L3",
+                "extensions": {"mount_point_ref": "inst.storage.mount.a"},
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_storage_l3_refs_validator_rejects_filesystem_with_both_refs():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "storage",
+                "instance": "inst.storage.partition.a",
+                "class_ref": "class.storage.partition",
+                "layer": "L3",
+            },
+            {
+                "group": "storage",
+                "instance": "inst.storage.lv.a",
+                "class_ref": "class.storage.logical_volume",
+                "layer": "L3",
+            },
+            {
+                "group": "storage",
+                "instance": "inst.storage.fs.a",
+                "class_ref": "class.storage.filesystem",
+                "layer": "L3",
+                "extensions": {"lv_ref": "inst.storage.lv.a", "partition_ref": "inst.storage.partition.a"},
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7863" for diag in result.diagnostics)
+
+
+def test_storage_l3_refs_validator_rejects_volume_group_unknown_pv_ref():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "storage",
+                "instance": "inst.storage.vg.a",
+                "class_ref": "class.storage.volume_group",
+                "layer": "L3",
+                "extensions": {"pv_refs": ["inst.storage.partition.missing"]},
+            }
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7861" for diag in result.diagnostics)

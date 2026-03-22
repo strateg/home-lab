@@ -40,10 +40,16 @@
 22. `base.validator.runtime_target_os_binding`
 23. `base.validator.network_runtime_reachability`
 24. `base.validator.storage_l3_refs`
-25. `class_router.validator_json.router_data_channel_interface`
-26. `object_network.validator_json.ethernet_cable_endpoints`
-27. `object_mikrotik.validator_json.router_ports`
-28. `object_glinet.validator_json.router_ports`
+25. `base.validator.storage_device_taxonomy`
+26. `base.validator.storage_media_inventory`
+27. `base.validator.dns_refs`
+28. `base.validator.certificate_refs`
+29. `base.validator.backup_refs`
+30. `base.validator.security_policy_refs`
+31. `class_router.validator_json.router_data_channel_interface`
+32. `object_network.validator_json.ethernet_cable_endpoints`
+33. `object_mikrotik.validator_json.router_ports`
+34. `object_glinet.validator_json.router_ports`
 
 ---
 
@@ -98,18 +104,18 @@ Legend:
 | `check_vm_refs` | `base.validator.references` | Partial | |
 | `check_lxc_refs` | `base.validator.references` | Partial | |
 | `check_service_refs` | `base.validator.references` + `base.validator.service_runtime_refs` + `base.validator.runtime_target_os_binding` + `base.validator.service_dependency_refs` | Partial | Добавлены runtime/service-dependency validators; legacy service policy checks всё ещё шире. |
-| `check_dns_refs` | `base.validator.references` | Partial | |
-| `check_certificate_refs` | `base.validator.references` | Partial | |
-| `check_backup_refs` | `base.validator.references` | Partial | |
-| `check_security_policy_refs` | `base.validator.references` | Partial | |
+| `check_dns_refs` | `base.validator.references` + `base.validator.dns_refs` | Covered/Partial | Добавлен DNS thin-wrapper для record refs (`device_ref/lxc_ref/service_ref`) в DNS service rows. |
+| `check_certificate_refs` | `base.validator.references` + `base.validator.certificate_refs` | Covered/Partial | Добавлен thin-wrapper для `service_ref` и `used_by[].service_ref` в certificate rows. |
+| `check_backup_refs` | `base.validator.references` + `base.validator.backup_refs` | Covered/Partial | Добавлен thin-wrapper для backup `targets` (`device_ref/lxc_ref/data_asset_ref`) и `destination_ref`. |
+| `check_security_policy_refs` | `base.validator.references` + `base.validator.security_policy_refs` | Covered/Partial | Добавлен thin-wrapper для `security_policy_ref` с проверкой на policy rows. |
 
 ### 3.5 Storage
 
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
-| `check_device_storage_taxonomy` | new `base.validator.storage.device_taxonomy` | Gap | |
-| `check_l1_media_inventory` | new `base.validator.storage.media_inventory` | Gap | |
-| `check_l3_storage_refs` | `base.validator.references` + `base.validator.storage_l3_refs` | Partial | Добавлен L3 storage refs validator (volume->pool, data_asset->volume); расширить parity для partition/vg/lv/filesystem/mount/storage_endpoint. |
+| `check_device_storage_taxonomy` | `base.validator.storage_device_taxonomy` | Covered/Partial | Добавлен validator L1 storage slot/media taxonomy (slot duplicates, deprecated inline media, mount/bus compatibility, removable/virtual contracts). |
+| `check_l1_media_inventory` | `base.validator.storage_media_inventory` | Covered/Partial | Добавлен validator media registry + media attachment consistency (`device_ref/slot_ref/media_ref`, `present` exclusivity per slot/media, mount/bus compatibility). |
+| `check_l3_storage_refs` | `base.validator.references` + `base.validator.storage_l3_refs` | Covered/Partial | Расширен L3 storage refs validator: `volume->pool`, `data_asset->volume`, `partition/media_attachment`, `vg/pv_refs`, `lv/vg_ref`, `filesystem(lv|partition)`, `mount_point/filesystem`, `storage_endpoint(lv|mount_point)`. Остаются legacy infer_from/backup-policy edge-cases. |
 
 ---
 
@@ -131,6 +137,6 @@ Legend:
 
 ## 5. Immediate Next Steps
 
-1. Зафиксировать минимальный backlog plugin IDs в `v5/topology-tools/plugins/plugins.yaml` (через feature toggles disabled by default).
-2. Портировать D1 governance checks с parity fixtures.
-3. Добавить integration tests для каждого нового plugin (по 1 happy-path + 1 regression case).
+1. Закрыть remaining edge-cases `check_l3_storage_refs`: `infer_from.*` consistency и backup-policy linkage parity.
+2. Подготовить deprecation-матрицу `v4 check_* -> v5 plugin id` для финального отключения v4 validators.
+3. Запланировать cutover: перевести `base.validator.references` в более узкий scope после закрепления parity thin-wrappers.
