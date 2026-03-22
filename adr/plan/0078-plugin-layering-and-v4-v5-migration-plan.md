@@ -263,6 +263,8 @@ Wave D in progress:
 2. Added D1 validators:
    - `base.validator.governance_contract`
    - `base.validator.foundation_layout`
+   - `base.validator.foundation_include_contract`
+   - `base.validator.foundation_device_taxonomy`
 3. Added D2 validators (partial v4 parity):
    - `base.validator.network_ip_overlap`
    - `base.validator.single_active_os`
@@ -277,3 +279,6 @@ Wave D in progress:
    - `base.validator.network_vlan_tags`
    - `base.validator.network_mtu_consistency`
    - `base.validator.service_runtime_refs`
+   - `base.validator.network_runtime_reachability`
+   - `base.validator.service_dependency_refs`
+   - `base.validator.network_runtime_reachability`

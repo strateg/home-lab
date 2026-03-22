@@ -157,6 +157,36 @@ plugins:
       required: []
     description: Validates class/object module root paths and baseline YAML/plugin layout.
 
+  - id: base.validator.foundation_include_contract
+    kind: validator_yaml
+    entry: validators/foundation_include_contract_validator.py:FoundationIncludeContractValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 96
+    depends_on: [base.validator.foundation_layout]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates deterministic v5 project instances directory contract.
+
+  - id: base.validator.foundation_device_taxonomy
+    kind: validator_json
+    entry: validators/foundation_device_taxonomy_validator.py:FoundationDeviceTaxonomyValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 97
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates L1 group/class taxonomy conventions.
+
   - id: base.validator.references
     kind: validator_json
     entry: validators/reference_validator.py:ReferenceValidator
@@ -391,6 +421,36 @@ plugins:
       properties: {}
       required: []
     description: Validates service runtime target_ref/network_binding_ref contracts.
+
+  - id: base.validator.network_runtime_reachability
+    kind: validator_json
+    entry: validators/network_runtime_reachability_validator.py:NetworkRuntimeReachabilityValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 130
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Warns when runtime target cannot reach runtime.network_binding_ref.
+
+  - id: base.validator.service_dependency_refs
+    kind: validator_json
+    entry: validators/service_dependency_refs_validator.py:ServiceDependencyRefsValidator
+    api_version: "1.x"
+    stages: [validate]
+    order: 132
+    depends_on: [base.compiler.instance_rows]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates service data_asset_refs and dependency service_ref links.
 
   - id: base.validator.storage_l3_refs
     kind: validator_json

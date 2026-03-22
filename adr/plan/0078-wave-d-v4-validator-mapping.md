@@ -14,19 +14,36 @@
 
 ## 2. Current v5 Validator Surface
 
-Наличие сейчас:
+Наличие сейчас (relevant subset for Wave D):
 
-1. `base.validator.references`
-2. `base.validator.model_lock`
-3. `base.validator.power_source_refs`
-4. `base.validator.embedded_in`
-5. `base.validator.ethernet_port_inventory`
-6. `base.validator.capability_contract`
-7. `base.validator.instance_placeholders`
-8. `class_router.validator_json.router_data_channel_interface`
-9. `object_network.validator_json.ethernet_cable_endpoints`
-10. `object_mikrotik.validator_json.router_ports`
-11. `object_glinet.validator_json.router_ports`
+1. `base.validator.governance_contract`
+2. `base.validator.foundation_layout`
+3. `base.validator.foundation_include_contract`
+4. `base.validator.references`
+5. `base.validator.model_lock`
+6. `base.validator.power_source_refs`
+7. `base.validator.embedded_in`
+8. `base.validator.ethernet_port_inventory`
+9. `base.validator.capability_contract`
+10. `base.validator.instance_placeholders`
+11. `base.validator.network_ip_overlap`
+12. `base.validator.single_active_os`
+13. `base.validator.network_reserved_ranges`
+14. `base.validator.network_trust_zone_firewall_refs`
+15. `base.validator.network_firewall_addressability`
+16. `base.validator.network_ip_allocation_host_os_refs`
+17. `base.validator.network_vlan_zone_consistency`
+18. `base.validator.network_core_refs`
+19. `base.validator.network_vlan_tags`
+20. `base.validator.network_mtu_consistency`
+21. `base.validator.service_runtime_refs`
+22. `base.validator.runtime_target_os_binding`
+23. `base.validator.network_runtime_reachability`
+24. `base.validator.storage_l3_refs`
+25. `class_router.validator_json.router_data_channel_interface`
+26. `object_network.validator_json.ethernet_cable_endpoints`
+27. `object_mikrotik.validator_json.router_ports`
+28. `object_glinet.validator_json.router_ports`
 
 ---
 
@@ -43,9 +60,9 @@ Legend:
 
 | v4 check | v5 target | Coverage | Notes |
 |---|---|---|---|
-| `check_modular_include_contract` | new `base.validator.foundation.include_contract` | Gap | В v5 нет отдельного plugin-first include-contract валидатора. |
+| `check_modular_include_contract` | `base.validator.foundation_include_contract` | Covered/Partial | Добавлен validator структуры `project/topology/instances` + запрет `_index.yaml`; возможна донастройка под дополнительные domain-specific контракты. |
 | `check_file_placement` | `base.validator.foundation_layout` + future `base.validator.foundation.file_placement` | Partial | Добавлен baseline root/layout validator; policy-driven directory taxonomy ещё не перенесена. |
-| `check_device_taxonomy` | `base.validator.references` + `base.validator.capability_contract` | Partial | Нужен отдельный taxonomy plugin для parity с v4 foundation checks. |
+| `check_device_taxonomy` | `base.validator.foundation_device_taxonomy` + `base.validator.references` + `base.validator.capability_contract` | Covered/Partial | Добавлен L1 group/class taxonomy validator; parity можно расширять дополнительными hardware/storage checks. |
 
 ### 3.2 Governance
 
@@ -70,7 +87,7 @@ Legend:
 | `check_trust_zone_firewall_refs` | `base.validator.network_trust_zone_firewall_refs` | Covered/Partial | Добавлен validator для default_firewall_policy_ref trust-zone instances. |
 | `check_firewall_policy_addressability` | `base.validator.network_firewall_addressability` | Partial | Добавлен warning-based validator для addressability refs (dhcp network refs / zones without static CIDR). |
 | `check_ip_allocation_host_os_refs` | `base.validator.network_ip_allocation_host_os_refs` | Partial | Добавлен validator для host_os_ref/device_ref consistency внутри network ip_allocations. |
-| `check_runtime_network_reachability` | new `base.validator.network.runtime_reachability` | Gap | |
+| `check_runtime_network_reachability` | `base.validator.network_runtime_reachability` | Covered/Partial | Добавлен warning-based validator reachability для runtime.network_binding_ref (lxc/vm/docker/baremetal). |
 | `check_single_active_os_per_device` | `base.validator.single_active_os` | Covered/Partial | Добавлен single-active-os validator по normalized rows; при необходимости расширить parity под legacy host_operating_systems inventory. |
 
 ### 3.4 References
@@ -80,7 +97,7 @@ Legend:
 | `check_host_os_refs` | `base.validator.embedded_in` + `base.validator.references` + `base.validator.runtime_target_os_binding` | Partial | Добавлена runtime-target OS binding проверка; остаётся расширить parity по host_os/storage-specific правилам. |
 | `check_vm_refs` | `base.validator.references` | Partial | |
 | `check_lxc_refs` | `base.validator.references` | Partial | |
-| `check_service_refs` | `base.validator.references` + `base.validator.service_runtime_refs` + `base.validator.runtime_target_os_binding` | Partial | Добавлен runtime refs validator (type/target/network_binding); legacy service policy checks ещё шире. |
+| `check_service_refs` | `base.validator.references` + `base.validator.service_runtime_refs` + `base.validator.runtime_target_os_binding` + `base.validator.service_dependency_refs` | Partial | Добавлены runtime/service-dependency validators; legacy service policy checks всё ещё шире. |
 | `check_dns_refs` | `base.validator.references` | Partial | |
 | `check_certificate_refs` | `base.validator.references` | Partial | |
 | `check_backup_refs` | `base.validator.references` | Partial | |
