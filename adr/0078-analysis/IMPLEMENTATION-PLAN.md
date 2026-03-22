@@ -2,7 +2,8 @@
 
 **Date:** 2026-03-21  
 **ADR:** `adr/0078-object-module-local-template-layout.md`  
-**Status:** Completed (Waves 1-5 closed)
+**Status:** Completed for generator scope; unified v5 refactor prep added  
+**Amended:** 2026-03-22 (compilers/validators/generators unified rules)
 
 ---
 
@@ -14,6 +15,14 @@ Reach ADR0078 target state for `v5`:
 2. Object-specific templates are located only in `object-modules/<object-id>/templates/<generator-id>`.
 3. Object-specific generator registration is owned by module manifests (`object-modules/**/plugins.yaml`).
 4. Transitional shims in `v5/topology-tools/plugins/generators` are removed after compatibility gate.
+
+Amended objective (2026-03-22):
+
+1. Apply one architecture contract to all plugin families:
+   - compilers;
+   - validators;
+   - generators.
+2. Prepare v5 refactoring backlog and gates so unified rules are enforced in active migration work.
 
 ---
 
@@ -248,3 +257,35 @@ Recorded one full local release cycle after shim removal:
 Conclusion:
 
 1. Compatibility gate objective ("one full release cycle without shim-origin failures") remains satisfied; Wave 5 applies ownership hardening on top.
+
+---
+
+## 10. Unified v5 Refactor Preparation (2026-03-22)
+
+Preparation goal:
+
+1. Start next v5 refactor cycle with explicit scope for compilers/validators/generators under common ADR0078 rules.
+
+Prepared work packages:
+
+1. **WP1: Unified inventory**
+   - Build catalog of all active plugins by family and level (core/class/object/instance).
+   - Mark ownership root and manifest owner for each plugin.
+2. **WP2: Violation map**
+   - Detect direct cross-level coupling and high-level leakage of object/instance specifics.
+   - Mark global plugins that contain specific class/object semantics and require promotion/split.
+3. **WP3: Interface extraction plan**
+   - Define interface contracts where global plugins orchestrate specific plugins.
+   - Replace direct concrete dependencies with contract-driven integration.
+4. **WP4: Execution gates**
+   - Keep `v5/tests/plugin_contract/test_plugin_level_boundaries.py` mandatory.
+   - Keep `task test:parity-v4-v5` mandatory for affected domains.
+   - Keep full `v5/tests/plugin_integration` and strict compile in each refactor batch.
+5. **WP5: Anti-regression controls**
+   - Add ownership and boundary checks to prevent reintroduction of violations during migration.
+
+Ready-to-start sequence:
+
+1. Finalize inventory + violation map.
+2. Approve batch order (core -> class -> object -> instance).
+3. Execute refactor in small batches with lock refresh and cutover-readiness evidence per batch.
