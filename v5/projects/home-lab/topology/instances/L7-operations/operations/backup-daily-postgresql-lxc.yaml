@@ -1,0 +1,30 @@
+instance: backup-daily-postgresql-lxc
+object_ref: obj.operations.backup.vzdump
+group: operations
+layer: L7
+version: 1.0.0
+source_id: backup-daily-postgresql-lxc
+status: mapped
+notes: Daily PostgreSQL LXC vzdump snapshot for disaster recovery
+
+name: Daily PostgreSQL LXC Snapshot
+description: Full LXC snapshot for disaster recovery
+schedule: "0 2 * * *"
+
+target_ref: lxc-postgresql
+data_asset_ref: inst.data_asset.postgresql_db
+
+storage_ref: inst.pool.local_hdd
+mode: snapshot
+compression: zstd
+
+retention:
+  keep_last: 3
+  keep_daily: 7
+  keep_weekly: 4
+
+notification:
+  on_success: false
+  on_failure: true
+  channels:
+    - email

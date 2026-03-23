@@ -1,0 +1,29 @@
+instance: backup-daily-redis
+object_ref: obj.operations.backup.vzdump
+group: operations
+layer: L7
+version: 1.0.0
+source_id: backup-daily-redis
+status: mapped
+notes: Daily Redis LXC vzdump snapshot backup
+
+name: Daily Redis Backup
+description: Daily backup of Redis LXC
+schedule: "0 2 * * *"
+
+target_ref: lxc-redis
+data_asset_ref: inst.data_asset.redis
+
+storage_ref: inst.pool.local_hdd
+mode: snapshot
+compression: zstd
+
+retention:
+  keep_last: 3
+  keep_daily: 7
+
+notification:
+  on_success: false
+  on_failure: true
+  channels:
+    - email

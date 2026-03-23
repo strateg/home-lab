@@ -1,0 +1,35 @@
+instance: backup-hourly-postgresql
+object_ref: obj.operations.backup.pg_dump
+group: operations
+layer: L7
+version: 1.0.0
+source_id: backup-hourly-postgresql
+status: mapped
+notes: Hourly PostgreSQL dump for critical databases
+
+name: Hourly PostgreSQL Backups
+description: Hourly pg_dump for critical database
+schedule: "0 * * * *"
+
+target_ref: lxc-postgresql
+data_asset_ref: inst.data_asset.postgresql_db
+
+databases:
+  - nextcloud
+  - homelab
+
+destination:
+  storage_ref: inst.pool.local_hdd
+  path: /mnt/hdd/backups/postgresql
+
+compression: zstd
+
+retention:
+  keep_last: 24
+  keep_daily: 7
+
+notification:
+  on_success: false
+  on_failure: true
+  channels:
+    - email

@@ -1,0 +1,34 @@
+instance: backup-mikrotik-config
+object_ref: obj.operations.backup.config_export
+group: operations
+layer: L7
+version: 1.0.0
+source_id: backup-mikrotik-config
+status: mapped
+notes: MikroTik RouterOS configuration export to Git repository
+
+name: MikroTik Config Backup
+description: Export RouterOS configuration to Git repository
+schedule: "0 4 * * *"
+
+target_ref: rtr-mikrotik-chateau
+data_asset_ref: inst.data_asset.mikrotik_config
+
+export_format: rsc
+destination:
+  type: git
+  repository: /home/dmpr/workspaces/projects/home-lab/backups/mikrotik
+  branch: main
+  commit_message: "Automated MikroTik config backup - {{ date }}"
+
+retention:
+  keep_commits: 90
+
+verification:
+  syntax_check: true
+
+notification:
+  on_success: false
+  on_failure: true
+  channels:
+    - email

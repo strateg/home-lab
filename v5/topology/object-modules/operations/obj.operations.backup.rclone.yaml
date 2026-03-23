@@ -1,0 +1,16 @@
+object: obj.operations.backup.rclone
+class_ref: class.operations.backup
+version: 1.0.0
+description: Rclone-based offsite cloud backup
+
+properties:
+  method: rclone
+  destination_type: cloud
+
+  defaults:
+    encryption_method: rclone-crypt
+    keep_weekly: 8
+    keep_monthly: 6
+
+capabilities:
+  - cap.operations.backup.incremental

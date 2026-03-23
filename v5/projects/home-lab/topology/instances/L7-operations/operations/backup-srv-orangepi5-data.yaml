@@ -1,0 +1,49 @@
+instance: backup-srv-orangepi5-data
+object_ref: obj.operations.backup.rsync
+group: operations
+layer: L7
+version: 1.0.0
+source_id: backup-srv-orangepi5-data
+status: mapped
+notes: Orange Pi 5 Docker volumes and NVMe data backup to Proxmox HDD
+
+name: Orange Pi 5 Data Backup
+description: Backup Docker volumes and NVMe data to Proxmox HDD
+schedule: "0 3 * * *"
+
+targets:
+  - device_ref: srv-orangepi5
+    data_asset_refs:
+      - inst.data_asset.nextcloud
+      - inst.data_asset.jellyfin
+      - inst.data_asset.grafana
+      - inst.data_asset.prometheus
+      - inst.data_asset.homeassistant
+
+source_paths:
+  - /mnt/nvme/nextcloud
+  - /mnt/nvme/jellyfin/config
+  - /mnt/nvme/grafana
+  - /mnt/nvme/prometheus
+  - /mnt/nvme/homeassistant
+
+destination:
+  type: rsync
+  target: root@192.168.88.2:/mnt/hdd/backups/srv-orangepi5
+  ssh_key: /root/.ssh/id_ed25519
+
+options:
+  incremental: true
+  compress: true
+  delete_old: false
+  bandwidth_limit_kbps: 50000
+
+retention:
+  keep_daily: 7
+  keep_weekly: 4
+
+notification:
+  on_success: false
+  on_failure: true
+  channels:
+    - email

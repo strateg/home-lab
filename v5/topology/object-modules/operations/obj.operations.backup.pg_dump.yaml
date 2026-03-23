@@ -1,0 +1,16 @@
+object: obj.operations.backup.pg_dump
+class_ref: class.operations.backup
+version: 1.0.0
+description: PostgreSQL database dump backup
+
+properties:
+  method: pg_dump
+  destination_type: local
+
+  defaults:
+    compression: zstd
+    keep_last: 24
+    keep_daily: 7
+
+capabilities:
+  - cap.operations.backup.incremental

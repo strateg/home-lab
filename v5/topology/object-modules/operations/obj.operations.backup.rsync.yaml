@@ -1,0 +1,19 @@
+object: obj.operations.backup.rsync
+class_ref: class.operations.backup
+version: 1.0.0
+description: Rsync-based incremental file backup
+
+properties:
+  method: rsync
+  destination_type: rsync
+
+  defaults:
+    incremental: true
+    compress: true
+    delete_old: false
+    bandwidth_limit_kbps: 50000
+    keep_daily: 7
+    keep_weekly: 4
+
+capabilities:
+  - cap.operations.backup.incremental

@@ -402,3 +402,19 @@ objects:
   obj.observability.alert.security:
     version: 1.0.0
     class_ref: class.observability.alert
+  # L7 Operations objects - Backup types
+  obj.operations.backup.config_export:
+    version: 1.0.0
+    class_ref: class.operations.backup
+  obj.operations.backup.rsync:
+    version: 1.0.0
+    class_ref: class.operations.backup
+  obj.operations.backup.pg_dump:
+    version: 1.0.0
+    class_ref: class.operations.backup
+  obj.operations.backup.vzdump:
+    version: 1.0.0
+    class_ref: class.operations.backup
+  obj.operations.backup.rclone:
+    version: 1.0.0
+    class_ref: class.operations.backup

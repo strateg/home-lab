@@ -1,0 +1,20 @@
+object: obj.operations.backup.config_export
+class_ref: class.operations.backup
+version: 1.0.0
+description: Configuration export backup (RouterOS, switch configs)
+
+properties:
+  method: config-export
+  export_format: rsc
+  destination_type: git
+
+  defaults:
+    commit_message_template: "Automated config backup - {{ date }}"
+    syntax_check: true
+    retention_commits: 90
+
+capabilities:
+  - cap.operations.backup.incremental
+
+vendor_extensions:
+  - vendor.operations.backup.routeros_export

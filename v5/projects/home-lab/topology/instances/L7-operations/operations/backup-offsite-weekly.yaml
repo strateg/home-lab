@@ -1,0 +1,43 @@
+instance: backup-offsite-weekly
+object_ref: obj.operations.backup.rclone
+group: operations
+layer: L7
+version: 1.0.0
+source_id: backup-offsite-weekly
+status: mapped
+notes: Weekly encrypted offsite backup to cloud storage (Backblaze B2)
+
+name: Weekly Offsite Backup
+description: Critical data to cloud storage (encrypted)
+schedule: "0 5 * * 0"
+
+targets:
+  - data_asset_ref: inst.data_asset.postgresql_dumps
+  - data_asset_ref: inst.data_asset.mikrotik_config
+  - data_asset_ref: inst.data_asset.nextcloud
+
+source_paths:
+  - /mnt/hdd/backups/postgresql
+  - /mnt/hdd/backups/mikrotik
+  - /mnt/hdd/backups/srv-orangepi5/nextcloud
+
+destination:
+  type: cloud
+  provider: backblaze-b2
+  bucket: homelab-backups
+  path: /weekly
+
+encryption:
+  enabled: true
+  method: rclone-crypt
+  password_file: /root/.config/rclone/crypt-password
+
+retention:
+  keep_weekly: 8
+  keep_monthly: 6
+
+notification:
+  on_success: true
+  on_failure: true
+  channels:
+    - email
