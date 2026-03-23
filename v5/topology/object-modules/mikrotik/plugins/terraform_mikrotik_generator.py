@@ -49,18 +49,16 @@ class TerraformMikroTikGenerator(BaseGenerator):
         """
         result: dict[str, str] = {}
         cap_templates = ctx.config.get("capability_templates")
-        if isinstance(cap_templates, dict):
-            template_rows = list(cap_templates.values())
-        elif isinstance(cap_templates, list):
-            template_rows = cap_templates
-        else:
+        # ADR0078 specifies dict format only
+        if not isinstance(cap_templates, dict):
             return result
 
-        for mapping in template_rows:
+        for mapping in cap_templates.values():
             if not isinstance(mapping, dict):
                 continue
 
             enabled_by = mapping.get("enabled_by")
+            # TODO(ADR0078-cleanup): Remove capability_key fallback after v5.1 migration
             if not isinstance(enabled_by, str) or not enabled_by.strip():
                 cap_key = mapping.get("capability_key", "")
                 if isinstance(cap_key, str) and cap_key.strip():
@@ -68,6 +66,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
 
             template = mapping.get("template", "")
             output_file = mapping.get("output")
+            # TODO(ADR0078-cleanup): Remove output_file fallback after v5.1 migration
             if not isinstance(output_file, str) or not output_file.strip():
                 output_file = mapping.get("output_file", "")
 

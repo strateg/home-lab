@@ -143,10 +143,16 @@ def test_proxmox_generator_has_no_hardcoded_capability_template_fallbacks() -> N
     ), "Capability template selection must not be hardcoded in generator code"
 
 
-def test_generators_keep_temporary_legacy_capability_mapping_compatibility() -> None:
+def test_generators_support_migration_period_fallbacks() -> None:
+    """Verify migration-period fallbacks exist for legacy capability_key/output_file fields.
+
+    TODO(ADR0078-cleanup): Remove this test after v5.1 migration when all instances
+    use the canonical ADR0078 format (enabled_by, template, output).
+    """
     mikrotik_body = MIKROTIK_GENERATOR.read_text(encoding="utf-8")
     proxmox_body = PROXMOX_GENERATOR.read_text(encoding="utf-8")
 
+    # Migration-period fallbacks for legacy format
     assert 'mapping.get("capability_key"' in mikrotik_body
     assert 'mapping.get("output_file"' in mikrotik_body
     assert 'mapping.get("capability_key"' in proxmox_body
