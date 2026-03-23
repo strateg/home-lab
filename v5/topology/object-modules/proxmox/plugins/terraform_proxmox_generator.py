@@ -8,9 +8,13 @@ from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, St
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.object_projection_loader import load_object_projection_module
 
-# ADR0078 WP-001/WP-002: Use shared helpers from _shared/plugins/
-from topology.object_modules._shared.plugins.capability_helpers import get_capability_templates
-from topology.object_modules._shared.plugins.terraform_helpers import render_string_list
+# ADR0078 WP-001/WP-002: Use shared helpers via dynamic loader
+from plugins.generators.shared_helper_loader import load_capability_helpers, load_terraform_helpers
+
+_CAP_HELPERS = load_capability_helpers()
+_TF_HELPERS = load_terraform_helpers()
+get_capability_templates = _CAP_HELPERS.get_capability_templates
+render_string_list = _TF_HELPERS.render_string_list
 
 _PROJECTIONS = load_object_projection_module("proxmox")
 ProjectionError = _PROJECTIONS.ProjectionError

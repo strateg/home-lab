@@ -8,8 +8,11 @@ from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, St
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.object_projection_loader import load_bootstrap_projection_module
 
-# ADR0078 WP-003: Use shared helpers from _shared/plugins/
-from topology.object_modules._shared.plugins.bootstrap_helpers import get_bootstrap_files
+# ADR0078 WP-003: Use shared helpers via dynamic loader
+from plugins.generators.shared_helper_loader import load_bootstrap_helpers
+
+_BOOTSTRAP_HELPERS = load_bootstrap_helpers()
+get_bootstrap_files = _BOOTSTRAP_HELPERS.get_bootstrap_files
 
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 ProjectionError = _BOOTSTRAP_PROJECTIONS.ProjectionError

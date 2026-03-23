@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 # ADR0078 WP-004: Inherit common logic from class-level base
-from topology.class_modules.router.plugins.router_port_validator_base import RouterPortValidatorBase
+from plugins.generators.shared_helper_loader import load_router_port_validator_base
+
+_BASE = load_router_port_validator_base()
+RouterPortValidatorBase = _BASE.RouterPortValidatorBase
 
 
 class GlinetRouterPortsValidator(RouterPortValidatorBase):
