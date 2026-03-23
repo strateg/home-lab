@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.object_projection_loader import load_object_projection_module
 
+# ADR0078 WP-001/WP-002: Use shared helpers from _shared/plugins/
+from topology.object_modules._shared.plugins.capability_helpers import get_capability_templates
+from topology.object_modules._shared.plugins.terraform_helpers import render_string_list
+
 _PROJECTIONS = load_object_projection_module("mikrotik")
 ProjectionError = _PROJECTIONS.ProjectionError
 build_mikrotik_projection = _PROJECTIONS.build_mikrotik_projection
-
-
-def _render_string_list(items: list[str]) -> str:
-    if not items:
-        return "[]"
-    joined = ", ".join(json.dumps(item, ensure_ascii=True) for item in items)
-    return f"[{joined}]"
 
 
 class TerraformMikroTikGenerator(BaseGenerator):
@@ -41,57 +37,6 @@ class TerraformMikroTikGenerator(BaseGenerator):
         if routers:
             return f"https://{routers[0]}:{cls._DEFAULT_MIKROTIK_PORT}"
         return f"https://{cls._DEFAULT_MIKROTIK_HOST}:{cls._DEFAULT_MIKROTIK_PORT}"
-
-    def _get_capability_templates(self, capabilities: dict, ctx: PluginContext) -> dict[str, str]:
-        """Resolve capability-driven templates from config.
-
-        Returns dict mapping output_file -> template_path for enabled capabilities.
-        """
-        result: dict[str, str] = {}
-        cap_templates = ctx.config.get("capability_templates")
-        # ADR0078 specifies dict format only
-        if not isinstance(cap_templates, dict):
-            return result
-
-        for mapping in cap_templates.values():
-            if not isinstance(mapping, dict):
-                continue
-
-            enabled_by = mapping.get("enabled_by")
-            # TODO(ADR0078-cleanup): Remove capability_key fallback after v5.1 migration
-            if not isinstance(enabled_by, str) or not enabled_by.strip():
-                cap_key = mapping.get("capability_key", "")
-                if isinstance(cap_key, str) and cap_key.strip():
-                    enabled_by = f"capabilities.{cap_key.strip()}"
-
-            template = mapping.get("template", "")
-            output_file = mapping.get("output")
-            # TODO(ADR0078-cleanup): Remove output_file fallback after v5.1 migration
-            if not isinstance(output_file, str) or not output_file.strip():
-                output_file = mapping.get("output_file", "")
-
-            if not isinstance(enabled_by, str) or not enabled_by.strip() or not template or not output_file:
-                continue
-
-            if self._capability_expression_enabled(capabilities, enabled_by):
-                result[str(output_file)] = str(template)
-
-        return result
-
-    @staticmethod
-    def _capability_expression_enabled(capabilities: dict, enabled_by: str) -> bool:
-        expr = enabled_by.strip()
-        if not expr:
-            return False
-        if expr.startswith("capabilities."):
-            expr = expr[len("capabilities.") :]
-
-        current = capabilities
-        for segment in expr.split("."):
-            if not isinstance(current, dict):
-                return False
-            current = current.get(segment)
-        return bool(current)
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -139,9 +84,9 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),
             "mikrotik_provider_source": str(ctx.config.get("mikrotik_provider_source", "terraform-routeros/routeros")),
             "mikrotik_provider_version": str(ctx.config.get("mikrotik_provider_version", "~> 1.40")),
-            "routers_list_expr": _render_string_list(routers),
-            "networks_list_expr": _render_string_list(networks),
-            "services_list_expr": _render_string_list(services),
+            "routers_list_expr": render_string_list(routers),
+            "networks_list_expr": render_string_list(networks),
+            "services_list_expr": render_string_list(services),
             "routers_count": len(routers),
             "networks_count": len(networks),
             "services_count": len(services),
@@ -163,8 +108,8 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "terraform.tfvars.example": "terraform/terraform.tfvars.example.j2",
         }
 
-        # Capability-driven templates from config (ADR0078 WP9)
-        capability_templates = self._get_capability_templates(normalized_caps, ctx)
+        # Capability-driven templates from config (ADR0078 WP-002)
+        capability_templates = get_capability_templates(normalized_caps, ctx.config)
         templates.update(capability_templates)
 
         written: list[str] = []

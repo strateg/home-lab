@@ -2,23 +2,19 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.object_projection_loader import load_object_projection_module
 
+# ADR0078 WP-001/WP-002: Use shared helpers from _shared/plugins/
+from topology.object_modules._shared.plugins.capability_helpers import get_capability_templates
+from topology.object_modules._shared.plugins.terraform_helpers import render_string_list
+
 _PROJECTIONS = load_object_projection_module("proxmox")
 ProjectionError = _PROJECTIONS.ProjectionError
 build_proxmox_projection = _PROJECTIONS.build_proxmox_projection
-
-
-def _render_string_list(items: list[str]) -> str:
-    if not items:
-        return "[]"
-    joined = ", ".join(json.dumps(item, ensure_ascii=True) for item in items)
-    return f"[{joined}]"
 
 
 class TerraformProxmoxGenerator(BaseGenerator):
@@ -30,57 +26,6 @@ class TerraformProxmoxGenerator(BaseGenerator):
 
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="proxmox")
-
-    def _get_capability_templates(self, capabilities: dict, ctx: PluginContext) -> dict[str, str]:
-        """Resolve capability-driven templates from config.
-
-        Returns dict mapping output_file -> template_path for enabled capabilities.
-        """
-        result: dict[str, str] = {}
-        cap_templates = ctx.config.get("capability_templates")
-        # ADR0078 specifies dict format only
-        if not isinstance(cap_templates, dict):
-            return result
-
-        for mapping in cap_templates.values():
-            if not isinstance(mapping, dict):
-                continue
-
-            enabled_by = mapping.get("enabled_by")
-            # TODO(ADR0078-cleanup): Remove capability_key fallback after v5.1 migration
-            if not isinstance(enabled_by, str) or not enabled_by.strip():
-                cap_key = mapping.get("capability_key", "")
-                if isinstance(cap_key, str) and cap_key.strip():
-                    enabled_by = f"capabilities.{cap_key.strip()}"
-
-            template = mapping.get("template", "")
-            output_file = mapping.get("output")
-            # TODO(ADR0078-cleanup): Remove output_file fallback after v5.1 migration
-            if not isinstance(output_file, str) or not output_file.strip():
-                output_file = mapping.get("output_file", "")
-
-            if not isinstance(enabled_by, str) or not enabled_by.strip() or not template or not output_file:
-                continue
-
-            if self._capability_expression_enabled(capabilities, enabled_by):
-                result[str(output_file)] = str(template)
-
-        return result
-
-    @staticmethod
-    def _capability_expression_enabled(capabilities: dict, enabled_by: str) -> bool:
-        expr = enabled_by.strip()
-        if not expr:
-            return False
-        if expr.startswith("capabilities."):
-            expr = expr[len("capabilities.") :]
-
-        current = capabilities
-        for segment in expr.split("."):
-            if not isinstance(current, dict):
-                return False
-            current = current.get(segment)
-        return bool(current)
 
     @classmethod
     def _resolve_proxmox_api_url(cls, *, ctx: PluginContext, proxmox_nodes: list[str]) -> str:
@@ -136,8 +81,8 @@ class TerraformProxmoxGenerator(BaseGenerator):
             "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),
             "proxmox_provider_source": str(ctx.config.get("proxmox_provider_source", "bpg/proxmox")),
             "proxmox_provider_version": str(ctx.config.get("proxmox_provider_version", ">= 0.66.0")),
-            "proxmox_nodes_list_expr": _render_string_list(proxmox_nodes),
-            "lxc_instances_list_expr": _render_string_list(lxc_instances),
+            "proxmox_nodes_list_expr": render_string_list(proxmox_nodes),
+            "lxc_instances_list_expr": render_string_list(lxc_instances),
             "proxmox_nodes_count": len(proxmox_nodes),
             "lxc_count": len(lxc_instances),
             "services_count": len(service_instances),
@@ -158,8 +103,8 @@ class TerraformProxmoxGenerator(BaseGenerator):
             "terraform.tfvars.example": "terraform/terraform.tfvars.example.j2",
         }
 
-        # Capability-driven templates from config (ADR0078)
-        capability_templates = self._get_capability_templates(caps, ctx)
+        # Capability-driven templates from config (ADR0078 WP-002)
+        capability_templates = get_capability_templates(caps, ctx.config)
         templates.update(capability_templates)
 
         written: list[str] = []

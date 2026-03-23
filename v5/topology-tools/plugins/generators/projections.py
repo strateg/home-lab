@@ -7,9 +7,15 @@ from copy import deepcopy
 from typing import Any
 
 from plugins.generators.projection_core import (
+    # ADR0078 WP-006: Group canonical name constants
+    GROUP_DEVICES,
+    GROUP_LXC,
+    GROUP_NETWORK,
+    GROUP_SERVICES,
+    GROUP_VMS,
     ProjectionError,
-    _group_rows,
     _get_instance_data,
+    _group_rows,
     _instance_groups,
     _is_ansible_host_candidate,
     _require_non_empty_str,
@@ -20,8 +26,8 @@ from plugins.generators.projection_core import (
 def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for Ansible inventory generator."""
     groups = _instance_groups(compiled_json)
-    devices = _group_rows(groups, canonical="devices")
-    lxc = _group_rows(groups, canonical="lxc")
+    devices = _group_rows(groups, canonical=GROUP_DEVICES)
+    lxc = _group_rows(groups, canonical=GROUP_LXC)
 
     hosts: list[dict[str, Any]] = []
     for idx, row in enumerate(devices):
@@ -50,11 +56,11 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable docs view from compiled model groups."""
     groups = _instance_groups(compiled_json)
-    devices = _group_rows(groups, canonical="devices")
-    services = _group_rows(groups, canonical="services")
-    lxc = _group_rows(groups, canonical="lxc")
-    vms = _group_rows(groups, canonical="vms")
-    networks = _group_rows(groups, canonical="network")
+    devices = _group_rows(groups, canonical=GROUP_DEVICES)
+    services = _group_rows(groups, canonical=GROUP_SERVICES)
+    lxc = _group_rows(groups, canonical=GROUP_LXC)
+    vms = _group_rows(groups, canonical=GROUP_VMS)
+    networks = _group_rows(groups, canonical=GROUP_NETWORK)
 
     docs_devices: list[dict[str, Any]] = []
     for idx, row in enumerate(devices):

@@ -14,6 +14,8 @@ MIKROTIK_GENERATOR = (
     V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py"
 )
 PROXMOX_GENERATOR = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "terraform_proxmox_generator.py"
+# ADR0078 WP-002: Shared capability helpers (code extracted from generators)
+CAPABILITY_HELPERS = V5_ROOT / "topology" / "object-modules" / "_shared" / "plugins" / "capability_helpers.py"
 
 
 def _plugin_entry(manifest_path: Path, plugin_id: str) -> dict:
@@ -148,12 +150,12 @@ def test_generators_support_migration_period_fallbacks() -> None:
 
     TODO(ADR0078-cleanup): Remove this test after v5.1 migration when all instances
     use the canonical ADR0078 format (enabled_by, template, output).
-    """
-    mikrotik_body = MIKROTIK_GENERATOR.read_text(encoding="utf-8")
-    proxmox_body = PROXMOX_GENERATOR.read_text(encoding="utf-8")
 
-    # Migration-period fallbacks for legacy format
-    assert 'mapping.get("capability_key"' in mikrotik_body
-    assert 'mapping.get("output_file"' in mikrotik_body
-    assert 'mapping.get("capability_key"' in proxmox_body
-    assert 'mapping.get("output_file"' in proxmox_body
+    Note: Fallback code has been extracted to shared capability_helpers.py (ADR0078 WP-002).
+    """
+    # ADR0078 WP-002: Fallbacks now live in shared helper, not in individual generators
+    helper_body = CAPABILITY_HELPERS.read_text(encoding="utf-8")
+
+    # Migration-period fallbacks for legacy format in shared helper
+    assert 'mapping.get("capability_key"' in helper_body
+    assert 'mapping.get("output_file"' in helper_body

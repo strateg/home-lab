@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from plugins.generators.projection_core import (
+    # ADR0078 WP-006: Group canonical name constants
+    GROUP_DEVICES,
     ProjectionError,
     _get_instance_data,
     _group_rows,
@@ -36,7 +38,7 @@ class BootstrapDevice:
 def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for bootstrap generators."""
     groups = _instance_groups(compiled_json)
-    devices = _group_rows(groups, canonical="devices")
+    devices = _group_rows(groups, canonical=GROUP_DEVICES)
 
     proxmox_nodes: list[dict[str, Any]] = []
     mikrotik_nodes: list[dict[str, Any]] = []

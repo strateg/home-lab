@@ -6,6 +6,10 @@ from __future__ import annotations
 from typing import Any
 
 from plugins.generators.projection_core import (
+    # ADR0078 WP-006: Group canonical name constants
+    GROUP_DEVICES,
+    GROUP_NETWORK,
+    GROUP_SERVICES,
     ProjectionError,
     _group_rows,
     _instance_groups,
@@ -54,9 +58,9 @@ def _derive_mikrotik_capability_flags(routers: list[dict[str, Any]]) -> dict[str
 def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for MikroTik Terraform generator."""
     groups = _instance_groups(compiled_json)
-    devices = _group_rows(groups, canonical="devices")
-    network = _group_rows(groups, canonical="network")
-    service_rows = _group_rows(groups, canonical="services")
+    devices = _group_rows(groups, canonical=GROUP_DEVICES)
+    network = _group_rows(groups, canonical=GROUP_NETWORK)
+    service_rows = _group_rows(groups, canonical=GROUP_SERVICES)
 
     routers: list[dict[str, Any]] = []
     router_ids: set[str] = set()

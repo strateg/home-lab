@@ -1,11 +1,41 @@
 #!/usr/bin/env python3
-"""Core projection helpers shared by generator projection modules."""
+"""Core projection helpers shared by generator projection modules.
+
+ADR0078 WP-005: Exclusion patterns are extracted to module-level constants
+to reduce hardcoding in core projection logic.
+"""
 
 from __future__ import annotations
 
 import json
 from copy import deepcopy
 from typing import Any
+
+# ADR0078 WP-005: Ansible host candidate exclusion patterns.
+# These class/object refs represent infrastructure that cannot be managed by Ansible
+# (physical cables, network links). Extracted from _is_ansible_host_candidate().
+#
+# TODO(ADR0078-evolution): Consider moving these to model schema as a class-level
+# property (e.g., `ansible_managed: false`) for full declarative configuration.
+ANSIBLE_HOST_EXCLUDED_CLASS_REFS: frozenset[str] = frozenset({
+    "class.network.physical_link",
+})
+
+ANSIBLE_HOST_EXCLUDED_OBJECT_REFS: frozenset[str] = frozenset({
+    "obj.network.ethernet_cable",
+})
+
+# ADR0078 WP-006: Canonical group names for instance collections.
+# These correspond to layer directories in topology/instances/ and are used
+# by projection builders to extract typed instance collections.
+#
+# TODO(ADR0078-evolution): Consider deriving these from topology layer schema
+# or project manifest for full declarative configuration.
+GROUP_DEVICES: str = "devices"
+GROUP_LXC: str = "lxc"
+GROUP_VMS: str = "vms"
+GROUP_SERVICES: str = "services"
+GROUP_NETWORK: str = "network"
 
 
 class ProjectionError(ValueError):
@@ -69,11 +99,17 @@ def _group_rows(
 
 
 def _is_ansible_host_candidate(row: dict[str, Any]) -> bool:
+    """Check if instance row represents a host manageable by Ansible.
+
+    Excludes infrastructure objects (cables, physical links) that cannot
+    be managed via SSH/Ansible.
+    """
     class_ref = str(row.get("class_ref", ""))
     object_ref = str(row.get("object_ref", ""))
-    if class_ref == "class.network.physical_link":
+    # ADR0078 WP-005: Use module-level constants instead of inline literals
+    if class_ref in ANSIBLE_HOST_EXCLUDED_CLASS_REFS:
         return False
-    if object_ref == "obj.network.ethernet_cable":
+    if object_ref in ANSIBLE_HOST_EXCLUDED_OBJECT_REFS:
         return False
     return True
 

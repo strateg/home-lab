@@ -8,6 +8,13 @@ from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, St
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.object_projection_loader import load_bootstrap_projection_module
 
+# ADR0078 WP-003: Use shared helpers from _shared/plugins/
+from topology.object_modules._shared.plugins.bootstrap_helpers import (
+    get_bootstrap_files,
+    get_post_install_readme,
+    get_post_install_scripts,
+)
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 ProjectionError = _BOOTSTRAP_PROJECTIONS.ProjectionError
 build_bootstrap_projection = _BOOTSTRAP_PROJECTIONS.build_bootstrap_projection
@@ -18,27 +25,6 @@ class BootstrapProxmoxGenerator(BaseGenerator):
 
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="proxmox")
-
-    def _get_bootstrap_files(self, ctx: PluginContext) -> list[dict]:
-        """Get bootstrap file mappings from config (ADR0078)."""
-        bootstrap_files = ctx.config.get("bootstrap_files")
-        if isinstance(bootstrap_files, list):
-            return bootstrap_files
-        return []
-
-    def _get_post_install_scripts(self, ctx: PluginContext) -> list[dict]:
-        """Get post-install script mappings from config (ADR0078)."""
-        scripts = ctx.config.get("post_install_scripts")
-        if isinstance(scripts, list):
-            return scripts
-        return []
-
-    def _get_post_install_readme(self, ctx: PluginContext) -> dict | None:
-        """Get post-install README mapping from config (ADR0078)."""
-        readme = ctx.config.get("post_install_readme")
-        if isinstance(readme, dict):
-            return readme
-        return None
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -72,9 +58,9 @@ class BootstrapProxmoxGenerator(BaseGenerator):
         nodes = projection.get("proxmox_nodes", [])
         written: list[str] = []
 
-        # Get file mappings from config (ADR0078)
-        bootstrap_files = self._get_bootstrap_files(ctx)
-        post_install_scripts = self._get_post_install_scripts(ctx)
+        # Get file mappings from config (ADR0078 WP-003)
+        bootstrap_files = get_bootstrap_files(ctx.config)
+        post_install_scripts = get_post_install_scripts(ctx.config)
 
         for row in nodes:
             instance_id = str(row.get("instance_id", "")).strip()
@@ -111,8 +97,8 @@ class BootstrapProxmoxGenerator(BaseGenerator):
                 )
                 written.append(str(script_path))
 
-            # Generate post-install README from config (ADR0078)
-            readme_config = self._get_post_install_readme(ctx)
+            # Generate post-install README from config (ADR0078 WP-003)
+            readme_config = get_post_install_readme(ctx.config)
             if readme_config:
                 readme_output = readme_config.get("output_file", "README.md")
                 readme_template = readme_config.get("template", "")

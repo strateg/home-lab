@@ -8,6 +8,9 @@ from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, St
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.object_projection_loader import load_bootstrap_projection_module
 
+# ADR0078 WP-003: Use shared helpers from _shared/plugins/
+from topology.object_modules._shared.plugins.bootstrap_helpers import get_bootstrap_files
+
 _BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
 ProjectionError = _BOOTSTRAP_PROJECTIONS.ProjectionError
 build_bootstrap_projection = _BOOTSTRAP_PROJECTIONS.build_bootstrap_projection
@@ -18,13 +21,6 @@ class BootstrapMikroTikGenerator(BaseGenerator):
 
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="mikrotik")
-
-    def _get_bootstrap_files(self, ctx: PluginContext) -> list[dict]:
-        """Get bootstrap file mappings from config (ADR0078)."""
-        bootstrap_files = ctx.config.get("bootstrap_files")
-        if isinstance(bootstrap_files, list):
-            return bootstrap_files
-        return []
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -58,8 +54,8 @@ class BootstrapMikroTikGenerator(BaseGenerator):
         nodes = projection.get("mikrotik_nodes", [])
         written: list[str] = []
 
-        # Get file mappings from config (ADR0078)
-        bootstrap_files = self._get_bootstrap_files(ctx)
+        # Get file mappings from config (ADR0078 WP-003)
+        bootstrap_files = get_bootstrap_files(ctx.config)
 
         for row in nodes:
             instance_id = str(row.get("instance_id", "")).strip()
