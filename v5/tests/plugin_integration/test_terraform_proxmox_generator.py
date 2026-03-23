@@ -26,6 +26,19 @@ def _load_generator_class():
 TerraformProxmoxGenerator = _load_generator_class()
 
 
+def _load_projection_module():
+    module_path = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "projections.py"
+    spec = importlib.util.spec_from_file_location("test_object_proxmox_projection_module", module_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+build_proxmox_projection = _load_projection_module().build_proxmox_projection
+
+
 def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
@@ -99,9 +112,7 @@ def test_terraform_proxmox_generator_derives_api_url_from_projection(tmp_path: P
     result = generator.execute(ctx, Stage.GENERATE)
 
     assert result.status == PluginStatus.SUCCESS
-    tfvars = (tmp_path / "generated" / "terraform" / "proxmox" / "terraform.tfvars.example").read_text(
-        encoding="utf-8"
-    )
+    tfvars = (tmp_path / "generated" / "terraform" / "proxmox" / "terraform.tfvars.example").read_text(encoding="utf-8")
     assert 'proxmox_api_url = "https://srv-gamayun:8006/api2/json"' in tfvars
 
 
@@ -113,7 +124,71 @@ def test_terraform_proxmox_generator_prefers_configured_api_url(tmp_path: Path) 
     result = generator.execute(ctx, Stage.GENERATE)
 
     assert result.status == PluginStatus.SUCCESS
-    tfvars = (tmp_path / "generated" / "terraform" / "proxmox" / "terraform.tfvars.example").read_text(
-        encoding="utf-8"
-    )
+    tfvars = (tmp_path / "generated" / "terraform" / "proxmox" / "terraform.tfvars.example").read_text(encoding="utf-8")
     assert 'proxmox_api_url = "https://pve-api.example.invalid:8443/api2/json"' in tfvars
+
+
+def test_terraform_proxmox_generator_resolves_declarative_capability_template_config(tmp_path: Path) -> None:
+    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+    ctx.config["capability_templates"] = {
+        "ceph": {
+            "enabled_by": "capabilities.has_ceph",
+            "template": "terraform/ceph.tf.j2",
+            "output": "ceph.tf",
+        },
+        "ha": {
+            "enabled_by": "capabilities.has_ha",
+            "template": "terraform/ha.tf.j2",
+            "output": "ha.tf",
+        },
+    }
+
+    templates = generator._get_capability_templates({"has_ceph": True, "has_ha": False}, ctx)
+
+    assert templates == {"ceph.tf": "terraform/ceph.tf.j2"}
+
+
+def test_terraform_proxmox_generator_keeps_legacy_capability_template_compatibility(tmp_path: Path) -> None:
+    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+    ctx.config["capability_templates"] = [
+        {"capability_key": "has_ceph", "template": "terraform/ceph.tf.j2", "output_file": "ceph.tf"},
+        {"capability_key": "has_ha", "template": "terraform/ha.tf.j2", "output_file": "ha.tf"},
+    ]
+
+    templates = generator._get_capability_templates({"has_ceph": False, "has_ha": True}, ctx)
+
+    assert templates == {"ha.tf": "terraform/ha.tf.j2"}
+
+
+def test_proxmox_projection_derives_capability_flags_from_rows() -> None:
+    projection = build_proxmox_projection(
+        {
+            "instances": {
+                "devices": [
+                    {
+                        "instance_id": "srv-pve-a",
+                        "object_ref": "obj.proxmox.ve",
+                        "capabilities": ["cap.storage.pool.ceph", "cap.cluster.ha"],
+                    },
+                    {
+                        "instance_id": "srv-pve-b",
+                        "object_ref": "obj.proxmox.ve",
+                    },
+                ],
+                "lxc": [
+                    {
+                        "instance_id": "lxc-app",
+                        "object_ref": "obj.proxmox.lxc.debian12.base",
+                        "derived_capabilities": ["cap.vm.cloud_init"],
+                    }
+                ],
+                "services": [],
+            }
+        }
+    )
+
+    assert projection["capabilities"]["has_ceph"] is True
+    assert projection["capabilities"]["has_ha"] is True
+    assert projection["capabilities"]["has_cloud_init"] is True

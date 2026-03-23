@@ -35,6 +35,8 @@ def discover_object_projection_paths(*, object_modules_root: Path = OBJECT_MODUL
     for object_dir in sorted(object_modules_root.iterdir(), key=lambda entry: entry.name):
         if not object_dir.is_dir():
             continue
+        if object_dir.name.startswith("_"):
+            continue
         candidate = object_dir / "plugins" / "projections.py"
         if candidate.exists():
             paths[object_dir.name] = candidate

@@ -21,6 +21,7 @@ _derive_mikrotik_capability_flags = _MIKROTIK_PROJECTIONS._derive_mikrotik_capab
 _extract_capabilities = _MIKROTIK_PROJECTIONS._extract_capabilities
 build_mikrotik_projection = _MIKROTIK_PROJECTIONS.build_mikrotik_projection
 
+
 def _load_generator_class():
     module_path = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py"
     spec = importlib.util.spec_from_file_location("test_object_mikrotik_terraform_generator", module_path)
@@ -180,11 +181,19 @@ class TestMikroTikGeneratorCapabilityDriven:
     """Tests for capability-driven file generation."""
 
     def _ctx(self, tmp_path: Path, compiled_json: dict) -> PluginContext:
-        capability_templates = [
-            {"capability_key": "has_qos", "template": "terraform/qos.tf.j2", "output_file": "qos.tf"},
-            {"capability_key": "has_wireguard", "template": "terraform/vpn.tf.j2", "output_file": "vpn.tf"},
-            {"capability_key": "has_containers", "template": "terraform/containers.tf.j2", "output_file": "containers.tf"},
-        ]
+        capability_templates = {
+            "qos": {"enabled_by": "capabilities.has_qos", "template": "terraform/qos.tf.j2", "output": "qos.tf"},
+            "wireguard": {
+                "enabled_by": "capabilities.has_wireguard",
+                "template": "terraform/vpn.tf.j2",
+                "output": "vpn.tf",
+            },
+            "containers": {
+                "enabled_by": "capabilities.has_containers",
+                "template": "terraform/containers.tf.j2",
+                "output": "containers.tf",
+            },
+        }
         return PluginContext(
             topology_path="v5/topology/topology.yaml",
             profile="test",
@@ -197,9 +206,7 @@ class TestMikroTikGeneratorCapabilityDriven:
             },
         )
 
-    def test_generates_vpn_tf_when_wireguard_capability(
-        self, tmp_path: Path
-    ) -> None:
+    def test_generates_vpn_tf_when_wireguard_capability(self, tmp_path: Path) -> None:
         compiled_json = {
             "instances": {
                 "devices": [
@@ -222,9 +229,7 @@ class TestMikroTikGeneratorCapabilityDriven:
         generated_files = [Path(f).name for f in result.output_data.get("terraform_mikrotik_files", [])]
         assert "vpn.tf" in generated_files
 
-    def test_skips_vpn_tf_without_wireguard_capability(
-        self, tmp_path: Path
-    ) -> None:
+    def test_skips_vpn_tf_without_wireguard_capability(self, tmp_path: Path) -> None:
         compiled_json = {
             "instances": {
                 "devices": [

@@ -32,6 +32,19 @@ def test_discover_object_projection_paths_ignores_missing_projection_files(tmp_p
     assert sorted(paths) == ["mikrotik"]
 
 
+def test_discover_object_projection_paths_ignores_service_directories(tmp_path: Path) -> None:
+    (tmp_path / "mikrotik" / "plugins").mkdir(parents=True)
+    (tmp_path / "mikrotik" / "plugins" / "projections.py").write_text("# ok\n", encoding="utf-8")
+    (tmp_path / "_shared" / "plugins").mkdir(parents=True)
+    (tmp_path / "_shared" / "plugins" / "projections.py").write_text("# helper\n", encoding="utf-8")
+    (tmp_path / "_internal" / "plugins").mkdir(parents=True)
+    (tmp_path / "_internal" / "plugins" / "projections.py").write_text("# helper\n", encoding="utf-8")
+
+    paths = discover_object_projection_paths(object_modules_root=tmp_path)
+
+    assert sorted(paths) == ["mikrotik"]
+
+
 def test_load_object_projection_module_unknown_id_lists_discovered_modules() -> None:
     try:
         load_object_projection_module("unknown-object")

@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
-import re
 
 import yaml
-
 from identifier_policy import contains_unsafe_identifier_chars
 
 INSTANCE_SOURCE_MODES = {"auto", "sharded-only"}
@@ -58,6 +57,7 @@ def discover_plugin_manifests(
     base_manifest_path: Path,
     class_modules_root: Path,
     object_modules_root: Path,
+    instance_manifests_root: Path | None = None,
     manifest_name: str = "plugins.yaml",
 ) -> list[Path]:
     """Discover plugin manifests with deterministic merge order.
@@ -66,13 +66,20 @@ def discover_plugin_manifests(
     1. explicit base manifest from CLI/config
     2. class module manifests (sorted lexicographically by relative path)
     3. object module manifests (sorted lexicographically by relative path)
+    4. instance manifests (sorted lexicographically by relative path)
     """
 
     discovered: list[tuple[int, str, Path]] = []
-    roots = ((0, class_modules_root), (1, object_modules_root))
+    roots: list[tuple[int, Path | None]] = [
+        (0, class_modules_root),
+        (1, object_modules_root),
+        (2, instance_manifests_root),
+    ]
     base_resolved = base_manifest_path.resolve()
 
     for root_order, root in roots:
+        if root is None:
+            continue
         if not root.exists() or not root.is_dir():
             continue
         for manifest_path in root.rglob(manifest_name):
@@ -422,8 +429,7 @@ def _load_sharded_instance_payload(
                 severity="error",
                 stage="validate",
                 message=(
-                    f"Layer bucket '{layer_bucket}' does not match layer '{layer}'. "
-                    f"Expected '{expected_bucket}'."
+                    f"Layer bucket '{layer_bucket}' does not match layer '{layer}'. " f"Expected '{expected_bucket}'."
                 ),
                 path=_diag_path(repo_root=repo_root, path=path),
             )

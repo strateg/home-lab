@@ -5,13 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from kernel.plugin_base import (
-    PluginContext,
-    PluginDataExchangeError,
-    PluginResult,
-    Stage,
-    ValidatorYamlPlugin,
-)
+from kernel.plugin_base import PluginContext, PluginDataExchangeError, PluginResult, Stage, ValidatorYamlPlugin
 
 
 class GovernanceContractValidator(ValidatorYamlPlugin):
@@ -34,6 +28,16 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
         raw = ctx.raw_yaml if isinstance(ctx.raw_yaml, dict) else {}
 
         version = raw.get("version")
+        if not isinstance(version, str) or not version:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W7813",
+                    severity="warning",
+                    stage=stage,
+                    message="topology version is not set; explicit 5.x version is required.",
+                    path="topology:version",
+                )
+            )
         if not isinstance(version, str) or not version.startswith("5."):
             diagnostics.append(
                 self.emit_diagnostic(
@@ -204,8 +208,7 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
                             severity="error",
                             stage=stage,
                             message=(
-                                f"meta.metadata.last_updated '{last_updated}' is earlier than "
-                                f"created '{created}'."
+                                f"meta.metadata.last_updated '{last_updated}' is earlier than " f"created '{created}'."
                             ),
                             path="topology:meta.metadata.last_updated",
                         )
@@ -308,3 +311,50 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
                         path="topology:meta.defaults.refs.network_manager_device_ref",
                     )
                 )
+            elif not self._is_network_manager_row(ctx=ctx, row=mgr_row):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E7812",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"meta.defaults.refs.network_manager_device_ref '{mgr_ref}' "
+                            "must reference a network-class device."
+                        ),
+                        path="topology:meta.defaults.refs.network_manager_device_ref",
+                    )
+                )
+
+    @staticmethod
+    def _looks_like_network_class(class_ref: str) -> bool:
+        normalized = class_ref.strip().lower()
+        if not normalized:
+            return False
+        if normalized.startswith("class.network.") or normalized.startswith("class.router"):
+            return True
+        return ".router" in normalized or ".switch" in normalized
+
+    def _is_network_manager_row(self, *, ctx: PluginContext, row: dict[str, Any]) -> bool:
+        class_ref = row.get("class_ref")
+        if isinstance(class_ref, str) and self._looks_like_network_class(class_ref):
+            return True
+
+        if isinstance(class_ref, str):
+            class_payload = ctx.classes.get(class_ref) if isinstance(ctx.classes, dict) else None
+            if isinstance(class_payload, dict):
+                for key in ("required_capabilities", "optional_capabilities"):
+                    capabilities = class_payload.get(key)
+                    if not isinstance(capabilities, list):
+                        continue
+                    for capability in capabilities:
+                        if isinstance(capability, str) and capability.startswith("cap.net."):
+                            return True
+
+        extensions = row.get("extensions")
+        if isinstance(extensions, dict):
+            capabilities = extensions.get("capabilities")
+            if isinstance(capabilities, list):
+                for capability in capabilities:
+                    if isinstance(capability, str) and capability.startswith("cap.net."):
+                        return True
+        return False

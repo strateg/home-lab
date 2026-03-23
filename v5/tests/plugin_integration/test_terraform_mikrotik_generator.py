@@ -27,11 +27,19 @@ TerraformMikroTikGenerator = _load_generator_class()
 
 
 def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
-    capability_templates = [
-        {"capability_key": "has_qos", "template": "terraform/qos.tf.j2", "output_file": "qos.tf"},
-        {"capability_key": "has_wireguard", "template": "terraform/vpn.tf.j2", "output_file": "vpn.tf"},
-        {"capability_key": "has_containers", "template": "terraform/containers.tf.j2", "output_file": "containers.tf"},
-    ]
+    capability_templates = {
+        "qos": {"enabled_by": "capabilities.has_qos", "template": "terraform/qos.tf.j2", "output": "qos.tf"},
+        "wireguard": {
+            "enabled_by": "capabilities.has_wireguard",
+            "template": "terraform/vpn.tf.j2",
+            "output": "vpn.tf",
+        },
+        "containers": {
+            "enabled_by": "capabilities.has_containers",
+            "template": "terraform/containers.tf.j2",
+            "output": "containers.tf",
+        },
+    }
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
@@ -141,9 +149,13 @@ def test_terraform_mikrotik_generator_prefers_configured_host(tmp_path: Path) ->
 def test_terraform_mikrotik_generator_respects_capability_template_config(tmp_path: Path) -> None:
     generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
     ctx = _ctx(tmp_path, _compiled_fixture())
-    ctx.config["capability_templates"] = [
-        {"capability_key": "has_wireguard", "template": "terraform/vpn.tf.j2", "output_file": "vpn.tf"}
-    ]
+    ctx.config["capability_templates"] = {
+        "wireguard": {
+            "enabled_by": "capabilities.has_wireguard",
+            "template": "terraform/vpn.tf.j2",
+            "output": "vpn.tf",
+        }
+    }
 
     result = generator.execute(ctx, Stage.GENERATE)
 
@@ -154,3 +166,17 @@ def test_terraform_mikrotik_generator_respects_capability_template_config(tmp_pa
     assert "qos.tf" not in generated
     assert "containers.tf" not in generated
 
+
+def test_terraform_mikrotik_generator_keeps_legacy_capability_template_compatibility(tmp_path: Path) -> None:
+    generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+    ctx.config["capability_templates"] = [
+        {"capability_key": "has_wireguard", "template": "terraform/vpn.tf.j2", "output_file": "vpn.tf"}
+    ]
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    target_dir = tmp_path / "generated" / "terraform" / "mikrotik"
+    generated = {path.name for path in target_dir.iterdir()}
+    assert "vpn.tf" in generated

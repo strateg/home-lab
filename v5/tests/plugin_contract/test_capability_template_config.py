@@ -13,9 +13,7 @@ PROXMOX_MANIFEST = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugin
 MIKROTIK_GENERATOR = (
     V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py"
 )
-PROXMOX_GENERATOR = (
-    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "terraform_proxmox_generator.py"
-)
+PROXMOX_GENERATOR = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "terraform_proxmox_generator.py"
 
 
 def _plugin_entry(manifest_path: Path, plugin_id: str) -> dict:
@@ -34,21 +32,22 @@ def test_mikrotik_manifest_externalizes_capability_template_mapping() -> None:
     config = plugin.get("config")
     assert isinstance(config, dict), "Generator config must be a mapping"
     capability_templates = config.get("capability_templates")
-    assert isinstance(capability_templates, list) and capability_templates, (
-        "capability_templates must be configured in module manifest"
-    )
+    assert (
+        isinstance(capability_templates, dict) and capability_templates
+    ), "capability_templates must be configured in module manifest"
 
-    for idx, row in enumerate(capability_templates):
-        assert isinstance(row, dict), f"capability_templates[{idx}] must be mapping/object"
-        assert isinstance(row.get("capability_key"), str) and row.get("capability_key"), (
-            f"capability_templates[{idx}].capability_key must be non-empty string"
-        )
-        assert isinstance(row.get("template"), str) and row.get("template"), (
-            f"capability_templates[{idx}].template must be non-empty string"
-        )
-        assert isinstance(row.get("output_file"), str) and row.get("output_file"), (
-            f"capability_templates[{idx}].output_file must be non-empty string"
-        )
+    for capability_id, row in capability_templates.items():
+        assert isinstance(capability_id, str) and capability_id, "capability_templates keys must be non-empty strings"
+        assert isinstance(row, dict), f"capability_templates.{capability_id} must be mapping/object"
+        assert isinstance(row.get("enabled_by"), str) and row.get(
+            "enabled_by"
+        ), f"capability_templates.{capability_id}.enabled_by must be non-empty string"
+        assert isinstance(row.get("template"), str) and row.get(
+            "template"
+        ), f"capability_templates.{capability_id}.template must be non-empty string"
+        assert isinstance(row.get("output"), str) and row.get(
+            "output"
+        ), f"capability_templates.{capability_id}.output must be non-empty string"
     assert "mikrotik_api_host" in config
     assert "mikrotik_host" in config
 
@@ -61,12 +60,13 @@ def test_mikrotik_manifest_schema_declares_capability_template_structure() -> No
     assert isinstance(properties, dict), "Generator config_schema.properties must be a mapping"
     cap_schema = properties.get("capability_templates")
     assert isinstance(cap_schema, dict), "config_schema must declare capability_templates"
-    items = cap_schema.get("items")
-    assert isinstance(items, dict), "capability_templates.items must be a mapping"
+    assert cap_schema.get("type") == "object"
+    items = cap_schema.get("additionalProperties")
+    assert isinstance(items, dict), "capability_templates.additionalProperties must be a mapping"
     required = items.get("required")
-    assert isinstance(required, list), "capability_templates.items.required must be a list"
-    for field in ("capability_key", "template", "output_file"):
-        assert field in required, f"capability_templates.items.required must include '{field}'"
+    assert isinstance(required, list), "capability_templates.additionalProperties.required must be a list"
+    for field in ("enabled_by", "template", "output"):
+        assert field in required, f"capability_templates.additionalProperties.required must include '{field}'"
     assert "mikrotik_api_host" in properties
     assert "mikrotik_host" in properties
 
@@ -88,9 +88,9 @@ def test_mikrotik_generator_has_no_hardcoded_capability_template_fallbacks() -> 
     assert "_DEFAULT_CAPABILITY_TEMPLATES" not in body, "Capability-template defaults must not be hardcoded in code"
     assert 'templates["qos.tf"]' not in body, "Capability template selection must not be hardcoded in generator code"
     assert 'templates["vpn.tf"]' not in body, "Capability template selection must not be hardcoded in generator code"
-    assert 'templates["containers.tf"]' not in body, (
-        "Capability template selection must not be hardcoded in generator code"
-    )
+    assert (
+        'templates["containers.tf"]' not in body
+    ), "Capability template selection must not be hardcoded in generator code"
 
 
 def test_proxmox_manifest_externalizes_capability_template_mapping() -> None:
@@ -98,21 +98,22 @@ def test_proxmox_manifest_externalizes_capability_template_mapping() -> None:
     config = plugin.get("config")
     assert isinstance(config, dict), "Generator config must be a mapping"
     capability_templates = config.get("capability_templates")
-    assert isinstance(capability_templates, list) and capability_templates, (
-        "capability_templates must be configured in module manifest"
-    )
+    assert (
+        isinstance(capability_templates, dict) and capability_templates
+    ), "capability_templates must be configured in module manifest"
 
-    for idx, row in enumerate(capability_templates):
-        assert isinstance(row, dict), f"capability_templates[{idx}] must be mapping/object"
-        assert isinstance(row.get("capability_key"), str) and row.get("capability_key"), (
-            f"capability_templates[{idx}].capability_key must be non-empty string"
-        )
-        assert isinstance(row.get("template"), str) and row.get("template"), (
-            f"capability_templates[{idx}].template must be non-empty string"
-        )
-        assert isinstance(row.get("output_file"), str) and row.get("output_file"), (
-            f"capability_templates[{idx}].output_file must be non-empty string"
-        )
+    for capability_id, row in capability_templates.items():
+        assert isinstance(capability_id, str) and capability_id, "capability_templates keys must be non-empty strings"
+        assert isinstance(row, dict), f"capability_templates.{capability_id} must be mapping/object"
+        assert isinstance(row.get("enabled_by"), str) and row.get(
+            "enabled_by"
+        ), f"capability_templates.{capability_id}.enabled_by must be non-empty string"
+        assert isinstance(row.get("template"), str) and row.get(
+            "template"
+        ), f"capability_templates.{capability_id}.template must be non-empty string"
+        assert isinstance(row.get("output"), str) and row.get(
+            "output"
+        ), f"capability_templates.{capability_id}.output must be non-empty string"
 
 
 def test_proxmox_manifest_schema_declares_capability_template_structure() -> None:
@@ -123,12 +124,13 @@ def test_proxmox_manifest_schema_declares_capability_template_structure() -> Non
     assert isinstance(properties, dict), "Generator config_schema.properties must be a mapping"
     cap_schema = properties.get("capability_templates")
     assert isinstance(cap_schema, dict), "config_schema must declare capability_templates"
-    items = cap_schema.get("items")
-    assert isinstance(items, dict), "capability_templates.items must be a mapping"
+    assert cap_schema.get("type") == "object"
+    items = cap_schema.get("additionalProperties")
+    assert isinstance(items, dict), "capability_templates.additionalProperties must be a mapping"
     required = items.get("required")
-    assert isinstance(required, list), "capability_templates.items.required must be a list"
-    for field in ("capability_key", "template", "output_file"):
-        assert field in required, f"capability_templates.items.required must include '{field}'"
+    assert isinstance(required, list), "capability_templates.additionalProperties.required must be a list"
+    for field in ("enabled_by", "template", "output"):
+        assert field in required, f"capability_templates.additionalProperties.required must include '{field}'"
 
 
 def test_proxmox_generator_has_no_hardcoded_capability_template_fallbacks() -> None:
@@ -136,6 +138,16 @@ def test_proxmox_generator_has_no_hardcoded_capability_template_fallbacks() -> N
     assert "_DEFAULT_CAPABILITY_TEMPLATES" not in body, "Capability-template defaults must not be hardcoded in code"
     assert 'templates["ceph.tf"]' not in body, "Capability template selection must not be hardcoded in generator code"
     assert 'templates["ha.tf"]' not in body, "Capability template selection must not be hardcoded in generator code"
-    assert 'templates["cloud-init.tf"]' not in body, (
-        "Capability template selection must not be hardcoded in generator code"
-    )
+    assert (
+        'templates["cloud-init.tf"]' not in body
+    ), "Capability template selection must not be hardcoded in generator code"
+
+
+def test_generators_keep_temporary_legacy_capability_mapping_compatibility() -> None:
+    mikrotik_body = MIKROTIK_GENERATOR.read_text(encoding="utf-8")
+    proxmox_body = PROXMOX_GENERATOR.read_text(encoding="utf-8")
+
+    assert 'mapping.get("capability_key"' in mikrotik_body
+    assert 'mapping.get("output_file"' in mikrotik_body
+    assert 'mapping.get("capability_key"' in proxmox_body
+    assert 'mapping.get("output_file"' in proxmox_body

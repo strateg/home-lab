@@ -49,11 +49,19 @@ TerraformProxmoxGenerator = _load_generator_class(
 
 
 def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
-    capability_templates = [
-        {"capability_key": "has_qos", "template": "terraform/qos.tf.j2", "output_file": "qos.tf"},
-        {"capability_key": "has_wireguard", "template": "terraform/vpn.tf.j2", "output_file": "vpn.tf"},
-        {"capability_key": "has_containers", "template": "terraform/containers.tf.j2", "output_file": "containers.tf"},
-    ]
+    capability_templates = {
+        "qos": {"enabled_by": "capabilities.has_qos", "template": "terraform/qos.tf.j2", "output": "qos.tf"},
+        "wireguard": {
+            "enabled_by": "capabilities.has_wireguard",
+            "template": "terraform/vpn.tf.j2",
+            "output": "vpn.tf",
+        },
+        "containers": {
+            "enabled_by": "capabilities.has_containers",
+            "template": "terraform/containers.tf.j2",
+            "output": "containers.tf",
+        },
+    }
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",

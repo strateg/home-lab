@@ -1,3 +1,4 @@
+
 instance: inst.storage.pool.local
 object_ref: obj.storage.pool.local
 group: storage

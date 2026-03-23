@@ -19,6 +19,15 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
 
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
+    _NETWORK_CLASS_EXCLUSIONS = {
+        "class.network.bridge",
+        "class.network.trust_zone",
+        "class.network.firewall_policy",
+        "class.network.firewall_rule",
+        "class.network.data_link",
+        "class.network.physical_link",
+        "class.network.qos",
+    }
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -45,7 +54,7 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
 
         for row in rows:
             class_ref = row.get("class_ref")
-            if class_ref == "class.network.vlan":
+            if self._is_network_row(row):
                 self._validate_vlan_refs(ctx=ctx, row=row, row_by_id=row_by_id, stage=stage, diagnostics=diagnostics)
             elif class_ref == "class.network.bridge":
                 self._validate_bridge_refs(ctx=ctx, row=row, row_by_id=row_by_id, stage=stage, diagnostics=diagnostics)
@@ -222,3 +231,13 @@ class NetworkCoreRefsValidator(ValidatorJsonPlugin):
         if isinstance(properties, dict):
             return properties.get(key)
         return None
+
+    def _is_network_row(self, row: dict[str, Any]) -> bool:
+        class_ref = row.get("class_ref")
+        if not isinstance(class_ref, str):
+            return False
+        if not class_ref.startswith("class.network."):
+            return False
+        if class_ref in self._NETWORK_CLASS_EXCLUSIONS:
+            return False
+        return row.get("layer") in {None, "L2"}

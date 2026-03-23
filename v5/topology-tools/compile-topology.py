@@ -222,7 +222,13 @@ class V5Compiler:
         except ValueError:
             return str(path.as_posix())
 
-    def _load_plugin_manifests(self, *, class_modules_root: Path, object_modules_root: Path) -> None:
+    def _load_plugin_manifests(
+        self,
+        *,
+        class_modules_root: Path,
+        object_modules_root: Path,
+        instance_manifests_root: Path | None = None,
+    ) -> None:
         """Load base + module plugin manifests in deterministic order."""
         if not self._plugin_registry or self._plugin_manifests_loaded:
             return
@@ -231,6 +237,7 @@ class V5Compiler:
             base_manifest_path=self.plugins_manifest_path,
             class_modules_root=class_modules_root,
             object_modules_root=object_modules_root,
+            instance_manifests_root=instance_manifests_root,
         )
 
         loaded_count = 0
@@ -588,7 +595,9 @@ class V5Compiler:
         if not project_manifest_path.exists() and root_level_project_manifest.exists():
             project_root = projects_root_path
             project_manifest_path = root_level_project_manifest
-        project_manifest = self._load_yaml(project_manifest_path, code_missing="E1001", code_parse="E1003", stage="load")
+        project_manifest = self._load_yaml(
+            project_manifest_path, code_missing="E1001", code_parse="E1003", stage="load"
+        )
         if project_manifest is None:
             total, errors, warnings, infos = self._write_diagnostics()
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
@@ -646,6 +655,7 @@ class V5Compiler:
         self._load_plugin_manifests(
             class_modules_root=manifest_bundle.class_modules_root,
             object_modules_root=manifest_bundle.object_modules_root,
+            instance_manifests_root=manifest_bundle.instances_root_path,
         )
         source_manifest_digest = manifest_digest(manifest)
 

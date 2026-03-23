@@ -19,6 +19,15 @@ class NetworkFirewallAddressabilityValidator(ValidatorJsonPlugin):
 
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
+    _NETWORK_CLASS_EXCLUSIONS = {
+        "class.network.bridge",
+        "class.network.trust_zone",
+        "class.network.firewall_policy",
+        "class.network.firewall_rule",
+        "class.network.data_link",
+        "class.network.physical_link",
+        "class.network.qos",
+    }
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -46,7 +55,7 @@ class NetworkFirewallAddressabilityValidator(ValidatorJsonPlugin):
         network_cidr_by_id: dict[str, str] = {}
         zone_has_static_cidr: dict[str, bool] = {}
         for row in rows:
-            if row.get("class_ref") != "class.network.vlan":
+            if not self._is_network_row(row):
                 continue
             row_id = row.get("instance")
             if not isinstance(row_id, str) or not row_id:
@@ -129,3 +138,13 @@ class NetworkFirewallAddressabilityValidator(ValidatorJsonPlugin):
         if isinstance(properties, dict):
             return properties.get(key)
         return None
+
+    def _is_network_row(self, row: dict[str, Any]) -> bool:
+        class_ref = row.get("class_ref")
+        if not isinstance(class_ref, str):
+            return False
+        if not class_ref.startswith("class.network."):
+            return False
+        if class_ref in self._NETWORK_CLASS_EXCLUSIONS:
+            return False
+        return row.get("layer") in {None, "L2"}

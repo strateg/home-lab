@@ -31,33 +31,57 @@ class TerraformProxmoxGenerator(BaseGenerator):
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="proxmox")
 
-    def _get_capability_templates(
-        self, capabilities: dict, ctx: PluginContext
-    ) -> dict[str, str]:
+    def _get_capability_templates(self, capabilities: dict, ctx: PluginContext) -> dict[str, str]:
         """Resolve capability-driven templates from config.
 
         Returns dict mapping output_file -> template_path for enabled capabilities.
         """
         result: dict[str, str] = {}
         cap_templates = ctx.config.get("capability_templates")
-        if not isinstance(cap_templates, list):
+        if isinstance(cap_templates, dict):
+            template_rows = list(cap_templates.values())
+        elif isinstance(cap_templates, list):
+            template_rows = cap_templates
+        else:
             return result
 
-        for mapping in cap_templates:
+        for mapping in template_rows:
             if not isinstance(mapping, dict):
                 continue
-            cap_key = mapping.get("capability_key", "")
-            template = mapping.get("template", "")
-            output_file = mapping.get("output_file", "")
 
-            if not cap_key or not template or not output_file:
+            enabled_by = mapping.get("enabled_by")
+            if not isinstance(enabled_by, str) or not enabled_by.strip():
+                cap_key = mapping.get("capability_key", "")
+                if isinstance(cap_key, str) and cap_key.strip():
+                    enabled_by = f"capabilities.{cap_key.strip()}"
+
+            template = mapping.get("template", "")
+            output_file = mapping.get("output")
+            if not isinstance(output_file, str) or not output_file.strip():
+                output_file = mapping.get("output_file", "")
+
+            if not isinstance(enabled_by, str) or not enabled_by.strip() or not template or not output_file:
                 continue
 
-            # Check if capability is enabled in projection
-            if capabilities.get(cap_key, False):
-                result[output_file] = template
+            if self._capability_expression_enabled(capabilities, enabled_by):
+                result[str(output_file)] = str(template)
 
         return result
+
+    @staticmethod
+    def _capability_expression_enabled(capabilities: dict, enabled_by: str) -> bool:
+        expr = enabled_by.strip()
+        if not expr:
+            return False
+        if expr.startswith("capabilities."):
+            expr = expr[len("capabilities.") :]
+
+        current = capabilities
+        for segment in expr.split("."):
+            if not isinstance(current, dict):
+                return False
+            current = current.get(segment)
+        return bool(current)
 
     @classmethod
     def _resolve_proxmox_api_url(cls, *, ctx: PluginContext, proxmox_nodes: list[str]) -> str:

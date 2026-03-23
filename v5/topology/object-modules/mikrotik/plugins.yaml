@@ -31,15 +31,18 @@ plugins:
       mikrotik_host: ""
       # Capability-driven template mappings (ADR0078 WP9)
       capability_templates:
-        - capability_key: has_qos
+        qos:
+          enabled_by: capabilities.has_qos
           template: terraform/qos.tf.j2
-          output_file: qos.tf
-        - capability_key: has_wireguard
+          output: qos.tf
+        wireguard:
+          enabled_by: capabilities.has_wireguard
           template: terraform/vpn.tf.j2
-          output_file: vpn.tf
-        - capability_key: has_containers
+          output: vpn.tf
+        containers:
+          enabled_by: capabilities.has_containers
           template: terraform/containers.tf.j2
-          output_file: containers.tf
+          output: containers.tf
     config_schema:
       type: object
       properties:
@@ -59,21 +62,21 @@ plugins:
           type: string
           description: Legacy alias for mikrotik_api_host (kept for compatibility).
         capability_templates:
-          type: array
+          type: object
           description: Capability-driven template mappings for conditional artifact generation.
-          items:
+          additionalProperties:
             type: object
             properties:
-              capability_key:
+              enabled_by:
                 type: string
-                description: Key in projection capabilities dict to check.
+                description: Capability expression evaluated against projection capabilities.
               template:
                 type: string
                 description: Template path relative to object template root.
-              output_file:
+              output:
                 type: string
                 description: Output filename for generated artifact.
-            required: [capability_key, template, output_file]
+            required: [enabled_by, template, output]
       required: []
     description: Emits baseline Terraform artifacts for MikroTik from v5 projections (Phase 4 bootstrap).
 

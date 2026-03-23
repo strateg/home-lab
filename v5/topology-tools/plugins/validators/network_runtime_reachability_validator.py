@@ -20,6 +20,15 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
     _HOST_OS_ACTIVE_STATUS = "active"
+    _NETWORK_CLASS_EXCLUSIONS = {
+        "class.network.bridge",
+        "class.network.trust_zone",
+        "class.network.firewall_policy",
+        "class.network.firewall_rule",
+        "class.network.data_link",
+        "class.network.physical_link",
+        "class.network.qos",
+    }
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -81,7 +90,7 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
             if class_ref == "class.compute.cloud_vm":
                 vm_networks_by_id[row_id] = self._extract_network_refs(ctx=ctx, row=row)
                 continue
-            if class_ref == "class.network.vlan":
+            if self._is_network_row(row):
                 network_reachable_devices[row_id] = set()
                 network_reachable_host_os[row_id] = set()
                 network_plane = self._resolve_field(ctx=ctx, row=row, key="network_plane")
@@ -206,3 +215,13 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
         if isinstance(properties, dict):
             return properties.get(key)
         return None
+
+    def _is_network_row(self, row: dict[str, Any]) -> bool:
+        class_ref = row.get("class_ref")
+        if not isinstance(class_ref, str):
+            return False
+        if not class_ref.startswith("class.network."):
+            return False
+        if class_ref in self._NETWORK_CLASS_EXCLUSIONS:
+            return False
+        return row.get("layer") in {None, "L2"}

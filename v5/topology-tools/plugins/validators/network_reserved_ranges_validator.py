@@ -20,6 +20,15 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
 
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
+    _NETWORK_CLASS_EXCLUSIONS = {
+        "class.network.bridge",
+        "class.network.trust_zone",
+        "class.network.firewall_policy",
+        "class.network.firewall_rule",
+        "class.network.data_link",
+        "class.network.physical_link",
+        "class.network.qos",
+    }
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -39,7 +48,7 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
 
         rows = [item for item in rows_payload if isinstance(item, dict)] if isinstance(rows_payload, list) else []
         for row in rows:
-            if row.get("class_ref") != "class.network.vlan":
+            if not self._is_network_row(row):
                 continue
             self._validate_vlan_row(ctx=ctx, row=row, stage=stage, diagnostics=diagnostics)
 
@@ -119,9 +128,7 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
                         code="E7820",
                         severity="error",
                         stage=stage,
-                        message=(
-                            f"reserved range {start_str}-{end_str} is outside CIDR '{cidr}' for '{row_id}'."
-                        ),
+                        message=(f"reserved range {start_str}-{end_str} is outside CIDR '{cidr}' for '{row_id}'."),
                         path=f"{ranges_path}[{idx}]",
                     )
                 )
@@ -183,3 +190,13 @@ class NetworkReservedRangesValidator(ValidatorJsonPlugin):
         if isinstance(properties, dict):
             return object_cidr, object_ranges, f"{row_prefix}.reserved_ranges"
         return None, None, f"{row_prefix}.reserved_ranges"
+
+    def _is_network_row(self, row: dict[str, Any]) -> bool:
+        class_ref = row.get("class_ref")
+        if not isinstance(class_ref, str):
+            return False
+        if not class_ref.startswith("class.network."):
+            return False
+        if class_ref in self._NETWORK_CLASS_EXCLUSIONS:
+            return False
+        return row.get("layer") in {None, "L2"}

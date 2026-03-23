@@ -16,6 +16,35 @@ from plugins.generators.projection_core import (
 )
 
 
+def _extract_capabilities(row: dict[str, Any]) -> set[str]:
+    """Extract capability ids from compiled row payload."""
+    caps: set[str] = set()
+    for field_name in ("capabilities", "derived_capabilities", "enabled_capabilities"):
+        raw_caps = row.get(field_name)
+        if isinstance(raw_caps, list):
+            for cap in raw_caps:
+                if isinstance(cap, str) and cap:
+                    caps.add(cap)
+    return caps
+
+
+def _derive_proxmox_capability_flags(
+    proxmox_nodes: list[dict[str, Any]],
+    lxc_rows: list[dict[str, Any]],
+    service_rows: list[dict[str, Any]],
+) -> dict[str, bool]:
+    """Derive boolean capability flags for optional Terraform templates."""
+    all_caps: set[str] = set()
+    for row in [*proxmox_nodes, *lxc_rows, *service_rows]:
+        all_caps.update(_extract_capabilities(row))
+
+    return {
+        "has_ceph": "cap.storage.pool.ceph" in all_caps,
+        "has_ha": len(proxmox_nodes) > 1 or any("ha" in cap.lower() for cap in all_caps),
+        "has_cloud_init": any("cloud" in cap.lower() and "init" in cap.lower() for cap in all_caps),
+    }
+
+
 @dataclass
 class ProxmoxLXC:
     """Typed LXC container for Proxmox Terraform."""
@@ -75,10 +104,13 @@ def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         if isinstance(target_ref, str) and target_ref in lxc_targets:
             service_rows.append(row)
 
+    capability_flags = _derive_proxmox_capability_flags(proxmox_nodes, lxc_rows, service_rows)
+
     return {
         "proxmox_nodes": _sorted_rows(proxmox_nodes),
         "lxc": _sorted_rows(lxc_rows),
         "services": _sorted_rows(service_rows),
+        "capabilities": capability_flags,
         "counts": {
             "proxmox_nodes": len(proxmox_nodes),
             "lxc": len(lxc_rows),

@@ -17,6 +17,10 @@ V5_ROOT = Path(__file__).resolve().parents[2]
 
 CLASS_MANIFEST_ROOT = V5_ROOT / "topology" / "class-modules"
 OBJECT_MANIFEST_ROOT = V5_ROOT / "topology" / "object-modules"
+PRIVATE_IP_LITERAL_RE = re.compile(
+    r"\b(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})\b"
+)
+LOCAL_HOST_LITERAL_RE = re.compile(r"\b[a-z0-9][\w-]*\.(?:local|home|lan|internal)\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -78,6 +82,34 @@ def _iter_object_plugin_python_files() -> list[Path]:
     return files
 
 
+def _find_instance_specific_literal(literal: str) -> str | None:
+    stripped = literal.strip()
+    if not stripped:
+        return None
+
+    if "://" in stripped:
+        parsed = urlparse(stripped)
+        host = (parsed.hostname or "").strip().lower()
+        if host:
+            try:
+                if ipaddress.ip_address(host).is_private:
+                    return stripped
+            except ValueError:
+                pass
+            if LOCAL_HOST_LITERAL_RE.search(host):
+                return stripped
+
+    ip_match = PRIVATE_IP_LITERAL_RE.search(stripped)
+    if ip_match:
+        return ip_match.group(0)
+
+    host_match = LOCAL_HOST_LITERAL_RE.search(stripped)
+    if host_match:
+        return host_match.group(0)
+
+    return None
+
+
 def test_class_level_plugins_do_not_reference_object_or_instance_ids() -> None:
     plugin_files: list[Path] = []
     for manifest_path in _iter_manifests(CLASS_MANIFEST_ROOT):
@@ -87,10 +119,7 @@ def test_class_level_plugins_do_not_reference_object_or_instance_ids() -> None:
         plugin_files,
         forbidden_markers=("obj.", "inst."),
     )
-    assert violations == [], (
-        "Class-level plugins must not mention object or instance identifiers: "
-        f"{violations}"
-    )
+    assert violations == [], "Class-level plugins must not mention object or instance identifiers: " f"{violations}"
 
 
 def test_object_level_plugins_do_not_reference_instance_ids() -> None:
@@ -102,10 +131,7 @@ def test_object_level_plugins_do_not_reference_instance_ids() -> None:
         plugin_files,
         forbidden_markers=("inst.",),
     )
-    assert violations == [], (
-        "Object-level plugins must not mention instance identifiers: "
-        f"{violations}"
-    )
+    assert violations == [], "Object-level plugins must not mention instance identifiers: " f"{violations}"
 
 
 def test_module_level_plugins_do_not_mutate_sys_path() -> None:
@@ -117,8 +143,7 @@ def test_module_level_plugins_do_not_mutate_sys_path() -> None:
 
     violations = _collect_text_violations(plugin_files, forbidden_markers=("sys.path.insert(",))
     assert violations == [], (
-        "Class/object plugin modules must not mutate sys.path; import paths are kernel responsibility: "
-        f"{violations}"
+        "Class/object plugin modules must not mutate sys.path; import paths are kernel responsibility: " f"{violations}"
     )
 
 
@@ -199,21 +224,10 @@ def test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts()
             if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
                 continue
             literal = node.value.strip()
-            if "://" not in literal:
-                continue
-            parsed = urlparse(literal)
-            host = (parsed.hostname or "").strip().lower()
-            if not host:
-                continue
-            is_private_ip = False
-            try:
-                is_private_ip = ipaddress.ip_address(host).is_private
-            except ValueError:
-                is_private_ip = False
-            if is_private_ip or host.endswith(".local"):
-                violations.append(f"{rel}: hardcoded endpoint '{literal}'")
+            matched = _find_instance_specific_literal(literal)
+            if matched is not None:
+                violations.append(f"{rel}: hardcoded instance-specific literal '{matched}'")
 
     assert violations == [], (
-        "Object-level plugin Python files must not hardcode private-IP or .local URL endpoints: "
-        f"{violations}"
+        "Object-level plugin Python files must not hardcode deployment-specific IP/hostname literals: " f"{violations}"
     )
