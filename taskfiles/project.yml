@@ -1,5 +1,10 @@
 version: "3"
 
+vars:
+  VENV_ACTIVATE_BAT: .venv\Scripts\activate.bat
+  VENV_ACTIVATE_PWSH: .venv\Scripts\Activate.ps1
+  VENV_PYTHON: .venv\Scripts\python.exe
+
 tasks:
   init:
     desc: Initialize a new standalone project repo with framework submodule (requires FRAMEWORK_SUBMODULE_URL)
@@ -21,3 +26,25 @@ tasks:
     desc: Bootstrap project repo manifests/lock for an existing framework root
     cmds:
       - "{{.PYTHON}} v5/topology-tools/bootstrap-project-repo.py --framework-root \"{{.FRAMEWORK_SUBMODULE_PATH}}\" --output-root \"{{.PROJECT_ROOT}}\" --project-id \"{{.PROJECT_ID}}\" --force"
+
+  venv-cmd:
+    desc: Open a new cmd.exe session and activate .venv\Scripts\activate.bat
+    cmds:
+      - 'cmd.exe /k "if exist {{.VENV_ACTIVATE_BAT}} (call {{.VENV_ACTIVATE_BAT}}) else (echo Missing {{.VENV_ACTIVATE_BAT}} & exit /b 1)"'
+
+  venv-pwsh:
+    desc: Open a new PowerShell window with .venv activated
+    cmds:
+      - 'powershell.exe -NonInteractive -Command "if (Test-Path ''{{.VENV_ACTIVATE_PWSH}}'') { Start-Process powershell.exe -ArgumentList ''-NoExit -ExecutionPolicy Bypass -File {{.VENV_ACTIVATE_PWSH}}'' } else { Write-Error ''Missing {{.VENV_ACTIVATE_PWSH}}: run python -m venv .venv'' ; exit 1 }"'
+
+  python:
+    desc: 'Run .venv\Scripts\python.exe with optional CLI_ARGS (example: task project:python -- -m pytest)'
+    interactive: true
+    cmds:
+      - 'powershell.exe -Command "if (Test-Path ''{{.VENV_PYTHON}}'') { & ''{{.VENV_PYTHON}}'' {{.CLI_ARGS}} } else { Write-Error ''Missing {{.VENV_PYTHON}}: run python -m venv .venv'' ; exit 1 }"'
+
+  pip:
+    desc: 'Run .venv\Scripts\python.exe -m pip with optional CLI_ARGS (example: task project:pip -- install -r requirements-dev.txt)'
+    interactive: true
+    cmds:
+      - 'powershell.exe -Command "if (Test-Path ''{{.VENV_PYTHON}}'') { & ''{{.VENV_PYTHON}}'' -m pip {{.CLI_ARGS}} } else { Write-Error ''Missing {{.VENV_PYTHON}}: run python -m venv .venv'' ; exit 1 }"'

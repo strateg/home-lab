@@ -75,6 +75,25 @@ Project bootstrap (new repo + framework distribution zip):
 task project:init-from-dist -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_DIST_ZIP=D:/artifacts/infra-topology-framework-1.0.8.zip FRAMEWORK_DIST_VERSION=1.0.8
 ```
 
+Open a new `cmd.exe` session with local `.venv` activated:
+
+```bat
+task project:venv-cmd
+```
+
+Open a new PowerShell session with local `.venv` activated:
+
+```powershell
+task project:venv-pwsh
+```
+
+Run local `.venv` Python / pip without manual activation:
+
+```bat
+task project:python -- -m pytest
+task project:pip -- install -r requirements-dev.txt
+```
+
 Root orchestration is Task-only (`Taskfile.yml` + `taskfiles/*`).
 
 Minimum supported `go-task` version: `3.45.4` (CI is pinned to the same version).
