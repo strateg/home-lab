@@ -33,6 +33,13 @@ class BootstrapProxmoxGenerator(BaseGenerator):
             return scripts
         return []
 
+    def _get_post_install_readme(self, ctx: PluginContext) -> dict | None:
+        """Get post-install README mapping from config (ADR0078)."""
+        readme = ctx.config.get("post_install_readme")
+        if isinstance(readme, dict):
+            return readme
+        return None
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         payload = ctx.compiled_json
@@ -104,12 +111,18 @@ class BootstrapProxmoxGenerator(BaseGenerator):
                 )
                 written.append(str(script_path))
 
-            # Generate post-install README
-            self.write_text_atomic(
-                scripts_root / "README.md",
-                self.render_template(ctx, "bootstrap/post-install-readme.md.j2", {}),
-            )
-            written.append(str(scripts_root / "README.md"))
+            # Generate post-install README from config (ADR0078)
+            readme_config = self._get_post_install_readme(ctx)
+            if readme_config:
+                readme_output = readme_config.get("output_file", "README.md")
+                readme_template = readme_config.get("template", "")
+                if readme_template:
+                    readme_path = scripts_root / readme_output
+                    self.write_text_atomic(
+                        readme_path,
+                        self.render_template(ctx, readme_template, render_ctx),
+                    )
+                    written.append(str(readme_path))
 
         diagnostics.append(
             self.emit_diagnostic(

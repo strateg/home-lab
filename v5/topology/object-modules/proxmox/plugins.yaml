@@ -76,6 +76,10 @@ plugins:
           template: bootstrap/answer.toml.example.j2
         - output_file: README.md
           template: bootstrap/readme.md.j2
+      # Post-install README (ADR0078)
+      post_install_readme:
+        output_file: README.md
+        template: bootstrap/post-install-readme.md.j2
       # Post-install script mappings (ADR0078)
       post_install_scripts:
         - output_file: "01-install-terraform.sh"
@@ -112,6 +116,17 @@ plugins:
                 type: string
                 description: Template path relative to object template root.
             required: [output_file, template]
+        post_install_readme:
+          type: object
+          description: Post-install README file mapping (ADR0078).
+          properties:
+            output_file:
+              type: string
+              description: Output README filename relative to post-install directory.
+            template:
+              type: string
+              description: Template path relative to object template root.
+          required: [output_file, template]
         post_install_scripts:
           type: array
           description: Post-install script mappings.
