@@ -13,6 +13,17 @@ plugins:
       proxmox_provider_source: "bpg/proxmox"
       proxmox_provider_version: ">= 0.66.0"
       proxmox_api_url: ""
+      # Capability-driven template mappings (ADR0078)
+      capability_templates:
+        - capability_key: has_ceph
+          template: terraform/ceph.tf.j2
+          output_file: ceph.tf
+        - capability_key: has_ha
+          template: terraform/ha.tf.j2
+          output_file: ha.tf
+        - capability_key: has_cloud_init
+          template: terraform/cloud-init.tf.j2
+          output_file: cloud-init.tf
     config_schema:
       type: object
       properties:
@@ -28,6 +39,22 @@ plugins:
         proxmox_api_url:
           type: string
           description: Optional full Proxmox API endpoint URL override.
+        capability_templates:
+          type: array
+          description: Capability-driven template mappings for conditional artifact generation.
+          items:
+            type: object
+            properties:
+              capability_key:
+                type: string
+                description: Key in projection capabilities dict to check.
+              template:
+                type: string
+                description: Template path relative to object template root.
+              output_file:
+                type: string
+                description: Output filename for generated artifact.
+            required: [capability_key, template, output_file]
       required: []
     description: Emits baseline Terraform artifacts for Proxmox from v5 projections (Phase 3 bootstrap).
 

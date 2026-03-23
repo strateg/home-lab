@@ -31,6 +31,34 @@ class TerraformProxmoxGenerator(BaseGenerator):
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="proxmox")
 
+    def _get_capability_templates(
+        self, capabilities: dict, ctx: PluginContext
+    ) -> dict[str, str]:
+        """Resolve capability-driven templates from config.
+
+        Returns dict mapping output_file -> template_path for enabled capabilities.
+        """
+        result: dict[str, str] = {}
+        cap_templates = ctx.config.get("capability_templates")
+        if not isinstance(cap_templates, list):
+            return result
+
+        for mapping in cap_templates:
+            if not isinstance(mapping, dict):
+                continue
+            cap_key = mapping.get("capability_key", "")
+            template = mapping.get("template", "")
+            output_file = mapping.get("output_file", "")
+
+            if not cap_key or not template or not output_file:
+                continue
+
+            # Check if capability is enabled in projection
+            if capabilities.get(cap_key, False):
+                result[output_file] = template
+
+        return result
+
     @classmethod
     def _resolve_proxmox_api_url(cls, *, ctx: PluginContext, proxmox_nodes: list[str]) -> str:
         configured_url = ctx.config.get("proxmox_api_url")
@@ -78,6 +106,9 @@ class TerraformProxmoxGenerator(BaseGenerator):
         service_instances = [str(row.get("instance_id", "")) for row in projection.get("services", [])]
         proxmox_api_url = self._resolve_proxmox_api_url(ctx=ctx, proxmox_nodes=proxmox_nodes)
 
+        # Extract capability flags from projection (if available)
+        caps = projection.get("capabilities", {})
+
         render_context = {
             "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),
             "proxmox_provider_source": str(ctx.config.get("proxmox_provider_source", "bpg/proxmox")),
@@ -88,8 +119,11 @@ class TerraformProxmoxGenerator(BaseGenerator):
             "lxc_count": len(lxc_instances),
             "services_count": len(service_instances),
             "proxmox_api_url": proxmox_api_url,
+            # Capability flags for conditional blocks in templates
+            **caps,
         }
 
+        # Core templates (always generated)
         templates: dict[str, str] = {
             "versions.tf": "terraform/versions.tf.j2",
             "provider.tf": "terraform/provider.tf.j2",
@@ -101,12 +135,20 @@ class TerraformProxmoxGenerator(BaseGenerator):
             "terraform.tfvars.example": "terraform/terraform.tfvars.example.j2",
         }
 
+        # Capability-driven templates from config (ADR0078)
+        capability_templates = self._get_capability_templates(caps, ctx)
+        templates.update(capability_templates)
+
         written: list[str] = []
         for filename, template_name in templates.items():
             output_path = out_dir / filename
             content = self.render_template(ctx, template_name, render_context)
             self.write_text_atomic(output_path, content)
             written.append(str(output_path))
+
+        # Build capability summary for diagnostic
+        cap_summary_parts = list(capability_templates.keys())
+        cap_summary = ",".join(cap_summary_parts) if cap_summary_parts else "none"
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -115,7 +157,8 @@ class TerraformProxmoxGenerator(BaseGenerator):
                 stage=stage,
                 message=(
                     "generated baseline Proxmox Terraform artifacts: "
-                    f"nodes={len(proxmox_nodes)} lxc={len(lxc_instances)} services={len(service_instances)}"
+                    f"nodes={len(proxmox_nodes)} lxc={len(lxc_instances)} services={len(service_instances)} "
+                    f"caps=[{cap_summary}]"
                 ),
                 path=str(out_dir),
             )
