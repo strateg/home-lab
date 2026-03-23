@@ -231,3 +231,32 @@ def test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts()
     assert violations == [], (
         "Object-level plugin Python files must not hardcode deployment-specific IP/hostname literals: " f"{violations}"
     )
+
+
+# ADR0078: Product/model names must not be hardcoded in projection logic
+_FORBIDDEN_MODEL_PATTERNS = (
+    "chateau",
+    "hap ac",
+    "hex",
+    "routerboard",
+    "ccr",  # Cloud Core Router
+    "crs",  # Cloud Router Switch
+)
+
+
+def test_projection_files_do_not_hardcode_product_model_names() -> None:
+    """ADR0078: Projection logic must derive capabilities from object definitions, not model names."""
+    violations: list[str] = []
+    for file_path in _iter_object_plugin_python_files():
+        if "projection" not in file_path.name.lower():
+            continue
+        rel = file_path.relative_to(V5_ROOT).as_posix()
+        body = file_path.read_text(encoding="utf-8").lower()
+        for pattern in _FORBIDDEN_MODEL_PATTERNS:
+            if pattern in body:
+                violations.append(f"{rel}: hardcoded product/model name '{pattern}'")
+
+    assert violations == [], (
+        "Projection files must not hardcode product/model names for capability derivation (ADR0078): "
+        f"{violations}"
+    )

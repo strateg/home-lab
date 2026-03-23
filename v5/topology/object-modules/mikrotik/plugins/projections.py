@@ -17,31 +17,24 @@ from plugins.generators.projection_core import (
 def _extract_capabilities(row: dict[str, Any]) -> set[str]:
     """Extract capability IDs from instance row."""
     caps: set[str] = set()
-    raw_caps = row.get("capabilities")
-    if isinstance(raw_caps, list):
-        for cap in raw_caps:
-            if isinstance(cap, str):
-                caps.add(cap)
-
-    derived = row.get("derived_capabilities")
-    if isinstance(derived, list):
-        for cap in derived:
-            if isinstance(cap, str):
-                caps.add(cap)
+    # ADR0078: read all capability fields consistently with other projections
+    for field_name in ("capabilities", "derived_capabilities", "enabled_capabilities"):
+        raw_caps = row.get(field_name)
+        if isinstance(raw_caps, list):
+            for cap in raw_caps:
+                if isinstance(cap, str) and cap:
+                    caps.add(cap)
     return caps
 
 
 def _derive_mikrotik_capability_flags(routers: list[dict[str, Any]]) -> dict[str, bool]:
-    """Derive boolean capability flags for conditional Terraform generation."""
+    """Derive boolean capability flags for conditional Terraform generation.
+
+    ADR0078: Capabilities must come from object definitions, not hardcoded model checks.
+    """
     all_caps: set[str] = set()
     for router in routers:
         all_caps.update(_extract_capabilities(router))
-
-    for router in routers:
-        object_ref = str(router.get("object_ref", ""))
-        if "chateau" in object_ref.lower():
-            all_caps.add("cap.net.interface.lte")
-            all_caps.add("cap.net.platform.containers")
 
     return {
         "has_wireguard": any(cap.startswith("cap.net.overlay.vpn.wireguard") for cap in all_caps),
