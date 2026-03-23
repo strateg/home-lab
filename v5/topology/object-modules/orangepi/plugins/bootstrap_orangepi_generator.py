@@ -19,6 +19,13 @@ class BootstrapOrangePiGenerator(BaseGenerator):
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="orangepi")
 
+    def _get_bootstrap_files(self, ctx: PluginContext) -> list[dict]:
+        """Get bootstrap file mappings from config (ADR0078)."""
+        bootstrap_files = ctx.config.get("bootstrap_files")
+        if isinstance(bootstrap_files, list):
+            return bootstrap_files
+        return []
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         payload = ctx.compiled_json
@@ -50,31 +57,29 @@ class BootstrapOrangePiGenerator(BaseGenerator):
 
         nodes = projection.get("orangepi_nodes", [])
         written: list[str] = []
+
+        # Get file mappings from config (ADR0078)
+        bootstrap_files = self._get_bootstrap_files(ctx)
+
         for row in nodes:
             instance_id = str(row.get("instance_id", "")).strip()
             if not instance_id:
                 continue
             cloud_init_root = self.resolve_output_path(ctx, "bootstrap", instance_id, "cloud-init")
-            files = {
-                cloud_init_root / "user-data.example": self.render_template(
-                    ctx,
-                    "bootstrap/user-data.example.j2",
-                    {"instance_id": instance_id},
-                ),
-                cloud_init_root / "meta-data": self.render_template(
-                    ctx,
-                    "bootstrap/meta-data.j2",
-                    {"instance_id": instance_id},
-                ),
-                cloud_init_root / "README.md": self.render_template(
-                    ctx,
-                    "bootstrap/readme.md.j2",
-                    {"instance_id": instance_id},
-                ),
-            }
-            for path, content in files.items():
-                self.write_text_atomic(path, content)
-                written.append(str(path))
+            render_ctx = {"instance_id": instance_id}
+
+            # Generate bootstrap files from config (ADR0078)
+            for file_mapping in bootstrap_files:
+                output_file = file_mapping.get("output_file", "")
+                template = file_mapping.get("template", "")
+                if not output_file or not template:
+                    continue
+                output_path = cloud_init_root / output_file
+                self.write_text_atomic(
+                    output_path,
+                    self.render_template(ctx, template, render_ctx),
+                )
+                written.append(str(output_path))
 
         diagnostics.append(
             self.emit_diagnostic(

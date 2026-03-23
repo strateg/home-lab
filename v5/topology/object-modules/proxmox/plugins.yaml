@@ -66,9 +66,64 @@ plugins:
     order: 310
     depends_on: []
     timeout: 30
-    config: {}
+    config:
+      # Bootstrap file mappings (ADR0078)
+      bootstrap_files:
+        - output_file: answer.toml.example
+          template: bootstrap/answer.toml.example.j2
+        - output_file: README.md
+          template: bootstrap/readme.md.j2
+      # Post-install script mappings (ADR0078)
+      post_install_scripts:
+        - output_file: "01-install-terraform.sh"
+          template: bootstrap/script.sh.j2
+          action: "Install Terraform runtime (placeholder)."
+        - output_file: "02-install-ansible.sh"
+          template: bootstrap/script.sh.j2
+          action: "Install Ansible runtime (placeholder)."
+        - output_file: "03-configure-storage.sh"
+          template: bootstrap/script.sh.j2
+          action: "Configure storage pools (placeholder)."
+        - output_file: "04-configure-network.sh"
+          template: bootstrap/script.sh.j2
+          action: "Configure network bridge and VLANs (placeholder)."
+        - output_file: "05-init-git-repo.sh"
+          template: bootstrap/script.sh.j2
+          action: "Initialize git workspace (placeholder)."
+        - output_file: "06-enable-zswap.sh"
+          template: bootstrap/script.sh.j2
+          action: "Enable zswap tuning (placeholder)."
     config_schema:
       type: object
-      properties: {}
+      properties:
+        bootstrap_files:
+          type: array
+          description: Bootstrap file mappings for node root directory.
+          items:
+            type: object
+            properties:
+              output_file:
+                type: string
+                description: Output filename relative to node root.
+              template:
+                type: string
+                description: Template path relative to object template root.
+            required: [output_file, template]
+        post_install_scripts:
+          type: array
+          description: Post-install script mappings.
+          items:
+            type: object
+            properties:
+              output_file:
+                type: string
+                description: Output script filename.
+              template:
+                type: string
+                description: Template path relative to object template root.
+              action:
+                type: string
+                description: Action description passed to template.
+            required: [output_file, template]
       required: []
     description: Emits baseline bootstrap artifacts for Proxmox nodes (Phase 6 bootstrap).

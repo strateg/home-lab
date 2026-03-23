@@ -19,6 +19,20 @@ class BootstrapProxmoxGenerator(BaseGenerator):
     def template_root(self, ctx: PluginContext) -> Path:
         return self.object_template_root(ctx, object_id="proxmox")
 
+    def _get_bootstrap_files(self, ctx: PluginContext) -> list[dict]:
+        """Get bootstrap file mappings from config (ADR0078)."""
+        bootstrap_files = ctx.config.get("bootstrap_files")
+        if isinstance(bootstrap_files, list):
+            return bootstrap_files
+        return []
+
+    def _get_post_install_scripts(self, ctx: PluginContext) -> list[dict]:
+        """Get post-install script mappings from config (ADR0078)."""
+        scripts = ctx.config.get("post_install_scripts")
+        if isinstance(scripts, list):
+            return scripts
+        return []
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         payload = ctx.compiled_json
@@ -50,56 +64,50 @@ class BootstrapProxmoxGenerator(BaseGenerator):
 
         nodes = projection.get("proxmox_nodes", [])
         written: list[str] = []
-        script_actions = {
-            "01-install-terraform.sh": "Install Terraform runtime (placeholder).",
-            "02-install-ansible.sh": "Install Ansible runtime (placeholder).",
-            "03-configure-storage.sh": "Configure storage pools (placeholder).",
-            "04-configure-network.sh": "Configure network bridge and VLANs (placeholder).",
-            "05-init-git-repo.sh": "Initialize git workspace (placeholder).",
-            "06-enable-zswap.sh": "Enable zswap tuning (placeholder).",
-        }
+
+        # Get file mappings from config (ADR0078)
+        bootstrap_files = self._get_bootstrap_files(ctx)
+        post_install_scripts = self._get_post_install_scripts(ctx)
+
         for row in nodes:
             instance_id = str(row.get("instance_id", "")).strip()
             if not instance_id:
                 continue
             node_root = self.resolve_output_path(ctx, "bootstrap", instance_id)
             scripts_root = node_root / "post-install"
-            self.write_text_atomic(
-                node_root / "answer.toml.example",
-                self.render_template(
-                    ctx,
-                    "bootstrap/answer.toml.example.j2",
-                    {"instance_id": instance_id},
-                ),
-            )
-            written.append(str(node_root / "answer.toml.example"))
-            self.write_text_atomic(
-                node_root / "README.md",
-                self.render_template(
-                    ctx,
-                    "bootstrap/readme.md.j2",
-                    {"instance_id": instance_id},
-                ),
-            )
-            written.append(str(node_root / "README.md"))
-            for script_name, action in script_actions.items():
-                script_path = scripts_root / script_name
+            render_ctx = {"instance_id": instance_id}
+
+            # Generate bootstrap files from config (ADR0078)
+            for file_mapping in bootstrap_files:
+                output_file = file_mapping.get("output_file", "")
+                template = file_mapping.get("template", "")
+                if not output_file or not template:
+                    continue
+                output_path = node_root / output_file
+                self.write_text_atomic(
+                    output_path,
+                    self.render_template(ctx, template, render_ctx),
+                )
+                written.append(str(output_path))
+
+            # Generate post-install scripts from config (ADR0078)
+            for script_mapping in post_install_scripts:
+                output_file = script_mapping.get("output_file", "")
+                template = script_mapping.get("template", "")
+                action = script_mapping.get("action", "")
+                if not output_file or not template:
+                    continue
+                script_path = scripts_root / output_file
                 self.write_text_atomic(
                     script_path,
-                    self.render_template(
-                        ctx,
-                        "bootstrap/script.sh.j2",
-                        {"action": action},
-                    ),
+                    self.render_template(ctx, template, {"action": action, **render_ctx}),
                 )
                 written.append(str(script_path))
+
+            # Generate post-install README
             self.write_text_atomic(
                 scripts_root / "README.md",
-                self.render_template(
-                    ctx,
-                    "bootstrap/post-install-readme.md.j2",
-                    {},
-                ),
+                self.render_template(ctx, "bootstrap/post-install-readme.md.j2", {}),
             )
             written.append(str(scripts_root / "README.md"))
 

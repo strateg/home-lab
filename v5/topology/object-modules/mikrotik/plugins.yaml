@@ -85,9 +85,32 @@ plugins:
     order: 320
     depends_on: []
     timeout: 30
-    config: {}
+    config:
+      # Bootstrap file mappings (ADR0078)
+      bootstrap_files:
+        - output_file: init-terraform.rsc
+          template: bootstrap/init-terraform.rsc.j2
+        - output_file: backup-restore-overrides.rsc
+          template: bootstrap/backup-restore-overrides.rsc.j2
+        - output_file: terraform.tfvars.example
+          template: bootstrap/terraform.tfvars.example.j2
+        - output_file: README.md
+          template: bootstrap/readme.md.j2
     config_schema:
       type: object
-      properties: {}
+      properties:
+        bootstrap_files:
+          type: array
+          description: Bootstrap file mappings for node root directory.
+          items:
+            type: object
+            properties:
+              output_file:
+                type: string
+                description: Output filename relative to node root.
+              template:
+                type: string
+                description: Template path relative to object template root.
+            required: [output_file, template]
       required: []
     description: Emits baseline bootstrap artifacts for MikroTik routers (Phase 6 bootstrap).

@@ -8,9 +8,30 @@ plugins:
     order: 330
     depends_on: []
     timeout: 30
-    config: {}
+    config:
+      # Bootstrap file mappings (ADR0078)
+      bootstrap_files:
+        - output_file: user-data.example
+          template: bootstrap/user-data.example.j2
+        - output_file: meta-data
+          template: bootstrap/meta-data.j2
+        - output_file: README.md
+          template: bootstrap/readme.md.j2
     config_schema:
       type: object
-      properties: {}
+      properties:
+        bootstrap_files:
+          type: array
+          description: Bootstrap file mappings for cloud-init directory.
+          items:
+            type: object
+            properties:
+              output_file:
+                type: string
+                description: Output filename relative to cloud-init root.
+              template:
+                type: string
+                description: Template path relative to object template root.
+            required: [output_file, template]
       required: []
     description: Emits baseline cloud-init bootstrap artifacts for Orange Pi nodes (Phase 6 bootstrap).
