@@ -1,7 +1,7 @@
 # ADR 0063: Plugin Microkernel for Compiler, Validators, and Generators
 
 **Date:** 2026-03-06
-**Status:** Implemented (plugin-first runtime; legacy fallback removed)
+**Status:** Implemented (plugin-first runtime; validator_yaml scope finalized 2026-03-24)
 **Related:** ADR 0062 (Topology v5 - Modular Class-Object-Instance Architecture), ADR 0065 (Plugin API Contract), ADR 0066 (Plugin Testing and CI Strategy)
 **Extends:** ADR 0062 section "Open Questions" (generator/plugin packaging and loading model)
 
@@ -213,6 +213,11 @@ plugins:
 - Output: `List[PluginDiagnostic]` (validation issues)
 - Runs in: `validate` stage
 - Contract: Must provide source location (line/column) when available
+- Finalized scope (2026-03-24):
+  - `governance_contract` - root manifest version/model/framework/project/meta
+  - `foundation_layout` - class/object module paths and YAML/plugin layout
+  - `foundation_include_contract` - project instances directory structure
+  - `foundation_file_placement` - instance file naming and placement rules
 
 **validator_json** - Validate compiled Object Model consistency
 - Input: `dict` (compiled JSON), `str` (compiled file path)
@@ -437,7 +442,7 @@ CI must:
 
 ### Phase 2 - Validator Migration (Complete)
 
-- [x] Decision recorded: migration of remaining YAML semantic checks to `validator_yaml` is deferred (no active unmet YAML-semantics scope in current runtime).
+- [x] `validator_yaml` scope finalized (2026-03-24): foundation/governance validators cover source-level YAML contract checks; no additional YAML-semantic scope required for current runtime.
 - [x] Migrate compiled JSON checks to `validator_json` plugins
   - [x] `model_lock_validator.py` - validates model.lock pinning
   - [x] `embedded_in_validator.py` - validates embedded_in references per ADR 0064
