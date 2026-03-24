@@ -1,8 +1,9 @@
 # ADR 0076: Framework Distribution and Multi-Repository Extraction (Stage 2)
 
 **Date:** 2026-03-20
-**Status:** Accepted
+**Status:** Accepted (Stage 2 complete; E2E validated 2026-03-24)
 **Depends on:** ADR 0075
+**Implementation Plan:** `adr/plan/0076-multi-repo-extraction-plan.md`
 
 ---
 
