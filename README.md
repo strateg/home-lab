@@ -45,6 +45,8 @@ task validate:v5-layers
 task build:v5
 task build:v5-passthrough
 task build:v5-docs
+task build:v5-docs-icons
+task build:v5-docs-compat
 task validate:phase1-gate
 task framework:strict
 task framework:release-preflight
@@ -57,6 +59,18 @@ Docs generation for v5 (without local SOPS age identity available) uses passthro
 
 ```powershell
 task build:v5-docs
+```
+
+Mermaid icon-node mode (ADR 0027, requires `si`/`mdi` icon packs in renderer):
+
+```powershell
+task build:v5-docs-icons
+```
+
+If your Mermaid renderer reports `Lexical error ... Unrecognized text` for icon nodes, use compat mode:
+
+```powershell
+task build:v5-docs-compat
 ```
 
 v4 maintenance commands:

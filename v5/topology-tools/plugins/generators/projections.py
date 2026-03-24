@@ -21,6 +21,58 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     _sorted_rows,
 )
 
+# ---------------------------------------------------------------------------
+# Icon mapping tables (ADR 0027 canonical icon strategy for v5)
+# Keys are class_ref prefixes; checked in order (most specific first).
+# ---------------------------------------------------------------------------
+
+_CLASS_ICON_MAP: list[tuple[str, str]] = [
+    ("class.network.router", "mdi:router-network"),
+    ("class.network.trust_zone", "mdi:shield-half-full"),
+    ("class.network.vlan", "mdi:lan"),
+    ("class.network.bridge", "mdi:bridge"),
+    ("class.network.physical_link", "mdi:ethernet-cable"),
+    ("class.network.data_link", "mdi:ethernet"),
+    ("class.compute.hypervisor", "si:proxmox"),
+    ("class.compute.edge_node", "mdi:chip"),
+    ("class.compute.cloud_vm", "mdi:cloud-outline"),
+    ("class.compute.workload.container", "mdi:cube-outline"),
+    ("class.compute.workload", "mdi:application"),
+    ("class.storage.pool", "mdi:database"),
+    ("class.storage", "mdi:harddisk"),
+    ("class.service", "mdi:cog"),
+]
+
+# Trust zone colour palette for Mermaid classDef
+_ZONE_CLASS_COLOUR: dict[str, str] = {
+    "untrusted": "fill:#ff6b6b,stroke:#c92a2a,color:#fff",
+    "user": "fill:#74c0fc,stroke:#1864ab,color:#000",
+    "servers": "fill:#51cf66,stroke:#2b8a3e,color:#000",
+    "management": "fill:#da77f2,stroke:#9c36b5,color:#fff",
+    "guest": "fill:#ffd43b,stroke:#fab005,color:#000",
+    "iot": "fill:#ffd43b,stroke:#fab005,color:#000",
+}
+_ZONE_CLASS_DEFAULT = "fill:#e9ecef,stroke:#868e96,color:#000"
+
+
+def _icon_for_class(class_ref: str, *, fallback: str = "mdi:devices") -> str:
+    """Return the best matching Mermaid icon for a class_ref."""
+    for prefix, icon in _CLASS_ICON_MAP:
+        if class_ref.startswith(prefix):
+            return icon
+    return fallback
+
+
+def _zone_label(instance_id: str) -> str:
+    """Extract human-readable zone name from instance_id like inst.trust_zone.servers."""
+    parts = instance_id.rsplit(".", 1)
+    return parts[-1].replace("_", " ").title() if parts else instance_id
+
+
+def _safe_id(value: str) -> str:
+    """Make a string safe for use as a Mermaid node ID."""
+    return value.replace(".", "_").replace("-", "_")
+
 
 def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build stable view for Ansible inventory generator."""
@@ -111,4 +163,197 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         "devices": _sorted_rows(docs_devices),
         "services": _sorted_rows(docs_services),
         "groups": {name: len(rows) for name, rows in sorted(groups.items(), key=lambda item: item[0])},
+    }
+
+
+def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
+    """Build stable projection for diagram generator (ADR 0005 / ADR 0027).
+
+    Returns:
+        devices: L1 device rows with icon and safe_id fields added.
+        trust_zones: L2 trust zone rows with icon, colour, label.
+        vlans: L2 VLAN rows.
+        bridges: L2 bridge rows.
+        data_links: L1 physical/data link rows.
+        services: L4/L5 service rows.
+        lxc: LXC container rows.
+        counts: summary counts.
+    """
+    groups = _instance_groups(compiled_json)
+    raw_devices = _group_rows(groups, canonical=GROUP_DEVICES)
+    raw_network = _group_rows(groups, canonical=GROUP_NETWORK)
+    raw_services = _group_rows(groups, canonical=GROUP_SERVICES)
+    raw_lxc = _group_rows(groups, canonical=GROUP_LXC)
+
+    # --- Devices (L1) ---
+    devices: list[dict[str, Any]] = []
+    for row in raw_devices:
+        inst_id = row.get("instance_id", "")
+        class_ref = row.get("class_ref", "")
+        obj_ref = row.get("object_ref", "")
+        # Derive short label from instance_id: "rtr-slate" → "rtr-slate"
+        # Remove common "inst." prefix if present
+        label = inst_id.removeprefix("inst.").replace(".", " ")
+        entry = {
+            "instance_id": inst_id,
+            "safe_id": _safe_id(inst_id),
+            "class_ref": class_ref,
+            "object_ref": obj_ref,
+            "layer": row.get("layer", ""),
+            "status": row.get("status", ""),
+            "notes": row.get("notes", ""),
+            "label": label,
+            "icon": _icon_for_class(class_ref, fallback="mdi:devices"),
+            "host_ref": _get_instance_data(row, "instance_data.host_ref"),
+            "instance_data": deepcopy(row.get("instance_data") or {}),
+        }
+        devices.append(entry)
+
+    # --- Network layer: split by class_ref ---
+    trust_zones: list[dict[str, Any]] = []
+    vlans: list[dict[str, Any]] = []
+    bridges: list[dict[str, Any]] = []
+    data_links: list[dict[str, Any]] = []
+
+    for row in raw_network:
+        inst_id = row.get("instance_id", "")
+        class_ref = row.get("class_ref", "")
+
+        if "trust_zone" in class_ref:
+            idata = row.get("instance_data") or {}
+            fw_refs = idata.get("firewall_policy_refs", [])
+            if not isinstance(fw_refs, list):
+                fw_refs = []
+            zone_name = _zone_label(inst_id)
+            zone_key = zone_name.lower()
+            trust_zones.append(
+                {
+                    "instance_id": inst_id,
+                    "safe_id": _safe_id(inst_id),
+                    "class_ref": class_ref,
+                    "object_ref": row.get("object_ref", ""),
+                    "label": zone_name,
+                    "icon": "mdi:shield-half-full",
+                    "colour": _ZONE_CLASS_COLOUR.get(zone_key, _ZONE_CLASS_DEFAULT),
+                    "notes": row.get("notes", ""),
+                    "status": row.get("status", ""),
+                    "firewall_policy_refs": [str(item) for item in fw_refs if isinstance(item, str)],
+                }
+            )
+        elif "vlan" in class_ref:
+            idata = row.get("instance_data") or {}
+            fw_refs = idata.get("firewall_policy_refs", [])
+            if not isinstance(fw_refs, list):
+                fw_refs = []
+            vlans.append(
+                {
+                    "instance_id": inst_id,
+                    "safe_id": _safe_id(inst_id),
+                    "class_ref": class_ref,
+                    "object_ref": row.get("object_ref", ""),
+                    "label": inst_id.removeprefix("inst.").replace(".", " "),
+                    "vlan_id": idata.get("vlan_id"),
+                    "cidr": idata.get("cidr", ""),
+                    "gateway": idata.get("gateway", ""),
+                    "trust_zone_ref": idata.get("trust_zone_ref", ""),
+                    "firewall_policy_refs": [str(item) for item in fw_refs if isinstance(item, str)],
+                    "notes": row.get("notes", ""),
+                    "icon": "mdi:lan",
+                    "status": row.get("status", ""),
+                }
+            )
+        elif "bridge" in class_ref:
+            idata = row.get("instance_data") or {}
+            bridges.append(
+                {
+                    "instance_id": inst_id,
+                    "safe_id": _safe_id(inst_id),
+                    "class_ref": class_ref,
+                    "label": inst_id.removeprefix("inst.").replace(".", " "),
+                    "host_ref": idata.get("host_ref", ""),
+                    "notes": row.get("notes", ""),
+                    "icon": "mdi:bridge",
+                    "status": row.get("status", ""),
+                }
+            )
+        elif "physical_link" in class_ref or "data_link" in class_ref or "ethernet" in class_ref:
+            idata = row.get("instance_data") or {}
+            data_links.append(
+                {
+                    "instance_id": inst_id,
+                    "safe_id": _safe_id(inst_id),
+                    "class_ref": class_ref,
+                    "endpoint_a": idata.get("endpoint_a", {}),
+                    "endpoint_b": idata.get("endpoint_b", {}),
+                    "medium": idata.get("medium", "ethernet"),
+                    "speed_mbps": idata.get("speed_mbps"),
+                    "notes": row.get("notes", ""),
+                    "status": row.get("status", ""),
+                }
+            )
+
+    # --- Services (L4/L5) ---
+    services: list[dict[str, Any]] = []
+    for row in raw_services:
+        inst_id = row.get("instance_id", "")
+        class_ref = row.get("class_ref", "")
+        runtime = row.get("runtime")
+        if not isinstance(runtime, dict):
+            runtime = _get_instance_data(row, "instance_data.runtime", {})
+        services.append(
+            {
+                "instance_id": inst_id,
+                "safe_id": _safe_id(inst_id),
+                "class_ref": class_ref,
+                "object_ref": row.get("object_ref", ""),
+                "label": inst_id.removeprefix("inst.").replace(".", " "),
+                "layer": row.get("layer", ""),
+                "status": row.get("status", ""),
+                "icon": _icon_for_class(class_ref, fallback="mdi:cog"),
+                "host_ref": _get_instance_data(row, "instance_data.host_ref"),
+                "runtime_type": runtime.get("type", "") if isinstance(runtime, dict) else "",
+                "runtime_target_ref": runtime.get("target_ref", "") if isinstance(runtime, dict) else "",
+            }
+        )
+
+    # --- LXC ---
+    lxc: list[dict[str, Any]] = []
+    for row in raw_lxc:
+        inst_id = row.get("instance_id", "")
+        class_ref = row.get("class_ref", "")
+        idata = row.get("instance_data") or {}
+        lxc.append(
+            {
+                "instance_id": inst_id,
+                "safe_id": _safe_id(inst_id),
+                "class_ref": class_ref,
+                "object_ref": row.get("object_ref", ""),
+                "label": idata.get("hostname", inst_id.removeprefix("inst.lxc.").replace(".", "-")),
+                "layer": row.get("layer", ""),
+                "status": row.get("status", ""),
+                "icon": "mdi:cube-outline",
+                "host_ref": idata.get("host_ref", ""),
+                "trust_zone_ref": idata.get("trust_zone_ref", ""),
+            }
+        )
+
+    counts = {
+        "devices": len(devices),
+        "trust_zones": len(trust_zones),
+        "vlans": len(vlans),
+        "bridges": len(bridges),
+        "data_links": len(data_links),
+        "services": len(services),
+        "lxc": len(lxc),
+    }
+
+    return {
+        "devices": _sorted_rows(devices),
+        "trust_zones": sorted(trust_zones, key=lambda r: r["instance_id"]),
+        "vlans": sorted(vlans, key=lambda r: (r.get("vlan_id") or 0, r["instance_id"])),
+        "bridges": sorted(bridges, key=lambda r: r["instance_id"]),
+        "data_links": sorted(data_links, key=lambda r: r["instance_id"]),
+        "services": _sorted_rows(services),
+        "lxc": _sorted_rows(lxc),
+        "counts": counts,
     }
