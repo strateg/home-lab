@@ -82,3 +82,4 @@
 | [0079](0079-v5-documentation-and-diagram-generation-migration.md) | V5 Documentation and Diagram Generation Migration | Accepted | 2026-03-24 | - | - |
 | [0080](0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md) | Unified Build Pipeline, Stage-Phase Lifecycle, and Contractual Plugin Data Bus | Accepted | 2026-03-26 | - | - |
 | [0081](0081-framework-runtime-artifact-and-1-n-project-repository-model.md) | Framework Runtime Artifact and 1:N Project Repository Model | Accepted | 2026-03-29 | - | - |
+| [0082](0082-plugin-module-pack-composition-and-index-first-discovery-analysis.md) | Plugin Module-Pack Composition and Index-First Discovery Analysis | Proposed | 2026-03-29 | - | - |
