@@ -314,16 +314,21 @@
 | 2026-03-23 | WP-001/WP-002/WP-003 implemented: shared helpers extracted to _shared/plugins/ |
 | 2026-03-23 | WP-004 implemented: RouterPortValidatorBase extracted to class-modules/router/ |
 | 2026-03-23 | WP-005/WP-006 implemented: projection constants extracted to projection_core.py |
+| 2026-03-24 | HOTFIX: Created shared_helper_loader.py for dynamic module loading (hyphenated dirs) |
+| 2026-03-24 | FIX: Resolved 26 W7844 network binding warnings (validator + instance data) |
 
 ## 8. Implementation Summary
 
-### Commits (branch: adr/0078-phase-5)
+### Commits (branch: continue_migration_v4_to_v5)
 
 | Commit | Description |
 |--------|-------------|
 | 2712cf6 | WP-001/WP-002/WP-003: Extract shared helpers to _shared/plugins/ |
 | 4251dad | WP-004: Extract router port validator base to class-level |
 | e0c77be | WP-005/WP-006: Extract projection constants to reduce core leakage |
+| 2c86bd1 | Squashed Phase 5 commit with detailed message |
+| 6035e43 | HOTFIX: Use dynamic module loading for shared helpers |
+| e38c3ca | FIX: Resolve W7844 network binding warnings |
 
 ### Files Created
 
@@ -333,6 +338,7 @@
 | `_shared/plugins/capability_helpers.py` | `get_capability_templates()`, `capability_expression_enabled()` |
 | `_shared/plugins/bootstrap_helpers.py` | `get_bootstrap_files()`, `get_post_install_*()` |
 | `class-modules/router/plugins/router_port_validator_base.py` | `RouterPortValidatorBase` |
+| `topology-tools/plugins/generators/shared_helper_loader.py` | Dynamic module loader for hyphenated directories |
 
 ### Code Reduction
 

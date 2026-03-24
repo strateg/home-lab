@@ -1,7 +1,8 @@
 # V5 E2E Dry-Run Runbook
 
-**Status:** Ready for execution  
-**Last Updated:** 2026-03-20  
+**Status:** Ready for execution
+**Last Updated:** 2026-03-24
+**Last Validated:** 2026-03-24 (0 errors, 14 warnings)
 **Scope:** ADR0074 Phase 8 (end-to-end dry-run and cutover gate)
 
 ---
@@ -117,3 +118,29 @@ ansible-playbook `
 ## 7. Notes
 
 - Этот runbook фиксирует процедуру. Факт выполнения dry-run должен отмечаться отдельно (release note / change record).
+
+---
+
+## 8. Validation History
+
+| Date | Errors | Warnings | Notes |
+|------|--------|----------|-------|
+| 2026-03-23 | 0 | 39 | Initial E2E with W7844 warnings |
+| 2026-03-24 | 0 | 14 | After W7844 fixes (validator + ip_allocations) |
+
+### 2026-03-24 Remaining Warnings (non-blocking)
+
+| Code | Count | Description |
+|------|-------|-------------|
+| W7816 | 2 | IP reuse (expected: gateway, postgres listen) |
+| W7845 | 3 | SSL certificate intent missing |
+| W7888 | 9 | Deprecated inline resources in LXC |
+
+### 2026-03-24 E2E Results
+
+```
+Terraform Proxmox:  ✅ init + validate
+Terraform MikroTik: ✅ init + validate
+Ansible inventory:  ✅ 15 hosts loaded
+Bootstrap:          ✅ 3 devices (rtr-mikrotik-chateau, srv-gamayun, srv-orangepi5)
+```

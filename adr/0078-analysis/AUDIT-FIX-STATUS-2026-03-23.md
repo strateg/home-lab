@@ -205,6 +205,85 @@ Target review areas:
 
 ---
 
+## Addendum: 2026-03-24 Fixes
+
+### F6 — Python import errors with hyphenated directory names
+
+**Severity:** Critical (blocking compilation)
+
+**Problem:**
+After Phase 5 refactoring, generators attempted to import shared helpers via standard Python imports:
+```python
+from topology.object_modules._shared.plugins.terraform_helpers import render_string_list
+```
+
+This failed because directory names contain hyphens (`object-modules`, `class-modules`), which are invalid Python package identifiers.
+
+**Fix:**
+Created `v5/topology-tools/plugins/generators/shared_helper_loader.py` using dynamic module loading with `importlib.util.spec_from_file_location()`. Updated all 7 affected files to use the loader pattern.
+
+**Changed files:**
+- CREATE: `v5/topology-tools/plugins/generators/shared_helper_loader.py`
+- MODIFY: `v5/topology/object-modules/mikrotik/plugins/terraform_mikrotik_generator.py`
+- MODIFY: `v5/topology/object-modules/mikrotik/plugins/mikrotik_router_ports_validator.py`
+- MODIFY: `v5/topology/object-modules/glinet/plugins/glinet_router_ports_validator.py`
+- MODIFY: `v5/topology/object-modules/proxmox/plugins/terraform_proxmox_generator.py`
+- MODIFY: `v5/topology/object-modules/proxmox/plugins/bootstrap_proxmox_generator.py`
+- MODIFY: `v5/topology/object-modules/mikrotik/plugins/bootstrap_mikrotik_generator.py`
+- MODIFY: `v5/topology/object-modules/orangepi/plugins/bootstrap_orangepi_generator.py`
+
+---
+
+### F7 — W7844 network binding warnings (26 warnings)
+
+**Severity:** Medium (warnings, not errors)
+
+**Problem:**
+Network runtime reachability validator emitted 26 W7844 warnings:
+1. LXC containers use `network.vlan_ref` but validator only checked `networks[].network_ref`
+2. Docker/baremetal services referenced networks where target devices had no IP allocation
+3. Router services referenced networks managed by the router, but validator didn't recognize managed_by_ref as implicit attachment
+
+**Fix (validator):**
+Updated `network_runtime_reachability_validator.py`:
+1. Added support for `network.vlan_ref` format in `_extract_network_refs()`
+2. Added `managed_by_target` check for docker/baremetal services
+
+**Fix (instance data):**
+Added `ip_allocations` to network instances:
+- `inst.vlan.servers`: srv-orangepi5 (10.0.30.5/24)
+- `inst.vlan.management`: srv-gamayun (10.0.99.1/24)
+
+**Changed files:**
+- MODIFY: `v5/topology-tools/plugins/validators/network_runtime_reachability_validator.py`
+- MODIFY: `v5/projects/home-lab/topology/instances/L2-network/network/inst.vlan.servers.yaml`
+- MODIFY: `v5/projects/home-lab/topology/instances/L2-network/network/inst.vlan.management.yaml`
+
+**Results:**
+- Warnings reduced: 39 → 14 (all 26 W7844 eliminated)
+- Remaining warnings: W7816 (IP reuse), W7845 (SSL cert), W7888 (deprecated resources)
+
+---
+
+### 2026-03-24 Status Summary
+
+| Finding | Status |
+|---------|--------|
+| F6 — Import errors | Closed |
+| F7 — W7844 warnings | Closed |
+
+### E2E Validation Results (2026-03-24)
+
+| Component | Status |
+|-----------|--------|
+| Terraform Proxmox | ✅ init + validate |
+| Terraform MikroTik | ✅ init + validate |
+| Ansible inventory | ✅ 15 hosts |
+| Bootstrap artifacts | ✅ 3 devices |
+| Compile diagnostics | 0 errors, 14 warnings, 69 infos |
+
+---
+
 ## Suggested Verification Set
 
 Targeted tests to run locally:
