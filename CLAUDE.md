@@ -2,40 +2,32 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## ADR 0062 Migration Mode (authoritative)
+## V5 Architecture (Current)
 
-Repository is in dual-lane migration mode per `adr/0062-modular-topology-architecture-consolidation.md`.
+This is an **Infrastructure-as-Data** home lab project using a **Class -> Object -> Instance** topology model. The v5 architecture implements:
 
-- `v4/` is the legacy lane (frozen except critical/parity fixes)
-- `v5/` is the active lane (Class -> Object -> Instance implementation)
-- v4 outputs: `v4-generated/`, `v4-build/`, `v4-dist/`
-- v5 outputs: `v5-generated/`, `v5-build/`, `v5-dist/`
-- v4 tests must stay in `v4/tests/`; v5 tests must stay in `v5/tests/`
-- new model/module/plugin development goes only into `v5/`
+- Plugin-based compiler (ADR 0063)
+- Generator architecture (ADR 0074)
+- Framework/project separation (ADR 0075)
 
-Operational v4 roots already moved under `v4/`:
+### Source of Truth
 
-- `v4/topology.yaml`, `v4/topology/`, `v4/topology-tools/`, `v4/tests/`
-- `v4/ansible/`, `v4/deploy/`, `v4/manual-scripts/`, `v4/terraform-overrides/`, `v4/local/`
+- `topology/topology.yaml` - Main entry point
+- `topology/classes/` - Class definitions
+- `topology/objects/` - Object definitions
+- `projects/home-lab/topology/instances/` - Instance definitions
 
-Path translation rule for legacy notes in this file:
+### Generated Outputs
 
-- legacy `topology*`, `topology-tools*`, `ansible*`, `deploy*`, `manual-scripts*`, `terraform-overrides*`, `local*`
-  must be interpreted as `v4/...` paths
-- legacy `generated/`, `build/`, `dist/` must be interpreted as `v4-generated/`, `v4-build/`, `v4-dist/`
+All generators produce to `generated/<project>/`:
+- Terraform configurations (Proxmox, MikroTik)
+- Ansible inventory
+- Bootstrap packages
+- Documentation
 
-## Legacy v4 Architecture Overview (reference)
+### Key Principle
 
-This is an **Infrastructure-as-Data** home lab project using **OSI-like layer architecture (v4.0)**. The topology is defined in **8 layer files** (L0-L7) in `v4/topology/` directory, with `v4/topology.yaml` as the main entry point. This is the **canonical source of truth** that generates:
-- Terraform configurations (Proxmox infrastructure)
-- Terraform configurations (MikroTik RouterOS)
-- Ansible inventory and assembled runtime inventory
-- Network diagrams
-- IP allocation documentation
-- Service inventory
-- Deploy-ready `v4-dist/` packages
-
-**Key Principle**: Edit `v4/topology/L*.yaml` layers → regenerate everything → apply with Terraform/Ansible.
+Edit topology files -> compile -> generate -> apply with Terraform/Ansible.
 
 ## Plugin Layer Contract for AI Agents (Mandatory)
 
@@ -63,36 +55,88 @@ Scope variants:
 - Object level can include object-global and object-specific plugins.
 - If a class/object plugin contains no class/object-specific identifiers, migrate it to the global core level.
 
-### OSI-Layer Architecture (v4.0)
-
-**Main File**: `v4/topology.yaml` - Entry point with `!include` directives
-**Layers**: `v4/topology/L0-L7.yaml` (8 files) - Organized by OSI-like principles
+## Directory Structure
 
 ```
-topology/
-├── L0-meta.yaml           # Meta: version, defaults, security policies
-├── L1-foundation.yaml     # Foundation: physical devices, interfaces, physical power inventory
-├── L2-network.yaml        # Network: networks, bridges, firewall, QoS, IPv6
-├── L3-data.yaml           # Data: storage pools, data assets
-├── L4-platform.yaml       # Platform: VMs, LXC containers, templates
-├── L5-application.yaml    # Application: services, certificates, DNS
-├── L6-observability.yaml  # Observability: monitoring, alerts, dashboards
-└── L7-operations.yaml     # Operations: workflows, power resilience policies, ansible config, backups
+home-lab/
+├── topology/                    # V5 topology definitions
+│   ├── topology.yaml            # Main entry point
+│   ├── classes/                 # Class definitions (L0-L7)
+│   └── objects/                 # Object definitions
+├── topology-tools/              # Compiler, validators, generators
+│   ├── compile-topology.py      # Main compiler
+│   ├── plugins/                 # Plugin implementations
+│   │   ├── compiler/            # Compiler plugins
+│   │   ├── validator/           # Validation plugins
+│   │   └── generator/           # Generator plugins
+│   ├── lib/                     # Core library
+│   └── templates/               # Jinja2 templates
+├── projects/home-lab/           # Project-specific data
+│   ├── project.yaml             # Project manifest
+│   ├── topology/instances/      # Instance definitions (L0-L7)
+│   ├── secrets/                 # SOPS-encrypted secrets
+│   └── framework.lock.yaml      # Framework version lock
+├── scripts/                     # Orchestration scripts
+│   ├── orchestration/lane.py    # Main lane orchestrator
+│   └── validation/              # Validation scripts
+├── tests/                       # Test suite
+├── generated/                   # Generated outputs (DO NOT EDIT)
+│   └── home-lab/                # Project outputs
+│       ├── terraform/
+│       ├── ansible/
+│       ├── bootstrap/
+│       └── docs/
+├── build/                       # Build artifacts
+├── dist/                        # Deploy packages
+├── adr/                         # Architecture Decision Records
+├── docs/                        # Manual documentation
+├── configs/                     # Device configs (GL.iNet, VPN)
+└── archive/                     # Archived v4 and legacy code
+    ├── v4/                      # Complete v4 codebase
+    ├── v4-generated/
+    ├── v4-build/
+    ├── v4-dist/
+    └── migrated-and-archived/
 ```
 
-**Layer Dependency Rules**:
-- Higher layers (L7) can reference lower layers (L0-L6)
-- Lower layers CANNOT reference higher layers
-- Example: L5 (services) can reference L4 (LXC) but NOT vice versa
+## Common Workflows
 
-**Benefits**:
-- Clear separation of concerns following OSI model principles
-- Explicit dependency direction (top-down only)
-- Each layer < 700 lines
-- Easier to understand infrastructure hierarchy
-- All generators automatically merge layers
+### 1. Compile and Generate
 
-### Technology Stack
+```bash
+# Validate and compile topology
+python scripts/orchestration/lane.py validate-v5
+
+# Run full compilation
+python topology-tools/compile-topology.py
+
+# Generate specific outputs
+python topology-tools/plugins/generator/generate_terraform_proxmox.py
+python topology-tools/plugins/generator/generate_terraform_mikrotik.py
+python topology-tools/plugins/generator/generate_ansible_inventory.py
+```
+
+### 2. Using Lane Orchestrator
+
+```bash
+# Full validation
+V5_SECRETS_MODE=passthrough python scripts/orchestration/lane.py validate-v5
+
+# Run specific phase
+python scripts/orchestration/lane.py <phase-name>
+```
+
+### 3. Run Tests
+
+```bash
+# All tests
+python -m pytest tests -q
+
+# Specific test module
+python -m pytest tests/plugin_integration/ -v
+```
+
+## Technology Stack
 
 - **Hypervisor**: Proxmox VE 9 (Dell XPS L701X: 2 cores, 8GB RAM, SSD 180GB + HDD 500GB)
 - **Router**: MikroTik Chateau LTE7 ax (ARM64, 1GB RAM, RouterOS 7.x)
@@ -101,285 +145,8 @@ topology/
   - Terraform (bpg/proxmox provider v0.85+)
   - Terraform (terraform-routeros/routeros provider)
 - **Configuration Management**: Ansible v2.14+ with cloud-init
-- **Source of Truth**: topology.yaml (YAML format, v4.0)
+- **Secrets**: SOPS with age encryption
 - **Version Control**: Git
-
-### Directory Structure
-
-Current normative layout (ADR 0062):
-
-```
-home-lab/
-├── v4/                      # legacy lane
-│   ├── topology.yaml
-│   ├── topology/
-│   ├── topology-tools/
-│   ├── tests/
-│   ├── ansible/
-│   ├── deploy/
-│   ├── manual-scripts/
-│   ├── terraform-overrides/
-│   └── local/
-├── v5/                      # new lane
-│   ├── topology/
-│   ├── topology-tools/
-│   └── tests/
-├── v4-generated/ v4-build/ v4-dist/
-├── v5-generated/ v5-build/ v5-dist/
-└── adr/
-```
-
-Legacy tree below is preserved for v4 reference and should be read through the path translation rule above.
-
-```
-home-lab/
-├── topology.yaml              # Main entry point with !include
-├── topology/                  # OSI-like layer files (8 files)
-│   ├── L0-meta.yaml           # Meta layer
-│   ├── L1-foundation.yaml     # Physical devices
-│   ├── L2-network.yaml        # Networks, bridges, firewall
-│   ├── L3-data.yaml           # Storage
-│   ├── L4-platform.yaml       # VMs, LXC
-│   ├── L5-application.yaml    # Services
-│   ├── L6-observability.yaml  # Monitoring
-│   └── L7-operations.yaml     # Workflows, backup
-├── topology-tools/            # Topology-driven generators/validator
-│   ├── topology_loader.py
-│   ├── generate-terraform-proxmox.py
-│   ├── generate-terraform-mikrotik.py
-│   ├── generate-ansible-inventory.py
-│   ├── assemble-ansible-runtime.py
-│   ├── assemble-deploy.py
-│   ├── validate-dist.py
-│   ├── generate-docs.py
-│   ├── validate-topology.py
-│   ├── regenerate-all.py
-│   ├── schemas/               # JSON Schema + validator policy
-│   └── templates/             # Jinja2 templates for generators
-├── manual-scripts/            # Manual setup/config scripts
-│   ├── openwrt/
-│   ├── opi5/
-│   └── archive/
-├── generated/                 # Auto-generated (DO NOT EDIT)
-│   ├── bootstrap/             # Device init scripts
-│   │   ├── rtr-mikrotik-chateau/  # MikroTik bootstrap
-│   │   ├── srv-gamayun/           # Proxmox bootstrap
-│   │   └── srv-orangepi5/         # OPi5 cloud-init
-│   ├── terraform/
-│   │   ├── mikrotik/          # MikroTik Terraform
-│   │   └── proxmox/           # Proxmox Terraform
-│   ├── ansible/inventory/     # Raw generated inventory
-│   ├── ansible/runtime/       # Assembled runtime inventory (ADR 0051)
-│   └── docs/                  # Documentation
-├── dist/                      # Assembled deploy packages (ADR 0052)
-│   ├── control/ansible/
-│   ├── control/terraform/
-│   └── manifests/
-├── .work/native/              # Disposable native execution workspace (ADR 0056)
-│   ├── terraform/
-│   └── bootstrap/
-├── local/                     # Canonical untracked operator inputs (ADR 0054)
-│   ├── terraform/
-│   │   ├── mikrotik/terraform.tfvars
-│   │   └── proxmox/terraform.tfvars
-│   └── bootstrap/
-│       ├── srv-gamayun/answer.override.toml
-│       └── srv-orangepi5/cloud-init/user-data
-├── terraform-overrides/       # Tracked Terraform exception layer (ADR 0055)
-│   ├── mikrotik/
-│   └── proxmox/
-├── terraform -> generated/terraform/proxmox  # Legacy convenience symlink to baseline
-├── ansible/                   # Playbooks and roles (manual)
-│   ├── playbooks/
-│   └── roles/
-├── manual bare-metal source assets           # Source assets for generated Proxmox bootstrap package
-├── generated/bootstrap/       # Canonical bootstrap packages
-├── Migrated_and_archived/     # Archived legacy bootstrap/manual flows
-├── deploy/                    # Deployment orchestration
-│   ├── Makefile
-│   └── phases/
-├── docs/                      # Manual documentation
-├── configs/                   # Device configs (GL.iNet, VPN)
-└── Migrated_and_archived/     # Legacy code (archived)
-```
-
-## Common Workflows
-
-### 1. Modify Infrastructure
-
-**ALWAYS edit layer files first, then regenerate:**
-
-```bash
-# 1. Edit the relevant layer
-vim topology/L4-platform.yaml      # Add/modify VMs or LXC
-vim topology/L2-network.yaml       # Add/modify networks or bridges
-vim topology/L5-application.yaml   # Add/modify services
-
-# 2. Validate and regenerate all
-python3 topology-tools/regenerate-all.py
-
-# Or step by step:
-python3 topology-tools/validate-topology.py
-python3 topology-tools/generate-terraform-proxmox.py
-python3 topology-tools/generate-terraform-mikrotik.py
-python3 topology-tools/generate-ansible-inventory.py
-python3 topology-tools/assemble-ansible-runtime.py
-python3 topology-tools/generate-docs.py
-
-# Optional: assemble and validate deploy packages
-python3 topology-tools/assemble-deploy.py
-python3 topology-tools/validate-dist.py
-
-# 3. Assemble native execution workspace and apply Terraform changes
-cd deploy && make assemble-native && cd ..
-cd .work/native/terraform/proxmox
-terraform plan && terraform apply
-
-cd ../mikrotik
-terraform plan && terraform apply
-
-# 4. Run Ansible if needed
-cd ../../../ansible
-ansible-playbook playbooks/site.yml
-```
-
-### 2. Using Makefile (Recommended)
-
-```bash
-cd deploy
-
-# Validate topology
-make validate
-
-# Generate all configs
-make generate
-
-# Assemble deploy packages
-make assemble-dist
-
-# Validate assembled dist
-make validate-dist
-
-# Full deployment
-make deploy-all
-
-# Or individual phases
-make plan-mikrotik
-make plan-proxmox
-make apply-mikrotik
-make apply-proxmox
-make configure  # Ansible
-
-# Dist-first execution (ADR 0053, opt-in)
-make plan-dist
-make apply-mikrotik-dist
-make apply-proxmox-dist
-make configure-dist
-make deploy-all-dist
-```
-
-### 3. Deploy New LXC Container
-
-```bash
-# 1. Add to topology/L4-platform.yaml under 'lxc:' section
-vim topology/L4-platform.yaml
-
-# 2. Add service in L5 if needed
-vim topology/L5-application.yaml
-
-# 3. Regenerate
-python3 topology-tools/regenerate-all.py
-
-# 4. Apply Terraform (creates LXC)
-cd deploy && make assemble-native && cd ..
-cd .work/native/terraform/proxmox
-terraform apply -target='proxmox_virtual_environment_container.new_container'
-
-# 5. Configure with Ansible
-cd ../../ansible
-ansible-playbook playbooks/new-service.yml
-```
-
-### 4. Fresh Proxmox Installation
-
-```bash
-# 1. Generate the canonical bootstrap package
-python3 topology-tools/generate-proxmox-bootstrap.py
-mkdir -p local/bootstrap/srv-gamayun
-cp generated/bootstrap/srv-gamayun/answer.toml.example local/bootstrap/srv-gamayun/answer.override.toml
-cd deploy && make assemble-native && cd ..
-cd .work/native/bootstrap/srv-gamayun
-sudo ./create-uefi-autoinstall-proxmox-usb.sh /path/to/proxmox-ve.iso answer.toml /dev/sdX
-
-# 2. Boot and auto-install (15 min, automatic)
-
-# 3. SSH and run post-install
-ssh root@<proxmox-ip>
-cd /root/post-install
-./01-install-terraform.sh
-./02-install-ansible.sh
-./03-configure-storage.sh
-./04-configure-network.sh
-./05-init-git-repo.sh
-reboot
-
-# 4. Copy repository and deploy
-scp -r ~/home-lab root@10.0.99.1:/root/
-ssh root@10.0.99.1
-cd /root/home-lab
-python3 topology-tools/regenerate-all.py
-cd deploy && make deploy-all
-```
-
-## Code Organization Principles
-
-### What Terraform Manages
-
-**Proxmox generated baseline (`generated/terraform/proxmox/`):**
-- Network bridges (vmbr0-vmbr99)
-- VMs and LXC containers
-- Storage pools
-
-**MikroTik generated baseline (`generated/terraform/mikrotik/`):**
-- Bridge and VLAN interfaces
-- IP addresses and DHCP
-- Firewall rules and NAT
-- QoS (queues)
-- WireGuard VPN
-- Containers (AdGuard, Tailscale)
-
-### What Ansible Manages
-
-- OS-level configuration inside VMs/LXC
-- Service installation (PostgreSQL, Redis, etc.)
-- System hardening
-- User management
-
-### Layer Contents
-
-| Layer | File | Contains |
-|-------|------|----------|
-| L0 | L0-meta.yaml | version, defaults, security_policy |
-| L1 | L1-foundation.yaml | devices, interfaces, data links (data_links), power links (power_links), physical power devices |
-| L2 | L2-network.yaml | networks, bridges, firewall, qos, ipv6 |
-| L3 | L3-data.yaml | storage_pools, data_assets |
-| L4 | L4-platform.yaml | vms, lxc, templates |
-| L5 | L5-application.yaml | services, certificates, dns_records |
-| L6 | L6-observability.yaml | healthchecks, alerts, dashboards |
-| L7 | L7-operations.yaml | workflows, power_resilience, ansible_config, backup |
-
-### Naming Conventions
-
-Hierarchical naming ensures collision-free IDs at scale:
-
-| Entity | Pattern | Example |
-|--------|---------|---------|
-| Device | `{type}-{location}-{id}` | `rtr-home-mikrotik` |
-| Service | `svc-{domain}.{name}` | `svc-web.nextcloud` |
-| Alert | `alert-{domain}.{service}-{type}` | `alert-web.nextcloud-down` |
-| Dashboard | `dash-{layer}-{domain}` | `dash-app-web` |
-
-Defined in: `L0-meta/_index.yaml` under `naming:` key.
 
 ## ADR Policy (Mandatory)
 
@@ -401,34 +168,23 @@ Architecture decisions must be documented in `adr/`.
 ### Network Topology
 ```
 Internet (LTE/WAN)
-       │
-       ▼
-┌─────────────────────┐
-│  MikroTik Chateau   │ ← Router, Firewall, VPN
-│  192.168.88.1       │
-└─────────────────────┘
-       │
-       ├── VLAN 10: Servers (10.0.10.0/24)
-       │   ├── Proxmox: 10.0.10.1
-       │   ├── Orange Pi 5: 10.0.10.5
-       │   └── LXC containers
-       │
-       ├── VLAN 20: Users (192.168.20.0/24)
-       ├── VLAN 30: IoT (192.168.30.0/24)
-       ├── VLAN 40: Guest (192.168.40.0/24)
-       └── VLAN 99: Management (10.0.99.0/24)
+       |
+       v
++---------------------+
+|  MikroTik Chateau   | <- Router, Firewall, VPN
+|  192.168.88.1       |
++---------------------+
+       |
+       +-- VLAN 10: Servers (10.0.10.0/24)
+       |   +-- Proxmox: 10.0.10.1
+       |   +-- Orange Pi 5: 10.0.10.5
+       |   +-- LXC containers
+       |
+       +-- VLAN 20: Users (192.168.20.0/24)
+       +-- VLAN 30: IoT (192.168.30.0/24)
+       +-- VLAN 40: Guest (192.168.40.0/24)
+       +-- VLAN 99: Management (10.0.99.0/24)
 ```
-
-## Storage Strategy
-
-### SSD 180GB (local-lvm)
-- Production VMs and LXC root disks
-- Fast access workloads
-
-### HDD 500GB (local-hdd)
-- Templates (VMID 900-919)
-- Backups
-- ISO images
 
 ## Secrets Management
 
@@ -437,140 +193,66 @@ Internet (LTE/WAN)
 - `terraform.tfstate`
 - `.vault_pass`
 - `*.pem`, `*.key`
+- Unencrypted secret files
 
 **Use:**
-- Terraform: `local/terraform/**/terraform.tfvars` (gitignored)
-- Ansible: Ansible Vault
-- API tokens: Environment variables
-
-## Regenerating from Topology
-
-### When to Regenerate
-
-Always regenerate after editing any `topology/L*.yaml` file:
-```bash
-python3 topology-tools/regenerate-all.py
-```
-
-### What Gets Generated
-
-```
-generated/
-├── bootstrap/                     # Device init scripts (ADR 0050)
-│   ├── rtr-mikrotik-chateau/      # MikroTik bootstrap
-│   │   ├── init-terraform.rsc
-│   │   └── terraform.tfvars.example
-│   ├── srv-gamayun/               # Proxmox bootstrap package
-│   └── srv-orangepi5/             # OPi5 cloud-init
-├── terraform/
-│   ├── mikrotik/                  # MikroTik RouterOS
-│   │   ├── provider.tf
-│   │   ├── interfaces.tf
-│   │   ├── firewall.tf
-│   │   └── ...
-│   └── proxmox/                   # Proxmox infrastructure
-│       ├── provider.tf
-│       ├── bridges.tf
-│       ├── lxc.tf
-│       └── ...
-├── ansible/inventory/             # Ansible
-│   └── production/
-├── ansible/runtime/               # Assembled runtime inventory
-│   └── production/
-│       ├── hosts.yml
-│       ├── group_vars/
-│       └── host_vars/
-└── docs/                          # Documentation
-    ├── overview.md
-    ├── network-diagram.md
-    └── ...
-```
+- SOPS with age for secrets in `projects/home-lab/secrets/`
+- Environment variables for runtime secrets
+- `V5_SECRETS_MODE=passthrough` for validation without decryption
 
 ## Common Pitfalls
 
 ### DON'T: Edit generated files
 ```bash
 # Wrong:
-vim generated/terraform/proxmox/bridges.tf  # Baseline; will be overwritten!
+vim generated/home-lab/terraform/proxmox/bridges.tf  # Will be overwritten!
 ```
 
-### DO: Edit layer files and regenerate
+### DO: Edit topology and regenerate
 ```bash
 # Correct:
-vim topology/L2-network.yaml
-python3 topology-tools/regenerate-all.py
+vim topology/objects/network/bridges.yaml
+python topology-tools/compile-topology.py
 ```
 
-### DON'T: Reference higher layers from lower
-```yaml
-# Wrong in L4-platform.yaml:
-lxc:
-  - id: lxc-db
-    service_ref: svc-postgresql  # L4 cannot reference L5!
+### DON'T: Edit files outside topology hierarchy
+```bash
+# Wrong: direct edits to instance files for structural changes
 ```
 
-### DO: Reference lower layers only
-```yaml
-# Correct in L5-application.yaml:
-services:
-  - id: svc-postgresql
-    lxc_ref: lxc-db              # L5 can reference L4
+### DO: Follow class -> object -> instance inheritance
+```bash
+# Correct: changes flow down from class through object to instance
 ```
 
 ## Working with Claude Code
 
 When Claude Code helps with this repository:
 
-1. **Always check topology layers first** - They are the source of truth
-2. **Regenerate after changes** - Run `regenerate-all.py`
-3. **Respect layer boundaries** - Don't create upward references
+1. **Always check topology files first** - They are the source of truth
+2. **Run validation after changes** - Use `lane.py validate-v5`
+3. **Respect plugin boundaries** - Follow 4-level plugin model
 4. **Record architecture decisions in ADR** - add/update `adr/NNNN-*.md`
-5. **Use Makefile** - `cd deploy && make validate generate`
+5. **Run tests** - `python -m pytest tests -q`
 
 **Ask Claude Code to:**
-- "Add a new LXC container to L4-platform.yaml"
-- "Add a service definition to L5-application.yaml"
-- "Regenerate all configs"
-- "Validate topology"
+- "Add a new instance to L4-platform"
+- "Add a service definition"
+- "Run validation"
+- "Check test coverage"
 
 **Don't ask Claude Code to:**
 - Edit files in `generated/` directly
-- Create references from lower to higher layers
-- Hardcode IPs outside topology
+- Break plugin layer boundaries
+- Skip validation steps
 
-### Dist Assembly
+## V4 Archive Reference
 
-ADR 0052 adds explicit deploy package assembly:
+The v4 codebase is preserved in `archive/v4/` for reference. It used an OSI-like 8-layer architecture (L0-L7) with direct layer files. Key differences from v5:
 
-```bash
-python3 topology-tools/assemble-deploy.py
-python3 topology-tools/validate-dist.py
-```
+- v4: Flat layer files (`v4/topology/L*.yaml`)
+- v5: Class -> Object -> Instance hierarchy
+- v4: Script-based generators
+- v5: Plugin-based microkernel architecture
 
-`dist/` is an assembled output layer, not a source-of-truth. Current package scope:
-- `dist/control/ansible`
-- `dist/control/terraform/mikrotik`
-- `dist/control/terraform/proxmox`
-- `dist/bootstrap/rtr-mikrotik-chateau`
-- `dist/bootstrap/srv-gamayun`
-- `dist/bootstrap/srv-orangepi5`
-- `dist/manifests/*.json`
-
-### Terraform Execution Layers
-
-ADR 0055 introduces an explicit three-layer Terraform execution model:
-
-```text
-generated/terraform/<target>/              # topology-derived baseline
-        +
-terraform-overrides/<target>/              # tracked additive exceptions
-        +
-local/terraform/<target>/terraform.tfvars  # untracked operator inputs
-        =
-.work/native/terraform/<target>/ or dist/control/terraform/<target>/
-```
-
-Rules:
-- never edit `generated/terraform/*` directly
-- use `terraform-overrides/*` only for reviewed tracked exceptions
-- keep secrets and environment-specific values in `local/`
+See `archive/v4/README.md` and ADR 0062 for migration context.

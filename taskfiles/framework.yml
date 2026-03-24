@@ -9,37 +9,37 @@ tasks:
   lock-refresh:
     desc: Regenerate framework.lock for active project in topology manifest
     cmds:
-      - "{{.PYTHON}} v5/topology-tools/generate-framework-lock.py --topology v5/topology/topology.yaml --force"
+      - "{{.PYTHON}} topology-tools/generate-framework-lock.py --topology topology/topology.yaml --force"
 
   verify-lock:
     desc: Verify framework.lock in strict mode
     cmds:
-      - "{{.PYTHON}} v5/topology-tools/verify-framework-lock.py --strict"
+      - "{{.PYTHON}} topology-tools/verify-framework-lock.py --strict"
 
   compile:
     desc: Compile topology with strict model lock and passthrough secrets
     cmds:
-      - "{{.PYTHON}} v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough"
+      - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough"
 
   rollback-rehearsal:
     desc: Rehearse framework lock rollback path
     cmds:
-      - "{{.PYTHON}} v5/topology-tools/rehearse-framework-rollback.py"
+      - "{{.PYTHON}} topology-tools/rehearse-framework-rollback.py"
 
   compatibility-matrix:
     desc: Validate framework/project compatibility matrix
     cmds:
-      - "{{.PYTHON}} v5/topology-tools/validate-framework-compatibility-matrix.py"
+      - "{{.PYTHON}} topology-tools/validate-framework-compatibility-matrix.py"
 
   audit-entrypoints:
     desc: Audit strict runtime entrypoints
     cmds:
-      - "{{.PYTHON}} v5/topology-tools/audit-strict-runtime-entrypoints.py"
+      - "{{.PYTHON}} topology-tools/audit-strict-runtime-entrypoints.py"
 
   adr0078-ownership:
     desc: Verify ADR0078 object-generator/template ownership boundaries
     cmds:
-      - "{{.PYTHON}} -m pytest -o addopts= v5/tests/plugin_contract/test_object_generator_ownership.py -q"
+      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_contract/test_object_generator_ownership.py -q"
 
   strict:
     desc: Run ADR0076 strict framework gates
@@ -52,7 +52,7 @@ tasks:
   release-tests:
     desc: Run framework-focused release test suite
     cmds:
-      - "{{.PYTHON}} -m pytest -o addopts= v5/tests/plugin_api v5/tests/plugin_contract v5/tests/plugin_integration/test_framework_lock.py v5/tests/plugin_integration/test_build_framework_distribution.py v5/tests/plugin_integration/test_extract_framework_worktree.py v5/tests/plugin_integration/test_extract_framework_history.py v5/tests/plugin_integration/test_generator_base.py v5/tests/plugin_integration/test_terraform_mikrotik_generator.py v5/tests/plugin_integration/test_terraform_proxmox_generator.py v5/tests/plugin_integration/test_bootstrap_generators.py v5/tests/plugin_integration/test_generator_projection_contract.py v5/tests/plugin_integration/test_generator_template_and_publish_contract.py v5/tests/plugin_integration/test_module_manifest_discovery.py v5/tests/plugin_integration/test_strict_runtime_entrypoint_audit.py -q"
+      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_api tests/plugin_contract tests/plugin_integration/test_framework_lock.py tests/plugin_integration/test_build_framework_distribution.py tests/plugin_integration/test_extract_framework_worktree.py tests/plugin_integration/test_extract_framework_history.py tests/plugin_integration/test_generator_base.py tests/plugin_integration/test_terraform_mikrotik_generator.py tests/plugin_integration/test_terraform_proxmox_generator.py tests/plugin_integration/test_bootstrap_generators.py tests/plugin_integration/test_generator_projection_contract.py tests/plugin_integration/test_generator_template_and_publish_contract.py tests/plugin_integration/test_module_manifest_discovery.py tests/plugin_integration/test_strict_runtime_entrypoint_audit.py -q"
 
   release-ci:
     desc: Run release CI parity gate (strict + framework-focused tests)
@@ -74,12 +74,12 @@ tasks:
       vars:
         - FRAMEWORK_VERSION
     cmds:
-      - "{{.PYTHON}} v5/topology-tools/build-framework-distribution.py --repo-root . --framework-manifest v5/topology/framework.yaml --output-root {{.FRAMEWORK_DIST_OUTPUT}} --version {{.FRAMEWORK_VERSION}} --archive-format both"
+      - "{{.PYTHON}} topology-tools/build-framework-distribution.py --repo-root . --framework-manifest topology/framework.yaml --output-root {{.FRAMEWORK_DIST_OUTPUT}} --version {{.FRAMEWORK_VERSION}} --archive-format both"
 
   release-bootstrap:
     desc: Bootstrap standalone infra-topology-framework repository candidate
     cmds:
-      - "{{.PYTHON}} v5/topology-tools/bootstrap-framework-repo.py --repo-root . --output-root {{.FRAMEWORK_BOOTSTRAP_OUTPUT}} --include-tests --preserve-history --force"
+      - "{{.PYTHON}} topology-tools/bootstrap-framework-repo.py --repo-root . --output-root {{.FRAMEWORK_BOOTSTRAP_OUTPUT}} --include-tests --preserve-history --force"
 
   release-candidate:
     desc: Prepare full framework release candidate bundle (preflight + dist + bootstrap)
