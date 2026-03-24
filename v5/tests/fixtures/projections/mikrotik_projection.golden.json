@@ -1,9 +1,9 @@
 {
   "capabilities": {
-    "has_containers": true,
+    "has_containers": false,
     "has_failover": false,
     "has_ipsec": false,
-    "has_lte": true,
+    "has_lte": false,
     "has_multi_wan": false,
     "has_openvpn": false,
     "has_qos_advanced": false,

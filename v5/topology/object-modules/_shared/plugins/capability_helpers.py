@@ -44,14 +44,19 @@ def get_capability_templates(
     """
     result: dict[str, str] = {}
     cap_templates = config.get("capability_templates")
-    # ADR0078 specifies dict format only
-    if not isinstance(cap_templates, dict):
+
+    # Normalize cap_templates to list of mappings
+    # ADR0078 specifies dict format, but support legacy list format for compatibility
+    mappings: list[dict[str, Any]] = []
+    if isinstance(cap_templates, dict):
+        mappings = [m for m in cap_templates.values() if isinstance(m, dict)]
+    elif isinstance(cap_templates, list):
+        # Legacy list format: [{"capability_key": ..., "template": ..., "output_file": ...}]
+        mappings = [m for m in cap_templates if isinstance(m, dict)]
+    else:
         return result
 
-    for mapping in cap_templates.values():
-        if not isinstance(mapping, dict):
-            continue
-
+    for mapping in mappings:
         enabled_by = mapping.get("enabled_by")
         # TODO(ADR0078-cleanup): Remove capability_key fallback after v5.1 migration
         if not isinstance(enabled_by, str) or not enabled_by.strip():

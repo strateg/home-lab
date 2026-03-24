@@ -63,6 +63,7 @@ def _compiled_fixture() -> dict:
                     "capabilities": [
                         "cap.net.overlay.vpn.wireguard.server",
                         "cap.net.l3.qos.basic",
+                        "cap.net.platform.containers",
                     ],
                 },
                 {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},

@@ -12,6 +12,9 @@ V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
+from plugins.generators.shared_helper_loader import load_capability_helpers
+
+get_capability_templates = load_capability_helpers().get_capability_templates
 
 
 def _load_generator_class():
@@ -129,35 +132,35 @@ def test_terraform_proxmox_generator_prefers_configured_api_url(tmp_path: Path) 
 
 
 def test_terraform_proxmox_generator_resolves_declarative_capability_template_config(tmp_path: Path) -> None:
-    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
-    ctx = _ctx(tmp_path, _compiled_fixture())
-    ctx.config["capability_templates"] = {
-        "ceph": {
-            "enabled_by": "capabilities.has_ceph",
-            "template": "terraform/ceph.tf.j2",
-            "output": "ceph.tf",
-        },
-        "ha": {
-            "enabled_by": "capabilities.has_ha",
-            "template": "terraform/ha.tf.j2",
-            "output": "ha.tf",
-        },
+    config = {
+        "capability_templates": {
+            "ceph": {
+                "enabled_by": "capabilities.has_ceph",
+                "template": "terraform/ceph.tf.j2",
+                "output": "ceph.tf",
+            },
+            "ha": {
+                "enabled_by": "capabilities.has_ha",
+                "template": "terraform/ha.tf.j2",
+                "output": "ha.tf",
+            },
+        }
     }
 
-    templates = generator._get_capability_templates({"has_ceph": True, "has_ha": False}, ctx)
+    templates = get_capability_templates({"has_ceph": True, "has_ha": False}, config)
 
     assert templates == {"ceph.tf": "terraform/ceph.tf.j2"}
 
 
 def test_terraform_proxmox_generator_keeps_legacy_capability_template_compatibility(tmp_path: Path) -> None:
-    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
-    ctx = _ctx(tmp_path, _compiled_fixture())
-    ctx.config["capability_templates"] = [
-        {"capability_key": "has_ceph", "template": "terraform/ceph.tf.j2", "output_file": "ceph.tf"},
-        {"capability_key": "has_ha", "template": "terraform/ha.tf.j2", "output_file": "ha.tf"},
-    ]
+    config = {
+        "capability_templates": [
+            {"capability_key": "has_ceph", "template": "terraform/ceph.tf.j2", "output_file": "ceph.tf"},
+            {"capability_key": "has_ha", "template": "terraform/ha.tf.j2", "output_file": "ha.tf"},
+        ]
+    }
 
-    templates = generator._get_capability_templates({"has_ceph": False, "has_ha": True}, ctx)
+    templates = get_capability_templates({"has_ceph": False, "has_ha": True}, config)
 
     assert templates == {"ha.tf": "terraform/ha.tf.j2"}
 

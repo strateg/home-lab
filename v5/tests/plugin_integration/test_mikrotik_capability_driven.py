@@ -101,11 +101,18 @@ class TestMikroTikCapabilityFlags:
         assert flags["has_wireguard"] is False
 
     def test_chateau_implicit_capabilities(self) -> None:
-        """Chateau models have implicit LTE and containers support."""
+        """Chateau models have LTE and containers capabilities from object definition."""
+        # ADR0078: Capabilities come from object definitions, resolved during compilation
         routers = [
             {
                 "instance_id": "rtr-mikrotik-chateau",
                 "object_ref": "obj.mikrotik.chateau_lte7_ax",
+                # These capabilities are defined in obj.mikrotik.chateau_lte7_ax.yaml
+                # and would be resolved during compilation
+                "enabled_capabilities": [
+                    "cap.net.platform.containers",
+                    "cap.net.interface.lte",
+                ],
             }
         ]
         flags = _derive_mikrotik_capability_flags(routers)
@@ -253,13 +260,18 @@ class TestMikroTikGeneratorCapabilityDriven:
         assert "vpn.tf" not in generated_files
 
     def test_generates_containers_tf_for_chateau(self, tmp_path: Path) -> None:
-        """Chateau models should generate containers.tf (implicit capability)."""
+        """Chateau models should generate containers.tf when capability is present."""
+        # ADR0078: Capabilities come from object definitions, resolved during compilation
         compiled_json = {
             "instances": {
                 "devices": [
                     {
                         "instance_id": "rtr-mikrotik-chateau",
                         "object_ref": "obj.mikrotik.chateau_lte7_ax",
+                        # These capabilities are defined in obj.mikrotik.chateau_lte7_ax.yaml
+                        "enabled_capabilities": [
+                            "cap.net.platform.containers",
+                        ],
                     }
                 ],
                 "network": [],

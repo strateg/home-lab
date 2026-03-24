@@ -7,11 +7,28 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import yaml
+
 V5_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
+
+# Plugin manifest paths
+MIKROTIK_MANIFEST = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins.yaml"
+PROXMOX_MANIFEST = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins.yaml"
+ORANGEPI_MANIFEST = V5_ROOT / "topology" / "object-modules" / "orangepi" / "plugins.yaml"
+
+
+def _load_plugin_config(manifest_path: Path, plugin_id: str) -> dict:
+    """Load plugin config from manifest YAML."""
+    payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+    plugins = payload.get("plugins", [])
+    for row in plugins:
+        if isinstance(row, dict) and row.get("id") == plugin_id:
+            return row.get("config", {})
+    return {}
 
 
 def _load_generator_class(module_rel_path: str, class_name: str):
@@ -37,14 +54,17 @@ BootstrapProxmoxGenerator = _load_generator_class(
 )
 
 
-def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
+def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None) -> PluginContext:
+    config = {"generator_artifacts_root": str(tmp_path / "generated")}
+    if plugin_config:
+        config.update(plugin_config)
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
         compiled_json=compiled_json,
         output_dir=str(tmp_path / "build"),
-        config={"generator_artifacts_root": str(tmp_path / "generated")},
+        config=config,
     )
 
 
@@ -61,8 +81,9 @@ def _compiled_fixture() -> dict:
 
 
 def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> None:
+    plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "base.generator.bootstrap_proxmox")
     generator = BootstrapProxmoxGenerator("base.generator.bootstrap_proxmox")
-    result = generator.execute(_ctx(tmp_path, _compiled_fixture()), Stage.GENERATE)
+    result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "srv-gamayun"
@@ -73,8 +94,9 @@ def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
 
 
 def test_bootstrap_mikrotik_generator_writes_expected_files(tmp_path: Path) -> None:
+    plugin_config = _load_plugin_config(MIKROTIK_MANIFEST, "base.generator.bootstrap_mikrotik")
     generator = BootstrapMikroTikGenerator("base.generator.bootstrap_mikrotik")
-    result = generator.execute(_ctx(tmp_path, _compiled_fixture()), Stage.GENERATE)
+    result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "rtr-mk"
@@ -84,8 +106,9 @@ def test_bootstrap_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
 
 
 def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> None:
+    plugin_config = _load_plugin_config(ORANGEPI_MANIFEST, "base.generator.bootstrap_orangepi")
     generator = BootstrapOrangePiGenerator("base.generator.bootstrap_orangepi")
-    result = generator.execute(_ctx(tmp_path, _compiled_fixture()), Stage.GENERATE)
+    result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "srv-orangepi5" / "cloud-init"

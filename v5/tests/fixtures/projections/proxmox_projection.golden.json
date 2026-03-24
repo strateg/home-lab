@@ -1,4 +1,9 @@
 {
+  "capabilities": {
+    "has_ceph": false,
+    "has_cloud_init": false,
+    "has_ha": false
+  },
   "counts": {
     "lxc": 2,
     "proxmox_nodes": 1,

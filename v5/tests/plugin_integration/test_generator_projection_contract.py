@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 V5_ROOT = Path(__file__).resolve().parents[2]
 V5_TOOLS = V5_ROOT / "topology-tools"
@@ -15,6 +16,19 @@ sys.path.insert(0, str(V5_TOOLS))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage  # noqa: E402
 from plugins.generators import ansible_inventory_generator as ansible_module  # noqa: E402
+
+# Plugin manifest paths
+PROXMOX_MANIFEST = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins.yaml"
+
+
+def _load_plugin_config(manifest_path: Path, plugin_id: str) -> dict:
+    """Load plugin config from manifest YAML."""
+    payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+    plugins = payload.get("plugins", [])
+    for row in plugins:
+        if isinstance(row, dict) and row.get("id") == plugin_id:
+            return row.get("config", {})
+    return {}
 
 
 def _load_module(name: str, path: Path):
@@ -40,19 +54,22 @@ bootstrap_proxmox_module = _load_module(
 )
 
 
-def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
+def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None) -> PluginContext:
+    config = {"generator_artifacts_root": str(tmp_path / "generated")}
+    if plugin_config:
+        config.update(plugin_config)
     return PluginContext(
         topology_path="v5/topology/topology.yaml",
         profile="test",
         model_lock={},
         compiled_json=compiled_json,
         output_dir=str(tmp_path / "build"),
-        config={"generator_artifacts_root": str(tmp_path / "generated")},
+        config=config,
     )
 
 
 @pytest.mark.parametrize(
-    ("module", "builder_name", "generator_factory", "projection", "probe_file", "probe_text"),
+    ("module", "builder_name", "generator_factory", "projection", "probe_file", "probe_text", "plugin_id"),
     [
         (
             proxmox_module,
@@ -66,6 +83,7 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
             },
             Path("terraform/proxmox/lxc.tf"),
             "lxc-probe",
+            None,  # No config needed
         ),
         (
             mikrotik_module,
@@ -79,6 +97,7 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
             },
             Path("terraform/mikrotik/interfaces.tf"),
             "rtr-probe",
+            None,  # No config needed
         ),
         (
             ansible_module,
@@ -96,6 +115,7 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
             },
             Path("ansible/inventory/production/hosts.yml"),
             "host-probe",
+            None,  # No config needed
         ),
         (
             bootstrap_proxmox_module,
@@ -109,6 +129,7 @@ def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
             },
             Path("bootstrap/srv-probe/README.md"),
             "srv-probe",
+            "base.generator.bootstrap_proxmox",  # Needs config from manifest
         ),
     ],
 )
@@ -121,9 +142,11 @@ def test_generator_uses_projection_contract_only(
     projection: dict,
     probe_file: Path,
     probe_text: str,
+    plugin_id: str | None,
 ) -> None:
     monkeypatch.setattr(module, builder_name, lambda _: projection)
-    ctx = _ctx(tmp_path, {"not_instances": "raw internals should not be used"})
+    plugin_config = _load_plugin_config(PROXMOX_MANIFEST, plugin_id) if plugin_id else None
+    ctx = _ctx(tmp_path, {"not_instances": "raw internals should not be used"}, plugin_config)
 
     result = generator_factory().execute(ctx, Stage.GENERATE)
 

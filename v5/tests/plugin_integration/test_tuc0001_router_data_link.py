@@ -272,8 +272,11 @@ def test_tuc0001_compile_preserves_power_source_bindings(tmp_path: Path):
     assert isinstance(slate, dict)
     assert isinstance(pdu, dict)
 
-    assert mikrotik.get("instance_data", {}).get("power", {}).get("source_ref") == "pdu-rack"
-    assert mikrotik.get("instance_data", {}).get("power", {}).get("outlet_ref") == "outlet_01"
+    # Power hierarchy from actual topology:
+    # - rtr-mikrotik-chateau -> ups-main (directly)
+    # - rtr-slate -> pdu-rack -> outlet_02
+    # - pdu-rack -> ups-main
+    assert mikrotik.get("instance_data", {}).get("power", {}).get("source_ref") == "ups-main"
     assert slate.get("instance_data", {}).get("power", {}).get("source_ref") == "pdu-rack"
     assert slate.get("instance_data", {}).get("power", {}).get("outlet_ref") == "outlet_02"
     assert pdu.get("instance_data", {}).get("power", {}).get("source_ref") == "ups-main"
