@@ -2,8 +2,8 @@
 
 **ADR:** `adr/0068-object-yaml-as-instance-template-with-explicit-overrides.md`
 **Date:** 2026-03-10
-**Updated:** 2026-03-15
-**Status:** In Progress (runtime implemented; topology-wide migration ongoing)
+**Updated:** 2026-03-24
+**Status:** Complete (E6806 enforcement active; `enforce` mode)
 **Operator Guide:** `adr/0068-analysis/OPERATOR-WORKFLOW.md`
 
 ---
@@ -97,7 +97,7 @@ Tasks:
 2. Add corresponding instance values (`instance_overrides` and/or approved identity mappings such as `hardware_identity.mac_addresses`).
 3. Run compile and fix diagnostics.
 
-Status: In Progress (router/network TUC scope migrated; broader topology sweep pending).
+Status: Complete (2026-03-24; E2E validation passed with 0 E680x errors).
 
 ### Phase 5: Hardening and Contract Finalization
 
@@ -112,7 +112,7 @@ Tasks:
 2. Add optional profile-gated enforcement mode (`warn` -> `warn+gate-new` -> `enforce`).
 3. Document escape/literal conventions for reserved marker tokens.
 
-Status: Implemented (runtime + tests for E6806 and enforcement modes + authoring docs addendum).
+Status: Complete (2026-03-24; `enforcement_mode: enforce` active in plugins.yaml).
 
 ---
 
@@ -122,3 +122,34 @@ Status: Implemented (runtime + tests for E6806 and enforcement modes + authoring
 2. Format source of truth remains `instance-field-formats.yaml`.
 3. `pytest` plugin integration tests are green.
 4. Target topology compiles cleanly with plugins enabled after migration phase.
+
+---
+
+## Enforcement Summary (2026-03-24)
+
+### Active Configuration
+
+```yaml
+# v5/topology-tools/plugins/plugins.yaml
+- id: base.validator.instance_placeholders
+  config:
+    enforcement_mode: enforce
+    gate_statuses: [modeled, mapped]
+```
+
+### Error Codes
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| E6801 | error | Invalid placeholder syntax |
+| E6802 | error | Required override missing |
+| E6803 | error | Override path not marked as placeholder |
+| E6804 | error | Override path does not exist in object |
+| E6805 | error | Override value format validation failed |
+| E6806 | error | Unresolved placeholder after merge |
+
+### Validation Results (E2E Dry-Run 2026-03-24)
+
+- E680x errors: **0**
+- Enforcement mode: `enforce`
+- All placeholder contracts satisfied
