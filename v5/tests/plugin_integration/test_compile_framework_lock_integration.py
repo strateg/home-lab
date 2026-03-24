@@ -79,7 +79,7 @@ def _create_minimal_repo(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
             "project_min_framework_version": "5.0.0",
             "project_contract_revision": 1,
             "instances_root": "instances",
-            "secrets_root": "secrets",
+            "secrets_root": "secrets",  # pragma: allowlist secret
         },
     )
     _write_yaml(error_catalog, {"version": 1, "tool": "topology-compiler", "codes": {}})
@@ -187,6 +187,31 @@ def test_compile_parser_defaults_catalog_and_plugins_to_script_paths() -> None:
     assert Path(args.plugins_manifest) == mod.DEFAULT_PLUGINS_MANIFEST
 
 
+def test_resolve_topology_path_falls_back_to_standalone_topology_yaml(monkeypatch, tmp_path: Path) -> None:
+    mod = _load_compiler_module()
+    repo_root = tmp_path / "external-project"
+    repo_root.mkdir(parents=True, exist_ok=True)
+    standalone_topology = repo_root / "topology.yaml"
+    standalone_topology.write_text("version: 5.0.0\n", encoding="utf-8")
+
+    monkeypatch.setattr(mod, "REPO_ROOT", repo_root)
+
+    resolved = mod.resolve_topology_path(mod.DEFAULT_TOPOLOGY_RELATIVE)
+
+    assert resolved == standalone_topology
+
+
+def test_resolve_topology_path_keeps_default_monorepo_target_when_no_fallback(monkeypatch, tmp_path: Path) -> None:
+    mod = _load_compiler_module()
+    repo_root = tmp_path / "empty-project"
+    repo_root.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(mod, "REPO_ROOT", repo_root)
+
+    resolved = mod.resolve_topology_path(mod.DEFAULT_TOPOLOGY_RELATIVE)
+
+    assert resolved == repo_root / mod.DEFAULT_TOPOLOGY_RELATIVE
+
+
 def test_compile_supports_project_manifest_at_projects_root(monkeypatch, tmp_path: Path) -> None:
     mod = _load_compiler_module()
     repo_root = tmp_path / "project-repo"
@@ -225,7 +250,7 @@ def test_compile_supports_project_manifest_at_projects_root(monkeypatch, tmp_pat
             "project_min_framework_version": "5.0.0",
             "project_contract_revision": 1,
             "instances_root": "instances",
-            "secrets_root": "secrets",
+            "secrets_root": "secrets",  # pragma: allowlist secret
         },
     )
     _write_yaml(

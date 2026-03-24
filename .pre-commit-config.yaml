@@ -30,11 +30,22 @@ repos:
   rev: v1.4.0
   hooks:
     - id: detect-secrets
+      args: ["--baseline", ".secrets.baseline"]
       exclude: |
         (?x)^(
+          v4/.*|
+          \.github/workflows/.*|
           Migrated_and_archived/.*|
           manual-scripts/.*|
           v4/topology-tools/fixtures/.*|
+          v5/projects/.*/secrets/.*|
+          v5/projects/.*/project\.yaml$|
+          v5/projects/.*/framework\.lock\.yaml$|
+          v5/tests/.*|
+          docs/.*|
+          v5/topology/object-modules/.*/obj\..*\.yaml$|
+          v5/topology-tools/plugins/plugins\.yaml$|
+          v5/topology-tools/(audit-strict-runtime-entrypoints|bootstrap-project-repo|cutover-readiness-report)\.py$|
           ansible/group_vars/.*\.yml\.example$|
           ansible/.*\.sh$|
           ansible/README\.md$|

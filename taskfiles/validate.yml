@@ -52,7 +52,7 @@ tasks:
   v5-passthrough:
     desc: Validate v5 lane in passthrough secrets mode
     env:
-      V5_SECRETS_MODE: passthrough
+      V5_SECRETS_MODE: passthrough # pragma: allowlist secret
     cmds:
       - "{{.PYTHON}} v5/scripts/orchestration/lane.py validate-v5"
 
@@ -65,4 +65,3 @@ tasks:
     desc: Run archived phase1 migration gate
     cmds:
       - "{{.PYTHON}} v5/scripts/orchestration/lane.py phase1-gate"
-
