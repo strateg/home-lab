@@ -42,26 +42,26 @@ tasks:
   v4:
     desc: Validate v4 lane
     cmds:
-      - "{{.PYTHON}} v5/scripts/orchestration/lane.py validate-v4"
+      - "{{.PYTHON}} scripts/orchestration/lane.py validate-v4"
 
   v5:
     desc: Validate v5 lane (default secrets mode)
     cmds:
-      - "{{.PYTHON}} v5/scripts/orchestration/lane.py validate-v5"
+      - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
   v5-passthrough:
     desc: Validate v5 lane in passthrough secrets mode
     env:
       V5_SECRETS_MODE: passthrough # pragma: allowlist secret
     cmds:
-      - "{{.PYTHON}} v5/scripts/orchestration/lane.py validate-v5"
+      - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
   v5-layers:
     desc: Validate v5 layer contract only
     cmds:
-      - "{{.PYTHON}} v5/scripts/orchestration/lane.py validate-v5-layers"
+      - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5-layers"
 
   phase1-gate:
     desc: Run archived phase1 migration gate
     cmds:
-      - "{{.PYTHON}} v5/scripts/orchestration/lane.py phase1-gate"
+      - "{{.PYTHON}} scripts/orchestration/lane.py phase1-gate"

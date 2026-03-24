@@ -47,7 +47,7 @@ jobs:
             fi
             echo "Task orchestration failed; executing legacy fallback chain."
           fi
-          python v5/scripts/orchestration/lane.py validate-v4
+          python scripts/orchestration/lane.py validate-v4
 
   validate-v5:
     name: Validate v5 Lane (default)
@@ -75,7 +75,7 @@ jobs:
           PROJECT_ID=$(python - <<'PY'
           import yaml
           from pathlib import Path
-          payload = yaml.safe_load(Path("v5/topology/topology.yaml").read_text(encoding="utf-8")) or {}
+          payload = yaml.safe_load(Path("topology/topology.yaml").read_text(encoding="utf-8")) or {}
           project = payload.get("project", {})
           active = project.get("active") if isinstance(project, dict) else None
           print(active.strip() if isinstance(active, str) and active.strip() else "home-lab")
@@ -102,7 +102,7 @@ jobs:
         if: ${{ env.DEVKEY_PASSPHRASE != '' }}
         run: |
           mkdir -p ~/.config/sops/age
-          echo "$DEVKEY_PASSPHRASE" | age -d "v5/projects/${PROJECT_ID}/secrets/devkey.age" > ~/.config/sops/age/keys.txt
+          echo "$DEVKEY_PASSPHRASE" | age -d "projects/${PROJECT_ID}/secrets/devkey.age" > ~/.config/sops/age/keys.txt
           chmod 600 ~/.config/sops/age/keys.txt
 
       - name: Run strict lane gate (task-first with explicit fallback)
@@ -125,16 +125,16 @@ jobs:
             echo "Task orchestration failed; executing legacy fallback chain."
           fi
 
-          python v5/topology-tools/verify-framework-lock.py --strict
-          python v5/topology-tools/rehearse-framework-rollback.py
-          python v5/topology-tools/validate-framework-compatibility-matrix.py
-          python v5/topology-tools/audit-strict-runtime-entrypoints.py
+          python topology-tools/verify-framework-lock.py --strict
+          python topology-tools/rehearse-framework-rollback.py
+          python topology-tools/validate-framework-compatibility-matrix.py
+          python topology-tools/audit-strict-runtime-entrypoints.py
 
           if [ -n "${DEVKEY_PASSPHRASE}" ]; then
-            python v5/scripts/orchestration/lane.py validate-v5
+            python scripts/orchestration/lane.py validate-v5
           else
             echo "DEVKEY_PASSPHRASE is not configured, running passthrough validation fallback."
-            V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5
+            V5_SECRETS_MODE=passthrough python scripts/orchestration/lane.py validate-v5
           fi
 
       - name: Cleanup secrets key

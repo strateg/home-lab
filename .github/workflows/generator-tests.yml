@@ -4,18 +4,18 @@ on:
   push:
     branches: [ main, master, feature/v4-generator-* ]
     paths:
-      - 'v4/topology-tools/generate-*.py'
-      - 'v4/topology-tools/regenerate-all.py'
-      - 'v4/topology-tools/templates/**'
-      - 'v4/tests/unit/generators/**'
-      - 'v4/topology.yaml'
-      - 'v4/topology/**'
+      - 'archive/v4/topology-tools/generate-*.py'
+      - 'archive/v4/topology-tools/regenerate-all.py'
+      - 'archive/v4/topology-tools/templates/**'
+      - 'archive/v4/tests/unit/generators/**'
+      - 'archive/v4/topology.yaml'
+      - 'archive/v4/topology/**'
   pull_request:
     paths:
-      - 'v4/topology-tools/generate-*.py'
-      - 'v4/topology-tools/regenerate-all.py'
-      - 'v4/topology-tools/templates/**'
-      - 'v4/tests/unit/generators/**'
+      - 'archive/v4/topology-tools/generate-*.py'
+      - 'archive/v4/topology-tools/regenerate-all.py'
+      - 'archive/v4/topology-tools/templates/**'
+      - 'archive/v4/tests/unit/generators/**'
   workflow_dispatch:
 
 jobs:
@@ -50,9 +50,9 @@ jobs:
 
       - name: Run generator unit tests
         run: |
-          pytest v4/tests/unit/generators/ \
+          pytest archive/v4/tests/unit/generators/ \
             -v \
-            --cov=v4/topology-tools \
+            --cov=archive/v4/topology-tools \
             --cov-report=xml \
             --cov-report=term-missing \
             --durations=10
@@ -86,27 +86,27 @@ jobs:
 
       - name: Test docs generator
         run: |
-          python v4/topology-tools/generate-docs.py \
-            --topology v4/topology.yaml \
-            --output v4-generated/test/docs
+          python archive/v4/topology-tools/generate-docs.py \
+            --topology archive/v4/topology.yaml \
+            --output archive/v4-generated/test/docs
 
       - name: Test Proxmox generator
         run: |
-          python v4/topology-tools/generate-terraform-proxmox.py \
-            --topology v4/topology.yaml \
-            --output v4-generated/test/terraform/proxmox
+          python archive/v4/topology-tools/generate-terraform-proxmox.py \
+            --topology archive/v4/topology.yaml \
+            --output archive/v4-generated/test/terraform/proxmox
 
       - name: Verify generated files
         run: |
-          test -f v4-generated/test/docs/overview.md
-          test -f v4-generated/test/terraform/proxmox/versions.tf
+          test -f archive/v4-generated/test/docs/overview.md
+          test -f archive/v4-generated/test/terraform/proxmox/versions.tf
           echo "✓ All generators produced output"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: generated-outputs
-          path: v4-generated/test/
+          path: archive/v4-generated/test/
           retention-days: 7
 
   terraform-validation:
@@ -135,15 +135,15 @@ jobs:
 
       - name: Generate baseline
         run: |
-          python v4/topology-tools/generate-terraform-proxmox.py \
-            --topology v4/topology.yaml \
-            --output v4-generated/baseline/proxmox
+          python archive/v4/topology-tools/generate-terraform-proxmox.py \
+            --topology archive/v4/topology.yaml \
+            --output archive/v4-generated/baseline/proxmox
 
       - name: Generate test output
         run: |
-          python v4/topology-tools/generate-terraform-proxmox.py \
-            --topology v4/topology.yaml \
-            --output v4-generated/test/proxmox
+          python archive/v4/topology-tools/generate-terraform-proxmox.py \
+            --topology archive/v4/topology.yaml \
+            --output archive/v4-generated/test/proxmox
 
       - name: Compare outputs (backward compatibility)
         run: |
@@ -151,7 +151,7 @@ jobs:
 
       - name: Validate Terraform syntax
         run: |
-          cd v4-generated/baseline/proxmox
+          cd archive/v4-generated/baseline/proxmox
           terraform init -backend=false
           terraform validate
           terraform fmt -check
@@ -178,7 +178,7 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          pytest v4/tests/benchmarks/ \
+          pytest archive/v4/tests/benchmarks/ \
             --benchmark-only \
             --benchmark-json=benchmark-results.json \
             || true
