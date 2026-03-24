@@ -1,11 +1,6 @@
 version: "3"
 
 tasks:
-  adr-consistency:
-    desc: Validate ADR metadata/title consistency
-    cmds:
-      - "{{.PYTHON}} v4/topology-tools/check-adr-consistency.py --strict-titles"
-
   lint:
     desc: Run formatting/linting checks (black + isort)
     cmds:
@@ -15,53 +10,41 @@ tasks:
   typecheck:
     desc: Run mypy static checks
     cmds:
-      - "{{.PYTHON}} -m mypy --config-file pyproject.toml v4/topology-tools"
+      - "{{.PYTHON}} -m mypy --config-file pyproject.toml topology-tools"
 
   pylint:
     desc: Run pylint checks
     cmds:
-      - "{{.PYTHON}} -m pylint v4/topology-tools"
+      - "{{.PYTHON}} -m pylint topology-tools"
 
   quality:
-    desc: Aggregate default v5 quality gate (ADR + lint)
+    desc: Aggregate quality gate
     deps:
-      - quality-v5
-
-  quality-v5:
-    desc: v5-focused quality gate (without legacy v4-only static hooks)
-    deps:
-      - adr-consistency
       - lint
 
-  quality-legacy-v4:
-    desc: Legacy v4 static quality hooks (optional during v5 default lane)
-    deps:
-      - typecheck
-      - pylint
-
-  v4:
-    desc: Validate v4 lane
+  default:
+    desc: Validate topology lane
     cmds:
-      - "{{.PYTHON}} scripts/orchestration/lane.py validate-v4"
+      - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
   v5:
-    desc: Validate v5 lane (default secrets mode)
+    desc: Validate topology lane (default secrets mode)
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
   v5-passthrough:
-    desc: Validate v5 lane in passthrough secrets mode
+    desc: Validate topology lane in passthrough secrets mode
     env:
       V5_SECRETS_MODE: passthrough # pragma: allowlist secret
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
   v5-layers:
-    desc: Validate v5 layer contract only
+    desc: Validate layer contract only
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5-layers"
 
   phase1-gate:
-    desc: Run archived phase1 migration gate
+    desc: Run phase1 migration gate
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py phase1-gate"

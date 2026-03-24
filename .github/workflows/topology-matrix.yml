@@ -11,8 +11,8 @@ on:
   pull_request:
 
 jobs:
-  strict-mainline-v5:
-    name: Strict Validate Main Topology (v5 default)
+  strict-mainline:
+    name: Strict Validate Main Topology
     runs-on: ubuntu-latest
     env:
       USE_TASK_ORCHESTRATION: "1"
@@ -100,42 +100,3 @@ jobs:
       - name: Cleanup secrets key
         if: always()
         run: rm -f ~/.config/sops/age/keys.txt
-
-  fixture-matrix-v4-maintenance:
-    name: Legacy Fixture Matrix (v4 maintenance)
-    runs-on: ubuntu-latest
-    env:
-      USE_TASK_ORCHESTRATION: "1"
-      ALLOW_TASK_FALLBACK: "1"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Tooling Dependencies
-        run: python -m pip install --upgrade pip pyyaml jinja2 jsonschema
-
-      - name: Setup Task CLI
-        if: ${{ env.USE_TASK_ORCHESTRATION == '1' }}
-        uses: arduino/setup-task@v2
-        with:
-          version: 3.45.4
-
-      - name: Run Legacy Mixed New Fixture Matrix (task-first with fallback)
-        run: |
-          set -e
-          if [ "${USE_TASK_ORCHESTRATION}" = "1" ]; then
-            if task ci:topology-fixture-matrix; then
-              exit 0
-            fi
-            if [ "${ALLOW_TASK_FALLBACK}" != "1" ]; then
-              echo "Task orchestration failed and fallback is disabled."
-              exit 1
-            fi
-            echo "Task orchestration failed; executing legacy fallback chain."
-          fi
-          python archive/v4/topology-tools/run-fixture-matrix.py

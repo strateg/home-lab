@@ -13,18 +13,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-PARITY_TEST_PATHS = [
-    "tests/plugin_integration/test_governance_v4_v5_parity.py",
-    "tests/plugin_integration/test_network_refs_v4_v5_parity.py",
-    "tests/plugin_integration/test_network_ip_overlap_v4_v5_parity.py",
-    "tests/plugin_integration/test_network_reserved_ranges_v4_v5_parity.py",
-    "tests/plugin_integration/test_network_ip_allocation_host_os_refs_v4_v5_parity.py",
-    "tests/plugin_integration/test_service_refs_v4_v5_parity.py",
-    "tests/plugin_integration/test_storage_l3_v4_v5_warning_parity.py",
-    "tests/plugin_integration/test_host_os_refs_v4_v5_parity.py",
-    "tests/plugin_integration/test_vm_lxc_host_os_v4_v5_parity.py",
-]
-
 
 @dataclass(frozen=True)
 class GateResult:
@@ -41,7 +29,7 @@ def _default_repo_root() -> Path:
 
 
 def _default_output_json() -> Path:
-    return _default_repo_root() / "v5-build" / "diagnostics" / "cutover-readiness.json"
+    return _default_repo_root() / "build" / "diagnostics" / "cutover-readiness.json"
 
 
 def _default_cutover_state_json(repo_root: Path) -> Path:
@@ -126,17 +114,12 @@ def _gate_commands(repo_root: Path, *, quick: bool) -> list[tuple[str, list[str]
         commands.extend(
             [
                 (
-                    "pytest_v4_v5_parity",
-                    [python, "-m", "pytest", "-o", "addopts=", *PARITY_TEST_PATHS, "-q"],
-                    None,
-                ),
-                (
-                    "pytest_v5",
+                    "pytest",
                     [python, "-m", "pytest", "-o", "addopts=", "tests", "-q"],
                     None,
                 ),
                 (
-                    "lane_validate_v5",
+                    "lane_validate",
                     [python, "scripts/orchestration/lane.py", "validate-v5"],
                     {"V5_SECRETS_MODE": "passthrough"},
                 ),

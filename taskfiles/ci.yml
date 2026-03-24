@@ -2,25 +2,12 @@ version: "3"
 
 tasks:
   local:
-    desc: Local pre-push gate for default v5 lane
+    desc: Local pre-push gate
     deps:
       - :validate:quality
       - :framework:strict
       - :validate:v5-passthrough
       - :validate:phase1-gate
-      - :test:v5
-
-  local-with-legacy:
-    desc: Local pre-push gate with legacy v4 regression lanes enabled
-    deps:
-      - :validate:quality
-      - :validate:quality-legacy-v4
-      - :framework:strict
-      - :validate:v5-passthrough
-      - :validate:phase1-gate
-      - :test:fixture-matrix-v4
-      - :test:parity-v4-v5
-      - :test:v4
       - :test:v5
 
   python-checks-core:
@@ -54,13 +41,3 @@ tasks:
       - :framework:strict
       - :validate:v5-passthrough
       - :validate:phase1-gate
-
-  topology-fixture-matrix:
-    desc: Topology matrix legacy fixture lane
-    deps:
-      - :test:fixture-matrix-v4
-
-  topology-parity-v4-v5:
-    desc: Topology matrix v4-v5 parity lane
-    deps:
-      - :test:parity-v4-v5

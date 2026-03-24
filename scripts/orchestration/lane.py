@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lane-specific command dispatcher (v5 default runtime + legacy v4 lanes)."""
+"""Lane-specific command dispatcher."""
 
 from __future__ import annotations
 
@@ -26,44 +26,6 @@ def _resolve_secrets_mode() -> str:
     if value in SUPPORTED_SECRETS_MODES:
         return value
     return "inject"
-
-
-def validate_v4() -> None:
-    print("[lane] WARN: validate-v4 is a legacy compatibility lane.", flush=True)
-    run(
-        [
-            PYTHON,
-            "v4/topology-tools/validate-topology.py",
-            "--topology",
-            "v4/topology.yaml",
-            "--strict",
-            "--no-topology-cache",
-        ]
-    )
-    run(
-        [
-            PYTHON,
-            "v4/topology-tools/compile-topology.py",
-            "--topology",
-            "v4/topology.yaml",
-            "--strict-model-lock",
-        ]
-    )
-
-
-def build_v4() -> None:
-    print("[lane] WARN: build-v4 is a legacy compatibility lane.", flush=True)
-    run(
-        [
-            PYTHON,
-            "v4/topology-tools/regenerate-all.py",
-            "--topology",
-            "v4/topology.yaml",
-            "--strict",
-            "--skip-mermaid-validate",
-            "--no-topology-cache",
-        ]
-    )
 
 
 def validate_v5() -> None:
@@ -98,11 +60,11 @@ def validate_v5() -> None:
 
 
 def build_v5() -> None:
-    for output_dir in ("v5-generated", "v5-build", "v5-dist"):
+    for output_dir in ("generated", "build", "dist"):
         (ROOT / output_dir).mkdir(parents=True, exist_ok=True)
     validate_v5()
     print(
-        "[lane] INFO: v5 build emitted generator artifacts under v5-generated (including docs + ansible + object generators)."
+        "[lane] INFO: build emitted generator artifacts under generated/ (including docs + ansible + object generators)."
     )
 
 
@@ -122,13 +84,11 @@ def export_v5_bindings() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run lane-specific migration commands.")
+    parser = argparse.ArgumentParser(description="Run lane-specific commands.")
     parser.add_argument(
         "command",
         choices=(
-            "validate-v4",
             "validate-v5",
-            "build-v4",
             "build-v5",
             "phase1-gate",
             "validate-v5-layers",
@@ -142,9 +102,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     handlers = {
-        "validate-v4": validate_v4,
         "validate-v5": validate_v5,
-        "build-v4": build_v4,
         "build-v5": build_v5,
         "phase1-gate": phase1_gate,
         "validate-v5-layers": validate_v5_layers,
