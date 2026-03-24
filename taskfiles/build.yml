@@ -14,7 +14,21 @@ tasks:
       - "{{.PYTHON}} scripts/orchestration/lane.py build-v5"
 
   v5-docs:
-    desc: Generate v5 docs artifacts via compile pipeline in passthrough secrets mode
+    desc: Generate v5 docs + diagram artifacts (passthrough mode, plain diagrams)
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated"
+
+  v5-docs-icons:
+    desc: Generate v5 docs + diagram artifacts with Mermaid icon-nodes (requires si/mdi packs)
+    env:
+      V5_DIAGRAM_ICON_MODE: icon-nodes
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated"
+
+  v5-docs-compat:
+    desc: Generate v5 docs + diagram artifacts in Mermaid compat mode (no icon-node syntax)
+    env:
+      V5_DIAGRAM_ICON_MODE: compat
     cmds:
       - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated"
 

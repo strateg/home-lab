@@ -762,6 +762,31 @@ plugins:
       required: []
     description: Emits baseline markdown docs artifacts from v5 compiled model projection.
 
+  - id: base.generator.diagrams
+    kind: generator
+    entry: generators/diagram_generator.py:DiagramGenerator
+    api_version: "1.x"
+    stages: [generate]
+    order: 225
+    depends_on: []
+    timeout: 60
+    config:
+      # icon mode: icon-nodes | compat | none  (ADR 0027)
+      mermaid_icon_mode: none
+    config_schema:
+      type: object
+      properties:
+        mermaid_icon_mode:
+          type: string
+          enum: [icon-nodes, compat, none]
+          description: >
+            Mermaid rendering mode (ADR 0027): icon-nodes uses @{ icon } syntax,
+            compat uses labelled plain nodes, none disables icons entirely.
+      required: []
+    description: >
+      Emits Mermaid topology diagram pages (physical + network) from v5 compiled model.
+      Supports icon-nodes, compat, and plain modes (ADR 0005, ADR 0027).
+
   # Object-scoped generators are registered in module manifests:
   # - topology/object-modules/proxmox/plugins.yaml
   # - topology/object-modules/mikrotik/plugins.yaml

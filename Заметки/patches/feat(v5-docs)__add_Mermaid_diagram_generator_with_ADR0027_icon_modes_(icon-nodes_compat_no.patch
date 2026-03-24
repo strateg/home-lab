@@ -1,0 +1,949 @@
+Subject: [PATCH] feat(v5-docs): add Mermaid diagram generator with ADR0027 icon modes (icon-nodes/compat/none)
+---
+Index: README.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/README.md b/README.md
+--- a/README.md	(revision 1c732c20b275f1955e63122bc0608e69c3063539)
++++ b/README.md	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
+@@ -45,6 +45,8 @@
+ task build:v5
+ task build:v5-passthrough
+ task build:v5-docs
++task build:v5-docs-icons
++task build:v5-docs-compat
+ task validate:phase1-gate
+ task framework:strict
+ task framework:release-preflight
+@@ -59,6 +61,18 @@
+ task build:v5-docs
+ ```
+ 
++Mermaid icon-node mode (ADR 0027, requires `si`/`mdi` icon packs in renderer):
++
++```powershell
++task build:v5-docs-icons
++```
++
++If your Mermaid renderer reports `Lexical error ... Unrecognized text` for icon nodes, use compat mode:
++
++```powershell
++task build:v5-docs-compat
++```
++
+ v4 maintenance commands:
+ 
+ ```powershell
+Index: taskfiles/build.yml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/taskfiles/build.yml b/taskfiles/build.yml
+--- a/taskfiles/build.yml	(revision 1c732c20b275f1955e63122bc0608e69c3063539)
++++ b/taskfiles/build.yml	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
+@@ -19,7 +19,21 @@
+       - "{{.PYTHON}} v5/scripts/orchestration/lane.py build-v5"
+ 
+   v5-docs:
+-    desc: Generate v5 docs artifacts via compile pipeline in passthrough secrets mode
++    desc: Generate v5 docs + diagram artifacts (passthrough mode, plain diagrams)
++    cmds:
++      - "{{.PYTHON}} v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root v5-generated"
++
++  v5-docs-icons:
++    desc: Generate v5 docs + diagram artifacts with Mermaid icon-nodes (requires si/mdi packs)
++    env:
++      V5_DIAGRAM_ICON_MODE: icon-nodes
++    cmds:
++      - "{{.PYTHON}} v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root v5-generated"
++
++  v5-docs-compat:
++    desc: Generate v5 docs + diagram artifacts in Mermaid compat mode (no icon-node syntax)
++    env:
++      V5_DIAGRAM_ICON_MODE: compat
+     cmds:
+       - "{{.PYTHON}} v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root v5-generated"
+ 
+Index: v5/tests/plugin_integration/test_diagram_generator.py
+===================================================================
+diff --git a/v5/tests/plugin_integration/test_diagram_generator.py b/v5/tests/plugin_integration/test_diagram_generator.py
+new file mode 100644
+--- /dev/null	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
++++ b/v5/tests/plugin_integration/test_diagram_generator.py	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
+@@ -0,0 +1,160 @@
++#!/usr/bin/env python3
++"""Integration checks for Mermaid diagram generator plugin."""
++
++from __future__ import annotations
++
++import importlib.util
++import os
++import sys
++from pathlib import Path
++
++V5_ROOT = Path(__file__).resolve().parents[2]
++V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
++sys.path.insert(0, str(V5_TOOLS))
++
++from kernel.plugin_base import PluginContext, PluginStatus, Stage
++
++
++def _load_generator_class():
++    module_path = V5_ROOT / "topology-tools" / "plugins" / "generators" / "diagram_generator.py"
++    spec = importlib.util.spec_from_file_location("test_diagram_generator_module", module_path)
++    assert spec is not None and spec.loader is not None
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module.DiagramGenerator
++
++
++DiagramGenerator = _load_generator_class()
++
++
++def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
++    return PluginContext(
++        topology_path="v5/topology/topology.yaml",
++        profile="test",
++        model_lock={},
++        compiled_json=compiled_json,
++        output_dir=str(tmp_path / "build"),
++        config={
++            "generator_artifacts_root": str(tmp_path / "generated"),
++            "mermaid_icon_mode": "none",
++        },
++    )
++
++
++def _compiled_fixture() -> dict:
++    return {
++        "instances": {
++            "devices": [
++                {
++                    "instance_id": "rtr-slate",
++                    "class_ref": "class.network.router",
++                    "object_ref": "obj.glinet.slate_ax1800",
++                    "layer": "L1",
++                    "status": "mapped",
++                },
++                {
++                    "instance_id": "srv-gamayun",
++                    "class_ref": "class.compute.hypervisor",
++                    "object_ref": "obj.proxmox.ve",
++                    "layer": "L1",
++                    "status": "mapped",
++                },
++            ],
++            "network": [
++                {
++                    "instance_id": "inst.trust_zone.servers",
++                    "class_ref": "class.network.trust_zone",
++                    "object_ref": "obj.network.trust_zone.servers",
++                    "status": "mapped",
++                },
++                {
++                    "instance_id": "inst.vlan.servers",
++                    "class_ref": "class.network.vlan",
++                    "object_ref": "obj.network.vlan.servers",
++                    "status": "mapped",
++                    "instance_data": {
++                        "vlan_id": 30,
++                        "cidr": "10.0.30.0/24",
++                        "gateway": "10.0.30.1",
++                        "trust_zone_ref": "inst.trust_zone.servers",
++                    },
++                },
++                {
++                    "instance_id": "inst.data_link.rtr_to_hv",
++                    "class_ref": "class.network.data_link",
++                    "object_ref": "obj.network.ethernet_link",
++                    "status": "mapped",
++                    "instance_data": {
++                        "endpoint_a": {"device_ref": "rtr-slate"},
++                        "endpoint_b": {"device_ref": "srv-gamayun"},
++                        "medium": "ethernet",
++                        "speed_mbps": 1000,
++                    },
++                },
++            ],
++            "services": [
++                {
++                    "instance_id": "svc-prometheus",
++                    "class_ref": "class.service.monitoring",
++                    "object_ref": "obj.service.prometheus",
++                    "status": "mapped",
++                    "runtime": {"type": "container", "target_ref": "lxc-prometheus"},
++                }
++            ],
++            "lxc": [
++                {
++                    "instance_id": "lxc-prometheus",
++                    "class_ref": "class.compute.workload.container",
++                    "object_ref": "obj.proxmox.lxc.debian12.prometheus",
++                    "status": "mapped",
++                    "instance_data": {
++                        "hostname": "prometheus",
++                        "host_ref": "srv-gamayun",
++                        "trust_zone_ref": "inst.trust_zone.servers",
++                    },
++                }
++            ],
++            "vms": [],
++        }
++    }
++
++
++def test_diagram_generator_writes_expected_files(tmp_path: Path) -> None:
++    generator = DiagramGenerator("base.generator.diagrams")
++    ctx = _ctx(tmp_path, _compiled_fixture())
++
++    result = generator.execute(ctx, Stage.GENERATE)
++
++    assert result.status == PluginStatus.SUCCESS
++    target_dir = tmp_path / "generated" / "docs" / "diagrams"
++    expected_files = {
++        "physical-topology.md",
++        "network-topology.md",
++        "icon-legend.md",
++        "index.md",
++        "_generated_files.txt",
++    }
++    assert expected_files.issubset({path.name for path in target_dir.iterdir()})
++
++    physical = (target_dir / "physical-topology.md").read_text(encoding="utf-8")
++    assert "rtr-slate" in physical
++    assert "srv-gamayun" in physical
++
++
++def test_diagram_generator_supports_icon_mode_override_via_env(tmp_path: Path) -> None:
++    generator = DiagramGenerator("base.generator.diagrams")
++    ctx = _ctx(tmp_path, _compiled_fixture())
++
++    prev = os.environ.get("V5_DIAGRAM_ICON_MODE")
++    os.environ["V5_DIAGRAM_ICON_MODE"] = "icon-nodes"
++    try:
++        result = generator.execute(ctx, Stage.GENERATE)
++    finally:
++        if prev is None:
++            os.environ.pop("V5_DIAGRAM_ICON_MODE", None)
++        else:
++            os.environ["V5_DIAGRAM_ICON_MODE"] = prev
++
++    assert result.status == PluginStatus.SUCCESS
++    network = (tmp_path / "generated" / "docs" / "diagrams" / "network-topology.md").read_text(encoding="utf-8")
++    assert "@{ icon:" in network
+Index: v5/topology-tools/plugins/generators/diagram_generator.py
+===================================================================
+diff --git a/v5/topology-tools/plugins/generators/diagram_generator.py b/v5/topology-tools/plugins/generators/diagram_generator.py
+new file mode 100644
+--- /dev/null	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
++++ b/v5/topology-tools/plugins/generators/diagram_generator.py	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
+@@ -0,0 +1,146 @@
++"""Diagram generator plugin - emits Mermaid topology diagrams (ADR 0005 / ADR 0027)."""
++
++from __future__ import annotations
++
++import os
++
++from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
++from plugins.generators.base_generator import BaseGenerator
++from plugins.generators.projections import ProjectionError, build_diagram_projection
++
++# Supported icon modes (ADR 0027)
++_ICON_MODE_ICON_NODES = "icon-nodes"
++_ICON_MODE_COMPAT = "compat"
++_ICON_MODE_NONE = "none"
++_VALID_ICON_MODES = {_ICON_MODE_ICON_NODES, _ICON_MODE_COMPAT, _ICON_MODE_NONE}
++
++_ICON_RUNTIME_HINTS = {
++    _ICON_MODE_ICON_NODES: (
++        "Icon packs required: register `si` (Simple Icons) and `mdi` (Material Design Icons) "
++        "via Mermaid `registerIconPacks()` or MermaidChart CDN."
++    ),
++    _ICON_MODE_COMPAT: ("Compatibility mode: icon-compat labels embedded in standard Mermaid nodes."),
++    _ICON_MODE_NONE: "",
++}
++
++
++class DiagramGenerator(BaseGenerator):
++    """Emit Mermaid-based topology diagram pages from v5 compiled model (ADR 0027)."""
++
++    def _icon_mode(self, ctx: PluginContext) -> str:
++        # env var overrides plugin config (useful from task/CI without manifest edit)
++        env_mode = os.environ.get("V5_DIAGRAM_ICON_MODE", "").strip().lower()
++        mode = env_mode if env_mode else ctx.config.get("mermaid_icon_mode", _ICON_MODE_NONE)
++        if mode not in _VALID_ICON_MODES:
++            mode = _ICON_MODE_NONE
++        return mode
++
++    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
++        diagnostics: list[PluginDiagnostic] = []
++        payload = ctx.compiled_json
++        if not isinstance(payload, dict) or not payload:
++            diagnostics.append(
++                self.emit_diagnostic(
++                    code="E3001",
++                    severity="error",
++                    stage=stage,
++                    message="compiled_json is empty; cannot generate diagram artifacts.",
++                    path="generator:diagrams",
++                )
++            )
++            return self.make_result(diagnostics)
++
++        try:
++            projection = build_diagram_projection(payload)
++        except ProjectionError as exc:
++            diagnostics.append(
++                self.emit_diagnostic(
++                    code="E9801",
++                    severity="error",
++                    stage=stage,
++                    message=f"failed to build diagram projection: {exc}",
++                    path="generator:diagrams",
++                )
++            )
++            return self.make_result(diagnostics)
++
++        icon_mode = self._icon_mode(ctx)
++        use_icons = icon_mode == _ICON_MODE_ICON_NODES
++        icon_runtime_hint = _ICON_RUNTIME_HINTS[icon_mode]
++
++        diagrams_root = self.resolve_output_path(ctx, "docs", "diagrams")
++        generated_files: list[str] = []
++
++        template_ctx = {
++            "projection": projection,
++            "devices": projection.get("devices", []),
++            "trust_zones": projection.get("trust_zones", []),
++            "vlans": projection.get("vlans", []),
++            "bridges": projection.get("bridges", []),
++            "data_links": projection.get("data_links", []),
++            "services": projection.get("services", []),
++            "lxc": projection.get("lxc", []),
++            "counts": projection.get("counts", {}),
++            "use_mermaid_icons": use_icons,
++            "icon_mode": icon_mode,
++            "mermaid_icon_runtime_hint": icon_runtime_hint,
++        }
++
++        templates = (
++            ("docs/diagrams/physical-topology.md.j2", "physical-topology.md"),
++            ("docs/diagrams/network-topology.md.j2", "network-topology.md"),
++            ("docs/diagrams/icon-legend.md.j2", "icon-legend.md"),
++            ("docs/diagrams/diagrams-index.md.j2", "index.md"),
++        )
++
++        for template_name, output_name in templates:
++            output_path = diagrams_root / output_name
++            try:
++                content = self.render_template(ctx, template_name, template_ctx)
++                self.write_text_atomic(output_path, content)
++                generated_files.append(str(output_path))
++            except Exception as exc:
++                diagnostics.append(
++                    self.emit_diagnostic(
++                        code="E9802",
++                        severity="error",
++                        stage=stage,
++                        message=f"failed to render diagram template '{template_name}': {exc}",
++                        path=f"generator:diagrams/{output_name}",
++                    )
++                )
++
++        if generated_files:
++            generated_files_path = diagrams_root / "_generated_files.txt"
++            self.write_text_atomic(
++                generated_files_path,
++                "\n".join(sorted(generated_files)) + "\n",
++            )
++            generated_files.append(str(generated_files_path))
++
++        counts = projection.get("counts", {})
++        diagnostics.append(
++            self.emit_diagnostic(
++                code="I9801",
++                severity="info",
++                stage=stage,
++                message=(
++                    f"generated diagram artifacts: icon_mode={icon_mode} "
++                    f"devices={counts.get('devices', 0)} "
++                    f"trust_zones={counts.get('trust_zones', 0)} "
++                    f"vlans={counts.get('vlans', 0)}"
++                ),
++                path=str(diagrams_root),
++            )
++        )
++        self.publish_if_possible(ctx, "diagram_dir", str(diagrams_root))
++        self.publish_if_possible(ctx, "diagram_files", generated_files)
++
++        return self.make_result(
++            diagnostics=diagnostics,
++            output_data={
++                "diagram_dir": str(diagrams_root),
++                "diagram_files": generated_files,
++                "icon_mode": icon_mode,
++            },
++        )
+Index: v5/topology-tools/plugins/generators/projections.py
+===================================================================
+diff --git a/v5/topology-tools/plugins/generators/projections.py b/v5/topology-tools/plugins/generators/projections.py
+--- a/v5/topology-tools/plugins/generators/projections.py	(revision 1c732c20b275f1955e63122bc0608e69c3063539)
++++ b/v5/topology-tools/plugins/generators/projections.py	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
+@@ -21,6 +21,58 @@
+     _sorted_rows,
+ )
+ 
++# ---------------------------------------------------------------------------
++# Icon mapping tables (ADR 0027 canonical icon strategy for v5)
++# Keys are class_ref prefixes; checked in order (most specific first).
++# ---------------------------------------------------------------------------
++
++_CLASS_ICON_MAP: list[tuple[str, str]] = [
++    ("class.network.router", "mdi:router-network"),
++    ("class.network.trust_zone", "mdi:shield-half-full"),
++    ("class.network.vlan", "mdi:lan"),
++    ("class.network.bridge", "mdi:bridge"),
++    ("class.network.physical_link", "mdi:ethernet-cable"),
++    ("class.network.data_link", "mdi:ethernet"),
++    ("class.compute.hypervisor", "si:proxmox"),
++    ("class.compute.edge_node", "mdi:chip"),
++    ("class.compute.cloud_vm", "mdi:cloud-outline"),
++    ("class.compute.workload.container", "mdi:cube-outline"),
++    ("class.compute.workload", "mdi:application"),
++    ("class.storage.pool", "mdi:database"),
++    ("class.storage", "mdi:harddisk"),
++    ("class.service", "mdi:cog"),
++]
++
++# Trust zone colour palette for Mermaid classDef
++_ZONE_CLASS_COLOUR: dict[str, str] = {
++    "untrusted": "fill:#ff6b6b,stroke:#c92a2a,color:#fff",
++    "user": "fill:#74c0fc,stroke:#1864ab,color:#000",
++    "servers": "fill:#51cf66,stroke:#2b8a3e,color:#000",
++    "management": "fill:#da77f2,stroke:#9c36b5,color:#fff",
++    "guest": "fill:#ffd43b,stroke:#fab005,color:#000",
++    "iot": "fill:#ffd43b,stroke:#fab005,color:#000",
++}
++_ZONE_CLASS_DEFAULT = "fill:#e9ecef,stroke:#868e96,color:#000"
++
++
++def _icon_for_class(class_ref: str, *, fallback: str = "mdi:devices") -> str:
++    """Return the best matching Mermaid icon for a class_ref."""
++    for prefix, icon in _CLASS_ICON_MAP:
++        if class_ref.startswith(prefix):
++            return icon
++    return fallback
++
++
++def _zone_label(instance_id: str) -> str:
++    """Extract human-readable zone name from instance_id like inst.trust_zone.servers."""
++    parts = instance_id.rsplit(".", 1)
++    return parts[-1].replace("_", " ").title() if parts else instance_id
++
++
++def _safe_id(value: str) -> str:
++    """Make a string safe for use as a Mermaid node ID."""
++    return value.replace(".", "_").replace("-", "_")
++
+ 
+ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
+     """Build stable view for Ansible inventory generator."""
+@@ -112,3 +164,196 @@
+         "services": _sorted_rows(docs_services),
+         "groups": {name: len(rows) for name, rows in sorted(groups.items(), key=lambda item: item[0])},
+     }
++
++
++def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
++    """Build stable projection for diagram generator (ADR 0005 / ADR 0027).
++
++    Returns:
++        devices: L1 device rows with icon and safe_id fields added.
++        trust_zones: L2 trust zone rows with icon, colour, label.
++        vlans: L2 VLAN rows.
++        bridges: L2 bridge rows.
++        data_links: L1 physical/data link rows.
++        services: L4/L5 service rows.
++        lxc: LXC container rows.
++        counts: summary counts.
++    """
++    groups = _instance_groups(compiled_json)
++    raw_devices = _group_rows(groups, canonical=GROUP_DEVICES)
++    raw_network = _group_rows(groups, canonical=GROUP_NETWORK)
++    raw_services = _group_rows(groups, canonical=GROUP_SERVICES)
++    raw_lxc = _group_rows(groups, canonical=GROUP_LXC)
++
++    # --- Devices (L1) ---
++    devices: list[dict[str, Any]] = []
++    for row in raw_devices:
++        inst_id = row.get("instance_id", "")
++        class_ref = row.get("class_ref", "")
++        obj_ref = row.get("object_ref", "")
++        # Derive short label from instance_id: "rtr-slate" → "rtr-slate"
++        # Remove common "inst." prefix if present
++        label = inst_id.removeprefix("inst.").replace(".", " ")
++        entry = {
++            "instance_id": inst_id,
++            "safe_id": _safe_id(inst_id),
++            "class_ref": class_ref,
++            "object_ref": obj_ref,
++            "layer": row.get("layer", ""),
++            "status": row.get("status", ""),
++            "notes": row.get("notes", ""),
++            "label": label,
++            "icon": _icon_for_class(class_ref, fallback="mdi:devices"),
++            "host_ref": _get_instance_data(row, "instance_data.host_ref"),
++            "instance_data": deepcopy(row.get("instance_data") or {}),
++        }
++        devices.append(entry)
++
++    # --- Network layer: split by class_ref ---
++    trust_zones: list[dict[str, Any]] = []
++    vlans: list[dict[str, Any]] = []
++    bridges: list[dict[str, Any]] = []
++    data_links: list[dict[str, Any]] = []
++
++    for row in raw_network:
++        inst_id = row.get("instance_id", "")
++        class_ref = row.get("class_ref", "")
++
++        if "trust_zone" in class_ref:
++            idata = row.get("instance_data") or {}
++            fw_refs = idata.get("firewall_policy_refs", [])
++            if not isinstance(fw_refs, list):
++                fw_refs = []
++            zone_name = _zone_label(inst_id)
++            zone_key = zone_name.lower()
++            trust_zones.append(
++                {
++                    "instance_id": inst_id,
++                    "safe_id": _safe_id(inst_id),
++                    "class_ref": class_ref,
++                    "object_ref": row.get("object_ref", ""),
++                    "label": zone_name,
++                    "icon": "mdi:shield-half-full",
++                    "colour": _ZONE_CLASS_COLOUR.get(zone_key, _ZONE_CLASS_DEFAULT),
++                    "notes": row.get("notes", ""),
++                    "status": row.get("status", ""),
++                    "firewall_policy_refs": [str(item) for item in fw_refs if isinstance(item, str)],
++                }
++            )
++        elif "vlan" in class_ref:
++            idata = row.get("instance_data") or {}
++            fw_refs = idata.get("firewall_policy_refs", [])
++            if not isinstance(fw_refs, list):
++                fw_refs = []
++            vlans.append(
++                {
++                    "instance_id": inst_id,
++                    "safe_id": _safe_id(inst_id),
++                    "class_ref": class_ref,
++                    "object_ref": row.get("object_ref", ""),
++                    "label": inst_id.removeprefix("inst.").replace(".", " "),
++                    "vlan_id": idata.get("vlan_id"),
++                    "cidr": idata.get("cidr", ""),
++                    "gateway": idata.get("gateway", ""),
++                    "trust_zone_ref": idata.get("trust_zone_ref", ""),
++                    "firewall_policy_refs": [str(item) for item in fw_refs if isinstance(item, str)],
++                    "notes": row.get("notes", ""),
++                    "icon": "mdi:lan",
++                    "status": row.get("status", ""),
++                }
++            )
++        elif "bridge" in class_ref:
++            idata = row.get("instance_data") or {}
++            bridges.append(
++                {
++                    "instance_id": inst_id,
++                    "safe_id": _safe_id(inst_id),
++                    "class_ref": class_ref,
++                    "label": inst_id.removeprefix("inst.").replace(".", " "),
++                    "host_ref": idata.get("host_ref", ""),
++                    "notes": row.get("notes", ""),
++                    "icon": "mdi:bridge",
++                    "status": row.get("status", ""),
++                }
++            )
++        elif "physical_link" in class_ref or "data_link" in class_ref or "ethernet" in class_ref:
++            idata = row.get("instance_data") or {}
++            data_links.append(
++                {
++                    "instance_id": inst_id,
++                    "safe_id": _safe_id(inst_id),
++                    "class_ref": class_ref,
++                    "endpoint_a": idata.get("endpoint_a", {}),
++                    "endpoint_b": idata.get("endpoint_b", {}),
++                    "medium": idata.get("medium", "ethernet"),
++                    "speed_mbps": idata.get("speed_mbps"),
++                    "notes": row.get("notes", ""),
++                    "status": row.get("status", ""),
++                }
++            )
++
++    # --- Services (L4/L5) ---
++    services: list[dict[str, Any]] = []
++    for row in raw_services:
++        inst_id = row.get("instance_id", "")
++        class_ref = row.get("class_ref", "")
++        runtime = row.get("runtime")
++        if not isinstance(runtime, dict):
++            runtime = _get_instance_data(row, "instance_data.runtime", {})
++        services.append(
++            {
++                "instance_id": inst_id,
++                "safe_id": _safe_id(inst_id),
++                "class_ref": class_ref,
++                "object_ref": row.get("object_ref", ""),
++                "label": inst_id.removeprefix("inst.").replace(".", " "),
++                "layer": row.get("layer", ""),
++                "status": row.get("status", ""),
++                "icon": _icon_for_class(class_ref, fallback="mdi:cog"),
++                "host_ref": _get_instance_data(row, "instance_data.host_ref"),
++                "runtime_type": runtime.get("type", "") if isinstance(runtime, dict) else "",
++                "runtime_target_ref": runtime.get("target_ref", "") if isinstance(runtime, dict) else "",
++            }
++        )
++
++    # --- LXC ---
++    lxc: list[dict[str, Any]] = []
++    for row in raw_lxc:
++        inst_id = row.get("instance_id", "")
++        class_ref = row.get("class_ref", "")
++        idata = row.get("instance_data") or {}
++        lxc.append(
++            {
++                "instance_id": inst_id,
++                "safe_id": _safe_id(inst_id),
++                "class_ref": class_ref,
++                "object_ref": row.get("object_ref", ""),
++                "label": idata.get("hostname", inst_id.removeprefix("inst.lxc.").replace(".", "-")),
++                "layer": row.get("layer", ""),
++                "status": row.get("status", ""),
++                "icon": "mdi:cube-outline",
++                "host_ref": idata.get("host_ref", ""),
++                "trust_zone_ref": idata.get("trust_zone_ref", ""),
++            }
++        )
++
++    counts = {
++        "devices": len(devices),
++        "trust_zones": len(trust_zones),
++        "vlans": len(vlans),
++        "bridges": len(bridges),
++        "data_links": len(data_links),
++        "services": len(services),
++        "lxc": len(lxc),
++    }
++
++    return {
++        "devices": _sorted_rows(devices),
++        "trust_zones": sorted(trust_zones, key=lambda r: r["instance_id"]),
++        "vlans": sorted(vlans, key=lambda r: (r.get("vlan_id") or 0, r["instance_id"])),
++        "bridges": sorted(bridges, key=lambda r: r["instance_id"]),
++        "data_links": sorted(data_links, key=lambda r: r["instance_id"]),
++        "services": _sorted_rows(services),
++        "lxc": _sorted_rows(lxc),
++        "counts": counts,
++    }
+Index: v5/topology-tools/plugins/plugins.yaml
+===================================================================
+diff --git a/v5/topology-tools/plugins/plugins.yaml b/v5/topology-tools/plugins/plugins.yaml
+--- a/v5/topology-tools/plugins/plugins.yaml	(revision 1c732c20b275f1955e63122bc0608e69c3063539)
++++ b/v5/topology-tools/plugins/plugins.yaml	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
+@@ -762,6 +762,31 @@
+       required: []
+     description: Emits baseline markdown docs artifacts from v5 compiled model projection.
+ 
++  - id: base.generator.diagrams
++    kind: generator
++    entry: generators/diagram_generator.py:DiagramGenerator
++    api_version: "1.x"
++    stages: [generate]
++    order: 225
++    depends_on: []
++    timeout: 60
++    config:
++      # icon mode: icon-nodes | compat | none  (ADR 0027)
++      mermaid_icon_mode: none
++    config_schema:
++      type: object
++      properties:
++        mermaid_icon_mode:
++          type: string
++          enum: [icon-nodes, compat, none]
++          description: >
++            Mermaid rendering mode (ADR 0027): icon-nodes uses @{ icon } syntax,
++            compat uses labelled plain nodes, none disables icons entirely.
++      required: []
++    description: >
++      Emits Mermaid topology diagram pages (physical + network) from v5 compiled model.
++      Supports icon-nodes, compat, and plain modes (ADR 0005, ADR 0027).
++
+   # Object-scoped generators are registered in module manifests:
+   # - v5/topology/object-modules/proxmox/plugins.yaml
+   # - v5/topology/object-modules/mikrotik/plugins.yaml
+Index: v5/topology-tools/templates/docs/diagrams/diagrams-index.md.j2
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/v5/topology-tools/templates/docs/diagrams/diagrams-index.md.j2 b/v5/topology-tools/templates/docs/diagrams/diagrams-index.md.j2
+new file mode 100644
+--- /dev/null	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
++++ b/v5/topology-tools/templates/docs/diagrams/diagrams-index.md.j2	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
+@@ -0,0 +1,29 @@
++# Diagrams Index
++
++Generated by `base.generator.diagrams`.
++
++| Diagram | Description |
++| --- | --- |
++| [Physical Topology](physical-topology.md) | L1 devices and data-link connections |
++| [Network Topology](network-topology.md) | L2 trust zones and VLAN layout |
++| [Icon Legend](icon-legend.md) | Mermaid icon semantics used in diagram pages |
++
++## Counts
++
++| Entity | Count |
++| --- | ---: |
++| Devices | {{ counts.devices }} |
++| Trust Zones | {{ counts.trust_zones }} |
++| VLANs | {{ counts.vlans }} |
++| Bridges | {{ counts.bridges }} |
++| Data Links | {{ counts.data_links }} |
++| Services | {{ counts.services }} |
++| LXC | {{ counts.lxc }} |
++
++## Icon Mode
++
++Current render mode: `{{ icon_mode }}`
++{% if mermaid_icon_runtime_hint %}
++
++> {{ mermaid_icon_runtime_hint }}
++{% endif %}
+Index: v5/topology-tools/templates/docs/diagrams/icon-legend.md.j2
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/v5/topology-tools/templates/docs/diagrams/icon-legend.md.j2 b/v5/topology-tools/templates/docs/diagrams/icon-legend.md.j2
+new file mode 100644
+--- /dev/null	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
++++ b/v5/topology-tools/templates/docs/diagrams/icon-legend.md.j2	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
+@@ -0,0 +1,47 @@
++# Icon Legend
++
++Generated by `base.generator.diagrams`.
++
++Current icon mode: `{{ icon_mode }}`
++{% if mermaid_icon_runtime_hint %}
++
++> {{ mermaid_icon_runtime_hint }}
++{% endif %}
++
++## Device Classes
++
++```mermaid
++flowchart TB
++{% for device in devices %}
++{% if use_mermaid_icons %}
++  dev_{{ device.safe_id }}@{ icon: "{{ device.icon }}", form: "rounded", label: "{{ device.class_ref }}", pos: "b", h: 42 }
++{% else %}
++  dev_{{ device.safe_id }}["{{ device.class_ref }}\n{{ device.icon }}"]
++{% endif %}
++{% endfor %}
++```
++
++| Class | Icon |
++| --- | --- |
++{% for device in devices -%}
++| `{{ device.class_ref }}` | `{{ device.icon }}` |
++{% endfor %}
++
++## Trust Zones
++
++```mermaid
++flowchart LR
++{% for zone in trust_zones %}
++{% if use_mermaid_icons %}
++  zone_{{ zone.safe_id }}@{ icon: "{{ zone.icon }}", form: "circle", label: "{{ zone.label }}", pos: "b", h: 42 }
++{% else %}
++  zone_{{ zone.safe_id }}["{{ zone.label }}\n{{ zone.icon }}"]
++{% endif %}
++{% endfor %}
++```
++
++| Zone | Icon |
++| --- | --- |
++{% for zone in trust_zones -%}
++| `{{ zone.label }}` | `{{ zone.icon }}` |
++{% endfor %}
+Index: v5/topology-tools/templates/docs/diagrams/network-topology.md.j2
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/v5/topology-tools/templates/docs/diagrams/network-topology.md.j2 b/v5/topology-tools/templates/docs/diagrams/network-topology.md.j2
+new file mode 100644
+--- /dev/null	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
++++ b/v5/topology-tools/templates/docs/diagrams/network-topology.md.j2	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
+@@ -0,0 +1,69 @@
++# Network Topology
++
++Generated by `base.generator.diagrams`.
++{% if use_mermaid_icons %}
++
++> {{ mermaid_icon_runtime_hint }}
++{% endif %}
++
++## Trust Zones
++
++```mermaid
++graph TB
++{% for zone in trust_zones %}
++    subgraph {{ zone.safe_id }}["{{ zone.label }}"]
++{% for vlan in vlans if vlan.trust_zone_ref == zone.instance_id %}
++{% if use_mermaid_icons %}
++        {{ vlan.safe_id }}@{ icon: "{{ vlan.icon }}", form: "rounded", label: "{{ vlan.label }}{% if vlan.vlan_id %} (VLAN {{ vlan.vlan_id }}){% endif %}{% if vlan.cidr %} {{ vlan.cidr }}{% endif %}", pos: "b", h: 44 }
++{% else %}
++{% if icon_mode == 'compat' %}
++        {{ vlan.safe_id }}["{{ vlan.label }}{% if vlan.vlan_id %} (VLAN {{ vlan.vlan_id }}){% endif %}<br/>{{ vlan.icon }}"]
++{% else %}
++        {{ vlan.safe_id }}["{{ vlan.label }}{% if vlan.vlan_id %} (VLAN {{ vlan.vlan_id }}){% endif %}<br/>{% if vlan.cidr %}{{ vlan.cidr }}{% endif %}"]
++{% endif %}
++{% endif %}
++{% else %}
++        {{ zone.safe_id }}_empty["(no VLANs)"]
++{% endfor %}
++    end
++{% endfor %}
++
++{% for zone in trust_zones %}
++    classDef {{ zone.safe_id }}_style {{ zone.colour }}
++    class {{ zone.safe_id }} {{ zone.safe_id }}_style
++{% endfor %}
++```
++
++---
++
++## Trust Zone Details
++
++| Zone | Object | Firewall Policies | Notes |
++| --- | --- | --- | --- |
++{% for zone in trust_zones -%}
++| **{{ zone.label }}** | {{ zone.object_ref }} | {{ zone.firewall_policy_refs | join(', ') if zone.firewall_policy_refs else '-' }} | {{ zone.notes }} |
++{% endfor %}
++
++---
++
++## VLAN Inventory
++
++| Instance | VLAN ID | CIDR | Gateway | Trust Zone | Firewall Policies | Status |
++| --- | ---: | --- | --- | --- | --- | --- |
++{% for vlan in vlans -%}
++| {{ vlan.instance_id }} | {{ vlan.vlan_id | default('-') }} | {{ vlan.cidr | default('-') }} | {{ vlan.gateway | default('-') }} | {{ vlan.trust_zone_ref | default('-') }} | {{ vlan.firewall_policy_refs | join(', ') if vlan.firewall_policy_refs else '-' }} | {{ vlan.status }} |
++{% endfor %}
++
++---
++
++## Bridge Inventory
++
++| Instance | Host | Notes | Status |
++| --- | --- | --- | --- |
++{% for bridge in bridges -%}
++| {{ bridge.instance_id }} | {{ bridge.host_ref | default('-') }} | {{ bridge.notes }} | {{ bridge.status }} |
++{% endfor %}
++
++---
++
++*DO NOT EDIT MANUALLY - regenerate with `task build:v5-docs`*
+Index: v5/topology-tools/templates/docs/diagrams/physical-topology.md.j2
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/v5/topology-tools/templates/docs/diagrams/physical-topology.md.j2 b/v5/topology-tools/templates/docs/diagrams/physical-topology.md.j2
+new file mode 100644
+--- /dev/null	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
++++ b/v5/topology-tools/templates/docs/diagrams/physical-topology.md.j2	(revision ff1d381a243fb636a92c219abbf40a4c44ba1498)
+@@ -0,0 +1,77 @@
++# Physical Topology
++
++Generated by `base.generator.diagrams`.
++{% if use_mermaid_icons %}
++
++> {{ mermaid_icon_runtime_hint }}
++{% endif %}
++
++## Device Topology
++
++```mermaid
++graph TB
++{% for device in devices %}
++{% if use_mermaid_icons %}
++    {{ device.safe_id }}@{ icon: "{{ device.icon }}", form: "rounded", label: "{{ device.instance_id }}", pos: "b", h: 44 }
++{% else %}
++{% if icon_mode == 'compat' %}
++    {{ device.safe_id }}["{{ device.instance_id }}<br/>{{ device.icon }}"]
++{% else %}
++    {{ device.safe_id }}["{{ device.instance_id }}<br/>{{ device.class_ref }}"]
++{% endif %}
++{% endif %}
++{% endfor %}
++{% for link in data_links %}
++{% if link.endpoint_a and link.endpoint_b %}
++{% set src = link.endpoint_a.device_ref | default(link.endpoint_a.get('external_ref', 'unknown')) | replace('.', '_') | replace('-', '_') %}
++{% set dst = link.endpoint_b.device_ref | default(link.endpoint_b.get('external_ref', 'unknown')) | replace('.', '_') | replace('-', '_') %}
++{% if link.medium in ['wifi', 'lte', 'wwan'] %}
++    {{ src }} -.->|{{ link.medium | upper }}{% if link.speed_mbps %} {{ link.speed_mbps }}Mbps{% endif %}| {{ dst }}
++{% else %}
++    {{ src }} -->|{{ link.medium | upper }}{% if link.speed_mbps %} {{ link.speed_mbps }}Mbps{% endif %}| {{ dst }}
++{% endif %}
++{% endif %}
++{% endfor %}
++
++    classDef router fill:#4dabf7,stroke:#1864ab,color:#fff
++    classDef hypervisor fill:#51cf66,stroke:#2b8a3e,color:#000
++    classDef edge fill:#ffd43b,stroke:#fab005,color:#000
++    classDef cloud fill:#ffc078,stroke:#e8590c,color:#000
++    classDef default fill:#e9ecef,stroke:#868e96,color:#000
++
++{% for device in devices %}
++{% if 'router' in device.class_ref %}
++    class {{ device.safe_id }} router
++{% elif 'hypervisor' in device.class_ref %}
++    class {{ device.safe_id }} hypervisor
++{% elif 'edge_node' in device.class_ref %}
++    class {{ device.safe_id }} edge
++{% elif 'cloud_vm' in device.class_ref %}
++    class {{ device.safe_id }} cloud
++{% endif %}
++{% endfor %}
++```
++
++---
++
++## Device Inventory
++
++| Instance | Class | Object | Layer | Status |
++| --- | --- | --- | --- | --- |
++{% for device in devices -%}
++| **{{ device.instance_id }}** | {{ device.class_ref }} | {{ device.object_ref }} | {{ device.layer }} | {{ device.status }} |
++{% endfor %}
++
++---
++
++## Data Link Inventory
++
++| Link | Medium | Endpoint A | Endpoint B | Speed | Status |
++| --- | --- | --- | --- | --- | --- |
++{% for link in data_links -%}
++| {{ link.instance_id }} | {{ link.medium | upper }} | {{ link.endpoint_a.device_ref | default(link.endpoint_a.get('external_ref', '-')) }} | {{ link.endpoint_b.device_ref | default(link.endpoint_b.get('external_ref', '-')) }} | {{ link.speed_mbps | default('-') }}{% if link.speed_mbps %} Mbps{% endif %} | {{ link.status }} |
++{% endfor %}
++
++---
++
++*DO NOT EDIT MANUALLY - regenerate with `task build:v5-docs`*
