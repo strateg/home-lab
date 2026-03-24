@@ -11,7 +11,7 @@ import yaml
 
 
 def _load_compiler_module():
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = Path(__file__).resolve().parents[2]
     module_path = repo_root / "topology-tools" / "compile-topology.py"
     spec = importlib.util.spec_from_file_location("compile_topology_module_discovery", module_path)
     if spec is None or spec.loader is None:

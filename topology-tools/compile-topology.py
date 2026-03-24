@@ -33,13 +33,13 @@ from framework_lock import resolve_paths as resolve_framework_lock_paths
 from framework_lock import verify_framework_lock
 from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_MANIFEST = REPO_ROOT / "v5" / "topology" / "topology.yaml"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_MANIFEST = REPO_ROOT / "topology" / "topology.yaml"
 DEFAULT_TOPOLOGY_RELATIVE = str(DEFAULT_MANIFEST.relative_to(REPO_ROOT).as_posix())
-DEFAULT_OUTPUT_JSON = REPO_ROOT / "v5-build" / "effective-topology.json"
-DEFAULT_DIAGNOSTICS_JSON = REPO_ROOT / "v5-build" / "diagnostics" / "report.json"
-DEFAULT_DIAGNOSTICS_TXT = REPO_ROOT / "v5-build" / "diagnostics" / "report.txt"
-DEFAULT_ARTIFACTS_ROOT = REPO_ROOT / "v5-generated"
+DEFAULT_OUTPUT_JSON = REPO_ROOT / "build" / "effective-topology.json"
+DEFAULT_DIAGNOSTICS_JSON = REPO_ROOT / "build" / "diagnostics" / "report.json"
+DEFAULT_DIAGNOSTICS_TXT = REPO_ROOT / "build" / "diagnostics" / "report.txt"
+DEFAULT_ARTIFACTS_ROOT = REPO_ROOT / "generated"
 DEFAULT_ERROR_CATALOG = TOPOLOGY_TOOLS / "data" / "error-catalog.yaml"
 DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 

@@ -139,7 +139,7 @@ def _resolve_framework_manifest_only(framework_root: Path) -> Path:
     extracted_manifest = framework_root / "framework.yaml"
     if extracted_manifest.exists():
         return extracted_manifest
-    monorepo_manifest = framework_root / "v5" / "topology" / "framework.yaml"
+    monorepo_manifest = framework_root / "topology" / "framework.yaml"
     if monorepo_manifest.exists():
         return monorepo_manifest
     raise FileNotFoundError(
@@ -154,8 +154,8 @@ def _resolve_framework_tools(framework_root: Path) -> tuple[Path, Path]:
     if (extracted_tools / "compile-topology.py").exists() and extracted_manifest.exists():
         return extracted_tools, extracted_manifest
 
-    monorepo_tools = framework_root / "v5" / "topology-tools"
-    monorepo_manifest = framework_root / "v5" / "topology" / "framework.yaml"
+    monorepo_tools = framework_root / "topology-tools"
+    monorepo_manifest = framework_root / "topology" / "framework.yaml"
     if (monorepo_tools / "compile-topology.py").exists() and monorepo_manifest.exists():
         return monorepo_tools, monorepo_manifest
 

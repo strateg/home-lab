@@ -10,11 +10,11 @@ from framework_lock import resolve_paths, verify_framework_lock
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[1]
 
 
 def _default_topology() -> Path:
-    return _default_repo_root() / "v5" / "topology" / "topology.yaml"
+    return _default_repo_root() / "topology" / "topology.yaml"
 
 
 def parse_args() -> argparse.Namespace:

@@ -75,7 +75,7 @@ class BaseGenerator(GeneratorPlugin):
             candidates = [
                 repo_root / "topology-tools" / "templates",
                 repo_root / "framework" / "topology-tools" / "templates",
-                repo_root / "v5" / "topology-tools" / "templates",
+                repo_root / "topology-tools" / "templates",
             ]
             for candidate in candidates:
                 if candidate.exists():

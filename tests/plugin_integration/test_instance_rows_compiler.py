@@ -82,7 +82,7 @@ def test_sidecar_merge_passthrough_preserves_placeholders():
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "passthrough",
             "secrets_root": "projects/home-lab/secrets",
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -123,7 +123,7 @@ def test_sidecar_missing_inject_mode_no_error():
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -159,7 +159,7 @@ def test_sidecar_missing_strict_mode_with_placeholders_emits_error():
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "strict",
             "secrets_root": "projects/home-lab/secrets",
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -195,7 +195,7 @@ def test_strict_mode_ignores_non_secret_todo_placeholders():
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "strict",
             "secrets_root": "projects/home-lab/secrets",
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -231,7 +231,7 @@ def test_placeholder_non_placeholders_preserved():
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -283,7 +283,7 @@ def test_sidecar_decrypt_failure_inject_require_unlock_emits_error(monkeypatch):
             "compilation_owner_instance_rows": "plugin",
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -330,7 +330,7 @@ def test_sidecar_decrypt_failure_inject_require_unlock_false_is_warning(monkeypa
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
             "require_unlock": False,
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -380,7 +380,7 @@ def test_sidecar_instance_mismatch_does_not_merge_in_inject(monkeypatch):
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
             "require_unlock": False,
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -499,7 +499,7 @@ def test_sidecar_secret_annotations_are_replaced(monkeypatch):
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -554,7 +554,7 @@ def test_sidecar_plaintext_conflict_emits_error(monkeypatch):
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -615,7 +615,7 @@ def test_sidecar_uses_object_secret_annotations_without_instance_mac_duplication
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         objects={
             "obj.glinet.slate_ax1800": {
@@ -698,7 +698,7 @@ def test_object_interface_mac_annotations_resolve_without_instance_hardware_iden
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         objects={
             "obj.glinet.slate_ax1800": {
@@ -771,7 +771,7 @@ def test_annotation_resolver_formats_validate_secret_values(monkeypatch):
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         instance_bindings={
             "instance_bindings": {
@@ -827,7 +827,7 @@ def test_object_level_secret_annotation_resolves_serial_without_instance_marker(
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         objects={
             "obj.glinet.slate_ax1800": {
@@ -886,7 +886,7 @@ def test_object_level_typed_secret_annotation_rejects_invalid_scalar(monkeypatch
             "secrets_mode": "inject",
             "secrets_root": "projects/home-lab/secrets",
             "require_unlock": True,
-            "repo_root": str(V5_TOOLS.parent.parent),
+            "repo_root": str(V5_TOOLS.parent),
         },
         objects={
             "obj.glinet.slate_ax1800": {

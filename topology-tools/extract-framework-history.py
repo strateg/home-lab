@@ -15,7 +15,7 @@ import yaml
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[1]
 
 
 def _default_output_root() -> Path:
@@ -197,16 +197,19 @@ def main() -> int:
             print(cloned.stderr)
             return cloned.returncode
 
-        filtered = _run(
-            ["git", "filter-branch", "--force", "--prune-empty", "--subdirectory-filter", "v5", "--", "HEAD"],
-            cwd=clone_root,
-            env={**os.environ, "FILTER_BRANCH_SQUELCH_WARNING": "1"},
-        )
-        if filtered.returncode != 0:
-            print("ERROR: cannot run history filter")
-            print(filtered.stdout)
-            print(filtered.stderr)
-            return filtered.returncode
+        # Skip subdirectory filter if v5/ doesn't exist (post-migration layout)
+        v5_dir = clone_root / "v5"
+        if v5_dir.is_dir():
+            filtered = _run(
+                ["git", "filter-branch", "--force", "--prune-empty", "--subdirectory-filter", "v5", "--", "HEAD"],
+                cwd=clone_root,
+                env={**os.environ, "FILTER_BRANCH_SQUELCH_WARNING": "1"},
+            )
+            if filtered.returncode != 0:
+                print("ERROR: cannot run history filter")
+                print(filtered.stdout)
+                print(filtered.stderr)
+                return filtered.returncode
 
         _normalize_layout(repo_root=clone_root, include_tests=include_tests)
         try:

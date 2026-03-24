@@ -21,7 +21,7 @@ class AuditCheckResult:
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[1]
 
 
 def _write_yaml(path: Path, payload: dict) -> None:
@@ -50,8 +50,8 @@ def _check_disable_plugins_flag_retired(compile_script: Path) -> AuditCheckResul
 def _check_legacy_paths_rejected(compile_script: Path) -> AuditCheckResult:
     with tempfile.TemporaryDirectory(prefix="strict-audit-paths-") as tmp_dir:
         repo_root = Path(tmp_dir).resolve()
-        topology_path = repo_root / "v5" / "topology" / "topology.yaml"
-        error_catalog = repo_root / "v5" / "topology-tools" / "data" / "error-catalog.yaml"
+        topology_path = repo_root / "topology" / "topology.yaml"
+        error_catalog = repo_root / "topology-tools" / "data" / "error-catalog.yaml"
         _write_yaml(
             topology_path,
             {
@@ -75,15 +75,15 @@ def _check_legacy_paths_rejected(compile_script: Path) -> AuditCheckResult:
                 "--error-catalog",
                 str(error_catalog),
                 "--output-json",
-                str(repo_root / "v5-build" / "effective.json"),
+                str(repo_root / "build" / "effective.json"),
                 "--diagnostics-json",
-                str(repo_root / "v5-build" / "diagnostics.json"),
+                str(repo_root / "build" / "diagnostics.json"),
                 "--diagnostics-txt",
-                str(repo_root / "v5-build" / "diagnostics.txt"),
+                str(repo_root / "build" / "diagnostics.txt"),
             ]
         )
         diagnostics_text = ""
-        diag_path = repo_root / "v5-build" / "diagnostics.txt"
+        diag_path = repo_root / "build" / "diagnostics.txt"
         if diag_path.exists():
             diagnostics_text = diag_path.read_text(encoding="utf-8", errors="ignore")
         merged = "\n".join([run.stdout, run.stderr, diagnostics_text]).strip()
@@ -94,9 +94,9 @@ def _check_legacy_paths_rejected(compile_script: Path) -> AuditCheckResult:
 def _check_missing_lock_rejected(verify_script: Path) -> AuditCheckResult:
     with tempfile.TemporaryDirectory(prefix="strict-audit-lock-") as tmp_dir:
         repo_root = Path(tmp_dir).resolve()
-        topology_path = repo_root / "v5" / "topology" / "topology.yaml"
-        framework_manifest = repo_root / "v5" / "topology" / "framework.yaml"
-        project_manifest = repo_root / "v5" / "projects" / "home-lab" / "project.yaml"
+        topology_path = repo_root / "topology" / "topology.yaml"
+        framework_manifest = repo_root / "topology" / "framework.yaml"
+        project_manifest = repo_root / "projects" / "home-lab" / "project.yaml"
         _write_yaml(
             framework_manifest,
             {
@@ -166,8 +166,8 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     repo_root = args.repo_root.resolve()
-    compile_script = repo_root / "v5" / "topology-tools" / "compile-topology.py"
-    verify_script = repo_root / "v5" / "topology-tools" / "verify-framework-lock.py"
+    compile_script = repo_root / "topology-tools" / "compile-topology.py"
+    verify_script = repo_root / "topology-tools" / "verify-framework-lock.py"
 
     checks = [
         _check_legacy_pipeline_mode_rejected(compile_script),

@@ -16,7 +16,7 @@ PROJECT_INSTANCES_ROOT = "topology/instances"
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[1]
 
 
 def _default_framework_root() -> Path:
@@ -24,7 +24,7 @@ def _default_framework_root() -> Path:
 
 
 def _default_output_root() -> Path:
-    return _default_repo_root() / "v5-build" / "project-bootstrap" / "home-lab"
+    return _default_repo_root() / "build" / "project-bootstrap" / "home-lab"
 
 
 def parse_args() -> argparse.Namespace:
@@ -176,7 +176,7 @@ def _copy_tree_if_exists(
 
 
 def _detect_framework_manifest(framework_root: Path) -> tuple[Path, str]:
-    monorepo_manifest = framework_root / "v5" / "topology" / "framework.yaml"
+    monorepo_manifest = framework_root / "topology" / "framework.yaml"
     extracted_manifest = framework_root / "framework.yaml"
     if monorepo_manifest.exists():
         return monorepo_manifest, "monorepo"
@@ -423,7 +423,7 @@ def main() -> int:
             force=bool(args.force),
         )
 
-    template_root = Path(__file__).resolve().parents[2] / "docs" / "framework" / "templates"
+    template_root = Path(__file__).resolve().parents[1] / "docs" / "framework" / "templates"
     validate_template = template_root / "project-validate.yml"
     if validate_template.exists():
         _write_if_missing(

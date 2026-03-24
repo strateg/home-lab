@@ -357,9 +357,9 @@ jobs:
           import sys
           from pathlib import Path
 
-          root = Path("v5-generated")
+          root = Path("generated")
           if not root.exists():
-              print("ERROR: v5-generated directory is missing")
+              print("ERROR: generated directory is missing")
               sys.exit(1)
 
           secret_assignment = re.compile(

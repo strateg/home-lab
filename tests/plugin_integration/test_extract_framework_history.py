@@ -15,7 +15,7 @@ def _detect_repo_root() -> Path:
     for candidate in [current.parent, *current.parents]:
         if (candidate / "topology-tools").is_dir() or (candidate / "topology-tools").is_dir():
             return candidate
-    return current.parents[3]
+    return current.parents[2]
 
 
 def _tools_root(repo_root: Path) -> Path:

@@ -9,7 +9,7 @@ import yaml
 from field_annotations import FieldAnnotation, parse_field_annotation
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
-DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[2] / "data" / "instance-field-formats.yaml"
+DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[1] / "data" / "instance-field-formats.yaml"
 
 
 class AnnotationResolverCompiler(CompilerPlugin):
@@ -39,7 +39,7 @@ class AnnotationResolverCompiler(CompilerPlugin):
         configured = ctx.config.get("format_registry_path")
         registry_path = Path(configured) if isinstance(configured, str) and configured else DEFAULT_FORMAT_REGISTRY
         if not registry_path.is_absolute():
-            registry_path = (Path(__file__).resolve().parents[2] / registry_path).resolve()
+            registry_path = (Path(__file__).resolve().parents[1] / registry_path).resolve()
         try:
             payload = yaml.safe_load(registry_path.read_text(encoding="utf-8")) or {}
         except Exception as exc:  # pragma: no cover - defensive path

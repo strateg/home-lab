@@ -11,9 +11,9 @@ from typing import Any
 import yaml
 from identifier_policy import contains_unsafe_identifier_chars, normalize_identifier_for_filename
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_INPUT = REPO_ROOT / "v5" / "projects" / "home-lab" / "_legacy" / "instance-bindings.yaml"
-DEFAULT_OUTPUT_ROOT = REPO_ROOT / "v5" / "topology" / "instances"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_INPUT = REPO_ROOT / "projects" / "home-lab" / "_legacy" / "instance-bindings.yaml"
+DEFAULT_OUTPUT_ROOT = REPO_ROOT / "topology" / "instances"
 DEFAULT_PROJECT_FILE = DEFAULT_OUTPUT_ROOT / "project.yaml"
 
 

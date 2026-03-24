@@ -11,12 +11,12 @@ tasks:
     env:
       V5_SECRETS_MODE: passthrough
     cmds:
-      - "{{.PYTHON}} v5/scripts/orchestration/lane.py build-v5"
+      - "{{.PYTHON}} scripts/orchestration/lane.py build-v5"
 
   v5-docs:
     desc: Generate v5 docs artifacts via compile pipeline in passthrough secrets mode
     cmds:
-      - "{{.PYTHON}} v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root v5-generated"
+      - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated"
 
   phase1-bootstrap:
     desc: Refresh phase1 migration bootstrap map

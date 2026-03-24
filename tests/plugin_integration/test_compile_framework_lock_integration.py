@@ -11,7 +11,7 @@ import yaml
 
 
 def _load_compiler_module():
-    repo_root = Path(__file__).resolve().parents[3]
+    repo_root = Path(__file__).resolve().parents[2]
     module_path = repo_root / "topology-tools" / "compile-topology.py"
     spec = importlib.util.spec_from_file_location("compile_topology_lock_integration", module_path)
     if spec is None or spec.loader is None:
@@ -87,7 +87,7 @@ def _create_minimal_repo(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
 
 
 def _create_compiler(mod, *, topology_path: Path, error_catalog_path: Path):
-    source_repo_root = Path(__file__).resolve().parents[3]
+    source_repo_root = Path(__file__).resolve().parents[2]
     output_root = topology_path.parent.parent.parent / "build" / "compile-lock-tests"
     return mod.V5Compiler(
         manifest_path=topology_path,

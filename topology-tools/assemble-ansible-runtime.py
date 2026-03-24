@@ -29,9 +29,9 @@ from typing import NamedTuple
 import yaml
 
 # Paths relative to repository root
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_ENV = "production"
-DEFAULT_TOPOLOGY = REPO_ROOT / "v5" / "topology" / "topology.yaml"
+DEFAULT_TOPOLOGY = REPO_ROOT / "topology" / "topology.yaml"
 
 
 def _load_active_project(topology_path: Path) -> str:
@@ -55,9 +55,9 @@ def _load_active_project(topology_path: Path) -> str:
 DEFAULT_PROJECT = _load_active_project(DEFAULT_TOPOLOGY)
 
 # Input/output defaults
-GENERATED_INV = REPO_ROOT / "v5-generated" / DEFAULT_PROJECT / "ansible" / "inventory" / DEFAULT_ENV
-MANUAL_OVERRIDES = REPO_ROOT / "v5" / "projects" / DEFAULT_PROJECT / "ansible" / "inventory-overrides" / DEFAULT_ENV
-RUNTIME_INV = REPO_ROOT / "v5-generated" / DEFAULT_PROJECT / "ansible" / "runtime" / DEFAULT_ENV
+GENERATED_INV = REPO_ROOT / "generated" / DEFAULT_PROJECT / "ansible" / "inventory" / DEFAULT_ENV
+MANUAL_OVERRIDES = REPO_ROOT / "projects" / DEFAULT_PROJECT / "ansible" / "inventory-overrides" / DEFAULT_ENV
+RUNTIME_INV = REPO_ROOT / "generated" / DEFAULT_PROJECT / "ansible" / "runtime" / DEFAULT_ENV
 
 
 class ValidationError(NamedTuple):
@@ -325,17 +325,17 @@ def main() -> int:
     generated_dir = (
         args.generated_dir
         if isinstance(args.generated_dir, Path)
-        else REPO_ROOT / "v5-generated" / project_id / "ansible" / "inventory" / env
+        else REPO_ROOT / "generated" / project_id / "ansible" / "inventory" / env
     )
     manual_dir = (
         args.manual_dir
         if isinstance(args.manual_dir, Path)
-        else REPO_ROOT / "v5" / "projects" / project_id / "ansible" / "inventory-overrides" / env
+        else REPO_ROOT / "projects" / project_id / "ansible" / "inventory-overrides" / env
     )
     runtime_dir = (
         args.runtime_dir
         if isinstance(args.runtime_dir, Path)
-        else REPO_ROOT / "v5-generated" / project_id / "ansible" / "runtime" / env
+        else REPO_ROOT / "generated" / project_id / "ansible" / "runtime" / env
     )
 
     success, _ = assemble_runtime_inventory(

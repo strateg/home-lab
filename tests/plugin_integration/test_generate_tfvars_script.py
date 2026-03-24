@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "terraform" / "generate-tfvars.py"
 
 
@@ -87,7 +87,7 @@ def test_generate_and_cleanup_mikrotik_tfvars(tmp_path: Path, monkeypatch):
     }
 
     monkeypatch.setattr(module, "_repo_root", lambda: tmp_path)
-    monkeypatch.setattr(module, "_v5_root", lambda: tmp_path / "v5")
+    monkeypatch.setattr(module, "_v5_root", lambda: tmp_path)
     monkeypatch.setattr(module, "_decrypt_yaml", lambda _: payload)
 
     assert module._generate_tfvars("mikrotik") == 0

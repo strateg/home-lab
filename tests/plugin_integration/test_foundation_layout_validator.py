@@ -44,7 +44,7 @@ def _context(raw_yaml: dict) -> PluginContext:
         classes={},
         objects={},
         instance_bindings={"instance_bindings": {}},
-        config={"repo_root": str(Path(__file__).resolve().parents[3])},
+        config={"repo_root": str(Path(__file__).resolve().parents[2])},
     )
 
 

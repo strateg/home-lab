@@ -132,7 +132,7 @@ invariants:
 
 # ============================================================================
 # LAYER PLACEMENT
-# Defined in v5/topology/layer-contract.yaml
+# Defined in topology/layer-contract.yaml
 # ============================================================================
 
 layer_policy:

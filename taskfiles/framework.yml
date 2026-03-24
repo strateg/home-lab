@@ -3,7 +3,7 @@ version: "3"
 vars:
   FRAMEWORK_VERSION: '{{.FRAMEWORK_VERSION}}'
   FRAMEWORK_DIST_OUTPUT: '{{default "v5-dist/framework" .FRAMEWORK_DIST_OUTPUT}}'
-  FRAMEWORK_BOOTSTRAP_OUTPUT: '{{default "v5-build/infra-topology-framework-bootstrap" .FRAMEWORK_BOOTSTRAP_OUTPUT}}'
+  FRAMEWORK_BOOTSTRAP_OUTPUT: '{{default "build/infra-topology-framework-bootstrap" .FRAMEWORK_BOOTSTRAP_OUTPUT}}'
 
 tasks:
   lock-refresh:

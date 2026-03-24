@@ -9,13 +9,13 @@ from typing import Any, Dict, Iterable, List, Set
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 
-DEFAULT_TOPOLOGY = ROOT / "v5" / "topology" / "topology.yaml"
-DEFAULT_CATALOG = ROOT / "v5" / "topology" / "class-modules" / "router" / "capability-catalog.yaml"
-DEFAULT_PACKS = ROOT / "v5" / "topology" / "class-modules" / "router" / "capability-packs.yaml"
-DEFAULT_CLASSES_DIR = ROOT / "v5" / "topology" / "class-modules"
-DEFAULT_OBJECTS_DIR = ROOT / "v5" / "topology" / "object-modules"
+DEFAULT_TOPOLOGY = ROOT / "topology" / "topology.yaml"
+DEFAULT_CATALOG = ROOT / "topology" / "class-modules" / "router" / "capability-catalog.yaml"
+DEFAULT_PACKS = ROOT / "topology" / "class-modules" / "router" / "capability-packs.yaml"
+DEFAULT_CLASSES_DIR = ROOT / "topology" / "class-modules"
+DEFAULT_OBJECTS_DIR = ROOT / "topology" / "object-modules"
 
 
 def _load_yaml(path: Path) -> Any:

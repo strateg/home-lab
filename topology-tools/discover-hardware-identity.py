@@ -32,11 +32,11 @@ class SecretPathSpec:
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[1]
 
 
 def _default_topology_path() -> Path:
-    return _repo_root() / "v5" / "topology" / "topology.yaml"
+    return _repo_root() / "topology" / "topology.yaml"
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -450,7 +450,7 @@ def main() -> int:
     if args.output_dir is not None:
         output_dir = args.output_dir
     else:
-        output_dir = _repo_root() / "v5-build" / "hardware-identity-patches" / project_id
+        output_dir = _repo_root() / "build" / "hardware-identity-patches" / project_id
     output_dir.mkdir(parents=True, exist_ok=True)
 
     discovery_map: dict[str, dict[str, Any]] = {}

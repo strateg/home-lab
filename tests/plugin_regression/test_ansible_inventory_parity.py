@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 V4_INVENTORY_ROOT = REPO_ROOT / "v4-generated" / "ansible" / "inventory" / "production"
 
 

@@ -5,7 +5,7 @@ framework:
   id: infra-topology-framework
   version: 5.0.0
   source: git
-  repository: https://github.com/strateg/home-lab.git
-  revision: ae790931d33af53d1c9ba129fde2ef25932d2119
-  integrity: sha256-aaf4840f56caa56fa916cb955b5eab77ed9f4a5d364b8ff37b213b3e1b05f085
-locked_at: '2026-03-24T06:59:20.526247+00:00'
+  repository: git@github.com:strateg/home-lab.git
+  revision: 0d8b3f2a3556caf51e67f8b0918182a3094ef0cf
+  integrity: sha256-74db49bc73ca9a47a8af2e200da290773d0e0febed7b3a7e8de6987cdaf7710b
+locked_at: '2026-03-24T19:53:03.498561+00:00'

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[1]
 EFFECTIVE_JSON = REPO_ROOT / "build" / "effective-topology.json"
 COMPILER = REPO_ROOT / "topology-tools" / "compile-topology.py"
 

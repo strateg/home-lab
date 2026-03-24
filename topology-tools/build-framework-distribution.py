@@ -43,7 +43,7 @@ def _default_framework_manifest() -> Path:
     extracted_manifest = repo_root / "framework.yaml"
     if extracted_manifest.exists():
         return extracted_manifest
-    return repo_root / "v5" / "topology" / "framework.yaml"
+    return repo_root / "topology" / "framework.yaml"
 
 
 def _default_output_root() -> Path:

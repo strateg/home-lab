@@ -9,7 +9,7 @@ secrets_root: secrets
 generation:
   output_mode: project-qualified
 generated_at: '2026-03-11T14:57:34+00:00'
-migrated_from: v5/projects/home-lab/_legacy/instance-bindings.yaml
+migrated_from: projects/home-lab/_legacy/instance-bindings.yaml
 legacy_metadata:
   generated_at: '2026-03-08T23:24:31+00:00'
-  source_mapping: v5/projects/home-lab/_legacy/v4-to-v5-mapping.yaml
+  source_mapping: projects/home-lab/_legacy/v4-to-v5-mapping.yaml

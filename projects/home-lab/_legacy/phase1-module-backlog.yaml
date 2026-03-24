@@ -1,6 +1,6 @@
 schema_version: 1
 phase: 1
-source_mapping: v5/topology/instances/_legacy-home-lab/v4-to-v5-mapping.yaml
+source_mapping: projects/home-lab/_legacy/v4-to-v5-mapping.yaml
 gaps:
   classes: []
   objects: []

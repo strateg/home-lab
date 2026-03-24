@@ -5,16 +5,17 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[1]
 
 
 def _default_output_root() -> Path:
-    return _default_repo_root() / "v5-build" / "infra-topology-framework-bootstrap"
+    return _default_repo_root() / "build" / "infra-topology-framework-bootstrap"
 
 
 def _git_revision(path: Path) -> str:
@@ -77,7 +78,7 @@ def main() -> int:
     output_root = args.output_root.resolve()
 
     extract_script_name = "extract-framework-history.py" if args.preserve_history else "extract-framework-worktree.py"
-    extract_script = source_repo / "v5" / "topology-tools" / extract_script_name
+    extract_script = source_repo / "topology-tools" / extract_script_name
     if not extract_script.exists():
         fallback_script = Path(__file__).resolve().parent / extract_script_name
         if fallback_script.exists():
@@ -87,7 +88,7 @@ def main() -> int:
             return 2
 
     extract_cmd = [
-        "python",
+        sys.executable,
         str(extract_script),
         "--repo-root",
         str(source_repo),

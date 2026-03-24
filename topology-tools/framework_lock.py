@@ -43,7 +43,7 @@ class ResolvedPaths:
 
 
 def default_framework_manifest_path(framework_root: Path) -> Path:
-    monorepo_manifest = framework_root / "v5" / "topology" / "framework.yaml"
+    monorepo_manifest = framework_root / "topology" / "framework.yaml"
     extracted_manifest = framework_root / "framework.yaml"
     if monorepo_manifest.exists():
         return monorepo_manifest

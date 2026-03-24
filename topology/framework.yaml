@@ -7,19 +7,19 @@ supported_project_schema_range: ">=1.0.0 <2.0.0"
 distribution:
   layout_version: 1
   include:
-    - from: v5/topology/framework.yaml
+    - from: topology/framework.yaml
       to: framework.yaml
-    - from: v5/topology/class-modules
+    - from: topology/class-modules
       to: topology/class-modules
-    - from: v5/topology/object-modules
+    - from: topology/object-modules
       to: topology/object-modules
-    - from: v5/topology/layer-contract.yaml
+    - from: topology/layer-contract.yaml
       to: topology/layer-contract.yaml
-    - from: v5/topology/model.lock.yaml
+    - from: topology/model.lock.yaml
       to: topology/model.lock.yaml
-    - from: v5/topology/profile-map.yaml
+    - from: topology/profile-map.yaml
       to: topology/profile-map.yaml
-    - from: v5/topology-tools
+    - from: topology-tools
       to: topology-tools
   exclude_globs:
     - "**/__pycache__/**"

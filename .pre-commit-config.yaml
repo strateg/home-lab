@@ -30,7 +30,7 @@ repos:
   hooks:
     - id: detect-secrets-update-baseline
       name: Update detect-secrets baseline
-      entry: python v5/scripts/secrets/update_secrets_baseline.py
+      entry: python scripts/secrets/update_secrets_baseline.py
       language: system
       pass_filenames: false
       always_run: true
@@ -44,25 +44,25 @@ repos:
       exclude: |
         (?x)^(
           v4/.*|
+          archive/.*|
           \.github/workflows/.*|
           Migrated_and_archived/.*|
           manual-scripts/.*|
-          v4/topology-tools/fixtures/.*|
-          v5/projects/.*/secrets/.*|
-          v5/projects/.*/project\.yaml$|
-          v5/projects/.*/framework\.lock\.yaml$|
-          v5/tests/.*|
+          projects/.*/secrets/.*|
+          projects/.*/project\.yaml$|
+          projects/.*/framework\.lock\.yaml$|
+          tests/.*|
           docs/.*|
-          v5/topology/object-modules/.*/obj\..*\.yaml$|
-          v5/topology-tools/plugins/plugins\.yaml$|
-          v5/topology-tools/(audit-strict-runtime-entrypoints|bootstrap-project-repo|cutover-readiness-report)\.py$|
+          topology/object-modules/.*/obj\..*\.yaml$|
+          topology-tools/plugins/plugins\.yaml$|
+          topology-tools/(audit-strict-runtime-entrypoints|bootstrap-project-repo|cutover-readiness-report)\.py$|
           ansible/group_vars/.*\.yml\.example$|
           ansible/.*\.sh$|
           ansible/README\.md$|
           bootstrap/.*|
           configs/vpn/.*|
           docs/guides/.*|
-          v5/secrets/.*\.yaml$|
+          secrets/.*\.yaml$|
           MIGRATION\.md|
           \.secrets\.baseline
         )$
@@ -105,7 +105,7 @@ repos:
     #   pass_filenames: false
     - id: sops-encryption-check
       name: Verify SOPS encryption
-      entry: python v5/scripts/secrets/check-sops-encryption.py
+      entry: python scripts/secrets/check-sops-encryption.py
       language: system
-      files: ^v5/secrets/.*\.yaml$
+      files: ^secrets/.*\.yaml$
       pass_filenames: false

@@ -55,7 +55,7 @@ plugins:
     depends_on: []
     timeout: 30
     config:
-      format_registry_path: data/instance-field-formats.yaml
+      format_registry_path: ../data/instance-field-formats.yaml
     config_schema:
       type: object
       properties:
@@ -671,7 +671,7 @@ plugins:
     depends_on: []
     timeout: 30
     config:
-      format_registry_path: data/instance-field-formats.yaml
+      format_registry_path: ../data/instance-field-formats.yaml
       enforcement_mode: enforce
       gate_statuses: [modeled, mapped]
     config_schema:

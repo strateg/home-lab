@@ -11,7 +11,7 @@ import yaml
 
 
 def _load_scaffold_module():
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = Path(__file__).resolve().parents[1]
     module_path = repo_root / "scripts" / "validation" / "validate_v5_scaffold.py"
     spec = importlib.util.spec_from_file_location("validate_v5_scaffold_module", module_path)
     if spec is None or spec.loader is None:

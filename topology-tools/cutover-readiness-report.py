@@ -25,7 +25,7 @@ class GateResult:
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    return Path(__file__).resolve().parents[1]
 
 
 def _default_output_json() -> Path:

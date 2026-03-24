@@ -23,7 +23,7 @@ import yaml
 from field_annotations import parse_field_annotation
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
 
-DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[2] / "data" / "instance-field-formats.yaml"
+DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[1] / "data" / "instance-field-formats.yaml"
 DEFAULT_ENFORCEMENT_MODE = "enforce"
 SUPPORTED_ENFORCEMENT_MODES = {"warn", "warn+gate-new", "enforce"}
 DEFAULT_GATE_STATUSES = {"modeled", "mapped"}
@@ -87,7 +87,7 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
         configured = ctx.config.get("format_registry_path")
         registry_path = Path(configured) if isinstance(configured, str) and configured else DEFAULT_FORMAT_REGISTRY
         if not registry_path.is_absolute():
-            registry_path = (Path(__file__).resolve().parents[2] / registry_path).resolve()
+            registry_path = (Path(__file__).resolve().parents[1] / registry_path).resolve()
 
         try:
             payload = yaml.safe_load(registry_path.read_text(encoding="utf-8")) or {}
