@@ -25,6 +25,7 @@ from kernel.plugin_base import (
     ValidatorJsonPlugin,
 )
 
+
 class ReferenceValidator(ValidatorJsonPlugin):
     """Validate references, software binding policies, and compatibility rules."""
 

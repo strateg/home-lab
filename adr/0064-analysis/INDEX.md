@@ -1,7 +1,7 @@
 # ADR 0064 Analysis: Complete Index
 
-**Date:** 2026-03-08  
-**Project:** home-lab topology v5  
+**Date:** 2026-03-08
+**Project:** home-lab topology v5
 **Focus:** OS taxonomy redesign - property vs. class modeling
 
 ---
@@ -21,8 +21,8 @@
 ### Decision-Focused Documents
 
 #### 1️⃣ [os-model-redesign-executive-summary.md](./os-model-redesign-executive-summary.md)
-**For:** Decision makers, project leads, stakeholders  
-**Duration:** 10-15 minutes  
+**For:** Decision makers, project leads, stakeholders
+**Duration:** 10-15 minutes
 **Key content:**
 - Quick comparison of property vs. class models
 - 5 key decision points
@@ -36,8 +36,8 @@
 ---
 
 #### 2️⃣ [decision-matrix-and-scenarios.md](./decision-matrix-and-scenarios.md)
-**For:** Technical decision support, scenario planning  
-**Duration:** 20-25 minutes  
+**For:** Technical decision support, scenario planning
+**Duration:** 20-25 minutes
 **Key content:**
 - 6 scenario matrices (single-OS, multi-variant, firmware/installable, services, cloud, lifecycle)
 - Infrastructure size analysis (small/medium/large labs)
@@ -53,8 +53,8 @@
 ### Analysis Documents
 
 #### 3️⃣ [os-modeling-approach-comparison.md](./os-modeling-approach-comparison.md)
-**For:** Technical reviewers, architects, deep analysis  
-**Duration:** 25-30 minutes  
+**For:** Technical reviewers, architects, deep analysis
+**Duration:** 25-30 minutes
 **Key content:**
 - Device classification (OS-bearing vs. OS-less)
 - OS installation models (firmware-based vs. installable-based)
@@ -68,8 +68,8 @@
 ---
 
 #### 4️⃣ [os-modeling-scenarios.md](./os-modeling-scenarios.md)
-**For:** Implementation planners, code reviewers, architects  
-**Duration:** 30-35 minutes  
+**For:** Implementation planners, code reviewers, architects
+**Duration:** 30-35 minutes
 **Key content:**
 - 6 real-world scenarios with code examples:
   1. Simple VM with Debian
@@ -89,8 +89,8 @@
 ### Implementation Document
 
 #### 5️⃣ [adr-0064-revision-proposal.md](./adr-0064-revision-proposal.md)
-**For:** Implementation teams, ADR authors, compiler developers  
-**Duration:** 35-40 minutes  
+**For:** Implementation teams, ADR authors, compiler developers
+**Duration:** 35-40 minutes
 **Key content:**
 - Problem statement (refined)
 - Proposed solution overview
@@ -184,22 +184,22 @@ Adopt class-based OS model:
 
 ## ❓ Questions Answered
 
-**Q: Do we really need OS as a class?**  
+**Q: Do we really need OS as a class?**
 A: Yes, if you have both firmware (routers) and installable (VMs) OS devices. They're fundamentally different.
 
-**Q: Won't class model be too complex?**  
+**Q: Won't class model be too complex?**
 A: Initial complexity (~5 weeks) pays for itself in maintainability as infrastructure grows (20+ devices).
 
-**Q: Can we keep using property model?**  
+**Q: Can we keep using property model?**
 A: Yes, but you'll hit scalability limits as device count grows and OS variants multiply.
 
-**Q: How long does migration take?**  
+**Q: How long does migration take?**
 A: 5 weeks with 5-phase approach. Backward compatible throughout.
 
-**Q: What if we change our mind?**  
+**Q: What if we change our mind?**
 A: Phase 1-2 is easily reversible. By Phase 4, full rollback still possible.
 
-**Q: Can we use hybrid approach?**  
+**Q: Can we use hybrid approach?**
 A: Yes, but then you maintain two systems. Better to commit to one model.
 
 ---
@@ -274,7 +274,7 @@ Firmware OS and installable OS are different:
 - Firmware: immutable, hardware-locked, vendor-controlled
 - Installable: mutable, user-controlled, version-flexible
 
-**Property model:** Treats them identically (problem)  
+**Property model:** Treats them identically (problem)
 **Class model:** Distinguishes them structurally (solution)
 
 ### Insight 2: Scale Inflection Point
@@ -285,7 +285,7 @@ Small labs can use property model; medium/large labs cannot.
 **Your situation:** 10+ Debian variants planned → use class model
 
 ### Insight 3: Validation Timing Matters
-Property model: "Does it work?" = deploy-time question  
+Property model: "Does it work?" = deploy-time question
 Class model: "Does it work?" = schema-validation question
 
 **Impact:** Deploy-time failures are expensive; schema-time errors are cheap
@@ -310,8 +310,8 @@ You're already building a sophisticated compiler (manifest loading, validation, 
 → Deep dive proposal (40 min) → Extract implementation tasks → Create Jira tickets → Execute checklist items
 
 ### For Presentations
-→ Use decision matrix for stakeholder slides  
-→ Use scenarios for technical discussions  
+→ Use decision matrix for stakeholder slides
+→ Use scenarios for technical discussions
 → Use proposal for architecture reviews
 
 ---
@@ -331,9 +331,9 @@ Before proceeding with class model, confirm:
 
 ---
 
-**Analysis completed:** 2026-03-08  
-**Status:** Ready for team review and decision  
-**Next milestone:** ADR 0064 revision proposal approval  
+**Analysis completed:** 2026-03-08
+**Status:** Ready for team review and decision
+**Next milestone:** ADR 0064 revision proposal approval
 **Estimated kickoff:** Week of 2026-03-15 (Phase 1)
 
 ---

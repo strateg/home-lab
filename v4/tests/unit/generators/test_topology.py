@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Dict
 
 import pytest
-
 from scripts.generators.common.topology import (
     _build_sources_fingerprint,
     _cache_file_path,

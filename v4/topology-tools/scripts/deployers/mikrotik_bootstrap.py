@@ -281,9 +281,8 @@ def main():
     # Generate if requested
     if args.generate:
         print("Generating bootstrap script from topology...")
-        from topology_loader import load_topology
-
         from scripts.generators.bootstrap.mikrotik.generator import MikrotikBootstrapGenerator
+        from topology_loader import load_topology
 
         topology = load_topology(args.topology)
         generator = MikrotikBootstrapGenerator(topology)

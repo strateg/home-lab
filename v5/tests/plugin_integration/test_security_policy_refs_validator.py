@@ -40,7 +40,12 @@ def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
 
 def _base_rows() -> list[dict]:
     return [
-        {"group": "security_policies", "instance": "sec-policy-default", "class_ref": "class.security.policy", "layer": "L7"},
+        {
+            "group": "security_policies",
+            "instance": "sec-policy-default",
+            "class_ref": "class.security.policy",
+            "layer": "L7",
+        },
         {
             "group": "services",
             "instance": "svc-a",

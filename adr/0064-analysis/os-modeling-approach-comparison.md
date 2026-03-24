@@ -1,13 +1,13 @@
 # OS Modeling Approaches: Class vs Property Model
 
-**Date:** 2026-03-08  
+**Date:** 2026-03-08
 **Purpose:** Analysis of two OS modeling paradigms for flexible device-OS binding
 
 ---
 
 ## Overview
 
-Current ADR 0064 models OS as a **property** (`software.os` + `prerequisites.os_ref`).  
+Current ADR 0064 models OS as a **property** (`software.os` + `prerequisites.os_ref`).
 Alternative proposal: Model OS as a **first-class object** with explicit relationships.
 
 This document compares both approaches across several dimensions.
@@ -199,17 +199,17 @@ properties:
   architecture: {required: true}
   init_system: {optional: true}
   package_manager: {optional: true}
-  
+
   # Key addition: explicit installation model
-  installation_model: 
+  installation_model:
     required: true
     enum: [firmware, installable]
     description: "Immutable firmware or user-installable OS"
-  
+
   # Firmware-specific
   firmware_locked_to_hardware: {optional: true, type: bool}
   vendor_locked_release: {optional: true, type: bool}
-  
+
   # Installable-specific
   supports_multiboot: {optional: true, type: bool}
   supports_live_boot: {optional: true, type: bool}

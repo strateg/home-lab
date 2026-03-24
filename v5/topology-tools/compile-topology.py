@@ -35,6 +35,7 @@ from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegist
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPO_ROOT / "v5" / "topology" / "topology.yaml"
+DEFAULT_TOPOLOGY_RELATIVE = str(DEFAULT_MANIFEST.relative_to(REPO_ROOT).as_posix())
 DEFAULT_OUTPUT_JSON = REPO_ROOT / "v5-build" / "effective-topology.json"
 DEFAULT_DIAGNOSTICS_JSON = REPO_ROOT / "v5-build" / "diagnostics" / "report.json"
 DEFAULT_DIAGNOSTICS_TXT = REPO_ROOT / "v5-build" / "diagnostics" / "report.txt"
@@ -66,6 +67,25 @@ def resolve_repo_path(value: str) -> Path:
     if not path.is_absolute():
         path = REPO_ROOT / path
     return path
+
+
+def resolve_topology_path(topology_arg: str) -> Path:
+    """Resolve topology path with repo-layout-aware default fallback.
+
+    For monorepo layout, default remains `v5/topology/topology.yaml`.
+    For standalone project repo roots, fallback to `topology.yaml` when
+    the default monorepo relative path does not exist.
+    """
+
+    resolved = resolve_repo_path(topology_arg)
+    if resolved.exists():
+        return resolved
+
+    if topology_arg == DEFAULT_TOPOLOGY_RELATIVE:
+        standalone_candidate = REPO_ROOT / "topology.yaml"
+        if standalone_candidate.exists():
+            return standalone_candidate
+    return resolved
 
 
 def utc_now() -> str:
@@ -766,7 +786,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--topology",
-        default=str(DEFAULT_MANIFEST.relative_to(REPO_ROOT).as_posix()),
+        default=DEFAULT_TOPOLOGY_RELATIVE,
         help="Path to v5 topology manifest YAML.",
     )
     parser.add_argument(
@@ -853,8 +873,9 @@ def main() -> int:
     args = build_parser().parse_args()
     global REPO_ROOT
     REPO_ROOT = Path(args.repo_root).resolve()
+    manifest_path = resolve_topology_path(args.topology)
     compiler = V5Compiler(
-        manifest_path=resolve_repo_path(args.topology),
+        manifest_path=manifest_path,
         output_json=resolve_repo_path(args.output_json),
         diagnostics_json=resolve_repo_path(args.diagnostics_json),
         diagnostics_txt=resolve_repo_path(args.diagnostics_txt),

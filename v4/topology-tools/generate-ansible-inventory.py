@@ -16,7 +16,6 @@ from typing import Dict
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-
 from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
 
 DEFAULT_ENV = "production"

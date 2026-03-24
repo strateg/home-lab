@@ -91,7 +91,9 @@ def test_device_ref_without_host_os_ref_warns_in_v4_and_v5():
     v4_warnings: list[str] = []
     v4_module.check_ip_allocation_host_os_refs(
         topology={
-            "L2_network": {"networks": [{"id": "vlan-a", "ip_allocations": [{"ip": "10.0.30.10", "device_ref": "srv-a"}]}]},
+            "L2_network": {
+                "networks": [{"id": "vlan-a", "ip_allocations": [{"ip": "10.0.30.10", "device_ref": "srv-a"}]}]
+            },
             "L4_platform": {"host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a"}]},
         },
         ids={},

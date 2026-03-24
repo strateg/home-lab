@@ -23,9 +23,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import yaml
 from jsonschema import Draft7Validator
-from topology_loader import load_topology
-
 from scripts.validators import runner as validators_runner
+from topology_loader import load_topology
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_SCHEMA_PATH = SCRIPT_DIR / "schemas" / "topology-v4-schema.json"

@@ -101,7 +101,9 @@ def build_v5() -> None:
     for output_dir in ("v5-generated", "v5-build", "v5-dist"):
         (ROOT / output_dir).mkdir(parents=True, exist_ok=True)
     validate_v5()
-    print("[lane] INFO: v5 build emitted generator artifacts under v5-generated (including docs + ansible + object generators).")
+    print(
+        "[lane] INFO: v5 build emitted generator artifacts under v5-generated (including docs + ansible + object generators)."
+    )
 
 
 def phase1_gate() -> None:

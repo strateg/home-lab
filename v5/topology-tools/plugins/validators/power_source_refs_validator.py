@@ -13,6 +13,7 @@ from kernel.plugin_base import (
     ValidatorJsonPlugin,
 )
 
+
 class PowerSourceRefsValidator(ValidatorJsonPlugin):
     """Validate `power.source_ref` L1->L1 lateral relation and outlet occupancy."""
 

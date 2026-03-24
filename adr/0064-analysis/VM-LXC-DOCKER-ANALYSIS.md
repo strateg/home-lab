@@ -1,7 +1,7 @@
 # ADR 0064 Analysis: Applicability to VM/LXC/Docker
 
-**Date:** 8 March 2026  
-**Analysis Type:** Virtualization and Containerization Applicability  
+**Date:** 8 March 2026
+**Analysis Type:** Virtualization and Containerization Applicability
 **Status:** Complete
 
 ---
@@ -54,7 +54,7 @@ properties:
   hardware_locked: false  # Can be changed by hypervisor
   vendor_locked: false
   virtual: true  # NEW: indicates virtual firmware
-  
+
 capabilities:
   - cap.firmware.qemu
   - cap.firmware.bios
@@ -77,7 +77,7 @@ properties:
   vendor_locked: false
   virtual: true
   secure_boot_capable: true
-  
+
 capabilities:
   - cap.firmware.qemu
   - cap.firmware.uefi
@@ -140,8 +140,8 @@ os_refs:
 
 ### 1.5 Recommendation for VMs
 
-✅ **No ADR changes needed.**  
-✅ Add virtual firmware objects to firmware registry.  
+✅ **No ADR changes needed.**
+✅ Add virtual firmware objects to firmware registry.
 ✅ Document `virtual: true` property for firmware.
 
 ---
@@ -196,7 +196,7 @@ properties:
   kernel: shared  # NEW: shares host kernel
   installation_model: installable
   container_type: lxc  # NEW: indicates containerized OS
-  
+
 capabilities:
   - cap.os.linux
   - cap.os.debian
@@ -291,7 +291,7 @@ properties:
   base_image: string  # alpine:3.19, debian:12-slim
   language: python | nodejs | java | go | rust
   language_version: string
-  
+
 capabilities:
   - cap.runtime.{runtime_type}
   - cap.runtime.base.{base_image_name}
@@ -310,7 +310,7 @@ properties:
   base_image: alpine:3.19
   language: python
   language_version: "3.11"
-  
+
 capabilities:
   - cap.runtime.docker
   - cap.runtime.base.alpine
@@ -345,7 +345,7 @@ properties:
   kernel: shared
   init_system: none  # No init
   package_manager: none  # No runtime package manager
-  
+
 capabilities:
   - cap.os.alpine
   - cap.os.container.docker
@@ -516,6 +516,6 @@ class: class.runtime
 
 ---
 
-**Date:** 8 March 2026  
-**Status:** Analysis Complete  
+**Date:** 8 March 2026
+**Status:** Analysis Complete
 **Next Step:** Update ADR 0064 with VM examples and create ADR 0065 for containers

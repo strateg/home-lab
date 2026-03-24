@@ -22,7 +22,6 @@ from typing import Any
 from urllib.parse import urlparse
 
 import yaml
-
 from field_annotations import FieldAnnotation, parse_field_annotation
 
 
@@ -386,9 +385,7 @@ def _resolve_project_layout(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Generate hardware identity patch templates from secret annotations."
-    )
+    parser = argparse.ArgumentParser(description="Generate hardware identity patch templates from secret annotations.")
     parser.add_argument(
         "--topology",
         type=Path,
@@ -410,10 +407,7 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=None,
-        help=(
-            "Output directory for patch files. Default: "
-            "v5-build/hardware-identity-patches/<project>/"
-        ),
+        help=("Output directory for patch files. Default: " "v5-build/hardware-identity-patches/<project>/"),
     )
     parser.add_argument(
         "--instance",

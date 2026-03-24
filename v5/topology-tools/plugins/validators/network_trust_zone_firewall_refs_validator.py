@@ -67,9 +67,7 @@ class NetworkTrustZoneFirewallRefsValidator(ValidatorJsonPlugin):
                         code="E7822",
                         severity="error",
                         stage=stage,
-                        message=(
-                            f"Trust-zone '{row_id}' references unknown default_firewall_policy_ref '{fw_ref}'."
-                        ),
+                        message=(f"Trust-zone '{row_id}' references unknown default_firewall_policy_ref '{fw_ref}'."),
                         path=f"{row_prefix}.default_firewall_policy_ref",
                     )
                 )

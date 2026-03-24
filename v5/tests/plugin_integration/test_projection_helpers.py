@@ -111,4 +111,3 @@ def test_projection_requires_required_fields() -> None:
         match=r"compiled_json\.instances\.lxc\[0\]\.instance_id must be non-empty string",
     ):
         build_proxmox_projection(payload)
-

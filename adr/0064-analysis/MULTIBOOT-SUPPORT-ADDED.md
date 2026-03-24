@@ -1,6 +1,6 @@
 # ✅ ADR 0064: Multi-boot Support Added
 
-**Дата:** 8 марта 2026  
+**Дата:** 8 марта 2026
 **Обновление:** Добавлена поддержка multi-boot для PC
 
 ---
@@ -79,7 +79,7 @@ effective_capabilities:
     - cap.os.debian.12
     - cap.os.init.systemd
     - cap.os.pkg.apt
-  
+
 # Результат: устройство может запускать сервисы для Windows ИЛИ Linux
 ```
 
@@ -162,7 +162,7 @@ bindings:
 
 ---
 
-**Статус:** ✅ ДОБАВЛЕНО  
-**Дата:** 8 марта 2026  
+**Статус:** ✅ ДОБАВЛЕНО
+**Дата:** 8 марта 2026
 
 👉 **Читайте:** `adr/0064-os-taxonomy-object-property-model.md` (обновлено)

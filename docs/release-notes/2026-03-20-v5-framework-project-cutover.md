@@ -1,6 +1,6 @@
 # Release Notes: V5 Framework/Project Cutover
 
-**Date:** 2026-03-20  
+**Date:** 2026-03-20
 **Scope:** ADR0075 Stage 1 + ADR0074 remaining path-sensitive rollout items
 
 ## Summary

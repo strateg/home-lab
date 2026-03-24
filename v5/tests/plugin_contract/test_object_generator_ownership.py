@@ -88,8 +88,7 @@ def test_central_manifest_does_not_register_object_generators() -> None:
     central_ids = _plugin_ids(central_manifest)
     owned_in_central = sorted(OBJECT_GENERATOR_IDS.intersection(central_ids))
     assert owned_in_central == [], (
-        "Object-specific generators must not be registered in central manifest: "
-        f"{owned_in_central}"
+        "Object-specific generators must not be registered in central manifest: " f"{owned_in_central}"
     )
 
 
@@ -130,8 +129,7 @@ def test_object_projection_builders_are_not_implemented_in_shared_tools_module()
     body = SHARED_PROJECTIONS_FILE.read_text(encoding="utf-8")
     leaked = [signature for signature in OBJECT_PROJECTION_BUILDERS if signature in body]
     assert leaked == [], (
-        "Object-specific projection builders must be owned by object modules, not shared tools module: "
-        f"{leaked}"
+        "Object-specific projection builders must be owned by object modules, not shared tools module: " f"{leaked}"
     )
 
 

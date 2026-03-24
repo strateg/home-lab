@@ -1,7 +1,7 @@
 # ✅ Categories Added to ADR 0064
 
-**Date:** 8 March 2026  
-**Status:** ✅ COMPLETE  
+**Date:** 8 March 2026
+**Status:** ✅ COMPLETE
 **Change:** Added `categories` field to class definitions
 
 ---
@@ -57,7 +57,7 @@ categories: [infrastructure, prerequisite, runtime]
 ```
 
 **Rationale:**
-- `infrastructure` - Core infrastructure component  
+- `infrastructure` - Core infrastructure component
 - `prerequisite` - Required before services can run
 - `runtime` - Provides execution environment
 
@@ -137,7 +137,7 @@ properties:
    ```python
    # Find all infrastructure entities
    infrastructure = [c for c in classes if "infrastructure" in c.categories]
-   
+
    # Find all prerequisites
    prereqs = [c for c in classes if "prerequisite" in c.categories]
    ```
@@ -185,12 +185,12 @@ class: class.os
 categories: [infrastructure, prerequisite, runtime]
 ```
 
-**Status:** ✅ COMPLETE  
-**Impact:** LOW (metadata addition, no breaking changes)  
+**Status:** ✅ COMPLETE
+**Impact:** LOW (metadata addition, no breaking changes)
 **Next:** Consider adding categories to future classes (compute, network, storage)
 
 ---
 
-**Date:** 8 March 2026  
-**Reviewer:** Ready for review  
+**Date:** 8 March 2026
+**Reviewer:** Ready for review
 **Approval:** Pending

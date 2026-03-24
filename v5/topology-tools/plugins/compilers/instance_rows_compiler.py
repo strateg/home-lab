@@ -12,7 +12,6 @@ from typing import Any
 from urllib.parse import urlparse
 
 import yaml
-
 from field_annotations import parse_field_annotation
 from identifier_policy import contains_unsafe_identifier_chars
 from kernel.plugin_base import (
@@ -23,6 +22,7 @@ from kernel.plugin_base import (
     PluginResult,
     Stage,
 )
+
 
 class InstanceRowsCompiler(CompilerPlugin):
     """Normalize instance_bindings rows and emit row-shape diagnostics."""
@@ -277,10 +277,7 @@ class InstanceRowsCompiler(CompilerPlugin):
                     code="E7213",
                     severity="error",
                     stage=stage,
-                    message=(
-                        f"Secret value format '{value_type}' is not defined for "
-                        f"'{instance_id}' at '{path}'."
-                    ),
+                    message=(f"Secret value format '{value_type}' is not defined for " f"'{instance_id}' at '{path}'."),
                     path=row_path,
                 )
             )
@@ -833,7 +830,9 @@ class InstanceRowsCompiler(CompilerPlugin):
                 )
 
                 if mode == "strict":
-                    unresolved_paths = self._collect_all_placeholder_paths(row, row_annotations=merged_secret_annotations)
+                    unresolved_paths = self._collect_all_placeholder_paths(
+                        row, row_annotations=merged_secret_annotations
+                    )
                     for unresolved_path in unresolved_paths:
                         diagnostics.append(
                             self.emit_diagnostic(

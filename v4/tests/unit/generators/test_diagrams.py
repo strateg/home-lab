@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 from jinja2 import DictLoader, Environment
-
 from scripts.generators.docs.docs_diagram import DiagramDocumentationGenerator
 
 

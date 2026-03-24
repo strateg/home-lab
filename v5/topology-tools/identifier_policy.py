@@ -16,4 +16,3 @@ def contains_unsafe_identifier_chars(value: str) -> bool:
 def normalize_identifier_for_filename(value: str) -> str:
     """Replace unsafe chars with dots for migration tooling."""
     return UNSAFE_IDENTIFIER_RE.sub(".", value).strip(" .")
-

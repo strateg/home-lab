@@ -1,7 +1,7 @@
 # ADR 0064 Analysis Complete ✓
 
-**Date:** 2026-03-08  
-**Project:** home-lab topology v5  
+**Date:** 2026-03-08
+**Project:** home-lab topology v5
 **Task:** Redesign OS taxonomy modeling approach
 
 ---
@@ -167,7 +167,7 @@ Your infrastructure has two classes of devices:
 - **Model fit:** Tight coupling appropriate
 - **Installation:** Not independently installable (or very restricted)
 
-#### 2. Installable-Based  
+#### 2. Installable-Based
 - **Examples:** VM (Debian), LXC (Alpine), Cloud (AMI), Bare-metal
 - **Characteristics:** Mutable, user-controlled, version-flexible
 - **Model fit:** Loose coupling appropriate
@@ -216,7 +216,7 @@ Firmware and installable OS are different by nature:
 - **Firmware:** Immutable, hardware-locked → should be tightly coupled
 - **Installable:** Mutable, flexible → should be loosely coupled
 
-Property model treats them identically (problem).  
+Property model treats them identically (problem).
 Class model distinguishes them structurally (solution).
 
 ### Insight 2: Scale Inflection Point ~15 Devices Per Variant
@@ -350,7 +350,7 @@ OS class fits naturally into existing patterns. No new foundational technology n
 
 **Timeline:** This week (2026-03-08 to 2026-03-12)
 
-**Action:** 
+**Action:**
 1. Share ONEPAGE-SUMMARY.md with team
 2. Schedule 30-minute review meeting
 3. Vote on adoption
@@ -360,20 +360,20 @@ OS class fits naturally into existing patterns. No new foundational technology n
 
 ## Files Location
 
-All analysis documents are in:  
+All analysis documents are in:
 📁 `c:\Users\Dmitri\PycharmProjects\home-lab\adr\0064-analysis\`
 
 Start with: 📄 [ONEPAGE-SUMMARY.md](./ONEPAGE-SUMMARY.md)
 
 ---
 
-**Status:** ✅ Analysis Complete, Ready for Review  
-**Recommendation:** ✅ Class Model (68/100 vs 62/100)  
-**Next Milestone:** Architecture Decision (this week)  
-**Target Kickoff:** Phase 1 (week of 2026-03-22)  
+**Status:** ✅ Analysis Complete, Ready for Review
+**Recommendation:** ✅ Class Model (68/100 vs 62/100)
+**Next Milestone:** Architecture Decision (this week)
+**Target Kickoff:** Phase 1 (week of 2026-03-22)
 
 ---
 
-For detailed information, see [INDEX.md](./INDEX.md)  
-For quick decision, see [ONEPAGE-SUMMARY.md](./ONEPAGE-SUMMARY.md)  
+For detailed information, see [INDEX.md](./INDEX.md)
+For quick decision, see [ONEPAGE-SUMMARY.md](./ONEPAGE-SUMMARY.md)
 For execution plan, see [NEXT-STEPS.md](./NEXT-STEPS.md)

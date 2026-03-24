@@ -43,7 +43,13 @@ def _valid_rows() -> list[dict]:
         {"group": "devices", "instance": "rtr-a", "class_ref": "class.router", "layer": "L1"},
         {"group": "devices", "instance": "srv-a", "class_ref": "class.compute.hypervisor", "layer": "L1"},
         {"group": "network", "instance": "inst.zone.a", "class_ref": "class.network.trust_zone", "layer": "L2"},
-        {"group": "network", "instance": "inst.bridge.a", "class_ref": "class.network.bridge", "layer": "L2", "extensions": {"host_ref": "srv-a"}},
+        {
+            "group": "network",
+            "instance": "inst.bridge.a",
+            "class_ref": "class.network.bridge",
+            "layer": "L2",
+            "extensions": {"host_ref": "srv-a"},
+        },
         {
             "group": "network",
             "instance": "inst.vlan.a",

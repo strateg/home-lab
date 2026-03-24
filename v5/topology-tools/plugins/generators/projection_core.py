@@ -17,13 +17,17 @@ from typing import Any
 #
 # TODO(ADR0078-evolution): Consider moving these to model schema as a class-level
 # property (e.g., `ansible_managed: false`) for full declarative configuration.
-ANSIBLE_HOST_EXCLUDED_CLASS_REFS: frozenset[str] = frozenset({
-    "class.network.physical_link",
-})
+ANSIBLE_HOST_EXCLUDED_CLASS_REFS: frozenset[str] = frozenset(
+    {
+        "class.network.physical_link",
+    }
+)
 
-ANSIBLE_HOST_EXCLUDED_OBJECT_REFS: frozenset[str] = frozenset({
-    "obj.network.ethernet_cable",
-})
+ANSIBLE_HOST_EXCLUDED_OBJECT_REFS: frozenset[str] = frozenset(
+    {
+        "obj.network.ethernet_cable",
+    }
+)
 
 # ADR0078 WP-006: Canonical group names for instance collections.
 # These correspond to layer directories in topology/instances/ and are used

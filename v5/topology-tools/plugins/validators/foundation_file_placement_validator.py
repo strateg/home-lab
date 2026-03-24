@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorYamlPlugin
 
 
@@ -163,8 +162,7 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
                         severity="warning",
                         stage=stage,
                         message=(
-                            f"Instance file '{rel}' should be named '{expected_filename}' "
-                            "to match instance id."
+                            f"Instance file '{rel}' should be named '{expected_filename}' " "to match instance id."
                         ),
                         path=f"project:{file_path}",
                     )

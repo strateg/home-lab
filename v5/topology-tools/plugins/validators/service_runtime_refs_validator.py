@@ -30,8 +30,7 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
     _BAREMETAL_ALLOWED_HOST_TYPES = {"baremetal", "embedded", "hypervisor"}
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
     _EXTERNAL_SERVICES_DEPRECATION = (
-        "L5_application.external_services is deprecated; "
-        "model Docker/Baremetal workloads via services[].runtime."
+        "L5_application.external_services is deprecated; " "model Docker/Baremetal workloads via services[].runtime."
     )
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
@@ -279,7 +278,9 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
             )
 
         config = self._resolve_service_field(ctx=ctx, row=row, key="config")
-        docker_cfg = config.get("docker") if isinstance(config, dict) and isinstance(config.get("docker"), dict) else None
+        docker_cfg = (
+            config.get("docker") if isinstance(config, dict) and isinstance(config.get("docker"), dict) else None
+        )
         if isinstance(docker_cfg, dict) and docker_cfg.get("host_ip") is not None:
             diagnostics.append(
                 self.emit_diagnostic(
@@ -453,9 +454,7 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
                     code="E7841",
                     severity="error",
                     stage=stage,
-                    message=(
-                        f"Service '{row_id}': runtime target_ref '{target_ref}' has no active host OS entry."
-                    ),
+                    message=(f"Service '{row_id}': runtime target_ref '{target_ref}' has no active host OS entry."),
                     path=f"{row_prefix}.runtime.target_ref",
                 )
             )

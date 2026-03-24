@@ -314,7 +314,9 @@ def _write_starter_files(*, instances_root: Path) -> None:
         path.write_text(content, encoding="utf-8")
 
 
-def _verify_and_compile(*, project_root: Path, framework_root: Path, framework_manifest: Path, tools_root: Path) -> None:
+def _verify_and_compile(
+    *, project_root: Path, framework_root: Path, framework_manifest: Path, tools_root: Path
+) -> None:
     verify = _run(
         [
             sys.executable,

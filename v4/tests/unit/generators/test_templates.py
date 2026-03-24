@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 from jinja2 import TemplateNotFound, TemplateSyntaxError
-
 from scripts.generators.docs.templates import (
     DEFAULT_FILTERS,
     TemplateManager,

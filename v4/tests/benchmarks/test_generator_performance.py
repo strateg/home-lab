@@ -6,7 +6,6 @@ Performance benchmarks to track generator performance over time.
 from pathlib import Path
 
 import pytest
-
 from scripts.generators.common import PerformanceProfiler
 
 
@@ -34,7 +33,6 @@ class TestGeneratorPerformance:
     def test_topology_loading_performance(self, benchmark, tmp_path):
         """Benchmark topology loading."""
         import yaml
-
         from scripts.generators.common import load_topology_cached
 
         topology = _minimal_topology()

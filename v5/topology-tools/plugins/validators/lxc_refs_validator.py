@@ -588,7 +588,11 @@ class LxcRefsValidator(ValidatorJsonPlugin):
         device_row: Any,
         row_by_id: dict[str, dict[str, Any]],
     ) -> dict[str, Any] | None:
-        if isinstance(host_os_ref, str) and isinstance(host_os_row, dict) and host_os_row.get("class_ref") == "class.os":
+        if (
+            isinstance(host_os_ref, str)
+            and isinstance(host_os_row, dict)
+            and host_os_row.get("class_ref") == "class.os"
+        ):
             return host_os_row
         if not isinstance(device_row, dict):
             return None

@@ -1,7 +1,7 @@
 # Wave D Mapping: v4 Validators -> v5 Plugins
 
-**Date:** 2026-03-22  
-**Status:** Completed (Wave D parity coverage established)  
+**Date:** 2026-03-22
+**Status:** Completed (Wave D parity coverage established)
 **Parent plan:** `adr/plan/0078-plugin-layering-and-v4-v5-migration-plan.md`
 
 ---
@@ -124,16 +124,16 @@ Legend:
 
 ## 4. Proposed Migration Batches (Wave D)
 
-1. **D1 Foundation + Governance (high leverage, low coupling)**  
+1. **D1 Foundation + Governance (high leverage, low coupling)**
    First plugins: `foundation.include_contract`, `foundation.file_placement`, `governance.contracts`, `network.ip_overlap`.
 
-2. **D2 Network policy validators**  
+2. **D2 Network policy validators**
    VLAN/bridge/firewall/range/reachability family.
 
-3. **D3 References parity split**  
+3. **D3 References parity split**
    Разделить монолит `base.validator.references` на более узкие validators или ввести thin wrappers с прямой parity логикой.
 
-4. **D4 Storage parity**  
+4. **D4 Storage parity**
    Перенос `device_storage_taxonomy`, `l1_media_inventory`, расширение `l3_storage_refs`.
 
 ---

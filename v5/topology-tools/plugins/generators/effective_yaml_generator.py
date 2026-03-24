@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from kernel.plugin_base import GeneratorPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+
 
 class EffectiveYamlGenerator(GeneratorPlugin):
     """Emit YAML artifact from compiled_json model."""

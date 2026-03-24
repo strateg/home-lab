@@ -1,7 +1,6 @@
 """Unit tests for Phase 4 improvements."""
 
 import pytest
-
 from scripts.generators.common import GeneratorConfig, GeneratorContext, IpRef, IpResolverV2, ResolvedIp
 
 

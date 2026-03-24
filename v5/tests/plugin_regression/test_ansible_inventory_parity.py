@@ -57,4 +57,3 @@ def test_ansible_inventory_semantic_contract(generated_artifacts_root: Path) -> 
     assert "inventory_host_count" in group_vars
     assert "all" in hosts_payload
     assert "children" in hosts_payload["all"]
-

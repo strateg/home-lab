@@ -32,6 +32,5 @@ def test_terraform_proxmox_semantic_contract(generated_artifacts_root: Path) -> 
     assert 'provider "proxmox"' in provider_tf
     assert "endpoint  = var.proxmox_api_url" in provider_tf
     assert "required_providers" in versions_tf
-    assert "source  = \"bpg/proxmox\"" in versions_tf
+    assert 'source  = "bpg/proxmox"' in versions_tf
     assert "<TODO_PROXMOX_API_TOKEN>" in tfvars_example
-

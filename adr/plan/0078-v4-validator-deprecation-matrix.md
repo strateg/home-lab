@@ -1,7 +1,7 @@
 # ADR0078 Wave D: v4 Validator Deprecation Matrix
 
-**Date:** 2026-03-22  
-**Status:** Active (staged cutover baseline)  
+**Date:** 2026-03-22
+**Status:** Active (staged cutover baseline)
 **Related:** `adr/plan/0078-wave-d-v4-validator-mapping.md`
 
 ---

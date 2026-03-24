@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from framework_lock import _load_yaml, compute_framework_integrity, resolve_paths, verify_framework_lock
 
 

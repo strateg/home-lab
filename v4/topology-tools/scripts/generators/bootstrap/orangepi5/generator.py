@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
-
 from scripts.generators.common import load_and_validate_layered_topology
 
 SCRIPT_DIR = Path(__file__).resolve().parent

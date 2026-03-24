@@ -15,7 +15,13 @@ from kernel import PluginContext, PluginRegistry
 from kernel.plugin_base import Stage
 
 V4_FOUNDATION_CHECKS = (
-    Path(__file__).resolve().parents[3] / "v4" / "topology-tools" / "scripts" / "validators" / "checks" / "foundation.py"
+    Path(__file__).resolve().parents[3]
+    / "v4"
+    / "topology-tools"
+    / "scripts"
+    / "validators"
+    / "checks"
+    / "foundation.py"
 )
 V5_PLUGIN_ID = "base.validator.foundation_file_placement"
 
@@ -113,9 +119,7 @@ def test_file_name_id_mismatch_warning_is_emitted_in_v4_and_v5(tmp_path: Path):
 
     project_root = tmp_path / "v5-project"
     _build_v5_instances_tree(project_root)
-    v5_instance_file = (
-        project_root / "topology" / "instances" / "L1-foundation" / "devices" / "wrong-name.yaml"
-    )
+    v5_instance_file = project_root / "topology" / "instances" / "L1-foundation" / "devices" / "wrong-name.yaml"
     v5_instance_file.write_text(
         "\n".join(
             (

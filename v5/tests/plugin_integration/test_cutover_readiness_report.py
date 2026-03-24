@@ -134,7 +134,11 @@ def test_cutover_readiness_report_non_quick_includes_v4_v5_parity_gate() -> None
     assert "pytest_v4_v5_parity" in gate_names
 
     parity_entry = next(
-        (command for name, command, _env in module._gate_commands(REPO_ROOT, quick=False) if name == "pytest_v4_v5_parity"),
+        (
+            command
+            for name, command, _env in module._gate_commands(REPO_ROOT, quick=False)
+            if name == "pytest_v4_v5_parity"
+        ),
         None,
     )
     assert parity_entry is not None

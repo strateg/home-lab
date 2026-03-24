@@ -1,7 +1,7 @@
 # ADR 0064 Analysis: One-Page Executive Summary
 
-**Date:** 2026-03-08  
-**Project:** home-lab topology v5  
+**Date:** 2026-03-08
+**Project:** home-lab topology v5
 **Status:** Analysis Complete → Ready for Decision
 
 ---
@@ -72,8 +72,8 @@ Phase 5: Cleanup (1 wk)
 └─ Legacy code removed
 ```
 
-**Risk:** LOW (reversible until Phase 4)  
-**Effort:** ~70-90 hours (1-2 engineers)  
+**Risk:** LOW (reversible until Phase 4)
+**Effort:** ~70-90 hours (1-2 engineers)
 **Impact:** Zero breaking changes until Phase 4
 
 ---
@@ -105,7 +105,7 @@ Phase 5: Cleanup (1 wk)
 - Vendor-controlled release schedule
 - Example: Mikrotik RB3011 + RouterOS 7.1
 
-**Property model:** Treats like any OS (doesn't capture immutability)  
+**Property model:** Treats like any OS (doesn't capture immutability)
 **Class model:** `os.firmware` subclass (explicit distinction)
 
 ### Installable OS (e.g., Debian)
@@ -114,7 +114,7 @@ Phase 5: Cleanup (1 wk)
 - Independent release schedule
 - Examples: Debian 12, Ubuntu 22.04, Alpine 3.19
 
-**Property model:** Works but has duplication (20 VMs = 20 definitions)  
+**Property model:** Works but has duplication (20 VMs = 20 definitions)
 **Class model:** Single definition, all VMs reference it
 
 ---
@@ -195,19 +195,19 @@ All analysis documents are in: `adr/0064-analysis/`
 
 ## Questions? Quick Answers
 
-**Q: Will this break existing infrastructure?**  
+**Q: Will this break existing infrastructure?**
 A: No. Phase 3 runs both models in parallel. Phase 4 is when breaking changes start (with deprecation warnings first).
 
-**Q: Can we pause or rollback?**  
+**Q: Can we pause or rollback?**
 A: Yes, easily through Phase 3. Phase 4-5 are harder to rollback but still possible.
 
-**Q: What if we change our mind?**  
+**Q: What if we change our mind?**
 A: Phase 1-2 is easily reversible. Recommend committing after Phase 2 validation.
 
-**Q: Why not just add a field to the property model?**  
+**Q: Why not just add a field to the property model?**
 A: We could (Phase 1 does this), but it doesn't solve OS reuse, multi-OS, or compile-time validation problems. Would just postpone the redesign.
 
-**Q: Will team learn the new model?**  
+**Q: Will team learn the new model?**
 A: Yes. Much easier than learning property model from scratch (it's just inheritance + bindings, patterns already used in v5).
 
 ---
@@ -245,7 +245,7 @@ A: Yes. Much easier than learning property model from scratch (it's just inherit
 
 ## Next Action
 
-**This week:** 
+**This week:**
 1. Share analysis with team
 2. Schedule 30-minute architecture review
 3. Vote on Path C adoption
@@ -260,9 +260,9 @@ A: Yes. Much easier than learning property model from scratch (it's just inherit
 
 ---
 
-**Status:** Ready for team decision  
-**Recommendation:** Proceed with class model (Path C)  
-**Timeline:** 6-8 weeks to full implementation  
+**Status:** Ready for team decision
+**Recommendation:** Proceed with class model (Path C)
+**Timeline:** 6-8 weeks to full implementation
 **Next milestone:** Architecture review meeting
 
 For detailed analysis, see: `adr/0064-analysis/`

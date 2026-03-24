@@ -16,9 +16,7 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel import PluginContext, PluginRegistry
 from kernel.plugin_base import Stage
 
-V4_NETWORK_CHECKS = (
-    REPO_ROOT / "v4" / "topology-tools" / "scripts" / "validators" / "checks" / "network.py"
-)
+V4_NETWORK_CHECKS = REPO_ROOT / "v4" / "topology-tools" / "scripts" / "validators" / "checks" / "network.py"
 NETWORK_PLUGIN_ID = "object_network.validator_json.ethernet_cable_endpoints"
 NETWORK_PLUGIN_MANIFEST = REPO_ROOT / "v5" / "topology" / "object-modules" / "network" / "plugins.yaml"
 

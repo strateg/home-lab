@@ -1,6 +1,6 @@
 # OS Modeling: Decision Matrix & Scenarios
 
-**Date:** 2026-03-08  
+**Date:** 2026-03-08
 **Purpose:** Help choose between property and class models based on specific scenarios
 
 ---

@@ -15,7 +15,9 @@ from kernel import PluginContext, PluginRegistry
 from kernel.plugin_base import Stage
 
 PLUGIN_ID = "base.validator.storage_l3_refs"
-V4_STORAGE_CHECKS = Path(__file__).resolve().parents[3] / "v4" / "topology-tools" / "scripts" / "validators" / "checks" / "storage.py"
+V4_STORAGE_CHECKS = (
+    Path(__file__).resolve().parents[3] / "v4" / "topology-tools" / "scripts" / "validators" / "checks" / "storage.py"
+)
 
 
 def _load_v4_storage_checks_module() -> Any:

@@ -1,7 +1,7 @@
 # 📊 ADR 0064 Analysis: Visual Map
 
-**Created:** 2026-03-08  
-**Status:** Complete ✓  
+**Created:** 2026-03-08
+**Status:** Complete ✓
 **Location:** `adr/0064-analysis/`
 
 ---
@@ -356,7 +356,7 @@ Total: 6-8 weeks, 70-90 hours, 1-2 engineers
 
 **We delivered:** 11 documents, 5,500+ lines, 45,000+ words, 50+ examples
 
-**You do next:** 
+**You do next:**
 1. Read [ONEPAGE-SUMMARY.md](./ONEPAGE-SUMMARY.md) (5 min)
 2. Share with team
 3. Schedule review (30 min)
@@ -365,9 +365,9 @@ Total: 6-8 weeks, 70-90 hours, 1-2 engineers
 
 ---
 
-**Status:** ✅ Complete  
-**Quality:** High-confidence analysis  
-**Ready:** For team review and decision  
-**Recommendation:** Proceed with class model  
+**Status:** ✅ Complete
+**Quality:** High-confidence analysis
+**Ready:** For team review and decision
+**Recommendation:** Proceed with class model
 
 👉 **Start with:** [START-HERE.md](./START-HERE.md) or [ONEPAGE-SUMMARY.md](./ONEPAGE-SUMMARY.md)

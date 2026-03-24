@@ -1,7 +1,7 @@
 # ADR 0073: Field Annotation System and Secret Conflict Resolution
 
-**Date:** 2026-03-18  
-**Status:** Accepted (implemented)  
+**Date:** 2026-03-18
+**Status:** Accepted (implemented)
 **Depends on:** ADR 0068, ADR 0072
 
 ---

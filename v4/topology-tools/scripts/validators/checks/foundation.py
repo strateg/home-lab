@@ -4,13 +4,12 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Set
 
 import yaml
-from yaml.tokens import AliasToken
-
 from scripts.validators.checks.storage import (
     build_l1_storage_context,
     check_device_storage_taxonomy,
     check_l1_media_inventory,
 )
+from yaml.tokens import AliasToken
 
 L1_NON_PHYSICAL_KEYS = ("services", "applications", "runtime")
 

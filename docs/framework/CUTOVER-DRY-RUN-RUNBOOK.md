@@ -1,7 +1,7 @@
 # ADR0076 Cutover Dry-Run Runbook
 
-**Status:** Active  
-**Updated:** 2026-03-20  
+**Status:** Active
+**Updated:** 2026-03-20
 **ADR:** 0076
 
 ---

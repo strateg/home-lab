@@ -1,6 +1,6 @@
 # Diagnostics Catalog (Canonical)
 
-**Updated:** 2026-03-20  
+**Updated:** 2026-03-20
 **Source of truth:** `v5/topology-tools/data/error-catalog.yaml`
 
 ---

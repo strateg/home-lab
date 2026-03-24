@@ -50,7 +50,9 @@ def test_network_ip_allocation_host_os_refs_validator_accepts_valid_host_os_ref(
                 "group": "network",
                 "instance": "inst.vlan.a",
                 "class_ref": "class.network.vlan",
-                "extensions": {"ip_allocations": [{"ip": "10.0.30.10", "device_ref": "srv-a", "host_os_ref": "inst.os.a"}]},
+                "extensions": {
+                    "ip_allocations": [{"ip": "10.0.30.10", "device_ref": "srv-a", "host_os_ref": "inst.os.a"}]
+                },
             },
         ],
     )

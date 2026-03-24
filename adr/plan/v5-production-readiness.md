@@ -1,8 +1,8 @@
 # V5 Production Readiness Plan
 
-**Created:** 2026-03-15  
-**Revised:** 2026-03-19  
-**Goal:** Enable real home network modeling and deployment through v5 lane  
+**Created:** 2026-03-15
+**Revised:** 2026-03-19
+**Goal:** Enable real home network modeling and deployment through v5 lane
 **Current State:** plugin-first compiler is operational, but v5 still lacks deployable Terraform/Ansible/bootstrap artifacts
 
 ---
@@ -37,7 +37,7 @@ This revised plan adds:
 
 ## Phase 0: Baseline Stabilization (New)
 
-**Duration estimate:** 2-3 days  
+**Duration estimate:** 2-3 days
 **Prerequisite:** None
 
 ### 0.1 Data Consistency Fixes
@@ -70,7 +70,7 @@ This revised plan adds:
 
 ## Phase 1: Generator SDK and Output Contract
 
-**Duration estimate:** 1 week  
+**Duration estimate:** 1 week
 **Prerequisite:** Phase 0
 
 ### 1.1 Generator Base Infrastructure
@@ -115,7 +115,7 @@ This revised plan adds:
 
 ## Phase 2: Projection Layer (Compiled Model -> Tool Views)
 
-**Duration estimate:** 4-5 days  
+**Duration estimate:** 4-5 days
 **Prerequisite:** Phase 1
 
 ### 2.1 Implement Projections
@@ -145,7 +145,7 @@ This revised plan adds:
 
 ## Phase 3: Terraform Proxmox Generator
 
-**Duration estimate:** 1-1.5 weeks  
+**Duration estimate:** 1-1.5 weeks
 **Prerequisite:** Phase 2
 
 ### 3.1 Generator Implementation
@@ -180,7 +180,7 @@ This revised plan adds:
 
 ## Phase 4: Terraform MikroTik Generator
 
-**Duration estimate:** 1-1.5 weeks  
+**Duration estimate:** 1-1.5 weeks
 **Prerequisite:** Phase 2
 
 ### 4.1 Generator Implementation
@@ -219,7 +219,7 @@ This revised plan adds:
 
 ## Phase 5: Ansible Inventory Generator and Runtime Assembly
 
-**Duration estimate:** 1 week  
+**Duration estimate:** 1 week
 **Prerequisite:** Phase 2
 
 ### 5.1 Generator Implementation
@@ -249,7 +249,7 @@ This revised plan adds:
 
 ## Phase 6: Bootstrap Generators
 
-**Duration estimate:** 1 week  
+**Duration estimate:** 1 week
 **Prerequisite:** Phases 3-5
 
 ### 6.1 Proxmox Bootstrap
@@ -285,7 +285,7 @@ This revised plan adds:
 
 ## Phase 7: Hardware Identity Capture and Placeholder Closure
 
-**Duration estimate:** 3-4 days  
+**Duration estimate:** 3-4 days
 **Prerequisite:** Can run in parallel after Phase 3 starts
 
 ### 7.1 Discovery Utility
@@ -313,7 +313,7 @@ This revised plan adds:
 
 ## Phase 8: Integration, CI Hardening, and Cutover
 
-**Duration estimate:** 1 week  
+**Duration estimate:** 1 week
 **Prerequisite:** Phases 3-7
 
 ### 8.1 Unified End-to-End Gate

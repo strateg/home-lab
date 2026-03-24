@@ -105,4 +105,3 @@ def test_bootstrap_generators_report_projection_error(tmp_path: Path) -> None:
         result = generator.execute(ctx, Stage.GENERATE)
         assert result.status == PluginStatus.FAILED
         assert any(diag.code == code for diag in result.diagnostics)
-

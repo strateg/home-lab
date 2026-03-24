@@ -62,8 +62,6 @@ def generated_artifacts_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
         check=False,
     )
     assert completed.returncode == 0, (
-        "v5 compile failed for parity fixture\n"
-        f"stdout:\n{completed.stdout}\n"
-        f"stderr:\n{completed.stderr}"
+        "v5 compile failed for parity fixture\n" f"stdout:\n{completed.stdout}\n" f"stderr:\n{completed.stderr}"
     )
     return generated_root / _active_project_id()

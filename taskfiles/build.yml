@@ -35,4 +35,3 @@ tasks:
     desc: Export v5 instance bindings (legacy migration helper)
     cmds:
       - "{{.PYTHON}} v5/scripts/model/export_v5_instance_bindings.py"
-

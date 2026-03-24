@@ -15,7 +15,13 @@ from kernel import PluginContext, PluginRegistry
 from kernel.plugin_base import Stage
 
 V4_GOVERNANCE_CHECKS = (
-    Path(__file__).resolve().parents[3] / "v4" / "topology-tools" / "scripts" / "validators" / "checks" / "governance.py"
+    Path(__file__).resolve().parents[3]
+    / "v4"
+    / "topology-tools"
+    / "scripts"
+    / "validators"
+    / "checks"
+    / "governance.py"
 )
 V5_GOVERNANCE_PLUGIN_ID = "base.validator.governance_contract"
 
@@ -106,7 +112,11 @@ def test_changelog_missing_current_version_warning_is_emitted_in_v4_and_v5():
         topology={
             "L0_meta": {
                 "version": "4.2.0",
-                "metadata": {"created": "2026-01-01", "last_updated": "2026-02-01", "changelog": [{"version": "4.1.0"}]},
+                "metadata": {
+                    "created": "2026-01-01",
+                    "last_updated": "2026-02-01",
+                    "changelog": [{"version": "4.1.0"}],
+                },
             }
         },
         ids={"security_policies": set(), "devices": set()},
@@ -134,7 +144,11 @@ def test_changelog_missing_current_version_warning_is_emitted_in_v4_and_v5():
                 "meta": {
                     "instance": "home-lab",
                     "status": "active",
-                    "metadata": {"created": "2026-01-01", "last_updated": "2026-02-01", "changelog": [{"version": "5.1.0"}]},
+                    "metadata": {
+                        "created": "2026-01-01",
+                        "last_updated": "2026-02-01",
+                        "changelog": [{"version": "5.1.0"}],
+                    },
                 },
             }
         ),
@@ -169,7 +183,11 @@ def test_default_security_policy_ref_missing_is_error_in_v4_and_v5():
                 "capability_packs": "v5/topology/class-modules/router/capability-packs.yaml",
             },
             "project": {"active": "home-lab", "projects_root": "v5/projects"},
-            "meta": {"instance": "home-lab", "status": "active", "defaults": {"refs": {"security_policy_ref": "sp-missing"}}},
+            "meta": {
+                "instance": "home-lab",
+                "status": "active",
+                "defaults": {"refs": {"security_policy_ref": "sp-missing"}},
+            },
         }
     )
     _publish_rows(ctx, [])

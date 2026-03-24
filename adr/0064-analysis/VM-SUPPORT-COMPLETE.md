@@ -1,7 +1,7 @@
 # ✅ ADR 0064: VM/LXC/Docker Analysis Complete
 
-**Date:** 8 March 2026  
-**Status:** ✅ COMPLETE  
+**Date:** 8 March 2026
+**Status:** ✅ COMPLETE
 **Result:** VM support added, LXC/Docker deferred to future ADRs
 
 ---
@@ -233,9 +233,9 @@ hypervisor_ref: inst.compute.esxi-host-01
 
 ---
 
-**Analysis Complete:** 8 March 2026  
-**ADR 0064 Updated:** 8 March 2026  
+**Analysis Complete:** 8 March 2026
+**ADR 0064 Updated:** 8 March 2026
 **Next Step:** Review and approve updates, plan ADR 0065/0066
 
-👉 **Read full analysis:** `adr/0064-analysis/VM-LXC-DOCKER-ANALYSIS.md`  
+👉 **Read full analysis:** `adr/0064-analysis/VM-LXC-DOCKER-ANALYSIS.md`
 👉 **Read updated ADR:** `adr/0064-os-taxonomy-object-property-model.md`

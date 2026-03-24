@@ -33,9 +33,27 @@ def _objects() -> dict:
 
 def _rows() -> list[dict]:
     return [
-        {"group": "network", "instance": "inst.bridge.a", "class_ref": "class.network.bridge", "layer": "L2", "object_ref": "obj.bridge.a"},
-        {"group": "network", "instance": "inst.bridge.b", "class_ref": "class.network.bridge", "layer": "L2", "object_ref": "obj.bridge.b"},
-        {"group": "network", "instance": "inst.vlan.a", "class_ref": "class.network.vlan", "layer": "L2", "object_ref": "obj.vlan.a"},
+        {
+            "group": "network",
+            "instance": "inst.bridge.a",
+            "class_ref": "class.network.bridge",
+            "layer": "L2",
+            "object_ref": "obj.bridge.a",
+        },
+        {
+            "group": "network",
+            "instance": "inst.bridge.b",
+            "class_ref": "class.network.bridge",
+            "layer": "L2",
+            "object_ref": "obj.bridge.b",
+        },
+        {
+            "group": "network",
+            "instance": "inst.vlan.a",
+            "class_ref": "class.network.vlan",
+            "layer": "L2",
+            "object_ref": "obj.vlan.a",
+        },
         {
             "group": "lxc",
             "instance": "lxc-a",

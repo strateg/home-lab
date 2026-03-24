@@ -228,7 +228,8 @@ class VmRefsValidator(ValidatorJsonPlugin):
                         field_name="storage_ref",
                         value=storage_ref,
                         row_by_id=row_by_id,
-                        expected=lambda target: target.get("class_ref") in {"class.storage.storage_endpoint", "class.storage.pool"},
+                        expected=lambda target: target.get("class_ref")
+                        in {"class.storage.storage_endpoint", "class.storage.pool"},
                         expected_label="storage endpoint/pool instance",
                         code="E7876",
                         stage=stage,
@@ -432,7 +433,11 @@ class VmRefsValidator(ValidatorJsonPlugin):
         device_row: Any,
         row_by_id: dict[str, dict[str, Any]],
     ) -> dict[str, Any] | None:
-        if isinstance(host_os_ref, str) and isinstance(host_os_row, dict) and host_os_row.get("class_ref") == "class.os":
+        if (
+            isinstance(host_os_ref, str)
+            and isinstance(host_os_row, dict)
+            and host_os_row.get("class_ref") == "class.os"
+        ):
             return host_os_row
         if not isinstance(device_row, dict):
             return None

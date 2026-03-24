@@ -2,8 +2,8 @@
 
 `topology-tools/` contains topology-driven generators and validators.
 
-ADR0078 note (2026-03-22): v4 validators are maintained as legacy compatibility tooling.  
-Default validation/generation for active release lanes is v5 plugin-first pipeline.  
+ADR0078 note (2026-03-22): v4 validators are maintained as legacy compatibility tooling.
+Default validation/generation for active release lanes is v5 plugin-first pipeline.
 Staged deprecation tracking lives in `adr/plan/0078-v4-validator-deprecation-matrix.md`.
 
 Related root directories:

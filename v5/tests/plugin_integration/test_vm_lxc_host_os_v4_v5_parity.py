@@ -15,7 +15,13 @@ from kernel import PluginContext, PluginRegistry
 from kernel.plugin_base import Stage
 
 V4_REFERENCES_CHECKS = (
-    Path(__file__).resolve().parents[3] / "v4" / "topology-tools" / "scripts" / "validators" / "checks" / "references.py"
+    Path(__file__).resolve().parents[3]
+    / "v4"
+    / "topology-tools"
+    / "scripts"
+    / "validators"
+    / "checks"
+    / "references.py"
 )
 V5_VM_PLUGIN_ID = "base.validator.vm_refs"
 V5_LXC_PLUGIN_ID = "base.validator.lxc_refs"
@@ -86,7 +92,13 @@ def test_vm_requires_host_os_ref_on_multi_active_bindings_in_v4_and_v5():
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["os-a", "os-b"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["os-a", "os-b"],
+            },
             {"group": "os", "instance": "os-a", "class_ref": "class.os", "layer": "L1", "status": "active"},
             {"group": "os", "instance": "os-b", "class_ref": "class.os", "layer": "L1", "status": "active"},
             {
@@ -137,7 +149,13 @@ def test_lxc_requires_host_os_ref_on_multi_active_bindings_in_v4_and_v5():
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["os-a", "os-b"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["os-a", "os-b"],
+            },
             {"group": "os", "instance": "os-a", "class_ref": "class.os", "layer": "L1", "status": "active"},
             {"group": "os", "instance": "os-b", "class_ref": "class.os", "layer": "L1", "status": "active"},
             {
@@ -270,7 +288,10 @@ def test_vm_storage_platform_mismatch_is_error_in_v4_and_v5():
     v4_module.check_vm_refs(
         topology={
             "L3_data": {"storage_endpoints": [{"id": "endpoint-a", "platform": "ceph"}]},
-            "L4_platform": {"templates": {"vms": []}, "vms": [{"id": "vm-a", "storage": [{"storage_ref": "endpoint-a"}]}]},
+            "L4_platform": {
+                "templates": {"vms": []},
+                "vms": [{"id": "vm-a", "storage": [{"storage_ref": "endpoint-a"}]}],
+            },
         },
         ids={
             "devices": set(),
@@ -290,7 +311,13 @@ def test_vm_storage_platform_mismatch_is_error_in_v4_and_v5():
     _publish_rows(
         ctx,
         [
-            {"group": "storage", "instance": "endpoint-a", "class_ref": "class.storage.storage_endpoint", "layer": "L3", "extensions": {"platform": "ceph"}},
+            {
+                "group": "storage",
+                "instance": "endpoint-a",
+                "class_ref": "class.storage.storage_endpoint",
+                "layer": "L3",
+                "extensions": {"platform": "ceph"},
+            },
             {
                 "group": "vms",
                 "instance": "vm-a",
@@ -371,7 +398,9 @@ def test_vm_resolved_host_top_level_capability_is_error_in_v4_and_v5():
     v4_module.check_vm_refs(
         topology={
             "L4_platform": {
-                "host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a", "status": "active", "capabilities": ["docker"]}],
+                "host_operating_systems": [
+                    {"id": "hos-a", "device_ref": "srv-a", "status": "active", "capabilities": ["docker"]}
+                ],
                 "templates": {"vms": []},
                 "vms": [{"id": "vm-a", "device_ref": "srv-a"}],
             }
@@ -395,7 +424,14 @@ def test_vm_resolved_host_top_level_capability_is_error_in_v4_and_v5():
         ctx,
         [
             {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["os-a"]},
-            {"group": "os", "instance": "os-a", "class_ref": "class.os", "layer": "L1", "status": "active", "capabilities": ["docker"]},
+            {
+                "group": "os",
+                "instance": "os-a",
+                "class_ref": "class.os",
+                "layer": "L1",
+                "status": "active",
+                "capabilities": ["docker"],
+            },
             {
                 "group": "vms",
                 "instance": "vm-a",

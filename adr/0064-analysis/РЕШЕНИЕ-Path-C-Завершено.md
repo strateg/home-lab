@@ -1,7 +1,7 @@
 # ✅ ADR 0064: Двухсущностная Модель (Firmware + OS)
 
-**Дата:** 8 марта 2026  
-**Статус:** Утверждено  
+**Дата:** 8 марта 2026
+**Статус:** Утверждено
 **Модель:** Firmware (обязательный) + OS (условный)
 
 ---
@@ -61,7 +61,7 @@ properties:
   architecture: x86_64 | arm64
   init_system: systemd | launchd | proprietary
   package_manager: apt | brew | none
-  
+
   # КРИТИЧНО
   installation_model: embedded | installable
   embedded_in_firmware: boolean
@@ -220,11 +220,11 @@ effective_capabilities:
 
 ## 🚀 МИГРАЦИЯ: 5 ФАЗ
 
-**Phase 1 (нед 1-2):** Определить firmware и OS классы  
-**Phase 2 (нед 3-5):** Создать firmware и OS объекты  
-**Phase 3 (нед 6-7):** Device bindings, параллельная валидация  
-**Phase 4 (нед 8):** Deprecation старой модели  
-**Phase 5 (нед 9+):** Cleanup  
+**Phase 1 (нед 1-2):** Определить firmware и OS классы
+**Phase 2 (нед 3-5):** Создать firmware и OS объекты
+**Phase 3 (нед 6-7):** Device bindings, параллельная валидация
+**Phase 4 (нед 8):** Deprecation старой модели
+**Phase 5 (нед 9+):** Cleanup
 
 **Риск:** LOW (reversible до Phase 4)
 
@@ -232,10 +232,10 @@ effective_capabilities:
 
 ## 📍 ГДЕ НАЙТИ
 
-**Обновленный ADR:**  
+**Обновленный ADR:**
 `adr/0064-os-taxonomy-object-property-model.md`
 
-**Анализ:**  
+**Анализ:**
 `adr/0064-analysis/` (13 документов)
 
 **Key Concepts:**
@@ -246,6 +246,6 @@ effective_capabilities:
 
 ---
 
-**Дата утверждения:** 8 марта 2026  
-**Статус:** ✅ Утверждено  
+**Дата утверждения:** 8 марта 2026
+**Статус:** ✅ Утверждено
 **Следующий шаг:** Phase 1 kickoff (неделя 22 марта)

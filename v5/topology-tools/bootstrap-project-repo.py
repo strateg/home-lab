@@ -10,7 +10,6 @@ import sys
 from pathlib import Path
 
 import yaml
-
 from framework_lock import default_framework_manifest_path
 
 PROJECT_INSTANCES_ROOT = "topology/instances"
@@ -164,7 +163,9 @@ def _copy_tree_if_exists(
     source = source_root / source_relative
     if not source.exists():
         return False
-    destination_relative = target_relative if isinstance(target_relative, str) and target_relative.strip() else source_relative
+    destination_relative = (
+        target_relative if isinstance(target_relative, str) and target_relative.strip() else source_relative
+    )
     destination = target_root / destination_relative
     if destination.exists():
         if not force:
@@ -260,13 +261,13 @@ def _write_task_bundle(
             'version: "3"',
             "",
             "vars:",
-            '  PYTHON: \'{{default "python" .PYTHON}}\'',
-            '  PROJECT_ROOT: \'{{default "." .PROJECT_ROOT}}\'',
-            '  FRAMEWORK_ROOT: \'{{default "' + framework_mount + '" .FRAMEWORK_ROOT}}\'',
-            '  FRAMEWORK_TOOLS_ROOT: \'{{default "' + tools_prefix + '" .FRAMEWORK_TOOLS_ROOT}}\'',
-            '  FRAMEWORK_MANIFEST: \'{{default "' + framework_manifest_rel + '" .FRAMEWORK_MANIFEST}}\'',
-            '  TOPOLOGY_FILE: \'{{default "topology.yaml" .TOPOLOGY_FILE}}\'',
-            '  PROJECT_MANIFEST: \'{{default "project.yaml" .PROJECT_MANIFEST}}\'',
+            "  PYTHON: '{{default \"python\" .PYTHON}}'",
+            "  PROJECT_ROOT: '{{default \".\" .PROJECT_ROOT}}'",
+            "  FRAMEWORK_ROOT: '{{default \"" + framework_mount + "\" .FRAMEWORK_ROOT}}'",
+            "  FRAMEWORK_TOOLS_ROOT: '{{default \"" + tools_prefix + "\" .FRAMEWORK_TOOLS_ROOT}}'",
+            "  FRAMEWORK_MANIFEST: '{{default \"" + framework_manifest_rel + "\" .FRAMEWORK_MANIFEST}}'",
+            "  TOPOLOGY_FILE: '{{default \"topology.yaml\" .TOPOLOGY_FILE}}'",
+            "  PROJECT_MANIFEST: '{{default \"project.yaml\" .PROJECT_MANIFEST}}'",
             "",
             "includes:",
             "  project:",
@@ -460,10 +461,14 @@ def main() -> int:
 
     notes = output_root / "BOOTSTRAP-NOTES.md"
     tools_prefix = (
-        f"{submodule_mount}/v5/topology-tools" if framework_layout == "monorepo" else f"{submodule_mount}/topology-tools"
+        f"{submodule_mount}/v5/topology-tools"
+        if framework_layout == "monorepo"
+        else f"{submodule_mount}/topology-tools"
     )
     framework_manifest_rel = (
-        f"{submodule_mount}/v5/topology/framework.yaml" if framework_layout == "monorepo" else f"{submodule_mount}/framework.yaml"
+        f"{submodule_mount}/v5/topology/framework.yaml"
+        if framework_layout == "monorepo"
+        else f"{submodule_mount}/framework.yaml"
     )
     _write_if_missing(
         notes,

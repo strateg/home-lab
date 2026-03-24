@@ -1,7 +1,7 @@
 # ADR 0064: Categories Field Analysis
 
-**Date:** 8 March 2026  
-**Status:** Analysis Complete  
+**Date:** 8 March 2026
+**Status:** Analysis Complete
 **Issue:** Missing `categories` field in class definitions
 
 ---
@@ -117,13 +117,13 @@ Categories answer "WHAT IS THIS?" while capabilities answer "WHAT CAN IT DO?":
 ```python
 # Find all infrastructure entities
 infrastructure_classes = [
-    cls for cls in all_classes 
+    cls for cls in all_classes
     if "infrastructure" in cls.categories
 ]
 
 # Find all prerequisite entities
 prereqs = [
-    cls for cls in all_classes 
+    cls for cls in all_classes
     if "prerequisite" in cls.categories
 ]
 ```
@@ -343,6 +343,6 @@ class_ref: class.runtime
 
 ---
 
-**Status:** ✅ READY TO IMPLEMENT  
-**Priority:** Medium (nice-to-have, not blocking)  
+**Status:** ✅ READY TO IMPLEMENT
+**Priority:** Medium (nice-to-have, not blocking)
 **Effort:** Low (1-2 hours to update ADR and examples)

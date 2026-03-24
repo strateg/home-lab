@@ -331,7 +331,9 @@ def resolve_paths(
             raise ValueError("project manifest missing non-empty 'project'")
         resolved_project_id = project_value.strip()
 
-    resolved_lock_path = lock_path.resolve() if isinstance(lock_path, Path) else resolved_project_root / "framework.lock.yaml"
+    resolved_lock_path = (
+        lock_path.resolve() if isinstance(lock_path, Path) else resolved_project_root / "framework.lock.yaml"
+    )
 
     return ResolvedPaths(
         repo_root=resolved_repo_root,
@@ -599,8 +601,7 @@ def verify_framework_lock(
                     code="E7824",
                     severity="error",
                     message=(
-                        f"framework integrity mismatch: lock '{lock_integrity}' "
-                        f"!= computed '{expected_integrity}'"
+                        f"framework integrity mismatch: lock '{lock_integrity}' " f"!= computed '{expected_integrity}'"
                     ),
                     path=f"{paths.lock_path}:framework.integrity",
                 )
@@ -632,9 +633,7 @@ def verify_framework_lock(
                 LockDiagnostic(
                     code="E7823",
                     severity="error",
-                    message=(
-                        f"framework revision mismatch: lock '{lock_revision}' != git '{current_revision}'"
-                    ),
+                    message=(f"framework revision mismatch: lock '{lock_revision}' != git '{current_revision}'"),
                     path=f"{paths.lock_path}:framework.revision",
                 )
             )

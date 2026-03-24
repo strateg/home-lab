@@ -7,6 +7,7 @@ from pathlib import Path
 
 from kernel.plugin_base import GeneratorPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
+
 class EffectiveJsonGenerator(GeneratorPlugin):
     """Emit canonical effective JSON artifact from compiled_json."""
 

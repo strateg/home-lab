@@ -77,9 +77,7 @@ def main() -> int:
         "source_mapping": str(MAPPING_PATH.relative_to(ROOT).as_posix()),
         "instance_bindings": {
             "l1_devices": _normalize_rows(entities.get("l1_devices", []) or [], group="l1_devices"),
-            "l1_firmware": _normalize_rows(
-                entities.get("l1_firmware", []) or [], group="l1_firmware"
-            ),
+            "l1_firmware": _normalize_rows(entities.get("l1_firmware", []) or [], group="l1_firmware"),
             "l1_os": _normalize_rows(entities.get("l1_os", []) or [], group="l1_os"),
             "l2_network": _normalize_rows(entities.get("l2_network", []) or [], group="l2_network"),
             "l3_storage": _normalize_rows(entities.get("l3_storage", []) or [], group="l3_storage"),

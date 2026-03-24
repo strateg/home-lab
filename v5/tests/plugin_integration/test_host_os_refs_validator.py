@@ -44,7 +44,13 @@ def test_host_os_refs_validator_accepts_runtime_target_with_active_os_binding():
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {"group": "os", "instance": "inst.os.a", "class_ref": "class.os", "layer": "L1", "status": "mapped"},
             {
                 "group": "services",
@@ -68,7 +74,13 @@ def test_host_os_refs_validator_rejects_runtime_target_without_active_os_binding
         ctx,
         [
             {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": []},
-            {"group": "devices", "instance": "srv-b", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.b"]},
+            {
+                "group": "devices",
+                "instance": "srv-b",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.b"],
+            },
             {"group": "os", "instance": "inst.os.b", "class_ref": "class.os", "layer": "L1", "status": "active"},
             {
                 "group": "services",
@@ -135,7 +147,11 @@ def test_host_os_refs_validator_rejects_architecture_mismatch_between_os_and_dev
     ctx = _context(
         objects={
             "obj.device.arm64": {"object": "obj.device.arm64", "hardware_specs": {"cpu": {"architecture": "arm64"}}},
-            "obj.os.x86_64": {"object": "obj.os.x86_64", "class_ref": "class.os", "properties": {"architecture": "x86_64"}},
+            "obj.os.x86_64": {
+                "object": "obj.os.x86_64",
+                "class_ref": "class.os",
+                "properties": {"architecture": "x86_64"},
+            },
         }
     )
     _publish_rows(
@@ -171,7 +187,13 @@ def test_host_os_refs_validator_rejects_root_storage_endpoint_on_other_device():
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {"group": "devices", "instance": "srv-b", "class_ref": "class.router", "layer": "L1", "os_refs": []},
             {
                 "group": "os",
@@ -209,7 +231,13 @@ def test_host_os_refs_validator_requires_installation_for_baremetal_host_type():
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {
                 "group": "os",
                 "instance": "inst.os.a",
@@ -232,7 +260,13 @@ def test_host_os_refs_validator_rejects_non_canonical_architecture_extension_val
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {
                 "group": "os",
                 "instance": "inst.os.a",
@@ -254,7 +288,13 @@ def test_host_os_refs_validator_rejects_non_canonical_architecture_top_level_val
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {
                 "group": "os",
                 "instance": "inst.os.a",
@@ -276,7 +316,13 @@ def test_host_os_refs_validator_rejects_unsupported_architecture_extension_value
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {
                 "group": "os",
                 "instance": "inst.os.a",
@@ -298,7 +344,13 @@ def test_host_os_refs_validator_rejects_capability_not_allowed_for_host_type():
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {
                 "group": "os",
                 "instance": "inst.os.a",
@@ -320,7 +372,13 @@ def test_host_os_refs_validator_rejects_capability_not_allowed_for_top_level_hos
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {
                 "group": "os",
                 "instance": "inst.os.a",

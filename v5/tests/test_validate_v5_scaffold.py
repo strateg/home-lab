@@ -32,9 +32,13 @@ def _write_manifest(tmp_root: Path, *, include_legacy_paths: bool) -> None:
     (topology_root / "class-modules" / "router").mkdir(parents=True, exist_ok=True)
     (projects_root / "instances").mkdir(parents=True, exist_ok=True)
     (projects_root / "secrets").mkdir(parents=True, exist_ok=True)
-    (topology_root / "model.lock.yaml").write_text("core_model_version: 1.0.0\nclasses: {}\nobjects: {}\n", encoding="utf-8")
+    (topology_root / "model.lock.yaml").write_text(
+        "core_model_version: 1.0.0\nclasses: {}\nobjects: {}\n", encoding="utf-8"
+    )
     (topology_root / "layer-contract.yaml").write_text("group_layers: {}\n", encoding="utf-8")
-    (topology_root / "class-modules" / "router" / "capability-catalog.yaml").write_text("capabilities: []\n", encoding="utf-8")
+    (topology_root / "class-modules" / "router" / "capability-catalog.yaml").write_text(
+        "capabilities: []\n", encoding="utf-8"
+    )
     (topology_root / "class-modules" / "router" / "capability-packs.yaml").write_text("packs: []\n", encoding="utf-8")
     (projects_root / "project.yaml").write_text(
         yaml.safe_dump(

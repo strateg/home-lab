@@ -17,13 +17,7 @@ from pathlib import Path
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from kernel import (
-    PluginStatus,
-    PluginResult,
-    PluginDiagnostic,
-    PluginContext,
-    PluginDataExchangeError,
-)
+from kernel import PluginContext, PluginDataExchangeError, PluginDiagnostic, PluginResult, PluginStatus
 from kernel.plugin_base import Stage
 
 
@@ -218,6 +212,7 @@ if __name__ == "__main__":
             passed += 1
         except Exception as e:
             import traceback
+
             print(f"FAIL: {test.__name__}: {e}")
             traceback.print_exc()
             failed += 1

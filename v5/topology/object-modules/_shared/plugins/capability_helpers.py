@@ -19,7 +19,7 @@ def capability_expression_enabled(capabilities: dict[str, Any], enabled_by: str)
     if not expr:
         return False
     if expr.startswith("capabilities."):
-        expr = expr[len("capabilities."):]
+        expr = expr[len("capabilities.") :]
 
     current: Any = capabilities
     for segment in expr.split("."):

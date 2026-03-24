@@ -27,12 +27,15 @@ from kernel.plugin_base import (
     Stage,
 )
 
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
 
 def _manifest_digest(payload: dict[str, Any]) -> str:
     canonical = json.dumps(payload, ensure_ascii=True, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
 
 class EffectiveModelCompiler(CompilerPlugin):
     """Assemble candidate effective model in compile stage."""

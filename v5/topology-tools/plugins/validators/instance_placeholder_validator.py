@@ -20,7 +20,6 @@ from typing import Any
 from urllib.parse import urlparse
 
 import yaml
-
 from field_annotations import parse_field_annotation
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
 
@@ -28,6 +27,7 @@ DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[2] / "data" / "instan
 DEFAULT_ENFORCEMENT_MODE = "enforce"
 SUPPORTED_ENFORCEMENT_MODES = {"warn", "warn+gate-new", "enforce"}
 DEFAULT_GATE_STATUSES = {"modeled", "mapped"}
+
 
 class InstancePlaceholderValidator(ValidatorJsonPlugin):
     """Validate ADR0068 placeholder/override contract."""

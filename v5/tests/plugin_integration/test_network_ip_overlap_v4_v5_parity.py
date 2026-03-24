@@ -15,7 +15,13 @@ from kernel import PluginContext, PluginRegistry
 from kernel.plugin_base import Stage
 
 V4_GOVERNANCE_CHECKS = (
-    Path(__file__).resolve().parents[3] / "v4" / "topology-tools" / "scripts" / "validators" / "checks" / "governance.py"
+    Path(__file__).resolve().parents[3]
+    / "v4"
+    / "topology-tools"
+    / "scripts"
+    / "validators"
+    / "checks"
+    / "governance.py"
 )
 V5_PLUGIN_ID = "base.validator.network_ip_overlap"
 
@@ -105,9 +111,7 @@ def test_global_ip_overlap_is_warning_in_v4_and_v5():
     v4_module.check_ip_overlaps(
         topology={
             "L2_network": {
-                "networks": [
-                    {"id": "vlan-a", "ip_allocations": [{"ip": "10.20.30.20/24", "device_ref": "srv-a"}]}
-                ]
+                "networks": [{"id": "vlan-a", "ip_allocations": [{"ip": "10.20.30.20/24", "device_ref": "srv-a"}]}]
             },
             "L4_platform": {
                 "vms": [{"id": "vm-a", "networks": [{"ip_config": {"address": "10.20.30.20/24"}}]}],

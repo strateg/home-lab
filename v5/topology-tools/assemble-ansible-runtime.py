@@ -25,6 +25,7 @@ import shutil
 import sys
 from pathlib import Path
 from typing import NamedTuple
+
 import yaml
 
 # Paths relative to repository root
@@ -103,9 +104,7 @@ def validate_no_secret_content(file_path: Path) -> list[ValidationError]:
     return errors
 
 
-def validate_no_forbidden_overrides(
-    file_path: Path, allowlist: list[str]
-) -> list[ValidationError]:
+def validate_no_forbidden_overrides(file_path: Path, allowlist: list[str]) -> list[ValidationError]:
     """Check that manual overrides don't override topology-derived fields."""
     errors: list[ValidationError] = []
     if not file_path.exists():
@@ -272,9 +271,7 @@ def assemble_runtime_inventory(
 
 def main() -> int:
     """CLI entry point."""
-    parser = argparse.ArgumentParser(
-        description="Assemble Ansible runtime inventory (ADR 0051)"
-    )
+    parser = argparse.ArgumentParser(description="Assemble Ansible runtime inventory (ADR 0051)")
     parser.add_argument(
         "--topology",
         type=Path,

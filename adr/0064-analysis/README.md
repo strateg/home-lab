@@ -1,6 +1,6 @@
 # ADR 0064 Analysis: OS Taxonomy and Modeling
 
-**Date:** 2026-03-08  
+**Date:** 2026-03-08
 **Focus:** Evaluating property-based vs. class-based OS modeling approaches
 
 ---
@@ -296,6 +296,6 @@ Before proceeding, confirm:
 
 ---
 
-**Analysis completed:** 2026-03-08  
-**Status:** Ready for team decision  
+**Analysis completed:** 2026-03-08
+**Status:** Ready for team decision
 **Next milestone:** ADR 0064 revision and Phase 1 planning

@@ -257,6 +257,5 @@ def test_projection_files_do_not_hardcode_product_model_names() -> None:
                 violations.append(f"{rel}: hardcoded product/model name '{pattern}'")
 
     assert violations == [], (
-        "Projection files must not hardcode product/model names for capability derivation (ADR0078): "
-        f"{violations}"
+        "Projection files must not hardcode product/model names for capability derivation (ADR0078): " f"{violations}"
     )

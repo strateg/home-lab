@@ -14,13 +14,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from kernel.plugin_base import (
-    CompilerPlugin,
-    PluginContext,
-    PluginDiagnostic,
-    PluginResult,
-    Stage,
-)
+from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+
 
 class CapabilityCompiler(CompilerPlugin):
     """Derives capabilities from class and object definitions.
@@ -100,11 +95,14 @@ class CapabilityCompiler(CompilerPlugin):
 
         # Publish derived capabilities for validators to consume
         ctx.publish("derived_capabilities", derived_caps)
-        ctx.publish("capability_stats", {
-            "objects_processed": len(ctx.objects),
-            "objects_with_caps": len(derived_caps),
-            "total_capabilities": sum(len(caps) for caps in derived_caps.values()),
-        })
+        ctx.publish(
+            "capability_stats",
+            {
+                "objects_processed": len(ctx.objects),
+                "objects_with_caps": len(derived_caps),
+                "total_capabilities": sum(len(caps) for caps in derived_caps.values()),
+            },
+        )
 
         return self.make_result(
             diagnostics=diagnostics,

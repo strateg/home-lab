@@ -48,7 +48,7 @@
 
 ### 2.2 v4 -> v5 Gap
 
-Только часть top-level toolchain уже имеет v5 аналоги (`compile-topology.py`, `assemble-ansible-runtime.py`, `check-capability-contract.py`).  
+Только часть top-level toolchain уже имеет v5 аналоги (`compile-topology.py`, `assemble-ansible-runtime.py`, `check-capability-contract.py`).
 Основные legacy зоны миграции:
 
 1. `v4/topology-tools/scripts/validators/checks/*.py` (foundation/governance/network/references/storage)
@@ -243,11 +243,11 @@ Exit:
 
 ## 6. Risks and Mitigations
 
-1. **Риск:** функциональный drift при переносе v4 проверок.  
+1. **Риск:** функциональный drift при переносе v4 проверок.
    **Контроль:** перенос батчами + parity tests на фикстурах.
-2. **Риск:** регрессия в генераторах/шаблонах.  
+2. **Риск:** регрессия в генераторах/шаблонах.
    **Контроль:** snapshot tests + release preflight.
-3. **Риск:** lock/integrity noise маскирует реальные регрессии.  
+3. **Риск:** lock/integrity noise маскирует реальные регрессии.
    **Контроль:** разделять pipeline failures на архитектурные и environment/lock категории.
 
 ---

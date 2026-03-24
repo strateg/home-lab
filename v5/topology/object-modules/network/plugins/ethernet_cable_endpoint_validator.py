@@ -4,13 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from kernel.plugin_base import (
-    PluginContext,
-    PluginDataExchangeError,
-    PluginResult,
-    Stage,
-    ValidatorJsonPlugin,
-)
+from kernel.plugin_base import PluginContext, PluginDataExchangeError, PluginResult, Stage, ValidatorJsonPlugin
 
 
 class EthernetCableEndpointValidator(ValidatorJsonPlugin):
@@ -644,7 +638,9 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
         if not isinstance(properties, dict):
             return False
         object_substrate = properties.get("substrate")
-        return isinstance(object_substrate, str) and object_substrate.strip().lower() == self._PROVIDER_INSTANCE_SUBSTRATE
+        return (
+            isinstance(object_substrate, str) and object_substrate.strip().lower() == self._PROVIDER_INSTANCE_SUBSTRATE
+        )
 
     @staticmethod
     def _extract_ethernet_ports(object_payload: Any) -> set[str]:

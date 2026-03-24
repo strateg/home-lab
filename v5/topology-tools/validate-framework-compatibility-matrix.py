@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, Callable
 
 import yaml
-
 from framework_lock import _git_revision, _load_yaml, resolve_paths, verify_framework_lock
 
 
@@ -30,7 +29,9 @@ def _default_topology() -> Path:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate strict compatibility matrix for framework/project contracts.")
+    parser = argparse.ArgumentParser(
+        description="Validate strict compatibility matrix for framework/project contracts."
+    )
     parser.add_argument(
         "--repo-root",
         type=Path,
@@ -97,7 +98,9 @@ def _mutate_project_schema_unsupported(_: dict[str, Any], project_manifest: dict
     project_manifest["project_schema_version"] = "9.0.0"
 
 
-def _mutate_contract_revision_required(_: dict[str, Any], project_manifest: dict[str, Any], lock_payload: dict[str, Any]) -> None:
+def _mutate_contract_revision_required(
+    _: dict[str, Any], project_manifest: dict[str, Any], lock_payload: dict[str, Any]
+) -> None:
     project_manifest["project_contract_revision"] = 3
     lock_payload["project_contract_revision"] = 1
 
@@ -111,8 +114,12 @@ def _matrix_cases() -> list[MatrixCase]:
         MatrixCase(name="baseline_ok", mutate=_mutate_noop, expected_error_codes=set()),
         MatrixCase(name="framework_too_old", mutate=_mutate_framework_too_old, expected_error_codes={"E7811"}),
         MatrixCase(name="framework_too_new", mutate=_mutate_framework_too_new, expected_error_codes={"E7811"}),
-        MatrixCase(name="project_schema_unsupported", mutate=_mutate_project_schema_unsupported, expected_error_codes={"E7812"}),
-        MatrixCase(name="contract_revision_required", mutate=_mutate_contract_revision_required, expected_error_codes={"E7813"}),
+        MatrixCase(
+            name="project_schema_unsupported", mutate=_mutate_project_schema_unsupported, expected_error_codes={"E7812"}
+        ),
+        MatrixCase(
+            name="contract_revision_required", mutate=_mutate_contract_revision_required, expected_error_codes={"E7813"}
+        ),
         MatrixCase(name="missing_lock", mutate=_mutate_missing_lock, expected_error_codes={"E7822"}),
     ]
 

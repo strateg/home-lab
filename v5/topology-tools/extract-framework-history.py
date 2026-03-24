@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import argparse
 import os
-import stat
 import shutil
+import stat
 import subprocess
 import tempfile
 from pathlib import Path
@@ -49,7 +49,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _run(command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+def _run(
+    command: list[str], *, cwd: Path | None = None, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False, env=env)
 
 

@@ -1,7 +1,7 @@
 # ADR 0064 Revision: Next Steps and Recommendations
 
-**Date:** 2026-03-08  
-**Status:** Analysis Complete → Ready for Decision  
+**Date:** 2026-03-08
+**Status:** Analysis Complete → Ready for Decision
 **Prepared for:** Architecture review and team decision
 
 ---
@@ -42,7 +42,7 @@ Your infrastructure has fundamentally different OS types:
 - **Firmware-based:** RouterOS (hardware-locked, vendor-controlled)
 - **Installable:** Debian, Ubuntu, Alpine (user-controlled, version-flexible)
 
-**Current model:** Cannot distinguish them structurally  
+**Current model:** Cannot distinguish them structurally
 **Proposed model:** Explicit subclasses (`os.firmware` vs `os.installable`)
 
 **Risk of not distinguishing:** Developers might assign Debian to RouterOS hardware (would fail at runtime).
@@ -54,7 +54,7 @@ Current property model requires duplication:
 - 10 Debian 12 VMs = 10 copies of full OS definition
 - 20 VMs with different variants = 20 copies
 
-**Cost:** Every OS update requires editing many files, high error risk  
+**Cost:** Every OS update requires editing many files, high error risk
 **Proposed model:** OS defined once, all devices reference it
 
 **Inflection point:** ~15 devices per OS variant = duplication burden exceeds class model complexity
@@ -64,7 +64,7 @@ Current property model requires duplication:
 ### 3. Service-Device Compatibility Validation
 Services have OS requirements (e.g., Prometheus needs Linux + systemd + apt):
 
-**Current model:** Validation at deploy time (runtime check)  
+**Current model:** Validation at deploy time (runtime check)
 **Proposed model:** Validation at schema time (compile-time error)
 
 **Benefit:** Early error detection, automatic device compatibility matrix generation
@@ -76,7 +76,7 @@ Not needed today, but plausible future scenarios:
 - Multi-boot devices (Raspberry Pi with multiple SDCard images)
 - OS variants (Debian 12 standard vs. Debian 12 hardened with SELinux)
 
-**Current model:** Not supported, would require schema redesign  
+**Current model:** Not supported, would require schema redesign
 **Proposed model:** Native support via inheritance and multiple bindings
 
 ---
@@ -89,7 +89,7 @@ Not needed today, but plausible future scenarios:
 4. Deprecation (warn on property-based OS): 1 week
 5. Cleanup (remove old model): 1 week
 
-**Risk:** LOW (reversible at any phase until cleanup)  
+**Risk:** LOW (reversible at any phase until cleanup)
 **Staffing:** 1-2 engineers
 
 ---
@@ -162,7 +162,7 @@ Not needed today, but plausible future scenarios:
 ### Step 1: Architecture Review (30 min)
 **Activity:** Brief review meeting with core team
 
-**Participants:** 
+**Participants:**
 - Project lead
 - Compiler/validator maintainers
 - One infrastructure operator
@@ -525,7 +525,7 @@ Before proceeding, the following must be confirmed:
 
 ---
 
-**Analysis prepared:** 2026-03-08  
-**Status:** Ready for team review and approval  
-**Next milestone:** Architecture review meeting  
+**Analysis prepared:** 2026-03-08
+**Status:** Ready for team review and approval
+**Next milestone:** Architecture review meeting
 **Target kickoff:** Week of 2026-03-15

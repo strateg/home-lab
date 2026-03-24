@@ -23,6 +23,7 @@ from kernel.plugin_base import (
     ValidatorJsonPlugin,
 )
 
+
 class CapabilityContractValidator(ValidatorJsonPlugin):
     """Validate class/object capability contracts and derived capability coverage."""
 

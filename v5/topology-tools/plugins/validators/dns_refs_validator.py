@@ -156,8 +156,7 @@ class DnsRefsValidator(ValidatorJsonPlugin):
                     severity="error",
                     stage=stage,
                     message=(
-                        f"Service '{row_id}' DNS '{field_name}' '{value}' must reference a valid "
-                        f"{expected_label}."
+                        f"Service '{row_id}' DNS '{field_name}' '{value}' must reference a valid " f"{expected_label}."
                     ),
                     path=path,
                 )

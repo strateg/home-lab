@@ -1,7 +1,7 @@
 # ✅ ADR 0064: Instance References Model Complete
 
-**Дата:** 8 марта 2026  
-**Статус:** ✅ ЗАВЕРШЕНО  
+**Дата:** 8 марта 2026
+**Статус:** ✅ ЗАВЕРШЕНО
 **Изменение:** Переход на instance references вместо bindings
 
 ---
@@ -211,8 +211,8 @@ firmware_ref: firmware.apc-pdu-3.9.2
 
 ---
 
-**Статус:** ✅ ПОЛНОСТЬЮ ГОТОВО  
-**Дата:** 8 марта 2026  
+**Статус:** ✅ ПОЛНОСТЬЮ ГОТОВО
+**Дата:** 8 марта 2026
 **Результат:** Instance references model внедрена в ADR 0064
 
 👉 **Читайте:** `adr/0064-os-taxonomy-object-property-model.md`

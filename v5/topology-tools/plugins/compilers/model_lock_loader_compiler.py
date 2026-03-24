@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
+
 
 class ModelLockLoaderCompiler(CompilerPlugin):
     """Load and parse model.lock data for plugin-first pipeline."""

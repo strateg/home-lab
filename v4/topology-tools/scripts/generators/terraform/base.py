@@ -7,7 +7,6 @@ from typing import Any, Dict, Iterable
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
-
 from scripts.generators.common import load_and_validate_layered_topology, prepare_output_directory
 
 REPO_ROOT = Path(__file__).resolve().parents[5]

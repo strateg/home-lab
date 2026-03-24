@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
-
 from identifier_policy import contains_unsafe_identifier_chars
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
+
 
 class ModuleLoaderCompiler(CompilerPlugin):
     """Load class/object module YAML files for plugin-first pipeline."""

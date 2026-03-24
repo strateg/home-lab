@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from identifier_policy import contains_unsafe_identifier_chars, normalize_identifier_for_filename
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

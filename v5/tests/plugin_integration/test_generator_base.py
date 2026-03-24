@@ -54,10 +54,10 @@ def test_base_generator_uses_configured_artifacts_root(tmp_path: Path) -> None:
     ctx = _ctx(tmp_path, artifacts_root=artifacts_root)
 
     output_path = generator.resolve_output_path(ctx, "terraform", "proxmox", "provider.tf")
-    generator.write_text_atomic(output_path, "resource \"x\" \"y\" {}")
+    generator.write_text_atomic(output_path, 'resource "x" "y" {}')
 
     assert output_path.exists()
-    assert output_path.read_text(encoding="utf-8") == "resource \"x\" \"y\" {}"
+    assert output_path.read_text(encoding="utf-8") == 'resource "x" "y" {}'
     assert not (output_path.parent / ".provider.tf.tmp").exists()
 
 
@@ -79,7 +79,7 @@ def test_base_generator_qualifies_artifacts_root_by_project(tmp_path: Path) -> N
     ctx = _ctx(tmp_path, artifacts_root=artifacts_root, project_id="home-lab")
 
     output_path = generator.resolve_output_path(ctx, "terraform", "proxmox", "provider.tf")
-    generator.write_text_atomic(output_path, "resource \"x\" \"y\" {}")
+    generator.write_text_atomic(output_path, 'resource "x" "y" {}')
 
     assert output_path == artifacts_root / "home-lab" / "terraform" / "proxmox" / "provider.tf"
     assert output_path.exists()

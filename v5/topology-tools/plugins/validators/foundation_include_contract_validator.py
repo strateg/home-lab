@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
-
 from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorYamlPlugin
 
 
@@ -79,8 +78,7 @@ class FoundationIncludeContractValidator(ValidatorYamlPlugin):
                         severity="error",
                         stage=stage,
                         message=(
-                            "Manual index file is not allowed in deterministic v5 instances tree: "
-                            f"'{manual_index}'."
+                            "Manual index file is not allowed in deterministic v5 instances tree: " f"'{manual_index}'."
                         ),
                         path=f"project:{manual_index}",
                     )

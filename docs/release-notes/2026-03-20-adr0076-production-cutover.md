@@ -1,6 +1,6 @@
 # Release Notes: ADR0076 Production Cutover
 
-**Date:** 2026-03-20  
+**Date:** 2026-03-20
 **Scope:** ADR0076 Wave 4 (Production Cutover)
 
 ## Summary

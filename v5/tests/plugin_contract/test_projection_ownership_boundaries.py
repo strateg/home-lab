@@ -46,12 +46,12 @@ def test_object_projection_modules_do_not_define_core_builders() -> None:
     assert "build_proxmox_projection" in proxmox_names
 
     for core_builder in CORE_BUILDERS:
-        assert core_builder not in mikrotik_names, (
-            f"MikroTik projection module must not define core builder '{core_builder}'"
-        )
-        assert core_builder not in proxmox_names, (
-            f"Proxmox projection module must not define core builder '{core_builder}'"
-        )
+        assert (
+            core_builder not in mikrotik_names
+        ), f"MikroTik projection module must not define core builder '{core_builder}'"
+        assert (
+            core_builder not in proxmox_names
+        ), f"Proxmox projection module must not define core builder '{core_builder}'"
 
 
 def test_shared_bootstrap_projection_module_owns_bootstrap_builder_only() -> None:

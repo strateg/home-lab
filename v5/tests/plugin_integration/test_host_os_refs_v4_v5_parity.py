@@ -15,7 +15,13 @@ from kernel import PluginContext, PluginRegistry
 from kernel.plugin_base import Stage
 
 V4_REFERENCES_CHECKS = (
-    Path(__file__).resolve().parents[3] / "v4" / "topology-tools" / "scripts" / "validators" / "checks" / "references.py"
+    Path(__file__).resolve().parents[3]
+    / "v4"
+    / "topology-tools"
+    / "scripts"
+    / "validators"
+    / "checks"
+    / "references.py"
 )
 V5_HOST_OS_PLUGIN_ID = "base.validator.host_os_refs"
 
@@ -69,7 +75,10 @@ def test_runtime_target_without_host_os_binding_is_error_in_v4_and_v5():
         errors=v4_errors,
         warnings=v4_warnings,
     )
-    assert any("active runtime target requires at least one active host_operating_systems entry" in message for message in v4_errors)
+    assert any(
+        "active runtime target requires at least one active host_operating_systems entry" in message
+        for message in v4_errors
+    )
 
     registry = _registry()
     ctx = _context()
@@ -77,7 +86,13 @@ def test_runtime_target_without_host_os_binding_is_error_in_v4_and_v5():
         ctx,
         [
             {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": []},
-            {"group": "devices", "instance": "srv-b", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.b"]},
+            {
+                "group": "devices",
+                "instance": "srv-b",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.b"],
+            },
             {"group": "os", "instance": "inst.os.b", "class_ref": "class.os", "layer": "L1", "status": "mapped"},
             {
                 "group": "services",
@@ -102,7 +117,9 @@ def test_host_os_architecture_mismatch_is_error_in_v4_and_v5():
                 "devices": [{"id": "srv-a", "specs": {"cpu": {"architecture": "arm64"}}}],
             },
             "L3_data": {"storage_endpoints": [], "mount_points": []},
-            "L4_platform": {"host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a", "architecture": "x86_64"}]},
+            "L4_platform": {
+                "host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a", "architecture": "x86_64"}]
+            },
         },
         ids={
             "devices": {"srv-a"},
@@ -117,7 +134,11 @@ def test_host_os_architecture_mismatch_is_error_in_v4_and_v5():
     ctx = _context(
         objects={
             "obj.device.arm64": {"object": "obj.device.arm64", "hardware_specs": {"cpu": {"architecture": "arm64"}}},
-            "obj.os.x86_64": {"object": "obj.os.x86_64", "class_ref": "class.os", "properties": {"architecture": "x86_64"}},
+            "obj.os.x86_64": {
+                "object": "obj.os.x86_64",
+                "class_ref": "class.os",
+                "properties": {"architecture": "x86_64"},
+            },
         }
     )
     _publish_rows(
@@ -179,7 +200,13 @@ def test_host_os_root_storage_mount_device_mismatch_is_error_in_v4_and_v5():
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {"group": "devices", "instance": "srv-b", "class_ref": "class.router", "layer": "L1", "os_refs": []},
             {
                 "group": "os",
@@ -216,7 +243,9 @@ def test_host_os_non_canonical_architecture_is_error_in_v4_and_v5():
         topology={
             "L1_foundation": {"devices": [{"id": "srv-a", "specs": {"cpu": {"architecture": "x86_64"}}}]},
             "L3_data": {"storage_endpoints": [], "mount_points": []},
-            "L4_platform": {"host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a", "architecture": "amd64"}]},
+            "L4_platform": {
+                "host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a", "architecture": "amd64"}]
+            },
         },
         ids={
             "devices": {"srv-a"},
@@ -232,7 +261,13 @@ def test_host_os_non_canonical_architecture_is_error_in_v4_and_v5():
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {
                 "group": "os",
                 "instance": "inst.os.a",
@@ -280,7 +315,13 @@ def test_host_os_capability_host_type_mismatch_is_error_in_v4_and_v5():
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {
                 "group": "os",
                 "instance": "inst.os.a",
@@ -302,7 +343,9 @@ def test_host_os_top_level_architecture_is_validated_in_v4_and_v5():
         topology={
             "L1_foundation": {"devices": [{"id": "srv-a", "specs": {"cpu": {"architecture": "x86_64"}}}]},
             "L3_data": {"storage_endpoints": [], "mount_points": []},
-            "L4_platform": {"host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a", "architecture": "amd64"}]},
+            "L4_platform": {
+                "host_operating_systems": [{"id": "hos-a", "device_ref": "srv-a", "architecture": "amd64"}]
+            },
         },
         ids={
             "devices": {"srv-a"},
@@ -318,7 +361,13 @@ def test_host_os_top_level_architecture_is_validated_in_v4_and_v5():
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {
                 "group": "os",
                 "instance": "inst.os.a",
@@ -366,7 +415,13 @@ def test_host_os_top_level_capability_host_type_mismatch_is_error_in_v4_and_v5()
     _publish_rows(
         ctx,
         [
-            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": ["inst.os.a"]},
+            {
+                "group": "devices",
+                "instance": "srv-a",
+                "class_ref": "class.router",
+                "layer": "L1",
+                "os_refs": ["inst.os.a"],
+            },
             {
                 "group": "os",
                 "instance": "inst.os.a",

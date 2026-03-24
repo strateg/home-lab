@@ -8,6 +8,7 @@ from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, St
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.projections import ProjectionError, build_ansible_projection
 
+
 class AnsibleInventoryGenerator(BaseGenerator):
     """Emit baseline Ansible inventory from ansible projection."""
 

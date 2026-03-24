@@ -1,6 +1,6 @@
 # ✅ Compute Examples Added: MikroTik Chateau LTE7ax & Orange Pi 5
 
-**Дата:** 8 марта 2026  
+**Дата:** 8 марта 2026
 **Добавлено:** Два новых примера compute устройств в ADR 0064
 
 ---
@@ -167,7 +167,7 @@ bindings:
   firmware: {required: true, class: firmware}
   os_primary: {required: true, class: os}
   os_secondary: {required: false, class: os}
-  
+
 os_constraints:
   installation_model: [installable]
   supports_multiboot: true
@@ -186,7 +186,7 @@ os_policy: embedded_only
 bindings:
   firmware: {required: true, class: firmware}
   os_primary: {required: true, class: os}
-  
+
 os_constraints:
   installation_model: [embedded]
 ```
@@ -280,8 +280,8 @@ os_constraints:
 
 ---
 
-**Статус:** ✅ ДОБАВЛЕНО  
-**Дата:** 8 марта 2026  
+**Статус:** ✅ ДОБАВЛЕНО
+**Дата:** 8 марта 2026
 **Файлы:** ADR 0064 + русские резюме обновлены
 
 👉 **Читайте:** `adr/0064-os-taxonomy-object-property-model.md`

@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Set
 
 import yaml
-
 from scripts.generators.common import load_topology_cached
 
 

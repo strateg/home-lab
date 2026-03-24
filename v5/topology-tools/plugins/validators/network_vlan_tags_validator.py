@@ -125,8 +125,10 @@ class NetworkVlanTagsValidator(ValidatorJsonPlugin):
                         )
                     )
 
-                effective_bridge_ref = nic_bridge_ref if isinstance(nic_bridge_ref, str) and nic_bridge_ref else network_meta.get(
-                    "bridge_ref"
+                effective_bridge_ref = (
+                    nic_bridge_ref
+                    if isinstance(nic_bridge_ref, str) and nic_bridge_ref
+                    else network_meta.get("bridge_ref")
                 )
                 if vlan_tag is not None and isinstance(effective_bridge_ref, str) and effective_bridge_ref:
                     if bridge_vlan_aware.get(effective_bridge_ref) is False:

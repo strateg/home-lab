@@ -65,4 +65,3 @@ def parse_field_annotation(value: str) -> tuple[FieldAnnotation | None, str | No
         ),
         None,
     )
-

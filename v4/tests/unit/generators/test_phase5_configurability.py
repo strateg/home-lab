@@ -4,7 +4,6 @@ import argparse
 from pathlib import Path
 
 import pytest
-
 from scripts.generators.common import GeneratorCLI, ProgressTracker, StatusReporter
 
 

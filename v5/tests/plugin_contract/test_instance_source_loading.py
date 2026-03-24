@@ -363,7 +363,4 @@ def test_load_core_compile_inputs_rejects_legacy_schema_version_field(tmp_path: 
     )
 
     assert inputs.instance_payload is None
-    assert any(
-        item.get("code") == "E7104" and "schema_version" in item.get("message", "")
-        for item in diagnostics
-    )
+    assert any(item.get("code") == "E7104" and "schema_version" in item.get("message", "") for item in diagnostics)

@@ -9,14 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
-from framework_lock import (
-    _git_remote,
-    _git_revision,
-    _load_yaml,
-    compute_framework_integrity,
-    resolve_paths,
-)
+from framework_lock import _git_remote, _git_revision, _load_yaml, compute_framework_integrity, resolve_paths
 
 
 def _default_repo_root() -> Path:

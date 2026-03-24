@@ -6,10 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
+
 
 class CapabilityContractLoaderCompiler(CompilerPlugin):
     """Load capability catalog + packs and publish normalized contract data."""

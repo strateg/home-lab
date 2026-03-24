@@ -92,8 +92,7 @@ class FoundationDeviceTaxonomyValidator(ValidatorJsonPlugin):
                             severity="error",
                             stage=stage,
                             message=(
-                                "L1 group 'physical-links' expects class.network.physical_link, "
-                                f"got '{class_ref}'."
+                                "L1 group 'physical-links' expects class.network.physical_link, " f"got '{class_ref}'."
                             ),
                             path=path,
                         )

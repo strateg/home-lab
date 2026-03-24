@@ -5,7 +5,6 @@ from typing import Any, Dict
 from unittest.mock import MagicMock, Mock
 
 import pytest
-
 from scripts.generators.common.base import Generator, GeneratorCLI, run_cli
 
 

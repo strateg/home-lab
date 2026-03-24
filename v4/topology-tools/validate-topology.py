@@ -17,9 +17,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 import yaml
-from topology_loader import load_topology
-from validators.version_validator import VersionValidator
-
 from scripts.generators.common import load_topology_cached
 from scripts.validators import runner as validators_runner
 from scripts.validators.checks.foundation import (
@@ -55,6 +52,8 @@ from scripts.validators.checks.references import (
 )
 from scripts.validators.checks.storage import build_l1_storage_context, check_l3_storage_refs
 from scripts.validators.ids import collect_ids
+from topology_loader import load_topology
+from validators.version_validator import VersionValidator
 
 try:
     from jsonschema import Draft7Validator, ValidationError

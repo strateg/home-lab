@@ -1,7 +1,7 @@
 # ADR 0064 Revision Complete ✅
 
-**Date:** 2026-03-08  
-**Status:** Approved - Path C (Class-Based OS Model)  
+**Date:** 2026-03-08
+**Status:** Approved - Path C (Class-Based OS Model)
 **Decision:** Переработан с property-based на class-based модель
 
 ---
@@ -202,6 +202,6 @@ Before proceeding to Phase 1, confirm:
 
 ---
 
-**Дата переработки:** 8 марта 2026  
-**Статус:** ✅ Завершена  
+**Дата переработки:** 8 марта 2026
+**Статус:** ✅ Завершена
 **Следующий этап:** Architecture review & team decision

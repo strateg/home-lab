@@ -17,6 +17,7 @@ from kernel.plugin_base import (
     ValidatorJsonPlugin,
 )
 
+
 class ModelLockValidator(ValidatorJsonPlugin):
     """Validate model.lock pinning and version consistency."""
 

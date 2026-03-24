@@ -1,7 +1,7 @@
 # Framework + Project via Git Submodules
 
-**Status:** Draft rollout guide  
-**Updated:** 2026-03-20  
+**Status:** Draft rollout guide
+**Updated:** 2026-03-20
 **ADR:** 0076
 
 ---

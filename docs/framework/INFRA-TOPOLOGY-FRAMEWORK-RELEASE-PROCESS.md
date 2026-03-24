@@ -1,7 +1,7 @@
 # infra-topology-framework Release Process
 
-**Status:** Active  
-**Updated:** 2026-03-21  
+**Status:** Active
+**Updated:** 2026-03-21
 **ADRs:** 0076, 0077
 
 ---

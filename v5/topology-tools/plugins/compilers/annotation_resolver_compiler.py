@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
 from field_annotations import FieldAnnotation, parse_field_annotation
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[2] / "data" / "instance-field-formats.yaml"
+
 
 class AnnotationResolverCompiler(CompilerPlugin):
     """Parse annotations once and publish normalized annotation indexes."""
@@ -229,9 +229,7 @@ class AnnotationResolverCompiler(CompilerPlugin):
                 source_path=f"object:{object_id}",
             )
             object_annotations[object_id] = annotations
-            secret_annotations = {
-                path: spec for path, spec in annotations.items() if bool(spec.get("secret"))
-            }
+            secret_annotations = {path: spec for path, spec in annotations.items() if bool(spec.get("secret"))}
             projected = self._derive_interface_mac_secret_annotations(object_payload=object_payload, formats=formats)
             secret_annotations.update(projected)
             object_secret_annotations[object_id] = secret_annotations

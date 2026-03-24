@@ -10,33 +10,32 @@ from __future__ import annotations
 __version__ = "0.5.0"
 __api_version__ = "1.0"
 
-from .plugin_base import (
-    PluginBase,
-    PluginKind,
-    PluginStatus,
-    PluginContext,
-    PluginResult,
-    PluginDiagnostic,
-    PluginDataExchangeError,
-    Stage,
+from .plugin_base import (  # Legacy alias
     CompilerPlugin,
-    ValidatorYamlPlugin,
-    ValidatorJsonPlugin,
-    GeneratorPlugin,
-    # Legacy alias
     Diagnostic,
+    GeneratorPlugin,
+    PluginBase,
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginKind,
+    PluginResult,
+    PluginStatus,
+    Stage,
+    ValidatorJsonPlugin,
+    ValidatorYamlPlugin,
 )
 from .plugin_registry import (
-    PluginRegistry,
-    PluginManifest,
-    PluginSpec,
-    PluginLoadError,
-    PluginCycleError,
-    PluginConfigError,
-    KERNEL_VERSION,
-    KERNEL_API_VERSION,
-    SUPPORTED_API_VERSIONS,
     DEFAULT_PLUGIN_TIMEOUT,
+    KERNEL_API_VERSION,
+    KERNEL_VERSION,
+    SUPPORTED_API_VERSIONS,
+    PluginConfigError,
+    PluginCycleError,
+    PluginLoadError,
+    PluginManifest,
+    PluginRegistry,
+    PluginSpec,
 )
 
 __all__ = [

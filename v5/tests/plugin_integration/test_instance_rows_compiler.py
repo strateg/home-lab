@@ -365,11 +365,7 @@ def test_sidecar_instance_mismatch_does_not_merge_in_inject(monkeypatch):
     def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
         return FakeResult(
             returncode=0,
-            stdout=(
-                "instance: different-instance\n"
-                "hardware_identity:\n"
-                "  serial_number: SHOULD-NOT-BE-MERGED\n"
-            ),
+            stdout=("instance: different-instance\n" "hardware_identity:\n" "  serial_number: SHOULD-NOT-BE-MERGED\n"),
         )
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
@@ -434,9 +430,7 @@ def test_hardware_identity_secret_ref_is_forbidden():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.has_errors
-    assert any(
-        d.code == "E3201" and "hardware_identity_secret_ref" in d.message for d in result.diagnostics
-    )
+    assert any(d.code == "E3201" and "hardware_identity_secret_ref" in d.message for d in result.diagnostics)
 
 
 def test_instance_rows_compiler_rejects_unsafe_identifiers():
@@ -545,11 +539,7 @@ def test_sidecar_plaintext_conflict_emits_error(monkeypatch):
     def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
         return FakeResult(
             returncode=0,
-            stdout=(
-                "instance: rtr-slate\n"
-                "hardware_identity:\n"
-                "  serial_number: SECRET-SN-001\n"
-            ),
+            stdout=("instance: rtr-slate\n" "hardware_identity:\n" "  serial_number: SECRET-SN-001\n"),
         )
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
@@ -766,12 +756,7 @@ def test_annotation_resolver_formats_validate_secret_values(monkeypatch):
     def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
         return FakeResult(
             returncode=0,
-            stdout=(
-                "instance: rtr-slate\n"
-                "hardware_identity:\n"
-                "  mac_addresses:\n"
-                "    wan: NOT-A-MAC\n"
-            ),
+            stdout=("instance: rtr-slate\n" "hardware_identity:\n" "  mac_addresses:\n" "    wan: NOT-A-MAC\n"),
         )
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
@@ -827,11 +812,7 @@ def test_object_level_secret_annotation_resolves_serial_without_instance_marker(
     def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
         return FakeResult(
             returncode=0,
-            stdout=(
-                "instance: rtr-slate\n"
-                "hardware_identity:\n"
-                "  serial_number: SECRET-SN-OBJ\n"
-            ),
+            stdout=("instance: rtr-slate\n" "hardware_identity:\n" "  serial_number: SECRET-SN-OBJ\n"),
         )
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)
@@ -890,11 +871,7 @@ def test_object_level_typed_secret_annotation_rejects_invalid_scalar(monkeypatch
     def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
         return FakeResult(
             returncode=0,
-            stdout=(
-                "instance: rtr-slate\n"
-                "hardware_identity:\n"
-                "  serial_number: 12345\n"
-            ),
+            stdout=("instance: rtr-slate\n" "hardware_identity:\n" "  serial_number: 12345\n"),
         )
 
     monkeypatch.setattr(instance_rows_module.subprocess, "run", fake_run)

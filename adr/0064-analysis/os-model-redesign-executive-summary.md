@@ -1,7 +1,7 @@
 # OS Model Redesign: Executive Summary and Recommendation
 
-**Date:** 2026-03-08  
-**Status:** Ready for Review  
+**Date:** 2026-03-08
+**Status:** Ready for Review
 **Format:** Executive decision document
 
 ---
@@ -406,7 +406,7 @@ Before finalizing, address:
 
 ---
 
-**Document created:** 2026-03-08  
-**Status:** Ready for team review and decision  
-**Author:** AI Assistant  
+**Document created:** 2026-03-08
+**Status:** Ready for team review and decision
+**Author:** AI Assistant
 **Version:** 1.0

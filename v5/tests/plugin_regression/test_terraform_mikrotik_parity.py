@@ -37,4 +37,3 @@ def test_terraform_mikrotik_semantic_contract(generated_artifacts_root: Path) ->
     assert 'source  = "terraform-routeros/routeros"' in provider_tf
     assert 'variable "mikrotik_password"' in variables_tf
     assert "<TODO_MIKROTIK_PASSWORD>" in tfvars_example
-

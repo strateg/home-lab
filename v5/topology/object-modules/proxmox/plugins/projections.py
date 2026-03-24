@@ -6,8 +6,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from plugins.generators.projection_core import (
-    # ADR0078 WP-006: Group canonical name constants
+from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canonical name constants
     GROUP_DEVICES,
     GROUP_LXC,
     GROUP_SERVICES,

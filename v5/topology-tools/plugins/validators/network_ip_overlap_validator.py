@@ -130,7 +130,10 @@ class NetworkIpOverlapValidator(ValidatorJsonPlugin):
     def _network_ip_allocations(row: dict[str, Any]) -> tuple[Any, str]:
         extensions = row.get("extensions")
         if isinstance(extensions, dict) and "ip_allocations" in extensions:
-            return extensions.get("ip_allocations"), f"instance:{row.get('group')}:{row.get('instance')}.extensions.ip_allocations"
+            return (
+                extensions.get("ip_allocations"),
+                f"instance:{row.get('group')}:{row.get('instance')}.extensions.ip_allocations",
+            )
         return row.get("ip_allocations"), f"instance:{row.get('group')}:{row.get('instance')}.ip_allocations"
 
     @staticmethod

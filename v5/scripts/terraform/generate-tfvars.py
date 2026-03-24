@@ -85,9 +85,7 @@ def _render_value(value: Any, *, indent: int = 0) -> str:
         for key, item in value.items():
             if not isinstance(key, str):
                 raise RuntimeError("Object keys must be strings for tfvars rendering.")
-            rendered_lines.append(
-                f"{child_indent}{_render_object_key(key)} = {_render_value(item, indent=indent + 2)}"
-            )
+            rendered_lines.append(f"{child_indent}{_render_object_key(key)} = {_render_value(item, indent=indent + 2)}")
         return "{\n" + "\n".join(rendered_lines) + "\n" + (" " * indent) + "}"
     raise RuntimeError(f"Unsupported value type for tfvars rendering: {type(value).__name__}")
 

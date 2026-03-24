@@ -3,7 +3,6 @@
 from typing import Any, Dict
 
 import pytest
-
 from scripts.generators.docs.data import DataResolver
 
 

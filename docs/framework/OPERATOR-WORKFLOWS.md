@@ -1,7 +1,7 @@
 # Framework/Project Operator Workflows
 
-**Status:** Active  
-**Updated:** 2026-03-20  
+**Status:** Active
+**Updated:** 2026-03-20
 **ADR:** 0076
 
 ---

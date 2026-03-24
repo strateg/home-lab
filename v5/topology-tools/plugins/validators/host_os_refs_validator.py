@@ -235,7 +235,10 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                     root_storage_endpoint_ref = None
             if isinstance(root_storage_endpoint_ref, str) and root_storage_endpoint_ref:
                 endpoint_row = row_by_id.get(root_storage_endpoint_ref)
-                if not isinstance(endpoint_row, dict) or endpoint_row.get("class_ref") != "class.storage.storage_endpoint":
+                if (
+                    not isinstance(endpoint_row, dict)
+                    or endpoint_row.get("class_ref") != "class.storage.storage_endpoint"
+                ):
                     diagnostics.append(
                         self.emit_diagnostic(
                             code="E7893",
@@ -263,21 +266,21 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                 if not installation:
                     diagnostics.append(
                         self.emit_diagnostic(
-                    code="E7894",
-                    severity="error",
-                    stage=stage,
-                    message=f"OS '{os_id}' host_type '{host_type_raw}' requires installation object.",
-                    path=f"{row_prefix}.host_type",
+                            code="E7894",
+                            severity="error",
+                            stage=stage,
+                            message=f"OS '{os_id}' host_type '{host_type_raw}' requires installation object.",
+                            path=f"{row_prefix}.host_type",
                         )
                     )
                 elif not isinstance(root_storage_endpoint_ref, str) or not root_storage_endpoint_ref:
                     diagnostics.append(
                         self.emit_diagnostic(
-                    code="E7894",
-                    severity="error",
-                    stage=stage,
-                    message=(
-                        f"OS '{os_id}' host_type '{host_type_raw}' requires "
+                            code="E7894",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"OS '{os_id}' host_type '{host_type_raw}' requires "
                                 "installation.root_storage_endpoint_ref."
                             ),
                             path=f"{row_prefix}.installation.root_storage_endpoint_ref",
@@ -369,9 +372,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                     code="E7895",
                     severity="error",
                     stage=stage,
-                    message=(
-                        f"OS '{os_id}': architecture '{raw_arch}' normalizes to unsupported '{normalized}'."
-                    ),
+                    message=(f"OS '{os_id}': architecture '{raw_arch}' normalizes to unsupported '{normalized}'."),
                     path=f"{row_prefix}.architecture",
                 )
             )
@@ -433,9 +434,7 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
                         code="E7896",
                         severity="error",
                         stage=stage,
-                        message=(
-                            f"OS '{os_id}': capability '{capability}' is not valid for host_type '{host_type}'."
-                        ),
+                        message=(f"OS '{os_id}': capability '{capability}' is not valid for host_type '{host_type}'."),
                         path=f"{row_prefix}.capabilities[{idx}]",
                     )
                 )

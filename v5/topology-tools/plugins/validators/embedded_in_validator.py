@@ -17,6 +17,7 @@ from kernel.plugin_base import (
     ValidatorJsonPlugin,
 )
 
+
 class EmbeddedInValidator(ValidatorJsonPlugin):
     """Validate embedded_in relationships for OS and device instances."""
 

@@ -68,4 +68,3 @@ def test_ansible_inventory_generator_reports_projection_error(tmp_path: Path) ->
 
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E9301" for diag in result.diagnostics)
-

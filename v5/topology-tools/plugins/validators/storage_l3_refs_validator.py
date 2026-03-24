@@ -505,7 +505,9 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
             elif expected_vg_id:
                 logical_volume_row = row_by_id.get(logical_volume_id)
                 logical_volume_vg_ref = (
-                    self._get_extension_field(logical_volume_row, "vg_ref") if isinstance(logical_volume_row, dict) else None
+                    self._get_extension_field(logical_volume_row, "vg_ref")
+                    if isinstance(logical_volume_row, dict)
+                    else None
                 )
                 if isinstance(logical_volume_vg_ref, str) and logical_volume_vg_ref != expected_vg_id:
                     diagnostics.append(
@@ -521,7 +523,12 @@ class StorageL3RefsValidator(ValidatorJsonPlugin):
                         )
                     )
 
-        if endpoint_type == "lvmthin" and isinstance(media_attachment_ref, str) and media_attachment_ref and expected_vg_id:
+        if (
+            endpoint_type == "lvmthin"
+            and isinstance(media_attachment_ref, str)
+            and media_attachment_ref
+            and expected_vg_id
+        ):
             expected_vg_row = row_by_id.get(expected_vg_id)
             expected_vg_pv_refs = (
                 self._get_extension_field(expected_vg_row, "pv_refs") if isinstance(expected_vg_row, dict) else None

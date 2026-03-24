@@ -1,7 +1,7 @@
 # Framework Release Guide (infra-topology-framework)
 
-**Status:** Active  
-**Updated:** 2026-03-21  
+**Status:** Active
+**Updated:** 2026-03-21
 **ADRs:** 0076, 0077, 0078
 
 ---

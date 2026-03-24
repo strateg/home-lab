@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import yaml
-
 from scripts.generators.common import (
     ErrorHandler,
     GeneratorContext,
