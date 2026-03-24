@@ -1,13 +1,8 @@
 version: "3"
 
 tasks:
-  v4:
-    desc: Build v4 lane artifacts (legacy compatibility)
-    cmds:
-      - "{{.PYTHON}} scripts/orchestration/lane.py build-v4"
-
-  v5:
-    desc: Build v5 lane artifacts (default)
+  default:
+    desc: Build lane artifacts
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py build-v5"
 
@@ -26,12 +21,12 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/phase1/refresh_phase1_backlog.py"
 
-  phase4-sync-lock:
-    desc: Sync v5 model lock
+  sync-lock:
+    desc: Sync model lock
     cmds:
       - "{{.PYTHON}} scripts/model/sync_v5_model_lock.py"
 
-  phase4-export:
-    desc: Export v5 instance bindings (legacy migration helper)
+  export-bindings:
+    desc: Export instance bindings
     cmds:
       - "{{.PYTHON}} scripts/model/export_v5_instance_bindings.py"
