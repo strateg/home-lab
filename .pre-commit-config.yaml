@@ -26,6 +26,16 @@ repos:
       args: ["--strict"]
       stages: [manual]
 
+- repo: local
+  hooks:
+    - id: detect-secrets-update-baseline
+      name: Update detect-secrets baseline
+      entry: python v5/scripts/secrets/update_secrets_baseline.py
+      language: system
+      pass_filenames: false
+      always_run: true
+      stages: [pre-commit]
+
 - repo: https://github.com/Yelp/detect-secrets
   rev: v1.4.0
   hooks:
