@@ -12,6 +12,9 @@ protocol: https
 trust_zone_ref: inst.trust_zone.management
 description: Proxmox VE management interface
 
+security:
+  ssl_certificate: self-signed
+
 runtime:
   type: baremetal
   target_ref: srv-gamayun

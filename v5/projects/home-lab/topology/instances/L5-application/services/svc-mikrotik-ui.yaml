@@ -19,6 +19,7 @@ description: MikroTik RouterOS WebFig management (HTTPS)
 critical: true
 
 security:
+  ssl_certificate: self-signed
   https_redirect: true
   allowed_from:
     - inst.vlan.lan

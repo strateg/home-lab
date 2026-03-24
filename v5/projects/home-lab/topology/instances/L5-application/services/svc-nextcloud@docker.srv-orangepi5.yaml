@@ -34,6 +34,7 @@ config:
       - /mnt/nvme/nextcloud/config:/var/www/html/config
 
 security:
+  ssl_certificate: self-signed
   https_redirect: true
 
 runtime:
