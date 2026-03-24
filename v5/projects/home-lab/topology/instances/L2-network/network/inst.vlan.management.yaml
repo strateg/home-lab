@@ -9,3 +9,9 @@ notes: Management VLAN (VLAN 99)
 bridge_ref: inst.bridge.vmbr0
 trust_zone_ref: inst.trust_zone.management
 managed_by_ref: rtr-mikrotik-chateau
+
+ip_allocations:
+  - device_ref: srv-gamayun
+    host_os_ref: inst.os.proxmox.ve.9
+    ip: 10.0.99.1/24
+    purpose: hypervisor management

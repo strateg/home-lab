@@ -9,3 +9,9 @@ notes: Server VLAN (VLAN 30)
 bridge_ref: inst.bridge.vmbr0
 trust_zone_ref: inst.trust_zone.servers
 managed_by_ref: rtr-mikrotik-chateau
+
+ip_allocations:
+  - device_ref: srv-orangepi5
+    host_os_ref: inst.os.debian.12.arm64.edge
+    ip: 10.0.30.5/24
+    purpose: docker host

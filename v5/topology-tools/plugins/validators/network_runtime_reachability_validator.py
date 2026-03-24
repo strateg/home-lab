@@ -173,7 +173,9 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
                     network_plane_by_id.get(network_binding_ref) == "overlay"
                     and network_manager_by_id.get(network_binding_ref) == target_ref
                 )
-                if not device_reachable and not host_os_reachable and not overlay_managed_by_target:
+                # If device manages the network (e.g., router manages VLAN), it's implicitly attached
+                managed_by_target = network_manager_by_id.get(network_binding_ref) == target_ref
+                if not device_reachable and not host_os_reachable and not overlay_managed_by_target and not managed_by_target:
                     diagnostics.append(
                         self.emit_diagnostic(
                             code="W7844",
@@ -190,16 +192,29 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
         return self.make_result(diagnostics)
 
     def _extract_network_refs(self, *, ctx: PluginContext, row: dict[str, Any]) -> set[str]:
-        networks = self._resolve_field(ctx=ctx, row=row, key="networks")
-        if not isinstance(networks, list):
-            return set()
         refs: set[str] = set()
-        for nic in networks:
-            if not isinstance(nic, dict):
-                continue
-            network_ref = nic.get("network_ref")
+
+        # Format 1: networks[] array with network_ref in each NIC entry
+        networks = self._resolve_field(ctx=ctx, row=row, key="networks")
+        if isinstance(networks, list):
+            for nic in networks:
+                if not isinstance(nic, dict):
+                    continue
+                network_ref = nic.get("network_ref")
+                if isinstance(network_ref, str) and network_ref:
+                    refs.add(network_ref)
+
+        # Format 2: Single network object with vlan_ref (common for LXC containers)
+        network = self._resolve_field(ctx=ctx, row=row, key="network")
+        if isinstance(network, dict):
+            vlan_ref = network.get("vlan_ref")
+            if isinstance(vlan_ref, str) and vlan_ref:
+                refs.add(vlan_ref)
+            # Also check network_ref in single network object
+            network_ref = network.get("network_ref")
             if isinstance(network_ref, str) and network_ref:
                 refs.add(network_ref)
+
         return refs
 
     @staticmethod
