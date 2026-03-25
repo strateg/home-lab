@@ -2,7 +2,9 @@ version: "3"
 
 tasks:
   default:
-    desc: Build lane artifacts
+    desc: Build lane artifacts (passthrough secrets mode)
+    env:
+      V5_SECRETS_MODE: passthrough
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py build-v5"
 
