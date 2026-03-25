@@ -8,15 +8,15 @@ import os
 import sys
 from pathlib import Path
 
-V5_ROOT = Path(__file__).resolve().parents[2]
-V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
-sys.path.insert(0, str(V5_TOOLS))
+REPO_ROOT = Path(__file__).resolve().parents[2]
+TOOLS_ROOT = REPO_ROOT / "topology-tools"
+sys.path.insert(0, str(TOOLS_ROOT))
 
 from kernel.plugin_base import PluginContext, PluginStatus, Stage
 
 
 def _load_generator_class():
-    module_path = V5_ROOT / "topology-tools" / "plugins" / "generators" / "diagram_generator.py"
+    module_path = TOOLS_ROOT / "plugins" / "generators" / "diagram_generator.py"
     spec = importlib.util.spec_from_file_location("test_diagram_generator_module", module_path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
@@ -29,7 +29,7 @@ DiagramGenerator = _load_generator_class()
 
 def _ctx(tmp_path: Path, compiled_json: dict) -> PluginContext:
     return PluginContext(
-        topology_path="v5/topology/topology.yaml",
+        topology_path="topology/topology.yaml",
         profile="test",
         model_lock={},
         compiled_json=compiled_json,
