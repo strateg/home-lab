@@ -6,38 +6,25 @@ tasks:
     deps:
       - :validate:quality
       - :framework:strict
-      - :validate:v5-passthrough
+      - :validate:default
       - :validate:phase1-gate
-      - :test:v5
+      - :test:default
 
   python-checks-core:
     desc: Core strict checks used by python-checks workflow
     deps:
       - :framework:strict
-      - :validate:v5-passthrough
+      - :validate:default
 
-  lane-v5-inject:
-    desc: Lane validation core via task (inject mode)
-    deps:
-      - :framework:strict
-      - :validate:v5
-
-  lane-v5-passthrough:
+  lane-v5:
     desc: Lane validation core via task (passthrough mode)
     deps:
       - :framework:strict
-      - :validate:v5-passthrough
+      - :validate:default
 
-  topology-mainline-inject:
-    desc: Topology matrix strict mainline via task (inject mode)
-    deps:
-      - :framework:strict
-      - :validate:v5
-      - :validate:phase1-gate
-
-  topology-mainline-passthrough:
+  topology-mainline:
     desc: Topology matrix strict mainline via task (passthrough mode)
     deps:
       - :framework:strict
-      - :validate:v5-passthrough
+      - :validate:default
       - :validate:phase1-gate

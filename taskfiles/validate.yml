@@ -29,19 +29,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
-  v5:
-    desc: Validate topology lane (passthrough secrets mode)
-    env:
-      V5_SECRETS_MODE: passthrough
-    cmds:
-      - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
-
+  # Alias for CI workflows that reference v5-passthrough explicitly
   v5-passthrough:
-    desc: Validate topology lane in passthrough secrets mode
-    env:
-      V5_SECRETS_MODE: passthrough # pragma: allowlist secret
-    cmds:
-      - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
+    desc: Alias for validate:default
+    deps:
+      - default
 
   v5-layers:
     desc: Validate layer contract only

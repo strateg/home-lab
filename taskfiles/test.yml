@@ -5,13 +5,3 @@ tasks:
     desc: Run all tests
     cmds:
       - "{{.PYTHON}} -m pytest -o addopts= tests -q"
-
-  all:
-    desc: Run all tests
-    cmds:
-      - "{{.PYTHON}} -m pytest -o addopts= tests -q"
-
-  v5:
-    desc: Run tests (alias for default)
-    cmds:
-      - "{{.PYTHON}} -m pytest -o addopts= tests -q"

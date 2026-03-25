@@ -8,13 +8,6 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py build-v5"
 
-  v5-passthrough:
-    desc: Build v5 lane artifacts in passthrough secrets mode (no decrypt required)
-    env:
-      V5_SECRETS_MODE: passthrough
-    cmds:
-      - "{{.PYTHON}} scripts/orchestration/lane.py build-v5"
-
   v5-docs:
     desc: Generate v5 docs + diagram artifacts (passthrough mode, plain diagrams)
     cmds:
