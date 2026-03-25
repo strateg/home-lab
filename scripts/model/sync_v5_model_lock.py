@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 LOCK_PATH = ROOT / "topology/model.lock.yaml"
 CLASS_ROOT = ROOT / "topology/class-modules"
 OBJECT_ROOT = ROOT / "topology/object-modules"

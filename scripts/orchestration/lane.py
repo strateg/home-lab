@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 PYTHON = sys.executable
 PHASE1_REPORT_JSON = "build/diagnostics/phase1-gate-report.json"
 LAYER_REPORT_JSON = "build/diagnostics/layer-contract-report.json"

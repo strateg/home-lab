@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 
 REQUIRED_PATHS = (
     "topology/topology.yaml",
@@ -21,9 +21,8 @@ REQUIRED_PATHS = (
     "tests",
     "topology/model.lock.yaml",
     "topology/layer-contract.yaml",
-    "v5-generated",
-    "v5-build",
-    "v5-dist",
+    "generated",
+    "build",
 )
 REQUIRED_FRAMEWORK_KEYS = (
     "class_modules_root",

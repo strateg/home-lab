@@ -11,7 +11,7 @@ from typing import Any
 
 import yaml
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = ROOT / "topology/topology.yaml"
 DEFAULT_VALID_LAYERS = ("L0", "L1", "L2", "L3", "L4", "L5", "L6", "L7")
 
