@@ -23,12 +23,16 @@ tasks:
       - lint
 
   default:
-    desc: Validate topology lane
+    desc: Validate topology lane (passthrough secrets mode)
+    env:
+      V5_SECRETS_MODE: passthrough
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
   v5:
-    desc: Validate topology lane (default secrets mode)
+    desc: Validate topology lane (passthrough secrets mode)
+    env:
+      V5_SECRETS_MODE: passthrough
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
