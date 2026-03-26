@@ -80,6 +80,13 @@ plugins:
                 description: Output filename for generated artifact.
             required: [enabled_by, template, output]
       required: []
+    produces:
+      - key: generated_dir
+        scope: pipeline_shared
+      - key: generated_files
+        scope: pipeline_shared
+      - key: terraform_mikrotik_files
+        scope: pipeline_shared
     description: Emits baseline Terraform artifacts for MikroTik from v5 projections (Phase 4 bootstrap).
 
   - id: base.generator.bootstrap_mikrotik
@@ -119,4 +126,11 @@ plugins:
                 description: Template path relative to object template root.
             required: [output_file, template]
       required: []
+    produces:
+      - key: generated_dir
+        scope: pipeline_shared
+      - key: generated_files
+        scope: pipeline_shared
+      - key: bootstrap_mikrotik_files
+        scope: pipeline_shared
     description: Emits baseline bootstrap artifacts for MikroTik routers (Phase 6 bootstrap).

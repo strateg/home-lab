@@ -47,3 +47,9 @@ def test_effective_yaml_generator_writes_file(tmp_path):
     assert artifact_path.exists()
     parsed = yaml.safe_load(artifact_path.read_text(encoding="utf-8"))
     assert parsed["model"] == "class-object-instance"
+    published = set(ctx.get_published_keys(PLUGIN_ID))
+    assert "generated_files" in published
+    assert "effective_yaml_path" in published
+    generated_files = ctx.get_published_data()[PLUGIN_ID]["generated_files"]
+    assert isinstance(generated_files, list)
+    assert str(artifact_path) in generated_files

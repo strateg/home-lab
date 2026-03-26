@@ -43,6 +43,12 @@ def test_effective_json_generator_writes_compiled_file(tmp_path):
     assert output_path.exists()
     emitted = json.loads(output_path.read_text(encoding="utf-8"))
     assert emitted == payload
+    published = set(ctx.get_published_keys(PLUGIN_ID))
+    assert "generated_files" in published
+    assert "effective_json_path" in published
+    generated_files = ctx.get_published_data()[PLUGIN_ID]["generated_files"]
+    assert isinstance(generated_files, list)
+    assert str(output_path) in generated_files
 
 
 def test_effective_json_generator_skips_when_core_owner(tmp_path):

@@ -35,4 +35,11 @@ plugins:
                 description: Template path relative to object template root.
             required: [output_file, template]
       required: []
+    produces:
+      - key: generated_dir
+        scope: pipeline_shared
+      - key: generated_files
+        scope: pipeline_shared
+      - key: bootstrap_orangepi_files
+        scope: pipeline_shared
     description: Emits baseline cloud-init bootstrap artifacts for Orange Pi nodes (Phase 6 bootstrap).

@@ -795,6 +795,11 @@ plugins:
       type: object
       properties: {}
       required: []
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+      - key: effective_json_path
+        scope: pipeline_shared
     description: Emits effective topology JSON from compiled model (ADR 0069 WS4).
 
   - id: base.generator.effective_yaml
@@ -815,6 +820,11 @@ plugins:
           type: string
           description: Filename for generated effective YAML artifact.
       required: []
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+      - key: effective_yaml_path
+        scope: pipeline_shared
     description: Emits effective topology YAML from compiled model (ADR 0069 WS4 seed).
 
   - id: base.generator.docs
@@ -831,6 +841,15 @@ plugins:
       type: object
       properties: {}
       required: []
+    produces:
+      - key: generated_dir
+        scope: pipeline_shared
+      - key: generated_files
+        scope: pipeline_shared
+      - key: docs_files
+        scope: pipeline_shared
+      - key: docs_projection
+        scope: pipeline_shared
     description: Emits baseline markdown docs artifacts from v5 compiled model projection.
 
   - id: base.generator.diagrams
@@ -855,6 +874,13 @@ plugins:
             Mermaid rendering mode (ADR 0027): icon-nodes uses @{ icon } syntax,
             compat uses labelled plain nodes, none disables icons entirely.
       required: []
+    produces:
+      - key: diagram_dir
+        scope: pipeline_shared
+      - key: generated_files
+        scope: pipeline_shared
+      - key: diagram_files
+        scope: pipeline_shared
     description: >
       Emits Mermaid topology diagram pages (physical + network) from v5 compiled model.
       Supports icon-nodes, compat, and plain modes (ADR 0005, ADR 0027).
@@ -886,4 +912,11 @@ plugins:
           type: string
           description: Logical lane tag exported to group_vars/all.yml.
       required: []
+    produces:
+      - key: generated_dir
+        scope: pipeline_shared
+      - key: generated_files
+        scope: pipeline_shared
+      - key: ansible_inventory_files
+        scope: pipeline_shared
     description: Emits baseline Ansible inventory artifacts from v5 projections (Phase 5 bootstrap).

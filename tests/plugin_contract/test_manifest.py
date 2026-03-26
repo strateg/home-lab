@@ -561,6 +561,39 @@ def test_all_discovered_manifests_have_explicit_phase():
     assert missing == []
 
 
+def test_generator_plugins_declare_generated_files_contract():
+    """High-value contract: all generate-stage plugins declare produces.generated_files."""
+    repo_root = V5_TOOLS.parent
+    manifests = discover_plugin_manifests(
+        base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
+        class_modules_root=repo_root / "topology" / "class-modules",
+        object_modules_root=repo_root / "topology" / "object-modules",
+        instance_manifests_root=repo_root / "projects" / "home-lab" / "instances",
+    )
+
+    missing: list[str] = []
+    for manifest_path in manifests:
+        payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+        for plugin in payload.get("plugins", []):
+            if not isinstance(plugin, dict):
+                continue
+            stages = plugin.get("stages")
+            if not isinstance(stages, list) or "generate" not in stages:
+                continue
+            produces = plugin.get("produces")
+            produced_keys = (
+                {item.get("key") for item in produces if isinstance(item, dict)}
+                if isinstance(produces, list)
+                else set()
+            )
+            if "generated_files" not in produced_keys:
+                plugin_id = plugin.get("id", "<missing-id>")
+                rel_path = manifest_path.relative_to(repo_root).as_posix()
+                missing.append(f"{plugin_id}@{rel_path}")
+
+    assert missing == []
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("ADR 0066 Plugin Contract Tests")
@@ -590,6 +623,7 @@ if __name__ == "__main__":
         test_registry_loads_build_stage_manifest,
         test_base_manifest_declares_high_value_data_bus_contracts,
         test_all_discovered_manifests_have_explicit_phase,
+        test_generator_plugins_declare_generated_files_contract,
     ]
 
     passed = 0

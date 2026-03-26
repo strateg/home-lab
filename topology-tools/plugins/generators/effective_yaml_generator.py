@@ -6,7 +6,14 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from kernel.plugin_base import GeneratorPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+from kernel.plugin_base import (
+    GeneratorPlugin,
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+)
 
 
 class EffectiveYamlGenerator(GeneratorPlugin):
@@ -49,7 +56,15 @@ class EffectiveYamlGenerator(GeneratorPlugin):
                 confidence=1.0,
             )
         )
+        try:
+            ctx.publish("generated_files", [str(output_path)])
+            ctx.publish("effective_yaml_path", str(output_path))
+        except PluginDataExchangeError:
+            pass
         return self.make_result(
             diagnostics=diagnostics,
-            output_data={"effective_yaml": str(output_path)},
+            output_data={
+                "effective_yaml": str(output_path),
+                "generated_files": [str(output_path)],
+            },
         )

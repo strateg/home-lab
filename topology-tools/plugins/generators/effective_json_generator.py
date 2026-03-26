@@ -5,7 +5,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from kernel.plugin_base import GeneratorPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+from kernel.plugin_base import (
+    GeneratorPlugin,
+    PluginContext,
+    PluginDataExchangeError,
+    PluginDiagnostic,
+    PluginResult,
+    Stage,
+)
 
 
 class EffectiveJsonGenerator(GeneratorPlugin):
@@ -42,8 +49,16 @@ class EffectiveJsonGenerator(GeneratorPlugin):
             json.dumps(payload, ensure_ascii=True, indent=2, default=str),
             encoding="utf-8",
         )
+        try:
+            ctx.publish("generated_files", [str(output_path)])
+            ctx.publish("effective_json_path", str(output_path))
+        except PluginDataExchangeError:
+            pass
 
         return self.make_result(
             diagnostics=diagnostics,
-            output_data={"effective_json": str(output_path)},
+            output_data={
+                "effective_json": str(output_path),
+                "generated_files": [str(output_path)],
+            },
         )

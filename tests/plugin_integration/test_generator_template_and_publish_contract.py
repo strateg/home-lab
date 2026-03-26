@@ -265,8 +265,10 @@ def test_generator_publishes_metadata_in_registry_context(
     plugin_config = _load_plugin_config(manifest_path, plugin_id) if manifest_path and plugin_id else None
     ctx = _ctx(tmp_path, compiled_json, plugin_config)
     ctx._set_execution_context(generator.plugin_id, set())
-
-    result = generator.execute(ctx, Stage.GENERATE)
+    try:
+        result = generator.execute(ctx, Stage.GENERATE)
+    finally:
+        ctx._clear_execution_context()
 
     assert result.status == PluginStatus.SUCCESS
     published = set(ctx.get_published_keys(generator.plugin_id))
