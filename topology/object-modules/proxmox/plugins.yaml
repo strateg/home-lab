@@ -5,6 +5,7 @@ plugins:
     entry: plugins/terraform_proxmox_generator.py:TerraformProxmoxGenerator
     api_version: "1.x"
     stages: [generate]
+    phase: run
     order: 210
     depends_on: []
     timeout: 30
@@ -66,6 +67,7 @@ plugins:
     entry: plugins/bootstrap_proxmox_generator.py:BootstrapProxmoxGenerator
     api_version: "1.x"
     stages: [generate]
+    phase: run
     order: 310
     depends_on: []
     timeout: 30

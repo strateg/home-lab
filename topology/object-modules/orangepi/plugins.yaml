@@ -5,6 +5,7 @@ plugins:
     entry: plugins/bootstrap_orangepi_generator.py:BootstrapOrangePiGenerator
     api_version: "1.x"
     stages: [generate]
+    phase: run
     order: 330
     depends_on: []
     timeout: 30

@@ -5,6 +5,7 @@ plugins:
     entry: plugins/mikrotik_router_ports_validator.py:MikrotikRouterPortsValidator
     api_version: "1.x"
     stages: [validate]
+    phase: run
     order: 241
     depends_on: [base.validator.references]
     timeout: 30
@@ -20,6 +21,7 @@ plugins:
     entry: plugins/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
     api_version: "1.x"
     stages: [generate]
+    phase: run
     order: 220
     depends_on: []
     timeout: 30
@@ -85,6 +87,7 @@ plugins:
     entry: plugins/bootstrap_mikrotik_generator.py:BootstrapMikroTikGenerator
     api_version: "1.x"
     stages: [generate]
+    phase: run
     order: 320
     depends_on: []
     timeout: 30

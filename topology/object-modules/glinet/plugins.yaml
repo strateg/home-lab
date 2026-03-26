@@ -5,6 +5,7 @@ plugins:
     entry: plugins/glinet_router_ports_validator.py:GlinetRouterPortsValidator
     api_version: "1.x"
     stages: [validate]
+    phase: run
     order: 242
     depends_on: [base.validator.references]
     timeout: 30
