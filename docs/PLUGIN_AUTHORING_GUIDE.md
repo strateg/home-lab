@@ -1,28 +1,212 @@
 # Plugin Authoring Guide
 
-**Last Updated:** 2026-03-11
-**Related:** ADR 0063, ADR 0064
+**Last Updated:** 2026-03-26
+**Related:** ADR 0063, ADR 0065, ADR 0080
 
-This guide helps topology module developers create plugins that integrate with the plugin microkernel.
-
-Runtime discovery policy (ADR0063):
-- Base manifest from CLI (`--plugins-manifest`) is loaded first.
-- Then `plugins.yaml` files from `class-modules/**` and `object-modules/**` are loaded.
-- Order is deterministic (lexicographic per root); duplicate plugin IDs are rejected.
+This guide helps topology module developers create plugins that integrate with the v5
+plugin microkernel and its stage/phase lifecycle (ADR 0080).
 
 ---
 
 ## Table of Contents
 
-1. [Quick Start](#quick-start)
-2. [Plugin Types](#plugin-types)
-3. [Project Structure](#project-structure)
-4. [Writing Your First Plugin](#writing-your-first-plugin)
-5. [Configuration](#configuration)
-6. [Error Handling](#error-handling)
-7. [Testing](#testing)
-8. [Best Practices](#best-practices)
-9. [Troubleshooting](#troubleshooting)
+1. [Architecture Overview](#architecture-overview)
+2. [Lifecycle: Stages and Phases](#lifecycle-stages-and-phases)
+3. [Plugin Types](#plugin-types)
+4. [Quick Start](#quick-start)
+5. [Project Structure](#project-structure)
+6. [Manifest Reference](#manifest-reference)
+7. [PluginContext API](#plugincontext-api)
+8. [Data Exchange (Publish/Subscribe)](#data-exchange-publishsubscribe)
+9. [Phase Handlers](#phase-handlers)
+10. [Conditional Execution (`when`)](#conditional-execution-when)
+11. [Configuration](#configuration)
+12. [Diagnostics and Error Handling](#diagnostics-and-error-handling)
+13. [Parallel Execution Safety](#parallel-execution-safety)
+14. [Testing](#testing)
+15. [Best Practices](#best-practices)
+16. [Migration from Legacy API](#migration-from-legacy-api)
+
+---
+
+## Architecture Overview
+
+The plugin runtime follows a **microkernel** pattern (ADR 0063). The kernel handles:
+
+- Manifest discovery and loading
+- Dependency graph resolution
+- Stage/phase execution ordering
+- Timeout enforcement (default: 30s per plugin)
+- Diagnostic aggregation
+- Publish/subscribe data bus
+
+Plugins are **pure units of work** — they receive a `PluginContext`, perform their task,
+and return a `PluginResult`. All side effects go through the context API or declared file paths.
+
+### Discovery Policy
+
+1. Base manifest from CLI (`--plugins-manifest`) is loaded first.
+2. Then `plugins.yaml` files from `class-modules/**` are loaded (lexicographic order).
+3. Then `plugins.yaml` files from `object-modules/**` are loaded (lexicographic order).
+4. Duplicate plugin IDs across manifests are **hard errors** (no override).
+
+### Four-Level Boundary Model (ADR 0063 §4B)
+
+```
+Level 1: Global / Core          topology-tools/plugins/
+Level 2: Class modules           topology/class-modules/**/plugins/
+Level 3: Object modules          topology/object-modules/**/plugins/
+Level 4: Instance (project)      projects/<project>/plugins/  (future)
+```
+
+Rules:
+- Class-level plugins **must not** reference `obj.*` or `inst.*` identifiers.
+- Object-level plugins **must not** reference `inst.*` identifiers.
+- A plugin may depend on plugins from its own level or higher only.
+
+---
+
+## Lifecycle: Stages and Phases
+
+Every plugin runs within a **stage** and a **phase**. The kernel executes in strict order:
+
+### Stages (ADR 0080 §2)
+
+```
+discover → compile → validate → generate → assemble → build
+```
+
+| Stage | Purpose | Plugin kinds |
+|-------|---------|-------------|
+| `discover` | Find and register plugin manifests | `compiler` |
+| `compile` | Transform raw YAML into compiled model | `compiler` |
+| `validate` | Check model correctness | `validator_yaml`, `validator_json` |
+| `generate` | Emit artifacts (Terraform, Ansible, docs) | `generator` |
+| `assemble` | Build execution-root workspaces | `assembler` |
+| `build` | Package, sign, verify release bundles | `builder` |
+
+### Phases (ADR 0080 §3)
+
+Within each stage, plugins execute in phase order:
+
+```
+init → pre → run → post → verify → finalize
+```
+
+| Phase | Semantic | Typical use |
+|-------|----------|-------------|
+| `init` | Load/prepare inputs | Module loaders, config resolvers |
+| `pre` | Pre-conditions, governance checks | Schema guards, policy checks |
+| `run` | Main business logic | Compilation, validation, generation |
+| `post` | Post-processing, cross-cutting | Docs, diagrams, secondary outputs |
+| `verify` | Quality gates | Integrity checks, contract validation |
+| `finalize` | Summary and cleanup | Manifests, checksums, cleanup |
+
+**Default phase is `run`.** Most plugins only need `run`; use other phases for
+specialized lifecycle needs.
+
+### Execution Order Within a Phase
+
+Inside each `(stage, phase)` slice, plugins execute by:
+1. `depends_on` DAG (dependency-respecting topological order)
+2. `order` field (numeric tie-breaker)
+3. Plugin `id` (lexical tie-breaker)
+
+### Finalize Guarantee
+
+`finalize` **always runs** for any started stage, even if an earlier phase fails.
+Use `finalize` for cleanup, summary emission, and resource release.
+
+---
+
+## Plugin Types
+
+### Compiler Plugins (`kind: compiler`)
+
+Transform or resolve the Object Model during compilation.
+
+```python
+from kernel.plugin_base import CompilerPlugin, PluginContext, PluginResult, Stage
+
+class MyCompiler(CompilerPlugin):
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics = []
+        # Read raw YAML from ctx.raw_yaml or compiled model from ctx.compiled_json
+        # Transform, resolve, publish results
+        ctx.publish("my_output", {"resolved": "data"})
+        return self.make_result(diagnostics)
+```
+
+**Stage:** `compile` (or `discover` for bootstrap plugins)
+**Order range:** 30–89 (compile), 10–89 (discover)
+
+### Validator Plugins (`kind: validator_yaml` / `validator_json`)
+
+Check model correctness. Must not mutate data.
+
+```python
+from kernel.plugin_base import ValidatorJsonPlugin, PluginContext, PluginResult, Stage
+
+class MyValidator(ValidatorJsonPlugin):
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics = []
+        compiled = ctx.compiled_json
+
+        for instance in compiled.get("instances", []):
+            if not instance.get("name"):
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5001", severity="error", stage=stage,
+                    message="Instance missing name",
+                    path=f"instances[{instance.get('id', '?')}]",
+                    hint="Add a 'name' field to the instance definition"
+                ))
+
+        return self.make_result(diagnostics)
+```
+
+**Stage:** `validate`
+**Order range:** 90–189
+
+### Generator Plugins (`kind: generator`)
+
+Emit artifacts from the compiled model.
+
+```python
+from pathlib import Path
+from kernel.plugin_base import GeneratorPlugin, PluginContext, PluginResult, Stage
+
+class MyGenerator(GeneratorPlugin):
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics = []
+        out_dir = Path(ctx.output_dir) / "my-output"
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        files = []
+        for item in ctx.compiled_json.get("items", []):
+            out_file = out_dir / f"{item['id']}.tf"
+            out_file.write_text(self._render(item))
+            files.append(str(out_file))
+
+        ctx.publish("my_generator_files", files)
+        return self.make_result(diagnostics, output_data={"files": files})
+```
+
+**Stage:** `generate`
+**Order range:** 190–399
+
+### Assembler Plugins (`kind: assembler`)
+
+Build execution-root workspaces (`.work/native`, `dist/`).
+
+**Stage:** `assemble`
+**Order range:** 400–499
+
+### Builder Plugins (`kind: builder`)
+
+Package, sign, verify release bundles.
+
+**Stage:** `build`
+**Order range:** 500–599
 
 ---
 
@@ -31,231 +215,109 @@ Runtime discovery policy (ADR0063):
 ### 1. Create Plugin File
 
 ```python
-# topology/object-modules/mikrotik/plugins/yaml_validators/device.py
+# topology/object-modules/mikrotik/plugins/validators/bridge_check.py
 
-from topology_tools.plugin_api import YamlValidatorPlugin, PluginResult, PluginStatus
-from topology_tools.plugin_api import PluginSeverity, PluginDiagnostic
+from kernel.plugin_base import (
+    ValidatorJsonPlugin, PluginContext, PluginResult, Stage,
+)
 
-class MikrotikDeviceYamlValidator(YamlValidatorPlugin):
-    """Validate Mikrotik device YAML structure and semantics"""
+class BridgeValidator(ValidatorJsonPlugin):
+    """Validate bridge interface naming and VLAN assignment."""
 
-    def validate_config(self) -> PluginResult:
-        """Validate plugin config before execution"""
-        if "max_name_length" in self.context.config:
-            if not isinstance(self.context.config["max_name_length"], int):
-                return PluginResult(
-                    plugin_id=self.context.plugin_id,
-                    api_version=self.api_version,
-                    status=PluginStatus.FAILED,
-                    duration_ms=0,
-                    diagnostics=[
-                        PluginDiagnostic(
-                            severity=PluginSeverity.ERROR,
-                            code="CFG001",
-                            message="max_name_length must be integer"
-                        )
-                    ]
-                )
-        return self._success()
-
-    def execute(self, yaml_dict, source_path) -> PluginResult:
-        """Validate device YAML"""
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics = []
+        max_len = ctx.config.get("max_bridge_name_length", 15)
 
-        # Example validation
-        if "devices" not in yaml_dict:
-            diagnostics.append(
-                self._diagnostic(
-                    PluginSeverity.ERROR,
-                    "DEV001",
-                    "Missing required 'devices' section",
-                    location={"file": source_path, "line": 1}
-                )
-            )
+        for bridge in ctx.compiled_json.get("bridges", []):
+            name = bridge.get("name", "")
+            if len(name) > max_len:
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5401", severity="error", stage=stage,
+                    message=f"Bridge name '{name}' exceeds {max_len} chars",
+                    path=f"bridges.{name}",
+                    hint=f"Shorten bridge name to {max_len} characters or fewer"
+                ))
 
-        return PluginResult(
-            plugin_id=self.context.plugin_id,
-            api_version=self.api_version,
-            status=PluginStatus.SUCCESS if not diagnostics else PluginStatus.PARTIAL,
-            duration_ms=0,
-            diagnostics=diagnostics,
-            output_data={}
-        )
+        return self.make_result(diagnostics)
 ```
 
-### 2. Add Module Plugin Manifest
+### 2. Register in Manifest
 
 ```yaml
 # topology/object-modules/mikrotik/plugins.yaml
 
-module_id: obj.mikrotik
-module_version: "0.5.0"
-
+schema_version: 1
 plugins:
-  - id: obj.mikrotik.validator.yaml.device
-    kind: validator_yaml
-    entry: plugins/yaml_validators/device.py:MikrotikDeviceYamlValidator
+  - id: obj.mikrotik.validator.json.bridges
+    kind: validator_json
+    entry: plugins/validators/bridge_check.py:BridgeValidator
     api_version: "1.x"
     stages: [validate]
-    order: 100
+    phase: run
+    order: 120
     depends_on: []
     config:
-      max_name_length: 63
-      allow_deprecated: false
+      max_bridge_name_length: 15
     config_schema:
       type: object
       properties:
-        max_name_length:
+        max_bridge_name_length:
           type: integer
           minimum: 1
-          maximum: 255
-          default: 63
-        allow_deprecated:
-          type: boolean
-          default: false
+          default: 15
+    when:
+      profiles: [production, modeled]
+    description: "Validate bridge naming and VLAN constraints for MikroTik"
 ```
 
-### 3. Test Plugin
+### 3. Write Tests
 
 ```python
-# topology/object-modules/mikrotik/tests/test_device_validator.py
+# topology/object-modules/mikrotik/tests/test_bridge_validator.py
 
 import pytest
-from plugins.yaml_validators.device import MikrotikDeviceYamlValidator
-from topology_tools.plugin_api import PluginContext
+from kernel.plugin_base import PluginContext, Stage
+
+from plugins.validators.bridge_check import BridgeValidator
+
 
 @pytest.fixture
-def plugin_context():
-    class MockKernel:
-        def log(self, plugin_id, message, level):
-            print(f"[{level}] {plugin_id}: {message}")
-
+def ctx():
     return PluginContext(
-        kernel=MockKernel(),
-        plugin_id="obj.mikrotik.validator.yaml.device",
-        config={"max_name_length": 63}
+        topology_path="test",
+        profile="production",
+        model_lock={},
+        compiled_json={
+            "bridges": [
+                {"name": "br-lan", "vlan_id": 100},
+                {"name": "bridge-name-that-is-way-too-long", "vlan_id": 200},
+            ]
+        },
+        config={"max_bridge_name_length": 15},
     )
 
-def test_missing_devices_section(plugin_context):
-    plugin = MikrotikDeviceYamlValidator(plugin_context)
-    result = plugin.execute({"metadata": {}}, "test.yaml")
 
-    assert result.status == PluginStatus.PARTIAL
-    assert len(result.diagnostics) > 0
-    assert result.diagnostics[0].code == "DEV001"
-
-def test_valid_structure(plugin_context):
-    plugin = MikrotikDeviceYamlValidator(plugin_context)
-    result = plugin.execute({
-        "devices": [
-            {"name": "r1", "model": "RB4011"}
-        ]
-    }, "test.yaml")
-
-    assert result.status == PluginStatus.SUCCESS
+def test_valid_bridge(ctx):
+    ctx.compiled_json = {"bridges": [{"name": "br-lan", "vlan_id": 100}]}
+    plugin = BridgeValidator("obj.mikrotik.validator.json.bridges")
+    result = plugin.execute(ctx, Stage.VALIDATE)
+    assert result.status.value == "SUCCESS"
     assert len(result.diagnostics) == 0
+
+
+def test_long_bridge_name(ctx):
+    plugin = BridgeValidator("obj.mikrotik.validator.json.bridges")
+    result = plugin.execute(ctx, Stage.VALIDATE)
+    assert result.has_errors
+    assert result.diagnostics[0].code == "E5401"
 ```
 
----
+### 4. Run
 
-## Plugin Types
-
-### Validator YAML Plugins
-
-**When to use:** Validate source YAML before compilation
-
-**Input:** Raw YAML dict, source file path
-**Output:** List of validation diagnostics
-**Stage:** `validate`
-
-```python
-from topology_tools.plugin_api import YamlValidatorPlugin
-
-class MyYamlValidator(YamlValidatorPlugin):
-    def execute(self, yaml_dict, source_path) -> PluginResult:
-        # Check syntax, required fields, semantic constraints
-        # Emit diagnostics with source location
-        pass
+```bash
+# Plugin is auto-discovered from object-module manifest
+python topology-tools/compile-topology.py --profile production
 ```
-
-**Common checks:**
-- Required fields presence
-- Field type validation
-- Enum value checks
-- Reference resolution (device X exists?)
-- Cardinality constraints (min/max items)
-
-### Validator JSON Plugins
-
-**When to use:** Validate compiled Object Model logical consistency
-
-**Input:** Compiled JSON dict, compiled file path
-**Output:** List of validation diagnostics
-**Stage:** `validate`
-
-```python
-from topology_tools.plugin_api import JsonValidatorPlugin
-
-class MyJsonValidator(JsonValidatorPlugin):
-    def execute(self, json_dict, compiled_path) -> PluginResult:
-        # Check cross-references, constraints on compiled model
-        # May reference other plugin outputs
-        pass
-```
-
-**Common checks:**
-- Reference integrity (dangling references?)
-- Cardinality across objects
-- Constraint violations
-- Inconsistent state
-
-### Compiler Plugins
-
-**When to use:** Transform/resolve model during compilation
-
-**Input:** Object Model dict, returns transformed dict
-**Output:** Transformed model + diagnostics
-**Stage:** `compile`
-
-```python
-from topology_tools.plugin_api import CompilerPlugin
-
-class MyCompiler(CompilerPlugin):
-    def execute(self, model_dict) -> PluginResult:
-        # Transform model, resolve references
-        # Return modified model in output_data
-        pass
-```
-
-**Common transformations:**
-- Flattening nested structures
-- Resolving template variables
-- Building cross-reference indexes
-- Normalizing data formats
-
-### Generator Plugins
-
-**When to use:** Generate artifacts (code, configs, docs)
-
-**Input:** Compiled JSON, output directory
-**Output:** File listing + diagnostics
-**Stage:** `generate`
-
-```python
-from topology_tools.plugin_api import GeneratorPlugin
-
-class MyGenerator(GeneratorPlugin):
-    def execute(self, json_dict, output_dir) -> PluginResult:
-        # Create files in output_dir
-        # Emit diagnostics for each file created
-        pass
-```
-
-**Common outputs:**
-- Terraform .tf files
-- Ansible playbooks
-- Network config files
-- Markdown documentation
 
 ---
 
@@ -263,253 +325,439 @@ class MyGenerator(GeneratorPlugin):
 
 ```
 topology/object-modules/mikrotik/
-├── plugins.yaml                     # Plugin manifest discovered by compiler
-├── README.md
+├── plugins.yaml                     # Manifest — discovered by kernel
 ├── plugins/
-│   ├── __init__.py
-│   ├── yaml_validators/
-│   │   ├── __init__.py
-│   │   ├── device.py               # YamlValidatorPlugin
-│   │   └── interface.py            # YamlValidatorPlugin
-│   ├── json_validators/
-│   │   ├── __init__.py
-│   │   ├── references.py           # JsonValidatorPlugin
-│   │   └── constraints.py          # JsonValidatorPlugin
-│   ├── compilers/
-│   │   ├── __init__.py
-│   │   └── resolve_references.py  # CompilerPlugin
-│   └── generators/
-│       ├── __init__.py
-│       ├── terraform.py            # GeneratorPlugin
-│       └── ansible.py              # GeneratorPlugin
-├── schema/
-│   ├── class-contract.schema.json
-│   └── object-contract.schema.json
+│   ├── validators/
+│   │   ├── bridge_check.py          # ValidatorJsonPlugin
+│   │   └── device_names.py          # ValidatorYamlPlugin
+│   ├── generators/
+│   │   ├── terraform_mikrotik_generator.py  # GeneratorPlugin
+│   │   └── bootstrap_mikrotik_generator.py  # GeneratorPlugin
+│   └── _shared/
+│       ├── terraform_helpers.py     # Shared helper functions
+│       └── bootstrap_projections.py # Projection builders
+├── templates/
+│   ├── terraform/
+│   │   ├── provider.tf.j2
+│   │   └── bridges.tf.j2
+│   └── bootstrap/
+│       └── answer.toml.example.j2
 ├── tests/
 │   ├── conftest.py
-│   ├── test_yaml_validators.py
-│   ├── test_json_validators.py
-│   ├── test_compilers.py
-│   └── test_generators.py
+│   ├── test_bridge_validator.py
+│   └── test_terraform_generator.py
 └── testdata/
-    ├── valid_device.yaml
-    ├── invalid_device.yaml
-    └── expected_compiled.json
+    ├── valid_topology.yaml
+    └── expected_terraform/
 ```
 
 ---
 
-## Writing Your First Plugin
+## Manifest Reference
 
-### Step 1: Understand the Contract
-
-- What's the input? (YAML dict? JSON dict? Both?)
-- What's the output? (Diagnostics? Modified data?)
-- When does it run? (Which stage?)
-- What depends on you? (Plugins with depends_on pointing to your ID)
-
-### Step 2: Create Plugin Class
-
-```python
-from topology_tools.plugin_api import BasePlugin, PluginResult, PluginStatus, PluginSeverity
-
-class MyPlugin(YamlValidatorPlugin):  # or other plugin type
-
-    def validate_config(self) -> PluginResult:
-        """Always implement this to catch config errors early"""
-        # Verify self.context.config contains valid settings
-        required_keys = ["key1", "key2"]
-        for key in required_keys:
-            if key not in self.context.config:
-                return PluginResult(
-                    plugin_id=self.context.plugin_id,
-                    api_version=self.api_version,
-                    status=PluginStatus.FAILED,
-                    duration_ms=0,
-                    diagnostics=[
-                        PluginDiagnostic(
-                            severity=PluginSeverity.ERROR,
-                            code="CFG_MISSING",
-                            message=f"Required config key '{key}' missing"
-                        )
-                    ]
-                )
-        return self._success()
-
-    def execute(self, ...) -> PluginResult:
-        """Implement the main logic"""
-        diagnostics = []
-
-        try:
-            # Your business logic here
-            result_data = self._do_work(...)
-
-        except Exception as e:
-            self.context.log(f"Error: {str(e)}", "error")
-            return PluginResult(
-                plugin_id=self.context.plugin_id,
-                api_version=self.api_version,
-                status=PluginStatus.FAILED,
-                duration_ms=0,
-                diagnostics=[
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="EXE_EXCEPTION",
-                        message=str(e)
-                    )
-                ],
-                error_traceback=traceback.format_exc()
-            )
-
-        return PluginResult(
-            plugin_id=self.context.plugin_id,
-            api_version=self.api_version,
-            status=PluginStatus.SUCCESS if not diagnostics else PluginStatus.PARTIAL,
-            duration_ms=0,
-            diagnostics=diagnostics,
-            output_data=result_data
-        )
-```
-
-### Step 3: Add to Manifest
+Every plugin is declared in a `plugins.yaml` manifest. Full field reference:
 
 ```yaml
+schema_version: 1
 plugins:
-  - id: obj.mymodule.validator.yaml.mycheck
-    kind: validator_yaml
-    entry: plugins/yaml_validators/mycheck.py:MyValidator
-    api_version: "1.x"
-    stages: [validate]
-    order: 150
-    depends_on: []  # or list plugin IDs you depend on
-    config: {}      # or fill with defaults
-    config_schema:
+  - id: obj.mikrotik.validator.json.bridges     # Unique ID (required)
+    kind: validator_json                          # Plugin kind (required)
+    entry: plugins/validators/bridge_check.py:BridgeValidator  # Module:Class (required)
+    api_version: "1.x"                            # API version (required)
+    stages: [validate]                            # Stage list (required)
+    phase: run                                    # Phase (default: run)
+    order: 120                                    # Execution priority (required)
+
+    # Dependencies
+    depends_on: []                                # Plugin IDs this depends on
+    requires_capabilities: []                     # Required capabilities
+
+    # Configuration
+    config: {}                                    # Default config values
+    config_schema:                                # JSON Schema for config
       type: object
       properties: {}
+
+    # Conditional execution (all conditions are AND)
+    when:
+      profiles: [production, modeled]             # Run only for these profiles
+      capabilities: [cap.dns]                     # Run only if capabilities present
+      pipeline_modes: [full]                      # Run only in these pipeline modes
+
+    # Data bus contracts
+    produces:
+      - key: bridge_validation_report             # Published key name
+        scope: stage_local                        # stage_local | pipeline_shared
+        schema_ref: schemas/bridge_report.json    # Optional JSON Schema
+        description: "Bridge validation results"
+    consumes:
+      - from_plugin: base.compiler.instance_rows  # Source plugin
+        key: normalized_rows                      # Key to subscribe
+        required: true                            # Fail if missing
+
+    # Metadata
+    compiled_json_owner: false                    # Only ONE per (stage, phase) can be true
+    model_versions: ["0062-1.0"]                  # Supported model versions
+    timeout: 30                                   # Seconds (default: 30)
+    description: "Human-readable description"
 ```
 
-### Step 4: Add Tests
+### ID Convention
+
+```
+{level}.{module}.{kind}.{domain}.{name}
+
+Examples:
+  base.compiler.instance_rows          # Core compiler plugin
+  base.generator.terraform_proxmox     # Core generator
+  obj.mikrotik.validator.json.bridges  # Object-module validator
+  cls.network.compiler.vlan_resolver   # Class-module compiler
+```
+
+### Order Ranges
+
+| Stage | Range | Notes |
+|-------|-------|-------|
+| discover | 10–89 | Base manifest only |
+| compile | 30–89 | Preserved from existing |
+| validate | 90–189 | Preserved from existing |
+| generate | 190–399 | Per ADR 0074 |
+| assemble | 400–499 | New |
+| build | 500–599 | New |
+
+---
+
+## PluginContext API
+
+`PluginContext` is the shared context passed to every plugin. Key fields:
+
+### Core Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `topology_path` | `str` | Path to `topology.yaml` |
+| `profile` | `str` | Runtime profile (`production`, `modeled`, etc.) |
+| `model_lock` | `dict` | Framework dependency lock |
+| `raw_yaml` | `dict` | Parsed YAML (for validators) |
+| `compiled_json` | `dict` | Full compiled model (for validators/generators) |
+| `output_dir` | `str` | Root output directory (for generators) |
+| `config` | `dict` | Per-plugin configuration from manifest |
+
+### Module Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `classes` | `dict` | Class module metadata |
+| `objects` | `dict` | Object module metadata |
+| `capability_catalog` | `dict` | Capability definitions |
+| `effective_capabilities` | `dict` | Resolved per-instance capabilities |
+| `effective_software` | `dict` | Resolved per-instance software stacks |
+| `instance_bindings` | `dict` | Instance-to-object bindings |
+
+### Assemble/Build Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `workspace_root` | `str` | `.work/native/` path |
+| `dist_root` | `str` | `dist/` path |
+| `assembly_manifest` | `dict` | Output of `assemble.finalize` |
+| `signing_backend` | `str` | `age` / `gpg` / `none` |
+| `release_tag` | `str` | Release version tag |
+| `sbom_output_dir` | `str` | SBOM output directory |
+
+### Diagnostic Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `error_catalog` | `dict` | Error code definitions |
+| `source_file` | `str` | Source YAML file path |
+| `compiled_file` | `str` | Compiled JSON file path |
+
+---
+
+## Data Exchange (Publish/Subscribe)
+
+Plugins exchange data through a typed publish/subscribe bus (ADR 0080 §6).
+
+### Publishing
 
 ```python
-def test_my_plugin_happy_path(plugin_context):
-    plugin = MyPlugin(plugin_context)
-    result = plugin.execute(valid_input)
-
-    assert result.status == PluginStatus.SUCCESS
-    assert len(result.diagnostics) == 0
-
-def test_my_plugin_error_case(plugin_context):
-    plugin = MyPlugin(plugin_context)
-    result = plugin.execute(invalid_input)
-
-    assert result.status == PluginStatus.PARTIAL
-    assert len(result.diagnostics) > 0
-    assert result.diagnostics[0].severity == PluginSeverity.ERROR
+def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+    result = self._compute_something(ctx.compiled_json)
+    ctx.publish("my_result_key", result)
+    return self.make_result([])
 ```
+
+Declare in manifest:
+```yaml
+produces:
+  - key: my_result_key
+    scope: pipeline_shared
+    description: "Computed result for downstream consumers"
+```
+
+### Subscribing
+
+```python
+def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+    rows = ctx.subscribe("base.compiler.instance_rows", "normalized_rows")
+    # Use rows...
+```
+
+Declare in manifest:
+```yaml
+depends_on:
+  - base.compiler.instance_rows
+consumes:
+  - from_plugin: base.compiler.instance_rows
+    key: normalized_rows
+    required: true
+```
+
+**Rules:**
+1. You can only subscribe to plugins listed in your `depends_on`.
+2. The producer must have `publish()`-ed the key before you subscribe.
+3. `required: true` means missing data is a hard error.
+4. Cross-stage subscriptions must use `pipeline_shared` scope keys.
+5. `stage_local` keys are invalidated when their publishing stage ends.
+
+### Scope
+
+| Scope | Lifetime | Use when |
+|-------|----------|----------|
+| `stage_local` | Invalidated at stage end | Intermediate data not needed by later stages |
+| `pipeline_shared` | Persists for entire pipeline | Data consumed by plugins in later stages |
+
+---
+
+## Phase Handlers
+
+Most plugins only implement `execute()` for the `run` phase (default). For multi-phase
+plugins, override phase-specific handlers:
+
+```python
+from kernel.plugin_base import CompilerPlugin, PluginContext, PluginResult, Stage, Phase
+
+class MyMultiPhaseCompiler(CompilerPlugin):
+
+    def on_init(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        """Load input files, resolve paths."""
+        data = self._load_modules(ctx.topology_path)
+        ctx.publish("loaded_modules", data)
+        return self.make_result([])
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        """Main compilation logic (called during 'run' phase)."""
+        modules = ctx.subscribe(self.plugin_id, "loaded_modules")
+        result = self._compile(modules)
+        ctx.publish("compiled_output", result)
+        return self.make_result([])
+
+    def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        """Verify output integrity."""
+        output = ctx.subscribe(self.plugin_id, "compiled_output")
+        diagnostics = self._verify(output)
+        return self.make_result(diagnostics)
+
+    def on_finalize(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        """Emit summary, always runs even on failure."""
+        return self.make_result([])
+```
+
+### Dispatch Rules
+
+| Phase | Handler called | Fallback |
+|-------|---------------|----------|
+| `init` | `on_init(ctx, stage)` | Skip (no error) |
+| `pre` | `on_pre(ctx, stage)` | Skip |
+| `run` | `on_run(ctx, stage)` or `execute(ctx, stage)` | **Required** |
+| `post` | `on_post(ctx, stage)` | Skip |
+| `verify` | `on_verify(ctx, stage)` | Skip |
+| `finalize` | `on_finalize(ctx, stage)` | Skip |
+
+For the `run` phase, the kernel calls `on_run()` if defined, otherwise `execute()`.
+All existing plugins with only `execute()` work unchanged.
+
+---
+
+## Conditional Execution (`when`)
+
+Use `when` predicates to gate execution without code changes:
+
+```yaml
+when:
+  profiles: [production]           # Only for production profile
+  capabilities: [cap.ceph]        # Only if ceph capability is present
+  pipeline_modes: [full]           # Only in full pipeline mode
+```
+
+All conditions are AND-ed. A skipped plugin returns `SKIPPED` status (not an error).
 
 ---
 
 ## Configuration
 
-### Config in Manifest
+### Declaring Config
 
 ```yaml
-plugins:
-  - id: obj.mikrotik.validator
-    config:
-      max_device_count: 1000
-      enable_strict_mode: true
-    config_schema:
-      type: object
-      properties:
-        max_device_count:
-          type: integer
-          minimum: 1
-          default: 1000
-        enable_strict_mode:
-          type: boolean
-          default: false
-      required: []
+config:
+  terraform_version: ">= 1.6.0"
+  strict_mode: false
+
+config_schema:
+  type: object
+  properties:
+    terraform_version:
+      type: string
+      default: ">= 1.6.0"
+    strict_mode:
+      type: boolean
+      default: false
+  required: [terraform_version]
 ```
 
-### Access Config in Plugin
+### Accessing Config
 
 ```python
-class MyPlugin(YamlValidatorPlugin):
-    def execute(self, yaml_dict, source_path) -> PluginResult:
-        max_count = self.context.config.get("max_device_count", 1000)
-        strict = self.context.config.get("enable_strict_mode", False)
-
-        # Use config values
+def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+    tf_version = ctx.config.get("terraform_version", ">= 1.6.0")
+    strict = ctx.config.get("strict_mode", False)
+    # ...
 ```
 
-### Override via Environment
+### Config Injection Precedence (ADR 0065)
 
-```bash
-# Environment variable format: TOPO_{PLUGIN_ID}_KEY=value
-# Replace dots and dashes with underscores
+1. Global defaults
+2. Manifest `config` values
+3. Environment variable overrides
+4. Runtime/CLI overrides
 
-export TOPO_OBJ_MIKROTIK_VALIDATOR_MAX_DEVICE_COUNT=500
-export TOPO_OBJ_MIKROTIK_VALIDATOR_ENABLE_STRICT_MODE=true
-```
+Config is validated against `config_schema` at load time (pre-flight).
+Validation failure is a **hard error** — plugin does not execute.
 
 ---
 
-## Error Handling
+## Diagnostics and Error Handling
 
-### Plugin Exceptions
+### Emitting Diagnostics
+
+Use `self.emit_diagnostic()` for structured error/warning reporting:
 
 ```python
-def execute(self, ...) -> PluginResult:
-    try:
-        result = self._validate()
-    except ValueError as e:
-        return PluginResult(
-            plugin_id=self.context.plugin_id,
-            api_version=self.api_version,
-            status=PluginStatus.FAILED,
-            duration_ms=0,
-            diagnostics=[
-                PluginDiagnostic(
-                    severity=PluginSeverity.ERROR,
-                    code="VAL_ERROR",
-                    message=str(e)
-                )
-            ],
-            error_traceback=traceback.format_exc()
-        )
+diagnostics.append(self.emit_diagnostic(
+    code="E5401",                    # From error-catalog.yaml
+    severity="error",                # "error" | "warning" | "info"
+    stage=stage,                     # Current stage
+    message="Bridge name too long",  # Human-readable
+    path="bridges.br-wan",           # Resource path
+    phase=Phase.RUN,                 # Optional: phase attribution
+    hint="Shorten to 15 chars",      # Optional: remediation
+    source_file="topology.yaml",     # Optional: source location
+    source_line=42,                  # Optional
+    source_column=5,                 # Optional
+    confidence=1.0,                  # 0.0-1.0
+))
 ```
 
-### Publishing Errors
+### Returning Results
+
+Use `self.make_result()` — it infers the status from diagnostics:
 
 ```python
-def execute(self, yaml_dict, source_path) -> PluginResult:
+return self.make_result(
+    diagnostics=diagnostics,
+    output_data={"files": generated_files},  # Optional
+)
+```
+
+| Diagnostics content | Inferred status |
+|---------------------|----------------|
+| No diagnostics | `SUCCESS` |
+| Warnings only | `PARTIAL` |
+| Any errors | `FAILED` |
+
+### Exception Handling
+
+Unhandled exceptions are caught by the kernel and wrapped into `FAILED` with a traceback.
+You don't need to catch everything — only catch exceptions you can handle meaningfully:
+
+```python
+def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
     diagnostics = []
+    try:
+        data = ctx.subscribe("base.compiler.instance_rows", "normalized_rows")
+    except PluginDataExchangeError as exc:
+        diagnostics.append(self.emit_diagnostic(
+            code="E6901", severity="error", stage=stage,
+            message=f"Cannot subscribe: {exc}",
+            path="pipeline:data_bus"
+        ))
+        return self.make_result(diagnostics)
 
-    for device in yaml_dict.get("devices", []):
-        if not self._is_valid(device):
-            diagnostics.append(
-                PluginDiagnostic(
-                    severity=PluginSeverity.ERROR,
-                    code="DEV_INVALID",
-                    message=f"Device {device.get('name')} is invalid",
-                    location={
-                        "file": source_path,
-                        "line": self._find_line(device),
-                        "column": 1
-                    }
-                )
-            )
-
-    return PluginResult(
-        plugin_id=self.context.plugin_id,
-        api_version=self.api_version,
-        status=PluginStatus.PARTIAL if diagnostics else PluginStatus.SUCCESS,
-        duration_ms=0,
-        diagnostics=diagnostics,
-        output_data={}
-    )
+    # Main logic — let unexpected exceptions propagate to kernel
+    self._validate(data)
+    return self.make_result(diagnostics)
 ```
+
+### Diagnostic Code Ranges
+
+| Range | Domain |
+|-------|--------|
+| `E000x–E199x` | Data format/structure |
+| `E200x–E299x` | Reference/relationship |
+| `E300x–E399x` | Configuration/contract |
+| `E400x–E499x` | Kernel/runtime |
+| `E500x–E799x` | Domain-specific validation |
+| `E800x` | Discover stage |
+| `E810x` | Assemble stage |
+| `E820x` | Build stage |
+| `W800x` | Data bus undeclared key (transitional) |
+
+---
+
+## Parallel Execution Safety
+
+When `--parallel-plugins` is enabled, plugins within the same `(stage, phase)` whose
+DAG dependencies are satisfied may execute concurrently (ADR 0080 §9).
+
+### Parallel-Safe Plugin Contract
+
+Your plugin is parallel-safe if it:
+
+1. **Does not assign `ctx.compiled_json`** (unless declared `compiled_json_owner: true`).
+2. **Does not mutate** any shared `PluginContext` field other than through `ctx.publish()`.
+3. **All outputs** go through `ctx.publish()` or to explicitly declared file paths.
+4. **Side effects** are limited to file writes under declared output paths.
+
+### What to Avoid
+
+```python
+# ❌ BAD: Mutating shared context
+ctx.compiled_json["new_key"] = "value"
+
+# ❌ BAD: Writing to undeclared paths
+Path("/tmp/my_output.json").write_text(data)
+
+# ✅ GOOD: Use publish for data sharing
+ctx.publish("new_key", "value")
+
+# ✅ GOOD: Write to declared output directory
+(Path(ctx.output_dir) / "my-output" / "file.tf").write_text(data)
+```
+
+### Generator File Isolation
+
+Each generator **must** write to non-overlapping paths. Declare your output files
+in `produces` so the kernel can validate no two generators claim the same path.
+
+### `compiled_json_owner`
+
+Only **one plugin per `(stage, phase)`** may set `compiled_json_owner: true`.
+This plugin is the sole writer of `ctx.compiled_json` in that phase.
+All other plugins must treat `compiled_json` as read-only.
+
+After the `compile` stage boundary, `compiled_json` is frozen — a deep-copied
+read-only snapshot for all later stages.
 
 ---
 
@@ -518,150 +766,183 @@ def execute(self, yaml_dict, source_path) -> PluginResult:
 ### Unit Tests (Plugin Isolation)
 
 ```python
-# Test plugin in isolation with mock kernel
+import pytest
+from kernel.plugin_base import PluginContext, Stage, PluginStatus
+
+from plugins.validators.bridge_check import BridgeValidator
+
 
 @pytest.fixture
-def mock_context():
-    class MockKernel:
-        def log(self, plugin_id, msg, level):
-            pass
+def make_ctx():
+    """Factory for test contexts with custom compiled_json."""
+    def _make(compiled_json, config=None):
+        return PluginContext(
+            topology_path="test/topology.yaml",
+            profile="production",
+            model_lock={},
+            compiled_json=compiled_json,
+            config=config or {},
+        )
+    return _make
 
-    return PluginContext(
-        kernel=MockKernel(),
-        plugin_id="obj.test.validator",
-        config={"key": "value"}
+
+class TestBridgeValidator:
+    def test_valid_bridges(self, make_ctx):
+        ctx = make_ctx({"bridges": [{"name": "br-lan", "vlan_id": 100}]})
+        plugin = BridgeValidator("obj.mikrotik.validator.json.bridges")
+        result = plugin.execute(ctx, Stage.VALIDATE)
+
+        assert result.status == PluginStatus.SUCCESS
+        assert len(result.diagnostics) == 0
+
+    def test_name_too_long(self, make_ctx):
+        ctx = make_ctx(
+            {"bridges": [{"name": "a-very-long-bridge-name", "vlan_id": 200}]},
+            config={"max_bridge_name_length": 15},
+        )
+        plugin = BridgeValidator("obj.mikrotik.validator.json.bridges")
+        result = plugin.execute(ctx, Stage.VALIDATE)
+
+        assert result.status == PluginStatus.FAILED
+        assert result.diagnostics[0].code == "E5401"
+
+    def test_empty_bridges(self, make_ctx):
+        ctx = make_ctx({"bridges": []})
+        plugin = BridgeValidator("obj.mikrotik.validator.json.bridges")
+        result = plugin.execute(ctx, Stage.VALIDATE)
+
+        assert result.status == PluginStatus.SUCCESS
+```
+
+### Data Exchange Tests
+
+```python
+def test_subscribe_from_dependency(make_ctx):
+    ctx = make_ctx({"instances": []})
+
+    # Simulate upstream plugin publishing data
+    ctx._current_plugin_id = "base.compiler.instance_rows"
+    ctx._allowed_dependencies = set()
+    ctx.publish("normalized_rows", [{"id": "node1"}])
+
+    # Now test our plugin subscribing
+    ctx._current_plugin_id = "obj.test.validator"
+    ctx._allowed_dependencies = {"base.compiler.instance_rows"}
+
+    rows = ctx.subscribe("base.compiler.instance_rows", "normalized_rows")
+    assert rows == [{"id": "node1"}]
+```
+
+### Integration Tests
+
+```python
+def test_full_pipeline_with_plugin(tmp_path):
+    """Run the actual pipeline and verify plugin output."""
+    from kernel.plugin_registry import PluginRegistry
+
+    registry = PluginRegistry(base_path=Path("topology-tools"))
+    registry.load_manifest(Path("topology-tools/plugins/plugins.yaml"))
+
+    ctx = PluginContext(
+        topology_path=str(tmp_path / "topology.yaml"),
+        profile="test-real",
+        model_lock={},
+        compiled_json=load_test_fixture("compiled.json"),
+        output_dir=str(tmp_path / "generated"),
     )
 
-def test_valid_input(mock_context):
-    plugin = MyPlugin(mock_context)
-    result = plugin.execute({"valid": "data"})
-    assert result.status == PluginStatus.SUCCESS
-```
-
-### Contract Tests (Plugin vs Kernel)
-
-```python
-# Test plugin integration with kernel loader
-
-def test_plugin_loads_from_manifest(kernel):
-    """Test plugin can be discovered and instantiated by kernel"""
-    plugin = kernel.load_plugin("obj.test.validator")
-    assert plugin is not None
-    assert plugin.api_version == "1.x"
-
-def test_plugin_config_injected(kernel):
-    """Test kernel passes config correctly"""
-    plugin = kernel.load_plugin("obj.test.validator")
-    assert plugin.context.config["expected_key"] == "expected_value"
-```
-
-### Integration Tests (Full Pipeline)
-
-```python
-# Test plugin within full compilation pipeline
-
-def test_plugin_in_pipeline(kernel, test_yaml_file):
-    """Test plugin runs in correct stage with correct data"""
-    result = kernel.compile(test_yaml_file)
-
-    # Find plugin result in aggregated diagnostics
-    plugin_diags = [d for d in result.diagnostics
-                    if d.plugin_id == "obj.test.validator"]
-    assert len(plugin_diags) > 0
+    results = registry.execute_stage(Stage.VALIDATE, ctx)
+    assert all(r.status != PluginStatus.FAILED for r in results)
 ```
 
 ---
 
 ## Best Practices
 
-### ✅ DO
+### Do
 
-1. **Validate config early** - Implement `validate_config()` thoroughly
-2. **Emit diagnostics for everything** - Warnings, info, errors all matter
-3. **Provide source location** - Help users find issues in YAML
-4. **Document with docstrings** - Future developers need context
-5. **Write contracts, not implementations** - Think about your plugin's interface
-6. **Handle missing dependencies gracefully** - Don't assume other plugins succeeded
-7. **Test error paths** - Most bugs hide in error handling
-8. **Use semantic error codes** - `DEV001` is better than `ERROR1`
-9. **Publish useful data** - If other plugins need your output, use context.publish()
-10. **Keep plugins small** - One responsibility per plugin
+- **Declare everything** — `produces`, `consumes`, `depends_on`, `config_schema`.
+- **Use `make_result()`** — don't construct `PluginResult` manually.
+- **Use `emit_diagnostic()`** — structured diagnostics with error codes from the catalog.
+- **Include `hint`** in diagnostics — actionable remediation advice.
+- **Include `source_file`/`source_line`** when possible — helps users locate issues.
+- **Keep plugins focused** — one concern per plugin. Split large plugins.
+- **Set `timeout`** appropriately — default 30s may be too short for large generators.
+- **Write tests** — unit tests with mock context, integration tests with real registry.
+- **Use `pipeline_shared` scope** for data consumed by later stages.
 
-### ❌ DON'T
+### Don't
 
-1. **Mutate input data** - Always return new dicts, don't modify what you receive
-2. **Hardcode paths** - Use manifest paths and context.config
-3. **Suppress exceptions** - Always emit diagnostics
-4. **Share state between plugins** - Use context.subscribe() for inter-plugin communication
-5. **Assume plugins ran before you** - Check depends_on, use context.subscribe() safely
-6. **Log directly to files** - Use context.log()
-7. **Create threads/subprocesses** - Kernel controls concurrency
-8. **Make network requests** - Topology tools are offline-first
-9. **Store credentials in code** - Use environment variables or context.config
-10. **Return different output_data types** - Be consistent with contract
+- **Don't mutate `ctx.compiled_json`** unless you're the declared `compiled_json_owner`.
+- **Don't write files outside `ctx.output_dir`** (generators) or declared paths.
+- **Don't import other plugins directly** — use `ctx.subscribe()` for data exchange.
+- **Don't use global mutable state** — plugins may execute in parallel.
+- **Don't swallow exceptions silently** — let unexpected errors propagate to kernel.
+- **Don't hardcode paths** — use `ctx.output_dir`, `ctx.workspace_root`, etc.
+- **Don't depend on execution order within the same phase** — use `depends_on` instead.
 
 ---
 
-## Troubleshooting
+## Migration from Legacy API
 
-### Plugin Not Loaded
+The v5 plugin API replaced the earlier `topology_tools.plugin_api` module.
 
-**Problem:** Kernel says plugin not found
+### Import Changes
 
-**Solutions:**
-1. Check plugin `id` in manifest matches what you're requesting
-2. Check `entry` path is correct relative to module root
-3. Check Python class name matches `entry` (case-sensitive)
-4. Run `kernel.validate_manifest()` to catch manifest errors
+| Legacy | Current |
+|--------|---------|
+| `from topology_tools.plugin_api import YamlValidatorPlugin` | `from kernel.plugin_base import ValidatorYamlPlugin` |
+| `from topology_tools.plugin_api import JsonValidatorPlugin` | `from kernel.plugin_base import ValidatorJsonPlugin` |
+| `from topology_tools.plugin_api import CompilerPlugin` | `from kernel.plugin_base import CompilerPlugin` |
+| `from topology_tools.plugin_api import GeneratorPlugin` | `from kernel.plugin_base import GeneratorPlugin` |
+| `PluginSeverity.ERROR` | `"error"` (string) |
+| `PluginSeverity.WARNING` | `"warning"` (string) |
+| `self.context.plugin_id` | `self.plugin_id` |
+| `self.context.config` | `ctx.config` (passed as argument) |
+| `self.context.log(...)` | Use standard `logging` module |
+
+### Method Signature Changes
 
 ```python
-result = kernel.validate_manifest("path/to/plugins.yaml")
-if not result.is_valid:
-    print(result.errors)
+# Legacy
+def execute(self, yaml_dict, source_path) -> PluginResult:
+
+# Current
+def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
 ```
 
-### Plugin Timeouts
+### Diagnostic Changes
 
-**Problem:** Plugin runs longer than 30 seconds
+```python
+# Legacy
+PluginDiagnostic(
+    severity=PluginSeverity.ERROR,
+    code="DEV001",
+    message="Missing field",
+    location={"file": source_path, "line": 1}
+)
 
-**Solutions:**
-1. Optimize algorithm (use indices, avoid nested loops)
-2. Cache expensive computations
-3. Implement incremental processing (process in chunks)
-4. Consider if this should be split into multiple plugins
+# Current
+self.emit_diagnostic(
+    code="E5001", severity="error", stage=stage,
+    message="Missing field",
+    path="devices.r1",
+    source_file=ctx.source_file, source_line=1
+)
+```
 
-### Plugin Config Not Working
+### Manifest Changes
 
-**Problem:** context.config is empty or missing keys
-
-**Solutions:**
-1. Check manifest has `config:` section with keys
-2. Check `config_schema` is valid JSON Schema
-3. Check environment variable format: `TOPO_PLUGIN_ID_KEY=value`
-4. Call `validate_config()` to catch config errors
-
-### Plugin Results Aggregation
-
-**Problem:** Diagnostics not appearing in final report
-
-**Solutions:**
-1. Check plugin `stages` matches pipeline execution
-2. Check plugin `order` - maybe it runs too late?
-3. Check plugin `depends_on` - maybe dependency failed?
-4. Check diagnostics severity - some levels may be filtered
-5. Look at kernel logs to see if plugin ran
-
----
-
-## Next Steps
-
-1. Read ADR 0063 for architecture overview
-2. Read ADR 0064 for API contract details
-3. Look at examples in `topology/base-plugins/` for reference implementations
-4. Create your first plugin using this guide
-5. Run tests: `pytest topology/object-modules/[your-module]/tests/`
-6. Submit for code review focusing on:
-   - Config validation completeness
-   - Diagnostic quality and location info
-   - Test coverage of error cases
-   - Documentation clarity
+```yaml
+# New required fields in manifest:
+phase: run                          # Explicit phase (was implicit)
+when:                               # Replaces profile_restrictions
+  profiles: [production]
+produces:                           # Declare outputs
+  - key: my_output
+    scope: pipeline_shared
+consumes:                           # Declare inputs
+  - from_plugin: base.compiler.x
+    key: some_key
+    required: true
+```
