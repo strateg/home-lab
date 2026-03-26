@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import sys
+import zipfile
 from pathlib import Path
 
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
@@ -89,6 +90,13 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
 
     assembly_manifest = workspace_root / "assembly-manifest.json"
     assert assembly_manifest.exists()
+    assembled_doc = workspace_root / "docs" / "overview.md"
+    assert assembled_doc.exists()
+    assert assembled_doc.read_text(encoding="utf-8") == "hello\n"
+    assembly_payload = json.loads(assembly_manifest.read_text(encoding="utf-8"))
+    assembly_files = assembly_payload.get("files", [])
+    assert isinstance(assembly_files, list)
+    assert any(isinstance(row, dict) and row.get("path") == "docs/overview.md" for row in assembly_files)
 
     build_results = registry.execute_stage(Stage.BUILD, ctx)
     assert [r.plugin_id for r in build_results] == [
@@ -104,6 +112,12 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     assert bundle_path.exists()
     assert sbom_path.exists()
     assert release_manifest_path.exists()
+    with zipfile.ZipFile(bundle_path, "r") as archive:
+        assert sorted(archive.namelist()) == ["docs/overview.md"]
+
+    release_manifest = json.loads(release_manifest_path.read_text(encoding="utf-8"))
+    assert release_manifest["bundle"]["path"] == str(bundle_path)
+    assert release_manifest["assembly_manifest_path"] == str(assembly_manifest)
 
 
 def test_assemble_verify_flags_secret_like_content(tmp_path: Path):

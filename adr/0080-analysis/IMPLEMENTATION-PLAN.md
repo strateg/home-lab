@@ -34,6 +34,7 @@ Unify the plugin runtime around a single lifecycle model with:
 - Contract-warning parity tests confirm no `W800x` data-bus warnings on current `production`/`modeled` baseline.
 - Base-manifest run-phase backward-compat regression test now verifies `execute_phase(run)` dispatches through `execute()` for 47+ plugins.
 - Quality-gate contract tests assert key validation/render gate plugins stay active in plugin-first path.
+- Cutover checklist closure: `.work/native` + `dist` assembly/build parity is now covered by integration assertions.
 - `Wave E.1` completed: `base.generator.artifact_manifest` implemented at `generate/finalize`.
 - `Wave F` completed (runtime slice): assemble stage plugins implemented (`workspace`, `verify`, `manifest`) and wired into compiler lifecycle.
 - `Wave G` completed (runtime slice): build stage plugins implemented (`bundle`, `sbom`, `release_manifest`) and wired into compiler lifecycle.

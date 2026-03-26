@@ -84,7 +84,7 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] `assemble.run` merges baseline artifacts with overrides and local inputs.
 - [x] `assemble.verify` checks override layering, local-input requirements, and secret-leak guard.
 - [x] `assemble.finalize` emits assembly manifest.
-- [ ] Assembled `.work/native/` and `dist/` are at parity with previous workflows.
+- [x] Assembled `.work/native/` and `dist/` are at parity with previous workflows.
 - [x] Secret-leak guard catches test cases with mock unencrypted secrets.
 - [x] `E810x` diagnostics emitted by assemble verify plugins.
 
