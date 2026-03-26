@@ -20,6 +20,20 @@ Unify the plugin runtime around a single lifecycle model with:
 
 ---
 
+## Implementation Status (2026-03-26)
+
+- `Wave B` completed: runtime stage/phase enums, plugin kind extensions, scope-based execution context, and schema alignment are implemented.
+- `Wave C` completed: stage->phase executor, finalize guarantees, `stage_local` invalidation, and trace mode are implemented.
+- `Wave C+` completed: intra-phase parallel wavefront executor, deterministic result ordering, and thread-safe publish/subscribe are implemented.
+- `Wave D` completed: explicit `phase` annotations are present across all discovered manifests.
+- `Wave E` completed: produces/consumes contracts are validated; strict undeclared contract mode (`E8004`-`E8007`) is implemented.
+- `Wave E.1` completed: `base.generator.artifact_manifest` implemented at `generate/finalize`.
+- `Wave F` completed (runtime slice): assemble stage plugins implemented (`workspace`, `verify`, `manifest`) and wired into compiler lifecycle.
+- `Wave G` completed (runtime slice): build stage plugins implemented (`bundle`, `sbom`, `release_manifest`) and wired into compiler lifecycle.
+- `Wave H` partially completed: `profile_restrictions` alias removed from runtime/schema; remaining hard-cutover cleanup tracked in checklist.
+
+---
+
 ## Primary Files
 
 | File | Role |
