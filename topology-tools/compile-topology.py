@@ -31,7 +31,16 @@ from compiler_runtime import (
 from framework_lock import default_framework_manifest_path
 from framework_lock import resolve_paths as resolve_framework_lock_paths
 from framework_lock import verify_framework_lock
-from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
+from kernel import (
+    KERNEL_VERSION,
+    Phase,
+    PluginContext,
+    PluginDiagnostic,
+    PluginRegistry,
+    PluginResult,
+    PluginStatus,
+    Stage,
+)
 from plugin_manifest_discovery import discover_plugin_manifest_paths
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -509,6 +518,53 @@ class V5Compiler:
             emit_diagnostics=True,
         )
 
+    def _record_plugin_results(self, *, stage: Stage, results: list[PluginResult]) -> None:
+        """Store plugin results and project diagnostics into compiler report stream."""
+        self._plugin_results.extend(results)
+        for result in results:
+            for plugin_diag in result.diagnostics:
+                diag = Diagnostic.from_plugin_diagnostic(plugin_diag)
+                self._diagnostics.append(diag)
+
+            if result.status == PluginStatus.TIMEOUT:
+                self.add_diag(
+                    code="E4101",
+                    severity="error",
+                    stage=str(stage.value),
+                    message=f"Plugin '{result.plugin_id}' timed out after {result.duration_ms:.0f}ms",
+                    path=f"plugin:{result.plugin_id}",
+                )
+            elif result.status == PluginStatus.FAILED and result.error_traceback:
+                tb_lines = [line for line in result.error_traceback.strip().split("\n") if line.strip()]
+                error_msg = tb_lines[-1] if tb_lines else "unknown error"
+                self.add_diag(
+                    code="E4102",
+                    severity="error",
+                    stage=str(stage.value),
+                    message=f"Plugin '{result.plugin_id}' crashed: {error_msg}",
+                    path=f"plugin:{result.plugin_id}",
+                )
+
+    def _bootstrap_discover_manifest_loader(self, *, ctx: PluginContext) -> None:
+        """Execute discover/init loader plugin when discover stage is not selected."""
+        if not self._plugin_registry or self._plugin_manifests_loaded:
+            return
+        result = self._plugin_registry.execute_plugin(
+            "base.discover.manifest_loader",
+            ctx,
+            Stage.DISCOVER,
+            phase=Phase.INIT,
+            contract_warnings=self.plugin_contract_warnings,
+            contract_errors=self.plugin_contract_errors,
+        )
+        self._record_plugin_results(stage=Stage.DISCOVER, results=[result])
+        discovered_paths = ctx.config.get("discovered_plugin_manifests")
+        if isinstance(discovered_paths, list):
+            self._discovered_manifest_paths = [item for item in discovered_paths if isinstance(item, str)]
+        discovered_count = ctx.config.get("discovered_plugin_count")
+        if isinstance(discovered_count, int):
+            self._discovered_plugin_count = discovered_count
+
     def _execute_plugins(
         self,
         *,
@@ -538,34 +594,7 @@ class V5Compiler:
         if self.plugin_contract_errors:
             execute_kwargs["contract_errors"] = True
         results = self._plugin_registry.execute_stage(stage, ctx, **execute_kwargs)
-        self._plugin_results.extend(results)
-
-        # Convert plugin diagnostics to compiler diagnostics
-        for result in results:
-            for plugin_diag in result.diagnostics:
-                diag = Diagnostic.from_plugin_diagnostic(plugin_diag)
-                self._diagnostics.append(diag)
-
-            # Add execution info diagnostic
-            if result.status == PluginStatus.TIMEOUT:
-                self.add_diag(
-                    code="E4101",
-                    severity="error",
-                    stage=str(stage.value),
-                    message=f"Plugin '{result.plugin_id}' timed out after {result.duration_ms:.0f}ms",
-                    path=f"plugin:{result.plugin_id}",
-                )
-            elif result.status == PluginStatus.FAILED and result.error_traceback:
-                # Extract last meaningful line from traceback
-                tb_lines = [line for line in result.error_traceback.strip().split("\n") if line.strip()]
-                error_msg = tb_lines[-1] if tb_lines else "unknown error"
-                self.add_diag(
-                    code="E4102",
-                    severity="error",
-                    stage=str(stage.value),
-                    message=f"Plugin '{result.plugin_id}' crashed: {error_msg}",
-                    path=f"plugin:{result.plugin_id}",
-                )
+        self._record_plugin_results(stage=stage, results=results)
 
     def add_diag(
         self,
@@ -977,11 +1006,7 @@ class V5Compiler:
             if isinstance(discovered_count, int):
                 self._discovered_plugin_count = discovered_count
         elif not self._plugin_manifests_loaded:
-            self._load_module_plugin_manifests(
-                class_modules_root=manifest_bundle.class_modules_root,
-                object_modules_root=manifest_bundle.object_modules_root,
-                emit_diagnostics=True,
-            )
+            self._bootstrap_discover_manifest_loader(ctx=plugin_ctx)
             plugin_ctx.config["discovered_plugin_manifests"] = list(self._discovered_manifest_paths)
             plugin_ctx.config["discovered_plugin_count"] = self._discovered_plugin_count
         if any(item.severity == "error" for item in self._diagnostics):

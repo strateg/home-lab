@@ -21,8 +21,7 @@ Current runtime (AS-IS baseline confirmed on 2026-03-26):
 1. Runtime stages in code are `compile`, `validate`, `generate`.
 2. No `Phase` concept in runtime execution (`stage -> DAG/order` only).
 3. `publish/subscribe` is operational but key contracts are implicit.
-4. Base manifest is loaded procedurally; module manifests are loaded by `discover.init` plugin
-   (compatibility fallback remains only for `--stages` runs that omit `discover`).
+4. Base manifest is loaded procedurally; module manifests are loaded by `discover.init` plugin.
 5. Discovered inventory is 57 plugins in 7 manifests (`compile`: 7, `validate`: 40, `generate`: 10).
 6. Base manifest currently registers 48 plugins (`compile`: 7, `validate`: 36, `generate`: 5).
 7. Schema/runtime are not aligned yet: schema accepts `build` stage and `phase=finished`, while runtime `Stage` supports only `compile|validate|generate`.

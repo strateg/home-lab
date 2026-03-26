@@ -107,7 +107,7 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] `discover.run` builds plugin DAG and validates for cycles.
 - [x] `discover.verify` runs capability catalog preflight.
 - [x] All `discover.*` plugins reside in base manifest only — not in class/object modules.
-- [ ] Base manifest is the only pre-lifecycle procedural load; no other procedural manifest loading exists.
+- [x] Base manifest is the only pre-lifecycle procedural load; module manifests are loaded via `discover.init`.
 - [x] `compiler_runtime.discover_plugin_manifests()` bare function is **absent** from codebase.
 - [x] `instances_root` is NOT scanned for plugin manifests (ADR 0071).
 
@@ -167,7 +167,7 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ### ADR 0075 (Framework/Project Separation)
 
-- [ ] `discover.pre` enforces framework/project boundary check.
+- [x] `discover.pre` enforces framework/project boundary check.
 
 ### ADR 0078 (Object-Module Plugins)
 
@@ -188,7 +188,7 @@ Complete when all Waves A–H are done and all items below are verified.
 
 - [ ] No `W800x` warnings in CI (all pub/sub annotated).
 - [x] `compiler_runtime.discover_plugin_manifests()` deleted.
-- [ ] No dead code paths bypassing plugin lifecycle exist in `compile-topology.py`.
+- [x] No dead code paths bypassing plugin lifecycle exist in `compile-topology.py` (except base-manifest bootstrap by contract).
 - [x] `profile_restrictions` field absent from `PluginSpec` dataclass and manifest schema.
 - [x] No plugin manifests contain `profile_restrictions` entries.
 - [ ] Operator runbooks updated.
