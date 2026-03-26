@@ -197,7 +197,7 @@ class V5Compiler:
         parallel_plugins: bool = True,
         trace_execution: bool = False,
         plugin_contract_warnings: bool = False,
-        plugin_contract_errors: bool = False,
+        plugin_contract_errors: bool = True,
         workspace_root: Path | None = None,
         dist_root: Path | None = None,
         signing_backend: str = "none",
@@ -1247,8 +1247,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--plugin-contract-errors",
         action="store_true",
-        help="Treat undeclared produces/consumes runtime usage as hard errors (E8004-E8007).",
+        help="Treat undeclared produces/consumes runtime usage as hard errors (E8004-E8007, default).",
     )
+    parser.add_argument(
+        "--no-plugin-contract-errors",
+        dest="plugin_contract_errors",
+        action="store_false",
+        help="Disable hard errors for undeclared produces/consumes runtime usage.",
+    )
+    parser.set_defaults(plugin_contract_errors=True)
     return parser
 
 

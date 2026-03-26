@@ -403,6 +403,37 @@ def test_execute_plugins_propagates_contract_modes_to_registry(monkeypatch):
     ]
 
 
+def test_plugin_contract_errors_enabled_by_default():
+    mod = _load_compiler_module()
+    test_output_dir = mod.REPO_ROOT / "build" / "test-plugin-contract-defaults"
+
+    compiler = mod.V5Compiler(
+        manifest_path=mod.DEFAULT_MANIFEST,
+        output_json=test_output_dir / "effective-topology.json",
+        diagnostics_json=test_output_dir / "diagnostics.json",
+        diagnostics_txt=test_output_dir / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+    )
+
+    assert compiler.plugin_contract_warnings is False
+    assert compiler.plugin_contract_errors is True
+
+
+def test_parser_allows_disabling_default_plugin_contract_errors():
+    mod = _load_compiler_module()
+    parser = mod.build_parser()
+    defaults = parser.parse_args([])
+    disabled = parser.parse_args(["--no-plugin-contract-errors"])
+
+    assert defaults.plugin_contract_errors is True
+    assert disabled.plugin_contract_errors is False
+
+
 def test_strict_only_rejects_legacy_instance_bindings_path():
     mod = _load_compiler_module()
     test_output_dir = mod.REPO_ROOT / "build" / "test-strict-only-legacy-paths"
