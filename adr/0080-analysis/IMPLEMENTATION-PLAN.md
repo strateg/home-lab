@@ -31,6 +31,8 @@ Unify the plugin runtime around a single lifecycle model with:
 - Error catalog range conformance tests now guard ADR0080 allocations (`E800x/E810x/E820x/W800x`) against overlap.
 - Repeated-run deterministic guards are added for parallel result ordering and artifact manifest emission.
 - Profile parity tests now compare sequential vs parallel diagnostics/trace signatures for `production` and `modeled`.
+- Contract-warning parity tests confirm no `W800x` data-bus warnings on current `production`/`modeled` baseline.
+- Quality-gate contract tests assert key validation/render gate plugins stay active in plugin-first path.
 - `Wave E.1` completed: `base.generator.artifact_manifest` implemented at `generate/finalize`.
 - `Wave F` completed (runtime slice): assemble stage plugins implemented (`workspace`, `verify`, `manifest`) and wired into compiler lifecycle.
 - `Wave G` completed (runtime slice): build stage plugins implemented (`bundle`, `sbom`, `release_manifest`) and wired into compiler lifecycle.

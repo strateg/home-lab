@@ -631,6 +631,33 @@ def test_generator_plugins_declare_generated_files_contract():
     assert missing == []
 
 
+def test_quality_gate_plugins_remain_enabled_in_plugin_first_path():
+    """ADR0027 guardrail: core validation/render quality-gate plugins stay registered."""
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+
+    governance = registry.specs["base.validator.governance_contract"]
+    layout = registry.specs["base.validator.foundation_layout"]
+    include_contract = registry.specs["base.validator.foundation_include_contract"]
+    placement = registry.specs["base.validator.foundation_file_placement"]
+    docs = registry.specs["base.generator.docs"]
+    diagrams = registry.specs["base.generator.diagrams"]
+
+    assert governance.stages == [Stage.VALIDATE]
+    assert governance.phase == Phase.PRE
+    assert layout.stages == [Stage.VALIDATE]
+    assert layout.phase == Phase.PRE
+    assert include_contract.stages == [Stage.VALIDATE]
+    assert include_contract.phase == Phase.PRE
+    assert placement.stages == [Stage.VALIDATE]
+    assert placement.phase == Phase.PRE
+
+    assert docs.stages == [Stage.GENERATE]
+    assert docs.phase == Phase.POST
+    assert diagrams.stages == [Stage.GENERATE]
+    assert diagrams.phase == Phase.POST
+
+
 def test_manifest_rejects_out_of_range_order(tmp_path: Path):
     """Plugin order must stay inside stage-specific ranges."""
     manifest = tmp_path / "plugins.yaml"
@@ -705,6 +732,7 @@ if __name__ == "__main__":
         test_base_manifest_declares_high_value_data_bus_contracts,
         test_all_discovered_manifests_have_explicit_phase,
         test_generator_plugins_declare_generated_files_contract,
+        test_quality_gate_plugins_remain_enabled_in_plugin_first_path,
         test_manifest_rejects_out_of_range_order,
         test_base_manifest_plugin_orders_follow_stage_ranges,
     ]

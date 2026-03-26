@@ -153,7 +153,7 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ### ADR 0027 (Quality Gates)
 
-- [ ] Render/validation quality gates remain enabled in plugin-first path.
+- [x] Render/validation quality gates remain enabled in plugin-first path.
 
 ### ADR 0065 (Plugin API Contract)
 
@@ -186,7 +186,7 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ## O. Legacy Path Retirement
 
-- [ ] No `W800x` warnings in CI (all pub/sub annotated).
+- [x] No `W800x` warnings in CI (all pub/sub annotated).
 - [x] `compiler_runtime.discover_plugin_manifests()` deleted.
 - [x] No dead code paths bypassing plugin lifecycle exist in `compile-topology.py` (except base-manifest bootstrap by contract).
 - [x] `profile_restrictions` field absent from `PluginSpec` dataclass and manifest schema.
