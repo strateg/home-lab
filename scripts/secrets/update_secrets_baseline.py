@@ -16,17 +16,32 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BASELINE = REPO_ROOT / ".secrets.baseline"
 
+# Keep this list aligned with the detect-secrets hook exclude list in
+# `.pre-commit-config.yaml` to avoid baseline churn between the update
+# step and the check step.
 EXCLUDES = [
     r"v4/.*",
+    r"archive/.*",
     r"\.github/workflows/.*",
     r"Migrated_and_archived/.*",
-    r"v5/projects/.*/secrets/.*",
-    r"v5/projects/.*/project\.yaml",
-    r"v5/projects/.*/framework\.lock\.yaml",
-    r"v5/tests/.*",
+    r"manual-scripts/.*",
+    r"projects/.*/secrets/.*",
+    r"projects/.*/project\.yaml$",
+    r"projects/.*/framework\.lock\.yaml$",
+    r"tests/.*",
     r"docs/.*",
-    r"v5/topology/object-modules/.*/obj\..*\.yaml",
-    r"v5/topology-tools/plugins/plugins\.yaml",
+    r"topology/object-modules/.*/obj\..*\.yaml$",
+    r"topology-tools/plugins/plugins\.yaml$",
+    r"topology-tools/(audit-strict-runtime-entrypoints|bootstrap-project-repo|cutover-readiness-report)\.py$",
+    r"ansible/group_vars/.*\.yml\.example$",
+    r"ansible/.*\.sh$",
+    r"ansible/README\.md$",
+    r"bootstrap/.*",
+    r"configs/vpn/.*",
+    r"docs/guides/.*",
+    r"secrets/.*\.yaml$",
+    r"MIGRATION\.md$",
+    r"\.secrets\.baseline$",
 ]
 
 
