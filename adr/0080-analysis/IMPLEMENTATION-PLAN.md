@@ -32,6 +32,7 @@ Unify the plugin runtime around a single lifecycle model with:
 - `Wave E.1` completed: `base.generator.artifact_manifest` implemented at `generate/finalize`.
 - `Wave F` completed (runtime slice): assemble stage plugins implemented (`workspace`, `verify`, `manifest`) and wired into compiler lifecycle.
 - `Wave G` completed (runtime slice): build stage plugins implemented (`bundle`, `sbom`, `release_manifest`) and wired into compiler lifecycle.
+- Parallel executor is now default; CLI exposes `--no-parallel-plugins` to force sequential mode.
 - Discover bootstrap is pluginized: base manifest is loaded procedurally, module manifests are loaded by `discover.init`, and `instances_root` is excluded from plugin discovery.
 - `Wave H` partially completed: `profile_restrictions` alias removed from runtime/schema; remaining hard-cutover cleanup tracked in checklist.
 

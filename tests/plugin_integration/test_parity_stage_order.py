@@ -321,11 +321,11 @@ def test_compile_stage_uses_fail_fast_in_registry(monkeypatch):
     )
     assert compiler._plugin_registry is not None
 
-    calls: list[tuple[str, bool]] = []
+    calls: list[tuple[str, bool, bool]] = []
 
-    def _fake_execute_stage(stage, ctx, profile=None, fail_fast=False):
+    def _fake_execute_stage(stage, ctx, profile=None, fail_fast=False, **kwargs):
         _ = (ctx, profile)
-        calls.append((stage.value, fail_fast))
+        calls.append((stage.value, fail_fast, bool(kwargs.get("parallel_plugins", False))))
         return []
 
     monkeypatch.setattr(compiler._plugin_registry, "execute_stage", _fake_execute_stage)
@@ -339,7 +339,7 @@ def test_compile_stage_uses_fail_fast_in_registry(monkeypatch):
     compiler._execute_plugins(stage=mod.Stage.COMPILE, ctx=ctx)
     compiler._execute_plugins(stage=mod.Stage.VALIDATE, ctx=ctx)
 
-    assert calls == [("compile", True), ("validate", False)]
+    assert calls == [("compile", True, True), ("validate", False, True)]
 
 
 def test_execute_plugins_propagates_contract_modes_to_registry(monkeypatch):

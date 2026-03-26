@@ -229,4 +229,4 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] Thread-safety unit tests pass: concurrent publish/subscribe with ≥8 threads, no data loss.
 - [x] Diagnostics and plugin results are emitted in deterministic order (`stage`, `phase`, `order`, `plugin_id`) across repeated parallel runs.
 - [x] Timeout in parallel mode fails only the timed-out plugin, skips its dependants in the same phase, and still preserves stage-level `finalize`.
-- [ ] `--parallel-plugins` promoted to default in Wave H (after regression parity verified).
+- [x] `--parallel-plugins` promoted to default in Wave H (after regression parity verified).

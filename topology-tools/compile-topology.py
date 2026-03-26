@@ -194,7 +194,7 @@ class V5Compiler:
         parity_gate: bool = False,
         enable_plugins: bool = True,
         plugins_manifest_path: Path | None = None,
-        parallel_plugins: bool = False,
+        parallel_plugins: bool = True,
         trace_execution: bool = False,
         plugin_contract_warnings: bool = False,
         plugin_contract_errors: bool = False,
@@ -1199,10 +1199,18 @@ def build_parser() -> argparse.ArgumentParser:
         default=str(DEFAULT_PLUGINS_MANIFEST.as_posix()),
         help="Path to plugin manifest YAML (defaults to compiler script directory).",
     )
+    parser.set_defaults(parallel_plugins=True)
     parser.add_argument(
         "--parallel-plugins",
+        dest="parallel_plugins",
         action="store_true",
-        help="Enable parallel plugin execution within each stage phase.",
+        help="Enable parallel plugin execution within each stage phase (default).",
+    )
+    parser.add_argument(
+        "--no-parallel-plugins",
+        dest="parallel_plugins",
+        action="store_false",
+        help="Disable parallel plugin execution and force sequential stage-phase execution.",
     )
     parser.add_argument(
         "--trace-execution",
