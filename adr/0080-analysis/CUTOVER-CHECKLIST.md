@@ -148,8 +148,8 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ### ADR 0005 (Determinism)
 
-- [ ] Generated artifact ordering is deterministic across repeated runs with new executor.
-- [ ] No noisy diffs on stable inputs after phase-aware execution.
+- [x] Generated artifact ordering is deterministic across repeated runs with new executor.
+- [x] No noisy diffs on stable inputs after phase-aware execution.
 
 ### ADR 0027 (Quality Gates)
 

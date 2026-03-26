@@ -1034,6 +1034,86 @@ def test_execute_stage_parallel_keeps_deterministic_order(tmp_path: Path):
     assert all(result.status == PluginStatus.SUCCESS for result in parallel)
 
 
+def test_execute_stage_parallel_is_deterministic_across_repeated_runs(tmp_path: Path):
+    """Repeated parallel executions should preserve identical result ordering."""
+    _write_module(
+        tmp_path / "parallel_plugins.py",
+        "\n".join(
+            [
+                "import time",
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class SleepPlugin(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        sleep_ms = int(ctx.active_config.get('sleep_ms', 0))",
+                "        if sleep_ms > 0:",
+                "            time.sleep(sleep_ms / 1000.0)",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "repeat.validator_json.first",
+                "kind": "validator_json",
+                "entry": "parallel_plugins.py:SleepPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+                "config": {"sleep_ms": 35},
+            },
+            {
+                "id": "repeat.validator_json.second",
+                "kind": "validator_json",
+                "entry": "parallel_plugins.py:SleepPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 120,
+                "config": {"sleep_ms": 5},
+            },
+            {
+                "id": "repeat.validator_json.third",
+                "kind": "validator_json",
+                "entry": "parallel_plugins.py:SleepPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 150,
+                "config": {"sleep_ms": 20},
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    expected_order = [
+        "repeat.validator_json.first",
+        "repeat.validator_json.second",
+        "repeat.validator_json.third",
+    ]
+    observed_orders: list[list[str]] = []
+    for _ in range(12):
+        registry = PluginRegistry(V5_TOOLS)
+        registry.load_manifest(manifest)
+        ctx = PluginContext(
+            topology_path="test",
+            profile="test",
+            model_lock={},
+            classes={},
+            objects={},
+            instance_bindings={"instance_bindings": {}},
+        )
+        results = registry.execute_stage(Stage.VALIDATE, ctx, parallel_plugins=True)
+        observed_orders.append([result.plugin_id for result in results])
+        assert all(result.status == PluginStatus.SUCCESS for result in results)
+
+    assert all(order == expected_order for order in observed_orders)
+
+
 def test_execute_stage_parallel_respects_depends_on(tmp_path: Path):
     """Parallel wavefront execution must honor intra-phase dependency edges."""
     _write_module(
@@ -2016,6 +2096,7 @@ if __name__ == "__main__":
         test_partial_stage_selection_runs_finalize_for_started_stages_only,
         test_execute_stage_skips_when_before_capability_preflight,
         test_execute_stage_parallel_keeps_deterministic_order,
+        test_execute_stage_parallel_is_deterministic_across_repeated_runs,
         test_execute_stage_parallel_respects_depends_on,
         test_execute_stage_invalidates_stage_local_outputs,
         test_execute_stage_trace_records_execution_events,
