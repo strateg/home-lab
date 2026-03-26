@@ -2,7 +2,7 @@
 
 **ADR:** `adr/0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md`
 **Date:** 2026-03-26
-**Status:** Proposed
+**Status:** Accepted
 **Gap Analysis:** `adr/0080-analysis/GAP-ANALYSIS.md`
 **Cutover Checklist:** `adr/0080-analysis/CUTOVER-CHECKLIST.md`
 
@@ -28,9 +28,10 @@ Unify the plugin runtime around a single lifecycle model with:
 | `topology-tools/kernel/plugin_registry.py` | Phase-aware executor, `when` predicate evaluation |
 | `topology-tools/compiler_runtime.py` | Discovery pluginization |
 | `topology-tools/compile-topology.py` | Thin orchestrator wiring |
-| `topology-tools/plugins/plugins.yaml` | Phase annotations for all 47+ base plugins |
+| `topology-tools/plugins/plugins.yaml` | Phase annotations for all base plugins (current baseline: 48 in base manifest, 57 discovered total) |
 | `topology-tools/schemas/plugin-manifest.schema.json` | `phase`, `produces`, `consumes`, `when` fields |
 | `topology-tools/data/error-catalog.yaml` | E80xx–E82xx range allocation |
+| `tests/plugin_contract/test_manifest.py` | Schema/runtime conformance tests for stage/phase vocabulary |
 
 ---
 
@@ -57,6 +58,15 @@ from Wave B, not the new executor from Wave C.
 
 ---
 
+## P0 Alignment Blockers (must be closed in Wave B)
+
+1. Runtime `Stage` enum currently supports only `compile|validate|generate`, while schema already accepts `build`.
+2. Schema phase enum uses draft token `finished`, while target lifecycle token is `finalize`.
+3. Runtime does not parse/store `phase` yet (`PluginSpec` is stage-only).
+4. Existing contract tests currently assert draft schema values and must be realigned to target ADR vocabulary.
+
+---
+
 ## Wave A — Baseline and Inventory Freeze
 
 **Goal:** Freeze current behavior before lifecycle refactor.
@@ -64,7 +74,7 @@ from Wave B, not the new executor from Wave C.
 **Tasks:**
 
 1. Count actual registered plugins per stage across all discovered manifests
-   (base manifest shows 47; ADR estimate of 57 needs reconciliation against object/class modules).
+   (current observed baseline: 57 plugins in 7 manifests; base manifest: 48).
 2. Snapshot current plugin execution order and published data keys via `ctx.get_published_data()`
    after a full compile run on `production` and `modeled` profiles.
 3. Add regression fixtures for generated outputs and diagnostics.
@@ -104,26 +114,30 @@ from Wave B, not the new executor from Wave C.
    release_tag: Optional[str]      # for provenance
    sbom_output_dir: Optional[str]
    ```
-6. Add `produces`/`consumes` fields to manifest schema (unenforced, structure only).
-7. Allocate diagnostic code ranges in `error-catalog.yaml`:
+6. Align schema stage enum to runtime target: `discover`, `compile`, `validate`, `generate`, `assemble`, `build`.
+7. Align schema phase enum to runtime target: `init`, `pre`, `run`, `post`, `verify`, `finalize` (remove draft token `finished`).
+8. Add `produces`/`consumes` fields to manifest schema (unenforced, structure only).
+9. Allocate diagnostic code ranges in `error-catalog.yaml`:
    - `E800x`: discover stage errors
    - `E810x`: assemble stage errors
    - `E820x`: build stage errors
    - `W800x`: data bus undeclared key warnings (transitional)
-8. Define normative `order` ranges per stage:
+10. Define normative `order` ranges per stage:
    - `discover`: 10–89
    - `compile`: 30–89 (preserve)
    - `validate`: 90–189 (preserve)
    - `generate`: 190–399 (preserve, per ADR 0074)
    - `assemble`: 400–499
    - `build`: 500–599
-9. Keep `phase=RUN` default — existing manifests load unchanged.
+11. Keep `phase=RUN` default — existing manifests load unchanged.
+12. Update `tests/plugin_contract/test_manifest.py` to assert aligned stage/phase enums and add test that a manifest with `stage: build` loads successfully in runtime.
 
 **Gate:**
 
 - Contract/unit tests green.
 - Existing manifests load unchanged.
 - Schema validation passes with and without `phase`/`produces`/`consumes`.
+- Schema/runtime vocabulary lock proven by tests (no `build`/`finished` drift).
 
 ---
 
@@ -287,6 +301,7 @@ or re-apply phase annotation after any plugin restructuring.
    - `discover.pre`: framework/project boundary check (ADR 0075).
    - `discover.run`: build plugin DAG, validate cycles.
    - `discover.verify`: capability catalog preflight.
+   - stop scanning `instances_root` for plugin manifests (ADR 0071 data-only policy).
 
 **Gate:**
 
@@ -376,3 +391,4 @@ Mapped to ADR 0080 Section plus additions from gap analysis:
 | 11 | `PluginContext` contains assemble/build fields | B |
 | 12 | `base.generator.artifact_manifest` implemented and emitting checksums | E.1 |
 | 13 | Order ranges defined and documented for all 6 stages | B |
+| 14 | Schema and runtime use identical stage/phase enums (`discover..build`, `init..finalize`) | B |

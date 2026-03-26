@@ -1,6 +1,6 @@
 # ADR 0080: Unified Build Pipeline, Stage-Phase Lifecycle, and Contractual Plugin Data Bus
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-03-26
 - Depends on: ADR 0005, ADR 0027, ADR 0028, ADR 0050, ADR 0051, ADR 0052, ADR 0055, ADR 0056, ADR 0063, ADR 0065, ADR 0066, ADR 0069, ADR 0071, ADR 0072, ADR 0074, ADR 0075, ADR 0076, ADR 0078, ADR 0079
 
@@ -22,8 +22,9 @@ Current runtime (AS-IS baseline confirmed on 2026-03-26):
 2. No `Phase` concept in runtime execution (`stage -> DAG/order` only).
 3. `publish/subscribe` is operational but key contracts are implicit.
 4. `discover_plugin_manifests()` is procedural and outside plugin lifecycle.
-5. Base manifest currently registers 47 plugins (`compile`: 7, `validate`: 35, `generate`: 5).
-6. Historical 57-plugin estimate includes class/object module manifests and must be re-counted during migration.
+5. Discovered inventory is 57 plugins in 7 manifests (`compile`: 7, `validate`: 40, `generate`: 10).
+6. Base manifest currently registers 48 plugins (`compile`: 7, `validate`: 36, `generate`: 5).
+7. Schema/runtime are not aligned yet: schema accepts `build` stage and `phase=finished`, while runtime `Stage` supports only `compile|validate|generate`.
 
 ## Gap Analysis (AS-IS -> Target)
 
@@ -39,6 +40,7 @@ Current runtime (AS-IS baseline confirmed on 2026-03-26):
 | G8 | ADR 0079 coordination is explicit | docs/diagrams plugins are under active migration | churn/conflict risk in Wave D | Medium |
 | G9 | Wave C rollback has execution canary | behavior parity cannot rely only on final artifacts | hidden ordering regressions | Low |
 | G10 | Plugin inventory baseline is accurate | ADR text can drift from discovered manifests | migration scope ambiguity | Low |
+| G11 | Schema/runtime stage-phase vocabulary is aligned | schema allows `build` and `finished`, runtime cannot execute these values | manifest load failures and false green contract tests | High |
 
 Concrete file anchors:
 
@@ -259,6 +261,7 @@ Normative order ranges by stage:
 | G8 | D (coordination rule) |
 | G9 | C |
 | G10 | A |
+| G11 | B |
 
 ### 9.3 Wave A - Baseline and Inventory Freeze
 
@@ -266,7 +269,7 @@ Goal: freeze current behavior before lifecycle refactor.
 
 Tasks:
 
-1. Count discovered plugins per stage across all manifests.
+1. Freeze plugin inventory baseline from discovered manifests (57 plugins / 7 manifests at ADR update time).
 2. Snapshot execution order and published keys for `production` and `modeled`.
 3. Freeze generated outputs and diagnostics for parity tests.
 
@@ -286,15 +289,19 @@ Tasks:
 3. Extend `PluginSpec` with `phase` and `when`.
 4. Extend `PluginDiagnostic` with phase attribution.
 5. Extend `PluginContext` with assemble/build fields.
-6. Extend manifest schema with `phase`, `produces`, `consumes`, `when`.
-7. Allocate `E800x/E810x/E820x/W800x` ranges.
-8. Define order ranges for all six stages.
-9. Keep backward compatibility defaults.
+6. Align manifest schema stage enum with runtime target (`discover|compile|validate|generate|assemble|build`).
+7. Align manifest schema phase enum with ADR vocabulary (`init|pre|run|post|verify|finalize`), removing draft token `finished`.
+8. Extend manifest schema with `phase`, `produces`, `consumes`, `when`.
+9. Allocate `E800x/E810x/E820x/W800x` ranges.
+10. Define order ranges for all six stages.
+11. Keep backward compatibility defaults (`phase` omitted -> `run`; missing `produces/consumes` tolerated until Wave E/H).
+12. Update contract tests to reflect aligned enums and add a loader test proving a `build` stage manifest can be loaded by runtime.
 
 Gate:
 
 1. Contract tests green.
 2. Existing manifests load unchanged.
+3. Schema and runtime accept the same stage/phase vocabulary (no `build`/`finished` drift).
 
 ### 9.5 Wave D - Manifest Phase Annotation (parallel with Wave B)
 
@@ -413,7 +420,8 @@ Gate:
 2. Schema tests: explicit phase, produces/consumes validity, discovery-root policy.
 3. Integration tests: compile->validate and generate->assemble->build declared data-bus chains.
 4. Regression tests: generated parity, assembled workspace parity, release package/trust parity.
-5. Cutover checklist tests from `adr/0080-analysis/CUTOVER-CHECKLIST.md` become release gates.
+5. CI conformance test: schema stage/phase enums must match runtime `Stage`/`Phase` enums.
+6. Cutover checklist tests from `adr/0080-analysis/CUTOVER-CHECKLIST.md` become release gates.
 
 ## Acceptance Criteria
 
@@ -428,8 +436,9 @@ Gate:
 9. `discover` and `assemble` run via plugin registry, no mandatory procedural bypass.
 10. `build` runs via plugin registry and emits trust/release outputs.
 11. `finalize` executes for any started stage, including failure paths.
-12. Diagnostic ranges `E800x/E810x/E820x/W800x` are cataloged without overlap.
-13. Hard cutover removes legacy discovery and undeclared pub/sub usage.
+12. Manifest schema and runtime share the same stage/phase vocabulary (`discover|...|build` and `init|...|finalize`).
+13. Diagnostic ranges `E800x/E810x/E820x/W800x` are cataloged without overlap.
+14. Hard cutover removes legacy discovery and undeclared pub/sub usage.
 
 ## Risks and Mitigations
 
@@ -447,6 +456,8 @@ Gate:
    - Mitigation: Wave A mandatory recount from discovered manifests.
 7. Risk: determinism regressions in later optimization.
    - Mitigation: keep parallel/incremental optimizations after hard cutover and guard with repeat-run assertions.
+8. Risk: schema/runtime drift reappears after partial merges.
+   - Mitigation: add CI guard test that stage and phase enums in schema and runtime stay in sync.
 
 ## References
 
