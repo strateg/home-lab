@@ -827,6 +827,96 @@ def test_execute_stage_runs_finalize_on_fail_fast(tmp_path: Path):
     assert published.get("failure_count") == 1
 
 
+def test_partial_stage_selection_runs_finalize_for_started_stages_only(tmp_path: Path):
+    """Finalize should run for started stages only when later stages are skipped."""
+    plugin_module = tmp_path / "partial_stage_plugins.py"
+    plugin_module.write_text(
+        "\n".join(
+            [
+                "from kernel import CompilerPlugin, GeneratorPlugin, PluginResult, ValidatorJsonPlugin",
+                "",
+                "class CompileFinalize(CompilerPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+                "    def on_finalize(self, ctx, stage):",
+                "        ctx.publish('finalized', True)",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+                "",
+                "class ValidateFinalize(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+                "    def on_finalize(self, ctx, stage):",
+                "        ctx.publish('finalized', True)",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+                "",
+                "class GenerateFinalize(GeneratorPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+                "    def on_finalize(self, ctx, stage):",
+                "        ctx.publish('finalized', True)",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "partial.compile.finalize",
+                "kind": "compiler",
+                "entry": "partial_stage_plugins.py:CompileFinalize",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "finalize",
+                "order": 88,
+            },
+            {
+                "id": "partial.validate.finalize",
+                "kind": "validator_json",
+                "entry": "partial_stage_plugins.py:ValidateFinalize",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "finalize",
+                "order": 188,
+            },
+            {
+                "id": "partial.generate.finalize",
+                "kind": "generator",
+                "entry": "partial_stage_plugins.py:GenerateFinalize",
+                "api_version": "1.x",
+                "stages": ["generate"],
+                "phase": "finalize",
+                "order": 390,
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    compile_results = registry.execute_stage(Stage.COMPILE, ctx)
+    validate_results = registry.execute_stage(Stage.VALIDATE, ctx)
+
+    assert [result.plugin_id for result in compile_results] == ["partial.compile.finalize"]
+    assert [result.plugin_id for result in validate_results] == ["partial.validate.finalize"]
+    published = ctx.get_published_data()
+    assert published.get("partial.compile.finalize", {}).get("finalized") is True
+    assert published.get("partial.validate.finalize", {}).get("finalized") is True
+    assert "partial.generate.finalize" not in published
+
+
 def test_execute_stage_skips_when_before_capability_preflight(tmp_path: Path):
     """Plugins skipped by when-predicate must not fail capability preflight."""
     manifest = tmp_path / "plugins.yaml"
@@ -1923,6 +2013,7 @@ if __name__ == "__main__":
         test_execute_stage_fails_when_plugin_model_versions_require_missing_context,
         test_execute_stage_allows_when_plugin_model_versions_match,
         test_execute_stage_runs_finalize_on_fail_fast,
+        test_partial_stage_selection_runs_finalize_for_started_stages_only,
         test_execute_stage_skips_when_before_capability_preflight,
         test_execute_stage_parallel_keeps_deterministic_order,
         test_execute_stage_parallel_respects_depends_on,

@@ -32,7 +32,7 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] `finalize` phase executes for every started stage in partial `--stages` runs (skipped stages emit no finalize).
 - [x] `finalize` plugins receive full diagnostic context from failed phases.
 - [x] Integration test: stage failure followed by `finalize` emission — passes.
-- [ ] Integration test: `--stages compile,validate` run — `finalize` runs for compile and validate only.
+- [x] Integration test: partial stage selection (`compile,validate`) runs `finalize` for started stages only.
 
 ---
 
