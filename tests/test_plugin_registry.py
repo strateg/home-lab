@@ -13,6 +13,7 @@ Tests cover:
 
 from __future__ import annotations
 
+import json
 import sys
 import time
 from pathlib import Path
@@ -36,12 +37,17 @@ from kernel import (
     PluginStatus,
     ValidatorJsonPlugin,
 )
-from kernel.plugin_base import PluginDiagnostic, Stage
+from kernel.plugin_base import Phase, PluginDiagnostic, Stage
 
 
 def _write_manifest(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
+def _write_module(path: Path, source: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(source, encoding="utf-8")
 
 
 def test_manifest_loading():
@@ -188,6 +194,45 @@ def test_stage_order_respects_depends_on_over_numeric_order(tmp_path: Path):
     registry.load_manifest(manifest)
     order = registry.get_execution_order(Stage.VALIDATE)
     assert order == ["amod.validator_json.base", "zmod.validator_json.dep"]
+
+
+def test_execution_order_filters_by_phase(tmp_path: Path):
+    """Execution order must be resolved independently for each phase."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "phase.validator_json.init",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "init",
+                "order": 10,
+            },
+            {
+                "id": "phase.validator_json.run",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 20,
+                "depends_on": ["phase.validator_json.init"],
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+
+    init_order = registry.get_execution_order(Stage.VALIDATE, phase=Phase.INIT)
+    run_order = registry.get_execution_order(Stage.VALIDATE, phase=Phase.RUN)
+
+    assert init_order == ["phase.validator_json.init"]
+    assert run_order == ["phase.validator_json.run"]
 
 
 def test_plugin_instantiation():
@@ -693,6 +738,674 @@ def test_execute_stage_allows_when_plugin_model_versions_match(tmp_path: Path):
     assert all(result.plugin_id != "kernel.model_version_guard" for result in results)
 
 
+def test_execute_stage_runs_finalize_on_fail_fast(tmp_path: Path):
+    """Finalize phase must still execute when fail_fast is triggered earlier."""
+    plugin_module = tmp_path / "phase_plugins.py"
+    plugin_module.write_text(
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "from kernel.plugin_base import PluginDiagnostic",
+                "",
+                "class FailingRunPlugin(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        diag = PluginDiagnostic(",
+                "            code='E9999',",
+                "            severity='error',",
+                "            stage=stage.value,",
+                "            message='forced run failure',",
+                "            path='plugin:test',",
+                "            plugin_id=self.plugin_id,",
+                "        )",
+                "        return PluginResult.failed(self.plugin_id, self.api_version, diagnostics=[diag])",
+                "",
+                "class FinalizeProbePlugin(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+                "",
+                "    def on_finalize(self, ctx, stage):",
+                "        ctx.publish('finalized', True)",
+                "        return PluginResult.success(",
+                "            self.plugin_id,",
+                "            self.api_version,",
+                "            output_data={'finalized': True},",
+                "        )",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "phase.validator_json.failing_run",
+                "kind": "validator_json",
+                "entry": "phase_plugins.py:FailingRunPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+            },
+            {
+                "id": "phase.validator_json.finalize_probe",
+                "kind": "validator_json",
+                "entry": "phase_plugins.py:FinalizeProbePlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "finalize",
+                "order": 200,
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx, fail_fast=True)
+    statuses = {result.plugin_id: result.status for result in results}
+
+    assert statuses["phase.validator_json.failing_run"] == PluginStatus.FAILED
+    assert statuses["phase.validator_json.finalize_probe"] == PluginStatus.SUCCESS
+
+
+def test_execute_stage_skips_when_before_capability_preflight(tmp_path: Path):
+    """Plugins skipped by when-predicate must not fail capability preflight."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "when.validator_json.consumer",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "order": 100,
+                "requires_capabilities": ["cap.kernel.missing"],
+                "when": {"profiles": ["production"]},
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test-real",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx)
+    assert len(results) == 1
+    assert results[0].plugin_id == "when.validator_json.consumer"
+    assert results[0].status == PluginStatus.SKIPPED
+
+
+def test_execute_stage_parallel_keeps_deterministic_order(tmp_path: Path):
+    """Parallel phase execution should return results in deterministic plugin order."""
+    _write_module(
+        tmp_path / "parallel_plugins.py",
+        "\n".join(
+            [
+                "import time",
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class SleepPlugin(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        sleep_ms = int(ctx.active_config.get('sleep_ms', 0))",
+                "        if sleep_ms > 0:",
+                "            time.sleep(sleep_ms / 1000.0)",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "parallel.validator_json.first",
+                "kind": "validator_json",
+                "entry": "parallel_plugins.py:SleepPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+                "config": {"sleep_ms": 80},
+            },
+            {
+                "id": "parallel.validator_json.second",
+                "kind": "validator_json",
+                "entry": "parallel_plugins.py:SleepPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 150,
+                "config": {"sleep_ms": 5},
+            },
+            {
+                "id": "parallel.validator_json.third",
+                "kind": "validator_json",
+                "entry": "parallel_plugins.py:SleepPlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 200,
+                "config": {"sleep_ms": 30},
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    sequential = registry.execute_stage(Stage.VALIDATE, ctx)
+    parallel = registry.execute_stage(Stage.VALIDATE, ctx, parallel_plugins=True)
+    expected_order = [
+        "parallel.validator_json.first",
+        "parallel.validator_json.second",
+        "parallel.validator_json.third",
+    ]
+
+    assert [result.plugin_id for result in sequential] == expected_order
+    assert [result.plugin_id for result in parallel] == expected_order
+    assert all(result.status == PluginStatus.SUCCESS for result in parallel)
+
+
+def test_execute_stage_parallel_respects_depends_on(tmp_path: Path):
+    """Parallel wavefront execution must honor intra-phase dependency edges."""
+    _write_module(
+        tmp_path / "parallel_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class DependencyProbePlugin(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        required = ctx.active_config.get('required', [])",
+                "        for dep_id in required:",
+                "            ctx.subscribe(dep_id, 'ready')",
+                "        ctx.publish('ready', self.plugin_id)",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "parallel.validator_json.base_a",
+                "kind": "validator_json",
+                "entry": "parallel_plugins.py:DependencyProbePlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+            },
+            {
+                "id": "parallel.validator_json.base_b",
+                "kind": "validator_json",
+                "entry": "parallel_plugins.py:DependencyProbePlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 110,
+            },
+            {
+                "id": "parallel.validator_json.consumer",
+                "kind": "validator_json",
+                "entry": "parallel_plugins.py:DependencyProbePlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 200,
+                "depends_on": ["parallel.validator_json.base_a", "parallel.validator_json.base_b"],
+                "config": {
+                    "required": [
+                        "parallel.validator_json.base_a",
+                        "parallel.validator_json.base_b",
+                    ]
+                },
+            },
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx, parallel_plugins=True)
+    assert [result.plugin_id for result in results] == [
+        "parallel.validator_json.base_a",
+        "parallel.validator_json.base_b",
+        "parallel.validator_json.consumer",
+    ]
+    assert all(result.status == PluginStatus.SUCCESS for result in results)
+
+
+def test_execute_stage_invalidates_stage_local_outputs(tmp_path: Path):
+    """stage_local published keys must be dropped after stage completion."""
+    _write_module(
+        tmp_path / "stage_local_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, CompilerPlugin",
+                "",
+                "class StageLocalPublisher(CompilerPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.publish('tmp_key', {'ok': True})",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "stage_local.compiler.publisher",
+                "kind": "compiler",
+                "entry": "stage_local_plugins.py:StageLocalPublisher",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 100,
+                "produces": [{"key": "tmp_key", "scope": "stage_local"}],
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.COMPILE, ctx)
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.SUCCESS
+    assert ctx.get_published_keys("stage_local.compiler.publisher") == []
+
+    ctx._set_execution_context(
+        "stage_local.validator.consumer", {"stage_local.compiler.publisher"}, stage=Stage.VALIDATE
+    )
+    try:
+        try:
+            ctx.subscribe("stage_local.compiler.publisher", "tmp_key")
+            assert False, "Expected missing stage_local key after stage cleanup"
+        except PluginDataExchangeError as exc:
+            assert "has not published any data" in str(exc)
+    finally:
+        ctx._clear_execution_context()
+
+
+def test_execute_stage_trace_records_execution_events(tmp_path: Path):
+    """Trace mode should record stage/phase/plugin execution lifecycle."""
+    _write_module(
+        tmp_path / "trace_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class TraceProbePlugin(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "trace.validator_json.probe",
+                "kind": "validator_json",
+                "entry": "trace_plugins.py:TraceProbePlugin",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx, trace_execution=True)
+    assert len(results) == 1
+    trace = registry.get_execution_trace()
+    events = [entry["event"] for entry in trace]
+
+    assert events[0] == "stage_start"
+    assert "phase_start" in events
+    assert "plugin_start" in events
+    assert "plugin_result" in events
+    assert events[-1] == "stage_end"
+
+    registry.reset_execution_trace()
+    assert registry.get_execution_trace() == []
+
+
+def test_execute_plugin_warns_on_undeclared_publish(tmp_path: Path):
+    """Runtime must emit W8001 when plugin publishes without produces declaration."""
+    _write_module(
+        tmp_path / "contract_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class PublisherNoContract(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.publish('runtime_key', {'ok': True})",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "contract.validator_json.publisher",
+                    "kind": "validator_json",
+                    "entry": "contract_plugins.py:PublisherNoContract",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "order": 100,
+                }
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+
+    result = registry.execute_plugin(
+        "contract.validator_json.publisher",
+        ctx,
+        Stage.VALIDATE,
+        contract_warnings=True,
+    )
+    assert any(diag.code == "W8001" for diag in result.diagnostics)
+    assert result.status == PluginStatus.PARTIAL
+
+
+def test_execute_plugin_warns_on_undeclared_subscribe(tmp_path: Path):
+    """Runtime must emit W8003 when plugin subscribes without consumes declaration."""
+    _write_module(
+        tmp_path / "contract_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class ConsumerNoContract(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.subscribe('contract.compiler.producer', 'runtime_key')",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "contract.validator_json.consumer",
+                    "kind": "validator_json",
+                    "entry": "contract_plugins.py:ConsumerNoContract",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "order": 100,
+                    "depends_on": ["contract.compiler.producer"],
+                },
+                {
+                    "id": "contract.compiler.producer",
+                    "kind": "compiler",
+                    "entry": "plugins/compilers/capability_compiler.py:CapabilityCompiler",
+                    "api_version": "1.x",
+                    "stages": ["compile"],
+                    "order": 10,
+                },
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+    ctx._set_execution_context("contract.compiler.producer", set(), stage=Stage.COMPILE)
+    try:
+        ctx.publish("runtime_key", {"ok": True})
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin(
+        "contract.validator_json.consumer",
+        ctx,
+        Stage.VALIDATE,
+        contract_warnings=True,
+    )
+    assert any(diag.code == "W8003" for diag in result.diagnostics)
+    assert result.status == PluginStatus.PARTIAL
+
+
+def test_execute_plugin_fails_on_invalid_produced_schema_ref_payload(tmp_path: Path):
+    """Declared produces.schema_ref must validate published payload."""
+    _write_module(
+        tmp_path / "schema_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class InvalidSchemaPublisher(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.publish('runtime_key', 'not-an-object')",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    schema_dir = tmp_path / "schemas"
+    schema_dir.mkdir(parents=True, exist_ok=True)
+    (schema_dir / "payload.schema.json").write_text(
+        json.dumps(
+            {"type": "object", "required": ["ok"], "properties": {"ok": {"type": "boolean"}}}, ensure_ascii=True
+        ),
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "schema.validator_json.publisher",
+                    "kind": "validator_json",
+                    "entry": "schema_plugins.py:InvalidSchemaPublisher",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "order": 100,
+                    "produces": [{"key": "runtime_key", "schema_ref": "schemas/payload.schema.json"}],
+                }
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+
+    result = registry.execute_plugin("schema.validator_json.publisher", ctx, Stage.VALIDATE)
+    assert any(diag.code == "E8002" for diag in result.diagnostics)
+    assert result.status == PluginStatus.FAILED
+
+
+def test_execute_plugin_fails_on_invalid_consumed_schema_ref_payload(tmp_path: Path):
+    """Declared consumes.schema_ref must validate subscribed payload."""
+    _write_module(
+        tmp_path / "schema_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class SchemaConsumer(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.subscribe('schema.compiler.producer', 'runtime_key')",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    schema_dir = tmp_path / "schemas"
+    schema_dir.mkdir(parents=True, exist_ok=True)
+    (schema_dir / "payload.schema.json").write_text(
+        json.dumps({"type": "integer"}, ensure_ascii=True),
+        encoding="utf-8",
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "schema.validator_json.consumer",
+                    "kind": "validator_json",
+                    "entry": "schema_plugins.py:SchemaConsumer",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "order": 100,
+                    "depends_on": ["schema.compiler.producer"],
+                    "consumes": [
+                        {
+                            "from_plugin": "schema.compiler.producer",
+                            "key": "runtime_key",
+                            "schema_ref": "schemas/payload.schema.json",
+                        }
+                    ],
+                },
+                {
+                    "id": "schema.compiler.producer",
+                    "kind": "compiler",
+                    "entry": "plugins/compilers/capability_compiler.py:CapabilityCompiler",
+                    "api_version": "1.x",
+                    "stages": ["compile"],
+                    "order": 10,
+                },
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+    ctx._set_execution_context("schema.compiler.producer", set(), stage=Stage.COMPILE)
+    try:
+        ctx.publish("runtime_key", {"ok": True})
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin("schema.validator_json.consumer", ctx, Stage.VALIDATE)
+    assert any(diag.code == "E8002" for diag in result.diagnostics)
+    assert result.status == PluginStatus.FAILED
+
+
+def test_execute_plugin_fails_on_missing_schema_ref(tmp_path: Path):
+    """Missing schema_ref target must fail with E8001."""
+    _write_module(
+        tmp_path / "schema_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class MissingSchemaPublisher(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.publish('runtime_key', {'ok': True})",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "schema.validator_json.missing",
+                    "kind": "validator_json",
+                    "entry": "schema_plugins.py:MissingSchemaPublisher",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "order": 100,
+                    "produces": [{"key": "runtime_key", "schema_ref": "schemas/missing.json"}],
+                }
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+
+    result = registry.execute_plugin("schema.validator_json.missing", ctx, Stage.VALIDATE)
+    assert any(diag.code == "E8001" for diag in result.diagnostics)
+    assert result.status == PluginStatus.FAILED
+
+
 def test_timeout_does_not_block_pipeline():
     """Timeout should return promptly instead of waiting for plugin completion."""
     registry = PluginRegistry(V5_TOOLS)
@@ -891,6 +1604,7 @@ if __name__ == "__main__":
         test_stage_order_prefers_order_over_manifest_insertion,
         test_stage_order_uses_id_as_tiebreaker,
         test_stage_order_respects_depends_on_over_numeric_order,
+        test_execution_order_filters_by_phase,
         test_plugin_instantiation,
         test_plugin_execution,
         test_plugin_detects_invalid_ref,
@@ -907,6 +1621,17 @@ if __name__ == "__main__":
         test_execute_stage_fails_when_plugin_model_versions_incompatible,
         test_execute_stage_fails_when_plugin_model_versions_require_missing_context,
         test_execute_stage_allows_when_plugin_model_versions_match,
+        test_execute_stage_runs_finalize_on_fail_fast,
+        test_execute_stage_skips_when_before_capability_preflight,
+        test_execute_stage_parallel_keeps_deterministic_order,
+        test_execute_stage_parallel_respects_depends_on,
+        test_execute_stage_invalidates_stage_local_outputs,
+        test_execute_stage_trace_records_execution_events,
+        test_execute_plugin_warns_on_undeclared_publish,
+        test_execute_plugin_warns_on_undeclared_subscribe,
+        test_execute_plugin_fails_on_invalid_produced_schema_ref_payload,
+        test_execute_plugin_fails_on_invalid_consumed_schema_ref_payload,
+        test_execute_plugin_fails_on_missing_schema_ref,
         test_timeout_does_not_block_pipeline,
         test_runtime_config_takes_precedence,
         # ADR 0065 inter-plugin data exchange tests

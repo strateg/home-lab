@@ -11,13 +11,17 @@ __version__ = "0.5.0"
 __api_version__ = "1.0"
 
 from .plugin_base import (  # Legacy alias
+    AssemblerPlugin,
+    BuilderPlugin,
     CompilerPlugin,
     Diagnostic,
     GeneratorPlugin,
+    Phase,
     PluginBase,
     PluginContext,
     PluginDataExchangeError,
     PluginDiagnostic,
+    PluginExecutionScope,
     PluginKind,
     PluginResult,
     PluginStatus,
@@ -47,15 +51,19 @@ __all__ = [
     "PluginKind",
     "PluginStatus",
     "PluginContext",
+    "PluginExecutionScope",
     "PluginResult",
     "PluginDiagnostic",
     "PluginDataExchangeError",
     "Stage",
+    "Phase",
     # Plugin type classes
     "CompilerPlugin",
     "ValidatorYamlPlugin",
     "ValidatorJsonPlugin",
     "GeneratorPlugin",
+    "AssemblerPlugin",
+    "BuilderPlugin",
     # Registry
     "PluginRegistry",
     "PluginManifest",

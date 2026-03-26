@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://home-lab.local/schemas/v5/plugin-manifest.schema.json",
   "title": "Plugin Manifest Schema",
-  "description": "Schema for v5 topology plugin manifests (ADR 0063, ADR 0080 draft phase model)",
+  "description": "Schema for v5 topology plugin manifests (ADR 0063, ADR 0080 lifecycle model)",
   "type": "object",
   "required": ["schema_version", "plugins"],
   "properties": {
@@ -32,7 +32,7 @@
         },
         "kind": {
           "type": "string",
-          "enum": ["compiler", "validator_yaml", "validator_json", "generator"],
+          "enum": ["compiler", "validator_yaml", "validator_json", "generator", "assembler", "builder"],
           "description": "Plugin kind determining execution context"
         },
         "entry": {
@@ -49,15 +49,15 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["compile", "validate", "generate", "build"]
+            "enum": ["discover", "compile", "validate", "generate", "assemble", "build"]
           },
           "minItems": 1,
           "description": "Pipeline stages where this plugin executes"
         },
         "phase": {
           "type": "string",
-          "enum": ["init", "pre", "run", "post", "verify", "finished"],
-          "description": "Optional lifecycle phase within stage (ADR 0080 draft). Defaults to run when omitted."
+          "enum": ["init", "pre", "run", "post", "verify", "finalize"],
+          "description": "Optional lifecycle phase within stage (ADR 0080). Defaults to run when omitted."
         },
         "order": {
           "type": "integer",
@@ -104,7 +104,56 @@
             "type": "string",
             "enum": ["production", "modeled", "test-real"]
           },
-          "description": "Profiles where this plugin is allowed to run (all if not specified)"
+          "description": "Deprecated alias for when.profiles. Profiles where this plugin is allowed to run."
+        },
+        "when": {
+          "type": "object",
+          "description": "Optional execution gating predicates.",
+          "properties": {
+            "profiles": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["production", "modeled", "test-real"]
+              }
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "pipeline_modes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "changed_input_scopes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "produces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/produces"
+          }
+        },
+        "consumes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/consumes"
+          }
+        },
+        "compiled_json_owner": {
+          "type": "boolean",
+          "default": false,
+          "description": "Marks the sole plugin allowed to publish compiled_json for a given stage+phase."
         },
         "model_versions": {
           "type": "array",
@@ -123,6 +172,45 @@
         "description": {
           "type": "string",
           "description": "Human-readable description of what this plugin does"
+        }
+      },
+      "additionalProperties": false
+    },
+    "produces": {
+      "type": "object",
+      "required": ["key"],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "schema_ref": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["stage_local", "pipeline_shared"]
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "consumes": {
+      "type": "object",
+      "required": ["from_plugin", "key"],
+      "properties": {
+        "from_plugin": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "schema_ref": {
+          "type": "string"
         }
       },
       "additionalProperties": false

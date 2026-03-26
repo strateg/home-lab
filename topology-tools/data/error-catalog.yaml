@@ -242,6 +242,16 @@ codes:
     stage: load
     title: Plugins Loaded
     hint: No action required.
+  I4002:
+    severity: info
+    stage: load
+    title: Plugin Execution Trace Written
+    hint: Trace file emitted for stage/phase/plugin execution debugging.
+  I4013:
+    severity: info
+    stage: validate
+    title: Plugin Skipped by Predicate
+    hint: Plugin when-predicate evaluated to false for current context.
   I4201:
     severity: info
     stage: compile
@@ -252,6 +262,36 @@ codes:
     stage: validate
     title: Capability Validation Started
     hint: No action required.
+  W8001:
+    severity: warning
+    stage: validate
+    title: Undeclared Published Keys
+    hint: Add produces[] declarations for runtime-published keys.
+  W8002:
+    severity: warning
+    stage: validate
+    title: Published Keys Not in Produces
+    hint: Align published keys with manifest produces[] contract.
+  W8003:
+    severity: warning
+    stage: validate
+    title: Undeclared Consumed Keys
+    hint: Add consumes[] declarations for runtime subscribe usage.
+  W8004:
+    severity: warning
+    stage: validate
+    title: Consumed Keys Not in Consumes
+    hint: Align consumed keys with manifest consumes[] contract.
+  E8001:
+    severity: error
+    stage: validate
+    title: Data Bus Schema Reference Invalid
+    hint: Ensure schema_ref points to a valid JSON schema file reachable from manifest or tooling root.
+  E8002:
+    severity: error
+    stage: validate
+    title: Data Bus Payload Schema Violation
+    hint: Update payload shape or schema_ref so published/consumed value satisfies JSON schema contract.
   # ADR 0071 sharded instances loader
   E7101:
     severity: error

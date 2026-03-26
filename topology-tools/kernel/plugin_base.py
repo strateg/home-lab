@@ -12,9 +12,13 @@ Updated to match ADR 0063 expanded specification:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator, Mapping, MutableMapping
+from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from threading import Lock
+from types import MappingProxyType
+from typing import Any, Callable, Optional
 
 
 class PluginKind(str, Enum):
@@ -24,14 +28,75 @@ class PluginKind(str, Enum):
     VALIDATOR_YAML = "validator_yaml"
     VALIDATOR_JSON = "validator_json"
     GENERATOR = "generator"
+    ASSEMBLER = "assembler"
+    BUILDER = "builder"
 
 
 class Stage(str, Enum):
     """Pipeline stages where plugins can execute."""
 
-    VALIDATE = "validate"
+    DISCOVER = "discover"
     COMPILE = "compile"
+    VALIDATE = "validate"
     GENERATE = "generate"
+    ASSEMBLE = "assemble"
+    BUILD = "build"
+
+
+class Phase(str, Enum):
+    """Lifecycle phases within each stage."""
+
+    INIT = "init"
+    PRE = "pre"
+    RUN = "run"
+    POST = "post"
+    VERIFY = "verify"
+    FINALIZE = "finalize"
+
+
+@dataclass(frozen=True)
+class PublishedDataMeta:
+    """Metadata for published values used by lifecycle enforcement."""
+
+    stage: Stage
+    phase: Phase
+    scope: str
+
+
+@dataclass(frozen=True)
+class PublishEvent:
+    """Runtime publish event for produces/consumes transitional enforcement."""
+
+    plugin_id: str
+    key: str
+    stage: Stage
+    phase: Phase
+
+
+@dataclass(frozen=True)
+class SubscribeEvent:
+    """Runtime subscribe event for produces/consumes transitional enforcement."""
+
+    plugin_id: str
+    from_plugin: str
+    key: str
+    stage: Stage
+    phase: Phase
+
+
+@dataclass(frozen=True)
+class PluginExecutionScope:
+    """Per-invocation immutable execution scope."""
+
+    plugin_id: str
+    allowed_dependencies: frozenset[str]
+    phase: Phase
+    config: Mapping[str, Any]
+    stage: Stage = Stage.VALIDATE
+    produced_key_scopes: Mapping[str, str] = field(default_factory=dict)
+
+
+_EXECUTION_SCOPE: ContextVar[PluginExecutionScope | None] = ContextVar("plugin_execution_scope", default=None)
 
 
 class PluginStatus(str, Enum):
@@ -54,6 +119,7 @@ class PluginDiagnostic:
     message: str
     path: str
     plugin_id: str
+    phase: Optional[str] = None
     confidence: float = 1.0
     hint: Optional[str] = None
     source_file: Optional[str] = None
@@ -72,6 +138,8 @@ class PluginDiagnostic:
             "plugin_id": self.plugin_id,
             "confidence": self.confidence,
         }
+        if self.phase:
+            result["phase"] = self.phase
         if self.hint:
             result["hint"] = self.hint
         if self.source_file:
@@ -227,6 +295,64 @@ class PluginDataExchangeError(Exception):
     pass
 
 
+class ContextAwareConfig(MutableMapping[str, Any]):
+    """Context-local config view with backward-compatible dict semantics."""
+
+    def __init__(
+        self,
+        base_data: Optional[dict[str, Any]] = None,
+        scope_provider: Optional[Callable[[], PluginExecutionScope | None]] = None,
+    ) -> None:
+        self._base_data: dict[str, Any] = dict(base_data or {})
+        self._scope_provider = scope_provider
+
+    def bind_scope_provider(self, scope_provider: Callable[[], PluginExecutionScope | None]) -> None:
+        self._scope_provider = scope_provider
+
+    def _scoped_mapping(self) -> Mapping[str, Any] | None:
+        if self._scope_provider is None:
+            return None
+        scope = self._scope_provider()
+        if scope is None:
+            return None
+        return scope.config
+
+    def __getitem__(self, key: str) -> Any:
+        scoped = self._scoped_mapping()
+        if scoped is not None and key in scoped:
+            return scoped[key]
+        return self._base_data[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self._base_data[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self._base_data[key]
+
+    def __iter__(self) -> Iterator[str]:
+        scoped = self._scoped_mapping()
+        if scoped is None:
+            return iter(self._base_data)
+        merged = dict(self._base_data)
+        merged.update(scoped)
+        return iter(merged)
+
+    def __len__(self) -> int:
+        scoped = self._scoped_mapping()
+        if scoped is None:
+            return len(self._base_data)
+        merged = dict(self._base_data)
+        merged.update(scoped)
+        return len(merged)
+
+    def copy(self) -> dict[str, Any]:
+        scoped = self._scoped_mapping()
+        merged = dict(self._base_data)
+        if scoped is not None:
+            merged.update(scoped)
+        return merged
+
+
 @dataclass
 class PluginContext:
     """Execution context passed to plugins.
@@ -263,10 +389,18 @@ class PluginContext:
     effective_software: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     # Plugin configuration (injected from manifest config)
-    config: dict[str, Any] = field(default_factory=dict)
+    config: ContextAwareConfig | dict[str, Any] = field(default_factory=dict)
 
     # Output directory for generators
     output_dir: str = ""
+
+    # Additional roots and release metadata for later lifecycle stages
+    workspace_root: str = ""
+    dist_root: str = ""
+    assembly_manifest: dict[str, Any] = field(default_factory=dict)
+    signing_backend: str = ""
+    release_tag: str = ""
+    sbom_output_dir: str = ""
 
     # Error catalog for standardized messages
     error_catalog: dict[str, Any] = field(default_factory=dict)
@@ -278,10 +412,37 @@ class PluginContext:
     compiled_file: str = ""
 
     # Inter-plugin data exchange (ADR 0065)
-    # Set by registry before plugin execution
-    _current_plugin_id: str = field(default="", repr=False)
-    _allowed_dependencies: set[str] = field(default_factory=set, repr=False)
     _published_data: dict[str, dict[str, Any]] = field(default_factory=dict, repr=False)
+    _published_meta: dict[tuple[str, str], PublishedDataMeta] = field(default_factory=dict, repr=False)
+    _publish_events: list[PublishEvent] = field(default_factory=list, repr=False)
+    _subscribe_events: list[SubscribeEvent] = field(default_factory=list, repr=False)
+    _published_data_lock: Lock = field(default_factory=Lock, repr=False)
+    _legacy_execution_tokens: list[Token[PluginExecutionScope | None]] = field(default_factory=list, repr=False)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.config, ContextAwareConfig):
+            self.config.bind_scope_provider(self._get_execution_scope)
+        else:
+            self.config = ContextAwareConfig(dict(self.config), self._get_execution_scope)
+
+    def _get_execution_scope(self) -> PluginExecutionScope | None:
+        return _EXECUTION_SCOPE.get()
+
+    @property
+    def active_config(self) -> Mapping[str, Any]:
+        scope = self._get_execution_scope()
+        if scope is not None:
+            return MappingProxyType(dict(scope.config))
+        return MappingProxyType(self.config.copy())
+
+    def _require_execution_scope(self) -> PluginExecutionScope:
+        scope = self._get_execution_scope()
+        if scope is None:
+            raise PluginDataExchangeError(
+                "no current plugin context: execution scope is not active. "
+                "Ensure plugin is executing through registry."
+            )
+        return scope
 
     def publish(self, key: str, value: Any) -> None:
         """Publish data for dependent plugins to access.
@@ -293,13 +454,27 @@ class PluginContext:
         Raises:
             PluginDataExchangeError: If no current plugin context is set
         """
-        if not self._current_plugin_id:
-            raise PluginDataExchangeError(
-                "Cannot publish: no current plugin context. " "Ensure plugin is executing through registry."
+        scope = self._require_execution_scope()
+        with self._published_data_lock:
+            if scope.plugin_id not in self._published_data:
+                self._published_data[scope.plugin_id] = {}
+            self._published_data[scope.plugin_id][key] = value
+            declared_scope = scope.produced_key_scopes.get(key, "pipeline_shared")
+            if declared_scope not in {"stage_local", "pipeline_shared"}:
+                declared_scope = "pipeline_shared"
+            self._published_meta[(scope.plugin_id, key)] = PublishedDataMeta(
+                stage=scope.stage,
+                phase=scope.phase,
+                scope=declared_scope,
             )
-        if self._current_plugin_id not in self._published_data:
-            self._published_data[self._current_plugin_id] = {}
-        self._published_data[self._current_plugin_id][key] = value
+            self._publish_events.append(
+                PublishEvent(
+                    plugin_id=scope.plugin_id,
+                    key=key,
+                    stage=scope.stage,
+                    phase=scope.phase,
+                )
+            )
 
     def subscribe(self, plugin_id: str, key: str) -> Any:
         """Retrieve data published by another plugin.
@@ -314,26 +489,39 @@ class PluginContext:
         Raises:
             PluginDataExchangeError: If dependency not allowed or data not found
         """
-        if not self._current_plugin_id:
+        scope = self._require_execution_scope()
+        if plugin_id not in scope.allowed_dependencies:
             raise PluginDataExchangeError(
-                "Cannot subscribe: no current plugin context. " "Ensure plugin is executing through registry."
+                f"Plugin '{scope.plugin_id}' cannot subscribe to '{plugin_id}': "
+                f"not in depends_on list. Allowed: {sorted(scope.allowed_dependencies)}"
             )
-        if plugin_id not in self._allowed_dependencies:
-            raise PluginDataExchangeError(
-                f"Plugin '{self._current_plugin_id}' cannot subscribe to '{plugin_id}': "
-                f"not in depends_on list. Allowed: {sorted(self._allowed_dependencies)}"
+        with self._published_data_lock:
+            if plugin_id not in self._published_data:
+                raise PluginDataExchangeError(
+                    f"Plugin '{plugin_id}' has not published any data. " f"Ensure it runs before '{scope.plugin_id}'."
+                )
+            plugin_data = self._published_data[plugin_id]
+            if key not in plugin_data:
+                raise PluginDataExchangeError(
+                    f"Plugin '{plugin_id}' has not published key '{key}'. "
+                    f"Available keys: {sorted(plugin_data.keys())}"
+                )
+            meta = self._published_meta.get((plugin_id, key))
+            if meta is not None and meta.scope == "stage_local" and meta.stage != scope.stage:
+                raise PluginDataExchangeError(
+                    f"Plugin '{scope.plugin_id}' cannot subscribe to stage_local key '{plugin_id}.{key}' "
+                    f"from stage '{meta.stage.value}' while executing stage '{scope.stage.value}'."
+                )
+            self._subscribe_events.append(
+                SubscribeEvent(
+                    plugin_id=scope.plugin_id,
+                    from_plugin=plugin_id,
+                    key=key,
+                    stage=scope.stage,
+                    phase=scope.phase,
+                )
             )
-        if plugin_id not in self._published_data:
-            raise PluginDataExchangeError(
-                f"Plugin '{plugin_id}' has not published any data. "
-                f"Ensure it runs before '{self._current_plugin_id}'."
-            )
-        plugin_data = self._published_data[plugin_id]
-        if key not in plugin_data:
-            raise PluginDataExchangeError(
-                f"Plugin '{plugin_id}' has not published key '{key}'. " f"Available keys: {sorted(plugin_data.keys())}"
-            )
-        return plugin_data[key]
+            return plugin_data[key]
 
     def get_published_keys(self, plugin_id: str) -> list[str]:
         """Get list of keys published by a plugin.
@@ -344,30 +532,102 @@ class PluginContext:
         Returns:
             List of published keys, or empty list if none
         """
-        return list(self._published_data.get(plugin_id, {}).keys())
+        with self._published_data_lock:
+            return list(self._published_data.get(plugin_id, {}).keys())
 
     def get_published_data(self) -> dict[str, dict[str, Any]]:
         """Return published data map for orchestrator/runtime consumers."""
-        return {plugin_id: payload.copy() for plugin_id, payload in self._published_data.items()}
+        with self._published_data_lock:
+            return {plugin_id: payload.copy() for plugin_id, payload in self._published_data.items()}
+
+    def _get_publish_event_count(self) -> int:
+        with self._published_data_lock:
+            return len(self._publish_events)
+
+    def _get_subscribe_event_count(self) -> int:
+        with self._published_data_lock:
+            return len(self._subscribe_events)
+
+    def _get_publish_events_since(
+        self,
+        start_index: int,
+        *,
+        plugin_id: str,
+        stage: Stage,
+        phase: Phase,
+    ) -> list[PublishEvent]:
+        with self._published_data_lock:
+            return [
+                event
+                for event in self._publish_events[start_index:]
+                if event.plugin_id == plugin_id and event.stage == stage and event.phase == phase
+            ]
+
+    def _get_subscribe_events_since(
+        self,
+        start_index: int,
+        *,
+        plugin_id: str,
+        stage: Stage,
+        phase: Phase,
+    ) -> list[SubscribeEvent]:
+        with self._published_data_lock:
+            return [
+                event
+                for event in self._subscribe_events[start_index:]
+                if event.plugin_id == plugin_id and event.stage == stage and event.phase == phase
+            ]
+
+    def invalidate_stage_local_data(self, stage: Stage) -> list[str]:
+        """Remove all keys declared as stage_local for the completed stage."""
+        removed: list[str] = []
+        with self._published_data_lock:
+            for (plugin_id, key), meta in list(self._published_meta.items()):
+                if meta.scope != "stage_local" or meta.stage != stage:
+                    continue
+                plugin_payload = self._published_data.get(plugin_id)
+                if plugin_payload is not None and key in plugin_payload:
+                    del plugin_payload[key]
+                    if not plugin_payload:
+                        del self._published_data[plugin_id]
+                del self._published_meta[(plugin_id, key)]
+                removed.append(f"{plugin_id}.{key}")
+        return removed
+
+    def _set_execution_scope(self, scope: PluginExecutionScope) -> Token[PluginExecutionScope | None]:
+        """Bind per-invocation execution scope to the current worker context."""
+        return _EXECUTION_SCOPE.set(scope)
+
+    def _clear_execution_scope(self, token: Token[PluginExecutionScope | None]) -> None:
+        """Reset worker-local execution scope after plugin completes."""
+        _EXECUTION_SCOPE.reset(token)
 
     def _set_execution_context(
         self,
         plugin_id: str,
         allowed_dependencies: set[str],
+        stage: Stage = Stage.VALIDATE,
+        phase: Phase = Phase.RUN,
     ) -> None:
-        """Set execution context for a plugin (called by registry).
-
-        Args:
-            plugin_id: ID of the plugin about to execute
-            allowed_dependencies: Set of plugin IDs this plugin can subscribe to
-        """
-        self._current_plugin_id = plugin_id
-        self._allowed_dependencies = allowed_dependencies
+        """Legacy helper kept for test harnesses and direct plugin invocations."""
+        allowed = frozenset(dep for dep in allowed_dependencies if isinstance(dep, str) and dep)
+        scope = PluginExecutionScope(
+            plugin_id=plugin_id,
+            allowed_dependencies=allowed,
+            phase=phase,
+            stage=stage,
+            config=self.config.copy(),
+            produced_key_scopes={},
+        )
+        token = self._set_execution_scope(scope)
+        self._legacy_execution_tokens.append(token)
 
     def _clear_execution_context(self) -> None:
-        """Clear execution context after plugin completes (called by registry)."""
-        self._current_plugin_id = ""
-        self._allowed_dependencies = set()
+        """Legacy counterpart to _set_execution_context()."""
+        if not self._legacy_execution_tokens:
+            return
+        token = self._legacy_execution_tokens.pop()
+        self._clear_execution_scope(token)
 
 
 class PluginBase(ABC):
@@ -406,6 +666,34 @@ class PluginBase(ABC):
         """
         ...
 
+    def on_init(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return PluginResult.skipped(self.plugin_id, self.api_version, reason="phase 'init' not implemented")
+
+    def on_pre(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return PluginResult.skipped(self.plugin_id, self.api_version, reason="phase 'pre' not implemented")
+
+    def on_run(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
+    def on_post(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return PluginResult.skipped(self.plugin_id, self.api_version, reason="phase 'post' not implemented")
+
+    def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return PluginResult.skipped(self.plugin_id, self.api_version, reason="phase 'verify' not implemented")
+
+    def on_finalize(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return PluginResult.skipped(self.plugin_id, self.api_version, reason="phase 'finalize' not implemented")
+
+    def execute_phase(self, ctx: PluginContext, stage: Stage, phase: Phase) -> PluginResult:
+        """Dispatch to a phase handler while keeping legacy execute() intact."""
+        handler_name = f"on_{phase.value}"
+        handler = getattr(self, handler_name, None)
+        if callable(handler):
+            return handler(ctx, stage)
+        if phase == Phase.RUN:
+            return self.execute(ctx, stage)
+        return PluginResult.skipped(self.plugin_id, self.api_version, reason=f"phase '{phase.value}' not implemented")
+
     def emit_diagnostic(
         self,
         code: str,
@@ -414,6 +702,7 @@ class PluginBase(ABC):
         message: str,
         path: str,
         *,
+        phase: Optional[Phase] = None,
         hint: Optional[str] = None,
         source_file: Optional[str] = None,
         source_line: Optional[int] = None,
@@ -425,6 +714,7 @@ class PluginBase(ABC):
             code=code,
             severity=severity,
             stage=stage.value,
+            phase=phase.value if phase is not None else None,
             message=message,
             path=path,
             plugin_id=self.plugin_id,
@@ -516,6 +806,22 @@ class GeneratorPlugin(PluginBase):
     @property
     def kind(self) -> PluginKind:
         return PluginKind.GENERATOR
+
+
+class AssemblerPlugin(PluginBase):
+    """Plugin for execution-root assembly."""
+
+    @property
+    def kind(self) -> PluginKind:
+        return PluginKind.ASSEMBLER
+
+
+class BuilderPlugin(PluginBase):
+    """Plugin for packaging and trust verification."""
+
+    @property
+    def kind(self) -> PluginKind:
+        return PluginKind.BUILDER
 
 
 # Legacy aliases for backward compatibility

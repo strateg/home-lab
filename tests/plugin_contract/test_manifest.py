@@ -25,6 +25,10 @@ from kernel import (
     KERNEL_API_VERSION,
     KERNEL_VERSION,
     SUPPORTED_API_VERSIONS,
+    Phase,
+    PluginContext,
+    PluginDataExchangeError,
+    PluginExecutionScope,
     PluginKind,
     PluginLoadError,
     PluginManifest,
@@ -207,13 +211,301 @@ def test_manifest_schema_accepts_phase_field(tmp_path: Path):
 
 
 def test_manifest_schema_declares_build_stage_and_phase_enum():
-    """Schema draft includes stage=build and phase enum declarations."""
+    """Schema declares the ADR0080 stage and phase enums."""
     schema_path = V5_TOOLS / "schemas" / "plugin-manifest.schema.json"
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     plugin_props = schema["$defs"]["plugin"]["properties"]
 
-    assert "build" in plugin_props["stages"]["items"]["enum"]
-    assert plugin_props["phase"]["enum"] == ["init", "pre", "run", "post", "verify", "finished"]
+    assert plugin_props["stages"]["items"]["enum"] == [
+        "discover",
+        "compile",
+        "validate",
+        "generate",
+        "assemble",
+        "build",
+    ]
+    assert plugin_props["kind"]["enum"] == [
+        "compiler",
+        "validator_yaml",
+        "validator_json",
+        "generator",
+        "assembler",
+        "builder",
+    ]
+    assert plugin_props["phase"]["enum"] == ["init", "pre", "run", "post", "verify", "finalize"]
+
+
+def test_schema_and_runtime_stage_phase_enums_stay_in_sync():
+    """Stage and Phase enums must match between runtime and manifest schema."""
+    schema_path = V5_TOOLS / "schemas" / "plugin-manifest.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    plugin_props = schema["$defs"]["plugin"]["properties"]
+
+    assert [stage.value for stage in Stage] == plugin_props["stages"]["items"]["enum"]
+    assert [phase.value for phase in Phase] == plugin_props["phase"]["enum"]
+
+
+def test_manifest_schema_accepts_build_stage_and_new_fields(tmp_path: Path):
+    """A build-stage manifest with Wave B fields must load in runtime."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.builder.bundle",
+                "kind": "builder",
+                "entry": "plugins/generators/effective_json_generator.py:EffectiveJsonGenerator",
+                "api_version": "1.x",
+                "stages": ["build"],
+                "phase": "finalize",
+                "order": 500,
+                "compiled_json_owner": False,
+                "when": {"pipeline_modes": ["plugin-first"]},
+                "produces": [{"key": "bundle_path", "scope": "pipeline_shared"}],
+                "consumes": [{"from_plugin": "test.compiler.input", "key": "artifact_manifest_path"}],
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+
+    spec = registry.specs["test.builder.bundle"]
+    assert spec.kind == PluginKind.BUILDER
+    assert spec.stages == [Stage.BUILD]
+    assert spec.phase == Phase.FINALIZE
+    assert spec.when == {"pipeline_modes": ["plugin-first"]}
+
+
+def test_plugin_context_scope_backed_publish_subscribe_and_active_config():
+    """Execution scope should drive pub/sub identity and per-plugin config view."""
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="production",
+        model_lock={},
+        config={"global_flag": "base"},
+    )
+
+    producer_scope = PluginExecutionScope(
+        plugin_id="test.compiler.producer",
+        allowed_dependencies=frozenset(),
+        phase=Phase.RUN,
+        config={"global_flag": "producer", "scoped_only": "yes"},
+    )
+    token = ctx._set_execution_scope(producer_scope)
+    try:
+        assert ctx.config.get("global_flag") == "producer"
+        assert ctx.active_config["scoped_only"] == "yes"
+        ctx.publish("payload", {"ok": True})
+    finally:
+        ctx._clear_execution_scope(token)
+
+    consumer_scope = PluginExecutionScope(
+        plugin_id="test.validator.consumer",
+        allowed_dependencies=frozenset({"test.compiler.producer"}),
+        phase=Phase.RUN,
+        config={"global_flag": "consumer"},
+    )
+    token = ctx._set_execution_scope(consumer_scope)
+    try:
+        assert ctx.subscribe("test.compiler.producer", "payload") == {"ok": True}
+        assert ctx.config.get("global_flag") == "consumer"
+    finally:
+        ctx._clear_execution_scope(token)
+
+    assert ctx.config.get("global_flag") == "base"
+
+
+def test_plugin_context_blocks_cross_stage_subscribe_for_stage_local_keys():
+    """stage_local keys must not be consumable from a different stage."""
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="production",
+        model_lock={},
+    )
+    producer_scope = PluginExecutionScope(
+        plugin_id="test.compiler.producer",
+        allowed_dependencies=frozenset(),
+        phase=Phase.RUN,
+        stage=Stage.COMPILE,
+        config={},
+        produced_key_scopes={"tmp_key": "stage_local"},
+    )
+    token = ctx._set_execution_scope(producer_scope)
+    try:
+        ctx.publish("tmp_key", {"value": 1})
+    finally:
+        ctx._clear_execution_scope(token)
+
+    consumer_scope = PluginExecutionScope(
+        plugin_id="test.validator.consumer",
+        allowed_dependencies=frozenset({"test.compiler.producer"}),
+        phase=Phase.RUN,
+        stage=Stage.VALIDATE,
+        config={},
+    )
+    token = ctx._set_execution_scope(consumer_scope)
+    try:
+        try:
+            ctx.subscribe("test.compiler.producer", "tmp_key")
+            assert False, "Expected stage_local cross-stage subscription error"
+        except PluginDataExchangeError as exc:
+            assert "stage_local key" in str(exc)
+    finally:
+        ctx._clear_execution_scope(token)
+
+
+def test_plugin_context_invalidates_stage_local_keys_on_stage_boundary():
+    """stage_local keys should be removed when the publishing stage completes."""
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="production",
+        model_lock={},
+    )
+    producer_scope = PluginExecutionScope(
+        plugin_id="test.compiler.producer",
+        allowed_dependencies=frozenset(),
+        phase=Phase.RUN,
+        stage=Stage.COMPILE,
+        config={},
+        produced_key_scopes={"tmp_key": "stage_local"},
+    )
+    token = ctx._set_execution_scope(producer_scope)
+    try:
+        ctx.publish("tmp_key", {"value": 1})
+    finally:
+        ctx._clear_execution_scope(token)
+
+    removed = ctx.invalidate_stage_local_data(Stage.COMPILE)
+    assert removed == ["test.compiler.producer.tmp_key"]
+    assert ctx.get_published_keys("test.compiler.producer") == []
+
+
+def test_compiled_json_owner_must_be_unique_per_stage_phase(tmp_path: Path):
+    """Only one compiled_json owner is allowed per stage+phase."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.compiler.owner_a",
+                "kind": "compiler",
+                "entry": "plugins/compilers/capability_compiler.py:CapabilityCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "finalize",
+                "order": 300,
+                "compiled_json_owner": True,
+            },
+            {
+                "id": "test.compiler.owner_b",
+                "kind": "compiler",
+                "entry": "plugins/compilers/capability_compiler.py:CapabilityCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "finalize",
+                "order": 301,
+                "compiled_json_owner": True,
+            },
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+
+    try:
+        registry.load_manifest(manifest)
+        assert False, "Expected PluginLoadError for compiled_json_owner conflict"
+    except PluginLoadError as exc:
+        assert "compiled_json_owner conflicts" in str(exc)
+
+
+def test_consumes_requires_depends_on_declaration(tmp_path: Path):
+    """Declared consumes must reference producer in depends_on."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.compiler.producer",
+                "kind": "compiler",
+                "entry": "plugins/compilers/capability_compiler.py:CapabilityCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 10,
+                "produces": [{"key": "k1", "scope": "pipeline_shared"}],
+            },
+            {
+                "id": "test.validator.consumer",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+                "consumes": [{"from_plugin": "test.compiler.producer", "key": "k1"}],
+            },
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    try:
+        registry.resolve_dependencies()
+        assert False, "Expected consumes/depends_on contract error"
+    except PluginLoadError as exc:
+        assert "requires 'test.compiler.producer' in depends_on" in str(exc)
+
+
+def test_stage_local_consumes_across_stages_is_rejected(tmp_path: Path):
+    """stage_local produced key cannot be consumed from a different stage."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.compiler.producer",
+                "kind": "compiler",
+                "entry": "plugins/compilers/capability_compiler.py:CapabilityCompiler",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 10,
+                "produces": [{"key": "k1", "scope": "stage_local"}],
+            },
+            {
+                "id": "test.validator.consumer",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+                "depends_on": ["test.compiler.producer"],
+                "consumes": [{"from_plugin": "test.compiler.producer", "key": "k1"}],
+            },
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    try:
+        registry.resolve_dependencies()
+        assert False, "Expected stage_local cross-stage contract error"
+    except PluginLoadError as exc:
+        assert "stage_local key cannot cross stage boundary" in str(exc)
+
+
+def test_registry_loads_build_stage_manifest():
+    """Runtime Stage enum must allow build-stage manifests to load."""
+    manifest = V5_TOOLS / "plugins" / "plugins.yaml"
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    assert registry.get_load_errors() == []
 
 
 if __name__ == "__main__":
@@ -234,6 +526,15 @@ if __name__ == "__main__":
         test_manifest_schema_accepts_model_versions,
         test_manifest_schema_accepts_phase_field,
         test_manifest_schema_declares_build_stage_and_phase_enum,
+        test_schema_and_runtime_stage_phase_enums_stay_in_sync,
+        test_manifest_schema_accepts_build_stage_and_new_fields,
+        test_plugin_context_scope_backed_publish_subscribe_and_active_config,
+        test_plugin_context_blocks_cross_stage_subscribe_for_stage_local_keys,
+        test_plugin_context_invalidates_stage_local_keys_on_stage_boundary,
+        test_compiled_json_owner_must_be_unique_per_stage_phase,
+        test_consumes_requires_depends_on_declaration,
+        test_stage_local_consumes_across_stages_is_rejected,
+        test_registry_loads_build_stage_manifest,
     ]
 
     passed = 0

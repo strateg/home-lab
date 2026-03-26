@@ -155,6 +155,9 @@ class V5Compiler:
         parity_gate: bool = False,
         enable_plugins: bool = True,
         plugins_manifest_path: Path | None = None,
+        parallel_plugins: bool = False,
+        trace_execution: bool = False,
+        plugin_contract_warnings: bool = False,
     ) -> None:
         if not enable_plugins:
             raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
@@ -176,6 +179,9 @@ class V5Compiler:
         self.parity_gate = parity_gate
         self.enable_plugins = enable_plugins
         self.plugins_manifest_path = plugins_manifest_path or DEFAULT_PLUGINS_MANIFEST
+        self.parallel_plugins = parallel_plugins
+        self.trace_execution = trace_execution
+        self.plugin_contract_warnings = plugin_contract_warnings
 
         self._diagnostics: list[Diagnostic] = []
         self._error_hints = self._load_error_hints(error_catalog_path)
@@ -330,12 +336,17 @@ class V5Compiler:
             return
 
         # Execute plugins for stage
-        results = self._plugin_registry.execute_stage(
-            stage,
-            ctx,
-            profile=self.runtime_profile,
-            fail_fast=stage == Stage.COMPILE,
-        )
+        execute_kwargs: dict[str, Any] = {
+            "profile": self.runtime_profile,
+            "fail_fast": stage == Stage.COMPILE,
+        }
+        if self.parallel_plugins:
+            execute_kwargs["parallel_plugins"] = True
+        if self.trace_execution:
+            execute_kwargs["trace_execution"] = True
+        if self.plugin_contract_warnings:
+            execute_kwargs["contract_warnings"] = True
+        results = self._plugin_registry.execute_stage(stage, ctx, **execute_kwargs)
         self._plugin_results.extend(results)
 
         # Convert plugin diagnostics to compiler diagnostics
@@ -488,6 +499,7 @@ class V5Compiler:
         return verification.ok
 
     def _write_diagnostics(self) -> tuple[int, int, int, int]:
+        self._write_execution_trace()
         plugin_stats = self._plugin_registry.get_stats() if self._plugin_registry else None
         plugin_manifests = self._plugin_registry.manifests if self._plugin_registry else None
         return write_diagnostics_report(
@@ -503,6 +515,22 @@ class V5Compiler:
             plugin_manifests=plugin_manifests,
         )
 
+    def _write_execution_trace(self) -> None:
+        if not self.trace_execution or not self._plugin_registry:
+            return
+        trace_path = self.diagnostics_json.parent / "plugin-execution-trace.json"
+        trace_path.parent.mkdir(parents=True, exist_ok=True)
+        trace_payload = self._plugin_registry.get_execution_trace()
+        trace_path.write_text(json.dumps(trace_payload, ensure_ascii=True, indent=2), encoding="utf-8")
+        self.add_diag(
+            code="I4002",
+            severity="info",
+            stage="load",
+            message=f"Plugin execution trace written to {trace_path}",
+            path=self._path_for_diag(trace_path),
+            confidence=1.0,
+        )
+
     def _print_summary(self, *, total: int, errors: int, warnings: int, infos: int, emit_effective: bool) -> None:
         print(f"Compile summary: total={total} errors={errors} warnings={warnings} infos={infos}")
         print(f"Diagnostics JSON: {self.diagnostics_json}")
@@ -512,6 +540,8 @@ class V5Compiler:
 
     def run(self) -> int:
         self._run_generated_at = utc_now()
+        if self.trace_execution and self._plugin_registry:
+            self._plugin_registry.reset_execution_trace()
         if self.pipeline_mode != "plugin-first":
             self.add_diag(
                 code="E6904",
@@ -866,6 +896,21 @@ def build_parser() -> argparse.ArgumentParser:
         default=str(DEFAULT_PLUGINS_MANIFEST.as_posix()),
         help="Path to plugin manifest YAML (defaults to compiler script directory).",
     )
+    parser.add_argument(
+        "--parallel-plugins",
+        action="store_true",
+        help="Enable parallel plugin execution within each stage phase.",
+    )
+    parser.add_argument(
+        "--trace-execution",
+        action="store_true",
+        help="Write stage/phase/plugin execution trace to diagnostics directory.",
+    )
+    parser.add_argument(
+        "--plugin-contract-warnings",
+        action="store_true",
+        help="Emit W800x warnings for undeclared produces/consumes runtime usage.",
+    )
     return parser
 
 
@@ -891,6 +936,9 @@ def main() -> int:
         pipeline_mode=args.pipeline_mode,
         parity_gate=False,
         plugins_manifest_path=resolve_repo_path(args.plugins_manifest),
+        parallel_plugins=args.parallel_plugins,
+        trace_execution=args.trace_execution,
+        plugin_contract_warnings=args.plugin_contract_warnings,
     )
     return compiler.run()
 
