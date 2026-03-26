@@ -292,6 +292,11 @@ codes:
     stage: validate
     title: Data Bus Payload Schema Violation
     hint: Update payload shape or schema_ref so published/consumed value satisfies JSON schema contract.
+  E8003:
+    severity: error
+    stage: validate
+    title: Required Consumed Payload Missing
+    hint: 'Ensure required consumes payload is published before consumer execution or mark consume as required: false.'
   # ADR 0071 sharded instances loader
   E7101:
     severity: error

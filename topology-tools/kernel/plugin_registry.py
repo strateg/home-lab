@@ -522,6 +522,66 @@ class PluginRegistry:
             )
         )
 
+    def _validate_required_consumes_pre_run(
+        self,
+        *,
+        spec: PluginSpec,
+        ctx: PluginContext,
+        stage: Stage,
+        phase: Phase,
+    ) -> list[PluginDiagnostic]:
+        diagnostics: list[PluginDiagnostic] = []
+        published_data = ctx.get_published_data()
+        consume_schema_refs = self._schema_ref_by_consumed_key(spec)
+
+        for consume_entry in spec.consumes:
+            if not isinstance(consume_entry, dict):
+                continue
+            from_plugin = consume_entry.get("from_plugin")
+            key = consume_entry.get("key")
+            required = consume_entry.get("required", True)
+            if required is False:
+                continue
+            if not isinstance(from_plugin, str) or not from_plugin:
+                continue
+            if not isinstance(key, str) or not key:
+                continue
+
+            payload = published_data.get(from_plugin, {}).get(key, None)
+            if payload is None and key not in published_data.get(from_plugin, {}):
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8003",
+                        severity="error",
+                        stage=stage.value,
+                        phase=phase.value,
+                        message=(
+                            f"Plugin '{spec.id}' requires payload '{from_plugin}.{key}', "
+                            "but it is not available in published data."
+                        ),
+                        path=f"plugin:{spec.id}:consumes.{from_plugin}.{key}",
+                        plugin_id="kernel",
+                    )
+                )
+                continue
+
+            schema_ref = consume_schema_refs.get((from_plugin, key))
+            if schema_ref is None:
+                continue
+            probe_result = PluginResult.success(spec.id, spec.api_version)
+            self._validate_schema_ref_payload(
+                result=probe_result,
+                stage=stage,
+                phase=phase,
+                spec=spec,
+                payload=payload,
+                schema_ref=schema_ref,
+                path_suffix=f"consumes.{from_plugin}.{key}",
+            )
+            diagnostics.extend(probe_result.diagnostics)
+
+        return diagnostics
+
     def _validate_schema_ref_payload(
         self,
         *,
@@ -1185,6 +1245,22 @@ class PluginRegistry:
         execution_context = contextvars.copy_context()
         publish_event_start = ctx._get_publish_event_count()
         subscribe_event_start = ctx._get_subscribe_event_count()
+        required_consume_diags = self._validate_required_consumes_pre_run(
+            spec=spec,
+            ctx=ctx,
+            stage=stage,
+            phase=phase,
+        )
+        if required_consume_diags:
+            failed = PluginResult.failed(
+                plugin_id=plugin_id,
+                api_version=spec.api_version,
+                diagnostics=required_consume_diags,
+            )
+            if record_result:
+                self._results.append(failed)
+            ctx._clear_execution_scope(scope_token)
+            return failed
 
         # Execute with timeout
         start_time = time.perf_counter()

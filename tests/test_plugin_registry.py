@@ -1406,6 +1406,121 @@ def test_execute_plugin_fails_on_missing_schema_ref(tmp_path: Path):
     assert result.status == PluginStatus.FAILED
 
 
+def test_execute_plugin_fails_when_required_consume_payload_missing(tmp_path: Path):
+    """consumes.required=true must fail before plugin execution when payload is absent."""
+    _write_module(
+        tmp_path / "required_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class RequiredConsumer(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        # If pre-check works, runtime should never reach this call.",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "required.validator_json.consumer",
+                    "kind": "validator_json",
+                    "entry": "required_plugins.py:RequiredConsumer",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "order": 100,
+                    "depends_on": ["required.compiler.producer"],
+                    "consumes": [
+                        {
+                            "from_plugin": "required.compiler.producer",
+                            "key": "required_key",
+                            "required": True,
+                        }
+                    ],
+                },
+                {
+                    "id": "required.compiler.producer",
+                    "kind": "compiler",
+                    "entry": "plugins/compilers/capability_compiler.py:CapabilityCompiler",
+                    "api_version": "1.x",
+                    "stages": ["compile"],
+                    "order": 10,
+                },
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+
+    result = registry.execute_plugin("required.validator_json.consumer", ctx, Stage.VALIDATE)
+    assert any(diag.code == "E8003" for diag in result.diagnostics)
+    assert result.status == PluginStatus.FAILED
+
+
+def test_execute_plugin_allows_when_consume_required_false_and_payload_missing(tmp_path: Path):
+    """consumes.required=false must not fail pre-run when payload is absent."""
+    _write_module(
+        tmp_path / "required_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class OptionalConsumer(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "required.validator_json.optional_consumer",
+                    "kind": "validator_json",
+                    "entry": "required_plugins.py:OptionalConsumer",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "order": 100,
+                    "depends_on": ["required.compiler.producer"],
+                    "consumes": [
+                        {
+                            "from_plugin": "required.compiler.producer",
+                            "key": "optional_key",
+                            "required": False,
+                        }
+                    ],
+                },
+                {
+                    "id": "required.compiler.producer",
+                    "kind": "compiler",
+                    "entry": "plugins/compilers/capability_compiler.py:CapabilityCompiler",
+                    "api_version": "1.x",
+                    "stages": ["compile"],
+                    "order": 10,
+                },
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+
+    result = registry.execute_plugin("required.validator_json.optional_consumer", ctx, Stage.VALIDATE)
+    assert not any(diag.code == "E8003" for diag in result.diagnostics)
+    assert result.status == PluginStatus.SUCCESS
+
+
 def test_timeout_does_not_block_pipeline():
     """Timeout should return promptly instead of waiting for plugin completion."""
     registry = PluginRegistry(V5_TOOLS)
@@ -1632,6 +1747,8 @@ if __name__ == "__main__":
         test_execute_plugin_fails_on_invalid_produced_schema_ref_payload,
         test_execute_plugin_fails_on_invalid_consumed_schema_ref_payload,
         test_execute_plugin_fails_on_missing_schema_ref,
+        test_execute_plugin_fails_when_required_consume_payload_missing,
+        test_execute_plugin_allows_when_consume_required_false_and_payload_missing,
         test_timeout_does_not_block_pipeline,
         test_runtime_config_takes_precedence,
         # ADR 0065 inter-plugin data exchange tests
