@@ -179,7 +179,7 @@ Complete when all Waves A–H are done and all items below are verified.
 
 - [ ] Effective JSON parity on `production` profile before/after executor refactor.
 - [ ] Effective JSON parity on `modeled` profile.
-- [ ] Diagnostics parity (codes + severities) on baseline fixtures.
+- [x] Diagnostics parity (codes + severities) on baseline fixtures.
 - [ ] Published key inventory unchanged for compile/validate/generate stages.
 
 ---
