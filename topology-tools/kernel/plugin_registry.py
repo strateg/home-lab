@@ -629,6 +629,7 @@ class PluginRegistry:
         publish_event_start: int,
         subscribe_event_start: int,
         emit_warnings: bool,
+        undeclared_as_errors: bool,
     ) -> None:
         publish_events = ctx._get_publish_events_since(
             publish_event_start,
@@ -646,14 +647,17 @@ class PluginRegistry:
         produce_schema_refs = self._schema_ref_by_produced_key(spec)
         consume_schema_refs = self._schema_ref_by_consumed_key(spec)
 
-        if publish_events and emit_warnings:
+        if publish_events and (emit_warnings or undeclared_as_errors):
             declared_produces = {key for key in self._declared_produced_scopes(spec)}
             published_keys = sorted({event.key for event in publish_events})
+            warning_severity = "error" if undeclared_as_errors else "warning"
+            warning_code = "E8004" if undeclared_as_errors else "W8001"
+            warning_code_undeclared = "E8005" if undeclared_as_errors else "W8002"
             if not declared_produces:
                 result.diagnostics.append(
                     PluginDiagnostic(
-                        code="W8001",
-                        severity="warning",
+                        code=warning_code,
+                        severity=warning_severity,
                         stage=stage.value,
                         phase=phase.value,
                         message=(
@@ -669,8 +673,8 @@ class PluginRegistry:
                 if undeclared_publish:
                     result.diagnostics.append(
                         PluginDiagnostic(
-                            code="W8002",
-                            severity="warning",
+                            code=warning_code_undeclared,
+                            severity=warning_severity,
                             stage=stage.value,
                             phase=phase.value,
                             message=(
@@ -682,15 +686,18 @@ class PluginRegistry:
                         )
                     )
 
-        if subscribe_events and emit_warnings:
+        if subscribe_events and (emit_warnings or undeclared_as_errors):
             declared_consumes = self._declared_consumes(spec)
             consumed_pairs = {(event.from_plugin, event.key) for event in subscribe_events}
             consumed_keys = sorted(f"{from_plugin}.{key}" for from_plugin, key in consumed_pairs)
+            warning_severity = "error" if undeclared_as_errors else "warning"
+            warning_code = "E8006" if undeclared_as_errors else "W8003"
+            warning_code_undeclared = "E8007" if undeclared_as_errors else "W8004"
             if not declared_consumes:
                 result.diagnostics.append(
                     PluginDiagnostic(
-                        code="W8003",
-                        severity="warning",
+                        code=warning_code,
+                        severity=warning_severity,
                         stage=stage.value,
                         phase=phase.value,
                         message=(
@@ -710,8 +717,8 @@ class PluginRegistry:
                 if undeclared_consume:
                     result.diagnostics.append(
                         PluginDiagnostic(
-                            code="W8004",
-                            severity="warning",
+                            code=warning_code_undeclared,
+                            severity=warning_severity,
                             stage=stage.value,
                             phase=phase.value,
                             message=(
@@ -980,6 +987,7 @@ class PluginRegistry:
         plugin_ids: list[str],
         trace_execution: bool = False,
         contract_warnings: bool = False,
+        contract_errors: bool = False,
     ) -> list[PluginResult]:
         """Execute one phase in dependency-respecting wavefronts."""
         if not plugin_ids:
@@ -1027,6 +1035,7 @@ class PluginRegistry:
                         None,
                         record_result=False,
                         contract_warnings=contract_warnings,
+                        contract_errors=contract_errors,
                     )
                     futures[future] = plugin_id
 
@@ -1178,6 +1187,7 @@ class PluginRegistry:
         *,
         record_result: bool = True,
         contract_warnings: bool = False,
+        contract_errors: bool = False,
     ) -> PluginResult:
         """Execute a single plugin with timeout and error handling.
 
@@ -1283,6 +1293,7 @@ class PluginRegistry:
                     publish_event_start=publish_event_start,
                     subscribe_event_start=subscribe_event_start,
                     emit_warnings=contract_warnings,
+                    undeclared_as_errors=contract_errors,
                 )
                 if record_result:
                     self._results.append(result)
@@ -1316,6 +1327,7 @@ class PluginRegistry:
                     publish_event_start=publish_event_start,
                     subscribe_event_start=subscribe_event_start,
                     emit_warnings=contract_warnings,
+                    undeclared_as_errors=contract_errors,
                 )
                 if record_result:
                     self._results.append(result)
@@ -1349,6 +1361,7 @@ class PluginRegistry:
                 publish_event_start=publish_event_start,
                 subscribe_event_start=subscribe_event_start,
                 emit_warnings=contract_warnings,
+                undeclared_as_errors=contract_errors,
             )
             if record_result:
                 self._results.append(result)
@@ -1368,6 +1381,7 @@ class PluginRegistry:
         parallel_plugins: bool = False,
         trace_execution: bool = False,
         contract_warnings: bool = False,
+        contract_errors: bool = False,
     ) -> list[PluginResult]:
         """Execute all plugins for a stage.
 
@@ -1379,6 +1393,7 @@ class PluginRegistry:
             parallel_plugins: Enable parallel execution within each stage/phase
             trace_execution: Record stage/phase/plugin execution trace events
             contract_warnings: Emit transitional W800x warnings for undeclared produces/consumes
+            contract_errors: Treat undeclared produces/consumes as hard errors (Wave H style)
 
         Returns:
             List of PluginResult for each executed plugin
@@ -1592,6 +1607,7 @@ class PluginRegistry:
                         plugin_ids=phase_active_plugin_ids,
                         trace_execution=trace_execution,
                         contract_warnings=contract_warnings,
+                        contract_errors=contract_errors,
                     )
                     results.extend(phase_results)
                     continue
@@ -1605,6 +1621,7 @@ class PluginRegistry:
                         stage,
                         phase=phase,
                         contract_warnings=contract_warnings,
+                        contract_errors=contract_errors,
                     )
                     results.append(result)
                     if trace_execution:

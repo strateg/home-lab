@@ -1243,6 +1243,114 @@ def test_execute_plugin_warns_on_undeclared_subscribe(tmp_path: Path):
     assert result.status == PluginStatus.PARTIAL
 
 
+def test_execute_plugin_errors_on_undeclared_publish_in_strict_mode(tmp_path: Path):
+    """Strict contract mode must fail undeclared publish with E8004/E8005."""
+    _write_module(
+        tmp_path / "contract_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class PublisherNoContract(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.publish('runtime_key', {'ok': True})",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "strict.validator_json.publisher",
+                    "kind": "validator_json",
+                    "entry": "contract_plugins.py:PublisherNoContract",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "order": 100,
+                }
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+
+    result = registry.execute_plugin(
+        "strict.validator_json.publisher",
+        ctx,
+        Stage.VALIDATE,
+        contract_errors=True,
+    )
+    assert any(diag.code == "E8004" for diag in result.diagnostics)
+    assert result.status == PluginStatus.FAILED
+
+
+def test_execute_plugin_errors_on_undeclared_subscribe_in_strict_mode(tmp_path: Path):
+    """Strict contract mode must fail undeclared consume with E8006/E8007."""
+    _write_module(
+        tmp_path / "contract_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class ConsumerNoContract(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.subscribe('strict.compiler.producer', 'runtime_key')",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "strict.validator_json.consumer",
+                    "kind": "validator_json",
+                    "entry": "contract_plugins.py:ConsumerNoContract",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "order": 100,
+                    "depends_on": ["strict.compiler.producer"],
+                },
+                {
+                    "id": "strict.compiler.producer",
+                    "kind": "compiler",
+                    "entry": "plugins/compilers/capability_compiler.py:CapabilityCompiler",
+                    "api_version": "1.x",
+                    "stages": ["compile"],
+                    "order": 10,
+                },
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+    ctx._set_execution_context("strict.compiler.producer", set(), stage=Stage.COMPILE)
+    try:
+        ctx.publish("runtime_key", {"ok": True})
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin(
+        "strict.validator_json.consumer",
+        ctx,
+        Stage.VALIDATE,
+        contract_errors=True,
+    )
+    assert any(diag.code == "E8006" for diag in result.diagnostics)
+    assert result.status == PluginStatus.FAILED
+
+
 def test_execute_plugin_fails_on_invalid_produced_schema_ref_payload(tmp_path: Path):
     """Declared produces.schema_ref must validate published payload."""
     _write_module(
@@ -1744,6 +1852,8 @@ if __name__ == "__main__":
         test_execute_stage_trace_records_execution_events,
         test_execute_plugin_warns_on_undeclared_publish,
         test_execute_plugin_warns_on_undeclared_subscribe,
+        test_execute_plugin_errors_on_undeclared_publish_in_strict_mode,
+        test_execute_plugin_errors_on_undeclared_subscribe_in_strict_mode,
         test_execute_plugin_fails_on_invalid_produced_schema_ref_payload,
         test_execute_plugin_fails_on_invalid_consumed_schema_ref_payload,
         test_execute_plugin_fails_on_missing_schema_ref,

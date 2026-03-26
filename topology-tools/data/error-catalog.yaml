@@ -297,6 +297,26 @@ codes:
     stage: validate
     title: Required Consumed Payload Missing
     hint: 'Ensure required consumes payload is published before consumer execution or mark consume as required: false.'
+  E8004:
+    severity: error
+    stage: validate
+    title: Produced Keys Declaration Missing
+    hint: Declare runtime-published keys in produces[] or disable strict contract mode.
+  E8005:
+    severity: error
+    stage: validate
+    title: Published Key Not Declared in Produces
+    hint: Add missing key to produces[] to satisfy strict contract mode.
+  E8006:
+    severity: error
+    stage: validate
+    title: Consumed Keys Declaration Missing
+    hint: Declare runtime-consumed keys in consumes[] or disable strict contract mode.
+  E8007:
+    severity: error
+    stage: validate
+    title: Consumed Key Not Declared in Consumes
+    hint: Add missing key to consumes[] to satisfy strict contract mode.
   # ADR 0071 sharded instances loader
   E7101:
     severity: error

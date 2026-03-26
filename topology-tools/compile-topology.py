@@ -158,6 +158,7 @@ class V5Compiler:
         parallel_plugins: bool = False,
         trace_execution: bool = False,
         plugin_contract_warnings: bool = False,
+        plugin_contract_errors: bool = False,
     ) -> None:
         if not enable_plugins:
             raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
@@ -182,6 +183,7 @@ class V5Compiler:
         self.parallel_plugins = parallel_plugins
         self.trace_execution = trace_execution
         self.plugin_contract_warnings = plugin_contract_warnings
+        self.plugin_contract_errors = plugin_contract_errors
 
         self._diagnostics: list[Diagnostic] = []
         self._error_hints = self._load_error_hints(error_catalog_path)
@@ -346,6 +348,8 @@ class V5Compiler:
             execute_kwargs["trace_execution"] = True
         if self.plugin_contract_warnings:
             execute_kwargs["contract_warnings"] = True
+        if self.plugin_contract_errors:
+            execute_kwargs["contract_errors"] = True
         results = self._plugin_registry.execute_stage(stage, ctx, **execute_kwargs)
         self._plugin_results.extend(results)
 
@@ -911,6 +915,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Emit W800x warnings for undeclared produces/consumes runtime usage.",
     )
+    parser.add_argument(
+        "--plugin-contract-errors",
+        action="store_true",
+        help="Treat undeclared produces/consumes runtime usage as hard errors (E8004-E8007).",
+    )
     return parser
 
 
@@ -939,6 +948,7 @@ def main() -> int:
         parallel_plugins=args.parallel_plugins,
         trace_execution=args.trace_execution,
         plugin_contract_warnings=args.plugin_contract_warnings,
+        plugin_contract_errors=args.plugin_contract_errors,
     )
     return compiler.run()
 
