@@ -1568,6 +1568,73 @@ def test_execute_plugin_errors_on_undeclared_subscribe_in_strict_mode(tmp_path: 
     assert result.status == PluginStatus.FAILED
 
 
+def test_execute_plugin_allows_dependency_inferred_consume_in_strict_mode(tmp_path: Path):
+    """Strict contract mode allows consumes inferred from depends_on + producer produces."""
+    _write_module(
+        tmp_path / "contract_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class ConsumerNoContract(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.subscribe('strict.compiler.producer', 'runtime_key')",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "strict.validator_json.consumer",
+                    "kind": "validator_json",
+                    "entry": "contract_plugins.py:ConsumerNoContract",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "order": 100,
+                    "depends_on": ["strict.compiler.producer"],
+                },
+                {
+                    "id": "strict.compiler.producer",
+                    "kind": "compiler",
+                    "entry": "plugins/compilers/capability_compiler.py:CapabilityCompiler",
+                    "api_version": "1.x",
+                    "stages": ["compile"],
+                    "order": 31,
+                    "produces": [
+                        {
+                            "key": "runtime_key",
+                            "scope": "pipeline_shared",
+                        }
+                    ],
+                },
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+    ctx._set_execution_context("strict.compiler.producer", set(), stage=Stage.COMPILE)
+    try:
+        ctx.publish("runtime_key", {"ok": True})
+    finally:
+        ctx._clear_execution_context()
+
+    result = registry.execute_plugin(
+        "strict.validator_json.consumer",
+        ctx,
+        Stage.VALIDATE,
+        contract_errors=True,
+    )
+    assert not any(diag.code in {"E8006", "E8007"} for diag in result.diagnostics)
+    assert result.status == PluginStatus.SUCCESS
+
+
 def test_execute_stage_applies_contract_errors_mode(tmp_path: Path):
     """execute_stage(contract_errors=True) must fail undeclared publish/consume."""
     _write_module(
