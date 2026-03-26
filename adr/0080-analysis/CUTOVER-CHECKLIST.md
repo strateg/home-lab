@@ -127,7 +127,7 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] `E810x` (assemble errors) registered in `error-catalog.yaml`.
 - [x] `E820x` (build errors) registered in `error-catalog.yaml`.
 - [x] `W800x` (data bus undeclared key warnings) registered in `error-catalog.yaml`.
-- [ ] No overlap with existing code ranges E60xx–E97xx.
+- [x] No overlap with existing code ranges E60xx–E97xx.
 
 ---
 
@@ -158,7 +158,7 @@ Complete when all Waves A–H are done and all items below are verified.
 ### ADR 0065 (Plugin API Contract)
 
 - [x] New `phase`, `produces`, `consumes`, `when` fields pass schema validation.
-- [ ] All diagnostic codes conform to non-overlapping ranges.
+- [x] All diagnostic codes conform to non-overlapping ranges.
 
 ### ADR 0074 (Generator Architecture)
 

@@ -28,6 +28,7 @@ Unify the plugin runtime around a single lifecycle model with:
 - `Wave D` completed: explicit `phase` annotations are present across all discovered manifests.
 - `Wave E` completed: produces/consumes contracts are validated; strict undeclared contract mode (`E8004`-`E8007`) is implemented.
 - Stage-specific `order` ranges are now enforced at manifest load time and validated by contract tests.
+- Error catalog range conformance tests now guard ADR0080 allocations (`E800x/E810x/E820x/W800x`) against overlap.
 - `Wave E.1` completed: `base.generator.artifact_manifest` implemented at `generate/finalize`.
 - `Wave F` completed (runtime slice): assemble stage plugins implemented (`workspace`, `verify`, `manifest`) and wired into compiler lifecycle.
 - `Wave G` completed (runtime slice): build stage plugins implemented (`bundle`, `sbom`, `release_manifest`) and wired into compiler lifecycle.
