@@ -6,7 +6,7 @@ plugins:
     api_version: "1.x"
     stages: [validate]
     phase: run
-    order: 242
+    order: 144
     depends_on: [base.validator.references]
     timeout: 30
     config: {}

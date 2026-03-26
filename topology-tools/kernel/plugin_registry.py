@@ -73,6 +73,14 @@ STAGE_ORDER: tuple[Stage, ...] = (
     Stage.ASSEMBLE,
     Stage.BUILD,
 )
+STAGE_ORDER_RANGES: dict[Stage, tuple[int, int]] = {
+    Stage.DISCOVER: (10, 89),
+    Stage.COMPILE: (30, 89),
+    Stage.VALIDATE: (90, 189),
+    Stage.GENERATE: (190, 399),
+    Stage.ASSEMBLE: (400, 499),
+    Stage.BUILD: (500, 599),
+}
 
 
 @dataclass
@@ -302,6 +310,17 @@ class PluginRegistry:
             raise PluginLoadError(
                 spec.id,
                 f"Incompatible API version {spec.api_version}, kernel supports {SUPPORTED_API_VERSIONS}",
+            )
+        for stage in spec.stages:
+            order_range = STAGE_ORDER_RANGES.get(stage)
+            if order_range is None:
+                continue
+            min_order, max_order = order_range
+            if min_order <= spec.order <= max_order:
+                continue
+            raise PluginLoadError(
+                spec.id,
+                f"order {spec.order} is outside allowed range {min_order}-{max_order} for stage '{stage.value}'",
             )
         if spec.compiled_json_owner:
             for existing in self.specs.values():

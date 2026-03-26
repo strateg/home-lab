@@ -36,6 +36,7 @@ from kernel import (
     PluginSpec,
 )
 from kernel.plugin_base import Stage
+from kernel.plugin_registry import STAGE_ORDER_RANGES
 from plugin_manifest_discovery import discover_plugin_manifest_paths
 
 
@@ -426,7 +427,7 @@ def test_compiled_json_owner_must_be_unique_per_stage_phase(tmp_path: Path):
                 "api_version": "1.x",
                 "stages": ["compile"],
                 "phase": "finalize",
-                "order": 300,
+                "order": 88,
                 "compiled_json_owner": True,
             },
             {
@@ -436,7 +437,7 @@ def test_compiled_json_owner_must_be_unique_per_stage_phase(tmp_path: Path):
                 "api_version": "1.x",
                 "stages": ["compile"],
                 "phase": "finalize",
-                "order": 301,
+                "order": 88,
                 "compiled_json_owner": True,
             },
         ],
@@ -465,7 +466,7 @@ def test_consumes_requires_depends_on_declaration(tmp_path: Path):
                 "api_version": "1.x",
                 "stages": ["compile"],
                 "phase": "run",
-                "order": 10,
+                "order": 31,
                 "produces": [{"key": "k1", "scope": "pipeline_shared"}],
             },
             {
@@ -504,7 +505,7 @@ def test_stage_local_consumes_across_stages_is_rejected(tmp_path: Path):
                 "api_version": "1.x",
                 "stages": ["compile"],
                 "phase": "run",
-                "order": 10,
+                "order": 31,
                 "produces": [{"key": "k1", "scope": "stage_local"}],
             },
             {
@@ -630,6 +631,49 @@ def test_generator_plugins_declare_generated_files_contract():
     assert missing == []
 
 
+def test_manifest_rejects_out_of_range_order(tmp_path: Path):
+    """Plugin order must stay inside stage-specific ranges."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.validator_json.bad_order",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 50,
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    try:
+        registry.load_manifest(manifest)
+        assert False, "Expected PluginLoadError for out-of-range order"
+    except PluginLoadError as exc:
+        assert "outside allowed range" in str(exc)
+
+
+def test_base_manifest_plugin_orders_follow_stage_ranges():
+    """Base manifest should satisfy ADR0080 stage order ranges."""
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+
+    violations: list[str] = []
+    for spec in registry.specs.values():
+        for stage in spec.stages:
+            min_order, max_order = STAGE_ORDER_RANGES[stage]
+            if min_order <= spec.order <= max_order:
+                continue
+            violations.append(f"{spec.id}@{stage.value}:{spec.order} (expected {min_order}-{max_order})")
+
+    assert violations == []
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("ADR 0066 Plugin Contract Tests")
@@ -661,6 +705,8 @@ if __name__ == "__main__":
         test_base_manifest_declares_high_value_data_bus_contracts,
         test_all_discovered_manifests_have_explicit_phase,
         test_generator_plugins_declare_generated_files_contract,
+        test_manifest_rejects_out_of_range_order,
+        test_base_manifest_plugin_orders_follow_stage_ranges,
     ]
 
     passed = 0

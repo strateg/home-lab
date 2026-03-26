@@ -133,14 +133,14 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ## L. Order Ranges
 
-- [ ] Order range documentation added to ADR or tooling README:
+- [x] Order range documentation added to ADR or tooling README:
   - `discover`: 10–89
   - `compile`: 30–89
   - `validate`: 90–189
   - `generate`: 190–399
   - `assemble`: 400–499
   - `build`: 500–599
-- [ ] No existing plugin uses order values in `assemble` or `build` ranges.
+- [x] Runtime enforces stage-specific order ranges and discovered manifests comply with them.
 
 ---
 

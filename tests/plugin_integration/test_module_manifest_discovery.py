@@ -32,7 +32,7 @@ def _write_manifest(path: Path, *, plugin_id: str, description: str = "") -> Non
                 "entry": "validators/reference_validator.py:ReferenceValidator",
                 "api_version": "1.x",
                 "stages": ["validate"],
-                "order": 200,
+                "order": 100,
                 "description": description,
             }
         ],
