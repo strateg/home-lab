@@ -60,10 +60,16 @@ from Wave B, not the new executor from Wave C.
 
 ## P0 Alignment Blockers (must be closed in Wave B)
 
-1. Runtime `Stage` enum currently supports only `compile|validate|generate`, while schema already accepts `build`.
-2. Schema phase enum uses draft token `finished`, while target lifecycle token is `finalize`.
-3. Runtime does not parse/store `phase` yet (`PluginSpec` is stage-only).
-4. Existing contract tests currently assert draft schema values and must be realigned to target ADR vocabulary.
+1. Runtime `Stage` enum currently supports only `compile|validate|generate`; schema already accepts `build` — misaligned.
+2. Schema phase enum uses draft token `finished`; target lifecycle token is `finalize` — misaligned.
+3. `PluginSpec` has no `phase` field — manifest phase annotations are silently ignored at runtime.
+4. `PluginSpec` has no `when` field — smart plugin gating cannot be implemented.
+5. `PluginKind` lacks `assembler` and `builder` values — new stage plugins have no kind affinity.
+6. `PluginContext` has no assemble/build fields — Wave F/G are fully blocked.
+7. `execute_stage()` is stage-only; its signature and return type must evolve for phase-aware execution.
+8. Phase handler protocol (`on_<phase>`) is not defined in `BasePlugin` — new phase methods have no contract.
+9. `profile_restrictions` and `when.profiles` are parallel gating mechanisms — need consolidation path.
+10. Existing contract tests assert draft schema values (`finished`, missing `build` stage) and produce false greens.
 
 ---
 
@@ -114,23 +120,30 @@ from Wave B, not the new executor from Wave C.
    release_tag: Optional[str]      # for provenance
    sbom_output_dir: Optional[str]
    ```
-6. Align schema stage enum to runtime target: `discover`, `compile`, `validate`, `generate`, `assemble`, `build`.
-7. Align schema phase enum to runtime target: `init`, `pre`, `run`, `post`, `verify`, `finalize` (remove draft token `finished`).
-8. Add `produces`/`consumes` fields to manifest schema (unenforced, structure only).
-9. Allocate diagnostic code ranges in `error-catalog.yaml`:
-   - `E800x`: discover stage errors
-   - `E810x`: assemble stage errors
-   - `E820x`: build stage errors
-   - `W800x`: data bus undeclared key warnings (transitional)
-10. Define normative `order` ranges per stage:
-   - `discover`: 10–89
-   - `compile`: 30–89 (preserve)
-   - `validate`: 90–189 (preserve)
-   - `generate`: 190–399 (preserve, per ADR 0074)
-   - `assemble`: 400–499
-   - `build`: 500–599
-11. Keep `phase=RUN` default — existing manifests load unchanged.
-12. Update `tests/plugin_contract/test_manifest.py` to assert aligned stage/phase enums and add test that a manifest with `stage: build` loads successfully in runtime.
+6. Extend `PluginKind` with `ASSEMBLER` and `BUILDER`.
+7. Add phase handler dispatch to `BasePlugin` and `PluginRegistry` (ADR Section 5.3):
+   - Add optional `on_init`, `on_pre`, `on_run`, `on_post`, `on_verify`, `on_finalize` methods to `BasePlugin`.
+   - Registry dispatch rule: for `run` phase call `execute(ctx)` unless `on_run` exists; for other phases call `on_<phase>` if exists, skip otherwise.
+   - Preserve full backward compat — existing plugins with only `execute(ctx)` work unchanged.
+8. Align schema stage enum to runtime target: `discover`, `compile`, `validate`, `generate`, `assemble`, `build`.
+9. Align schema phase enum to runtime target: `init`, `pre`, `run`, `post`, `verify`, `finalize` (remove draft token `finished`).
+10. Add `produces`/`consumes`/`when` fields to manifest schema (unenforced, structure only).
+11. Deprecate `profile_restrictions` in schema (keep accepting but emit deprecation note pointing to `when.profiles`).
+12. Allocate diagnostic code ranges in `error-catalog.yaml`:
+    - `E800x`: discover stage errors
+    - `E810x`: assemble stage errors
+    - `E820x`: build stage errors
+    - `W800x`: data bus undeclared key warnings (transitional)
+13. Define normative `order` ranges per stage:
+    - `discover`: 10–89
+    - `compile`: 30–89 (preserve)
+    - `validate`: 90–189 (preserve)
+    - `generate`: 190–399 (preserve, per ADR 0074)
+    - `assemble`: 400–499
+    - `build`: 500–599
+14. Keep `phase=RUN` default — existing manifests load unchanged.
+15. Update `tests/plugin_contract/test_manifest.py` to assert aligned stage/phase enums and add test that a manifest with `stage: build` loads successfully in runtime.
+16. Add regression test: existing plugins with `execute(ctx)` only — full pipeline run produces identical output.
 
 **Gate:**
 
@@ -138,6 +151,7 @@ from Wave B, not the new executor from Wave C.
 - Existing manifests load unchanged.
 - Schema validation passes with and without `phase`/`produces`/`consumes`.
 - Schema/runtime vocabulary lock proven by tests (no `build`/`finished` drift).
+- Regression test: all existing plugins produce identical output after phase handler dispatch change.
 
 ---
 
@@ -164,18 +178,22 @@ or re-apply phase annotation after any plugin restructuring.
    - `post`: capability_contract, instance_placeholders
 
 3. Annotate all `generate` plugins per Section 4.3:
-   - `init`: `effective_json`, `effective_yaml`
-   - `run`: terraform_proxmox, terraform_mikrotik, ansible_inventory, bootstrap_*
+   - `run`: `effective_json`, `effective_yaml`, terraform_proxmox, terraform_mikrotik,
+     ansible_inventory, bootstrap_* (note: `effective_json/yaml` are `run`, not `init` — they write files)
    - `post`: docs, diagrams
    - `finalize`: `artifact_manifest` (placeholder — implemented in Wave E.1)
 
-4. Add test: every plugin in every discovered manifest must have an explicit `phase` field.
+4. Convert all `profile_restrictions` entries to `when.profiles` (ADR Section 5.4).
+
+5. Add test: every plugin in every discovered manifest must have an explicit `phase` field.
+6. Add test: no plugin in any manifest uses `profile_restrictions` after Wave D is done.
 
 **Gate:**
 
 - Manifest schema tests green.
 - Execution order/parity tests green (phase field ignored by current executor — backward compat).
 - Every plugin has explicit `phase` in manifest.
+- No `profile_restrictions` entries remain.
 
 ---
 
@@ -195,20 +213,24 @@ or re-apply phase annotation after any plugin restructuring.
    `for stage in stages: for phase in phases: execute(plugins_at(stage, phase))`
 2. Enforce forward stage/phase dependency rejection at manifest load time.
 3. Enforce `finalize` execution for any started stage, even after exception.
-4. Implement `when` predicate evaluation:
+4. Enforce `finalize` for started stages in partial `--stages` runs (skipped stages never start, so no finalize needed for them).
+5. Enforce data bus scope: invalidate all `stage_local` keys when their publishing stage ends.
+6. Implement `when` predicate evaluation:
    - `profiles`: gate on `ctx.profile`
    - `capabilities`: gate on `ctx.capability_catalog`
    - `pipeline_modes`: gate on runtime pipeline mode flag
-   - `changed_input_scopes`: gate on dirty-input scope detection (stub — full impl in Wave F)
-5. Add canary mode: `--trace-execution` flag that logs stage/phase/plugin execution sequence
+   - `changed_input_scopes`: gate on dirty-input scope detection (stub — returns True; full impl in Wave F)
+7. Add canary mode: `--trace-execution` flag that logs stage/phase/plugin execution sequence
    for comparison against Wave A baseline before hard cutover.
-6. Wrap `compiler_runtime.discover_plugin_manifests()` call in a `discover.run` shim
+8. Wrap `compiler_runtime.discover_plugin_manifests()` call in a `discover.run` shim
    (full pluginization deferred to Wave F).
 
 **Gate:**
 
 - Stage/phase order tests green.
 - `finalize` runs in all failure scenarios (unit tests).
+- `finalize` runs in partial `--stages` execution (integration test).
+- `stage_local` invalidation tested: subscribe after stage end → hard error.
 - Diagnostics parity with Wave A baseline accepted.
 - `when` predicate gates pass for profile, capability, and pipeline_mode cases.
 
@@ -231,18 +253,21 @@ or re-apply phase annotation after any plugin restructuring.
    - Plugin without `consumes` but calling `ctx.subscribe()` → `W800x` warning (not error).
    - Transitional period: warnings only. Hard errors activate in Wave H.
 2. Add runtime schema payload validation when `schema_ref` is declared in `produces`/`consumes`.
-3. Annotate high-value keys first:
-   - `base.compiler.module_loader` → `produces: class_map, object_map`
-   - `base.compiler.instance_rows` → `produces: normalized_rows`
-   - `base.compiler.capability_contract_loader` → `produces: catalog_ids, packs_map`
-   - `base.generator.*` → `produces: generated_dir, generated_files, <family>_files`
-4. Add `consumer must include producer in depends_on` enforcement.
+3. Enforce `stage_local` vs `pipeline_shared` cross-stage subscription constraints (reject `stage_local` subscriptions from later stages).
+4. Default all existing high-value keys to `pipeline_shared` scope during annotation.
+5. Annotate high-value keys first:
+   - `base.compiler.module_loader` → `produces: class_map, object_map` (scope: pipeline_shared)
+   - `base.compiler.instance_rows` → `produces: normalized_rows` (scope: pipeline_shared)
+   - `base.compiler.capability_contract_loader` → `produces: catalog_ids, packs_map` (scope: pipeline_shared)
+   - `base.generator.*` → `produces: generated_dir, generated_files, <family>_files` (scope: pipeline_shared)
+6. Add `consumer must include producer in depends_on` enforcement.
 
 **Gate:**
 
 - No undeclared consume in CI for annotated high-value keys.
 - `W800x` warnings emitted for remaining unannotated plugins.
 - Schema payload validation passes for declared `schema_ref` entries.
+- Cross-stage `stage_local` subscription rejected with hard error.
 
 ---
 
@@ -296,18 +321,22 @@ or re-apply phase annotation after any plugin restructuring.
    - Secret-leak guard: regex scan of assembled outputs for unencrypted secret patterns.
    - Emits `E810x` diagnostics on violations.
 3. Implement `assemble.finalize` plugin for assembly manifest emission.
-4. Complete pluginization of `discover_plugin_manifests()`:
-   - `discover.init`: load manifests from all module roots.
+4. Complete pluginization of `discover_plugin_manifests()` per ADR Section 5.5 bootstrap contract:
+   - `discover.init`: load manifests from all module roots (base manifest already loaded by orchestrator before this plugin runs).
    - `discover.pre`: framework/project boundary check (ADR 0075).
    - `discover.run`: build plugin DAG, validate cycles.
    - `discover.verify`: capability catalog preflight.
-   - stop scanning `instances_root` for plugin manifests (ADR 0071 data-only policy).
+   - All `discover.*` plugins MUST reside in base manifest (no class/object module dependency).
+   - Stop scanning `instances_root` for plugin manifests (ADR 0071 data-only policy).
+5. Implement `changed_input_scopes` stub → full evaluation in `assemble.init`
+   (compares artifact manifest checksums against previous run to determine dirty scopes).
 
 **Gate:**
 
 - `.work/native` and `dist/` parity with existing assembly workflows.
 - Secret-leak guard catches test cases with mock unencrypted secrets.
 - `E810x` diagnostics emitted correctly.
+- `discover_plugin_manifests()` bare function replaced, bootstrap contract respected.
 
 ---
 
@@ -359,9 +388,10 @@ or re-apply phase annotation after any plugin restructuring.
 2. Verify all plugins have `produces`/`consumes` declarations.
 3. Remove legacy `compiler_runtime.discover_plugin_manifests()` bare function
    (replaced by `discover.*` plugins in Wave F).
-4. Remove any dead code paths that bypass plugin lifecycle.
-5. Remove `--trace-execution` canary mode or promote to permanent debug flag.
-6. Finalize operator runbooks and update CLAUDE.md guidance.
+4. Remove `profile_restrictions` deprecated alias from `PluginSpec` and schema.
+5. Remove any dead code paths that bypass plugin lifecycle.
+6. Remove `--trace-execution` canary mode or promote to permanent debug flag.
+7. Finalize operator runbooks and update CLAUDE.md guidance.
 
 **Gate:**
 
@@ -369,12 +399,13 @@ or re-apply phase annotation after any plugin restructuring.
 - No `W800x` warnings in CI — all undeclared pub/sub resolved.
 - No legacy runtime paths reachable.
 - `discover_plugin_manifests()` function absent from codebase.
+- `profile_restrictions` absent from schema and `PluginSpec`.
 
 ---
 
 ## Acceptance Criteria Summary
 
-Mapped to ADR 0080 Section plus additions from gap analysis:
+Mapped to ADR 0080 sections plus additions from gap analysis:
 
 | # | Criterion | Wave |
 |---|-----------|------|
@@ -384,11 +415,16 @@ Mapped to ADR 0080 Section plus additions from gap analysis:
 | 4 | Forward stage/phase dependencies rejected at manifest load | C |
 | 5 | `produces`/`consumes` contracts supported and validated | E |
 | 6 | `assemble` and `build` stages execute via plugin registry | F/G |
-| 7 | `finalize` runs for all started stages and emits manifests/reports | C |
+| 7 | `finalize` runs for all started stages (failure paths and `--stages` partial runs) | C |
 | 8 | `when` predicate gates work for profile/capability/pipeline_mode | C |
 | 9 | `discover` stage replaces `compiler_runtime.discover_plugin_manifests()` | F |
-| 10 | Diagnostic code ranges E800x–E820x registered in error-catalog.yaml | B |
+| 10 | Diagnostic code ranges E800x–E820x + W800x registered in error-catalog.yaml | B |
 | 11 | `PluginContext` contains assemble/build fields | B |
 | 12 | `base.generator.artifact_manifest` implemented and emitting checksums | E.1 |
-| 13 | Order ranges defined and documented for all 6 stages | B |
-| 14 | Schema and runtime use identical stage/phase enums (`discover..build`, `init..finalize`) | B |
+| 13 | Order ranges defined for all 6 stages | B |
+| 14 | Schema and runtime use identical stage/phase enums | B |
+| 15 | `PluginKind` includes `assembler` and `builder` | B |
+| 16 | Phase handler protocol backward-compat: existing `execute(ctx)` plugins unchanged | B/C |
+| 17 | `profile_restrictions` converted to `when.profiles`, deprecated alias removed | D/H |
+| 18 | `stage_local` keys invalidated at stage boundary, cross-stage subscription rejected | C/E |
+| 19 | Bootstrap contract: base manifest is only pre-lifecycle load; discover plugins in base manifest only | B/F |

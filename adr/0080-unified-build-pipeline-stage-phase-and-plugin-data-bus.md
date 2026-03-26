@@ -41,6 +41,13 @@ Current runtime (AS-IS baseline confirmed on 2026-03-26):
 | G9 | Wave C rollback has execution canary | behavior parity cannot rely only on final artifacts | hidden ordering regressions | Low |
 | G10 | Plugin inventory baseline is accurate | ADR text can drift from discovered manifests | migration scope ambiguity | Low |
 | G11 | Schema/runtime stage-phase vocabulary is aligned | schema allows `build` and `finished`, runtime cannot execute these values | manifest load failures and false green contract tests | High |
+| G12 | `generate/init` semantics are consistent with phase contract | `effective_json/yaml` were initially assigned to `init` but write business artifacts | violates "no artifact mutation in init" rule | Medium |
+| G13 | `PluginKind` covers assemble/build domains | only `compiler/validator_yaml/validator_json/generator` exist | no kind affinity for new stage plugins | Medium |
+| G14 | Phase handler protocol preserves backward compat | adding `on_<phase>` methods changes plugin interface contract | all existing plugins would need rewrite | High |
+| G15 | `when.profiles` supersedes `profile_restrictions` | both exist in parallel with overlapping semantics | duplicate profile gating, config drift | Low |
+| G16 | Discovery bootstrap contract is specified | no rule about how base manifest is seeded before plugin lifecycle | circular dependency risk | High |
+| G17 | Partial stage execution (`--stages`) interacts correctly with finalize guarantee | not addressed | finalize may not run for started stages in partial mode | Medium |
+| G18 | Data bus scope (`stage_local` vs `pipeline_shared`) has enforcement rules | scope field defined but no enforcement semantics | cross-stage data leakage risk | Medium |
 
 Concrete file anchors:
 
@@ -116,10 +123,12 @@ Phase semantics:
 
 #### 4.3 Generate
 
-1. `init`: `base.generator.effective_json`, `base.generator.effective_yaml`.
-2. `run`: `base.generator.terraform_proxmox`, `base.generator.terraform_mikrotik`, `base.generator.ansible_inventory`, `base.generator.bootstrap_proxmox`, `base.generator.bootstrap_mikrotik`, `base.generator.bootstrap_orangepi`.
-3. `post`: `base.generator.docs`, `base.generator.diagrams`.
-4. `finalize`: `base.generator.artifact_manifest` (new plugin).
+1. `run`: `base.generator.effective_json`, `base.generator.effective_yaml`, `base.generator.terraform_proxmox`, `base.generator.terraform_mikrotik`, `base.generator.ansible_inventory`, `base.generator.bootstrap_proxmox`, `base.generator.bootstrap_mikrotik`, `base.generator.bootstrap_orangepi`.
+2. `post`: `base.generator.docs`, `base.generator.diagrams`.
+3. `finalize`: `base.generator.artifact_manifest` (new plugin).
+
+Note: `effective_json` and `effective_yaml` export the compiled model as baseline artifacts.
+They belong in `run` because `init` MUST NOT mutate business artifacts (Section 3, phase 1).
 
 #### 4.4 Assemble (new)
 
@@ -157,6 +166,57 @@ Required runtime behavior:
 5. `release_tag`: release/provenance identifier.
 6. `sbom_output_dir`: SBOM output location.
 
+#### 5.2 PluginKind Extension (Normative)
+
+New stage domains require new `PluginKind` values:
+
+1. `assembler`: owns execution-view construction; runs in `assemble` stage only.
+2. `builder`: owns packaging and trust verification; runs in `build` stage only.
+
+Existing kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`) retain their stage affinity unchanged.
+
+#### 5.3 Phase Handler Protocol (Normative)
+
+Backward compatibility: existing `execute(ctx) -> PluginResult` is preserved for the `run` phase.
+
+Phase-aware plugins may additionally implement `on_<phase>(ctx) -> PluginResult` handlers.
+
+Registry dispatch rule:
+1. For `run` phase: call `execute(ctx)` unless `on_run(ctx)` is also defined (prefer `on_run`).
+2. For any other phase: call `on_<phase>(ctx)` if defined; skip (return empty result) if not.
+3. The dispatcher `execute(ctx, stage, phase)` is an alternative to handlers — registry prefers handlers if both are present.
+
+This rule guarantees all existing single-phase plugins continue to work without modification.
+
+#### 5.4 `when` and `profile_restrictions` Alignment (Normative)
+
+The existing `profile_restrictions` field in `PluginSpec` is superseded by `when.profiles`.
+
+Migration rule: Wave D MUST convert `profile_restrictions` entries to `when.profiles` entries during
+phase annotation. Once all plugins are migrated, `profile_restrictions` becomes a deprecated alias
+and is removed in Wave H.
+
+#### 5.5 Discovery Bootstrap Contract (Normative)
+
+The `discover` stage faces a bootstrap problem: plugin manifests must be discovered before
+plugin lifecycle can start.
+
+Resolution:
+1. The base manifest (`topology-tools/plugins/plugins.yaml`) is loaded procedurally by the orchestrator
+   before any stage executes — this is the only mandatory non-plugin step.
+2. `discover.*` plugins MUST reside in the base manifest; they MUST NOT depend on class/object manifests.
+3. `discover.init` then loads all additional manifests (class/object modules) for the remaining stages.
+4. Instance roots MUST NOT be scanned for plugin manifests (ADR 0071 data-only policy).
+
+#### 5.6 Partial Stage Execution (Normative)
+
+When pipeline runs with a reduced stage set (e.g., `--stages compile,validate`):
+
+1. Only explicitly requested stages execute their full phase sequence.
+2. `finalize` guarantee applies to all started stages regardless of `--stages` flag.
+3. `when.changed_input_scopes` stub must not interfere with `--stages` selection; they are orthogonal filters.
+4. Skipped stages do not emit `finalize` — they were never started.
+
 ### 6. Contractual Publish/Subscribe Data Bus (Normative)
 
 `publish/subscribe` remains the transport but becomes declared and validated.
@@ -167,6 +227,13 @@ Manifest fields:
 
 1. `produces` with `key`, `schema_ref` (optional), `scope` (`stage_local|pipeline_shared`), `description`.
 2. `consumes` with `from_plugin`, `key`, `required`, `schema_ref` (optional).
+
+`scope` semantics:
+- `stage_local`: data is valid only within the publishing stage; invalidated when stage ends.
+- `pipeline_shared`: data persists in `_published_data` for the entire pipeline and may be consumed by later stages.
+
+Consumers in a later stage MUST only subscribe to `pipeline_shared` keys. Subscriptions to
+`stage_local` keys across stage boundaries are rejected at load time (hard error).
 
 #### 6.2 Runtime Enforcement
 
@@ -262,6 +329,13 @@ Normative order ranges by stage:
 | G9 | C |
 | G10 | A |
 | G11 | B |
+| G12 | D (annotation fix) |
+| G13 | B |
+| G14 | B + C |
+| G15 | D (convert profile_restrictions) + H (remove alias) |
+| G16 | B (specify bootstrap contract) |
+| G17 | C (finalize guarantee in partial-stage mode) |
+| G18 | E (scope enforcement in runtime) |
 
 ### 9.3 Wave A - Baseline and Inventory Freeze
 
@@ -288,20 +362,24 @@ Tasks:
 2. Add `Phase` enum and canonical order.
 3. Extend `PluginSpec` with `phase` and `when`.
 4. Extend `PluginDiagnostic` with phase attribution.
-5. Extend `PluginContext` with assemble/build fields.
-6. Align manifest schema stage enum with runtime target (`discover|compile|validate|generate|assemble|build`).
-7. Align manifest schema phase enum with ADR vocabulary (`init|pre|run|post|verify|finalize`), removing draft token `finished`.
-8. Extend manifest schema with `phase`, `produces`, `consumes`, `when`.
-9. Allocate `E800x/E810x/E820x/W800x` ranges.
-10. Define order ranges for all six stages.
-11. Keep backward compatibility defaults (`phase` omitted -> `run`; missing `produces/consumes` tolerated until Wave E/H).
-12. Update contract tests to reflect aligned enums and add a loader test proving a `build` stage manifest can be loaded by runtime.
+5. Extend `PluginContext` with assemble/build fields (Section 5.1).
+6. Extend `PluginKind` with `assembler` and `builder` (Section 5.2).
+7. Align manifest schema stage enum with runtime target (`discover|compile|validate|generate|assemble|build`).
+8. Align manifest schema phase enum with ADR vocabulary (`init|pre|run|post|verify|finalize`), removing draft token `finished`.
+9. Extend manifest schema with `phase`, `produces`, `consumes`, `when`.
+10. Add phase handler dispatch protocol to `BasePlugin` and `PluginRegistry` (Section 5.3).
+11. Document bootstrap contract for discover stage (Section 5.5).
+12. Allocate `E800x/E810x/E820x/W800x` ranges in error catalog.
+13. Define order ranges for all six stages (Section 7).
+14. Keep backward compatibility defaults (`phase` omitted -> `run`; `profile_restrictions` still accepted but deprecated).
+15. Update contract tests to reflect aligned enums; add loader test proving a `build` stage manifest can be loaded by runtime.
 
 Gate:
 
 1. Contract tests green.
 2. Existing manifests load unchanged.
 3. Schema and runtime accept the same stage/phase vocabulary (no `build`/`finished` drift).
+4. Phase handler dispatch: existing plugins with only `execute(ctx)` pass a regression run unchanged.
 
 ### 9.5 Wave D - Manifest Phase Annotation (parallel with Wave B)
 
@@ -309,15 +387,17 @@ Goal: annotate explicit phase for all plugins in discovered manifests.
 
 Tasks:
 
-1. Apply section 4 phase mapping to all current plugins.
-2. Add CI test: every plugin has explicit `phase`.
-3. Preserve ADR 0074 ordering for generate.
-4. Coordinate with ADR 0079 changes for docs/diagrams plugins.
+1. Apply section 4 phase mapping to all current plugins (note: `effective_json/yaml` → `run`, not `init`).
+2. Convert `profile_restrictions` entries to `when.profiles` for all plugins (Section 5.4).
+3. Add CI test: every plugin has explicit `phase`.
+4. Preserve ADR 0074 ordering for generate.
+5. Coordinate with ADR 0079 changes for docs/diagrams plugins.
 
 Gate:
 
 1. Schema/manifest tests green.
 2. Parity tests green.
+3. No `profile_restrictions` entries remain; all converted to `when.profiles`.
 
 ### 9.6 Wave C - Phase Executor and `when` Gating
 
@@ -325,17 +405,19 @@ Goal: run plugins by `stage -> phase -> DAG/order`.
 
 Tasks:
 
-1. Implement phase-aware executor.
+1. Implement phase-aware executor (`for stage: for phase: execute(plugins_at(stage, phase))`).
 2. Reject forward stage/phase dependencies at load time.
-3. Guarantee `finalize` for all started stages.
+3. Guarantee `finalize` for all started stages, including partial-stage execution (`--stages` flag).
 4. Evaluate `when` predicates for `profiles`, `capabilities`, `pipeline_modes`, `changed_input_scopes` (stub).
-5. Add `--trace-execution` canary to compare old/new execution traces.
+5. Enforce data bus scope at stage boundary: invalidate `stage_local` published keys when stage ends.
+6. Add `--trace-execution` canary to compare old/new execution traces.
 
 Gate:
 
 1. Stage/phase tests green.
-2. Finalize-on-failure tests green.
-3. Canary parity accepted.
+2. Finalize-on-failure tests green (including partial `--stages` runs).
+3. `stage_local` keys are inaccessible after stage completion.
+4. Canary parity accepted.
 
 ### 9.7 Wave E - Data Bus Contract Enforcement
 
@@ -345,12 +427,14 @@ Tasks:
 
 1. Annotate high-value keys (`class_map`, `object_map`, `normalized_rows`, `catalog_ids`, `packs_map`, `generated_files`).
 2. Enforce producer dependency, declared keys, temporal validity, and payload schema checks.
-3. Emit `W800x` for undeclared usage during transition.
+3. Enforce `stage_local` vs `pipeline_shared` cross-stage subscription constraints.
+4. Emit `W800x` for undeclared usage during transition.
 
 Gate:
 
 1. No undeclared consume in CI for annotated keys.
-2. Runtime validation tests green.
+2. Cross-stage `stage_local` subscriptions caught and rejected.
+3. Runtime validation tests green.
 
 ### 9.8 Wave E.1 - `base.generator.artifact_manifest`
 
@@ -404,15 +488,17 @@ Goal: complete contract hardening and remove transitional paths.
 Tasks:
 
 1. Promote undeclared pub/sub from `W800x` to `E800x`.
-2. Remove legacy discovery and lifecycle bypass code paths.
-3. Keep `--trace-execution` as debug flag or remove after two green cycles.
-4. Update runbooks and developer documentation.
+2. Remove `profile_restrictions` deprecated alias from `PluginSpec` and schema (Section 5.4).
+3. Remove legacy discovery and lifecycle bypass code paths.
+4. Keep `--trace-execution` as debug flag or remove after two green cycles.
+5. Update runbooks and developer documentation.
 
 Gate:
 
 1. All plugin suites green.
 2. No legacy path reachable.
 3. No undeclared pub/sub in CI.
+4. `profile_restrictions` absent from schema and runtime.
 
 ## Required Test Additions
 
@@ -435,10 +521,15 @@ Gate:
 8. `base.generator.artifact_manifest` is implemented and consumed by downstream stage.
 9. `discover` and `assemble` run via plugin registry, no mandatory procedural bypass.
 10. `build` runs via plugin registry and emits trust/release outputs.
-11. `finalize` executes for any started stage, including failure paths.
+11. `finalize` executes for any started stage, including failure paths and partial `--stages` runs.
 12. Manifest schema and runtime share the same stage/phase vocabulary (`discover|...|build` and `init|...|finalize`).
 13. Diagnostic ranges `E800x/E810x/E820x/W800x` are cataloged without overlap.
 14. Hard cutover removes legacy discovery and undeclared pub/sub usage.
+15. `PluginKind` includes `assembler` and `builder`.
+16. Phase handler protocol preserves backward compat: all existing `execute(ctx)` plugins run unchanged.
+17. `profile_restrictions` converted to `when.profiles` and removed as standalone field in Wave H.
+18. `stage_local` data bus keys are invalidated at stage boundary and rejected for cross-stage subscriptions.
+19. Discovery bootstrap contract is respected: base manifest is the only pre-lifecycle load, discover plugins reside in base manifest only.
 
 ## Risks and Mitigations
 
@@ -458,6 +549,10 @@ Gate:
    - Mitigation: keep parallel/incremental optimizations after hard cutover and guard with repeat-run assertions.
 8. Risk: schema/runtime drift reappears after partial merges.
    - Mitigation: add CI guard test that stage and phase enums in schema and runtime stay in sync.
+9. Risk: phase handler protocol change breaks existing plugin interface contract.
+   - Mitigation: Registry dispatch prefers `execute(ctx)` for `run` phase; new methods are additive. Full regression before Wave C gate.
+10. Risk: `stage_local` scope enforcement invalidates data needed by later phases.
+    - Mitigation: review all high-value key scopes before Wave E; default all existing keys to `pipeline_shared` during migration.
 
 ## References
 

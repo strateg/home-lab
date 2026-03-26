@@ -18,6 +18,7 @@ Complete when all Waves A–H are done and all items below are verified.
 
 - [ ] Runtime `Stage` enum contains: `discover`, `compile`, `validate`, `generate`, `assemble`, `build`.
 - [ ] Runtime `Phase` enum contains: `init`, `pre`, `run`, `post`, `verify`, `finalize` in canonical order.
+- [ ] Runtime `PluginKind` contains: `compiler`, `validator_yaml`, `validator_json`, `generator`, `assembler`, `builder`.
 - [ ] Execution order is `stage → phase → DAG/order` (not flat order within stage).
 - [ ] Forward stage dependency is rejected at manifest load time with diagnostic.
 - [ ] Forward phase dependency within same stage is rejected at manifest load time with diagnostic.
@@ -28,8 +29,10 @@ Complete when all Waves A–H are done and all items below are verified.
 ## B. Finalize Guarantee
 
 - [ ] `finalize` phase executes for every stage that was started, even if `run` or `verify` raised an exception.
+- [ ] `finalize` phase executes for every started stage in partial `--stages` runs (skipped stages emit no finalize).
 - [ ] `finalize` plugins receive full diagnostic context from failed phases.
 - [ ] Integration test: stage failure followed by `finalize` emission — passes.
+- [ ] Integration test: `--stages compile,validate` run — `finalize` runs for compile and validate only.
 
 ---
 
@@ -61,6 +64,9 @@ Complete when all Waves A–H are done and all items below are verified.
 - [ ] Consumer can only subscribe to declared `produces` keys — enforced at runtime.
 - [ ] Schema payload validation triggers for declared `schema_ref` entries.
 - [ ] High-value keys annotated: `class_map`, `object_map`, `normalized_rows`, `catalog_ids`, `packs_map`, `generated_files`.
+- [ ] All existing high-value keys default to `pipeline_shared` scope.
+- [ ] `stage_local` keys are invalidated when their publishing stage ends.
+- [ ] Subscription to `stage_local` key from a later stage is rejected with hard error.
 
 ---
 
@@ -100,7 +106,10 @@ Complete when all Waves A–H are done and all items below are verified.
 - [ ] `discover.pre` enforces framework/project boundary (ADR 0075).
 - [ ] `discover.run` builds plugin DAG and validates for cycles.
 - [ ] `discover.verify` runs capability catalog preflight.
+- [ ] All `discover.*` plugins reside in base manifest only — not in class/object modules.
+- [ ] Base manifest is the only pre-lifecycle procedural load; no other procedural manifest loading exists.
 - [ ] `compiler_runtime.discover_plugin_manifests()` bare function is **absent** from codebase.
+- [ ] `instances_root` is NOT scanned for plugin manifests (ADR 0071).
 
 ---
 
@@ -180,5 +189,23 @@ Complete when all Waves A–H are done and all items below are verified.
 - [ ] No `W800x` warnings in CI (all pub/sub annotated).
 - [ ] `compiler_runtime.discover_plugin_manifests()` deleted.
 - [ ] No dead code paths bypassing plugin lifecycle exist in `compile-topology.py`.
+- [ ] `profile_restrictions` field absent from `PluginSpec` dataclass and manifest schema.
+- [ ] No plugin manifests contain `profile_restrictions` entries.
 - [ ] Operator runbooks updated.
 - [ ] `CLAUDE.md` guidance updated if workflow commands changed.
+
+## P. Phase Handler Backward Compatibility
+
+- [ ] Existing plugins with `execute(ctx) -> PluginResult` only run unchanged through full pipeline.
+- [ ] Registry dispatch: for `run` phase, `execute(ctx)` is called unless `on_run(ctx)` is defined.
+- [ ] Registry dispatch: for non-`run` phases, `on_<phase>(ctx)` is called if defined; plugin is skipped if not.
+- [ ] Plugin skipped on non-`run` phase returns empty `PluginResult` (no error).
+- [ ] Regression test: all 47+ base manifest plugins produce identical output after phase handler dispatch change.
+
+## Q. `when` Predicates
+
+- [ ] `when.profiles` gates on `ctx.profile` — skipped plugins emit informational diagnostic, not failure.
+- [ ] `when.capabilities` gates on `ctx.capability_catalog`.
+- [ ] `when.pipeline_modes` gates on runtime pipeline mode.
+- [ ] `when.changed_input_scopes` stub returns True (all scopes dirty) until full impl in Wave F.
+- [ ] No `profile_restrictions` field accepted by schema (removed, redirected to `when.profiles`).
