@@ -1,185 +1,116 @@
 # Plugin Implementation Examples
 
-**Purpose:** Reference implementations showing best practices for plugin development
+**Last Updated:** 2026-03-26
+**Related:** ADR 0063, ADR 0065, ADR 0080, Plugin Authoring Guide
 
-**Related:** ADR 0063, ADR 0064, Plugin Authoring Guide
+Reference implementations showing best practices for v5 plugin development.
 
 ---
 
-## Example 1: Simple YAML Validator Plugin
+## Example 1: YAML Validator — Device Name Constraints
 
-**Use case:** Validate device name constraints in Mikrotik module
+**Use case:** Validate device name conventions in a MikroTik object module.
 
-**File:** `topology/object-modules/mikrotik/plugins/yaml_validators/device_names.py`
+**File:** `topology/object-modules/mikrotik/plugins/validators/device_names.py`
 
 ```python
 """
-Validate device name constraints in YAML.
-- Max length: 63 characters (configurable)
-- No spaces or special characters
-- Must be unique within module
+Validate device name constraints in YAML topology:
+- Max length (configurable, default 63)
+- Pattern: lowercase alphanumeric, hyphens, underscores only
+- Uniqueness within the module
 """
 
 import re
-from typing import Dict, Any
-from topology_tools.plugin_api import (
-    YamlValidatorPlugin,
-    PluginResult,
-    PluginStatus,
-    PluginSeverity,
-    PluginDiagnostic
+
+from kernel.plugin_base import (
+    ValidatorYamlPlugin, PluginContext, PluginResult, Stage,
 )
 
-class MikrotikDeviceNamesValidator(YamlValidatorPlugin):
-    """Validate device naming conventions in Mikrotik topology"""
 
-    NAME_PATTERN = re.compile(r'^[a-z0-9_-]+$')
+class MikrotikDeviceNamesValidator(ValidatorYamlPlugin):
+    """Validate device naming conventions in MikroTik topology."""
 
-    def validate_config(self) -> PluginResult:
-        """Validate plugin configuration"""
-        try:
-            max_length = self.context.config.get("max_name_length", 63)
-            if not isinstance(max_length, int) or max_length < 1:
-                raise ValueError("max_name_length must be positive integer")
+    NAME_PATTERN = re.compile(r"^[a-z0-9_-]+$")
 
-            return self._success()
-
-        except ValueError as e:
-            return PluginResult(
-                plugin_id=self.context.plugin_id,
-                api_version=self.api_version,
-                status=PluginStatus.FAILED,
-                duration_ms=0,
-                diagnostics=[
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="CFG_INVALID",
-                        message=f"Config validation failed: {str(e)}"
-                    )
-                ]
-            )
-
-    def execute(self, yaml_dict: Dict[str, Any], source_path: str) -> PluginResult:
-        """
-        Validate device names in YAML.
-
-        Checks:
-        1. Device name exists
-        2. Device name length <= max_name_length
-        3. Device name matches pattern [a-z0-9_-]+
-        4. Device names are unique
-        """
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics = []
-        max_length = self.context.config.get("max_name_length", 63)
-        seen_names = set()
+        max_length = ctx.config.get("max_name_length", 63)
+        seen_names: set[str] = set()
 
-        devices = yaml_dict.get("devices", [])
-
+        devices = ctx.raw_yaml.get("devices", [])
         if not isinstance(devices, list):
-            return PluginResult(
-                plugin_id=self.context.plugin_id,
-                api_version=self.api_version,
-                status=PluginStatus.FAILED,
-                duration_ms=0,
-                diagnostics=[
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEV_INVALID_TYPE",
-                        message="'devices' must be a list",
-                        location={"file": source_path, "line": 1}
-                    )
-                ]
-            )
+            diagnostics.append(self.emit_diagnostic(
+                code="E5001", severity="error", stage=stage,
+                message="'devices' must be a list",
+                path="devices",
+                source_file=ctx.source_file,
+            ))
+            return self.make_result(diagnostics)
 
         for idx, device in enumerate(devices):
             if not isinstance(device, dict):
-                diagnostics.append(
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEV_NOT_DICT",
-                        message=f"Device at index {idx} must be dict, got {type(device).__name__}",
-                        location={"file": source_path, "line": idx + 2}
-                    )
-                )
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5002", severity="error", stage=stage,
+                    message=f"Device at index {idx} must be a mapping, got {type(device).__name__}",
+                    path=f"devices[{idx}]",
+                    source_file=ctx.source_file,
+                ))
                 continue
 
-            device_name = device.get("name")
+            name = device.get("name")
 
-            # Check presence
-            if device_name is None:
-                diagnostics.append(
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEV_NO_NAME",
-                        message=f"Device at index {idx} has no 'name' field",
-                        location={"file": source_path, "line": idx + 2}
-                    )
-                )
+            if name is None:
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5003", severity="error", stage=stage,
+                    message=f"Device at index {idx} missing required 'name' field",
+                    path=f"devices[{idx}]",
+                    source_file=ctx.source_file,
+                    hint="Add a 'name' field with a lowercase identifier",
+                ))
                 continue
 
-            # Check type
-            if not isinstance(device_name, str):
-                diagnostics.append(
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEV_NAME_TYPE",
-                        message=f"Device name must be string, got {type(device_name).__name__}",
-                        location={"file": source_path, "line": idx + 2}
-                    )
-                )
+            if not isinstance(name, str):
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5004", severity="error", stage=stage,
+                    message=f"Device name must be a string, got {type(name).__name__}",
+                    path=f"devices[{idx}].name",
+                    source_file=ctx.source_file,
+                ))
                 continue
 
-            # Check length
-            if len(device_name) > max_length:
-                diagnostics.append(
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEV_NAME_TOO_LONG",
-                        message=f"Device name '{device_name}' exceeds {max_length} chars (got {len(device_name)})",
-                        location={"file": source_path, "line": idx + 2}
-                    )
-                )
-                continue
+            if len(name) > max_length:
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5005", severity="error", stage=stage,
+                    message=f"Device name '{name}' exceeds {max_length} chars ({len(name)})",
+                    path=f"devices[{idx}].name",
+                    source_file=ctx.source_file,
+                    hint=f"Shorten name to {max_length} characters or fewer",
+                ))
 
-            # Check pattern
-            if not self.NAME_PATTERN.match(device_name):
-                diagnostics.append(
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEV_NAME_INVALID_CHARS",
-                        message=f"Device name '{device_name}' contains invalid characters. "
-                                f"Allowed: a-z, 0-9, _, -",
-                        location={"file": source_path, "line": idx + 2}
-                    )
-                )
-                continue
+            elif not self.NAME_PATTERN.match(name):
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5006", severity="error", stage=stage,
+                    message=f"Device name '{name}' contains invalid characters",
+                    path=f"devices[{idx}].name",
+                    source_file=ctx.source_file,
+                    hint="Allowed: a-z, 0-9, underscore, hyphen",
+                ))
 
-            # Check uniqueness
-            if device_name in seen_names:
-                diagnostics.append(
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEV_NAME_DUPLICATE",
-                        message=f"Device name '{device_name}' appears more than once",
-                        location={"file": source_path, "line": idx + 2}
-                    )
-                )
-                continue
+            elif name in seen_names:
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5007", severity="error", stage=stage,
+                    message=f"Duplicate device name '{name}'",
+                    path=f"devices[{idx}].name",
+                    source_file=ctx.source_file,
+                ))
 
-            seen_names.add(device_name)
+            else:
+                seen_names.add(name)
 
-        status = PluginStatus.SUCCESS if not diagnostics else (
-            PluginStatus.PARTIAL if len(diagnostics) < len(devices)
-            else PluginStatus.FAILED
-        )
-
-        return PluginResult(
-            plugin_id=self.context.plugin_id,
-            api_version=self.api_version,
-            status=status,
-            duration_ms=0,
-            diagnostics=diagnostics,
-            output_data={"total_devices_checked": len(devices)}
+        return self.make_result(
+            diagnostics,
+            output_data={"total_checked": len(devices)},
         )
 ```
 
@@ -189,9 +120,10 @@ class MikrotikDeviceNamesValidator(YamlValidatorPlugin):
 plugins:
   - id: obj.mikrotik.validator.yaml.device_names
     kind: validator_yaml
-    entry: plugins/yaml_validators/device_names.py:MikrotikDeviceNamesValidator
+    entry: plugins/validators/device_names.py:MikrotikDeviceNamesValidator
     api_version: "1.x"
     stages: [validate]
+    phase: run
     order: 100
     depends_on: []
     config:
@@ -204,578 +136,691 @@ plugins:
           minimum: 1
           maximum: 255
           default: 63
-      required: []
+    when:
+      profiles: [production, modeled]
+    description: "Validate MikroTik device name conventions (length, pattern, uniqueness)"
 ```
 
 **Tests:**
 
 ```python
-# topology/object-modules/mikrotik/tests/test_device_names_validator.py
-
 import pytest
-from plugins.yaml_validators.device_names import MikrotikDeviceNamesValidator
-from topology_tools.plugin_api import PluginContext, PluginStatus, PluginSeverity
+from kernel.plugin_base import PluginContext, Stage, PluginStatus
+
+from plugins.validators.device_names import MikrotikDeviceNamesValidator
+
+PLUGIN_ID = "obj.mikrotik.validator.yaml.device_names"
+
 
 @pytest.fixture
-def mock_kernel():
-    class MockKernel:
-        def log(self, plugin_id, message, level):
-            pass
-    return MockKernel()
+def make_ctx():
+    def _make(devices, *, config=None):
+        return PluginContext(
+            topology_path="test/topology.yaml",
+            profile="production",
+            model_lock={},
+            raw_yaml={"devices": devices},
+            source_file="topology/objects/mikrotik/devices.yaml",
+            config=config or {"max_name_length": 63},
+        )
+    return _make
 
-@pytest.fixture
-def plugin_context(mock_kernel):
-    return PluginContext(
-        kernel=mock_kernel,
-        plugin_id="obj.mikrotik.validator.yaml.device_names",
-        config={"max_name_length": 63}
-    )
 
-def test_valid_device_names(plugin_context):
-    """Valid device names pass validation"""
-    plugin = MikrotikDeviceNamesValidator(plugin_context)
-    yaml_input = {
-        "devices": [
+class TestDeviceNamesValidator:
+    def test_valid_names(self, make_ctx):
+        ctx = make_ctx([
             {"name": "router1"},
             {"name": "device-a"},
-            {"name": "r1_backup"}
-        ]
-    }
+            {"name": "r1_backup"},
+        ])
+        result = MikrotikDeviceNamesValidator(PLUGIN_ID).execute(ctx, Stage.VALIDATE)
+        assert result.status == PluginStatus.SUCCESS
+        assert len(result.diagnostics) == 0
 
-    result = plugin.execute(yaml_input, "test.yaml")
+    def test_name_too_long(self, make_ctx):
+        ctx = make_ctx(
+            [{"name": "a" * 64}],
+            config={"max_name_length": 63},
+        )
+        result = MikrotikDeviceNamesValidator(PLUGIN_ID).execute(ctx, Stage.VALIDATE)
+        assert result.has_errors
+        assert result.diagnostics[0].code == "E5005"
 
-    assert result.status == PluginStatus.SUCCESS
-    assert len(result.diagnostics) == 0
+    def test_invalid_characters(self, make_ctx):
+        ctx = make_ctx([{"name": "Router@1"}, {"name": "device name"}])
+        result = MikrotikDeviceNamesValidator(PLUGIN_ID).execute(ctx, Stage.VALIDATE)
+        assert result.has_errors
+        assert all(d.code == "E5006" for d in result.diagnostics)
 
-def test_device_name_too_long(plugin_context):
-    """Device name exceeding max length fails"""
-    plugin = MikrotikDeviceNamesValidator(plugin_context)
-    yaml_input = {
-        "devices": [
-            {"name": "a" * 64}  # 64 chars, exceeds default 63
-        ]
-    }
+    def test_duplicate_names(self, make_ctx):
+        ctx = make_ctx([{"name": "router1"}, {"name": "router2"}, {"name": "router1"}])
+        result = MikrotikDeviceNamesValidator(PLUGIN_ID).execute(ctx, Stage.VALIDATE)
+        assert any(d.code == "E5007" for d in result.diagnostics)
 
-    result = plugin.execute(yaml_input, "test.yaml")
+    def test_missing_name_field(self, make_ctx):
+        ctx = make_ctx([{"name": "router1"}, {"model": "RB4011"}])
+        result = MikrotikDeviceNamesValidator(PLUGIN_ID).execute(ctx, Stage.VALIDATE)
+        assert any(d.code == "E5003" for d in result.diagnostics)
+        assert result.diagnostics[-1].hint is not None
 
-    assert result.status == PluginStatus.PARTIAL
-    assert len(result.diagnostics) == 1
-    assert result.diagnostics[0].code == "DEV_NAME_TOO_LONG"
-    assert result.diagnostics[0].severity == PluginSeverity.ERROR
-
-def test_device_name_invalid_characters(plugin_context):
-    """Device name with invalid chars fails"""
-    plugin = MikrotikDeviceNamesValidator(plugin_context)
-    yaml_input = {
-        "devices": [
-            {"name": "Router@1"},  # @ not allowed
-            {"name": "device name"}  # space not allowed
-        ]
-    }
-
-    result = plugin.execute(yaml_input, "test.yaml")
-
-    assert result.status == PluginStatus.FAILED
-    assert len(result.diagnostics) == 2
-    assert all(d.code == "DEV_NAME_INVALID_CHARS" for d in result.diagnostics)
-
-def test_duplicate_device_names(plugin_context):
-    """Duplicate names detected"""
-    plugin = MikrotikDeviceNamesValidator(plugin_context)
-    yaml_input = {
-        "devices": [
-            {"name": "router1"},
-            {"name": "router2"},
-            {"name": "router1"}  # duplicate
-        ]
-    }
-
-    result = plugin.execute(yaml_input, "test.yaml")
-
-    assert result.status == PluginStatus.PARTIAL
-    assert any(d.code == "DEV_NAME_DUPLICATE" for d in result.diagnostics)
-
-def test_missing_device_name(plugin_context):
-    """Missing device name fails"""
-    plugin = MikrotikDeviceNamesValidator(plugin_context)
-    yaml_input = {
-        "devices": [
-            {"name": "router1"},
-            {"model": "RB4011"}  # no name field
-        ]
-    }
-
-    result = plugin.execute(yaml_input, "test.yaml")
-
-    assert result.status == PluginStatus.PARTIAL
-    assert any(d.code == "DEV_NO_NAME" for d in result.diagnostics)
-
-def test_config_validation_fails_on_invalid_max_length(mock_kernel):
-    """Config validation rejects invalid max_name_length"""
-    context = PluginContext(
-        kernel=mock_kernel,
-        plugin_id="obj.mikrotik.validator.yaml.device_names",
-        config={"max_name_length": "invalid"}  # should be int
-    )
-
-    plugin = MikrotikDeviceNamesValidator(context)
-    result = plugin.validate_config()
-
-    assert result.status == PluginStatus.FAILED
-    assert result.diagnostics[0].code == "CFG_INVALID"
-
-def test_location_context_provided(plugin_context):
-    """Diagnostics include source location"""
-    plugin = MikrotikDeviceNamesValidator(plugin_context)
-    yaml_input = {
-        "devices": [
-            {"name": "invalid@"}
-        ]
-    }
-
-    result = plugin.execute(yaml_input, "topology.yaml")
-
-    assert len(result.diagnostics) == 1
-    diag = result.diagnostics[0]
-    assert diag.location is not None
-    assert diag.location["file"] == "topology.yaml"
-    assert diag.location["line"] == 2  # After 'devices:' header
+    def test_diagnostics_have_source_location(self, make_ctx):
+        ctx = make_ctx([{"name": "bad@name"}])
+        result = MikrotikDeviceNamesValidator(PLUGIN_ID).execute(ctx, Stage.VALIDATE)
+        diag = result.diagnostics[0]
+        assert diag.source_file == "topology/objects/mikrotik/devices.yaml"
+        assert diag.path == "devices[0].name"
 ```
 
 ---
 
-## Example 2: Compiler Plugin with Inter-Plugin Communication
+## Example 2: Compiler Plugin with Data Exchange
 
-**Use case:** Resolve device references, publish resolution map for other plugins
+**Use case:** Build a device reference index during compilation and publish it
+for downstream validators.
 
 **File:** `topology/object-modules/mikrotik/plugins/compilers/resolve_device_refs.py`
 
 ```python
 """
 Compiler plugin that:
-1. Creates device index during compilation
-2. Publishes device reference map
-3. Resolves symbolic references to device IDs
+1. Builds a device name → ID index
+2. Resolves symbolic device references in interfaces
+3. Publishes the index for downstream validators
 """
 
-from typing import Dict, Any, List
-from topology_tools.plugin_api import (
-    CompilerPlugin,
-    PluginResult,
-    PluginStatus,
-    PluginSeverity
+import copy
+
+from kernel.plugin_base import (
+    CompilerPlugin, PluginContext, PluginResult, Stage,
 )
 
+
 class MikrotikDeviceRefResolver(CompilerPlugin):
-    """
-    Resolve device references in interfaces and links.
+    """Resolve symbolic device references to device IDs."""
 
-    Transforms:
-    Input:  interfaces: [{device: "router1", name: "ether1"}]
-    Output: interfaces: [{device_id: "dev_abc123", name: "ether1"}]
-
-    Also publishes device map for downstream validators.
-    """
-
-    def validate_config(self) -> PluginResult:
-        """No config needed for this plugin"""
-        return self._success()
-
-    def execute(self, model_dict: Dict[str, Any]) -> PluginResult:
-        """
-        Resolve device references.
-
-        1. Build device index: name -> device_id
-        2. Resolve interface references
-        3. Resolve link endpoints
-        4. Publish index for other plugins
-        """
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics = []
-        transformed = self._deep_copy(model_dict)  # Don't mutate input
+        model = copy.deepcopy(ctx.compiled_json)
 
-        # Step 1: Build device index
-        device_index = self._build_device_index(
-            transformed.get("devices", []),
-            diagnostics
-        )
+        # Step 1: Build device index {name: id}
+        device_index: dict[str, str] = {}
+        for device in model.get("devices", []):
+            name = device.get("name")
+            device_id = device.get("id")
 
-        if device_index is None:
-            # Fatal error in indexing
-            return PluginResult(
-                plugin_id=self.context.plugin_id,
-                api_version=self.api_version,
-                status=PluginStatus.FAILED,
-                duration_ms=0,
-                diagnostics=diagnostics
-            )
+            if not name or not device_id:
+                diagnostics.append(self.emit_diagnostic(
+                    code="E3001", severity="error", stage=stage,
+                    message=f"Device missing 'name' or 'id': {device}",
+                    path="devices",
+                ))
+                return self.make_result(diagnostics)
 
-        # Step 2: Resolve interface device references
-        for interface in transformed.get("interfaces", []):
+            if name in device_index:
+                diagnostics.append(self.emit_diagnostic(
+                    code="E3002", severity="error", stage=stage,
+                    message=f"Duplicate device name: {name}",
+                    path=f"devices.{name}",
+                ))
+                return self.make_result(diagnostics)
+
+            device_index[name] = device_id
+
+        # Step 2: Resolve interface references
+        for interface in model.get("interfaces", []):
             if "device" in interface and "device_id" not in interface:
                 device_name = interface["device"]
                 if device_name in device_index:
                     interface["device_id"] = device_index[device_name]
                 else:
-                    diagnostics.append(
-                        PluginDiagnostic(
-                            severity=PluginSeverity.ERROR,
-                            code="REF_UNKNOWN_DEVICE",
-                            message=f"Interface references unknown device: {device_name}"
-                        )
-                    )
+                    diagnostics.append(self.emit_diagnostic(
+                        code="E3003", severity="error", stage=stage,
+                        message=f"Interface references unknown device: {device_name}",
+                        path=f"interfaces.{interface.get('name', '?')}",
+                        hint=f"Known devices: {', '.join(sorted(device_index.keys()))}",
+                    ))
 
-        # Step 3: Publish device index for downstream plugins
-        self.context.publish(
-            "device_index",
-            device_index
+        # Step 3: Publish for downstream validators
+        ctx.publish("device_index", device_index)
+
+        return self.make_result(
+            diagnostics,
+            output_data=model,
         )
-
-        status = PluginStatus.SUCCESS if not diagnostics else PluginStatus.PARTIAL
-
-        return PluginResult(
-            plugin_id=self.context.plugin_id,
-            api_version=self.api_version,
-            status=status,
-            duration_ms=0,
-            diagnostics=diagnostics,
-            output_data=transformed
-        )
-
-    def _build_device_index(self, devices: List[Dict], diagnostics: List) -> Dict[str, str]:
-        """Build {device_name: device_id} index"""
-        index = {}
-
-        for device in devices:
-            name = device.get("name")
-            device_id = device.get("id")
-
-            if not name:
-                diagnostics.append(
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEV_NO_NAME",
-                        message="Device missing required 'name' field"
-                    )
-                )
-                return None
-
-            if not device_id:
-                diagnostics.append(
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEV_NO_ID",
-                        message=f"Device '{name}' missing required 'id' field"
-                    )
-                )
-                return None
-
-            if name in index:
-                diagnostics.append(
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEV_DUPLICATE",
-                        message=f"Duplicate device name: {name}"
-                    )
-                )
-                return None
-
-            index[name] = device_id
-
-        return index
-
-    @staticmethod
-    def _deep_copy(obj):
-        """Deep copy for safety"""
-        import copy
-        return copy.deepcopy(obj)
 ```
 
-**Using published data in downstream validator:**
+**Downstream validator consuming published data:**
 
 ```python
-# topology/object-modules/mikrotik/plugins/json_validators/interface_refs.py
+# topology/object-modules/mikrotik/plugins/validators/interface_refs.py
 
-class MikrotikInterfaceRefValidator(JsonValidatorPlugin):
-    """
-    Validate interface references using published device index.
-    Requires: MikrotikDeviceRefResolver to run first.
-    """
+from kernel.plugin_base import (
+    ValidatorJsonPlugin, PluginContext, PluginResult, Stage,
+    PluginDataExchangeError,
+)
 
-    def execute(self, json_dict: Dict[str, Any], compiled_path: str) -> PluginResult:
-        """Validate interfaces reference valid devices"""
+
+class MikrotikInterfaceRefValidator(ValidatorJsonPlugin):
+    """Validate interface references using the device index from compilation."""
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics = []
 
-        # Get device index from upstream compiler plugin
         try:
-            device_index = self.context.subscribe(
+            device_index = ctx.subscribe(
                 "obj.mikrotik.compiler.resolve_device_refs",
-                "device_index"
+                "device_index",
             )
-        except KeyError as e:
-            return PluginResult(
-                plugin_id=self.context.plugin_id,
-                api_version=self.api_version,
-                status=PluginStatus.FAILED,
-                duration_ms=0,
-                diagnostics=[
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="DEP_MISSING",
-                        message=f"Required dependency failed: {str(e)}"
-                    )
-                ]
-            )
+        except PluginDataExchangeError as exc:
+            diagnostics.append(self.emit_diagnostic(
+                code="E6901", severity="error", stage=stage,
+                message=f"Cannot read device index: {exc}",
+                path="pipeline:data_bus",
+            ))
+            return self.make_result(diagnostics)
 
-        # Validate using index
-        for interface in json_dict.get("interfaces", []):
+        valid_ids = set(device_index.values())
+        for interface in ctx.compiled_json.get("interfaces", []):
             device_id = interface.get("device_id")
-            if device_id not in device_index.values():
-                diagnostics.append(
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="IFACE_BAD_DEVICE",
-                        message=f"Interface references invalid device_id: {device_id}"
-                    )
-                )
+            if device_id and device_id not in valid_ids:
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5101", severity="error", stage=stage,
+                    message=f"Interface references invalid device_id: {device_id}",
+                    path=f"interfaces.{interface.get('name', '?')}",
+                ))
 
-        status = PluginStatus.SUCCESS if not diagnostics else PluginStatus.PARTIAL
-
-        return PluginResult(
-            plugin_id=self.context.plugin_id,
-            api_version=self.api_version,
-            status=status,
-            duration_ms=0,
-            diagnostics=diagnostics,
-            output_data={}
-        )
+        return self.make_result(diagnostics)
 ```
 
 **Manifest entries:**
 
 ```yaml
 plugins:
-  # Compiler runs first, publishes device_index
+  # Compiler: publishes device_index
   - id: obj.mikrotik.compiler.resolve_device_refs
     kind: compiler
     entry: plugins/compilers/resolve_device_refs.py:MikrotikDeviceRefResolver
     api_version: "1.x"
     stages: [compile]
-    order: 100
+    phase: run
+    order: 60
     depends_on: []
+    produces:
+      - key: device_index
+        scope: pipeline_shared
+        description: "Device name-to-ID mapping for downstream consumers"
+    description: "Build device reference index and resolve symbolic references"
 
-  # Validator runs after compiler, consumes published index
+  # Validator: consumes device_index
   - id: obj.mikrotik.validator.json.interface_refs
     kind: validator_json
-    entry: plugins/json_validators/interface_refs.py:MikrotikInterfaceRefValidator
+    entry: plugins/validators/interface_refs.py:MikrotikInterfaceRefValidator
     api_version: "1.x"
     stages: [validate]
-    order: 100
+    phase: run
+    order: 110
     depends_on:
       - obj.mikrotik.compiler.resolve_device_refs
+    consumes:
+      - from_plugin: obj.mikrotik.compiler.resolve_device_refs
+        key: device_index
+        required: true
+    description: "Validate interface device references against compiled device index"
 ```
 
 ---
 
-## Example 3: Generator Plugin
+## Example 3: Generator Plugin — Terraform Configuration
 
-**Use case:** Generate Terraform configuration from compiled model
+**Use case:** Generate Terraform `.tf` files from the compiled topology model.
 
-**File:** `topology/object-modules/mikrotik/plugins/generators/terraform.py`
+**File:** `topology/object-modules/mikrotik/plugins/generators/terraform_mikrotik_generator.py`
 
 ```python
 """
-Generate Terraform .tf files from compiled topology.
-Emits:
-- main.tf (resource definitions)
-- variables.tf (input variables)
-- outputs.tf (output values)
+Generate Terraform configuration for MikroTik RouterOS.
+
+Produces:
+- versions.tf  (provider requirements)
+- provider.tf  (provider configuration)
+- bridges.tf   (bridge resources, if bridges exist)
 """
 
 from pathlib import Path
-from typing import Dict, Any
-from topology_tools.plugin_api import (
-    GeneratorPlugin,
-    PluginResult,
-    PluginStatus,
-    PluginSeverity
+
+from kernel.plugin_base import (
+    GeneratorPlugin, PluginContext, PluginResult, Stage,
 )
 
-class MikrotikTerraformGenerator(GeneratorPlugin):
-    """Generate Terraform configuration"""
 
-    def validate_config(self) -> PluginResult:
-        """Validate config"""
-        required_keys = ["terraform_version", "provider"]
-        for key in required_keys:
-            if key not in self.context.config:
-                return PluginResult(
-                    plugin_id=self.context.plugin_id,
-                    api_version=self.api_version,
-                    status=PluginStatus.FAILED,
-                    duration_ms=0,
-                    diagnostics=[
-                        PluginDiagnostic(
-                            severity=PluginSeverity.ERROR,
-                            code="CFG_MISSING",
-                            message=f"Required config key '{key}' missing"
-                        )
-                    ]
-                )
-        return self._success()
+class TerraformMikrotikGenerator(GeneratorPlugin):
+    """Generate Terraform MikroTik configuration files."""
 
-    def execute(self, json_dict: Dict[str, Any], output_dir: Path) -> PluginResult:
-        """Generate Terraform files"""
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics = []
-        output_dir = Path(output_dir)
+        out_dir = Path(ctx.output_dir) / "terraform" / "mikrotik"
+        out_dir.mkdir(parents=True, exist_ok=True)
 
-        # Create output directory
-        try:
-            output_dir.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
-            return PluginResult(
-                plugin_id=self.context.plugin_id,
-                api_version=self.api_version,
-                status=PluginStatus.FAILED,
-                duration_ms=0,
-                diagnostics=[
-                    PluginDiagnostic(
-                        severity=PluginSeverity.ERROR,
-                        code="GEN_MKDIR_FAILED",
-                        message=f"Cannot create output directory: {str(e)}"
-                    )
-                ]
-            )
+        tf_version = ctx.config.get("terraform_version", ">= 1.6.0")
+        provider_source = ctx.config.get("mikrotik_provider_source", "terraform-routeros/routeros")
+        provider_version = ctx.config.get("mikrotik_provider_version", "~> 1.40")
 
-        generated_files = []
+        generated_files: list[str] = []
 
-        # Generate main.tf
-        main_tf_path = output_dir / "main.tf"
-        try:
-            main_tf_content = self._generate_main_tf(json_dict)
-            main_tf_path.write_text(main_tf_content)
-            generated_files.append({
-                "path": str(main_tf_path.relative_to(output_dir.parent)),
-                "size": len(main_tf_content)
-            })
-            diagnostics.append(
-                PluginDiagnostic(
-                    severity=PluginSeverity.INFO,
-                    code="GEN_FILE_CREATED",
-                    message=f"Generated {main_tf_path.name}",
-                    location={"file": str(main_tf_path)}
-                )
-            )
-        except Exception as e:
-            diagnostics.append(
-                PluginDiagnostic(
-                    severity=PluginSeverity.ERROR,
-                    code="GEN_FAILED",
-                    message=f"Failed to generate main.tf: {str(e)}"
-                )
-            )
+        # versions.tf
+        versions_content = self._render_versions(tf_version, provider_source, provider_version)
+        versions_path = out_dir / "versions.tf"
+        versions_path.write_text(versions_content)
+        generated_files.append(str(versions_path))
 
-        # Generate variables.tf
-        variables_tf_path = output_dir / "variables.tf"
-        try:
-            variables_tf_content = self._generate_variables_tf(json_dict)
-            variables_tf_path.write_text(variables_tf_content)
-            generated_files.append({
-                "path": str(variables_tf_path.relative_to(output_dir.parent)),
-                "size": len(variables_tf_content)
-            })
-        except Exception as e:
-            diagnostics.append(
-                PluginDiagnostic(
-                    severity=PluginSeverity.ERROR,
-                    code="GEN_FAILED",
-                    message=f"Failed to generate variables.tf: {str(e)}"
-                )
-            )
+        # provider.tf
+        api_host = ctx.config.get("mikrotik_api_host", "")
+        provider_content = self._render_provider(api_host)
+        provider_path = out_dir / "provider.tf"
+        provider_path.write_text(provider_content)
+        generated_files.append(str(provider_path))
 
-        status = PluginStatus.SUCCESS if len(diagnostics) == 2 else PluginStatus.PARTIAL
+        # bridges.tf (conditional)
+        bridges = ctx.compiled_json.get("bridges", [])
+        if bridges:
+            bridges_content = self._render_bridges(bridges)
+            bridges_path = out_dir / "bridges.tf"
+            bridges_path.write_text(bridges_content)
+            generated_files.append(str(bridges_path))
 
-        return PluginResult(
-            plugin_id=self.context.plugin_id,
-            api_version=self.api_version,
-            status=status,
-            duration_ms=0,
-            diagnostics=diagnostics,
-            output_data={
-                "generated_files": generated_files,
-                "total_files": len(generated_files)
-            }
+        # Publish file list for artifact_manifest
+        ctx.publish("generated_files", generated_files)
+        ctx.publish("terraform_mikrotik_files", generated_files)
+
+        return self.make_result(
+            diagnostics,
+            output_data={"files": generated_files, "count": len(generated_files)},
         )
 
-    def _generate_main_tf(self, json_dict: Dict[str, Any]) -> str:
-        """Generate main.tf content"""
-        lines = [
-            'terraform {',
-            f'  required_version = ">= {self.context.config["terraform_version"]}"',
-            '  required_providers {',
-            '    routeros = {',
-            f'      source = "{self.context.config["provider"]}"',
-            '    }',
-            '  }',
-            '}',
-            '',
-            'provider "routeros" {',
-            '  hosturl = var.routeros_url',
-            '  username = var.routeros_username',
-            '  password = var.routeros_password',
-            '}',
-            ''
-        ]
+    def _render_versions(self, tf_version: str, source: str, version: str) -> str:
+        return (
+            f'terraform {{\n'
+            f'  required_version = "{tf_version}"\n'
+            f'  required_providers {{\n'
+            f'    routeros = {{\n'
+            f'      source  = "{source}"\n'
+            f'      version = "{version}"\n'
+            f'    }}\n'
+            f'  }}\n'
+            f'}}\n'
+        )
 
-        # Generate resources from devices
-        for device in json_dict.get("devices", []):
-            lines.append(f'# Device: {device.get("name")}')
-            lines.append(f'resource "routeros_ip_address" "{device.get("id")}_ip" {{')
-            lines.append(f'  address = "{device.get("ip_address", "0.0.0.0/24")}"')
-            lines.append('}')
-            lines.append('')
+    def _render_provider(self, api_host: str) -> str:
+        host_line = f'  hosturl = var.mikrotik_host\n' if not api_host else f'  hosturl = "{api_host}"\n'
+        return (
+            f'provider "routeros" {{\n'
+            f'{host_line}'
+            f'  username = var.mikrotik_user\n'
+            f'  password = var.mikrotik_password\n'
+            f'}}\n'
+        )
 
-        return '\n'.join(lines)
+    def _render_bridges(self, bridges: list[dict]) -> str:
+        blocks = []
+        for bridge in bridges:
+            name = bridge.get("name", "unnamed")
+            vlan_filtering = str(bridge.get("vlan_filtering", False)).lower()
+            blocks.append(
+                f'resource "routeros_interface_bridge" "{name}" {{\n'
+                f'  name           = "{name}"\n'
+                f'  vlan_filtering = {vlan_filtering}\n'
+                f'}}\n'
+            )
+        return "\n".join(blocks)
+```
 
-    def _generate_variables_tf(self, json_dict: Dict[str, Any]) -> str:
-        """Generate variables.tf content"""
-        lines = [
-            'variable "routeros_url" {',
-            '  type = string',
-            '  description = "RouterOS API URL"',
-            '}',
-            '',
-            'variable "routeros_username" {',
-            '  type = string',
-            '  description = "RouterOS username"',
-            '}',
-            '',
-            'variable "routeros_password" {',
-            '  type = string',
-            '  sensitive = true',
-            '  description = "RouterOS password"',
-            '}',
-        ]
+**Manifest entry:**
 
-        return '\n'.join(lines)
+```yaml
+plugins:
+  - id: base.generator.terraform_mikrotik
+    kind: generator
+    entry: plugins/generators/terraform_mikrotik_generator.py:TerraformMikrotikGenerator
+    api_version: "1.x"
+    stages: [generate]
+    phase: run
+    order: 220
+    depends_on: []
+    config:
+      terraform_version: ">= 1.6.0"
+      mikrotik_provider_source: "terraform-routeros/routeros"
+      mikrotik_provider_version: "~> 1.40"
+      mikrotik_api_host: ""
+    config_schema:
+      type: object
+      properties:
+        terraform_version:
+          type: string
+        mikrotik_provider_source:
+          type: string
+        mikrotik_provider_version:
+          type: string
+        mikrotik_api_host:
+          type: string
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+        description: "List of all generated file paths"
+      - key: terraform_mikrotik_files
+        scope: pipeline_shared
+        description: "MikroTik Terraform file paths"
+    description: "Generate Terraform configuration for MikroTik RouterOS"
+```
+
+**Tests:**
+
+```python
+import json
+from pathlib import Path
+
+import pytest
+from kernel.plugin_base import PluginContext, Stage, PluginStatus
+
+from plugins.generators.terraform_mikrotik_generator import TerraformMikrotikGenerator
+
+PLUGIN_ID = "base.generator.terraform_mikrotik"
+
+
+@pytest.fixture
+def gen_ctx(tmp_path):
+    return PluginContext(
+        topology_path="test/topology.yaml",
+        profile="production",
+        model_lock={},
+        compiled_json={
+            "bridges": [
+                {"name": "br-lan", "vlan_filtering": True},
+                {"name": "br-guest", "vlan_filtering": False},
+            ]
+        },
+        output_dir=str(tmp_path / "generated"),
+        config={
+            "terraform_version": ">= 1.6.0",
+            "mikrotik_provider_source": "terraform-routeros/routeros",
+            "mikrotik_provider_version": "~> 1.40",
+            "mikrotik_api_host": "",
+        },
+    )
+
+
+class TestTerraformMikrotikGenerator:
+    def test_generates_all_files(self, gen_ctx, tmp_path):
+        plugin = TerraformMikrotikGenerator(PLUGIN_ID)
+        result = plugin.execute(gen_ctx, Stage.GENERATE)
+
+        assert result.status == PluginStatus.SUCCESS
+        out_dir = tmp_path / "generated" / "terraform" / "mikrotik"
+        assert (out_dir / "versions.tf").exists()
+        assert (out_dir / "provider.tf").exists()
+        assert (out_dir / "bridges.tf").exists()
+
+    def test_versions_tf_content(self, gen_ctx, tmp_path):
+        TerraformMikrotikGenerator(PLUGIN_ID).execute(gen_ctx, Stage.GENERATE)
+
+        content = (tmp_path / "generated" / "terraform" / "mikrotik" / "versions.tf").read_text()
+        assert 'terraform-routeros/routeros' in content
+        assert '~> 1.40' in content
+
+    def test_bridges_tf_has_resources(self, gen_ctx, tmp_path):
+        TerraformMikrotikGenerator(PLUGIN_ID).execute(gen_ctx, Stage.GENERATE)
+
+        content = (tmp_path / "generated" / "terraform" / "mikrotik" / "bridges.tf").read_text()
+        assert 'resource "routeros_interface_bridge" "br-lan"' in content
+        assert "vlan_filtering = true" in content
+
+    def test_no_bridges_skips_file(self, gen_ctx, tmp_path):
+        gen_ctx.compiled_json = {"bridges": []}
+        TerraformMikrotikGenerator(PLUGIN_ID).execute(gen_ctx, Stage.GENERATE)
+
+        assert not (tmp_path / "generated" / "terraform" / "mikrotik" / "bridges.tf").exists()
+
+    def test_publishes_file_list(self, gen_ctx):
+        plugin = TerraformMikrotikGenerator(PLUGIN_ID)
+        plugin.execute(gen_ctx, Stage.GENERATE)
+
+        published = gen_ctx._published_data.get(PLUGIN_ID, {})
+        assert "generated_files" in published
+        assert "terraform_mikrotik_files" in published
+        assert len(published["generated_files"]) == 3
 ```
 
 ---
 
-## Key Takeaways
+## Example 4: Multi-Phase Compiler Plugin
 
-1. **Always validate config first** before executing business logic
-2. **Use context.publish() to share data** between plugins
-3. **Provide rich diagnostics** with source location and semantic error codes
-4. **Don't mutate input** - deep copy before modifying
-5. **Wrap exceptions** and include tracebacks in PluginResult
-6. **Test error paths** - most bugs hide in edge cases
-7. **Document assumptions** - what does this plugin expect from upstream?
+**Use case:** A compiler plugin that uses `init` to load external data and `run`
+to perform the actual compilation. Demonstrates the phase handler protocol.
+
+```python
+"""
+Multi-phase compiler plugin:
+- init: load external capability definitions
+- run:  resolve capabilities per instance
+- verify: validate all required capabilities are satisfied
+"""
+
+from kernel.plugin_base import (
+    CompilerPlugin, PluginContext, PluginResult, Stage,
+)
+
+
+class CapabilityResolver(CompilerPlugin):
+    """Resolve instance capabilities from class/object definitions."""
+
+    def on_init(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        """Load capability catalog from framework data."""
+        catalog = ctx.capability_catalog
+        if not catalog:
+            return self.make_result([self.emit_diagnostic(
+                code="E3101", severity="warning", stage=stage,
+                message="No capability catalog found, skipping resolution",
+                path="capability_catalog",
+            )])
+
+        ctx.publish("capability_catalog_loaded", {
+            "count": len(catalog),
+            "names": list(catalog.keys()),
+        })
+        return self.make_result([])
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        """Resolve capabilities for each instance (called during 'run' phase)."""
+        diagnostics = []
+        catalog = ctx.capability_catalog
+        resolved: dict[str, list[str]] = {}
+
+        for inst_id, inst in ctx.compiled_json.get("instances", {}).items():
+            object_ref = inst.get("object_ref", "")
+            obj_caps = ctx.objects.get(object_ref, {}).get("capabilities", [])
+
+            valid_caps = []
+            for cap in obj_caps:
+                if cap in catalog:
+                    valid_caps.append(cap)
+                else:
+                    diagnostics.append(self.emit_diagnostic(
+                        code="E3102", severity="warning", stage=stage,
+                        message=f"Instance '{inst_id}' references unknown capability '{cap}'",
+                        path=f"instances.{inst_id}.capabilities",
+                        hint=f"Known capabilities: {', '.join(sorted(catalog.keys()))}",
+                    ))
+
+            resolved[inst_id] = valid_caps
+
+        ctx.publish("resolved_capabilities", resolved)
+        return self.make_result(diagnostics)
+
+    def on_verify(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        """Verify required capabilities are satisfied."""
+        diagnostics = []
+        resolved = ctx.subscribe(self.plugin_id, "resolved_capabilities")
+
+        for inst_id, caps in resolved.items():
+            inst = ctx.compiled_json.get("instances", {}).get(inst_id, {})
+            required = inst.get("required_capabilities", [])
+            missing = [r for r in required if r not in caps]
+
+            if missing:
+                diagnostics.append(self.emit_diagnostic(
+                    code="E3103", severity="error", stage=stage,
+                    message=f"Instance '{inst_id}' missing required capabilities: {missing}",
+                    path=f"instances.{inst_id}.required_capabilities",
+                ))
+
+        return self.make_result(diagnostics)
+```
+
+**Manifest entry:**
+
+```yaml
+plugins:
+  - id: base.compiler.capability_resolver
+    kind: compiler
+    entry: compilers/capability_resolver.py:CapabilityResolver
+    api_version: "1.x"
+    stages: [compile]
+    phase: init    # Note: plugin handles init, run, and verify phases
+    order: 45
+    depends_on: []
+    produces:
+      - key: capability_catalog_loaded
+        scope: stage_local
+        description: "Catalog load confirmation (init phase)"
+      - key: resolved_capabilities
+        scope: pipeline_shared
+        description: "Per-instance resolved capability lists"
+    description: "Multi-phase capability resolution: load, resolve, verify"
+```
+
+> **Note:** When a plugin handles multiple phases, declare the **earliest** phase
+> in the manifest. The kernel will call `on_init`, then `execute` (for run),
+> then `on_verify` automatically based on which handlers are defined.
 
 ---
 
-## References
+## Example 5: Conditional Validator with `when` Predicates
 
-- ADR 0063: Plugin Microkernel Architecture
-- ADR 0064: Plugin API Contract Specification
-- ADR 0065: Plugin Testing and CI Strategy
-- Plugin Authoring Guide: `docs/PLUGIN_AUTHORING_GUIDE.md`
+**Use case:** A validator that only runs for production profile and when a specific
+capability is present.
+
+```python
+from kernel.plugin_base import (
+    ValidatorJsonPlugin, PluginContext, PluginResult, Stage,
+)
+
+
+class ProductionSecurityValidator(ValidatorJsonPlugin):
+    """Validate security constraints that apply only in production."""
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics = []
+
+        for inst_id, inst in ctx.compiled_json.get("instances", {}).items():
+            # Check firewall is enabled
+            if not inst.get("firewall_enabled", False):
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5201", severity="error", stage=stage,
+                    message=f"Instance '{inst_id}' has firewall disabled in production",
+                    path=f"instances.{inst_id}.firewall_enabled",
+                    hint="Set firewall_enabled: true for production instances",
+                ))
+
+            # Check management access is restricted
+            mgmt = inst.get("management", {})
+            if mgmt.get("allow_all", False):
+                diagnostics.append(self.emit_diagnostic(
+                    code="E5202", severity="error", stage=stage,
+                    message=f"Instance '{inst_id}' allows unrestricted management access",
+                    path=f"instances.{inst_id}.management.allow_all",
+                    hint="Restrict management access to specific subnets",
+                ))
+
+        return self.make_result(diagnostics)
+```
+
+**Manifest — note the `when` block:**
+
+```yaml
+plugins:
+  - id: obj.mikrotik.validator.json.production_security
+    kind: validator_json
+    entry: plugins/validators/production_security.py:ProductionSecurityValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: verify    # Runs after all 'run' validators
+    order: 180
+    depends_on: []
+    when:
+      profiles: [production]              # Skip for modeled, test-real
+      capabilities: [cap.firewall]        # Skip if no firewall capability
+    description: "Production-only security constraint validation"
+```
+
+When the pipeline runs with `--profile modeled`, this plugin is automatically skipped
+with `SKIPPED` status — no code changes needed.
+
+---
+
+## Anti-Patterns to Avoid
+
+### ❌ Mutating shared context
+
+```python
+# BAD: Modifying compiled_json directly
+def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+    ctx.compiled_json["my_data"] = computed_value  # Race condition under parallelism!
+```
+
+**Fix:** Use `ctx.publish()` for data sharing, or work on a deep copy.
+
+### ❌ Constructing PluginResult manually
+
+```python
+# BAD: Manual result construction (verbose, error-prone)
+return PluginResult(
+    plugin_id=self.plugin_id,
+    api_version="1.x",
+    status=PluginStatus.FAILED,
+    duration_ms=0,
+    diagnostics=diagnostics,
+)
+```
+
+**Fix:** Use `self.make_result(diagnostics)` — it infers status automatically.
+
+### ❌ Importing other plugins directly
+
+```python
+# BAD: Tight coupling between plugins
+from plugins.compilers.resolve_device_refs import MikrotikDeviceRefResolver
+device_index = MikrotikDeviceRefResolver.build_index(data)
+```
+
+**Fix:** Use `ctx.subscribe("plugin_id", "key")` with declared `consumes`.
+
+### ❌ Catching all exceptions silently
+
+```python
+# BAD: Swallowing errors
+try:
+    self._validate(data)
+except Exception:
+    pass  # Silent failure — kernel can't report the problem
+```
+
+**Fix:** Let unexpected exceptions propagate — the kernel wraps them into `FAILED`
+with a full traceback.
+
+### ❌ Writing to undeclared paths
+
+```python
+# BAD: Side-channel output
+Path("/tmp/debug_output.json").write_text(json.dumps(data))
+```
+
+**Fix:** Write only to `ctx.output_dir` subdirectories and declare paths in `produces`.
