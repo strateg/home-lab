@@ -47,11 +47,11 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ## D. `when` Predicate Gating
 
-- [ ] `when.profiles` gates plugin execution by `ctx.profile`.
-- [ ] `when.capabilities` gates plugin execution by `ctx.capability_catalog`.
-- [ ] `when.pipeline_modes` gates plugin execution by runtime pipeline mode.
-- [ ] `when.changed_input_scopes` stub is present (full impl deferred to assemble stage).
-- [ ] Plugin skipped by `when` emits informational diagnostic, not failure.
+- [x] `when.profiles` gates plugin execution by `ctx.profile`.
+- [x] `when.capabilities` gates plugin execution by `ctx.capability_catalog`.
+- [x] `when.pipeline_modes` gates plugin execution by runtime pipeline mode.
+- [x] `when.changed_input_scopes` stub is present (full impl deferred to assemble stage).
+- [x] Plugin skipped by `when` emits informational diagnostic, not failure.
 
 ---
 
@@ -117,7 +117,7 @@ Complete when all Waves A–H are done and all items below are verified.
 
 - [x] `PluginContext` contains `workspace_root`, `dist_root`, `assembly_manifest`.
 - [x] `PluginContext` contains `signing_backend`, `release_tag`, `sbom_output_dir`.
-- [ ] Assemble plugins read `workspace_root`/`dist_root` from context, not hardcoded paths.
+- [x] Assemble plugins read `workspace_root`/`dist_root` from context, not hardcoded paths.
 
 ---
 
@@ -157,13 +157,13 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ### ADR 0065 (Plugin API Contract)
 
-- [ ] New `phase`, `produces`, `consumes`, `when` fields pass schema validation.
+- [x] New `phase`, `produces`, `consumes`, `when` fields pass schema validation.
 - [ ] All diagnostic codes conform to non-overlapping ranges.
 
 ### ADR 0074 (Generator Architecture)
 
-- [ ] Existing generate-stage order ranges 190–399 are preserved.
-- [ ] `artifact_manifest` at order 390 does not conflict with existing plugins.
+- [x] Existing generate-stage order ranges 190–399 are preserved.
+- [x] `artifact_manifest` at order 390 does not conflict with existing plugins.
 
 ### ADR 0075 (Framework/Project Separation)
 
@@ -171,7 +171,7 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ### ADR 0078 (Object-Module Plugins)
 
-- [ ] Object/class module plugins are discovered and phase-annotated.
+- [x] Object/class module plugins are discovered and phase-annotated.
 
 ---
 
@@ -189,8 +189,8 @@ Complete when all Waves A–H are done and all items below are verified.
 - [ ] No `W800x` warnings in CI (all pub/sub annotated).
 - [ ] `compiler_runtime.discover_plugin_manifests()` deleted.
 - [ ] No dead code paths bypassing plugin lifecycle exist in `compile-topology.py`.
-- [ ] `profile_restrictions` field absent from `PluginSpec` dataclass and manifest schema.
-- [ ] No plugin manifests contain `profile_restrictions` entries.
+- [x] `profile_restrictions` field absent from `PluginSpec` dataclass and manifest schema.
+- [x] No plugin manifests contain `profile_restrictions` entries.
 - [ ] Operator runbooks updated.
 - [ ] `CLAUDE.md` guidance updated if workflow commands changed.
 
