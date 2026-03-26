@@ -85,7 +85,7 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] `assemble.verify` checks override layering, local-input requirements, and secret-leak guard.
 - [x] `assemble.finalize` emits assembly manifest.
 - [ ] Assembled `.work/native/` and `dist/` are at parity with previous workflows.
-- [ ] Secret-leak guard catches test cases with mock unencrypted secrets.
+- [x] Secret-leak guard catches test cases with mock unencrypted secrets.
 - [x] `E810x` diagnostics emitted by assemble verify plugins.
 
 ---
@@ -102,14 +102,14 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ## I. `discover` Stage
 
-- [ ] `discover.init` loads all plugin manifests from module roots.
-- [ ] `discover.pre` enforces framework/project boundary (ADR 0075).
+- [x] `discover.init` loads all plugin manifests from module roots.
+- [x] `discover.pre` enforces framework/project boundary (ADR 0075).
 - [x] `discover.run` builds plugin DAG and validates for cycles.
 - [x] `discover.verify` runs capability catalog preflight.
-- [ ] All `discover.*` plugins reside in base manifest only — not in class/object modules.
+- [x] All `discover.*` plugins reside in base manifest only — not in class/object modules.
 - [ ] Base manifest is the only pre-lifecycle procedural load; no other procedural manifest loading exists.
-- [ ] `compiler_runtime.discover_plugin_manifests()` bare function is **absent** from codebase.
-- [ ] `instances_root` is NOT scanned for plugin manifests (ADR 0071).
+- [x] `compiler_runtime.discover_plugin_manifests()` bare function is **absent** from codebase.
+- [x] `instances_root` is NOT scanned for plugin manifests (ADR 0071).
 
 ---
 
@@ -187,7 +187,7 @@ Complete when all Waves A–H are done and all items below are verified.
 ## O. Legacy Path Retirement
 
 - [ ] No `W800x` warnings in CI (all pub/sub annotated).
-- [ ] `compiler_runtime.discover_plugin_manifests()` deleted.
+- [x] `compiler_runtime.discover_plugin_manifests()` deleted.
 - [ ] No dead code paths bypassing plugin lifecycle exist in `compile-topology.py`.
 - [x] `profile_restrictions` field absent from `PluginSpec` dataclass and manifest schema.
 - [x] No plugin manifests contain `profile_restrictions` entries.

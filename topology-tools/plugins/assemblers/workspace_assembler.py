@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,6 +26,16 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: fh.read(65536), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+_SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("private_key", re.compile(r"-----BEGIN (?:RSA|EC|DSA|OPENSSH) PRIVATE KEY-----")),
+    ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
+    (
+        "secret_assignment",
+        re.compile(r"(?i)\b(password|passwd|secret|token|api[_-]?key)\b\s*[:=]\s*['\"]?[^\s'\"]+"),
+    ),
+)
 
 
 class WorkspaceAssembler(AssemblerPlugin):
@@ -208,6 +219,30 @@ class AssemblyVerifyAssembler(AssemblerPlugin):
                         path=item,
                     )
                 )
+
+            file_path = Path(item)
+            if not file_path.exists() or not file_path.is_file():
+                continue
+            text_payload: str | None = None
+            try:
+                text_payload = file_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                text_payload = None
+            if not text_payload:
+                continue
+            for label, pattern in _SECRET_PATTERNS:
+                if pattern.search(text_payload) is None:
+                    continue
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E8103",
+                        severity="error",
+                        stage=stage,
+                        message=f"secret-looking content detected ({label}) in assembled file: {item}",
+                        path=item,
+                    )
+                )
+                break
 
         try:
             ctx.publish("assemble_verified", len([d for d in diagnostics if d.severity == "error"]) == 0)

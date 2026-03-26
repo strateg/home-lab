@@ -1,13 +1,13 @@
 schema_version: 1
 plugins:
   # Discover plugins (run in discover stage)
-  - id: base.discover.inventory
+  - id: base.discover.manifest_loader
     kind: compiler
-    entry: compilers/discover_compiler.py:DiscoverInventoryCompiler
+    entry: compilers/discover_compiler.py:DiscoverManifestLoaderCompiler
     api_version: "1.x"
     stages: [discover]
-    phase: run
-    order: 20
+    phase: init
+    order: 10
     depends_on: []
     timeout: 30
     config: {}
@@ -15,6 +15,29 @@ plugins:
       type: object
       properties: {}
       required: []
+    produces:
+      - key: manifest_loader_summary
+        scope: pipeline_shared
+    description: Loads class/object module plugin manifests during discover bootstrap.
+
+  - id: base.discover.inventory
+    kind: compiler
+    entry: compilers/discover_compiler.py:DiscoverInventoryCompiler
+    api_version: "1.x"
+    stages: [discover]
+    phase: run
+    order: 20
+    depends_on: [base.discover.manifest_loader]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.discover.manifest_loader
+        key: manifest_loader_summary
+        required: false
     produces:
       - key: manifest_inventory
         scope: pipeline_shared
@@ -27,13 +50,17 @@ plugins:
     stages: [discover]
     phase: pre
     order: 15
-    depends_on: []
+    depends_on: [base.discover.manifest_loader]
     timeout: 30
     config: {}
     config_schema:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.discover.manifest_loader
+        key: manifest_loader_summary
+        required: false
     produces:
       - key: boundary_ok
         scope: pipeline_shared

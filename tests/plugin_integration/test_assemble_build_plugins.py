@@ -104,3 +104,63 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     assert bundle_path.exists()
     assert sbom_path.exists()
     assert release_manifest_path.exists()
+
+
+def test_assemble_verify_flags_secret_like_content(tmp_path: Path):
+    registry = _registry()
+    repo_root = tmp_path
+    generated_root = repo_root / "generated" / "home-lab"
+    workspace_root = repo_root / ".work" / "native" / "home-lab"
+
+    leaked_file = generated_root / "configs" / "app.env"
+    leaked_file.parent.mkdir(parents=True, exist_ok=True)
+    leaked_file.write_text("api_key=AKIA1234567890ABCDEF\n", encoding="utf-8")
+
+    artifact_manifest_path = generated_root / "artifact-manifest.json"
+    artifact_manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "project_id": "home-lab",
+                "generated_at": "2026-03-26T00:00:00+00:00",
+                "artifact_count": 1,
+                "artifacts": [
+                    {
+                        "producer_plugin": "base.generator.docs",
+                        "path": "generated/home-lab/configs/app.env",
+                        "sha256": "stub",
+                        "size_bytes": leaked_file.stat().st_size,
+                    }
+                ],
+            },
+            ensure_ascii=True,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(repo_root),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+        },
+        workspace_root=str(workspace_root),
+    )
+
+    ctx._set_execution_context("base.generator.artifact_manifest", set())
+    try:
+        ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
+    finally:
+        ctx._clear_execution_context()
+
+    results = registry.execute_stage(Stage.ASSEMBLE, ctx)
+    by_id = {result.plugin_id: result for result in results}
+
+    assert by_id["base.assembler.workspace"].status == PluginStatus.SUCCESS
+    assert by_id["base.assembler.verify"].status == PluginStatus.FAILED
+    assert any(diag.code == "E8103" for diag in by_id["base.assembler.verify"].diagnostics)
+    assert by_id["base.assembler.manifest"].status == PluginStatus.SUCCESS

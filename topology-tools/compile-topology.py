@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -23,7 +24,6 @@ from compiler_plugin_context import create_plugin_context
 from compiler_reporting import write_diagnostics_report
 from compiler_runtime import (
     apply_plugin_compile_outputs,
-    discover_plugin_manifests,
     emit_effective_artifact,
     load_core_compile_inputs,
     resolve_manifest_paths,
@@ -32,6 +32,7 @@ from framework_lock import default_framework_manifest_path
 from framework_lock import resolve_paths as resolve_framework_lock_paths
 from framework_lock import verify_framework_lock
 from kernel import KERNEL_VERSION, PluginContext, PluginDiagnostic, PluginRegistry, PluginResult, PluginStatus, Stage
+from plugin_manifest_discovery import discover_plugin_manifest_paths
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = REPO_ROOT / "topology" / "topology.yaml"
@@ -232,6 +233,7 @@ class V5Compiler:
         self._plugin_registry: PluginRegistry | None = None
         self._plugin_results: list[PluginResult] = []
         self._run_generated_at: str | None = None
+        self._base_manifest_loaded = False
         self._plugin_manifests_loaded = False
         self._discovered_manifest_paths: list[str] = []
         self._discovered_plugin_count = 0
@@ -349,6 +351,148 @@ class V5Compiler:
             return False
         return True
 
+    def _load_base_plugin_manifest(self) -> None:
+        """Load only base plugin manifest required for discover-stage bootstrap."""
+        if not self._plugin_registry or self._base_manifest_loaded:
+            return
+
+        manifest_path = self.plugins_manifest_path
+        if not manifest_path.exists():
+            self.add_diag(
+                code="W4001",
+                severity="warning",
+                stage="load",
+                message=f"Plugin manifest not found: {manifest_path}",
+                path=self._path_for_diag(manifest_path),
+            )
+            self._base_manifest_loaded = True
+            return
+
+        errors_before = len(self._plugin_registry.get_load_errors())
+        try:
+            self._plugin_registry.load_manifest(manifest_path)
+        except Exception as exc:
+            self.add_diag(
+                code="E4001",
+                severity="error",
+                stage="load",
+                message=f"Plugin manifest load failed: {exc}",
+                path=self._path_for_diag(manifest_path),
+            )
+            self._base_manifest_loaded = True
+            return
+
+        load_errors = self._plugin_registry.get_load_errors()
+        for err in load_errors[errors_before:]:
+            self.add_diag(
+                code="E4001",
+                severity="error",
+                stage="load",
+                message=f"Plugin load error: {err}",
+                path=self._path_for_diag(manifest_path),
+            )
+
+        self._base_manifest_loaded = True
+        self._discovered_manifest_paths = [self._path_for_diag(manifest_path)]
+        self._discovered_plugin_count = len(self._plugin_registry.specs)
+
+    def _load_module_plugin_manifests(
+        self,
+        *,
+        class_modules_root: Path,
+        object_modules_root: Path,
+        emit_diagnostics: bool = True,
+    ) -> dict[str, Any]:
+        """Load module-level plugin manifests discovered under class/object module roots."""
+        if not self._plugin_registry:
+            return {
+                "status": "error",
+                "loaded_manifests": [],
+                "discovered_manifests": [],
+                "module_manifest_count": 0,
+                "loaded_plugin_count": 0,
+                "errors": ["plugin registry is not initialized"],
+            }
+        if self._plugin_manifests_loaded:
+            return {
+                "status": "ok",
+                "loaded_manifests": [],
+                "discovered_manifests": list(self._discovered_manifest_paths),
+                "module_manifest_count": max(0, len(self._discovered_manifest_paths) - 1),
+                "loaded_plugin_count": self._discovered_plugin_count,
+                "errors": [],
+                "already_loaded": True,
+            }
+
+        self._load_base_plugin_manifest()
+        ordered_manifests = discover_plugin_manifest_paths(
+            base_manifest_path=self.plugins_manifest_path,
+            class_modules_root=class_modules_root,
+            object_modules_root=object_modules_root,
+        )
+        module_manifests = ordered_manifests[1:]
+
+        loaded_module_paths: list[Path] = []
+        load_errors: list[str] = []
+        for manifest_path in module_manifests:
+            if not manifest_path.exists():
+                continue
+            errors_before = len(self._plugin_registry.get_load_errors())
+            try:
+                self._plugin_registry.load_manifest(manifest_path)
+            except Exception as exc:
+                message = f"Plugin manifest load failed: {exc}"
+                load_errors.append(f"{self._path_for_diag(manifest_path)}: {message}")
+                if emit_diagnostics:
+                    self.add_diag(
+                        code="E4001",
+                        severity="error",
+                        stage="load",
+                        message=message,
+                        path=self._path_for_diag(manifest_path),
+                    )
+                continue
+            loaded_module_paths.append(manifest_path)
+            new_errors = self._plugin_registry.get_load_errors()[errors_before:]
+            for err in new_errors:
+                load_errors.append(f"{self._path_for_diag(manifest_path)}: {err}")
+                if emit_diagnostics:
+                    self.add_diag(
+                        code="E4001",
+                        severity="error",
+                        stage="load",
+                        message=f"Plugin load error: {err}",
+                        path=self._path_for_diag(manifest_path),
+                    )
+
+        self._plugin_manifests_loaded = True
+        self._discovered_manifest_paths = [self._path_for_diag(path) for path in ordered_manifests if path.exists()]
+        self._discovered_plugin_count = len(self._plugin_registry.specs)
+
+        module_manifest_count = len(self._discovered_manifest_paths) - 1 if self._discovered_manifest_paths else 0
+        if emit_diagnostics:
+            self.add_diag(
+                code="I4001",
+                severity="info",
+                stage="load",
+                message=(
+                    f"Plugin kernel v{KERNEL_VERSION} initialized with {len(self._plugin_registry.specs)} plugins "
+                    f"from {len(self._discovered_manifest_paths)} manifest(s), "
+                    f"including {max(0, module_manifest_count)} module-level manifest(s)."
+                ),
+                path=self._path_for_diag(self.plugins_manifest_path),
+                confidence=1.0,
+            )
+
+        return {
+            "status": "ok",
+            "loaded_manifests": [self._path_for_diag(path) for path in loaded_module_paths],
+            "discovered_manifests": list(self._discovered_manifest_paths),
+            "module_manifest_count": max(0, module_manifest_count),
+            "loaded_plugin_count": self._discovered_plugin_count,
+            "errors": load_errors,
+        }
+
     def _load_plugin_manifests(
         self,
         *,
@@ -356,71 +500,13 @@ class V5Compiler:
         object_modules_root: Path,
         instance_manifests_root: Path | None = None,
     ) -> None:
-        """Load base + module plugin manifests in deterministic order."""
-        if not self._plugin_registry or self._plugin_manifests_loaded:
-            return
-
-        ordered_manifests = discover_plugin_manifests(
-            base_manifest_path=self.plugins_manifest_path,
+        """Compatibility wrapper that loads base + module manifests."""
+        _ = instance_manifests_root
+        self._load_base_plugin_manifest()
+        self._load_module_plugin_manifests(
             class_modules_root=class_modules_root,
             object_modules_root=object_modules_root,
-            instance_manifests_root=instance_manifests_root,
-        )
-
-        loaded_count = 0
-        module_manifest_count = 0
-
-        for idx, manifest_path in enumerate(ordered_manifests):
-            if not manifest_path.exists():
-                if idx == 0:
-                    self.add_diag(
-                        code="W4001",
-                        severity="warning",
-                        stage="load",
-                        message=f"Plugin manifest not found: {manifest_path}",
-                        path=self._path_for_diag(manifest_path),
-                    )
-                continue
-
-            errors_before = len(self._plugin_registry.get_load_errors())
-            try:
-                self._plugin_registry.load_manifest(manifest_path)
-            except Exception as exc:
-                self.add_diag(
-                    code="E4001",
-                    severity="error",
-                    stage="load",
-                    message=f"Plugin manifest load failed: {exc}",
-                    path=self._path_for_diag(manifest_path),
-                )
-                continue
-            loaded_count += 1
-            if idx > 0:
-                module_manifest_count += 1
-
-            load_errors = self._plugin_registry.get_load_errors()
-            for err in load_errors[errors_before:]:
-                self.add_diag(
-                    code="E4001",
-                    severity="error",
-                    stage="load",
-                    message=f"Plugin load error: {err}",
-                    path=self._path_for_diag(manifest_path),
-                )
-
-        self._plugin_manifests_loaded = True
-        self._discovered_manifest_paths = [self._path_for_diag(path) for path in ordered_manifests if path.exists()]
-        self._discovered_plugin_count = len(self._plugin_registry.specs)
-        self.add_diag(
-            code="I4001",
-            severity="info",
-            stage="load",
-            message=(
-                f"Plugin kernel v{KERNEL_VERSION} initialized with {len(self._plugin_registry.specs)} plugins "
-                f"from {loaded_count} manifest(s), including {module_manifest_count} module-level manifest(s)."
-            ),
-            path=self._path_for_diag(self.plugins_manifest_path),
-            confidence=1.0,
+            emit_diagnostics=True,
         )
 
     def _execute_plugins(
@@ -811,11 +897,7 @@ class V5Compiler:
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1
 
-        self._load_plugin_manifests(
-            class_modules_root=manifest_bundle.class_modules_root,
-            object_modules_root=manifest_bundle.object_modules_root,
-            instance_manifests_root=None,
-        )
+        self._load_base_plugin_manifest()
         source_manifest_digest = manifest_digest(manifest)
         workspace_root_path = self._project_scoped_root(self.workspace_root, manifest_bundle.project_id)
         dist_root_path = self._project_scoped_root(self.dist_root, manifest_bundle.project_id)
@@ -878,9 +960,30 @@ class V5Compiler:
         plugin_ctx.config["instance_source_mode"] = inputs.instance_source_mode
         plugin_ctx.config["discovered_plugin_manifests"] = list(self._discovered_manifest_paths)
         plugin_ctx.config["discovered_plugin_count"] = self._discovered_plugin_count
+        plugin_ctx.config["base_plugins_manifest_path"] = str(self.plugins_manifest_path)
+        plugin_ctx.config["plugin_registry"] = self._plugin_registry
+        plugin_ctx.config["discover_load_module_manifests"] = lambda: self._load_module_plugin_manifests(
+            class_modules_root=manifest_bundle.class_modules_root,
+            object_modules_root=manifest_bundle.object_modules_root,
+            emit_diagnostics=False,
+        )
         # Execute discover-stage plugins before compile/validate/generate lifecycle.
         if Stage.DISCOVER in self.stages:
             self._execute_plugins(stage=Stage.DISCOVER, ctx=plugin_ctx)
+            discovered_paths = plugin_ctx.config.get("discovered_plugin_manifests")
+            if isinstance(discovered_paths, list):
+                self._discovered_manifest_paths = [item for item in discovered_paths if isinstance(item, str)]
+            discovered_count = plugin_ctx.config.get("discovered_plugin_count")
+            if isinstance(discovered_count, int):
+                self._discovered_plugin_count = discovered_count
+        elif not self._plugin_manifests_loaded:
+            self._load_module_plugin_manifests(
+                class_modules_root=manifest_bundle.class_modules_root,
+                object_modules_root=manifest_bundle.object_modules_root,
+                emit_diagnostics=True,
+            )
+            plugin_ctx.config["discovered_plugin_manifests"] = list(self._discovered_manifest_paths)
+            plugin_ctx.config["discovered_plugin_count"] = self._discovered_plugin_count
         if any(item.severity == "error" for item in self._diagnostics):
             total, errors, warnings, infos = self._write_diagnostics()
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)

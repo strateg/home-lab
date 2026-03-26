@@ -21,7 +21,6 @@ import yaml
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from compiler_runtime import discover_plugin_manifests
 from kernel import (
     KERNEL_API_VERSION,
     KERNEL_VERSION,
@@ -37,6 +36,7 @@ from kernel import (
     PluginSpec,
 )
 from kernel.plugin_base import Stage
+from plugin_manifest_discovery import discover_plugin_manifest_paths
 
 
 def test_manifest_loading():
@@ -578,11 +578,10 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
 def test_all_discovered_manifests_have_explicit_phase():
     """Wave D guardrail: every discovered plugin manifest entry declares explicit phase."""
     repo_root = V5_TOOLS.parent
-    manifests = discover_plugin_manifests(
+    manifests = discover_plugin_manifest_paths(
         base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
         class_modules_root=repo_root / "topology" / "class-modules",
         object_modules_root=repo_root / "topology" / "object-modules",
-        instance_manifests_root=repo_root / "projects" / "home-lab" / "instances",
     )
 
     missing: list[str] = []
@@ -602,11 +601,10 @@ def test_all_discovered_manifests_have_explicit_phase():
 def test_generator_plugins_declare_generated_files_contract():
     """High-value contract: all generate-stage plugins declare produces.generated_files."""
     repo_root = V5_TOOLS.parent
-    manifests = discover_plugin_manifests(
+    manifests = discover_plugin_manifest_paths(
         base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
         class_modules_root=repo_root / "topology" / "class-modules",
         object_modules_root=repo_root / "topology" / "object-modules",
-        instance_manifests_root=repo_root / "projects" / "home-lab" / "instances",
     )
 
     missing: list[str] = []

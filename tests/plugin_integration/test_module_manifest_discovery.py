@@ -113,3 +113,37 @@ def test_invalid_module_manifest_is_reported_without_crash(tmp_path: Path) -> No
     compiler._load_plugin_manifests(class_modules_root=class_root, object_modules_root=object_root)
 
     assert any(d.code == "E4001" for d in compiler._diagnostics)
+
+
+def test_discover_init_plugin_loads_module_manifests(tmp_path: Path) -> None:
+    mod = _load_compiler_module()
+    compiler = _create_compiler(mod, tmp_path)
+    assert compiler._plugin_registry is not None
+
+    class_root = tmp_path / "class-modules"
+    object_root = tmp_path / "object-modules"
+    _write_manifest(class_root / "alpha" / "plugins.yaml", plugin_id="class.validator.alpha")
+    _write_manifest(object_root / "beta" / "plugins.yaml", plugin_id="object.validator.beta")
+
+    compiler._load_base_plugin_manifest()
+    ctx = mod.PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="production",
+        model_lock={},
+        config={
+            "discover_load_module_manifests": lambda: compiler._load_module_plugin_manifests(
+                class_modules_root=class_root,
+                object_modules_root=object_root,
+                emit_diagnostics=False,
+            ),
+            "discovered_plugin_manifests": [],
+            "discovered_plugin_count": 0,
+        },
+    )
+
+    compiler._execute_plugins(stage=mod.Stage.DISCOVER, ctx=ctx)
+
+    assert "class.validator.alpha" in compiler._plugin_registry.specs
+    assert "object.validator.beta" in compiler._plugin_registry.specs
+    discovered = ctx.config.get("discovered_plugin_manifests", [])
+    assert any(str(path).replace("\\", "/").endswith("class-modules/alpha/plugins.yaml") for path in discovered)
