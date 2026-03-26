@@ -31,6 +31,34 @@ class DiscoverInventoryCompiler(CompilerPlugin):
         return self.execute(ctx, stage)
 
 
+class DiscoverBoundaryCompiler(CompilerPlugin):
+    """Enforce discover-stage manifest boundary (no project-scoped plugin manifests)."""
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+        manifests = ctx.config.get("discovered_plugin_manifests")
+        manifest_list = [item for item in manifests if isinstance(item, str)] if isinstance(manifests, list) else []
+        leaked = [path for path in manifest_list if path.replace("\\", "/").startswith("projects/")]
+        for rel in leaked:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E3201",
+                    severity="error",
+                    stage=stage,
+                    message=f"project-scoped plugin manifest is not allowed in discover stage: {rel}",
+                    path=rel,
+                )
+            )
+        try:
+            ctx.publish("boundary_ok", len(leaked) == 0)
+        except Exception:
+            pass
+        return self.make_result(diagnostics=diagnostics)
+
+    def on_pre(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
+
 class DiscoverCapabilityPreflightCompiler(CompilerPlugin):
     """Check capability contract files are present before compile/validate stages."""
 

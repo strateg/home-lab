@@ -447,3 +447,47 @@ def test_strict_only_rejects_legacy_instance_bindings_path():
 
     assert exit_code == 1
     assert any(d.code == "E7808" for d in compiler._diagnostics)
+
+
+def test_stage_selection_runs_compile_and_validate_only(monkeypatch):
+    mod = _load_compiler_module()
+    test_output_dir = mod.REPO_ROOT / "build" / "test-stage-selection-compile-validate"
+
+    compiler = mod.V5Compiler(
+        manifest_path=mod.DEFAULT_MANIFEST,
+        output_json=test_output_dir / "effective-topology.json",
+        diagnostics_json=test_output_dir / "diagnostics.json",
+        diagnostics_txt=test_output_dir / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+        stages=[mod.Stage.COMPILE, mod.Stage.VALIDATE],
+    )
+
+    seen_stages: list[str] = []
+
+    def _record_execute_plugins(*, stage, ctx):
+        if stage.value == "compile":
+            ctx.compiled_json = {
+                "version": "plugin-first",
+                "model": "test-stage-selection",
+                "generated_at": "2026-03-11T00:00:00+00:00",
+                "compiled_model_version": "1.0",
+                "compiled_at": "2026-03-11T00:00:00+00:00",
+                "compiler_pipeline_version": "adr0069-ws2",
+                "source_manifest_digest": "test-manifest-digest",
+                "topology_manifest": "test",
+                "classes": {},
+                "objects": {},
+                "instances": {},
+            }
+            _publish_minimal_compile_outputs(ctx)
+        seen_stages.append(stage.value)
+
+    monkeypatch.setattr(compiler, "_execute_plugins", _record_execute_plugins)
+    exit_code = compiler.run()
+    assert exit_code == 0
+    assert seen_stages == ["compile", "validate"]

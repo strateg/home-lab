@@ -20,6 +20,25 @@ plugins:
         scope: pipeline_shared
     description: Publishes discovered plugin manifests inventory for discover-stage traceability.
 
+  - id: base.discover.boundary
+    kind: compiler
+    entry: compilers/discover_compiler.py:DiscoverBoundaryCompiler
+    api_version: "1.x"
+    stages: [discover]
+    phase: pre
+    order: 15
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: boundary_ok
+        scope: pipeline_shared
+    description: Enforces framework/project plugin manifest boundary during discover stage.
+
   - id: base.discover.capability_preflight
     kind: compiler
     entry: compilers/discover_compiler.py:DiscoverCapabilityPreflightCompiler
@@ -27,7 +46,7 @@ plugins:
     stages: [discover]
     phase: verify
     order: 40
-    depends_on: [base.discover.inventory]
+    depends_on: [base.discover.inventory, base.discover.boundary]
     timeout: 30
     config: {}
     config_schema:
@@ -37,6 +56,9 @@ plugins:
     consumes:
       - from_plugin: base.discover.inventory
         key: manifest_inventory
+        required: false
+      - from_plugin: base.discover.boundary
+        key: boundary_ok
         required: false
     produces:
       - key: capability_preflight_ok

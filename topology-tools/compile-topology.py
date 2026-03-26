@@ -48,6 +48,14 @@ DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 SUPPORTED_RUNTIME_PROFILES = ("production", "modeled", "test-real")
 SUPPORTED_INSTANCE_SOURCE_MODES = ("auto", "sharded-only")
 SUPPORTED_SECRETS_MODES = ("inject", "passthrough", "strict")
+STAGE_ORDER = (
+    Stage.DISCOVER,
+    Stage.COMPILE,
+    Stage.VALIDATE,
+    Stage.GENERATE,
+    Stage.ASSEMBLE,
+    Stage.BUILD,
+)
 FRAMEWORK_LOCK_LOAD_CODES = {"E7821", "E7822"}
 REQUIRED_FRAMEWORK_KEYS = (
     "class_modules_root",
@@ -92,6 +100,25 @@ def resolve_topology_path(topology_arg: str) -> Path:
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def parse_stages_arg(raw: str) -> list[Stage]:
+    tokens = [token.strip() for token in raw.split(",") if token.strip()]
+    if not tokens:
+        raise ValueError("stages list is empty")
+    values = {stage.value: stage for stage in STAGE_ORDER}
+    unknown = [token for token in tokens if token not in values]
+    if unknown:
+        raise ValueError(f"Unknown stages: {unknown}")
+    seen: set[Stage] = set()
+    ordered: list[Stage] = []
+    for token in tokens:
+        stage = values[token]
+        if stage in seen:
+            continue
+        seen.add(stage)
+        ordered.append(stage)
+    return ordered
 
 
 @dataclass
@@ -166,6 +193,7 @@ class V5Compiler:
         signing_backend: str = "none",
         release_tag: str = "",
         sbom_output_dir: Path | None = None,
+        stages: list[Stage] | None = None,
     ) -> None:
         if not enable_plugins:
             raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
@@ -196,6 +224,8 @@ class V5Compiler:
         self.signing_backend = signing_backend
         self.release_tag = release_tag
         self.sbom_output_dir = sbom_output_dir
+        requested_stages = set(stages) if isinstance(stages, list) and stages else set(STAGE_ORDER)
+        self.stages: tuple[Stage, ...] = tuple(stage for stage in STAGE_ORDER if stage in requested_stages)
 
         self._diagnostics: list[Diagnostic] = []
         self._error_hints = self._load_error_hints(error_catalog_path)
@@ -269,6 +299,55 @@ class V5Compiler:
         if root.name == project_id:
             return root
         return root / project_id
+
+    def _validate_stage_selection(self) -> bool:
+        selected = set(self.stages)
+        if not selected:
+            self.add_diag(
+                code="E6901",
+                severity="error",
+                stage="validate",
+                message="No pipeline stages selected. Use --stages to select at least one stage.",
+                path="pipeline:stages",
+            )
+            return False
+        if Stage.VALIDATE in selected and Stage.COMPILE not in selected:
+            self.add_diag(
+                code="E6901",
+                severity="error",
+                stage="validate",
+                message="validate stage requires compile stage in --stages selection.",
+                path="pipeline:stages",
+            )
+            return False
+        if Stage.GENERATE in selected and Stage.VALIDATE not in selected:
+            self.add_diag(
+                code="E6901",
+                severity="error",
+                stage="validate",
+                message="generate stage requires validate stage in --stages selection.",
+                path="pipeline:stages",
+            )
+            return False
+        if Stage.ASSEMBLE in selected and Stage.GENERATE not in selected:
+            self.add_diag(
+                code="E6901",
+                severity="error",
+                stage="validate",
+                message="assemble stage requires generate stage in --stages selection.",
+                path="pipeline:stages",
+            )
+            return False
+        if Stage.BUILD in selected and Stage.ASSEMBLE not in selected:
+            self.add_diag(
+                code="E6901",
+                severity="error",
+                stage="validate",
+                message="build stage requires assemble stage in --stages selection.",
+                path="pipeline:stages",
+            )
+            return False
+        return True
 
     def _load_plugin_manifests(
         self,
@@ -568,6 +647,10 @@ class V5Compiler:
         self._run_generated_at = utc_now()
         if self.trace_execution and self._plugin_registry:
             self._plugin_registry.reset_execution_trace()
+        if not self._validate_stage_selection():
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
         if self.pipeline_mode != "plugin-first":
             self.add_diag(
                 code="E6904",
@@ -731,7 +814,7 @@ class V5Compiler:
         self._load_plugin_manifests(
             class_modules_root=manifest_bundle.class_modules_root,
             object_modules_root=manifest_bundle.object_modules_root,
-            instance_manifests_root=manifest_bundle.instances_root_path,
+            instance_manifests_root=None,
         )
         source_manifest_digest = manifest_digest(manifest)
         workspace_root_path = self._project_scoped_root(self.workspace_root, manifest_bundle.project_id)
@@ -796,11 +879,20 @@ class V5Compiler:
         plugin_ctx.config["discovered_plugin_manifests"] = list(self._discovered_manifest_paths)
         plugin_ctx.config["discovered_plugin_count"] = self._discovered_plugin_count
         # Execute discover-stage plugins before compile/validate/generate lifecycle.
-        self._execute_plugins(stage=Stage.DISCOVER, ctx=plugin_ctx)
+        if Stage.DISCOVER in self.stages:
+            self._execute_plugins(stage=Stage.DISCOVER, ctx=plugin_ctx)
         if any(item.severity == "error" for item in self._diagnostics):
             total, errors, warnings, infos = self._write_diagnostics()
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
             return 1
+        if Stage.COMPILE not in self.stages:
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            if errors > 0:
+                return 1
+            if self.fail_on_warning and warnings > 0:
+                return 2
+            return 0
         # Execute compiler plugins first
         self._execute_plugins(stage=Stage.COMPILE, ctx=plugin_ctx)
         apply_plugin_compile_outputs(
@@ -825,7 +917,7 @@ class V5Compiler:
 
         # Execute validator plugins (ADR 0063)
         # Uses same context so validators can subscribe to compiler outputs
-        if compiled_contract_ok and plugin_ctx:
+        if compiled_contract_ok and plugin_ctx and Stage.VALIDATE in self.stages:
             self._execute_plugins(stage=Stage.VALIDATE, ctx=plugin_ctx)
 
         errors = sum(1 for item in self._diagnostics if item.severity == "error")
@@ -833,6 +925,7 @@ class V5Compiler:
             errors=errors,
             compiled_contract_ok=compiled_contract_ok,
             enable_plugins=True,
+            run_generate_stage=Stage.GENERATE in self.stages,
             plugin_ctx=plugin_ctx,
             execute_plugins=lambda *, stage, ctx: self._execute_plugins(stage=Stage(stage), ctx=ctx),
             artifact_owner=self._artifact_owner,
@@ -843,8 +936,9 @@ class V5Compiler:
         )
 
         if plugin_ctx is not None and not any(item.severity == "error" for item in self._diagnostics):
-            self._execute_plugins(stage=Stage.ASSEMBLE, ctx=plugin_ctx)
-            if not any(item.severity == "error" for item in self._diagnostics):
+            if Stage.ASSEMBLE in self.stages:
+                self._execute_plugins(stage=Stage.ASSEMBLE, ctx=plugin_ctx)
+            if Stage.BUILD in self.stages and not any(item.severity == "error" for item in self._diagnostics):
                 self._execute_plugins(stage=Stage.BUILD, ctx=plugin_ctx)
 
         total, errors, warnings, infos = self._write_diagnostics()
@@ -968,6 +1062,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pipeline mode (plugin-first only).",
     )
     parser.add_argument(
+        "--stages",
+        default="discover,compile,validate,generate,assemble,build",
+        help="Comma-separated stage list to execute in plugin-first runtime.",
+    )
+    parser.add_argument(
         "--plugins-manifest",
         default=str(DEFAULT_PLUGINS_MANIFEST.as_posix()),
         help="Path to plugin manifest YAML (defaults to compiler script directory).",
@@ -1000,6 +1099,11 @@ def main() -> int:
     global REPO_ROOT
     REPO_ROOT = Path(args.repo_root).resolve()
     manifest_path = resolve_topology_path(args.topology)
+    try:
+        selected_stages = parse_stages_arg(args.stages)
+    except ValueError as exc:
+        print(f"ERROR: invalid --stages: {exc}", file=sys.stderr)
+        return 1
     compiler = V5Compiler(
         manifest_path=manifest_path,
         output_json=resolve_repo_path(args.output_json),
@@ -1026,6 +1130,7 @@ def main() -> int:
         signing_backend=args.signing_backend,
         release_tag=args.release_tag,
         sbom_output_dir=resolve_repo_path(args.sbom_output_dir) if args.sbom_output_dir.strip() else None,
+        stages=selected_stages,
     )
     return compiler.run()
 

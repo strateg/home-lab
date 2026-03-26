@@ -628,6 +628,7 @@ def emit_effective_artifact(
     errors: int,
     compiled_contract_ok: bool,
     enable_plugins: bool,
+    run_generate_stage: bool,
     plugin_ctx: Any,
     execute_plugins: Callable[..., None],
     artifact_owner: Callable[[str], str],
@@ -639,8 +640,18 @@ def emit_effective_artifact(
     if errors != 0 or not compiled_contract_ok:
         return
 
-    if enable_plugins and plugin_ctx is not None:
+    if run_generate_stage and enable_plugins and plugin_ctx is not None:
         execute_plugins(stage="generate", ctx=plugin_ctx)
+    if not run_generate_stage:
+        add_diag(
+            code="I9001",
+            severity="info",
+            stage="emit",
+            message="Compile success (generate stage skipped by stage selection).",
+            path=str(output_json.relative_to(repo_root).as_posix()),
+            confidence=1.0,
+        )
+        return
 
     if artifact_owner("effective_json") == "core":
         output_json.parent.mkdir(parents=True, exist_ok=True)

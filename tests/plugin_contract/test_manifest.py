@@ -545,6 +545,7 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
     registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
 
     module_loader = registry.specs["base.compiler.module_loader"]
+    discover_boundary = registry.specs["base.discover.boundary"]
     instance_rows = registry.specs["base.compiler.instance_rows"]
     capability_loader = registry.specs["base.compiler.capability_contract_loader"]
     references = registry.specs["base.validator.references"]
@@ -556,6 +557,7 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
         "class_module_paths",
         "object_module_paths",
     }
+    assert discover_boundary.phase == Phase.PRE
     assert {item["key"] for item in instance_rows.produces} >= {"normalized_rows"}
     assert {item["key"] for item in capability_loader.produces} >= {"catalog_ids", "packs_map"}
     assert {(item["from_plugin"], item["key"]) for item in references.consumes} >= {
