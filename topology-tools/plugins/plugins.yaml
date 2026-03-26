@@ -107,6 +107,11 @@ plugins:
       type: object
       properties: {}
       required: []
+    produces:
+      - key: capability_stats
+        scope: pipeline_shared
+      - key: derived_capabilities
+        scope: pipeline_shared
     description: Derives capabilities from class/object definitions (ADR 0063 Phase 3 example)
 
   - id: base.compiler.module_loader
@@ -148,6 +153,11 @@ plugins:
       type: object
       properties: {}
       required: []
+    produces:
+      - key: lock_payload
+        scope: pipeline_shared
+      - key: model_lock_loaded
+        scope: pipeline_shared
     description: Loads model.lock payload for plugin-first pipeline (ADR 0069).
 
   - id: base.compiler.annotation_resolver
@@ -168,6 +178,15 @@ plugins:
           type: string
           description: Path to annotation value format registry.
       required: []
+    produces:
+      - key: object_annotations
+        scope: pipeline_shared
+      - key: object_secret_annotations
+        scope: pipeline_shared
+      - key: row_annotations_by_instance
+        scope: pipeline_shared
+      - key: annotation_formats
+        scope: pipeline_shared
     description: Parses field annotations once and publishes normalized annotation indexes.
 
   - id: base.compiler.instance_rows
@@ -241,6 +260,9 @@ plugins:
       type: object
       properties: {}
       required: []
+    produces:
+      - key: effective_model_candidate
+        scope: pipeline_shared
     description: Assembles candidate effective model in compile stage (ADR 0069 WS2).
 
   # Validator plugins (run in validate stage)
@@ -803,6 +825,9 @@ plugins:
       type: object
       properties: {}
       required: []
+    produces:
+      - key: ethernet_ports_by_object
+        scope: pipeline_shared
     description: Publishes object ethernet port inventory for endpoint validators.
 
   - id: base.validator.capability_contract

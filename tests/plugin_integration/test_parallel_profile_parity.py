@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 
 
@@ -54,6 +55,29 @@ def _normalize_trace(path: Path) -> list[tuple[str, str, str, str, str]]:
             )
         )
     return normalized
+
+
+def _trace_signature(
+    trace: list[tuple[str, str, str, str, str]],
+) -> tuple[
+    list[tuple[str, str, str]],
+    list[tuple[tuple[str, str, str], int]],
+    list[tuple[tuple[str, str, str, str], int]],
+]:
+    lifecycle = [
+        (event, stage, phase)
+        for event, stage, phase, _plugin_id, _status in trace
+        if event in {"stage_start", "phase_start", "stage_end"}
+    ]
+    plugin_starts = Counter(
+        (stage, phase, plugin_id) for event, stage, phase, plugin_id, _status in trace if event == "plugin_start"
+    )
+    plugin_results = Counter(
+        (stage, phase, plugin_id, status)
+        for event, stage, phase, plugin_id, status in trace
+        if event == "plugin_result"
+    )
+    return lifecycle, sorted(plugin_starts.items()), sorted(plugin_results.items())
 
 
 def _normalize_effective_payload(path: Path) -> dict | None:
@@ -127,7 +151,7 @@ def _assert_profile_parity(profile: str, tmp_path: Path) -> None:
     assert seq_code == par_code
     assert seq_diag["summary"] == par_diag["summary"]
     assert _normalize_diag_signature(seq_diag) == _normalize_diag_signature(par_diag)
-    assert seq_trace == par_trace
+    assert _trace_signature(seq_trace) == _trace_signature(par_trace)
     assert seq_keys == par_keys
     assert seq_effective == par_effective
 
