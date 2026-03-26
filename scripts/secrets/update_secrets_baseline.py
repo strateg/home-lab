@@ -8,6 +8,7 @@ result without BOM, and stages the updated baseline file.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -30,9 +31,18 @@ EXCLUDES = [
 
 
 def main() -> int:
-    cmd = ["detect-secrets", "scan"]
+    cmd = [sys.executable, "-m", "detect_secrets", "scan"]
+    using_existing_baseline = False
     if BASELINE.exists():
-        cmd += ["--baseline", str(BASELINE)]
+        try:
+            json.loads(BASELINE.read_text(encoding="utf-8"))
+            cmd += ["--baseline", str(BASELINE)]
+            using_existing_baseline = True
+        except Exception:
+            print(
+                "[update-baseline] Existing baseline is not valid UTF-8 JSON; regenerating from scratch.",
+                file=sys.stderr,
+            )
     for pattern in EXCLUDES:
         cmd += ["--exclude-files", pattern]
 
@@ -44,7 +54,16 @@ def main() -> int:
         )
         return result.returncode
 
-    BASELINE.write_bytes(result.stdout)
+    # detect-secrets v1.5 updates the baseline file in-place when --baseline is provided
+    # and may emit empty stdout. Older behavior emitted baseline JSON to stdout.
+    if result.stdout:
+        BASELINE.write_bytes(result.stdout)
+    elif not (using_existing_baseline and BASELINE.exists() and BASELINE.stat().st_size > 0):
+        print(
+            "[update-baseline] detect-secrets scan produced empty output and no valid baseline file exists.",
+            file=sys.stderr,
+        )
+        return 1
 
     subprocess.run(
         ["git", "add", str(BASELINE)],

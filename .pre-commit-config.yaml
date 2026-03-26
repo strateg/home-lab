@@ -31,13 +31,15 @@ repos:
     - id: detect-secrets-update-baseline
       name: Update detect-secrets baseline
       entry: python scripts/secrets/update_secrets_baseline.py
-      language: system
+      language: python
+      additional_dependencies:
+        - detect-secrets==1.5.0
       pass_filenames: false
       always_run: true
       stages: [pre-commit]
 
 - repo: https://github.com/Yelp/detect-secrets
-  rev: v1.4.0
+  rev: v1.5.0
   hooks:
     - id: detect-secrets
       args: ["--baseline", ".secrets.baseline"]
@@ -85,10 +87,11 @@ repos:
 - repo: local
   hooks:
     - id: update-l0-last-updated
-      name: Update L0 metadata.last_updated
-      entry: python v4/topology-tools/scripts/hooks/update_l0_last_updated.py
+      name: Update legacy v4 L0 metadata.last_updated
+      entry: python archive/v4/v4/topology-tools/scripts/hooks/update_l0_last_updated.py
       language: system
       pass_filenames: false
+      stages: [manual]
     # Generators below require terraform/mermaid binaries
     # Uncomment to enable locally or run on CI
     # - id: validate-topology
