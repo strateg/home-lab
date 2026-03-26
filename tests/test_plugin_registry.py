@@ -817,6 +817,12 @@ def test_execute_stage_runs_finalize_on_fail_fast(tmp_path: Path):
 
     assert statuses["phase.validator_json.failing_run"] == PluginStatus.FAILED
     assert statuses["phase.validator_json.finalize_probe"] == PluginStatus.SUCCESS
+    failure_context = ctx.config.get("stage_failure_context")
+    assert isinstance(failure_context, list)
+    assert failure_context and failure_context[0]["plugin_id"] == "phase.validator_json.failing_run"
+    assert "diagnostics" in failure_context[0]
+    assert isinstance(failure_context[0]["diagnostics"], list)
+    assert failure_context[0]["diagnostics"][0]["code"] == "E9999"
     published = ctx.get_published_data().get("phase.validator_json.finalize_probe", {})
     assert published.get("failure_count") == 1
 

@@ -1434,17 +1434,32 @@ class PluginRegistry:
             def _record_stage_failure(result: PluginResult, *, phase: Phase) -> None:
                 if result.status not in {PluginStatus.FAILED, PluginStatus.TIMEOUT}:
                     return
+                diagnostics_payload: list[dict[str, Any]] = []
                 diag_codes = [
                     diag.code
                     for diag in result.diagnostics
                     if isinstance(diag, PluginDiagnostic) and isinstance(diag.code, str) and diag.code
                 ]
+                for diag in result.diagnostics:
+                    if not isinstance(diag, PluginDiagnostic):
+                        continue
+                    diagnostics_payload.append(
+                        {
+                            "code": diag.code,
+                            "severity": diag.severity,
+                            "phase": diag.phase,
+                            "message": diag.message,
+                            "path": diag.path,
+                            "plugin_id": diag.plugin_id,
+                        }
+                    )
                 stage_failure_context.append(
                     {
                         "plugin_id": result.plugin_id,
                         "status": result.status.value,
                         "phase": phase.value,
                         "diagnostic_codes": diag_codes,
+                        "diagnostics": diagnostics_payload,
                     }
                 )
 
