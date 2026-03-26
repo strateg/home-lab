@@ -154,7 +154,7 @@ Required runtime behavior:
 
 1. Every plugin declares explicit `stage` and `phase` in manifest (`phase` default is `run` only for backward compatibility).
 2. Kernel executes by `stage -> phase -> DAG/order`.
-3. Plugin implementation is phase-aware via dedicated handlers (`on_init`, `on_pre`, ...) or dispatcher (`execute(ctx, stage, phase)`).
+3. Plugin implementation is phase-aware via dedicated handlers (`on_init`, `on_pre`, ...) or dispatcher (`execute_phase(ctx, stage, phase)`).
 4. Optional `when` predicates can gate execution by:
    - `profiles`
    - `pipeline_modes`

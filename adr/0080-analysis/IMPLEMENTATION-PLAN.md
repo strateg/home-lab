@@ -501,3 +501,37 @@ Mapped to ADR 0080 sections plus additions from gap analysis:
 | 24 | Sequential and parallel modes produce identical outputs for all parity tests | C+/H |
 | 25 | Parallel diagnostics/results ordering is deterministic across repeated runs | C+ |
 | 26 | Parallel timeout/skip/finalize behavior matches sequential contract | C+ |
+
+---
+
+## Immediate Start Slice
+
+The implementation should start with the smallest Wave B slice that removes ADR/runtime drift and unlocks the rest of the work.
+
+**Start now:**
+
+1. Align runtime/schema enums:
+   - add `discover`, `assemble`, `build` to `Stage`
+   - add `Phase`
+   - replace schema token `finished` with `finalize`
+2. Extend `PluginSpec` and manifest schema:
+   - `phase`
+   - `when`
+   - `compiled_json_owner`
+   - `assembler` / `builder` kinds
+3. Add backward-compatible phase dispatch:
+   - keep `execute(ctx, stage)` working for all existing plugins
+   - add optional `on_<phase>(ctx, stage)` hooks
+4. Introduce `PluginExecutionScope` + `contextvars` plumbing:
+   - remove reliance on `_current_plugin_id` / `_allowed_dependencies`
+   - add `ctx.active_config`
+5. Update contract tests first:
+   - schema/runtime enum sync
+   - `build` manifest load
+   - legacy plugin dispatch parity
+
+**Definition of done for implementation start:**
+
+- Existing manifests still load.
+- Existing plugin pipeline still runs without behavior drift.
+- Runtime is ready for Wave D annotations and Wave C executor work.

@@ -2,7 +2,7 @@
 
 **ADR:** `adr/0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md`
 **Date:** 2026-03-26
-**Status:** Proposed
+**Status:** Accepted
 
 ---
 
@@ -196,9 +196,9 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ## P. Phase Handler Backward Compatibility
 
-- [ ] Existing plugins with `execute(ctx) -> PluginResult` only run unchanged through full pipeline.
-- [ ] Registry dispatch: for `run` phase, `execute(ctx)` is called unless `on_run(ctx)` is defined.
-- [ ] Registry dispatch: for non-`run` phases, `on_<phase>(ctx)` is called if defined; plugin is skipped if not.
+- [ ] Existing plugins with `execute(ctx, stage) -> PluginResult` only run unchanged through full pipeline.
+- [ ] Registry dispatch: for `run` phase, `execute(ctx, stage)` is called unless `on_run(ctx, stage)` is defined.
+- [ ] Registry dispatch: for non-`run` phases, `on_<phase>(ctx, stage)` is called if defined; plugin is skipped if not.
 - [ ] Plugin skipped on non-`run` phase returns empty `PluginResult` (no error).
 - [ ] Regression test: all 47+ base manifest plugins produce identical output after phase handler dispatch change.
 
@@ -213,17 +213,20 @@ Complete when all Waves A–H are done and all items below are verified.
 ## R. Parallel Plugin Execution
 
 - [ ] `PluginExecutionScope` data class exists and is `frozen=True` (immutable).
-- [ ] `publish()` and `subscribe()` accept `PluginExecutionScope` as first argument.
+- [ ] `publish()` and `subscribe()` keep their plugin-facing signatures unchanged and resolve execution identity from per-worker `contextvars`.
 - [ ] `_current_plugin_id` and `_allowed_dependencies` fields are removed from `PluginContext`.
+- [ ] `ctx.active_config` exposes per-plugin immutable config snapshot from `PluginExecutionScope`.
 - [ ] `_published_data` access is protected by `threading.Lock()`.
 - [ ] `compiled_json` is deep-copied at compile stage boundary — read-only for later stages.
 - [ ] At most one `compiled_json_owner: true` per `(stage, phase)` is allowed; violation is load error.
 - [ ] Plugin instance cache is pre-loaded or lock-protected (no TOCTOU race).
-- [ ] Per-plugin `config` is injected via `PluginExecutionScope`, not mutated on shared `PluginContext`.
+- [ ] Per-plugin config is resolved from `PluginExecutionScope`; shared `PluginContext.config` is not mutated per invocation.
 - [ ] Generator output path non-overlap is validated at load time using `produces` declarations.
 - [ ] `--parallel-plugins` flag enables wavefront parallel executor.
 - [ ] Wavefront executor: submits indegree-0 plugins to `ThreadPoolExecutor`, respects `order` for tie-breaking.
 - [ ] Thread pool size: `min(cpu_count, wavefront_size)`, capped at 8.
 - [ ] Sequential and parallel modes produce byte-identical outputs for all parity tests.
 - [ ] Thread-safety unit tests pass: concurrent publish/subscribe with ≥8 threads, no data loss.
+- [ ] Diagnostics and plugin results are emitted in deterministic order (`stage`, `phase`, `order`, `plugin_id`) across repeated parallel runs.
+- [ ] Timeout in parallel mode fails only the timed-out plugin, skips its dependants in the same phase, and still preserves stage-level `finalize`.
 - [ ] `--parallel-plugins` promoted to default in Wave H (after regression parity verified).
