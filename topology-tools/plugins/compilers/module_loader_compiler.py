@@ -230,3 +230,6 @@ class ModuleLoaderCompiler(CompilerPlugin):
                 "object_module_paths": object_paths,
             },
         )
+
+    def on_init(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)

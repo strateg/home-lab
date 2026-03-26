@@ -271,3 +271,6 @@ class AnnotationResolverCompiler(CompilerPlugin):
                 "annotation_formats": formats,
             },
         )
+
+    def on_init(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)

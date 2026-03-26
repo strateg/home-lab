@@ -31,11 +31,46 @@ def _sha256(path: Path) -> str:
 _SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("private_key", re.compile(r"-----BEGIN (?:RSA|EC|DSA|OPENSSH) PRIVATE KEY-----")),
     ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
-    (
-        "secret_assignment",
-        re.compile(r"(?i)\b(password|passwd|secret|token|api[_-]?key)\b\s*[:=]\s*['\"]?[^\s'\"]+"),
-    ),
 )
+_SECRET_ASSIGNMENT_RE = re.compile(r"(?i)\b(password|passwd|secret|token|api[_-]?key)\b\s*[:=]\s*(.+)")
+_PLACEHOLDER_RE = re.compile(r"^<TODO_[A-Z0-9_]+>$")
+
+
+def _is_safe_secret_reference(raw_value: str) -> bool:
+    value = raw_value.strip().strip("\"'").strip()
+    if not value:
+        return True
+    if _PLACEHOLDER_RE.fullmatch(value) is not None:
+        return True
+
+    lowered = value.lower()
+    if lowered in {"example", "placeholder", "changeme", "null", "none"}:
+        return True
+
+    if value.startswith("var.") or value.startswith("local.") or value.startswith("env."):
+        return True
+    if value.startswith("${") and value.endswith("}"):
+        return True
+    if value.startswith("{{") and value.endswith("}}"):
+        return True
+    return False
+
+
+def _has_unencrypted_secret_assignment(text_payload: str) -> bool:
+    for raw_line in text_payload.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if line.startswith("#") or line.startswith("//") or line.startswith(";"):
+            continue
+        match = _SECRET_ASSIGNMENT_RE.search(line)
+        if match is None:
+            continue
+        rhs = match.group(2).strip()
+        if _is_safe_secret_reference(rhs):
+            continue
+        return True
+    return False
 
 
 class WorkspaceAssembler(AssemblerPlugin):
@@ -51,10 +86,18 @@ class WorkspaceAssembler(AssemblerPlugin):
     @staticmethod
     def _workspace_root(ctx: PluginContext) -> Path:
         if isinstance(ctx.workspace_root, str) and ctx.workspace_root.strip():
-            return Path(ctx.workspace_root).resolve()
+            candidate = Path(ctx.workspace_root)
+            if candidate.is_absolute():
+                return candidate.resolve()
+            repo_root = WorkspaceAssembler._repo_root(ctx)
+            return (repo_root / candidate).resolve()
         raw = ctx.config.get("workspace_root")
         if isinstance(raw, str) and raw.strip():
-            return Path(raw).resolve()
+            candidate = Path(raw)
+            if candidate.is_absolute():
+                return candidate.resolve()
+            repo_root = WorkspaceAssembler._repo_root(ctx)
+            return (repo_root / candidate).resolve()
         return Path.cwd() / ".work" / "native"
 
     @staticmethod
@@ -243,6 +286,18 @@ class AssemblyVerifyAssembler(AssemblerPlugin):
                     )
                 )
                 break
+            else:
+                if not _has_unencrypted_secret_assignment(text_payload):
+                    continue
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E8103",
+                        severity="error",
+                        stage=stage,
+                        message=f"secret-looking content detected (secret_assignment) in assembled file: {item}",
+                        path=item,
+                    )
+                )
 
         try:
             ctx.publish("assemble_verified", len([d for d in diagnostics if d.severity == "error"]) == 0)

@@ -84,6 +84,9 @@ class FoundationLayoutValidator(ValidatorYamlPlugin):
 
         return self.make_result(diagnostics)
 
+    def on_pre(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
     @staticmethod
     def _resolve_repo_root(value: Any) -> Path:
         if isinstance(value, str) and value.strip():

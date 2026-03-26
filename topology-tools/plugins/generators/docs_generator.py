@@ -88,3 +88,6 @@ class DocsGenerator(BaseGenerator):
                 "docs_files": generated_files,
             },
         )
+
+    def on_post(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)

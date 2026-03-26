@@ -31,18 +31,34 @@ class ReleaseBundleBuilder(BuilderPlugin):
     """Create zip bundle from assembled workspace artifacts."""
 
     @staticmethod
+    def _repo_root(ctx: PluginContext) -> Path:
+        repo_root = ctx.config.get("repo_root")
+        if isinstance(repo_root, str) and repo_root.strip():
+            return Path(repo_root).resolve()
+        return Path.cwd()
+
+    @staticmethod
     def _dist_root(ctx: PluginContext) -> Path:
         if isinstance(ctx.dist_root, str) and ctx.dist_root.strip():
-            return Path(ctx.dist_root).resolve()
+            candidate = Path(ctx.dist_root)
+            if candidate.is_absolute():
+                return candidate.resolve()
+            return (ReleaseBundleBuilder._repo_root(ctx) / candidate).resolve()
         raw = ctx.config.get("dist_root")
         if isinstance(raw, str) and raw.strip():
-            return Path(raw).resolve()
+            candidate = Path(raw)
+            if candidate.is_absolute():
+                return candidate.resolve()
+            return (ReleaseBundleBuilder._repo_root(ctx) / candidate).resolve()
         return Path.cwd() / "dist"
 
     @staticmethod
     def _workspace_root(ctx: PluginContext) -> Path:
         if isinstance(ctx.workspace_root, str) and ctx.workspace_root.strip():
-            return Path(ctx.workspace_root).resolve()
+            candidate = Path(ctx.workspace_root)
+            if candidate.is_absolute():
+                return candidate.resolve()
+            return (ReleaseBundleBuilder._repo_root(ctx) / candidate).resolve()
         return Path.cwd() / ".work" / "native"
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
@@ -184,9 +200,7 @@ class SbomBuilder(BuilderPlugin):
             )
             return self.make_result(diagnostics)
 
-        dist_root = (
-            Path(ctx.dist_root).resolve() if isinstance(ctx.dist_root, str) and ctx.dist_root else Path.cwd() / "dist"
-        )
+        dist_root = ReleaseBundleBuilder._dist_root(ctx)
         sbom_root = (
             Path(ctx.sbom_output_dir).resolve()
             if isinstance(ctx.sbom_output_dir, str) and ctx.sbom_output_dir.strip()
@@ -253,9 +267,7 @@ class ReleaseManifestBuilder(BuilderPlugin):
             )
             return self.make_result(diagnostics)
 
-        dist_root = (
-            Path(ctx.dist_root).resolve() if isinstance(ctx.dist_root, str) and ctx.dist_root else Path.cwd() / "dist"
-        )
+        dist_root = ReleaseBundleBuilder._dist_root(ctx)
         dist_root.mkdir(parents=True, exist_ok=True)
         manifest_path = dist_root / "release-manifest.json"
 

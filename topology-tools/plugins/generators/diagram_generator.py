@@ -145,3 +145,6 @@ class DiagramGenerator(BaseGenerator):
                 "icon_mode": icon_mode,
             },
         )
+
+    def on_post(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)

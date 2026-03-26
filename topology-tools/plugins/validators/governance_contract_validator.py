@@ -128,6 +128,9 @@ class GovernanceContractValidator(ValidatorYamlPlugin):
 
         return self.make_result(diagnostics)
 
+    def on_pre(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
     def _validate_meta(
         self,
         *,

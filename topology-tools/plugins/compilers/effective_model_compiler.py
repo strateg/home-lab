@@ -317,3 +317,6 @@ class EffectiveModelCompiler(CompilerPlugin):
             diagnostics=diagnostics,
             output_data={"effective_model_candidate": candidate},
         )
+
+    def on_finalize(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)

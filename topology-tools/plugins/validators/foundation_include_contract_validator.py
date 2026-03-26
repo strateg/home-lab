@@ -86,6 +86,9 @@ class FoundationIncludeContractValidator(ValidatorYamlPlugin):
 
         return self.make_result(diagnostics)
 
+    def on_pre(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
     @staticmethod
     def _resolve_project_root(*, ctx: PluginContext, project_root_raw: str) -> Path:
         project_root_path = Path(project_root_raw)

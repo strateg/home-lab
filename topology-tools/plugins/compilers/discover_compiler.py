@@ -81,6 +81,20 @@ class DiscoverManifestLoaderCompiler(CompilerPlugin):
             "loaded_plugin_count": int(summary.get("loaded_plugin_count", 0)),
             "discovered_manifests": discovered_paths,
         }
+        diagnostics.append(
+            self.emit_diagnostic(
+                code="I4001",
+                severity="info",
+                stage=stage,
+                message=(
+                    "Plugin manifests loaded via discover bootstrap: "
+                    f"plugins={payload['loaded_plugin_count']} "
+                    f"manifests={len(discovered_paths)} "
+                    f"module_manifests={payload['module_manifest_count']}"
+                ),
+                path="discover:module-manifests",
+            )
+        )
         try:
             ctx.publish("manifest_loader_summary", payload)
         except Exception:

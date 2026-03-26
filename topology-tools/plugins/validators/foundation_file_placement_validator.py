@@ -170,6 +170,9 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
 
         return self.make_result(diagnostics)
 
+    def on_pre(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
     def _resolve_instances_root(self, *, ctx: PluginContext, project_root: Path) -> Path:
         default_root = (project_root / "topology" / "instances").resolve()
         manifest_path = self._resolve_project_manifest_path(ctx=ctx)

@@ -109,3 +109,6 @@ class ModelLockLoaderCompiler(CompilerPlugin):
             diagnostics,
             output_data={"lock_payload": payload, "model_lock_loaded": True},
         )
+
+    def on_init(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)

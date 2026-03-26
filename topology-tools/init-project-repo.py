@@ -89,13 +89,34 @@ def _wire_framework_submodule(*, project_root: Path, submodule_url: str, submodu
         shutil.rmtree(submodule_root)
     if not submodule_root.exists():
         added = _run(
-            ["git", "-c", "protocol.file.allow=always", "submodule", "add", submodule_url, mount],
+            [
+                "git",
+                "-c",
+                "protocol.file.allow=always",
+                "-c",
+                "core.longpaths=true",
+                "submodule",
+                "add",
+                submodule_url,
+                mount,
+            ],
             cwd=project_root,
         )
         if added.returncode != 0:
             raise RuntimeError(f"cannot add framework submodule:\n{added.stdout}\n{added.stderr}")
     updated = _run(
-        ["git", "-c", "protocol.file.allow=always", "submodule", "update", "--init", "--recursive", mount],
+        [
+            "git",
+            "-c",
+            "protocol.file.allow=always",
+            "-c",
+            "core.longpaths=true",
+            "submodule",
+            "update",
+            "--init",
+            "--recursive",
+            mount,
+        ],
         cwd=project_root,
     )
     if updated.returncode != 0:

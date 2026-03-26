@@ -270,3 +270,6 @@ class CapabilityContractLoaderCompiler(CompilerPlugin):
             diagnostics,
             output_data={"catalog_ids": catalog_sorted, "packs_map": packs_map},
         )
+
+    def on_init(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)

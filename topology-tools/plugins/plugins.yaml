@@ -346,10 +346,10 @@ plugins:
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
-        required: true
+        required: false
       - from_plugin: base.compiler.capability_contract_loader
         key: catalog_ids
-        required: true
+        required: false
     description: Validates all cross-entity references in compiled topology
 
   - id: base.validator.model_lock

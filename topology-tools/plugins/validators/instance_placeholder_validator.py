@@ -78,6 +78,9 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
 
         return self.make_result(diagnostics)
 
+    def on_post(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
     def _load_format_registry(
         self,
         ctx: PluginContext,

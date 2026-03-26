@@ -557,3 +557,6 @@ class CapabilityContractValidator(ValidatorJsonPlugin):
                     )
 
         return self.make_result(diagnostics)
+
+    def on_post(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)

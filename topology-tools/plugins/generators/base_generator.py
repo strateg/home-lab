@@ -32,6 +32,12 @@ class BaseGenerator(GeneratorPlugin):
             root = Path(ctx.output_dir)
         else:
             root = Path.cwd()
+        if not root.is_absolute():
+            repo_root_raw = ctx.config.get("repo_root")
+            if isinstance(repo_root_raw, str) and repo_root_raw.strip():
+                root = (Path(repo_root_raw) / root).resolve()
+            else:
+                root = root.resolve()
         project = self.project_id(ctx)
         if not project:
             return root
