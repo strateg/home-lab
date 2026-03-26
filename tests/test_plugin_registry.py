@@ -763,6 +763,8 @@ def test_execute_stage_runs_finalize_on_fail_fast(tmp_path: Path):
                 "",
                 "    def on_finalize(self, ctx, stage):",
                 "        ctx.publish('finalized', True)",
+                "        failures = ctx.config.get('stage_failure_context', [])",
+                "        ctx.publish('failure_count', len(failures) if isinstance(failures, list) else 0)",
                 "        return PluginResult.success(",
                 "            self.plugin_id,",
                 "            self.api_version,",
@@ -815,6 +817,8 @@ def test_execute_stage_runs_finalize_on_fail_fast(tmp_path: Path):
 
     assert statuses["phase.validator_json.failing_run"] == PluginStatus.FAILED
     assert statuses["phase.validator_json.finalize_probe"] == PluginStatus.SUCCESS
+    published = ctx.get_published_data().get("phase.validator_json.finalize_probe", {})
+    assert published.get("failure_count") == 1
 
 
 def test_execute_stage_skips_when_before_capability_preflight(tmp_path: Path):

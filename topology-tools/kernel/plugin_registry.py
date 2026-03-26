@@ -1409,6 +1409,26 @@ class PluginRegistry:
 
         invalidated_stage_local: list[str] = []
         try:
+            stage_failure_context: list[dict[str, Any]] = []
+            ctx.config["stage_failure_context"] = stage_failure_context
+
+            def _record_stage_failure(result: PluginResult, *, phase: Phase) -> None:
+                if result.status not in {PluginStatus.FAILED, PluginStatus.TIMEOUT}:
+                    return
+                diag_codes = [
+                    diag.code
+                    for diag in result.diagnostics
+                    if isinstance(diag, PluginDiagnostic) and isinstance(diag.code, str) and diag.code
+                ]
+                stage_failure_context.append(
+                    {
+                        "plugin_id": result.plugin_id,
+                        "status": result.status.value,
+                        "phase": phase.value,
+                        "diagnostic_codes": diag_codes,
+                    }
+                )
+
             when_allowed_by_plugin: dict[str, bool] = {}
             for plugin_id in ordered_plugin_ids:
                 spec = self.specs.get(plugin_id)
@@ -1603,6 +1623,8 @@ class PluginRegistry:
                         contract_errors=contract_errors,
                     )
                     results.extend(phase_results)
+                    for phase_result in phase_results:
+                        _record_stage_failure(phase_result, phase=phase)
                     continue
 
                 for plugin_id in phase_active_plugin_ids:
@@ -1617,6 +1639,7 @@ class PluginRegistry:
                         contract_errors=contract_errors,
                     )
                     results.append(result)
+                    _record_stage_failure(result, phase=phase)
                     if trace_execution:
                         self._trace_event(
                             event="plugin_result",
