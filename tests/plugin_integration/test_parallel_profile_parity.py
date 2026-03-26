@@ -56,9 +56,31 @@ def _normalize_trace(path: Path) -> list[tuple[str, str, str, str, str]]:
     return normalized
 
 
+def _normalize_effective_payload(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        return payload
+
+    def _sanitize(node):
+        if isinstance(node, dict):
+            sanitized = {}
+            for key, value in node.items():
+                if key in {"generated_at", "compiled_at", "assembled_at", "built_at"}:
+                    continue
+                sanitized[key] = _sanitize(value)
+            return sanitized
+        if isinstance(node, list):
+            return [_sanitize(item) for item in node]
+        return node
+
+    return _sanitize(payload)
+
+
 def _run_profile(
     mod, *, profile: str, parallel: bool, root: Path
-) -> tuple[int, dict, list[tuple[str, str, str, str, str]]]:
+) -> tuple[int, dict, list[tuple[str, str, str, str, str]], dict[str, list[str]], dict | None]:
     mode = "parallel" if parallel else "sequential"
     out_dir = root / profile / mode
     compiler = mod.V5Compiler(
@@ -81,19 +103,33 @@ def _run_profile(
     exit_code = compiler.run()
     diag_payload = json.loads((out_dir / "diagnostics.json").read_text(encoding="utf-8"))
     trace_payload = _normalize_trace(out_dir / "plugin-execution-trace.json")
-    return exit_code, diag_payload, trace_payload
+    published_keys = json.loads((out_dir / "plugin-published-keys.json").read_text(encoding="utf-8"))
+    effective_payload = _normalize_effective_payload(out_dir / "effective-topology.json")
+    return exit_code, diag_payload, trace_payload, published_keys, effective_payload
 
 
 def _assert_profile_parity(profile: str, tmp_path: Path) -> None:
     mod = _load_compiler_module()
     run_root = mod.REPO_ROOT / "build" / "test-parallel-profile-parity" / tmp_path.name
-    seq_code, seq_diag, seq_trace = _run_profile(mod, profile=profile, parallel=False, root=run_root)
-    par_code, par_diag, par_trace = _run_profile(mod, profile=profile, parallel=True, root=run_root)
+    seq_code, seq_diag, seq_trace, seq_keys, seq_effective = _run_profile(
+        mod,
+        profile=profile,
+        parallel=False,
+        root=run_root,
+    )
+    par_code, par_diag, par_trace, par_keys, par_effective = _run_profile(
+        mod,
+        profile=profile,
+        parallel=True,
+        root=run_root,
+    )
 
     assert seq_code == par_code
     assert seq_diag["summary"] == par_diag["summary"]
     assert _normalize_diag_signature(seq_diag) == _normalize_diag_signature(par_diag)
     assert seq_trace == par_trace
+    assert seq_keys == par_keys
+    assert seq_effective == par_effective
 
 
 def test_parallel_profile_parity_production(tmp_path: Path):

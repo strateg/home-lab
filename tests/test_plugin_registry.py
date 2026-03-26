@@ -17,6 +17,7 @@ import json
 import sys
 import time
 from pathlib import Path
+from types import MethodType
 
 import yaml
 
@@ -231,6 +232,44 @@ def test_execution_order_filters_by_phase(tmp_path: Path):
 
     assert init_order == ["phase.validator_json.init"]
     assert run_order == ["phase.validator_json.run"]
+
+
+def test_base_manifest_run_phase_dispatch_uses_execute():
+    """Run-phase dispatch must remain execute()-compatible for all base plugins."""
+    manifest_path = V5_TOOLS / "plugins" / "plugins.yaml"
+    payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+    plugins = payload.get("plugins", []) if isinstance(payload, dict) else []
+    base_plugin_ids = [item.get("id") for item in plugins if isinstance(item, dict) and isinstance(item.get("id"), str)]
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest_path)
+    ctx = PluginContext(topology_path="test", profile="test-real", model_lock={})
+
+    dispatched = 0
+    for plugin_id in base_plugin_ids:
+        spec = registry.specs[plugin_id]
+        plugin = registry.load_plugin(plugin_id)
+        stage = spec.stages[0]
+
+        def _sentinel_execute(self, _ctx, _stage):
+            return PluginResult.success(
+                plugin_id=self.plugin_id,
+                api_version=self.api_version,
+                output_data={"dispatch": "execute", "plugin_id": self.plugin_id},
+            )
+
+        original_execute = plugin.execute
+        plugin.execute = MethodType(_sentinel_execute, plugin)  # type: ignore[assignment]
+        try:
+            result = plugin.execute_phase(ctx, stage, Phase.RUN)
+        finally:
+            plugin.execute = original_execute  # type: ignore[assignment]
+
+        assert result.status == PluginStatus.SUCCESS
+        assert result.output_data == {"dispatch": "execute", "plugin_id": plugin_id}
+        dispatched += 1
+
+    assert dispatched >= 47
 
 
 def test_plugin_instantiation():

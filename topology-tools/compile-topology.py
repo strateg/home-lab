@@ -241,6 +241,7 @@ class V5Compiler:
         self._error_hints = self._load_error_hints(error_catalog_path)
         self._plugin_registry: PluginRegistry | None = None
         self._plugin_results: list[PluginResult] = []
+        self._published_key_inventory: dict[str, list[str]] = {}
         self._run_generated_at: str | None = None
         self._base_manifest_loaded = False
         self._plugin_manifests_loaded = False
@@ -545,6 +546,20 @@ class V5Compiler:
                     path=f"plugin:{result.plugin_id}",
                 )
 
+    def _capture_published_key_inventory(self, ctx: PluginContext | None) -> None:
+        if ctx is None:
+            self._published_key_inventory = {}
+            return
+        published = ctx.get_published_data()
+        inventory: dict[str, list[str]] = {}
+        for plugin_id, payload in published.items():
+            if not isinstance(plugin_id, str) or not plugin_id:
+                continue
+            if not isinstance(payload, dict):
+                continue
+            inventory[plugin_id] = sorted([key for key in payload.keys() if isinstance(key, str)])
+        self._published_key_inventory = inventory
+
     def _bootstrap_discover_manifest_loader(self, *, ctx: PluginContext) -> None:
         """Execute discover/init loader plugin when discover stage is not selected."""
         if not self._plugin_registry or self._plugin_manifests_loaded:
@@ -742,6 +757,11 @@ class V5Compiler:
         trace_path.parent.mkdir(parents=True, exist_ok=True)
         trace_payload = self._plugin_registry.get_execution_trace()
         trace_path.write_text(json.dumps(trace_payload, ensure_ascii=True, indent=2), encoding="utf-8")
+        published_keys_path = self.diagnostics_json.parent / "plugin-published-keys.json"
+        published_keys_path.write_text(
+            json.dumps(self._published_key_inventory, ensure_ascii=True, indent=2),
+            encoding="utf-8",
+        )
         self.add_diag(
             code="I4002",
             severity="info",
@@ -1009,6 +1029,7 @@ class V5Compiler:
             self._bootstrap_discover_manifest_loader(ctx=plugin_ctx)
             plugin_ctx.config["discovered_plugin_manifests"] = list(self._discovered_manifest_paths)
             plugin_ctx.config["discovered_plugin_count"] = self._discovered_plugin_count
+        self._capture_published_key_inventory(plugin_ctx)
         if any(item.severity == "error" for item in self._diagnostics):
             total, errors, warnings, infos = self._write_diagnostics()
             self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
@@ -1068,6 +1089,7 @@ class V5Compiler:
                 self._execute_plugins(stage=Stage.ASSEMBLE, ctx=plugin_ctx)
             if Stage.BUILD in self.stages and not any(item.severity == "error" for item in self._diagnostics):
                 self._execute_plugins(stage=Stage.BUILD, ctx=plugin_ctx)
+        self._capture_published_key_inventory(plugin_ctx)
 
         total, errors, warnings, infos = self._write_diagnostics()
         self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=True)

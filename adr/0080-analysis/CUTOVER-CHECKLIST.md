@@ -177,10 +177,10 @@ Complete when all Waves A–H are done and all items below are verified.
 
 ## N. Regression Parity
 
-- [ ] Effective JSON parity on `production` profile before/after executor refactor.
-- [ ] Effective JSON parity on `modeled` profile.
+- [x] Effective JSON parity on `production` profile before/after executor refactor.
+- [x] Effective JSON parity on `modeled` profile.
 - [x] Diagnostics parity (codes + severities) on baseline fixtures.
-- [ ] Published key inventory unchanged for compile/validate/generate stages.
+- [x] Published key inventory unchanged for compile/validate/generate stages.
 
 ---
 
@@ -200,7 +200,7 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] Registry dispatch: for `run` phase, `execute(ctx, stage)` is called unless `on_run(ctx, stage)` is defined.
 - [x] Registry dispatch: for non-`run` phases, `on_<phase>(ctx, stage)` is called if defined; plugin is skipped if not.
 - [x] Plugin skipped on non-`run` phase returns empty `PluginResult` (no error).
-- [ ] Regression test: all 47+ base manifest plugins produce identical output after phase handler dispatch change.
+- [x] Regression test: all 47+ base manifest plugins produce identical output after phase handler dispatch change.
 
 ## Q. `when` Predicates
 
