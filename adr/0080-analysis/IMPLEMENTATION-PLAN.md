@@ -40,7 +40,9 @@ Unify the plugin runtime around a single lifecycle model with:
 - `Wave G` completed (runtime slice): build stage plugins implemented (`bundle`, `sbom`, `release_manifest`) and wired into compiler lifecycle.
 - Parallel executor is now default; CLI exposes `--no-parallel-plugins` to force sequential mode.
 - Discover bootstrap is pluginized: base manifest is loaded procedurally, module manifests are loaded by `discover.init`, and `instances_root` is excluded from plugin discovery.
-- `Wave H` partially completed: `profile_restrictions` alias removed from runtime/schema; remaining hard-cutover cleanup tracked in checklist.
+- `Wave H` completed for runtime enforcement: undeclared data-bus usage is hard-error by default (`plugin_contract_errors=True`), with explicit opt-out via `--no-plugin-contract-errors`.
+- Transitional consume-inference shim removed from runtime; all active subscriptions now require explicit `consumes` declarations.
+- Contract audit snapshot (2026-03-26, `production` + `modeled` profiles): 0 runtime `W800x` even with inference disabled.
 
 ---
 

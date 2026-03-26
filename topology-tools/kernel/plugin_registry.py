@@ -430,16 +430,6 @@ class PluginRegistry:
             declared.add((from_plugin, key))
         return declared
 
-    def _is_inferred_consume_declared(self, *, spec: PluginSpec, from_plugin: str, key: str) -> bool:
-        """Allow transitional consume inference from dependency + producer contract."""
-        if from_plugin not in spec.depends_on:
-            return False
-        producer_spec = self.specs.get(from_plugin)
-        if not isinstance(producer_spec, PluginSpec):
-            return False
-        producer_keys = set(self._declared_produced_scopes(producer_spec).keys())
-        return key in producer_keys
-
     @staticmethod
     def _apply_result_status_from_diagnostics(result: PluginResult) -> None:
         if result.status not in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}:
@@ -711,38 +701,30 @@ class PluginRegistry:
         if subscribe_events and (emit_warnings or undeclared_as_errors):
             declared_consumes = self._declared_consumes(spec)
             consumed_pairs = {(event.from_plugin, event.key) for event in subscribe_events}
+            consumed_keys = sorted(f"{from_plugin}.{key}" for from_plugin, key in consumed_pairs)
             warning_severity = "error" if undeclared_as_errors else "warning"
             warning_code = "E8006" if undeclared_as_errors else "W8003"
             warning_code_undeclared = "E8007" if undeclared_as_errors else "W8004"
             if not declared_consumes:
-                undeclared_without_inference = sorted(
-                    f"{from_plugin}.{key}"
-                    for from_plugin, key in consumed_pairs
-                    if not self._is_inferred_consume_declared(spec=spec, from_plugin=from_plugin, key=key)
-                )
-                if not undeclared_without_inference:
-                    pass
-                else:
-                    result.diagnostics.append(
-                        PluginDiagnostic(
-                            code=warning_code,
-                            severity=warning_severity,
-                            stage=stage.value,
-                            phase=phase.value,
-                            message=(
-                                f"Plugin '{spec.id}' consumed keys {undeclared_without_inference} "
-                                "without manifest consumes declaration."
-                            ),
-                            path=f"plugin:{spec.id}",
-                            plugin_id="kernel",
-                        )
+                result.diagnostics.append(
+                    PluginDiagnostic(
+                        code=warning_code,
+                        severity=warning_severity,
+                        stage=stage.value,
+                        phase=phase.value,
+                        message=(
+                            f"Plugin '{spec.id}' consumed keys {consumed_keys} "
+                            "without manifest consumes declaration."
+                        ),
+                        path=f"plugin:{spec.id}",
+                        plugin_id="kernel",
                     )
+                )
             else:
                 undeclared_consume = sorted(
                     f"{from_plugin}.{key}"
                     for from_plugin, key in consumed_pairs
                     if (from_plugin, key) not in declared_consumes
-                    and not self._is_inferred_consume_declared(spec=spec, from_plugin=from_plugin, key=key)
                 )
                 if undeclared_consume:
                     result.diagnostics.append(

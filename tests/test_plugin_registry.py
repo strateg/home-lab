@@ -1568,8 +1568,8 @@ def test_execute_plugin_errors_on_undeclared_subscribe_in_strict_mode(tmp_path: 
     assert result.status == PluginStatus.FAILED
 
 
-def test_execute_plugin_allows_dependency_inferred_consume_in_strict_mode(tmp_path: Path):
-    """Strict contract mode allows consumes inferred from depends_on + producer produces."""
+def test_execute_plugin_requires_explicit_consumes_even_with_declared_producer(tmp_path: Path):
+    """Strict contract mode does not infer consumes from depends_on + producer contract."""
     _write_module(
         tmp_path / "contract_plugins.py",
         "\n".join(
@@ -1631,8 +1631,8 @@ def test_execute_plugin_allows_dependency_inferred_consume_in_strict_mode(tmp_pa
         Stage.VALIDATE,
         contract_errors=True,
     )
-    assert not any(diag.code in {"E8006", "E8007"} for diag in result.diagnostics)
-    assert result.status == PluginStatus.SUCCESS
+    assert any(diag.code == "E8006" for diag in result.diagnostics)
+    assert result.status == PluginStatus.FAILED
 
 
 def test_execute_stage_applies_contract_errors_mode(tmp_path: Path):

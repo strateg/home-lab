@@ -222,6 +222,16 @@ plugins:
     produces:
       - key: normalized_rows
         scope: pipeline_shared
+    consumes:
+      - from_plugin: base.compiler.annotation_resolver
+        key: annotation_formats
+        required: false
+      - from_plugin: base.compiler.annotation_resolver
+        key: object_secret_annotations
+        required: false
+      - from_plugin: base.compiler.annotation_resolver
+        key: row_annotations_by_instance
+        required: false
     description: Normalizes instance bindings rows and merges side-car secrets replacing placeholders (ADR 0072).
 
   - id: base.compiler.capability_contract_loader
@@ -263,6 +273,10 @@ plugins:
     produces:
       - key: effective_model_candidate
         scope: pipeline_shared
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Assembles candidate effective model in compile stage (ADR 0069 WS2).
 
   # Validator plugins (run in validate stage)
@@ -344,6 +358,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates L1 group/class taxonomy conventions.
 
   - id: base.validator.references
@@ -393,6 +411,16 @@ plugins:
           default: false
           description: If true, require all refs to be pinned in model.lock
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
+      - from_plugin: base.compiler.model_lock_loader
+        key: lock_payload
+        required: false
+      - from_plugin: base.compiler.model_lock_loader
+        key: model_lock_loaded
+        required: false
     description: Validates that class_ref and object_ref are pinned in model.lock (ADR 0063)
 
   - id: base.validator.power_source_refs
@@ -409,6 +437,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates ADR0062 L1 lateral relation power.source_ref and outlet occupancy constraints.
 
   - id: base.validator.network_ip_overlap
@@ -425,6 +457,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Detects duplicate IP reuse across normalized instance rows.
 
   - id: base.validator.single_active_os
@@ -441,6 +477,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Enforces at most one active OS ref per device row.
 
   - id: base.validator.network_reserved_ranges
@@ -457,6 +497,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates VLAN reserved_ranges ranges, bounds, and overlaps.
 
   - id: base.validator.network_trust_zone_firewall_refs
@@ -473,6 +517,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates trust-zone default firewall policy references.
 
   - id: base.validator.network_firewall_addressability
@@ -489,6 +537,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Warns when firewall policy refs cannot resolve to static address sets.
 
   - id: base.validator.runtime_target_os_binding
@@ -505,6 +557,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Warns when docker/baremetal service runtime targets lack os_refs bindings.
 
   - id: base.validator.network_ip_allocation_host_os_refs
@@ -521,6 +577,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates network ip_allocations host_os_ref/device_ref consistency.
 
   - id: base.validator.network_vlan_zone_consistency
@@ -537,6 +597,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Warns when VLAN id is outside trust-zone vlan_ids contract.
 
   - id: base.validator.network_core_refs
@@ -553,6 +617,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates VLAN/bridge core refs (bridge/trust-zone/manager/host).
 
   - id: base.validator.network_vlan_tags
@@ -569,6 +637,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates workload vlan_tag consistency against VLAN network contracts.
 
   - id: base.validator.network_mtu_consistency
@@ -585,6 +657,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates jumbo_frames and mtu consistency in VLAN networks.
 
   - id: base.validator.service_runtime_refs
@@ -601,6 +677,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates service runtime target_ref/network_binding_ref contracts.
 
   - id: base.validator.network_runtime_reachability
@@ -617,6 +697,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Warns when runtime target cannot reach runtime.network_binding_ref.
 
   - id: base.validator.service_dependency_refs
@@ -633,6 +717,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates service data_asset_refs and dependency service_ref links.
 
   - id: base.validator.storage_device_taxonomy
@@ -649,6 +737,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates L1 storage slot/media taxonomy on device rows.
 
   - id: base.validator.storage_media_inventory
@@ -665,6 +757,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates L1 media registry and attachment consistency contracts.
 
   - id: base.validator.dns_refs
@@ -681,6 +777,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates DNS record refs (device/lxc/service) in service DNS rows.
 
   - id: base.validator.certificate_refs
@@ -697,6 +797,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates certificate service refs and used_by service links.
 
   - id: base.validator.backup_refs
@@ -713,6 +817,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates backup targets and destination pool references.
 
   - id: base.validator.security_policy_refs
@@ -729,6 +837,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates security_policy_ref links against security policy rows.
 
   - id: base.validator.vm_refs
@@ -745,6 +857,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates VM row refs (device/trust-zone/host-os/networks/storage).
 
   - id: base.validator.lxc_refs
@@ -761,6 +877,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates LXC row refs (device/trust-zone/host-os/networks/storage).
 
   - id: base.validator.host_os_refs
@@ -777,6 +897,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates runtime targets have active host OS bindings when OS inventory exists.
 
   - id: base.validator.storage_l3_refs
@@ -793,6 +917,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates L3 storage references (volume->pool, data_asset->volume).
 
   - id: base.validator.embedded_in
@@ -809,6 +937,10 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: false
     description: Validates embedded_in references for OS instances (ADR 0064)
 
   - id: base.validator.ethernet_port_inventory
@@ -844,6 +976,19 @@ plugins:
       type: object
       properties: {}
       required: []
+    consumes:
+      - from_plugin: base.compiler.capability_contract_loader
+        key: catalog_ids
+        required: false
+      - from_plugin: base.compiler.capability_contract_loader
+        key: packs_map
+        required: false
+      - from_plugin: base.compiler.module_loader
+        key: class_module_paths
+        required: false
+      - from_plugin: base.compiler.module_loader
+        key: object_module_paths
+        required: false
     description: Validates capability contracts using compiler-derived data (ADR 0063 Phase 3 example)
 
   - id: base.validator.instance_placeholders
