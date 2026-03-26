@@ -1351,6 +1351,50 @@ def test_execute_plugin_errors_on_undeclared_subscribe_in_strict_mode(tmp_path: 
     assert result.status == PluginStatus.FAILED
 
 
+def test_execute_stage_applies_contract_errors_mode(tmp_path: Path):
+    """execute_stage(contract_errors=True) must fail undeclared publish/consume."""
+    _write_module(
+        tmp_path / "strict_stage_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class StageStrictPublisher(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        ctx.publish('runtime_key', {'ok': True})",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+    manifest = tmp_path / "plugins.yaml"
+    _write_manifest(
+        manifest,
+        {
+            "schema_version": 1,
+            "plugins": [
+                {
+                    "id": "strict_stage.validator_json.publisher",
+                    "kind": "validator_json",
+                    "entry": "strict_stage_plugins.py:StageStrictPublisher",
+                    "api_version": "1.x",
+                    "stages": ["validate"],
+                    "phase": "run",
+                    "order": 100,
+                }
+            ],
+        },
+    )
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(topology_path="test", profile="test", model_lock={})
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx, contract_errors=True)
+    assert len(results) == 1
+    assert results[0].status == PluginStatus.FAILED
+    assert any(diag.code == "E8004" for diag in results[0].diagnostics)
+
+
 def test_execute_plugin_fails_on_invalid_produced_schema_ref_payload(tmp_path: Path):
     """Declared produces.schema_ref must validate published payload."""
     _write_module(
@@ -1638,10 +1682,36 @@ def test_timeout_does_not_block_pipeline():
         topology_path="test",
         profile="test",
         model_lock={},
-        classes={},
-        objects={},
-        instance_bindings={"instance_bindings": {}},
+        classes={"class.router": {"class": "class.router"}},
+        objects={"obj.test": {"object": "obj.test"}},
+        instance_bindings={
+            "instance_bindings": {
+                "devices": [{"instance": "test-device", "class_ref": "class.router", "object_ref": "obj.test"}]
+            }
+        },
     )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    try:
+        ctx.publish(
+            "normalized_rows",
+            [
+                {
+                    "group": "devices",
+                    "instance": "test-device",
+                    "class_ref": "class.router",
+                    "object_ref": "obj.test",
+                    "firmware_ref": None,
+                    "os_refs": [],
+                }
+            ],
+        )
+    finally:
+        ctx._clear_execution_context()
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
+    try:
+        ctx.publish("catalog_ids", [])
+    finally:
+        ctx._clear_execution_context()
 
     plugin = registry.load_plugin("base.validator.references")
     original_execute = plugin.execute
@@ -1854,6 +1924,7 @@ if __name__ == "__main__":
         test_execute_plugin_warns_on_undeclared_subscribe,
         test_execute_plugin_errors_on_undeclared_publish_in_strict_mode,
         test_execute_plugin_errors_on_undeclared_subscribe_in_strict_mode,
+        test_execute_stage_applies_contract_errors_mode,
         test_execute_plugin_fails_on_invalid_produced_schema_ref_payload,
         test_execute_plugin_fails_on_invalid_consumed_schema_ref_payload,
         test_execute_plugin_fails_on_missing_schema_ref,

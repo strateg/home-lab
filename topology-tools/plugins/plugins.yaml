@@ -29,6 +29,15 @@ plugins:
       type: object
       properties: {}
       required: []
+    produces:
+      - key: class_map
+        scope: pipeline_shared
+      - key: object_map
+        scope: pipeline_shared
+      - key: class_module_paths
+        scope: pipeline_shared
+      - key: object_module_paths
+        scope: pipeline_shared
     description: Loads class/object module maps for plugin-first pipeline (ADR 0069).
 
   - id: base.compiler.model_lock_loader
@@ -94,6 +103,9 @@ plugins:
           default: true
           description: Emit error when decryption fails due to missing unlocked age key.
       required: []
+    produces:
+      - key: normalized_rows
+        scope: pipeline_shared
     description: Normalizes instance bindings rows and merges side-car secrets replacing placeholders (ADR 0072).
 
   - id: base.compiler.capability_contract_loader
@@ -109,6 +121,11 @@ plugins:
       type: object
       properties: {}
       required: []
+    produces:
+      - key: catalog_ids
+        scope: pipeline_shared
+      - key: packs_map
+        scope: pipeline_shared
     description: Loads capability catalog and packs contract for plugin-first pipeline.
 
   - id: base.compiler.effective_model
@@ -220,6 +237,13 @@ plugins:
           default: false
           description: If true, treat warnings as errors
       required: []
+    consumes:
+      - from_plugin: base.compiler.instance_rows
+        key: normalized_rows
+        required: true
+      - from_plugin: base.compiler.capability_contract_loader
+        key: catalog_ids
+        required: true
     description: Validates all cross-entity references in compiled topology
 
   - id: base.validator.model_lock

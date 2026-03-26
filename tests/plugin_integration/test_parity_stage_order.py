@@ -22,16 +22,16 @@ def _load_compiler_module():
 
 
 def _publish_minimal_compile_outputs(ctx) -> None:
-    ctx._set_execution_context("test.module_loader", set())
+    ctx._set_execution_context("base.compiler.module_loader", set())
     ctx.publish("class_map", {})
     ctx.publish("object_map", {})
     ctx._clear_execution_context()
 
-    ctx._set_execution_context("test.instance_rows", set())
+    ctx._set_execution_context("base.compiler.instance_rows", set())
     ctx.publish("normalized_rows", [])
     ctx._clear_execution_context()
 
-    ctx._set_execution_context("test.capability_contract_loader", set())
+    ctx._set_execution_context("base.compiler.capability_contract_loader", set())
     ctx.publish("catalog_ids", [])
     ctx.publish("packs_map", {})
     ctx._clear_execution_context()
@@ -340,6 +340,67 @@ def test_compile_stage_uses_fail_fast_in_registry(monkeypatch):
     compiler._execute_plugins(stage=mod.Stage.VALIDATE, ctx=ctx)
 
     assert calls == [("compile", True), ("validate", False)]
+
+
+def test_execute_plugins_propagates_contract_modes_to_registry(monkeypatch):
+    mod = _load_compiler_module()
+    test_output_dir = mod.REPO_ROOT / "build" / "test-plugin-contract-flags"
+
+    compiler = mod.V5Compiler(
+        manifest_path=mod.DEFAULT_MANIFEST,
+        output_json=test_output_dir / "effective-topology.json",
+        diagnostics_json=test_output_dir / "diagnostics.json",
+        diagnostics_txt=test_output_dir / "diagnostics.txt",
+        error_catalog_path=mod.DEFAULT_ERROR_CATALOG,
+        strict_model_lock=False,
+        fail_on_warning=False,
+        require_new_model=True,
+        enable_plugins=True,
+        plugins_manifest_path=mod.DEFAULT_PLUGINS_MANIFEST,
+        plugin_contract_warnings=True,
+        plugin_contract_errors=True,
+    )
+    assert compiler._plugin_registry is not None
+
+    calls: list[dict[str, object]] = []
+
+    def _fake_execute_stage(stage, ctx, profile=None, fail_fast=False, **kwargs):
+        _ = (ctx, profile)
+        calls.append(
+            {
+                "stage": stage.value,
+                "fail_fast": fail_fast,
+                "contract_warnings": kwargs.get("contract_warnings", False),
+                "contract_errors": kwargs.get("contract_errors", False),
+            }
+        )
+        return []
+
+    monkeypatch.setattr(compiler._plugin_registry, "execute_stage", _fake_execute_stage)
+
+    ctx = mod.PluginContext(
+        topology_path="test",
+        profile="test-real",
+        model_lock={},
+    )
+
+    compiler._execute_plugins(stage=mod.Stage.COMPILE, ctx=ctx)
+    compiler._execute_plugins(stage=mod.Stage.VALIDATE, ctx=ctx)
+
+    assert calls == [
+        {
+            "stage": "compile",
+            "fail_fast": True,
+            "contract_warnings": True,
+            "contract_errors": True,
+        },
+        {
+            "stage": "validate",
+            "fail_fast": False,
+            "contract_warnings": True,
+            "contract_errors": True,
+        },
+    ]
 
 
 def test_strict_only_rejects_legacy_instance_bindings_path():

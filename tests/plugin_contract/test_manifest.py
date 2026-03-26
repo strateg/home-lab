@@ -508,6 +508,32 @@ def test_registry_loads_build_stage_manifest():
     assert registry.get_load_errors() == []
 
 
+def test_base_manifest_declares_high_value_data_bus_contracts():
+    """Base manifest should declare core produces/consumes contracts for key plugins."""
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(V5_TOOLS / "plugins" / "plugins.yaml")
+
+    module_loader = registry.specs["base.compiler.module_loader"]
+    instance_rows = registry.specs["base.compiler.instance_rows"]
+    capability_loader = registry.specs["base.compiler.capability_contract_loader"]
+    references = registry.specs["base.validator.references"]
+
+    assert {item["key"] for item in module_loader.produces} >= {
+        "class_map",
+        "object_map",
+        "class_module_paths",
+        "object_module_paths",
+    }
+    assert {item["key"] for item in instance_rows.produces} >= {"normalized_rows"}
+    assert {item["key"] for item in capability_loader.produces} >= {"catalog_ids", "packs_map"}
+    assert {(item["from_plugin"], item["key"]) for item in references.consumes} >= {
+        ("base.compiler.instance_rows", "normalized_rows"),
+        ("base.compiler.capability_contract_loader", "catalog_ids"),
+    }
+    # Ensure declared contracts pass strict dependency validation path.
+    registry.resolve_dependencies()
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("ADR 0066 Plugin Contract Tests")
@@ -535,6 +561,7 @@ if __name__ == "__main__":
         test_consumes_requires_depends_on_declaration,
         test_stage_local_consumes_across_stages_is_rejected,
         test_registry_loads_build_stage_manifest,
+        test_base_manifest_declares_high_value_data_bus_contracts,
     ]
 
     passed = 0
