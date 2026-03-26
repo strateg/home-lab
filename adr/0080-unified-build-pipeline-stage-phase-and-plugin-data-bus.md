@@ -48,6 +48,12 @@ Current runtime (AS-IS baseline confirmed on 2026-03-26):
 | G16 | Discovery bootstrap contract is specified | no rule about how base manifest is seeded before plugin lifecycle | circular dependency risk | High |
 | G17 | Partial stage execution (`--stages`) interacts correctly with finalize guarantee | not addressed | finalize may not run for started stages in partial mode | Medium |
 | G18 | Data bus scope (`stage_local` vs `pipeline_shared`) has enforcement rules | scope field defined but no enforcement semantics | cross-stage data leakage risk | Medium |
+| G19 | Plugin execution identity is isolated per concurrent invocation | `_current_plugin_id` / `_allowed_dependencies` are shared mutable context fields | identity/dependency corruption in parallel mode | High |
+| G20 | Published bus storage is safe under concurrent access | `_published_data` is an unsynchronized nested dict | race conditions and lost/corrupted payloads | High |
+| G21 | Per-plugin config is isolated per invocation | runtime mutates shared `ctx.config` before each execution | config bleed between concurrent plugins | Medium |
+| G22 | Plugin instance cache is race-free | check-then-insert in `registry.instances` has TOCTOU window | duplicate loads and non-deterministic startup behavior | Medium |
+| G23 | Parallel diagnostics/results preserve deterministic ordering | completion order differs from submission order | unstable diagnostics ordering/noisy CI diffs | Medium |
+| G24 | Parallel timeout/failure semantics are precise | no finalized contract for cancellation/finalize sequencing under parallel workers | hanging workers or inconsistent finalize coverage | Medium |
 
 Concrete file anchors:
 
@@ -177,16 +183,16 @@ Existing kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`) ret
 
 #### 5.3 Phase Handler Protocol (Normative)
 
-Backward compatibility: existing `execute(ctx) -> PluginResult` is preserved for the `run` phase.
+Backward compatibility: existing `execute(ctx, stage) -> PluginResult` is preserved for the `run` phase.
 
-Phase-aware plugins may additionally implement `on_<phase>(ctx) -> PluginResult` handlers.
+Phase-aware plugins may additionally implement `on_<phase>(ctx, stage) -> PluginResult` handlers.
 
 Registry dispatch rule:
-1. For `run` phase: call `execute(ctx)` unless `on_run(ctx)` is also defined (prefer `on_run`).
-2. For any other phase: call `on_<phase>(ctx)` if defined; skip (return empty result) if not.
-3. The dispatcher `execute(ctx, stage, phase)` is an alternative to handlers — registry prefers handlers if both are present.
+1. For `run` phase: call `execute(ctx, stage)` unless `on_run(ctx, stage)` is also defined (prefer `on_run`).
+2. For any other phase: call `on_<phase>(ctx, stage)` if defined; skip (return empty result) if not.
+3. The dispatcher `execute_phase(ctx, stage, phase)` is an alternative to handlers — registry prefers handlers if both are present.
 
-This rule guarantees all existing single-phase plugins continue to work without modification.
+This rule guarantees all existing single-phase plugins continue to work without modification and without signature rewrites.
 
 #### 5.4 `when` and `profile_restrictions` Alignment (Normative)
 
@@ -342,10 +348,12 @@ class PluginExecutionScope:
     plugin_id: str
     allowed_dependencies: frozenset[str]
     phase: Phase
+    config: Mapping[str, Any]
 ```
 
-`publish()` and `subscribe()` MUST accept `PluginExecutionScope` as first argument.
-Registry passes `scope` when calling the plugin; scope is never stored on `PluginContext`.
+`PluginContext` keeps API compatibility (`publish(key, value)`, `subscribe(plugin_id, key)`).
+Registry sets the current `PluginExecutionScope` in a per-worker `contextvars.ContextVar`.
+`publish()`/`subscribe()` read identity/dependency/config from that context-local scope, never from shared mutable fields.
 
 **Blocker 2 — Published data concurrent writes (High)**
 
@@ -373,7 +381,8 @@ Resolution: enforce write-ownership rule:
 `execute_plugin()` modifies `ctx.config` in-place before each plugin call.
 Concurrent calls would interleave config state.
 
-Resolution: `config` is injected via `PluginExecutionScope` or as a local variable, never mutated on shared `PluginContext`.
+Resolution: per-plugin config lives in `PluginExecutionScope.config` and is exposed via read-only
+`ctx.active_config` accessor. Shared `ctx.config` is treated as pipeline-global read-only config.
 
 **Blocker 5 — Plugin instance caching TOCTOU (Medium)**
 
@@ -443,7 +452,12 @@ Thread pool size: `min(cpu_count, plugins_in_wavefront)`. Capped at 8 threads fo
 | G16 | B (specify bootstrap contract) |
 | G17 | C (finalize guarantee in partial-stage mode) |
 | G18 | E (scope enforcement in runtime) |
-| G19-G24 | B (PluginExecutionScope) + C+ (parallel executor) |
+| G19 | B |
+| G20 | B + C+ |
+| G21 | B |
+| G22 | C+ |
+| G23 | C+ |
+| G24 | C+ |
 
 ### 10.3 Wave A - Baseline and Inventory Freeze
 
@@ -475,22 +489,23 @@ Tasks:
 7. Align manifest schema stage enum with runtime target (`discover|compile|validate|generate|assemble|build`).
 8. Align manifest schema phase enum with ADR vocabulary (`init|pre|run|post|verify|finalize`), removing draft token `finished`.
 9. Extend manifest schema with `phase`, `produces`, `consumes`, `when`.
-10. Add phase handler dispatch protocol to `BasePlugin` and `PluginRegistry` (Section 5.3).
+10. Add phase handler dispatch protocol to `PluginBase` and `PluginRegistry` (Section 5.3).
 11. Document bootstrap contract for discover stage (Section 5.5).
 12. Allocate `E800x/E810x/E820x/W800x` ranges in error catalog.
 13. Define order ranges for all six stages (Section 7).
 14. Keep backward compatibility defaults (`phase` omitted -> `run`; `profile_restrictions` still accepted but deprecated).
 15. Update contract tests to reflect aligned enums; add loader test proving a `build` stage manifest can be loaded by runtime.
 16. Introduce `PluginExecutionScope` data class with `plugin_id`, `allowed_dependencies`, `phase`, `config` (Section 9.2).
-17. Refactor `publish()`/`subscribe()` to accept `PluginExecutionScope` instead of reading shared context fields.
-18. Add `compiled_json_owner` manifest field; validate at most one owner per `(stage, phase)` at load time.
+17. Refactor `publish()`/`subscribe()` internals to resolve identity/dependencies/config from per-worker `contextvars` scope.
+18. Add `ctx.active_config` read-only accessor backed by `PluginExecutionScope.config`.
+19. Add `compiled_json_owner` manifest field; validate at most one owner per `(stage, phase)` at load time.
 
 Gate:
 
 1. Contract tests green.
 2. Existing manifests load unchanged.
 3. Schema and runtime accept the same stage/phase vocabulary (no `build`/`finished` drift).
-4. Phase handler dispatch: existing plugins with only `execute(ctx)` pass a regression run unchanged.
+4. Phase handler dispatch: existing plugins with only `execute(ctx, stage)` pass a regression run unchanged.
 
 ### 10.5 Wave D - Manifest Phase Annotation (parallel with Wave B)
 
@@ -545,13 +560,22 @@ Tasks:
 7. Validate generator output path non-overlap at load time using `produces` declarations.
 8. Add parallel regression tests: run full pipeline with `--parallel-plugins`, compare output to sequential baseline.
 9. Add thread-safety unit tests for `publish()`/`subscribe()` under concurrent access.
+10. Emit diagnostics/results in deterministic order:
+    - collect worker completions in memory,
+    - sort by `(stage, phase, order, plugin_id)` before writing reports.
+11. Define parallel timeout semantics:
+    - timeout marks only the offending plugin as failed,
+    - dependants in same phase are skipped,
+    - stage `finalize` still runs for started stage.
 
 Gate:
 
 1. Sequential and parallel modes produce byte-identical outputs for all parity tests.
-2. No data race detected under `ThreadSanitizer` or equivalent.
+2. No race symptoms under repeated concurrent stress tests (`pytest -n` + high-iteration thread tests).
 3. Thread-safety unit tests green.
 4. Performance improvement measurable for ≥4 parallel validators.
+5. Diagnostics and plugin result ordering are identical across repeated parallel runs.
+6. Timeout/skip/finalize behavior matches sequential semantics in dedicated failure tests.
 
 ### 10.8 Wave E - Data Bus Contract Enforcement
 
@@ -664,7 +688,7 @@ Gate:
 13. Diagnostic ranges `E800x/E810x/E820x/W800x` are cataloged without overlap.
 14. Hard cutover removes legacy discovery and undeclared pub/sub usage.
 15. `PluginKind` includes `assembler` and `builder`.
-16. Phase handler protocol preserves backward compat: all existing `execute(ctx)` plugins run unchanged.
+16. Phase handler protocol preserves backward compat: all existing `execute(ctx, stage)` plugins run unchanged.
 17. `profile_restrictions` converted to `when.profiles` and removed as standalone field in Wave H.
 18. `stage_local` data bus keys are invalidated at stage boundary and rejected for cross-stage subscriptions.
 19. Discovery bootstrap contract is respected: base manifest is the only pre-lifecycle load, discover plugins reside in base manifest only.
@@ -673,6 +697,8 @@ Gate:
 22. `compiled_json` is frozen (read-only deep-copy) after compile stage boundary.
 23. `--parallel-plugins` flag enables wavefront parallel execution within each `(stage, phase)`.
 24. Sequential and parallel modes produce identical outputs for all parity tests.
+25. Parallel diagnostics ordering is deterministic across repeated runs.
+26. Parallel timeout/skip/finalize semantics are equivalent to sequential contract.
 
 ## Risks and Mitigations
 
@@ -693,11 +719,11 @@ Gate:
 8. Risk: schema/runtime drift reappears after partial merges.
    - Mitigation: add CI guard test that stage and phase enums in schema and runtime stay in sync.
 9. Risk: phase handler protocol change breaks existing plugin interface contract.
-   - Mitigation: Registry dispatch prefers `execute(ctx)` for `run` phase; new methods are additive. Full regression before Wave C gate.
+   - Mitigation: Registry dispatch prefers legacy `execute(ctx, stage)` for `run` phase; new methods are additive. Full regression before Wave C gate.
 10. Risk: `stage_local` scope enforcement invalidates data needed by later phases.
     - Mitigation: review all high-value key scopes before Wave E; default all existing keys to `pipeline_shared` during migration.
 11. Risk: parallel plugin execution introduces non-deterministic output ordering.
-    - Mitigation: `order` field controls wavefront submission order; `publish()` under lock ensures deterministic key state; parity tests compare sequential vs parallel byte-for-byte.
+    - Mitigation: `order` controls submission order, and result emission is sorted by `(stage, phase, order, plugin_id)` before reporting; parity tests compare sequential vs parallel byte-for-byte.
 12. Risk: thread-safety regressions introduced by future plugins unaware of parallel contract.
     - Mitigation: `PluginExecutionScope` is the only interface for identity/config; `PluginContext` shared fields are read-only after stage start. Plugin purity contract (Section 9.3) documented and enforced by code review.
 13. Risk: GIL limits parallelism benefit for CPU-bound plugins.

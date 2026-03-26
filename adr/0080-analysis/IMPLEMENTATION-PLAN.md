@@ -72,9 +72,9 @@ Wave C+ follows Wave C — it requires the sequential phase executor as baseline
 5. `PluginKind` lacks `assembler` and `builder` values — new stage plugins have no kind affinity.
 6. `PluginContext` has no assemble/build fields — Wave F/G are fully blocked.
 7. `execute_stage()` is stage-only; its signature and return type must evolve for phase-aware execution.
-8. Phase handler protocol (`on_<phase>`) is not defined in `BasePlugin` — new phase methods have no contract.
+8. Phase handler protocol (`on_<phase>`) is not defined in `PluginBase` — new phase methods have no contract.
 9. `profile_restrictions` and `when.profiles` are parallel gating mechanisms — need consolidation path.
-10. Existing contract tests assert draft schema values (`finished`, missing `build` stage) and produce false greens.
+10. Existing contract tests assert draft schema values (`finished`, missing `discover/assemble` stages) and produce false greens.
 
 ---
 
@@ -126,10 +126,10 @@ Wave C+ follows Wave C — it requires the sequential phase executor as baseline
    sbom_output_dir: Optional[str]
    ```
 6. Extend `PluginKind` with `ASSEMBLER` and `BUILDER`.
-7. Add phase handler dispatch to `BasePlugin` and `PluginRegistry` (ADR Section 5.3):
-   - Add optional `on_init`, `on_pre`, `on_run`, `on_post`, `on_verify`, `on_finalize` methods to `BasePlugin`.
-   - Registry dispatch rule: for `run` phase call `execute(ctx)` unless `on_run` exists; for other phases call `on_<phase>` if exists, skip otherwise.
-   - Preserve full backward compat — existing plugins with only `execute(ctx)` work unchanged.
+7. Add phase handler dispatch to `PluginBase` and `PluginRegistry` (ADR Section 5.3):
+   - Add optional `on_init`, `on_pre`, `on_run`, `on_post`, `on_verify`, `on_finalize` methods to `PluginBase`.
+   - Registry dispatch rule: for `run` phase call `execute(ctx, stage)` unless `on_run(ctx, stage)` exists; for other phases call `on_<phase>(ctx, stage)` if exists, skip otherwise.
+   - Preserve full backward compat — existing plugins with only `execute(ctx, stage)` work unchanged.
 8. Align schema stage enum to runtime target: `discover`, `compile`, `validate`, `generate`, `assemble`, `build`.
 9. Align schema phase enum to runtime target: `init`, `pre`, `run`, `post`, `verify`, `finalize` (remove draft token `finished`).
 10. Add `produces`/`consumes`/`when` fields to manifest schema (unenforced, structure only).
@@ -148,7 +148,7 @@ Wave C+ follows Wave C — it requires the sequential phase executor as baseline
     - `build`: 500–599
 14. Keep `phase=RUN` default — existing manifests load unchanged.
 15. Update `tests/plugin_contract/test_manifest.py` to assert aligned stage/phase enums and add test that a manifest with `stage: build` loads successfully in runtime.
-16. Add regression test: existing plugins with `execute(ctx)` only — full pipeline run produces identical output.
+16. Add regression test: existing plugins with `execute(ctx, stage)` only — full pipeline run produces identical output.
 17. Introduce `PluginExecutionScope` immutable data class (ADR Section 9.2):
     ```python
     @dataclass(frozen=True)
@@ -156,11 +156,12 @@ Wave C+ follows Wave C — it requires the sequential phase executor as baseline
         plugin_id: str
         allowed_dependencies: frozenset[str]
         phase: Phase
-        config: dict  # per-plugin config snapshot
+        config: Mapping[str, Any]  # immutable per-plugin config snapshot
     ```
-18. Refactor `publish()` and `subscribe()` to accept `PluginExecutionScope` instead of reading `_current_plugin_id` / `_allowed_dependencies` from shared context.
-19. Add `compiled_json_owner: bool` manifest field; validate at most one owner per `(stage, phase)` at load time.
-20. Remove `_current_plugin_id` and `_allowed_dependencies` fields from `PluginContext` after migration.
+18. Keep plugin API signatures unchanged (`publish(key, value)`, `subscribe(plugin_id, key)`); refactor internals to read scope from per-worker `contextvars`.
+19. Add `ctx.active_config` read-only accessor backed by `PluginExecutionScope.config`; shared `ctx.config` remains pipeline-global read-only.
+20. Add `compiled_json_owner: bool` manifest field; validate at most one owner per `(stage, phase)` at load time.
+21. Remove `_current_plugin_id` and `_allowed_dependencies` mutable fields from `PluginContext` after migration.
 
 **Gate:**
 
@@ -281,6 +282,12 @@ or re-apply phase annotation after any plugin restructuring.
    byte-for-byte against sequential baseline from Wave A.
 9. Add thread-safety unit tests: concurrent `publish()`/`subscribe()` with ≥8 threads, verify no data loss.
 10. Thread pool size: `min(cpu_count, wavefront_size)`, capped at 8.
+11. Deterministic result merge: collect worker completions and emit diagnostics/results sorted by
+    `(stage, phase, order, plugin_id)` rather than completion timestamp.
+12. Define timeout semantics for parallel wavefronts:
+    - timed-out plugin is marked failed,
+    - dependants in same phase are skipped,
+    - stage `finalize` still runs if stage started.
 
 **Gate:**
 
@@ -289,6 +296,8 @@ or re-apply phase annotation after any plugin restructuring.
 - No data race under stress test with 8+ concurrent plugins.
 - Performance improvement measurable for ≥4 parallel validators.
 - `--parallel-plugins` disabled by default — zero behavior change for users who don't opt in.
+- Diagnostics ordering is deterministic across repeated parallel runs.
+- Parallel timeout/skip/finalize semantics match sequential contract.
 
 ---
 
@@ -481,7 +490,7 @@ Mapped to ADR 0080 sections plus additions from gap analysis:
 | 13 | Order ranges defined for all 6 stages | B |
 | 14 | Schema and runtime use identical stage/phase enums | B |
 | 15 | `PluginKind` includes `assembler` and `builder` | B |
-| 16 | Phase handler protocol backward-compat: existing `execute(ctx)` plugins unchanged | B/C |
+| 16 | Phase handler protocol backward-compat: existing `execute(ctx, stage)` plugins unchanged | B/C |
 | 17 | `profile_restrictions` converted to `when.profiles`, deprecated alias removed | D/H |
 | 18 | `stage_local` keys invalidated at stage boundary, cross-stage subscription rejected | C/E |
 | 19 | Bootstrap contract: base manifest is only pre-lifecycle load; discover plugins in base manifest only | B/F |
@@ -490,3 +499,5 @@ Mapped to ADR 0080 sections plus additions from gap analysis:
 | 22 | `compiled_json` frozen (read-only deep-copy) after compile stage boundary | C+ |
 | 23 | `--parallel-plugins` enables wavefront parallel execution within each `(stage, phase)` | C+ |
 | 24 | Sequential and parallel modes produce identical outputs for all parity tests | C+/H |
+| 25 | Parallel diagnostics/results ordering is deterministic across repeated runs | C+ |
+| 26 | Parallel timeout/skip/finalize behavior matches sequential contract | C+ |
