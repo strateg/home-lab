@@ -98,14 +98,6 @@
           "type": "object",
           "description": "JSON Schema for validating plugin configuration"
         },
-        "profile_restrictions": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["production", "modeled", "test-real"]
-          },
-          "description": "Deprecated alias for when.profiles. Profiles where this plugin is allowed to run."
-        },
         "when": {
           "type": "object",
           "description": "Optional execution gating predicates.",

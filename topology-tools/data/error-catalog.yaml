@@ -146,6 +146,16 @@ codes:
     stage: emit
     title: Effective JSON Emit Failed
     hint: Check output path permissions and free disk space.
+  E3901:
+    severity: error
+    stage: generate
+    title: Artifact Manifest Input Missing
+    hint: Ensure generator plugins publish existing generated_files entries before artifact manifest finalize.
+  I3901:
+    severity: info
+    stage: generate
+    title: Artifact Manifest Generated
+    hint: No action required.
   I9001:
     severity: info
     stage: emit
@@ -317,6 +327,71 @@ codes:
     stage: validate
     title: Consumed Key Not Declared in Consumes
     hint: Add missing key to consumes[] to satisfy strict contract mode.
+  E8101:
+    severity: error
+    stage: assemble
+    title: Assembly Input Missing
+    hint: Ensure artifact manifest exists and references valid generated files.
+  E8102:
+    severity: error
+    stage: assemble
+    title: Assembly Verification Failed
+    hint: Fix missing assembled files before build stage runs.
+  E8103:
+    severity: error
+    stage: assemble
+    title: Secret Leak Guard Triggered
+    hint: Remove secret-like files from assembled workspace or adjust generator outputs.
+  E8104:
+    severity: error
+    stage: assemble
+    title: Assembly Manifest Generation Failed
+    hint: Ensure assemble.run publishes assembled_files before finalize.
+  I8101:
+    severity: info
+    stage: assemble
+    title: Workspace Assembled
+    hint: No action required.
+  I8102:
+    severity: info
+    stage: assemble
+    title: Assembly Verified
+    hint: No action required.
+  I8103:
+    severity: info
+    stage: assemble
+    title: Assembly Manifest Generated
+    hint: No action required.
+  E8201:
+    severity: error
+    stage: build
+    title: Release Bundle Build Failed
+    hint: Ensure assembly manifest files exist and are readable.
+  E8202:
+    severity: error
+    stage: build
+    title: SBOM Generation Failed
+    hint: Ensure assembly manifest payload is available for build.verify stage.
+  E8203:
+    severity: error
+    stage: build
+    title: Release Manifest Generation Failed
+    hint: Ensure bundle and SBOM outputs are published before build.finalize.
+  I8201:
+    severity: info
+    stage: build
+    title: Release Bundle Generated
+    hint: No action required.
+  I8202:
+    severity: info
+    stage: build
+    title: SBOM Generated
+    hint: No action required.
+  I8203:
+    severity: info
+    stage: build
+    title: Release Manifest Generated
+    hint: No action required.
   # ADR 0071 sharded instances loader
   E7101:
     severity: error

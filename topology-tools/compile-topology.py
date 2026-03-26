@@ -40,6 +40,8 @@ DEFAULT_OUTPUT_JSON = REPO_ROOT / "build" / "effective-topology.json"
 DEFAULT_DIAGNOSTICS_JSON = REPO_ROOT / "build" / "diagnostics" / "report.json"
 DEFAULT_DIAGNOSTICS_TXT = REPO_ROOT / "build" / "diagnostics" / "report.txt"
 DEFAULT_ARTIFACTS_ROOT = REPO_ROOT / "generated"
+DEFAULT_WORKSPACE_ROOT = REPO_ROOT / ".work" / "native"
+DEFAULT_DIST_ROOT = REPO_ROOT / "dist"
 DEFAULT_ERROR_CATALOG = TOPOLOGY_TOOLS / "data" / "error-catalog.yaml"
 DEFAULT_PLUGINS_MANIFEST = TOPOLOGY_TOOLS / "plugins" / "plugins.yaml"
 
@@ -159,6 +161,11 @@ class V5Compiler:
         trace_execution: bool = False,
         plugin_contract_warnings: bool = False,
         plugin_contract_errors: bool = False,
+        workspace_root: Path | None = None,
+        dist_root: Path | None = None,
+        signing_backend: str = "none",
+        release_tag: str = "",
+        sbom_output_dir: Path | None = None,
     ) -> None:
         if not enable_plugins:
             raise ValueError("--disable-plugins is retired; plugin-first runtime always enables plugins.")
@@ -184,6 +191,11 @@ class V5Compiler:
         self.trace_execution = trace_execution
         self.plugin_contract_warnings = plugin_contract_warnings
         self.plugin_contract_errors = plugin_contract_errors
+        self.workspace_root = workspace_root or DEFAULT_WORKSPACE_ROOT
+        self.dist_root = dist_root or DEFAULT_DIST_ROOT
+        self.signing_backend = signing_backend
+        self.release_tag = release_tag
+        self.sbom_output_dir = sbom_output_dir
 
         self._diagnostics: list[Diagnostic] = []
         self._error_hints = self._load_error_hints(error_catalog_path)
@@ -191,6 +203,8 @@ class V5Compiler:
         self._plugin_results: list[PluginResult] = []
         self._run_generated_at: str | None = None
         self._plugin_manifests_loaded = False
+        self._discovered_manifest_paths: list[str] = []
+        self._discovered_plugin_count = 0
         self._validation_owner = lambda rule_name: validation_owner(
             enable_plugins=self.enable_plugins,
             pipeline_mode=self.pipeline_mode,
@@ -249,6 +263,12 @@ class V5Compiler:
             return str(path.relative_to(REPO_ROOT).as_posix())
         except ValueError:
             return str(path.as_posix())
+
+    @staticmethod
+    def _project_scoped_root(root: Path, project_id: str) -> Path:
+        if root.name == project_id:
+            return root
+        return root / project_id
 
     def _load_plugin_manifests(
         self,
@@ -310,6 +330,8 @@ class V5Compiler:
                 )
 
         self._plugin_manifests_loaded = True
+        self._discovered_manifest_paths = [self._path_for_diag(path) for path in ordered_manifests if path.exists()]
+        self._discovered_plugin_count = len(self._plugin_registry.specs)
         self.add_diag(
             code="I4001",
             severity="info",
@@ -712,6 +734,12 @@ class V5Compiler:
             instance_manifests_root=manifest_bundle.instances_root_path,
         )
         source_manifest_digest = manifest_digest(manifest)
+        workspace_root_path = self._project_scoped_root(self.workspace_root, manifest_bundle.project_id)
+        dist_root_path = self._project_scoped_root(self.dist_root, manifest_bundle.project_id)
+        if self.sbom_output_dir is not None:
+            sbom_output_dir_path = self._project_scoped_root(self.sbom_output_dir, manifest_bundle.project_id)
+        else:
+            sbom_output_dir_path = dist_root_path / "sbom"
 
         inputs = load_core_compile_inputs(
             paths=manifest_bundle,
@@ -750,6 +778,11 @@ class V5Compiler:
             lock_payload=inputs.lock_payload,
             output_dir=self.output_json.parent,
             generator_artifacts_root=self.artifacts_root,
+            workspace_root=workspace_root_path,
+            dist_root=dist_root_path,
+            signing_backend=self.signing_backend,
+            release_tag=self.release_tag,
+            sbom_output_dir=sbom_output_dir_path,
             source_file=self.manifest_path,
             compiled_file=self.output_json,
             require_new_model=self.require_new_model,
@@ -760,6 +793,14 @@ class V5Compiler:
             artifact_owner=self._artifact_owner,
         )
         plugin_ctx.config["instance_source_mode"] = inputs.instance_source_mode
+        plugin_ctx.config["discovered_plugin_manifests"] = list(self._discovered_manifest_paths)
+        plugin_ctx.config["discovered_plugin_count"] = self._discovered_plugin_count
+        # Execute discover-stage plugins before compile/validate/generate lifecycle.
+        self._execute_plugins(stage=Stage.DISCOVER, ctx=plugin_ctx)
+        if any(item.severity == "error" for item in self._diagnostics):
+            total, errors, warnings, infos = self._write_diagnostics()
+            self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=False)
+            return 1
         # Execute compiler plugins first
         self._execute_plugins(stage=Stage.COMPILE, ctx=plugin_ctx)
         apply_plugin_compile_outputs(
@@ -800,6 +841,11 @@ class V5Compiler:
             add_diag=self.add_diag,
             repo_root=REPO_ROOT,
         )
+
+        if plugin_ctx is not None and not any(item.severity == "error" for item in self._diagnostics):
+            self._execute_plugins(stage=Stage.ASSEMBLE, ctx=plugin_ctx)
+            if not any(item.severity == "error" for item in self._diagnostics):
+                self._execute_plugins(stage=Stage.BUILD, ctx=plugin_ctx)
 
         total, errors, warnings, infos = self._write_diagnostics()
         self._print_summary(total=total, errors=errors, warnings=warnings, infos=infos, emit_effective=True)
@@ -847,6 +893,32 @@ def build_parser() -> argparse.ArgumentParser:
         "--artifacts-root",
         default=str(DEFAULT_ARTIFACTS_ROOT.relative_to(REPO_ROOT).as_posix()),
         help="Root directory for generator-produced deployable artifacts (for example terraform/ansible/bootstrap).",
+    )
+    parser.add_argument(
+        "--workspace-root",
+        default=str(DEFAULT_WORKSPACE_ROOT.relative_to(REPO_ROOT).as_posix()),
+        help="Root directory for assembled workspace artifacts (assemble stage).",
+    )
+    parser.add_argument(
+        "--dist-root",
+        default=str(DEFAULT_DIST_ROOT.relative_to(REPO_ROOT).as_posix()),
+        help="Root directory for build-stage release artifacts.",
+    )
+    parser.add_argument(
+        "--signing-backend",
+        default="none",
+        choices=["none", "age", "gpg"],
+        help="Signing backend identifier passed to build-stage plugins.",
+    )
+    parser.add_argument(
+        "--release-tag",
+        default="",
+        help="Optional release tag embedded into build-stage artifacts.",
+    )
+    parser.add_argument(
+        "--sbom-output-dir",
+        default="",
+        help="Optional SBOM output directory override (defaults to <dist-root>/<project>/sbom).",
     )
     parser.add_argument(
         "--strict-model-lock",
@@ -949,6 +1021,11 @@ def main() -> int:
         trace_execution=args.trace_execution,
         plugin_contract_warnings=args.plugin_contract_warnings,
         plugin_contract_errors=args.plugin_contract_errors,
+        workspace_root=resolve_repo_path(args.workspace_root),
+        dist_root=resolve_repo_path(args.dist_root),
+        signing_backend=args.signing_backend,
+        release_tag=args.release_tag,
+        sbom_output_dir=resolve_repo_path(args.sbom_output_dir) if args.sbom_output_dir.strip() else None,
     )
     return compiler.run()
 

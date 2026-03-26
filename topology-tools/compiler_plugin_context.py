@@ -35,6 +35,11 @@ def create_plugin_context(
     lock_payload: dict[str, Any] | None,
     output_dir: Path,
     generator_artifacts_root: Path,
+    workspace_root: Path,
+    dist_root: Path,
+    signing_backend: str,
+    release_tag: str,
+    sbom_output_dir: Path,
     source_file: Path,
     compiled_file: Path,
     require_new_model: bool,
@@ -53,6 +58,18 @@ def create_plugin_context(
         artifacts_root_value = str(generator_artifacts_root.relative_to(repo_root).as_posix())
     except ValueError:
         artifacts_root_value = str(generator_artifacts_root.as_posix())
+    try:
+        workspace_root_value = str(workspace_root.relative_to(repo_root).as_posix())
+    except ValueError:
+        workspace_root_value = str(workspace_root.as_posix())
+    try:
+        dist_root_value = str(dist_root.relative_to(repo_root).as_posix())
+    except ValueError:
+        dist_root_value = str(dist_root.as_posix())
+    try:
+        sbom_output_dir_value = str(sbom_output_dir.relative_to(repo_root).as_posix())
+    except ValueError:
+        sbom_output_dir_value = str(sbom_output_dir.as_posix())
     try:
         project_root_value = str(project_root.relative_to(repo_root).as_posix())
     except ValueError:
@@ -105,11 +122,21 @@ def create_plugin_context(
             "project_manifest_path": project_manifest_value,
             "require_new_model": require_new_model,
             "generator_artifacts_root": artifacts_root_value,
+            "workspace_root": workspace_root_value,
+            "dist_root": dist_root_value,
+            "signing_backend": signing_backend,
+            "release_tag": release_tag,
+            "sbom_output_dir": sbom_output_dir_value,
             "secrets_mode": secrets_mode,
             "secrets_root": secrets_root,
             "repo_root": str(repo_root),
         },
         output_dir=str(output_dir),
+        workspace_root=workspace_root_value,
+        dist_root=dist_root_value,
+        signing_backend=signing_backend,
+        release_tag=release_tag,
+        sbom_output_dir=sbom_output_dir_value,
         source_file=str(source_file),
         compiled_file=str(compiled_file),
     )

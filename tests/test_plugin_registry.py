@@ -58,12 +58,10 @@ def test_manifest_loading():
     assert manifest.schema_version == 1
     assert len(manifest.plugins) >= 1
 
-    # First plugin is now the compiler plugin
-    compiler_plugin = manifest.plugins[0]
-    assert compiler_plugin.id == "base.compiler.capabilities"
-    assert compiler_plugin.kind == PluginKind.COMPILER
-    assert Stage.COMPILE in compiler_plugin.stages
-    assert compiler_plugin.timeout == 30
+    discover_plugin = next(p for p in manifest.plugins if p.id == "base.discover.inventory")
+    assert discover_plugin.kind == PluginKind.COMPILER
+    assert Stage.DISCOVER in discover_plugin.stages
+    assert discover_plugin.timeout == 30
 
     # Find the reference validator plugin
     ref_plugin = next(p for p in manifest.plugins if p.id == "base.validator.references")

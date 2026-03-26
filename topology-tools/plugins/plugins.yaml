@@ -1,5 +1,48 @@
 schema_version: 1
 plugins:
+  # Discover plugins (run in discover stage)
+  - id: base.discover.inventory
+    kind: compiler
+    entry: compilers/discover_compiler.py:DiscoverInventoryCompiler
+    api_version: "1.x"
+    stages: [discover]
+    phase: run
+    order: 20
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    produces:
+      - key: manifest_inventory
+        scope: pipeline_shared
+    description: Publishes discovered plugin manifests inventory for discover-stage traceability.
+
+  - id: base.discover.capability_preflight
+    kind: compiler
+    entry: compilers/discover_compiler.py:DiscoverCapabilityPreflightCompiler
+    api_version: "1.x"
+    stages: [discover]
+    phase: verify
+    order: 40
+    depends_on: [base.discover.inventory]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.discover.inventory
+        key: manifest_inventory
+        required: false
+    produces:
+      - key: capability_preflight_ok
+        scope: pipeline_shared
+    description: Verifies capability contract files are present before compile/validate execution.
+
   # Compiler plugins (run in compile stage)
   - id: base.compiler.capabilities
     kind: compiler
@@ -920,3 +963,216 @@ plugins:
       - key: ansible_inventory_files
         scope: pipeline_shared
     description: Emits baseline Ansible inventory artifacts from v5 projections (Phase 5 bootstrap).
+
+  - id: base.generator.artifact_manifest
+    kind: generator
+    entry: generators/artifact_manifest_generator.py:ArtifactManifestGenerator
+    api_version: "1.x"
+    stages: [generate]
+    phase: finalize
+    order: 390
+    depends_on:
+      - base.generator.effective_json
+      - base.generator.effective_yaml
+      - base.generator.ansible_inventory
+      - base.generator.docs
+      - base.generator.diagrams
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.generator.effective_json
+        key: generated_files
+        required: false
+      - from_plugin: base.generator.effective_yaml
+        key: generated_files
+        required: false
+      - from_plugin: base.generator.ansible_inventory
+        key: generated_files
+        required: false
+      - from_plugin: base.generator.docs
+        key: generated_files
+        required: false
+      - from_plugin: base.generator.diagrams
+        key: generated_files
+        required: false
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+      - key: artifact_manifest_path
+        scope: pipeline_shared
+      - key: artifact_manifest
+        scope: pipeline_shared
+    description: Consolidates generated artifact checksums and producer attribution into artifact-manifest.json.
+
+  # Assembler plugins (run in assemble stage)
+  - id: base.assembler.workspace
+    kind: assembler
+    entry: assemblers/workspace_assembler.py:WorkspaceAssembler
+    api_version: "1.x"
+    stages: [assemble]
+    phase: run
+    order: 410
+    depends_on: [base.generator.artifact_manifest]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.generator.artifact_manifest
+        key: artifact_manifest_path
+        required: true
+    produces:
+      - key: assembly_dir
+        scope: pipeline_shared
+      - key: assembled_files
+        scope: pipeline_shared
+    description: Copies generated artifacts into workspace root for release assembly.
+
+  - id: base.assembler.verify
+    kind: assembler
+    entry: assemblers/workspace_assembler.py:AssemblyVerifyAssembler
+    api_version: "1.x"
+    stages: [assemble]
+    phase: verify
+    order: 420
+    depends_on: [base.assembler.workspace]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.assembler.workspace
+        key: assembled_files
+        required: true
+    produces:
+      - key: assemble_verified
+        scope: pipeline_shared
+    description: Verifies assembled workspace content and checks basic secret-leak guardrails.
+
+  - id: base.assembler.manifest
+    kind: assembler
+    entry: assemblers/workspace_assembler.py:AssemblyManifestAssembler
+    api_version: "1.x"
+    stages: [assemble]
+    phase: finalize
+    order: 430
+    depends_on: [base.assembler.workspace, base.assembler.verify, base.generator.artifact_manifest]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.assembler.workspace
+        key: assembled_files
+        required: true
+      - from_plugin: base.generator.artifact_manifest
+        key: artifact_manifest_path
+        required: false
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+      - key: assembly_manifest_path
+        scope: pipeline_shared
+      - key: assembly_manifest
+        scope: pipeline_shared
+    description: Emits assembly-manifest.json consumed by build stage plugins.
+
+  # Builder plugins (run in build stage)
+  - id: base.builder.bundle
+    kind: builder
+    entry: builders/release_builder.py:ReleaseBundleBuilder
+    api_version: "1.x"
+    stages: [build]
+    phase: run
+    order: 510
+    depends_on: [base.assembler.manifest]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.assembler.manifest
+        key: assembly_manifest_path
+        required: true
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+      - key: release_bundle_path
+        scope: pipeline_shared
+      - key: release_bundle_sha256
+        scope: pipeline_shared
+    description: Packages assembled workspace files into deterministic zip release bundle.
+
+  - id: base.builder.sbom
+    kind: builder
+    entry: builders/release_builder.py:SbomBuilder
+    api_version: "1.x"
+    stages: [build]
+    phase: verify
+    order: 520
+    depends_on: [base.builder.bundle, base.assembler.manifest]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.assembler.manifest
+        key: assembly_manifest
+        required: true
+      - from_plugin: base.builder.bundle
+        key: release_bundle_path
+        required: false
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+      - key: sbom_path
+        scope: pipeline_shared
+    description: Generates minimal SBOM document from assembly manifest payload.
+
+  - id: base.builder.release_manifest
+    kind: builder
+    entry: builders/release_builder.py:ReleaseManifestBuilder
+    api_version: "1.x"
+    stages: [build]
+    phase: finalize
+    order: 530
+    depends_on: [base.builder.sbom, base.builder.bundle, base.assembler.manifest]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.builder.bundle
+        key: release_bundle_path
+        required: true
+      - from_plugin: base.builder.bundle
+        key: release_bundle_sha256
+        required: true
+      - from_plugin: base.builder.sbom
+        key: sbom_path
+        required: true
+      - from_plugin: base.assembler.manifest
+        key: assembly_manifest_path
+        required: true
+    produces:
+      - key: generated_files
+        scope: pipeline_shared
+      - key: release_manifest_path
+        scope: pipeline_shared
+    description: Emits final release-manifest.json with bundle and SBOM references.

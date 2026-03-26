@@ -47,11 +47,9 @@ def test_manifest_loading():
     assert manifest.schema_version == 1
     assert len(manifest.plugins) >= 1
 
-    # First plugin is now the compiler plugin
-    compiler_plugin = manifest.plugins[0]
-    assert compiler_plugin.id == "base.compiler.capabilities"
-    assert compiler_plugin.kind == PluginKind.COMPILER
-    assert Stage.COMPILE in compiler_plugin.stages
+    discover_plugin = next(p for p in manifest.plugins if p.id == "base.discover.inventory")
+    assert discover_plugin.kind == PluginKind.COMPILER
+    assert Stage.DISCOVER in discover_plugin.stages
 
     # Find the reference validator plugin
     ref_plugin = next(p for p in manifest.plugins if p.id == "base.validator.references")
@@ -234,6 +232,38 @@ def test_manifest_schema_declares_build_stage_and_phase_enum():
         "builder",
     ]
     assert plugin_props["phase"]["enum"] == ["init", "pre", "run", "post", "verify", "finalize"]
+
+
+def test_manifest_schema_rejects_profile_restrictions_alias(tmp_path: Path):
+    """Wave H: profile_restrictions alias is removed; manifests must use when.profiles."""
+    schema_path = V5_TOOLS / "schemas" / "plugin-manifest.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    plugin_props = schema["$defs"]["plugin"]["properties"]
+    assert "profile_restrictions" not in plugin_props
+
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.validator_json.profile_alias",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+                "profile_restrictions": ["production"],
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    registry = PluginRegistry(V5_TOOLS)
+    try:
+        registry.load_manifest(manifest)
+        assert False, "Expected schema validation failure for profile_restrictions alias"
+    except PluginLoadError as exc:
+        assert "schema validation failed" in str(exc).lower()
 
 
 def test_schema_and_runtime_stage_phase_enums_stay_in_sync():
@@ -518,6 +548,7 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
     instance_rows = registry.specs["base.compiler.instance_rows"]
     capability_loader = registry.specs["base.compiler.capability_contract_loader"]
     references = registry.specs["base.validator.references"]
+    artifact_manifest = registry.specs["base.generator.artifact_manifest"]
 
     assert {item["key"] for item in module_loader.produces} >= {
         "class_map",
@@ -533,6 +564,11 @@ def test_base_manifest_declares_high_value_data_bus_contracts():
     }
     assert registry.specs["base.compiler.effective_model"].phase == Phase.FINALIZE
     assert registry.specs["base.compiler.effective_model"].compiled_json_owner is True
+    assert artifact_manifest.phase == Phase.FINALIZE
+    assert {item["key"] for item in artifact_manifest.produces} >= {
+        "artifact_manifest_path",
+        "generated_files",
+    }
     # Ensure declared contracts pass strict dependency validation path.
     registry.resolve_dependencies()
 
@@ -612,6 +648,7 @@ if __name__ == "__main__":
         test_manifest_schema_accepts_model_versions,
         test_manifest_schema_accepts_phase_field,
         test_manifest_schema_declares_build_stage_and_phase_enum,
+        test_manifest_schema_rejects_profile_restrictions_alias,
         test_schema_and_runtime_stage_phase_enums_stay_in_sync,
         test_manifest_schema_accepts_build_stage_and_new_fields,
         test_plugin_context_scope_backed_publish_subscribe_and_active_config,

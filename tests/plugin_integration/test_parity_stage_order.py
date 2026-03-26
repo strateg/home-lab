@@ -85,7 +85,7 @@ def test_pipeline_stage_order_and_compiled_context(monkeypatch):
     exit_code = compiler.run()
 
     assert exit_code == 0
-    assert seen_stages == ["compile", "validate", "generate"]
+    assert seen_stages == ["discover", "compile", "validate", "generate", "assemble", "build"]
 
 
 def test_pipeline_mode_plugin_first_rejects_disabled_plugins_flag():
@@ -300,7 +300,7 @@ def test_runtime_profile_is_propagated_to_plugin_context(monkeypatch):
 
     exit_code = compiler.run()
     assert exit_code == 0
-    assert seen_profiles == ["modeled", "modeled", "modeled"]
+    assert seen_profiles == ["modeled", "modeled", "modeled", "modeled", "modeled", "modeled"]
 
 
 def test_compile_stage_uses_fail_fast_in_registry(monkeypatch):

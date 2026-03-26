@@ -92,7 +92,6 @@ class PluginSpec:
     config: dict[str, Any] = field(default_factory=dict)
     config_schema: Optional[dict[str, Any]] = None
     when: dict[str, Any] = field(default_factory=dict)
-    profile_restrictions: Optional[list[str]] = None
     produces: list[dict[str, Any]] = field(default_factory=list)
     consumes: list[dict[str, Any]] = field(default_factory=list)
     compiled_json_owner: bool = False
@@ -118,7 +117,6 @@ class PluginSpec:
             config=data.get("config", {}),
             config_schema=data.get("config_schema"),
             when=data.get("when", {}),
-            profile_restrictions=data.get("profile_restrictions"),
             produces=data.get("produces", []),
             consumes=data.get("consumes", []),
             compiled_json_owner=bool(data.get("compiled_json_owner", False)),
@@ -347,12 +345,7 @@ class PluginRegistry:
     def _profile_allows_spec(self, spec: PluginSpec, profile: Optional[str]) -> bool:
         if profile is None:
             return True
-        legacy = self._string_list(spec.profile_restrictions)
         modern = self._string_list(spec.when.get("profiles")) if isinstance(spec.when, dict) else []
-        if legacy and modern:
-            return profile in set(legacy).intersection(modern)
-        if legacy:
-            return profile in legacy
         if modern:
             return profile in modern
         return True
