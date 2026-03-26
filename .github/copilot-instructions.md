@@ -1,6 +1,6 @@
-# CLAUDE.md
+# GitHub Copilot Instructions
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance when working with code in this repository.
 
 ## V5 Architecture (Current)
 
@@ -242,27 +242,6 @@ python topology-tools/compile-topology.py
 ```bash
 # Correct: changes flow down from class through object to instance
 ```
-
-## Working with Claude Code
-
-When Claude Code helps with this repository:
-
-1. **Always check topology files first** - They are the source of truth
-2. **Run validation after changes** - Use `lane.py validate-v5`
-3. **Respect plugin boundaries** - Follow 4-level plugin model
-4. **Record architecture decisions in ADR** - add/update `adr/NNNN-*.md`
-5. **Run tests** - `python -m pytest tests -q`
-
-**Ask Claude Code to:**
-- "Add a new instance to L4-platform"
-- "Add a service definition"
-- "Run validation"
-- "Check test coverage"
-
-**Don't ask Claude Code to:**
-- Edit files in `generated/` directly
-- Break plugin layer boundaries
-- Skip validation steps
 
 ## V4 Archive Reference
 
