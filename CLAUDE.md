@@ -47,7 +47,7 @@ Rules:
 - A plugin may call interfaces from its own level or higher only.
 - Such interfaces may be implemented by higher levels (dependency inversion).
 - Global plugins manage specific plugins through interfaces implemented by specific plugins or through other design patterns that preserve level boundaries.
-- Applies to all plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`).
+- Applies to all plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`, `assembler`, `builder`).
 
 Scope variants:
 
@@ -109,6 +109,9 @@ python scripts/orchestration/lane.py validate-v5
 
 # Run full compilation
 python topology-tools/compile-topology.py
+# Parallel plugin execution is enabled by default.
+# Use sequential mode only for troubleshooting/parity debugging.
+python topology-tools/compile-topology.py --no-parallel-plugins
 
 # Generate specific outputs
 python topology-tools/plugins/generator/generate_terraform_proxmox.py

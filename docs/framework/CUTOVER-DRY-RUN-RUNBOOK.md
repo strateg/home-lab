@@ -122,11 +122,15 @@ python v5-build/project-bootstrap/home-lab/framework/topology-tools/compile-topo
   --topology topology.yaml `
   --strict-model-lock `
   --secrets-mode passthrough `
+  --parallel-plugins `
   --output-json generated/effective-topology.json `
   --diagnostics-json generated/diagnostics.json `
   --diagnostics-txt generated/diagnostics.txt `
   --artifacts-root generated-artifacts
 ```
+
+Примечание: параллельный режим плагинов включен по умолчанию.
+Для отладки/локального сравнения используйте `--no-parallel-plugins`.
 
 ---
 

@@ -43,8 +43,12 @@ python v5/topology-tools/compile-topology.py `
   --topology v5/topology/topology.yaml `
   --strict-model-lock `
   --secrets-mode inject `
+  --parallel-plugins `
   --artifacts-root v5-generated
 ```
+
+Примечание: `compile-topology.py` использует параллельный запуск плагинов по умолчанию.
+Для диагностических прогонов можно добавить `--no-parallel-plugins`.
 
 ### 3.3 Assemble ansible runtime
 

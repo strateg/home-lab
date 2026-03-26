@@ -191,8 +191,8 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] No dead code paths bypassing plugin lifecycle exist in `compile-topology.py` (except base-manifest bootstrap by contract).
 - [x] `profile_restrictions` field absent from `PluginSpec` dataclass and manifest schema.
 - [x] No plugin manifests contain `profile_restrictions` entries.
-- [ ] Operator runbooks updated.
-- [ ] `CLAUDE.md` guidance updated if workflow commands changed.
+- [x] Operator runbooks updated.
+- [x] `CLAUDE.md` guidance updated if workflow commands changed.
 
 ## P. Phase Handler Backward Compatibility
 
