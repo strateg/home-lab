@@ -209,3 +209,21 @@ Complete when all Waves A–H are done and all items below are verified.
 - [ ] `when.pipeline_modes` gates on runtime pipeline mode.
 - [ ] `when.changed_input_scopes` stub returns True (all scopes dirty) until full impl in Wave F.
 - [ ] No `profile_restrictions` field accepted by schema (removed, redirected to `when.profiles`).
+
+## R. Parallel Plugin Execution
+
+- [ ] `PluginExecutionScope` data class exists and is `frozen=True` (immutable).
+- [ ] `publish()` and `subscribe()` accept `PluginExecutionScope` as first argument.
+- [ ] `_current_plugin_id` and `_allowed_dependencies` fields are removed from `PluginContext`.
+- [ ] `_published_data` access is protected by `threading.Lock()`.
+- [ ] `compiled_json` is deep-copied at compile stage boundary — read-only for later stages.
+- [ ] At most one `compiled_json_owner: true` per `(stage, phase)` is allowed; violation is load error.
+- [ ] Plugin instance cache is pre-loaded or lock-protected (no TOCTOU race).
+- [ ] Per-plugin `config` is injected via `PluginExecutionScope`, not mutated on shared `PluginContext`.
+- [ ] Generator output path non-overlap is validated at load time using `produces` declarations.
+- [ ] `--parallel-plugins` flag enables wavefront parallel executor.
+- [ ] Wavefront executor: submits indegree-0 plugins to `ThreadPoolExecutor`, respects `order` for tie-breaking.
+- [ ] Thread pool size: `min(cpu_count, wavefront_size)`, capped at 8.
+- [ ] Sequential and parallel modes produce byte-identical outputs for all parity tests.
+- [ ] Thread-safety unit tests pass: concurrent publish/subscribe with ≥8 threads, no data loss.
+- [ ] `--parallel-plugins` promoted to default in Wave H (after regression parity verified).

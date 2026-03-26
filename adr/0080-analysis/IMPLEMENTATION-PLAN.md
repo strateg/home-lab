@@ -44,17 +44,22 @@ Wave B  (kernel extensions)  ←→  Wave D  (phase annotations — runs in para
   ↓
 Wave C  (phase executor refactor)
   ↓
+Wave C+ (parallel plugin executor — opt-in)
+  ↓
 Wave E  (data bus contracts)  +  Wave E.1  (artifact_manifest plugin)
   ↓
 Wave F  (assemble stage)
   ↓
 Wave G  (build stage)
   ↓
-Wave H  (cleanup and hard cutover)
+Wave H  (cleanup and hard cutover — parallel executor promoted to default)
 ```
 
 Wave D is **parallel with Wave B** — annotations require only schema/PluginSpec changes
 from Wave B, not the new executor from Wave C.
+
+Wave C+ follows Wave C — it requires the sequential phase executor as baseline and
+`PluginExecutionScope` from Wave B.
 
 ---
 
@@ -144,6 +149,18 @@ from Wave B, not the new executor from Wave C.
 14. Keep `phase=RUN` default — existing manifests load unchanged.
 15. Update `tests/plugin_contract/test_manifest.py` to assert aligned stage/phase enums and add test that a manifest with `stage: build` loads successfully in runtime.
 16. Add regression test: existing plugins with `execute(ctx)` only — full pipeline run produces identical output.
+17. Introduce `PluginExecutionScope` immutable data class (ADR Section 9.2):
+    ```python
+    @dataclass(frozen=True)
+    class PluginExecutionScope:
+        plugin_id: str
+        allowed_dependencies: frozenset[str]
+        phase: Phase
+        config: dict  # per-plugin config snapshot
+    ```
+18. Refactor `publish()` and `subscribe()` to accept `PluginExecutionScope` instead of reading `_current_plugin_id` / `_allowed_dependencies` from shared context.
+19. Add `compiled_json_owner: bool` manifest field; validate at most one owner per `(stage, phase)` at load time.
+20. Remove `_current_plugin_id` and `_allowed_dependencies` fields from `PluginContext` after migration.
 
 **Gate:**
 
@@ -233,6 +250,45 @@ or re-apply phase annotation after any plugin restructuring.
 - `stage_local` invalidation tested: subscribe after stage end → hard error.
 - Diagnostics parity with Wave A baseline accepted.
 - `when` predicate gates pass for profile, capability, and pipeline_mode cases.
+
+---
+
+## Wave C+ — Parallel Plugin Executor
+
+**Goal:** Enable intra-phase parallel execution per ADR Section 9 contract.
+
+**Prerequisite:** Wave C (sequential phase executor), Wave B (`PluginExecutionScope`).
+
+**Primary files:**
+
+- `topology-tools/kernel/plugin_registry.py`
+- `topology-tools/kernel/plugin_base.py`
+
+**Tasks:**
+
+1. Add `--parallel-plugins` CLI flag (default: disabled; sequential executor remains default).
+2. Implement wavefront executor within each `(stage, phase)`:
+   - Build indegree map from intra-phase dependency edges.
+   - Submit all `indegree == 0` plugins to `concurrent.futures.ThreadPoolExecutor`.
+   - On completion, decrement dependants' indegree; submit newly-zero plugins.
+   - `order` field controls submission order within each wavefront (deterministic logging).
+3. Pass `PluginExecutionScope` per-invocation — no shared mutable fields used during execution.
+4. Protect `_published_data` with `threading.Lock()` for concurrent `publish()`/`subscribe()` calls.
+5. Pre-load all plugin instances before execution to eliminate TOCTOU race on instance cache.
+6. Deep-copy `compiled_json` at compile stage boundary — frozen read-only snapshot for all later stages.
+7. Validate generator output path non-overlap at load time using `produces` declarations.
+8. Add parallel regression test: run full pipeline with `--parallel-plugins`, compare output
+   byte-for-byte against sequential baseline from Wave A.
+9. Add thread-safety unit tests: concurrent `publish()`/`subscribe()` with ≥8 threads, verify no data loss.
+10. Thread pool size: `min(cpu_count, wavefront_size)`, capped at 8.
+
+**Gate:**
+
+- Sequential and parallel modes produce byte-identical outputs for all parity tests.
+- Thread-safety unit tests green (no data loss under concurrent publish/subscribe).
+- No data race under stress test with 8+ concurrent plugins.
+- Performance improvement measurable for ≥4 parallel validators.
+- `--parallel-plugins` disabled by default — zero behavior change for users who don't opt in.
 
 ---
 
@@ -391,7 +447,8 @@ or re-apply phase annotation after any plugin restructuring.
 4. Remove `profile_restrictions` deprecated alias from `PluginSpec` and schema.
 5. Remove any dead code paths that bypass plugin lifecycle.
 6. Remove `--trace-execution` canary mode or promote to permanent debug flag.
-7. Finalize operator runbooks and update CLAUDE.md guidance.
+7. Promote `--parallel-plugins` to default (parallel executor becomes standard after regression parity).
+8. Finalize operator runbooks and update CLAUDE.md guidance.
 
 **Gate:**
 
@@ -428,3 +485,8 @@ Mapped to ADR 0080 sections plus additions from gap analysis:
 | 17 | `profile_restrictions` converted to `when.profiles`, deprecated alias removed | D/H |
 | 18 | `stage_local` keys invalidated at stage boundary, cross-stage subscription rejected | C/E |
 | 19 | Bootstrap contract: base manifest is only pre-lifecycle load; discover plugins in base manifest only | B/F |
+| 20 | `PluginExecutionScope` replaces shared `_current_plugin_id`/`_allowed_dependencies` | B |
+| 21 | `_published_data` access is thread-safe under concurrent execution | C+ |
+| 22 | `compiled_json` frozen (read-only deep-copy) after compile stage boundary | C+ |
+| 23 | `--parallel-plugins` enables wavefront parallel execution within each `(stage, phase)` | C+ |
+| 24 | Sequential and parallel modes produce identical outputs for all parity tests | C+/H |

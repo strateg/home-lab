@@ -158,6 +158,138 @@ actual discovered manifests, not the ADR estimate.
 
 ---
 
+### G11 — Schema/runtime stage-phase vocabulary drift (High)
+
+Manifest schema allows `build` stage and `finished` phase token, but runtime `Stage` enum
+has no `BUILD` value and no `Phase` concept. Runtime would silently ignore or reject plugins
+declaring these values.
+
+**Resolution:** Wave B aligns both enums; schema replaces `finished` → `finalize`.
+
+---
+
+### G12 — `effective_json/yaml` init phase violates mutation rule (Medium)
+
+These plugins were initially assigned to `generate/init`, but they produce business
+artifacts (JSON/YAML files). The `init` phase contract states "no artifact mutation".
+
+**Resolution:** Reassigned to `generate/run` in Section 4.3 of ADR.
+
+---
+
+### G13 — `PluginKind` missing assembler/builder (Medium)
+
+`PluginKind` enum has only `compiler`, `validator_yaml`, `validator_json`, `generator`.
+Plugins for new `assemble`/`build` stages have no `kind` affinity.
+
+**Resolution:** Section 5.2 adds `assembler` and `builder` to `PluginKind`.
+
+---
+
+### G14 — Phase handler protocol breaks backward compat (High)
+
+Adding `on_<phase>()` methods to `BasePlugin` would change the interface contract.
+All existing plugins implement only `execute(ctx)`.
+
+**Resolution:** Section 5.3 defines backward-compat dispatch: `execute(ctx)` is
+preferred for `run` phase; `on_<phase>` methods are additive/optional.
+
+---
+
+### G15 — `profile_restrictions` duplicates `when.profiles` (Low)
+
+Both fields exist with overlapping semantics. No migration path was defined.
+
+**Resolution:** Section 5.4 defines Wave D conversion and Wave H removal of deprecated field.
+
+---
+
+### G16 — Discovery bootstrap circular dependency (High)
+
+No specification for how base manifest is loaded before the discover stage starts.
+Discover plugins reside in a manifest that must be discovered first.
+
+**Resolution:** Section 5.5 defines the bootstrap contract: base manifest is the only
+pre-lifecycle load; discover plugins must reside in base manifest only.
+
+---
+
+### G17 — Partial `--stages` + finalize guarantee interaction (Medium)
+
+`--stages` flag allows partial execution, but no rule specifies whether `finalize`
+runs for started stages only, for requested stages only, or for all stages.
+
+**Resolution:** Section 5.6 defines: finalize runs for started stages only; skipped
+stages never start and never emit finalize.
+
+---
+
+### G18 — `stage_local` scope enforcement rules missing (Medium)
+
+Data bus `scope` field was defined (`stage_local`/`pipeline_shared`) but had no
+enforcement semantics. Cross-stage subscriptions to `stage_local` keys could silently succeed.
+
+**Resolution:** Section 6.1 and 6.2 define hard error for cross-stage `stage_local` subscriptions.
+
+---
+
+### G19 — Shared `_current_plugin_id` blocks parallelism (Critical)
+
+`PluginContext._current_plugin_id` is a mutable field overwritten before each plugin call.
+Two concurrent plugins corrupt each other's identity, causing `publish()` to store
+data under the wrong plugin key.
+
+**Resolution:** ADR Section 9.2 Blocker 1 — `PluginExecutionScope` per-invocation value object.
+
+---
+
+### G20 — Shared `_allowed_dependencies` blocks parallelism (Critical)
+
+Same pattern as G19 — mutable field on shared `PluginContext` overwritten before each call.
+Concurrent plugins see each other's dependency sets.
+
+**Resolution:** ADR Section 9.2 Blocker 1 — included in `PluginExecutionScope`.
+
+---
+
+### G21 — `_published_data` has no concurrency protection (High)
+
+Nested `dict[str, dict[str, Any]]` with no synchronization. Concurrent `publish()` calls
+can produce corrupted data structures or lose writes.
+
+**Resolution:** ADR Section 9.2 Blocker 2 — `threading.Lock()` on `_published_data` access.
+
+---
+
+### G22 — `compiled_json` mutation race (High)
+
+Multiple compiler plugins can assign `ctx.compiled_json = new_value` directly.
+Under parallelism, simultaneous writes produce last-write-wins corruption.
+
+**Resolution:** ADR Section 9.2 Blocker 3 — `compiled_json_owner` manifest field with
+at-most-one-owner-per-phase load-time validation. Deep-copy frozen snapshot at stage boundary.
+
+---
+
+### G23 — Per-plugin config injection via shared field (Medium)
+
+`execute_plugin()` replaces `ctx.config` before each call. Concurrent plugins
+see stale or interleaved configuration.
+
+**Resolution:** ADR Section 9.2 Blocker 4 — config injected via `PluginExecutionScope`.
+
+---
+
+### G24 — Plugin instance cache TOCTOU (Medium)
+
+`PluginRegistry.instances` dict has check-then-insert pattern. Two threads loading
+the same plugin concurrently can create duplicate instances.
+
+**Resolution:** ADR Section 9.2 Blocker 5 — pre-load all instances before execution,
+or protect with `threading.Lock()`.
+
+---
+
 ## Risk Summary
 
 | Risk | Wave | Severity | Mitigation |
@@ -168,6 +300,13 @@ actual discovered manifests, not the ADR estimate.
 | Missing diagnostic ranges cause ADR 0065 violations | F/G | Medium | Allocate in Wave B |
 | Undeclared data bus coupling survives into assemble stage | E/F | Medium | Backward-compat W80xx warning before hard error |
 | ADR 0079 restructures generator plugins during Wave D | D | Medium | Coordinate sequencing or add explicit exclusion |
+| Schema/runtime vocabulary drift causes silent plugin failures | B | High | Align enums and add CI conformance test |
+| Phase handler rewrite breaks all existing plugins | B/C | High | Backward-compat dispatch: execute(ctx) preserved |
+| Discovery bootstrap circular dependency | B/F | High | Base manifest pre-lifecycle contract |
+| Shared mutable context fields corrupt data under parallelism | C+ | Critical | PluginExecutionScope per-invocation + locks |
+| `compiled_json` mutation race under parallel compilers | C+ | High | Owner field + frozen snapshot at stage boundary |
+| Non-deterministic output ordering under parallel execution | C+/H | Medium | order-based submission + byte-identical parity tests |
+| GIL limits parallelism benefit for CPU-bound plugins | C+ | Low | ThreadPoolExecutor sufficient for I/O-bound; future ProcessPoolExecutor ADR |
 
 ---
 

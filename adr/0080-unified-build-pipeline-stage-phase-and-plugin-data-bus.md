@@ -306,15 +306,122 @@ Normative order ranges by stage:
 3. `build` writes release/package/trust outputs only.
 4. Secret-bearing outputs MUST NOT be written into baseline roots.
 
+### 9. Intra-Phase Parallel Execution Model (Normative)
+
+Within each phase of a stage, plugins whose DAG dependencies are fully satisfied MAY execute in parallel.
+
+#### 9.1 Execution Model
+
+Wavefront execution inside each `stage+phase` slice:
+
+1. Build the set of plugins at the current `(stage, phase)`.
+2. Compute intra-phase dependency sub-graph (only edges between plugins in the same `stage+phase` set).
+3. Execute in wavefronts:
+   - Wavefront 0: all plugins with `indegree == 0` — submit to thread pool.
+   - When a plugin completes, decrement indegree of its dependants.
+   - Next wavefront: all plugins that reached `indegree == 0` — submit.
+   - Repeat until all plugins are complete.
+4. Cross-phase dependencies are automatically satisfied because phases execute sequentially.
+5. `order` field breaks ties in submission order within a wavefront, preserving deterministic log output.
+
+#### 9.2 Thread-Safety Contract (Normative)
+
+The current `PluginContext` design has structural blockers for parallel execution.
+The following contracts MUST be enforced before parallelism is enabled:
+
+**Blocker 1 — Shared per-plugin execution state (Critical)**
+
+`_current_plugin_id` and `_allowed_dependencies` are mutable fields on the shared `PluginContext`.
+If two plugins execute concurrently, they overwrite each other's identity and dependency set.
+
+Resolution: introduce `PluginExecutionScope` — an immutable per-invocation value object:
+
+```python
+@dataclass(frozen=True)
+class PluginExecutionScope:
+    plugin_id: str
+    allowed_dependencies: frozenset[str]
+    phase: Phase
+```
+
+`publish()` and `subscribe()` MUST accept `PluginExecutionScope` as first argument.
+Registry passes `scope` when calling the plugin; scope is never stored on `PluginContext`.
+
+**Blocker 2 — Published data concurrent writes (High)**
+
+`_published_data` is a nested `dict[str, dict[str, Any]]` with no synchronization.
+Concurrent `publish()` and `subscribe()` calls can corrupt data.
+
+Resolution: protect `_published_data` with `threading.Lock()`.
+Alternatively, use per-plugin isolated write buffers merged after plugin completion (copy-on-write).
+
+**Blocker 3 — `compiled_json` mutation (High)**
+
+Compiler plugins can assign `ctx.compiled_json = new_value` directly.
+Under parallelism, simultaneous writes produce last-write-wins corruption.
+
+Resolution: enforce write-ownership rule:
+- Only ONE plugin per `(stage, phase)` pair is allowed to assign `compiled_json` (the "model owner").
+- Model owner is declared in manifest: `compiled_json_owner: true`.
+- At most one model owner per `(stage, phase)` is allowed; violation is a load error.
+- All other plugins in the same phase MUST NOT assign `compiled_json`.
+- Under the phase assignment from Section 4, `base.compiler.effective_model` is the sole owner
+  at `(compile, finalize)`. No other plugin in any `compile` phase writes `compiled_json`.
+
+**Blocker 4 — Per-plugin config injection (Medium)**
+
+`execute_plugin()` modifies `ctx.config` in-place before each plugin call.
+Concurrent calls would interleave config state.
+
+Resolution: `config` is injected via `PluginExecutionScope` or as a local variable, never mutated on shared `PluginContext`.
+
+**Blocker 5 — Plugin instance caching TOCTOU (Medium)**
+
+`PluginRegistry.instances` dict has a check-then-insert pattern that can load the same plugin twice under concurrency.
+
+Resolution: use `threading.Lock()` around instance cache access, or pre-load all instances before execution.
+
+**Blocker 6 — Generator file write isolation (Low)**
+
+Generators write to a shared `output_dir`. If two generators target the same filename, the last write wins.
+
+Resolution: each generator MUST declare its output file list in `produces`.
+The registry validates no two parallel generators claim the same output file path.
+This is already partly addressed by the artifact manifest (Section 4.3 `finalize`).
+
+#### 9.3 Plugin Purity Contract (Normative)
+
+A plugin is "parallel-safe" if it satisfies:
+
+1. Does not assign `ctx.compiled_json` (unless declared `compiled_json_owner: true`).
+2. Does not mutate any shared `PluginContext` field other than through `publish()`.
+3. All outputs go through `publish()` or to explicitly declared file paths.
+4. Side effects are limited to file writes under declared output paths.
+
+Validators and generators are parallel-safe by design (they only read `compiled_json` and publish/write files).
+Compiler plugins require individual review; most publish data, only `effective_model` writes `compiled_json`.
+
+#### 9.4 Opt-In Enablement (Normative)
+
+Parallel execution is gated by `--parallel-plugins` CLI flag (default: disabled).
+
+Rollout:
+1. Wave C: sequential phase executor is the default.
+2. Wave C+: add `--parallel-plugins` flag with thread-pool executor. Gated behind feature flag.
+3. Wave H: promote parallel executor to default after regression parity.
+
+Thread pool size: `min(cpu_count, plugins_in_wavefront)`. Capped at 8 threads for I/O-bound generators.
+
 ## Migration Plan (AS-IS -> Target)
 
-### 9.1 Critical Path
+### 10.1 Critical Path
 
-`Wave A -> Wave B -> Wave C -> Wave E -> Wave E.1 -> Wave F -> Wave G -> Wave H`
+`Wave A -> Wave B -> Wave C -> Wave C+ -> Wave E -> Wave E.1 -> Wave F -> Wave G -> Wave H`
 
 `Wave D` runs in parallel with `Wave B` after schema/types are available.
+`Wave C+` (parallel executor) runs after `Wave C` (sequential executor).
 
-### 9.2 Gap-to-Wave Closure Map
+### 10.2 Gap-to-Wave Closure Map
 
 | Gap | Closed in wave |
 |---|---|
@@ -336,8 +443,9 @@ Normative order ranges by stage:
 | G16 | B (specify bootstrap contract) |
 | G17 | C (finalize guarantee in partial-stage mode) |
 | G18 | E (scope enforcement in runtime) |
+| G19-G24 | B (PluginExecutionScope) + C+ (parallel executor) |
 
-### 9.3 Wave A - Baseline and Inventory Freeze
+### 10.3 Wave A - Baseline and Inventory Freeze
 
 Goal: freeze current behavior before lifecycle refactor.
 
@@ -352,7 +460,7 @@ Gate:
 1. Existing suites green.
 2. Baseline snapshots approved.
 
-### 9.4 Wave B - Kernel and Schema Foundations
+### 10.4 Wave B - Kernel and Schema Foundations
 
 Goal: add stage/phase/data-bus type contracts without behavior break.
 
@@ -373,6 +481,9 @@ Tasks:
 13. Define order ranges for all six stages (Section 7).
 14. Keep backward compatibility defaults (`phase` omitted -> `run`; `profile_restrictions` still accepted but deprecated).
 15. Update contract tests to reflect aligned enums; add loader test proving a `build` stage manifest can be loaded by runtime.
+16. Introduce `PluginExecutionScope` data class with `plugin_id`, `allowed_dependencies`, `phase`, `config` (Section 9.2).
+17. Refactor `publish()`/`subscribe()` to accept `PluginExecutionScope` instead of reading shared context fields.
+18. Add `compiled_json_owner` manifest field; validate at most one owner per `(stage, phase)` at load time.
 
 Gate:
 
@@ -381,7 +492,7 @@ Gate:
 3. Schema and runtime accept the same stage/phase vocabulary (no `build`/`finished` drift).
 4. Phase handler dispatch: existing plugins with only `execute(ctx)` pass a regression run unchanged.
 
-### 9.5 Wave D - Manifest Phase Annotation (parallel with Wave B)
+### 10.5 Wave D - Manifest Phase Annotation (parallel with Wave B)
 
 Goal: annotate explicit phase for all plugins in discovered manifests.
 
@@ -399,7 +510,7 @@ Gate:
 2. Parity tests green.
 3. No `profile_restrictions` entries remain; all converted to `when.profiles`.
 
-### 9.6 Wave C - Phase Executor and `when` Gating
+### 10.6 Wave C - Phase Executor and `when` Gating
 
 Goal: run plugins by `stage -> phase -> DAG/order`.
 
@@ -419,7 +530,30 @@ Gate:
 3. `stage_local` keys are inaccessible after stage completion.
 4. Canary parity accepted.
 
-### 9.7 Wave E - Data Bus Contract Enforcement
+### 10.7 Wave C+ - Parallel Plugin Executor
+
+Goal: enable intra-phase parallel execution per Section 9 contract.
+
+Tasks:
+
+1. Add `--parallel-plugins` CLI flag (default: disabled, sequential executor remains default).
+2. Implement wavefront executor: build indegree map within `(stage, phase)`, submit zero-indegree plugins to `ThreadPoolExecutor`.
+3. Pass `PluginExecutionScope` per-invocation (no shared mutable context fields).
+4. Protect `_published_data` with `threading.Lock()` for concurrent publish/subscribe.
+5. Pre-load all plugin instances before execution to eliminate TOCTOU race on instance cache.
+6. Deep-copy `compiled_json` at stage boundary (frozen read-only snapshot for validate/generate/assemble/build).
+7. Validate generator output path non-overlap at load time using `produces` declarations.
+8. Add parallel regression tests: run full pipeline with `--parallel-plugins`, compare output to sequential baseline.
+9. Add thread-safety unit tests for `publish()`/`subscribe()` under concurrent access.
+
+Gate:
+
+1. Sequential and parallel modes produce byte-identical outputs for all parity tests.
+2. No data race detected under `ThreadSanitizer` or equivalent.
+3. Thread-safety unit tests green.
+4. Performance improvement measurable for ≥4 parallel validators.
+
+### 10.8 Wave E - Data Bus Contract Enforcement
 
 Goal: migrate pub/sub to declared `produces/consumes`.
 
@@ -436,7 +570,7 @@ Gate:
 2. Cross-stage `stage_local` subscriptions caught and rejected.
 3. Runtime validation tests green.
 
-### 9.8 Wave E.1 - `base.generator.artifact_manifest`
+### 10.9 Wave E.1 - `base.generator.artifact_manifest`
 
 Goal: implement missing generate/finalize plugin.
 
@@ -451,7 +585,7 @@ Gate:
 1. Manifest file generated and validated.
 2. Checksums verified in tests.
 
-### 9.9 Wave F - Discover + Assemble Pluginization
+### 10.10 Wave F - Discover + Assemble Pluginization
 
 Goal: remove procedural discovery and move assembly under lifecycle.
 
@@ -466,7 +600,7 @@ Gate:
 1. `.work/native` and `dist/` parity with previous flow.
 2. `E810x` diagnostics for failing verify checks.
 
-### 9.10 Wave G - Build Pluginization
+### 10.11 Wave G - Build Pluginization
 
 Goal: unify packaging/trust under plugin runtime.
 
@@ -481,7 +615,7 @@ Gate:
 1. Release pipeline green under pluginized build.
 2. `E820x` diagnostics emitted correctly.
 
-### 9.11 Wave H - Hard Cutover and Cleanup
+### 10.12 Wave H - Hard Cutover and Cleanup
 
 Goal: complete contract hardening and remove transitional paths.
 
@@ -491,7 +625,8 @@ Tasks:
 2. Remove `profile_restrictions` deprecated alias from `PluginSpec` and schema (Section 5.4).
 3. Remove legacy discovery and lifecycle bypass code paths.
 4. Keep `--trace-execution` as debug flag or remove after two green cycles.
-5. Update runbooks and developer documentation.
+5. Promote `--parallel-plugins` to default (parallel executor becomes standard).
+6. Update runbooks and developer documentation.
 
 Gate:
 
@@ -508,6 +643,9 @@ Gate:
 4. Regression tests: generated parity, assembled workspace parity, release package/trust parity.
 5. CI conformance test: schema stage/phase enums must match runtime `Stage`/`Phase` enums.
 6. Cutover checklist tests from `adr/0080-analysis/CUTOVER-CHECKLIST.md` become release gates.
+7. Thread-safety tests: concurrent `publish()`/`subscribe()` under `ThreadPoolExecutor` with ≥8 threads.
+8. Parallel parity tests: sequential vs `--parallel-plugins` output byte-identical for full pipeline.
+9. `compiled_json_owner` uniqueness: load-time test rejects two owners at same `(stage, phase)`.
 
 ## Acceptance Criteria
 
@@ -530,6 +668,11 @@ Gate:
 17. `profile_restrictions` converted to `when.profiles` and removed as standalone field in Wave H.
 18. `stage_local` data bus keys are invalidated at stage boundary and rejected for cross-stage subscriptions.
 19. Discovery bootstrap contract is respected: base manifest is the only pre-lifecycle load, discover plugins reside in base manifest only.
+20. `PluginExecutionScope` replaces shared `_current_plugin_id`/`_allowed_dependencies` for all plugin invocations.
+21. `_published_data` access is thread-safe under concurrent plugin execution.
+22. `compiled_json` is frozen (read-only deep-copy) after compile stage boundary.
+23. `--parallel-plugins` flag enables wavefront parallel execution within each `(stage, phase)`.
+24. Sequential and parallel modes produce identical outputs for all parity tests.
 
 ## Risks and Mitigations
 
@@ -553,6 +696,12 @@ Gate:
    - Mitigation: Registry dispatch prefers `execute(ctx)` for `run` phase; new methods are additive. Full regression before Wave C gate.
 10. Risk: `stage_local` scope enforcement invalidates data needed by later phases.
     - Mitigation: review all high-value key scopes before Wave E; default all existing keys to `pipeline_shared` during migration.
+11. Risk: parallel plugin execution introduces non-deterministic output ordering.
+    - Mitigation: `order` field controls wavefront submission order; `publish()` under lock ensures deterministic key state; parity tests compare sequential vs parallel byte-for-byte.
+12. Risk: thread-safety regressions introduced by future plugins unaware of parallel contract.
+    - Mitigation: `PluginExecutionScope` is the only interface for identity/config; `PluginContext` shared fields are read-only after stage start. Plugin purity contract (Section 9.3) documented and enforced by code review.
+13. Risk: GIL limits parallelism benefit for CPU-bound plugins.
+    - Mitigation: most plugins are I/O-bound (YAML parse, file write); `ThreadPoolExecutor` is sufficient. If CPU-bound bottleneck emerges, migrate to `ProcessPoolExecutor` with serializable scope (future ADR).
 
 ## References
 
