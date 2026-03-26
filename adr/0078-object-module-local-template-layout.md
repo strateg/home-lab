@@ -64,7 +64,7 @@ All compilers/validators/generators MUST be built by common rules:
    - global/core infrastructure level;
    - class level;
    - object level;
-   - instance level.
+   - instance level (using a dedicated project plugin root, for example `projects/<project-id>/plugins`, not `instances_root` shard data directories).
 2. Each level is responsible only for its own abstraction:
    - class level MUST NOT reference object/instance specifics;
    - object level MUST NOT reference instance specifics.
@@ -82,6 +82,9 @@ All compilers/validators/generators MUST be built by common rules:
 ### Instance isolation contract (normative)
 
 Object-level plugins MUST NOT contain instance-specific data:
+
+Instance-scoped plugin discovery MUST remain outside shard data roots and MUST NOT scan
+`projects/<project-id>/topology/instances/**` (ADR 0071 data-only contract).
 
 1. **Prohibited patterns in object-level code:**
    - hardcoded IP addresses (e.g., `192.168.88.1`, `10.0.10.1`);

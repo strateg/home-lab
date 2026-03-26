@@ -104,11 +104,12 @@ Downstream compiler/validator/generator plugins continue consuming assembled pay
 Plugin boundary rule:
 
 1. `instances_root` stores data rows only (instance YAML files).
-2. There are no `instance-modules`.
-3. Plugin manifests and plugin code remain only in:
+2. There are no `instance-modules` under `instances_root`.
+3. Plugin manifests and plugin code remain in:
    - `class-modules`
    - `object-modules`
-4. Plugin discovery MUST NOT scan `instances_root`.
+   - optional project-level plugin root (for instance-scoped extensions), for example `projects/<project-id>/plugins`
+4. Plugin discovery MUST NOT scan `instances_root` data tree.
 
 Authoring rule:
 

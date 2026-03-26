@@ -80,3 +80,4 @@
 | [0077](0077-go-task-developer-orchestration.md) | Go-Task as Developer Orchestration Layer | Accepted | 2026-03-21 | - | - |
 | [0078](0078-object-module-local-template-layout.md) | Object-Module Local Templates and Generator Plugins Layout | Accepted | 2026-03-21 | - | - |
 | [0079](0079-v5-documentation-and-diagram-generation-migration.md) | V5 Documentation and Diagram Generation Migration | Proposed | 2026-03-24 | - | - |
+| [0080](0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md) | Unified Build Pipeline, Stage-Phase Lifecycle, and Contractual Plugin Data Bus | Proposed | 2026-03-26 | - | - |

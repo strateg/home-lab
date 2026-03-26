@@ -11,6 +11,7 @@ Tests cover:
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -181,6 +182,40 @@ def test_manifest_schema_accepts_model_versions(tmp_path: Path):
     assert "test.validator_json.model_versions" in registry.specs
 
 
+def test_manifest_schema_accepts_phase_field(tmp_path: Path):
+    """phase is a valid optional plugin manifest field (ADR 0080 draft)."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.validator_json.phase",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    assert "test.validator_json.phase" in registry.specs
+
+
+def test_manifest_schema_declares_build_stage_and_phase_enum():
+    """Schema draft includes stage=build and phase enum declarations."""
+    schema_path = V5_TOOLS / "schemas" / "plugin-manifest.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    plugin_props = schema["$defs"]["plugin"]["properties"]
+
+    assert "build" in plugin_props["stages"]["items"]["enum"]
+    assert plugin_props["phase"]["enum"] == ["init", "pre", "run", "post", "verify", "finished"]
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("ADR 0066 Plugin Contract Tests")
@@ -197,6 +232,8 @@ if __name__ == "__main__":
         test_duplicate_plugin_id,
         test_manifest_schema_rejects_unknown_fields,
         test_manifest_schema_accepts_model_versions,
+        test_manifest_schema_accepts_phase_field,
+        test_manifest_schema_declares_build_stage_and_phase_enum,
     ]
 
     passed = 0

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://home-lab.local/schemas/v5/plugin-manifest.schema.json",
   "title": "Plugin Manifest Schema",
-  "description": "Schema for v5 topology plugin manifests (ADR 0063)",
+  "description": "Schema for v5 topology plugin manifests (ADR 0063, ADR 0080 draft phase model)",
   "type": "object",
   "required": ["schema_version", "plugins"],
   "properties": {
@@ -22,6 +22,7 @@
   "$defs": {
     "plugin": {
       "type": "object",
+      "$comment": "Cross-entry dependency guards (depends_on may not target later phase/stage) are enforced by registry runtime validation, not pure JSON Schema.",
       "required": ["id", "kind", "entry", "api_version", "stages", "order"],
       "properties": {
         "id": {
@@ -48,16 +49,21 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["validate", "compile", "generate"]
+            "enum": ["compile", "validate", "generate", "build"]
           },
           "minItems": 1,
           "description": "Pipeline stages where this plugin executes"
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["init", "pre", "run", "post", "verify", "finished"],
+          "description": "Optional lifecycle phase within stage (ADR 0080 draft). Defaults to run when omitted."
         },
         "order": {
           "type": "integer",
           "minimum": 0,
           "maximum": 9999,
-          "description": "Execution order within stage (higher number = later execution)"
+          "description": "Execution order within stage/phase (higher number = later execution)"
         },
         "depends_on": {
           "type": "array",
