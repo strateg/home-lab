@@ -8,6 +8,7 @@ This directory contains implementation plans for major development efforts.
 |------|--------|-------------|
 | [0076-multi-repo-extraction-plan.md](0076-multi-repo-extraction-plan.md) | Draft | Framework extraction and multi-repo distribution |
 | [v5-production-readiness.md](v5-production-readiness.md) | Active | Master plan for v5 deployment capability |
+| [0078-v4-validator-deprecation-matrix.md](0078-v4-validator-deprecation-matrix.md) | Active | Batch-wise retirement plan for legacy v4 validator fallback after parity locks |
 | [phase1-generator-framework.md](phase1-generator-framework.md) | Superseded | Generator plugin infrastructure (see ADR 0074) |
 
 ## Completed Plans

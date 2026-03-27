@@ -102,3 +102,21 @@
    - отдельный parity fixture (или обновление существующего),
    - ссылку на commit с green `task test:parity-v4-v5`,
    - обновление соответствующей строки матрицы до `Covered` перед отключением v4 fallback.
+
+---
+
+## 6. Latest Execution Evidence (2026-03-27)
+
+1. Parity lanes restored in task graph:
+   - `task test:parity-v4-v5`
+   - `task ci:topology-parity-v4-v5`
+   - `task ci:local-with-legacy`
+   - commit: `f6637dd` (`chore(migration): restore parity lanes and legacy-compatible task aliases`)
+2. Latest parity run status:
+   - `task test:parity-v4-v5` -> PASS (`22 passed`, `3 skipped`)
+   - `task ci:topology-parity-v4-v5` -> PASS
+   - `task ci:local-with-legacy` -> PASS
+3. Archive baseline parity drift gate now runs inside parity CI lane:
+   - `task framework:archive-v4-compile` -> PASS (`errors=0`)
+   - diagnostics persisted in `build/diagnostics/v4-archive-*`.
+   - commit: `2398e86` (`chore(ci): add archive v4 parity drift compile gate`)

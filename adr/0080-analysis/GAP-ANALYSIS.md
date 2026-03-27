@@ -2,7 +2,7 @@
 
 **ADR:** `adr/0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md`
 **Date:** 2026-03-26
-**Status:** Proposed
+**Status:** Historical baseline (resolved by 2026-03-27 cutover closure)
 
 ---
 
@@ -10,6 +10,12 @@
 
 Evaluate ADR 0080 against the current implementation (AS-IS) and identify gaps,
 risks, and missing specification that must be addressed before or during implementation.
+
+> Note (2026-03-27): this document is preserved as the pre-cutover gap snapshot.
+> Closure evidence is tracked in:
+> - `adr/0080-analysis/CUTOVER-CHECKLIST.md`
+> - `adr/0080-analysis/CUTOVER-PLAN.md`
+> - `adr/plan/0078-cutover-checklist.md`
 
 ---
 

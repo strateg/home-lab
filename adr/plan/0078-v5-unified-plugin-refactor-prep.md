@@ -25,6 +25,8 @@
 2. compilers;
 3. validators;
 4. generators.
+5. assemblers.
+6. builders.
 
 ---
 
@@ -50,7 +52,7 @@
 
 1. Полный реестр плагинов по семействам и уровням:
    - plugin id;
-   - family (`discoverer|compiler|validator|generator`);
+   - family (`discoverer|compiler|validator|generator|assembler|builder`);
    - level (`core|class|object|instance`);
    - owner manifest/path.
 2. Карта нарушений:
