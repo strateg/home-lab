@@ -40,7 +40,15 @@
    - `task test:default`
    - `task ci:local`
 2. Confirm plugin lifecycle path (discover/compile/validate/generate/assemble/build) in default runtime.
-3. Confirm no operational dependency on root `v4/` or root `v5/`.
+3. Confirm 5 plugin families in active manifests/runtime contracts:
+   - `compilers`, `validators`, `generators`, `assemblers`, `builders`.
+4. Confirm stage affinity is respected:
+   - `compile -> compilers`
+   - `validate -> validators`
+   - `generate -> generators`
+   - `assemble -> assemblers`
+   - `build -> builders`
+5. Confirm no operational dependency on root `v4/` or root `v5/`.
 
 ### P2 (post-cutover hardening)
 
@@ -100,3 +108,4 @@ Cutover is considered closed when:
 2. Root-only layout is stable (no recreated `v4/`/`v5/` in root).
 3. `archive/v4` compile remains reproducible.
 4. Acceptance TUC and strict runtime audit are green on release branch.
+5. Все 5 семейств плагинов и их stage affinity входят в validated default runtime cutover gates.

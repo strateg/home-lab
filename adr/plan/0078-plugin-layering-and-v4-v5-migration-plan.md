@@ -35,6 +35,14 @@
    - `adr/0080-analysis/IMPLEMENTATION-PLAN.md`
    - `adr/0080-analysis/CUTOVER-PLAN.md`
    - `adr/0080-analysis/CUTOVER-CHECKLIST.md`
+6. Нормативный набор семейств плагинов для post-cutover runtime:
+   - `compilers`, `validators`, `generators`, `assemblers`, `builders`.
+   - Stage affinity:
+   - `compile -> compilers`
+   - `validate -> validators`
+   - `generate -> generators`
+   - `assemble -> assemblers`
+   - `build -> builders`
 
 ---
 
@@ -45,6 +53,8 @@
 - compilers;
 - validators;
 - generators;
+- assemblers;
+- builders;
 
 и закрепить единые правила архитектуры:
 
@@ -54,6 +64,7 @@
 4. instance
 
 и завершить перенос оставшихся v4 validator/generator потоков в v5 plugin-first архитектуру без архитектурных утечек между уровнями.
+Post-cutover расширение lifecycle-доменов (`assemble`, `build`) закрепляется через типы `assembler` и `builder` по ADR0080.
 
 Единый норматив:
 
@@ -96,6 +107,7 @@
 2. Устранение кросс-уровневых утечек и жёсткой vendor/object сцепки в плагинах.
 3. Поэтапный перенос v4 validator/generator логики в v5 plugins.
 4. Обновление orchestration/task-цепочек после parity.
+5. Синхронизация migration-plan с расширением типов плагинов `assembler`/`builder` для assemble/build стадий.
 
 ### Out of Scope
 
@@ -272,6 +284,7 @@ Exit:
 7. Для post-cutover структуры отсутствуют корневые каталоги `v4/` и `v5/` (legacy хранится в `archive/v4`).
 8. v4 baseline-сборка из `archive/v4` остаётся воспроизводимой для parity/регрессионной сверки.
 9. Все новые pipeline/lifecycle изменения после закрытия этого плана ведутся через ADR0080 артефакты.
+10. Runtime/migrations учитывают полный набор из 5 семейств плагинов (`compilers`, `validators`, `generators`, `assemblers`, `builders`) и их stage affinity без регресса существующих потоков.
 
 ---
 
