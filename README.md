@@ -1,128 +1,59 @@
 # home-lab
 
-Repository is split into two migration lanes:
+Root-layout repository for topology framework + project runtime.
 
-- `v5/` - default lane (Class -> Object -> Instance architecture)
-- `v4/` - legacy maintenance lane (critical fixes and regression checks only)
+## Repository Layout
 
-Generated artifacts are versioned by lane:
+- Active runtime/model: `topology/`, `topology-tools/`, `projects/`, `scripts/`, `tests/`, `taskfiles/`
+- Generated artifacts: `generated/`, `build/`, `dist/`
+- Legacy baseline for parity only: `archive/v4/`
 
-- `v4-generated/`, `v4-build/`, `v4-dist/`
-- `v5-generated/`, `v5-build/`, `v5-dist/`
+Root `v4/` and root `v5/` directories are intentionally forbidden.
 
-v5 generator outputs are project-qualified:
+## Core Paths
 
-- `v5-generated/<project>/terraform/...`
-- `v5-generated/<project>/ansible/...`
-- `v5-generated/<project>/bootstrap/...`
+- Project instances: `projects/<project>/instances/`
+- Project secrets: `projects/<project>/secrets/`
+- Project ansible overrides: `projects/<project>/ansible/inventory-overrides/`
+- Generated outputs:
+  - `generated/<project>/terraform/...`
+  - `generated/<project>/ansible/...`
+  - `generated/<project>/bootstrap/...`
 
-Project runtime inputs are stored under:
-
-- `v5/projects/<project>/instances/`
-- `v5/projects/<project>/secrets/`
-- `v5/projects/<project>/ansible/inventory-overrides/`
-
-Main documents:
-
-- `adr/0062-modular-topology-architecture-consolidation.md`
-- `adr/PLUGIN-RUNTIME-ADR-MAP.md`
-- `adr/0075-framework-project-separation.md`
-- `adr/0074-v5-generator-architecture.md`
-- `docs/release-notes/2026-03-20-v5-framework-project-cutover.md`
-- `docs/framework/FRAMEWORK-V5.md`
-- `docs/framework/SUBMODULE-ROLL-OUT.md`
-- `docs/runbooks/V5-E2E-DRY-RUN.md`
-- `v4/README.md`
-- `v5/topology-tools/docs/ENVIRONMENT-SETUP.md`
-- `v5/topology-tools/docs/MANUAL-ARTIFACT-BUILD.md`
-
-Quick commands:
+## Quick Commands
 
 ```powershell
 task validate:quality
 task validate:v5
 task validate:v5-layers
-task build:v5
-task build:v5-passthrough
+task validate:workspace-layout
+task test
+task test:parity-v4-v5
+task build
 task build:v5-docs
-task build:v5-docs-icons
-task build:v5-docs-compat
-task validate:phase1-gate
-task framework:strict
-task framework:release-preflight
-task framework:release-candidate FRAMEWORK_VERSION=1.0.8
-task ci:python-checks-core
 task ci:local
+task ci:local-with-legacy
+task framework:strict
+task framework:cutover-readiness-quick
+task framework:cutover-readiness
+task acceptance:tests-all
 ```
 
-Docs generation for v5 (without local SOPS age identity available) uses passthrough mode:
+## Project Bootstrap
 
-```powershell
-task build:v5-docs
-```
+- Submodule mode:
+  - `task project:init -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_SUBMODULE_URL=https://github.com/<org>/infra-topology-framework.git`
+- Distribution zip mode:
+  - `task project:init-from-dist -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_DIST_ZIP=D:/artifacts/infra-topology-framework-1.0.8.zip FRAMEWORK_DIST_VERSION=1.0.8`
 
-Mermaid icon-node mode (ADR 0027, requires `si`/`mdi` icon packs in renderer):
+## Main Docs
 
-```powershell
-task build:v5-docs-icons
-```
-
-If your Mermaid renderer reports `Lexical error ... Unrecognized text` for icon nodes, use compat mode:
-
-```powershell
-task build:v5-docs-compat
-```
-
-v4 maintenance commands:
-
-```powershell
-task validate:v4
-task build:v4
-task build:phase1-bootstrap
-task build:phase1-reconcile
-task build:phase1-backlog
-task build:phase4-sync-lock
-task build:phase4-export
-```
-
-Project bootstrap (new repo + framework submodule):
-
-```powershell
-task project:init -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_SUBMODULE_URL=https://github.com/<org>/infra-topology-framework.git
-```
-
-Project bootstrap (new repo + framework distribution zip):
-
-```powershell
-task project:init-from-dist -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_DIST_ZIP=D:/artifacts/infra-topology-framework-1.0.8.zip FRAMEWORK_DIST_VERSION=1.0.8
-```
-
-Open a new `cmd.exe` session with local `.venv` activated:
-
-```bat
-task project:venv-cmd
-```
-
-Open a new PowerShell session with local `.venv` activated:
-
-```powershell
-task project:venv-pwsh
-```
-
-Run local `.venv` Python / pip without manual activation:
-
-```bat
-task project:python -- -m pytest
-task project:pip -- install -r requirements-dev.txt
-```
-
-Root orchestration is Task-only (`Taskfile.yml` + `taskfiles/*`).
-
-Minimum supported `go-task` version: `3.45.4` (CI is pinned to the same version).
-
-If `task` is not installed yet:
-
-- Windows (`winget`): `winget install Task.Task`
-- macOS (`brew`): `brew install go-task/tap/go-task`
-- Linux (`snap`): `sudo snap install task --classic`
-- Verify: `task --version`
+- `adr/0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md`
+- `adr/0080-analysis/IMPLEMENTATION-PLAN.md`
+- `adr/plan/0078-cutover-checklist.md`
+- `docs/framework/FRAMEWORK-V5.md`
+- `docs/framework/OPERATOR-WORKFLOWS.md`
+- `docs/framework/FRAMEWORK-RELEASE-GUIDE.md`
+- `docs/runbooks/V5-E2E-DRY-RUN.md`
+- `topology-tools/docs/ENVIRONMENT-SETUP.md`
+- `topology-tools/docs/MANUAL-ARTIFACT-BUILD.md`

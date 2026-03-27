@@ -57,10 +57,14 @@ jobs:
             echo "FRAMEWORK_MANIFEST=framework.yaml" >> "$GITHUB_ENV"
             echo "FRAMEWORK_TOOLS=topology-tools" >> "$GITHUB_ENV"
             echo "TEST_ROOT=tests" >> "$GITHUB_ENV"
+            if [ -f projects/home-lab/framework.lock.yaml ]; then
+              echo "RUN_STRICT_PROJECT_GATES=1" >> "$GITHUB_ENV"
+            else
+              echo "RUN_STRICT_PROJECT_GATES=0" >> "$GITHUB_ENV"
+            fi
           else
-            echo "FRAMEWORK_MANIFEST=v5/topology/framework.yaml" >> "$GITHUB_ENV"
-            echo "FRAMEWORK_TOOLS=v5/topology-tools" >> "$GITHUB_ENV"
-            echo "TEST_ROOT=v5/tests" >> "$GITHUB_ENV"
+            echo "Unsupported framework layout: expected root framework.yaml and topology-tools/"
+            exit 1
           fi
 
       - name: Resolve release version
@@ -101,13 +105,13 @@ jobs:
             fi
             echo "Task orchestration failed; executing legacy fallback chain."
           fi
-          if [ "$TEST_ROOT" = "v5/tests" ]; then
+          if [ "${RUN_STRICT_PROJECT_GATES}" = "1" ]; then
             python "$FRAMEWORK_TOOLS/verify-framework-lock.py" --strict
             python "$FRAMEWORK_TOOLS/rehearse-framework-rollback.py"
             python "$FRAMEWORK_TOOLS/validate-framework-compatibility-matrix.py"
             python "$FRAMEWORK_TOOLS/audit-strict-runtime-entrypoints.py"
           else
-            echo "Skipping project-lock strict gates for extracted framework repository layout."
+            echo "Skipping strict project gates (no projects/home-lab/framework.lock.yaml baseline present)."
           fi
           python -m pytest -o addopts= "$TEST_ROOT/plugin_api" "$TEST_ROOT/plugin_contract" "$TEST_ROOT/plugin_integration/test_framework_lock.py" "$TEST_ROOT/plugin_integration/test_build_framework_distribution.py" "$TEST_ROOT/plugin_integration/test_extract_framework_worktree.py" "$TEST_ROOT/plugin_integration/test_extract_framework_history.py" "$TEST_ROOT/plugin_integration/test_generator_base.py"
 

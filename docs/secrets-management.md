@@ -10,7 +10,7 @@
 
 This repository uses **SOPS + age** for unified secrets management. All sensitive data (hardware identities, credentials, API tokens) is encrypted and stored in project scope:
 
-- `v5/projects/<project>/secrets/`
+- `projects/<project>/secrets/`
 
 Examples in this guide use `home-lab` as active project.
 
@@ -33,13 +33,13 @@ At compile time, secrets are merged into instance rows by the plugin pipeline:
 ┌─────────────────────────────────────────────────────────────┐
 │                    REPOSITORY (tracked)                     │
 │                                                             │
-│  v5/projects/home-lab/secrets/devkey.age ◄────── age private key (encrypted)    │
+│  projects/home-lab/secrets/devkey.age ◄────── age private key (encrypted)    │
 │         │                                                   │
 │         │ unlocks                                           │
 │         ▼                                                   │
-│  v5/projects/home-lab/secrets/instances/*.yaml ◄── instance secrets (side-car)  │
-│  v5/projects/home-lab/secrets/terraform/*.yaml ◄── terraform credentials        │
-│  v5/projects/home-lab/secrets/ansible/*.yaml ◄──── ansible secrets              │
+│  projects/home-lab/secrets/instances/*.yaml ◄── instance secrets (side-car)  │
+│  projects/home-lab/secrets/terraform/*.yaml ◄── terraform credentials        │
+│  projects/home-lab/secrets/ansible/*.yaml ◄──── ansible secrets              │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -97,12 +97,12 @@ rage-keygen --version
 Before working with encrypted files:
 
 ```bash
-./v5/scripts/secrets/unlock-secrets.sh
+./scripts/secrets/unlock-secrets.sh
 # Enter your passphrase when prompted
 ```
 
 ```powershell
-./v5/scripts/secrets/unlock-secrets.ps1
+./scripts/secrets/unlock-secrets.ps1
 ```
 
 This decrypts the devkey to the default SOPS age key path (`~/.config/sops/age/keys.txt` on Linux/macOS, `%APPDATA%\sops\age\keys.txt` on Windows).
@@ -118,7 +118,7 @@ ls -la ~/.config/sops/age/keys.txt
 #### View decrypted content
 
 ```bash
-sops -d v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml
+sops -d projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 #### Edit encrypted file
@@ -126,23 +126,23 @@ sops -d v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml
 Opens in your `$EDITOR` with decrypted content, re-encrypts on save:
 
 ```bash
-sops v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml
+sops projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 #### Encrypt a new file
 
 ```bash
 # Create plaintext file
-cat > v5/projects/home-lab/secrets/terraform/new-service.yaml << 'EOF'
+cat > projects/home-lab/secrets/terraform/new-service.yaml << 'EOF'
 api_key: "your-secret-key"
 password: "your-password"
 EOF
 
 # Encrypt in place
-sops -e -i v5/projects/home-lab/secrets/terraform/new-service.yaml
+sops -e -i projects/home-lab/secrets/terraform/new-service.yaml
 
 # Verify encryption
-head -5 v5/projects/home-lab/secrets/terraform/new-service.yaml
+head -5 projects/home-lab/secrets/terraform/new-service.yaml
 # Should show: api_key: ENC[AES256_GCM,data:...,iv:...,tag:...]
 ```
 
@@ -151,11 +151,11 @@ head -5 v5/projects/home-lab/secrets/terraform/new-service.yaml
 When done working:
 
 ```bash
-./v5/scripts/secrets/lock-secrets.sh
+./scripts/secrets/lock-secrets.sh
 ```
 
 ```powershell
-./v5/scripts/secrets/lock-secrets.ps1
+./scripts/secrets/lock-secrets.ps1
 ```
 
 This removes the plaintext key from the default SOPS age key path.
@@ -165,7 +165,7 @@ This removes the plaintext key from the default SOPS age key path.
 ## Directory Structure
 
 ```
-v5/projects/home-lab/secrets/
+projects/home-lab/secrets/
 ├── .sops.yaml              # SOPS configuration (age recipients)
 ├── devkey.age              # Dev key (daily operations, passphrase-protected)
 ├── devkey.pub              # Dev public key
@@ -184,12 +184,12 @@ v5/projects/home-lab/secrets/
 └── bootstrap/              # Bootstrap secrets
 ```
 
-Each file in `v5/projects/home-lab/secrets/instances/` corresponds to an instance in `v5/projects/home-lab/instances/` by matching `instance` ID.
+Each file in `projects/home-lab/secrets/instances/` corresponds to an instance in `projects/home-lab/instances/` by matching `instance` ID.
 
 Naming rule:
 
 - side-car file name MUST be exactly `<instance>.yaml`
-- for `instance: rtr-slate` the side-car path is `v5/projects/home-lab/secrets/instances/rtr-slate.yaml`
+- for `instance: rtr-slate` the side-car path is `projects/home-lab/secrets/instances/rtr-slate.yaml`
 
 Secret resolution rule:
 
@@ -221,7 +221,7 @@ hardware_identity:
     wan: "@optional_secret:mac"
 ```
 
-Typed formats are resolved via `v5/topology-tools/data/instance-field-formats.yaml`.
+Typed formats are resolved via `topology-tools/data/instance-field-formats.yaml`.
 
 ---
 
@@ -240,7 +240,7 @@ ssh admin@192.168.88.1
 
 Copy values to secrets file:
 ```bash
-sops v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml
+sops projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml
 ```
 
 ### GL.iNet (OpenWrt)
@@ -292,24 +292,24 @@ ip -o link show | awk '{print $2, $(NF-2)}'
 
 **Fix:**
 ```bash
-./v5/scripts/secrets/unlock-secrets.sh
+./scripts/secrets/unlock-secrets.sh
 # Enter correct passphrase
 ```
 
 ### "sops: no matching creation rule"
 
-**Cause:** File not in `v5/projects/home-lab/secrets/` directory or wrong extension.
+**Cause:** File not in `projects/home-lab/secrets/` directory or wrong extension.
 
-**Fix:** Ensure file is in `v5/projects/home-lab/secrets/**/*.yaml` path.
+**Fix:** Ensure file is in `projects/home-lab/secrets/**/*.yaml` path.
 
 ### Pre-commit hook fails: "ERROR: file is not encrypted!"
 
-**Cause:** Attempting to commit plaintext YAML in `v5/projects/home-lab/secrets/`.
+**Cause:** Attempting to commit plaintext YAML in `projects/home-lab/secrets/`.
 
 **Fix:**
 ```bash
-./v5/scripts/secrets/unlock-secrets.sh
-sops -e -i v5/projects/home-lab/secrets/path/to/file.yaml
+./scripts/secrets/unlock-secrets.sh
+sops -e -i projects/home-lab/secrets/path/to/file.yaml
 ```
 
 ### Forgot passphrase
@@ -329,34 +329,34 @@ Rotate the devkey periodically or if compromised:
 
 ```bash
 # 1. Unlock with current passphrase
-./v5/scripts/secrets/unlock-secrets.sh
+./scripts/secrets/unlock-secrets.sh
 
 # 2. Generate new keypair
 age-keygen > /tmp/new-devkey.key
 NEW_PUB=$(grep "public key:" /tmp/new-devkey.key | cut -d: -f2 | tr -d ' ')
 
 # 3. Re-encrypt all secrets with new key
-for f in v5/projects/home-lab/secrets/{instances,terraform,ansible,bootstrap}/*.yaml; do
+for f in projects/home-lab/secrets/{instances,terraform,ansible,bootstrap}/*.yaml; do
     [ -f "$f" ] || continue
     sops -d "$f" | sops -e --age "$NEW_PUB" /dev/stdin > "$f.new"
     mv "$f.new" "$f"
 done
 
 # 4. Update .sops.yaml
-sed -i "s/age1.*/$NEW_PUB/" v5/projects/home-lab/secrets/.sops.yaml
+sed -i "s/age1.*/$NEW_PUB/" projects/home-lab/secrets/.sops.yaml
 
 # 5. Encrypt new key with NEW passphrase
-age -p -o v5/projects/home-lab/secrets/devkey.age /tmp/new-devkey.key
-echo "$NEW_PUB" > v5/projects/home-lab/secrets/devkey.pub
+age -p -o projects/home-lab/secrets/devkey.age /tmp/new-devkey.key
+echo "$NEW_PUB" > projects/home-lab/secrets/devkey.pub
 
 # 6. Cleanup
 shred -u /tmp/new-devkey.key
 
 # 7. Lock old session
-./v5/scripts/secrets/lock-secrets.sh
+./scripts/secrets/lock-secrets.sh
 
 # 8. Commit
-git add v5/projects/home-lab/secrets/
+git add projects/home-lab/secrets/
 git commit -m "chore(secrets): rotate devkey"
 ```
 
@@ -387,12 +387,12 @@ jobs:
       - name: Unlock secrets
         run: |
           mkdir -p ~/.config/sops/age
-          echo "$DEVKEY_PASSPHRASE" | age -d v5/projects/home-lab/secrets/devkey.age > ~/.config/sops/age/keys.txt
+          echo "$DEVKEY_PASSPHRASE" | age -d projects/home-lab/secrets/devkey.age > ~/.config/sops/age/keys.txt
           chmod 600 ~/.config/sops/age/keys.txt
 
       - name: Compile with secrets
         run: |
-          python v5/topology-tools/compile-topology.py --secrets-mode inject
+          python topology-tools/compile-topology.py --secrets-mode inject
 
       - name: Cleanup
         if: always()
@@ -405,16 +405,16 @@ jobs:
 
 1. **Lock secrets when not in use**
    ```bash
-   ./v5/scripts/secrets/lock-secrets.sh
+   ./scripts/secrets/lock-secrets.sh
    ```
 
 2. **Never commit plaintext secrets**
    - Pre-commit hook will block unencrypted files
-   - Always verify with `head -5 v5/projects/home-lab/secrets/file.yaml` before commit
+   - Always verify with `head -5 projects/home-lab/secrets/file.yaml` before commit
 
 3. **Use `sops` command for editing**
    - Never manually edit encrypted files
-   - Use `sops v5/projects/home-lab/secrets/file.yaml` to edit
+   - Use `sops projects/home-lab/secrets/file.yaml` to edit
 
 4. **Backup passphrase physically**
    - Write on paper
@@ -431,17 +431,17 @@ jobs:
 
 | Task | Command |
 |------|---------|
-| Unlock secrets | `./v5/scripts/secrets/unlock-secrets.sh` or `./v5/scripts/secrets/unlock-secrets.ps1` |
-| Lock secrets | `./v5/scripts/secrets/lock-secrets.sh` or `./v5/scripts/secrets/lock-secrets.ps1` |
-| View file | `sops -d v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml` |
-| Edit file | `sops v5/projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml` |
-| Encrypt new file | `sops -e -i v5/projects/home-lab/secrets/instances/new-device.yaml` |
+| Unlock secrets | `./scripts/secrets/unlock-secrets.sh` or `./scripts/secrets/unlock-secrets.ps1` |
+| Lock secrets | `./scripts/secrets/lock-secrets.sh` or `./scripts/secrets/lock-secrets.ps1` |
+| View file | `sops -d projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml` |
+| Edit file | `sops projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml` |
+| Encrypt new file | `sops -e -i projects/home-lab/secrets/instances/new-device.yaml` |
 | Check status | `ls ~/.config/sops/age/keys.txt` |
-| Compile with secrets | `python v5/topology-tools/compile-topology.py --secrets-mode inject` |
-| Compile with strict secret policy | `python v5/topology-tools/compile-topology.py --secrets-mode strict` |
-| Compile without secrets | `python v5/topology-tools/compile-topology.py --secrets-mode passthrough` |
-| Generate Terraform tfvars | `python v5/scripts/terraform/generate-tfvars.py all` |
-| Cleanup Terraform tfvars | `python v5/scripts/terraform/generate-tfvars.py all --cleanup` |
+| Compile with secrets | `python topology-tools/compile-topology.py --secrets-mode inject` |
+| Compile with strict secret policy | `python topology-tools/compile-topology.py --secrets-mode strict` |
+| Compile without secrets | `python topology-tools/compile-topology.py --secrets-mode passthrough` |
+| Generate Terraform tfvars | `python scripts/terraform/generate-tfvars.py all` |
+| Cleanup Terraform tfvars | `python scripts/terraform/generate-tfvars.py all --cleanup` |
 
 ---
 

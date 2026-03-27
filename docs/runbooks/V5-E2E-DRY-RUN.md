@@ -20,7 +20,7 @@
 
 ## 2. Preconditions
 
-- `project.active` корректно задан в `v5/topology/topology.yaml`
+- `project.active` корректно задан в `topology/topology.yaml`
 - секреты разблокированы (`sops` + `age`)
 - доступны `terraform` и `ansible-core`
 - подготовлен тестовый стенд/окно обслуживания
@@ -33,18 +33,18 @@
 
 ```powershell
 $env:V5_SECRETS_MODE='inject'
-python v5/scripts/orchestration/lane.py validate-v5
+python scripts/orchestration/lane.py validate-v5
 ```
 
 ### 3.2 Generate artifacts (project-qualified)
 
 ```powershell
-python v5/topology-tools/compile-topology.py `
-  --topology v5/topology/topology.yaml `
+python topology-tools/compile-topology.py `
+  --topology topology/topology.yaml `
   --strict-model-lock `
   --secrets-mode inject `
   --parallel-plugins `
-  --artifacts-root v5-generated
+  --artifacts-root generated
 ```
 
 Примечание: `compile-topology.py` использует параллельный запуск плагинов по умолчанию.
@@ -53,37 +53,37 @@ python v5/topology-tools/compile-topology.py `
 ### 3.3 Assemble ansible runtime
 
 ```powershell
-python v5/topology-tools/assemble-ansible-runtime.py `
-  --topology v5/topology/topology.yaml `
+python topology-tools/assemble-ansible-runtime.py `
+  --topology topology/topology.yaml `
   --env production
 ```
 
 ### 3.4 Terraform checks
 
 ```powershell
-terraform -chdir=v5-generated/home-lab/terraform/proxmox init -backend=false -input=false
-terraform -chdir=v5-generated/home-lab/terraform/proxmox fmt -check
-terraform -chdir=v5-generated/home-lab/terraform/proxmox validate
+terraform -chdir=generated/home-lab/terraform/proxmox init -backend=false -input=false
+terraform -chdir=generated/home-lab/terraform/proxmox fmt -check
+terraform -chdir=generated/home-lab/terraform/proxmox validate
 
-terraform -chdir=v5-generated/home-lab/terraform/mikrotik init -backend=false -input=false
-terraform -chdir=v5-generated/home-lab/terraform/mikrotik fmt -check
-terraform -chdir=v5-generated/home-lab/terraform/mikrotik validate
+terraform -chdir=generated/home-lab/terraform/mikrotik init -backend=false -input=false
+terraform -chdir=generated/home-lab/terraform/mikrotik fmt -check
+terraform -chdir=generated/home-lab/terraform/mikrotik validate
 ```
 
 ### 3.5 Terraform dry-run plan
 
 ```powershell
-terraform -chdir=v5-generated/home-lab/terraform/proxmox plan -refresh=false
-terraform -chdir=v5-generated/home-lab/terraform/mikrotik plan -refresh=false
+terraform -chdir=generated/home-lab/terraform/proxmox plan -refresh=false
+terraform -chdir=generated/home-lab/terraform/mikrotik plan -refresh=false
 ```
 
 ### 3.6 Ansible inventory and check mode
 
 ```powershell
-ansible-inventory -i v5-generated/home-lab/ansible/runtime/production/hosts.yml --list > $null
+ansible-inventory -i generated/home-lab/ansible/runtime/production/hosts.yml --list > $null
 
 ansible-playbook `
-  -i v5-generated/home-lab/ansible/runtime/production/hosts.yml `
+  -i generated/home-lab/ansible/runtime/production/hosts.yml `
   ansible/playbooks/site.yml `
   --check
 ```
@@ -102,7 +102,7 @@ ansible-playbook `
 
 ## 5. Evidence to Capture
 
-- `v5-build/diagnostics/report.json`
+- `build/diagnostics/report.json`
 - `terraform plan` logs for proxmox/mikrotik
 - ansible `--check` output
 - список intentional diffs/waivers (если есть)

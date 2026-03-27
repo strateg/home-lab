@@ -126,7 +126,7 @@ python topology-tools/compile-topology.py `
   --topology topology/topology.yaml `
   --strict-model-lock `
   --secrets-mode passthrough `
-  --artifacts-root v5-generated
+  --artifacts-root generated
 ```
 
 Для external project-репозитория через submodule:
@@ -136,8 +136,7 @@ if (Test-Path .\framework\topology-tools\compile-topology.py) {
   $frameworkTools = ".\framework\topology-tools"
   $frameworkManifest = ".\framework\framework.yaml"
 } else {
-  $frameworkTools = ".\framework\v5\topology-tools"
-  $frameworkManifest = ".\framework\v5\topology\framework.yaml"
+  throw "Expected root-layout framework submodule at .\\framework\\topology-tools"
 }
 
 python "$frameworkTools/verify-framework-lock.py" `

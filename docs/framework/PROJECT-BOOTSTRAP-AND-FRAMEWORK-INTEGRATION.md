@@ -17,7 +17,7 @@
 Если нужен сразу готовый skeleton с каталогами `L0..L7`, подключенным framework и compile-check:
 
 ```powershell
-python v5/topology-tools/init-project-repo.py `
+python topology-tools/init-project-repo.py `
   --output-root D:/work/new-project `
   --project-id home-lab `
   --framework-submodule-url https://github.com/<org>/infra-topology-framework.git `
@@ -36,7 +36,7 @@ python v5/topology-tools/init-project-repo.py `
 Если нужно подключение через готовый distribution zip (package mode):
 
 ```powershell
-python v5/topology-tools/init-project-repo.py `
+python topology-tools/init-project-repo.py `
   --output-root D:/work/new-project `
   --project-id home-lab `
   --framework-dist-zip D:/artifacts/infra-topology-framework-1.0.8.zip `

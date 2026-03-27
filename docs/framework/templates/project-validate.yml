@@ -29,8 +29,8 @@ jobs:
             echo "FRAMEWORK_TOOLS=framework/topology-tools" >> "$GITHUB_ENV"
             echo "FRAMEWORK_MANIFEST=framework/framework.yaml" >> "$GITHUB_ENV"
           else
-            echo "FRAMEWORK_TOOLS=framework/v5/topology-tools" >> "$GITHUB_ENV"
-            echo "FRAMEWORK_MANIFEST=framework/v5/topology/framework.yaml" >> "$GITHUB_ENV"
+            echo "Expected root-layout framework submodule at framework/topology-tools and framework/framework.yaml"
+            exit 1
           fi
 
       - name: Verify framework lock

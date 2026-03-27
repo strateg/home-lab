@@ -45,15 +45,15 @@ task framework:release-candidate FRAMEWORK_VERSION=1.0.8
 
 Что делает pipeline:
 
-1. `framework:lock-refresh` -> синхронизация `v5/projects/home-lab/framework.lock.yaml` с текущим framework (`generate-framework-lock --force`).
+1. `framework:lock-refresh` -> синхронизация `projects/home-lab/framework.lock.yaml` с текущим framework (`generate-framework-lock --force`).
 2. `framework:release-preflight` -> повторная lock sync + v5 lane validate + strict lock gates + framework-focused tests.
 3. `framework:release-build` -> сборка дистрибутива (`zip`, `tar.gz`, `checksums`, dist manifest).
 4. `framework:release-bootstrap` -> подготовка standalone `infra-topology-framework` кандидата с release workflow шаблоном.
 
 Артефакты по умолчанию:
 
-1. `v5-dist/framework/<framework-id>/<version>/...`
-2. `v5-build/infra-topology-framework-bootstrap/...`
+1. `dist/framework/<framework-id>/<version>/...`
+2. `build/infra-topology-framework-bootstrap/...`
 
 ---
 

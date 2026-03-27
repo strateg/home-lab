@@ -1,7 +1,7 @@
 # Diagnostics Catalog (Canonical)
 
 **Updated:** 2026-03-20
-**Source of truth:** `v5/topology-tools/data/error-catalog.yaml`
+**Source of truth:** `topology-tools/data/error-catalog.yaml`
 
 ---
 
@@ -11,7 +11,7 @@ This document provides a human-readable index of diagnostic code ownership and n
 
 For exact titles/hints/severity, always use:
 
-- `v5/topology-tools/data/error-catalog.yaml`
+- `topology-tools/data/error-catalog.yaml`
 
 ---
 
