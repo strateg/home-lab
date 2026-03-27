@@ -100,7 +100,9 @@ python -c "import json;d=json.load(open('build/diagnostics/report.json',encoding
 
 ## 6. Hardware Identity Patch Flow (ADR0074 Wave 2.4)
 
-Для закрытия секретных hardware identity полей по аннотациям используйте:
+Повторяемый workflow закрытия hardware identity:
+
+1. Сгенерировать patch-шаблоны по текущим аннотациям:
 
 ```powershell
 python topology-tools/discover-hardware-identity.py `
@@ -108,17 +110,24 @@ python topology-tools/discover-hardware-identity.py `
   --project home-lab
 ```
 
-Результат:
+2. Заполнить значения в `build/hardware-identity-discovery.yaml` (или в generated patch-файлах):
 
 - patch-файлы `build/hardware-identity-patches/<project>/<instance>.yaml`
 - поля формируются из секретных аннотаций `hardware_identity.*` и интерфейсных `@*_secret:mac`.
 
-Если есть внешний дамп обнаруженных значений:
+3. Применить только обнаруженные значения:
 
 ```powershell
 python topology-tools/discover-hardware-identity.py `
   --discovery-file build/hardware-identity-discovery.yaml `
   --only-discovered
+```
+
+4. Скопировать значения из patch-файлов в соответствующие `projects/<project>/topology/instances/**` и проверить gate:
+
+```powershell
+python -m pytest -o addopts= tests/test_strict_profile_placeholder_contract.py -q
+task validate:v5
 ```
 
 Где `discovery-file` может быть формата:

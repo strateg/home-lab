@@ -300,18 +300,18 @@ v5 architecture is **operational for deployable artifacts** with:
 
 ### 7.2 Instance Updates
 
-- [ ] Replace placeholder identities in `v5/projects/home-lab/instances/L1-foundation/devices/` where still unresolved.
-- [ ] Ensure identity fields satisfy ADR0068 format rules.
+- [x] Replace placeholder identities/placeholders in strict-gated instance shards (`projects/home-lab/topology/instances/**`).
+- [x] Ensure identity-related fields satisfy ADR0068 format rules.
 
 ### 7.3 Enforcement Gate
 
-- [ ] Keep `E6806` enforcement mode in strict mode.
-- [ ] Add CI check that blocks unresolved placeholder markers in strict profiles.
+- [x] Keep `E6806` enforcement mode in strict mode.
+- [x] Add CI check that blocks unresolved placeholder markers in strict profiles (`tests/test_strict_profile_placeholder_contract.py`).
 
 ### Phase 7 Definition of Done
 
-- [ ] no unresolved placeholder markers remain in strict-gated instance shards.
-- [ ] identity capture process is repeatable and documented.
+- [x] no unresolved placeholder markers remain in strict-gated instance shards.
+- [x] identity capture process is repeatable and documented.
 
 ---
 
@@ -488,7 +488,7 @@ V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templ
 
 - [x] ADR 0069 status promotion completed (`Accepted`, evidence in register + cutover docs).
 - [x] ADR 0068 enforcement policy rollout completed (`warn` → `warn+gate-new` → `enforce`).
-- [ ] ADR 0068 placeholder closure: remove remaining unresolved placeholders from strict-gated profiles and fixtures.
+- [x] ADR 0068 placeholder closure: strict-gated profiles are free of unresolved placeholders; CI guard added.
 - [ ] Remove stale contract examples and normalize to canonical IDs.
 
 ### 11.2 P1 Items
@@ -508,7 +508,7 @@ V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templ
 ### Phase 11 Definition of Done
 
 - [x] ADR 0069 is `Accepted`.
-- [ ] E6806 enforce mode blocks unresolved placeholders deterministically.
+- [x] E6806 enforce mode blocks unresolved placeholders deterministically.
 - [ ] All 7 cross-layer relations have owner, validator, and acceptance test.
 - [ ] No stale "planned" or contradictory statements in active ADR docs.
 
@@ -582,7 +582,7 @@ V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templ
 
 1. **Generator parity:** ✅ v5 emits Terraform/Ansible/bootstrap outputs equivalent to v4 baseline (validated 2026-03-24).
 2. **Deterministic artifacts:** ✅ Repeated runs produce stable outputs.
-3. **Strict placeholder compliance:** Partial — E6806 defined but not fully enforced (Phase 11).
+3. **Strict placeholder compliance:** ✅ Enforced — strict-gated instance placeholders are CI-blocked (2026-03-27).
 4. **Deployable workflow:** ✅ `terraform plan/apply` and Ansible runs succeed using v5-generated artifacts.
 5. **Operational cutover:** Partial — v5 is default lane; v4 still active as fallback (Phase 9).
 6. **Documentation parity:** Not started — 3/19 templates (Phase 10).
@@ -661,7 +661,7 @@ Progress is tracked in:
 
 | Phase | Status | Blocking? |
 |-------|--------|-----------|
-| Phase 7: Hardware Identity | Partial (discovery utility done, identities pending) | P0 |
+| Phase 7: Hardware Identity | Completed (placeholder closure + strict CI gate, 2026-03-27) | - |
 | Phase 8.3: Cutover Docs | README updates remaining | P1 |
 | Phase 9: V4 Validator Cutover | Active (staged, all rows Covered/Partial) | P0 |
 | Phase 10: Docs/Diagrams | Active (ADR 0079 accepted, 0/6 phases delivered) | P1 |

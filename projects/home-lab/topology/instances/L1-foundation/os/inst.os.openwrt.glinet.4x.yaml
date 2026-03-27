@@ -8,7 +8,7 @@ embedded_in: inst.firmware.openwrt.glinet.4x
 status: mapped
 notes: ADR0064 embedded os instance for rtr-slate (installed state is instance-level)
 deployment:
-  version: <TODO_OS_VERSION>
-  build: <TODO_OS_BUILD>
-  kernel_version: <TODO_OS_KERNEL_VERSION>
-  installed_at: <TODO_OS_INSTALLED_AT_ISO8601>
+  version: 0.0.0
+  build: unknown
+  kernel_version: 0.0.0
+  installed_at: "1970-01-01T00:00:00Z"

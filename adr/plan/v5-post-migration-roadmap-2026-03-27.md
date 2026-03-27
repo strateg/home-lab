@@ -70,10 +70,10 @@
 
 ## Wave B - E6806 and Strict Identity Enforcement (P0)
 
-- [ ] Replace remaining placeholder identities in active strict profiles.
-- [ ] Enforce unresolved-placeholder blocking in strict mode.
-- [ ] Add CI gate for unresolved placeholders on strict profiles.
-- [ ] Document repeatable identity capture workflow.
+- [x] Replace remaining placeholder identities in active strict profiles.
+- [x] Enforce unresolved-placeholder blocking in strict mode.
+- [x] Add CI gate for unresolved placeholders on strict profiles.
+- [x] Document repeatable identity capture workflow.
 
 **Gate:**
 

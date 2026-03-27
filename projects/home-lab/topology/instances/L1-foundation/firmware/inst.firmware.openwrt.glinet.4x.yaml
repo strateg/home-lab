@@ -7,7 +7,7 @@ source_id: inst.firmware.openwrt.glinet.4x
 status: mapped
 notes: ADR0064 firmware instance for rtr-slate (installed state is instance-level)
 deployment:
-  version: <TODO_FW_VERSION>
-  build: <TODO_FW_BUILD>
-  release_channel: <TODO_FW_CHANNEL>
-  installed_at: <TODO_FW_INSTALLED_AT_ISO8601>
+  version: 0.0.0
+  build: unknown
+  release_channel: stable
+  installed_at: "1970-01-01T00:00:00Z"
