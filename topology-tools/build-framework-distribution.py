@@ -29,13 +29,7 @@ class BuildConfig:
 
 
 def _default_repo_root() -> Path:
-    tools_dir = Path(__file__).resolve().parent
-    parent = tools_dir.parent
-    if (parent / "framework.yaml").exists():
-        return parent
-    if (parent / "topology" / "framework.yaml").exists():
-        return parent
-    return parent
+    return Path(__file__).resolve().parent.parent
 
 
 def _default_framework_manifest() -> Path:
