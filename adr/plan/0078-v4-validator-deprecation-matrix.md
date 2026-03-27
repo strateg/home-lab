@@ -115,7 +115,7 @@
 2. Latest parity run status:
    - `task test:parity-v4-v5` -> PASS (`22 passed`, `3 skipped`)
    - `task ci:topology-parity-v4-v5` -> PASS
-   - `task ci:local-with-legacy` -> PASS
+   - `task ci:local-with-legacy` -> PASS (`606 passed`, `3 skipped`; acceptance `10 passed`)
 3. Archive baseline parity drift gate now runs inside parity CI lane:
    - `task framework:archive-v4-compile` -> PASS (`errors=0`)
    - diagnostics persisted in `build/diagnostics/v4-archive-*`.
@@ -125,3 +125,5 @@
    - `pytest_v5`
    - `lane_validate_v5`
    - `python topology-tools/cutover-readiness-report.py --output-json build/diagnostics/cutover-readiness-full-latest.json` -> PASS
+5. Root-layout docs guard added for operator docs/tooling references:
+   - `tests/test_root_layout_docs_contract.py` enforces no active-doc regressions to legacy `v5/*` path prefixes.
