@@ -1,0 +1,89 @@
+---
+# Monitoring stack role tasks
+
+- name: Install container runtime packages
+  apt:
+    name:
+      - docker.io
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure Docker service is enabled and started
+  service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Ensure monitoring directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ monitoring_stack_owner }}"
+    group: "{{ monitoring_stack_group }}"
+    mode: "0755"
+  loop:
+    - "{{ monitoring_stack_root }}"
+    - "{{ monitoring_stack_root }}/config"
+    - "{{ monitoring_stack_root }}/config/prometheus"
+    - "{{ monitoring_stack_root }}/config/loki"
+    - "{{ monitoring_stack_root }}/config/alertmanager"
+    - "{{ monitoring_stack_root }}/data"
+    - "{{ monitoring_stack_root }}/data/prometheus"
+    - "{{ monitoring_stack_root }}/data/loki"
+    - "{{ monitoring_stack_root }}/data/grafana"
+
+- name: Render docker-compose stack file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ monitoring_stack_root }}/docker-compose.yml"
+    owner: "{{ monitoring_stack_owner }}"
+    group: "{{ monitoring_stack_group }}"
+    mode: "0644"
+
+- name: Render Prometheus config
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ monitoring_stack_root }}/config/prometheus/prometheus.yml"
+    owner: "{{ monitoring_stack_owner }}"
+    group: "{{ monitoring_stack_group }}"
+    mode: "0644"
+
+- name: Render Loki config
+  template:
+    src: loki-config.yml.j2
+    dest: "{{ monitoring_stack_root }}/config/loki/loki-config.yml"
+    owner: "{{ monitoring_stack_owner }}"
+    group: "{{ monitoring_stack_group }}"
+    mode: "0644"
+
+- name: Render Alertmanager config
+  template:
+    src: alertmanager.yml.j2
+    dest: "{{ monitoring_stack_root }}/config/alertmanager/alertmanager.yml"
+    owner: "{{ monitoring_stack_owner }}"
+    group: "{{ monitoring_stack_group }}"
+    mode: "0644"
+
+- name: Pull monitoring container images
+  command: docker compose pull
+  args:
+    chdir: "{{ monitoring_stack_root }}"
+  when:
+    - monitoring_apply | bool
+    - not ansible_check_mode
+
+- name: Start monitoring stack
+  command: docker compose up -d
+  args:
+    chdir: "{{ monitoring_stack_root }}"
+  when:
+    - monitoring_apply | bool
+    - not ansible_check_mode
+
+- name: Display monitoring role summary
+  debug:
+    msg:
+      - "Monitoring stack files rendered at {{ monitoring_stack_root }}"
+      - "Set monitoring_apply=true to pull/up containers."

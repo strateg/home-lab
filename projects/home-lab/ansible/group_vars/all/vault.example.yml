@@ -1,0 +1,8 @@
+---
+# Copy to vault.yml (encrypted) and replace placeholders.
+
+vault_postgresql_superuser_password: "changeme-postgresql-superuser-password"
+vault_postgresql_app_password: "changeme-postgresql-app-password"
+vault_redis_password: "changeme-redis-password"
+vault_nextcloud_admin_password: "changeme-nextcloud-admin-password"
+vault_nextcloud_db_password: "changeme-nextcloud-db-password"

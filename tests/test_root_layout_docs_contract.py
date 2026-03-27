@@ -7,8 +7,16 @@ from pathlib import Path
 
 ACTIVE_DOCS = [
     "README.md",
+    "README-РУССКИЙ.md",
     "docs/diagnostics-catalog.md",
     "docs/secrets-management.md",
+    "docs/runbooks/README.md",
+    "docs/runbooks/DEPLOYMENT-PROCEDURES.md",
+    "docs/runbooks/TROUBLESHOOTING-INFRA-COMPONENTS.md",
+    "docs/runbooks/BACKUP-RESTORE-PROCEDURES.md",
+    "docs/runbooks/DISASTER-RECOVERY-PLAYBOOK.md",
+    "docs/runbooks/MONITORING-ALERT-RUNBOOKS.md",
+    "docs/runbooks/SERVICE-DEPLOYMENT-CHAIN-VALIDATION.md",
     "docs/runbooks/V5-E2E-DRY-RUN.md",
     "docs/framework/FRAMEWORK-V5.md",
     "docs/framework/OPERATOR-WORKFLOWS.md",
@@ -22,6 +30,7 @@ ACTIVE_DOCS = [
     "topology-tools/docs/MANUAL-ARTIFACT-BUILD.md",
     "topology-tools/docs/ENVIRONMENT-SETUP.md",
     "topology-tools/docs/PLUGIN_AUTHORING.md",
+    "projects/home-lab/ansible/README.md",
 ]
 
 LEGACY_PATH_TOKENS = [

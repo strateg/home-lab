@@ -1,0 +1,23 @@
+---
+# Time Synchronization Tasks
+
+- name: Install chrony
+  apt:
+    name: chrony
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Configure chrony NTP servers
+  lineinfile:
+    path: /etc/chrony/chrony.conf
+    regexp: '^pool '
+    line: "pool {{ item }} iburst"
+    state: present
+  loop: "{{ ntp_servers }}"
+  notify: restart chrony
+
+- name: Ensure chrony is enabled and started
+  systemd:
+    name: chrony
+    enabled: yes
+    state: started

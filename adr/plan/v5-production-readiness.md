@@ -1,9 +1,9 @@
 # V5 Production Readiness Plan
 
 **Created:** 2026-03-15
-**Revised:** 2026-03-27
+**Revised:** 2026-03-28
 **Goal:** Complete v4→v5 migration and achieve full production parity
-**Current State:** Core infrastructure generation operational (Phases 0-6 complete, E2E validated 2026-03-24). Remaining: hardware identity closure, v4 validator parity cutover, documentation/diagram generation migration, operational documentation.
+**Current State:** Core infrastructure generation operational (Phases 0-6 complete, E2E validated 2026-03-24). Remaining: v4 validator parity cutover, docs icon-pack hardening, cross-layer relation backlog, service-chain execution evidence + secret distribution integration.
 
 ---
 
@@ -25,7 +25,7 @@ v5 architecture is **operational for deployable artifacts** with:
 - P0: Hardware identity closure (Phase 7), v4 validator staged cutover
 - P1: Documentation & diagram generation (ADR 0079, template parity delivered; icon-pack runtime hardening pending)
 - P1: Cross-layer relation validators (ADR 0062)
-- P2: Operational runbooks and multi-repo extraction (ADR 0076)
+- P2: Service-chain execution evidence, secret distribution and advanced infra backlog (Phase 12.2/12.3), optional multi-repo extraction (ADR 0076)
 
 ---
 
@@ -342,10 +342,10 @@ v5 architecture is **operational for deployable artifacts** with:
 
 ### 8.3 Documentation and ADR Updates
 
-- [ ] Update `README.md` and `README-РУССКИЙ.md` with v5 deploy workflow.
+- [x] Update `README.md` and `README-РУССКИЙ.md` with v5 deploy workflow.
 - [x] Update `topology-tools/docs/MANUAL-ARTIFACT-BUILD.md` with new artifact roots.
 - [x] Create ADR for v5 generator architecture and update ADR cutover milestones.
-- [ ] Mark v4 lane as maintenance-only once v5 deployment gate is stable.
+- [x] Mark v4 lane as maintenance-only once v5 deployment gate is stable.
 
 ### 8.4 Cosmetic Warning Cleanup
 
@@ -358,7 +358,7 @@ v5 architecture is **operational for deployable artifacts** with:
 - [x] v5 lane is operational for deployable artifacts.
 - [x] CI gate is fully green on plugin/generator/parity checks.
 - [x] runbook published: `docs/runbooks/V5-E2E-DRY-RUN.md`.
-- [ ] v4 lane marked maintenance-only in README.
+- [x] v4 lane marked maintenance-only in README.
 
 ---
 
@@ -517,22 +517,22 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 ## Phase 12: Operational Readiness (NEW)
 
 **Prerequisite:** Phases 8, 10
-**Status:** Not started
+**Status:** Active (operational runbooks baseline delivered; service integration pending)
 
 ### 12.1 Operational Documentation
 
-- [ ] Deployment procedures (step-by-step for Proxmox, MikroTik, services).
-- [ ] Troubleshooting guides per infrastructure component.
-- [ ] Backup/restore procedures.
-- [ ] Disaster recovery playbook.
-- [ ] Monitoring alert runbooks.
+- [x] Deployment procedures (step-by-step for Proxmox, MikroTik, services).
+- [x] Troubleshooting guides per infrastructure component.
+- [x] Backup/restore procedures.
+- [x] Disaster recovery playbook.
+- [x] Monitoring alert runbooks.
 
 ### 12.2 Ansible Service Playbooks Integration
 
-- [ ] Full Nextcloud deployment playbook (role exists, needs integration).
-- [ ] Full PostgreSQL deployment playbook (role exists, needs integration).
-- [ ] Full Redis deployment playbook (role exists, needs integration).
-- [ ] Monitoring stack playbooks (Prometheus, Grafana, Loki, AlertManager).
+- [x] Full Nextcloud deployment playbook integrated under `projects/home-lab/ansible/playbooks/nextcloud.yml`.
+- [x] Full PostgreSQL deployment playbook integrated under `projects/home-lab/ansible/playbooks/postgresql.yml`.
+- [x] Full Redis deployment playbook integrated under `projects/home-lab/ansible/playbooks/redis.yml`.
+- [x] Monitoring stack playbooks integrated under `projects/home-lab/ansible/playbooks/monitoring.yml`.
 - [ ] Secret distribution via Ansible (SOPS/age integration per ADR 0072).
 
 ### 12.3 Advanced Infrastructure
@@ -543,7 +543,7 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 
 ### Phase 12 Definition of Done
 
-- [ ] All operational runbooks published in `docs/runbooks/`.
+- [x] All operational runbooks published in `docs/runbooks/`.
 - [ ] Service deployment chain tested: topology → compile → generate → terraform apply → ansible deploy.
 - [ ] DR procedures validated with documented recovery time.
 
@@ -662,9 +662,9 @@ Progress is tracked in:
 | Phase | Status | Blocking? |
 |-------|--------|-----------|
 | Phase 7: Hardware Identity | Completed (placeholder closure + strict CI gate, 2026-03-27) | - |
-| Phase 8.3: Cutover Docs | README updates remaining | P1 |
+| Phase 8.3: Cutover Docs | Completed (README + README-РУССКИЙ v5 workflow and maintenance-only policy, 2026-03-28) | - |
 | Phase 9: V4 Validator Cutover | Active (staged, all rows Covered/Partial) | P0 |
 | Phase 10: Docs/Diagrams | Active (template parity delivered; icon-pack runtime hardening pending) | P1 |
 | Phase 11: ADR Backlog | Active (governance closure done; relation backlog pending) | P1 |
-| Phase 12: Operational Readiness | Not started | P2 |
+| Phase 12: Operational Readiness | Active (runbooks + service playbooks integrated; secret distribution and advanced infra pending) | P2 |
 | Phase 13: Multi-Repo | Deferred | P2 |

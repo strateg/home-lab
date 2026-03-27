@@ -1,0 +1,22 @@
+# PostgreSQL Client Authentication Configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+
+# Local connections
+local   all             all                                     peer
+
+# IPv4 local connections
+host    all             all             127.0.0.1/32            {{ postgresql_host_auth_method }}
+
+# IPv6 local connections
+host    all             all             ::1/128                 {{ postgresql_host_auth_method }}
+
+# Allow connections from LXC internal network
+host    all             all             10.0.30.0/24            {{ postgresql_host_auth_method }}
+
+# Allow connections from user network
+host    all             all             192.168.20.0/24         {{ postgresql_host_auth_method }}
+
+# Replication connections
+host    replication     all             10.0.30.0/24            {{ postgresql_host_auth_method }}

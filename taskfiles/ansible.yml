@@ -1,0 +1,124 @@
+version: "3"
+
+vars:
+  PROJECT_ID: '{{default "home-lab" .PROJECT_ID}}'
+  ENV: '{{default "production" .ENV}}'
+  PLAYBOOK_ROOT: "projects/{{.PROJECT_ID}}/ansible/playbooks"
+  PROJECT_ANSIBLE_ROOT: "projects/{{.PROJECT_ID}}/ansible"
+  INVENTORY_RUNTIME: "generated/{{.PROJECT_ID}}/ansible/runtime/{{.ENV}}/hosts.yml"
+  ANSIBLE_PLAYBOOK:
+    sh: |
+      if [ -f .venv/bin/ansible-playbook ]; then echo ".venv/bin/ansible-playbook"
+      elif [ -f .venv/Scripts/ansible-playbook.exe ]; then echo ".venv/Scripts/ansible-playbook.exe"
+      elif command -v ansible-playbook >/dev/null 2>&1; then echo "ansible-playbook"
+      else echo "ansible-playbook"
+      fi
+  ANSIBLE_GALAXY:
+    sh: |
+      if [ -f .venv/bin/ansible-galaxy ]; then echo ".venv/bin/ansible-galaxy"
+      elif [ -f .venv/Scripts/ansible-galaxy.exe ]; then echo ".venv/Scripts/ansible-galaxy.exe"
+      elif command -v ansible-galaxy >/dev/null 2>&1; then echo "ansible-galaxy"
+      else echo "ansible-galaxy"
+      fi
+
+tasks:
+  install-collections:
+    desc: Install required Ansible collections for project service roles
+    preconditions:
+      - sh: "{{.ANSIBLE_GALAXY}} --version >/dev/null 2>&1"
+        msg: "ansible-galaxy CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
+    cmds:
+      - "{{.ANSIBLE_GALAXY}} collection install -r projects/{{.PROJECT_ID}}/ansible/requirements.yml"
+
+  runtime:
+    desc: Assemble Ansible runtime inventory (generated + overrides)
+    cmds:
+      - "{{.PYTHON}} topology-tools/assemble-ansible-runtime.py --topology topology/topology.yaml --project {{.PROJECT_ID}} --env {{.ENV}}"
+
+  syntax:
+    desc: Syntax-check integrated service playbooks
+    deps:
+      - runtime
+    preconditions:
+      - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
+        msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
+    env:
+      ANSIBLE_CONFIG: "{{.PROJECT_ANSIBLE_ROOT}}/ansible.cfg"
+    cmds:
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/site.yml --syntax-check"
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/postgresql.yml --syntax-check"
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/redis.yml --syntax-check"
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/nextcloud.yml --syntax-check"
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/monitoring.yml --syntax-check"
+
+  check-site:
+    desc: Run integrated service stack in Ansible check mode
+    deps:
+      - runtime
+    preconditions:
+      - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
+        msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
+    env:
+      ANSIBLE_CONFIG: "{{.PROJECT_ANSIBLE_ROOT}}/ansible.cfg"
+    cmds:
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/site.yml --check"
+
+  check-postgresql:
+    desc: Run PostgreSQL playbook in Ansible check mode
+    deps:
+      - runtime
+    preconditions:
+      - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
+        msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
+    env:
+      ANSIBLE_CONFIG: "{{.PROJECT_ANSIBLE_ROOT}}/ansible.cfg"
+    cmds:
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/postgresql.yml --check"
+
+  check-redis:
+    desc: Run Redis playbook in Ansible check mode
+    deps:
+      - runtime
+    preconditions:
+      - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
+        msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
+    env:
+      ANSIBLE_CONFIG: "{{.PROJECT_ANSIBLE_ROOT}}/ansible.cfg"
+    cmds:
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/redis.yml --check"
+
+  check-nextcloud:
+    desc: Run Nextcloud playbook in Ansible check mode
+    deps:
+      - runtime
+    preconditions:
+      - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
+        msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
+    env:
+      ANSIBLE_CONFIG: "{{.PROJECT_ANSIBLE_ROOT}}/ansible.cfg"
+    cmds:
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/nextcloud.yml --check"
+
+  check-monitoring:
+    desc: Run monitoring stack playbook in Ansible check mode
+    deps:
+      - runtime
+    preconditions:
+      - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
+        msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
+    env:
+      ANSIBLE_CONFIG: "{{.PROJECT_ANSIBLE_ROOT}}/ansible.cfg"
+    cmds:
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/monitoring.yml --check"
+
+  apply-site:
+    desc: Apply integrated service stack playbook
+    deps:
+      - runtime
+    preconditions:
+      - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
+        msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
+    env:
+      ANSIBLE_CONFIG: "{{.PROJECT_ANSIBLE_ROOT}}/ansible.cfg"
+    cmds:
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/site.yml"

@@ -1,0 +1,11 @@
+---
+# Nextcloud File Sharing Playbook
+
+- name: Configure Nextcloud
+  hosts: lxc-nextcloud
+  become: yes
+  gather_facts: yes
+  tags: [nextcloud, web]
+
+  roles:
+    - role: nextcloud

@@ -1,0 +1,23 @@
+---
+# Main Playbook - Home Lab Service Layer
+# Orchestrates service deployments on v5-generated inventory.
+
+- name: Common Configuration (All Hosts)
+  import_playbook: common.yml
+  tags: [common]
+
+- name: Configure PostgreSQL Database
+  import_playbook: postgresql.yml
+  tags: [postgresql, database]
+
+- name: Configure Redis Cache
+  import_playbook: redis.yml
+  tags: [redis, cache]
+
+- name: Configure Nextcloud
+  import_playbook: nextcloud.yml
+  tags: [nextcloud, web]
+
+- name: Configure Monitoring Stack
+  import_playbook: monitoring.yml
+  tags: [monitoring, observability]

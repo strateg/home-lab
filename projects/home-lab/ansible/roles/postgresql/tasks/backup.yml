@@ -1,0 +1,42 @@
+---
+# PostgreSQL Backup Configuration
+
+- name: Create backup directory
+  file:
+    path: "{{ postgresql_backup_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: '0750'
+
+- name: Create backup script
+  template:
+    src: backup.sh.j2
+    dest: /usr/local/bin/postgresql-backup.sh
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create backup cleanup script
+  template:
+    src: backup-cleanup.sh.j2
+    dest: /usr/local/bin/postgresql-backup-cleanup.sh
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Schedule daily backup via cron
+  cron:
+    name: "PostgreSQL daily backup"
+    minute: "0"
+    hour: "2"
+    job: "/usr/local/bin/postgresql-backup.sh"
+    user: postgres
+
+- name: Schedule backup cleanup via cron
+  cron:
+    name: "PostgreSQL backup cleanup"
+    minute: "30"
+    hour: "2"
+    job: "/usr/local/bin/postgresql-backup-cleanup.sh"
+    user: postgres

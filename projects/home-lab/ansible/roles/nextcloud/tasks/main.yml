@@ -1,0 +1,34 @@
+---
+# Nextcloud Role - Main Tasks
+
+- name: Install prerequisites
+  include_tasks: prerequisites.yml
+  tags: [install, prerequisites]
+
+- name: Install and configure Apache
+  include_tasks: apache.yml
+  tags: [install, apache]
+
+- name: Install and configure PHP
+  include_tasks: php.yml
+  tags: [install, php]
+
+- name: Download and install Nextcloud
+  include_tasks: install.yml
+  tags: [install]
+
+- name: Configure Nextcloud
+  include_tasks: configure.yml
+  tags: [configure]
+
+- name: Configure Nextcloud apps
+  include_tasks: apps.yml
+  tags: [apps]
+
+- name: Display Nextcloud status
+  debug:
+    msg:
+      - "Nextcloud {{ nextcloud_version }} installed successfully"
+      - "URL: http://{{ ansible_host }}:{{ nextcloud_http_port }}"
+      - "Admin user: {{ nextcloud_admin_user }}"
+      - "Data directory: {{ nextcloud_data_dir }}"

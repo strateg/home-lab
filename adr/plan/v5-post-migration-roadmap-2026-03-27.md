@@ -95,11 +95,13 @@
 
 ## Wave D - Operational Readiness Runbooks (P1)
 
-- [ ] Publish/refresh deployment procedures (Proxmox, MikroTik, services).
-- [ ] Publish troubleshooting playbooks per infrastructure component.
-- [ ] Publish backup/restore and DR procedures.
-- [ ] Publish monitoring alert runbooks.
+- [x] Publish/refresh deployment procedures (Proxmox, MikroTik, services).
+- [x] Publish troubleshooting playbooks per infrastructure component.
+- [x] Publish backup/restore and DR procedures.
+- [x] Publish monitoring alert runbooks.
 - [ ] Validate end-to-end service deployment chain with documented evidence.
+  Current baseline: service playbooks are integrated in `projects/home-lab/ansible/playbooks/` and task lanes are added (`ansible:runtime`, `ansible:syntax`, `ansible:check-site`).
+  Remaining for closure: collect environment execution evidence for playbook syntax/check/apply runs.
 
 **Gate:**
 

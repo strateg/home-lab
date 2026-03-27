@@ -1,0 +1,24 @@
+---
+# Redis Persistence Configuration
+
+- name: Configure RDB snapshots
+  lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: '^save '
+    line: "save {{ item }}"
+    state: present
+  loop: "{{ redis_save }}"
+  notify: restart redis
+  when: redis_persistence_enabled
+
+- name: Configure AOF persistence
+  lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+  loop:
+    - { regexp: '^appendonly ', line: "appendonly {{ redis_appendonly }}" }
+    - { regexp: '^appendfsync ', line: "appendfsync {{ redis_appendfsync }}" }
+  notify: restart redis
+  when: redis_persistence_enabled

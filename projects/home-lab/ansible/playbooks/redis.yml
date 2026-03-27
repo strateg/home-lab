@@ -1,0 +1,11 @@
+---
+# Redis Cache Server Playbook
+
+- name: Configure Redis Cache
+  hosts: lxc-redis
+  become: yes
+  gather_facts: yes
+  tags: [redis, cache]
+
+  roles:
+    - role: redis

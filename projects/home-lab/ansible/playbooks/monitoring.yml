@@ -1,0 +1,11 @@
+---
+# Monitoring Stack Playbook
+
+- name: Configure monitoring stack
+  hosts: lxc-prometheus:lxc-grafana
+  become: yes
+  gather_facts: yes
+  tags: [monitoring, observability]
+
+  roles:
+    - role: monitoring_stack

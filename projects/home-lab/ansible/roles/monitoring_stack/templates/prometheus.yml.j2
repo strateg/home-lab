@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: node_targets
+    static_configs:
+      - targets:
+          - lxc-postgresql:9100
+          - lxc-redis:9100
+          - lxc-nextcloud:9100
+          - lxc-grafana:9100
+          - lxc-prometheus:9100

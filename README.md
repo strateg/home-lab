@@ -2,6 +2,12 @@
 
 Root-layout repository for topology framework + project runtime.
 
+## Runtime Policy
+
+- `v5` lane is the default production lane.
+- `v4` is maintenance-only and stored under `archive/v4` for parity/rollback reference.
+- New development is performed only on root layout (`topology/`, `topology-tools/`, `projects/`, `tests/`).
+
 ## Repository Layout
 
 - Active runtime/model: `topology/`, `topology-tools/`, `projects/`, `scripts/`, `tests/`, `taskfiles/`
@@ -37,7 +43,50 @@ task framework:strict
 task framework:cutover-readiness-quick
 task framework:cutover-readiness
 task acceptance:tests-all
+task ansible:install-collections
+task ansible:runtime
+task ansible:syntax
+task ansible:check-site
 ```
+
+## V5 Deploy Workflow
+
+1. Run strict and validation gates:
+   ```powershell
+   task framework:strict
+   task validate:v5
+   task framework:release-tests
+   ```
+2. Compile and generate artifacts:
+   ```powershell
+   python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
+   ```
+3. Validate infrastructure plans:
+   ```powershell
+   terraform -chdir=generated/home-lab/terraform/proxmox validate
+   terraform -chdir=generated/home-lab/terraform/proxmox plan -refresh=false
+   terraform -chdir=generated/home-lab/terraform/mikrotik validate
+   terraform -chdir=generated/home-lab/terraform/mikrotik plan -refresh=false
+   ```
+4. Build and verify Ansible runtime inventory:
+   ```powershell
+   task ansible:runtime
+   ansible-inventory -i generated/home-lab/ansible/runtime/production/hosts.yml --list
+   task ansible:syntax
+   task ansible:check-site
+   ```
+5. Final cutover gates:
+   ```powershell
+   task acceptance:tests-all
+   task framework:cutover-readiness
+   ```
+
+Full operational procedures:
+
+- `docs/runbooks/README.md`
+- `docs/runbooks/DEPLOYMENT-PROCEDURES.md`
+- `docs/runbooks/V5-E2E-DRY-RUN.md`
+- `projects/home-lab/ansible/README.md`
 
 ## Project Bootstrap
 
@@ -54,6 +103,8 @@ task acceptance:tests-all
 - `docs/framework/FRAMEWORK-V5.md`
 - `docs/framework/OPERATOR-WORKFLOWS.md`
 - `docs/framework/FRAMEWORK-RELEASE-GUIDE.md`
+- `docs/runbooks/README.md`
 - `docs/runbooks/V5-E2E-DRY-RUN.md`
+- `README-РУССКИЙ.md`
 - `topology-tools/docs/ENVIRONMENT-SETUP.md`
 - `topology-tools/docs/MANUAL-ARTIFACT-BUILD.md`

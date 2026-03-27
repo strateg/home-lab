@@ -67,6 +67,12 @@ includes:
     dir: .
     vars:
       PYTHON: "{{.PYTHON}}"
+  ansible:
+    taskfile: ./taskfiles/ansible.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
+      PROJECT_ID: "{{.PROJECT_ID}}"
 
 tasks:
   default:

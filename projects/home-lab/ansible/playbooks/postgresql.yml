@@ -1,0 +1,11 @@
+---
+# PostgreSQL Database Server Playbook
+
+- name: Configure PostgreSQL Database
+  hosts: lxc-postgresql
+  become: yes
+  gather_facts: yes
+  tags: [postgresql, database]
+
+  roles:
+    - role: postgresql
