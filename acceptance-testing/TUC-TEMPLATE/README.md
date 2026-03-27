@@ -6,14 +6,22 @@ Use this folder as a template for new acceptance testing use cases.
 
 1. Copy this folder to `acceptance-testing/TUC-XXXX-short-name/`.
 2. Update metadata in `TUC.md`.
-3. Fill `IMPLEMENTATION-PLAN.md`.
-4. Fill `TEST-MATRIX.md`.
-5. Log execution and evidence in `EVIDENCE-LOG.md`.
+3. Define scenarios in `TEST-MATRIX.md`.
+4. Fill execution steps in `HOW-TO.md`.
+5. Customize `quality-gate.py` for the specific feature.
+6. Fill analysis docs in `analysis/`.
+7. Store generated outputs and logs in `artefacts/`.
 
 ## Required Files
 
 - `TUC.md`
-- `IMPLEMENTATION-PLAN.md`
 - `TEST-MATRIX.md`
-- `EVIDENCE-LOG.md`
-- `artifacts/` (store outputs, logs, reports)
+- `HOW-TO.md`
+- `quality-gate.py`
+- `analysis/IMPLEMENTATION-PLAN.md`
+- `analysis/EVIDENCE-LOG.md`
+- `analysis/PROJECT-STATUS-REPORT.md`
+- `analysis/ROADMAP.md` (optional)
+- `analysis/VALIDATION-RULES-SUMMARY.md` (optional)
+- `analysis/performance-baseline.py` (optional)
+- `artefacts/` (store outputs, logs, reports)

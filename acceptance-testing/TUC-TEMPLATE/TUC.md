@@ -26,11 +26,13 @@ Define what behavior must be proven in this use case.
 
 ## Inputs
 
-- Topology/model files:
+- Source inputs (configs, manifests, payloads, etc.):
   - `<path>`
-- Plugin manifests:
+- Runtime/build settings:
   - `<path>`
-- Fixtures:
+- Fixtures/test data:
+  - `<path>`
+- External systems/dependencies (if any):
   - `<path>`
 
 ## Expected Outcomes
