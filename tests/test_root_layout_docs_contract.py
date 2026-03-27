@@ -21,6 +21,7 @@ ACTIVE_DOCS = [
     "docs/framework/templates/framework-release.yml",
     "topology-tools/docs/MANUAL-ARTIFACT-BUILD.md",
     "topology-tools/docs/ENVIRONMENT-SETUP.md",
+    "topology-tools/docs/PLUGIN_AUTHORING.md",
 ]
 
 LEGACY_PATH_TOKENS = [

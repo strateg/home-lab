@@ -24,6 +24,15 @@ generation, assembly, and build logic are implemented as plugins. This enables:
 | `assembler` | `AssemblerPlugin` | Compiled JSON + artifact roots | Assembled execution workspace | `assemble` |
 | `builder` | `BuilderPlugin` | Assembled workspace | Release package/verification outputs | `build` |
 
+Kind/stage affinity is enforced at manifest load:
+
+1. `discoverer -> discover`
+2. `compiler -> compile`
+3. `validator_yaml|validator_json -> validate`
+4. `generator -> generate`
+5. `assembler -> assemble`
+6. `builder -> build`
+
 ## Quick Start
 
 ### 1. Create Plugin Module
@@ -357,6 +366,15 @@ plugins:
 | `config_schema` | No | `{}` | JSON Schema for config validation |
 | `description` | No | - | Human-readable description |
 
+Stage-specific `order` ranges are enforced by runtime:
+
+1. `discover`: 10-89
+2. `compile`: 30-89
+3. `validate`: 90-189
+4. `generate`: 190-399
+5. `assemble`: 400-499
+6. `build`: 500-599
+
 ## Testing Plugins
 
 ### Unit Tests
@@ -364,8 +382,8 @@ plugins:
 ```python
 # tests/plugin_api/test_my_validator.py
 import pytest
-from v5.topology_tools.kernel.plugin_base import PluginContext, Stage
-from v5.topology_tools.plugins.validators.my_validator import MyValidator
+from kernel.plugin_base import Phase, PluginContext, PluginExecutionScope, Stage
+from plugins.validators.my_validator import MyValidator
 
 
 def test_validator_success():
@@ -376,9 +394,18 @@ def test_validator_success():
         model_lock={},
         instance_bindings={"instance_bindings": {}},
     )
-    ctx._set_execution_context("test.validator", set())
-
-    result = plugin.execute(ctx, Stage.VALIDATE)
+    scope = PluginExecutionScope(
+        plugin_id="test.validator",
+        allowed_dependencies=frozenset(),
+        phase=Phase.RUN,
+        stage=Stage.VALIDATE,
+        config={},
+    )
+    token = ctx._set_execution_scope(scope)
+    try:
+        result = plugin.execute(ctx, Stage.VALIDATE)
+    finally:
+        ctx._clear_execution_scope(token)
 
     assert result.status.value == "SUCCESS"
     assert len(result.diagnostics) == 0
@@ -396,9 +423,18 @@ def test_validator_detects_error():
                     }
                 },
     )
-    ctx._set_execution_context("test.validator", set())
-
-    result = plugin.execute(ctx, Stage.VALIDATE)
+    scope = PluginExecutionScope(
+        plugin_id="test.validator",
+        allowed_dependencies=frozenset(),
+        phase=Phase.RUN,
+        stage=Stage.VALIDATE,
+        config={},
+    )
+    token = ctx._set_execution_scope(scope)
+    try:
+        result = plugin.execute(ctx, Stage.VALIDATE)
+    finally:
+        ctx._clear_execution_scope(token)
 
     assert result.status.value == "FAILED"
     assert any(d.code == "E9001" for d in result.diagnostics)
@@ -409,7 +445,7 @@ def test_validator_detects_error():
 ```python
 # tests/plugin_integration/test_my_plugin.py
 import pytest
-from v5.topology_tools.kernel.plugin_registry import PluginRegistry
+from kernel.plugin_registry import PluginRegistry
 
 
 def test_plugin_loads_and_executes(tmp_path):
@@ -529,7 +565,12 @@ Diagnostics used by secret merge flow:
 ## Pipeline Stages
 
 ```
-YAML Files
+Input/State
+    │
+    ▼
+┌─────────────────┐
+│ DISCOVER Stage  │  ← DiscovererPlugin (manifest/runtime bootstrap)
+└─────────────────┘
     │
     ▼
 ┌─────────────────┐
@@ -547,7 +588,17 @@ YAML Files
 └─────────────────┘
     │
     ▼
-Generated Output
+┌─────────────────┐
+│ ASSEMBLE Stage  │  ← AssemblerPlugin (workspace assembly + verification)
+└─────────────────┘
+    │
+    ▼
+┌─────────────────┐
+│  BUILD Stage    │  ← BuilderPlugin (bundle/SBOM/release manifest)
+└─────────────────┘
+    │
+    ▼
+Release Output
 ```
 
 ## References
