@@ -3,6 +3,17 @@
 **Date:** 2026-03-20
 **Scope:** ADR0075 Stage 1 + ADR0074 remaining path-sensitive rollout items
 
+## Layout Alignment Note (2026-03-27)
+
+This release note is preserved as a historical cutover snapshot from pre-root-layout naming.
+
+Current equivalents:
+
+1. `v5/projects/...` -> `projects/...`
+2. `v5-generated/...` -> `generated/...`
+3. `v5/topology-tools/...` -> `topology-tools/...`
+4. `v5/scripts/...` -> `scripts/...`
+
 ## Summary
 
 Migration to strict project-aware v5 layout is complete for the active project (`home-lab`).
