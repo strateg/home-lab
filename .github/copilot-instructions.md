@@ -259,9 +259,9 @@ python topology-tools/compile-topology.py
 
 The v4 codebase is preserved in `archive/v4/` for reference. It used an OSI-like 8-layer architecture (L0-L7) with direct layer files. Key differences from v5:
 
-- v4: Flat layer files (`archive/v4/v4/topology/L*.yaml`)
+- v4: Flat layer files (`archive/v4/topology/L*.yaml`)
 - v5: Class -> Object -> Instance hierarchy
 - v4: Script-based generators
 - v5: Plugin-based microkernel architecture
 
-See `archive/v4/v4/README.md` and ADR 0062 for migration context.
+See `archive/v4/README.md` and ADR 0062 for migration context.

@@ -77,9 +77,9 @@ repos:
     - id: check-yaml
       exclude: |
         (?x)^(
-          v4/topology\.yaml|
-          v4/topology/.*\.yaml|
-          v4/topology-tools/fixtures/.*\.yaml|
+          archive/v4/topology\.yaml|
+          archive/v4/topology/.*\.yaml|
+          archive/v4/topology-tools/fixtures/.*\.yaml|
           Migrated_and_archived/.*\.yaml
         )$
     - id: check-added-large-files
@@ -88,7 +88,7 @@ repos:
   hooks:
     - id: update-l0-last-updated
       name: Update legacy v4 L0 metadata.last_updated
-      entry: python archive/v4/v4/topology-tools/scripts/hooks/update_l0_last_updated.py
+      entry: python archive/v4/topology-tools/scripts/hooks/update_l0_last_updated.py
       language: system
       pass_filenames: false
       stages: [manual]

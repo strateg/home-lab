@@ -30,7 +30,7 @@
    - `task acceptance:tests-all`
    - результат: TUC acceptance suites green.
 4. Legacy reproducibility:
-   - `python archive/v4/v4/topology-tools/compile-topology.py --topology archive/v4/v4/topology.yaml --output-json build/diagnostics/v4-archive-effective.json --diagnostics-json build/diagnostics/v4-archive-diagnostics.json --diagnostics-txt build/diagnostics/v4-archive-diagnostics.txt`
+   - `python archive/v4/topology-tools/compile-topology.py --topology archive/v4/topology.yaml --output-json build/diagnostics/v4-archive-effective.json --diagnostics-json build/diagnostics/v4-archive-diagnostics.json --diagnostics-txt build/diagnostics/v4-archive-diagnostics.txt`
    - результат: v4 compile from archive runs successfully.
 
 ### P1 (cutover execution)
