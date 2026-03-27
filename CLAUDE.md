@@ -66,10 +66,11 @@ home-lab/
 │   ├── topology.yaml            # Main entry point
 │   ├── classes/                 # Class definitions (L0-L7)
 │   └── objects/                 # Object definitions
-├── topology-tools/              # Compiler, validators, generators
+├── topology-tools/              # Plugin runtime and toolchain
 │   ├── compile-topology.py      # Main compiler
 │   ├── plugins/                 # Plugin implementations
-│   │   ├── compilers/           # Compiler plugins
+│   │   ├── discoverers/         # Discover-stage plugins
+│   │   ├── compilers/           # Compile-stage plugins
 │   │   ├── validators/          # Validation plugins
 │   │   ├── generators/          # Generator plugins
 │   │   ├── assemblers/          # Assemble-stage plugins

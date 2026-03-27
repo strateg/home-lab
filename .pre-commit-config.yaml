@@ -45,7 +45,6 @@ repos:
       args: ["--baseline", ".secrets.baseline"]
       exclude: |
         (?x)^(
-          v4/.*|
           archive/.*|
           \.github/workflows/.*|
           Migrated_and_archived/.*|
@@ -96,14 +95,14 @@ repos:
     # Uncomment to enable locally or run on CI
     # - id: validate-topology
     #   name: Validate topology.yaml
-    #   entry: python v4/topology-tools/validate-topology.py
-    #   args: ["--topology", "v4/topology.yaml"]
+    #   entry: python archive/v4/topology-tools/validate-topology.py
+    #   args: ["--topology", "archive/v4/topology.yaml"]
     #   language: system
     #   pass_filenames: false
     # - id: check-generated-files
     #   name: Check generated files up-to-date
-    #   entry: python v4/topology-tools/regenerate-all.py
-    #   args: ["--topology", "v4/topology.yaml"]
+    #   entry: python archive/v4/topology-tools/regenerate-all.py
+    #   args: ["--topology", "archive/v4/topology.yaml"]
     #   language: system
     #   pass_filenames: false
     - id: sops-encryption-check

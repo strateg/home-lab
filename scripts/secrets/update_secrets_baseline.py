@@ -20,7 +20,6 @@ BASELINE = REPO_ROOT / ".secrets.baseline"
 # `.pre-commit-config.yaml` to avoid baseline churn between the update
 # step and the check step.
 EXCLUDES = [
-    r"v4/.*",
     r"archive/.*",
     r"\.github/workflows/.*",
     r"Migrated_and_archived/.*",
