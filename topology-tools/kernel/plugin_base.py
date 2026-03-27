@@ -398,6 +398,7 @@ class PluginContext:
     workspace_root: str = ""
     dist_root: str = ""
     assembly_manifest: dict[str, Any] = field(default_factory=dict)
+    changed_input_scopes: list[str] | None = None
     signing_backend: str = ""
     release_tag: str = ""
     sbom_output_dir: str = ""

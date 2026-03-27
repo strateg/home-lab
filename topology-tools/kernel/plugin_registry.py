@@ -361,6 +361,14 @@ class PluginRegistry:
             return []
         return [item for item in value if isinstance(item, str) and item]
 
+    def _active_changed_input_scopes(self, ctx: PluginContext) -> set[str] | None:
+        if isinstance(ctx.changed_input_scopes, list):
+            return {item for item in ctx.changed_input_scopes if isinstance(item, str) and item}
+        configured_scopes = ctx.config.get("changed_input_scopes")
+        if isinstance(configured_scopes, list):
+            return {item for item in configured_scopes if isinstance(item, str) and item}
+        return None
+
     def _profile_allows_spec(self, spec: PluginSpec, profile: Optional[str]) -> bool:
         if profile is None:
             return True
@@ -391,12 +399,18 @@ class PluginRegistry:
 
         changed_scopes = self._string_list(spec.when.get("changed_input_scopes"))
         if changed_scopes:
-            configured_scopes = ctx.config.get("changed_input_scopes")
-            if isinstance(configured_scopes, list):
-                active_scopes = {item for item in configured_scopes if isinstance(item, str) and item}
-                if active_scopes and active_scopes.isdisjoint(changed_scopes):
-                    return False
-            # Stub behavior: when no explicit changed scopes are provided by runtime, do not block.
+            active_scopes = self._active_changed_input_scopes(ctx)
+            if active_scopes is None:
+                # Runtime has not computed dirty scopes yet; keep non-blocking behavior.
+                return True
+            if not active_scopes:
+                return False
+            if "all" in active_scopes or "*" in active_scopes:
+                return True
+            if "all" in changed_scopes or "*" in changed_scopes:
+                return True
+            if active_scopes.isdisjoint(changed_scopes):
+                return False
 
         return True
 

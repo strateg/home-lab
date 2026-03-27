@@ -43,6 +43,7 @@ Unify the plugin runtime around a single lifecycle model with:
 - `Wave H` completed for runtime enforcement: undeclared data-bus usage is hard-error by default (`plugin_contract_errors=True`), with explicit opt-out via `--no-plugin-contract-errors`.
 - Transitional consume-inference shim removed from runtime; all active subscriptions now require explicit `consumes` declarations.
 - Contract audit snapshot (2026-03-26, `production` + `modeled` profiles): 0 runtime `W800x` even with inference disabled.
+- `when.changed_input_scopes` now uses `assemble.init` dirty-scope evaluation backed by artifact-manifest checksum deltas (state persisted per workspace).
 
 ---
 

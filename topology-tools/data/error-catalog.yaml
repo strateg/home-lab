@@ -362,6 +362,11 @@ codes:
     stage: assemble
     title: Assembly Manifest Generated
     hint: No action required.
+  I8104:
+    severity: info
+    stage: assemble
+    title: Changed Input Scopes Evaluated
+    hint: No action required.
   E8201:
     severity: error
     stage: build

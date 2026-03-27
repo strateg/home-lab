@@ -1,321 +1,203 @@
 #!/usr/bin/env python3
-"""
-TUC-0001 Quality Gate: Schema Validation and Reference Resolution
+"""TUC-0001 quality gate for current repository layout."""
 
-This script validates:
-1. Class/object YAML files conform to schema
-2. Instance files conform to schema
-3. All references (device_ref, link_ref, etc.) resolve to existing entities
-4. No dangling cross-layer references
-"""
+from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Any
+
+import yaml
 
 
 class TUC0001QualityGate:
-    def __init__(self, topology_root: Path):
-        self.topology_root = topology_root
-        self.errors = []
-        self.warnings = []
-        self.devices = {}
-        self.instances = {}
-        self.classes = {}
-        self.objects = {}
+    def __init__(self, repo_root: Path, project_id: str = "home-lab") -> None:
+        self.repo_root = repo_root
+        self.project_id = project_id
+        self.topology_root = repo_root / "topology"
+        self.instances_root = repo_root / "projects" / project_id / "topology" / "instances"
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
+        self.instances: dict[str, dict[str, Any]] = {}
+        self.router_objects: dict[str, dict[str, Any]] = {}
+
+    def _load_yaml(self, path: Path) -> dict[str, Any] | None:
+        try:
+            payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            self.errors.append(f"failed to read {path}: {exc}")
+            return None
+        return payload if isinstance(payload, dict) else None
 
     def load_instances(self) -> None:
-        """Load all instances from sharded tree."""
-        instances_root = self.topology_root / "instances"
-        if not instances_root.exists():
-            self.errors.append(f"Instances root not found: {instances_root}")
+        if not self.instances_root.exists():
+            self.errors.append(f"instances root not found: {self.instances_root}")
             return
-
-        for group_dir in instances_root.iterdir():
-            if not group_dir.is_dir() or group_dir.name.startswith("_"):
+        for instance_file in self.instances_root.rglob("*.yaml"):
+            if any(part.startswith("_") for part in instance_file.parts):
                 continue
-
-            for instance_file in group_dir.glob("*.yaml"):
-                try:
-                    import yaml
-
-                    with open(instance_file, "r") as f:
-                        instance = yaml.safe_load(f)
-
-                    if instance and "instance" in instance:
-                        instance_id = instance["instance"]
-                        self.instances[instance_id] = {
-                            "file": instance_file,
-                            "data": instance,
-                            "group": group_dir.name,
-                        }
-
-                        # Index devices for easy lookup
-                        if instance.get("object_ref", "").startswith("class.router") or instance.get(
-                            "object_ref", ""
-                        ).startswith("obj."):
-                            self.devices[instance_id] = instance
-                except Exception as e:
-                    self.errors.append(f"Failed to parse instance {instance_file}: {e}")
-
-    def validate_references(self) -> None:
-        """Validate all cross-references in instances."""
-        for instance_id, instance_info in self.instances.items():
-            data = instance_info["data"]
-
-            # Check cable endpoints
-            if "endpoint_a" in data:
-                self._validate_endpoint(instance_id, data["endpoint_a"], "endpoint_a")
-            if "endpoint_b" in data:
-                self._validate_endpoint(instance_id, data["endpoint_b"], "endpoint_b")
-
-            # Check channel link_ref
-            if "link_ref" in data:
-                link_ref = data["link_ref"]
-                if link_ref not in self.instances:
-                    self.errors.append(f"{instance_id}: link_ref '{link_ref}' does not exist")
-
-            # Check cable creates_channel_ref
-            if "creates_channel_ref" in data:
-                channel_ref = data["creates_channel_ref"]
-                if channel_ref not in self.instances:
-                    self.errors.append(f"{instance_id}: creates_channel_ref '{channel_ref}' does not exist")
-
-    def _validate_endpoint(self, instance_id: str, endpoint: Dict, field_name: str) -> None:
-        """Validate endpoint device_ref and port exist."""
-        if not isinstance(endpoint, dict):
-            self.errors.append(f"{instance_id}: {field_name} is not a dict")
-            return
-
-        device_ref = endpoint.get("device_ref")
-        port = endpoint.get("port")
-
-        if not device_ref:
-            self.errors.append(f"{instance_id}: {field_name}.device_ref missing")
-            return
-
-        if not port:
-            self.errors.append(f"{instance_id}: {field_name}.port missing")
-            return
-
-        # Check device exists
-        if device_ref not in self.devices:
-            self.errors.append(f"{instance_id}: {field_name} references unknown device '{device_ref}'")
-
-    def validate_schema(self) -> None:
-        """Validate required fields for each instance type."""
-        for instance_id, instance_info in self.instances.items():
-            data = instance_info["data"]
-            object_ref = data.get("object_ref")
-
-            # Cable-specific checks
-            if object_ref == "obj.network.ethernet_cable":
-                self._validate_cable_schema(instance_id, data)
-
-            # Channel-specific checks
-            if object_ref == "obj.network.ethernet_channel":
-                self._validate_channel_schema(instance_id, data)
-
-    def validate_port_existence(self) -> None:
-        """Validate that endpoints reference existing ports on device objects."""
-        # Load router objects to check available ports
-        router_objects = {}
-        object_modules_root = self.topology_root / "object-modules"
-
-        if object_modules_root.exists():
-            for vendor_dir in object_modules_root.iterdir():
-                if not vendor_dir.is_dir() or vendor_dir.name.startswith("_"):
-                    continue
-
-                for obj_file in vendor_dir.glob("obj.*.yaml"):
-                    try:
-                        import yaml
-
-                        with open(obj_file, "r") as f:
-                            obj = yaml.safe_load(f)
-
-                        if obj and obj.get("class_ref") == "class.router":
-                            router_objects[obj.get("object")] = obj
-                    except Exception as e:
-                        self.errors.append(f"Failed to load router object {obj_file}: {e}")
-
-        # Validate endpoints reference real ports
-        for instance_id, instance_info in self.instances.items():
-            data = instance_info["data"]
-            object_ref = data.get("object_ref")
-
-            if object_ref != "obj.network.ethernet_cable":
+            payload = self._load_yaml(instance_file)
+            if not payload:
                 continue
+            instance_id = payload.get("instance")
+            if not isinstance(instance_id, str) or not instance_id:
+                self.warnings.append(f"{instance_file}: missing 'instance' id")
+                continue
+            self.instances[instance_id] = payload
 
-            endpoints = [data.get("endpoint_a"), data.get("endpoint_b")]
+    def load_router_objects(self) -> None:
+        object_root = self.topology_root / "object-modules"
+        if not object_root.exists():
+            self.errors.append(f"object-modules root not found: {object_root}")
+            return
+        for obj_file in object_root.rglob("obj.*.yaml"):
+            payload = self._load_yaml(obj_file)
+            if not payload:
+                continue
+            if payload.get("class_ref") != "class.router":
+                continue
+            object_id = payload.get("object")
+            if isinstance(object_id, str) and object_id:
+                self.router_objects[object_id] = payload
 
-            for endpoint_idx, endpoint in enumerate(endpoints):
-                if not endpoint:
-                    continue
-
-                device_ref = endpoint.get("device_ref")
-                port = endpoint.get("port")
-                endpoint_name = f"endpoint_{'ab'[endpoint_idx]}"
-
-                if not device_ref or not port:
-                    continue
-
-                # Check that device instance exists
-                if device_ref not in self.devices:
-                    self.errors.append(f"{instance_id}: {endpoint_name}.device_ref '{device_ref}' does not exist")
-                    continue
-
-                # Get device object_ref to load its port definitions
-                device_obj_ref = self.devices[device_ref].get("object_ref")
-                if not device_obj_ref or device_obj_ref not in router_objects:
-                    self.errors.append(
-                        f"{instance_id}: cannot validate port '{port}' on unknown device object '{device_obj_ref}'"
-                    )
-                    continue
-
-                # Check that port exists on device object
-                device_obj = router_objects[device_obj_ref]
-                available_ports = self._extract_ports_from_object(device_obj)
-
-                if port not in available_ports:
-                    available_ports_str = ", ".join(sorted(available_ports))
-                    self.errors.append(
-                        f"{instance_id}: port '{port}' not found on device '{device_ref}' ({device_obj_ref}). Available ports: {available_ports_str}"
-                    )
-
-    def _extract_ports_from_object(self, obj: Dict) -> Set[str]:
-        """Extract all available port names from a device object."""
-        ports = set()
-        interfaces = obj.get("hardware_specs", {}).get("interfaces", {})
-
-        for if_type in ["ethernet", "wireless", "cellular", "usb"]:
-            if_list = interfaces.get(if_type, [])
-            if isinstance(if_list, list):
-                for iface in if_list:
-                    port_name = iface.get("name")
-                    if port_name:
-                        ports.add(port_name)
-
+    @staticmethod
+    def _extract_ports(router_object: dict[str, Any]) -> set[str]:
+        ports: set[str] = set()
+        interfaces = router_object.get("hardware_specs", {}).get("interfaces", {})
+        if not isinstance(interfaces, dict):
+            return ports
+        for kind in ("ethernet", "wireless", "cellular", "usb"):
+            rows = interfaces.get(kind)
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                if isinstance(row, dict):
+                    name = row.get("name")
+                    if isinstance(name, str) and name:
+                        ports.add(name)
         return ports
 
-    def _validate_cable_schema(self, instance_id: str, data: Dict) -> None:
-        """Validate cable instance schema."""
-        required = ["endpoint_a", "endpoint_b", "creates_channel_ref", "length_m", "shielding"]
-        for field in required:
-            if field not in data:
-                self.errors.append(f"{instance_id}: cable missing required field '{field}'")
+    def _require_instance(self, instance_id: str) -> dict[str, Any] | None:
+        row = self.instances.get(instance_id)
+        if row is None:
+            self.errors.append(f"required instance is missing: {instance_id}")
+        return row
 
-        # Validate enum constraints
-        if "shielding" in data and data["shielding"] not in ["utp", "ftp", "stp"]:
-            self.errors.append(f"{instance_id}: invalid shielding value '{data['shielding']}'")
-
-        if "category" in data and data["category"] not in ["cat5e", "cat6", "cat6a", "cat7", "cat8"]:
-            self.errors.append(f"{instance_id}: invalid cable category '{data['category']}'")
-
-        # Validate numeric ranges
-        if "length_m" in data:
-            length = data["length_m"]
-            if not isinstance(length, (int, float)) or length <= 0 or length > 1000:
-                self.errors.append(f"{instance_id}: length_m must be between 0.1 and 1000, got {length}")
-
-    def _validate_channel_schema(self, instance_id: str, data: Dict) -> None:
-        """Validate channel instance schema."""
-        required = ["endpoint_a", "endpoint_b", "link_ref"]
-        for field in required:
-            if field not in data:
-                self.errors.append(f"{instance_id}: channel missing required field '{field}'")
-
-        # Validate enum constraints
-        if "admin_state" in data and data["admin_state"] not in ["up", "down"]:
-            self.errors.append(f"{instance_id}: invalid admin_state '{data['admin_state']}'")
-
-        # Validate numeric ranges
-        if "negotiated_speed_mbps" in data:
-            speed = data["negotiated_speed_mbps"]
-            if not isinstance(speed, int) or speed <= 0 or speed > 1000000:
-                self.errors.append(f"{instance_id}: negotiated_speed_mbps must be between 1 and 1000000, got {speed}")
-
-    def check_endpoint_consistency(self) -> None:
-        """Verify cable and channel endpoints are consistent."""
-        for instance_id, instance_info in self.instances.items():
-            data = instance_info["data"]
-
-            if data.get("object_ref") != "obj.network.ethernet_cable":
-                continue
-
-            cable_endpoints = self._normalize_endpoints(data.get("endpoint_a"), data.get("endpoint_b"))
-            channel_ref = data.get("creates_channel_ref")
-
-            if not channel_ref:
-                continue
-
-            if channel_ref not in self.instances:
-                continue
-
-            channel_data = self.instances[channel_ref]["data"]
-            channel_endpoints = self._normalize_endpoints(
-                channel_data.get("endpoint_a"), channel_data.get("endpoint_b")
-            )
-
-            if cable_endpoints != channel_endpoints:
-                self.warnings.append(
-                    f"{instance_id}: cable endpoints {cable_endpoints} do not match channel {channel_ref} endpoints {channel_endpoints}"
-                )
-
-    def _normalize_endpoints(self, ep_a: Optional[Dict], ep_b: Optional[Dict]) -> str:
-        """Normalize endpoints to unordered pair representation."""
-        if not ep_a or not ep_b:
-            return ""
-
-        pair = tuple(
-            sorted(
-                [
-                    f"{ep_a.get('device_ref')}:{ep_a.get('port')}",
-                    f"{ep_b.get('device_ref')}:{ep_b.get('port')}",
-                ]
-            )
+    def validate_tuc_fixture_presence(self) -> None:
+        required_ids = (
+            "rtr-mikrotik-chateau",
+            "rtr-slate",
+            "inst.ethernet_cable.cat5e",
+            "inst.chan.eth.chateau_to_slate",
         )
-        return "|".join(pair)
+        for instance_id in required_ids:
+            self._require_instance(instance_id)
+
+    def _validate_endpoint(self, owner: str, endpoint: dict[str, Any], field: str) -> None:
+        device_ref = endpoint.get("device_ref")
+        port = endpoint.get("port")
+        if not isinstance(device_ref, str) or not device_ref:
+            self.errors.append(f"{owner}: {field}.device_ref is missing")
+            return
+        if not isinstance(port, str) or not port:
+            self.errors.append(f"{owner}: {field}.port is missing")
+            return
+
+        device_row = self.instances.get(device_ref)
+        if not isinstance(device_row, dict):
+            self.errors.append(f"{owner}: {field}.device_ref '{device_ref}' does not exist")
+            return
+        object_ref = device_row.get("object_ref")
+        if not isinstance(object_ref, str) or object_ref not in self.router_objects:
+            self.errors.append(f"{owner}: device '{device_ref}' has unknown router object '{object_ref}'")
+            return
+        ports = self._extract_ports(self.router_objects[object_ref])
+        if port not in ports:
+            listed = ", ".join(sorted(ports))
+            self.errors.append(
+                f"{owner}: {field}.port '{port}' not found on '{device_ref}' ({object_ref}); available: {listed}"
+            )
+
+    @staticmethod
+    def _endpoint_pair(row: dict[str, Any]) -> tuple[str, str] | None:
+        ep_a = row.get("endpoint_a")
+        ep_b = row.get("endpoint_b")
+        if not isinstance(ep_a, dict) or not isinstance(ep_b, dict):
+            return None
+        a = f"{ep_a.get('device_ref')}:{ep_a.get('port')}"
+        b = f"{ep_b.get('device_ref')}:{ep_b.get('port')}"
+        return tuple(sorted((a, b)))
+
+    def validate_cable_channel_contract(self) -> None:
+        cable = self._require_instance("inst.ethernet_cable.cat5e")
+        channel = self._require_instance("inst.chan.eth.chateau_to_slate")
+        if cable is None or channel is None:
+            return
+
+        if cable.get("object_ref") != "obj.network.ethernet_cable":
+            self.errors.append("inst.ethernet_cable.cat5e: unexpected object_ref")
+        if channel.get("object_ref") != "obj.network.ethernet_channel":
+            self.errors.append("inst.chan.eth.chateau_to_slate: unexpected object_ref")
+
+        for field in ("endpoint_a", "endpoint_b"):
+            endpoint = cable.get(field)
+            if isinstance(endpoint, dict):
+                self._validate_endpoint("inst.ethernet_cable.cat5e", endpoint, field)
+            else:
+                self.errors.append(f"inst.ethernet_cable.cat5e: {field} is missing")
+
+        created_channel_ref = cable.get("creates_channel_ref")
+        if created_channel_ref != "inst.chan.eth.chateau_to_slate":
+            self.errors.append(
+                "inst.ethernet_cable.cat5e: creates_channel_ref must be 'inst.chan.eth.chateau_to_slate'"
+            )
+
+        link_ref = channel.get("link_ref")
+        if link_ref != "inst.ethernet_cable.cat5e":
+            self.errors.append("inst.chan.eth.chateau_to_slate: link_ref must be 'inst.ethernet_cable.cat5e'")
+
+        cable_pair = self._endpoint_pair(cable)
+        channel_pair = self._endpoint_pair(channel)
+        if cable_pair is None or channel_pair is None:
+            self.errors.append("endpoint pair cannot be computed for cable/channel")
+        elif cable_pair != channel_pair:
+            self.errors.append(f"cable/channel endpoint mismatch: cable={cable_pair} channel={channel_pair}")
 
     def run(self) -> int:
-        """Run all quality gate checks."""
-        print("TUC-0001 Quality Gate: Schema & Reference Validation\n")
+        print("TUC-0001 Quality Gate")
+        print(f"repo_root: {self.repo_root}")
+        print(f"instances_root: {self.instances_root}")
 
         self.load_instances()
-        print(f"✓ Loaded {len(self.instances)} instances")
+        self.load_router_objects()
+        self.validate_tuc_fixture_presence()
+        self.validate_cable_channel_contract()
 
-        self.validate_schema()
-        print(f"✓ Schema validation: {len([e for e in self.errors if 'required' in e or 'invalid' in e])} issues")
+        print(f"loaded instances: {len(self.instances)}")
+        print(f"loaded router objects: {len(self.router_objects)}")
+        print(f"errors: {len(self.errors)}")
+        print(f"warnings: {len(self.warnings)}")
 
-        self.validate_references()
-        print(f"✓ Reference resolution: {len([e for e in self.errors if 'ref' in e or 'exist' in e])} issues")
-
-        self.validate_port_existence()
-        print(f"✓ Port existence validation: {len([e for e in self.errors if 'port' in e.lower()])} issues")
-
-        self.check_endpoint_consistency()
-        print(f"✓ Endpoint consistency: {len(self.warnings)} warnings")
-
-        # Report results
         if self.errors:
-            print(f"\n❌ ERRORS ({len(self.errors)}):")
-            for error in self.errors:
-                print(f"  - {error}")
+            print("\nERRORS:")
+            for row in self.errors:
+                print(f"- {row}")
+            return 1
 
         if self.warnings:
-            print(f"\n⚠️  WARNINGS ({len(self.warnings)}):")
-            for warning in self.warnings:
-                print(f"  - {warning}")
+            print("\nWARNINGS:")
+            for row in self.warnings:
+                print(f"- {row}")
 
-        if not self.errors and not self.warnings:
-            print("\n✅ All quality gates PASSED")
-            return 0
+        print("\nQuality gate passed: no errors detected.")
+        return 0
 
-        return 1 if self.errors else 0
+
+def main() -> int:
+    repo_root = Path(__file__).resolve().parents[2]
+    gate = TUC0001QualityGate(repo_root=repo_root)
+    return gate.run()
 
 
 if __name__ == "__main__":
-    topology_root = Path(__file__).parent.parent.parent.parent / "topology"
-    gate = TUC0001QualityGate(topology_root)
-    sys.exit(gate.run())
+    raise SystemExit(main())

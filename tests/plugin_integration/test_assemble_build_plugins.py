@@ -82,11 +82,14 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
 
     assemble_results = registry.execute_stage(Stage.ASSEMBLE, ctx)
     assert [r.plugin_id for r in assemble_results] == [
+        "base.assembler.changed_scopes",
         "base.assembler.workspace",
         "base.assembler.verify",
         "base.assembler.manifest",
     ]
     assert all(result.status == PluginStatus.SUCCESS for result in assemble_results)
+    assert isinstance(ctx.changed_input_scopes, list)
+    assert "docs" in ctx.changed_input_scopes
 
     assembly_manifest = workspace_root / "assembly-manifest.json"
     assert assembly_manifest.exists()
@@ -178,3 +181,79 @@ def test_assemble_verify_flags_secret_like_content(tmp_path: Path):
     assert by_id["base.assembler.verify"].status == PluginStatus.FAILED
     assert any(diag.code == "E8103" for diag in by_id["base.assembler.verify"].diagnostics)
     assert by_id["base.assembler.manifest"].status == PluginStatus.SUCCESS
+    assert by_id["base.assembler.changed_scopes"].status == PluginStatus.SUCCESS
+
+
+def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
+    registry = _registry()
+    repo_root = tmp_path
+    generated_root = repo_root / "generated" / "home-lab"
+    workspace_root = repo_root / ".work" / "native" / "home-lab"
+
+    source_file = generated_root / "docs" / "overview.md"
+    source_file.parent.mkdir(parents=True, exist_ok=True)
+    source_file.write_text("hello\n", encoding="utf-8")
+
+    artifact_manifest_path = generated_root / "artifact-manifest.json"
+    artifact_manifest_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "project_id": "home-lab",
+                "generated_at": "2026-03-26T00:00:00+00:00",
+                "artifact_count": 1,
+                "artifacts": [
+                    {
+                        "producer_plugin": "base.generator.docs",
+                        "path": "generated/home-lab/docs/overview.md",
+                        "sha256": "stable-sha",
+                        "size_bytes": source_file.stat().st_size,
+                    }
+                ],
+            },
+            ensure_ascii=True,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    first_ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(repo_root),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+        },
+        workspace_root=str(workspace_root),
+    )
+    first_ctx._set_execution_context("base.generator.artifact_manifest", set())
+    try:
+        first_ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
+    finally:
+        first_ctx._clear_execution_context()
+    first_results = registry.execute_stage(Stage.ASSEMBLE, first_ctx)
+    assert all(result.status == PluginStatus.SUCCESS for result in first_results)
+    assert isinstance(first_ctx.changed_input_scopes, list)
+    assert "docs" in first_ctx.changed_input_scopes
+
+    second_ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "repo_root": str(repo_root),
+            "project_id": "home-lab",
+            "workspace_root": str(workspace_root),
+        },
+        workspace_root=str(workspace_root),
+    )
+    second_ctx._set_execution_context("base.generator.artifact_manifest", set())
+    try:
+        second_ctx.publish("artifact_manifest_path", str(artifact_manifest_path))
+    finally:
+        second_ctx._clear_execution_context()
+    second_results = registry.execute_stage(Stage.ASSEMBLE, second_ctx)
+    assert all(result.status == PluginStatus.SUCCESS for result in second_results)
+    assert second_ctx.changed_input_scopes == []

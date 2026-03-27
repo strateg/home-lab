@@ -993,6 +993,107 @@ def test_execute_stage_skips_when_before_capability_preflight(tmp_path: Path):
     assert results[0].status == PluginStatus.SKIPPED
 
 
+def test_execute_stage_skips_when_changed_input_scopes_do_not_intersect(tmp_path: Path):
+    """when.changed_input_scopes should skip plugin when runtime scopes are known and disjoint."""
+    _write_module(
+        tmp_path / "when_scope_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class NoopValidator(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "when.validator_json.scope_guard",
+                "kind": "validator_json",
+                "entry": "when_scope_plugins.py:NoopValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+                "when": {"changed_input_scopes": ["docs"]},
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test-real",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+        changed_input_scopes=["terraform"],
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx)
+    assert len(results) == 1
+    assert results[0].plugin_id == "when.validator_json.scope_guard"
+    assert results[0].status == PluginStatus.SKIPPED
+
+
+def test_execute_stage_allows_when_changed_input_scopes_unknown(tmp_path: Path):
+    """when.changed_input_scopes stays non-blocking until runtime computes scopes."""
+    _write_module(
+        tmp_path / "when_scope_plugins.py",
+        "\n".join(
+            [
+                "from kernel import PluginResult, ValidatorJsonPlugin",
+                "",
+                "class NoopValidator(ValidatorJsonPlugin):",
+                "    def execute(self, ctx, stage):",
+                "        return PluginResult.success(self.plugin_id, self.api_version)",
+            ]
+        ),
+    )
+
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "when.validator_json.scope_guard",
+                "kind": "validator_json",
+                "entry": "when_scope_plugins.py:NoopValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+                "when": {"changed_input_scopes": ["docs"]},
+            }
+        ],
+    }
+    _write_manifest(manifest, payload)
+
+    registry = PluginRegistry(V5_TOOLS)
+    registry.load_manifest(manifest)
+    ctx = PluginContext(
+        topology_path="test",
+        profile="test-real",
+        model_lock={},
+        classes={},
+        objects={},
+        instance_bindings={"instance_bindings": {}},
+    )
+
+    results = registry.execute_stage(Stage.VALIDATE, ctx)
+    assert len(results) == 1
+    assert results[0].plugin_id == "when.validator_json.scope_guard"
+    assert results[0].status == PluginStatus.SUCCESS
+
+
 def test_execute_stage_parallel_keeps_deterministic_order(tmp_path: Path):
     """Parallel phase execution should return results in deterministic plugin order."""
     _write_module(
@@ -2201,6 +2302,8 @@ if __name__ == "__main__":
         test_execute_stage_runs_finalize_on_fail_fast,
         test_partial_stage_selection_runs_finalize_for_started_stages_only,
         test_execute_stage_skips_when_before_capability_preflight,
+        test_execute_stage_skips_when_changed_input_scopes_do_not_intersect,
+        test_execute_stage_allows_when_changed_input_scopes_unknown,
         test_execute_stage_parallel_keeps_deterministic_order,
         test_execute_stage_parallel_is_deterministic_across_repeated_runs,
         test_execute_stage_parallel_respects_depends_on,

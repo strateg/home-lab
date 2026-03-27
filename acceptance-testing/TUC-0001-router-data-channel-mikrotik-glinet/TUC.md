@@ -1,110 +1,76 @@
-# TUC-0001: Router-to-Router Ethernet Data Link + Data Channel (MikroTik + GL.iNet)
+# TUC-0001: Router-to-Router Ethernet Link + Data Channel (MikroTik + GL.iNet)
 
 ## Metadata
 
 - `id`: `TUC-0001`
-- `status`: `passed` (2026-03-11, evidence baseline: `65af255`)
+- `status`: `passed`
 - `owner`: `topology-tools`
 - `created_at`: `2026-03-11`
-- `target_date`: `2026-03-18`
+- `last_verified_at`: `2026-03-27`
 - `related_adrs`:
-  - `adr/0062-modular-topology-architecture-consolidation.md`
   - `adr/0063-plugin-microkernel-for-compiler-validators-generators.md`
-  - `adr/0068-object-yaml-as-instance-template-with-explicit-overrides.md`
   - `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md`
   - `adr/0071-sharded-instance-files-and-flat-instances-root.md`
+  - `adr/0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md`
 
 ## Objective
 
-Prove that the plugin/module system can model two concrete routers via OSI-aligned contracts:
-- physical connection as `physical_link` (ethernet cable, L1),
-- information flow as `data_link` (ethernet channel, L2),
-- lateral power wiring as `power.source_ref` (L1 -> L1),
-with stable compile/validate/generate behavior.
+Validate that the current plugin-first runtime correctly models and validates:
 
-## Implementation Status (as of 2026-03-11)
-
-| Component | Status | Location | Notes |
-|-----------|--------|----------|-------|
-| `class.network.physical_link` | ✅ Exists | `v5/topology/class-modules/network/class.network.physical_link.yaml` | Defined; requires instance objects |
-| `class.network.data_link` | ✅ Exists | `v5/topology/class-modules/network/class.network.data_link.yaml` | Defined; requires instance objects |
-| `obj.network.ethernet_cable` | ✅ Exists | `v5/topology/object-modules/network/obj.network.ethernet_cable.yaml` | Defined with L1 physical properties |
-| `obj.network.ethernet_channel` | ✅ Exists | `v5/topology/object-modules/network/obj.network.ethernet_channel.yaml` | Defined with L2 logical properties |
-| Cable instance (cat5e fixture) | ✅ Exists | `v5/topology/instances/l1_devices/inst.ethernet_cable.cat5e.yaml` | Sharded instance; endpoints and properties defined |
-| Channel instance (fixture) | ✅ Exists | `v5/topology/instances/l2_network/inst.chan.eth.chateau_to_slate.yaml` | Created; references cable instance via `link_ref` |
-| Endpoint validator | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Validates endpoints and port references |
-| Port validation (MikroTik) | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Covered by integration test for invalid MikroTik port (`E7305`) |
-| Port validation (GL.iNet) | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Covered by integration test for invalid GL.iNet port (`E7305`) |
-| Cable-to-channel integrity | ✅ Exists | `v5/topology/object-modules/network/plugins/ethernet_cable_endpoint_validator.py` | Validates `creates_channel_ref`, `link_ref` back-reference, and unordered endpoint match (`E7307/E7308`) |
-| L1 power-source relation (`power.source_ref`) | ✅ Exists | `v5/topology-tools/plugins/validators/power_source_refs_validator.py` | Validates L1 source class/layer, outlet occupancy, and cycle constraints |
-| Determinism validation | ✅ Passed | `artifacts/determinism-report.txt` | Repeated runs produce identical output |
-| Plugin suite regression | ✅ Passed | `artifacts/plugin-suites.txt` | 81 existing plugin contract/integration tests still pass |
+1. L1 cable instance between two real router instances.
+2. L2 data-channel instance bound to that cable.
+3. Cross-reference integrity (`creates_channel_ref` and `link_ref`).
+4. Preservation of instance-level cable and power properties in effective model.
 
 ## Scope
 
 - In scope:
-  - Generic class module for physical links: `class.network.physical_link`
-  - Generic class module for logical channels: `class.network.data_link`
-  - Object module for ethernet cable (L1): `obj.network.ethernet_cable`
-  - Object module for ethernet channel (L2): `obj.network.ethernet_channel`
-  - Two router instances:
-    - `rtr-mikrotik-chateau`
-    - `rtr-slate`
-  - One cable instance connecting router ports with instance-specific link properties
-  - One channel instance produced by the cable instance
-  - Plugin validations for endpoint/port correctness and `physical_link -> data_link` consistency
+  - `obj.network.ethernet_cable` + `class.network.physical_link`
+  - `obj.network.ethernet_channel` + `class.network.data_link`
+  - Instances `rtr-mikrotik-chateau` and `rtr-slate`
+  - Instances `inst.ethernet_cable.cat5e` and `inst.chan.eth.chateau_to_slate`
+  - Validator behavior for endpoint/port/reference consistency
+  - Compile contract for preserving `instance_data` in effective model
 - Out of scope:
-  - L3 routing policy design between routers
-  - Provisioning/runtime deployment generation
-  - Non-ethernet channel types
+  - L3 routing design and policy
+  - Runtime deployment correctness (Terraform/Ansible execution)
+  - Non-ethernet channel families
 
 ## Preconditions
 
-- Existing router class and object modules are present:
-  - `v5/topology/class-modules/router/class.router.yaml`
-  - `v5/topology/object-modules/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml`
-  - `v5/topology/object-modules/glinet/obj.glinet.slate_ax1800.yaml`
-- Existing router instances are present:
-  - `v5/topology/instances/l1_devices/rtr-mikrotik-chateau.yaml`
-  - `v5/topology/instances/l1_devices/rtr-slate.yaml`
-- Plugin-first runtime is active.
+- Framework modules are in `topology/`.
+- Active project is `home-lab` with sharded instances in `projects/home-lab/topology/instances`.
+- Plugin-first compiler runtime is used via `topology-tools/compile-topology.py`.
 
 ## Inputs
 
-- Topology manifest:
-  - `v5/topology/topology.yaml`
-- Instance shards root:
-  - `v5/topology/instances/`
-- Plugin manifests:
-  - Base: `v5/topology-tools/plugins/plugins.yaml`
-  - Module-level manifests discovered under:
-    - `v5/topology/class-modules/**/plugins.yaml`
-    - `v5/topology/object-modules/**/plugins.yaml`
+- Topology manifest: `topology/topology.yaml`
+- Project manifest: `projects/home-lab/project.yaml`
+- Instances:
+  - `projects/home-lab/topology/instances/L1-foundation/devices/rtr-mikrotik-chateau.yaml`
+  - `projects/home-lab/topology/instances/L1-foundation/devices/rtr-slate.yaml`
+  - `projects/home-lab/topology/instances/L1-foundation/physical-links/inst.ethernet_cable.cat5e.yaml`
+  - `projects/home-lab/topology/instances/L2-network/data-channels/inst.chan.eth.chateau_to_slate.yaml`
+- Network validator manifest: `topology/object-modules/network/plugins.yaml`
+- TUC integration tests: `tests/plugin_integration/test_tuc0001_router_data_link.py`
 
 ## Expected Outcomes
 
-- New class/object modules are compiled and visible in effective model.
-- Cable instance is validated against real object port definitions.
-- Cable instance references created channel instance (`creates_channel_ref`).
-- L1 device power bindings (`power.source_ref`) are validated and preserved in compiled model.
-- Invalid endpoint/port combinations return deterministic diagnostics.
-- No regression in existing plugin contract/integration tests.
+- Valid cable+channel topology passes validator checks.
+- Invalid endpoint/port/reference variants fail with stable diagnostics (`E7304`, `E7305`, `E7307`, `E7308`).
+- Effective model retains cable `instance_data` (`length_m`, `shielding`, `category`, endpoints).
+- Effective model retains power bindings for tested devices (`source_ref`, `outlet_ref`).
 
 ## Acceptance Criteria
 
-1. Compile succeeds with zero errors for the valid two-router + one-cable fixture.
-2. Cable endpoints must reference existing router instances and existing ethernet ports.
-3. Cable class is `class.network.physical_link`; channel class is `class.network.data_link`.
-4. Cable instance must declare `creates_channel_ref` pointing to an existing `data_link` instance.
-5. Cable and channel endpoints must match as an unordered endpoint pair.
-6. Instance-specific cable properties (`length_m`, `shielding`) are preserved in compiled model.
-7. Invalid port name on either endpoint fails with stable diagnostic code.
-8. Duplicate connection endpoint usage policy is enforced (as defined in validator).
-9. Plugin order and output remain deterministic across repeated runs.
-10. L1 `power.source_ref` wiring is valid (`router -> pdu -> ups`) with unique outlet assignment per source.
+1. `pytest -q tests/plugin_integration/test_tuc0001_router_data_link.py` passes.
+2. Cable endpoints must reference existing device instances and valid object ports.
+3. Cable must declare `creates_channel_ref` to an existing data-channel instance.
+4. Channel `link_ref` must point back to the cable instance.
+5. Cable/channel endpoint pair must match regardless of endpoint order.
+6. Compile output preserves cable and power instance attributes used by this TUC.
 
 ## Risks and Open Questions
 
-- Port occupancy policy is still open:
-  - allow many cables per port
-  - or enforce single cable per port
+- Port occupancy policy (single cable per port vs multi-cable) is still a policy choice outside this TUC.
+- TUC currently covers one router pair only; additional device families require new TUCs or matrix extensions.

@@ -1,21 +1,16 @@
 # TUC-0001 Test Matrix
 
-| ID | Scenario | Type | Input | Expected | Status |
-|---|---|---|---|---|---|
-| TUC1-T1 | Valid cable + channel between routers | integration | `rtr-mikrotik-chateau:ether2 <-> rtr-slate:lan1` + linked channel | compile success, no errors | passed |
-| TUC1-T2 | Unknown endpoint instance | validation | endpoint device_ref = `rtr-unknown` | error diagnostic E7304 | passed |
-| TUC1-T3 | Unknown MikroTik port | validation | endpoint port = `ether99` | error diagnostic E7305 (port not found) | passed |
-| TUC1-T4 | Unknown GL.iNet port | validation | endpoint port = `lan99` | error diagnostic E7305 (port not found) | passed |
-| TUC1-T5 | Wrong cable class_ref | validation | cable row uses non-`class.network.physical_link` class | error diagnostic | passed |
-| TUC1-T6 | Missing created channel ref | validation | cable row without `creates_channel_ref` | error diagnostic | passed |
-| TUC1-T7 | Channel/link mismatch | validation | `channel.link_ref` points to another cable | error diagnostic E7307 | passed |
-| TUC1-T8 | Endpoint pair mismatch | validation | cable endpoints differ from channel endpoints | error diagnostic E7308 | passed |
-| TUC1-T9 | Preserve `length_m` instance property | contract | valid cable row with `length_m` | field present in effective model | passed |
-| TUC1-T10 | Determinism check | regression | two identical compile runs | no noisy diffs in outputs | passed |
-| TUC1-T11 | Existing suites unchanged | regression | `pytest plugin_contract + plugin_integration` | all pass | passed |
-| TUC1-T12 | Port exists on device (MikroTik) | validation | cable endpoint port=`ether2` on MikroTik (valid) | success; port validated | new |
-| TUC1-T13 | Port exists on device (GL.iNet) | validation | cable endpoint port=`lan1` on GL.iNet (valid) | success; port validated | new |
-| TUC1-T14 | Multiple cables on same port (occupancy) | validation | two cable instances both using `rtr-mikrotik-chateau:ether2` | error diagnostic E7306 (port occupancy) | planned |
-| TUC1-T15 | Channel without backing cable | validation | channel instance with `link_ref` to non-existent cable | error diagnostic (reference error) | planned |
-| TUC1-T16 | Endpoint order invariance (A-B == B-A) | contract | cable A->B vs channel B->A (opposite order) | endpoints recognized as same unordered pair | planned |
-| TUC1-T17 | Invalid shielding for cable instance | validation | cable with `shielding: invalid_type` | error diagnostic (schema validation) | planned |
+Source of truth: `tests/plugin_integration/test_tuc0001_router_data_link.py`
+
+| ID | Automated Test | Scenario | Expected |
+|---|---|---|---|
+| TUC1-T1 | `test_tuc0001_network_validator_accepts_valid_cable_and_channel` | Valid cable+channel between `rtr-mikrotik-chateau:ether2` and `rtr-slate:lan1` | Validator passes (`SUCCESS`) |
+| TUC1-T2 | `test_tuc0001_network_validator_rejects_unknown_endpoint_instance` | Unknown endpoint device (`rtr-unknown`) | `FAILED` with `E7304` |
+| TUC1-T3 | `test_tuc0001_network_validator_rejects_unknown_mikrotik_port` | Invalid MikroTik port (`ether99`) | `FAILED` with `E7305` |
+| TUC1-T4 | `test_tuc0001_network_validator_rejects_unknown_glinet_port` | Invalid GL.iNet port (`lan99`) | `FAILED` with `E7305` |
+| TUC1-T5 | `test_tuc0001_network_validator_rejects_wrong_cable_class` | Cable row with wrong `class_ref` | `FAILED` with `E7304` |
+| TUC1-T6 | `test_tuc0001_network_validator_requires_created_channel_ref` | Missing `creates_channel_ref` on cable | `FAILED` with `E7307` |
+| TUC1-T7 | `test_tuc0001_network_validator_rejects_channel_link_mismatch` | Channel `link_ref` points to another cable | `FAILED` with `E7308` |
+| TUC1-T8 | `test_tuc0001_network_validator_rejects_endpoint_pair_mismatch` | Cable/channel endpoint pair mismatch | `FAILED` with `E7308` |
+| TUC1-T9 | `test_tuc0001_compile_preserves_cable_instance_data` | Compile preserves cable instance properties | Effective model contains expected cable `instance_data` |
+| TUC1-T10 | `test_tuc0001_compile_preserves_power_source_bindings` | Compile preserves L1 power bindings | Effective model contains expected `power.source_ref`/`outlet_ref` |

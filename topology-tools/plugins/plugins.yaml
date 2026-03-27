@@ -1228,6 +1228,32 @@ plugins:
     description: Consolidates generated artifact checksums and producer attribution into artifact-manifest.json.
 
   # Assembler plugins (run in assemble stage)
+  - id: base.assembler.changed_scopes
+    kind: assembler
+    entry: assemblers/workspace_assembler.py:ChangedInputScopesAssembler
+    api_version: "1.x"
+    stages: [assemble]
+    phase: init
+    order: 405
+    depends_on: [base.generator.artifact_manifest]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.generator.artifact_manifest
+        key: artifact_manifest_path
+        required: true
+      - from_plugin: base.generator.artifact_manifest
+        key: artifact_manifest
+        required: false
+    produces:
+      - key: changed_input_scopes
+        scope: pipeline_shared
+    description: Computes changed_input_scopes from artifact-manifest checksum deltas.
+
   - id: base.assembler.workspace
     kind: assembler
     entry: assemblers/workspace_assembler.py:WorkspaceAssembler

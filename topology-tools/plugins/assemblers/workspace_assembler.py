@@ -73,6 +73,224 @@ def _has_unencrypted_secret_assignment(text_payload: str) -> bool:
     return False
 
 
+class ChangedInputScopesAssembler(AssemblerPlugin):
+    """Compute dirty input scopes from artifact-manifest checksum deltas."""
+
+    _STATE_FILE_NAME = ".changed-input-scopes.json"
+
+    @staticmethod
+    def _normalize_artifact_path(raw_path: str, project_id: str) -> str:
+        normalized = raw_path.replace("\\", "/")
+        parts = [part for part in normalized.split("/") if part and part != "."]
+        if len(parts) >= 2 and parts[0] == "generated" and parts[1] == project_id:
+            parts = parts[2:]
+        elif parts and parts[0] == "generated":
+            parts = parts[1:]
+        if parts:
+            return "/".join(parts)
+        tail = Path(normalized).name
+        return tail if tail else normalized
+
+    @staticmethod
+    def _entry_signature(row: dict[str, Any], project_id: str) -> tuple[str, dict[str, str]] | None:
+        raw_path = row.get("path")
+        if not isinstance(raw_path, str) or not raw_path.strip():
+            return None
+        rel_path = ChangedInputScopesAssembler._normalize_artifact_path(raw_path.strip(), project_id)
+        producer = row.get("producer_plugin")
+        sha256 = row.get("sha256")
+        return (
+            rel_path,
+            {
+                "producer_plugin": producer.strip() if isinstance(producer, str) else "",
+                "sha256": sha256.strip() if isinstance(sha256, str) else "",
+            },
+        )
+
+    @staticmethod
+    def _extract_entries(payload: dict[str, Any], project_id: str) -> dict[str, dict[str, str]]:
+        rows = payload.get("artifacts")
+        if not isinstance(rows, list):
+            return {}
+        entries: dict[str, dict[str, str]] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            signature = ChangedInputScopesAssembler._entry_signature(row, project_id)
+            if signature is None:
+                continue
+            rel_path, item = signature
+            entries[rel_path] = item
+        return entries
+
+    @staticmethod
+    def _manifest_path(ctx: PluginContext) -> Path | None:
+        try:
+            raw_value = ctx.subscribe("base.generator.artifact_manifest", "artifact_manifest_path")
+        except PluginDataExchangeError:
+            return None
+        if not isinstance(raw_value, str) or not raw_value.strip():
+            return None
+        return Path(raw_value)
+
+    @staticmethod
+    def _manifest_payload(ctx: PluginContext) -> dict[str, Any] | None:
+        try:
+            payload = ctx.subscribe("base.generator.artifact_manifest", "artifact_manifest")
+        except PluginDataExchangeError:
+            payload = None
+        return payload if isinstance(payload, dict) else None
+
+    @staticmethod
+    def _read_manifest(path: Path) -> dict[str, Any] | None:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    @staticmethod
+    def _repo_root(ctx: PluginContext) -> Path:
+        return WorkspaceAssembler._repo_root(ctx)
+
+    @staticmethod
+    def _workspace_root(ctx: PluginContext) -> Path:
+        return WorkspaceAssembler._workspace_root(ctx)
+
+    @staticmethod
+    def _project_id(ctx: PluginContext) -> str:
+        return WorkspaceAssembler._project_id(ctx)
+
+    @classmethod
+    def _state_path(cls, ctx: PluginContext) -> Path:
+        return cls._workspace_root(ctx) / cls._STATE_FILE_NAME
+
+    @staticmethod
+    def _read_previous_entries(state_path: Path) -> dict[str, dict[str, str]] | None:
+        if not state_path.exists():
+            return None
+        try:
+            payload = json.loads(state_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        if not isinstance(payload, dict):
+            return None
+        entries = payload.get("entries")
+        if not isinstance(entries, dict):
+            return None
+        normalized: dict[str, dict[str, str]] = {}
+        for rel_path, row in entries.items():
+            if not isinstance(rel_path, str) or not isinstance(row, dict):
+                continue
+            producer = row.get("producer_plugin")
+            sha256 = row.get("sha256")
+            normalized[rel_path] = {
+                "producer_plugin": producer if isinstance(producer, str) else "",
+                "sha256": sha256 if isinstance(sha256, str) else "",
+            }
+        return normalized
+
+    @staticmethod
+    def _derive_dirty_scopes(
+        previous: dict[str, dict[str, str]] | None,
+        current: dict[str, dict[str, str]],
+    ) -> tuple[list[str], int]:
+        changed_paths: list[str] = []
+        all_paths = sorted(set(current.keys()) | set((previous or {}).keys()))
+        for rel_path in all_paths:
+            old = (previous or {}).get(rel_path)
+            new = current.get(rel_path)
+            if old != new:
+                changed_paths.append(rel_path)
+
+        scopes: set[str] = set()
+        if previous is None and current:
+            scopes.add("all")
+        for rel_path in changed_paths:
+            scopes.add("generated")
+            head = rel_path.split("/", 1)[0]
+            scopes.add(head if head else "root")
+            old = (previous or {}).get(rel_path, {})
+            new = current.get(rel_path, {})
+            for row in (old, new):
+                plugin_id = row.get("producer_plugin")
+                if isinstance(plugin_id, str) and plugin_id:
+                    scopes.add(f"plugin:{plugin_id}")
+        return sorted(scopes), len(changed_paths)
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+        project_id = self._project_id(ctx)
+        workspace_root = self._workspace_root(ctx)
+        workspace_root.mkdir(parents=True, exist_ok=True)
+        state_path = self._state_path(ctx)
+
+        payload = self._manifest_payload(ctx)
+        if payload is None:
+            manifest_path = self._manifest_path(ctx)
+            if manifest_path is not None and not manifest_path.is_absolute():
+                manifest_path = (self._repo_root(ctx) / manifest_path).resolve()
+            payload = self._read_manifest(manifest_path) if manifest_path is not None else None
+
+        if payload is None:
+            ctx.changed_input_scopes = None
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I8104",
+                    severity="info",
+                    stage=stage,
+                    message="changed_input_scopes unavailable: artifact manifest is not readable yet.",
+                    path=str(state_path),
+                )
+            )
+            return self.make_result(diagnostics=diagnostics, output_data={"changed_input_scopes": None})
+
+        current_entries = self._extract_entries(payload, project_id)
+        previous_entries = self._read_previous_entries(state_path)
+        dirty_scopes, changed_files = self._derive_dirty_scopes(previous_entries, current_entries)
+        ctx.changed_input_scopes = dirty_scopes
+        ctx.config["changed_input_scopes"] = dirty_scopes
+        try:
+            ctx.publish("changed_input_scopes", dirty_scopes)
+        except PluginDataExchangeError:
+            pass
+
+        snapshot_payload = {
+            "schema_version": 1,
+            "project_id": project_id,
+            "entries": current_entries,
+        }
+        try:
+            state_path.write_text(json.dumps(snapshot_payload, ensure_ascii=True, indent=2), encoding="utf-8")
+        except OSError:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I8104",
+                    severity="info",
+                    stage=stage,
+                    message=f"changed_input_scopes computed but could not persist snapshot: {state_path}",
+                    path=str(state_path),
+                )
+            )
+
+        diagnostics.append(
+            self.emit_diagnostic(
+                code="I8104",
+                severity="info",
+                stage=stage,
+                message=f"changed_input_scopes resolved: scopes={len(dirty_scopes)} changed_files={changed_files}",
+                path=str(state_path),
+            )
+        )
+        return self.make_result(
+            diagnostics=diagnostics,
+            output_data={"changed_input_scopes": dirty_scopes, "changed_files": changed_files},
+        )
+
+    def on_init(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
+
 class WorkspaceAssembler(AssemblerPlugin):
     """Copy generated artifacts into workspace root for downstream packaging."""
 

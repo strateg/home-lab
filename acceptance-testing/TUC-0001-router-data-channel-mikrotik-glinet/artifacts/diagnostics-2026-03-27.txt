@@ -1,0 +1,97 @@
+Topology v5 Compiler Diagnostics
+================================
+
+generated_at: 2026-03-27T08:15:36+00:00
+total=89 errors=0 warnings=11 infos=78
+
+[WARNING] W7816 (validate) network:ip:10.0.30.1: IP '10.0.30.1' is reused across multiple rows: lxc-docker@extensions.network.gateway, lxc-gitea@extensions.network.gateway, lxc-grafana@extensions.network.gateway, lxc-homeassistant@extensions.network.gateway, lxc-nextcloud@extensions.network.gateway, lxc-nginx-proxy@extensions.network.gateway, lxc-postgresql@extensions.network.gateway, lxc-prometheus@extensions.network.gateway, lxc-redis@extensions.network.gateway.
+[WARNING] W7816 (validate) network:ip:10.0.30.10: IP '10.0.30.10' is reused across multiple rows: lxc-postgresql@extensions.network.ip, svc-postgresql@extensions.config.postgresql_listen_addresses.
+[WARNING] W7888 (validate) instance:lxc:lxc-docker.resources: LXC 'lxc-docker': inline 'resources' is deprecated; prefer resource profile refs.
+[WARNING] W7888 (validate) instance:lxc:lxc-gitea.resources: LXC 'lxc-gitea': inline 'resources' is deprecated; prefer resource profile refs.
+[WARNING] W7888 (validate) instance:lxc:lxc-grafana.resources: LXC 'lxc-grafana': inline 'resources' is deprecated; prefer resource profile refs.
+[WARNING] W7888 (validate) instance:lxc:lxc-homeassistant.resources: LXC 'lxc-homeassistant': inline 'resources' is deprecated; prefer resource profile refs.
+[WARNING] W7888 (validate) instance:lxc:lxc-nextcloud.resources: LXC 'lxc-nextcloud': inline 'resources' is deprecated; prefer resource profile refs.
+[WARNING] W7888 (validate) instance:lxc:lxc-nginx-proxy.resources: LXC 'lxc-nginx-proxy': inline 'resources' is deprecated; prefer resource profile refs.
+[WARNING] W7888 (validate) instance:lxc:lxc-postgresql.resources: LXC 'lxc-postgresql': inline 'resources' is deprecated; prefer resource profile refs.
+[WARNING] W7888 (validate) instance:lxc:lxc-prometheus.resources: LXC 'lxc-prometheus': inline 'resources' is deprecated; prefer resource profile refs.
+[WARNING] W7888 (validate) instance:lxc:lxc-redis.resources: LXC 'lxc-redis': inline 'resources' is deprecated; prefer resource profile refs.
+[INFO] I8101 (assemble) D:\Workspaces\PycharmProjects\home-lab\.work\native\home-lab: assembled workspace files: 61
+[INFO] I8102 (assemble) assemble:verify: assemble verification completed for 61 files
+[INFO] I8103 (assemble) D:\Workspaces\PycharmProjects\home-lab\.work\native\home-lab\assembly-manifest.json: assembly manifest generated with 61 entries
+[INFO] I8104 (assemble) D:\Workspaces\PycharmProjects\home-lab\.work\native\home-lab\.changed-input-scopes.json: changed_input_scopes resolved: scopes=5 changed_files=4
+[INFO] I8201 (build) D:\Workspaces\PycharmProjects\home-lab\dist\home-lab\home-lab.zip: release bundle created: home-lab.zip
+[INFO] I8202 (build) D:\Workspaces\PycharmProjects\home-lab\dist\home-lab\sbom\sbom.json: sbom generated: sbom.json
+[INFO] I8203 (build) D:\Workspaces\PycharmProjects\home-lab\dist\home-lab\release-manifest.json: release manifest generated: release-manifest.json
+[INFO] I4201 (compile) object:obj.apc.backups.650va: Derived 1 capabilities for object 'obj.apc.backups.650va'
+[INFO] I4201 (compile) object:obj.firmware.apc.backups.650va: Derived 1 capabilities for object 'obj.firmware.apc.backups.650va'
+[INFO] I4201 (compile) object:obj.firmware.openwrt.glinet.4x: Derived 1 capabilities for object 'obj.firmware.openwrt.glinet.4x'
+[INFO] I4201 (compile) object:obj.firmware.pdu.generic.managed: Derived 1 capabilities for object 'obj.firmware.pdu.generic.managed'
+[INFO] I4201 (compile) object:obj.firmware.routeros.7.arm64: Derived 5 capabilities for object 'obj.firmware.routeros.7.arm64'
+[INFO] I4201 (compile) object:obj.firmware.routeros.7.x86_64: Derived 5 capabilities for object 'obj.firmware.routeros.7.x86_64'
+[INFO] I4201 (compile) object:obj.firmware.uboot.generic.arm64: Derived 3 capabilities for object 'obj.firmware.uboot.generic.arm64'
+[INFO] I4201 (compile) object:obj.firmware.uefi.generic.arm64: Derived 3 capabilities for object 'obj.firmware.uefi.generic.arm64'
+[INFO] I4201 (compile) object:obj.firmware.uefi.generic.x86_64: Derived 3 capabilities for object 'obj.firmware.uefi.generic.x86_64'
+[INFO] I4201 (compile) object:obj.glinet.slate_ax1800: Derived 1 capabilities for object 'obj.glinet.slate_ax1800'
+[INFO] I4201 (compile) object:obj.hetzner.cloud_vm: Derived 1 capabilities for object 'obj.hetzner.cloud_vm'
+[INFO] I4201 (compile) object:obj.mikrotik.chateau_lte7_ax: Derived 1 capabilities for object 'obj.mikrotik.chateau_lte7_ax'
+[INFO] I4201 (compile) object:obj.mikrotik.chr: Derived 1 capabilities for object 'obj.mikrotik.chr'
+[INFO] I4201 (compile) object:obj.oracle.cloud_vm: Derived 1 capabilities for object 'obj.oracle.cloud_vm'
+[INFO] I4201 (compile) object:obj.orangepi.rk3588.debian: Derived 1 capabilities for object 'obj.orangepi.rk3588.debian'
+[INFO] I4201 (compile) object:obj.os.debian.12.arm64.edge: Derived 6 capabilities for object 'obj.os.debian.12.arm64.edge'
+[INFO] I4201 (compile) object:obj.os.debian.12.proxmox.lxc: Derived 6 capabilities for object 'obj.os.debian.12.proxmox.lxc'
+[INFO] I4201 (compile) object:obj.os.linux.generic.arm64: Derived 5 capabilities for object 'obj.os.linux.generic.arm64'
+[INFO] I4201 (compile) object:obj.os.linux.generic.x86_64: Derived 5 capabilities for object 'obj.os.linux.generic.x86_64'
+[INFO] I4201 (compile) object:obj.os.openwrt.glinet.4x: Derived 4 capabilities for object 'obj.os.openwrt.glinet.4x'
+[INFO] I4201 (compile) object:obj.os.proxmox.ve.9: Derived 6 capabilities for object 'obj.os.proxmox.ve.9'
+[INFO] I4201 (compile) object:obj.os.routeros.7.arm64: Derived 5 capabilities for object 'obj.os.routeros.7.arm64'
+[INFO] I4201 (compile) object:obj.os.routeros.7.x86_64: Derived 5 capabilities for object 'obj.os.routeros.7.x86_64'
+[INFO] I4201 (compile) object:obj.pdu.generic.managed: Derived 1 capabilities for object 'obj.pdu.generic.managed'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.base: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.base'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.docker: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.docker'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.gitea: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.gitea'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.grafana: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.grafana'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.homeassistant: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.homeassistant'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.nextcloud: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.nextcloud'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.nginx: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.nginx'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.postgresql: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.postgresql'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.prometheus: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.prometheus'
+[INFO] I4201 (compile) object:obj.proxmox.lxc.debian12.redis: Derived 1 capabilities for object 'obj.proxmox.lxc.debian12.redis'
+[INFO] I4201 (compile) object:obj.proxmox.ve: Derived 1 capabilities for object 'obj.proxmox.ve'
+[INFO] I4201 (compile) object:obj.service.adguard: Derived 1 capabilities for object 'obj.service.adguard'
+[INFO] I4201 (compile) object:obj.service.alertmanager: Derived 1 capabilities for object 'obj.service.alertmanager'
+[INFO] I4201 (compile) object:obj.service.docker_host: Derived 1 capabilities for object 'obj.service.docker_host'
+[INFO] I4201 (compile) object:obj.service.gitea: Derived 1 capabilities for object 'obj.service.gitea'
+[INFO] I4201 (compile) object:obj.service.grafana: Derived 1 capabilities for object 'obj.service.grafana'
+[INFO] I4201 (compile) object:obj.service.homeassistant: Derived 1 capabilities for object 'obj.service.homeassistant'
+[INFO] I4201 (compile) object:obj.service.jellyfin: Derived 1 capabilities for object 'obj.service.jellyfin'
+[INFO] I4201 (compile) object:obj.service.loki: Derived 1 capabilities for object 'obj.service.loki'
+[INFO] I4201 (compile) object:obj.service.mikrotik.snmp: Derived 1 capabilities for object 'obj.service.mikrotik.snmp'
+[INFO] I4201 (compile) object:obj.service.mikrotik.web_ui: Derived 1 capabilities for object 'obj.service.mikrotik.web_ui'
+[INFO] I4201 (compile) object:obj.service.mosquitto: Derived 1 capabilities for object 'obj.service.mosquitto'
+[INFO] I4201 (compile) object:obj.service.nextcloud: Derived 1 capabilities for object 'obj.service.nextcloud'
+[INFO] I4201 (compile) object:obj.service.nextcloud.file_storage: Derived 1 capabilities for object 'obj.service.nextcloud.file_storage'
+[INFO] I4201 (compile) object:obj.service.nginx_proxy: Derived 1 capabilities for object 'obj.service.nginx_proxy'
+[INFO] I4201 (compile) object:obj.service.ntp: Derived 1 capabilities for object 'obj.service.ntp'
+[INFO] I4201 (compile) object:obj.service.postgresql: Derived 1 capabilities for object 'obj.service.postgresql'
+[INFO] I4201 (compile) object:obj.service.prometheus: Derived 1 capabilities for object 'obj.service.prometheus'
+[INFO] I4201 (compile) object:obj.service.proxmox.web_ui: Derived 1 capabilities for object 'obj.service.proxmox.web_ui'
+[INFO] I4201 (compile) object:obj.service.redis: Derived 1 capabilities for object 'obj.service.redis'
+[INFO] I4201 (compile) object:obj.service.syslog_forwarder: Derived 1 capabilities for object 'obj.service.syslog_forwarder'
+[INFO] I4201 (compile) object:obj.service.tailscale: Derived 1 capabilities for object 'obj.service.tailscale'
+[INFO] I4201 (compile) object:obj.service.wireguard: Derived 1 capabilities for object 'obj.service.wireguard'
+[INFO] I4001 (discover) discover:module-manifests: Plugin manifests loaded via discover bootstrap: plugins=69 manifests=7 module_manifests=6
+[INFO] I9001 (emit) acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/artifacts/effective-2026-03-27.json: Compile success.
+  hint: No action required.
+[INFO] I3901 (generate) D:\Workspaces\PycharmProjects\home-lab\generated\home-lab\artifact-manifest.json: generated artifact manifest with 61 entries
+[INFO] I9001 (generate) generator:effective_yaml: Generated effective YAML artifact: D:\Workspaces\PycharmProjects\home-lab\acceptance-testing\TUC-0001-router-data-channel-mikrotik-glinet\artifacts\effective-topology.yaml
+[INFO] I9101 (generate) D:\Workspaces\PycharmProjects\home-lab\generated\home-lab\terraform\proxmox: generated baseline Proxmox Terraform artifacts: nodes=1 lxc=9 services=9 caps=[none]
+[INFO] I9201 (generate) D:\Workspaces\PycharmProjects\home-lab\generated\home-lab\terraform\mikrotik: generated baseline MikroTik Terraform artifacts: routers=1 networks=12 services=8 caps=[none]
+[INFO] I9301 (generate) D:\Workspaces\PycharmProjects\home-lab\generated\home-lab\ansible\inventory\production: generated baseline Ansible inventory artifacts: hosts=15
+[INFO] I9401 (generate) D:\Workspaces\PycharmProjects\home-lab\generated\home-lab\bootstrap: generated baseline Proxmox bootstrap artifacts: nodes=1
+[INFO] I9501 (generate) D:\Workspaces\PycharmProjects\home-lab\generated\home-lab\bootstrap: generated baseline MikroTik bootstrap artifacts: nodes=1
+[INFO] I9601 (generate) D:\Workspaces\PycharmProjects\home-lab\generated\home-lab\bootstrap: generated baseline Orange Pi bootstrap artifacts: nodes=1
+[INFO] I9701 (generate) D:\Workspaces\PycharmProjects\home-lab\generated\home-lab\docs: generated baseline docs artifacts: devices=6 services=26
+[INFO] I9801 (generate) D:\Workspaces\PycharmProjects\home-lab\generated\home-lab\docs\diagrams: generated diagram artifacts: icon_mode=none devices=6 trust_zones=6 vlans=5
+[INFO] I2401 (load) model.lock: model.lock loaded.
+[INFO] I6901 (validate) pipeline:mode: Pipeline mode plugin-first is active; effective output source is plugin ctx.compiled_json.
+  hint: Plugin-first effective model source is active.

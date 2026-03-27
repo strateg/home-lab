@@ -1,44 +1,25 @@
 # TUC-0001 Router Data Link + Data Channel
 
-This TUC validates OSI-aligned modeling of two router instances where:
-- an ethernet cable instance models physical connectivity as `class.network.physical_link` (L1),
-- an ethernet channel instance models information flow as `class.network.data_link` (L2),
-- the cable instance explicitly references the channel it creates.
+TUC-0001 verifies OSI-aligned modeling for two real router instances:
 
-## Quick Facts
+- L1 physical connectivity as `class.network.physical_link` (`obj.network.ethernet_cable`)
+- L2 logical connectivity as `class.network.data_link` (`obj.network.ethernet_channel`)
+- explicit cross-link contract: `creates_channel_ref` <-> `link_ref`
+- L1 power wiring persistence (`power.source_ref`, `outlet_ref`)
 
-- **Status:** `passed` (2026-03-11)
-- **Test Scenarios:** 11 (all passed)
-- **Plugin Tests:** 9 passed in TUC-specific suite; 81 passed in full regression suite
-- **Evidence:** Compile runs with zero errors; determinism validated; all validators operational
+## Current State (2026-03-27)
 
-## Why This Matters
+- Status: `passed`
+- Automated suite: `tests/plugin_integration/test_tuc0001_router_data_link.py` (10 tests)
+- Runtime baseline: plugin-first pipeline with ADR0080 stage/phase lifecycle
+- Source topology layout:
+  - framework modules: `topology/class-modules`, `topology/object-modules`
+  - project instances: `projects/home-lab/topology/instances`
 
-This TUC demonstrates:
-1. **Multi-layer modeling**: OSI-separated L1 (physical) and L2 (logical) as distinct classes/objects/instances.
-2. **Cross-layer linkage**: Cables create channels; channels reference cables; endpoints must align bidirectionally.
-3. **Instance-specific properties**: Cable length, shielding, color are per-instance while object defines nominal properties.
-4. **Deterministic validation**: Plugin validators enforce contracts consistently across compile runs.
-5. **Plugin extensibility**: Custom validators per object module (MikroTik port naming, GL.iNet DSA rules, etc.).
+## Key Files
 
-## What Gets Tested
-
-- ✅ Valid cable + channel between real routers compiles without error
-- ✅ Unknown endpoint device is caught with stable diagnostic code
-- ✅ Invalid port names are rejected for each router type
-- ✅ Cable/channel reference integrity is enforced
-- ✅ Instance-specific properties (`length_m`, `shielding`, `category`) are preserved
-- ✅ Plugin order and output remain deterministic across repeated runs
-- ✅ No regressions in existing plugin contract/integration tests
-
-## How to Run
-
-See `IMPLEMENTATION-PLAN.md` for Workstream 5 and `TEST-MATRIX.md` for test scenarios.
-
-## Related ADRs
-
-- `adr/0062-modular-topology-architecture-consolidation.md` (class/object/instance architecture)
-- `adr/0063-plugin-microkernel-for-compiler-validators-generators.md` (plugin runtime)
-- `adr/0068-object-yaml-as-instance-template-with-explicit-overrides.md` (instance overrides)
-- `adr/0069-plugin-first-compiler-refactor-and-thin-orchestrator.md` (plugin-first cutover)
-- `adr/0071-sharded-instance-files-and-flat-instances-root.md` (instance storage layout)
+- Use case definition: `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/TUC.md`
+- Test matrix: `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/TEST-MATRIX.md`
+- Manual checks: `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/HOW-TO.md`
+- Quality gate: `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/quality-gate.py`
+- Automated tests: `tests/plugin_integration/test_tuc0001_router_data_link.py`

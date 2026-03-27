@@ -50,7 +50,7 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] `when.profiles` gates plugin execution by `ctx.profile`.
 - [x] `when.capabilities` gates plugin execution by `ctx.capability_catalog`.
 - [x] `when.pipeline_modes` gates plugin execution by runtime pipeline mode.
-- [x] `when.changed_input_scopes` stub is present (full impl deferred to assemble stage).
+- [x] `when.changed_input_scopes` is evaluated from assemble-stage dirty-scope detection.
 - [x] Plugin skipped by `when` emits informational diagnostic, not failure.
 
 ---
@@ -208,7 +208,7 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] `when.profiles` gates on `ctx.profile` — skipped plugins emit informational diagnostic, not failure.
 - [x] `when.capabilities` gates on `ctx.capability_catalog`.
 - [x] `when.pipeline_modes` gates on runtime pipeline mode.
-- [x] `when.changed_input_scopes` stub returns True (all scopes dirty) until full impl in Wave F.
+- [x] `when.changed_input_scopes` is populated by `assemble.init` using artifact-manifest checksum deltas.
 - [x] No `profile_restrictions` field accepted by schema (removed, redirected to `when.profiles`).
 
 ## R. Parallel Plugin Execution
