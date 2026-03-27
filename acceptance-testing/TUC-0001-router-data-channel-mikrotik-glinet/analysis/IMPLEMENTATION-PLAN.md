@@ -75,7 +75,7 @@ Status: `mostly completed` (2026-03-11) — see workstream completion notes belo
 
 | Criterion | Status | Evidence |
 |-----------|--------|----------|
-| All 11 TUC matrix scenarios passed | ✅ | `TEST-MATRIX.md`, `EVIDENCE-LOG.md` |
+| All 11 TUC matrix scenarios passed | ✅ | `../TEST-MATRIX.md`, `EVIDENCE-LOG.md` |
 | No new regressions in plugin suites | ✅ | `artifacts/plugin-suites.txt` (81/81 passed) |
 | Evidence artifacts archived | ✅ | `artifacts/` directory with compile/diagnostic outputs |
 

@@ -19,7 +19,7 @@
 
 ### What's Being Done
 
-1. **Performance measurement script** (`performance-baseline.py`)
+1. **Performance measurement script** (`analysis/performance-baseline.py`)
    - Runs compile 3-5 times
    - Measures wall-clock time
    - Detects regressions vs baseline (>10% threshold)
@@ -35,7 +35,7 @@
 ```bash
 # Measure current performance (3 runs)
 cd acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet
-python performance-baseline.py
+python analysis/performance-baseline.py
 
 # Expected output:
 # Run 1: Starting compile... ✅ OK (3.25s)
@@ -47,7 +47,7 @@ python performance-baseline.py
 # Min/Max: 3.18s / 3.25s
 
 # Set new baseline (5 runs, save to file)
-python performance-baseline.py --baseline
+python analysis/performance-baseline.py --baseline
 ```
 
 ### Acceptance Criteria
@@ -60,7 +60,7 @@ python performance-baseline.py --baseline
 ### Next Steps
 
 - Run baseline on current codebase
-- Add `performance-baseline.py` to CI pipeline
+- Add `analysis/performance-baseline.py` to CI pipeline
 - Track trends over time (weekly report)
 
 ---
@@ -203,7 +203,7 @@ Start with VLAN tagging (most common). Redundancy and LAG can be Phase 5+.
 
 ## Deliverables (Phase 4)
 
-- [x] `performance-baseline.py` script
+- [x] `analysis/performance-baseline.py` script
 - [x] `performance-baseline.json` (baseline file, to be created)
 - [x] `obj.ubiquiti.edgerouter_lite.yaml`
 - [x] `obj.cisco.c1900.yaml`

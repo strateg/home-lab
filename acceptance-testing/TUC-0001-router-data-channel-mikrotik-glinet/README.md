@@ -22,4 +22,5 @@ TUC-0001 verifies OSI-aligned modeling for two real router instances:
 - Test matrix: `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/TEST-MATRIX.md`
 - Manual checks: `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/HOW-TO.md`
 - Quality gate: `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/quality-gate.py`
+- Analysis docs: `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/analysis/`
 - Automated tests: `tests/plugin_integration/test_tuc0001_router_data_link.py`

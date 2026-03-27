@@ -14,6 +14,7 @@ Metrics tracked:
 
 import json
 import subprocess
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
@@ -26,16 +27,16 @@ class PerformanceBaseline:
             "timestamp": datetime.now().isoformat(),
             "runs": [],
         }
-        self.baseline_file = Path(__file__).parent / "artifacts" / "performance-baseline.json"
+        self.baseline_file = Path(__file__).parent.parent / "artifacts" / "performance-baseline.json"
 
     def run_compile(self, run_number: int) -> dict:
         """Run compile and measure performance."""
-        compile_script = self.topology_root / "v5" / "topology-tools" / "compile-topology.py"
-        topology_file = self.topology_root / "v5" / "topology" / "topology.yaml"
-        output_file = Path(__file__).parent / "artifacts" / f"effective-baseline-run{run_number}.json"
+        compile_script = self.topology_root / "topology-tools" / "compile-topology.py"
+        topology_file = self.topology_root / "topology" / "topology.yaml"
+        output_file = Path(__file__).parent.parent / "artifacts" / f"effective-baseline-run{run_number}.json"
 
         command = [
-            "python",
+            sys.executable,
             str(compile_script),
             "--topology",
             str(topology_file),
@@ -167,8 +168,6 @@ class PerformanceBaseline:
 
 
 if __name__ == "__main__":
-    import sys
-
     topology_root = Path(__file__).parent.parent.parent.parent
     baseline = PerformanceBaseline(topology_root)
 
