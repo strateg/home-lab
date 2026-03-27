@@ -462,6 +462,12 @@ Post-cutover hardening (2026-03-27):
    - `topology-tools/kernel/plugin_registry.py::_validate_spec` enforces `KIND_STAGE_AFFINITY`.
    - Contract test: `tests/plugin_contract/test_manifest.py::test_manifest_rejects_kind_stage_affinity_violation`.
    - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`158 passed`).
+4. Agent-instruction contract sync hardened for root-layout/post-cutover policy:
+   - Updated and synchronized `CLAUDE.md` and `.github/copilot-instructions.md` with current root structure
+     (`class-modules`, `object-modules`, `kernel`) and current build lane command.
+   - Added guard test: `tests/test_agent_instruction_sync.py`.
+   - Wired guard into framework release lane: `task framework:release-tests`.
+   - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`160 passed`).
 
 ---
 

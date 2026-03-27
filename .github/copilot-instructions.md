@@ -64,8 +64,8 @@ Scope variants:
 home-lab/
 ├── topology/                    # V5 topology definitions
 │   ├── topology.yaml            # Main entry point
-│   ├── classes/                 # Class definitions (L0-L7)
-│   └── objects/                 # Object definitions
+│   ├── class-modules/           # Class definitions
+│   └── object-modules/          # Object definitions
 ├── topology-tools/              # Plugin runtime and toolchain
 │   ├── compile-topology.py      # Main compiler
 │   ├── plugins/                 # Plugin implementations
@@ -75,7 +75,7 @@ home-lab/
 │   │   ├── generators/          # Generator plugins
 │   │   ├── assemblers/          # Assemble-stage plugins
 │   │   └── builders/            # Build-stage plugins
-│   ├── lib/                     # Core library
+│   ├── kernel/                  # Runtime microkernel APIs
 │   └── templates/               # Jinja2 templates
 ├── projects/home-lab/           # Project-specific data
 │   ├── project.yaml             # Project manifest
@@ -99,9 +99,8 @@ home-lab/
 ├── configs/                     # Device configs (GL.iNet, VPN)
 └── archive/                     # Archived v4 and legacy code
     ├── v4/                      # Complete v4 codebase
-    ├── v4-generated/
     ├── v4-build/
-    ├── v4-dist/
+    ├── tests-deprecated/
     └── migrated-and-archived/
 ```
 
