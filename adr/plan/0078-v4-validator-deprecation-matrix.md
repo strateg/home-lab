@@ -127,3 +127,6 @@
    - `python topology-tools/cutover-readiness-report.py --output-json build/diagnostics/cutover-readiness-full-latest.json` -> PASS
 5. Root-layout docs guard added for operator docs/tooling references:
    - `tests/test_root_layout_docs_contract.py` enforces no active-doc regressions to legacy `v5/*` path prefixes.
+6. Framework release-focused test lane now includes cutover/docs contract guards:
+   - `task framework:release-tests` -> PASS (`156 passed`)
+   - includes `tests/test_cutover_readiness_report.py` and `tests/test_root_layout_docs_contract.py`.
