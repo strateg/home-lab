@@ -20,6 +20,11 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     _require_non_empty_str,
     _sorted_rows,
 )
+from plugins.generators.docs.network_projection import build_network_projection
+from plugins.generators.docs.operations_projection import build_operations_projection
+from plugins.generators.docs.physical_projection import build_physical_projection
+from plugins.generators.docs.security_projection import build_security_projection
+from plugins.generators.docs.storage_projection import build_storage_projection
 
 # ---------------------------------------------------------------------------
 # Icon mapping tables (ADR 0027 canonical icon strategy for v5)
@@ -158,11 +163,49 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         "groups": len(groups),
     }
 
+    service_dependencies: list[dict[str, Any]] = []
+    for row in services:
+        instance_id = row.get("instance_id")
+        if not isinstance(instance_id, str) or not instance_id:
+            continue
+        instance_data = row.get("instance_data")
+        if not isinstance(instance_data, dict):
+            instance_data = {}
+        raw_dependencies = instance_data.get("dependencies")
+        if not isinstance(raw_dependencies, list):
+            continue
+        for dep in raw_dependencies:
+            if isinstance(dep, dict):
+                target = dep.get("service_ref")
+            elif isinstance(dep, str):
+                target = dep
+            else:
+                target = None
+            if isinstance(target, str) and target:
+                service_dependencies.append({"service_id": instance_id, "depends_on": target})
+
+    service_dependencies = sorted(
+        service_dependencies,
+        key=lambda row: (str(row.get("service_id", "")), str(row.get("depends_on", ""))),
+    )
+
+    network_projection = build_network_projection(compiled_json)
+    physical_projection = build_physical_projection(compiled_json)
+    security_projection = build_security_projection(compiled_json)
+    storage_projection = build_storage_projection(compiled_json)
+    operations_projection = build_operations_projection(compiled_json)
+
     return {
         "counts": counts,
         "devices": _sorted_rows(docs_devices),
         "services": _sorted_rows(docs_services),
         "groups": {name: len(rows) for name, rows in sorted(groups.items(), key=lambda item: item[0])},
+        "service_dependencies": service_dependencies,
+        "network": network_projection,
+        "physical": physical_projection,
+        "security": security_projection,
+        "storage": storage_projection,
+        "operations": operations_projection,
     }
 
 

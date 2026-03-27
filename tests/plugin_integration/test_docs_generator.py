@@ -71,6 +71,16 @@ def test_docs_generator_writes_expected_files(tmp_path: Path) -> None:
     assert (docs_root / "overview.md").exists()
     assert (docs_root / "devices.md").exists()
     assert (docs_root / "services.md").exists()
+    assert (docs_root / "network-diagram.md").exists()
+    assert (docs_root / "ip-allocation.md").exists()
+    assert (docs_root / "vlan-topology.md").exists()
+    assert (docs_root / "trust-zones.md").exists()
+    assert (docs_root / "service-dependencies.md").exists()
+    assert (docs_root / "storage-topology.md").exists()
+    assert (docs_root / "monitoring-topology.md").exists()
+    assert (docs_root / "vpn-topology.md").exists()
+    assert (docs_root / "qos-topology.md").exists()
+    assert (docs_root / "ups-topology.md").exists()
     assert (docs_root / "_generated_files.txt").exists()
 
     overview = (docs_root / "overview.md").read_text(encoding="utf-8")
@@ -79,6 +89,8 @@ def test_docs_generator_writes_expected_files(tmp_path: Path) -> None:
     services = (docs_root / "services.md").read_text(encoding="utf-8")
     assert "svc-a" in services
     assert "docker" in services
+    network = (docs_root / "network-diagram.md").read_text(encoding="utf-8")
+    assert "Network Inventory" in network
 
 
 def test_docs_generator_reports_projection_error(tmp_path: Path) -> None:

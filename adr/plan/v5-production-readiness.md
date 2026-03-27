@@ -428,38 +428,38 @@ V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templ
 
 ### 10.1 Phase A — Network Layer Diagrams
 
-- [ ] IP allocation table template.
-- [ ] VLAN topology diagram template.
+- [x] IP allocation table template.
+- [x] VLAN topology diagram template.
 - [ ] DNS/DHCP overview template.
-- [ ] Network projection module for docs generator.
+- [x] Network projection module for docs generator.
 
 ### 10.2 Phase B — Physical Layer Diagrams
 
 - [ ] Rack layout diagram template.
 - [ ] UPS/power distribution diagram template.
 - [ ] Physical connectivity diagram (enhanced).
-- [ ] Physical projection module.
+- [x] Physical projection module.
 
 ### 10.3 Phase C — Security Layer Diagrams
 
 - [ ] Trust zone firewall policy diagram template.
 - [ ] VPN topology diagram template.
 - [ ] Security posture matrix template.
-- [ ] Security projection module.
+- [x] Security projection module.
 
 ### 10.4 Phase D — Application & Storage Diagrams
 
-- [ ] Service dependency graph template.
+- [x] Service dependency graph template.
 - [ ] Data flow diagram (logs, metrics, backups) template.
-- [ ] Storage architecture diagram template.
-- [ ] Application/storage projection modules.
+- [x] Storage architecture diagram template.
+- [x] Application/storage projection modules.
 
 ### 10.5 Phase E — Operations Diagrams
 
-- [ ] Monitoring stack topology template.
-- [ ] QoS/traffic shaping diagram template.
+- [x] Monitoring stack topology template.
+- [x] QoS/traffic shaping diagram template.
 - [ ] Backup schedule overview template.
-- [ ] Operations projection module.
+- [x] Operations projection module.
 
 ### 10.6 Phase F — Icon System & Tooling
 
@@ -585,7 +585,7 @@ V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templ
 3. **Strict placeholder compliance:** ✅ Enforced — strict-gated instance placeholders are CI-blocked (2026-03-27).
 4. **Deployable workflow:** ✅ `terraform plan/apply` and Ansible runs succeed using v5-generated artifacts.
 5. **Operational cutover:** Partial — v5 is default lane; v4 still active as fallback (Phase 9).
-6. **Documentation parity:** Not started — 3/19 templates (Phase 10).
+6. **Documentation parity:** In progress — 13/19 templates (Phase 10).
 7. **Validator cutover:** In progress — staged v4 deprecation (Phase 9).
 
 ---
@@ -664,7 +664,7 @@ Progress is tracked in:
 | Phase 7: Hardware Identity | Completed (placeholder closure + strict CI gate, 2026-03-27) | - |
 | Phase 8.3: Cutover Docs | README updates remaining | P1 |
 | Phase 9: V4 Validator Cutover | Active (staged, all rows Covered/Partial) | P0 |
-| Phase 10: Docs/Diagrams | Active (ADR 0079 accepted, 0/6 phases delivered) | P1 |
+| Phase 10: Docs/Diagrams | Active (ADR 0079 accepted; projection modules + template expansion in progress) | P1 |
 | Phase 11: ADR Backlog | Active (governance closure done; relation backlog pending) | P1 |
 | Phase 12: Operational Readiness | Not started | P2 |
 | Phase 13: Multi-Repo | Deferred | P2 |

@@ -45,6 +45,16 @@ class DocsGenerator(BaseGenerator):
             ("docs/overview.md.j2", "overview.md"),
             ("docs/devices.md.j2", "devices.md"),
             ("docs/services.md.j2", "services.md"),
+            ("docs/network-diagram.md.j2", "network-diagram.md"),
+            ("docs/ip-allocation.md.j2", "ip-allocation.md"),
+            ("docs/vlan-topology.md.j2", "vlan-topology.md"),
+            ("docs/trust-zones.md.j2", "trust-zones.md"),
+            ("docs/service-dependencies.md.j2", "service-dependencies.md"),
+            ("docs/storage-topology.md.j2", "storage-topology.md"),
+            ("docs/monitoring-topology.md.j2", "monitoring-topology.md"),
+            ("docs/vpn-topology.md.j2", "vpn-topology.md"),
+            ("docs/qos-topology.md.j2", "qos-topology.md"),
+            ("docs/ups-topology.md.j2", "ups-topology.md"),
         )
         template_ctx = {
             "projection": projection,
@@ -52,6 +62,12 @@ class DocsGenerator(BaseGenerator):
             "devices": projection.get("devices", []),
             "services": projection.get("services", []),
             "groups": projection.get("groups", {}),
+            "service_dependencies": projection.get("service_dependencies", []),
+            "network": projection.get("network", {}),
+            "physical": projection.get("physical", {}),
+            "security": projection.get("security", {}),
+            "storage": projection.get("storage", {}),
+            "operations": projection.get("operations", {}),
         }
         for template_name, output_name in templates:
             output_path = docs_root / output_name
