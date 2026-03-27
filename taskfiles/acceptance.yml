@@ -1,0 +1,52 @@
+version: "3"
+
+vars:
+  TUC_SLUG: '{{default "TUC-0001-router-data-channel-mikrotik-glinet" .TUC_SLUG}}'
+  TUC_TEST: '{{default "tests/plugin_integration/test_tuc0001_router_data_link.py" .TUC_TEST}}'
+  PYTEST_NODE: '{{default "" .PYTEST_NODE}}'
+  TUC_DIR: "acceptance-testing/{{.TUC_SLUG}}"
+  TUC_ARTIFACTS_DIR: "{{.TUC_DIR}}/artifacts"
+
+tasks:
+  default:
+    desc: Run all acceptance TUC tests
+    deps:
+      - tests-all
+
+  list:
+    desc: List available TUC folders under acceptance-testing
+    cmds:
+      - "{{.PYTHON}} -c \"from pathlib import Path; root=Path('acceptance-testing'); print('\\n'.join(sorted(p.name for p in root.glob('TUC-*') if p.is_dir())))\""
+
+  tests-all:
+    desc: Run all acceptance TUC pytest suites (test_tuc*.py)
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_integration/test_tuc*.py -q"
+
+  test:
+    desc: Run one acceptance TUC pytest file or glob pattern (set TUC_TEST=...)
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= {{.TUC_TEST}} -q"
+
+  test-case:
+    desc: Run one pytest node id from acceptance TUC tests (set PYTEST_NODE=...)
+    preconditions:
+      - sh: test -n "{{.PYTEST_NODE}}"
+        msg: "Set PYTEST_NODE, e.g. task acceptance:test-case PYTEST_NODE='tests/plugin_integration/test_tuc0001_router_data_link.py::test_tuc0001_network_validator_accepts_valid_cable_and_channel'"
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= {{.PYTEST_NODE}} -q"
+
+  quality:
+    desc: Run quality gate for one TUC (set TUC_SLUG=...)
+    cmds:
+      - "{{.PYTHON}} {{.TUC_DIR}}/quality-gate.py"
+
+  quality-all:
+    desc: Run quality gates for all TUC folders that contain quality-gate.py
+    cmds:
+      - "{{.PYTHON}} scripts/acceptance/run_quality_gates.py --root acceptance-testing"
+
+  compile:
+    desc: Compile topology and write artifacts into selected TUC folder (set TUC_SLUG=...)
+    cmds:
+      - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --output-json {{.TUC_ARTIFACTS_DIR}}/effective-test.json --diagnostics-json {{.TUC_ARTIFACTS_DIR}}/diagnostics-test.json --diagnostics-txt {{.TUC_ARTIFACTS_DIR}}/diagnostics-test.txt"

@@ -62,6 +62,11 @@ includes:
     dir: .
     vars:
       PYTHON: "{{.PYTHON}}"
+  acceptance:
+    taskfile: ./taskfiles/acceptance.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
 
 tasks:
   default:

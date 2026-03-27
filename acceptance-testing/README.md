@@ -22,3 +22,11 @@ This directory stores Testing Use Cases (TUC) and all related artifacts.
 ## Current TUCs
 
 - `TUC-0001-router-data-channel-mikrotik-glinet`
+
+## Task Commands
+
+- Run all TUC tests: `task acceptance:tests-all`
+- Run one TUC file: `task acceptance:test TUC_TEST=tests/plugin_integration/test_tuc0001_router_data_link.py`
+- Run one test case: `task acceptance:test-case PYTEST_NODE='tests/plugin_integration/test_tuc0001_router_data_link.py::test_tuc0001_network_validator_accepts_valid_cable_and_channel'`
+- Run one quality gate: `task acceptance:quality TUC_SLUG=TUC-0001-router-data-channel-mikrotik-glinet`
+- Run all quality gates: `task acceptance:quality-all`
