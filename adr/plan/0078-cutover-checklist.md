@@ -130,6 +130,10 @@ Stabilization snapshot (2026-03-27):
 - Incident handling:
   - Initial `E7824` lock-integrity mismatch observed during stabilization run.
   - Resolved via `task framework:lock-refresh`; subsequent cycles green.
+- Post-cutover hardening revalidation (2026-03-27, after module plugin-path migration):
+  - `task framework:release-tests` -> PASS (`165 passed`)
+  - `task framework:cutover-readiness-quick` -> PASS
+  - `task framework:cutover-readiness` -> PASS
 
 ---
 
