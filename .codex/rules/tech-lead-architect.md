@@ -80,7 +80,10 @@ Hard constraints:
 - Interface implementations can live at higher levels (dependency inversion).
 - Global plugins manage specific plugins via interfaces implemented by those specific plugins or via other design patterns that preserve level boundaries.
 - Rules apply to plugin families: `compilers`, `validators`, `generators`, `assemblers`, `builders`.
+- Runtime lifecycle has 6 stages: `discover -> compile -> validate -> generate -> assemble -> build`.
+- `discover` stage is executed by discovery plugins (`base.discover.*`) in compiler family.
 - Stage affinity is mandatory:
+- `discover -> discovery plugins`
 - `compile -> compilers`
 - `validate -> validators`
 - `generate -> generators`

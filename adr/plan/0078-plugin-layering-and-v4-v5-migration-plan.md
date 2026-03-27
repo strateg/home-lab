@@ -4,6 +4,7 @@
 **Status:** Completed (Waves A-F + WP6-WP10 completed)
 **Related ADRs:** 0063, 0069, 0074, 0078, 0080
 **See also:** `adr/plan/0078-v5-unified-plugin-refactor-prep.md` (WP6-WP10)
+**Cutover checklist:** `adr/plan/0078-cutover-checklist.md`
 
 ---
 
@@ -37,14 +38,17 @@
    - `adr/0080-analysis/CUTOVER-CHECKLIST.md`
 6. Нормативный набор семейств плагинов для post-cutover runtime:
    - `compilers`, `validators`, `generators`, `assemblers`, `builders`.
+   - Runtime lifecycle включает 6 stage: `discover -> compile -> validate -> generate -> assemble -> build`.
+   - `discover` stage выполняется discovery plugins (`base.discover.*`) внутри семейства `compilers`.
    - Stage affinity:
+   - `discover -> discovery plugins (compiler kind)`
    - `compile -> compilers`
    - `validate -> validators`
    - `generate -> generators`
    - `assemble -> assemblers`
    - `build -> builders`
 7. Для каждого legacy v4 plugin/check обязателен миграционный анализ перед переносом:
-   - определить целевую стадию (`compile|validate|generate|assemble|build`),
+   - определить целевую стадию (`discover|compile|validate|generate|assemble|build`),
    - зафиксировать решение в mapping/плане,
    - переносить в v5 только после явного stage assignment.
 
@@ -289,7 +293,7 @@ Exit:
 7. Для post-cutover структуры отсутствуют корневые каталоги `v4/` и `v5/` (legacy хранится в `archive/v4`).
 8. v4 baseline-сборка из `archive/v4` остаётся воспроизводимой для parity/регрессионной сверки.
 9. Все новые pipeline/lifecycle изменения после закрытия этого плана ведутся через ADR0080 артефакты.
-10. Runtime/migrations учитывают полный набор из 5 семейств плагинов (`compilers`, `validators`, `generators`, `assemblers`, `builders`) и их stage affinity без регресса существующих потоков.
+10. Runtime/migrations учитывают полный набор из 5 семейств плагинов (`compilers`, `validators`, `generators`, `assemblers`, `builders`) и полный 6-stage lifecycle (`discover -> compile -> validate -> generate -> assemble -> build`), где `discover` реализуется discovery plugins (`base.discover.*`) в `compilers`.
 
 ---
 

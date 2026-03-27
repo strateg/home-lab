@@ -42,7 +42,8 @@
 2. Confirm plugin lifecycle path (discover/compile/validate/generate/assemble/build) in default runtime.
 3. Confirm 5 plugin families in active manifests/runtime contracts:
    - `compilers`, `validators`, `generators`, `assemblers`, `builders`.
-4. Confirm stage affinity is respected:
+4. Confirm stage affinity is respected for all 6 stages:
+   - `discover -> discovery plugins (base.discover.*; compiler kind)`
    - `compile -> compilers`
    - `validate -> validators`
    - `generate -> generators`
@@ -108,4 +109,4 @@ Cutover is considered closed when:
 2. Root-only layout is stable (no recreated `v4/`/`v5/` in root).
 3. `archive/v4` compile remains reproducible.
 4. Acceptance TUC and strict runtime audit are green on release branch.
-5. Все 5 семейств плагинов и их stage affinity входят в validated default runtime cutover gates.
+5. Все 5 семейств плагинов и полный 6-stage lifecycle (`discover -> compile -> validate -> generate -> assemble -> build`) входят в validated default runtime cutover gates, включая discovery plugins `base.discover.*`.
