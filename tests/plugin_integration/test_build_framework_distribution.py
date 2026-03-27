@@ -127,6 +127,25 @@ def test_default_paths_detect_extracted_layout(tmp_path: Path):
     assert mod._default_output_root() == framework_root / "dist" / "framework"
 
 
+def test_default_paths_detect_root_layout(tmp_path: Path):
+    repo_root = tmp_path / "repo"
+    tools_root = repo_root / "topology-tools"
+    topology_root = repo_root / "topology"
+    tools_root.mkdir(parents=True, exist_ok=True)
+    topology_root.mkdir(parents=True, exist_ok=True)
+
+    framework_manifest = topology_root / "framework.yaml"
+    framework_manifest.write_text("schema_version: 1\nframework_id: test\n", encoding="utf-8")
+
+    copied_script = tools_root / "build-framework-distribution.py"
+    copied_script.write_text(SCRIPT_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    mod = _load_module_from(copied_script)
+
+    assert mod._default_repo_root() == repo_root
+    assert mod._default_framework_manifest() == framework_manifest
+    assert mod._default_output_root() == repo_root / "dist" / "framework"
+
+
 def test_build_distribution_supports_include_mapping_with_topology_targets(tmp_path: Path):
     mod = _load_module()
     repo_root = tmp_path / "repo"

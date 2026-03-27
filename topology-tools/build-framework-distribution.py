@@ -33,9 +33,9 @@ def _default_repo_root() -> Path:
     parent = tools_dir.parent
     if (parent / "framework.yaml").exists():
         return parent
-    if parent.name == "v5":
-        return parent.parent
-    return parent.parent
+    if (parent / "topology" / "framework.yaml").exists():
+        return parent
+    return parent
 
 
 def _default_framework_manifest() -> Path:
