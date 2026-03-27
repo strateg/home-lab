@@ -2,8 +2,39 @@
 
 **Date:** 2026-03-22
 **Status:** Completed (Waves A-F + WP6-WP10 completed)
-**Related ADRs:** 0063, 0069, 0074, 0078
+**Related ADRs:** 0063, 0069, 0074, 0078, 0080
 **See also:** `adr/plan/0078-v5-unified-plugin-refactor-prep.md` (WP6-WP10)
+
+---
+
+## Layout Note (2026-03-27)
+
+После завершения миграции репозиторный layout зафиксирован так:
+
+1. Legacy `v4` хранится в `archive/v4` и используется как эталон для сверок/parity.
+2. Историческое содержимое `v5` перенесено в корень репозитория (`topology`, `topology-tools`, `tests`, `scripts`, `taskfiles` и т.д.).
+3. Проверки v4/v5 выполняются с опорой на `archive/v4`; сборка v4 должна оставаться рабочей.
+4. Перенос `v5` в корень был выполнен преждевременно, но принят как целевой layout: дальнейшая разработка продолжается в корневой структуре.
+
+---
+
+## ADR0080 Alignment (2026-03-27)
+
+Этот план закрывает миграцию слоёв/плагинов (ADR0078 scope). Дальнейшее развитие runtime/pipeline выполняется по ADR0080.
+
+Правила синхронизации с ADR0080:
+
+1. Все исторические ссылки вида `v5/...` в этом документе трактуются как корневые пути репозитория.
+2. Эталон legacy-сверок: только `archive/v4`; для регрессионной сверки допускается запуск v4 сборки из `archive/v4`.
+3. Активная разработка и новые изменения выполняются только в root layout (без возврата к корневым папкам `v4/` и `v5/`).
+4. Контрольные гейты должны включать:
+   - `task validate:workspace-layout` (запрет legacy root директорий),
+   - `task framework:audit-entrypoints` (strict runtime audit),
+   - `task acceptance:tests-all` / `task acceptance:test` для TUC acceptance-checks.
+5. Для lifecycle/stage-phase/data-bus изменений использовать планы и чеклисты ADR0080:
+   - `adr/0080-analysis/IMPLEMENTATION-PLAN.md`
+   - `adr/0080-analysis/CUTOVER-PLAN.md`
+   - `adr/0080-analysis/CUTOVER-CHECKLIST.md`
 
 ---
 
@@ -238,6 +269,9 @@ Exit:
 4. Ключевые v4 semantic checks покрыты v5 plugins + tests.
 5. v5 orchestration не зависит от v4 для стандартного validate/build/release пути.
 6. `test_plugin_level_boundaries.py` остаётся green и расширяется по мере миграции.
+7. Для post-cutover структуры отсутствуют корневые каталоги `v4/` и `v5/` (legacy хранится в `archive/v4`).
+8. v4 baseline-сборка из `archive/v4` остаётся воспроизводимой для parity/регрессионной сверки.
+9. Все новые pipeline/lifecycle изменения после закрытия этого плана ведутся через ADR0080 артефакты.
 
 ---
 

@@ -5,6 +5,7 @@
 **Status:** Accepted
 **Gap Analysis:** `adr/0080-analysis/GAP-ANALYSIS.md`
 **Cutover Checklist:** `adr/0080-analysis/CUTOVER-CHECKLIST.md`
+**Cutover Plan:** `adr/0080-analysis/CUTOVER-PLAN.md`
 
 ---
 
