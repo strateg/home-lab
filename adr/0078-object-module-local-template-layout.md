@@ -51,6 +51,7 @@ Classification rule (normative):
 Scope extension (normative):
 
 1. ADR0078 applies to all v5 plugin families:
+   - discoverers;
    - compilers;
    - validators;
    - generators.

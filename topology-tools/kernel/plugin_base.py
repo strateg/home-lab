@@ -24,6 +24,7 @@ from typing import Any, Callable, Optional
 class PluginKind(str, Enum):
     """Plugin kind determining execution context."""
 
+    DISCOVERER = "discoverer"
     COMPILER = "compiler"
     VALIDATOR_YAML = "validator_yaml"
     VALIDATOR_JSON = "validator_json"
@@ -765,6 +766,14 @@ class CompilerPlugin(PluginBase):
     @property
     def kind(self) -> PluginKind:
         return PluginKind.COMPILER
+
+
+class DiscovererPlugin(PluginBase):
+    """Plugin for discover-stage manifest bootstrap and preflight."""
+
+    @property
+    def kind(self) -> PluginKind:
+        return PluginKind.DISCOVERER
 
 
 class ValidatorYamlPlugin(PluginBase):

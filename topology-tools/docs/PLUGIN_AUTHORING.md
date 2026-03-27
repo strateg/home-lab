@@ -4,7 +4,8 @@ This guide explains how to write plugins for the v5 topology compiler (ADR 0063)
 
 ## Overview
 
-The v5 topology compiler uses a microkernel architecture where validation, compilation, and generation logic are implemented as plugins. This enables:
+The v5 topology compiler uses a microkernel architecture where discovery, compilation, validation,
+generation, assembly, and build logic are implemented as plugins. This enables:
 
 - Modular extension of the compiler pipeline
 - Independent development and testing of checks
@@ -15,10 +16,13 @@ The v5 topology compiler uses a microkernel architecture where validation, compi
 
 | Kind | Base Class | Input | Output | Stage |
 |------|------------|-------|--------|-------|
+| `discoverer` | `DiscovererPlugin` | Runtime bootstrap context | Discovery inventory/preflight | `discover` |
 | `compiler` | `CompilerPlugin` | Parsed YAML | Transformed data | `compile` |
 | `validator_yaml` | `ValidatorYamlPlugin` | Parsed YAML + source | Diagnostics | `validate` |
 | `validator_json` | `ValidatorJsonPlugin` | Compiled JSON | Diagnostics | `validate` |
 | `generator` | `GeneratorPlugin` | Compiled JSON | Generated files | `generate` |
+| `assembler` | `AssemblerPlugin` | Compiled JSON + artifact roots | Assembled execution workspace | `assemble` |
+| `builder` | `BuilderPlugin` | Assembled workspace | Release package/verification outputs | `build` |
 
 ## Quick Start
 
@@ -322,10 +326,10 @@ Full manifest schema for reference:
 schema_version: 1
 plugins:
   - id: string                    # Unique plugin ID (reverse-domain style)
-    kind: string                  # compiler | validator_yaml | validator_json | generator
+    kind: string                  # discoverer | compiler | validator_yaml | validator_json | generator | assembler | builder
     entry: string                 # path/to/module.py:ClassName
     api_version: string           # "1.x" (semver pattern)
-    stages: [string]              # [validate] | [compile] | [generate]
+    stages: [string]              # [discover] | [compile] | [validate] | [generate] | [assemble] | [build]
     order: integer                # Execution order (lower = earlier)
     depends_on: [string]          # Plugin IDs this plugin depends on
     timeout: integer              # Execution timeout in seconds

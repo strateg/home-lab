@@ -47,10 +47,10 @@ Rules:
 - A plugin may call interfaces from its own level or higher only.
 - Such interfaces may be implemented by higher levels (dependency inversion).
 - Global plugins manage specific plugins through interfaces implemented by specific plugins or through other design patterns that preserve level boundaries.
-- Applies to all plugin families (`compilers`, `validators`, `generators`, `assemblers`, `builders`).
+- Applies to all plugin families (`discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`).
 - Runtime lifecycle has 6 stages: `discover -> compile -> validate -> generate -> assemble -> build`.
-- `discover` stage is executed by discovery plugins (`base.discover.*`) in compiler family.
-- Stage affinity must be preserved: `discover -> discovery plugins`, `compile -> compilers`, `validate -> validators`, `generate -> generators`, `assemble -> assemblers`, `build -> builders`.
+- `discover` stage is executed by discovery plugins (`base.discover.*`) in discoverer family.
+- Stage affinity must be preserved: `discover -> discoverers`, `compile -> compilers`, `validate -> validators`, `generate -> generators`, `assemble -> assemblers`, `build -> builders`.
 
 Scope variants:
 

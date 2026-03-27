@@ -75,8 +75,8 @@ Execution snapshot (2026-03-27):
 - [x] `task ci:local`
 - [x] Подтверждена lifecycle-цепочка default runtime:
 - [x] `discover -> compile -> validate -> generate -> assemble -> build`.
-- [x] Подтверждены 5 семейств плагинов и 6-stage affinity:
-- [x] `discover -> discovery plugins (base.discover.*; compiler kind)`
+- [x] Подтверждены 6 семейств плагинов и 6-stage affinity:
+- [x] `discover -> discoverers (base.discover.*; discoverer kind)`
 - [x] `compile -> compilers`
 - [x] `validate -> validators`
 - [x] `generate -> generators`
@@ -92,7 +92,7 @@ Execution snapshot (2026-03-27):
 - `ci:local` -> PASS (quality + strict runtime + phase1 gate + tests)
 - Stage inventory from `topology-tools/plugins/plugins.yaml`:
   - `discover=4`, `compile=7`, `validate=36`, `generate=6`, `assemble=4`, `build=3`
-  - `base.discover.*` plugins confirmed as `kind=compiler`, `stages=[discover]`
+  - `base.discover.*` plugins confirmed as `kind=discoverer`, `stages=[discover]`
 - Root layout guard re-checked: root `v4/` and root `v5/` are absent.
 - Legacy phase1 bootstrap script migrated to archive baseline:
   - `topology-tools/bootstrap-phase1-mapping.py` now uses `archive/v4/...` paths by default.
@@ -131,5 +131,5 @@ Execution snapshot (2026-03-27):
 - [ ] Все пункты разделов 2-6 закрыты.
 - [ ] Root-only layout стабилен (нет повторного появления root `v4/`/`v5/`).
 - [ ] `archive/v4` compile воспроизводим.
-- [ ] Все 5 семейств плагинов и полный 6-stage lifecycle (включая `discover`/`base.discover.*`) валидированы в default runtime.
+- [ ] Все 6 семейств плагинов и полный 6-stage lifecycle (включая `discover`/`base.discover.*`) валидированы в default runtime.
 - [ ] Cutover официально отмечен как завершенный в release notes/plan status.

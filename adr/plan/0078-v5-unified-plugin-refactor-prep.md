@@ -12,7 +12,7 @@
 
 1. Этот документ закрывает historical prep/refactor scope WP6-WP10 и остается reference-only.
 2. Scope этого документа ограничен эпохой `compiler/validator/generator` перед расширением ADR0080.
-3. Текущий runtime baseline использует 5 plugin families и 6-stage lifecycle (`discover -> compile -> validate -> generate -> assemble -> build`).
+3. Текущий runtime baseline использует 6 plugin families и 6-stage lifecycle (`discover -> compile -> validate -> generate -> assemble -> build`).
 4. Для активного cutover-контроля использовать `adr/plan/0078-cutover-checklist.md`.
 
 ---
@@ -21,9 +21,10 @@
 
 Подготовить v5 рефакторинг под единые правила для всех типов плагинов:
 
-1. compilers;
-2. validators;
-3. generators.
+1. discoverers;
+2. compilers;
+3. validators;
+4. generators.
 
 ---
 
@@ -49,7 +50,7 @@
 
 1. Полный реестр плагинов по семействам и уровням:
    - plugin id;
-   - family (`compiler|validator|generator`);
+   - family (`discoverer|compiler|validator|generator`);
    - level (`core|class|object|instance`);
    - owner manifest/path.
 2. Карта нарушений:

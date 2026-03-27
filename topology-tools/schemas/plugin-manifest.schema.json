@@ -32,7 +32,7 @@
         },
         "kind": {
           "type": "string",
-          "enum": ["compiler", "validator_yaml", "validator_json", "generator", "assembler", "builder"],
+          "enum": ["discoverer", "compiler", "validator_yaml", "validator_json", "generator", "assembler", "builder"],
           "description": "Plugin kind determining execution context"
         },
         "entry": {

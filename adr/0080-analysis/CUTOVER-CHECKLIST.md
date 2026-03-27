@@ -18,7 +18,7 @@ Complete when all Waves A–H are done and all items below are verified.
 
 - [x] Runtime `Stage` enum contains: `discover`, `compile`, `validate`, `generate`, `assemble`, `build`.
 - [x] Runtime `Phase` enum contains: `init`, `pre`, `run`, `post`, `verify`, `finalize` in canonical order.
-- [x] Runtime `PluginKind` contains: `compiler`, `validator_yaml`, `validator_json`, `generator`, `assembler`, `builder`.
+- [x] Runtime `PluginKind` contains: `discoverer`, `compiler`, `validator_yaml`, `validator_json`, `generator`, `assembler`, `builder`.
 - [x] Execution order is `stage → phase → DAG/order` (not flat order within stage).
 - [x] Forward stage dependency is rejected at manifest load time with diagnostic.
 - [x] Forward phase dependency within same stage is rejected at manifest load time with diagnostic.

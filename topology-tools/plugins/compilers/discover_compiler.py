@@ -5,10 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+from kernel.plugin_base import DiscovererPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
 
 
-class DiscoverManifestLoaderCompiler(CompilerPlugin):
+class DiscoverManifestLoaderCompiler(DiscovererPlugin):
     """Load module-level plugin manifests during discover/init."""
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
@@ -105,7 +105,7 @@ class DiscoverManifestLoaderCompiler(CompilerPlugin):
         return self.execute(ctx, stage)
 
 
-class DiscoverInventoryCompiler(CompilerPlugin):
+class DiscoverInventoryCompiler(DiscovererPlugin):
     """Publish discovered manifest/plugin inventory collected by orchestrator."""
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
@@ -128,7 +128,7 @@ class DiscoverInventoryCompiler(CompilerPlugin):
         return self.execute(ctx, stage)
 
 
-class DiscoverBoundaryCompiler(CompilerPlugin):
+class DiscoverBoundaryCompiler(DiscovererPlugin):
     """Enforce discover-stage manifest boundary (no project-scoped plugin manifests)."""
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
@@ -156,7 +156,7 @@ class DiscoverBoundaryCompiler(CompilerPlugin):
         return self.execute(ctx, stage)
 
 
-class DiscoverCapabilityPreflightCompiler(CompilerPlugin):
+class DiscoverCapabilityPreflightCompiler(DiscovererPlugin):
     """Check capability contract files are present before compile/validate stages."""
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:

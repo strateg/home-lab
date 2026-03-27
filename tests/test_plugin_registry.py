@@ -60,7 +60,7 @@ def test_manifest_loading():
     assert len(manifest.plugins) >= 1
 
     discover_plugin = next(p for p in manifest.plugins if p.id == "base.discover.inventory")
-    assert discover_plugin.kind == PluginKind.COMPILER
+    assert discover_plugin.kind == PluginKind.DISCOVERER
     assert Stage.DISCOVER in discover_plugin.stages
     assert discover_plugin.timeout == 30
 

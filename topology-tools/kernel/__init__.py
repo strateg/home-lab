@@ -15,6 +15,7 @@ from .plugin_base import (  # Legacy alias
     BuilderPlugin,
     CompilerPlugin,
     Diagnostic,
+    DiscovererPlugin,
     GeneratorPlugin,
     Phase,
     PluginBase,
@@ -59,6 +60,7 @@ __all__ = [
     "Phase",
     # Plugin type classes
     "CompilerPlugin",
+    "DiscovererPlugin",
     "ValidatorYamlPlugin",
     "ValidatorJsonPlugin",
     "GeneratorPlugin",

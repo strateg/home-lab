@@ -78,7 +78,7 @@ discover → compile → validate → generate → assemble → build
 
 | Stage | Purpose | Plugin kinds |
 |-------|---------|-------------|
-| `discover` | Find and register plugin manifests | `compiler` |
+| `discover` | Find and register plugin manifests | `discoverer` |
 | `compile` | Transform raw YAML into compiled model | `compiler` |
 | `validate` | Check model correctness | `validator_yaml`, `validator_json` |
 | `generate` | Emit artifacts (Terraform, Ansible, docs) | `generator` |
@@ -121,6 +121,13 @@ Use `finalize` for cleanup, summary emission, and resource release.
 
 ## Plugin Types
 
+### Discoverer Plugins (`kind: discoverer`)
+
+Bootstrap discover-stage inventory/preflight logic before compile.
+
+**Stage:** `discover`
+**Order range:** 10–89
+
 ### Compiler Plugins (`kind: compiler`)
 
 Transform or resolve the Object Model during compilation.
@@ -137,8 +144,8 @@ class MyCompiler(CompilerPlugin):
         return self.make_result(diagnostics)
 ```
 
-**Stage:** `compile` (or `discover` for bootstrap plugins)
-**Order range:** 30–89 (compile), 10–89 (discover)
+**Stage:** `compile`
+**Order range:** 30–89
 
 ### Validator Plugins (`kind: validator_yaml` / `validator_json`)
 

@@ -2,7 +2,7 @@ schema_version: 1
 plugins:
   # Discover plugins (run in discover stage)
   - id: base.discover.manifest_loader
-    kind: compiler
+    kind: discoverer
     entry: compilers/discover_compiler.py:DiscoverManifestLoaderCompiler
     api_version: "1.x"
     stages: [discover]
@@ -21,7 +21,7 @@ plugins:
     description: Loads class/object module plugin manifests during discover bootstrap.
 
   - id: base.discover.inventory
-    kind: compiler
+    kind: discoverer
     entry: compilers/discover_compiler.py:DiscoverInventoryCompiler
     api_version: "1.x"
     stages: [discover]
@@ -44,7 +44,7 @@ plugins:
     description: Publishes discovered plugin manifests inventory for discover-stage traceability.
 
   - id: base.discover.boundary
-    kind: compiler
+    kind: discoverer
     entry: compilers/discover_compiler.py:DiscoverBoundaryCompiler
     api_version: "1.x"
     stages: [discover]
@@ -67,7 +67,7 @@ plugins:
     description: Enforces framework/project plugin manifest boundary during discover stage.
 
   - id: base.discover.capability_preflight
-    kind: compiler
+    kind: discoverer
     entry: compilers/discover_compiler.py:DiscoverCapabilityPreflightCompiler
     api_version: "1.x"
     stages: [discover]

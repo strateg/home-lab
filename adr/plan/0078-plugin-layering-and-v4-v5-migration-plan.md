@@ -37,11 +37,11 @@
    - `adr/0080-analysis/CUTOVER-PLAN.md`
    - `adr/0080-analysis/CUTOVER-CHECKLIST.md`
 6. Нормативный набор семейств плагинов для post-cutover runtime:
-   - `compilers`, `validators`, `generators`, `assemblers`, `builders`.
+   - `discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`.
    - Runtime lifecycle включает 6 stage: `discover -> compile -> validate -> generate -> assemble -> build`.
-   - `discover` stage выполняется discovery plugins (`base.discover.*`) внутри семейства `compilers`.
+   - `discover` stage выполняется discovery plugins (`base.discover.*`) внутри семейства `discoverers`.
    - Stage affinity:
-   - `discover -> discovery plugins (compiler kind)`
+   - `discover -> discoverers (discoverer kind)`
    - `compile -> compilers`
    - `validate -> validators`
    - `generate -> generators`
@@ -59,6 +59,7 @@
 
 Привести runtime и плагины к новым правилам 4 уровней для всех семейств плагинов:
 
+- discoverers;
 - compilers;
 - validators;
 - generators;
@@ -294,7 +295,7 @@ Exit:
 7. Для post-cutover структуры отсутствуют корневые каталоги `v4/` и `v5/` (legacy хранится в `archive/v4`).
 8. v4 baseline-сборка из `archive/v4` остаётся воспроизводимой для parity/регрессионной сверки.
 9. Все новые pipeline/lifecycle изменения после закрытия этого плана ведутся через ADR0080 артефакты.
-10. Runtime/migrations учитывают полный набор из 5 семейств плагинов (`compilers`, `validators`, `generators`, `assemblers`, `builders`) и полный 6-stage lifecycle (`discover -> compile -> validate -> generate -> assemble -> build`), где `discover` реализуется discovery plugins (`base.discover.*`) в `compilers`.
+10. Runtime/migrations учитывают полный набор из 6 семейств плагинов (`discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`) и полный 6-stage lifecycle (`discover -> compile -> validate -> generate -> assemble -> build`), где `discover` реализуется discovery plugins (`base.discover.*`) в `discoverers`.
 
 ---
 
