@@ -767,6 +767,33 @@ def test_manifest_rejects_entry_family_affinity_violation(tmp_path: Path):
         assert "must use plugins/compilers/" in str(exc)
 
 
+def test_manifest_rejects_flat_plugins_entry_without_family(tmp_path: Path):
+    """Runtime must reject deprecated flat plugins/<file>.py entry paths."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.validator.flat_entry",
+                "kind": "validator_json",
+                "entry": "plugins/flat_validator.py:FlatValidator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 100,
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    try:
+        registry.load_manifest(manifest)
+        assert False, "Expected PluginLoadError for flat plugins entry path"
+    except PluginLoadError as exc:
+        assert "must include plugin family segment" in str(exc)
+
+
 def test_base_manifest_plugin_orders_follow_stage_ranges():
     """Base manifest should satisfy ADR0080 stage order ranges."""
     registry = PluginRegistry(V5_TOOLS)
@@ -874,7 +901,8 @@ def test_plugin_entry_family_affinity_across_discovered_manifests():
             else:
                 continue
             if "/" not in tail:
-                # Legacy flat plugin path (plugins/<file>.py) is accepted during migration.
+                rel_path = manifest_path.relative_to(repo_root).as_posix()
+                violations.append(f"{plugin_id}@{rel_path}: entry '{entry}' must include plugins/<family>/ segment")
                 continue
             family = tail.split("/", 1)[0]
             if family != expected_family:
@@ -923,6 +951,7 @@ if __name__ == "__main__":
         test_manifest_rejects_out_of_range_order,
         test_manifest_rejects_kind_stage_affinity_violation,
         test_manifest_rejects_entry_family_affinity_violation,
+        test_manifest_rejects_flat_plugins_entry_without_family,
         test_base_manifest_plugin_orders_follow_stage_ranges,
         test_plugin_kind_stage_affinity_across_discovered_manifests,
         test_plugin_entry_family_affinity_across_discovered_manifests,

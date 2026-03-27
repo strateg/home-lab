@@ -41,15 +41,15 @@ def _load_generator_class(module_rel_path: str, class_name: str):
 
 
 BootstrapMikroTikGenerator = _load_generator_class(
-    "topology/object-modules/mikrotik/plugins/bootstrap_mikrotik_generator.py",
+    "topology/object-modules/mikrotik/plugins/generators/bootstrap_mikrotik_generator.py",
     "BootstrapMikroTikGenerator",
 )
 BootstrapOrangePiGenerator = _load_generator_class(
-    "topology/object-modules/orangepi/plugins/bootstrap_orangepi_generator.py",
+    "topology/object-modules/orangepi/plugins/generators/bootstrap_orangepi_generator.py",
     "BootstrapOrangePiGenerator",
 )
 BootstrapProxmoxGenerator = _load_generator_class(
-    "topology/object-modules/proxmox/plugins/bootstrap_proxmox_generator.py",
+    "topology/object-modules/proxmox/plugins/generators/bootstrap_proxmox_generator.py",
     "BootstrapProxmoxGenerator",
 )
 

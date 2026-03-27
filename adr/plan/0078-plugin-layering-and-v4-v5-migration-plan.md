@@ -487,6 +487,16 @@ Post-cutover hardening (2026-03-27):
    - Added contract regression:
      - `tests/plugin_contract/test_manifest.py::test_manifest_schema_rejects_duplicate_stage_tokens`
    - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`164 passed`).
+8. Completed module-manifest entry-path migration to family-structured plugin layout:
+   - Class/object manifests migrated from deprecated flat `plugins/<file>.py` entries to
+     `plugins/<family>/<file>.py` (`validators`, `generators`).
+   - Plugin files relocated accordingly under module plugin roots, preserving ownership in
+     `topology/class-modules/**/plugins/` and `topology/object-modules/**/plugins/`.
+   - Runtime now hard-rejects flat `plugins/<file>.py` entries at manifest load.
+   - Contract regressions:
+     - `tests/plugin_contract/test_manifest.py::test_manifest_rejects_flat_plugins_entry_without_family`
+     - `tests/plugin_contract/test_manifest.py::test_plugin_entry_family_affinity_across_discovered_manifests`
+   - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`165 passed`).
 
 ---
 

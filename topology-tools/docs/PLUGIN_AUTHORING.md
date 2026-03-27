@@ -384,6 +384,11 @@ Entry family affinity is enforced for structured entry paths:
 5. `assembler -> plugins/assemblers/...`
 6. `builder -> plugins/builders/...`
 
+Deprecated flat paths are rejected:
+
+1. `plugins/my_plugin.py:MyPlugin` is invalid.
+2. Use `plugins/<family>/my_plugin.py:MyPlugin`.
+
 ## Testing Plugins
 
 ### Unit Tests

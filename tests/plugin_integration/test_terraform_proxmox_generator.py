@@ -18,7 +18,15 @@ get_capability_templates = load_capability_helpers().get_capability_templates
 
 
 def _load_generator_class():
-    module_path = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "terraform_proxmox_generator.py"
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "proxmox"
+        / "plugins"
+        / "generators"
+        / "terraform_proxmox_generator.py"
+    )
     spec = importlib.util.spec_from_file_location("test_object_proxmox_terraform_generator", module_path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)

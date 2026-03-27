@@ -15,7 +15,15 @@ from kernel.plugin_base import PluginContext, PluginStatus, Stage
 
 
 def _load_generator_class():
-    module_path = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py"
+    module_path = (
+        V5_ROOT
+        / "topology"
+        / "object-modules"
+        / "mikrotik"
+        / "plugins"
+        / "generators"
+        / "terraform_mikrotik_generator.py"
+    )
     spec = importlib.util.spec_from_file_location("test_object_mikrotik_terraform_generator", module_path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)

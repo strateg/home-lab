@@ -12,11 +12,13 @@ MIKROTIK_MANIFEST = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plug
 PROXMOX_MANIFEST = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins.yaml"
 ORANGEPI_MANIFEST = V5_ROOT / "topology" / "object-modules" / "orangepi" / "plugins.yaml"
 MIKROTIK_GENERATOR = (
-    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "bootstrap_mikrotik_generator.py"
+    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "generators" / "bootstrap_mikrotik_generator.py"
 )
-PROXMOX_GENERATOR = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "bootstrap_proxmox_generator.py"
+PROXMOX_GENERATOR = (
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "generators" / "bootstrap_proxmox_generator.py"
+)
 ORANGEPI_GENERATOR = (
-    V5_ROOT / "topology" / "object-modules" / "orangepi" / "plugins" / "bootstrap_orangepi_generator.py"
+    V5_ROOT / "topology" / "object-modules" / "orangepi" / "plugins" / "generators" / "bootstrap_orangepi_generator.py"
 )
 
 

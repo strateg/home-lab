@@ -338,6 +338,12 @@ class PluginRegistry:
                 f"kind '{spec.kind.value}' cannot run in stage '{stage.value}' "
                 f"(allowed stages: {[item.value for item in sorted(allowed_stages, key=lambda s: s.value)]})",
             )
+        if self._entry_uses_plugins_prefix_without_family(spec.entry):
+            raise PluginLoadError(
+                spec.id,
+                f"entry '{spec.entry}' must include plugin family segment "
+                "(expected plugins/<family>/module.py:ClassName)",
+            )
         entry_family = self._extract_entry_plugin_family(spec.entry)
         expected_family = KIND_ENTRY_FAMILY.get(spec.kind)
         if entry_family and expected_family and entry_family != expected_family:
@@ -383,6 +389,18 @@ class PluginRegistry:
             return None
         family = tail.split("/", 1)[0].strip()
         return family or None
+
+    @staticmethod
+    def _entry_uses_plugins_prefix_without_family(entry: str) -> bool:
+        """Detect deprecated flat plugins/<file>.py entries."""
+        entry_path = entry.split(":", 1)[0].replace("\\", "/")
+        if "/plugins/" in entry_path:
+            tail = entry_path.split("/plugins/", 1)[1]
+        elif entry_path.startswith("plugins/"):
+            tail = entry_path[len("plugins/") :]
+        else:
+            return False
+        return "/" not in tail
 
     def _is_api_compatible(self, plugin_api: str) -> bool:
         """Check if plugin API version is compatible with kernel.

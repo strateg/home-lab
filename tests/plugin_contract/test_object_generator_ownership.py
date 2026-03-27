@@ -32,11 +32,11 @@ MODULE_MANIFESTS = [
 ]
 
 OBJECT_GENERATOR_PLUGIN_FILES = [
-    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py",
-    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "bootstrap_mikrotik_generator.py",
-    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "terraform_proxmox_generator.py",
-    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "bootstrap_proxmox_generator.py",
-    V5_ROOT / "topology" / "object-modules" / "orangepi" / "plugins" / "bootstrap_orangepi_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "generators" / "terraform_mikrotik_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "generators" / "bootstrap_mikrotik_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "generators" / "terraform_proxmox_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "generators" / "bootstrap_proxmox_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "orangepi" / "plugins" / "generators" / "bootstrap_orangepi_generator.py",
 ]
 
 OBJECT_TEMPLATE_ROOTS = [

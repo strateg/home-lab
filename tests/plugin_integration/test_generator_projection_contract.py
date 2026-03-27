@@ -42,15 +42,15 @@ def _load_module(name: str, path: Path):
 
 proxmox_module = _load_module(
     "object_proxmox_terraform_generator",
-    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "terraform_proxmox_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "generators" / "terraform_proxmox_generator.py",
 )
 mikrotik_module = _load_module(
     "object_mikrotik_terraform_generator",
-    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "generators" / "terraform_mikrotik_generator.py",
 )
 bootstrap_proxmox_module = _load_module(
     "object_proxmox_bootstrap_generator",
-    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "bootstrap_proxmox_generator.py",
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "generators" / "bootstrap_proxmox_generator.py",
 )
 
 

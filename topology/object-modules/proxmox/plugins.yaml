@@ -2,7 +2,7 @@ schema_version: 1
 plugins:
   - id: base.generator.terraform_proxmox
     kind: generator
-    entry: plugins/terraform_proxmox_generator.py:TerraformProxmoxGenerator
+    entry: plugins/generators/terraform_proxmox_generator.py:TerraformProxmoxGenerator
     api_version: "1.x"
     stages: [generate]
     phase: run
@@ -71,7 +71,7 @@ plugins:
 
   - id: base.generator.bootstrap_proxmox
     kind: generator
-    entry: plugins/bootstrap_proxmox_generator.py:BootstrapProxmoxGenerator
+    entry: plugins/generators/bootstrap_proxmox_generator.py:BootstrapProxmoxGenerator
     api_version: "1.x"
     stages: [generate]
     phase: run

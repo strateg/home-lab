@@ -2,7 +2,7 @@ schema_version: 1
 plugins:
   - id: class_router.validator_json.router_data_channel_interface
     kind: validator_json
-    entry: plugins/router_data_channel_interface_validator.py:RouterDataChannelInterfaceValidator
+    entry: plugins/validators/router_data_channel_interface_validator.py:RouterDataChannelInterfaceValidator
     api_version: "1.x"
     stages: [validate]
     phase: run

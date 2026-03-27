@@ -2,7 +2,7 @@ schema_version: 1
 plugins:
   - id: object_mikrotik.validator_json.router_ports
     kind: validator_json
-    entry: plugins/mikrotik_router_ports_validator.py:MikrotikRouterPortsValidator
+    entry: plugins/validators/mikrotik_router_ports_validator.py:MikrotikRouterPortsValidator
     api_version: "1.x"
     stages: [validate]
     phase: run
@@ -18,7 +18,7 @@ plugins:
 
   - id: base.generator.terraform_mikrotik
     kind: generator
-    entry: plugins/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
+    entry: plugins/generators/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
     api_version: "1.x"
     stages: [generate]
     phase: run
@@ -91,7 +91,7 @@ plugins:
 
   - id: base.generator.bootstrap_mikrotik
     kind: generator
-    entry: plugins/bootstrap_mikrotik_generator.py:BootstrapMikroTikGenerator
+    entry: plugins/generators/bootstrap_mikrotik_generator.py:BootstrapMikroTikGenerator
     api_version: "1.x"
     stages: [generate]
     phase: run

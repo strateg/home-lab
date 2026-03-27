@@ -2,7 +2,7 @@ schema_version: 1
 plugins:
   - id: object_glinet.validator_json.router_ports
     kind: validator_json
-    entry: plugins/glinet_router_ports_validator.py:GlinetRouterPortsValidator
+    entry: plugins/validators/glinet_router_ports_validator.py:GlinetRouterPortsValidator
     api_version: "1.x"
     stages: [validate]
     phase: run

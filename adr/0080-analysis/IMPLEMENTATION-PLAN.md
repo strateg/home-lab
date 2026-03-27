@@ -29,6 +29,9 @@ Unify the plugin runtime around a single lifecycle model with:
 - `Wave D` completed: explicit `phase` annotations are present across all discovered manifests.
 - `Wave E` completed: produces/consumes contracts are validated; strict undeclared contract mode (`E8004`-`E8007`) is implemented.
 - Stage-specific `order` ranges are now enforced at manifest load time and validated by contract tests.
+- Structured module plugin entry paths are now enforced at manifest load time:
+  deprecated flat `plugins/<file>.py` entries are rejected; kind-to-family affinity is enforced
+  for `plugins/<family>/...` (`discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`).
 - Error catalog range conformance tests now guard ADR0080 allocations (`E800x/E810x/E820x/W800x`) against overlap.
 - Repeated-run deterministic guards are added for parallel result ordering and artifact manifest emission.
 - Profile parity tests now compare sequential vs parallel diagnostics/trace signatures, effective payloads, and published key inventory for `production` and `modeled`.

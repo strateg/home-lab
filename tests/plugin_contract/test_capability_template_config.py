@@ -11,9 +11,11 @@ V5_ROOT = Path(__file__).resolve().parents[2]
 MIKROTIK_MANIFEST = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins.yaml"
 PROXMOX_MANIFEST = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins.yaml"
 MIKROTIK_GENERATOR = (
-    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "terraform_mikrotik_generator.py"
+    V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "generators" / "terraform_mikrotik_generator.py"
 )
-PROXMOX_GENERATOR = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "terraform_proxmox_generator.py"
+PROXMOX_GENERATOR = (
+    V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "generators" / "terraform_proxmox_generator.py"
+)
 # ADR0078 WP-002: Shared capability helpers (code extracted from generators)
 CAPABILITY_HELPERS = V5_ROOT / "topology" / "object-modules" / "_shared" / "plugins" / "capability_helpers.py"
 

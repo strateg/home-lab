@@ -2,7 +2,7 @@ schema_version: 1
 plugins:
   - id: object_network.validator_json.ethernet_cable_endpoints
     kind: validator_json
-    entry: plugins/ethernet_cable_endpoint_validator.py:EthernetCableEndpointValidator
+    entry: plugins/validators/ethernet_cable_endpoint_validator.py:EthernetCableEndpointValidator
     api_version: "1.x"
     stages: [validate]
     phase: run
