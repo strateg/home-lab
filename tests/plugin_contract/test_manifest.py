@@ -233,6 +233,7 @@ def test_manifest_schema_declares_build_stage_and_phase_enum():
         "assembler",
         "builder",
     ]
+    assert plugin_props["stages"]["uniqueItems"] is True
     assert plugin_props["phase"]["enum"] == ["init", "pre", "run", "post", "verify", "finalize"]
 
 
@@ -264,6 +265,32 @@ def test_manifest_schema_rejects_profile_restrictions_alias(tmp_path: Path):
     try:
         registry.load_manifest(manifest)
         assert False, "Expected schema validation failure for profile_restrictions alias"
+    except PluginLoadError as exc:
+        assert "schema validation failed" in str(exc).lower()
+
+
+def test_manifest_schema_rejects_duplicate_stage_tokens(tmp_path: Path):
+    """Manifest schema must reject duplicated stage entries."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.validator_json.duplicate_stages",
+                "kind": "validator_json",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["validate", "validate"],
+                "phase": "run",
+                "order": 100,
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    registry = PluginRegistry(V5_TOOLS)
+    try:
+        registry.load_manifest(manifest)
+        assert False, "Expected schema validation failure for duplicate stage tokens"
     except PluginLoadError as exc:
         assert "schema validation failed" in str(exc).lower()
 
@@ -879,6 +906,7 @@ if __name__ == "__main__":
         test_manifest_schema_accepts_phase_field,
         test_manifest_schema_declares_build_stage_and_phase_enum,
         test_manifest_schema_rejects_profile_restrictions_alias,
+        test_manifest_schema_rejects_duplicate_stage_tokens,
         test_schema_and_runtime_stage_phase_enums_stay_in_sync,
         test_manifest_schema_accepts_build_stage_and_new_fields,
         test_plugin_context_scope_backed_publish_subscribe_and_active_config,

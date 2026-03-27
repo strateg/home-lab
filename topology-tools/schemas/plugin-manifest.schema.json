@@ -52,6 +52,7 @@
             "enum": ["discover", "compile", "validate", "generate", "assemble", "build"]
           },
           "minItems": 1,
+          "uniqueItems": true,
           "description": "Pipeline stages where this plugin executes"
         },
         "phase": {

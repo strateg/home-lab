@@ -482,6 +482,11 @@ Post-cutover hardening (2026-03-27):
    - Plugin authoring guide updated with entry-family rules:
      - `topology-tools/docs/PLUGIN_AUTHORING.md`
    - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`163 passed`).
+7. Tightened manifest schema for stage declarations:
+   - `stages` now requires unique values (`uniqueItems: true`) in `topology-tools/schemas/plugin-manifest.schema.json`.
+   - Added contract regression:
+     - `tests/plugin_contract/test_manifest.py::test_manifest_schema_rejects_duplicate_stage_tokens`
+   - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`164 passed`).
 
 ---
 
