@@ -134,6 +134,7 @@ Stabilization snapshot (2026-03-27):
   - `task framework:release-tests` -> PASS (`165 passed`)
   - `task framework:cutover-readiness-quick` -> PASS
   - `task framework:cutover-readiness` -> PASS
+  - `task ci:local-with-legacy` -> PASS (`v5: 616 passed, 3 skipped; acceptance: 10 passed; parity: 22 passed, 3 skipped`)
 
 ---
 

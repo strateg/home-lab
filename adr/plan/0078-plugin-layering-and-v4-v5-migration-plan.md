@@ -497,6 +497,11 @@ Post-cutover hardening (2026-03-27):
      - `tests/plugin_contract/test_manifest.py::test_manifest_rejects_flat_plugins_entry_without_family`
      - `tests/plugin_contract/test_manifest.py::test_plugin_entry_family_affinity_across_discovered_manifests`
    - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`165 passed`).
+9. Post-migration full local+legacy CI lane remains green:
+   - `task ci:local-with-legacy` -> PASS
+   - v5 suite snapshot: `616 passed, 3 skipped`
+   - acceptance snapshot: `10 passed`
+   - parity lane snapshot: `22 passed, 3 skipped`
 
 ---
 
