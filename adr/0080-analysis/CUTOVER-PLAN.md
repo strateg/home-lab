@@ -2,7 +2,7 @@
 
 **ADR:** `adr/0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md`
 **Date:** 2026-03-27
-**Status:** Active operational plan
+**Status:** Completed (cutover closed 2026-03-27, tag `cutover-0078-2026-03-27`)
 
 ---
 

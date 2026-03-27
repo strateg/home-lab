@@ -10,6 +10,13 @@ tasks:
       - :validate:phase1-gate
       - :test:default
 
+  local-with-legacy:
+    desc: Local pre-push gate including legacy parity lanes
+    cmds:
+      - task ci:local
+      - task acceptance:tests-all
+      - task ci:topology-parity-v4-v5
+
   python-checks-core:
     desc: Core strict checks used by python-checks workflow
     deps:
@@ -28,3 +35,10 @@ tasks:
       - :framework:strict
       - :validate:default
       - :validate:phase1-gate
+
+  topology-parity-v4-v5:
+    desc: Topology parity lane against archive v4 baseline
+    deps:
+      - :framework:strict
+      - :validate:default
+      - :test:parity-v4-v5
