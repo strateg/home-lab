@@ -6,6 +6,14 @@
 
 ---
 
+## ADR0080 / Layout Alignment Note (2026-03-27)
+
+1. Документ фиксирует только validator-domain mapping (Wave D) и не заменяет общий cutover plan.
+2. Для full lifecycle/stage governance использовать `adr/plan/0078-cutover-checklist.md` и `adr/0080-analysis/CUTOVER-PLAN.md`.
+3. Legacy v4 references в mapping трактуются как `archive/v4` baseline.
+
+---
+
 ## 1. Goal
 
 Составить рабочий mapping `v4 check_* -> v5 plugin`, определить уже покрытые области и явные gap'ы для поэтапной миграции.

@@ -6,6 +6,15 @@
 
 ---
 
+## Layout Alignment Note (2026-03-27)
+
+1. Этот документ зафиксирован как historical completed plan.
+2. Исторические пути вида `v5/...` трактуются как pre-root-layout ссылки.
+3. Текущий operational layout: корень репозитория + legacy baseline в `archive/v4`.
+4. Для активного cutover-исполнения использовать `adr/plan/0078-cutover-checklist.md` и ADR0080 cutover artifacts.
+
+---
+
 ## Цель
 
 Перевести v5 на проектно-ориентированную структуру (`framework` + `project`) без поломки компилятора, валидаторов и генераторов, а затем завершить rollout генераторной архитектуры ADR0074 уже на новом контракте путей.

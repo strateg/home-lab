@@ -8,6 +8,15 @@
 
 ---
 
+## ADR0080 Alignment Note (2026-03-27)
+
+1. Этот документ закрывает historical prep/refactor scope WP6-WP10 и остается reference-only.
+2. Scope этого документа ограничен эпохой `compiler/validator/generator` перед расширением ADR0080.
+3. Текущий runtime baseline использует 5 plugin families и 6-stage lifecycle (`discover -> compile -> validate -> generate -> assemble -> build`).
+4. Для активного cutover-контроля использовать `adr/plan/0078-cutover-checklist.md`.
+
+---
+
 ## 1. Purpose
 
 Подготовить v5 рефакторинг под единые правила для всех типов плагинов:

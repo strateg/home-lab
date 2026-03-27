@@ -51,6 +51,7 @@
    - определить целевую стадию (`discover|compile|validate|generate|assemble|build`),
    - зафиксировать решение в mapping/плане,
    - переносить в v5 только после явного stage assignment.
+8. Этот документ зафиксирован как completed migration baseline; выполнение оставшихся cutover шагов ведется по `adr/plan/0078-cutover-checklist.md`.
 
 ---
 

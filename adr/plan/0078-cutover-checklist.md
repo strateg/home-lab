@@ -14,6 +14,14 @@
 Этот checklist используется для фактического выполнения cutover шагов плана миграции v4->v5
 в текущем root-layout репозитория.
 
+Связка с completed-документами:
+
+1. `0075-0074-master-migration-plan.md` — завершенный foundation baseline.
+2. `0078-v5-unified-plugin-refactor-prep.md` — завершенный boundary-enforcement prep (WP6-WP10).
+3. `0078-wave-d-v4-validator-mapping.md` — завершенный validator parity mapping.
+4. `0078-plugin-layering-and-v4-v5-migration-plan.md` — завершенный migration baseline/policy.
+5. Этот checklist — единственный активный execution-документ для финального cutover.
+
 ---
 
 ## 2. Pre-Cutover Readiness (T-1)
