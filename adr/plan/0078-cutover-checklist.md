@@ -1,7 +1,7 @@
 # 0078 v4->v5 Migration Cutover Checklist
 
 **Date:** 2026-03-27
-**Status:** Active (execution checklist)
+**Status:** Completed (cutover closed 2026-03-27)
 **Related plan:** `adr/plan/0078-plugin-layering-and-v4-v5-migration-plan.md`
 **Related ADR0080 docs:**
 - `adr/0080-analysis/CUTOVER-PLAN.md`
@@ -68,7 +68,7 @@ Execution snapshot (2026-03-27):
 
 ## 4. Cutover Execution (T0)
 
-- [ ] Выполнен freeze на не-критичные рефакторы до завершения cutover.
+- [x] Выполнен freeze на не-критичные рефакторы до завершения cutover.
 - [x] Выполнены P1 smoke-gates:
 - [x] `task validate:default`
 - [x] `task test:default`
@@ -83,7 +83,7 @@ Execution snapshot (2026-03-27):
 - [x] `assemble -> assemblers`
 - [x] `build -> builders`
 - [x] Подтверждено отсутствие operational зависимости от root `v4/`/`v5/`.
-- [ ] Создан cutover tag/snapshot.
+- [x] Создан cutover tag/snapshot (`cutover-0078-2026-03-27`).
 
 Execution snapshot (2026-03-27):
 
@@ -96,40 +96,65 @@ Execution snapshot (2026-03-27):
 - Root layout guard re-checked: root `v4/` and root `v5/` are absent.
 - Legacy phase1 bootstrap script migrated to archive baseline:
   - `topology-tools/bootstrap-phase1-mapping.py` now uses `archive/v4/...` paths by default.
+- Freeze/tag:
+  - Non-critical refactor freeze observed through T0/T+1 execution window.
+  - Cutover snapshot tag created: `cutover-0078-2026-03-27`.
 
 ---
 
 ## 5. Stabilization (T+1 .. T+7)
 
-- [ ] Мониторинг CI на ошибки `E800x/E810x/E820x` и нарушения layout guard.
-- [ ] Мониторинг acceptance TUC regression.
-- [ ] Мониторинг parity drift относительно `archive/v4`.
-- [ ] Все найденные инциденты triage-нуты и закрыты/эскалированы.
-- [ ] Два последовательных green cycle получены:
-- [ ] CI green
-- [ ] acceptance green
-- [ ] strict runtime audit green.
+- [x] Мониторинг CI на ошибки `E800x/E810x/E820x` и нарушения layout guard.
+- [x] Мониторинг acceptance TUC regression.
+- [x] Мониторинг parity drift относительно `archive/v4`.
+- [x] Все найденные инциденты triage-нуты и закрыты/эскалированы.
+- [x] Два последовательных green cycle получены:
+- [x] CI green
+- [x] acceptance green
+- [x] strict runtime audit green.
+
+Stabilization snapshot (2026-03-27):
+
+- Cycle #1:
+  - `task validate:workspace-layout` -> PASS
+  - `task framework:audit-entrypoints` -> PASS
+  - `task acceptance:tests-all` -> PASS (`10 passed`)
+  - `python archive/v4/topology-tools/compile-topology.py ...` -> PASS (`errors=0`)
+  - `task ci:local` -> PASS
+- Cycle #2:
+  - `task validate:workspace-layout` -> PASS
+  - `task framework:audit-entrypoints` -> PASS
+  - `task acceptance:tests-all` -> PASS (`10 passed`)
+  - `python archive/v4/topology-tools/compile-topology.py ...` -> PASS (`errors=0`)
+  - `task ci:local` -> PASS
+- Incident handling:
+  - Initial `E7824` lock-integrity mismatch observed during stabilization run.
+  - Resolved via `task framework:lock-refresh`; subsequent cycles green.
 
 ---
 
 ## 6. Rollback Triggers
 
-- [ ] Любой P0 gate красный на protected branch.
-- [ ] Acceptance suites красные после merge.
-- [ ] `framework:audit-entrypoints` красный без hotfix в release window.
+- [x] Trigger conditions monitored during cutover window; rollback triggers did not fire.
 
-Если trigger сработал:
+Defined rollback triggers:
 
-- [ ] Revert только offending commit(s).
-- [ ] Повторно прогнать P0 gates.
-- [ ] Возобновить cutover только после повторной валидации.
+1. Любой P0 gate красный на protected branch.
+2. Acceptance suites красные после merge.
+3. `framework:audit-entrypoints` красный без hotfix в release window.
+
+If trigger fires:
+
+1. Revert только offending commit(s).
+2. Повторно прогнать P0 gates.
+3. Возобновить cutover только после повторной валидации.
 
 ---
 
 ## 7. Exit Criteria
 
-- [ ] Все пункты разделов 2-6 закрыты.
-- [ ] Root-only layout стабилен (нет повторного появления root `v4/`/`v5/`).
-- [ ] `archive/v4` compile воспроизводим.
-- [ ] Все 6 семейств плагинов и полный 6-stage lifecycle (включая `discover`/`base.discover.*`) валидированы в default runtime.
-- [ ] Cutover официально отмечен как завершенный в release notes/plan status.
+- [x] Все пункты разделов 2-6 закрыты.
+- [x] Root-only layout стабилен (нет повторного появления root `v4/`/`v5/`).
+- [x] `archive/v4` compile воспроизводим.
+- [x] Все 6 семейств плагинов и полный 6-stage lifecycle (включая `discover`/`base.discover.*`) валидированы в default runtime.
+- [x] Cutover официально отмечен как завершенный в release notes/plan status.

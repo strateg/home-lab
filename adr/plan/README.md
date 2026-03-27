@@ -7,7 +7,6 @@ This directory contains implementation plans for major development efforts.
 | Plan | Status | Description |
 |------|--------|-------------|
 | [0076-multi-repo-extraction-plan.md](0076-multi-repo-extraction-plan.md) | Draft | Framework extraction and multi-repo distribution |
-| [0078-cutover-checklist.md](0078-cutover-checklist.md) | Active | Execution checklist for v4->v5 migration cutover gates |
 | [v5-production-readiness.md](v5-production-readiness.md) | Active | Master plan for v5 deployment capability |
 | [phase1-generator-framework.md](phase1-generator-framework.md) | Superseded | Generator plugin infrastructure (see ADR 0074) |
 
@@ -17,6 +16,7 @@ This directory contains implementation plans for major development efforts.
 |------|-----------|-------------|
 | [0075-0074-master-migration-plan.md](0075-0074-master-migration-plan.md) | 2026-03-20 | Framework/project separation + generator completion |
 | [0078-plugin-layering-and-v4-v5-migration-plan.md](0078-plugin-layering-and-v4-v5-migration-plan.md) | 2026-03-22 | Plugin level-boundary hardening + staged v4->v5 migration closure |
+| [0078-cutover-checklist.md](0078-cutover-checklist.md) | 2026-03-27 | Execution checklist for v4->v5 migration cutover closure |
 | [0078-v5-unified-plugin-refactor-prep.md](0078-v5-unified-plugin-refactor-prep.md) | 2026-03-22 | Unified plugin boundary hardening (WP6-WP10) |
 | [0078-wave-d-v4-validator-mapping.md](0078-wave-d-v4-validator-mapping.md) | 2026-03-22 | v4 validator mapping and parity closure notes |
 
@@ -25,8 +25,8 @@ This directory contains implementation plans for major development efforts.
 1. `0075-0074-master-migration-plan.md` is historical closure of framework/project split + generator completion.
 2. `0078-v5-unified-plugin-refactor-prep.md` and `0078-wave-d-v4-validator-mapping.md` are completed implementation artifacts (inventory/mapping/parity inputs).
 3. `0078-plugin-layering-and-v4-v5-migration-plan.md` is completed migration closure and policy baseline.
-4. Current execution source for remaining cutover actions is `0078-cutover-checklist.md` (with ADR0080 cutover artifacts).
-5. When checklist sections 2-7 are fully closed, move `0078-cutover-checklist.md` to Completed Plans with completion date.
+4. `0078-cutover-checklist.md` was the execution source for final cutover actions and is now completed.
+5. Active migration/runtime evolution after cutover follows ADR0080 artifacts and current active plans.
 
 ## Plan Structure
 
