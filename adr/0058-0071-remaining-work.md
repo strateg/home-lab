@@ -1,8 +1,10 @@
 # ADR 0058-0071 Remaining Work Backlog
 
 - Date: 2026-03-12
+- Revised: 2026-03-27
 - Scope: ADR stack from `0058` to `0071`
 - Goal: close remaining implementation and documentation gaps after plugin-first and sharded-instance cutovers
+- Tracking: Phase 11 in `adr/plan/v5-production-readiness.md`
 
 ## Priority P0
 
