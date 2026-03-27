@@ -16,6 +16,7 @@ This directory contains implementation plans for major development efforts.
 |------|-----------|-------------|
 | [0075-0074-master-migration-plan.md](0075-0074-master-migration-plan.md) | 2026-03-20 | Framework/project separation + generator completion |
 | [0078-plugin-layering-and-v4-v5-migration-plan.md](0078-plugin-layering-and-v4-v5-migration-plan.md) | 2026-03-22 | Plugin level-boundary hardening + staged v4->v5 migration closure |
+| [0078-cutover-checklist.md](0078-cutover-checklist.md) | 2026-03-27 | Execution checklist for v4->v5 migration cutover gates |
 | [0078-v5-unified-plugin-refactor-prep.md](0078-v5-unified-plugin-refactor-prep.md) | 2026-03-22 | Unified plugin boundary hardening (WP6-WP10) |
 | [0078-wave-d-v4-validator-mapping.md](0078-wave-d-v4-validator-mapping.md) | 2026-03-22 | v4 validator mapping and parity closure notes |
 
