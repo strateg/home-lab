@@ -1,7 +1,12 @@
 # ADR 0045: Improvements to project model, development workflow and automation
 
-- Status: Proposed
+- Status: Superseded
 - Date: 2026-02-25
+- Superseded by: [0066](0066-plugin-testing-and-ci-strategy.md), [0075](0075-framework-project-separation.md), [0077](0077-go-task-developer-orchestration.md)
+
+## Historical Closure (2026-03-27)
+
+This broad improvement backlog has been split and implemented via dedicated ADRs for CI/testing strategy, framework/project boundary, and task orchestration.
 
 ## Context
 

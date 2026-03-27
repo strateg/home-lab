@@ -421,7 +421,7 @@ All 30 v4 validators have v5 plugin replacements registered. Current status: `Co
 ## Phase 10: Documentation and Diagram Generation Migration (NEW)
 
 **Prerequisite:** Phase 8
-**Status:** Proposed (ADR 0079)
+**Status:** Active (ADR 0079 accepted)
 **Tracking:** `adr/0079-v5-documentation-and-diagram-generation-migration.md`
 
 V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templates with icon system, Mermaid validation, and multi-layer diagrams.
@@ -486,9 +486,9 @@ V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templ
 
 ### 11.1 P0 Items
 
-- [ ] ADR 0069 status promotion: change from `Proposed` to `Accepted` with evidence pointers.
-- [ ] ADR 0068 E6806 hardening: implement strict unresolved-placeholder enforcement on effective compiled model.
-- [ ] Introduce enforcement mode policy (`warn` → `warn+gate-new` → `enforce`) in validator config.
+- [x] ADR 0069 status promotion completed (`Accepted`, evidence in register + cutover docs).
+- [x] ADR 0068 enforcement policy rollout completed (`warn` → `warn+gate-new` → `enforce`).
+- [ ] ADR 0068 placeholder closure: remove remaining unresolved placeholders from strict-gated profiles and fixtures.
 - [ ] Remove stale contract examples and normalize to canonical IDs.
 
 ### 11.2 P1 Items
@@ -507,7 +507,7 @@ V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templ
 
 ### Phase 11 Definition of Done
 
-- [ ] ADR 0069 is `Accepted`.
+- [x] ADR 0069 is `Accepted`.
 - [ ] E6806 enforce mode blocks unresolved placeholders deterministically.
 - [ ] All 7 cross-layer relations have owner, validator, and acceptance test.
 - [ ] No stale "planned" or contradictory statements in active ADR docs.
@@ -664,7 +664,7 @@ Progress is tracked in:
 | Phase 7: Hardware Identity | Partial (discovery utility done, identities pending) | P0 |
 | Phase 8.3: Cutover Docs | README updates remaining | P1 |
 | Phase 9: V4 Validator Cutover | Active (staged, all rows Covered/Partial) | P0 |
-| Phase 10: Docs/Diagrams | Proposed (ADR 0079, 0/6 phases) | P1 |
-| Phase 11: ADR Backlog | Active (P0 items pending) | P1 |
+| Phase 10: Docs/Diagrams | Active (ADR 0079 accepted, 0/6 phases delivered) | P1 |
+| Phase 11: ADR Backlog | Active (governance closure done; relation backlog pending) | P1 |
 | Phase 12: Operational Readiness | Not started | P2 |
 | Phase 13: Multi-Repo | Deferred | P2 |

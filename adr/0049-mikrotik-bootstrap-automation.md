@@ -1,7 +1,8 @@
 # ADR 0049: MikroTik Bootstrap Automation
 
 **Date:** 2026-02-28
-**Status:** Proposed
+**Status:** Superseded
+**Superseded by:** ADR 0048 (topology consolidation), ADR 0057 (Netinstall bootstrap and Terraform handover)
 **Related:** ADR 0048 (Topology Architecture)
 
 ---

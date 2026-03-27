@@ -2,8 +2,9 @@
 adr: "0032"
 layer: "L3"
 scope: "modularization"
-status: "Proposed"
+status: "Superseded"
 date: "2026-02-22"
+superseded_by: "0062"
 public_api:
   - "storage_endpoints[]"
   - "data_assets[]"
@@ -12,8 +13,13 @@ breaking_changes: false
 
 # ADR 0032: L3 Data Modularization and Layer Contracts
 
-- Status: Proposed
+- Status: Superseded
 - Date: 2026-02-22
+- Superseded by: [0062](0062-modular-topology-architecture-consolidation.md)
+
+## Historical Closure (2026-03-27)
+
+The v4 modularization intent from this ADR is preserved in the unified v5 class-object-instance model (ADR 0062).
 
 ## TL;DR
 

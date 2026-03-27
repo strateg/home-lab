@@ -57,12 +57,12 @@
 
 ## Wave A - Governance and Contract Closure (P0)
 
-- [ ] Reconcile `adr/REGISTER.md` statuses with implemented state and completed plans.
-- [ ] Sweep ADR docs for stale contradictory `planned` statements and add historical markers where needed.
-- [ ] Consolidate active delivery source to:
-  - [ ] `adr/plan/v5-production-readiness.md`
-  - [ ] this roadmap
-- [ ] Define closure decisions for older Proposed ADRs (`0031`, `0032`, `0033`, `0034`, `0035`, `0036`, `0045`, `0049`) as accepted/deferred/superseded with explicit references.
+- [x] Reconcile `adr/REGISTER.md` statuses with implemented state and completed plans.
+- [x] Sweep ADR docs for stale contradictory `planned` statements and add historical markers where needed.
+- [x] Consolidate active delivery source to:
+  - [x] `adr/plan/v5-production-readiness.md`
+  - [x] this roadmap
+- [x] Define closure decisions for older Proposed ADRs (`0031`, `0032`, `0033`, `0034`, `0035`, `0036`, `0045`, `0049`) as accepted/deferred/superseded with explicit references.
 
 **Gate:**
 

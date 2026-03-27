@@ -1,7 +1,12 @@
 # ADR 0033: Toolchain Contract Rebaseline After Modularization
 
-- Status: Proposed
+- Status: Superseded
 - Date: 2026-02-22
+- Superseded by: [0062](0062-modular-topology-architecture-consolidation.md), [0080](0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md)
+
+## Historical Closure (2026-03-27)
+
+The phased closure scope in this ADR is now covered by accepted v5 consolidation/runtime contracts.
 
 ## Context
 

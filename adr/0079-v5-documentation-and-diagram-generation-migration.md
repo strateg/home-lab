@@ -1,7 +1,7 @@
 # ADR 0079: V5 Documentation and Diagram Generation Migration
 
 **Date:** 2026-03-24
-**Status:** Proposed
+**Status:** Accepted
 **Depends on:** ADR 0027 (Mermaid Rendering Strategy), ADR 0074 (V5 Generator Architecture)
 **Migrates:** ADR 0005, ADR 0027 implementations from v4
 

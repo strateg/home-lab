@@ -2,7 +2,7 @@
 adr: "0036"
 layer: "L2, L5"
 scope: "host-os-network-reference"
-status: "Proposed"
+status: "Superseded"
 date: "2026-02-22"
 public_api:
   - "L2 ip_allocations[].host_os_ref"
@@ -10,6 +10,7 @@ public_api:
   - "L5 runtime.host_os_ref"
 breaking_changes: false
 supersedes: null
+superseded_by: "0038"
 related:
   - "0035"
   - "0030"
@@ -17,8 +18,13 @@ related:
 
 # ADR 0036: Host OS Reference in Network Allocations
 
-- Status: Proposed
+- Status: Superseded
 - Date: 2026-02-22
+- Superseded by: [0038](0038-network-binding-contracts-phase1.md)
+
+## Historical Closure (2026-03-27)
+
+This proposal was replaced by ADR 0038 phase-1 network binding contract and its downstream harmonization in v5.
 
 ## TL;DR
 

@@ -2,8 +2,11 @@
 adr: "0035"
 layer: "L4"
 scope: "host-os-foundation"
-status: "Proposed"
+status: "Superseded"
 date: "2026-02-22"
+superseded_by:
+  - "0039"
+  - "0064"
 public_api:
   - "host_operating_systems[].id"
   - "lxc[].id"
@@ -13,8 +16,13 @@ breaking_changes: false
 
 # ADR 0035: L4 Host OS Foundation and Runtime Substrate Contracts
 
-- Status: Proposed
+- Status: Superseded
 - Date: 2026-02-22
+- Superseded by: [0039](0039-l4-host-os-installation-storage-contract-clarification.md), [0064](0064-os-taxonomy-object-property-model.md)
+
+## Historical Closure (2026-03-27)
+
+The host-OS foundation concept from this ADR was finalized by strict host OS installation contract clarification (ADR 0039) and v5 two-entity software-stack modeling (ADR 0064).
 
 ## TL;DR
 

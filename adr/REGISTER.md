@@ -31,12 +31,12 @@
 | [0027](0027-mermaid-rendering-strategy-consolidation.md) | Consolidate Mermaid Rendering Strategy and Quality Gates | Accepted | 2026-02-22 | [0007](0007-icon-legend-and-complete-device-icon-coverage.md), [0008](0008-mermaid-icon-node-default-and-runtime-pack-registration.md), [0009](0009-robust-icon-pack-discovery-and-render-validation.md), [0010](0010-regeneration-pipeline-mermaid-quality-gate.md) | - |
 | [0028](0028-topology-tools-architecture-consolidation.md) | Consolidate topology-tools Architecture and Module Boundaries | Accepted | 2026-02-22 | [0017](0017-topology-tools-modular-refactor-validation-generation.md), [0018](0018-generation-common-loader-and-output-preparation.md), [0019](0019-proxmox-answer-layered-topology-only.md), [0020](0020-topology-tools-scripts-domain-layout.md), [0021](0021-docs-generation-moved-to-scripts-generation-docs.md), [0022](0022-docs-diagram-module-canonical-location.md), [0023](0023-terraform-generators-and-templates-domain-layout.md), [0024](0024-validators-namespace-alignment.md), [0025](0025-generator-protocol-and-cli-base-class.md) | - |
 | [0029](0029-storage-taxonomy-and-layer-boundary-consolidation.md) | Consolidate Storage Taxonomy and L1/L3 Boundary Contract | Accepted | 2026-02-22 | [0011](0011-l1-physical-storage-taxonomy-and-l3-disk-binding.md), [0012](0012-separate-l1-physical-disk-specs-from-l3-logical-storage-mapping.md), [0013](0013-l1-storage-mount-taxonomy-soldered-replaceable-removable.md), [0014](0014-l1-storage-slots-preferred-model-with-legacy-compatibility.md), [0015](0015-drop-legacy-storage-compatibility-after-storage-slots-migration.md), [0016](0016-l1-storage-media-registry-and-slot-attachments.md) | - |
-| [0031](0031-layered-topology-toolchain-contract-alignment.md) | Layered Topology Toolchain Contract Alignment | Proposed | 2026-02-22 | - | - |
-| [0032](0032-l3-data-modularization-and-layer-contracts.md) | L3 Data Modularization and Layer Contracts | Proposed | 2026-02-22 | - | - |
-| [0033](0033-toolchain-contract-rebaseline-after-modularization.md) | Toolchain Contract Rebaseline After Modularization | Proposed | 2026-02-22 | - | - |
-| [0034](0034-l4-platform-modularization-and-runtime-taxonomy.md) | L4 Platform Modularization (MVP) | Proposed | 2026-02-22 | - | - |
-| [0035](0035-l4-host-os-foundation-and-runtime-substrates.md) | L4 Host OS Foundation and Runtime Substrate Contracts | Proposed | 2026-02-22 | - | - |
-| [0036](0036-l2-host-os-reference-in-network-allocations.md) | Host OS Reference in Network Allocations | Proposed | 2026-02-22 | - | - |
+| [0031](0031-layered-topology-toolchain-contract-alignment.md) | Layered Topology Toolchain Contract Alignment | Superseded | 2026-02-22 | - | [0062](0062-modular-topology-architecture-consolidation.md), [0069](0069-plugin-first-compiler-refactor-and-thin-orchestrator.md), [0080](0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md) |
+| [0032](0032-l3-data-modularization-and-layer-contracts.md) | L3 Data Modularization and Layer Contracts | Superseded | 2026-02-22 | - | [0062](0062-modular-topology-architecture-consolidation.md) |
+| [0033](0033-toolchain-contract-rebaseline-after-modularization.md) | Toolchain Contract Rebaseline After Modularization | Superseded | 2026-02-22 | - | [0062](0062-modular-topology-architecture-consolidation.md), [0080](0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md) |
+| [0034](0034-l4-platform-modularization-and-runtime-taxonomy.md) | L4 Platform Modularization (MVP) | Superseded | 2026-02-22 | - | [0062](0062-modular-topology-architecture-consolidation.md) |
+| [0035](0035-l4-host-os-foundation-and-runtime-substrates.md) | L4 Host OS Foundation and Runtime Substrate Contracts | Superseded | 2026-02-22 | - | [0039](0039-l4-host-os-installation-storage-contract-clarification.md), [0064](0064-os-taxonomy-object-property-model.md) |
+| [0036](0036-l2-host-os-reference-in-network-allocations.md) | Host OS Reference in Network Allocations | Superseded | 2026-02-22 | - | [0038](0038-network-binding-contracts-phase1.md) |
 | [0037](0037-l2-network-substrate-and-workload-binding-contracts.md) | L2 Network Substrate and Workload Binding Contracts | Superseded | 2026-02-22 | - | [0038](0038-network-binding-contracts-phase1.md) |
 | [0038](0038-network-binding-contracts-phase1.md) | Network Binding Contracts Phase 1 (Gradual Evolution) | Accepted | 2026-02-22 | [0037](0037-l2-network-substrate-and-workload-binding-contracts.md) | - |
 | [0039](0039-l4-host-os-installation-storage-contract-clarification.md) | Host OS Installation Storage Contract (Strict) | Accepted | 2026-02-23 | - | - |
@@ -45,11 +45,11 @@
 | [0042](0042-l5-services-modularization.md) | L5 Services Modularization | Accepted | 2026-02-24 | - | - |
 | [0043](0043-l0-l5-harmonization-and-cognitive-load-reduction.md) | L0-L5 Harmonization and Cognitive Load Reduction | Accepted | 2026-02-24 | - | - |
 | [0044](0044-ip-derivation-from-refs.md) | IP Derivation from Refs | Accepted | 2026-02-24 | - | - |
-| [0045](0045-model-and-project-improvements.md) | Improvements to project model, development workflow and automation | Proposed | 2026-02-25 | - | - |
+| [0045](0045-model-and-project-improvements.md) | Improvements to project model, development workflow and automation | Superseded | 2026-02-25 | - | [0066](0066-plugin-testing-and-ci-strategy.md), [0075](0075-framework-project-separation.md), [0077](0077-go-task-developer-orchestration.md) |
 | [0046](0046-generators-architecture-refactoring.md) | Generators Architecture Refactoring | Implemented (All 6 phases complete) | 2026-02-25 | - | - |
 | [0047](0047-l6-observability-modularization.md) | L6 Observability Modularization | Partially Implemented | 2026-02-26 | - | - |
 | [0048](0048-topology-v4-architecture-consolidation.md) | Topology v4 Architecture Consolidation | Accepted | 2026-02-28 | [0049](0049-mikrotik-bootstrap-automation.md), [0050](0050-generated-directory-restructuring.md) | - |
-| [0049](0049-mikrotik-bootstrap-automation.md) | MikroTik Bootstrap Automation | Proposed | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
+| [0049](0049-mikrotik-bootstrap-automation.md) | MikroTik Bootstrap Automation | Superseded | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md), [0057](0057-mikrotik-netinstall-bootstrap-and-terraform-handover.md) |
 | [0050](0050-generated-directory-restructuring.md) | Generated Directory Restructuring | Accepted | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
 | [0051](0051-ansible-runtime-and-secrets.md) | Ansible Runtime, Inventory, and Secret Boundaries | Accepted | 2026-03-01 | - | [0072](0072-unified-secrets-management-sops-age.md) |
 | [0052](0052-build-pipeline-after-ansible.md) | Deploy Package Assembly Over Accepted Ansible Runtime | Accepted | 2026-03-01 | - | - |
@@ -79,5 +79,5 @@
 | [0076](0076-framework-distribution-and-multi-repository-extraction.md) | Framework Distribution and Multi-Repository Extraction (Stage 2) | Accepted | 2026-03-20 | - | - |
 | [0077](0077-go-task-developer-orchestration.md) | Go-Task as Developer Orchestration Layer | Accepted | 2026-03-21 | - | - |
 | [0078](0078-object-module-local-template-layout.md) | Object-Module Local Templates and Generator Plugins Layout | Accepted | 2026-03-21 | - | - |
-| [0079](0079-v5-documentation-and-diagram-generation-migration.md) | V5 Documentation and Diagram Generation Migration | Proposed | 2026-03-24 | - | - |
+| [0079](0079-v5-documentation-and-diagram-generation-migration.md) | V5 Documentation and Diagram Generation Migration | Accepted | 2026-03-24 | - | - |
 | [0080](0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md) | Unified Build Pipeline, Stage-Phase Lifecycle, and Contractual Plugin Data Bus | Accepted | 2026-03-26 | - | - |

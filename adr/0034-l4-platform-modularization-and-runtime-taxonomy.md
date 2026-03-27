@@ -1,7 +1,12 @@
 # ADR 0034: L4 Platform Modularization (MVP)
 
-- Status: Proposed
+- Status: Superseded
 - Date: 2026-02-22
+- Superseded by: [0062](0062-modular-topology-architecture-consolidation.md)
+
+## Historical Closure (2026-03-27)
+
+This MVP modularization proposal is retained for traceability; canonical v5 platform modeling is defined by ADR 0062.
 
 ## TL;DR
 

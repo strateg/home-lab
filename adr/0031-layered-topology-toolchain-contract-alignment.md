@@ -1,7 +1,12 @@
 # ADR 0031: Layered Topology Toolchain Contract Alignment
 
-- Status: Proposed
+- Status: Superseded
 - Date: 2026-02-22
+- Superseded by: [0062](0062-modular-topology-architecture-consolidation.md), [0069](0069-plugin-first-compiler-refactor-and-thin-orchestrator.md), [0080](0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md)
+
+## Historical Closure (2026-03-27)
+
+This ADR captured transition-era v4 toolchain gaps. Its contract is now closed and redistributed across the accepted v5 architecture/runtime ADRs listed above.
 
 ## Context
 
