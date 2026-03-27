@@ -1,6 +1,11 @@
 version: "3"
 
 tasks:
+  workspace-layout:
+    desc: Validate root workspace layout (no legacy v4/v5 roots)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
+
   lint:
     desc: Run formatting/linting checks (black + isort)
     cmds:
@@ -27,6 +32,7 @@ tasks:
     env:
       V5_SECRETS_MODE: passthrough
     cmds:
+      - task workspace-layout
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
   # Alias for CI workflows that reference v5-passthrough explicitly

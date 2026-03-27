@@ -48,8 +48,6 @@ def _default_framework_manifest() -> Path:
 
 def _default_output_root() -> Path:
     repo_root = _default_repo_root()
-    if (repo_root / "v5").exists():
-        return repo_root / "v5-dist" / "framework"
     return repo_root / "dist" / "framework"
 
 

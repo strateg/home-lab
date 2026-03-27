@@ -4,4 +4,5 @@ tasks:
   default:
     desc: Run all tests
     cmds:
+      - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
       - "{{.PYTHON}} -m pytest -o addopts= tests -q"

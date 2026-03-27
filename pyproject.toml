@@ -48,10 +48,10 @@ warn_unused_configs = true
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["v4/tests", "v5/tests"]
+testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "-v --cov=v4/topology-tools --cov=v5/topology-tools --cov-report=term-missing"
+addopts = "-v --cov=topology-tools --cov-report=term-missing"
 
 [tool.setuptools.packages.find]
-where = ["v4/topology-tools"]
-include = ["scripts", "scripts.*"]
+where = ["topology-tools"]
+include = ["kernel", "kernel.*"]

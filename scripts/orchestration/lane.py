@@ -14,6 +14,7 @@ PYTHON = sys.executable
 PHASE1_REPORT_JSON = "build/diagnostics/phase1-gate-report.json"
 LAYER_REPORT_JSON = "build/diagnostics/layer-contract-report.json"
 SUPPORTED_SECRETS_MODES = {"inject", "passthrough", "strict"}
+LEGACY_ROOT_DIRS = ("v4", "v5")
 
 
 def run(cmd: list[str]) -> None:
@@ -26,6 +27,14 @@ def _resolve_secrets_mode() -> str:
     if value in SUPPORTED_SECRETS_MODES:
         return value
     return "inject"
+
+
+def _assert_workspace_layout() -> None:
+    legacy_present = [name for name in LEGACY_ROOT_DIRS if (ROOT / name).exists()]
+    if not legacy_present:
+        return
+    joined = ", ".join(legacy_present)
+    raise RuntimeError(f"Legacy root directories detected: {joined}. Remove them before running lane commands.")
 
 
 def validate_v5() -> None:
@@ -101,6 +110,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    _assert_workspace_layout()
     handlers = {
         "validate-v5": validate_v5,
         "build-v5": build_v5,

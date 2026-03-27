@@ -12,6 +12,8 @@ from pathlib import Path
 
 import yaml
 
+LEGACY_ROOT_DIRS = ("v4", "v5")
+
 
 @dataclass(frozen=True)
 class AuditCheckResult:
@@ -152,6 +154,18 @@ def _check_missing_lock_rejected(verify_script: Path) -> AuditCheckResult:
         return AuditCheckResult(name="missing_lock_rejected_e7822", ok=ok, detail=merged)
 
 
+def _check_no_legacy_root_dirs(repo_root: Path) -> AuditCheckResult:
+    present = [name for name in LEGACY_ROOT_DIRS if (repo_root / name).exists()]
+    if present:
+        joined = ", ".join(present)
+        return AuditCheckResult(
+            name="no_legacy_root_dirs",
+            ok=False,
+            detail=f"Legacy root directories detected: {joined}",
+        )
+    return AuditCheckResult(name="no_legacy_root_dirs", ok=True, detail="Legacy root directories absent.")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Audit strict-only runtime entrypoint behavior.")
     parser.add_argument(
@@ -170,6 +184,7 @@ def main() -> int:
     verify_script = repo_root / "topology-tools" / "verify-framework-lock.py"
 
     checks = [
+        _check_no_legacy_root_dirs(repo_root),
         _check_legacy_pipeline_mode_rejected(compile_script),
         _check_disable_plugins_flag_retired(compile_script),
         _check_legacy_paths_rejected(compile_script),

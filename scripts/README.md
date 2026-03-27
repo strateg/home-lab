@@ -1,4 +1,4 @@
-# v5 Scripts Layout
+# Scripts Layout
 
 - `environment/` - setup and bootstrap of developer environment.
 - `orchestration/` - lane entrypoints and workflow dispatch.
