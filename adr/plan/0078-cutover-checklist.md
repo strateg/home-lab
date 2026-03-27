@@ -69,21 +69,33 @@ Execution snapshot (2026-03-27):
 ## 4. Cutover Execution (T0)
 
 - [ ] Выполнен freeze на не-критичные рефакторы до завершения cutover.
-- [ ] Выполнены P1 smoke-gates:
-- [ ] `task validate:default`
-- [ ] `task test:default`
-- [ ] `task ci:local`
-- [ ] Подтверждена lifecycle-цепочка default runtime:
-- [ ] `discover -> compile -> validate -> generate -> assemble -> build`.
-- [ ] Подтверждены 5 семейств плагинов и 6-stage affinity:
-- [ ] `discover -> discovery plugins (base.discover.*; compiler kind)`
-- [ ] `compile -> compilers`
-- [ ] `validate -> validators`
-- [ ] `generate -> generators`
-- [ ] `assemble -> assemblers`
-- [ ] `build -> builders`
-- [ ] Подтверждено отсутствие operational зависимости от root `v4/`/`v5/`.
+- [x] Выполнены P1 smoke-gates:
+- [x] `task validate:default`
+- [x] `task test:default`
+- [x] `task ci:local`
+- [x] Подтверждена lifecycle-цепочка default runtime:
+- [x] `discover -> compile -> validate -> generate -> assemble -> build`.
+- [x] Подтверждены 5 семейств плагинов и 6-stage affinity:
+- [x] `discover -> discovery plugins (base.discover.*; compiler kind)`
+- [x] `compile -> compilers`
+- [x] `validate -> validators`
+- [x] `generate -> generators`
+- [x] `assemble -> assemblers`
+- [x] `build -> builders`
+- [x] Подтверждено отсутствие operational зависимости от root `v4/`/`v5/`.
 - [ ] Создан cutover tag/snapshot.
+
+Execution snapshot (2026-03-27):
+
+- `validate:default` -> PASS (`errors=0`, `warnings=11`)
+- `test:default` -> PASS (`603 passed`, `3 skipped`)
+- `ci:local` -> PASS (quality + strict runtime + phase1 gate + tests)
+- Stage inventory from `topology-tools/plugins/plugins.yaml`:
+  - `discover=4`, `compile=7`, `validate=36`, `generate=6`, `assemble=4`, `build=3`
+  - `base.discover.*` plugins confirmed as `kind=compiler`, `stages=[discover]`
+- Root layout guard re-checked: root `v4/` and root `v5/` are absent.
+- Legacy phase1 bootstrap script migrated to archive baseline:
+  - `topology-tools/bootstrap-phase1-mapping.py` now uses `archive/v4/...` paths by default.
 
 ---
 

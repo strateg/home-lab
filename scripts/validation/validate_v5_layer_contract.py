@@ -492,15 +492,21 @@ def main() -> int:
         "error_count": len(errors),
         "inputs": {
             "topology": manifest_path.relative_to(ROOT).as_posix() if manifest_path.exists() else str(manifest_path),
-            "layer_contract": layer_contract_path.relative_to(ROOT).as_posix()
-            if layer_contract_path.exists()
-            else str(layer_contract_path),
-            "project_manifest": project_manifest_path.relative_to(ROOT).as_posix()
-            if isinstance(project_manifest_path, Path) and project_manifest_path.exists()
-            else str(project_manifest_path or ""),
-            "instances_root": instances_root_path.relative_to(ROOT).as_posix()
-            if isinstance(instances_root_path, Path) and instances_root_path.exists()
-            else str(instances_root_path or ""),
+            "layer_contract": (
+                layer_contract_path.relative_to(ROOT).as_posix()
+                if layer_contract_path.exists()
+                else str(layer_contract_path)
+            ),
+            "project_manifest": (
+                project_manifest_path.relative_to(ROOT).as_posix()
+                if isinstance(project_manifest_path, Path) and project_manifest_path.exists()
+                else str(project_manifest_path or "")
+            ),
+            "instances_root": (
+                instances_root_path.relative_to(ROOT).as_posix()
+                if isinstance(instances_root_path, Path) and instances_root_path.exists()
+                else str(instances_root_path or "")
+            ),
         },
         "summary": {
             "classes": len(class_payloads),

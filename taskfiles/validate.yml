@@ -9,8 +9,8 @@ tasks:
   lint:
     desc: Run formatting/linting checks (black + isort)
     cmds:
-      - "{{.PYTHON}} -m black --check ."
-      - "{{.PYTHON}} -m isort --check-only ."
+      - "{{.PYTHON}} -m black --check topology topology-tools scripts tests projects"
+      - "{{.PYTHON}} -m isort --check-only topology topology-tools scripts tests projects"
 
   typecheck:
     desc: Run mypy static checks

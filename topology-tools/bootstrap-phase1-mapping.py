@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bootstrap v4->v5 mapping inventory for Phase 1."""
+"""Bootstrap v4->v5 mapping inventory for Phase 1 (archive-based v4 baseline)."""
 
 from __future__ import annotations
 
@@ -17,10 +17,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate initial v4->v5 mapping inventory.")
-    parser.add_argument("--topology", default="v4/topology.yaml", help="Path to source v4 topology entrypoint.")
+    parser.add_argument(
+        "--topology",
+        default="archive/v4/topology.yaml",
+        help="Path to source v4 topology entrypoint (archive baseline).",
+    )
     parser.add_argument(
         "--effective-json",
-        default="v4-build/effective-topology.json",
+        default="build/diagnostics/v4-phase1-effective-topology.json",
         help="Path to compiled effective topology JSON.",
     )
     parser.add_argument(
@@ -39,7 +43,7 @@ def parse_args() -> argparse.Namespace:
 def run_compile(topology: Path, effective_json: Path) -> None:
     cmd = [
         sys.executable,
-        str(ROOT / "v4/topology-tools/compile-topology.py"),
+        str(ROOT / "archive/v4/topology-tools/compile-topology.py"),
         "--topology",
         str(topology),
         "--output-json",

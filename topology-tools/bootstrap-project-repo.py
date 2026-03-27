@@ -461,9 +461,7 @@ def main() -> int:
 
     notes = output_root / "BOOTSTRAP-NOTES.md"
     tools_prefix = (
-        f"{submodule_mount}/topology-tools"
-        if framework_layout == "monorepo"
-        else f"{submodule_mount}/topology-tools"
+        f"{submodule_mount}/topology-tools" if framework_layout == "monorepo" else f"{submodule_mount}/topology-tools"
     )
     framework_manifest_rel = (
         f"{submodule_mount}/topology/framework.yaml"

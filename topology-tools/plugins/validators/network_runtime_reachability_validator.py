@@ -175,7 +175,12 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
                 )
                 # If device manages the network (e.g., router manages VLAN), it's implicitly attached
                 managed_by_target = network_manager_by_id.get(network_binding_ref) == target_ref
-                if not device_reachable and not host_os_reachable and not overlay_managed_by_target and not managed_by_target:
+                if (
+                    not device_reachable
+                    and not host_os_reachable
+                    and not overlay_managed_by_target
+                    and not managed_by_target
+                ):
                     diagnostics.append(
                         self.emit_diagnostic(
                             code="W7844",
