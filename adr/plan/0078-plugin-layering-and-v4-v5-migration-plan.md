@@ -468,6 +468,11 @@ Post-cutover hardening (2026-03-27):
    - Added guard test: `tests/test_agent_instruction_sync.py`.
    - Wired guard into framework release lane: `task framework:release-tests`.
    - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`160 passed`).
+5. Extended agent-instruction sync to Codex policy sources:
+   - Synchronized `.codex/AGENTS.md` and `.codex/rules/tech-lead-architect.md` wording with CLAUDE/Copilot
+     for plugin families, 6-stage lifecycle, and stage-affinity rules.
+   - Extended `tests/test_agent_instruction_sync.py` coverage to validate Claude + Copilot + Codex instruction files.
+   - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`161 passed`).
 
 ---
 
