@@ -702,6 +702,54 @@ def test_base_manifest_plugin_orders_follow_stage_ranges():
     assert violations == []
 
 
+def test_plugin_kind_stage_affinity_across_discovered_manifests():
+    """ADR0078/ADR0080 guard: plugin kind must match allowed lifecycle stage affinity."""
+    repo_root = V5_TOOLS.parent
+    manifests = discover_plugin_manifest_paths(
+        base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
+        class_modules_root=repo_root / "topology" / "class-modules",
+        object_modules_root=repo_root / "topology" / "object-modules",
+    )
+
+    allowed_stages_by_kind: dict[str, set[str]] = {
+        "discoverer": {"discover"},
+        "compiler": {"compile"},
+        "validator_yaml": {"validate"},
+        "validator_json": {"validate"},
+        "generator": {"generate"},
+        "assembler": {"assemble"},
+        "builder": {"build"},
+    }
+
+    violations: list[str] = []
+    for manifest_path in manifests:
+        payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+        for plugin in payload.get("plugins", []):
+            if not isinstance(plugin, dict):
+                continue
+            plugin_id = str(plugin.get("id", "<missing-id>"))
+            kind = str(plugin.get("kind", ""))
+            stages = plugin.get("stages")
+            if kind not in allowed_stages_by_kind:
+                rel_path = manifest_path.relative_to(repo_root).as_posix()
+                violations.append(f"{plugin_id}@{rel_path}: unknown kind '{kind}'")
+                continue
+            if not isinstance(stages, list) or not stages:
+                rel_path = manifest_path.relative_to(repo_root).as_posix()
+                violations.append(f"{plugin_id}@{rel_path}: missing/empty stages")
+                continue
+            allowed = allowed_stages_by_kind[kind]
+            for stage in stages:
+                if not isinstance(stage, str) or stage not in allowed:
+                    rel_path = manifest_path.relative_to(repo_root).as_posix()
+                    violations.append(
+                        f"{plugin_id}@{rel_path}: kind '{kind}' cannot run in stage '{stage}' "
+                        f"(allowed: {sorted(allowed)})"
+                    )
+
+    assert violations == []
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("ADR 0066 Plugin Contract Tests")
@@ -736,6 +784,7 @@ if __name__ == "__main__":
         test_quality_gate_plugins_remain_enabled_in_plugin_first_path,
         test_manifest_rejects_out_of_range_order,
         test_base_manifest_plugin_orders_follow_stage_ranges,
+        test_plugin_kind_stage_affinity_across_discovered_manifests,
     ]
 
     passed = 0

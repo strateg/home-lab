@@ -443,7 +443,21 @@ Closure evidence (2026-03-22):
 
 1. `python -m pytest -o addopts= v5/tests/plugin_integration -q` -> PASS (`449 passed`).
 2. `task test:parity-v4-v5` -> PASS (`37 passed`).
-3. `python v5/topology-tools/cutover-readiness-report.py --output v5-build/diagnostics/cutover-readiness-full-latest.json` -> PASS (all non-quick gates green).
+3. `python topology-tools/cutover-readiness-report.py --output build/diagnostics/cutover-readiness-full-latest.json` -> PASS (all non-quick gates green).
+
+Post-cutover hardening (2026-03-27):
+
+1. Added manifest contract guard:
+   - `tests/plugin_contract/test_manifest.py::test_plugin_kind_stage_affinity_across_discovered_manifests`
+   - Enforces stage affinity by kind across all discovered manifests:
+     - `discoverer -> discover`
+     - `compiler -> compile`
+     - `validator_yaml|validator_json -> validate`
+     - `generator -> generate`
+     - `assembler -> assemble`
+     - `builder -> build`
+2. Framework release-focused lane remains green with the new guard:
+   - `task framework:release-tests` -> PASS (`157 passed`).
 
 ---
 
