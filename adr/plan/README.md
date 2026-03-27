@@ -8,7 +8,6 @@ This directory contains implementation plans for major development efforts.
 |------|--------|-------------|
 | [0076-multi-repo-extraction-plan.md](0076-multi-repo-extraction-plan.md) | Draft | Framework extraction and multi-repo distribution |
 | [v5-production-readiness.md](v5-production-readiness.md) | Active | Master plan for v5 deployment capability |
-| [0078-v4-validator-deprecation-matrix.md](0078-v4-validator-deprecation-matrix.md) | Active | Batch-wise retirement plan for legacy v4 validator fallback after parity locks |
 | [phase1-generator-framework.md](phase1-generator-framework.md) | Superseded | Generator plugin infrastructure (see ADR 0074) |
 
 ## Completed Plans
@@ -18,6 +17,7 @@ This directory contains implementation plans for major development efforts.
 | [0075-0074-master-migration-plan.md](0075-0074-master-migration-plan.md) | 2026-03-20 | Framework/project separation + generator completion |
 | [0078-plugin-layering-and-v4-v5-migration-plan.md](0078-plugin-layering-and-v4-v5-migration-plan.md) | 2026-03-22 | Plugin level-boundary hardening + staged v4->v5 migration closure |
 | [0078-cutover-checklist.md](0078-cutover-checklist.md) | 2026-03-27 | Execution checklist for v4->v5 migration cutover closure |
+| [0078-v4-validator-deprecation-matrix.md](0078-v4-validator-deprecation-matrix.md) | 2026-03-27 | Historical staged deprecation matrix (migration cutover closed; moved to backlog tracking) |
 | [0078-v5-unified-plugin-refactor-prep.md](0078-v5-unified-plugin-refactor-prep.md) | 2026-03-22 | Unified plugin boundary hardening (WP6-WP10) |
 | [0078-wave-d-v4-validator-mapping.md](0078-wave-d-v4-validator-mapping.md) | 2026-03-22 | v4 validator mapping and parity closure notes |
 

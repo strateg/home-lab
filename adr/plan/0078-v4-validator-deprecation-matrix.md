@@ -1,7 +1,7 @@
 # ADR0078 Wave D: v4 Validator Deprecation Matrix
 
 **Date:** 2026-03-22
-**Status:** Active (staged cutover baseline)
+**Status:** Completed (historical staged-cutover baseline)
 **Related:** `adr/plan/0078-wave-d-v4-validator-mapping.md`
 
 ---
@@ -68,9 +68,12 @@
 
 ---
 
-## 5. Remaining Partial Gaps (Tracked Baseline)
+## 5. Historical Partial Gaps (Non-Blocking)
 
-Ниже зафиксированы конкретные остаточные области для строк со статусом `Partial`/`Covered/Partial`.
+Ниже зафиксированы области, которые в момент staged-cutover были отмечены как `Partial`/`Covered/Partial`.
+После закрытия cutover (2026-03-27) эти пункты не являются блокерами миграции ADR0078 и
+перенесены в общий evolution backlog (`adr/plan/v5-production-readiness.md`) при необходимости
+дальнейшего расширения parity-fixtures.
 
 ### 5.1 Foundation
 
@@ -96,12 +99,21 @@
 1. `check_device_storage_taxonomy` / `check_l1_media_inventory` / `check_l3_storage_refs`:
    - hardware/media edge fixtures и часть infer_from warning edge-cases должны быть закрыты parity fixtures.
 
-### 5.5 Tracking Rule
+### 5.5 Historical Tracking Rule
 
-1. Каждый пункт выше должен получить:
+1. Каждый пункт выше в момент staged-cutover требовал:
    - отдельный parity fixture (или обновление существующего),
    - ссылку на commit с green `task test:parity-v4-v5`,
    - обновление соответствующей строки матрицы до `Covered` перед отключением v4 fallback.
+
+---
+
+## 5.6 Migration Closure Note (2026-03-27)
+
+1. ADR0078 migration lane закрыт: active runtime и release-lane работают в root v5 layout без
+   operational зависимости от root `v4/`/`v5/`.
+2. Legacy baseline сохранен в `archive/v4` для parity/rollback сверок.
+3. Этот документ остается как историческая матрица staged-cutover и не является active execution plan.
 
 ---
 
