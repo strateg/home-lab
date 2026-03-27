@@ -20,6 +20,7 @@ ACTIVE_DOCS = [
     "docs/framework/templates/project-validate.yml",
     "docs/framework/templates/framework-release.yml",
     "topology-tools/docs/MANUAL-ARTIFACT-BUILD.md",
+    "topology-tools/docs/ENVIRONMENT-SETUP.md",
 ]
 
 LEGACY_PATH_TOKENS = [
