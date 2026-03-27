@@ -43,6 +43,10 @@
    - `generate -> generators`
    - `assemble -> assemblers`
    - `build -> builders`
+7. Для каждого legacy v4 plugin/check обязателен миграционный анализ перед переносом:
+   - определить целевую стадию (`compile|validate|generate|assemble|build`),
+   - зафиксировать решение в mapping/плане,
+   - переносить в v5 только после явного stage assignment.
 
 ---
 
@@ -208,6 +212,7 @@ Tasks:
 - [x] Портировать логику с минимальным поведением drift.
 - [x] Добавить contract/integration tests в `v5/tests/plugin_integration`.
 - [x] Зафиксировать deprecation legacy v4 checks.
+- [x] Для каждого перенесённого v4 check/plugin выполнить явный stage-анализ и закрепить stage assignment в mapping.
 
 Verification:
 

@@ -79,7 +79,13 @@ Hard constraints:
 - Plugins can call interfaces from their own level or higher only.
 - Interface implementations can live at higher levels (dependency inversion).
 - Global plugins manage specific plugins via interfaces implemented by those specific plugins or via other design patterns that preserve level boundaries.
-- Rules apply to all plugin kinds.
+- Rules apply to plugin families: `compilers`, `validators`, `generators`, `assemblers`, `builders`.
+- Stage affinity is mandatory:
+- `compile -> compilers`
+- `validate -> validators`
+- `generate -> generators`
+- `assemble -> assemblers`
+- `build -> builders`
 
 Allowed variants:
 
@@ -195,7 +201,9 @@ You use best architecture design pattern and practices proven by architectural c
 
 # v4/v5 lane rule (migration mode)
 
-- `v4/` is frozen and maintenance-only.
-- Default behavior: no file creation or modification under `v4/`.
-- All ongoing migration work (`Class -> Object -> Instance`, capabilities, validators, compiler, profiles) must target `v5/`.
-- Touch `v4/` only when the user explicitly asks for a `v4` fix.
+- Active lane is repository root layout.
+- Legacy `v4` is frozen under `archive/v4/` and used only as baseline/reference.
+- Default behavior: no file creation or modification under `archive/v4/`.
+- Do not create or use root `v4/` or root `v5/` directories.
+- All ongoing migration work (`Class -> Object -> Instance`, capabilities, validators, compiler, profiles, assemble/build lifecycle) must target root layout.
+- Touch `archive/v4/` only when the user explicitly asks for a `v4` fix/parity check.

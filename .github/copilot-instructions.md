@@ -13,8 +13,8 @@ This is an **Infrastructure-as-Data** home lab project using a **Class -> Object
 ### Source of Truth
 
 - `topology/topology.yaml` - Main entry point
-- `topology/classes/` - Class definitions
-- `topology/objects/` - Object definitions
+- `topology/class-modules/` - Class definitions
+- `topology/object-modules/` - Object definitions
 - `projects/home-lab/topology/instances/` - Instance definitions
 
 ### Generated Outputs
@@ -47,7 +47,8 @@ Rules:
 - A plugin may call interfaces from its own level or higher only.
 - Such interfaces may be implemented by higher levels (dependency inversion).
 - Global plugins manage specific plugins through interfaces implemented by specific plugins or through other design patterns that preserve level boundaries.
-- Applies to all plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`).
+- Applies to all plugin families (`compilers`, `validators`, `generators`, `assemblers`, `builders`).
+- Stage affinity must be preserved: `compile -> compilers`, `validate -> validators`, `generate -> generators`, `assemble -> assemblers`, `build -> builders`.
 
 Scope variants:
 
@@ -66,9 +67,11 @@ home-lab/
 ├── topology-tools/              # Compiler, validators, generators
 │   ├── compile-topology.py      # Main compiler
 │   ├── plugins/                 # Plugin implementations
-│   │   ├── compiler/            # Compiler plugins
-│   │   ├── validator/           # Validation plugins
-│   │   └── generator/           # Generator plugins
+│   │   ├── compilers/           # Compiler plugins
+│   │   ├── validators/          # Validation plugins
+│   │   ├── generators/          # Generator plugins
+│   │   ├── assemblers/          # Assemble-stage plugins
+│   │   └── builders/            # Build-stage plugins
 │   ├── lib/                     # Core library
 │   └── templates/               # Jinja2 templates
 ├── projects/home-lab/           # Project-specific data
@@ -99,6 +102,14 @@ home-lab/
     └── migrated-and-archived/
 ```
 
+## Migration Lane Guard (Synchronized)
+
+- Active lane is repository root layout (`topology/`, `topology-tools/`, `projects/`, `tests/`, `scripts/`, `taskfiles/`).
+- Legacy v4 baseline is stored under `archive/v4/` (reference and parity only).
+- Do not create or use root `v4/` or root `v5/` directories.
+- Do not modify `archive/v4/` unless explicitly requested for a v4 hotfix or parity investigation.
+- All ongoing migration/runtime work must target root layout and ADR0080 contracts.
+
 ## Common Workflows
 
 ### 1. Compile and Generate
@@ -109,11 +120,12 @@ python scripts/orchestration/lane.py validate-v5
 
 # Run full compilation
 python topology-tools/compile-topology.py
+# Parallel plugin execution is enabled by default.
+# Use sequential mode only for troubleshooting/parity debugging.
+python topology-tools/compile-topology.py --no-parallel-plugins
 
 # Generate specific outputs
-python topology-tools/plugins/generator/generate_terraform_proxmox.py
-python topology-tools/plugins/generator/generate_terraform_mikrotik.py
-python topology-tools/plugins/generator/generate_ansible_inventory.py
+python scripts/orchestration/lane.py build-v5
 ```
 
 ### 2. Using Lane Orchestrator
@@ -229,7 +241,7 @@ vim generated/home-lab/terraform/proxmox/bridges.tf  # Will be overwritten!
 ### DO: Edit topology and regenerate
 ```bash
 # Correct:
-vim topology/objects/network/bridges.yaml
+vim topology/object-modules/network/obj.network.vlan.servers.yaml
 python topology-tools/compile-topology.py
 ```
 
@@ -247,9 +259,9 @@ python topology-tools/compile-topology.py
 
 The v4 codebase is preserved in `archive/v4/` for reference. It used an OSI-like 8-layer architecture (L0-L7) with direct layer files. Key differences from v5:
 
-- v4: Flat layer files (`v4/topology/L*.yaml`)
+- v4: Flat layer files (`archive/v4/v4/topology/L*.yaml`)
 - v5: Class -> Object -> Instance hierarchy
 - v4: Script-based generators
 - v5: Plugin-based microkernel architecture
 
-See `archive/v4/README.md` and ADR 0062 for migration context.
+See `archive/v4/v4/README.md` and ADR 0062 for migration context.

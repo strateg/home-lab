@@ -38,9 +38,11 @@ Always enforce clean architecture.
 
 ## Migration Lane Guard (Mandatory)
 
-- `v4/` is frozen.
-- Do not create or modify files under `v4/` unless the user explicitly requests a `v4` hotfix.
-- All migration and capability work must be done only in `v5/`.
+- Active lane is repository root layout.
+- Legacy `v4` baseline is archived under `archive/v4/` and treated as frozen reference.
+- Do not create or use root `v4/` or root `v5/` directories.
+- Do not create or modify files under `archive/v4/` unless the user explicitly requests a `v4` hotfix/parity check.
+- All migration and capability work must be done in root layout (`topology/`, `topology-tools/`, `projects/`, `tests/`, `scripts/`, `taskfiles/`).
 Prevent architectural drift.
 Prioritize maintainability and system integrity.
 
@@ -64,7 +66,13 @@ Rules:
 - A plugin may depend on interfaces defined at its own level or higher.
 - Those interfaces may be implemented by higher levels (DIP-style inversion).
 - Global plugins manage specific plugins through interfaces implemented by specific plugins or through other design patterns that preserve level boundaries.
-- Applies to all plugin kinds (`compiler`, `validator_yaml`, `validator_json`, `generator`).
+- Applies to plugin families: `compilers`, `validators`, `generators`, `assemblers`, `builders`.
+- Stage affinity is mandatory:
+- `compile -> compilers`
+- `validate -> validators`
+- `generate -> generators`
+- `assemble -> assemblers`
+- `build -> builders`
 
 Scope variants:
 
