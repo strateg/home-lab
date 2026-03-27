@@ -188,7 +188,7 @@ Tasks:
 
 - [x] Выбрать один вариант:
 - [x] Вариант 1: удалить файл как неиспользуемый.
-- [ ] Вариант 2: мигрировать на `ValidatorJsonPlugin`, зарегистрировать в `v5/topology/object-modules/network/plugins.yaml`, покрыть тестами.
+- [x] Вариант 2 (not selected): мигрировать на `ValidatorJsonPlugin`, зарегистрировать в `topology/object-modules/network/plugins.yaml`, покрыть тестами.
 
 Verification:
 
