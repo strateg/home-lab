@@ -40,5 +40,6 @@ tasks:
     desc: Topology parity lane against archive v4 baseline
     deps:
       - :framework:strict
+      - :framework:archive-v4-compile
       - :validate:default
       - :test:parity-v4-v5

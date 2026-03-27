@@ -36,6 +36,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/audit-strict-runtime-entrypoints.py"
 
+  archive-v4-compile:
+    desc: Compile legacy archive/v4 baseline for parity drift monitoring
+    cmds:
+      - "{{.PYTHON}} archive/v4/topology-tools/compile-topology.py --topology archive/v4/topology.yaml --output-json build/diagnostics/v4-archive-effective.json --diagnostics-json build/diagnostics/v4-archive-diagnostics.json --diagnostics-txt build/diagnostics/v4-archive-diagnostics.txt"
+
   adr0078-ownership:
     desc: Verify ADR0078 object-generator/template ownership boundaries
     cmds:
