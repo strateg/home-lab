@@ -101,7 +101,7 @@ Example for shared/global plugin (central manifest):
 ```yaml
 - id: my.validator.custom
   kind: validator_json
-  entry: validators/my_validator.py:MyValidator
+  entry: plugins/validators/my_validator.py:MyValidator
   api_version: "1.x"
   stages: [validate]
   order: 200
@@ -120,7 +120,7 @@ Example for object-scoped plugin (module manifest):
 ```yaml
 - id: object_mikrotik.validator_json.router_ports
   kind: validator_json
-  entry: plugins/mikrotik_router_ports_validator.py:MikrotikRouterPortsValidator
+  entry: plugins/validators/mikrotik_router_ports_validator.py:MikrotikRouterPortsValidator
   api_version: "1.x"
   stages: [validate]
   order: 241
@@ -356,7 +356,7 @@ plugins:
 |-------|----------|---------|-------------|
 | `id` | Yes | - | Unique identifier, recommend reverse-domain: `org.example.plugin` |
 | `kind` | Yes | - | Plugin type, must match class's `kind` property |
-| `entry` | Yes | - | Module path relative to `plugins/` and class name |
+| `entry` | Yes | - | Preferred: `plugins/<family>/module.py:ClassName` where family matches `kind` |
 | `api_version` | Yes | - | Currently `"1.x"` |
 | `stages` | Yes | - | Pipeline stages where plugin runs |
 | `order` | No | 100 | Lower values execute first |
@@ -374,6 +374,15 @@ Stage-specific `order` ranges are enforced by runtime:
 4. `generate`: 190-399
 5. `assemble`: 400-499
 6. `build`: 500-599
+
+Entry family affinity is enforced for structured entry paths:
+
+1. `discoverer -> plugins/discoverers/...`
+2. `compiler -> plugins/compilers/...`
+3. `validator_yaml|validator_json -> plugins/validators/...`
+4. `generator -> plugins/generators/...`
+5. `assembler -> plugins/assemblers/...`
+6. `builder -> plugins/builders/...`
 
 ## Testing Plugins
 

@@ -90,6 +90,15 @@ KIND_STAGE_AFFINITY: dict[PluginKind, set[Stage]] = {
     PluginKind.ASSEMBLER: {Stage.ASSEMBLE},
     PluginKind.BUILDER: {Stage.BUILD},
 }
+KIND_ENTRY_FAMILY: dict[PluginKind, str] = {
+    PluginKind.DISCOVERER: "discoverers",
+    PluginKind.COMPILER: "compilers",
+    PluginKind.VALIDATOR_YAML: "validators",
+    PluginKind.VALIDATOR_JSON: "validators",
+    PluginKind.GENERATOR: "generators",
+    PluginKind.ASSEMBLER: "assemblers",
+    PluginKind.BUILDER: "builders",
+}
 
 
 @dataclass
@@ -329,6 +338,14 @@ class PluginRegistry:
                 f"kind '{spec.kind.value}' cannot run in stage '{stage.value}' "
                 f"(allowed stages: {[item.value for item in sorted(allowed_stages, key=lambda s: s.value)]})",
             )
+        entry_family = self._extract_entry_plugin_family(spec.entry)
+        expected_family = KIND_ENTRY_FAMILY.get(spec.kind)
+        if entry_family and expected_family and entry_family != expected_family:
+            raise PluginLoadError(
+                spec.id,
+                f"entry '{spec.entry}' must use plugins/{expected_family}/ for kind "
+                f"'{spec.kind.value}' (got plugins/{entry_family}/)",
+            )
         for stage in spec.stages:
             order_range = STAGE_ORDER_RANGES.get(stage)
             if order_range is None:
@@ -351,6 +368,21 @@ class PluginRegistry:
                         "compiled_json_owner conflicts with "
                         f"'{existing.id}' for phase '{spec.phase.value}' and stages {overlapping_stages}",
                     )
+
+    @staticmethod
+    def _extract_entry_plugin_family(entry: str) -> str | None:
+        """Return entry family from plugins/<family>/... paths, if present."""
+        entry_path = entry.split(":", 1)[0].replace("\\", "/")
+        if "/plugins/" in entry_path:
+            tail = entry_path.split("/plugins/", 1)[1]
+        elif entry_path.startswith("plugins/"):
+            tail = entry_path[len("plugins/") :]
+        else:
+            return None
+        if "/" not in tail:
+            return None
+        family = tail.split("/", 1)[0].strip()
+        return family or None
 
     def _is_api_compatible(self, plugin_api: str) -> bool:
         """Check if plugin API version is compatible with kernel.

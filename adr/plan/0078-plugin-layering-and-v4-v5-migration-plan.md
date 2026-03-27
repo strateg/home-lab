@@ -473,6 +473,15 @@ Post-cutover hardening (2026-03-27):
      for plugin families, 6-stage lifecycle, and stage-affinity rules.
    - Extended `tests/test_agent_instruction_sync.py` coverage to validate Claude + Copilot + Codex instruction files.
    - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`161 passed`).
+6. Added plugin entry-family affinity hardening for structured plugin paths:
+   - Runtime manifest validation now rejects kind/folder mismatches for `plugins/<family>/...` entries
+     (`discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`).
+   - Contract tests:
+     - `tests/plugin_contract/test_manifest.py::test_manifest_rejects_entry_family_affinity_violation`
+     - `tests/plugin_contract/test_manifest.py::test_plugin_entry_family_affinity_across_discovered_manifests`
+   - Plugin authoring guide updated with entry-family rules:
+     - `topology-tools/docs/PLUGIN_AUTHORING.md`
+   - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`163 passed`).
 
 ---
 

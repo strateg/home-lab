@@ -287,7 +287,7 @@ def test_manifest_schema_accepts_build_stage_and_new_fields(tmp_path: Path):
             {
                 "id": "test.builder.bundle",
                 "kind": "builder",
-                "entry": "plugins/generators/effective_json_generator.py:EffectiveJsonGenerator",
+                "entry": "plugins/builders/release_manifest_builder.py:ReleaseManifestBuilder",
                 "api_version": "1.x",
                 "stages": ["build"],
                 "phase": "finalize",
@@ -713,6 +713,33 @@ def test_manifest_rejects_kind_stage_affinity_violation(tmp_path: Path):
         assert "cannot run in stage" in str(exc)
 
 
+def test_manifest_rejects_entry_family_affinity_violation(tmp_path: Path):
+    """Runtime must reject plugin entry family mismatches for structured plugins paths."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.compiler.bad_entry_family",
+                "kind": "compiler",
+                "entry": "plugins/validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 31,
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    try:
+        registry.load_manifest(manifest)
+        assert False, "Expected PluginLoadError for entry family affinity violation"
+    except PluginLoadError as exc:
+        assert "must use plugins/compilers/" in str(exc)
+
+
 def test_base_manifest_plugin_orders_follow_stage_ranges():
     """Base manifest should satisfy ADR0080 stage order ranges."""
     registry = PluginRegistry(V5_TOOLS)
@@ -777,6 +804,62 @@ def test_plugin_kind_stage_affinity_across_discovered_manifests():
     assert violations == []
 
 
+def test_plugin_entry_family_affinity_across_discovered_manifests():
+    """Structured plugin entry paths must align with kind->family mapping."""
+    repo_root = V5_TOOLS.parent
+    manifests = discover_plugin_manifest_paths(
+        base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
+        class_modules_root=repo_root / "topology" / "class-modules",
+        object_modules_root=repo_root / "topology" / "object-modules",
+    )
+
+    expected_family_by_kind: dict[str, str] = {
+        "discoverer": "discoverers",
+        "compiler": "compilers",
+        "validator_yaml": "validators",
+        "validator_json": "validators",
+        "generator": "generators",
+        "assembler": "assemblers",
+        "builder": "builders",
+    }
+
+    violations: list[str] = []
+    for manifest_path in manifests:
+        payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+        for plugin in payload.get("plugins", []):
+            if not isinstance(plugin, dict):
+                continue
+            plugin_id = str(plugin.get("id", "<missing-id>"))
+            kind = str(plugin.get("kind", ""))
+            entry = str(plugin.get("entry", ""))
+
+            expected_family = expected_family_by_kind.get(kind)
+            if expected_family is None:
+                rel_path = manifest_path.relative_to(repo_root).as_posix()
+                violations.append(f"{plugin_id}@{rel_path}: unknown kind '{kind}'")
+                continue
+
+            entry_path = entry.split(":", 1)[0].replace("\\", "/")
+            if "/plugins/" in entry_path:
+                tail = entry_path.split("/plugins/", 1)[1]
+            elif entry_path.startswith("plugins/"):
+                tail = entry_path[len("plugins/") :]
+            else:
+                continue
+            if "/" not in tail:
+                # Legacy flat plugin path (plugins/<file>.py) is accepted during migration.
+                continue
+            family = tail.split("/", 1)[0]
+            if family != expected_family:
+                rel_path = manifest_path.relative_to(repo_root).as_posix()
+                violations.append(
+                    f"{plugin_id}@{rel_path}: kind '{kind}' expects plugins/{expected_family}/ "
+                    f"but entry uses plugins/{family}/"
+                )
+
+    assert violations == []
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("ADR 0066 Plugin Contract Tests")
@@ -811,8 +894,10 @@ if __name__ == "__main__":
         test_quality_gate_plugins_remain_enabled_in_plugin_first_path,
         test_manifest_rejects_out_of_range_order,
         test_manifest_rejects_kind_stage_affinity_violation,
+        test_manifest_rejects_entry_family_affinity_violation,
         test_base_manifest_plugin_orders_follow_stage_ranges,
         test_plugin_kind_stage_affinity_across_discovered_manifests,
+        test_plugin_entry_family_affinity_across_discovered_manifests,
     ]
 
     passed = 0
