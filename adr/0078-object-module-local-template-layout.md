@@ -8,6 +8,17 @@
 
 ---
 
+## Layout Alignment Note (2026-03-27)
+
+This ADR remains active for ownership/boundary policy, but all repository paths are interpreted in root-layout form:
+
+1. `topology/...` (instead of legacy `v5/topology/...`)
+2. `topology-tools/...` (instead of legacy `v5/topology-tools/...`)
+3. `projects/...` (instead of legacy `v5/projects/...`)
+4. `tests/...` (instead of legacy `v5/tests/...`)
+
+---
+
 ## Context
 
 In v5, object behavior is defined in `topology/object-modules/*`, but object-scoped implementation was split across `topology-tools`:
@@ -250,20 +261,20 @@ Projection ownership MUST follow clear hierarchy:
 ### Normative layout
 
 1. Object templates MUST be stored under:
-   - `v5/topology/object-modules/<object-id>/templates/<generator-id>/`
+   - `topology/object-modules/<object-id>/templates/<generator-id>/`
 2. Object-scoped generator plugins MUST be stored under:
-   - `v5/topology/object-modules/<object-id>/plugins/`
+   - `topology/object-modules/<object-id>/plugins/`
 3. Plugin manifest entrypoints for object-scoped generators MUST point to object-module plugin paths.
 4. Shared, cross-object templates MAY remain under:
-   - `v5/topology-tools/templates/`
+   - `topology-tools/templates/`
 5. Shared, cross-object plugins MAY remain under:
-   - `v5/topology-tools/plugins/`
+   - `topology-tools/plugins/`
 
 ### Object migrations in scope
 
 1. MikroTik Terraform templates:
-   - old: `v5/topology-tools/templates/terraform/mikrotik/*`
-   - new: `v5/topology/object-modules/mikrotik/templates/terraform/*`
+   - old: `topology-tools/templates/terraform/mikrotik/*`
+   - new: `topology/object-modules/mikrotik/templates/terraform/*`
 2. Generator plugins:
    - `terraform_mikrotik_generator.py` -> `object-modules/mikrotik/plugins/`
    - `bootstrap_mikrotik_generator.py` -> `object-modules/mikrotik/plugins/`
@@ -285,7 +296,7 @@ Framework distribution packaging MUST include object-local templates and object-
 
 ### Plugin manifest policy
 
-1. During transition, central `v5/topology-tools/plugins/plugins.yaml` MAY reference object-module plugin paths.
+1. During transition, central `topology-tools/plugins/plugins.yaml` MAY reference object-module plugin paths.
 2. Target end-state: object-module `plugins.yaml` manifests own object-scoped plugin registration.
 3. Duplicate plugin IDs across central and module manifests are forbidden and treated as hard manifest load errors.
 4. Registration policy is identical for compilers/validators/generators.
@@ -356,7 +367,7 @@ Framework distribution packaging MUST include object-local templates and object-
 
 ## Compatibility Strategy (Shim Sunset)
 
-Compatibility shims in `v5/topology-tools/plugins/generators/*` are transitional only.
+Compatibility shims in `topology-tools/plugins/generators/*` are transitional only.
 
 Removal gate (all required):
 
@@ -404,8 +415,8 @@ Ownership:
 
 ### Phase 1: Physical Move (No Manifest Cutover)
 
-1. Move object templates to `v5/topology/object-modules/<object-id>/templates/<generator-id>/`.
-2. Move object-scoped plugins to `v5/topology/object-modules/<object-id>/plugins/`.
+1. Move object templates to `topology/object-modules/<object-id>/templates/<generator-id>/`.
+2. Move object-scoped plugins to `topology/object-modules/<object-id>/plugins/`.
 3. Keep legacy resolution/fallback active while validating moved layout.
 
 **Go/No-Go:** proceed only if moved paths compile and test with fallback still enabled.
@@ -416,8 +427,8 @@ Ownership:
 
 ### Phase 2: Manifest Cutover and Lock Regeneration
 
-1. Update `v5/topology-tools/plugins/plugins.yaml` entrypoints to object-module plugin paths.
-2. Regenerate `v5/projects/home-lab/framework.lock.yaml`.
+1. Update `topology-tools/plugins/plugins.yaml` entrypoints to object-module plugin paths.
+2. Regenerate `projects/home-lab/framework.lock.yaml`.
 3. Run strict compile, plugin integration tests, and distribution smoke generation.
 
 **Go/No-Go:** proceed only if all validations pass without object-specific path overrides.
@@ -503,9 +514,9 @@ Ownership:
 **Go/No-Go:** Phase 6 is closed; proceed with final Phase 7 consolidation gates.
 
 **Exit artifacts:**
-- `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts` passing;
-- `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import_other_object_modules` passing;
-- `v5/tests/plugin_integration/test_object_projection_loader.py` passing;
+- `tests/plugin_contract/test_plugin_level_boundaries.py::test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts` passing;
+- `tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import_other_object_modules` passing;
+- `tests/plugin_integration/test_object_projection_loader.py` passing;
 - capability mappings externalized in all object module manifests.
 
 ### Phase 7: Projection Architecture Consolidation
@@ -551,35 +562,35 @@ Ownership:
 Minimum verification set per migration batch:
 
 1. Unit/integration generators:
-   - `v5/tests/plugin_integration/test_terraform_mikrotik_generator.py`
-   - `v5/tests/plugin_integration/test_terraform_proxmox_generator.py`
-   - `v5/tests/plugin_integration/test_bootstrap_generators.py`
+   - `tests/plugin_integration/test_terraform_mikrotik_generator.py`
+   - `tests/plugin_integration/test_terraform_proxmox_generator.py`
+   - `tests/plugin_integration/test_bootstrap_generators.py`
 2. Projection-contract enforcement:
-   - `v5/tests/plugin_integration/test_generator_projection_contract.py`
+   - `tests/plugin_integration/test_generator_projection_contract.py`
 3. Template/publish contract:
-   - `v5/tests/plugin_integration/test_generator_template_and_publish_contract.py`
+   - `tests/plugin_integration/test_generator_template_and_publish_contract.py`
 4. Runtime strict audit:
-   - `v5/tests/plugin_integration/test_strict_runtime_entrypoint_audit.py`
+   - `tests/plugin_integration/test_strict_runtime_entrypoint_audit.py`
 5. Strict compile gate:
-   - `python v5/topology-tools/compile-topology.py --topology v5/topology/topology.yaml --strict-model-lock --secrets-mode passthrough`
+   - `python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough`
 
 Additional verification for Phase 6-7:
 
 6. Instance isolation enforcement:
-   - `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts`
+   - `tests/plugin_contract/test_plugin_level_boundaries.py::test_object_plugin_python_files_do_not_hardcode_private_or_local_url_hosts`
    - regex scan for IP patterns: `\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b`
    - regex scan for hostname patterns: `\b[a-z][\w-]*\.(local|home|lan|internal)\b`
 7. Cross-object import prohibition:
-   - `v5/tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import_other_object_modules`
+   - `tests/plugin_contract/test_plugin_level_boundaries.py::test_object_modules_do_not_cross_import_other_object_modules`
    - AST scan for `from topology.object_modules.<other>` patterns
 8. Dynamic object discovery:
-   - `v5/tests/plugin_integration/test_object_projection_loader.py`
+   - `tests/plugin_integration/test_object_projection_loader.py`
    - verify no hardcoded object module paths in framework code
 9. Capability-template externalization:
-   - `v5/tests/plugin_contract/test_capability_template_config.py`
+   - `tests/plugin_contract/test_capability_template_config.py`
    - verify generators read capability mappings from config, not code
 10. Projection ownership boundaries:
-    - `v5/tests/plugin_contract/test_projection_ownership_boundaries.py`
+    - `tests/plugin_contract/test_projection_ownership_boundaries.py`
     - verify no object-specific logic in core projections
 
 ---
@@ -637,24 +648,24 @@ Phase 6-7 acceptance criteria:
 
 ## References
 
-- `v5/topology/object-modules/mikrotik/templates/terraform/`
-- `v5/topology/object-modules/mikrotik/plugins/terraform_mikrotik_generator.py`
-- `v5/topology/object-modules/mikrotik/plugins/bootstrap_mikrotik_generator.py`
-- `v5/topology/object-modules/proxmox/plugins/terraform_proxmox_generator.py`
-- `v5/topology/object-modules/proxmox/plugins/bootstrap_proxmox_generator.py`
-- `v5/topology/object-modules/orangepi/plugins/bootstrap_orangepi_generator.py`
-- `v5/topology/object-modules/_shared/plugins/bootstrap_projections.py`
-- `v5/topology-tools/plugins/plugins.yaml`
-- `v5/topology-tools/plugins/generators/object_projection_loader.py`
-- `v5/topology-tools/plugins/generators/projections.py`
-- `v5/topology-tools/templates/TEMPLATE-INVENTORY.md`
-- `v5/projects/home-lab/framework.lock.yaml`
-- `v5/tests/plugin_integration/test_generator_projection_contract.py`
-- `v5/tests/plugin_integration/test_generator_template_and_publish_contract.py`
-- `v5/tests/plugin_contract/test_plugin_level_boundaries.py`
-- `v5/tests/plugin_integration/test_object_projection_loader.py` (Phase 6)
-- `v5/tests/plugin_contract/test_capability_template_config.py` (Phase 6)
-- `v5/tests/plugin_contract/test_projection_ownership_boundaries.py` (Phase 7)
+- `topology/object-modules/mikrotik/templates/terraform/`
+- `topology/object-modules/mikrotik/plugins/terraform_mikrotik_generator.py`
+- `topology/object-modules/mikrotik/plugins/bootstrap_mikrotik_generator.py`
+- `topology/object-modules/proxmox/plugins/terraform_proxmox_generator.py`
+- `topology/object-modules/proxmox/plugins/bootstrap_proxmox_generator.py`
+- `topology/object-modules/orangepi/plugins/bootstrap_orangepi_generator.py`
+- `topology/object-modules/_shared/plugins/bootstrap_projections.py`
+- `topology-tools/plugins/plugins.yaml`
+- `topology-tools/plugins/generators/object_projection_loader.py`
+- `topology-tools/plugins/generators/projections.py`
+- `topology-tools/templates/TEMPLATE-INVENTORY.md`
+- `projects/home-lab/framework.lock.yaml`
+- `tests/plugin_integration/test_generator_projection_contract.py`
+- `tests/plugin_integration/test_generator_template_and_publish_contract.py`
+- `tests/plugin_contract/test_plugin_level_boundaries.py`
+- `tests/plugin_integration/test_object_projection_loader.py` (Phase 6)
+- `tests/plugin_contract/test_capability_template_config.py` (Phase 6)
+- `tests/plugin_contract/test_projection_ownership_boundaries.py` (Phase 7)
 - `adr/0078-analysis/IMPLEMENTATION-PLAN.md`
 - `adr/plan/0078-v5-unified-plugin-refactor-prep.md`
 - `adr/plan/0078-plugin-layering-and-v4-v5-migration-plan.md`
