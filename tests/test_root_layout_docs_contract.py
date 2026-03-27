@@ -19,6 +19,7 @@ ACTIVE_DOCS = [
     "docs/framework/INFRA-TOPOLOGY-FRAMEWORK-RELEASE-PROCESS.md",
     "docs/framework/templates/project-validate.yml",
     "docs/framework/templates/framework-release.yml",
+    "topology-tools/docs/MANUAL-ARTIFACT-BUILD.md",
 ]
 
 LEGACY_PATH_TOKENS = [
