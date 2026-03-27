@@ -686,6 +686,33 @@ def test_manifest_rejects_out_of_range_order(tmp_path: Path):
         assert "outside allowed range" in str(exc)
 
 
+def test_manifest_rejects_kind_stage_affinity_violation(tmp_path: Path):
+    """Runtime must reject plugin kind/stage affinity violations."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.generator.bad_stage",
+                "kind": "generator",
+                "entry": "plugins/generators/effective_json_generator.py:EffectiveJsonGenerator",
+                "api_version": "1.x",
+                "stages": ["validate"],
+                "phase": "run",
+                "order": 150,
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    try:
+        registry.load_manifest(manifest)
+        assert False, "Expected PluginLoadError for kind/stage affinity violation"
+    except PluginLoadError as exc:
+        assert "cannot run in stage" in str(exc)
+
+
 def test_base_manifest_plugin_orders_follow_stage_ranges():
     """Base manifest should satisfy ADR0080 stage order ranges."""
     registry = PluginRegistry(V5_TOOLS)
@@ -783,6 +810,7 @@ if __name__ == "__main__":
         test_generator_plugins_declare_generated_files_contract,
         test_quality_gate_plugins_remain_enabled_in_plugin_first_path,
         test_manifest_rejects_out_of_range_order,
+        test_manifest_rejects_kind_stage_affinity_violation,
         test_base_manifest_plugin_orders_follow_stage_ranges,
         test_plugin_kind_stage_affinity_across_discovered_manifests,
     ]

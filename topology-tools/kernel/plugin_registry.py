@@ -81,6 +81,15 @@ STAGE_ORDER_RANGES: dict[Stage, tuple[int, int]] = {
     Stage.ASSEMBLE: (400, 499),
     Stage.BUILD: (500, 599),
 }
+KIND_STAGE_AFFINITY: dict[PluginKind, set[Stage]] = {
+    PluginKind.DISCOVERER: {Stage.DISCOVER},
+    PluginKind.COMPILER: {Stage.COMPILE},
+    PluginKind.VALIDATOR_YAML: {Stage.VALIDATE},
+    PluginKind.VALIDATOR_JSON: {Stage.VALIDATE},
+    PluginKind.GENERATOR: {Stage.GENERATE},
+    PluginKind.ASSEMBLER: {Stage.ASSEMBLE},
+    PluginKind.BUILDER: {Stage.BUILD},
+}
 
 
 @dataclass
@@ -310,6 +319,15 @@ class PluginRegistry:
             raise PluginLoadError(
                 spec.id,
                 f"Incompatible API version {spec.api_version}, kernel supports {SUPPORTED_API_VERSIONS}",
+            )
+        allowed_stages = KIND_STAGE_AFFINITY.get(spec.kind, set())
+        for stage in spec.stages:
+            if stage in allowed_stages:
+                continue
+            raise PluginLoadError(
+                spec.id,
+                f"kind '{spec.kind.value}' cannot run in stage '{stage.value}' "
+                f"(allowed stages: {[item.value for item in sorted(allowed_stages, key=lambda s: s.value)]})",
             )
         for stage in spec.stages:
             order_range = STAGE_ORDER_RANGES.get(stage)

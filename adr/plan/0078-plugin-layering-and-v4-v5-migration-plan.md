@@ -458,6 +458,10 @@ Post-cutover hardening (2026-03-27):
      - `builder -> build`
 2. Framework release-focused lane remains green with the new guard:
    - `task framework:release-tests` -> PASS (`157 passed`).
+3. Runtime now hard-rejects kind/stage affinity violations at manifest load:
+   - `topology-tools/kernel/plugin_registry.py::_validate_spec` enforces `KIND_STAGE_AFFINITY`.
+   - Contract test: `tests/plugin_contract/test_manifest.py::test_manifest_rejects_kind_stage_affinity_violation`.
+   - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`158 passed`).
 
 ---
 
