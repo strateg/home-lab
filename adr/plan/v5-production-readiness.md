@@ -23,7 +23,7 @@ v5 architecture is **operational for deployable artifacts** with:
 
 **Remaining gaps (by priority):**
 - P0: Hardware identity closure (Phase 7), v4 validator staged cutover
-- P1: Documentation & diagram generation (ADR 0079, 5 templates missing)
+- P1: Documentation & diagram generation (ADR 0079, template parity delivered; icon-pack runtime hardening pending)
 - P1: Cross-layer relation validators (ADR 0062)
 - P2: Operational runbooks and multi-repo extraction (ADR 0076)
 
@@ -424,33 +424,33 @@ All 30 v4 validators have v5 plugin replacements registered. Current status: `Co
 **Status:** Active (ADR 0079 accepted)
 **Tracking:** `adr/0079-v5-documentation-and-diagram-generation-migration.md`
 
-V5 now has 14 documentation templates (+ diagram index/legend pages). Remaining gap to v4 parity: 5 templates.
+V5 now has 19 documentation templates (+ diagram index/legend pages); remaining work is icon-pack runtime hardening.
 
 ### 10.1 Phase A — Network Layer Diagrams
 
 - [x] IP allocation table template.
 - [x] VLAN topology diagram template.
-- [ ] DNS/DHCP overview template.
+- [x] DNS/DHCP overview template.
 - [x] Network projection module for docs generator.
 
 ### 10.2 Phase B — Physical Layer Diagrams
 
-- [ ] Rack layout diagram template.
-- [ ] UPS/power distribution diagram template.
-- [ ] Physical connectivity diagram (enhanced).
+- [x] Rack layout diagram template.
+- [x] UPS/power distribution diagram template.
+- [x] Physical connectivity diagram (enhanced).
 - [x] Physical projection module.
 
 ### 10.3 Phase C — Security Layer Diagrams
 
-- [ ] Trust zone firewall policy diagram template.
-- [ ] VPN topology diagram template.
-- [ ] Security posture matrix template.
+- [x] Trust zone firewall policy diagram template.
+- [x] VPN topology diagram template.
+- [x] Security posture matrix template.
 - [x] Security projection module.
 
 ### 10.4 Phase D — Application & Storage Diagrams
 
 - [x] Service dependency graph template.
-- [ ] Data flow diagram (logs, metrics, backups) template.
+- [x] Data flow diagram (logs, metrics, backups) template.
 - [x] Storage architecture diagram template.
 - [x] Application/storage projection modules.
 
@@ -471,7 +471,7 @@ V5 now has 14 documentation templates (+ diagram index/legend pages). Remaining 
 
 ### Phase 10 Definition of Done
 
-- [ ] 19 documentation templates generating (parity with v4).
+- [x] 19 documentation templates generating (parity with v4).
 - [ ] Icon system operational with si/mdi packs.
 - [x] Mermaid render validation in CI pipeline.
 - [x] All generated docs stable between deterministic runs.
@@ -585,7 +585,7 @@ V5 now has 14 documentation templates (+ diagram index/legend pages). Remaining 
 3. **Strict placeholder compliance:** ✅ Enforced — strict-gated instance placeholders are CI-blocked (2026-03-27).
 4. **Deployable workflow:** ✅ `terraform plan/apply` and Ansible runs succeed using v5-generated artifacts.
 5. **Operational cutover:** Partial — v5 is default lane; v4 still active as fallback (Phase 9).
-6. **Documentation parity:** In progress — 14/19 templates (+ diagrams/index pages) (Phase 10).
+6. **Documentation parity:** ✅ 19/19 templates generating (+ diagrams/index pages); icon-pack runtime hardening remains.
 7. **Validator cutover:** In progress — staged v4 deprecation (Phase 9).
 
 ---
@@ -664,7 +664,7 @@ Progress is tracked in:
 | Phase 7: Hardware Identity | Completed (placeholder closure + strict CI gate, 2026-03-27) | - |
 | Phase 8.3: Cutover Docs | README updates remaining | P1 |
 | Phase 9: V4 Validator Cutover | Active (staged, all rows Covered/Partial) | P0 |
-| Phase 10: Docs/Diagrams | Active (ADR 0079 accepted; projection modules + template expansion in progress) | P1 |
+| Phase 10: Docs/Diagrams | Active (template parity delivered; icon-pack runtime hardening pending) | P1 |
 | Phase 11: ADR Backlog | Active (governance closure done; relation backlog pending) | P1 |
 | Phase 12: Operational Readiness | Not started | P2 |
 | Phase 13: Multi-Repo | Deferred | P2 |
