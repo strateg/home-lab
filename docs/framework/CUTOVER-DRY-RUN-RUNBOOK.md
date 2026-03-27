@@ -17,19 +17,19 @@
 ## Prerequisites
 
 1. Рабочее дерево чистое (`git status` без незакоммиченных изменений).
-2. Python окружение готово для `v5/tests` и `v5/scripts/orchestration/lane.py`.
-3. Текущий проект: `v5/projects/home-lab`.
+2. Python окружение готово для `tests` и `scripts/orchestration/lane.py`.
+3. Текущий проект: `projects/home-lab`.
 
 ---
 
 ## Phase A: Strict Gate Baseline
 
 ```powershell
-python v5/topology-tools/generate-framework-lock.py --force
-python v5/topology-tools/verify-framework-lock.py --strict
-python v5/topology-tools/rehearse-framework-rollback.py
-python v5/topology-tools/validate-framework-compatibility-matrix.py
-python v5/topology-tools/audit-strict-runtime-entrypoints.py
+python topology-tools/generate-framework-lock.py --force
+python topology-tools/verify-framework-lock.py --strict
+python topology-tools/rehearse-framework-rollback.py
+python topology-tools/validate-framework-compatibility-matrix.py
+python topology-tools/audit-strict-runtime-entrypoints.py
 ```
 
 Критерий PASS: все команды завершаются с `exit code 0`.
@@ -39,12 +39,12 @@ python v5/topology-tools/audit-strict-runtime-entrypoints.py
 ## Phase B: Full Readiness Report
 
 ```powershell
-python v5/topology-tools/cutover-readiness-report.py
+python topology-tools/cutover-readiness-report.py
 ```
 
 Артефакт:
 
-- `v5-build/diagnostics/cutover-readiness.json`
+- `build/diagnostics/cutover-readiness.json`
 
 Критерий PASS:
 
@@ -57,8 +57,8 @@ python v5/topology-tools/cutover-readiness-report.py
 ## Phase C: Framework Extraction Dry-Run
 
 ```powershell
-python v5/topology-tools/bootstrap-framework-repo.py `
-  --output-root v5-build/infra-topology-framework-bootstrap `
+python topology-tools/bootstrap-framework-repo.py `
+  --output-root build/infra-topology-framework-bootstrap `
   --include-tests `
   --preserve-history `
   --force
@@ -66,20 +66,20 @@ python v5/topology-tools/bootstrap-framework-repo.py `
 
 Проверить наличие:
 
-1. `v5-build/infra-topology-framework-bootstrap/framework.yaml`
-2. `v5-build/infra-topology-framework-bootstrap/topology-tools/`
-3. `v5-build/infra-topology-framework-bootstrap/.github/workflows/release.yml`
+1. `build/infra-topology-framework-bootstrap/framework.yaml`
+2. `build/infra-topology-framework-bootstrap/topology-tools/`
+3. `build/infra-topology-framework-bootstrap/.github/workflows/release.yml`
 
 Framework-focused test gate (локальный аналог release CI):
 
 ```powershell
 python -m pytest -o addopts= `
-  v5-build/infra-topology-framework-bootstrap/tests/plugin_api `
-  v5-build/infra-topology-framework-bootstrap/tests/plugin_contract `
-  v5-build/infra-topology-framework-bootstrap/tests/plugin_integration/test_framework_lock.py `
-  v5-build/infra-topology-framework-bootstrap/tests/plugin_integration/test_build_framework_distribution.py `
-  v5-build/infra-topology-framework-bootstrap/tests/plugin_integration/test_extract_framework_worktree.py `
-  v5-build/infra-topology-framework-bootstrap/tests/plugin_integration/test_extract_framework_history.py -q
+  build/infra-topology-framework-bootstrap/tests/plugin_api `
+  build/infra-topology-framework-bootstrap/tests/plugin_contract `
+  build/infra-topology-framework-bootstrap/tests/plugin_integration/test_framework_lock.py `
+  build/infra-topology-framework-bootstrap/tests/plugin_integration/test_build_framework_distribution.py `
+  build/infra-topology-framework-bootstrap/tests/plugin_integration/test_extract_framework_worktree.py `
+  build/infra-topology-framework-bootstrap/tests/plugin_integration/test_extract_framework_history.py -q
 ```
 
 ---
@@ -87,38 +87,38 @@ python -m pytest -o addopts= `
 ## Phase D: Project Bootstrap Dry-Run
 
 ```powershell
-python v5/topology-tools/bootstrap-project-repo.py `
-  --framework-root v5-build/infra-topology-framework-bootstrap `
-  --output-root v5-build/project-bootstrap/home-lab `
+python topology-tools/bootstrap-project-repo.py `
+  --framework-root build/infra-topology-framework-bootstrap `
+  --output-root build/project-bootstrap/home-lab `
   --project-id home-lab `
-  --seed-project-root v5/projects/home-lab `
+  --seed-project-root projects/home-lab `
   --init-git `
-  --framework-submodule-url D:/Workspaces/PycharmProjects/home-lab/v5-build/infra-topology-framework-bootstrap `
+  --framework-submodule-url D:/Workspaces/PycharmProjects/home-lab/build/infra-topology-framework-bootstrap `
   --framework-submodule-path framework `
   --force
 ```
 
 Проверить наличие:
 
-1. `v5-build/project-bootstrap/home-lab/topology.yaml`
-2. `v5-build/project-bootstrap/home-lab/project.yaml`
-3. `v5-build/project-bootstrap/home-lab/framework.lock.yaml`
-4. `v5-build/project-bootstrap/home-lab/.github/workflows/validate.yml`
+1. `build/project-bootstrap/home-lab/topology.yaml`
+2. `build/project-bootstrap/home-lab/project.yaml`
+3. `build/project-bootstrap/home-lab/framework.lock.yaml`
+4. `build/project-bootstrap/home-lab/.github/workflows/validate.yml`
 
 Strict compile rehearsal для external project layout:
 
 ```powershell
-python v5-build/project-bootstrap/home-lab/framework/topology-tools/verify-framework-lock.py `
-  --repo-root v5-build/project-bootstrap/home-lab `
+python build/project-bootstrap/home-lab/framework/topology-tools/verify-framework-lock.py `
+  --repo-root build/project-bootstrap/home-lab `
   --topology topology.yaml `
-  --project-root v5-build/project-bootstrap/home-lab `
-  --project-manifest v5-build/project-bootstrap/home-lab/project.yaml `
-  --framework-root v5-build/project-bootstrap/home-lab/framework `
-  --lock-file v5-build/project-bootstrap/home-lab/framework.lock.yaml `
+  --project-root build/project-bootstrap/home-lab `
+  --project-manifest build/project-bootstrap/home-lab/project.yaml `
+  --framework-root build/project-bootstrap/home-lab/framework `
+  --lock-file build/project-bootstrap/home-lab/framework.lock.yaml `
   --strict
 
-python v5-build/project-bootstrap/home-lab/framework/topology-tools/compile-topology.py `
-  --repo-root v5-build/project-bootstrap/home-lab `
+python build/project-bootstrap/home-lab/framework/topology-tools/compile-topology.py `
+  --repo-root build/project-bootstrap/home-lab `
   --topology topology.yaml `
   --strict-model-lock `
   --secrets-mode passthrough `

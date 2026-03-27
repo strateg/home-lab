@@ -36,6 +36,16 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/audit-strict-runtime-entrypoints.py"
 
+  cutover-readiness-quick:
+    desc: Generate quick cutover readiness report (strict gates only)
+    cmds:
+      - "{{.PYTHON}} topology-tools/cutover-readiness-report.py --quick"
+
+  cutover-readiness:
+    desc: Generate full cutover readiness report (includes v4/v5 parity + v5 test suite)
+    cmds:
+      - "{{.PYTHON}} topology-tools/cutover-readiness-report.py"
+
   archive-v4-compile:
     desc: Compile legacy archive/v4 baseline for parity drift monitoring
     cmds:

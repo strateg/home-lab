@@ -120,3 +120,8 @@
    - `task framework:archive-v4-compile` -> PASS (`errors=0`)
    - diagnostics persisted in `build/diagnostics/v4-archive-*`.
    - commit: `2398e86` (`chore(ci): add archive v4 parity drift compile gate`)
+4. Cutover readiness reporting now includes explicit non-quick parity gate:
+   - `pytest_v4_v5_parity` (`tests/plugin_regression` + stage-order/profile-parity suites)
+   - `pytest_v5`
+   - `lane_validate_v5`
+   - `python topology-tools/cutover-readiness-report.py --output-json build/diagnostics/cutover-readiness-full-latest.json` -> PASS

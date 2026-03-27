@@ -9,7 +9,7 @@
   "evidence": [
     "docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md",
     "docs/framework/OPERATOR-WORKFLOWS.md",
-    "v5/topology-tools/cutover-readiness-report.py",
+    "topology-tools/cutover-readiness-report.py",
     "docs/release-notes/2026-03-20-adr0076-production-cutover.md"
   ]
 }

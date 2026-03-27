@@ -23,9 +23,9 @@ task framework:strict
 Эквивалентный прямой chain:
 
 ```powershell
-python v5/topology-tools/verify-framework-lock.py --strict
-python v5/topology-tools/compile-topology.py --secrets-mode passthrough --strict-model-lock
-python v5/scripts/orchestration/lane.py validate-v5
+python topology-tools/verify-framework-lock.py --strict
+python topology-tools/compile-topology.py --secrets-mode passthrough --strict-model-lock
+python scripts/orchestration/lane.py validate-v5
 ```
 
 Любая ошибка `E781x/E782x` блокирует дальнейший прогон.
@@ -34,14 +34,14 @@ python v5/scripts/orchestration/lane.py validate-v5
 
 ## Framework Update Flow
 
-1. Обновить framework-источник (в monorepo: изменения в `v5/topology/**` + `v5/topology-tools/**`; в submodule-модели: обновить submodule pointer).
+1. Обновить framework-источник (в monorepo: изменения в `topology/**` + `topology-tools/**`; в submodule-модели: обновить submodule pointer).
 2. Пересобрать lock:
    ```powershell
-   python v5/topology-tools/generate-framework-lock.py --force
+   python topology-tools/generate-framework-lock.py --force
    ```
 3. Проверить lock:
    ```powershell
-   python v5/topology-tools/verify-framework-lock.py --strict
+   python topology-tools/verify-framework-lock.py --strict
    ```
 4. Прогнать compile + validate-v5.
 5. Закоммитить обновления framework + lock вместе.
@@ -66,7 +66,7 @@ python v5/scripts/orchestration/lane.py validate-v5
 Перед rollback в релизном окне рекомендуется выполнить rehearsal:
 
 ```powershell
-python v5/topology-tools/rehearse-framework-rollback.py
+python topology-tools/rehearse-framework-rollback.py
 ```
 
 Команда проверяет:
@@ -88,13 +88,13 @@ python v5/topology-tools/rehearse-framework-rollback.py
 Для регрессионной проверки матрицы (baseline + expected-fail сценарии):
 
 ```powershell
-python v5/topology-tools/validate-framework-compatibility-matrix.py
+python topology-tools/validate-framework-compatibility-matrix.py
 ```
 
 Для контроля отсутствия legacy/fallback поведения в runtime entrypoints:
 
 ```powershell
-python v5/topology-tools/audit-strict-runtime-entrypoints.py
+python topology-tools/audit-strict-runtime-entrypoints.py
 ```
 
 ---
@@ -104,7 +104,7 @@ python v5/topology-tools/audit-strict-runtime-entrypoints.py
 В CI перед lane/compile должен выполняться:
 
 ```powershell
-python v5/topology-tools/verify-framework-lock.py --strict
+python topology-tools/verify-framework-lock.py --strict
 ```
 
 Рекомендуемый порядок в pipeline:
@@ -117,7 +117,7 @@ python v5/topology-tools/verify-framework-lock.py --strict
 Сводный readiness-отчет (локально перед cutover freeze):
 
 ```powershell
-python v5/topology-tools/cutover-readiness-report.py --quick
+python topology-tools/cutover-readiness-report.py --quick
 ```
 
 После production cutover состояние фиксируется в:

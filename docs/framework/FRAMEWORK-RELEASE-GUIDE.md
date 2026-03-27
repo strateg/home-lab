@@ -66,10 +66,10 @@ task framework:release-build FRAMEWORK_VERSION=1.0.8
 
 Ожидаемые файлы:
 
-1. `v5-dist/framework/<framework-id>/1.0.8/*.zip`
-2. `v5-dist/framework/<framework-id>/1.0.8/*.tar.gz`
-3. `v5-dist/framework/<framework-id>/1.0.8/checksums.sha256`
-4. `v5-dist/framework/<framework-id>/1.0.8/framework-dist-manifest.json`
+1. `dist/framework/<framework-id>/1.0.8/*.zip`
+2. `dist/framework/<framework-id>/1.0.8/*.tar.gz`
+3. `dist/framework/<framework-id>/1.0.8/checksums.sha256`
+4. `dist/framework/<framework-id>/1.0.8/framework-dist-manifest.json`
 
 ### 3.4 Подготовка standalone framework repo кандидата
 
@@ -79,9 +79,9 @@ task framework:release-bootstrap
 
 Проверить:
 
-1. `v5-build/infra-topology-framework-bootstrap/framework.yaml`
-2. `v5-build/infra-topology-framework-bootstrap/topology-tools/`
-3. `v5-build/infra-topology-framework-bootstrap/.github/workflows/release.yml`
+1. `build/infra-topology-framework-bootstrap/framework.yaml`
+2. `build/infra-topology-framework-bootstrap/topology-tools/`
+3. `build/infra-topology-framework-bootstrap/.github/workflows/release.yml`
 
 ### 3.5 Один агрегированный запуск
 
@@ -137,16 +137,16 @@ No-Go:
 
 Перед публикацией убедиться:
 
-1. object-specific генераторы не зарегистрированы в `v5/topology-tools/plugins/plugins.yaml`;
-2. object-specific шаблоны не остались в `v5/topology-tools/templates/terraform` и `v5/topology-tools/templates/bootstrap`;
-3. object-specific генераторы зарегистрированы в `v5/topology/object-modules/**/plugins.yaml`.
+1. object-specific генераторы не зарегистрированы в `topology-tools/plugins/plugins.yaml`;
+2. object-specific шаблоны не остались в `topology-tools/templates/terraform` и `topology-tools/templates/bootstrap`;
+3. object-specific генераторы зарегистрированы в `topology/object-modules/**/plugins.yaml`.
 
 Быстрая проверка:
 
 ```powershell
-rg "base.generator.(terraform_mikrotik|terraform_proxmox|bootstrap_mikrotik|bootstrap_proxmox|bootstrap_orangepi)" v5/topology-tools/plugins/plugins.yaml
-Get-ChildItem v5/topology-tools/templates/terraform -Recurse -File
-Get-ChildItem v5/topology-tools/templates/bootstrap -Recurse -File
+rg "base.generator.(terraform_mikrotik|terraform_proxmox|bootstrap_mikrotik|bootstrap_proxmox|bootstrap_orangepi)" topology-tools/plugins/plugins.yaml
+Get-ChildItem topology-tools/templates/terraform -Recurse -File
+Get-ChildItem topology-tools/templates/bootstrap -Recurse -File
 ```
 
 ---

@@ -114,12 +114,27 @@ def _gate_commands(repo_root: Path, *, quick: bool) -> list[tuple[str, list[str]
         commands.extend(
             [
                 (
-                    "pytest",
+                    "pytest_v4_v5_parity",
+                    [
+                        python,
+                        "-m",
+                        "pytest",
+                        "-o",
+                        "addopts=",
+                        "tests/plugin_regression",
+                        "tests/plugin_integration/test_parity_stage_order.py",
+                        "tests/plugin_integration/test_parallel_profile_parity.py",
+                        "-q",
+                    ],
+                    None,
+                ),
+                (
+                    "pytest_v5",
                     [python, "-m", "pytest", "-o", "addopts=", "tests", "-q"],
                     None,
                 ),
                 (
-                    "lane_validate",
+                    "lane_validate_v5",
                     [python, "scripts/orchestration/lane.py", "validate-v5"],
                     {"V5_SECRETS_MODE": "passthrough"},
                 ),
