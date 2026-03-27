@@ -32,6 +32,8 @@ Unify the plugin runtime around a single lifecycle model with:
 - Structured module plugin entry paths are now enforced at manifest load time:
   deprecated flat `plugins/<file>.py` entries are rejected; kind-to-family affinity is enforced
   for `plugins/<family>/...` (`discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`).
+- Kind-to-family affinity checks now also cover base-style entry paths (`<family>/module.py:ClassName`),
+  and contract tests verify discovered manifest entries resolve to real modules on disk.
 - Error catalog range conformance tests now guard ADR0080 allocations (`E800x/E810x/E820x/W800x`) against overlap.
 - Repeated-run deterministic guards are added for parallel result ordering and artifact manifest emission.
 - Profile parity tests now compare sequential vs parallel diagnostics/trace signatures, effective payloads, and published key inventory for `production` and `modeled`.

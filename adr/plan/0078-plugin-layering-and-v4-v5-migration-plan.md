@@ -502,6 +502,14 @@ Post-cutover hardening (2026-03-27):
    - v5 suite snapshot: `616 passed, 3 skipped`
    - acceptance snapshot: `10 passed`
    - parity lane snapshot: `22 passed, 3 skipped`
+10. Extended entry-path hardening coverage for all manifest styles:
+   - Runtime kind/family affinity now validates both entry layouts:
+     - base-style: `<family>/module.py:ClassName`
+     - module-style: `plugins/<family>/module.py:ClassName`
+   - Added regressions:
+     - `tests/plugin_contract/test_manifest.py::test_manifest_rejects_bare_entry_family_affinity_violation`
+     - `tests/plugin_contract/test_manifest.py::test_discovered_manifest_entry_module_paths_resolve`
+   - Updated framework release-focused lane snapshot: `task framework:release-tests` -> PASS (`167 passed`).
 
 ---
 

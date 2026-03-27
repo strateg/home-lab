@@ -99,6 +99,7 @@ KIND_ENTRY_FAMILY: dict[PluginKind, str] = {
     PluginKind.ASSEMBLER: "assemblers",
     PluginKind.BUILDER: "builders",
 }
+ENTRY_FAMILIES: set[str] = set(KIND_ENTRY_FAMILY.values())
 
 
 @dataclass
@@ -377,14 +378,22 @@ class PluginRegistry:
 
     @staticmethod
     def _extract_entry_plugin_family(entry: str) -> str | None:
-        """Return entry family from plugins/<family>/... paths, if present."""
+        """Return entry family for supported entry layouts, if present.
+
+        Supported layouts:
+        1. plugins/<family>/module.py
+        2. <family>/module.py
+        """
         entry_path = entry.split(":", 1)[0].replace("\\", "/")
         if "/plugins/" in entry_path:
             tail = entry_path.split("/plugins/", 1)[1]
         elif entry_path.startswith("plugins/"):
             tail = entry_path[len("plugins/") :]
         else:
-            return None
+            if "/" not in entry_path:
+                return None
+            head = entry_path.split("/", 1)[0].strip()
+            return head if head in ENTRY_FAMILIES else None
         if "/" not in tail:
             return None
         family = tail.split("/", 1)[0].strip()

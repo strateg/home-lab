@@ -195,6 +195,7 @@ Complete when all Waves A–H are done and all items below are verified.
 - [x] Operator runbooks updated.
 - [x] `CLAUDE.md` guidance updated if workflow commands changed.
 - [x] Deprecated flat module entry paths (`plugins/<file>.py`) are removed from active manifests and rejected by runtime.
+- [x] Active discovered manifest entry modules resolve on disk (manifest-relative or `topology-tools/` base fallback).
 
 ## P. Phase Handler Backward Compatibility
 

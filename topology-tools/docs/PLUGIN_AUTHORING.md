@@ -356,7 +356,7 @@ plugins:
 |-------|----------|---------|-------------|
 | `id` | Yes | - | Unique identifier, recommend reverse-domain: `org.example.plugin` |
 | `kind` | Yes | - | Plugin type, must match class's `kind` property |
-| `entry` | Yes | - | Preferred: `plugins/<family>/module.py:ClassName` where family matches `kind` |
+| `entry` | Yes | - | `plugins/<family>/module.py:ClassName` (module manifests) or `<family>/module.py:ClassName` (base manifest) |
 | `api_version` | Yes | - | Currently `"1.x"` |
 | `stages` | Yes | - | Pipeline stages where plugin runs |
 | `order` | No | 100 | Lower values execute first |
@@ -377,12 +377,12 @@ Stage-specific `order` ranges are enforced by runtime:
 
 Entry family affinity is enforced for structured entry paths:
 
-1. `discoverer -> plugins/discoverers/...`
-2. `compiler -> plugins/compilers/...`
-3. `validator_yaml|validator_json -> plugins/validators/...`
-4. `generator -> plugins/generators/...`
-5. `assembler -> plugins/assemblers/...`
-6. `builder -> plugins/builders/...`
+1. `discoverer -> discoverers/...` or `plugins/discoverers/...`
+2. `compiler -> compilers/...` or `plugins/compilers/...`
+3. `validator_yaml|validator_json -> validators/...` or `plugins/validators/...`
+4. `generator -> generators/...` or `plugins/generators/...`
+5. `assembler -> assemblers/...` or `plugins/assemblers/...`
+6. `builder -> builders/...` or `plugins/builders/...`
 
 Deprecated flat paths are rejected:
 

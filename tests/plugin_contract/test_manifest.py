@@ -767,6 +767,33 @@ def test_manifest_rejects_entry_family_affinity_violation(tmp_path: Path):
         assert "must use plugins/compilers/" in str(exc)
 
 
+def test_manifest_rejects_bare_entry_family_affinity_violation(tmp_path: Path):
+    """Runtime must reject bare-family entry paths with kind mismatch."""
+    manifest = tmp_path / "plugins.yaml"
+    payload = {
+        "schema_version": 1,
+        "plugins": [
+            {
+                "id": "test.compiler.bad_bare_entry_family",
+                "kind": "compiler",
+                "entry": "validators/reference_validator.py:ReferenceValidator",
+                "api_version": "1.x",
+                "stages": ["compile"],
+                "phase": "run",
+                "order": 31,
+            }
+        ],
+    }
+    manifest.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    registry = PluginRegistry(V5_TOOLS)
+    try:
+        registry.load_manifest(manifest)
+        assert False, "Expected PluginLoadError for bare entry family affinity violation"
+    except PluginLoadError as exc:
+        assert "must use plugins/compilers/" in str(exc)
+
+
 def test_manifest_rejects_flat_plugins_entry_without_family(tmp_path: Path):
     """Runtime must reject deprecated flat plugins/<file>.py entry paths."""
     manifest = tmp_path / "plugins.yaml"
@@ -859,7 +886,7 @@ def test_plugin_kind_stage_affinity_across_discovered_manifests():
 
 
 def test_plugin_entry_family_affinity_across_discovered_manifests():
-    """Structured plugin entry paths must align with kind->family mapping."""
+    """Plugin entry family paths must align with kind->family mapping."""
     repo_root = V5_TOOLS.parent
     manifests = discover_plugin_manifest_paths(
         base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
@@ -896,21 +923,69 @@ def test_plugin_entry_family_affinity_across_discovered_manifests():
             entry_path = entry.split(":", 1)[0].replace("\\", "/")
             if "/plugins/" in entry_path:
                 tail = entry_path.split("/plugins/", 1)[1]
+                if "/" not in tail:
+                    rel_path = manifest_path.relative_to(repo_root).as_posix()
+                    violations.append(f"{plugin_id}@{rel_path}: entry '{entry}' must include plugins/<family>/ segment")
+                    continue
+                family = tail.split("/", 1)[0]
             elif entry_path.startswith("plugins/"):
                 tail = entry_path[len("plugins/") :]
+                if "/" not in tail:
+                    rel_path = manifest_path.relative_to(repo_root).as_posix()
+                    violations.append(f"{plugin_id}@{rel_path}: entry '{entry}' must include plugins/<family>/ segment")
+                    continue
+                family = tail.split("/", 1)[0]
             else:
-                continue
-            if "/" not in tail:
-                rel_path = manifest_path.relative_to(repo_root).as_posix()
-                violations.append(f"{plugin_id}@{rel_path}: entry '{entry}' must include plugins/<family>/ segment")
-                continue
-            family = tail.split("/", 1)[0]
+                if "/" not in entry_path:
+                    continue
+                candidate = entry_path.split("/", 1)[0]
+                family = candidate if candidate in set(expected_family_by_kind.values()) else None
+                if family is None:
+                    continue
             if family != expected_family:
                 rel_path = manifest_path.relative_to(repo_root).as_posix()
                 violations.append(
                     f"{plugin_id}@{rel_path}: kind '{kind}' expects plugins/{expected_family}/ "
                     f"but entry uses plugins/{family}/"
                 )
+
+    assert violations == []
+
+
+def test_discovered_manifest_entry_module_paths_resolve() -> None:
+    """All discovered manifest entry modules must resolve on disk."""
+    repo_root = V5_TOOLS.parent
+    manifests = discover_plugin_manifest_paths(
+        base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
+        class_modules_root=repo_root / "topology" / "class-modules",
+        object_modules_root=repo_root / "topology" / "object-modules",
+    )
+
+    violations: list[str] = []
+    for manifest_path in manifests:
+        payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+        for plugin in payload.get("plugins", []):
+            if not isinstance(plugin, dict):
+                continue
+            plugin_id = str(plugin.get("id", "<missing-id>"))
+            entry = str(plugin.get("entry", ""))
+            if ":" not in entry:
+                rel_path = manifest_path.relative_to(repo_root).as_posix()
+                violations.append(f"{plugin_id}@{rel_path}: invalid entry '{entry}'")
+                continue
+            module_path, _class_name = entry.split(":", 1)
+            module_rel = Path(module_path)
+            candidates = [
+                manifest_path.parent / module_rel,
+                V5_TOOLS / module_rel,
+            ]
+            if any(candidate.exists() for candidate in candidates):
+                continue
+            rel_path = manifest_path.relative_to(repo_root).as_posix()
+            violations.append(
+                f"{plugin_id}@{rel_path}: module '{module_path}' not found "
+                f"(checked: {[str(path) for path in candidates]})"
+            )
 
     assert violations == []
 
@@ -951,10 +1026,12 @@ if __name__ == "__main__":
         test_manifest_rejects_out_of_range_order,
         test_manifest_rejects_kind_stage_affinity_violation,
         test_manifest_rejects_entry_family_affinity_violation,
+        test_manifest_rejects_bare_entry_family_affinity_violation,
         test_manifest_rejects_flat_plugins_entry_without_family,
         test_base_manifest_plugin_orders_follow_stage_ranges,
         test_plugin_kind_stage_affinity_across_discovered_manifests,
         test_plugin_entry_family_affinity_across_discovered_manifests,
+        test_discovered_manifest_entry_module_paths_resolve,
     ]
 
     passed = 0
