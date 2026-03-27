@@ -6,6 +6,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
+from plugins.icons.icon_manager import IconManager
 from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canonical name constants
     GROUP_DEVICES,
     GROUP_LXC,
@@ -26,27 +27,7 @@ from plugins.generators.docs.physical_projection import build_physical_projectio
 from plugins.generators.docs.security_projection import build_security_projection
 from plugins.generators.docs.storage_projection import build_storage_projection
 
-# ---------------------------------------------------------------------------
-# Icon mapping tables (ADR 0027 canonical icon strategy for v5)
-# Keys are class_ref prefixes; checked in order (most specific first).
-# ---------------------------------------------------------------------------
-
-_CLASS_ICON_MAP: list[tuple[str, str]] = [
-    ("class.network.router", "mdi:router-network"),
-    ("class.network.trust_zone", "mdi:shield-half-full"),
-    ("class.network.vlan", "mdi:lan"),
-    ("class.network.bridge", "mdi:bridge"),
-    ("class.network.physical_link", "mdi:ethernet-cable"),
-    ("class.network.data_link", "mdi:ethernet"),
-    ("class.compute.hypervisor", "si:proxmox"),
-    ("class.compute.edge_node", "mdi:chip"),
-    ("class.compute.cloud_vm", "mdi:cloud-outline"),
-    ("class.compute.workload.container", "mdi:cube-outline"),
-    ("class.compute.workload", "mdi:application"),
-    ("class.storage.pool", "mdi:database"),
-    ("class.storage", "mdi:harddisk"),
-    ("class.service", "mdi:cog"),
-]
+_ICONS = IconManager()
 
 # Trust zone colour palette for Mermaid classDef
 _ZONE_CLASS_COLOUR: dict[str, str] = {
@@ -62,10 +43,7 @@ _ZONE_CLASS_DEFAULT = "fill:#e9ecef,stroke:#868e96,color:#000"
 
 def _icon_for_class(class_ref: str, *, fallback: str = "mdi:devices") -> str:
     """Return the best matching Mermaid icon for a class_ref."""
-    for prefix, icon in _CLASS_ICON_MAP:
-        if class_ref.startswith(prefix):
-            return icon
-    return fallback
+    return _ICONS.icon_for_class(class_ref, fallback=fallback)
 
 
 def _zone_label(instance_id: str) -> str:
@@ -276,7 +254,7 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                     "class_ref": class_ref,
                     "object_ref": row.get("object_ref", ""),
                     "label": zone_name,
-                    "icon": "mdi:shield-half-full",
+                    "icon": _ICONS.icon_for_zone(inst_id),
                     "colour": _ZONE_CLASS_COLOUR.get(zone_key, _ZONE_CLASS_DEFAULT),
                     "notes": row.get("notes", ""),
                     "status": row.get("status", ""),
@@ -352,7 +330,7 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                 "label": inst_id.removeprefix("inst.").replace(".", " "),
                 "layer": row.get("layer", ""),
                 "status": row.get("status", ""),
-                "icon": _icon_for_class(class_ref, fallback="mdi:cog"),
+                "icon": _ICONS.icon_for_service(class_ref, fallback="mdi:cog"),
                 "host_ref": _get_instance_data(row, "instance_data.host_ref"),
                 "runtime_type": runtime.get("type", "") if isinstance(runtime, dict) else "",
                 "runtime_target_ref": runtime.get("target_ref", "") if isinstance(runtime, dict) else "",

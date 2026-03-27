@@ -55,6 +55,7 @@ class DocsGenerator(BaseGenerator):
             ("docs/vpn-topology.md.j2", "vpn-topology.md"),
             ("docs/qos-topology.md.j2", "qos-topology.md"),
             ("docs/ups-topology.md.j2", "ups-topology.md"),
+            ("docs/backup-schedule.md.j2", "backup-schedule.md"),
         )
         template_ctx = {
             "projection": projection,

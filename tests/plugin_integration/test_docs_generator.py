@@ -81,6 +81,7 @@ def test_docs_generator_writes_expected_files(tmp_path: Path) -> None:
     assert (docs_root / "vpn-topology.md").exists()
     assert (docs_root / "qos-topology.md").exists()
     assert (docs_root / "ups-topology.md").exists()
+    assert (docs_root / "backup-schedule.md").exists()
     assert (docs_root / "_generated_files.txt").exists()
 
     overview = (docs_root / "overview.md").read_text(encoding="utf-8")

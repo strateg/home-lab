@@ -83,10 +83,10 @@
 ## Wave C - ADR0079 Documentation/Diagram Migration (P1)
 
 - [x] Implement missing projection modules from `adr/0079-analysis/IMPLEMENTATION-PLAN.md`.
-- [ ] Migrate template set from minimal v5 coverage to planned full set (progress: expanded from 3 to 13 docs templates).
-- [ ] Implement icon manager and icon mapping registry.
-- [ ] Add Mermaid render validation quality gate to CI.
-- [ ] Lock deterministic docs generation between repeated runs.
+- [ ] Migrate template set from minimal v5 coverage to planned full set (progress: expanded from 3 to 14 docs templates + 4 diagram pages).
+- [x] Implement icon manager and icon mapping registry.
+- [x] Add Mermaid render validation quality gate to CI.
+- [x] Lock deterministic docs generation between repeated runs.
 
 **Gate:**
 

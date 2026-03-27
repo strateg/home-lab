@@ -27,6 +27,12 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated"
 
+  v5-docs-validate:
+    desc: Generate docs/diagrams and run Mermaid render validation gate
+    cmds:
+      - task build:v5-docs
+      - "{{.PYTHON}} topology-tools/validate-mermaid-render.py --docs-root generated/home-lab/docs"
+
   phase1-bootstrap:
     desc: Refresh phase1 migration bootstrap map
     cmds:

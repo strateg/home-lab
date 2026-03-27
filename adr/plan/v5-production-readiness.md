@@ -23,7 +23,7 @@ v5 architecture is **operational for deployable artifacts** with:
 
 **Remaining gaps (by priority):**
 - P0: Hardware identity closure (Phase 7), v4 validator staged cutover
-- P1: Documentation & diagram generation (ADR 0079, 16 templates missing)
+- P1: Documentation & diagram generation (ADR 0079, 5 templates missing)
 - P1: Cross-layer relation validators (ADR 0062)
 - P2: Operational runbooks and multi-repo extraction (ADR 0076)
 
@@ -424,7 +424,7 @@ All 30 v4 validators have v5 plugin replacements registered. Current status: `Co
 **Status:** Active (ADR 0079 accepted)
 **Tracking:** `adr/0079-v5-documentation-and-diagram-generation-migration.md`
 
-V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templates with icon system, Mermaid validation, and multi-layer diagrams.
+V5 now has 14 documentation templates (+ diagram index/legend pages). Remaining gap to v4 parity: 5 templates.
 
 ### 10.1 Phase A — Network Layer Diagrams
 
@@ -458,23 +458,23 @@ V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templ
 
 - [x] Monitoring stack topology template.
 - [x] QoS/traffic shaping diagram template.
-- [ ] Backup schedule overview template.
+- [x] Backup schedule overview template.
 - [x] Operations projection module.
 
 ### 10.6 Phase F — Icon System & Tooling
 
-- [ ] Icon manager: si/mdi pack discovery and SVG extraction.
-- [ ] Icon mapping registry (100+ device/service types).
+- [x] Icon manager: centralized resolver module introduced for docs/diagrams.
+- [x] Icon mapping registry (class/service/zone mappings) integrated.
 - [ ] SVG caching and Mermaid icon-node rendering.
-- [ ] Icon legend template and diagrams-index template.
-- [ ] Mermaid render validation quality gate.
+- [x] Icon legend template and diagrams-index template.
+- [x] Mermaid render validation quality gate.
 
 ### Phase 10 Definition of Done
 
 - [ ] 19 documentation templates generating (parity with v4).
 - [ ] Icon system operational with si/mdi packs.
-- [ ] Mermaid render validation in CI pipeline.
-- [ ] All generated docs stable between deterministic runs.
+- [x] Mermaid render validation in CI pipeline.
+- [x] All generated docs stable between deterministic runs.
 
 ---
 
@@ -585,7 +585,7 @@ V5 currently has 3 documentation templates (16% of v4 coverage). V4 had 19 templ
 3. **Strict placeholder compliance:** ✅ Enforced — strict-gated instance placeholders are CI-blocked (2026-03-27).
 4. **Deployable workflow:** ✅ `terraform plan/apply` and Ansible runs succeed using v5-generated artifacts.
 5. **Operational cutover:** Partial — v5 is default lane; v4 still active as fallback (Phase 9).
-6. **Documentation parity:** In progress — 13/19 templates (Phase 10).
+6. **Documentation parity:** In progress — 14/19 templates (+ diagrams/index pages) (Phase 10).
 7. **Validator cutover:** In progress — staged v4 deprecation (Phase 9).
 
 ---
