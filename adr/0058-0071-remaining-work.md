@@ -1,7 +1,7 @@
 # ADR 0058-0071 Remaining Work Backlog
 
 - Date: 2026-03-12
-- Revised: 2026-03-27
+- Revised: 2026-03-28
 - Scope: ADR stack from `0058` to `0071`
 - Goal: close remaining implementation and documentation gaps after plugin-first and sharded-instance cutovers
 - Tracking: Phase 11 in `adr/plan/v5-production-readiness.md`
@@ -35,6 +35,7 @@
   - ADR0068 implementation plan status updated from in-progress/pending to completed.
 
 ### 3) Remove stale contract examples after 0071/TUC updates
+- Status: completed (2026-03-28)
 - Problem:
   - Some docs still reference outdated channel naming/examples.
 - Actions:
@@ -44,10 +45,14 @@
 - Done criteria:
   - No stale “planned” statement for already implemented TUC-0001 artifacts.
   - ADR examples align with current runtime and naming rules.
+  - Evidence:
+    - `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/TUC.md`
+    - `adr/0062-modular-topology-architecture-consolidation.md`
 
 ## Priority P1
 
 ### 4) Decide and lock ADR0063 YAML-validator tail
+- Status: completed (2026-03-28)
 - Problem:
   - ADR0063 still has unchecked optional item: remaining YAML semantic checks migration.
 - Actions:
@@ -58,8 +63,11 @@
 - Done criteria:
   - No ambiguous open checkbox in ADR0063 for active scope.
   - Decision documented and test impact stated.
+  - Evidence:
+    - `adr/0063-plugin-microkernel-for-compiler-validators-generators.md` (Phase 4 checklist)
 
 ### 5) Convert ADR0062 “planned” cross-layer refs to executable backlog
+- Status: completed (2026-03-28)
 - Problem:
   - ADR0062 lists several cross-layer relations as `planned` without explicit implementation tracker.
 - Actions:
@@ -68,6 +76,9 @@
 - Done criteria:
   - Each planned relation has owner, validator location, and acceptance test target.
   - Status can be tracked independently from ADR narrative text.
+  - Evidence:
+    - `adr/0062-cross-layer-relations-execution-backlog.md`
+    - `tests/plugin_contract/test_adr0062_cross_layer_relation_contract.py`
 
 ## Priority P2
 

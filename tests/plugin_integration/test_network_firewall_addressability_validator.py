@@ -139,3 +139,42 @@ def test_network_firewall_addressability_validator_supports_top_level_payload():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.PARTIAL
     assert any(diag.code == "W7824" for diag in result.diagnostics)
+
+
+def test_network_firewall_addressability_validator_warns_on_destination_zones_scope_edge():
+    registry = _registry()
+    ctx = _context()
+    rows = _rows()
+    rows.append(
+        {
+            "group": "network",
+            "instance": "inst.zone.b",
+            "class_ref": "class.network.trust_zone",
+            "layer": "L2",
+            "extensions": {},
+        }
+    )
+    rows[-2].pop("object_ref")  # type: ignore[index]
+    rows[-2]["source_zone_ref"] = "inst.zone.a"  # type: ignore[index]
+    rows[-2]["destination_zones_ref"] = ["inst.zone.a", "inst.zone.b"]  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7824" and "inst.zone.b" in diag.message for diag in result.diagnostics)
+
+
+def test_network_firewall_addressability_validator_skips_untrusted_scope_entries():
+    registry = _registry()
+    ctx = _context()
+    rows = _rows()
+    rows = [row for row in rows if row["instance"] in {"inst.zone.a", "inst.fw.a"}]
+    rows[-1].pop("object_ref")  # type: ignore[index]
+    rows[-1]["source_zone_ref"] = "untrusted"  # type: ignore[index]
+    rows[-1]["destination_zone_ref"] = "untrusted"  # type: ignore[index]
+    rows[-1]["destination_zones_ref"] = ["untrusted"]  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

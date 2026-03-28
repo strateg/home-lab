@@ -133,7 +133,7 @@ Cross-layer dependency rules (normative):
 | operations.target_ref | L7 | L1, L4, L5, L6 | downward | enforced |
 | power.source_ref | L1 | L1 | lateral | enforced |
 
-Execution tracker for planned relations:
+Execution tracker for enforced relation ownership/evidence:
 - `adr/0062-cross-layer-relations-execution-backlog.md`
 
 ### 4. Capability Model Is Kept Simple

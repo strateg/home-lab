@@ -149,3 +149,36 @@ def test_network_runtime_reachability_validator_treats_mapped_host_os_as_unreach
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.PARTIAL
     assert any(diag.code == "W7844" for diag in result.diagnostics)
+
+
+def test_network_runtime_reachability_validator_accepts_active_only_host_os_reachability():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[0]["os_refs"] = ["inst.os.a", "inst.os.b"]  # type: ignore[index]
+    rows.insert(2, {"group": "os", "instance": "inst.os.b", "class_ref": "class.os", "layer": "L1", "status": "mapped"})
+    rows[3]["extensions"] = {"ip_allocations": [{"host_os_ref": "inst.os.a"}, {"host_os_ref": "inst.os.b"}]}  # type: ignore[index]
+    rows[-1]["runtime"] = {"type": "docker", "target_ref": "srv-a", "network_binding_ref": "inst.vlan.a"}
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_network_runtime_reachability_validator_supports_non_vlan_legacy_network_shape():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[2]["class_ref"] = "class.network.segment"  # type: ignore[index]
+    rows[2].pop("layer")  # type: ignore[index]
+    rows[2].pop("extensions")  # type: ignore[index]
+    rows[2]["ip_allocations"] = [{"device_ref": "srv-a", "host_os_ref": "inst.os.a"}]  # type: ignore[index]
+    rows[3].pop("extensions")  # type: ignore[index]
+    rows[3]["network"] = {"vlan_ref": "inst.vlan.a"}  # type: ignore[index]
+    rows[-1]["runtime"] = {"type": "docker", "target_ref": "srv-a", "network_binding_ref": "inst.vlan.a"}
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

@@ -89,3 +89,45 @@ def test_single_active_os_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7818" for diag in result.diagnostics)
+
+
+def test_single_active_os_validator_ignores_legacy_inventory_without_os_rows():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "devices",
+                "instance": "legacy-rtr",
+                "class_ref": "class.router",
+                "os_refs": ["inst.os.missing.a", "inst.os.missing.b"],
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_single_active_os_validator_ignores_non_os_targets_in_os_refs():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "firmware", "instance": "inst.fw.a", "class_ref": "class.firmware", "status": "active"},
+            {"group": "firmware", "instance": "inst.fw.b", "class_ref": "class.firmware", "status": "active"},
+            {
+                "group": "devices",
+                "instance": "legacy-rtr",
+                "class_ref": "class.router",
+                "os_refs": ["inst.fw.a", "inst.fw.b"],
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

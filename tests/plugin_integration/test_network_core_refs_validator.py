@@ -158,3 +158,20 @@ def test_network_core_refs_validator_supports_object_property_fields():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
+
+
+def test_network_core_refs_validator_accepts_non_vlan_legacy_network_shape():
+    registry = _registry()
+    ctx = _context()
+    rows = _valid_rows()
+    rows[-1].pop("extensions")  # type: ignore[index]
+    rows[-1]["class_ref"] = "class.network.segment"  # type: ignore[index]
+    rows[-1].pop("layer")  # type: ignore[index]
+    rows[-1]["bridge_ref"] = "inst.bridge.a"  # type: ignore[index]
+    rows[-1]["trust_zone_ref"] = "inst.zone.a"  # type: ignore[index]
+    rows[-1]["managed_by_ref"] = "rtr-a"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

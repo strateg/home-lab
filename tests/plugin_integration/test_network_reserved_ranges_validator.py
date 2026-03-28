@@ -157,3 +157,42 @@ def test_network_reserved_ranges_validator_skips_dhcp_cidr():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
+
+
+def test_network_reserved_ranges_validator_supports_non_vlan_legacy_shape():
+    registry = _registry()
+    ctx = _context()
+    rows = _rows()
+    rows[0].pop("object_ref")  # type: ignore[index]
+    rows[0]["class_ref"] = "class.network.segment"  # type: ignore[index]
+    rows[0].pop("instance")  # type: ignore[index]
+    rows[0]["instance"] = "inst.net.segment.a"  # type: ignore[index]
+    rows[0].pop("layer", None)  # type: ignore[index]
+    rows[0]["cidr"] = "10.0.40.0/24"  # type: ignore[index]
+    rows[0]["reserved_ranges"] = [  # type: ignore[index]
+        {"start": "10.0.40.10", "end": "10.0.40.20", "purpose": "infra"},
+    ]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_network_reserved_ranges_validator_rejects_non_vlan_legacy_overlap():
+    registry = _registry()
+    ctx = _context()
+    rows = _rows()
+    rows[0].pop("object_ref")  # type: ignore[index]
+    rows[0]["class_ref"] = "class.network.segment"  # type: ignore[index]
+    rows[0].pop("layer", None)  # type: ignore[index]
+    rows[0]["cidr"] = "10.0.40.0/24"  # type: ignore[index]
+    rows[0]["reserved_ranges"] = [  # type: ignore[index]
+        {"start": "10.0.40.10", "end": "10.0.40.30", "purpose": "infra"},
+        {"start": "10.0.40.20", "end": "10.0.40.40", "purpose": "apps"},
+    ]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7820" for diag in result.diagnostics)

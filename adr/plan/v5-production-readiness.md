@@ -3,7 +3,7 @@
 **Created:** 2026-03-15
 **Revised:** 2026-03-28
 **Goal:** Complete v4→v5 migration and achieve full production parity
-**Current State:** Core infrastructure generation operational (Phases 0-6 complete, E2E validated 2026-03-24). Remaining: v4 validator parity cutover, cross-layer relation backlog, service-chain execution evidence, and advanced infrastructure backlog.
+**Current State:** Core infrastructure generation operational (Phases 0-6 complete, E2E validated 2026-03-24). Remaining: service-chain execution evidence, icon-pack runtime closure, and advanced infrastructure backlog.
 
 ---
 
@@ -24,7 +24,7 @@ v5 architecture is **operational for deployable artifacts** with:
 **Remaining gaps (by priority):**
 - P0: Hardware identity closure (Phase 7), v4 validator staged cutover
 - P1: Documentation & diagram generation (ADR 0079, template parity delivered; icon-pack availability remains environment-dependent)
-- P1: Cross-layer relation validators (ADR 0062)
+- P1: Documentation & diagram icon-pack runtime closure
 - P2: Service-chain execution evidence and advanced infra backlog (Phase 12.2/12.3), optional multi-repo extraction (ADR 0076)
 
 ---
@@ -365,7 +365,7 @@ v5 architecture is **operational for deployable artifacts** with:
 ## Phase 9: V4 Validator Parity Cutover (NEW)
 
 **Prerequisite:** Phase 8
-**Status:** Active — staged cutover baseline (ADR 0078 deprecation matrix)
+**Status:** Completed (staged cutover evidence locked, 2026-03-28)
 **Tracking:** `adr/plan/0078-v4-validator-deprecation-matrix.md`
 
 All 30 v4 validators have v5 plugin replacements registered. Current status: `Covered/Partial` for all rows. Staged cutover requires parity fixture locks per domain.
@@ -389,11 +389,19 @@ Evidence (2026-03-28): expanded parity fixtures in
 
 ### 9.3 Network Domain
 
-- [ ] Create non-VLAN legacy payload shape parity fixtures.
-- [ ] Lock firewall policy scope edge case fixtures.
-- [ ] Lock `check_reserved_ranges` non-VLAN shape fixtures.
-- [ ] Lock `check_runtime_network_reachability` active-only payload parity.
-- [ ] Close `check_single_active_os_per_device` legacy inventory parity decision.
+- [x] Create non-VLAN legacy payload shape parity fixtures.
+- [x] Lock firewall policy scope edge case fixtures.
+- [x] Lock `check_reserved_ranges` non-VLAN shape fixtures.
+- [x] Lock `check_runtime_network_reachability` active-only payload parity.
+- [x] Close `check_single_active_os_per_device` legacy inventory parity decision.
+
+Evidence (2026-03-28): expanded parity fixtures in
+`tests/plugin_integration/test_network_core_refs_validator.py`,
+`tests/plugin_integration/test_network_firewall_addressability_validator.py`,
+`tests/plugin_integration/test_network_reserved_ranges_validator.py`,
+`tests/plugin_integration/test_network_runtime_reachability_validator.py`,
+`tests/plugin_integration/test_network_ip_allocation_host_os_refs_validator.py`, and
+`tests/plugin_integration/test_single_active_os_validator.py`.
 
 ### 9.4 References Domain
 
@@ -420,16 +428,23 @@ Evidence (2026-03-28): expanded parity fixtures in `tests/plugin_integration/tes
 
 ### 9.6 Cutover Execution
 
-- [ ] Disable v4 checks batch-wise after parity evidence for each domain.
-- [ ] Update `taskfiles/validate.yml` to v5-only validation path.
-- [ ] Verify `task test:parity-v4-v5` green after each batch.
-- [ ] Update `framework.lock.yaml` and verify `rehearse_rollback` readiness.
+- [x] Disable v4 checks batch-wise after parity evidence for each domain.
+- [x] Update `taskfiles/validate.yml` to v5-only validation path.
+- [x] Verify `task test:parity-v4-v5` green after each batch.
+- [x] Update `framework.lock.yaml` and verify `rehearse_rollback` readiness.
+
+Execution evidence (2026-03-28):
+- `task validate:v5` -> PASS
+- `task test:parity-v4-v5` -> PASS (`22 passed`, `3 skipped`)
+- `task framework:lock-refresh` -> PASS
+- `task framework:rollback-rehearsal` -> PASS
+- `tests/test_v4_validator_cutover_contract.py` guards runtime/task-level absence of v4 validator fallback paths.
 
 ### Phase 9 Definition of Done
 
-- [ ] All v4 validator checks disabled with parity evidence.
-- [ ] `task validate:v5` is the sole validation path.
-- [ ] No v4 fallback required in release lane.
+- [x] All v4 validator checks disabled with parity evidence.
+- [x] `task validate:v5` is the sole validation path.
+- [x] No v4 fallback required in release lane.
 
 ---
 
@@ -505,16 +520,22 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 - [x] ADR 0069 status promotion completed (`Accepted`, evidence in register + cutover docs).
 - [x] ADR 0068 enforcement policy rollout completed (`warn` → `warn+gate-new` → `enforce`).
 - [x] ADR 0068 placeholder closure: strict-gated profiles are free of unresolved placeholders; CI guard added.
-- [ ] Remove stale contract examples and normalize to canonical IDs.
+- [x] Remove stale contract examples and normalize to canonical IDs.
+  - Evidence: `acceptance-testing/TUC-0001-router-data-channel-mikrotik-glinet/TUC.md`,
+    `adr/0062-modular-topology-architecture-consolidation.md`,
+    `adr/0062-cross-layer-relations-execution-backlog.md`.
 
 ### 11.2 P1 Items
 
-- [ ] ADR 0063: decide and lock YAML-validator tail (complete migration or explicit non-goal).
-- [ ] ADR 0062: convert `planned` cross-layer relations to executable backlog:
+- [x] ADR 0063: decide and lock YAML-validator tail (complete migration or explicit non-goal).
+  - Decision locked as explicit non-goal for current cutover baseline in `adr/0063-plugin-microkernel-for-compiler-validators-generators.md` (Phase 4 checklist, 2026-03-24).
+- [x] ADR 0062: convert `planned` cross-layer relations to executable backlog:
   - `storage.pool_ref`, `storage.volume_ref` — validator ownership + acceptance tests.
   - `network.bridge_ref`, `network.vlan_ref` — validator ownership + acceptance tests.
   - `observability.target_ref`, `operations.target_ref` — validator ownership + acceptance tests.
   - `power.source_ref` — validator ownership + acceptance tests.
+  - Evidence: `adr/0062-cross-layer-relations-execution-backlog.md`,
+    `tests/plugin_contract/test_adr0062_cross_layer_relation_contract.py`.
 
 ### 11.3 P2 Items
 
@@ -525,7 +546,7 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 
 - [x] ADR 0069 is `Accepted`.
 - [x] E6806 enforce mode blocks unresolved placeholders deterministically.
-- [ ] All 7 cross-layer relations have owner, validator, and acceptance test.
+- [x] All 7 cross-layer relations have owner, validator, and acceptance test.
 - [ ] No stale "planned" or contradictory statements in active ADR docs.
 
 ---
@@ -605,9 +626,9 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 2. **Deterministic artifacts:** ✅ Repeated runs produce stable outputs.
 3. **Strict placeholder compliance:** ✅ Enforced — strict-gated instance placeholders are CI-blocked (2026-03-27).
 4. **Deployable workflow:** ✅ `terraform plan/apply` and Ansible runs succeed using v5-generated artifacts.
-5. **Operational cutover:** Partial — v5 is default lane; v4 still active as fallback (Phase 9).
+5. **Operational cutover:** ✅ v5-only release lane active; archive parity retained as maintenance evidence.
 6. **Documentation parity:** ✅ 19/19 templates generating (+ diagrams/index pages); icon-pack runtime hardening remains.
-7. **Validator cutover:** In progress — staged v4 deprecation (Phase 9).
+7. **Validator cutover:** ✅ Completed — staged v4 deprecation evidence locked (Phase 9, 2026-03-28).
 
 ---
 
@@ -622,7 +643,7 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 | v4 regression during migration | ✅ Resolved: v4 frozen as reference baseline |
 | V4 validator cutover breaks validation | Staged batch cutover with parity fixtures per domain |
 | Docs migration scope creep | ADR 0079 phased approach (A-F) with independent milestones |
-| Cross-layer relation validators incomplete | ADR 0062 executable backlog with per-relation ownership |
+| Cross-layer relation ownership drift | Contract guard `tests/plugin_contract/test_adr0062_cross_layer_relation_contract.py` + ADR0062 backlog tracker |
 
 ---
 
@@ -677,6 +698,7 @@ Progress is tracked in:
 | ADR 0078 Phase 5 | 2026-03-23 | WP-001-006 complete, 58/58 gates green |
 | ADR 0080 Build Pipeline | 2026-03-27 | Strict contracts, parallel execution |
 | Phase 8: E2E Core | 2026-03-24 | 0 errors, 14 warnings, dry-run passing |
+| Phase 9: V4 Validator Cutover | 2026-03-28 | Domain parity fixtures locked (9.1-9.5), v5-only validate lane, parity/rollback evidence green |
 
 ### Active/Remaining Phases
 
@@ -684,7 +706,7 @@ Progress is tracked in:
 |-------|--------|-----------|
 | Phase 7: Hardware Identity | Completed (placeholder closure + strict CI gate, 2026-03-27) | - |
 | Phase 8.3: Cutover Docs | Completed (README + README-РУССКИЙ v5 workflow and maintenance-only policy, 2026-03-28) | - |
-| Phase 9: V4 Validator Cutover | Active (staged, all rows Covered/Partial) | P0 |
+| Phase 9: V4 Validator Cutover | Completed (staged cutover evidence locked, 2026-03-28) | - |
 | Phase 10: Docs/Diagrams | Active (template parity delivered; icon-node cache/runtime implemented, icon-pack availability environment-dependent) | P1 |
 | Phase 11: ADR Backlog | Active (governance closure done; relation backlog pending) | P1 |
 | Phase 12: Operational Readiness | Active (runbooks + service playbooks + dry evidence + runtime secret injection; advanced infra/full execution pending) | P2 |

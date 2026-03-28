@@ -157,3 +157,25 @@ def test_network_ip_allocation_host_os_refs_validator_supports_top_level_payload
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.PARTIAL
     assert any(diag.code == "W7828" for diag in result.diagnostics)
+
+
+def test_network_ip_allocation_host_os_refs_validator_supports_non_vlan_legacy_shape():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "os", "instance": "inst.os.a", "class_ref": "class.os"},
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "os_refs": ["inst.os.a"]},
+            {
+                "group": "network",
+                "instance": "inst.net.segment.a",
+                "class_ref": "class.network.segment",
+                "ip_allocations": [{"ip": "10.0.30.10", "device_ref": "srv-a", "host_os_ref": "inst.os.a"}],
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
