@@ -9,28 +9,47 @@
 
 ## Objective
 
-Execute the **physical** split from current root repository into independent repositories:
+Execute the physical split from current root repository into independent repositories:
 
 1. `infra-topology-framework` (framework source of truth)
-2. `home-lab` (project repository)
+2. `home-lab` (project source of truth)
 
-without breaking ADR0076 strict lock/compatibility guarantees.
+while preserving ADR0076 strict lock/compatibility guarantees and rollback ability.
 
 ---
 
-## Baseline
+## Current State Audit (2026-03-29)
 
-Already completed (Stage 2):
+### What is already strong
 
-- strict lock contract and diagnostics (`E781x`, `E782x`)
-- lock/rollback/compatibility/audit gates in CI
-- framework/project bootstrap utilities
-- submodule-first operational flow and cutover evidence
+1. ADR0076 Stage 2 contracts are implemented:
+   - lock schema + strict diagnostics (`E7811..E7813`, `E7821..E7828`),
+   - lock verify/generate utilities,
+   - compatibility matrix, rollback rehearsal, runtime entrypoint audit.
+2. Extraction/bootstrap toolchain exists:
+   - `extract-framework-history.py`, `extract-framework-worktree.py`,
+   - `bootstrap-framework-repo.py`, `bootstrap-project-repo.py`, `init-project-repo.py`.
+3. CI templates for split model exist:
+   - `docs/framework/templates/framework-release.yml`,
+   - `docs/framework/templates/project-validate.yml`.
 
-Remaining for Phase 13:
+### Current blockers and inconsistencies
 
-- finalize physical ownership boundaries
-- run production-grade cutover from root-development model to extracted repo model
+1. Baseline strict gates are currently red in root repo:
+   - `task framework:strict` fails with `E7824` (framework integrity mismatch),
+   - `task validate:v5-passthrough` fails on same `E7824`.
+2. Documentation inconsistency remains:
+   - multiple docs still describe Stage 2 as final target, while Phase 13 physical split is now active.
+3. Supply-chain trust validation gap for package mode:
+   - strict verify checks only presence of `signature/provenance/sbom` mappings, not cryptographic validity.
+4. Framework release workflow still uses provenance placeholder:
+   - not a real attestation chain for final physical-cutover baseline.
+5. No deterministic, automated "split rehearsal" lane in current CI:
+   - extraction + external project bootstrap + strict compile/verify are not run as one integrated gate.
+
+### Implication
+
+Phase 13 cannot safely enter execution window until baseline strict gates are green and the split rehearsal gate is added.
 
 ---
 
@@ -39,115 +58,149 @@ Remaining for Phase 13:
 In scope:
 
 1. history-preserving framework extraction
-2. project repository bootstrap with strict lock verification
-3. CI split and release/cutover checks across repositories
-4. cutover execution and rollback rehearsal evidence
+2. project bootstrap and strict compile against extracted framework
+3. cross-repository CI/CD split and governance
+4. cutover + rollback evidence
 
 Out of scope:
 
-1. ADR0053/ADR0047 policy decisions
-2. functional topology model redesign
-3. plugin architecture changes unrelated to repo split
+1. ADR0053 / ADR0047 policy decisions
+2. functional topology redesign
+3. plugin architecture redesign not tied to extraction
 
 ---
 
-## Priority Plan
+## Execution Strategy
 
-## P0 - Contract and Governance Freeze
+## Wave P0: Baseline Stabilization (hard prerequisite)
 
-- [ ] Freeze Phase 13 contracts in ADR/plan docs and resolve contradictory statuses.
-- [ ] Lock branch/tag policy for cutover window (`framework` tag + `project` lock update).
-- [ ] Confirm strict gates list as mandatory Go/No-Go inputs.
+### WS0.1 Lock Integrity Recovery
 
-Gate:
+- [ ] Regenerate `projects/home-lab/framework.lock.yaml` from current trusted root.
+- [ ] Re-run strict gates until baseline is green.
+- [ ] Store diagnostics snapshot as entry evidence for Phase 13.
 
+Entry Gate:
+
+- `task framework:lock-refresh`
 - `task framework:strict`
-- `task framework:cutover-readiness-quick`
+- `task validate:v5-passthrough`
 
-## P1 - Physical Extraction Execution
+### WS0.2 Governance Sync
 
-### WP1: Framework Repository Extraction
+- [ ] Align ADR0076 operational docs to "Stage 2 complete, Phase 13 active".
+- [ ] Freeze cutover branch/tag policy.
+- [ ] Assign accountable owners for cutover and rollback.
 
-- [ ] Run `topology-tools/extract-framework-history.py` for history-preserving extraction.
-- [ ] Validate extracted repository layout against `framework.yaml`.
-- [ ] Run framework-side test gates in extracted repo.
+---
+
+## Wave P1: Extraction Readiness Hardening
+
+### WS1.1 Split Rehearsal Lane (missing gate)
+
+- [ ] Add CI/local task that performs end-to-end rehearsal:
+  - extract framework with history,
+  - bootstrap external project repo,
+  - generate+verify lock in extracted layout,
+  - compile in strict mode (`passthrough` secrets mode).
+- [ ] Publish rehearsal report under `build/diagnostics/phase13/`.
 
 Gate:
 
 - `python topology-tools/extract-framework-history.py ...`
-- `python -m pytest -o addopts= tests/plugin_api tests/plugin_contract tests/plugin_integration -q`
+- `python topology-tools/bootstrap-project-repo.py ...`
+- `python topology-tools/verify-framework-lock.py --strict ...`
+- `python topology-tools/compile-topology.py --strict-model-lock ...`
 
-### WP2: Project Repository Bootstrap
+### WS1.2 Contract Hardening for Extracted Mode
 
-- [ ] Run `topology-tools/bootstrap-project-repo.py` with framework submodule pointer.
-- [ ] Seed project data (`instances`, `secrets`, `overrides`) and verify compile path.
-- [ ] Generate and verify `framework.lock.yaml` in extracted project repo.
+- [ ] Add explicit tests for extracted-repo lock revision behavior (no accidental monorepo bypass in extracted topology).
+- [ ] Add guard tests for distribution include-path stability after extraction.
+- [ ] Add contract test for generated project skeleton paths (`topology/instances`, `generated`, `generated-artifacts`).
+
+### WS1.3 Trust Pipeline Hardening
+
+- [ ] Replace provenance placeholder flow with real attestation publication/verification path.
+- [ ] Add strict verification for package-mode trust fields (not only existence checks).
+
+---
+
+## Wave P2: Physical Extraction Execution
+
+### WS2.1 Framework Repository Cut
+
+- [ ] Execute history-preserving extraction to framework target repository.
+- [ ] Validate extracted repository test matrix.
+- [ ] Publish signed/tagged framework candidate release.
 
 Gate:
 
-- `python topology-tools/generate-framework-lock.py --topology topology/topology.yaml --force`
-- `python topology-tools/verify-framework-lock.py --strict`
-- `python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated`
+- framework CI green on extracted repository,
+- release artifact set complete and verifiable.
 
-### WP3: Cross-Repo CI Hardening
+### WS2.2 Project Repository Cut
 
-- [ ] Enable framework release workflow from extracted framework repo.
-- [ ] Enable project validate workflow with strict lock gates.
-- [ ] Re-run compatibility matrix against target cutover versions.
+- [ ] Bootstrap/align project repository to consume extracted framework.
+- [ ] Update `framework.lock.yaml` to extracted framework release revision.
+- [ ] Validate strict compile/validation gates in project repository.
 
 Gate:
 
-- `python topology-tools/validate-framework-compatibility-matrix.py`
-- `python topology-tools/audit-strict-runtime-entrypoints.py`
+- project CI green with strict lock verification before compile.
 
-## P2 - Cutover and Stabilization
+---
 
-### WP4: Production Cutover
+## Wave P3: Cutover and Post-Cutover Stabilization
+
+### WS3.1 Cutover Window
 
 - [ ] Execute `adr/plan/0076-phase13-cutover-checklist.md`.
-- [ ] Publish release note for physical extraction cutover.
-- [ ] Update operator docs to make extracted flow canonical.
+- [ ] Record Go/No-Go decision with evidence links.
+- [ ] Publish release note for physical cutover.
 
-### WP5: Post-Cutover Verification
+### WS3.2 Rollback Rehearsal After Cutover
 
-- [ ] Run full readiness and release gates from project repo.
-- [ ] Rehearse rollback to previous framework revision and restore.
-- [ ] Record evidence paths in ADR plan and runbooks.
+- [ ] Rehearse rollback on post-cutover revisions.
+- [ ] Verify forward restore and lock re-validation.
+- [ ] Record rollback rehearsal evidence.
 
-Gate:
+---
 
-- `task framework:cutover-readiness`
-- `task framework:release-tests`
-- `task validate:v5`
-- `python topology-tools/rehearse-framework-rollback.py`
+## Dependencies Between Workstreams
+
+1. WS0 -> WS1 -> WS2 -> WS3 is strict sequence.
+2. WS1.3 (trust hardening) must complete before WS2.1 release candidate approval.
+3. No cutover execution is allowed while WS0 baseline gate is red.
 
 ---
 
 ## Deliverables
 
-1. Extracted `infra-topology-framework` repository with preserved history.
-2. Extracted `home-lab` project repository with strict lock workflow.
-3. CI workflows operating cross-repository (framework release + project verify).
-4. Signed cutover checklist evidence and rollback rehearsal evidence.
+1. Extracted `infra-topology-framework` repository with preserved history and green CI.
+2. Extracted `home-lab` project repository consuming extracted framework under strict lock policy.
+3. Integrated split rehearsal lane and diagnostics evidence.
+4. Completed cutover checklist with Go/No-Go and rollback evidence.
+5. Updated ADR/runbook docs where extracted flow is canonical.
 
 ---
 
-## Risks and Mitigations
+## Risk Register (Phase 13)
 
-| Risk | Mitigation |
-|------|------------|
-| History breaks during extraction | Use `extract-framework-history.py`; validate commit ancestry and blame |
-| Lock drift across repositories | Enforce `verify-framework-lock --strict` in all project pipelines |
-| Version skew after cutover | Run compatibility matrix before and after lock bump |
-| Rollback not executable in pressure window | Mandatory `rehearse-framework-rollback.py` evidence before Go |
-| Human process errors in cutover window | Use checklist with signed owner/approver checkpoints |
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Baseline lock drift (`E7824`) before cutover | False readiness, broken strict gates | Mandatory WS0 lock-refresh + strict gate evidence |
+| Extraction script divergence from real repo layout | Broken extracted repo | CI rehearsal lane with real extraction path |
+| Package trust checks are metadata-only | Weak supply-chain guarantees | Implement cryptographic verification in WS1.3 |
+| Cutover docs lag behind runtime state | Operator error in window | Governance sync in WS0.2 and WS3.1 |
+| Rollback path not executable post-cutover | Prolonged outage | Mandatory WS3.2 rehearsal before closure |
 
 ---
 
 ## Definition of Done
 
-1. Physical repositories created and validated.
-2. Strict gates green in extracted project flow.
-3. Cutover checklist fully completed with evidence links.
-4. Rollback rehearsal passed after cutover.
-5. `adr/plan/v5-production-readiness.md` marks Phase 13 completed.
+1. WS0 baseline gates are green and evidenced.
+2. Split rehearsal lane is green and repeatable.
+3. Physical framework and project repositories are cut and validated.
+4. Cutover checklist is fully completed with signed Go decision.
+5. Post-cutover rollback rehearsal is green.
+6. `adr/plan/v5-production-readiness.md` marks Phase 13 as completed.

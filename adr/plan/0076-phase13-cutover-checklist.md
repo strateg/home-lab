@@ -10,21 +10,36 @@ Reference plan: `adr/plan/0076-phase13-physical-extraction-plan.md`
 
 ---
 
+## 0. Entry Baseline (must be green before scheduling cutover window)
+
+- [ ] `task framework:lock-refresh` completed.
+- [ ] `task framework:strict` is green.
+- [ ] `task validate:v5-passthrough` is green.
+
+Evidence:
+
+- [ ] `build/diagnostics/report.txt` attached.
+- [ ] strict gate output attached.
+
+---
+
 ## 1. Pre-Cutover Readiness
 
-- [ ] Phase 13 plan approved.
+- [ ] Phase 13 plan approved by architecture owner.
 - [ ] Cutover window agreed and communicated.
 - [ ] Rollback owner assigned.
 - [ ] Framework extraction dry-run completed.
 - [ ] Project bootstrap dry-run completed.
 - [ ] Lock verification passes in extracted project layout.
+- [ ] Split rehearsal lane report published.
 
 Evidence:
 
-- [ ] `verify-framework-lock --strict` output attached.
-- [ ] `compile-topology --strict-model-lock` output attached.
-- [ ] `validate-framework-compatibility-matrix.py` output attached.
-- [ ] `audit-strict-runtime-entrypoints.py` output attached.
+- [ ] `verify-framework-lock --strict` output attached (`build/diagnostics/phase13/verify-lock.txt`).
+- [ ] `compile-topology --strict-model-lock` output attached (`build/diagnostics/phase13/compile.txt`).
+- [ ] `validate-framework-compatibility-matrix.py` output attached (`build/diagnostics/phase13/compatibility.txt`).
+- [ ] `audit-strict-runtime-entrypoints.py` output attached (`build/diagnostics/phase13/audit-entrypoints.txt`).
+- [ ] Split rehearsal summary (`build/diagnostics/phase13/split-rehearsal.json`).
 
 ---
 
@@ -41,6 +56,7 @@ No-Go triggers:
 - [ ] Any unresolved strict lock mismatch.
 - [ ] Any compatibility matrix failure for target version set.
 - [ ] Missing release provenance/signature/SBOM for framework artifact.
+- [ ] Split rehearsal lane fails in candidate revisions.
 
 Decision:
 
@@ -56,15 +72,19 @@ Approver sign-off:
 
 ## 3. Cutover Execution
 
-- [ ] Publish extracted framework repository state (tag/release candidate).
+- [ ] Publish extracted framework repository state (tag/release candidate + release artifacts).
 - [ ] Point project repository framework dependency to extracted source.
 - [ ] Regenerate `framework.lock.yaml` in project repository.
 - [ ] Run strict validation suite in project repository.
 - [ ] Run cutover readiness report.
+- [ ] Confirm no manual hotfix applied outside tracked commits.
 
 Evidence links:
 
 - [ ] Framework release/tag:
+- [ ] Framework checksums/sig/crt:
+- [ ] Framework SBOM URI:
+- [ ] Framework provenance URI:
 - [ ] Project lock revision:
 - [ ] CI run URLs:
 - [ ] Cutover readiness report:
@@ -78,6 +98,7 @@ Evidence links:
 - [ ] `task framework:release-tests` passes in project repo.
 - [ ] Operational runbook references updated to extracted flow.
 - [ ] ADR and plan statuses synchronized.
+- [ ] Release notes and migration notice published.
 
 ---
 
@@ -90,7 +111,7 @@ Evidence links:
 
 Evidence:
 
-- [ ] `rehearse-framework-rollback.py` output attached.
+- [ ] `rehearse-framework-rollback.py` output attached (`build/diagnostics/phase13/rollback-rehearsal.txt`).
 - [ ] Rollback decision log attached.
 
 ---
@@ -100,6 +121,7 @@ Evidence:
 - [ ] Release note for Phase 13 cutover published.
 - [ ] `adr/plan/v5-production-readiness.md` updated (Phase 13 status).
 - [ ] `adr/plan/README.md` updated (plan moved from Active to Completed when closed).
+- [ ] `docs/framework/adr0076-cutover-state.json` updated for physical extraction milestone.
 
 Completed at: _TBD_
 Closed by: _TBD_

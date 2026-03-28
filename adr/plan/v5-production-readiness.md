@@ -626,6 +626,9 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
 - `adr/plan/0076-phase13-physical-extraction-plan.md` (active execution plan)
 - `adr/plan/0076-phase13-cutover-checklist.md` (active cutover checklist)
 
+**Immediate entry gate (2026-03-29):**
+- restore green strict baseline (`framework.lock` integrity refresh + strict/validate lanes) before physical cutover window.
+
 - [ ] Separate framework from project into independent repositories (physical split).
 - [ ] Establish cross-repo CI/CD pipelines for extracted repositories.
 - [x] Define dependency lock and integrity verification (ADR0076 Stage 2 baseline).
