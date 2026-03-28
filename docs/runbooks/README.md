@@ -17,8 +17,8 @@
 - `docs/runbooks/SERVICE-DEPLOYMENT-CHAIN-VALIDATION.md` - evidence template for full service deployment chain validation.
 - `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md` - first recorded Wave D service-chain execution evidence.
   - automated capture: `task framework:service-chain-evidence-dry|check|apply`.
-- `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-check-execution.md` - automated maintenance-check run (13/15 PASS, no-go due Ansible CLI runtime availability).
-- `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-apply.md` - automated maintenance-apply run (15/17 PASS, no-go due Ansible CLI runtime availability).
+- `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-check-execution.md` - automated maintenance-check run (14/15 PASS, no-go due host reachability in Ansible execute lane).
+- `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-apply.md` - automated maintenance-apply run (16/17 PASS, no-go due host reachability in Ansible execute lane).
 
 ---
 

@@ -11,7 +11,13 @@ import pytest
 TOOLS_ROOT = Path(__file__).resolve().parents[1] / "topology-tools"
 sys.path.insert(0, str(TOOLS_ROOT))
 
-from service_chain_evidence import _resolve_path_argument, build_command_plan  # noqa: E402
+from service_chain_evidence import (  # noqa: E402
+    CommandStep,
+    StepResult,
+    _resolve_path_argument,
+    build_command_plan,
+    render_report,
+)
 
 
 def _joined(plan):
@@ -52,12 +58,30 @@ def test_service_chain_plan_maintenance_apply_requires_allow_flag() -> None:
         build_command_plan(mode="maintenance-apply", project_id="home-lab", env="production")
 
 
+def test_service_chain_plan_ansible_via_wsl_requires_repo_root() -> None:
+    with pytest.raises(ValueError):
+        build_command_plan(mode="maintenance-check", project_id="home-lab", env="production", ansible_via_wsl=True)
+
+
 def test_service_chain_plan_maintenance_apply_contains_apply_steps() -> None:
     plan = build_command_plan(mode="maintenance-apply", project_id="home-lab", env="production", allow_apply=True)
     commands = _joined(plan)
     assert any("terraform -chdir=generated/home-lab/terraform/proxmox apply" == cmd for cmd in commands)
     assert any("terraform -chdir=generated/home-lab/terraform/mikrotik apply" == cmd for cmd in commands)
     assert any("task ansible:apply-site" == cmd for cmd in commands)
+
+
+def test_service_chain_plan_maintenance_check_supports_ansible_wsl_commands() -> None:
+    plan = build_command_plan(
+        mode="maintenance-check",
+        project_id="home-lab",
+        env="production",
+        ansible_via_wsl=True,
+        repo_root=Path("D:/Workspaces/PycharmProjects/home-lab"),
+    )
+    commands = _joined(plan)
+    assert any(cmd.startswith("wsl bash -lc ") and "--syntax-check" in cmd for cmd in commands)
+    assert any(cmd.startswith("wsl bash -lc ") and " --check" in cmd for cmd in commands)
 
 
 def test_service_chain_plan_maintenance_apply_supports_auto_approve() -> None:
@@ -107,3 +131,28 @@ def test_resolve_path_argument_converts_relative_to_absolute(tmp_path: Path) -> 
     resolved = _resolve_path_argument("projects/home-lab/secrets/terraform/proxmox.auto.tfvars", tmp_path)
     assert resolved == str((tmp_path / "projects/home-lab/secrets/terraform/proxmox.auto.tfvars").resolve())
     assert _resolve_path_argument("", tmp_path) is None
+
+
+def test_render_report_includes_stdout_and_stderr_in_failure_details() -> None:
+    step = CommandStep(id="ansible.execute", description="Run ansible", command=["ansible-playbook"])
+    result = StepResult(
+        step=step,
+        returncode=4,
+        duration_s=1.0,
+        stdout="PLAY RECAP ... host unreachable",
+        stderr="[DEPRECATION WARNING] ...",
+    )
+    report = render_report(
+        mode="maintenance-check",
+        operator="tester",
+        commit_sha="deadbeef",
+        project_id="home-lab",
+        env="production",
+        steps=[step],
+        results=[result],
+        plan_only=False,
+    )
+    assert "[stdout]" in report
+    assert "host unreachable" in report
+    assert "[stderr]" in report
+    assert "DEPRECATION WARNING" in report

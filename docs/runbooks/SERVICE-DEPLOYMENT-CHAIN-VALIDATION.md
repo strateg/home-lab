@@ -41,10 +41,10 @@ Automated evidence capture lanes:
 task framework:service-chain-evidence-dry
 
 # maintenance check lane (plan + ansible --check with injected secrets/runtime)
-task framework:service-chain-evidence-check -- CONTINUE_ON_FAILURE=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=generated/home-lab/terraform/proxmox/terraform.tfvars.example MIKROTIK_VAR_FILE=generated/home-lab/terraform/mikrotik/terraform.tfvars.example
+task framework:service-chain-evidence-check -- CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=generated/home-lab/terraform/proxmox/terraform.tfvars.example MIKROTIK_VAR_FILE=generated/home-lab/terraform/mikrotik/terraform.tfvars.example
 
 # maintenance apply lane (destructive; requires explicit confirmation variable)
-task framework:service-chain-evidence-apply -- ALLOW_APPLY=YES CONTINUE_ON_FAILURE=1 TERRAFORM_AUTO_APPROVE=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=generated/home-lab/terraform/proxmox/terraform.tfvars.example MIKROTIK_VAR_FILE=generated/home-lab/terraform/mikrotik/terraform.tfvars.example
+task framework:service-chain-evidence-apply -- ALLOW_APPLY=YES CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1 TERRAFORM_AUTO_APPROVE=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=generated/home-lab/terraform/proxmox/terraform.tfvars.example MIKROTIK_VAR_FILE=generated/home-lab/terraform/mikrotik/terraform.tfvars.example
 ```
 
 Reports are generated under `docs/runbooks/evidence/` by `topology-tools/record-service-chain-evidence.py`.
@@ -75,4 +75,5 @@ Automated maintenance-check execution evidence is recorded in
 `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-check-execution.md`.
 Automated maintenance-apply execution evidence is recorded in
 `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-apply.md`.
-Remaining blocker is Ansible CLI runtime availability in current Windows shell; rerun maintenance-check/apply lanes in Linux/WSL Ansible runtime for final `go`.
+Windows-native Ansible CLI remains unavailable in this shell; maintenance lanes are executed via WSL runtime.
+Current remaining blocker for final `go`: host reachability/resolution (`lxc-*` inventory targets unreachable from this execution context).

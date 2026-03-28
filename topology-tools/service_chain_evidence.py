@@ -57,6 +57,41 @@ def _resolve_path_argument(value: str | None, repo_root: Path) -> str | None:
     return str(candidate.resolve())
 
 
+def _to_wsl_path(path: Path) -> str:
+    resolved = path.resolve().as_posix()
+    if len(resolved) >= 3 and resolved[1] == ":" and resolved[2] == "/":
+        return f"/mnt/{resolved[0].lower()}{resolved[2:]}"
+    return resolved
+
+
+def _ansible_wsl_command(*, repo_root: Path, project_id: str, env: str, lane: str) -> list[str]:
+    if lane not in {"syntax", "check", "apply"}:
+        raise ValueError(f"Unsupported ansible WSL lane: {lane}")
+    repo_root_wsl = _to_wsl_path(repo_root)
+    inventory_wsl = _to_wsl_path(repo_root / f"generated/{project_id}/ansible/runtime/{env}/hosts.yml")
+    ansible_cfg_wsl = _to_wsl_path(repo_root / f"projects/{project_id}/ansible/ansible.cfg")
+    playbook_root_wsl = _to_wsl_path(repo_root / f"projects/{project_id}/ansible/playbooks")
+    if lane == "syntax":
+        syntax_targets = ["site.yml", "postgresql.yml", "redis.yml", "nextcloud.yml", "monitoring.yml"]
+        checks = " && ".join(
+            f"ansible-playbook -i '{inventory_wsl}' '{playbook_root_wsl}/{name}' --syntax-check"
+            for name in syntax_targets
+        )
+        script = f"cd '{repo_root_wsl}' && export ANSIBLE_CONFIG='{ansible_cfg_wsl}' && {checks}"
+        return ["wsl", "bash", "-lc", script]
+    if lane == "check":
+        script = (
+            f"cd '{repo_root_wsl}' && ANSIBLE_CONFIG='{ansible_cfg_wsl}' "
+            f"ansible-playbook -i '{inventory_wsl}' '{playbook_root_wsl}/site.yml' --check"
+        )
+        return ["wsl", "bash", "-lc", script]
+    script = (
+        f"cd '{repo_root_wsl}' && ANSIBLE_CONFIG='{ansible_cfg_wsl}' "
+        f"ansible-playbook -i '{inventory_wsl}' '{playbook_root_wsl}/site.yml'"
+    )
+    return ["wsl", "bash", "-lc", script]
+
+
 def build_command_plan(
     *,
     mode: str,
@@ -64,17 +99,21 @@ def build_command_plan(
     env: str,
     allow_apply: bool = False,
     terraform_auto_approve: bool = False,
+    ansible_via_wsl: bool = False,
     inject_secrets: bool = False,
     proxmox_backend_config: str | None = None,
     mikrotik_backend_config: str | None = None,
     proxmox_var_file: str | None = None,
     mikrotik_var_file: str | None = None,
+    repo_root: Path | None = None,
 ) -> list[CommandStep]:
     """Build ordered command plan for selected service-chain mode."""
     if mode not in {"dry", "maintenance-check", "maintenance-apply"}:
         raise ValueError(f"Unsupported mode: {mode}")
     if mode == "maintenance-apply" and not allow_apply:
         raise ValueError("maintenance-apply mode requires allow_apply=True")
+    if ansible_via_wsl and repo_root is None:
+        raise ValueError("ansible_via_wsl mode requires repo_root")
 
     secrets_mode = "inject" if inject_secrets else "passthrough"
     ansible_runtime_task = "ansible:runtime-inject" if inject_secrets else "ansible:runtime"
@@ -82,6 +121,21 @@ def build_command_plan(
         ("ansible:apply-site-inject" if inject_secrets else "ansible:apply-site")
         if mode == "maintenance-apply"
         else ("ansible:check-site-inject" if inject_secrets else "ansible:check-site")
+    )
+    ansible_syntax_command = (
+        _ansible_wsl_command(repo_root=repo_root, project_id=project_id, env=env, lane="syntax")
+        if ansible_via_wsl
+        else ["task", "ansible:syntax"]
+    )
+    ansible_execute_command = (
+        _ansible_wsl_command(
+            repo_root=repo_root,
+            project_id=project_id,
+            env=env,
+            lane=("apply" if mode == "maintenance-apply" else "check"),
+        )
+        if ansible_via_wsl
+        else ["task", ansible_execute_task]
     )
     proxmox_plan_args = ["plan", "-refresh=false"]
     mikrotik_plan_args = ["plan", "-refresh=false"]
@@ -157,8 +211,8 @@ def build_command_plan(
             ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", *mikrotik_plan_args],
         ),
         CommandStep("ansible.runtime", "Assemble Ansible runtime inventory", ["task", ansible_runtime_task]),
-        CommandStep("ansible.syntax", "Run Ansible syntax checks", ["task", "ansible:syntax"]),
-        CommandStep("ansible.execute", "Run Ansible service execution lane", ["task", ansible_execute_task]),
+        CommandStep("ansible.syntax", "Run Ansible syntax checks", ansible_syntax_command),
+        CommandStep("ansible.execute", "Run Ansible service execution lane", ansible_execute_command),
         CommandStep("acceptance.all", "Run all acceptance tests", ["task", "acceptance:tests-all"]),
         CommandStep("cutover.readiness", "Run cutover readiness report", ["task", "framework:cutover-readiness"]),
     ]
@@ -277,13 +331,19 @@ def render_report(
     if failed_steps:
         lines.extend(["", "## Failure Details"])
         for item in failed_steps:
+            chunks: list[str] = []
+            if (item.stdout or "").strip():
+                chunks.append("[stdout]\n" + item.stdout.strip())
+            if (item.stderr or "").strip():
+                chunks.append("[stderr]\n" + item.stderr.strip())
+            failure_payload = "\n\n".join(chunks) if chunks else "<no output>"
             lines.extend(
                 [
                     "",
                     f"### `{item.step.id}`",
                     "",
                     "```text",
-                    (item.stderr or item.stdout or "<no output>").strip(),
+                    failure_payload,
                     "```",
                 ]
             )
@@ -329,6 +389,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--inject-secrets", action="store_true")
     parser.add_argument("--allow-apply", action="store_true")
     parser.add_argument("--terraform-auto-approve", action="store_true")
+    parser.add_argument("--ansible-via-wsl", action="store_true")
     parser.add_argument("--continue-on-failure", action="store_true")
     parser.add_argument("--plan-only", action="store_true")
     return parser.parse_args(argv)
@@ -347,11 +408,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         env=args.env,
         allow_apply=args.allow_apply,
         terraform_auto_approve=args.terraform_auto_approve,
+        ansible_via_wsl=args.ansible_via_wsl,
         inject_secrets=args.inject_secrets,
         proxmox_backend_config=proxmox_backend_config,
         mikrotik_backend_config=mikrotik_backend_config,
         proxmox_var_file=proxmox_var_file,
         mikrotik_var_file=mikrotik_var_file,
+        repo_root=repo_root,
     )
     results: list[StepResult] = []
     if not args.plan_only:

@@ -573,10 +573,10 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
 - [x] Dry-run evidence captured in `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md`.
 - [x] Automated maintenance-check execution evidence captured in
   `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-check-execution.md`
-  (13/15 pass; Terraform gates closed via example var-file lane, remaining blocker: Windows-native Ansible CLI availability).
+  (14/15 pass; Terraform + Ansible syntax gates closed, remaining blocker: host reachability in Ansible `site.yml --check` execution lane).
 - [x] Automated maintenance-apply execution evidence captured in
   `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-apply.md`
-  (15/17 pass; Terraform apply/plan gates closed with `TERRAFORM_AUTO_APPROVE=1`, remaining blocker: Windows-native Ansible CLI availability).
+  (16/17 pass; Terraform apply/plan + Ansible syntax gates closed with `TERRAFORM_AUTO_APPROVE=1` and WSL runtime, remaining blocker: host reachability in Ansible `site.yml` execution lane).
 - [x] Secret distribution via Ansible runtime injection (SOPS/age integration baseline per ADR 0072):
   - `topology-tools/assemble-ansible-runtime.py --inject-secrets`
   - `task ansible:runtime-inject`
