@@ -16,6 +16,7 @@
 - `docs/runbooks/MONITORING-ALERT-RUNBOOKS.md` - alert handling procedures by signal family.
 - `docs/runbooks/SERVICE-DEPLOYMENT-CHAIN-VALIDATION.md` - evidence template for full service deployment chain validation.
 - `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md` - first recorded Wave D service-chain execution evidence.
+  - automated capture: `task framework:service-chain-evidence-dry|check|apply`.
 
 ---
 

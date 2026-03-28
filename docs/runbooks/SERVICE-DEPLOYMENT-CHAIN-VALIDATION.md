@@ -34,6 +34,21 @@ task acceptance:tests-all
 task framework:cutover-readiness
 ```
 
+Automated evidence capture lanes:
+
+```powershell
+# dry lane (non-maintenance)
+task framework:service-chain-evidence-dry
+
+# maintenance check lane (plan + ansible --check with injected secrets/runtime)
+task framework:service-chain-evidence-check -- PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend
+
+# maintenance apply lane (destructive; requires explicit confirmation variable)
+task framework:service-chain-evidence-apply -- ALLOW_APPLY=YES PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend
+```
+
+Reports are generated under `docs/runbooks/evidence/` by `topology-tools/record-service-chain-evidence.py`.
+
 ---
 
 ## 3. Evidence Template

@@ -46,6 +46,27 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/cutover-readiness-report.py"
 
+  service-chain-evidence-dry:
+    desc: Execute dry service-chain lane and write evidence report
+    cmds:
+      - "{{.PYTHON}} topology-tools/record-service-chain-evidence.py --mode dry --project-id {{.PROJECT_ID}} --env production"
+
+  service-chain-evidence-check:
+    desc: Execute maintenance-check service-chain lane and write evidence report
+    cmds:
+      - "{{.PYTHON}} topology-tools/record-service-chain-evidence.py --mode maintenance-check --project-id {{.PROJECT_ID}} --env production {{if .PROXMOX_BACKEND_CONFIG}}--proxmox-backend-config {{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}--mikrotik-backend-config {{.MIKROTIK_BACKEND_CONFIG}}{{end}}"
+
+  service-chain-evidence-apply:
+    desc: Execute maintenance-apply service-chain lane and write evidence report (requires ALLOW_APPLY=YES)
+    requires:
+      vars:
+        - ALLOW_APPLY
+    preconditions:
+      - sh: 'test "{{.ALLOW_APPLY}}" = "YES"'
+        msg: "Set ALLOW_APPLY=YES to run maintenance-apply evidence lane."
+    cmds:
+      - "{{.PYTHON}} topology-tools/record-service-chain-evidence.py --mode maintenance-apply --allow-apply --project-id {{.PROJECT_ID}} --env production {{if .PROXMOX_BACKEND_CONFIG}}--proxmox-backend-config {{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}--mikrotik-backend-config {{.MIKROTIK_BACKEND_CONFIG}}{{end}}"
+
   archive-v4-compile:
     desc: Compile legacy archive/v4 baseline for parity drift monitoring
     cmds:
@@ -67,7 +88,7 @@ tasks:
   release-tests:
     desc: Run framework-focused release test suite
     cmds:
-      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_api tests/plugin_contract tests/plugin_integration/test_framework_lock.py tests/plugin_integration/test_build_framework_distribution.py tests/plugin_integration/test_extract_framework_worktree.py tests/plugin_integration/test_extract_framework_history.py tests/plugin_integration/test_generator_base.py tests/plugin_integration/test_terraform_mikrotik_generator.py tests/plugin_integration/test_terraform_proxmox_generator.py tests/plugin_integration/test_bootstrap_generators.py tests/plugin_integration/test_generator_projection_contract.py tests/plugin_integration/test_generator_template_and_publish_contract.py tests/plugin_integration/test_module_manifest_discovery.py tests/plugin_integration/test_strict_runtime_entrypoint_audit.py tests/plugin_integration/test_docs_projection_modules.py tests/plugin_integration/test_docs_generator.py tests/plugin_integration/test_docs_generator_determinism.py tests/plugin_integration/test_diagram_generator.py tests/plugin_integration/test_icon_manager.py tests/test_mermaid_render_validation.py tests/test_cutover_readiness_report.py tests/test_root_layout_docs_contract.py tests/test_agent_instruction_sync.py tests/test_strict_profile_placeholder_contract.py tests/test_l4_lxc_resource_profile_contract.py tests/test_ansible_service_playbook_contract.py -q"
+      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_api tests/plugin_contract tests/plugin_integration/test_framework_lock.py tests/plugin_integration/test_build_framework_distribution.py tests/plugin_integration/test_extract_framework_worktree.py tests/plugin_integration/test_extract_framework_history.py tests/plugin_integration/test_generator_base.py tests/plugin_integration/test_terraform_mikrotik_generator.py tests/plugin_integration/test_terraform_proxmox_generator.py tests/plugin_integration/test_bootstrap_generators.py tests/plugin_integration/test_generator_projection_contract.py tests/plugin_integration/test_generator_template_and_publish_contract.py tests/plugin_integration/test_module_manifest_discovery.py tests/plugin_integration/test_strict_runtime_entrypoint_audit.py tests/plugin_integration/test_docs_projection_modules.py tests/plugin_integration/test_docs_generator.py tests/plugin_integration/test_docs_generator_determinism.py tests/plugin_integration/test_diagram_generator.py tests/plugin_integration/test_icon_manager.py tests/test_mermaid_render_validation.py tests/test_cutover_readiness_report.py tests/test_root_layout_docs_contract.py tests/test_agent_instruction_sync.py tests/test_strict_profile_placeholder_contract.py tests/test_l4_lxc_resource_profile_contract.py tests/test_service_chain_evidence_plan.py tests/test_ansible_service_playbook_contract.py -q"
 
   release-ci:
     desc: Run release CI parity gate (strict + framework-focused tests)
