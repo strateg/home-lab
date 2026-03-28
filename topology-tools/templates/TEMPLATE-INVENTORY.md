@@ -33,6 +33,7 @@ topology/object-modules/orangepi/templates/
 |----------|-----------|-----------|-----------|
 | `provider.tf.j2` | `v4/topology-tools/templates/terraform/proxmox/provider.tf.j2` | Complete (moved to `object-modules/proxmox/templates/terraform`) | `terraform_proxmox_generator.py` |
 | `versions.tf.j2` | `v4/topology-tools/templates/terraform/proxmox/versions.tf.j2` | Complete (moved to `object-modules/proxmox/templates/terraform`) | `terraform_proxmox_generator.py` |
+| `backend.tf.j2` | n/a (new in v5) | Complete (optional remote-state backend template) | `terraform_proxmox_generator.py` |
 | `bridges.tf.j2` | `v4/topology-tools/templates/terraform/proxmox/bridges.tf.j2` | Complete (moved to `object-modules/proxmox/templates/terraform`) | `terraform_proxmox_generator.py` |
 | `vms.tf.j2` | `v4/topology-tools/templates/terraform/proxmox/vms.tf.j2` | Complete (moved to `object-modules/proxmox/templates/terraform`) | `terraform_proxmox_generator.py` |
 | `lxc.tf.j2` | `v4/topology-tools/templates/terraform/proxmox/lxc.tf.j2` | Complete (moved to `object-modules/proxmox/templates/terraform`) | `terraform_proxmox_generator.py` |
@@ -48,6 +49,7 @@ topology/object-modules/orangepi/templates/
 |----------|-----------|-----------|-----------|
 | `provider.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/provider.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
 | `interfaces.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/interfaces.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
+| `backend.tf.j2` | n/a (new in v5) | Complete (optional remote-state backend template) | `terraform_mikrotik_generator.py` |
 | `firewall.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/firewall.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
 | `dhcp.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/dhcp.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |
 | `dns.tf.j2` | `v4/topology-tools/templates/terraform-mikrotik/dns.tf.j2` | Complete (moved to `object-modules/mikrotik/templates/terraform`) | `terraform_mikrotik_generator.py` |

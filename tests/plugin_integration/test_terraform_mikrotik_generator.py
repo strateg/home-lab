@@ -111,6 +111,7 @@ def test_terraform_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
         "terraform.tfvars.example",
     }
     assert expected_files.issubset({path.name for path in target_dir.iterdir()})
+    assert not (target_dir / "backend.tf").exists()
 
     firewall_tf = (target_dir / "firewall.tf").read_text(encoding="utf-8")
     assert "inst.net.lan" in firewall_tf
@@ -189,3 +190,24 @@ def test_terraform_mikrotik_generator_keeps_legacy_capability_template_compatibi
     target_dir = tmp_path / "generated" / "terraform" / "mikrotik"
     generated = {path.name for path in target_dir.iterdir()}
     assert "vpn.tf" in generated
+
+
+def test_terraform_mikrotik_generator_emits_backend_tf_when_remote_state_enabled(tmp_path: Path) -> None:
+    generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+    ctx.config["terraform_remote_state"] = {
+        "enabled": True,
+        "backend": "pg",
+        "config": {
+            "conn_str": "postgres://terraform@db.internal/terraform_state",
+            "schema_name": "mikrotik",
+        },
+    }
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    backend_tf = (tmp_path / "generated" / "terraform" / "mikrotik" / "backend.tf").read_text(encoding="utf-8")
+    assert 'backend "pg"' in backend_tf
+    assert 'schema_name = "mikrotik"' in backend_tf
+    assert 'conn_str = "postgres://terraform@db.internal/terraform_state"' in backend_tf

@@ -31,6 +31,10 @@ plugins:
       mikrotik_provider_version: "~> 1.40"
       mikrotik_api_host: ""
       mikrotik_host: ""
+      terraform_remote_state:
+        enabled: false
+        backend: ""
+        config: {}
       # Capability-driven template mappings (ADR0078 WP9)
       capability_templates:
         qos:
@@ -63,6 +67,21 @@ plugins:
         mikrotik_host:
           type: string
           description: Legacy alias for mikrotik_api_host (kept for compatibility).
+        terraform_remote_state:
+          type: object
+          description: Optional Terraform backend.tf generation for remote state.
+          properties:
+            enabled:
+              type: boolean
+              default: false
+            backend:
+              type: string
+              description: Backend type (for example s3, pg, consul, http).
+            config:
+              type: object
+              description: Backend key-value settings rendered into backend block.
+              additionalProperties: true
+          required: []
         capability_templates:
           type: object
           description: Capability-driven template mappings for conditional artifact generation.

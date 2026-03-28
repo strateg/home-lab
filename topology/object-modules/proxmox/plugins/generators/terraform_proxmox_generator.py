@@ -15,6 +15,7 @@ _CAP_HELPERS = load_capability_helpers()
 _TF_HELPERS = load_terraform_helpers()
 get_capability_templates = _CAP_HELPERS.get_capability_templates
 render_string_list = _TF_HELPERS.render_string_list
+resolve_remote_state_backend = _TF_HELPERS.resolve_remote_state_backend
 
 _PROJECTIONS = load_object_projection_module("proxmox")
 ProjectionError = _PROJECTIONS.ProjectionError
@@ -111,6 +112,13 @@ class TerraformProxmoxGenerator(BaseGenerator):
         capability_templates = get_capability_templates(caps, ctx.config)
         templates.update(capability_templates)
 
+        remote_state = resolve_remote_state_backend(ctx.config.get("terraform_remote_state"))
+        if remote_state:
+            backend_name, backend_items = remote_state
+            templates["backend.tf"] = "terraform/backend.tf.j2"
+            render_context["remote_state_backend"] = backend_name
+            render_context["remote_state_items"] = [{"key": key, "value": value} for key, value in backend_items]
+
         written: list[str] = []
         for filename, template_name in templates.items():
             output_path = out_dir / filename
@@ -130,7 +138,8 @@ class TerraformProxmoxGenerator(BaseGenerator):
                 message=(
                     "generated baseline Proxmox Terraform artifacts: "
                     f"nodes={len(proxmox_nodes)} lxc={len(lxc_instances)} services={len(service_instances)} "
-                    f"caps=[{cap_summary}]"
+                    f"caps=[{cap_summary}] "
+                    f"remote_state={'enabled' if remote_state else 'disabled'}"
                 ),
                 path=str(out_dir),
             )

@@ -1,0 +1,62 @@
+version: "3"
+
+vars:
+  PROJECT_ID: '{{default "home-lab" .PROJECT_ID}}'
+  TF_PROXMOX_DIR: "generated/{{.PROJECT_ID}}/terraform/proxmox"
+  TF_MIKROTIK_DIR: "generated/{{.PROJECT_ID}}/terraform/mikrotik"
+  TF_PLAN_ARGS: '{{default "" .TF_PLAN_ARGS}}'
+
+tasks:
+  validate-proxmox:
+    desc: Terraform fmt+validate for Proxmox lane (local backend)
+    cmds:
+      - terraform -chdir={{.TF_PROXMOX_DIR}} init -backend=false -input=false
+      - terraform -chdir={{.TF_PROXMOX_DIR}} fmt -check
+      - terraform -chdir={{.TF_PROXMOX_DIR}} validate
+
+  validate-mikrotik:
+    desc: Terraform fmt+validate for MikroTik lane (local backend)
+    cmds:
+      - terraform -chdir={{.TF_MIKROTIK_DIR}} init -backend=false -input=false
+      - terraform -chdir={{.TF_MIKROTIK_DIR}} fmt -check
+      - terraform -chdir={{.TF_MIKROTIK_DIR}} validate
+
+  validate-all:
+    desc: Terraform fmt+validate for both lanes
+    cmds:
+      - task terraform:validate-proxmox
+      - task terraform:validate-mikrotik
+
+  plan-proxmox:
+    desc: Terraform plan for Proxmox lane (local backend)
+    cmds:
+      - terraform -chdir={{.TF_PROXMOX_DIR}} init -backend=false -input=false
+      - terraform -chdir={{.TF_PROXMOX_DIR}} plan -refresh=false {{.TF_PLAN_ARGS}}
+
+  plan-mikrotik:
+    desc: Terraform plan for MikroTik lane (local backend)
+    cmds:
+      - terraform -chdir={{.TF_MIKROTIK_DIR}} init -backend=false -input=false
+      - terraform -chdir={{.TF_MIKROTIK_DIR}} plan -refresh=false {{.TF_PLAN_ARGS}}
+
+  init-proxmox-remote:
+    desc: Terraform remote backend init for Proxmox lane (requires BACKEND_CONFIG)
+    requires:
+      vars:
+        - BACKEND_CONFIG
+    preconditions:
+      - sh: 'test -f "{{.BACKEND_CONFIG}}"'
+        msg: "BACKEND_CONFIG file not found."
+    cmds:
+      - terraform -chdir={{.TF_PROXMOX_DIR}} init -reconfigure -input=false -backend-config={{.BACKEND_CONFIG}}
+
+  init-mikrotik-remote:
+    desc: Terraform remote backend init for MikroTik lane (requires BACKEND_CONFIG)
+    requires:
+      vars:
+        - BACKEND_CONFIG
+    preconditions:
+      - sh: 'test -f "{{.BACKEND_CONFIG}}"'
+        msg: "BACKEND_CONFIG file not found."
+    cmds:
+      - terraform -chdir={{.TF_MIKROTIK_DIR}} init -reconfigure -input=false -backend-config={{.BACKEND_CONFIG}}

@@ -56,6 +56,21 @@ Apply is executed only in approved maintenance window:
 terraform -chdir=generated/home-lab/terraform/proxmox apply
 ```
 
+Task shortcut:
+
+```powershell
+task terraform:validate-proxmox
+task terraform:plan-proxmox
+```
+
+Optional remote state mode (when `backend.tf` is generated):
+
+```powershell
+terraform -chdir=generated/home-lab/terraform/proxmox init -reconfigure -input=false `
+  -backend-config=../../../../projects/home-lab/secrets/terraform/proxmox.backend.tfbackend
+terraform -chdir=generated/home-lab/terraform/proxmox plan
+```
+
 ---
 
 ## 5. MikroTik Terraform Lane
@@ -71,6 +86,21 @@ Apply in maintenance window:
 
 ```powershell
 terraform -chdir=generated/home-lab/terraform/mikrotik apply
+```
+
+Task shortcut:
+
+```powershell
+task terraform:validate-mikrotik
+task terraform:plan-mikrotik
+```
+
+Optional remote state mode (when `backend.tf` is generated):
+
+```powershell
+terraform -chdir=generated/home-lab/terraform/mikrotik init -reconfigure -input=false `
+  -backend-config=../../../../projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend
+terraform -chdir=generated/home-lab/terraform/mikrotik plan
 ```
 
 ---

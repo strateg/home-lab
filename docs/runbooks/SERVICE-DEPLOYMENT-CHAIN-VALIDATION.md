@@ -22,10 +22,10 @@
 task framework:strict
 task validate:v5
 python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
-terraform -chdir=generated/home-lab/terraform/proxmox validate
-terraform -chdir=generated/home-lab/terraform/proxmox plan -refresh=false
-terraform -chdir=generated/home-lab/terraform/mikrotik validate
-terraform -chdir=generated/home-lab/terraform/mikrotik plan -refresh=false
+task terraform:validate-proxmox
+task terraform:plan-proxmox
+task terraform:validate-mikrotik
+task terraform:plan-mikrotik
 task ansible:runtime
 ansible-inventory -i generated/home-lab/ansible/runtime/production/hosts.yml --list
 task ansible:syntax

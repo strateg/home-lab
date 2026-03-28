@@ -14,6 +14,10 @@ plugins:
       proxmox_provider_source: "bpg/proxmox"
       proxmox_provider_version: ">= 0.66.0"
       proxmox_api_url: ""
+      terraform_remote_state:
+        enabled: false
+        backend: ""
+        config: {}
       # Capability-driven template mappings (ADR0078)
       capability_templates:
         ceph:
@@ -43,6 +47,21 @@ plugins:
         proxmox_api_url:
           type: string
           description: Optional full Proxmox API endpoint URL override.
+        terraform_remote_state:
+          type: object
+          description: Optional Terraform backend.tf generation for remote state.
+          properties:
+            enabled:
+              type: boolean
+              default: false
+            backend:
+              type: string
+              description: Backend type (for example s3, pg, consul, http).
+            config:
+              type: object
+              description: Backend key-value settings rendered into backend block.
+              additionalProperties: true
+          required: []
         capability_templates:
           type: object
           description: Capability-driven template mappings for conditional artifact generation.

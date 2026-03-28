@@ -578,7 +578,14 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
 
 ### 12.3 Advanced Infrastructure
 
-- [ ] Terraform remote state backend configuration.
+- [x] Terraform remote state backend configuration.
+  - Optional backend.tf generation added for Proxmox/MikroTik generators via
+    `terraform_remote_state` plugin config (`enabled`, `backend`, `config`).
+  - Evidence:
+    - `topology/object-modules/proxmox/templates/terraform/backend.tf.j2`
+    - `topology/object-modules/mikrotik/templates/terraform/backend.tf.j2`
+    - `tests/plugin_integration/test_terraform_proxmox_generator.py`
+    - `tests/plugin_integration/test_terraform_mikrotik_generator.py`
 - [ ] VPN server Terraform for external VPS (business decision required).
 - [ ] W7888 resource profile taxonomy for LXC migration.
 

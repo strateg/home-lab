@@ -99,6 +99,7 @@ def test_terraform_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
         "terraform.tfvars.example",
     }
     assert expected_files.issubset({path.name for path in target_dir.iterdir()})
+    assert not (target_dir / "backend.tf").exists()
 
     lxc_tf = (target_dir / "lxc.tf").read_text(encoding="utf-8")
     assert "lxc-grafana" in lxc_tf
@@ -203,3 +204,27 @@ def test_proxmox_projection_derives_capability_flags_from_rows() -> None:
     assert projection["capabilities"]["has_ceph"] is True
     assert projection["capabilities"]["has_ha"] is True
     assert projection["capabilities"]["has_cloud_init"] is True
+
+
+def test_terraform_proxmox_generator_emits_backend_tf_when_remote_state_enabled(tmp_path: Path) -> None:
+    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
+    ctx = _ctx(tmp_path, _compiled_fixture())
+    ctx.config["terraform_remote_state"] = {
+        "enabled": True,
+        "backend": "s3",
+        "config": {
+            "bucket": "tf-state-home-lab",
+            "region": "eu-central-1",
+            "key": "proxmox/terraform.tfstate",
+            "encrypt": True,
+        },
+    }
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    backend_tf = (tmp_path / "generated" / "terraform" / "proxmox" / "backend.tf").read_text(encoding="utf-8")
+    assert 'backend "s3"' in backend_tf
+    assert 'bucket = "tf-state-home-lab"' in backend_tf
+    assert 'key = "proxmox/terraform.tfstate"' in backend_tf
+    assert "encrypt = true" in backend_tf

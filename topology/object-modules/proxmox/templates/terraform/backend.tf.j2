@@ -1,0 +1,7 @@
+terraform {
+  backend "{{ remote_state_backend }}" {
+{% for item in remote_state_items %}
+    {{ item.key }} = {{ item.value }}
+{% endfor %}
+  }
+}

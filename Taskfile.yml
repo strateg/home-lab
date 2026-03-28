@@ -73,6 +73,11 @@ includes:
     vars:
       PYTHON: "{{.PYTHON}}"
       PROJECT_ID: "{{.PROJECT_ID}}"
+  terraform:
+    taskfile: ./taskfiles/terraform.yml
+    dir: .
+    vars:
+      PROJECT_ID: "{{.PROJECT_ID}}"
 
 tasks:
   clean:
