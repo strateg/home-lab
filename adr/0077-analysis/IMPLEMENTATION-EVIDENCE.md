@@ -1,72 +1,68 @@
 # ADR0077 Implementation Evidence
 
-**Date:** 2026-03-21
+**Date:** 2026-03-28
 **ADR:** `adr/0077-go-task-developer-orchestration.md`
 
-## 1. Legacy Command -> Task Target Mapping
+## 1. Legacy Command -> Task Target Mapping (Root Layout)
 
 | Legacy command / chain | Task target |
 |---|---|
-| `python v5/scripts/orchestration/lane.py validate-v4` | `task validate:v4` |
-| `python v5/scripts/orchestration/lane.py validate-v5` | `task validate:v5` |
-| `V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5` | `task validate:v5-passthrough` |
-| `python v5/scripts/orchestration/lane.py validate-v5-layers` | `task validate:v5-layers` |
-| `python v5/scripts/orchestration/lane.py phase1-gate` | `task validate:phase1-gate` |
-| `python v5/scripts/orchestration/lane.py build-v4` | `task build:v4` |
-| `python v5/scripts/orchestration/lane.py build-v5` | `task build:v5` |
-| `python v5/scripts/phase1/reconcile_phase1_mapping.py` | `task build:phase1-reconcile` |
-| `python v5/scripts/phase1/refresh_phase1_backlog.py` | `task build:phase1-backlog` |
-| `python v5/scripts/model/sync_v5_model_lock.py` | `task build:phase4-sync-lock` |
-| `python v5/scripts/model/export_v5_instance_bindings.py` | `task build:phase4-export` |
-| `black --check . && isort --check-only .` | `task validate:lint` |
-| `mypy --config-file pyproject.toml v4/topology-tools` | `task validate:typecheck` |
-| `pylint v4/topology-tools` | `task validate:pylint` |
-| `python v4/topology-tools/check-adr-consistency.py --strict-titles` | `task validate:adr-consistency` |
-| Full local quality chain | `task validate:quality` |
-| `python v5/topology-tools/verify-framework-lock.py --strict && python v5/topology-tools/rehearse-framework-rollback.py && python v5/topology-tools/validate-framework-compatibility-matrix.py && python v5/topology-tools/audit-strict-runtime-entrypoints.py` | `task framework:strict` |
-| Framework release CI parity chain (`framework:strict` + framework-focused test suite) | `task framework:release-ci` |
-| Local framework release preflight (`validate:v5-passthrough` + strict + framework-focused tests) | `task framework:release-preflight` |
-| `python v5/topology-tools/build-framework-distribution.py --version <version> --archive-format both` | `task framework:release-build FRAMEWORK_VERSION=<version>` |
-| Framework release candidate preparation (preflight + dist + bootstrap extracted repo) | `task framework:release-candidate FRAMEWORK_VERSION=<version>` |
-| `python -m pytest -o addopts= v4/tests -q` | `task test:v4` |
-| `python -m pytest -o addopts= v5/tests -q` | `task test:v5` |
-| `python v4/topology-tools/run-fixture-matrix.py` | `task test:fixture-matrix-v4` |
-| Mandatory local pre-push chain | `task ci:local` |
-| `python-checks` strict chain | `task ci:python-checks-core` |
-| `lane-validation` strict v5 inject chain | `task ci:lane-v5-inject` |
-| `lane-validation` strict v5 passthrough chain | `task ci:lane-v5-passthrough` |
-| `topology-matrix` strict mainline inject chain | `task ci:topology-mainline-inject` |
-| `topology-matrix` strict mainline passthrough chain | `task ci:topology-mainline-passthrough` |
-| `topology-matrix` fixture chain | `task ci:topology-fixture-matrix` |
+| `python scripts/orchestration/lane.py validate-v5` | `task validate:v5` |
+| `V5_SECRETS_MODE=passthrough python scripts/orchestration/lane.py validate-v5` | `task validate:v5-passthrough` |
+| `python scripts/orchestration/lane.py validate-v5-layers` | `task validate:v5-layers` |
+| `python scripts/orchestration/lane.py phase1-gate` | `task validate:phase1-gate` |
+| `python scripts/orchestration/lane.py build-v5` | `task build` |
+| `python scripts/phase1/reconcile_phase1_mapping.py` | `task build:phase1-reconcile` |
+| `python scripts/phase1/refresh_phase1_backlog.py` | `task build:phase1-backlog` |
+| `python scripts/model/sync_v5_model_lock.py` | `task build:sync-lock` |
+| `python scripts/model/export_v5_instance_bindings.py` | `task build:export-bindings` |
+| `black --check ... && isort --check-only ...` | `task validate:lint` |
+| `mypy --config-file pyproject.toml topology-tools` | `task validate:typecheck` |
+| `pylint topology-tools` | `task validate:pylint` |
+| Full strict framework chain (`verify-lock`, `rollback`, `compatibility`, `audit`) | `task framework:strict` |
+| Root layout + v5 lane validation chain | `task validate:default` |
+| Root tests | `task test` |
+| v4/v5 parity suite | `task test:parity-v4-v5` |
+| Plugin API/contract/integration/regression test lanes | `task test:plugin-api`, `task test:plugin-contract`, `task test:plugin-integration`, `task test:plugin-regression` |
+| Plugin manifests schema/path validation | `task validate:plugin-manifests` |
+| Generated/runtime cleanup before lanes | `task clean` / `task build:clean-generated` |
+| Local pre-push gate | `task ci:local` |
+| Local pre-push + legacy checks | `task ci:local-with-legacy` |
+| `python-checks` strict lane | `task ci:python-checks-core` |
+| `lane-validation` lane | `task ci:lane-v5` |
+| `topology-matrix` strict mainline lane | `task ci:topology-mainline` |
+| Legacy maintenance lane (archive v4 parity + acceptance) | `task ci:legacy-maintenance` |
 
-## 2. CI Fallback Switch Contract
+## 2. CI Fallback Contract State
 
-All migrated workflows use the same explicit and reversible contract:
+Primary repository workflows are now **Task-first without inline fallback chains**:
 
-- `USE_TASK_ORCHESTRATION=1` enables task-first execution.
-- `ALLOW_TASK_FALLBACK=1` allows fallback to legacy inline commands when task execution fails.
-- `ALLOW_TASK_FALLBACK=0` makes task failure blocking (no legacy fallback).
+1. `.github/workflows/python-checks.yml`
+2. `.github/workflows/lane-validation.yml`
+3. `.github/workflows/topology-matrix.yml`
+4. `.github/workflows/plugin-validation.yml`
+
+Historical fallback env switches (`USE_TASK_ORCHESTRATION`, `ALLOW_TASK_FALLBACK`) were used during migration waves and are now retired from active primary workflows after parity stabilization.
 
 ## 3. Toolchain Version Policy Evidence
 
 - Minimum supported local `go-task` version: `3.45.4`.
 - CI pin: `arduino/setup-task@v2` with `version: 3.45.4`.
-- Local setup script default: `TASK_VERSION=3.45.4` in `v5/scripts/environment/setup-dev-environment.sh`.
 
 ## 4. KPI Evidence Source Definition
 
 Stabilization evidence is collected from:
 
 1. CI telemetry/log sampling:
-   - task invocation success in migrated workflows (`task ci:*`, `task validate:*`).
-   - fallback events (`Task orchestration failed; executing legacy fallback chain.`).
+   - task invocation success in migrated workflows (`task ci:*`, `task validate:*`, `task test:*`).
+   - absence of inline fallback execution chains in primary workflows.
 2. Workflow usage report:
-   - count of jobs with `USE_TASK_ORCHESTRATION=1`.
-   - count of jobs still running direct non-task chains.
+   - count of jobs using `task` entrypoints as primary execution path.
+   - count of jobs still using duplicated inline orchestration logic.
 3. Local command-surface sampling:
-   - weekly review of documented/automated entrypoints (`README`, `Taskfile.yml`, `taskfiles/*`) to ensure Task-first growth.
+   - weekly review of documented/automated entrypoints (`README.md`, `Taskfile.yml`, `taskfiles/*`) for Task-first consistency.
 
 Review cadence:
 
-- End of Wave 3 stabilization window: compile parity summary and mismatch count.
-- Acceptance condition for cleanup: no critical parity mismatches across mandatory CI paths in the window.
+- End of stabilization window: parity summary + drift incidents.
+- Acceptance condition for cleanup: no critical parity mismatches and no orchestration drift across mandatory CI paths.
