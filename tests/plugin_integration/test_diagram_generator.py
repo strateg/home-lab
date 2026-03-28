@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import sys
 from pathlib import Path
@@ -158,3 +159,47 @@ def test_diagram_generator_supports_icon_mode_override_via_env(tmp_path: Path) -
     assert result.status == PluginStatus.SUCCESS
     network = (tmp_path / "generated" / "docs" / "diagrams" / "network-topology.md").read_text(encoding="utf-8")
     assert "@{ icon:" in network
+
+
+def test_diagram_generator_emits_icon_cache_manifest_in_icon_node_mode(tmp_path: Path) -> None:
+    icon_pack = {
+        "prefix": "mdi",
+        "width": 24,
+        "height": 24,
+        "icons": {
+            "router-network": {"body": "<path d='M1 1h22v22H1z'/>"},
+            "shield-half-full": {"body": "<path d='M2 2h20v20H2z'/>"},
+            "lan": {"body": "<path d='M3 3h18v18H3z'/>"},
+            "bridge": {"body": "<path d='M4 4h16v16H4z'/>"},
+            "cube-outline": {"body": "<path d='M5 5h14v14H5z'/>"},
+            "chart-line": {"body": "<path d='M6 6h12v12H6z'/>"},
+        },
+    }
+    pack_dir = tmp_path / "workspace" / "node_modules" / "@iconify-json" / "mdi"
+    pack_dir.mkdir(parents=True)
+    (pack_dir / "icons.json").write_text(json.dumps(icon_pack), encoding="utf-8")
+
+    generator = DiagramGenerator("base.generator.diagrams")
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json=_compiled_fixture(),
+        output_dir=str(tmp_path / "build"),
+        config={
+            "generator_artifacts_root": str(tmp_path / "generated"),
+            "mermaid_icon_mode": "icon-nodes",
+            "icon_pack_search_roots": [str(tmp_path / "workspace")],
+        },
+    )
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    cache_root = tmp_path / "generated" / "docs" / "diagrams" / "icons"
+    manifest_path = cache_root / "icon-cache.json"
+    assert manifest_path.exists()
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["icons_total"] > 0
+    assert manifest["icons_resolved"] > 0
+    assert "mdi" in manifest["packs_loaded"]

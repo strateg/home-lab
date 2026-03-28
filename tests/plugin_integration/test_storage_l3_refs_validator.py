@@ -390,6 +390,123 @@ def test_storage_l3_refs_validator_warns_on_unknown_infer_from_vg_name():
     assert any(diag.code == "W7867" for diag in result.diagnostics)
 
 
+def test_storage_l3_refs_validator_warns_when_infer_from_combines_with_lv_ref():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "media_attachments",
+                "instance": "attach.a",
+                "class_ref": "class.storage.media_attachment",
+                "layer": "L1",
+            },
+            {
+                "group": "storage",
+                "instance": "part.a",
+                "class_ref": "class.storage.partition",
+                "layer": "L3",
+                "extensions": {"media_attachment_ref": "attach.a"},
+            },
+            {
+                "group": "storage",
+                "instance": "vg.a",
+                "class_ref": "class.storage.volume_group",
+                "layer": "L3",
+                "extensions": {"name": "vg-local", "pv_refs": ["part.a"]},
+            },
+            {
+                "group": "storage",
+                "instance": "lv.a",
+                "class_ref": "class.storage.logical_volume",
+                "layer": "L3",
+                "extensions": {"name": "thinpool", "vg_ref": "vg.a"},
+            },
+            {
+                "group": "storage",
+                "instance": "endpoint.a",
+                "class_ref": "class.storage.storage_endpoint",
+                "layer": "L3",
+                "extensions": {
+                    "type": "lvmthin",
+                    "lv_ref": "lv.a",
+                    "infer_from": {
+                        "media_attachment_ref": "attach.a",
+                        "vg_name": "vg-local",
+                        "lv_name": "thinpool",
+                    },
+                },
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7866" for diag in result.diagnostics)
+
+
+def test_storage_l3_refs_validator_warns_when_infer_from_lv_name_mismatches_vg():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "group": "media_attachments",
+                "instance": "attach.a",
+                "class_ref": "class.storage.media_attachment",
+                "layer": "L1",
+            },
+            {
+                "group": "storage",
+                "instance": "part.a",
+                "class_ref": "class.storage.partition",
+                "layer": "L3",
+                "extensions": {"media_attachment_ref": "attach.a"},
+            },
+            {
+                "group": "storage",
+                "instance": "vg.a",
+                "class_ref": "class.storage.volume_group",
+                "layer": "L3",
+                "extensions": {"name": "vg-local", "pv_refs": ["part.a"]},
+            },
+            {
+                "group": "storage",
+                "instance": "vg.b",
+                "class_ref": "class.storage.volume_group",
+                "layer": "L3",
+                "extensions": {"name": "vg-other"},
+            },
+            {
+                "group": "storage",
+                "instance": "lv.other",
+                "class_ref": "class.storage.logical_volume",
+                "layer": "L3",
+                "extensions": {"name": "lv-other", "vg_ref": "vg.b"},
+            },
+            {
+                "group": "storage",
+                "instance": "endpoint.a",
+                "class_ref": "class.storage.storage_endpoint",
+                "layer": "L3",
+                "extensions": {
+                    "infer_from": {
+                        "media_attachment_ref": "attach.a",
+                        "vg_name": "vg-local",
+                        "lv_name": "lv-other",
+                    }
+                },
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7868" for diag in result.diagnostics)
+
+
 def test_storage_l3_refs_validator_warns_on_unknown_backup_policy_alias():
     registry = _registry()
     ctx = _context()

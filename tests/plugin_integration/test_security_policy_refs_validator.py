@@ -85,6 +85,31 @@ def test_security_policy_refs_validator_rejects_unknown_policy_ref():
     assert any(diag.code == "E7859" for diag in result.diagnostics)
 
 
+def test_security_policy_refs_validator_rejects_non_string_policy_ref():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[1]["extensions"]["security_policy_ref"] = {"id": "sec-policy-default"}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7859" for diag in result.diagnostics)
+
+
+def test_security_policy_refs_validator_accepts_legacy_group_based_policy_row():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[0]["group"] = "security_policy"  # type: ignore[index]
+    rows[0]["class_ref"] = "class.misc"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
 def test_security_policy_refs_validator_requires_compiler_rows():
     registry = _registry()
     ctx = _context()

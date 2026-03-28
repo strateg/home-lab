@@ -1135,6 +1135,13 @@ plugins:
           description: >
             Mermaid rendering mode (ADR 0027): icon-nodes uses @{ icon } syntax,
             compat uses labelled plain nodes, none disables icons entirely.
+        icon_pack_search_roots:
+          type: array
+          items:
+            type: string
+          description: >
+            Optional filesystem roots used to discover local Iconify packs under
+            node_modules/@iconify-json for icon-node SVG cache emission.
       required: []
     produces:
       - key: diagram_dir

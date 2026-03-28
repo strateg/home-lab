@@ -33,6 +33,7 @@ task validate:quality
 task validate:v5
 task validate:v5-layers
 task validate:workspace-layout
+task validate:plugin-manifests
 task test
 task test:parity-v4-v5
 task clean
@@ -40,14 +41,17 @@ task build
 task build:v5-docs
 task ci:local
 task ci:local-with-legacy
+task ci:legacy-maintenance
 task framework:strict
 task framework:cutover-readiness-quick
 task framework:cutover-readiness
 task acceptance:tests-all
 task ansible:install-collections
 task ansible:runtime
+task ansible:runtime-inject
 task ansible:syntax
 task ansible:check-site
+task ansible:check-site-inject
 ```
 
 ## V5 Deploy Workflow

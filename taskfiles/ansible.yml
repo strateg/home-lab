@@ -35,6 +35,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/assemble-ansible-runtime.py --topology topology/topology.yaml --project {{.PROJECT_ID}} --env {{.ENV}}"
 
+  runtime-inject:
+    desc: Assemble Ansible runtime inventory with decrypted SOPS secrets injection
+    cmds:
+      - "{{.PYTHON}} topology-tools/assemble-ansible-runtime.py --topology topology/topology.yaml --project {{.PROJECT_ID}} --env {{.ENV}} --inject-secrets"
+
   syntax:
     desc: Syntax-check integrated service playbooks
     deps:
@@ -55,6 +60,18 @@ tasks:
     desc: Run integrated service stack in Ansible check mode
     deps:
       - runtime
+    preconditions:
+      - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
+        msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
+    env:
+      ANSIBLE_CONFIG: "{{.PROJECT_ANSIBLE_ROOT}}/ansible.cfg"
+    cmds:
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/site.yml --check"
+
+  check-site-inject:
+    desc: Run integrated service stack in check mode with runtime secret injection
+    deps:
+      - runtime-inject
     preconditions:
       - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
         msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
@@ -115,6 +132,18 @@ tasks:
     desc: Apply integrated service stack playbook
     deps:
       - runtime
+    preconditions:
+      - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
+        msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."
+    env:
+      ANSIBLE_CONFIG: "{{.PROJECT_ANSIBLE_ROOT}}/ansible.cfg"
+    cmds:
+      - "{{.ANSIBLE_PLAYBOOK}} -i {{.INVENTORY_RUNTIME}} {{.PLAYBOOK_ROOT}}/site.yml"
+
+  apply-site-inject:
+    desc: Apply integrated service stack with runtime secret injection
+    deps:
+      - runtime-inject
     preconditions:
       - sh: "{{.ANSIBLE_PLAYBOOK}} --version >/dev/null 2>&1"
         msg: "ansible-playbook CLI is unavailable in current shell. Use Linux/WSL Ansible runtime and retry."

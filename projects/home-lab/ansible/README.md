@@ -21,8 +21,10 @@ Inventory is generated into:
 ```powershell
 task ansible:install-collections
 task ansible:runtime
+task ansible:runtime-inject
 task ansible:syntax
 task ansible:check-site
+task ansible:check-site-inject
 ```
 
 To enable monitoring stack container apply:
@@ -34,3 +36,14 @@ ansible-playbook -i generated/home-lab/ansible/runtime/production/hosts.yml proj
 ## Runtime Note
 
 If `ansible-playbook` fails on Windows with `OSError: [WinError 87]`, run the playbook lane from Linux/WSL where `ansible-core` CLI is fully supported.
+
+## Secrets Injection
+
+For maintenance windows where decrypted service secrets are required at runtime:
+
+1. Unlock secrets (`scripts/secrets/unlock-secrets.*`) so `sops -d` can read `projects/home-lab/secrets/ansible/vault.yaml`.
+2. Run `task ansible:runtime-inject` (or `task ansible:check-site-inject`).
+3. Runtime writes decrypted vars to:
+   - `generated/home-lab/ansible/runtime/production/group_vars/all/99-secrets.runtime.yml`
+
+This file is runtime-only and regenerated on each run.

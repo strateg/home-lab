@@ -86,6 +86,36 @@ def test_dns_refs_validator_rejects_unknown_service_ref():
     assert any(diag.code == "E7856" for diag in result.diagnostics)
 
 
+def test_dns_refs_validator_accepts_direct_records_payload_shape():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["extensions"] = {  # type: ignore[index]
+        "records": [
+            {"name": "router", "device_ref": "srv-a"},
+            {"name": "container", "lxc_ref": "lxc-a"},
+            {"name": "app", "service_ref": "svc-a"},
+        ]
+    }
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_dns_refs_validator_rejects_non_object_record_entry():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["extensions"] = {"records": ["legacy-record"]}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7856" for diag in result.diagnostics)
+
+
 def test_dns_refs_validator_requires_compiler_rows():
     registry = _registry()
     ctx = _context()

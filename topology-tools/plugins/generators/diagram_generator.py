@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+from typing import Any
 
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage
 from plugins.generators.base_generator import BaseGenerator
 from plugins.generators.projections import ProjectionError, build_diagram_projection
+from plugins.icons.icon_manager import IconManager
 
 # Supported icon modes (ADR 0027)
 _ICON_MODE_ICON_NODES = "icon-nodes"
@@ -26,6 +29,31 @@ _ICON_RUNTIME_HINTS = {
 
 class DiagramGenerator(BaseGenerator):
     """Emit Mermaid-based topology diagram pages from v5 compiled model (ADR 0027)."""
+
+    @staticmethod
+    def _collect_icon_ids(projection: dict[str, Any]) -> list[str]:
+        icon_ids: set[str] = set()
+        for key in ("devices", "trust_zones", "vlans", "bridges", "services", "lxc"):
+            rows = projection.get(key)
+            if not isinstance(rows, list):
+                continue
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                icon = row.get("icon")
+                if isinstance(icon, str) and ":" in icon:
+                    icon_ids.add(icon)
+        return sorted(icon_ids)
+
+    @staticmethod
+    def _icon_manager(ctx: PluginContext) -> IconManager:
+        raw_roots = ctx.config.get("icon_pack_search_roots", [])
+        roots: list[Path] = []
+        if isinstance(raw_roots, str) and raw_roots.strip():
+            roots = [Path(raw_roots.strip())]
+        elif isinstance(raw_roots, list):
+            roots = [Path(item) for item in raw_roots if isinstance(item, str) and item.strip()]
+        return IconManager(search_roots=roots or None)
 
     def _icon_mode(self, ctx: PluginContext) -> str:
         # env var overrides plugin config (useful from task/CI without manifest edit)
@@ -109,6 +137,28 @@ class DiagramGenerator(BaseGenerator):
                         path=f"generator:diagrams/{output_name}",
                     )
                 )
+
+        if icon_mode == _ICON_MODE_ICON_NODES:
+            icon_manager = self._icon_manager(ctx)
+            icon_ids = self._collect_icon_ids(projection)
+            cache_result = icon_manager.cache_svg_assets(icon_ids, diagrams_root / "icons")
+            manifest_path = str(cache_result.get("manifest_path", ""))
+            if manifest_path:
+                generated_files.append(manifest_path)
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I9802",
+                    severity="info",
+                    stage=stage,
+                    message=(
+                        "icon cache prepared for mermaid icon-nodes: "
+                        f"resolved={cache_result.get('resolved_count', 0)}/"
+                        f"{cache_result.get('icons_total', 0)} "
+                        f"packs={','.join(cache_result.get('packs_loaded', [])) or 'none'}"
+                    ),
+                    path=str(diagrams_root / "icons"),
+                )
+            )
 
         if generated_files:
             generated_files_path = diagrams_root / "_generated_files.txt"

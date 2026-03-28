@@ -22,9 +22,10 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import yaml
 
@@ -58,6 +59,7 @@ DEFAULT_PROJECT = _load_active_project(DEFAULT_TOPOLOGY)
 GENERATED_INV = REPO_ROOT / "generated" / DEFAULT_PROJECT / "ansible" / "inventory" / DEFAULT_ENV
 MANUAL_OVERRIDES = REPO_ROOT / "projects" / DEFAULT_PROJECT / "ansible" / "inventory-overrides" / DEFAULT_ENV
 RUNTIME_INV = REPO_ROOT / "generated" / DEFAULT_PROJECT / "ansible" / "runtime" / DEFAULT_ENV
+DEFAULT_ANSIBLE_SECRETS = REPO_ROOT / "projects" / DEFAULT_PROJECT / "secrets" / "ansible" / "vault.yaml"
 
 
 class ValidationError(NamedTuple):
@@ -126,11 +128,30 @@ def validate_no_forbidden_overrides(file_path: Path, allowlist: list[str]) -> li
     return errors
 
 
+def _decrypt_yaml_via_sops(secret_file: Path) -> dict[str, Any]:
+    command = ["sops", "-d", str(secret_file)]
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+    except FileNotFoundError as exc:
+        raise RuntimeError("sops binary is not available in PATH. Install sops first.") from exc
+    except OSError as exc:
+        raise RuntimeError(f"Failed to execute sops for '{secret_file}': {exc}") from exc
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()
+        raise RuntimeError(f"sops decryption failed for '{secret_file}' (exit={result.returncode}): {stderr}")
+    payload = yaml.safe_load(result.stdout) or {}
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Decrypted ansible secrets payload must be mapping/object: {secret_file}")
+    return payload
+
+
 def assemble_runtime_inventory(
     generated_dir: Path = GENERATED_INV,
     manual_dir: Path = MANUAL_OVERRIDES,
     runtime_dir: Path = RUNTIME_INV,
     allowlist: list[str] | None = None,
+    inject_secrets: bool = False,
+    ansible_secrets_file: Path = DEFAULT_ANSIBLE_SECRETS,
     verbose: bool = True,
 ) -> tuple[bool, list[ValidationError]]:
     """
@@ -204,6 +225,37 @@ def assemble_runtime_inventory(
             print("SKIP  No manual group_vars/all.yml found")
     elif verbose:
         print(f"SKIP  Manual overrides directory not found: {manual_dir}")
+
+    if inject_secrets:
+        if not ansible_secrets_file.exists():
+            errors.append(
+                ValidationError(
+                    path=ansible_secrets_file,
+                    message="Ansible secrets file is missing; cannot inject runtime secrets.",
+                )
+            )
+        else:
+            try:
+                secrets_payload = _decrypt_yaml_via_sops(ansible_secrets_file)
+            except RuntimeError as exc:
+                errors.append(
+                    ValidationError(
+                        path=ansible_secrets_file,
+                        message=str(exc),
+                    )
+                )
+            else:
+                runtime_secrets_path = group_vars_dir / "99-secrets.runtime.yml"
+                runtime_secrets_path.write_text(
+                    yaml.safe_dump(
+                        secrets_payload,
+                        sort_keys=True,
+                        allow_unicode=False,
+                    ),
+                    encoding="utf-8",
+                )
+                if verbose:
+                    print("COPY  group_vars/all/99-secrets.runtime.yml (from decrypted ansible secrets)")
 
     # 3. Copy host_vars
     host_vars_dir = runtime_dir / "host_vars"
@@ -313,6 +365,17 @@ def main() -> int:
         help="Host files allowed to override generated values",
     )
     parser.add_argument(
+        "--inject-secrets",
+        action="store_true",
+        help="Decrypt projects/<project>/secrets/ansible/vault.yaml via sops and inject as runtime group_vars.",
+    )
+    parser.add_argument(
+        "--secrets-file",
+        type=Path,
+        default=None,
+        help="Path to SOPS-encrypted ansible secrets yaml (defaults to projects/<project>/secrets/ansible/vault.yaml).",
+    )
+    parser.add_argument(
         "--quiet",
         action="store_true",
         help="Suppress verbose output",
@@ -337,12 +400,19 @@ def main() -> int:
         if isinstance(args.runtime_dir, Path)
         else REPO_ROOT / "generated" / project_id / "ansible" / "runtime" / env
     )
+    ansible_secrets_file = (
+        args.secrets_file
+        if isinstance(args.secrets_file, Path)
+        else REPO_ROOT / "projects" / project_id / "secrets" / "ansible" / "vault.yaml"
+    )
 
     success, _ = assemble_runtime_inventory(
         generated_dir=generated_dir,
         manual_dir=manual_dir,
         runtime_dir=runtime_dir,
         allowlist=args.allowlist,
+        inject_secrets=bool(args.inject_secrets),
+        ansible_secrets_file=ansible_secrets_file,
         verbose=not args.quiet,
     )
 

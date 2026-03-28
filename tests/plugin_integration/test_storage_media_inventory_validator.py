@@ -126,6 +126,57 @@ def test_storage_media_inventory_validator_rejects_unknown_media_ref():
     assert any(diag.code == "E7854" for diag in result.diagnostics)
 
 
+def test_storage_media_inventory_validator_rejects_duplicate_media_registry_id():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows.insert(
+        2,
+        {
+            "group": "media_registry",
+            "instance": "disk-ssd-1",
+            "layer": "L1",
+            "class_ref": "class.storage.media",
+            "extensions": {
+                "media_type": "ssd",
+                "supported_buses": ["sata"],
+                "removable": False,
+                "virtual": False,
+            },
+        },
+    )
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7854" for diag in result.diagnostics)
+
+
+def test_storage_media_inventory_validator_rejects_present_media_claimed_by_multiple_slots():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows.append(
+        {
+            "group": "media_attachments",
+            "instance": "attach-2",
+            "layer": "L1",
+            "class_ref": "class.storage.media_attachment",
+            "extensions": {
+                "device_ref": "device-a",
+                "slot_ref": "slot1",
+                "media_ref": "disk-ssd-1",
+                "state": "present",
+            },
+        }
+    )
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7854" for diag in result.diagnostics)
+
+
 def test_storage_media_inventory_validator_requires_compiler_rows():
     registry = _registry()
     ctx = _context()

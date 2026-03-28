@@ -118,6 +118,29 @@ def test_storage_device_taxonomy_validator_rejects_mount_bus_incompatibility():
     assert any(diag.code == "E7852" for diag in result.diagnostics)
 
 
+def test_storage_device_taxonomy_validator_warns_on_legacy_os_block_without_planned_state():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[0]["extensions"]["os"] = {"supported_operating_systems": ["linux"]}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7853" for diag in result.diagnostics)
+
+
+def test_storage_device_taxonomy_validator_warns_when_slots_have_no_attached_media():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()[:2]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7853" for diag in result.diagnostics)
+
+
 def test_storage_device_taxonomy_validator_requires_compiler_rows():
     registry = _registry()
     ctx = _context()

@@ -87,6 +87,18 @@ def test_lxc_refs_validator_rejects_unknown_network_ref():
     assert any(diag.code == "E7885" for diag in result.diagnostics)
 
 
+def test_lxc_refs_validator_rejects_wrong_bridge_ref_target():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["extensions"]["networks"] = [{"network_ref": "vlan-a", "bridge_ref": "srv-a"}]  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7885" for diag in result.diagnostics)
+
+
 def test_lxc_refs_validator_rejects_unknown_data_asset_ref():
     registry = _registry()
     ctx = _context()

@@ -243,3 +243,96 @@ class TestRuntimeAssembly:
         )
 
         assert not success
+
+    def test_assembly_injects_runtime_secrets_from_sops(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "assemble_ansible_runtime",
+            V5_TOOLS / "assemble-ansible-runtime.py",
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        generated_dir = tmp_path / "generated"
+        runtime_dir = tmp_path / "runtime"
+        manual_dir = tmp_path / "manual"
+        secret_file = tmp_path / "secrets" / "ansible" / "vault.yaml"
+
+        generated_dir.mkdir(parents=True)
+        (generated_dir / "hosts.yml").write_text("all:\n  hosts: {}", encoding="utf-8")
+        gen_gv = generated_dir / "group_vars"
+        gen_gv.mkdir()
+        (gen_gv / "all.yml").write_text("topology_lane: v5\n", encoding="utf-8")
+        secret_file.parent.mkdir(parents=True)
+        secret_file.write_text("dummy: encrypted\n", encoding="utf-8")
+
+        class _Result:
+            returncode = 0
+            stdout = "postgresql_password: 'pg-secret'\nredis_password: 'redis-secret'\n"
+            stderr = ""
+
+        monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: _Result())
+
+        success, errors = module.assemble_runtime_inventory(
+            generated_dir=generated_dir,
+            manual_dir=manual_dir,
+            runtime_dir=runtime_dir,
+            inject_secrets=True,
+            ansible_secrets_file=secret_file,
+            verbose=False,
+        )
+
+        assert success
+        assert errors == []
+        runtime_secret = runtime_dir / "group_vars" / "all" / "99-secrets.runtime.yml"
+        assert runtime_secret.exists()
+        payload = runtime_secret.read_text(encoding="utf-8")
+        assert "postgresql_password: pg-secret" in payload
+        assert "redis_password: redis-secret" in payload
+
+    def test_assembly_reports_sops_failure_when_injecting_secrets(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "assemble_ansible_runtime",
+            V5_TOOLS / "assemble-ansible-runtime.py",
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        generated_dir = tmp_path / "generated"
+        runtime_dir = tmp_path / "runtime"
+        manual_dir = tmp_path / "manual"
+        secret_file = tmp_path / "secrets" / "ansible" / "vault.yaml"
+
+        generated_dir.mkdir(parents=True)
+        (generated_dir / "hosts.yml").write_text("all:\n  hosts: {}", encoding="utf-8")
+        gen_gv = generated_dir / "group_vars"
+        gen_gv.mkdir()
+        (gen_gv / "all.yml").write_text("topology_lane: v5\n", encoding="utf-8")
+        secret_file.parent.mkdir(parents=True)
+        secret_file.write_text("dummy: encrypted\n", encoding="utf-8")
+
+        class _Result:
+            returncode = 1
+            stdout = ""
+            stderr = "decryption failed"
+
+        monkeypatch.setattr(module.subprocess, "run", lambda *args, **kwargs: _Result())
+
+        success, errors = module.assemble_runtime_inventory(
+            generated_dir=generated_dir,
+            manual_dir=manual_dir,
+            runtime_dir=runtime_dir,
+            inject_secrets=True,
+            ansible_secrets_file=secret_file,
+            verbose=False,
+        )
+
+        assert not success
+        assert any("sops decryption failed" in err.message for err in errors)

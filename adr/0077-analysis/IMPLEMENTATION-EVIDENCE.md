@@ -22,6 +22,7 @@
 | Full strict framework chain (`verify-lock`, `rollback`, `compatibility`, `audit`) | `task framework:strict` |
 | Root layout + v5 lane validation chain | `task validate:default` |
 | Root tests | `task test` |
+| Root tests with CI coverage artifact | `task test:ci-coverage` |
 | v4/v5 parity suite | `task test:parity-v4-v5` |
 | Plugin API/contract/integration/regression test lanes | `task test:plugin-api`, `task test:plugin-contract`, `task test:plugin-integration`, `task test:plugin-regression` |
 | Plugin manifests schema/path validation | `task validate:plugin-manifests` |

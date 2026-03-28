@@ -21,14 +21,18 @@
 ```powershell
 task framework:strict
 task validate:v5
+task validate:plugin-manifests
 task clean
 task framework:release-tests
+task ci:legacy-maintenance
 task acceptance:tests-all
 task framework:cutover-readiness
 task ansible:install-collections
 task ansible:runtime
+task ansible:runtime-inject
 task ansible:syntax
 task ansible:check-site
+task ansible:check-site-inject
 ```
 
 ## Краткий v5 deploy workflow

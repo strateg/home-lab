@@ -3,7 +3,7 @@
 **Created:** 2026-03-15
 **Revised:** 2026-03-28
 **Goal:** Complete v4→v5 migration and achieve full production parity
-**Current State:** Core infrastructure generation operational (Phases 0-6 complete, E2E validated 2026-03-24). Remaining: v4 validator parity cutover, docs icon-pack hardening, cross-layer relation backlog, service-chain execution evidence + secret distribution integration.
+**Current State:** Core infrastructure generation operational (Phases 0-6 complete, E2E validated 2026-03-24). Remaining: v4 validator parity cutover, cross-layer relation backlog, service-chain execution evidence, and advanced infrastructure backlog.
 
 ---
 
@@ -23,9 +23,9 @@ v5 architecture is **operational for deployable artifacts** with:
 
 **Remaining gaps (by priority):**
 - P0: Hardware identity closure (Phase 7), v4 validator staged cutover
-- P1: Documentation & diagram generation (ADR 0079, template parity delivered; icon-pack runtime hardening pending)
+- P1: Documentation & diagram generation (ADR 0079, template parity delivered; icon-pack availability remains environment-dependent)
 - P1: Cross-layer relation validators (ADR 0062)
-- P2: Service-chain execution evidence, secret distribution and advanced infra backlog (Phase 12.2/12.3), optional multi-repo extraction (ADR 0076)
+- P2: Service-chain execution evidence and advanced infra backlog (Phase 12.2/12.3), optional multi-repo extraction (ADR 0076)
 
 ---
 
@@ -391,17 +391,26 @@ All 30 v4 validators have v5 plugin replacements registered. Current status: `Co
 
 ### 9.4 References Domain
 
-- [ ] Lock host_os non-extension payload path fixtures.
-- [ ] Lock vm_refs architecture/capability/storage/bridge parity fixtures.
-- [ ] Lock lxc_refs architecture/capability/storage/deprecation parity fixtures.
-- [ ] Lock service_refs runtime/dependency/external_services warning parity.
-- [ ] Lock DNS, certificate, backup, security_policy fixture parity.
+- [x] Lock host_os non-extension payload path fixtures.
+- [x] Lock vm_refs architecture/capability/storage/bridge parity fixtures.
+- [x] Lock lxc_refs architecture/capability/storage/deprecation parity fixtures.
+- [x] Lock service_refs runtime/dependency/external_services warning parity.
+- [x] Lock DNS, certificate, backup, security_policy fixture parity.
 
 ### 9.5 Storage Domain
 
-- [ ] Lock hardware edge fixture parity for device_storage_taxonomy.
-- [ ] Lock media-attachment edge fixtures for l1_media_inventory.
-- [ ] Lock infer_from warning semantics for l3_storage_refs.
+- [x] Lock hardware edge fixture parity for device_storage_taxonomy.
+- [x] Lock media-attachment edge fixtures for l1_media_inventory.
+- [x] Lock infer_from warning semantics for l3_storage_refs.
+
+Evidence (2026-03-28): expanded parity fixtures in `tests/plugin_integration/test_host_os_refs_validator.py`,
+`tests/plugin_integration/test_vm_refs_validator.py`, `tests/plugin_integration/test_lxc_refs_validator.py`,
+`tests/plugin_integration/test_service_runtime_refs_validator.py`, `tests/plugin_integration/test_service_dependency_refs_validator.py`,
+`tests/plugin_integration/test_dns_refs_validator.py`, `tests/plugin_integration/test_certificate_refs_validator.py`,
+`tests/plugin_integration/test_backup_refs_validator.py`, `tests/plugin_integration/test_security_policy_refs_validator.py`,
+`tests/plugin_integration/test_storage_device_taxonomy_validator.py`,
+`tests/plugin_integration/test_storage_media_inventory_validator.py`, and
+`tests/plugin_integration/test_storage_l3_refs_validator.py`.
 
 ### 9.6 Cutover Execution
 
@@ -465,9 +474,10 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 
 - [x] Icon manager: centralized resolver module introduced for docs/diagrams.
 - [x] Icon mapping registry (class/service/zone mappings) integrated.
-- [ ] SVG caching and Mermaid icon-node rendering.
+- [x] SVG caching and Mermaid icon-node rendering.
 - [x] Icon legend template and diagrams-index template.
 - [x] Mermaid render validation quality gate.
+- [x] Local icon-pack cache manifest emitted at `generated/<project>/docs/diagrams/icons/icon-cache.json` (resolved/unresolved inventory, deterministic output).
 
 ### Phase 10 Definition of Done
 
@@ -534,7 +544,10 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 - [x] Full Redis deployment playbook integrated under `projects/home-lab/ansible/playbooks/redis.yml`.
 - [x] Monitoring stack playbooks integrated under `projects/home-lab/ansible/playbooks/monitoring.yml`.
 - [x] Dry-run evidence captured in `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md`.
-- [ ] Secret distribution via Ansible (SOPS/age integration per ADR 0072).
+- [x] Secret distribution via Ansible runtime injection (SOPS/age integration baseline per ADR 0072):
+  - `topology-tools/assemble-ansible-runtime.py --inject-secrets`
+  - `task ansible:runtime-inject`
+  - runtime output `generated/<project>/ansible/runtime/<env>/group_vars/all/99-secrets.runtime.yml`.
 
 ### 12.3 Advanced Infrastructure
 
@@ -666,7 +679,7 @@ Progress is tracked in:
 | Phase 7: Hardware Identity | Completed (placeholder closure + strict CI gate, 2026-03-27) | - |
 | Phase 8.3: Cutover Docs | Completed (README + README-РУССКИЙ v5 workflow and maintenance-only policy, 2026-03-28) | - |
 | Phase 9: V4 Validator Cutover | Active (staged, all rows Covered/Partial) | P0 |
-| Phase 10: Docs/Diagrams | Active (template parity delivered; icon-pack runtime hardening pending) | P1 |
+| Phase 10: Docs/Diagrams | Active (template parity delivered; icon-node cache/runtime implemented, icon-pack availability environment-dependent) | P1 |
 | Phase 11: ADR Backlog | Active (governance closure done; relation backlog pending) | P1 |
-| Phase 12: Operational Readiness | Active (runbooks + service playbooks + dry evidence; secret distribution/advanced infra/full execution pending) | P2 |
+| Phase 12: Operational Readiness | Active (runbooks + service playbooks + dry evidence + runtime secret injection; advanced infra/full execution pending) | P2 |
 | Phase 13: Multi-Repo | Deferred | P2 |

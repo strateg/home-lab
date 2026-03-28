@@ -83,6 +83,30 @@ def test_backup_refs_validator_rejects_unknown_data_asset_ref():
     assert any(diag.code == "E7858" for diag in result.diagnostics)
 
 
+def test_backup_refs_validator_rejects_non_list_targets_payload():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["extensions"]["targets"] = {"device_ref": "srv-a"}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7858" for diag in result.diagnostics)
+
+
+def test_backup_refs_validator_rejects_invalid_destination_ref_class():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["extensions"]["destination_ref"] = "asset-a"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7858" for diag in result.diagnostics)
+
+
 def test_backup_refs_validator_requires_compiler_rows():
     registry = _registry()
     ctx = _context()

@@ -77,6 +77,30 @@ def test_certificate_refs_validator_rejects_unknown_used_by_service_ref():
     assert any(diag.code == "E7857" for diag in result.diagnostics)
 
 
+def test_certificate_refs_validator_rejects_non_list_used_by_payload():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["extensions"]["used_by"] = {"service_ref": "svc-b"}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7857" for diag in result.diagnostics)
+
+
+def test_certificate_refs_validator_rejects_non_object_used_by_entries():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["extensions"]["used_by"] = ["svc-b"]  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7857" for diag in result.diagnostics)
+
+
 def test_certificate_refs_validator_requires_compiler_rows():
     registry = _registry()
     ctx = _context()
