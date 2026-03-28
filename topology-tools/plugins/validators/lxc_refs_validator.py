@@ -21,6 +21,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
     _LXC_CLASS = "class.compute.workload.container"
+    _RESOURCE_PROFILE_REF_FIELD = "resource_profile_ref"
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
     _ARCH_ALIASES = {
         "x86_64": "x86_64",
@@ -50,6 +51,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
             return self.make_result(diagnostics)
 
         rows = [item for item in rows_payload if isinstance(item, dict)] if isinstance(rows_payload, list) else []
+        resource_profiles = self._configured_resource_profiles(ctx)
         row_by_id: dict[str, dict[str, Any]] = {}
         for row in rows:
             row_id = row.get("instance")
@@ -317,6 +319,14 @@ class LxcRefsValidator(ValidatorJsonPlugin):
                 stage=stage,
                 diagnostics=diagnostics,
             )
+            self._validate_resource_profile_ref(
+                row=row,
+                row_id=row_id,
+                row_prefix=row_prefix,
+                resource_profiles=resource_profiles,
+                stage=stage,
+                diagnostics=diagnostics,
+            )
             resolved_host_os_row = self._resolve_host_os_row(
                 host_os_ref=host_os_ref,
                 host_os_row=host_os_row,
@@ -534,6 +544,46 @@ class LxcRefsValidator(ValidatorJsonPlugin):
                     )
                 )
 
+    def _validate_resource_profile_ref(
+        self,
+        *,
+        row: dict[str, Any],
+        row_id: Any,
+        row_prefix: str,
+        resource_profiles: dict[str, dict[str, Any]],
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> None:
+        profile_ref = self._legacy_field(row, self._RESOURCE_PROFILE_REF_FIELD)
+        if profile_ref is None:
+            return
+        if not isinstance(profile_ref, str) or not profile_ref.strip():
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7888",
+                    severity="error",
+                    stage=stage,
+                    message=f"LXC '{row_id}' resource_profile_ref must be a non-empty string when set.",
+                    path=f"{row_prefix}.{self._RESOURCE_PROFILE_REF_FIELD}",
+                )
+            )
+            return
+        if not resource_profiles:
+            return
+        if profile_ref not in resource_profiles:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7888",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        f"LXC '{row_id}' resource_profile_ref '{profile_ref}' is unknown; "
+                        "add it to base.validator.lxc_refs resource_profiles config."
+                    ),
+                    path=f"{row_prefix}.{self._RESOURCE_PROFILE_REF_FIELD}",
+                )
+            )
+
     def _validate_ref(
         self,
         *,
@@ -653,6 +703,20 @@ class LxcRefsValidator(ValidatorJsonPlugin):
         if field_name in extensions:
             return extensions.get(field_name)
         return row.get(field_name)
+
+    @staticmethod
+    def _configured_resource_profiles(ctx: PluginContext) -> dict[str, dict[str, Any]]:
+        raw = ctx.config.get("resource_profiles")
+        if not isinstance(raw, dict):
+            return {}
+        normalized: dict[str, dict[str, Any]] = {}
+        for key, payload in raw.items():
+            if not isinstance(key, str) or not key.strip():
+                continue
+            if not isinstance(payload, dict):
+                continue
+            normalized[key] = payload
+        return normalized
 
     @classmethod
     def _normalize_arch(cls, value: Any) -> str:

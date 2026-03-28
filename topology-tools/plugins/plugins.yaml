@@ -872,10 +872,43 @@ plugins:
     order: 140
     depends_on: [base.compiler.instance_rows]
     timeout: 30
-    config: {}
+    config:
+      resource_profiles:
+        rp.lxc.micro:
+          cores: 1
+          memory_mb: 512
+          swap_mb: 512
+        rp.lxc.small:
+          cores: 1
+          memory_mb: 1024
+          swap_mb: 512
+        rp.lxc.balanced:
+          cores: 2
+          memory_mb: 1024
+          swap_mb: 1024
+        rp.lxc.standard:
+          cores: 2
+          memory_mb: 2048
+          swap_mb: 1024
     config_schema:
       type: object
-      properties: {}
+      properties:
+        resource_profiles:
+          type: object
+          description: Canonical LXC resource profile taxonomy used by resource_profile_ref.
+          additionalProperties:
+            type: object
+            properties:
+              cores:
+                type: integer
+                minimum: 1
+              memory_mb:
+                type: integer
+                minimum: 128
+              swap_mb:
+                type: integer
+                minimum: 0
+            required: [cores, memory_mb, swap_mb]
       required: []
     consumes:
       - from_plugin: base.compiler.instance_rows

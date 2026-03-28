@@ -260,3 +260,30 @@ def test_lxc_refs_validator_keeps_top_level_deprecation_warnings_without_storage
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     warning_codes = [diag.code for diag in result.diagnostics if diag.severity == "warning"]
     assert warning_codes.count("W7888") >= 4
+
+
+def test_lxc_refs_validator_accepts_known_resource_profile_ref_without_legacy_resources():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["extensions"]["resource_profile_ref"] = "rp.lxc.standard"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    assert not any(diag.code == "E7888" for diag in result.diagnostics)
+    assert not any(diag.code == "W7888" and ".resources" in (diag.path or "") for diag in result.diagnostics)
+
+
+def test_lxc_refs_validator_rejects_unknown_resource_profile_ref():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["extensions"]["resource_profile_ref"] = "rp.lxc.unknown"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7888" and "resource_profile_ref" in (diag.path or "") for diag in result.diagnostics)

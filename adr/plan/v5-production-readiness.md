@@ -349,7 +349,7 @@ v5 architecture is **operational for deployable artifacts** with:
 ### 8.4 Cosmetic Warning Cleanup
 
 - [x] W7845 (SSL certificates): Added `security.ssl_certificate: self-signed` to HTTPS services.
-- [ ] W7888 (9 warnings): Migrate LXC to resource profiles — requires resource profile taxonomy.
+- [x] W7888 (9 warnings): LXC migrated to `resource_profile_ref` taxonomy (`rp.lxc.*`); inline `resources` removed from active L4 instances.
 - [x] W7816 (IP reuse): Expected for gateway/postgres — documented as intentional.
 
 ### Phase 8 Definition of Done
@@ -587,7 +587,14 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
     - `tests/plugin_integration/test_terraform_proxmox_generator.py`
     - `tests/plugin_integration/test_terraform_mikrotik_generator.py`
 - [ ] VPN server Terraform for external VPS (business decision required).
-- [ ] W7888 resource profile taxonomy for LXC migration.
+- [x] W7888 resource profile taxonomy for LXC migration.
+  - Taxonomy locked in `base.validator.lxc_refs` config: `rp.lxc.micro|small|balanced|standard`.
+  - Active L4 LXC instances migrated from inline `resources` to `resource_profile_ref`.
+  - Evidence:
+    - `topology-tools/plugins/validators/lxc_refs_validator.py`
+    - `topology-tools/plugins/plugins.yaml`
+    - `projects/home-lab/topology/instances/L4-platform/lxc/*.yaml`
+    - `tests/plugin_integration/test_lxc_refs_validator.py`
 
 ### Phase 12 Definition of Done
 

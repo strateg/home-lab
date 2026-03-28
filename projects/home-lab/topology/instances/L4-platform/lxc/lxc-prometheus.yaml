@@ -20,10 +20,7 @@ trust_zone_ref: inst.trust_zone.servers
 os_refs:
   - inst.os.debian.12.proxmox.lxc
 
-resources:
-  cores: 2
-  memory_mb: 1024
-  swap_mb: 1024
+resource_profile_ref: rp.lxc.balanced
 
 boot:
   onboot: true
