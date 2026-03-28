@@ -145,6 +145,8 @@ class DiagramGenerator(BaseGenerator):
             manifest_path = str(cache_result.get("manifest_path", ""))
             if manifest_path:
                 generated_files.append(manifest_path)
+            unresolved_count = int(cache_result.get("unresolved_count", 0) or 0)
+            fallback_count = int(cache_result.get("resolved_via_fallback", 0) or 0)
             diagnostics.append(
                 self.emit_diagnostic(
                     code="I9802",
@@ -154,11 +156,26 @@ class DiagramGenerator(BaseGenerator):
                         "icon cache prepared for mermaid icon-nodes: "
                         f"resolved={cache_result.get('resolved_count', 0)}/"
                         f"{cache_result.get('icons_total', 0)} "
+                        f"fallback={fallback_count} "
                         f"packs={','.join(cache_result.get('packs_loaded', [])) or 'none'}"
                     ),
                     path=str(diagrams_root / "icons"),
                 )
             )
+            if unresolved_count > 0:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="W9803",
+                        severity="warning",
+                        stage=stage,
+                        message=(
+                            f"{unresolved_count} Mermaid icon IDs remain unresolved; "
+                            "provide local Iconify packs under node_modules/@iconify-json "
+                            "or extend icon mappings."
+                        ),
+                        path=str(diagrams_root / "icons"),
+                    )
+                )
 
         if generated_files:
             generated_files_path = diagrams_root / "_generated_files.txt"

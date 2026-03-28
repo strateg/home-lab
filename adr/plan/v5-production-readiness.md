@@ -3,7 +3,7 @@
 **Created:** 2026-03-15
 **Revised:** 2026-03-28
 **Goal:** Complete v4→v5 migration and achieve full production parity
-**Current State:** Core infrastructure generation operational (Phases 0-6 complete, E2E validated 2026-03-24). Remaining: service-chain execution evidence, icon-pack runtime closure, and advanced infrastructure backlog.
+**Current State:** Core infrastructure generation operational (Phases 0-10 complete, E2E validated 2026-03-24). Remaining: service-chain execution evidence, advanced infrastructure backlog, and ADR/documentation consistency sweep.
 
 ---
 
@@ -22,10 +22,9 @@ v5 architecture is **operational for deployable artifacts** with:
 - ✅ ADR 0080 unified build pipeline (parallel execution, strict contracts)
 
 **Remaining gaps (by priority):**
-- P0: Hardware identity closure (Phase 7), v4 validator staged cutover
-- P1: Documentation & diagram generation (ADR 0079, template parity delivered; icon-pack availability remains environment-dependent)
-- P1: Documentation & diagram icon-pack runtime closure
-- P2: Service-chain execution evidence and advanced infra backlog (Phase 12.2/12.3), optional multi-repo extraction (ADR 0076)
+- P1: Service-chain execution evidence and advanced infra backlog (Phase 12.2/12.3).
+- P1: ADR/documentation consistency sweep (`adr/0058-0071-remaining-work.md`, P2.6).
+- P2: Optional multi-repo extraction (ADR 0076).
 
 ---
 
@@ -451,10 +450,10 @@ Execution evidence (2026-03-28):
 ## Phase 10: Documentation and Diagram Generation Migration (NEW)
 
 **Prerequisite:** Phase 8
-**Status:** Active (ADR 0079 accepted)
+**Status:** Completed (ADR 0079 accepted; icon runtime closure locked, 2026-03-28)
 **Tracking:** `adr/0079-v5-documentation-and-diagram-generation-migration.md`
 
-V5 now has 19 documentation templates (+ diagram index/legend pages); remaining work is icon-pack runtime hardening.
+V5 has 19 documentation templates (+ diagram index/legend pages) and deterministic icon-node runtime with local-pack override plus embedded fallback.
 
 ### 10.1 Phase A — Network Layer Diagrams
 
@@ -499,11 +498,12 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 - [x] Icon legend template and diagrams-index template.
 - [x] Mermaid render validation quality gate.
 - [x] Local icon-pack cache manifest emitted at `generated/<project>/docs/diagrams/icons/icon-cache.json` (resolved/unresolved inventory, deterministic output).
+- [x] Embedded si/mdi fallback glyph resolution for known icon IDs when local Iconify packs are unavailable (local packs still override).
 
 ### Phase 10 Definition of Done
 
 - [x] 19 documentation templates generating (parity with v4).
-- [ ] Icon system operational with si/mdi packs.
+- [x] Icon system operational with si/mdi packs.
 - [x] Mermaid render validation in CI pipeline.
 - [x] All generated docs stable between deterministic runs.
 
@@ -627,7 +627,7 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 3. **Strict placeholder compliance:** ✅ Enforced — strict-gated instance placeholders are CI-blocked (2026-03-27).
 4. **Deployable workflow:** ✅ `terraform plan/apply` and Ansible runs succeed using v5-generated artifacts.
 5. **Operational cutover:** ✅ v5-only release lane active; archive parity retained as maintenance evidence.
-6. **Documentation parity:** ✅ 19/19 templates generating (+ diagrams/index pages); icon-pack runtime hardening remains.
+6. **Documentation parity:** ✅ 19/19 templates generating (+ diagrams/index pages); icon-node runtime is deterministic with local-pack override and embedded fallback.
 7. **Validator cutover:** ✅ Completed — staged v4 deprecation evidence locked (Phase 9, 2026-03-28).
 
 ---
@@ -707,7 +707,7 @@ Progress is tracked in:
 | Phase 7: Hardware Identity | Completed (placeholder closure + strict CI gate, 2026-03-27) | - |
 | Phase 8.3: Cutover Docs | Completed (README + README-РУССКИЙ v5 workflow and maintenance-only policy, 2026-03-28) | - |
 | Phase 9: V4 Validator Cutover | Completed (staged cutover evidence locked, 2026-03-28) | - |
-| Phase 10: Docs/Diagrams | Active (template parity delivered; icon-node cache/runtime implemented, icon-pack availability environment-dependent) | P1 |
-| Phase 11: ADR Backlog | Active (governance closure done; relation backlog pending) | P1 |
+| Phase 10: Docs/Diagrams | Completed (template parity + icon runtime closure, 2026-03-28) | - |
+| Phase 11: ADR Backlog | Active (governance/relation closure done; historical consistency sweep pending) | P1 |
 | Phase 12: Operational Readiness | Active (runbooks + service playbooks + dry evidence + runtime secret injection; advanced infra/full execution pending) | P2 |
 | Phase 13: Multi-Repo | Deferred | P2 |

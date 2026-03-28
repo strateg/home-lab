@@ -12,6 +12,14 @@ _DEFAULT_PACK_MAPPING: dict[str, str] = {
     "mdi": "mdi",
     "si": "simple-icons",
 }
+_KNOWN_FALLBACK_ICON_IDS: set[str] = {
+    *(icon for _, icon in CLASS_ICON_BY_PREFIX),
+    *(icon for _, icon in SERVICE_ICON_BY_PREFIX),
+    *ZONE_ICON_BY_NAME.values(),
+    "mdi:devices",
+    "mdi:cog",
+    "mdi:shield-half-full",
+}
 
 
 class IconManager:
@@ -27,6 +35,7 @@ class IconManager:
         self.pack_mapping = dict(pack_mapping) if pack_mapping else dict(_DEFAULT_PACK_MAPPING)
         self._pack_cache: dict[str, dict[str, Any]] | None = None
         self._svg_cache: dict[str, str] = {}
+        self._svg_source_cache: dict[str, str] = {}
 
     def icon_for_class(self, class_ref: str, *, fallback: str = "mdi:devices") -> str:
         for prefix, icon in CLASS_ICON_BY_PREFIX:
@@ -58,12 +67,19 @@ class IconManager:
             return ""
 
         prefix, icon_name = icon_id.split(":", 1)
+        source = "none"
         pack = self._load_packs().get(prefix)
-        if not isinstance(pack, dict):
-            return ""
-        svg = self._extract_svg(pack, icon_name)
+        svg = ""
+        if isinstance(pack, dict):
+            svg = self._extract_svg(pack, icon_name)
+            if svg:
+                source = "pack"
+        if not svg and icon_id in _KNOWN_FALLBACK_ICON_IDS and prefix in self.pack_mapping:
+            svg = self._fallback_svg(prefix=prefix)
+            source = "fallback"
         if svg:
             self._svg_cache[icon_id] = svg
+            self._svg_source_cache[icon_id] = source
         return svg
 
     def cache_svg_assets(self, icon_ids: list[str], output_dir: Path) -> dict[str, Any]:
@@ -73,6 +89,7 @@ class IconManager:
 
         resolved: list[dict[str, str]] = []
         unresolved: list[str] = []
+        resolved_fallback: list[str] = []
 
         for icon_id in icon_ids:
             svg = self.icon_svg(icon_id)
@@ -82,10 +99,14 @@ class IconManager:
             file_name = self._icon_file_name(icon_id)
             file_path = output_dir / file_name
             file_path.write_text(svg, encoding="utf-8")
+            source = self._svg_source_cache.get(icon_id, "unknown")
+            if source == "fallback":
+                resolved_fallback.append(icon_id)
             resolved.append(
                 {
                     "icon_id": icon_id,
                     "file": file_name,
+                    "source": source,
                 }
             )
 
@@ -94,7 +115,9 @@ class IconManager:
             "icons_total": len(icon_ids),
             "icons_resolved": len(resolved),
             "icons_unresolved": len(unresolved),
+            "icons_resolved_via_fallback": len(resolved_fallback),
             "resolved": resolved,
+            "resolved_via_fallback": resolved_fallback,
             "unresolved": unresolved,
         }
         manifest_path = output_dir / "icon-cache.json"
@@ -107,6 +130,7 @@ class IconManager:
             "manifest_path": str(manifest_path),
             "resolved_count": len(resolved),
             "unresolved_count": len(unresolved),
+            "resolved_via_fallback": len(resolved_fallback),
             "icons_total": len(icon_ids),
             "packs_loaded": manifest["packs_loaded"],
         }
@@ -114,6 +138,7 @@ class IconManager:
     def clear_cache(self) -> None:
         self._pack_cache = None
         self._svg_cache.clear()
+        self._svg_source_cache.clear()
 
     def _load_packs(self) -> dict[str, dict[str, Any]]:
         if self._pack_cache is not None:
@@ -170,3 +195,14 @@ class IconManager:
         prefix, icon_name = icon_id.split(":", 1)
         safe_icon_name = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in icon_name)
         return f"{prefix}--{safe_icon_name}.svg"
+
+    @staticmethod
+    def _fallback_svg(*, prefix: str) -> str:
+        if prefix == "si":
+            return (
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">' "<circle cx='12' cy='12' r='9' /></svg>"
+            )
+        return (
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+            "<rect x='3' y='3' width='18' height='18' rx='4' /></svg>"
+        )

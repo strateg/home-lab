@@ -49,6 +49,19 @@ def test_icon_manager_loads_local_iconify_pack_and_returns_svg(tmp_path: Path) -
     assert "path" in svg
 
 
+def test_icon_manager_uses_embedded_fallback_for_known_icons_without_local_packs(tmp_path: Path) -> None:
+    manager = IconManager(search_roots=[tmp_path])
+    assert manager.get_loaded_packs() == []
+    svg = manager.icon_svg("mdi:router-network")
+    assert svg.startswith("<svg")
+    assert "rect" in svg
+
+
+def test_icon_manager_keeps_unknown_icons_unresolved_without_local_packs(tmp_path: Path) -> None:
+    manager = IconManager(search_roots=[tmp_path])
+    assert manager.icon_svg("mdi:unknown") == ""
+
+
 def test_icon_manager_caches_svg_assets_with_manifest(tmp_path: Path) -> None:
     mdi_pack = {
         "prefix": "mdi",
@@ -93,4 +106,24 @@ def test_icon_manager_caches_svg_assets_with_manifest(tmp_path: Path) -> None:
     assert manifest["icons_total"] == 3
     assert manifest["icons_resolved"] == 2
     assert manifest["icons_unresolved"] == 1
+    assert manifest["icons_resolved_via_fallback"] == 0
     assert "mdi:unknown" in manifest["unresolved"]
+
+
+def test_icon_manager_reports_fallback_resolution_in_manifest(tmp_path: Path) -> None:
+    manager = IconManager(search_roots=[tmp_path])
+    result = manager.cache_svg_assets(
+        ["mdi:router-network", "si:proxmox", "mdi:unknown"],
+        tmp_path / "generated" / "icons",
+    )
+
+    assert result["icons_total"] == 3
+    assert result["resolved_count"] == 2
+    assert result["unresolved_count"] == 1
+    assert result["resolved_via_fallback"] == 2
+    assert result["packs_loaded"] == []
+
+    manifest = json.loads((tmp_path / "generated" / "icons" / "icon-cache.json").read_text(encoding="utf-8"))
+    assert manifest["icons_resolved_via_fallback"] == 2
+    assert "mdi:router-network" in manifest["resolved_via_fallback"]
+    assert "si:proxmox" in manifest["resolved_via_fallback"]

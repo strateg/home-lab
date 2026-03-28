@@ -203,3 +203,28 @@ def test_diagram_generator_emits_icon_cache_manifest_in_icon_node_mode(tmp_path:
     assert manifest["icons_total"] > 0
     assert manifest["icons_resolved"] > 0
     assert "mdi" in manifest["packs_loaded"]
+
+
+def test_diagram_generator_uses_embedded_fallback_icons_when_packs_missing(tmp_path: Path) -> None:
+    generator = DiagramGenerator("base.generator.diagrams")
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        compiled_json=_compiled_fixture(),
+        output_dir=str(tmp_path / "build"),
+        config={
+            "generator_artifacts_root": str(tmp_path / "generated"),
+            "mermaid_icon_mode": "icon-nodes",
+            "icon_pack_search_roots": [str(tmp_path / "workspace-without-packs")],
+        },
+    )
+
+    result = generator.execute(ctx, Stage.GENERATE)
+
+    assert result.status == PluginStatus.SUCCESS
+    cache_root = tmp_path / "generated" / "docs" / "diagrams" / "icons"
+    manifest = json.loads((cache_root / "icon-cache.json").read_text(encoding="utf-8"))
+    assert manifest["icons_total"] > 0
+    assert manifest["icons_resolved_via_fallback"] > 0
+    assert manifest["icons_unresolved"] == 0

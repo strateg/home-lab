@@ -139,4 +139,4 @@ python topology-tools/validate-mermaid-render.py --docs-root generated/home-lab/
 ### Recovery
 
 1. Run in compatibility mode: `task build:v5-docs-compat`.
-2. For icon-node mode, ensure runtime icon packs are registered.
+2. For icon-node mode, prefer local Iconify packs (`node_modules/@iconify-json/{mdi,simple-icons}`); if unavailable, embedded fallback glyphs are used for known IDs.
