@@ -8,6 +8,8 @@ This directory contains implementation plans for major development efforts.
 |------|--------|-------------|
 | [v5-post-migration-roadmap-2026-03-27.md](v5-post-migration-roadmap-2026-03-27.md) | Active | Post-migration development roadmap: governance, ADR0079 docs/diagrams, production hardening |
 | [v5-production-readiness.md](v5-production-readiness.md) | Active | Master plan for v5 deployment capability |
+| [0076-phase13-physical-extraction-plan.md](0076-phase13-physical-extraction-plan.md) | Active | ADR0076 Phase 13 physical framework/project repository extraction |
+| [0076-phase13-cutover-checklist.md](0076-phase13-cutover-checklist.md) | Active | ADR0076 Phase 13 execution checklist for physical extraction cutover |
 
 ## Completed Plans
 
@@ -19,7 +21,7 @@ This directory contains implementation plans for major development efforts.
 | [0078-v4-validator-deprecation-matrix.md](0078-v4-validator-deprecation-matrix.md) | 2026-03-27 | Historical staged deprecation matrix (migration cutover closed; moved to backlog tracking) |
 | [0078-v5-unified-plugin-refactor-prep.md](0078-v5-unified-plugin-refactor-prep.md) | 2026-03-22 | Unified plugin boundary hardening (WP6-WP10) |
 | [0078-wave-d-v4-validator-mapping.md](0078-wave-d-v4-validator-mapping.md) | 2026-03-22 | v4 validator mapping and parity closure notes |
-| [0076-multi-repo-extraction-plan.md](0076-multi-repo-extraction-plan.md) | 2026-03-24 | Framework extraction and multi-repo distribution (completed in submodule-first mode) |
+| [0076-multi-repo-extraction-plan.md](0076-multi-repo-extraction-plan.md) | 2026-03-24 | ADR0076 Stage 2 closure (completed in submodule-first mode) |
 | [phase1-generator-framework.md](phase1-generator-framework.md) | Superseded | Generator plugin infrastructure (see ADR 0074) |
 
 ## Migration Agreement (0075/0078)

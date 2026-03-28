@@ -1,9 +1,13 @@
 # ADR 0076: Multi-Repository Extraction Plan
 
 **Date:** 2026-03-20
-**Status:** Completed (E2E validated 2026-03-24)
+**Status:** Completed (E2E validated 2026-03-24; submodule-first baseline)
 **Prerequisite:** ADR 0075 completed (2026-03-20)
 **Depends on:** ADR 0074, ADR 0075
+
+> Phase 13 physical repository extraction is tracked separately in
+> `adr/plan/0076-phase13-physical-extraction-plan.md` and
+> `adr/plan/0076-phase13-cutover-checklist.md`.
 
 ---
 

@@ -1,0 +1,105 @@
+# ADR 0076: Phase 13 Physical Extraction Cutover Checklist
+
+**Date:** 2026-03-29
+**Status:** Active
+**Owner:** _TBD_
+**Approver:** _TBD_
+**Change Window:** _TBD_
+
+Reference plan: `adr/plan/0076-phase13-physical-extraction-plan.md`
+
+---
+
+## 1. Pre-Cutover Readiness
+
+- [ ] Phase 13 plan approved.
+- [ ] Cutover window agreed and communicated.
+- [ ] Rollback owner assigned.
+- [ ] Framework extraction dry-run completed.
+- [ ] Project bootstrap dry-run completed.
+- [ ] Lock verification passes in extracted project layout.
+
+Evidence:
+
+- [ ] `verify-framework-lock --strict` output attached.
+- [ ] `compile-topology --strict-model-lock` output attached.
+- [ ] `validate-framework-compatibility-matrix.py` output attached.
+- [ ] `audit-strict-runtime-entrypoints.py` output attached.
+
+---
+
+## 2. Go/No-Go Gate
+
+Go conditions:
+
+- [ ] No open `E781x` / `E782x` errors.
+- [ ] Strict gates are green in both framework and project pipelines.
+- [ ] Rollback rehearsal is green on candidate revisions.
+
+No-Go triggers:
+
+- [ ] Any unresolved strict lock mismatch.
+- [ ] Any compatibility matrix failure for target version set.
+- [ ] Missing release provenance/signature/SBOM for framework artifact.
+
+Decision:
+
+- [ ] `GO`
+- [ ] `NO-GO`
+
+Approver sign-off:
+
+- [ ] Architecture owner sign-off captured.
+- [ ] CI/SRE owner sign-off captured.
+
+---
+
+## 3. Cutover Execution
+
+- [ ] Publish extracted framework repository state (tag/release candidate).
+- [ ] Point project repository framework dependency to extracted source.
+- [ ] Regenerate `framework.lock.yaml` in project repository.
+- [ ] Run strict validation suite in project repository.
+- [ ] Run cutover readiness report.
+
+Evidence links:
+
+- [ ] Framework release/tag:
+- [ ] Project lock revision:
+- [ ] CI run URLs:
+- [ ] Cutover readiness report:
+
+---
+
+## 4. Post-Cutover Validation
+
+- [ ] `task framework:strict` passes in project repo.
+- [ ] `task validate:v5` passes in project repo.
+- [ ] `task framework:release-tests` passes in project repo.
+- [ ] Operational runbook references updated to extracted flow.
+- [ ] ADR and plan statuses synchronized.
+
+---
+
+## 5. Rollback Rehearsal (Post-Cutover)
+
+- [ ] Execute rollback to previous framework revision.
+- [ ] Regenerate lock on rollback target.
+- [ ] Re-run strict compile and validation.
+- [ ] Restore forward target and re-verify.
+
+Evidence:
+
+- [ ] `rehearse-framework-rollback.py` output attached.
+- [ ] Rollback decision log attached.
+
+---
+
+## 6. Closure
+
+- [ ] Release note for Phase 13 cutover published.
+- [ ] `adr/plan/v5-production-readiness.md` updated (Phase 13 status).
+- [ ] `adr/plan/README.md` updated (plan moved from Active to Completed when closed).
+
+Completed at: _TBD_
+Closed by: _TBD_

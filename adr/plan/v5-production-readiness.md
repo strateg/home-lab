@@ -24,7 +24,7 @@ v5 architecture is **operational for deployable artifacts** with:
 **Remaining gaps (by priority):**
 - P1: Service-chain execution evidence and advanced infra backlog (Phase 12.2/12.3).
 - P1: ADR/documentation consistency sweep (`adr/0058-0071-remaining-work.md`, P2.6).
-- P2: Optional multi-repo extraction (ADR 0076).
+- P2: Physical multi-repo extraction track execution (ADR 0076).
 
 ---
 
@@ -617,16 +617,19 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
 
 ---
 
-## Phase 13: Multi-Repository Extraction (DEFERRED)
+## Phase 13: Multi-Repository Extraction (ACTIVE)
 
 **Prerequisite:** Phases 8-12 stable
-**Status:** Deferred (ADR 0076)
-**Tracking:** `adr/plan/0076-multi-repo-extraction-plan.md`
+**Status:** Active (physical extraction track started 2026-03-29)
+**Tracking:**
+- `adr/plan/0076-multi-repo-extraction-plan.md` (completed submodule-first baseline)
+- `adr/plan/0076-phase13-physical-extraction-plan.md` (active execution plan)
+- `adr/plan/0076-phase13-cutover-checklist.md` (active cutover checklist)
 
-- [ ] Separate framework from project into independent repositories.
-- [ ] Establish cross-repo CI/CD pipelines.
-- [ ] Define dependency lock and integrity verification.
-- [ ] Separate roadmap and risk assessment.
+- [ ] Separate framework from project into independent repositories (physical split).
+- [ ] Establish cross-repo CI/CD pipelines for extracted repositories.
+- [x] Define dependency lock and integrity verification (ADR0076 Stage 2 baseline).
+- [x] Separate roadmap and risk assessment (Phase 13 execution plan + cutover checklist).
 
 ---
 
@@ -688,7 +691,7 @@ Phase 0 (Baseline) ✅
                                             ├── Phase 10 (Docs/Diagrams Migration)
                                             ├── Phase 11 (ADR Backlog Closure)
                                             └── Phase 12 (Operational Readiness)
-                                                    └── Phase 13 (Multi-Repo) [DEFERRED]
+                                                    └── Phase 13 (Multi-Repo) [ACTIVE]
 
 Phase 7 (Hardware Identity) ─── in parallel ───┘
 ```
@@ -736,4 +739,4 @@ Progress is tracked in:
 | Phase 10: Docs/Diagrams | Completed (template parity + icon runtime closure, 2026-03-28) | - |
 | Phase 11: ADR Backlog | Active (governance/relation closure done; historical consistency sweep pending) | P1 |
 | Phase 12: Operational Readiness | Active (runbooks + service playbooks + dry evidence + runtime secret injection; advanced infra/full execution pending) | P2 |
-| Phase 13: Multi-Repo | Deferred | P2 |
+| Phase 13: Multi-Repo | Active (physical extraction track) | P2 |

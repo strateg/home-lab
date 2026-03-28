@@ -113,7 +113,10 @@
 
 - [ ] ADR0053: lock execution default (`native` or `dist`) and align task/docs/CI.
 - [ ] ADR0047: choose execute-now vs deferred trigger and update status accordingly.
-- [ ] ADR0076: decide whether to start physical multi-repo extraction.
+- [x] ADR0076: physical multi-repo extraction track started.
+  Execution artifacts:
+  - `adr/plan/0076-phase13-physical-extraction-plan.md`
+  - `adr/plan/0076-phase13-cutover-checklist.md`
 
 **Gate:**
 
