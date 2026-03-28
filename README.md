@@ -35,6 +35,7 @@ task validate:v5-layers
 task validate:workspace-layout
 task test
 task test:parity-v4-v5
+task clean
 task build
 task build:v5-docs
 task ci:local

@@ -3,12 +3,13 @@ version: "3"
 tasks:
   local:
     desc: Local pre-push gate
-    deps:
-      - :validate:quality
-      - :framework:strict
-      - :validate:default
-      - :validate:phase1-gate
-      - :test:default
+    cmds:
+      - task build:clean-generated
+      - task validate:quality
+      - task framework:strict
+      - task validate:default
+      - task validate:phase1-gate
+      - task test:default
 
   local-with-legacy:
     desc: Local pre-push gate including legacy parity lanes
@@ -19,27 +20,40 @@ tasks:
 
   python-checks-core:
     desc: Core strict checks used by python-checks workflow
-    deps:
-      - :framework:strict
-      - :validate:default
+    cmds:
+      - task build:clean-generated
+      - task framework:strict
+      - task validate:default
 
   lane-v5:
     desc: Lane validation core via task (passthrough mode)
-    deps:
-      - :framework:strict
-      - :validate:default
+    cmds:
+      - task build:clean-generated
+      - task framework:strict
+      - task validate:default
 
   topology-mainline:
     desc: Topology matrix strict mainline via task (passthrough mode)
-    deps:
-      - :framework:strict
-      - :validate:default
-      - :validate:phase1-gate
+    cmds:
+      - task build:clean-generated
+      - task framework:strict
+      - task validate:default
+      - task validate:phase1-gate
 
   topology-parity-v4-v5:
     desc: Topology parity lane against archive v4 baseline
-    deps:
-      - :framework:strict
-      - :framework:archive-v4-compile
-      - :validate:default
-      - :test:parity-v4-v5
+    cmds:
+      - task build:clean-generated
+      - task framework:strict
+      - task framework:archive-v4-compile
+      - task validate:default
+      - task test:parity-v4-v5
+
+  legacy-maintenance:
+    desc: Legacy v4 maintenance lane (archive parity + acceptance baseline)
+    cmds:
+      - task build:clean-generated
+      - task validate:workspace-layout
+      - task framework:audit-entrypoints
+      - task acceptance:tests-all
+      - task ci:topology-parity-v4-v5

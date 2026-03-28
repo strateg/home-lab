@@ -65,3 +65,8 @@ tasks:
     desc: Run phase1 migration gate
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py phase1-gate"
+
+  plugin-manifests:
+    desc: Validate plugin manifests schema and entry paths across base/class/object manifests
+    cmds:
+      - "{{.PYTHON}} scripts/validation/validate_plugin_manifests.py"

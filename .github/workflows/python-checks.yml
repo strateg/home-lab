@@ -12,9 +12,6 @@ on:
 jobs:
   lint-and-typecheck:
     runs-on: ubuntu-latest
-    env:
-      USE_TASK_ORCHESTRATION: "1"
-      ALLOW_TASK_FALLBACK: "1"
     strategy:
       matrix:
         python-version: [3.11]
@@ -32,42 +29,22 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e .[dev]
 
-      - name: Black check
-        run: black --check .
-
-      - name: isort check
-        run: isort --check-only .
-
-      - name: Mypy
-        run: mypy --config-file pyproject.toml topology-tools
-
-      - name: Pylint
-        run: pylint topology-tools
-
       - name: Setup Task CLI
-        if: ${{ env.USE_TASK_ORCHESTRATION == '1' }}
         uses: arduino/setup-task@v2
         with:
           version: 3.45.4
 
-      - name: Run strict gates via Task (with explicit fallback)
-        run: |
-          set -e
-          if [ "${USE_TASK_ORCHESTRATION}" = "1" ]; then
-            if task ci:python-checks-core; then
-              exit 0
-            fi
-            if [ "${ALLOW_TASK_FALLBACK}" != "1" ]; then
-              echo "Task orchestration failed and fallback is disabled."
-              exit 1
-            fi
-            echo "Task orchestration failed; executing legacy fallback chain."
-          fi
-          python topology-tools/verify-framework-lock.py --strict
-          python topology-tools/rehearse-framework-rollback.py
-          python topology-tools/validate-framework-compatibility-matrix.py
-          python topology-tools/audit-strict-runtime-entrypoints.py
-          V5_SECRETS_MODE=passthrough python scripts/orchestration/lane.py validate-v5
+      - name: Black + isort
+        run: task validate:lint
+
+      - name: Mypy
+        run: task validate:typecheck
+
+      - name: Pylint
+        run: task validate:pylint
+
+      - name: Run strict gates via Task
+        run: task ci:python-checks-core
 
   test:
     name: Run Tests

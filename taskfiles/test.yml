@@ -23,3 +23,23 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
       - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_regression tests/plugin_integration/test_parity_stage_order.py tests/plugin_integration/test_parallel_profile_parity.py -q"
+
+  plugin-api:
+    desc: Run plugin API unit tests (CI gate)
+    cmds:
+      - '{{.PYTHON}} -m pytest -o addopts= tests/plugin_api -v --cov=topology-tools/kernel --cov-report=xml:coverage-api.xml --cov-report=term-missing --cov-fail-under=80 --durations=10'
+
+  plugin-contract:
+    desc: Run plugin contract tests (CI gate)
+    cmds:
+      - '{{.PYTHON}} -m pytest -o addopts= tests/plugin_contract -v --cov=topology-tools/kernel --cov-report=xml:coverage-contract.xml --cov-report=term-missing --cov-fail-under=70 --durations=10'
+
+  plugin-integration:
+    desc: Run plugin integration tests (CI gate)
+    cmds:
+      - '{{.PYTHON}} -m pytest -o addopts= tests/plugin_integration -v --cov=topology-tools --cov-report=xml:coverage-integration.xml --cov-report=term-missing --durations=10'
+
+  plugin-regression:
+    desc: Run plugin regression tests (CI gate)
+    cmds:
+      - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_regression -v --durations=10"

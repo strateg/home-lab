@@ -21,6 +21,7 @@
 ```powershell
 task framework:strict
 task validate:v5
+task clean
 task framework:release-tests
 task acceptance:tests-all
 task framework:cutover-readiness

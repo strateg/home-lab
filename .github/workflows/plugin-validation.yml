@@ -2,11 +2,17 @@ name: Plugin Validation
 
 on:
   push:
-    branches: [main, master, adr/0058-*, feature/plugin-*]
+    branches: [main, master, "feature/**", "fix/**", "topology/**"]
     paths:
       - '.github/workflows/plugin-validation.yml'
       - 'topology-tools/kernel/**'
       - 'topology-tools/plugins/**'
+      - 'topology-tools/schemas/plugin-manifest.schema.json'
+      - 'topology-tools/data/error-catalog.yaml'
+      - 'topology/class-modules/**/plugins/**'
+      - 'topology/class-modules/**/plugins.yaml'
+      - 'topology/object-modules/**/plugins/**'
+      - 'topology/object-modules/**/plugins.yaml'
       - 'tests/plugin_*/**'
       - 'topology-tools/compile-topology.py'
   pull_request:
@@ -14,6 +20,12 @@ on:
       - '.github/workflows/plugin-validation.yml'
       - 'topology-tools/kernel/**'
       - 'topology-tools/plugins/**'
+      - 'topology-tools/schemas/plugin-manifest.schema.json'
+      - 'topology-tools/data/error-catalog.yaml'
+      - 'topology/class-modules/**/plugins/**'
+      - 'topology/class-modules/**/plugins.yaml'
+      - 'topology/object-modules/**/plugins/**'
+      - 'topology/object-modules/**/plugins.yaml'
       - 'tests/plugin_*/**'
       - 'topology-tools/compile-topology.py'
   workflow_dispatch:
@@ -48,15 +60,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pytest pytest-cov pyyaml jsonschema
 
+      - name: Setup Task CLI
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.45.4
+
       - name: Run plugin API unit tests
-        run: |
-          pytest tests/plugin_api/ \
-            -v \
-            --cov=topology-tools/kernel \
-            --cov-report=xml:coverage-api.xml \
-            --cov-report=term-missing \
-            --cov-fail-under=80 \
-            --durations=10
+        run: task test:plugin-api
 
       - name: Upload coverage
         if: matrix.python-version == '3.11'
@@ -85,15 +95,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pytest pytest-cov pyyaml jsonschema
 
+      - name: Setup Task CLI
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.45.4
+
       - name: Run plugin contract tests
-        run: |
-          pytest tests/plugin_contract/ \
-            -v \
-            --cov=topology-tools/kernel \
-            --cov-report=xml:coverage-contract.xml \
-            --cov-report=term-missing \
-            --cov-fail-under=70 \
-            --durations=10
+        run: task test:plugin-contract
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -121,14 +129,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pytest pytest-cov pyyaml jsonschema
 
+      - name: Setup Task CLI
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.45.4
+
       - name: Run plugin integration tests
-        run: |
-          pytest tests/plugin_integration/ \
-            -v \
-            --cov=topology-tools \
-            --cov-report=xml:coverage-integration.xml \
-            --cov-report=term-missing \
-            --durations=10
+        run: task test:plugin-integration
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
@@ -157,11 +164,13 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pytest pyyaml jsonschema
 
+      - name: Setup Task CLI
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.45.4
+
       - name: Run plugin regression tests
-        run: |
-          pytest tests/plugin_regression/ \
-            -v \
-            --durations=10
+        run: task test:plugin-regression
 
   manifest-validation:
     name: Plugin Manifest Validation
@@ -180,58 +189,13 @@ jobs:
         run: |
           python -m pip install pyyaml jsonschema
 
+      - name: Setup Task CLI
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.45.4
+
       - name: Validate plugin manifests
-        run: |
-          python -c "
-          import yaml
-          import jsonschema
-          import sys
-          from pathlib import Path
-
-          # Load schema
-          schema_path = Path('topology-tools/schemas/plugin-manifest.schema.json')
-          with open(schema_path) as f:
-              import json
-              schema = json.load(f)
-
-          # Find and validate all manifests (base + module-level)
-          manifests = [Path('topology-tools/plugins/plugins.yaml')]
-          manifests += sorted(Path('topology/class-modules').rglob('plugins.yaml'))
-          manifests += sorted(Path('topology/object-modules').rglob('plugins.yaml'))
-
-          if not manifests:
-              print('No manifests discovered')
-              sys.exit(1)
-
-          for manifest_path in manifests:
-              if not manifest_path.exists():
-                  print(f'ERROR {manifest_path}: missing')
-                  sys.exit(1)
-
-              with open(manifest_path) as f:
-                  manifest = yaml.safe_load(f)
-
-              try:
-                  jsonschema.validate(manifest, schema)
-                  print(f'OK {manifest_path}: schema valid')
-              except jsonschema.ValidationError as e:
-                  print(f'ERROR {manifest_path}: {e.message}')
-                  sys.exit(1)
-
-              # Verify plugin entries exist relative to manifest location.
-              manifest_dir = manifest_path.parent
-              for plugin in manifest.get('plugins', []):
-                  entry = plugin.get('entry', '')
-                  if ':' in entry:
-                      module_path = entry.split(':')[0]
-                      full_path = manifest_dir / module_path
-                      if not full_path.exists():
-                          print(f'ERROR Plugin {plugin[\"id\"]}: entry {module_path} not found in {manifest_dir}')
-                          sys.exit(1)
-                      print(f'OK Plugin {plugin[\"id\"]}: entry exists')
-
-          print('All manifests valid')
-          "
+        run: task validate:plugin-manifests
 
   compile-with-plugins:
     name: Compile with Plugins Enabled
@@ -254,6 +218,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml jsonschema
 
+      - name: Setup Task CLI
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.45.4
+
       - name: Resolve active project
         run: |
           PROJECT_ID=$(python - <<'PY'
@@ -267,17 +236,11 @@ jobs:
           )
           echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
 
-      - name: Verify framework lock (strict)
-        run: python topology-tools/verify-framework-lock.py --strict
+      - name: Clean generated artifacts
+        run: task build:clean-generated
 
-      - name: Rehearse framework rollback flow
-        run: python topology-tools/rehearse-framework-rollback.py
-
-      - name: Validate framework compatibility matrix
-        run: python topology-tools/validate-framework-compatibility-matrix.py
-
-      - name: Audit strict runtime entrypoints
-        run: python topology-tools/audit-strict-runtime-entrypoints.py
+      - name: Run framework strict gates
+        run: task framework:strict
 
       - name: Install age and sops
         run: |
