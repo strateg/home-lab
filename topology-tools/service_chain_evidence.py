@@ -54,8 +54,11 @@ def build_command_plan(
     project_id: str,
     env: str,
     allow_apply: bool = False,
+    inject_secrets: bool = False,
     proxmox_backend_config: str | None = None,
     mikrotik_backend_config: str | None = None,
+    proxmox_var_file: str | None = None,
+    mikrotik_var_file: str | None = None,
 ) -> list[CommandStep]:
     """Build ordered command plan for selected service-chain mode."""
     if mode not in {"dry", "maintenance-check", "maintenance-apply"}:
@@ -63,15 +66,28 @@ def build_command_plan(
     if mode == "maintenance-apply" and not allow_apply:
         raise ValueError("maintenance-apply mode requires allow_apply=True")
 
-    secrets_mode = "inject" if mode in {"maintenance-check", "maintenance-apply"} else "passthrough"
-    ansible_runtime_task = "ansible:runtime-inject" if secrets_mode == "inject" else "ansible:runtime"
+    secrets_mode = "inject" if inject_secrets else "passthrough"
+    ansible_runtime_task = "ansible:runtime-inject" if inject_secrets else "ansible:runtime"
     ansible_execute_task = (
-        "ansible:apply-site-inject"
+        ("ansible:apply-site-inject" if inject_secrets else "ansible:apply-site")
         if mode == "maintenance-apply"
-        else ("ansible:check-site-inject" if mode == "maintenance-check" else "ansible:check-site")
+        else ("ansible:check-site-inject" if inject_secrets else "ansible:check-site")
     )
+    proxmox_plan_args = ["plan", "-refresh=false"]
+    mikrotik_plan_args = ["plan", "-refresh=false"]
+    proxmox_apply_args = ["apply"]
+    mikrotik_apply_args = ["apply"]
+    if isinstance(proxmox_var_file, str) and proxmox_var_file.strip():
+        proxmox_plan_args.append(f"-var-file={proxmox_var_file.strip()}")
+        proxmox_apply_args.append(f"-var-file={proxmox_var_file.strip()}")
+    if isinstance(mikrotik_var_file, str) and mikrotik_var_file.strip():
+        mikrotik_plan_args.append(f"-var-file={mikrotik_var_file.strip()}")
+        mikrotik_apply_args.append(f"-var-file={mikrotik_var_file.strip()}")
 
     plan: list[CommandStep] = [
+        CommandStep(
+            "framework.lock-refresh", "Refresh framework.lock before strict gates", ["task", "framework:lock-refresh"]
+        ),
         CommandStep("framework.strict", "Run strict framework gates", ["task", "framework:strict"]),
         CommandStep("validate.v5", "Run validate:v5 lane", ["task", "validate:v5"]),
         CommandStep(
@@ -106,7 +122,7 @@ def build_command_plan(
         CommandStep(
             "terraform.proxmox.plan",
             "Plan Proxmox Terraform",
-            ["terraform", f"-chdir={_terraform_dir(project_id, 'proxmox')}", "plan", "-refresh=false"],
+            ["terraform", f"-chdir={_terraform_dir(project_id, 'proxmox')}", *proxmox_plan_args],
         ),
         CommandStep(
             "terraform.mikrotik.init",
@@ -125,7 +141,7 @@ def build_command_plan(
         CommandStep(
             "terraform.mikrotik.plan",
             "Plan MikroTik Terraform",
-            ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", "plan", "-refresh=false"],
+            ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", *mikrotik_plan_args],
         ),
         CommandStep("ansible.runtime", "Assemble Ansible runtime inventory", ["task", ansible_runtime_task]),
         CommandStep("ansible.syntax", "Run Ansible syntax checks", ["task", "ansible:syntax"]),
@@ -140,7 +156,7 @@ def build_command_plan(
             CommandStep(
                 "terraform.proxmox.apply",
                 "Apply Proxmox Terraform (maintenance window)",
-                ["terraform", f"-chdir={_terraform_dir(project_id, 'proxmox')}", "apply"],
+                ["terraform", f"-chdir={_terraform_dir(project_id, 'proxmox')}", *proxmox_apply_args],
                 destructive=True,
             ),
         )
@@ -149,7 +165,7 @@ def build_command_plan(
             CommandStep(
                 "terraform.mikrotik.apply",
                 "Apply MikroTik Terraform (maintenance window)",
-                ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", "apply"],
+                ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", *mikrotik_apply_args],
                 destructive=True,
             ),
         )
@@ -295,6 +311,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-dir", default="docs/runbooks/evidence")
     parser.add_argument("--proxmox-backend-config", default="")
     parser.add_argument("--mikrotik-backend-config", default="")
+    parser.add_argument("--proxmox-var-file", default="")
+    parser.add_argument("--mikrotik-var-file", default="")
+    parser.add_argument("--inject-secrets", action="store_true")
     parser.add_argument("--allow-apply", action="store_true")
     parser.add_argument("--continue-on-failure", action="store_true")
     parser.add_argument("--plan-only", action="store_true")
@@ -309,8 +328,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         project_id=args.project_id,
         env=args.env,
         allow_apply=args.allow_apply,
+        inject_secrets=args.inject_secrets,
         proxmox_backend_config=args.proxmox_backend_config or None,
         mikrotik_backend_config=args.mikrotik_backend_config or None,
+        proxmox_var_file=args.proxmox_var_file or None,
+        mikrotik_var_file=args.mikrotik_var_file or None,
     )
     results: list[StepResult] = []
     if not args.plan_only:

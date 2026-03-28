@@ -41,10 +41,10 @@ Automated evidence capture lanes:
 task framework:service-chain-evidence-dry
 
 # maintenance check lane (plan + ansible --check with injected secrets/runtime)
-task framework:service-chain-evidence-check -- PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend
+task framework:service-chain-evidence-check -- CONTINUE_ON_FAILURE=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=projects/home-lab/secrets/terraform/proxmox.auto.tfvars MIKROTIK_VAR_FILE=projects/home-lab/secrets/terraform/mikrotik.auto.tfvars
 
 # maintenance apply lane (destructive; requires explicit confirmation variable)
-task framework:service-chain-evidence-apply -- ALLOW_APPLY=YES PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend
+task framework:service-chain-evidence-apply -- ALLOW_APPLY=YES CONTINUE_ON_FAILURE=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=projects/home-lab/secrets/terraform/proxmox.auto.tfvars MIKROTIK_VAR_FILE=projects/home-lab/secrets/terraform/mikrotik.auto.tfvars
 ```
 
 Reports are generated under `docs/runbooks/evidence/` by `topology-tools/record-service-chain-evidence.py`.
@@ -71,4 +71,8 @@ Reports are generated under `docs/runbooks/evidence/` by `topology-tools/record-
 
 Integrated service playbook chain is now wired in `projects/home-lab/ansible/playbooks/`.
 First execution evidence is recorded in `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md`.
+Automated maintenance-check execution evidence is recorded in
+`docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-check-execution.md`.
+Automated maintenance-apply execution evidence is recorded in
+`docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-apply.md`.
 Remaining closure work is production execution evidence (`apply` records + recovery validation) per `adr/plan/v5-production-readiness.md`.

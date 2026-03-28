@@ -21,6 +21,7 @@ def _joined(plan):
 def test_service_chain_plan_dry_mode_uses_check_tasks_only() -> None:
     plan = build_command_plan(mode="dry", project_id="home-lab", env="production")
     commands = _joined(plan)
+    assert commands[0] == "task framework:lock-refresh"
     assert any("--secrets-mode passthrough" in cmd for cmd in commands)
     assert any("task ansible:runtime" == cmd for cmd in commands)
     assert any("task ansible:check-site" == cmd for cmd in commands)
@@ -28,14 +29,22 @@ def test_service_chain_plan_dry_mode_uses_check_tasks_only() -> None:
     assert not any(" terraform " in f" {cmd} " and " apply" in cmd for cmd in commands)
 
 
-def test_service_chain_plan_maintenance_check_uses_inject_and_plan() -> None:
+def test_service_chain_plan_maintenance_check_defaults_to_passthrough_mode() -> None:
     plan = build_command_plan(mode="maintenance-check", project_id="home-lab", env="production")
+    commands = _joined(plan)
+    assert any("--secrets-mode passthrough" in cmd for cmd in commands)
+    assert any("task ansible:runtime" == cmd for cmd in commands)
+    assert any("task ansible:check-site" == cmd for cmd in commands)
+    assert any("terraform -chdir=generated/home-lab/terraform/proxmox plan -refresh=false" == cmd for cmd in commands)
+    assert not any("ansible:apply-site" in cmd for cmd in commands)
+
+
+def test_service_chain_plan_maintenance_check_supports_inject_mode() -> None:
+    plan = build_command_plan(mode="maintenance-check", project_id="home-lab", env="production", inject_secrets=True)
     commands = _joined(plan)
     assert any("--secrets-mode inject" in cmd for cmd in commands)
     assert any("task ansible:runtime-inject" == cmd for cmd in commands)
     assert any("task ansible:check-site-inject" == cmd for cmd in commands)
-    assert any("terraform -chdir=generated/home-lab/terraform/proxmox plan -refresh=false" == cmd for cmd in commands)
-    assert not any("ansible:apply-site-inject" in cmd for cmd in commands)
 
 
 def test_service_chain_plan_maintenance_apply_requires_allow_flag() -> None:
@@ -48,7 +57,7 @@ def test_service_chain_plan_maintenance_apply_contains_apply_steps() -> None:
     commands = _joined(plan)
     assert any("terraform -chdir=generated/home-lab/terraform/proxmox apply" == cmd for cmd in commands)
     assert any("terraform -chdir=generated/home-lab/terraform/mikrotik apply" == cmd for cmd in commands)
-    assert any("task ansible:apply-site-inject" == cmd for cmd in commands)
+    assert any("task ansible:apply-site" == cmd for cmd in commands)
 
 
 def test_service_chain_plan_uses_backend_config_when_provided() -> None:
@@ -66,3 +75,16 @@ def test_service_chain_plan_uses_backend_config_when_provided() -> None:
     assert any(
         "-backend-config=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend" in cmd for cmd in commands
     )
+
+
+def test_service_chain_plan_uses_var_files_when_provided() -> None:
+    plan = build_command_plan(
+        mode="maintenance-check",
+        project_id="home-lab",
+        env="production",
+        proxmox_var_file="projects/home-lab/secrets/terraform/proxmox.auto.tfvars",
+        mikrotik_var_file="projects/home-lab/secrets/terraform/mikrotik.auto.tfvars",
+    )
+    commands = _joined(plan)
+    assert any("-var-file=projects/home-lab/secrets/terraform/proxmox.auto.tfvars" in cmd for cmd in commands)
+    assert any("-var-file=projects/home-lab/secrets/terraform/mikrotik.auto.tfvars" in cmd for cmd in commands)

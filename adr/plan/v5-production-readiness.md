@@ -571,6 +571,12 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
 - [x] Full Redis deployment playbook integrated under `projects/home-lab/ansible/playbooks/redis.yml`.
 - [x] Monitoring stack playbooks integrated under `projects/home-lab/ansible/playbooks/monitoring.yml`.
 - [x] Dry-run evidence captured in `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md`.
+- [x] Automated maintenance-check execution evidence captured in
+  `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-check-execution.md`
+  (11/15 pass; remaining blockers: Terraform required var-files and Windows-native Ansible CLI availability).
+- [x] Automated maintenance-apply execution evidence captured in
+  `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-apply.md`
+  (11/17 pass; remaining blockers unchanged: Terraform required var-files and Windows-native Ansible CLI availability).
 - [x] Secret distribution via Ansible runtime injection (SOPS/age integration baseline per ADR 0072):
   - `topology-tools/assemble-ansible-runtime.py --inject-secrets`
   - `task ansible:runtime-inject`
