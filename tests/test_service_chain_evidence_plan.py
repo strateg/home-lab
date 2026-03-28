@@ -11,7 +11,7 @@ import pytest
 TOOLS_ROOT = Path(__file__).resolve().parents[1] / "topology-tools"
 sys.path.insert(0, str(TOOLS_ROOT))
 
-from service_chain_evidence import build_command_plan  # noqa: E402
+from service_chain_evidence import _resolve_path_argument, build_command_plan  # noqa: E402
 
 
 def _joined(plan):
@@ -60,6 +60,19 @@ def test_service_chain_plan_maintenance_apply_contains_apply_steps() -> None:
     assert any("task ansible:apply-site" == cmd for cmd in commands)
 
 
+def test_service_chain_plan_maintenance_apply_supports_auto_approve() -> None:
+    plan = build_command_plan(
+        mode="maintenance-apply",
+        project_id="home-lab",
+        env="production",
+        allow_apply=True,
+        terraform_auto_approve=True,
+    )
+    commands = _joined(plan)
+    assert any("terraform -chdir=generated/home-lab/terraform/proxmox apply -auto-approve" == cmd for cmd in commands)
+    assert any("terraform -chdir=generated/home-lab/terraform/mikrotik apply -auto-approve" == cmd for cmd in commands)
+
+
 def test_service_chain_plan_uses_backend_config_when_provided() -> None:
     plan = build_command_plan(
         mode="maintenance-check",
@@ -70,10 +83,10 @@ def test_service_chain_plan_uses_backend_config_when_provided() -> None:
     )
     commands = _joined(plan)
     assert any(
-        "-backend-config=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend" in cmd for cmd in commands
+        "-backend-config projects/home-lab/secrets/terraform/proxmox.backend.tfbackend" in cmd for cmd in commands
     )
     assert any(
-        "-backend-config=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend" in cmd for cmd in commands
+        "-backend-config projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend" in cmd for cmd in commands
     )
 
 
@@ -86,5 +99,11 @@ def test_service_chain_plan_uses_var_files_when_provided() -> None:
         mikrotik_var_file="projects/home-lab/secrets/terraform/mikrotik.auto.tfvars",
     )
     commands = _joined(plan)
-    assert any("-var-file=projects/home-lab/secrets/terraform/proxmox.auto.tfvars" in cmd for cmd in commands)
-    assert any("-var-file=projects/home-lab/secrets/terraform/mikrotik.auto.tfvars" in cmd for cmd in commands)
+    assert any("-var-file projects/home-lab/secrets/terraform/proxmox.auto.tfvars" in cmd for cmd in commands)
+    assert any("-var-file projects/home-lab/secrets/terraform/mikrotik.auto.tfvars" in cmd for cmd in commands)
+
+
+def test_resolve_path_argument_converts_relative_to_absolute(tmp_path: Path) -> None:
+    resolved = _resolve_path_argument("projects/home-lab/secrets/terraform/proxmox.auto.tfvars", tmp_path)
+    assert resolved == str((tmp_path / "projects/home-lab/secrets/terraform/proxmox.auto.tfvars").resolve())
+    assert _resolve_path_argument("", tmp_path) is None

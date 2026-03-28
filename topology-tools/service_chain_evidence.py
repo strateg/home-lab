@@ -44,8 +44,17 @@ def _terraform_dir(project_id: str, target: str) -> str:
 
 def _terraform_init_args(backend_config: str | None) -> list[str]:
     if isinstance(backend_config, str) and backend_config.strip():
-        return ["init", "-reconfigure", "-input=false", f"-backend-config={backend_config.strip()}"]
+        return ["init", "-reconfigure", "-input=false", "-backend-config", backend_config.strip()]
     return ["init", "-backend=false", "-input=false"]
+
+
+def _resolve_path_argument(value: str | None, repo_root: Path) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    candidate = Path(value.strip())
+    if not candidate.is_absolute():
+        candidate = repo_root / candidate
+    return str(candidate.resolve())
 
 
 def build_command_plan(
@@ -54,6 +63,7 @@ def build_command_plan(
     project_id: str,
     env: str,
     allow_apply: bool = False,
+    terraform_auto_approve: bool = False,
     inject_secrets: bool = False,
     proxmox_backend_config: str | None = None,
     mikrotik_backend_config: str | None = None,
@@ -77,12 +87,15 @@ def build_command_plan(
     mikrotik_plan_args = ["plan", "-refresh=false"]
     proxmox_apply_args = ["apply"]
     mikrotik_apply_args = ["apply"]
+    if terraform_auto_approve:
+        proxmox_apply_args.append("-auto-approve")
+        mikrotik_apply_args.append("-auto-approve")
     if isinstance(proxmox_var_file, str) and proxmox_var_file.strip():
-        proxmox_plan_args.append(f"-var-file={proxmox_var_file.strip()}")
-        proxmox_apply_args.append(f"-var-file={proxmox_var_file.strip()}")
+        proxmox_plan_args.extend(["-var-file", proxmox_var_file.strip()])
+        proxmox_apply_args.extend(["-var-file", proxmox_var_file.strip()])
     if isinstance(mikrotik_var_file, str) and mikrotik_var_file.strip():
-        mikrotik_plan_args.append(f"-var-file={mikrotik_var_file.strip()}")
-        mikrotik_apply_args.append(f"-var-file={mikrotik_var_file.strip()}")
+        mikrotik_plan_args.extend(["-var-file", mikrotik_var_file.strip()])
+        mikrotik_apply_args.extend(["-var-file", mikrotik_var_file.strip()])
 
     plan: list[CommandStep] = [
         CommandStep(
@@ -315,6 +328,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--mikrotik-var-file", default="")
     parser.add_argument("--inject-secrets", action="store_true")
     parser.add_argument("--allow-apply", action="store_true")
+    parser.add_argument("--terraform-auto-approve", action="store_true")
     parser.add_argument("--continue-on-failure", action="store_true")
     parser.add_argument("--plan-only", action="store_true")
     return parser.parse_args(argv)
@@ -323,16 +337,21 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     repo_root = Path(__file__).resolve().parents[1]
+    proxmox_backend_config = _resolve_path_argument(args.proxmox_backend_config, repo_root)
+    mikrotik_backend_config = _resolve_path_argument(args.mikrotik_backend_config, repo_root)
+    proxmox_var_file = _resolve_path_argument(args.proxmox_var_file, repo_root)
+    mikrotik_var_file = _resolve_path_argument(args.mikrotik_var_file, repo_root)
     steps = build_command_plan(
         mode=args.mode,
         project_id=args.project_id,
         env=args.env,
         allow_apply=args.allow_apply,
+        terraform_auto_approve=args.terraform_auto_approve,
         inject_secrets=args.inject_secrets,
-        proxmox_backend_config=args.proxmox_backend_config or None,
-        mikrotik_backend_config=args.mikrotik_backend_config or None,
-        proxmox_var_file=args.proxmox_var_file or None,
-        mikrotik_var_file=args.mikrotik_var_file or None,
+        proxmox_backend_config=proxmox_backend_config,
+        mikrotik_backend_config=mikrotik_backend_config,
+        proxmox_var_file=proxmox_var_file,
+        mikrotik_var_file=mikrotik_var_file,
     )
     results: list[StepResult] = []
     if not args.plan_only:

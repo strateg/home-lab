@@ -65,7 +65,7 @@ tasks:
       - sh: 'test "{{.ALLOW_APPLY}}" = "YES"'
         msg: "Set ALLOW_APPLY=YES to run maintenance-apply evidence lane."
     cmds:
-      - "{{.PYTHON}} topology-tools/record-service-chain-evidence.py --mode maintenance-apply --allow-apply --project-id {{.PROJECT_ID}} --env production {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .INJECT_SECRETS}}--inject-secrets{{end}} {{if .PROXMOX_BACKEND_CONFIG}}--proxmox-backend-config {{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}--mikrotik-backend-config {{.MIKROTIK_BACKEND_CONFIG}}{{end}} {{if .PROXMOX_VAR_FILE}}--proxmox-var-file {{.PROXMOX_VAR_FILE}}{{end}} {{if .MIKROTIK_VAR_FILE}}--mikrotik-var-file {{.MIKROTIK_VAR_FILE}}{{end}}"
+      - "{{.PYTHON}} topology-tools/record-service-chain-evidence.py --mode maintenance-apply --allow-apply --project-id {{.PROJECT_ID}} --env production {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .TERRAFORM_AUTO_APPROVE}}--terraform-auto-approve{{end}} {{if .INJECT_SECRETS}}--inject-secrets{{end}} {{if .PROXMOX_BACKEND_CONFIG}}--proxmox-backend-config {{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}--mikrotik-backend-config {{.MIKROTIK_BACKEND_CONFIG}}{{end}} {{if .PROXMOX_VAR_FILE}}--proxmox-var-file {{.PROXMOX_VAR_FILE}}{{end}} {{if .MIKROTIK_VAR_FILE}}--mikrotik-var-file {{.MIKROTIK_VAR_FILE}}{{end}}"
 
   archive-v4-compile:
     desc: Compile legacy archive/v4 baseline for parity drift monitoring
