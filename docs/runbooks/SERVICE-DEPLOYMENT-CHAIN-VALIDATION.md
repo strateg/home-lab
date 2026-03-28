@@ -55,4 +55,5 @@ task framework:cutover-readiness
 ## 4. Current Known Gap
 
 Integrated service playbook chain is now wired in `projects/home-lab/ansible/playbooks/`.
+First execution evidence is recorded in `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md`.
 Remaining closure work is production execution evidence (`apply` records + recovery validation) per `adr/plan/v5-production-readiness.md`.

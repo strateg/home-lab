@@ -101,7 +101,8 @@
 - [x] Publish monitoring alert runbooks.
 - [ ] Validate end-to-end service deployment chain with documented evidence.
   Current baseline: service playbooks are integrated in `projects/home-lab/ansible/playbooks/` and task lanes are added (`ansible:runtime`, `ansible:syntax`, `ansible:check-site`).
-  Remaining for closure: collect environment execution evidence for playbook syntax/check/apply runs.
+  Evidence recorded: `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md`.
+  Remaining for closure: maintenance-window execution with Terraform var injection + Ansible `--check`/apply on reachable targets.
 
 **Gate:**
 

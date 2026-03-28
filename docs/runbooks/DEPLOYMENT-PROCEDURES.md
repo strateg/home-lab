@@ -96,6 +96,12 @@ task ansible:syntax
 task ansible:check-site
 ```
 
+If Windows-native `ansible-playbook` is unavailable, run syntax lane via WSL:
+
+```powershell
+wsl bash -lc "cd /mnt/d/Workspaces/PycharmProjects/home-lab && ANSIBLE_ROLES_PATH=projects/home-lab/ansible/roles ansible-playbook -i generated/home-lab/ansible/runtime/production/hosts.yml projects/home-lab/ansible/playbooks/site.yml --syntax-check"
+```
+
 Integrated service playbooks:
 
 - `projects/home-lab/ansible/playbooks/site.yml`

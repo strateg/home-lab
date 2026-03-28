@@ -517,7 +517,7 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 ## Phase 12: Operational Readiness (NEW)
 
 **Prerequisite:** Phases 8, 10
-**Status:** Active (operational runbooks baseline delivered; service integration pending)
+**Status:** Active (operational runbooks + service integration + dry evidence recorded; execution closure pending)
 
 ### 12.1 Operational Documentation
 
@@ -533,6 +533,7 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 - [x] Full PostgreSQL deployment playbook integrated under `projects/home-lab/ansible/playbooks/postgresql.yml`.
 - [x] Full Redis deployment playbook integrated under `projects/home-lab/ansible/playbooks/redis.yml`.
 - [x] Monitoring stack playbooks integrated under `projects/home-lab/ansible/playbooks/monitoring.yml`.
+- [x] Dry-run evidence captured in `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md`.
 - [ ] Secret distribution via Ansible (SOPS/age integration per ADR 0072).
 
 ### 12.3 Advanced Infrastructure
@@ -544,6 +545,7 @@ V5 now has 19 documentation templates (+ diagram index/legend pages); remaining 
 ### Phase 12 Definition of Done
 
 - [x] All operational runbooks published in `docs/runbooks/`.
+- [x] Dry-run service-chain evidence recorded (strict/validate/compile/terraform validate/ansible syntax).
 - [ ] Service deployment chain tested: topology → compile → generate → terraform apply → ansible deploy.
 - [ ] DR procedures validated with documented recovery time.
 
@@ -666,5 +668,5 @@ Progress is tracked in:
 | Phase 9: V4 Validator Cutover | Active (staged, all rows Covered/Partial) | P0 |
 | Phase 10: Docs/Diagrams | Active (template parity delivered; icon-pack runtime hardening pending) | P1 |
 | Phase 11: ADR Backlog | Active (governance closure done; relation backlog pending) | P1 |
-| Phase 12: Operational Readiness | Active (runbooks + service playbooks integrated; secret distribution and advanced infra pending) | P2 |
+| Phase 12: Operational Readiness | Active (runbooks + service playbooks + dry evidence; secret distribution/advanced infra/full execution pending) | P2 |
 | Phase 13: Multi-Repo | Deferred | P2 |
