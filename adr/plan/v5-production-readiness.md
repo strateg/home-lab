@@ -372,14 +372,20 @@ All 30 v4 validators have v5 plugin replacements registered. Current status: `Co
 
 ### 9.1 Foundation Domain
 
-- [ ] Lock file_placement warning semantics parity fixture.
-- [ ] Lock include_contract parity fixture.
-- [ ] Close storage-related edge fixtures for device_taxonomy.
+- [x] Lock file_placement warning semantics parity fixture.
+- [x] Lock include_contract parity fixture.
+- [x] Close storage-related edge fixtures for device_taxonomy.
 
 ### 9.2 Governance Domain
 
-- [ ] Lock version field warning-semantics parity.
-- [ ] Close class-taxonomy coupling edge cases for `network_manager_device_ref` defaults.
+- [x] Lock version field warning-semantics parity.
+- [x] Close class-taxonomy coupling edge cases for `network_manager_device_ref` defaults.
+
+Evidence (2026-03-28): expanded parity fixtures in
+`tests/plugin_integration/test_foundation_file_placement_validator.py`,
+`tests/plugin_integration/test_foundation_include_contract_validator.py`,
+`tests/plugin_integration/test_foundation_device_taxonomy_validator.py`, and
+`tests/plugin_integration/test_governance_contract_validator.py`.
 
 ### 9.3 Network Domain
 

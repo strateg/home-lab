@@ -71,6 +71,30 @@ def test_foundation_device_taxonomy_validator_rejects_mismatched_group_class():
     assert any(diag.code == "E7851" for diag in result.diagnostics)
 
 
+def test_foundation_device_taxonomy_validator_rejects_storage_class_in_l1_devices_group():
+    registry = _registry()
+    ctx = _context()
+    rows = _valid_rows()
+    rows[0]["class_ref"] = "class.storage.media"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7851" for diag in result.diagnostics)
+
+
+def test_foundation_device_taxonomy_validator_ignores_non_l1_storage_rows():
+    registry = _registry()
+    ctx = _context()
+    rows = _valid_rows()
+    rows.append({"group": "storage", "instance": "pool-a", "layer": "L3", "class_ref": "class.storage.pool"})
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
 def test_foundation_device_taxonomy_validator_requires_compiler_rows():
     registry = _registry()
     ctx = _context()

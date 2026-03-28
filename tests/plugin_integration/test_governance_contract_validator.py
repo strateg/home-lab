@@ -39,13 +39,13 @@ def _valid_manifest() -> dict:
     }
 
 
-def _context(raw_yaml: dict) -> PluginContext:
+def _context(raw_yaml: dict, *, classes: dict | None = None) -> PluginContext:
     return PluginContext(
         topology_path="topology/topology.yaml",
         profile="test",
         model_lock={},
         raw_yaml=copy.deepcopy(raw_yaml),
-        classes={},
+        classes=copy.deepcopy(classes or {}),
         objects={},
         instance_bindings={"instance_bindings": {}},
     )
@@ -55,6 +55,18 @@ def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
     ctx._set_execution_context("base.compiler.instance_rows", set())
     ctx.publish("normalized_rows", rows)
     ctx._clear_execution_context()
+
+
+def _context_with_rows(raw_yaml: dict, rows: list[dict], *, classes: dict | None = None) -> PluginContext:
+    ctx = _context(raw_yaml, classes=classes)
+
+    def _subscribe(plugin_id: str, key: str) -> list[dict]:
+        if plugin_id == "base.compiler.instance_rows" and key == "normalized_rows":
+            return copy.deepcopy(rows)
+        raise RuntimeError(f"Unexpected subscribe request: {plugin_id}.{key}")
+
+    ctx.subscribe = _subscribe  # type: ignore[method-assign]
+    return ctx
 
 
 def test_governance_contract_validator_accepts_valid_manifest():
@@ -73,6 +85,17 @@ def test_governance_contract_validator_rejects_invalid_version():
 
     result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7801" for diag in result.diagnostics)
+
+
+def test_governance_contract_validator_keeps_version_warning_semantics_when_version_missing():
+    registry = _registry()
+    manifest = _valid_manifest()
+    manifest.pop("version")
+
+    result = registry.execute_plugin(PLUGIN_ID, _context(manifest), Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "W7813" for diag in result.diagnostics)
     assert any(diag.code == "E7801" for diag in result.diagnostics)
 
 
@@ -127,8 +150,7 @@ def test_governance_contract_validator_rejects_unknown_default_security_policy_r
     registry = _registry()
     manifest = _valid_manifest()
     manifest["meta"]["defaults"] = {"refs": {"security_policy_ref": "fw-missing"}}
-    ctx = _context(manifest)
-    _publish_rows(ctx, [])
+    ctx = _context_with_rows(manifest, [])
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
@@ -139,12 +161,52 @@ def test_governance_contract_validator_rejects_network_manager_ref_outside_l1():
     registry = _registry()
     manifest = _valid_manifest()
     manifest["meta"]["defaults"] = {"refs": {"network_manager_device_ref": "inst.net.mgr"}}
-    ctx = _context(manifest)
-    _publish_rows(
-        ctx,
+    ctx = _context_with_rows(
+        manifest,
         [{"group": "services", "instance": "inst.net.mgr", "class_ref": "class.service.web_ui", "layer": "L5"}],
     )
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
-    assert any(diag.code == "E7812" for diag in result.diagnostics)
+    assert any(diag.code == "E7812" and "must target layer L1" in diag.message for diag in result.diagnostics)
+
+
+def test_governance_contract_validator_accepts_network_manager_ref_by_class_capabilities():
+    registry = _registry()
+    manifest = _valid_manifest()
+    manifest["meta"]["defaults"] = {"refs": {"network_manager_device_ref": "inst.net.mgr"}}
+    ctx = _context_with_rows(
+        manifest,
+        [{"group": "devices", "instance": "inst.net.mgr", "class_ref": "class.compute.edge_node", "layer": "L1"}],
+        classes={
+            "class.compute.edge_node": {
+                "required_capabilities": ["cap.net.manager"],
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
+def test_governance_contract_validator_accepts_network_manager_ref_by_row_extensions_capabilities():
+    registry = _registry()
+    manifest = _valid_manifest()
+    manifest["meta"]["defaults"] = {"refs": {"network_manager_device_ref": "inst.net.mgr"}}
+    ctx = _context_with_rows(
+        manifest,
+        [
+            {
+                "group": "devices",
+                "instance": "inst.net.mgr",
+                "class_ref": "class.compute.edge_node",
+                "layer": "L1",
+                "extensions": {"capabilities": ["cap.net.switch"]},
+            }
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

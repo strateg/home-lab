@@ -161,3 +161,27 @@ def test_foundation_include_contract_validator_uses_instances_root_from_project_
     )
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
+
+
+def test_foundation_include_contract_validator_resolves_relative_instances_root_from_manifest(tmp_path: Path):
+    repo_root = tmp_path / "external-repo"
+    project_root = repo_root / "home-lab"
+    instances_root = project_root / "custom-instances"
+    _build_tree(instances_root, direct_instances_root=True)
+
+    project_root.mkdir(parents=True, exist_ok=True)
+    project_manifest = project_root / "project.yaml"
+    project_manifest.write_text("instances_root: custom-instances\n", encoding="utf-8")
+
+    registry = _registry()
+    result = registry.execute_plugin(
+        PLUGIN_ID,
+        _context(
+            "home-lab",
+            repo_root=str(repo_root),
+            project_manifest_path=str(project_manifest),
+        ),
+        Stage.VALIDATE,
+    )
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

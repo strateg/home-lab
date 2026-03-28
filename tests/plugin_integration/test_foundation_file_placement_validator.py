@@ -136,6 +136,27 @@ def test_foundation_file_placement_validator_warns_on_filename_instance_mismatch
     assert any(diag.code == "W7901" for diag in result.diagnostics)
 
 
+def test_foundation_file_placement_validator_warns_on_missing_placement_fields(tmp_path: Path):
+    instances_root = _build_tree(tmp_path)
+    file_path = instances_root / "L1-foundation" / "devices" / "rtr-core.yaml"
+    file_path.write_text(
+        "\n".join(
+            (
+                "instance: rtr-core",
+                "object_ref: obj.test.sample",
+                "version: 1.0.0",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    registry = _registry()
+    result = registry.execute_plugin(PLUGIN_ID, _context(str(tmp_path)), Stage.VALIDATE)
+    assert result.status == PluginStatus.PARTIAL
+    assert any(diag.code == "W7901" for diag in result.diagnostics)
+
+
 def test_foundation_file_placement_validator_requires_project_root():
     registry = _registry()
     result = registry.execute_plugin(PLUGIN_ID, _context(None), Stage.VALIDATE)
