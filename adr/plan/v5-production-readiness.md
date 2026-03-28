@@ -595,6 +595,7 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
     - `topology-tools/plugins/plugins.yaml`
     - `projects/home-lab/topology/instances/L4-platform/lxc/*.yaml`
     - `tests/plugin_integration/test_lxc_refs_validator.py`
+    - `tests/test_l4_lxc_resource_profile_contract.py`
 
 ### Phase 12 Definition of Done
 
