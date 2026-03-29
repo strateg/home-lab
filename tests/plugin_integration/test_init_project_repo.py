@@ -233,3 +233,38 @@ def test_init_project_repo_can_use_distribution_zip_package_dependency(tmp_path:
     assert isinstance(framework_payload.get("signature"), dict)
     assert isinstance(lock_payload.get("provenance"), dict)
     assert isinstance(lock_payload.get("sbom"), dict)
+
+
+def test_init_project_repo_from_dist_emits_mounted_framework_commands(tmp_path: Path) -> None:
+    dist_zip = _fake_framework_distribution_zip(tmp_path, version="1.2.3")
+    output_root = tmp_path / "project-from-dist-commands"
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--output-root",
+            str(output_root),
+            "--project-id",
+            "home-lab",
+            "--framework-dist-zip",
+            str(dist_zip),
+            "--framework-submodule-path",
+            "framework",
+            "--skip-compile-check",
+            "--force",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stdout + "\n" + run.stderr
+
+    taskfile = (output_root / "taskfiles" / "project.yml").read_text(encoding="utf-8")
+    assert "{{.FRAMEWORK_TOOLS_ROOT}}/generate-framework-lock.py" in taskfile
+    assert "{{.FRAMEWORK_TOOLS_ROOT}}/verify-framework-lock.py" in taskfile
+    assert "{{.FRAMEWORK_TOOLS_ROOT}}/compile-topology.py" in taskfile
+    assert "{{.FRAMEWORK_MANIFEST}}" in taskfile
+
+    root_taskfile = (output_root / "Taskfile.yml").read_text(encoding="utf-8")
+    assert "FRAMEWORK_TOOLS_ROOT: '{{default \"framework/topology-tools\" .FRAMEWORK_TOOLS_ROOT}}'" in root_taskfile
+    assert "FRAMEWORK_MANIFEST: '{{default \"framework/framework.yaml\" .FRAMEWORK_MANIFEST}}'" in root_taskfile

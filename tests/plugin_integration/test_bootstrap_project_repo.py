@@ -202,3 +202,42 @@ def test_bootstrap_project_repo_can_seed_project_data(tmp_path: Path) -> None:
     assert (output_root / "topology" / "instances" / "L1-foundation" / "compute" / "vm.seed.yaml").exists()
     assert (output_root / "secrets" / "instances" / "vm.seed.yaml").exists()
     assert (output_root / "overrides" / "ansible" / "inventory-overrides" / "production" / "group_vars.yml").exists()
+
+
+def test_bootstrap_project_repo_emits_mounted_framework_tool_commands(tmp_path: Path) -> None:
+    framework_root = _fake_extracted_framework_repo(tmp_path)
+    output_root = tmp_path / "project-notes"
+    run = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--framework-root",
+            str(framework_root),
+            "--output-root",
+            str(output_root),
+            "--project-id",
+            "home-lab",
+            "--framework-submodule-path",
+            "framework",
+            "--force",
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stdout + "\n" + run.stderr
+
+    notes = (output_root / "BOOTSTRAP-NOTES.md").read_text(encoding="utf-8")
+    assert "python framework/topology-tools/verify-framework-lock.py" in notes
+    assert "python framework/topology-tools/compile-topology.py" in notes
+    assert "--framework-manifest framework/framework.yaml" in notes
+
+    project_taskfile = (output_root / "taskfiles" / "project.yml").read_text(encoding="utf-8")
+    assert "{{.FRAMEWORK_TOOLS_ROOT}}/generate-framework-lock.py" in project_taskfile
+    assert "{{.FRAMEWORK_TOOLS_ROOT}}/verify-framework-lock.py" in project_taskfile
+    assert "{{.FRAMEWORK_TOOLS_ROOT}}/compile-topology.py" in project_taskfile
+    assert "{{.FRAMEWORK_MANIFEST}}" in project_taskfile
+
+    root_taskfile = (output_root / "Taskfile.yml").read_text(encoding="utf-8")
+    assert "FRAMEWORK_TOOLS_ROOT: '{{default \"framework/topology-tools\" .FRAMEWORK_TOOLS_ROOT}}'" in root_taskfile
+    assert "FRAMEWORK_MANIFEST: '{{default \"framework/framework.yaml\" .FRAMEWORK_MANIFEST}}'" in root_taskfile
