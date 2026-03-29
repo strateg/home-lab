@@ -9,11 +9,13 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 
 SEMVER_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 RANGE_TOKEN_RE = re.compile(r"^(>=|<=|>|<|==|=)?(0|[1-9]\d*\.[0-9]\d*\.[0-9]\d*)$")
+PLACEHOLDER_TOKEN_RE = re.compile(r"^<[^>]+>$")
 
 
 @dataclass(frozen=True)
@@ -170,6 +172,27 @@ def _hash_file(path: Path) -> str:
                 break
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _is_non_empty_str(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _is_placeholder_token(value: Any) -> bool:
+    return isinstance(value, str) and PLACEHOLDER_TOKEN_RE.fullmatch(value.strip()) is not None
+
+
+def _is_valid_uri(value: Any) -> bool:
+    if not _is_non_empty_str(value):
+        return False
+    parsed = urlparse(str(value).strip())
+    if not parsed.scheme:
+        return False
+    if parsed.scheme in {"http", "https"}:
+        return bool(parsed.netloc)
+    if parsed.scheme == "file":
+        return bool(parsed.path)
+    return bool(parsed.path or parsed.netloc)
 
 
 def _excluded(path: str, patterns: list[str]) -> bool:
@@ -350,6 +373,7 @@ def verify_framework_lock(
     *,
     paths: ResolvedPaths,
     strict: bool,
+    enforce_package_trust: bool = False,
 ) -> LockVerifyResult:
     diagnostics: list[LockDiagnostic] = []
 
@@ -669,6 +693,81 @@ def verify_framework_lock(
                     path=f"{paths.lock_path}:sbom",
                 )
             )
+        if enforce_package_trust and isinstance(signature, dict):
+            issuer = signature.get("issuer")
+            subject = signature.get("subject")
+            verified = signature.get("verified")
+            if not _is_non_empty_str(issuer) or _is_placeholder_token(issuer):
+                diagnostics.append(
+                    LockDiagnostic(
+                        code="E7825",
+                        severity="error",
+                        message="framework.signature.issuer must be non-empty, non-placeholder string",
+                        path=f"{paths.lock_path}:framework.signature.issuer",
+                    )
+                )
+            if not _is_non_empty_str(subject) or _is_placeholder_token(subject):
+                diagnostics.append(
+                    LockDiagnostic(
+                        code="E7825",
+                        severity="error",
+                        message="framework.signature.subject must be non-empty, non-placeholder string",
+                        path=f"{paths.lock_path}:framework.signature.subject",
+                    )
+                )
+            if not isinstance(verified, bool) or not verified:
+                diagnostics.append(
+                    LockDiagnostic(
+                        code="E7825",
+                        severity="error",
+                        message="framework.signature.verified must be true when package trust is enforced",
+                        path=f"{paths.lock_path}:framework.signature.verified",
+                    )
+                )
+
+        if enforce_package_trust and isinstance(provenance, dict):
+            predicate_type = provenance.get("predicate_type")
+            uri = provenance.get("uri")
+            if not _is_non_empty_str(predicate_type) or _is_placeholder_token(predicate_type):
+                diagnostics.append(
+                    LockDiagnostic(
+                        code="E7826",
+                        severity="error",
+                        message="provenance.predicate_type must be non-empty, non-placeholder string",
+                        path=f"{paths.lock_path}:provenance.predicate_type",
+                    )
+                )
+            if not _is_valid_uri(uri) or _is_placeholder_token(uri):
+                diagnostics.append(
+                    LockDiagnostic(
+                        code="E7826",
+                        severity="error",
+                        message="provenance.uri must be a valid non-placeholder URI",
+                        path=f"{paths.lock_path}:provenance.uri",
+                    )
+                )
+
+        if enforce_package_trust and isinstance(sbom, dict):
+            sbom_format = sbom.get("format")
+            uri = sbom.get("uri")
+            if not _is_non_empty_str(sbom_format) or _is_placeholder_token(sbom_format):
+                diagnostics.append(
+                    LockDiagnostic(
+                        code="E7828",
+                        severity="error",
+                        message="sbom.format must be non-empty, non-placeholder string",
+                        path=f"{paths.lock_path}:sbom.format",
+                    )
+                )
+            if not _is_valid_uri(uri) or _is_placeholder_token(uri):
+                diagnostics.append(
+                    LockDiagnostic(
+                        code="E7828",
+                        severity="error",
+                        message="sbom.uri must be a valid non-placeholder URI",
+                        path=f"{paths.lock_path}:sbom.uri",
+                    )
+                )
 
     has_errors = any(item.severity == "error" for item in diagnostics)
     context = {

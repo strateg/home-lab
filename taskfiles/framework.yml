@@ -16,6 +16,11 @@ tasks:
     cmds:
       - "{{.PYTHON}} topology-tools/verify-framework-lock.py --strict"
 
+  verify-lock-package-trust:
+    desc: Verify framework.lock in strict mode with enforced package trust field quality
+    cmds:
+      - "{{.PYTHON}} topology-tools/verify-framework-lock.py --strict --enforce-package-trust"
+
   compile:
     desc: Compile topology with strict model lock and passthrough secrets
     cmds:

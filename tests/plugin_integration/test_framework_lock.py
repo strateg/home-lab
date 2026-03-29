@@ -127,17 +127,25 @@ def _run_generate(repo_root: Path, topology_manifest: Path, *, source: str = "gi
     )
 
 
-def _run_verify(repo_root: Path, topology_manifest: Path) -> subprocess.CompletedProcess[str]:
+def _run_verify(
+    repo_root: Path,
+    topology_manifest: Path,
+    *,
+    enforce_package_trust: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    cmd = [
+        sys.executable,
+        str(VERIFY_SCRIPT),
+        "--repo-root",
+        str(repo_root),
+        "--topology",
+        str(topology_manifest),
+        "--strict",
+    ]
+    if enforce_package_trust:
+        cmd.append("--enforce-package-trust")
     return subprocess.run(
-        [
-            sys.executable,
-            str(VERIFY_SCRIPT),
-            "--repo-root",
-            str(repo_root),
-            "--topology",
-            str(topology_manifest),
-            "--strict",
-        ],
+        cmd,
         text=True,
         capture_output=True,
         check=False,
@@ -196,6 +204,53 @@ def test_verify_detects_missing_package_attestations(tmp_path: Path):
     assert "E7825" in verify.stdout
     assert "E7826" in verify.stdout
     assert "E7828" in verify.stdout
+
+
+def test_verify_package_placeholders_allowed_without_enforce_flag(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    generate = _run_generate(repo_root, topology_manifest, source="package")
+    assert generate.returncode == 0, generate.stderr
+
+    verify = _run_verify(repo_root, topology_manifest, enforce_package_trust=False)
+    assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
+
+
+def test_verify_package_placeholders_rejected_with_enforce_flag(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    generate = _run_generate(repo_root, topology_manifest, source="package")
+    assert generate.returncode == 0, generate.stderr
+
+    verify = _run_verify(repo_root, topology_manifest, enforce_package_trust=True)
+    assert verify.returncode != 0
+    assert "E7825" in verify.stdout
+    assert "E7826" in verify.stdout
+    assert "E7828" in verify.stdout
+
+
+def test_verify_package_trust_passes_with_non_placeholder_metadata(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    generate = _run_generate(repo_root, topology_manifest, source="package")
+    assert generate.returncode == 0, generate.stderr
+
+    lock_path = repo_root / "projects" / "home-lab" / "framework.lock.yaml"
+    payload = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+    payload["framework"]["signature"] = {
+        "issuer": "https://token.actions.githubusercontent.com",
+        "subject": "https://github.com/strateg/infra-topology-framework/.github/workflows/release.yml@refs/tags/v1.0.0",
+        "verified": True,
+    }
+    payload["provenance"] = {
+        "predicate_type": "https://slsa.dev/provenance/v1",
+        "uri": "https://github.com/strateg/infra-topology-framework/releases/download/v1.0.0/provenance.json",
+    }
+    payload["sbom"] = {
+        "format": "spdx-json",
+        "uri": "https://github.com/strateg/infra-topology-framework/releases/download/v1.0.0/sbom.spdx.json",
+    }
+    lock_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    verify = _run_verify(repo_root, topology_manifest, enforce_package_trust=True)
+    assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
 
 
 def test_verify_bypasses_revision_mismatch_in_monorepo_mode(tmp_path: Path):

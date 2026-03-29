@@ -71,6 +71,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Treat missing lock and package trust metadata as hard errors.",
     )
+    parser.add_argument(
+        "--enforce-package-trust",
+        action="store_true",
+        help="When source=package, enforce non-placeholder trust fields and signature verification flag.",
+    )
     return parser.parse_args()
 
 
@@ -87,7 +92,11 @@ def main() -> int:
         framework_manifest_path=args.framework_manifest,
         lock_path=args.lock_file,
     )
-    result = verify_framework_lock(paths=paths, strict=bool(args.strict))
+    result = verify_framework_lock(
+        paths=paths,
+        strict=bool(args.strict),
+        enforce_package_trust=bool(args.enforce_package_trust),
+    )
     if not result.diagnostics:
         print("Framework lock verification: OK")
         return 0
