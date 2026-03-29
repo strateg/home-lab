@@ -49,6 +49,14 @@ Adopt **artifact-first framework consumption** as canonical 1:N architecture.
 
 This repository is the single source of truth for framework development.
 
+The repository also contains a **co-located test project** (`projects/home-lab/`) so that framework and project development happen in one place. The co-located project uses the same compilation scripts and produces the same artifacts as a standalone project repository would. This enables:
+
+1. **End-to-end validation** — framework changes are immediately tested against real project data.
+2. **Single development context** — AI-assisted development has full visibility into framework + project interaction.
+3. **Reference implementation** — the co-located project serves as the canonical example of how a project consumes the framework.
+
+The co-located project is built with the same `compile-topology.py` and the same plugin pipeline. The only difference from a standalone project is path resolution: in monorepo mode, `topology.yaml` points to framework paths without a mount prefix (`topology/class-modules`), while in standalone mode it points through the framework mount (`framework/topology/class-modules`).
+
 Contents exclusive to this repository (NEVER included in framework artifact):
 
 | Asset | Purpose |
@@ -221,6 +229,116 @@ Plugin discovery follows a strict deterministic merge chain:
 5. **Project** — `<project-root>/plugins/plugins.yaml` (if present)
 
 Later levels extend earlier levels. ID conflicts within the same level are errors. Cross-level ID collisions are resolved by level precedence (project wins for project-scoped execution).
+
+### 3.5 Practical Integration: How Framework Connects to Project (Informative)
+
+The key architectural question is: **project does NOT flatten classes/objects/instances into one root.** Classes and objects belong to the framework; instances belong to the project. They are connected via `topology.yaml` path declarations.
+
+#### Layout Comparison
+
+**Monorepo mode** (this repository — framework development):
+
+```
+home-lab/                               # repo_root
+├── topology/                           # Framework contracts (NO prefix needed)
+│   ├── class-modules/                  # ← framework.class_modules_root
+│   ├── object-modules/                 # ← framework.object_modules_root
+│   ├── topology.yaml                   # Root manifest
+│   └── ...
+├── topology-tools/                     # Compiler toolchain
+│   └── compile-topology.py             # Entrypoint
+├── projects/home-lab/                  # ← project_root
+│   ├── project.yaml
+│   ├── topology/instances/             # ← project.instances_root (relative to project_root)
+│   ├── secrets/                        # ← project.secrets_root
+│   └── framework.lock.yaml
+└── generated/home-lab/                 # Output artifacts
+```
+
+```yaml
+# topology/topology.yaml (monorepo)
+framework:
+  class_modules_root: topology/class-modules       # relative to repo_root
+  object_modules_root: topology/object-modules     # relative to repo_root
+project:
+  active: home-lab
+  projects_root: projects                          # project_root = repo_root/projects/home-lab
+```
+
+**Standalone project mode** (project repo with framework dependency):
+
+```
+my-infra/                               # repo_root = project_root
+├── framework/                          # Framework artifact (submodule or extracted zip)
+│   ├── topology/
+│   │   ├── class-modules/              # ← framework.class_modules_root
+│   │   ├── object-modules/             # ← framework.object_modules_root
+│   │   └── ...
+│   └── topology-tools/                 # Compiler toolchain
+│       └── compile-topology.py         # Same entrypoint
+├── topology.yaml                       # Root manifest (at project root)
+├── project.yaml
+├── framework.lock.yaml
+├── topology/
+│   └── instances/                      # ← project.instances_root
+│       ├── L0-meta/
+│       ├── L1-foundation/
+│       └── ...
+├── plugins/                            # Project-specific plugins
+├── secrets/
+└── generated/                          # Output artifacts
+```
+
+```yaml
+# topology.yaml (standalone project)
+framework:
+  class_modules_root: framework/topology/class-modules   # through framework/ mount
+  object_modules_root: framework/topology/object-modules  # through framework/ mount
+project:
+  active: my-infra
+  projects_root: .                                        # project IS the repo root
+```
+
+#### Path Resolution Mechanics
+
+The compiler resolves paths through two separate mechanisms:
+
+1. **Framework paths** (classes, objects, capabilities, layer contract) — resolved relative to `repo_root` via `topology.yaml:framework.*` declarations.
+2. **Project paths** (instances, secrets) — resolved relative to `project_root` via `project.yaml:instances_root` and `secrets_root`.
+
+This dual-root resolution enables the same `compile-topology.py` to work in both modes without code changes:
+
+```bash
+# Monorepo mode (framework development)
+python topology-tools/compile-topology.py \
+  --repo-root . \
+  --topology topology/topology.yaml
+
+# Standalone project mode (same script, different topology.yaml)
+python framework/topology-tools/compile-topology.py \
+  --repo-root . \
+  --topology ./topology.yaml
+```
+
+The compiler has built-in layout detection:
+- `resolve_topology_path()` falls back from `topology/topology.yaml` (monorepo) to `topology.yaml` (standalone) automatically.
+- `default_framework_manifest_path()` detects both `topology/framework.yaml` (monorepo) and `framework.yaml` (extracted artifact).
+
+#### What Belongs Where
+
+| Asset | Owner | Location in Monorepo | Location in Standalone Project |
+|-------|-------|---------------------|-------------------------------|
+| Class definitions | Framework | `topology/class-modules/` | `framework/topology/class-modules/` |
+| Object templates | Framework | `topology/object-modules/` | `framework/topology/object-modules/` |
+| Layer contract | Framework | `topology/layer-contract.yaml` | `framework/topology/layer-contract.yaml` |
+| Model lock | Framework | `topology/model.lock.yaml` | `framework/topology/model.lock.yaml` |
+| Base plugins | Framework | `topology-tools/plugins/` | `framework/topology-tools/plugins/` |
+| Compiler toolchain | Framework | `topology-tools/` | `framework/topology-tools/` |
+| Instance data | Project | `projects/<id>/topology/instances/` | `topology/instances/` |
+| Secrets | Project | `projects/<id>/secrets/` | `secrets/` |
+| Project plugins | Project | `projects/<id>/plugins/` | `plugins/` |
+| Framework lock | Project | `projects/<id>/framework.lock.yaml` | `framework.lock.yaml` |
+| Generated artifacts | Project | `generated/<id>/` | `generated/` |
 
 ### 4. Dependency and Trust Contract (Normative)
 
