@@ -1,8 +1,8 @@
 # Руководство: создание проекта и подключение framework
 
 **Статус:** Active
-**Updated:** 2026-03-21
-**ADR:** 0076
+**Updated:** 2026-03-29
+**ADR:** 0076, 0081
 
 ---
 
@@ -14,26 +14,10 @@
 
 ## One-shot инициализация (новый скрипт)
 
+Рекомендуемый путь (ADR0081): `artifact-first` через distribution zip.
+Submodule-подключение оставлено как legacy/rollback режим.
+
 Если нужен сразу готовый skeleton с каталогами `L0..L7`, подключенным framework и compile-check:
-
-```powershell
-python topology-tools/init-project-repo.py `
-  --output-root D:/work/new-project `
-  --project-id home-lab `
-  --framework-submodule-url https://github.com/<org>/infra-topology-framework.git `
-  --force
-```
-
-Что делает скрипт:
-
-1. Инициализирует git-репозиторий в `--output-root`.
-2. Подключает `framework` как git submodule.
-3. Генерирует `topology.yaml`, `project.yaml`, `framework.lock.yaml`.
-4. Создает структуру каталогов `instances/L0-meta ... instances/L7-operations` + group-каталоги из `layer-contract.yaml`.
-5. Добавляет минимальный compilable starter profile.
-6. Выполняет `verify-framework-lock --strict` и `compile-topology` (если не задан `--skip-compile-check`).
-
-Если нужно подключение через готовый distribution zip (package mode):
 
 ```powershell
 python topology-tools/init-project-repo.py `
@@ -44,13 +28,24 @@ python topology-tools/init-project-repo.py `
   --force
 ```
 
-В package mode:
+Что делает скрипт:
 
-1. zip распаковывается в `./framework`;
-   ожидаемый layout после распаковки: `framework.yaml`, `class-modules/`, `object-modules/`, `topology-tools/` (без вложенного `v5/`).
-2. `framework.lock.yaml` генерируется с `framework.source: package`;
-3. в lock сохраняется `framework.repository` (по умолчанию `file://...` URI zip-артефакта);
-4. strict verify/compile выполняются по распакованному framework дереву.
+1. Инициализирует git-репозиторий в `--output-root`.
+2. Подключает `framework` как artifact dependency (распаковка zip в `./framework`).
+3. Генерирует `topology.yaml`, `project.yaml`, `framework.lock.yaml`.
+4. Создает структуру каталогов `instances/L0-meta ... instances/L7-operations` + group-каталоги из `layer-contract.yaml`.
+5. Добавляет минимальный compilable starter profile.
+6. Выполняет `verify-framework-lock --strict` и `compile-topology` (если не задан `--skip-compile-check`).
+
+Legacy-режим (submodule) при необходимости:
+
+```powershell
+python topology-tools/init-project-repo.py `
+  --output-root D:/work/new-project `
+  --project-id home-lab `
+  --framework-submodule-url https://github.com/<org>/infra-topology-framework.git `
+  --force
+```
 
 ---
 
@@ -138,7 +133,7 @@ python framework/topology-tools/compile-topology.py `
 
 ```text
 project-repo/
-├── framework/              # git submodule -> infra-topology-framework
+├── framework/              # framework artifact (zip unpack / package dependency)
 ├── topology.yaml
 ├── project.yaml
 ├── framework.lock.yaml
@@ -210,11 +205,13 @@ python framework/topology-tools/compile-topology.py `
 
 ## Обновление framework в проекте
 
-1. Обновить submodule до нужной ревизии/tag.
+1. Обновить framework dependency:
+   - рекомендуемо: установить новый artifact в `./framework`;
+   - legacy: обновить submodule pointer до нужной ревизии/tag.
 2. Перегенерировать lock:
    - `python framework/topology-tools/generate-framework-lock.py --project-root . --project-manifest project.yaml --framework-root framework --framework-manifest framework/framework.yaml --lock-file framework.lock.yaml --force`
 3. Прогнать `verify-framework-lock --strict` и `compile-topology`.
-4. Коммитить submodule pointer + `framework.lock.yaml` в одном PR.
+4. Коммитить изменение framework dependency + `framework.lock.yaml` в одном PR.
 
 ---
 
