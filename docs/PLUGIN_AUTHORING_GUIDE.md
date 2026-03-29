@@ -1,6 +1,6 @@
 # Plugin Authoring Guide
 
-**Last Updated:** 2026-03-26
+**Last Updated:** 2026-03-29
 **Related:** ADR 0063, ADR 0065, ADR 0080
 
 This guide helps topology module developers create plugins that integrate with the v5
@@ -48,7 +48,8 @@ and return a `PluginResult`. All side effects go through the context API or decl
 1. Base manifest from CLI (`--plugins-manifest`) is loaded first.
 2. Then `plugins.yaml` files from `class-modules/**` are loaded (lexicographic order).
 3. Then `plugins.yaml` files from `object-modules/**` are loaded (lexicographic order).
-4. Duplicate plugin IDs across manifests are **hard errors** (no override).
+4. Then project `plugins.yaml` files from project plugin root are loaded (lexicographic order).
+5. Duplicate plugin IDs across manifests are **hard errors** (no override).
 
 ### Four-Level Boundary Model (ADR 0063 §4B)
 
@@ -56,13 +57,14 @@ and return a `PluginResult`. All side effects go through the context API or decl
 Level 1: Global / Core          topology-tools/plugins/
 Level 2: Class modules           topology/class-modules/**/plugins/
 Level 3: Object modules          topology/object-modules/**/plugins/
-Level 4: Instance (project)      projects/<project>/plugins/  (future)
+Level 4: Project                 projects/<project>/plugins/ (monorepo) or <project-root>/plugins/ (standalone)
 ```
 
 Rules:
 - Class-level plugins **must not** reference `obj.*` or `inst.*` identifiers.
 - Object-level plugins **must not** reference `inst.*` identifiers.
 - A plugin may depend on plugins from its own level or higher only.
+- Plugin IDs must remain globally unique across all discovered manifests (no level shadowing).
 
 ---
 
