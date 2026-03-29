@@ -406,7 +406,7 @@ Wave D completed:
    - `task ci:topology-parity-v4-v5`
    - wired into `task ci:local-with-legacy`
 9. Updated cutover readiness reporting:
-   - `v5/topology-tools/cutover-readiness-report.py` non-quick mode now includes `pytest_v4_v5_parity` gate
+   - `v5/topology-tools/utils/cutover-readiness-report.py` non-quick mode now includes `pytest_v4_v5_parity` gate
 10. Executed cutover readiness gates after parity integration:
    - quick mode: PASS
    - non-quick mode: PASS (`verify_framework_lock`, `rehearse_rollback`, `validate_compatibility_matrix`, `audit_strict_entrypoints`, `pytest_v4_v5_parity`, `pytest_v5`, `lane_validate_v5`)
@@ -443,7 +443,7 @@ Closure evidence (2026-03-22):
 
 1. `python -m pytest -o addopts= v5/tests/plugin_integration -q` -> PASS (`449 passed`).
 2. `task test:parity-v4-v5` -> PASS (`37 passed`).
-3. `python topology-tools/cutover-readiness-report.py --output build/diagnostics/cutover-readiness-full-latest.json` -> PASS (all non-quick gates green).
+3. `python topology-tools/utils/cutover-readiness-report.py --output build/diagnostics/cutover-readiness-full-latest.json` -> PASS (all non-quick gates green).
 
 Post-cutover hardening (2026-03-27):
 

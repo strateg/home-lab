@@ -25,7 +25,7 @@ class GateResult:
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[2]
 
 
 def _default_output_json() -> Path:
@@ -96,17 +96,17 @@ def _gate_commands(repo_root: Path, *, quick: bool) -> list[tuple[str, list[str]
         ),
         (
             "rehearse_rollback",
-            [python, "topology-tools/rehearse-framework-rollback.py"],
+            [python, "topology-tools/utils/rehearse-framework-rollback.py"],
             None,
         ),
         (
             "validate_compatibility_matrix",
-            [python, "topology-tools/validate-framework-compatibility-matrix.py"],
+            [python, "topology-tools/utils/validate-framework-compatibility-matrix.py"],
             None,
         ),
         (
             "audit_strict_entrypoints",
-            [python, "topology-tools/audit-strict-runtime-entrypoints.py"],
+            [python, "topology-tools/utils/audit-strict-runtime-entrypoints.py"],
             None,
         ),
     ]

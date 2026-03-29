@@ -107,9 +107,9 @@ jobs:
           fi
           if [ "${RUN_STRICT_PROJECT_GATES}" = "1" ]; then
             python "$FRAMEWORK_TOOLS/verify-framework-lock.py" --strict
-            python "$FRAMEWORK_TOOLS/rehearse-framework-rollback.py"
-            python "$FRAMEWORK_TOOLS/validate-framework-compatibility-matrix.py"
-            python "$FRAMEWORK_TOOLS/audit-strict-runtime-entrypoints.py"
+            python "$FRAMEWORK_TOOLS/utils/rehearse-framework-rollback.py"
+            python "$FRAMEWORK_TOOLS/utils/validate-framework-compatibility-matrix.py"
+            python "$FRAMEWORK_TOOLS/utils/audit-strict-runtime-entrypoints.py"
           else
             echo "Skipping strict project gates (no projects/home-lab/framework.lock.yaml baseline present)."
           fi
@@ -128,7 +128,7 @@ jobs:
             fi
             echo "Task orchestration failed; executing legacy fallback chain."
           fi
-          python "$FRAMEWORK_TOOLS/build-framework-distribution.py" --repo-root . --framework-manifest "$FRAMEWORK_MANIFEST" --output-root framework-dist --version "$RELEASE_VERSION" --archive-format both
+          python "$FRAMEWORK_TOOLS/utils/build-framework-distribution.py" --repo-root . --framework-manifest "$FRAMEWORK_MANIFEST" --output-root framework-dist --version "$RELEASE_VERSION" --archive-format both
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0

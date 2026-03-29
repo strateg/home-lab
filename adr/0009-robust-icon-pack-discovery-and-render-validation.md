@@ -21,7 +21,7 @@ At the same time, the project lacked a single automated check that validates Mer
    - mode-specific `mermaid_icon_runtime_hint`.
 3. Update all diagram templates to consume the dynamic runtime hint instead of hardcoded icon-node text.
 4. Add a dedicated render validation tool:
-   - `topology-tools/validate-mermaid-render.py`;
+   - `topology-tools/utils/validate-mermaid-render.py`;
    - validates all Mermaid blocks from generated docs through Mermaid CLI for selected mode.
 
 ## Consequences
@@ -42,7 +42,7 @@ Trade-offs:
 - Files:
   - `topology-tools/generate-docs.py`
   - `topology-tools/docs_diagrams.py`
-  - `topology-tools/validate-mermaid-render.py`
+  - `topology-tools/utils/validate-mermaid-render.py`
   - `topology-tools/templates/docs/network-diagram.md.j2`
   - `topology-tools/templates/docs/physical-topology.md.j2`
   - `topology-tools/templates/docs/vlan-topology.md.j2`

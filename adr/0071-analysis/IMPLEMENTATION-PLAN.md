@@ -63,7 +63,7 @@ Done when:
 Files:
 
 - `v5/tests/plugin_integration/*`
-- `v5/topology-tools/split-instance-bindings.py`
+- `v5/topology-tools/utils/split-instance-bindings.py`
 
 Deliver:
 

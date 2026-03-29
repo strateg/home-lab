@@ -207,7 +207,7 @@ hardware_identity:
 ## Discovery Script
 
 ```bash
-python v5/topology-tools/discover-hardware-identity.py \
+python v5/topology-tools/utils/discover-hardware-identity.py \
   --topology v5/topology/topology.yaml \
   --project home-lab
 ```
@@ -219,7 +219,7 @@ This generates per-instance patch templates in:
 You can provide discovered values via:
 
 ```bash
-python v5/topology-tools/discover-hardware-identity.py \
+python v5/topology-tools/utils/discover-hardware-identity.py \
   --discovery-file v5-build/hardware-identity-discovery.yaml \
   --only-discovered
 ```

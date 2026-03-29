@@ -23,7 +23,7 @@ class AuditCheckResult:
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[2]
 
 
 def _write_yaml(path: Path, payload: dict) -> None:

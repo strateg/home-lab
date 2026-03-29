@@ -166,7 +166,7 @@ python topology-tools/assemble-ansible-runtime.py `
 ### Генерация patch-шаблонов hardware identity
 
 ```powershell
-python topology-tools/discover-hardware-identity.py `
+python topology-tools/utils/discover-hardware-identity.py `
   --topology topology/topology.yaml `
   --project home-lab
 ```
@@ -177,21 +177,21 @@ python topology-tools/discover-hardware-identity.py `
 task framework:release-build FRAMEWORK_VERSION=1.0.8
 task framework:release-bootstrap
 
-python topology-tools/build-framework-distribution.py `
+python topology-tools/utils/build-framework-distribution.py `
   --version 1.0.0 `
   --archive-format both
 
-python topology-tools/extract-framework-worktree.py `
+python topology-tools/utils/extract-framework-worktree.py `
   --output-root build/framework-extract `
   --include-tests `
   --force
 
-python topology-tools/extract-framework-history.py `
+python topology-tools/utils/extract-framework-history.py `
   --output-root build/infra-topology-framework-history `
   --include-tests `
   --force
 
-python topology-tools/bootstrap-framework-repo.py `
+python topology-tools/utils/bootstrap-framework-repo.py `
   --output-root build/infra-topology-framework-bootstrap `
   --include-tests `
   --preserve-history `
@@ -203,10 +203,10 @@ python topology-tools/bootstrap-framework-repo.py `
 ```powershell
 python topology-tools/generate-framework-lock.py --force
 python topology-tools/verify-framework-lock.py --strict
-python topology-tools/rehearse-framework-rollback.py
-python topology-tools/validate-framework-compatibility-matrix.py
-python topology-tools/audit-strict-runtime-entrypoints.py
-python topology-tools/cutover-readiness-report.py --quick
+python topology-tools/utils/rehearse-framework-rollback.py
+python topology-tools/utils/validate-framework-compatibility-matrix.py
+python topology-tools/utils/audit-strict-runtime-entrypoints.py
+python topology-tools/utils/cutover-readiness-report.py --quick
 ```
 
 `compile-topology.py` в strict-runtime выполняет ту же проверку lock автоматически перед загрузкой модулей.
@@ -228,7 +228,7 @@ python topology-tools/cutover-readiness-report.py --quick
 Или использовать bootstrap helper:
 
 ```powershell
-python topology-tools/bootstrap-project-repo.py `
+python topology-tools/utils/bootstrap-project-repo.py `
   --framework-root . `
   --output-root build/project-bootstrap/new-project `
   --project-id new-project `
@@ -292,6 +292,7 @@ python topology-tools/bootstrap-project-repo.py `
 - `docs/release-notes/2026-03-20-v5-framework-project-cutover.md`
 - `docs/framework/SUBMODULE-ROLL-OUT.md`
 - `docs/framework/OPERATOR-WORKFLOWS.md`
+- `docs/framework/TOPOLOGY-TOOLS-SCRIPT-REGISTER.md`
 - `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`
 - `docs/framework/INFRA-TOPOLOGY-FRAMEWORK-RELEASE-PROCESS.md`
 - `docs/framework/templates/framework-release.yml`

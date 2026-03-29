@@ -249,10 +249,10 @@ Recorded one full local release cycle after shim removal:
    - v5 lane validate (`V5_SECRETS_MODE=passthrough python v5/scripts/orchestration/lane.py validate-v5`)
    - Result: PASS
 3. Framework distribution build:
-   - `python v5/topology-tools/build-framework-distribution.py --repo-root . --framework-manifest v5/topology/framework.yaml --output-root v5-dist/framework --version 1.0.8 --archive-format both`
+   - `python v5/topology-tools/utils/build-framework-distribution.py --repo-root . --framework-manifest v5/topology/framework.yaml --output-root v5-dist/framework --version 1.0.8 --archive-format both`
    - Result: PASS (`infra-topology-framework-1.0.8.zip` / `.tar.gz`)
 4. Zip bootstrap smoke:
-   - `python v5/topology-tools/init-project-repo.py --output-root v5-build/adr0078-cycle-project --project-id adr0078-cycle --framework-dist-zip ...infra-topology-framework-1.0.8.zip --framework-dist-version 1.0.8 --framework-submodule-path framework --force`
+   - `python v5/topology-tools/utils/init-project-repo.py --output-root v5-build/adr0078-cycle-project --project-id adr0078-cycle --framework-dist-zip ...infra-topology-framework-1.0.8.zip --framework-dist-version 1.0.8 --framework-submodule-path framework --force`
    - Result: `Compile check: PASS`
 
 Conclusion:

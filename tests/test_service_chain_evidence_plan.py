@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-TOOLS_ROOT = Path(__file__).resolve().parents[1] / "topology-tools"
+TOOLS_ROOT = Path(__file__).resolve().parents[1] / "topology-tools" / "utils"
 sys.path.insert(0, str(TOOLS_ROOT))
 
 from service_chain_evidence import (  # noqa: E402

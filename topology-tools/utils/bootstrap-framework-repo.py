@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[2]
 
 
 def _default_output_root() -> Path:
@@ -78,7 +78,7 @@ def main() -> int:
     output_root = args.output_root.resolve()
 
     extract_script_name = "extract-framework-history.py" if args.preserve_history else "extract-framework-worktree.py"
-    extract_script = source_repo / "topology-tools" / extract_script_name
+    extract_script = source_repo / "topology-tools" / "utils" / extract_script_name
     if not extract_script.exists():
         fallback_script = Path(__file__).resolve().parent / extract_script_name
         if fallback_script.exists():

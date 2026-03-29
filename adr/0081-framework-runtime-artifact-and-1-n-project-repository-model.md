@@ -154,6 +154,53 @@ The framework artifact MUST NOT include:
 
 This exclusion list is enforced by `topology/framework.yaml` distribution spec and verified by artifact content contract tests.
 
+#### 2.3 `topology-tools` Script Boundary (Normative)
+
+To reduce cognitive load and keep runtime artifacts minimal, `topology-tools` scripts are split into:
+
+1. **Topology Runtime Environment (TRE)** — shipped with framework artifact.
+2. **Framework Development Repository Only** — kept in source repository, not required in project runtime dependency.
+
+TRE scripts (must be shipped):
+
+1. `compile-topology.py`
+2. `check-capability-contract.py`
+3. `assemble-ansible-runtime.py`
+4. `generate-framework-lock.py`
+5. `verify-framework-lock.py`
+6. runtime support modules used by pipeline entrypoints:
+   - `compiler_*.py`
+   - `framework_lock.py`
+   - `plugin_manifest_discovery.py`
+   - `field_annotations.py`
+   - `capability_derivation.py`
+   - `identifier_policy.py`
+
+Framework development repository only (must not be required by TRE):
+
+1. `build-framework-distribution.py`
+2. `bootstrap-framework-repo.py`
+3. `extract-framework-history.py`
+4. `extract-framework-worktree.py`
+5. `init-project-repo.py`
+6. `bootstrap-project-repo.py`
+7. `cutover-readiness-report.py`
+8. `rehearse-framework-rollback.py`
+9. `validate-framework-compatibility-matrix.py`
+10. `audit-strict-runtime-entrypoints.py`
+11. `discover-hardware-identity.py`
+12. `split-instance-bindings.py`
+13. `bootstrap-phase1-mapping.py`
+14. `record-service-chain-evidence.py`
+15. `service_chain_evidence.py`
+16. `validate-mermaid-render.py`
+
+Directory-level rule:
+
+1. `kernel/`, `plugins/`, `schemas/`, `templates/`, `data/` are TRE components.
+2. `topology-tools/utils/` contains source-only utilities and is not a TRE runtime requirement.
+3. `topology-tools/docs/` is development documentation and not a TRE runtime requirement.
+
 ### 3. Project Repository Contract (Normative)
 
 #### 3.1 Project Layout
@@ -524,8 +571,9 @@ ADR 0075 answers "where is the boundary?" — ADR 0076 answers "how to distribut
 3. `adr/0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md` — six-stage lifecycle
 4. `adr/plan/0081-framework-artifact-first-execution-plan.md` — execution plan
 5. `topology/framework.yaml` — framework distribution spec (source of truth for artifact contents)
-6. `topology-tools/build-framework-distribution.py` — artifact build tool
+6. `topology-tools/utils/build-framework-distribution.py` — artifact build tool
 7. `topology-tools/generate-framework-lock.py` — lock generation
 8. `topology-tools/verify-framework-lock.py` — lock verification
-9. `topology-tools/bootstrap-project-repo.py` — project repository scaffolding
-10. `topology-tools/extract-framework-history.py` — history-preserving extraction
+9. `topology-tools/utils/bootstrap-project-repo.py` — project repository scaffolding
+10. `topology-tools/utils/extract-framework-history.py` — history-preserving extraction
+11. `docs/framework/TOPOLOGY-TOOLS-SCRIPT-REGISTER.md` — operational script/module register for TRE boundary

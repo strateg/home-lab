@@ -11,7 +11,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GENERATE_SCRIPT = REPO_ROOT / "topology-tools" / "generate-framework-lock.py"
-REHEARSAL_SCRIPT = REPO_ROOT / "topology-tools" / "rehearse-framework-rollback.py"
+REHEARSAL_SCRIPT = REPO_ROOT / "topology-tools" / "utils" / "rehearse-framework-rollback.py"
 
 
 def _write_yaml(path: Path, payload: dict) -> None:

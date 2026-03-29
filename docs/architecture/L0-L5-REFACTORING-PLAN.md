@@ -191,7 +191,7 @@ python topology-tools/regenerate-all.py
 git diff --stat generated/
 
 # 4. Mermaid diagram validation
-python topology-tools/validate-mermaid-render.py --docs-dir generated/docs
+python topology-tools/utils/validate-mermaid-render.py --docs-dir generated/docs
 
 # 5. Specific acceptance checks
 echo "P0.1 acceptance:"

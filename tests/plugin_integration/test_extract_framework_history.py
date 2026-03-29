@@ -19,10 +19,10 @@ def _detect_repo_root() -> Path:
 
 
 def _tools_root(repo_root: Path) -> Path:
-    extracted = repo_root / "topology-tools"
+    extracted = repo_root / "topology-tools" / "utils"
     if extracted.is_dir():
         return extracted
-    return repo_root / "topology-tools"
+    return repo_root / "topology-tools" / "utils"
 
 
 REPO_ROOT = _detect_repo_root()

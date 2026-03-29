@@ -25,7 +25,7 @@ graph TB
 
 
 def _script_path() -> Path:
-    return Path(__file__).resolve().parents[1] / "topology-tools" / "validate-mermaid-render.py"
+    return Path(__file__).resolve().parents[1] / "topology-tools" / "utils" / "validate-mermaid-render.py"
 
 
 def _run_validator(docs_root: Path) -> subprocess.CompletedProcess[str]:

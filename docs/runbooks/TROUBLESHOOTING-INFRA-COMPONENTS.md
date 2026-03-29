@@ -128,7 +128,7 @@ ansible-inventory -i generated/home-lab/ansible/runtime/production/hosts.yml --l
 
 ```powershell
 task build:v5-docs
-python topology-tools/validate-mermaid-render.py --docs-root generated/home-lab/docs
+python topology-tools/utils/validate-mermaid-render.py --docs-root generated/home-lab/docs
 ```
 
 ### Typical Causes

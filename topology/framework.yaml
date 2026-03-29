@@ -41,6 +41,7 @@ distribution:
     - "dist/**"
     - "taskfiles/**"
     - "Taskfile.yml"
+    - "topology-tools/utils/**"
     - "pyproject.toml"
     - "requirements-dev.txt"
     - ".claude/**"

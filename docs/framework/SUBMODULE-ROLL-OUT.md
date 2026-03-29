@@ -51,7 +51,7 @@ git submodule update --init --recursive
 Bootstrap helper for project skeleton + lock:
 
 ```bash
-python topology-tools/bootstrap-project-repo.py \
+python topology-tools/utils/bootstrap-project-repo.py \
   --framework-root <framework-source-root> \
   --output-root <new-project-repo-root> \
   --project-id home-lab \

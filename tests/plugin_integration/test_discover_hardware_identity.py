@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT_PATH = REPO_ROOT / "topology-tools" / "discover-hardware-identity.py"
+SCRIPT_PATH = REPO_ROOT / "topology-tools" / "utils" / "discover-hardware-identity.py"
 
 
 def _load_module():

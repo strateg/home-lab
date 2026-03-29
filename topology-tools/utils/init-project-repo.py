@@ -233,7 +233,7 @@ def _regenerate_lock_for_package(
     repository: str,
     version: str,
 ) -> None:
-    generate_script = Path(__file__).resolve().parent / "generate-framework-lock.py"
+    generate_script = Path(__file__).resolve().parents[1] / "generate-framework-lock.py"
     run = _run(
         [
             sys.executable,

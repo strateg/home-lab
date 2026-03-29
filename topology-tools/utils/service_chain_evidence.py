@@ -397,7 +397,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    repo_root = Path(__file__).resolve().parents[1]
+    repo_root = Path(__file__).resolve().parents[2]
     proxmox_backend_config = _resolve_path_argument(args.proxmox_backend_config, repo_root)
     mikrotik_backend_config = _resolve_path_argument(args.mikrotik_backend_config, repo_root)
     proxmox_var_file = _resolve_path_argument(args.proxmox_var_file, repo_root)

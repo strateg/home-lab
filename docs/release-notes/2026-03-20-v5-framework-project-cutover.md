@@ -32,7 +32,7 @@ Migration to strict project-aware v5 layout is complete for the active project (
 5. Ansible runtime assembly moved to project-qualified inventory/override roots.
 6. Legacy projection/runtime fallback branches removed from strict model.
 7. Hardware identity patch utility added:
-   - `v5/topology-tools/discover-hardware-identity.py`
+   - `v5/topology-tools/utils/discover-hardware-identity.py`
 
 ## Operator Impact
 

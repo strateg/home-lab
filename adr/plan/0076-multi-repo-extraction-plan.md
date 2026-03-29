@@ -543,7 +543,7 @@ Wave 3 incremental progress (2026-03-20):
 2. operator workflow document added: `docs/framework/OPERATOR-WORKFLOWS.md`.
 3. external project CI template added: `docs/framework/templates/project-validate.yml`.
 4. `compile-topology.py` supports `--repo-root` override and `framework.root` for external project repos.
-5. added project repository bootstrap utility: `v5/topology-tools/bootstrap-project-repo.py`.
+5. added project repository bootstrap utility: `v5/topology-tools/utils/bootstrap-project-repo.py`.
 6. lock/bootstrap runtime supports both monorepo and extracted framework manifest layouts.
 7. project CI workflow template now autodetects framework tools path for both layouts.
 8. compiler supports root-level `project.yaml` fallback when `projects_root: "."` (external project repo layout).
@@ -559,13 +559,13 @@ Wave 3 incremental progress (2026-03-20):
 Wave 4 incremental progress (2026-03-20):
 
 1. compatibility matrix tests expanded for `E7811/E7812/E7813`.
-2. rollback rehearsal utility added: `v5/topology-tools/rehearse-framework-rollback.py`.
+2. rollback rehearsal utility added: `v5/topology-tools/utils/rehearse-framework-rollback.py`.
 3. rollback rehearsal gate wired into primary validation workflows.
 4. strict lock verify + rollback rehearsal added to `python-checks` pipeline.
 5. compatibility matrix validator wired into primary CI workflows.
 6. strict runtime entrypoint audit utility added and wired into primary CI workflows.
 7. local full validation run passed (`python -m pytest -o addopts= v5/tests -q` -> `306 passed`; `lane.py validate-v5` -> `PASS`).
-8. added cutover readiness reporting utility: `v5/topology-tools/cutover-readiness-report.py`.
+8. added cutover readiness reporting utility: `v5/topology-tools/utils/cutover-readiness-report.py`.
 9. added e2e dry-run runbook: `docs/framework/CUTOVER-DRY-RUN-RUNBOOK.md`.
 10. strict readiness gates re-run after extracted-layout updates (`verify-framework-lock`, `rehearse-framework-rollback`, `validate-framework-compatibility-matrix`, `audit-strict-runtime-entrypoints`, `cutover-readiness-report --quick`) -> `PASS`.
 11. post-hardening full suite re-run passed (`306 passed` + `lane validate-v5 PASS`).
@@ -574,12 +574,12 @@ Wave 4 incremental progress (2026-03-20):
 
 Wave 2 incremental progress (2026-03-20):
 
-1. added extraction bootstrap utility: `v5/topology-tools/extract-framework-worktree.py`.
+1. added extraction bootstrap utility: `v5/topology-tools/utils/extract-framework-worktree.py`.
 2. added integration tests for extraction utility.
 3. added framework release workflow template: `docs/framework/templates/framework-release.yml`.
-4. added repository bootstrap utility: `v5/topology-tools/bootstrap-framework-repo.py`.
+4. added repository bootstrap utility: `v5/topology-tools/utils/bootstrap-framework-repo.py`.
 5. extraction utility rewrites `framework.yaml` distribution include paths to extracted layout and treats `v5/tests/conftest.py` as optional.
-6. added history-preserving extraction utility: `v5/topology-tools/extract-framework-history.py`.
+6. added history-preserving extraction utility: `v5/topology-tools/utils/extract-framework-history.py`.
 7. framework bootstrap supports `--preserve-history`; local dry-run passed with extracted repo test gate (`49 passed`).
 8. extracted repo distribution build dry-run passed (`build-framework-distribution.py --version 1.0.0-rc1`).
 9. extracted framework release workflow commit is prepared locally (`ci: add framework release workflow for tag builds`) but remote push is blocked until GitHub auth token with `workflow` scope is used.

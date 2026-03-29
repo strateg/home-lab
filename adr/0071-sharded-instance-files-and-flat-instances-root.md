@@ -149,7 +149,7 @@ and not duplicated in shard files.
 
 Completed cutover:
 
-1. splitter tool delivered: `v5/topology-tools/split-instance-bindings.py`
+1. splitter tool delivered: `v5/topology-tools/utils/split-instance-bindings.py`
 2. monolith split to per-instance shards in `v5/topology/instances/<layer-bucket>/<group>/`
 3. compiler runtime switched to `sharded-only` instance source
 4. legacy path `paths.instance_bindings` removed from manifest

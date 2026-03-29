@@ -11,7 +11,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GENERATE_SCRIPT = REPO_ROOT / "topology-tools" / "generate-framework-lock.py"
-MATRIX_SCRIPT = REPO_ROOT / "topology-tools" / "validate-framework-compatibility-matrix.py"
+MATRIX_SCRIPT = REPO_ROOT / "topology-tools" / "utils" / "validate-framework-compatibility-matrix.py"
 
 
 def _write_yaml(path: Path, payload: dict) -> None:

@@ -1646,7 +1646,7 @@ jobs:
       - name: Run Mermaid validation (if mmdc available)
         run: |
           if command -v npx &> /dev/null; then
-            python v5/topology-tools/validate-mermaid-render.py v5-generated/home-lab/docs/
+            python v5/topology-tools/utils/validate-mermaid-render.py v5-generated/home-lab/docs/
           else
             echo "Skipping Mermaid validation (mmdc not available)"
           fi

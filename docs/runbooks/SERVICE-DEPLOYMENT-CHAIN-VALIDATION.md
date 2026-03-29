@@ -47,7 +47,7 @@ task framework:service-chain-evidence-check -- CONTINUE_ON_FAILURE=1 ANSIBLE_VIA
 task framework:service-chain-evidence-apply -- ALLOW_APPLY=YES CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1 TERRAFORM_AUTO_APPROVE=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=generated/home-lab/terraform/proxmox/terraform.tfvars.example MIKROTIK_VAR_FILE=generated/home-lab/terraform/mikrotik/terraform.tfvars.example
 ```
 
-Reports are generated under `docs/runbooks/evidence/` by `topology-tools/record-service-chain-evidence.py`.
+Reports are generated under `docs/runbooks/evidence/` by `topology-tools/utils/record-service-chain-evidence.py`.
 
 ---
 

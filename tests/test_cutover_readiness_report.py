@@ -10,7 +10,7 @@ from pathlib import Path
 
 def _load_module():
     repo_root = Path(__file__).resolve().parents[1]
-    module_path = repo_root / "topology-tools" / "cutover-readiness-report.py"
+    module_path = repo_root / "topology-tools" / "utils" / "cutover-readiness-report.py"
     spec = importlib.util.spec_from_file_location("cutover_readiness_report", module_path)
     if spec is None or spec.loader is None:
         raise AssertionError("Unable to load cutover-readiness-report module.")

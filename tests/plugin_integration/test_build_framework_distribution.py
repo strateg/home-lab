@@ -21,10 +21,10 @@ def _detect_repo_root() -> Path:
 
 
 def _tools_root(repo_root: Path) -> Path:
-    extracted = repo_root / "topology-tools"
+    extracted = repo_root / "topology-tools" / "utils"
     if extracted.is_dir():
         return extracted
-    return repo_root / "topology-tools"
+    return repo_root / "topology-tools" / "utils"
 
 
 REPO_ROOT = _detect_repo_root()
@@ -112,7 +112,7 @@ def test_build_distribution_creates_archives_manifest_and_checksums(tmp_path: Pa
 
 def test_default_paths_detect_extracted_layout(tmp_path: Path):
     framework_root = tmp_path / "framework"
-    tools_root = framework_root / "topology-tools"
+    tools_root = framework_root / "topology-tools" / "utils"
     tools_root.mkdir(parents=True, exist_ok=True)
 
     framework_manifest = framework_root / "framework.yaml"
@@ -129,7 +129,7 @@ def test_default_paths_detect_extracted_layout(tmp_path: Path):
 
 def test_default_paths_detect_root_layout(tmp_path: Path):
     repo_root = tmp_path / "repo"
-    tools_root = repo_root / "topology-tools"
+    tools_root = repo_root / "topology-tools" / "utils"
     topology_root = repo_root / "topology"
     tools_root.mkdir(parents=True, exist_ok=True)
     topology_root.mkdir(parents=True, exist_ok=True)

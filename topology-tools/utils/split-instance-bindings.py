@@ -4,14 +4,20 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+TOPOLOGY_TOOLS_ROOT = Path(__file__).resolve().parents[1]
+if str(TOPOLOGY_TOOLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(TOPOLOGY_TOOLS_ROOT))
+
 from identifier_policy import contains_unsafe_identifier_chars, normalize_identifier_for_filename
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT = REPO_ROOT / "projects" / "home-lab" / "_legacy" / "instance-bindings.yaml"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "topology" / "instances"
 DEFAULT_PROJECT_FILE = DEFAULT_OUTPUT_ROOT / "project.yaml"

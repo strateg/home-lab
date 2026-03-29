@@ -10,13 +10,18 @@ import sys
 from pathlib import Path
 
 import yaml
+
+TOPOLOGY_TOOLS_ROOT = Path(__file__).resolve().parents[1]
+if str(TOPOLOGY_TOOLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(TOPOLOGY_TOOLS_ROOT))
+
 from framework_lock import default_framework_manifest_path
 
 PROJECT_INSTANCES_ROOT = "topology/instances"
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[2]
 
 
 def _default_framework_root() -> Path:
@@ -423,7 +428,7 @@ def main() -> int:
             force=bool(args.force),
         )
 
-    template_root = Path(__file__).resolve().parents[1] / "docs" / "framework" / "templates"
+    template_root = Path(__file__).resolve().parents[2] / "docs" / "framework" / "templates"
     validate_template = template_root / "project-validate.yml"
     if validate_template.exists():
         _write_if_missing(
@@ -432,7 +437,7 @@ def main() -> int:
             force=args.force,
         )
 
-    script_root = Path(__file__).resolve().parent
+    script_root = Path(__file__).resolve().parents[1]
     generate_lock_script = script_root / "generate-framework-lock.py"
     generate = _run(
         [

@@ -11,11 +11,16 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+
+TOPOLOGY_TOOLS_ROOT = Path(__file__).resolve().parents[1]
+if str(TOPOLOGY_TOOLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(TOPOLOGY_TOOLS_ROOT))
+
 from framework_lock import _load_yaml, compute_framework_integrity, resolve_paths, verify_framework_lock
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[2]
 
 
 def _default_topology() -> Path:
@@ -158,7 +163,7 @@ def main() -> int:
         print("Rollback rehearsal failed: lock integrity does not match computed framework integrity")
         return 1
 
-    generate_script = Path(__file__).resolve().parent / "generate-framework-lock.py"
+    generate_script = Path(__file__).resolve().parents[1] / "generate-framework-lock.py"
     with tempfile.TemporaryDirectory(prefix="framework-rollback-rehearsal-") as tmp_dir:
         temp_lock = Path(tmp_dir) / "framework.lock.yaml"
         generated = _run_generate(

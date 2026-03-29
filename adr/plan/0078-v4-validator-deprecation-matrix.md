@@ -55,7 +55,7 @@
 2. Перед отключением v4 check: прогонить v5 target plugins и сравнить diagnostics baseline на регрессионной выборке.
 3. После отключения набора v4 checks: обновить `taskfiles/validate.yml` и release preflight lane под v5-only validation path.
 4. Для staged cutover references/storage/governance запускать parity lane: `task test:parity-v4-v5` (или `task ci:topology-parity-v4-v5`).
-5. В cutover readiness report (`v5/topology-tools/cutover-readiness-report.py`, non-quick) parity gate `pytest_v4_v5_parity` должен быть green.
+5. В cutover readiness report (`v5/topology-tools/utils/cutover-readiness-report.py`, non-quick) parity gate `pytest_v4_v5_parity` должен быть green.
 6. Перед staged отключением v4 checks актуализировать `v5/projects/home-lab/framework.lock.yaml` и добиться green для `verify_framework_lock`/`rehearse_rollback` в readiness report.
 
 ---
@@ -136,7 +136,7 @@
    - `pytest_v4_v5_parity` (`tests/plugin_regression` + stage-order/profile-parity suites)
    - `pytest_v5`
    - `lane_validate_v5`
-   - `python topology-tools/cutover-readiness-report.py --output-json build/diagnostics/cutover-readiness-full-latest.json` -> PASS
+   - `python topology-tools/utils/cutover-readiness-report.py --output-json build/diagnostics/cutover-readiness-full-latest.json` -> PASS
 5. Root-layout docs guard added for operator docs/tooling references:
    - `tests/test_root_layout_docs_contract.py` enforces no active-doc regressions to legacy `v5/*` path prefixes.
 6. Framework release-focused test lane now includes cutover/docs contract guards:

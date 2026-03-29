@@ -66,7 +66,7 @@ python scripts/orchestration/lane.py validate-v5
 Перед rollback в релизном окне рекомендуется выполнить rehearsal:
 
 ```powershell
-python topology-tools/rehearse-framework-rollback.py
+python topology-tools/utils/rehearse-framework-rollback.py
 ```
 
 Команда проверяет:
@@ -88,13 +88,13 @@ python topology-tools/rehearse-framework-rollback.py
 Для регрессионной проверки матрицы (baseline + expected-fail сценарии):
 
 ```powershell
-python topology-tools/validate-framework-compatibility-matrix.py
+python topology-tools/utils/validate-framework-compatibility-matrix.py
 ```
 
 Для контроля отсутствия legacy/fallback поведения в runtime entrypoints:
 
 ```powershell
-python topology-tools/audit-strict-runtime-entrypoints.py
+python topology-tools/utils/audit-strict-runtime-entrypoints.py
 ```
 
 ---
@@ -117,7 +117,7 @@ python topology-tools/verify-framework-lock.py --strict
 Сводный readiness-отчет (локально перед cutover freeze):
 
 ```powershell
-python topology-tools/cutover-readiness-report.py --quick
+python topology-tools/utils/cutover-readiness-report.py --quick
 ```
 
 После production cutover состояние фиксируется в:

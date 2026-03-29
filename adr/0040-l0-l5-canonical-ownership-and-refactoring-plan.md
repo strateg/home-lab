@@ -139,7 +139,7 @@ python topology-tools/regenerate-all.py
 git diff --stat generated/
 
 # Mermaid diagram validation
-python topology-tools/validate-mermaid-render.py --docs-dir generated/docs
+python topology-tools/utils/validate-mermaid-render.py --docs-dir generated/docs
 ```
 
 ### Fixture matrix governance gate

@@ -4,12 +4,18 @@
 from __future__ import annotations
 
 import argparse
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
 import yaml
+
+TOPOLOGY_TOOLS_ROOT = Path(__file__).resolve().parents[1]
+if str(TOPOLOGY_TOOLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(TOPOLOGY_TOOLS_ROOT))
+
 from framework_lock import _git_revision, _load_yaml, resolve_paths, verify_framework_lock
 
 
@@ -21,7 +27,7 @@ class MatrixCase:
 
 
 def _default_repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[2]
 
 
 def _default_topology() -> Path:

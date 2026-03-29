@@ -105,7 +105,7 @@ python -c "import json;d=json.load(open('build/diagnostics/report.json',encoding
 1. Сгенерировать patch-шаблоны по текущим аннотациям:
 
 ```powershell
-python topology-tools/discover-hardware-identity.py `
+python topology-tools/utils/discover-hardware-identity.py `
   --topology topology/topology.yaml `
   --project home-lab
 ```
@@ -118,7 +118,7 @@ python topology-tools/discover-hardware-identity.py `
 3. Применить только обнаруженные значения:
 
 ```powershell
-python topology-tools/discover-hardware-identity.py `
+python topology-tools/utils/discover-hardware-identity.py `
   --discovery-file build/hardware-identity-discovery.yaml `
   --only-discovered
 ```

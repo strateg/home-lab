@@ -107,8 +107,8 @@ Entry Gate:
 
 Gate:
 
-- `python topology-tools/extract-framework-history.py ...`
-- `python topology-tools/bootstrap-project-repo.py ...`
+- `python topology-tools/utils/extract-framework-history.py ...`
+- `python topology-tools/utils/bootstrap-project-repo.py ...`
 - `python topology-tools/verify-framework-lock.py --strict ...`
 - `python topology-tools/compile-topology.py --strict-model-lock ...`
 

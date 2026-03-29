@@ -162,8 +162,8 @@ Note: trust verification is phased per ADR 0081 §4.3. Integrity checks are mand
 Gate commands:
 
 ```powershell
-python topology-tools/build-framework-distribution.py --version 5.0.0-rc1
-python topology-tools/bootstrap-project-repo.py --framework-dist-zip dist/framework/...
+python topology-tools/utils/build-framework-distribution.py --version 5.0.0-rc1
+python topology-tools/utils/bootstrap-project-repo.py --framework-dist-zip dist/framework/...
 python topology-tools/generate-framework-lock.py --project-root build/project-bootstrap/home-lab
 python topology-tools/compile-topology.py --strict-model-lock --project-root build/project-bootstrap/home-lab
 ```

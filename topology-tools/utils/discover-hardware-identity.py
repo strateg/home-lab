@@ -22,6 +22,11 @@ from typing import Any
 from urllib.parse import urlparse
 
 import yaml
+
+TOPOLOGY_TOOLS_ROOT = Path(__file__).resolve().parents[1]
+if str(TOPOLOGY_TOOLS_ROOT) not in sys.path:
+    sys.path.insert(0, str(TOPOLOGY_TOOLS_ROOT))
+
 from field_annotations import FieldAnnotation, parse_field_annotation
 
 
@@ -32,7 +37,7 @@ class SecretPathSpec:
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[2]
 
 
 def _default_topology_path() -> Path:
@@ -423,7 +428,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--format-registry",
         type=Path,
-        default=Path(__file__).resolve().parent / "data" / "instance-field-formats.yaml",
+        default=Path(__file__).resolve().parents[1] / "data" / "instance-field-formats.yaml",
         help="Path to field format registry used for discovered value validation.",
     )
     return parser.parse_args()

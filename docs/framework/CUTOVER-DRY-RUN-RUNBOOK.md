@@ -27,9 +27,9 @@
 ```powershell
 python topology-tools/generate-framework-lock.py --force
 python topology-tools/verify-framework-lock.py --strict
-python topology-tools/rehearse-framework-rollback.py
-python topology-tools/validate-framework-compatibility-matrix.py
-python topology-tools/audit-strict-runtime-entrypoints.py
+python topology-tools/utils/rehearse-framework-rollback.py
+python topology-tools/utils/validate-framework-compatibility-matrix.py
+python topology-tools/utils/audit-strict-runtime-entrypoints.py
 ```
 
 Критерий PASS: все команды завершаются с `exit code 0`.
@@ -39,7 +39,7 @@ python topology-tools/audit-strict-runtime-entrypoints.py
 ## Phase B: Full Readiness Report
 
 ```powershell
-python topology-tools/cutover-readiness-report.py
+python topology-tools/utils/cutover-readiness-report.py
 ```
 
 Артефакт:
@@ -57,7 +57,7 @@ python topology-tools/cutover-readiness-report.py
 ## Phase C: Framework Extraction Dry-Run
 
 ```powershell
-python topology-tools/bootstrap-framework-repo.py `
+python topology-tools/utils/bootstrap-framework-repo.py `
   --output-root build/infra-topology-framework-bootstrap `
   --include-tests `
   --preserve-history `
@@ -87,7 +87,7 @@ python -m pytest -o addopts= `
 ## Phase D: Project Bootstrap Dry-Run
 
 ```powershell
-python topology-tools/bootstrap-project-repo.py `
+python topology-tools/utils/bootstrap-project-repo.py `
   --framework-root build/infra-topology-framework-bootstrap `
   --output-root build/project-bootstrap/home-lab `
   --project-id home-lab `

@@ -95,7 +95,7 @@ Execution snapshot (2026-03-27):
   - `base.discover.*` plugins confirmed as `kind=discoverer`, `stages=[discover]`
 - Root layout guard re-checked: root `v4/` and root `v5/` are absent.
 - Legacy phase1 bootstrap script migrated to archive baseline:
-  - `topology-tools/bootstrap-phase1-mapping.py` now uses `archive/v4/...` paths by default.
+  - `topology-tools/utils/bootstrap-phase1-mapping.py` now uses `archive/v4/...` paths by default.
 - Freeze/tag:
   - Non-critical refactor freeze observed through T0/T+1 execution window.
   - Cutover snapshot tag created: `cutover-0078-2026-03-27`.

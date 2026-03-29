@@ -54,6 +54,6 @@ Trade-offs:
   - [0010](0010-regeneration-pipeline-mermaid-quality-gate.md)
 - Tooling:
   - `topology-tools/regenerate-all.py`
-  - `topology-tools/validate-mermaid-render.py`
+  - `topology-tools/utils/validate-mermaid-render.py`
   - `topology-tools/scripts/generators/docs/`
   - `topology-tools/templates/docs/`

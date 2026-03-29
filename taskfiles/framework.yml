@@ -29,37 +29,37 @@ tasks:
   rollback-rehearsal:
     desc: Rehearse framework lock rollback path
     cmds:
-      - "{{.PYTHON}} topology-tools/rehearse-framework-rollback.py"
+      - "{{.PYTHON}} topology-tools/utils/rehearse-framework-rollback.py"
 
   compatibility-matrix:
     desc: Validate framework/project compatibility matrix
     cmds:
-      - "{{.PYTHON}} topology-tools/validate-framework-compatibility-matrix.py"
+      - "{{.PYTHON}} topology-tools/utils/validate-framework-compatibility-matrix.py"
 
   audit-entrypoints:
     desc: Audit strict runtime entrypoints
     cmds:
-      - "{{.PYTHON}} topology-tools/audit-strict-runtime-entrypoints.py"
+      - "{{.PYTHON}} topology-tools/utils/audit-strict-runtime-entrypoints.py"
 
   cutover-readiness-quick:
     desc: Generate quick cutover readiness report (strict gates only)
     cmds:
-      - "{{.PYTHON}} topology-tools/cutover-readiness-report.py --quick"
+      - "{{.PYTHON}} topology-tools/utils/cutover-readiness-report.py --quick"
 
   cutover-readiness:
     desc: Generate full cutover readiness report (includes v4/v5 parity + v5 test suite)
     cmds:
-      - "{{.PYTHON}} topology-tools/cutover-readiness-report.py"
+      - "{{.PYTHON}} topology-tools/utils/cutover-readiness-report.py"
 
   service-chain-evidence-dry:
     desc: Execute dry service-chain lane and write evidence report
     cmds:
-      - "{{.PYTHON}} topology-tools/record-service-chain-evidence.py --mode dry --project-id {{.PROJECT_ID}} --env production {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .ANSIBLE_VIA_WSL}}--ansible-via-wsl{{end}}"
+      - "{{.PYTHON}} topology-tools/utils/record-service-chain-evidence.py --mode dry --project-id {{.PROJECT_ID}} --env production {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .ANSIBLE_VIA_WSL}}--ansible-via-wsl{{end}}"
 
   service-chain-evidence-check:
     desc: Execute maintenance-check service-chain lane and write evidence report
     cmds:
-      - "{{.PYTHON}} topology-tools/record-service-chain-evidence.py --mode maintenance-check --project-id {{.PROJECT_ID}} --env production {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .ANSIBLE_VIA_WSL}}--ansible-via-wsl{{end}} {{if .INJECT_SECRETS}}--inject-secrets{{end}} {{if .PROXMOX_BACKEND_CONFIG}}--proxmox-backend-config {{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}--mikrotik-backend-config {{.MIKROTIK_BACKEND_CONFIG}}{{end}} {{if .PROXMOX_VAR_FILE}}--proxmox-var-file {{.PROXMOX_VAR_FILE}}{{end}} {{if .MIKROTIK_VAR_FILE}}--mikrotik-var-file {{.MIKROTIK_VAR_FILE}}{{end}}"
+      - "{{.PYTHON}} topology-tools/utils/record-service-chain-evidence.py --mode maintenance-check --project-id {{.PROJECT_ID}} --env production {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .ANSIBLE_VIA_WSL}}--ansible-via-wsl{{end}} {{if .INJECT_SECRETS}}--inject-secrets{{end}} {{if .PROXMOX_BACKEND_CONFIG}}--proxmox-backend-config {{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}--mikrotik-backend-config {{.MIKROTIK_BACKEND_CONFIG}}{{end}} {{if .PROXMOX_VAR_FILE}}--proxmox-var-file {{.PROXMOX_VAR_FILE}}{{end}} {{if .MIKROTIK_VAR_FILE}}--mikrotik-var-file {{.MIKROTIK_VAR_FILE}}{{end}}"
 
   service-chain-evidence-apply:
     desc: Execute maintenance-apply service-chain lane and write evidence report (requires ALLOW_APPLY=YES)
@@ -70,7 +70,7 @@ tasks:
       - sh: 'test "{{.ALLOW_APPLY}}" = "YES"'
         msg: "Set ALLOW_APPLY=YES to run maintenance-apply evidence lane."
     cmds:
-      - "{{.PYTHON}} topology-tools/record-service-chain-evidence.py --mode maintenance-apply --allow-apply --project-id {{.PROJECT_ID}} --env production {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .ANSIBLE_VIA_WSL}}--ansible-via-wsl{{end}} {{if .TERRAFORM_AUTO_APPROVE}}--terraform-auto-approve{{end}} {{if .INJECT_SECRETS}}--inject-secrets{{end}} {{if .PROXMOX_BACKEND_CONFIG}}--proxmox-backend-config {{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}--mikrotik-backend-config {{.MIKROTIK_BACKEND_CONFIG}}{{end}} {{if .PROXMOX_VAR_FILE}}--proxmox-var-file {{.PROXMOX_VAR_FILE}}{{end}} {{if .MIKROTIK_VAR_FILE}}--mikrotik-var-file {{.MIKROTIK_VAR_FILE}}{{end}}"
+      - "{{.PYTHON}} topology-tools/utils/record-service-chain-evidence.py --mode maintenance-apply --allow-apply --project-id {{.PROJECT_ID}} --env production {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .ANSIBLE_VIA_WSL}}--ansible-via-wsl{{end}} {{if .TERRAFORM_AUTO_APPROVE}}--terraform-auto-approve{{end}} {{if .INJECT_SECRETS}}--inject-secrets{{end}} {{if .PROXMOX_BACKEND_CONFIG}}--proxmox-backend-config {{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}--mikrotik-backend-config {{.MIKROTIK_BACKEND_CONFIG}}{{end}} {{if .PROXMOX_VAR_FILE}}--proxmox-var-file {{.PROXMOX_VAR_FILE}}{{end}} {{if .MIKROTIK_VAR_FILE}}--mikrotik-var-file {{.MIKROTIK_VAR_FILE}}{{end}}"
 
   archive-v4-compile:
     desc: Compile legacy archive/v4 baseline for parity drift monitoring
@@ -115,12 +115,12 @@ tasks:
       vars:
         - FRAMEWORK_VERSION
     cmds:
-      - "{{.PYTHON}} topology-tools/build-framework-distribution.py --repo-root . --framework-manifest topology/framework.yaml --output-root {{.FRAMEWORK_DIST_OUTPUT}} --version {{.FRAMEWORK_VERSION}} --archive-format both"
+      - "{{.PYTHON}} topology-tools/utils/build-framework-distribution.py --repo-root . --framework-manifest topology/framework.yaml --output-root {{.FRAMEWORK_DIST_OUTPUT}} --version {{.FRAMEWORK_VERSION}} --archive-format both"
 
   release-bootstrap:
     desc: Bootstrap standalone infra-topology-framework repository candidate
     cmds:
-      - "{{.PYTHON}} topology-tools/bootstrap-framework-repo.py --repo-root . --output-root {{.FRAMEWORK_BOOTSTRAP_OUTPUT}} --include-tests --preserve-history --force"
+      - "{{.PYTHON}} topology-tools/utils/bootstrap-framework-repo.py --repo-root . --output-root {{.FRAMEWORK_BOOTSTRAP_OUTPUT}} --include-tests --preserve-history --force"
 
   release-candidate:
     desc: Prepare full framework release candidate bundle (preflight + dist + bootstrap)

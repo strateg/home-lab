@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "topology-tools" / "bootstrap-framework-repo.py"
+SCRIPT = REPO_ROOT / "topology-tools" / "utils" / "bootstrap-framework-repo.py"
 
 
 def _write(path: Path, content: str) -> None:

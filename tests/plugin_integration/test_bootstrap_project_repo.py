@@ -10,7 +10,7 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "topology-tools" / "bootstrap-project-repo.py"
+SCRIPT = REPO_ROOT / "topology-tools" / "utils" / "bootstrap-project-repo.py"
 
 
 def _write(path: Path, content: str) -> None:

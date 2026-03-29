@@ -11,7 +11,7 @@ from pathlib import Path
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCRIPT = REPO_ROOT / "topology-tools" / "init-project-repo.py"
+SCRIPT = REPO_ROOT / "topology-tools" / "utils" / "init-project-repo.py"
 
 
 def _write(path: Path, content: str) -> None:

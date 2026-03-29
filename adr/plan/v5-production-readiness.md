@@ -293,7 +293,7 @@ v5 architecture is **operational for deployable artifacts** with:
 
 ### 7.1 Discovery Utility
 
-- [x] Create `v5/topology-tools/discover-hardware-identity.py`:
+- [x] Create `v5/topology-tools/utils/discover-hardware-identity.py`:
   - SSH/API collection for MAC and serial where available
   - YAML patch output for instance shard updates
 
@@ -582,7 +582,7 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
   - `task ansible:runtime-inject`
   - runtime output `generated/<project>/ansible/runtime/<env>/group_vars/all/99-secrets.runtime.yml`.
 - [x] Automated maintenance-window evidence runner introduced:
-  - `topology-tools/record-service-chain-evidence.py`
+  - `topology-tools/utils/record-service-chain-evidence.py`
   - `task framework:service-chain-evidence-dry`
   - `task framework:service-chain-evidence-check`
   - `task framework:service-chain-evidence-apply` (explicit `ALLOW_APPLY=YES` gate).
