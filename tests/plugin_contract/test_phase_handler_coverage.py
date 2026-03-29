@@ -19,6 +19,7 @@ def _manifest_paths() -> list[Path]:
         base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
         class_modules_root=repo_root / "topology" / "class-modules",
         object_modules_root=repo_root / "topology" / "object-modules",
+        project_plugins_root=repo_root / "projects" / "home-lab" / "plugins",
     )
 
 

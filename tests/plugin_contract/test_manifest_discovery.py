@@ -97,3 +97,59 @@ def test_discovery_does_not_scan_instances_root(tmp_path: Path) -> None:
 
     resolved = {path.resolve() for path in manifests}
     assert (instances_root / "site-a" / "plugins.yaml").resolve() not in resolved
+
+
+def test_discovery_includes_project_plugins_after_object_manifests(tmp_path: Path) -> None:
+    base = tmp_path / "plugins" / "plugins.yaml"
+    class_root = tmp_path / "class-modules"
+    object_root = tmp_path / "object-modules"
+    project_plugins_root = tmp_path / "project-root" / "plugins"
+
+    _write_manifest(base, plugin_id="base.validator.alpha")
+    _write_manifest(class_root / "a" / "plugins.yaml", plugin_id="class.validator.a")
+    _write_manifest(object_root / "b" / "plugins.yaml", plugin_id="object.validator.b")
+    _write_manifest(project_plugins_root / "plugins.yaml", plugin_id="project.validator.root")
+    _write_manifest(project_plugins_root / "zeta" / "plugins.yaml", plugin_id="project.validator.zeta")
+    _write_manifest(project_plugins_root / "alpha" / "plugins.yaml", plugin_id="project.validator.alpha")
+
+    manifests = discover_plugin_manifest_paths(
+        base_manifest_path=base,
+        class_modules_root=class_root,
+        object_modules_root=object_root,
+        project_plugins_root=project_plugins_root,
+    )
+
+    assert manifests == [
+        base.resolve(),
+        (class_root / "a" / "plugins.yaml").resolve(),
+        (object_root / "b" / "plugins.yaml").resolve(),
+        (project_plugins_root / "alpha" / "plugins.yaml").resolve(),
+        (project_plugins_root / "plugins.yaml").resolve(),
+        (project_plugins_root / "zeta" / "plugins.yaml").resolve(),
+    ]
+
+
+def test_discovery_scans_only_project_plugins_root_not_project_instances(tmp_path: Path) -> None:
+    base = tmp_path / "plugins" / "plugins.yaml"
+    class_root = tmp_path / "class-modules"
+    object_root = tmp_path / "object-modules"
+    project_root = tmp_path / "project-root"
+    project_plugins_root = project_root / "plugins"
+    instances_root = project_root / "topology" / "instances"
+
+    _write_manifest(base, plugin_id="base.validator.alpha")
+    _write_manifest(class_root / "a" / "plugins.yaml", plugin_id="class.validator.a")
+    _write_manifest(object_root / "b" / "plugins.yaml", plugin_id="object.validator.b")
+    _write_manifest(project_plugins_root / "plugins.yaml", plugin_id="project.validator.root")
+    _write_manifest(instances_root / "site-a" / "plugins.yaml", plugin_id="instance.validator.site_a")
+
+    manifests = discover_plugin_manifest_paths(
+        base_manifest_path=base,
+        class_modules_root=class_root,
+        object_modules_root=object_root,
+        project_plugins_root=project_plugins_root,
+    )
+
+    resolved = {path.resolve() for path in manifests}
+    assert (project_plugins_root / "plugins.yaml").resolve() in resolved
+    assert (instances_root / "site-a" / "plugins.yaml").resolve() not in resolved

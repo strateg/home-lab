@@ -10,6 +10,7 @@ def discover_plugin_manifest_paths(
     base_manifest_path: Path,
     class_modules_root: Path,
     object_modules_root: Path,
+    project_plugins_root: Path | None = None,
     manifest_name: str = "plugins.yaml",
 ) -> list[Path]:
     """Discover plugin manifests with deterministic merge order.
@@ -18,12 +19,14 @@ def discover_plugin_manifest_paths(
     1. explicit base manifest from CLI/config
     2. class module manifests (sorted lexicographically by relative path)
     3. object module manifests (sorted lexicographically by relative path)
+    4. project plugin manifests (sorted lexicographically by relative path)
     """
 
     discovered: list[tuple[int, str, Path]] = []
     roots: list[tuple[int, Path | None]] = [
         (0, class_modules_root),
         (1, object_modules_root),
+        (2, project_plugins_root),
     ]
     base_resolved = base_manifest_path.resolve()
 

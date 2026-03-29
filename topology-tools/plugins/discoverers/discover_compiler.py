@@ -129,20 +129,46 @@ class DiscoverInventoryCompiler(DiscovererPlugin):
 
 
 class DiscoverBoundaryCompiler(DiscovererPlugin):
-    """Enforce discover-stage manifest boundary (no project-scoped plugin manifests)."""
+    """Enforce discover-stage manifest boundary.
+
+    Rules:
+    1. Project-level plugin manifests are allowed only under configured project plugin root.
+    2. Manifests under project instances data roots are always forbidden.
+    """
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
         manifests = ctx.config.get("discovered_plugin_manifests")
         manifest_list = [item for item in manifests if isinstance(item, str)] if isinstance(manifests, list) else []
-        leaked = [path for path in manifest_list if path.replace("\\", "/").startswith("projects/")]
+        project_plugins_root_raw = ctx.config.get("project_plugins_root")
+        project_plugins_root = (
+            str(project_plugins_root_raw).replace("\\", "/").strip("/")
+            if isinstance(project_plugins_root_raw, str) and str(project_plugins_root_raw).strip()
+            else ""
+        )
+
+        leaked: list[str] = []
+        for rel in manifest_list:
+            normalized = rel.replace("\\", "/").strip("/")
+            # project instances must remain data-only; plugin manifests here are forbidden.
+            if "/topology/instances/" in f"/{normalized}/" or normalized.startswith("topology/instances/"):
+                leaked.append(rel)
+                continue
+            if not normalized.startswith("projects/"):
+                continue
+            if project_plugins_root and (
+                normalized == project_plugins_root or normalized.startswith(f"{project_plugins_root}/")
+            ):
+                continue
+            leaked.append(rel)
+
         for rel in leaked:
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E3201",
                     severity="error",
                     stage=stage,
-                    message=f"project-scoped plugin manifest is not allowed in discover stage: {rel}",
+                    message=f"plugin manifest is outside allowed boundary: {rel}",
                     path=rel,
                 )
             )

@@ -411,6 +411,7 @@ class V5Compiler:
         *,
         class_modules_root: Path,
         object_modules_root: Path,
+        project_plugins_root: Path | None = None,
         emit_diagnostics: bool = True,
     ) -> dict[str, Any]:
         """Load module-level plugin manifests discovered under class/object module roots."""
@@ -439,6 +440,7 @@ class V5Compiler:
             base_manifest_path=self.plugins_manifest_path,
             class_modules_root=class_modules_root,
             object_modules_root=object_modules_root,
+            project_plugins_root=project_plugins_root,
         )
         module_manifests = ordered_manifests[1:]
 
@@ -508,6 +510,7 @@ class V5Compiler:
         *,
         class_modules_root: Path,
         object_modules_root: Path,
+        project_plugins_root: Path | None = None,
         instance_manifests_root: Path | None = None,
     ) -> None:
         """Compatibility wrapper that loads base + module manifests."""
@@ -516,6 +519,7 @@ class V5Compiler:
         self._load_module_plugin_manifests(
             class_modules_root=class_modules_root,
             object_modules_root=object_modules_root,
+            project_plugins_root=project_plugins_root,
             emit_diagnostics=True,
         )
 
@@ -1014,8 +1018,10 @@ class V5Compiler:
         plugin_ctx.config["discover_load_module_manifests"] = lambda: self._load_module_plugin_manifests(
             class_modules_root=manifest_bundle.class_modules_root,
             object_modules_root=manifest_bundle.object_modules_root,
+            project_plugins_root=manifest_bundle.project_root / "plugins",
             emit_diagnostics=False,
         )
+        plugin_ctx.config["project_plugins_root"] = self._path_for_diag(manifest_bundle.project_root / "plugins")
         # Execute discover-stage plugins before compile/validate/generate lifecycle.
         if Stage.DISCOVER in self.stages:
             self._execute_plugins(stage=Stage.DISCOVER, ctx=plugin_ctx)

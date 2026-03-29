@@ -611,6 +611,7 @@ def test_all_discovered_manifests_have_explicit_phase():
         base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
         class_modules_root=repo_root / "topology" / "class-modules",
         object_modules_root=repo_root / "topology" / "object-modules",
+        project_plugins_root=repo_root / "projects" / "home-lab" / "plugins",
     )
 
     missing: list[str] = []
@@ -634,6 +635,7 @@ def test_generator_plugins_declare_generated_files_contract():
         base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
         class_modules_root=repo_root / "topology" / "class-modules",
         object_modules_root=repo_root / "topology" / "object-modules",
+        project_plugins_root=repo_root / "projects" / "home-lab" / "plugins",
     )
 
     missing: list[str] = []
@@ -844,6 +846,7 @@ def test_plugin_kind_stage_affinity_across_discovered_manifests():
         base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
         class_modules_root=repo_root / "topology" / "class-modules",
         object_modules_root=repo_root / "topology" / "object-modules",
+        project_plugins_root=repo_root / "projects" / "home-lab" / "plugins",
     )
 
     allowed_stages_by_kind: dict[str, set[str]] = {
@@ -892,6 +895,7 @@ def test_plugin_entry_family_affinity_across_discovered_manifests():
         base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
         class_modules_root=repo_root / "topology" / "class-modules",
         object_modules_root=repo_root / "topology" / "object-modules",
+        project_plugins_root=repo_root / "projects" / "home-lab" / "plugins",
     )
 
     expected_family_by_kind: dict[str, str] = {
@@ -959,6 +963,7 @@ def test_discovered_manifest_entry_module_paths_resolve() -> None:
         base_manifest_path=V5_TOOLS / "plugins" / "plugins.yaml",
         class_modules_root=repo_root / "topology" / "class-modules",
         object_modules_root=repo_root / "topology" / "object-modules",
+        project_plugins_root=repo_root / "projects" / "home-lab" / "plugins",
     )
 
     violations: list[str] = []
