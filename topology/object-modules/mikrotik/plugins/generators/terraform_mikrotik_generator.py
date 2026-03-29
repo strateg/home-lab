@@ -11,16 +11,6 @@ from plugins.generators.object_projection_loader import load_object_projection_m
 # ADR0078 WP-001/WP-002: Use shared helpers via dynamic loader
 from plugins.generators.shared_helper_loader import load_capability_helpers, load_terraform_helpers
 
-_CAP_HELPERS = load_capability_helpers()
-_TF_HELPERS = load_terraform_helpers()
-get_capability_templates = _CAP_HELPERS.get_capability_templates
-render_string_list = _TF_HELPERS.render_string_list
-resolve_remote_state_backend = _TF_HELPERS.resolve_remote_state_backend
-
-_PROJECTIONS = load_object_projection_module("mikrotik")
-ProjectionError = _PROJECTIONS.ProjectionError
-build_mikrotik_projection = _PROJECTIONS.build_mikrotik_projection
-
 
 class TerraformMikroTikGenerator(BaseGenerator):
     """Emit baseline Terraform files from mikrotik projection."""
@@ -45,6 +35,15 @@ class TerraformMikroTikGenerator(BaseGenerator):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
+        cap_helpers = load_capability_helpers(ctx=ctx)
+        tf_helpers = load_terraform_helpers(ctx=ctx)
+        get_capability_templates = cap_helpers.get_capability_templates
+        render_string_list = tf_helpers.render_string_list
+        resolve_remote_state_backend = tf_helpers.resolve_remote_state_backend
+
+        projections = load_object_projection_module("mikrotik", ctx=ctx)
+        projection_error = projections.ProjectionError
+        build_mikrotik_projection = projections.build_mikrotik_projection
         payload = ctx.compiled_json
         if not isinstance(payload, dict) or not payload:
             diagnostics.append(
@@ -60,7 +59,7 @@ class TerraformMikroTikGenerator(BaseGenerator):
 
         try:
             projection = build_mikrotik_projection(payload)
-        except ProjectionError as exc:
+        except projection_error as exc:
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E9201",

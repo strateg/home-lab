@@ -412,6 +412,7 @@ class V5Compiler:
         class_modules_root: Path,
         object_modules_root: Path,
         project_plugins_root: Path | None = None,
+        module_index_path: Path | None = None,
         emit_diagnostics: bool = True,
     ) -> dict[str, Any]:
         """Load module-level plugin manifests discovered under class/object module roots."""
@@ -436,11 +437,21 @@ class V5Compiler:
             }
 
         self._load_base_plugin_manifest()
+        resolved_module_index_path = module_index_path
+        if resolved_module_index_path is None:
+            class_candidate = class_modules_root.parent / "module-index.yaml"
+            object_candidate = object_modules_root.parent / "module-index.yaml"
+            if class_candidate.exists():
+                resolved_module_index_path = class_candidate
+            elif object_candidate.exists():
+                resolved_module_index_path = object_candidate
+
         ordered_manifests = discover_plugin_manifest_paths(
             base_manifest_path=self.plugins_manifest_path,
             class_modules_root=class_modules_root,
             object_modules_root=object_modules_root,
             project_plugins_root=project_plugins_root,
+            module_index_path=resolved_module_index_path,
         )
         module_manifests = ordered_manifests[1:]
 
@@ -512,6 +523,7 @@ class V5Compiler:
         object_modules_root: Path,
         project_plugins_root: Path | None = None,
         instance_manifests_root: Path | None = None,
+        module_index_path: Path | None = None,
     ) -> None:
         """Compatibility wrapper that loads base + module manifests."""
         _ = instance_manifests_root
@@ -520,6 +532,7 @@ class V5Compiler:
             class_modules_root=class_modules_root,
             object_modules_root=object_modules_root,
             project_plugins_root=project_plugins_root,
+            module_index_path=module_index_path,
             emit_diagnostics=True,
         )
 
@@ -933,6 +946,14 @@ class V5Compiler:
             project_manifest=project_manifest,
             resolve_repo_path=resolve_repo_path,
         )
+        framework_module_index_path: Path | None = None
+        raw_module_index_path = framework_paths.get("module_index")
+        if isinstance(raw_module_index_path, str) and raw_module_index_path.strip():
+            framework_module_index_path = resolve_repo_path(raw_module_index_path.strip())
+        else:
+            default_module_index = manifest_bundle.class_modules_root.parent / "module-index.yaml"
+            if default_module_index.exists():
+                framework_module_index_path = default_module_index
         if self.secrets_root.strip():
             configured_secrets_root = self.secrets_root.strip()
             secrets_root_value = self._path_for_diag(resolve_repo_path(configured_secrets_root))
@@ -1019,9 +1040,12 @@ class V5Compiler:
             class_modules_root=manifest_bundle.class_modules_root,
             object_modules_root=manifest_bundle.object_modules_root,
             project_plugins_root=manifest_bundle.project_root / "plugins",
+            module_index_path=framework_module_index_path,
             emit_diagnostics=False,
         )
         plugin_ctx.config["project_plugins_root"] = self._path_for_diag(manifest_bundle.project_root / "plugins")
+        if framework_module_index_path is not None:
+            plugin_ctx.config["module_index_path"] = self._path_for_diag(framework_module_index_path)
         # Execute discover-stage plugins before compile/validate/generate lifecycle.
         if Stage.DISCOVER in self.stages:
             self._execute_plugins(stage=Stage.DISCOVER, ctx=plugin_ctx)

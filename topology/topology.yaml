@@ -9,6 +9,7 @@ meta:
 framework:
   class_modules_root: topology/class-modules
   object_modules_root: topology/object-modules
+  module_index: topology/module-index.yaml
   model_lock: topology/model.lock.yaml
   profile_map: topology/profile-map.yaml
   layer_contract: topology/layer-contract.yaml

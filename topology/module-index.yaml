@@ -1,0 +1,17 @@
+schema_version: 1
+
+class_modules:
+  - id: router
+    plugins_manifest: class-modules/router/plugins.yaml
+
+object_modules:
+  - id: glinet
+    plugins_manifest: object-modules/glinet/plugins.yaml
+  - id: mikrotik
+    plugins_manifest: object-modules/mikrotik/plugins.yaml
+  - id: network
+    plugins_manifest: object-modules/network/plugins.yaml
+  - id: orangepi
+    plugins_manifest: object-modules/orangepi/plugins.yaml
+  - id: proxmox
+    plugins_manifest: object-modules/proxmox/plugins.yaml

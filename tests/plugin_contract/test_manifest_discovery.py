@@ -33,6 +33,21 @@ def _write_manifest(path: Path, *, plugin_id: str) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
+def _write_module_index(
+    path: Path,
+    *,
+    class_manifests: list[str],
+    object_manifests: list[str],
+) -> None:
+    payload = {
+        "schema_version": 1,
+        "class_modules": [{"plugins_manifest": item} for item in class_manifests],
+        "object_modules": [{"plugins_manifest": item} for item in object_manifests],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+
 def test_discover_plugin_manifests_order_is_deterministic(tmp_path: Path) -> None:
     base = tmp_path / "plugins" / "plugins.yaml"
     class_root = tmp_path / "class-modules"
@@ -153,3 +168,63 @@ def test_discovery_scans_only_project_plugins_root_not_project_instances(tmp_pat
     resolved = {path.resolve() for path in manifests}
     assert (project_plugins_root / "plugins.yaml").resolve() in resolved
     assert (instances_root / "site-a" / "plugins.yaml").resolve() not in resolved
+
+
+def test_discovery_uses_module_index_when_available(tmp_path: Path) -> None:
+    base = tmp_path / "plugins" / "plugins.yaml"
+    topology_root = tmp_path / "topology"
+    class_root = topology_root / "class-modules"
+    object_root = topology_root / "object-modules"
+    module_index = topology_root / "module-index.yaml"
+
+    _write_manifest(base, plugin_id="base.validator.alpha")
+    _write_manifest(class_root / "a" / "plugins.yaml", plugin_id="class.validator.a")
+    _write_manifest(class_root / "z" / "plugins.yaml", plugin_id="class.validator.z")
+    _write_manifest(object_root / "b" / "plugins.yaml", plugin_id="object.validator.b")
+    _write_manifest(object_root / "c" / "plugins.yaml", plugin_id="object.validator.c")
+
+    _write_module_index(
+        module_index,
+        class_manifests=["class-modules/z/plugins.yaml"],
+        object_manifests=["object-modules/b/plugins.yaml"],
+    )
+
+    manifests = discover_plugin_manifest_paths(
+        base_manifest_path=base,
+        class_modules_root=class_root,
+        object_modules_root=object_root,
+        module_index_path=module_index,
+    )
+
+    assert manifests == [
+        base.resolve(),
+        (class_root / "z" / "plugins.yaml").resolve(),
+        (object_root / "b" / "plugins.yaml").resolve(),
+    ]
+
+
+def test_discovery_falls_back_to_recursive_scan_when_module_index_invalid(tmp_path: Path) -> None:
+    base = tmp_path / "plugins" / "plugins.yaml"
+    topology_root = tmp_path / "topology"
+    class_root = topology_root / "class-modules"
+    object_root = topology_root / "object-modules"
+    module_index = topology_root / "module-index.yaml"
+
+    _write_manifest(base, plugin_id="base.validator.alpha")
+    _write_manifest(class_root / "a" / "plugins.yaml", plugin_id="class.validator.a")
+    _write_manifest(object_root / "b" / "plugins.yaml", plugin_id="object.validator.b")
+    module_index.parent.mkdir(parents=True, exist_ok=True)
+    module_index.write_text("schema_version: 1\nclass_modules: bad\n", encoding="utf-8")
+
+    manifests = discover_plugin_manifest_paths(
+        base_manifest_path=base,
+        class_modules_root=class_root,
+        object_modules_root=object_root,
+        module_index_path=module_index,
+    )
+
+    assert manifests == [
+        base.resolve(),
+        (class_root / "a" / "plugins.yaml").resolve(),
+        (object_root / "b" / "plugins.yaml").resolve(),
+    ]

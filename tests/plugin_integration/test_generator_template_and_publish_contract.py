@@ -98,7 +98,7 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
     ("generator", "compiled_json", "expected_writes", "manifest_path", "plugin_id"),
     [
         (
-            TerraformProxmoxGenerator("base.generator.terraform_proxmox"),
+            TerraformProxmoxGenerator("object.proxmox.generator.terraform"),
             {
                 "instances": {
                     "devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}],
@@ -111,7 +111,7 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
             None,
         ),
         (
-            TerraformMikroTikGenerator("base.generator.terraform_mikrotik"),
+            TerraformMikroTikGenerator("object.mikrotik.generator.terraform"),
             {
                 "instances": {
                     "devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}],
@@ -136,25 +136,25 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
             None,
         ),
         (
-            BootstrapProxmoxGenerator("base.generator.bootstrap_proxmox"),
+            BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap"),
             {"instances": {"devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}]}},
             9,
             PROXMOX_MANIFEST,
-            "base.generator.bootstrap_proxmox",
+            "object.proxmox.generator.bootstrap",
         ),
         (
-            BootstrapMikroTikGenerator("base.generator.bootstrap_mikrotik"),
+            BootstrapMikroTikGenerator("object.mikrotik.generator.bootstrap"),
             {"instances": {"devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}]}},
             4,
             MIKROTIK_MANIFEST,
-            "base.generator.bootstrap_mikrotik",
+            "object.mikrotik.generator.bootstrap",
         ),
         (
-            BootstrapOrangePiGenerator("base.generator.bootstrap_orangepi"),
+            BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap"),
             {"instances": {"devices": [{"instance_id": "srv-opi", "object_ref": "obj.orangepi.rk3588.debian"}]}},
             3,
             ORANGEPI_MANIFEST,
-            "base.generator.bootstrap_orangepi",
+            "object.orangepi.generator.bootstrap",
         ),
     ],
 )
@@ -194,7 +194,7 @@ def test_generator_outputs_are_template_rendered(
     ("generator", "compiled_json", "published_key", "manifest_path", "plugin_id"),
     [
         (
-            TerraformProxmoxGenerator("base.generator.terraform_proxmox"),
+            TerraformProxmoxGenerator("object.proxmox.generator.terraform"),
             {
                 "instances": {
                     "devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}],
@@ -207,7 +207,7 @@ def test_generator_outputs_are_template_rendered(
             None,
         ),
         (
-            TerraformMikroTikGenerator("base.generator.terraform_mikrotik"),
+            TerraformMikroTikGenerator("object.mikrotik.generator.terraform"),
             {
                 "instances": {
                     "devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}],
@@ -232,25 +232,25 @@ def test_generator_outputs_are_template_rendered(
             None,
         ),
         (
-            BootstrapProxmoxGenerator("base.generator.bootstrap_proxmox"),
+            BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap"),
             {"instances": {"devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}]}},
             "bootstrap_proxmox_files",
             PROXMOX_MANIFEST,
-            "base.generator.bootstrap_proxmox",
+            "object.proxmox.generator.bootstrap",
         ),
         (
-            BootstrapMikroTikGenerator("base.generator.bootstrap_mikrotik"),
+            BootstrapMikroTikGenerator("object.mikrotik.generator.bootstrap"),
             {"instances": {"devices": [{"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"}]}},
             "bootstrap_mikrotik_files",
             MIKROTIK_MANIFEST,
-            "base.generator.bootstrap_mikrotik",
+            "object.mikrotik.generator.bootstrap",
         ),
         (
-            BootstrapOrangePiGenerator("base.generator.bootstrap_orangepi"),
+            BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap"),
             {"instances": {"devices": [{"instance_id": "srv-opi", "object_ref": "obj.orangepi.rk3588.debian"}]}},
             "bootstrap_orangepi_files",
             ORANGEPI_MANIFEST,
-            "base.generator.bootstrap_orangepi",
+            "object.orangepi.generator.bootstrap",
         ),
     ],
 )

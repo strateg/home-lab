@@ -19,6 +19,8 @@ distribution:
       to: topology/model.lock.yaml
     - from: topology/profile-map.yaml
       to: topology/profile-map.yaml
+    - from: topology/module-index.yaml
+      to: topology/module-index.yaml
     - from: topology-tools
       to: topology-tools
   exclude_globs:
@@ -41,6 +43,7 @@ distribution:
     - "dist/**"
     - "taskfiles/**"
     - "Taskfile.yml"
+    - "topology-tools/docs/**"
     - "topology-tools/utils/**"
     - "pyproject.toml"
     - "requirements-dev.txt"

@@ -81,8 +81,8 @@ def _compiled_fixture() -> dict:
 
 
 def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> None:
-    plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "base.generator.bootstrap_proxmox")
-    generator = BootstrapProxmoxGenerator("base.generator.bootstrap_proxmox")
+    plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
+    generator = BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap")
     result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
 
     assert result.status == PluginStatus.SUCCESS
@@ -94,8 +94,8 @@ def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
 
 
 def test_bootstrap_mikrotik_generator_writes_expected_files(tmp_path: Path) -> None:
-    plugin_config = _load_plugin_config(MIKROTIK_MANIFEST, "base.generator.bootstrap_mikrotik")
-    generator = BootstrapMikroTikGenerator("base.generator.bootstrap_mikrotik")
+    plugin_config = _load_plugin_config(MIKROTIK_MANIFEST, "object.mikrotik.generator.bootstrap")
+    generator = BootstrapMikroTikGenerator("object.mikrotik.generator.bootstrap")
     result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
 
     assert result.status == PluginStatus.SUCCESS
@@ -106,8 +106,8 @@ def test_bootstrap_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
 
 
 def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> None:
-    plugin_config = _load_plugin_config(ORANGEPI_MANIFEST, "base.generator.bootstrap_orangepi")
-    generator = BootstrapOrangePiGenerator("base.generator.bootstrap_orangepi")
+    plugin_config = _load_plugin_config(ORANGEPI_MANIFEST, "object.orangepi.generator.bootstrap")
+    generator = BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap")
     result = generator.execute(_ctx(tmp_path, _compiled_fixture(), plugin_config), Stage.GENERATE)
 
     assert result.status == PluginStatus.SUCCESS
@@ -120,9 +120,9 @@ def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> N
 def test_bootstrap_generators_report_projection_error(tmp_path: Path) -> None:
     ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})
     generators = [
-        (BootstrapProxmoxGenerator("base.generator.bootstrap_proxmox"), "E9401"),
-        (BootstrapMikroTikGenerator("base.generator.bootstrap_mikrotik"), "E9501"),
-        (BootstrapOrangePiGenerator("base.generator.bootstrap_orangepi"), "E9601"),
+        (BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap"), "E9401"),
+        (BootstrapMikroTikGenerator("object.mikrotik.generator.bootstrap"), "E9501"),
+        (BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap"), "E9601"),
     ]
     for generator, code in generators:
         result = generator.execute(ctx, Stage.GENERATE)

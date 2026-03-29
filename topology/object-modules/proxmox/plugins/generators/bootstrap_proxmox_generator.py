@@ -11,15 +11,6 @@ from plugins.generators.object_projection_loader import load_bootstrap_projectio
 # ADR0078 WP-003: Use shared helpers via dynamic loader
 from plugins.generators.shared_helper_loader import load_bootstrap_helpers
 
-_BOOTSTRAP_HELPERS = load_bootstrap_helpers()
-get_bootstrap_files = _BOOTSTRAP_HELPERS.get_bootstrap_files
-get_post_install_scripts = _BOOTSTRAP_HELPERS.get_post_install_scripts
-get_post_install_readme = _BOOTSTRAP_HELPERS.get_post_install_readme
-
-_BOOTSTRAP_PROJECTIONS = load_bootstrap_projection_module()
-ProjectionError = _BOOTSTRAP_PROJECTIONS.ProjectionError
-build_bootstrap_projection = _BOOTSTRAP_PROJECTIONS.build_bootstrap_projection
-
 
 class BootstrapProxmoxGenerator(BaseGenerator):
     """Emit baseline bootstrap bundle for Proxmox nodes."""
@@ -29,6 +20,13 @@ class BootstrapProxmoxGenerator(BaseGenerator):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
+        bootstrap_helpers = load_bootstrap_helpers(ctx=ctx)
+        get_bootstrap_files = bootstrap_helpers.get_bootstrap_files
+        get_post_install_scripts = bootstrap_helpers.get_post_install_scripts
+        get_post_install_readme = bootstrap_helpers.get_post_install_readme
+        bootstrap_projections = load_bootstrap_projection_module(ctx=ctx)
+        projection_error = bootstrap_projections.ProjectionError
+        build_bootstrap_projection = bootstrap_projections.build_bootstrap_projection
         payload = ctx.compiled_json
         if not isinstance(payload, dict) or not payload:
             diagnostics.append(
@@ -44,7 +42,7 @@ class BootstrapProxmoxGenerator(BaseGenerator):
 
         try:
             projection = build_bootstrap_projection(payload)
-        except ProjectionError as exc:
+        except projection_error as exc:
             diagnostics.append(
                 self.emit_diagnostic(
                     code="E9401",

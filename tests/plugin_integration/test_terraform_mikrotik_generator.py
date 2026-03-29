@@ -89,7 +89,7 @@ def _compiled_fixture() -> dict:
 
 
 def test_terraform_mikrotik_generator_writes_expected_files(tmp_path: Path) -> None:
-    generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
+    generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
     result = generator.execute(ctx, Stage.GENERATE)
@@ -120,7 +120,7 @@ def test_terraform_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
 
 
 def test_terraform_mikrotik_generator_reports_projection_error(tmp_path: Path) -> None:
-    generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
+    generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})
 
     result = generator.execute(ctx, Stage.GENERATE)
@@ -130,7 +130,7 @@ def test_terraform_mikrotik_generator_reports_projection_error(tmp_path: Path) -
 
 
 def test_terraform_mikrotik_generator_derives_host_from_projection(tmp_path: Path) -> None:
-    generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
+    generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
     result = generator.execute(ctx, Stage.GENERATE)
@@ -143,7 +143,7 @@ def test_terraform_mikrotik_generator_derives_host_from_projection(tmp_path: Pat
 
 
 def test_terraform_mikrotik_generator_prefers_configured_host(tmp_path: Path) -> None:
-    generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
+    generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
     ctx.config["mikrotik_api_host"] = "https://router-api.example.invalid:9443"
 
@@ -157,7 +157,7 @@ def test_terraform_mikrotik_generator_prefers_configured_host(tmp_path: Path) ->
 
 
 def test_terraform_mikrotik_generator_respects_capability_template_config(tmp_path: Path) -> None:
-    generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
+    generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
     ctx.config["capability_templates"] = {
         "wireguard": {
@@ -178,7 +178,7 @@ def test_terraform_mikrotik_generator_respects_capability_template_config(tmp_pa
 
 
 def test_terraform_mikrotik_generator_keeps_legacy_capability_template_compatibility(tmp_path: Path) -> None:
-    generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
+    generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
     ctx.config["capability_templates"] = [
         {"capability_key": "has_wireguard", "template": "terraform/vpn.tf.j2", "output_file": "vpn.tf"}
@@ -193,7 +193,7 @@ def test_terraform_mikrotik_generator_keeps_legacy_capability_template_compatibi
 
 
 def test_terraform_mikrotik_generator_emits_backend_tf_when_remote_state_enabled(tmp_path: Path) -> None:
-    generator = TerraformMikroTikGenerator("base.generator.terraform_mikrotik")
+    generator = TerraformMikroTikGenerator("object.mikrotik.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
     ctx.config["terraform_remote_state"] = {
         "enabled": True,

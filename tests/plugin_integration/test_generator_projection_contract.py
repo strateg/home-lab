@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -69,12 +70,22 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
 
 
 @pytest.mark.parametrize(
-    ("module", "builder_name", "generator_factory", "projection", "probe_file", "probe_text", "plugin_id"),
+    (
+        "module",
+        "loader_name",
+        "builder_name",
+        "generator_factory",
+        "projection",
+        "probe_file",
+        "probe_text",
+        "plugin_id",
+    ),
     [
         (
             proxmox_module,
+            "load_object_projection_module",
             "build_proxmox_projection",
-            lambda: proxmox_module.TerraformProxmoxGenerator("base.generator.terraform_proxmox"),
+            lambda: proxmox_module.TerraformProxmoxGenerator("object.proxmox.generator.terraform"),
             {
                 "proxmox_nodes": [{"instance_id": "srv-probe"}],
                 "lxc": [{"instance_id": "lxc-probe"}],
@@ -87,8 +98,9 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
         ),
         (
             mikrotik_module,
+            "load_object_projection_module",
             "build_mikrotik_projection",
-            lambda: mikrotik_module.TerraformMikroTikGenerator("base.generator.terraform_mikrotik"),
+            lambda: mikrotik_module.TerraformMikroTikGenerator("object.mikrotik.generator.terraform"),
             {
                 "routers": [{"instance_id": "rtr-probe"}],
                 "networks": [{"instance_id": "inst.net.probe"}],
@@ -101,6 +113,7 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
         ),
         (
             ansible_module,
+            None,
             "build_ansible_projection",
             lambda: ansible_module.AnsibleInventoryGenerator("base.generator.ansible_inventory"),
             {
@@ -119,8 +132,9 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
         ),
         (
             bootstrap_proxmox_module,
+            "load_bootstrap_projection_module",
             "build_bootstrap_projection",
-            lambda: bootstrap_proxmox_module.BootstrapProxmoxGenerator("base.generator.bootstrap_proxmox"),
+            lambda: bootstrap_proxmox_module.BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap"),
             {
                 "proxmox_nodes": [{"instance_id": "srv-probe"}],
                 "mikrotik_nodes": [],
@@ -129,7 +143,7 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
             },
             Path("bootstrap/srv-probe/README.md"),
             "srv-probe",
-            "base.generator.bootstrap_proxmox",  # Needs config from manifest
+            "object.proxmox.generator.bootstrap",  # Needs config from manifest
         ),
     ],
 )
@@ -137,6 +151,7 @@ def test_generator_uses_projection_contract_only(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     module,
+    loader_name: str | None,
     builder_name: str,
     generator_factory,
     projection: dict,
@@ -144,7 +159,17 @@ def test_generator_uses_projection_contract_only(
     probe_text: str,
     plugin_id: str | None,
 ) -> None:
-    monkeypatch.setattr(module, builder_name, lambda _: projection)
+    if loader_name is None:
+        monkeypatch.setattr(module, builder_name, lambda _: projection)
+    else:
+        monkeypatch.setattr(
+            module,
+            loader_name,
+            lambda *args, **kwargs: SimpleNamespace(
+                ProjectionError=RuntimeError,
+                **{builder_name: (lambda _: projection)},
+            ),
+        )
     plugin_config = _load_plugin_config(PROXMOX_MANIFEST, plugin_id) if plugin_id else None
     ctx = _ctx(tmp_path, {"not_instances": "raw internals should not be used"}, plugin_config)
 

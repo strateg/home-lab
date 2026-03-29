@@ -16,7 +16,7 @@ plugins:
       required: []
     description: Validates MikroTik router ethernet ports shape for endpoint-aware connectivity checks.
 
-  - id: base.generator.terraform_mikrotik
+  - id: object.mikrotik.generator.terraform
     kind: generator
     entry: plugins/generators/terraform_mikrotik_generator.py:TerraformMikroTikGenerator
     api_version: "1.x"
@@ -108,7 +108,7 @@ plugins:
         scope: pipeline_shared
     description: Emits baseline Terraform artifacts for MikroTik from v5 projections (Phase 4 bootstrap).
 
-  - id: base.generator.bootstrap_mikrotik
+  - id: object.mikrotik.generator.bootstrap
     kind: generator
     entry: plugins/generators/bootstrap_mikrotik_generator.py:BootstrapMikroTikGenerator
     api_version: "1.x"

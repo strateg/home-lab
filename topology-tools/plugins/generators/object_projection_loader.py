@@ -8,10 +8,10 @@ import sys
 from functools import lru_cache
 from pathlib import Path
 from types import ModuleType
+from typing import TYPE_CHECKING
 
-V5_ROOT = Path(__file__).resolve().parents[3]
-OBJECT_MODULES_ROOT = V5_ROOT / "topology" / "object-modules"
-BOOTSTRAP_PROJECTION_PATH = OBJECT_MODULES_ROOT / "_shared" / "plugins" / "bootstrap_projections.py"
+if TYPE_CHECKING:
+    from kernel.plugin_base import PluginContext
 
 
 def _load_module(*, module_name: str, module_path: Path) -> ModuleType:
@@ -28,7 +28,33 @@ def _load_module(*, module_name: str, module_path: Path) -> ModuleType:
     return module
 
 
-def discover_object_projection_paths(*, object_modules_root: Path = OBJECT_MODULES_ROOT) -> dict[str, Path]:
+def _detect_object_modules_root() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "topology" / "object-modules"
+        if candidate.exists():
+            return candidate.resolve()
+    raise FileNotFoundError("Cannot auto-detect topology/object-modules root for projection loader.")
+
+
+def _resolve_object_modules_root(
+    *,
+    ctx: PluginContext | None = None,
+    object_modules_root: Path | str | None = None,
+) -> Path:
+    if isinstance(object_modules_root, Path):
+        return object_modules_root.resolve()
+    if isinstance(object_modules_root, str) and object_modules_root.strip():
+        return Path(object_modules_root.strip()).resolve()
+    if ctx is not None:
+        raw = ctx.config.get("object_modules_root")
+        if isinstance(raw, str) and raw.strip():
+            return Path(raw.strip()).resolve()
+    return _detect_object_modules_root()
+
+
+@lru_cache(maxsize=8)
+def _discover_object_projection_paths(root: str) -> dict[str, Path]:
+    object_modules_root = Path(root)
     paths: dict[str, Path] = {}
     if not object_modules_root.exists():
         return paths
@@ -43,14 +69,18 @@ def discover_object_projection_paths(*, object_modules_root: Path = OBJECT_MODUL
     return paths
 
 
-@lru_cache(maxsize=1)
-def _object_projection_paths() -> dict[str, Path]:
-    return discover_object_projection_paths()
+def discover_object_projection_paths(
+    *,
+    ctx: PluginContext | None = None,
+    object_modules_root: Path | str | None = None,
+) -> dict[str, Path]:
+    root = _resolve_object_modules_root(ctx=ctx, object_modules_root=object_modules_root)
+    return _discover_object_projection_paths(str(root))
 
 
-@lru_cache(maxsize=None)
-def load_object_projection_module(object_id: str) -> ModuleType:
-    paths = _object_projection_paths()
+@lru_cache(maxsize=64)
+def _load_object_projection_module(root: str, object_id: str) -> ModuleType:
+    paths = _discover_object_projection_paths(root)
     module_path = paths.get(object_id)
     if module_path is None:
         known = ", ".join(sorted(paths))
@@ -58,6 +88,26 @@ def load_object_projection_module(object_id: str) -> ModuleType:
     return _load_module(module_name=f"_object_projection_{object_id}", module_path=module_path)
 
 
-@lru_cache(maxsize=1)
-def load_bootstrap_projection_module() -> ModuleType:
-    return _load_module(module_name="_object_projection_bootstrap", module_path=BOOTSTRAP_PROJECTION_PATH)
+def load_object_projection_module(
+    object_id: str,
+    *,
+    ctx: PluginContext | None = None,
+    object_modules_root: Path | str | None = None,
+) -> ModuleType:
+    root = _resolve_object_modules_root(ctx=ctx, object_modules_root=object_modules_root)
+    return _load_object_projection_module(str(root), object_id)
+
+
+@lru_cache(maxsize=8)
+def _load_bootstrap_projection_module(root: str) -> ModuleType:
+    module_path = Path(root) / "_shared" / "plugins" / "bootstrap_projections.py"
+    return _load_module(module_name="_object_projection_bootstrap", module_path=module_path)
+
+
+def load_bootstrap_projection_module(
+    *,
+    ctx: PluginContext | None = None,
+    object_modules_root: Path | str | None = None,
+) -> ModuleType:
+    root = _resolve_object_modules_root(ctx=ctx, object_modules_root=object_modules_root)
+    return _load_bootstrap_projection_module(str(root))

@@ -1,6 +1,6 @@
 schema_version: 1
 plugins:
-  - id: base.generator.bootstrap_orangepi
+  - id: object.orangepi.generator.bootstrap
     kind: generator
     entry: plugins/generators/bootstrap_orangepi_generator.py:BootstrapOrangePiGenerator
     api_version: "1.x"

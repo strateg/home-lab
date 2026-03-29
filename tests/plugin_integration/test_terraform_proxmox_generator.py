@@ -81,7 +81,7 @@ def _compiled_fixture() -> dict:
 
 
 def test_terraform_proxmox_generator_writes_expected_files(tmp_path: Path) -> None:
-    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
+    generator = TerraformProxmoxGenerator("object.proxmox.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
     result = generator.execute(ctx, Stage.GENERATE)
@@ -108,7 +108,7 @@ def test_terraform_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
 
 
 def test_terraform_proxmox_generator_reports_projection_error(tmp_path: Path) -> None:
-    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
+    generator = TerraformProxmoxGenerator("object.proxmox.generator.terraform")
     ctx = _ctx(tmp_path, {"instances": {"devices": [{}]}})
 
     result = generator.execute(ctx, Stage.GENERATE)
@@ -118,7 +118,7 @@ def test_terraform_proxmox_generator_reports_projection_error(tmp_path: Path) ->
 
 
 def test_terraform_proxmox_generator_derives_api_url_from_projection(tmp_path: Path) -> None:
-    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
+    generator = TerraformProxmoxGenerator("object.proxmox.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
 
     result = generator.execute(ctx, Stage.GENERATE)
@@ -129,7 +129,7 @@ def test_terraform_proxmox_generator_derives_api_url_from_projection(tmp_path: P
 
 
 def test_terraform_proxmox_generator_prefers_configured_api_url(tmp_path: Path) -> None:
-    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
+    generator = TerraformProxmoxGenerator("object.proxmox.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
     ctx.config["proxmox_api_url"] = "https://pve-api.example.invalid:8443/api2/json"
 
@@ -207,7 +207,7 @@ def test_proxmox_projection_derives_capability_flags_from_rows() -> None:
 
 
 def test_terraform_proxmox_generator_emits_backend_tf_when_remote_state_enabled(tmp_path: Path) -> None:
-    generator = TerraformProxmoxGenerator("base.generator.terraform_proxmox")
+    generator = TerraformProxmoxGenerator("object.proxmox.generator.terraform")
     ctx = _ctx(tmp_path, _compiled_fixture())
     ctx.config["terraform_remote_state"] = {
         "enabled": True,

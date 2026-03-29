@@ -10,11 +10,11 @@ import yaml
 V5_ROOT = Path(__file__).resolve().parents[2]
 
 OBJECT_GENERATOR_IDS = {
-    "base.generator.terraform_mikrotik",
-    "base.generator.bootstrap_mikrotik",
-    "base.generator.terraform_proxmox",
-    "base.generator.bootstrap_proxmox",
-    "base.generator.bootstrap_orangepi",
+    "object.mikrotik.generator.terraform",
+    "object.mikrotik.generator.bootstrap",
+    "object.proxmox.generator.terraform",
+    "object.proxmox.generator.bootstrap",
+    "object.orangepi.generator.bootstrap",
 }
 
 SHIM_FILES = [

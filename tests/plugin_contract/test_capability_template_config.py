@@ -32,7 +32,7 @@ def _plugin_entry(manifest_path: Path, plugin_id: str) -> dict:
 
 
 def test_mikrotik_manifest_externalizes_capability_template_mapping() -> None:
-    plugin = _plugin_entry(MIKROTIK_MANIFEST, "base.generator.terraform_mikrotik")
+    plugin = _plugin_entry(MIKROTIK_MANIFEST, "object.mikrotik.generator.terraform")
     config = plugin.get("config")
     assert isinstance(config, dict), "Generator config must be a mapping"
     capability_templates = config.get("capability_templates")
@@ -57,7 +57,7 @@ def test_mikrotik_manifest_externalizes_capability_template_mapping() -> None:
 
 
 def test_mikrotik_manifest_schema_declares_capability_template_structure() -> None:
-    plugin = _plugin_entry(MIKROTIK_MANIFEST, "base.generator.terraform_mikrotik")
+    plugin = _plugin_entry(MIKROTIK_MANIFEST, "object.mikrotik.generator.terraform")
     schema = plugin.get("config_schema")
     assert isinstance(schema, dict), "Generator config_schema must be a mapping"
     properties = schema.get("properties")
@@ -76,7 +76,7 @@ def test_mikrotik_manifest_schema_declares_capability_template_structure() -> No
 
 
 def test_proxmox_manifest_schema_declares_api_url_override() -> None:
-    plugin = _plugin_entry(PROXMOX_MANIFEST, "base.generator.terraform_proxmox")
+    plugin = _plugin_entry(PROXMOX_MANIFEST, "object.proxmox.generator.terraform")
     config = plugin.get("config")
     assert isinstance(config, dict), "Generator config must be a mapping"
     assert "proxmox_api_url" in config
@@ -98,7 +98,7 @@ def test_mikrotik_generator_has_no_hardcoded_capability_template_fallbacks() -> 
 
 
 def test_proxmox_manifest_externalizes_capability_template_mapping() -> None:
-    plugin = _plugin_entry(PROXMOX_MANIFEST, "base.generator.terraform_proxmox")
+    plugin = _plugin_entry(PROXMOX_MANIFEST, "object.proxmox.generator.terraform")
     config = plugin.get("config")
     assert isinstance(config, dict), "Generator config must be a mapping"
     capability_templates = config.get("capability_templates")
@@ -121,7 +121,7 @@ def test_proxmox_manifest_externalizes_capability_template_mapping() -> None:
 
 
 def test_proxmox_manifest_schema_declares_capability_template_structure() -> None:
-    plugin = _plugin_entry(PROXMOX_MANIFEST, "base.generator.terraform_proxmox")
+    plugin = _plugin_entry(PROXMOX_MANIFEST, "object.proxmox.generator.terraform")
     schema = plugin.get("config_schema")
     assert isinstance(schema, dict), "Generator config_schema must be a mapping"
     properties = schema.get("properties")

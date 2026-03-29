@@ -34,7 +34,7 @@ def _plugin_entry(manifest_path: Path, plugin_id: str) -> dict:
 
 
 def test_mikrotik_bootstrap_manifest_externalizes_file_mappings() -> None:
-    plugin = _plugin_entry(MIKROTIK_MANIFEST, "base.generator.bootstrap_mikrotik")
+    plugin = _plugin_entry(MIKROTIK_MANIFEST, "object.mikrotik.generator.bootstrap")
     config = plugin.get("config")
     assert isinstance(config, dict), "Generator config must be a mapping"
     bootstrap_files = config.get("bootstrap_files")
@@ -53,7 +53,7 @@ def test_mikrotik_bootstrap_manifest_externalizes_file_mappings() -> None:
 
 
 def test_mikrotik_bootstrap_manifest_schema_declares_file_structure() -> None:
-    plugin = _plugin_entry(MIKROTIK_MANIFEST, "base.generator.bootstrap_mikrotik")
+    plugin = _plugin_entry(MIKROTIK_MANIFEST, "object.mikrotik.generator.bootstrap")
     schema = plugin.get("config_schema")
     assert isinstance(schema, dict), "Generator config_schema must be a mapping"
     properties = schema.get("properties")
@@ -76,7 +76,7 @@ def test_mikrotik_bootstrap_generator_has_no_hardcoded_file_mappings() -> None:
 
 
 def test_proxmox_bootstrap_manifest_externalizes_file_mappings() -> None:
-    plugin = _plugin_entry(PROXMOX_MANIFEST, "base.generator.bootstrap_proxmox")
+    plugin = _plugin_entry(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
     config = plugin.get("config")
     assert isinstance(config, dict), "Generator config must be a mapping"
     bootstrap_files = config.get("bootstrap_files")
@@ -108,7 +108,7 @@ def test_proxmox_bootstrap_manifest_externalizes_file_mappings() -> None:
 
 
 def test_proxmox_bootstrap_manifest_schema_declares_file_structure() -> None:
-    plugin = _plugin_entry(PROXMOX_MANIFEST, "base.generator.bootstrap_proxmox")
+    plugin = _plugin_entry(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
     schema = plugin.get("config_schema")
     assert isinstance(schema, dict), "Generator config_schema must be a mapping"
     properties = schema.get("properties")
@@ -129,7 +129,7 @@ def test_proxmox_bootstrap_generator_has_no_hardcoded_file_mappings() -> None:
 
 
 def test_orangepi_bootstrap_manifest_externalizes_file_mappings() -> None:
-    plugin = _plugin_entry(ORANGEPI_MANIFEST, "base.generator.bootstrap_orangepi")
+    plugin = _plugin_entry(ORANGEPI_MANIFEST, "object.orangepi.generator.bootstrap")
     config = plugin.get("config")
     assert isinstance(config, dict), "Generator config must be a mapping"
     bootstrap_files = config.get("bootstrap_files")
@@ -148,7 +148,7 @@ def test_orangepi_bootstrap_manifest_externalizes_file_mappings() -> None:
 
 
 def test_orangepi_bootstrap_manifest_schema_declares_file_structure() -> None:
-    plugin = _plugin_entry(ORANGEPI_MANIFEST, "base.generator.bootstrap_orangepi")
+    plugin = _plugin_entry(ORANGEPI_MANIFEST, "object.orangepi.generator.bootstrap")
     schema = plugin.get("config_schema")
     assert isinstance(schema, dict), "Generator config_schema must be a mapping"
     properties = schema.get("properties")
