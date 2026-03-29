@@ -177,6 +177,25 @@ def test_verify_detects_integrity_mismatch(tmp_path: Path):
     assert "E7824" in verify.stdout
 
 
+def test_verify_integrity_is_stable_across_crlf_lf_text_line_endings(tmp_path: Path):
+    repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path)
+    framework_manifest = repo_root / "topology" / "framework.yaml"
+    canonical_lf = framework_manifest.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+    # Simulate Windows checkout line endings, generate lock, then switch to LF
+    # to emulate Linux/WSL checkout without changing logical file content.
+    crlf_bytes = canonical_lf.replace(b"\n", b"\r\n")
+    framework_manifest.write_bytes(crlf_bytes)
+
+    generate = _run_generate(repo_root, topology_manifest)
+    assert generate.returncode == 0, generate.stderr
+
+    framework_manifest.write_bytes(canonical_lf)
+
+    verify = _run_verify(repo_root, topology_manifest)
+    assert verify.returncode == 0, verify.stdout + "\n" + verify.stderr
+
+
 def test_verify_detects_framework_version_too_old(tmp_path: Path):
     repo_root, topology_manifest, _ = _create_fixture_repo(tmp_path, min_framework_version="6.0.0")
     generate = _run_generate(repo_root, topology_manifest)

@@ -163,15 +163,27 @@ def _git_toplevel(path: Path) -> Path | None:
         return None
 
 
-def _hash_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        while True:
-            chunk = handle.read(1024 * 1024)
-            if not chunk:
-                break
-            digest.update(chunk)
-    return digest.hexdigest()
+def _read_canonical_file_bytes(path: Path) -> bytes:
+    """Read file bytes with cross-platform text newline normalization.
+
+    For text files (heuristic: no NUL byte), normalize line endings to LF so
+    lock integrity stays stable across Windows/WSL checkouts.
+    Binary files are hashed as-is.
+    """
+
+    data = path.read_bytes()
+    if b"\x00" in data:
+        return data
+    return data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+
+def _canonical_file_row(path: Path) -> dict[str, Any]:
+    normalized = _read_canonical_file_bytes(path)
+    digest = hashlib.sha256(normalized).hexdigest()
+    return {
+        "size": len(normalized),
+        "sha256": digest,
+    }
 
 
 def _is_non_empty_str(value: Any) -> bool:
@@ -266,7 +278,8 @@ def collect_framework_files(
             target_rel = include_target
             if target_rel in seen_targets:
                 raise ValueError(f"duplicate framework distribution target path: {target_rel}")
-            rows.append({"path": target_rel, "size": candidate.stat().st_size, "sha256": _hash_file(candidate)})
+            row = _canonical_file_row(candidate)
+            rows.append({"path": target_rel, "size": row["size"], "sha256": row["sha256"]})
             seen_targets.add(target_rel)
             continue
         for path in sorted(candidate.rglob("*")):
@@ -279,7 +292,8 @@ def collect_framework_files(
             target_rel = PurePosixPath(include_target, rel_under_include).as_posix()
             if target_rel in seen_targets:
                 raise ValueError(f"duplicate framework distribution target path: {target_rel}")
-            rows.append({"path": target_rel, "size": path.stat().st_size, "sha256": _hash_file(path)})
+            row = _canonical_file_row(path)
+            rows.append({"path": target_rel, "size": row["size"], "sha256": row["sha256"]})
             seen_targets.add(target_rel)
     rows.sort(key=lambda item: str(item["path"]))
     return rows
