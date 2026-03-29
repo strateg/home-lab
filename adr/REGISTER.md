@@ -81,3 +81,4 @@
 | [0078](0078-object-module-local-template-layout.md) | Object-Module Local Templates and Generator Plugins Layout | Accepted | 2026-03-21 | - | - |
 | [0079](0079-v5-documentation-and-diagram-generation-migration.md) | V5 Documentation and Diagram Generation Migration | Accepted | 2026-03-24 | - | - |
 | [0080](0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md) | Unified Build Pipeline, Stage-Phase Lifecycle, and Contractual Plugin Data Bus | Accepted | 2026-03-26 | - | - |
+| [0081](0081-framework-runtime-artifact-and-1-n-project-repository-model.md) | Framework Runtime Artifact and 1:N Project Repository Model | Accepted | 2026-03-29 | - | - |

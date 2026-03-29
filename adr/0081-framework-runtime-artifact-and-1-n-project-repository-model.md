@@ -54,6 +54,7 @@ The repository also contains a **co-located test project** (`projects/home-lab/`
 3. **Reference implementation** — the co-located project serves as the canonical example of how a project consumes the framework.
 
 The co-located project is built with the same `compile-topology.py` and the same plugin pipeline. The only difference from a standalone project is path resolution: in monorepo mode, `topology.yaml` points to framework paths without a mount prefix (`topology/class-modules`), while in standalone mode it points through the framework mount (`framework/topology/class-modules`).
+`projects/home-lab/` remains a required integration fixture for validating that framework changes do not break standalone-project execution semantics.
 
 Contents exclusive to this repository (NEVER included in framework artifact):
 
@@ -226,7 +227,7 @@ Plugin discovery follows a strict deterministic merge chain:
 4. **Object modules** — `topology/object-modules/<object>/plugins.yaml` (if present)
 5. **Project** — `<project-root>/plugins/plugins.yaml` (if present)
 
-Later levels extend earlier levels. ID conflicts within the same level are errors. Cross-level ID collisions are resolved by level precedence (project wins for project-scoped execution).
+Later levels extend earlier levels through additive registration only. To keep determinism and avoid hidden behavior changes, plugin IDs MUST be globally unique across all loaded manifests. Duplicate IDs at any level are hard errors.
 
 ### 3.5 Practical Integration: How Framework Connects to Project (Informative)
 
@@ -322,6 +323,25 @@ The compiler has built-in layout detection:
 - `resolve_topology_path()` falls back from `topology/topology.yaml` (monorepo) to `topology.yaml` (standalone) automatically.
 - `default_framework_manifest_path()` detects both `topology/framework.yaml` (monorepo) and `framework.yaml` (extracted artifact).
 
+### 3.6 Topology Execution Environment Compatibility (Normative)
+
+The topology execution environment for standalone projects MUST preserve the same operational script contract as monorepo development.
+
+Required compatibility rules:
+
+1. The same runtime entrypoints are used in both modes (`compile-topology.py`, `generate-framework-lock.py`, `verify-framework-lock.py`).
+2. In standalone repositories, scripts are executed from framework mount (`framework/topology-tools/...`) with project-local manifests.
+3. Project bootstrap tooling (`bootstrap-project-repo.py` / `init-project-repo.py`) MUST generate runnable command templates (Taskfile/workflow notes) that reference mounted framework scripts.
+4. CI validation in project repositories MUST call mounted framework scripts directly, not scripts from framework source repository.
+
+Practical command mapping:
+
+| Function | Monorepo (`home-lab`) | Standalone project (`my-infra`) |
+|----------|------------------------|----------------------------------|
+| Compile | `python topology-tools/compile-topology.py --repo-root . --topology topology/topology.yaml` | `python framework/topology-tools/compile-topology.py --repo-root . --topology ./topology.yaml` |
+| Generate lock | `python topology-tools/generate-framework-lock.py --topology topology/topology.yaml --force` | `python framework/topology-tools/generate-framework-lock.py --repo-root . --project-root . --project-manifest ./project.yaml --framework-root ./framework --framework-manifest ./framework/framework.yaml --lock-file ./framework.lock.yaml --force` |
+| Verify lock | `python topology-tools/verify-framework-lock.py --strict` | `python framework/topology-tools/verify-framework-lock.py --repo-root . --project-root . --project-manifest ./project.yaml --framework-root ./framework --framework-manifest ./framework/framework.yaml --lock-file ./framework.lock.yaml --strict` |
+
 #### What Belongs Where
 
 | Asset | Owner | Location in Monorepo | Location in Standalone Project |
@@ -384,6 +404,20 @@ Trust verification is phased: integrity checks (§4.2) are mandatory now; crypto
 | **Git submodule** (secondary) | Development, rehearsal | `git` | Integrity (commit SHA + content hash) |
 | **Local path** (dev-only) | Framework development | N/A | None (forbidden for release promotion) |
 
+### 5.1 Cognitive Load Policy for Dependency Integration (Normative)
+
+To minimize developer cognitive load, the dependency model is standardized to one primary path.
+
+1. Canonical developer and CI path is **artifact-first** (`project:init-from-dist` style bootstrap).
+2. Submodule flow is retained only as **temporary legacy/rollback compatibility** during Phase 13 stabilization.
+3. Submodule flow MUST NOT be the default path in documentation, templates, or onboarding.
+4. After Phase 13 stabilization window, submodule flow is deprecated and removed from primary project workflows.
+5. Upgrade UX target is one deterministic flow:
+   - update framework artifact in `./framework`,
+   - regenerate `framework.lock.yaml`,
+   - run strict verify + compile,
+   - commit dependency + lock + approved generated diffs.
+
 ### 6. Development Workflow (Informative)
 
 #### 6.1 Framework Development (this repository)
@@ -411,11 +445,44 @@ AI-assisted development tooling (`.claude/`, `.codex/`, `AGENTS.md`) guides fram
 #### 6.3 Framework Upgrade in Project
 
 ```
-1. Update framework dependency (submodule update or new artifact)
-2. Regenerate lock: generate-framework-lock.py
-3. Run pipeline in strict mode — verify no regressions
-4. Commit updated lock + regenerated artifacts
+1. Update framework dependency:
+   - package mode: fetch/install new framework artifact version into `./framework`
+   - submodule mode: move submodule pointer to required tag/commit
+2. Regenerate lock with mounted framework:
+   - `python framework/topology-tools/generate-framework-lock.py --repo-root . --project-root . --project-manifest ./project.yaml --framework-root ./framework --framework-manifest ./framework/framework.yaml --lock-file ./framework.lock.yaml --force`
+3. Run strict verification and compile:
+   - `python framework/topology-tools/verify-framework-lock.py --repo-root . --project-root . --project-manifest ./project.yaml --framework-root ./framework --framework-manifest ./framework/framework.yaml --lock-file ./framework.lock.yaml --strict`
+   - `python framework/topology-tools/compile-topology.py --repo-root . --topology ./topology.yaml --strict-model-lock --secrets-mode passthrough`
+4. Re-run project CI gates (validate/generate/assemble/build).
+5. Commit dependency update + `framework.lock.yaml` + approved generated diffs in one changeset.
 ```
+
+Version update policy:
+
+1. No implicit framework updates in project CI.
+2. Framework version bump is explicit, locked, and reviewable.
+3. Rollback is performed by restoring previous framework dependency revision and corresponding `framework.lock.yaml`.
+
+#### 6.4 Framework Upgrade Checklist (Operational)
+
+Use this checklist in project repositories:
+
+1. Update dependency in `./framework` (artifact refresh or submodule pointer).
+2. Regenerate lock:
+   - `python framework/topology-tools/generate-framework-lock.py --repo-root . --project-root . --project-manifest ./project.yaml --framework-root ./framework --framework-manifest ./framework/framework.yaml --lock-file ./framework.lock.yaml --force`
+3. Verify lock (strict):
+   - `python framework/topology-tools/verify-framework-lock.py --repo-root . --project-root . --project-manifest ./project.yaml --framework-root ./framework --framework-manifest ./framework/framework.yaml --lock-file ./framework.lock.yaml --strict`
+4. Compile (strict model lock):
+   - `python framework/topology-tools/compile-topology.py --repo-root . --topology ./topology.yaml --strict-model-lock --secrets-mode passthrough`
+5. Run project CI gates and review generated diffs.
+6. Commit in one change:
+   - framework dependency update,
+   - `framework.lock.yaml`,
+   - approved generated artifacts.
+7. Rollback procedure:
+   - restore previous framework dependency revision,
+   - restore matching `framework.lock.yaml`,
+   - re-run steps 3-4.
 
 ---
 

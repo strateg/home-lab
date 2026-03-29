@@ -10,6 +10,7 @@ This directory contains implementation plans for major development efforts.
 | [v5-production-readiness.md](v5-production-readiness.md) | Active | Master plan for v5 deployment capability |
 | [0076-phase13-physical-extraction-plan.md](0076-phase13-physical-extraction-plan.md) | Active | ADR0076 Phase 13 physical framework/project repository extraction |
 | [0076-phase13-cutover-checklist.md](0076-phase13-cutover-checklist.md) | Active | ADR0076 Phase 13 execution checklist for physical extraction cutover |
+| [0081-framework-artifact-first-execution-plan.md](0081-framework-artifact-first-execution-plan.md) | Active | ADR0081 implementation plan for artifact-first framework + 1:N project repositories |
 
 ## Completed Plans
 

@@ -86,6 +86,7 @@ Definition of Done:
 - [ ] Add stage-family affinity validation for project plugins.
 - [ ] Add tests for project plugin discovery, ordering, and ID conflict detection.
 - [ ] Document project plugin authoring in runtime reference.
+- [ ] Keep global plugin-id uniqueness (no cross-level shadowing).
 
 Gate commands:
 
@@ -98,7 +99,29 @@ Definition of Done:
 
 1. Project plugins are discovered, loaded, and executed for all six families.
 2. Plugin discovery order matches ADR 0081 §3.4.
-3. Cross-level ID conflict detection works correctly.
+3. Duplicate plugin IDs across any loaded manifest fail as hard errors.
+
+---
+
+### P2.5 — Topology Execution Environment Script Compatibility
+
+- [ ] Add contract tests that monorepo and standalone project modes use equivalent runtime entrypoints (`compile-topology.py`, `generate-framework-lock.py`, `verify-framework-lock.py`).
+- [ ] Ensure bootstrap utilities generate runnable Task/CI command templates for mounted framework path (`framework/topology-tools/...`).
+- [ ] Add rehearsal test for project dependency integration: build artifact -> bootstrap project -> strict verify + compile with mounted scripts.
+
+Gate commands:
+
+```powershell
+task framework:strict
+task test:default
+task project:init-from-dist -- PROJECT_ROOT=build/project-bootstrap/home-lab PROJECT_ID=home-lab FRAMEWORK_DIST_ZIP=dist/framework/... FRAMEWORK_DIST_VERSION=5.0.0-rc1
+```
+
+Definition of Done:
+
+1. Standalone project execution environment works with mounted framework scripts only.
+2. Generated bootstrap notes and workflow templates are executable without manual patching.
+3. Compile output contract is equivalent between co-located fixture and standalone rehearsal.
 
 ---
 
@@ -174,9 +197,10 @@ Strict dependency order:
 P0 (Baseline Recovery)
 └── P1 (Artifact Boundary)
     └── P2 (Project Plugins)
-        └── P3 (Trust Verification)
-            └── P4 (Split Rehearsal)
-                └── P5 (Cutover)
+        └── P2.5 (Execution Environment Compatibility)
+            └── P3 (Trust Verification)
+                └── P4 (Split Rehearsal)
+                    └── P5 (Cutover)
 ```
 
 Documentation updates can run in parallel but no closure gate can pass before P0.
