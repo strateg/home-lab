@@ -30,8 +30,6 @@ The target architecture is 1:N: one framework is consumed as a versioned artifac
 
 ### Current State
 
-- v4 is archived in `archive/v4/`. v5 content is in the repository root (premature extraction from `v5/` prefix — development continues on this structure).
-- v4 can still be built from `archive/v4/` for reference and parity checks.
 - Framework/project separation is implemented (ADR 0075).
 - Submodule-first consumption is operational (ADR 0076 Stage 2).
 - Artifact-first consumption is defined but not yet canonical.
@@ -65,7 +63,7 @@ Contents exclusive to this repository (NEVER included in framework artifact):
 | `tests/` | Framework test suites and fixtures |
 | `acceptance-testing/` | TUC acceptance tests |
 | `docs/` | Framework development documentation |
-| `archive/` | v4 codebase for reference and parity |
+| `archive/` | Historical codebase archive |
 | `scripts/` | Development orchestration scripts |
 | `.claude/`, `.codex/`, `AGENTS.md`, `CLAUDE.md` | AI-agent instructions |
 | `Taskfile.yml`, `taskfiles/` | Development task runner |
@@ -428,7 +426,7 @@ Positive:
 1. Clean 1:N scaling: one framework release, N independent project repositories.
 2. Minimal runtime dependency: project CI only needs framework artifact + project data.
 3. Clear lifecycle boundary: framework engineering (with AI, tests, ADRs) is decoupled from project operation.
-4. v4 remains accessible in `archive/v4/` for parity checks and reference.
+4. Framework artifact is self-contained and has no historical dependencies.
 
 Trade-offs:
 
@@ -449,10 +447,6 @@ Trade-offs:
 ADR 0075 answers "where is the boundary?" — ADR 0076 answers "how to distribute?" — ADR 0081 answers "what exactly ships and how do projects consume it?"
 
 ---
-
-## Structural Note
-
-v4 is archived in `archive/v4/`. v5 content was moved from `v5/` prefix to repository root (premature extraction). Development continues on the current root-level structure. Parity checks against v4 can still be executed from `archive/v4/`. v4 build pipeline MUST remain operational for regression validation.
 
 ---
 
