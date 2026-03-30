@@ -1,4 +1,50 @@
-# Baseline projection output; firewall resources are added in parity phase.
+# MikroTik firewall rules generated from topology
+# Networks: {{ networks_list_expr }}
+
 locals {
   mikrotik_networks_for_firewall = {{ networks_list_expr }}
+}
+
+# Basic firewall structure - accept established/related, drop invalid
+resource "routeros_ip_firewall_filter" "accept_established" {
+  chain           = "forward"
+  action          = "accept"
+  connection_state = "established,related"
+  comment         = "Accept established/related - managed by topology"
+}
+
+resource "routeros_ip_firewall_filter" "drop_invalid" {
+  chain           = "forward"
+  action          = "drop"
+  connection_state = "invalid"
+  comment         = "Drop invalid - managed by topology"
+}
+
+{% if has_vlan and vlans %}
+# VLAN inter-zone traffic rules
+{% for vlan in vlans %}
+{% if vlan.vlan_id %}
+# Allow {{ vlan.name }} to access internet (SNAT)
+resource "routeros_ip_firewall_nat" "{{ vlan.name }}_masquerade" {
+  chain       = "srcnat"
+  action      = "masquerade"
+  src_address = "{{ vlan.cidr }}"
+  out_interface_list = "WAN"
+  comment     = "{{ vlan.instance_id }} NAT - managed by topology"
+}
+
+{% endif %}
+{% endfor %}
+{% endif %}
+
+# Default drop rule (should be last)
+resource "routeros_ip_firewall_filter" "drop_all_forward" {
+  chain   = "forward"
+  action  = "drop"
+  comment = "Default deny forward - managed by topology"
+
+  depends_on = [
+    routeros_ip_firewall_filter.accept_established,
+    routeros_ip_firewall_filter.drop_invalid,
+  ]
 }

@@ -1,4 +1,23 @@
-# Baseline projection output; DNS resources are added in parity phase.
-locals {
-  mikrotik_dns_enabled = true
+# MikroTik DNS configuration generated from topology
+
+resource "routeros_ip_dns" "settings" {
+  allow_remote_requests = true
+  servers               = ["1.1.1.1", "8.8.8.8"]
+  cache_max_ttl         = "1w"
+  cache_size            = 2048
 }
+
+{% if has_vlan and vlans %}
+# Static DNS entries for VLAN gateways
+{% for vlan in vlans %}
+{% if vlan.gateway %}
+resource "routeros_ip_dns_record" "{{ vlan.name }}_gw" {
+  name    = "gw-{{ vlan.name }}.lan"
+  address = "{{ vlan.gateway }}"
+  type    = "A"
+  comment = "{{ vlan.instance_id }} gateway - managed by topology"
+}
+
+{% endif %}
+{% endfor %}
+{% endif %}

@@ -1,4 +1,21 @@
-# Baseline projection output; address resources are added in parity phase.
+# MikroTik IP addresses generated from topology
+
+{% if has_vlan and vlans %}
+# Gateway addresses for VLANs
+{% for vlan in vlans %}
+{% if vlan.gateway and vlan.cidr %}
+{% set prefix = vlan.cidr.split('/')[1] %}
+resource "routeros_ip_address" "{{ vlan.name }}" {
+  address   = "{{ vlan.gateway }}/{{ prefix }}"
+  interface = routeros_interface_vlan.{{ vlan.name }}.name
+  comment   = "{{ vlan.instance_id }} gateway - managed by topology"
+}
+
+{% endif %}
+{% endfor %}
+{% else %}
+# No VLAN addresses configured
 locals {
   mikrotik_networks_for_addresses = {{ networks_list_expr }}
 }
+{% endif %}

@@ -76,6 +76,8 @@ class TerraformMikroTikGenerator(BaseGenerator):
         routers = [str(row.get("instance_id", "")) for row in projection.get("routers", [])]
         networks = [str(row.get("instance_id", "")) for row in projection.get("networks", [])]
         services = [str(row.get("instance_id", "")) for row in projection.get("services", [])]
+        vlans = projection.get("vlans", [])
+        firewall_policies = projection.get("firewall_policies", [])
         mikrotik_host = self._resolve_mikrotik_host(ctx=ctx, routers=routers)
 
         # Extract capability flags from projection
@@ -94,6 +96,9 @@ class TerraformMikroTikGenerator(BaseGenerator):
             "routers_count": len(routers),
             "networks_count": len(networks),
             "services_count": len(services),
+            "vlans": vlans,
+            "vlans_count": len(vlans),
+            "firewall_policies": firewall_policies,
             "mikrotik_host": mikrotik_host,
             # Capability flags for conditional blocks in templates
             **normalized_caps,
@@ -140,8 +145,8 @@ class TerraformMikroTikGenerator(BaseGenerator):
                 severity="info",
                 stage=stage,
                 message=(
-                    "generated baseline MikroTik Terraform artifacts: "
-                    f"routers={len(routers)} networks={len(networks)} services={len(services)} "
+                    "generated MikroTik Terraform artifacts: "
+                    f"routers={len(routers)} vlans={len(vlans)} networks={len(networks)} services={len(services)} "
                     f"caps=[{cap_summary}] "
                     f"remote_state={'enabled' if remote_state else 'disabled'}"
                 ),

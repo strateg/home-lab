@@ -1,4 +1,24 @@
-# Baseline projection output; detailed interface resources are added in parity phase.
+# MikroTik VLAN interfaces generated from topology
+# Routers: {{ routers_list_expr }}
+
 locals {
   mikrotik_routers = {{ routers_list_expr }}
 }
+
+{% if has_vlan and vlans %}
+# VLAN interfaces on bridge
+{% for vlan in vlans %}
+{% if vlan.vlan_id %}
+resource "routeros_interface_vlan" "{{ vlan.name }}" {
+  name      = "vlan{{ vlan.vlan_id }}"
+  vlan_id   = {{ vlan.vlan_id }}
+  interface = "bridge"
+  mtu       = {{ vlan.mtu | default(1500) }}
+  comment   = "{{ vlan.instance_id }} - managed by topology"
+}
+
+{% endif %}
+{% endfor %}
+{% else %}
+# No VLANs configured or VLAN capability not enabled
+{% endif %}
