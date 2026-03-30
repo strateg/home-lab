@@ -179,7 +179,7 @@ cloud_init_retry:
 
 ---
 
-## 4. LXC Containers — `terraform_managed` Mechanism
+## 4. LXC Containers — Implicit Terraform-managed (no `initialization_contract`)
 
 ### Failure Points
 

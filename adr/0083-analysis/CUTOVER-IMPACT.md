@@ -40,7 +40,7 @@ tasks:
       vars: [NODE]
 
   init:all-pending:
-    desc: Initialize all pending nodes
+    desc: Initialize all pending nodes (skips manual_confirmation nodes unless --interactive)
     cmds:
       - python scripts/orchestration/deploy/init-node.py --all-pending
 
@@ -344,14 +344,14 @@ If any of these conditions occur during migration, rollback to pre-0083 workflow
 ## Migration Timeline
 
 ```
-Phase 1 (Schema)         ── Can start immediately after ADR 0080 Wave B
+Phase 1 (Schema)         ── Can start immediately (ADR 0080 Waves A-H completed)
 Phase 2 (Generators)     ── Parallel with Phase 3, after Phase 1
 Phase 3 (Device Support) ── Parallel with Phase 2, after Phase 1
-Phase 4 (Orchestration)  ── After Phases 2-3, requires ADR 0080 Wave E
-Phase 5 (Assemble)       ── After Phase 4, requires ADR 0080 Wave F
+Phase 4 (Orchestration)  ── After Phases 2-3
+Phase 5 (Assemble)       ── After Phase 4
 Phase 6 (Documentation)  ── After Phase 5
 
-Total estimated: ~15-20 working days (with parallel phases)
+Total estimated: ~17-24 working days (with parallel phases)
 ```
 
 ---
@@ -368,7 +368,7 @@ Total estimated: ~15-20 working days (with parallel phases)
 - [ ] MikroTik object module has initialization_contract
 - [ ] Proxmox object module has initialization_contract
 - [ ] Orange Pi object module has initialization_contract
-- [ ] LXC object modules have initialization_contract
+- [ ] LXC object modules have NO initialization_contract (implicit terraform-managed per D2)
 - [ ] All generator tests pass (T-G01..T-G12)
 - [ ] Generated artifacts are regression-safe
 

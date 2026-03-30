@@ -6,14 +6,16 @@ This plan implements the Unified Node Initialization Contract in 7 phases, progr
 
 ### ADR 0080 Wave Dependencies
 
-| ADR 0083 Phase | Required ADR 0080 Wave | Reason |
+**All waves (A–H) are completed ✅ — no external blockers remain.**
+
+| ADR 0083 Phase | Required ADR 0080 Wave | Status |
 |----------------|------------------------|--------|
-| Phase 1 | Wave B (Kernel Foundations) | Manifest schema must accept `phase` field |
-| Phase 2-3 | Wave D (Phase Annotation) | Bootstrap generators need explicit `phase: run` |
-| Phase 4 | Wave B | Object module schema must accept `initialization_contract` |
-| Phase 5 | Wave E (Data Bus) | Manifest generator uses `produces/consumes` |
-| Phase 5a | Wave F (Assemble Pluginization) | `base.assembler.bootstrap_secrets` requires `assemble` stage |
-| Phase 6 | Wave F completed | Full pipeline must be functional |
+| Phase 1 | Wave B (Kernel Foundations) | ✅ Completed |
+| Phase 2-3 | Wave D (Phase Annotation) | ✅ Completed |
+| Phase 4 | Wave B | ✅ Completed |
+| Phase 5 | Wave E (Data Bus) | ✅ Completed |
+| Phase 5a | Wave F (Assemble Pluginization) | ✅ Completed |
+| Phase 6 | Wave H (Hard Cutover) | ✅ Completed |
 
 ---
 

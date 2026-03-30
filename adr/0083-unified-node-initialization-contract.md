@@ -111,7 +111,7 @@ object: obj.mikrotik.chateau_lte7_ax
 
 initialization_contract:
   version: "1.0"
-  mechanism: netinstall          # netinstall | unattended_install | cloud_init | terraform_managed | ansible_bootstrap
+  mechanism: netinstall          # netinstall | unattended_install | cloud_init | ansible_bootstrap
 
   requirements:                  # Prerequisites for bootstrap execution
     - name: netinstall_cli_installed
@@ -304,6 +304,16 @@ python scripts/orchestration/deploy/init-node.py --verify-only --node hv-proxmox
 python scripts/orchestration/deploy/init-node.py --force --node rtr-mikrotik-chateau
 ```
 
+**Batch mode and manual confirmation:**
+
+When `--all-pending` is used, nodes with `manual_confirmation` requirements are **skipped** by default with a warning:
+
+```
+SKIP: sbc-orangepi5 requires manual_confirmation (os_installed). Use --node to initialize interactively.
+```
+
+The `--interactive` flag enables prompts for manual confirmations in batch mode. Without `--interactive`, only nodes with fully automatable prerequisites are processed.
+
 **State machine for node initialization:**
 
 ```
@@ -428,7 +438,7 @@ Add a new validator to verify initialization contracts in object modules:
 |------|-------------|
 | `E9700` | Missing required `initialization_contract` field on compute/router object |
 | `E9701` | Invalid mechanism type |
-| `E9702` | Missing `bootstrap.template` for non-terraform_managed mechanism |
+| `E9702` | Missing `bootstrap.template` in initialization contract |
 | `E9703` | Handover check type unknown |
 | `E9704` | Requirement check type unknown |
 | `E9705` | `post_handover` Terraform/Ansible ownership overlap detected |
@@ -546,7 +556,7 @@ The `initialization_contract` is declared on the **object module** (e.g., `obj.p
 3. **Bootstrap generator** iterates over all instances of an object and renders per-instance artifacts using the contract's `bootstrap.template` with instance-specific context.
 4. **Initialization manifest generator** aggregates all per-instance entries into a single `INITIALIZATION-MANIFEST.yaml`.
 
-**Example:** `obj.proxmox.lxc.debian12.base` with `mechanism: terraform_managed` produces zero bootstrap artifacts (Terraform creates LXC containers directly). But `obj.proxmox.ve` with `mechanism: unattended_install` produces one set of bootstrap artifacts per Proxmox hypervisor instance.
+**Example:** `obj.proxmox.lxc.debian12.base` without `initialization_contract` is implicitly terraform-managed and produces zero bootstrap artifacts (Terraform creates LXC containers directly). But `obj.proxmox.ve` with `mechanism: unattended_install` produces one set of bootstrap artifacts per Proxmox hypervisor instance.
 
 ```yaml
 # Object: declares WHAT and HOW
@@ -739,6 +749,7 @@ WARNING: Contract changed for node rtr-mikrotik-chateau
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Node Initialization Contract",
+  "description": "All mechanisms require bootstrap.template. Objects without initialization_contract are implicitly terraform-managed and don't need this schema.",
   "type": "object",
   "properties": {
     "version": {
@@ -761,22 +772,26 @@ WARNING: Contract changed for node rtr-mikrotik-chateau
           "path": { "type": "string" },
           "description": { "type": "string" }
         },
-        "required": ["name", "check"]
+        "required": ["name", "check"],
+        "additionalProperties": false
       }
     },
     "bootstrap": {
       "type": "object",
       "properties": {
-        "template": { "type": ["string", "null"] },
+        "template": { "type": "string", "minLength": 1 },
         "post_install": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "description": "Additional post-install script templates (e.g., Proxmox post-install-minimal.sh)"
         },
         "outputs": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "description": "Explicit output paths. If omitted, derived from template name as bootstrap/{{ instance_id }}/<template_basename>"
         }
-      }
+      },
+      "required": ["template"]
     },
     "handover": {
       "type": "object",
@@ -794,7 +809,8 @@ WARNING: Contract changed for node rtr-mikrotik-chateau
             "max_attempts": { "type": "integer", "minimum": 1, "default": 10 },
             "backoff_seconds": { "type": "integer", "minimum": 1, "default": 15 },
             "backoff_strategy": { "enum": ["linear", "exponential"], "default": "linear" }
-          }
+          },
+          "additionalProperties": false
         },
         "checks": {
           "type": "array",
@@ -809,7 +825,8 @@ WARNING: Contract changed for node rtr-mikrotik-chateau
               "user": { "type": "string" }
             },
             "required": ["type"]
-          }
+          },
+          "minItems": 1
         }
       },
       "required": ["provider", "checks"]
@@ -836,17 +853,43 @@ WARNING: Contract changed for node rtr-mikrotik-chateau
     }
   },
   "required": ["version", "mechanism", "bootstrap", "handover"],
-  "properties": {
-    "bootstrap": {
-      "required": ["template"],
-      "properties": {
-        "template": { "type": "string", "minLength": 1 }
+  "allOf": [
+    {
+      "if": { "properties": { "mechanism": { "const": "unattended_install" } } },
+      "then": {
+        "properties": {
+          "bootstrap": {
+            "required": ["template", "post_install"],
+            "properties": {
+              "post_install": { "minItems": 1 }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "mechanism": { "const": "cloud_init" } } },
+      "then": {
+        "properties": {
+          "bootstrap": {
+            "required": ["template", "outputs"],
+            "properties": {
+              "outputs": { "minItems": 2, "description": "Must include at least user-data and meta-data" }
+            }
+          }
+        }
       }
     }
-  },
-  "description": "All mechanisms require bootstrap.template. Objects without initialization_contract are implicitly terraform-managed and don't need this schema."
+  ]
 }
 ```
+
+**Schema design notes:**
+
+- **`bootstrap.template`** is always required (non-null `string` with `minLength: 1`).
+- **`bootstrap.outputs`** is optional; if omitted, the generator derives a single output path from the template name. For `cloud_init`, outputs are required (user-data + meta-data minimum).
+- **`bootstrap.post_install`** lists additional script templates beyond the primary template. Required for `unattended_install` (Proxmox needs answer.toml + post-install script).
+- **Mechanism-specific constraints** use JSONSchema `if/then` composition in `allOf` to enforce per-mechanism rules without duplicating the base schema.
 
 ---
 
@@ -978,18 +1021,18 @@ class_ref: class.compute.container.lxc
 
 ### ADR 0080 Wave Dependency Mapping
 
-ADR 0083 phases depend on ADR 0080 wave completion:
+ADR 0083 phases depend on ADR 0080 wave completion. **All waves (A–H) are now completed ✅** — no external blockers remain.
 
-| ADR 0083 Phase | Depends on ADR 0080 Wave | Reason |
+| ADR 0083 Phase | Required ADR 0080 Wave | Status |
 |----------------|--------------------------|--------|
-| Phase 1: Schema | Wave B (Kernel Foundations) | Requires `phase` field in manifest schema |
-| Phase 2: Generators | Wave D (Phase Annotation) | Bootstrap generators need explicit `phase: run` |
-| Phase 3: Device Support | Wave B | Object module schema must accept `initialization_contract` |
-| Phase 4: Orchestration | Wave E (Data Bus) | Manifest generator uses `produces/consumes` |
-| Phase 5: Assemble Integration | Wave F (Assemble Pluginization) | `base.assembler.bootstrap_secrets` requires `assemble` stage runtime |
-| Phase 6: Documentation | Wave F completed | Full pipeline must be functional |
+| Phase 1: Schema | Wave B (Kernel Foundations) | ✅ Completed |
+| Phase 2: Generators | Wave D (Phase Annotation) | ✅ Completed |
+| Phase 3: Device Support | Wave B | ✅ Completed |
+| Phase 4: Orchestration | Wave E (Data Bus) | ✅ Completed |
+| Phase 5: Assemble Integration | Wave F (Assemble Pluginization) | ✅ Completed |
+| Phase 6: Documentation | Wave H (Hard Cutover) | ✅ Completed |
 
-**Phases 1–3 can start after Wave B. Phase 4 requires Wave E. Phase 5 requires Wave F.**
+**All phases can start immediately.**
 
 ### Phase 1: Contract Definition
 

@@ -54,7 +54,7 @@ Trace secret material from source (SOPS-encrypted files) through pipeline stages
 
 | Stage | File | Secret Fields | Location |
 |-------|------|---------------|----------|
-| Source | `projects/home-lab/secrets/mikrotik.enc.yaml` | `terraform_password`, `wifi_passwords`, `vpn_psk` | Tracked (encrypted) |
+| Source | `projects/home-lab/secrets/terraform/mikrotik.yaml` + `projects/home-lab/secrets/instances/rtr-mikrotik-chateau.yaml` | `terraform_password`, `wifi_passwords`, `vpn_psk` | Tracked (encrypted) |
 | Generate | `generated/.../init-terraform.rsc` | `{{ terraform_password }}` placeholder | Tracked (secret-free) |
 | Assemble | `.work/native/bootstrap/.../init-terraform.rsc` | Actual password inserted | Ignored (`.gitignore`) |
 | Deploy | Sent to device via `netinstall-cli -s` flag | Password embedded in script | Transient |
@@ -69,7 +69,7 @@ Trace secret material from source (SOPS-encrypted files) through pipeline stages
 
 | Stage | File | Secret Fields | Location |
 |-------|------|---------------|----------|
-| Source | `projects/home-lab/secrets/proxmox.enc.yaml` | `root_password`, `terraform_api_token` | Tracked (encrypted) |
+| Source | `projects/home-lab/secrets/terraform/proxmox.yaml` | `root_password`, `terraform_api_token` | Tracked (encrypted) |
 | Generate | `generated/.../answer.toml` | `{{ root_password }}` placeholder | Tracked (secret-free) |
 | Generate | `generated/.../post-install-minimal.sh` | `{{ terraform_api_token }}` placeholder | Tracked (secret-free) |
 | Assemble | `.work/native/bootstrap/.../answer.toml` | Actual root password | Ignored |
@@ -86,7 +86,7 @@ Trace secret material from source (SOPS-encrypted files) through pipeline stages
 
 | Stage | File | Secret Fields | Location |
 |-------|------|---------------|----------|
-| Source | `projects/home-lab/secrets/orangepi.enc.yaml` | `ssh_authorized_keys`, `ansible_password` | Tracked (encrypted) |
+| Source | `projects/home-lab/secrets/instances/srv-orangepi5.yaml` | `ssh_authorized_keys`, `ansible_password` | Tracked (encrypted) |
 | Generate | `generated/.../user-data` | `{{ ssh_authorized_key }}` placeholder | Tracked (secret-free) |
 | Assemble | `.work/native/bootstrap/.../user-data` | Actual SSH public key | Ignored |
 | Deploy | Written to SD card boot partition | Keys on SD card | Physical media |
@@ -97,16 +97,16 @@ Trace secret material from source (SOPS-encrypted files) through pipeline stages
 
 **Note:** SSH public keys are not highly sensitive (they are public keys), but the unified model treats all credential material through SOPS for consistency.
 
-### 4. LXC Containers (`terraform_managed`)
+### 4. LXC Containers (implicit terraform-managed)
 
 | Stage | File | Secret Fields | Location |
 |-------|------|---------------|----------|
-| Source | `projects/home-lab/secrets/lxc.enc.yaml` | `root_password`, `ssh_keys` | Tracked (encrypted) |
+| Source | `projects/home-lab/secrets/terraform/proxmox.yaml` | `root_password`, `ssh_keys` | Tracked (encrypted) |
 | Generate | `generated/.../terraform/proxmox/lxc.tf` | `var.lxc_root_password` reference | Tracked (secret-free) |
 | Assemble | `.work/native/terraform/proxmox/terraform.tfvars` | Actual passwords | Ignored |
 | Deploy | `tofu apply` reads `.work/native/` tfvars | Terraform injects via API | Transient |
 
-**No bootstrap secrets needed** — Terraform creates LXC containers with secrets passed as `terraform.tfvars` variables. The `initialization_contract` has `mechanism: terraform_managed` with no bootstrap template.
+**No bootstrap secrets needed** — LXC containers are implicitly terraform-managed (no `initialization_contract`). Terraform creates them directly via Proxmox API with secrets passed as `terraform.tfvars` variables.
 
 ### 5. Generic Linux (`ansible_bootstrap`)
 
@@ -168,11 +168,18 @@ class BootstrapSecretsAssembler:
         work_dir = ctx.workspace_root / "bootstrap"  # .work/native/bootstrap/
 
         for node in manifest["nodes"]:
-            if node["mechanism"] == "terraform_managed":
-                continue  # No bootstrap artifacts to assemble
+            # Only nodes in manifest have initialization_contract (implicit terraform-managed excluded)
+            domain = node["device_domain"]
+            instance_id = node["id"]
 
-            # Load mechanism-specific secrets
-            secrets = sops_decrypt(secrets_dir / f"{node['device_domain']}.enc.yaml")
+            # Merge provider-level and instance-level secrets
+            secrets = {}
+            provider_secret = secrets_dir / "terraform" / f"{domain}.yaml"
+            instance_secret = secrets_dir / "instances" / f"{instance_id}.yaml"
+            if provider_secret.exists():
+                secrets.update(sops_decrypt(provider_secret))
+            if instance_secret.exists():
+                secrets.update(sops_decrypt(instance_secret))
 
             # For each generated artifact, render with secrets
             for artifact_key, rel_path in node["artifacts"].items():
@@ -186,7 +193,6 @@ class BootstrapSecretsAssembler:
         ctx.publish("assembled_bootstrap_paths", {
             node["id"]: str(work_dir / node["id"])
             for node in manifest["nodes"]
-            if node["mechanism"] != "terraform_managed"
         })
 ```
 
@@ -194,12 +200,14 @@ class BootstrapSecretsAssembler:
 
 ## Secret Field Registry
 
-| Device Domain | SOPS File | Secret Fields | Consumed By |
+| Device Domain | SOPS File(s) | Secret Fields | Consumed By |
 |---------------|-----------|---------------|-------------|
-| mikrotik | `mikrotik.enc.yaml` | `terraform_password` | `init-terraform.rsc` |
-| proxmox | `proxmox.enc.yaml` | `root_password`, `terraform_api_token` | `answer.toml`, `post-install-minimal.sh` |
-| orangepi | `orangepi.enc.yaml` | `ssh_authorized_keys`, `ansible_password` | `user-data` |
-| lxc | `lxc.enc.yaml` | `root_password`, `ssh_keys` | `terraform.tfvars` (via assemble) |
+| mikrotik | `terraform/mikrotik.yaml` + `instances/rtr-mikrotik-chateau.yaml` | `terraform_password` | `init-terraform.rsc` |
+| proxmox | `terraform/proxmox.yaml` | `root_password`, `terraform_api_token` | `answer.toml`, `post-install-minimal.sh` |
+| orangepi | `instances/srv-orangepi5.yaml` | `ssh_authorized_keys`, `ansible_password` | `user-data` |
+| lxc | `terraform/proxmox.yaml` (shared) | `root_password`, `ssh_keys` | `terraform.tfvars` (via assemble) |
+
+**Note:** All paths are relative to `projects/home-lab/secrets/`. The assembler resolves the actual SOPS file(s) using a combination of `terraform/<domain>.yaml` (provider-level secrets) and `instances/<instance_id>.yaml` (instance-specific secrets). Both are decrypted and merged into a single secret context per node.
 
 ---
 

@@ -640,20 +640,19 @@ nodes:
 
 ```yaml
 # .work/native/bootstrap/INITIALIZATION-STATE.yaml
+# Canonical format per STATE-MODEL.md — tracks bootstrap state only.
+# Terraform/Ansible lifecycle is outside init-node.py scope.
 nodes:
   - id: rtr-mikrotik-chateau
     status: pending
-    lifecycle:
-      phases:
-        - name: bootstrap
-          tool: netinstall
-          status: pending
-        - name: terraform
-          tool: opentofu
-          status: pending
-        - name: ansible
-          tool: ansible
-          status: pending
+    mechanism: netinstall
+    contract_hash: "sha256:..."
+    imported: false
+    last_action: null
+    last_action_at: null
+    last_error: null
+    attempt_count: 0
+    history: []
 ```
 
 ---

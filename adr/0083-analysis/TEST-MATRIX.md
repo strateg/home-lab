@@ -26,11 +26,11 @@ Define which checks can be CI-mocked vs require hardware. Establish release-bloc
 | T-S02 | Valid MikroTik contract passes schema | Schema | Mock | Yes |
 | T-S03 | Valid Proxmox contract passes schema | Schema | Mock | Yes |
 | T-S04 | Valid Orange Pi contract passes schema | Schema | Mock | Yes |
-| T-S05 | Valid LXC (terraform_managed) contract passes schema | Schema | Mock | Yes |
-| T-S06 | Valid ansible_bootstrap contract passes schema | Schema | Mock | Yes |
-| T-S07 | Missing `mechanism` fails schema | Schema | Mock | Yes |
-| T-S08 | Missing `bootstrap.template` for netinstall fails | Schema | Mock | Yes |
-| T-S09 | terraform_managed with non-null template fails | Schema | Mock | Yes |
+| T-S05 | Valid ansible_bootstrap contract passes schema | Schema | Mock | Yes |
+| T-S06 | Missing `mechanism` fails schema | Schema | Mock | Yes |
+| T-S07 | Missing `bootstrap.template` for netinstall fails | Schema | Mock | Yes |
+| T-S08 | `unattended_install` without `post_install` fails schema | Schema | Mock | Yes |
+| T-S09 | `cloud_init` without `outputs` (user-data + meta-data) fails schema | Schema | Mock | Yes |
 | T-S10 | Unknown mechanism fails schema | Schema | Mock | Yes |
 | T-S11 | Requirements structured object validation | Schema | Mock | Yes |
 | T-S12 | Handover retry config validation | Schema | Mock | Yes |

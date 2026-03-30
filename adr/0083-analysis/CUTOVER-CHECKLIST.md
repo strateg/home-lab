@@ -40,10 +40,10 @@
 - [ ] `meta-data.j2` generates valid cloud-init metadata
 - [ ] cloud-init files validate with `cloud-init schema --config-file`
 
-### LXC/Cloud Patterns
+### LXC/Cloud Patterns (Implicit Terraform-managed)
 
-- [ ] LXC object modules have `mechanism: terraform_managed`
-- [ ] terraform_managed pattern documented
+- [ ] LXC object modules do NOT declare `initialization_contract` (implicit terraform-managed per D2)
+- [ ] Implicit terraform-managed pattern documented in object module comments and operator guide
 
 ### Initialization Manifest
 
@@ -68,7 +68,7 @@
   - [ ] `credential_valid` with retry/backoff
   - [ ] `python_installed` with retry/backoff
   - [ ] `terraform_plan_succeeds` with retry/backoff
-- [ ] CLI interface documented (`--node`, `--all-pending`, `--verify-only`, `--force`, `--status`)
+- [ ] CLI interface documented (`--node`, `--all-pending`, `--verify-only`, `--force`, `--status`, `--interactive`, `--import`, `--reset`, `--confirm-reset`, `--acknowledge-drift`, `--cleanup`)
 - [ ] Taskfile targets added (`taskfiles/deploy.yaml`)
 
 ### Assemble Stage (requires ADR 0080 Wave F)
