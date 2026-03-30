@@ -71,3 +71,23 @@ tasks:
     desc: Export instance bindings
     cmds:
       - "{{.PYTHON}} scripts/model/export_v5_instance_bindings.py"
+
+  tfvars-mikrotik:
+    desc: Generate terraform.tfvars for MikroTik from SOPS secrets
+    cmds:
+      - "{{.PYTHON}} scripts/terraform/generate-tfvars.py mikrotik"
+
+  tfvars-proxmox:
+    desc: Generate terraform.tfvars for Proxmox from SOPS secrets
+    cmds:
+      - "{{.PYTHON}} scripts/terraform/generate-tfvars.py proxmox"
+
+  tfvars-all:
+    desc: Generate terraform.tfvars for all targets from SOPS secrets
+    cmds:
+      - "{{.PYTHON}} scripts/terraform/generate-tfvars.py all"
+
+  tfvars-cleanup:
+    desc: Remove generated terraform.tfvars files
+    cmds:
+      - "{{.PYTHON}} scripts/terraform/generate-tfvars.py all --cleanup"

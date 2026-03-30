@@ -18,8 +18,36 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def _v5_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+def _resolve_active_project() -> tuple[str, Path]:
+    """Resolve active project ID and project root from topology manifest."""
+    repo = _repo_root()
+    manifest = repo / "topology" / "topology.yaml"
+    if not manifest.exists():
+        raise RuntimeError(f"Topology manifest not found: {manifest}")
+    payload = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+    project = payload.get("project", {})
+    if not isinstance(project, dict):
+        raise RuntimeError("topology.yaml: 'project' must be a mapping")
+    active = project.get("active")
+    projects_root = project.get("projects_root", "projects")
+    if not isinstance(active, str) or not active.strip():
+        raise RuntimeError("topology.yaml: 'project.active' must be non-empty string")
+    project_root = repo / projects_root / active
+    if not project_root.exists():
+        raise RuntimeError(f"Project root not found: {project_root}")
+    return active, project_root
+
+
+def _resolve_secrets_root(project_root: Path) -> Path:
+    """Resolve secrets root from project manifest."""
+    project_yaml = project_root / "project.yaml"
+    if not project_yaml.exists():
+        raise RuntimeError(f"Project manifest not found: {project_yaml}")
+    payload = yaml.safe_load(project_yaml.read_text(encoding="utf-8")) or {}
+    secrets_root = payload.get("secrets_root", "secrets")
+    if not isinstance(secrets_root, str) or not secrets_root.strip():
+        raise RuntimeError(f"project.yaml: 'secrets_root' must be non-empty string")
+    return project_root / secrets_root
 
 
 def _decrypt_yaml(secret_file: Path) -> dict[str, Any]:
@@ -140,7 +168,14 @@ def _build_values(target: str, payload: dict[str, Any]) -> dict[str, Any]:
 def _cleanup_tfvars(target: str) -> int:
     """Remove generated terraform.tfvars for target."""
     repo_root = _repo_root()
-    output_file = repo_root / ".work" / "native" / "terraform" / target / "terraform.tfvars"
+
+    try:
+        project_id, _ = _resolve_active_project()
+    except RuntimeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    output_file = repo_root / "generated" / project_id / "terraform" / target / "terraform.tfvars"
 
     if not output_file.exists():
         print(f"Skip: {output_file} (not found)")
@@ -154,8 +189,17 @@ def _cleanup_tfvars(target: str) -> int:
 def _generate_tfvars(target: str) -> int:
     """Generate terraform.tfvars for target from SOPS secrets."""
     repo_root = _repo_root()
-    secret_file = _v5_root() / "secrets" / "terraform" / f"{target}.yaml"
-    output_dir = repo_root / ".work" / "native" / "terraform" / target
+
+    try:
+        project_id, project_root = _resolve_active_project()
+        secrets_root = _resolve_secrets_root(project_root)
+    except RuntimeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    secret_file = secrets_root / "terraform" / f"{target}.yaml"
+    # Output to generated/<project>/terraform/<target>/
+    output_dir = repo_root / "generated" / project_id / "terraform" / target
     output_file = output_dir / "terraform.tfvars"
 
     if not secret_file.exists():
@@ -163,7 +207,7 @@ def _generate_tfvars(target: str) -> int:
         return 1
     if not output_dir.exists():
         print(f"Error: output directory not found: {output_dir}", file=sys.stderr)
-        print("Create '.work/native/terraform/<target>/' before generating tfvars.", file=sys.stderr)
+        print(f"Run 'task build:default' to generate terraform artifacts first.", file=sys.stderr)
         return 1
 
     try:
