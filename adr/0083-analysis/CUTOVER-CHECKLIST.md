@@ -55,7 +55,7 @@
 
 ### Orchestration
 
-- [ ] `scripts/deploy/init-node.py` implemented
+- [ ] `scripts/orchestration/deploy/init-node.py` implemented
 - [ ] Netinstall adapter works with MikroTik
 - [ ] Orchestrator writes runtime state only to `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
 - [ ] Orchestrator does not modify `generated/**`

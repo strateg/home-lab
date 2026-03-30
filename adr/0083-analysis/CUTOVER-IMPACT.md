@@ -24,7 +24,7 @@ taskfiles/
 |------|--------|-------|----------|
 | `Taskfile.yml` | Add `includes: deploy` for new deploy taskfile | Phase 4 | High |
 | `taskfiles/deploy.yaml` | **NEW** - Deploy domain tasks | Phase 4 | High |
-| `taskfiles/mikrotik.yaml` | Update paths from `scripts/orchestration/` to `scripts/deploy/` | Phase 4 | High |
+| `taskfiles/mikrotik.yaml` | Update paths from `scripts/orchestration/` to `scripts/orchestration/deploy/` | Phase 4 | High |
 
 #### New `taskfiles/deploy.yaml`
 
@@ -35,52 +35,52 @@ tasks:
   init:node:
     desc: Initialize a specific node (day-0 bootstrap)
     cmds:
-      - python scripts/deploy/init-node.py --node {{.NODE}}
+      - python scripts/orchestration/deploy/init-node.py --node {{.NODE}}
     requires:
       vars: [NODE]
 
   init:all-pending:
     desc: Initialize all pending nodes
     cmds:
-      - python scripts/deploy/init-node.py --all-pending
+      - python scripts/orchestration/deploy/init-node.py --all-pending
 
   init:verify:
     desc: Verify handover for a specific node
     cmds:
-      - python scripts/deploy/init-node.py --verify-only --node {{.NODE}}
+      - python scripts/orchestration/deploy/init-node.py --verify-only --node {{.NODE}}
     requires:
       vars: [NODE]
 
   init:status:
     desc: Show initialization status of all nodes
     cmds:
-      - python scripts/deploy/init-node.py --status
+      - python scripts/orchestration/deploy/init-node.py --status
 
   init:force:
     desc: Force re-initialization of a node
     cmds:
-      - python scripts/deploy/init-node.py --force --node {{.NODE}}
+      - python scripts/orchestration/deploy/init-node.py --force --node {{.NODE}}
     requires:
       vars: [NODE]
 
   terraform:plan:
     desc: Run Terraform plan for a domain
     cmds:
-      - python scripts/deploy/apply-terraform.py --plan --domain {{.DOMAIN}}
+      - python scripts/orchestration/deploy/apply-terraform.py --plan --domain {{.DOMAIN}}
     requires:
       vars: [DOMAIN]
 
   terraform:apply:
     desc: Apply Terraform configuration for a domain
     cmds:
-      - python scripts/deploy/apply-terraform.py --apply --domain {{.DOMAIN}}
+      - python scripts/orchestration/deploy/apply-terraform.py --apply --domain {{.DOMAIN}}
     requires:
       vars: [DOMAIN]
 
   ansible:run:
     desc: Run Ansible playbook
     cmds:
-      - python scripts/deploy/run-ansible.py --playbook {{.PLAYBOOK}}
+      - python scripts/orchestration/deploy/run-ansible.py --playbook {{.PLAYBOOK}}
     requires:
       vars: [PLAYBOOK]
 ```
@@ -101,11 +101,11 @@ scripts/
 
 | Change | Description | Phase |
 |--------|-------------|-------|
-| Create `scripts/deploy/` | New deploy domain directory | Phase 4 |
-| Create `scripts/deploy/init-node.py` | Initialization orchestrator | Phase 4 |
-| Create `scripts/deploy/apply-terraform.py` | Terraform wrapper | Phase 6 |
-| Create `scripts/deploy/run-ansible.py` | Ansible wrapper | Phase 6 |
-| Create `scripts/deploy/adapters/` | Device-specific adapters | Phase 4 |
+| Create `scripts/orchestration/deploy/` | New deploy domain directory | Phase 4 |
+| Create `scripts/orchestration/deploy/init-node.py` | Initialization orchestrator | Phase 4 |
+| Create `scripts/orchestration/deploy/apply-terraform.py` | Terraform wrapper | Phase 6 |
+| Create `scripts/orchestration/deploy/run-ansible.py` | Ansible wrapper | Phase 6 |
+| Create `scripts/orchestration/deploy/adapters/` | Device-specific adapters | Phase 4 |
 
 #### New Directory Structure
 
@@ -113,25 +113,25 @@ scripts/
 scripts/
   orchestration/
     lane.py              # V5 pipeline (unchanged)
-  deploy/
-    init-node.py         # NEW: initialization orchestrator
-    apply-terraform.py   # NEW: terraform wrapper (Phase 6)
-    run-ansible.py       # NEW: ansible wrapper (Phase 6)
-    adapters/
-      __init__.py
-      base.py            # Abstract adapter interface
-      netinstall.py      # MikroTik netinstall adapter
-      unattended.py      # Proxmox unattended install adapter
-      cloud_init.py      # Orange Pi cloud-init adapter
-      terraform_managed.py  # LXC/Cloud VM (no-op adapter)
-      ansible_bootstrap.py  # Generic Linux adapter
-    checks/
-      __init__.py
-      api_reachable.py
-      ssh_reachable.py
-      credential_valid.py
-      python_installed.py
-      terraform_plan.py
+    deploy/
+      init-node.py         # NEW: initialization orchestrator
+      apply-terraform.py   # NEW: terraform wrapper (Phase 6)
+      run-ansible.py       # NEW: ansible wrapper (Phase 6)
+      adapters/
+        __init__.py
+        base.py            # Abstract adapter interface
+        netinstall.py      # MikroTik netinstall adapter
+        unattended.py      # Proxmox unattended install adapter
+        cloud_init.py      # Orange Pi cloud-init adapter
+        terraform_managed.py  # LXC/Cloud VM (no-op adapter)
+        ansible_bootstrap.py  # Generic Linux adapter
+      checks/
+        __init__.py
+        api_reachable.py
+        ssh_reachable.py
+        credential_valid.py
+        python_installed.py
+        terraform_plan.py
   validation/
     (unchanged)
 ```
@@ -304,7 +304,7 @@ Total estimated: ~15-20 working days (with parallel phases)
 - [ ] Generated artifacts are regression-safe
 
 ### Phase 4 Cutover
-- [ ] `scripts/deploy/` directory created
+- [ ] `scripts/orchestration/deploy/` directory created
 - [ ] `init-node.py` passes all orchestrator tests (T-O01..T-O12)
 - [ ] Handover checks pass all tests (T-H01..T-H08)
 - [ ] Taskfile targets added and documented

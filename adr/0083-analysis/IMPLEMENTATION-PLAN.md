@@ -105,7 +105,7 @@ This plan implements the Unified Node Initialization Contract in 7 phases, progr
 | 4.1 | Complete Orange Pi object module | `topology/object-modules/orangepi/obj.orangepi.rk3588.debian.yaml` | With initialization_contract |
 | 4.2 | Implement `user-data.j2` | `topology/object-modules/orangepi/templates/bootstrap/user-data.j2` | SSH keys, network, python |
 | 4.3 | Implement `meta-data.j2` | `topology/object-modules/orangepi/templates/bootstrap/meta-data.j2` | Instance ID, hostname |
-| 4.4 | Complete bootstrap generator | `plugins/generators/bootstrap_orangepi.py` | Produces cloud-init files |
+| 4.4 | Complete bootstrap generator | `topology/object-modules/orangepi/plugins/generators/bootstrap_orangepi_generator.py` | Produces cloud-init files |
 | 4.5 | Add LXC contract pattern | `topology/object-modules/lxc/*.yaml` | mechanism: terraform_managed |
 | 4.6 | Add Cloud VM contract pattern | Documentation | Reference for future cloud instances |
 
@@ -128,13 +128,13 @@ This plan implements the Unified Node Initialization Contract in 7 phases, progr
 |----|------|---------|---------------------|
 | 5.1 | Create manifest generator plugin | `topology-tools/plugins/generators/initialization_manifest_generator.py` | Produces read-only `generated/<project>/bootstrap/INITIALIZATION-MANIFEST.yaml` |
 | 5.2 | Define manifest and runtime-state schemas | `schemas/initialization-manifest.schema.json`, `schemas/initialization-state.schema.json` | Static manifest separated from mutable runtime state |
-| 5.3 | Create `init-node.py` orchestrator | `scripts/deploy/init-node.py` | CLI with --node, --all-pending, --verify-only, --force, --status |
-| 5.4 | Implement netinstall adapter | `scripts/deploy/adapters/netinstall.py` | MikroTik bootstrap execution |
-| 5.5 | Implement unattended adapter | `scripts/deploy/adapters/unattended.py` | Proxmox ISO preparation hints |
-| 5.6 | Implement cloud-init adapter | `scripts/deploy/adapters/cloud_init.py` | SD card preparation hints |
-| 5.7 | Implement ansible_bootstrap adapter | `scripts/deploy/adapters/ansible_bootstrap.py` | Generic Linux bootstrap |
-| 5.8 | Implement handover verification | `scripts/deploy/checks/` | All check types with retry/backoff |
-| 5.9 | Implement state machine | `scripts/deploy/state.py` | Atomic writes, file locking, legal transitions |
+| 5.3 | Create `init-node.py` orchestrator | `scripts/orchestration/deploy/init-node.py` | CLI with --node, --all-pending, --verify-only, --force, --status |
+| 5.4 | Implement netinstall adapter | `scripts/orchestration/deploy/adapters/netinstall.py` | MikroTik bootstrap execution |
+| 5.5 | Implement unattended adapter | `scripts/orchestration/deploy/adapters/unattended.py` | Proxmox ISO preparation hints |
+| 5.6 | Implement cloud-init adapter | `scripts/orchestration/deploy/adapters/cloud_init.py` | SD card preparation hints |
+| 5.7 | Implement ansible_bootstrap adapter | `scripts/orchestration/deploy/adapters/ansible_bootstrap.py` | Generic Linux bootstrap |
+| 5.8 | Implement handover verification | `scripts/orchestration/deploy/checks/` | All check types with retry/backoff |
+| 5.9 | Implement state machine | `scripts/orchestration/deploy/state.py` | Atomic writes, file locking, legal transitions |
 | 5.10 | Add Taskfile targets | `taskfiles/deploy.yaml` | `task deploy:init:*` commands |
 | 5.11 | Integration tests with mocks | `tests/orchestration/test_init_node.py` | All adapters and state transitions tested |
 

@@ -155,8 +155,8 @@ generate_stage:
   - 320-329: bootstrap_orangepi_generator      # object.orangepi.generator.bootstrap
   - 330-339: bootstrap_lxc_generator           # NEW
   - 340-349: bootstrap_cloud_vm_generator      # NEW
-  # Bootstrap meta-generators (390–399, cross-cutting)
-  - 390-399: initialization_manifest_generator # NEW: base.generator.initialization_manifest
+  # Bootstrap meta-generators (380–389, cross-cutting)
+  - 380-389: initialization_manifest_generator # NEW: base.generator.initialization_manifest
 ```
 
 **Key principle:** The v5 pipeline generates bootstrap artifacts. A separate orchestrator executes them.
@@ -202,7 +202,7 @@ nodes:
     mechanism: unattended_install
     artifacts:
       answer_file: bootstrap/hv-proxmox-xps/answer.toml
-      post_install: bootstrap/hv-proxmox-xps/post-install.sh
+      post_install: bootstrap/hv-proxmox-xps/post-install-minimal.sh
     requirements:
       - name: proxmox-ve-9.x.iso
         check: file_exists
@@ -247,19 +247,19 @@ nodes:
 
 ### D6. Pre-Initialization Orchestrator in Deploy Domain
 
-Create `scripts/deploy/init-node.py` as part of the deploy domain (separate from v5 pipeline):
+Create `scripts/orchestration/deploy/init-node.py` as part of the deploy domain (separate from v5 pipeline):
 
 ```
 scripts/
   orchestration/
     lane.py              # V5 pipeline orchestrator (artifact generation)
-  deploy/
-    init-node.py         # Pre-initialization orchestrator (runs ONCE)
-    apply-terraform.py   # Terraform wrapper (runs MANY times)
-    run-ansible.py       # Ansible wrapper (runs MANY times)
+    deploy/
+      init-node.py         # Pre-initialization orchestrator (runs ONCE)
+      apply-terraform.py   # Terraform wrapper (runs MANY times)
+      run-ansible.py       # Ansible wrapper (runs MANY times)
 ```
 
-**Rationale:** D1 separates pipeline from deploy domain. Placing `init-node.py` alongside `lane.py` in `scripts/orchestration/` would conflate the two domains. `scripts/deploy/` is the canonical location for all deploy-domain execution scripts.
+**Rationale:** D1 separates pipeline from deploy domain. Keeping deploy entrypoints under `scripts/orchestration/deploy/` preserves the repository convention that orchestration entrypoints live under `scripts/orchestration/`, while still isolating deploy-domain execution from pipeline orchestration (`lane.py`).
 
 **Execution cadence:**
 
@@ -281,16 +281,16 @@ scripts/
 **Usage pattern:**
 ```bash
 # Initialize specific node (runs ONCE when device is new/reset)
-python scripts/deploy/init-node.py --node rtr-mikrotik-chateau
+python scripts/orchestration/deploy/init-node.py --node rtr-mikrotik-chateau
 
 # Initialize all pending nodes
-python scripts/deploy/init-node.py --all-pending
+python scripts/orchestration/deploy/init-node.py --all-pending
 
 # Verify handover only (no bootstrap)
-python scripts/deploy/init-node.py --verify-only --node hv-proxmox-xps
+python scripts/orchestration/deploy/init-node.py --verify-only --node hv-proxmox-xps
 
 # Force re-initialization of a previously initialized node
-python scripts/deploy/init-node.py --force --node rtr-mikrotik-chateau
+python scripts/orchestration/deploy/init-node.py --force --node rtr-mikrotik-chateau
 ```
 
 **State machine for node initialization:**
@@ -426,7 +426,7 @@ The `base.generator.initialization_manifest` plugin MUST declare data bus keys p
   kind: generator
   stages: [generate]
   phase: post
-  order: 395
+  order: 385
   depends_on:
     - object.mikrotik.generator.bootstrap
     - object.proxmox.generator.bootstrap
@@ -903,7 +903,7 @@ ADR 0083 phases depend on ADR 0080 wave completion:
 
 ### Phase 4: Orchestration
 
-1. Create `scripts/deploy/init-node.py`
+1. Create `scripts/orchestration/deploy/init-node.py`
 2. Implement device adapters for each mechanism
 3. Add handover verification suite
 4. Integration tests with mock devices
@@ -970,6 +970,6 @@ ADR 0083 phases depend on ADR 0080 wave completion:
 - `adr/0083-analysis/STATE-MODEL.md` - Initialization state machine and concurrency
 - `adr/0083-analysis/CUTOVER-IMPACT.md` - Runbook and Taskfile cutover impact
 - `archive/migrated-and-archived/old_system/proxmox/scripts/proxmox-post-install.sh`
-- `topology-tools/templates/bootstrap/mikrotik/init-terraform-minimal.rsc.j2`
+- `topology/object-modules/mikrotik/templates/bootstrap/init-terraform.rsc.j2`
 - [terraform-routeros/routeros provider](https://registry.terraform.io/providers/terraform-routeros/routeros)
 - [community.routeros Ansible collection](https://galaxy.ansible.com/community/routeros)
