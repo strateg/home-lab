@@ -55,18 +55,30 @@
 
 ### Orchestration
 
-- [ ] `scripts/orchestration/init-node.py` implemented
+- [ ] `scripts/deploy/init-node.py` implemented
 - [ ] Netinstall adapter works with MikroTik
 - [ ] Orchestrator writes runtime state only to `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
 - [ ] Orchestrator does not modify `generated/**`
+- [ ] State machine transitions enforced (pending/bootstrapping/initialized/verified/failed)
+- [ ] File locking for concurrent access implemented
+- [ ] Atomic writes for state file implemented
 - [ ] Handover verification checks implemented:
-  - [ ] `api_reachable`
-  - [ ] `ssh_reachable`
-  - [ ] `credential_valid`
-  - [ ] `python_installed`
-  - [ ] `terraform_plan_succeeds`
-- [ ] CLI interface documented (`--node`, `--all-pending`, `--verify-only`)
-- [ ] Taskfile targets added
+  - [ ] `api_reachable` with retry/backoff
+  - [ ] `ssh_reachable` with retry/backoff
+  - [ ] `credential_valid` with retry/backoff
+  - [ ] `python_installed` with retry/backoff
+  - [ ] `terraform_plan_succeeds` with retry/backoff
+- [ ] CLI interface documented (`--node`, `--all-pending`, `--verify-only`, `--force`, `--status`)
+- [ ] Taskfile targets added (`taskfiles/deploy.yaml`)
+
+### Assemble Stage (requires ADR 0080 Wave F)
+
+- [ ] `base.assembler.bootstrap_secrets` plugin implemented
+- [ ] Assembler consumes `initialization_manifest_data` from data bus
+- [ ] Secret-bearing artifacts written only to `.work/native/bootstrap/`
+- [ ] Secret-leak scanner in assemble.verify detects secrets in `generated/`
+- [ ] SOPS+age decryption integrated (ADR 0072)
+- [ ] `.work/native/bootstrap/` covered by .gitignore
 
 ---
 
@@ -109,8 +121,10 @@
 
 - [ ] `python scripts/orchestration/lane.py validate-v5` passes
 - [ ] `python topology-tools/compile-topology.py` produces bootstrap artifacts
-- [ ] `task init:verify --node rtr-mikrotik-chateau` passes (after device initialized)
+- [ ] `task deploy:init:verify NODE=rtr-mikrotik-chateau` passes (after device initialized)
+- [ ] `task deploy:init:status` displays all nodes
 - [ ] Runtime state updates are visible in `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
+- [ ] No secrets present in `generated/` directory (leak scan passes)
 
 ### Regression Checks
 

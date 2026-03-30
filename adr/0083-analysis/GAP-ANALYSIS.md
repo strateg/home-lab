@@ -236,28 +236,34 @@ Lines 451-487: API access + terraform user -> Phase 0 (Bootstrap)
 
 To finalize ADR quality and reduce implementation risk, complete these analyses:
 
-1. **Plugin boundary analysis (C/O/I levels)**
-   Prove `initialization_contract` consumption and manifest generation do not violate class/object/instance isolation rules.
+1. **Plugin boundary analysis (C/O/I levels)** — ✅ COMPLETED
+   See: `PLUGIN-BOUNDARY-ANALYSIS.md`
+   All proposed plugins respect the 4-level boundary model. No violations found.
 
-2. **Failure-mode and recovery analysis (FMEA)**
-   For each mechanism (`netinstall`, `unattended_install`, `cloud_init`), define failure points, retry rules, and rollback flow.
+2. **Failure-mode and recovery analysis (FMEA)** — ✅ COMPLETED
+   See: `FMEA.md`
+   All 5 mechanisms analyzed with failure points, retry strategies, and recovery procedures.
 
-3. **Secrets and dataflow analysis**
-   Trace secret material from `projects/<project>/secrets/` to runtime artifacts; define redaction, cleanup, and non-persistence guarantees.
+3. **Secrets and dataflow analysis** — ✅ COMPLETED
+   See: `SECRETS-DATAFLOW.md`
+   Full secret lifecycle traced from SOPS source to deploy execution. Assemble-stage plugin defined.
 
-4. **State model and concurrency analysis**
-   Define lock semantics and conflict handling when multiple `init-node` runs touch the same runtime state file.
+4. **State model and concurrency analysis** — ✅ COMPLETED
+   See: `STATE-MODEL.md`
+   Formal state machine, file locking, atomic writes, and edge cases documented.
 
-5. **Test and evidence matrix**
-   Define CI mocks vs hardware E2E gates per mechanism, with explicit release-blocking criteria.
+5. **Test and evidence matrix** — ✅ COMPLETED
+   See: `TEST-MATRIX.md`
+   74 test cases defined across 7 categories. CI mock vs hardware E2E gates specified.
 
-6. **Runbook/task cutover impact analysis**
-   Map required changes across Taskfiles, deploy guides, and operator runbooks to avoid broken transition paths.
+6. **Runbook/task cutover impact analysis** — ✅ COMPLETED
+   See: `CUTOVER-IMPACT.md`
+   Taskfile changes, directory structure, documentation, CI, and operator workflow migration mapped.
 
 ---
 
 ## Next Steps
 
-1. Create `IMPLEMENTATION-PLAN.md` with detailed phases
-2. Create `CUTOVER-CHECKLIST.md` for migration gates
+1. ~~Create `IMPLEMENTATION-PLAN.md` with detailed phases~~ — ✅ Done
+2. ~~Create `CUTOVER-CHECKLIST.md` for migration gates~~ — ✅ Done
 3. Begin Phase 1: Schema and contract definition

@@ -2,7 +2,18 @@
 
 ## Overview
 
-This plan implements the Unified Node Initialization Contract in 6 phases, progressing from schema definition to cutover.
+This plan implements the Unified Node Initialization Contract in 7 phases, progressing from schema definition to cutover. Phases are mapped to ADR 0080 wave dependencies.
+
+### ADR 0080 Wave Dependencies
+
+| ADR 0083 Phase | Required ADR 0080 Wave | Reason |
+|----------------|------------------------|--------|
+| Phase 1 | Wave B (Kernel Foundations) | Manifest schema must accept `phase` field |
+| Phase 2-3 | Wave D (Phase Annotation) | Bootstrap generators need explicit `phase: run` |
+| Phase 4 | Wave B | Object module schema must accept `initialization_contract` |
+| Phase 5 | Wave E (Data Bus) | Manifest generator uses `produces/consumes` |
+| Phase 5a | Wave F (Assemble Pluginization) | `base.assembler.bootstrap_secrets` requires `assemble` stage |
+| Phase 6 | Wave F completed | Full pipeline must be functional |
 
 ---
 
@@ -117,13 +128,15 @@ This plan implements the Unified Node Initialization Contract in 6 phases, progr
 |----|------|---------|---------------------|
 | 5.1 | Create manifest generator plugin | `topology-tools/plugins/generators/initialization_manifest_generator.py` | Produces read-only `generated/<project>/bootstrap/INITIALIZATION-MANIFEST.yaml` |
 | 5.2 | Define manifest and runtime-state schemas | `schemas/initialization-manifest.schema.json`, `schemas/initialization-state.schema.json` | Static manifest separated from mutable runtime state |
-| 5.3 | Create `init-node.py` orchestrator | `scripts/orchestration/init-node.py` | CLI with --node, --all-pending, --verify-only and state file updates in `.work/native/` |
-| 5.4 | Implement netinstall adapter | `scripts/orchestration/adapters/netinstall.py` | MikroTik bootstrap execution |
-| 5.5 | Implement unattended adapter | `scripts/orchestration/adapters/unattended.py` | Proxmox ISO preparation hints |
-| 5.6 | Implement cloud-init adapter | `scripts/orchestration/adapters/cloud_init.py` | SD card preparation hints |
-| 5.7 | Implement handover verification | `scripts/orchestration/verify.py` | All check types |
-| 5.8 | Add Taskfile targets | `taskfiles/init.yaml` | `task init:node`, `task init:verify` |
-| 5.9 | Integration tests with mocks | `tests/orchestration/test_init_node.py` | All adapters tested |
+| 5.3 | Create `init-node.py` orchestrator | `scripts/deploy/init-node.py` | CLI with --node, --all-pending, --verify-only, --force, --status |
+| 5.4 | Implement netinstall adapter | `scripts/deploy/adapters/netinstall.py` | MikroTik bootstrap execution |
+| 5.5 | Implement unattended adapter | `scripts/deploy/adapters/unattended.py` | Proxmox ISO preparation hints |
+| 5.6 | Implement cloud-init adapter | `scripts/deploy/adapters/cloud_init.py` | SD card preparation hints |
+| 5.7 | Implement ansible_bootstrap adapter | `scripts/deploy/adapters/ansible_bootstrap.py` | Generic Linux bootstrap |
+| 5.8 | Implement handover verification | `scripts/deploy/checks/` | All check types with retry/backoff |
+| 5.9 | Implement state machine | `scripts/deploy/state.py` | Atomic writes, file locking, legal transitions |
+| 5.10 | Add Taskfile targets | `taskfiles/deploy.yaml` | `task deploy:init:*` commands |
+| 5.11 | Integration tests with mocks | `tests/orchestration/test_init_node.py` | All adapters and state transitions tested |
 
 ### Gate
 
@@ -131,7 +144,33 @@ This plan implements the Unified Node Initialization Contract in 6 phases, progr
 - [ ] Runtime state written only under `.work/native/bootstrap/`
 - [ ] `init-node.py --node rtr-mikrotik-chateau` works (mock)
 - [ ] `init-node.py --verify-only` checks all handover conditions
+- [ ] `init-node.py --status` displays node summary
+- [ ] State machine transitions are correct (T-O07, T-O08)
 - [ ] Taskfile targets documented
+
+---
+
+## Phase 5a: Assemble Stage Integration
+
+**Goal:** Implement secret injection via assemble stage plugin.
+
+**Dependency:** Requires ADR 0080 Wave F (Assemble Pluginization).
+
+### Tasks
+
+| ID | Task | Outputs | Acceptance Criteria |
+|----|------|---------|---------------------|
+| 5a.1 | Implement `base.assembler.bootstrap_secrets` | `topology-tools/plugins/assemblers/bootstrap_secrets_assembler.py` | Renders secrets into `.work/native/bootstrap/` |
+| 5a.2 | Add secret-leak scanner | assemble.verify phase check | Detects secrets in `generated/` |
+| 5a.3 | Add assembler tests | `tests/plugin_integration/test_bootstrap_secrets_assembler.py` | T-A01..T-A07 pass |
+| 5a.4 | Verify .gitignore coverage | `.gitignore` | `.work/native/bootstrap/` ignored |
+
+### Gate
+
+- [ ] Assembled artifacts contain resolved secrets
+- [ ] No secrets in `generated/` (leak scanner passes)
+- [ ] `.work/native/bootstrap/` in .gitignore
+- [ ] SOPS decryption failure produces clear E97xx error
 
 ---
 
@@ -162,14 +201,15 @@ This plan implements the Unified Node Initialization Contract in 6 phases, progr
 
 | Phase | Duration | Dependencies |
 |-------|----------|--------------|
-| Phase 1: Schema | 2-3 days | None |
-| Phase 2: MikroTik | 1-2 days | Phase 1 |
-| Phase 3: Proxmox | 3-5 days | Phase 1 |
+| Phase 1: Schema | 2-3 days | ADR 0080 Wave B |
+| Phase 2: MikroTik | 1-2 days | Phase 1, Wave D |
+| Phase 3: Proxmox | 3-5 days | Phase 1, Wave D |
 | Phase 4: Orange Pi/LXC | 2-3 days | Phase 1 |
-| Phase 5: Orchestration | 4-5 days | Phases 2-4 |
-| Phase 6: Documentation | 2-3 days | Phase 5 |
+| Phase 5: Orchestration | 4-5 days | Phases 2-4, Wave E |
+| Phase 5a: Assemble | 2-3 days | Phase 5, Wave F |
+| Phase 6: Documentation | 2-3 days | Phase 5a |
 
-**Total:** ~15-20 working days
+**Total:** ~17-24 working days
 
 ---
 
@@ -177,6 +217,7 @@ This plan implements the Unified Node Initialization Contract in 6 phases, progr
 
 - Phase 2 (MikroTik) and Phase 3 (Proxmox) can run in parallel after Phase 1
 - Phase 4 (Orange Pi) can start during Phase 3
+- Phase 5a (Assemble) is blocked on ADR 0080 Wave F but can be prototyped earlier
 - Documentation can start during Phase 5
 
 ---
@@ -187,4 +228,6 @@ This plan implements the Unified Node Initialization Contract in 6 phases, progr
 2. **Bootstrap boundary:** All day-0 scripts < 100 lines
 3. **Manifest/state accuracy:** INITIALIZATION-MANIFEST.yaml reflects all nodes and runtime statuses are tracked in `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
 4. **Handover verification:** All nodes pass automated handover checks
-5. **Test coverage:** > 80% for new code
+5. **Test coverage:** > 80% for new code (74 test cases defined in TEST-MATRIX.md)
+6. **Secret isolation:** Zero secrets in `generated/` (assemble.verify enforced)
+7. **Plugin boundaries:** All plugins pass boundary analysis (PLUGIN-BOUNDARY-ANALYSIS.md)
