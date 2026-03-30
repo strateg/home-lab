@@ -77,17 +77,22 @@ This plan implements the Unified Node Initialization Contract in 7 phases, progr
 
 | ID | Task | Outputs | Acceptance Criteria |
 |----|------|---------|---------------------|
+| 3.0 | **Audit existing Proxmox generator for day-1 leakage** | Audit report | Identify all day-1 config in current post_install_scripts |
 | 3.1 | Create Proxmox object module | `topology/object-modules/proxmox/obj.proxmox.ve.yaml` | With initialization_contract |
 | 3.2 | Create `answer.toml.j2` template | `topology/object-modules/proxmox/templates/bootstrap/answer.toml.j2` | Topology-driven values |
 | 3.3 | Create `post-install-minimal.sh.j2` | `topology/object-modules/proxmox/templates/bootstrap/post-install-minimal.sh.j2` | Only API access, terraform user |
 | 3.4 | Update bootstrap generator plugin | `topology/object-modules/proxmox/plugins/generators/bootstrap_proxmox_generator.py` | Produces answer.toml + minimal script |
-| 3.5 | Document day-1 migration | `docs/guides/PROXMOX-DAY1-MIGRATION.md` | Storage, packages, optimizations |
-| 3.6 | Add Terraform source templates for day-1 | `topology/object-modules/proxmox/templates/terraform/` | Storage pools, bridges generated from source templates |
-| 3.7 | Add Ansible source templates for day-2 | `topology/object-modules/proxmox/templates/ansible/` | KSM, packages, platform settings generated from source templates |
+| 3.5 | **Implement Proxmox pre-validation (D16)** | `scripts/orchestration/deploy/validators/proxmox.py` | E9710-E9715 error codes |
+| 3.6 | Document day-1 migration | `docs/guides/PROXMOX-DAY1-MIGRATION.md` | Storage, packages, optimizations |
+| 3.7 | Add Terraform source templates for day-1 | `topology/object-modules/proxmox/templates/terraform/` | Storage pools, bridges generated from source templates |
+| 3.8 | Add Ansible source templates for day-2 | `topology/object-modules/proxmox/templates/ansible/` | KSM, packages, platform settings generated from source templates |
 
 ### Gate
 
+- [ ] Day-1 leakage audit completed (task 3.0)
 - [ ] Minimal bootstrap script < 50 lines
+- [ ] Pre-validation catches malformed answer.toml (E9710-E9715)
+- [ ] `--confirm-destructive` required for unattended_install mechanism
 - [ ] API access works after bootstrap
 - [ ] Terraform can connect and plan
 - [ ] Original script archived with migration notes

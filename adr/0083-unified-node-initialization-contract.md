@@ -93,7 +93,16 @@ The v5 pipeline and deploy domain have different responsibilities and execution 
 
 ### D2. Define Unified Node Initialization Contract
 
-Every compute/router object module MAY declare an `initialization_contract` specifying how instances of that object are bootstrapped:
+Compute/router object modules MAY declare an `initialization_contract` specifying how instances of that object are bootstrapped.
+
+**Contract is OPTIONAL.** Objects without `initialization_contract` are treated as **implicitly `terraform_managed`** — they are created and managed entirely by Terraform without a separate bootstrap phase. This applies to:
+- LXC containers (created by Proxmox provider)
+- Cloud VMs (created by cloud provider)
+- Any resource lifecycle fully managed by Terraform
+
+**Contract is REQUIRED** only for devices needing day-0 bootstrap before Terraform can connect:
+- Physical devices (routers, hypervisors, SBCs)
+- Devices requiring netinstall, USB boot, or SD card flashing
 
 ```yaml
 # topology/object-modules/<domain>/obj.<domain>.<type>.yaml
@@ -133,13 +142,15 @@ initialization_contract:
 
 ### D3. Support Multiple Initialization Mechanisms
 
-| Mechanism | Description | Devices |
-|-----------|-------------|---------|
-| `netinstall` | MAC-targeted network reinstall | MikroTik |
-| `unattended_install` | Answer file + post-install script | Proxmox VE |
-| `cloud_init` | cloud-init user-data on boot media | Orange Pi, SBCs |
-| `terraform_managed` | Terraform creates and manages entirely | LXC, Cloud VMs |
-| `ansible_bootstrap` | Ansible playbook after manual OS install | Generic Linux |
+| Mechanism | Description | Devices | Contract Required? |
+|-----------|-------------|---------|-------------------|
+| `netinstall` | MAC-targeted network reinstall | MikroTik | Yes |
+| `unattended_install` | Answer file + post-install script | Proxmox VE | Yes |
+| `cloud_init` | cloud-init user-data on boot media | Orange Pi, SBCs | Yes |
+| `ansible_bootstrap` | Ansible playbook after manual OS install | Generic Linux | Yes |
+| *(no contract)* | Terraform creates and manages entirely | LXC, Cloud VMs | No (implicit) |
+
+**Note:** `terraform_managed` is no longer an explicit mechanism. Objects without `initialization_contract` are implicitly terraform-managed and do not appear in `INITIALIZATION-MANIFEST.yaml`.
 
 ### D4. Keep Bootstrap Artifact Generation in V5 Pipeline
 
@@ -150,11 +161,11 @@ Bootstrap generators remain within the v5 pipeline as part of the `generate` sta
 generate_stage:
   # ... existing generators ...
   # Device-specific bootstrap generators (300–379)
+  # Only for objects WITH initialization_contract
   - 300-309: bootstrap_proxmox_generator       # object.proxmox.generator.bootstrap
   - 310-319: bootstrap_mikrotik_generator      # object.mikrotik.generator.bootstrap
   - 320-329: bootstrap_orangepi_generator      # object.orangepi.generator.bootstrap
-  - 330-339: bootstrap_lxc_generator           # NEW
-  - 340-349: bootstrap_cloud_vm_generator      # NEW
+  # Note: LXC/Cloud VMs have no bootstrap generators - they are terraform-managed implicitly
   # Bootstrap meta-generators (380–389, cross-cutting)
   - 380-389: initialization_manifest_generator # NEW: base.generator.initialization_manifest
 ```
@@ -330,8 +341,13 @@ Legal transitions:
   initialized    → failed          (handover checks fail)
   failed         → bootstrapping   (init-node.py --force)
   verified       → bootstrapping   (init-node.py --force, for re-bootstrap)
-  verified       → pending         (device lifecycle reset)
+  verified       → pending         (init-node.py --reset --node <id> --confirm-reset)
 ```
+
+**Guard for `verified → pending`:** This transition is potentially dangerous if Terraform state exists. The `--reset` command MUST:
+1. Require explicit `--confirm-reset` flag
+2. Warn if Terraform state directory is non-empty
+3. Log the reset action for audit trail
 
 ### D7. Decompose Large Bootstrap Scripts
 
@@ -597,6 +613,122 @@ initialization_contract:
 
 **Note:** This mechanism is the fallback for any device that does not support netinstall, unattended install, or cloud-init. The `manual_confirmation` check type requires operator interaction.
 
+### D16. Pre-Validation for Destructive Operations
+
+Some bootstrap mechanisms are **destructive** (format disks, overwrite firmware). Failed bootstrap after destructive action cannot be automatically retried.
+
+**Rule:** `init-node.py` MUST validate configuration before executing destructive operations.
+
+| Mechanism | Destructive? | Pre-Validation Required |
+| --------- | ------------ | ----------------------- |
+| `netinstall` | Yes (formats flash) | NPK file exists, MAC reachable |
+| `unattended_install` | Yes (formats disks) | **answer.toml syntax + required fields + disk paths** |
+| `cloud_init` | Yes (overwrites SD) | user-data YAML syntax |
+| `ansible_bootstrap` | No | SSH reachable |
+
+**Proxmox Pre-Validation (Critical):**
+
+Before prompting operator to create USB media, `init-node.py` MUST:
+1. Parse `answer.toml` as valid TOML
+2. Verify required sections exist: `[global]`, `[network]`, `[disk-setup]`
+3. Verify disk paths are syntactically valid
+4. Warn if disk paths are unusual (e.g., `/dev/nvme*` on system without NVMe)
+5. Verify network configuration matches topology data
+
+```python
+# Pseudocode for Proxmox pre-validation
+def validate_proxmox_answer(answer_path, topology):
+    answer = toml.load(answer_path)
+
+    # Required sections
+    assert "[global]" in answer, "E9710: Missing [global] section"
+    assert "[network]" in answer, "E9711: Missing [network] section"
+    assert "[disk-setup]" in answer, "E9712: Missing [disk-setup] section"
+
+    # Disk path validation
+    disk = answer["disk-setup"]["disk"]
+    if not disk.startswith("/dev/"):
+        raise ValidationError("E9713: Invalid disk path")
+
+    # Network validation
+    expected_ip = topology.get_instance_ip(instance_id)
+    if answer["network"]["address"] != expected_ip:
+        warn("W9714: answer.toml IP differs from topology")
+```
+
+### D17. Existing Device Migration Path
+
+When adopting ADR 0083 on an existing infrastructure where devices are already initialized and managed by Terraform:
+
+**Scenario:** MikroTik router is already bootstrapped and has Terraform state.
+
+**Migration procedure:**
+
+1. Add `initialization_contract` to object module
+2. Run pipeline to generate `INITIALIZATION-MANIFEST.yaml`
+3. Run `init-node.py --import --node <id>` to import existing device
+4. Orchestrator verifies handover checks (device must be reachable)
+5. On success: state file created with `status: verified`
+6. No bootstrap executed — device is already operational
+
+**Import command:**
+
+```bash
+# Import existing initialized device into state management
+python scripts/orchestration/deploy/init-node.py --import --node rtr-mikrotik-chateau
+
+# Verifies:
+# - Device is reachable (handover checks pass)
+# - Terraform state exists (optional, warning if missing)
+# Creates state entry with status: verified
+```
+
+**State entry after import:**
+
+```yaml
+nodes:
+  - id: rtr-mikrotik-chateau
+    status: verified
+    imported: true              # Flag indicating import, not bootstrap
+    imported_at: "2026-03-30T12:00:00Z"
+    last_action: import
+    attempt_count: 0            # No bootstrap attempts
+```
+
+### D18. Contract Drift Detection
+
+When pipeline regenerates `INITIALIZATION-MANIFEST.yaml`, the contract may have changed since last initialization.
+
+**Rule:** `init-node.py` MUST detect and warn about contract drift.
+
+**Implementation:**
+
+State file stores contract hash:
+
+```yaml
+nodes:
+  - id: rtr-mikrotik-chateau
+    status: verified
+    contract_hash: "sha256:abc123..."  # Hash of initialization_contract YAML
+```
+
+On each `init-node.py` run:
+1. Compute current contract hash from manifest
+2. Compare with stored hash in state file
+3. If different: warn operator
+
+```
+WARNING: Contract changed for node rtr-mikrotik-chateau
+  Previous: mechanism=netinstall, 3 requirements, 2 checks
+  Current:  mechanism=netinstall, 4 requirements, 3 checks
+
+  Use --force to re-bootstrap with new contract, or --acknowledge-drift to update hash without re-bootstrap.
+```
+
+**Flags:**
+- `--force`: Re-bootstrap with new contract
+- `--acknowledge-drift`: Update contract_hash without re-bootstrapping (for non-breaking changes)
+
 ---
 
 ## Schema
@@ -614,7 +746,8 @@ initialization_contract:
       "pattern": "^[0-9]+\\.[0-9]+$"
     },
     "mechanism": {
-      "enum": ["netinstall", "unattended_install", "cloud_init", "terraform_managed", "ansible_bootstrap"]
+      "enum": ["netinstall", "unattended_install", "cloud_init", "ansible_bootstrap"],
+      "description": "Bootstrap mechanism. Objects without initialization_contract are implicitly terraform-managed."
     },
     "requirements": {
       "type": "array",
@@ -702,44 +835,16 @@ initialization_contract:
       }
     }
   },
-  "required": ["version", "mechanism", "handover"],
-  "allOf": [
-    {
-      "if": {
-        "properties": { "mechanism": { "const": "terraform_managed" } }
-      },
-      "then": {
-        "properties": {
-          "bootstrap": {
-            "type": "object",
-            "properties": {
-              "template": { "type": "null" }
-            }
-          }
-        }
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "mechanism": {
-            "enum": ["netinstall", "unattended_install", "cloud_init", "ansible_bootstrap"]
-          }
-        }
-      },
-      "then": {
-        "required": ["bootstrap"],
-        "properties": {
-          "bootstrap": {
-            "required": ["template"],
-            "properties": {
-              "template": { "type": "string", "minLength": 1 }
-            }
-          }
-        }
+  "required": ["version", "mechanism", "bootstrap", "handover"],
+  "properties": {
+    "bootstrap": {
+      "required": ["template"],
+      "properties": {
+        "template": { "type": "string", "minLength": 1 }
       }
     }
-  ]
+  },
+  "description": "All mechanisms require bootstrap.template. Objects without initialization_contract are implicitly terraform-managed and don't need this schema."
 }
 ```
 
@@ -850,18 +955,22 @@ initialization_contract:
       - type: python_installed
 ```
 
-### LXC Containers (Terraform-managed)
+### LXC Containers and Cloud VMs (Implicit Terraform-managed)
+
+LXC containers and Cloud VMs do NOT declare `initialization_contract`. They are implicitly terraform-managed:
 
 ```yaml
-initialization_contract:
-  version: "1.0"
-  mechanism: terraform_managed
-  requirements: []
-  handover:
-    provider: bpg/proxmox
-    checks:
-      - type: terraform_plan_succeeds
+# topology/object-modules/lxc/obj.proxmox.lxc.debian12.base.yaml
+object: obj.proxmox.lxc.debian12.base
+class_ref: class.compute.container.lxc
+
+# NO initialization_contract field
+# → Implicitly terraform-managed
+# → Not included in INITIALIZATION-MANIFEST.yaml
+# → Terraform creates container directly via Proxmox API
 ```
+
+**Rationale:** These resources have no day-0 bootstrap phase. Terraform creates them directly through provider APIs. Adding an `initialization_contract` with `mechanism: terraform_managed` was redundant — absence of contract is sufficient to indicate Terraform management.
 
 ---
 

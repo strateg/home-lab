@@ -29,8 +29,36 @@ Define the initialization state machine formally, specify file locking, atomic w
 | `initialized` | `failed` | Handover checks fail after max retries | Timeout exceeded |
 | `failed` | `bootstrapping` | `init-node.py --force --node <id>` | Explicit operator force |
 | `verified` | `bootstrapping` | `init-node.py --force --node <id>` | Explicit operator force |
-| `verified` | `pending` | `init-node.py --reset --node <id>` | Explicit lifecycle reset |
+| `verified` | `pending` | `init-node.py --reset --node <id> --confirm-reset` | **See safety guard below** |
 | Any | `pending` | Pipeline re-generates manifest with new node | Node not in state file |
+| *(new)* | `verified` | `init-node.py --import --node <id>` | Handover checks pass, device already operational |
+
+### Safety Guard for `verified → pending`
+
+This transition is **dangerous** because:
+1. Device may have Terraform state depending on it
+2. Resetting loses audit history
+3. Re-bootstrap may format storage
+
+**Required guards:**
+
+```python
+def reset_to_pending(node_id, confirm_reset=False):
+    if not confirm_reset:
+        raise UserError("E9720: --confirm-reset flag required for verified→pending transition")
+
+    # Check for Terraform state
+    tf_state_dir = f"generated/{project}/terraform/{node.domain}/"
+    if has_terraform_state(tf_state_dir, node_id):
+        warn(f"W9721: Terraform state exists for {node_id}. Reset will not remove state.")
+        warn("       Consider 'terraform state rm' before reset if intended.")
+
+    # Log for audit
+    log_audit(f"RESET: {node_id} from verified to pending by operator")
+
+    # Perform transition
+    update_state(node_id, status="pending", reset_at=now())
+```
 
 ### Forbidden Transitions
 
@@ -60,6 +88,8 @@ nodes:
   - id: "rtr-mikrotik-chateau"       # Must match manifest node ID
     status: "verified"                 # pending|bootstrapping|initialized|verified|failed
     mechanism: "netinstall"            # From manifest, for display
+    contract_hash: "sha256:a1b2c3..."  # Hash of initialization_contract for drift detection
+    imported: false                    # true if node was imported via --import
     last_action: "verify"              # last operation performed
     last_action_at: "2026-03-30T12:05:00Z"
     last_error: null                   # null or error message string
@@ -198,13 +228,38 @@ When the pipeline regenerates `INITIALIZATION-MANIFEST.yaml` and a new node appe
 - New nodes (in manifest but not in state) are added with `status: pending`.
 - Removed nodes (in state but not in manifest) are kept with a `stale: true` flag.
 
-### E2: Manifest Regenerated with Changed Contract
+### E2: Manifest Regenerated with Changed Contract (Drift Detection)
 
-When a node's `initialization_contract` changes (e.g., mechanism changed):
+When a node's `initialization_contract` changes (e.g., mechanism changed, requirements added):
 
-- State file retains the old status.
-- `init-node.py` warns: "Contract changed for node X since last initialization."
-- Operator must use `--force` to re-bootstrap with new contract.
+**Detection mechanism (per D18):**
+1. State file stores `contract_hash` (SHA256 of initialization_contract YAML)
+2. On each `init-node.py` run, compute current hash from manifest
+3. Compare hashes
+
+**Behavior:**
+- State file retains the old status
+- `init-node.py` warns about drift
+- Operator must explicitly handle:
+  - `--force`: Re-bootstrap with new contract
+  - `--acknowledge-drift`: Update hash without re-bootstrap (for non-breaking changes)
+
+**Example:**
+
+```
+$ init-node.py --status
+
+Node Initialization Status (2026-03-30T12:05:00Z)
+==================================================
+rtr-mikrotik-chateau  verified  ⚠ CONTRACT DRIFT DETECTED
+  Previous hash: sha256:abc123...
+  Current hash:  sha256:def456...
+  Changes: +1 requirement, handover timeout changed
+
+To resolve:
+  --force               Re-bootstrap with new contract
+  --acknowledge-drift   Accept changes without re-bootstrap
+```
 
 ### E3: Stale Lock File
 

@@ -219,6 +219,75 @@ Verify existing `.gitignore` already covers `.work/` directory.
 
 ---
 
+## Existing Device Migration (D17)
+
+When adopting ADR 0083, existing devices that are already bootstrapped and managed by Terraform need special handling.
+
+### Scenario: MikroTik Already in Production
+
+**Current state:**
+- MikroTik router bootstrapped manually 6 months ago
+- Terraform state exists in `generated/home-lab/terraform/mikrotik/`
+- Device is operational and managed
+
+**Migration procedure:**
+
+```bash
+# 1. Add initialization_contract to object module
+# 2. Run pipeline to generate manifest
+python scripts/orchestration/lane.py build-v5
+
+# 3. Import existing device (no re-bootstrap)
+task deploy:init:import NODE=rtr-mikrotik-chateau
+
+# 4. Verify import succeeded
+task deploy:init:status
+```
+
+**Result:**
+```yaml
+# .work/native/bootstrap/INITIALIZATION-STATE.yaml
+nodes:
+  - id: rtr-mikrotik-chateau
+    status: verified
+    imported: true
+    imported_at: "2026-03-30T12:00:00Z"
+    attempt_count: 0  # No bootstrap attempts
+```
+
+### Import vs Bootstrap Decision Tree
+
+```
+Is device already operational?
+├── Yes → Use --import
+│         ├── Runs handover checks
+│         ├── Creates state with imported: true
+│         └── Does NOT execute bootstrap
+│
+└── No → Use --node (normal bootstrap)
+          ├── Runs prerequisites check
+          ├── Executes bootstrap script
+          └── Creates state with imported: false
+```
+
+### Mixed Fleet Migration
+
+For fleets with both new and existing devices:
+
+```bash
+# Import all existing operational devices
+task deploy:init:import NODE=rtr-mikrotik-chateau
+task deploy:init:import NODE=hv-proxmox-xps
+
+# Bootstrap new devices
+task deploy:init:node NODE=sbc-orangepi5-new
+
+# Check overall status
+task deploy:init:status
+```
+
+---
+
 ## Operator Workflow Migration
 
 ### Before ADR 0083 (Current)

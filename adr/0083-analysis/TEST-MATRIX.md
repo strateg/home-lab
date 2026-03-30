@@ -36,6 +36,7 @@ Define which checks can be CI-mocked vs require hardware. Establish release-bloc
 | T-S12 | Handover retry config validation | Schema | Mock | Yes |
 | T-S13 | post_handover informational fields accepted | Schema | Mock | Yes |
 | T-S14 | Version pattern validation (semver-like) | Schema | Mock | Yes |
+| T-S15 | Object without initialization_contract is valid (implicit terraform-managed) | Schema | Mock | Yes |
 
 ---
 
@@ -103,10 +104,31 @@ Define which checks can be CI-mocked vs require hardware. Establish release-bloc
 | T-O10 | Handover retry with backoff works correctly | Integration | Mock | Yes |
 | T-O11 | Timeout exceeded transitions to failed | Integration | Mock | Yes |
 | T-O12 | State file uses atomic writes | Unit | Mock | Yes |
+| T-O13 | Stale artifact warning (>24h) triggers | Integration | Mock | Yes |
+| T-O14 | `--import` creates state with `imported: true` | Integration | Mock | Yes |
+| T-O15 | `--reset` requires `--confirm-reset` flag | Unit | Mock | Yes |
+| T-O16 | `--reset` warns if Terraform state exists | Integration | Mock | Yes |
+| T-O17 | Contract drift detection compares hashes | Unit | Mock | Yes |
+| T-O18 | `--acknowledge-drift` updates hash without re-bootstrap | Integration | Mock | Yes |
 
 ---
 
-## 6. Handover Verification Tests
+## 6. Pre-Validation Tests (D16)
+
+| Test ID | Description | Category | Mock/HW | Blocks? |
+|---------|-------------|----------|---------|---------|
+| T-P01 | Proxmox answer.toml TOML syntax validation | Unit | Mock | Yes |
+| T-P02 | Proxmox answer.toml missing [global] produces E9710 | Unit | Mock | Yes |
+| T-P03 | Proxmox answer.toml missing [network] produces E9711 | Unit | Mock | Yes |
+| T-P04 | Proxmox answer.toml missing [disk-setup] produces E9712 | Unit | Mock | Yes |
+| T-P05 | Proxmox answer.toml invalid disk path produces E9713 | Unit | Mock | Yes |
+| T-P06 | Proxmox answer.toml network mismatch produces W9714 | Unit | Mock | Yes |
+| T-P07 | Destructive mechanism requires `--confirm-destructive` | Integration | Mock | Yes |
+| T-P08 | cloud-init user-data YAML validation | Unit | Mock | Yes |
+
+---
+
+## 7. Handover Verification Tests
 
 | Test ID | Description | Category | Mock/HW | Blocks? |
 |---------|-------------|----------|---------|---------|

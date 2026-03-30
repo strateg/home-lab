@@ -100,14 +100,43 @@ proxmox_retry:
 
 **Critical note:** Proxmox unattended install is destructive (formats disks). Failed installation CANNOT be retried without full re-install. This makes answer.toml validation critical before execution.
 
-### Pre-Execution Validation
+### Pre-Execution Validation (MANDATORY per D16)
 
-To mitigate P4–P5 risks, `init-node.py` SHOULD validate answer.toml before prompting for USB media creation:
+Per ADR 0083 D16, `init-node.py` MUST validate answer.toml before prompting for USB media creation:
 
-1. Parse TOML syntax.
-2. Verify required fields (`[global]`, `[network]`, `[disk-setup]`).
-3. Verify disk paths exist on target hardware (if accessible via remote check).
-4. Verify network configuration against topology data.
+1. **TOML syntax validation** — Parse and detect syntax errors early
+2. **Required sections** — `[global]`, `[network]`, `[disk-setup]` must exist
+3. **Disk path validation** — Must start with `/dev/`, warn on unusual paths
+4. **Network consistency** — Compare with topology data, warn on mismatch
+5. **Operator confirmation** — Require explicit `--confirm-destructive` flag
+
+**Validation error codes:**
+
+| Code | Description |
+|------|-------------|
+| E9710 | Missing `[global]` section in answer.toml |
+| E9711 | Missing `[network]` section in answer.toml |
+| E9712 | Missing `[disk-setup]` section in answer.toml |
+| E9713 | Invalid disk path (must start with `/dev/`) |
+| W9714 | Network configuration differs from topology (warning, not blocking) |
+| E9715 | TOML syntax error |
+
+**Example validation output:**
+
+```
+$ init-node.py --node hv-proxmox-xps
+
+[PRE-VALIDATION] Checking Proxmox answer.toml...
+  ✓ TOML syntax valid
+  ✓ [global] section present
+  ✓ [network] section present
+  ✓ [disk-setup] section present
+  ✓ Disk path /dev/sda valid
+  ⚠ WARNING: answer.toml IP (10.0.10.1) differs from topology (10.0.10.2)
+
+This operation will FORMAT disk /dev/sda on target device.
+To proceed, re-run with --confirm-destructive flag.
+```
 
 ---
 
