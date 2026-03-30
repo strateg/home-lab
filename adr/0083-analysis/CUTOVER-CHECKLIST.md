@@ -56,7 +56,11 @@
 ### Orchestration
 
 - [ ] `scripts/orchestration/deploy/init-node.py` implemented
+- [ ] `BootstrapAdapter` ABC in `adapters/base.py` (D19): `PreflightCheck`, `BootstrapResult`, `HandoverCheckResult` dataclasses
+- [ ] All 4 adapters inherit from `BootstrapAdapter` and implement required abstract methods
+- [ ] Adapter factory `load_adapter()` resolves mechanism → adapter class
 - [ ] Netinstall adapter works with MikroTik
+- [ ] Orchestrator owns state file; adapters return results only (D19 boundary)
 - [ ] Orchestrator writes runtime state only to `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
 - [ ] Orchestrator does not modify `generated/**`
 - [ ] State machine transitions enforced (pending/bootstrapping/initialized/verified/failed)
@@ -68,6 +72,9 @@
   - [ ] `credential_valid` with retry/backoff
   - [ ] `python_installed` with retry/backoff
   - [ ] `terraform_plan_succeeds` with retry/backoff
+- [ ] Structured logging (D20): console output + `.work/native/bootstrap/init-node.log.jsonl`
+- [ ] Audit trail for destructive operations (pre-validation, confirmation, result)
+- [ ] JSONL mandatory fields: `timestamp`, `level`, `node_id`, `event`
 - [ ] CLI interface documented (`--node`, `--all-pending`, `--verify-only`, `--force`, `--status`, `--interactive`, `--import`, `--reset`, `--confirm-reset`, `--acknowledge-drift`, `--cleanup`)
 - [ ] Taskfile targets added (`taskfiles/deploy.yaml`)
 

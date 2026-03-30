@@ -314,6 +314,20 @@ SKIP: sbc-orangepi5 requires manual_confirmation (os_installed). Use --node to i
 
 The `--interactive` flag enables prompts for manual confirmations in batch mode. Without `--interactive`, only nodes with fully automatable prerequisites are processed.
 
+**Inter-node dependencies are NOT required:**
+
+All physical devices bootstrapped by `init-node.py` are independent — MikroTik router bootstrap is orthogonal to Proxmox hypervisor bootstrap. The three-stage pipeline provides natural ordering:
+
+1. **init-node.py** (day-0): bootstraps physical nodes in parallel (no inter-node deps)
+2. **Terraform apply** (day-1): creates logical resources (LXC, VMs) on initialized physical nodes — Terraform's native provider dependency graph ensures Proxmox API is reachable before creating containers
+3. **Ansible playbooks** (day-2+): configures both physical and logical nodes
+
+The `host_ref` field in instance YAML (e.g., `host_ref: srv-gamayun` in `lxc-redis.yaml`) is a **data relationship** consumed by Terraform generators — not an execution dependency for `init-node.py`.
+
+**Scope boundary — apply-terraform.py and run-ansible.py:**
+
+The directory listing above shows `apply-terraform.py` and `run-ansible.py` as **future placeholders**. ADR 0083 scope is strictly **day-0 pre-initialization** (`init-node.py` and its adapters). Terraform/Ansible wrapper scripts are post-handover concerns belonging to a separate future ADR. During Phase 6 cutover, existing Taskfile targets (`task terraform:apply`, `task ansible:run`) are sufficient.
+
 **State machine for node initialization:**
 
 ```
@@ -739,6 +753,252 @@ WARNING: Contract changed for node rtr-mikrotik-chateau
 - `--force`: Re-bootstrap with new contract
 - `--acknowledge-drift`: Update contract_hash without re-bootstrapping (for non-breaking changes)
 
+### D19. Adapter Interface Contract
+
+Device-specific adapters execute bootstrap mechanisms. Each adapter is a Python class inheriting from `BootstrapAdapter` ABC. Adapters live in `scripts/orchestration/deploy/adapters/` and are part of the **deploy domain** (not pipeline plugins).
+
+**Directory structure:**
+
+```
+scripts/orchestration/deploy/
+  adapters/
+    __init__.py
+    base.py                  # BootstrapAdapter ABC + result dataclasses
+    netinstall.py            # MikroTik (ADR 0057)
+    unattended.py            # Proxmox VE
+    cloud_init.py            # Orange Pi / SBC
+    ansible_bootstrap.py     # Generic Linux
+  init-node.py               # Orchestrator (uses adapters)
+```
+
+**Result dataclasses:**
+
+```python
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Optional
+
+class AdapterStatus(str, Enum):
+    SUCCESS = "success"       # Operation completed successfully
+    FAILED = "failed"         # Operation failed (may be retryable)
+    TIMEOUT = "timeout"       # Exceeded timeout limit
+    SKIPPED = "skipped"       # Skipped (e.g., already initialized)
+
+@dataclass
+class PreflightCheck:
+    name: str                 # Requirement name from contract
+    passed: bool
+    error_message: Optional[str] = None
+    remediation_hint: Optional[str] = None
+
+@dataclass
+class BootstrapResult:
+    status: AdapterStatus
+    exit_code: Optional[int] = None
+    duration_seconds: float = 0.0
+    error_code: Optional[str] = None     # E97xx diagnostic code
+    error_message: Optional[str] = None
+    details: dict[str, Any] = field(default_factory=dict)
+
+@dataclass
+class HandoverCheckResult:
+    check_type: str           # api_reachable, ssh_reachable, etc.
+    passed: bool
+    attempt: int
+    total_attempts: int
+    elapsed_seconds: float
+    error_message: Optional[str] = None
+```
+
+**Abstract base class:**
+
+```python
+from abc import ABC, abstractmethod
+
+class BootstrapAdapter(ABC):
+    """Base class for bootstrap mechanism adapters.
+
+    Lifecycle: preflight → execute → handover → cleanup
+    State management: orchestrator owns state file; adapter returns results.
+    """
+
+    def __init__(self, mechanism: str):
+        self.mechanism = mechanism
+
+    @property
+    @abstractmethod
+    def mechanism_name(self) -> str:
+        """Human-readable mechanism name for logging."""
+
+    # --- Phase 1: Preflight ---
+
+    @abstractmethod
+    def validate_prerequisites(
+        self, node: dict[str, Any]
+    ) -> tuple[bool, list[PreflightCheck]]:
+        """Check all requirements from contract are met.
+
+        Args:
+            node: Manifest entry with keys: id, mechanism, artifacts,
+                  requirements, handover, endpoint.
+
+        Returns:
+            (all_passed, checks) — if all_passed is False, orchestrator
+            displays failed checks and allows operator to retry.
+        """
+
+    def validate_template(
+        self, node: dict[str, Any], template_path: str
+    ) -> tuple[bool, Optional[str]]:
+        """Pre-validate bootstrap template before execution.
+
+        Critical for destructive mechanisms (unattended_install, cloud_init).
+        Default: no-op (returns True).
+        """
+        return (True, None)
+
+    # --- Phase 2: Bootstrap Execution ---
+
+    @abstractmethod
+    def execute_bootstrap(
+        self,
+        node: dict[str, Any],
+        assembled_artifacts_dir: str,
+    ) -> BootstrapResult:
+        """Execute device-specific bootstrap.
+
+        Args:
+            node: Manifest entry.
+            assembled_artifacts_dir: Path to .work/native/bootstrap/<node_id>/
+                containing secret-bearing artifacts.
+
+        Returns:
+            BootstrapResult — adapter MUST NOT raise on bootstrap failure;
+            return BootstrapResult with status=FAILED instead.
+
+        The adapter does NOT update state file. Orchestrator transitions
+        state based on the returned BootstrapResult.
+        """
+
+    # --- Phase 3: Handover Verification ---
+
+    @abstractmethod
+    def verify_handover(
+        self,
+        node: dict[str, Any],
+        timeout_seconds: int = 300,
+    ) -> tuple[bool, list[HandoverCheckResult]]:
+        """Run handover checks with retry/backoff from contract config.
+
+        Adapter owns retry logic. Reads retry config from
+        node['handover']['retry']. Returns per-check results.
+
+        Returns:
+            (all_passed, checks) — if True, orchestrator transitions
+            state to 'verified'.
+        """
+
+    # --- Phase 4: Cleanup ---
+
+    def cleanup(self) -> None:
+        """Release resources (temp files, connections). Optional, no-op default.
+        MUST NOT modify .work/native/ or state files. MUST NOT raise."""
+```
+
+**State management boundary:**
+
+| Concern | Owner |
+|---------|-------|
+| State file read/write and locking | Orchestrator (`init-node.py`) |
+| State transitions (`pending → bootstrapping → ...`) | Orchestrator, based on adapter return values |
+| Bootstrap execution and subprocess calls | Adapter |
+| Handover check retry loop | Adapter |
+| Error code assignment (E97xx) | Adapter populates `error_code` in result |
+
+**Adapter loading (factory pattern):**
+
+```python
+_REGISTRY = {
+    "netinstall": ("adapters.netinstall", "NetinstallAdapter"),
+    "unattended_install": ("adapters.unattended", "UnattendedAdapter"),
+    "cloud_init": ("adapters.cloud_init", "CloudInitAdapter"),
+    "ansible_bootstrap": ("adapters.ansible_bootstrap", "AnsibleBootstrapAdapter"),
+}
+
+def load_adapter(mechanism: str) -> BootstrapAdapter:
+    module_name, class_name = _REGISTRY[mechanism]
+    mod = importlib.import_module(module_name)
+    return getattr(mod, class_name)()
+```
+
+### D20. Logging and Observability Contract
+
+`init-node.py` executes potentially destructive operations (firmware flashing, disk partitioning). Logging is critical for debugging, audit, and operator feedback.
+
+**Dual-output logging:**
+
+| Destination | Format | Purpose |
+|-------------|--------|---------|
+| **stdout** | Human-readable with timestamps | Real-time operator feedback |
+| **`.work/native/bootstrap/init-node.log.jsonl`** | JSON Lines (one JSON object per line) | Structured audit trail, programmatic analysis |
+
+**Console format:**
+
+```
+[2026-03-30 14:32:15] [INFO ] rtr-mikrotik-chateau: Bootstrap started (netinstall)
+[2026-03-30 14:32:16] [INFO ] rtr-mikrotik-chateau: Preflight ✓ netinstall-cli ✓ routeros.npk
+[2026-03-30 14:32:20] [WARN ] hv-proxmox-xps: Destructive operation requires confirmation
+[2026-03-30 14:35:42] [INFO ] rtr-mikrotik-chateau: Handover verified (2/2 checks passed)
+[2026-03-30 14:35:42] [INFO ] rtr-mikrotik-chateau: State → verified
+```
+
+**JSONL format:**
+
+```json
+{"timestamp":"2026-03-30T14:32:15.123Z","level":"INFO","node_id":"rtr-mikrotik-chateau","event":"bootstrap_started","mechanism":"netinstall","attempt":1}
+{"timestamp":"2026-03-30T14:35:42.789Z","level":"WARN","node_id":"hv-proxmox-xps","event":"destructive_operation","operation":"disk_partition","validation_passed":true,"user_confirmed":true}
+{"timestamp":"2026-03-30T14:36:50.456Z","level":"ERROR","node_id":"hv-proxmox-xps","event":"handover_failed","check_type":"api_reachable","error_code":"E9740","attempts":10}
+```
+
+**Mandatory JSONL fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `timestamp` | string | ISO 8601 UTC with milliseconds |
+| `level` | string | `DEBUG`, `INFO`, `WARN`, `ERROR` |
+| `node_id` | string | Node identifier from manifest |
+| `event` | string | Event name (see table below) |
+
+**Event taxonomy:**
+
+| Event | Level | When |
+|-------|-------|------|
+| `bootstrap_started` | INFO | Adapter begins execution |
+| `preflight_passed` | INFO | All preflight checks pass |
+| `preflight_failed` | ERROR | One or more preflight checks fail |
+| `destructive_operation` | WARN | Before destructive operation (with confirmation status) |
+| `bootstrap_completed` | INFO | Adapter returns SUCCESS |
+| `bootstrap_failed` | ERROR | Adapter returns FAILED/TIMEOUT (includes `error_code`) |
+| `handover_started` | INFO | Handover verification begins |
+| `handover_check` | DEBUG | Individual check attempt (per retry) |
+| `handover_verified` | INFO | All handover checks pass |
+| `handover_failed` | ERROR | Handover timeout exceeded |
+| `state_transition` | INFO | State machine transition (from → to) |
+| `contract_drift` | WARN | Contract hash mismatch detected |
+
+**Audit trail requirement:**
+
+For destructive operations (D16), the JSONL log MUST record:
+- **What**: operation type, target device, bootstrap script hash
+- **When**: ISO 8601 timestamp
+- **Pre-validation**: whether template validation passed
+- **Confirmation**: whether operator confirmed (for `manual_confirmation` requirements)
+- **Result**: success/failure with error code
+
+**Log retention:** Logs persist in `.work/native/bootstrap/` (excluded from `generated/` and git via `.gitignore`). Operator may archive logs before cleanup.
+
+**Error codes:** All adapter errors use the E97xx range allocated in this ADR's diagnostic section. Adapters populate `error_code` in `BootstrapResult`; the logging layer includes it in JSONL records automatically.
+
 ---
 
 ## Schema
@@ -1056,9 +1316,11 @@ ADR 0083 phases depend on ADR 0080 wave completion. **All waves (A–H) are now 
 ### Phase 4: Orchestration
 
 1. Create `scripts/orchestration/deploy/init-node.py`
-2. Implement device adapters for each mechanism
-3. Add handover verification suite
-4. Integration tests with mock devices
+2. Implement `BootstrapAdapter` ABC and result dataclasses (`adapters/base.py` per D19)
+3. Implement device adapters for each mechanism (inheriting from `BootstrapAdapter`)
+4. Add handover verification suite
+5. Implement structured logging with dual output — console + JSONL audit trail (D20)
+6. Integration tests with mock devices
 
 ### Phase 5: Assemble Integration
 

@@ -136,23 +136,28 @@ This plan implements the Unified Node Initialization Contract in 7 phases, progr
 | 5.1 | Create manifest generator plugin | `topology-tools/plugins/generators/initialization_manifest_generator.py` | Produces read-only `generated/<project>/bootstrap/INITIALIZATION-MANIFEST.yaml` |
 | 5.2 | Define manifest and runtime-state schemas | `schemas/initialization-manifest.schema.json`, `schemas/initialization-state.schema.json` | Static manifest separated from mutable runtime state |
 | 5.3 | Create `init-node.py` orchestrator | `scripts/orchestration/deploy/init-node.py` | CLI with --node, --all-pending, --verify-only, --force, --status |
-| 5.4 | Implement netinstall adapter | `scripts/orchestration/deploy/adapters/netinstall.py` | MikroTik bootstrap execution |
-| 5.5 | Implement unattended adapter | `scripts/orchestration/deploy/adapters/unattended.py` | Proxmox ISO preparation hints |
-| 5.6 | Implement cloud-init adapter | `scripts/orchestration/deploy/adapters/cloud_init.py` | SD card preparation hints |
-| 5.7 | Implement ansible_bootstrap adapter | `scripts/orchestration/deploy/adapters/ansible_bootstrap.py` | Generic Linux bootstrap |
-| 5.8 | Implement handover verification | `scripts/orchestration/deploy/checks/` | All check types with retry/backoff |
-| 5.9 | Implement state machine | `scripts/orchestration/deploy/state.py` | Atomic writes, file locking, legal transitions |
-| 5.10 | Add Taskfile targets | `taskfiles/deploy.yaml` | `task deploy:init:*` commands |
-| 5.11 | Integration tests with mocks | `tests/orchestration/test_init_node.py` | All adapters and state transitions tested |
+| 5.4 | Implement `BootstrapAdapter` ABC and result dataclasses (D19) | `scripts/orchestration/deploy/adapters/base.py` | ABC with preflight/execute/handover/cleanup lifecycle; AdapterStatus, PreflightCheck, BootstrapResult, HandoverCheckResult dataclasses |
+| 5.5 | Implement netinstall adapter | `scripts/orchestration/deploy/adapters/netinstall.py` | MikroTik bootstrap execution |
+| 5.6 | Implement unattended adapter | `scripts/orchestration/deploy/adapters/unattended.py` | Proxmox ISO preparation hints |
+| 5.7 | Implement cloud-init adapter | `scripts/orchestration/deploy/adapters/cloud_init.py` | SD card preparation hints |
+| 5.8 | Implement ansible_bootstrap adapter | `scripts/orchestration/deploy/adapters/ansible_bootstrap.py` | Generic Linux bootstrap |
+| 5.9 | Implement handover verification | `scripts/orchestration/deploy/checks/` | All check types with retry/backoff |
+| 5.10 | Implement state machine | `scripts/orchestration/deploy/state.py` | Atomic writes, file locking, legal transitions |
+| 5.11 | Implement structured logging (D20) | `scripts/orchestration/deploy/logging.py` | Dual output (console + JSONL), audit trail for destructive ops, E97xx codes |
+| 5.12 | Add Taskfile targets | `taskfiles/deploy.yaml` | `task deploy:init:*` commands |
+| 5.13 | Integration tests with mocks | `tests/orchestration/test_init_node.py` | All adapters and state transitions tested |
 
 ### Gate
 
 - [ ] Manifest generation integrated in v5 pipeline (read-only output under `generated/`)
 - [ ] Runtime state written only under `.work/native/bootstrap/`
+- [ ] `BootstrapAdapter` ABC enforced for all 4 adapters (D19)
 - [ ] `init-node.py --node rtr-mikrotik-chateau` works (mock)
 - [ ] `init-node.py --verify-only` checks all handover conditions
 - [ ] `init-node.py --status` displays node summary
 - [ ] State machine transitions are correct (T-O07, T-O08)
+- [ ] Structured logging produces both console output and JSONL audit trail (D20)
+- [ ] Destructive operations logged with pre-validation and confirmation status
 - [ ] Taskfile targets documented
 
 ---

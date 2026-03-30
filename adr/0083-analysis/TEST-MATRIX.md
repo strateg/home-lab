@@ -110,6 +110,37 @@ Define which checks can be CI-mocked vs require hardware. Establish release-bloc
 | T-O16 | `--reset` warns if Terraform state exists | Integration | Mock | Yes |
 | T-O17 | Contract drift detection compares hashes | Unit | Mock | Yes |
 | T-O18 | `--acknowledge-drift` updates hash without re-bootstrap | Integration | Mock | Yes |
+| T-O19 | Adapter loaded via factory matches mechanism | Unit | Mock | Yes |
+| T-O20 | Unknown mechanism in factory raises ValueError | Unit | Mock | Yes |
+| T-O21 | Adapter ABC enforces all abstract methods | Unit | Mock | Yes |
+| T-O22 | Adapter cleanup() is no-op by default | Unit | Mock | Yes |
+| T-O23 | Adapter validate_template() returns True by default | Unit | Mock | Yes |
+
+---
+
+## 5a. Adapter Contract Tests (D19)
+
+| Test ID | Description | Category | Mock/HW | Blocks? |
+|---------|-------------|----------|---------|---------|
+| T-A19-01 | PreflightCheck remediation_hint populated on failure | Unit | Mock | Yes |
+| T-A19-02 | BootstrapResult.is_success() matches AdapterStatus.SUCCESS | Unit | Mock | Yes |
+| T-A19-03 | Adapter returns BootstrapResult on failure (no exception) | Unit | Mock | Yes |
+| T-A19-04 | HandoverCheckResult tracks attempt/total_attempts | Unit | Mock | Yes |
+| T-A19-05 | Orchestrator transitions state based on adapter return, not adapter mutation | Integration | Mock | Yes |
+
+---
+
+## 5b. Logging and Observability Tests (D20)
+
+| Test ID | Description | Category | Mock/HW | Blocks? |
+|---------|-------------|----------|---------|---------|
+| T-L01 | Console output includes timestamp, level, node_id | Unit | Mock | Yes |
+| T-L02 | JSONL file written to .work/native/bootstrap/ | Integration | Mock | Yes |
+| T-L03 | Each JSONL line is valid JSON with mandatory fields | Unit | Mock | Yes |
+| T-L04 | Destructive operation emits WARN-level audit event | Unit | Mock | Yes |
+| T-L05 | State transition logged with from/to states | Unit | Mock | Yes |
+| T-L06 | Error events include error_code (E97xx) | Unit | Mock | Yes |
+| T-L07 | Log file survives adapter failure (not corrupted) | Integration | Mock | Yes |
 
 ---
 

@@ -214,9 +214,12 @@ Lines 451-487: API access + terraform user -> Phase 0 (Bootstrap)
 | Item | Status | Action Required |
 |------|--------|-----------------|
 | `init-node.py` | Missing | Create orchestrator |
-| Device adapters | Missing | Create per-mechanism adapters |
+| `BootstrapAdapter` ABC (D19) | **Specified** | Implement `adapters/base.py` with preflight/execute/handover lifecycle |
+| Device adapters | Missing | Create per-mechanism adapters inheriting from `BootstrapAdapter` |
 | Handover verification | Missing | Implement check suite |
 | CLI interface | Missing | Design command interface |
+| Structured logging (D20) | **Specified** | Implement dual-output logging (console + JSONL audit trail) |
+| Inter-node dependency handling | **Not needed** | Pipeline stages provide natural ordering (D6); Terraform handles provider deps |
 
 ### G8: Existing Device Migration (D17)
 

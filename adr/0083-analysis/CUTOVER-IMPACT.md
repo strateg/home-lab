@@ -103,9 +103,9 @@ scripts/
 |--------|-------------|-------|
 | Create `scripts/orchestration/deploy/` | New deploy domain directory | Phase 4 |
 | Create `scripts/orchestration/deploy/init-node.py` | Initialization orchestrator | Phase 4 |
-| Create `scripts/orchestration/deploy/apply-terraform.py` | Terraform wrapper | Phase 6 |
-| Create `scripts/orchestration/deploy/run-ansible.py` | Ansible wrapper | Phase 6 |
-| Create `scripts/orchestration/deploy/adapters/` | Device-specific adapters | Phase 4 |
+| Create `scripts/orchestration/deploy/adapters/base.py` | `BootstrapAdapter` ABC and result dataclasses (D19) | Phase 4 |
+| Create `scripts/orchestration/deploy/adapters/` | Device-specific adapters inheriting from ABC | Phase 4 |
+| Create `scripts/orchestration/deploy/logging.py` | Structured dual-output logging (D20) | Phase 4 |
 
 #### New Directory Structure
 
@@ -115,15 +115,13 @@ scripts/
     lane.py              # V5 pipeline (unchanged)
     deploy/
       init-node.py         # NEW: initialization orchestrator
-      apply-terraform.py   # NEW: terraform wrapper (Phase 6)
-      run-ansible.py       # NEW: ansible wrapper (Phase 6)
+      logging.py           # NEW: dual-output structured logging (D20)
       adapters/
         __init__.py
-        base.py            # Abstract adapter interface
+        base.py            # BootstrapAdapter ABC (D19)
         netinstall.py      # MikroTik netinstall adapter
         unattended.py      # Proxmox unattended install adapter
         cloud_init.py      # Orange Pi cloud-init adapter
-        terraform_managed.py  # LXC/Cloud VM (no-op adapter)
         ansible_bootstrap.py  # Generic Linux adapter
       checks/
         __init__.py
@@ -213,6 +211,7 @@ task deploy:ansible:run PLAYBOOK=mikrotik-firewall
 |-------|--------|-------|
 | `.work/native/bootstrap/` | Secret-bearing artifacts | Phase 5 |
 | `INITIALIZATION-STATE.yaml` | Runtime mutable state | Phase 5 |
+| `init-node.log.jsonl` | Structured audit log (D20) | Phase 4 |
 | `*.lock` | State file locks | Phase 4 |
 
 Verify existing `.gitignore` already covers `.work/` directory.
