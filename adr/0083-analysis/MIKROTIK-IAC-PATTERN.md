@@ -620,7 +620,6 @@ nodes:
   - id: rtr-mikrotik-chateau
     object_ref: obj.mikrotik.chateau_lte7_ax
     mechanism: netinstall
-    status: pending
     artifacts:
       bootstrap_script: bootstrap/rtr-mikrotik-chateau/init-terraform.rsc
       tfvars_example: bootstrap/rtr-mikrotik-chateau/terraform.tfvars.example
@@ -637,6 +636,13 @@ nodes:
       checks:
         - api_reachable
         - credential_valid
+```
+
+```yaml
+# .work/native/bootstrap/INITIALIZATION-STATE.yaml
+nodes:
+  - id: rtr-mikrotik-chateau
+    status: pending
     lifecycle:
       phases:
         - name: bootstrap

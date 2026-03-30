@@ -48,14 +48,17 @@
 ### Initialization Manifest
 
 - [ ] `base.generator.initialization_manifest` plugin implemented
-- [ ] INITIALIZATION-MANIFEST.yaml generated during v5 pipeline
+- [ ] INITIALIZATION-MANIFEST.yaml generated during v5 pipeline as read-only source-derived output
 - [ ] Manifest schema documented
 - [ ] All compute/router nodes appear in manifest
+- [ ] Runtime state schema documented (`INITIALIZATION-STATE.yaml`)
 
 ### Orchestration
 
 - [ ] `scripts/orchestration/init-node.py` implemented
 - [ ] Netinstall adapter works with MikroTik
+- [ ] Orchestrator writes runtime state only to `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
+- [ ] Orchestrator does not modify `generated/**`
 - [ ] Handover verification checks implemented:
   - [ ] `api_reachable`
   - [ ] `ssh_reachable`
@@ -79,6 +82,7 @@
 - [ ] Merge all implementation PRs
 - [ ] Run full v5 pipeline validation
 - [ ] Verify INITIALIZATION-MANIFEST.yaml generated
+- [ ] Verify INITIALIZATION-STATE.yaml is created only after deploy/orchestration actions
 
 ### Step 3: Validate on Real Hardware
 
@@ -106,11 +110,13 @@
 - [ ] `python scripts/orchestration/lane.py validate-v5` passes
 - [ ] `python topology-tools/compile-topology.py` produces bootstrap artifacts
 - [ ] `task init:verify --node rtr-mikrotik-chateau` passes (after device initialized)
+- [ ] Runtime state updates are visible in `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
 
 ### Regression Checks
 
 - [ ] No v5 pipeline errors
 - [ ] All existing tests pass
+- [ ] No files under `generated/` are modified by deploy-time orchestration
 - [ ] MikroTik Terraform plan succeeds
 - [ ] Proxmox Terraform plan succeeds (if applicable)
 

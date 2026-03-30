@@ -12,7 +12,7 @@ This document analyzes the gap between the current fragmented node initializatio
 
 | Device | Location | Lines | Day-0/Day-1 Mixed | Topology Integration | Handover Verification |
 |--------|----------|-------|-------------------|---------------------|----------------------|
-| MikroTik | `topology-tools/templates/bootstrap/mikrotik/` | ~100 | No (clean) | Yes | Manual |
+| MikroTik | `topology/object-modules/mikrotik/templates/bootstrap/` | ~100 | No (clean) | Yes | Manual |
 | Proxmox | `archive/.../proxmox-post-install.sh` | 487 | **Yes** | No | None |
 | Orange Pi | `topology/object-modules/orangepi/templates/` | ~20 | N/A (placeholder) | Partial | None |
 | LXC | `archive/.../install-lxc-containers.sh` | ~200 | **Yes** | No | None |
@@ -25,14 +25,14 @@ generated/home-lab/bootstrap/
     init-terraform.rsc           # Generated from topology
     terraform.tfvars.example     # Generated from topology
 
-topology-tools/templates/bootstrap/
-  mikrotik/
-    init-terraform-minimal.rsc.j2
-    backup-restore-overrides.rsc.j2
-    exported-config-safe.rsc.j2
-  proxmox/
-    answer.toml.example.j2       # Exists
-    script.sh.j2                 # Exists (post-install stub)
+topology/object-modules/mikrotik/templates/bootstrap/
+  init-terraform.rsc.j2
+  backup-restore-overrides.rsc.j2
+  terraform.tfvars.example.j2
+
+topology/object-modules/proxmox/templates/bootstrap/
+  answer.toml.example.j2         # Exists
+  script.sh.j2                   # Exists (post-install stub)
 
 topology/object-modules/orangepi/templates/bootstrap/
   user-data.example.j2           # Placeholder only
@@ -79,7 +79,7 @@ initialization_contract:
   version: "1.0"
   mechanism: netinstall | unattended_install | cloud_init | terraform_managed
   requirements: [...]
-  bootstrap:
+  bootstrap:                      # required except terraform_managed
     template: templates/bootstrap/...
     outputs: [...]
   handover:
@@ -91,7 +91,7 @@ initialization_contract:
 
 ```
 generated/home-lab/bootstrap/
-  INITIALIZATION-MANIFEST.yaml    # NEW: unified registry
+  INITIALIZATION-MANIFEST.yaml    # NEW: static registry (read-only)
   rtr-mikrotik-chateau/
     init-terraform.rsc
     terraform.tfvars.example
@@ -101,6 +101,9 @@ generated/home-lab/bootstrap/
   sbc-orangepi5/                  # NEW
     user-data
     meta-data
+
+.work/native/bootstrap/
+  INITIALIZATION-STATE.yaml       # NEW: mutable runtime status store
 ```
 
 ### Target Orchestration
@@ -186,7 +189,7 @@ Lines 451-487: API access + terraform user -> Phase 0 (Bootstrap)
 |------|--------|-----------------|
 | Generator plugin | Missing | Create `base.generator.initialization_manifest` |
 | Manifest schema | Missing | Define YAML schema |
-| Status tracking | Missing | Design status persistence |
+| Status tracking | Missing | Persist runtime status in `.work/native/bootstrap/INITIALIZATION-STATE.yaml` (not in `generated/`) |
 
 ### G7: Initialization Orchestrator
 
@@ -226,6 +229,30 @@ Lines 451-487: API access + terraform user -> Phase 0 (Bootstrap)
 - Proxmox VE ISO with answer file support
 - cloud-init for SBCs
 - Terraform providers for each platform
+
+---
+
+## Additional Analysis Required
+
+To finalize ADR quality and reduce implementation risk, complete these analyses:
+
+1. **Plugin boundary analysis (C/O/I levels)**
+   Prove `initialization_contract` consumption and manifest generation do not violate class/object/instance isolation rules.
+
+2. **Failure-mode and recovery analysis (FMEA)**
+   For each mechanism (`netinstall`, `unattended_install`, `cloud_init`), define failure points, retry rules, and rollback flow.
+
+3. **Secrets and dataflow analysis**
+   Trace secret material from `projects/<project>/secrets/` to runtime artifacts; define redaction, cleanup, and non-persistence guarantees.
+
+4. **State model and concurrency analysis**
+   Define lock semantics and conflict handling when multiple `init-node` runs touch the same runtime state file.
+
+5. **Test and evidence matrix**
+   Define CI mocks vs hardware E2E gates per mechanism, with explicit release-blocking criteria.
+
+6. **Runbook/task cutover impact analysis**
+   Map required changes across Taskfiles, deploy guides, and operator runbooks to avoid broken transition paths.
 
 ---
 

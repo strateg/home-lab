@@ -2,7 +2,7 @@
 
 ## Overview
 
-This plan implements the Unified Node Initialization Contract in 5 phases, progressing from schema definition to full orchestration.
+This plan implements the Unified Node Initialization Contract in 6 phases, progressing from schema definition to cutover.
 
 ---
 
@@ -37,16 +37,16 @@ This plan implements the Unified Node Initialization Contract in 5 phases, progr
 | ID | Task | Outputs | Acceptance Criteria |
 |----|------|---------|---------------------|
 | 2.1 | Add `initialization_contract` to MikroTik object | `topology/object-modules/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml` | Contract valid per schema |
-| 2.2 | Update bootstrap generator to read contract | `plugins/generators/bootstrap_mikrotik.py` | Reads contract from compiled topology |
-| 2.3 | Create minimal bootstrap template | `templates/bootstrap/init-terraform.rsc.j2` | <50 lines, day-0 only |
-| 2.4 | Create OpenTofu base module | `generated/.../terraform/mikrotik/modules/mikrotik-base/` | Bridge, VLAN, IP resources |
-| 2.5 | Create OpenTofu wireguard module | `generated/.../terraform/mikrotik/modules/mikrotik-wireguard/` | WG interface/peers |
-| 2.6 | Create Ansible postconfig playbook | `generated/.../ansible/playbooks/mikrotik-postconfig.yml` | Service hardening |
-| 2.7 | Create Ansible firewall playbook | `generated/.../ansible/playbooks/mikrotik-firewall.yml` | Filter/NAT rules |
-| 2.8 | Create Ansible backup playbook | `generated/.../ansible/playbooks/mikrotik-backup.yml` | Text + binary backup |
-| 2.9 | Create Ansible validate playbook | `generated/.../ansible/playbooks/mikrotik-validate.yml` | Handover checks |
+| 2.2 | Update bootstrap generator to read contract | `topology/object-modules/mikrotik/plugins/generators/bootstrap_mikrotik_generator.py` | Reads contract from compiled topology |
+| 2.3 | Create minimal bootstrap template | `topology/object-modules/mikrotik/templates/bootstrap/init-terraform.rsc.j2` | <50 lines, day-0 only |
+| 2.4 | Expand Terraform source templates for day-1 | `topology/object-modules/mikrotik/templates/terraform/` | Bridge, VLAN, IP, WG resources generated from source templates |
+| 2.5 | Align projection logic with ownership split | `topology/object-modules/mikrotik/plugins/projections.py` | Projection separates Terraform-owned and Ansible-owned objects |
+| 2.6 | Add Ansible source templates for post-handover ops | `topology/object-modules/mikrotik/templates/ansible/` | Service hardening and operational tasks generated from templates |
+| 2.7 | Update plugin manifest mappings | `topology/object-modules/mikrotik/plugins.yaml` | Correct template->artifact mappings for Terraform/Ansible/bootstrap |
+| 2.8 | Add generator integration tests | `tests/plugin_integration/test_bootstrap_generators.py` | E2E generation passes without editing `generated/` sources |
+| 2.9 | Add ownership regression tests | `tests/plugin_integration/test_terraform_mikrotik_generator.py` | No Terraform/Ansible overlap for same objects |
 | 2.10 | Add Taskfile targets | `taskfiles/mikrotik.yaml` | `task mikrotik:*` commands |
-| 2.11 | Integration test | `tests/plugin_integration/test_mikrotik_bootstrap.py` | E2E generation passes |
+| 2.11 | Validate generation lane | `task validate:v5` + plugin integration suite | Generated artifacts are deterministic and policy-compliant |
 
 ### Gate
 
@@ -69,10 +69,10 @@ This plan implements the Unified Node Initialization Contract in 5 phases, progr
 | 3.1 | Create Proxmox object module | `topology/object-modules/proxmox/obj.proxmox.ve.yaml` | With initialization_contract |
 | 3.2 | Create `answer.toml.j2` template | `topology/object-modules/proxmox/templates/bootstrap/answer.toml.j2` | Topology-driven values |
 | 3.3 | Create `post-install-minimal.sh.j2` | `topology/object-modules/proxmox/templates/bootstrap/post-install-minimal.sh.j2` | Only API access, terraform user |
-| 3.4 | Create bootstrap generator plugin | `plugins/generators/bootstrap_proxmox.py` | Produces answer.toml + minimal script |
+| 3.4 | Update bootstrap generator plugin | `topology/object-modules/proxmox/plugins/generators/bootstrap_proxmox_generator.py` | Produces answer.toml + minimal script |
 | 3.5 | Document day-1 migration | `docs/guides/PROXMOX-DAY1-MIGRATION.md` | Storage, packages, optimizations |
-| 3.6 | Add Terraform resources for day-1 | `generated/home-lab/terraform/proxmox/` | Storage pools, bridges |
-| 3.7 | Add Ansible playbook for day-2 | `generated/home-lab/ansible/playbooks/proxmox-config.yaml` | KSM, packages, laptop settings |
+| 3.6 | Add Terraform source templates for day-1 | `topology/object-modules/proxmox/templates/terraform/` | Storage pools, bridges generated from source templates |
+| 3.7 | Add Ansible source templates for day-2 | `topology/object-modules/proxmox/templates/ansible/` | KSM, packages, platform settings generated from source templates |
 
 ### Gate
 
@@ -115,9 +115,9 @@ This plan implements the Unified Node Initialization Contract in 5 phases, progr
 
 | ID | Task | Outputs | Acceptance Criteria |
 |----|------|---------|---------------------|
-| 5.1 | Create manifest generator plugin | `plugins/generators/initialization_manifest.py` | Produces INITIALIZATION-MANIFEST.yaml |
-| 5.2 | Define manifest schema | `schemas/initialization-manifest.schema.json` | All fields documented |
-| 5.3 | Create `init-node.py` orchestrator | `scripts/orchestration/init-node.py` | CLI with --node, --all-pending, --verify-only |
+| 5.1 | Create manifest generator plugin | `topology-tools/plugins/generators/initialization_manifest_generator.py` | Produces read-only `generated/<project>/bootstrap/INITIALIZATION-MANIFEST.yaml` |
+| 5.2 | Define manifest and runtime-state schemas | `schemas/initialization-manifest.schema.json`, `schemas/initialization-state.schema.json` | Static manifest separated from mutable runtime state |
+| 5.3 | Create `init-node.py` orchestrator | `scripts/orchestration/init-node.py` | CLI with --node, --all-pending, --verify-only and state file updates in `.work/native/` |
 | 5.4 | Implement netinstall adapter | `scripts/orchestration/adapters/netinstall.py` | MikroTik bootstrap execution |
 | 5.5 | Implement unattended adapter | `scripts/orchestration/adapters/unattended.py` | Proxmox ISO preparation hints |
 | 5.6 | Implement cloud-init adapter | `scripts/orchestration/adapters/cloud_init.py` | SD card preparation hints |
@@ -127,7 +127,8 @@ This plan implements the Unified Node Initialization Contract in 5 phases, progr
 
 ### Gate
 
-- [ ] Manifest generation integrated in v5 pipeline
+- [ ] Manifest generation integrated in v5 pipeline (read-only output under `generated/`)
+- [ ] Runtime state written only under `.work/native/bootstrap/`
 - [ ] `init-node.py --node rtr-mikrotik-chateau` works (mock)
 - [ ] `init-node.py --verify-only` checks all handover conditions
 - [ ] Taskfile targets documented
@@ -184,6 +185,6 @@ This plan implements the Unified Node Initialization Contract in 5 phases, progr
 
 1. **Contract coverage:** 100% of compute/router objects have `initialization_contract`
 2. **Bootstrap boundary:** All day-0 scripts < 100 lines
-3. **Manifest accuracy:** INITIALIZATION-MANIFEST.yaml reflects all nodes
+3. **Manifest/state accuracy:** INITIALIZATION-MANIFEST.yaml reflects all nodes and runtime statuses are tracked in `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
 4. **Handover verification:** All nodes pass automated handover checks
 5. **Test coverage:** > 80% for new code
