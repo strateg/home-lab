@@ -140,6 +140,22 @@ V5_SECRETS_MODE=passthrough python scripts/orchestration/lane.py validate-v5
 python scripts/orchestration/lane.py <phase-name>
 ```
 
+### 2.1 Deploy Bundle Workflow (ADR 0085)
+
+Deploy execution must use explicit bundle selection.
+
+```bash
+# Build immutable deploy bundle from generated artifacts
+task framework:deploy-bundle-create
+task framework:deploy-bundle-list
+
+# Execute service-chain lanes from selected bundle
+task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
+task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id>
+```
+
+Reference: `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md`
+
 ### 3. Run Tests
 
 ```bash

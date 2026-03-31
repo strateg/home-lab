@@ -15,8 +15,9 @@
 - `docs/runbooks/DISASTER-RECOVERY-PLAYBOOK.md` - disaster recovery execution plan with RTO/RPO checkpoints.
 - `docs/runbooks/MONITORING-ALERT-RUNBOOKS.md` - alert handling procedures by signal family.
 - `docs/runbooks/SERVICE-DEPLOYMENT-CHAIN-VALIDATION.md` - evidence template for full service deployment chain validation.
+- `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md` - bundle lifecycle and bundle-based service-chain execution workflow.
 - `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md` - first recorded Wave D service-chain execution evidence.
-  - automated capture: `task framework:service-chain-evidence-dry|check|apply`.
+  - automated capture: `task framework:service-chain-evidence-*-bundle -- BUNDLE=<bundle_id>`.
 - `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-check-execution.md` - automated maintenance-check run (14/15 PASS, no-go due host reachability in Ansible execute lane).
 - `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-apply.md` - automated maintenance-apply run (16/17 PASS, no-go due host reachability in Ansible execute lane).
 
