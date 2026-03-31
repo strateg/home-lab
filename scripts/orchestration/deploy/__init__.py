@@ -8,7 +8,7 @@ Key components:
 - bundle.py: Deploy bundle assembly and lifecycle operations
 - profile.py: Deploy profile schema-aware loader
 - runner.py: DeployRunner abstraction for cross-platform execution
-- init-node.py: Node initialization orchestrator (Phase 5)
+- init_node.py / init-node.py: Node initialization orchestrator scaffold (Phase 5)
 - adapters/: Bootstrap mechanism adapters (Phase 5)
 - checks/: Handover verification checks (Phase 5)
 - state.py: Initialization state machine (Phase 5)
@@ -30,6 +30,10 @@ from .bundle import (
     resolve_bundles_root,
     verify_bundle_checksums,
 )
+from .init_node import InitStateSummary
+from .init_node import parse_args as parse_init_node_args
+from .init_node import resolve_state_path, summarize_state
+from .init_node import validate_args as validate_init_node_args
 from .profile import (
     BundlePolicy,
     DeployProfile,
@@ -71,6 +75,7 @@ __all__ = [
     "NativeRunner",
     "RemoteRunnerProfile",
     "RemoteLinuxRunner",
+    "InitStateSummary",
     "resolve_bundle_path",
     "resolve_bundle_schema_path",
     "resolve_bundles_root",
@@ -78,6 +83,7 @@ __all__ = [
     "RunnerProfiles",
     "inspect_bundle",
     "list_bundles",
+    "parse_init_node_args",
     "WSLRunner",
     "WSLRunnerProfile",
     "check_runner_tools",
@@ -86,6 +92,9 @@ __all__ = [
     "load_deploy_profile",
     "resolve_deploy_profile_path",
     "resolve_deploy_profile_schema_path",
+    "resolve_state_path",
     "resolve_deploy_workspace",
+    "summarize_state",
+    "validate_init_node_args",
     "verify_bundle_checksums",
 ]

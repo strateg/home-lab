@@ -4,7 +4,7 @@
 
 This plan implements the Unified Node Initialization Contract in 8 phases (0-6 + 5a), progressing from environment setup through schema definition to cutover.
 
-**Status note:** This plan is currently deferred. It is not the active implementation sequence. Active priority is ADR 0085 first, ADR 0084 second, and ADR 0083 only if unified node initialization is still justified after that foundation is in place.
+**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline). Primary priority remains ADR 0085/0084 hardening, with ADR 0083 progressing incrementally on top of that foundation.
 
 ### Dependencies
 

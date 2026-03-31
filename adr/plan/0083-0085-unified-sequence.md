@@ -22,7 +22,7 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 |-----|--------|-----------------|------------|
 | 0085 | Accepted | Phases 0/0a/1/2 + active Phase 3 migration + assemble-plugin integration | Backend follow-ups + ADR0083 consumers |
 | 0084 | Accepted | Runner plane + bundle-based active deploy flow + DockerRunner/RemoteRunner core + remote setup docs | CI/image follow-up |
-| 0083 | Proposed (Deferred) | Not started in this wave | Decide whether to resume with bundle-first model |
+| 0083 | Proposed (Scaffold started) | `init-node` CLI/state/status scaffold + tests | Complete adapters/state-machine/handover flow |
 
 ---
 
@@ -65,7 +65,7 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 
 | Item | Dependency | Status |
 |------|------------|--------|
-| Resume `init-node.py` work with `--bundle` input | ADR 0085/0084 foundation now available | Pending product decision |
+| Complete `init-node.py` adapters + state transitions + handover checks | ADR 0085/0084 foundation now available | In progress (scaffold baseline merged) |
 
 ---
 
