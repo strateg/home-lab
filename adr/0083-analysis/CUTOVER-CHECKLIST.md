@@ -1,5 +1,7 @@
 # ADR 0083: Cutover Checklist
 
+**Status note:** This checklist is dormant until ADR 0085 and ADR 0084 are accepted and implemented. It should not be treated as the current deploy-domain cutover priority.
+
 ## Pre-Cutover Gates
 
 ### Schema and Validation

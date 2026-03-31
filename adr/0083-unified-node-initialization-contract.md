@@ -1,8 +1,8 @@
 # ADR 0083: Unified Node Initialization Contract and Deploy-Domain Initialization Phase
 
 **Date:** 2026-03-30
-**Status:** Proposed
-**Related:** ADR 0057 (MikroTik Netinstall Bootstrap), ADR 0072 (Unified Secrets Management), ADR 0074 (V5 Generator Architecture), ADR 0080 (Unified Build Pipeline), ADR 0082 (Plugin Module-Pack Composition), ADR 0084 (Cross-Platform Dev Plane and Linux Deploy Plane)
+**Status:** Proposed (Deferred/Optional; evaluate after ADR 0085 and ADR 0084)
+**Related:** ADR 0057 (MikroTik Netinstall Bootstrap), ADR 0072 (Unified Secrets Management), ADR 0074 (V5 Generator Architecture), ADR 0080 (Unified Build Pipeline), ADR 0082 (Plugin Module-Pack Composition), ADR 0085 (Deploy Bundle and Runner Workspace Contract), ADR 0084 (Cross-Platform Dev Plane and Linux Deploy Plane)
 
 ---
 
@@ -52,15 +52,19 @@ This pattern should be generalized to all device types.
 
 ### Execution Plane Context
 
-ADR 0084 defines the operator execution model for this ADR:
+ADR 0085 and ADR 0084 define the deploy-domain foundation for this ADR:
 
-- artifact generation remains in the cross-platform dev plane,
-- initialization and post-generation deploy execution run in a Linux-backed deploy plane,
-- WSL, Docker, and remote Linux backends are execution backends for that deploy plane rather than separate architectural models.
+- ADR 0085 defines the deploy bundle, deploy profile, and runner workspace contract,
+- ADR 0084 defines the Linux-backed deploy plane and runner execution model,
+- this ADR is intentionally deferred until that deploy-domain foundation is accepted and implemented.
+
+**Sequencing note:** ADR 0083 is not required for the adoption of ADR 0085 or ADR 0084. It is a later optional consumer of that deploy-domain model.
 
 ---
 
 ## Decision
+
+**Decision gating note:** The decisions below define the target shape if the repository chooses to implement unified node initialization later. They are intentionally not the current deploy-domain priority. The current priority order is ADR 0085 first, ADR 0084 second, ADR 0083 later if still justified.
 
 ### D1. Separation of Concerns: Pipeline vs Deploy Domains
 
@@ -99,18 +103,38 @@ The v5 pipeline and deploy domain have different responsibilities and execution 
 
 **Rationale:** The v5 pipeline operates on topology data and generates artifacts. It does not execute external commands against hardware. Pre-initialization requires device-specific execution (netinstall, flash, SSH) which belongs to the deploy domain. Per ADR 0084, that deploy-domain execution is Linux-backed even when artifact generation happens from a cross-platform workstation.
 
-### D2. Define Unified Node Initialization Contract
+### D2. Define Device-Scoped Initialization Contract
 
 Compute/router object modules MAY declare an `initialization_contract` specifying how instances of that object are bootstrapped.
 
-**Contract is OPTIONAL.** Objects without `initialization_contract` are treated as **implicitly `terraform_managed`** — they are created and managed entirely by Terraform without a separate bootstrap phase. This applies to:
+**Contract is OPTIONAL.** Objects without `initialization_contract` are treated as resources with no separate day-0 bootstrap phase and remain managed by their normal IaC lifecycle. This applies to:
 - LXC containers (created by Proxmox provider)
 - Cloud VMs (created by cloud provider)
-- Any resource lifecycle fully managed by Terraform
+- Any resource lifecycle fully managed by Terraform/OpenTofu
 
-**Contract is REQUIRED** only for devices needing day-0 bootstrap before Terraform can connect:
-- Physical devices (routers, hypervisors, SBCs)
-- Devices requiring netinstall, USB boot, or SD card flashing
+**Contract is REQUIRED** only for devices needing day-0 bootstrap before Terraform/OpenTofu or Ansible can connect:
+- physical devices (routers, hypervisors, SBCs)
+- devices requiring netinstall, USB boot, or SD card flashing
+
+The contract is **device-scoped**, not operator-environment-scoped.
+
+Object modules define:
+- bootstrap mechanism
+- logical required inputs
+- artifact templates
+- handover channel
+- handover checks
+- destructive-operation policy
+
+Object modules MUST NOT define:
+- host-local tool installation paths
+- control-node filesystem paths
+- WSL distro names
+- Docker image names
+- remote control-node addresses
+- backend-specific staging details
+
+Those concerns belong to the project-scoped deploy profile and deploy bundle assembly flow.
 
 ```yaml
 # topology/object-modules/<domain>/obj.<domain>.<type>.yaml
@@ -119,34 +143,26 @@ object: obj.mikrotik.chateau_lte7_ax
 
 initialization_contract:
   version: "1.0"
-  mechanism: netinstall          # netinstall | unattended_install | cloud_init | ansible_bootstrap
+  mechanism: netinstall
 
-  requirements:                  # Prerequisites for bootstrap execution
-    - name: netinstall_cli_installed
-      check: command_exists
-      description: Netinstall CLI must be available on the control node
-    - name: routeros_npk_available
-      check: file_exists
-      path: /srv/routeros/
-      description: RouterOS NPK firmware image must be present
-    - name: installation_segment_access
-      check: network_reachable
-      description: Control node must have access to the installation network segment
+  required_inputs:
+    - routeros_bundle
+    - install_network_access
 
   bootstrap:
-    template: templates/bootstrap/init-terraform.rsc.j2
+    templates:
+      - templates/bootstrap/init-terraform.rsc.j2
     outputs:
-      - bootstrap/{{ instance_id }}/init-terraform.rsc
+      - init-terraform.rsc
 
   handover:
-    provider: terraform-routeros/routeros
+    channel: routeros_api
     checks:
-      - type: api_reachable
-        protocol: https
-        port: 8443
-      - type: credential_valid
-        user: terraform
+      - api_reachable
+      - credential_valid
 ```
+
+**Key principle:** the object contract describes what the device needs and what "ready for handover" means. It does not describe where the operator stores files or how a specific execution backend stages them.
 
 ### D3. Support Multiple Initialization Mechanisms
 
@@ -180,102 +196,42 @@ generate_stage:
 
 **Key principle:** The v5 pipeline generates bootstrap artifacts. A separate orchestrator executes them.
 
-### D5. Generate Unified Initialization Manifest
+### D5. Generate Source-Derived Initialization Manifest and Build Deploy Bundle
 
-Add a new generator that produces a read-only static manifest at `generated/<project>/bootstrap/INITIALIZATION-MANIFEST.yaml`.
+Add a generator that produces a read-only source-derived manifest at `generated/<project>/bootstrap/INITIALIZATION-MANIFEST.yaml`.
 
-Runtime execution state MUST be stored outside `generated/`, for example:
+This manifest is an inspectable pipeline artifact derived from topology and object contracts. It is not the final execution source for deploy-time tooling.
 
-- `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
+Deploy-time execution MUST consume an immutable deploy bundle produced after assemble/build, for example:
 
-`INITIALIZATION-MANIFEST.yaml` is source-derived and regenerated by pipeline runs. `INITIALIZATION-STATE.yaml` is operator/runtime state and may be updated by orchestration scripts.
+- `.work/deploy/bundles/<bundle_id>/manifest.yaml`
+- `.work/deploy/bundles/<bundle_id>/artifacts/<node_id>/...`
+- `.work/deploy/bundles/<bundle_id>/metadata.yaml`
 
-```yaml
-version: "1.0"
-generated_at: 2026-03-30T12:00:00Z
-project: home-lab
+The generated manifest is used as an input to deploy-bundle assembly. The resulting bundle is the canonical execution input for `init-node.py` and future deploy-domain tooling.
 
-nodes:
-  - id: rtr-mikrotik-chateau
-    object_ref: obj.mikrotik.chateau_lte7_ax
-    mechanism: netinstall
-    artifacts:
-      bootstrap_script: bootstrap/rtr-mikrotik-chateau/init-terraform.rsc
-      tfvars_example: bootstrap/rtr-mikrotik-chateau/terraform.tfvars.example
-    requirements:
-      - name: netinstall-cli
-        check: command_exists
-      - name: routeros-7.x.npk
-        check: file_exists
-        path: /srv/routeros/
-    handover:
-      provider: terraform-routeros/routeros
-      endpoint: https://192.168.88.1:8443
-      user: terraform
-      checks:
-        - api_reachable
-        - credential_valid
+Mutable runtime state MUST be stored outside both `generated/` and the immutable bundle, for example:
 
-  - id: hv-proxmox-xps
-    object_ref: obj.proxmox.ve
-    mechanism: unattended_install
-    artifacts:
-      answer_file: bootstrap/hv-proxmox-xps/answer.toml
-      post_install: bootstrap/hv-proxmox-xps/post-install-minimal.sh
-    requirements:
-      - name: proxmox-ve-9.x.iso
-        check: file_exists
-    handover:
-      provider: bpg/proxmox
-      endpoint: https://10.0.10.1:8006
-      user: root@pam
-      checks:
-        - api_reachable
-        - credential_valid
+- `.work/deploy-state/<project>/nodes/<node_id>.yaml`
+- `.work/deploy-state/<project>/logs/<run_id>.jsonl`
 
-  - id: sbc-orangepi5
-    object_ref: obj.orangepi.rk3588.debian
-    mechanism: cloud_init
-    artifacts:
-      user_data: bootstrap/sbc-orangepi5/user-data
-      meta_data: bootstrap/sbc-orangepi5/meta-data
-    requirements:
-      - name: debian-12-arm64.img
-        check: file_exists
-    handover:
-      provider: ansible
-      endpoint: ssh://10.0.10.5:22
-      user: opi
-      checks:
-        - ssh_reachable
-        - python_installed
-```
-
-Runtime state example:
-
-```yaml
-version: "1.0"
-updated_at: 2026-03-30T12:05:00Z
-
-nodes:
-  - id: rtr-mikrotik-chateau
-    status: initialized                       # pending | initialized | verified | failed
-    last_action: netinstall
-    last_error: null
-```
+**Key principle:**
+- `generated/` contains source-derived, inspectable, secret-free artifacts
+- deploy bundle contains immutable execution inputs, including secret-bearing assembled artifacts
+- deploy-state contains mutable runtime state and logs
 
 ### D6. Pre-Initialization Orchestrator in Deploy Domain
 
-Create `scripts/orchestration/deploy/init-node.py` as part of the deploy domain (separate from v5 pipeline):
+Create `scripts/orchestration/deploy/init-node.py` as part of the deploy domain:
 
 ```
 scripts/
   orchestration/
-    lane.py              # V5 pipeline orchestrator (artifact generation)
+    lane.py                # V5 pipeline orchestrator (artifact generation)
     deploy/
       init-node.py         # Pre-initialization orchestrator (runs ONCE)
-      apply-terraform.py   # Terraform wrapper (runs MANY times)
-      run-ansible.py       # Ansible wrapper (runs MANY times)
+      apply-terraform.py   # Terraform wrapper (future ADR)
+      run-ansible.py       # Ansible wrapper (future ADR)
 ```
 
 **Rationale:** D1 separates pipeline from deploy domain. Keeping deploy entrypoints under `scripts/orchestration/deploy/` preserves the repository convention that orchestration entrypoints live under `scripts/orchestration/`, while still isolating deploy-domain execution from pipeline orchestration (`lane.py`).
@@ -289,97 +245,34 @@ scripts/
 | `apply-terraform.py` | Deploy | Many times | Apply topology configuration |
 | `run-ansible.py` | Deploy | Many times | Apply operational configuration |
 
+`init-node.py` does not execute directly from `generated/`. It executes from a selected deploy bundle through the deploy runner defined by the deploy-plane model.
+
 **init-node.py responsibilities:**
-1. Read `INITIALIZATION-MANIFEST.yaml` (generated by pipeline)
-2. Check prerequisites per device
-3. Execute device-specific bootstrap (netinstall, flash, etc.)
-4. Run handover verification (with configurable timeout/retry)
-5. Update runtime state in `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
-6. Output ready-for-terraform/ansible confirmation
+1. Resolve and load deploy bundle metadata
+2. Select and initialize deploy runner/backend
+3. Stage bundle into runner workspace
+4. Check prerequisites resolved through deploy profile and bundle inputs
+5. Execute device-specific bootstrap in runner workspace
+6. Run handover verification
+7. Persist mutable runtime state outside the bundle
+8. Persist audit logs outside the bundle
+9. Output ready-for-terraform/ansible confirmation
 
 **Usage pattern:**
 ```bash
-# Initialize specific node (runs ONCE when device is new/reset)
-python scripts/orchestration/deploy/init-node.py --node rtr-mikrotik-chateau
-
-# Initialize all pending nodes
-python scripts/orchestration/deploy/init-node.py --all-pending
-
-# Verify handover only (no bootstrap)
-python scripts/orchestration/deploy/init-node.py --verify-only --node hv-proxmox-xps
-
-# Force re-initialization of a previously initialized node
-python scripts/orchestration/deploy/init-node.py --force --node rtr-mikrotik-chateau
+python scripts/orchestration/deploy/init-node.py --bundle <bundle_id> --node rtr-mikrotik-chateau
+python scripts/orchestration/deploy/init-node.py --bundle <bundle_id> --all-pending
+python scripts/orchestration/deploy/init-node.py --bundle <bundle_id> --verify-only --node hv-proxmox-xps
+python scripts/orchestration/deploy/init-node.py --bundle <bundle_id> --force --node rtr-mikrotik-chateau
 ```
 
-**Batch mode and manual confirmation:**
+**Execution boundary:**
+- topology pipeline generates source artifacts
+- assemble/build materializes deploy bundle
+- `init-node.py` executes bundle contents in deploy plane
+- runtime state and logs remain external to the immutable bundle
 
-When `--all-pending` is used, nodes with `manual_confirmation` requirements are **skipped** by default with a warning:
-
-```
-SKIP: sbc-orangepi5 requires manual_confirmation (os_installed). Use --node to initialize interactively.
-```
-
-The `--interactive` flag enables prompts for manual confirmations in batch mode. Without `--interactive`, only nodes with fully automatable prerequisites are processed.
-
-**Inter-node dependencies are NOT required:**
-
-All physical devices bootstrapped by `init-node.py` are independent — MikroTik router bootstrap is orthogonal to Proxmox hypervisor bootstrap. The three-stage pipeline provides natural ordering:
-
-1. **init-node.py** (day-0): bootstraps physical nodes in parallel (no inter-node deps)
-2. **Terraform apply** (day-1): creates logical resources (LXC, VMs) on initialized physical nodes — Terraform's native provider dependency graph ensures Proxmox API is reachable before creating containers
-3. **Ansible playbooks** (day-2+): configures both physical and logical nodes
-
-The `host_ref` field in instance YAML (e.g., `host_ref: srv-gamayun` in `lxc-redis.yaml`) is a **data relationship** consumed by Terraform generators — not an execution dependency for `init-node.py`.
-
-**Scope boundary — apply-terraform.py and run-ansible.py:**
-
-The directory listing above shows `apply-terraform.py` and `run-ansible.py` as **future placeholders**. ADR 0083 scope is strictly **day-0 pre-initialization** (`init-node.py` and its adapters). Terraform/Ansible wrapper scripts are post-handover concerns belonging to a separate future ADR. During Phase 6 cutover, existing Taskfile targets (`task terraform:apply`, `task ansible:run`) are sufficient.
-
-**State machine for node initialization:**
-
-```
-                    ┌──────────────────────────────────────────┐
-                    │              pending                       │
-                    │  (initial state for new/reset devices)     │
-                    └──────────┬───────────────────────────────┘
-                               │ init-node.py --node <id>
-                               ▼
-                    ┌──────────────────────────────────────────┐
-                    │           bootstrapping                    │
-                    │  (bootstrap execution in progress)         │
-                    └──────┬──────────────────┬────────────────┘
-                           │ success          │ failure
-                           ▼                  ▼
-              ┌────────────────────┐  ┌────────────────────────┐
-              │    initialized      │  │        failed           │
-              │  (bootstrap done,   │  │  (retry: --force or     │
-              │   handover pending) │  │   --node returns to     │
-              └─────────┬──────────┘  │   bootstrapping)         │
-                        │ verify       └──────────┬─────────────┘
-                        ▼                         │ --force
-              ┌────────────────────┐              │
-              │      verified       │◄─────────────┘
-              │  (handover checks   │  (retry from bootstrapping)
-              │   passed, ready     │
-              │   for Terraform)    │
-              └────────────────────┘
-
-Legal transitions:
-  pending        → bootstrapping   (init-node.py --node)
-  bootstrapping  → initialized     (bootstrap success)
-  bootstrapping  → failed          (bootstrap error)
-  initialized    → verified        (handover checks pass)
-  initialized    → failed          (handover checks fail)
-  failed         → bootstrapping   (init-node.py --force)
-  verified       → bootstrapping   (init-node.py --force, for re-bootstrap)
-  verified       → pending         (init-node.py --reset --node <id> --confirm-reset)
-```
-
-**Guard for `verified → pending`:** This transition is potentially dangerous if Terraform state exists. The `--reset` command MUST:
-1. Require explicit `--confirm-reset` flag
-2. Warn if Terraform state directory is non-empty
-3. Log the reset action for audit trail
+**Inter-node dependencies remain out of scope for `init-node.py`:** physical node bootstrap is still treated as a day-0 activity, while Terraform/OpenTofu and Ansible continue to own their respective dependency and convergence models.
 
 ### D7. Decompose Large Bootstrap Scripts
 
@@ -435,7 +328,7 @@ Bootstrap secrets follow the unified secrets model (ADR 0072):
 
 - Tracked templates remain secret-free
 - Secret values come from `projects/<project>/secrets/` (SOPS-encrypted)
-- Secret-bearing rendered artifacts exist only in ignored execution roots (`.work/native/`)
+- Secret-bearing rendered artifacts exist only in ignored deploy-bundle or runner-workspace roots, never in tracked source trees
 
 **Supersession note:** ADR 0057 D8 references Ansible Vault for secret management. This ADR supersedes the ADR 0057 secret contract for all bootstrap artifacts. All mechanisms MUST use SOPS+age (ADR 0072) as the unified secrets backend.
 
@@ -460,9 +353,9 @@ Add a new validator to verify initialization contracts in object modules:
 |------|-------------|
 | `E9700` | Missing required `initialization_contract` field on compute/router object |
 | `E9701` | Invalid mechanism type |
-| `E9702` | Missing `bootstrap.template` in initialization contract |
+| `E9702` | Missing `bootstrap.templates` in initialization contract |
 | `E9703` | Handover check type unknown |
-| `E9704` | Requirement check type unknown |
+| `E9704` | Invalid `required_inputs` or preflight descriptor |
 | `E9705` | `post_handover` Terraform/Ansible ownership overlap detected |
 
 ### D10a. Manifest Generator Data Bus Declaration
@@ -532,17 +425,15 @@ initialization_contract:
 
 ### D12. Assemble Stage Integration for Secret-Bearing Bootstrap Artifacts
 
-ADR 0080 §4.4 defines the `assemble` stage as the place where execution views are created from baseline + overrides + local inputs. Bootstrap artifacts require secret injection (e.g., passwords, SSH keys) before they can be executed by the deploy domain.
+ADR 0080 Section 4.4 defines the `assemble` stage as the place where execution views are created from baseline + overrides + local inputs. Bootstrap artifacts require secret injection before they can be executed by the deploy domain.
 
 **Pipeline flow for bootstrap secrets:**
 
 ```
-generate stage                          assemble stage                    deploy domain
-─────────────                           ──────────────                    ─────────────
-generated/<project>/bootstrap/          .work/native/bootstrap/           Device execution
-  rtr-mikrotik-chateau/                   rtr-mikrotik-chateau/
-    init-terraform.rsc  ──(secret-free)──►  init-terraform.rsc ──(secrets)──► netinstall
-    terraform.tfvars.example               terraform.tfvars    ──(secrets)──► tofu apply
+generate stage                    assemble/build stage                        deploy domain
+--------------                    -------------------                        -------------
+generated/<project>/bootstrap/    .work/deploy/bundles/<bundle_id>/          runner workspace
+  secret-free templates   --->      secret-bearing artifacts         --->      device execution
 ```
 
 **Assemble-stage plugin:**
@@ -561,21 +452,21 @@ generated/<project>/bootstrap/          .work/native/bootstrap/           Device
   produces:
     - key: assembled_bootstrap_paths
       scope: pipeline_shared
-      description: Paths to secret-bearing bootstrap artifacts in .work/native/
+      description: Paths and metadata for secret-bearing artifacts prepared for deploy-bundle assembly
   description: >
     Renders secret-bearing bootstrap artifacts from generated templates + SOPS secrets
-    into .work/native/bootstrap/ execution roots. Enforces ADR 0072 secret isolation.
+    into deploy-bundle inputs. Enforces ADR 0072 secret isolation.
 ```
 
-**Key principle:** The `generate` stage writes secret-free baseline artifacts to `generated/`. The `assemble` stage combines them with decrypted secrets from `projects/<project>/secrets/` into `.work/native/`. The deploy domain (`init-node.py`) reads only from `.work/native/`.
+**Key principle:** the `generate` stage writes secret-free baseline artifacts to `generated/`. The `assemble` stage combines them with decrypted secrets from `projects/<project>/secrets/`. The resulting deploy bundle becomes the canonical execution source for `init-node.py`.
 
 ### D13. Multi-Instance Instantiation from Object Contract
 
 The `initialization_contract` is declared on the **object module** (e.g., `obj.proxmox.lxc.debian12.base`), but bootstrap artifacts are generated per **instance** (e.g., `lxc-docker`, `lxc-gitea`, `lxc-grafana`). The instantiation mechanism works as follows:
 
-1. **Object module** declares the contract template: mechanism, requirements, bootstrap template, handover checks.
+1. **Object module** declares the contract template: mechanism, required inputs, bootstrap templates, handover checks.
 2. **Instance data** provides instance-specific values: `instance_id`, management IP, hostname, secrets references.
-3. **Bootstrap generator** iterates over all instances of an object and renders per-instance artifacts using the contract's `bootstrap.template` with instance-specific context.
+3. **Bootstrap generator** iterates over all instances of an object and renders per-instance artifacts using the contract's `bootstrap.templates` with instance-specific context.
 4. **Initialization manifest generator** aggregates all per-instance entries into a single `INITIALIZATION-MANIFEST.yaml`.
 
 **Example:** `obj.proxmox.lxc.debian12.base` without `initialization_contract` is implicitly terraform-managed and produces zero bootstrap artifacts (Terraform creates LXC containers directly). But `obj.proxmox.ve` with `mechanism: unattended_install` produces one set of bootstrap artifacts per Proxmox hypervisor instance.
@@ -602,7 +493,7 @@ The `initialization_contract.version` field follows semantic versioning for the 
 
 | Version | Meaning | Backward Compatibility |
 |---------|---------|----------------------|
-| `1.0` | Initial contract: mechanism, requirements, bootstrap, handover | N/A (first version) |
+| `1.0` | Initial contract: mechanism, required_inputs, bootstrap, handover | N/A (first version) |
 | `1.1` | Planned: `post_handover` promoted to normative | Additive, backward compatible |
 | `2.0` | Reserved: breaking schema changes | Migration guide required |
 
@@ -620,28 +511,23 @@ The `ansible_bootstrap` mechanism covers devices where the OS is installed manua
 initialization_contract:
   version: "1.0"
   mechanism: ansible_bootstrap
-  requirements:
-    - name: os_installed
-      check: manual_confirmation
-      description: Operator confirms OS is installed and SSH accessible
-    - name: ssh_key_deployed
-      check: manual_confirmation
-      description: Operator confirms SSH key is deployed to target
+  required_inputs:
+    - base_os_installed
+    - bootstrap_ssh_access
   bootstrap:
-    template: templates/bootstrap/ansible-bootstrap-playbook.yml.j2
+    templates:
+      - templates/bootstrap/ansible-bootstrap-playbook.yml.j2
     outputs:
-      - bootstrap/{{ instance_id }}/bootstrap-playbook.yml
+      - bootstrap-playbook.yml
   handover:
-    provider: ansible
+    channel: ansible
     checks:
-      - type: ssh_reachable
-        port: 22
-      - type: python_installed
-      - type: credential_valid
-        user: ansible
+      - ssh_reachable
+      - python_installed
+      - credential_valid
 ```
 
-**Workflow:** Operator manually installs OS → deploys SSH key → runs `init-node.py --node <id>` → Ansible bootstrap playbook installs Python, creates automation user, configures management network → handover checks pass → device ready for day-1 Ansible.
+**Workflow:** Operator manually installs OS → deploys SSH key → runs `init-node.py --bundle <bundle_id> --node <id>` → Ansible bootstrap playbook installs Python, creates automation user, configures management network → handover checks pass → device ready for day-1 Ansible.
 
 **Note:** This mechanism is the fallback for any device that does not support netinstall, unattended install, or cloud-init. The `manual_confirmation` check type requires operator interaction.
 
@@ -697,8 +583,8 @@ When adopting ADR 0083 on an existing infrastructure where devices are already i
 **Migration procedure:**
 
 1. Add `initialization_contract` to object module
-2. Run pipeline to generate `INITIALIZATION-MANIFEST.yaml`
-3. Run `init-node.py --import --node <id>` to import existing device
+2. Run pipeline and assemble/build a deploy bundle
+3. Run `init-node.py --bundle <bundle_id> --import --node <id>` to import existing device
 4. Orchestrator verifies handover checks (device must be reachable)
 5. On success: state file created with `status: verified`
 6. No bootstrap executed — device is already operational
@@ -707,7 +593,7 @@ When adopting ADR 0083 on an existing infrastructure where devices are already i
 
 ```bash
 # Import existing initialized device into state management
-python scripts/orchestration/deploy/init-node.py --import --node rtr-mikrotik-chateau
+python scripts/orchestration/deploy/init-node.py --bundle <bundle_id> --import --node rtr-mikrotik-chateau
 
 # Verifies:
 # - Device is reachable (handover checks pass)
@@ -729,7 +615,7 @@ nodes:
 
 ### D18. Contract Drift Detection
 
-When pipeline regenerates `INITIALIZATION-MANIFEST.yaml`, the contract may have changed since last initialization.
+When a new source manifest and deploy bundle are generated, the contract may have changed since last initialization.
 
 **Rule:** `init-node.py` MUST detect and warn about contract drift.
 
@@ -745,14 +631,14 @@ nodes:
 ```
 
 On each `init-node.py` run:
-1. Compute current contract hash from manifest
+1. Compute current contract hash from the bundle manifest
 2. Compare with stored hash in state file
 3. If different: warn operator
 
 ```
 WARNING: Contract changed for node rtr-mikrotik-chateau
-  Previous: mechanism=netinstall, 3 requirements, 2 checks
-  Current:  mechanism=netinstall, 4 requirements, 3 checks
+  Previous: mechanism=netinstall, 3 required inputs, 2 checks
+  Current:  mechanism=netinstall, 4 required inputs, 3 checks
 
   Use --force to re-bootstrap with new contract, or --acknowledge-drift to update hash without re-bootstrap.
 ```
@@ -763,7 +649,7 @@ WARNING: Contract changed for node rtr-mikrotik-chateau
 
 ### D19. Adapter Interface Contract
 
-Device-specific adapters execute bootstrap mechanisms. Each adapter is a Python class inheriting from `BootstrapAdapter` ABC. Adapters live in `scripts/orchestration/deploy/adapters/` and are part of the **deploy domain** (not pipeline plugins).
+Device-specific adapters execute bootstrap mechanisms. Adapters live in `scripts/orchestration/deploy/adapters/` and are part of the deploy domain, not pipeline plugins.
 
 **Directory structure:**
 
@@ -771,7 +657,7 @@ Device-specific adapters execute bootstrap mechanisms. Each adapter is a Python 
 scripts/orchestration/deploy/
   adapters/
     __init__.py
-    base.py                  # BootstrapAdapter ABC + result dataclasses
+    base.py                  # BootstrapAdapter contract + result dataclasses
     netinstall.py            # MikroTik (ADR 0057)
     unattended.py            # Proxmox VE
     cloud_init.py            # Orange Pi / SBC
@@ -779,385 +665,107 @@ scripts/orchestration/deploy/
   init-node.py               # Orchestrator (uses adapters)
 ```
 
-**Result dataclasses:**
+**Adapter contract:**
+- adapter input is a node entry from the deploy bundle manifest
+- adapter execution happens through the selected deploy runner
+- adapter works inside a runner workspace created from the deploy bundle
+- adapter may read deploy-profile settings that are environment-specific
+- adapter MUST NOT own runtime state transitions or state-file writes
 
-```python
-from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Optional
+Conceptually, adapters receive:
+- `node`
+- `runner`
+- `workspace_ref`
+- `deploy_profile`
 
-class AdapterStatus(str, Enum):
-    SUCCESS = "success"       # Operation completed successfully
-    FAILED = "failed"         # Operation failed (may be retryable)
-    TIMEOUT = "timeout"       # Exceeded timeout limit
-    SKIPPED = "skipped"       # Skipped (e.g., already initialized)
-
-@dataclass
-class PreflightCheck:
-    name: str                 # Requirement name from contract
-    passed: bool
-    error_message: Optional[str] = None
-    remediation_hint: Optional[str] = None
-
-@dataclass
-class BootstrapResult:
-    status: AdapterStatus
-    exit_code: Optional[int] = None
-    duration_seconds: float = 0.0
-    error_code: Optional[str] = None     # E97xx diagnostic code
-    error_message: Optional[str] = None
-    details: dict[str, Any] = field(default_factory=dict)
-
-@dataclass
-class HandoverCheckResult:
-    check_type: str           # api_reachable, ssh_reachable, etc.
-    passed: bool
-    attempt: int
-    total_attempts: int
-    elapsed_seconds: float
-    error_message: Optional[str] = None
-```
-
-**Abstract base class:**
-
-```python
-from abc import ABC, abstractmethod
-
-class BootstrapAdapter(ABC):
-    """Base class for bootstrap mechanism adapters.
-
-    Lifecycle: preflight → execute → handover → cleanup
-    State management: orchestrator owns state file; adapter returns results.
-    """
-
-    def __init__(self, mechanism: str):
-        self.mechanism = mechanism
-
-    @property
-    @abstractmethod
-    def mechanism_name(self) -> str:
-        """Human-readable mechanism name for logging."""
-
-    # --- Phase 1: Preflight ---
-
-    @abstractmethod
-    def validate_prerequisites(
-        self, node: dict[str, Any]
-    ) -> tuple[bool, list[PreflightCheck]]:
-        """Check all requirements from contract are met.
-
-        Args:
-            node: Manifest entry with keys: id, mechanism, artifacts,
-                  requirements, handover, endpoint.
-
-        Returns:
-            (all_passed, checks) — if all_passed is False, orchestrator
-            displays failed checks and allows operator to retry.
-        """
-
-    def validate_template(
-        self, node: dict[str, Any], template_path: str
-    ) -> tuple[bool, Optional[str]]:
-        """Pre-validate bootstrap template before execution.
-
-        Critical for destructive mechanisms (unattended_install, cloud_init).
-        Default: no-op (returns True).
-        """
-        return (True, None)
-
-    # --- Phase 2: Bootstrap Execution ---
-
-    @abstractmethod
-    def execute_bootstrap(
-        self,
-        node: dict[str, Any],
-        assembled_artifacts_dir: str,
-    ) -> BootstrapResult:
-        """Execute device-specific bootstrap.
-
-        Args:
-            node: Manifest entry.
-            assembled_artifacts_dir: Path to .work/native/bootstrap/<node_id>/
-                containing secret-bearing artifacts.
-
-        Returns:
-            BootstrapResult — adapter MUST NOT raise on bootstrap failure;
-            return BootstrapResult with status=FAILED instead.
-
-        The adapter does NOT update state file. Orchestrator transitions
-        state based on the returned BootstrapResult.
-        """
-
-    # --- Phase 3: Handover Verification ---
-
-    @abstractmethod
-    def verify_handover(
-        self,
-        node: dict[str, Any],
-        timeout_seconds: int = 300,
-    ) -> tuple[bool, list[HandoverCheckResult]]:
-        """Run handover checks with retry/backoff from contract config.
-
-        Adapter owns retry logic. Reads retry config from
-        node['handover']['retry']. Returns per-check results.
-
-        Returns:
-            (all_passed, checks) — if True, orchestrator transitions
-            state to 'verified'.
-        """
-
-    # --- Phase 4: Cleanup ---
-
-    def cleanup(self) -> None:
-        """Release resources (temp files, connections). Optional, no-op default.
-        MUST NOT modify .work/native/ or state files. MUST NOT raise."""
-```
+Conceptually, adapters return:
+- preflight results
+- bootstrap result
+- handover verification result
+- diagnostic/error metadata
 
 **State management boundary:**
 
 | Concern | Owner |
 |---------|-------|
-| State file read/write and locking | Orchestrator (`init-node.py`) |
-| State transitions (`pending → bootstrapping → ...`) | Orchestrator, based on adapter return values |
-| Bootstrap execution and subprocess calls | Adapter |
+| Bundle selection and workspace staging | Orchestrator (`init-node.py`) |
+| Runtime state read/write and locking | Orchestrator (`init-node.py`) |
+| State transitions (`pending -> bootstrapping -> ...`) | Orchestrator, based on adapter return values |
+| Bootstrap execution and subprocess calls | Adapter via runner |
 | Handover check retry loop | Adapter |
-| Error code assignment (E97xx) | Adapter populates `error_code` in result |
+| Error code assignment (E97xx) | Adapter populates diagnostics returned to orchestrator |
 
-**Adapter loading (factory pattern):**
-
-```python
-_REGISTRY = {
-    "netinstall": ("adapters.netinstall", "NetinstallAdapter"),
-    "unattended_install": ("adapters.unattended", "UnattendedAdapter"),
-    "cloud_init": ("adapters.cloud_init", "CloudInitAdapter"),
-    "ansible_bootstrap": ("adapters.ansible_bootstrap", "AnsibleBootstrapAdapter"),
-}
-
-def load_adapter(mechanism: str) -> BootstrapAdapter:
-    module_name, class_name = _REGISTRY[mechanism]
-    mod = importlib.import_module(module_name)
-    return getattr(mod, class_name)()
-```
+**Key principle:** adapters are workspace-aware and runner-aware. They do not assume direct access to host-local bootstrap paths.
 
 ### D20. Logging and Observability Contract
 
-`init-node.py` executes potentially destructive operations (firmware flashing, disk partitioning). Logging is critical for debugging, audit, and operator feedback.
+`init-node.py` executes potentially destructive operations. Logging and auditability are mandatory.
+
+Deploy-time logs and runtime state MUST be written to a mutable deploy-state root, not to `generated/` and not to the immutable deploy bundle.
+
+Recommended layout:
+
+- `.work/deploy-state/<project>/nodes/<node_id>.yaml`
+- `.work/deploy-state/<project>/logs/<run_id>.jsonl`
 
 **Dual-output logging:**
 
 | Destination | Format | Purpose |
 |-------------|--------|---------|
-| **stdout** | Human-readable with timestamps | Real-time operator feedback |
-| **`.work/native/bootstrap/init-node.log.jsonl`** | JSON Lines (one JSON object per line) | Structured audit trail, programmatic analysis |
+| stdout | Human-readable with timestamps | Real-time operator feedback |
+| deploy-state log file | JSON Lines | Structured audit trail, programmatic analysis |
 
-**Console format:**
+**Audit requirements:**
+For destructive operations, the log MUST record:
+- node identifier
+- operation type
+- bundle identifier and/or bundle hash
+- execution backend
+- pre-validation result
+- confirmation result where applicable
+- final outcome and error code
 
-```
-[2026-03-30 14:32:15] [INFO ] rtr-mikrotik-chateau: Bootstrap started (netinstall)
-[2026-03-30 14:32:16] [INFO ] rtr-mikrotik-chateau: Preflight ✓ netinstall-cli ✓ routeros.npk
-[2026-03-30 14:32:20] [WARN ] hv-proxmox-xps: Destructive operation requires confirmation
-[2026-03-30 14:35:42] [INFO ] rtr-mikrotik-chateau: Handover verified (2/2 checks passed)
-[2026-03-30 14:35:42] [INFO ] rtr-mikrotik-chateau: State → verified
-```
+**Key principle:** logs and state are mutable operational records. They are not part of the source-derived artifact set and they are not embedded into the immutable deploy bundle.
 
-**JSONL format:**
-
-```json
-{"timestamp":"2026-03-30T14:32:15.123Z","level":"INFO","node_id":"rtr-mikrotik-chateau","event":"bootstrap_started","mechanism":"netinstall","attempt":1}
-{"timestamp":"2026-03-30T14:35:42.789Z","level":"WARN","node_id":"hv-proxmox-xps","event":"destructive_operation","operation":"disk_partition","validation_passed":true,"user_confirmed":true}
-{"timestamp":"2026-03-30T14:36:50.456Z","level":"ERROR","node_id":"hv-proxmox-xps","event":"handover_failed","check_type":"api_reachable","error_code":"E9740","attempts":10}
-```
-
-**Mandatory JSONL fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `timestamp` | string | ISO 8601 UTC with milliseconds |
-| `level` | string | `DEBUG`, `INFO`, `WARN`, `ERROR` |
-| `node_id` | string | Node identifier from manifest |
-| `event` | string | Event name (see table below) |
-
-**Event taxonomy:**
-
-| Event | Level | When |
-|-------|-------|------|
-| `bootstrap_started` | INFO | Adapter begins execution |
-| `preflight_passed` | INFO | All preflight checks pass |
-| `preflight_failed` | ERROR | One or more preflight checks fail |
-| `destructive_operation` | WARN | Before destructive operation (with confirmation status) |
-| `bootstrap_completed` | INFO | Adapter returns SUCCESS |
-| `bootstrap_failed` | ERROR | Adapter returns FAILED/TIMEOUT (includes `error_code`) |
-| `handover_started` | INFO | Handover verification begins |
-| `handover_check` | DEBUG | Individual check attempt (per retry) |
-| `handover_verified` | INFO | All handover checks pass |
-| `handover_failed` | ERROR | Handover timeout exceeded |
-| `state_transition` | INFO | State machine transition (from → to) |
-| `contract_drift` | WARN | Contract hash mismatch detected |
-
-**Audit trail requirement:**
-
-For destructive operations (D16), the JSONL log MUST record:
-- **What**: operation type, target device, bootstrap script hash
-- **When**: ISO 8601 timestamp
-- **Pre-validation**: whether template validation passed
-- **Confirmation**: whether operator confirmed (for `manual_confirmation` requirements)
-- **Result**: success/failure with error code
-
-**Log retention:** Logs persist in `.work/native/bootstrap/` (excluded from `generated/` and git via `.gitignore`). Operator may archive logs before cleanup.
-
-**Error codes:** All adapter errors use the E97xx range allocated in this ADR's diagnostic section. Adapters populate `error_code` in `BootstrapResult`; the logging layer includes it in JSONL records automatically.
-
----
+**Error codes:** All adapter errors use the E97xx range allocated in this ADR's diagnostic section. Adapters populate `error_code` in adapter results; the logging layer includes it in structured records automatically.
 
 ## Schema
 
-### Initialization Contract Schema (JSONSchema)
+### Initialization Contract Shape
 
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Node Initialization Contract",
-  "description": "All mechanisms require bootstrap.template. Objects without initialization_contract are implicitly terraform-managed and don't need this schema.",
-  "type": "object",
-  "properties": {
-    "version": {
-      "type": "string",
-      "pattern": "^[0-9]+\\.[0-9]+$"
-    },
-    "mechanism": {
-      "enum": ["netinstall", "unattended_install", "cloud_init", "ansible_bootstrap"],
-      "description": "Bootstrap mechanism. Objects without initialization_contract are implicitly terraform-managed."
-    },
-    "requirements": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": { "type": "string", "minLength": 1 },
-          "check": {
-            "enum": ["command_exists", "file_exists", "network_reachable", "manual_confirmation"]
-          },
-          "path": { "type": "string" },
-          "description": { "type": "string" }
-        },
-        "required": ["name", "check"],
-        "additionalProperties": false
-      }
-    },
-    "bootstrap": {
-      "type": "object",
-      "properties": {
-        "template": { "type": "string", "minLength": 1 },
-        "post_install": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Additional post-install script templates (e.g., Proxmox post-install-minimal.sh)"
-        },
-        "outputs": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Explicit output paths. If omitted, derived from template name as bootstrap/{{ instance_id }}/<template_basename>"
-        }
-      },
-      "required": ["template"]
-    },
-    "handover": {
-      "type": "object",
-      "properties": {
-        "provider": { "type": "string" },
-        "timeout_seconds": {
-          "type": "integer",
-          "minimum": 10,
-          "default": 300,
-          "description": "Total timeout for all handover checks"
-        },
-        "retry": {
-          "type": "object",
-          "properties": {
-            "max_attempts": { "type": "integer", "minimum": 1, "default": 10 },
-            "backoff_seconds": { "type": "integer", "minimum": 1, "default": 15 },
-            "backoff_strategy": { "enum": ["linear", "exponential"], "default": "linear" }
-          },
-          "additionalProperties": false
-        },
-        "checks": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "type": {
-                "enum": ["api_reachable", "ssh_reachable", "credential_valid", "python_installed", "terraform_plan_succeeds"]
-              },
-              "protocol": { "type": "string" },
-              "port": { "type": "integer" },
-              "user": { "type": "string" }
-            },
-            "required": ["type"]
-          },
-          "minItems": 1
-        }
-      },
-      "required": ["provider", "checks"]
-    },
-    "post_handover": {
-      "type": "object",
-      "description": "Informational metadata (v1.0). Describes day-1+ IaC lifecycle. Not consumed by pipeline.",
-      "properties": {
-        "terraform": {
-          "type": "object",
-          "properties": {
-            "provider": { "type": "string" },
-            "modules": { "type": "array", "items": { "type": "string" } }
-          }
-        },
-        "ansible": {
-          "type": "object",
-          "properties": {
-            "collection": { "type": "string" },
-            "playbooks": { "type": "array", "items": { "type": "string" } }
-          }
-        }
-      }
-    }
-  },
-  "required": ["version", "mechanism", "bootstrap", "handover"],
-  "allOf": [
-    {
-      "if": { "properties": { "mechanism": { "const": "unattended_install" } } },
-      "then": {
-        "properties": {
-          "bootstrap": {
-            "required": ["template", "post_install"],
-            "properties": {
-              "post_install": { "minItems": 1 }
-            }
-          }
-        }
-      }
-    },
-    {
-      "if": { "properties": { "mechanism": { "const": "cloud_init" } } },
-      "then": {
-        "properties": {
-          "bootstrap": {
-            "required": ["template", "outputs"],
-            "properties": {
-              "outputs": { "minItems": 2, "description": "Must include at least user-data and meta-data" }
-            }
-          }
-        }
-      }
-    }
-  ]
-}
+This ADR defines the contract shape and decision boundaries. The full implementation schema belongs in the repository schema file and supporting analysis artifacts, not inline in the ADR.
+
+The v1.0 initialization contract shape is:
+
+```yaml
+initialization_contract:
+  version: "1.0"
+  mechanism: netinstall | unattended_install | cloud_init | ansible_bootstrap
+  required_inputs: []
+  bootstrap:
+    templates: []
+    outputs: []
+  handover:
+    channel: <string>
+    checks: []
+  post_handover: {}   # Informational in v1.0
 ```
 
-**Schema design notes:**
+**Normative rules:**
+- `version`, `mechanism`, `bootstrap`, and `handover` are required.
+- `required_inputs` lists logical inputs needed for execution; it does not encode host-local paths.
+- `bootstrap.templates` lists source templates used to render per-instance artifacts.
+- `bootstrap.outputs` lists the expected artifact names or paths within the deploy bundle.
+- `handover.channel` describes the automation handoff boundary, for example `routeros_api`, `proxmox_api`, `ssh`, or `ansible`.
+- `handover.checks` lists readiness checks required before day-1+ tooling can take over.
+- `post_handover` remains informational metadata in v1.0.
 
-- **`bootstrap.template`** is always required (non-null `string` with `minLength: 1`).
-- **`bootstrap.outputs`** is optional; if omitted, the generator derives a single output path from the template name. For `cloud_init`, outputs are required (user-data + meta-data minimum).
-- **`bootstrap.post_install`** lists additional script templates beyond the primary template. Required for `unattended_install` (Proxmox needs answer.toml + post-install script).
-- **Mechanism-specific constraints** use JSONSchema `if/then` composition in `allOf` to enforce per-mechanism rules without duplicating the base schema.
+**Mechanism-specific expectations:**
+- `unattended_install` typically needs multiple rendered artifacts, such as answer file plus post-install script.
+- `cloud_init` typically emits at least `user-data` and `meta-data` artifacts.
+- `ansible_bootstrap` is a day-0 bridge for manually installed systems and must still end in an explicit handover contract.
+
+**Separation rule:** implementation-specific JSONSchema, validator behavior, and bundle/deploy-profile resolution logic belong in `schemas/` and `adr/0083-analysis/`.
 
 ---
 
@@ -1173,24 +781,17 @@ See detailed pattern: `adr/0083-analysis/MIKROTIK-IAC-PATTERN.md`
 initialization_contract:
   version: "1.0"
   mechanism: netinstall
-  requirements:
-    - name: netinstall_cli_installed
-      check: command_exists
-    - name: routeros_npk_available
-      check: file_exists
-      path: /srv/routeros/
-    - name: installation_segment_access
-      check: network_reachable
+  required_inputs:
+    - routeros_bundle
+    - install_network_access
   bootstrap:
-    template: templates/bootstrap/init-terraform.rsc.j2
+    templates:
+      - templates/bootstrap/init-terraform.rsc.j2
   handover:
-    provider: terraform-routeros/routeros
+    channel: routeros_api
     checks:
-      - type: api_reachable
-        protocol: https
-        port: 8443
-      - type: credential_valid
-        user: terraform
+      - api_reachable
+      - credential_valid
   post_handover:
     terraform:
       provider: terraform-routeros/routeros
@@ -1221,25 +822,18 @@ initialization_contract:
 initialization_contract:
   version: "1.0"
   mechanism: unattended_install
-  requirements:
-    - name: proxmox_iso_available
-      check: file_exists
-    - name: answer_toml_rendered
-      check: file_exists
-    - name: installation_media_prepared
-      check: manual_confirmation
+  required_inputs:
+    - proxmox_installer_image
+    - installation_media_prepared
   bootstrap:
-    template: templates/bootstrap/answer.toml.j2
-    post_install:
+    templates:
+      - templates/bootstrap/answer.toml.j2
       - templates/bootstrap/post-install-minimal.sh.j2
   handover:
-    provider: bpg/proxmox
+    channel: proxmox_api
     checks:
-      - type: api_reachable
-        protocol: https
-        port: 8006
-      - type: credential_valid
-        user: root@pam
+      - api_reachable
+      - credential_valid
 ```
 
 ### Orange Pi 5 (SBC with cloud-init)
@@ -1248,22 +842,21 @@ initialization_contract:
 initialization_contract:
   version: "1.0"
   mechanism: cloud_init
-  requirements:
-    - name: base_image_available
-      check: file_exists
-    - name: cloud_init_user_data_rendered
-      check: file_exists
+  required_inputs:
+    - base_image
+    - cloud_init_seed
   bootstrap:
-    template: templates/bootstrap/user-data.j2
+    templates:
+      - templates/bootstrap/user-data.j2
+      - templates/bootstrap/meta-data.j2
     outputs:
-      - bootstrap/{{ instance_id }}/user-data
-      - bootstrap/{{ instance_id }}/meta-data
+      - user-data
+      - meta-data
   handover:
-    provider: ansible
+    channel: ssh
     checks:
-      - type: ssh_reachable
-        port: 22
-      - type: python_installed
+      - ssh_reachable
+      - python_installed
 ```
 
 ### LXC Containers and Cloud VMs (Implicit Terraform-managed)
@@ -1333,7 +926,7 @@ ADR 0083 phases depend on ADR 0080 wave completion. **All waves (A–H) are now 
 ### Phase 5: Assemble Integration
 
 1. Implement `base.assembler.bootstrap_secrets` plugin (requires ADR 0080 Wave F)
-2. Secret injection from SOPS into `.work/native/bootstrap/`
+2. Secret injection from SOPS into deploy-bundle assembly inputs
 3. Verify secret-leak guards in assemble verify phase
 
 ### Phase 6: Documentation
@@ -1369,7 +962,7 @@ ADR 0083 phases depend on ADR 0080 wave completion. **All waves (A–H) are now 
 |------|--------|------------|
 | Bootstrap scripts become complex | Maintenance burden | Strict day-0/day-1 boundary |
 | Device-specific logic leaks to core | Plugin boundary violation | Contract validates templates in object modules |
-| Secret handling inconsistency | Security risk | Enforce `.work/native/` for all secrets |
+| Secret handling inconsistency | Security risk | Enforce deploy-bundle-only secret materialization outside tracked source trees |
 | Testing requires real hardware | CI gaps | Mock adapters for CI; hardware E2E as release gate |
 
 ---

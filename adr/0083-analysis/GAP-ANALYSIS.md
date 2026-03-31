@@ -4,6 +4,8 @@
 
 This document analyzes the gap between the current fragmented node initialization approach and the target unified initialization contract defined in ADR 0083.
 
+**Sequencing note:** ADR 0083 is currently deferred. ADR 0085 is the primary deploy-domain priority, ADR 0084 is secondary, and this analysis remains a conditional implementation reference if ADR 0083 is pursued later.
+
 ---
 
 ## AS-IS State

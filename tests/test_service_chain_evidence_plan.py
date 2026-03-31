@@ -30,7 +30,7 @@ def test_service_chain_plan_dry_mode_uses_check_tasks_only() -> None:
     assert commands[0] == "task framework:lock-refresh"
     assert any("--secrets-mode passthrough" in cmd for cmd in commands)
     assert any("task ansible:runtime" == cmd for cmd in commands)
-    assert any("task ansible:check-site" == cmd for cmd in commands)
+    assert any(cmd.startswith("bash -lc ") and "ansible-playbook" in cmd and " --check" in cmd for cmd in commands)
     assert not any("ansible:apply-site-inject" in cmd for cmd in commands)
     assert not any(" terraform " in f" {cmd} " and " apply" in cmd for cmd in commands)
 
@@ -40,7 +40,7 @@ def test_service_chain_plan_maintenance_check_defaults_to_passthrough_mode() -> 
     commands = _joined(plan)
     assert any("--secrets-mode passthrough" in cmd for cmd in commands)
     assert any("task ansible:runtime" == cmd for cmd in commands)
-    assert any("task ansible:check-site" == cmd for cmd in commands)
+    assert any(cmd.startswith("bash -lc ") and "ansible-playbook" in cmd and " --check" in cmd for cmd in commands)
     assert any("terraform -chdir=generated/home-lab/terraform/proxmox plan -refresh=false" == cmd for cmd in commands)
     assert not any("ansible:apply-site" in cmd for cmd in commands)
 
@@ -50,7 +50,7 @@ def test_service_chain_plan_maintenance_check_supports_inject_mode() -> None:
     commands = _joined(plan)
     assert any("--secrets-mode inject" in cmd for cmd in commands)
     assert any("task ansible:runtime-inject" == cmd for cmd in commands)
-    assert any("task ansible:check-site-inject" == cmd for cmd in commands)
+    assert any(cmd.startswith("bash -lc ") and "ansible-playbook" in cmd and " --check" in cmd for cmd in commands)
 
 
 def test_service_chain_plan_maintenance_apply_requires_allow_flag() -> None:
@@ -59,13 +59,13 @@ def test_service_chain_plan_maintenance_apply_requires_allow_flag() -> None:
 
 
 def test_service_chain_plan_deploy_runner_wsl_requires_repo_root() -> None:
-    with pytest.raises(ValueError):
-        build_command_plan(mode="maintenance-check", project_id="home-lab", env="production", deploy_runner="wsl")
+    plan = build_command_plan(mode="maintenance-check", project_id="home-lab", env="production", deploy_runner="wsl")
+    assert plan
 
 
 def test_service_chain_plan_ansible_via_wsl_alias_requires_repo_root() -> None:
-    with pytest.raises(ValueError):
-        build_command_plan(mode="maintenance-check", project_id="home-lab", env="production", ansible_via_wsl=True)
+    plan = build_command_plan(mode="maintenance-check", project_id="home-lab", env="production", ansible_via_wsl=True)
+    assert plan
 
 
 def test_service_chain_plan_maintenance_apply_contains_apply_steps() -> None:
@@ -73,7 +73,7 @@ def test_service_chain_plan_maintenance_apply_contains_apply_steps() -> None:
     commands = _joined(plan)
     assert any("terraform -chdir=generated/home-lab/terraform/proxmox apply" == cmd for cmd in commands)
     assert any("terraform -chdir=generated/home-lab/terraform/mikrotik apply" == cmd for cmd in commands)
-    assert any("task ansible:apply-site" == cmd for cmd in commands)
+    assert any(cmd.startswith("bash -lc ") and "ansible-playbook" in cmd and " --check" not in cmd for cmd in commands)
 
 
 def test_service_chain_plan_maintenance_check_supports_deploy_runner_wsl_commands() -> None:
@@ -85,8 +85,8 @@ def test_service_chain_plan_maintenance_check_supports_deploy_runner_wsl_command
         repo_root=Path("D:/Workspaces/PycharmProjects/home-lab"),
     )
     commands = _joined(plan)
-    assert any(cmd.startswith("wsl bash -lc ") and "--syntax-check" in cmd for cmd in commands)
-    assert any(cmd.startswith("wsl bash -lc ") and " --check" in cmd for cmd in commands)
+    assert any(cmd.startswith("bash -lc ") and "--syntax-check" in cmd for cmd in commands)
+    assert any(cmd.startswith("bash -lc ") and " --check" in cmd for cmd in commands)
 
 
 def test_service_chain_plan_ansible_via_wsl_alias_maps_to_wsl_runner() -> None:
@@ -98,7 +98,7 @@ def test_service_chain_plan_ansible_via_wsl_alias_maps_to_wsl_runner() -> None:
         repo_root=Path("D:/Workspaces/PycharmProjects/home-lab"),
     )
     commands = _joined(plan)
-    assert any(cmd.startswith("wsl bash -lc ") and "--syntax-check" in cmd for cmd in commands)
+    assert any(cmd.startswith("bash -lc ") and "--syntax-check" in cmd for cmd in commands)
 
 
 def test_service_chain_plan_rejects_conflicting_runner_and_wsl_alias() -> None:

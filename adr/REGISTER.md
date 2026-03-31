@@ -83,5 +83,6 @@
 | [0080](0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md) | Unified Build Pipeline, Stage-Phase Lifecycle, and Contractual Plugin Data Bus | Accepted | 2026-03-26 | - | - |
 | [0081](0081-framework-runtime-artifact-and-1-n-project-repository-model.md) | Framework Runtime Artifact and 1:N Project Repository Model | Accepted | 2026-03-29 | - | - |
 | [0082](0082-plugin-module-pack-composition-and-index-first-discovery-analysis.md) | Plugin Module-Pack Composition and Index-First Discovery Analysis | Proposed | 2026-03-29 | - | - |
-| [0083](0083-unified-node-initialization-contract.md) | Unified Node Initialization Contract and Deploy-Domain Initialization Phase | Proposed | 2026-03-30 | - | - |
-| [0084](0084-cross-platform-dev-plane-and-linux-deploy-plane.md) | Cross-Platform Dev Plane and Linux Deploy Plane | Proposed | 2026-03-31 | - | - |
+| [0083](0083-unified-node-initialization-contract.md) | Unified Node Initialization Contract and Deploy-Domain Initialization Phase | Proposed (Deferred/Optional; after 0085/0084) | 2026-03-30 | - | - |
+| [0084](0084-cross-platform-dev-plane-and-linux-deploy-plane.md) | Cross-Platform Dev Plane and Linux Deploy Plane | Proposed (Secondary; after 0085) | 2026-03-31 | - | - |
+| [0085](0085-deploy-bundle-and-runner-workspace-contract.md) | Deploy Bundle and Runner Workspace Contract | Proposed (Primary deploy-domain priority) | 2026-03-31 | - | - |

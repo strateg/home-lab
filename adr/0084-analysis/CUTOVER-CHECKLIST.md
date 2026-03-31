@@ -1,67 +1,64 @@
 # ADR 0084: Cutover Checklist
 
-## ADR and Register
+## ADR Alignment
 
-- [x] `adr/0084-cross-platform-dev-plane-and-linux-deploy-plane.md` created
-- [x] `adr/REGISTER.md` updated with ADR 0084
-- [x] ADR 0083 references ADR 0084 as execution-plane context
+- [x] `adr/0084-cross-platform-dev-plane-and-linux-deploy-plane.md` updated
+- [x] ADR 0084 references ADR 0085
+- [x] ADR 0084 no longer treats `generated/` as the deploy execution source
+- [x] ADR 0084 describes workspace-aware runner behavior
 
-## Phase 0a: Runner Abstraction (Current)
+## Phase 0a: Runner Contract Alignment
 
-### Code Implementation
+### Code
 
-- [x] `scripts/orchestration/deploy/runner.py` created
-- [x] `DeployRunner` ABC defined
-- [x] `NativeRunner` implemented
-- [x] `WSLRunner` implemented
-- [x] `get_runner()` factory with auto-detection
-- [x] `scripts/orchestration/deploy/__init__.py` exports public API
-
-### Placeholder Implementations
-
-- [x] `DockerRunner` stub (raises NotImplementedError)
-- [x] `RemoteLinuxRunner` stub (raises NotImplementedError)
+- [x] `scripts/orchestration/deploy/runner.py` exists
+- [x] `scripts/orchestration/deploy/__init__.py` exports runner API
+- [ ] `DeployRunner` contract updated for bundle staging and workspace lifecycle
+- [ ] `NativeRunner` aligned to workspace-aware execution
+- [ ] `WSLRunner` aligned to workspace-aware execution
+- [ ] `get_runner()` still works with updated contract
 
 ### Tests
 
-- [ ] `tests/orchestration/test_runner.py` created
-- [ ] T-R01..T-R12 pass
+- [ ] `tests/orchestration/test_runner.py` exists
+- [ ] Runner contract tests pass
+- [ ] Capability-behavior tests pass
 
 ### Refactoring
 
-- [ ] `service_chain_evidence.py` uses `get_runner()`
-- [ ] WSL-specific functions removed (moved to WSLRunner)
-- [ ] Tests updated
+- [ ] `service_chain_evidence.py` uses `DeployRunner`
+- [ ] WSL-specific helper logic removed from evidence tool
+- [ ] Evidence tooling stages bundle before deploy execution
 
 ## Documentation
 
-- [ ] `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md` created
-- [ ] CLAUDE.md updated with Dev/Deploy plane model
-- [ ] Deploy runbooks explicitly state runner requirements
+- [ ] Operator docs clearly distinguish dev plane vs deploy plane
+- [ ] Deploy runbooks describe bundle/workspace expectations
+- [ ] Windows operator workflow explicitly points to WSL-backed deploy execution
+- [ ] Linux operator workflow explicitly points to native runner execution
 
 ## Validation
 
-- [ ] `python -c "from scripts.orchestration.deploy import get_runner; print(get_runner())"` works
-- [ ] Related docs and ADR links resolve correctly
-- [ ] ADR 0084 status changed to Accepted
+- [ ] Related ADR links resolve correctly
+- [ ] ADR 0084 analysis docs match ADR 0084 decision text
+- [ ] ADR 0083/0084/0085 terminology is consistent
+- [ ] ADR 0084 status can be promoted when code and docs catch up
 
 ---
 
 ## Phase 0b: Docker Runner (Future)
 
-- [ ] `docker/Dockerfile.toolchain` created
-- [ ] `DockerRunner.run()` implemented
-- [ ] `DockerRunner.translate_path()` implemented
-- [ ] Volume mount for workspace works
-- [ ] `--network=host` for netinstall mechanism
-- [ ] CI workflow uses DockerRunner
+- [ ] Docker toolchain image created
+- [ ] Bundle staging/mount strategy documented
+- [ ] `DockerRunner` implemented
+- [ ] Docker runner tests pass
+- [ ] CI usage documented or implemented
 
 ---
 
 ## Phase 0c: Remote Linux Runner (Future)
 
-- [ ] `RemoteLinuxRunner.run()` implemented (SSH)
-- [ ] File sync strategy documented (rsync/git)
-- [ ] Secret handling on remote documented
-- [ ] SSH key management documented
-- [ ] Tests pass
+- [ ] Remote bundle staging strategy documented
+- [ ] `RemoteLinuxRunner` implemented
+- [ ] Remote secret/tooling prerequisites documented
+- [ ] Remote runner tests pass

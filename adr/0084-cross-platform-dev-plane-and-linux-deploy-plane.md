@@ -1,8 +1,8 @@
 # ADR 0084: Cross-Platform Dev Plane and Linux Deploy Plane
 
 **Date:** 2026-03-31
-**Status:** Proposed
-**Related:** ADR 0056 (Native Execution Workspace), ADR 0072 (Unified Secrets Management), ADR 0077 (Go-Task Developer Orchestration), ADR 0080 (Unified Build Pipeline), ADR 0083 (Unified Node Initialization Contract)
+**Status:** Proposed (Secondary; after ADR 0085)
+**Related:** ADR 0056 (Native Execution Workspace), ADR 0072 (Unified Secrets Management), ADR 0077 (Go-Task Developer Orchestration), ADR 0080 (Unified Build Pipeline), ADR 0085 (Deploy Bundle and Runner Workspace Contract), ADR 0083 (Unified Node Initialization Contract)
 
 ---
 
@@ -12,7 +12,7 @@ The repository already separates topology authoring and artifact generation from
 
 - `scripts/orchestration/lane.py` runs Python-based validation and compilation steps.
 - `topology-tools/compile-topology.py` generates Terraform, Ansible, bootstrap, and documentation artifacts under `generated/<project>/`.
-- Deploy-time commands live outside the compiler boundary and consume generated artifacts plus runtime secrets.
+- Deploy-time commands live outside the compiler boundary and must execute from deploy-domain inputs rather than directly from source-derived artifact roots.
 
 That separation is conceptually correct, but the execution model is still ambiguous on workstation platforms.
 
@@ -29,9 +29,15 @@ Without an explicit execution-plane decision, the repo risks:
 - leaking WSL-specific conditionals into orchestration code,
 - splitting Terraform and Ansible across different control environments,
 - creating inconsistent handling for SSH, `sops`/`age`, provider plugins, and secret injection,
+- coupling deploy execution to local workstation filesystem layout,
 - and overstating deploy-time cross-platform support when the final executor is still Linux-bound.
 
-ADR 0083 defines a unified node initialization contract and deploy-domain lifecycle. That ADR needs an explicit execution-plane decision so that initialization, Terraform/OpenTofu handover, and Ansible configuration all run in a coherent operator model.
+ADR 0085 defines the foundational deploy-domain execution input and workspace contract. This ADR defines where and how that deploy-domain execution runs so that Terraform/OpenTofu, Ansible, and any future deploy-domain tooling follow one coherent operator model.
+
+ADR 0083 is a possible downstream consumer of this model, but it is not required to adopt ADR 0084. The intended sequence is:
+1. ADR 0085 first
+2. ADR 0084 second
+3. ADR 0083 later, only if unified node initialization is still worth implementing
 
 ---
 
@@ -69,6 +75,7 @@ All commands that perform deploy-time execution SHOULD run from a Linux environm
 - node initialization execution after artifact generation,
 - Terraform/OpenTofu `init`, `plan`, and `apply` for real deploy lanes,
 - Ansible `syntax-check`, `--check`, and apply,
+- deploy bundle staging and workspace preparation,
 - runtime secret decryption/injection,
 - SSH-based orchestration against managed nodes.
 
@@ -80,25 +87,24 @@ The deploy plane uses a `DeployRunner` abstraction to support multiple execution
 
 | Backend | Class | Status | Use Case |
 |---------|-------|--------|----------|
-| `native` | `NativeRunner` | ✅ Implemented | Linux/macOS workstation |
+| `native` | `NativeRunner` | ✅ Implemented | Local Linux workstation |
 | `wsl` | `WSLRunner` | ✅ Implemented | Windows developer workflow |
 | `docker` | `DockerRunner` | 🔜 Planned | Reproducible CI execution |
 | `remote` | `RemoteLinuxRunner` | 🔜 Planned | Dedicated control node via SSH |
 
 **Auto-detection:**
 - On Windows → `WSLRunner` (default)
-- On Linux/macOS → `NativeRunner` (default)
+- On Linux → `NativeRunner` (default)
 - Explicit selection via `--runner` flag
 
 ### D5. Deploy Runner Abstraction
 
-Deploy tooling uses `DeployRunner` abstraction for consistent command execution across backends:
+Deploy tooling uses `DeployRunner` abstraction for consistent workspace-aware execution across backends.
 
 ```python
 # scripts/orchestration/deploy/runner.py
 
 from abc import ABC, abstractmethod
-from pathlib import Path
 from dataclasses import dataclass
 
 @dataclass
@@ -116,45 +122,39 @@ class DeployRunner(ABC):
     """Abstract deploy runner for Linux-backed execution."""
 
     @abstractmethod
-    def run(self, cmd: list[str], cwd: Path | None = None,
+    def stage_bundle(self, bundle_path: str) -> str:
+        """Stage a deploy bundle and return a workspace reference."""
+        pass
+
+    @abstractmethod
+    def run(self, cmd: list[str], workspace_ref: str,
             env: dict[str, str] | None = None) -> RunResult:
-        """Execute command in deploy environment."""
+        """Execute command in the staged deploy workspace."""
         pass
 
     @abstractmethod
-    def translate_path(self, path: Path) -> str:
-        """Translate host path to runner path."""
+    def capabilities(self) -> dict[str, bool]:
+        """Report backend capabilities required by deploy tooling."""
         pass
 
     @abstractmethod
-    def is_available(self) -> bool:
-        """Check if runner is available."""
+    def cleanup_workspace(self, workspace_ref: str) -> None:
+        """Clean up temporary backend workspace state when needed."""
         pass
-
-    def check_tool(self, tool: str) -> bool:
-        """Check if tool exists in runner environment."""
-        result = self.run(["which", tool])
-        return result.success
-
-
-def get_runner(preference: str | None = None) -> DeployRunner:
-    """Get deploy runner based on preference or auto-detect."""
-    if preference:
-        return _get_explicit_runner(preference)
-    return _auto_detect_runner()
 ```
 
-**Rationale:** The abstraction enables future Docker and remote-linux backends without rewriting deploy tooling. Current implementations (WSL, native) provide immediate value while establishing the interface contract.
+**Rationale:** ADR 0085 introduces deploy bundle as the canonical execution input. A simple `run()+translate_path()` abstraction is not enough for `wsl`, `docker`, and `remote` backends. The runner contract therefore must stage bundles into backend workspaces, execute there, report capabilities, and clean up.
 
-### D6. ADR 0083 Executes Within This Plane Model
+### D6. ADR 0083 Would Execute Within This Plane Model
 
-ADR 0083 node initialization and post-initialization handover are governed by this execution-plane model:
+If ADR 0083 is implemented later, its node initialization and post-initialization handover are governed by this execution-plane model:
 
-- initialization artifacts may be generated from any supported dev plane,
-- initialization execution belongs to the Linux-backed deploy plane,
-- Terraform/OpenTofu handover and Ansible configuration remain in the same Linux-backed deploy plane.
+- source-derived artifacts may be generated from any supported dev plane,
+- assemble/build materializes a deploy bundle per ADR 0085,
+- initialization execution stages that bundle into a Linux-backed runner workspace,
+- Terraform/OpenTofu handover and Ansible configuration remain in the same Linux-backed deploy plane and consume the same bundle/workspace boundary.
 
-ADR 0083 therefore depends on this ADR for execution semantics, while retaining its own scope over initialization contracts and deploy-domain lifecycle phases.
+ADR 0084 depends on ADR 0085 for canonical execution input and workspace contract. ADR 0083, if pursued later, depends on both ADR 0085 and ADR 0084.
 
 ---
 
@@ -164,8 +164,8 @@ ADR 0083 therefore depends on this ADR for execution semantics, while retaining 
 
 - The repository keeps a genuinely cross-platform authoring experience.
 - Deploy execution stops pretending to be fully cross-platform when Ansible is Linux-first.
-- Terraform/OpenTofu and Ansible share one canonical runtime for secrets, SSH, networking, and caches.
-- `DeployRunner` abstraction enables future Docker and remote-linux backends.
+- Terraform/OpenTofu and Ansible share one canonical runtime for secrets, SSH, networking, caches, and workspace staging.
+- `DeployRunner` abstraction becomes compatible with `wsl`, `docker`, and `remote` backends.
 - Clear error messages guide Windows operators to WSL.
 - Existing `service_chain_evidence.py` WSL logic is formalized into reusable runner.
 
@@ -174,22 +174,23 @@ ADR 0083 therefore depends on this ADR for execution semantics, while retaining 
 - Windows-native Terraform/OpenTofu deploy flows are no longer the canonical operator path.
 - Local operators on Windows must use WSL for deploy operations.
 - Documentation must clearly distinguish dev-plane from deploy-plane workflows.
-- Runner abstraction adds ~150 lines of code (justified by planned Docker/remote backends).
+- Runner abstraction must manage bundle staging and workspace lifecycle, not just process execution.
 
 ### Migration Impact
 
 1. Existing Python compile/generate flows remain unchanged (dev plane).
 2. Deploy tooling (`init-node.py`, Terraform, Ansible) runs via `DeployRunner`.
-3. `service_chain_evidence.py` refactored to use `DeployRunner` abstraction.
-4. ADR 0083 Phase 5 adapters receive runner via dependency injection.
+3. Deploy tooling consumes explicit `bundle_id` inputs rather than executing directly from `generated/`.
+4. `service_chain_evidence.py` should be refactored to use deploy bundle staging instead of inline WSL path glue.
+5. ADR 0083 adapters would receive runner and workspace context via dependency injection if ADR 0083 is implemented later.
 
 ### Implementation Phases
 
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
-| 0a | `DeployRunner` ABC + `NativeRunner` + `WSLRunner` | 🔜 Next |
-| 0b | `DockerRunner` + Dockerfile | 📅 When CI needed |
-| 0c | `RemoteLinuxRunner` + SSH setup | 📅 When control VM needed |
+| 0a | Workspace-aware `DeployRunner` contract + `NativeRunner` + `WSLRunner` alignment | 🔜 Next |
+| 0b | `DockerRunner` + bundle mounting/staging strategy | 📅 When CI needed |
+| 0c | `RemoteLinuxRunner` + remote bundle staging strategy | 📅 When control VM needed |
 
 ---
 
@@ -202,3 +203,4 @@ ADR 0083 therefore depends on this ADR for execution semantics, while retaining 
 - `adr/0056-native-execution-workspace.md`
 - `adr/0077-go-task-developer-orchestration.md`
 - `adr/0083-unified-node-initialization-contract.md`
+- `adr/0085-deploy-bundle-and-runner-workspace-contract.md`

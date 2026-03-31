@@ -12,6 +12,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from scripts.orchestration.deploy import get_runner  # noqa: E402
+
 SUPPORTED_DEPLOY_RUNNERS = {"native", "wsl"}
 
 
@@ -23,6 +29,7 @@ class CommandStep:
     description: str
     command: list[str]
     destructive: bool = False
+    execution_plane: str = "local"  # local | deploy
 
 
 @dataclass(frozen=True)
@@ -59,41 +66,6 @@ def _resolve_path_argument(value: str | None, repo_root: Path) -> str | None:
     return str(candidate.resolve())
 
 
-def _to_wsl_path(path: Path) -> str:
-    resolved = path.resolve().as_posix()
-    if len(resolved) >= 3 and resolved[1] == ":" and resolved[2] == "/":
-        return f"/mnt/{resolved[0].lower()}{resolved[2:]}"
-    return resolved
-
-
-def _ansible_wsl_command(*, repo_root: Path, project_id: str, env: str, lane: str) -> list[str]:
-    if lane not in {"syntax", "check", "apply"}:
-        raise ValueError(f"Unsupported ansible WSL lane: {lane}")
-    repo_root_wsl = _to_wsl_path(repo_root)
-    inventory_wsl = _to_wsl_path(repo_root / f"generated/{project_id}/ansible/runtime/{env}/hosts.yml")
-    ansible_cfg_wsl = _to_wsl_path(repo_root / f"projects/{project_id}/ansible/ansible.cfg")
-    playbook_root_wsl = _to_wsl_path(repo_root / f"projects/{project_id}/ansible/playbooks")
-    if lane == "syntax":
-        syntax_targets = ["site.yml", "postgresql.yml", "redis.yml", "nextcloud.yml", "monitoring.yml"]
-        checks = " && ".join(
-            f"ansible-playbook -i '{inventory_wsl}' '{playbook_root_wsl}/{name}' --syntax-check"
-            for name in syntax_targets
-        )
-        script = f"cd '{repo_root_wsl}' && export ANSIBLE_CONFIG='{ansible_cfg_wsl}' && {checks}"
-        return ["wsl", "bash", "-lc", script]
-    if lane == "check":
-        script = (
-            f"cd '{repo_root_wsl}' && ANSIBLE_CONFIG='{ansible_cfg_wsl}' "
-            f"ansible-playbook -i '{inventory_wsl}' '{playbook_root_wsl}/site.yml' --check"
-        )
-        return ["wsl", "bash", "-lc", script]
-    script = (
-        f"cd '{repo_root_wsl}' && ANSIBLE_CONFIG='{ansible_cfg_wsl}' "
-        f"ansible-playbook -i '{inventory_wsl}' '{playbook_root_wsl}/site.yml'"
-    )
-    return ["wsl", "bash", "-lc", script]
-
-
 def _resolve_deploy_runner(*, deploy_runner: str, ansible_via_wsl: bool) -> str:
     runner = deploy_runner.strip().lower()
     if ansible_via_wsl:
@@ -106,22 +78,29 @@ def _resolve_deploy_runner(*, deploy_runner: str, ansible_via_wsl: bool) -> str:
     return runner
 
 
-def _ansible_command(
-    *,
-    deploy_runner: str,
-    repo_root: Path | None,
-    project_id: str,
-    env: str,
-    lane: str,
-    task_name: str,
-) -> list[str]:
-    if deploy_runner == "native":
-        return ["task", task_name]
-    if repo_root is None:
-        raise ValueError(f"deploy_runner={deploy_runner} requires repo_root")
-    if deploy_runner == "wsl":
-        return _ansible_wsl_command(repo_root=repo_root, project_id=project_id, env=env, lane=lane)
-    raise ValueError(f"Unsupported deploy runner for ansible command: {deploy_runner}")
+def _ansible_command(*, project_id: str, env: str, lane: str) -> list[str]:
+    if lane not in {"syntax", "check", "apply"}:
+        raise ValueError(f"Unsupported ansible lane: {lane}")
+
+    inventory = f"generated/{project_id}/ansible/runtime/{env}/hosts.yml"
+    ansible_cfg = f"projects/{project_id}/ansible/ansible.cfg"
+    playbook_root = f"projects/{project_id}/ansible/playbooks"
+
+    if lane == "syntax":
+        syntax_targets = ["site.yml", "postgresql.yml", "redis.yml", "nextcloud.yml", "monitoring.yml"]
+        checks = " && ".join(
+            f"ansible-playbook -i {inventory!r} {f'{playbook_root}/{name}'!r} --syntax-check" for name in syntax_targets
+        )
+        script = f"export ANSIBLE_CONFIG={ansible_cfg!r} && {checks}"
+        return ["bash", "-lc", script]
+    if lane == "check":
+        script = (
+            f"ANSIBLE_CONFIG={ansible_cfg!r} "
+            f"ansible-playbook -i {inventory!r} {f'{playbook_root}/site.yml'!r} --check"
+        )
+        return ["bash", "-lc", script]
+    script = f"ANSIBLE_CONFIG={ansible_cfg!r} " f"ansible-playbook -i {inventory!r} {f'{playbook_root}/site.yml'!r}"
+    return ["bash", "-lc", script]
 
 
 def build_command_plan(
@@ -145,9 +124,7 @@ def build_command_plan(
         raise ValueError(f"Unsupported mode: {mode}")
     if mode == "maintenance-apply" and not allow_apply:
         raise ValueError("maintenance-apply mode requires allow_apply=True")
-    resolved_deploy_runner = _resolve_deploy_runner(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
-    if resolved_deploy_runner != "native" and repo_root is None:
-        raise ValueError(f"deploy_runner={resolved_deploy_runner} requires repo_root")
+    _resolve_deploy_runner(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
 
     secrets_mode = "inject" if inject_secrets else "passthrough"
     ansible_runtime_task = "ansible:runtime-inject" if inject_secrets else "ansible:runtime"
@@ -156,22 +133,13 @@ def build_command_plan(
         if mode == "maintenance-apply"
         else ("ansible:check-site-inject" if inject_secrets else "ansible:check-site")
     )
-    ansible_syntax_command = _ansible_command(
-        deploy_runner=resolved_deploy_runner,
-        repo_root=repo_root,
-        project_id=project_id,
-        env=env,
-        lane="syntax",
-        task_name="ansible:syntax",
-    )
+    ansible_syntax_command = _ansible_command(project_id=project_id, env=env, lane="syntax")
     ansible_execute_command = _ansible_command(
-        deploy_runner=resolved_deploy_runner,
-        repo_root=repo_root,
         project_id=project_id,
         env=env,
         lane=("apply" if mode == "maintenance-apply" else "check"),
-        task_name=ansible_execute_task,
     )
+
     proxmox_plan_args = ["plan", "-refresh=false"]
     mikrotik_plan_args = ["plan", "-refresh=false"]
     proxmox_apply_args = ["apply"]
@@ -215,16 +183,19 @@ def build_command_plan(
                 f"-chdir={_terraform_dir(project_id, 'proxmox')}",
                 *_terraform_init_args(proxmox_backend_config),
             ],
+            execution_plane="deploy",
         ),
         CommandStep(
             "terraform.proxmox.validate",
             "Validate Proxmox Terraform",
             ["terraform", f"-chdir={_terraform_dir(project_id, 'proxmox')}", "validate"],
+            execution_plane="deploy",
         ),
         CommandStep(
             "terraform.proxmox.plan",
             "Plan Proxmox Terraform",
             ["terraform", f"-chdir={_terraform_dir(project_id, 'proxmox')}", *proxmox_plan_args],
+            execution_plane="deploy",
         ),
         CommandStep(
             "terraform.mikrotik.init",
@@ -234,20 +205,25 @@ def build_command_plan(
                 f"-chdir={_terraform_dir(project_id, 'mikrotik')}",
                 *_terraform_init_args(mikrotik_backend_config),
             ],
+            execution_plane="deploy",
         ),
         CommandStep(
             "terraform.mikrotik.validate",
             "Validate MikroTik Terraform",
             ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", "validate"],
+            execution_plane="deploy",
         ),
         CommandStep(
             "terraform.mikrotik.plan",
             "Plan MikroTik Terraform",
             ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", *mikrotik_plan_args],
+            execution_plane="deploy",
         ),
         CommandStep("ansible.runtime", "Assemble Ansible runtime inventory", ["task", ansible_runtime_task]),
-        CommandStep("ansible.syntax", "Run Ansible syntax checks", ansible_syntax_command),
-        CommandStep("ansible.execute", "Run Ansible service execution lane", ansible_execute_command),
+        CommandStep("ansible.syntax", "Run Ansible syntax checks", ansible_syntax_command, execution_plane="deploy"),
+        CommandStep(
+            "ansible.execute", "Run Ansible service execution lane", ansible_execute_command, execution_plane="deploy"
+        ),
         CommandStep("acceptance.all", "Run all acceptance tests", ["task", "acceptance:tests-all"]),
         CommandStep("cutover.readiness", "Run cutover readiness report", ["task", "framework:cutover-readiness"]),
     ]
@@ -260,6 +236,7 @@ def build_command_plan(
                 "Apply Proxmox Terraform (maintenance window)",
                 ["terraform", f"-chdir={_terraform_dir(project_id, 'proxmox')}", *proxmox_apply_args],
                 destructive=True,
+                execution_plane="deploy",
             ),
         )
         plan.insert(
@@ -269,6 +246,7 @@ def build_command_plan(
                 "Apply MikroTik Terraform (maintenance window)",
                 ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", *mikrotik_apply_args],
                 destructive=True,
+                execution_plane="deploy",
             ),
         )
     return plan
@@ -279,40 +257,62 @@ def execute_plan(
     repo_root: Path,
     steps: Sequence[CommandStep],
     continue_on_failure: bool,
+    deploy_runner: str = "native",
+    ansible_via_wsl: bool = False,
 ) -> list[StepResult]:
     """Execute plan and return results in order."""
+    resolved_runner_name = _resolve_deploy_runner(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
+    runner = get_runner(resolved_runner_name)
+    # Transitional compatibility bridge: until explicit deploy bundles exist for
+    # this workflow, stage the repository root as the runner workspace.
+    workspace_ref = runner.stage_bundle(repo_root)
+
     results: list[StepResult] = []
-    for step in steps:
-        started = datetime.now(timezone.utc)
-        completed = started
-        try:
-            proc = subprocess.run(
-                step.command,
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-            completed = datetime.now(timezone.utc)
-            result = StepResult(
-                step=step,
-                returncode=proc.returncode,
-                duration_s=(completed - started).total_seconds(),
-                stdout=proc.stdout or "",
-                stderr=proc.stderr or "",
-            )
-        except Exception as exc:  # pragma: no cover - defensive
-            completed = datetime.now(timezone.utc)
-            result = StepResult(
-                step=step,
-                returncode=1,
-                duration_s=(completed - started).total_seconds(),
-                stdout="",
-                stderr=str(exc),
-            )
-        results.append(result)
-        if not result.ok and not continue_on_failure:
-            break
+    try:
+        for step in steps:
+            started = datetime.now(timezone.utc)
+            completed = started
+            try:
+                if step.execution_plane == "deploy":
+                    run_result = runner.run(step.command, workspace_ref=workspace_ref)
+                    completed = datetime.now(timezone.utc)
+                    result = StepResult(
+                        step=step,
+                        returncode=run_result.exit_code,
+                        duration_s=(completed - started).total_seconds(),
+                        stdout=run_result.stdout or "",
+                        stderr=run_result.stderr or "",
+                    )
+                else:
+                    proc = subprocess.run(
+                        step.command,
+                        cwd=repo_root,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    completed = datetime.now(timezone.utc)
+                    result = StepResult(
+                        step=step,
+                        returncode=proc.returncode,
+                        duration_s=(completed - started).total_seconds(),
+                        stdout=proc.stdout or "",
+                        stderr=proc.stderr or "",
+                    )
+            except Exception as exc:  # pragma: no cover - defensive
+                completed = datetime.now(timezone.utc)
+                result = StepResult(
+                    step=step,
+                    returncode=1,
+                    duration_s=(completed - started).total_seconds(),
+                    stdout="",
+                    stderr=str(exc),
+                )
+            results.append(result)
+            if not result.ok and not continue_on_failure:
+                break
+    finally:
+        runner.cleanup_workspace(workspace_ref)
     return results
 
 
@@ -433,7 +433,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = REPO_ROOT
     proxmox_backend_config = _resolve_path_argument(args.proxmox_backend_config, repo_root)
     mikrotik_backend_config = _resolve_path_argument(args.mikrotik_backend_config, repo_root)
     proxmox_var_file = _resolve_path_argument(args.proxmox_var_file, repo_root)
@@ -455,7 +455,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     results: list[StepResult] = []
     if not args.plan_only:
-        results = execute_plan(repo_root=repo_root, steps=steps, continue_on_failure=args.continue_on_failure)
+        results = execute_plan(
+            repo_root=repo_root,
+            steps=steps,
+            continue_on_failure=args.continue_on_failure,
+            deploy_runner=args.deploy_runner,
+            ansible_via_wsl=args.ansible_via_wsl,
+        )
 
     output_path = Path(args.output) if args.output else default_report_path(args.mode, Path(args.output_dir))
     output_path.parent.mkdir(parents=True, exist_ok=True)

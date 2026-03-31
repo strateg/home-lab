@@ -1,27 +1,30 @@
 """
-ADR 0084: Deploy Runner Abstraction
+ADR 0084/0085: Deploy Runner Abstraction
 
-Provides unified interface for executing deploy commands across different backends:
-- NativeRunner: Direct execution on Linux/macOS
+Provides a Linux-backed execution boundary for deploy-domain tooling:
+- NativeRunner: Direct execution on local Linux
 - WSLRunner: Execution via WSL on Windows
 - DockerRunner: Containerized execution (planned)
 - RemoteLinuxRunner: SSH-based execution (planned)
 
+The runner contract is workspace-aware:
+- deploy tooling stages an immutable deploy bundle,
+- the runner returns a workspace reference,
+- commands execute inside that workspace.
+
 Usage:
     from scripts.orchestration.deploy.runner import get_runner
 
-    runner = get_runner()  # Auto-detect
-    # or
-    runner = get_runner("wsl")  # Explicit
-
-    result = runner.run(["ansible-playbook", "playbook.yml"])
-    if result.success:
-        print(result.stdout)
+    runner = get_runner()
+    workspace_ref = runner.stage_bundle(".work/deploy/bundles/example")
+    result = runner.run(["ansible-playbook", "site.yml"], workspace_ref=workspace_ref)
 """
 
 from __future__ import annotations
 
+import os
 import platform
+import shlex
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
@@ -55,8 +58,8 @@ class DeployRunner(ABC):
     """
     Abstract base class for deploy runners.
 
-    All deploy operations (Terraform, Ansible, init-node) execute through
-    a runner to ensure consistent Linux-backed execution environment.
+    All deploy operations execute through a runner to ensure a consistent
+    Linux-backed deploy environment with explicit workspace staging.
     """
 
     @property
@@ -69,71 +72,54 @@ class DeployRunner(ABC):
     def run(
         self,
         cmd: Sequence[str],
+        workspace_ref: str | None = None,
+        *,
         cwd: Path | None = None,
         env: dict[str, str] | None = None,
         timeout: int | None = None,
     ) -> RunResult:
         """
-        Execute command in deploy environment.
+        Execute a command in the deploy environment.
 
-        Args:
-            cmd: Command and arguments to execute
-            cwd: Working directory (translated to runner path)
-            env: Additional environment variables
-            timeout: Timeout in seconds (None = no timeout)
-
-        Returns:
-            RunResult with exit code, stdout, stderr
+        `workspace_ref` is the preferred execution boundary. `cwd` is kept as a
+        compatibility fallback for older callers until bundle-aware consumers
+        fully replace path-based execution.
         """
+        pass
+
+    @abstractmethod
+    def stage_bundle(self, bundle_path: str | Path) -> str:
+        """Stage a deploy bundle and return a backend-specific workspace reference."""
+        pass
+
+    @abstractmethod
+    def cleanup_workspace(self, workspace_ref: str) -> None:
+        """Clean up temporary workspace state if the backend requires it."""
+        pass
+
+    @abstractmethod
+    def capabilities(self) -> dict[str, bool]:
+        """Report backend capabilities required by deploy tooling."""
         pass
 
     @abstractmethod
     def translate_path(self, path: Path) -> str:
-        """
-        Translate host path to runner-accessible path.
-
-        Args:
-            path: Host filesystem path
-
-        Returns:
-            Path string accessible from within the runner
-        """
+        """Translate a host path into a backend-accessible path."""
         pass
 
     @abstractmethod
     def is_available(self) -> bool:
-        """
-        Check if this runner is available on the current system.
-
-        Returns:
-            True if runner can be used
-        """
+        """Check if the runner is available on the current host."""
         pass
 
-    def check_tool(self, tool: str) -> bool:
-        """
-        Check if a tool is available in the runner environment.
-
-        Args:
-            tool: Tool name (e.g., "ansible-playbook", "terraform")
-
-        Returns:
-            True if tool is found
-        """
-        result = self.run(["which", tool])
+    def check_tool(self, tool: str, workspace_ref: str | None = None) -> bool:
+        """Check if a tool is available in the runner environment."""
+        result = self.run(["which", tool], workspace_ref=workspace_ref)
         return result.success
 
-    def get_tool_path(self, tool: str) -> str | None:
-        """
-        Get full path to a tool in the runner environment.
-
-        Args:
-            tool: Tool name
-
-        Returns:
-            Full path or None if not found
-        """
-        result = self.run(["which", tool])
+    def get_tool_path(self, tool: str, workspace_ref: str | None = None) -> str | None:
+        """Return the full tool path from the runner environment if available."""
+        result = self.run(["which", tool], workspace_ref=workspace_ref)
         if result.success:
             return result.stdout.strip()
         return None
@@ -141,9 +127,10 @@ class DeployRunner(ABC):
 
 class NativeRunner(DeployRunner):
     """
-    Execute commands natively on Linux/macOS.
+    Execute commands natively on local Linux.
 
-    This is the simplest runner - direct subprocess execution.
+    This is the simplest backend: the staged workspace reference is simply
+    a resolved local path.
     """
 
     @property
@@ -153,20 +140,22 @@ class NativeRunner(DeployRunner):
     def run(
         self,
         cmd: Sequence[str],
+        workspace_ref: str | None = None,
+        *,
         cwd: Path | None = None,
         env: dict[str, str] | None = None,
         timeout: int | None = None,
     ) -> RunResult:
-        import os
-
         full_env = os.environ.copy()
         if env:
             full_env.update(env)
 
+        run_cwd = self._resolve_cwd(workspace_ref=workspace_ref, cwd=cwd)
+
         try:
             result = subprocess.run(
                 list(cmd),
-                cwd=cwd,
+                cwd=run_cwd,
                 env=full_env,
                 capture_output=True,
                 text=True,
@@ -177,42 +166,63 @@ class NativeRunner(DeployRunner):
                 stdout=result.stdout,
                 stderr=result.stderr,
             )
-        except subprocess.TimeoutExpired as e:
+        except subprocess.TimeoutExpired as exc:
             return RunResult(
                 exit_code=-1,
-                stdout=e.stdout or "",
+                stdout=exc.stdout or "",
                 stderr=f"Command timed out after {timeout}s",
             )
-        except Exception as e:
+        except Exception as exc:  # pragma: no cover - defensive
             return RunResult(
                 exit_code=-1,
                 stdout="",
-                stderr=str(e),
+                stderr=str(exc),
             )
+
+    def stage_bundle(self, bundle_path: str | Path) -> str:
+        bundle_dir = Path(bundle_path).resolve()
+        if not bundle_dir.exists():
+            raise FileNotFoundError(f"Deploy bundle not found: {bundle_dir}")
+        if not bundle_dir.is_dir():
+            raise NotADirectoryError(f"Deploy bundle is not a directory: {bundle_dir}")
+        return str(bundle_dir)
+
+    def cleanup_workspace(self, workspace_ref: str) -> None:
+        # Native runner uses the staged bundle in place.
+        # Cleanup is a no-op because the immutable bundle lifecycle is managed
+        # by higher-level tooling.
+        return None
+
+    def capabilities(self) -> dict[str, bool]:
+        return {
+            "interactive_confirmation": True,
+            "host_network_access": True,
+            "path_translation": False,
+            "persistent_workspace": True,
+            "artifact_upload_download": False,
+        }
 
     def translate_path(self, path: Path) -> str:
         return str(path.resolve())
 
     def is_available(self) -> bool:
-        system = platform.system()
-        return system in ("Linux", "Darwin")
+        return platform.system() == "Linux"
+
+    @staticmethod
+    def _resolve_cwd(workspace_ref: str | None, cwd: Path | None) -> Path | None:
+        if workspace_ref:
+            return Path(workspace_ref)
+        return cwd
 
 
 class WSLRunner(DeployRunner):
     """
     Execute commands via WSL on Windows.
 
-    Translates Windows paths to /mnt/c/... format and wraps
-    commands with wsl.exe invocation.
+    The workspace reference is a Linux path inside the selected WSL distro.
     """
 
     def __init__(self, distro: str = "Ubuntu"):
-        """
-        Initialize WSL runner.
-
-        Args:
-            distro: WSL distribution name (default: Ubuntu)
-        """
         self.distro = distro
         self._available: bool | None = None
 
@@ -223,24 +233,22 @@ class WSLRunner(DeployRunner):
     def run(
         self,
         cmd: Sequence[str],
+        workspace_ref: str | None = None,
+        *,
         cwd: Path | None = None,
         env: dict[str, str] | None = None,
         timeout: int | None = None,
     ) -> RunResult:
-        # Build WSL command
         wsl_cmd = ["wsl", "-d", self.distro]
+        target_cwd = self._resolve_workspace_ref(workspace_ref=workspace_ref, cwd=cwd)
+        if target_cwd:
+            wsl_cmd.extend(["--cd", target_cwd])
 
-        # Add working directory if specified
-        if cwd:
-            wsl_cwd = self.translate_path(cwd)
-            wsl_cmd.extend(["--cd", wsl_cwd])
-
-        # Handle environment variables
         if env:
-            # Prepend env vars to command via bash
-            env_exports = " ".join(f'{k}="{v}"' for k, v in env.items())
-            bash_cmd = f"{env_exports} {' '.join(cmd)}"
-            wsl_cmd.extend(["--", "bash", "-c", bash_cmd])
+            env_exports = " ".join(f"{shlex.quote(key)}={shlex.quote(value)}" for key, value in env.items())
+            cmd_payload = " ".join(shlex.quote(part) for part in cmd)
+            bash_cmd = f"{env_exports} {cmd_payload}" if env_exports else cmd_payload
+            wsl_cmd.extend(["--", "bash", "-lc", bash_cmd])
         else:
             wsl_cmd.extend(["--", *cmd])
 
@@ -256,52 +264,64 @@ class WSLRunner(DeployRunner):
                 stdout=result.stdout,
                 stderr=result.stderr,
             )
-        except subprocess.TimeoutExpired as e:
+        except subprocess.TimeoutExpired as exc:
             return RunResult(
                 exit_code=-1,
-                stdout=e.stdout or "",
+                stdout=exc.stdout or "",
                 stderr=f"Command timed out after {timeout}s",
             )
-        except Exception as e:
+        except Exception as exc:  # pragma: no cover - defensive
             return RunResult(
                 exit_code=-1,
                 stdout="",
-                stderr=str(e),
+                stderr=str(exc),
             )
+
+    def stage_bundle(self, bundle_path: str | Path) -> str:
+        bundle_dir = Path(bundle_path).resolve()
+        if not bundle_dir.exists():
+            raise FileNotFoundError(f"Deploy bundle not found: {bundle_dir}")
+        if not bundle_dir.is_dir():
+            raise NotADirectoryError(f"Deploy bundle is not a directory: {bundle_dir}")
+        return self.translate_path(bundle_dir)
+
+    def cleanup_workspace(self, workspace_ref: str) -> None:
+        # WSL runner stages the immutable bundle by path translation only.
+        return None
+
+    def capabilities(self) -> dict[str, bool]:
+        return {
+            "interactive_confirmation": True,
+            "host_network_access": True,
+            "path_translation": True,
+            "persistent_workspace": True,
+            "artifact_upload_download": False,
+        }
 
     def translate_path(self, path: Path) -> str:
         """
-        Convert Windows path to WSL path.
+        Convert a Windows host path into a WSL-visible path.
 
-        C:\\Users\\user\\project → /mnt/c/Users/user/project
+        Example:
+            C:\\Users\\user\\project -> /mnt/c/Users/user/project
         """
         resolved = path.resolve()
         path_str = str(resolved)
-
-        # Check for Windows drive letter (C:, D:, etc.)
         if len(path_str) >= 2 and path_str[1] == ":":
             drive = path_str[0].lower()
             rest = path_str[2:].replace("\\", "/")
             return f"/mnt/{drive}{rest}"
-
-        # Already Unix-style or relative
         return path_str.replace("\\", "/")
 
     def is_available(self) -> bool:
         if self._available is not None:
             return self._available
-
-        # Must be on Windows
         if platform.system() != "Windows":
             self._available = False
             return False
-
-        # Check WSL is installed
         if not shutil.which("wsl"):
             self._available = False
             return False
-
-        # Check distro exists
         try:
             result = subprocess.run(
                 ["wsl", "-l", "-q"],
@@ -309,20 +329,17 @@ class WSLRunner(DeployRunner):
                 text=True,
                 timeout=10,
             )
-            # WSL output may have BOM/null chars
             distros = result.stdout.replace("\x00", "").strip().split("\n")
-            distros = [d.strip() for d in distros if d.strip()]
+            distros = [item.strip() for item in distros if item.strip()]
             self._available = self.distro in distros
         except Exception:
             self._available = False
-
         return self._available
 
     def get_available_distros(self) -> list[str]:
-        """Get list of available WSL distributions."""
+        """Get the list of locally available WSL distributions."""
         if platform.system() != "Windows":
             return []
-
         try:
             result = subprocess.run(
                 ["wsl", "-l", "-q"],
@@ -331,18 +348,20 @@ class WSLRunner(DeployRunner):
                 timeout=10,
             )
             distros = result.stdout.replace("\x00", "").strip().split("\n")
-            return [d.strip() for d in distros if d.strip()]
+            return [item.strip() for item in distros if item.strip()]
         except Exception:
             return []
 
+    def _resolve_workspace_ref(self, workspace_ref: str | None, cwd: Path | None) -> str | None:
+        if workspace_ref:
+            return workspace_ref
+        if cwd:
+            return self.translate_path(cwd)
+        return None
 
-# Placeholder for future implementations
+
 class DockerRunner(DeployRunner):
-    """
-    Execute commands in Docker container.
-
-    Planned for Phase 0b - CI/CD reproducible execution.
-    """
+    """Planned for Phase 0b - containerized deploy execution."""
 
     def __init__(self, image: str = "homelab-toolchain:latest"):
         self.image = image
@@ -354,17 +373,33 @@ class DockerRunner(DeployRunner):
     def run(
         self,
         cmd: Sequence[str],
+        workspace_ref: str | None = None,
+        *,
         cwd: Path | None = None,
         env: dict[str, str] | None = None,
         timeout: int | None = None,
     ) -> RunResult:
         raise NotImplementedError("DockerRunner planned for Phase 0b")
 
+    def stage_bundle(self, bundle_path: str | Path) -> str:
+        raise NotImplementedError("DockerRunner planned for Phase 0b")
+
+    def cleanup_workspace(self, workspace_ref: str) -> None:
+        raise NotImplementedError("DockerRunner planned for Phase 0b")
+
+    def capabilities(self) -> dict[str, bool]:
+        return {
+            "interactive_confirmation": False,
+            "host_network_access": False,
+            "path_translation": False,
+            "persistent_workspace": False,
+            "artifact_upload_download": False,
+        }
+
     def translate_path(self, path: Path) -> str:
         raise NotImplementedError("DockerRunner planned for Phase 0b")
 
     def is_available(self) -> bool:
-        # Check docker daemon is running
         if not shutil.which("docker"):
             return False
         try:
@@ -379,11 +414,7 @@ class DockerRunner(DeployRunner):
 
 
 class RemoteLinuxRunner(DeployRunner):
-    """
-    Execute commands on remote Linux via SSH.
-
-    Planned for Phase 0c - dedicated control node.
-    """
+    """Planned for Phase 0c - remote Linux control-node execution."""
 
     def __init__(self, host: str, user: str = "deploy"):
         self.host = host
@@ -396,37 +427,39 @@ class RemoteLinuxRunner(DeployRunner):
     def run(
         self,
         cmd: Sequence[str],
+        workspace_ref: str | None = None,
+        *,
         cwd: Path | None = None,
         env: dict[str, str] | None = None,
         timeout: int | None = None,
     ) -> RunResult:
         raise NotImplementedError("RemoteLinuxRunner planned for Phase 0c")
 
+    def stage_bundle(self, bundle_path: str | Path) -> str:
+        raise NotImplementedError("RemoteLinuxRunner planned for Phase 0c")
+
+    def cleanup_workspace(self, workspace_ref: str) -> None:
+        raise NotImplementedError("RemoteLinuxRunner planned for Phase 0c")
+
+    def capabilities(self) -> dict[str, bool]:
+        return {
+            "interactive_confirmation": False,
+            "host_network_access": True,
+            "path_translation": False,
+            "persistent_workspace": True,
+            "artifact_upload_download": True,
+        }
+
     def translate_path(self, path: Path) -> str:
         raise NotImplementedError("RemoteLinuxRunner planned for Phase 0c")
 
     def is_available(self) -> bool:
-        # Would check SSH connectivity
         return False
-
-
-# --- Factory Functions ---
 
 
 def get_runner(preference: str | None = None, **kwargs) -> DeployRunner:
     """
-    Get deploy runner based on preference or auto-detect.
-
-    Args:
-        preference: Runner type ("native", "wsl", "docker", "remote") or None for auto
-        **kwargs: Additional arguments passed to runner constructor
-
-    Returns:
-        DeployRunner instance
-
-    Raises:
-        ValueError: Unknown runner type
-        RuntimeError: Requested runner not available
+    Get a deploy runner based on explicit preference or platform auto-detection.
     """
     if preference:
         return _get_explicit_runner(preference, **kwargs)
@@ -434,65 +467,53 @@ def get_runner(preference: str | None = None, **kwargs) -> DeployRunner:
 
 
 def _get_explicit_runner(preference: str, **kwargs) -> DeployRunner:
-    """Get explicitly requested runner."""
     runners = {
         "native": NativeRunner,
         "wsl": WSLRunner,
         "docker": DockerRunner,
         "remote": RemoteLinuxRunner,
     }
-
     runner_cls = runners.get(preference)
     if not runner_cls:
         available = ", ".join(runners.keys())
         raise ValueError(f"Unknown runner: {preference}. Available: {available}")
-
     runner = runner_cls(**kwargs)
     if not runner.is_available():
         raise RuntimeError(
-            f"Runner '{preference}' is not available on this system. "
-            f"Check installation and configuration."
+            f"Runner '{preference}' is not available on this system. " f"Check installation and configuration."
         )
-
     return runner
 
 
 def _auto_detect_runner() -> DeployRunner:
-    """Auto-detect appropriate runner for current platform."""
     system = platform.system()
 
     if system == "Windows":
-        # Try WSL
         runner = WSLRunner()
         if runner.is_available():
             return runner
-
-        # WSL not available - provide helpful error
         raise RuntimeError(
             "Deploy plane requires Linux execution environment.\n\n"
             "You are on Windows but WSL is not available.\n"
             "Install WSL with: wsl --install -d Ubuntu\n\n"
             "See: docs/guides/OPERATOR-ENVIRONMENT-SETUP.md\n"
-            "See: ADR 0084 for execution plane model"
+            "See: ADR 0084 and ADR 0085 for deploy-domain model"
         )
 
-    if system in ("Linux", "Darwin"):
+    if system == "Linux":
         runner = NativeRunner()
         if runner.is_available():
             return runner
 
-    raise RuntimeError(f"No suitable deploy runner for platform: {system}")
+    raise RuntimeError(
+        f"No suitable deploy runner for platform: {system}. " "Canonical deploy execution is Linux-backed."
+    )
 
 
-def check_runner_tools(runner: DeployRunner, tools: list[str]) -> dict[str, bool]:
-    """
-    Check availability of multiple tools in runner.
-
-    Args:
-        runner: DeployRunner instance
-        tools: List of tool names to check
-
-    Returns:
-        Dict mapping tool name to availability
-    """
-    return {tool: runner.check_tool(tool) for tool in tools}
+def check_runner_tools(
+    runner: DeployRunner,
+    tools: list[str],
+    workspace_ref: str | None = None,
+) -> dict[str, bool]:
+    """Check availability of multiple tools in the runner environment."""
+    return {tool: runner.check_tool(tool, workspace_ref=workspace_ref) for tool in tools}
