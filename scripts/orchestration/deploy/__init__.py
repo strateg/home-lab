@@ -8,6 +8,7 @@ Key components:
 - bundle.py: Deploy bundle assembly and lifecycle operations
 - profile.py: Deploy profile schema-aware loader
 - runner.py: DeployRunner abstraction for cross-platform execution
+- environment.py: Deploy plane environment checks
 - init_node.py / init-node.py: Node initialization orchestrator scaffold (Phase 5)
 - adapters/: Bootstrap mechanism adapters (Phase 5)
 - checks/: Handover verification checks (Phase 5)
@@ -41,6 +42,7 @@ from .bundle import (
     resolve_bundles_root,
     verify_bundle_checksums,
 )
+from .environment import DeployEnvironmentReport, check_deploy_environment
 from .init_node import InitStateSummary
 from .init_node import parse_args as parse_init_node_args
 from .init_node import resolve_state_path, summarize_state
@@ -88,6 +90,7 @@ __all__ = [
     "BundleError",
     "BundleInfo",
     "BundlePolicy",
+    "DeployEnvironmentReport",
     "compute_bundle_id",
     "create_bundle",
     "delete_bundle",
@@ -116,6 +119,7 @@ __all__ = [
     "assert_transition",
     "build_default_node_state",
     "can_transition",
+    "check_deploy_environment",
     "get_adapter",
     "inspect_bundle",
     "list_bundles",

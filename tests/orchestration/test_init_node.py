@@ -3,12 +3,14 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
+import scripts.orchestration.deploy.init_node as init_node_module  # noqa: E402
 from scripts.orchestration.deploy.bundle import create_bundle  # noqa: E402
 from scripts.orchestration.deploy.init_node import main, parse_args, resolve_state_path, validate_args  # noqa: E402
 
@@ -78,6 +80,7 @@ def test_main_node_action_bootstraps_state_and_emits_plan(tmp_path: Path, capsys
             "--node",
             "rtr-a",
             "--plan-only",
+            "--skip-environment-check",
         ]
     )
 
@@ -88,3 +91,37 @@ def test_main_node_action_bootstraps_state_and_emits_plan(tmp_path: Path, capsys
     assert payload["selected_nodes"] == ["rtr-a"]
     state_path = Path(payload["state_path"])
     assert state_path.exists()
+
+
+def test_main_returns_environment_error_when_check_fails(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root, bundle_id = _create_test_bundle(tmp_path)
+    monkeypatch.setattr(
+        init_node_module,
+        "check_deploy_environment",
+        lambda **kwargs: SimpleNamespace(
+            ready=False,
+            platform="Windows",
+            runner="wsl",
+            issues=["runner unavailable"],
+        ),
+    )
+    rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--plan-only",
+        ]
+    )
+    assert rc == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["status"] == "environment-error"
+    assert payload["platform"] == "Windows"
+    assert payload["runner"] == "wsl"

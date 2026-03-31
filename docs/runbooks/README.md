@@ -1,7 +1,7 @@
 # Runbooks Index
 
 **Status:** Active
-**Updated:** 2026-03-28
+**Updated:** 2026-03-31
 **Scope:** V5 post-migration operational readiness (Wave D / Phase 12)
 
 ---
@@ -17,6 +17,7 @@
 - `docs/runbooks/SERVICE-DEPLOYMENT-CHAIN-VALIDATION.md` - evidence template for full service deployment chain validation.
 - `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md` - bundle lifecycle and bundle-based service-chain execution workflow.
 - `docs/guides/REMOTE-RUNNER-SETUP.md` - remote control-node prerequisites and bundle-based execution via `DEPLOY_RUNNER=remote`.
+- `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md` - Linux-backed deploy plane prerequisites for Windows/Linux/macOS operators.
 - `docs/guides/NODE-INITIALIZATION.md` - ADR0083 init-node scaffold commands and current scope.
 - `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md` - first recorded Wave D service-chain execution evidence.
   - automated capture: `task framework:service-chain-evidence-*-bundle -- BUNDLE=<bundle_id>`.

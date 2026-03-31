@@ -19,6 +19,7 @@ from typing import Any, Sequence
 import yaml
 
 from .bundle import inspect_bundle, resolve_bundle_path, resolve_bundles_root
+from .environment import check_deploy_environment
 from .state import build_default_node_state, normalize_status
 
 STATE_FILE_NAME = "INITIALIZATION-STATE.yaml"
@@ -40,6 +41,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--repo-root", default=".")
     parser.add_argument("--project-id", default="home-lab")
     parser.add_argument("--bundle", default="", help="Deploy bundle id or absolute bundle path.")
+    parser.add_argument(
+        "--deploy-runner",
+        default="",
+        help="Runner override (native|wsl|docker|remote). Empty = deploy profile / auto.",
+    )
     parser.add_argument("--node", default="", help="Single node id to process.")
     parser.add_argument("--all-pending", action="store_true", help="Process all nodes in pending state.")
     parser.add_argument("--status", action="store_true", help="Show current initialization state summary.")
@@ -50,6 +56,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--confirm-reset", action="store_true")
     parser.add_argument("--acknowledge-drift", action="store_true")
     parser.add_argument("--plan-only", action="store_true", help="Render execution plan only, no state mutation.")
+    parser.add_argument("--skip-environment-check", action="store_true")
     return parser.parse_args(argv)
 
 
@@ -187,6 +194,27 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         return 0
+
+    if not args.skip_environment_check:
+        env_report = check_deploy_environment(
+            repo_root=repo_root,
+            project_id=project_id,
+            runner_preference=(str(args.deploy_runner).strip() or None),
+            required_tools=["bash"],
+        )
+        if not env_report.ready:
+            issues = list(getattr(env_report, "issues", []))
+            warnings = list(getattr(env_report, "warnings", []))
+            payload = {
+                "status": "environment-error",
+                "platform": str(getattr(env_report, "platform", "unknown")),
+                "runner": str(getattr(env_report, "runner", "unknown")),
+                "issues": issues,
+            }
+            if warnings:
+                payload["warnings"] = warnings
+            print(json.dumps(payload, ensure_ascii=True))
+            return 2
 
     bundle_path = _resolve_bundle_for_execution(repo_root=repo_root, bundle_ref=str(args.bundle))
     manifest_nodes = _derive_manifest_nodes(bundle_path)

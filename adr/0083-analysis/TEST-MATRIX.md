@@ -23,12 +23,12 @@ Define which checks can be CI-mocked vs require hardware. Establish release-bloc
 
 | Test ID | Description | Category | Mock/HW | Blocks? |
 |---------|-------------|----------|---------|---------|
-| T-ENV01 | `check_deploy_environment()` returns "linux" on native Linux | Environment | Mock | Yes |
-| T-ENV02 | `check_deploy_environment()` returns "wsl" when uname contains "microsoft" | Environment | Mock | Yes |
-| T-ENV03 | `check_deploy_environment()` returns "macos" on Darwin | Environment | Mock | Yes |
-| T-ENV04 | `check_deploy_environment()` exits with code 1 on Windows | Environment | Mock | Yes |
-| T-ENV05 | Exit message contains WSL instructions and ADR 0084 reference | Environment | Mock | Yes |
-| T-ENV06 | `init-node.py` calls `check_deploy_environment()` at startup | Integration | Mock | Yes |
+| T-E01 | `check_deploy_environment()` returns `ready=true` when runner and required tools are available | Environment | Mock | Yes |
+| T-E02 | `check_deploy_environment()` returns `ready=false` with issue details when runner resolution fails | Environment | Mock | Yes |
+| T-E03 | `check_deploy_environment()` returns `ready=false` when required tool is missing | Environment | Mock | Yes |
+| T-E04 | `check_deploy_environment()` forwards explicit `runner_preference` to runner resolver | Environment | Mock | Yes |
+| T-E05 | Windows host with non-Linux-backed runner is flagged as invalid environment | Environment | Mock | Yes |
+| T-ENV06 | `init-node.py` calls `check_deploy_environment()` at startup and returns `environment-error` payload on failure | Integration | Mock | Yes |
 
 ---
 

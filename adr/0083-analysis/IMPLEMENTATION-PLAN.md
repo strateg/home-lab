@@ -4,7 +4,7 @@
 
 This plan implements the Unified Node Initialization Contract in 8 phases (0-6 + 5a), progressing from environment setup through schema definition to cutover.
 
-**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline). Primary priority remains ADR 0085/0084 hardening, with ADR 0083 progressing incrementally on top of that foundation.
+**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), and Phase 0 environment precheck is now implemented and wired into `init-node` execution flow.
 
 ### Dependencies
 
@@ -25,35 +25,37 @@ This plan implements the Unified Node Initialization Contract in 8 phases (0-6 +
 
 | ID | Task | Outputs | Acceptance Criteria |
 |----|------|---------|---------------------|
-| 0.1 | Create environment module | `scripts/orchestration/deploy/environment.py` | `check_deploy_environment()` implemented |
-| 0.2 | Add unit tests | `tests/orchestration/test_environment.py` | T-E01..T-E05 pass |
-| 0.3 | Create operator setup guide | `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md` | WSL setup, tool installation documented |
+| 0.1 | Create environment module | `scripts/orchestration/deploy/environment.py` | `check_deploy_environment()` implemented ✅ |
+| 0.2 | Add unit tests | `tests/orchestration/test_environment.py` | T-E01..T-E05 pass ✅ |
+| 0.3 | Create operator setup guide | `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md` | WSL setup, tool installation documented ✅ |
 
 ### Implementation
 
 ```python
 # scripts/orchestration/deploy/environment.py
 
-import sys
 import platform
 
-def check_deploy_environment() -> str:
-    """Verify Linux deploy plane. Returns 'linux'/'wsl', exits on Windows."""
-    if platform.system() == "Windows":
-        print("ERROR: Deploy plane requires Linux. Use WSL:")
-        print("    wsl && cd /mnt/c/path/to/home-lab")
-        sys.exit(1)
-    if "microsoft" in platform.uname().release.lower():
-        return "wsl"
-    return "linux"
+def check_deploy_environment(...) -> DeployEnvironmentReport:
+    host_platform = platform.system()
+    runner = get_runner(...)
+    tools = check_runner_tools(runner, ["bash"])
+    issues = [f"Required tool '{tool}' is not available" for tool, ok in tools.items() if not ok]
+    return DeployEnvironmentReport(
+        ready=len(issues) == 0,
+        platform=host_platform,
+        runner=runner.name,
+        issues=issues,
+        tools=tools,
+    )
 ```
 
 ### Gate
 
-- [ ] Environment check implemented (~50 lines)
-- [ ] Windows execution fails with WSL instructions
-- [ ] Unit tests pass (T-E01..T-E05)
-- [ ] OPERATOR-ENVIRONMENT-SETUP.md created
+- [x] Environment check implemented (~50 lines)
+- [x] Windows execution fails with WSL instructions
+- [x] Unit tests pass (T-E01..T-E05)
+- [x] OPERATOR-ENVIRONMENT-SETUP.md created
 
 ---
 
