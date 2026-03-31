@@ -83,10 +83,6 @@ def test_proxmox_bootstrap_manifest_externalizes_file_mappings() -> None:
     assert (
         isinstance(bootstrap_files, list) and bootstrap_files
     ), "bootstrap_files must be configured in module manifest"
-    post_install_scripts = config.get("post_install_scripts")
-    assert (
-        isinstance(post_install_scripts, list) and post_install_scripts
-    ), "post_install_scripts must be configured in module manifest"
 
     for idx, row in enumerate(bootstrap_files):
         assert isinstance(row, dict), f"bootstrap_files[{idx}] must be mapping/object"
@@ -96,15 +92,6 @@ def test_proxmox_bootstrap_manifest_externalizes_file_mappings() -> None:
         assert isinstance(row.get("template"), str) and row.get(
             "template"
         ), f"bootstrap_files[{idx}].template must be non-empty string"
-
-    for idx, row in enumerate(post_install_scripts):
-        assert isinstance(row, dict), f"post_install_scripts[{idx}] must be mapping/object"
-        assert isinstance(row.get("output_file"), str) and row.get(
-            "output_file"
-        ), f"post_install_scripts[{idx}].output_file must be non-empty string"
-        assert isinstance(row.get("template"), str) and row.get(
-            "template"
-        ), f"post_install_scripts[{idx}].template must be non-empty string"
 
 
 def test_proxmox_bootstrap_manifest_schema_declares_file_structure() -> None:
@@ -116,9 +103,6 @@ def test_proxmox_bootstrap_manifest_schema_declares_file_structure() -> None:
 
     files_schema = properties.get("bootstrap_files")
     assert isinstance(files_schema, dict), "config_schema must declare bootstrap_files"
-
-    scripts_schema = properties.get("post_install_scripts")
-    assert isinstance(scripts_schema, dict), "config_schema must declare post_install_scripts"
 
 
 def test_proxmox_bootstrap_generator_has_no_hardcoded_file_mappings() -> None:

@@ -31,8 +31,8 @@ initialization_contract:
   version: 1.0.0
   mechanism: unattended_install
   bootstrap:
-    template: bootstrap/answer.toml.example.j2
-    post_install: bootstrap/script.sh.j2
+    template: bootstrap/answer.toml.j2
+    post_install: bootstrap/post-install-minimal.sh.j2
   requirements:
   - type: tool
     name: proxmox-installer

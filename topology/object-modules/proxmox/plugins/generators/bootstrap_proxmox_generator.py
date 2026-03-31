@@ -22,8 +22,6 @@ class BootstrapProxmoxGenerator(BaseGenerator):
         diagnostics: list[PluginDiagnostic] = []
         bootstrap_helpers = load_bootstrap_helpers(ctx=ctx)
         get_bootstrap_files = bootstrap_helpers.get_bootstrap_files
-        get_post_install_scripts = bootstrap_helpers.get_post_install_scripts
-        get_post_install_readme = bootstrap_helpers.get_post_install_readme
         bootstrap_projections = load_bootstrap_projection_module(ctx=ctx)
         projection_error = bootstrap_projections.ProjectionError
         build_bootstrap_projection = bootstrap_projections.build_bootstrap_projection
@@ -59,55 +57,54 @@ class BootstrapProxmoxGenerator(BaseGenerator):
 
         # Get file mappings from config (ADR0078 WP-003)
         bootstrap_files = get_bootstrap_files(ctx.config)
-        post_install_scripts = get_post_install_scripts(ctx.config)
 
         for row in nodes:
             instance_id = str(row.get("instance_id", "")).strip()
             if not instance_id:
                 continue
             node_root = self.resolve_output_path(ctx, "bootstrap", instance_id)
-            scripts_root = node_root / "post-install"
-            render_ctx = {"instance_id": instance_id}
+            render_ctx = {
+                "instance_id": instance_id,
+                "node": row,
+                "initialization_contract": self._resolve_initialization_contract(row),
+            }
 
             # Generate bootstrap files from config (ADR0078)
             for file_mapping in bootstrap_files:
                 output_file = file_mapping.get("output_file", "")
-                template = file_mapping.get("template", "")
+                template = str(file_mapping.get("template", "")).strip()
+                if output_file in {"answer.toml", "answer.toml.example"}:
+                    template = self._resolve_contract_template(
+                        row=row,
+                        field_name="template",
+                        default_template=template,
+                    )
+                if output_file == "post-install-minimal.sh":
+                    template = self._resolve_contract_template(
+                        row=row,
+                        field_name="post_install",
+                        default_template=template,
+                    )
                 if not output_file or not template:
                     continue
                 output_path = node_root / output_file
-                self.write_text_atomic(
-                    output_path,
-                    self.render_template(ctx, template, render_ctx),
-                )
-                written.append(str(output_path))
-
-            # Generate post-install scripts from config (ADR0078)
-            for script_mapping in post_install_scripts:
-                output_file = script_mapping.get("output_file", "")
-                template = script_mapping.get("template", "")
-                action = script_mapping.get("action", "")
-                if not output_file or not template:
-                    continue
-                script_path = scripts_root / output_file
-                self.write_text_atomic(
-                    script_path,
-                    self.render_template(ctx, template, {"action": action, **render_ctx}),
-                )
-                written.append(str(script_path))
-
-            # Generate post-install README from config (ADR0078 WP-003)
-            readme_config = get_post_install_readme(ctx.config)
-            if readme_config:
-                readme_output = readme_config.get("output_file", "README.md")
-                readme_template = readme_config.get("template", "")
-                if readme_template:
-                    readme_path = scripts_root / readme_output
-                    self.write_text_atomic(
-                        readme_path,
-                        self.render_template(ctx, readme_template, render_ctx),
+                try:
+                    rendered = self.render_template(ctx, template, render_ctx)
+                except Exception as exc:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E9402",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"failed to render bootstrap template '{template}' " f"for node '{instance_id}': {exc}"
+                            ),
+                            path=f"generator:bootstrap_proxmox:{instance_id}",
+                        )
                     )
-                    written.append(str(readme_path))
+                    return self.make_result(diagnostics)
+                self.write_text_atomic(output_path, rendered)
+                written.append(str(output_path))
 
         diagnostics.append(
             self.emit_diagnostic(
@@ -125,3 +122,24 @@ class BootstrapProxmoxGenerator(BaseGenerator):
             diagnostics=diagnostics,
             output_data={"bootstrap_proxmox_files": written},
         )
+
+    @staticmethod
+    def _resolve_initialization_contract(row: dict) -> dict:
+        obj = row.get("object")
+        if not isinstance(obj, dict):
+            return {}
+        contract = obj.get("initialization_contract")
+        if not isinstance(contract, dict):
+            return {}
+        return contract
+
+    def _resolve_contract_template(self, *, row: dict, field_name: str, default_template: str) -> str:
+        contract = self._resolve_initialization_contract(row)
+        bootstrap = contract.get("bootstrap")
+        if not isinstance(bootstrap, dict):
+            return default_template
+        template = bootstrap.get(field_name)
+        if not isinstance(template, str):
+            return default_template
+        resolved = template.strip()
+        return resolved or default_template

@@ -112,8 +112,8 @@ def _compiled_fixture_with_proxmox_contract_mechanism() -> dict:
                             "version": "1.0.0",
                             "mechanism": "unattended_install",
                             "bootstrap": {
-                                "template": "bootstrap/answer.toml.example.j2",
-                                "post_install": "bootstrap/script.sh.j2",
+                                "template": "bootstrap/answer.toml.j2",
+                                "post_install": "bootstrap/post-install-minimal.sh.j2",
                             },
                         }
                     },
@@ -156,10 +156,10 @@ def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "srv-gamayun"
+    assert (root / "answer.toml").exists()
     assert (root / "answer.toml.example").exists()
+    assert (root / "post-install-minimal.sh").exists()
     assert (root / "README.md").exists()
-    assert (root / "post-install" / "01-install-terraform.sh").exists()
-    assert (root / "post-install" / "06-enable-zswap.sh").exists()
 
 
 def test_bootstrap_proxmox_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
@@ -172,8 +172,22 @@ def test_bootstrap_proxmox_generator_uses_initialization_contract_mechanism(tmp_
 
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "srv-contract"
+    assert (root / "answer.toml").exists()
     assert (root / "answer.toml.example").exists()
-    assert (root / "post-install" / "01-install-terraform.sh").exists()
+    assert (root / "post-install-minimal.sh").exists()
+
+
+def test_bootstrap_proxmox_generator_fails_when_contract_template_is_invalid(tmp_path: Path) -> None:
+    plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
+    generator = BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap")
+    compiled = _compiled_fixture_with_proxmox_contract_mechanism()
+    compiled["instances"]["devices"][0]["object"]["initialization_contract"]["bootstrap"]["template"] = (  # type: ignore[index]
+        "bootstrap/does-not-exist.toml.j2"
+    )
+
+    result = generator.execute(_ctx(tmp_path, compiled, plugin_config), Stage.GENERATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E9402" for diag in result.diagnostics)
 
 
 def test_bootstrap_mikrotik_generator_writes_expected_files(tmp_path: Path) -> None:

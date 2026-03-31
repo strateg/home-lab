@@ -1,0 +1,18 @@
+# Proxmox unattended install answer file
+# instance_id: {{ instance_id }}
+
+[global]
+keyboard = "en-us"
+fqdn = "{{ node.get('instance_data', {}).get('management', {}).get('hostname', instance_id) }}"
+mailto = "admin@example.local"
+timezone = "UTC"
+
+[network]
+source = "from-dhcp"
+
+[disk-setup]
+filesystem = "zfs"
+disk_list = ["/dev/sda"]
+
+[first-boot]
+enabled = true

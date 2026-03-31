@@ -100,34 +100,14 @@ plugins:
     config:
       # Bootstrap file mappings (ADR0078)
       bootstrap_files:
+        - output_file: answer.toml
+          template: bootstrap/answer.toml.j2
         - output_file: answer.toml.example
-          template: bootstrap/answer.toml.example.j2
+          template: bootstrap/answer.toml.j2
+        - output_file: post-install-minimal.sh
+          template: bootstrap/post-install-minimal.sh.j2
         - output_file: README.md
           template: bootstrap/readme.md.j2
-      # Post-install README (ADR0078)
-      post_install_readme:
-        output_file: README.md
-        template: bootstrap/post-install-readme.md.j2
-      # Post-install script mappings (ADR0078)
-      post_install_scripts:
-        - output_file: "01-install-terraform.sh"
-          template: bootstrap/script.sh.j2
-          action: "Install Terraform runtime (placeholder)."
-        - output_file: "02-install-ansible.sh"
-          template: bootstrap/script.sh.j2
-          action: "Install Ansible runtime (placeholder)."
-        - output_file: "03-configure-storage.sh"
-          template: bootstrap/script.sh.j2
-          action: "Configure storage pools (placeholder)."
-        - output_file: "04-configure-network.sh"
-          template: bootstrap/script.sh.j2
-          action: "Configure network bridge and VLANs (placeholder)."
-        - output_file: "05-init-git-repo.sh"
-          template: bootstrap/script.sh.j2
-          action: "Initialize git workspace (placeholder)."
-        - output_file: "06-enable-zswap.sh"
-          template: bootstrap/script.sh.j2
-          action: "Enable zswap tuning (placeholder)."
     config_schema:
       type: object
       properties:
@@ -144,33 +124,6 @@ plugins:
                 type: string
                 description: Template path relative to object template root.
             required: [output_file, template]
-        post_install_readme:
-          type: object
-          description: Post-install README file mapping (ADR0078).
-          properties:
-            output_file:
-              type: string
-              description: Output README filename relative to post-install directory.
-            template:
-              type: string
-              description: Template path relative to object template root.
-          required: [output_file, template]
-        post_install_scripts:
-          type: array
-          description: Post-install script mappings.
-          items:
-            type: object
-            properties:
-              output_file:
-                type: string
-                description: Output script filename.
-              template:
-                type: string
-                description: Template path relative to object template root.
-              action:
-                type: string
-                description: Action description passed to template.
-            required: [output_file, template]
       required: []
     produces:
       - key: generated_dir
@@ -179,4 +132,4 @@ plugins:
         scope: pipeline_shared
       - key: bootstrap_proxmox_files
         scope: pipeline_shared
-    description: Emits baseline bootstrap artifacts for Proxmox nodes (Phase 6 bootstrap).
+    description: Emits contract-aware minimal bootstrap artifacts for Proxmox nodes (answer.toml + post-install-minimal.sh).

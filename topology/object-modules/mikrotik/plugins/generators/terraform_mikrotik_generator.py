@@ -84,7 +84,16 @@ class TerraformMikroTikGenerator(BaseGenerator):
         caps = projection.get("capabilities", {})
         # Normalize has_qos for backwards compatibility (can be basic or advanced)
         has_qos = caps.get("has_qos_basic", False) or caps.get("has_qos_advanced", False)
-        normalized_caps = {**caps, "has_qos": has_qos}
+        normalized_caps = {
+            # Default known template flags to avoid undefined variables when projection omits capabilities.
+            "has_vlan": bool(caps.get("has_vlan", False)),
+            "has_wireguard": bool(caps.get("has_wireguard", False)),
+            "has_containers": bool(caps.get("has_containers", False)),
+            "has_qos_basic": bool(caps.get("has_qos_basic", False)),
+            "has_qos_advanced": bool(caps.get("has_qos_advanced", False)),
+            **caps,
+            "has_qos": has_qos,
+        }
 
         render_context = {
             "terraform_version": str(ctx.config.get("terraform_version", ">= 1.6.0")),

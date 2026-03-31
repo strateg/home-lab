@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Minimal day-0 handover: enable API-ready Terraform access.
+TF_USER="terraform"
+TF_TOKEN_ID="terraform-api"
+TF_TOKEN_COMMENT="home-lab bootstrap handover token"
+
+if ! id "${TF_USER}" >/dev/null 2>&1; then
+  pveum user add "${TF_USER}@pve" --comment "${TF_TOKEN_COMMENT}"
+fi
+
+pveum aclmod / -user "${TF_USER}@pve" -role Administrator
+
+echo "Bootstrap minimal handover complete for {{ instance_id }}"
+echo "Create token manually if required:"
+echo "  pveum user token add ${TF_USER}@pve ${TF_TOKEN_ID} --privsep 0"

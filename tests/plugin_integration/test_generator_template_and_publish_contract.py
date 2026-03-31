@@ -138,7 +138,7 @@ def _ctx(tmp_path: Path, compiled_json: dict, plugin_config: dict | None = None)
         (
             BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap"),
             {"instances": {"devices": [{"instance_id": "srv-pve", "object_ref": "obj.proxmox.ve"}]}},
-            9,
+            4,
             PROXMOX_MANIFEST,
             "object.proxmox.generator.bootstrap",
         ),
