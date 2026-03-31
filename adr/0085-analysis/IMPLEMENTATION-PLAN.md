@@ -164,18 +164,18 @@ ADR 0085 defines the deploy bundle contract as the canonical execution input for
 
 ---
 
-## Phase 4: Backend Completion (Deferred)
+## Phase 4: Backend Completion (Partially Complete)
 
 **Goal:** Complete Docker and Remote runners when needed.
 
 | ID | Task | Trigger | Status |
 |----|------|---------|--------|
-| 4.1 | Create Docker toolchain image | CI needed | 🔜 Deferred |
-| 4.2 | Implement `DockerRunner` | CI needed | 🔜 Deferred |
-| 4.3 | Implement `RemoteLinuxRunner` | Control VM needed | 🔜 Deferred |
-| 4.4 | Add backend tests | After implementation | 🔜 Deferred |
+| 4.1 | Create Docker toolchain image | CI needed | ✅ Done (`docker/Dockerfile.toolchain`) |
+| 4.2 | Implement `DockerRunner` | CI needed | ✅ Done |
+| 4.3 | Implement `RemoteLinuxRunner` | Control VM needed | ✅ Done |
+| 4.4 | Add backend tests | After implementation | ✅ Done (unit contract tests + Docker backend CI lane) |
 
-**Gate:** Backend-specific tests pass.
+**Gate:** ✅ Implemented backend tests pass in CI; remote live-control-node smoke remains environment-dependent.
 
 ---
 
@@ -188,7 +188,7 @@ ADR 0085 defines the deploy bundle contract as the canonical execution input for
 | Phase 1 | Deploy profile | ✅ Complete | Phase 0a |
 | Phase 2 | Bundle assembly | ✅ Complete | Phase 1 |
 | Phase 3 | Entry point migration | ✅ Core complete | Phase 2 |
-| Phase 4 | Backend completion | 📅 Deferred | When needed |
+| Phase 4 | Backend completion | ✅ Core complete | Ongoing reliability hardening |
 
 ---
 

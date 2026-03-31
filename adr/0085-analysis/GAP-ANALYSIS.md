@@ -42,13 +42,13 @@ Track remaining gap between implemented deploy-bundle model and full target cont
 
 **Action:** Complete when ADR 0083 implementation is resumed.
 
-### G2: Deferred runner backends are still stubs
+### G2: Runner backend reliability hardening remains
 
-**Current:** `DockerRunner` and `RemoteLinuxRunner` remain placeholders.
+**Current:** `DockerRunner` and `RemoteLinuxRunner` are implemented and covered by runner unit tests.
 
-**Target:** Concrete staging and execution implementation for CI and remote-control-node workflows.
+**Target:** Keep backend behavior reliable across CI and operational environments.
 
-**Action:** Implement in ADR 0084 Phase 0b/0c when operational trigger exists.
+**Action:** Continue hardening with backend-specific CI checks and optional remote integration smoke on dedicated control-node infrastructure.
 
 ---
 
@@ -58,8 +58,8 @@ Track remaining gap between implemented deploy-bundle model and full target cont
 |-----------|--------|-------|
 | Runner workspace contract | ✅ Done | `runner.py` implements stage/run/capabilities/cleanup |
 | Native + WSL runners | ✅ Done | Functional implementations |
-| Docker runner | 🔜 Stub | Deferred backend completion |
-| Remote runner | 🔜 Stub | Deferred backend completion |
+| Docker runner | ✅ Done | Implemented in `runner.py` + toolchain image + CI smoke lane |
+| Remote runner | ✅ Done | Implemented in `runner.py` + expanded contract tests |
 | Deploy profile schema + loader | ✅ Done | `deploy-profile.schema.json` + `profile.py` + tests |
 | Bundle schema + CLI/API | ✅ Done | `deploy-bundle-manifest.schema.json` + `bundle.py` |
 | Assemble-stage bundle plugin | ✅ Done | `base.assembler.deploy_bundle` |
