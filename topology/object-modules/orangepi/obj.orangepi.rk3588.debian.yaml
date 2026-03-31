@@ -20,6 +20,34 @@ software_contract:
     min: 1
     max: 1
   multi_boot: false
+
+initialization_contract:
+  version: 1.0.0
+  mechanism: cloud_init
+  bootstrap:
+    template: bootstrap/user-data.example.j2
+    outputs:
+      user_data: user-data.example
+      meta_data: meta-data
+  requirements:
+  - type: tool
+    name: cloud-init
+    required: true
+    description: Target image must include cloud-init service.
+  - type: network
+    name: first_boot_dhcp
+    required: true
+    description: First-boot network must provide DHCP or equivalent static bootstrap reachability.
+  handover:
+    checks:
+    - type: ssh_reachable
+      target: '{{ node.management_ip }}'
+      port: 22
+    retry:
+      max_attempts: 8
+      backoff_seconds: 20
+      timeout_seconds: 600
+
 enabled_capabilities:
 - cap.compute.node.edge
 - cap.compute.runtime.container_host

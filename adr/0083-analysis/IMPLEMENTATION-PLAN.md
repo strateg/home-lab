@@ -4,7 +4,7 @@
 
 This plan implements the Unified Node Initialization Contract in 8 phases (0-6 + 5a), progressing from environment setup through schema definition to cutover.
 
-**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), Phase 0 environment precheck is wired into `init-node`, non-`--plan-only` mode returns explicit `not-implemented` until adapters are integrated, unknown node targets fail fast (`node-not-found`), Phase 1 schema/validator baseline is in place, Phase 2.1/2.2 baseline is started (MikroTik contract + contract-aware bootstrap projection routing), and Phase 3.1 baseline is started (Proxmox contract declaration).
+**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), Phase 0 environment precheck is wired into `init-node`, non-`--plan-only` mode returns explicit `not-implemented` until adapters are integrated, unknown node targets fail fast (`node-not-found`), Phase 1 schema/validator baseline is in place, Phase 2.1/2.2 baseline is started (MikroTik contract + contract-aware bootstrap projection routing), and Phase 3.1/4.1 baseline is started (Proxmox + Orange Pi contract declarations).
 
 ### Dependencies
 
@@ -149,7 +149,7 @@ def check_deploy_environment(...) -> DeployEnvironmentReport:
 
 | ID | Task | Outputs | Acceptance Criteria |
 |----|------|---------|---------------------|
-| 4.1 | Complete Orange Pi object module | `topology/object-modules/orangepi/obj.orangepi.rk3588.debian.yaml` | With initialization_contract |
+| 4.1 | Complete Orange Pi object module | `topology/object-modules/orangepi/obj.orangepi.rk3588.debian.yaml` | With initialization_contract ✅ |
 | 4.2 | Implement `user-data.j2` | `topology/object-modules/orangepi/templates/bootstrap/user-data.j2` | SSH keys, network, python |
 | 4.3 | Implement `meta-data.j2` | `topology/object-modules/orangepi/templates/bootstrap/meta-data.j2` | Instance ID, hostname |
 | 4.4 | Complete bootstrap generator | `topology/object-modules/orangepi/plugins/generators/bootstrap_orangepi_generator.py` | Produces cloud-init files |

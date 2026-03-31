@@ -123,6 +123,32 @@ def _compiled_fixture_with_proxmox_contract_mechanism() -> dict:
     }
 
 
+def _compiled_fixture_with_orangepi_contract_mechanism() -> dict:
+    return {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "opi-contract",
+                    "object_ref": "obj.custom.edge",
+                    "object": {
+                        "initialization_contract": {
+                            "version": "1.0.0",
+                            "mechanism": "cloud_init",
+                            "bootstrap": {
+                                "template": "bootstrap/user-data.example.j2",
+                                "outputs": {
+                                    "user_data": "user-data.example",
+                                    "meta_data": "meta-data",
+                                },
+                            },
+                        }
+                    },
+                }
+            ]
+        }
+    }
+
+
 def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
     generator = BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap")
@@ -197,6 +223,20 @@ def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> N
     assert (root / "user-data.example").exists()
     assert (root / "meta-data").exists()
     assert (root / "README.md").exists()
+
+
+def test_bootstrap_orangepi_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
+    plugin_config = _load_plugin_config(ORANGEPI_MANIFEST, "object.orangepi.generator.bootstrap")
+    generator = BootstrapOrangePiGenerator("object.orangepi.generator.bootstrap")
+    result = generator.execute(
+        _ctx(tmp_path, _compiled_fixture_with_orangepi_contract_mechanism(), plugin_config),
+        Stage.GENERATE,
+    )
+
+    assert result.status == PluginStatus.SUCCESS
+    root = tmp_path / "generated" / "bootstrap" / "opi-contract" / "cloud-init"
+    assert (root / "user-data.example").exists()
+    assert (root / "meta-data").exists()
 
 
 def test_bootstrap_generators_report_projection_error(tmp_path: Path) -> None:
