@@ -13,6 +13,7 @@ sys.path.insert(0, str(REPO_ROOT))
 import scripts.orchestration.deploy.init_node as init_node_module  # noqa: E402
 from scripts.orchestration.deploy.bundle import create_bundle  # noqa: E402
 from scripts.orchestration.deploy.init_node import main, parse_args, resolve_state_path, validate_args  # noqa: E402
+from scripts.orchestration.deploy.logging import resolve_init_node_log_path  # noqa: E402
 
 
 def _create_test_bundle(tmp_path: Path) -> tuple[Path, str]:
@@ -158,6 +159,10 @@ def test_main_non_plan_mode_executes_and_marks_node_failed_with_placeholder(
     row = next(item for item in state_payload["nodes"] if item["id"] == "rtr-a")
     assert row["status"] == "failed"
     assert row["attempt_count"] == 1
+    log_path = resolve_init_node_log_path(repo_root=repo_root, project_id="home-lab")
+    assert log_path.exists()
+    log_text = log_path.read_text(encoding="utf-8")
+    assert "node-execute-adapter-failed" in log_text
 
 
 def test_main_verify_only_marks_initialized_node_as_verified(
@@ -211,6 +216,8 @@ def test_main_verify_only_marks_initialized_node_as_verified(
     state_payload = init_node_module._load_yaml_mapping(state_path)
     row = next(item for item in state_payload["nodes"] if item["id"] == "rtr-a")
     assert row["status"] == "verified"
+    log_path = resolve_init_node_log_path(repo_root=repo_root, project_id="home-lab")
+    assert "node-verify-success" in log_path.read_text(encoding="utf-8")
 
 
 def test_main_verify_only_fails_for_pending_node(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

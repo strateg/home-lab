@@ -2,7 +2,7 @@
 
 **Status:** Experimental scaffold
 **Updated:** 2026-03-31
-**Scope:** ADR 0083 Phase 5.3 baseline (`init-node` CLI/state/status)
+**Scope:** ADR 0083 Phase 5 scaffold (`init-node` CLI/state/status/verify baseline)
 
 ---
 
@@ -18,11 +18,19 @@ Implemented now:
   - `scripts/orchestration/deploy/adapters/base.py`
   - `scripts/orchestration/deploy/adapters/__init__.py`
   - `scripts/orchestration/deploy/state.py`
+- mechanism-specific adapter baselines:
+  - `scripts/orchestration/deploy/adapters/netinstall.py`
+  - `scripts/orchestration/deploy/adapters/unattended.py`
+  - `scripts/orchestration/deploy/adapters/cloud_init.py`
+  - `scripts/orchestration/deploy/adapters/ansible_bootstrap.py`
+- `--verify-only` handover baseline (`initialized -> verified`)
+- structured JSONL audit logging:
+  - `.work/deploy-state/<project>/logs/init-node-audit.jsonl`
 - deploy environment precheck (`check_deploy_environment()`), with optional `--skip-environment-check` for isolated test runs
 
 Not implemented yet:
-- adapter execution (`netinstall`, `unattended`, `cloud-init`, `ansible_bootstrap`)
-- full state-machine transitions and handover checks
+- destructive adapter execution paths (bootstrapping actions remain not-implemented)
+- full retry/backoff and external handover probes
 
 ---
 
@@ -57,9 +65,10 @@ task framework:deploy-init-all-pending-plan -- BUNDLE=<bundle_id>
 ## 3. Notes
 
 - `init-node` currently emits execution plan JSON and initializes state baseline.
-- non-`--plan-only` execution currently returns `status=not-implemented` (execution adapters are next increment).
+- non-`--plan-only` execution runs adapter preflight + placeholder execute flow and updates state.
+- `--verify-only` now runs adapter handover checks and can transition `initialized -> verified`.
 - Use immutable deploy bundles from ADR 0085 (`task framework:deploy-bundle-create`).
-- This is safe to run in current state because no destructive adapter execution is active yet.
+- This is still safe in current state because destructive adapter execution is not implemented.
 - Environment precheck runs by default for non-`--status` commands; use `SKIP_ENVIRONMENT_CHECK=1` only for isolated tests.
 - Environment setup reference: `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md`.
 - Unknown `--node` now fails fast with `status=node-not-found` and available manifest node list.

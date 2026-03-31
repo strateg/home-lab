@@ -12,6 +12,7 @@ Key components:
 - init_node.py / init-node.py: Node initialization orchestrator scaffold (Phase 5)
 - adapters/: Bootstrap mechanism adapters (Phase 5)
 - checks/: Handover verification checks (Phase 5)
+- logging.py: Structured console + JSONL deploy audit logging (Phase 5)
 - state.py: Initialization state machine (Phase 5)
 
 See ADR 0084 for execution plane model.
@@ -47,6 +48,7 @@ from .init_node import InitStateSummary
 from .init_node import parse_args as parse_init_node_args
 from .init_node import resolve_state_path, summarize_state
 from .init_node import validate_args as validate_init_node_args
+from .logging import InitNodeLogger, resolve_deploy_log_dir, resolve_init_node_log_path
 from .profile import (
     BundlePolicy,
     DeployProfile,
@@ -108,6 +110,7 @@ __all__ = [
     "RemoteRunnerProfile",
     "RemoteLinuxRunner",
     "InitStateSummary",
+    "InitNodeLogger",
     "resolve_bundle_path",
     "resolve_bundle_schema_path",
     "resolve_bundles_root",
@@ -134,6 +137,8 @@ __all__ = [
     "load_deploy_profile",
     "resolve_deploy_profile_path",
     "resolve_deploy_profile_schema_path",
+    "resolve_deploy_log_dir",
+    "resolve_init_node_log_path",
     "resolve_state_path",
     "resolve_deploy_workspace",
     "summarize_state",

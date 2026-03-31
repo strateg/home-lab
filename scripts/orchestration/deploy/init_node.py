@@ -21,6 +21,7 @@ import yaml
 from .adapters import AdapterContext, get_adapter
 from .bundle import inspect_bundle, resolve_bundle_path, resolve_bundles_root
 from .environment import check_deploy_environment
+from .logging import InitNodeLogger
 from .state import StateTransitionError, build_default_node_state, normalize_status, transition_node_state
 
 STATE_FILE_NAME = "INITIALIZATION-STATE.yaml"
@@ -227,6 +228,7 @@ def _execute_selected_nodes(
     manifest_nodes: list[dict[str, Any]],
     selected_nodes: list[str],
     import_existing: bool,
+    logger: InitNodeLogger,
 ) -> tuple[int, dict[str, Any]]:
     state_by_id = _state_index(state_payload)
     manifest_by_id = _manifest_index(manifest_nodes)
@@ -252,6 +254,14 @@ def _execute_selected_nodes(
         if not isinstance(state_row, dict):
             result_row["error_code"] = "E9734"
             result_row["message"] = "Node state row is missing."
+            logger.error(
+                event="node-execute-missing-state",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status="failed",
+                error_code="E9734",
+            )
             results.append(result_row)
             failure_count += 1
             continue
@@ -261,6 +271,14 @@ def _execute_selected_nodes(
         if current_status not in {"pending", "failed"}:
             result_row["error_code"] = "E9735"
             result_row["message"] = f"Node status '{current_status}' is not executable without reset/force flow."
+            logger.error(
+                event="node-execute-invalid-status",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status=current_status,
+                error_code="E9735",
+            )
             results.append(result_row)
             failure_count += 1
             continue
@@ -276,6 +294,14 @@ def _execute_selected_nodes(
         except StateTransitionError as exc:
             result_row["error_code"] = "E9731"
             result_row["message"] = str(exc)
+            logger.error(
+                event="node-execute-transition-error",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status="failed",
+                error_code="E9731",
+            )
             results.append(result_row)
             failure_count += 1
             continue
@@ -291,6 +317,14 @@ def _execute_selected_nodes(
             )
             result_row["error_code"] = "E9732"
             result_row["message"] = str(exc)
+            logger.error(
+                event="node-execute-adapter-resolution-failed",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status="failed",
+                error_code="E9732",
+            )
             results.append(result_row)
             failure_count += 1
             continue
@@ -306,6 +340,14 @@ def _execute_selected_nodes(
             )
             result_row["error_code"] = "E9733"
             result_row["message"] = "Preflight checks failed."
+            logger.error(
+                event="node-execute-preflight-failed",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status="failed",
+                error_code="E9733",
+            )
             results.append(result_row)
             failure_count += 1
             continue
@@ -320,6 +362,13 @@ def _execute_selected_nodes(
             )
             result_row["status"] = "success"
             result_row["message"] = str(exec_result.message or "Bootstrap execution completed.")
+            logger.info(
+                event="node-execute-success",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status="initialized",
+            )
             results.append(result_row)
             continue
 
@@ -331,6 +380,14 @@ def _execute_selected_nodes(
         )
         result_row["error_code"] = str(exec_result.error_code or "E9730")
         result_row["message"] = str(exec_result.message or "Adapter execution failed.")
+        logger.error(
+            event="node-execute-adapter-failed",
+            message=result_row["message"],
+            node=node_id,
+            mechanism=mechanism,
+            status="failed",
+            error_code=result_row["error_code"],
+        )
         results.append(result_row)
         failure_count += 1
 
@@ -358,6 +415,7 @@ def _verify_selected_nodes(
     state_payload: dict[str, Any],
     manifest_nodes: list[dict[str, Any]],
     selected_nodes: list[str],
+    logger: InitNodeLogger,
 ) -> tuple[int, dict[str, Any]]:
     state_by_id = _state_index(state_payload)
     manifest_by_id = _manifest_index(manifest_nodes)
@@ -383,6 +441,14 @@ def _verify_selected_nodes(
         if not isinstance(state_row, dict):
             result_row["error_code"] = "E9734"
             result_row["message"] = "Node state row is missing."
+            logger.error(
+                event="node-verify-missing-state",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status="failed",
+                error_code="E9734",
+            )
             results.append(result_row)
             failure_count += 1
             continue
@@ -392,6 +458,14 @@ def _verify_selected_nodes(
         if current_status not in {"initialized", "verified"}:
             result_row["error_code"] = "E9737"
             result_row["message"] = f"Node status '{current_status}' is not eligible for verify-only checks."
+            logger.error(
+                event="node-verify-invalid-status",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status=current_status,
+                error_code="E9737",
+            )
             results.append(result_row)
             failure_count += 1
             continue
@@ -407,6 +481,14 @@ def _verify_selected_nodes(
             )
             result_row["error_code"] = "E9732"
             result_row["message"] = str(exc)
+            logger.error(
+                event="node-verify-adapter-resolution-failed",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status="failed",
+                error_code="E9732",
+            )
             results.append(result_row)
             failure_count += 1
             continue
@@ -422,6 +504,14 @@ def _verify_selected_nodes(
             )
             result_row["error_code"] = "E9736"
             result_row["message"] = "Adapter returned no handover checks."
+            logger.error(
+                event="node-verify-empty-checks",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status="failed",
+                error_code="E9736",
+            )
             results.append(result_row)
             failure_count += 1
             continue
@@ -437,6 +527,14 @@ def _verify_selected_nodes(
             error_codes = [code for code in error_codes if code]
             result_row["error_code"] = error_codes[0] if error_codes else "E9738"
             result_row["message"] = "Handover checks failed."
+            logger.error(
+                event="node-verify-checks-failed",
+                message=result_row["message"],
+                node=node_id,
+                mechanism=mechanism,
+                status="failed",
+                error_code=result_row["error_code"],
+            )
             results.append(result_row)
             failure_count += 1
             continue
@@ -449,6 +547,13 @@ def _verify_selected_nodes(
         )
         result_row["status"] = "success"
         result_row["message"] = "Handover checks passed."
+        logger.info(
+            event="node-verify-success",
+            message=result_row["message"],
+            node=node_id,
+            mechanism=mechanism,
+            status="verified",
+        )
         results.append(result_row)
 
     state_payload["updated_at"] = _utc_now()
@@ -477,14 +582,27 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     repo_root = Path(args.repo_root).resolve()
     project_id = str(args.project_id).strip() or "home-lab"
+    logger = InitNodeLogger(repo_root=repo_root, project_id=project_id)
     state_path = resolve_state_path(repo_root=repo_root, project_id=project_id)
 
     if args.status:
         state_payload = _load_yaml_mapping(state_path)
         if not state_payload:
+            logger.info(
+                event="status-empty",
+                message="Initialization state is empty.",
+                status="empty",
+                details={"state_path": str(state_path)},
+            )
             print(json.dumps({"status": "empty", "state_path": str(state_path)}, ensure_ascii=True))
             return 0
         summary = summarize_state(state_payload)
+        logger.info(
+            event="status-report",
+            message="Initialization status summary generated.",
+            status="ok",
+            details={"total_nodes": summary.total_nodes, "state_path": str(state_path)},
+        )
         print(
             json.dumps(
                 {
@@ -517,6 +635,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             }
             if warnings:
                 payload["warnings"] = warnings
+            logger.error(
+                event="environment-error",
+                message="Deploy environment check failed.",
+                status="environment-error",
+                error_code="E9700",
+                details=payload,
+            )
             print(json.dumps(payload, ensure_ascii=True))
             return 2
 
@@ -528,6 +653,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     target_node = str(args.node).strip() if str(args.node).strip() else None
     manifest_node_ids = {row["id"] for row in manifest_nodes}
     if target_mode == "node" and target_node and target_node not in manifest_node_ids:
+        logger.error(
+            event="node-not-found",
+            message=f"Node '{target_node}' is not present in bundle manifest.",
+            node=target_node,
+            status="node-not-found",
+            error_code="E9739",
+            details={"available_nodes": sorted(manifest_node_ids)},
+        )
         print(
             json.dumps(
                 {
@@ -563,10 +696,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         "plan_only": bool(args.plan_only),
     }
     if args.plan_only:
+        logger.info(
+            event="plan-generated",
+            message="Init-node plan generated.",
+            status="planned",
+            details={"mode": target_mode, "selected_nodes": sorted(set(selected_nodes))},
+        )
         print(json.dumps(plan_payload, ensure_ascii=True))
         return 0
 
     if not selected_nodes:
+        logger.info(
+            event="no-op",
+            message="No nodes selected for execution.",
+            status="no-op",
+            details={"mode": target_mode},
+        )
         print(
             json.dumps(
                 {
@@ -590,6 +735,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             state_payload=state_payload,
             manifest_nodes=manifest_nodes,
             selected_nodes=selected_nodes,
+            logger=logger,
         )
     else:
         exit_code, execution_payload = _execute_selected_nodes(
@@ -600,6 +746,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             manifest_nodes=manifest_nodes,
             selected_nodes=selected_nodes,
             import_existing=bool(args.import_existing),
+            logger=logger,
         )
     execution_payload["mode"] = target_mode
     execution_payload["plan_only"] = False
