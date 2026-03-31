@@ -2,20 +2,56 @@
 
 ## Overview
 
-This plan implements the Unified Node Initialization Contract in 7 phases, progressing from schema definition to cutover. Phases are mapped to ADR 0080 wave dependencies.
+This plan implements the Unified Node Initialization Contract in 8 phases (0-6 + 5a), progressing from environment setup through schema definition to cutover.
 
-### ADR 0080 Wave Dependencies
+### Dependencies
 
-**All waves (A–H) are completed ✅ — no external blockers remain.**
+| ADR 0083 Phase | Dependency | Status |
+|----------------|------------|--------|
+| Phase 0 | ADR 0084 (Execution Plane) | ✅ ADR created |
+| Phase 1-6 | ADR 0080 Wave B-H | ✅ All waves completed |
 
-| ADR 0083 Phase | Required ADR 0080 Wave | Status |
-|----------------|------------------------|--------|
-| Phase 1 | Wave B (Kernel Foundations) | ✅ Completed |
-| Phase 2-3 | Wave D (Phase Annotation) | ✅ Completed |
-| Phase 4 | Wave B | ✅ Completed |
-| Phase 5 | Wave E (Data Bus) | ✅ Completed |
-| Phase 5a | Wave F (Assemble Pluginization) | ✅ Completed |
-| Phase 6 | Wave H (Hard Cutover) | ✅ Completed |
+---
+
+## Phase 0: Execution Environment (ADR 0084 Integration)
+
+**Goal:** Implement deploy plane environment check per ADR 0084.
+
+**Rationale:** Deploy tooling (`init-node.py`, Terraform, Ansible) requires Linux. Windows operators must use WSL. This phase ensures fast-fail with clear instructions.
+
+### Tasks
+
+| ID | Task | Outputs | Acceptance Criteria |
+|----|------|---------|---------------------|
+| 0.1 | Create environment module | `scripts/orchestration/deploy/environment.py` | `check_deploy_environment()` implemented |
+| 0.2 | Add unit tests | `tests/orchestration/test_environment.py` | T-E01..T-E05 pass |
+| 0.3 | Create operator setup guide | `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md` | WSL setup, tool installation documented |
+
+### Implementation
+
+```python
+# scripts/orchestration/deploy/environment.py
+
+import sys
+import platform
+
+def check_deploy_environment() -> str:
+    """Verify Linux deploy plane. Returns 'linux'/'wsl', exits on Windows."""
+    if platform.system() == "Windows":
+        print("ERROR: Deploy plane requires Linux. Use WSL:")
+        print("    wsl && cd /mnt/c/path/to/home-lab")
+        sys.exit(1)
+    if "microsoft" in platform.uname().release.lower():
+        return "wsl"
+    return "linux"
+```
+
+### Gate
+
+- [ ] Environment check implemented (~50 lines)
+- [ ] Windows execution fails with WSL instructions
+- [ ] Unit tests pass (T-E01..T-E05)
+- [ ] OPERATOR-ENVIRONMENT-SETUP.md created
 
 ---
 
@@ -213,15 +249,16 @@ This plan implements the Unified Node Initialization Contract in 7 phases, progr
 
 | Phase | Duration | Dependencies |
 |-------|----------|--------------|
-| Phase 1: Schema | 2-3 days | ADR 0080 Wave B |
-| Phase 2: MikroTik | 1-2 days | Phase 1, Wave D |
-| Phase 3: Proxmox | 3-5 days | Phase 1, Wave D |
+| Phase 0: Environment | 1 day | ADR 0084 |
+| Phase 1: Schema | 2-3 days | Phase 0 |
+| Phase 2: MikroTik | 1-2 days | Phase 1 |
+| Phase 3: Proxmox | 3-5 days | Phase 1 |
 | Phase 4: Orange Pi/LXC | 2-3 days | Phase 1 |
-| Phase 5: Orchestration | 4-5 days | Phases 2-4, Wave E |
-| Phase 5a: Assemble | 2-3 days | Phase 5, Wave F |
+| Phase 5: Orchestration | 4-5 days | Phases 2-4 |
+| Phase 5a: Assemble | 2-3 days | Phase 5 |
 | Phase 6: Documentation | 2-3 days | Phase 5a |
 
-**Total:** ~17-24 working days
+**Total:** ~18-25 working days
 
 ---
 

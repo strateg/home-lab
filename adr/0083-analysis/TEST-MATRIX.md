@@ -15,6 +15,20 @@ Define which checks can be CI-mocked vs require hardware. Establish release-bloc
 | Integration (mock) | CI (pytest + fixtures) | Yes |
 | Integration (hardware) | Lab hardware | Yes (for validated mechanisms) |
 | Smoke | Lab hardware | No (advisory) |
+| Environment | CI (pytest) | Yes |
+
+---
+
+## 0. Environment Tests (ADR 0084)
+
+| Test ID | Description | Category | Mock/HW | Blocks? |
+|---------|-------------|----------|---------|---------|
+| T-ENV01 | `check_deploy_environment()` returns "linux" on native Linux | Environment | Mock | Yes |
+| T-ENV02 | `check_deploy_environment()` returns "wsl" when uname contains "microsoft" | Environment | Mock | Yes |
+| T-ENV03 | `check_deploy_environment()` returns "macos" on Darwin | Environment | Mock | Yes |
+| T-ENV04 | `check_deploy_environment()` exits with code 1 on Windows | Environment | Mock | Yes |
+| T-ENV05 | Exit message contains WSL instructions and ADR 0084 reference | Environment | Mock | Yes |
+| T-ENV06 | `init-node.py` calls `check_deploy_environment()` at startup | Integration | Mock | Yes |
 
 ---
 
@@ -193,6 +207,7 @@ Define which checks can be CI-mocked vs require hardware. Establish release-bloc
 
 | Gate | Criteria | Evidence |
 |------|----------|----------|
+| Environment gate | All T-ENV* tests pass | CI green |
 | Schema gate | All T-S* tests pass | CI green |
 | Validator gate | All T-V* tests pass | CI green |
 | Generator gate | All T-G* tests pass, artifacts deterministic | CI green |
@@ -230,17 +245,18 @@ markers:
 
 ```
 tests/
+  orchestration/
+    test_environment.py                         # T-ENV01..T-ENV06 (ADR 0084)
+    test_init_node.py                           # T-O01..T-O23
+    test_handover_checks.py                     # T-H01..T-H08
+    test_state_machine.py                       # T-O07..T-O08
   plugin_integration/
     test_initialization_contract_validator.py   # T-V01..T-V08
     test_bootstrap_generators.py                # T-G01..T-G12
     test_initialization_manifest_generator.py   # T-G07..T-G12
     test_bootstrap_secrets_assembler.py         # T-A01..T-A07
-  orchestration/
-    test_init_node.py                           # T-O01..T-O12
-    test_handover_checks.py                     # T-H01..T-H08
-    test_state_machine.py                       # T-O07..T-O08
   schemas/
-    test_initialization_contract_schema.py      # T-S01..T-S14
+    test_initialization_contract_schema.py      # T-S01..T-S15
   hardware/
     test_mikrotik_e2e.py                        # T-E01..T-E02
     test_proxmox_e2e.py                         # T-E03

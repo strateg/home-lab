@@ -74,36 +74,53 @@ All commands that perform deploy-time execution SHOULD run from a Linux environm
 
 This decision applies even though Terraform/OpenTofu can run natively on Windows. Canonical deploy execution is unified under Linux so that Terraform/OpenTofu and Ansible share one runtime boundary.
 
-### D4. Supported Deploy Backends
+### D4. Supported Deploy Environments
 
-The deploy plane MAY be hosted by one of the following backends:
+The deploy plane runs on Linux. For Windows operators, WSL provides the Linux environment:
 
-1. `wsl` - local developer bridge for Windows-hosted workflows.
-2. `docker` - reproducible local or CI execution environment.
-3. `remote-linux` - dedicated Linux control node, VM, or runner.
+| Environment | Status | Use Case |
+|-------------|--------|----------|
+| Native Linux | ✅ Supported | Linux workstation, CI runner, Control VM |
+| WSL2 (Ubuntu) | ✅ Supported | Windows developer workflow |
+| macOS | ⚠️ Limited | Ansible works, but `netinstall-cli` unavailable |
+| Windows native | ❌ Not supported | Use WSL instead |
 
-These backends are equivalent in role but not in authority:
+**Future backends** (not implemented, defer to separate ADR when needed):
+- `docker` - reproducible CI execution environment
+- `remote-linux` - dedicated control node or VM
 
-- `remote-linux` is the preferred canonical backend for authoritative apply operations.
-- `docker` is preferred for reproducible local checks and CI execution.
-- `wsl` is acceptable for local development and migration, but SHOULD be treated as a bridge backend rather than the long-term canonical production executor.
+### D5. Simple Environment Check, Not Abstraction Layer
 
-### D5. Orchestration Must Target a Deploy Runner, Not a Host OS Special Case
+Deploy tooling MUST verify the execution environment at startup and fail fast with clear instructions if not Linux-backed.
 
-Repository orchestration MUST model deploy execution through an explicit deploy-runner abstraction rather than encoding Windows/WSL assumptions directly into lane logic.
+**Implementation:**
 
-The target shape is:
+```python
+# scripts/orchestration/deploy/environment.py
 
-- platform-neutral orchestration for dev-plane steps,
-- deploy-runner selection for deploy-plane steps,
-- consistent interfaces for secrets, SSH material, generated inventory/config paths, and command invocation.
+import sys
+import platform
 
-Examples of acceptable runner identifiers:
+def check_deploy_environment() -> str:
+    """Verify Linux deploy plane. Returns 'linux' or 'wsl', exits on Windows."""
+    system = platform.system()
 
-- `native` for dev-plane-only steps,
-- `wsl` for local Linux-backed deploy execution on Windows,
-- `docker` for containerized deploy execution,
-- `remote-linux` for off-host execution.
+    if system == "Windows":
+        print("ERROR: Deploy plane requires Linux. Use WSL:")
+        print("    wsl")
+        print("    cd /mnt/c/path/to/home-lab")
+        print("    python scripts/orchestration/deploy/init-node.py ...")
+        sys.exit(1)
+
+    if system == "Linux":
+        if "microsoft" in platform.uname().release.lower():
+            return "wsl"
+        return "linux"
+
+    return system.lower()  # macos, etc.
+```
+
+**Rationale:** A simple environment check (50 lines) is preferred over a deploy-runner abstraction layer (200+ lines). Abstract when there's a concrete need for multiple backends, not before.
 
 ### D6. ADR 0083 Executes Within This Plane Model
 
@@ -122,24 +139,31 @@ ADR 0083 therefore depends on this ADR for execution semantics, while retaining 
 ### Benefits
 
 - The repository keeps a genuinely cross-platform authoring experience.
-- Deploy execution stops pretending to be fully cross-platform when Ansible is still Linux-first.
+- Deploy execution stops pretending to be fully cross-platform when Ansible is Linux-first.
 - Terraform/OpenTofu and Ansible share one canonical runtime for secrets, SSH, networking, and caches.
-- Future CI/CD and operator runbooks become simpler because deploy instructions target one execution class: Linux-backed runners.
-- Existing WSL glue becomes transitional implementation detail rather than implicit architecture.
+- Simple environment check (not abstraction layer) keeps code maintainable.
+- Clear error messages guide Windows operators to WSL.
 
 ### Trade-Offs
 
 - Windows-native Terraform/OpenTofu deploy flows are no longer the canonical operator path.
-- Local operators on Windows may need WSL or Docker even if Terraform/OpenTofu alone would have worked natively.
-- Orchestration code must introduce runner abstraction and backend-specific adapters.
-- Documentation and runbooks must clearly distinguish dev-plane workflows from deploy-plane workflows.
+- Local operators on Windows must use WSL for deploy operations.
+- Documentation must clearly distinguish dev-plane from deploy-plane workflows.
 
 ### Migration Impact
 
-1. Existing Python compile/generate flows remain unchanged.
-2. WSL-specific Ansible execution helpers should evolve into a general deploy-runner abstraction.
-3. Deploy-focused task/runbook flows should declare which backend they require.
-4. ADR 0083 and later deploy ADRs should reference this plane model instead of redefining execution assumptions.
+1. Existing Python compile/generate flows remain unchanged (dev plane).
+2. Deploy tooling (`init-node.py`, Terraform, Ansible) runs from Linux/WSL.
+3. ADR 0083 integrates `check_deploy_environment()` in Phase 0.
+4. Future Docker/remote-linux backends deferred to separate ADR when needed.
+
+### What We Are NOT Doing
+
+- ❌ No `DeployRunner` abstraction class
+- ❌ No backend adapter pattern (yet)
+- ❌ No Docker/remote-linux implementation (deferred)
+
+**Rationale:** Single-operator home-lab does not need enterprise-grade runner abstraction. WSL solves the problem. Abstract later if CI/CD or multi-operator scenarios emerge.
 
 ---
 

@@ -4,58 +4,92 @@
 
 Define the gap between the current mixed execution model and the target model:
 
-- cross-platform dev plane,
-- Linux-backed deploy plane,
-- explicit deploy-runner abstraction.
+- Cross-platform dev plane
+- Linux-backed deploy plane
+- Simple environment check (not abstraction layer)
+
+---
 
 ## Current State
 
-1. Dev workflows are already mostly cross-platform because validation and compilation are Python-based.
-2. Deploy tooling is split:
-   - Terraform/OpenTofu may run natively on Windows,
-   - Ansible requires Linux-backed execution.
-3. WSL-specific logic already exists in `topology-tools/utils/service_chain_evidence.py`.
-4. Evidence documents record that native Windows Ansible execution is not a viable baseline in the current environment.
-5. Deploy-plane backend selection is not yet expressed as a first-class orchestration contract.
+| Aspect | Status | Issue |
+|--------|--------|-------|
+| Dev workflows | ✅ Cross-platform | Python-based validation and compilation |
+| Terraform/OpenTofu | ⚠️ Mixed | Can run on Windows, but should share runtime with Ansible |
+| Ansible | ❌ Linux-only | Requires WSL on Windows |
+| WSL glue | ⚠️ Hard-coded | `service_chain_evidence.py` has WSL-specific logic |
+| Execution model | ❌ Undocumented | No explicit plane boundary defined |
+
+---
 
 ## Target State
 
-1. Dev workflows remain cross-platform and platform-neutral.
-2. Deploy workflows always run against a Linux-backed backend.
-3. Orchestration selects a deploy runner explicitly.
-4. Runbooks distinguish dev-plane commands from deploy-plane commands.
-5. ADR 0083 and future deploy ADRs build on one execution model instead of embedding ad hoc platform rules.
+| Aspect | Target | Implementation |
+|--------|--------|----------------|
+| Dev plane | Cross-platform | No changes needed |
+| Deploy plane | Linux required | `check_deploy_environment()` |
+| Terraform + Ansible | Unified runtime | Both run from Linux/WSL |
+| Documentation | Clear separation | OPERATOR-ENVIRONMENT-SETUP.md |
 
-## Main Gaps
+---
 
-### Gap 1: No explicit plane boundary
+## Gap Items
 
-- The repo conceptually separates build and deploy concerns, but the operator model is not documented as a formal architecture decision.
+### G1: No explicit plane boundary
 
-### Gap 2: WSL is hard-coded as a tactic
+**Current:** Implicit separation, not documented.
+**Target:** ADR 0084 defines Dev plane vs Deploy plane.
+**Action:** ADR 0084 created ✅
 
-- Some flows refer directly to WSL commands instead of targeting a generic Linux-backed deploy runner.
+### G2: No environment check
 
-### Gap 3: Terraform/OpenTofu and Ansible are not framed as one execution domain
+**Current:** Deploy tools don't verify execution environment.
+**Target:** `check_deploy_environment()` fails fast on Windows.
+**Action:** Implement in `scripts/orchestration/deploy/environment.py`
 
-- In practice they should share secrets, SSH, caches, and runtime semantics, but the current operator story still allows them to drift apart.
+### G3: No operator setup guide
 
-### Gap 4: Runbooks and tasks do not consistently declare backend expectations
+**Current:** Scattered tool installation notes.
+**Target:** Unified `OPERATOR-ENVIRONMENT-SETUP.md`.
+**Action:** Create guide with WSL setup, tool installation, verification.
 
-- Operators can infer current behavior, but the intended backend policy is not yet explicit.
+### G4: ADR 0083 missing execution context
+
+**Current:** ADR 0083 doesn't specify where `init-node.py` runs.
+**Target:** ADR 0083 references ADR 0084 for execution model.
+**Action:** Add Phase 0 to ADR 0083 implementation plan.
+
+---
+
+## What We Are NOT Doing
+
+| Gap | Why Not Addressed |
+|-----|-------------------|
+| Runner abstraction | YAGNI — single-operator home-lab doesn't need it |
+| Docker backend | Defer until CI/CD integration needed |
+| Remote-linux backend | Defer until dedicated control VM scenario |
+| Backend selector | No multiple backends to select from |
+
+**Principle:** Solve the actual problem (Ansible needs Linux) with minimal code (environment check). Abstract later when concrete need arises.
+
+---
 
 ## Risks if Unchanged
 
-1. More Windows/WSL special cases will leak into orchestration code.
-2. Future Docker or remote-Linux runners will require refactoring instead of plugging into a stable interface.
-3. Operator expectations for deploy support will remain ambiguous.
-4. ADR 0083 implementation may grow deploy assumptions that later need reversal.
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| Confusing error on Windows | High | Medium | Clear exit message with WSL instructions |
+| Terraform/Ansible runtime drift | Medium | Low | Document unified execution model |
+| Future abstraction harder | Low | Low | Simple check is easy to extend |
+
+---
 
 ## Acceptance Signal
 
 ADR 0084 is successfully adopted when:
 
-1. the plane split is documented,
-2. deploy backends are explicitly named,
-3. orchestration can evolve from `ansible_via_wsl` to a generic deploy-runner model,
-4. and deploy runbooks consistently target Linux-backed execution.
+1. ✅ Plane separation documented in ADR
+2. [ ] `check_deploy_environment()` implemented
+3. [ ] Deploy tooling fails fast on Windows with clear message
+4. [ ] OPERATOR-ENVIRONMENT-SETUP.md guides Windows users to WSL
+5. [ ] ADR 0083 Phase 0 references environment check
