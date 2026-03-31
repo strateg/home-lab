@@ -100,7 +100,7 @@ The deploy plane uses a `DeployRunner` abstraction to support multiple execution
 |---------|-------|--------|----------|
 | `native` | `NativeRunner` | ✅ Implemented | Local Linux workstation |
 | `wsl` | `WSLRunner` | ✅ Implemented | Windows developer workflow |
-| `docker` | `DockerRunner` | 🔜 Planned | Reproducible CI execution |
+| `docker` | `DockerRunner` | ✅ Implemented (core) | Reproducible CI execution |
 | `remote` | `RemoteLinuxRunner` | 🔜 Planned | Dedicated control node via SSH |
 
 **Auto-detection:**
@@ -133,7 +133,7 @@ Deploy tooling uses `DeployRunner` abstraction for consistent workspace-aware ex
 |--------|--------|-------|
 | `NativeRunner` | ✅ Implemented | Direct Linux execution |
 | `WSLRunner` | ✅ Implemented | Windows→WSL with path translation |
-| `DockerRunner` | 🔜 Stub | Phase 0b when CI needed |
+| `DockerRunner` | ✅ Core implemented | Uses `docker run` with mounted bundle workspace |
 | `RemoteLinuxRunner` | 🔜 Stub | Phase 0c when control VM needed |
 
 **Rationale:** ADR 0085 introduces deploy bundle as the canonical execution input. A simple `run()+translate_path()` abstraction is not enough for `wsl`, `docker`, and `remote` backends. The runner contract therefore must stage bundles into backend workspaces, execute there, report capabilities, and clean up.
@@ -188,7 +188,7 @@ ADR 0084 depends on ADR 0085 for canonical execution input and workspace contrac
 |-------|-------------|--------|
 | 0a | Workspace-aware `DeployRunner` contract + `NativeRunner` + `WSLRunner` | ✅ Complete |
 | 0a.1 | `service_chain_evidence.py` refactored to use runner | ✅ Complete |
-| 0b | `DockerRunner` + bundle mounting/staging strategy | 📅 When CI needed |
+| 0b | `DockerRunner` + bundle mounting/staging strategy | ✅ Core complete (CI image/workflow pending) |
 | 0c | `RemoteLinuxRunner` + remote bundle staging strategy | 📅 When control VM needed |
 
 See `adr/0084-analysis/` and `adr/0085-analysis/` for detailed progress tracking.

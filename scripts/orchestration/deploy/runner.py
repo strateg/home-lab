@@ -363,10 +363,19 @@ class WSLRunner(DeployRunner):
 
 
 class DockerRunner(DeployRunner):
-    """Planned for Phase 0b - containerized deploy execution."""
+    """Containerized deploy execution backend."""
 
-    def __init__(self, image: str = "homelab-toolchain:latest"):
+    def __init__(
+        self,
+        image: str = "homelab-toolchain:latest",
+        network: str = "host",
+        workspace_mount: str = "/workspace",
+        docker_binary: str = "docker",
+    ):
         self.image = image
+        self.network = network
+        self.workspace_mount = workspace_mount
+        self.docker_binary = docker_binary
 
     @property
     def name(self) -> str:
@@ -381,38 +390,112 @@ class DockerRunner(DeployRunner):
         env: dict[str, str] | None = None,
         timeout: int | None = None,
     ) -> RunResult:
-        raise NotImplementedError("DockerRunner planned for Phase 0b")
+        host_workspace = self._resolve_workspace_ref(workspace_ref=workspace_ref, cwd=cwd)
+        if host_workspace is None:
+            return RunResult(
+                exit_code=-1,
+                stdout="",
+                stderr="DockerRunner requires workspace_ref or cwd",
+            )
+        if not host_workspace.exists():
+            return RunResult(
+                exit_code=-1,
+                stdout="",
+                stderr=f"Docker workspace does not exist: {host_workspace}",
+            )
+        if not host_workspace.is_dir():
+            return RunResult(
+                exit_code=-1,
+                stdout="",
+                stderr=f"Docker workspace is not a directory: {host_workspace}",
+            )
+
+        docker_cmd: list[str] = [
+            self.docker_binary,
+            "run",
+            "--rm",
+            "--network",
+            self.network,
+            "-v",
+            f"{host_workspace}:{self.workspace_mount}",
+            "-w",
+            self.workspace_mount,
+        ]
+        if env:
+            for key, value in sorted(env.items(), key=lambda item: item[0]):
+                docker_cmd.extend(["-e", f"{key}={value}"])
+        docker_cmd.append(self.image)
+        docker_cmd.extend(list(cmd))
+
+        try:
+            result = subprocess.run(
+                docker_cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+            return RunResult(
+                exit_code=result.returncode,
+                stdout=result.stdout,
+                stderr=result.stderr,
+            )
+        except subprocess.TimeoutExpired as exc:
+            return RunResult(
+                exit_code=-1,
+                stdout=exc.stdout or "",
+                stderr=f"Command timed out after {timeout}s",
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            return RunResult(
+                exit_code=-1,
+                stdout="",
+                stderr=str(exc),
+            )
 
     def stage_bundle(self, bundle_path: str | Path) -> str:
-        raise NotImplementedError("DockerRunner planned for Phase 0b")
+        bundle_dir = Path(bundle_path).resolve()
+        if not bundle_dir.exists():
+            raise FileNotFoundError(f"Deploy bundle not found: {bundle_dir}")
+        if not bundle_dir.is_dir():
+            raise NotADirectoryError(f"Deploy bundle is not a directory: {bundle_dir}")
+        return str(bundle_dir)
 
     def cleanup_workspace(self, workspace_ref: str) -> None:
-        raise NotImplementedError("DockerRunner planned for Phase 0b")
+        # Docker runner mounts immutable bundle path into short-lived containers.
+        # There is no backend-side mutable workspace to clean up.
+        return None
 
     def capabilities(self) -> dict[str, bool]:
         return {
             "interactive_confirmation": False,
-            "host_network_access": False,
+            "host_network_access": self.network == "host",
             "path_translation": False,
             "persistent_workspace": False,
             "artifact_upload_download": False,
         }
 
     def translate_path(self, path: Path) -> str:
-        raise NotImplementedError("DockerRunner planned for Phase 0b")
+        return str(path.resolve())
 
     def is_available(self) -> bool:
-        if not shutil.which("docker"):
+        if not shutil.which(self.docker_binary):
             return False
         try:
             result = subprocess.run(
-                ["docker", "info"],
+                [self.docker_binary, "info"],
                 capture_output=True,
                 timeout=10,
             )
             return result.returncode == 0
         except Exception:
             return False
+
+    def _resolve_workspace_ref(self, workspace_ref: str | None, cwd: Path | None) -> Path | None:
+        if workspace_ref:
+            return Path(workspace_ref).resolve()
+        if cwd is not None:
+            return cwd.resolve()
+        return None
 
 
 class RemoteLinuxRunner(DeployRunner):
@@ -517,6 +600,7 @@ def _merge_runner_kwargs(
 
     if preference == "docker":
         merged.setdefault("image", profile.runners.docker.image)
+        merged.setdefault("network", profile.runners.docker.network)
         return merged
 
     if preference == "remote":

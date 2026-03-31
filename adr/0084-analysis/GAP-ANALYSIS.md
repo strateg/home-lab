@@ -38,13 +38,13 @@ Track remaining gap between implemented execution-plane model and full backend c
 
 ## Remaining Gap Items
 
-### G1: Docker backend is still a stub
+### G1: Docker backend needs runtime hardening follow-up
 
-**Current:** `DockerRunner` placeholder only.
+**Current:** `DockerRunner` is implemented with bundle staging by container mount and command execution via `docker run`.
 
-**Target:** Bundle staging/mount strategy implemented and tested for CI use.
+**Target:** Toolchain image and CI workflow adoption are finalized.
 
-**Action:** ADR 0084 Phase 0b when CI trigger exists.
+**Action:** Add/validate `docker/Dockerfile.toolchain` and wire deploy checks in CI.
 
 ### G2: Remote Linux backend is still a stub
 
@@ -71,7 +71,7 @@ Track remaining gap between implemented execution-plane model and full backend c
 | `DeployRunner` module | ✅ Done | `scripts/orchestration/deploy/runner.py` |
 | `NativeRunner` | ✅ Done | Full workspace-aware implementation |
 | `WSLRunner` | ✅ Done | Full implementation with path translation |
-| `DockerRunner` | 🔜 Stub | Phase 0b |
+| `DockerRunner` | ✅ Core implemented | Container execution + mount-based workspace |
 | `RemoteLinuxRunner` | 🔜 Stub | Phase 0c |
 | Workspace-aware contract | ✅ Done | `stage_bundle()`, `run()`, `capabilities()`, `cleanup_workspace()` |
 | Bundle consumption in active flow | ✅ Done | `service_chain_evidence.py --bundle` |
@@ -86,7 +86,7 @@ Track remaining gap between implemented execution-plane model and full backend c
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
 | WSL networking issues | Medium | High | Keep WSL execution guidance explicit in runbooks |
-| Backend divergence (Docker/Remote) | Medium | High | Preserve shared runner contract as implementation gate |
+| Backend divergence (Docker/Remote) | Medium | High | Keep runner contract + unit tests as backend gate |
 | Docker network mode for bootstrap | Low | Medium | Validate host-network requirements per mechanism |
 | Remote staging drift | Medium | Medium | Keep bundle immutable, verify checksums pre-stage |
 | ADR 0083 partial adoption | Medium | Medium | Reuse existing runner+bundle APIs instead of forked paths |

@@ -46,12 +46,12 @@
 
 ---
 
-## Phase 0b: Docker Runner (Future)
+## Phase 0b: Docker Runner (Partial)
 
 - [ ] Docker toolchain image created
-- [ ] Bundle staging/mount strategy documented
-- [ ] `DockerRunner` implemented
-- [ ] Docker runner tests pass
+- [x] Bundle staging/mount strategy implemented in runner
+- [x] `DockerRunner` implemented
+- [x] Docker runner tests pass
 - [ ] CI usage documented or implemented
 
 ---

@@ -79,19 +79,19 @@ runner.cleanup_workspace(workspace_ref)
 
 ---
 
-## Phase 0b: Docker Runner (Planned)
+## Phase 0b: Docker Runner ✅ CORE IMPLEMENTED
 
 **Goal:** Add `DockerRunner` for reproducible CI execution.
 
 **Trigger:** CI/CD pipeline integration or reproducible deploy sandbox requirement.
 
-| ID | Task | Output | Acceptance Criteria |
-|----|------|--------|---------------------|
-| 0b.1 | Create Docker toolchain image | `docker/Dockerfile.toolchain` | Python, Ansible, Terraform/OpenTofu, SOPS |
-| 0b.2 | Implement bundle staging strategy | `runner.py` | Bundle mounted or copied into container workspace |
-| 0b.3 | Implement `DockerRunner` | `runner.py` | Runner executes against staged workspace |
-| 0b.4 | Add tests | `tests/orchestration/test_docker_runner.py` | Docker runner tests pass |
-| 0b.5 | Integrate CI usage | workflow/docs | CI can run deploy checks via Docker |
+| ID | Task | Output | Status |
+|----|------|--------|--------|
+| 0b.1 | Create Docker toolchain image | `docker/Dockerfile.toolchain` | ⏸ Pending |
+| 0b.2 | Implement bundle staging strategy | `runner.py` | ✅ Done (mount bundle path into container workspace) |
+| 0b.3 | Implement `DockerRunner` | `runner.py` | ✅ Done |
+| 0b.4 | Add tests | `tests/orchestration/test_runner.py` | ✅ Done |
+| 0b.5 | Integrate CI usage | workflow/docs | ⏸ Pending |
 
 ---
 
@@ -133,5 +133,5 @@ This preserves:
 |-------|----------|--------|
 | Phase 0a: Contract alignment | 2 days | ✅ Complete |
 | ADR 0085 integration in active flow | 1 day | ✅ Complete |
-| Phase 0b: Docker | 2 days | 📅 When CI needed |
+| Phase 0b: Docker | 2 days | ✅ Core implemented (image/CI follow-up pending) |
 | Phase 0c: Remote | 3 days | 📅 When control node needed |

@@ -11,7 +11,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 import scripts.orchestration.deploy.runner as runner_module  # noqa: E402
-from scripts.orchestration.deploy.runner import NativeRunner, RunResult, WSLRunner, get_runner  # noqa: E402
+from scripts.orchestration.deploy.runner import (  # noqa: E402
+    DockerRunner,
+    NativeRunner,
+    RunResult,
+    WSLRunner,
+    get_runner,
+)
 
 
 class _FakeWindowsPath:
@@ -118,6 +124,76 @@ def test_get_runner_returns_wsl_runner(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert isinstance(runner, WSLRunner)
     assert runner.distro == "Ubuntu"
+
+
+def test_docker_runner_stage_bundle_returns_resolved_path(tmp_path: Path) -> None:
+    bundle_dir = tmp_path / "bundle"
+    bundle_dir.mkdir()
+
+    runner = DockerRunner()
+
+    assert runner.stage_bundle(bundle_dir) == str(bundle_dir.resolve())
+
+
+def test_docker_runner_run_uses_docker_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    workspace = tmp_path / "bundle"
+    workspace.mkdir()
+    captured: dict[str, object] = {}
+
+    def fake_run(cmd: list[str], capture_output: bool, text: bool, timeout: int | None) -> SimpleNamespace:
+        captured["cmd"] = cmd
+        assert capture_output is True
+        assert text is True
+        assert timeout == 15
+        return SimpleNamespace(returncode=0, stdout="ok\n", stderr="")
+
+    monkeypatch.setattr(runner_module.subprocess, "run", fake_run)
+
+    runner = DockerRunner(image="toolchain:test", network="host")
+    result = runner.run(["echo", "ok"], workspace_ref=str(workspace), env={"A": "1"}, timeout=15)
+
+    assert result.success is True
+    assert result.stdout.strip() == "ok"
+    assert captured["cmd"] == [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "host",
+        "-v",
+        f"{workspace.resolve()}:/workspace",
+        "-w",
+        "/workspace",
+        "-e",
+        "A=1",
+        "toolchain:test",
+        "echo",
+        "ok",
+    ]
+
+
+def test_docker_runner_is_available_checks_docker_info(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(runner_module.shutil, "which", lambda name: "C:\\docker\\docker.exe")
+
+    def fake_run(cmd: list[str], capture_output: bool, timeout: int) -> SimpleNamespace:
+        assert cmd == ["docker", "info"]
+        assert capture_output is True
+        assert timeout == 10
+        return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(runner_module.subprocess, "run", fake_run)
+
+    assert DockerRunner().is_available() is True
+
+
+def test_get_runner_returns_docker_runner(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(DockerRunner, "is_available", lambda self: True)
+
+    runner = get_runner("docker", image="toolchain:test", network="bridge")
+
+    assert isinstance(runner, DockerRunner)
+    assert runner.image == "toolchain:test"
+    assert runner.network == "bridge"
 
 
 def test_get_runner_rejects_unknown_runner() -> None:
