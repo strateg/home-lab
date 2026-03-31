@@ -1,6 +1,6 @@
 # ADR 0085: Deploy Bundle and Runner Workspace Contract
 
-- Status: Accepted (Runner contract complete; bundle assembly pending)
+- Status: Accepted (core bundle/profile/runner contract implemented; Docker/Remote backend completion deferred)
 - Date: 2026-03-31
 
 ## Context

@@ -1,15 +1,15 @@
 # ADR 0083/0084/0085: Unified Implementation Sequence
 
 **Date:** 2026-03-31
-**Status:** Active
-**Purpose:** Define the concrete next steps for deploy-domain implementation.
+**Status:** Active (ADR 0085/0084 core completed; deferred backend and ADR 0083 decisions remain)
+**Purpose:** Keep one execution sequence across deploy-domain ADRs.
 
 ---
 
 ## Priority Order (Confirmed)
 
 ```
-ADR 0085 (bundle contract) → ADR 0084 (deploy plane) → ADR 0083 (optional init)
+ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init)
      ↓                            ↓                         ↓
   PRIMARY                      SECONDARY                 DEFERRED
 ```
@@ -18,95 +18,65 @@ ADR 0085 (bundle contract) → ADR 0084 (deploy plane) → ADR 0083 (optional in
 
 ## Current State Summary
 
-| ADR | Status | Phase Complete | Next Phase |
-|-----|--------|----------------|------------|
-| 0085 | Accepted | Phase 0a (Runner + tests) | **Phase 1 (Deploy Profile)** |
-| 0084 | Accepted | Phase 0a (Runner + tests) | Phase 1 integration (shared with 0085) |
-| 0083 | Proposed (Deferred) | - | Awaiting 0085/0084 |
+| ADR | Status | Completed Scope | Next Scope |
+|-----|--------|-----------------|------------|
+| 0085 | Accepted | Phases 0/0a/1/2 + active Phase 3 migration | Optional assemble-plugin integration; backend follow-ups |
+| 0084 | Accepted | Runner plane + bundle-based active deploy flow | Docker/Remote backend completion (0b/0c) |
+| 0083 | Proposed (Deferred) | Not started in this wave | Decide whether to resume with bundle-first model |
 
 ---
 
-## Immediate Next Steps (Phase 1)
+## Completed Sequence (This Wave)
 
-### Goal: Define deploy profile schema and loader
+### Phase 1: Deploy Profile ✅
 
-**Priority:** HIGH - Profile contract blocks bundle assembly
+- `schemas/deploy-profile.schema.json`
+- `projects/home-lab/deploy/deploy-profile.yaml`
+- `scripts/orchestration/deploy/profile.py`
+- `tests/orchestration/test_profile.py`
 
-| ID | Task | Output | Owner |
-|----|------|--------|-------|
-| 1.1 | Create schema | `schemas/deploy-profile.schema.json` | - |
-| 1.2 | Create example | `projects/home-lab/deploy/deploy-profile.yaml` | - |
-| 1.3 | Implement loader | `scripts/orchestration/deploy/profile.py` | - |
-| 1.4 | Integrate with runner | `get_runner()` reads profile | - |
-| 1.5 | Add tests | T-P01..T-P06 | - |
+### Phase 2: Bundle Assembly ✅
 
-**Gate:** Profile schema validates and tests pass.
+- `schemas/deploy-bundle-manifest.schema.json`
+- `scripts/orchestration/deploy/bundle.py` (`create/list/inspect/delete`)
+- deterministic bundle IDs + checksums + metadata
+- `tests/orchestration/test_bundle.py`
 
----
+### Phase 3: Entry Point Migration (Active Flow) ✅
 
-## Phase 1: Deploy Profile
-
-**Dependency:** Phase 0a complete
-
-| ID | Task | Output |
-|----|------|--------|
-| 1.1 | Create schema | `schemas/deploy-profile.schema.json` |
-| 1.2 | Create example | `projects/home-lab/deploy/deploy-profile.yaml` |
-| 1.3 | Implement loader | `scripts/orchestration/deploy/profile.py` |
-| 1.4 | Integrate with runner | `get_runner()` reads profile |
-| 1.5 | Add tests | T-P01..T-P06 |
-
-**Gate:** Profile schema validated, tests pass.
+- `topology-tools/utils/service_chain_evidence.py` consumes `--bundle`
+- checksum verification + stale-bundle warning before runner staging
+- bundle recorded in evidence report
+- task wrappers and operator docs updated
+- `tests/orchestration/test_bundle_workflow.py`
 
 ---
 
-## Phase 2: Bundle Assembly
+## Remaining Work Buckets
 
-**Dependency:** Phase 1 complete
+### Bucket A: Deferred Runner Backends (ADR 0084)
 
-| ID | Task | Output |
-|----|------|--------|
-| 2.1 | Create schema | `schemas/deploy-bundle-manifest.schema.json` |
-| 2.2 | Implement CLI | `scripts/orchestration/deploy/bundle.py` |
-| 2.3 | Bundle creation | `.work/deploy/bundles/<id>/` |
-| 2.4 | Secret injection | SOPS decryption into bundle |
-| 2.5 | Add tests | T-B01..T-B10 |
+| Item | Trigger | Status |
+|------|---------|--------|
+| `DockerRunner` implementation | CI reproducibility requirement | Deferred |
+| `RemoteLinuxRunner` implementation | Dedicated control-node requirement | Deferred |
+| Backend-specific tests | With implementation | Deferred |
 
-**Gate:** Bundle assembly creates valid immutable bundles.
+### Bucket B: Optional Pipeline Integration (ADR 0085)
 
----
+| Item | Rationale | Status |
+|------|-----------|--------|
+| `base.assembler.deploy_bundle` plugin | Needed only if bundle assembly must be in plugin build graph | Deferred |
 
-## Phase 3: Entry Point Migration
+### Bucket C: ADR 0083 Decision
 
-**Dependency:** Phase 2 complete
-
-| ID | Task | Output |
-|----|------|--------|
-| 3.1 | Update evidence tool | `--bundle` parameter |
-| 3.2 | Create operator guide | `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md` |
-| 3.3 | Update CLAUDE.md | Dev/Deploy plane documentation |
-| 3.4 | Add tests | T-W01..T-W05 |
-
-**Gate:** All deploy entry points use bundle-ID.
-
----
-
-## ADR 0083 Enablement (Optional)
-
-**Dependency:** ADR 0085 Phase 2 complete
-
-After Phase 2, ADR 0083 can proceed with:
-- `init-node.py --bundle <bundle_id>` execution model
-- State files in `.work/deploy-state/<project>/nodes/`
-- Immutable bundle as execution input
-
-**Decision point:** Evaluate whether unified node initialization is still needed after deploy-domain foundation is complete.
+| Item | Dependency | Status |
+|------|------------|--------|
+| Resume `init-node.py` work with `--bundle` input | ADR 0085/0084 foundation now available | Pending product decision |
 
 ---
 
 ## State File Locations (Unified)
-
-All ADRs use these canonical locations:
 
 | Path | Purpose | ADR |
 |------|---------|-----|
@@ -114,28 +84,25 @@ All ADRs use these canonical locations:
 | `.work/deploy-state/<project>/nodes/` | Initialization state | 0083 |
 | `.work/deploy-state/<project>/logs/` | Audit logs | 0083 |
 
-**Superseded:** `.work/native/bootstrap/` (removed from all docs)
+**Superseded:** `.work/native/bootstrap/`
 
 ---
 
 ## Test Matrix Summary
 
-| Phase | Tests | Category |
+| Scope | Tests | Category |
 |-------|-------|----------|
-| 0a | T-R01..T-R12 | Runner unit tests |
-| 1 | T-P01..T-P06 | Profile unit tests |
-| 2 | T-B01..T-B10 | Bundle unit/integration tests |
-| 3 | T-W01..T-W05 | Workflow integration tests |
-| 0083 | T-O01..T-O18 + more | Orchestrator tests (when enabled) |
-
-**Total:** 33 tests for ADR 0085 + 82+ for ADR 0083
+| Runner | T-R01..T-R12 | Unit |
+| Profile | T-P01..T-P06 | Unit/Integration |
+| Bundle | T-B01..T-B10 | Unit/Integration |
+| Bundle workflow | T-W01..T-W05 + bundle-mode path tests | Integration/Unit |
+| ADR 0083 | T-Oxx (future) | Deferred |
 
 ---
 
-## Success Criteria
+## Success Criteria Snapshot
 
-1. **ADR 0085 Accepted:** Runner tests pass, bundle assembly works
-2. **ADR 0084 Accepted:** Runner contract complete (shared with 0085)
-3. **ADR 0083 Decision:** Evaluate after 0085 Phase 2 is complete
-4. **Documentation:** Operator guide exists, CLAUDE.md updated
-5. **Secret isolation:** Zero secrets in `generated/`
+1. ADR 0085 core flow is bundle-based and tested.
+2. ADR 0084 runner plane is active for bundle staging/execution.
+3. Documentation reflects bundle-first operator workflow.
+4. ADR 0083 can start from existing bundle + runner contract without redesign.

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Define the gap between current artifact-execution model and the target deploy bundle contract.
+Track remaining gap between implemented deploy-bundle model and full target contract.
 
 ---
 
@@ -10,13 +10,13 @@ Define the gap between current artifact-execution model and the target deploy bu
 
 | Aspect | Status | Notes |
 |--------|--------|-------|
-| Deploy bundle concept | ✅ Defined | ADR 0085 defines bundle as canonical execution input |
-| Bundle assembly | ❌ Not implemented | No `base.assembler.deploy_bundle` plugin |
-| Deploy profile | ❌ Not implemented | No schema, no examples |
-| Runner workspace-awareness | ✅ Implemented | `runner.py` has `stage_bundle()`, `cleanup_workspace()`, `capabilities()` |
-| Bundle consumption | ⚠️ Partial | `service_chain_evidence.py` uses `stage_bundle(repo_root)` as transitional |
-| Secret join point | ❌ Not implemented | Bundle assembly should be the join point |
-| `generated/` remains inspectable | ✅ Preserved | No secrets in generated artifacts |
+| Deploy bundle concept | ✅ Implemented | ADR 0085 contract is active in tooling |
+| Bundle assembly | ✅ Implemented | `scripts/orchestration/deploy/bundle.py` + schema |
+| Deploy profile | ✅ Implemented | Schema + loader + project example |
+| Runner workspace-awareness | ✅ Implemented | `runner.py` has stage/run/capabilities/cleanup |
+| Bundle consumption | ✅ Implemented for active flow | `service_chain_evidence.py` executes via explicit `--bundle` |
+| Secret join point | ✅ Implemented | Optional injection at bundle assembly (`--inject-secrets`) |
+| `generated/` remains inspectable | ✅ Preserved | Bundle execution uses `artifacts/generated` copy |
 
 ---
 
@@ -26,49 +26,37 @@ Define the gap between current artifact-execution model and the target deploy bu
 |--------|--------|--------------------------|
 | Deploy bundle | Immutable execution input | `.work/deploy/bundles/<bundle_id>/` |
 | Deploy profile | Project-scoped config | `projects/<project>/deploy/deploy-profile.yaml` |
-| Bundle assembly | Assemble stage plugin | `base.assembler.deploy_bundle` |
+| Bundle assembly | Stable create/inspect/delete lifecycle | `deploy.bundle` API and task wrappers |
 | Runner contract | Workspace-aware | Stage bundle, execute, report capabilities, cleanup |
 | Entry points | Bundle-ID based | `--bundle <bundle_id>` parameter |
 
 ---
 
-## Gap Items
+## Remaining Gap Items
 
-### G1: Bundle assembly plugin missing
+### G1: Assemble-stage plugin integration is not implemented
 
-**Current:** No mechanism to create deploy bundles from generated artifacts.
+**Current:** Bundle assembly is implemented as orchestration CLI/API (`bundle.py`) and task wrappers.
 
-**Target:** `base.assembler.deploy_bundle` plugin creates immutable bundles.
+**Target:** Optionally expose bundle assembly through build/assemble plugin graph when needed.
 
-**Action:** Implement assembler plugin with:
-- Manifest generation from generated artifacts
-- Secret injection from SOPS
-- Bundle hash/provenance metadata
-- Artifact packaging per node
+**Action:** Defer unless there is a concrete requirement to run bundle assembly inside compile/build plugin pipeline.
 
-### G2: Deploy profile schema missing
+### G2: ADR 0083 consumer entry points are still pending
 
-**Current:** No formal deploy profile structure.
+**Current:** `service_chain_evidence.py` is migrated to bundle-ID based execution.
 
-**Target:** Project-scoped YAML with backend selection, timeouts, logical input resolution.
+**Target:** Future `init-node.py` and related ADR 0083 entry points consume the same `--bundle` model.
 
-**Action:** Create schema and example.
+**Action:** Complete when ADR 0083 implementation is resumed.
 
-### G3: Bundle-ID based entry points not implemented
+### G3: Deferred runner backends are still stubs
 
-**Current:** Deploy tooling uses repo paths or transitional `stage_bundle(repo_root)`.
+**Current:** `DockerRunner` and `RemoteLinuxRunner` remain placeholders.
 
-**Target:** `--bundle <bundle_id>` as primary execution input.
+**Target:** Concrete staging and execution implementation for CI and remote-control-node workflows.
 
-**Action:** Update deploy entry points to require explicit bundle selection.
-
-### G4: Bundle lifecycle not documented
-
-**Current:** No bundle retention, cleanup, or versioning policy.
-
-**Target:** Clear lifecycle: create → use → archive or delete.
-
-**Action:** Document bundle lifecycle in operator guide.
+**Action:** Implement in ADR 0084 Phase 0b/0c when operational trigger exists.
 
 ---
 
@@ -76,21 +64,21 @@ Define the gap between current artifact-execution model and the target deploy bu
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Runner workspace contract | ✅ Done | `runner.py` fully implements stage/run/capabilities/cleanup |
+| Runner workspace contract | ✅ Done | `runner.py` implements stage/run/capabilities/cleanup |
 | Native + WSL runners | ✅ Done | Functional implementations |
-| Docker runner | 🔜 Stub | Phase 0b |
-| Remote runner | 🔜 Stub | Phase 0c |
-| Bundle assembly plugin | ❌ Pending | Core ADR 0085 deliverable |
-| Deploy profile schema | ❌ Pending | Needed for multi-backend support |
-| Bundle-ID entry points | ❌ Pending | Requires bundle assembly first |
+| Docker runner | 🔜 Stub | Deferred backend completion |
+| Remote runner | 🔜 Stub | Deferred backend completion |
+| Deploy profile schema + loader | ✅ Done | `deploy-profile.schema.json` + `profile.py` + tests |
+| Bundle schema + CLI/API | ✅ Done | `deploy-bundle-manifest.schema.json` + `bundle.py` |
+| Bundle-ID entry point migration | ✅ Done (active flow) | `service_chain_evidence.py --bundle` |
+| Bundle lifecycle docs | ✅ Done | `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md` |
+| Workflow tests | ✅ Done | bundle/workflow/service-chain tests pass |
 
 ---
 
 ## State File Location (Unified)
 
 **Canonical location:** `.work/deploy-state/<project>/`
-
-This supersedes `.work/native/bootstrap/` mentioned in earlier drafts. See ADR 0083 STATE-MODEL.md lines 79-81 for rationale.
 
 | Root | Purpose |
 |------|---------|
@@ -104,10 +92,10 @@ This supersedes `.work/native/bootstrap/` mentioned in earlier drafts. See ADR 0
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Bundle/workspace mismatch across backends | Medium | High | Define contract before backend rollout |
-| Secret leak during bundle creation | Low | Critical | SOPS-only injection, leak scanner |
-| Bundle retention bloat | Medium | Low | Auto-cleanup with retention policy |
-| Circular dependency on ADR 0083 | Low | Medium | ADR 0085 is independently useful |
+| Bundle/workspace mismatch across deferred backends | Medium | High | Keep shared runner contract and tests as backend gate |
+| Secret leak during bundle creation | Low | Critical | SOPS-only injection path and checksum verification |
+| Bundle retention bloat | Medium | Low | Use retention policy from deploy profile and cleanup commands |
+| ADR 0083 drift from bundle contract | Medium | Medium | Require `--bundle` in ADR 0083 entry-point design |
 
 ---
 
@@ -118,8 +106,8 @@ ADR 0085 is successfully adopted when:
 1. [x] Runner contract is workspace-aware (stage, run, capabilities, cleanup)
 2. [x] State file location unified to `.work/deploy-state/<project>/`
 3. [x] Runner tests pass (T-R01..T-R12)
-4. [ ] Deploy profile schema exists and is validated
-5. [ ] Bundle assembly creates immutable bundles
-6. [ ] Deploy entry points consume `--bundle <bundle_id>`
-7. [ ] Bundle lifecycle is documented
-8. [ ] Secrets join only at bundle assembly (not in generated/)
+4. [x] Deploy profile schema exists and is validated
+5. [x] Bundle assembly creates immutable bundles
+6. [x] Active deploy entry points consume `--bundle <bundle_id>`
+7. [x] Bundle lifecycle is documented
+8. [x] Secrets join only at bundle assembly (not in generated/)

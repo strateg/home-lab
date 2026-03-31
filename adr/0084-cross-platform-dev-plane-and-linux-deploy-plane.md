@@ -1,7 +1,7 @@
 # ADR 0084: Cross-Platform Dev Plane and Linux Deploy Plane
 
 **Date:** 2026-03-31
-**Status:** Accepted (Runner foundation complete; bundle integration pending)
+**Status:** Accepted (runner foundation and active bundle integration complete; Docker/Remote backend completion deferred)
 **Related:** ADR 0056 (Native Execution Workspace), ADR 0072 (Unified Secrets Management), ADR 0075 (Monorepo Framework/Project Boundary), ADR 0076 (Framework Distribution and Multi-Repository Extraction), ADR 0077 (Go-Task Developer Orchestration), ADR 0080 (Unified Build Pipeline), ADR 0085 (Deploy Bundle and Runner Workspace Contract), ADR 0083 (Unified Node Initialization Contract)
 
 ---
@@ -179,7 +179,7 @@ ADR 0084 depends on ADR 0085 for canonical execution input and workspace contrac
 2. ADR 0076 project-repo flows reuse the same deploy-plane model after framework lock verification.
 3. Deploy tooling (`init-node.py`, Terraform, Ansible) runs via `DeployRunner`.
 4. Deploy tooling consumes explicit `bundle_id` inputs rather than executing directly from `generated/`.
-5. `service_chain_evidence.py` should be refactored to use deploy bundle staging instead of inline WSL path glue.
+5. `service_chain_evidence.py` uses deploy bundle staging and runner-managed execution.
 6. ADR 0083 adapters would receive runner and workspace context via dependency injection if ADR 0083 is implemented later.
 
 ### Implementation Phases
@@ -199,7 +199,7 @@ See `adr/0084-analysis/` and `adr/0085-analysis/` for detailed progress tracking
 
 - `scripts/orchestration/deploy/runner.py` — DeployRunner abstraction (NEW)
 - `scripts/orchestration/lane.py` — Dev plane orchestration
-- `topology-tools/utils/service_chain_evidence.py` — Legacy WSL logic (to be refactored)
+- `topology-tools/utils/service_chain_evidence.py` — Bundle-aware service-chain execution via deploy runner
 - `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md`
 - `adr/0056-native-execution-workspace.md`
 - `adr/0077-go-task-developer-orchestration.md`

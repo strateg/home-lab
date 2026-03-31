@@ -7,7 +7,7 @@
 - [x] ADR 0084 no longer treats `generated/` as the deploy execution source
 - [x] ADR 0084 describes workspace-aware runner behavior
 
-## Phase 0a: Runner Contract Alignment
+## Phase 0a: Runner Contract Alignment ✅
 
 ### Code
 
@@ -16,7 +16,7 @@
 - [x] `DeployRunner` contract updated for bundle staging and workspace lifecycle
 - [x] `NativeRunner` aligned to workspace-aware execution
 - [x] `WSLRunner` aligned to workspace-aware execution
-- [x] `get_runner()` still works with updated contract
+- [x] `get_runner()` supports explicit runner and profile-based default
 
 ### Tests
 
@@ -28,21 +28,21 @@
 
 - [x] `service_chain_evidence.py` uses `DeployRunner`
 - [x] WSL-specific helper logic removed from evidence tool
-- [x] Evidence tooling stages bundle before deploy execution
+- [x] Evidence tooling stages explicit bundle before deploy execution
 
-## Documentation
+## Documentation ✅
 
-- [ ] Operator docs clearly distinguish dev plane vs deploy plane
-- [ ] Deploy runbooks describe bundle/workspace expectations
-- [ ] Windows operator workflow explicitly points to WSL-backed deploy execution
-- [ ] Linux operator workflow explicitly points to native runner execution
+- [x] Operator docs distinguish bundle-based deploy workflow from generated artifact inspection
+- [x] Deploy runbooks describe bundle/workspace expectations
+- [x] Windows workflow points to WSL-backed deploy execution path
+- [x] Linux workflow remains native-runner compatible
 
-## Validation
+## Validation ✅
 
 - [x] Related ADR links resolve correctly
 - [x] ADR 0084 analysis docs match ADR 0084 decision text
 - [x] ADR 0083/0084/0085 terminology is consistent
-- [x] ADR 0084 status promoted to Accepted (runner foundation complete)
+- [x] ADR 0084 status promoted to Accepted
 
 ---
 

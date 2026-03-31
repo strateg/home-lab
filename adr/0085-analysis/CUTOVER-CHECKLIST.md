@@ -17,72 +17,75 @@
 - [x] `DeployRunner` has `stage_bundle()`, `run()`, `capabilities()`, `cleanup_workspace()`
 - [x] `NativeRunner` implemented
 - [x] `WSLRunner` implemented
-- [x] `DockerRunner` stub (raises NotImplementedError)
-- [x] `RemoteLinuxRunner` stub (raises NotImplementedError)
-- [x] `get_runner()` factory with auto-detection
+- [x] `DockerRunner` stub (raises `NotImplementedError`)
+- [x] `RemoteLinuxRunner` stub (raises `NotImplementedError`)
+- [x] `get_runner()` factory with auto-detection/profile fallback
 
 ### Refactoring
 
 - [x] `service_chain_evidence.py` uses runner abstraction
-- [x] WSL-specific code moved to WSLRunner
+- [x] WSL-specific code moved to runner layer
 
-## Phase 1: Deploy Profile
+## Phase 1: Deploy Profile ✅
 
 ### Schema
 
-- [ ] `schemas/deploy-profile.schema.json` created
-- [ ] Schema validates runner selection, timeouts, backend configs
+- [x] `schemas/deploy-profile.schema.json` created
+- [x] Schema validates runner selection, timeouts, backend configs
 
 ### Implementation
 
-- [ ] `scripts/orchestration/deploy/profile.py` created
-- [ ] Profile loader with validation
-- [ ] `get_runner()` respects profile default
+- [x] `scripts/orchestration/deploy/profile.py` created
+- [x] Profile loader with validation
+- [x] `get_runner()` respects profile default
 
 ### Project Integration
 
-- [ ] `projects/home-lab/deploy/deploy-profile.yaml` created
-- [ ] Profile documented in operator guide
+- [x] `projects/home-lab/deploy/deploy-profile.yaml` created
+- [x] Profile documented in operator/deploy docs
 
-## Phase 2: Bundle Assembly
+## Phase 2: Bundle Assembly ✅
 
 ### Schema
 
-- [ ] `schemas/deploy-bundle-manifest.schema.json` created
-- [ ] Manifest includes artifacts list, metadata, provenance
+- [x] `schemas/deploy-bundle-manifest.schema.json` created
+- [x] Manifest includes artifacts list, metadata, provenance
 
-### Plugin
+### Implementation
 
-- [ ] `base.assembler.deploy_bundle` plugin registered
-- [ ] Plugin in `plugins.yaml` with correct stage/order
-- [ ] Consumes generated artifacts
-- [ ] Injects secrets from SOPS
-- [ ] Produces immutable bundle in `.work/deploy/bundles/`
+- [x] `scripts/orchestration/deploy/bundle.py` implements create/list/inspect/delete
+- [x] Consumes generated artifacts as assembly input
+- [x] Injects secrets from SOPS (optional)
+- [x] Produces immutable bundle in `.work/deploy/bundles/`
 
 ### Metadata
 
-- [ ] Bundle ID generation is deterministic
-- [ ] `metadata.yaml` includes hash, timestamp, source refs
+- [x] Bundle ID generation is deterministic
+- [x] `metadata.yaml` includes hash, timestamp, source refs
 
-## Phase 3: Entry Point Migration
+### Optional Pipeline Follow-up
+
+- [ ] `base.assembler.deploy_bundle` plugin registered in compile/build pipeline (deferred unless required)
+
+## Phase 3: Entry Point Migration ✅ (Active Flow)
 
 ### CLI
 
-- [ ] `--bundle <bundle_id>` parameter added to deploy entry points
-- [ ] `bundle list` command available
-- [ ] `bundle inspect <bundle_id>` command available
-- [ ] `bundle delete <bundle_id>` command available
+- [x] `--bundle <bundle_id>` parameter added to active deploy entry point (`service_chain_evidence.py`)
+- [x] `bundle list` command available
+- [x] `bundle inspect <bundle_id>` command available
+- [x] `bundle delete <bundle_id>` command available
 
 ### Documentation
 
-- [ ] Operator guide explains bundle workflow
-- [ ] Deploy runbooks use bundle-ID based commands
+- [x] Operator guide explains bundle workflow
+- [x] Deploy runbooks use bundle-ID based commands
 
 ## Validation
 
-- [ ] Unit tests for bundle assembly
-- [ ] Integration tests for runner + bundle flow
-- [ ] ADR 0085 status promoted to Accepted
+- [x] Unit tests for bundle assembly
+- [x] Integration tests for runner + bundle flow
+- [x] ADR 0085 status promoted to Accepted (core phases complete)
 
 ---
 

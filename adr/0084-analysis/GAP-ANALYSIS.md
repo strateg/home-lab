@@ -2,25 +2,25 @@
 
 ## Goal
 
-Define the gap between the current mixed execution model and the target model:
+Track remaining gap between implemented execution-plane model and full backend coverage:
 
 - cross-platform dev plane,
 - Linux-backed deploy plane,
 - workspace-aware `DeployRunner`,
-- deploy bundle execution boundary aligned with ADR 0085.
+- deploy-bundle execution boundary aligned with ADR 0085.
 
 ---
 
 ## Current State
 
-| Aspect | Status | Issue |
+| Aspect | Status | Notes |
 |--------|--------|-------|
-| Dev workflows | ✅ Cross-platform | Python-based validation and compilation already work across platforms |
-| Terraform/OpenTofu | ⚠️ Mixed | Can run on Windows, but canonical deploy execution should share runtime with Ansible |
-| Ansible | ❌ Linux-only | Requires Linux-backed control environment |
-| WSL glue | ⚠️ Hard-coded | `service_chain_evidence.py` still contains WSL-specific execution/path logic |
-| Runner abstraction | ⚠️ Partial | `runner.py` exists, but current contract is process-centric rather than workspace-centric |
-| Deploy execution input | ❌ Undefined | No formal bundle/workspace contract in active code paths |
+| Dev workflows | ✅ Cross-platform | Python/task validation and compilation flows work across host OS |
+| Terraform/OpenTofu | ✅ Integrated in deploy plane | Active deploy flow runs through runner workspace |
+| Ansible | ✅ Linux-backed model explicit | Windows deploy path routes through WSL runner |
+| WSL glue in entry points | ✅ Removed from business logic | Encapsulated in `WSLRunner` |
+| Runner abstraction | ✅ Workspace-aware | stage/run/capabilities/cleanup contract active |
+| Deploy execution input | ✅ Bundle-based for active flow | `service_chain_evidence.py` requires explicit bundle for execution |
 
 ---
 
@@ -28,79 +28,39 @@ Define the gap between the current mixed execution model and the target model:
 
 | Aspect | Target | Implementation Direction |
 |--------|--------|--------------------------|
-| Dev plane | Cross-platform | No change to authoring/compile workflows |
-| Deploy plane | Linux-backed | `DeployRunner` remains the canonical execution boundary |
+| Dev plane | Cross-platform | Keep authoring/compile workflows host-neutral |
+| Deploy plane | Linux-backed | `DeployRunner` remains canonical boundary |
 | Execution input | Deploy bundle | Consume explicit bundle instead of direct `generated/` paths |
 | Runner contract | Workspace-aware | Stage bundle, run in workspace, report capabilities |
 | Multiple backends | WSL, Docker, Remote | Same staging/execution model across backends |
 
 ---
 
-## Gap Items
+## Remaining Gap Items
 
-### G1: Runner abstraction exists, but wrong shape ✅ RESOLVED
+### G1: Docker backend is still a stub
 
-**Current:** `DeployRunner` is implemented with full workspace-aware contract: `stage_bundle()`, `run()`, `capabilities()`, `cleanup_workspace()`, `translate_path()`, `is_available()`, `check_tool()`.
+**Current:** `DockerRunner` placeholder only.
 
-**Target:** `DeployRunner` must stage deploy bundles into backend workspaces, execute there, expose capabilities, and clean up workspace state.
+**Target:** Bundle staging/mount strategy implemented and tested for CI use.
 
-**Status:** Implemented in `scripts/orchestration/deploy/runner.py`. NativeRunner and WSLRunner are fully functional.
+**Action:** ADR 0084 Phase 0b when CI trigger exists.
 
-### G2: Deploy execution still assumes local-path semantics
+### G2: Remote Linux backend is still a stub
 
-**Current:** Active tooling and surrounding analysis still assume direct execution from repo-local paths or WSL-translated paths.
+**Current:** `RemoteLinuxRunner` placeholder only.
 
-**Target:** All deploy tooling consumes explicit bundle/workspace inputs per ADR 0085.
+**Target:** Remote staging strategy and execution path implemented.
 
-**Action:** Refactor deploy tooling and supporting docs to treat deploy bundle as the canonical execution source.
+**Action:** ADR 0084 Phase 0c when control-node trigger exists.
 
-### G3: `service_chain_evidence.py` needs refactoring ✅ RESOLVED
+### G3: ADR 0083 entry points still need runner+bundle adoption
 
-**Current:** Uses `get_runner()`, `runner.stage_bundle()`, `runner.run()`, and `runner.cleanup_workspace()`.
+**Current:** Active service-chain evidence flow is migrated.
 
-**Target:** Uses bundle-aware runner staging and runner-managed execution.
+**Target:** Future ADR 0083 `init-node.py` flow uses identical runner+bundle boundary.
 
-**Status:** Refactored. WSL-specific path translation moved to WSLRunner. Legacy `--ansible-via-wsl` flag bridges to runner factory.
-
-### G4: ADR 0083 integration still needs workspace context
-
-**Current:** ADR 0083 design and nearby tooling historically assumed local execution roots.
-
-**Target:** `init-node.py` and bootstrap adapters operate on:
-- `bundle_id`,
-- runner,
-- workspace reference,
-- deploy profile.
-
-**Action:** Ensure ADR 0083 Phase 5 design follows the ADR 0084 + ADR 0085 execution model.
-
-### G5: Docker backend is still only a stub
-
-**Current:** `DockerRunner` exists as placeholder.
-
-**Target:** Bundle staging/mounting strategy is defined and implemented.
-
-**Action:** Defer implementation to Phase 0b, but keep the contract explicit now.
-
-### G6: Remote Linux backend is still only a stub
-
-**Current:** `RemoteLinuxRunner` exists as placeholder.
-
-**Target:** Remote bundle staging strategy is defined and implemented.
-
-**Action:** Defer implementation to Phase 0c, but keep the contract explicit now.
-
-### G7: Operator documentation is still incomplete
-
-**Current:** Tool installation and runner expectations are scattered.
-
-**Target:** Operator documentation distinguishes:
-- dev plane,
-- deploy plane,
-- bundle selection,
-- backend prerequisites.
-
-**Action:** Create or update operator environment/setup guide and deploy runbooks.
+**Action:** enforce `--bundle` + runner workspace in ADR 0083 implementation.
 
 ---
 
@@ -110,13 +70,14 @@ Define the gap between the current mixed execution model and the target model:
 |-----------|--------|-------|
 | `DeployRunner` module | ✅ Done | `scripts/orchestration/deploy/runner.py` |
 | `NativeRunner` | ✅ Done | Full workspace-aware implementation |
-| `WSLRunner` | ✅ Done | Full workspace-aware implementation with path translation |
+| `WSLRunner` | ✅ Done | Full implementation with path translation |
 | `DockerRunner` | 🔜 Stub | Phase 0b |
 | `RemoteLinuxRunner` | 🔜 Stub | Phase 0c |
 | Workspace-aware contract | ✅ Done | `stage_bundle()`, `run()`, `capabilities()`, `cleanup_workspace()` |
-| Bundle consumption | ⚠️ Transitional | Uses `stage_bundle(repo_root)` pending ADR 0085 bundle assembly |
-| Legacy WSL refactor | ✅ Done | `service_chain_evidence.py` uses runner |
-| Tests | ❌ Pending | Need tests for staging, capabilities, and backend selection |
+| Bundle consumption in active flow | ✅ Done | `service_chain_evidence.py --bundle` |
+| Legacy WSL refactor | ✅ Done | WSL logic moved into runner layer |
+| Tests for runner+bundle workflow | ✅ Done | runner/profile/bundle/workflow tests |
+| Operator docs for bundle workflow | ✅ Done | guide + runbook updates |
 
 ---
 
@@ -124,11 +85,11 @@ Define the gap between the current mixed execution model and the target model:
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| WSL networking issues | Medium | High | Document WSL2 network modes and constraints |
-| Bundle/workspace mismatch across backends | Medium | High | Define runner contract before broad backend rollout |
+| WSL networking issues | Medium | High | Keep WSL execution guidance explicit in runbooks |
+| Backend divergence (Docker/Remote) | Medium | High | Preserve shared runner contract as implementation gate |
 | Docker network mode for bootstrap | Low | Medium | Validate host-network requirements per mechanism |
-| Remote staging drift | Medium | Medium | Make bundle immutable and include provenance/hash |
-| Partial adoption | Medium | Medium | Update ADR 0083, ADR 0084, runner code, and evidence tooling together |
+| Remote staging drift | Medium | Medium | Keep bundle immutable, verify checksums pre-stage |
+| ADR 0083 partial adoption | Medium | Medium | Reuse existing runner+bundle APIs instead of forked paths |
 
 ---
 
@@ -138,7 +99,7 @@ ADR 0084 is successfully adopted when:
 
 1. [x] Linux-backed deploy plane is explicitly separated from cross-platform dev plane
 2. [x] Runner contract is workspace-aware, not just path-aware
-3. [ ] Deploy tooling consumes explicit bundle/workspace inputs (pending ADR 0085 bundle assembly)
+3. [x] Active deploy tooling consumes explicit bundle/workspace inputs
 4. [x] `service_chain_evidence.py` is refactored away from hard-coded WSL logic
-5. [ ] Unit/integration tests cover runner staging and capability behavior
-6. [ ] Operator docs clearly describe dev-plane vs deploy-plane workflows
+5. [x] Unit/integration tests cover runner staging and bundle-aware execution behavior
+6. [x] Operator docs describe bundle-based deploy workflow and runner expectations

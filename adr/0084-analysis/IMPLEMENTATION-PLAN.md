@@ -9,24 +9,22 @@ ADR 0084 defines the execution-plane model:
 - workspace-aware `DeployRunner`,
 - bundle/workspace execution aligned with ADR 0085.
 
-This plan focuses on evolving the current runner implementation and surrounding tooling to match that model.
+This plan tracks runner-plane adoption and backend completion gates.
 
 ---
 
 ## Phase 0a: Runner Contract Alignment ✅ COMPLETE
 
-**Goal:** Align `DeployRunner`, `NativeRunner`, and `WSLRunner` with the workspace-aware execution model.
-
-### Tasks
+**Goal:** Align `DeployRunner`, `NativeRunner`, and `WSLRunner` with workspace-aware execution.
 
 | ID | Task | Output | Status |
 |----|------|--------|--------|
 | 0a.1 | Update runner contract | `scripts/orchestration/deploy/runner.py` | ✅ Done |
-| 0a.2 | Align `NativeRunner` | `runner.py` update | ✅ Done |
-| 0a.3 | Align `WSLRunner` | `runner.py` update | ✅ Done |
+| 0a.2 | Align `NativeRunner` | `runner.py` | ✅ Done |
+| 0a.3 | Align `WSLRunner` | `runner.py` | ✅ Done |
 | 0a.4 | Update package exports | `scripts/orchestration/deploy/__init__.py` | ✅ Done |
-| 0a.5 | Add/refresh tests | `tests/orchestration/test_runner.py` | ✅ Done |
-| 0a.6 | Refactor `service_chain_evidence.py` | Uses runner staging | ✅ Done |
+| 0a.5 | Add runner tests | `tests/orchestration/test_runner.py` | ✅ Done |
+| 0a.6 | Refactor evidence tooling to runner API | `service_chain_evidence.py` | ✅ Done |
 
 ### Target Contract
 
@@ -45,30 +43,39 @@ class DeployRunner(ABC):
     def cleanup_workspace(self, workspace_ref: str) -> None: ...
 ```
 
-### Test Matrix
-
-| Test ID | Description | Category |
-|---------|-------------|----------|
-| T-R01 | `NativeRunner` stages bundle into local workspace | Unit |
-| T-R02 | `NativeRunner.run()` executes in staged workspace | Unit |
-| T-R03 | `NativeRunner.capabilities()` returns expected flags | Unit |
-| T-R04 | `WSLRunner` stages bundle into translated WSL workspace | Unit |
-| T-R05 | `WSLRunner` availability detection works | Unit |
-| T-R06 | `get_runner()` auto-detects Linux native runner | Unit |
-| T-R07 | `get_runner()` auto-detects WSL on Windows | Unit |
-| T-R08 | `get_runner("native")` returns `NativeRunner` | Unit |
-| T-R09 | `get_runner("wsl")` returns `WSLRunner` | Unit |
-| T-R10 | Unknown runner raises `ValueError` | Unit |
-| T-R11 | Required capability mismatch fails fast | Integration |
-| T-R12 | `RunResult.success` behaves correctly | Unit |
-
 ### Gate
 
 - [x] ADR 0084 wording aligned to bundle/workspace model
 - [x] `runner.py` exposes workspace-aware contract
 - [x] `NativeRunner` and `WSLRunner` aligned
-- [x] Unit tests pass
-- [x] `service_chain_evidence.py` refactored
+- [x] Runner tests pass
+- [x] Evidence tooling uses runner API
+
+---
+
+## ADR 0085 Integration: Bundle-Based Execution ✅ COMPLETE
+
+**Goal:** Ensure active deploy entry points execute from explicit bundles in runner workspaces.
+
+| ID | Task | Output | Status |
+|----|------|--------|--------|
+| I.1 | Add explicit bundle resolution | `service_chain_evidence.py --bundle` | ✅ Done |
+| I.2 | Verify bundle integrity before staging | `inspect_bundle(..., verify_checksums=True)` | ✅ Done |
+| I.3 | Stage selected bundle in runner workspace | `runner.stage_bundle(bundle_path)` | ✅ Done |
+| I.4 | Include bundle in evidence report | `render_report(..., bundle=...)` | ✅ Done |
+| I.5 | Handle bundle-mode path arguments safely | preserve relative backend/var paths | ✅ Done |
+| I.6 | Add bundle workflow tests | `tests/orchestration/test_bundle_workflow.py` | ✅ Done |
+
+### Active Flow Snapshot
+
+```python
+runner = get_runner(args.deploy_runner, repo_root=repo_root, project_id=args.project_id)
+bundle_path = _resolve_bundle_for_execution(repo_root=repo_root, bundle_ref=args.bundle)
+bundle_details = inspect_bundle(bundle_path, verify_checksums=True)
+workspace_ref = runner.stage_bundle(bundle_path)
+result = runner.run(step.command, workspace_ref=workspace_ref)
+runner.cleanup_workspace(workspace_ref)
+```
 
 ---
 
@@ -78,22 +85,13 @@ class DeployRunner(ABC):
 
 **Trigger:** CI/CD pipeline integration or reproducible deploy sandbox requirement.
 
-### Tasks
-
 | ID | Task | Output | Acceptance Criteria |
 |----|------|--------|---------------------|
 | 0b.1 | Create Docker toolchain image | `docker/Dockerfile.toolchain` | Python, Ansible, Terraform/OpenTofu, SOPS |
-| 0b.2 | Implement bundle staging strategy | `runner.py` update | Bundle mounted or copied into container workspace |
-| 0b.3 | Implement `DockerRunner` | `runner.py` update | Runner executes against staged workspace |
+| 0b.2 | Implement bundle staging strategy | `runner.py` | Bundle mounted or copied into container workspace |
+| 0b.3 | Implement `DockerRunner` | `runner.py` | Runner executes against staged workspace |
 | 0b.4 | Add tests | `tests/orchestration/test_docker_runner.py` | Docker runner tests pass |
-| 0b.5 | Integrate CI usage | workflow/docs | CI can run deploy-domain checks via Docker |
-
-### Gate
-
-- [ ] Docker image builds successfully
-- [ ] Bundle staging works in container workspace
-- [ ] `DockerRunner` passes tests
-- [ ] CI/docs updated
+| 0b.5 | Integrate CI usage | workflow/docs | CI can run deploy checks via Docker |
 
 ---
 
@@ -103,67 +101,29 @@ class DeployRunner(ABC):
 
 **Trigger:** Dedicated control VM, multi-operator usage, or remote execution requirement.
 
-### Tasks
-
 | ID | Task | Output | Acceptance Criteria |
 |----|------|--------|---------------------|
 | 0c.1 | Define remote staging strategy | docs/design notes | rsync/scp/git approach agreed |
-| 0c.2 | Implement `RemoteLinuxRunner` | `runner.py` update | Bundle staged remotely |
+| 0c.2 | Implement `RemoteLinuxRunner` | `runner.py` | Bundle staged remotely |
 | 0c.3 | Define remote secret handling | docs | Remote deploy prerequisites documented |
 | 0c.4 | Add tests | `tests/orchestration/test_remote_runner.py` | Remote runner tests pass |
-
-### Gate
-
-- [ ] Remote bundle staging works
-- [ ] Remote execution runs from staged workspace
-- [ ] Remote secret/tooling assumptions documented
-- [ ] Tests pass
 
 ---
 
 ## Integration with ADR 0083
 
-ADR 0083 deploy tooling should consume runner + workspace context rather than raw local paths.
-
-Target direction:
+ADR 0083 entry points should consume runner + workspace context with explicit bundle selection:
 
 ```python
-def main():
-    runner = get_runner(args.runner)
-    workspace_ref = runner.stage_bundle(bundle_path)
-    adapter = get_adapter(mechanism, runner=runner, workspace_ref=workspace_ref)
-    result = adapter.execute(node)
+runner = get_runner(args.runner, repo_root=repo_root, project_id=args.project_id)
+workspace_ref = runner.stage_bundle(bundle_path)
+adapter = get_adapter(mechanism, runner=runner, workspace_ref=workspace_ref)
 ```
 
-This keeps:
-- bundle selection in the orchestrator,
+This preserves:
+- bundle selection in orchestrator layer,
 - execution inside runner workspace,
-- state/logs outside the immutable bundle.
-
----
-
-## Refactoring `service_chain_evidence.py` ✅ COMPLETE
-
-**Status:** Refactored to use `DeployRunner` abstraction.
-
-Current implementation:
-
-```python
-from scripts.orchestration.deploy import get_runner
-
-runner = get_runner(resolved_runner_name)
-workspace_ref = runner.stage_bundle(repo_root)  # Transitional: uses repo root
-result = runner.run(step.command, workspace_ref=workspace_ref)
-runner.cleanup_workspace(workspace_ref)
-```
-
-### Completed Steps
-
-1. ✅ Import `get_runner` from deploy package
-2. ✅ Use `runner.stage_bundle()` for workspace staging
-3. ✅ Use `runner.run()` for command execution
-4. ✅ Use `runner.cleanup_workspace()` for cleanup
-5. ✅ Runner tests added in `tests/orchestration/test_runner.py`
+- mutable state/logs outside immutable bundle.
 
 ---
 
@@ -172,5 +132,6 @@ runner.cleanup_workspace(workspace_ref)
 | Phase | Duration | Status |
 |-------|----------|--------|
 | Phase 0a: Contract alignment | 2 days | ✅ Complete |
+| ADR 0085 integration in active flow | 1 day | ✅ Complete |
 | Phase 0b: Docker | 2 days | 📅 When CI needed |
 | Phase 0c: Remote | 3 days | 📅 When control node needed |
