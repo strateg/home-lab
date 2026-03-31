@@ -94,7 +94,7 @@ Define which checks can be CI-mocked vs require hardware. Establish release-bloc
 |---------|-------------|----------|---------|---------|
 | T-A01 | `base.assembler.bootstrap_secrets` loads | Unit | Mock | Yes |
 | T-A02 | Assembler consumes manifest data from data bus | Integration | Mock | Yes |
-| T-A03 | Assembler renders secrets into .work/native/ | Integration | Mock | Yes |
+| T-A03 | Assembler renders secrets into deploy bundle | Integration | Mock | Yes |
 | T-A04 | Assembler skips terraform_managed nodes | Integration | Mock | Yes |
 | T-A05 | Assembler verify detects secrets leaked into generated/ | Integration | Mock | Yes |
 | T-A06 | Assembled artifacts contain resolved secret values | Integration | Mock | Yes |
@@ -111,7 +111,7 @@ Define which checks can be CI-mocked vs require hardware. Establish release-bloc
 | T-O03 | `--all-pending` filters by state file | Integration | Mock | Yes |
 | T-O04 | `--verify-only` runs handover checks only | Integration | Mock | Yes |
 | T-O05 | `--force` transitions from verified to bootstrapping | Integration | Mock | Yes |
-| T-O06 | State file created in .work/native/bootstrap/ | Integration | Mock | Yes |
+| T-O06 | State file created in deploy-state | Integration | Mock | Yes |
 | T-O07 | State transitions follow legal state machine | Unit | Mock | Yes |
 | T-O08 | Illegal state transition raises error | Unit | Mock | Yes |
 | T-O09 | Prerequisites check failure blocks bootstrap | Integration | Mock | Yes |
@@ -149,7 +149,7 @@ Define which checks can be CI-mocked vs require hardware. Establish release-bloc
 | Test ID | Description | Category | Mock/HW | Blocks? |
 |---------|-------------|----------|---------|---------|
 | T-L01 | Console output includes timestamp, level, node_id | Unit | Mock | Yes |
-| T-L02 | JSONL file written to .work/native/bootstrap/ | Integration | Mock | Yes |
+| T-L02 | JSONL file written to deploy-state logs | Integration | Mock | Yes |
 | T-L03 | Each JSONL line is valid JSON with mandatory fields | Unit | Mock | Yes |
 | T-L04 | Destructive operation emits WARN-level audit event | Unit | Mock | Yes |
 | T-L05 | State transition logged with from/to states | Unit | Mock | Yes |

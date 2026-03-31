@@ -209,7 +209,7 @@ task deploy:ansible:run PLAYBOOK=mikrotik-firewall
 
 | Entry | Reason | Phase |
 |-------|--------|-------|
-| `.work/native/bootstrap/` | Secret-bearing artifacts | Phase 5 |
+| `.work/deploy/bundles/<bundle_id>/artifacts/` | Secret-bearing artifacts | Phase 5 |
 | `INITIALIZATION-STATE.yaml` | Runtime mutable state | Phase 5 |
 | `init-node.log.jsonl` | Structured audit log (D20) | Phase 4 |
 | `*.lock` | State file locks | Phase 4 |
@@ -245,7 +245,7 @@ task deploy:init:status
 
 **Result:**
 ```yaml
-# .work/native/bootstrap/INITIALIZATION-STATE.yaml
+# .work/deploy-state/<project>/nodes/INITIALIZATION-STATE.yaml
 nodes:
   - id: rtr-mikrotik-chateau
     status: verified
@@ -382,7 +382,7 @@ Total estimated: ~17-24 working days (with parallel phases)
 - [ ] `base.assembler.bootstrap_secrets` plugin implemented
 - [ ] All assembler tests pass (T-A01..T-A07)
 - [ ] No secret leaks in generated/
-- [ ] .gitignore covers .work/native/bootstrap/
+- [ ] .gitignore covers `.work/deploy/` and `.work/deploy-state/`
 
 ### Phase 6 Cutover
 - [ ] NODE-INITIALIZATION.md published

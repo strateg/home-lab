@@ -76,7 +76,9 @@ def reset_to_pending(node_id, confirm_reset=False):
 
 ### Location
 
-`.work/native/bootstrap/INITIALIZATION-STATE.yaml`
+`.work/deploy-state/<project>/nodes/INITIALIZATION-STATE.yaml`
+
+**Rationale:** ADR 0085 D6 defines `.work/deploy-state/<project>/` as the mutable deploy-state root. Initialization state is a subset of deploy-state and MUST live under the same root for consistency. The previous `.work/native/bootstrap/` location is superseded.
 
 ### Schema
 
@@ -282,9 +284,9 @@ If two processes try to bootstrap the same node:
 If the pipeline regenerates while `init-node.py` is running:
 
 - Pipeline writes to `generated/` (read-only for init-node.py).
-- `init-node.py` reads from `.work/native/` (assembled artifacts).
-- No conflict: pipeline and deploy domain use different directories.
-- Next `init-node.py` run will use the latest assembled artifacts.
+- `init-node.py` reads from the selected immutable deploy bundle (`.work/deploy/bundles/<bundle_id>/`).
+- No conflict: pipeline and deploy domain use different directories, and the bundle is immutable once assembled.
+- A new bundle can be assembled from the updated generated artifacts; the running `init-node.py` continues using its selected bundle.
 
 ---
 
@@ -293,7 +295,8 @@ If the pipeline regenerates while `init-node.py` is running:
 | Location | Pros | Cons | Decision |
 |----------|------|------|----------|
 | `generated/` | Co-located with manifest | Mutable state in immutable root | Rejected |
-| `.work/native/bootstrap/` | Deploy domain, already ignored | Separate from manifest | **Selected** |
+| `.work/native/bootstrap/` | Deploy domain, already ignored | Local-path-centric, not project-scoped | Superseded |
+| `.work/deploy-state/<project>/` | Project-scoped, aligned with ADR 0085 D6 | Separate from manifest | **Selected** |
 | `projects/<project>/` | Tracked | Runtime state in source control | Rejected |
 
 ---
@@ -311,7 +314,7 @@ rtr-mikrotik-chateau  verified       (1 attempt,  last: 2026-03-30T12:05)
 hv-proxmox-xps        pending        (0 attempts)
 sbc-orangepi5          failed         (2 attempts, last: 2026-03-30T11:45)
                                       Error: SSH unreachable after 300s timeout
-lxc-docker             pending        (0 attempts, mechanism: terraform_managed)
+sbc-orangepi5-b        pending        (0 attempts)
 ```
 
 ### Exit Codes

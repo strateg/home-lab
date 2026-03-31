@@ -77,8 +77,8 @@ The plugin accesses `obj.*` and `inst.*` **data** through generic compiled model
 **Evidence:**
 
 - **Input:** Consumes `initialization_manifest_data` from manifest generator. Reads SOPS-encrypted secrets from `projects/<project>/secrets/`.
-- **Logic:** For each node in manifest, combines generated secret-free template with decrypted secrets into `.work/native/bootstrap/<instance_id>/`.
-- **Output:** Secret-bearing bootstrap artifacts in `.work/native/`.
+- **Logic:** For each node in manifest, combines generated secret-free template with decrypted secrets into `.work/deploy/bundles/<bundle_id>/artifacts/<instance_id>/`.
+- **Output:** Secret-bearing bootstrap artifacts in deploy bundle.
 
 **Boundary check:**
 
@@ -156,7 +156,7 @@ Instance (provides instance-specific values: IP, hostname)
   ↓
 Global generator (aggregates all into INITIALIZATION-MANIFEST.yaml)
   ↓
-Global assembler (injects secrets into .work/native/)
+Global assembler (injects secrets into deploy bundle)
 ```
 
 This flow respects the class → object → instance → global aggregation pattern used throughout the v5 architecture.

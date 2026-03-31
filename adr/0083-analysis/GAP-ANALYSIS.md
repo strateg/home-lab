@@ -64,7 +64,7 @@ topology/object-modules/orangepi/templates/bootstrap/
    - No pre-flight checks in v5 pipeline
 
 5. **Secret Handling Inconsistency**
-   - MikroTik: Ansible Vault -> `.work/native/`
+   - MikroTik: Ansible Vault -> deploy bundle
    - Proxmox: Hardcoded or environment variables
    - Orange Pi: None documented
 
@@ -107,7 +107,12 @@ generated/home-lab/bootstrap/
     user-data
     meta-data
 
-.work/native/bootstrap/
+.work/deploy/bundles/<bundle_id>/artifacts/
+  rtr-mikrotik-chateau/...        # NEW: secret-bearing assembled artifacts
+  hv-proxmox-xps/...
+  sbc-orangepi5/...
+
+.work/deploy-state/<project>/nodes/
   INITIALIZATION-STATE.yaml       # NEW: mutable runtime status store
 ```
 
@@ -209,7 +214,7 @@ Lines 451-487: API access + terraform user -> Phase 0 (Bootstrap)
 |------|--------|-----------------|
 | Generator plugin | Missing | Create `base.generator.initialization_manifest` |
 | Manifest schema | Missing | Define YAML schema |
-| Status tracking | Missing | Persist runtime status in `.work/native/bootstrap/INITIALIZATION-STATE.yaml` (not in `generated/`) |
+| Status tracking | Missing | Persist runtime status in `.work/deploy-state/<project>/nodes/INITIALIZATION-STATE.yaml` (not in `generated/`) |
 
 ### G7: Initialization Orchestrator
 

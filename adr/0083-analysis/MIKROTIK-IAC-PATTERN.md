@@ -132,7 +132,7 @@ netinstall-cli \
   --mac 00:11:22:33:44:55 \
   -i enp3s0 \
   -a 192.168.88.3 \
-  -s .work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc \
+  -s .work/deploy/bundles/<bundle_id>/artifacts/rtr-mikrotik-chateau/init-terraform.rsc \
   /srv/routeros/routeros-7.x-arm64.npk
 ```
 
@@ -639,7 +639,7 @@ nodes:
 ```
 
 ```yaml
-# .work/native/bootstrap/INITIALIZATION-STATE.yaml
+# .work/deploy-state/<project>/nodes/INITIALIZATION-STATE.yaml
 # Canonical format per STATE-MODEL.md — tracks bootstrap state only.
 # Terraform/Ansible lifecycle is outside init-node.py scope.
 nodes:

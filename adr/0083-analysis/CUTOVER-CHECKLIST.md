@@ -63,7 +63,7 @@
 - [ ] Adapter factory `load_adapter()` resolves mechanism → adapter class
 - [ ] Netinstall adapter works with MikroTik
 - [ ] Orchestrator owns state file; adapters return results only (D19 boundary)
-- [ ] Orchestrator writes runtime state only to `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
+- [ ] Orchestrator writes runtime state only to `.work/deploy-state/<project>/nodes/INITIALIZATION-STATE.yaml`
 - [ ] Orchestrator does not modify `generated/**`
 - [ ] State machine transitions enforced (pending/bootstrapping/initialized/verified/failed)
 - [ ] File locking for concurrent access implemented
@@ -74,7 +74,7 @@
   - [ ] `credential_valid` with retry/backoff
   - [ ] `python_installed` with retry/backoff
   - [ ] `terraform_plan_succeeds` with retry/backoff
-- [ ] Structured logging (D20): console output + `.work/native/bootstrap/init-node.log.jsonl`
+- [ ] Structured logging (D20): console output + `.work/deploy-state/<project>/logs/<run_id>.jsonl`
 - [ ] Audit trail for destructive operations (pre-validation, confirmation, result)
 - [ ] JSONL mandatory fields: `timestamp`, `level`, `node_id`, `event`
 - [ ] CLI interface documented (`--node`, `--all-pending`, `--verify-only`, `--force`, `--status`, `--interactive`, `--import`, `--reset`, `--confirm-reset`, `--acknowledge-drift`, `--cleanup`)
@@ -84,10 +84,10 @@
 
 - [ ] `base.assembler.bootstrap_secrets` plugin implemented
 - [ ] Assembler consumes `initialization_manifest_data` from data bus
-- [ ] Secret-bearing artifacts written only to `.work/native/bootstrap/`
+- [ ] Secret-bearing artifacts written only to `.work/deploy/bundles/<bundle_id>/artifacts/`
 - [ ] Secret-leak scanner in assemble.verify detects secrets in `generated/`
 - [ ] SOPS+age decryption integrated (ADR 0072)
-- [ ] `.work/native/bootstrap/` covered by .gitignore
+- [ ] `.work/deploy/` covered by .gitignore
 
 ---
 
@@ -132,7 +132,7 @@
 - [ ] `python topology-tools/compile-topology.py` produces bootstrap artifacts
 - [ ] `task deploy:init:verify NODE=rtr-mikrotik-chateau` passes (after device initialized)
 - [ ] `task deploy:init:status` displays all nodes
-- [ ] Runtime state updates are visible in `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
+- [ ] Runtime state updates are visible in `.work/deploy-state/<project>/nodes/INITIALIZATION-STATE.yaml`
 - [ ] No secrets present in `generated/` directory (leak scan passes)
 
 ### Regression Checks

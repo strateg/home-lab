@@ -188,7 +188,7 @@ def check_deploy_environment() -> str:
 ### Gate
 
 - [ ] Manifest generation integrated in v5 pipeline (read-only output under `generated/`)
-- [ ] Runtime state written only under `.work/native/bootstrap/`
+- [ ] Runtime state written only under `.work/deploy-state/<project>/`
 - [ ] `BootstrapAdapter` ABC enforced for all 4 adapters (D19)
 - [ ] `init-node.py --node rtr-mikrotik-chateau` works (mock)
 - [ ] `init-node.py --verify-only` checks all handover conditions
@@ -210,16 +210,16 @@ def check_deploy_environment() -> str:
 
 | ID | Task | Outputs | Acceptance Criteria |
 |----|------|---------|---------------------|
-| 5a.1 | Implement `base.assembler.bootstrap_secrets` | `topology-tools/plugins/assemblers/bootstrap_secrets_assembler.py` | Renders secrets into `.work/native/bootstrap/` |
+| 5a.1 | Implement `base.assembler.bootstrap_secrets` | `topology-tools/plugins/assemblers/bootstrap_secrets_assembler.py` | Renders secrets into `.work/deploy/bundles/<bundle_id>/artifacts/` |
 | 5a.2 | Add secret-leak scanner | assemble.verify phase check | Detects secrets in `generated/` |
 | 5a.3 | Add assembler tests | `tests/plugin_integration/test_bootstrap_secrets_assembler.py` | T-A01..T-A07 pass |
-| 5a.4 | Verify .gitignore coverage | `.gitignore` | `.work/native/bootstrap/` ignored |
+| 5a.4 | Verify .gitignore coverage | `.gitignore` | `.work/deploy/` ignored |
 
 ### Gate
 
 - [ ] Assembled artifacts contain resolved secrets
 - [ ] No secrets in `generated/` (leak scanner passes)
-- [ ] `.work/native/bootstrap/` in .gitignore
+- [ ] `.work/deploy/` in .gitignore
 - [ ] SOPS decryption failure produces clear E97xx error
 
 ---
@@ -277,7 +277,7 @@ def check_deploy_environment() -> str:
 
 1. **Contract coverage:** 100% of compute/router objects have `initialization_contract`
 2. **Bootstrap boundary:** All day-0 scripts < 100 lines
-3. **Manifest/state accuracy:** INITIALIZATION-MANIFEST.yaml reflects all nodes and runtime statuses are tracked in `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
+3. **Manifest/state accuracy:** INITIALIZATION-MANIFEST.yaml reflects all nodes and runtime statuses are tracked in `.work/deploy-state/<project>/nodes/INITIALIZATION-STATE.yaml`
 4. **Handover verification:** All nodes pass automated handover checks
 5. **Test coverage:** > 80% for new code (74 test cases defined in TEST-MATRIX.md)
 6. **Secret isolation:** Zero secrets in `generated/` (assemble.verify enforced)
