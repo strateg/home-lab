@@ -60,5 +60,5 @@
 
 - [x] Remote bundle staging strategy implemented (`rsync|scp`)
 - [x] `RemoteLinuxRunner` implemented
-- [ ] Remote secret/tooling prerequisites documented
+- [x] Remote secret/tooling prerequisites documented
 - [x] Remote runner tests pass

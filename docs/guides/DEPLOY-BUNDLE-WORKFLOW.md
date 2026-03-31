@@ -110,6 +110,7 @@ Notes:
 
 - **Windows operators:** use WSL-backed deploy execution (`ANSIBLE_VIA_WSL=1` or `DEPLOY_RUNNER=wsl`).
 - **Linux operators:** native runner is the default deploy path (`DEPLOY_RUNNER=native` optional).
+- **Remote control-node:** set `DEPLOY_RUNNER=remote` and configure remote profile (see `docs/guides/REMOTE-RUNNER-SETUP.md`).
 - **Profile-driven default:** if `DEPLOY_RUNNER` is not set, `get_runner()` falls back to project deploy profile.
 
 ---

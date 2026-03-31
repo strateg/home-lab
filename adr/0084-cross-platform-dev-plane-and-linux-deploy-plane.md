@@ -189,7 +189,7 @@ ADR 0084 depends on ADR 0085 for canonical execution input and workspace contrac
 | 0a | Workspace-aware `DeployRunner` contract + `NativeRunner` + `WSLRunner` | ✅ Complete |
 | 0a.1 | `service_chain_evidence.py` refactored to use runner | ✅ Complete |
 | 0b | `DockerRunner` + bundle mounting/staging strategy | ✅ Core complete (CI image/workflow pending) |
-| 0c | `RemoteLinuxRunner` + remote bundle staging strategy | ✅ Core complete (operator hardening docs pending) |
+| 0c | `RemoteLinuxRunner` + remote bundle staging strategy | ✅ Core complete |
 
 See `adr/0084-analysis/` and `adr/0085-analysis/` for detailed progress tracking.
 

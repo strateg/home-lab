@@ -46,13 +46,13 @@ Track remaining gap between implemented execution-plane model and full backend c
 
 **Action:** Add/validate `docker/Dockerfile.toolchain` and wire deploy checks in CI.
 
-### G2: Remote Linux backend needs operator hardening follow-up
+### G2: Backend reliability validation is still pending
 
-**Current:** `RemoteLinuxRunner` is implemented with SSH execution and `rsync/scp` bundle staging.
+**Current:** `DockerRunner` and `RemoteLinuxRunner` are implemented with unit-test coverage.
 
-**Target:** Remote prerequisites and secret-handling guidance are documented for operators.
+**Target:** CI/release validation should exercise non-native backends in representative environments.
 
-**Action:** Add remote control-node runbook and hardening checklist.
+**Action:** Add backend-specific CI lanes and periodic smoke checks.
 
 ### G3: ADR 0083 entry points still need runner+bundle adoption
 
