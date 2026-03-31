@@ -125,3 +125,25 @@ def test_main_returns_environment_error_when_check_fails(
     assert payload["status"] == "environment-error"
     assert payload["platform"] == "Windows"
     assert payload["runner"] == "wsl"
+
+
+def test_main_non_plan_mode_returns_not_implemented(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo_root, bundle_id = _create_test_bundle(tmp_path)
+
+    rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--skip-environment-check",
+        ]
+    )
+    assert rc == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["status"] == "not-implemented"
+    assert payload["selected_nodes"] == ["rtr-a"]

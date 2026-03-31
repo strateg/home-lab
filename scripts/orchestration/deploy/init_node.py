@@ -243,8 +243,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         "acknowledge_drift": bool(args.acknowledge_drift),
         "plan_only": bool(args.plan_only),
     }
-    print(json.dumps(plan_payload, ensure_ascii=True))
-    return 0
+    if args.plan_only:
+        print(json.dumps(plan_payload, ensure_ascii=True))
+        return 0
+
+    print(
+        json.dumps(
+            {
+                "status": "not-implemented",
+                "message": "Execution mode is not implemented yet. Use --plan-only.",
+                "project_id": project_id,
+                "bundle": str(bundle_path),
+                "state_path": str(state_path),
+                "mode": target_mode,
+                "selected_nodes": sorted(set(selected_nodes)),
+            },
+            ensure_ascii=True,
+        )
+    )
+    return 2
 
 
 if __name__ == "__main__":

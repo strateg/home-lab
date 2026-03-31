@@ -57,6 +57,7 @@ task framework:deploy-init-all-pending-plan -- BUNDLE=<bundle_id>
 ## 3. Notes
 
 - `init-node` currently emits execution plan JSON and initializes state baseline.
+- non-`--plan-only` execution currently returns `status=not-implemented` (execution adapters are next increment).
 - Use immutable deploy bundles from ADR 0085 (`task framework:deploy-bundle-create`).
 - This is safe to run in current state because no destructive adapter execution is active yet.
 - Environment precheck runs by default for non-`--status` commands; use `SKIP_ENVIRONMENT_CHECK=1` only for isolated tests.
