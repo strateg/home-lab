@@ -222,6 +222,21 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     target_mode = "node" if str(args.node).strip() else "all-pending"
     target_node = str(args.node).strip() if str(args.node).strip() else None
+    manifest_node_ids = {row["id"] for row in manifest_nodes}
+    if target_mode == "node" and target_node and target_node not in manifest_node_ids:
+        print(
+            json.dumps(
+                {
+                    "status": "node-not-found",
+                    "node": target_node,
+                    "available_nodes": sorted(manifest_node_ids),
+                    "bundle": str(bundle_path),
+                },
+                ensure_ascii=True,
+            )
+        )
+        return 2
+
     selected_nodes = [target_node] if target_node else []
     if target_mode == "all-pending":
         for row in state_payload.get("nodes", []):

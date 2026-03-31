@@ -147,3 +147,27 @@ def test_main_non_plan_mode_returns_not_implemented(tmp_path: Path, capsys: pyte
     payload = json.loads(capsys.readouterr().out.strip())
     assert payload["status"] == "not-implemented"
     assert payload["selected_nodes"] == ["rtr-a"]
+
+
+def test_main_returns_node_not_found_for_unknown_node(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo_root, bundle_id = _create_test_bundle(tmp_path)
+    rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "unknown-node",
+            "--plan-only",
+            "--skip-environment-check",
+        ]
+    )
+
+    assert rc == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["status"] == "node-not-found"
+    assert payload["node"] == "unknown-node"
+    assert payload["available_nodes"] == ["rtr-a"]

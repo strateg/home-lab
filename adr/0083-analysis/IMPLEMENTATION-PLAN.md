@@ -4,7 +4,7 @@
 
 This plan implements the Unified Node Initialization Contract in 8 phases (0-6 + 5a), progressing from environment setup through schema definition to cutover.
 
-**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), Phase 0 environment precheck is wired into `init-node`, and non-`--plan-only` mode now returns explicit `not-implemented` until adapters are integrated.
+**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), Phase 0 environment precheck is wired into `init-node`, non-`--plan-only` mode returns explicit `not-implemented` until adapters are integrated, and unknown node targets now fail fast (`node-not-found`).
 
 ### Dependencies
 

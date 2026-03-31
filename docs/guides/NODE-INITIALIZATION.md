@@ -62,3 +62,4 @@ task framework:deploy-init-all-pending-plan -- BUNDLE=<bundle_id>
 - This is safe to run in current state because no destructive adapter execution is active yet.
 - Environment precheck runs by default for non-`--status` commands; use `SKIP_ENVIRONMENT_CHECK=1` only for isolated tests.
 - Environment setup reference: `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md`.
+- Unknown `--node` now fails fast with `status=node-not-found` and available manifest node list.
