@@ -50,6 +50,18 @@ def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             path=f"compiled_json.instances.devices[{idx}]",
         )
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
+        mechanism = _resolve_initialization_mechanism(row)
+        if mechanism == "unattended_install":
+            proxmox_nodes.append(row)
+            continue
+        if mechanism == "netinstall":
+            mikrotik_nodes.append(row)
+            continue
+        if mechanism == "cloud_init":
+            orangepi_nodes.append(row)
+            continue
+
+        # Legacy fallback until all bootstrap-capable objects declare initialization_contract.
         if object_ref == "obj.proxmox.ve":
             proxmox_nodes.append(row)
         if object_ref.startswith("obj.mikrotik."):
@@ -67,6 +79,19 @@ def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             "orangepi_nodes": len(orangepi_nodes),
         },
     }
+
+
+def _resolve_initialization_mechanism(row: dict[str, Any]) -> str:
+    obj = row.get("object")
+    if not isinstance(obj, dict):
+        return ""
+    contract = obj.get("initialization_contract")
+    if not isinstance(contract, dict):
+        return ""
+    mechanism = contract.get("mechanism")
+    if not isinstance(mechanism, str):
+        return ""
+    return mechanism.strip().lower()
 
 
 def build_bootstrap_typed(compiled_json: dict[str, Any]) -> list[BootstrapDevice]:

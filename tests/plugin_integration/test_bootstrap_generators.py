@@ -80,6 +80,26 @@ def _compiled_fixture() -> dict:
     }
 
 
+def _compiled_fixture_with_contract_mechanism() -> dict:
+    return {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-contract",
+                    "object_ref": "obj.custom.router",
+                    "object": {
+                        "initialization_contract": {
+                            "version": "1.0.0",
+                            "mechanism": "netinstall",
+                            "bootstrap": {"template": "bootstrap/mikrotik/init-terraform.rsc.j2"},
+                        }
+                    },
+                }
+            ]
+        }
+    }
+
+
 def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
     generator = BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap")
@@ -103,6 +123,18 @@ def test_bootstrap_mikrotik_generator_writes_expected_files(tmp_path: Path) -> N
     assert (root / "init-terraform.rsc").exists()
     assert (root / "backup-restore-overrides.rsc").exists()
     assert (root / "terraform.tfvars.example").exists()
+
+
+def test_bootstrap_mikrotik_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
+    plugin_config = _load_plugin_config(MIKROTIK_MANIFEST, "object.mikrotik.generator.bootstrap")
+    generator = BootstrapMikroTikGenerator("object.mikrotik.generator.bootstrap")
+    result = generator.execute(
+        _ctx(tmp_path, _compiled_fixture_with_contract_mechanism(), plugin_config), Stage.GENERATE
+    )
+
+    assert result.status == PluginStatus.SUCCESS
+    root = tmp_path / "generated" / "bootstrap" / "rtr-contract"
+    assert (root / "init-terraform.rsc").exists()
 
 
 def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> None:
