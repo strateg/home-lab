@@ -1,0 +1,37 @@
+name: Deploy Runner Backends
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  docker-runner:
+    name: Docker Runner Toolchain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build toolchain image
+        run: docker build -f docker/Dockerfile.toolchain -t homelab-toolchain:ci docker
+
+      - name: Smoke check terraform
+        run: docker run --rm homelab-toolchain:ci terraform version
+
+      - name: Smoke check ansible
+        run: docker run --rm homelab-toolchain:ci ansible-playbook --version
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: Run runner tests
+        run: python -m pytest tests/orchestration/test_runner.py -q

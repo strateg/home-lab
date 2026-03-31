@@ -21,7 +21,7 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 | ADR | Status | Completed Scope | Next Scope |
 |-----|--------|-----------------|------------|
 | 0085 | Accepted | Phases 0/0a/1/2 + active Phase 3 migration + assemble-plugin integration | Backend follow-ups + ADR0083 consumers |
-| 0084 | Accepted | Runner plane + bundle-based active deploy flow + DockerRunner/RemoteRunner core + remote setup docs | CI/image follow-up |
+| 0084 | Accepted | Runner plane + bundle-based active deploy flow + DockerRunner/RemoteRunner core + Docker toolchain image + backend CI lane + remote setup docs | Remote backend reliability follow-up |
 | 0083 | Proposed (Scaffold started) | `init-node` CLI/state/status + adapter/state-machine scaffold + environment precheck + Phase 1 schema/validator baseline + MikroTik/Proxmox/OrangePi contract declarations + contract-aware bootstrap projection routing + Proxmox minimal bootstrap templates/generator update + tests | Complete concrete adapters/handover flow |
 
 ---
@@ -58,7 +58,7 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 
 | Item | Trigger | Status |
 |------|---------|--------|
-| `DockerRunner` CI image/workflow hardening | CI reproducibility requirement | Pending |
+| `DockerRunner` CI image/workflow hardening | CI reproducibility requirement | Completed |
 | Backend CI/reliability validation | With implementation | Pending |
 
 ### Bucket B: ADR 0083 Decision

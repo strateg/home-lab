@@ -87,11 +87,11 @@ runner.cleanup_workspace(workspace_ref)
 
 | ID | Task | Output | Status |
 |----|------|--------|--------|
-| 0b.1 | Create Docker toolchain image | `docker/Dockerfile.toolchain` | ⏸ Pending |
+| 0b.1 | Create Docker toolchain image | `docker/Dockerfile.toolchain` | ✅ Done |
 | 0b.2 | Implement bundle staging strategy | `runner.py` | ✅ Done (mount bundle path into container workspace) |
 | 0b.3 | Implement `DockerRunner` | `runner.py` | ✅ Done |
 | 0b.4 | Add tests | `tests/orchestration/test_runner.py` | ✅ Done |
-| 0b.5 | Integrate CI usage | workflow/docs | ⏸ Pending |
+| 0b.5 | Integrate CI usage | workflow/docs | ✅ Done (`.github/workflows/deploy-runner-backends.yml`, Docker runner guide + task wrappers) |
 
 ---
 
@@ -133,5 +133,5 @@ This preserves:
 |-------|----------|--------|
 | Phase 0a: Contract alignment | 2 days | ✅ Complete |
 | ADR 0085 integration in active flow | 1 day | ✅ Complete |
-| Phase 0b: Docker | 2 days | ✅ Core implemented (image/CI follow-up pending) |
+| Phase 0b: Docker | 2 days | ✅ Complete |
 | Phase 0c: Remote | 3 days | ✅ Core implemented |

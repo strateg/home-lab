@@ -77,6 +77,17 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/orchestration/deploy/bundle.py delete --repo-root . --bundle {{.BUNDLE}} {{if .BUNDLES_ROOT}}--bundles-root {{.BUNDLES_ROOT}}{{end}}"
 
+  deploy-docker-toolchain-build:
+    desc: Build Docker toolchain image for deploy runner (optional DOCKER_IMAGE=<tag>)
+    cmds:
+      - "docker build -f docker/Dockerfile.toolchain -t {{default \"homelab-toolchain:latest\" .DOCKER_IMAGE}} docker"
+
+  deploy-docker-toolchain-smoke:
+    desc: Smoke-check Docker toolchain image for terraform/ansible availability
+    cmds:
+      - "docker run --rm {{default \"homelab-toolchain:latest\" .DOCKER_IMAGE}} terraform version"
+      - "docker run --rm {{default \"homelab-toolchain:latest\" .DOCKER_IMAGE}} ansible-playbook --version"
+
   deploy-init-status:
     desc: Show ADR0083 init-node scaffold state summary
     cmds:

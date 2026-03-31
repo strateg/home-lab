@@ -38,13 +38,17 @@ Track remaining gap between implemented execution-plane model and full backend c
 
 ## Remaining Gap Items
 
-### G1: Docker backend needs runtime hardening follow-up
+### G1: Docker backend runtime hardening follow-up
 
 **Current:** `DockerRunner` is implemented with bundle staging by container mount and command execution via `docker run`.
 
 **Target:** Toolchain image and CI workflow adoption are finalized.
 
-**Action:** Add/validate `docker/Dockerfile.toolchain` and wire deploy checks in CI.
+**Action:** ✅ Completed with:
+
+- `docker/Dockerfile.toolchain`
+- task wrappers: `framework:deploy-docker-toolchain-build`, `framework:deploy-docker-toolchain-smoke`
+- CI lane: `.github/workflows/deploy-runner-backends.yml`
 
 ### G2: Backend reliability validation is still pending
 
@@ -52,7 +56,11 @@ Track remaining gap between implemented execution-plane model and full backend c
 
 **Target:** CI/release validation should exercise non-native backends in representative environments.
 
-**Action:** Add backend-specific CI lanes and periodic smoke checks.
+**Action:** Partially complete.
+
+- Docker backend now has CI image build + smoke + runner tests.
+- Remote runner contract tests expanded (rsync/scp staging, sync failure, cleanup semantics).
+- Remaining: add remote-runner CI strategy (likely mocked contract tests + optional scheduled integration smoke on dedicated runner).
 
 ### G3: ADR 0083 entry points still need runner+bundle adoption
 
