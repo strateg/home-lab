@@ -29,15 +29,9 @@ def _resolve_secrets_mode() -> str:
     return "inject"
 
 
-def _assert_workspace_layout() -> None:
-    legacy_present = [name for name in LEGACY_ROOT_DIRS if (ROOT / name).exists()]
-    if not legacy_present:
-        return
-    joined = ", ".join(legacy_present)
-    raise RuntimeError(f"Legacy root directories detected: {joined}. Remove them before running lane commands.")
-
-
-def validate_v5() -> None:
+def _run_validate_v5_with_mode(secrets_mode: str) -> None:
+    if secrets_mode not in SUPPORTED_SECRETS_MODES:
+        raise ValueError(f"Unsupported secrets mode: {secrets_mode}")
     # NOTE: canonical instance source is ADR0071 shards under project manifest instances_root.
     # export_v5_instance_bindings.py is legacy migration helper only.
     run([PYTHON, "scripts/validation/validate_v5_layer_contract.py", "--report-json", LAYER_REPORT_JSON])
@@ -54,7 +48,6 @@ def validate_v5() -> None:
             "topology/object-modules",
         ]
     )
-    secrets_mode = _resolve_secrets_mode()
     run(
         [
             PYTHON,
@@ -66,6 +59,22 @@ def validate_v5() -> None:
             secrets_mode,
         ]
     )
+
+
+def _assert_workspace_layout() -> None:
+    legacy_present = [name for name in LEGACY_ROOT_DIRS if (ROOT / name).exists()]
+    if not legacy_present:
+        return
+    joined = ", ".join(legacy_present)
+    raise RuntimeError(f"Legacy root directories detected: {joined}. Remove them before running lane commands.")
+
+
+def validate_v5() -> None:
+    _run_validate_v5_with_mode(_resolve_secrets_mode())
+
+
+def validate_v5_passthrough() -> None:
+    _run_validate_v5_with_mode("passthrough")
 
 
 def build_v5() -> None:
@@ -98,6 +107,7 @@ def parse_args() -> argparse.Namespace:
         "command",
         choices=(
             "validate-v5",
+            "validate-v5-passthrough",
             "build-v5",
             "phase1-gate",
             "validate-v5-layers",
@@ -113,6 +123,7 @@ def main() -> int:
     _assert_workspace_layout()
     handlers = {
         "validate-v5": validate_v5,
+        "validate-v5-passthrough": validate_v5_passthrough,
         "build-v5": build_v5,
         "phase1-gate": phase1_gate,
         "validate-v5-layers": validate_v5_layers,

@@ -20,9 +20,9 @@
 
 ### Tests
 
-- [ ] `tests/orchestration/test_runner.py` exists
-- [ ] Runner contract tests pass
-- [ ] Capability-behavior tests pass
+- [x] `tests/orchestration/test_runner.py` exists
+- [x] Runner contract tests pass
+- [x] Capability-behavior tests pass
 
 ### Refactoring
 

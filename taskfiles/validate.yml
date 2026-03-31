@@ -47,9 +47,10 @@ tasks:
 
   # Alias for CI workflows that reference v5-passthrough explicitly
   v5-passthrough:
-    desc: Alias for validate:default
-    deps:
-      - default
+    desc: Validate topology lane with explicit passthrough secrets mode (no env var required)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
+      - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5-passthrough"
 
   v5:
     desc: Alias for validate:default

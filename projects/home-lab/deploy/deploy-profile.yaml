@@ -1,0 +1,24 @@
+schema_version: "1.0"
+project: home-lab
+default_runner: wsl
+
+runners:
+  wsl:
+    distro: Ubuntu
+  docker:
+    image: homelab-toolchain:latest
+    network: host
+  remote:
+    host: control.example.com
+    user: deploy
+    sync_method: rsync
+
+timeouts:
+  handover_total: 300
+  handover_check: 30
+  terraform_plan: 120
+  ansible_playbook: 600
+
+bundle:
+  retention_count: 5
+  auto_cleanup: true

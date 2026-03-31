@@ -32,6 +32,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from .profile import DeployProfile, load_deploy_profile
+
 if TYPE_CHECKING:
     from typing import Sequence
 
@@ -457,12 +459,27 @@ class RemoteLinuxRunner(DeployRunner):
         return False
 
 
-def get_runner(preference: str | None = None, **kwargs) -> DeployRunner:
+def get_runner(
+    preference: str | None = None,
+    *,
+    profile: DeployProfile | None = None,
+    repo_root: Path | None = None,
+    project_id: str | None = None,
+    **kwargs,
+) -> DeployRunner:
     """
     Get a deploy runner based on explicit preference or platform auto-detection.
     """
-    if preference:
-        return _get_explicit_runner(preference, **kwargs)
+    resolved_profile = profile
+    if resolved_profile is None and (repo_root is not None or project_id is not None):
+        resolved_profile = load_deploy_profile(repo_root=repo_root, project_id=project_id)
+
+    effective_preference = preference or (resolved_profile.default_runner if resolved_profile else None)
+    if effective_preference:
+        return _get_explicit_runner(
+            effective_preference,
+            **_merge_runner_kwargs(effective_preference, resolved_profile, kwargs),
+        )
     return _auto_detect_runner()
 
 
@@ -483,6 +500,32 @@ def _get_explicit_runner(preference: str, **kwargs) -> DeployRunner:
             f"Runner '{preference}' is not available on this system. " f"Check installation and configuration."
         )
     return runner
+
+
+def _merge_runner_kwargs(
+    preference: str,
+    profile: DeployProfile | None,
+    explicit_kwargs: dict[str, object],
+) -> dict[str, object]:
+    merged = dict(explicit_kwargs)
+    if profile is None:
+        return merged
+
+    if preference == "wsl":
+        merged.setdefault("distro", profile.runners.wsl.distro)
+        return merged
+
+    if preference == "docker":
+        merged.setdefault("image", profile.runners.docker.image)
+        return merged
+
+    if preference == "remote":
+        if "host" not in merged and profile.runners.remote.host:
+            merged["host"] = profile.runners.remote.host
+        merged.setdefault("user", profile.runners.remote.user)
+        if "host" not in merged:
+            raise ValueError("Remote runner requires 'host' in deploy profile or explicit arguments")
+    return merged
 
 
 def _auto_detect_runner() -> DeployRunner:

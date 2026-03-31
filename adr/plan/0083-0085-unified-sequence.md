@@ -20,27 +20,27 @@ ADR 0085 (bundle contract) → ADR 0084 (deploy plane) → ADR 0083 (optional in
 
 | ADR | Status | Phase Complete | Next Phase |
 |-----|--------|----------------|------------|
-| 0085 | Accepted | Phase 0 (Runner) | **Phase 0a (Tests)** |
-| 0084 | Accepted | Phase 0a (Runner) | Tests (shared with 0085) |
+| 0085 | Accepted | Phase 0a (Runner + tests) | **Phase 1 (Deploy Profile)** |
+| 0084 | Accepted | Phase 0a (Runner + tests) | Phase 1 integration (shared with 0085) |
 | 0083 | Proposed (Deferred) | - | Awaiting 0085/0084 |
 
 ---
 
-## Immediate Next Steps (Phase 0a)
+## Immediate Next Steps (Phase 1)
 
-### Goal: Add unit tests for runner module
+### Goal: Define deploy profile schema and loader
 
-**Priority:** HIGH - Tests are blocking for Phase 1
+**Priority:** HIGH - Profile contract blocks bundle assembly
 
 | ID | Task | Output | Owner |
 |----|------|--------|-------|
-| 0a.1 | Create test file | `tests/orchestration/test_runner.py` | - |
-| 0a.2 | Implement T-R01..T-R04 (NativeRunner) | Tests pass | - |
-| 0a.3 | Implement T-R05..T-R07 (WSLRunner) | Tests pass (skip on Linux) | - |
-| 0a.4 | Implement T-R08..T-R10 (get_runner) | Tests pass | - |
-| 0a.5 | Implement T-R11..T-R12 (RunResult) | Tests pass | - |
+| 1.1 | Create schema | `schemas/deploy-profile.schema.json` | - |
+| 1.2 | Create example | `projects/home-lab/deploy/deploy-profile.yaml` | - |
+| 1.3 | Implement loader | `scripts/orchestration/deploy/profile.py` | - |
+| 1.4 | Integrate with runner | `get_runner()` reads profile | - |
+| 1.5 | Add tests | T-P01..T-P06 | - |
 
-**Gate:** All runner tests pass on CI.
+**Gate:** Profile schema validates and tests pass.
 
 ---
 

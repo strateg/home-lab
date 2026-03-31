@@ -187,17 +187,17 @@ nodes:
 
 ---
 
-## Phase 0a: Runner Tests (NEXT)
+## Phase 0a: Runner Tests ✅ COMPLETE
 
 **Goal:** Add unit tests for runner module before continuing to Phase 1.
 
-| ID | Task | Output | Acceptance Criteria |
-|----|------|--------|---------------------|
-| 0a.1 | Create test file | `tests/orchestration/test_runner.py` | File exists |
-| 0a.2 | Test NativeRunner | T-R01..T-R04 | All pass |
-| 0a.3 | Test WSLRunner | T-R05..T-R07 | All pass (skip on Linux) |
-| 0a.4 | Test get_runner() | T-R08..T-R10 | All pass |
-| 0a.5 | Test RunResult | T-R11..T-R12 | All pass |
+| ID | Task | Output | Status |
+|----|------|--------|--------|
+| 0a.1 | Create test file | `tests/orchestration/test_runner.py` | ✅ Done |
+| 0a.2 | Test NativeRunner | T-R01..T-R04 | ✅ Done |
+| 0a.3 | Test WSLRunner | T-R05..T-R07 | ✅ Done |
+| 0a.4 | Test get_runner() | T-R08..T-R10 | ✅ Done |
+| 0a.5 | Test RunResult | T-R11..T-R12 | ✅ Done |
 
 ### Test Matrix (Phase 0a)
 
@@ -216,7 +216,7 @@ nodes:
 | T-R11 | `RunResult.success` is True when exit_code=0 | Unit |
 | T-R12 | `RunResult.success` is False when exit_code!=0 | Unit |
 
-**Gate:** All runner tests pass.
+**Gate:** `tests/orchestration/test_runner.py` passes locally; CI confirmation remains the release gate.
 
 ---
 
@@ -240,8 +240,8 @@ nodes:
 | Phase | Deliverable | Status | Depends On |
 |-------|-------------|--------|------------|
 | Phase 0 | Runner foundation | ✅ Complete | - |
-| Phase 0a | Runner tests | 📅 **NEXT** | Phase 0 |
-| Phase 1 | Deploy profile | 📅 Planned | Phase 0a |
+| Phase 0a | Runner tests | ✅ Complete | Phase 0 |
+| Phase 1 | Deploy profile | 📅 **NEXT** | Phase 0a |
 | Phase 2 | Bundle assembly | 📅 Planned | Phase 1 |
 | Phase 3 | Entry point migration | 📅 Planned | Phase 2 |
 | Phase 4 | Backend completion | 📅 Deferred | When needed |

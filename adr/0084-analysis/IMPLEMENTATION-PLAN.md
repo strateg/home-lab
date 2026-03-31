@@ -25,7 +25,7 @@ This plan focuses on evolving the current runner implementation and surrounding 
 | 0a.2 | Align `NativeRunner` | `runner.py` update | ✅ Done |
 | 0a.3 | Align `WSLRunner` | `runner.py` update | ✅ Done |
 | 0a.4 | Update package exports | `scripts/orchestration/deploy/__init__.py` | ✅ Done |
-| 0a.5 | Add/refresh tests | `tests/orchestration/test_runner.py` | ❌ Pending |
+| 0a.5 | Add/refresh tests | `tests/orchestration/test_runner.py` | ✅ Done |
 | 0a.6 | Refactor `service_chain_evidence.py` | Uses runner staging | ✅ Done |
 
 ### Target Contract
@@ -67,7 +67,7 @@ class DeployRunner(ABC):
 - [x] ADR 0084 wording aligned to bundle/workspace model
 - [x] `runner.py` exposes workspace-aware contract
 - [x] `NativeRunner` and `WSLRunner` aligned
-- [ ] Unit tests pass
+- [x] Unit tests pass
 - [x] `service_chain_evidence.py` refactored
 
 ---
@@ -163,7 +163,7 @@ runner.cleanup_workspace(workspace_ref)
 2. ✅ Use `runner.stage_bundle()` for workspace staging
 3. ✅ Use `runner.run()` for command execution
 4. ✅ Use `runner.cleanup_workspace()` for cleanup
-5. ⚠️ Tests need update (pending)
+5. ✅ Runner tests added in `tests/orchestration/test_runner.py`
 
 ---
 

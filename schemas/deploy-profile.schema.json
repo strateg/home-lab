@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://home-lab.local/schemas/deploy-profile.schema.json",
+  "title": "Deploy Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1
+    },
+    "default_runner": {
+      "type": "string",
+      "enum": [
+        "native",
+        "wsl",
+        "docker",
+        "remote"
+      ]
+    },
+    "runners": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "wsl": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "distro": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "docker": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "image": {
+              "type": "string",
+              "minLength": 1
+            },
+            "network": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "remote": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "host"
+          ],
+          "properties": {
+            "host": {
+              "type": "string",
+              "minLength": 1
+            },
+            "user": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sync_method": {
+              "type": "string",
+              "enum": [
+                "rsync",
+                "git"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "timeouts": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "handover_total": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "handover_check": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "terraform_plan": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ansible_playbook": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "bundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "retention_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "auto_cleanup": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

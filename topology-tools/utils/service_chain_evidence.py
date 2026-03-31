@@ -72,7 +72,7 @@ def _resolve_path_argument(value: str | None, repo_root: Path) -> str | None:
     return str(candidate.resolve())
 
 
-def _resolve_deploy_runner_name(*, deploy_runner: str, ansible_via_wsl: bool) -> str:
+def _resolve_deploy_runner_name(*, deploy_runner: str, ansible_via_wsl: bool) -> str | None:
     """Resolve runner name from legacy flags.
 
     This bridges the legacy --deploy-runner and --ansible-via-wsl flags
@@ -80,9 +80,13 @@ def _resolve_deploy_runner_name(*, deploy_runner: str, ansible_via_wsl: bool) ->
     """
     runner = deploy_runner.strip().lower()
     if ansible_via_wsl:
-        if runner != "native":
+        if runner and runner != "native":
             raise ValueError("ansible_via_wsl cannot be combined with deploy_runner")
-        runner = "wsl"
+        return "wsl"
+    if not runner:
+        return None
+    if runner not in {"native", "wsl", "docker", "remote"}:
+        raise ValueError(f"Unknown deploy runner: {runner}")
     return runner
 
 
@@ -124,7 +128,7 @@ def build_command_plan(
     env: str,
     allow_apply: bool = False,
     terraform_auto_approve: bool = False,
-    deploy_runner: str = "native",
+    deploy_runner: str = "",
     ansible_via_wsl: bool = False,
     inject_secrets: bool = False,
     proxmox_backend_config: str | None = None,
@@ -310,14 +314,15 @@ def build_command_plan(
 def execute_plan(
     *,
     repo_root: Path,
+    project_id: str,
     steps: Sequence[CommandStep],
     continue_on_failure: bool,
-    deploy_runner: str = "native",
+    deploy_runner: str = "",
     ansible_via_wsl: bool = False,
 ) -> list[StepResult]:
     """Execute plan and return results in order."""
     resolved_runner_name = _resolve_deploy_runner_name(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
-    runner = get_runner(resolved_runner_name)
+    runner = get_runner(resolved_runner_name, repo_root=repo_root, project_id=project_id)
     # Transitional compatibility bridge: until explicit deploy bundles exist for
     # this workflow, stage the repository root as the runner workspace.
     workspace_ref = runner.stage_bundle(repo_root)
@@ -481,7 +486,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--inject-secrets", action="store_true")
     parser.add_argument("--allow-apply", action="store_true")
     parser.add_argument("--terraform-auto-approve", action="store_true")
-    parser.add_argument("--deploy-runner", default="native")
+    parser.add_argument(
+        "--deploy-runner",
+        default="",
+        help="Explicit runner override (native|wsl|docker|remote). Leave empty to use deploy profile.",
+    )
     parser.add_argument("--ansible-via-wsl", action="store_true")
     parser.add_argument("--continue-on-failure", action="store_true")
     parser.add_argument("--plan-only", action="store_true")
@@ -517,6 +526,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not args.plan_only:
         results = execute_plan(
             repo_root=repo_root,
+            project_id=args.project_id,
             steps=steps,
             continue_on_failure=args.continue_on_failure,
             deploy_runner=args.deploy_runner,

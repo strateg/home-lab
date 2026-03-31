@@ -117,7 +117,7 @@ ADR 0085 is successfully adopted when:
 
 1. [x] Runner contract is workspace-aware (stage, run, capabilities, cleanup)
 2. [x] State file location unified to `.work/deploy-state/<project>/`
-3. [ ] Runner tests pass (T-R01..T-R12)
+3. [x] Runner tests pass (T-R01..T-R12)
 4. [ ] Deploy profile schema exists and is validated
 5. [ ] Bundle assembly creates immutable bundles
 6. [ ] Deploy entry points consume `--bundle <bundle_id>`
