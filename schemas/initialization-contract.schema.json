@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://home-lab.local/schemas/v5/initialization-contract.schema.json",
+  "title": "Initialization Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "mechanism"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "mechanism": {
+      "type": "string",
+      "enum": ["netinstall", "unattended_install", "cloud_init", "ansible_bootstrap"]
+    },
+    "bootstrap": {
+      "$ref": "#/$defs/bootstrap"
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/requirement"
+      },
+      "default": []
+    },
+    "handover": {
+      "$ref": "#/$defs/handover"
+    },
+    "post_handover": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "owner": { "type": "string", "minLength": 1 },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "mechanism": { "const": "netinstall" } },
+        "required": ["mechanism"]
+      },
+      "then": {
+        "required": ["bootstrap"],
+        "properties": {
+          "bootstrap": {
+            "required": ["template"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "mechanism": { "const": "unattended_install" } },
+        "required": ["mechanism"]
+      },
+      "then": {
+        "required": ["bootstrap"],
+        "properties": {
+          "bootstrap": {
+            "required": ["template", "post_install"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "mechanism": { "const": "cloud_init" } },
+        "required": ["mechanism"]
+      },
+      "then": {
+        "required": ["bootstrap"],
+        "properties": {
+          "bootstrap": {
+            "required": ["template", "outputs"],
+            "properties": {
+              "outputs": {
+                "required": ["user_data", "meta_data"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "mechanism": { "const": "ansible_bootstrap" } },
+        "required": ["mechanism"]
+      },
+      "then": {
+        "required": ["bootstrap"],
+        "properties": {
+          "bootstrap": {
+            "required": ["playbook"]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "template": { "type": "string", "minLength": 1 },
+        "post_install": { "type": "string", "minLength": 1 },
+        "playbook": { "type": "string", "minLength": 1 },
+        "outputs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "user_data": { "type": "string", "minLength": 1 },
+            "meta_data": { "type": "string", "minLength": 1 },
+            "network_config": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["tool", "network", "secret", "artifact", "service"]
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": "string" },
+        "required": { "type": "boolean", "default": true },
+        "description": { "type": "string" }
+      }
+    },
+    "handover": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/check" }
+        },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_attempts": { "type": "integer", "minimum": 1, "maximum": 20, "default": 3 },
+            "backoff_seconds": { "type": "integer", "minimum": 1, "maximum": 600, "default": 30 },
+            "timeout_seconds": { "type": "integer", "minimum": 5, "maximum": 7200, "default": 300 }
+          }
+        }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["api_reachable", "ssh_reachable", "ansible_ping", "http_status", "tcp_port_open"]
+        },
+        "target": { "type": "string", "minLength": 1 },
+        "path": { "type": "string" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "expected_status": { "type": "integer", "minimum": 100, "maximum": 599 }
+      }
+    }
+  }
+}

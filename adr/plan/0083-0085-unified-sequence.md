@@ -22,7 +22,7 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 |-----|--------|-----------------|------------|
 | 0085 | Accepted | Phases 0/0a/1/2 + active Phase 3 migration + assemble-plugin integration | Backend follow-ups + ADR0083 consumers |
 | 0084 | Accepted | Runner plane + bundle-based active deploy flow + DockerRunner/RemoteRunner core + remote setup docs | CI/image follow-up |
-| 0083 | Proposed (Scaffold started) | `init-node` CLI/state/status + adapter/state-machine scaffold + environment precheck + tests | Complete concrete adapters/handover flow |
+| 0083 | Proposed (Scaffold started) | `init-node` CLI/state/status + adapter/state-machine scaffold + environment precheck + Phase 1 schema/validator baseline + tests | Complete concrete adapters/handover flow |
 
 ---
 

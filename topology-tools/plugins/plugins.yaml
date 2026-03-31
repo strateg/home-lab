@@ -392,6 +392,22 @@ plugins:
         required: false
     description: Validates all cross-entity references in compiled topology
 
+  - id: base.validator.initialization_contract
+    kind: validator_json
+    entry: validators/initialization_contract_validator.py:InitializationContractValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: run
+    order: 101
+    depends_on: []
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Validates optional object initialization_contract payloads for compute/router objects (ADR 0083).
+
   - id: base.validator.model_lock
     kind: validator_json
     entry: validators/model_lock_validator.py:ModelLockValidator

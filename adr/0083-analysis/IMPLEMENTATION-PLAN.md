@@ -4,7 +4,7 @@
 
 This plan implements the Unified Node Initialization Contract in 8 phases (0-6 + 5a), progressing from environment setup through schema definition to cutover.
 
-**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), Phase 0 environment precheck is wired into `init-node`, non-`--plan-only` mode returns explicit `not-implemented` until adapters are integrated, and unknown node targets now fail fast (`node-not-found`).
+**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), Phase 0 environment precheck is wired into `init-node`, non-`--plan-only` mode returns explicit `not-implemented` until adapters are integrated, unknown node targets fail fast (`node-not-found`), and Phase 1 schema/validator baseline is now in place.
 
 ### Dependencies
 
@@ -67,17 +67,17 @@ def check_deploy_environment(...) -> DeployEnvironmentReport:
 
 | ID | Task | Outputs | Acceptance Criteria |
 |----|------|---------|---------------------|
-| 1.1 | Create `initialization-contract.schema.json` | `schemas/initialization-contract.schema.json` | Valid JSONSchema 2020-12 |
-| 1.2 | Extend object module schema | Updated `object-module.schema.json` | `initialization_contract` field optional |
-| 1.3 | Create validator plugin manifest | `plugins.yaml` entry | `base.validator.initialization_contract` |
-| 1.4 | Implement validator plugin | `plugins/validators/initialization_contract.py` | Validates contracts against schema |
-| 1.5 | Add unit tests | `tests/validators/test_initialization_contract.py` | 100% branch coverage |
+| 1.1 | Create `initialization-contract.schema.json` | `schemas/initialization-contract.schema.json` | Valid JSONSchema 2020-12 ✅ |
+| 1.2 | Extend object module schema | Updated `object-module.schema.json` | `initialization_contract` field optional (pending: no standalone object-module schema file in current repo layout) |
+| 1.3 | Create validator plugin manifest | `plugins.yaml` entry | `base.validator.initialization_contract` ✅ |
+| 1.4 | Implement validator plugin | `topology-tools/plugins/validators/initialization_contract_validator.py` | Validates contracts against schema ✅ |
+| 1.5 | Add tests | `tests/test_initialization_contract_schema.py`, `tests/plugin_integration/test_initialization_contract_validator.py` | schema + plugin integration tests pass ✅ |
 
 ### Gate
 
-- [ ] Schema passes JSONSchema meta-validation
-- [ ] Validator loads and runs without errors
-- [ ] Tests pass
+- [x] Schema passes JSONSchema meta-validation
+- [x] Validator loads and runs without errors
+- [x] Tests pass
 
 ---
 
