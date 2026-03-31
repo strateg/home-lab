@@ -146,6 +146,36 @@ def test_bundle_inspect_returns_manifest_and_metadata(tmp_path: Path) -> None:
     assert payload["manifest"]["source"]["project"] == "home-lab"
 
 
+def test_bundle_manifest_infers_mechanism_for_root_level_proxmox_artifacts(tmp_path: Path) -> None:
+    generated_root = tmp_path / "generated" / "home-lab"
+    _write(generated_root / "bootstrap" / "srv-pve" / "answer.toml", "[global]\n")
+    _write(generated_root / "bootstrap" / "srv-pve" / "post-install-minimal.sh", "#!/usr/bin/env bash\n")
+    bundles_root = tmp_path / ".work" / "deploy" / "bundles"
+
+    info = create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+    payload = inspect_bundle(info.bundle_path, verify_checksums=True)
+    nodes = payload["manifest"]["nodes"]
+
+    assert len(nodes) == 1
+    assert nodes[0]["id"] == "srv-pve"
+    assert nodes[0]["mechanism"] == "unattended_install"
+
+
+def test_bundle_manifest_infers_mechanism_for_root_level_cloud_init_artifacts(tmp_path: Path) -> None:
+    generated_root = tmp_path / "generated" / "home-lab"
+    _write(generated_root / "bootstrap" / "opi-a" / "user-data", "#cloud-config\n")
+    _write(generated_root / "bootstrap" / "opi-a" / "meta-data", "instance-id: opi-a\n")
+    bundles_root = tmp_path / ".work" / "deploy" / "bundles"
+
+    info = create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+    payload = inspect_bundle(info.bundle_path, verify_checksums=True)
+    nodes = payload["manifest"]["nodes"]
+
+    assert len(nodes) == 1
+    assert nodes[0]["id"] == "opi-a"
+    assert nodes[0]["mechanism"] == "cloud_init"
+
+
 def test_bundle_delete_removes_bundle_directory(tmp_path: Path) -> None:
     generated_root = _build_generated_root(tmp_path)
     bundles_root = tmp_path / ".work" / "deploy" / "bundles"

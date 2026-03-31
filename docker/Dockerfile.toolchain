@@ -29,11 +29,12 @@ RUN arch="$(dpkg --print-architecture)" \
         arm64) tf_arch="arm64" ;; \
         *) echo "Unsupported architecture: ${arch}" >&2; exit 1 ;; \
     esac \
-    && curl -fsSLo /tmp/terraform.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${tf_arch}.zip" \
+    && tf_zip="terraform_${TERRAFORM_VERSION}_linux_${tf_arch}.zip" \
+    && curl -fsSLo "/tmp/${tf_zip}" "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${tf_zip}" \
     && curl -fsSLo /tmp/terraform_SHA256SUMS "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_SHA256SUMS" \
-    && grep "terraform_${TERRAFORM_VERSION}_linux_${tf_arch}.zip" /tmp/terraform_SHA256SUMS | sha256sum -c - \
-    && unzip /tmp/terraform.zip -d /usr/local/bin \
-    && rm -f /tmp/terraform.zip /tmp/terraform_SHA256SUMS
+    && (cd /tmp && grep " ${tf_zip}$" terraform_SHA256SUMS | sha256sum -c -) \
+    && unzip "/tmp/${tf_zip}" -d /usr/local/bin \
+    && rm -f "/tmp/${tf_zip}" /tmp/terraform_SHA256SUMS
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install "ansible-core==${ANSIBLE_CORE_VERSION}"

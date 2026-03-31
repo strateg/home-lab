@@ -335,6 +335,7 @@ def resolve_bundle_path(bundles_root: Path, bundle_ref: str) -> Path:
 
 def _derive_nodes(bundle_root: Path) -> list[dict[str, Any]]:
     nodes: dict[str, dict[str, Any]] = {}
+    node_mechanisms: dict[str, set[str]] = {}
     bootstrap_root = bundle_root / "artifacts" / "generated" / "bootstrap"
     if not bootstrap_root.exists():
         return []
@@ -344,22 +345,51 @@ def _derive_nodes(bundle_root: Path) -> list[dict[str, Any]]:
         if len(bootstrap_rel.parts) < 1:
             continue
         node_id = bootstrap_rel.parts[0]
-        mechanism = bootstrap_rel.parts[1] if len(bootstrap_rel.parts) > 1 else "unknown"
+        mechanism = _infer_mechanism_from_artifact(bootstrap_rel)
         entry = nodes.setdefault(
             node_id,
             {
                 "id": node_id,
-                "mechanism": mechanism,
+                "mechanism": "unknown",
                 "artifacts": [],
             },
         )
+        if mechanism != "unknown":
+            node_mechanisms.setdefault(node_id, set()).add(mechanism)
         entry["artifacts"].append(
             {
                 "path": rel,
                 "checksum": f"sha256:{sha256_file(file_path)}",
             }
         )
+    for node_id, entry in nodes.items():
+        mechanisms = sorted(node_mechanisms.get(node_id, set()))
+        if len(mechanisms) == 1:
+            entry["mechanism"] = mechanisms[0]
+        elif len(mechanisms) > 1:
+            entry["mechanism"] = "mixed"
     return [nodes[key] for key in sorted(nodes.keys())]
+
+
+def _infer_mechanism_from_artifact(bootstrap_rel: Path) -> str:
+    parts = bootstrap_rel.parts
+    if len(parts) > 2:
+        return parts[1]
+    leaf = parts[-1].lower() if parts else ""
+    root_file_map = {
+        "answer.toml": "unattended_install",
+        "answer.toml.example": "unattended_install",
+        "post-install-minimal.sh": "unattended_install",
+        "user-data": "cloud_init",
+        "meta-data": "cloud_init",
+        "network-config": "cloud_init",
+    }
+    mapped = root_file_map.get(leaf)
+    if mapped:
+        return mapped
+    if leaf.endswith(".rsc"):
+        return "netinstall"
+    return "unknown"
 
 
 def _decrypt_secrets(secrets_root: Path) -> dict[str, str]:
