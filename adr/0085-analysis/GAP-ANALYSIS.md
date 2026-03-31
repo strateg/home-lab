@@ -86,13 +86,40 @@ Define the gap between current artifact-execution model and the target deploy bu
 
 ---
 
+## State File Location (Unified)
+
+**Canonical location:** `.work/deploy-state/<project>/`
+
+This supersedes `.work/native/bootstrap/` mentioned in earlier drafts. See ADR 0083 STATE-MODEL.md lines 79-81 for rationale.
+
+| Root | Purpose |
+|------|---------|
+| `.work/deploy/bundles/<bundle_id>/` | Immutable deploy bundles |
+| `.work/deploy-state/<project>/nodes/` | Mutable initialization state |
+| `.work/deploy-state/<project>/logs/` | Audit logs (JSONL) |
+
+---
+
+## Risks
+
+| Risk | Probability | Impact | Mitigation |
+|------|-------------|--------|------------|
+| Bundle/workspace mismatch across backends | Medium | High | Define contract before backend rollout |
+| Secret leak during bundle creation | Low | Critical | SOPS-only injection, leak scanner |
+| Bundle retention bloat | Medium | Low | Auto-cleanup with retention policy |
+| Circular dependency on ADR 0083 | Low | Medium | ADR 0085 is independently useful |
+
+---
+
 ## Acceptance Signals
 
 ADR 0085 is successfully adopted when:
 
 1. [x] Runner contract is workspace-aware (stage, run, capabilities, cleanup)
-2. [ ] Bundle assembly plugin creates immutable bundles
-3. [ ] Deploy profile schema exists and is validated
-4. [ ] Deploy entry points consume `--bundle <bundle_id>`
-5. [ ] Bundle lifecycle is documented
-6. [ ] Secrets join only at bundle assembly (not in generated/)
+2. [x] State file location unified to `.work/deploy-state/<project>/`
+3. [ ] Runner tests pass (T-R01..T-R12)
+4. [ ] Deploy profile schema exists and is validated
+5. [ ] Bundle assembly creates immutable bundles
+6. [ ] Deploy entry points consume `--bundle <bundle_id>`
+7. [ ] Bundle lifecycle is documented
+8. [ ] Secrets join only at bundle assembly (not in generated/)

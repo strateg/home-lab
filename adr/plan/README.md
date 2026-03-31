@@ -11,6 +11,8 @@ This directory contains implementation plans for major development efforts.
 | [0076-phase13-physical-extraction-plan.md](0076-phase13-physical-extraction-plan.md) | Active | ADR0076 Phase 13 physical framework/project repository extraction |
 | [0076-phase13-cutover-checklist.md](0076-phase13-cutover-checklist.md) | Active | ADR0076 Phase 13 execution checklist for physical extraction cutover |
 | [0081-framework-artifact-first-execution-plan.md](0081-framework-artifact-first-execution-plan.md) | Active | ADR0081 implementation plan for artifact-first framework + 1:N project repositories |
+| [0083-0085-implementation-plan.md](0083-0085-implementation-plan.md) | Active | Cross-document analysis of ADR 0083/0084/0085 deploy-domain implementation |
+| [0083-0085-unified-sequence.md](0083-0085-unified-sequence.md) | Active | Unified implementation sequence with concrete next steps |
 
 ## Completed Plans
 
