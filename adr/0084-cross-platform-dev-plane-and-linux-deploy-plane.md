@@ -74,53 +74,77 @@ All commands that perform deploy-time execution SHOULD run from a Linux environm
 
 This decision applies even though Terraform/OpenTofu can run natively on Windows. Canonical deploy execution is unified under Linux so that Terraform/OpenTofu and Ansible share one runtime boundary.
 
-### D4. Supported Deploy Environments
+### D4. Supported Deploy Backends
 
-The deploy plane runs on Linux. For Windows operators, WSL provides the Linux environment:
+The deploy plane uses a `DeployRunner` abstraction to support multiple execution backends:
 
-| Environment | Status | Use Case |
-|-------------|--------|----------|
-| Native Linux | ✅ Supported | Linux workstation, CI runner, Control VM |
-| WSL2 (Ubuntu) | ✅ Supported | Windows developer workflow |
-| macOS | ⚠️ Limited | Ansible works, but `netinstall-cli` unavailable |
-| Windows native | ❌ Not supported | Use WSL instead |
+| Backend | Class | Status | Use Case |
+|---------|-------|--------|----------|
+| `native` | `NativeRunner` | ✅ Implemented | Linux/macOS workstation |
+| `wsl` | `WSLRunner` | ✅ Implemented | Windows developer workflow |
+| `docker` | `DockerRunner` | 🔜 Planned | Reproducible CI execution |
+| `remote` | `RemoteLinuxRunner` | 🔜 Planned | Dedicated control node via SSH |
 
-**Future backends** (not implemented, defer to separate ADR when needed):
-- `docker` - reproducible CI execution environment
-- `remote-linux` - dedicated control node or VM
+**Auto-detection:**
+- On Windows → `WSLRunner` (default)
+- On Linux/macOS → `NativeRunner` (default)
+- Explicit selection via `--runner` flag
 
-### D5. Simple Environment Check, Not Abstraction Layer
+### D5. Deploy Runner Abstraction
 
-Deploy tooling MUST verify the execution environment at startup and fail fast with clear instructions if not Linux-backed.
-
-**Implementation:**
+Deploy tooling uses `DeployRunner` abstraction for consistent command execution across backends:
 
 ```python
-# scripts/orchestration/deploy/environment.py
+# scripts/orchestration/deploy/runner.py
 
-import sys
-import platform
+from abc import ABC, abstractmethod
+from pathlib import Path
+from dataclasses import dataclass
 
-def check_deploy_environment() -> str:
-    """Verify Linux deploy plane. Returns 'linux' or 'wsl', exits on Windows."""
-    system = platform.system()
+@dataclass
+class RunResult:
+    exit_code: int
+    stdout: str
+    stderr: str
 
-    if system == "Windows":
-        print("ERROR: Deploy plane requires Linux. Use WSL:")
-        print("    wsl")
-        print("    cd /mnt/c/path/to/home-lab")
-        print("    python scripts/orchestration/deploy/init-node.py ...")
-        sys.exit(1)
+    @property
+    def success(self) -> bool:
+        return self.exit_code == 0
 
-    if system == "Linux":
-        if "microsoft" in platform.uname().release.lower():
-            return "wsl"
-        return "linux"
 
-    return system.lower()  # macos, etc.
+class DeployRunner(ABC):
+    """Abstract deploy runner for Linux-backed execution."""
+
+    @abstractmethod
+    def run(self, cmd: list[str], cwd: Path | None = None,
+            env: dict[str, str] | None = None) -> RunResult:
+        """Execute command in deploy environment."""
+        pass
+
+    @abstractmethod
+    def translate_path(self, path: Path) -> str:
+        """Translate host path to runner path."""
+        pass
+
+    @abstractmethod
+    def is_available(self) -> bool:
+        """Check if runner is available."""
+        pass
+
+    def check_tool(self, tool: str) -> bool:
+        """Check if tool exists in runner environment."""
+        result = self.run(["which", tool])
+        return result.success
+
+
+def get_runner(preference: str | None = None) -> DeployRunner:
+    """Get deploy runner based on preference or auto-detect."""
+    if preference:
+        return _get_explicit_runner(preference)
+    return _auto_detect_runner()
 ```
 
-**Rationale:** A simple environment check (50 lines) is preferred over a deploy-runner abstraction layer (200+ lines). Abstract when there's a concrete need for multiple backends, not before.
+**Rationale:** The abstraction enables future Docker and remote-linux backends without rewriting deploy tooling. Current implementations (WSL, native) provide immediate value while establishing the interface contract.
 
 ### D6. ADR 0083 Executes Within This Plane Model
 
@@ -141,36 +165,39 @@ ADR 0083 therefore depends on this ADR for execution semantics, while retaining 
 - The repository keeps a genuinely cross-platform authoring experience.
 - Deploy execution stops pretending to be fully cross-platform when Ansible is Linux-first.
 - Terraform/OpenTofu and Ansible share one canonical runtime for secrets, SSH, networking, and caches.
-- Simple environment check (not abstraction layer) keeps code maintainable.
+- `DeployRunner` abstraction enables future Docker and remote-linux backends.
 - Clear error messages guide Windows operators to WSL.
+- Existing `service_chain_evidence.py` WSL logic is formalized into reusable runner.
 
 ### Trade-Offs
 
 - Windows-native Terraform/OpenTofu deploy flows are no longer the canonical operator path.
 - Local operators on Windows must use WSL for deploy operations.
 - Documentation must clearly distinguish dev-plane from deploy-plane workflows.
+- Runner abstraction adds ~150 lines of code (justified by planned Docker/remote backends).
 
 ### Migration Impact
 
 1. Existing Python compile/generate flows remain unchanged (dev plane).
-2. Deploy tooling (`init-node.py`, Terraform, Ansible) runs from Linux/WSL.
-3. ADR 0083 integrates `check_deploy_environment()` in Phase 0.
-4. Future Docker/remote-linux backends deferred to separate ADR when needed.
+2. Deploy tooling (`init-node.py`, Terraform, Ansible) runs via `DeployRunner`.
+3. `service_chain_evidence.py` refactored to use `DeployRunner` abstraction.
+4. ADR 0083 Phase 5 adapters receive runner via dependency injection.
 
-### What We Are NOT Doing
+### Implementation Phases
 
-- ❌ No `DeployRunner` abstraction class
-- ❌ No backend adapter pattern (yet)
-- ❌ No Docker/remote-linux implementation (deferred)
-
-**Rationale:** Single-operator home-lab does not need enterprise-grade runner abstraction. WSL solves the problem. Abstract later if CI/CD or multi-operator scenarios emerge.
+| Phase | Deliverable | Status |
+|-------|-------------|--------|
+| 0a | `DeployRunner` ABC + `NativeRunner` + `WSLRunner` | 🔜 Next |
+| 0b | `DockerRunner` + Dockerfile | 📅 When CI needed |
+| 0c | `RemoteLinuxRunner` + SSH setup | 📅 When control VM needed |
 
 ---
 
 ## References
 
-- `scripts/orchestration/lane.py`
-- `topology-tools/utils/service_chain_evidence.py`
+- `scripts/orchestration/deploy/runner.py` — DeployRunner abstraction (NEW)
+- `scripts/orchestration/lane.py` — Dev plane orchestration
+- `topology-tools/utils/service_chain_evidence.py` — Legacy WSL logic (to be refactored)
 - `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md`
 - `adr/0056-native-execution-workspace.md`
 - `adr/0077-go-task-developer-orchestration.md`

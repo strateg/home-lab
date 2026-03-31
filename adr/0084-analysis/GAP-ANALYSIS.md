@@ -6,7 +6,7 @@ Define the gap between the current mixed execution model and the target model:
 
 - Cross-platform dev plane
 - Linux-backed deploy plane
-- Simple environment check (not abstraction layer)
+- `DeployRunner` abstraction for multiple backends
 
 ---
 
@@ -18,7 +18,7 @@ Define the gap between the current mixed execution model and the target model:
 | Terraform/OpenTofu | ⚠️ Mixed | Can run on Windows, but should share runtime with Ansible |
 | Ansible | ❌ Linux-only | Requires WSL on Windows |
 | WSL glue | ⚠️ Hard-coded | `service_chain_evidence.py` has WSL-specific logic |
-| Execution model | ❌ Undocumented | No explicit plane boundary defined |
+| Runner abstraction | ❌ Missing | No unified interface for deploy execution |
 
 ---
 
@@ -27,25 +27,25 @@ Define the gap between the current mixed execution model and the target model:
 | Aspect | Target | Implementation |
 |--------|--------|----------------|
 | Dev plane | Cross-platform | No changes needed |
-| Deploy plane | Linux required | `check_deploy_environment()` |
-| Terraform + Ansible | Unified runtime | Both run from Linux/WSL |
-| Documentation | Clear separation | OPERATOR-ENVIRONMENT-SETUP.md |
+| Deploy plane | Linux-backed | `DeployRunner` abstraction |
+| Multiple backends | WSL, Docker, Remote | Phased implementation |
+| Terraform + Ansible | Unified runtime | Both use `runner.run()` |
 
 ---
 
 ## Gap Items
 
-### G1: No explicit plane boundary
+### G1: No runner abstraction ✅ RESOLVED
 
-**Current:** Implicit separation, not documented.
-**Target:** ADR 0084 defines Dev plane vs Deploy plane.
-**Action:** ADR 0084 created ✅
+**Current:** Hard-coded WSL logic in `service_chain_evidence.py`.
+**Target:** `DeployRunner` ABC with `NativeRunner`, `WSLRunner`.
+**Status:** `runner.py` created with full implementation.
 
-### G2: No environment check
+### G2: service_chain_evidence.py needs refactoring
 
-**Current:** Deploy tools don't verify execution environment.
-**Target:** `check_deploy_environment()` fails fast on Windows.
-**Action:** Implement in `scripts/orchestration/deploy/environment.py`
+**Current:** Contains `_to_wsl_path()`, `_ansible_wsl_command()`, `_resolve_deploy_runner()`.
+**Target:** Use `get_runner()` and `runner.run()`.
+**Action:** Refactor to use deploy runner package.
 
 ### G3: No operator setup guide
 
@@ -53,43 +53,60 @@ Define the gap between the current mixed execution model and the target model:
 **Target:** Unified `OPERATOR-ENVIRONMENT-SETUP.md`.
 **Action:** Create guide with WSL setup, tool installation, verification.
 
-### G4: ADR 0083 missing execution context
+### G4: ADR 0083 Phase 5 integration
 
-**Current:** ADR 0083 doesn't specify where `init-node.py` runs.
-**Target:** ADR 0083 references ADR 0084 for execution model.
-**Action:** Add Phase 0 to ADR 0083 implementation plan.
+**Current:** Adapters don't have runner injection.
+**Target:** `BootstrapAdapter.__init__(runner: DeployRunner)`.
+**Action:** Design adapter interface with runner dependency.
+
+### G5: Docker backend not implemented
+
+**Current:** `DockerRunner` stub with `NotImplementedError`.
+**Target:** Full implementation when CI needed.
+**Action:** Defer to Phase 0b.
+
+### G6: Remote Linux backend not implemented
+
+**Current:** `RemoteLinuxRunner` stub with `NotImplementedError`.
+**Target:** Full implementation when control VM needed.
+**Action:** Defer to Phase 0c.
 
 ---
 
-## What We Are NOT Doing
+## Implementation Progress
 
-| Gap | Why Not Addressed |
-|-----|-------------------|
-| Runner abstraction | YAGNI — single-operator home-lab doesn't need it |
-| Docker backend | Defer until CI/CD integration needed |
-| Remote-linux backend | Defer until dedicated control VM scenario |
-| Backend selector | No multiple backends to select from |
-
-**Principle:** Solve the actual problem (Ansible needs Linux) with minimal code (environment check). Abstract later when concrete need arises.
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `DeployRunner` ABC | ✅ Done | Abstract methods defined |
+| `NativeRunner` | ✅ Done | Linux/macOS execution |
+| `WSLRunner` | ✅ Done | Windows via WSL |
+| `DockerRunner` | 🔜 Stub | Phase 0b |
+| `RemoteLinuxRunner` | 🔜 Stub | Phase 0c |
+| `get_runner()` factory | ✅ Done | Auto-detection + explicit |
+| `RunResult` dataclass | ✅ Done | exit_code, stdout, stderr |
+| Tests | ❌ Pending | T-R01..T-R12 |
+| Refactor legacy | ❌ Pending | service_chain_evidence.py |
 
 ---
 
-## Risks if Unchanged
+## Risks
 
 | Risk | Probability | Impact | Mitigation |
 |------|-------------|--------|------------|
-| Confusing error on Windows | High | Medium | Clear exit message with WSL instructions |
-| Terraform/Ansible runtime drift | Medium | Low | Document unified execution model |
-| Future abstraction harder | Low | Low | Simple check is easy to extend |
+| WSL networking issues | Medium | High | Document WSL2 network modes |
+| Path translation bugs | Low | Medium | Comprehensive unit tests |
+| Docker network mode | Low | Medium | Test `--network=host` for netinstall |
+| Remote file sync | Medium | Medium | Support both rsync and git strategies |
 
 ---
 
-## Acceptance Signal
+## Acceptance Signals
 
 ADR 0084 is successfully adopted when:
 
-1. ✅ Plane separation documented in ADR
-2. [ ] `check_deploy_environment()` implemented
-3. [ ] Deploy tooling fails fast on Windows with clear message
-4. [ ] OPERATOR-ENVIRONMENT-SETUP.md guides Windows users to WSL
-5. [ ] ADR 0083 Phase 0 references environment check
+1. ✅ Runner abstraction implemented (`runner.py`)
+2. ✅ WSL + Native runners work
+3. [ ] `service_chain_evidence.py` refactored
+4. [ ] Unit tests pass (T-R01..T-R12)
+5. [ ] `OPERATOR-ENVIRONMENT-SETUP.md` guides Windows users
+6. [ ] ADR 0083 Phase 5 uses runner injection

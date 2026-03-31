@@ -6,36 +6,62 @@
 - [x] `adr/REGISTER.md` updated with ADR 0084
 - [x] ADR 0083 references ADR 0084 as execution-plane context
 
-## Environment Check Implementation
+## Phase 0a: Runner Abstraction (Current)
 
-- [ ] `scripts/orchestration/deploy/environment.py` created
-- [ ] `check_deploy_environment()` returns `linux`/`wsl`/`macos`
-- [ ] Windows execution exits with code 1 and WSL instructions
-- [ ] Unit tests pass (T-E01..T-E05)
+### Code Implementation
 
-## ADR 0083 Integration
+- [x] `scripts/orchestration/deploy/runner.py` created
+- [x] `DeployRunner` ABC defined
+- [x] `NativeRunner` implemented
+- [x] `WSLRunner` implemented
+- [x] `get_runner()` factory with auto-detection
+- [x] `scripts/orchestration/deploy/__init__.py` exports public API
 
-- [ ] ADR 0083 Phase 0 added to IMPLEMENTATION-PLAN.md
-- [ ] `init-node.py` calls `check_deploy_environment()` at startup
-- [ ] Environment tests added to ADR 0083 TEST-MATRIX.md
+### Placeholder Implementations
+
+- [x] `DockerRunner` stub (raises NotImplementedError)
+- [x] `RemoteLinuxRunner` stub (raises NotImplementedError)
+
+### Tests
+
+- [ ] `tests/orchestration/test_runner.py` created
+- [ ] T-R01..T-R12 pass
+
+### Refactoring
+
+- [ ] `service_chain_evidence.py` uses `get_runner()`
+- [ ] WSL-specific functions removed (moved to WSLRunner)
+- [ ] Tests updated
 
 ## Documentation
 
 - [ ] `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md` created
 - [ ] CLAUDE.md updated with Dev/Deploy plane model
-- [ ] Deploy runbooks explicitly state Linux requirement
+- [ ] Deploy runbooks explicitly state runner requirements
 
 ## Validation
 
-- [ ] `python topology-tools/check-adr-consistency.py --strict-titles` passes
+- [ ] `python -c "from scripts.orchestration.deploy import get_runner; print(get_runner())"` works
 - [ ] Related docs and ADR links resolve correctly
 - [ ] ADR 0084 status changed to Accepted
 
-## NOT Required (Deferred)
+---
 
-- ~~Deploy runner abstraction class~~
-- ~~Docker backend implementation~~
-- ~~Remote-linux backend implementation~~
-- ~~Backend selector CLI flags~~
+## Phase 0b: Docker Runner (Future)
 
-These are explicitly deferred to future ADR when concrete need arises.
+- [ ] `docker/Dockerfile.toolchain` created
+- [ ] `DockerRunner.run()` implemented
+- [ ] `DockerRunner.translate_path()` implemented
+- [ ] Volume mount for workspace works
+- [ ] `--network=host` for netinstall mechanism
+- [ ] CI workflow uses DockerRunner
+
+---
+
+## Phase 0c: Remote Linux Runner (Future)
+
+- [ ] `RemoteLinuxRunner.run()` implemented (SSH)
+- [ ] File sync strategy documented (rsync/git)
+- [ ] Secret handling on remote documented
+- [ ] SSH key management documented
+- [ ] Tests pass
