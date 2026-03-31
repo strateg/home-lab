@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Service-chain evidence execution and reporting helpers."""
+"""Service-chain evidence execution and reporting helpers.
+
+Refactored to use DeployRunner abstraction (ADR 0084).
+"""
 
 from __future__ import annotations
 
@@ -10,7 +13,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 FRAMEWORK_ROOT = Path(__file__).resolve().parents[2]
 if str(FRAMEWORK_ROOT) not in sys.path:
@@ -18,7 +21,9 @@ if str(FRAMEWORK_ROOT) not in sys.path:
 
 from scripts.orchestration.deploy import DeployWorkspace, get_runner, resolve_deploy_workspace  # noqa: E402
 
-SUPPORTED_DEPLOY_RUNNERS = {"native", "wsl"}
+if TYPE_CHECKING:
+    from scripts.orchestration.deploy import DeployRunner
+
 DEFAULT_ARTIFACTS_ROOT = "generated"
 
 
@@ -67,15 +72,17 @@ def _resolve_path_argument(value: str | None, repo_root: Path) -> str | None:
     return str(candidate.resolve())
 
 
-def _resolve_deploy_runner(*, deploy_runner: str, ansible_via_wsl: bool) -> str:
+def _resolve_deploy_runner_name(*, deploy_runner: str, ansible_via_wsl: bool) -> str:
+    """Resolve runner name from legacy flags.
+
+    This bridges the legacy --deploy-runner and --ansible-via-wsl flags
+    to the new runner factory API. The runner factory handles validation.
+    """
     runner = deploy_runner.strip().lower()
     if ansible_via_wsl:
         if runner != "native":
             raise ValueError("ansible_via_wsl cannot be combined with deploy_runner")
         runner = "wsl"
-    if runner not in SUPPORTED_DEPLOY_RUNNERS:
-        choices = ", ".join(sorted(SUPPORTED_DEPLOY_RUNNERS))
-        raise ValueError(f"Unsupported deploy_runner: {deploy_runner}. Expected one of: {choices}")
     return runner
 
 
@@ -133,7 +140,8 @@ def build_command_plan(
         raise ValueError(f"Unsupported mode: {mode}")
     if mode == "maintenance-apply" and not allow_apply:
         raise ValueError("maintenance-apply mode requires allow_apply=True")
-    _resolve_deploy_runner(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
+    # Validate runner name (will raise if invalid)
+    _resolve_deploy_runner_name(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
     resolved_workspace = workspace or resolve_deploy_workspace(
         repo_root=(repo_root.resolve() if isinstance(repo_root, Path) else Path.cwd().resolve()),
         project_id=project_id,
@@ -308,7 +316,7 @@ def execute_plan(
     ansible_via_wsl: bool = False,
 ) -> list[StepResult]:
     """Execute plan and return results in order."""
-    resolved_runner_name = _resolve_deploy_runner(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
+    resolved_runner_name = _resolve_deploy_runner_name(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
     runner = get_runner(resolved_runner_name)
     # Transitional compatibility bridge: until explicit deploy bundles exist for
     # this workflow, stage the repository root as the runner workspace.

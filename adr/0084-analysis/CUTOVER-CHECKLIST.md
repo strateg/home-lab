@@ -13,10 +13,10 @@
 
 - [x] `scripts/orchestration/deploy/runner.py` exists
 - [x] `scripts/orchestration/deploy/__init__.py` exports runner API
-- [ ] `DeployRunner` contract updated for bundle staging and workspace lifecycle
-- [ ] `NativeRunner` aligned to workspace-aware execution
-- [ ] `WSLRunner` aligned to workspace-aware execution
-- [ ] `get_runner()` still works with updated contract
+- [x] `DeployRunner` contract updated for bundle staging and workspace lifecycle
+- [x] `NativeRunner` aligned to workspace-aware execution
+- [x] `WSLRunner` aligned to workspace-aware execution
+- [x] `get_runner()` still works with updated contract
 
 ### Tests
 
@@ -26,9 +26,9 @@
 
 ### Refactoring
 
-- [ ] `service_chain_evidence.py` uses `DeployRunner`
-- [ ] WSL-specific helper logic removed from evidence tool
-- [ ] Evidence tooling stages bundle before deploy execution
+- [x] `service_chain_evidence.py` uses `DeployRunner`
+- [x] WSL-specific helper logic removed from evidence tool
+- [x] Evidence tooling stages bundle before deploy execution
 
 ## Documentation
 

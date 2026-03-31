@@ -54,13 +54,13 @@ Define the gap between the current mixed execution model and the target model:
 
 **Action:** Refactor deploy tooling and supporting docs to treat deploy bundle as the canonical execution source.
 
-### G3: `service_chain_evidence.py` needs refactoring
+### G3: `service_chain_evidence.py` needs refactoring ✅ RESOLVED
 
-**Current:** Contains `_to_wsl_path()`, `_ansible_wsl_command()`, `_resolve_deploy_runner()` and direct subprocess logic.
+**Current:** Uses `get_runner()`, `runner.stage_bundle()`, `runner.run()`, and `runner.cleanup_workspace()`.
 
 **Target:** Uses bundle-aware runner staging and runner-managed execution.
 
-**Action:** Refactor to consume `DeployRunner` rather than encoding WSL behavior inline.
+**Status:** Refactored. WSL-specific path translation moved to WSLRunner. Legacy `--ansible-via-wsl` flag bridges to runner factory.
 
 ### G4: ADR 0083 integration still needs workspace context
 
@@ -115,7 +115,7 @@ Define the gap between the current mixed execution model and the target model:
 | `RemoteLinuxRunner` | 🔜 Stub | Phase 0c |
 | Workspace-aware contract | ❌ Pending | Must supersede simple path-translation-centric design |
 | Bundle consumption | ❌ Pending | Deploy tooling should consume `bundle_id` |
-| Legacy WSL refactor | ❌ Pending | `service_chain_evidence.py` still inline |
+| Legacy WSL refactor | ✅ Done | `service_chain_evidence.py` uses runner |
 | Tests | ❌ Pending | Need tests for staging, capabilities, and backend selection |
 
 ---
@@ -139,6 +139,6 @@ ADR 0084 is successfully adopted when:
 1. ✅ Linux-backed deploy plane is explicitly separated from cross-platform dev plane
 2. [ ] Runner contract is workspace-aware, not just path-aware
 3. [ ] Deploy tooling consumes explicit bundle/workspace inputs
-4. [ ] `service_chain_evidence.py` is refactored away from hard-coded WSL logic
+4. [x] `service_chain_evidence.py` is refactored away from hard-coded WSL logic
 5. [ ] Unit/integration tests cover runner staging and capability behavior
 6. [ ] Operator docs clearly describe dev-plane vs deploy-plane workflows
