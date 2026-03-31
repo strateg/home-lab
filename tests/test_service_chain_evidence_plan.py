@@ -17,6 +17,7 @@ from service_chain_evidence import (  # noqa: E402
     CommandStep,
     StepResult,
     _resolve_path_argument,
+    _resolve_path_argument_for_mode,
     build_command_plan,
     render_report,
 )
@@ -185,6 +186,24 @@ def test_resolve_path_argument_converts_relative_to_absolute(tmp_path: Path) -> 
     resolved = _resolve_path_argument("projects/home-lab/secrets/terraform/proxmox.auto.tfvars", tmp_path)
     assert resolved == str((tmp_path / "projects/home-lab/secrets/terraform/proxmox.auto.tfvars").resolve())
     assert _resolve_path_argument("", tmp_path) is None
+
+
+def test_resolve_path_argument_preserves_relative_in_bundle_mode(tmp_path: Path) -> None:
+    resolved = _resolve_path_argument_for_mode(
+        "artifacts/generated/terraform/proxmox/terraform.tfvars.example",
+        tmp_path,
+        preserve_relative=True,
+    )
+    assert resolved == "artifacts/generated/terraform/proxmox/terraform.tfvars.example"
+
+
+def test_resolve_path_argument_preserves_and_normalizes_windows_relative_in_bundle_mode(tmp_path: Path) -> None:
+    resolved = _resolve_path_argument_for_mode(
+        r"artifacts\generated\terraform\mikrotik\terraform.tfvars.example",
+        tmp_path,
+        preserve_relative=True,
+    )
+    assert resolved == "artifacts/generated/terraform/mikrotik/terraform.tfvars.example"
 
 
 def test_service_chain_plan_project_repository_uses_framework_tool_mount(tmp_path: Path) -> None:

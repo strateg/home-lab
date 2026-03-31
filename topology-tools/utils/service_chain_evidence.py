@@ -73,9 +73,21 @@ def _terraform_init_args(backend_config: str | None) -> list[str]:
 
 
 def _resolve_path_argument(value: str | None, repo_root: Path) -> str | None:
+    return _resolve_path_argument_for_mode(value=value, repo_root=repo_root, preserve_relative=False)
+
+
+def _resolve_path_argument_for_mode(
+    value: str | None,
+    repo_root: Path,
+    *,
+    preserve_relative: bool,
+) -> str | None:
     if not isinstance(value, str) or not value.strip():
         return None
-    candidate = Path(value.strip())
+    raw = value.strip()
+    candidate = Path(raw)
+    if preserve_relative and not candidate.is_absolute():
+        return raw.replace("\\", "/")
     if not candidate.is_absolute():
         candidate = repo_root / candidate
     return str(candidate.resolve())
@@ -549,12 +561,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     repo_root = Path(args.repo_root).resolve()
     workspace = resolve_deploy_workspace(repo_root=repo_root, project_id=args.project_id)
-    proxmox_backend_config = _resolve_path_argument(args.proxmox_backend_config, repo_root)
-    mikrotik_backend_config = _resolve_path_argument(args.mikrotik_backend_config, repo_root)
-    proxmox_var_file = _resolve_path_argument(args.proxmox_var_file, repo_root)
-    mikrotik_var_file = _resolve_path_argument(args.mikrotik_var_file, repo_root)
+    bundle_mode = isinstance(args.bundle, str) and bool(args.bundle.strip())
+    proxmox_backend_config = _resolve_path_argument_for_mode(
+        args.proxmox_backend_config,
+        repo_root,
+        preserve_relative=bundle_mode,
+    )
+    mikrotik_backend_config = _resolve_path_argument_for_mode(
+        args.mikrotik_backend_config,
+        repo_root,
+        preserve_relative=bundle_mode,
+    )
+    proxmox_var_file = _resolve_path_argument_for_mode(
+        args.proxmox_var_file,
+        repo_root,
+        preserve_relative=bundle_mode,
+    )
+    mikrotik_var_file = _resolve_path_argument_for_mode(
+        args.mikrotik_var_file,
+        repo_root,
+        preserve_relative=bundle_mode,
+    )
     effective_artifacts_root = args.artifacts_root
-    if isinstance(args.bundle, str) and args.bundle.strip() and args.artifacts_root == DEFAULT_ARTIFACTS_ROOT:
+    if bundle_mode and args.artifacts_root == DEFAULT_ARTIFACTS_ROOT:
         effective_artifacts_root = BUNDLE_ARTIFACTS_ROOT
 
     steps = build_command_plan(
