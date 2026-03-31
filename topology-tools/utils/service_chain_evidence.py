@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
+SUPPORTED_DEPLOY_RUNNERS = {"native", "wsl"}
+
 
 @dataclass(frozen=True)
 class CommandStep:
@@ -92,6 +94,36 @@ def _ansible_wsl_command(*, repo_root: Path, project_id: str, env: str, lane: st
     return ["wsl", "bash", "-lc", script]
 
 
+def _resolve_deploy_runner(*, deploy_runner: str, ansible_via_wsl: bool) -> str:
+    runner = deploy_runner.strip().lower()
+    if ansible_via_wsl:
+        if runner != "native":
+            raise ValueError("ansible_via_wsl cannot be combined with deploy_runner")
+        runner = "wsl"
+    if runner not in SUPPORTED_DEPLOY_RUNNERS:
+        choices = ", ".join(sorted(SUPPORTED_DEPLOY_RUNNERS))
+        raise ValueError(f"Unsupported deploy_runner: {deploy_runner}. Expected one of: {choices}")
+    return runner
+
+
+def _ansible_command(
+    *,
+    deploy_runner: str,
+    repo_root: Path | None,
+    project_id: str,
+    env: str,
+    lane: str,
+    task_name: str,
+) -> list[str]:
+    if deploy_runner == "native":
+        return ["task", task_name]
+    if repo_root is None:
+        raise ValueError(f"deploy_runner={deploy_runner} requires repo_root")
+    if deploy_runner == "wsl":
+        return _ansible_wsl_command(repo_root=repo_root, project_id=project_id, env=env, lane=lane)
+    raise ValueError(f"Unsupported deploy runner for ansible command: {deploy_runner}")
+
+
 def build_command_plan(
     *,
     mode: str,
@@ -99,6 +131,7 @@ def build_command_plan(
     env: str,
     allow_apply: bool = False,
     terraform_auto_approve: bool = False,
+    deploy_runner: str = "native",
     ansible_via_wsl: bool = False,
     inject_secrets: bool = False,
     proxmox_backend_config: str | None = None,
@@ -112,8 +145,9 @@ def build_command_plan(
         raise ValueError(f"Unsupported mode: {mode}")
     if mode == "maintenance-apply" and not allow_apply:
         raise ValueError("maintenance-apply mode requires allow_apply=True")
-    if ansible_via_wsl and repo_root is None:
-        raise ValueError("ansible_via_wsl mode requires repo_root")
+    resolved_deploy_runner = _resolve_deploy_runner(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
+    if resolved_deploy_runner != "native" and repo_root is None:
+        raise ValueError(f"deploy_runner={resolved_deploy_runner} requires repo_root")
 
     secrets_mode = "inject" if inject_secrets else "passthrough"
     ansible_runtime_task = "ansible:runtime-inject" if inject_secrets else "ansible:runtime"
@@ -122,20 +156,21 @@ def build_command_plan(
         if mode == "maintenance-apply"
         else ("ansible:check-site-inject" if inject_secrets else "ansible:check-site")
     )
-    ansible_syntax_command = (
-        _ansible_wsl_command(repo_root=repo_root, project_id=project_id, env=env, lane="syntax")
-        if ansible_via_wsl
-        else ["task", "ansible:syntax"]
+    ansible_syntax_command = _ansible_command(
+        deploy_runner=resolved_deploy_runner,
+        repo_root=repo_root,
+        project_id=project_id,
+        env=env,
+        lane="syntax",
+        task_name="ansible:syntax",
     )
-    ansible_execute_command = (
-        _ansible_wsl_command(
-            repo_root=repo_root,
-            project_id=project_id,
-            env=env,
-            lane=("apply" if mode == "maintenance-apply" else "check"),
-        )
-        if ansible_via_wsl
-        else ["task", ansible_execute_task]
+    ansible_execute_command = _ansible_command(
+        deploy_runner=resolved_deploy_runner,
+        repo_root=repo_root,
+        project_id=project_id,
+        env=env,
+        lane=("apply" if mode == "maintenance-apply" else "check"),
+        task_name=ansible_execute_task,
     )
     proxmox_plan_args = ["plan", "-refresh=false"]
     mikrotik_plan_args = ["plan", "-refresh=false"]
@@ -389,6 +424,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--inject-secrets", action="store_true")
     parser.add_argument("--allow-apply", action="store_true")
     parser.add_argument("--terraform-auto-approve", action="store_true")
+    parser.add_argument("--deploy-runner", default="native")
     parser.add_argument("--ansible-via-wsl", action="store_true")
     parser.add_argument("--continue-on-failure", action="store_true")
     parser.add_argument("--plan-only", action="store_true")
@@ -408,6 +444,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         env=args.env,
         allow_apply=args.allow_apply,
         terraform_auto_approve=args.terraform_auto_approve,
+        deploy_runner=args.deploy_runner,
         ansible_via_wsl=args.ansible_via_wsl,
         inject_secrets=args.inject_secrets,
         proxmox_backend_config=proxmox_backend_config,

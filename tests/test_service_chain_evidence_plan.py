@@ -58,7 +58,12 @@ def test_service_chain_plan_maintenance_apply_requires_allow_flag() -> None:
         build_command_plan(mode="maintenance-apply", project_id="home-lab", env="production")
 
 
-def test_service_chain_plan_ansible_via_wsl_requires_repo_root() -> None:
+def test_service_chain_plan_deploy_runner_wsl_requires_repo_root() -> None:
+    with pytest.raises(ValueError):
+        build_command_plan(mode="maintenance-check", project_id="home-lab", env="production", deploy_runner="wsl")
+
+
+def test_service_chain_plan_ansible_via_wsl_alias_requires_repo_root() -> None:
     with pytest.raises(ValueError):
         build_command_plan(mode="maintenance-check", project_id="home-lab", env="production", ansible_via_wsl=True)
 
@@ -71,7 +76,20 @@ def test_service_chain_plan_maintenance_apply_contains_apply_steps() -> None:
     assert any("task ansible:apply-site" == cmd for cmd in commands)
 
 
-def test_service_chain_plan_maintenance_check_supports_ansible_wsl_commands() -> None:
+def test_service_chain_plan_maintenance_check_supports_deploy_runner_wsl_commands() -> None:
+    plan = build_command_plan(
+        mode="maintenance-check",
+        project_id="home-lab",
+        env="production",
+        deploy_runner="wsl",
+        repo_root=Path("D:/Workspaces/PycharmProjects/home-lab"),
+    )
+    commands = _joined(plan)
+    assert any(cmd.startswith("wsl bash -lc ") and "--syntax-check" in cmd for cmd in commands)
+    assert any(cmd.startswith("wsl bash -lc ") and " --check" in cmd for cmd in commands)
+
+
+def test_service_chain_plan_ansible_via_wsl_alias_maps_to_wsl_runner() -> None:
     plan = build_command_plan(
         mode="maintenance-check",
         project_id="home-lab",
@@ -81,7 +99,18 @@ def test_service_chain_plan_maintenance_check_supports_ansible_wsl_commands() ->
     )
     commands = _joined(plan)
     assert any(cmd.startswith("wsl bash -lc ") and "--syntax-check" in cmd for cmd in commands)
-    assert any(cmd.startswith("wsl bash -lc ") and " --check" in cmd for cmd in commands)
+
+
+def test_service_chain_plan_rejects_conflicting_runner_and_wsl_alias() -> None:
+    with pytest.raises(ValueError):
+        build_command_plan(
+            mode="maintenance-check",
+            project_id="home-lab",
+            env="production",
+            deploy_runner="wsl",
+            ansible_via_wsl=True,
+            repo_root=Path("D:/Workspaces/PycharmProjects/home-lab"),
+        )
 
 
 def test_service_chain_plan_maintenance_apply_supports_auto_approve() -> None:

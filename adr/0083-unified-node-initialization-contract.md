@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-30
 **Status:** Proposed
-**Related:** ADR 0057 (MikroTik Netinstall Bootstrap), ADR 0072 (Unified Secrets Management), ADR 0074 (V5 Generator Architecture), ADR 0080 (Unified Build Pipeline), ADR 0082 (Plugin Module-Pack Composition)
+**Related:** ADR 0057 (MikroTik Netinstall Bootstrap), ADR 0072 (Unified Secrets Management), ADR 0074 (V5 Generator Architecture), ADR 0080 (Unified Build Pipeline), ADR 0082 (Plugin Module-Pack Composition), ADR 0084 (Cross-Platform Dev Plane and Linux Deploy Plane)
 
 ---
 
@@ -50,6 +50,14 @@ This pattern should be generalized to all device types.
 - Secrets must remain outside tracked repository roots
 - Existing manual workflows must continue working during transition
 
+### Execution Plane Context
+
+ADR 0084 defines the operator execution model for this ADR:
+
+- artifact generation remains in the cross-platform dev plane,
+- initialization and post-generation deploy execution run in a Linux-backed deploy plane,
+- WSL, Docker, and remote Linux backends are execution backends for that deploy plane rather than separate architectural models.
+
 ---
 
 ## Decision
@@ -89,7 +97,7 @@ The v5 pipeline and deploy domain have different responsibilities and execution 
 
 **Key principle:** The v5 pipeline generates artifacts from topology. The deploy domain executes them. Pre-initialization runs once per device lifecycle reset; Terraform/Ansible run many times for configuration improvements.
 
-**Rationale:** The v5 pipeline operates on topology data and generates artifacts. It does not execute external commands against hardware. Pre-initialization requires device-specific execution (netinstall, flash, SSH) which belongs to the deploy domain.
+**Rationale:** The v5 pipeline operates on topology data and generates artifacts. It does not execute external commands against hardware. Pre-initialization requires device-specific execution (netinstall, flash, SSH) which belongs to the deploy domain. Per ADR 0084, that deploy-domain execution is Linux-backed even when artifact generation happens from a cross-platform workstation.
 
 ### D2. Define Unified Node Initialization Contract
 
