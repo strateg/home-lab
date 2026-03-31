@@ -25,9 +25,11 @@ from .runner import (
     check_runner_tools,
     get_runner,
 )
+from .workspace import DeployWorkspace, resolve_deploy_workspace
 
 __all__ = [
     "DeployRunner",
+    "DeployWorkspace",
     "DockerRunner",
     "NativeRunner",
     "RemoteLinuxRunner",
@@ -35,4 +37,5 @@ __all__ = [
     "WSLRunner",
     "check_runner_tools",
     "get_runner",
+    "resolve_deploy_workspace",
 ]

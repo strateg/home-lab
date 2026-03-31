@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-30
 **Status:** Proposed (Deferred/Optional; evaluate after ADR 0085 and ADR 0084)
-**Related:** ADR 0057 (MikroTik Netinstall Bootstrap), ADR 0072 (Unified Secrets Management), ADR 0074 (V5 Generator Architecture), ADR 0080 (Unified Build Pipeline), ADR 0082 (Plugin Module-Pack Composition), ADR 0085 (Deploy Bundle and Runner Workspace Contract), ADR 0084 (Cross-Platform Dev Plane and Linux Deploy Plane)
+**Related:** ADR 0057 (MikroTik Netinstall Bootstrap), ADR 0072 (Unified Secrets Management), ADR 0074 (V5 Generator Architecture), ADR 0075 (Monorepo Framework/Project Boundary), ADR 0076 (Framework Distribution and Multi-Repository Extraction), ADR 0080 (Unified Build Pipeline), ADR 0082 (Plugin Module-Pack Composition), ADR 0085 (Deploy Bundle and Runner Workspace Contract), ADR 0084 (Cross-Platform Dev Plane and Linux Deploy Plane)
 
 ---
 
@@ -56,9 +56,13 @@ ADR 0085 and ADR 0084 define the deploy-domain foundation for this ADR:
 
 - ADR 0085 defines the deploy bundle, deploy profile, and runner workspace contract,
 - ADR 0084 defines the Linux-backed deploy plane and runner execution model,
+- ADR 0075 requires deploy-time state and profiles to stay project-scoped rather than framework-scoped,
+- ADR 0076 requires the same model to remain valid when a project consumes framework code via submodule or package distribution,
 - this ADR is intentionally deferred until that deploy-domain foundation is accepted and implemented.
 
 **Sequencing note:** ADR 0083 is not required for the adoption of ADR 0085 or ADR 0084. It is a later optional consumer of that deploy-domain model.
+
+**Applicability note:** If ADR 0083 is ever implemented, it MUST consume the same project-scoped bundle/profile/workspace contract in both the current main-repository workflow and the ADR 0076 extracted project-repository workflow. It MUST NOT assume an integrated repository layout beyond a resolved project workspace. Those two repository topologies are first-class modes, not primary vs compatibility modes.
 
 ---
 
@@ -198,7 +202,11 @@ generate_stage:
 
 ### D5. Generate Source-Derived Initialization Manifest and Build Deploy Bundle
 
-Add a generator that produces a read-only source-derived manifest at `generated/<project>/bootstrap/INITIALIZATION-MANIFEST.yaml`.
+Add a generator that produces a read-only source-derived manifest in the project-scoped generated tree.
+
+Examples:
+- main-repository mode: `generated/<project>/bootstrap/INITIALIZATION-MANIFEST.yaml`
+- extracted project-repo mode: equivalent project-local generated root with the same contract shape
 
 This manifest is an inspectable pipeline artifact derived from topology and object contracts. It is not the final execution source for deploy-time tooling.
 
@@ -210,13 +218,15 @@ Deploy-time execution MUST consume an immutable deploy bundle produced after ass
 
 The generated manifest is used as an input to deploy-bundle assembly. The resulting bundle is the canonical execution input for `init-node.py` and future deploy-domain tooling.
 
+Framework dependency resolution and compatibility verification required by ADR 0075 and ADR 0076 MUST complete before bundle assembly.
+
 Mutable runtime state MUST be stored outside both `generated/` and the immutable bundle, for example:
 
 - `.work/deploy-state/<project>/nodes/<node_id>.yaml`
 - `.work/deploy-state/<project>/logs/<run_id>.jsonl`
 
 **Key principle:**
-- `generated/` contains source-derived, inspectable, secret-free artifacts
+- the project-scoped generated root contains source-derived, inspectable, secret-free artifacts
 - deploy bundle contains immutable execution inputs, including secret-bearing assembled artifacts
 - deploy-state contains mutable runtime state and logs
 
@@ -327,7 +337,7 @@ If `retry` is omitted, defaults apply. If `timeout_seconds` is exceeded before a
 Bootstrap secrets follow the unified secrets model (ADR 0072):
 
 - Tracked templates remain secret-free
-- Secret values come from `projects/<project>/secrets/` (SOPS-encrypted)
+- Secret values come from the project-scoped secrets root (for example `projects/<project>/secrets/` in monorepo mode or `secrets/` in extracted project-repo mode), always SOPS-encrypted
 - Secret-bearing rendered artifacts exist only in ignored deploy-bundle or runner-workspace roots, never in tracked source trees
 
 **Supersession note:** ADR 0057 D8 references Ansible Vault for secret management. This ADR supersedes the ADR 0057 secret contract for all bootstrap artifacts. All mechanisms MUST use SOPS+age (ADR 0072) as the unified secrets backend.
@@ -458,7 +468,7 @@ generated/<project>/bootstrap/    .work/deploy/bundles/<bundle_id>/          run
     into deploy-bundle inputs. Enforces ADR 0072 secret isolation.
 ```
 
-**Key principle:** the `generate` stage writes secret-free baseline artifacts to `generated/`. The `assemble` stage combines them with decrypted secrets from `projects/<project>/secrets/`. The resulting deploy bundle becomes the canonical execution source for `init-node.py`.
+**Key principle:** the `generate` stage writes secret-free baseline artifacts to the project-scoped generated root. The `assemble` stage combines them with decrypted secrets from the project-scoped secrets root. The resulting deploy bundle becomes the canonical execution source for `init-node.py`.
 
 ### D13. Multi-Instance Instantiation from Object Contract
 

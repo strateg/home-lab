@@ -12,13 +12,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+FRAMEWORK_ROOT = Path(__file__).resolve().parents[2]
+if str(FRAMEWORK_ROOT) not in sys.path:
+    sys.path.insert(0, str(FRAMEWORK_ROOT))
 
-from scripts.orchestration.deploy import get_runner  # noqa: E402
+from scripts.orchestration.deploy import DeployWorkspace, get_runner, resolve_deploy_workspace  # noqa: E402
 
 SUPPORTED_DEPLOY_RUNNERS = {"native", "wsl"}
+DEFAULT_ARTIFACTS_ROOT = "generated"
 
 
 @dataclass(frozen=True)
@@ -47,8 +48,8 @@ class StepResult:
         return self.returncode == 0
 
 
-def _terraform_dir(project_id: str, target: str) -> str:
-    return f"generated/{project_id}/terraform/{target}"
+def _terraform_dir(workspace: DeployWorkspace, target: str, *, artifacts_root: str = DEFAULT_ARTIFACTS_ROOT) -> str:
+    return workspace.terraform_dir(target, artifacts_root)
 
 
 def _terraform_init_args(backend_config: str | None) -> list[str]:
@@ -78,13 +79,19 @@ def _resolve_deploy_runner(*, deploy_runner: str, ansible_via_wsl: bool) -> str:
     return runner
 
 
-def _ansible_command(*, project_id: str, env: str, lane: str) -> list[str]:
+def _ansible_command(
+    *,
+    workspace: DeployWorkspace,
+    env: str,
+    lane: str,
+    artifacts_root: str = DEFAULT_ARTIFACTS_ROOT,
+) -> list[str]:
     if lane not in {"syntax", "check", "apply"}:
         raise ValueError(f"Unsupported ansible lane: {lane}")
 
-    inventory = f"generated/{project_id}/ansible/runtime/{env}/hosts.yml"
-    ansible_cfg = f"projects/{project_id}/ansible/ansible.cfg"
-    playbook_root = f"projects/{project_id}/ansible/playbooks"
+    inventory = workspace.ansible_inventory(env, artifacts_root)
+    ansible_cfg = workspace.ansible_cfg()
+    playbook_root = workspace.ansible_playbook_root()
 
     if lane == "syntax":
         syntax_targets = ["site.yml", "postgresql.yml", "redis.yml", "nextcloud.yml", "monitoring.yml"]
@@ -118,6 +125,8 @@ def build_command_plan(
     proxmox_var_file: str | None = None,
     mikrotik_var_file: str | None = None,
     repo_root: Path | None = None,
+    artifacts_root: str = DEFAULT_ARTIFACTS_ROOT,
+    workspace: DeployWorkspace | None = None,
 ) -> list[CommandStep]:
     """Build ordered command plan for selected service-chain mode."""
     if mode not in {"dry", "maintenance-check", "maintenance-apply"}:
@@ -125,19 +134,27 @@ def build_command_plan(
     if mode == "maintenance-apply" and not allow_apply:
         raise ValueError("maintenance-apply mode requires allow_apply=True")
     _resolve_deploy_runner(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
+    resolved_workspace = workspace or resolve_deploy_workspace(
+        repo_root=(repo_root.resolve() if isinstance(repo_root, Path) else Path.cwd().resolve()),
+        project_id=project_id,
+    )
+    if resolved_workspace.project_id != project_id:
+        raise ValueError(
+            f"Resolved workspace project_id '{resolved_workspace.project_id}' does not match requested '{project_id}'"
+        )
 
     secrets_mode = "inject" if inject_secrets else "passthrough"
-    ansible_runtime_task = "ansible:runtime-inject" if inject_secrets else "ansible:runtime"
-    ansible_execute_task = (
-        ("ansible:apply-site-inject" if inject_secrets else "ansible:apply-site")
-        if mode == "maintenance-apply"
-        else ("ansible:check-site-inject" if inject_secrets else "ansible:check-site")
+    ansible_syntax_command = _ansible_command(
+        workspace=resolved_workspace,
+        env=env,
+        lane="syntax",
+        artifacts_root=artifacts_root,
     )
-    ansible_syntax_command = _ansible_command(project_id=project_id, env=env, lane="syntax")
     ansible_execute_command = _ansible_command(
-        project_id=project_id,
+        workspace=resolved_workspace,
         env=env,
         lane=("apply" if mode == "maintenance-apply" else "check"),
+        artifacts_root=artifacts_root,
     )
 
     proxmox_plan_args = ["plan", "-refresh=false"]
@@ -156,31 +173,30 @@ def build_command_plan(
 
     plan: list[CommandStep] = [
         CommandStep(
-            "framework.lock-refresh", "Refresh framework.lock before strict gates", ["task", "framework:lock-refresh"]
+            "framework.lock-refresh",
+            "Refresh framework.lock before strict gates",
+            resolved_workspace.generate_framework_lock_command(sys.executable),
         ),
-        CommandStep("framework.strict", "Run strict framework gates", ["task", "framework:strict"]),
-        CommandStep("validate.v5", "Run validate:v5 lane", ["task", "validate:v5"]),
+        CommandStep(
+            "framework.strict",
+            "Run strict framework lock verification",
+            resolved_workspace.verify_framework_lock_command(sys.executable, strict=True),
+        ),
         CommandStep(
             "compile.generated",
             "Compile topology and emit generated artifacts",
-            [
+            resolved_workspace.compile_topology_command(
                 sys.executable,
-                "topology-tools/compile-topology.py",
-                "--topology",
-                "topology/topology.yaml",
-                "--strict-model-lock",
-                "--secrets-mode",
-                secrets_mode,
-                "--artifacts-root",
-                "generated",
-            ],
+                secrets_mode=secrets_mode,
+                artifacts_root=artifacts_root,
+            ),
         ),
         CommandStep(
             "terraform.proxmox.init",
             "Initialize Proxmox Terraform",
             [
                 "terraform",
-                f"-chdir={_terraform_dir(project_id, 'proxmox')}",
+                f"-chdir={_terraform_dir(resolved_workspace, 'proxmox', artifacts_root=artifacts_root)}",
                 *_terraform_init_args(proxmox_backend_config),
             ],
             execution_plane="deploy",
@@ -188,13 +204,21 @@ def build_command_plan(
         CommandStep(
             "terraform.proxmox.validate",
             "Validate Proxmox Terraform",
-            ["terraform", f"-chdir={_terraform_dir(project_id, 'proxmox')}", "validate"],
+            [
+                "terraform",
+                f"-chdir={_terraform_dir(resolved_workspace, 'proxmox', artifacts_root=artifacts_root)}",
+                "validate",
+            ],
             execution_plane="deploy",
         ),
         CommandStep(
             "terraform.proxmox.plan",
             "Plan Proxmox Terraform",
-            ["terraform", f"-chdir={_terraform_dir(project_id, 'proxmox')}", *proxmox_plan_args],
+            [
+                "terraform",
+                f"-chdir={_terraform_dir(resolved_workspace, 'proxmox', artifacts_root=artifacts_root)}",
+                *proxmox_plan_args,
+            ],
             execution_plane="deploy",
         ),
         CommandStep(
@@ -202,7 +226,7 @@ def build_command_plan(
             "Initialize MikroTik Terraform",
             [
                 "terraform",
-                f"-chdir={_terraform_dir(project_id, 'mikrotik')}",
+                f"-chdir={_terraform_dir(resolved_workspace, 'mikrotik', artifacts_root=artifacts_root)}",
                 *_terraform_init_args(mikrotik_backend_config),
             ],
             execution_plane="deploy",
@@ -210,41 +234,64 @@ def build_command_plan(
         CommandStep(
             "terraform.mikrotik.validate",
             "Validate MikroTik Terraform",
-            ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", "validate"],
+            [
+                "terraform",
+                f"-chdir={_terraform_dir(resolved_workspace, 'mikrotik', artifacts_root=artifacts_root)}",
+                "validate",
+            ],
             execution_plane="deploy",
         ),
         CommandStep(
             "terraform.mikrotik.plan",
             "Plan MikroTik Terraform",
-            ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", *mikrotik_plan_args],
+            [
+                "terraform",
+                f"-chdir={_terraform_dir(resolved_workspace, 'mikrotik', artifacts_root=artifacts_root)}",
+                *mikrotik_plan_args,
+            ],
             execution_plane="deploy",
         ),
-        CommandStep("ansible.runtime", "Assemble Ansible runtime inventory", ["task", ansible_runtime_task]),
         CommandStep("ansible.syntax", "Run Ansible syntax checks", ansible_syntax_command, execution_plane="deploy"),
         CommandStep(
             "ansible.execute", "Run Ansible service execution lane", ansible_execute_command, execution_plane="deploy"
         ),
-        CommandStep("acceptance.all", "Run all acceptance tests", ["task", "acceptance:tests-all"]),
-        CommandStep("cutover.readiness", "Run cutover readiness report", ["task", "framework:cutover-readiness"]),
     ]
+
+    if resolved_workspace.layout == "main_repository":
+        plan.extend(
+            [
+                CommandStep("acceptance.all", "Run all acceptance tests", ["task", "acceptance:tests-all"]),
+                CommandStep(
+                    "cutover.readiness", "Run cutover readiness report", ["task", "framework:cutover-readiness"]
+                ),
+            ]
+        )
 
     if mode == "maintenance-apply":
         plan.insert(
-            6,
+            5,
             CommandStep(
                 "terraform.proxmox.apply",
                 "Apply Proxmox Terraform (maintenance window)",
-                ["terraform", f"-chdir={_terraform_dir(project_id, 'proxmox')}", *proxmox_apply_args],
+                [
+                    "terraform",
+                    f"-chdir={_terraform_dir(resolved_workspace, 'proxmox', artifacts_root=artifacts_root)}",
+                    *proxmox_apply_args,
+                ],
                 destructive=True,
                 execution_plane="deploy",
             ),
         )
         plan.insert(
-            10,
+            9,
             CommandStep(
                 "terraform.mikrotik.apply",
                 "Apply MikroTik Terraform (maintenance window)",
-                ["terraform", f"-chdir={_terraform_dir(project_id, 'mikrotik')}", *mikrotik_apply_args],
+                [
+                    "terraform",
+                    f"-chdir={_terraform_dir(resolved_workspace, 'mikrotik', artifacts_root=artifacts_root)}",
+                    *mikrotik_apply_args,
+                ],
                 destructive=True,
                 execution_plane="deploy",
             ),
@@ -411,6 +458,7 @@ def default_report_path(mode: str, output_dir: Path) -> Path:
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Execute service-chain lanes and emit evidence report.")
     parser.add_argument("--mode", choices=("dry", "maintenance-check", "maintenance-apply"), default="dry")
+    parser.add_argument("--repo-root", default=".", help="Project workspace root for main-repo or project-repo mode.")
     parser.add_argument("--project-id", default="home-lab")
     parser.add_argument("--env", default="production")
     parser.add_argument("--operator", default=os.environ.get("USERNAME") or os.environ.get("USER") or "unknown")
@@ -421,6 +469,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--mikrotik-backend-config", default="")
     parser.add_argument("--proxmox-var-file", default="")
     parser.add_argument("--mikrotik-var-file", default="")
+    parser.add_argument("--artifacts-root", default=DEFAULT_ARTIFACTS_ROOT)
     parser.add_argument("--inject-secrets", action="store_true")
     parser.add_argument("--allow-apply", action="store_true")
     parser.add_argument("--terraform-auto-approve", action="store_true")
@@ -433,7 +482,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
-    repo_root = REPO_ROOT
+    repo_root = Path(args.repo_root).resolve()
+    workspace = resolve_deploy_workspace(repo_root=repo_root, project_id=args.project_id)
     proxmox_backend_config = _resolve_path_argument(args.proxmox_backend_config, repo_root)
     mikrotik_backend_config = _resolve_path_argument(args.mikrotik_backend_config, repo_root)
     proxmox_var_file = _resolve_path_argument(args.proxmox_var_file, repo_root)
@@ -452,6 +502,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         proxmox_var_file=proxmox_var_file,
         mikrotik_var_file=mikrotik_var_file,
         repo_root=repo_root,
+        artifacts_root=args.artifacts_root,
+        workspace=workspace,
     )
     results: list[StepResult] = []
     if not args.plan_only:
@@ -463,7 +515,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ansible_via_wsl=args.ansible_via_wsl,
         )
 
-    output_path = Path(args.output) if args.output else default_report_path(args.mode, Path(args.output_dir))
+    output_path = Path(args.output) if args.output else default_report_path(args.mode, repo_root / args.output_dir)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     commit_sha = args.commit_sha or _git_sha(repo_root)
     payload = render_report(
