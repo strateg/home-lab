@@ -5,6 +5,7 @@ This package contains deploy-plane tooling for node initialization
 and infrastructure deployment.
 
 Key components:
+- bundle.py: Deploy bundle assembly and lifecycle operations
 - profile.py: Deploy profile schema-aware loader
 - runner.py: DeployRunner abstraction for cross-platform execution
 - init-node.py: Node initialization orchestrator (Phase 5)
@@ -16,6 +17,19 @@ See ADR 0084 for execution plane model.
 See ADR 0083 for initialization contract.
 """
 
+from .bundle import (
+    BundleError,
+    BundleInfo,
+    compute_bundle_id,
+    create_bundle,
+    delete_bundle,
+    inspect_bundle,
+    list_bundles,
+    resolve_bundle_path,
+    resolve_bundle_schema_path,
+    resolve_bundles_root,
+    verify_bundle_checksums,
+)
 from .profile import (
     BundlePolicy,
     DeployProfile,
@@ -42,7 +56,12 @@ from .runner import (
 from .workspace import DeployWorkspace, resolve_deploy_workspace
 
 __all__ = [
+    "BundleError",
+    "BundleInfo",
     "BundlePolicy",
+    "compute_bundle_id",
+    "create_bundle",
+    "delete_bundle",
     "DeployRunner",
     "DeployProfile",
     "DeployWorkspace",
@@ -52,8 +71,13 @@ __all__ = [
     "NativeRunner",
     "RemoteRunnerProfile",
     "RemoteLinuxRunner",
+    "resolve_bundle_path",
+    "resolve_bundle_schema_path",
+    "resolve_bundles_root",
     "RunResult",
     "RunnerProfiles",
+    "inspect_bundle",
+    "list_bundles",
     "WSLRunner",
     "WSLRunnerProfile",
     "check_runner_tools",
@@ -63,4 +87,5 @@ __all__ = [
     "resolve_deploy_profile_path",
     "resolve_deploy_profile_schema_path",
     "resolve_deploy_workspace",
+    "verify_bundle_checksums",
 ]
