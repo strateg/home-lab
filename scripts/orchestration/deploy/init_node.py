@@ -95,17 +95,20 @@ def _write_yaml_atomic(path: Path, payload: dict[str, Any]) -> None:
     tmp_path.replace(path)
 
 
-def _derive_manifest_nodes(bundle_path: Path) -> list[dict[str, str]]:
+def _derive_manifest_nodes(bundle_path: Path) -> list[dict[str, Any]]:
     details = inspect_bundle(bundle_path, verify_checksums=True)
     nodes_payload = details.get("manifest", {}).get("nodes", [])
-    result: list[dict[str, str]] = []
+    result: list[dict[str, Any]] = []
     for row in nodes_payload if isinstance(nodes_payload, list) else []:
         if not isinstance(row, dict):
             continue
         node_id = str(row.get("id", "")).strip()
         mechanism = str(row.get("mechanism", "")).strip() or "unknown"
+        artifacts = row.get("artifacts", [])
+        if not isinstance(artifacts, list):
+            artifacts = []
         if node_id:
-            result.append({"id": node_id, "mechanism": mechanism})
+            result.append({"id": node_id, "mechanism": mechanism, "artifacts": artifacts})
     result.sort(key=lambda item: item["id"])
     return result
 
@@ -118,7 +121,7 @@ def _resolve_bundle_for_execution(*, repo_root: Path, bundle_ref: str) -> Path:
     return bundle_path
 
 
-def _ensure_state_baseline(*, state_path: Path, manifest_nodes: list[dict[str, str]]) -> dict[str, Any]:
+def _ensure_state_baseline(*, state_path: Path, manifest_nodes: list[dict[str, Any]]) -> dict[str, Any]:
     state = _load_yaml_mapping(state_path)
     rows = state.get("nodes")
     by_id: dict[str, dict[str, Any]] = {}
@@ -176,8 +179,8 @@ def _state_index(state_payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return result
 
 
-def _manifest_index(manifest_nodes: list[dict[str, str]]) -> dict[str, dict[str, str]]:
-    result: dict[str, dict[str, str]] = {}
+def _manifest_index(manifest_nodes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
     for row in manifest_nodes:
         node_id = str(row.get("id", "")).strip()
         if node_id:
@@ -205,7 +208,7 @@ def _execute_selected_nodes(
     bundle_path: Path,
     state_path: Path,
     state_payload: dict[str, Any],
-    manifest_nodes: list[dict[str, str]],
+    manifest_nodes: list[dict[str, Any]],
     selected_nodes: list[str],
     import_existing: bool,
 ) -> tuple[int, dict[str, Any]]:

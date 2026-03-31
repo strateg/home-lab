@@ -151,7 +151,7 @@ def test_main_non_plan_mode_executes_and_marks_node_failed_with_placeholder(
     assert payload["selected_nodes"] == ["rtr-a"]
     assert payload["failed_count"] == 1
     assert payload["results"][0]["node"] == "rtr-a"
-    assert payload["results"][0]["error_code"] == "E9733"
+    assert payload["results"][0]["error_code"] == "E9730"
 
     state_path = resolve_state_path(repo_root=repo_root, project_id="home-lab")
     state_payload = init_node_module._load_yaml_mapping(state_path)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .ansible_bootstrap import AnsibleBootstrapAdapter
 from .base import (
     AdapterContext,
     AdapterStatus,
@@ -11,6 +12,9 @@ from .base import (
     NotImplementedBootstrapAdapter,
     PreflightCheck,
 )
+from .cloud_init import CloudInitAdapter
+from .netinstall import NetinstallAdapter
+from .unattended import UnattendedInstallAdapter
 
 SUPPORTED_MECHANISMS = {
     "netinstall",
@@ -25,7 +29,16 @@ def get_adapter(mechanism: str) -> BootstrapAdapter:
     if key not in SUPPORTED_MECHANISMS:
         supported = ", ".join(sorted(SUPPORTED_MECHANISMS))
         raise ValueError(f"Unknown initialization mechanism: {mechanism}. Supported: {supported}")
-    return NotImplementedBootstrapAdapter(key)
+    factories: dict[str, type[BootstrapAdapter]] = {
+        "netinstall": NetinstallAdapter,
+        "unattended_install": UnattendedInstallAdapter,
+        "cloud_init": CloudInitAdapter,
+        "ansible_bootstrap": AnsibleBootstrapAdapter,
+    }
+    factory = factories.get(key)
+    if not factory:
+        return NotImplementedBootstrapAdapter(key)
+    return factory()
 
 
 __all__ = [
@@ -34,8 +47,12 @@ __all__ = [
     "BootstrapAdapter",
     "BootstrapResult",
     "HandoverCheckResult",
+    "AnsibleBootstrapAdapter",
+    "CloudInitAdapter",
+    "NetinstallAdapter",
     "NotImplementedBootstrapAdapter",
     "PreflightCheck",
     "SUPPORTED_MECHANISMS",
+    "UnattendedInstallAdapter",
     "get_adapter",
 ]

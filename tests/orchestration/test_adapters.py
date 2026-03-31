@@ -11,9 +11,13 @@ sys.path.insert(0, str(REPO_ROOT))
 from scripts.orchestration.deploy.adapters import (  # noqa: E402
     AdapterContext,
     AdapterStatus,
+    AnsibleBootstrapAdapter,
     BootstrapAdapter,
     BootstrapResult,
+    CloudInitAdapter,
+    NetinstallAdapter,
     NotImplementedBootstrapAdapter,
+    UnattendedInstallAdapter,
     get_adapter,
 )
 
@@ -33,10 +37,19 @@ def test_not_implemented_adapter_returns_failed_execute(tmp_path: Path) -> None:
     assert result.error_code == "E9730"
 
 
-def test_get_adapter_returns_placeholder_for_supported_mechanism() -> None:
-    adapter = get_adapter("cloud_init")
-    assert isinstance(adapter, NotImplementedBootstrapAdapter)
-    assert adapter.mechanism == "cloud_init"
+@pytest.mark.parametrize(
+    ("mechanism", "expected_type"),
+    [
+        ("netinstall", NetinstallAdapter),
+        ("unattended_install", UnattendedInstallAdapter),
+        ("cloud_init", CloudInitAdapter),
+        ("ansible_bootstrap", AnsibleBootstrapAdapter),
+    ],
+)
+def test_get_adapter_returns_concrete_adapter_for_supported_mechanism(mechanism: str, expected_type: type) -> None:
+    adapter = get_adapter(mechanism)
+    assert isinstance(adapter, expected_type)
+    assert adapter.mechanism == mechanism
 
 
 def test_get_adapter_raises_for_unknown_mechanism() -> None:
@@ -52,3 +65,17 @@ def test_adapter_abc_enforces_required_methods() -> None:
 
     with pytest.raises(TypeError):
         _BrokenAdapter()
+
+
+def test_cloud_init_preflight_detects_missing_required_files(tmp_path: Path) -> None:
+    adapter = CloudInitAdapter()
+    node = {
+        "id": "opi-a",
+        "artifacts": [
+            {"path": "artifacts/generated/bootstrap/opi-a/user-data", "checksum": "sha256:dummy"},
+        ],
+    }
+    checks = adapter.preflight(node, AdapterContext(project_id="home-lab", bundle_path=tmp_path, workspace_ref="w"))
+    by_name = {item.name: item for item in checks}
+    assert by_name["cloud_init_files_present"].ok is False
+    assert by_name["artifacts_exist_in_bundle"].ok is False
