@@ -2,126 +2,73 @@
 
 ## Goal
 
-Define the gap between the current deploy-time filesystem assumptions and the target deploy bundle + runner workspace contract.
+Define the gap between current artifact-execution model and the target deploy bundle contract.
 
 ---
 
 ## Current State
 
-| Aspect | Status | Issue |
+| Aspect | Status | Notes |
 |--------|--------|-------|
-| Generated artifacts | Available | Used both for inspection and implicitly for execution |
-| Runtime execution roots | Ad hoc | `.work/native/...` is local-path-centric |
-| Deploy profile | ❌ Missing | No project-scoped operator/backend settings contract |
-| Deploy bundle | ❌ Missing | No immutable execution input boundary |
-| Runner abstraction | ⚠️ Partial | `run()` exists, workspace staging contract does not |
-| Capability negotiation | ❌ Missing | Backends do not report capabilities |
-| Remote/container backends | 🔜 Planned | No bundle/workspace contract to support them |
-| Mutable state root | ⚠️ Ambiguous | ADR 0083 uses `.work/native/bootstrap/`; no deploy-state contract defined |
-| Secret join point | ⚠️ Informal | No formal assembly step between generated/ and execution |
+| Deploy bundle concept | ✅ Defined | ADR 0085 defines bundle as canonical execution input |
+| Bundle assembly | ❌ Not implemented | No `base.assembler.deploy_bundle` plugin |
+| Deploy profile | ❌ Not implemented | No schema, no examples |
+| Runner workspace-awareness | ✅ Implemented | `runner.py` has `stage_bundle()`, `cleanup_workspace()`, `capabilities()` |
+| Bundle consumption | ⚠️ Partial | `service_chain_evidence.py` uses `stage_bundle(repo_root)` as transitional |
+| Secret join point | ❌ Not implemented | Bundle assembly should be the join point |
+| `generated/` remains inspectable | ✅ Preserved | No secrets in generated artifacts |
+
+---
 
 ## Target State
 
-| Aspect | Target |
-|--------|--------|
-| Execution input | Immutable deploy bundle in `.work/deploy/bundles/<bundle_id>/` |
-| Backend settings | Project-scoped deploy profile (`projects/<project>/deploy/deploy-profile.yaml`) |
-| Runtime state | Mutable deploy-state root (`.work/deploy-state/<project>/`) |
-| Runner model | Workspace-aware, capability-reporting |
-| Secret materialization | Bundle assembly is the sole secret join point |
+| Aspect | Target | Implementation Direction |
+|--------|--------|--------------------------|
+| Deploy bundle | Immutable execution input | `.work/deploy/bundles/<bundle_id>/` |
+| Deploy profile | Project-scoped config | `projects/<project>/deploy/deploy-profile.yaml` |
+| Bundle assembly | Assemble stage plugin | `base.assembler.deploy_bundle` |
+| Runner contract | Workspace-aware | Stage bundle, execute, report capabilities, cleanup |
+| Entry points | Bundle-ID based | `--bundle <bundle_id>` parameter |
 
 ---
 
 ## Gap Items
 
-### G1: No canonical deploy bundle layout
+### G1: Bundle assembly plugin missing
 
-**Current:** Generated artifacts in `generated/<project>/` are used directly by deploy tooling. No intermediate bundle concept exists.
+**Current:** No mechanism to create deploy bundles from generated artifacts.
 
-**Target:** Immutable deploy bundle with `manifest.yaml`, `artifacts/<node_id>/`, `metadata.yaml` at `.work/deploy/bundles/<bundle_id>/`.
+**Target:** `base.assembler.deploy_bundle` plugin creates immutable bundles.
 
-**Action Required:**
-1. Define bundle directory layout in `docs/contracts/DEPLOY-BUNDLE.md`
-2. Create JSON Schemas for `manifest.yaml` and `metadata.yaml`
-3. Implement bundle assembly entry point
-4. Make `bundle_id` deterministic for given topology + secret inputs
+**Action:** Implement assembler plugin with:
+- Manifest generation from generated artifacts
+- Secret injection from SOPS
+- Bundle hash/provenance metadata
+- Artifact packaging per node
 
-### G2: No project-scoped deploy profile contract
+### G2: Deploy profile schema missing
 
-**Current:** Operator settings (runner backend, WSL distro, toolchain paths, staging policy) are either hard-coded or implicit in script arguments.
+**Current:** No formal deploy profile structure.
 
-**Target:** Declarative `deploy-profile.yaml` with JSON Schema validation.
+**Target:** Project-scoped YAML with backend selection, timeouts, logical input resolution.
 
-**Action Required:**
-1. Create `schemas/deploy-profile.schema.json`
-2. Create sample profile at `projects/home-lab/deploy/deploy-profile.yaml`
-3. Update deploy tooling to load and validate profile before execution
+**Action:** Create schema and example.
 
-### G3: No workspace staging contract in `DeployRunner`
+### G3: Bundle-ID based entry points not implemented
 
-**Current:** `DeployRunner.run()` is process-centric. Bundles are not staged into backend-specific workspaces.
+**Current:** Deploy tooling uses repo paths or transitional `stage_bundle(repo_root)`.
 
-**Target:** Runner contract includes `stage_bundle()`, `run()` (in workspace), `capabilities()`, `cleanup_workspace()`.
+**Target:** `--bundle <bundle_id>` as primary execution input.
 
-**Action Required:** Co-owned with ADR 0084 Phase 0a. Define contract requirements here; implement in ADR 0084.
+**Action:** Update deploy entry points to require explicit bundle selection.
 
-### G4: No explicit capability negotiation for backends
+### G4: Bundle lifecycle not documented
 
-**Current:** If a backend lacks a required capability (e.g., interactive confirmation, host-network access), failure is silent or confusing.
+**Current:** No bundle retention, cleanup, or versioning policy.
 
-**Target:** `capabilities()` returns a feature map; deploy tooling validates required capabilities before execution.
+**Target:** Clear lifecycle: create → use → archive or delete.
 
-**Action Required:**
-1. Define capability keys (e.g., `interactive`, `host_network`, `path_translation`, `persistent_workspace`)
-2. Add capability validation to deploy entry points
-
-### G5: ADR 0083 wording still reflects local-path execution assumptions
-
-**Current:** ADR 0083 `STATE-MODEL.md` uses `.work/native/bootstrap/INITIALIZATION-STATE.yaml` and edge cases reference `.work/native/` as the assembled artifacts root.
-
-**Target:** All state and runtime data under `.work/deploy-state/<project>/`. No architectural reference to `.work/native/`.
-
-**Action Required:**
-1. Update `adr/0083-analysis/STATE-MODEL.md` to use `.work/deploy-state/<project>/`
-2. Update all edge-case descriptions to reference deploy bundle and deploy-state roots
-3. Verify all ADR 0083 analysis docs are terminologically consistent
-
-### G6: No formal assembly step between generated/ and execution
-
-**Current:** There is no code that combines generated templates with decrypted secrets into an immutable bundle. ADR 0083 describes `base.assembler.bootstrap_secrets` conceptually, but it depends on the bundle contract defined here.
-
-**Target:** `assemble-bundle.py` (or pipeline-integrated assembly step) produces deploy bundles with secret injection.
-
-**Action Required:**
-1. Implement assembly entry point (Phase 2 of IMPLEMENTATION-PLAN)
-2. Enforce immutability of assembled bundles
-3. Validate generated/ remains secret-free after assembly
-
-### G7: Mutable state root ambiguity
-
-**Current:** Multiple conventions coexist:
-- ADR 0083 STATE-MODEL: `.work/native/bootstrap/INITIALIZATION-STATE.yaml`
-- ADR 0085 D6: `.work/deploy-state/<project>/nodes/<node_id>.yaml`
-- ADR 0085 D6: `.work/deploy-state/<project>/logs/<run_id>.jsonl`
-
-**Target:** Unified mutable deploy-state root: `.work/deploy-state/<project>/`. No architectural use of `.work/native/bootstrap/` for state management.
-
-**Action Required:**
-1. Document deploy-state layout in `docs/contracts/DEPLOY-STATE.md`
-2. Update ADR 0083 STATE-MODEL.md to align
-3. Ensure `.gitignore` covers `.work/deploy-state/`
-
----
-
-## Risks
-
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Bundle model adds complexity | Medium | Medium | Keep bundle layout minimal and deterministic |
-| Backend staging semantics diverge | Medium | High | Define runner contract before implementing backends |
-| Secret sprawl across roots | Low | High | Make bundle assembly the only secret join point |
-| Adoption stalls due to abstract definitions | Medium | Medium | Create concrete sample bundle early (Phase 1) |
-| ADR 0083/0084 drift from 0085 definitions | Medium | High | Harmonize all three ADRs in the same commit |
+**Action:** Document bundle lifecycle in operator guide.
 
 ---
 
@@ -129,15 +76,13 @@ Define the gap between the current deploy-time filesystem assumptions and the ta
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Deploy bundle layout | ❌ Not started | Phase 1 |
-| Bundle schemas | ❌ Not started | Phase 1 |
-| Deploy profile schema | ❌ Not started | Phase 1 |
-| Deploy-state root layout | ❌ Not started | Phase 1 |
-| Bundle assembly | ❌ Not started | Phase 2 |
-| Runner evolution | 🔄 In progress | ADR 0084 Phase 0a |
-| Deploy tooling integration | ❌ Not started | Phase 4 |
-| ADR 0083 alignment | 🔄 In progress | STATE-MODEL.md update |
-| ADR 0084 alignment | ✅ Done | Wording aligned |
+| Runner workspace contract | ✅ Done | `runner.py` fully implements stage/run/capabilities/cleanup |
+| Native + WSL runners | ✅ Done | Functional implementations |
+| Docker runner | 🔜 Stub | Phase 0b |
+| Remote runner | 🔜 Stub | Phase 0c |
+| Bundle assembly plugin | ❌ Pending | Core ADR 0085 deliverable |
+| Deploy profile schema | ❌ Pending | Needed for multi-backend support |
+| Bundle-ID entry points | ❌ Pending | Requires bundle assembly first |
 
 ---
 
@@ -145,11 +90,9 @@ Define the gap between the current deploy-time filesystem assumptions and the ta
 
 ADR 0085 is successfully adopted when:
 
-1. [ ] Deploy bundle layout is documented and schema-validated
-2. [ ] Deploy profile contract is documented and schema-validated
-3. [ ] Mutable deploy-state root is documented
-4. [ ] Bundle assembly produces immutable bundles from generated + secrets
-5. [ ] Runner contract is workspace-aware (co-owned with ADR 0084)
-6. [ ] Deploy entry points consume explicit `--bundle <bundle_id>`
-7. [ ] All three ADRs (0083, 0084, 0085) are terminologically consistent
-8. [ ] No active deploy code references `.work/native/` as architectural contract
+1. [x] Runner contract is workspace-aware (stage, run, capabilities, cleanup)
+2. [ ] Bundle assembly plugin creates immutable bundles
+3. [ ] Deploy profile schema exists and is validated
+4. [ ] Deploy entry points consume `--bundle <bundle_id>`
+5. [ ] Bundle lifecycle is documented
+6. [ ] Secrets join only at bundle assembly (not in generated/)

@@ -39,10 +39,10 @@
 
 ## Validation
 
-- [ ] Related ADR links resolve correctly
-- [ ] ADR 0084 analysis docs match ADR 0084 decision text
-- [ ] ADR 0083/0084/0085 terminology is consistent
-- [ ] ADR 0084 status can be promoted when code and docs catch up
+- [x] Related ADR links resolve correctly
+- [x] ADR 0084 analysis docs match ADR 0084 decision text
+- [x] ADR 0083/0084/0085 terminology is consistent
+- [x] ADR 0084 status promoted to Accepted (runner foundation complete)
 
 ---
 

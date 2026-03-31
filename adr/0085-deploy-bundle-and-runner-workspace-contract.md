@@ -1,6 +1,6 @@
 # ADR 0085: Deploy Bundle and Runner Workspace Contract
 
-- Status: Proposed (Primary deploy-domain priority)
+- Status: Accepted (Runner contract complete; bundle assembly pending)
 - Date: 2026-03-31
 
 ## Context
@@ -213,4 +213,8 @@ What migration or compatibility impact exists?
 - `adr/0076-framework-distribution-and-multi-repository-extraction.md`
 - `docs/framework/FRAMEWORK-V5.md`
 - `scripts/orchestration/deploy/runner.py`
+- `scripts/orchestration/deploy/workspace.py`
 - `topology-tools/utils/service_chain_evidence.py`
+- `adr/0085-analysis/GAP-ANALYSIS.md` - Gap analysis and implementation progress
+- `adr/0085-analysis/IMPLEMENTATION-PLAN.md` - Phased implementation plan
+- `adr/0085-analysis/CUTOVER-CHECKLIST.md` - Migration gate checklist

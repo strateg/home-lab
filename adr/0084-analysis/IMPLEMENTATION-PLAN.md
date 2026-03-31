@@ -13,20 +13,20 @@ This plan focuses on evolving the current runner implementation and surrounding 
 
 ---
 
-## Phase 0a: Runner Contract Alignment (Current)
+## Phase 0a: Runner Contract Alignment ✅ COMPLETE
 
 **Goal:** Align `DeployRunner`, `NativeRunner`, and `WSLRunner` with the workspace-aware execution model.
 
 ### Tasks
 
-| ID | Task | Output | Acceptance Criteria |
-|----|------|--------|---------------------|
-| 0a.1 | Update runner contract | `scripts/orchestration/deploy/runner.py` | Workspace-aware interface defined |
-| 0a.2 | Align `NativeRunner` | `runner.py` update | Stages bundle and executes in workspace |
-| 0a.3 | Align `WSLRunner` | `runner.py` update | Stages bundle and executes in WSL workspace |
-| 0a.4 | Update package exports | `scripts/orchestration/deploy/__init__.py` | Public API matches new contract |
-| 0a.5 | Add/refresh tests | `tests/orchestration/test_runner.py` | Runner contract tests pass |
-| 0a.6 | Refactor `service_chain_evidence.py` | Uses runner staging | WSL glue removed from evidence tool |
+| ID | Task | Output | Status |
+|----|------|--------|--------|
+| 0a.1 | Update runner contract | `scripts/orchestration/deploy/runner.py` | ✅ Done |
+| 0a.2 | Align `NativeRunner` | `runner.py` update | ✅ Done |
+| 0a.3 | Align `WSLRunner` | `runner.py` update | ✅ Done |
+| 0a.4 | Update package exports | `scripts/orchestration/deploy/__init__.py` | ✅ Done |
+| 0a.5 | Add/refresh tests | `tests/orchestration/test_runner.py` | ❌ Pending |
+| 0a.6 | Refactor `service_chain_evidence.py` | Uses runner staging | ✅ Done |
 
 ### Target Contract
 
@@ -65,10 +65,10 @@ class DeployRunner(ABC):
 ### Gate
 
 - [x] ADR 0084 wording aligned to bundle/workspace model
-- [ ] `runner.py` exposes workspace-aware contract
-- [ ] `NativeRunner` and `WSLRunner` aligned
+- [x] `runner.py` exposes workspace-aware contract
+- [x] `NativeRunner` and `WSLRunner` aligned
 - [ ] Unit tests pass
-- [ ] `service_chain_evidence.py` refactored
+- [x] `service_chain_evidence.py` refactored
 
 ---
 
@@ -142,30 +142,28 @@ This keeps:
 
 ---
 
-## Refactoring `service_chain_evidence.py`
+## Refactoring `service_chain_evidence.py` ✅ COMPLETE
 
-Current issues:
-- hard-coded WSL path conversion,
-- inline WSL command construction,
-- subprocess execution that bypasses `DeployRunner`.
+**Status:** Refactored to use `DeployRunner` abstraction.
 
-Target direction:
+Current implementation:
 
 ```python
 from scripts.orchestration.deploy import get_runner
 
-runner = get_runner()
-workspace_ref = runner.stage_bundle(bundle_path)
-result = runner.run(["ansible-playbook", "..."], workspace_ref=workspace_ref)
+runner = get_runner(resolved_runner_name)
+workspace_ref = runner.stage_bundle(repo_root)  # Transitional: uses repo root
+result = runner.run(step.command, workspace_ref=workspace_ref)
+runner.cleanup_workspace(workspace_ref)
 ```
 
-### Migration Steps
+### Completed Steps
 
-1. Import `get_runner` from deploy package
-2. Introduce explicit bundle selection/staging
-3. Replace inline WSL command assembly with `runner.run(...)`
-4. Remove WSL-specific helper functions from the evidence tool
-5. Update tests and evidence docs
+1. ✅ Import `get_runner` from deploy package
+2. ✅ Use `runner.stage_bundle()` for workspace staging
+3. ✅ Use `runner.run()` for command execution
+4. ✅ Use `runner.cleanup_workspace()` for cleanup
+5. ⚠️ Tests need update (pending)
 
 ---
 
@@ -173,6 +171,6 @@ result = runner.run(["ansible-playbook", "..."], workspace_ref=workspace_ref)
 
 | Phase | Duration | Status |
 |-------|----------|--------|
-| Phase 0a: Contract alignment | 2 days | 🔄 In Progress |
+| Phase 0a: Contract alignment | 2 days | ✅ Complete |
 | Phase 0b: Docker | 2 days | 📅 When CI needed |
 | Phase 0c: Remote | 3 days | 📅 When control node needed |

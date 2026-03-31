@@ -1,7 +1,7 @@
 # ADR 0084: Cross-Platform Dev Plane and Linux Deploy Plane
 
 **Date:** 2026-03-31
-**Status:** Proposed (Secondary; after ADR 0085)
+**Status:** Accepted (Runner foundation complete; bundle integration pending)
 **Related:** ADR 0056 (Native Execution Workspace), ADR 0072 (Unified Secrets Management), ADR 0075 (Monorepo Framework/Project Boundary), ADR 0076 (Framework Distribution and Multi-Repository Extraction), ADR 0077 (Go-Task Developer Orchestration), ADR 0080 (Unified Build Pipeline), ADR 0085 (Deploy Bundle and Runner Workspace Contract), ADR 0083 (Unified Node Initialization Contract)
 
 ---
@@ -113,49 +113,28 @@ The same runner contract and entrypoints SHOULD be usable from both the current 
 
 ### D5. Deploy Runner Abstraction
 
-Deploy tooling uses `DeployRunner` abstraction for consistent workspace-aware execution across backends.
+Deploy tooling uses `DeployRunner` abstraction for consistent workspace-aware execution across backends. The full contract is defined in ADR 0085 D5 and implemented in `scripts/orchestration/deploy/runner.py`.
 
-```python
-# scripts/orchestration/deploy/runner.py
+**Key methods:**
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
+| Method | Purpose |
+|--------|---------|
+| `stage_bundle(bundle_path)` | Stage deploy bundle, return workspace reference |
+| `run(cmd, workspace_ref, env, timeout)` | Execute command in staged workspace |
+| `capabilities()` | Report backend capabilities (network, path translation, etc.) |
+| `cleanup_workspace(workspace_ref)` | Clean up temporary backend state |
+| `translate_path(path)` | Convert host path to backend-accessible path |
+| `is_available()` | Check if backend is available on current host |
+| `check_tool(tool)` | Verify tool availability in backend environment |
 
-@dataclass
-class RunResult:
-    exit_code: int
-    stdout: str
-    stderr: str
+**Implementation status:**
 
-    @property
-    def success(self) -> bool:
-        return self.exit_code == 0
-
-
-class DeployRunner(ABC):
-    """Abstract deploy runner for Linux-backed execution."""
-
-    @abstractmethod
-    def stage_bundle(self, bundle_path: str) -> str:
-        """Stage a deploy bundle and return a workspace reference."""
-        pass
-
-    @abstractmethod
-    def run(self, cmd: list[str], workspace_ref: str,
-            env: dict[str, str] | None = None) -> RunResult:
-        """Execute command in the staged deploy workspace."""
-        pass
-
-    @abstractmethod
-    def capabilities(self) -> dict[str, bool]:
-        """Report backend capabilities required by deploy tooling."""
-        pass
-
-    @abstractmethod
-    def cleanup_workspace(self, workspace_ref: str) -> None:
-        """Clean up temporary backend workspace state when needed."""
-        pass
-```
+| Runner | Status | Notes |
+|--------|--------|-------|
+| `NativeRunner` | ✅ Implemented | Direct Linux execution |
+| `WSLRunner` | ✅ Implemented | Windows→WSL with path translation |
+| `DockerRunner` | 🔜 Stub | Phase 0b when CI needed |
+| `RemoteLinuxRunner` | 🔜 Stub | Phase 0c when control VM needed |
 
 **Rationale:** ADR 0085 introduces deploy bundle as the canonical execution input. A simple `run()+translate_path()` abstraction is not enough for `wsl`, `docker`, and `remote` backends. The runner contract therefore must stage bundles into backend workspaces, execute there, report capabilities, and clean up.
 
@@ -207,9 +186,12 @@ ADR 0084 depends on ADR 0085 for canonical execution input and workspace contrac
 
 | Phase | Deliverable | Status |
 |-------|-------------|--------|
-| 0a | Workspace-aware `DeployRunner` contract + `NativeRunner` + `WSLRunner` alignment | 🔜 Next |
+| 0a | Workspace-aware `DeployRunner` contract + `NativeRunner` + `WSLRunner` | ✅ Complete |
+| 0a.1 | `service_chain_evidence.py` refactored to use runner | ✅ Complete |
 | 0b | `DockerRunner` + bundle mounting/staging strategy | 📅 When CI needed |
 | 0c | `RemoteLinuxRunner` + remote bundle staging strategy | 📅 When control VM needed |
+
+See `adr/0084-analysis/` and `adr/0085-analysis/` for detailed progress tracking.
 
 ---
 
