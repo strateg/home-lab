@@ -95,18 +95,18 @@ runner.cleanup_workspace(workspace_ref)
 
 ---
 
-## Phase 0c: Remote Linux Runner (Planned)
+## Phase 0c: Remote Linux Runner ✅ CORE IMPLEMENTED
 
 **Goal:** Add `RemoteLinuxRunner` for dedicated control-node execution.
 
 **Trigger:** Dedicated control VM, multi-operator usage, or remote execution requirement.
 
-| ID | Task | Output | Acceptance Criteria |
-|----|------|--------|---------------------|
-| 0c.1 | Define remote staging strategy | docs/design notes | rsync/scp/git approach agreed |
-| 0c.2 | Implement `RemoteLinuxRunner` | `runner.py` | Bundle staged remotely |
-| 0c.3 | Define remote secret handling | docs | Remote deploy prerequisites documented |
-| 0c.4 | Add tests | `tests/orchestration/test_remote_runner.py` | Remote runner tests pass |
+| ID | Task | Output | Status |
+|----|------|--------|--------|
+| 0c.1 | Define remote staging strategy | `runner.py` | ✅ Done (`rsync|scp` upload) |
+| 0c.2 | Implement `RemoteLinuxRunner` | `runner.py` | ✅ Done |
+| 0c.3 | Define remote secret handling | docs | ⏸ Pending (operator hardening docs) |
+| 0c.4 | Add tests | `tests/orchestration/test_runner.py` | ✅ Done |
 
 ---
 
@@ -134,4 +134,4 @@ This preserves:
 | Phase 0a: Contract alignment | 2 days | ✅ Complete |
 | ADR 0085 integration in active flow | 1 day | ✅ Complete |
 | Phase 0b: Docker | 2 days | ✅ Core implemented (image/CI follow-up pending) |
-| Phase 0c: Remote | 3 days | 📅 When control node needed |
+| Phase 0c: Remote | 3 days | ✅ Core implemented (ops hardening docs pending) |

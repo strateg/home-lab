@@ -56,9 +56,9 @@
 
 ---
 
-## Phase 0c: Remote Linux Runner (Future)
+## Phase 0c: Remote Linux Runner (Partial)
 
-- [ ] Remote bundle staging strategy documented
-- [ ] `RemoteLinuxRunner` implemented
+- [x] Remote bundle staging strategy implemented (`rsync|scp`)
+- [x] `RemoteLinuxRunner` implemented
 - [ ] Remote secret/tooling prerequisites documented
-- [ ] Remote runner tests pass
+- [x] Remote runner tests pass

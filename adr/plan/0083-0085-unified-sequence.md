@@ -21,7 +21,7 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 | ADR | Status | Completed Scope | Next Scope |
 |-----|--------|-----------------|------------|
 | 0085 | Accepted | Phases 0/0a/1/2 + active Phase 3 migration + assemble-plugin integration | Backend follow-ups + ADR0083 consumers |
-| 0084 | Accepted | Runner plane + bundle-based active deploy flow + DockerRunner core | Remote backend completion (0c) + Docker CI/image hardening |
+| 0084 | Accepted | Runner plane + bundle-based active deploy flow + DockerRunner/RemoteRunner core | Backend hardening docs + CI/image follow-up |
 | 0083 | Proposed (Deferred) | Not started in this wave | Decide whether to resume with bundle-first model |
 
 ---
@@ -59,8 +59,8 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 | Item | Trigger | Status |
 |------|---------|--------|
 | `DockerRunner` CI image/workflow hardening | CI reproducibility requirement | Pending |
-| `RemoteLinuxRunner` implementation | Dedicated control-node requirement | Deferred |
-| Remote backend-specific tests | With implementation | Deferred |
+| `RemoteLinuxRunner` operator hardening docs | Dedicated control-node requirement | Pending |
+| Backend CI/reliability validation | With implementation | Pending |
 
 ### Bucket B: ADR 0083 Decision
 

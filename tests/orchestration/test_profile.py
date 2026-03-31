@@ -11,7 +11,7 @@ SCHEMA_PATH = REPO_ROOT / "schemas" / "deploy-profile.schema.json"
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.orchestration.deploy.profile import load_deploy_profile  # noqa: E402
-from scripts.orchestration.deploy.runner import DockerRunner, WSLRunner, get_runner  # noqa: E402
+from scripts.orchestration.deploy.runner import DockerRunner, RemoteLinuxRunner, WSLRunner, get_runner  # noqa: E402
 
 
 def _write_yaml(path: Path, payload: dict) -> None:
@@ -149,6 +149,32 @@ def test_profile_loader_parses_remote_runner_settings(tmp_path: Path) -> None:
     assert profile.runners.remote.host == "control.example.com"
     assert profile.runners.remote.user == "operator"
     assert profile.runners.remote.sync_method == "git"
+
+
+def test_get_runner_uses_remote_profile_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    project_repo = _build_project_repo(
+        tmp_path,
+        {
+            "schema_version": "1.0",
+            "project": "home-lab",
+            "default_runner": "remote",
+            "runners": {
+                "remote": {
+                    "host": "control.example.com",
+                    "user": "operator",
+                    "sync_method": "git",
+                }
+            },
+        },
+    )
+    monkeypatch.setattr(RemoteLinuxRunner, "is_available", lambda self: True)
+
+    runner = get_runner(repo_root=project_repo, project_id="home-lab")
+
+    assert isinstance(runner, RemoteLinuxRunner)
+    assert runner.host == "control.example.com"
+    assert runner.user == "operator"
+    assert runner.sync_method == "git"
 
 
 def test_get_runner_uses_docker_profile_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

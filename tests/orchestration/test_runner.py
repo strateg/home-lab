@@ -14,6 +14,7 @@ import scripts.orchestration.deploy.runner as runner_module  # noqa: E402
 from scripts.orchestration.deploy.runner import (  # noqa: E402
     DockerRunner,
     NativeRunner,
+    RemoteLinuxRunner,
     RunResult,
     WSLRunner,
     get_runner,
@@ -194,6 +195,83 @@ def test_get_runner_returns_docker_runner(monkeypatch: pytest.MonkeyPatch) -> No
     assert isinstance(runner, DockerRunner)
     assert runner.image == "toolchain:test"
     assert runner.network == "bridge"
+
+
+def test_remote_runner_stage_bundle_syncs_with_rsync(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    bundle_dir = tmp_path / "b-abc123"
+    bundle_dir.mkdir()
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr(
+        runner_module.shutil,
+        "which",
+        lambda name: {
+            "ssh": "C:\\ssh.exe",
+            "rsync": "C:\\rsync.exe",
+            "scp": "C:\\scp.exe",
+        }.get(name),
+    )
+
+    def fake_run(
+        cmd: list[str],
+        capture_output: bool,
+        text: bool,
+        timeout: int,
+        check: bool,
+    ) -> SimpleNamespace:
+        calls.append(cmd)
+        assert capture_output is True
+        assert text is True
+        assert check is False
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(runner_module.subprocess, "run", fake_run)
+
+    runner = RemoteLinuxRunner(host="control.example.com", user="deploy", sync_method="rsync")
+    remote_workspace = runner.stage_bundle(bundle_dir)
+
+    assert remote_workspace == f"/tmp/home-lab-deploy/{bundle_dir.name}"
+    assert calls[0][:3] == ["ssh", "deploy@control.example.com", "bash"]
+    assert calls[1][0] == "rsync"
+    assert calls[1][-1] == f"deploy@control.example.com:{remote_workspace}/"
+
+
+def test_remote_runner_run_uses_ssh_command(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, list[str]] = {}
+
+    def fake_run(
+        cmd: list[str],
+        capture_output: bool,
+        text: bool,
+        timeout: int | None,
+    ) -> SimpleNamespace:
+        captured["cmd"] = cmd
+        assert capture_output is True
+        assert text is True
+        assert timeout == 20
+        return SimpleNamespace(returncode=0, stdout="ok\n", stderr="")
+
+    monkeypatch.setattr(runner_module.subprocess, "run", fake_run)
+
+    runner = RemoteLinuxRunner(host="control.example.com", user="deploy")
+    result = runner.run(["echo", "ok"], workspace_ref="/tmp/workspace", env={"A": "1"}, timeout=20)
+
+    assert result.success is True
+    assert captured["cmd"][:3] == ["ssh", "deploy@control.example.com", "bash"]
+    assert "cd /tmp/workspace" in captured["cmd"][-1]
+    assert "A=1" in captured["cmd"][-1]
+    assert "echo ok" in captured["cmd"][-1]
+
+
+def test_get_runner_returns_remote_runner(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(RemoteLinuxRunner, "is_available", lambda self: True)
+
+    runner = get_runner("remote", host="control.example.com", user="operator", sync_method="scp")
+
+    assert isinstance(runner, RemoteLinuxRunner)
+    assert runner.host == "control.example.com"
+    assert runner.user == "operator"
+    assert runner.sync_method == "scp"
 
 
 def test_get_runner_rejects_unknown_runner() -> None:

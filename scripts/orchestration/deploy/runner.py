@@ -499,11 +499,27 @@ class DockerRunner(DeployRunner):
 
 
 class RemoteLinuxRunner(DeployRunner):
-    """Planned for Phase 0c - remote Linux control-node execution."""
+    """SSH-based remote Linux control-node execution backend."""
 
-    def __init__(self, host: str, user: str = "deploy"):
+    def __init__(
+        self,
+        host: str,
+        user: str = "deploy",
+        sync_method: str = "rsync",
+        remote_root: str = "/tmp/home-lab-deploy",
+        keep_workspace: bool = False,
+        ssh_binary: str = "ssh",
+        rsync_binary: str = "rsync",
+        scp_binary: str = "scp",
+    ):
         self.host = host
         self.user = user
+        self.sync_method = sync_method
+        self.remote_root = remote_root
+        self.keep_workspace = keep_workspace
+        self.ssh_binary = ssh_binary
+        self.rsync_binary = rsync_binary
+        self.scp_binary = scp_binary
 
     @property
     def name(self) -> str:
@@ -518,17 +534,72 @@ class RemoteLinuxRunner(DeployRunner):
         env: dict[str, str] | None = None,
         timeout: int | None = None,
     ) -> RunResult:
-        raise NotImplementedError("RemoteLinuxRunner planned for Phase 0c")
+        target_workspace = workspace_ref or (self.translate_path(cwd) if cwd is not None else "")
+        if not target_workspace:
+            return RunResult(
+                exit_code=-1,
+                stdout="",
+                stderr="RemoteLinuxRunner requires workspace_ref or cwd",
+            )
+        env_prefix = ""
+        if env:
+            env_prefix = " ".join(f"{shlex.quote(k)}={shlex.quote(v)}" for k, v in sorted(env.items())) + " "
+        command_payload = " ".join(shlex.quote(part) for part in cmd)
+        remote_script = f"cd {shlex.quote(target_workspace)} && {env_prefix}{command_payload}"
+        ssh_cmd = [self.ssh_binary, f"{self.user}@{self.host}", "bash", "-lc", remote_script]
+        try:
+            result = subprocess.run(
+                ssh_cmd,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+            return RunResult(
+                exit_code=result.returncode,
+                stdout=result.stdout,
+                stderr=result.stderr,
+            )
+        except subprocess.TimeoutExpired as exc:
+            return RunResult(
+                exit_code=-1,
+                stdout=exc.stdout or "",
+                stderr=f"Command timed out after {timeout}s",
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            return RunResult(
+                exit_code=-1,
+                stdout="",
+                stderr=str(exc),
+            )
 
     def stage_bundle(self, bundle_path: str | Path) -> str:
-        raise NotImplementedError("RemoteLinuxRunner planned for Phase 0c")
+        local_bundle = Path(bundle_path).resolve()
+        if not local_bundle.exists():
+            raise FileNotFoundError(f"Deploy bundle not found: {local_bundle}")
+        if not local_bundle.is_dir():
+            raise NotADirectoryError(f"Deploy bundle is not a directory: {local_bundle}")
+
+        remote_workspace = f"{self.remote_root.rstrip('/')}/{local_bundle.name}"
+        self._ensure_remote_root()
+        self._sync_bundle(local_bundle=local_bundle, remote_workspace=remote_workspace)
+        return remote_workspace
 
     def cleanup_workspace(self, workspace_ref: str) -> None:
-        raise NotImplementedError("RemoteLinuxRunner planned for Phase 0c")
+        if self.keep_workspace:
+            return None
+        cleanup_cmd = [
+            self.ssh_binary,
+            f"{self.user}@{self.host}",
+            "bash",
+            "-lc",
+            f"rm -rf {shlex.quote(workspace_ref)}",
+        ]
+        subprocess.run(cleanup_cmd, capture_output=True, text=True, timeout=30, check=False)
+        return None
 
     def capabilities(self) -> dict[str, bool]:
         return {
-            "interactive_confirmation": False,
+            "interactive_confirmation": True,
             "host_network_access": True,
             "path_translation": False,
             "persistent_workspace": True,
@@ -536,10 +607,61 @@ class RemoteLinuxRunner(DeployRunner):
         }
 
     def translate_path(self, path: Path) -> str:
-        raise NotImplementedError("RemoteLinuxRunner planned for Phase 0c")
+        return path.resolve().as_posix()
 
     def is_available(self) -> bool:
-        return False
+        if not shutil.which(self.ssh_binary):
+            return False
+        try:
+            result = subprocess.run(
+                [self.ssh_binary, f"{self.user}@{self.host}", "true"],
+                capture_output=True,
+                timeout=10,
+                check=False,
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
+
+    def _ensure_remote_root(self) -> None:
+        command = [
+            self.ssh_binary,
+            f"{self.user}@{self.host}",
+            "bash",
+            "-lc",
+            f"mkdir -p {shlex.quote(self.remote_root)}",
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            raise RuntimeError(f"Failed to prepare remote root '{self.remote_root}': {stderr}")
+
+    def _sync_bundle(self, *, local_bundle: Path, remote_workspace: str) -> None:
+        if self.sync_method == "rsync":
+            if not shutil.which(self.rsync_binary):
+                raise RuntimeError("Remote runner sync_method=rsync requires rsync in PATH")
+            command = [
+                self.rsync_binary,
+                "-a",
+                "--delete",
+                f"{str(local_bundle).replace('\\', '/')}/",
+                f"{self.user}@{self.host}:{remote_workspace}/",
+            ]
+        elif self.sync_method == "scp":
+            if not shutil.which(self.scp_binary):
+                raise RuntimeError("Remote runner sync_method=scp requires scp in PATH")
+            command = [
+                self.scp_binary,
+                "-r",
+                str(local_bundle),
+                f"{self.user}@{self.host}:{self.remote_root.rstrip('/')}/",
+            ]
+        else:
+            raise ValueError(f"Unsupported remote sync_method: {self.sync_method}")
+        result = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            raise RuntimeError(f"Failed to upload bundle to remote runner: {stderr}")
 
 
 def get_runner(
@@ -607,6 +729,7 @@ def _merge_runner_kwargs(
         if "host" not in merged and profile.runners.remote.host:
             merged["host"] = profile.runners.remote.host
         merged.setdefault("user", profile.runners.remote.user)
+        merged.setdefault("sync_method", profile.runners.remote.sync_method)
         if "host" not in merged:
             raise ValueError("Remote runner requires 'host' in deploy profile or explicit arguments")
     return merged

@@ -46,13 +46,13 @@ Track remaining gap between implemented execution-plane model and full backend c
 
 **Action:** Add/validate `docker/Dockerfile.toolchain` and wire deploy checks in CI.
 
-### G2: Remote Linux backend is still a stub
+### G2: Remote Linux backend needs operator hardening follow-up
 
-**Current:** `RemoteLinuxRunner` placeholder only.
+**Current:** `RemoteLinuxRunner` is implemented with SSH execution and `rsync/scp` bundle staging.
 
-**Target:** Remote staging strategy and execution path implemented.
+**Target:** Remote prerequisites and secret-handling guidance are documented for operators.
 
-**Action:** ADR 0084 Phase 0c when control-node trigger exists.
+**Action:** Add remote control-node runbook and hardening checklist.
 
 ### G3: ADR 0083 entry points still need runner+bundle adoption
 
@@ -72,7 +72,7 @@ Track remaining gap between implemented execution-plane model and full backend c
 | `NativeRunner` | ✅ Done | Full workspace-aware implementation |
 | `WSLRunner` | ✅ Done | Full implementation with path translation |
 | `DockerRunner` | ✅ Core implemented | Container execution + mount-based workspace |
-| `RemoteLinuxRunner` | 🔜 Stub | Phase 0c |
+| `RemoteLinuxRunner` | ✅ Core implemented | SSH run + remote workspace staging/cleanup |
 | Workspace-aware contract | ✅ Done | `stage_bundle()`, `run()`, `capabilities()`, `cleanup_workspace()` |
 | Bundle consumption in active flow | ✅ Done | `service_chain_evidence.py --bundle` |
 | Legacy WSL refactor | ✅ Done | WSL logic moved into runner layer |
