@@ -160,10 +160,77 @@ def test_main_non_plan_mode_executes_and_marks_node_failed_with_placeholder(
     assert row["attempt_count"] == 1
 
 
-def test_main_verify_only_non_plan_mode_returns_not_implemented(
+def test_main_verify_only_marks_initialized_node_as_verified(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     repo_root, bundle_id = _create_test_bundle(tmp_path)
+    plan_rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--plan-only",
+            "--skip-environment-check",
+        ]
+    )
+    assert plan_rc == 0
+    _ = capsys.readouterr().out
+
+    state_path = resolve_state_path(repo_root=repo_root, project_id="home-lab")
+    state_payload = init_node_module._load_yaml_mapping(state_path)
+    row = next(item for item in state_payload["nodes"] if item["id"] == "rtr-a")
+    row["status"] = "initialized"
+    init_node_module._write_yaml_atomic(state_path, state_payload)
+
+    rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--verify-only",
+            "--skip-environment-check",
+        ]
+    )
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["status"] == "executed"
+    assert payload["verify_only"] is True
+    assert payload["success_count"] == 1
+    assert payload["results"][0]["status"] == "success"
+
+    state_payload = init_node_module._load_yaml_mapping(state_path)
+    row = next(item for item in state_payload["nodes"] if item["id"] == "rtr-a")
+    assert row["status"] == "verified"
+
+
+def test_main_verify_only_fails_for_pending_node(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo_root, bundle_id = _create_test_bundle(tmp_path)
+    plan_rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--plan-only",
+            "--skip-environment-check",
+        ]
+    )
+    assert plan_rc == 0
+    _ = capsys.readouterr().out
 
     rc = main(
         [
@@ -181,7 +248,8 @@ def test_main_verify_only_non_plan_mode_returns_not_implemented(
     )
     assert rc == 2
     payload = json.loads(capsys.readouterr().out.strip())
-    assert payload["status"] == "not-implemented"
+    assert payload["status"] == "failed"
+    assert payload["results"][0]["error_code"] == "E9737"
 
 
 def test_main_returns_node_not_found_for_unknown_node(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

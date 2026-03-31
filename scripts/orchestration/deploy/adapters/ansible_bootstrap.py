@@ -46,7 +46,23 @@ class AnsibleBootstrapAdapter(BootstrapAdapter):
         )
 
     def handover(self, node: dict[str, Any], context: AdapterContext) -> list[HandoverCheckResult]:
-        return []
+        artifacts = _artifact_paths(node)
+        playbook_like = [path for path in artifacts if path.suffix in {".yml", ".yaml", ".sh"}]
+        missing = _missing_paths(artifacts, context.bundle_path)
+        return [
+            HandoverCheckResult(
+                name="ansible_artifact_present",
+                ok=bool(playbook_like),
+                details=f"candidate_files={len(playbook_like)}",
+                error_code="E9746" if not playbook_like else "",
+            ),
+            HandoverCheckResult(
+                name="artifacts_exist_in_bundle",
+                ok=not missing,
+                details=f"missing={len(missing)}",
+                error_code="E9747" if missing else "",
+            ),
+        ]
 
 
 def _artifact_paths(node: dict[str, Any]) -> list[Path]:

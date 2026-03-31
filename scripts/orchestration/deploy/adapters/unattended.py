@@ -46,7 +46,24 @@ class UnattendedInstallAdapter(BootstrapAdapter):
         )
 
     def handover(self, node: dict[str, Any], context: AdapterContext) -> list[HandoverCheckResult]:
-        return []
+        artifacts = _artifact_paths(node)
+        filenames = {path.name for path in artifacts}
+        missing = _missing_paths(artifacts, context.bundle_path)
+        has_answer = "answer.toml" in filenames or "answer.toml.example" in filenames
+        return [
+            HandoverCheckResult(
+                name="answer_file_present",
+                ok=has_answer,
+                details=f"files={sorted(filenames)}",
+                error_code="E9742" if not has_answer else "",
+            ),
+            HandoverCheckResult(
+                name="artifacts_exist_in_bundle",
+                ok=not missing,
+                details=f"missing={len(missing)}",
+                error_code="E9743" if missing else "",
+            ),
+        ]
 
 
 def _artifact_paths(node: dict[str, Any]) -> list[Path]:

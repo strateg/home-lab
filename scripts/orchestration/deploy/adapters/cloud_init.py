@@ -46,7 +46,24 @@ class CloudInitAdapter(BootstrapAdapter):
         )
 
     def handover(self, node: dict[str, Any], context: AdapterContext) -> list[HandoverCheckResult]:
-        return []
+        artifacts = _artifact_paths(node)
+        filenames = {path.name for path in artifacts}
+        missing = _missing_paths(artifacts, context.bundle_path)
+        has_minimum = {"user-data", "meta-data"}.issubset(filenames)
+        return [
+            HandoverCheckResult(
+                name="cloud_init_files_present",
+                ok=has_minimum,
+                details=f"files={sorted(filenames)}",
+                error_code="E9744" if not has_minimum else "",
+            ),
+            HandoverCheckResult(
+                name="artifacts_exist_in_bundle",
+                ok=not missing,
+                details=f"missing={len(missing)}",
+                error_code="E9745" if missing else "",
+            ),
+        ]
 
 
 def _artifact_paths(node: dict[str, Any]) -> list[Path]:

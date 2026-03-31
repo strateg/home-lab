@@ -12,7 +12,7 @@ LEGAL_TRANSITIONS: dict[str, set[str]] = {
     "pending": {"bootstrapping"},
     "bootstrapping": {"initialized", "failed"},
     "initialized": {"verified", "failed"},
-    "verified": {"bootstrapping", "pending"},
+    "verified": {"bootstrapping", "pending", "failed"},
     "failed": {"bootstrapping"},
 }
 

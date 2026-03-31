@@ -46,7 +46,23 @@ class NetinstallAdapter(BootstrapAdapter):
         )
 
     def handover(self, node: dict[str, Any], context: AdapterContext) -> list[HandoverCheckResult]:
-        return []
+        artifacts = _artifact_paths(node)
+        script_paths = [path for path in artifacts if path.name.endswith(".rsc")]
+        missing = _missing_paths(artifacts, context.bundle_path)
+        return [
+            HandoverCheckResult(
+                name="netinstall_script_present",
+                ok=bool(script_paths),
+                details=f"scripts={len(script_paths)}",
+                error_code="E9740" if not script_paths else "",
+            ),
+            HandoverCheckResult(
+                name="artifacts_exist_in_bundle",
+                ok=not missing,
+                details=f"missing={len(missing)}",
+                error_code="E9741" if missing else "",
+            ),
+        ]
 
 
 def _artifact_paths(node: dict[str, Any]) -> list[Path]:

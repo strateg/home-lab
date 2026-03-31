@@ -68,3 +68,4 @@ task framework:service-chain-evidence-dry-bundle -- BUNDLE=<bundle_id> DEPLOY_RU
 - Docker runner mounts the selected bundle into container workspace `/workspace`.
 - Runner execution is immutable-bundle based; no direct `generated/` execution path.
 - For network-restricted environments, switch Docker network mode in deploy profile.
+- If `docker run` fails with `invalid rootfs` on Docker Desktop Linux engine, remove Windows-style `data-root` from `%USERPROFILE%\\.docker\\daemon.json`, restart Docker Desktop, and verify `docker info` shows `Docker Root Dir: /var/lib/docker`.

@@ -202,6 +202,22 @@ def _serialize_preflight_checks(checks: list[Any]) -> list[dict[str, Any]]:
     return payload
 
 
+def _serialize_handover_checks(checks: list[Any]) -> list[dict[str, Any]]:
+    payload: list[dict[str, Any]] = []
+    for row in checks:
+        payload.append(
+            {
+                "name": str(getattr(row, "name", "")),
+                "ok": bool(getattr(row, "ok", False)),
+                "details": str(getattr(row, "details", "")),
+                "attempt": int(getattr(row, "attempt", 1)),
+                "total_attempts": int(getattr(row, "total_attempts", 1)),
+                "error_code": str(getattr(row, "error_code", "")),
+            }
+        )
+    return payload
+
+
 def _execute_selected_nodes(
     *,
     project_id: str,
@@ -334,6 +350,123 @@ def _execute_selected_nodes(
     return (0 if failure_count == 0 else 2), payload
 
 
+def _verify_selected_nodes(
+    *,
+    project_id: str,
+    bundle_path: Path,
+    state_path: Path,
+    state_payload: dict[str, Any],
+    manifest_nodes: list[dict[str, Any]],
+    selected_nodes: list[str],
+) -> tuple[int, dict[str, Any]]:
+    state_by_id = _state_index(state_payload)
+    manifest_by_id = _manifest_index(manifest_nodes)
+    context = AdapterContext(project_id=project_id, bundle_path=bundle_path, workspace_ref=str(bundle_path))
+
+    results: list[dict[str, Any]] = []
+    failure_count = 0
+
+    for node_id in sorted(set(selected_nodes)):
+        state_row = state_by_id.get(node_id)
+        manifest_row = manifest_by_id.get(node_id, {"id": node_id, "mechanism": "unknown", "artifacts": []})
+        mechanism = str(manifest_row.get("mechanism", "unknown")).strip() or "unknown"
+
+        result_row: dict[str, Any] = {
+            "node": node_id,
+            "mechanism": mechanism,
+            "status": "failed",
+            "error_code": "",
+            "message": "",
+            "handover_checks": [],
+        }
+
+        if not isinstance(state_row, dict):
+            result_row["error_code"] = "E9734"
+            result_row["message"] = "Node state row is missing."
+            results.append(result_row)
+            failure_count += 1
+            continue
+
+        state_row["mechanism"] = mechanism
+        current_status = normalize_status(str(state_row.get("status", "pending")))
+        if current_status not in {"initialized", "verified"}:
+            result_row["error_code"] = "E9737"
+            result_row["message"] = f"Node status '{current_status}' is not eligible for verify-only checks."
+            results.append(result_row)
+            failure_count += 1
+            continue
+
+        try:
+            adapter = get_adapter(mechanism)
+        except ValueError as exc:
+            transition_node_state(
+                state_row,
+                to_state="failed",
+                action="handover-adapter-resolution-failed",
+                last_error=str(exc),
+            )
+            result_row["error_code"] = "E9732"
+            result_row["message"] = str(exc)
+            results.append(result_row)
+            failure_count += 1
+            continue
+
+        handover_checks = adapter.handover(manifest_row, context)
+        result_row["handover_checks"] = _serialize_handover_checks(handover_checks)
+        if not handover_checks:
+            transition_node_state(
+                state_row,
+                to_state="failed",
+                action="handover-empty",
+                last_error=f"Handover checks are not defined for mechanism '{mechanism}'",
+            )
+            result_row["error_code"] = "E9736"
+            result_row["message"] = "Adapter returned no handover checks."
+            results.append(result_row)
+            failure_count += 1
+            continue
+
+        if any(not bool(getattr(check, "ok", False)) for check in handover_checks):
+            transition_node_state(
+                state_row,
+                to_state="failed",
+                action="handover-failed",
+                last_error=f"Handover checks failed for mechanism '{mechanism}'",
+            )
+            error_codes = [str(getattr(check, "error_code", "")).strip() for check in handover_checks]
+            error_codes = [code for code in error_codes if code]
+            result_row["error_code"] = error_codes[0] if error_codes else "E9738"
+            result_row["message"] = "Handover checks failed."
+            results.append(result_row)
+            failure_count += 1
+            continue
+
+        transition_node_state(
+            state_row,
+            to_state="verified",
+            action="handover-verified",
+            allow_same_state=True,
+        )
+        result_row["status"] = "success"
+        result_row["message"] = "Handover checks passed."
+        results.append(result_row)
+
+    state_payload["updated_at"] = _utc_now()
+    _write_yaml_atomic(state_path, state_payload)
+
+    payload: dict[str, Any] = {
+        "status": "executed" if failure_count == 0 else "failed",
+        "project_id": project_id,
+        "bundle": str(bundle_path),
+        "state_path": str(state_path),
+        "selected_nodes": sorted(set(selected_nodes)),
+        "results": results,
+        "failed_count": failure_count,
+        "success_count": len(results) - failure_count,
+    }
+    return (0 if failure_count == 0 else 2), payload
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     try:
@@ -433,23 +566,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(plan_payload, ensure_ascii=True))
         return 0
 
-    if args.verify_only:
-        print(
-            json.dumps(
-                {
-                    "status": "not-implemented",
-                    "message": "Execution mode with --verify-only is not implemented yet. Use --plan-only.",
-                    "project_id": project_id,
-                    "bundle": str(bundle_path),
-                    "state_path": str(state_path),
-                    "mode": target_mode,
-                    "selected_nodes": sorted(set(selected_nodes)),
-                },
-                ensure_ascii=True,
-            )
-        )
-        return 2
-
     if not selected_nodes:
         print(
             json.dumps(
@@ -466,17 +582,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
-    exit_code, execution_payload = _execute_selected_nodes(
-        project_id=project_id,
-        bundle_path=bundle_path,
-        state_path=state_path,
-        state_payload=state_payload,
-        manifest_nodes=manifest_nodes,
-        selected_nodes=selected_nodes,
-        import_existing=bool(args.import_existing),
-    )
+    if args.verify_only:
+        exit_code, execution_payload = _verify_selected_nodes(
+            project_id=project_id,
+            bundle_path=bundle_path,
+            state_path=state_path,
+            state_payload=state_payload,
+            manifest_nodes=manifest_nodes,
+            selected_nodes=selected_nodes,
+        )
+    else:
+        exit_code, execution_payload = _execute_selected_nodes(
+            project_id=project_id,
+            bundle_path=bundle_path,
+            state_path=state_path,
+            state_payload=state_payload,
+            manifest_nodes=manifest_nodes,
+            selected_nodes=selected_nodes,
+            import_existing=bool(args.import_existing),
+        )
     execution_payload["mode"] = target_mode
     execution_payload["plan_only"] = False
+    execution_payload["verify_only"] = bool(args.verify_only)
     print(json.dumps(execution_payload, ensure_ascii=True))
     return exit_code
 
