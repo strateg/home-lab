@@ -14,6 +14,10 @@ Implemented now:
 - state bootstrap file under:
   - `.work/deploy-state/<project>/nodes/INITIALIZATION-STATE.yaml`
 - planning output (`--plan-only`)
+- adapter/state scaffolding:
+  - `scripts/orchestration/deploy/adapters/base.py`
+  - `scripts/orchestration/deploy/adapters/__init__.py`
+  - `scripts/orchestration/deploy/state.py`
 
 Not implemented yet:
 - adapter execution (`netinstall`, `unattended`, `cloud-init`, `ansible_bootstrap`)

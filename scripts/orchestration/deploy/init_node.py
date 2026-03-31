@@ -19,6 +19,7 @@ from typing import Any, Sequence
 import yaml
 
 from .bundle import inspect_bundle, resolve_bundle_path, resolve_bundles_root
+from .state import build_default_node_state, normalize_status
 
 STATE_FILE_NAME = "INITIALIZATION-STATE.yaml"
 
@@ -125,17 +126,9 @@ def _ensure_state_baseline(*, state_path: Path, manifest_nodes: list[dict[str, s
         node_id = row["id"]
         if node_id in by_id:
             by_id[node_id].setdefault("mechanism", row["mechanism"])
-            by_id[node_id].setdefault("status", "pending")
+            by_id[node_id]["status"] = normalize_status(str(by_id[node_id].get("status", "pending")))
             continue
-        by_id[node_id] = {
-            "id": node_id,
-            "mechanism": row["mechanism"],
-            "status": "pending",
-            "last_action": "discovered",
-            "last_action_at": _utc_now(),
-            "attempt_count": 0,
-            "imported": False,
-        }
+        by_id[node_id] = build_default_node_state(node_id=node_id, mechanism=row["mechanism"])
 
     payload = {
         "version": "1.0",

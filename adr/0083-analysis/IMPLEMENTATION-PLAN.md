@@ -167,6 +167,11 @@ def check_deploy_environment() -> str:
 
 **Goal:** Create unified manifest generator and initialization orchestrator.
 
+**Progress snapshot (2026-03-31):**
+- `5.3` scaffold started: `init_node` CLI/status/plan + deploy-state baseline.
+- `5.4` scaffold started: adapter ABC/dataclasses + factory placeholder.
+- `5.10` scaffold started: legal state-transition helpers in `state.py`.
+
 ### Tasks
 
 | ID | Task | Outputs | Acceptance Criteria |

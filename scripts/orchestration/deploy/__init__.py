@@ -17,6 +17,17 @@ See ADR 0084 for execution plane model.
 See ADR 0083 for initialization contract.
 """
 
+from .adapters import (
+    SUPPORTED_MECHANISMS,
+    AdapterContext,
+    AdapterStatus,
+    BootstrapAdapter,
+    BootstrapResult,
+    HandoverCheckResult,
+    NotImplementedBootstrapAdapter,
+    PreflightCheck,
+    get_adapter,
+)
 from .bundle import (
     BundleError,
     BundleInfo,
@@ -57,9 +68,23 @@ from .runner import (
     check_runner_tools,
     get_runner,
 )
+from .state import (
+    LEGAL_TRANSITIONS,
+    StateTransition,
+    StateTransitionError,
+    assert_transition,
+    build_default_node_state,
+    can_transition,
+    normalize_status,
+    transition_node_state,
+)
 from .workspace import DeployWorkspace, resolve_deploy_workspace
 
 __all__ = [
+    "AdapterContext",
+    "AdapterStatus",
+    "BootstrapAdapter",
+    "BootstrapResult",
     "BundleError",
     "BundleInfo",
     "BundlePolicy",
@@ -72,7 +97,11 @@ __all__ = [
     "DeployTimeouts",
     "DockerRunner",
     "DockerRunnerProfile",
+    "HandoverCheckResult",
+    "LEGAL_TRANSITIONS",
     "NativeRunner",
+    "NotImplementedBootstrapAdapter",
+    "PreflightCheck",
     "RemoteRunnerProfile",
     "RemoteLinuxRunner",
     "InitStateSummary",
@@ -81,9 +110,18 @@ __all__ = [
     "resolve_bundles_root",
     "RunResult",
     "RunnerProfiles",
+    "SUPPORTED_MECHANISMS",
+    "StateTransition",
+    "StateTransitionError",
+    "assert_transition",
+    "build_default_node_state",
+    "can_transition",
+    "get_adapter",
     "inspect_bundle",
     "list_bundles",
+    "normalize_status",
     "parse_init_node_args",
+    "transition_node_state",
     "WSLRunner",
     "WSLRunnerProfile",
     "check_runner_tools",
