@@ -26,6 +26,34 @@ software_contract:
     min: 1
     max: 1
   multi_boot: false
+
+initialization_contract:
+  version: 1.0.0
+  mechanism: unattended_install
+  bootstrap:
+    template: bootstrap/answer.toml.example.j2
+    post_install: bootstrap/script.sh.j2
+  requirements:
+  - type: tool
+    name: proxmox-installer
+    required: true
+    description: Operator must boot from Proxmox VE installer media with unattended config support.
+  - type: network
+    name: management_uplink
+    required: true
+    description: Management uplink must be reachable for post-install handover checks.
+  handover:
+    checks:
+    - type: api_reachable
+      target: https://{{ node.management_ip }}:8006/api2/json/version
+    - type: ssh_reachable
+      target: '{{ node.management_ip }}'
+      port: 22
+    retry:
+      max_attempts: 6
+      backoff_seconds: 30
+      timeout_seconds: 900
+
 enabled_capabilities:
 - cap.compute.host.hypervisor
 - cap.compute.runtime.container_host

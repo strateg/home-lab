@@ -100,6 +100,29 @@ def _compiled_fixture_with_contract_mechanism() -> dict:
     }
 
 
+def _compiled_fixture_with_proxmox_contract_mechanism() -> dict:
+    return {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "srv-contract",
+                    "object_ref": "obj.custom.hypervisor",
+                    "object": {
+                        "initialization_contract": {
+                            "version": "1.0.0",
+                            "mechanism": "unattended_install",
+                            "bootstrap": {
+                                "template": "bootstrap/answer.toml.example.j2",
+                                "post_install": "bootstrap/script.sh.j2",
+                            },
+                        }
+                    },
+                }
+            ]
+        }
+    }
+
+
 def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> None:
     plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
     generator = BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap")
@@ -111,6 +134,20 @@ def test_bootstrap_proxmox_generator_writes_expected_files(tmp_path: Path) -> No
     assert (root / "README.md").exists()
     assert (root / "post-install" / "01-install-terraform.sh").exists()
     assert (root / "post-install" / "06-enable-zswap.sh").exists()
+
+
+def test_bootstrap_proxmox_generator_uses_initialization_contract_mechanism(tmp_path: Path) -> None:
+    plugin_config = _load_plugin_config(PROXMOX_MANIFEST, "object.proxmox.generator.bootstrap")
+    generator = BootstrapProxmoxGenerator("object.proxmox.generator.bootstrap")
+    result = generator.execute(
+        _ctx(tmp_path, _compiled_fixture_with_proxmox_contract_mechanism(), plugin_config),
+        Stage.GENERATE,
+    )
+
+    assert result.status == PluginStatus.SUCCESS
+    root = tmp_path / "generated" / "bootstrap" / "srv-contract"
+    assert (root / "answer.toml.example").exists()
+    assert (root / "post-install" / "01-install-terraform.sh").exists()
 
 
 def test_bootstrap_mikrotik_generator_writes_expected_files(tmp_path: Path) -> None:

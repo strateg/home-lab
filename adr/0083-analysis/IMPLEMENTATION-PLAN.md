@@ -4,7 +4,7 @@
 
 This plan implements the Unified Node Initialization Contract in 8 phases (0-6 + 5a), progressing from environment setup through schema definition to cutover.
 
-**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), Phase 0 environment precheck is wired into `init-node`, non-`--plan-only` mode returns explicit `not-implemented` until adapters are integrated, unknown node targets fail fast (`node-not-found`), Phase 1 schema/validator baseline is in place, and Phase 2.1/2.2 baseline is now started (MikroTik contract + contract-aware bootstrap projection routing).
+**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), Phase 0 environment precheck is wired into `init-node`, non-`--plan-only` mode returns explicit `not-implemented` until adapters are integrated, unknown node targets fail fast (`node-not-found`), Phase 1 schema/validator baseline is in place, Phase 2.1/2.2 baseline is started (MikroTik contract + contract-aware bootstrap projection routing), and Phase 3.1 baseline is started (Proxmox contract declaration).
 
 ### Dependencies
 
@@ -120,7 +120,7 @@ def check_deploy_environment(...) -> DeployEnvironmentReport:
 | ID | Task | Outputs | Acceptance Criteria |
 |----|------|---------|---------------------|
 | 3.0 | **Audit existing Proxmox generator for day-1 leakage** | Audit report | Identify all day-1 config in current post_install_scripts |
-| 3.1 | Create Proxmox object module | `topology/object-modules/proxmox/obj.proxmox.ve.yaml` | With initialization_contract |
+| 3.1 | Create Proxmox object module | `topology/object-modules/proxmox/obj.proxmox.ve.yaml` | With initialization_contract ✅ |
 | 3.2 | Create `answer.toml.j2` template | `topology/object-modules/proxmox/templates/bootstrap/answer.toml.j2` | Topology-driven values |
 | 3.3 | Create `post-install-minimal.sh.j2` | `topology/object-modules/proxmox/templates/bootstrap/post-install-minimal.sh.j2` | Only API access, terraform user |
 | 3.4 | Update bootstrap generator plugin | `topology/object-modules/proxmox/plugins/generators/bootstrap_proxmox_generator.py` | Produces answer.toml + minimal script |
