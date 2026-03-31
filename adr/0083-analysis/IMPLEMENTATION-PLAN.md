@@ -4,7 +4,7 @@
 
 This plan implements the Unified Node Initialization Contract in 8 phases (0-6 + 5a), progressing from environment setup through schema definition to cutover.
 
-**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), Phase 0 environment precheck is wired into `init-node`, non-`--plan-only` mode returns explicit `not-implemented` until adapters are integrated, unknown node targets fail fast (`node-not-found`), and Phase 1 schema/validator baseline is now in place.
+**Status note:** This plan is no longer fully deferred: scaffold work for Phase 5.3 started (`init_node` CLI/state baseline), Phase 0 environment precheck is wired into `init-node`, non-`--plan-only` mode returns explicit `not-implemented` until adapters are integrated, unknown node targets fail fast (`node-not-found`), Phase 1 schema/validator baseline is in place, and Phase 2.1 (MikroTik contract declaration) is now started.
 
 ### Dependencies
 
@@ -89,7 +89,7 @@ def check_deploy_environment(...) -> DeployEnvironmentReport:
 
 | ID | Task | Outputs | Acceptance Criteria |
 |----|------|---------|---------------------|
-| 2.1 | Add `initialization_contract` to MikroTik object | `topology/object-modules/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml` | Contract valid per schema |
+| 2.1 | Add `initialization_contract` to MikroTik object | `topology/object-modules/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml` | Contract valid per schema ✅ |
 | 2.2 | Update bootstrap generator to read contract | `topology/object-modules/mikrotik/plugins/generators/bootstrap_mikrotik_generator.py` | Reads contract from compiled topology |
 | 2.3 | Create minimal bootstrap template | `topology/object-modules/mikrotik/templates/bootstrap/init-terraform.rsc.j2` | <50 lines, day-0 only |
 | 2.4 | Expand Terraform source templates for day-1 | `topology/object-modules/mikrotik/templates/terraform/` | Bridge, VLAN, IP, WG resources generated from source templates |
