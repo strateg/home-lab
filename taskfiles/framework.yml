@@ -110,6 +110,23 @@ tasks:
     cmds:
       - "{{.PYTHON}} scripts/orchestration/deploy/init-node.py --repo-root . --project-id {{.PROJECT_ID}} --bundle {{.BUNDLE}} --all-pending --plan-only {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .SKIP_ENVIRONMENT_CHECK}}--skip-environment-check{{end}} {{if .VERIFY_ONLY}}--verify-only{{end}} {{if .FORCE}}--force{{end}} {{if .ACKNOWLEDGE_DRIFT}}--acknowledge-drift{{end}}"
 
+  deploy-init-node-run:
+    desc: Execute init-node action for one node (requires BUNDLE=<bundle_id>, NODE=<node_id>)
+    requires:
+      vars:
+        - BUNDLE
+        - NODE
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/init-node.py --repo-root . --project-id {{.PROJECT_ID}} --bundle {{.BUNDLE}} --node {{.NODE}} {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .SKIP_ENVIRONMENT_CHECK}}--skip-environment-check{{end}} {{if .VERIFY_ONLY}}--verify-only{{end}} {{if .FORCE}}--force{{end}} {{if .IMPORT_EXISTING}}--import-existing{{end}} {{if .RESET}}--reset{{end}} {{if .CONFIRM_RESET}}--confirm-reset{{end}} {{if .ACKNOWLEDGE_DRIFT}}--acknowledge-drift{{end}}"
+
+  deploy-init-all-pending-run:
+    desc: Execute init-node action for all pending nodes (requires BUNDLE=<bundle_id>)
+    requires:
+      vars:
+        - BUNDLE
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/init-node.py --repo-root . --project-id {{.PROJECT_ID}} --bundle {{.BUNDLE}} --all-pending {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .SKIP_ENVIRONMENT_CHECK}}--skip-environment-check{{end}} {{if .VERIFY_ONLY}}--verify-only{{end}} {{if .FORCE}}--force{{end}} {{if .IMPORT_EXISTING}}--import-existing{{end}} {{if .ACKNOWLEDGE_DRIFT}}--acknowledge-drift{{end}}"
+
   service-chain-evidence-dry:
     desc: Execute dry service-chain lane and write evidence report
     cmds:

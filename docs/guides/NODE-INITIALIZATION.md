@@ -60,6 +60,18 @@ Plan all pending:
 task framework:deploy-init-all-pending-plan -- BUNDLE=<bundle_id>
 ```
 
+Execute one node (scaffold execute path):
+
+```powershell
+task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id>
+```
+
+Verify one initialized node (handover checks):
+
+```powershell
+task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> VERIFY_ONLY=1
+```
+
 ---
 
 ## 3. Notes
