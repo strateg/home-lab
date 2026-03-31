@@ -91,7 +91,7 @@ def _compiled_fixture_with_contract_mechanism() -> dict:
                         "initialization_contract": {
                             "version": "1.0.0",
                             "mechanism": "netinstall",
-                            "bootstrap": {"template": "bootstrap/mikrotik/init-terraform.rsc.j2"},
+                            "bootstrap": {"template": "bootstrap/init-terraform.rsc.j2"},
                         }
                     },
                 }
@@ -135,6 +135,19 @@ def test_bootstrap_mikrotik_generator_uses_initialization_contract_mechanism(tmp
     assert result.status == PluginStatus.SUCCESS
     root = tmp_path / "generated" / "bootstrap" / "rtr-contract"
     assert (root / "init-terraform.rsc").exists()
+
+
+def test_bootstrap_mikrotik_generator_fails_when_contract_template_is_invalid(tmp_path: Path) -> None:
+    plugin_config = _load_plugin_config(MIKROTIK_MANIFEST, "object.mikrotik.generator.bootstrap")
+    generator = BootstrapMikroTikGenerator("object.mikrotik.generator.bootstrap")
+    compiled = _compiled_fixture_with_contract_mechanism()
+    compiled["instances"]["devices"][0]["object"]["initialization_contract"]["bootstrap"]["template"] = (  # type: ignore[index]
+        "bootstrap/does-not-exist.rsc.j2"
+    )
+
+    result = generator.execute(_ctx(tmp_path, compiled, plugin_config), Stage.GENERATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E9502" for diag in result.diagnostics)
 
 
 def test_bootstrap_orangepi_generator_writes_expected_files(tmp_path: Path) -> None:

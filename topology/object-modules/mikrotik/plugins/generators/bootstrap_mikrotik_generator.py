@@ -63,19 +63,37 @@ class BootstrapMikroTikGenerator(BaseGenerator):
             if not instance_id:
                 continue
             node_root = self.resolve_output_path(ctx, "bootstrap", instance_id)
-            render_ctx = {"instance_id": instance_id}
+            render_ctx = {
+                "instance_id": instance_id,
+                "node": row,
+                "initialization_contract": self._resolve_initialization_contract(row),
+            }
 
             # Generate bootstrap files from config (ADR0078)
             for file_mapping in bootstrap_files:
                 output_file = file_mapping.get("output_file", "")
-                template = file_mapping.get("template", "")
+                template = str(file_mapping.get("template", "")).strip()
+                if output_file == "init-terraform.rsc":
+                    template = self._resolve_contract_template(row=row, default_template=template)
                 if not output_file or not template:
                     continue
                 output_path = node_root / output_file
-                self.write_text_atomic(
-                    output_path,
-                    self.render_template(ctx, template, render_ctx),
-                )
+                try:
+                    rendered = self.render_template(ctx, template, render_ctx)
+                except Exception as exc:
+                    diagnostics.append(
+                        self.emit_diagnostic(
+                            code="E9502",
+                            severity="error",
+                            stage=stage,
+                            message=(
+                                f"failed to render bootstrap template '{template}' " f"for node '{instance_id}': {exc}"
+                            ),
+                            path=f"generator:bootstrap_mikrotik:{instance_id}",
+                        )
+                    )
+                    return self.make_result(diagnostics)
+                self.write_text_atomic(output_path, rendered)
                 written.append(str(output_path))
 
         diagnostics.append(
@@ -94,3 +112,24 @@ class BootstrapMikroTikGenerator(BaseGenerator):
             diagnostics=diagnostics,
             output_data={"bootstrap_mikrotik_files": written},
         )
+
+    @staticmethod
+    def _resolve_initialization_contract(row: dict) -> dict:
+        obj = row.get("object")
+        if not isinstance(obj, dict):
+            return {}
+        contract = obj.get("initialization_contract")
+        if not isinstance(contract, dict):
+            return {}
+        return contract
+
+    def _resolve_contract_template(self, *, row: dict, default_template: str) -> str:
+        contract = self._resolve_initialization_contract(row)
+        bootstrap = contract.get("bootstrap")
+        if not isinstance(bootstrap, dict):
+            return default_template
+        template = bootstrap.get("template")
+        if not isinstance(template, str):
+            return default_template
+        resolved = template.strip()
+        return resolved or default_template

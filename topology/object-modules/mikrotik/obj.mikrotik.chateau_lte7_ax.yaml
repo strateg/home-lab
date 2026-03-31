@@ -182,7 +182,7 @@ initialization_contract:
   version: 1.0.0
   mechanism: netinstall
   bootstrap:
-    template: bootstrap/mikrotik/init-terraform.rsc.j2
+    template: bootstrap/init-terraform.rsc.j2
   requirements:
   - type: tool
     name: netinstall
