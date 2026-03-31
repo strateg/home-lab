@@ -19,12 +19,21 @@ FRAMEWORK_ROOT = Path(__file__).resolve().parents[2]
 if str(FRAMEWORK_ROOT) not in sys.path:
     sys.path.insert(0, str(FRAMEWORK_ROOT))
 
-from scripts.orchestration.deploy import DeployWorkspace, get_runner, resolve_deploy_workspace  # noqa: E402
+from scripts.orchestration.deploy import (  # noqa: E402
+    DeployWorkspace,
+    get_runner,
+    inspect_bundle,
+    resolve_bundle_path,
+    resolve_bundles_root,
+    resolve_deploy_workspace,
+)
 
 if TYPE_CHECKING:
     from scripts.orchestration.deploy import DeployRunner
 
 DEFAULT_ARTIFACTS_ROOT = "generated"
+BUNDLE_ARTIFACTS_ROOT = "artifacts/generated"
+BUNDLE_STALE_DAYS = 14
 
 
 @dataclass(frozen=True)
@@ -88,6 +97,35 @@ def _resolve_deploy_runner_name(*, deploy_runner: str, ansible_via_wsl: bool) ->
     if runner not in {"native", "wsl", "docker", "remote"}:
         raise ValueError(f"Unknown deploy runner: {runner}")
     return runner
+
+
+def _resolve_bundle_for_execution(*, repo_root: Path, bundle_ref: str) -> Path:
+    value = bundle_ref.strip()
+    if not value:
+        raise ValueError("Deploy execution requires --bundle <bundle_id> or --bundle <absolute_path>")
+    bundles_root = resolve_bundles_root(repo_root)
+    bundle_path = resolve_bundle_path(bundles_root, value)
+    if not bundle_path.exists():
+        raise FileNotFoundError(f"Deploy bundle not found: {bundle_path}")
+    if not bundle_path.is_dir():
+        raise NotADirectoryError(f"Deploy bundle is not a directory: {bundle_path}")
+    return bundle_path
+
+
+def _bundle_staleness_warning(*, created_at: str, now: datetime, stale_days: int = BUNDLE_STALE_DAYS) -> str | None:
+    if not isinstance(created_at, str) or not created_at.strip():
+        return None
+    raw = created_at.strip()
+    if raw.endswith("Z"):
+        raw = f"{raw[:-1]}+00:00"
+    try:
+        created = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    age_days = (now - created.astimezone(timezone.utc)).days
+    if age_days >= stale_days:
+        return f"bundle is stale ({age_days} days old): created_at={created_at}"
+    return None
 
 
 def _ansible_command(
@@ -317,15 +355,22 @@ def execute_plan(
     project_id: str,
     steps: Sequence[CommandStep],
     continue_on_failure: bool,
+    bundle: str = "",
     deploy_runner: str = "",
     ansible_via_wsl: bool = False,
 ) -> list[StepResult]:
     """Execute plan and return results in order."""
     resolved_runner_name = _resolve_deploy_runner_name(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
     runner = get_runner(resolved_runner_name, repo_root=repo_root, project_id=project_id)
-    # Transitional compatibility bridge: until explicit deploy bundles exist for
-    # this workflow, stage the repository root as the runner workspace.
-    workspace_ref = runner.stage_bundle(repo_root)
+    bundle_path = _resolve_bundle_for_execution(repo_root=repo_root, bundle_ref=bundle)
+    bundle_details = inspect_bundle(bundle_path, verify_checksums=True)
+    warning = _bundle_staleness_warning(
+        created_at=str(bundle_details.get("manifest", {}).get("created_at", "")),
+        now=datetime.now(timezone.utc),
+    )
+    if warning:
+        print(f"[service-chain] WARNING: {warning}", file=sys.stderr)
+    workspace_ref = runner.stage_bundle(bundle_path)
 
     results: list[StepResult] = []
     try:
@@ -383,6 +428,7 @@ def render_report(
     commit_sha: str,
     project_id: str,
     env: str,
+    bundle: str = "",
     steps: Sequence[CommandStep],
     results: Sequence[StepResult],
     plan_only: bool,
@@ -403,6 +449,7 @@ def render_report(
         f"**Commit SHA:** {commit_sha}",
         f"**Project:** {project_id}",
         f"**Environment:** {env}",
+        f"**Bundle:** {bundle or '<none>'}",
         f"**Mode:** {mode}",
         f"**Decision:** {decision}",
         "",
@@ -478,6 +525,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--commit-sha", default="")
     parser.add_argument("--output", default="")
     parser.add_argument("--output-dir", default="docs/runbooks/evidence")
+    parser.add_argument("--bundle", default="", help="Deploy bundle id or absolute path for deploy-plane execution.")
     parser.add_argument("--proxmox-backend-config", default="")
     parser.add_argument("--mikrotik-backend-config", default="")
     parser.add_argument("--proxmox-var-file", default="")
@@ -505,6 +553,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     mikrotik_backend_config = _resolve_path_argument(args.mikrotik_backend_config, repo_root)
     proxmox_var_file = _resolve_path_argument(args.proxmox_var_file, repo_root)
     mikrotik_var_file = _resolve_path_argument(args.mikrotik_var_file, repo_root)
+    effective_artifacts_root = args.artifacts_root
+    if isinstance(args.bundle, str) and args.bundle.strip() and args.artifacts_root == DEFAULT_ARTIFACTS_ROOT:
+        effective_artifacts_root = BUNDLE_ARTIFACTS_ROOT
+
     steps = build_command_plan(
         mode=args.mode,
         project_id=args.project_id,
@@ -519,7 +571,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         proxmox_var_file=proxmox_var_file,
         mikrotik_var_file=mikrotik_var_file,
         repo_root=repo_root,
-        artifacts_root=args.artifacts_root,
+        artifacts_root=effective_artifacts_root,
         workspace=workspace,
     )
     results: list[StepResult] = []
@@ -529,6 +581,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             project_id=args.project_id,
             steps=steps,
             continue_on_failure=args.continue_on_failure,
+            bundle=args.bundle,
             deploy_runner=args.deploy_runner,
             ansible_via_wsl=args.ansible_via_wsl,
         )
@@ -542,6 +595,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         commit_sha=commit_sha,
         project_id=args.project_id,
         env=args.env,
+        bundle=args.bundle,
         steps=steps,
         results=results,
         plan_only=args.plan_only,
