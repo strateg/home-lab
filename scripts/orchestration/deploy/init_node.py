@@ -4,7 +4,7 @@ ADR 0083 scaffold: bundle-first node initialization orchestrator.
 Current scope:
 - CLI contract and guardrails
 - state/status file bootstrap under .work/deploy-state/<project>/
-- execution planning scaffold (adapters/state-machine integration is next phase)
+- planning + adapter preflight/execute scaffold with state transitions
 """
 
 from __future__ import annotations
@@ -18,9 +18,10 @@ from typing import Any, Sequence
 
 import yaml
 
+from .adapters import AdapterContext, get_adapter
 from .bundle import inspect_bundle, resolve_bundle_path, resolve_bundles_root
 from .environment import check_deploy_environment
-from .state import build_default_node_state, normalize_status
+from .state import StateTransitionError, build_default_node_state, normalize_status, transition_node_state
 
 STATE_FILE_NAME = "INITIALIZATION-STATE.yaml"
 
@@ -163,6 +164,173 @@ def summarize_state(state_payload: dict[str, Any]) -> InitStateSummary:
     )
 
 
+def _state_index(state_payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    rows = state_payload.get("nodes")
+    result: dict[str, dict[str, Any]] = {}
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        node_id = str(row.get("id", "")).strip()
+        if node_id:
+            result[node_id] = row
+    return result
+
+
+def _manifest_index(manifest_nodes: list[dict[str, str]]) -> dict[str, dict[str, str]]:
+    result: dict[str, dict[str, str]] = {}
+    for row in manifest_nodes:
+        node_id = str(row.get("id", "")).strip()
+        if node_id:
+            result[node_id] = row
+    return result
+
+
+def _serialize_preflight_checks(checks: list[Any]) -> list[dict[str, Any]]:
+    payload: list[dict[str, Any]] = []
+    for row in checks:
+        payload.append(
+            {
+                "name": str(getattr(row, "name", "")),
+                "ok": bool(getattr(row, "ok", False)),
+                "details": str(getattr(row, "details", "")),
+                "remediation_hint": str(getattr(row, "remediation_hint", "")),
+            }
+        )
+    return payload
+
+
+def _execute_selected_nodes(
+    *,
+    project_id: str,
+    bundle_path: Path,
+    state_path: Path,
+    state_payload: dict[str, Any],
+    manifest_nodes: list[dict[str, str]],
+    selected_nodes: list[str],
+    import_existing: bool,
+) -> tuple[int, dict[str, Any]]:
+    state_by_id = _state_index(state_payload)
+    manifest_by_id = _manifest_index(manifest_nodes)
+    context = AdapterContext(project_id=project_id, bundle_path=bundle_path, workspace_ref=str(bundle_path))
+
+    results: list[dict[str, Any]] = []
+    failure_count = 0
+
+    for node_id in sorted(set(selected_nodes)):
+        state_row = state_by_id.get(node_id)
+        manifest_row = manifest_by_id.get(node_id, {"id": node_id, "mechanism": "unknown"})
+        mechanism = str(manifest_row.get("mechanism", "unknown")).strip() or "unknown"
+
+        result_row: dict[str, Any] = {
+            "node": node_id,
+            "mechanism": mechanism,
+            "status": "failed",
+            "error_code": "",
+            "message": "",
+            "preflight_checks": [],
+        }
+
+        if not isinstance(state_row, dict):
+            result_row["error_code"] = "E9734"
+            result_row["message"] = "Node state row is missing."
+            results.append(result_row)
+            failure_count += 1
+            continue
+
+        state_row["mechanism"] = mechanism
+        current_status = normalize_status(str(state_row.get("status", "pending")))
+        if current_status not in {"pending", "failed"}:
+            result_row["error_code"] = "E9735"
+            result_row["message"] = f"Node status '{current_status}' is not executable without reset/force flow."
+            results.append(result_row)
+            failure_count += 1
+            continue
+
+        try:
+            transition_node_state(
+                state_row,
+                to_state="bootstrapping",
+                action="bootstrap-start",
+                increment_attempt=True,
+                allow_same_state=False,
+            )
+        except StateTransitionError as exc:
+            result_row["error_code"] = "E9731"
+            result_row["message"] = str(exc)
+            results.append(result_row)
+            failure_count += 1
+            continue
+
+        try:
+            adapter = get_adapter(mechanism)
+        except ValueError as exc:
+            transition_node_state(
+                state_row,
+                to_state="failed",
+                action="adapter-resolution-failed",
+                last_error=str(exc),
+            )
+            result_row["error_code"] = "E9732"
+            result_row["message"] = str(exc)
+            results.append(result_row)
+            failure_count += 1
+            continue
+
+        preflight_checks = adapter.preflight(manifest_row, context)
+        result_row["preflight_checks"] = _serialize_preflight_checks(preflight_checks)
+        if any(not bool(getattr(check, "ok", False)) for check in preflight_checks):
+            transition_node_state(
+                state_row,
+                to_state="failed",
+                action="preflight-failed",
+                last_error=f"Preflight failed for mechanism '{mechanism}'",
+            )
+            result_row["error_code"] = "E9733"
+            result_row["message"] = "Preflight checks failed."
+            results.append(result_row)
+            failure_count += 1
+            continue
+
+        exec_result = adapter.execute(manifest_row, context)
+        if exec_result.is_success():
+            transition_node_state(
+                state_row,
+                to_state="initialized",
+                action="bootstrap-complete",
+                imported=import_existing,
+            )
+            result_row["status"] = "success"
+            result_row["message"] = str(exec_result.message or "Bootstrap execution completed.")
+            results.append(result_row)
+            continue
+
+        transition_node_state(
+            state_row,
+            to_state="failed",
+            action="bootstrap-failed",
+            last_error=str(exec_result.message or "Adapter execution failed."),
+        )
+        result_row["error_code"] = str(exec_result.error_code or "E9730")
+        result_row["message"] = str(exec_result.message or "Adapter execution failed.")
+        results.append(result_row)
+        failure_count += 1
+
+    state_payload["updated_at"] = _utc_now()
+    _write_yaml_atomic(state_path, state_payload)
+
+    payload: dict[str, Any] = {
+        "status": "executed" if failure_count == 0 else "failed",
+        "project_id": project_id,
+        "bundle": str(bundle_path),
+        "state_path": str(state_path),
+        "selected_nodes": sorted(set(selected_nodes)),
+        "results": results,
+        "failed_count": failure_count,
+        "success_count": len(results) - failure_count,
+    }
+    return (0 if failure_count == 0 else 2), payload
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     try:
@@ -262,21 +430,52 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(plan_payload, ensure_ascii=True))
         return 0
 
-    print(
-        json.dumps(
-            {
-                "status": "not-implemented",
-                "message": "Execution mode is not implemented yet. Use --plan-only.",
-                "project_id": project_id,
-                "bundle": str(bundle_path),
-                "state_path": str(state_path),
-                "mode": target_mode,
-                "selected_nodes": sorted(set(selected_nodes)),
-            },
-            ensure_ascii=True,
+    if args.verify_only:
+        print(
+            json.dumps(
+                {
+                    "status": "not-implemented",
+                    "message": "Execution mode with --verify-only is not implemented yet. Use --plan-only.",
+                    "project_id": project_id,
+                    "bundle": str(bundle_path),
+                    "state_path": str(state_path),
+                    "mode": target_mode,
+                    "selected_nodes": sorted(set(selected_nodes)),
+                },
+                ensure_ascii=True,
+            )
         )
+        return 2
+
+    if not selected_nodes:
+        print(
+            json.dumps(
+                {
+                    "status": "no-op",
+                    "project_id": project_id,
+                    "bundle": str(bundle_path),
+                    "state_path": str(state_path),
+                    "mode": target_mode,
+                    "selected_nodes": [],
+                },
+                ensure_ascii=True,
+            )
+        )
+        return 0
+
+    exit_code, execution_payload = _execute_selected_nodes(
+        project_id=project_id,
+        bundle_path=bundle_path,
+        state_path=state_path,
+        state_payload=state_payload,
+        manifest_nodes=manifest_nodes,
+        selected_nodes=selected_nodes,
+        import_existing=bool(args.import_existing),
     )
-    return 2
+    execution_payload["mode"] = target_mode
+    execution_payload["plan_only"] = False
+    print(json.dumps(execution_payload, ensure_ascii=True))
+    return exit_code
 
 
 if __name__ == "__main__":

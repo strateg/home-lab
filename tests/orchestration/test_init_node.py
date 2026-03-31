@@ -127,7 +127,9 @@ def test_main_returns_environment_error_when_check_fails(
     assert payload["runner"] == "wsl"
 
 
-def test_main_non_plan_mode_returns_not_implemented(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_main_non_plan_mode_executes_and_marks_node_failed_with_placeholder(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     repo_root, bundle_id = _create_test_bundle(tmp_path)
 
     rc = main(
@@ -145,8 +147,41 @@ def test_main_non_plan_mode_returns_not_implemented(tmp_path: Path, capsys: pyte
     )
     assert rc == 2
     payload = json.loads(capsys.readouterr().out.strip())
-    assert payload["status"] == "not-implemented"
+    assert payload["status"] == "failed"
     assert payload["selected_nodes"] == ["rtr-a"]
+    assert payload["failed_count"] == 1
+    assert payload["results"][0]["node"] == "rtr-a"
+    assert payload["results"][0]["error_code"] == "E9733"
+
+    state_path = resolve_state_path(repo_root=repo_root, project_id="home-lab")
+    state_payload = init_node_module._load_yaml_mapping(state_path)
+    row = next(item for item in state_payload["nodes"] if item["id"] == "rtr-a")
+    assert row["status"] == "failed"
+    assert row["attempt_count"] == 1
+
+
+def test_main_verify_only_non_plan_mode_returns_not_implemented(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo_root, bundle_id = _create_test_bundle(tmp_path)
+
+    rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--verify-only",
+            "--skip-environment-check",
+        ]
+    )
+    assert rc == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["status"] == "not-implemented"
 
 
 def test_main_returns_node_not_found_for_unknown_node(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
