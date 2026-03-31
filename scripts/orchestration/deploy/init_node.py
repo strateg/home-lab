@@ -22,6 +22,7 @@ from .adapters import AdapterContext, get_adapter
 from .bundle import inspect_bundle, resolve_bundle_path, resolve_bundles_root
 from .environment import check_deploy_environment
 from .logging import InitNodeLogger
+from .runner import get_runner
 from .state import StateTransitionError, build_default_node_state, normalize_status, transition_node_state
 
 STATE_FILE_NAME = "INITIALIZATION-STATE.yaml"
@@ -223,6 +224,7 @@ def _execute_selected_nodes(
     *,
     project_id: str,
     bundle_path: Path,
+    workspace_ref: str,
     state_path: Path,
     state_payload: dict[str, Any],
     manifest_nodes: list[dict[str, Any]],
@@ -232,7 +234,7 @@ def _execute_selected_nodes(
 ) -> tuple[int, dict[str, Any]]:
     state_by_id = _state_index(state_payload)
     manifest_by_id = _manifest_index(manifest_nodes)
-    context = AdapterContext(project_id=project_id, bundle_path=bundle_path, workspace_ref=str(bundle_path))
+    context = AdapterContext(project_id=project_id, bundle_path=bundle_path, workspace_ref=workspace_ref)
 
     results: list[dict[str, Any]] = []
     failure_count = 0
@@ -411,6 +413,7 @@ def _verify_selected_nodes(
     *,
     project_id: str,
     bundle_path: Path,
+    workspace_ref: str,
     state_path: Path,
     state_payload: dict[str, Any],
     manifest_nodes: list[dict[str, Any]],
@@ -419,7 +422,7 @@ def _verify_selected_nodes(
 ) -> tuple[int, dict[str, Any]]:
     state_by_id = _state_index(state_payload)
     manifest_by_id = _manifest_index(manifest_nodes)
-    context = AdapterContext(project_id=project_id, bundle_path=bundle_path, workspace_ref=str(bundle_path))
+    context = AdapterContext(project_id=project_id, bundle_path=bundle_path, workspace_ref=workspace_ref)
 
     results: list[dict[str, Any]] = []
     failure_count = 0
@@ -727,30 +730,100 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0
 
-    if args.verify_only:
-        exit_code, execution_payload = _verify_selected_nodes(
-            project_id=project_id,
-            bundle_path=bundle_path,
-            state_path=state_path,
-            state_payload=state_payload,
-            manifest_nodes=manifest_nodes,
-            selected_nodes=selected_nodes,
-            logger=logger,
+    runner_preference = str(args.deploy_runner).strip() or None
+    try:
+        runner = get_runner(runner_preference, repo_root=repo_root, project_id=project_id)
+    except Exception as exc:
+        payload = {
+            "status": "runner-error",
+            "project_id": project_id,
+            "bundle": str(bundle_path),
+            "message": str(exc),
+        }
+        logger.error(
+            event="runner-init-failed",
+            message=str(exc),
+            status="runner-error",
+            error_code="E9701",
+            details={"runner_preference": runner_preference or "<auto>"},
         )
-    else:
-        exit_code, execution_payload = _execute_selected_nodes(
-            project_id=project_id,
-            bundle_path=bundle_path,
-            state_path=state_path,
-            state_payload=state_payload,
-            manifest_nodes=manifest_nodes,
-            selected_nodes=selected_nodes,
-            import_existing=bool(args.import_existing),
-            logger=logger,
+        print(json.dumps(payload, ensure_ascii=True))
+        return 2
+
+    workspace_ref = ""
+    try:
+        workspace_ref = runner.stage_bundle(bundle_path)
+    except Exception as exc:
+        payload = {
+            "status": "runner-stage-error",
+            "project_id": project_id,
+            "bundle": str(bundle_path),
+            "runner": runner.name,
+            "message": str(exc),
+        }
+        logger.error(
+            event="runner-stage-failed",
+            message=str(exc),
+            status="runner-stage-error",
+            error_code="E9702",
+            details={"runner": runner.name, "bundle": str(bundle_path)},
         )
+        print(json.dumps(payload, ensure_ascii=True))
+        return 2
+
+    logger.info(
+        event="runner-stage-success",
+        message="Bundle staged in runner workspace.",
+        status="staged",
+        details={"runner": runner.name, "workspace_ref": workspace_ref},
+    )
+
+    try:
+        if args.verify_only:
+            exit_code, execution_payload = _verify_selected_nodes(
+                project_id=project_id,
+                bundle_path=bundle_path,
+                workspace_ref=workspace_ref,
+                state_path=state_path,
+                state_payload=state_payload,
+                manifest_nodes=manifest_nodes,
+                selected_nodes=selected_nodes,
+                logger=logger,
+            )
+        else:
+            exit_code, execution_payload = _execute_selected_nodes(
+                project_id=project_id,
+                bundle_path=bundle_path,
+                workspace_ref=workspace_ref,
+                state_path=state_path,
+                state_payload=state_payload,
+                manifest_nodes=manifest_nodes,
+                selected_nodes=selected_nodes,
+                import_existing=bool(args.import_existing),
+                logger=logger,
+            )
+    finally:
+        try:
+            runner.cleanup_workspace(workspace_ref)
+            logger.info(
+                event="runner-cleanup-success",
+                message="Runner workspace cleanup completed.",
+                status="cleanup",
+                details={"runner": runner.name, "workspace_ref": workspace_ref},
+            )
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                event="runner-cleanup-failed",
+                message=str(exc),
+                status="cleanup-warning",
+                error_code="E9703",
+                details={"runner": runner.name, "workspace_ref": workspace_ref},
+            )
     execution_payload["mode"] = target_mode
     execution_payload["plan_only"] = False
     execution_payload["verify_only"] = bool(args.verify_only)
+    execution_payload["runner"] = runner.name
+    execution_payload["workspace_ref"] = workspace_ref
     print(json.dumps(execution_payload, ensure_ascii=True))
     return exit_code
 

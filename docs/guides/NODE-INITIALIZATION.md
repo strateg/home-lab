@@ -79,6 +79,7 @@ task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> VERIFY_
 - `init-node` currently emits execution plan JSON and initializes state baseline.
 - non-`--plan-only` execution runs adapter preflight + placeholder execute flow and updates state.
 - `--verify-only` now runs adapter handover checks and can transition `initialized -> verified`.
+- non-plan execute/verify flows now stage bundle in selected runner workspace and call runner cleanup after execution.
 - Use immutable deploy bundles from ADR 0085 (`task framework:deploy-bundle-create`).
 - This is still safe in current state because destructive adapter execution is not implemented.
 - Environment precheck runs by default for non-`--status` commands; use `SKIP_ENVIRONMENT_CHECK=1` only for isolated tests.
