@@ -65,7 +65,7 @@
 
 ### Optional Pipeline Follow-up
 
-- [ ] `base.assembler.deploy_bundle` plugin registered in compile/build pipeline (deferred unless required)
+- [x] `base.assembler.deploy_bundle` plugin registered in compile/build pipeline
 
 ## Phase 3: Entry Point Migration ✅ (Active Flow)
 

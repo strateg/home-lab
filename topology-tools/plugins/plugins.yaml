@@ -1372,6 +1372,36 @@ plugins:
         scope: pipeline_shared
     description: Emits assembly-manifest.json consumed by build stage plugins.
 
+  - id: base.assembler.deploy_bundle
+    kind: assembler
+    entry: assemblers/workspace_assembler.py:DeployBundleAssembler
+    api_version: "1.x"
+    stages: [assemble]
+    phase: finalize
+    order: 440
+    depends_on: [base.assembler.manifest, base.assembler.verify]
+    timeout: 60
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.assembler.manifest
+        key: assembly_manifest_path
+        required: false
+      - from_plugin: base.assembler.verify
+        key: assemble_verified
+        required: true
+    produces:
+      - key: deploy_bundle_id
+        scope: pipeline_shared
+      - key: deploy_bundle_path
+        scope: pipeline_shared
+      - key: deploy_bundle_reused
+        scope: pipeline_shared
+    description: Creates or reuses deterministic deploy bundle from generated artifacts for deploy-plane execution.
+
   # Builder plugins (run in build stage)
   - id: base.builder.bundle
     kind: builder

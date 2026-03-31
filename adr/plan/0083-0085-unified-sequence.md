@@ -20,7 +20,7 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 
 | ADR | Status | Completed Scope | Next Scope |
 |-----|--------|-----------------|------------|
-| 0085 | Accepted | Phases 0/0a/1/2 + active Phase 3 migration | Optional assemble-plugin integration; backend follow-ups |
+| 0085 | Accepted | Phases 0/0a/1/2 + active Phase 3 migration + assemble-plugin integration | Backend follow-ups + ADR0083 consumers |
 | 0084 | Accepted | Runner plane + bundle-based active deploy flow | Docker/Remote backend completion (0b/0c) |
 | 0083 | Proposed (Deferred) | Not started in this wave | Decide whether to resume with bundle-first model |
 
@@ -62,13 +62,7 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 | `RemoteLinuxRunner` implementation | Dedicated control-node requirement | Deferred |
 | Backend-specific tests | With implementation | Deferred |
 
-### Bucket B: Optional Pipeline Integration (ADR 0085)
-
-| Item | Rationale | Status |
-|------|-----------|--------|
-| `base.assembler.deploy_bundle` plugin | Needed only if bundle assembly must be in plugin build graph | Deferred |
-
-### Bucket C: ADR 0083 Decision
+### Bucket B: ADR 0083 Decision
 
 | Item | Dependency | Status |
 |------|------------|--------|

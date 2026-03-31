@@ -34,15 +34,7 @@ Track remaining gap between implemented deploy-bundle model and full target cont
 
 ## Remaining Gap Items
 
-### G1: Assemble-stage plugin integration is not implemented
-
-**Current:** Bundle assembly is implemented as orchestration CLI/API (`bundle.py`) and task wrappers.
-
-**Target:** Optionally expose bundle assembly through build/assemble plugin graph when needed.
-
-**Action:** Defer unless there is a concrete requirement to run bundle assembly inside compile/build plugin pipeline.
-
-### G2: ADR 0083 consumer entry points are still pending
+### G1: ADR 0083 consumer entry points are still pending
 
 **Current:** `service_chain_evidence.py` is migrated to bundle-ID based execution.
 
@@ -50,7 +42,7 @@ Track remaining gap between implemented deploy-bundle model and full target cont
 
 **Action:** Complete when ADR 0083 implementation is resumed.
 
-### G3: Deferred runner backends are still stubs
+### G2: Deferred runner backends are still stubs
 
 **Current:** `DockerRunner` and `RemoteLinuxRunner` remain placeholders.
 
@@ -70,6 +62,7 @@ Track remaining gap between implemented deploy-bundle model and full target cont
 | Remote runner | 🔜 Stub | Deferred backend completion |
 | Deploy profile schema + loader | ✅ Done | `deploy-profile.schema.json` + `profile.py` + tests |
 | Bundle schema + CLI/API | ✅ Done | `deploy-bundle-manifest.schema.json` + `bundle.py` |
+| Assemble-stage bundle plugin | ✅ Done | `base.assembler.deploy_bundle` |
 | Bundle-ID entry point migration | ✅ Done (active flow) | `service_chain_evidence.py --bundle` |
 | Bundle lifecycle docs | ✅ Done | `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md` |
 | Workflow tests | ✅ Done | bundle/workflow/service-chain tests pass |

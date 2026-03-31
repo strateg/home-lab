@@ -102,6 +102,7 @@ ADR 0085 defines the deploy bundle contract as the canonical execution input for
 | 2.5 | Bundle metadata generation | `metadata.yaml` | ✅ Done |
 | 2.6 | Deterministic bundle ID generation | SHA256-derived ID | ✅ Done |
 | 2.7 | Add unit tests | `tests/orchestration/test_bundle.py` | ✅ Done |
+| 2.8 | Integrate assemble-stage plugin | `base.assembler.deploy_bundle` | ✅ Done |
 
 ### Bundle Structure
 

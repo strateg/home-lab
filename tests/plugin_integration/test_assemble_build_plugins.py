@@ -86,6 +86,7 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
         "base.assembler.workspace",
         "base.assembler.verify",
         "base.assembler.manifest",
+        "base.assembler.deploy_bundle",
     ]
     assert all(result.status == PluginStatus.SUCCESS for result in assemble_results)
     assert isinstance(ctx.changed_input_scopes, list)
@@ -100,6 +101,15 @@ def test_assemble_and_build_stage_plugins_produce_release_artifacts(tmp_path: Pa
     assembly_files = assembly_payload.get("files", [])
     assert isinstance(assembly_files, list)
     assert any(isinstance(row, dict) and row.get("path") == "docs/overview.md" for row in assembly_files)
+    deploy_bundle_result = next(
+        result for result in assemble_results if result.plugin_id == "base.assembler.deploy_bundle"
+    )
+    deploy_bundle_id = str(deploy_bundle_result.output_data.get("deploy_bundle_id", ""))
+    deploy_bundle_path = Path(str(deploy_bundle_result.output_data.get("deploy_bundle_path", "")))
+    assert deploy_bundle_id.startswith("b-")
+    assert deploy_bundle_path.exists()
+    assert (deploy_bundle_path / "manifest.yaml").exists()
+    assert (deploy_bundle_path / "metadata.yaml").exists()
 
     build_results = registry.execute_stage(Stage.BUILD, ctx)
     assert [r.plugin_id for r in build_results] == [
@@ -182,6 +192,7 @@ def test_assemble_verify_flags_secret_like_content(tmp_path: Path):
     assert any(diag.code == "E8103" for diag in by_id["base.assembler.verify"].diagnostics)
     assert by_id["base.assembler.manifest"].status == PluginStatus.SUCCESS
     assert by_id["base.assembler.changed_scopes"].status == PluginStatus.SUCCESS
+    assert by_id["base.assembler.deploy_bundle"].status == PluginStatus.SKIPPED
 
 
 def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
@@ -257,3 +268,12 @@ def test_changed_input_scopes_are_empty_on_second_identical_run(tmp_path: Path):
     second_results = registry.execute_stage(Stage.ASSEMBLE, second_ctx)
     assert all(result.status == PluginStatus.SUCCESS for result in second_results)
     assert second_ctx.changed_input_scopes == []
+    first_bundle_result = next(result for result in first_results if result.plugin_id == "base.assembler.deploy_bundle")
+    second_bundle_result = next(
+        result for result in second_results if result.plugin_id == "base.assembler.deploy_bundle"
+    )
+    assert first_bundle_result.output_data.get("deploy_bundle_reused") is False
+    assert second_bundle_result.output_data.get("deploy_bundle_reused") is True
+    assert first_bundle_result.output_data.get("deploy_bundle_id") == second_bundle_result.output_data.get(
+        "deploy_bundle_id"
+    )

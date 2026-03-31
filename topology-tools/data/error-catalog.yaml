@@ -347,6 +347,11 @@ codes:
     stage: assemble
     title: Assembly Manifest Generation Failed
     hint: Ensure assemble.run publishes assembled_files before finalize.
+  E8105:
+    severity: error
+    stage: assemble
+    title: Deploy Bundle Assembly Failed
+    hint: Ensure generated artifacts and deploy bundle module are available.
   I8101:
     severity: info
     stage: assemble
@@ -366,6 +371,11 @@ codes:
     severity: info
     stage: assemble
     title: Changed Input Scopes Evaluated
+    hint: No action required.
+  I8105:
+    severity: info
+    stage: assemble
+    title: Deploy Bundle Assembled
     hint: No action required.
   E8201:
     severity: error

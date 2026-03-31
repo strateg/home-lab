@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import re
 import shutil
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -618,6 +620,174 @@ class AssemblyManifestAssembler(AssemblerPlugin):
             diagnostics=diagnostics,
             output_data={"assembly_manifest_path": str(manifest_path), "files": rows},
         )
+
+    def on_finalize(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        return self.execute(ctx, stage)
+
+
+class DeployBundleAssembler(AssemblerPlugin):
+    """Assemble deploy bundle from generated artifacts for deploy-plane consumers."""
+
+    @staticmethod
+    def _repo_root(ctx: PluginContext) -> Path:
+        return WorkspaceAssembler._repo_root(ctx)
+
+    @staticmethod
+    def _project_id(ctx: PluginContext) -> str:
+        return WorkspaceAssembler._project_id(ctx)
+
+    @classmethod
+    def _generated_root(cls, ctx: PluginContext) -> Path:
+        repo_root = cls._repo_root(ctx)
+        project_id = cls._project_id(ctx)
+        raw_root = ctx.config.get("generator_artifacts_root")
+        if isinstance(raw_root, str) and raw_root.strip():
+            candidate = Path(raw_root.strip())
+            if not candidate.is_absolute():
+                candidate = (repo_root / candidate).resolve()
+            else:
+                candidate = candidate.resolve()
+        else:
+            candidate = (repo_root / "generated").resolve()
+
+        if candidate.name == project_id:
+            return candidate
+        return (candidate / project_id).resolve()
+
+    @classmethod
+    def _bundles_root(cls, ctx: PluginContext) -> Path:
+        repo_root = cls._repo_root(ctx)
+        raw_root = str(ctx.config.get("deploy_bundles_root", "")).strip()
+        if raw_root:
+            candidate = Path(raw_root)
+            if candidate.is_absolute():
+                return candidate.resolve()
+            return (repo_root / candidate).resolve()
+        return (repo_root / ".work" / "deploy" / "bundles").resolve()
+
+    @classmethod
+    def _load_bundle_module(cls, ctx: PluginContext):
+        repo_root = cls._repo_root(ctx)
+        framework_root = Path(__file__).resolve().parents[3]
+        candidates = [
+            (repo_root / "scripts" / "orchestration" / "deploy" / "bundle.py").resolve(),
+            (framework_root / "scripts" / "orchestration" / "deploy" / "bundle.py").resolve(),
+        ]
+        module_path = next((path for path in candidates if path.exists()), None)
+        if module_path is None:
+            raise FileNotFoundError(
+                "deploy bundle module not found in workspace or framework roots: "
+                f"{', '.join(str(path) for path in candidates)}"
+            )
+        spec = importlib.util.spec_from_file_location("_deploy_bundle_module", module_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"cannot load deploy bundle module spec: {module_path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+
+    def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
+        diagnostics: list[PluginDiagnostic] = []
+        project_id = self._project_id(ctx)
+        generated_root = self._generated_root(ctx)
+        bundles_root = self._bundles_root(ctx)
+        try:
+            assemble_verified = ctx.subscribe("base.assembler.verify", "assemble_verified")
+        except PluginDataExchangeError as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8105",
+                    severity="error",
+                    stage=stage,
+                    message=f"deploy bundle assembly requires assemble_verified flag: {exc}",
+                    path="plugin:base.assembler.verify:assemble_verified",
+                )
+            )
+            return self.make_result(diagnostics=diagnostics)
+        if assemble_verified is False:
+            return PluginResult.skipped(
+                self.plugin_id,
+                api_version=self.api_version,
+                reason="assemble verification failed",
+            )
+
+        if not generated_root.exists() or not generated_root.is_dir():
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8105",
+                    severity="error",
+                    stage=stage,
+                    message=f"deploy bundle assembly requires generated root: {generated_root}",
+                    path=str(generated_root),
+                )
+            )
+            return self.make_result(diagnostics=diagnostics)
+
+        try:
+            bundle_module = self._load_bundle_module(ctx)
+            topology_hash = str(bundle_module.hash_tree(generated_root))
+            secrets_hash = str(bundle_module.hash_mapping({}))
+            bundle_id = str(
+                bundle_module.compute_bundle_id(
+                    project_id=project_id,
+                    topology_hash=topology_hash,
+                    secrets_hash=secrets_hash,
+                )
+            )
+            bundle_path = (bundles_root / bundle_id).resolve()
+
+            if bundle_path.exists():
+                reused = True
+            else:
+                bundles_root.mkdir(parents=True, exist_ok=True)
+                info = bundle_module.create_bundle(
+                    project_id=project_id,
+                    generated_root=generated_root,
+                    bundles_root=bundles_root,
+                    inject_secrets=False,
+                    secrets_root=None,
+                )
+                bundle_id = str(info.bundle_id)
+                bundle_path = Path(info.bundle_path).resolve()
+                reused = False
+
+            try:
+                ctx.publish("deploy_bundle_id", bundle_id)
+                ctx.publish("deploy_bundle_path", str(bundle_path))
+                ctx.publish("deploy_bundle_reused", reused)
+            except PluginDataExchangeError:
+                pass
+
+            action = "reused" if reused else "created"
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="I8105",
+                    severity="info",
+                    stage=stage,
+                    message=f"deploy bundle {action}: {bundle_id}",
+                    path=str(bundle_path),
+                )
+            )
+            return self.make_result(
+                diagnostics=diagnostics,
+                output_data={
+                    "deploy_bundle_id": bundle_id,
+                    "deploy_bundle_path": str(bundle_path),
+                    "deploy_bundle_reused": reused,
+                },
+            )
+        except Exception as exc:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8105",
+                    severity="error",
+                    stage=stage,
+                    message=f"deploy bundle assembly failed: {exc}",
+                    path=str(bundles_root),
+                )
+            )
+            return self.make_result(diagnostics=diagnostics)
 
     def on_finalize(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         return self.execute(ctx, stage)
