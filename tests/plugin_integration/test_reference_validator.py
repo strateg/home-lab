@@ -153,7 +153,7 @@ def test_reference_validator_accepts_valid_storage_relations():
     registry = _registry()
     rows = [
         {
-            "group": "storage",
+            "group": "pools",
             "instance": "inst.pool.local",
             "layer": "L3",
             "class_ref": "class.storage.pool",
@@ -161,7 +161,7 @@ def test_reference_validator_accepts_valid_storage_relations():
             "extensions": {},
         },
         {
-            "group": "storage",
+            "group": "data-assets",
             "instance": "inst.vol.local",
             "layer": "L3",
             "class_ref": "class.storage.volume",
@@ -258,7 +258,7 @@ def test_reference_validator_rejects_storage_relation_source_layer_violation():
     registry = _registry()
     rows = [
         {
-            "group": "storage",
+            "group": "pools",
             "instance": "inst.pool.local",
             "layer": "L3",
             "class_ref": "class.storage.pool",
@@ -308,7 +308,7 @@ def test_reference_validator_rejects_storage_relation_target_class_mismatch():
     registry = _registry()
     rows = [
         {
-            "group": "storage",
+            "group": "pools",
             "instance": "inst.pool.local",
             "layer": "L3",
             "class_ref": "class.storage.pool",

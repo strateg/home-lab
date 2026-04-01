@@ -1,10 +1,10 @@
-instance: inst.data_asset.jellyfin
+instance: inst.data_asset.homeassistant
 object_ref: obj.storage.data_asset.config
-group: storage
+group: data-assets
 layer: L3
 version: 1.0.0
-source_id: data-jellyfin-config
+source_id: data-homeassistant
 status: mapped
-notes: Jellyfin configuration
+notes: Home Assistant config
 host_ref: srv-orangepi5
 criticality: medium

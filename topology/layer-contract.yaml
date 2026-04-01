@@ -33,7 +33,8 @@ group_layers:
   data-channels: L2
   firewall: L2
   qos: L2
-  storage: L3
+  pools: L3
+  data-assets: L3
   vms: L4
   lxc: L4
   services: L5

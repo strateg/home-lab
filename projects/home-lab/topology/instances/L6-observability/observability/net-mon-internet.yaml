@@ -9,6 +9,7 @@ notes: Internet connectivity monitoring
 
 name: Internet Connectivity
 description: Monitor primary and failover internet
+target_ref: rtr-mikrotik-chateau
 enabled: true
 critical: true
 

@@ -90,7 +90,7 @@ def _compiled_fixture() -> dict:
                     "status": "mapped",
                 }
             ],
-            "storage": [
+            "pools": [
                 {
                     "instance_id": "inst.pool.local",
                     "object_ref": "obj.storage.pool.local",
@@ -98,6 +98,8 @@ def _compiled_fixture() -> dict:
                     "instance_data": {"host_ref": "srv-a"},
                     "status": "mapped",
                 },
+            ],
+            "data-assets": [
                 {
                     "instance_id": "inst.data_asset.pg",
                     "object_ref": "obj.storage.asset.pg",

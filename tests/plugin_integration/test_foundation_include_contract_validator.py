@@ -23,7 +23,8 @@ REQUIRED_INSTANCE_DIRS = (
     "L1-foundation/power",
     "L2-network/data-channels",
     "L2-network/network",
-    "L3-data/storage",
+    "L3-data/pools",
+    "L3-data/data-assets",
     "L4-platform/lxc",
     "L4-platform/vms",
     "L5-application/services",
@@ -80,7 +81,7 @@ def test_foundation_include_contract_validator_accepts_valid_tree(tmp_path: Path
 
 def test_foundation_include_contract_validator_rejects_missing_required_dir(tmp_path: Path):
     _build_tree(tmp_path)
-    missing_dir = tmp_path / "topology" / "instances" / "L3-data" / "storage"
+    missing_dir = tmp_path / "topology" / "instances" / "L3-data" / "pools"
     missing_dir.rmdir()
 
     registry = _registry()

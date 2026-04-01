@@ -204,14 +204,14 @@ def test_host_os_refs_validator_rejects_root_storage_endpoint_on_other_device():
                 "extensions": {"installation": {"root_storage_endpoint_ref": "endpoint-a"}},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "endpoint-a",
                 "class_ref": "class.storage.storage_endpoint",
                 "layer": "L3",
                 "extensions": {"mount_point_ref": "mount-a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "mount-a",
                 "class_ref": "class.storage.mount_point",
                 "layer": "L3",

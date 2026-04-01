@@ -1,6 +1,6 @@
 instance: inst.storage.pool.local_hdd
 object_ref: obj.storage.pool.local_hdd
-group: storage
+group: pools
 layer: L3
 version: 1.0.0
 source_id: se-hdd

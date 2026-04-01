@@ -10,7 +10,7 @@ from plugins.generators.projection_core import ProjectionError, _instance_groups
 def build_storage_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     """Build deterministic storage/data-asset documentation view."""
     groups = _instance_groups(compiled_json)
-    storage_rows = groups.get("storage", [])
+    storage_rows = groups.get("pools", []) + groups.get("data-assets", [])
     operation_rows = groups.get("operations", [])
 
     pools: list[dict[str, Any]] = []

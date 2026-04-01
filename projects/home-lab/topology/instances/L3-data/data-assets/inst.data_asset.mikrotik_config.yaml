@@ -1,11 +1,11 @@
-instance: inst.data_asset.wireguard
+instance: inst.data_asset.mikrotik_config
 object_ref: obj.storage.data_asset.config
-group: storage
+group: data-assets
 layer: L3
 version: 1.0.0
-source_id: data-wireguard
+source_id: data-mikrotik-config
 status: mapped
-notes: WireGuard keys and peer configuration (stored in RouterOS)
+notes: RouterOS configuration exports
 host_ref: mikrotik-chateau
 criticality: critical
 backup_policy: daily

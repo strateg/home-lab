@@ -87,7 +87,7 @@ def test_foundation_device_taxonomy_validator_ignores_non_l1_storage_rows():
     registry = _registry()
     ctx = _context()
     rows = _valid_rows()
-    rows.append({"group": "storage", "instance": "pool-a", "layer": "L3", "class_ref": "class.storage.pool"})
+    rows.append({"group": "pools", "instance": "pool-a", "layer": "L3", "class_ref": "class.storage.pool"})
     _publish_rows(ctx, rows)
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)

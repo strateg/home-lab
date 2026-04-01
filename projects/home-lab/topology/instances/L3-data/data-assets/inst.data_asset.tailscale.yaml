@@ -1,6 +1,6 @@
 instance: inst.data_asset.tailscale
 object_ref: obj.storage.data_asset.config
-group: storage
+group: data-assets
 layer: L3
 version: 1.0.0
 source_id: data-tailscale

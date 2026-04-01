@@ -1,10 +1,10 @@
-instance: inst.data_asset.grafana
+instance: inst.data_asset.jellyfin
 object_ref: obj.storage.data_asset.config
-group: storage
+group: data-assets
 layer: L3
 version: 1.0.0
-source_id: data-grafana
+source_id: data-jellyfin-config
 status: mapped
-notes: Grafana dashboards and data
+notes: Jellyfin configuration
 host_ref: srv-orangepi5
 criticality: medium

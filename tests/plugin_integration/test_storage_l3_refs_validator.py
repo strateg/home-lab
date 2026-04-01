@@ -44,16 +44,16 @@ def test_storage_l3_refs_validator_accepts_valid_volume_and_asset_refs():
     _publish_rows(
         ctx,
         [
-            {"group": "storage", "instance": "inst.storage.pool.a", "class_ref": "class.storage.pool", "layer": "L3"},
+            {"group": "pools", "instance": "inst.storage.pool.a", "class_ref": "class.storage.pool", "layer": "L3"},
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.volume.a",
                 "class_ref": "class.storage.volume",
                 "layer": "L3",
                 "extensions": {"pool_ref": "inst.storage.pool.a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.asset.a",
                 "class_ref": "class.storage.data_asset",
                 "layer": "L3",
@@ -74,7 +74,7 @@ def test_storage_l3_refs_validator_rejects_unknown_pool_ref():
         ctx,
         [
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.volume.a",
                 "class_ref": "class.storage.volume",
                 "layer": "L3",
@@ -94,9 +94,9 @@ def test_storage_l3_refs_validator_rejects_wrong_asset_volume_target_class():
     _publish_rows(
         ctx,
         [
-            {"group": "storage", "instance": "inst.storage.pool.a", "class_ref": "class.storage.pool", "layer": "L3"},
+            {"group": "pools", "instance": "inst.storage.pool.a", "class_ref": "class.storage.pool", "layer": "L3"},
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.asset.a",
                 "class_ref": "class.storage.data_asset",
                 "layer": "L3",
@@ -125,50 +125,50 @@ def test_storage_l3_refs_validator_validates_filesystem_mount_chain():
     _publish_rows(
         ctx,
         [
-            {"group": "storage", "instance": "inst.storage.pool.a", "class_ref": "class.storage.pool", "layer": "L3"},
+            {"group": "pools", "instance": "inst.storage.pool.a", "class_ref": "class.storage.pool", "layer": "L3"},
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.volume.a",
                 "class_ref": "class.storage.volume",
                 "layer": "L3",
                 "extensions": {"pool_ref": "inst.storage.pool.a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.partition.a",
                 "class_ref": "class.storage.partition",
                 "layer": "L3",
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.vg.a",
                 "class_ref": "class.storage.volume_group",
                 "layer": "L3",
                 "extensions": {"pv_refs": ["inst.storage.partition.a"]},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.lv.a",
                 "class_ref": "class.storage.logical_volume",
                 "layer": "L3",
                 "extensions": {"vg_ref": "inst.storage.vg.a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.fs.a",
                 "class_ref": "class.storage.filesystem",
                 "layer": "L3",
                 "extensions": {"lv_ref": "inst.storage.lv.a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.mount.a",
                 "class_ref": "class.storage.mount_point",
                 "layer": "L3",
                 "extensions": {"filesystem_ref": "inst.storage.fs.a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.endpoint.a",
                 "class_ref": "class.storage.storage_endpoint",
                 "layer": "L3",
@@ -189,19 +189,19 @@ def test_storage_l3_refs_validator_rejects_filesystem_with_both_refs():
         ctx,
         [
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.partition.a",
                 "class_ref": "class.storage.partition",
                 "layer": "L3",
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.lv.a",
                 "class_ref": "class.storage.logical_volume",
                 "layer": "L3",
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.fs.a",
                 "class_ref": "class.storage.filesystem",
                 "layer": "L3",
@@ -222,7 +222,7 @@ def test_storage_l3_refs_validator_rejects_volume_group_unknown_pv_ref():
         ctx,
         [
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "inst.storage.vg.a",
                 "class_ref": "class.storage.volume_group",
                 "layer": "L3",
@@ -249,28 +249,28 @@ def test_storage_l3_refs_validator_accepts_valid_lvmthin_infer_from_chain():
                 "layer": "L1",
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "part.a",
                 "class_ref": "class.storage.partition",
                 "layer": "L3",
                 "extensions": {"media_attachment_ref": "attach.a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "vg.a",
                 "class_ref": "class.storage.volume_group",
                 "layer": "L3",
                 "extensions": {"name": "vg-local", "pv_refs": ["part.a"]},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "lv.a",
                 "class_ref": "class.storage.logical_volume",
                 "layer": "L3",
                 "extensions": {"name": "thinpool", "vg_ref": "vg.a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "endpoint.a",
                 "class_ref": "class.storage.storage_endpoint",
                 "layer": "L3",
@@ -298,7 +298,7 @@ def test_storage_l3_refs_validator_rejects_lvmthin_without_required_infer_from_f
         ctx,
         [
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "endpoint.a",
                 "class_ref": "class.storage.storage_endpoint",
                 "layer": "L3",
@@ -322,7 +322,7 @@ def test_storage_l3_refs_validator_rejects_critical_data_asset_without_backup_bi
         ctx,
         [
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "asset.a",
                 "class_ref": "class.storage.data_asset",
                 "layer": "L3",
@@ -343,7 +343,7 @@ def test_storage_l3_refs_validator_rejects_unknown_backup_policy_ref():
         ctx,
         [
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "asset.a",
                 "class_ref": "class.storage.data_asset",
                 "layer": "L3",
@@ -364,7 +364,7 @@ def test_storage_l3_refs_validator_warns_on_unknown_infer_from_vg_name():
         ctx,
         [
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "endpoint.a",
                 "class_ref": "class.storage.storage_endpoint",
                 "layer": "L3",
@@ -403,28 +403,28 @@ def test_storage_l3_refs_validator_warns_when_infer_from_combines_with_lv_ref():
                 "layer": "L1",
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "part.a",
                 "class_ref": "class.storage.partition",
                 "layer": "L3",
                 "extensions": {"media_attachment_ref": "attach.a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "vg.a",
                 "class_ref": "class.storage.volume_group",
                 "layer": "L3",
                 "extensions": {"name": "vg-local", "pv_refs": ["part.a"]},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "lv.a",
                 "class_ref": "class.storage.logical_volume",
                 "layer": "L3",
                 "extensions": {"name": "thinpool", "vg_ref": "vg.a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "endpoint.a",
                 "class_ref": "class.storage.storage_endpoint",
                 "layer": "L3",
@@ -459,35 +459,35 @@ def test_storage_l3_refs_validator_warns_when_infer_from_lv_name_mismatches_vg()
                 "layer": "L1",
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "part.a",
                 "class_ref": "class.storage.partition",
                 "layer": "L3",
                 "extensions": {"media_attachment_ref": "attach.a"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "vg.a",
                 "class_ref": "class.storage.volume_group",
                 "layer": "L3",
                 "extensions": {"name": "vg-local", "pv_refs": ["part.a"]},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "vg.b",
                 "class_ref": "class.storage.volume_group",
                 "layer": "L3",
                 "extensions": {"name": "vg-other"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "lv.other",
                 "class_ref": "class.storage.logical_volume",
                 "layer": "L3",
                 "extensions": {"name": "lv-other", "vg_ref": "vg.b"},
             },
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "endpoint.a",
                 "class_ref": "class.storage.storage_endpoint",
                 "layer": "L3",
@@ -514,7 +514,7 @@ def test_storage_l3_refs_validator_warns_on_unknown_backup_policy_alias():
         ctx,
         [
             {
-                "group": "storage",
+                "group": "data-assets",
                 "instance": "asset.a",
                 "class_ref": "class.storage.data_asset",
                 "layer": "L3",

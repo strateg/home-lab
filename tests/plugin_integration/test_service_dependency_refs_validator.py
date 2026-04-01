@@ -40,7 +40,7 @@ def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
 
 def _base_rows() -> list[dict]:
     return [
-        {"group": "storage", "instance": "inst.asset.a", "class_ref": "class.storage.data_asset"},
+        {"group": "data-assets", "instance": "inst.asset.a", "class_ref": "class.storage.data_asset"},
         {"group": "services", "instance": "svc-a", "class_ref": "class.service.monitoring", "extensions": {}},
         {
             "group": "services",

@@ -44,8 +44,13 @@ def _base_rows() -> list[dict]:
         {"group": "network", "instance": "tz-a", "class_ref": "class.network.trust_zone", "layer": "L2"},
         {"group": "network", "instance": "vlan-a", "class_ref": "class.network.vlan", "layer": "L2"},
         {"group": "os", "instance": "os-a", "class_ref": "class.os", "layer": "L1"},
-        {"group": "storage", "instance": "endpoint-a", "class_ref": "class.storage.storage_endpoint", "layer": "L3"},
-        {"group": "storage", "instance": "asset-a", "class_ref": "class.storage.data_asset", "layer": "L3"},
+        {
+            "group": "data-assets",
+            "instance": "endpoint-a",
+            "class_ref": "class.storage.storage_endpoint",
+            "layer": "L3",
+        },
+        {"group": "data-assets", "instance": "asset-a", "class_ref": "class.storage.data_asset", "layer": "L3"},
         {
             "group": "lxc",
             "instance": "lxc-a",
