@@ -83,7 +83,15 @@ home-lab/
 │   ├── secrets/                 # SOPS-encrypted secrets
 │   └── framework.lock.yaml      # Framework version lock
 ├── scripts/                     # Orchestration scripts
-│   ├── orchestration/lane.py    # Main lane orchestrator
+│   ├── orchestration/
+│   │   ├── lane.py              # Main lane orchestrator
+│   │   └── deploy/              # Deploy domain (ADR 0083-0085)
+│   │       ├── runner.py        # DeployRunner backends
+│   │       ├── bundle.py        # Bundle create/list/inspect/delete
+│   │       ├── init_node.py     # Node initialization orchestrator
+│   │       ├── adapters/        # Bootstrap mechanism adapters
+│   │       ├── state.py         # State machine helpers
+│   │       └── logging.py       # Structured audit logging
 │   └── validation/              # Validation scripts
 ├── tests/                       # Test suite
 ├── generated/                   # Generated outputs (DO NOT EDIT)
@@ -94,6 +102,10 @@ home-lab/
 │       └── docs/
 ├── build/                       # Build artifacts
 ├── dist/                        # Deploy packages
+├── schemas/                     # JSON schemas
+│   ├── deploy-bundle-manifest.schema.json
+│   ├── deploy-profile.schema.json
+│   └── initialization-contract.schema.json
 ├── adr/                         # Architecture Decision Records
 ├── docs/                        # Manual documentation
 ├── configs/                     # Device configs (GL.iNet, VPN)
@@ -140,9 +152,23 @@ V5_SECRETS_MODE=passthrough python scripts/orchestration/lane.py validate-v5
 python scripts/orchestration/lane.py <phase-name>
 ```
 
-### 2.1 Deploy Bundle Workflow (ADR 0085)
+### 2.1 Deploy Domain Architecture (ADR 0083/0084/0085)
 
-Deploy execution must use explicit bundle selection.
+The deploy domain implements a layered architecture:
+
+| ADR | Scope | Status |
+|-----|-------|--------|
+| 0085 | Deploy bundle contract | ✅ Complete |
+| 0084 | Cross-platform dev / Linux deploy plane | ✅ Complete |
+| 0083 | Node initialization contract | ✅ Scaffold (hardware pending) |
+
+**Key concepts:**
+
+- **Deploy bundle** — immutable execution input at `.work/deploy/bundles/<bundle_id>/`
+- **Deploy runner** — workspace-aware execution backend (native/wsl/docker/remote)
+- **Init-node** — orchestrator for device bootstrap lifecycle
+
+**Deploy bundle workflow:**
 
 ```bash
 # Build immutable deploy bundle from generated artifacts
@@ -154,7 +180,28 @@ task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
 task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id>
 ```
 
-Reference: `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md`
+**Node initialization (scaffold):**
+
+```bash
+# Check init state
+task framework:deploy-init-status
+
+# Plan node initialization
+task framework:deploy-init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id>
+```
+
+**State file locations:**
+
+| Path | Purpose |
+|------|---------|
+| `.work/deploy/bundles/<id>/` | Immutable deploy bundles |
+| `.work/deploy-state/<project>/nodes/` | Initialization state |
+| `.work/deploy-state/<project>/logs/` | Audit logs (JSONL) |
+
+**References:**
+- `docs/guides/DEPLOY-BUNDLE-WORKFLOW.md`
+- `docs/guides/NODE-INITIALIZATION.md`
+- `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md`
 
 ### 3. Run Tests
 
