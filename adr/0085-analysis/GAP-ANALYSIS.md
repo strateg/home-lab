@@ -34,13 +34,13 @@ Track remaining gap between implemented deploy-bundle model and full target cont
 
 ## Remaining Gap Items
 
-### G1: ADR 0083 consumer entry points are still pending
+### G1: ADR 0083 consumer entry points — scaffold complete
 
-**Current:** `service_chain_evidence.py` is migrated to bundle-ID based execution.
+**Current:** `service_chain_evidence.py` and `init-node.py` both consume `--bundle` parameter.
 
-**Target:** Future `init-node.py` and related ADR 0083 entry points consume the same `--bundle` model.
+**Target:** `init-node.py` adapter execute() methods complete for hardware E2E.
 
-**Action:** Complete when ADR 0083 implementation is resumed.
+**Action:** ✅ Scaffold merged; hardware validation pending.
 
 ### G2: Runner backend reliability hardening remains
 

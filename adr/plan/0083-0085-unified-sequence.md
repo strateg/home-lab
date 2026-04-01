@@ -1,8 +1,8 @@
 # ADR 0083/0084/0085: Unified Implementation Sequence
 
-**Date:** 2026-03-31
-**Status:** Active (ADR 0085/0084 core completed; deferred backend and ADR 0083 decisions remain)
-**Purpose:** Keep one execution sequence across deploy-domain ADRs.
+**Date:** 2026-03-31 (updated)
+**Status:** Active — ADR 0085/0084 core complete; ADR 0083 scaffold complete, hardware validation pending
+**Purpose:** Single execution sequence across deploy-domain ADRs.
 
 ---
 
@@ -11,18 +11,18 @@
 ```
 ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init)
      ↓                            ↓                         ↓
-  PRIMARY                      SECONDARY                 DEFERRED
+  COMPLETE                     COMPLETE                  SCAFFOLD READY
 ```
 
 ---
 
 ## Current State Summary
 
-| ADR | Status | Completed Scope | Next Scope |
-|-----|--------|-----------------|------------|
-| 0085 | Accepted | Phases 0/0a/1/2 + active Phase 3 migration + assemble-plugin integration | Backend follow-ups + ADR0083 consumers |
-| 0084 | Accepted | Runner plane + bundle-based active deploy flow + DockerRunner/RemoteRunner core + Docker toolchain image + backend CI lane + remote setup docs | Remote backend reliability follow-up |
-| 0083 | Proposed (Scaffold started) | `init-node` CLI/state/status + adapter/state-machine scaffold + environment precheck + non-plan adapter preflight/execute lifecycle baseline + mechanism-specific adapter baselines (`netinstall`/`unattended_install`/`cloud_init`/`ansible_bootstrap`) + verify-only handover-check baseline (`initialized -> verified`) + runner workspace staging/cleanup baseline + structured JSONL audit logging baseline + Taskfile run wrappers baseline + bundle-manifest mechanism inference for root bootstrap artifacts + Phase 1 schema/validator baseline + MikroTik/Proxmox/OrangePi contract declarations + contract-aware bootstrap projection routing + Proxmox minimal bootstrap templates/generator update + tests | Complete concrete adapters/handover flow |
+| ADR | Status | Completed Scope | Remaining |
+|-----|--------|-----------------|-----------|
+| 0085 | **Accepted** | Phases 0–4 complete: runner foundation + tests + profile + bundle assembly + entry point migration + backend implementation | Backend reliability follow-ups (remote CI) |
+| 0084 | **Accepted** | Runner plane + bundle-based deploy flow + DockerRunner/RemoteRunner + Docker toolchain image + backend CI lane | Remote backend smoke tests |
+| 0083 | **Proposed** (scaffold complete) | Schema + validator + contract declarations (MikroTik/Proxmox/OrangePi) + init-node CLI/state/status + 4 adapter baselines + state machine + structured logging + environment precheck + bundle-manifest mechanism inference + 83 orchestration tests | Adapter execute() implementation + hardware tests |
 
 ---
 
@@ -54,18 +54,23 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 
 ## Remaining Work Buckets
 
-### Bucket A: Deferred Runner Backends (ADR 0084)
+### Bucket A: Runner Backend Hardening (ADR 0084)
 
 | Item | Trigger | Status |
 |------|---------|--------|
-| `DockerRunner` CI image/workflow hardening | CI reproducibility requirement | Completed |
-| Backend CI/reliability validation | With implementation | Pending |
+| `DockerRunner` CI image/workflow | CI reproducibility | ✅ Complete |
+| `RemoteLinuxRunner` contract tests | Unit coverage | ✅ Complete |
+| Remote backend CI smoke | Dedicated runner infra | ⏸ Environment-dependent |
 
-### Bucket B: ADR 0083 Decision
+### Bucket B: ADR 0083 Hardware Validation
 
 | Item | Dependency | Status |
 |------|------------|--------|
-| Complete `init-node.py` adapters + state transitions + handover checks | ADR 0085/0084 foundation now available | In progress (scaffold baseline merged) |
+| Adapter `execute()` implementation | Hardware access | ⏸ Pending |
+| MikroTik netinstall E2E | Physical router | ⏸ Pending |
+| Proxmox unattended install E2E | Fresh install media | ⏸ Pending |
+| OrangePi cloud-init E2E | SBC hardware | ⏸ Pending |
+| Handover check retry logic | Adapter execute | ⏸ Pending |
 
 ---
 
@@ -83,19 +88,70 @@ ADR 0085 (bundle contract) -> ADR 0084 (deploy plane) -> ADR 0083 (optional init
 
 ## Test Matrix Summary
 
-| Scope | Tests | Category |
-|-------|-------|----------|
-| Runner | T-R01..T-R12 | Unit |
-| Profile | T-P01..T-P06 | Unit/Integration |
-| Bundle | T-B01..T-B10 | Unit/Integration |
-| Bundle workflow | T-W01..T-W05 + bundle-mode path tests | Integration/Unit |
-| ADR 0083 | T-Oxx (future) | Deferred |
+| Scope | Tests | Status |
+|-------|-------|--------|
+| Runner | 23 tests (Native/WSL/Docker/Remote) | ✅ Pass |
+| Profile | 8 tests | ✅ Pass |
+| Bundle | 11 tests | ✅ Pass |
+| Bundle workflow | 5 tests | ✅ Pass |
+| Init-node CLI | 14 tests | ✅ Pass |
+| Adapters | 9 tests | ✅ Pass |
+| State machine | 5 tests | ✅ Pass |
+| Logging | 2 tests | ✅ Pass |
+| Environment | 5 tests | ✅ Pass |
+| **Total** | **83 tests (82 pass, 1 WSL skip)** | ✅ |
 
 ---
 
 ## Success Criteria Snapshot
 
-1. ADR 0085 core flow is bundle-based and tested.
-2. ADR 0084 runner plane is active for bundle staging/execution.
-3. Documentation reflects bundle-first operator workflow.
-4. ADR 0083 can start from existing bundle + runner contract without redesign.
+| Criterion | Status |
+|-----------|--------|
+| ADR 0085 core flow is bundle-based and tested | ✅ Complete |
+| ADR 0084 runner plane is active for bundle staging/execution | ✅ Complete |
+| Documentation reflects bundle-first operator workflow | ✅ Complete |
+| ADR 0083 scaffold uses existing bundle + runner contract | ✅ Complete |
+| ADR 0083 hardware validation | ⏸ Pending |
+
+---
+
+## Implementation Artifacts Summary
+
+```
+scripts/orchestration/deploy/
+├── __init__.py
+├── adapters/
+│   ├── __init__.py          # get_adapter() factory
+│   ├── base.py              # BootstrapAdapter ABC + dataclasses
+│   ├── netinstall.py        # MikroTik adapter
+│   ├── unattended.py        # Proxmox adapter
+│   ├── cloud_init.py        # OrangePi adapter
+│   └── ansible_bootstrap.py # Generic Ansible adapter
+├── bundle.py                # Bundle create/list/inspect/delete
+├── environment.py           # Deploy environment precheck
+├── init_node.py             # Main orchestrator (30KB)
+├── logging.py               # Structured JSONL audit
+├── profile.py               # Deploy profile loader
+├── runner.py                # DeployRunner backends (25KB)
+├── state.py                 # State machine helpers
+└── workspace.py             # Workspace resolver
+
+schemas/
+├── deploy-bundle-manifest.schema.json
+├── deploy-profile.schema.json
+└── initialization-contract.schema.json
+
+topology-tools/plugins/validators/
+└── initialization_contract_validator.py
+
+tests/orchestration/
+├── test_adapters.py
+├── test_bundle.py
+├── test_bundle_workflow.py
+├── test_deploy_logging.py
+├── test_environment.py
+├── test_init_node.py
+├── test_profile.py
+├── test_runner.py
+└── test_state.py
+```

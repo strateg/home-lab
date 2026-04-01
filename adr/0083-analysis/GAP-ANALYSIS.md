@@ -349,4 +349,30 @@ Based on critical review of ADR 0083, the following improvements were incorporat
 1. ~~Create `IMPLEMENTATION-PLAN.md` with detailed phases~~ — ✅ Done
 2. ~~Create `CUTOVER-CHECKLIST.md` for migration gates~~ — ✅ Done
 3. ~~Critical review and improvements~~ — ✅ Done (see table above)
-4. Begin Phase 1: Schema and contract definition (ADR 0080 Waves A-H completed ✅)
+4. ~~Phase 1: Schema and contract definition~~ — ✅ Done (schema + validator + contracts)
+5. ~~Phase 2: Orchestrator scaffold~~ — ✅ Done (init_node.py + adapters + state + logging)
+6. **Phase 3: Hardware validation** — ⏸ Pending (adapter execute() + E2E tests)
+
+---
+
+## Implementation Status (2026-03-31)
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Schema | ✅ Complete | `schemas/initialization-contract.schema.json` |
+| Validator plugin | ✅ Complete | `topology-tools/plugins/validators/initialization_contract_validator.py` |
+| MikroTik contract | ✅ Complete | `topology/object-modules/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml` |
+| Proxmox contract | ✅ Complete | `topology/object-modules/proxmox/obj.proxmox.ve.yaml` |
+| OrangePi contract | ✅ Complete | `topology/object-modules/orangepi/obj.orangepi.rk3588.debian.yaml` |
+| Orchestrator CLI | ✅ Complete | `scripts/orchestration/deploy/init_node.py` |
+| Adapter ABC | ✅ Complete | `scripts/orchestration/deploy/adapters/base.py` |
+| Netinstall adapter | ✅ Baseline | `scripts/orchestration/deploy/adapters/netinstall.py` |
+| Unattended adapter | ✅ Baseline | `scripts/orchestration/deploy/adapters/unattended.py` |
+| CloudInit adapter | ✅ Baseline | `scripts/orchestration/deploy/adapters/cloud_init.py` |
+| AnsibleBootstrap adapter | ✅ Baseline | `scripts/orchestration/deploy/adapters/ansible_bootstrap.py` |
+| State machine | ✅ Complete | `scripts/orchestration/deploy/state.py` |
+| Structured logging | ✅ Complete | `scripts/orchestration/deploy/logging.py` |
+| Environment precheck | ✅ Complete | `scripts/orchestration/deploy/environment.py` |
+| Tests | ✅ 83 tests | `tests/orchestration/test_*.py` |
+| Adapter execute() | ⏸ Placeholder | Returns E9730 "not implemented" |
+| Hardware E2E | ⏸ Pending | Requires physical devices |
