@@ -1,6 +1,37 @@
 # Home Lab Documentation
 
-Welcome to the home lab infrastructure documentation! This directory contains all documentation organized by topic.
+Welcome to the home lab infrastructure documentation.
+
+**Architecture:** V5 Infrastructure-as-Data with Class-Object-Instance topology model
+**Last Updated:** 2026-04-01
+
+---
+
+## Quick Start
+
+### For Operators
+
+```bash
+# 1. Validate topology
+task validate:v5-passthrough
+
+# 2. Compile and generate
+task build:default
+
+# 3. Create deploy bundle
+task framework:deploy-bundle-create
+task framework:deploy-bundle-list
+
+# 4. Execute from bundle
+task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
+```
+
+### For New Users
+
+1. **Understand v5 architecture:** Read [CLAUDE.md](../CLAUDE.md)
+2. **Learn plugin system:** Read [PLUGIN_AUTHORING_GUIDE.md](PLUGIN_AUTHORING_GUIDE.md)
+3. **Deploy workflow:** Read [guides/DEPLOY-BUNDLE-WORKFLOW.md](guides/DEPLOY-BUNDLE-WORKFLOW.md)
+4. **Secrets management:** Read [secrets-management.md](secrets-management.md)
 
 ---
 
@@ -9,332 +40,113 @@ Welcome to the home lab infrastructure documentation! This directory contains al
 ```
 docs/
 ├── README.md                    # You are here
-├── CHANGELOG.md                 # Project changelog (v3.0.0)
-├── CHANGELOG-GENERATED-DIR.md   # Generated directory changelog
-├── NETINSTALL-CLI-INDEX.md      # ADR0057 Netinstall docs index
-├── NETINSTALL-CLI-PROVISIONING.md # Control-node provisioning guide
-├── NETINSTALL-CLI-QUICK-REFERENCE.md # Netinstall command quick reference
-├── NETINSTALL-CLI-SETUP-OPTIONS.md # Setup methods comparison
-├── NETINSTALL-CLI-VISUAL-GUIDE.md # Visual bootstrap flow
-├── framework/                   # v5 framework/project contract docs
-│   └── FRAMEWORK-V5.md          # Framework boundaries and operator workflow (NEW)
+├── PLUGIN_AUTHORING_GUIDE.md    # Plugin development guide (v5)
+├── PLUGIN_IMPLEMENTATION_EXAMPLES.md  # Plugin examples
+├── secrets-management.md        # SOPS+age secrets (ADR 0072)
+├── diagnostics-catalog.md       # Compiler error codes
+├── guides/                      # Operational guides
+│   ├── DEPLOY-BUNDLE-WORKFLOW.md    # Bundle-based deploy (ADR 0085)
+│   ├── NODE-INITIALIZATION.md       # Init-node scaffold (ADR 0083)
+│   ├── OPERATOR-ENVIRONMENT-SETUP.md # Runner setup (ADR 0084)
+│   ├── DOCKER-RUNNER-SETUP.md       # Docker runner guide
+│   ├── REMOTE-RUNNER-SETUP.md       # Remote runner guide
+│   ├── MIKROTIK-TERRAFORM.md        # MikroTik automation
+│   └── ...
+├── framework/                   # Framework documentation
+│   ├── FRAMEWORK-V5.md              # Framework contract
+│   └── ...
 ├── runbooks/                    # Operational runbooks
-│   └── V5-E2E-DRY-RUN.md        # End-to-end dry-run procedure (NEW)
-├── guides/                      # Practical how-to guides
-│   ├── DEPLOYMENT-STRATEGY.md   # Full deployment workflow (NEW)
-│   ├── MIKROTIK-TERRAFORM.md    # MikroTik Terraform guide (NEW)
-│   ├── BRIDGES.md               # Network bridges setup
-│   ├── GENERATED-QUICK-GUIDE.md # Generated directory quick reference
-│   ├── PROXMOX-USB-AUTOINSTALL.md # Proxmox auto-install USB
-│   ├── ANSIBLE-VAULT-GUIDE.md   # Secrets management
-│   └── RAM-OPTIMIZATION.md      # RAM optimization (8GB constraint)
-├── architecture/                # Architecture and design decisions
-│   ├── TOPOLOGY-MODULAR.md      # Modular topology structure (v3.0)
-│   └── MIGRATION-V1-TO-V2.md    # Migration guide (historical)
+│   ├── DEPLOY-RUNBOOK.md            # Deploy operations
+│   └── ...
+├── architecture/                # Architecture docs
 └── archive/                     # Historical documents
+    └── v5-superseded/           # Docs superseded by v5
 ```
 
 ---
 
-## Quick Start
+## Key ADRs for Deploy Domain
 
-### Full Deployment from Scratch
-
-```bash
-# 1. Bootstrap MikroTik (day-0)
-#    Preferred target path: follow `cd deploy && make bootstrap-info`
-#    and run `bootstrap-preflight -> bootstrap-netinstall -> bootstrap-postcheck -> bootstrap-terraform-check`
-#    from the control node after `make assemble-native`
-#    Fallback: import `.work/native/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc`
-
-# 2. Configure credentials
-cd .work/native/terraform/mikrotik
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with passwords and keys
-
-# 3. Deploy everything
-cd deploy
-make generate
-make assemble-dist
-make validate-dist
-make deploy-all
-```
-
-See [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) for the complete guide.
-
-### For New Users
-
-1. **Understand the architecture**: Read [TOPOLOGY-MODULAR.md](architecture/TOPOLOGY-MODULAR.md)
-2. **Learn deployment strategy**: Read [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md)
-3. **MikroTik setup**: Follow [MIKROTIK-TERRAFORM.md](guides/MIKROTIK-TERRAFORM.md)
-4. **Create Proxmox USB**: Generate `generated/bootstrap/srv-gamayun/` and follow [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md)
-5. **Manage secrets**: Read [ANSIBLE-VAULT-GUIDE.md](guides/ANSIBLE-VAULT-GUIDE.md)
-
----
-
-## Infrastructure Overview
-
-```
-                    ┌─────────────────┐
-                    │    Internet     │
-                    └────────┬────────┘
-                             │
-              ┌──────────────┴──────────────┐
-              │  MikroTik Chateau LTE7 ax   │
-              │  ├─ Firewall + NAT          │
-              │  ├─ DHCP + DNS (AdGuard)    │
-              │  ├─ VLANs (30,40,50,99)     │
-              │  ├─ WireGuard VPN           │
-              │  ├─ Tailscale (container)   │
-              │  └─ QoS Traffic Shaping     │
-              └──────────────┬──────────────┘
-                             │
-         ┌───────────────────┼───────────────────┐
-         │                   │                   │
-   ┌─────┴─────┐      ┌─────┴─────┐      ┌─────┴─────┐
-   │ Orange Pi │      │  Proxmox  │      │   Users   │
-   │    5      │      │  (Dell)   │      │  Devices  │
-   ├───────────┤      ├───────────┤      └───────────┘
-   │ Nextcloud │      │ PostgreSQL│
-   │ Jellyfin  │      │ Redis     │
-   │ Grafana   │      └───────────┘
-   │ Prometheus│
-   └───────────┘
-```
+| ADR | Title | Status |
+|-----|-------|--------|
+| [0083](../adr/0083-unified-node-initialization-contract.md) | Unified Node Initialization Contract | Scaffold complete |
+| [0084](../adr/0084-cross-platform-dev-plane-and-linux-deploy-plane.md) | Cross-Platform Dev / Linux Deploy Plane | Complete |
+| [0085](../adr/0085-deploy-bundle-and-runner-workspace-contract.md) | Deploy Bundle and Runner Workspace | Complete |
 
 ---
 
 ## Documentation by Topic
 
-### Deployment & Operations
+### Deploy Operations (ADR 0083-0085)
 
-| Document | Description | Status |
-|----------|-------------|--------|
-| [DEPLOYMENT-STRATEGY.md](guides/DEPLOYMENT-STRATEGY.md) | Full deployment workflow with phases and dist assembly | UPDATED |
-| [MIKROTIK-TERRAFORM.md](guides/MIKROTIK-TERRAFORM.md) | MikroTik RouterOS automation | NEW |
-| [PROXMOX-USB-AUTOINSTALL.md](guides/PROXMOX-USB-AUTOINSTALL.md) | Proxmox auto-install USB creation from generated bootstrap package | UPDATED |
-| [BRIDGES.md](guides/BRIDGES.md) | Network bridges (Terraform + manual) | STABLE |
+| Document | Description |
+|----------|-------------|
+| [DEPLOY-BUNDLE-WORKFLOW.md](guides/DEPLOY-BUNDLE-WORKFLOW.md) | Bundle create/inspect/execute workflow |
+| [NODE-INITIALIZATION.md](guides/NODE-INITIALIZATION.md) | Init-node CLI and state management |
+| [OPERATOR-ENVIRONMENT-SETUP.md](guides/OPERATOR-ENVIRONMENT-SETUP.md) | WSL/Docker/Remote runner setup |
 
-### Infrastructure Setup
+### Plugin Development (ADR 0063-0080)
 
-| Document | Description | Status |
-|----------|-------------|--------|
-| [GENERATED-QUICK-GUIDE.md](guides/GENERATED-QUICK-GUIDE.md) | Generated directory workflow | STABLE |
-| [RAM-OPTIMIZATION.md](guides/RAM-OPTIMIZATION.md) | RAM allocation for 8GB constraint | STABLE |
-| [ANSIBLE-VAULT-GUIDE.md](guides/ANSIBLE-VAULT-GUIDE.md) | Secrets management | STABLE |
+| Document | Description |
+|----------|-------------|
+| [PLUGIN_AUTHORING_GUIDE.md](PLUGIN_AUTHORING_GUIDE.md) | How to write v5 plugins |
+| [PLUGIN_IMPLEMENTATION_EXAMPLES.md](PLUGIN_IMPLEMENTATION_EXAMPLES.md) | Real plugin examples |
+| [diagnostics-catalog.md](diagnostics-catalog.md) | Error and warning codes |
 
-### Netinstall (ADR 0057)
+### Secrets Management (ADR 0072)
 
-| Document | Description | Status |
-|----------|-------------|--------|
-| [NETINSTALL-CLI-INDEX.md](NETINSTALL-CLI-INDEX.md) | Entry point for Netinstall docs | NEW |
-| [NETINSTALL-CLI-QUICK-REFERENCE.md](NETINSTALL-CLI-QUICK-REFERENCE.md) | Operator command cheatsheet | NEW |
-| [NETINSTALL-CLI-PROVISIONING.md](NETINSTALL-CLI-PROVISIONING.md) | Control-node provisioning details | NEW |
-| [NETINSTALL-CLI-SETUP-OPTIONS.md](NETINSTALL-CLI-SETUP-OPTIONS.md) | Bash vs Ansible setup options | NEW |
-| [NETINSTALL-CLI-VISUAL-GUIDE.md](NETINSTALL-CLI-VISUAL-GUIDE.md) | Visual workflow and decision flow | NEW |
+| Document | Description |
+|----------|-------------|
+| [secrets-management.md](secrets-management.md) | SOPS+age encryption workflow |
 
-### Architecture
+### MikroTik Bootstrap (ADR 0057)
 
-| Document | Description | Status |
-|----------|-------------|--------|
-| [TOPOLOGY-MODULAR.md](architecture/TOPOLOGY-MODULAR.md) | Modular topology structure | UPDATED |
-| [MIGRATION-V1-TO-V2.md](architecture/MIGRATION-V1-TO-V2.md) | Migration guide v1→v2 | ARCHIVED |
+| Document | Description |
+|----------|-------------|
+| [NETINSTALL-CLI-INDEX.md](NETINSTALL-CLI-INDEX.md) | Netinstall documentation index |
+| [guides/MIKROTIK-TERRAFORM.md](guides/MIKROTIK-TERRAFORM.md) | Terraform automation guide |
 
-### Framework (v5)
+### Framework (ADR 0075-0081)
 
-| Document | Description | Status |
-|----------|-------------|--------|
-| [FRAMEWORK-V5.md](framework/FRAMEWORK-V5.md) | Framework/project contract, paths, commands, diagnostics | NEW |
-| [SUBMODULE-ROLL-OUT.md](framework/SUBMODULE-ROLL-OUT.md) | Submodule-first rollout for framework + project repos | NEW |
-| [OPERATOR-WORKFLOWS.md](framework/OPERATOR-WORKFLOWS.md) | Lock verify/update/rollback workflows for strict runtime | NEW |
-| [PROJECT-BOOTSTRAP-AND-FRAMEWORK-INTEGRATION.md](framework/PROJECT-BOOTSTRAP-AND-FRAMEWORK-INTEGRATION.md) | Project bootstrap, framework wiring, and joint compile flow | NEW |
-| [FRAMEWORK-RELEASE-GUIDE.md](framework/FRAMEWORK-RELEASE-GUIDE.md) | Step-by-step framework release guide (preflight, tag, artifacts, rollback) | NEW |
-| [INFRA-TOPOLOGY-FRAMEWORK-RELEASE-PROCESS.md](framework/INFRA-TOPOLOGY-FRAMEWORK-RELEASE-PROCESS.md) | Release process for infra-topology-framework (ADR0076+ADR0077) | NEW |
-| [framework-release.yml](framework/templates/framework-release.yml) | Template workflow for framework release packaging/SBOM/provenance | NEW |
-
-### Runbooks
-
-| Document | Description | Status |
-|----------|-------------|--------|
-| [V5-E2E-DRY-RUN.md](runbooks/V5-E2E-DRY-RUN.md) | E2E dry-run gate for Terraform/Ansible cutover | NEW |
+| Document | Description |
+|----------|-------------|
+| [framework/FRAMEWORK-V5.md](framework/FRAMEWORK-V5.md) | Framework/project contract |
 
 ---
 
-## Deployment Phases
-
-The infrastructure is deployed in 4 runtime phases, with an additional package-assembly layer:
-
-| Phase | Target | Tool | Description |
-|-------|--------|------|-------------|
-| 0 | MikroTik | Netinstall-first with manual fallback | Day-0 bootstrap for Terraform handover |
-| 1 | MikroTik | Terraform | Network, firewall, VPN, containers |
-| 2 | Proxmox | Terraform | LXC containers (PostgreSQL, Redis) |
-| 3 | All | Ansible | Service configuration |
-| 4 | All | Script | Verification checks |
-| Dist | control packages | Python + Make | Assembled deploy packages and manifests |
-
-```bash
-# Full deployment command
-cd deploy && make deploy-all
-
-# Optional package assembly and validation
-make assemble-dist
-make validate-dist
-make check-parity
-make check-native-ready
-make check-dist-ready
-make materialize-dist-inputs
-make clean-generated-managed
-
-# Optional dist-first execution mode
-make plan-dist
-make deploy-all-dist
-
-# Or step by step
-make bootstrap-info   # Show bootstrap instructions
-make plan             # Preview all changes
-make apply-mikrotik   # Phase 1: Network
-make apply-proxmox    # Phase 2: Compute
-make configure        # Phase 3: Services
-make test             # Phase 4: Verify
-```
-
-`native` remains the default rollback path. `dist` execution is opt-in and runs only from `dist/control/**` package roots with manifest-driven local-input checks. `make assemble-native` materializes canonical `local/` inputs into `.work/native/`, `make materialize-native-inputs` remains a compatibility alias, and `make materialize-dist-inputs` copies those same canonical local inputs into `dist/`.
-
-Terraform also has a tracked exception layer under `terraform-overrides/`. Those files are additive reviewable overrides, not local inputs and not generated baseline.
-Use `make check-terraform-override-flow` to smoke-test that override layer through native assembly, `dist/`, manifests, and parity.
-
----
-
-## Generated Resources
-
-### MikroTik Terraform (terraform-routeros)
-
-| Resource Type | Count | Description |
-|---------------|-------|-------------|
-| Bridge | 1 | bridge-lan with VLAN filtering |
-| Bridge Ports | 4 | LAN1-4 (ether2-ether5) |
-| VLANs | 4 | 30 (servers), 40 (IoT), 50 (guest), 99 (mgmt) |
-| IP Addresses | 9 | Per-network gateway addresses |
-| DHCP Servers | 3 | LAN, Guest, IoT |
-| DNS Records | 20 | Static records for services |
-| Firewall Rules | 15+ | Filter + NAT + address lists |
-| QoS Queues | 7 | Priority-based traffic shaping |
-| WireGuard | 1 | VPN with dynamic peers |
-| Containers | 2 | AdGuard Home, Tailscale |
-
-### Proxmox Terraform (bpg/proxmox)
-
-| Resource Type | Count | Description |
-|---------------|-------|-------------|
-| Bridges | 3 | vmbr0 (WAN), vmbr2 (servers), vmbr99 (mgmt) |
-| LXC Containers | 2 | PostgreSQL, Redis |
-
----
-
-## Key Concepts
-
-### Infrastructure-as-Data
-
-Everything is defined in layered topology with `topology.yaml` as entry point:
+## V5 Architecture Overview
 
 ```
-topology.yaml
-    ├── !include topology/L0-meta.yaml
-    ├── !include topology/L1-foundation.yaml
-    ├── !include topology/L2-network.yaml
-    ├── !include topology/L3-data.yaml
-    └── ... (L4-L7)
-           ↓
-    topology-tools/*.py
-           ↓
-    generated/
-    ├── terraform/
-    ├── ansible/inventory/
-    ├── ansible/runtime/
-    ├── docs/
-    dist/
-    ├── control/
-    └── manifests/
-```
-
-### Generated vs. Manual Files
-
-**Generated / Assembled** (DO NOT EDIT):
-- `generated/terraform/*.tf`
-- `generated/ansible/inventory/`
-- `generated/ansible/runtime/`
-- `dist/`
-- `generated/docs/`
-
-**Manual** (EDIT THESE):
-- `topology.yaml` and `topology/*.yaml`
-- `ansible/playbooks/*.yml`
-- `ansible/roles/*/tasks/*.yml`
-- `deploy/phases/*.sh`
-
----
-
-## Recent Updates (2026-02)
-
-### NEW: MikroTik Terraform Automation
-
-- **terraform-routeros provider** v1.99.0 integration
-- Full network configuration from topology.yaml
-- WireGuard VPN with dynamic peers
-- Container support (AdGuard, Tailscale)
-- QoS traffic shaping
-
-### NEW: Deployment Orchestration
-
-- **deploy/Makefile** - Convenient deployment commands
-- **Phase scripts** - Modular deployment (01-network, 02-compute, etc.)
-- **Generated bootstrap packages** - Device bootstrap assets under `generated/bootstrap/`
-- **Verification** - Automated health checks
-
-### NEW: Topology v3.0
-
-- Added MikroTik-specific configuration
-- Enhanced firewall policies
-- QoS queue definitions
-- Container service definitions
-
----
-
-## File Structure
-
-```
-home-lab/
+topology/
 ├── topology.yaml              # Main entry point
-├── topology/                  # Modular YAML files
-├── topology-tools/            # Python generators and validators
-│   ├── validate-topology.py
-│   ├── generate-terraform-proxmox.py
-│   ├── generate-terraform-mikrotik.py
-│   ├── generate-ansible-inventory.py
-│   ├── assemble-ansible-runtime.py
-│   ├── assemble-deploy.py
-│   ├── validate-dist.py
-│   ├── generate-docs.py
-│   └── scripts/generators/
-├── generated/                 # Auto-generated configs
-│   ├── terraform/proxmox/
-│   ├── terraform/mikrotik/
-│   ├── ansible/
-│   └── ...
-├── dist/                      # Assembled deploy packages
-│   ├── control/ansible/
-│   ├── control/terraform/
-│   ├── bootstrap/
-│   └── manifests/
-├── deploy/                    # Deployment orchestration (NEW)
-│   ├── Makefile
-│   └── phases/
-├── bootstrap/                 # Legacy manual bootstrap assets
-├── Migrated_and_archived/     # Archived legacy flows and assets
-├── ansible/                   # Playbooks and roles
-└── docs/                      # Documentation
+├── class-modules/             # Class definitions
+└── object-modules/            # Object definitions
+         ↓
+topology-tools/plugins/        # Plugin-based compilation
+         ↓
+generated/<project>/           # Generated outputs
+├── terraform/proxmox/
+├── terraform/mikrotik/
+├── ansible/
+├── bootstrap/
+└── docs/
+         ↓
+.work/deploy/bundles/<id>/     # Immutable deploy bundles (ADR 0085)
+         ↓
+DeployRunner                   # Execution backend (ADR 0084)
 ```
+
+---
+
+## State File Locations
+
+| Path | Purpose |
+|------|---------|
+| `.work/deploy/bundles/<id>/` | Immutable deploy bundles |
+| `.work/deploy-state/<project>/nodes/` | Initialization state |
+| `.work/deploy-state/<project>/logs/` | Audit logs (JSONL) |
+| `generated/<project>/` | Generated artifacts |
+| `build/` | Compilation artifacts |
 
 ---
 
@@ -345,19 +157,18 @@ home-lab/
 - [terraform-routeros](https://registry.terraform.io/providers/terraform-routeros/routeros/latest/docs) - MikroTik RouterOS
 - [bpg/proxmox](https://registry.terraform.io/providers/bpg/proxmox/latest/docs) - Proxmox VE
 
-### MikroTik
+### Tools
 
-- [RouterOS Documentation](https://help.mikrotik.com/docs/display/ROS/RouterOS)
-- [RouterOS Scripting](https://help.mikrotik.com/docs/display/ROS/Scripting)
-- [Container Package](https://help.mikrotik.com/docs/display/ROS/Container)
-
-### Proxmox & Ansible
-
-- [Proxmox VE Documentation](https://pve.proxmox.com/wiki/Main_Page)
-- [Ansible Documentation](https://docs.ansible.com/)
+- [SOPS](https://github.com/getsops/sops) - Secrets management
+- [age](https://github.com/FiloSottile/age) - Encryption
+- [Go-Task](https://taskfile.dev/) - Task runner
 
 ---
 
-**Last Updated**: 2026-03-02
-**Documentation Version**: 3.0.0
-**Topology Version**: 3.0.0
+## Archived Documentation
+
+Documents superseded by v5 architecture are in `archive/v5-superseded/`:
+
+- `ANSIBLE-VAULT-GUIDE.md` → Use `secrets-management.md` (SOPS+age)
+- `DEPLOYMENT-STRATEGY.md` → Use `guides/DEPLOY-BUNDLE-WORKFLOW.md`
+- `DEVELOPERS_GUIDE_GENERATORS.md` → Use `PLUGIN_AUTHORING_GUIDE.md`
