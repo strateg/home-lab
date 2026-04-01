@@ -55,11 +55,16 @@ def test_decrypt_yaml_missing_sops_reports_runtime_error(monkeypatch):
 def test_generate_and_cleanup_mikrotik_tfvars(tmp_path: Path, monkeypatch):
     module = _load_module()
 
-    secret_file = tmp_path / "secrets" / "terraform" / "mikrotik.yaml"
+    # Setup project structure
+    project_root = tmp_path / "projects" / "home-lab"
+    project_root.mkdir(parents=True, exist_ok=True)
+
+    secret_file = project_root / "secrets" / "terraform" / "mikrotik.yaml"
     secret_file.parent.mkdir(parents=True, exist_ok=True)
     secret_file.write_text("dummy: value\n", encoding="utf-8")
 
-    output_dir = tmp_path / ".work" / "native" / "terraform" / "mikrotik"
+    # Output now goes to generated/<project>/terraform/<target>/
+    output_dir = tmp_path / "generated" / "home-lab" / "terraform" / "mikrotik"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     payload = {
@@ -87,7 +92,8 @@ def test_generate_and_cleanup_mikrotik_tfvars(tmp_path: Path, monkeypatch):
     }
 
     monkeypatch.setattr(module, "_repo_root", lambda: tmp_path)
-    monkeypatch.setattr(module, "_v5_root", lambda: tmp_path)
+    monkeypatch.setattr(module, "_resolve_active_project", lambda: ("home-lab", project_root))
+    monkeypatch.setattr(module, "_resolve_secrets_root", lambda _: project_root / "secrets")
     monkeypatch.setattr(module, "_decrypt_yaml", lambda _: payload)
 
     assert module._generate_tfvars("mikrotik") == 0
