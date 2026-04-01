@@ -1,115 +1,178 @@
-# home-lab
+# Home Lab Infrastructure
 
-Root-layout repository for topology framework + project runtime.
+Infrastructure-as-Data home lab with Class-Object-Instance topology model.
 
-## Runtime Policy
+## Architecture
 
-- `v5` lane is the default production lane.
-- `v4` is maintenance-only and stored under `archive/v4` for parity/rollback reference.
-- New development is performed only on root layout (`topology/`, `topology-tools/`, `projects/`, `tests/`).
+**V5 Plugin-based microkernel** with layered deploy domain:
+
+| Layer | ADR | Description |
+|-------|-----|-------------|
+| Topology | 0062, 0063 | Class → Object → Instance hierarchy |
+| Compilation | 0074, 0080 | Plugin-based discover → compile → validate → generate → assemble → build |
+| Secrets | 0072 | SOPS + age encryption |
+| Deploy Bundle | 0085 | Immutable execution input |
+| Deploy Runner | 0084 | Cross-platform dev / Linux deploy plane |
+| Node Init | 0083 | Unified bootstrap contract (scaffold) |
 
 ## Repository Layout
 
-- Active runtime/model: `topology/`, `topology-tools/`, `projects/`, `scripts/`, `tests/`, `taskfiles/`
-- Generated artifacts: `generated/`, `build/`, `dist/`
-- Legacy baseline for parity only: `archive/v4/`
-
-Root `v4/` and root `v5/` directories are intentionally forbidden.
-
-## Core Paths
-
-- Project instances: `projects/<project>/instances/`
-- Project secrets: `projects/<project>/secrets/`
-- Project ansible overrides: `projects/<project>/ansible/inventory-overrides/`
-- Generated outputs:
-  - `generated/<project>/terraform/...`
-  - `generated/<project>/ansible/...`
-  - `generated/<project>/bootstrap/...`
-
-## Quick Commands
-
-```powershell
-task validate:quality
-task validate:v5
-task validate:v5-layers
-task validate:workspace-layout
-task validate:plugin-manifests
-task test
-task test:parity-v4-v5
-task clean
-task build
-task build:v5-docs
-task ci:local
-task ci:local-with-legacy
-task ci:legacy-maintenance
-task framework:strict
-task framework:cutover-readiness-quick
-task framework:cutover-readiness
-task acceptance:tests-all
-task ansible:install-collections
-task ansible:runtime
-task ansible:runtime-inject
-task ansible:syntax
-task ansible:check-site
-task ansible:check-site-inject
+```
+home-lab/
+├── topology/                    # Source of truth
+│   ├── topology.yaml            # Main entry point
+│   ├── class-modules/           # Class definitions
+│   └── object-modules/          # Object definitions
+├── projects/home-lab/           # Project-specific data
+│   ├── topology/instances/      # Instance definitions
+│   ├── secrets/                 # SOPS-encrypted secrets
+│   └── deploy/                  # Deploy profile
+├── topology-tools/              # Plugin runtime
+│   └── plugins/                 # Compiler/validator/generator plugins
+├── scripts/orchestration/       # Orchestration
+│   └── deploy/                  # Deploy domain (runner, bundle, init-node)
+├── generated/<project>/         # Generated outputs (DO NOT EDIT)
+├── schemas/                     # JSON schemas
+├── tests/                       # Test suite (822 tests)
+└── adr/                         # Architecture Decision Records
 ```
 
-## V5 Deploy Workflow
+## Quick Start
 
-1. Run strict and validation gates:
-   ```powershell
-   task framework:strict
-   task validate:v5
-   task framework:release-tests
-   ```
-2. Compile and generate artifacts:
-   ```powershell
-   python topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated
-   ```
-3. Validate infrastructure plans:
-   ```powershell
-   terraform -chdir=generated/home-lab/terraform/proxmox validate
-   terraform -chdir=generated/home-lab/terraform/proxmox plan -refresh=false
-   terraform -chdir=generated/home-lab/terraform/mikrotik validate
-   terraform -chdir=generated/home-lab/terraform/mikrotik plan -refresh=false
-   ```
-4. Build and verify Ansible runtime inventory:
-   ```powershell
-   task ansible:runtime
-   ansible-inventory -i generated/home-lab/ansible/runtime/production/hosts.yml --list
-   task ansible:syntax
-   task ansible:check-site
-   ```
-5. Final cutover gates:
-   ```powershell
-   task acceptance:tests-all
-   task framework:cutover-readiness
-   ```
+### 1. Validate and Build
 
-Full operational procedures:
+```bash
+# Validate topology
+task validate:v5-passthrough
 
-- `docs/runbooks/README.md`
-- `docs/runbooks/DEPLOYMENT-PROCEDURES.md`
-- `docs/runbooks/V5-E2E-DRY-RUN.md`
-- `projects/home-lab/ansible/README.md`
+# Compile and generate all artifacts
+task build:default
+
+# Run tests
+task test
+```
+
+### 2. Deploy Bundle Workflow (ADR 0085)
+
+```bash
+# Create immutable deploy bundle
+task framework:deploy-bundle-create
+
+# List available bundles
+task framework:deploy-bundle-list
+
+# Execute from bundle
+task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
+task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id>
+```
+
+### 3. Node Initialization (ADR 0083)
+
+```bash
+# Check initialization state
+task framework:deploy-init-status
+
+# Plan node bootstrap
+task framework:deploy-init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id>
+
+# Execute (scaffold - hardware validation pending)
+task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id>
+```
+
+## Deploy Domain
+
+### Runner Backends (ADR 0084)
+
+| Runner | Platform | Use Case |
+|--------|----------|----------|
+| `native` | Linux | Default on Linux hosts |
+| `wsl` | Windows | WSL-backed execution |
+| `docker` | Any | Containerized CI/reproducibility |
+| `remote` | Any | SSH to control node |
+
+```bash
+# Specify runner explicitly
+task framework:service-chain-evidence-check-bundle -- BUNDLE=<id> DEPLOY_RUNNER=wsl
+```
+
+### State Locations
+
+| Path | Purpose |
+|------|---------|
+| `.work/deploy/bundles/<id>/` | Immutable deploy bundles |
+| `.work/deploy-state/<project>/nodes/` | Initialization state |
+| `.work/deploy-state/<project>/logs/` | Audit logs (JSONL) |
+
+## Technology Stack
+
+| Component | Technology |
+|-----------|------------|
+| Hypervisor | Proxmox VE 8 (Dell XPS L701X) |
+| Router | MikroTik Chateau LTE7 ax (RouterOS 7.x) |
+| SBC | Orange Pi 5 (RK3588S, Debian) |
+| IaC | Terraform (bpg/proxmox, terraform-routeros) |
+| Config | Ansible 2.14+ |
+| Secrets | SOPS + age |
+| Tasks | Go-Task |
+
+## Key Documentation
+
+### Deploy Operations
+- [DEPLOY-BUNDLE-WORKFLOW.md](docs/guides/DEPLOY-BUNDLE-WORKFLOW.md)
+- [NODE-INITIALIZATION.md](docs/guides/NODE-INITIALIZATION.md)
+- [OPERATOR-ENVIRONMENT-SETUP.md](docs/guides/OPERATOR-ENVIRONMENT-SETUP.md)
+
+### Architecture
+- [CLAUDE.md](CLAUDE.md) — AI agent instructions
+- [ADR Register](adr/REGISTER.md) — All architecture decisions
+- [PLUGIN_AUTHORING_GUIDE.md](docs/PLUGIN_AUTHORING_GUIDE.md)
+
+### Runbooks
+- [docs/runbooks/](docs/runbooks/)
+
+## Development
+
+### Run Tests
+
+```bash
+# All tests (822 pass, 4 skip)
+task test
+
+# Specific module
+.venv/bin/python -m pytest tests/orchestration/ -v
+```
+
+### Plugin Development
+
+```bash
+# Validate plugin manifests
+task validate:plugin-manifests
+
+# Run with trace
+python topology-tools/compile-topology.py --trace-execution
+```
 
 ## Project Bootstrap
 
-- Submodule mode:
-  - `task project:init -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_SUBMODULE_URL=https://github.com/<org>/infra-topology-framework.git`
-- Distribution zip mode:
-  - `task project:init-from-dist -- PROJECT_ROOT=D:/work/new-project PROJECT_ID=home-lab FRAMEWORK_DIST_ZIP=D:/artifacts/infra-topology-framework-1.0.8.zip FRAMEWORK_DIST_VERSION=1.0.8`
+### From Distribution
 
-## Main Docs
+```bash
+task project:init-from-dist -- \
+  PROJECT_ROOT=/path/to/new-project \
+  PROJECT_ID=my-lab \
+  FRAMEWORK_DIST_ZIP=/path/to/framework.zip \
+  FRAMEWORK_DIST_VERSION=1.0.8
+```
 
-- `adr/0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md`
-- `adr/0080-analysis/IMPLEMENTATION-PLAN.md`
-- `adr/plan/0078-cutover-checklist.md`
-- `docs/framework/FRAMEWORK-V5.md`
-- `docs/framework/OPERATOR-WORKFLOWS.md`
-- `docs/framework/FRAMEWORK-RELEASE-GUIDE.md`
-- `docs/runbooks/README.md`
-- `docs/runbooks/V5-E2E-DRY-RUN.md`
-- `README-РУССКИЙ.md`
-- `topology-tools/docs/ENVIRONMENT-SETUP.md`
-- `topology-tools/docs/MANUAL-ARTIFACT-BUILD.md`
+### From Submodule
+
+```bash
+task project:init -- \
+  PROJECT_ROOT=/path/to/new-project \
+  PROJECT_ID=my-lab \
+  FRAMEWORK_SUBMODULE_URL=https://github.com/org/infra-topology-framework.git
+```
+
+## License
+
+Private infrastructure repository.
