@@ -1,130 +1,128 @@
 # ADR 0086 — Current State vs Target State Gap Analysis
 
-## Plugin Inventory (AS-IS → TO-BE)
+## Scope Clarification
 
-### Validators (40 → ~28)
+This gap analysis follows the revised ADR 0086 scope:
 
-| # | Current Plugin | Action | Target |
-|---|---------------|--------|--------|
-| 1 | `reference_validator` | Keep | `validator.references` |
-| 2 | `backup_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 3 | `certificate_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 4 | `dns_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 5 | `host_os_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 6 | `lxc_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 7 | `network_core_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 8 | `power_source_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 9 | `service_dependency_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 10 | `service_runtime_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 11 | `storage_l3_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 12 | `vm_refs_validator` | **Merge → DeclarativeRef** | Rule in `validator.declarative_refs` |
-| 13 | `mikrotik_router_ports_validator` | **Merge → RouterPort** | Rules in `validator.router_ports` |
-| 14 | `glinet_router_ports_validator` | **Merge → RouterPort** | Rules in `validator.router_ports` |
-| 15 | `router_data_channel_interface_validator` | **Move** | `validator.router_data_channel` |
-| 16 | `ethernet_cable_endpoint_validator` | **Move** | `validator.ethernet_cable_endpoints` |
-| 17–40 | 24 remaining validators | Keep (rename ID) | `validator.<domain>` |
-
-**Net change:** 40 → ~28 plugins (−12)
-
-### Generators (11 → ~8 standalone + 5 strategy entries)
-
-| # | Current Plugin | Action | Target |
-|---|---------------|--------|--------|
-| 1 | `terraform_proxmox_generator` | **Convert → strategy** | `strategy.proxmox.terraform` (`contributes_to: generator.terraform`) |
-| 2 | `terraform_mikrotik_generator` | **Convert → strategy** | `strategy.mikrotik.terraform` (`contributes_to: generator.terraform`) |
-| 3 | `bootstrap_proxmox_generator` | **Convert → strategy** | `strategy.proxmox.bootstrap` (`contributes_to: generator.bootstrap`) |
-| 4 | `bootstrap_mikrotik_generator` | **Convert → strategy** | `strategy.mikrotik.bootstrap` (`contributes_to: generator.bootstrap`) |
-| 5 | `bootstrap_orangepi_generator` | **Convert → strategy** | `strategy.orangepi.bootstrap` (`contributes_to: generator.bootstrap`) |
-| — | *(new)* | **Create host** | `generator.terraform` (host generator) |
-| — | *(new)* | **Create host** | `generator.bootstrap` (host generator) |
-| 6–11 | 6 remaining generators | Keep (rename ID) | `generator.<domain>` |
-
-**Net change:** 11 standalone → 8 standalone + 5 strategy entries
-(5 vendor generators become strategy entries dispatched by 2 host generators)
-
-### Compilers, Discoverers, Assemblers, Builders (9 → 9)
-
-No consolidation needed. Only ID rename.
-
-### Total: 67 → ~37 standalone plugins + 5 strategy entries
+- Keep runtime/schema contracts unchanged in this ADR.
+- Preserve discovery chain and project extensibility.
+- Focus on validator consolidation, standalone plugin layout simplification,
+  and ID policy normalization.
+- Defer new runtime protocol work (host/strategy contribution fields) to a separate ADR.
 
 ---
 
-## File Operations Summary
+## AS-IS Snapshot
 
-### Files to CREATE (~6)
+### Runtime and Contracts
+
+1. `PluginContext` exposes broad shared data (`raw_yaml`, `compiled_json`, `classes`, `objects`),
+   so level-isolation is not runtime-enforced.
+2. `PluginRegistry` enforces stage/phase/dependency contracts, not level ACLs.
+3. Manifest schema does not support additional contribution fields beyond current contract.
+
+### Discovery and Extensibility
+
+1. Discovery chain is deterministic and multi-root:
+   framework -> class -> object -> project.
+2. `project_plugins_root` loading path is active and tested.
+3. Class/object module manifests are still used in runtime.
+
+### Plugin Inventory Hotspots
+
+1. High duplication in reference validators (`*_refs_validator.py`).
+2. Thin vendor-specific router port validators with minimal unique logic.
+3. ID naming inconsistency across manifests (`object.*` vs `object_*` style mixing).
+
+---
+
+## TO-BE (ADR 0086 Target within current runtime)
+
+### 1. Boundary Model
+
+- Replace level-visibility assumptions with contract-based architecture checks.
+- Keep OOP-consistent cross-level validation where needed.
+
+### 2. Validator Consolidation
+
+- Consolidate duplicated reference checks into declarative validator.
+- Consolidate router-port validators into one rule-driven validator.
+
+### 3. Layout Simplification
+
+- Move standalone class/object plugins into `topology-tools/plugins/<family>/`.
+- Keep module manifests only as needed extension points.
+
+### 4. ID Policy
+
+- Define and enforce one plugin ID style across all manifests.
+- Apply migration via mapping table + compatibility test updates.
+
+### 5. Discovery Safety
+
+- Preserve multi-slot manifest discovery behavior unchanged.
+- Keep project plugin slot as mandatory contract.
+
+---
+
+## Gap Table
+
+| Area | AS-IS | TO-BE | Gap Type |
+|------|-------|-------|----------|
+| Boundary semantics | Naming-level policy not runtime-enforced | Contract-based architecture checks | Policy/Tests |
+| OOP alignment | Level rules conflict with practical validation | Cross-level reads allowed by contract | Policy/Docs |
+| Reference validators | Many near-duplicate plugins | One declarative validator + rules | Code consolidation |
+| Router port validators | Thin vendor split | Unified rule-driven validator | Code consolidation |
+| Plugin placement | Standalone plugins split across roots | Standalone plugins centralized in framework dirs | Layout |
+| ID naming | Mixed namespace styles | Single enforced naming convention | Naming/CI |
+| Project extensibility | Works via project discovery slot | Must remain unchanged | Regression safety |
+
+---
+
+## File Impact Summary
+
+### Likely Create
+
 - `topology-tools/plugins/validators/declarative_reference_validator.py`
 - `topology-tools/plugins/validators/router_port_validator.py`
-- `topology-tools/plugins/generators/terraform_generator.py` (host generator)
-- `topology-tools/plugins/generators/bootstrap_generator.py` (host generator)
-- Projection helpers (if not already in `lib/`):
-  - `topology/object-modules/proxmox/lib/projection.py`
-  - `topology/object-modules/mikrotik/lib/projection.py`
+- Optional CI helper for manifest ID/style checks
 
-### Files to REFACTOR (~5)
-Existing vendor generator plugins become strategy plugins (same directory,
-new `contributes_to` field in manifest, simplified class interface):
-- `topology/object-modules/proxmox/plugins/generators/terraform_proxmox_generator.py`
-  → refactor to `TerraformStrategy` conforming to host generator protocol
-- `topology/object-modules/mikrotik/plugins/generators/terraform_mikrotik_generator.py`
-  → refactor to `TerraformStrategy`
-- `topology/object-modules/proxmox/plugins/generators/bootstrap_proxmox_generator.py`
-  → refactor to `BootstrapStrategy`
-- `topology/object-modules/mikrotik/plugins/generators/bootstrap_mikrotik_generator.py`
-  → refactor to `BootstrapStrategy`
-- `topology/object-modules/orangepi/plugins/generators/bootstrap_orangepi_generator.py`
-  → refactor to `BootstrapStrategy`
+### Likely Edit
 
-### Files to MOVE (~2)
-- `router_data_channel_interface_validator.py` → global validators
-- `ethernet_cable_endpoint_validator.py` → global validators
+- `topology-tools/plugins/plugins.yaml` (new consolidated validator entries + ID rewires)
+- `topology/class-modules/router/plugins.yaml` (remove/migrate standalone entries)
+- `topology/object-modules/*/plugins.yaml` (remove/migrate standalone entries)
+- Plugin contract/architecture tests in `tests/plugin_contract/` and `tests/plugin_integration/`
+- Docs and agent guidance files referencing level-boundary rules
 
-### Files to DELETE (~14)
-- 11 reference validator files
-- 2 port validator files (mikrotik, glinet) + 1 base
+### Likely Remove
 
-### Manifests to UPDATE
-- `topology-tools/plugins/plugins.yaml` — add host generators, consolidate standalone entries, rename IDs
-- `topology/object-modules/proxmox/plugins.yaml` — replace standalone entries with `contributes_to` strategy entries
-- `topology/object-modules/mikrotik/plugins.yaml` — replace standalone entries with `contributes_to` strategy entries
-- `topology/object-modules/orangepi/plugins.yaml` — replace standalone entry with `contributes_to` strategy entry
-- `topology/object-modules/glinet/plugins.yaml` — remove (standalone validator moved to global)
-- `topology/object-modules/network/plugins.yaml` — remove (standalone validator moved to global)
-- `topology/class-modules/router/plugins.yaml` — remove (standalone validator moved to global)
-
-### Files to EDIT (kernel + tests + docs)
-- `topology-tools/kernel/plugin_registry.py` — add `contributes_to` to PluginSpec, add `get_contributors()` method
-- `topology-tools/kernel/plugin_base.py` — no changes needed (PluginContext/PluginResult unchanged)
-- `plugin_manifest_discovery.py` — **no simplification** (multi-slot discovery preserved)
-- `test_plugin_level_boundaries.py` — replace with architectural test
-- `CLAUDE.md`, `AGENTS.md`, `.github/copilot-instructions.md` — update rules
-- ADR 0063 — add superseded note
-- `schemas/plugin-manifest.schema.json` — add `contributes_to` optional field
+- Duplicated reference validator files replaced by declarative rules
+- Thin router-port validator split files replaced by unified validator
+- Empty legacy plugin manifests after migration
 
 ---
 
-## Dependency Graph Impact
+## Main Risks
 
-### Plugins that depend on reference validators
-Any plugin with `depends_on: [base.validator.dns_refs]` etc. must be checked.
-Expected: reference validators are **leaf nodes** — nothing depends on them.
+1. Diagnostic regressions during validator consolidation.
+2. Dependency rewiring errors in manifests after ID updates.
+3. Accidental breakage of project plugin discovery slot.
 
-### Plugins that depend on vendor generators
-Expected: assembler/builder may depend on generators.
-Must update: `base.assembler.workspace` if it depends on specific generator IDs.
-After D4: assemblers depend on host generators (`generator.terraform`,
-`generator.bootstrap`), not on individual vendor strategies.
+---
 
-### Inter-plugin data exchange (produces/consumes)
-Reference validators only **consume** from `base.compiler.instance_rows`.
-They do not **produce** data consumed by other plugins.
-Safe to consolidate without cascade.
+## Mitigations
 
-Vendor generators **produce** `generated_files` and vendor-specific file lists.
-After D4: host generators produce these keys. Strategy entries contribute through
-host generator dispatch, not through their own produces/consumes declarations.
+1. Golden diagnostics parity tests for validator migration.
+2. Pre-merge manifest lint + dependency consistency checks.
+3. Mandatory regression tests for project manifest discovery and boundary checks.
 
-### `contributes_to` interaction with DAG
-Strategy entries with `contributes_to` are NOT independently scheduled by the DAG.
-They are loaded and dispatched by the host generator. The host generator is the
-DAG node that other plugins depend on.
+---
+
+## Exit Criteria
+
+- Consolidated validator plugins are in place and parity-verified.
+- Standalone plugin layout simplified as defined by ADR 0086.
+- ID policy unified and CI-enforced.
+- Project discovery slot remains functional.
+- Full test suite passes with deterministic outputs.
