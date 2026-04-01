@@ -788,7 +788,7 @@ task build:default
 - [DEV-COMMAND-REFERENCE.md](DEV-COMMAND-REFERENCE.md) - Quick command reference
 - [DEV-TESTING-GUIDE.md](DEV-TESTING-GUIDE.md) - Testing patterns
 - [DEV-TOPOLOGY-GUIDE.md](DEV-TOPOLOGY-GUIDE.md) - Topology authoring
-- [PLUGIN_AUTHORING_GUIDE.md](../docs/PLUGIN_AUTHORING_GUIDE.md) - Full plugin guide
+- [PLUGIN_AUTHORING_GUIDE.md](../../docs/PLUGIN_AUTHORING_GUIDE.md) - Full plugin guide
 - [ADR 0062](../adr/0062-class-object-instance-hierarchy.md) - Topology model
 - [ADR 0063](../adr/0063-plugin-microkernel.md) - Plugin architecture
 - [ADR 0074](../adr/0074-generator-architecture.md) - Generator architecture

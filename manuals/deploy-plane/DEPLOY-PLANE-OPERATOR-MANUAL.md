@@ -720,6 +720,6 @@ task framework:deploy-init-node-run -- \
 - [COMMAND-REFERENCE.md](COMMAND-REFERENCE.md) - Quick command reference
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Error codes and solutions
 - [SCENARIOS.md](SCENARIOS.md) - Use case scenarios
-- [ADR 0083](../adr/0083-unified-node-initialization-contract.md) - Node initialization
-- [ADR 0084](../adr/0084-cross-platform-dev-plane-and-linux-deploy-plane.md) - Cross-platform runners
-- [ADR 0085](../adr/0085-deploy-bundle-and-runner-workspace-contract.md) - Deploy bundles
+- [ADR 0083](../../adr/0083-unified-node-initialization-contract.md) - Node initialization
+- [ADR 0084](../../adr/0084-cross-platform-dev-plane-and-linux-deploy-plane.md) - Cross-platform runners
+- [ADR 0085](../../adr/0085-deploy-bundle-and-runner-workspace-contract.md) - Deploy bundles

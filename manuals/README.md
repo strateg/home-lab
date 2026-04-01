@@ -24,10 +24,10 @@ Runtime execution layer for infrastructure deployment.
 
 | Document | Description |
 |----------|-------------|
-| [DEPLOY-PLANE-OPERATOR-MANUAL.md](DEPLOY-PLANE-OPERATOR-MANUAL.md) | Complete operator guide with architecture, phases, state machine |
-| [COMMAND-REFERENCE.md](COMMAND-REFERENCE.md) | Quick reference for all deploy commands |
-| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Error codes, diagnostics, recovery procedures |
-| [SCENARIOS.md](SCENARIOS.md) | Step-by-step operational scenarios |
+| [DEPLOY-PLANE-OPERATOR-MANUAL.md](deploy-plane/DEPLOY-PLANE-OPERATOR-MANUAL.md) | Complete operator guide with architecture, phases, state machine |
+| [COMMAND-REFERENCE.md](deploy-plane/COMMAND-REFERENCE.md) | Quick reference for all deploy commands |
+| [TROUBLESHOOTING.md](deploy-plane/TROUBLESHOOTING.md) | Error codes, diagnostics, recovery procedures |
+| [SCENARIOS.md](deploy-plane/SCENARIOS.md) | Step-by-step operational scenarios |
 
 **Key Concepts:**
 - Deploy Bundle - Immutable execution input
@@ -43,10 +43,10 @@ Build-time layer for topology compilation and artifact generation.
 
 | Document | Description |
 |----------|-------------|
-| [DEVELOPMENT-PLANE-MANUAL.md](DEVELOPMENT-PLANE-MANUAL.md) | Complete developer guide with architecture, pipeline, plugins |
-| [DEV-COMMAND-REFERENCE.md](DEV-COMMAND-REFERENCE.md) | Quick reference for all development commands |
-| [DEV-TESTING-GUIDE.md](DEV-TESTING-GUIDE.md) | Testing patterns, fixtures, best practices |
-| [DEV-TOPOLOGY-GUIDE.md](DEV-TOPOLOGY-GUIDE.md) | Topology authoring: classes, objects, instances |
+| [DEVELOPMENT-PLANE-MANUAL.md](dev-plane/DEVELOPMENT-PLANE-MANUAL.md) | Complete developer guide with architecture, pipeline, plugins |
+| [DEV-COMMAND-REFERENCE.md](dev-plane/DEV-COMMAND-REFERENCE.md) | Quick reference for all development commands |
+| [DEV-TESTING-GUIDE.md](dev-plane/DEV-TESTING-GUIDE.md) | Testing patterns, fixtures, best practices |
+| [DEV-TOPOLOGY-GUIDE.md](dev-plane/DEV-TOPOLOGY-GUIDE.md) | Topology authoring: classes, objects, instances |
 
 **Key Concepts:**
 - Pipeline Stages - discover → compile → validate → generate → assemble → build
@@ -191,5 +191,5 @@ manuals/
 ## Support
 
 - **ADR Documentation:** `adr/*.md`
-- **Error Codes:** See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- **Error Codes:** See [TROUBLESHOOTING.md](deploy-plane/TROUBLESHOOTING.md)
 - **Issues:** GitHub repository issues
