@@ -45,6 +45,37 @@ def test_service_chain_plan_maintenance_check_defaults_to_passthrough_mode() -> 
     assert any("terraform -chdir=generated/home-lab/terraform/proxmox plan -refresh=false" == cmd for cmd in commands)
 
 
+def test_service_chain_plan_bootstrap_init_node_requires_bundle() -> None:
+    with pytest.raises(ValueError, match="bootstrap_init_node requires --bundle"):
+        build_command_plan(
+            mode="maintenance-check",
+            project_id="home-lab",
+            env="production",
+            bootstrap_init_node=True,
+            repo_root=REPO_ROOT,
+        )
+
+
+def test_service_chain_plan_bootstrap_init_node_inserts_step() -> None:
+    plan = build_command_plan(
+        mode="maintenance-check",
+        project_id="home-lab",
+        env="production",
+        bundle="b-123",
+        bootstrap_init_node=True,
+        bootstrap_node="rtr-mikrotik-chateau",
+        deploy_runner="docker",
+        repo_root=REPO_ROOT,
+    )
+    commands = _joined(plan)
+    bootstrap_commands = [cmd for cmd in commands if "scripts.orchestration.deploy.init_node" in cmd]
+    assert len(bootstrap_commands) == 1
+    assert (
+        "--bundle b-123 --node rtr-mikrotik-chateau --plan-only --deploy-runner docker --bootstrap-runner-tools"
+        in bootstrap_commands[0]
+    )
+
+
 def test_service_chain_plan_maintenance_check_supports_inject_mode() -> None:
     plan = build_command_plan(
         mode="maintenance-check",

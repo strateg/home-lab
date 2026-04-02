@@ -20,6 +20,7 @@ from scripts.orchestration.deploy.adapters import (  # noqa: E402
     UnattendedInstallAdapter,
     get_adapter,
 )
+from scripts.orchestration.deploy.adapters import netinstall as netinstall_module  # noqa: E402
 
 
 def test_bootstrap_result_is_success_matches_status() -> None:
@@ -79,3 +80,200 @@ def test_cloud_init_preflight_detects_missing_required_files(tmp_path: Path) -> 
     by_name = {item.name: item for item in checks}
     assert by_name["cloud_init_files_present"].ok is False
     assert by_name["artifacts_exist_in_bundle"].ok is False
+
+
+def test_netinstall_execute_bootstrap_phase_requires_ssh_contract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    adapter = NetinstallAdapter()
+    node = {
+        "id": "rtr-a",
+        "artifacts": [
+            {"path": "artifacts/generated/bootstrap/rtr-a/init-terraform.rsc"},
+        ],
+    }
+    script = tmp_path / "artifacts" / "generated" / "bootstrap" / "rtr-a" / "init-terraform.rsc"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text("# bootstrap", encoding="utf-8")
+
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_COMMAND", raising=False)
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_SSH_HOST", raising=False)
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_SSH_USER", raising=False)
+    monkeypatch.setenv("INIT_NODE_PHASE", "bootstrap")
+
+    result = adapter.execute(
+        node,
+        AdapterContext(project_id="home-lab", bundle_path=tmp_path, workspace_ref=str(tmp_path)),
+    )
+
+    assert result.status == AdapterStatus.FAILED
+    assert result.error_code == "E9758"
+    assert "INIT_NODE_NETINSTALL_SSH_HOST" in result.message
+
+
+def test_netinstall_execute_supports_custom_command(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    adapter = NetinstallAdapter()
+    node = {
+        "id": "rtr-a",
+        "artifacts": [
+            {"path": "artifacts/generated/bootstrap/rtr-a/init-terraform.rsc"},
+        ],
+    }
+    script = tmp_path / "artifacts" / "generated" / "bootstrap" / "rtr-a" / "init-terraform.rsc"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text("# bootstrap", encoding="utf-8")
+
+    monkeypatch.setenv("INIT_NODE_PHASE", "recover")
+    monkeypatch.setenv("INIT_NODE_NETINSTALL_COMMAND", "echo {script_path}")
+
+    class _Result:
+        returncode = 0
+        stdout = "ok\n"
+        stderr = ""
+
+    monkeypatch.setattr(netinstall_module.subprocess, "run", lambda *args, **kwargs: _Result())
+
+    result = adapter.execute(
+        node,
+        AdapterContext(project_id="home-lab", bundle_path=tmp_path, workspace_ref=str(tmp_path)),
+    )
+
+    assert result.status == AdapterStatus.SUCCESS
+    assert result.message == "Netinstall command completed successfully."
+
+
+def test_netinstall_execute_supports_ssh_import(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    adapter = NetinstallAdapter()
+    node = {
+        "id": "rtr-a",
+        "artifacts": [
+            {"path": "artifacts/generated/bootstrap/rtr-a/init-terraform.rsc"},
+        ],
+    }
+    script = tmp_path / "artifacts" / "generated" / "bootstrap" / "rtr-a" / "init-terraform.rsc"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text("# bootstrap", encoding="utf-8")
+
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_COMMAND", raising=False)
+    monkeypatch.setenv("INIT_NODE_PHASE", "bootstrap")
+    monkeypatch.setenv("INIT_NODE_NETINSTALL_SSH_HOST", "192.168.88.1")
+    monkeypatch.setenv("INIT_NODE_NETINSTALL_SSH_USER", "admin")
+    monkeypatch.setenv("INIT_NODE_NETINSTALL_CLEANUP_REMOTE_FILE", "0")
+    monkeypatch.setattr(netinstall_module.shutil, "which", lambda _: "/usr/bin/ssh")
+
+    class _Result:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    monkeypatch.setattr(netinstall_module.subprocess, "run", lambda *args, **kwargs: _Result())
+
+    result = adapter.execute(
+        node,
+        AdapterContext(project_id="home-lab", bundle_path=tmp_path, workspace_ref=str(tmp_path)),
+    )
+
+    assert result.status == AdapterStatus.SUCCESS
+    assert result.message == "Netinstall bootstrap script imported via SSH."
+
+
+def test_netinstall_handover_adds_network_checks_when_host_env_set(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    adapter = NetinstallAdapter()
+    node = {
+        "id": "rtr-a",
+        "artifacts": [
+            {"path": "artifacts/generated/bootstrap/rtr-a/init-terraform.rsc"},
+        ],
+    }
+    script = tmp_path / "artifacts" / "generated" / "bootstrap" / "rtr-a" / "init-terraform.rsc"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text("# bootstrap", encoding="utf-8")
+
+    monkeypatch.setenv("INIT_NODE_NETINSTALL_HANDOVER_HOST", "192.168.88.1")
+    monkeypatch.setattr(
+        netinstall_module,
+        "_tcp_reachable",
+        lambda host, port: bool(host == "192.168.88.1" and port == 22),
+    )
+
+    checks = adapter.handover(
+        node,
+        AdapterContext(project_id="home-lab", bundle_path=tmp_path, workspace_ref=str(tmp_path)),
+    )
+    by_name = {item.name: item for item in checks}
+    assert by_name["ssh_reachable"].ok is True
+    assert by_name["rest_api_reachable"].ok is False
+
+
+def test_netinstall_execute_supports_native_netinstall_contract(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    adapter = NetinstallAdapter()
+    node = {
+        "id": "rtr-a",
+        "artifacts": [
+            {"path": "artifacts/generated/bootstrap/rtr-a/init-terraform.rsc"},
+        ],
+    }
+    script = tmp_path / "artifacts" / "generated" / "bootstrap" / "rtr-a" / "init-terraform.rsc"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text("# bootstrap", encoding="utf-8")
+    package = tmp_path / "routeros-arm64.npk"
+    package.write_text("pkg", encoding="utf-8")
+
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_COMMAND", raising=False)
+    monkeypatch.setenv("INIT_NODE_PHASE", "recover")
+    monkeypatch.setenv("MIKROTIK_BOOTSTRAP_MAC", "00:11:22:33:44:55")
+    monkeypatch.setenv("MIKROTIK_NETINSTALL_INTERFACE", "eth0")
+    monkeypatch.setenv("MIKROTIK_NETINSTALL_CLIENT_IP", "192.168.88.3")
+    monkeypatch.setenv("MIKROTIK_ROUTEROS_PACKAGE", str(package))
+    monkeypatch.setattr(netinstall_module.shutil, "which", lambda _: "/usr/bin/netinstall-cli")
+
+    class _Result:
+        returncode = 0
+        stdout = "ok\n"
+        stderr = ""
+
+    monkeypatch.setattr(netinstall_module.subprocess, "run", lambda *args, **kwargs: _Result())
+
+    result = adapter.execute(
+        node,
+        AdapterContext(project_id="home-lab", bundle_path=tmp_path, workspace_ref=str(tmp_path)),
+    )
+
+    assert result.status == AdapterStatus.SUCCESS
+    assert result.message == "Netinstall native command completed successfully."
+
+
+def test_netinstall_execute_reports_incomplete_native_contract_when_partial_and_no_ssh(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    adapter = NetinstallAdapter()
+    node = {
+        "id": "rtr-a",
+        "artifacts": [
+            {"path": "artifacts/generated/bootstrap/rtr-a/init-terraform.rsc"},
+        ],
+    }
+    script = tmp_path / "artifacts" / "generated" / "bootstrap" / "rtr-a" / "init-terraform.rsc"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text("# bootstrap", encoding="utf-8")
+
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_COMMAND", raising=False)
+    monkeypatch.setenv("INIT_NODE_PHASE", "recover")
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_SSH_HOST", raising=False)
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_SSH_USER", raising=False)
+    monkeypatch.setenv("MIKROTIK_BOOTSTRAP_MAC", "00:11:22:33:44:55")
+    monkeypatch.delenv("MIKROTIK_NETINSTALL_INTERFACE", raising=False)
+    monkeypatch.delenv("MIKROTIK_NETINSTALL_CLIENT_IP", raising=False)
+    monkeypatch.delenv("MIKROTIK_ROUTEROS_PACKAGE", raising=False)
+
+    result = adapter.execute(
+        node,
+        AdapterContext(project_id="home-lab", bundle_path=tmp_path, workspace_ref=str(tmp_path)),
+    )
+
+    assert result.status == AdapterStatus.FAILED
+    assert result.error_code == "E9755"

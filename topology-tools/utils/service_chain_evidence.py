@@ -185,6 +185,10 @@ def build_command_plan(
     mikrotik_backend_config: str | None = None,
     proxmox_var_file: str | None = None,
     mikrotik_var_file: str | None = None,
+    bundle: str = "",
+    bootstrap_init_node: bool = False,
+    bootstrap_node: str = "rtr-mikrotik-chateau",
+    bootstrap_runner: str = "",
     repo_root: Path | None = None,
     artifacts_root: str = DEFAULT_ARTIFACTS_ROOT,
     workspace: DeployWorkspace | None = None,
@@ -194,6 +198,8 @@ def build_command_plan(
         raise ValueError(f"Unsupported mode: {mode}")
     if mode == "maintenance-apply" and not allow_apply:
         raise ValueError("maintenance-apply mode requires allow_apply=True")
+    if bootstrap_init_node and not isinstance(bundle, str):
+        raise ValueError("bootstrap_init_node requires bundle reference")
     # Validate runner name (will raise if invalid)
     _resolve_deploy_runner_name(deploy_runner=deploy_runner, ansible_via_wsl=ansible_via_wsl)
     resolved_workspace = workspace or resolve_deploy_workspace(
@@ -318,6 +324,41 @@ def build_command_plan(
             "ansible.execute", "Run Ansible service execution lane", ansible_execute_command, execution_plane="deploy"
         ),
     ]
+
+    if bootstrap_init_node:
+        bundle_ref = str(bundle or "").strip()
+        if not bundle_ref:
+            raise ValueError("bootstrap_init_node requires --bundle <bundle_id> or --bundle <absolute_path>")
+        bootstrap_node_id = str(bootstrap_node or "").strip() or "rtr-mikrotik-chateau"
+        init_command = [
+            sys.executable,
+            "-m",
+            "scripts.orchestration.deploy.init_node",
+            "--repo-root",
+            ".",
+            "--project-id",
+            project_id,
+            "--bundle",
+            bundle_ref,
+            "--node",
+            bootstrap_node_id,
+        ]
+        if mode != "maintenance-apply":
+            init_command.append("--plan-only")
+        runner_override = str(bootstrap_runner or "").strip() or str(deploy_runner or "").strip()
+        if runner_override:
+            init_command.extend(["--deploy-runner", runner_override])
+        init_command.append("--bootstrap-runner-tools")
+        plan.insert(
+            3,
+            CommandStep(
+                "bootstrap.init-node",
+                f"Execute bootstrap init-node flow for {bootstrap_node_id}",
+                init_command,
+                destructive=(mode == "maintenance-apply"),
+                execution_plane="local",
+            ),
+        )
 
     if resolved_workspace.layout == "main_repository":
         plan.extend(
@@ -538,6 +579,17 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output", default="")
     parser.add_argument("--output-dir", default="docs/runbooks/evidence")
     parser.add_argument("--bundle", default="", help="Deploy bundle id or absolute path for deploy-plane execution.")
+    parser.add_argument(
+        "--bootstrap-init-node",
+        action="store_true",
+        help="Include init-node bootstrap step in service-chain plan (requires --bundle).",
+    )
+    parser.add_argument("--bootstrap-node", default="rtr-mikrotik-chateau")
+    parser.add_argument(
+        "--bootstrap-runner",
+        default="",
+        help="Runner override specifically for bootstrap init-node step (native|wsl|docker|remote).",
+    )
     parser.add_argument("--proxmox-backend-config", default="")
     parser.add_argument("--mikrotik-backend-config", default="")
     parser.add_argument("--proxmox-var-file", default="")
@@ -599,6 +651,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         mikrotik_backend_config=mikrotik_backend_config,
         proxmox_var_file=proxmox_var_file,
         mikrotik_var_file=mikrotik_var_file,
+        bundle=args.bundle,
+        bootstrap_init_node=bool(args.bootstrap_init_node),
+        bootstrap_node=args.bootstrap_node,
+        bootstrap_runner=args.bootstrap_runner,
         repo_root=repo_root,
         artifacts_root=effective_artifacts_root,
         workspace=workspace,

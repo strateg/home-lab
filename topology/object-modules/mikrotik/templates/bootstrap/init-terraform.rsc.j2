@@ -1,4 +1,78 @@
-# Baseline RouterOS bootstrap script for {{ instance_id }}
-:log info "Initialize Terraform API user (placeholder)"
-# /user add name=terraform group=full password=<TODO_PASSWORD>
-# /ip service enable api-ssl
+# =============================================================================
+# MikroTik Terraform Handover Bootstrap
+# =============================================================================
+# Node: {{ instance_id }}
+#
+# This script prepares RouterOS for Terraform handover:
+# - enables REST API on https://<router>:8443
+# - provisions terraform automation user/group
+# - applies baseline firewall input allows for REST API
+#
+# IMPORTANT:
+# - set terraform user password manually after import
+# - review temporary LAN allow rule and remove if not needed
+# =============================================================================
+
+:log info "bootstrap(terraform): begin {{ instance_id }}"
+
+# Set deterministic identity for node-level observability and tooling.
+/system identity set name="{{ instance_id }}"
+
+# ---------------------------------------------------------------------------
+# TLS certificate for REST API (www-ssl)
+# ---------------------------------------------------------------------------
+:if ([:len [/certificate find where name="local-cert"]] = 0) do={
+    :log info "bootstrap(terraform): creating local-cert"
+    /certificate add name=local-cert common-name="{{ instance_id }}.home.local" days-valid=3650 key-size=2048 key-usage=key-encipherment,tls-server
+    :delay 2s
+}
+:do {
+    /certificate sign local-cert
+} on-error={
+    :log warning "bootstrap(terraform): certificate sign skipped (already signed or unavailable)"
+}
+
+# ---------------------------------------------------------------------------
+# Services required for Terraform REST provider
+# ---------------------------------------------------------------------------
+/ip service set www disabled=no
+/ip service set www-ssl disabled=no certificate=local-cert port=8443
+
+# Disable legacy services not needed for this flow.
+/ip service set telnet disabled=yes
+/ip service set ftp disabled=yes
+/ip service set api disabled=yes
+
+# ---------------------------------------------------------------------------
+# Terraform automation principal
+# ---------------------------------------------------------------------------
+:if ([:len [/user group find where name="terraform"]] = 0) do={
+    /user group add name=terraform policy=api,read,write,policy,sensitive,test,local,ssh,reboot
+}
+
+:if ([:len [/user find where name="terraform"]] = 0) do={
+    /user add name=terraform group=terraform disabled=yes comment="Terraform automation user (set password, then enable)"
+}
+
+# ---------------------------------------------------------------------------
+# Firewall input allows for REST API handover
+# ---------------------------------------------------------------------------
+:if ([:len [/ip firewall filter find where comment="Allow REST API from management network"]] = 0) do={
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port=8443 src-address=10.0.99.0/24 comment="Allow REST API from management network" place-before=0
+}
+
+:if ([:len [/ip firewall filter find where comment="Allow REST API from LAN (temp)"]] = 0) do={
+    /ip firewall filter add chain=input action=accept protocol=tcp dst-port=8443 src-address=192.168.88.0/24 comment="Allow REST API from LAN (temp)" place-before=1
+}
+
+# Keep one export for rollback/debug context.
+:do {
+    /export file=pre-terraform-backup
+} on-error={
+    :log warning "bootstrap(terraform): export skipped"
+}
+
+:log info "bootstrap(terraform): complete"
+:put "REST API: https://192.168.88.1:8443"
+:put "User: terraform"
+:put "Set terraform password manually and enable user before Terraform run."

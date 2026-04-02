@@ -17,15 +17,20 @@ $keysDir = if ($IsWindows) {
     Join-Path $HOME ".config/sops/age"
 }
 $keysFile = Join-Path $keysDir "keys.txt"
-$masterKey = Join-Path $repoRoot "secrets\\masterkey.age"
+$candidateKeys = @(
+    (Join-Path $repoRoot "projects\\home-lab\\secrets\\masterkey.age"),
+    (Join-Path $repoRoot "secrets\\masterkey.age")
+)
+$masterKey = $candidateKeys | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if (Test-Path $keysFile) {
     Write-Error "Keys file already exists: $keysFile. Remove it first to use recovery mode."
     exit 1
 }
 
-if (-not (Test-Path $masterKey)) {
-    Write-Error "Master key not found: $masterKey"
+if (-not $masterKey) {
+    $searched = ($candidateKeys -join ", ")
+    Write-Error "Master key not found. Searched: $searched"
     exit 1
 }
 

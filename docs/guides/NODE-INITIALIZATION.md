@@ -1,7 +1,7 @@
 # Node Initialization (Scaffold)
 
 **Status:** Experimental scaffold
-**Updated:** 2026-03-31
+**Updated:** 2026-04-02
 **Scope:** ADR 0083 Phase 5 scaffold (`init-node` CLI/state/status/verify baseline)
 
 ---
@@ -28,9 +28,18 @@ Implemented now:
   - `.work/deploy-state/<project>/logs/init-node-audit.jsonl`
 - deploy environment precheck (`check_deploy_environment()`), with optional `--skip-environment-check` for isolated test runs
 
+Partially implemented:
+- `netinstall` adapter execute path is phase-aware:
+  - `INIT_NODE_PHASE=bootstrap` (default): bootstrap script is uploaded/imported via `scp + ssh` contract:
+    - `INIT_NODE_NETINSTALL_SSH_HOST`
+    - `INIT_NODE_NETINSTALL_SSH_USER`
+  - `INIT_NODE_PHASE=recover`: reserved recovery path allows netinstall/custom contracts:
+    - custom command via `INIT_NODE_NETINSTALL_COMMAND`
+    - native `netinstall-cli` env contract (`MIKROTIK_BOOTSTRAP_MAC`, `MIKROTIK_NETINSTALL_INTERFACE`, `MIKROTIK_NETINSTALL_CLIENT_IP`, `MIKROTIK_ROUTEROS_PACKAGE`)
+
 Not implemented yet:
-- destructive adapter execution paths (bootstrapping actions remain not-implemented)
-- full retry/backoff and external handover probes
+- full native netinstall-cli orchestration (without external command contract)
+- full retry/backoff policy orchestration
 
 ---
 
@@ -60,9 +69,23 @@ Plan all pending:
 task framework:deploy-init-all-pending-plan -- BUNDLE=<bundle_id>
 ```
 
-Execute one node (scaffold execute path):
+Execute one node (bootstrap via SCP+SSH import):
 
 ```powershell
+$env:INIT_NODE_PHASE='bootstrap'
+$env:INIT_NODE_NETINSTALL_SSH_HOST='192.168.88.1'
+$env:INIT_NODE_NETINSTALL_SSH_USER='admin'
+task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=docker
+```
+
+Execute one node (recovery mode; netinstall contract kept for future recover phase):
+
+```powershell
+$env:INIT_NODE_PHASE='recover'
+$env:MIKROTIK_BOOTSTRAP_MAC='00:11:22:33:44:55'
+$env:MIKROTIK_NETINSTALL_INTERFACE='eth0'
+$env:MIKROTIK_NETINSTALL_CLIENT_IP='192.168.88.3'
+$env:MIKROTIK_ROUTEROS_PACKAGE='/path/to/routeros-arm64.npk'
 task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id>
 ```
 
@@ -77,8 +100,10 @@ task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> VERIFY_
 ## 3. Notes
 
 - `init-node` currently emits execution plan JSON and initializes state baseline.
-- non-`--plan-only` execution runs adapter preflight + placeholder execute flow and updates state.
+- non-`--plan-only` execution runs adapter preflight + adapter execute flow and updates state.
 - `--verify-only` now runs adapter handover checks and can transition `initialized -> verified`.
+- `netinstall` handover can include TCP checks for SSH/REST when `INIT_NODE_NETINSTALL_HANDOVER_HOST` is set.
+- `bootstrap` phase defaults to `scp + ssh /import`; no netinstall reinstall should run in bootstrap mode.
 - non-plan execute/verify flows now stage bundle in selected runner workspace and call runner cleanup after execution.
 - Use immutable deploy bundles from ADR 0085 (`task framework:deploy-bundle-create`).
 - This is still safe in current state because destructive adapter execution is not implemented.

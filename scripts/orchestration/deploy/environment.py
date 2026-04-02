@@ -55,7 +55,18 @@ def check_deploy_environment(
             "See docs/guides/OPERATOR-ENVIRONMENT-SETUP.md"
         )
 
-    tool_results = check_runner_tools(runner, tools_to_check)
+    tool_workspace_ref: str | None = None
+    # Docker runner requires a workspace_ref/cwd even for simple tool probes.
+    if str(getattr(runner, "name", "")).startswith("docker:"):
+        try:
+            tool_workspace_ref = str(runner.translate_path(repo_root))
+        except Exception:
+            tool_workspace_ref = None
+
+    if tool_workspace_ref:
+        tool_results = check_runner_tools(runner, tools_to_check, tool_workspace_ref)
+    else:
+        tool_results = check_runner_tools(runner, tools_to_check)
     for tool_name, ok in tool_results.items():
         if not ok:
             issues.append(f"Required tool '{tool_name}' is not available in runner '{runner.name}'.")

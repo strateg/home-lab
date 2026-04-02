@@ -17,15 +17,20 @@ $keysDir = if ($IsWindows) {
     Join-Path $HOME ".config/sops/age"
 }
 $keysFile = Join-Path $keysDir "keys.txt"
-$devKey = Join-Path $repoRoot "secrets\\devkey.age"
+$candidateKeys = @(
+    (Join-Path $repoRoot "projects\\home-lab\\secrets\\devkey.age"),
+    (Join-Path $repoRoot "secrets\\devkey.age")
+)
+$devKey = $candidateKeys | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if (Test-Path $keysFile) {
     Write-Host "Secrets are already unlocked."
     exit 0
 }
 
-if (-not (Test-Path $devKey)) {
-    Write-Error "Dev key not found: $devKey"
+if (-not $devKey) {
+    $searched = ($candidateKeys -join ", ")
+    Write-Error "Dev key not found. Searched: $searched"
     exit 1
 }
 

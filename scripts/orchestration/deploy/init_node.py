@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,10 +24,12 @@ from .adapters import AdapterContext, get_adapter
 from .bundle import inspect_bundle, resolve_bundle_path, resolve_bundles_root
 from .environment import check_deploy_environment
 from .logging import InitNodeLogger
-from .runner import get_runner
+from .runner import check_runner_tools, get_runner
 from .state import StateTransitionError, build_default_node_state, normalize_status, transition_node_state
 
 STATE_FILE_NAME = "INITIALIZATION-STATE.yaml"
+DEFAULT_RUNNER_TOOLS = ("bash", "ssh", "scp")
+DEFAULT_RUNNER_TOOLS_INSTALL_COMMAND = "sudo apt-get update && sudo apt-get install -y bash openssh-client"
 
 
 @dataclass(frozen=True)
@@ -60,6 +64,22 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--acknowledge-drift", action="store_true")
     parser.add_argument("--plan-only", action="store_true", help="Render execution plan only, no state mutation.")
     parser.add_argument("--skip-environment-check", action="store_true")
+    parser.add_argument(
+        "--bootstrap-runner-tools",
+        action="store_true",
+        default=_env_bool("INIT_NODE_BOOTSTRAP_RUNNER_TOOLS"),
+        help="Validate required tools inside selected deploy runner and auto-install when possible.",
+    )
+    parser.add_argument(
+        "--runner-tools",
+        default=os.environ.get("INIT_NODE_RUNNER_TOOLS", ",".join(DEFAULT_RUNNER_TOOLS)),
+        help="Comma/space-separated required tools for runner bootstrap checks.",
+    )
+    parser.add_argument(
+        "--runner-tools-install-command",
+        default=os.environ.get("INIT_NODE_RUNNER_TOOLS_INSTALL_COMMAND", ""),
+        help="Install command executed in runner when required tools are missing.",
+    )
     return parser.parse_args(argv)
 
 
@@ -79,6 +99,87 @@ def validate_args(args: argparse.Namespace) -> None:
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _env_bool(name: str) -> bool:
+    raw = str(os.environ.get(name, "")).strip().lower()
+    if raw in {"1", "true", "yes", "y", "on"}:
+        return True
+    return False
+
+
+def _parse_runner_tools(raw_value: str) -> list[str]:
+    raw = str(raw_value or "").strip()
+    if not raw:
+        return list(DEFAULT_RUNNER_TOOLS)
+    parts = re.split(r"[,\s]+", raw)
+    normalized: list[str] = []
+    for item in parts:
+        tool = str(item).strip()
+        if tool and tool not in normalized:
+            normalized.append(tool)
+    return normalized or list(DEFAULT_RUNNER_TOOLS)
+
+
+def _default_runner_tools_install_command(runner_name: str) -> str:
+    if runner_name.startswith("docker:"):
+        return ""
+    return DEFAULT_RUNNER_TOOLS_INSTALL_COMMAND
+
+
+def _ensure_runner_toolchain(
+    *,
+    runner: Any,
+    workspace_ref: str,
+    bootstrap_enabled: bool,
+    required_tools: list[str],
+    install_command: str,
+) -> tuple[bool, dict[str, Any]]:
+    results = check_runner_tools(runner, required_tools, workspace_ref=workspace_ref)
+    missing = [name for name, ok in results.items() if not ok]
+    payload: dict[str, Any] = {
+        "runner": str(getattr(runner, "name", "unknown")),
+        "required_tools": required_tools,
+        "tool_results": results,
+        "missing_tools": missing,
+    }
+    if not missing:
+        payload["message"] = "Runner toolchain verified."
+        return True, payload
+
+    if not bootstrap_enabled:
+        payload["message"] = "Required runner tools are missing."
+        payload["hint"] = "Enable --bootstrap-runner-tools or install tools manually."
+        return False, payload
+
+    runner_name = str(getattr(runner, "name", ""))
+    effective_install_command = install_command.strip() or _default_runner_tools_install_command(runner_name)
+    if not effective_install_command:
+        payload["message"] = (
+            "Runner tool bootstrap is not supported for this runner. "
+            "Use prepared image/runtime with required tools preinstalled."
+        )
+        return False, payload
+
+    install_result = runner.run(["bash", "-lc", effective_install_command], workspace_ref=workspace_ref)
+    payload["install_command"] = effective_install_command
+    payload["install_exit_code"] = int(getattr(install_result, "exit_code", -1))
+    payload["install_stdout"] = str(getattr(install_result, "stdout", "")).strip()
+    payload["install_stderr"] = str(getattr(install_result, "stderr", "")).strip()
+    if not bool(getattr(install_result, "success", False)):
+        payload["message"] = "Runner tool bootstrap command failed."
+        return False, payload
+
+    results_after = check_runner_tools(runner, required_tools, workspace_ref=workspace_ref)
+    missing_after = [name for name, ok in results_after.items() if not ok]
+    payload["tool_results_after_install"] = results_after
+    payload["missing_tools"] = missing_after
+    if missing_after:
+        payload["message"] = "Runner tool bootstrap finished but tools are still missing."
+        return False, payload
+
+    payload["message"] = "Runner toolchain bootstrap completed."
+    return True, payload
 
 
 def _load_yaml_mapping(path: Path) -> dict[str, Any]:
@@ -697,6 +798,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "reset": bool(args.reset),
         "acknowledge_drift": bool(args.acknowledge_drift),
         "plan_only": bool(args.plan_only),
+        "bootstrap_runner_tools": bool(args.bootstrap_runner_tools),
+        "runner_tools": _parse_runner_tools(str(args.runner_tools)),
     }
     if args.plan_only:
         logger.info(
@@ -776,6 +879,46 @@ def main(argv: Sequence[str] | None = None) -> int:
         message="Bundle staged in runner workspace.",
         status="staged",
         details={"runner": runner.name, "workspace_ref": workspace_ref},
+    )
+
+    required_runner_tools = _parse_runner_tools(str(args.runner_tools))
+    toolchain_ok, toolchain_payload = _ensure_runner_toolchain(
+        runner=runner,
+        workspace_ref=workspace_ref,
+        bootstrap_enabled=bool(args.bootstrap_runner_tools),
+        required_tools=required_runner_tools,
+        install_command=str(args.runner_tools_install_command),
+    )
+    if not toolchain_ok:
+        payload = {
+            "status": "runner-tools-error",
+            "project_id": project_id,
+            "bundle": str(bundle_path),
+            "runner": runner.name,
+            **toolchain_payload,
+        }
+        logger.error(
+            event="runner-tools-error",
+            message=str(toolchain_payload.get("message", "Runner toolchain checks failed.")),
+            status="runner-tools-error",
+            error_code="E9704",
+            details=payload,
+        )
+        try:
+            runner.cleanup_workspace(workspace_ref)
+        except Exception:  # pragma: no cover - defensive
+            pass
+        print(json.dumps(payload, ensure_ascii=True))
+        return 2
+    logger.info(
+        event="runner-tools-ready",
+        message=str(toolchain_payload.get("message", "Runner toolchain checks passed.")),
+        status="runner-tools-ready",
+        details={
+            "runner": runner.name,
+            "required_tools": required_runner_tools,
+            "bootstrap_runner_tools": bool(args.bootstrap_runner_tools),
+        },
     )
 
     try:

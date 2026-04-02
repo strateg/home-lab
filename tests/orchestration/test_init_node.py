@@ -21,6 +21,7 @@ class _FakeRunner:
         self.name = name
         self.staged_bundle: str = ""
         self.cleanup_calls: list[str] = []
+        self.run_calls: list[list[str]] = []
 
     def stage_bundle(self, bundle_path: str | Path) -> str:
         self.staged_bundle = str(Path(bundle_path))
@@ -28,6 +29,15 @@ class _FakeRunner:
 
     def cleanup_workspace(self, workspace_ref: str) -> None:
         self.cleanup_calls.append(workspace_ref)
+
+    def check_tool(self, tool: str, workspace_ref: str | None = None) -> bool:
+        _ = workspace_ref
+        return True
+
+    def run(self, cmd: list[str], workspace_ref: str | None = None) -> SimpleNamespace:
+        _ = workspace_ref
+        self.run_calls.append(list(cmd))
+        return SimpleNamespace(exit_code=0, stdout="", stderr="", success=True)
 
 
 def _install_fake_runner(monkeypatch: pytest.MonkeyPatch, runner: _FakeRunner | None = None) -> _FakeRunner:
@@ -173,7 +183,7 @@ def test_main_non_plan_mode_executes_and_marks_node_failed_with_placeholder(
     assert payload["selected_nodes"] == ["rtr-a"]
     assert payload["failed_count"] == 1
     assert payload["results"][0]["node"] == "rtr-a"
-    assert payload["results"][0]["error_code"] == "E9730"
+    assert payload["results"][0]["error_code"] == "E9758"
     assert payload["runner"] == fake_runner.name
     assert payload["workspace_ref"].endswith(bundle_id)
 
@@ -371,3 +381,79 @@ def test_main_returns_runner_stage_error_when_bundle_staging_fails(
     payload = json.loads(capsys.readouterr().out.strip())
     assert payload["status"] == "runner-stage-error"
     assert payload["runner"] == fake_runner.name
+
+
+def test_main_returns_runner_tools_error_when_tools_missing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root, bundle_id = _create_test_bundle(tmp_path)
+    fake_runner = _FakeRunner(name="docker:homelab-toolchain:latest")
+    _install_fake_runner(monkeypatch, fake_runner)
+    monkeypatch.setattr(
+        init_node_module,
+        "check_runner_tools",
+        lambda runner, tools, workspace_ref=None: {"bash": True, "ssh": False, "scp": False},
+    )
+
+    rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--skip-environment-check",
+            "--bootstrap-runner-tools",
+        ]
+    )
+
+    assert rc == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["status"] == "runner-tools-error"
+    assert payload["missing_tools"] == ["ssh", "scp"]
+
+
+def test_main_bootstrap_runner_tools_runs_install_command_before_execute(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root, bundle_id = _create_test_bundle(tmp_path)
+    fake_runner = _FakeRunner()
+    _install_fake_runner(monkeypatch, fake_runner)
+    call_counter = {"value": 0}
+
+    def _check_runner_tools(runner, tools, workspace_ref=None):
+        _ = (runner, tools, workspace_ref)
+        call_counter["value"] += 1
+        if call_counter["value"] == 1:
+            return {"bash": True, "ssh": False}
+        return {"bash": True, "ssh": True}
+
+    monkeypatch.setattr(init_node_module, "check_runner_tools", _check_runner_tools)
+
+    rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--skip-environment-check",
+            "--bootstrap-runner-tools",
+            "--runner-tools",
+            "bash,ssh",
+            "--runner-tools-install-command",
+            "echo install-tools",
+        ]
+    )
+
+    assert rc == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["status"] == "failed"
+    assert payload["results"][0]["error_code"] == "E9758"
+    assert ["bash", "-lc", "echo install-tools"] in fake_runner.run_calls
