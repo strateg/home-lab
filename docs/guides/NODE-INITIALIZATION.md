@@ -33,6 +33,7 @@ Partially implemented:
   - `bootstrap` (default phase): bootstrap script is uploaded/imported via `scp + ssh` contract:
     - `INIT_NODE_NETINSTALL_SSH_HOST`
     - `INIT_NODE_NETINSTALL_SSH_USER`
+    - optional `INIT_NODE_NETINSTALL_SSH_PASSWORD` (password auth via Paramiko fallback)
   - `recover` phase: reserved recovery path allows netinstall/custom contracts:
     - custom command via `INIT_NODE_NETINSTALL_COMMAND`
     - native `netinstall-cli` env contract (`MIKROTIK_BOOTSTRAP_MAC`, `MIKROTIK_NETINSTALL_INTERFACE`, `MIKROTIK_NETINSTALL_CLIENT_IP`, `MIKROTIK_ROUTEROS_PACKAGE`)
@@ -77,6 +78,14 @@ $env:INIT_NODE_NETINSTALL_SSH_USER='admin'
 task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=docker PHASE=bootstrap
 ```
 
+Optional: auto-load bootstrap SSH contract from SOPS secret (single-node bootstrap):
+- default probe order under project secrets bootstrap directory:
+  - `<node_id>.yaml`
+  - `<node_id-with-dots>.yaml` (for example `rtr-mikrotik.chateau.yaml`)
+  - `<node_id>-ssh.yaml`
+- override path explicitly:
+  - `--bootstrap-secret-file <path>` or `INIT_NODE_BOOTSTRAP_SECRET_FILE=<path>`
+
 Execute one node (recovery mode; netinstall contract kept for future recover phase):
 
 ```powershell
@@ -103,6 +112,7 @@ task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> VERIFY_
 - `netinstall` handover can include TCP checks for SSH/REST when `INIT_NODE_NETINSTALL_HANDOVER_HOST` is set.
 - `bootstrap` phase defaults to `scp + ssh /import`; no netinstall reinstall should run in bootstrap mode.
 - Explicit phase override is available via `--phase bootstrap|recover` (Task passthrough var: `PHASE`).
+- Bootstrap phase for one node can auto-decrypt SSH host/user/password from SOPS bootstrap secret and export env contract for adapter execution.
 - non-plan execute/verify flows now stage bundle in selected runner workspace and call runner cleanup after execution.
 - Use immutable deploy bundles from ADR 0085 (`task framework:deploy-bundle-create`).
 - This is still safe in current state because destructive adapter execution is not implemented.

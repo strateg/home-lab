@@ -1,0 +1,13 @@
+https://medium.com/@sir.jeff.nasseri/bringing-ai-powered-network-management-to-network-engineers-06167aab409f
+https://github.com/jeff-nasseri/mikrotik-mcp/blob/master/articles/README.md
+https://github.com/jeff-nasseri/mikrotik-mcp/tree/master
+
+Настроить CLAUDE Code агента для управления MIKROTIK Chateau
+С помошью агента можно будет управлять маршрутизатором MIKROTIK Chateau из CLAUDE Code CLI
+1. Сделать полный образ конфигурции рутера.
+2. На осноые конфигурации побробовать отбразить конфигурацию в топологии
+3. Можно заниматься отладкой скриптав при разработке
+
+Идея по созданию MCP адаптера. Возможно нужно просто установить SSH соедиение с рутером и
+давать AI cамому генерировать команды. Узнатькак сделать такого агента более умным и специалищированым
+с MIKROTIK

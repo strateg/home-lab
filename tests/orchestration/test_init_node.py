@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -487,3 +488,44 @@ def test_main_bootstrap_runner_tools_runs_install_command_before_execute(
     assert payload["status"] == "failed"
     assert payload["results"][0]["error_code"] == "E9758"
     assert ["bash", "-lc", "echo install-tools"] in fake_runner.run_calls
+
+
+def test_prepare_bootstrap_ssh_contract_env_loads_sops_secret(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo_root = tmp_path / "repo"
+    secret_file = repo_root / "projects" / "home-lab" / "secrets" / "bootstrap" / "rtr-a.yaml"
+    secret_file.parent.mkdir(parents=True, exist_ok=True)
+    secret_file.write_text("encrypted-placeholder\n", encoding="utf-8")
+
+    class _Result:
+        returncode = 0
+        stdout = '{"ssh":{"host":"192.168.88.1","username":"admin","password":"pw","port":22}}'
+        stderr = ""
+
+    monkeypatch.setattr(init_node_module.subprocess, "run", lambda *args, **kwargs: _Result())
+    for key in [
+        "INIT_NODE_NETINSTALL_SSH_HOST",
+        "INIT_NODE_NETINSTALL_SSH_USER",
+        "INIT_NODE_NETINSTALL_SSH_PASSWORD",
+        "INIT_NODE_NETINSTALL_SSH_PORT",
+        "INIT_NODE_NETINSTALL_HANDOVER_HOST",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+    ok, payload = init_node_module._prepare_bootstrap_ssh_contract_env(
+        repo_root=repo_root,
+        project_id="home-lab",
+        node_id="rtr-a",
+        phase="bootstrap",
+        verify_only=False,
+        bootstrap_secret_file="",
+    )
+
+    assert ok is True
+    assert payload["host"] == "192.168.88.1"
+    assert payload["username"] == "admin"
+    assert payload["password_loaded"] is True
+    assert os.environ["INIT_NODE_NETINSTALL_SSH_HOST"] == "192.168.88.1"
+    assert os.environ["INIT_NODE_NETINSTALL_SSH_USER"] == "admin"
+    assert os.environ["INIT_NODE_NETINSTALL_SSH_PASSWORD"] == "pw"
+    assert os.environ["INIT_NODE_NETINSTALL_SSH_PORT"] == "22"
+    assert os.environ["INIT_NODE_NETINSTALL_HANDOVER_HOST"] == "192.168.88.1"

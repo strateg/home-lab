@@ -299,6 +299,26 @@ def _execute_native_netinstall(*, script_path: Path, native: dict[str, Any]) -> 
 def _execute_via_ssh_import(*, script_path: Path, ssh_host: str, ssh_user: str) -> BootstrapResult:
     ssh_bin = str(os.environ.get("INIT_NODE_NETINSTALL_SSH_BIN", "ssh")).strip() or "ssh"
     scp_bin = str(os.environ.get("INIT_NODE_NETINSTALL_SCP_BIN", "scp")).strip() or "scp"
+    ssh_port = _env_int("INIT_NODE_NETINSTALL_SSH_PORT", default=22)
+    strict_host_key = _env_bool("INIT_NODE_NETINSTALL_SSH_STRICT_HOST_KEY", default=False)
+    identity_file = str(os.environ.get("INIT_NODE_NETINSTALL_SSH_IDENTITY_FILE", "")).strip()
+    password = str(os.environ.get("INIT_NODE_NETINSTALL_SSH_PASSWORD", "")).strip()
+    remote_file = str(os.environ.get("INIT_NODE_NETINSTALL_REMOTE_FILE", "init-terraform.rsc")).strip()
+    cleanup_remote_file = _env_bool("INIT_NODE_NETINSTALL_CLEANUP_REMOTE_FILE", default=True)
+    timeout_s = _env_int("INIT_NODE_NETINSTALL_TIMEOUT_SECONDS", default=600)
+
+    if password:
+        return _execute_via_paramiko_import(
+            script_path=script_path,
+            ssh_host=ssh_host,
+            ssh_user=ssh_user,
+            ssh_port=ssh_port,
+            password=password,
+            remote_file=remote_file,
+            cleanup_remote_file=cleanup_remote_file,
+            timeout_s=timeout_s,
+        )
+
     if not shutil.which(ssh_bin):
         return BootstrapResult(
             status=AdapterStatus.FAILED,
@@ -311,13 +331,6 @@ def _execute_via_ssh_import(*, script_path: Path, ssh_host: str, ssh_user: str) 
             message=f"SCP binary is not available: {scp_bin}",
             error_code="E9754",
         )
-
-    ssh_port = _env_int("INIT_NODE_NETINSTALL_SSH_PORT", default=22)
-    strict_host_key = _env_bool("INIT_NODE_NETINSTALL_SSH_STRICT_HOST_KEY", default=False)
-    identity_file = str(os.environ.get("INIT_NODE_NETINSTALL_SSH_IDENTITY_FILE", "")).strip()
-    remote_file = str(os.environ.get("INIT_NODE_NETINSTALL_REMOTE_FILE", "init-terraform.rsc")).strip()
-    cleanup_remote_file = _env_bool("INIT_NODE_NETINSTALL_CLEANUP_REMOTE_FILE", default=True)
-    timeout_s = _env_int("INIT_NODE_NETINSTALL_TIMEOUT_SECONDS", default=600)
 
     common_opts: list[str] = []
     if identity_file:
@@ -351,6 +364,86 @@ def _execute_via_ssh_import(*, script_path: Path, ssh_host: str, ssh_user: str) 
         message="Netinstall bootstrap script imported via SSH.",
         details={"target": target, "remote_file": remote_file},
     )
+
+
+def _execute_via_paramiko_import(
+    *,
+    script_path: Path,
+    ssh_host: str,
+    ssh_user: str,
+    ssh_port: int,
+    password: str,
+    remote_file: str,
+    cleanup_remote_file: bool,
+    timeout_s: int,
+) -> BootstrapResult:
+    try:
+        import paramiko
+    except Exception as exc:
+        return BootstrapResult(
+            status=AdapterStatus.FAILED,
+            message="Paramiko is required for password-based SSH bootstrap flow.",
+            error_code="E9760",
+            details={"error": str(exc)},
+        )
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        client.connect(
+            hostname=ssh_host,
+            port=int(ssh_port),
+            username=ssh_user,
+            password=password,
+            timeout=timeout_s,
+            auth_timeout=timeout_s,
+            banner_timeout=timeout_s,
+            look_for_keys=False,
+            allow_agent=False,
+        )
+    except Exception as exc:
+        return BootstrapResult(
+            status=AdapterStatus.FAILED,
+            message=f"Password SSH authentication failed for {ssh_user}@{ssh_host}:{ssh_port}.",
+            error_code="E9761",
+            details={"error": str(exc)},
+        )
+
+    try:
+        sftp = client.open_sftp()
+        sftp.put(str(script_path), remote_file)
+        sftp.close()
+
+        stdin, stdout, stderr = client.exec_command(f"/import file-name={remote_file}", timeout=timeout_s)
+        _ = stdin
+        exit_status = int(stdout.channel.recv_exit_status())
+        stdout_data = stdout.read().decode("utf-8", errors="replace").strip()
+        stderr_data = stderr.read().decode("utf-8", errors="replace").strip()
+        if exit_status != 0:
+            return BootstrapResult(
+                status=AdapterStatus.FAILED,
+                message=f"Netinstall SSH import failed with exit code {exit_status}.",
+                error_code="E9751",
+                details={"stdout": stdout_data, "stderr": stderr_data},
+            )
+
+        if cleanup_remote_file:
+            client.exec_command(f"/file remove {remote_file}", timeout=timeout_s)
+
+        return BootstrapResult(
+            status=AdapterStatus.SUCCESS,
+            message="Netinstall bootstrap script imported via SSH.",
+            details={"target": f"{ssh_user}@{ssh_host}", "remote_file": remote_file},
+        )
+    except Exception as exc:
+        return BootstrapResult(
+            status=AdapterStatus.FAILED,
+            message="Netinstall password-based SSH import failed.",
+            error_code="E9751",
+            details={"error": str(exc)},
+        )
+    finally:
+        client.close()
 
 
 def _env_int(key: str, *, default: int) -> int:

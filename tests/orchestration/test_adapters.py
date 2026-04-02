@@ -158,6 +158,7 @@ def test_netinstall_execute_supports_ssh_import(monkeypatch: pytest.MonkeyPatch,
     monkeypatch.setenv("INIT_NODE_PHASE", "bootstrap")
     monkeypatch.setenv("INIT_NODE_NETINSTALL_SSH_HOST", "192.168.88.1")
     monkeypatch.setenv("INIT_NODE_NETINSTALL_SSH_USER", "admin")
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_SSH_PASSWORD", raising=False)
     monkeypatch.setenv("INIT_NODE_NETINSTALL_CLEANUP_REMOTE_FILE", "0")
     monkeypatch.setattr(netinstall_module.shutil, "which", lambda _: "/usr/bin/ssh")
 
@@ -167,6 +168,40 @@ def test_netinstall_execute_supports_ssh_import(monkeypatch: pytest.MonkeyPatch,
         stderr = ""
 
     monkeypatch.setattr(netinstall_module.subprocess, "run", lambda *args, **kwargs: _Result())
+
+    result = adapter.execute(
+        node,
+        AdapterContext(project_id="home-lab", bundle_path=tmp_path, workspace_ref=str(tmp_path)),
+    )
+
+    assert result.status == AdapterStatus.SUCCESS
+    assert result.message == "Netinstall bootstrap script imported via SSH."
+
+
+def test_netinstall_execute_supports_password_ssh_import(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    adapter = NetinstallAdapter()
+    node = {
+        "id": "rtr-a",
+        "artifacts": [
+            {"path": "artifacts/generated/bootstrap/rtr-a/init-terraform.rsc"},
+        ],
+    }
+    script = tmp_path / "artifacts" / "generated" / "bootstrap" / "rtr-a" / "init-terraform.rsc"
+    script.parent.mkdir(parents=True, exist_ok=True)
+    script.write_text("# bootstrap", encoding="utf-8")
+
+    monkeypatch.setenv("INIT_NODE_PHASE", "bootstrap")
+    monkeypatch.setenv("INIT_NODE_NETINSTALL_SSH_HOST", "192.168.88.1")
+    monkeypatch.setenv("INIT_NODE_NETINSTALL_SSH_USER", "admin")
+    monkeypatch.setenv("INIT_NODE_NETINSTALL_SSH_PASSWORD", "pw")
+
+    monkeypatch.setattr(
+        netinstall_module,
+        "_execute_via_paramiko_import",
+        lambda **kwargs: BootstrapResult(
+            status=AdapterStatus.SUCCESS, message="Netinstall bootstrap script imported via SSH."
+        ),
+    )
 
     result = adapter.execute(
         node,

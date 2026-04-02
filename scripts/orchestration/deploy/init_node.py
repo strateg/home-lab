@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -70,6 +71,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--acknowledge-drift", action="store_true")
     parser.add_argument("--plan-only", action="store_true", help="Render execution plan only, no state mutation.")
     parser.add_argument("--skip-environment-check", action="store_true")
+    parser.add_argument(
+        "--bootstrap-secret-file",
+        default=os.environ.get("INIT_NODE_BOOTSTRAP_SECRET_FILE", ""),
+        help=(
+            "Optional SOPS-encrypted bootstrap SSH contract file. "
+            "If omitted, init-node probes default project bootstrap secret paths."
+        ),
+    )
     parser.add_argument(
         "--bootstrap-runner-tools",
         action="store_true",
@@ -193,6 +202,152 @@ def _ensure_runner_toolchain(
 
     payload["message"] = "Runner toolchain bootstrap completed."
     return True, payload
+
+
+def _resolve_bootstrap_secret_candidates(
+    *,
+    repo_root: Path,
+    project_id: str,
+    node_id: str,
+    bootstrap_secret_file: str,
+) -> list[Path]:
+    candidates: list[Path] = []
+    explicit = str(bootstrap_secret_file or "").strip()
+    if explicit:
+        explicit_path = Path(explicit)
+        if not explicit_path.is_absolute():
+            explicit_path = (repo_root / explicit_path).resolve()
+        candidates.append(explicit_path)
+
+    bootstrap_roots = [
+        (repo_root / "projects" / project_id / "secrets" / "bootstrap").resolve(),
+        (repo_root / "secrets" / "bootstrap").resolve(),
+    ]
+    dotted_node_id = node_id.replace("-", ".")
+    default_names = [
+        f"{node_id}.yaml",
+        f"{dotted_node_id}.yaml",
+        f"{node_id}-ssh.yaml",
+    ]
+    for root in bootstrap_roots:
+        for file_name in default_names:
+            candidates.append((root / file_name).resolve())
+
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for path in candidates:
+        key = str(path)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(path)
+    return unique
+
+
+def _decrypt_sops_mapping(secret_file: Path) -> dict[str, Any]:
+    result = subprocess.run(
+        ["sops", "-d", "--output-type", "json", str(secret_file)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        stderr = (result.stderr or "").strip()
+        raise RuntimeError(f"sops decrypt failed for '{secret_file}': {stderr or 'unknown error'}")
+    try:
+        payload = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Invalid JSON decrypted payload from '{secret_file}': {exc}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Decrypted bootstrap secret root must be object: {secret_file}")
+    return payload
+
+
+def _extract_ssh_contract(payload: dict[str, Any]) -> dict[str, Any]:
+    ssh_payload = payload.get("ssh")
+    if not isinstance(ssh_payload, dict):
+        ssh_payload = {}
+    host = str(ssh_payload.get("host") or payload.get("host") or "").strip()
+    username = str(ssh_payload.get("username") or payload.get("username") or "").strip()
+    password = str(ssh_payload.get("password") or payload.get("password") or "").strip()
+    port_raw = str(ssh_payload.get("port") or payload.get("port") or "").strip()
+    port = ""
+    if port_raw:
+        try:
+            parsed = int(port_raw)
+            if parsed > 0:
+                port = str(parsed)
+        except ValueError:
+            port = ""
+    return {
+        "host": host,
+        "username": username,
+        "password": password,
+        "port": port,
+    }
+
+
+def _prepare_bootstrap_ssh_contract_env(
+    *,
+    repo_root: Path,
+    project_id: str,
+    node_id: str | None,
+    phase: str,
+    verify_only: bool,
+    bootstrap_secret_file: str,
+) -> tuple[bool, dict[str, Any]]:
+    if verify_only or phase != "bootstrap":
+        return True, {"message": "Bootstrap secret autoload skipped.", "reason": "phase-or-verify-only"}
+    if not node_id:
+        return True, {"message": "Bootstrap secret autoload skipped.", "reason": "no-target-node"}
+    if (
+        str(os.environ.get("INIT_NODE_NETINSTALL_SSH_HOST", "")).strip()
+        and str(os.environ.get("INIT_NODE_NETINSTALL_SSH_USER", "")).strip()
+    ):
+        return True, {"message": "Bootstrap SSH contract already provided via environment."}
+
+    candidates = _resolve_bootstrap_secret_candidates(
+        repo_root=repo_root,
+        project_id=project_id,
+        node_id=node_id,
+        bootstrap_secret_file=bootstrap_secret_file,
+    )
+    secret_file = next((path for path in candidates if path.exists()), None)
+    if secret_file is None:
+        return True, {
+            "message": "Bootstrap SSH secret file was not found.",
+            "candidates": [str(item) for item in candidates],
+        }
+
+    try:
+        payload = _decrypt_sops_mapping(secret_file)
+        contract = _extract_ssh_contract(payload)
+    except RuntimeError as exc:
+        return False, {"message": str(exc), "secret_file": str(secret_file)}
+
+    host = str(contract.get("host", "")).strip()
+    username = str(contract.get("username", "")).strip()
+    if not host or not username:
+        return False, {
+            "message": "Bootstrap SSH secret must contain host and username fields.",
+            "secret_file": str(secret_file),
+        }
+
+    os.environ.setdefault("INIT_NODE_NETINSTALL_SSH_HOST", host)
+    os.environ.setdefault("INIT_NODE_NETINSTALL_SSH_USER", username)
+    if str(contract.get("password", "")).strip():
+        os.environ.setdefault("INIT_NODE_NETINSTALL_SSH_PASSWORD", str(contract["password"]).strip())
+    if str(contract.get("port", "")).strip():
+        os.environ.setdefault("INIT_NODE_NETINSTALL_SSH_PORT", str(contract["port"]).strip())
+    os.environ.setdefault("INIT_NODE_NETINSTALL_HANDOVER_HOST", host)
+
+    return True, {
+        "message": "Bootstrap SSH contract loaded from SOPS secret.",
+        "secret_file": str(secret_file),
+        "host": host,
+        "username": username,
+        "password_loaded": bool(str(contract.get("password", "")).strip()),
+    }
 
 
 def _load_yaml_mapping(path: Path) -> dict[str, Any]:
@@ -814,6 +969,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "bootstrap_runner_tools": bool(args.bootstrap_runner_tools),
         "runner_tools": _parse_runner_tools(str(args.runner_tools)),
         "phase": str(args.phase),
+        "bootstrap_secret_file": str(args.bootstrap_secret_file or ""),
     }
     if args.plan_only:
         logger.info(
@@ -935,6 +1091,41 @@ def main(argv: Sequence[str] | None = None) -> int:
             "required_tools": required_runner_tools,
             "bootstrap_runner_tools": bool(args.bootstrap_runner_tools),
         },
+    )
+    contract_ok, contract_payload = _prepare_bootstrap_ssh_contract_env(
+        repo_root=repo_root,
+        project_id=project_id,
+        node_id=(target_node if target_mode == "node" else None),
+        phase=str(args.phase),
+        verify_only=bool(args.verify_only),
+        bootstrap_secret_file=str(args.bootstrap_secret_file or ""),
+    )
+    if not contract_ok:
+        payload = {
+            "status": "bootstrap-secret-error",
+            "project_id": project_id,
+            "bundle": str(bundle_path),
+            "runner": runner.name,
+            **contract_payload,
+        }
+        logger.error(
+            event="bootstrap-secret-error",
+            message=str(contract_payload.get("message", "Bootstrap secret resolution failed.")),
+            status="bootstrap-secret-error",
+            error_code="E9705",
+            details=payload,
+        )
+        try:
+            runner.cleanup_workspace(workspace_ref)
+        except Exception:  # pragma: no cover - defensive
+            pass
+        print(json.dumps(payload, ensure_ascii=True))
+        return 2
+    logger.info(
+        event="bootstrap-secret-ready",
+        message=str(contract_payload.get("message", "Bootstrap secret contract checks completed.")),
+        status="bootstrap-secret-ready",
+        details={key: value for key, value in contract_payload.items() if key != "password"},
     )
 
     try:
