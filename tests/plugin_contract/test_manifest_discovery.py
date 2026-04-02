@@ -48,6 +48,37 @@ def _write_module_index(
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
+def _assert_root_group_order(
+    *, manifests: list[Path], class_root: Path, object_root: Path, project_plugins_root: Path | None
+) -> None:
+    """Ensure manifests are grouped in deterministic root order.
+
+    Expected order after base manifest:
+    1) class manifests
+    2) object manifests
+    3) project manifests (if root is provided)
+    """
+    labels: list[str] = []
+    for path in manifests[1:]:
+        resolved = path.resolve()
+        if str(resolved).startswith(str(class_root.resolve())):
+            labels.append("class")
+            continue
+        if str(resolved).startswith(str(object_root.resolve())):
+            labels.append("object")
+            continue
+        if project_plugins_root is not None and str(resolved).startswith(str(project_plugins_root.resolve())):
+            labels.append("project")
+            continue
+        labels.append("other")
+
+    if "class" in labels and "object" in labels:
+        assert labels.index("class") < labels.index("object")
+    if project_plugins_root is not None and "object" in labels and "project" in labels:
+        assert labels.index("object") < labels.index("project")
+    assert "other" not in labels
+
+
 def test_discover_plugin_manifests_order_is_deterministic(tmp_path: Path) -> None:
     base = tmp_path / "plugins" / "plugins.yaml"
     class_root = tmp_path / "class-modules"
@@ -71,6 +102,12 @@ def test_discover_plugin_manifests_order_is_deterministic(tmp_path: Path) -> Non
         (object_root / "beta" / "plugins.yaml").resolve(),
         (object_root / "omega" / "plugins.yaml").resolve(),
     ]
+    _assert_root_group_order(
+        manifests=manifests,
+        class_root=class_root,
+        object_root=object_root,
+        project_plugins_root=None,
+    )
 
 
 def test_discovery_keeps_base_manifest_first_even_if_missing(tmp_path: Path) -> None:
@@ -142,6 +179,12 @@ def test_discovery_includes_project_plugins_after_object_manifests(tmp_path: Pat
         (project_plugins_root / "plugins.yaml").resolve(),
         (project_plugins_root / "zeta" / "plugins.yaml").resolve(),
     ]
+    _assert_root_group_order(
+        manifests=manifests,
+        class_root=class_root,
+        object_root=object_root,
+        project_plugins_root=project_plugins_root,
+    )
 
 
 def test_discovery_scans_only_project_plugins_root_not_project_instances(tmp_path: Path) -> None:

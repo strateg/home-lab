@@ -146,18 +146,20 @@ class DiscoverBoundaryCompiler(DiscovererPlugin):
             if isinstance(project_plugins_root_raw, str) and str(project_plugins_root_raw).strip()
             else ""
         )
+        project_plugins_root_cmp = project_plugins_root.casefold()
 
         leaked: list[str] = []
         for rel in manifest_list:
             normalized = rel.replace("\\", "/").strip("/")
+            normalized_cmp = normalized.casefold()
             # project instances must remain data-only; plugin manifests here are forbidden.
-            if "/topology/instances/" in f"/{normalized}/" or normalized.startswith("topology/instances/"):
+            if "/topology/instances/" in f"/{normalized_cmp}/" or normalized_cmp.startswith("topology/instances/"):
                 leaked.append(rel)
                 continue
-            if not normalized.startswith("projects/"):
+            if not normalized_cmp.startswith("projects/"):
                 continue
-            if project_plugins_root and (
-                normalized == project_plugins_root or normalized.startswith(f"{project_plugins_root}/")
+            if project_plugins_root_cmp and (
+                normalized_cmp == project_plugins_root_cmp or normalized_cmp.startswith(f"{project_plugins_root_cmp}/")
             ):
                 continue
             leaked.append(rel)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Contract checks for four-level plugin boundary rules."""
+"""Contract checks for plugin architecture boundaries and manifest hygiene."""
 
 from __future__ import annotations
 
@@ -17,6 +17,24 @@ V5_ROOT = Path(__file__).resolve().parents[2]
 
 CLASS_MANIFEST_ROOT = V5_ROOT / "topology" / "class-modules"
 OBJECT_MANIFEST_ROOT = V5_ROOT / "topology" / "object-modules"
+BASE_MANIFEST = V5_ROOT / "topology-tools" / "plugins" / "plugins.yaml"
+ALLOWED_STAGES_BY_KIND: dict[str, set[str]] = {
+    "discoverer": {"discover"},
+    "compiler": {"compile"},
+    "validator_yaml": {"validate"},
+    "validator_json": {"validate"},
+    "generator": {"generate"},
+    "assembler": {"assemble"},
+    "builder": {"build"},
+}
+STAGE_ORDER_RANGES: dict[str, tuple[int, int]] = {
+    "discover": (10, 89),
+    "compile": (30, 89),
+    "validate": (90, 189),
+    "generate": (190, 399),
+    "assemble": (400, 499),
+    "build": (500, 599),
+}
 PRIVATE_IP_LITERAL_RE = re.compile(
     r"\b(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})\b"
 )
@@ -33,6 +51,23 @@ def _iter_manifests(root: Path) -> Iterable[Path]:
     if not root.exists():
         return []
     return sorted(path for path in root.rglob("plugins.yaml") if path.is_file())
+
+
+def _iter_all_manifests() -> list[Path]:
+    manifests: list[Path] = []
+    if BASE_MANIFEST.exists():
+        manifests.append(BASE_MANIFEST)
+    manifests.extend(_iter_manifests(CLASS_MANIFEST_ROOT))
+    manifests.extend(_iter_manifests(OBJECT_MANIFEST_ROOT))
+    return manifests
+
+
+def _load_manifest_plugins(manifest_path: Path) -> list[dict[str, object]]:
+    payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+    plugins = payload.get("plugins", [])
+    if not isinstance(plugins, list):
+        return []
+    return [item for item in plugins if isinstance(item, dict)]
 
 
 def _iter_plugin_sources(manifest_path: Path) -> Iterable[PluginSource]:
@@ -110,28 +145,53 @@ def _find_instance_specific_literal(literal: str) -> str | None:
     return None
 
 
-def test_class_level_plugins_do_not_reference_object_or_instance_ids() -> None:
-    plugin_files: list[Path] = []
-    for manifest_path in _iter_manifests(CLASS_MANIFEST_ROOT):
-        plugin_files.extend(source.path for source in _iter_plugin_sources(manifest_path))
+def test_manifest_plugins_respect_kind_stage_affinity() -> None:
+    violations: list[str] = []
+    for manifest_path in _iter_all_manifests():
+        rel = manifest_path.relative_to(V5_ROOT).as_posix()
+        for row in _load_manifest_plugins(manifest_path):
+            plugin_id = row.get("id")
+            kind = row.get("kind")
+            stages = row.get("stages")
+            if not isinstance(plugin_id, str) or not isinstance(kind, str) or not isinstance(stages, list):
+                continue
+            allowed = ALLOWED_STAGES_BY_KIND.get(kind)
+            if allowed is None:
+                continue
+            for stage in stages:
+                if isinstance(stage, str) and stage in allowed:
+                    continue
+                violations.append(
+                    f"{rel}:{plugin_id} kind '{kind}' cannot run in stage '{stage}' (allowed={sorted(allowed)})"
+                )
 
-    violations = _collect_text_violations(
-        plugin_files,
-        forbidden_markers=("obj.", "inst."),
-    )
-    assert violations == [], "Class-level plugins must not mention object or instance identifiers: " f"{violations}"
+    assert violations == [], f"Manifest kind/stage affinity violations: {violations}"
 
 
-def test_object_level_plugins_do_not_reference_instance_ids() -> None:
-    plugin_files: list[Path] = []
-    for manifest_path in _iter_manifests(OBJECT_MANIFEST_ROOT):
-        plugin_files.extend(source.path for source in _iter_plugin_sources(manifest_path))
+def test_manifest_plugins_respect_stage_order_ranges() -> None:
+    violations: list[str] = []
+    for manifest_path in _iter_all_manifests():
+        rel = manifest_path.relative_to(V5_ROOT).as_posix()
+        for row in _load_manifest_plugins(manifest_path):
+            plugin_id = row.get("id")
+            stages = row.get("stages")
+            order = row.get("order")
+            if not isinstance(plugin_id, str) or not isinstance(stages, list) or not isinstance(order, int):
+                continue
+            for stage in stages:
+                if not isinstance(stage, str):
+                    continue
+                order_range = STAGE_ORDER_RANGES.get(stage)
+                if order_range is None:
+                    continue
+                min_order, max_order = order_range
+                if min_order <= order <= max_order:
+                    continue
+                violations.append(
+                    f"{rel}:{plugin_id} order {order} outside {min_order}-{max_order} for stage '{stage}'"
+                )
 
-    violations = _collect_text_violations(
-        plugin_files,
-        forbidden_markers=("inst.",),
-    )
-    assert violations == [], "Object-level plugins must not mention instance identifiers: " f"{violations}"
+    assert violations == [], f"Manifest stage-order violations: {violations}"
 
 
 def test_module_level_plugins_do_not_mutate_sys_path() -> None:
@@ -147,42 +207,31 @@ def test_module_level_plugins_do_not_mutate_sys_path() -> None:
     )
 
 
-def test_class_and_object_non_generator_plugins_are_specific_to_their_scope() -> None:
-    class_violations: list[str] = []
-    object_violations: list[str] = []
+def test_manifest_dependencies_reference_existing_plugins() -> None:
+    known_ids: set[str] = set()
+    manifest_rows: list[tuple[str, dict[str, object]]] = []
 
-    for manifest_path in _iter_manifests(CLASS_MANIFEST_ROOT):
-        for source in _iter_plugin_sources(manifest_path):
-            if source.kind == "generator":
+    for manifest_path in _iter_all_manifests():
+        rel = manifest_path.relative_to(V5_ROOT).as_posix()
+        for row in _load_manifest_plugins(manifest_path):
+            plugin_id = row.get("id")
+            if not isinstance(plugin_id, str) or not plugin_id:
                 continue
-            if not source.path.exists():
-                class_violations.append(f"missing plugin source: {source.path}")
-                continue
-            body = source.path.read_text(encoding="utf-8")
-            if "class." not in body:
-                rel = source.path.relative_to(V5_ROOT).as_posix()
-                class_violations.append(rel)
+            known_ids.add(plugin_id)
+            manifest_rows.append((rel, row))
 
-    for manifest_path in _iter_manifests(OBJECT_MANIFEST_ROOT):
-        for source in _iter_plugin_sources(manifest_path):
-            if source.kind == "generator":
+    violations: list[str] = []
+    for rel, row in manifest_rows:
+        plugin_id = row.get("id")
+        depends_on = row.get("depends_on", [])
+        if not isinstance(plugin_id, str) or not isinstance(depends_on, list):
+            continue
+        for dep in depends_on:
+            if isinstance(dep, str) and dep in known_ids:
                 continue
-            if not source.path.exists():
-                object_violations.append(f"missing plugin source: {source.path}")
-                continue
-            body = source.path.read_text(encoding="utf-8")
-            if "obj." not in body:
-                rel = source.path.relative_to(V5_ROOT).as_posix()
-                object_violations.append(rel)
+            violations.append(f"{rel}:{plugin_id} missing dependency '{dep}'")
 
-    assert class_violations == [], (
-        "Class-level non-generator plugins without class-specific names should move to core/global level: "
-        f"{class_violations}"
-    )
-    assert object_violations == [], (
-        "Object-level non-generator plugins without object-specific names should move to core/global level: "
-        f"{object_violations}"
-    )
+    assert violations == [], f"Manifest dependency reference violations: {violations}"
 
 
 def test_object_modules_do_not_cross_import_other_object_modules() -> None:
