@@ -1,21 +1,5 @@
 schema_version: 1
 plugins:
-  - id: object_mikrotik.validator_json.router_ports
-    kind: validator_json
-    entry: plugins/validators/mikrotik_router_ports_validator.py:MikrotikRouterPortsValidator
-    api_version: "1.x"
-    stages: [validate]
-    phase: run
-    order: 143
-    depends_on: [base.validator.references]
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    description: Validates MikroTik router ethernet ports shape for endpoint-aware connectivity checks.
-
   - id: object.mikrotik.generator.terraform
     kind: generator
     entry: plugins/generators/terraform_mikrotik_generator.py:TerraformMikroTikGenerator

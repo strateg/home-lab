@@ -118,20 +118,20 @@ Example for shared/global plugin (central manifest):
 Example for object-scoped plugin (module manifest):
 
 ```yaml
-- id: object_mikrotik.validator_json.router_ports
+- id: object_network.validator_json.ethernet_cable_endpoints
   kind: validator_json
-  entry: plugins/validators/mikrotik_router_ports_validator.py:MikrotikRouterPortsValidator
+  entry: plugins/validators/ethernet_cable_endpoint_validator.py:EthernetCableEndpointValidator
   api_version: "1.x"
   stages: [validate]
-  order: 241
-  depends_on: [base.validator.references]
+  order: 145
+  depends_on: [base.validator.references, base.validator.ethernet_port_inventory]
   timeout: 30
   config: {}
   config_schema:
     type: object
     properties: {}
     required: []
-  description: Validates MikroTik router ports.
+  description: Validates ethernet cable and data-link endpoint contracts.
 ```
 
 ### 3. Run with Plugins

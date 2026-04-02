@@ -52,22 +52,22 @@ Legend: `TODO` | `IN-PROGRESS` | `BLOCKED` | `DONE`
 
 | Issue | Title | Owner | Status | Notes |
 |------|-------|-------|--------|-------|
-| W2-01 | Ref Rule Catalog | - | TODO | |
-| W2-02 | Declarative Ref Validator | - | TODO | |
-| W2-03 | Manifest Wiring (Refs) | - | TODO | |
-| W2-04 | Diagnostic Parity Harness | - | TODO | |
-| W2-05 | Router Port Consolidation | - | TODO | |
-| W2-06 | Manifest Rewire (Ports) | - | TODO | |
-| W2-07 | ID Mapping Notes | - | TODO | |
-| W2-08 | Wave 2 Final Gate | - | TODO | |
+| W2-01 | Ref Rule Catalog | - | DONE | `REFERENCE-RULE-CATALOG.md` published |
+| W2-02 | Declarative Ref Validator | - | DONE | `declarative_reference_validator.py` added |
+| W2-03 | Manifest Wiring (Refs) | - | DONE | Refs entries rewired to declarative validator |
+| W2-04 | Diagnostic Parity Harness | - | DONE | `test_declarative_reference_validator_parity.py` added |
+| W2-05 | Router Port Consolidation | - | DONE | `router_port_validator.py` added |
+| W2-06 | Manifest Rewire (Ports) | - | DONE | Router class/object manifests rewired |
+| W2-07 | ID Mapping Notes | - | DONE | `WAVE2-ID-MAPPING.md` published |
+| W2-08 | Wave 2 Final Gate | - | DONE | `plugin_contract`, focused `plugin_integration`, `validate-v5` passed |
 
 ### Wave 3
 
 | Issue | Title | Owner | Status | Notes |
 |------|-------|-------|--------|-------|
-| W3-01 | Standalone Inventory | - | TODO | |
-| W3-02 | Standalone Relocation | - | TODO | |
-| W3-03 | Manifest Rewire Post-Move | - | TODO | |
+| W3-01 | Standalone Inventory | - | DONE | `WAVE3-STANDALONE-INVENTORY.md` published |
+| W3-02 | Standalone Relocation | - | IN-PROGRESS | Redundant router wrapper validators removed from class/object module plugin code |
+| W3-03 | Manifest Rewire Post-Move | - | IN-PROGRESS | Router/GL.iNet/MikroTik module manifests rewired to remove deprecated wrapper entries |
 | W3-04 | Manifest Minimization | - | TODO | |
 | W3-05 | ID Normalization | - | TODO | |
 | W3-06 | Layout Policy Tests | - | TODO | |

@@ -1,17 +1,2 @@
 schema_version: 1
-plugins:
-  - id: class_router.validator_json.router_data_channel_interface
-    kind: validator_json
-    entry: plugins/validators/router_data_channel_interface_validator.py:RouterDataChannelInterfaceValidator
-    api_version: "1.x"
-    stages: [validate]
-    phase: run
-    order: 142
-    depends_on: [base.validator.references]
-    timeout: 30
-    config: {}
-    config_schema:
-      type: object
-      properties: {}
-      required: []
-    description: Validates OSI-aligned data-channel interface contract shape for class.router.
+plugins: []

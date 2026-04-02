@@ -441,18 +441,32 @@ plugins:
 
   - id: base.validator.power_source_refs
     kind: validator_json
-    entry: validators/power_source_refs_validator.py:PowerSourceRefsValidator
+    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
     api_version: "1.x"
     stages: [validate]
     phase: run
     order: 115
     depends_on: [base.compiler.instance_rows]
     timeout: 30
-    config: {}
+    config:
+      enabled_rules: [power_source]
+      missing_rows_code: E6901
+      missing_rows_path: pipeline:mode
+      missing_rows_message_prefix: power_source_refs
     config_schema:
       type: object
-      properties: {}
-      required: []
+      properties:
+        enabled_rules:
+          type: array
+          items:
+            type: string
+        missing_rows_code:
+          type: string
+        missing_rows_path:
+          type: string
+        missing_rows_message_prefix:
+          type: string
+      required: [enabled_rules]
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
@@ -621,18 +635,29 @@ plugins:
 
   - id: base.validator.network_core_refs
     kind: validator_json
-    entry: validators/network_core_refs_validator.py:NetworkCoreRefsValidator
+    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
     api_version: "1.x"
     stages: [validate]
     phase: run
     order: 126
     depends_on: [base.compiler.instance_rows]
     timeout: 30
-    config: {}
+    config:
+      enabled_rules: [network_core]
+      missing_rows_code: E7837
+      missing_rows_message_prefix: network_core_refs
     config_schema:
       type: object
-      properties: {}
-      required: []
+      properties:
+        enabled_rules:
+          type: array
+          items:
+            type: string
+        missing_rows_code:
+          type: string
+        missing_rows_message_prefix:
+          type: string
+      required: [enabled_rules]
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
@@ -721,18 +746,29 @@ plugins:
 
   - id: base.validator.service_dependency_refs
     kind: validator_json
-    entry: validators/service_dependency_refs_validator.py:ServiceDependencyRefsValidator
+    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
     api_version: "1.x"
     stages: [validate]
     phase: run
     order: 132
     depends_on: [base.compiler.instance_rows]
     timeout: 30
-    config: {}
+    config:
+      enabled_rules: [service_dependency]
+      missing_rows_code: E7848
+      missing_rows_message_prefix: service_dependency_refs
     config_schema:
       type: object
-      properties: {}
-      required: []
+      properties:
+        enabled_rules:
+          type: array
+          items:
+            type: string
+        missing_rows_code:
+          type: string
+        missing_rows_message_prefix:
+          type: string
+      required: [enabled_rules]
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
@@ -781,18 +817,29 @@ plugins:
 
   - id: base.validator.dns_refs
     kind: validator_json
-    entry: validators/dns_refs_validator.py:DnsRefsValidator
+    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
     api_version: "1.x"
     stages: [validate]
     phase: run
     order: 135
     depends_on: [base.compiler.instance_rows]
     timeout: 30
-    config: {}
+    config:
+      enabled_rules: [dns]
+      missing_rows_code: E7856
+      missing_rows_message_prefix: dns_refs
     config_schema:
       type: object
-      properties: {}
-      required: []
+      properties:
+        enabled_rules:
+          type: array
+          items:
+            type: string
+        missing_rows_code:
+          type: string
+        missing_rows_message_prefix:
+          type: string
+      required: [enabled_rules]
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
@@ -801,18 +848,29 @@ plugins:
 
   - id: base.validator.certificate_refs
     kind: validator_json
-    entry: validators/certificate_refs_validator.py:CertificateRefsValidator
+    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
     api_version: "1.x"
     stages: [validate]
     phase: run
     order: 136
     depends_on: [base.compiler.instance_rows]
     timeout: 30
-    config: {}
+    config:
+      enabled_rules: [certificate]
+      missing_rows_code: E7857
+      missing_rows_message_prefix: certificate_refs
     config_schema:
       type: object
-      properties: {}
-      required: []
+      properties:
+        enabled_rules:
+          type: array
+          items:
+            type: string
+        missing_rows_code:
+          type: string
+        missing_rows_message_prefix:
+          type: string
+      required: [enabled_rules]
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
@@ -821,18 +879,29 @@ plugins:
 
   - id: base.validator.backup_refs
     kind: validator_json
-    entry: validators/backup_refs_validator.py:BackupRefsValidator
+    entry: validators/declarative_reference_validator.py:DeclarativeReferenceValidator
     api_version: "1.x"
     stages: [validate]
     phase: run
     order: 137
     depends_on: [base.compiler.instance_rows]
     timeout: 30
-    config: {}
+    config:
+      enabled_rules: [backup]
+      missing_rows_code: E7858
+      missing_rows_message_prefix: backup_refs
     config_schema:
       type: object
-      properties: {}
-      required: []
+      properties:
+        enabled_rules:
+          type: array
+          items:
+            type: string
+        missing_rows_code:
+          type: string
+        missing_rows_message_prefix:
+          type: string
+      required: [enabled_rules]
     consumes:
       - from_plugin: base.compiler.instance_rows
         key: normalized_rows
@@ -1010,6 +1079,22 @@ plugins:
       - key: ethernet_ports_by_object
         scope: pipeline_shared
     description: Publishes object ethernet port inventory for endpoint validators.
+
+  - id: base.validator.router_ports
+    kind: validator_json
+    entry: validators/router_port_validator.py:RouterPortValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: run
+    order: 142
+    depends_on: [base.validator.references]
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    description: Consolidated router data-channel contract and vendor router ethernet port validation.
 
   - id: base.validator.capability_contract
     kind: validator_json
