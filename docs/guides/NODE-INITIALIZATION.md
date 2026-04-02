@@ -83,6 +83,8 @@ Optional: auto-load bootstrap SSH contract from SOPS secret (single-node bootstr
   - `<node_id>.yaml`
   - `<node_id-with-dots>.yaml` (for example `rtr-mikrotik.chateau.yaml`)
   - `<node_id>-ssh.yaml`
+- supported filename variants also include mixed dot/dash forms (for example `rtr-mikrotik.chateau.yaml` for node `rtr-mikrotik-chateau`)
+- secret contract should include `ssh.host` and `ssh.username`; if `ssh.host` is missing, init-node can reuse `INIT_NODE_NETINSTALL_HANDOVER_HOST`
 - override path explicitly:
   - `--bootstrap-secret-file <path>` or `INIT_NODE_BOOTSTRAP_SECRET_FILE=<path>`
 
@@ -113,6 +115,7 @@ task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> VERIFY_
 - `bootstrap` phase defaults to `scp + ssh /import`; no netinstall reinstall should run in bootstrap mode.
 - Explicit phase override is available via `--phase bootstrap|recover` (Task passthrough var: `PHASE`).
 - Bootstrap phase for one node can auto-decrypt SSH host/user/password from SOPS bootstrap secret and export env contract for adapter execution.
+- On Windows hosts, bootstrap secret decrypt now falls back to `wsl sops` automatically when native `sops` is unavailable (override distro with `INIT_NODE_WSL_DISTRO`).
 - non-plan execute/verify flows now stage bundle in selected runner workspace and call runner cleanup after execution.
 - Use immutable deploy bundles from ADR 0085 (`task framework:deploy-bundle-create`).
 - This is still safe in current state because destructive adapter execution is not implemented.

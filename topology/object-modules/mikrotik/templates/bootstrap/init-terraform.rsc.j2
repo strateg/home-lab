@@ -21,22 +21,49 @@
 # ---------------------------------------------------------------------------
 # TLS certificate for REST API (www-ssl)
 # ---------------------------------------------------------------------------
+:if ([:len [/certificate find where name="local-ca"]] = 0) do={
+    :log info "bootstrap(terraform): creating local-ca"
+    /certificate add name=local-ca common-name="{{ instance_id }}-ca.home.local" days-valid=3650 key-size=2048 key-usage=key-cert-sign,crl-sign
+    :delay 2s
+}
+:do {
+    /certificate sign local-ca
+} on-error={
+    :log warning "bootstrap(terraform): local-ca sign skipped (already signed or unavailable)"
+}
+:do {
+    /certificate set [find where name="local-ca"] trusted=yes
+} on-error={
+    :log warning "bootstrap(terraform): local-ca trust update skipped"
+}
+
 :if ([:len [/certificate find where name="local-cert"]] = 0) do={
     :log info "bootstrap(terraform): creating local-cert"
     /certificate add name=local-cert common-name="{{ instance_id }}.home.local" days-valid=3650 key-size=2048 key-usage=key-encipherment,tls-server
     :delay 2s
 }
 :do {
-    /certificate sign local-cert
+    /certificate sign local-cert ca=local-ca
 } on-error={
-    :log warning "bootstrap(terraform): certificate sign skipped (already signed or unavailable)"
+    :log warning "bootstrap(terraform): local-cert sign skipped (already signed or unavailable)"
+}
+:do {
+    /certificate set [find where name="local-cert"] trusted=yes
+} on-error={
+    :log warning "bootstrap(terraform): local-cert trust update skipped"
 }
 
 # ---------------------------------------------------------------------------
 # Services required for Terraform REST provider
 # ---------------------------------------------------------------------------
 /ip service set www disabled=no
-/ip service set www-ssl disabled=no certificate=local-cert port=8443
+/ip service set www-ssl disabled=no port=8443
+:do {
+    /ip service set www-ssl certificate=local-cert
+} on-error={
+    :log warning "bootstrap(terraform): cannot bind local-cert to www-ssl; keep certificate=none"
+    /ip service set www-ssl certificate=none
+}
 
 # Disable legacy services not needed for this flow.
 /ip service set telnet disabled=yes
@@ -47,11 +74,14 @@
 # Terraform automation principal
 # ---------------------------------------------------------------------------
 :if ([:len [/user group find where name="terraform"]] = 0) do={
-    /user group add name=terraform policy=api,read,write,policy,sensitive,test,local,ssh,reboot
+    /user group add name=terraform policy=local,ssh,reboot,read,write,policy,test,sensitive,api,rest-api,web
 }
+/user group set [find where name="terraform"] policy=local,ssh,reboot,read,write,policy,test,sensitive,api,rest-api,web
 
 :if ([:len [/user find where name="terraform"]] = 0) do={
     /user add name=terraform group=terraform disabled=yes comment="Terraform automation user (set password, then enable)"
+} else={
+    /user set [find where name="terraform"] group=terraform
 }
 
 # ---------------------------------------------------------------------------
@@ -65,14 +95,8 @@
     /ip firewall filter add chain=input action=accept protocol=tcp dst-port=8443 src-address=192.168.88.0/24 comment="Allow REST API from LAN (temp)" place-before=1
 }
 
-# Keep one export for rollback/debug context.
-:do {
-    /export file=pre-terraform-backup
-} on-error={
-    :log warning "bootstrap(terraform): export skipped"
-}
-
 :log info "bootstrap(terraform): complete"
-:put "REST API: https://192.168.88.1:8443"
+:put "REST API (HTTPS): https://192.168.88.1:8443"
+:put "REST API (HTTP): http://192.168.88.1/rest/system/resource"
 :put "User: terraform"
 :put "Set terraform password manually and enable user before Terraform run."

@@ -289,6 +289,61 @@ def test_main_verify_only_marks_initialized_node_as_verified(
     assert "node-verify-success" in log_path.read_text(encoding="utf-8")
 
 
+def test_main_execute_allows_verified_node_when_reset_requested(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root, bundle_id = _create_test_bundle(tmp_path)
+    _install_fake_runner(monkeypatch)
+    plan_rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--plan-only",
+            "--skip-environment-check",
+        ]
+    )
+    assert plan_rc == 0
+    _ = capsys.readouterr().out
+
+    state_path = resolve_state_path(repo_root=repo_root, project_id="home-lab")
+    state_payload = init_node_module._load_yaml_mapping(state_path)
+    row = next(item for item in state_payload["nodes"] if item["id"] == "rtr-a")
+    row["status"] = "verified"
+    init_node_module._write_yaml_atomic(state_path, state_payload)
+
+    rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--reset",
+            "--confirm-reset",
+            "--skip-environment-check",
+        ]
+    )
+    assert rc == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["status"] == "failed"
+    assert payload["results"][0]["error_code"] == "E9758"
+
+    state_payload = init_node_module._load_yaml_mapping(state_path)
+    row = next(item for item in state_payload["nodes"] if item["id"] == "rtr-a")
+    assert row["status"] == "failed"
+    actions = [item.get("action") for item in row.get("history", []) if isinstance(item, dict)]
+    assert "reset-pending" in actions
+
+
 def test_main_verify_only_fails_for_pending_node(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -529,3 +584,114 @@ def test_prepare_bootstrap_ssh_contract_env_loads_sops_secret(tmp_path: Path, mo
     assert os.environ["INIT_NODE_NETINSTALL_SSH_PASSWORD"] == "pw"
     assert os.environ["INIT_NODE_NETINSTALL_SSH_PORT"] == "22"
     assert os.environ["INIT_NODE_NETINSTALL_HANDOVER_HOST"] == "192.168.88.1"
+
+
+def test_prepare_bootstrap_ssh_contract_env_uses_env_host_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "repo"
+    secret_file = repo_root / "projects" / "home-lab" / "secrets" / "bootstrap" / "rtr-a.yaml"
+    secret_file.parent.mkdir(parents=True, exist_ok=True)
+    secret_file.write_text("encrypted-placeholder\n", encoding="utf-8")
+
+    class _Result:
+        returncode = 0
+        stdout = '{"ssh":{"username":"admin","password":"pw","port":22}}'
+        stderr = ""
+
+    monkeypatch.setattr(init_node_module.subprocess, "run", lambda *args, **kwargs: _Result())
+    monkeypatch.setenv("INIT_NODE_NETINSTALL_HANDOVER_HOST", "192.168.88.1")
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_SSH_HOST", raising=False)
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_SSH_USER", raising=False)
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_SSH_PASSWORD", raising=False)
+    monkeypatch.delenv("INIT_NODE_NETINSTALL_SSH_PORT", raising=False)
+
+    ok, payload = init_node_module._prepare_bootstrap_ssh_contract_env(
+        repo_root=repo_root,
+        project_id="home-lab",
+        node_id="rtr-a",
+        phase="bootstrap",
+        verify_only=False,
+        bootstrap_secret_file="",
+    )
+
+    assert ok is True
+    assert payload["host"] == "192.168.88.1"
+    assert payload["username"] == "admin"
+    assert os.environ["INIT_NODE_NETINSTALL_SSH_HOST"] == "192.168.88.1"
+    assert os.environ["INIT_NODE_NETINSTALL_SSH_USER"] == "admin"
+    assert os.environ["INIT_NODE_NETINSTALL_SSH_PASSWORD"] == "pw"
+    assert os.environ["INIT_NODE_NETINSTALL_SSH_PORT"] == "22"
+
+
+def test_resolve_bootstrap_secret_candidates_supports_mixed_dot_dash_node_ids(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    candidates = init_node_module._resolve_bootstrap_secret_candidates(
+        repo_root=repo_root,
+        project_id="home-lab",
+        node_id="rtr-mikrotik-chateau",
+        bootstrap_secret_file="",
+    )
+
+    expected = (repo_root / "projects" / "home-lab" / "secrets" / "bootstrap" / "rtr-mikrotik.chateau.yaml").resolve()
+    assert expected in candidates
+
+
+def test_prepare_bootstrap_ssh_contract_env_falls_back_to_wsl_sops(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root = tmp_path / "repo"
+    secret_file = repo_root / "projects" / "home-lab" / "secrets" / "bootstrap" / "rtr-a.yaml"
+    secret_file.parent.mkdir(parents=True, exist_ok=True)
+    secret_file.write_text("encrypted-placeholder\n", encoding="utf-8")
+
+    calls: list[list[str]] = []
+
+    class _Result:
+        def __init__(self, *, returncode: int, stdout: str, stderr: str) -> None:
+            self.returncode = returncode
+            self.stdout = stdout
+            self.stderr = stderr
+
+    def _fake_run(command, **kwargs):
+        _ = kwargs
+        calls.append(list(command))
+        if command[0] == "sops":
+            raise FileNotFoundError("sops not found")
+        return _Result(
+            returncode=0,
+            stdout='{"ssh":{"host":"192.168.88.1","username":"admin","password":"pw","port":22}}',
+            stderr="",
+        )
+
+    monkeypatch.setattr(init_node_module.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(init_node_module.shutil, "which", lambda tool: "wsl.exe" if tool == "wsl" else None)
+    monkeypatch.setattr(init_node_module.subprocess, "run", _fake_run)
+    monkeypatch.setenv("INIT_NODE_WSL_DISTRO", "Ubuntu")
+
+    for key in [
+        "INIT_NODE_NETINSTALL_SSH_HOST",
+        "INIT_NODE_NETINSTALL_SSH_USER",
+        "INIT_NODE_NETINSTALL_SSH_PASSWORD",
+        "INIT_NODE_NETINSTALL_SSH_PORT",
+        "INIT_NODE_NETINSTALL_HANDOVER_HOST",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+    ok, payload = init_node_module._prepare_bootstrap_ssh_contract_env(
+        repo_root=repo_root,
+        project_id="home-lab",
+        node_id="rtr-a",
+        phase="bootstrap",
+        verify_only=False,
+        bootstrap_secret_file="",
+    )
+
+    assert ok is True
+    assert payload["host"] == "192.168.88.1"
+    assert payload["username"] == "admin"
+    assert payload["password_loaded"] is True
+    assert any(call[0] == "sops" for call in calls)
+    assert any(call[0] == "wsl" for call in calls)
+    wsl_call = next(call for call in calls if call[0] == "wsl")
+    assert wsl_call[-1].startswith("/mnt/")

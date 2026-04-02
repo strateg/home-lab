@@ -8,4 +8,6 @@ Generated files:
 `init-terraform.rsc` configures Terraform handover prerequisites (REST API, user,
 baseline firewall allow rules). The script creates `terraform` user in disabled
 state; set password manually and enable the user before Terraform plan/apply.
+The script also enforces `terraform` group policies required for REST login
+(`rest-api`, `web`) and provisions local CA/server certificates for `www-ssl`.
 Recommended bootstrap transport: upload via `scp` and run `/import` via `ssh`.

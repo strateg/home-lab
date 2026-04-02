@@ -12,7 +12,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import re
+import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -223,12 +225,9 @@ def _resolve_bootstrap_secret_candidates(
         (repo_root / "projects" / project_id / "secrets" / "bootstrap").resolve(),
         (repo_root / "secrets" / "bootstrap").resolve(),
     ]
-    dotted_node_id = node_id.replace("-", ".")
-    default_names = [
-        f"{node_id}.yaml",
-        f"{dotted_node_id}.yaml",
-        f"{node_id}-ssh.yaml",
-    ]
+    node_id_variants = _node_id_secret_variants(node_id)
+    default_names = [f"{variant}.yaml" for variant in node_id_variants]
+    default_names.append(f"{node_id}-ssh.yaml")
     for root in bootstrap_roots:
         for file_name in default_names:
             candidates.append((root / file_name).resolve())
@@ -244,16 +243,71 @@ def _resolve_bootstrap_secret_candidates(
     return unique
 
 
+def _node_id_secret_variants(node_id: str) -> list[str]:
+    base = str(node_id).strip()
+    if not base:
+        return []
+
+    variants: list[str] = []
+    seen: set[str] = set()
+
+    def _add(value: str) -> None:
+        if value and value not in seen:
+            seen.add(value)
+            variants.append(value)
+
+    _add(base)
+    _add(base.replace("-", "."))
+
+    dash_indexes = [idx for idx, ch in enumerate(base) if ch == "-"]
+    if dash_indexes:
+        # Include one-dot variants such as rtr-mikrotik.chateau.
+        for idx in dash_indexes:
+            chars = list(base)
+            chars[idx] = "."
+            _add("".join(chars))
+
+        # Include mixed variants when dash count is small to avoid combinatorial explosion.
+        if len(dash_indexes) <= 5:
+            for mask in range(1, 1 << len(dash_indexes)):
+                chars = list(base)
+                for bit, idx in enumerate(dash_indexes):
+                    if mask & (1 << bit):
+                        chars[idx] = "."
+                _add("".join(chars))
+
+    return variants
+
+
 def _decrypt_sops_mapping(secret_file: Path) -> dict[str, Any]:
-    result = subprocess.run(
-        ["sops", "-d", "--output-type", "json", str(secret_file)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
-        raise RuntimeError(f"sops decrypt failed for '{secret_file}': {stderr or 'unknown error'}")
+    errors: list[str] = []
+    commands: list[list[str]] = [["sops", "-d", "--output-type", "json", str(secret_file)]]
+
+    if platform.system() == "Windows" and shutil.which("wsl"):
+        distro = str(os.environ.get("INIT_NODE_WSL_DISTRO", "Ubuntu")).strip() or "Ubuntu"
+        wsl_secret_path = _translate_windows_path_to_wsl(secret_file)
+        commands.append(["wsl", "-d", distro, "--", "sops", "-d", "--output-type", "json", wsl_secret_path])
+
+    result: subprocess.CompletedProcess[str] | None = None
+    for command in commands:
+        try:
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            errors.append(f"command-not-found: {' '.join(command[:2])}")
+            continue
+        if result.returncode == 0:
+            break
+        stderr = (result.stderr or "").strip() or "unknown error"
+        errors.append(f"{' '.join(command[:2])}: {stderr}")
+
+    if result is None or result.returncode != 0:
+        joined_errors = "; ".join(errors) if errors else "unknown error"
+        raise RuntimeError(f"sops decrypt failed for '{secret_file}': {joined_errors}")
     try:
         payload = json.loads(result.stdout or "{}")
     except json.JSONDecodeError as exc:
@@ -261,6 +315,15 @@ def _decrypt_sops_mapping(secret_file: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise RuntimeError(f"Decrypted bootstrap secret root must be object: {secret_file}")
     return payload
+
+
+def _translate_windows_path_to_wsl(path: Path) -> str:
+    resolved = str(path.resolve())
+    if len(resolved) >= 2 and resolved[1] == ":":
+        drive = resolved[0].lower()
+        rest = resolved[2:].replace("\\", "/")
+        return f"/mnt/{drive}{rest}"
+    return resolved.replace("\\", "/")
 
 
 def _extract_ssh_contract(payload: dict[str, Any]) -> dict[str, Any]:
@@ -325,8 +388,16 @@ def _prepare_bootstrap_ssh_contract_env(
     except RuntimeError as exc:
         return False, {"message": str(exc), "secret_file": str(secret_file)}
 
-    host = str(contract.get("host", "")).strip()
-    username = str(contract.get("username", "")).strip()
+    host = str(contract.get("host", "")).strip() or str(os.environ.get("INIT_NODE_NETINSTALL_SSH_HOST", "")).strip()
+    host = host or str(os.environ.get("INIT_NODE_NETINSTALL_HANDOVER_HOST", "")).strip()
+    username = (
+        str(contract.get("username", "")).strip() or str(os.environ.get("INIT_NODE_NETINSTALL_SSH_USER", "")).strip()
+    )
+    password = (
+        str(contract.get("password", "")).strip()
+        or str(os.environ.get("INIT_NODE_NETINSTALL_SSH_PASSWORD", "")).strip()
+    )
+    port = str(contract.get("port", "")).strip() or str(os.environ.get("INIT_NODE_NETINSTALL_SSH_PORT", "")).strip()
     if not host or not username:
         return False, {
             "message": "Bootstrap SSH secret must contain host and username fields.",
@@ -335,10 +406,10 @@ def _prepare_bootstrap_ssh_contract_env(
 
     os.environ.setdefault("INIT_NODE_NETINSTALL_SSH_HOST", host)
     os.environ.setdefault("INIT_NODE_NETINSTALL_SSH_USER", username)
-    if str(contract.get("password", "")).strip():
-        os.environ.setdefault("INIT_NODE_NETINSTALL_SSH_PASSWORD", str(contract["password"]).strip())
-    if str(contract.get("port", "")).strip():
-        os.environ.setdefault("INIT_NODE_NETINSTALL_SSH_PORT", str(contract["port"]).strip())
+    if password:
+        os.environ.setdefault("INIT_NODE_NETINSTALL_SSH_PASSWORD", password)
+    if port:
+        os.environ.setdefault("INIT_NODE_NETINSTALL_SSH_PORT", port)
     os.environ.setdefault("INIT_NODE_NETINSTALL_HANDOVER_HOST", host)
 
     return True, {
@@ -499,6 +570,8 @@ def _execute_selected_nodes(
     manifest_nodes: list[dict[str, Any]],
     selected_nodes: list[str],
     import_existing: bool,
+    force: bool,
+    reset: bool,
     logger: InitNodeLogger,
 ) -> tuple[int, dict[str, Any]]:
     state_by_id = _state_index(state_payload)
@@ -539,6 +612,56 @@ def _execute_selected_nodes(
 
         state_row["mechanism"] = mechanism
         current_status = normalize_status(str(state_row.get("status", "pending")))
+        if reset and current_status == "verified":
+            try:
+                transition_node_state(
+                    state_row,
+                    to_state="pending",
+                    action="reset-pending",
+                    last_error=None,
+                    imported=False,
+                )
+                current_status = "pending"
+            except StateTransitionError as exc:
+                result_row["error_code"] = "E9731"
+                result_row["message"] = str(exc)
+                logger.error(
+                    event="node-execute-reset-transition-error",
+                    message=result_row["message"],
+                    node=node_id,
+                    mechanism=mechanism,
+                    status="failed",
+                    error_code="E9731",
+                )
+                results.append(result_row)
+                failure_count += 1
+                continue
+
+        if force and current_status in {"initialized", "verified"}:
+            try:
+                transition_node_state(
+                    state_row,
+                    to_state="failed",
+                    action="force-retry",
+                    last_error=None,
+                    imported=False,
+                )
+                current_status = "failed"
+            except StateTransitionError as exc:
+                result_row["error_code"] = "E9731"
+                result_row["message"] = str(exc)
+                logger.error(
+                    event="node-execute-force-transition-error",
+                    message=result_row["message"],
+                    node=node_id,
+                    mechanism=mechanism,
+                    status="failed",
+                    error_code="E9731",
+                )
+                results.append(result_row)
+                failure_count += 1
+                continue
+
         if current_status not in {"pending", "failed"}:
             result_row["error_code"] = "E9735"
             result_row["message"] = f"Node status '{current_status}' is not executable without reset/force flow."
@@ -1151,6 +1274,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                     manifest_nodes=manifest_nodes,
                     selected_nodes=selected_nodes,
                     import_existing=bool(args.import_existing),
+                    force=bool(args.force),
+                    reset=bool(args.reset),
                     logger=logger,
                 )
         finally:
