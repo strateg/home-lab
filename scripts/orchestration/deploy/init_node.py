@@ -59,6 +59,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--verify-only", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--import-existing", action="store_true")
+    parser.add_argument(
+        "--phase",
+        choices=("bootstrap", "recover"),
+        default=_default_phase(),
+        help="Execution phase. bootstrap=ssh/scp import path, recover=emergency recovery contracts.",
+    )
     parser.add_argument("--reset", action="store_true")
     parser.add_argument("--confirm-reset", action="store_true")
     parser.add_argument("--acknowledge-drift", action="store_true")
@@ -106,6 +112,13 @@ def _env_bool(name: str) -> bool:
     if raw in {"1", "true", "yes", "y", "on"}:
         return True
     return False
+
+
+def _default_phase() -> str:
+    value = str(os.environ.get("INIT_NODE_PHASE", "bootstrap")).strip().lower()
+    if value in {"bootstrap", "recover"}:
+        return value
+    return "bootstrap"
 
 
 def _parse_runner_tools(raw_value: str) -> list[str]:
@@ -800,6 +813,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "plan_only": bool(args.plan_only),
         "bootstrap_runner_tools": bool(args.bootstrap_runner_tools),
         "runner_tools": _parse_runner_tools(str(args.runner_tools)),
+        "phase": str(args.phase),
     }
     if args.plan_only:
         logger.info(
@@ -880,6 +894,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         status="staged",
         details={"runner": runner.name, "workspace_ref": workspace_ref},
     )
+    previous_phase = os.environ.get("INIT_NODE_PHASE")
+    os.environ["INIT_NODE_PHASE"] = str(args.phase)
 
     required_runner_tools = _parse_runner_tools(str(args.runner_tools))
     toolchain_ok, toolchain_payload = _ensure_runner_toolchain(
@@ -922,51 +938,58 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     try:
-        if args.verify_only:
-            exit_code, execution_payload = _verify_selected_nodes(
-                project_id=project_id,
-                bundle_path=bundle_path,
-                workspace_ref=workspace_ref,
-                state_path=state_path,
-                state_payload=state_payload,
-                manifest_nodes=manifest_nodes,
-                selected_nodes=selected_nodes,
-                logger=logger,
-            )
-        else:
-            exit_code, execution_payload = _execute_selected_nodes(
-                project_id=project_id,
-                bundle_path=bundle_path,
-                workspace_ref=workspace_ref,
-                state_path=state_path,
-                state_payload=state_payload,
-                manifest_nodes=manifest_nodes,
-                selected_nodes=selected_nodes,
-                import_existing=bool(args.import_existing),
-                logger=logger,
-            )
-    finally:
         try:
-            runner.cleanup_workspace(workspace_ref)
-            logger.info(
-                event="runner-cleanup-success",
-                message="Runner workspace cleanup completed.",
-                status="cleanup",
-                details={"runner": runner.name, "workspace_ref": workspace_ref},
-            )
-        except Exception as exc:  # pragma: no cover - defensive
-            logger.warning(
-                event="runner-cleanup-failed",
-                message=str(exc),
-                status="cleanup-warning",
-                error_code="E9703",
-                details={"runner": runner.name, "workspace_ref": workspace_ref},
-            )
+            if args.verify_only:
+                exit_code, execution_payload = _verify_selected_nodes(
+                    project_id=project_id,
+                    bundle_path=bundle_path,
+                    workspace_ref=workspace_ref,
+                    state_path=state_path,
+                    state_payload=state_payload,
+                    manifest_nodes=manifest_nodes,
+                    selected_nodes=selected_nodes,
+                    logger=logger,
+                )
+            else:
+                exit_code, execution_payload = _execute_selected_nodes(
+                    project_id=project_id,
+                    bundle_path=bundle_path,
+                    workspace_ref=workspace_ref,
+                    state_path=state_path,
+                    state_payload=state_payload,
+                    manifest_nodes=manifest_nodes,
+                    selected_nodes=selected_nodes,
+                    import_existing=bool(args.import_existing),
+                    logger=logger,
+                )
+        finally:
+            try:
+                runner.cleanup_workspace(workspace_ref)
+                logger.info(
+                    event="runner-cleanup-success",
+                    message="Runner workspace cleanup completed.",
+                    status="cleanup",
+                    details={"runner": runner.name, "workspace_ref": workspace_ref},
+                )
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning(
+                    event="runner-cleanup-failed",
+                    message=str(exc),
+                    status="cleanup-warning",
+                    error_code="E9703",
+                    details={"runner": runner.name, "workspace_ref": workspace_ref},
+                )
+    finally:
+        if previous_phase is None:
+            os.environ.pop("INIT_NODE_PHASE", None)
+        else:
+            os.environ["INIT_NODE_PHASE"] = previous_phase
     execution_payload["mode"] = target_mode
     execution_payload["plan_only"] = False
     execution_payload["verify_only"] = bool(args.verify_only)
     execution_payload["runner"] = runner.name
     execution_payload["workspace_ref"] = workspace_ref
+    execution_payload["phase"] = str(args.phase)
     print(json.dumps(execution_payload, ensure_ascii=True))
     return exit_code
 

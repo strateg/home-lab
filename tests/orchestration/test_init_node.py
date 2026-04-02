@@ -200,6 +200,36 @@ def test_main_non_plan_mode_executes_and_marks_node_failed_with_placeholder(
     assert fake_runner.cleanup_calls[-1].endswith(bundle_id)
 
 
+def test_main_non_plan_recover_phase_uses_recover_contract_errors(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo_root, bundle_id = _create_test_bundle(tmp_path)
+    fake_runner = _install_fake_runner(monkeypatch)
+
+    rc = main(
+        [
+            "--repo-root",
+            str(repo_root),
+            "--project-id",
+            "home-lab",
+            "--bundle",
+            bundle_id,
+            "--node",
+            "rtr-a",
+            "--phase",
+            "recover",
+            "--skip-environment-check",
+        ]
+    )
+    assert rc == 2
+    payload = json.loads(capsys.readouterr().out.strip())
+    assert payload["status"] == "failed"
+    assert payload["phase"] == "recover"
+    assert payload["results"][0]["error_code"] == "E9730"
+    assert payload["runner"] == fake_runner.name
+    assert payload["workspace_ref"].endswith(bundle_id)
+
+
 def test_main_verify_only_marks_initialized_node_as_verified(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -342,6 +342,8 @@ def build_command_plan(
             bundle_ref,
             "--node",
             bootstrap_node_id,
+            "--phase",
+            "bootstrap",
         ]
         if mode != "maintenance-apply":
             init_command.append("--plan-only")

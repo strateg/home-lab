@@ -185,9 +185,17 @@ initialization_contract:
     template: bootstrap/init-terraform.rsc.j2
   requirements:
   - type: tool
-    name: netinstall
+    name: ssh
     required: true
-    description: MikroTik Netinstall utility must be available in execution environment.
+    description: SSH client must be available to run /import during bootstrap phase.
+  - type: tool
+    name: scp
+    required: true
+    description: SCP client must be available to upload bootstrap .rsc script.
+  - type: tool
+    name: netinstall
+    required: false
+    description: Emergency recover phase dependency for full RouterOS reinstall workflows.
   - type: network
     name: l2_reachability
     required: true

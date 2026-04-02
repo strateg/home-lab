@@ -30,10 +30,10 @@ Implemented now:
 
 Partially implemented:
 - `netinstall` adapter execute path is phase-aware:
-  - `INIT_NODE_PHASE=bootstrap` (default): bootstrap script is uploaded/imported via `scp + ssh` contract:
+  - `bootstrap` (default phase): bootstrap script is uploaded/imported via `scp + ssh` contract:
     - `INIT_NODE_NETINSTALL_SSH_HOST`
     - `INIT_NODE_NETINSTALL_SSH_USER`
-  - `INIT_NODE_PHASE=recover`: reserved recovery path allows netinstall/custom contracts:
+  - `recover` phase: reserved recovery path allows netinstall/custom contracts:
     - custom command via `INIT_NODE_NETINSTALL_COMMAND`
     - native `netinstall-cli` env contract (`MIKROTIK_BOOTSTRAP_MAC`, `MIKROTIK_NETINSTALL_INTERFACE`, `MIKROTIK_NETINSTALL_CLIENT_IP`, `MIKROTIK_ROUTEROS_PACKAGE`)
 
@@ -72,21 +72,19 @@ task framework:deploy-init-all-pending-plan -- BUNDLE=<bundle_id>
 Execute one node (bootstrap via SCP+SSH import):
 
 ```powershell
-$env:INIT_NODE_PHASE='bootstrap'
 $env:INIT_NODE_NETINSTALL_SSH_HOST='192.168.88.1'
 $env:INIT_NODE_NETINSTALL_SSH_USER='admin'
-task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=docker
+task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=docker PHASE=bootstrap
 ```
 
 Execute one node (recovery mode; netinstall contract kept for future recover phase):
 
 ```powershell
-$env:INIT_NODE_PHASE='recover'
 $env:MIKROTIK_BOOTSTRAP_MAC='00:11:22:33:44:55'
 $env:MIKROTIK_NETINSTALL_INTERFACE='eth0'
 $env:MIKROTIK_NETINSTALL_CLIENT_IP='192.168.88.3'
 $env:MIKROTIK_ROUTEROS_PACKAGE='/path/to/routeros-arm64.npk'
-task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id>
+task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> PHASE=recover
 ```
 
 Verify one initialized node (handover checks):
@@ -104,6 +102,7 @@ task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> VERIFY_
 - `--verify-only` now runs adapter handover checks and can transition `initialized -> verified`.
 - `netinstall` handover can include TCP checks for SSH/REST when `INIT_NODE_NETINSTALL_HANDOVER_HOST` is set.
 - `bootstrap` phase defaults to `scp + ssh /import`; no netinstall reinstall should run in bootstrap mode.
+- Explicit phase override is available via `--phase bootstrap|recover` (Task passthrough var: `PHASE`).
 - non-plan execute/verify flows now stage bundle in selected runner workspace and call runner cleanup after execution.
 - Use immutable deploy bundles from ADR 0085 (`task framework:deploy-bundle-create`).
 - This is still safe in current state because destructive adapter execution is not implemented.

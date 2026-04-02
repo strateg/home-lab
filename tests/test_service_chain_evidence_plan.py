@@ -71,7 +71,7 @@ def test_service_chain_plan_bootstrap_init_node_inserts_step() -> None:
     bootstrap_commands = [cmd for cmd in commands if "scripts.orchestration.deploy.init_node" in cmd]
     assert len(bootstrap_commands) == 1
     assert (
-        "--bundle b-123 --node rtr-mikrotik-chateau --plan-only --deploy-runner docker --bootstrap-runner-tools"
+        "--bundle b-123 --node rtr-mikrotik-chateau --phase bootstrap --plan-only --deploy-runner docker --bootstrap-runner-tools"
         in bootstrap_commands[0]
     )
 
