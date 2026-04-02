@@ -2,7 +2,7 @@
 
 Comprehensive documentation for operating and developing the home lab infrastructure.
 
-**ADR Reference:** 0062, 0063, 0074, 0080, 0083, 0084, 0085
+**ADR Reference:** 0062, 0063, 0072, 0074, 0080, 0083, 0084, 0085
 **Last Updated:** 2026-04-01
 
 ---
@@ -28,6 +28,7 @@ Runtime execution layer for infrastructure deployment.
 | [COMMAND-REFERENCE.md](deploy-plane/COMMAND-REFERENCE.md) | Quick reference for all deploy commands |
 | [TROUBLESHOOTING.md](deploy-plane/TROUBLESHOOTING.md) | Error codes, diagnostics, recovery procedures |
 | [SCENARIOS.md](deploy-plane/SCENARIOS.md) | Step-by-step operational scenarios |
+| [SECRETS-OPERATOR-GUIDE.md](deploy-plane/SECRETS-OPERATOR-GUIDE.md) | ADR 0072 secrets workflow for operators |
 
 **Key Concepts:**
 - Deploy Bundle - Immutable execution input
@@ -148,6 +149,7 @@ manuals/
 | [0083](../adr/0083-unified-node-initialization-contract.md) | Node Initialization | Deploy |
 | [0084](../adr/0084-cross-platform-dev-plane-and-linux-deploy-plane.md) | Cross-Platform Runners | Deploy |
 | [0085](../adr/0085-deploy-bundle-and-runner-workspace-contract.md) | Deploy Bundles | Deploy |
+| [0072](../adr/0072-unified-secrets-management-sops-age.md) | Unified Secrets Management | Deploy |
 
 ### Other Documentation
 
