@@ -24,9 +24,9 @@ from typing import Any, Sequence
 import yaml
 
 from .adapters import AdapterContext, get_adapter
+from .audit_logging import InitNodeLogger
 from .bundle import inspect_bundle, resolve_bundle_path, resolve_bundles_root
 from .environment import check_deploy_environment
-from .logging import InitNodeLogger
 from .runner import check_runner_tools, get_runner
 from .state import StateTransitionError, build_default_node_state, normalize_status, transition_node_state
 
@@ -359,8 +359,8 @@ def _prepare_bootstrap_ssh_contract_env(
     verify_only: bool,
     bootstrap_secret_file: str,
 ) -> tuple[bool, dict[str, Any]]:
-    if verify_only or phase != "bootstrap":
-        return True, {"message": "Bootstrap secret autoload skipped.", "reason": "phase-or-verify-only"}
+    if phase != "bootstrap":
+        return True, {"message": "Bootstrap secret autoload skipped.", "reason": "phase"}
     if not node_id:
         return True, {"message": "Bootstrap secret autoload skipped.", "reason": "no-target-node"}
     if (

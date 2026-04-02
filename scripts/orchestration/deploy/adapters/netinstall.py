@@ -10,6 +10,7 @@ import shlex
 import shutil
 import socket
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -382,9 +383,12 @@ def _execute_via_paramiko_import(
     except Exception as exc:
         return BootstrapResult(
             status=AdapterStatus.FAILED,
-            message="Paramiko is required for password-based SSH bootstrap flow.",
+            message=(
+                "Paramiko is required for password-based SSH bootstrap flow. "
+                f"Import failed in interpreter {sys.executable}: {type(exc).__name__}: {exc}"
+            ),
             error_code="E9760",
-            details={"error": str(exc)},
+            details={"error": str(exc), "python_executable": sys.executable},
         )
 
     client = paramiko.SSHClient()

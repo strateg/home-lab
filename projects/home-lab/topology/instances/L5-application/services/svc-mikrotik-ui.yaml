@@ -5,21 +5,21 @@ layer: L5
 version: 1.0.0
 source_id: svc-mikrotik-ui
 status: mapped
-notes: MikroTik RouterOS management endpoints observed on current router baseline
+notes: MikroTik RouterOS management endpoints observed on bootstrap baseline (REST/WebFig HTTPS on 8443)
 
 ports:
   http: 80
-  https: 443
+  https: 8443
   winbox: 8291
   api: 8728
   api_ssl: 8729
 protocol: http
 trust_zone_ref: inst.trust_zone.management
-description: MikroTik RouterOS WebFig/API management (HTTP active, HTTPS disabled on baseline)
+description: MikroTik RouterOS WebFig/API management (HTTP active, HTTPS active on 8443 after bootstrap)
 critical: true
 
 security:
-  ssl_certificate: none
+  ssl_certificate: local-cert
   https_redirect: false
   allowed_from:
     - inst.vlan.lan

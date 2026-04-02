@@ -12,9 +12,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
 import scripts.orchestration.deploy.init_node as init_node_module  # noqa: E402
+from scripts.orchestration.deploy.audit_logging import resolve_init_node_log_path  # noqa: E402
 from scripts.orchestration.deploy.bundle import create_bundle  # noqa: E402
 from scripts.orchestration.deploy.init_node import main, parse_args, resolve_state_path, validate_args  # noqa: E402
-from scripts.orchestration.deploy.logging import resolve_init_node_log_path  # noqa: E402
 
 
 class _FakeRunner:

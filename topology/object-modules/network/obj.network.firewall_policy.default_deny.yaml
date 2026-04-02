@@ -1,7 +1,7 @@
 object: obj.network.firewall_policy.default_deny
 class_ref: class.network.firewall_policy
 version: 1.0.0
-description: Default deny policy - drop all unmatched traffic
+description: Default deny policy for unsolicited WAN forward traffic (!dstnat)
 
 properties:
   name: Default Deny

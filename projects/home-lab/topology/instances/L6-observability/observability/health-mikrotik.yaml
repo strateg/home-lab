@@ -18,7 +18,7 @@ checks:
     timeout_ms: 1000
     packet_loss_threshold: 5
   - type: port
-    ports: [80, 443, 8291]
+    ports: [80, 8443, 8291]
     protocol: tcp
   - type: snmp
     community: public

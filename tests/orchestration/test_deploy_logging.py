@@ -7,7 +7,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.orchestration.deploy.logging import InitNodeLogger, resolve_init_node_log_path  # noqa: E402
+from scripts.orchestration.deploy.audit_logging import InitNodeLogger, resolve_init_node_log_path  # noqa: E402
 
 
 def test_resolve_init_node_log_path_points_to_deploy_state_tree(tmp_path: Path) -> None:

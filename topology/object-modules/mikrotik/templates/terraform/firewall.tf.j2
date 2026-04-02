@@ -37,11 +37,13 @@ resource "routeros_ip_firewall_nat" "{{ vlan.name }}_masquerade" {
 {% endfor %}
 {% endif %}
 
-# Default drop rule (should be last)
+# Default deny for unsolicited inbound WAN traffic (preserves LAN->WAN internet access)
 resource "routeros_ip_firewall_filter" "drop_all_forward" {
-  chain   = "forward"
-  action  = "drop"
-  comment = "Default deny forward - managed by topology"
+  chain                = "forward"
+  action               = "drop"
+  in_interface_list    = "WAN"
+  connection_nat_state = "!dstnat"
+  comment              = "Default deny from WAN not DSTNATed - managed by topology"
 
   depends_on = [
     routeros_ip_firewall_filter.accept_established,

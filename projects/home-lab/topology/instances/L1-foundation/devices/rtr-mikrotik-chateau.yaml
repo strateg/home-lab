@@ -5,7 +5,7 @@ layer: L1
 version: 1.0.0
 source_id: rtr-mikrotik-chateau
 status: mapped
-notes: RouterOS running default bridge LAN profile; segmented VLAN topology staged but not active on-device
+notes: RouterOS default bridge LAN profile with bootstrap baseline for Terraform/REST; segmented VLAN topology is staged but not active on-device
 firmware_ref: inst.firmware.routeros.7.arm64
 os_refs:
 - inst.os.routeros.7.arm64
@@ -29,7 +29,7 @@ observed_runtime:
     dhcp_pool: 192.168.88.10-192.168.88.254
   services:
     webfig_http_port: 80
-    webfig_https_enabled: false
+    webfig_https_enabled: true
     ssh_port: 22
     api_port: 8728
     api_ssl_port: 8729
