@@ -57,8 +57,8 @@
 ## 9) Rollback Readiness
 
 - [x] Rollback commit boundary identified per migration wave.
-- [x] Previous manifest/validator snapshots retained for fast revert.
+- [ ] Previous manifest/validator snapshots retained for fast revert.
 - [x] Recovery procedure documented and validated on dry-run.
 : Current rollback boundaries are represented by sequential Wave 2/3 commits (`2a5aa5c`, `9dd6675`) plus current working boundary.
-: Snapshot set: `adr/0086-analysis/rollback-snapshots/` (index in `adr/0086-analysis/rollback-snapshots/README.md`).
+: Snapshot artifacts intentionally not retained in repository; rollback uses Git history at boundary commits.
 : Recovery procedure + dry-run evidence: `adr/0086-analysis/RECOVERY-PROCEDURE.md`.

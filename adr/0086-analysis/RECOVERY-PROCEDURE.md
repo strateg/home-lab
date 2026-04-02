@@ -30,10 +30,16 @@ set V5_SECRETS_MODE=passthrough
 python scripts/orchestration/lane.py validate-v5
 ```
 
-4. If rollback is needed, restore target snapshot set from:
-   - `adr/0086-analysis/rollback-snapshots/bd24c6e/`
-   - `adr/0086-analysis/rollback-snapshots/2a5aa5c/`
-   - `adr/0086-analysis/rollback-snapshots/9dd6675/`
+4. If rollback is needed, restore target files directly from Git history at rollback boundaries:
+   - `bd24c6e` (pre-Wave2 validator consolidation baseline)
+   - `2a5aa5c` (post-Wave2 manifest baseline)
+   - `9dd6675` (post-Wave3 layout baseline)
+
+   Example:
+
+```bat
+git show 2a5aa5c:topology/object-modules/network/plugins.yaml > topology/object-modules/network/plugins.yaml
+```
 
 5. Re-run steps 1-3 to verify recovery state.
 

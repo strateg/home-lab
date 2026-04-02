@@ -72,7 +72,7 @@ Legend: `TODO` | `IN-PROGRESS` | `BLOCKED` | `DONE`
 | W3-05 | ID Normalization | - | DONE | `WAVE3-ID-MAPPING.md` published; network validator ID normalized to dot-style namespace |
 | W3-06 | Layout Policy Tests | - | DONE | `test_plugin_layout_policy.py` enforces removed-empty-manifest + ID normalization policy |
 | W3-07 | Compile Parity Gate | - | DONE | `compile-topology.py` passed in parallel and `--no-parallel-plugins` modes |
-| W3-08 | Final Validation + Sign-off | - | DONE | `plugin_contract`, full `plugin_integration`, `validate-v5` passed; rollback snapshots and recovery dry-run docs added |
+| W3-08 | Final Validation + Sign-off | - | DONE | `plugin_contract`, full `plugin_integration`, `validate-v5` passed; recovery dry-run docs added |
 
 ---
 
