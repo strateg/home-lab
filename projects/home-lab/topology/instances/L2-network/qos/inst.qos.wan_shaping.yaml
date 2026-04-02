@@ -4,9 +4,8 @@ group: qos
 layer: L2
 version: 1.0.0
 source_id: qos-wan
-status: mapped
-notes: WAN traffic shaping for balanced bandwidth allocation
-managed_by_ref: rtr-mikrotik-chateau
+status: modeled
+notes: Advanced WAN shaping profile is staged in topology; current router has only default fq-codel queues
 interface: ether1
 total_bandwidth:
   download_mbps: 100

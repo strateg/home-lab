@@ -5,7 +5,7 @@ layer: L1
 version: 1.0.0
 source_id: rtr-mikrotik-chateau
 status: mapped
-notes: module scaffold exists; capability profile tuning pending
+notes: RouterOS running default bridge LAN profile; segmented VLAN topology staged but not active on-device
 firmware_ref: inst.firmware.routeros.7.arm64
 os_refs:
 - inst.os.routeros.7.arm64
@@ -14,3 +14,22 @@ power:
   mode: dc
   voltage_v: 24
   max_watts: 21.5
+observed_runtime:
+  captured_at: "2026-04-02"
+  identity: rtr-mikrotik-chateau
+  routeros_version: "7.22"
+  wan:
+    primary_interface: ether1
+    backup_interface: lte1
+    dhcp_client_on_primary: true
+  lan:
+    bridge_interface: bridge
+    bridge_vlan_filtering: false
+    gateway_ref: inst.vlan.lan
+    dhcp_pool: 192.168.88.10-192.168.88.254
+  services:
+    webfig_http_port: 80
+    webfig_https_enabled: false
+    ssh_port: 22
+    api_port: 8728
+    api_ssl_port: 8729

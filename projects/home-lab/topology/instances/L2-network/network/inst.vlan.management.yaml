@@ -4,11 +4,10 @@ group: network
 layer: L2
 version: 1.0.0
 source_id: net-management
-status: mapped
-notes: Management VLAN (VLAN 99)
+status: modeled
+notes: Management VLAN is staged in topology; currently not configured on rtr-mikrotik-chateau
 bridge_ref: inst.bridge.vmbr0
 trust_zone_ref: inst.trust_zone.management
-managed_by_ref: rtr-mikrotik-chateau
 
 ip_allocations:
   - device_ref: srv-gamayun

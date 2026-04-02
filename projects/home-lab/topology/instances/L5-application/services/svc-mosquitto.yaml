@@ -37,7 +37,7 @@ security:
 runtime:
   type: docker
   target_ref: rtr-mikrotik-chateau
-  network_binding_ref: inst.vlan.iot
+  network_binding_ref: inst.vlan.lan
   image: eclipse-mosquitto:2
   resources:
     memory_mb: 20

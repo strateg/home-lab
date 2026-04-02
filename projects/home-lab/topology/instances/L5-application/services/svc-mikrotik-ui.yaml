@@ -5,22 +5,22 @@ layer: L5
 version: 1.0.0
 source_id: svc-mikrotik-ui
 status: mapped
-notes: MikroTik RouterOS WebFig management interface
+notes: MikroTik RouterOS management endpoints observed on current router baseline
 
 ports:
-  https: 443
   http: 80
+  https: 443
   winbox: 8291
   api: 8728
   api_ssl: 8729
-protocol: https
+protocol: http
 trust_zone_ref: inst.trust_zone.management
-description: MikroTik RouterOS WebFig management (HTTPS)
+description: MikroTik RouterOS WebFig/API management (HTTP active, HTTPS disabled on baseline)
 critical: true
 
 security:
-  ssl_certificate: self-signed
-  https_redirect: true
+  ssl_certificate: none
+  https_redirect: false
   allowed_from:
     - inst.vlan.lan
     - inst.vlan.management
@@ -28,4 +28,4 @@ security:
 runtime:
   type: baremetal
   target_ref: rtr-mikrotik-chateau
-  network_binding_ref: inst.vlan.management
+  network_binding_ref: inst.vlan.lan

@@ -4,11 +4,10 @@ group: network
 layer: L2
 version: 1.0.0
 source_id: net-servers
-status: mapped
-notes: Server VLAN (VLAN 30)
+status: modeled
+notes: Server VLAN is staged in topology; currently not configured on rtr-mikrotik-chateau
 bridge_ref: inst.bridge.vmbr0
 trust_zone_ref: inst.trust_zone.servers
-managed_by_ref: rtr-mikrotik-chateau
 
 ip_allocations:
   - device_ref: srv-orangepi5

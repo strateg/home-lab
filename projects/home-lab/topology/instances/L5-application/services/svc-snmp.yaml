@@ -29,4 +29,4 @@ security:
 runtime:
   type: baremetal
   target_ref: rtr-mikrotik-chateau
-  network_binding_ref: inst.vlan.management
+  network_binding_ref: inst.vlan.lan

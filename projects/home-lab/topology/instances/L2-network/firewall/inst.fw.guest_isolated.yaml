@@ -4,7 +4,6 @@ group: firewall
 layer: L2
 version: 1.0.0
 source_id: fw-guest-isolated
-status: mapped
-notes: Guest isolation - only internet access allowed
-managed_by_ref: rtr-mikrotik-chateau
+status: modeled
+notes: Guest isolation policy is staged in topology; currently not configured on rtr-mikrotik-chateau
 applies_to_zone_ref: inst.trust_zone.guest

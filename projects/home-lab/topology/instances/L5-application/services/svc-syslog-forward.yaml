@@ -27,4 +27,4 @@ config:
 runtime:
   type: baremetal
   target_ref: rtr-mikrotik-chateau
-  network_binding_ref: inst.vlan.servers
+  network_binding_ref: inst.vlan.lan

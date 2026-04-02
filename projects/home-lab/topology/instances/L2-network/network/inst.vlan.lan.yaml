@@ -5,10 +5,14 @@ layer: L2
 version: 1.0.0
 source_id: net-lan
 status: mapped
-notes: Main LAN network (native/PVID on MikroTik bridge)
+notes: Main flat LAN on MikroTik bridge (manual/default config, not terraform-managed)
 trust_zone_ref: inst.trust_zone.user
-managed_by_ref: rtr-mikrotik-chateau
-dhcp_range: 192.168.88.100-192.168.88.200
+dhcp_range: 192.168.88.10-192.168.88.254
+ip_allocations:
+  - device_ref: rtr-mikrotik-chateau
+    host_os_ref: inst.os.routeros.7.arm64
+    ip: 192.168.88.1/24
+    purpose: router management and local service plane
 reserved_ranges:
   - start: 192.168.88.1
     end: 192.168.88.9
