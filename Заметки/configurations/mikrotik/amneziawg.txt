@@ -1,0 +1,8 @@
+https://deepwiki.com/yury-sannikov/amnezia-wg-docker/4.1-mikrotik-routeros-deployment
+
+https://habr.com/ru/articles/1002824/
+
+https://github.com/timbrs/amneziawg-mikrotik-c
+
+https://github.com/catesin/AmneziaWG-MikroTik
+
