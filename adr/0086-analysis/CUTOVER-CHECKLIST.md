@@ -3,8 +3,9 @@
 ## 1) Contracts and Policy
 
 - [ ] ADR 0086 text approved by architecture owners.
-- [ ] Legacy level-boundary wording removed from policy docs.
-- [ ] Contract-based boundary checks defined (stage/phase/depends_on/consumes/discovery).
+- [x] Legacy level-boundary wording removed from policy docs.
+- [x] Contract-based boundary checks defined (stage/phase/depends_on/consumes/discovery).
+: Evidence: policy guidance updated in `AGENTS.md`, `.github/copilot-instructions.md`, and `CLAUDE.md`; boundary check matrix documented in `adr/0086-analysis/CONTRACT-BOUNDARY-CHECKS.md`.
 
 ## 2) Discovery and Extensibility Safety
 
@@ -49,13 +50,15 @@
 
 ## 8) Documentation and Handover
 
-- [ ] `adr/REGISTER.md` status/links are accurate.
+- [x] `adr/REGISTER.md` status/links are accurate.
 - [x] Analysis docs (`GAP-ANALYSIS.md`, `IMPLEMENTATION-PLAN.md`) synced with final cutover.
 - [x] Operator/developer notes updated with new plugin layout and ID policy.
 
 ## 9) Rollback Readiness
 
 - [x] Rollback commit boundary identified per migration wave.
-- [ ] Previous manifest/validator snapshots retained for fast revert.
-- [ ] Recovery procedure documented and validated on dry-run.
+- [x] Previous manifest/validator snapshots retained for fast revert.
+- [x] Recovery procedure documented and validated on dry-run.
 : Current rollback boundaries are represented by sequential Wave 2/3 commits (`2a5aa5c`, `9dd6675`) plus current working boundary.
+: Snapshot set: `adr/0086-analysis/rollback-snapshots/` (index in `adr/0086-analysis/rollback-snapshots/README.md`).
+: Recovery procedure + dry-run evidence: `adr/0086-analysis/RECOVERY-PROCEDURE.md`.

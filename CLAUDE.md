@@ -29,34 +29,32 @@ All generators produce to `generated/<project>/`:
 
 Edit topology files -> compile -> generate -> apply with Terraform/Ansible.
 
-## Plugin Layer Contract for AI Agents (Mandatory)
+## Plugin Contract for AI Agents (Mandatory)
 
-Enforce a strict 4-level plugin boundary model:
-
-1. Global infrastructure/core level.
-2. Class level.
-3. Object level.
-4. Instance level.
-
-All project code must follow SOLID principles.
+ADR0086 supersedes the old runtime 4-level visibility policy from ADR0063 Section 4B.
+Plugin safety is enforced by stage/contract checks, deterministic discovery order, and ownership tests.
 
 Rules:
 
-- Class-level plugins must not reference `obj.*` or `inst.*`.
-- Object-level plugins must not reference `inst.*`.
-- A plugin may call interfaces from its own level or higher only.
-- Such interfaces may be implemented by higher levels (dependency inversion).
-- Global plugins manage specific plugins through interfaces implemented by specific plugins or through other design patterns that preserve level boundaries.
-- Applies to all plugin families (`discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`).
-- Runtime lifecycle has 6 stages: `discover -> compile -> validate -> generate -> assemble -> build`.
-- `discover` stage is executed by discovery plugins (`base.discover.*`) in discoverer family.
-- Stage affinity must be preserved: `discover -> discoverers`, `compile -> compilers`, `validate -> validators`, `generate -> generators`, `assemble -> assemblers`, `build -> builders`.
-
-Scope variants:
-
-- Class level can include class-global and class-specific plugins.
-- Object level can include object-global and object-specific plugins.
-- If a class/object plugin contains no class/object-specific identifiers, migrate it to the global core level.
+- Runtime lifecycle is fixed: `discover -> compile -> validate -> generate -> assemble -> build`.
+- Stage affinity must be preserved by plugin kind:
+  - `discoverers -> discover`
+  - `compilers -> compile`
+  - `validators -> validate`
+  - `generators -> generate`
+  - `assemblers -> assemble`
+  - `builders -> build`
+- Manifest contracts are mandatory:
+  - valid `depends_on` targets
+  - valid `consumes.from_plugin` targets
+  - valid stage/order ranges
+- Discovery order is mandatory and test-enforced:
+  1. framework manifest
+  2. class manifests
+  3. object manifests
+  4. project manifests (`project_plugins_root`)
+- Class/object module placement is an ownership convention, not runtime ACL.
+  Shared standalone plugins should live under `topology-tools/plugins/<family>/`.
 
 ## Directory Structure
 
@@ -326,7 +324,7 @@ When Claude Code helps with this repository:
 
 1. **Always check topology files first** - They are the source of truth
 2. **Run validation after changes** - Use `lane.py validate-v5`
-3. **Respect plugin boundaries** - Follow 4-level plugin model
+3. **Respect plugin contracts** - Follow stage affinity + manifest/discovery contract checks
 4. **Record architecture decisions in ADR** - add/update `adr/NNNN-*.md`
 5. **Run tests** - `python -m pytest tests -q`
 
@@ -338,7 +336,7 @@ When Claude Code helps with this repository:
 
 **Don't ask Claude Code to:**
 - Edit files in `generated/` directly
-- Break plugin layer boundaries
+- Break plugin stage/manifest/discovery contracts
 - Skip validation steps
 
 ## V4 Archive Reference

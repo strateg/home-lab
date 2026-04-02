@@ -1,6 +1,6 @@
 # ADR 0086: Упрощение плагинной архитектуры без потери расширяемости проектов
 
-- Status: Proposed
+- Status: Implemented (approval pending)
 - Date: 2026-04-01
 - Depends on: ADR 0063, 0065, 0066, 0074, 0080, 0081
 - Supersedes: ADR 0063 Section 4B (4-level plugin boundary model)

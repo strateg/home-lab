@@ -1,0 +1,23 @@
+schema_version: 1
+plugins:
+  - id: object_network.validator_json.ethernet_cable_endpoints
+    kind: validator_json
+    entry: plugins/validators/ethernet_cable_endpoint_validator.py:EthernetCableEndpointValidator
+    api_version: "1.x"
+    stages: [validate]
+    phase: run
+    order: 145
+    depends_on:
+      - base.validator.references
+      - base.validator.ethernet_port_inventory
+    timeout: 30
+    config: {}
+    config_schema:
+      type: object
+      properties: {}
+      required: []
+    consumes:
+      - from_plugin: base.validator.ethernet_port_inventory
+        key: ethernet_ports_by_object
+        required: false
+    description: Validates ethernet cable/channel contracts and legacy data-link endpoint semantics.
