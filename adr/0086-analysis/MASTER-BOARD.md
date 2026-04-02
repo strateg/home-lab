@@ -66,9 +66,9 @@ Legend: `TODO` | `IN-PROGRESS` | `BLOCKED` | `DONE`
 | Issue | Title | Owner | Status | Notes |
 |------|-------|-------|--------|-------|
 | W3-01 | Standalone Inventory | - | DONE | `WAVE3-STANDALONE-INVENTORY.md` published |
-| W3-02 | Standalone Relocation | - | DONE | Redundant router wrapper validators removed from class/object module plugin code |
+| W3-02 | Standalone Relocation | - | DONE | Redundant router wrapper validators removed; framework-shared generator helpers/projections relocated from `object-modules/_shared` to `topology-tools/plugins/generators` |
 | W3-03 | Manifest Rewire Post-Move | - | DONE | Router/GL.iNet/MikroTik module manifests rewired; no legacy wrapper entries remain |
-| W3-04 | Manifest Minimization | - | DONE | Empty router/glinet module manifests removed; active extension-point manifests retained |
+| W3-04 | Manifest Minimization | - | DONE | Empty router/glinet manifests removed; service directory `topology/object-modules/_shared` removed |
 | W3-05 | ID Normalization | - | DONE | `WAVE3-ID-MAPPING.md` published; network validator ID normalized to dot-style namespace |
 | W3-06 | Layout Policy Tests | - | DONE | `test_plugin_layout_policy.py` enforces removed-empty-manifest + ID normalization policy |
 | W3-07 | Compile Parity Gate | - | DONE | `compile-topology.py` passed in parallel and `--no-parallel-plugins` modes |

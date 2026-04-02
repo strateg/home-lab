@@ -1,4 +1,4 @@
-"""Shared bootstrap helper utilities for object-level generators (ADR0078 WP-003)."""
+"""Framework-shared bootstrap helper utilities for object generators (ADR0078 WP-003, ADR0086)."""
 
 from __future__ import annotations
 

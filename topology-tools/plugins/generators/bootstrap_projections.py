@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Shared bootstrap projection helpers for object-owned generators."""
+"""Framework-shared bootstrap projection helpers for object-owned generators."""
 
 from __future__ import annotations
 

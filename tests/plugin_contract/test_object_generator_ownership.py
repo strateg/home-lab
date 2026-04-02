@@ -57,7 +57,7 @@ SHARED_PROJECTIONS_FILE = V5_ROOT / "topology-tools" / "plugins" / "generators" 
 OBJECT_PROJECTION_FILES = [
     V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "projections.py",
     V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "projections.py",
-    V5_ROOT / "topology" / "object-modules" / "_shared" / "plugins" / "bootstrap_projections.py",
+    V5_ROOT / "topology-tools" / "plugins" / "generators" / "bootstrap_projections.py",
 ]
 OBJECT_PROJECTION_BUILDERS = (
     "def build_proxmox_projection(",

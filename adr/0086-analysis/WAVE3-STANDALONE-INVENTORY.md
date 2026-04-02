@@ -22,6 +22,10 @@ Selection rule:
 | `object.proxmox.generator.terraform` | `generator` | `topology/object-modules/proxmox/plugins.yaml` | `topology/object-modules/proxmox/plugins/generators/terraform_proxmox_generator.py` | Keep module-owned (ADR0078 ownership contract) | Object-specific templates/projections in module domain |
 | `object.proxmox.generator.bootstrap` | `generator` | `topology/object-modules/proxmox/plugins.yaml` | `topology/object-modules/proxmox/plugins/generators/bootstrap_proxmox_generator.py` | Keep module-owned (ADR0078 ownership contract) | Object-specific bootstrap templates |
 | `object.orangepi.generator.bootstrap` | `generator` | `topology/object-modules/orangepi/plugins.yaml` | `topology/object-modules/orangepi/plugins/generators/bootstrap_orangepi_generator.py` | Keep module-owned (ADR0078 ownership contract) | Object-specific bootstrap templates |
+| `shared.generator.terraform_helpers` | `generator_helper` | `topology/object-modules/_shared/plugins/terraform_helpers.py` | `topology-tools/plugins/generators/terraform_helpers.py` | Relocate to framework generator family | Shared utility; not a module extension-point plugin |
+| `shared.generator.capability_helpers` | `generator_helper` | `topology/object-modules/_shared/plugins/capability_helpers.py` | `topology-tools/plugins/generators/capability_helpers.py` | Relocate to framework generator family | Shared utility; used by object Terraform generators |
+| `shared.generator.bootstrap_helpers` | `generator_helper` | `topology/object-modules/_shared/plugins/bootstrap_helpers.py` | `topology-tools/plugins/generators/bootstrap_helpers.py` | Relocate to framework generator family | Shared utility; bootstrap config mapping helper |
+| `shared.generator.bootstrap_projections` | `generator_projection` | `topology/object-modules/_shared/plugins/bootstrap_projections.py` | `topology-tools/plugins/generators/bootstrap_projections.py` | Relocate to framework generator family | Shared projection builder consumed by object bootstrap generators |
 
 ## Wave 3 Block A Candidate Set (W3-02/W3-03)
 
@@ -40,3 +44,7 @@ Selection rule:
 - Normalized remaining network validator ID:
   - `object_network.validator_json.ethernet_cable_endpoints`
   - -> `object.network.validator_json.ethernet_cable_endpoints`
+- Relocated framework-shared generator helpers/projections from object service directory:
+  - `topology/object-modules/_shared/plugins/*.py`
+  - -> `topology-tools/plugins/generators/*.py`
+  - service directory `topology/object-modules/_shared/` removed.

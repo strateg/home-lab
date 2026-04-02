@@ -31,28 +31,31 @@
 - [x] Remaining standalone class/object plugins migrated to `topology-tools/plugins/<family>/` or explicitly retained as extension-point exceptions.
 - [x] Empty legacy class/object plugin manifests removed.
 - [x] Required extension-point manifests preserved.
+: Evidence: framework-shared helper/projection modules were relocated from `topology/object-modules/_shared/plugins/` to `topology-tools/plugins/generators/`; service directory `_shared` removed.
 
 ## 6) CI and Runtime Gates
 
-- [ ] `pytest tests/` green.
+- [x] `pytest tests/` green.
 - [x] Plugin contract tests green.
 - [x] Plugin integration tests green.
 - [x] Compile pipeline run succeeds on baseline project.
 
 ## 7) Output and Behavior Parity
 
-- [ ] No unapproved diagnostic drift.
-- [ ] No unapproved generated artifact drift.
-- [ ] Deterministic output checks pass.
+- [x] No unapproved diagnostic drift.
+- [x] No unapproved generated artifact drift.
+- [x] Deterministic output checks pass.
+: Evidence: parallel vs sequential compile parity compared under `build/adr0086-parity/`; effective model and diagnostics differ only by approved volatile fields (`generated_at`, `compiled_at`, deploy-bundle id/path).
 
 ## 8) Documentation and Handover
 
 - [ ] `adr/REGISTER.md` status/links are accurate.
 - [x] Analysis docs (`GAP-ANALYSIS.md`, `IMPLEMENTATION-PLAN.md`) synced with final cutover.
-- [ ] Operator/developer notes updated with new plugin layout and ID policy.
+- [x] Operator/developer notes updated with new plugin layout and ID policy.
 
 ## 9) Rollback Readiness
 
-- [ ] Rollback commit boundary identified per migration wave.
+- [x] Rollback commit boundary identified per migration wave.
 - [ ] Previous manifest/validator snapshots retained for fast revert.
 - [ ] Recovery procedure documented and validated on dry-run.
+: Current rollback boundaries are represented by sequential Wave 2/3 commits (`2a5aa5c`, `9dd6675`) plus current working boundary.

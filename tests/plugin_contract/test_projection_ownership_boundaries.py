@@ -16,9 +16,7 @@ from plugins.generators.object_projection_loader import discover_object_projecti
 CORE_PROJECTIONS = V5_ROOT / "topology-tools" / "plugins" / "generators" / "projections.py"
 MIKROTIK_PROJECTIONS = V5_ROOT / "topology" / "object-modules" / "mikrotik" / "plugins" / "projections.py"
 PROXMOX_PROJECTIONS = V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "projections.py"
-SHARED_BOOTSTRAP_PROJECTIONS = (
-    V5_ROOT / "topology" / "object-modules" / "_shared" / "plugins" / "bootstrap_projections.py"
-)
+SHARED_BOOTSTRAP_PROJECTIONS = V5_ROOT / "topology-tools" / "plugins" / "generators" / "bootstrap_projections.py"
 
 CORE_BUILDERS = {"build_ansible_projection", "build_docs_projection"}
 OBJECT_BUILDERS = {"build_mikrotik_projection", "build_proxmox_projection"}

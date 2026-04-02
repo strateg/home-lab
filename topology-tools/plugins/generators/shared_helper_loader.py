@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-"""Lazy loader for shared plugin helpers (ADR0078 Phase 5).
+"""Lazy loader for shared generator helpers.
 
-Resolves module paths from PluginContext.config roots when available:
-- object_modules_root
-- class_modules_root
-
-Falls back to repository topology auto-detection for direct unit calls.
+Framework-owned shared helpers are resolved from `topology-tools/plugins/generators`.
+Class helper loading continues to resolve from `class_modules_root`.
 """
 
 from __future__ import annotations
@@ -53,21 +50,6 @@ def _root_from_ctx(*, ctx: PluginContext | None, key: str) -> Path | None:
     return None
 
 
-def _resolve_object_modules_root(
-    *,
-    ctx: PluginContext | None = None,
-    object_modules_root: Path | str | None = None,
-) -> Path:
-    if isinstance(object_modules_root, Path):
-        return object_modules_root.resolve()
-    if isinstance(object_modules_root, str) and object_modules_root.strip():
-        return Path(object_modules_root.strip()).resolve()
-    from_ctx = _root_from_ctx(ctx=ctx, key="object_modules_root")
-    if from_ctx is not None:
-        return from_ctx
-    return (_detect_topology_root() / "object-modules").resolve()
-
-
 def _resolve_class_modules_root(
     *,
     ctx: PluginContext | None = None,
@@ -83,63 +65,77 @@ def _resolve_class_modules_root(
     return (_detect_topology_root() / "class-modules").resolve()
 
 
+def _resolve_framework_generators_root(
+    *,
+    framework_generators_root: Path | str | None = None,
+) -> Path:
+    if isinstance(framework_generators_root, Path):
+        return framework_generators_root.resolve()
+    if isinstance(framework_generators_root, str) and framework_generators_root.strip():
+        return Path(framework_generators_root.strip()).resolve()
+    return Path(__file__).resolve().parent
+
+
 # =============================================================================
-# Shared object-module helpers (_shared/plugins/)
+# Shared framework generator helpers (topology-tools/plugins/generators/)
 # =============================================================================
 
 
 @lru_cache(maxsize=8)
-def _load_terraform_helpers(shared_plugins_root: str) -> ModuleType:
+def _load_terraform_helpers(framework_generators_root: str) -> ModuleType:
     return _load_module(
-        module_name="_shared_terraform_helpers",
-        module_path=Path(shared_plugins_root) / "terraform_helpers.py",
+        module_name="_framework_terraform_helpers",
+        module_path=Path(framework_generators_root) / "terraform_helpers.py",
     )
 
 
 def load_terraform_helpers(
     *,
     ctx: PluginContext | None = None,
+    framework_generators_root: Path | str | None = None,
     object_modules_root: Path | str | None = None,
 ) -> ModuleType:
-    root = _resolve_object_modules_root(ctx=ctx, object_modules_root=object_modules_root)
-    shared_plugins_root = str((root / "_shared" / "plugins").resolve())
-    return _load_terraform_helpers(shared_plugins_root)
+    del ctx, object_modules_root  # Backward-compatible signature: shared helpers are framework-owned.
+    root = _resolve_framework_generators_root(framework_generators_root=framework_generators_root)
+    return _load_terraform_helpers(str(root))
 
 
 @lru_cache(maxsize=8)
-def _load_capability_helpers(shared_plugins_root: str) -> ModuleType:
+def _load_capability_helpers(framework_generators_root: str) -> ModuleType:
     return _load_module(
-        module_name="_shared_capability_helpers",
-        module_path=Path(shared_plugins_root) / "capability_helpers.py",
+        module_name="_framework_capability_helpers",
+        module_path=Path(framework_generators_root) / "capability_helpers.py",
     )
 
 
 def load_capability_helpers(
     *,
     ctx: PluginContext | None = None,
+    framework_generators_root: Path | str | None = None,
     object_modules_root: Path | str | None = None,
 ) -> ModuleType:
-    root = _resolve_object_modules_root(ctx=ctx, object_modules_root=object_modules_root)
-    shared_plugins_root = str((root / "_shared" / "plugins").resolve())
-    return _load_capability_helpers(shared_plugins_root)
+    del ctx, object_modules_root  # Backward-compatible signature: shared helpers are framework-owned.
+    root = _resolve_framework_generators_root(framework_generators_root=framework_generators_root)
+    return _load_capability_helpers(str(root))
 
 
 @lru_cache(maxsize=8)
-def _load_bootstrap_helpers(shared_plugins_root: str) -> ModuleType:
+def _load_bootstrap_helpers(framework_generators_root: str) -> ModuleType:
     return _load_module(
-        module_name="_shared_bootstrap_helpers",
-        module_path=Path(shared_plugins_root) / "bootstrap_helpers.py",
+        module_name="_framework_bootstrap_helpers",
+        module_path=Path(framework_generators_root) / "bootstrap_helpers.py",
     )
 
 
 def load_bootstrap_helpers(
     *,
     ctx: PluginContext | None = None,
+    framework_generators_root: Path | str | None = None,
     object_modules_root: Path | str | None = None,
 ) -> ModuleType:
-    root = _resolve_object_modules_root(ctx=ctx, object_modules_root=object_modules_root)
-    shared_plugins_root = str((root / "_shared" / "plugins").resolve())
-    return _load_bootstrap_helpers(shared_plugins_root)
+    del ctx, object_modules_root  # Backward-compatible signature: shared helpers are framework-owned.
+    root = _resolve_framework_generators_root(framework_generators_root=framework_generators_root)
+    return _load_bootstrap_helpers(str(root))
 
 
 # =============================================================================

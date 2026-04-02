@@ -235,14 +235,12 @@ def test_manifest_dependencies_reference_existing_plugins() -> None:
 
 
 def test_object_modules_do_not_cross_import_other_object_modules() -> None:
-    object_ids = {path.name for path in OBJECT_MANIFEST_ROOT.iterdir() if path.is_dir() and path.name != "_shared"}
+    object_ids = {path.name for path in OBJECT_MANIFEST_ROOT.iterdir() if path.is_dir()}
     violations: list[str] = []
 
     for file_path in _iter_object_plugin_python_files():
         rel = file_path.relative_to(OBJECT_MANIFEST_ROOT).as_posix()
         owner = rel.split("/", 1)[0]
-        if owner == "_shared":
-            continue
 
         tree = ast.parse(file_path.read_text(encoding="utf-8"), filename=str(file_path))
         import_targets: list[str] = []

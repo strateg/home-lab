@@ -342,9 +342,6 @@ topology/object-modules/mikrotik/
 │   ├── generators/
 │   │   ├── terraform_mikrotik_generator.py  # GeneratorPlugin
 │   │   └── bootstrap_mikrotik_generator.py  # GeneratorPlugin
-│   └── _shared/
-│       ├── terraform_helpers.py     # Shared helper functions
-│       └── bootstrap_projections.py # Projection builders
 ├── templates/
 │   ├── terraform/
 │   │   ├── provider.tf.j2
@@ -358,6 +355,12 @@ topology/object-modules/mikrotik/
 └── testdata/
     ├── valid_topology.yaml
     └── expected_terraform/
+
+topology-tools/plugins/generators/
+├── terraform_helpers.py             # Shared Terraform helper functions
+├── capability_helpers.py            # Shared capability-template mapping helpers
+├── bootstrap_helpers.py             # Shared bootstrap-file config helpers
+└── bootstrap_projections.py         # Shared bootstrap projection builders
 ```
 
 ---

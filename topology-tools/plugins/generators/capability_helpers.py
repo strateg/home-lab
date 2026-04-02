@@ -1,4 +1,4 @@
-"""Shared capability helper utilities for object-level generators (ADR0078 WP-002)."""
+"""Framework-shared capability helper utilities for object generators (ADR0078 WP-002, ADR0086)."""
 
 from __future__ import annotations
 

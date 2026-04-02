@@ -17,3 +17,8 @@ Wave 3 active-manifest ID normalization for remaining class/object plugin IDs.
   - `object_glinet.validator_json.router_ports`
   - `object_mikrotik.validator_json.router_ports`
 - No dependency rewires were required for the renamed network validator ID because no active `depends_on`/`consumes.from_plugin` references targeted that ID.
+- Wave 3 follow-up performed non-ID layout relocation for framework-shared generator helpers:
+  - `topology/object-modules/_shared/plugins/terraform_helpers.py` -> `topology-tools/plugins/generators/terraform_helpers.py`
+  - `topology/object-modules/_shared/plugins/capability_helpers.py` -> `topology-tools/plugins/generators/capability_helpers.py`
+  - `topology/object-modules/_shared/plugins/bootstrap_helpers.py` -> `topology-tools/plugins/generators/bootstrap_helpers.py`
+  - `topology/object-modules/_shared/plugins/bootstrap_projections.py` -> `topology-tools/plugins/generators/bootstrap_projections.py`

@@ -16,8 +16,8 @@ MIKROTIK_GENERATOR = (
 PROXMOX_GENERATOR = (
     V5_ROOT / "topology" / "object-modules" / "proxmox" / "plugins" / "generators" / "terraform_proxmox_generator.py"
 )
-# ADR0078 WP-002: Shared capability helpers (code extracted from generators)
-CAPABILITY_HELPERS = V5_ROOT / "topology" / "object-modules" / "_shared" / "plugins" / "capability_helpers.py"
+# ADR0078 WP-002, ADR0086 Wave 3 follow-up: shared capability helpers are framework-owned.
+CAPABILITY_HELPERS = V5_ROOT / "topology-tools" / "plugins" / "generators" / "capability_helpers.py"
 
 
 def _plugin_entry(manifest_path: Path, plugin_id: str) -> dict:
@@ -153,7 +153,7 @@ def test_generators_support_migration_period_fallbacks() -> None:
     TODO(ADR0078-cleanup): Remove this test after v5.1 migration when all instances
     use the canonical ADR0078 format (enabled_by, template, output).
 
-    Note: Fallback code has been extracted to shared capability_helpers.py (ADR0078 WP-002).
+    Note: Fallback code lives in framework shared capability_helpers.py (ADR0078 WP-002, ADR0086).
     """
     # ADR0078 WP-002: Fallbacks now live in shared helper, not in individual generators
     helper_body = CAPABILITY_HELPERS.read_text(encoding="utf-8")

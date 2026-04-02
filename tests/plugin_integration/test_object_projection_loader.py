@@ -12,6 +12,7 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel.plugin_base import PluginContext  # noqa: E402
 from plugins.generators.object_projection_loader import (  # noqa: E402
     discover_object_projection_paths,
+    load_bootstrap_projection_module,
     load_object_projection_module,
 )
 
@@ -72,3 +73,20 @@ def test_discover_object_projection_paths_uses_context_root(tmp_path: Path) -> N
 
     paths = discover_object_projection_paths(ctx=ctx)
     assert sorted(paths) == ["custom"]
+
+
+def test_load_bootstrap_projection_module_uses_framework_generators_root(tmp_path: Path) -> None:
+    object_modules_root = tmp_path / "object-modules"
+    legacy_path = object_modules_root / "_shared" / "plugins" / "bootstrap_projections.py"
+    legacy_path.parent.mkdir(parents=True)
+    legacy_path.write_text("def marker():\n    return 'legacy'\n", encoding="utf-8")
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"object_modules_root": str(object_modules_root)},
+    )
+
+    module = load_bootstrap_projection_module(ctx=ctx)
+    expected_path = V5_TOOLS / "plugins" / "generators" / "bootstrap_projections.py"
+    assert Path(str(module.__file__)).resolve() == expected_path.resolve()

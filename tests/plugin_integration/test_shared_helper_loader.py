@@ -17,11 +17,11 @@ from plugins.generators.shared_helper_loader import (  # noqa: E402
 )
 
 
-def test_load_bootstrap_helpers_uses_context_object_modules_root(tmp_path: Path) -> None:
+def test_load_bootstrap_helpers_uses_framework_generators_root(tmp_path: Path) -> None:
     object_modules_root = tmp_path / "object-modules"
-    helper_path = object_modules_root / "_shared" / "plugins" / "bootstrap_helpers.py"
-    helper_path.parent.mkdir(parents=True)
-    helper_path.write_text("def marker():\n    return 'ok'\n", encoding="utf-8")
+    legacy_helper_path = object_modules_root / "_shared" / "plugins" / "bootstrap_helpers.py"
+    legacy_helper_path.parent.mkdir(parents=True)
+    legacy_helper_path.write_text("def marker():\n    return 'legacy'\n", encoding="utf-8")
     ctx = PluginContext(
         topology_path="topology/topology.yaml",
         profile="test",
@@ -30,6 +30,17 @@ def test_load_bootstrap_helpers_uses_context_object_modules_root(tmp_path: Path)
     )
 
     module = load_bootstrap_helpers(ctx=ctx)
+    expected_path = V5_TOOLS / "plugins" / "generators" / "bootstrap_helpers.py"
+    assert Path(str(module.__file__)).resolve() == expected_path.resolve()
+
+
+def test_load_bootstrap_helpers_supports_explicit_framework_generators_root(tmp_path: Path) -> None:
+    generators_root = tmp_path / "topology-tools" / "plugins" / "generators"
+    helper_path = generators_root / "bootstrap_helpers.py"
+    helper_path.parent.mkdir(parents=True)
+    helper_path.write_text("def marker():\n    return 'ok'\n", encoding="utf-8")
+
+    module = load_bootstrap_helpers(framework_generators_root=generators_root)
     assert Path(str(module.__file__)).resolve() == helper_path.resolve()
 
 

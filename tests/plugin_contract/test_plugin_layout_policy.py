@@ -15,6 +15,7 @@ REMOVED_EMPTY_MANIFESTS = (
     V5_ROOT / "topology" / "class-modules" / "router" / "plugins.yaml",
     V5_ROOT / "topology" / "object-modules" / "glinet" / "plugins.yaml",
 )
+REMOVED_SERVICE_DIRECTORIES = (V5_ROOT / "topology" / "object-modules" / "_shared",)
 
 REMOVED_ROUTER_WRAPPER_IDS = {
     "class_router.validator_json.router_data_channel_interface",
@@ -52,6 +53,11 @@ def _load_plugin_ids(manifest_path: Path) -> list[str]:
 def test_removed_empty_manifests_do_not_reappear() -> None:
     leaked = [path.relative_to(V5_ROOT).as_posix() for path in REMOVED_EMPTY_MANIFESTS if path.exists()]
     assert leaked == [], f"Removed empty manifests must not reappear: {leaked}"
+
+
+def test_removed_service_directories_do_not_reappear() -> None:
+    leaked = [path.relative_to(V5_ROOT).as_posix() for path in REMOVED_SERVICE_DIRECTORIES if path.exists()]
+    assert leaked == [], f"Removed service directories must not reappear: {leaked}"
 
 
 def test_module_manifests_are_non_empty_when_present() -> None:

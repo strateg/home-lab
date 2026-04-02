@@ -1,4 +1,4 @@
-"""Shared Terraform helper utilities for object-level generators (ADR0078 WP-001)."""
+"""Framework-shared Terraform helper utilities for object generators (ADR0078 WP-001, ADR0086)."""
 
 from __future__ import annotations
 

@@ -52,6 +52,17 @@ def _resolve_object_modules_root(
     return _detect_object_modules_root()
 
 
+def _resolve_framework_generators_root(
+    *,
+    framework_generators_root: Path | str | None = None,
+) -> Path:
+    if isinstance(framework_generators_root, Path):
+        return framework_generators_root.resolve()
+    if isinstance(framework_generators_root, str) and framework_generators_root.strip():
+        return Path(framework_generators_root.strip()).resolve()
+    return Path(__file__).resolve().parent
+
+
 @lru_cache(maxsize=8)
 def _discover_object_projection_paths(root: str) -> dict[str, Path]:
     object_modules_root = Path(root)
@@ -99,15 +110,17 @@ def load_object_projection_module(
 
 
 @lru_cache(maxsize=8)
-def _load_bootstrap_projection_module(root: str) -> ModuleType:
-    module_path = Path(root) / "_shared" / "plugins" / "bootstrap_projections.py"
+def _load_bootstrap_projection_module(framework_generators_root: str) -> ModuleType:
+    module_path = Path(framework_generators_root) / "bootstrap_projections.py"
     return _load_module(module_name="_object_projection_bootstrap", module_path=module_path)
 
 
 def load_bootstrap_projection_module(
     *,
     ctx: PluginContext | None = None,
+    framework_generators_root: Path | str | None = None,
     object_modules_root: Path | str | None = None,
 ) -> ModuleType:
-    root = _resolve_object_modules_root(ctx=ctx, object_modules_root=object_modules_root)
+    del ctx, object_modules_root  # Backward-compatible signature: shared bootstrap projection is framework-owned.
+    root = _resolve_framework_generators_root(framework_generators_root=framework_generators_root)
     return _load_bootstrap_projection_module(str(root))
