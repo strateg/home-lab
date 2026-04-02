@@ -118,7 +118,7 @@ Example for shared/global plugin (central manifest):
 Example for object-scoped plugin (module manifest):
 
 ```yaml
-- id: object_network.validator_json.ethernet_cable_endpoints
+- id: object.network.validator_json.ethernet_cable_endpoints
   kind: validator_json
   entry: plugins/validators/ethernet_cable_endpoint_validator.py:EthernetCableEndpointValidator
   api_version: "1.x"

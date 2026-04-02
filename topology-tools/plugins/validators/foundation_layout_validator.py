@@ -30,6 +30,7 @@ class FoundationLayoutValidator(ValidatorYamlPlugin):
             return self.make_result(diagnostics)
 
         repo_root = self._resolve_repo_root(ctx.config.get("repo_root"))
+        plugins_manifest_count = 0
 
         for key in self._ROOT_KEYS:
             value = framework.get(key)
@@ -70,17 +71,18 @@ class FoundationLayoutValidator(ValidatorYamlPlugin):
                     )
                 )
 
-            plugins_manifests = [path for path in root.rglob("plugins.yaml") if path.is_file()]
-            if not plugins_manifests:
-                diagnostics.append(
-                    self.emit_diagnostic(
-                        code="E7814",
-                        severity="warning",
-                        stage=stage,
-                        message=f"framework.{key} directory '{value}' has no plugins.yaml manifests.",
-                        path=f"topology:framework.{key}",
-                    )
+            plugins_manifest_count += sum(1 for path in root.rglob("plugins.yaml") if path.is_file())
+
+        if plugins_manifest_count == 0:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E7814",
+                    severity="warning",
+                    stage=stage,
+                    message="Framework module roots contain no plugins.yaml manifests.",
+                    path="topology:framework",
                 )
+            )
 
         return self.make_result(diagnostics)
 

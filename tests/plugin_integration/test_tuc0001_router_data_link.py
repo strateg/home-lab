@@ -17,7 +17,7 @@ sys.path.insert(0, str(V5_TOOLS))
 from kernel import PluginContext, PluginRegistry, PluginStatus
 from kernel.plugin_base import Stage
 
-NETWORK_PLUGIN_ID = "object_network.validator_json.ethernet_cable_endpoints"
+NETWORK_PLUGIN_ID = "object.network.validator_json.ethernet_cable_endpoints"
 NETWORK_PLUGIN_MANIFEST = REPO_ROOT / "topology" / "object-modules" / "network" / "plugins.yaml"
 
 

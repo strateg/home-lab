@@ -30,3 +30,13 @@ Selection rule:
   - `object_glinet.validator_json.router_ports`
   - `object_mikrotik.validator_json.router_ports`
 - Keep object-generator ownership and network endpoint validator placement unchanged in Block A.
+
+## Execution Note (2026-04-02)
+
+- Implemented Block A removals for router wrapper validators.
+- Deleted now-empty manifests:
+  - `topology/class-modules/router/plugins.yaml`
+  - `topology/object-modules/glinet/plugins.yaml`
+- Normalized remaining network validator ID:
+  - `object_network.validator_json.ethernet_cable_endpoints`
+  - -> `object.network.validator_json.ethernet_cable_endpoints`

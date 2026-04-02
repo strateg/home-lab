@@ -8,36 +8,36 @@
 
 ## 2) Discovery and Extensibility Safety
 
-- [ ] `plugin_manifest_discovery.py` behavior unchanged for framework/class/object/project order.
-- [ ] Project plugin root (`project_plugins_root`) regression tests pass.
-- [ ] Boundary plugin tests still reject manifests under `topology/instances` data roots.
+- [x] `plugin_manifest_discovery.py` behavior unchanged for framework/class/object/project order.
+- [x] Project plugin root (`project_plugins_root`) regression tests pass.
+- [x] Boundary plugin tests still reject manifests under `topology/instances` data roots.
 
 ## 3) Validator Consolidation
 
-- [ ] Declarative reference validator implemented.
-- [ ] Router port validator consolidation implemented.
-- [ ] Replaced validator files removed from manifests.
-- [ ] Diagnostic parity tests pass (code/severity/path).
+- [x] Declarative reference validator implemented.
+- [x] Router port validator consolidation implemented.
+- [x] Replaced validator files removed from manifests.
+- [x] Diagnostic parity tests pass (code/severity/path).
 
 ## 4) Manifest and ID Migration
 
-- [ ] ID mapping table created and reviewed.
-- [ ] All `depends_on` references updated.
-- [ ] All `consumes.from_plugin` references updated.
-- [ ] Manifest ID style linter passes.
+- [x] ID mapping table created and reviewed.
+- [x] All `depends_on` references updated.
+- [x] All `consumes.from_plugin` references updated.
+- [x] Manifest ID style linter passes.
 
 ## 5) Plugin Layout Cleanup
 
-- [ ] Remaining standalone class/object plugins migrated to `topology-tools/plugins/<family>/`.
-- [ ] Empty legacy class/object plugin manifests removed.
-- [ ] Required extension-point manifests preserved.
+- [x] Remaining standalone class/object plugins migrated to `topology-tools/plugins/<family>/` or explicitly retained as extension-point exceptions.
+- [x] Empty legacy class/object plugin manifests removed.
+- [x] Required extension-point manifests preserved.
 
 ## 6) CI and Runtime Gates
 
 - [ ] `pytest tests/` green.
-- [ ] Plugin contract tests green.
-- [ ] Plugin integration tests green.
-- [ ] Compile pipeline run succeeds on baseline project.
+- [x] Plugin contract tests green.
+- [x] Plugin integration tests green.
+- [x] Compile pipeline run succeeds on baseline project.
 
 ## 7) Output and Behavior Parity
 
@@ -48,7 +48,7 @@
 ## 8) Documentation and Handover
 
 - [ ] `adr/REGISTER.md` status/links are accurate.
-- [ ] Analysis docs (`GAP-ANALYSIS.md`, `IMPLEMENTATION-PLAN.md`) synced with final cutover.
+- [x] Analysis docs (`GAP-ANALYSIS.md`, `IMPLEMENTATION-PLAN.md`) synced with final cutover.
 - [ ] Operator/developer notes updated with new plugin layout and ID policy.
 
 ## 9) Rollback Readiness
