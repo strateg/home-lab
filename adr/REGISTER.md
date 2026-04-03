@@ -87,3 +87,4 @@
 | [0084](0084-cross-platform-dev-plane-and-linux-deploy-plane.md) | Cross-Platform Dev Plane and Linux Deploy Plane | Accepted (complete) | 2026-03-31 | - | - |
 | [0085](0085-deploy-bundle-and-runner-workspace-contract.md) | Deploy Bundle and Runner Workspace Contract | Accepted (complete) | 2026-03-31 | [0053](0053-dist-first-deploy-cutover.md) | - |
 | [0086](0086-flatten-plugin-hierarchy-and-reduce-granularity.md) | Flatten Plugin Hierarchy and Reduce Plugin Granularity | Accepted (complete) | 2026-04-01 | ADR 0063 Section 4B | - |
+| [0087](0087-unified-container-ontology-l4-l5.md) | Unified Container Ontology for L4/L5 | Proposed | 2025-07-12 | - | ADR 0026, 0034, 0042, 0064 |
