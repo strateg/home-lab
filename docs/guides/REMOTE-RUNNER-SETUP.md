@@ -53,14 +53,14 @@ scp -V            # if using scp mode
 ## 4. Bundle-Based Execution
 
 ```powershell
-task framework:deploy-bundle-create
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id> DEPLOY_RUNNER=remote
+task bundle:create
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id> DEPLOY_RUNNER=remote
 ```
 
 For apply lane:
 
 ```powershell
-task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id> DEPLOY_RUNNER=remote CONTINUE_ON_FAILURE=1
+task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id> DEPLOY_RUNNER=remote CONTINUE_ON_FAILURE=1
 ```
 
 ---

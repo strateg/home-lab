@@ -19,11 +19,11 @@ task validate:v5-passthrough
 task build:default
 
 # 3. Create deploy bundle
-task framework:deploy-bundle-create
-task framework:deploy-bundle-list
+task bundle:create
+task bundle:list
 
 # 4. Execute from bundle
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
 ```
 
 ### For New Users

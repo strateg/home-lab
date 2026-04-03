@@ -19,7 +19,7 @@ Error codes, diagnostics, and solutions.
 
 | Code | Message | Cause | Resolution |
 |------|---------|-------|------------|
-| `E9710` | Bundle not found | Bundle ID/path doesn't exist | Run `task framework:deploy-bundle-list` |
+| `E9710` | Bundle not found | Bundle ID/path doesn't exist | Run `task bundle:list` |
 | `E9711` | Bundle checksum mismatch | Bundle integrity compromised | Delete and recreate bundle |
 | `E9712` | Bundle already exists | Duplicate bundle creation | Use existing bundle or wait for hash change |
 | `E9713` | Bundle manifest validation failed | Invalid manifest structure | Regenerate bundle from valid artifacts |
@@ -118,7 +118,7 @@ Unable to find image 'homelab-toolchain:latest'
 **Solution:**
 ```bash
 # Build the toolchain image
-task framework:deploy-docker-toolchain-build
+task deploy:docker-toolchain-build
 
 # Verify
 docker images | grep homelab-toolchain
@@ -180,10 +180,10 @@ runners:
 **Solution:**
 ```bash
 # Use existing bundle
-task framework:deploy-bundle-list
+task bundle:list
 
 # Or delete old bundle first
-task framework:deploy-bundle-delete -- BUNDLE=b-existing
+task bundle:delete -- BUNDLE=b-existing
 ```
 
 #### Checksum verification failed
@@ -200,10 +200,10 @@ task framework:deploy-bundle-delete -- BUNDLE=b-existing
 **Solution:**
 ```bash
 # Delete corrupted bundle
-task framework:deploy-bundle-delete -- BUNDLE=b-corrupted
+task bundle:delete -- BUNDLE=b-corrupted
 
 # Recreate
-task framework:deploy-bundle-create
+task bundle:create
 ```
 
 ### State Machine Issues
@@ -219,10 +219,10 @@ Illegal state transition: verified -> initialized
 **Solution:**
 ```bash
 # Check current state
-task framework:deploy-init-status
+task deploy:init-status
 
 # Reset if needed
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=b-123 NODE=node1 RESET=true CONFIRM_RESET=true
 ```
 
@@ -238,11 +238,11 @@ task framework:deploy-init-node-run -- \
 **Solution:**
 ```bash
 # Force re-execution
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=b-123 NODE=node1 FORCE=true
 
 # Or reset and retry
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=b-123 NODE=node1 RESET=true CONFIRM_RESET=true
 ```
 
@@ -263,14 +263,14 @@ task framework:deploy-init-node-run -- \
 **Solution:**
 ```bash
 # Check bundle contents
-task framework:deploy-bundle-inspect -- BUNDLE=b-123 | jq '.manifest.nodes'
+task bundle:inspect -- BUNDLE=b-123 | jq '.manifest.nodes'
 
 # Verify generated artifacts exist
 ls generated/home-lab/bootstrap/<node_id>/
 
 # Rebuild if missing
 task build:default
-task framework:deploy-bundle-create
+task bundle:create
 ```
 
 #### Script not present
@@ -322,7 +322,7 @@ print(f'Tools: {report.tools}')
 
 ```bash
 # Full bundle verification
-task framework:deploy-bundle-inspect -- BUNDLE=b-123
+task bundle:inspect -- BUNDLE=b-123
 
 # List all checksums
 cat .work/deploy/bundles/b-123/checksums.sha256
@@ -332,7 +332,7 @@ cat .work/deploy/bundles/b-123/checksums.sha256
 
 ```bash
 # State summary
-task framework:deploy-init-status
+task deploy:init-status
 
 # Raw state file
 cat .work/deploy-state/home-lab/nodes/INITIALIZATION-STATE.yaml
@@ -393,24 +393,24 @@ rm -rf .work/deploy/bundles/*
 
 # 3. Regenerate
 task build:default
-task framework:deploy-bundle-create
+task bundle:create
 
 # 4. Check status (should show all pending)
-task framework:deploy-init-status
+task deploy:init-status
 ```
 
 ### Single Node Recovery
 
 ```bash
 # 1. Reset node state
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=problem-node \
   RESET=true \
   CONFIRM_RESET=true
 
 # 2. Re-run initialization
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=problem-node
 ```
@@ -419,7 +419,7 @@ task framework:deploy-init-node-run -- \
 
 ```bash
 # Mark node as already bootstrapped externally
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=existing-node \
   IMPORT_EXISTING=true

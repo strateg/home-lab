@@ -43,8 +43,8 @@ wsl -l -q
 5. Run repo commands with WSL-backed runner:
 
 ```powershell
-task framework:service-chain-evidence-apply-bundle -- BUNDLE=<bundle_id> DEPLOY_RUNNER=wsl
-task framework:deploy-init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=wsl
+task deploy:service-chain-evidence-apply-bundle -- BUNDLE=<bundle_id> DEPLOY_RUNNER=wsl
+task deploy:init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=wsl
 ```
 
 ---
@@ -78,13 +78,13 @@ Remote mode details: `docs/guides/REMOTE-RUNNER-SETUP.md`.
 1. Service-chain dry run:
 
 ```powershell
-task framework:service-chain-evidence-dry-bundle -- BUNDLE=<bundle_id> DEPLOY_RUNNER=<runner>
+task deploy:service-chain-evidence-dry-bundle -- BUNDLE=<bundle_id> DEPLOY_RUNNER=<runner>
 ```
 
 2. Init-node plan-only run:
 
 ```powershell
-task framework:deploy-init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=<runner>
+task deploy:init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=<runner>
 ```
 
 If environment precheck fails, `init-node.py` returns:

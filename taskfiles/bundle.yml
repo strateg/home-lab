@@ -1,0 +1,28 @@
+version: "3"
+
+tasks:
+  create:
+    desc: Create immutable deploy bundle from generated artifacts
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/bundle.py create --repo-root . --project-id {{.PROJECT_ID}} {{if .GENERATED_ROOT}}--generated-root {{.GENERATED_ROOT}}{{end}} {{if .BUNDLES_ROOT}}--bundles-root {{.BUNDLES_ROOT}}{{end}} {{if .INJECT_SECRETS}}--inject-secrets{{end}} {{if .SECRETS_ROOT}}--secrets-root {{.SECRETS_ROOT}}{{end}}"
+
+  list:
+    desc: List available deploy bundles
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/bundle.py list --repo-root . {{if .BUNDLES_ROOT}}--bundles-root {{.BUNDLES_ROOT}}{{end}}"
+
+  inspect:
+    desc: Inspect deploy bundle metadata/checksums (requires BUNDLE=<bundle_id>)
+    requires:
+      vars:
+        - BUNDLE
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/bundle.py inspect --repo-root . --bundle {{.BUNDLE}} {{if .BUNDLES_ROOT}}--bundles-root {{.BUNDLES_ROOT}}{{end}} {{if .SKIP_CHECKSUMS}}--skip-checksums{{end}}"
+
+  delete:
+    desc: Delete deploy bundle (requires BUNDLE=<bundle_id>)
+    requires:
+      vars:
+        - BUNDLE
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/bundle.py delete --repo-root . --bundle {{.BUNDLE}} {{if .BUNDLES_ROOT}}--bundles-root {{.BUNDLES_ROOT}}{{end}}"

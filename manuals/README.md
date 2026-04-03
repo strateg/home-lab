@@ -64,14 +64,14 @@ Build-time layer for topology compilation and artifact generation.
 ```bash
 # Build and create deploy bundle
 task build:default
-task framework:deploy-bundle-create
+task bundle:create
 
 # Check and apply changes
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<id>
-task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<id>
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<id>
+task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<id>
 
 # Initialize new node
-task framework:deploy-init-node-run -- BUNDLE=<id> NODE=<node>
+task deploy:init-node-run -- BUNDLE=<id> NODE=<node>
 ```
 
 ### For Developers

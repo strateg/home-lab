@@ -38,21 +38,21 @@ Automated evidence capture lanes:
 
 ```powershell
 # create immutable deploy bundle
-task framework:deploy-bundle-create
-task framework:deploy-bundle-list
+task bundle:create
+task bundle:list
 
 # dry lane (non-maintenance, bundle-based)
-task framework:service-chain-evidence-dry-bundle -- BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-dry-bundle -- BUNDLE=<bundle_id>
 
 # maintenance check lane (plan + ansible --check, bundle-based)
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=artifacts/generated/terraform/proxmox/terraform.tfvars.example MIKROTIK_VAR_FILE=artifacts/generated/terraform/mikrotik/terraform.tfvars.example
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=artifacts/generated/terraform/proxmox/terraform.tfvars.example MIKROTIK_VAR_FILE=artifacts/generated/terraform/mikrotik/terraform.tfvars.example
 
 # maintenance apply lane (destructive; requires explicit confirmation variable, bundle-based)
-task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1 TERRAFORM_AUTO_APPROVE=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=artifacts/generated/terraform/proxmox/terraform.tfvars.example MIKROTIK_VAR_FILE=artifacts/generated/terraform/mikrotik/terraform.tfvars.example
+task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1 TERRAFORM_AUTO_APPROVE=1 INJECT_SECRETS=1 PROXMOX_BACKEND_CONFIG=projects/home-lab/secrets/terraform/proxmox.backend.tfbackend MIKROTIK_BACKEND_CONFIG=projects/home-lab/secrets/terraform/mikrotik.backend.tfbackend PROXMOX_VAR_FILE=artifacts/generated/terraform/proxmox/terraform.tfvars.example MIKROTIK_VAR_FILE=artifacts/generated/terraform/mikrotik/terraform.tfvars.example
 ```
 
 Reports are generated under `docs/runbooks/evidence/` by `topology-tools/utils/record-service-chain-evidence.py`.
-Bundle operations are implemented by `scripts/orchestration/deploy/bundle.py` and task wrappers under `task framework:deploy-bundle-*`.
+Bundle operations are implemented by `scripts/orchestration/deploy/bundle.py` and task wrappers under `task deploy:bundle-*`.
 
 ---
 

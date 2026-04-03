@@ -23,10 +23,10 @@ taskfiles/
 | File | Change | Phase | Priority |
 |------|--------|-------|----------|
 | `Taskfile.yml` | Add `includes: deploy` for new deploy taskfile | Phase 4 | High |
-| `taskfiles/deploy.yaml` | **NEW** - Deploy domain tasks | Phase 4 | High |
+| `taskfiles/deploy.yml` | **NEW** - Deploy domain tasks | Phase 4 | High |
 | `taskfiles/mikrotik.yaml` | Update paths from `scripts/orchestration/` to `scripts/orchestration/deploy/` | Phase 4 | High |
 
-#### New `taskfiles/deploy.yaml`
+#### New `taskfiles/deploy.yml`
 
 ```yaml
 version: "3"

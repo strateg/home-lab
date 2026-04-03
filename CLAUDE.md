@@ -170,22 +170,22 @@ The deploy domain implements a layered architecture:
 
 ```bash
 # Build immutable deploy bundle from generated artifacts
-task framework:deploy-bundle-create
-task framework:deploy-bundle-list
+task bundle:create
+task bundle:list
 
 # Execute service-chain lanes from selected bundle
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
-task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id>
 ```
 
 **Node initialization (scaffold):**
 
 ```bash
 # Check init state
-task framework:deploy-init-status
+task deploy:init-status
 
 # Plan node initialization
-task framework:deploy-init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id>
+task deploy:init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id>
 ```
 
 **State file locations:**

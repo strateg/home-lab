@@ -49,25 +49,25 @@ Not implemented yet:
 State summary:
 
 ```powershell
-task framework:deploy-init-status
+task deploy:init-status
 ```
 
 Plan one node:
 
 ```powershell
-task framework:deploy-init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id>
+task deploy:init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id>
 ```
 
 Plan one node with explicit runner:
 
 ```powershell
-task framework:deploy-init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=wsl
+task deploy:init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=wsl
 ```
 
 Plan all pending:
 
 ```powershell
-task framework:deploy-init-all-pending-plan -- BUNDLE=<bundle_id>
+task deploy:init-all-pending-plan -- BUNDLE=<bundle_id>
 ```
 
 Execute one node (bootstrap via SCP+SSH import):
@@ -75,7 +75,7 @@ Execute one node (bootstrap via SCP+SSH import):
 ```powershell
 $env:INIT_NODE_NETINSTALL_SSH_HOST='192.168.88.1'
 $env:INIT_NODE_NETINSTALL_SSH_USER='admin'
-task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=docker PHASE=bootstrap
+task deploy:init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> DEPLOY_RUNNER=docker PHASE=bootstrap
 ```
 
 Optional: auto-load bootstrap SSH contract from SOPS secret (single-node bootstrap):
@@ -95,13 +95,13 @@ $env:MIKROTIK_BOOTSTRAP_MAC='00:11:22:33:44:55'
 $env:MIKROTIK_NETINSTALL_INTERFACE='eth0'
 $env:MIKROTIK_NETINSTALL_CLIENT_IP='192.168.88.3'
 $env:MIKROTIK_ROUTEROS_PACKAGE='/path/to/routeros-arm64.npk'
-task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> PHASE=recover
+task deploy:init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> PHASE=recover
 ```
 
 Verify one initialized node (handover checks):
 
 ```powershell
-task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> VERIFY_ONLY=1
+task deploy:init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> VERIFY_ONLY=1
 ```
 
 ---
@@ -117,7 +117,7 @@ task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id> VERIFY_
 - Bootstrap phase for one node can auto-decrypt SSH host/user/password from SOPS bootstrap secret and export env contract for adapter execution.
 - On Windows hosts, bootstrap secret decrypt now falls back to `wsl sops` automatically when native `sops` is unavailable (override distro with `INIT_NODE_WSL_DISTRO`).
 - non-plan execute/verify flows now stage bundle in selected runner workspace and call runner cleanup after execution.
-- Use immutable deploy bundles from ADR 0085 (`task framework:deploy-bundle-create`).
+- Use immutable deploy bundles from ADR 0085 (`task bundle:create`).
 - This is still safe in current state because destructive adapter execution is not implemented.
 - Environment precheck runs by default for non-`--status` commands; use `SKIP_ENVIRONMENT_CHECK=1` only for isolated tests.
 - Environment setup reference: `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md`.

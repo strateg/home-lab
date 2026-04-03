@@ -1,0 +1,101 @@
+version: "3"
+
+tasks:
+  docker-toolchain-build:
+    desc: Build Docker toolchain image for deploy runner (optional DOCKER_IMAGE=<tag>)
+    cmds:
+      - "docker build -f docker/Dockerfile.toolchain -t {{default \"homelab-toolchain:latest\" .DOCKER_IMAGE}} docker"
+
+  docker-toolchain-smoke:
+    desc: Smoke-check Docker toolchain image for terraform/ansible availability
+    cmds:
+      - "docker run --rm {{default \"homelab-toolchain:latest\" .DOCKER_IMAGE}} terraform version"
+      - "docker run --rm {{default \"homelab-toolchain:latest\" .DOCKER_IMAGE}} ansible-playbook --version"
+
+  init-status:
+    desc: Show ADR0083 init-node scaffold state summary
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/init-node.py --repo-root . --project-id {{.PROJECT_ID}} --status"
+
+  init-node-plan:
+    desc: Plan init-node action for one node (requires BUNDLE=<bundle_id>, NODE=<node_id>)
+    requires:
+      vars:
+        - BUNDLE
+        - NODE
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/init-node.py --repo-root . --project-id {{.PROJECT_ID}} --bundle {{.BUNDLE}} --node {{.NODE}} --plan-only {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .PHASE}}--phase {{.PHASE}}{{end}} {{if .SKIP_ENVIRONMENT_CHECK}}--skip-environment-check{{end}} {{if .VERIFY_ONLY}}--verify-only{{end}} {{if .FORCE}}--force{{end}} {{if .IMPORT_EXISTING}}--import-existing{{end}} {{if .RESET}}--reset{{end}} {{if .CONFIRM_RESET}}--confirm-reset{{end}} {{if .ACKNOWLEDGE_DRIFT}}--acknowledge-drift{{end}}"
+
+  init-all-pending-plan:
+    desc: Plan init-node action for all pending nodes (requires BUNDLE=<bundle_id>)
+    requires:
+      vars:
+        - BUNDLE
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/init-node.py --repo-root . --project-id {{.PROJECT_ID}} --bundle {{.BUNDLE}} --all-pending --plan-only {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .PHASE}}--phase {{.PHASE}}{{end}} {{if .SKIP_ENVIRONMENT_CHECK}}--skip-environment-check{{end}} {{if .VERIFY_ONLY}}--verify-only{{end}} {{if .FORCE}}--force{{end}} {{if .ACKNOWLEDGE_DRIFT}}--acknowledge-drift{{end}}"
+
+  init-node-run:
+    desc: Execute init-node action for one node (requires BUNDLE=<bundle_id>, NODE=<node_id>)
+    requires:
+      vars:
+        - BUNDLE
+        - NODE
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/init-node.py --repo-root . --project-id {{.PROJECT_ID}} --bundle {{.BUNDLE}} --node {{.NODE}} {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .PHASE}}--phase {{.PHASE}}{{end}} {{if .SKIP_ENVIRONMENT_CHECK}}--skip-environment-check{{end}} {{if .VERIFY_ONLY}}--verify-only{{end}} {{if .FORCE}}--force{{end}} {{if .IMPORT_EXISTING}}--import-existing{{end}} {{if .RESET}}--reset{{end}} {{if .CONFIRM_RESET}}--confirm-reset{{end}} {{if .ACKNOWLEDGE_DRIFT}}--acknowledge-drift{{end}}"
+
+  init-all-pending-run:
+    desc: Execute init-node action for all pending nodes (requires BUNDLE=<bundle_id>)
+    requires:
+      vars:
+        - BUNDLE
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/init-node.py --repo-root . --project-id {{.PROJECT_ID}} --bundle {{.BUNDLE}} --all-pending {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .PHASE}}--phase {{.PHASE}}{{end}} {{if .SKIP_ENVIRONMENT_CHECK}}--skip-environment-check{{end}} {{if .VERIFY_ONLY}}--verify-only{{end}} {{if .FORCE}}--force{{end}} {{if .IMPORT_EXISTING}}--import-existing{{end}} {{if .ACKNOWLEDGE_DRIFT}}--acknowledge-drift{{end}}"
+
+  service-chain-evidence-dry:
+    desc: Execute dry service-chain lane and write evidence report
+    cmds:
+      - "{{.PYTHON}} topology-tools/utils/record-service-chain-evidence.py --mode dry --project-id {{.PROJECT_ID}} --env production {{if .BUNDLE}}--bundle {{.BUNDLE}}{{end}} {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .ANSIBLE_VIA_WSL}}--ansible-via-wsl{{end}} {{if .BOOTSTRAP_INIT_NODE}}--bootstrap-init-node{{end}} {{if .BOOTSTRAP_NODE}}--bootstrap-node {{.BOOTSTRAP_NODE}}{{end}} {{if .BOOTSTRAP_RUNNER}}--bootstrap-runner {{.BOOTSTRAP_RUNNER}}{{end}}"
+
+  service-chain-evidence-check:
+    desc: Execute maintenance-check service-chain lane and write evidence report
+    cmds:
+      - "{{.PYTHON}} topology-tools/utils/record-service-chain-evidence.py --mode maintenance-check --project-id {{.PROJECT_ID}} --env production {{if .BUNDLE}}--bundle {{.BUNDLE}}{{end}} {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .ANSIBLE_VIA_WSL}}--ansible-via-wsl{{end}} {{if .INJECT_SECRETS}}--inject-secrets{{end}} {{if .PROXMOX_BACKEND_CONFIG}}--proxmox-backend-config {{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}--mikrotik-backend-config {{.MIKROTIK_BACKEND_CONFIG}}{{end}} {{if .PROXMOX_VAR_FILE}}--proxmox-var-file {{.PROXMOX_VAR_FILE}}{{end}} {{if .MIKROTIK_VAR_FILE}}--mikrotik-var-file {{.MIKROTIK_VAR_FILE}}{{end}} {{if .BOOTSTRAP_INIT_NODE}}--bootstrap-init-node{{end}} {{if .BOOTSTRAP_NODE}}--bootstrap-node {{.BOOTSTRAP_NODE}}{{end}} {{if .BOOTSTRAP_RUNNER}}--bootstrap-runner {{.BOOTSTRAP_RUNNER}}{{end}}"
+
+  service-chain-evidence-apply:
+    desc: Execute maintenance-apply service-chain lane and write evidence report (requires ALLOW_APPLY=YES)
+    requires:
+      vars:
+        - ALLOW_APPLY
+    preconditions:
+      - sh: 'test "{{.ALLOW_APPLY}}" = "YES"'
+        msg: "Set ALLOW_APPLY=YES to run maintenance-apply evidence lane."
+    cmds:
+      - "{{.PYTHON}} topology-tools/utils/record-service-chain-evidence.py --mode maintenance-apply --allow-apply --project-id {{.PROJECT_ID}} --env production {{if .BUNDLE}}--bundle {{.BUNDLE}}{{end}} {{if .CONTINUE_ON_FAILURE}}--continue-on-failure{{end}} {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .ANSIBLE_VIA_WSL}}--ansible-via-wsl{{end}} {{if .TERRAFORM_AUTO_APPROVE}}--terraform-auto-approve{{end}} {{if .INJECT_SECRETS}}--inject-secrets{{end}} {{if .PROXMOX_BACKEND_CONFIG}}--proxmox-backend-config {{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}--mikrotik-backend-config {{.MIKROTIK_BACKEND_CONFIG}}{{end}} {{if .PROXMOX_VAR_FILE}}--proxmox-var-file {{.PROXMOX_VAR_FILE}}{{end}} {{if .MIKROTIK_VAR_FILE}}--mikrotik-var-file {{.MIKROTIK_VAR_FILE}}{{end}} {{if .BOOTSTRAP_INIT_NODE}}--bootstrap-init-node{{end}} {{if .BOOTSTRAP_NODE}}--bootstrap-node {{.BOOTSTRAP_NODE}}{{end}} {{if .BOOTSTRAP_RUNNER}}--bootstrap-runner {{.BOOTSTRAP_RUNNER}}{{end}}"
+
+  service-chain-evidence-dry-bundle:
+    desc: Execute dry service-chain lane in strict bundle mode (requires BUNDLE=<bundle_id>)
+    requires:
+      vars:
+        - BUNDLE
+    cmds:
+      - task deploy:service-chain-evidence-dry BUNDLE={{.BUNDLE}} {{if .CONTINUE_ON_FAILURE}}CONTINUE_ON_FAILURE={{.CONTINUE_ON_FAILURE}}{{end}} {{if .DEPLOY_RUNNER}}DEPLOY_RUNNER={{.DEPLOY_RUNNER}}{{end}} {{if .ANSIBLE_VIA_WSL}}ANSIBLE_VIA_WSL={{.ANSIBLE_VIA_WSL}}{{end}}
+
+  service-chain-evidence-check-bundle:
+    desc: Execute maintenance-check service-chain lane in strict bundle mode (requires BUNDLE=<bundle_id>)
+    requires:
+      vars:
+        - BUNDLE
+    cmds:
+      - task deploy:service-chain-evidence-check BUNDLE={{.BUNDLE}} {{if .CONTINUE_ON_FAILURE}}CONTINUE_ON_FAILURE={{.CONTINUE_ON_FAILURE}}{{end}} {{if .DEPLOY_RUNNER}}DEPLOY_RUNNER={{.DEPLOY_RUNNER}}{{end}} {{if .ANSIBLE_VIA_WSL}}ANSIBLE_VIA_WSL={{.ANSIBLE_VIA_WSL}}{{end}} {{if .INJECT_SECRETS}}INJECT_SECRETS={{.INJECT_SECRETS}}{{end}} {{if .PROXMOX_BACKEND_CONFIG}}PROXMOX_BACKEND_CONFIG={{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}MIKROTIK_BACKEND_CONFIG={{.MIKROTIK_BACKEND_CONFIG}}{{end}} {{if .PROXMOX_VAR_FILE}}PROXMOX_VAR_FILE={{.PROXMOX_VAR_FILE}}{{end}} {{if .MIKROTIK_VAR_FILE}}MIKROTIK_VAR_FILE={{.MIKROTIK_VAR_FILE}}{{end}}
+
+  service-chain-evidence-apply-bundle:
+    desc: Execute maintenance-apply service-chain lane in strict bundle mode (requires ALLOW_APPLY=YES, BUNDLE=<bundle_id>)
+    requires:
+      vars:
+        - ALLOW_APPLY
+        - BUNDLE
+    preconditions:
+      - sh: 'test "{{.ALLOW_APPLY}}" = "YES"'
+        msg: "Set ALLOW_APPLY=YES to run maintenance-apply evidence lane."
+    cmds:
+      - task deploy:service-chain-evidence-apply ALLOW_APPLY={{.ALLOW_APPLY}} BUNDLE={{.BUNDLE}} {{if .CONTINUE_ON_FAILURE}}CONTINUE_ON_FAILURE={{.CONTINUE_ON_FAILURE}}{{end}} {{if .DEPLOY_RUNNER}}DEPLOY_RUNNER={{.DEPLOY_RUNNER}}{{end}} {{if .ANSIBLE_VIA_WSL}}ANSIBLE_VIA_WSL={{.ANSIBLE_VIA_WSL}}{{end}} {{if .TERRAFORM_AUTO_APPROVE}}TERRAFORM_AUTO_APPROVE={{.TERRAFORM_AUTO_APPROVE}}{{end}} {{if .INJECT_SECRETS}}INJECT_SECRETS={{.INJECT_SECRETS}}{{end}} {{if .PROXMOX_BACKEND_CONFIG}}PROXMOX_BACKEND_CONFIG={{.PROXMOX_BACKEND_CONFIG}}{{end}} {{if .MIKROTIK_BACKEND_CONFIG}}MIKROTIK_BACKEND_CONFIG={{.MIKROTIK_BACKEND_CONFIG}}{{end}} {{if .PROXMOX_VAR_FILE}}PROXMOX_VAR_FILE={{.PROXMOX_VAR_FILE}}{{end}} {{if .MIKROTIK_VAR_FILE}}MIKROTIK_VAR_FILE={{.MIKROTIK_VAR_FILE}}{{end}}

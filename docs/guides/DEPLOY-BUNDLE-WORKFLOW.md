@@ -39,13 +39,13 @@ Schema:
 Create bundle from current project generated artifacts:
 
 ```powershell
-task framework:deploy-bundle-create
+task bundle:create
 ```
 
 Create bundle with decrypted secrets included:
 
 ```powershell
-task framework:deploy-bundle-create -- INJECT_SECRETS=1
+task bundle:create -- INJECT_SECRETS=1
 ```
 
 Optional overrides:
@@ -61,19 +61,19 @@ Optional overrides:
 List available bundles:
 
 ```powershell
-task framework:deploy-bundle-list
+task bundle:list
 ```
 
 Inspect one bundle:
 
 ```powershell
-task framework:deploy-bundle-inspect -- BUNDLE=<bundle_id>
+task bundle:inspect -- BUNDLE=<bundle_id>
 ```
 
 Inspect without checksum verification:
 
 ```powershell
-task framework:deploy-bundle-inspect -- BUNDLE=<bundle_id> SKIP_CHECKSUMS=1
+task bundle:inspect -- BUNDLE=<bundle_id> SKIP_CHECKSUMS=1
 ```
 
 ---
@@ -83,19 +83,19 @@ task framework:deploy-bundle-inspect -- BUNDLE=<bundle_id> SKIP_CHECKSUMS=1
 Dry lane:
 
 ```powershell
-task framework:service-chain-evidence-dry-bundle -- BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-dry-bundle -- BUNDLE=<bundle_id>
 ```
 
 Maintenance-check lane:
 
 ```powershell
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1
 ```
 
 Maintenance-apply lane:
 
 ```powershell
-task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1
+task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1
 ```
 
 Notes:
@@ -119,7 +119,7 @@ Notes:
 ## 7. Delete Bundle
 
 ```powershell
-task framework:deploy-bundle-delete -- BUNDLE=<bundle_id>
+task bundle:delete -- BUNDLE=<bundle_id>
 ```
 
 ---
@@ -128,13 +128,13 @@ task framework:deploy-bundle-delete -- BUNDLE=<bundle_id>
 
 ```powershell
 task validate:v5-passthrough
-task framework:deploy-bundle-create
-task framework:deploy-bundle-list
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1
+task bundle:create
+task bundle:list
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1
 ```
 
 For maintenance apply window:
 
 ```powershell
-task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1
+task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id> CONTINUE_ON_FAILURE=1 ANSIBLE_VIA_WSL=1
 ```

@@ -45,6 +45,20 @@ includes:
       FRAMEWORK_VERSION: "{{.FRAMEWORK_VERSION}}"
       FRAMEWORK_DIST_OUTPUT: "{{.FRAMEWORK_DIST_OUTPUT}}"
       FRAMEWORK_BOOTSTRAP_OUTPUT: "{{.FRAMEWORK_BOOTSTRAP_OUTPUT}}"
+  bundle:
+    taskfile: ./taskfiles/bundle.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
+      PROJECT_ID: "{{.PROJECT_ID}}"
+      PROJECT_ROOT: "{{.PROJECT_ROOT}}"
+  deploy:
+    taskfile: ./taskfiles/deploy.yml
+    dir: .
+    vars:
+      PYTHON: "{{.PYTHON}}"
+      PROJECT_ID: "{{.PROJECT_ID}}"
+      PROJECT_ROOT: "{{.PROJECT_ROOT}}"
   project:
     taskfile: ./taskfiles/project.yml
     dir: .

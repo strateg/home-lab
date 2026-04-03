@@ -76,20 +76,6 @@ Development Plane is the build-time layer for Infrastructure-as-Data topology co
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### Four-Level Boundary Model
-
-```
-Level 1: Global / Core         topology-tools/plugins/
-Level 2: Class modules         topology/class-modules/**/plugins/
-Level 3: Object modules        topology/object-modules/**/plugins/
-Level 4: Project               projects/<project>/plugins/
-```
-
-**Rules:**
-- Class-level plugins must NOT reference `obj.*` or `inst.*`
-- Object-level plugins must NOT reference `inst.*`
-- A plugin may depend on plugins from its own level or higher only
-
 ---
 
 ## Pipeline Stages

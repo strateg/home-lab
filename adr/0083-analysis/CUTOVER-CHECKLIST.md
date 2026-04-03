@@ -68,7 +68,7 @@
 - [x] Structured logging (D20): console output + `.work/deploy-state/<project>/logs/init-node-audit.jsonl`
 - [x] Audit trail events with mandatory fields: `timestamp`, `level`, `node`, `event`, `project_id`, `mechanism`, `status`, `message`, `error_code`, `details`
 - [x] CLI interface documented and implemented (`--node`, `--all-pending`, `--verify-only`, `--force`, `--status`, `--plan`, `--bundle`, `--reset`, `--confirm-reset`)
-- [x] Taskfile targets documented (deploy.yaml integration path)
+- [x] Taskfile targets documented (deploy.yml integration path)
 
 ### Assemble Stage (ADR 0085 bundle contract)
 

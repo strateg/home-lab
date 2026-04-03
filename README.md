@@ -56,27 +56,27 @@ task test
 
 ```bash
 # Create immutable deploy bundle
-task framework:deploy-bundle-create
+task bundle:create
 
 # List available bundles
-task framework:deploy-bundle-list
+task bundle:list
 
 # Execute from bundle
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
-task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id>
 ```
 
 ### 3. Node Initialization (ADR 0083)
 
 ```bash
 # Check initialization state
-task framework:deploy-init-status
+task deploy:init-status
 
 # Plan node bootstrap
-task framework:deploy-init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id>
+task deploy:init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id>
 
 # Execute (scaffold - hardware validation pending)
-task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id>
+task deploy:init-node-run -- BUNDLE=<bundle_id> NODE=<node_id>
 ```
 
 ## Deploy Domain
@@ -92,7 +92,7 @@ task framework:deploy-init-node-run -- BUNDLE=<bundle_id> NODE=<node_id>
 
 ```bash
 # Specify runner explicitly
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<id> DEPLOY_RUNNER=wsl
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<id> DEPLOY_RUNNER=wsl
 ```
 
 ### State Locations

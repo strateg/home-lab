@@ -583,9 +583,9 @@ V5 has 19 documentation templates (+ diagram index/legend pages) and determinist
   - runtime output `generated/<project>/ansible/runtime/<env>/group_vars/all/99-secrets.runtime.yml`.
 - [x] Automated maintenance-window evidence runner introduced:
   - `topology-tools/utils/record-service-chain-evidence.py`
-  - `task framework:service-chain-evidence-dry`
-  - `task framework:service-chain-evidence-check`
-  - `task framework:service-chain-evidence-apply` (explicit `ALLOW_APPLY=YES` gate).
+  - `task deploy:service-chain-evidence-dry`
+  - `task deploy:service-chain-evidence-check`
+  - `task deploy:service-chain-evidence-apply` (explicit `ALLOW_APPLY=YES` gate).
 
 ### 12.3 Advanced Infrastructure
 

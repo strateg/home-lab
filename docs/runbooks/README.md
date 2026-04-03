@@ -20,7 +20,7 @@
 - `docs/guides/OPERATOR-ENVIRONMENT-SETUP.md` - Linux-backed deploy plane prerequisites for Windows/Linux/macOS operators.
 - `docs/guides/NODE-INITIALIZATION.md` - ADR0083 init-node scaffold commands and current scope.
 - `docs/runbooks/evidence/2026-03-28-wave-d-service-chain-evidence.md` - first recorded Wave D service-chain execution evidence.
-  - automated capture: `task framework:service-chain-evidence-*-bundle -- BUNDLE=<bundle_id>`.
+  - automated capture: `task deploy:service-chain-evidence-*-bundle -- BUNDLE=<bundle_id>`.
 - `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-check-execution.md` - automated maintenance-check run (14/15 PASS, no-go due host reachability in Ansible execute lane).
 - `docs/runbooks/evidence/2026-03-28-service-chain-evidence-maintenance-apply.md` - automated maintenance-apply run (16/17 PASS, no-go due host reachability in Ansible execute lane).
 

@@ -175,11 +175,11 @@ Deploy Plane is the execution layer for Infrastructure-as-Data home lab operatio
 
 ```bash
 # Auto-detect (default)
-task framework:deploy-bundle-create
+task bundle:create
 
 # Explicit runner override
-task framework:deploy-init-node-run -- BUNDLE=<id> NODE=<node> DEPLOY_RUNNER=wsl
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<id> DEPLOY_RUNNER=docker
+task deploy:init-node-run -- BUNDLE=<id> NODE=<node> DEPLOY_RUNNER=wsl
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<id> DEPLOY_RUNNER=docker
 ```
 
 ### Native Runner (Linux)
@@ -222,10 +222,10 @@ C:\Users\user\project → /mnt/c/Users/user/project
 
 ```bash
 # Build toolchain image
-task framework:deploy-docker-toolchain-build
+task deploy:docker-toolchain-build
 
 # Smoke test
-task framework:deploy-docker-toolchain-smoke
+task deploy:docker-toolchain-smoke
 
 # Configure
 runners:
@@ -260,13 +260,13 @@ runners:
 
 ```bash
 # Standard bundle from generated artifacts
-task framework:deploy-bundle-create
+task bundle:create
 
 # With secrets injection (for air-gapped deploy)
-task framework:deploy-bundle-create -- INJECT_SECRETS=true
+task bundle:create -- INJECT_SECRETS=true
 
 # Custom paths
-task framework:deploy-bundle-create -- \
+task bundle:create -- \
   GENERATED_ROOT=/path/to/generated \
   SECRETS_ROOT=/path/to/secrets
 ```
@@ -282,7 +282,7 @@ task framework:deploy-bundle-create -- \
 ### List Bundles
 
 ```bash
-task framework:deploy-bundle-list
+task bundle:list
 ```
 
 **Output:**
@@ -303,10 +303,10 @@ task framework:deploy-bundle-list
 
 ```bash
 # Full inspection with checksum verification
-task framework:deploy-bundle-inspect -- BUNDLE=b-a1b2c3d4e5f6
+task bundle:inspect -- BUNDLE=b-a1b2c3d4e5f6
 
 # Skip checksum verification (faster)
-task framework:deploy-bundle-inspect -- BUNDLE=b-a1b2c3d4e5f6 SKIP_CHECKSUMS=true
+task bundle:inspect -- BUNDLE=b-a1b2c3d4e5f6 SKIP_CHECKSUMS=true
 ```
 
 **Output includes:**
@@ -318,7 +318,7 @@ task framework:deploy-bundle-inspect -- BUNDLE=b-a1b2c3d4e5f6 SKIP_CHECKSUMS=tru
 ### Delete Bundle
 
 ```bash
-task framework:deploy-bundle-delete -- BUNDLE=b-a1b2c3d4e5f6
+task bundle:delete -- BUNDLE=b-a1b2c3d4e5f6
 ```
 
 ### Bundle Layout
@@ -350,7 +350,7 @@ task framework:deploy-bundle-delete -- BUNDLE=b-a1b2c3d4e5f6
 ### Status Overview
 
 ```bash
-task framework:deploy-init-status
+task deploy:init-status
 ```
 
 **Output:**
@@ -371,10 +371,10 @@ task framework:deploy-init-status
 
 ```bash
 # Single node
-task framework:deploy-init-node-plan -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
+task deploy:init-node-plan -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
 
 # All pending nodes
-task framework:deploy-init-all-pending-plan -- BUNDLE=b-123
+task deploy:init-all-pending-plan -- BUNDLE=b-123
 ```
 
 **Output:**
@@ -395,13 +395,13 @@ task framework:deploy-init-all-pending-plan -- BUNDLE=b-123
 
 ```bash
 # Single node
-task framework:deploy-init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
+task deploy:init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
 
 # All pending nodes
-task framework:deploy-init-all-pending-run -- BUNDLE=b-123
+task deploy:init-all-pending-run -- BUNDLE=b-123
 
 # With flags
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=pve-gamayun \
   DEPLOY_RUNNER=wsl \
@@ -411,7 +411,7 @@ task framework:deploy-init-node-run -- \
 ### Verify Node Handover
 
 ```bash
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   VERIFY_ONLY=true
@@ -421,7 +421,7 @@ task framework:deploy-init-node-run -- \
 
 ```bash
 # Reset requires confirmation
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   RESET=true \
@@ -462,20 +462,20 @@ task framework:deploy-init-node-run -- \
 
 ```bash
 # Without bundle (uses generated/ directly)
-task framework:service-chain-evidence-dry
+task deploy:service-chain-evidence-dry
 
 # With bundle (strict immutable execution)
-task framework:service-chain-evidence-dry-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-dry-bundle -- BUNDLE=b-123
 ```
 
 ### Maintenance Check (Plan)
 
 ```bash
 # Terraform plan + Ansible check
-task framework:service-chain-evidence-check-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-123
 
 # With backend configs
-task framework:service-chain-evidence-check-bundle -- \
+task deploy:service-chain-evidence-check-bundle -- \
   BUNDLE=b-123 \
   PROXMOX_BACKEND_CONFIG=configs/proxmox-backend.tfbackend \
   MIKROTIK_BACKEND_CONFIG=configs/mikrotik-backend.tfbackend
@@ -485,12 +485,12 @@ task framework:service-chain-evidence-check-bundle -- \
 
 ```bash
 # Requires explicit approval
-task framework:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle -- \
   ALLOW_APPLY=YES \
   BUNDLE=b-123
 
 # With auto-approve for Terraform
-task framework:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle -- \
   ALLOW_APPLY=YES \
   BUNDLE=b-123 \
   TERRAFORM_AUTO_APPROVE=true
@@ -627,7 +627,7 @@ bundle:
 The init-node orchestrator automatically verifies the deploy environment before execution. To skip this check:
 
 ```bash
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   SKIP_ENVIRONMENT_CHECK=true
@@ -670,22 +670,22 @@ task framework:deploy-init-node-run -- \
 task build:default
 
 # 2. Create bundle
-task framework:deploy-bundle-create
+task bundle:create
 
 # 3. Check status
-task framework:deploy-init-status
+task deploy:init-status
 
 # 4. Plan initialization
-task framework:deploy-init-all-pending-plan -- BUNDLE=<bundle_id>
+task deploy:init-all-pending-plan -- BUNDLE=<bundle_id>
 
 # 5. Execute initialization
-task framework:deploy-init-all-pending-run -- BUNDLE=<bundle_id>
+task deploy:init-all-pending-run -- BUNDLE=<bundle_id>
 
 # 6. Run service chain (check)
-task framework:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
 
 # 7. Run service chain (apply)
-task framework:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle -- \
   ALLOW_APPLY=YES \
   BUNDLE=<bundle_id>
 ```
@@ -694,20 +694,20 @@ task framework:service-chain-evidence-apply-bundle -- \
 
 ```bash
 # Reset stuck node
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=<bundle_id> \
   NODE=<node_id> \
   RESET=true \
   CONFIRM_RESET=true
 
 # Force re-initialization
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=<bundle_id> \
   NODE=<node_id> \
   FORCE=true
 
 # Skip environment checks
-task framework:deploy-init-node-run -- \
+task deploy:init-node-run -- \
   BUNDLE=<bundle_id> \
   NODE=<node_id> \
   SKIP_ENVIRONMENT_CHECK=true

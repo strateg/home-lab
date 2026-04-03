@@ -15,13 +15,13 @@ Default image tag in deploy profile:
 Build locally:
 
 ```powershell
-task framework:deploy-docker-toolchain-build
+task deploy:docker-toolchain-build
 ```
 
 Build with explicit tag:
 
 ```powershell
-task framework:deploy-docker-toolchain-build -- DOCKER_IMAGE=homelab-toolchain:dev
+task deploy:docker-toolchain-build -- DOCKER_IMAGE=homelab-toolchain:dev
 ```
 
 ---
@@ -31,7 +31,7 @@ task framework:deploy-docker-toolchain-build -- DOCKER_IMAGE=homelab-toolchain:d
 Validate core tools inside the image:
 
 ```powershell
-task framework:deploy-docker-toolchain-smoke
+task deploy:docker-toolchain-smoke
 ```
 
 This checks:
@@ -58,7 +58,7 @@ runners:
 Or override per command:
 
 ```powershell
-task framework:service-chain-evidence-dry-bundle -- BUNDLE=<bundle_id> DEPLOY_RUNNER=docker
+task deploy:service-chain-evidence-dry-bundle -- BUNDLE=<bundle_id> DEPLOY_RUNNER=docker
 ```
 
 ---

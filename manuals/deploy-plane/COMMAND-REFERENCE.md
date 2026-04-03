@@ -9,9 +9,9 @@ Quick reference for all deploy plane commands.
 ### Create Bundle
 
 ```bash
-task framework:deploy-bundle-create
-task framework:deploy-bundle-create -- INJECT_SECRETS=true
-task framework:deploy-bundle-create -- GENERATED_ROOT=/path SECRETS_ROOT=/path
+task bundle:create
+task bundle:create -- INJECT_SECRETS=true
+task bundle:create -- GENERATED_ROOT=/path SECRETS_ROOT=/path
 ```
 
 | Parameter | Description | Default |
@@ -24,16 +24,16 @@ task framework:deploy-bundle-create -- GENERATED_ROOT=/path SECRETS_ROOT=/path
 ### List Bundles
 
 ```bash
-task framework:deploy-bundle-list
-task framework:deploy-bundle-list -- BUNDLES_ROOT=/custom/path
+task bundle:list
+task bundle:list -- BUNDLES_ROOT=/custom/path
 ```
 
 ### Inspect Bundle
 
 ```bash
-task framework:deploy-bundle-inspect -- BUNDLE=b-123456
-task framework:deploy-bundle-inspect -- BUNDLE=b-123456 SKIP_CHECKSUMS=true
-task framework:deploy-bundle-inspect -- BUNDLE=/absolute/path/to/bundle
+task bundle:inspect -- BUNDLE=b-123456
+task bundle:inspect -- BUNDLE=b-123456 SKIP_CHECKSUMS=true
+task bundle:inspect -- BUNDLE=/absolute/path/to/bundle
 ```
 
 | Parameter | Description | Default |
@@ -44,7 +44,7 @@ task framework:deploy-bundle-inspect -- BUNDLE=/absolute/path/to/bundle
 ### Delete Bundle
 
 ```bash
-task framework:deploy-bundle-delete -- BUNDLE=b-123456
+task bundle:delete -- BUNDLE=b-123456
 ```
 
 ---
@@ -54,31 +54,31 @@ task framework:deploy-bundle-delete -- BUNDLE=b-123456
 ### Status
 
 ```bash
-task framework:deploy-init-status
+task deploy:init-status
 ```
 
 ### Plan (Single Node)
 
 ```bash
-task framework:deploy-init-node-plan -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
+task deploy:init-node-plan -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
 ```
 
 ### Plan (All Pending)
 
 ```bash
-task framework:deploy-init-all-pending-plan -- BUNDLE=b-123
+task deploy:init-all-pending-plan -- BUNDLE=b-123
 ```
 
 ### Run (Single Node)
 
 ```bash
-task framework:deploy-init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
+task deploy:init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
 ```
 
 ### Run (All Pending)
 
 ```bash
-task framework:deploy-init-all-pending-run -- BUNDLE=b-123
+task deploy:init-all-pending-run -- BUNDLE=b-123
 ```
 
 ### Init-Node Parameters
@@ -104,30 +104,30 @@ task framework:deploy-init-all-pending-run -- BUNDLE=b-123
 
 ```bash
 # Without bundle
-task framework:service-chain-evidence-dry
+task deploy:service-chain-evidence-dry
 
 # With bundle (strict mode)
-task framework:service-chain-evidence-dry-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-dry-bundle -- BUNDLE=b-123
 ```
 
 ### Maintenance Check
 
 ```bash
 # Without bundle
-task framework:service-chain-evidence-check
+task deploy:service-chain-evidence-check
 
 # With bundle (strict mode)
-task framework:service-chain-evidence-check-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-123
 ```
 
 ### Maintenance Apply
 
 ```bash
 # Without bundle
-task framework:service-chain-evidence-apply -- ALLOW_APPLY=YES
+task deploy:service-chain-evidence-apply -- ALLOW_APPLY=YES
 
 # With bundle (strict mode)
-task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=b-123
+task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=b-123
 ```
 
 ### Service Chain Parameters
@@ -153,15 +153,15 @@ task framework:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=b-1
 ### Build Toolchain Image
 
 ```bash
-task framework:deploy-docker-toolchain-build
-task framework:deploy-docker-toolchain-build -- DOCKER_IMAGE=my-toolchain:v1
+task deploy:docker-toolchain-build
+task deploy:docker-toolchain-build -- DOCKER_IMAGE=my-toolchain:v1
 ```
 
 ### Smoke Test
 
 ```bash
-task framework:deploy-docker-toolchain-smoke
-task framework:deploy-docker-toolchain-smoke -- DOCKER_IMAGE=my-toolchain:v1
+task deploy:docker-toolchain-smoke
+task deploy:docker-toolchain-smoke -- DOCKER_IMAGE=my-toolchain:v1
 ```
 
 ---
@@ -242,7 +242,7 @@ python scripts/orchestration/deploy/init-node.py \
 
 ```bash
 # Task command
-task framework:deploy-init-node-run -- BUNDLE=b-123 NODE=node1 DEPLOY_RUNNER=docker
+task deploy:init-node-run -- BUNDLE=b-123 NODE=node1 DEPLOY_RUNNER=docker
 
 # Python CLI
 python scripts/orchestration/deploy/init-node.py \
@@ -289,10 +289,10 @@ All commands output JSON for machine parsing:
 
 ```bash
 # Parse with jq
-task framework:deploy-bundle-list | jq '.bundles[0].bundle_id'
+task bundle:list | jq '.bundles[0].bundle_id'
 
 # Get node status
-task framework:deploy-init-status | jq '.by_status'
+task deploy:init-status | jq '.by_status'
 ```
 
 ---

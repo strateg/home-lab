@@ -6,8 +6,8 @@
 
 ## Executed Flow
 1. `task framework:compile`
-2. Bootstrap run (WSL): `framework:deploy-init-node-run ... PHASE=bootstrap ... RESET=1 CONFIRM_RESET=1`
-3. Bootstrap verify (WSL): `framework:deploy-init-node-run ... VERIFY_ONLY=1`
+2. Bootstrap run (WSL): `deploy:init-node-run ... PHASE=bootstrap ... RESET=1 CONFIRM_RESET=1`
+3. Bootstrap verify (WSL): `deploy:init-node-run ... VERIFY_ONLY=1`
 4. Terraform (WSL): `init -> validate -> plan -> apply -> plan`
 
 ## Key Outcomes

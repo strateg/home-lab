@@ -47,7 +47,7 @@ Track remaining gap between implemented execution-plane model and full backend c
 **Action:** ✅ Completed with:
 
 - `docker/Dockerfile.toolchain`
-- task wrappers: `framework:deploy-docker-toolchain-build`, `framework:deploy-docker-toolchain-smoke`
+- task wrappers: `deploy:docker-toolchain-build`, `deploy:docker-toolchain-smoke`
 - CI lane: `.github/workflows/deploy-runner-backends.yml`
 
 ### G2: Backend reliability validation is still pending
