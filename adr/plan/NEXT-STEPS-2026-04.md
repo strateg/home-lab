@@ -147,4 +147,5 @@
 ## Notes
 
 - `ADR 0083` remains paused until explicit reactivation decision.
+- Reactivation preparation package: `adr/0083-analysis/REACTIVATION-PACK.md`.
 - If any sprint gate fails, stop status promotion and record rollback notes in the corresponding `adr/*-analysis/` directory.
