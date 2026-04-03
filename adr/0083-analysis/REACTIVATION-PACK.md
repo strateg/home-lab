@@ -72,6 +72,7 @@ Use this order:
 # 1) Baseline checks
 task ci:python-checks-core
 task validate:adr-consistency
+task validate:adr0083-reactivation
 
 # 2) Prepare bundle
 task bundle:create INJECT_SECRETS=true
@@ -80,17 +81,20 @@ task bundle:list
 # 3) Check init state
 task deploy:init-status
 
-# 4) Plan-only over pending nodes (no execution)
-task deploy:init-all-pending-plan BUNDLE=<bundle_id>
-
-# 5) Plan-only for one target node and phase
-task deploy:init-node-plan BUNDLE=<bundle_id> NODE=rtr-mikrotik-chateau PHASE=bootstrap
+# 4) Run bundled non-destructive smoke pack (status + all-pending plan + node plan)
+task deploy:init-reactivation-smoke BUNDLE=<bundle_id> NODE=rtr-mikrotik-chateau PHASE=bootstrap
 ```
 
 Optional environment guard for WSL/Linux:
 
 ```bash
 task deploy:init-all-pending-plan BUNDLE=<bundle_id> DEPLOY_RUNNER=native
+```
+
+For workstation-side dry verification when runner/toolchain checks are handled separately:
+
+```bash
+task deploy:init-reactivation-smoke BUNDLE=<bundle_id> SKIP_ENVIRONMENT_CHECK=true
 ```
 
 If a full execution rehearsal is approved, start with one node only:

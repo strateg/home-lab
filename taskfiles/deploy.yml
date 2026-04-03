@@ -97,6 +97,27 @@ tasks:
         vars:
           INIT_ARGS: "--bundle {{.BUNDLE}} --all-pending {{if .DEPLOY_RUNNER}}--deploy-runner {{.DEPLOY_RUNNER}}{{end}} {{if .PHASE}}--phase {{.PHASE}}{{end}} {{if .SKIP_ENVIRONMENT_CHECK}}--skip-environment-check{{end}} {{if .VERIFY_ONLY}}--verify-only{{end}} {{if .FORCE}}--force{{end}} {{if .IMPORT_EXISTING}}--import-existing{{end}} {{if .ACKNOWLEDGE_DRIFT}}--acknowledge-drift{{end}}"
 
+  init-reactivation-smoke:
+    desc: ADR0083 reactivation non-destructive smoke pack (requires BUNDLE=<bundle_id>)
+    requires:
+      vars:
+        - BUNDLE
+    cmds:
+      - task: init-status
+      - task: init-all-pending-plan
+        vars:
+          BUNDLE: "{{.BUNDLE}}"
+          DEPLOY_RUNNER: "{{.DEPLOY_RUNNER}}"
+          PHASE: "{{.PHASE}}"
+          SKIP_ENVIRONMENT_CHECK: "{{.SKIP_ENVIRONMENT_CHECK}}"
+      - task: init-node-plan
+        vars:
+          BUNDLE: "{{.BUNDLE}}"
+          NODE: '{{default "rtr-mikrotik-chateau" .NODE}}'
+          DEPLOY_RUNNER: "{{.DEPLOY_RUNNER}}"
+          PHASE: '{{default "bootstrap" .PHASE}}'
+          SKIP_ENVIRONMENT_CHECK: "{{.SKIP_ENVIRONMENT_CHECK}}"
+
   service-chain-evidence-dry:
     desc: Execute dry service-chain lane and write evidence report
     cmds:

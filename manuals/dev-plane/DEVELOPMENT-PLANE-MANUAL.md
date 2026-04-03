@@ -505,6 +505,10 @@ task validate:adr0047-trigger-gate
 ```bash
 # Validate adr/REGISTER.md against ADR file metadata and links
 task validate:adr-consistency
+
+# ADR0083 reactivation readiness snapshot/gate (non-hardware checks)
+task validate:adr0083-reactivation
+task validate:adr0083-reactivation-gate
 ```
 
 ### Quality Gates

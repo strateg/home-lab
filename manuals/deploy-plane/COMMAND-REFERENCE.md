@@ -70,6 +70,13 @@ task deploy:init-node-plan BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=recover
 task deploy:init-all-pending-plan BUNDLE=b-123
 ```
 
+### ADR0083 Reactivation Smoke Pack
+
+```bash
+task deploy:init-reactivation-smoke BUNDLE=b-123
+task deploy:init-reactivation-smoke BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=bootstrap DEPLOY_RUNNER=native
+```
+
 ### Run (Single Node)
 
 ```bash

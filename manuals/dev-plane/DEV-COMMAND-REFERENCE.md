@@ -24,6 +24,8 @@ task validate:module-growth        # ADR0082 growth report (JSON in build/diagno
 task validate:module-growth-gate   # Fail when active module manifests > 15
 task validate:adr0047-trigger      # ADR0047 alerts/services trigger report
 task validate:adr0047-trigger-gate # Fail when alerts>50 or services>30
+task validate:adr0083-reactivation # ADR0083 reactivation readiness snapshot
+task validate:adr0083-reactivation-gate # Fail when ADR0083 non-hardware readiness is not met
 task validate:adr-consistency      # ADR register/file consistency check
 task validate:workspace-layout     # Root workspace structure
 ```
@@ -271,6 +273,7 @@ task ci:legacy-maintenance         # Legacy maintenance lane
 - `task validate:adr-consistency`
 - `task validate:module-growth`
 - `task validate:adr0047-trigger`
+- `task validate:adr0083-reactivation`
 
 ---
 

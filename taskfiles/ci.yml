@@ -9,6 +9,7 @@ tasks:
       - task validate:adr-consistency
       - task validate:module-growth
       - task validate:adr0047-trigger
+      - task validate:adr0083-reactivation
       - task framework:strict
       - task validate:default
 

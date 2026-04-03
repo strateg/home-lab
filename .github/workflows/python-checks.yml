@@ -54,6 +54,7 @@ jobs:
           path: |
             build/diagnostics/module-growth.json
             build/diagnostics/adr0047-trigger.json
+            build/diagnostics/adr0083-reactivation.json
           if-no-files-found: warn
 
   test:

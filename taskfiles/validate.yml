@@ -37,6 +37,7 @@ tasks:
       - module-index
       - module-growth
       - adr-consistency
+      - adr0083-reactivation
 
   quality:
     desc: Aggregate quality gate (alias to validate:quality-fast)
@@ -118,3 +119,13 @@ tasks:
     desc: Validate ADR register/file consistency (strict titles, no symmetry gate)
     cmds:
       - "{{.PYTHON}} scripts/validation/check_adr_consistency.py --adr-dir adr --register adr/REGISTER.md --strict-titles"
+
+  adr0083-reactivation:
+    desc: Report ADR0083 reactivation readiness snapshot
+    cmds:
+      - "{{.PYTHON}} scripts/validation/report_adr0083_reactivation.py --project-id home-lab --output-json build/diagnostics/adr0083-reactivation.json"
+
+  adr0083-reactivation-gate:
+    desc: Enforce ADR0083 reactivation readiness gate (non-hardware checks only)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/report_adr0083_reactivation.py --project-id home-lab --fail-on-not-ready --output-json build/diagnostics/adr0083-reactivation.json"
