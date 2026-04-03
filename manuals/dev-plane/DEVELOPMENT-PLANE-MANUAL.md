@@ -2,7 +2,7 @@
 
 **Version:** 1.0
 **ADR Reference:** 0062, 0063, 0074, 0080
-**Last Updated:** 2026-04-01
+**Last Updated:** 2026-04-03
 
 ---
 
@@ -408,16 +408,16 @@ python topology-tools/compile-topology.py \
 
 ```bash
 # Build with docs and diagrams
-task build:v5-docs
+task build:docs
 
 # Build with Mermaid icon-nodes
-task build:v5-docs-icons
+task build:docs-icons
 
 # Build with Mermaid compat mode
-task build:v5-docs-compat
+task build:docs-compat
 
 # Build and validate Mermaid rendering
-task build:v5-docs-validate
+task build:docs-validate
 ```
 
 ### Generated Artifact Structure
@@ -462,13 +462,13 @@ generated/home-lab/
 
 ```bash
 # Full validation with passthrough secrets
-task validate:v5-passthrough
+task validate:passthrough
 
 # Default validation (uses V5_SECRETS_MODE env)
 task validate:default
 
 # Layer contract validation only
-task validate:v5-layers
+task validate:layers
 ```
 
 ### Validate Plugin Manifests
@@ -523,8 +523,23 @@ task test:plugin-integration
 # Plugin regression tests
 task test:plugin-regression
 
-# V4/V5 parity tests
-task test:parity-v4-v5
+# V4/current parity tests
+task test:parity-v4-current
+```
+
+### CI and Acceptance Lanes
+
+```bash
+# CI composed lanes
+task ci:local
+task ci:lane
+task ci:topology-mainline
+task ci:topology-parity-v4-current
+
+# Acceptance scenarios
+task acceptance:list
+task acceptance:tests-all
+task acceptance:quality-all
 ```
 
 ### Direct pytest
@@ -733,7 +748,7 @@ python topology-tools/compile-topology.py \
 vim topology/object-modules/mikrotik/obj.mikrotik.chateau_lte7_ax.yaml
 
 # 2. Validate changes
-task validate:v5-passthrough
+task validate:passthrough
 
 # 3. Build artifacts
 task build:default

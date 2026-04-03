@@ -855,10 +855,10 @@ services:
 
 ```bash
 # Full validation
-task validate:v5-passthrough
+task validate:passthrough
 
 # Layer contract only
-task validate:v5-layers
+task validate:layers
 ```
 
 ### Common Validation Errors

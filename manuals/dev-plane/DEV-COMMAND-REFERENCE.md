@@ -9,15 +9,15 @@ Quick reference for all development plane commands.
 ### Full Validation
 
 ```bash
-task validate:v5-passthrough       # Recommended: explicit passthrough mode
+task validate:passthrough       # Recommended: explicit passthrough mode
 task validate:default              # Uses V5_SECRETS_MODE env var
-task validate:v5                   # Alias for default
+task validate:topology                   # Alias for default
 ```
 
 ### Targeted Validation
 
 ```bash
-task validate:v5-layers            # Layer contract only
+task validate:layers            # Layer contract only
 task validate:plugin-manifests     # Plugin manifest schema
 task validate:workspace-layout     # Root workspace structure
 ```
@@ -44,10 +44,10 @@ task build:default                 # Clean + build all artifacts
 ### Build Variants
 
 ```bash
-task build:v5-docs                 # Docs + diagrams (plain)
-task build:v5-docs-icons           # Docs + diagrams with icon-nodes
-task build:v5-docs-compat          # Docs + diagrams in compat mode
-task build:v5-docs-validate        # Build + Mermaid render validation
+task build:docs                 # Docs + diagrams (plain)
+task build:docs-icons           # Docs + diagrams with icon-nodes
+task build:docs-compat          # Docs + diagrams in compat mode
+task build:docs-validate        # Build + Mermaid render validation
 ```
 
 ### Cleanup
@@ -84,7 +84,7 @@ task test:plugin-api               # Plugin API unit tests
 task test:plugin-contract          # Plugin contract tests
 task test:plugin-integration       # Integration tests
 task test:plugin-regression        # Regression tests
-task test:parity-v4-v5             # V4/V5 parity tests
+task test:parity-v4-current             # V4/current parity tests
 ```
 
 ### CI Coverage
@@ -242,9 +242,27 @@ task project:init -- \
 ## CI Commands
 
 ```bash
-task ci:validate                   # CI validation lane
-task ci:test                       # CI test lane
-task ci:build                      # CI build lane
+task ci:local                      # Local pre-push gate
+task ci:local-with-legacy          # Local gate + legacy parity lanes
+task ci:python-checks-core         # Core strict chain used by CI
+task ci:lane                       # Lane validation core
+task ci:topology-mainline          # Strict topology mainline lane
+task ci:topology-parity-v4-current # Parity lane against archive v4 baseline
+task ci:legacy-maintenance         # Legacy maintenance lane
+```
+
+---
+
+## Acceptance Commands
+
+```bash
+task acceptance:list               # List TUC scenarios
+task acceptance:tests-all          # Run all acceptance pytest suites
+task acceptance:test               # Run one test file/glob (set TUC_TEST=...)
+task acceptance:test-case          # Run one pytest node (set PYTEST_NODE=...)
+task acceptance:quality            # Run one scenario quality gate (set TUC_SLUG=...)
+task acceptance:quality-all        # Run all quality gates
+task acceptance:compile            # Compile artifacts into selected TUC folder
 ```
 
 ---
@@ -252,9 +270,11 @@ task ci:build                      # CI build lane
 ## Ansible Commands
 
 ```bash
-task ansible:ping                  # Ping all hosts
-task ansible:facts                 # Gather facts
-task ansible:lint                  # Lint playbooks
+task ansible:runtime               # Assemble runtime inventory
+task ansible:runtime-inject        # Assemble runtime inventory with secrets injection
+task ansible:syntax                # Syntax-check service playbooks
+task ansible:check-site            # Run integrated check mode
+task ansible:apply-site            # Apply integrated service playbook
 ```
 
 ---
@@ -262,10 +282,11 @@ task ansible:lint                  # Lint playbooks
 ## Terraform Commands
 
 ```bash
-task terraform:init                # Initialize providers
-task terraform:plan                # Plan changes
-task terraform:apply               # Apply changes
-task terraform:destroy             # Destroy resources
+task terraform:validate-all        # fmt + validate for both lanes
+task terraform:plan-proxmox        # Plan Proxmox lane
+task terraform:plan-mikrotik       # Plan MikroTik lane
+task terraform:init-proxmox-remote # Remote backend init (requires BACKEND_CONFIG)
+task terraform:init-mikrotik-remote
 ```
 
 ---

@@ -24,7 +24,7 @@ Operational scenarios and step-by-step procedures.
 
 ```bash
 # 1. Validate topology
-task validate:v5-passthrough
+task validate:passthrough
 
 # 2. Build artifacts
 task build:default
@@ -73,7 +73,7 @@ task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-abc123
 # Edit topology files in topology/ and projects/home-lab/topology/instances/
 
 # Phase 2: Validation
-task validate:v5-passthrough
+task validate:passthrough
 
 # Phase 3: Build
 task build:default
@@ -443,7 +443,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Validate topology
-        run: task validate:v5-passthrough
+        run: task validate:passthrough
 
       - name: Build artifacts
         run: task build:default

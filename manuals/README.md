@@ -3,16 +3,17 @@
 Comprehensive documentation for operating and developing the home lab infrastructure.
 
 **ADR Reference:** 0062, 0063, 0072, 0074, 0080, 0083, 0084, 0085
-**Last Updated:** 2026-04-01
+**Last Updated:** 2026-04-03
 
 ---
 
 ## Documentation Overview
 
-This manual set covers two operational planes:
+This manual set covers three operational planes:
 
 | Plane | Purpose | Audience |
 |-------|---------|----------|
+| **Quality & CI Plane** | Validation, test lanes, CI and acceptance gates | Developers, Maintainers |
 | **Deploy Plane** | Runtime execution and infrastructure deployment | Operators |
 | **Development Plane** | Topology authoring and artifact generation | Developers |
 
@@ -53,7 +54,19 @@ Build-time layer for topology compilation and artifact generation.
 - Pipeline Stages - discover → compile → validate → generate → assemble → build
 - Plugin Microkernel - Extensible compilation architecture
 - Class-Object-Instance - Three-level topology hierarchy
-- Four-Level Boundaries - Global → Class → Object → Instance plugins
+
+---
+
+## Quality & CI Plane (Validation/Testing)
+
+Quality and verification layer for local and CI gates.
+
+| Command Group | Purpose |
+|---------------|---------|
+| `validate:*` | Topology and quality checks |
+| `test:*` | Unit/integration/regression test suites |
+| `ci:*` | Composed CI lanes |
+| `acceptance:*` | Acceptance scenarios and quality gates |
 
 ---
 
@@ -78,7 +91,7 @@ task deploy:init-node-run -- BUNDLE=<id> NODE=<node>
 
 ```bash
 # Validate topology
-task validate:v5-passthrough
+task validate:passthrough
 
 # Build all artifacts
 task build:default
