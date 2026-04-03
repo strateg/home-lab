@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "mikrotik-chateau": {
+      "type": "stdio",
+      "command": "wsl",
+      "args": [
+        "-e",
+        "bash",
+        "-lc",
+        "cd /mnt/d/Workspaces/PycharmProjects/home-lab && scripts/orchestration/mcp/run-mikrotik-mcp.sh"
+      ],
+      "env": {}
+    }
+  }
+}
