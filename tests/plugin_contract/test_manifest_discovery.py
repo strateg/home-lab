@@ -296,6 +296,22 @@ def test_module_index_consistency_reports_missing_index_entry(tmp_path: Path) ->
     assert any("class_modules index missing manifest present on disk" in item for item in errors)
 
 
+def test_module_index_consistency_reports_missing_index_file(tmp_path: Path) -> None:
+    topology_root = tmp_path / "topology"
+    class_root = topology_root / "class-modules"
+    object_root = topology_root / "object-modules"
+    missing_index = topology_root / "module-index.yaml"
+    _write_manifest(object_root / "mikrotik" / "plugins.yaml", plugin_id="object.validator.mikrotik")
+
+    errors = validate_module_index_consistency(
+        module_index_path=missing_index,
+        class_modules_root=class_root,
+        object_modules_root=object_root,
+    )
+
+    assert any("module-index file is missing" in item for item in errors)
+
+
 def test_module_index_consistency_reports_stale_entry(tmp_path: Path) -> None:
     topology_root = tmp_path / "topology"
     class_root = topology_root / "class-modules"

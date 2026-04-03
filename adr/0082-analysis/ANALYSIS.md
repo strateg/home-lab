@@ -88,7 +88,8 @@ Implemented in this refresh:
 1. `topology/module-index.yaml` aligned to actual manifests (removed stale `router`/`glinet` entries).
 2. Added bidirectional index consistency validation (`index -> filesystem` and `filesystem -> index`).
 3. Wired consistency checks into validation tasks and compiler manifest loading path.
-4. Added contract tests for consistency checks.
+4. Compiler now treats missing/invalid `module-index.yaml` as diagnostics error source.
+5. Added contract tests for consistency checks.
 
 ---
 

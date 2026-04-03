@@ -441,10 +441,14 @@ class V5Compiler:
         if resolved_module_index_path is None:
             class_candidate = class_modules_root.parent / "module-index.yaml"
             object_candidate = object_modules_root.parent / "module-index.yaml"
-            if class_candidate.exists():
+            if class_candidate.parent == object_candidate.parent:
+                resolved_module_index_path = class_candidate
+            elif class_candidate.exists():
                 resolved_module_index_path = class_candidate
             elif object_candidate.exists():
                 resolved_module_index_path = object_candidate
+            else:
+                resolved_module_index_path = class_candidate
 
         ordered_manifests = discover_plugin_manifest_paths(
             base_manifest_path=self.plugins_manifest_path,
@@ -457,7 +461,7 @@ class V5Compiler:
 
         loaded_module_paths: list[Path] = []
         load_errors: list[str] = []
-        if resolved_module_index_path is not None and resolved_module_index_path.exists():
+        if resolved_module_index_path is not None:
             index_errors = validate_module_index_consistency(
                 module_index_path=resolved_module_index_path,
                 class_modules_root=class_modules_root,
