@@ -141,8 +141,8 @@ task framework:compile                   # Compile with strict lock
 
 ```bash
 task framework:release-preflight         # Pre-release checks
-task framework:release-build -- FRAMEWORK_VERSION=1.0.8
-task framework:release-candidate -- FRAMEWORK_VERSION=1.0.8
+task framework:release-build FRAMEWORK_VERSION=1.0.8
+task framework:release-candidate FRAMEWORK_VERSION=1.0.8
 ```
 
 ### Strict Gates
@@ -234,14 +234,14 @@ python scripts/orchestration/lane.py phase1-gate
 
 ```bash
 # From distribution archive
-task project:init-from-dist -- \
+task project:init-from-dist \
   PROJECT_ROOT=/path/to/new-project \
   PROJECT_ID=my-lab \
   FRAMEWORK_DIST_ZIP=/path/to/framework.zip \
   FRAMEWORK_DIST_VERSION=1.0.8
 
 # From git submodule
-task project:init -- \
+task project:init \
   PROJECT_ROOT=/path/to/new-project \
   PROJECT_ID=my-lab \
   FRAMEWORK_SUBMODULE_URL=https://github.com/org/infra-topology-framework.git

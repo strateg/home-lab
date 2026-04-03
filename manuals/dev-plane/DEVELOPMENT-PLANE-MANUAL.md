@@ -677,10 +677,10 @@ task framework:compile
 task framework:release-preflight
 
 # Build framework distribution
-task framework:release-build -- FRAMEWORK_VERSION=1.0.8
+task framework:release-build FRAMEWORK_VERSION=1.0.8
 
 # Full release candidate
-task framework:release-candidate -- FRAMEWORK_VERSION=1.0.8
+task framework:release-candidate FRAMEWORK_VERSION=1.0.8
 ```
 
 ### Cutover Readiness

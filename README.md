@@ -62,8 +62,8 @@ task bundle:create
 task bundle:list
 
 # Execute from bundle
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
-task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-check-bundle BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-apply-bundle ALLOW_APPLY=YES BUNDLE=<bundle_id>
 ```
 
 ### 3. Node Initialization (ADR 0083)
@@ -73,10 +73,10 @@ task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<bundl
 task deploy:init-status
 
 # Plan node bootstrap
-task deploy:init-node-plan -- BUNDLE=<bundle_id> NODE=<node_id>
+task deploy:init-node-plan BUNDLE=<bundle_id> NODE=<node_id>
 
 # Execute (scaffold - hardware validation pending)
-task deploy:init-node-run -- BUNDLE=<bundle_id> NODE=<node_id>
+task deploy:init-node-run BUNDLE=<bundle_id> NODE=<node_id>
 ```
 
 ## Deploy Domain
@@ -92,7 +92,7 @@ task deploy:init-node-run -- BUNDLE=<bundle_id> NODE=<node_id>
 
 ```bash
 # Specify runner explicitly
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=<id> DEPLOY_RUNNER=wsl
+task deploy:service-chain-evidence-check-bundle BUNDLE=<id> DEPLOY_RUNNER=wsl
 ```
 
 ### State Locations
@@ -157,7 +157,7 @@ python topology-tools/compile-topology.py --trace-execution
 ### From Distribution
 
 ```bash
-task project:init-from-dist -- \
+task project:init-from-dist \
   PROJECT_ROOT=/path/to/new-project \
   PROJECT_ID=my-lab \
   FRAMEWORK_DIST_ZIP=/path/to/framework.zip \
@@ -167,7 +167,7 @@ task project:init-from-dist -- \
 ### From Submodule
 
 ```bash
-task project:init -- \
+task project:init \
   PROJECT_ROOT=/path/to/new-project \
   PROJECT_ID=my-lab \
   FRAMEWORK_SUBMODULE_URL=https://github.com/org/infra-topology-framework.git

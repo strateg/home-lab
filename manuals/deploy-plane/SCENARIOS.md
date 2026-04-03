@@ -34,13 +34,13 @@ task bundle:create
 # Output: {"bundle_id": "b-abc123", ...}
 
 # 4. Check what will change
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-abc123
+task deploy:service-chain-evidence-check-bundle BUNDLE=b-abc123
 
 # 5. Review Terraform plan output
 # Check .work/evidence/ for detailed reports
 
 # 6. Apply changes
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-abc123
 
@@ -54,7 +54,7 @@ task deploy:init-status
 
 ```bash
 # Run check without apply
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-abc123
+task deploy:service-chain-evidence-check-bundle BUNDLE=b-abc123
 
 # Check for drift
 # Output shows any differences between bundle and live state
@@ -79,7 +79,7 @@ task validate:passthrough
 task build:default
 
 # Phase 4: Create Initial Bundle
-task bundle:create -- INJECT_SECRETS=true
+task bundle:create INJECT_SECRETS=true
 # Note: INJECT_SECRETS for air-gapped deployment to physical nodes
 
 # Phase 5: Check Initial Status
@@ -87,21 +87,21 @@ task deploy:init-status
 # Shows all nodes as "pending"
 
 # Phase 6: Plan All Initializations
-task deploy:init-all-pending-plan -- BUNDLE=b-initial
+task deploy:init-all-pending-plan BUNDLE=b-initial
 
 # Phase 7: Initialize Nodes (One by One)
 # Start with router (foundation)
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-initial \
   NODE=rtr-mikrotik-chateau
 
 # Then hypervisor
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-initial \
   NODE=pve-gamayun
 
 # Then SBC
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-initial \
   NODE=sbc-orangepi5
 
@@ -110,7 +110,7 @@ task deploy:init-status
 # Should show all nodes as "initialized" or "verified"
 
 # Phase 9: Run Full Service Chain
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-initial
 ```
@@ -133,13 +133,13 @@ task build:default
 task bundle:create
 
 # 5. Check new node appears
-task bundle:inspect -- BUNDLE=b-new | jq '.manifest.nodes'
+task bundle:inspect BUNDLE=b-new | jq '.manifest.nodes'
 
 # 6. Initialize only new node
-task deploy:init-node-run -- BUNDLE=b-new NODE=new-lxc
+task deploy:init-node-run BUNDLE=b-new NODE=new-lxc
 
 # 7. Apply Terraform/Ansible
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-new
 ```
@@ -157,7 +157,7 @@ task deploy:service-chain-evidence-apply-bundle -- \
 task bundle:create
 
 # 2. Check MikroTik node in manifest
-task bundle:inspect -- BUNDLE=b-123 | \
+task bundle:inspect BUNDLE=b-123 | \
   jq '.manifest.nodes[] | select(.id == "rtr-mikrotik-chateau")'
 
 # 3. Export SSH contract for bootstrap phase
@@ -167,19 +167,19 @@ export INIT_NODE_NETINSTALL_SSH_USER=admin
 # export INIT_NODE_NETINSTALL_SSH_PASSWORD=...
 
 # 4. Plan bootstrap
-task deploy:init-node-plan -- \
+task deploy:init-node-plan \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   PHASE=bootstrap
 
 # 5. Run bootstrap (scp + ssh /import)
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   PHASE=bootstrap
 
 # 6. Verify handover (API/SSH reachable)
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   VERIFY_ONLY=true
@@ -200,19 +200,19 @@ export MIKROTIK_NETINSTALL_CLIENT_IP=192.168.88.3
 export MIKROTIK_ROUTEROS_PACKAGE=/path/to/routeros-arm64.npk
 
 # 3. Plan recovery
-task deploy:init-node-plan -- \
+task deploy:init-node-plan \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   PHASE=recover
 
 # 4. Run recovery (netinstall path)
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   PHASE=recover
 
 # 5. Verify post-recovery handover
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   VERIFY_ONLY=true
@@ -227,7 +227,7 @@ task deploy:init-node-run -- \
 task bundle:create
 
 # 2. Check Proxmox node mechanism
-task bundle:inspect -- BUNDLE=b-123 | \
+task bundle:inspect BUNDLE=b-123 | \
   jq '.manifest.nodes[] | select(.id == "pve-gamayun")'
 # Should show mechanism: "unattended_install"
 
@@ -255,19 +255,19 @@ ssh root@<proxmox-ip> "pveversion"
 curl -k https://<proxmox-ip>:8006/api2/json/version
 
 # 3. Mark installed host as imported into init-node state
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=pve-gamayun \
   IMPORT_EXISTING=true
 
 # 4. Verify handover
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=pve-gamayun \
   VERIFY_ONLY=true
 
 # 5. Validate Terraform chain against live host
-task deploy:service-chain-evidence-check-bundle -- \
+task deploy:service-chain-evidence-check-bundle \
   BUNDLE=b-123
 ```
 
@@ -280,7 +280,7 @@ task deploy:service-chain-evidence-check-bundle -- \
 task bundle:create
 
 # 2. Check mechanism
-task bundle:inspect -- BUNDLE=b-123 | \
+task bundle:inspect BUNDLE=b-123 | \
   jq '.manifest.nodes[] | select(.id == "sbc-orangepi5")'
 # Should show mechanism: "ansible_bootstrap"
 
@@ -288,12 +288,12 @@ task bundle:inspect -- BUNDLE=b-123 | \
 ssh root@10.0.10.5 "hostname"
 
 # 4. Run initialization
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=sbc-orangepi5
 
 # 5. Verify
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=sbc-orangepi5 \
   VERIFY_ONLY=true
@@ -312,12 +312,12 @@ task bundle:create
 
 # 3. Initialize LXC (Terraform creates it)
 # LXC uses cloud_init mechanism
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=lxc-adguard
 
 # 4. Apply full service chain
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-123
 ```
@@ -341,13 +341,13 @@ task build:default
 task bundle:create
 
 # 4. Pre-flight check
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-maint
+task deploy:service-chain-evidence-check-bundle BUNDLE=b-maint
 
 # 5. Review changes (Terraform plan, Ansible check)
 cat .work/evidence/latest/service-chain-report.yaml
 
 # 6. Apply during maintenance window
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-maint
 
@@ -364,12 +364,12 @@ task deploy:init-status
 task bundle:create
 
 # 2. Update first node
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-123
 
 # 3. Verify first node
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=node1 \
   VERIFY_ONLY=true
@@ -386,10 +386,10 @@ task deploy:init-node-run -- \
 task bundle:create
 
 # Dry run (syntax/validation only)
-task deploy:service-chain-evidence-dry-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-dry-bundle BUNDLE=b-123
 
 # Check run (Terraform plan, Ansible check)
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-check-bundle BUNDLE=b-123
 
 # Review outputs before proceeding
 ```
@@ -409,14 +409,14 @@ cat .work/deploy-state/home-lab/nodes/INITIALIZATION-STATE.yaml | \
   yq '.nodes[] | select(.status == "failed")'
 
 # 3. Reset the failed node
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=failed-node \
   RESET=true \
   CONFIRM_RESET=true
 
 # 4. Retry initialization
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=failed-node
 ```
@@ -431,7 +431,7 @@ task bundle:list
 # Output shows bundle_id and created_at
 
 # 3. Apply previous bundle
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-previous-good
 ```
@@ -440,7 +440,7 @@ task deploy:service-chain-evidence-apply-bundle -- \
 
 ```bash
 # When node is stuck but not in failed state
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=stuck-node \
   FORCE=true
@@ -455,14 +455,14 @@ task deploy:init-node-run -- \
 cp -r .work/deploy-state/home-lab .work/deploy-state/home-lab.backup
 
 # 2. Reset deploy-state via deploy cleanup task
-task deploy:clean-state -- CONFIRM_PURGE=YES
+task deploy:clean-state CONFIRM_PURGE=YES
 
 # 3. Rebuild and recreate
 task build:default
 task bundle:create
 
 # 4. Import existing nodes (don't run install/recovery again)
-task deploy:init-all-pending-run -- \
+task deploy:init-all-pending-run \
   BUNDLE=b-new \
   IMPORT_EXISTING=true
 ```
@@ -536,7 +536,7 @@ jobs:
 
       - name: Deploy
         run: |
-          task deploy:service-chain-evidence-apply-bundle -- \
+          task deploy:service-chain-evidence-apply-bundle \
             ALLOW_APPLY=YES \
             BUNDLE=$(cat .work/deploy/latest-bundle) \
             DEPLOY_RUNNER=remote
@@ -551,8 +551,8 @@ jobs:
 task deploy:docker-toolchain-build
 
 # Run all operations in container
-task bundle:create -- DEPLOY_RUNNER=docker
-task deploy:service-chain-evidence-check-bundle -- \
+task bundle:create DEPLOY_RUNNER=docker
+task deploy:service-chain-evidence-check-bundle \
   BUNDLE=b-123 \
   DEPLOY_RUNNER=docker
 ```
@@ -579,7 +579,7 @@ wsl -d Ubuntu -- bash -c "sudo apt update && sudo apt install -y terraform ansib
 
 # 4. Run operations (auto-uses WSL)
 task bundle:create
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-check-bundle BUNDLE=b-123
 ```
 
 ### Scenario: Linux Developer Workstation
@@ -591,7 +591,7 @@ default_runner: native
 
 # 2. Run operations directly
 task bundle:create
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-123
 ```
@@ -613,7 +613,7 @@ ssh-add ~/.ssh/deploy_key
 
 # 3. Run operations (syncs bundle to remote)
 task bundle:create
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-123 \
   DEPLOY_RUNNER=remote
@@ -624,7 +624,7 @@ task deploy:service-chain-evidence-apply-bundle -- \
 ```bash
 # On connected machine:
 # 1. Create bundle with secrets
-task bundle:create -- INJECT_SECRETS=true
+task bundle:create INJECT_SECRETS=true
 
 # 2. Copy bundle to USB
 cp -r .work/deploy/bundles/b-123 /media/usb/
@@ -634,7 +634,7 @@ cp -r .work/deploy/bundles/b-123 /media/usb/
 cp -r /media/usb/b-123 .work/deploy/bundles/
 
 # 4. Run with local bundle path
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=.work/deploy/bundles/b-123
 ```
@@ -650,16 +650,16 @@ task deploy:service-chain-evidence-apply-bundle -- \
 task build:default && task bundle:create
 
 # Check everything
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-check-bundle BUNDLE=b-123
 
 # Apply everything
-task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=b-123
+task deploy:service-chain-evidence-apply-bundle ALLOW_APPLY=YES BUNDLE=b-123
 
 # Status overview
 task deploy:init-status | jq '.'
 
 # Reset stuck node
-task deploy:init-node-run -- BUNDLE=b-123 NODE=x RESET=true CONFIRM_RESET=true
+task deploy:init-node-run BUNDLE=b-123 NODE=x RESET=true CONFIRM_RESET=true
 ```
 
 ### Common Patterns
@@ -668,13 +668,13 @@ task deploy:init-node-run -- BUNDLE=b-123 NODE=x RESET=true CONFIRM_RESET=true
 # Full workflow
 task build:default && \
 task bundle:create && \
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=$(task bundle:list | jq -r '.bundles[-1].bundle_id')
+task deploy:service-chain-evidence-check-bundle BUNDLE=$(task bundle:list | jq -r '.bundles[-1].bundle_id')
 
 # Initialize all pending
-task deploy:init-all-pending-run -- BUNDLE=b-123
+task deploy:init-all-pending-run BUNDLE=b-123
 
 # Verify all initialized
 for node in $(task deploy:init-status | jq -r '.nodes[] | select(.status == "initialized") | .id'); do
-  task deploy:init-node-run -- BUNDLE=b-123 NODE=$node VERIFY_ONLY=true
+  task deploy:init-node-run BUNDLE=b-123 NODE=$node VERIFY_ONLY=true
 done
 ```

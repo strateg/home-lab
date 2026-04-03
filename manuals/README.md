@@ -76,18 +76,18 @@ Quality and verification layer for local and CI gates.
 
 ```bash
 # Optional: preview operator cleanup
-task deploy:clean-bundles -- DRY_RUN=true KEEP=5
+task deploy:clean-bundles DRY_RUN=true KEEP=5
 
 # Build and create deploy bundle
 task build:default
 task bundle:create
 
 # Check and apply changes
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=<id>
-task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=<id>
+task deploy:service-chain-evidence-check-bundle BUNDLE=<id>
+task deploy:service-chain-evidence-apply-bundle ALLOW_APPLY=YES BUNDLE=<id>
 
 # Initialize new node
-task deploy:init-node-run -- BUNDLE=<id> NODE=<node>
+task deploy:init-node-run BUNDLE=<id> NODE=<node>
 ```
 
 ### For Developers

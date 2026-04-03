@@ -10,8 +10,8 @@ Quick reference for all deploy plane commands.
 
 ```bash
 task bundle:create
-task bundle:create -- INJECT_SECRETS=true
-task bundle:create -- GENERATED_ROOT=/path SECRETS_ROOT=/path
+task bundle:create INJECT_SECRETS=true
+task bundle:create GENERATED_ROOT=/path SECRETS_ROOT=/path
 ```
 
 | Parameter | Description | Default |
@@ -25,15 +25,15 @@ task bundle:create -- GENERATED_ROOT=/path SECRETS_ROOT=/path
 
 ```bash
 task bundle:list
-task bundle:list -- BUNDLES_ROOT=/custom/path
+task bundle:list BUNDLES_ROOT=/custom/path
 ```
 
 ### Inspect Bundle
 
 ```bash
-task bundle:inspect -- BUNDLE=b-123456
-task bundle:inspect -- BUNDLE=b-123456 SKIP_CHECKSUMS=true
-task bundle:inspect -- BUNDLE=/absolute/path/to/bundle
+task bundle:inspect BUNDLE=b-123456
+task bundle:inspect BUNDLE=b-123456 SKIP_CHECKSUMS=true
+task bundle:inspect BUNDLE=/absolute/path/to/bundle
 ```
 
 | Parameter | Description | Default |
@@ -44,7 +44,7 @@ task bundle:inspect -- BUNDLE=/absolute/path/to/bundle
 ### Delete Bundle
 
 ```bash
-task bundle:delete -- BUNDLE=b-123456
+task bundle:delete BUNDLE=b-123456
 ```
 
 ---
@@ -60,29 +60,29 @@ task deploy:init-status
 ### Plan (Single Node)
 
 ```bash
-task deploy:init-node-plan -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
-task deploy:init-node-plan -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=recover
+task deploy:init-node-plan BUNDLE=b-123 NODE=rtr-mikrotik-chateau
+task deploy:init-node-plan BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=recover
 ```
 
 ### Plan (All Pending)
 
 ```bash
-task deploy:init-all-pending-plan -- BUNDLE=b-123
+task deploy:init-all-pending-plan BUNDLE=b-123
 ```
 
 ### Run (Single Node)
 
 ```bash
-task deploy:init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
-task deploy:init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=bootstrap
-task deploy:init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=recover
-task deploy:init-node-run -- BUNDLE=b-123 NODE=pve-gamayun IMPORT_EXISTING=true
+task deploy:init-node-run BUNDLE=b-123 NODE=rtr-mikrotik-chateau
+task deploy:init-node-run BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=bootstrap
+task deploy:init-node-run BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=recover
+task deploy:init-node-run BUNDLE=b-123 NODE=pve-gamayun IMPORT_EXISTING=true
 ```
 
 ### Run (All Pending)
 
 ```bash
-task deploy:init-all-pending-run -- BUNDLE=b-123
+task deploy:init-all-pending-run BUNDLE=b-123
 ```
 
 ### Init-Node Parameters
@@ -112,7 +112,7 @@ task deploy:init-all-pending-run -- BUNDLE=b-123
 task deploy:service-chain-evidence-dry
 
 # With bundle (strict mode)
-task deploy:service-chain-evidence-dry-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-dry-bundle BUNDLE=b-123
 ```
 
 ### Maintenance Check
@@ -122,17 +122,17 @@ task deploy:service-chain-evidence-dry-bundle -- BUNDLE=b-123
 task deploy:service-chain-evidence-check
 
 # With bundle (strict mode)
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-check-bundle BUNDLE=b-123
 ```
 
 ### Maintenance Apply
 
 ```bash
 # Without bundle
-task deploy:service-chain-evidence-apply -- ALLOW_APPLY=YES
+task deploy:service-chain-evidence-apply ALLOW_APPLY=YES
 
 # With bundle (strict mode)
-task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=b-123
+task deploy:service-chain-evidence-apply-bundle ALLOW_APPLY=YES BUNDLE=b-123
 ```
 
 ### Service Chain Parameters
@@ -159,14 +159,14 @@ task deploy:service-chain-evidence-apply-bundle -- ALLOW_APPLY=YES BUNDLE=b-123
 
 ```bash
 task deploy:docker-toolchain-build
-task deploy:docker-toolchain-build -- DOCKER_IMAGE=my-toolchain:v1
+task deploy:docker-toolchain-build DOCKER_IMAGE=my-toolchain:v1
 ```
 
 ### Smoke Test
 
 ```bash
 task deploy:docker-toolchain-smoke
-task deploy:docker-toolchain-smoke -- DOCKER_IMAGE=my-toolchain:v1
+task deploy:docker-toolchain-smoke DOCKER_IMAGE=my-toolchain:v1
 ```
 
 ---
@@ -177,33 +177,33 @@ task deploy:docker-toolchain-smoke -- DOCKER_IMAGE=my-toolchain:v1
 
 ```bash
 # Preview only
-task deploy:clean-runner-workspace -- DRY_RUN=true
+task deploy:clean-runner-workspace DRY_RUN=true
 
 # Execute
-task deploy:clean-runner-workspace -- CONFIRM_PURGE=YES
+task deploy:clean-runner-workspace CONFIRM_PURGE=YES
 ```
 
 ### Clean Bundles
 
 ```bash
 # Preview bundle cleanup (all project bundles)
-task deploy:clean-bundles -- DRY_RUN=true
+task deploy:clean-bundles DRY_RUN=true
 
 # Keep newest 5 bundles, delete older
-task deploy:clean-bundles -- KEEP=5 CONFIRM_PURGE=YES
+task deploy:clean-bundles KEEP=5 CONFIRM_PURGE=YES
 
 # Delete all project bundles
-task deploy:clean-bundles -- CONFIRM_PURGE=YES
+task deploy:clean-bundles CONFIRM_PURGE=YES
 ```
 
 ### Clean Deploy State
 
 ```bash
 # Preview state reset
-task deploy:clean-state -- DRY_RUN=true
+task deploy:clean-state DRY_RUN=true
 
 # Execute state reset
-task deploy:clean-state -- CONFIRM_PURGE=YES
+task deploy:clean-state CONFIRM_PURGE=YES
 ```
 
 ### Cleanup Parameters
@@ -318,7 +318,7 @@ python scripts/orchestration/deploy/init-node.py \
 
 ```bash
 # Task command
-task deploy:init-node-run -- BUNDLE=b-123 NODE=node1 DEPLOY_RUNNER=docker
+task deploy:init-node-run BUNDLE=b-123 NODE=node1 DEPLOY_RUNNER=docker
 
 # Python CLI
 python scripts/orchestration/deploy/init-node.py \

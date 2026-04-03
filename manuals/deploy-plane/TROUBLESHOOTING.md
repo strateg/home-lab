@@ -183,7 +183,7 @@ runners:
 task bundle:list
 
 # Or delete old bundle first
-task bundle:delete -- BUNDLE=b-existing
+task bundle:delete BUNDLE=b-existing
 ```
 
 #### Checksum verification failed
@@ -200,7 +200,7 @@ task bundle:delete -- BUNDLE=b-existing
 **Solution:**
 ```bash
 # Delete corrupted bundle
-task bundle:delete -- BUNDLE=b-corrupted
+task bundle:delete BUNDLE=b-corrupted
 
 # Recreate
 task bundle:create
@@ -222,7 +222,7 @@ Illegal state transition: verified -> initialized
 task deploy:init-status
 
 # Reset if needed
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 NODE=node1 RESET=true CONFIRM_RESET=true
 ```
 
@@ -238,11 +238,11 @@ task deploy:init-node-run -- \
 **Solution:**
 ```bash
 # Force re-execution
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 NODE=node1 FORCE=true
 
 # Or reset and retry
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 NODE=node1 RESET=true CONFIRM_RESET=true
 ```
 
@@ -263,7 +263,7 @@ task deploy:init-node-run -- \
 **Solution:**
 ```bash
 # Check bundle contents
-task bundle:inspect -- BUNDLE=b-123 | jq '.manifest.nodes'
+task bundle:inspect BUNDLE=b-123 | jq '.manifest.nodes'
 
 # Verify generated artifacts exist
 ls generated/home-lab/bootstrap/<node_id>/
@@ -322,7 +322,7 @@ print(f'Tools: {report.tools}')
 
 ```bash
 # Full bundle verification
-task bundle:inspect -- BUNDLE=b-123
+task bundle:inspect BUNDLE=b-123
 
 # List all checksums
 cat .work/deploy/bundles/b-123/checksums.sha256
@@ -403,14 +403,14 @@ task deploy:init-status
 
 ```bash
 # 1. Reset node state
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=problem-node \
   RESET=true \
   CONFIRM_RESET=true
 
 # 2. Re-run initialization
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=problem-node
 ```
@@ -419,7 +419,7 @@ task deploy:init-node-run -- \
 
 ```bash
 # Mark node as already bootstrapped externally
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=existing-node \
   IMPORT_EXISTING=true

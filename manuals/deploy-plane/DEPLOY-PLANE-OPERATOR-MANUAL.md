@@ -178,8 +178,8 @@ Deploy Plane is the execution layer for Infrastructure-as-Data home lab operatio
 task bundle:create
 
 # Explicit runner override
-task deploy:init-node-run -- BUNDLE=<id> NODE=<node> DEPLOY_RUNNER=wsl
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=<id> DEPLOY_RUNNER=docker
+task deploy:init-node-run BUNDLE=<id> NODE=<node> DEPLOY_RUNNER=wsl
+task deploy:service-chain-evidence-check-bundle BUNDLE=<id> DEPLOY_RUNNER=docker
 ```
 
 ### Native Runner (Linux)
@@ -263,10 +263,10 @@ runners:
 task bundle:create
 
 # With secrets injection (for air-gapped deploy)
-task bundle:create -- INJECT_SECRETS=true
+task bundle:create INJECT_SECRETS=true
 
 # Custom paths
-task bundle:create -- \
+task bundle:create \
   GENERATED_ROOT=/path/to/generated \
   SECRETS_ROOT=/path/to/secrets
 ```
@@ -303,10 +303,10 @@ task bundle:list
 
 ```bash
 # Full inspection with checksum verification
-task bundle:inspect -- BUNDLE=b-a1b2c3d4e5f6
+task bundle:inspect BUNDLE=b-a1b2c3d4e5f6
 
 # Skip checksum verification (faster)
-task bundle:inspect -- BUNDLE=b-a1b2c3d4e5f6 SKIP_CHECKSUMS=true
+task bundle:inspect BUNDLE=b-a1b2c3d4e5f6 SKIP_CHECKSUMS=true
 ```
 
 **Output includes:**
@@ -318,7 +318,7 @@ task bundle:inspect -- BUNDLE=b-a1b2c3d4e5f6 SKIP_CHECKSUMS=true
 ### Delete Bundle
 
 ```bash
-task bundle:delete -- BUNDLE=b-a1b2c3d4e5f6
+task bundle:delete BUNDLE=b-a1b2c3d4e5f6
 ```
 
 ### Bundle Layout
@@ -371,10 +371,10 @@ task deploy:init-status
 
 ```bash
 # Single node
-task deploy:init-node-plan -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
+task deploy:init-node-plan BUNDLE=b-123 NODE=rtr-mikrotik-chateau
 
 # All pending nodes
-task deploy:init-all-pending-plan -- BUNDLE=b-123
+task deploy:init-all-pending-plan BUNDLE=b-123
 ```
 
 **Output:**
@@ -395,31 +395,31 @@ task deploy:init-all-pending-plan -- BUNDLE=b-123
 
 ```bash
 # MikroTik bootstrap (SSH import handover)
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   PHASE=bootstrap
 
 # MikroTik recovery (Netinstall path)
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   PHASE=recover
 
 # Proxmox bootstrap (installed host, import + handover)
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=pve-gamayun \
   IMPORT_EXISTING=true
 
 # All pending nodes
-task deploy:init-all-pending-run -- BUNDLE=b-123
+task deploy:init-all-pending-run BUNDLE=b-123
 ```
 
 ### Verify Node Handover
 
 ```bash
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   VERIFY_ONLY=true
@@ -429,7 +429,7 @@ task deploy:init-node-run -- \
 
 ```bash
 # Reset requires confirmation
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   RESET=true \
@@ -478,15 +478,15 @@ Use deploy-plane cleanup tasks for operator-side maintenance. Destructive cleanu
 
 ```bash
 # Preview runner workspace cleanup
-task deploy:clean-runner-workspace -- DRY_RUN=true
+task deploy:clean-runner-workspace DRY_RUN=true
 
 # Preview and prune old bundles (keep newest 5)
-task deploy:clean-bundles -- DRY_RUN=true KEEP=5
-task deploy:clean-bundles -- KEEP=5 CONFIRM_PURGE=YES
+task deploy:clean-bundles DRY_RUN=true KEEP=5
+task deploy:clean-bundles KEEP=5 CONFIRM_PURGE=YES
 
 # Reset deploy-state for project
-task deploy:clean-state -- DRY_RUN=true
-task deploy:clean-state -- CONFIRM_PURGE=YES
+task deploy:clean-state DRY_RUN=true
+task deploy:clean-state CONFIRM_PURGE=YES
 ```
 
 ---
@@ -500,17 +500,17 @@ task deploy:clean-state -- CONFIRM_PURGE=YES
 task deploy:service-chain-evidence-dry
 
 # With bundle (strict immutable execution)
-task deploy:service-chain-evidence-dry-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-dry-bundle BUNDLE=b-123
 ```
 
 ### Maintenance Check (Plan)
 
 ```bash
 # Terraform plan + Ansible check
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=b-123
+task deploy:service-chain-evidence-check-bundle BUNDLE=b-123
 
 # With backend configs
-task deploy:service-chain-evidence-check-bundle -- \
+task deploy:service-chain-evidence-check-bundle \
   BUNDLE=b-123 \
   PROXMOX_BACKEND_CONFIG=configs/proxmox-backend.tfbackend \
   MIKROTIK_BACKEND_CONFIG=configs/mikrotik-backend.tfbackend
@@ -520,12 +520,12 @@ task deploy:service-chain-evidence-check-bundle -- \
 
 ```bash
 # Requires explicit approval
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-123
 
 # With auto-approve for Terraform
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=b-123 \
   TERRAFORM_AUTO_APPROVE=true
@@ -662,7 +662,7 @@ bundle:
 The init-node orchestrator automatically verifies the deploy environment before execution. To skip this check:
 
 ```bash
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   SKIP_ENVIRONMENT_CHECK=true
@@ -711,16 +711,16 @@ task bundle:create
 task deploy:init-status
 
 # 4. Plan initialization
-task deploy:init-all-pending-plan -- BUNDLE=<bundle_id>
+task deploy:init-all-pending-plan BUNDLE=<bundle_id>
 
 # 5. Execute initialization
-task deploy:init-all-pending-run -- BUNDLE=<bundle_id>
+task deploy:init-all-pending-run BUNDLE=<bundle_id>
 
 # 6. Run service chain (check)
-task deploy:service-chain-evidence-check-bundle -- BUNDLE=<bundle_id>
+task deploy:service-chain-evidence-check-bundle BUNDLE=<bundle_id>
 
 # 7. Run service chain (apply)
-task deploy:service-chain-evidence-apply-bundle -- \
+task deploy:service-chain-evidence-apply-bundle \
   ALLOW_APPLY=YES \
   BUNDLE=<bundle_id>
 ```
@@ -729,27 +729,27 @@ task deploy:service-chain-evidence-apply-bundle -- \
 
 ```bash
 # Reset stuck node
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=<bundle_id> \
   NODE=<node_id> \
   RESET=true \
   CONFIRM_RESET=true
 
 # Force re-initialization
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=<bundle_id> \
   NODE=<node_id> \
   FORCE=true
 
 # Skip environment checks
-task deploy:init-node-run -- \
+task deploy:init-node-run \
   BUNDLE=<bundle_id> \
   NODE=<node_id> \
   SKIP_ENVIRONMENT_CHECK=true
 
 # Cleanup (operator maintenance)
-task deploy:clean-bundles -- KEEP=5 CONFIRM_PURGE=YES
-task deploy:clean-runner-workspace -- CONFIRM_PURGE=YES
+task deploy:clean-bundles KEEP=5 CONFIRM_PURGE=YES
+task deploy:clean-runner-workspace CONFIRM_PURGE=YES
 ```
 
 ---
