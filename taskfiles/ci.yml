@@ -1,14 +1,26 @@
 version: "3"
 
 tasks:
+  _strict-validate-core:
+    internal: true
+    desc: Internal core chain (clean + strict + validate)
+    cmds:
+      - task build:clean-generated
+      - task framework:strict
+      - task validate:default
+
+  _strict-validate-phase1:
+    internal: true
+    desc: Internal strict/validate chain with phase1 gate
+    cmds:
+      - task: _strict-validate-core
+      - task validate:phase1-gate
+
   local:
     desc: Local pre-push gate
     cmds:
-      - task build:clean-generated
-      - task validate:quality
-      - task framework:strict
-      - task validate:default
-      - task validate:phase1-gate
+      - task validate:quality-fast
+      - task: _strict-validate-phase1
       - task test:default
 
   local-with-legacy:
@@ -16,38 +28,29 @@ tasks:
     cmds:
       - task ci:local
       - task acceptance:tests-all
-      - task ci:topology-parity-v4-v5
+      - task ci:topology-parity-v4-current
 
   python-checks-core:
     desc: Core strict checks used by python-checks workflow
     cmds:
-      - task build:clean-generated
-      - task framework:strict
-      - task validate:default
+      - task: _strict-validate-core
 
-  lane-v5:
+  lane:
     desc: Lane validation core via task (passthrough mode)
     cmds:
-      - task build:clean-generated
-      - task framework:strict
-      - task validate:default
+      - task: _strict-validate-core
 
   topology-mainline:
     desc: Topology matrix strict mainline via task (passthrough mode)
     cmds:
-      - task build:clean-generated
-      - task framework:strict
-      - task validate:default
-      - task validate:phase1-gate
+      - task: _strict-validate-phase1
 
-  topology-parity-v4-v5:
+  topology-parity-v4-current:
     desc: Topology parity lane against archive v4 baseline
     cmds:
-      - task build:clean-generated
-      - task framework:strict
+      - task: _strict-validate-core
       - task framework:archive-v4-compile
-      - task validate:default
-      - task test:parity-v4-v5
+      - task test:parity-v4-current
 
   legacy-maintenance:
     desc: Legacy v4 maintenance lane (archive parity + acceptance baseline)
@@ -56,4 +59,4 @@ tasks:
       - task validate:workspace-layout
       - task framework:audit-entrypoints
       - task acceptance:tests-all
-      - task ci:topology-parity-v4-v5
+      - task ci:topology-parity-v4-current

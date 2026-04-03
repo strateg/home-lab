@@ -16,10 +16,10 @@ tasks:
     desc: Run default tests plus legacy parity regression lane
     deps:
       - default
-      - parity-v4-v5
+      - parity-v4-current
 
-  parity-v4-v5:
-    desc: Run v4/v5 parity and regression suites
+  parity-v4-current:
+    desc: Run v4/current parity and regression suites
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
       - "{{.PYTHON}} -m pytest -o addopts= tests/plugin_regression tests/plugin_integration/test_parity_stage_order.py tests/plugin_integration/test_parallel_profile_parity.py -q"

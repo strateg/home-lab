@@ -99,6 +99,68 @@ tasks:
     cmds:
       - task build:clean-generated
 
+  workflow:dev:
+    desc: Complete Deploy Workflow phases 1-2 (dev-plane validate + build)
+    cmds:
+      - task validate:passthrough
+      - task build:default
+
+  workflow:bundle:
+    desc: Complete Deploy Workflow handoff (create immutable bundle)
+    cmds:
+      - task: bundle:create
+        ignore_error: true
+        vars:
+          GENERATED_ROOT: "{{.GENERATED_ROOT}}"
+          BUNDLES_ROOT: "{{.BUNDLES_ROOT}}"
+          INJECT_SECRETS: "{{.INJECT_SECRETS}}"
+          SECRETS_ROOT: "{{.SECRETS_ROOT}}"
+      - task: bundle:list
+        vars:
+          BUNDLES_ROOT: "{{.BUNDLES_ROOT}}"
+
+  workflow:deploy-check:
+    desc: Complete Deploy Workflow phase 3 (bundle-based maintenance-check)
+    requires:
+      vars:
+        - BUNDLE
+    cmds:
+      - task: deploy:service-chain-evidence-check-bundle
+        vars:
+          BUNDLE: "{{.BUNDLE}}"
+          CONTINUE_ON_FAILURE: "{{.CONTINUE_ON_FAILURE}}"
+          DEPLOY_RUNNER: "{{.DEPLOY_RUNNER}}"
+          ANSIBLE_VIA_WSL: "{{.ANSIBLE_VIA_WSL}}"
+          INJECT_SECRETS: "{{.INJECT_SECRETS}}"
+          PROXMOX_BACKEND_CONFIG: "{{.PROXMOX_BACKEND_CONFIG}}"
+          MIKROTIK_BACKEND_CONFIG: "{{.MIKROTIK_BACKEND_CONFIG}}"
+          PROXMOX_VAR_FILE: "{{.PROXMOX_VAR_FILE}}"
+          MIKROTIK_VAR_FILE: "{{.MIKROTIK_VAR_FILE}}"
+
+  workflow:deploy-apply:
+    desc: Complete Deploy Workflow phase 4 (bundle-based maintenance-apply)
+    requires:
+      vars:
+        - BUNDLE
+        - ALLOW_APPLY
+    preconditions:
+      - sh: 'test "{{.ALLOW_APPLY}}" = "YES"'
+        msg: "Set ALLOW_APPLY=YES to run workflow:deploy-apply."
+    cmds:
+      - task: deploy:service-chain-evidence-apply-bundle
+        vars:
+          ALLOW_APPLY: "{{.ALLOW_APPLY}}"
+          BUNDLE: "{{.BUNDLE}}"
+          CONTINUE_ON_FAILURE: "{{.CONTINUE_ON_FAILURE}}"
+          DEPLOY_RUNNER: "{{.DEPLOY_RUNNER}}"
+          ANSIBLE_VIA_WSL: "{{.ANSIBLE_VIA_WSL}}"
+          TERRAFORM_AUTO_APPROVE: "{{.TERRAFORM_AUTO_APPROVE}}"
+          INJECT_SECRETS: "{{.INJECT_SECRETS}}"
+          PROXMOX_BACKEND_CONFIG: "{{.PROXMOX_BACKEND_CONFIG}}"
+          MIKROTIK_BACKEND_CONFIG: "{{.MIKROTIK_BACKEND_CONFIG}}"
+          PROXMOX_VAR_FILE: "{{.PROXMOX_VAR_FILE}}"
+          MIKROTIK_VAR_FILE: "{{.MIKROTIK_VAR_FILE}}"
+
   default:
     desc: List available tasks
     cmds:

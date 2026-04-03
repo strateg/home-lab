@@ -19,32 +19,32 @@ tasks:
       - task build:clean-generated
       - "{{.PYTHON}} scripts/orchestration/lane.py build-v5"
 
-  v5-docs:
-    desc: Generate v5 docs + diagram artifacts (passthrough mode, plain diagrams)
+  docs:
+    desc: Generate docs + diagram artifacts (passthrough mode, plain diagrams)
     cmds:
       - task build:clean-generated
       - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated"
 
-  v5-docs-icons:
-    desc: Generate v5 docs + diagram artifacts with Mermaid icon-nodes (requires si/mdi packs)
+  docs-icons:
+    desc: Generate docs + diagram artifacts with Mermaid icon-nodes (requires si/mdi packs)
     env:
       V5_DIAGRAM_ICON_MODE: icon-nodes
     cmds:
       - task build:clean-generated
       - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated"
 
-  v5-docs-compat:
-    desc: Generate v5 docs + diagram artifacts in Mermaid compat mode (no icon-node syntax)
+  docs-compat:
+    desc: Generate docs + diagram artifacts in Mermaid compat mode (no icon-node syntax)
     env:
       V5_DIAGRAM_ICON_MODE: compat
     cmds:
       - task build:clean-generated
       - "{{.PYTHON}} topology-tools/compile-topology.py --topology topology/topology.yaml --strict-model-lock --secrets-mode passthrough --artifacts-root generated"
 
-  v5-docs-validate:
+  docs-validate:
     desc: Generate docs/diagrams and run Mermaid render validation gate
     cmds:
-      - task build:v5-docs
+      - task build:docs
       - "{{.PYTHON}} topology-tools/utils/validate-mermaid-render.py --docs-root generated/home-lab/docs"
 
   phase1-bootstrap:

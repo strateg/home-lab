@@ -47,7 +47,7 @@ tasks:
       - "{{.PYTHON}} topology-tools/utils/cutover-readiness-report.py --quick"
 
   cutover-readiness:
-    desc: Generate full cutover readiness report (includes v4/v5 parity + v5 test suite)
+    desc: Generate full cutover readiness report (includes v4/current parity + current test suite)
     cmds:
       - "{{.PYTHON}} topology-tools/utils/cutover-readiness-report.py"
 
@@ -81,12 +81,12 @@ tasks:
       - release-tests
 
   release-preflight:
-    desc: Run local v5-only release preflight (lock refresh + strict + validate:v5-passthrough + framework-focused tests)
+    desc: Run local release preflight (lock refresh + strict + validate:passthrough + framework-focused tests)
     cmds:
       - task framework:lock-refresh
       - task framework:adr0078-ownership
       - task framework:release-ci
-      - task validate:v5-passthrough
+      - task validate:passthrough
 
   release-build:
     desc: Build framework distribution archives for release

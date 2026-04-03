@@ -2,7 +2,7 @@ version: "3"
 
 tasks:
   workspace-layout:
-    desc: Validate root workspace layout (no legacy v4/v5 roots)
+    desc: Validate root workspace layout (no legacy version roots)
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
 
@@ -22,15 +22,28 @@ tasks:
     cmds:
       - "{{.PYTHON}} -m pylint topology-tools"
 
-  quality:
-    desc: Aggregate quality gate
+  quality-fast:
+    desc: Fast quality gate (lint only)
     deps:
       - lint
 
-  quality-v5:
-    desc: v5 quality gate (root-layout default)
+  quality-full:
+    desc: Full quality gate (lint + typecheck + pylint + plugin manifests)
     deps:
-      - quality
+      - lint
+      - typecheck
+      - pylint
+      - plugin-manifests
+
+  quality:
+    desc: Aggregate quality gate (alias to validate:quality-fast)
+    deps:
+      - quality-fast
+
+  quality-default:
+    desc: Default quality gate (root-layout, fast profile)
+    deps:
+      - quality-fast
 
   quality-legacy-v4:
     desc: Legacy v4 quality lane (archive reference; non-default)
@@ -45,19 +58,18 @@ tasks:
       - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
-  # Alias for CI workflows that reference v5-passthrough explicitly
-  v5-passthrough:
+  passthrough:
     desc: Validate topology lane with explicit passthrough secrets mode (no env var required)
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5-passthrough"
 
-  v5:
+  topology:
     desc: Alias for validate:default
     deps:
       - default
 
-  v5-layers:
+  layers:
     desc: Validate layer contract only
     cmds:
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5-layers"
