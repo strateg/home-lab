@@ -1,7 +1,20 @@
 # ADR 0053: Optional Dist-First Deploy Cutover
 
-- Status: Proposed
+- Status: Superseded
 - Date: 2026-03-01
+- Superseded By: ADR 0085
+
+## Supersession Notice (2026-04-03)
+
+This ADR is superseded by ADR 0085 (`Deploy Bundle and Runner Workspace Contract`).
+
+Reason:
+
+1. ADR 0053 modeled deploy cutover as `native` vs `dist` execution roots.
+2. ADR 0085 established a stronger, backend-neutral contract where deploy execution consumes immutable bundles (`.work/deploy/bundles/<bundle_id>`) and runner workspaces.
+3. Bundle-based execution replaces `dist` as the primary deploy execution boundary while preserving inspectable generated artifacts.
+
+Therefore ADR 0053 is retained for historical context only and is no longer an active decision target.
 
 ## Context
 

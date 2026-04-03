@@ -490,6 +490,16 @@ task validate:module-growth
 task validate:module-growth-gate
 ```
 
+### Observability Trigger Monitoring (ADR0047)
+
+```bash
+# Non-blocking trigger snapshot (alerts/services)
+task validate:adr0047-trigger
+
+# Blocking gate mode for governance pipelines
+task validate:adr0047-trigger-gate
+```
+
 ### Quality Gates
 
 ```bash

@@ -2,7 +2,7 @@
 
 ## 1) Contracts and Policy
 
-- [ ] ADR 0086 text approved by architecture owners.
+- [x] ADR 0086 text approved by architecture owners.
 - [x] Legacy level-boundary wording removed from policy docs.
 - [x] Contract-based boundary checks defined (stage/phase/depends_on/consumes/discovery).
 : Evidence: policy guidance updated in `AGENTS.md`, `.github/copilot-instructions.md`, and `CLAUDE.md`; boundary check matrix documented in `adr/0086-analysis/CONTRACT-BOUNDARY-CHECKS.md`.
@@ -57,7 +57,7 @@
 ## 9) Rollback Readiness
 
 - [x] Rollback commit boundary identified per migration wave.
-- [ ] Previous manifest/validator snapshots retained for fast revert.
+- [x] Previous manifest/validator snapshots retained for fast revert (via Git rollback boundaries).
 - [x] Recovery procedure documented and validated on dry-run.
 : Current rollback boundaries are represented by sequential Wave 2/3 commits (`2a5aa5c`, `9dd6675`) plus current working boundary.
 : Snapshot artifacts intentionally not retained in repository; rollback uses Git history at boundary commits.

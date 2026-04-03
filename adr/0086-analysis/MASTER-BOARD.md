@@ -40,13 +40,13 @@ Legend: `TODO` | `IN-PROGRESS` | `BLOCKED` | `DONE`
 
 | Issue | Title | Owner | Status | Notes |
 |------|-------|-------|--------|-------|
-| W1-01 | ADR/Analysis Consistency | - | TODO | |
-| W1-02 | Boundary Tests Refactor | - | TODO | |
-| W1-03 | Discovery Order Invariants | - | TODO | |
-| W1-04 | Boundary Guard Hardening | - | TODO | |
-| W1-05 | Manifest ID Policy Lint | - | TODO | |
-| W1-06 | Baseline Capture | - | TODO | |
-| W1-07 | Wave 1 Final Gate | - | TODO | |
+| W1-01 | ADR/Analysis Consistency | - | DONE | Contract-boundary model aligned in ADR + analysis set |
+| W1-02 | Boundary Tests Refactor | - | DONE | Runtime contract checks supersede legacy visibility assumptions |
+| W1-03 | Discovery Order Invariants | - | DONE | Discovery/root-order tests active in contract + integration suites |
+| W1-04 | Boundary Guard Hardening | - | DONE | Forbidden-path diagnostics enforced by discover boundary tests |
+| W1-05 | Manifest ID Policy Lint | - | DONE | `test_manifest_id_policy.py` active and passing |
+| W1-06 | Baseline Capture | - | DONE | Baseline/rollback evidence anchored in wave boundary commits |
+| W1-07 | Wave 1 Final Gate | - | DONE | Re-run on 2026-04-03: plugin_contract + plugin_integration + validate-v5 + compile parity |
 
 ### Wave 2
 

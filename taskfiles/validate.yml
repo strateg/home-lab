@@ -102,3 +102,13 @@ tasks:
     desc: Enforce ADR0082 module growth trigger threshold (>15 active manifests)
     cmds:
       - "{{.PYTHON}} scripts/validation/report_module_growth.py --active-module-threshold 15 --fail-on-threshold --output-json build/diagnostics/module-growth.json"
+
+  adr0047-trigger:
+    desc: Report ADR0047 observability trigger metrics (alerts/services growth)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/report_adr0047_trigger.py --project-id home-lab --output-json build/diagnostics/adr0047-trigger.json"
+
+  adr0047-trigger-gate:
+    desc: Enforce ADR0047 trigger gate (alerts>50 or services>30)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/report_adr0047_trigger.py --project-id home-lab --alerts-threshold 50 --services-threshold 30 --fail-on-trigger --output-json build/diagnostics/adr0047-trigger.json"

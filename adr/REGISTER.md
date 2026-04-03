@@ -53,7 +53,7 @@
 | [0050](0050-generated-directory-restructuring.md) | Generated Directory Restructuring | Accepted | 2026-02-28 | - | [0048](0048-topology-v4-architecture-consolidation.md) |
 | [0051](0051-ansible-runtime-and-secrets.md) | Ansible Runtime, Inventory, and Secret Boundaries | Accepted | 2026-03-01 | - | [0072](0072-unified-secrets-management-sops-age.md) |
 | [0052](0052-build-pipeline-after-ansible.md) | Deploy Package Assembly Over Accepted Ansible Runtime | Accepted | 2026-03-01 | - | - |
-| [0053](0053-dist-first-deploy-cutover.md) | Optional Dist-First Deploy Cutover | Proposed | 2026-03-01 | - | - |
+| [0053](0053-dist-first-deploy-cutover.md) | Optional Dist-First Deploy Cutover | Superseded | 2026-03-01 | - | [0085](0085-deploy-bundle-and-runner-workspace-contract.md) |
 | [0054](0054-local-inputs-directory.md) | Local Inputs Directory | Accepted | 2026-03-01 | - | [0072](0072-unified-secrets-management-sops-age.md) |
 | [0055](0055-manual-terraform-extension-layer.md) | Manual Terraform Extension Layer | Accepted | 2026-03-01 | - | - |
 | [0056](0056-native-execution-workspace.md) | Native Execution Workspace Outside Generated Roots | Accepted | 2026-03-01 | - | - |
@@ -85,5 +85,5 @@
 | [0082](0082-plugin-module-pack-composition-and-index-first-discovery-analysis.md) | Plugin Module-Pack Composition and Index-First Discovery Analysis | Accepted (A+ index governance) | 2026-03-29 | - | - |
 | [0083](0083-unified-node-initialization-contract.md) | Unified Node Initialization Contract and Deploy-Domain Initialization Phase | Proposed (scaffold complete, hardware pending) | 2026-03-30 | - | - |
 | [0084](0084-cross-platform-dev-plane-and-linux-deploy-plane.md) | Cross-Platform Dev Plane and Linux Deploy Plane | Accepted (complete) | 2026-03-31 | - | - |
-| [0085](0085-deploy-bundle-and-runner-workspace-contract.md) | Deploy Bundle and Runner Workspace Contract | Accepted (complete) | 2026-03-31 | - | - |
-| [0086](0086-flatten-plugin-hierarchy-and-reduce-granularity.md) | Flatten Plugin Hierarchy and Reduce Plugin Granularity | Implemented (approval pending) | 2026-04-01 | ADR 0063 Section 4B | - |
+| [0085](0085-deploy-bundle-and-runner-workspace-contract.md) | Deploy Bundle and Runner Workspace Contract | Accepted (complete) | 2026-03-31 | [0053](0053-dist-first-deploy-cutover.md) | - |
+| [0086](0086-flatten-plugin-hierarchy-and-reduce-granularity.md) | Flatten Plugin Hierarchy and Reduce Plugin Granularity | Accepted (complete) | 2026-04-01 | ADR 0063 Section 4B | - |

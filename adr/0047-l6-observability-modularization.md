@@ -209,3 +209,30 @@ See L7-operations.yaml for these concerns.
 ---
 
 **Review Date:** When alert count approaches 50
+
+## Trigger Monitoring Procedure (Active While ADR0047 Is Partially Implemented)
+
+Run periodic trigger checks (recommended: quarterly and before ADR governance reviews):
+
+```bash
+task validate:adr0047-trigger
+```
+
+This writes `build/diagnostics/adr0047-trigger.json` and reports:
+- `alerts_count` vs threshold `50`
+- `services_count` vs threshold `30`
+- `gate` (`ok` or `triggered`)
+
+For CI/strict gate mode:
+
+```bash
+task validate:adr0047-trigger-gate
+```
+
+### Escalation Path When Triggered
+
+If `gate=triggered`:
+
+1. Open ADR governance update and mark ADR0047 Phase 3/4 reactivation planning as `IN-PROGRESS`.
+2. Prepare modularization scope split (`alerts/definitions`, `alerts/policies`, `sla-slo`, generator updates).
+3. Add implementation timeline and rollback points to `adr/plan/NEXT-STEPS-2026-04.md` (or active monthly plan).

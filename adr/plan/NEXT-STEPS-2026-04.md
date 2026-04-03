@@ -18,7 +18,7 @@
 
 **Owner:** Architecture + Runtime maintainers
 **ETA:** End of week 1
-**Status:** `TODO`
+**Status:** `DONE` (2026-04-03)
 
 **Tasks**
 - Sync status in `adr/0086-analysis/MASTER-BOARD.md` with real completion state.
@@ -81,7 +81,7 @@
 
 **Owner:** Architecture + Deploy
 **ETA:** End of week 2
-**Status:** `TODO`
+**Status:** `DONE` (2026-04-03)
 
 **Decision Options**
 - `Option A` (preferred if dist-first is obsolete): mark `Superseded` by ADR 0085.
@@ -100,7 +100,7 @@
 
 **Owner:** Observability + Architecture
 **ETA:** End of week 2
-**Status:** `TODO`
+**Status:** `DONE` (2026-04-03)
 
 **Tasks**
 - Keep implementation paused until trigger thresholds are hit.
@@ -135,11 +135,11 @@
 
 | ID | Work Item | Owner | ETA | Status |
 |----|-----------|-------|-----|--------|
-| S1-1 | ADR 0086 -> Accepted | Architecture + Runtime | Week 1 | TODO |
+| S1-1 | ADR 0086 -> Accepted | Architecture + Runtime | Week 1 | DONE (2026-04-03) |
 | S1-2 | ADR 0082 -> Accepted | Architecture | Week 1 | DONE (2026-04-03) |
 | S2-1 | ADR 0082 Phase 1 implementation | Runtime + CI | Week 2 | DONE (2026-04-03) |
-| S2-2 | ADR 0053 status resolution | Architecture + Deploy | Week 2 | TODO |
-| S2-3 | ADR 0047 trigger monitoring policy | Observability + Architecture | Week 2 | TODO |
+| S2-2 | ADR 0053 status resolution | Architecture + Deploy | Week 2 | DONE (2026-04-03) |
+| S2-3 | ADR 0047 trigger monitoring policy | Observability + Architecture | Week 2 | DONE (2026-04-03) |
 | S2-4 | Final governance alignment | Architecture governance | Week 2 | TODO |
 
 ---
