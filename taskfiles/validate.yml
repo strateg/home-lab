@@ -36,6 +36,7 @@ tasks:
       - plugin-manifests
       - module-index
       - module-growth
+      - adr-consistency
 
   quality:
     desc: Aggregate quality gate (alias to validate:quality-fast)
@@ -112,3 +113,8 @@ tasks:
     desc: Enforce ADR0047 trigger gate (alerts>50 or services>30)
     cmds:
       - "{{.PYTHON}} scripts/validation/report_adr0047_trigger.py --project-id home-lab --alerts-threshold 50 --services-threshold 30 --fail-on-trigger --output-json build/diagnostics/adr0047-trigger.json"
+
+  adr-consistency:
+    desc: Validate ADR register/file consistency (non-strict titles, no symmetry gate)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/check_adr_consistency.py --adr-dir adr --register adr/REGISTER.md"

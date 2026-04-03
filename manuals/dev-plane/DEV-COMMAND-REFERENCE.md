@@ -24,6 +24,7 @@ task validate:module-growth        # ADR0082 growth report (JSON in build/diagno
 task validate:module-growth-gate   # Fail when active module manifests > 15
 task validate:adr0047-trigger      # ADR0047 alerts/services trigger report
 task validate:adr0047-trigger-gate # Fail when alerts>50 or services>30
+task validate:adr-consistency      # ADR register/file consistency check
 task validate:workspace-layout     # Root workspace structure
 ```
 

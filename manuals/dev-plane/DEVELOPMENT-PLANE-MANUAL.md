@@ -500,6 +500,13 @@ task validate:adr0047-trigger
 task validate:adr0047-trigger-gate
 ```
 
+### ADR Governance Consistency
+
+```bash
+# Validate adr/REGISTER.md against ADR file metadata and links
+task validate:adr-consistency
+```
+
 ### Quality Gates
 
 ```bash

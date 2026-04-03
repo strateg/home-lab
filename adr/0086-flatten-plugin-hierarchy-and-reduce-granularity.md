@@ -1,4 +1,4 @@
-# ADR 0086: Упрощение плагинной архитектуры без потери расширяемости проектов
+# ADR 0086: Flatten Plugin Hierarchy and Reduce Plugin Granularity
 
 - Status: Accepted
 - Date: 2026-04-01
