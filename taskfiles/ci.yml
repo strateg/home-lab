@@ -7,6 +7,7 @@ tasks:
     cmds:
       - task build:clean-generated
       - task validate:adr-consistency
+      - task validate:module-growth
       - task validate:adr0047-trigger
       - task framework:strict
       - task validate:default

@@ -46,6 +46,16 @@ jobs:
       - name: Run strict gates via Task
         run: task ci:python-checks-core
 
+      - name: Upload governance diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governance-diagnostics
+          path: |
+            build/diagnostics/module-growth.json
+            build/diagnostics/adr0047-trigger.json
+          if-no-files-found: warn
+
   test:
     name: Run Tests
     runs-on: ubuntu-latest

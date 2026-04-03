@@ -269,6 +269,7 @@ task ci:legacy-maintenance         # Legacy maintenance lane
 
 `ci:_strict-validate-core` also runs:
 - `task validate:adr-consistency`
+- `task validate:module-growth`
 - `task validate:adr0047-trigger`
 
 ---
