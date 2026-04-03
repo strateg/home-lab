@@ -51,7 +51,7 @@ def test_bundle_create_produces_expected_structure(tmp_path: Path) -> None:
     assert (info.bundle_path / "manifest.yaml").exists()
     assert (info.bundle_path / "metadata.yaml").exists()
     assert (info.bundle_path / "checksums.sha256").exists()
-    assert (info.bundle_path / "artifacts" / "generated" / "terraform" / "proxmox" / "main.tf").exists()
+    assert (info.bundle_path / "artifacts" / "generated" / "home-lab" / "terraform" / "proxmox" / "main.tf").exists()
 
 
 def test_bundle_id_is_deterministic_for_same_inputs(tmp_path: Path) -> None:
@@ -199,11 +199,11 @@ def test_bundle_checksum_verification_detects_modification(tmp_path: Path) -> No
     assert ok_before is True
     assert mismatches_before == []
 
-    target = info.bundle_path / "artifacts" / "generated" / "terraform" / "proxmox" / "main.tf"
+    target = info.bundle_path / "artifacts" / "generated" / "home-lab" / "terraform" / "proxmox" / "main.tf"
     target.write_text('resource "x" "tampered" {}\n', encoding="utf-8")
     ok_after, mismatches_after = verify_bundle_checksums(info.bundle_path)
     assert ok_after is False
-    assert any(item.startswith("mismatch:artifacts/generated/terraform/proxmox/main.tf") for item in mismatches_after)
+    assert any(item.startswith("mismatch:artifacts/generated/home-lab/terraform/proxmox/main.tf") for item in mismatches_after)
 
 
 def test_bundle_create_is_idempotent_for_existing_immutable_bundle(tmp_path: Path) -> None:

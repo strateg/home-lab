@@ -36,7 +36,10 @@ Plugin safety is enforced by stage/contract checks, deterministic discovery orde
 
 Rules:
 
+- Applies to all plugin families (`discoverers`, `compilers`, `validators`, `generators`, `assemblers`, `builders`).
+- Runtime lifecycle has 6 stages: `discover -> compile -> validate -> generate -> assemble -> build`.
 - Runtime lifecycle is fixed: `discover -> compile -> validate -> generate -> assemble -> build`.
+- Stage affinity must be preserved: `discover -> discoverers`, `compile -> compilers`, `validate -> validators`, `generate -> generators`, `assemble -> assemblers`, `build -> builders`.
 - Stage affinity must be preserved by plugin kind:
   - `discoverers -> discover`
   - `compilers -> compile`

@@ -694,4 +694,11 @@ def test_prepare_bootstrap_ssh_contract_env_falls_back_to_wsl_sops(
     assert any(call[0] == "sops" for call in calls)
     assert any(call[0] == "wsl" for call in calls)
     wsl_call = next(call for call in calls if call[0] == "wsl")
-    assert wsl_call[-1].startswith("/mnt/")
+    # On real Windows, _translate_windows_path_to_wsl converts C:\... to /mnt/c/...
+    # On Linux test runners the path has no drive letter, so it stays as-is.
+    import sys
+
+    if sys.platform == "win32":
+        assert wsl_call[-1].startswith("/mnt/")
+    else:
+        assert wsl_call[-1] == str(secret_file.resolve())

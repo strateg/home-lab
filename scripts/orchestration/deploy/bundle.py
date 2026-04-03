@@ -94,7 +94,7 @@ def create_bundle(
         tmp_bundle.mkdir(parents=True, exist_ok=True)
 
         artifacts_root = tmp_bundle / "artifacts"
-        generated_artifacts_root = artifacts_root / "generated"
+        generated_artifacts_root = artifacts_root / "generated" / project_id
         shutil.copytree(generated, generated_artifacts_root)
 
         if decrypted_secrets:
@@ -213,7 +213,7 @@ def build_manifest(
             "topology_hash": topology_hash,
             "secrets_hash": secrets_hash,
         },
-        "nodes": _derive_nodes(bundle_root),
+        "nodes": _derive_nodes(bundle_root, project_id),
     }
 
 
@@ -345,10 +345,13 @@ def resolve_bundle_path(bundles_root: Path, bundle_ref: str) -> Path:
     return (bundles_root.resolve() / bundle_ref).resolve()
 
 
-def _derive_nodes(bundle_root: Path) -> list[dict[str, Any]]:
+def _derive_nodes(bundle_root: Path, project_id: str = "") -> list[dict[str, Any]]:
     nodes: dict[str, dict[str, Any]] = {}
     node_mechanisms: dict[str, set[str]] = {}
-    bootstrap_root = bundle_root / "artifacts" / "generated" / "bootstrap"
+    # Try project-qualified path first, then fall back to flat layout for old bundles
+    bootstrap_root = bundle_root / "artifacts" / "generated" / project_id / "bootstrap" if project_id else None
+    if not bootstrap_root or not bootstrap_root.exists():
+        bootstrap_root = bundle_root / "artifacts" / "generated" / "bootstrap"
     if not bootstrap_root.exists():
         return []
     for file_path in sorted((item for item in bootstrap_root.rglob("*") if item.is_file()), key=lambda p: p.as_posix()):
