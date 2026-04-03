@@ -477,6 +477,19 @@ task validate:layers
 task validate:plugin-manifests
 ```
 
+### Module Index Governance (ADR0082)
+
+```bash
+# Bidirectional consistency: module-index <-> filesystem manifests
+task validate:module-index
+
+# Non-blocking growth snapshot (writes build/diagnostics/module-growth.json)
+task validate:module-growth
+
+# Blocking gate: fail when active module manifests exceed threshold (>15)
+task validate:module-growth-gate
+```
+
 ### Quality Gates
 
 ```bash

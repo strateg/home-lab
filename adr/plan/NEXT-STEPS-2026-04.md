@@ -40,13 +40,13 @@
 
 **Owner:** Architecture
 **ETA:** End of week 1
-**Status:** `TODO`
+**Status:** `DONE` (2026-04-03)
 
 **Tasks**
 - Update `adr/0082-plugin-module-pack-composition-and-index-first-discovery-analysis.md`:
   - set status to `Accepted`,
-  - lock target model: `Option C`,
-  - record phased rollout (Phase 1/2).
+  - lock target model: `Option A+`,
+  - record growth gates for optional move to `Option C/B`.
 - Update `adr/REGISTER.md`.
 
 **Definition of Done**
@@ -61,7 +61,7 @@
 
 **Owner:** Runtime + CI
 **ETA:** End of week 2
-**Status:** `TODO`
+**Status:** `DONE` (2026-04-03)
 
 **Tasks**
 - Enforce authoritative `module-index.yaml` in production mode.
@@ -120,8 +120,8 @@
 **Status:** `TODO`
 
 **Tasks**
-- Run ADR consistency gate:
-  - `python topology-tools/check-adr-consistency.py --strict-titles`
+- Run ADR consistency gate (script path is implementation-dependent):
+  - verify ADR statuses are aligned across `adr/REGISTER.md` and individual ADR headers.
 - Sync manuals/README with final ADR statuses and decisions.
 - Publish final alignment summary in commit message.
 
@@ -136,8 +136,8 @@
 | ID | Work Item | Owner | ETA | Status |
 |----|-----------|-------|-----|--------|
 | S1-1 | ADR 0086 -> Accepted | Architecture + Runtime | Week 1 | TODO |
-| S1-2 | ADR 0082 -> Accepted | Architecture | Week 1 | TODO |
-| S2-1 | ADR 0082 Phase 1 implementation | Runtime + CI | Week 2 | TODO |
+| S1-2 | ADR 0082 -> Accepted | Architecture | Week 1 | DONE (2026-04-03) |
+| S2-1 | ADR 0082 Phase 1 implementation | Runtime + CI | Week 2 | DONE (2026-04-03) |
 | S2-2 | ADR 0053 status resolution | Architecture + Deploy | Week 2 | TODO |
 | S2-3 | ADR 0047 trigger monitoring policy | Observability + Architecture | Week 2 | TODO |
 | S2-4 | Final governance alignment | Architecture governance | Week 2 | TODO |

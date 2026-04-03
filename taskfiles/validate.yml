@@ -35,6 +35,7 @@ tasks:
       - pylint
       - plugin-manifests
       - module-index
+      - module-growth
 
   quality:
     desc: Aggregate quality gate (alias to validate:quality-fast)
@@ -91,3 +92,13 @@ tasks:
     desc: Validate topology/module-index.yaml consistency against class/object plugin manifests
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_module_index.py"
+
+  module-growth:
+    desc: Report ADR0082 module growth metrics (non-blocking)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/report_module_growth.py --output-json build/diagnostics/module-growth.json"
+
+  module-growth-gate:
+    desc: Enforce ADR0082 module growth trigger threshold (>15 active manifests)
+    cmds:
+      - "{{.PYTHON}} scripts/validation/report_module_growth.py --active-module-threshold 15 --fail-on-threshold --output-json build/diagnostics/module-growth.json"

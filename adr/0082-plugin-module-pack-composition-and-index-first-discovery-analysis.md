@@ -1,7 +1,8 @@
 # ADR 0082: Plugin Module-Pack Composition and Index-First Discovery Analysis
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-03-29
+- Updated: 2026-04-03
 - Depends on: ADR 0063, ADR 0078, ADR 0080, ADR 0081
 
 ## Context
@@ -17,65 +18,44 @@ Current runtime already supports:
 3. `module-index.yaml` + fallback scan behavior.
 4. Single framework runtime artifact distribution.
 
-Open architecture question remains:
-
-Should framework internals be assembled from explicit class/object module-packs while preserving
-a single runtime artifact for project consumption and keeping AI-assisted development efficient?
+The analysis phase completed and current repository state was re-evaluated in
+`adr/0082-analysis/ANALYSIS.md`.
 
 ## Decision
 
-Run a dedicated analysis phase before any further structural split of framework internals.
+Adopt **Option A+** now:
 
-This ADR defines analysis scope and non-negotiable constraints:
+1. Keep current structure and single framework runtime artifact contract (ADR 0081).
+2. Treat `topology/module-index.yaml` as an authoritative contract for class/object plugin manifests.
+3. Enforce bidirectional index consistency checks (`index -> filesystem`, `filesystem -> index`) in validation and compiler runtime diagnostics.
+4. Keep module-pack assembly (Option B) and schema-v2 metadata expansion (Option C) deferred until explicit growth gates are hit.
+
+Non-negotiable constraints remain:
 
 1. **Developer/AI workspace must stay monorepo-first and unified** (`topology/`, `topology-tools/`, `projects/`).
 2. **Project consumption remains one runtime framework artifact** (ADR 0081 contract).
 3. **Plugin co-location remains mandatory** for class/object ownership boundaries.
 4. **Discovery contract stays deterministic and additive** with global plugin ID uniqueness.
-5. **No behavior-breaking runtime cutover** is allowed under this ADR; only analysis and design outputs.
+5. **No behavior-breaking runtime cutover** is allowed while module count stays below trigger thresholds.
 
-Required analysis deliverables:
+Growth gates for reconsidering Option C/B:
 
-1. Option matrix:
-   - A: keep current structure + index-first hardening,
-   - B: internal module-pack build assembly into one artifact,
-   - C: hybrid with optional module-pack metadata lock extensions.
-2. AI productivity impact analysis:
-   - navigation complexity,
-   - prompt/context stability,
-   - typical edit/test loop cost.
-3. Runtime invariants:
-   - path resolution invariants (monorepo vs standalone),
-   - discovery invariants,
-   - lock/integrity invariants.
-4. Migration and rollback design:
-   - incremental phases,
-   - compatibility shims (if needed),
-   - objective rollback triggers.
-5. Verification matrix:
-   - contract tests,
-   - distribution boundary tests,
-   - standalone artifact rehearsal tests.
-
-Exit criteria for promoting this ADR to Accepted:
-
-1. One recommended target model selected from options A/B/C with rationale.
-2. No regression against ADR 0081 runtime artifact contract.
-3. Explicit evidence that AI-assisted daily workflow is not degraded.
-4. Implementation plan with staged gates and rollback protocol.
+1. Active module manifests exceed 15.
+2. Per-module release cadence/versioning is required.
+3. Module-level integrity provenance is repeatedly required beyond framework lock scope.
 
 ## Consequences
 
 Positive:
 
-1. Avoids premature structural split that could increase cognitive load.
-2. Preserves ADR 0081 external contract while allowing internal modular evolution.
-3. Creates measurable criteria for evaluating architecture options.
+1. Avoids premature structural split and assembly complexity.
+2. Preserves ADR 0081 runtime artifact contract.
+3. Makes module-index drift detectable and blocking in validation/runtime.
 
 Trade-offs:
 
-1. Adds one analysis phase before additional refactoring.
-2. Delays large topology packaging changes until evidence is complete.
+1. Per-module versioning remains deferred.
+2. Metadata-rich module-pack model is postponed until growth triggers.
 
 ## References
 
@@ -83,5 +63,6 @@ Trade-offs:
 - ADR 0078: `adr/0078-object-module-local-template-layout.md`
 - ADR 0080: `adr/0080-unified-build-pipeline-stage-phase-and-plugin-data-bus.md`
 - ADR 0081: `adr/0081-framework-runtime-artifact-and-1-n-project-repository-model.md`
+- ADR 0082 analysis refresh: `adr/0082-analysis/ANALYSIS.md`
 - Discovery implementation: `topology-tools/plugin_manifest_discovery.py`
 - Topology module index: `topology/module-index.yaml`
