@@ -76,7 +76,7 @@ Deploy Plane is the execution layer for Infrastructure-as-Data home lab operatio
 │                      Target Infrastructure                           │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
 │  │   MikroTik   │  │   Proxmox    │  │  Orange Pi   │              │
-│  │  (netinstall)│  │ (cloud_init) │  │ (ansible)    │              │
+│  │ (ssh/recover)│  │(install/init)│  │ (ansible)    │              │
 │  └──────────────┘  └──────────────┘  └──────────────┘              │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -394,18 +394,26 @@ task deploy:init-all-pending-plan -- BUNDLE=b-123
 ### Execute Node Initialization
 
 ```bash
-# Single node
-task deploy:init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
+# MikroTik bootstrap (SSH import handover)
+task deploy:init-node-run -- \
+  BUNDLE=b-123 \
+  NODE=rtr-mikrotik-chateau \
+  PHASE=bootstrap
 
-# All pending nodes
-task deploy:init-all-pending-run -- BUNDLE=b-123
+# MikroTik recovery (Netinstall path)
+task deploy:init-node-run -- \
+  BUNDLE=b-123 \
+  NODE=rtr-mikrotik-chateau \
+  PHASE=recover
 
-# With flags
+# Proxmox bootstrap (installed host, import + handover)
 task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=pve-gamayun \
-  DEPLOY_RUNNER=wsl \
   IMPORT_EXISTING=true
+
+# All pending nodes
+task deploy:init-all-pending-run -- BUNDLE=b-123
 ```
 
 ### Verify Node Handover
@@ -432,10 +440,19 @@ task deploy:init-node-run -- \
 
 | Mechanism | Node Types | Bootstrap Artifacts |
 |-----------|------------|---------------------|
-| `netinstall` | MikroTik routers | `*.rsc` scripts |
+| `netinstall` | MikroTik routers | `*.rsc` scripts (`PHASE=bootstrap` uses SSH import, `PHASE=recover` uses Netinstall contract) |
 | `cloud_init` | Proxmox VMs | `user-data`, `meta-data`, `network-config` |
-| `unattended_install` | Proxmox host | `answer.toml`, `post-install-minimal.sh` |
+| `unattended_install` | Proxmox host install | `answer.toml`, `post-install-minimal.sh` |
 | `ansible_bootstrap` | SBCs, containers | Ansible playbooks |
+
+### Install vs Bootstrap Semantics
+
+- MikroTik:
+  - `bootstrap` phase = SSH-based import/handover for Terraform access.
+  - `recover` phase = Netinstall-based recovery/reinstall path.
+- Proxmox host:
+  - `install` = unattended USB installation from generated install artifacts.
+  - `bootstrap` = post-install handover checks and Terraform/API access readiness.
 
 ### Init-Node CLI Flags
 
@@ -446,6 +463,7 @@ task deploy:init-node-run -- \
 | `--all-pending` | Process all nodes in pending state |
 | `--plan-only` | Show execution plan without mutation |
 | `--verify-only` | Run handover checks only |
+| `--phase` | Initialization phase (`bootstrap` or `recover`) |
 | `--force` | Override state machine guards |
 | `--import-existing` | Mark node as imported (pre-existing) |
 | `--reset` | Reset node to pending state |

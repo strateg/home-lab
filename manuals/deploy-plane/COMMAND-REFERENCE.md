@@ -61,6 +61,7 @@ task deploy:init-status
 
 ```bash
 task deploy:init-node-plan -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
+task deploy:init-node-plan -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=recover
 ```
 
 ### Plan (All Pending)
@@ -73,6 +74,9 @@ task deploy:init-all-pending-plan -- BUNDLE=b-123
 
 ```bash
 task deploy:init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau
+task deploy:init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=bootstrap
+task deploy:init-node-run -- BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=recover
+task deploy:init-node-run -- BUNDLE=b-123 NODE=pve-gamayun IMPORT_EXISTING=true
 ```
 
 ### Run (All Pending)
@@ -88,6 +92,7 @@ task deploy:init-all-pending-run -- BUNDLE=b-123
 | `BUNDLE` | Bundle ID or path | **required** |
 | `NODE` | Node ID to process | required for single-node |
 | `DEPLOY_RUNNER` | Runner override | auto-detect |
+| `PHASE` | Init phase (`bootstrap`, `recover`) | `bootstrap` |
 | `VERIFY_ONLY` | Only run handover checks | `false` |
 | `FORCE` | Override state guards | `false` |
 | `IMPORT_EXISTING` | Mark as imported | `false` |

@@ -148,9 +148,9 @@ task deploy:service-chain-evidence-apply-bundle -- \
 
 ## Node Bootstrap Scenarios
 
-### Scenario: MikroTik Router Bootstrap (Netinstall)
+### Scenario: MikroTik Router Bootstrap (SSH Import)
 
-**Context:** Factory reset MikroTik and bootstrap with Terraform API user.
+**Context:** Router is reachable over SSH; bootstrap Terraform/API handover without reinstall.
 
 ```bash
 # 1. Prepare bundle
@@ -158,60 +158,116 @@ task bundle:create
 
 # 2. Check MikroTik node in manifest
 task bundle:inspect -- BUNDLE=b-123 | \
-  jq '.manifest.nodes[] | select(.mechanism == "netinstall")'
+  jq '.manifest.nodes[] | select(.id == "rtr-mikrotik-chateau")'
 
-# 3. Plan initialization
+# 3. Export SSH contract for bootstrap phase
+export INIT_NODE_NETINSTALL_SSH_HOST=192.168.88.1
+export INIT_NODE_NETINSTALL_SSH_USER=admin
+# Optional:
+# export INIT_NODE_NETINSTALL_SSH_PASSWORD=...
+
+# 4. Plan bootstrap
 task deploy:init-node-plan -- \
   BUNDLE=b-123 \
-  NODE=rtr-mikrotik-chateau
+  NODE=rtr-mikrotik-chateau \
+  PHASE=bootstrap
 
-# 4. Physical steps (manual):
-#    a. Connect laptop to MikroTik via Ethernet
-#    b. Run Netinstall tool
-#    c. Factory reset router
-#    d. Upload .rsc script from bundle:
-#       .work/deploy/bundles/b-123/artifacts/generated/bootstrap/rtr-mikrotik-chateau/init-terraform.rsc
-
-# 5. After manual bootstrap, import existing
+# 5. Run bootstrap (scp + ssh /import)
 task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
-  IMPORT_EXISTING=true
+  PHASE=bootstrap
 
-# 6. Verify handover (API reachable)
+# 6. Verify handover (API/SSH reachable)
 task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=rtr-mikrotik-chateau \
   VERIFY_ONLY=true
 ```
 
-### Scenario: Proxmox Host Bootstrap (Unattended Install)
+### Scenario: MikroTik Router Recovery (Netinstall)
 
-**Context:** Install Proxmox with automated answer file.
+**Context:** Router needs full recovery/reinstall; run recovery phase with Netinstall contract.
+
+```bash
+# 1. Prepare bundle
+task bundle:create
+
+# 2. Export Netinstall contract
+export MIKROTIK_BOOTSTRAP_MAC=00:11:22:33:44:55
+export MIKROTIK_NETINSTALL_INTERFACE=eth0
+export MIKROTIK_NETINSTALL_CLIENT_IP=192.168.88.3
+export MIKROTIK_ROUTEROS_PACKAGE=/path/to/routeros-arm64.npk
+
+# 3. Plan recovery
+task deploy:init-node-plan -- \
+  BUNDLE=b-123 \
+  NODE=rtr-mikrotik-chateau \
+  PHASE=recover
+
+# 4. Run recovery (netinstall path)
+task deploy:init-node-run -- \
+  BUNDLE=b-123 \
+  NODE=rtr-mikrotik-chateau \
+  PHASE=recover
+
+# 5. Verify post-recovery handover
+task deploy:init-node-run -- \
+  BUNDLE=b-123 \
+  NODE=rtr-mikrotik-chateau \
+  VERIFY_ONLY=true
+```
+
+### Scenario: Proxmox Host Install (Unattended USB)
+
+**Context:** Fresh install of Proxmox from unattended install flash drive.
 
 ```bash
 # 1. Create bundle
 task bundle:create
 
-# 2. Get bootstrap artifacts
+# 2. Check Proxmox node mechanism
+task bundle:inspect -- BUNDLE=b-123 | \
+  jq '.manifest.nodes[] | select(.id == "pve-gamayun")'
+# Should show mechanism: "unattended_install"
+
+# 3. Get install artifacts
 ls .work/deploy/bundles/b-123/artifacts/generated/bootstrap/pve-gamayun/
 # answer.toml, post-install-minimal.sh
 
-# 3. Physical steps (manual):
-#    a. Create Proxmox USB installer
-#    b. Copy answer.toml to USB
-#    c. Boot from USB
-#    d. Proxmox installs automatically
+# 4. Physical install steps (manual):
+#    a. Prepare Proxmox unattended USB flash drive
+#    b. Place answer.toml for installer
+#    c. Boot pve-gamayun from USB
+#    d. Wait until Proxmox installation completes
+```
 
-# 4. After installation, mark as imported
+### Scenario: Proxmox Host Bootstrap (Terraform Access)
+
+**Context:** Proxmox is already installed; bootstrap means verify and configure Terraform/API access handover.
+
+```bash
+# 1. Create bundle
+task bundle:create
+
+# 2. Check host reachability
+ssh root@<proxmox-ip> "pveversion"
+curl -k https://<proxmox-ip>:8006/api2/json/version
+
+# 3. Mark installed host as imported into init-node state
 task deploy:init-node-run -- \
   BUNDLE=b-123 \
   NODE=pve-gamayun \
   IMPORT_EXISTING=true
 
-# 5. Run Ansible bootstrap playbook
-task deploy:service-chain-evidence-apply-bundle -- \
-  ALLOW_APPLY=YES \
+# 4. Verify handover
+task deploy:init-node-run -- \
+  BUNDLE=b-123 \
+  NODE=pve-gamayun \
+  VERIFY_ONLY=true
+
+# 5. Validate Terraform chain against live host
+task deploy:service-chain-evidence-check-bundle -- \
   BUNDLE=b-123
 ```
 
