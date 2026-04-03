@@ -1,12 +1,8 @@
 schema_version: 1
 
-class_modules:
-  - id: router
-    plugins_manifest: class-modules/router/plugins.yaml
+class_modules: []
 
 object_modules:
-  - id: glinet
-    plugins_manifest: object-modules/glinet/plugins.yaml
   - id: mikrotik
     plugins_manifest: object-modules/mikrotik/plugins.yaml
   - id: network

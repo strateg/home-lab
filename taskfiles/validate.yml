@@ -34,6 +34,7 @@ tasks:
       - typecheck
       - pylint
       - plugin-manifests
+      - module-index
 
   quality:
     desc: Aggregate quality gate (alias to validate:quality-fast)
@@ -56,12 +57,14 @@ tasks:
       V5_SECRETS_MODE: passthrough
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
+      - "{{.PYTHON}} scripts/validation/validate_module_index.py"
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5"
 
   passthrough:
     desc: Validate topology lane with explicit passthrough secrets mode (no env var required)
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_workspace_layout.py"
+      - "{{.PYTHON}} scripts/validation/validate_module_index.py"
       - "{{.PYTHON}} scripts/orchestration/lane.py validate-v5-passthrough"
 
   topology:
@@ -83,3 +86,8 @@ tasks:
     desc: Validate plugin manifests schema and entry paths across base/class/object manifests
     cmds:
       - "{{.PYTHON}} scripts/validation/validate_plugin_manifests.py"
+
+  module-index:
+    desc: Validate topology/module-index.yaml consistency against class/object plugin manifests
+    cmds:
+      - "{{.PYTHON}} scripts/validation/validate_module_index.py"

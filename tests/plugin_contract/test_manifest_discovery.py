@@ -12,7 +12,7 @@ import yaml
 V5_TOOLS = Path(__file__).resolve().parents[2] / "topology-tools"
 sys.path.insert(0, str(V5_TOOLS))
 
-from plugin_manifest_discovery import discover_plugin_manifest_paths
+from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
 
 
 def _write_manifest(path: Path, *, plugin_id: str) -> None:
@@ -271,3 +271,71 @@ def test_discovery_falls_back_to_recursive_scan_when_module_index_invalid(tmp_pa
         (class_root / "a" / "plugins.yaml").resolve(),
         (object_root / "b" / "plugins.yaml").resolve(),
     ]
+
+
+def test_module_index_consistency_reports_missing_index_entry(tmp_path: Path) -> None:
+    topology_root = tmp_path / "topology"
+    class_root = topology_root / "class-modules"
+    object_root = topology_root / "object-modules"
+    module_index = topology_root / "module-index.yaml"
+
+    _write_manifest(class_root / "router" / "plugins.yaml", plugin_id="class.validator.router")
+    _write_manifest(object_root / "mikrotik" / "plugins.yaml", plugin_id="object.validator.mikrotik")
+    _write_module_index(
+        module_index,
+        class_manifests=[],
+        object_manifests=["object-modules/mikrotik/plugins.yaml"],
+    )
+
+    errors = validate_module_index_consistency(
+        module_index_path=module_index,
+        class_modules_root=class_root,
+        object_modules_root=object_root,
+    )
+
+    assert any("class_modules index missing manifest present on disk" in item for item in errors)
+
+
+def test_module_index_consistency_reports_stale_entry(tmp_path: Path) -> None:
+    topology_root = tmp_path / "topology"
+    class_root = topology_root / "class-modules"
+    object_root = topology_root / "object-modules"
+    module_index = topology_root / "module-index.yaml"
+
+    _write_manifest(object_root / "mikrotik" / "plugins.yaml", plugin_id="object.validator.mikrotik")
+    _write_module_index(
+        module_index,
+        class_manifests=["class-modules/router/plugins.yaml"],
+        object_manifests=["object-modules/mikrotik/plugins.yaml"],
+    )
+
+    errors = validate_module_index_consistency(
+        module_index_path=module_index,
+        class_modules_root=class_root,
+        object_modules_root=object_root,
+    )
+
+    assert any("class_modules[0] manifest path does not exist" in item for item in errors)
+
+
+def test_module_index_consistency_passes_for_exact_match(tmp_path: Path) -> None:
+    topology_root = tmp_path / "topology"
+    class_root = topology_root / "class-modules"
+    object_root = topology_root / "object-modules"
+    module_index = topology_root / "module-index.yaml"
+
+    _write_manifest(class_root / "router" / "plugins.yaml", plugin_id="class.validator.router")
+    _write_manifest(object_root / "mikrotik" / "plugins.yaml", plugin_id="object.validator.mikrotik")
+    _write_module_index(
+        module_index,
+        class_manifests=["class-modules/router/plugins.yaml"],
+        object_manifests=["object-modules/mikrotik/plugins.yaml"],
+    )
+
+    errors = validate_module_index_consistency(
+        module_index_path=module_index,
+        class_modules_root=class_root,
+        object_modules_root=object_root,
+    )
+
+    assert errors == []

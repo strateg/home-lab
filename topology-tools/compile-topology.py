@@ -41,7 +41,7 @@ from kernel import (
     PluginStatus,
     Stage,
 )
-from plugin_manifest_discovery import discover_plugin_manifest_paths
+from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = REPO_ROOT / "topology" / "topology.yaml"
@@ -457,6 +457,23 @@ class V5Compiler:
 
         loaded_module_paths: list[Path] = []
         load_errors: list[str] = []
+        if resolved_module_index_path is not None and resolved_module_index_path.exists():
+            index_errors = validate_module_index_consistency(
+                module_index_path=resolved_module_index_path,
+                class_modules_root=class_modules_root,
+                object_modules_root=object_modules_root,
+            )
+            for err in index_errors:
+                load_errors.append(f"{self._path_for_diag(resolved_module_index_path)}: {err}")
+                if emit_diagnostics:
+                    self.add_diag(
+                        code="E4001",
+                        severity="error",
+                        stage="load",
+                        message=f"module-index consistency error: {err}",
+                        path=self._path_for_diag(resolved_module_index_path),
+                    )
+
         for manifest_path in module_manifests:
             if not manifest_path.exists():
                 continue

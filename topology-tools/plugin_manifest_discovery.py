@@ -44,6 +44,89 @@ def _resolve_index_entry_path(*, index_dir: Path, entry: Any) -> Path | None:
     return candidate.resolve()
 
 
+def _manifest_paths_on_disk(*, root: Path, manifest_name: str) -> set[Path]:
+    if not root.exists() or not root.is_dir():
+        return set()
+    return {item.resolve() for item in root.rglob(manifest_name) if item.is_file()}
+
+
+def validate_module_index_consistency(
+    *,
+    module_index_path: Path,
+    class_modules_root: Path,
+    object_modules_root: Path,
+    manifest_name: str = "plugins.yaml",
+) -> list[str]:
+    """Validate module-index.yaml consistency against filesystem manifests."""
+
+    resolved_index = module_index_path.resolve()
+    if not resolved_index.exists() or not resolved_index.is_file():
+        return [f"module-index file is missing: {resolved_index.as_posix()}"]
+
+    try:
+        payload = yaml.safe_load(resolved_index.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        return [f"module-index cannot be parsed: {resolved_index.as_posix()}: {exc}"]
+
+    if not isinstance(payload, dict):
+        return [f"module-index root must be mapping: {resolved_index.as_posix()}"]
+
+    class_entries = payload.get("class_modules")
+    object_entries = payload.get("object_modules")
+    if not isinstance(class_entries, list) or not isinstance(object_entries, list):
+        return [f"module-index must contain list fields class_modules/object_modules: {resolved_index.as_posix()}"]
+
+    errors: list[str] = []
+    index_dir = resolved_index.parent
+    indexed_class: set[Path] = set()
+    indexed_object: set[Path] = set()
+
+    def _validate_entries(entries: list[Any], *, label: str, root: Path, bucket: set[Path]) -> None:
+        for idx, entry in enumerate(entries):
+            resolved = _resolve_index_entry_path(index_dir=index_dir, entry=entry)
+            if resolved is None:
+                errors.append(f"{label}[{idx}] missing plugins_manifest/manifest/path field")
+                continue
+            if not _path_within_root(root=root, path=resolved):
+                errors.append(f"{label}[{idx}] path is outside {root.resolve().as_posix()}: {resolved.as_posix()}")
+                continue
+            if not resolved.exists() or not resolved.is_file():
+                errors.append(f"{label}[{idx}] manifest path does not exist: {resolved.as_posix()}")
+                continue
+            if resolved in bucket:
+                errors.append(f"{label}[{idx}] duplicate manifest entry: {resolved.as_posix()}")
+                continue
+            bucket.add(resolved)
+
+    _validate_entries(class_entries, label="class_modules", root=class_modules_root, bucket=indexed_class)
+    _validate_entries(object_entries, label="object_modules", root=object_modules_root, bucket=indexed_object)
+
+    disk_class = _manifest_paths_on_disk(root=class_modules_root, manifest_name=manifest_name)
+    disk_object = _manifest_paths_on_disk(root=object_modules_root, manifest_name=manifest_name)
+
+    for missing in sorted(
+        disk_class - indexed_class, key=lambda item: _sort_key_for_path(root=class_modules_root, path=item)
+    ):
+        errors.append(f"class_modules index missing manifest present on disk: {missing.as_posix()}")
+    for missing in sorted(
+        disk_object - indexed_object,
+        key=lambda item: _sort_key_for_path(root=object_modules_root, path=item),
+    ):
+        errors.append(f"object_modules index missing manifest present on disk: {missing.as_posix()}")
+
+    for missing in sorted(
+        indexed_class - disk_class, key=lambda item: _sort_key_for_path(root=class_modules_root, path=item)
+    ):
+        errors.append(f"class_modules index points to missing filesystem manifest: {missing.as_posix()}")
+    for missing in sorted(
+        indexed_object - disk_object,
+        key=lambda item: _sort_key_for_path(root=object_modules_root, path=item),
+    ):
+        errors.append(f"object_modules index points to missing filesystem manifest: {missing.as_posix()}")
+
+    return errors
+
+
 def _module_index_paths(
     *,
     module_index_path: Path | None,
