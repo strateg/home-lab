@@ -7,7 +7,7 @@
 | Task | Files | Notes |
 |------|-------|-------|
 | Create `class.compute.workload` (abstract base) | `topology/class-modules/compute/class.compute.workload.yaml` | Extract common from current `class.compute.workload.container` |
-| Rename `class.compute.workload.container` → `.lxc` | `topology/class-modules/compute/class.compute.workload.lxc.yaml` | Keep old filename as symlink (transition) |
+| Rename `class.compute.workload.container` → `.lxc` | `topology/class-modules/compute/class.compute.workload.lxc.yaml` | Keep old class as compatibility alias (no symlink) |
 | Create `class.compute.workload.docker` | `topology/class-modules/compute/class.compute.workload.docker.yaml` | Image ref, ports, restart policy |
 | Update `class.compute.workload.container.yaml` | Rename/redirect | Backward compat alias |
 
@@ -17,8 +17,8 @@
 |------|-------|
 | Update existing LXC objects: `class_ref` → `class.compute.workload.lxc` | `topology/object-modules/proxmox/obj.proxmox.lxc.*.yaml` |
 | Create Docker container objects (one per distinct Docker service) | `topology/object-modules/docker/obj.docker.container.*.yaml` |
-| Add `cap.runtime.docker` to `obj.device.orangepi5` | `topology/object-modules/devices/obj.device.orangepi5.yaml` |
-| Add `cap.runtime.docker` to `obj.proxmox.lxc.debian12.docker` | Already has `vendor.runtime.docker.host` — formalize |
+| Keep `cap.compute.runtime.container_host` on Docker-capable hosts | `topology/object-modules/orangepi/obj.orangepi.rk3588.debian.yaml` |
+| Add `vendor.runtime.docker.host` where Docker engine exists | Orange Pi + Docker LXC object(s) |
 
 ### 1.3 Instance Definitions
 
@@ -49,7 +49,7 @@
 - [ ] `python topology-tools/compile-topology.py` — no errors
 - [ ] `python scripts/orchestration/lane.py validate-v5` — pass
 - [ ] Every L5 service has `target_ref` pointing to L4 (no L1 Docker refs)
-- [ ] Docker hosts declare `cap.runtime.docker`
+- [ ] Docker-capable hosts declare `cap.compute.runtime.container_host` and `vendor.runtime.docker.host`
 
 ---
 

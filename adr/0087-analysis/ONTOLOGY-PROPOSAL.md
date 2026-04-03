@@ -951,7 +951,8 @@ Rather than a separate entity, we model the container runtime as a
 instance: srv-orangepi5
 capabilities:
   - cap.compute.edge_node
-  - cap.runtime.docker           # ← "I can run Docker containers"
+  - cap.compute.runtime.container_host
+  - vendor.runtime.docker.host   # ← "I can run Docker containers"
     properties:
       engine_version: "27.5"
       socket: /var/run/docker.sock
@@ -961,7 +962,8 @@ capabilities:
 instance: lxc-docker
 capabilities:
   - cap.compute.workload.lxc
-  - cap.runtime.docker           # ← "I can run Docker containers too"
+  - cap.compute.runtime.container_host
+  - vendor.runtime.docker.host   # ← "I can run Docker containers too"
     properties:
       engine_version: "27.5"
       socket: /var/run/docker.sock
@@ -971,13 +973,16 @@ capabilities:
 
 ```
 For class.compute.workload.docker:
-  host_ref target MUST have capability cap.runtime.docker
+  host_ref target MUST have cap.compute.runtime.container_host
+  AND vendor.runtime.docker.host
   
 For class.compute.workload.lxc:
-  host_ref target MUST have capability cap.runtime.lxc (or cap.compute.hypervisor)
+  host_ref target MUST have cap.compute.runtime.container_host
+  (or class.compute.hypervisor.*)
   
 For class.compute.workload.vm:
-  host_ref target MUST have capability cap.runtime.qemu (or cap.compute.hypervisor)
+  host_ref target MUST have cap.compute.runtime.vm_host
+  (or class.compute.hypervisor.*)
 ```
 
 ---
@@ -1396,8 +1401,8 @@ storage:
 │    class.compute.hypervisor.proxmox: srv-gamayun                │
 │    class.compute.hypervisor.vbox: dev-workstation               │
 │    class.compute.hypervisor.hyperv: dev-workstation-win         │
-│    class.compute.edge_node: srv-orangepi5 [cap.runtime.docker]  │
-│    class.router: rtr-mikrotik-chateau [cap.runtime.container]   │
+│    class.compute.edge_node: srv-orangepi5 [cap.compute.runtime.container_host + vendor.runtime.docker.host] │
+│    class.router: rtr-mikrotik-chateau [cap.compute.runtime.container_host]   │
 │    host_ref ← L4 workloads                                      │
 ├─────────────────────────────────────────────────────────────────┤
 │  L0: Meta (site, naming, conventions)                           │
@@ -1467,7 +1472,7 @@ unified runtime capability (see §5 Runtime Host Abstraction):
 ```yaml
 # Дополнение к rtr-mikrotik-chateau.yaml
 runtime_capabilities:
-  - capability: cap.runtime.container
+  - capability: cap.compute.runtime.container_host
     engine: containerD                  # RouterOS containerD (not full Docker)
     engine_version: "7.22"              # RouterOS version = containerD version
     storage_backend: usb                # /usb1/containers/
@@ -1552,7 +1557,7 @@ defaults:
 #### L4: Docker Container Instance (NEW ENTITY)
 
 ```yaml
-# projects/home-lab/topology/instances/L4-platform/containers/docker-nginx.yaml
+# projects/home-lab/topology/instances/L4-platform/docker/docker-nginx.yaml
 instance: docker-nginx
 object_ref: obj.docker.container.nginx
 group: containers
@@ -1809,7 +1814,7 @@ L5 svc-nginx
 
 L4 docker-nginx
   ├─ host_ref ──→ L1 rtr-mikrotik-chateau
-  │     └─ runtime_capabilities: cap.runtime.container (containerD)
+  │     └─ runtime_capabilities: cap.compute.runtime.container_host (containerD)
   ├─ network.bridge_ref ──→ L2 bridge (MikroTik bridge)
   ├─ network.vlan_ref ──→ L2 inst.vlan.lan
   ├─ storage.data_asset_refs ──→ L3 inst.data_asset.nginx_config
@@ -1819,7 +1824,7 @@ L3 inst.data_asset.nginx_config
   └─ host_ref ──→ L1 rtr-mikrotik-chateau (USB storage)
 
 L1 rtr-mikrotik-chateau
-  └─ cap.runtime.container (containerD, arm64, USB, max_containers=10)
+  └─ cap.compute.runtime.container_host (containerD, arm64, USB, max_containers=10)
 ```
 
 ### 8A.4 Generated RouterOS CLI (Terraform Output)
@@ -1924,7 +1929,7 @@ object_ref: obj.proxmox.ve
 
 # ─── NEW: explicit runtime capability declarations ───
 runtime_capabilities:
-  - capability: cap.runtime.lxc
+  - capability: cap.compute.runtime.container_host
     engine: proxmox-lxc
     engine_version: "9.0"
     max_containers: 20                   # practical limit with 8GB RAM
@@ -1933,7 +1938,7 @@ runtime_capabilities:
       - ubuntu-24.04-standard
       - alpine-3.20-default
 
-  - capability: cap.runtime.qemu
+  - capability: cap.compute.runtime.vm_host
     engine: qemu-kvm
     engine_version: "8.2"
     machine_types: [q35, i440fx]
@@ -2271,7 +2276,14 @@ topology_scope: scope.lxc-docker
 
 # ─── Runtime capability declaration (this LXC CAN host Docker) ───
 runtime_capabilities:
-  - capability: cap.runtime.docker
+  - capability: cap.compute.runtime.container_host
+    engine: docker-ce
+    engine_version: "27.5"
+    socket: /var/run/docker.sock
+    storage_driver: overlay2
+    supported_architectures: [amd64]
+    max_containers: 15
+  - capability: vendor.runtime.docker.host
     engine: docker-ce
     engine_version: "27.5"
     socket: /var/run/docker.sock
@@ -2297,7 +2309,7 @@ ansible:
 #### L4 Nested: Docker Container Nginx (inside LXC-Docker)
 
 ```yaml
-# projects/home-lab/topology/instances/L4-platform/containers/docker-nginx-proxy.yaml
+# projects/home-lab/topology/instances/L4-platform/docker/docker-nginx-proxy.yaml
 instance: docker-nginx-proxy
 object_ref: obj.docker.container.nginx         # same object as MikroTik variant
 group: containers
@@ -2495,7 +2507,7 @@ L5 svc-nginx-proxy
 
 L4 lxc-nginx-proxy (vmid 207)
   ├─ host_ref ──→ L1 srv-gamayun
-  │     └─ runtime_capabilities: cap.runtime.lxc (proxmox-lxc 9.0)
+  │     └─ runtime_capabilities: cap.compute.runtime.container_host (proxmox-lxc 9.0)
   │     └─ class_ref: class.compute.hypervisor.proxmox ← vm_constraints
   ├─ network.bridge_ref ──→ L2 inst.bridge.vmbr0
   ├─ network.vlan_ref ──→ L2 inst.vlan.servers
@@ -2521,7 +2533,7 @@ L5 svc-nginx-proxy-docker
 
 L4 docker-nginx-proxy (Docker container)
   ├─ host_ref ──→ L4 lxc-docker (vmid 208)         ← NESTING!
-  │     └─ runtime_capabilities: cap.runtime.docker (docker-ce 27.5)
+  │     └─ runtime_capabilities: cap.compute.runtime.container_host + vendor.runtime.docker.host
   │     └─ topology_scope: scope.lxc-docker
   ├─ network.docker_network ──→ scope.lxc-docker.net.web-services (172.20.0.0/16)
   ├─ storage.data_asset_refs ──→ L3 inst.data_asset.nginx_docker_config
@@ -2529,7 +2541,7 @@ L4 docker-nginx-proxy (Docker container)
 
 L4 lxc-docker (vmid 208, LXC container)
   ├─ host_ref ──→ L1 srv-gamayun
-  │     └─ runtime_capabilities: cap.runtime.lxc
+  │     └─ runtime_capabilities: cap.compute.runtime.container_host
   ├─ network.bridge_ref ──→ L2 inst.bridge.vmbr0
   ├─ network.vlan_ref ──→ L2 inst.vlan.servers
   ├─ storage.rootfs.pool_ref ──→ L3 inst.storage.pool.local_lvm (raw)
@@ -2726,6 +2738,9 @@ projects/home-lab/topology/instances/
 
 Growth is linear and manageable (~30% increase).
 
+> **Errata alignment note**: This section uses the canonical phase map from
+> ADR 0087 / IMPLEMENTATION-PLAN (Phase 5 = Nested Topology, Phase 6 = Stacks).
+
 ---
 
 ## 10. IMPLEMENTATION PHASES
@@ -2737,19 +2752,16 @@ Growth is linear and manageable (~30% increase).
 3. Add Docker container objects (`obj.docker.container.*`)
 4. Add Docker container instances to L4
 5. Update L5 service `target_ref` to point at L4 Docker containers
-6. Add `cap.runtime.docker` capability to Docker hosts
-7. Add validator: Docker containers require host with `cap.runtime.docker`
+6. Ensure Docker hosts expose `cap.compute.runtime.container_host` and `vendor.runtime.docker.host`
+7. Add validator: Docker containers require host with both capabilities
 
 ### Phase 2: Multi-Hypervisor VM Support
 
-1. Create `class.compute.workload.vm` (abstract base)
-2. Create `class.compute.workload.vm.proxmox` (QEMU/KVM)
-3. Create `class.compute.workload.vm.vbox` (VirtualBox)
-4. Create `class.compute.workload.vm.hyperv` (Hyper-V)
-5. Create `class.compute.workload.vm.vmware` (VMware ESXi/Workstation)
-6. Create `class.compute.workload.vm.xen` (Xen/XCP-ng)
-7. Add VM objects per platform (`obj.<platform>.vm.<os>.<profile>`)
-8. Add VM instances to L4 (when hardware/use-case demands)
+1. Create `class.compute.workload.vm` (single VM class, hypervisor-agnostic)
+2. Define platform constraints in `class.compute.hypervisor.{proxmox,vbox,hyperv,vmware,xen}`
+3. Add VM objects per platform (`obj.<platform>.vm.<os>.<profile>`) with `platform_config` bag
+4. Add VM instances to L4 (when hardware/use-case demands)
+5. Validate `vm.platform_config` against host hypervisor `platform_config_schema`
 
 ### Phase 3: L3 Storage Integration
 
@@ -2759,13 +2771,13 @@ Growth is linear and manageable (~30% increase).
 4. Backfill `data_asset_ref` on existing L4 LXC volumes
 5. Add validators: format↔pool, format↔hypervisor, boot disk presence, bus↔hypervisor
 
-### Phase 4: Nested Topology (Optional)
+### Phase 5: Nested Topology (Optional)
 
 1. Implement `topology_scope` mechanism
 2. Add `internal_networks` to container scope
 3. Generate docker-compose.yaml from Docker container groups + internal networks
 
-### Phase 5: Stack Objects (Optional)
+### Phase 6: Stack Objects (Optional)
 
 1. Create `class.compute.workload.docker.stack`
 2. Stack objects → docker-compose.yaml generators
@@ -2780,11 +2792,12 @@ Growth is linear and manageable (~30% increase).
 | Rename `class.compute.workload.container` → `.lxc` | All LXC instances | Global search-replace `class_ref` |
 | New Docker L4 instances | L5 Docker services | Update `target_ref` from L1 → L4 |
 | New `host_ref` validation | Existing containers | Already valid (all reference L1 hosts) |
-| New `cap.runtime.docker` | Docker hosts | Add capability to existing L1 instances |
+| Docker runtime capability contract | Docker hosts | Ensure `cap.compute.runtime.container_host` + `vendor.runtime.docker.host` |
 | `class.storage.volume` new fields | L3 volumes | Optional fields, backward compat |
 | `data_asset_ref` on L4 volumes | L4 LXC instances | Optional backfill, not required |
 | Multi-hypervisor VM classes | New only | No impact on existing entities |
-| `topology_scope` (Phase 4) | None initially | Opt-in, no existing files affected |
+| `topology_scope` (Phase 5) | None initially | Opt-in, no existing files affected |
 
-**Zero-downtime migration**: all changes are additive. Existing topology
-remains valid throughout. Deprecated patterns emit warnings, not errors.
+**Compatibility-first migration**: changes are implemented with transition aliases
+and warning-only validators before hard enforcement. Existing topology remains
+valid during transition, then deprecated patterns are removed at cutover gate.

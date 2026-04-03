@@ -2,8 +2,8 @@
 
 | Field | Value |
 |-------|-------|
-| **Status** | Proposed |
-| **Date** | 2025-07-12 |
+| **Status** | Accepted |
+| **Date** | 2026-04-03 |
 | **Deciders** | dmpr |
 | **Supersedes** | — |
 | **Related** | ADR 0026 (L3/L4 taxonomy), ADR 0034 (L4 modularization), ADR 0042 (L5 services), ADR 0064 (firmware/OS taxonomy) |
@@ -71,11 +71,13 @@ The old pattern (L5→L1) is deprecated with a WARNING.
 
 The container runtime (Docker Engine, LXC runtime, QEMU) is modeled as
 a capability on the host:
-- `cap.runtime.docker` — host can run Docker containers
-- `cap.runtime.lxc` — host can run LXC containers (implied by `class.compute.hypervisor.proxmox`)
-- `cap.runtime.qemu` — host can run QEMU VMs (implied by `class.compute.hypervisor.proxmox`)
+- `cap.compute.runtime.container_host` — host can run container workloads
+- `cap.compute.runtime.vm_host` — host can run VM workloads
+- `vendor.runtime.docker.host` — host explicitly provides Docker engine semantics
 
 Validators enforce: workload host must have matching runtime capability.
+For `class.compute.workload.docker`, host must be a container host and expose
+Docker runtime semantics.
 
 ### 4. L3↔L4 storage integration with disk image model
 
@@ -90,7 +92,7 @@ Compile-time validation chain:
 - `volume.format ∈ hypervisor.allowed_disk_formats` (L3↔L1 cross-layer)
 - `disk.bus ∈ hypervisor.allowed_disk_buses` (L4↔L1 cross-layer)
 
-### 5. Introduce topology scope for nested resources (Phase 4)
+### 5. Introduce topology scope for nested resources (Phase 5)
 
 Containers that host sub-containers (e.g., LXC with Docker inside) define
 a `topology_scope` with internal networks and shared volumes. Scope resolution:
@@ -98,7 +100,7 @@ a `topology_scope` with internal networks and shared volumes. Scope resolution:
 - Internal refs (`scope.{container}.*`) resolve within container scope
 - Maximum nesting depth: 2 levels
 
-### 5. Organize L4 instances by container type
+### 6. Organize L4 instances by container type
 
 ```
 projects/home-lab/topology/instances/L4-platform/
@@ -143,9 +145,10 @@ Detailed implementation plan: `adr/0087-analysis/IMPLEMENTATION-PLAN.md`
 - Topology file count grows ~30% at L3+L4 (mitigated by defaults inheritance)
 - Nested topology scope adds reference resolution complexity (mitigated by depth limit)
 - `platform_config` bag validation requires per-hypervisor schema maintenance
+- Migration is not purely additive because class rename and hypervisor split touch existing refs
 
 ## Analysis Artifacts
 
-- `adr/0087-analysis/GAP-ANALYSIS.md` — AS-IS vs TO-BE, 8 identified gaps
+- `adr/0087-analysis/GAP-ANALYSIS.md` — AS-IS vs TO-BE, 11 identified gaps
 - `adr/0087-analysis/ONTOLOGY-PROPOSAL.md` — Full ontology design with class definitions, examples, scaling analysis
 - `adr/0087-analysis/IMPLEMENTATION-PLAN.md` — Phase-by-phase implementation tasks
