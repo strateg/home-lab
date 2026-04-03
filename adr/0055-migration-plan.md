@@ -4,7 +4,7 @@
 
 ## Goal
 
-Добавить reviewable Terraform exception layer поверх generated baseline, не ломая контракты ADR 0052, ADR 0053 и ADR 0054.
+Добавить reviewable Terraform exception layer поверх generated baseline, не ломая контракты ADR 0052, ADR 0054 и текущего deploy-контракта ADR 0085 (historically ADR 0053).
 
 ## Preconditions
 

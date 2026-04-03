@@ -22,9 +22,10 @@ ADR 0055 is accepted and implemented:
   - tracked Terraform overrides
   - canonical local inputs
 
-ADR 0053 is implemented in opt-in form:
+ADR 0053 historically introduced opt-in `native`/`dist` mode split:
 - `native` remains the default operator workflow
 - `dist` is a separate explicit execution mode
+Current deploy execution contract is governed by ADR 0085 bundle-based model.
 
 That leaves one architectural compromise in place:
 - `native` execution still materializes local inputs and tracked Terraform overrides back into `generated/terraform/*`
@@ -278,6 +279,7 @@ Rule of thumb:
 
 - ADR 0051: Ansible Runtime, Inventory, and Secret Boundaries
 - ADR 0052: Deploy Package Assembly Over Accepted Ansible Runtime
-- ADR 0053: Optional Dist-First Deploy Cutover
+- ADR 0053: Optional Dist-First Deploy Cutover (superseded by ADR 0085)
+- ADR 0085: Deploy Bundle and Runner Workspace Contract
 - ADR 0054: Local Inputs Directory
 - ADR 0055: Manual Terraform Extension Layer

@@ -14,7 +14,8 @@ Harmonization note (2026-03-09):
 
 ADR 0050 established `generated/` as the canonical home for generated artifacts.
 ADR 0052 established `dist/` as the assembled deploy package root.
-ADR 0053 established explicit `native` and `dist` execution modes.
+ADR 0053 historically introduced explicit `native` and `dist` execution modes.
+Current deploy execution contract is governed by ADR 0085 bundle-based model.
 
 Manual tracked Terraform extensions are a separate concern from operator local inputs.
 That exception layer is decided by ADR 0055 and is intentionally not modeled through `local/`.
@@ -320,5 +321,6 @@ After ADR 0054 is accepted and implementation is stable:
 - ADR 0050: Generated Directory Restructuring
 - ADR 0051: Ansible Runtime, Inventory, and Secret Boundaries
 - ADR 0052: Deploy Package Assembly Over Accepted Ansible Runtime
-- ADR 0053: Optional Dist-First Deploy Cutover
+- ADR 0053: Optional Dist-First Deploy Cutover (superseded by ADR 0085)
+- ADR 0085: Deploy Bundle and Runner Workspace Contract
 - ADR 0055: Manual Terraform Extension Layer

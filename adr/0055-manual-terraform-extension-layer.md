@@ -14,7 +14,8 @@ ADR 0052 established generated Terraform roots as canonical topology-derived out
 - `generated/terraform/mikrotik/`
 - `generated/terraform/proxmox/`
 
-ADR 0053 established explicit `native` and `dist` execution modes.
+ADR 0053 historically established explicit `native` and `dist` execution modes.
+Current deploy execution contract is governed by ADR 0085 bundle-based model.
 
 ADR 0054 separates operator local inputs from generated outputs:
 - `terraform.tfvars` and bootstrap materialization belong in `local/`
@@ -178,6 +179,7 @@ ADR 0055 does not:
 ## References
 
 - ADR 0052: Deploy Package Assembly Over Accepted Ansible Runtime
-- ADR 0053: Optional Dist-First Deploy Cutover
+- ADR 0053: Optional Dist-First Deploy Cutover (superseded by ADR 0085)
+- ADR 0085: Deploy Bundle and Runner Workspace Contract
 - ADR 0054: Local Inputs Directory
 - `generated/terraform/`
