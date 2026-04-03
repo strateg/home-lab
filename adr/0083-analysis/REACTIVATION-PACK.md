@@ -83,6 +83,9 @@ task deploy:init-status
 
 # 4) Run bundled non-destructive smoke pack (status + all-pending plan + node plan)
 task deploy:init-reactivation-smoke BUNDLE=<bundle_id> NODE=rtr-mikrotik-chateau PHASE=bootstrap
+
+# 5) Render evidence markdown snapshot
+task validate:adr0083-reactivation-evidence BUNDLE=<bundle_id>
 ```
 
 Optional environment guard for WSL/Linux:
@@ -95,6 +98,12 @@ For workstation-side dry verification when runner/toolchain checks are handled s
 
 ```bash
 task deploy:init-reactivation-smoke BUNDLE=<bundle_id> SKIP_ENVIRONMENT_CHECK=true
+```
+
+One-shot wrapper (recommended):
+
+```bash
+task deploy:init-reactivation-pack BUNDLE=<bundle_id> SKIP_ENVIRONMENT_CHECK=true
 ```
 
 If a full execution rehearsal is approved, start with one node only:

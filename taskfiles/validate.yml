@@ -129,3 +129,8 @@ tasks:
     desc: Enforce ADR0083 reactivation readiness gate (non-hardware checks only)
     cmds:
       - "{{.PYTHON}} scripts/validation/report_adr0083_reactivation.py --project-id home-lab --fail-on-not-ready --output-json build/diagnostics/adr0083-reactivation.json"
+
+  adr0083-reactivation-evidence:
+    desc: Render ADR0083 reactivation evidence markdown from diagnostics snapshots
+    cmds:
+      - "{{.PYTHON}} scripts/validation/render_adr0083_reactivation_evidence.py {{if .BUNDLE}}--bundle {{.BUNDLE}}{{end}} --output-md build/diagnostics/adr0083-reactivation-evidence.md"

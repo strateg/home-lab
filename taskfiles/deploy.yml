@@ -118,6 +118,24 @@ tasks:
           PHASE: '{{default "bootstrap" .PHASE}}'
           SKIP_ENVIRONMENT_CHECK: "{{.SKIP_ENVIRONMENT_CHECK}}"
 
+  init-reactivation-pack:
+    desc: ADR0083 reactivation pack runner (readiness gate + smoke + evidence markdown)
+    requires:
+      vars:
+        - BUNDLE
+    cmds:
+      - task: :validate:adr0083-reactivation-gate
+      - task: init-reactivation-smoke
+        vars:
+          BUNDLE: "{{.BUNDLE}}"
+          NODE: "{{.NODE}}"
+          DEPLOY_RUNNER: "{{.DEPLOY_RUNNER}}"
+          PHASE: "{{.PHASE}}"
+          SKIP_ENVIRONMENT_CHECK: "{{.SKIP_ENVIRONMENT_CHECK}}"
+      - task: :validate:adr0083-reactivation-evidence
+        vars:
+          BUNDLE: "{{.BUNDLE}}"
+
   service-chain-evidence-dry:
     desc: Execute dry service-chain lane and write evidence report
     cmds:

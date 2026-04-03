@@ -509,6 +509,7 @@ task validate:adr-consistency
 # ADR0083 reactivation readiness snapshot/gate (non-hardware checks)
 task validate:adr0083-reactivation
 task validate:adr0083-reactivation-gate
+task validate:adr0083-reactivation-evidence
 ```
 
 ### Quality Gates

@@ -26,6 +26,7 @@ task validate:adr0047-trigger      # ADR0047 alerts/services trigger report
 task validate:adr0047-trigger-gate # Fail when alerts>50 or services>30
 task validate:adr0083-reactivation # ADR0083 reactivation readiness snapshot
 task validate:adr0083-reactivation-gate # Fail when ADR0083 non-hardware readiness is not met
+task validate:adr0083-reactivation-evidence # Render ADR0083 readiness evidence markdown
 task validate:adr-consistency      # ADR register/file consistency check
 task validate:workspace-layout     # Root workspace structure
 ```

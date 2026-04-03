@@ -55,6 +55,7 @@ jobs:
             build/diagnostics/module-growth.json
             build/diagnostics/adr0047-trigger.json
             build/diagnostics/adr0083-reactivation.json
+            build/diagnostics/adr0083-reactivation-evidence.md
           if-no-files-found: warn
 
   test:

@@ -77,6 +77,12 @@ task deploy:init-reactivation-smoke BUNDLE=b-123
 task deploy:init-reactivation-smoke BUNDLE=b-123 NODE=rtr-mikrotik-chateau PHASE=bootstrap DEPLOY_RUNNER=native
 ```
 
+### ADR0083 Reactivation Pack (Gate + Smoke + Evidence)
+
+```bash
+task deploy:init-reactivation-pack BUNDLE=b-123 SKIP_ENVIRONMENT_CHECK=true
+```
+
 ### Run (Single Node)
 
 ```bash
