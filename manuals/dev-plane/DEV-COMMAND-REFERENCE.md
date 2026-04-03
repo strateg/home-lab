@@ -267,6 +267,10 @@ task ci:topology-parity-v4-current # Parity lane against archive v4 baseline
 task ci:legacy-maintenance         # Legacy maintenance lane
 ```
 
+`ci:_strict-validate-core` also runs:
+- `task validate:adr-consistency`
+- `task validate:adr0047-trigger`
+
 ---
 
 ## Acceptance Commands
