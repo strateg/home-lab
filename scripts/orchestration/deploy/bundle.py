@@ -42,6 +42,7 @@ class BundleInfo:
     created_at: str
     topology_hash: str
     secrets_hash: str
+    existing: bool = False
 
 
 def resolve_bundles_root(repo_root: Path) -> Path:
@@ -74,7 +75,18 @@ def create_bundle(
     bundle_id = compute_bundle_id(project_id=project_id, topology_hash=topology_hash, secrets_hash=secrets_hash)
     bundle_path = bundles / bundle_id
     if bundle_path.exists():
-        raise FileExistsError(f"Bundle already exists and is immutable: {bundle_path}")
+        if not bundle_path.is_dir():
+            raise FileExistsError(f"Bundle path exists and is not a directory: {bundle_path}")
+        payload = inspect_bundle(bundle_path, verify_checksums=True)
+        existing_created_at = str(payload.get("manifest", {}).get("created_at", ""))
+        return BundleInfo(
+            bundle_id=bundle_id,
+            bundle_path=bundle_path,
+            created_at=existing_created_at or utc_now(),
+            topology_hash=topology_hash,
+            secrets_hash=secrets_hash,
+            existing=True,
+        )
 
     bundles.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="bundle-", dir=str(bundles)) as tmp_dir:
@@ -400,7 +412,13 @@ def _decrypt_secrets(secrets_root: Path) -> dict[str, str]:
 
     decrypted: dict[str, str] = {}
     candidates = sorted(
-        [item for item in secrets_root.rglob("*") if item.is_file() and item.suffix.lower() in {".yaml", ".yml"}],
+        [
+            item
+            for item in secrets_root.rglob("*")
+            if item.is_file()
+            and item.suffix.lower() in {".yaml", ".yml"}
+            and item.name.lower() not in {".sops.yaml", ".sops.yml"}
+        ],
         key=lambda path: path.relative_to(secrets_root).as_posix(),
     )
     for path in candidates:
@@ -499,7 +517,16 @@ def main(argv: list[str] | None = None) -> int:
             inject_secrets=bool(args.inject_secrets),
             secrets_root=secrets_root,
         )
-        print(json.dumps({"bundle_id": info.bundle_id, "bundle_path": str(info.bundle_path)}, ensure_ascii=True))
+        print(
+            json.dumps(
+                {
+                    "bundle_id": info.bundle_id,
+                    "bundle_path": str(info.bundle_path),
+                    "existing": bool(info.existing),
+                },
+                ensure_ascii=True,
+            )
+        )
         return 0
 
     if args.command == "list":

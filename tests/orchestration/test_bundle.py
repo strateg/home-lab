@@ -70,8 +70,11 @@ def test_bundle_secret_injection_uses_sops(monkeypatch: pytest.MonkeyPatch, tmp_
     bundles_root = tmp_path / ".work" / "deploy" / "bundles"
     secrets_root = tmp_path / "projects" / "home-lab" / "secrets"
     _write(secrets_root / "instances" / "node-a.yaml", "encrypted: true\n")
+    _write(secrets_root / ".sops.yaml", "creation_rules: []\n")
+    calls: list[list[str]] = []
 
     def fake_run(cmd: list[str], capture_output: bool, text: bool, check: bool) -> SimpleNamespace:
+        calls.append(cmd)
         assert cmd[0] == "sops"
         assert cmd[1] == "--decrypt"
         assert capture_output is True
@@ -92,6 +95,7 @@ def test_bundle_secret_injection_uses_sops(monkeypatch: pytest.MonkeyPatch, tmp_
     secret_target = info.bundle_path / "artifacts" / "secrets" / "instances" / "node-a.yaml"
     assert secret_target.exists()
     assert "password: secret" in secret_target.read_text(encoding="utf-8")
+    assert len(calls) == 1
 
 
 def test_bundle_create_fails_without_materializing_secrets_on_sops_error(
@@ -202,10 +206,11 @@ def test_bundle_checksum_verification_detects_modification(tmp_path: Path) -> No
     assert any(item.startswith("mismatch:artifacts/generated/terraform/proxmox/main.tf") for item in mismatches_after)
 
 
-def test_bundle_immutability_rejects_overwrite(tmp_path: Path) -> None:
+def test_bundle_create_is_idempotent_for_existing_immutable_bundle(tmp_path: Path) -> None:
     generated_root = _build_generated_root(tmp_path)
     bundles_root = tmp_path / ".work" / "deploy" / "bundles"
-    create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+    first = create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+    second = create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
 
-    with pytest.raises(FileExistsError, match="immutable"):
-        create_bundle(project_id="home-lab", generated_root=generated_root, bundles_root=bundles_root)
+    assert first.bundle_id == second.bundle_id
+    assert second.existing is True
