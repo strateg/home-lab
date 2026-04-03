@@ -1,5 +1,7 @@
 # ADR 0053: Migration Plan
 
+> Status note (2026-04-03): ADR 0053 is superseded by ADR 0085. This plan is retained for historical context.
+
 План для опционального `dist`-first cutover поверх уже принятых ADR 0051 и ADR 0052.
 
 ## Preconditions

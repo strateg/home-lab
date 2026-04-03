@@ -115,6 +115,6 @@ tasks:
       - "{{.PYTHON}} scripts/validation/report_adr0047_trigger.py --project-id home-lab --alerts-threshold 50 --services-threshold 30 --fail-on-trigger --output-json build/diagnostics/adr0047-trigger.json"
 
   adr-consistency:
-    desc: Validate ADR register/file consistency (non-strict titles, no symmetry gate)
+    desc: Validate ADR register/file consistency (strict titles, no symmetry gate)
     cmds:
-      - "{{.PYTHON}} scripts/validation/check_adr_consistency.py --adr-dir adr --register adr/REGISTER.md"
+      - "{{.PYTHON}} scripts/validation/check_adr_consistency.py --adr-dir adr --register adr/REGISTER.md --strict-titles"
