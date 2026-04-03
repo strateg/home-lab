@@ -171,6 +171,52 @@ task deploy:docker-toolchain-smoke -- DOCKER_IMAGE=my-toolchain:v1
 
 ---
 
+## Cleanup Commands
+
+### Clean Runner Workspace
+
+```bash
+# Preview only
+task deploy:clean-runner-workspace -- DRY_RUN=true
+
+# Execute
+task deploy:clean-runner-workspace -- CONFIRM_PURGE=YES
+```
+
+### Clean Bundles
+
+```bash
+# Preview bundle cleanup (all project bundles)
+task deploy:clean-bundles -- DRY_RUN=true
+
+# Keep newest 5 bundles, delete older
+task deploy:clean-bundles -- KEEP=5 CONFIRM_PURGE=YES
+
+# Delete all project bundles
+task deploy:clean-bundles -- CONFIRM_PURGE=YES
+```
+
+### Clean Deploy State
+
+```bash
+# Preview state reset
+task deploy:clean-state -- DRY_RUN=true
+
+# Execute state reset
+task deploy:clean-state -- CONFIRM_PURGE=YES
+```
+
+### Cleanup Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `DRY_RUN` | Preview cleanup without deleting files | `false` |
+| `CONFIRM_PURGE` | Required for destructive cleanup | - |
+| `KEEP` | For `deploy:clean-bundles`: keep newest N bundles | `0` |
+| `PROJECT_ID` | Project scope for cleanup | `home-lab` |
+
+---
+
 ## Python CLI Direct Usage
 
 ### bundle.py
@@ -196,6 +242,31 @@ python scripts/orchestration/deploy/bundle.py inspect \
 python scripts/orchestration/deploy/bundle.py delete \
   --repo-root . \
   --bundle b-123456
+```
+
+### cleanup.py
+
+```bash
+# Runner workspace cleanup (preview)
+python scripts/orchestration/deploy/cleanup.py \
+  --repo-root . \
+  --project-id home-lab \
+  --dry-run \
+  runner-workspace
+
+# Bundle cleanup (keep 5 newest)
+python scripts/orchestration/deploy/cleanup.py \
+  --repo-root . \
+  --project-id home-lab \
+  --confirm \
+  bundles --keep 5
+
+# State cleanup
+python scripts/orchestration/deploy/cleanup.py \
+  --repo-root . \
+  --project-id home-lab \
+  --confirm \
+  state
 ```
 
 ### init-node.py

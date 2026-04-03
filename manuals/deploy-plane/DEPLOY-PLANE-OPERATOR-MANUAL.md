@@ -472,6 +472,23 @@ task deploy:init-node-run -- \
 | `--deploy-runner` | Override runner (native/wsl/docker/remote) |
 | `--skip-environment-check` | Skip deploy environment validation |
 
+### Cleanup Operations
+
+Use deploy-plane cleanup tasks for operator-side maintenance. Destructive cleanup requires explicit confirmation.
+
+```bash
+# Preview runner workspace cleanup
+task deploy:clean-runner-workspace -- DRY_RUN=true
+
+# Preview and prune old bundles (keep newest 5)
+task deploy:clean-bundles -- DRY_RUN=true KEEP=5
+task deploy:clean-bundles -- KEEP=5 CONFIRM_PURGE=YES
+
+# Reset deploy-state for project
+task deploy:clean-state -- DRY_RUN=true
+task deploy:clean-state -- CONFIRM_PURGE=YES
+```
+
 ---
 
 ## Service Chain Execution
@@ -729,6 +746,10 @@ task deploy:init-node-run -- \
   BUNDLE=<bundle_id> \
   NODE=<node_id> \
   SKIP_ENVIRONMENT_CHECK=true
+
+# Cleanup (operator maintenance)
+task deploy:clean-bundles -- KEEP=5 CONFIRM_PURGE=YES
+task deploy:clean-runner-workspace -- CONFIRM_PURGE=YES
 ```
 
 ---

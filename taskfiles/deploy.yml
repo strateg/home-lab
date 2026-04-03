@@ -24,6 +24,30 @@ tasks:
       - "docker run --rm {{default \"homelab-toolchain:latest\" .DOCKER_IMAGE}} terraform version"
       - "docker run --rm {{default \"homelab-toolchain:latest\" .DOCKER_IMAGE}} ansible-playbook --version"
 
+  clean-runner-workspace:
+    desc: Clean local deploy runner workspace caches for project (set DRY_RUN=true or CONFIRM_PURGE=YES)
+    preconditions:
+      - sh: 'test "{{.DRY_RUN}}" = "true" || test "{{.CONFIRM_PURGE}}" = "YES"'
+        msg: "Set DRY_RUN=true for preview, or CONFIRM_PURGE=YES to execute."
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/cleanup.py --repo-root . --project-id {{.PROJECT_ID}} {{if .DRY_RUN}}--dry-run{{else}}--confirm{{end}} runner-workspace"
+
+  clean-bundles:
+    desc: Clean deploy bundles for project (KEEP=<n> keeps newest; set DRY_RUN=true or CONFIRM_PURGE=YES)
+    preconditions:
+      - sh: 'test "{{.DRY_RUN}}" = "true" || test "{{.CONFIRM_PURGE}}" = "YES"'
+        msg: "Set DRY_RUN=true for preview, or CONFIRM_PURGE=YES to execute."
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/cleanup.py --repo-root . --project-id {{.PROJECT_ID}} {{if .DRY_RUN}}--dry-run{{else}}--confirm{{end}} bundles --keep {{default \"0\" .KEEP}}"
+
+  clean-state:
+    desc: Reset deploy-state for project and recreate scaffold dirs (set DRY_RUN=true or CONFIRM_PURGE=YES)
+    preconditions:
+      - sh: 'test "{{.DRY_RUN}}" = "true" || test "{{.CONFIRM_PURGE}}" = "YES"'
+        msg: "Set DRY_RUN=true for preview, or CONFIRM_PURGE=YES to execute."
+    cmds:
+      - "{{.PYTHON}} scripts/orchestration/deploy/cleanup.py --repo-root . --project-id {{.PROJECT_ID}} {{if .DRY_RUN}}--dry-run{{else}}--confirm{{end}} state"
+
   init-status:
     desc: Show ADR0083 init-node scaffold state summary
     cmds:

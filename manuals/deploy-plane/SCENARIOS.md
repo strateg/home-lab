@@ -454,15 +454,14 @@ task deploy:init-node-run -- \
 # 1. Backup current state
 cp -r .work/deploy-state/home-lab .work/deploy-state/home-lab.backup
 
-# 2. Remove state
-rm -rf .work/deploy-state/home-lab/nodes/*
-rm -rf .work/deploy-state/home-lab/logs/*
+# 2. Reset deploy-state via deploy cleanup task
+task deploy:clean-state -- CONFIRM_PURGE=YES
 
 # 3. Rebuild and recreate
 task build:default
 task bundle:create
 
-# 4. Import existing nodes (don't re-bootstrap)
+# 4. Import existing nodes (don't run install/recovery again)
 task deploy:init-all-pending-run -- \
   BUNDLE=b-new \
   IMPORT_EXISTING=true

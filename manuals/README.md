@@ -75,6 +75,9 @@ Quality and verification layer for local and CI gates.
 ### For Operators
 
 ```bash
+# Optional: preview operator cleanup
+task deploy:clean-bundles -- DRY_RUN=true KEEP=5
+
 # Build and create deploy bundle
 task build:default
 task bundle:create
