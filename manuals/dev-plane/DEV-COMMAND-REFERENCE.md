@@ -53,9 +53,19 @@ task build:docs-validate        # Build + Mermaid render validation
 ### Cleanup
 
 ```bash
+task clean                         # Root alias to build:clean-generated
 task build:clean-generated         # Remove generated artifacts
 task build:clean-generated-dry     # Preview cleanup
 ```
+
+`task clean` / `task build:clean-generated` remove and recreate build outputs used by the dev plane:
+- `generated/` (recreated)
+- `generated-artifacts/`
+- `build/diagnostics/`
+- `build/test-artifacts/`
+- `build/effective-topology.json`
+- `build/effective-topology.yaml`
+- `build/plugin-execution-trace.json`
 
 ### Terraform Variables
 

@@ -90,6 +90,9 @@ task deploy:init-node-run -- BUNDLE=<id> NODE=<node>
 ### For Developers
 
 ```bash
+# Optional: reset generated/runtime artifacts before rebuild
+task clean
+
 # Validate topology
 task validate:passthrough
 
