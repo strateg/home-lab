@@ -117,7 +117,7 @@
 
 **Owner:** Architecture governance
 **ETA:** End of week 2
-**Status:** `TODO`
+**Status:** `DONE` (2026-04-03)
 
 **Tasks**
 - Run ADR consistency gate (script path is implementation-dependent):
@@ -140,7 +140,7 @@
 | S2-1 | ADR 0082 Phase 1 implementation | Runtime + CI | Week 2 | DONE (2026-04-03) |
 | S2-2 | ADR 0053 status resolution | Architecture + Deploy | Week 2 | DONE (2026-04-03) |
 | S2-3 | ADR 0047 trigger monitoring policy | Observability + Architecture | Week 2 | DONE (2026-04-03) |
-| S2-4 | Final governance alignment | Architecture governance | Week 2 | TODO |
+| S2-4 | Final governance alignment | Architecture governance | Week 2 | DONE (2026-04-03) |
 
 ---
 
