@@ -2804,7 +2804,8 @@ For existing project constraints (group directory remains required by compiler),
 L4 uses group-compatible host sharding in migration phase:
 - `L4-platform/lxc/<host-shard>/<instance>.yaml`
 - `L4-platform/docker/<host-shard>/<instance>.yaml`
-- `L4-platform/vm|vms/<host-shard>/<instance>.yaml`
+- `L4-platform/vm/<host-shard>/<instance>.yaml` (canonical)
+- `L4-platform/vms/<host-shard>/<instance>.yaml` (legacy alias during transition)
 
 ### 9.4 File Count Projection
 

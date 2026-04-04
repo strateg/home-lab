@@ -145,7 +145,7 @@ projects/home-lab/topology/instances/L5-application/services/
 
 Sharding rule:
 - L4 path format: `L4-platform/<workload-kind>/<host-shard>/<instance>.yaml`
-  (migration-compatible with current compiler group checks for `lxc/docker/vm|vms`)
+  (canonical workload-kind is `vm`; legacy `vms` accepted only during transition)
 - L5 path format: `L5-application/services/<host-shard>/<service>.yaml`
 - `host-shard` maps to `host_ref` for L4 workloads and runtime host target for L5 services.
 - Legacy flat layout remains supported only during transition and emits warnings.

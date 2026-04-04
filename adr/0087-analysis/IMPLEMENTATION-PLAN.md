@@ -120,12 +120,14 @@
 |------|-------|
 | Create `L4-platform/vm/{host}/` directories | New directory layout |
 | Create Proxmox VM instances (when needed) | On demand |
+| Keep temporary alias for `L4-platform/vms/{host}/` if present | Migration-only compatibility path |
 
 ### 3.4 Acceptance Gate
 
 - [ ] VM with Proxmox platform_config compiles on Proxmox host
 - [ ] VM with VBox platform_config fails on Proxmox host (expected error)
 - [ ] VM with vmdk format fails on Hyper-V host (expected error)
+- [ ] Canonical VM path is `L4-platform/vm/{host}/`; `vms` path (if any) emits deprecation warning
 - [ ] All tests pass
 
 ---
