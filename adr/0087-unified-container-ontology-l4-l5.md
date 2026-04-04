@@ -107,6 +107,73 @@ a `topology_scope` with internal networks and shared volumes. Scope resolution:
 - External refs (`inst.*`) resolve in parent scope
 - Internal refs (`scope.{container}.*`) resolve within container scope
 - Maximum nesting depth: 2 levels
+- Anti-cycle invariant: `host_ref` graph must be a DAG — validator runs
+  DFS-based cycle detection at compile time and rejects any cycle
+  (A.host_ref → B, B.host_ref → A) or depth > 2 (see `ONTOLOGY-PROPOSAL.md` §3.5)
+
+### 5a. VM storage invariants
+
+VM disk lists carry structural invariants enforced by validators:
+- Each disk must have a unique `disk_id` within the VM instance
+- Each `bus:slot` pair (e.g., `scsi:0`, `ide:2`) must be unique per VM
+- Exactly one disk with `role: boot` must exist (zero or two+ is an error)
+- `boot_order` list must reference only existing `disk_id` values
+- Non-ephemeral disks (all except `cloudinit`) must have a `volume_ref`
+
+### 5b. Deprecation policy
+
+Pattern transitions follow a three-stage lifecycle:
+1. **WARNING** — old pattern compiles but emits deprecation diagnostic
+2. **ERROR** — old pattern fails compilation (enforced after stabilization window;
+   `--allow-deprecated` flag available as temporary CI escape hatch)
+3. **REMOVAL** — old alias/code deleted from codebase; escape hatch removed
+
+Schedule is phase-relative (see `ONTOLOGY-PROPOSAL.md` §11.1 for full table):
+- `class.compute.workload.container` alias: WARNING at Phase 1, ERROR at Phase 3
+- L5→L1 Docker target_ref: WARNING at Phase 1, ERROR at Phase 3
+- `L4-platform/vms/` alias: WARNING at Phase 3, ERROR at Phase 4
+- All deprecated patterns removed at Phase 6 GA
+
+### 5c. Path contract migration
+
+Current runtime validates `<layer-bucket>/<group>/<instance>.yaml` (3 segments).
+Host-sharded layout is `<layer-bucket>/<group>/<host-shard>/<instance>.yaml` (4 segments).
+Migration approach:
+- Loader accepts both 3-segment and 4-segment paths during transition
+- `group` field in YAML payload remains the canonical group (`lxc`, `docker`, `vm`)
+- `host-shard` segment is validated against `host_ref` but is NOT a group
+- After cutover: 3-segment paths for L4/L5 sharded groups emit ERROR
+
+### 5d. Docker host_ref semantics
+
+Docker class defines `host_ref` inherited from base `class.compute.workload`.
+For Docker containers the host may be:
+- L1 device (direct Docker host, e.g., `srv-orangepi5`)
+- L4 LXC container (Docker-in-LXC, e.g., `lxc-docker`)
+
+Validators resolve `host_ref` target and check it exposes both
+`cap.compute.runtime.container_host` and `vendor.runtime.docker.host`.
+
+### 5e. Mixed-mode hypervisor instance selection
+
+For platforms with `execution_model_support: [bare_metal, hosted]`,
+each hypervisor **instance** must declare `execution_model` explicitly
+(choosing one of the supported values). The corresponding linkage ref
+(`hardware_ref` or `host_os_ref`) is then validated as required.
+
+### 5f. Runtime capability schema contract
+
+Runtime capabilities follow a two-tier schema:
+- **Common capability** (`cap.compute.runtime.container_host`,
+  `cap.compute.runtime.vm_host`) — framework-defined with required fields:
+  `runtime_type`, `runtime_version`, `api_endpoint`, optional `features[]`.
+- **Vendor capability** (`vendor.runtime.docker.host`,
+  `vendor.runtime.routeros.container`, etc.) — extends the common capability
+  with platform-specific properties (socket, compose_version, etc.).
+
+Vendor capabilities implicitly satisfy their parent common capability.
+Validators resolve this inheritance chain when checking workload host
+requirements. Full schema definitions: `ONTOLOGY-PROPOSAL.md` §5.3.
 
 ### 6. Organize L4 and L5 by host/device sharding
 

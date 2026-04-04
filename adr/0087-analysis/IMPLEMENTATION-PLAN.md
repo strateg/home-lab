@@ -36,6 +36,7 @@
 | Task | Files |
 |------|-------|
 | Add `validate-container-host-capability` plugin | `topology-tools/plugins/validators/` |
+| Add `validate-host-ref-dag` plugin (anti-cycle + depth check) | `topology-tools/plugins/validators/` |
 | Add deprecated-pattern warning for L5→L1 Docker refs | Update existing target_ref validator |
 | Add host-shard placement validator for L4/L5 | Validate path host segment vs `host_ref` / runtime host |
 
@@ -46,6 +47,8 @@
 | Unit tests for new class hierarchy | `tests/` |
 | Validate compile succeeds with new classes | `tests/plugin_integration/` |
 | Validate existing LXC instances compile correctly | Regression |
+| Negative test: host_ref cycle → ERROR | `tests/` |
+| Negative test: host_ref depth > 2 → ERROR | `tests/` |
 
 ### 1.6 Acceptance Gate
 
@@ -55,6 +58,7 @@
 - [ ] Every L5 service has `target_ref` pointing to L4 (no L1 Docker refs)
 - [ ] Docker-capable hosts declare `cap.compute.runtime.container_host` and `vendor.runtime.docker.host`
 - [ ] L4 and L5 files follow host-sharded path policy
+- [ ] host_ref cycle detection works (negative test passes)
 
 ---
 
@@ -113,6 +117,10 @@
 | Validate disk.bus ∈ hypervisor.allowed_disk_buses | Part of above |
 | Validate platform_config against hypervisor.platform_config_schema | Part of above |
 | Validate boot disk presence (exactly 1 disk with role: boot) | Part of above |
+| Validate disk_id uniqueness within VM instance | Part of above |
+| Validate bus:slot uniqueness within VM instance | Part of above |
+| Validate boot_order entries reference existing disk_id values | Part of above |
+| Validate non-ephemeral disks have volume_ref | Part of above |
 
 ### 3.3 Instances
 
@@ -127,6 +135,9 @@
 - [ ] VM with Proxmox platform_config compiles on Proxmox host
 - [ ] VM with VBox platform_config fails on Proxmox host (expected error)
 - [ ] VM with vmdk format fails on Hyper-V host (expected error)
+- [ ] Duplicate disk_id in VM → ERROR
+- [ ] Duplicate bus:slot in VM → ERROR
+- [ ] boot_order referencing nonexistent disk_id → ERROR
 - [ ] Canonical VM path is `L4-platform/vm/{host}/`; `vms` path (if any) emits deprecation warning
 - [ ] All tests pass
 
@@ -243,3 +254,81 @@ Phase 3 requires Phase 2 (hypervisor classes needed for VM validation).
 Phase 4 requires Phase 1 + Phase 3 (volumes need both workload types and hypervisor constraints).
 Phase 5 requires Phase 1 only.
 Phase 6 requires Phase 5.
+
+---
+
+## Migration Gates
+
+Each phase has a **go/no-go gate** that must pass before the next dependent
+phase starts. Gates are verified by running the acceptance checklist AND
+confirming the invariants below.
+
+### Phase 1 → Phase 3/4/5 Gate
+
+| # | Criterion | How to verify |
+|---|-----------|---------------|
+| 1 | All existing tests pass (`pytest tests -q`) | CI green |
+| 2 | Topology compiles without errors | `compile-topology.py` exit 0 |
+| 3 | `validate-v5` passes | `lane.py validate-v5` exit 0 |
+| 4 | No L5 Docker service has `target_ref` → L1 | grep audit |
+| 5 | Host-sharded L4/L5 layout in place | Directory structure audit |
+| 6 | Deprecated pattern warnings emitted (not errors) | Compiler stderr review |
+| 7 | Feature flag `ADR0087_PHASE1` set in `framework.lock.yaml` | File check |
+
+### Phase 2 → Phase 3 Gate
+
+| # | Criterion | How to verify |
+|---|-----------|---------------|
+| 1 | All existing tests pass | CI green |
+| 2 | `obj.proxmox.ve` references `class.compute.hypervisor.proxmox` | Instance audit |
+| 3 | Hypervisor execution model linkage validates | Validation pass |
+| 4 | New hypervisor classes load without error | `compile-topology.py` |
+
+### Phase 3 → Phase 4 Gate
+
+| # | Criterion | How to verify |
+|---|-----------|---------------|
+| 1 | VM class compiles with `platform_config` validation | Test case |
+| 2 | Cross-hypervisor mismatch detected as ERROR | Negative test |
+| 3 | `disk_id` uniqueness enforced | Negative test |
+| 4 | `bus:slot` dedup enforced | Negative test |
+| 5 | `boot_order` integrity enforced | Negative test |
+
+### Phase 4 → Phase 5/6 Gate
+
+| # | Criterion | How to verify |
+|---|-----------|---------------|
+| 1 | Volume format ↔ pool validation works | Positive + negative tests |
+| 2 | Volume format ↔ hypervisor validation works | Positive + negative tests |
+| 3 | `data_asset_ref` backfill complete for critical volumes | Instance audit |
+
+---
+
+## Rollback Procedures
+
+Each phase is designed for safe rollback. The key principle is:
+**aliases and feature flags allow instant revert by configuration, not code deletion.**
+
+### General Rollback Strategy
+
+1. **Feature flags**: Each phase sets a flag in `framework.lock.yaml`
+   (e.g., `ADR0087_PHASE1: true`). Reverting the flag disables new behavior.
+
+2. **Alias retention**: Old class names (`.container`), old paths (`vms/`),
+   old patterns (L5→L1) remain functional during WARNING phase. Rollback =
+   just keep using old patterns (warnings are non-blocking).
+
+3. **Git revert**: Each phase is merged as a single squash commit (or a
+   clearly bounded set of commits). `git revert <phase-commit>` is always
+   an option if flag-based rollback is insufficient.
+
+### Phase-Specific Rollback
+
+| Phase | Rollback action | Data safety |
+|-------|----------------|-------------|
+| **Phase 1** | Revert `ADR0087_PHASE1` flag; old class `.container` still works via alias; L5→L1 Docker refs still accepted (were only WARNING) | No data loss — new L4 Docker files are additive |
+| **Phase 2** | Revert hypervisor class split; `class.compute.hypervisor` continues as monolithic class; new subclasses become unused | No data loss — existing Proxmox refs unchanged |
+| **Phase 3** | Remove VM instances + class; hypervisor constraint validation disabled | No data loss — VMs are new entities |
+| **Phase 4** | Revert volume schema additions (optional fields, backward compat); remove new validators | No data loss — new L3 fields are optional |
+| **Phase 5** | Remove `topology_scope` from instances; disable scope resolution in compiler | No data loss — scope is opt-in |
+| **Phase 6** | Remove stack objects + generator plugin | No data loss — stacks are new entities |

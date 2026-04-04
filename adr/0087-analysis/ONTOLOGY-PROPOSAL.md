@@ -181,7 +181,9 @@ properties:
   boot_order:
     type: list
     items: { type: string }
-    description: Ordered list of boot devices (hypervisor-specific syntax)
+    description: >
+      Ordered list of disk_id values defining boot priority.
+      Every entry MUST reference an existing disk_id in disks[].
 
   disks:
     type: list
@@ -189,6 +191,12 @@ properties:
     items:
       type: object
       properties:
+        disk_id:
+          type: string
+          required: true
+          description: >
+            Unique identifier within this VM instance (e.g., "boot0", "data1",
+            "cdrom0"). Used by boot_order and cross-references.
         role:
           type: enum
           values: [boot, data, cdrom, efivars, cloudinit, swap, scratch]
@@ -200,7 +208,7 @@ properties:
           type: enum
           values: [scsi, virtio, ide, sata, nvme, xvd]
           description: Virtual bus (validated against hypervisor.allowed_disk_buses)
-        slot: { type: string, description: "Bus slot ID (e.g., scsi0, sata1)" }
+        slot: { type: string, description: "Bus slot ID (e.g., 0, 1, 2)" }
         cache:
           type: enum
           values: [none, writeback, writethrough, directsync, unsafe]
@@ -942,6 +950,59 @@ No further nesting. This covers all practical home lab scenarios:
 - Proxmox → VM → Docker containers (future)
 - MikroTik → containerD containers
 
+### 3.5 Anti-Cycle Invariant (DAG Enforcement)
+
+The `host_ref` / `runtime_host_ref` relationship graph MUST form a
+**Directed Acyclic Graph (DAG)**. Any cycle is a compile-time ERROR.
+
+**Invariant**: For every workload W, the chain
+`W.host_ref → H.host_ref → ... → L1 device` must terminate at an L1
+device within `max_depth` hops without revisiting any node.
+
+**Detection algorithm** (compile phase):
+
+```
+function validate_host_dag(all_workloads):
+    visiting = {}   # node → GREY (in-progress) | BLACK (done)
+
+    for each workload W in all_workloads:
+        if W not in visiting:
+            dfs(W, visiting, depth=0)
+
+function dfs(node, visiting, depth):
+    if depth > MAX_NESTING_DEPTH (2):
+        ERROR "host_ref chain exceeds max depth at {node.id}"
+    if visiting[node] == GREY:
+        ERROR "cycle detected: {node.id} is part of a host_ref cycle"
+    if visiting[node] == BLACK:
+        return   # already validated
+
+    visiting[node] = GREY
+    target = resolve(node.host_ref)
+    if target is L4 workload:
+        dfs(target, visiting, depth + 1)
+    elif target is NOT L1 device:
+        ERROR "host_ref of {node.id} points to invalid layer"
+    visiting[node] = BLACK
+```
+
+**Rejected patterns**:
+```
+# Self-reference → ERROR
+instance: lxc-foo
+host_ref: lxc-foo
+
+# Mutual reference → ERROR
+instance: lxc-a            instance: lxc-b
+host_ref: lxc-b            host_ref: lxc-a
+
+# Indirect cycle (A→B→C→A) → ERROR
+lxc-a.host_ref → lxc-b → lxc-c → lxc-a
+
+# Depth > 2 → ERROR (even without cycle)
+L1 → LXC → Docker → Pod  (3 levels, exceeds max_depth=2)
+```
+
 ---
 
 ## 4. DOCKER AT L4: MIGRATION PATTERN
@@ -1031,6 +1092,136 @@ For class.compute.workload.lxc:
 For class.compute.workload.vm:
   host_ref target MUST have cap.compute.runtime.vm_host
   (or class.compute.hypervisor.*)
+```
+
+### 5.3 Runtime Capability Schema (Formal)
+
+Runtime capabilities follow a two-tier pattern: **common capability** (abstract,
+framework-owned) + **vendor capability** (concrete, platform-specific).
+
+#### Common capability schema
+
+```yaml
+# cap.compute.runtime.container_host — abstract, framework-defined
+capability: cap.compute.runtime.container_host
+layer: L1 | L4                     # L1 device or L4 LXC host
+abstract: true
+description: Host can run container workloads (Docker, containerd, etc.)
+
+schema:
+  required: [runtime_type, runtime_version, api_endpoint]
+  properties:
+    runtime_type:
+      type: enum
+      values: [docker, containerd, crio, lxc, routeros_container]
+    runtime_version:
+      type: string
+      description: Semantic version of the container runtime
+    api_endpoint:
+      type: string
+      description: >
+        Management API socket or URL. Examples:
+        /var/run/docker.sock, unix:///run/containerd/containerd.sock
+    features:
+      type: list
+      items: { type: string }
+      description: >
+        Runtime feature flags. Examples: cgroupv2, userns-remap,
+        seccomp, apparmor, gpu-passthrough
+    storage_driver:
+      type: enum
+      values: [overlay2, btrfs, zfs, vfs, devicemapper]
+      required: false
+```
+
+```yaml
+# cap.compute.runtime.vm_host — abstract, framework-defined
+capability: cap.compute.runtime.vm_host
+layer: L1
+abstract: true
+
+schema:
+  required: [hypervisor_type, hypervisor_version, api_endpoint]
+  properties:
+    hypervisor_type:
+      type: enum
+      values: [qemu_kvm, virtualbox, hyperv, vmware, xen]
+    hypervisor_version:
+      type: string
+    api_endpoint:
+      type: string
+      description: >
+        Management API. Examples: https://host:8006/api2/json (Proxmox),
+        vboxmanage (VirtualBox CLI), PowerShell (Hyper-V)
+    features:
+      type: list
+      items: { type: string }
+      description: >
+        Hypervisor feature flags. Examples: nested-virt, gpu-passthrough,
+        live-migration, uefi-secure-boot, tpm2
+```
+
+#### Vendor extension schema
+
+```yaml
+# vendor.runtime.docker.host — concrete, vendor-specific
+vendor_capability: vendor.runtime.docker.host
+extends: cap.compute.runtime.container_host
+description: Docker Engine specific runtime properties
+
+schema:
+  properties:
+    # All cap.compute.runtime.container_host fields inherited
+    socket:
+      type: string
+      default: /var/run/docker.sock
+    compose_version:
+      type: string
+      required: false
+    buildkit_enabled:
+      type: boolean
+      default: true
+    default_network:
+      type: string
+      default: bridge
+    log_driver:
+      type: enum
+      values: [json-file, syslog, journald, local, none]
+      default: json-file
+```
+
+```yaml
+# vendor.runtime.routeros.container — concrete, vendor-specific
+vendor_capability: vendor.runtime.routeros.container
+extends: cap.compute.runtime.container_host
+description: MikroTik RouterOS containerD runtime
+
+schema:
+  properties:
+    container_mode:
+      type: boolean
+      description: RouterOS container feature enabled
+    registry_url:
+      type: string
+      default: https://registry-1.docker.io
+    ram_high:
+      type: string
+      description: cgroup memory.high limit (e.g., 128M)
+    envdir:
+      type: string
+      description: RouterOS path for env files
+```
+
+#### Capability inheritance rule
+
+A host declaring `vendor.runtime.docker.host` implicitly satisfies
+`cap.compute.runtime.container_host`. Validators resolve the chain:
+
+```
+vendor.runtime.docker.host  →  cap.compute.runtime.container_host
+vendor.runtime.routeros.container  →  cap.compute.runtime.container_host
+vendor.proxmox.runtime.lxc  →  cap.compute.runtime.container_host
+vendor.proxmox.runtime.qemu  →  cap.compute.runtime.vm_host
 ```
 
 ---
@@ -1217,7 +1408,8 @@ object_ref: obj.proxmox.vm.debian12.cloud-init
 host_ref: srv-gamayun
 
 disks:
-  - role: boot
+  - disk_id: boot0
+    role: boot
     volume_ref: inst.vol.vm-k3s-master.boot   # L3 volume (qcow2, 32GB)
     bus: scsi
     slot: scsi0
@@ -1226,16 +1418,20 @@ disks:
     discard: true
     bootable: true
 
-  - role: data
+  - disk_id: data0
+    role: data
     volume_ref: inst.vol.vm-k3s-master.data   # L3 volume (qcow2, 100GB)
     bus: scsi
     slot: scsi1
     data_asset_ref: inst.data_asset.k3s_data  # L3 data asset
 
-  - role: cloudinit
+  - disk_id: cloudinit0
+    role: cloudinit
     bus: ide
     slot: ide2
     # cloud-init drive auto-generated, no volume_ref needed
+
+boot_order: [boot0]
 ```
 
 #### VirtualBox VM (example — dev workstation)
@@ -1246,16 +1442,20 @@ object_ref: obj.vbox.vm.debian12.dev
 host_ref: dev-workstation
 
 disks:
-  - role: boot
+  - disk_id: boot0
+    role: boot
     volume_ref: inst.vol.vm-dev.boot           # L3 volume (vdi, 50GB)
     bus: sata
     slot: sata0
     bootable: true
 
-  - role: data
+  - disk_id: data0
+    role: data
     volume_ref: inst.vol.vm-dev.home           # L3 volume (vdi, 200GB)
     bus: sata
     slot: sata1
+
+boot_order: [boot0]
 ```
 
 #### Hyper-V VM (example)
@@ -1266,17 +1466,21 @@ object_ref: obj.hyperv.vm.debian12.server
 host_ref: dev-workstation-win
 
 disks:
-  - role: boot
+  - disk_id: boot0
+    role: boot
     volume_ref: inst.vol.hyperv-web.boot       # L3 volume (vhdx, 40GB)
     bus: scsi                                   # Gen2 boots from SCSI
     slot: scsi0
     bootable: true
 
-  - role: data
+  - disk_id: data0
+    role: data
     volume_ref: inst.vol.hyperv-web.data       # L3 volume (vhdx, 100GB)
     bus: scsi
     slot: scsi1
     data_asset_ref: inst.data_asset.webserver_data
+
+boot_order: [boot0]
 ```
 
 ### 7.7 L3 Volume Instances for VMs (New Pattern)
@@ -1351,6 +1555,29 @@ Compile-time validations:
 6. LXC ROOTFS REQUIRED:
    FOR each LXC instance:
      storage.rootfs MUST be present with pool_ref
+
+7. DISK_ID UNIQUENESS:
+   FOR each VM instance:
+     all disk_id values in disks[] MUST be unique
+     Example: two disks with disk_id: boot0 → ERROR
+
+8. BUS:SLOT UNIQUENESS:
+   FOR each VM instance:
+     all (bus, slot) pairs in disks[] MUST be unique
+     Example: two disks on scsi:0 → ERROR
+
+9. BOOT_ORDER INTEGRITY:
+   FOR each VM instance with boot_order[]:
+     every entry MUST reference an existing disk_id in disks[]
+     Example: boot_order: [nonexistent0] → ERROR
+
+10. VOLUME_REF REQUIRED (non-ephemeral):
+    FOR each disk in VM.disks[] WHERE role NOT IN [cloudinit]:
+      volume_ref MUST be present and resolve to a valid L3 volume
+
+11. HOST_REF DAG:
+    The host_ref graph across all L4 workloads MUST be a DAG
+    (see §3.5 Anti-Cycle Invariant)
 ```
 
 ### 7.10 Docker Volume → L3 Integration
@@ -2741,15 +2968,18 @@ object_ref: obj.proxmox.vm.debian12.cloud-init
 host_ref: srv-gamayun
 resource_profile: { cpu_cores: 2, memory_mb: 4096 }
 disks:
-  - role: boot
+  - disk_id: boot0
+    role: boot
     volume_ref: inst.vol.vm-k3s.boot
     bus: scsi
     slot: scsi0
     bootable: true
-  - role: data
+  - disk_id: data0
+    role: data
     volume_ref: inst.vol.vm-k3s.data
     bus: scsi
     slot: scsi1
+boot_order: [boot0]
 cloud_init: { enabled: true }
 ```
 
@@ -2882,3 +3112,26 @@ cognitive load bounded as topology grows.
 **Compatibility-first migration**: changes are implemented with transition aliases
 and warning-only validators before hard enforcement. Existing topology remains
 valid during transition, then deprecated patterns are removed at cutover gate.
+
+### 11.1 Deprecation Schedule
+
+Each deprecated pattern follows the three-stage lifecycle defined in ADR §5b.
+The schedule is tied to implementation phases:
+
+| Deprecated Pattern | WARNING starts | ERROR starts | REMOVAL |
+|--------------------|---------------|-------------|---------|
+| `class.compute.workload.container` (alias for `.lxc`) | Phase 1 GA | Phase 3 GA | Phase 6 GA |
+| L5 `target_ref` → L1 for Docker services | Phase 1 GA | Phase 3 GA | Phase 6 GA |
+| `L4-platform/vms/` path (alias for `vm/`) | Phase 3 GA | Phase 4 GA | Phase 6 GA |
+| Flat (non-sharded) L4/L5 paths | Phase 1 GA | Phase 4 GA | Phase 6 GA |
+| Capability inline properties (no schema) | Phase 1 GA | Phase 4 GA | Phase 6 GA |
+
+**GA** = General Availability of the phase (all acceptance gates passed).
+
+**Transition rules:**
+- WARNING: Compilation succeeds; deprecated pattern emits a diagnostic message
+  to stderr with pattern name, ADR reference, and replacement instructions.
+- ERROR: Compilation fails with actionable error message. The
+  `--allow-deprecated` flag may be passed as a temporary escape hatch
+  (for CI migration). This flag is itself removed at REMOVAL stage.
+- REMOVAL: Old alias/code/path-handler deleted from codebase. No flag available.
