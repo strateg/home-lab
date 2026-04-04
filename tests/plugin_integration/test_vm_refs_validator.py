@@ -251,3 +251,15 @@ def test_vm_refs_validator_rejects_template_architecture_not_matching_resolved_h
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7877" for diag in result.diagnostics)
+
+
+def test_vm_refs_validator_accepts_new_vm_class_alias():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["class_ref"] = "class.compute.workload.vm"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

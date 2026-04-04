@@ -87,3 +87,24 @@ def test_runtime_target_os_binding_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7825" for diag in result.diagnostics)
+
+
+def test_runtime_target_os_binding_validator_skips_l4_docker_workload_target():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "docker", "instance": "docker-a", "class_ref": "class.compute.workload.docker", "layer": "L4"},
+            {
+                "group": "services",
+                "instance": "svc-a",
+                "class_ref": "class.service",
+                "runtime": {"type": "docker", "target_ref": "docker-a"},
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

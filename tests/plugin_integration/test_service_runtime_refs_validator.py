@@ -202,3 +202,41 @@ def test_service_runtime_refs_validator_skips_runtime_capability_checks_when_hos
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert not any("runtime type docker requires host capability" in diag.message for diag in result.diagnostics)
+
+
+def test_service_runtime_refs_validator_accepts_lxc_runtime_with_new_class_alias():
+    registry = _registry()
+    ctx = _context()
+    rows = _valid_rows()
+    rows[1]["class_ref"] = "class.compute.workload.lxc"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not any(diag.code == "E7841" for diag in result.diagnostics)
+
+
+def test_service_runtime_refs_validator_accepts_vm_runtime_with_new_class_alias():
+    registry = _registry()
+    ctx = _context()
+    rows = _valid_rows()
+    rows[1] = {"group": "vm", "instance": "vm-a", "class_ref": "class.compute.workload.vm", "layer": "L4"}  # type: ignore[index]
+    rows[-1]["runtime"] = {"type": "vm", "target_ref": "vm-a", "network_binding_ref": "inst.vlan.a"}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not any(diag.code == "E7841" for diag in result.diagnostics)
+
+
+def test_service_runtime_refs_validator_accepts_docker_runtime_targeting_l4_docker_workload():
+    registry = _registry()
+    ctx = _context()
+    rows = _valid_rows()
+    rows[1] = {"group": "docker", "instance": "docker-a", "class_ref": "class.compute.workload.docker", "layer": "L4"}  # type: ignore[index]
+    rows[-1]["runtime"] = {"type": "docker", "target_ref": "docker-a", "network_binding_ref": "inst.vlan.a"}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not any(diag.code == "E7841" for diag in result.diagnostics)

@@ -56,6 +56,7 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
         device_to_host_os: dict[str, set[str]] = {}
         lxc_networks_by_id: dict[str, set[str]] = {}
         vm_networks_by_id: dict[str, set[str]] = {}
+        docker_networks_by_id: dict[str, set[str]] = {}
         network_reachable_devices: dict[str, set[str]] = {}
         network_reachable_host_os: dict[str, set[str]] = {}
         network_plane_by_id: dict[str, str] = {}
@@ -84,11 +85,14 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
                         device_to_host_os.setdefault(dev_id, set()).add(row_id)
                 continue
 
-            if class_ref == "class.compute.workload.container":
+            if class_ref in {"class.compute.workload.container", "class.compute.workload.lxc"}:
                 lxc_networks_by_id[row_id] = self._extract_network_refs(ctx=ctx, row=row)
                 continue
-            if class_ref == "class.compute.cloud_vm":
+            if class_ref in {"class.compute.cloud_vm", "class.compute.workload.vm"}:
                 vm_networks_by_id[row_id] = self._extract_network_refs(ctx=ctx, row=row)
+                continue
+            if class_ref == "class.compute.workload.docker":
+                docker_networks_by_id[row_id] = self._extract_network_refs(ctx=ctx, row=row)
                 continue
             if self._is_network_row(row):
                 network_reachable_devices[row_id] = set()
@@ -165,6 +169,23 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
                     )
                 continue
 
+            if runtime_type == "docker":
+                target_networks = docker_networks_by_id.get(target_ref)
+                if target_networks is not None:
+                    if network_binding_ref not in target_networks:
+                        diagnostics.append(
+                            self.emit_diagnostic(
+                                code="W7844",
+                                severity="warning",
+                                stage=stage,
+                                message=(
+                                    f"Service '{service_id}': runtime target '{target_ref}' does not attach to "
+                                    f"network '{network_binding_ref}' in workload network refs."
+                                ),
+                                path=path,
+                            )
+                        )
+                    continue
             if runtime_type in {"docker", "baremetal"}:
                 device_reachable = target_ref in network_reachable_devices.get(network_binding_ref, set())
                 target_host_os_set = device_to_host_os.get(target_ref, set())

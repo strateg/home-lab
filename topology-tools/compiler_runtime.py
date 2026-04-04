@@ -361,14 +361,15 @@ def _load_sharded_instance_payload(
                 path=f"{_diag_path(repo_root=repo_root, path=path)}:layer",
             )
             continue
-        if len(relative_parts) != 3:
+        if len(relative_parts) not in {3, 4}:
             add_diag(
                 code="E7108",
                 severity="error",
                 stage="validate",
                 message=(
-                    "Instance shard path must be exactly "
-                    "'<layer-bucket>/<group>/<instance>.yaml' under instances_root."
+                    "Instance shard path must be "
+                    "'<layer-bucket>/<group>/<instance>.yaml' or "
+                    "'<layer-bucket>/<group>/<host-shard>/<instance>.yaml' under instances_root."
                 ),
                 path=_diag_path(repo_root=repo_root, path=path),
             )

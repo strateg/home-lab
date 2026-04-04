@@ -267,6 +267,18 @@ def test_lxc_refs_validator_keeps_top_level_deprecation_warnings_without_storage
     assert warning_codes.count("W7888") >= 4
 
 
+def test_lxc_refs_validator_accepts_new_lxc_class_alias():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[-1]["class_ref"] = "class.compute.workload.lxc"  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []
+
+
 def test_lxc_refs_validator_accepts_known_resource_profile_ref_without_legacy_resources():
     registry = _registry()
     ctx = _context()

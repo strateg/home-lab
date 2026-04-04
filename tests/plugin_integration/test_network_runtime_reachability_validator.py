@@ -182,3 +182,22 @@ def test_network_runtime_reachability_validator_supports_non_vlan_legacy_network
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert result.diagnostics == []
+
+
+def test_network_runtime_reachability_validator_accepts_docker_runtime_to_l4_docker_with_network():
+    registry = _registry()
+    ctx = _context()
+    rows = _base_rows()
+    rows[3] = {  # type: ignore[index]
+        "group": "docker",
+        "instance": "docker-a",
+        "class_ref": "class.compute.workload.docker",
+        "layer": "L4",
+        "extensions": {"networks": [{"network_ref": "inst.vlan.a"}]},
+    }
+    rows[-1]["runtime"] = {"type": "docker", "target_ref": "docker-a", "network_binding_ref": "inst.vlan.a"}  # type: ignore[index]
+    _publish_rows(ctx, rows)
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.diagnostics == []

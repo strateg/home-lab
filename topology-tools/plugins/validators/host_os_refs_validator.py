@@ -20,7 +20,12 @@ class HostOsRefsValidator(ValidatorJsonPlugin):
 
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
-    _WORKLOAD_CLASSES = {"class.compute.workload.container", "class.compute.cloud_vm"}
+    _WORKLOAD_CLASSES = {
+        "class.compute.workload.container",
+        "class.compute.workload.lxc",
+        "class.compute.cloud_vm",
+        "class.compute.workload.vm",
+    }
     _SERVICE_PREFIX = "class.service."
     _DEVICE_RUNTIME_TYPES = {"docker", "baremetal"}
     _ACTIVE_STATUSES = {"active", "mapped", "modeled"}

@@ -425,3 +425,26 @@ def test_host_os_refs_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7890" for diag in result.diagnostics)
+
+
+def test_host_os_refs_validator_enforces_workload_vm_class_alias():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": []},
+            {"group": "os", "instance": "inst.os.b", "class_ref": "class.os", "layer": "L1", "status": "active"},
+            {
+                "group": "vm",
+                "instance": "vm-a",
+                "class_ref": "class.compute.workload.vm",
+                "layer": "L4",
+                "extensions": {"device_ref": "srv-a"},
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(diag.code == "E7892" for diag in result.diagnostics)

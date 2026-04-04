@@ -58,6 +58,8 @@ class RuntimeTargetOsBindingValidator(ValidatorJsonPlugin):
             target_row = row_by_id.get(target_ref)
             if not isinstance(target_row, dict):
                 continue
+            if runtime_type == "docker" and target_row.get("class_ref") == "class.compute.workload.docker":
+                continue
             os_refs = target_row.get("os_refs")
             if isinstance(os_refs, list) and any(isinstance(item, str) and item for item in os_refs):
                 continue

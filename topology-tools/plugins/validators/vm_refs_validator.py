@@ -20,7 +20,7 @@ class VmRefsValidator(ValidatorJsonPlugin):
 
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
-    _VM_CLASS = "class.compute.cloud_vm"
+    _VM_CLASSES = {"class.compute.cloud_vm", "class.compute.workload.vm"}
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
     _ARCH_ALIASES = {
         "x86_64": "x86_64",
@@ -57,7 +57,7 @@ class VmRefsValidator(ValidatorJsonPlugin):
                 row_by_id[row_id] = row
 
         for row in rows:
-            if row.get("class_ref") != self._VM_CLASS:
+            if row.get("class_ref") not in self._VM_CLASSES:
                 continue
             row_id = row.get("instance")
             group = row.get("group")

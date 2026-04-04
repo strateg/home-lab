@@ -20,7 +20,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
 
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
-    _LXC_CLASS = "class.compute.workload.container"
+    _LXC_CLASSES = {"class.compute.workload.container", "class.compute.workload.lxc"}
     _RESOURCE_PROFILE_REF_FIELD = "resource_profile_ref"
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
     _ARCH_ALIASES = {
@@ -59,7 +59,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
                 row_by_id[row_id] = row
 
         for row in rows:
-            if row.get("class_ref") != self._LXC_CLASS:
+            if row.get("class_ref") not in self._LXC_CLASSES:
                 continue
             row_id = row.get("instance")
             group = row.get("group")

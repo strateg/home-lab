@@ -29,6 +29,8 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
     _DOCKER_CAPABILITIES = {"docker", "container"}
     _BAREMETAL_ALLOWED_HOST_TYPES = {"baremetal", "embedded", "hypervisor"}
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
+    _LXC_CLASSES = {"class.compute.workload.container", "class.compute.workload.lxc"}
+    _VM_CLASSES = {"class.compute.cloud_vm", "class.compute.workload.vm"}
     _EXTERNAL_SERVICES_DEPRECATION = (
         "L5_application.external_services is deprecated; " "model Docker/Baremetal workloads via services[].runtime."
     )
@@ -162,7 +164,7 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
             target_class = target.get("class_ref")
             target_layer = target.get("layer")
             if runtime_type == "lxc":
-                if target_class != "class.compute.workload.container":
+                if target_class not in self._LXC_CLASSES:
                     diagnostics.append(
                         self.emit_diagnostic(
                             code="E7841",
@@ -170,13 +172,13 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
                             stage=stage,
                             message=(
                                 f"Service '{row_id}' runtime type lxc requires target class "
-                                f"'class.compute.workload.container', got '{target_class}'."
+                                f"in {sorted(self._LXC_CLASSES)}, got '{target_class}'."
                             ),
                             path=f"{row_prefix}.runtime.target_ref",
                         )
                     )
             elif runtime_type == "vm":
-                if target_class not in {"class.compute.cloud_vm"}:
+                if target_class not in self._VM_CLASSES:
                     diagnostics.append(
                         self.emit_diagnostic(
                             code="E7841",
@@ -184,13 +186,29 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
                             stage=stage,
                             message=(
                                 f"Service '{row_id}' runtime type vm requires target class "
-                                f"'class.compute.cloud_vm', got '{target_class}'."
+                                f"in {sorted(self._VM_CLASSES)}, got '{target_class}'."
                             ),
                             path=f"{row_prefix}.runtime.target_ref",
                         )
                     )
             elif runtime_type in {"docker", "baremetal"}:
-                if target_layer != "L1":
+                if target_layer == "L1":
+                    self._validate_device_runtime_contract(
+                        ctx=ctx,
+                        row=row,
+                        row_id=row_id,
+                        row_prefix=row_prefix,
+                        runtime_type=runtime_type,
+                        target_ref=target_ref,
+                        row_by_id=row_by_id,
+                        active_host_os_by_device=active_host_os_by_device,
+                        has_host_os_inventory=has_host_os_inventory,
+                        stage=stage,
+                        diagnostics=diagnostics,
+                    )
+                elif runtime_type == "docker" and target_layer == "L4" and target_class == "class.compute.workload.docker":
+                    pass
+                else:
                     diagnostics.append(
                         self.emit_diagnostic(
                             code="E7841",
@@ -198,24 +216,12 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
                             stage=stage,
                             message=(
                                 f"Service '{row_id}' runtime type {runtime_type} requires L1 target, "
-                                f"got layer '{target_layer}'."
+                                "or for docker a L4 class.compute.workload.docker target, "
+                                f"got class '{target_class}' layer '{target_layer}'."
                             ),
                             path=f"{row_prefix}.runtime.target_ref",
                         )
                     )
-                self._validate_device_runtime_contract(
-                    ctx=ctx,
-                    row=row,
-                    row_id=row_id,
-                    row_prefix=row_prefix,
-                    runtime_type=runtime_type,
-                    target_ref=target_ref,
-                    row_by_id=row_by_id,
-                    active_host_os_by_device=active_host_os_by_device,
-                    has_host_os_inventory=has_host_os_inventory,
-                    stage=stage,
-                    diagnostics=diagnostics,
-                )
 
         return self.make_result(diagnostics)
 
@@ -364,12 +370,12 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
     ) -> None:
         ref_rules = (
             ("device_ref", "L1", None),
-            ("vm_ref", None, "class.compute.cloud_vm"),
-            ("lxc_ref", None, "class.compute.workload.container"),
+            ("vm_ref", None, self._VM_CLASSES),
+            ("lxc_ref", None, self._LXC_CLASSES),
             ("network_ref", None, "class.network.vlan"),
             ("trust_zone_ref", None, "class.network.trust_zone"),
         )
-        for field_name, expected_layer, expected_class in ref_rules:
+        for field_name, expected_layer, expected_classes in ref_rules:
             value = self._resolve_service_field(ctx=ctx, row=row, key=field_name)
             if value is None:
                 continue
@@ -410,15 +416,24 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
                     )
                 )
                 continue
-            if expected_class and target.get("class_ref") != expected_class:
+            if expected_classes:
+                target_class = target.get("class_ref")
+                if isinstance(expected_classes, str):
+                    class_ok = target_class == expected_classes
+                    expected_label = expected_classes
+                else:
+                    class_ok = target_class in expected_classes
+                    expected_label = sorted(expected_classes)
+                if class_ok:
+                    continue
                 diagnostics.append(
                     self.emit_diagnostic(
                         code="E7841",
                         severity="error",
                         stage=stage,
                         message=(
-                            f"Service '{row_id}': {field_name} '{value}' must reference class '{expected_class}', "
-                            f"got '{target.get('class_ref')}'."
+                            f"Service '{row_id}': {field_name} '{value}' must reference class '{expected_label}', "
+                            f"got '{target_class}'."
                         ),
                         path=f"{row_prefix}.{field_name}",
                     )
