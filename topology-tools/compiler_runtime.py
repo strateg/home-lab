@@ -23,6 +23,7 @@ _LAYER_BUCKETS: dict[str, str] = {
     "L6": "L6-observability",
     "L7": "L7-operations",
 }
+_HOST_SHARD_WARNING_LAYERS = {"L4", "L5"}
 
 
 @dataclass
@@ -397,6 +398,18 @@ def _load_sharded_instance_payload(
                 path=_diag_path(repo_root=repo_root, path=path),
             )
             continue
+
+        if len(relative_parts) == 3 and layer in _HOST_SHARD_WARNING_LAYERS:
+            add_diag(
+                code="W7110",
+                severity="warning",
+                stage="validate",
+                message=(
+                    f"Non-sharded placement for layer '{layer}' group '{group_name}' is deprecated; "
+                    "prefer '<layer-bucket>/<group>/<host-shard>/<instance>.yaml'."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
 
         row = dict(payload)
         row.pop("schema_version", None)

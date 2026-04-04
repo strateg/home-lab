@@ -369,6 +369,118 @@ def test_load_core_compile_inputs_accepts_host_sharded_instance_path(tmp_path: P
     assert not any(item.get("severity") == "error" for item in diagnostics)
 
 
+def test_load_core_compile_inputs_warns_on_non_sharded_l4_path(tmp_path: Path) -> None:
+    layer_contract_path = tmp_path / "layer-contract.yaml"
+    layer_contract_path.write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "group_layers": {
+                    "vm": "L4",
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    project_root = tmp_path / "projects" / "test"
+    shard_root = project_root / "instances"
+    shard_file = shard_root / "L4-platform" / "vm" / "inst.vm.a.yaml"
+    shard_file.parent.mkdir(parents=True, exist_ok=True)
+    shard_file.write_text(
+        yaml.safe_dump(
+            {
+                "version": "1.0.0",
+                "instance": "inst.vm.a",
+                "group": "vm",
+                "layer": "L4",
+                "object_ref": "obj.shard.vm",
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
+    )
+
+    diagnostics: list[dict[str, str]] = []
+
+    def _add_diag(**kwargs):
+        diagnostics.append(kwargs)
+
+    inputs = load_core_compile_inputs(
+        paths=bundle,
+        instances_mode="sharded-only",
+        load_yaml=_load_yaml,
+        add_diag=_add_diag,
+        repo_root=tmp_path,
+    )
+
+    assert isinstance(inputs.instance_payload, dict)
+    assert any(item.get("code") == "W7110" for item in diagnostics)
+
+
+def test_load_core_compile_inputs_accepts_host_sharded_l5_path_without_warning(tmp_path: Path) -> None:
+    layer_contract_path = tmp_path / "layer-contract.yaml"
+    layer_contract_path.write_text(
+        yaml.safe_dump(
+            {
+                "schema_version": 1,
+                "group_layers": {
+                    "services": "L5",
+                },
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    project_root = tmp_path / "projects" / "test"
+    shard_root = project_root / "instances"
+    shard_file = shard_root / "L5-application" / "services" / "host-a" / "svc.app.a.yaml"
+    shard_file.parent.mkdir(parents=True, exist_ok=True)
+    shard_file.write_text(
+        yaml.safe_dump(
+            {
+                "version": "1.0.0",
+                "instance": "svc.app.a",
+                "group": "services",
+                "layer": "L5",
+                "object_ref": "obj.shard.service",
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    bundle = _resolve_bundle(
+        tmp_path,
+        layer_contract_path=layer_contract_path,
+        instances_root="instances",
+    )
+
+    diagnostics: list[dict[str, str]] = []
+
+    def _add_diag(**kwargs):
+        diagnostics.append(kwargs)
+
+    inputs = load_core_compile_inputs(
+        paths=bundle,
+        instances_mode="sharded-only",
+        load_yaml=_load_yaml,
+        add_diag=_add_diag,
+        repo_root=tmp_path,
+    )
+
+    assert isinstance(inputs.instance_payload, dict)
+    assert not any(item.get("code") == "W7110" for item in diagnostics)
+
+
 def test_load_core_compile_inputs_rejects_legacy_schema_version_field(tmp_path: Path) -> None:
     layer_contract_path = tmp_path / "layer-contract.yaml"
     _write_layer_contract(layer_contract_path)
