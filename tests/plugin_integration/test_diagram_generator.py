@@ -115,6 +115,7 @@ def _compiled_fixture() -> dict:
                     },
                 }
             ],
+            "vm": [],
             "vms": [],
         }
     }

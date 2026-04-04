@@ -35,6 +35,7 @@ group_layers:
   qos: L2
   pools: L3
   data-assets: L3
+  vm: L4
   vms: L4
   lxc: L4
   services: L5

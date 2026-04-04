@@ -93,6 +93,7 @@ def _compiled_fixture() -> dict:
             "physical-links": [],
             "power": [],
             "lxc": [],
+            "vm": [],
             "vms": [],
         }
     }

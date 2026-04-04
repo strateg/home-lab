@@ -54,6 +54,7 @@ def _compiled_fixture() -> dict:
                 }
             ],
             "lxc": [],
+            "vm": [],
             "vms": [],
             "network": [],
         }

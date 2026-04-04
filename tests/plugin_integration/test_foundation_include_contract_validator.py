@@ -26,6 +26,7 @@ REQUIRED_INSTANCE_DIRS = (
     "L3-data/pools",
     "L3-data/data-assets",
     "L4-platform/lxc",
+    "L4-platform/vm",
     "L4-platform/vms",
     "L5-application/services",
     "L6-observability/observability",
