@@ -7,17 +7,17 @@ locals {
 
 # Basic firewall structure - accept established/related, drop invalid
 resource "routeros_ip_firewall_filter" "accept_established" {
-  chain           = "forward"
-  action          = "accept"
+  chain            = "forward"
+  action           = "accept"
   connection_state = "established,related"
-  comment         = "Accept established/related - managed by topology"
+  comment          = "Accept established/related - managed by topology"
 }
 
 resource "routeros_ip_firewall_filter" "drop_invalid" {
-  chain           = "forward"
-  action          = "drop"
+  chain            = "forward"
+  action           = "drop"
   connection_state = "invalid"
-  comment         = "Drop invalid - managed by topology"
+  comment          = "Drop invalid - managed by topology"
 }
 
 {% if has_vlan and vlans %}

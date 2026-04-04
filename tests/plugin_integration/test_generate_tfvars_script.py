@@ -99,7 +99,7 @@ def test_generate_and_cleanup_mikrotik_tfvars(tmp_path: Path, monkeypatch):
     assert module._generate_tfvars("mikrotik") == 0
     output_file = output_dir / "terraform.tfvars"
     content = output_file.read_text(encoding="utf-8")
-    assert "wireguard_peers = [" in content
+    assert "wireguard_peers       = [" in content
     assert "allowed_ips = [" in content
     assert '"10.0.0.0/24"' in content
     assert "disabled = false" in content

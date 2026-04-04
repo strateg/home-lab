@@ -120,9 +120,10 @@ def _render_value(value: Any, *, indent: int = 0) -> str:
 
 def _render_tfvars(values: dict[str, Any]) -> str:
     lines: list[str] = []
+    max_key_len = max((len(key) for key in values), default=0)
     for key, value in values.items():
         rendered = _render_value(value, indent=0)
-        lines.append(f"{key} = {rendered}")
+        lines.append(f"{key.ljust(max_key_len)} = {rendered}")
     return "\n".join(lines) + "\n"
 
 
