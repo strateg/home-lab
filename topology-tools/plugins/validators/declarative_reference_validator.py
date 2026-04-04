@@ -45,7 +45,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
     _SERVICE_PREFIX = "class.service."
-    _LXC_CLASSES = {"class.compute.workload.container", "class.compute.workload.lxc"}
+    _LXC_CLASSES = {"class.compute.workload.lxc"}
     _NETWORK_CLASS_EXCLUSIONS = {
         "class.network.bridge",
         "class.network.trust_zone",

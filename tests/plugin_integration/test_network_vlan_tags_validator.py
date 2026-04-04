@@ -27,7 +27,7 @@ def _objects() -> dict:
         "obj.bridge.a": {"class_ref": "class.network.bridge", "properties": {"vlan_aware": True}},
         "obj.bridge.b": {"class_ref": "class.network.bridge", "properties": {"vlan_aware": False}},
         "obj.vlan.a": {"class_ref": "class.network.vlan", "properties": {"vlan_id": 30, "bridge_ref": "inst.bridge.a"}},
-        "obj.workload.a": {"class_ref": "class.compute.workload.container", "properties": {}},
+        "obj.workload.a": {"class_ref": "class.compute.workload.lxc", "properties": {}},
     }
 
 
@@ -57,7 +57,7 @@ def _rows() -> list[dict]:
         {
             "group": "lxc",
             "instance": "lxc-a",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "layer": "L4",
             "object_ref": "obj.workload.a",
             "extensions": {"networks": [{"network_ref": "inst.vlan.a", "vlan_tag": 30}]},

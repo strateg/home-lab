@@ -106,9 +106,9 @@ def test_host_os_refs_validator_rejects_workload_device_without_active_os_bindin
             {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": []},
             {"group": "os", "instance": "inst.os.a", "class_ref": "class.os", "layer": "L1", "status": "mapped"},
             {
-                "group": "vms",
+                "group": "vm",
                 "instance": "vm-a",
-                "class_ref": "class.compute.cloud_vm",
+                "class_ref": "class.compute.workload.vm",
                 "layer": "L4",
                 "extensions": {"device_ref": "srv-a"},
             },
@@ -404,9 +404,9 @@ def test_host_os_refs_validator_reads_workload_device_ref_from_top_level():
             {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1", "os_refs": []},
             {"group": "os", "instance": "inst.os.b", "class_ref": "class.os", "layer": "L1", "status": "active"},
             {
-                "group": "vms",
+                "group": "vm",
                 "instance": "vm-a",
-                "class_ref": "class.compute.cloud_vm",
+                "class_ref": "class.compute.workload.vm",
                 "layer": "L4",
                 "device_ref": "srv-a",
             },

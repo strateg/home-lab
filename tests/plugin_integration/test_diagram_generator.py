@@ -105,7 +105,7 @@ def _compiled_fixture() -> dict:
             "lxc": [
                 {
                     "instance_id": "lxc-prometheus",
-                    "class_ref": "class.compute.workload.container",
+                    "class_ref": "class.compute.workload.lxc",
                     "object_ref": "obj.proxmox.lxc.debian12.prometheus",
                     "status": "mapped",
                     "instance_data": {

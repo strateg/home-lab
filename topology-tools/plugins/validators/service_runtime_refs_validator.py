@@ -29,8 +29,8 @@ class ServiceRuntimeRefsValidator(ValidatorJsonPlugin):
     _DOCKER_CAPABILITIES = {"docker", "container"}
     _BAREMETAL_ALLOWED_HOST_TYPES = {"baremetal", "embedded", "hypervisor"}
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
-    _LXC_CLASSES = {"class.compute.workload.container", "class.compute.workload.lxc"}
-    _VM_CLASSES = {"class.compute.cloud_vm", "class.compute.workload.vm"}
+    _LXC_CLASSES = {"class.compute.workload.lxc"}
+    _VM_CLASSES = {"class.compute.workload.vm"}
     _EXTERNAL_SERVICES_DEPRECATION = (
         "L5_application.external_services is deprecated; " "model Docker/Baremetal workloads via services[].runtime."
     )

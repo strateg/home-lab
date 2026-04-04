@@ -12,7 +12,7 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     GROUP_LXC,
     GROUP_NETWORK,
     GROUP_SERVICES,
-    GROUP_VMS,
+    GROUP_VM,
     ProjectionError,
     _get_instance_data,
     _group_rows,
@@ -93,7 +93,7 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     devices = _group_rows(groups, canonical=GROUP_DEVICES)
     services = _group_rows(groups, canonical=GROUP_SERVICES)
     lxc = _group_rows(groups, canonical=GROUP_LXC)
-    vms = _group_rows(groups, canonical=GROUP_VMS)
+    vm = _group_rows(groups, canonical=GROUP_VM)
     networks = _group_rows(groups, canonical=GROUP_NETWORK)
 
     docs_devices: list[dict[str, Any]] = []
@@ -136,7 +136,7 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         "devices": len(devices),
         "services": len(services),
         "lxc": len(lxc),
-        "vms": len(vms),
+        "vms": len(vm),
         "networks": len(networks),
         "groups": len(groups),
     }

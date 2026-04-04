@@ -23,12 +23,10 @@ class FoundationIncludeContractValidator(ValidatorYamlPlugin):
         "L3-data/pools",
         "L3-data/data-assets",
         "L4-platform/lxc",
+        "L4-platform/vm",
         "L5-application/services",
         "L6-observability/observability",
         "L7-operations/operations",
-    )
-    _REQUIRED_ONE_OF_INSTANCE_DIRS = (
-        ("L4-platform/vm", "L4-platform/vms"),
     )
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
@@ -72,20 +70,6 @@ class FoundationIncludeContractValidator(ValidatorYamlPlugin):
                         path=f"project:{instances_root}/{rel_dir}",
                     )
                 )
-
-        for candidate_dirs in self._REQUIRED_ONE_OF_INSTANCE_DIRS:
-            if any((instances_root / rel_dir).is_dir() for rel_dir in candidate_dirs):
-                continue
-            expected = ", ".join(f"'{rel_dir}'" for rel_dir in candidate_dirs)
-            diagnostics.append(
-                self.emit_diagnostic(
-                    code="E7846",
-                    severity="error",
-                    stage=stage,
-                    message=f"Required instances directory is missing: one of [{expected}].",
-                    path=f"project:{instances_root}/{candidate_dirs[0]}",
-                )
-            )
 
         if instances_root.exists() and instances_root.is_dir():
             for manual_index in sorted(instances_root.rglob("_index.yaml")):

@@ -172,7 +172,7 @@ def test_reference_validator_accepts_valid_storage_relations():
             "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "object_ref": "obj.workload.local",
             "extensions": {"storage": {"pool_ref": "inst.pool.local"}},
         },
@@ -188,13 +188,13 @@ def test_reference_validator_accepts_valid_storage_relations():
     classes = {
         "class.storage.pool": {"class": "class.storage.pool"},
         "class.storage.volume": {"class": "class.storage.volume"},
-        "class.compute.workload.container": {"class": "class.compute.workload.container"},
+        "class.compute.workload.lxc": {"class": "class.compute.workload.lxc"},
         "class.service.database": {"class": "class.service.database"},
     }
     objects = {
         "obj.pool.local": {"object": "obj.pool.local", "class_ref": "class.storage.pool"},
         "obj.vol.local": {"object": "obj.vol.local", "class_ref": "class.storage.volume"},
-        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"},
+        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"},
         "obj.service.local": {"object": "obj.service.local", "class_ref": "class.service.database"},
     }
 
@@ -226,7 +226,7 @@ def test_reference_validator_rejects_unknown_storage_relation_target():
             "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "object_ref": "obj.workload.local",
             "extensions": {"storage": {"pool_ref": "inst.pool.missing"}},
         }
@@ -236,9 +236,9 @@ def test_reference_validator_rejects_unknown_storage_relation_target():
         profile="test",
         model_lock={},
         config={"validation_owner_references": "plugin"},
-        classes={"class.compute.workload.container": {"class": "class.compute.workload.container"}},
+        classes={"class.compute.workload.lxc": {"class": "class.compute.workload.lxc"}},
         objects={
-            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"}
+            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}
         },
         instance_bindings={"instance_bindings": {}},
     )
@@ -369,18 +369,18 @@ def test_reference_validator_accepts_valid_network_bridge_relation():
             "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "object_ref": "obj.workload.local",
             "extensions": {"network": {"bridge_ref": "inst.bridge.local"}},
         },
     ]
     classes = {
         "class.network.bridge": {"class": "class.network.bridge"},
-        "class.compute.workload.container": {"class": "class.compute.workload.container"},
+        "class.compute.workload.lxc": {"class": "class.compute.workload.lxc"},
     }
     objects = {
         "obj.bridge.local": {"object": "obj.bridge.local", "class_ref": "class.network.bridge"},
-        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"},
+        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"},
     }
 
     ctx = PluginContext(
@@ -411,7 +411,7 @@ def test_reference_validator_rejects_unknown_network_bridge_target():
             "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "object_ref": "obj.workload.local",
             "extensions": {"network": {"bridge_ref": "inst.bridge.missing"}},
         }
@@ -421,9 +421,9 @@ def test_reference_validator_rejects_unknown_network_bridge_target():
         profile="test",
         model_lock={},
         config={"validation_owner_references": "plugin"},
-        classes={"class.compute.workload.container": {"class": "class.compute.workload.container"}},
+        classes={"class.compute.workload.lxc": {"class": "class.compute.workload.lxc"}},
         objects={
-            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"}
+            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}
         },
         instance_bindings={"instance_bindings": {}},
     )
@@ -504,18 +504,18 @@ def test_reference_validator_rejects_network_bridge_target_class_mismatch():
             "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "object_ref": "obj.workload.local",
             "extensions": {"network": {"bridge_ref": "inst.vlan.local"}},
         },
     ]
     classes = {
         "class.network.vlan": {"class": "class.network.vlan"},
-        "class.compute.workload.container": {"class": "class.compute.workload.container"},
+        "class.compute.workload.lxc": {"class": "class.compute.workload.lxc"},
     }
     objects = {
         "obj.vlan.local": {"object": "obj.vlan.local", "class_ref": "class.network.vlan"},
-        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"},
+        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"},
     }
 
     ctx = PluginContext(
@@ -554,18 +554,18 @@ def test_reference_validator_accepts_valid_network_vlan_relation():
             "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "object_ref": "obj.workload.local",
             "extensions": {"network": {"vlan_ref": "inst.vlan.local"}},
         },
     ]
     classes = {
         "class.network.vlan": {"class": "class.network.vlan"},
-        "class.compute.workload.container": {"class": "class.compute.workload.container"},
+        "class.compute.workload.lxc": {"class": "class.compute.workload.lxc"},
     }
     objects = {
         "obj.vlan.local": {"object": "obj.vlan.local", "class_ref": "class.network.vlan"},
-        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"},
+        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"},
     }
 
     ctx = PluginContext(
@@ -596,7 +596,7 @@ def test_reference_validator_rejects_unknown_network_vlan_target():
             "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "object_ref": "obj.workload.local",
             "extensions": {"network": {"vlan_ref": "inst.vlan.missing"}},
         }
@@ -606,9 +606,9 @@ def test_reference_validator_rejects_unknown_network_vlan_target():
         profile="test",
         model_lock={},
         config={"validation_owner_references": "plugin"},
-        classes={"class.compute.workload.container": {"class": "class.compute.workload.container"}},
+        classes={"class.compute.workload.lxc": {"class": "class.compute.workload.lxc"}},
         objects={
-            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"}
+            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}
         },
         instance_bindings={"instance_bindings": {}},
     )
@@ -689,18 +689,18 @@ def test_reference_validator_rejects_network_vlan_target_class_mismatch():
             "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "object_ref": "obj.workload.local",
             "extensions": {"network": {"vlan_ref": "inst.bridge.local"}},
         },
     ]
     classes = {
         "class.network.bridge": {"class": "class.network.bridge"},
-        "class.compute.workload.container": {"class": "class.compute.workload.container"},
+        "class.compute.workload.lxc": {"class": "class.compute.workload.lxc"},
     }
     objects = {
         "obj.bridge.local": {"object": "obj.bridge.local", "class_ref": "class.network.bridge"},
-        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"},
+        "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"},
     }
 
     ctx = PluginContext(
@@ -731,7 +731,7 @@ def test_reference_validator_rejects_network_vlan_ref_format():
             "group": "lxc",
             "instance": "inst.workload.local",
             "layer": "L4",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "object_ref": "obj.workload.local",
             "extensions": {"network": {"vlan_ref": []}},
         }
@@ -741,9 +741,9 @@ def test_reference_validator_rejects_network_vlan_ref_format():
         profile="test",
         model_lock={},
         config={"validation_owner_references": "plugin"},
-        classes={"class.compute.workload.container": {"class": "class.compute.workload.container"}},
+        classes={"class.compute.workload.lxc": {"class": "class.compute.workload.lxc"}},
         objects={
-            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.container"}
+            "obj.workload.local": {"object": "obj.workload.local", "class_ref": "class.compute.workload.lxc"}
         },
         instance_bindings={"instance_bindings": {}},
     )

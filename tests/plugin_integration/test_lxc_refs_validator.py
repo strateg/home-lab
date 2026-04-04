@@ -54,7 +54,7 @@ def _base_rows() -> list[dict]:
         {
             "group": "lxc",
             "instance": "lxc-a",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "layer": "L4",
             "extensions": {
                 "device_ref": "srv-a",
@@ -214,7 +214,7 @@ def test_lxc_refs_validator_warns_on_guest_template_architecture_mismatch():
         {
             "group": "templates",
             "instance": "tmpl-arm64",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "layer": "L4",
             "object_ref": "obj.lxc.template.arm64",
         }

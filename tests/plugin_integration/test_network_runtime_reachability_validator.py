@@ -52,7 +52,7 @@ def _base_rows() -> list[dict]:
         {
             "group": "lxc",
             "instance": "lxc-a",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "layer": "L4",
             "extensions": {"networks": [{"network_ref": "inst.vlan.a"}]},
         },

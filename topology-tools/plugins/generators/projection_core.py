@@ -38,7 +38,6 @@ ANSIBLE_HOST_EXCLUDED_OBJECT_REFS: frozenset[str] = frozenset(
 GROUP_DEVICES: str = "devices"
 GROUP_LXC: str = "lxc"
 GROUP_VM: str = "vm"
-GROUP_VMS: str = "vms"
 GROUP_SERVICES: str = "services"
 GROUP_NETWORK: str = "network"
 
@@ -99,11 +98,7 @@ def _group_rows(
     *,
     canonical: str,
 ) -> list[dict[str, Any]]:
-    """Return rows for canonical group name with migration aliases when applicable."""
-    if canonical == GROUP_VMS:
-        rows = list(groups.get(GROUP_VM, []))
-        rows.extend(groups.get(GROUP_VMS, []))
-        return rows
+    """Return rows for canonical group name."""
     return groups.get(canonical, [])
 
 

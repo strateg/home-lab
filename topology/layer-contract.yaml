@@ -36,7 +36,6 @@ group_layers:
   pools: L3
   data-assets: L3
   vm: L4
-  vms: L4
   lxc: L4
   docker: L4
   services: L5
@@ -45,8 +44,6 @@ group_layers:
 
 class_layers:
   # L1 - Foundation (physical devices)
-  class.compute.cloud_vm:
-    allowed_layers: [L1, L4]
   class.compute.edge_node:
     allowed_layers: [L1, L4]
   class.compute.hypervisor:
@@ -92,8 +89,6 @@ class_layers:
     allowed_layers: [L3]
 
   # L4 - Platform (workloads)
-  class.compute.workload.container:
-    allowed_layers: [L4]
   class.compute.workload.lxc:
     allowed_layers: [L4]
   class.compute.workload.docker:

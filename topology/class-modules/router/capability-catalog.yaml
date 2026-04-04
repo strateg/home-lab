@@ -383,7 +383,7 @@ capabilities:
     domain: compute
     stability: stable
     required_by:
-      - class.compute.cloud_vm
+      - class.compute.workload.vm
 
   - id: cap.compute.node.edge
     title: Edge Compute Node
@@ -424,7 +424,6 @@ capabilities:
     domain: compute
     stability: stable
     required_by:
-      - class.compute.workload.container
       - class.compute.workload.lxc
       - class.compute.workload.docker
 
@@ -434,10 +433,8 @@ capabilities:
     domain: compute
     stability: stable
     required_by:
-      - class.compute.cloud_vm
       - class.compute.workload.vm
       - class.compute.edge_node
-      - class.compute.workload.container
       - class.compute.workload.lxc
       - class.compute.workload.docker
 

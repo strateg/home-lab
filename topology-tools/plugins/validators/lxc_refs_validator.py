@@ -20,7 +20,7 @@ class LxcRefsValidator(ValidatorJsonPlugin):
 
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
-    _LXC_CLASSES = {"class.compute.workload.container", "class.compute.workload.lxc"}
+    _LXC_CLASSES = {"class.compute.workload.lxc"}
     _RESOURCE_PROFILE_REF_FIELD = "resource_profile_ref"
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
     _ARCH_ALIASES = {

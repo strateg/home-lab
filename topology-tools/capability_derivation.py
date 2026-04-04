@@ -13,7 +13,6 @@ def default_firmware_policy(class_id: str) -> str:
     if class_id.startswith("class.service."):
         return "forbidden"
     if class_id in {
-        "class.compute.workload.container",
         "class.compute.workload.lxc",
         "class.compute.workload.docker",
     }:
@@ -22,7 +21,6 @@ def default_firmware_policy(class_id: str) -> str:
         return "required"
     if class_id in {
         "class.router",
-        "class.compute.cloud_vm",
         "class.compute.workload.vm",
         "class.compute.edge_node",
         "class.compute.hypervisor",

@@ -1,13 +1,9 @@
 version: 1
 core_model_version: 1.0.0
 classes:
-  class.compute.cloud_vm:
-    version: 1.0.0
   class.compute.edge_node:
     version: 1.0.0
   class.compute.hypervisor:
-    version: 1.0.0
-  class.compute.workload.container:
     version: 1.0.0
   class.compute.workload.docker:
     version: 1.0.0

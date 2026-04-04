@@ -85,10 +85,10 @@ class NetworkRuntimeReachabilityValidator(ValidatorJsonPlugin):
                         device_to_host_os.setdefault(dev_id, set()).add(row_id)
                 continue
 
-            if class_ref in {"class.compute.workload.container", "class.compute.workload.lxc"}:
+            if class_ref == "class.compute.workload.lxc":
                 lxc_networks_by_id[row_id] = self._extract_network_refs(ctx=ctx, row=row)
                 continue
-            if class_ref in {"class.compute.cloud_vm", "class.compute.workload.vm"}:
+            if class_ref == "class.compute.workload.vm":
                 vm_networks_by_id[row_id] = self._extract_network_refs(ctx=ctx, row=row)
                 continue
             if class_ref == "class.compute.workload.docker":

@@ -15,7 +15,7 @@ class EthernetCableEndpointValidator(ValidatorJsonPlugin):
     _LEGACY_ENDPOINT_CODE = "E7309"
     _LEGACY_POWER_DELIVERY_CODE = "E7310"
     _PROVIDER_INSTANCE_SUBSTRATE = "provider-instance"
-    _PROVIDER_INSTANCE_CLASSES = {"class.compute.cloud_vm", "class.compute.workload.vm"}
+    _PROVIDER_INSTANCE_CLASSES = {"class.compute.workload.vm"}
     _LEGACY_LINK_CLASSES = {"class.network.data_link", "class.network.physical_link"}
 
     @staticmethod

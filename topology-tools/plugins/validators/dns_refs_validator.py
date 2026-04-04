@@ -21,7 +21,7 @@ class DnsRefsValidator(ValidatorJsonPlugin):
     _ROWS_KEY = "normalized_rows"
     _SERVICE_PREFIX = "class.service."
     _DNS_CLASSES = {"class.service.dns"}
-    _LXC_CLASSES = {"class.compute.workload.container", "class.compute.workload.lxc"}
+    _LXC_CLASSES = {"class.compute.workload.lxc"}
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []

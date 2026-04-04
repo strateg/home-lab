@@ -20,7 +20,7 @@ class VmRefsValidator(ValidatorJsonPlugin):
 
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
-    _VM_CLASSES = {"class.compute.cloud_vm", "class.compute.workload.vm"}
+    _VM_CLASSES = {"class.compute.workload.vm"}
     _ACTIVE_OS_STATUSES = {"active", "mapped", "modeled"}
     _ARCH_ALIASES = {
         "x86_64": "x86_64",

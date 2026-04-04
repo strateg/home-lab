@@ -140,7 +140,7 @@ def test_power_source_validator_rejects_source_layer_violation():
             "group": "lxc",
             "instance": "lxc-app",
             "layer": "L4",
-            "class_ref": "class.compute.workload.container",
+            "class_ref": "class.compute.workload.lxc",
             "object_ref": "obj.lxc.app",
             "extensions": {"power": {"source_ref": "pdu-rack"}},
         },

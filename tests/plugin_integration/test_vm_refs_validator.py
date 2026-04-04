@@ -51,9 +51,9 @@ def _base_rows() -> list[dict]:
             "layer": "L3",
         },
         {
-            "group": "vms",
+            "group": "vm",
             "instance": "vm-a",
-            "class_ref": "class.compute.cloud_vm",
+            "class_ref": "class.compute.workload.vm",
             "layer": "L4",
             "extensions": {
                 "device_ref": "srv-a",
@@ -210,7 +210,7 @@ def test_vm_refs_validator_warns_on_guest_template_architecture_mismatch():
         {
             "group": "templates",
             "instance": "tmpl-arm64",
-            "class_ref": "class.compute.cloud_vm",
+            "class_ref": "class.compute.workload.vm",
             "layer": "L4",
             "object_ref": "obj.vm.template.arm64",
         }
@@ -240,7 +240,7 @@ def test_vm_refs_validator_rejects_template_architecture_not_matching_resolved_h
         {
             "group": "templates",
             "instance": "tmpl-arm64",
-            "class_ref": "class.compute.cloud_vm",
+            "class_ref": "class.compute.workload.vm",
             "layer": "L4",
             "object_ref": "obj.vm.template.arm64",
         }
