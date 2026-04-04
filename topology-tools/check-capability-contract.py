@@ -207,8 +207,7 @@ class CapabilityContractChecker:
             "class.router",
             "class.compute.workload.vm",
             "class.compute.edge_node",
-            "class.compute.hypervisor",
-        }:
+        } or class_id.startswith("class.compute.hypervisor"):
             return "required"
         return "allowed"
 

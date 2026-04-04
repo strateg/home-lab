@@ -4,6 +4,16 @@ classes:
   class.compute.edge_node:
     version: 1.0.0
   class.compute.hypervisor:
+    version: 2.0.0
+  class.compute.hypervisor.hyperv:
+    version: 1.0.0
+  class.compute.hypervisor.proxmox:
+    version: 1.0.0
+  class.compute.hypervisor.vbox:
+    version: 1.0.0
+  class.compute.hypervisor.vmware:
+    version: 1.0.0
+  class.compute.hypervisor.xen:
     version: 1.0.0
   class.compute.workload.docker:
     version: 1.0.0
@@ -302,7 +312,7 @@ objects:
     class_ref: class.compute.workload.lxc
   obj.proxmox.ve:
     version: 1.0.0
-    class_ref: class.compute.hypervisor
+    class_ref: class.compute.hypervisor.proxmox
   obj.service.adguard:
     version: 1.0.0
     class_ref: class.service.dns

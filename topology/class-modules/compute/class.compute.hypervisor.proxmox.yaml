@@ -1,8 +1,7 @@
-class: class.compute.hypervisor
-version: 2.0.0
-title: Compute Hypervisor
-summary: Abstract base class for hypervisor platforms.
-abstract: true
+class: class.compute.hypervisor.proxmox
+version: 1.0.0
+title: Proxmox Hypervisor
+summary: Proxmox VE hypervisor platform (QEMU/KVM + LXC).
 os_policy: required
 firmware_policy: required
 os_cardinality:
@@ -18,17 +17,26 @@ required_capabilities:
 optional_capabilities:
 - cap.compute.storage.zfs
 capability_packs: []
-execution_model_support:
-- bare_metal
-- hosted
+execution_model: bare_metal
 supported_workload_types:
 - class.compute.workload.vm
 - class.compute.workload.lxc
 vm_constraints:
-  allowed_disk_formats: []
-  allowed_disk_buses: []
-  allowed_firmware: []
-  platform_config_schema: {}
+  allowed_disk_formats:
+  - qcow2
+  - raw
+  - vmdk
+  allowed_disk_buses:
+  - scsi
+  - virtio
+  - ide
+  - sata
+  allowed_firmware:
+  - seabios
+  - ovmf
+  platform_config_schema:
+    machine_type: string
+    scsi_controller: string
 invariants:
 - object.class_ref must equal class.id
 - instance overrides must not violate class invariants

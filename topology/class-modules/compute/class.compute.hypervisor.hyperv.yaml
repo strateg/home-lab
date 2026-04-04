@@ -1,8 +1,7 @@
-class: class.compute.hypervisor
-version: 2.0.0
-title: Compute Hypervisor
-summary: Abstract base class for hypervisor platforms.
-abstract: true
+class: class.compute.hypervisor.hyperv
+version: 1.0.0
+title: Hyper-V Hypervisor
+summary: Microsoft Hyper-V hypervisor platform.
 os_policy: required
 firmware_policy: required
 os_cardinality:
@@ -13,22 +12,27 @@ allowed_os_install_models:
 - installable
 required_capabilities:
 - cap.compute.host.hypervisor
-- cap.compute.runtime.container_host
 - cap.compute.runtime.vm_host
-optional_capabilities:
-- cap.compute.storage.zfs
+optional_capabilities: []
 capability_packs: []
 execution_model_support:
 - bare_metal
 - hosted
 supported_workload_types:
 - class.compute.workload.vm
-- class.compute.workload.lxc
 vm_constraints:
-  allowed_disk_formats: []
-  allowed_disk_buses: []
-  allowed_firmware: []
-  platform_config_schema: {}
+  allowed_disk_formats:
+  - vhd
+  - vhdx
+  allowed_disk_buses:
+  - ide
+  - scsi
+  allowed_firmware:
+  - gen1
+  - gen2
+  platform_config_schema:
+    generation: string
+    secure_boot: string
 invariants:
 - object.class_ref must equal class.id
 - instance overrides must not violate class invariants

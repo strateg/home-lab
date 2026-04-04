@@ -48,6 +48,16 @@ class_layers:
     allowed_layers: [L1, L4]
   class.compute.hypervisor:
     allowed_layers: [L1, L4]
+  class.compute.hypervisor.proxmox:
+    allowed_layers: [L1, L4]
+  class.compute.hypervisor.vbox:
+    allowed_layers: [L1, L4]
+  class.compute.hypervisor.hyperv:
+    allowed_layers: [L1, L4]
+  class.compute.hypervisor.vmware:
+    allowed_layers: [L1, L4]
+  class.compute.hypervisor.xen:
+    allowed_layers: [L1, L4]
   class.router:
     allowed_layers: [L1]
   class.power.pdu:

@@ -1,5 +1,5 @@
 object: obj.proxmox.ve
-class_ref: class.compute.hypervisor
+class_ref: class.compute.hypervisor.proxmox
 version: 1.0.0
 model: Proxmox VE 9
 vendor: proxmox
