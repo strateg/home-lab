@@ -24,7 +24,10 @@
 
 | Task | Files |
 |------|-------|
-| Create `L4-platform/docker/` directory | New directory |
+| Create host-sharded L4 directories | `L4-platform/{lxc,docker,vm}/{host_or_runtime_host}/` |
+| Create host-sharded L5 directories | `L5-application/services/{host_or_runtime_host}/` |
+| Move current L4 instances to host shards (no semantic changes) | e.g. `L4-platform/lxc/srv-gamayun/*.yaml` |
+| Move current L5 services to host shards (no semantic changes) | e.g. `L5-application/services/srv-gamayun/*.yaml` |
 | Create Docker container instances from current L5 Docker services | ~12 files based on current L5 `runtime.type: docker` |
 | Update L5 Docker services: `target_ref` → L4 Docker container | ~12 L5 service files |
 
@@ -34,6 +37,7 @@
 |------|-------|
 | Add `validate-container-host-capability` plugin | `topology-tools/plugins/validators/` |
 | Add deprecated-pattern warning for L5→L1 Docker refs | Update existing target_ref validator |
+| Add host-shard placement validator for L4/L5 | Validate path host segment vs `host_ref` / runtime host |
 
 ### 1.5 Tests
 
@@ -50,6 +54,7 @@
 - [ ] `python scripts/orchestration/lane.py validate-v5` — pass
 - [ ] Every L5 service has `target_ref` pointing to L4 (no L1 Docker refs)
 - [ ] Docker-capable hosts declare `cap.compute.runtime.container_host` and `vendor.runtime.docker.host`
+- [ ] L4 and L5 files follow host-sharded path policy
 
 ---
 
@@ -60,6 +65,7 @@
 | Task | Files | Notes |
 |------|-------|-------|
 | Make `class.compute.hypervisor` abstract base (v2.0) | `topology/class-modules/compute/class.compute.hypervisor.yaml` | Add `vm_constraints`, `platform_config_schema`, `supported_workload_types` |
+| Add hypervisor execution model fields | `class.compute.hypervisor*.yaml` | Add `execution_model` (+ `execution_model_support` where needed), `hardware_ref`, `host_os_ref` contract |
 | Create `class.compute.hypervisor.proxmox` | `topology/class-modules/compute/class.compute.hypervisor.proxmox.yaml` | qcow2/raw/vmdk, scsi/virtio/ide/sata, seabios/ovmf |
 | Create `class.compute.hypervisor.vbox` | `topology/class-modules/compute/class.compute.hypervisor.vbox.yaml` | vdi/vmdk/vhd/raw, sata/ide/scsi/nvme |
 | Create `class.compute.hypervisor.hyperv` | `topology/class-modules/compute/class.compute.hypervisor.hyperv.yaml` | vhd/vhdx, ide/scsi, Gen1/Gen2 |
@@ -73,6 +79,7 @@
 | Update `obj.proxmox.ve`: `class_ref` → `class.compute.hypervisor.proxmox` | `topology/object-modules/proxmox/obj.proxmox.ve.yaml` |
 | Update `srv-gamayun` instance if needed | `projects/home-lab/topology/instances/L1-foundation/devices/srv-gamayun.yaml` |
 | Add hypervisor objects for other platforms (when hosts exist) | `topology/object-modules/<platform>/` |
+| Add required linkage refs by execution model | Hypervisor instances | `bare_metal` => `hardware_ref`; `hosted` => `host_os_ref` |
 
 ### 2.3 Acceptance Gate
 
@@ -80,6 +87,7 @@
 - [ ] All 871+ tests pass
 - [ ] New hypervisor classes validate correctly
 - [ ] `obj.proxmox.ve` references `class.compute.hypervisor.proxmox`
+- [ ] Hypervisor execution model linkage validates (`bare_metal`→`hardware_ref`, `hosted`→`host_os_ref`)
 
 ---
 
@@ -110,7 +118,7 @@
 
 | Task | Files |
 |------|-------|
-| Create `L4-platform/vm/` directory | New directory |
+| Create `L4-platform/vm/{host}/` directories | New directory layout |
 | Create Proxmox VM instances (when needed) | On demand |
 
 ### 3.4 Acceptance Gate
@@ -153,7 +161,7 @@
 
 | Task | Files |
 |------|-------|
-| Add `data_asset_ref` to existing L4 LXC volume entries | `projects/home-lab/topology/instances/L4-platform/lxc/*.yaml` |
+| Add `data_asset_ref` to existing L4 LXC volume entries | `projects/home-lab/topology/instances/L4-platform/lxc/*/*.yaml` |
 | Create L3 volume instances for future VMs | `projects/home-lab/topology/instances/L3-data/volumes/` |
 
 ### 4.5 Acceptance Gate

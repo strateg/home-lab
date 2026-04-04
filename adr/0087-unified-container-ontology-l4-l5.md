@@ -44,6 +44,14 @@ Each hypervisor class declares constraints: `allowed_disk_formats`,
 `allowed_disk_buses`, `allowed_firmware`, `platform_config_schema`.
 These are validated against L4 VM objects at compile time.
 
+Hypervisor hosting model is explicit:
+- `execution_model: bare_metal | hosted`
+- For `bare_metal`: `hardware_ref` is required (hypervisor runs directly on hardware)
+- For `hosted`: `host_os_ref` is required (hypervisor runs on host OS)
+- For mixed-mode platforms (for example Hyper-V/VMware), class may declare
+  `execution_model_support: [bare_metal, hosted]`, but each instance must still
+  satisfy one concrete mode with the corresponding required reference.
+
 **L4 Workload hierarchy** (WHAT runs on the hypervisor):
 ```
 class.compute.workload                (abstract base)
@@ -100,13 +108,47 @@ a `topology_scope` with internal networks and shared volumes. Scope resolution:
 - Internal refs (`scope.{container}.*`) resolve within container scope
 - Maximum nesting depth: 2 levels
 
-### 6. Organize L4 instances by container type
+### 6. Organize L4 and L5 by host/device sharding
 
 ```
 projects/home-lab/topology/instances/L4-platform/
-  lxc/           ← existing LXC containers (renamed from current)
-  docker/        ← new Docker containers
-  vm/            ← new VMs (when needed)
+  lxc/
+    srv-gamayun/
+      lxc-postgresql.yaml
+      lxc-redis.yaml
+      lxc-nginx-proxy.yaml
+    rtr-mikrotik-chateau/
+      lxc-*.yaml (if used)
+  docker/
+    srv-orangepi5/
+      docker-grafana.yaml
+      docker-prometheus.yaml
+    lxc-docker/                   ← nested host shard (L4 host)
+      docker-*.yaml
+    rtr-mikrotik-chateau/
+      docker-adguard.yaml
+      docker-mosquitto.yaml
+  vm/
+    srv-gamayun/
+      vm-*.yaml
+
+projects/home-lab/topology/instances/L5-application/services/
+  srv-gamayun/
+    svc-grafana@lxc.lxc-grafana.yaml
+    svc-prometheus@lxc.lxc-prometheus.yaml
+  srv-orangepi5/
+    svc-grafana@docker.srv-orangepi5.yaml
+    svc-nextcloud@docker.srv-orangepi5.yaml
+  rtr-mikrotik-chateau/
+    svc-adguard.yaml
+    svc-mosquitto.yaml
+
+Sharding rule:
+- L4 path format: `L4-platform/<workload-kind>/<host-shard>/<instance>.yaml`
+  (migration-compatible with current compiler group checks for `lxc/docker/vm|vms`)
+- L5 path format: `L5-application/services/<host-shard>/<service>.yaml`
+- `host-shard` maps to `host_ref` for L4 workloads and runtime host target for L5 services.
+- Legacy flat layout remains supported only during transition and emits warnings.
 ```
 
 ## Implementation Plan
@@ -146,6 +188,7 @@ Detailed implementation plan: `adr/0087-analysis/IMPLEMENTATION-PLAN.md`
 - Nested topology scope adds reference resolution complexity (mitigated by depth limit)
 - `platform_config` bag validation requires per-hypervisor schema maintenance
 - Migration is not purely additive because class rename and hypervisor split touch existing refs
+- Host-based sharding requires validator/runtime path policy updates
 
 ## Analysis Artifacts
 

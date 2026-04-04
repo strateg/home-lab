@@ -259,6 +259,36 @@ os_policy: required
 firmware_policy: required
 
 properties:
+  # --- Hypervisor execution model ---
+  execution_model:
+    type: enum
+    values: [bare_metal, hosted]
+    description: >
+      bare_metal = hypervisor installed directly on hardware.
+      hosted = hypervisor installed on top of a host operating system.
+
+  execution_model_support:
+    type: list
+    items: { type: enum, values: [bare_metal, hosted] }
+    required: false
+    description: >
+      Optional for platforms that exist in multiple modes (for example Hyper-V
+      and VMware). If omitted, assumed to be the single `execution_model` value.
+
+  hardware_ref:
+    type: reference
+    required_if:
+      execution_model: bare_metal
+    description: >
+      Reference to underlying hardware/device instance for bare-metal hypervisors.
+
+  host_os_ref:
+    type: reference
+    required_if:
+      execution_model: hosted
+    description: >
+      Reference to host OS instance when hypervisor runs on top of OS (Type-2).
+
   # --- Workload support declarations ---
   supported_workload_types:
     type: list
@@ -306,6 +336,8 @@ class: class.compute.hypervisor.proxmox
 inherits: class.compute.hypervisor
 description: Proxmox VE hypervisor — QEMU/KVM VMs and LXC containers.
 
+execution_model: bare_metal
+
 supported_workload_types: [vm, lxc]
 
 vm_constraints:
@@ -348,6 +380,8 @@ description: >
   Oracle VirtualBox — Type 2 hypervisor for development/testing.
   Runs on Windows, macOS, Linux host OS. Managed via VBoxManage CLI.
 
+execution_model: hosted
+
 supported_workload_types: [vm]
 
 vm_constraints:
@@ -384,6 +418,8 @@ description: >
   Microsoft Hyper-V — Type 1 hypervisor (Server) or Type 1.5 (Windows client).
   Gen 1 (legacy BIOS, IDE boot) vs Gen 2 (UEFI, SCSI boot, Secure Boot).
   Managed via PowerShell Hyper-V module or WMI.
+
+execution_model_support: [hosted, bare_metal]
 
 supported_workload_types: [vm]
 
@@ -428,6 +464,8 @@ description: >
   VMware hypervisor — ESXi (Type 1), Workstation/Fusion (Type 2).
   Uses VMDK disk format. Managed via vSphere API, govc CLI, PowerCLI.
 
+execution_model_support: [bare_metal, hosted]
+
 supported_workload_types: [vm]
 
 vm_constraints:
@@ -464,6 +502,8 @@ inherits: class.compute.hypervisor
 description: >
   Xen / XCP-ng hypervisor — Type 1. Supports PV, HVM, PVH modes.
   Managed via xe CLI, XenAPI, or Xen Orchestra.
+
+execution_model: bare_metal
 
 supported_workload_types: [vm]
 
@@ -517,6 +557,14 @@ Compile-time cross-layer validation:
 
 6. VALIDATE WORKLOAD TYPE:
    ASSERT "vm" ∈ hypervisor_class.supported_workload_types
+
+7. VALIDATE EXECUTION MODEL LINKAGE:
+   IF hypervisor.execution_model == bare_metal:
+     ASSERT hypervisor.hardware_ref exists
+   IF hypervisor.execution_model == hosted:
+     ASSERT hypervisor.host_os_ref exists
+   IF hypervisor.execution_model_support includes both values:
+     ASSERT one of {hardware_ref, host_os_ref} exists per instance mode
 ```
 
 #### class.compute.workload.docker
@@ -1557,7 +1605,7 @@ defaults:
 #### L4: Docker Container Instance (NEW ENTITY)
 
 ```yaml
-# projects/home-lab/topology/instances/L4-platform/docker/docker-nginx.yaml
+# projects/home-lab/topology/instances/L4-platform/docker/rtr-mikrotik-chateau/docker-nginx.yaml
 instance: docker-nginx
 object_ref: obj.docker.container.nginx
 group: containers
@@ -1674,7 +1722,7 @@ depends_on: []
 #### L5: Application Service (references L4, not L1)
 
 ```yaml
-# projects/home-lab/topology/instances/L5-application/services/svc-nginx.yaml
+# projects/home-lab/topology/instances/L5-application/services/rtr-mikrotik-chateau/svc-nginx.yaml
 instance: svc-nginx
 object_ref: obj.service.web.reverse_proxy
 group: services
@@ -2022,7 +2070,7 @@ properties:
 #### L4: LXC Container Instance (upgraded ontology)
 
 ```yaml
-# projects/home-lab/topology/instances/L4-platform/lxc/lxc-nginx-proxy.yaml
+# projects/home-lab/topology/instances/L4-platform/lxc/srv-gamayun/lxc-nginx-proxy.yaml
 # ─── UPGRADED from current model ───
 instance: lxc-nginx-proxy
 object_ref: obj.proxmox.lxc.debian12.nginx
@@ -2115,7 +2163,7 @@ data_asset_refs:
 #### L5: Application Service
 
 ```yaml
-# projects/home-lab/topology/instances/L5-application/services/svc-nginx-proxy.yaml
+# projects/home-lab/topology/instances/L5-application/services/srv-gamayun/svc-nginx-proxy.yaml
 instance: svc-nginx-proxy
 object_ref: obj.service.nginx_proxy
 group: services
@@ -2189,7 +2237,7 @@ a **nested L4 entity** referencing another L4 entity.
 #### L4 Host: LXC-Docker Container (enriched)
 
 ```yaml
-# projects/home-lab/topology/instances/L4-platform/lxc/lxc-docker.yaml
+# projects/home-lab/topology/instances/L4-platform/lxc/srv-gamayun/lxc-docker.yaml
 # ─── ENRICHED for Docker-in-LXC pattern ───
 instance: lxc-docker
 object_ref: obj.proxmox.lxc.debian12.docker
@@ -2309,7 +2357,7 @@ ansible:
 #### L4 Nested: Docker Container Nginx (inside LXC-Docker)
 
 ```yaml
-# projects/home-lab/topology/instances/L4-platform/docker/docker-nginx-proxy.yaml
+# projects/home-lab/topology/instances/L4-platform/docker/lxc-docker/docker-nginx-proxy.yaml
 instance: docker-nginx-proxy
 object_ref: obj.docker.container.nginx         # same object as MikroTik variant
 group: containers
@@ -2434,7 +2482,7 @@ properties:
 #### L5: Service (references Docker L4)
 
 ```yaml
-# projects/home-lab/topology/instances/L5-application/services/svc-nginx-proxy-docker.yaml
+# projects/home-lab/topology/instances/L5-application/services/lxc-docker/svc-nginx-proxy-docker.yaml
 instance: svc-nginx-proxy-docker
 object_ref: obj.service.nginx_proxy
 group: services
@@ -2705,7 +2753,7 @@ disks:
 cloud_init: { enabled: true }
 ```
 
-### 9.3 Batch Grouping
+### 9.3 Batch Grouping + Host Sharding
 
 Multiple instances per file when they belong to a logical group:
 
@@ -2718,14 +2766,45 @@ projects/home-lab/topology/instances/
       vol.vm-k3s-master.yaml
       vol.vm-dev.yaml
   L4-platform/
-    lxc/                         ← existing
-    vm/                          ← NEW
-      vm-k3s-master.yaml
-    docker/                      ← NEW
-      stack-monitoring.yaml      ← prometheus + grafana + node-exporter
-      stack-media.yaml           ← jellyfin + radarr + sonarr
-      docker-homeassistant.yaml
+    lxc/
+      srv-gamayun/               ← host shard
+        lxc-postgresql.yaml
+        lxc-grafana.yaml
+      rtr-mikrotik-chateau/      ← host shard (if LXC used)
+        lxc-*.yaml
+    vm/
+      srv-gamayun/               ← host shard
+        vm-k3s-master.yaml
+    docker/
+      srv-orangepi5/             ← host shard
+        docker-grafana.yaml
+        docker-homeassistant.yaml
+      rtr-mikrotik-chateau/      ← host shard
+        docker-adguard.yaml
+        docker-mosquitto.yaml
+      lxc-docker/                ← nested runtime host shard
+        docker-*.yaml
+  L5-application/
+    services/
+      srv-gamayun/
+        svc-grafana@lxc.lxc-grafana.yaml
+      srv-orangepi5/
+        svc-grafana@docker.srv-orangepi5.yaml
+      rtr-mikrotik-chateau/
+        svc-adguard.yaml
 ```
+
+Sharding policy:
+- L4 path format: `L4-platform/<workload-kind>/<host-shard>/<instance>.yaml`
+- L5 path format: `L5-application/services/<host-shard>/<service>.yaml`
+- `host-shard` must match L4 `host_ref` (or L4 runtime host) and L5 runtime target host.
+- Flat legacy paths are transition-only and should emit warnings until cutover.
+
+For existing project constraints (group directory remains required by compiler),
+L4 uses group-compatible host sharding in migration phase:
+- `L4-platform/lxc/<host-shard>/<instance>.yaml`
+- `L4-platform/docker/<host-shard>/<instance>.yaml`
+- `L4-platform/vm|vms/<host-shard>/<instance>.yaml`
 
 ### 9.4 File Count Projection
 
@@ -2736,7 +2815,8 @@ projects/home-lab/topology/instances/
 | L5 instances | 35 | 35 (unchanged) | 35 | 35 |
 | **Total delta** | **63** | **+12** | **+9** | **+6** |
 
-Growth is linear and manageable (~30% increase).
+Growth is linear and manageable (~30% increase); host sharding keeps per-directory
+cognitive load bounded as topology grows.
 
 > **Errata alignment note**: This section uses the canonical phase map from
 > ADR 0087 / IMPLEMENTATION-PLAN (Phase 5 = Nested Topology, Phase 6 = Stacks).
