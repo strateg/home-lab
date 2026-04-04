@@ -1,0 +1,8 @@
+instance: inst.os.debian.12.arm64.container_base
+object_ref: obj.os.debian.12.arm64.container_base
+group: os
+layer: L1
+version: 1.0.0
+source_id: inst.os.debian.12.arm64.container_base
+status: mapped
+notes: ADR0087 container base os instance for ARM64 workloads

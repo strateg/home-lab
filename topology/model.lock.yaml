@@ -85,6 +85,9 @@ objects:
   obj.apc.backups.650va:
     version: 1.0.0
     class_ref: class.power.ups
+  obj.docker.container.generic:
+    version: 1.0.0
+    class_ref: class.compute.workload.docker
   obj.firmware.apc.backups.650va:
     version: 1.0.0
     class_ref: class.firmware
@@ -241,6 +244,9 @@ objects:
   obj.orangepi.rk3588.debian:
     version: 1.0.0
     class_ref: class.compute.edge_node
+  obj.os.debian.12.arm64.container_base:
+    version: 1.0.0
+    class_ref: class.os
   obj.os.debian.12.arm64.edge:
     version: 1.0.0
     class_ref: class.os

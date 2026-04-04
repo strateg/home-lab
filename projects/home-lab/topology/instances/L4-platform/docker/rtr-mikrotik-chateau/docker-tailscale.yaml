@@ -1,0 +1,17 @@
+instance: docker-tailscale
+object_ref: obj.docker.container.generic
+group: docker
+layer: L4
+version: 1.0.0
+source_id: docker-tailscale
+status: modeled
+notes: ADR0087 docker workload target
+host_ref: rtr-mikrotik-chateau
+os_refs:
+- inst.os.debian.12.arm64.container_base
+network:
+  network_ref: inst.vlan.lan
+  ip: 192.168.88.212/24
+  gateway: 192.168.88.1
+runtime:
+  image: tailscale/tailscale:latest

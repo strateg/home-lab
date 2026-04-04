@@ -23,6 +23,6 @@ notification_channels:
 
 runtime:
   type: docker
-  target_ref: srv-orangepi5
+  target_ref: docker-alertmanager
   network_binding_ref: inst.vlan.servers
   image: prom/alertmanager:latest

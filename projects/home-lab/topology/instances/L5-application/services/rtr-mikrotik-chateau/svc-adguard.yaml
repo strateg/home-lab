@@ -18,7 +18,7 @@ critical: true
 
 runtime:
   type: docker
-  target_ref: rtr-mikrotik-chateau
+  target_ref: docker-adguard
   network_binding_ref: inst.vlan.lan
   image: adguard/adguardhome
   resources:

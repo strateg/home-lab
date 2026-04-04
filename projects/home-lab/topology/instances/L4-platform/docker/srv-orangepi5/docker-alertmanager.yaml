@@ -1,0 +1,17 @@
+instance: docker-alertmanager
+object_ref: obj.docker.container.generic
+group: docker
+layer: L4
+version: 1.0.0
+source_id: docker-alertmanager
+status: modeled
+notes: ADR0087 docker workload target
+host_ref: srv-orangepi5
+os_refs:
+- inst.os.debian.12.arm64.container_base
+network:
+  network_ref: inst.vlan.servers
+  ip: 10.0.30.216/24
+  gateway: 10.0.30.1
+runtime:
+  image: prom/alertmanager:latest

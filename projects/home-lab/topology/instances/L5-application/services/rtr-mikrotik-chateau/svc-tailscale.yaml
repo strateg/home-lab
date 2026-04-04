@@ -14,7 +14,7 @@ critical: true
 
 runtime:
   type: docker
-  target_ref: rtr-mikrotik-chateau
+  target_ref: docker-tailscale
   image: tailscale/tailscale
   resources:
     memory_mb: 50

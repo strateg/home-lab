@@ -29,6 +29,6 @@ config:
 
 runtime:
   type: docker
-  target_ref: srv-orangepi5
+  target_ref: docker-homeassistant
   network_binding_ref: inst.vlan.servers
   image: homeassistant/home-assistant:stable

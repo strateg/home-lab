@@ -38,6 +38,7 @@ group_layers:
   vm: L4
   vms: L4
   lxc: L4
+  docker: L4
   services: L5
   observability: L6
   operations: L7

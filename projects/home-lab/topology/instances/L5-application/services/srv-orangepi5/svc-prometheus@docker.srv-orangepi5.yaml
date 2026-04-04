@@ -33,6 +33,6 @@ config:
 
 runtime:
   type: docker
-  target_ref: srv-orangepi5
+  target_ref: docker-prometheus
   network_binding_ref: inst.vlan.servers
   image: prom/prometheus:latest

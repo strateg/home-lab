@@ -19,6 +19,6 @@ sync_with: svc-adguard
 
 runtime:
   type: docker
-  target_ref: srv-orangepi5
+  target_ref: docker-adguard-secondary
   network_binding_ref: inst.vlan.servers
   image: adguard/adguardhome

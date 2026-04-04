@@ -26,6 +26,6 @@ config:
 
 runtime:
   type: docker
-  target_ref: srv-orangepi5
+  target_ref: docker-grafana
   network_binding_ref: inst.vlan.servers
   image: grafana/grafana:latest
