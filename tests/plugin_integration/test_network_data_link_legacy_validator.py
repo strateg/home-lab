@@ -33,7 +33,7 @@ def _base_bindings() -> dict[str, Any]:
                 {"instance": "srv-b", "class_ref": "class.router", "object_ref": "obj.device.router_b", "layer": "L1"},
                 {
                     "instance": "vps-a",
-                    "class_ref": "class.compute.cloud_vm",
+                    "class_ref": "class.compute.workload.vm",
                     "object_ref": "obj.device.cloud_vm",
                     "layer": "L1",
                 },
@@ -74,7 +74,7 @@ def _base_objects() -> dict[str, Any]:
             },
         },
         "obj.device.cloud_vm": {
-            "class_ref": "class.compute.cloud_vm",
+            "class_ref": "class.compute.workload.vm",
             "hardware_specs": {"interfaces": {"virtual": [{"name": "eth0"}]}},
         },
         "obj.network.fiber_channel": {

@@ -1,5 +1,5 @@
 object: obj.oracle.cloud_vm
-class_ref: class.compute.cloud_vm
+class_ref: class.compute.workload.vm
 version: 1.0.0
 model: Oracle Cloud VM
 vendor: oracle

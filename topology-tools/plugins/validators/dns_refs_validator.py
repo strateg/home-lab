@@ -21,6 +21,7 @@ class DnsRefsValidator(ValidatorJsonPlugin):
     _ROWS_KEY = "normalized_rows"
     _SERVICE_PREFIX = "class.service."
     _DNS_CLASSES = {"class.service.dns"}
+    _LXC_CLASSES = {"class.compute.workload.container", "class.compute.workload.lxc"}
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -84,7 +85,7 @@ class DnsRefsValidator(ValidatorJsonPlugin):
                     row_id=row_id,
                     record=record,
                     field_name="lxc_ref",
-                    expected_predicate=lambda target: target.get("class_ref") == "class.compute.workload.container",
+                    expected_predicate=lambda target: target.get("class_ref") in self._LXC_CLASSES,
                     expected_label="L4 container workload instance",
                     row_by_id=row_by_id,
                     stage=stage,

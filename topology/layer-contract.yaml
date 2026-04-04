@@ -93,9 +93,12 @@ class_layers:
   # L4 - Platform (workloads)
   class.compute.workload.container:
     allowed_layers: [L4]
+  class.compute.workload.lxc:
+    allowed_layers: [L4]
+  class.compute.workload.docker:
+    allowed_layers: [L4]
   class.compute.workload.vm:
     allowed_layers: [L4]
-    status: planned
 
   # L5 - Application (services)
   class.service.alerting:

@@ -41,7 +41,7 @@ def _publish_rows(ctx: PluginContext, rows: list[dict]) -> None:
 def _base_rows() -> list[dict]:
     return [
         {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1"},
-        {"group": "lxc", "instance": "lxc-a", "class_ref": "class.compute.workload.container", "layer": "L4"},
+        {"group": "lxc", "instance": "lxc-a", "class_ref": "class.compute.workload.lxc", "layer": "L4"},
         {"group": "data-assets", "instance": "asset-a", "class_ref": "class.storage.data_asset", "layer": "L3"},
         {"group": "pools", "instance": "pool-a", "class_ref": "class.storage.pool", "layer": "L3"},
         {

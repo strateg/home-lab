@@ -425,6 +425,8 @@ capabilities:
     stability: stable
     required_by:
       - class.compute.workload.container
+      - class.compute.workload.lxc
+      - class.compute.workload.docker
 
   - id: cap.compute.workload.linux_base
     title: Linux Workload Base
@@ -433,8 +435,11 @@ capabilities:
     stability: stable
     required_by:
       - class.compute.cloud_vm
+      - class.compute.workload.vm
       - class.compute.edge_node
       - class.compute.workload.container
+      - class.compute.workload.lxc
+      - class.compute.workload.docker
 
   - id: cap.compute.storage.zfs
     title: ZFS Storage Substrate

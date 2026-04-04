@@ -1,5 +1,5 @@
 object: obj.hetzner.cloud_vm
-class_ref: class.compute.cloud_vm
+class_ref: class.compute.workload.vm
 version: 1.0.0
 model: Hetzner Cloud VM
 vendor: hetzner

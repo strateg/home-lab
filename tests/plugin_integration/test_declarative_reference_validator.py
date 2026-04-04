@@ -37,7 +37,7 @@ def test_declarative_reference_validator_accepts_valid_dns_backup_service_depend
     ctx = _context()
     rows = [
         {"group": "devices", "instance": "srv-a", "class_ref": "class.router", "layer": "L1"},
-        {"group": "lxc", "instance": "lxc-a", "class_ref": "class.compute.workload.container", "layer": "L4"},
+        {"group": "lxc", "instance": "lxc-a", "class_ref": "class.compute.workload.lxc", "layer": "L4"},
         {"group": "services", "instance": "svc-a", "class_ref": "class.service.web_ui", "layer": "L5"},
         {"group": "storage", "instance": "pool-a", "class_ref": "class.storage.pool", "layer": "L3"},
         {"group": "storage", "instance": "asset-a", "class_ref": "class.storage.data_asset", "layer": "L3"},

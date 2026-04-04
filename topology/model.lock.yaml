@@ -9,12 +9,42 @@ classes:
     version: 1.0.0
   class.compute.workload.container:
     version: 1.0.0
-  class.router:
-    version: 2.0.0
+  class.compute.workload.docker:
+    version: 1.0.0
+  class.compute.workload.lxc:
+    version: 1.0.0
+  class.compute.workload.vm:
+    version: 1.0.0
+  class.firmware:
+    version: 1.0.0
+  class.network.bridge:
+    version: 1.0.0
+  class.network.data_link:
+    version: 1.0.0
+  class.network.firewall_policy:
+    version: 1.0.0
+  class.network.physical_link:
+    version: 1.0.0
+  class.network.qos:
+    version: 1.0.0
+  class.network.trust_zone:
+    version: 1.0.0
+  class.network.vlan:
+    version: 1.0.0
+  class.observability.alert:
+    version: 1.0.0
+  class.observability.healthcheck:
+    version: 1.0.0
+  class.operations.backup:
+    version: 1.0.0
+  class.os:
+    version: 1.0.0
   class.power.pdu:
     version: 1.0.0
   class.power.ups:
     version: 1.0.0
+  class.router:
+    version: 2.0.0
   class.service.alerting:
     version: 1.0.0
   class.service.cache:
@@ -43,98 +73,231 @@ classes:
     version: 1.0.0
   class.service.web_ui:
     version: 1.0.0
-  class.firmware:
+  class.storage.data_asset:
     version: 1.0.0
-  class.os:
-    version: 1.0.0
-  # L2 Network classes
-  class.network.physical_link:
-    version: 1.0.0
-  class.network.data_link:
-    version: 1.0.0
-  class.network.bridge:
-    version: 1.0.0
-  class.network.vlan:
-    version: 1.0.0
-  class.network.trust_zone:
-    version: 1.0.0
-  class.network.firewall_policy:
-    version: 1.0.0
-  class.network.qos:
-    version: 1.0.0
-  # L1 Storage media class
   class.storage.media:
     version: 1.0.0
-  # L3 Storage classes
   class.storage.pool:
     version: 1.0.0
   class.storage.volume:
-    version: 1.0.0
-  class.storage.data_asset:
-    version: 1.0.0
-  # L6 Observability classes
-  class.observability.healthcheck:
-    version: 1.0.0
-  class.observability.alert:
-    version: 1.0.0
-  # L7 Operations classes
-  class.operations.backup:
     version: 1.0.0
 objects:
   obj.apc.backups.650va:
     version: 1.0.0
     class_ref: class.power.ups
+  obj.firmware.apc.backups.650va:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.openwrt.glinet.4x:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.pdu.generic.managed:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.routeros.7.arm64:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.routeros.7.x86_64:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.uboot.generic.arm64:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.uefi.generic.arm64:
+    version: 1.0.0
+    class_ref: class.firmware
+  obj.firmware.uefi.generic.x86_64:
+    version: 1.0.0
+    class_ref: class.firmware
   obj.glinet.slate_ax1800:
     version: 1.0.0
     class_ref: class.router
   obj.hetzner.cloud_vm:
     version: 1.0.0
-    class_ref: class.compute.cloud_vm
+    class_ref: class.compute.workload.vm
   obj.mikrotik.chateau_lte7_ax:
     version: 1.0.0
     class_ref: class.router
   obj.mikrotik.chr:
     version: 1.1.0
     class_ref: class.router
+  obj.network.bridge.vmbr0:
+    version: 1.0.0
+    class_ref: class.network.bridge
+  obj.network.ethernet_cable:
+    version: 1.0.0
+    class_ref: class.network.physical_link
+  obj.network.ethernet_channel:
+    version: 1.0.0
+    class_ref: class.network.data_link
+  obj.network.firewall_policy.default_deny:
+    version: 1.0.0
+    class_ref: class.network.firewall_policy
+  obj.network.firewall_policy.established_related:
+    version: 1.0.0
+    class_ref: class.network.firewall_policy
+  obj.network.firewall_policy.guest_isolated:
+    version: 1.0.0
+    class_ref: class.network.firewall_policy
+  obj.network.firewall_policy.iot_isolated:
+    version: 1.0.0
+    class_ref: class.network.firewall_policy
+  obj.network.lte_channel:
+    version: 1.0.0
+    class_ref: class.network.data_link
+  obj.network.qos.wan_shaping:
+    version: 1.0.0
+    class_ref: class.network.qos
+  obj.network.trust_zone.guest:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.trust_zone.iot:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.trust_zone.management:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.trust_zone.servers:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.trust_zone.untrusted:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.trust_zone.user:
+    version: 1.0.0
+    class_ref: class.network.trust_zone
+  obj.network.vlan.guest:
+    version: 1.0.0
+    class_ref: class.network.vlan
+  obj.network.vlan.iot:
+    version: 1.0.0
+    class_ref: class.network.vlan
+  obj.network.vlan.lan:
+    version: 1.0.0
+    class_ref: class.network.vlan
+  obj.network.vlan.management:
+    version: 1.0.0
+    class_ref: class.network.vlan
+  obj.network.vlan.servers:
+    version: 1.0.0
+    class_ref: class.network.vlan
+  obj.network.wan_uplink:
+    version: 1.0.0
+    class_ref: class.network.data_link
+  obj.network.wifi_ap_channel:
+    version: 1.0.0
+    class_ref: class.network.data_link
+  obj.observability.alert.application:
+    version: 1.0.0
+    class_ref: class.observability.alert
+  obj.observability.alert.infrastructure:
+    version: 1.0.0
+    class_ref: class.observability.alert
+  obj.observability.alert.operations:
+    version: 1.0.0
+    class_ref: class.observability.alert
+  obj.observability.alert.power:
+    version: 1.0.0
+    class_ref: class.observability.alert
+  obj.observability.alert.security:
+    version: 1.0.0
+    class_ref: class.observability.alert
+  obj.observability.healthcheck.device:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.observability.healthcheck.lte:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.observability.healthcheck.lxc:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.observability.healthcheck.network:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.observability.healthcheck.service:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.observability.healthcheck.ups:
+    version: 1.0.0
+    class_ref: class.observability.healthcheck
+  obj.operations.backup.config_export:
+    version: 1.0.0
+    class_ref: class.operations.backup
+  obj.operations.backup.pg_dump:
+    version: 1.0.0
+    class_ref: class.operations.backup
+  obj.operations.backup.rclone:
+    version: 1.0.0
+    class_ref: class.operations.backup
+  obj.operations.backup.rsync:
+    version: 1.0.0
+    class_ref: class.operations.backup
+  obj.operations.backup.vzdump:
+    version: 1.0.0
+    class_ref: class.operations.backup
   obj.oracle.cloud_vm:
     version: 1.0.0
-    class_ref: class.compute.cloud_vm
+    class_ref: class.compute.workload.vm
   obj.orangepi.rk3588.debian:
     version: 1.0.0
     class_ref: class.compute.edge_node
+  obj.os.debian.12.arm64.edge:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.debian.12.proxmox.lxc:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.linux.generic.arm64:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.linux.generic.x86_64:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.openwrt.glinet.4x:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.proxmox.ve.9:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.routeros.7.arm64:
+    version: 1.0.0
+    class_ref: class.os
+  obj.os.routeros.7.x86_64:
+    version: 1.0.0
+    class_ref: class.os
   obj.pdu.generic.managed:
     version: 1.0.0
     class_ref: class.power.pdu
   obj.proxmox.lxc.debian12.base:
     version: 1.0.0
-    class_ref: class.compute.workload.container
-  obj.proxmox.lxc.debian12.postgresql:
-    version: 1.0.0
-    class_ref: class.compute.workload.container
-  obj.proxmox.lxc.debian12.redis:
-    version: 1.0.0
-    class_ref: class.compute.workload.container
-  obj.proxmox.lxc.debian12.grafana:
-    version: 1.0.0
-    class_ref: class.compute.workload.container
-  obj.proxmox.lxc.debian12.prometheus:
-    version: 1.0.0
-    class_ref: class.compute.workload.container
-  obj.proxmox.lxc.debian12.nginx:
-    version: 1.0.0
-    class_ref: class.compute.workload.container
-  obj.proxmox.lxc.debian12.nextcloud:
-    version: 1.0.0
-    class_ref: class.compute.workload.container
-  obj.proxmox.lxc.debian12.gitea:
-    version: 1.0.0
-    class_ref: class.compute.workload.container
-  obj.proxmox.lxc.debian12.homeassistant:
-    version: 1.0.0
-    class_ref: class.compute.workload.container
+    class_ref: class.compute.workload.lxc
   obj.proxmox.lxc.debian12.docker:
     version: 1.0.0
-    class_ref: class.compute.workload.container
+    class_ref: class.compute.workload.lxc
+  obj.proxmox.lxc.debian12.gitea:
+    version: 1.0.0
+    class_ref: class.compute.workload.lxc
+  obj.proxmox.lxc.debian12.grafana:
+    version: 1.0.0
+    class_ref: class.compute.workload.lxc
+  obj.proxmox.lxc.debian12.homeassistant:
+    version: 1.0.0
+    class_ref: class.compute.workload.lxc
+  obj.proxmox.lxc.debian12.nextcloud:
+    version: 1.0.0
+    class_ref: class.compute.workload.lxc
+  obj.proxmox.lxc.debian12.nginx:
+    version: 1.0.0
+    class_ref: class.compute.workload.lxc
+  obj.proxmox.lxc.debian12.postgresql:
+    version: 1.0.0
+    class_ref: class.compute.workload.lxc
+  obj.proxmox.lxc.debian12.prometheus:
+    version: 1.0.0
+    class_ref: class.compute.workload.lxc
+  obj.proxmox.lxc.debian12.redis:
+    version: 1.0.0
+    class_ref: class.compute.workload.lxc
   obj.proxmox.ve:
     version: 1.0.0
     class_ref: class.compute.hypervisor
@@ -204,158 +367,25 @@ objects:
   obj.service.wireguard:
     version: 1.0.0
     class_ref: class.service.vpn
-  obj.firmware.routeros.7.arm64:
-    version: 1.0.0
-    class_ref: class.firmware
-  obj.firmware.routeros.7.x86_64:
-    version: 1.0.0
-    class_ref: class.firmware
-  obj.firmware.openwrt.glinet.4x:
-    version: 1.0.0
-    class_ref: class.firmware
-  obj.firmware.uefi.generic.x86_64:
-    version: 1.0.0
-    class_ref: class.firmware
-  obj.firmware.uefi.generic.arm64:
-    version: 1.0.0
-    class_ref: class.firmware
-  obj.firmware.uboot.generic.arm64:
-    version: 1.0.0
-    class_ref: class.firmware
-  obj.firmware.apc.backups.650va:
-    version: 1.0.0
-    class_ref: class.firmware
-  obj.firmware.pdu.generic.managed:
-    version: 1.0.0
-    class_ref: class.firmware
-  obj.os.routeros.7.arm64:
-    version: 1.0.0
-    class_ref: class.os
-  obj.os.routeros.7.x86_64:
-    version: 1.0.0
-    class_ref: class.os
-  obj.os.openwrt.glinet.4x:
-    version: 1.0.0
-    class_ref: class.os
-  obj.os.debian.12.arm64.edge:
-    version: 1.0.0
-    class_ref: class.os
-  obj.os.debian.12.proxmox.lxc:
-    version: 1.0.0
-    class_ref: class.os
-  obj.os.proxmox.ve.9:
-    version: 1.0.0
-    class_ref: class.os
-  obj.os.linux.generic.x86_64:
-    version: 1.0.0
-    class_ref: class.os
-  obj.os.linux.generic.arm64:
-    version: 1.0.0
-    class_ref: class.os
-  # L2 Network objects
-  obj.network.ethernet_cable:
-    version: 1.0.0
-    class_ref: class.network.physical_link
-  obj.network.ethernet_channel:
-    version: 1.0.0
-    class_ref: class.network.data_link
-  obj.network.bridge.vmbr0:
-    version: 1.0.0
-    class_ref: class.network.bridge
-  obj.network.vlan.servers:
-    version: 1.0.0
-    class_ref: class.network.vlan
-  obj.network.vlan.management:
-    version: 1.0.0
-    class_ref: class.network.vlan
-  obj.network.trust_zone.servers:
-    version: 1.0.0
-    class_ref: class.network.trust_zone
-  obj.network.trust_zone.management:
-    version: 1.0.0
-    class_ref: class.network.trust_zone
-  obj.network.wan_uplink:
-    version: 1.0.0
-    class_ref: class.network.data_link
-  obj.network.lte_channel:
-    version: 1.0.0
-    class_ref: class.network.data_link
-  obj.network.wifi_ap_channel:
-    version: 1.0.0
-    class_ref: class.network.data_link
-  # Additional trust zones
-  obj.network.trust_zone.untrusted:
-    version: 1.0.0
-    class_ref: class.network.trust_zone
-  obj.network.trust_zone.user:
-    version: 1.0.0
-    class_ref: class.network.trust_zone
-  obj.network.trust_zone.iot:
-    version: 1.0.0
-    class_ref: class.network.trust_zone
-  obj.network.trust_zone.guest:
-    version: 1.0.0
-    class_ref: class.network.trust_zone
-  # Additional VLANs
-  obj.network.vlan.lan:
-    version: 1.0.0
-    class_ref: class.network.vlan
-  obj.network.vlan.iot:
-    version: 1.0.0
-    class_ref: class.network.vlan
-  obj.network.vlan.guest:
-    version: 1.0.0
-    class_ref: class.network.vlan
-  # Firewall policies
-  obj.network.firewall_policy.established_related:
-    version: 1.0.0
-    class_ref: class.network.firewall_policy
-  obj.network.firewall_policy.default_deny:
-    version: 1.0.0
-    class_ref: class.network.firewall_policy
-  obj.network.firewall_policy.iot_isolated:
-    version: 1.0.0
-    class_ref: class.network.firewall_policy
-  obj.network.firewall_policy.guest_isolated:
-    version: 1.0.0
-    class_ref: class.network.firewall_policy
-  # QoS profiles
-  obj.network.qos.wan_shaping:
-    version: 1.0.0
-    class_ref: class.network.qos
-  # L3 Storage objects
-  obj.storage.pool.local:
-    version: 1.0.0
-    class_ref: class.storage.pool
-  obj.storage.pool.local_lvm:
-    version: 1.0.0
-    class_ref: class.storage.pool
-  obj.storage.pool.local_hdd:
-    version: 1.0.0
-    class_ref: class.storage.pool
-  obj.storage.data_asset.database:
-    version: 1.0.0
-    class_ref: class.storage.data_asset
-  obj.storage.data_asset.config:
-    version: 1.0.0
-    class_ref: class.storage.data_asset
-  obj.storage.data_asset.media:
-    version: 1.0.0
-    class_ref: class.storage.data_asset
-  obj.storage.data_asset.logs:
+  obj.storage.data_asset.backup:
     version: 1.0.0
     class_ref: class.storage.data_asset
   obj.storage.data_asset.cache:
     version: 1.0.0
     class_ref: class.storage.data_asset
-  obj.storage.data_asset.backup:
+  obj.storage.data_asset.config:
     version: 1.0.0
     class_ref: class.storage.data_asset
-  # L1 Storage media objects
-  obj.storage.media.sata_ssd_180gb:
+  obj.storage.data_asset.database:
     version: 1.0.0
-    class_ref: class.storage.media
-  obj.storage.media.sata_hdd_500gb:
+    class_ref: class.storage.data_asset
+  obj.storage.data_asset.logs:
+    version: 1.0.0
+    class_ref: class.storage.data_asset
+  obj.storage.data_asset.media:
+    version: 1.0.0
+    class_ref: class.storage.data_asset
+  obj.storage.media.cloud_volume:
     version: 1.0.0
     class_ref: class.storage.media
   obj.storage.media.nvme_512gb:
@@ -364,57 +394,18 @@ objects:
   obj.storage.media.qspi_flash_16mb:
     version: 1.0.0
     class_ref: class.storage.media
-  obj.storage.media.cloud_volume:
+  obj.storage.media.sata_hdd_500gb:
     version: 1.0.0
     class_ref: class.storage.media
-  # L6 Observability objects - Healthchecks
-  obj.observability.healthcheck.device:
+  obj.storage.media.sata_ssd_180gb:
     version: 1.0.0
-    class_ref: class.observability.healthcheck
-  obj.observability.healthcheck.lxc:
+    class_ref: class.storage.media
+  obj.storage.pool.local:
     version: 1.0.0
-    class_ref: class.observability.healthcheck
-  obj.observability.healthcheck.service:
+    class_ref: class.storage.pool
+  obj.storage.pool.local_hdd:
     version: 1.0.0
-    class_ref: class.observability.healthcheck
-  obj.observability.healthcheck.network:
+    class_ref: class.storage.pool
+  obj.storage.pool.local_lvm:
     version: 1.0.0
-    class_ref: class.observability.healthcheck
-  obj.observability.healthcheck.ups:
-    version: 1.0.0
-    class_ref: class.observability.healthcheck
-  obj.observability.healthcheck.lte:
-    version: 1.0.0
-    class_ref: class.observability.healthcheck
-  # L6 Observability objects - Alerts
-  obj.observability.alert.infrastructure:
-    version: 1.0.0
-    class_ref: class.observability.alert
-  obj.observability.alert.application:
-    version: 1.0.0
-    class_ref: class.observability.alert
-  obj.observability.alert.power:
-    version: 1.0.0
-    class_ref: class.observability.alert
-  obj.observability.alert.operations:
-    version: 1.0.0
-    class_ref: class.observability.alert
-  obj.observability.alert.security:
-    version: 1.0.0
-    class_ref: class.observability.alert
-  # L7 Operations objects - Backup types
-  obj.operations.backup.config_export:
-    version: 1.0.0
-    class_ref: class.operations.backup
-  obj.operations.backup.rsync:
-    version: 1.0.0
-    class_ref: class.operations.backup
-  obj.operations.backup.pg_dump:
-    version: 1.0.0
-    class_ref: class.operations.backup
-  obj.operations.backup.vzdump:
-    version: 1.0.0
-    class_ref: class.operations.backup
-  obj.operations.backup.rclone:
-    version: 1.0.0
-    class_ref: class.operations.backup
+    class_ref: class.storage.pool

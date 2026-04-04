@@ -170,7 +170,7 @@ packs:
   - id: pack.workload.lxc.standard
     title: Standard LXC Workload
     summary: Standard LXC container with bridge networking.
-    class_ref: class.compute.workload.container
+    class_ref: class.compute.workload.lxc
     capabilities:
       - cap.workload.runtime.lxc
       - cap.workload.network.bridge
@@ -179,7 +179,7 @@ packs:
   - id: pack.workload.docker.standard
     title: Standard Docker Workload
     summary: Standard Docker container with bridge networking.
-    class_ref: class.compute.workload.container
+    class_ref: class.compute.workload.docker
     capabilities:
       - cap.workload.runtime.docker
       - cap.workload.network.bridge

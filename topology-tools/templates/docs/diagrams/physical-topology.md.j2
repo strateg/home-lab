@@ -46,7 +46,7 @@ graph TB
     class {{ device.safe_id }} hypervisor
 {% elif 'edge_node' in device.class_ref %}
     class {{ device.safe_id }} edge
-{% elif 'cloud_vm' in device.class_ref %}
+{% elif 'cloud_vm' in device.class_ref or 'workload.vm' in device.class_ref %}
     class {{ device.safe_id }} cloud
 {% endif %}
 {% endfor %}

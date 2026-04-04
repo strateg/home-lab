@@ -1,7 +1,7 @@
-class: class.compute.workload.container
+class: class.compute.workload.docker
 version: 1.0.0
-title: Compute Workload Container (Legacy Alias)
-summary: Legacy compatibility alias for LXC workload runtime contract.
+title: Compute Workload Docker
+summary: Docker/OCI container workload runtime contract.
 os_policy: required
 firmware_policy: forbidden
 os_cardinality:

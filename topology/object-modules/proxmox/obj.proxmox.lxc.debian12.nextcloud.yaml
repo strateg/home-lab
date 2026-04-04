@@ -1,5 +1,5 @@
 object: obj.proxmox.lxc.debian12.nextcloud
-class_ref: class.compute.workload.container
+class_ref: class.compute.workload.lxc
 version: 1.0.0
 model: LXC Debian 12 Nextcloud
 vendor: proxmox

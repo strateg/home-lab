@@ -45,6 +45,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
     _SERVICE_PREFIX = "class.service."
+    _LXC_CLASSES = {"class.compute.workload.container", "class.compute.workload.lxc"}
     _NETWORK_CLASS_EXCLUSIONS = {
         "class.network.bridge",
         "class.network.trust_zone",
@@ -325,7 +326,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                         row_id=row_id,
                         value=record.get("lxc_ref"),
                         row_by_id=row_by_id,
-                        expected_predicate=lambda target: target.get("class_ref") == "class.compute.workload.container",
+                        expected_predicate=lambda target: target.get("class_ref") in self._LXC_CLASSES,
                         expected_label="L4 container workload instance",
                         code="E7856",
                         stage=stage,
@@ -751,8 +752,7 @@ class DeclarativeReferenceValidator(ValidatorJsonPlugin):
                         row_id=row_id,
                         value=target.get("lxc_ref"),
                         row_by_id=row_by_id,
-                        expected_predicate=lambda candidate: candidate.get("class_ref")
-                        == "class.compute.workload.container",
+                        expected_predicate=lambda candidate: candidate.get("class_ref") in self._LXC_CLASSES,
                         expected_label="L4 container workload instance",
                         code="E7858",
                         stage=stage,

@@ -20,6 +20,7 @@ class BackupRefsValidator(ValidatorJsonPlugin):
     _ROWS_PLUGIN_ID = "base.compiler.instance_rows"
     _ROWS_KEY = "normalized_rows"
     _BACKUP_CLASS = "class.operations.backup"
+    _LXC_CLASSES = {"class.compute.workload.container", "class.compute.workload.lxc"}
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -110,7 +111,7 @@ class BackupRefsValidator(ValidatorJsonPlugin):
                     row_id=row_id,
                     field_name="lxc_ref",
                     value=target.get("lxc_ref"),
-                    expected=lambda candidate: candidate.get("class_ref") == "class.compute.workload.container",
+                    expected=lambda candidate: candidate.get("class_ref") in self._LXC_CLASSES,
                     expected_label="L4 container workload instance",
                     row_by_id=row_by_id,
                     stage=stage,
