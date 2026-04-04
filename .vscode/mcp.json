@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "mikrotik-chateau": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "cd /home/dmpr/workspaces/projects/home-lab && scripts/orchestration/mcp/run-mikrotik-mcp.sh"
+      ]
+    }
+  }
+}
