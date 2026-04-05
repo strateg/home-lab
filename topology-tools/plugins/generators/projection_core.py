@@ -68,7 +68,7 @@ def _require_rows(node: Any, *, path: str) -> list[dict[str, Any]]:
 def _row_sort_key(row: dict[str, Any]) -> tuple[str, str, str]:
     return (
         str(row.get("instance_id", "")),
-        str(row.get("object_ref", "")),
+        _resolved_object_ref(row),
         json.dumps(row, sort_keys=True, ensure_ascii=True),
     )
 
@@ -81,6 +81,44 @@ def _require_non_empty_str(row: dict[str, Any], *, field: str, path: str) -> str
     value = row.get(field)
     if not isinstance(value, str) or not value:
         raise ProjectionError(f"{path}.{field} must be non-empty string")
+    return value
+
+
+def _resolved_object_ref(row: dict[str, Any]) -> str:
+    object_ref = row.get("object_ref")
+    if isinstance(object_ref, str) and object_ref:
+        return object_ref
+    instance_block = row.get("instance")
+    if isinstance(instance_block, dict):
+        for field in ("extends_object", "materializes_object"):
+            value = instance_block.get(field)
+            if isinstance(value, str) and value:
+                return value
+    return ""
+
+
+def _resolved_class_ref(row: dict[str, Any]) -> str:
+    class_ref = row.get("class_ref")
+    if isinstance(class_ref, str) and class_ref:
+        return class_ref
+    instance_block = row.get("instance")
+    if isinstance(instance_block, dict):
+        value = instance_block.get("materializes_class")
+        if isinstance(value, str) and value:
+            return value
+    object_block = row.get("object")
+    if isinstance(object_block, dict):
+        value = object_block.get("materializes_class")
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+
+def _require_object_ref(row: dict[str, Any], *, path: str) -> str:
+    value = _resolved_object_ref(row)
+    if not value:
+        raise ProjectionError(f"{path}.object_ref must be non-empty string")
+    row["object_ref"] = value
     return value
 
 
@@ -108,8 +146,8 @@ def _is_ansible_host_candidate(row: dict[str, Any]) -> bool:
     Excludes infrastructure objects (cables, physical links) that cannot
     be managed via SSH/Ansible.
     """
-    class_ref = str(row.get("class_ref", ""))
-    object_ref = str(row.get("object_ref", ""))
+    class_ref = _resolved_class_ref(row)
+    object_ref = _resolved_object_ref(row)
     # ADR0078 WP-005: Use module-level constants instead of inline literals
     if class_ref in ANSIBLE_HOST_EXCLUDED_CLASS_REFS:
         return False

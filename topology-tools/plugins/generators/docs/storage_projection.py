@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from plugins.generators.projection_core import ProjectionError, _instance_groups, _sorted_rows
+from plugins.generators.projection_core import (
+    ProjectionError,
+    _instance_groups,
+    _resolved_class_ref,
+    _resolved_object_ref,
+    _sorted_rows,
+)
 
 
 def build_storage_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
@@ -23,13 +29,13 @@ def build_storage_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         instance_id = row.get("instance_id")
         if not isinstance(instance_id, str) or not instance_id:
             raise ProjectionError(f"compiled_json.instances.storage[{idx}].instance_id must be non-empty string")
-        class_ref = str(row.get("class_ref", ""))
+        class_ref = _resolved_class_ref(row)
         instance_data = row.get("instance_data")
         if not isinstance(instance_data, dict):
             instance_data = {}
         common = {
             "instance_id": instance_id,
-            "object_ref": row.get("object_ref", ""),
+            "object_ref": _resolved_object_ref(row),
             "class_ref": class_ref,
             "host_ref": instance_data.get("host_ref", ""),
             "status": row.get("status", ""),

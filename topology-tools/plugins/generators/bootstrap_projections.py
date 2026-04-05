@@ -13,6 +13,7 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     _group_rows,
     _instance_groups,
     _require_non_empty_str,
+    _require_object_ref,
     _sorted_rows,
 )
 
@@ -44,11 +45,7 @@ def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     orangepi_nodes: list[dict[str, Any]] = []
 
     for idx, row in enumerate(devices):
-        object_ref = _require_non_empty_str(
-            row,
-            field="object_ref",
-            path=f"compiled_json.instances.devices[{idx}]",
-        )
+        object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
         mechanism = _resolve_initialization_mechanism(row)
         if mechanism == "unattended_install":

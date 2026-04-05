@@ -14,6 +14,7 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     _get_instance_data,
     _group_rows,
     _instance_groups,
+    _require_object_ref,
     _require_non_empty_str,
     _sorted_rows,
 )
@@ -80,11 +81,7 @@ def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 
     proxmox_nodes: list[dict[str, Any]] = []
     for idx, row in enumerate(devices):
-        object_ref = _require_non_empty_str(
-            row,
-            field="object_ref",
-            path=f"compiled_json.instances.devices[{idx}]",
-        )
+        object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         if object_ref == "obj.proxmox.ve":
             _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
             proxmox_nodes.append(row)
@@ -93,7 +90,7 @@ def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     lxc_targets: set[str] = set()
     for idx, row in enumerate(lxc):
         instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.lxc[{idx}]")
-        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.lxc[{idx}]")
+        _require_object_ref(row, path=f"compiled_json.instances.lxc[{idx}]")
         lxc_rows.append(row)
         lxc_targets.add(instance_id)
 

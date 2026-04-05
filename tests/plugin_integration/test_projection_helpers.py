@@ -89,6 +89,26 @@ def test_bootstrap_projection_selects_target_devices() -> None:
     assert [row["instance_id"] for row in projection["orangepi_nodes"]] == ["srv-orangepi5"]
 
 
+def test_ansible_projection_accepts_wave3_lineage_fallback_refs() -> None:
+    payload = {
+        "instances": {
+            "devices": [
+                {
+                    "instance_id": "rtr-mk",
+                    "instance": {
+                        "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                        "materializes_class": "class.network.router",
+                    },
+                }
+            ],
+            "lxc": [],
+        }
+    }
+    projection = build_ansible_projection(payload)
+    assert [row["instance_id"] for row in projection["hosts"]] == ["rtr-mk"]
+    assert projection["hosts"][0]["object_ref"] == "obj.mikrotik.chateau_lte7_ax"
+
+
 @pytest.mark.parametrize(
     "builder",
     [

@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from plugins.generators.projection_core import GROUP_SERVICES, ProjectionError, _group_rows, _instance_groups, _sorted_rows
+from plugins.generators.projection_core import (
+    GROUP_SERVICES,
+    ProjectionError,
+    _group_rows,
+    _instance_groups,
+    _resolved_class_ref,
+    _resolved_object_ref,
+    _sorted_rows,
+)
 
 
 def build_operations_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
@@ -29,13 +37,13 @@ def build_operations_projection(compiled_json: dict[str, Any]) -> dict[str, Any]
         instance_id = row.get("instance_id")
         if not isinstance(instance_id, str) or not instance_id:
             raise ProjectionError(f"compiled_json.instances.observability[{idx}].instance_id must be non-empty string")
-        class_ref = str(row.get("class_ref", ""))
+        class_ref = _resolved_class_ref(row)
         instance_data = row.get("instance_data")
         if not isinstance(instance_data, dict):
             instance_data = {}
         common = {
             "instance_id": instance_id,
-            "object_ref": row.get("object_ref", ""),
+            "object_ref": _resolved_object_ref(row),
             "class_ref": class_ref,
             "status": row.get("status", ""),
             "notes": row.get("notes", ""),
@@ -74,7 +82,7 @@ def build_operations_projection(compiled_json: dict[str, Any]) -> dict[str, Any]
         backup_policies.append(
             {
                 "instance_id": instance_id,
-                "object_ref": row.get("object_ref", ""),
+                "object_ref": _resolved_object_ref(row),
                 "target_ref": instance_data.get("target_ref", ""),
                 "data_asset_ref": instance_data.get("data_asset_ref", ""),
                 "storage_ref": instance_data.get("storage_ref", ""),
@@ -91,7 +99,7 @@ def build_operations_projection(compiled_json: dict[str, Any]) -> dict[str, Any]
         instance_id = row.get("instance_id")
         if not isinstance(instance_id, str) or not instance_id:
             raise ProjectionError(f"compiled_json.instances.services[{idx}].instance_id must be non-empty string")
-        class_ref = str(row.get("class_ref", ""))
+        class_ref = _resolved_class_ref(row)
         if "service.vpn" not in class_ref:
             continue
         instance_data = row.get("instance_data")
@@ -100,7 +108,7 @@ def build_operations_projection(compiled_json: dict[str, Any]) -> dict[str, Any]
         vpn_services.append(
             {
                 "instance_id": instance_id,
-                "object_ref": row.get("object_ref", ""),
+                "object_ref": _resolved_object_ref(row),
                 "vpn_type": instance_data.get("vpn_type", ""),
                 "trust_zone_ref": instance_data.get("trust_zone_ref", ""),
                 "status": row.get("status", ""),
@@ -120,7 +128,7 @@ def build_operations_projection(compiled_json: dict[str, Any]) -> dict[str, Any]
         qos_policies.append(
             {
                 "instance_id": instance_id,
-                "object_ref": row.get("object_ref", ""),
+                "object_ref": _resolved_object_ref(row),
                 "managed_by_ref": instance_data.get("managed_by_ref", ""),
                 "interface": instance_data.get("interface", ""),
                 "total_bandwidth": instance_data.get("total_bandwidth", {}),
@@ -136,7 +144,7 @@ def build_operations_projection(compiled_json: dict[str, Any]) -> dict[str, Any]
         instance_id = row.get("instance_id")
         if not isinstance(instance_id, str) or not instance_id:
             raise ProjectionError(f"compiled_json.instances.power[{idx}].instance_id must be non-empty string")
-        class_ref = str(row.get("class_ref", ""))
+        class_ref = _resolved_class_ref(row)
         if "power.ups" not in class_ref:
             continue
         instance_data = row.get("instance_data")
@@ -148,7 +156,7 @@ def build_operations_projection(compiled_json: dict[str, Any]) -> dict[str, Any]
         ups_inventory.append(
             {
                 "instance_id": instance_id,
-                "object_ref": row.get("object_ref", ""),
+                "object_ref": _resolved_object_ref(row),
                 "external_source": power_data.get("external_source", ""),
                 "max_watts": power_data.get("max_watts"),
                 "status": row.get("status", ""),

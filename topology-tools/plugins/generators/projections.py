@@ -18,7 +18,10 @@ from plugins.generators.projection_core import (  # ADR0078 WP-006: Group canoni
     _group_rows,
     _instance_groups,
     _is_ansible_host_candidate,
+    _require_object_ref,
     _require_non_empty_str,
+    _resolved_class_ref,
+    _resolved_object_ref,
     _sorted_rows,
 )
 from plugins.generators.docs.network_projection import build_network_projection
@@ -66,7 +69,7 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     hosts: list[dict[str, Any]] = []
     for idx, row in enumerate(devices):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
-        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.devices[{idx}]")
+        _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         if not _is_ansible_host_candidate(row):
             continue
         host = deepcopy(row)
@@ -74,7 +77,7 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         hosts.append(host)
     for idx, row in enumerate(lxc):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.lxc[{idx}]")
-        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.lxc[{idx}]")
+        _require_object_ref(row, path=f"compiled_json.instances.lxc[{idx}]")
         host = deepcopy(row)
         host["inventory_group"] = "lxc"
         hosts.append(host)
@@ -99,12 +102,12 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     docs_devices: list[dict[str, Any]] = []
     for idx, row in enumerate(devices):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
-        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.devices[{idx}]")
+        object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         docs_devices.append(
             {
                 "instance_id": row["instance_id"],
-                "object_ref": row["object_ref"],
-                "class_ref": row.get("class_ref"),
+                "object_ref": object_ref,
+                "class_ref": _resolved_class_ref(row),
                 "status": row.get("status"),
                 "layer": row.get("layer"),
             }
@@ -113,7 +116,7 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     docs_services: list[dict[str, Any]] = []
     for idx, row in enumerate(services):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.services[{idx}]")
-        _require_non_empty_str(row, field="object_ref", path=f"compiled_json.instances.services[{idx}]")
+        object_ref = _require_object_ref(row, path=f"compiled_json.instances.services[{idx}]")
         runtime = row.get("runtime")
         if not isinstance(runtime, dict):
             runtime = _get_instance_data(row, "instance_data.runtime", {})
@@ -123,8 +126,8 @@ def build_docs_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         docs_services.append(
             {
                 "instance_id": row["instance_id"],
-                "object_ref": row["object_ref"],
-                "class_ref": row.get("class_ref"),
+                "object_ref": object_ref,
+                "class_ref": _resolved_class_ref(row),
                 "status": row.get("status"),
                 "runtime_type": runtime_type if isinstance(runtime_type, str) else "",
                 "runtime_target_ref": runtime_target if isinstance(runtime_target, str) else "",
@@ -210,8 +213,8 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     devices: list[dict[str, Any]] = []
     for row in raw_devices:
         inst_id = row.get("instance_id", "")
-        class_ref = row.get("class_ref", "")
-        obj_ref = row.get("object_ref", "")
+        class_ref = _resolved_class_ref(row)
+        obj_ref = _resolved_object_ref(row)
         # Derive short label from instance_id: "rtr-slate" → "rtr-slate"
         # Remove common "inst." prefix if present
         label = inst_id.removeprefix("inst.").replace(".", " ")
@@ -238,7 +241,7 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
 
     for row in raw_network:
         inst_id = row.get("instance_id", "")
-        class_ref = row.get("class_ref", "")
+        class_ref = _resolved_class_ref(row)
 
         if "trust_zone" in class_ref:
             idata = row.get("instance_data") or {}
@@ -252,7 +255,7 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                     "instance_id": inst_id,
                     "safe_id": _safe_id(inst_id),
                     "class_ref": class_ref,
-                    "object_ref": row.get("object_ref", ""),
+                    "object_ref": _resolved_object_ref(row),
                     "label": zone_name,
                     "icon": _ICONS.icon_for_zone(inst_id),
                     "colour": _ZONE_CLASS_COLOUR.get(zone_key, _ZONE_CLASS_DEFAULT),
@@ -271,7 +274,7 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                     "instance_id": inst_id,
                     "safe_id": _safe_id(inst_id),
                     "class_ref": class_ref,
-                    "object_ref": row.get("object_ref", ""),
+                    "object_ref": _resolved_object_ref(row),
                     "label": inst_id.removeprefix("inst.").replace(".", " "),
                     "vlan_id": idata.get("vlan_id"),
                     "cidr": idata.get("cidr", ""),
@@ -317,7 +320,7 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     services: list[dict[str, Any]] = []
     for row in raw_services:
         inst_id = row.get("instance_id", "")
-        class_ref = row.get("class_ref", "")
+        class_ref = _resolved_class_ref(row)
         runtime = row.get("runtime")
         if not isinstance(runtime, dict):
             runtime = _get_instance_data(row, "instance_data.runtime", {})
@@ -326,7 +329,7 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
                 "instance_id": inst_id,
                 "safe_id": _safe_id(inst_id),
                 "class_ref": class_ref,
-                "object_ref": row.get("object_ref", ""),
+                "object_ref": _resolved_object_ref(row),
                 "label": inst_id.removeprefix("inst.").replace(".", " "),
                 "layer": row.get("layer", ""),
                 "status": row.get("status", ""),
@@ -341,14 +344,14 @@ def build_diagram_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     lxc: list[dict[str, Any]] = []
     for row in raw_lxc:
         inst_id = row.get("instance_id", "")
-        class_ref = row.get("class_ref", "")
+        class_ref = _resolved_class_ref(row)
         idata = row.get("instance_data") or {}
         lxc.append(
             {
                 "instance_id": inst_id,
                 "safe_id": _safe_id(inst_id),
                 "class_ref": class_ref,
-                "object_ref": row.get("object_ref", ""),
+                "object_ref": _resolved_object_ref(row),
                 "label": idata.get("hostname", inst_id.removeprefix("inst.lxc.").replace(".", "-")),
                 "layer": row.get("layer", ""),
                 "status": row.get("status", ""),

@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from plugins.generators.projection_core import GROUP_DEVICES, ProjectionError, _group_rows, _instance_groups, _sorted_rows
+from plugins.generators.projection_core import (
+    GROUP_DEVICES,
+    ProjectionError,
+    _group_rows,
+    _instance_groups,
+    _require_object_ref,
+    _resolved_class_ref,
+    _sorted_rows,
+)
 
 
 def build_physical_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
@@ -20,14 +28,12 @@ def build_physical_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         instance_id = row.get("instance_id")
         if not isinstance(instance_id, str) or not instance_id:
             raise ProjectionError(f"compiled_json.instances.devices[{idx}].instance_id must be non-empty string")
-        object_ref = row.get("object_ref")
-        if not isinstance(object_ref, str) or not object_ref:
-            raise ProjectionError(f"compiled_json.instances.devices[{idx}].object_ref must be non-empty string")
+        object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         devices.append(
             {
                 "instance_id": instance_id,
                 "object_ref": object_ref,
-                "class_ref": row.get("class_ref", ""),
+                "class_ref": _resolved_class_ref(row),
                 "status": row.get("status", ""),
                 "layer": row.get("layer", ""),
                 "notes": row.get("notes", ""),
@@ -44,7 +50,7 @@ def build_physical_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         data_links.append(
             {
                 "instance_id": row.get("instance_id", ""),
-                "class_ref": row.get("class_ref", ""),
+                "class_ref": _resolved_class_ref(row),
                 "endpoint_a": instance_data.get("endpoint_a", {}),
                 "endpoint_b": instance_data.get("endpoint_b", {}),
                 "link_ref": instance_data.get("link_ref", ""),
@@ -64,7 +70,7 @@ def build_physical_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         physical_links.append(
             {
                 "instance_id": row.get("instance_id", ""),
-                "class_ref": row.get("class_ref", ""),
+                "class_ref": _resolved_class_ref(row),
                 "endpoint_a": instance_data.get("endpoint_a", {}),
                 "endpoint_b": instance_data.get("endpoint_b", {}),
                 "category": instance_data.get("category", ""),
@@ -85,7 +91,7 @@ def build_physical_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         power_inventory.append(
             {
                 "instance_id": row.get("instance_id", ""),
-                "class_ref": row.get("class_ref", ""),
+                "class_ref": _resolved_class_ref(row),
                 "power": instance_data.get("power", {}),
                 "status": row.get("status", ""),
                 "notes": row.get("notes", ""),

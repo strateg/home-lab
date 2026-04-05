@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from plugins.generators.projection_core import GROUP_NETWORK, ProjectionError, _group_rows, _instance_groups, _sorted_rows
+from plugins.generators.projection_core import (
+    GROUP_NETWORK,
+    ProjectionError,
+    _group_rows,
+    _instance_groups,
+    _resolved_class_ref,
+    _resolved_object_ref,
+    _sorted_rows,
+)
 
 
 def build_security_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
@@ -21,12 +29,12 @@ def build_security_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         instance_id = row.get("instance_id")
         if not isinstance(instance_id, str) or not instance_id:
             raise ProjectionError(f"compiled_json.instances.network[{idx}].instance_id must be non-empty string")
-        class_ref = str(row.get("class_ref", ""))
+        class_ref = _resolved_class_ref(row)
         if "trust_zone" in class_ref:
             trust_zones.append(
                 {
                     "instance_id": instance_id,
-                    "object_ref": row.get("object_ref", ""),
+                    "object_ref": _resolved_object_ref(row),
                     "status": row.get("status", ""),
                     "notes": row.get("notes", ""),
                 }
@@ -42,7 +50,7 @@ def build_security_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         vlans.append(
             {
                 "instance_id": instance_id,
-                "object_ref": row.get("object_ref", ""),
+                "object_ref": _resolved_object_ref(row),
                 "trust_zone_ref": trust_zone_ref,
                 "managed_by_ref": instance_data.get("managed_by_ref", ""),
                 "dhcp_range": instance_data.get("dhcp_range", ""),
@@ -66,7 +74,7 @@ def build_security_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         firewall_policies.append(
             {
                 "instance_id": instance_id,
-                "object_ref": row.get("object_ref", ""),
+                "object_ref": _resolved_object_ref(row),
                 "chain": instance_data.get("chain", ""),
                 "managed_by_ref": instance_data.get("managed_by_ref", ""),
                 "status": row.get("status", ""),
