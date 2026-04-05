@@ -20,9 +20,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-import yaml
 from field_annotations import parse_field_annotation
 from kernel.plugin_base import PluginContext, PluginDiagnostic, PluginResult, Stage, ValidatorJsonPlugin
+from yaml_loader import load_yaml_file
 
 DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[1] / "data" / "instance-field-formats.yaml"
 DEFAULT_ENFORCEMENT_MODE = "enforce"
@@ -96,7 +96,7 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
             registry_path = (Path(__file__).resolve().parents[1] / registry_path).resolve()
 
         try:
-            payload = yaml.safe_load(registry_path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(registry_path) or {}
         except Exception as exc:  # pragma: no cover - defensive path
             diagnostics.append(
                 self.emit_diagnostic(

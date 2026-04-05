@@ -7,6 +7,7 @@ from typing import Any
 
 import yaml
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -63,7 +64,7 @@ class ModelLockLoaderCompiler(CompilerPlugin):
             )
 
         try:
-            payload = yaml.safe_load(lock_path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(lock_path) or {}
         except (OSError, yaml.YAMLError) as exc:
             diagnostics.append(
                 PluginDiagnostic(

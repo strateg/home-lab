@@ -11,7 +11,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlparse
 
-import yaml
+from yaml_loader import load_yaml_file
 
 SEMVER_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 RANGE_TOKEN_RE = re.compile(r"^(>=|<=|>|<|==|=)?(0|[1-9]\d*\.[0-9]\d*\.[0-9]\d*)$")
@@ -55,7 +55,7 @@ def default_framework_manifest_path(framework_root: Path) -> Path:
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
-    payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    payload = load_yaml_file(path) or {}
     if not isinstance(payload, dict):
         raise ValueError(f"YAML root must be mapping/object: {path}")
     return payload

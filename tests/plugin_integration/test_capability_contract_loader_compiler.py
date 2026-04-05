@@ -63,3 +63,55 @@ def test_capability_contract_loader_plugin_owner_loads_contract(tmp_path):
     assert result.status == PluginStatus.SUCCESS
     assert result.output_data["catalog_ids"] == ["cap.a", "cap.b"]
     assert "pack.a" in result.output_data["packs_map"]
+
+
+def test_capability_contract_loader_accepts_semantic_capability_key(tmp_path):
+    registry = _registry()
+    catalog = tmp_path / "catalog.yaml"
+    packs = tmp_path / "packs.yaml"
+    catalog.write_text(
+        "capabilities:\n" "  - @capability: cap.a\n" "    @schema: capability.v1\n",
+        encoding="utf-8",
+    )
+    packs.write_text("packs: []\n", encoding="utf-8")
+
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_capability_contract_data": "plugin",
+            "capability_catalog_path": str(catalog),
+            "capability_packs_path": str(packs),
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.status == PluginStatus.SUCCESS
+    assert result.output_data["catalog_ids"] == ["cap.a"]
+
+
+def test_capability_contract_loader_rejects_semantic_collision(tmp_path):
+    registry = _registry()
+    catalog = tmp_path / "catalog.yaml"
+    packs = tmp_path / "packs.yaml"
+    catalog.write_text(
+        "capabilities:\n" "  - id: cap.a\n" "    @capability: cap.a\n",
+        encoding="utf-8",
+    )
+    packs.write_text("packs: []\n", encoding="utf-8")
+
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_capability_contract_data": "plugin",
+            "capability_catalog_path": str(catalog),
+            "capability_packs_path": str(packs),
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(d.code == "E8803" and "collision" in d.message for d in result.diagnostics)

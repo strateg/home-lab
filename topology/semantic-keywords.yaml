@@ -1,0 +1,65 @@
+version: 1.0.0
+registry:
+  schema_version:
+    canonical: "@version"
+    aliases:
+      - version
+  class_id:
+    canonical: "@class"
+    aliases:
+      - class
+  object_id:
+    canonical: "@object"
+    aliases:
+      - object
+  instance_id:
+    canonical: "@instance"
+    aliases:
+      - instance
+  parent_ref:
+    canonical: "@extends"
+    aliases:
+      - extends
+  entity_title:
+    canonical: "@title"
+    aliases:
+      - title
+  entity_summary:
+    canonical: "@summary"
+    aliases:
+      - summary
+  entity_description:
+    canonical: "@description"
+    aliases:
+      - description
+  entity_layer:
+    canonical: "@layer"
+    aliases:
+      - layer
+  capability_id:
+    canonical: "@capability"
+    aliases:
+      - capability
+      - id
+  capability_schema:
+    canonical: "@schema"
+    aliases:
+      - schema
+contexts:
+  entity_manifest:
+    tokens:
+      - schema_version
+      - class_id
+      - object_id
+      - instance_id
+      - parent_ref
+      - entity_title
+      - entity_summary
+      - entity_description
+      - entity_layer
+  capability_entry:
+    tokens:
+      - capability_id
+      - capability_schema
+      - entity_title
+      - entity_summary

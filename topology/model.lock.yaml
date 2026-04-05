@@ -130,6 +130,9 @@ objects:
   obj.mikrotik.chr:
     version: 1.1.0
     class_ref: class.router
+  obj.network.bridge.containers:
+    version: 1.0.0
+    class_ref: class.network.bridge
   obj.network.bridge.vmbr0:
     version: 1.0.0
     class_ref: class.network.bridge

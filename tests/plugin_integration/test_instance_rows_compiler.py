@@ -71,6 +71,68 @@ def test_instance_rows_compiler_plugin_owner_normalizes_rows():
     assert "normalized_rows" in ctx.get_published_keys(PLUGIN_ID)
 
 
+def test_instance_rows_compiler_accepts_semantic_instance_keys():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"compilation_owner_instance_rows": "plugin"},
+        instance_bindings={
+            "instance_bindings": {
+                "devices": [
+                    {
+                        "@instance": "dev-semantic",
+                        "@layer": "L1",
+                        "class_ref": "class.router",
+                        "@extends": "obj.router",
+                        "@title": "Semantic title",
+                        "custom_flag": True,
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
+    assert not result.has_errors
+    rows = result.output_data.get("normalized_rows")
+    assert isinstance(rows, list)
+    assert rows and rows[0]["instance"] == "dev-semantic"
+    assert rows[0]["object_ref"] == "obj.router"
+    assert rows[0]["layer"] == "L1"
+    assert rows[0]["extensions"]["title"] == "Semantic title"
+    assert rows[0]["extensions"]["custom_flag"] is True
+
+
+def test_instance_rows_compiler_rejects_semantic_key_collision():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"compilation_owner_instance_rows": "plugin"},
+        instance_bindings={
+            "instance_bindings": {
+                "devices": [
+                    {
+                        "instance": "dev-semantic",
+                        "layer": "L1",
+                        "class_ref": "class.router",
+                        "object_ref": "obj.router",
+                        "@extends": "obj.router",
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(diag.code == "E8803" and "both '@extends' and legacy 'object_ref'" in diag.message for diag in result.diagnostics)
+
+
 def test_sidecar_merge_passthrough_preserves_placeholders():
     """In passthrough mode, placeholders are preserved unchanged."""
     registry = _registry()

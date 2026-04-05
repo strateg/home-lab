@@ -22,6 +22,8 @@ from kernel.plugin_base import (
     PluginResult,
     Stage,
 )
+from semantic_keywords import SemanticKeywordRegistry, load_semantic_keyword_registry, resolve_semantic_value
+from yaml_loader import load_yaml_text
 
 
 class InstanceRowsCompiler(CompilerPlugin):
@@ -47,6 +49,15 @@ class InstanceRowsCompiler(CompilerPlugin):
     }
 
     _TODO_MARKER_RE = re.compile(r"^<TODO_[A-Z0-9_]+>$")
+    _SEMANTIC_ROW_TOKEN_MAP: tuple[tuple[str, str], ...] = (
+        ("schema_version", "version"),
+        ("instance_id", "instance"),
+        ("entity_layer", "layer"),
+        ("parent_ref", "object_ref"),
+        ("entity_title", "title"),
+        ("entity_summary", "summary"),
+        ("entity_description", "description"),
+    )
 
     @classmethod
     def _extract_extensions(cls, row: dict[str, Any]) -> dict[str, Any]:
@@ -56,6 +67,60 @@ class InstanceRowsCompiler(CompilerPlugin):
                 continue
             extensions[key] = row[key]
         return extensions
+
+    def _normalize_semantic_row(
+        self,
+        *,
+        row: dict[str, Any],
+        semantic_registry: SemanticKeywordRegistry,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+        row_path: str,
+    ) -> dict[str, Any] | None:
+        normalized = dict(row)
+        for token, legacy_key in self._SEMANTIC_ROW_TOKEN_MAP:
+            resolution = resolve_semantic_value(
+                normalized,
+                registry=semantic_registry,
+                context="entity_manifest",
+                token=token,
+            )
+            if resolution.has_collision:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E8803",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Instance row contains semantic-key collision for {token}: "
+                            f"{', '.join(resolution.present_keys)}."
+                        ),
+                        path=row_path,
+                    )
+                )
+                return None
+            if token == "parent_ref" and resolution.found and "object_ref" in normalized:
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E8803",
+                        severity="error",
+                        stage=stage,
+                        message="Instance row must not define both '@extends' and legacy 'object_ref'.",
+                        path=row_path,
+                    )
+                )
+                return None
+            if resolution.found:
+                normalized[legacy_key] = resolution.value
+        normalized.pop("@version", None)
+        normalized.pop("@instance", None)
+        normalized.pop("@layer", None)
+        normalized.pop("@extends", None)
+        normalized.pop("extends", None)
+        normalized.pop("@title", None)
+        normalized.pop("@summary", None)
+        normalized.pop("@description", None)
+        return normalized
 
     @staticmethod
     def _resolve_secrets_mode(ctx: PluginContext) -> str:
@@ -347,7 +412,7 @@ class InstanceRowsCompiler(CompilerPlugin):
             return None
 
         try:
-            payload = yaml.safe_load(result.stdout) or {}
+            payload = load_yaml_text(result.stdout) or {}
         except yaml.YAMLError as exc:
             diagnostics.append(
                 self.emit_diagnostic(
@@ -683,6 +748,11 @@ class InstanceRowsCompiler(CompilerPlugin):
         seen_instances: set[str] = set()
         mode = self._resolve_secrets_mode(ctx)
         require_unlock = self._resolve_require_unlock(ctx)
+        semantic_keywords_raw = ctx.config.get("semantic_keywords_path")
+        semantic_keywords_path = (
+            Path(semantic_keywords_raw) if isinstance(semantic_keywords_raw, str) and semantic_keywords_raw else None
+        )
+        semantic_registry = load_semantic_keyword_registry(semantic_keywords_path)
         row_annotations_by_instance: dict[str, dict[str, dict[str, Any]]] = {}
         object_secret_annotations_by_object: dict[str, dict[str, dict[str, Any]]] = {}
         annotation_formats: dict[str, dict[str, Any]] = {}
@@ -744,6 +814,16 @@ class InstanceRowsCompiler(CompilerPlugin):
                     continue
 
                 row_path = f"instance_bindings.{group_name}[{idx}]"
+                normalized_row = self._normalize_semantic_row(
+                    row=row,
+                    semantic_registry=semantic_registry,
+                    stage=stage,
+                    diagnostics=diagnostics,
+                    row_path=row_path,
+                )
+                if normalized_row is None:
+                    continue
+                row = normalized_row
                 instance_id = row.get("instance")
 
                 if not isinstance(instance_id, str) or not instance_id:

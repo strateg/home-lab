@@ -407,6 +407,37 @@ codes:
     stage: build
     title: Release Manifest Generated
     hint: No action required.
+  # ADR 0088 semantic keyword registry
+  E8801:
+    severity: error
+    stage: validate
+    title: Missing Required Semantic Key
+    hint: Provide required canonical semantic key or valid migration alias for current context.
+  E8802:
+    severity: error
+    stage: validate
+    title: Semantic Context Violation
+    hint: Use semantic key only in the allowed context (entity manifest vs capability entry).
+  E8803:
+    severity: error
+    stage: validate
+    title: Semantic Key Collision
+    hint: Remove canonical/alias duplicates and keep exactly one semantic key per token.
+  E8804:
+    severity: error
+    stage: validate
+    title: Typed Extends Target Mismatch
+    hint: Ensure '@extends' points to correct target type (class->class, object->class, instance->object).
+  E8805:
+    severity: error
+    stage: validate
+    title: Capability Contract Semantic Violation
+    hint: Resolve unknown/duplicate capability IDs and align capability entries with semantic contract.
+  E8806:
+    severity: error
+    stage: load
+    title: Strict YAML Duplicate Key
+    hint: Remove duplicate mapping keys; strict loader rejects ambiguous YAML mappings.
   # ADR 0071 sharded instances loader
   E7101:
     severity: error

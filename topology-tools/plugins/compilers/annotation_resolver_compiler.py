@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import yaml
 from field_annotations import FieldAnnotation, parse_field_annotation
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+from yaml_loader import load_yaml_file
 
 DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[1] / "data" / "instance-field-formats.yaml"
 
@@ -41,7 +41,7 @@ class AnnotationResolverCompiler(CompilerPlugin):
         if not registry_path.is_absolute():
             registry_path = (Path(__file__).resolve().parents[1] / registry_path).resolve()
         try:
-            payload = yaml.safe_load(registry_path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(registry_path) or {}
         except Exception as exc:  # pragma: no cover - defensive path
             diagnostics.append(
                 self.emit_diagnostic(

@@ -27,11 +27,11 @@ def test_error_catalog_codes_are_unique():
 
 def test_adr0080_ranges_are_reserved_without_foreign_overlap():
     codes = _load_codes()
-    adr0080_prefixes = ("E800", "E810", "E820", "W800")
+    adr008x_prefixes = ("E800", "E810", "E820", "E880", "W800")
 
     for code in codes.keys():
         if code.startswith("E8") or code.startswith("W8"):
-            assert code.startswith(adr0080_prefixes), f"Unexpected code in E8/W8 range: {code}"
+            assert code.startswith(adr008x_prefixes), f"Unexpected code in E8/W8 range: {code}"
 
     required = {
         "E8001",
@@ -48,6 +48,12 @@ def test_adr0080_ranges_are_reserved_without_foreign_overlap():
         "E8201",
         "E8202",
         "E8203",
+        "E8801",
+        "E8802",
+        "E8803",
+        "E8804",
+        "E8805",
+        "E8806",
         "W8001",
         "W8002",
         "W8003",

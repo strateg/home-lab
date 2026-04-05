@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorYamlPlugin
+from yaml_loader import load_yaml_file
 
 
 class FoundationIncludeContractValidator(ValidatorYamlPlugin):
@@ -112,7 +113,7 @@ class FoundationIncludeContractValidator(ValidatorYamlPlugin):
         if manifest_path is None or not manifest_path.exists() or not manifest_path.is_file():
             return default_root
         try:
-            payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(manifest_path) or {}
         except OSError:
             return default_root
         except yaml.YAMLError:

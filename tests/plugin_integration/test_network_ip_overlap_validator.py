@@ -127,3 +127,31 @@ def test_network_ip_overlap_validator_requires_compiler_rows():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.FAILED
     assert any(diag.code == "E7815" for diag in result.diagnostics)
+
+
+def test_network_ip_overlap_validator_ignores_observed_runtime_ips():
+    registry = _registry()
+    ctx = _context()
+    _publish_rows(
+        ctx,
+        [
+            {
+                "instance": "rtr-mikrotik-chateau",
+                "extensions": {
+                    "observed_runtime": {
+                        "containers": {"bridge_ip": "172.18.0.1"},
+                    }
+                },
+            },
+            {
+                "instance": "docker-nginx",
+                "extensions": {
+                    "network": {"gateway": "172.18.0.1"},
+                },
+            },
+        ],
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not any(diag.code == "W7816" for diag in result.diagnostics)

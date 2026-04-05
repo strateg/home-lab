@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Type
 
 import yaml
+from yaml_loader import load_yaml_file
 
 try:
     import jsonschema
@@ -178,8 +179,7 @@ class PluginManifest:
     @classmethod
     def from_file(cls, path: Path) -> PluginManifest:
         """Load manifest from YAML file."""
-        with open(path, encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
+        data = load_yaml_file(path) or {}
         return cls.from_data(data, str(path))
 
 
@@ -296,8 +296,7 @@ class PluginRegistry:
     def load_manifest(self, manifest_path: Path) -> None:
         """Load plugins from a manifest file."""
         try:
-            with open(manifest_path, encoding="utf-8") as f:
-                payload = yaml.safe_load(f) or {}
+            payload = load_yaml_file(manifest_path) or {}
         except (OSError, yaml.YAMLError) as exc:
             raise PluginLoadError("manifest.load", f"Failed to parse manifest '{manifest_path}': {exc}") from exc
         if not isinstance(payload, dict):

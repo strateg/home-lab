@@ -10,6 +10,8 @@ from typing import Any, Callable
 
 import yaml
 from identifier_policy import contains_unsafe_identifier_chars
+from semantic_keywords import SemanticKeywordRegistry, load_semantic_keyword_registry, resolve_semantic_value
+from yaml_loader import load_yaml_file
 
 INSTANCE_SOURCE_MODES = {"auto", "sharded-only"}
 _INSTANCE_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
@@ -32,6 +34,7 @@ class ManifestPathBundle:
     object_modules_root: Path
     capability_catalog_path: Path
     capability_packs_path: Path
+    semantic_keywords_path: Path
     layer_contract_path: Path
     instances_root_path: Path | None
     secrets_root_path: Path | None
@@ -77,6 +80,9 @@ def resolve_manifest_paths(
         object_modules_root=resolve_repo_path(str(framework_paths.get("object_modules_root", ""))),
         capability_catalog_path=resolve_repo_path(str(framework_paths.get("capability_catalog", ""))),
         capability_packs_path=resolve_repo_path(str(framework_paths.get("capability_packs", ""))),
+        semantic_keywords_path=resolve_repo_path(
+            str(framework_paths.get("semantic_keywords", "topology/semantic-keywords.yaml"))
+        ),
         layer_contract_path=resolve_repo_path(str(framework_paths.get("layer_contract", ""))),
         instances_root_path=_project_relative_path(project_manifest.get("instances_root")),
         secrets_root_path=_project_relative_path(project_manifest.get("secrets_root")),
@@ -149,6 +155,7 @@ def _load_sharded_instance_payload(
     *,
     instances_root: Path | None,
     mode: str,
+    semantic_registry: SemanticKeywordRegistry,
     group_layer_map: dict[str, str],
     add_diag: Callable[..., None],
     repo_root: Path,
@@ -200,7 +207,7 @@ def _load_sharded_instance_payload(
             continue
 
         try:
-            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(path) or {}
         except (OSError, yaml.YAMLError) as exc:
             add_diag(
                 code="E1003",
@@ -229,7 +236,25 @@ def _load_sharded_instance_payload(
             )
             continue
 
-        shard_version = payload.get("version")
+        version_resolution = resolve_semantic_value(
+            payload,
+            registry=semantic_registry,
+            context="entity_manifest",
+            token="schema_version",
+        )
+        if version_resolution.has_collision:
+            add_diag(
+                code="E8803",
+                severity="error",
+                stage="validate",
+                message=(
+                    "Instance shard contains semantic-key collision for schema_version: "
+                    f"{', '.join(version_resolution.present_keys)}."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+        shard_version = version_resolution.value
         has_supported_version = isinstance(shard_version, str) and _is_supported_instance_version(shard_version)
         if not has_supported_version:
             add_diag(
@@ -245,11 +270,120 @@ def _load_sharded_instance_payload(
             )
             continue
 
-        required_keys = ("instance", "group", "layer", "object_ref")
-        missing = [key for key in required_keys if key not in payload]
+        instance_resolution = resolve_semantic_value(
+            payload,
+            registry=semantic_registry,
+            context="entity_manifest",
+            token="instance_id",
+        )
+        if instance_resolution.has_collision:
+            add_diag(
+                code="E8803",
+                severity="error",
+                stage="validate",
+                message=(
+                    "Instance shard contains semantic-key collision for instance_id: "
+                    f"{', '.join(instance_resolution.present_keys)}."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+
+        layer_resolution = resolve_semantic_value(
+            payload,
+            registry=semantic_registry,
+            context="entity_manifest",
+            token="entity_layer",
+        )
+        if layer_resolution.has_collision:
+            add_diag(
+                code="E8803",
+                severity="error",
+                stage="validate",
+                message=(
+                    "Instance shard contains semantic-key collision for entity_layer: "
+                    f"{', '.join(layer_resolution.present_keys)}."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+
+        parent_resolution = resolve_semantic_value(
+            payload,
+            registry=semantic_registry,
+            context="entity_manifest",
+            token="parent_ref",
+        )
+        if parent_resolution.has_collision:
+            add_diag(
+                code="E8803",
+                severity="error",
+                stage="validate",
+                message=(
+                    "Instance shard contains semantic-key collision for parent_ref: "
+                    f"{', '.join(parent_resolution.present_keys)}."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+
+        if parent_resolution.found and "object_ref" in payload:
+            add_diag(
+                code="E8803",
+                severity="error",
+                stage="validate",
+                message="Instance shard must not define both '@extends' and legacy 'object_ref'.",
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
+
+        metadata_values: dict[str, Any] = {}
+        metadata_tokens = (
+            ("entity_title", "title"),
+            ("entity_summary", "summary"),
+            ("entity_description", "description"),
+        )
+        metadata_error = False
+        for metadata_token, legacy_key in metadata_tokens:
+            metadata_resolution = resolve_semantic_value(
+                payload,
+                registry=semantic_registry,
+                context="entity_manifest",
+                token=metadata_token,
+            )
+            if metadata_resolution.has_collision:
+                add_diag(
+                    code="E8803",
+                    severity="error",
+                    stage="validate",
+                    message=(
+                        f"Instance shard contains semantic-key collision for {metadata_token}: "
+                        f"{', '.join(metadata_resolution.present_keys)}."
+                    ),
+                    path=_diag_path(repo_root=repo_root, path=path),
+                )
+                metadata_error = True
+                break
+            if metadata_resolution.found:
+                metadata_values[legacy_key] = metadata_resolution.value
+        if metadata_error:
+            continue
+
+        normalized_instance = instance_resolution.value
+        normalized_layer = layer_resolution.value
+        normalized_object_ref = parent_resolution.value if parent_resolution.found else payload.get("object_ref")
+        missing: list[str] = []
+        if normalized_instance is None:
+            missing.append("instance")
+        if payload.get("group") is None:
+            missing.append("group")
+        if normalized_layer is None:
+            missing.append("layer")
+        if normalized_object_ref is None:
+            missing.append("object_ref")
         if missing:
             add_diag(
-                code="E3201",
+                code="E8801",
                 severity="error",
                 stage="validate",
                 message=f"Instance shard is missing required keys: {', '.join(missing)}.",
@@ -257,10 +391,10 @@ def _load_sharded_instance_payload(
             )
             continue
 
-        instance_id = payload.get("instance")
+        instance_id = normalized_instance
         group_name = payload.get("group")
-        layer = payload.get("layer")
-        object_ref = payload.get("object_ref")
+        layer = normalized_layer
+        object_ref = normalized_object_ref
         explicit_class_ref = payload.get("class_ref")
         if not isinstance(instance_id, str) or not instance_id:
             add_diag(
@@ -414,7 +548,20 @@ def _load_sharded_instance_payload(
         row = dict(payload)
         row.pop("schema_version", None)
         row.pop("version", None)
+        row.pop("@version", None)
+        row.pop("@instance", None)
+        row.pop("@layer", None)
+        row.pop("@extends", None)
+        row.pop("@title", None)
+        row.pop("@summary", None)
+        row.pop("@description", None)
+        row.pop("extends", None)
         row.pop("group", None)
+        row["instance"] = instance_id
+        row["layer"] = layer
+        row["object_ref"] = object_ref
+        for key, value in metadata_values.items():
+            row[key] = value
         if not isinstance(explicit_class_ref, str):
             row.pop("class_ref", None)
         row["_source_file"] = str(path)
@@ -446,6 +593,7 @@ def load_core_compile_inputs(
     catalog_ids: set[str] = set()
     packs_map: dict[str, dict[str, Any]] = {}
 
+    semantic_registry = load_semantic_keyword_registry(paths.semantic_keywords_path)
     resolved_instances_mode = resolve_instance_source_mode(
         requested_mode=instances_mode,
         paths=paths,
@@ -459,6 +607,7 @@ def load_core_compile_inputs(
     instance_payload = _load_sharded_instance_payload(
         instances_root=paths.instances_root_path,
         mode=resolved_instances_mode,
+        semantic_registry=semantic_registry,
         group_layer_map=group_layer_map,
         add_diag=add_diag,
         repo_root=repo_root,

@@ -7,6 +7,8 @@ source_id: docker-nginx
 status: mapped
 notes: nginx container running on rtr-mikrotik-chateau; observed live 2026-04-04
 host_ref: rtr-mikrotik-chateau
+os_refs:
+- inst.os.debian.12.arm64.container_base
 network:
   bridge_ref: inst.bridge.containers
   interface: veth1

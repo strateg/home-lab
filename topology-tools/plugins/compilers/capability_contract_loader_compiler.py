@@ -7,6 +7,8 @@ from typing import Any
 
 import yaml
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+from semantic_keywords import load_semantic_keyword_registry, resolve_semantic_value
+from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -43,7 +45,7 @@ class CapabilityContractLoaderCompiler(CompilerPlugin):
             )
             return None
         try:
-            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(path) or {}
         except (OSError, yaml.YAMLError) as exc:
             diagnostics.append(
                 PluginDiagnostic(
@@ -98,6 +100,11 @@ class CapabilityContractLoaderCompiler(CompilerPlugin):
 
         catalog_path = Path(catalog_path_raw)
         packs_path = Path(packs_path_raw)
+        semantic_keywords_raw = ctx.config.get("semantic_keywords_path")
+        semantic_keywords_path = (
+            Path(semantic_keywords_raw) if isinstance(semantic_keywords_raw, str) and semantic_keywords_raw else None
+        )
+        registry = load_semantic_keyword_registry(semantic_keywords_path)
         catalog_ids: set[str] = set()
         packs_map: dict[str, dict[str, Any]] = {}
 
@@ -136,14 +143,38 @@ class CapabilityContractLoaderCompiler(CompilerPlugin):
                             )
                         )
                         continue
-                    cap_id = item.get("id")
+                    cap_resolution = resolve_semantic_value(
+                        item,
+                        registry=registry,
+                        context="capability_entry",
+                        token="capability_id",
+                    )
+                    if cap_resolution.has_collision:
+                        diagnostics.append(
+                            PluginDiagnostic(
+                                code="E8803",
+                                severity="error",
+                                stage="validate",
+                                message=(
+                                    "capability entry contains semantic-key collision for capability_id: "
+                                    f"{', '.join(cap_resolution.present_keys)}."
+                                ),
+                                path=path,
+                                plugin_id=self.plugin_id,
+                            )
+                        )
+                        continue
+                    cap_id = cap_resolution.value
                     if not isinstance(cap_id, str) or not cap_id:
                         diagnostics.append(
                             PluginDiagnostic(
-                                code="E3201",
+                                code="E8801",
                                 severity="error",
                                 stage="validate",
-                                message="capability entry missing non-empty id.",
+                                message=(
+                                    "capability entry missing required semantic key 'capability_id' "
+                                    f"('{registry.get('capability_id').canonical}')."
+                                ),
                                 path=path,
                                 plugin_id=self.plugin_id,
                             )

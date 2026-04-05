@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from yaml_loader import load_yaml_file
 
 
 def _sort_key_for_path(*, root: Path, path: Path) -> str:
@@ -64,7 +65,7 @@ def validate_module_index_consistency(
         return [f"module-index file is missing: {resolved_index.as_posix()}"]
 
     try:
-        payload = yaml.safe_load(resolved_index.read_text(encoding="utf-8")) or {}
+        payload = load_yaml_file(resolved_index) or {}
     except (OSError, yaml.YAMLError) as exc:
         return [f"module-index cannot be parsed: {resolved_index.as_posix()}: {exc}"]
 
@@ -139,7 +140,7 @@ def _module_index_paths(
         return None
 
     try:
-        payload = yaml.safe_load(module_index_path.read_text(encoding="utf-8")) or {}
+        payload = load_yaml_file(module_index_path) or {}
     except (OSError, yaml.YAMLError):
         return None
     if not isinstance(payload, dict):

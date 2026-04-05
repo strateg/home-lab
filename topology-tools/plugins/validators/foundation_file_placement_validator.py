@@ -7,6 +7,7 @@ from typing import Any
 
 import yaml
 from kernel.plugin_base import PluginContext, PluginResult, Stage, ValidatorYamlPlugin
+from yaml_loader import load_yaml_file
 
 
 class FoundationFilePlacementValidator(ValidatorYamlPlugin):
@@ -179,7 +180,7 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
         if manifest_path is None or not manifest_path.exists() or not manifest_path.is_file():
             return default_root
         try:
-            payload = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(manifest_path) or {}
         except OSError:
             return default_root
         except yaml.YAMLError:
@@ -228,7 +229,7 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
     @staticmethod
     def _load_payload(*, file_path: Path) -> dict[str, Any] | None:
         try:
-            payload = yaml.safe_load(file_path.read_text(encoding="utf-8"))
+            payload = load_yaml_file(file_path)
         except OSError:
             return None
         except yaml.YAMLError:

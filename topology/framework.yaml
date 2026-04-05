@@ -17,6 +17,8 @@ distribution:
       to: topology/layer-contract.yaml
     - from: topology/model.lock.yaml
       to: topology/model.lock.yaml
+    - from: topology/semantic-keywords.yaml
+      to: topology/semantic-keywords.yaml
     - from: topology/profile-map.yaml
       to: topology/profile-map.yaml
     - from: topology/module-index.yaml

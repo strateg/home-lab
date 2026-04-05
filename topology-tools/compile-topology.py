@@ -42,6 +42,7 @@ from kernel import (
     Stage,
 )
 from plugin_manifest_discovery import discover_plugin_manifest_paths, validate_module_index_consistency
+from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = REPO_ROOT / "topology" / "topology.yaml"
@@ -269,7 +270,7 @@ class V5Compiler:
         if not path.exists():
             return {}
         try:
-            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(path) or {}
         except yaml.YAMLError:
             return {}
         if not isinstance(payload, dict):
@@ -692,7 +693,7 @@ class V5Compiler:
             )
             return None
         try:
-            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(path) or {}
         except (OSError, yaml.YAMLError) as exc:
             self.add_diag(
                 code=code_parse,
@@ -903,6 +904,17 @@ class V5Compiler:
                     message=f"framework.{key} must be non-empty string.",
                     path=f"topology/topology.yaml:framework.{key}",
                 )
+        semantic_keywords_raw = framework_paths.get("semantic_keywords")
+        if semantic_keywords_raw is not None and (
+            not isinstance(semantic_keywords_raw, str) or not semantic_keywords_raw.strip()
+        ):
+            self.add_diag(
+                code="E3201",
+                severity="error",
+                stage="validate",
+                message="framework.semantic_keywords must be non-empty string when provided.",
+                path="topology/topology.yaml:framework.semantic_keywords",
+            )
 
         for key in REQUIRED_PROJECT_KEYS:
             value = project_section.get(key)
@@ -1034,6 +1046,7 @@ class V5Compiler:
             instance_bindings=inputs.instance_payload or {},
             capability_catalog_path=manifest_bundle.capability_catalog_path,
             capability_packs_path=manifest_bundle.capability_packs_path,
+            semantic_keywords_path=manifest_bundle.semantic_keywords_path,
             model_lock_path=manifest_bundle.model_lock_path,
             lock_payload=inputs.lock_payload,
             output_dir=self.output_json.parent,

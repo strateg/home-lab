@@ -150,6 +150,8 @@ class NetworkIpOverlapValidator(ValidatorJsonPlugin):
             for key, value in payload.items():
                 if not isinstance(key, str):
                     continue
+                if key == "observed_runtime":
+                    continue
                 next_prefix = f"{prefix}.{key}" if prefix else key
                 if isinstance(value, str) and self._is_interesting_key(key):
                     result.append((next_prefix, value))

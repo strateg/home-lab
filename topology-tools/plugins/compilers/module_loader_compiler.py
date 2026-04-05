@@ -8,6 +8,8 @@ from typing import Any, Iterable
 import yaml
 from identifier_policy import contains_unsafe_identifier_chars
 from kernel.plugin_base import CompilerPlugin, PluginContext, PluginDiagnostic, PluginResult, Stage
+from semantic_keywords import load_semantic_keyword_registry, resolve_semantic_value
+from yaml_loader import load_yaml_file
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -58,7 +60,7 @@ class ModuleLoaderCompiler(CompilerPlugin):
             )
             return None
         try:
-            payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            payload = load_yaml_file(path) or {}
         except (OSError, yaml.YAMLError) as exc:
             diagnostics.append(
                 PluginDiagnostic(
@@ -90,8 +92,11 @@ class ModuleLoaderCompiler(CompilerPlugin):
         *,
         directory: Path,
         module_type: str,
+        semantic_keywords_path: Path | None,
         diagnostics: list[PluginDiagnostic],
     ) -> tuple[dict[str, dict[str, Any]], dict[str, str]]:
+        registry = load_semantic_keyword_registry(semantic_keywords_path)
+        token = "class_id" if module_type == "class" else "object_id"
         module_map: dict[str, dict[str, Any]] = {}
         module_paths: dict[str, str] = {}
         files = [path for path in self._iter_yaml_files(directory) if self._is_module_file(path, module_type)]
@@ -118,15 +123,38 @@ class ModuleLoaderCompiler(CompilerPlugin):
             )
             if payload is None:
                 continue
-            module_key = "class" if module_type == "class" else "object"
-            item_id = payload.get(module_key)
+            key_resolution = resolve_semantic_value(
+                payload,
+                registry=registry,
+                context="entity_manifest",
+                token=token,
+            )
+            if key_resolution.has_collision:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8803",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"{module_type} module contains semantic-key collision for '{token}': "
+                            f"{', '.join(key_resolution.present_keys)}."
+                        ),
+                        path=self._rel(path),
+                        plugin_id=self.plugin_id,
+                    )
+                )
+                continue
+            item_id = key_resolution.value
             if not isinstance(item_id, str) or not item_id:
                 diagnostics.append(
                     PluginDiagnostic(
-                        code="E3201",
+                        code="E8801",
                         severity="error",
                         stage="validate",
-                        message=f"{module_type} module is missing '{module_key}'.",
+                        message=(
+                            f"{module_type} module is missing required semantic key '{token}' "
+                            f"('{registry.get(token).canonical}')."
+                        ),
                         path=self._rel(path),
                         plugin_id=self.plugin_id,
                     )
@@ -142,10 +170,85 @@ class ModuleLoaderCompiler(CompilerPlugin):
                             f"{module_type} id '{item_id}' contains filename-unsafe characters; "
                             "use only cross-platform filename-safe symbols."
                         ),
-                        path=f"{self._rel(path)}:{module_key}",
+                        path=f"{self._rel(path)}:{key_resolution.key or registry.get(token).canonical}",
                         plugin_id=self.plugin_id,
                     )
                 )
+                continue
+            normalized_payload = dict(payload)
+            if module_type == "class":
+                normalized_payload["class"] = item_id
+            else:
+                normalized_payload["object"] = item_id
+                parent_resolution = resolve_semantic_value(
+                    normalized_payload,
+                    registry=registry,
+                    context="entity_manifest",
+                    token="parent_ref",
+                )
+                if parent_resolution.has_collision:
+                    diagnostics.append(
+                        PluginDiagnostic(
+                            code="E8803",
+                            severity="error",
+                            stage="validate",
+                            message=(
+                                "object module contains semantic-key collision for parent_ref: "
+                                f"{', '.join(parent_resolution.present_keys)}."
+                            ),
+                            path=self._rel(path),
+                            plugin_id=self.plugin_id,
+                        )
+                    )
+                    continue
+                if parent_resolution.found and "class_ref" in normalized_payload:
+                    diagnostics.append(
+                        PluginDiagnostic(
+                            code="E8803",
+                            severity="error",
+                            stage="validate",
+                            message="object module must not define both '@extends' and legacy 'class_ref'.",
+                            path=self._rel(path),
+                            plugin_id=self.plugin_id,
+                        )
+                    )
+                    continue
+                if parent_resolution.found:
+                    normalized_payload["class_ref"] = parent_resolution.value
+            metadata_fields = (
+                ("schema_version", "version"),
+                ("entity_title", "title"),
+                ("entity_summary", "summary"),
+                ("entity_description", "description"),
+                ("entity_layer", "layer"),
+            )
+            metadata_error = False
+            for metadata_token, legacy_key in metadata_fields:
+                metadata_resolution = resolve_semantic_value(
+                    normalized_payload,
+                    registry=registry,
+                    context="entity_manifest",
+                    token=metadata_token,
+                )
+                if metadata_resolution.has_collision:
+                    diagnostics.append(
+                        PluginDiagnostic(
+                            code="E8803",
+                            severity="error",
+                            stage="validate",
+                            message=(
+                                f"{module_type} module contains semantic-key collision for {metadata_token}: "
+                                f"{', '.join(metadata_resolution.present_keys)}."
+                            ),
+                            path=self._rel(path),
+                            plugin_id=self.plugin_id,
+                        )
+                    )
+                    metadata_error = True
+                    break
+                if metadata_resolution.found:
+                    normalized_payload[legacy_key] = metadata_resolution.value
+            if metadata_error:
                 continue
             if item_id in module_map:
                 diagnostics.append(
@@ -153,13 +256,13 @@ class ModuleLoaderCompiler(CompilerPlugin):
                         code="E2102",
                         severity="error",
                         stage="resolve",
-                        message=f"Duplicate {module_type} {module_key} '{item_id}'.",
+                        message=f"Duplicate {module_type} '{item_id}'.",
                         path=self._rel(path),
                         plugin_id=self.plugin_id,
                     )
                 )
                 continue
-            module_map[item_id] = {"payload": payload, "path": self._rel(path)}
+            module_map[item_id] = {"payload": normalized_payload, "path": self._rel(path)}
             module_paths[item_id] = self._rel(path)
         return module_map, module_paths
 
@@ -180,6 +283,7 @@ class ModuleLoaderCompiler(CompilerPlugin):
 
         class_root_raw = ctx.config.get("class_modules_root")
         object_root_raw = ctx.config.get("object_modules_root")
+        semantic_keywords_path_raw = ctx.config.get("semantic_keywords_path")
         if not isinstance(class_root_raw, str) or not isinstance(object_root_raw, str):
             diagnostics.append(
                 self.emit_diagnostic(
@@ -194,15 +298,20 @@ class ModuleLoaderCompiler(CompilerPlugin):
 
         class_root = Path(class_root_raw)
         object_root = Path(object_root_raw)
+        semantic_keywords_path = (
+            Path(semantic_keywords_path_raw) if isinstance(semantic_keywords_path_raw, str) and semantic_keywords_path_raw else None
+        )
 
         class_map, class_paths = self._load_module_map(
             directory=class_root,
             module_type="class",
+            semantic_keywords_path=semantic_keywords_path,
             diagnostics=diagnostics,
         )
         object_map, object_paths = self._load_module_map(
             directory=object_root,
             module_type="object",
+            semantic_keywords_path=semantic_keywords_path,
             diagnostics=diagnostics,
         )
 

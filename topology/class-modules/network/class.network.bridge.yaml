@@ -47,5 +47,6 @@ optional_capabilities:
   - cap.bridge.vlan_aware
   - cap.bridge.vlan_filtering
   - cap.bridge.stp
+  - cap.bridge.container_isolation
 
 enabled_capabilities: []
