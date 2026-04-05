@@ -474,6 +474,11 @@ codes:
     stage: validate
     title: Unresolved Placeholder After Merge
     hint: Ensure required placeholders are overridden and optional placeholders are omitted or resolved.
+  E6807:
+    severity: error
+    stage: validate
+    title: Plaintext Value for Secret Placeholder
+    hint: Secret-annotated fields must be resolved via SOPS sidecar secrets, not provided as plaintext in instance or override files.
   # ADR 0069 pipeline mode and parity controls
   E6901:
     severity: error

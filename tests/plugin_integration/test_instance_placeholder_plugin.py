@@ -351,3 +351,33 @@ def test_placeholder_plugin_accepts_optional_secret_annotations():
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
     assert result.status == PluginStatus.SUCCESS
     assert not result.has_errors
+
+
+def test_placeholder_plugin_rejects_plaintext_for_optional_secret() -> None:
+    registry = _registry()
+    ctx = _context(
+        object_defaults={"hardware_identity": {"serial_number": "@optional_secret:string"}},
+        instance_overrides={"defaults": {"hardware_identity": {"serial_number": "HM80BF3ZNBB"}}},
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.FAILED
+    assert any(d.code == "E6807" for d in result.diagnostics)
+
+
+def test_placeholder_plugin_accepts_sops_ciphertext_for_optional_secret() -> None:
+    registry = _registry()
+    ctx = _context(
+        object_defaults={"hardware_identity": {"serial_number": "@optional_secret:string"}},
+        instance_overrides={
+            "defaults": {
+                "hardware_identity": {
+                    "serial_number": "ENC[AES256_GCM,data:abc,iv:def,tag:ghi,type:str]"
+                }
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.VALIDATE)
+    assert result.status == PluginStatus.SUCCESS
+    assert not result.has_errors

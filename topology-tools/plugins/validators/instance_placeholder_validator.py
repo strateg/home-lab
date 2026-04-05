@@ -8,6 +8,7 @@ And enforces instance-level override policy:
 - only placeholder-marked paths may be overridden
 - required placeholders must be overridden per instance
 - override values must match declared format
+- secret-annotated values must not appear as plaintext (E6807)
 """
 
 from __future__ import annotations
@@ -27,6 +28,8 @@ DEFAULT_FORMAT_REGISTRY = Path(__file__).resolve().parents[1] / "data" / "instan
 DEFAULT_ENFORCEMENT_MODE = "enforce"
 SUPPORTED_ENFORCEMENT_MODES = {"warn", "warn+gate-new", "enforce"}
 DEFAULT_GATE_STATUSES = {"modeled", "mapped"}
+
+_SOPS_ENC_RE = re.compile(r"^ENC\[AES256_GCM,")
 
 
 class InstancePlaceholderValidator(ValidatorJsonPlugin):
@@ -379,6 +382,24 @@ class InstancePlaceholderValidator(ValidatorJsonPlugin):
                         message=(
                             f"Override value for '{self._format_path(override_path)}' does not satisfy "
                             f"format '{fmt}': {reason}"
+                        ),
+                        path=self._resolve_override_diagnostic_path(
+                            path_prefix=path_prefix,
+                            override_path=override_path,
+                            derived_sources=derived_identity_sources,
+                        ),
+                    )
+                )
+
+            if placeholder_spec.get("secret") and isinstance(value, str) and not _SOPS_ENC_RE.match(value):
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E6807",
+                        severity="error",
+                        stage=stage,
+                        message=(
+                            f"Plaintext value for secret-annotated field '{self._format_path(override_path)}'; "
+                            "must be provided via SOPS-encrypted sidecar secrets, not as plaintext."
                         ),
                         path=self._resolve_override_diagnostic_path(
                             path_prefix=path_prefix,
