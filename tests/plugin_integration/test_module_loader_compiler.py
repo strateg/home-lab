@@ -260,3 +260,67 @@ def test_module_loader_rejects_metadata_collision(tmp_path):
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.has_errors
     assert any(d.code == "E8803" and "entity_title" in d.message for d in result.diagnostics)
+
+
+def test_module_loader_rejects_typed_extends_mismatch_for_object(tmp_path):
+    registry = _registry()
+    class_dir = tmp_path / "class-modules"
+    object_dir = tmp_path / "object-modules"
+    class_dir.mkdir()
+    object_dir.mkdir()
+    (class_dir / "class.router.yaml").write_text(
+        "class: class.router\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+    (object_dir / "obj.base.yaml").write_text(
+        "object: obj.base\nclass_ref: class.router\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+    (object_dir / "obj.child.yaml").write_text(
+        "object: obj.child\n@extends: obj.base\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_module_maps": "plugin",
+            "class_modules_root": str(class_dir),
+            "object_modules_root": str(object_dir),
+        },
+    )
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(d.code == "E8804" and "object inheritance requires class id" in d.message for d in result.diagnostics)
+
+
+def test_module_loader_rejects_typed_extends_mismatch_for_class(tmp_path):
+    registry = _registry()
+    class_dir = tmp_path / "class-modules"
+    object_dir = tmp_path / "object-modules"
+    class_dir.mkdir()
+    object_dir.mkdir()
+    (class_dir / "class.router.yaml").write_text(
+        "class: class.router\n@extends: obj.base\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+    (object_dir / "obj.base.yaml").write_text(
+        "object: obj.base\nclass_ref: class.router\nversion: 1.0.0\n",
+        encoding="utf-8",
+    )
+
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={
+            "compilation_owner_module_maps": "plugin",
+            "class_modules_root": str(class_dir),
+            "object_modules_root": str(object_dir),
+        },
+    )
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(d.code == "E8804" and "class inheritance requires class id" in d.message for d in result.diagnostics)

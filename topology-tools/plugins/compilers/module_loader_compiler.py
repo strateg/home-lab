@@ -178,6 +178,29 @@ class ModuleLoaderCompiler(CompilerPlugin):
             normalized_payload = dict(payload)
             if module_type == "class":
                 normalized_payload["class"] = item_id
+                parent_resolution = resolve_semantic_value(
+                    normalized_payload,
+                    registry=registry,
+                    context="entity_manifest",
+                    token="parent_ref",
+                )
+                if parent_resolution.has_collision:
+                    diagnostics.append(
+                        PluginDiagnostic(
+                            code="E8803",
+                            severity="error",
+                            stage="validate",
+                            message=(
+                                "class module contains semantic-key collision for parent_ref: "
+                                f"{', '.join(parent_resolution.present_keys)}."
+                            ),
+                            path=self._rel(path),
+                            plugin_id=self.plugin_id,
+                        )
+                    )
+                    continue
+                if parent_resolution.found:
+                    normalized_payload["extends"] = parent_resolution.value
             else:
                 normalized_payload["object"] = item_id
                 parent_resolution = resolve_semantic_value(
@@ -266,6 +289,99 @@ class ModuleLoaderCompiler(CompilerPlugin):
             module_paths[item_id] = self._rel(path)
         return module_map, module_paths
 
+    def _validate_typed_extends(
+        self,
+        *,
+        class_map: dict[str, dict[str, Any]],
+        object_map: dict[str, dict[str, Any]],
+        diagnostics: list[PluginDiagnostic],
+    ) -> None:
+        for class_id, class_item in class_map.items():
+            if not isinstance(class_item, dict):
+                continue
+            payload = class_item.get("payload")
+            class_path = class_item.get("path")
+            if not isinstance(payload, dict):
+                continue
+            extends_ref = payload.get("extends")
+            if extends_ref is None:
+                continue
+            if not isinstance(extends_ref, str) or not extends_ref:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8804",
+                        severity="error",
+                        stage="validate",
+                        message="class module '@extends' must reference non-empty class id.",
+                        path=class_path if isinstance(class_path, str) else f"class:{class_id}",
+                        plugin_id=self.plugin_id,
+                    )
+                )
+                continue
+            if extends_ref == class_id:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8804",
+                        severity="error",
+                        stage="validate",
+                        message=f"class module '@extends' must not self-reference '{class_id}'.",
+                        path=class_path if isinstance(class_path, str) else f"class:{class_id}",
+                        plugin_id=self.plugin_id,
+                    )
+                )
+                continue
+            if extends_ref in object_map:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8804",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"class module '@extends' target '{extends_ref}' is object id; "
+                            "class inheritance requires class id."
+                        ),
+                        path=class_path if isinstance(class_path, str) else f"class:{class_id}",
+                        plugin_id=self.plugin_id,
+                    )
+                )
+
+        for object_id, object_item in object_map.items():
+            if not isinstance(object_item, dict):
+                continue
+            payload = object_item.get("payload")
+            object_path = object_item.get("path")
+            if not isinstance(payload, dict):
+                continue
+            class_ref = payload.get("class_ref")
+            if class_ref is None:
+                continue
+            if not isinstance(class_ref, str) or not class_ref:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8804",
+                        severity="error",
+                        stage="validate",
+                        message="object module '@extends/class_ref' must reference non-empty class id.",
+                        path=object_path if isinstance(object_path, str) else f"object:{object_id}",
+                        plugin_id=self.plugin_id,
+                    )
+                )
+                continue
+            if class_ref in object_map:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8804",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"object module '@extends/class_ref' target '{class_ref}' is object id; "
+                            "object inheritance requires class id."
+                        ),
+                        path=object_path if isinstance(object_path, str) else f"object:{object_id}",
+                        plugin_id=self.plugin_id,
+                    )
+                )
+
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
 
@@ -314,6 +430,7 @@ class ModuleLoaderCompiler(CompilerPlugin):
             semantic_keywords_path=semantic_keywords_path,
             diagnostics=diagnostics,
         )
+        self._validate_typed_extends(class_map=class_map, object_map=object_map, diagnostics=diagnostics)
 
         ctx.classes = {
             class_id: item["payload"]

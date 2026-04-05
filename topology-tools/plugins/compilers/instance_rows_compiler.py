@@ -974,6 +974,19 @@ class InstanceRowsCompiler(CompilerPlugin):
                             )
                         )
                     else:
+                        if object_ref in ctx.classes and object_ref not in ctx.objects:
+                            diagnostics.append(
+                                self.emit_diagnostic(
+                                    code="E8804",
+                                    severity="error",
+                                    stage=stage,
+                                    message=(
+                                        f"Instance row '@extends/object_ref' target '{object_ref}' is class id; "
+                                        "instance inheritance requires object id."
+                                    ),
+                                    path=f"instance_bindings.{group_name}[{idx}].object_ref",
+                                )
+                            )
                         object_payload = ctx.objects.get(object_ref)
                         if isinstance(object_payload, dict):
                             candidate_class_ref = object_payload.get("class_ref")

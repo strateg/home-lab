@@ -133,6 +133,34 @@ def test_instance_rows_compiler_rejects_semantic_key_collision():
     assert any(diag.code == "E8803" and "both '@extends' and legacy 'object_ref'" in diag.message for diag in result.diagnostics)
 
 
+def test_instance_rows_compiler_rejects_typed_extends_mismatch():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        config={"compilation_owner_instance_rows": "plugin"},
+        classes={"class.router": {"class": "class.router"}},
+        objects={"obj.router": {"object": "obj.router", "class_ref": "class.router"}},
+        instance_bindings={
+            "instance_bindings": {
+                "devices": [
+                    {
+                        "@instance": "dev-semantic",
+                        "@layer": "L1",
+                        "class_ref": "class.router",
+                        "@extends": "class.router",
+                    }
+                ]
+            }
+        },
+    )
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+    assert result.has_errors
+    assert any(diag.code == "E8804" and "instance inheritance requires object id" in diag.message for diag in result.diagnostics)
+
+
 def test_sidecar_merge_passthrough_preserves_placeholders():
     """In passthrough mode, placeholders are preserved unchanged."""
     registry = _registry()
