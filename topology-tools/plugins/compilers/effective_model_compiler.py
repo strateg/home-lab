@@ -244,11 +244,14 @@ class EffectiveModelCompiler(CompilerPlugin):
             objects_index[object_id] = normalized_object
 
         by_group: dict[str, list[dict[str, Any]]] = {}
+        emitted_legacy_bridge_fields = False
         for row in rows:
             group_name = row.get("group")
             class_ref = row.get("class_ref")
             object_ref = row.get("object_ref")
             instance_id = row.get("instance")
+            if isinstance(class_ref, str) or isinstance(object_ref, str):
+                emitted_legacy_bridge_fields = True
 
             class_payload = ctx.classes.get(class_ref, {}) if isinstance(class_ref, str) else {}
             if not isinstance(class_payload, dict):
@@ -338,6 +341,20 @@ class EffectiveModelCompiler(CompilerPlugin):
 
         for group_rows in by_group.values():
             group_rows.sort(key=lambda item: str(item.get("instance", "")))
+
+        if emitted_legacy_bridge_fields:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="W3201",
+                    severity="warning",
+                    stage=stage,
+                    message=(
+                        "Legacy bridge fields 'class_ref' and 'object_ref' in effective model are deprecated; "
+                        "migrate consumers to lineage/materialization fields."
+                    ),
+                    path="compiled_json.instances.*.{class_ref,object_ref}",
+                )
+            )
 
         raw_manifest = ctx.raw_yaml if isinstance(ctx.raw_yaml, dict) else {}
         generated_at = ctx.config.get("compile_generated_at")

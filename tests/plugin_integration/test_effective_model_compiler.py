@@ -85,7 +85,7 @@ def test_effective_model_compiler_publishes_candidate():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
 
-    assert result.status == PluginStatus.SUCCESS
+    assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
     assert not result.has_errors
     keys = ctx.get_published_keys(PLUGIN_ID)
     assert "effective_model_candidate" in keys
@@ -111,6 +111,7 @@ def test_effective_model_compiler_publishes_candidate():
     assert isinstance(ctx.compiled_json.get("compiled_at"), str)
     assert isinstance(ctx.compiled_json.get("compiler_pipeline_version"), str)
     assert isinstance(ctx.compiled_json.get("source_manifest_digest"), str)
+    assert any(diag.code == "W3201" and diag.severity == "warning" for diag in result.diagnostics)
 
 
 def test_effective_model_compiler_requires_subscribed_normalized_rows():
@@ -205,7 +206,7 @@ def test_effective_model_compiler_reads_normalized_rows_via_subscribe():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
 
-    assert result.status == PluginStatus.SUCCESS
+    assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
     assert not result.has_errors
     rows = ctx.compiled_json["instances"]["devices"]
     assert [row["instance_id"] for row in rows] == ["rtr-from-subscribe"]
@@ -254,7 +255,7 @@ def test_effective_model_compiler_includes_inherited_lineage_fields():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
 
-    assert result.status == PluginStatus.SUCCESS
+    assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
     assert not result.has_errors
     row = ctx.compiled_json["instances"]["devices"][0]
     assert row["class"]["lineage"] == ["class.base", "class.child"]
