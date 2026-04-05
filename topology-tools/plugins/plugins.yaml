@@ -10,10 +10,23 @@ plugins:
     order: 10
     depends_on: []
     timeout: 30
-    config: {}
+    config:
+      legacy_bridge_mode: warn
+      legacy_bridge_gate_statuses: [modeled, mapped]
     config_schema:
       type: object
-      properties: {}
+      properties:
+        legacy_bridge_mode:
+          type: string
+          enum: [warn, "warn+gate-new", enforce]
+          default: warn
+          description: ADR0088 effective model bridge-field migration mode.
+        legacy_bridge_gate_statuses:
+          type: array
+          items:
+            type: string
+          default: [modeled, mapped]
+          description: Statuses where warn+gate-new suppresses legacy bridge fields.
       required: []
     produces:
       - key: manifest_loader_summary

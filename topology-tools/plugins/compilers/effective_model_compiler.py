@@ -40,6 +40,10 @@ def _manifest_digest(payload: dict[str, Any]) -> str:
 class EffectiveModelCompiler(CompilerPlugin):
     """Assemble candidate effective model in compile stage."""
 
+    DEFAULT_LEGACY_BRIDGE_MODE = "warn"
+    SUPPORTED_LEGACY_BRIDGE_MODES = {"warn", "warn+gate-new", "enforce"}
+    DEFAULT_LEGACY_BRIDGE_GATE_STATUSES = {"modeled", "mapped"}
+
     @staticmethod
     def _normalize_release_token(value: str) -> str:
         return shared_normalize_release_token(value)
@@ -84,6 +88,61 @@ class EffectiveModelCompiler(CompilerPlugin):
             return ctx.subscribe(plugin_id, key)
         except PluginDataExchangeError as exc:
             raise PluginDataExchangeError(f"Missing required published key '{key}' from '{plugin_id}': {exc}") from exc
+
+    def _load_legacy_bridge_policy(
+        self,
+        *,
+        ctx: PluginContext,
+        stage: Stage,
+        diagnostics: list[PluginDiagnostic],
+    ) -> tuple[str, set[str]]:
+        mode = ctx.config.get("legacy_bridge_mode", self.DEFAULT_LEGACY_BRIDGE_MODE)
+        if not isinstance(mode, str) or mode not in self.SUPPORTED_LEGACY_BRIDGE_MODES:
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8802",
+                    severity="error",
+                    stage=stage,
+                    message=(
+                        "Invalid ADR0088 legacy_bridge_mode. "
+                        f"Expected one of: {sorted(self.SUPPORTED_LEGACY_BRIDGE_MODES)}."
+                    ),
+                    path="plugin:base.compiler.effective_model.legacy_bridge_mode",
+                )
+            )
+            mode = self.DEFAULT_LEGACY_BRIDGE_MODE
+
+        gate_statuses_cfg = ctx.config.get("legacy_bridge_gate_statuses")
+        if gate_statuses_cfg is None:
+            return mode, set(self.DEFAULT_LEGACY_BRIDGE_GATE_STATUSES)
+        if not isinstance(gate_statuses_cfg, list):
+            diagnostics.append(
+                self.emit_diagnostic(
+                    code="E8802",
+                    severity="error",
+                    stage=stage,
+                    message="ADR0088 legacy_bridge_gate_statuses must be an array of strings when provided.",
+                    path="plugin:base.compiler.effective_model.legacy_bridge_gate_statuses",
+                )
+            )
+            return mode, set(self.DEFAULT_LEGACY_BRIDGE_GATE_STATUSES)
+
+        gate_statuses: set[str] = set()
+        for idx, token in enumerate(gate_statuses_cfg):
+            if not isinstance(token, str) or not token.strip():
+                diagnostics.append(
+                    self.emit_diagnostic(
+                        code="E8802",
+                        severity="error",
+                        stage=stage,
+                        message="ADR0088 legacy_bridge_gate_statuses entries must be non-empty strings.",
+                        path=f"plugin:base.compiler.effective_model.legacy_bridge_gate_statuses[{idx}]",
+                    )
+                )
+                continue
+            gate_statuses.add(token.strip().lower())
+
+        return mode, (gate_statuses if gate_statuses else set(self.DEFAULT_LEGACY_BRIDGE_GATE_STATUSES))
 
     @staticmethod
     def _build_class_lineage_map(*, classes: dict[str, Any]) -> dict[str, list[str]]:
@@ -195,6 +254,11 @@ class EffectiveModelCompiler(CompilerPlugin):
 
     def execute(self, ctx: PluginContext, stage: Stage) -> PluginResult:
         diagnostics: list[PluginDiagnostic] = []
+        legacy_bridge_mode, legacy_bridge_gate_statuses = self._load_legacy_bridge_policy(
+            ctx=ctx,
+            stage=stage,
+            diagnostics=diagnostics,
+        )
 
         plugin_rows: Any = None
         try:
@@ -250,8 +314,11 @@ class EffectiveModelCompiler(CompilerPlugin):
             class_ref = row.get("class_ref")
             object_ref = row.get("object_ref")
             instance_id = row.get("instance")
-            if isinstance(class_ref, str) or isinstance(object_ref, str):
-                emitted_legacy_bridge_fields = True
+            row_status = row.get("status")
+            normalized_row_status = row_status.strip().lower() if isinstance(row_status, str) else ""
+            gate_new_row = (
+                legacy_bridge_mode == "warn+gate-new" and normalized_row_status in legacy_bridge_gate_statuses
+            )
 
             class_payload = ctx.classes.get(class_ref, {}) if isinstance(class_ref, str) else {}
             if not isinstance(class_payload, dict):
@@ -271,8 +338,6 @@ class EffectiveModelCompiler(CompilerPlugin):
                 "instance": instance_id,
                 "source_id": row.get("source_id", instance_id),
                 "layer": row.get("layer"),
-                "class_ref": class_ref,
-                "object_ref": object_ref,
                 "status": row.get("status"),
                 "notes": row.get("notes"),
                 "runtime": row.get("runtime"),
@@ -306,6 +371,12 @@ class EffectiveModelCompiler(CompilerPlugin):
                     else [],
                 },
             }
+            should_emit_legacy_bridge = legacy_bridge_mode != "enforce" and not gate_new_row
+            if should_emit_legacy_bridge:
+                effective_item["class_ref"] = class_ref
+                effective_item["object_ref"] = object_ref
+                if isinstance(class_ref, str) or isinstance(object_ref, str):
+                    emitted_legacy_bridge_fields = True
             row_extensions = row.get("extensions")
             if isinstance(row_extensions, dict) and row_extensions:
                 effective_item["instance_data"] = row_extensions
@@ -343,15 +414,22 @@ class EffectiveModelCompiler(CompilerPlugin):
             group_rows.sort(key=lambda item: str(item.get("instance", "")))
 
         if emitted_legacy_bridge_fields:
+            deprecation_message = (
+                "Legacy bridge fields 'class_ref' and 'object_ref' in effective model are deprecated; "
+                "migrate consumers to lineage/materialization fields."
+            )
+            if legacy_bridge_mode == "warn+gate-new":
+                deprecation_message = (
+                    "Legacy bridge fields 'class_ref' and 'object_ref' are deprecated and suppressed for "
+                    "gate statuses in warn+gate-new mode; migrate remaining consumers to "
+                    "lineage/materialization fields."
+                )
             diagnostics.append(
                 self.emit_diagnostic(
                     code="W3201",
                     severity="warning",
                     stage=stage,
-                    message=(
-                        "Legacy bridge fields 'class_ref' and 'object_ref' in effective model are deprecated; "
-                        "migrate consumers to lineage/materialization fields."
-                    ),
+                    message=deprecation_message,
                     path="compiled_json.instances.*.{class_ref,object_ref}",
                 )
             )
