@@ -96,6 +96,17 @@ def test_effective_model_compiler_publishes_candidate():
     assert first_row["instance_id"] == "rtr-1"
     assert first_row["instance_data"]["length_m"] == 3
     assert first_row["instance_data"]["endpoint_a"]["port"] == "eth0"
+    assert first_row["class"]["parent_class"] is None
+    assert first_row["class"]["lineage"] == ["class.router"]
+    assert first_row["object"]["extends_class"] == "class.router"
+    assert first_row["object"]["materializes_class"] == "class.router"
+    assert first_row["object"]["class_lineage"] == ["class.router"]
+    assert first_row["instance"]["extends_object"] == "obj.router.test"
+    assert first_row["instance"]["materializes_object"] == "obj.router.test"
+    assert first_row["instance"]["materializes_class"] == "class.router"
+    assert first_row["instance"]["resolved_lineage"] == ["class.router"]
+    assert ctx.compiled_json["classes"]["class.router"]["lineage"] == ["class.router"]
+    assert ctx.compiled_json["objects"]["obj.router.test"]["class_lineage"] == ["class.router"]
     assert ctx.compiled_json["compiled_model_version"] == "1.0"
     assert isinstance(ctx.compiled_json.get("compiled_at"), str)
     assert isinstance(ctx.compiled_json.get("compiler_pipeline_version"), str)
@@ -199,3 +210,56 @@ def test_effective_model_compiler_reads_normalized_rows_via_subscribe():
     rows = ctx.compiled_json["instances"]["devices"]
     assert [row["instance_id"] for row in rows] == ["rtr-from-subscribe"]
     assert rows[0]["instance_data"]["length_m"] == 1
+
+
+def test_effective_model_compiler_includes_inherited_lineage_fields():
+    registry = _registry()
+    ctx = PluginContext(
+        topology_path="topology/topology.yaml",
+        profile="test",
+        model_lock={},
+        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
+        classes={
+            "class.base": {"class": "class.base", "version": "1.0.0"},
+            "class.child": {"class": "class.child", "version": "1.0.0", "extends": "class.base"},
+        },
+        objects={
+            "obj.child": {"object": "obj.child", "version": "1.0.0", "class_ref": "class.child"},
+        },
+        config={},
+        instance_bindings={"instance_bindings": {"devices": []}},
+    )
+    ctx._set_execution_context("base.compiler.instance_rows", set())
+    ctx.publish(
+        "normalized_rows",
+        [
+            {
+                "group": "devices",
+                "instance": "node-1",
+                "layer": "L1",
+                "source_id": "node-1",
+                "class_ref": "class.child",
+                "object_ref": "obj.child",
+                "status": "modeled",
+                "notes": "",
+                "runtime": None,
+                "firmware_ref": None,
+                "os_refs": [],
+                "embedded_in": None,
+                "extensions": {},
+            }
+        ],
+    )
+    ctx._clear_execution_context()
+
+    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
+
+    assert result.status == PluginStatus.SUCCESS
+    assert not result.has_errors
+    row = ctx.compiled_json["instances"]["devices"][0]
+    assert row["class"]["lineage"] == ["class.base", "class.child"]
+    assert row["class"]["parent_class"] == "class.base"
+    assert row["object"]["class_lineage"] == ["class.base", "class.child"]
+    assert row["instance"]["resolved_lineage"] == ["class.base", "class.child"]
+    assert ctx.compiled_json["classes"]["class.child"]["lineage"] == ["class.base", "class.child"]
+    assert ctx.compiled_json["objects"]["obj.child"]["class_lineage"] == ["class.base", "class.child"]

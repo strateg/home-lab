@@ -85,6 +85,26 @@ class EffectiveModelCompiler(CompilerPlugin):
         except PluginDataExchangeError as exc:
             raise PluginDataExchangeError(f"Missing required published key '{key}' from '{plugin_id}': {exc}") from exc
 
+    @staticmethod
+    def _build_class_lineage_map(*, classes: dict[str, Any]) -> dict[str, list[str]]:
+        class_lineage: dict[str, list[str]] = {}
+        class_ids = {class_id for class_id in classes if isinstance(class_id, str)}
+
+        for class_id in sorted(class_ids):
+            chain: list[str] = []
+            visited: set[str] = set()
+            cursor = class_id
+            while cursor in class_ids and cursor not in visited:
+                visited.add(cursor)
+                chain.append(cursor)
+                payload = classes.get(cursor, {})
+                parent_ref = payload.get("extends") if isinstance(payload, dict) else None
+                if not isinstance(parent_ref, str) or not parent_ref:
+                    break
+                cursor = parent_ref
+            class_lineage[class_id] = list(reversed(chain))
+        return class_lineage
+
     def _derive_object_effective(
         self, *, objects: dict[str, Any]
     ) -> tuple[dict[str, list[str]], dict[str, dict[str, Any]]]:
@@ -199,13 +219,29 @@ class EffectiveModelCompiler(CompilerPlugin):
             rows = []
         object_derived_caps, object_effective_os = self._derive_object_effective(objects=ctx.objects)
         instance_derived_caps, instance_software_refs = self._derive_instance_effective(rows=rows, objects=ctx.objects)
+        class_lineage_map = self._build_class_lineage_map(classes=ctx.classes)
 
-        classes_index: dict[str, Any] = {
-            class_id: payload for class_id, payload in sorted(ctx.classes.items(), key=lambda item: item[0])
-        }
-        objects_index: dict[str, Any] = {
-            object_id: payload for object_id, payload in sorted(ctx.objects.items(), key=lambda item: item[0])
-        }
+        classes_index: dict[str, Any] = {}
+        for class_id, payload in sorted(ctx.classes.items(), key=lambda item: item[0]):
+            class_payload = payload if isinstance(payload, dict) else {}
+            parent_class = class_payload.get("extends") if isinstance(class_payload.get("extends"), str) else None
+            normalized_class = dict(class_payload)
+            normalized_class["parent_class"] = parent_class
+            normalized_class["lineage"] = class_lineage_map.get(class_id, [class_id])
+            classes_index[class_id] = normalized_class
+
+        objects_index: dict[str, Any] = {}
+        for object_id, payload in sorted(ctx.objects.items(), key=lambda item: item[0]):
+            object_payload = payload if isinstance(payload, dict) else {}
+            class_ref = object_payload.get("class_ref") if isinstance(object_payload.get("class_ref"), str) else None
+            normalized_object = dict(object_payload)
+            normalized_object["extends_class"] = class_ref
+            normalized_object["materializes_class"] = class_ref
+            if isinstance(class_ref, str) and class_ref:
+                normalized_object["class_lineage"] = class_lineage_map.get(class_ref, [class_ref])
+            else:
+                normalized_object["class_lineage"] = []
+            objects_index[object_id] = normalized_object
 
         by_group: dict[str, list[dict[str, Any]]] = {}
         for row in rows:
@@ -220,6 +256,12 @@ class EffectiveModelCompiler(CompilerPlugin):
             object_payload = ctx.objects.get(object_ref, {}) if isinstance(object_ref, str) else {}
             if not isinstance(object_payload, dict):
                 object_payload = {}
+            class_parent = class_payload.get("extends") if isinstance(class_payload.get("extends"), str) else None
+            object_class_ref = object_payload.get("class_ref") if isinstance(object_payload.get("class_ref"), str) else None
+            if isinstance(class_ref, str) and class_ref:
+                resolved_lineage = class_lineage_map.get(class_ref, [class_ref])
+            else:
+                resolved_lineage = []
 
             effective_item: dict[str, Any] = {
                 "instance_id": instance_id,
@@ -243,6 +285,8 @@ class EffectiveModelCompiler(CompilerPlugin):
                     "required_capabilities": class_payload.get("required_capabilities", []),
                     "optional_capabilities": class_payload.get("optional_capabilities", []),
                     "capability_packs": class_payload.get("capability_packs", []),
+                    "parent_class": class_parent,
+                    "lineage": resolved_lineage,
                 },
                 "object": {
                     "version": object_payload.get("version"),
@@ -252,20 +296,33 @@ class EffectiveModelCompiler(CompilerPlugin):
                     "vendor_capabilities": object_payload.get("vendor_capabilities", []),
                     "vendor": object_payload.get("vendor"),
                     "model": object_payload.get("model"),
+                    "extends_class": object_class_ref,
+                    "materializes_class": object_class_ref,
+                    "class_lineage": class_lineage_map.get(object_class_ref, [object_class_ref])
+                    if isinstance(object_class_ref, str) and object_class_ref
+                    else [],
                 },
             }
             row_extensions = row.get("extensions")
             if isinstance(row_extensions, dict) and row_extensions:
                 effective_item["instance_data"] = row_extensions
 
+            instance_block: dict[str, Any] = {
+                "extends_object": object_ref if isinstance(object_ref, str) else None,
+                "materializes_object": object_ref if isinstance(object_ref, str) else None,
+                "materializes_class": class_ref if isinstance(class_ref, str) else None,
+                "resolved_lineage": resolved_lineage,
+                "firmware_ref": None,
+                "os_refs": [],
+                "derived_capabilities": instance_derived_caps.get(instance_id, []),
+                "effective_software": {},
+            }
             software_refs = instance_software_refs.get(instance_id) if isinstance(instance_id, str) else None
             if isinstance(software_refs, dict):
-                effective_item["instance"] = {
-                    "firmware_ref": software_refs.get("firmware_ref"),
-                    "os_refs": software_refs.get("os_refs", []),
-                    "derived_capabilities": instance_derived_caps.get(instance_id, []),
-                    "effective_software": software_refs.get("effective", {}),
-                }
+                instance_block["firmware_ref"] = software_refs.get("firmware_ref")
+                instance_block["os_refs"] = software_refs.get("os_refs", [])
+                instance_block["effective_software"] = software_refs.get("effective", {})
+            effective_item["instance"] = instance_block
 
             effective_os = object_effective_os.get(object_ref) if isinstance(object_ref, str) else None
             if isinstance(effective_os, dict):
