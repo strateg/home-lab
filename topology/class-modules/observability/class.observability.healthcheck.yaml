@@ -1,7 +1,7 @@
-class: class.observability.healthcheck
-version: 1.0.0
-description: Health check definition for monitoring targets
-layer: L6
+@class: class.observability.healthcheck
+@version: 1.0.0
+@description: Health check definition for monitoring targets
+@layer: L6
 
 properties:
   required:

@@ -1,8 +1,8 @@
-instance: rtr-mikrotik-chateau
-object_ref: obj.mikrotik.chateau_lte7_ax
+@instance: rtr-mikrotik-chateau
+@extends: obj.mikrotik.chateau_lte7_ax
 group: devices
-layer: L1
-version: 1.0.0
+@layer: L1
+@version: 1.0.0
 source_id: rtr-mikrotik-chateau
 status: mapped
 notes: RouterOS default bridge LAN profile with bootstrap baseline for Terraform/REST; segmented VLAN topology is staged but not active on-device

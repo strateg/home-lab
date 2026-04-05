@@ -1,15 +1,15 @@
-instance: lxc-grafana
-object_ref: obj.proxmox.lxc.debian12.grafana
+@instance: lxc-grafana
+@extends: obj.proxmox.lxc.debian12.grafana
 group: lxc
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: lxc-grafana
 status: mapped
 notes: Grafana observability dashboards
 
 vmid: 205
 hostname: grafana
-description: Grafana observability dashboards
+@description: Grafana observability dashboards
 tags:
   - monitoring
   - production

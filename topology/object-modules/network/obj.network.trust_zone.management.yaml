@@ -1,7 +1,7 @@
-object: obj.network.trust_zone.management
-class_ref: class.network.trust_zone
-version: 1.0.0
-description: Management zone for infrastructure access
+@object: obj.network.trust_zone.management
+@extends: class.network.trust_zone
+@version: 1.0.0
+@description: Management zone for infrastructure access
 
 properties:
   name: Management Zone

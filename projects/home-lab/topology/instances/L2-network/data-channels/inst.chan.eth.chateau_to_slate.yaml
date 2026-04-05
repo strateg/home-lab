@@ -1,8 +1,8 @@
-instance: inst.chan.eth.chateau_to_slate
-object_ref: obj.network.ethernet_channel
+@instance: inst.chan.eth.chateau_to_slate
+@extends: obj.network.ethernet_channel
 group: data-channels
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: inst.chan.eth.chateau_to_slate
 status: modeled
 notes: Logical ethernet channel created over Cat5e cable between rtr-mikrotik-chateau

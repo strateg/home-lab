@@ -65,11 +65,11 @@ def _write_instance(file_path: Path, *, instance: str, group: str, layer: str) -
     file_path.write_text(
         "\n".join(
             (
-                f"instance: {instance}",
-                "object_ref: obj.test.sample",
+                f"@instance: {instance}",
+                "@extends: obj.test.sample",
                 f"group: {group}",
-                f"layer: {layer}",
-                "version: 1.0.0",
+                f"@layer: {layer}",
+                "@version: 1.0.0",
             )
         )
         + "\n",
@@ -143,9 +143,9 @@ def test_foundation_file_placement_validator_warns_on_missing_placement_fields(t
     file_path.write_text(
         "\n".join(
             (
-                "instance: rtr-core",
-                "object_ref: obj.test.sample",
-                "version: 1.0.0",
+                "@instance: rtr-core",
+                "@extends: obj.test.sample",
+                "@version: 1.0.0",
             )
         )
         + "\n",

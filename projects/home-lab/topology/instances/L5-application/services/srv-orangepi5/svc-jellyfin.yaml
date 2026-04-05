@@ -1,8 +1,8 @@
-instance: svc-jellyfin
-object_ref: obj.service.jellyfin
+@instance: svc-jellyfin
+@extends: obj.service.jellyfin
 group: services
-layer: L5
-version: 1.0.0
+@layer: L5
+@version: 1.0.0
 source_id: svc-jellyfin
 status: mapped
 notes: Jellyfin media server with hardware transcoding (Docker on Orange Pi 5)
@@ -10,7 +10,7 @@ notes: Jellyfin media server with hardware transcoding (Docker on Orange Pi 5)
 port: 8096
 protocol: http
 trust_zone_ref: inst.trust_zone.servers
-description: Jellyfin media server with hardware transcoding
+@description: Jellyfin media server with hardware transcoding
 
 features:
   - RK3588S VPU hardware transcoding

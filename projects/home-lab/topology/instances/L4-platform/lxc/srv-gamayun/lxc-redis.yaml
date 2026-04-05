@@ -1,15 +1,15 @@
-instance: lxc-redis
-object_ref: obj.proxmox.lxc.debian12.redis
+@instance: lxc-redis
+@extends: obj.proxmox.lxc.debian12.redis
 group: lxc
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: lxc-redis
 status: mapped
 notes: Redis Cache Server
 
 vmid: 201
 hostname: redis-cache
-description: Redis Cache Server
+@description: Redis Cache Server
 tags:
   - cache
   - production

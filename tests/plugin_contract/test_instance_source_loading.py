@@ -102,11 +102,11 @@ def test_load_core_compile_inputs_sharded_only_loads_rows(tmp_path: Path) -> Non
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "version": "1.0.0",
-                "instance": "inst.router.a",
+                "@version": "1.0.0",
+                "@instance": "inst.router.a",
                 "group": "devices",
-                "layer": "L1",
-                "object_ref": "obj.shard.router",
+                "@layer": "L1",
+                "@extends": "obj.shard.router",
             },
             sort_keys=False,
         ),
@@ -152,11 +152,11 @@ def test_load_core_compile_inputs_reports_group_layer_mismatch(tmp_path: Path) -
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "version": "1.0.0",
-                "instance": "inst.router.a",
+                "@version": "1.0.0",
+                "@instance": "inst.router.a",
                 "group": "devices",
-                "layer": "L2",
-                "object_ref": "obj.shard.router",
+                "@layer": "L2",
+                "@extends": "obj.shard.router",
             },
             sort_keys=False,
         ),
@@ -257,11 +257,11 @@ def test_load_core_compile_inputs_rejects_semantic_metadata_collision(tmp_path: 
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "version": "1.0.0",
-                "instance": "inst.router.a",
+                "@version": "1.0.0",
+                "@instance": "inst.router.a",
                 "group": "devices",
-                "layer": "L1",
-                "object_ref": "obj.shard.router",
+                "@layer": "L1",
+                "@extends": "obj.shard.router",
                 "@title": "Router instance",
                 "title": "Legacy duplicate",
             },
@@ -290,7 +290,7 @@ def test_load_core_compile_inputs_rejects_semantic_metadata_collision(tmp_path: 
     )
 
     assert inputs.instance_payload is None
-    assert any(item.get("code") == "E8803" and "entity_title" in item.get("message", "") for item in diagnostics)
+    assert any(item.get("code") == "E8801" and "title" in item.get("message", "") for item in diagnostics)
 
 
 def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: Path) -> None:
@@ -304,11 +304,11 @@ def test_load_core_compile_inputs_rejects_filename_unsafe_instance_id(tmp_path: 
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "version": "1.0.0",
-                "instance": "inst.router:bad",
+                "@version": "1.0.0",
+                "@instance": "inst.router:bad",
                 "group": "devices",
-                "layer": "L1",
-                "object_ref": "obj.shard.router",
+                "@layer": "L1",
+                "@extends": "obj.shard.router",
             },
             sort_keys=False,
         ),
@@ -349,11 +349,11 @@ def test_load_core_compile_inputs_rejects_wrong_layer_bucket(tmp_path: Path) -> 
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "version": "1.0.0",
-                "instance": "inst.router.a",
+                "@version": "1.0.0",
+                "@instance": "inst.router.a",
                 "group": "devices",
-                "layer": "L1",
-                "object_ref": "obj.shard.router",
+                "@layer": "L1",
+                "@extends": "obj.shard.router",
             },
             sort_keys=False,
         ),
@@ -394,11 +394,11 @@ def test_load_core_compile_inputs_rejects_group_directory_mismatch(tmp_path: Pat
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "version": "1.0.0",
-                "instance": "inst.router.a",
+                "@version": "1.0.0",
+                "@instance": "inst.router.a",
                 "group": "devices",
-                "layer": "L1",
-                "object_ref": "obj.shard.router",
+                "@layer": "L1",
+                "@extends": "obj.shard.router",
             },
             sort_keys=False,
         ),
@@ -439,11 +439,11 @@ def test_load_core_compile_inputs_accepts_host_sharded_instance_path(tmp_path: P
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "version": "1.0.0",
-                "instance": "inst.router.a",
+                "@version": "1.0.0",
+                "@instance": "inst.router.a",
                 "group": "devices",
-                "layer": "L1",
-                "object_ref": "obj.shard.router",
+                "@layer": "L1",
+                "@extends": "obj.shard.router",
             },
             sort_keys=False,
         ),
@@ -498,11 +498,11 @@ def test_load_core_compile_inputs_warns_on_non_sharded_l4_path(tmp_path: Path) -
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "version": "1.0.0",
-                "instance": "inst.vm.a",
+                "@version": "1.0.0",
+                "@instance": "inst.vm.a",
                 "group": "vm",
-                "layer": "L4",
-                "object_ref": "obj.shard.vm",
+                "@layer": "L4",
+                "@extends": "obj.shard.vm",
             },
             sort_keys=False,
         ),
@@ -554,11 +554,11 @@ def test_load_core_compile_inputs_accepts_host_sharded_l5_path_without_warning(t
     shard_file.write_text(
         yaml.safe_dump(
             {
-                "version": "1.0.0",
-                "instance": "svc.app.a",
+                "@version": "1.0.0",
+                "@instance": "svc.app.a",
                 "group": "services",
-                "layer": "L5",
-                "object_ref": "obj.shard.service",
+                "@layer": "L5",
+                "@extends": "obj.shard.service",
             },
             sort_keys=False,
         ),
@@ -600,10 +600,10 @@ def test_load_core_compile_inputs_rejects_legacy_schema_version_field(tmp_path: 
         yaml.safe_dump(
             {
                 "schema_version": 1,
-                "instance": "inst.router.a",
+                "@instance": "inst.router.a",
                 "group": "devices",
-                "layer": "L1",
-                "object_ref": "obj.shard.router",
+                "@layer": "L1",
+                "@extends": "obj.shard.router",
             },
             sort_keys=False,
         ),
@@ -630,4 +630,4 @@ def test_load_core_compile_inputs_rejects_legacy_schema_version_field(tmp_path: 
     )
 
     assert inputs.instance_payload is None
-    assert any(item.get("code") == "E7104" and "schema_version" in item.get("message", "") for item in diagnostics)
+    assert any(item.get("code") == "E7104" and "@version" in item.get("message", "") for item in diagnostics)

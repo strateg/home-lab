@@ -1,14 +1,14 @@
-instance: health-redis
-object_ref: obj.observability.healthcheck.service
+@instance: health-redis
+@extends: obj.observability.healthcheck.service
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: health-redis
 status: mapped
 notes: Redis cache health monitoring
 
 name: Redis Cache Health
-description: Monitor Redis LXC and cache service
+@description: Monitor Redis LXC and cache service
 target_ref: lxc-redis
 service_ref: svc-redis
 enabled: true

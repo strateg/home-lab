@@ -1,15 +1,15 @@
-instance: lxc-postgresql
-object_ref: obj.proxmox.lxc.debian12.postgresql
+@instance: lxc-postgresql
+@extends: obj.proxmox.lxc.debian12.postgresql
 group: lxc
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: lxc-postgresql
 status: mapped
 notes: PostgreSQL Database Server
 
 vmid: 200
 hostname: postgresql-db
-description: PostgreSQL Database Server
+@description: PostgreSQL Database Server
 tags:
   - database
   - production

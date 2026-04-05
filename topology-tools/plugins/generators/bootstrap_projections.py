@@ -47,24 +47,26 @@ def build_bootstrap_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     for idx, row in enumerate(devices):
         object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
+        export_row = dict(row)
+        export_row.pop("instance", None)
         mechanism = _resolve_initialization_mechanism(row)
         if mechanism == "unattended_install":
-            proxmox_nodes.append(row)
+            proxmox_nodes.append(export_row)
             continue
         if mechanism == "netinstall":
-            mikrotik_nodes.append(row)
+            mikrotik_nodes.append(export_row)
             continue
         if mechanism == "cloud_init":
-            orangepi_nodes.append(row)
+            orangepi_nodes.append(export_row)
             continue
 
         # Legacy fallback until all bootstrap-capable objects declare initialization_contract.
         if object_ref == "obj.proxmox.ve":
-            proxmox_nodes.append(row)
+            proxmox_nodes.append(export_row)
         if object_ref.startswith("obj.mikrotik."):
-            mikrotik_nodes.append(row)
+            mikrotik_nodes.append(export_row)
         if object_ref.startswith("obj.orangepi."):
-            orangepi_nodes.append(row)
+            orangepi_nodes.append(export_row)
 
     return {
         "proxmox_nodes": _sorted_rows(proxmox_nodes),

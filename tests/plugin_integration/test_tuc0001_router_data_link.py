@@ -230,7 +230,9 @@ def test_tuc0001_compile_preserves_cable_instance_data(tmp_path: Path):
     l1_rows = payload.get("instances", {}).get("physical-links", [])
     cable_row = next((row for row in l1_rows if row.get("source_id") == "inst.ethernet_cable.cat5e"), None)
     assert isinstance(cable_row, dict)
-    assert cable_row.get("class_ref") == "class.network.physical_link"
+    instance_block = cable_row.get("instance")
+    assert isinstance(instance_block, dict)
+    assert instance_block.get("materializes_class") == "class.network.physical_link"
     instance_data = cable_row.get("instance_data")
     assert isinstance(instance_data, dict)
     assert instance_data.get("length_m") == 3

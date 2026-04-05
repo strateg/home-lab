@@ -1,14 +1,14 @@
-instance: alert-power.ups-battery
-object_ref: obj.observability.alert.power
+@instance: alert-power.ups-battery
+@extends: obj.observability.alert.power
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: alert-power.ups-battery
 status: mapped
 notes: Warning alert for power outage
 
 name: UPS On Battery
-description: Power outage - UPS on battery
+@description: Power outage - UPS on battery
 severity: warning
 
 trigger:

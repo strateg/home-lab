@@ -1,14 +1,14 @@
-instance: health-proxmox-host
-object_ref: obj.observability.healthcheck.device
+@instance: health-proxmox-host
+@extends: obj.observability.healthcheck.device
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: health-proxmox-host
 status: mapped
 notes: Proxmox hypervisor health monitoring
 
 name: Proxmox Host Health
-description: Monitor Proxmox hypervisor health
+@description: Monitor Proxmox hypervisor health
 target_ref: srv-gamayun
 enabled: true
 critical: true

@@ -1,8 +1,8 @@
-instance: inst.vlan.lan
-object_ref: obj.network.vlan.lan
+@instance: inst.vlan.lan
+@extends: obj.network.vlan.lan
 group: network
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: net-lan
 status: mapped
 notes: Main flat LAN on MikroTik bridge (manual/default config, not terraform-managed)

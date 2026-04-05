@@ -1,7 +1,7 @@
-object: obj.storage.pool.local_lvm
-class_ref: class.storage.pool
-version: 1.0.0
-description: LVM thin storage pool on Proxmox SSD
+@object: obj.storage.pool.local_lvm
+@extends: class.storage.pool
+@version: 1.0.0
+@description: LVM thin storage pool on Proxmox SSD
 
 properties:
   name: local-lvm

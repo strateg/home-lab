@@ -1,6 +1,6 @@
-object: obj.pdu.generic.managed
-class_ref: class.power.pdu
-version: 1.0.0
+@object: obj.pdu.generic.managed
+@extends: class.power.pdu
+@version: 1.0.0
 model: Generic Managed PDU
 vendor: generic
 enabled_capabilities:

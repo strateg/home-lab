@@ -31,22 +31,66 @@ def _compiled_fixture() -> dict:
     return {
         "instances": {
             "devices": [
-                {"instance_id": "rtr-mk", "object_ref": "obj.mikrotik.chateau_lte7_ax"},
-                {"instance_id": "srv-gamayun", "object_ref": "obj.proxmox.ve"},
-                {"instance_id": "srv-orangepi5", "object_ref": "obj.orangepi.rk3588.debian"},
+                {
+                    "instance_id": "rtr-mk",
+                    "instance": {
+                        "materializes_object": "obj.mikrotik.chateau_lte7_ax",
+                        "materializes_class": "class.network.router",
+                    },
+                },
+                {
+                    "instance_id": "srv-gamayun",
+                    "instance": {
+                        "materializes_object": "obj.proxmox.ve",
+                        "materializes_class": "class.compute.hypervisor.proxmox",
+                    },
+                },
+                {
+                    "instance_id": "srv-orangepi5",
+                    "instance": {
+                        "materializes_object": "obj.orangepi.rk3588.debian",
+                        "materializes_class": "class.compute.sbc",
+                    },
+                },
                 {
                     "instance_id": "inst.ethernet_cable.cat5e",
-                    "class_ref": "class.network.physical_link",
-                    "object_ref": "obj.network.ethernet_cable",
+                    "instance": {
+                        "materializes_object": "obj.network.ethernet_cable",
+                        "materializes_class": "class.network.physical_link",
+                    },
                 },
             ],
             "lxc": [
-                {"instance_id": "lxc-redis", "object_ref": "obj.proxmox.lxc.debian12.redis"},
-                {"instance_id": "lxc-grafana", "object_ref": "obj.proxmox.lxc.debian12.base"},
+                {
+                    "instance_id": "lxc-redis",
+                    "instance": {
+                        "materializes_object": "obj.proxmox.lxc.debian12.redis",
+                        "materializes_class": "class.compute.workload.container",
+                    },
+                },
+                {
+                    "instance_id": "lxc-grafana",
+                    "instance": {
+                        "materializes_object": "obj.proxmox.lxc.debian12.base",
+                        "materializes_class": "class.compute.workload.container",
+                    },
+                },
             ],
             "network": [
-                {"instance_id": "inst.net.lan", "object_ref": "obj.network.l2_segment"},
-                {"instance_id": "inst.net.wan", "object_ref": "obj.network.l2_segment"},
+                {
+                    "instance_id": "inst.net.lan",
+                    "instance": {
+                        "materializes_object": "obj.network.l2_segment",
+                        "materializes_class": "class.network.l2_segment",
+                    },
+                },
+                {
+                    "instance_id": "inst.net.wan",
+                    "instance": {
+                        "materializes_object": "obj.network.l2_segment",
+                        "materializes_class": "class.network.l2_segment",
+                    },
+                },
             ],
             "services": [
                 {"instance_id": "svc-redis", "runtime": {"target_ref": "lxc-redis"}},

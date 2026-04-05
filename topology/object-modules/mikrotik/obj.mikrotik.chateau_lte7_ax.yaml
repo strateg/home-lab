@@ -1,11 +1,11 @@
-object: obj.mikrotik.chateau_lte7_ax
-class_ref: class.router
-version: 1.0.0
-title: MikroTik Chateau LTE7 AX
+@object: obj.mikrotik.chateau_lte7_ax
+@extends: class.router
+@version: 1.0.0
+@title: MikroTik Chateau LTE7 AX
 vendor: mikrotik
 model: S53UG+5HaxD2HaxD-TC&R11e-LTE7
 
-description: |
+@description: |
   MikroTik Chateau LTE7 AX - ARM64-based central home gateway with WiFi 6,
   built-in LTE Cat 7 modem, RouterOS v7 container support, and comprehensive
   routing/VPN features. Ideal for home/small office with failover requirements.

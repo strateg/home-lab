@@ -1,6 +1,6 @@
-object: obj.service.nextcloud
-class_ref: class.service.web_application
-version: 1.0.0
+@object: obj.service.nextcloud
+@extends: class.service.web_application
+@version: 1.0.0
 model: Nextcloud
 vendor: home-lab
 enabled_capabilities:

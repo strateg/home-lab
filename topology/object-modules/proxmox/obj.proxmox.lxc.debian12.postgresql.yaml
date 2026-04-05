@@ -1,6 +1,6 @@
-object: obj.proxmox.lxc.debian12.postgresql
-class_ref: class.compute.workload.lxc
-version: 1.0.0
+@object: obj.proxmox.lxc.debian12.postgresql
+@extends: class.compute.workload.lxc
+@version: 1.0.0
 model: LXC Debian 12 PostgreSQL
 vendor: proxmox
 software_contract:

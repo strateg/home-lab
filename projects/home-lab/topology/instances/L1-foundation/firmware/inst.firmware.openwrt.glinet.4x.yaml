@@ -1,8 +1,8 @@
-instance: inst.firmware.openwrt.glinet.4x
-object_ref: obj.firmware.openwrt.glinet.4x
+@instance: inst.firmware.openwrt.glinet.4x
+@extends: obj.firmware.openwrt.glinet.4x
 group: firmware
-layer: L1
-version: 1.0.0
+@layer: L1
+@version: 1.0.0
 source_id: inst.firmware.openwrt.glinet.4x
 status: mapped
 notes: ADR0064 firmware instance for rtr-slate (installed state is instance-level)

@@ -1,8 +1,8 @@
-instance: inst.storage.pool.local_hdd
-object_ref: obj.storage.pool.local_hdd
+@instance: inst.storage.pool.local_hdd
+@extends: obj.storage.pool.local_hdd
 group: pools
-layer: L3
-version: 1.0.0
+@layer: L3
+@version: 1.0.0
 source_id: se-hdd
 status: mapped
 notes: HDD 500GB - Backups, ISOs, Templates

@@ -1,14 +1,14 @@
-instance: alert-infra.lte-failover
-object_ref: obj.observability.alert.infrastructure
+@instance: alert-infra.lte-failover
+@extends: obj.observability.alert.infrastructure
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: alert-infra.lte-failover
 status: mapped
 notes: Warning alert when LTE failover is active
 
 name: LTE Failover Active
-description: Primary WAN failed, using LTE backup
+@description: Primary WAN failed, using LTE backup
 severity: warning
 
 trigger:

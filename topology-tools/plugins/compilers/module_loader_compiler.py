@@ -123,6 +123,27 @@ class ModuleLoaderCompiler(CompilerPlugin):
             )
             if payload is None:
                 continue
+            legacy_keys = (
+                {"class", "extends", "version", "title", "summary", "description", "layer"}
+                if module_type == "class"
+                else {"object", "class_ref", "version", "title", "summary", "description", "layer"}
+            )
+            present_legacy = sorted(key for key in legacy_keys if key in payload)
+            if present_legacy:
+                diagnostics.append(
+                    PluginDiagnostic(
+                        code="E8801",
+                        severity="error",
+                        stage="validate",
+                        message=(
+                            f"{module_type} module uses legacy semantic keys: {', '.join(present_legacy)}. "
+                            "Use canonical '@'-prefixed semantic keys only."
+                        ),
+                        path=self._rel(path),
+                        plugin_id=self.plugin_id,
+                    )
+                )
+                continue
             key_resolution = resolve_semantic_value(
                 payload,
                 registry=registry,
@@ -219,18 +240,6 @@ class ModuleLoaderCompiler(CompilerPlugin):
                                 "object module contains semantic-key collision for parent_ref: "
                                 f"{', '.join(parent_resolution.present_keys)}."
                             ),
-                            path=self._rel(path),
-                            plugin_id=self.plugin_id,
-                        )
-                    )
-                    continue
-                if parent_resolution.found and "class_ref" in normalized_payload:
-                    diagnostics.append(
-                        PluginDiagnostic(
-                            code="E8803",
-                            severity="error",
-                            stage="validate",
-                            message="object module must not define both '@extends' and legacy 'class_ref'.",
                             path=self._rel(path),
                             plugin_id=self.plugin_id,
                         )

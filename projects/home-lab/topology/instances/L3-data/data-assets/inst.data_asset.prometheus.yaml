@@ -1,8 +1,8 @@
-instance: inst.data_asset.prometheus
-object_ref: obj.storage.data_asset.logs
+@instance: inst.data_asset.prometheus
+@extends: obj.storage.data_asset.logs
 group: data-assets
-layer: L3
-version: 1.0.0
+@layer: L3
+@version: 1.0.0
 source_id: data-prometheus
 status: mapped
 notes: Prometheus TSDB

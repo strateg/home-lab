@@ -1,8 +1,8 @@
-instance: ups-main
-object_ref: obj.apc.backups.650va
+@instance: ups-main
+@extends: obj.apc.backups.650va
 group: power
-layer: L1
-version: 1.0.0
+@layer: L1
+@version: 1.0.0
 source_id: ups-main
 status: mapped
 notes: module scaffold exists; capability profile tuning pending

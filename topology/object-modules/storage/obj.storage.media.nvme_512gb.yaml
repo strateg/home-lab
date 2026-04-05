@@ -1,7 +1,7 @@
-object: obj.storage.media.nvme_512gb
-class_ref: class.storage.media
-version: 1.0.0
-description: 512GB M.2 NVMe SSD for high-performance system storage
+@object: obj.storage.media.nvme_512gb
+@extends: class.storage.media
+@version: 1.0.0
+@description: 512GB M.2 NVMe SSD for high-performance system storage
 
 properties:
   media_type: nvme

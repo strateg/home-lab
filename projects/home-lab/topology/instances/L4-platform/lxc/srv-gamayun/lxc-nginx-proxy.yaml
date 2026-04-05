@@ -1,15 +1,15 @@
-instance: lxc-nginx-proxy
-object_ref: obj.proxmox.lxc.debian12.nginx
+@instance: lxc-nginx-proxy
+@extends: obj.proxmox.lxc.debian12.nginx
 group: lxc
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: lxc-nginx-proxy
 status: mapped
 notes: Nginx reverse proxy
 
 vmid: 207
 hostname: nginx-proxy
-description: Nginx reverse proxy
+@description: Nginx reverse proxy
 tags:
   - proxy
   - production

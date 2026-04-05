@@ -1,14 +1,14 @@
-instance: backup-srv-orangepi5-data
-object_ref: obj.operations.backup.rsync
+@instance: backup-srv-orangepi5-data
+@extends: obj.operations.backup.rsync
 group: operations
-layer: L7
-version: 1.0.0
+@layer: L7
+@version: 1.0.0
 source_id: backup-srv-orangepi5-data
 status: mapped
 notes: Orange Pi 5 Docker volumes and NVMe data backup to Proxmox HDD
 
 name: Orange Pi 5 Data Backup
-description: Backup Docker volumes and NVMe data to Proxmox HDD
+@description: Backup Docker volumes and NVMe data to Proxmox HDD
 schedule: "0 3 * * *"
 
 targets:

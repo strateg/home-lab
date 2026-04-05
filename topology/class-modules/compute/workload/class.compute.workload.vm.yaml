@@ -1,7 +1,7 @@
-class: class.compute.workload.vm
-version: 1.0.0
-title: Compute Workload VM
-summary: Virtual machine workload runtime contract.
+@class: class.compute.workload.vm
+@version: 1.0.0
+@title: Compute Workload VM
+@summary: Virtual machine workload runtime contract.
 os_policy: required
 firmware_policy: required
 os_cardinality:

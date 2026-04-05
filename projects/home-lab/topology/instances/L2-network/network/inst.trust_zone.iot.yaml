@@ -1,8 +1,8 @@
-instance: inst.trust_zone.iot
-object_ref: obj.network.trust_zone.iot
+@instance: inst.trust_zone.iot
+@extends: obj.network.trust_zone.iot
 group: network
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: trust-zone-iot
 status: mapped
 notes: Isolated IoT zone for smart home devices

@@ -1,7 +1,7 @@
-object: obj.storage.pool.local_hdd
-class_ref: class.storage.pool
-version: 1.0.0
-description: HDD directory storage for backups, ISOs, and templates
+@object: obj.storage.pool.local_hdd
+@extends: class.storage.pool
+@version: 1.0.0
+@description: HDD directory storage for backups, ISOs, and templates
 
 properties:
   name: local-hdd

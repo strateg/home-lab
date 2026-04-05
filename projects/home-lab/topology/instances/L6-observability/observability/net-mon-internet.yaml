@@ -1,14 +1,14 @@
-instance: net-mon-internet
-object_ref: obj.observability.healthcheck.network
+@instance: net-mon-internet
+@extends: obj.observability.healthcheck.network
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: net-mon-internet
 status: mapped
 notes: Internet connectivity monitoring
 
 name: Internet Connectivity
-description: Monitor primary and failover internet
+@description: Monitor primary and failover internet
 target_ref: rtr-mikrotik-chateau
 enabled: true
 critical: true

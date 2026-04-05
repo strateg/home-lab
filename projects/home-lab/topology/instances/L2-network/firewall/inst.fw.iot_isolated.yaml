@@ -1,8 +1,8 @@
-instance: inst.fw.iot_isolated
-object_ref: obj.network.firewall_policy.iot_isolated
+@instance: inst.fw.iot_isolated
+@extends: obj.network.firewall_policy.iot_isolated
 group: firewall
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: fw-iot-isolated
 status: modeled
 notes: IoT isolation policy is staged in topology; currently not configured on rtr-mikrotik-chateau

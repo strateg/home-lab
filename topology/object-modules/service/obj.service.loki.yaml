@@ -1,6 +1,6 @@
-object: obj.service.loki
-class_ref: class.service.logging
-version: 1.0.0
+@object: obj.service.loki
+@extends: class.service.logging
+@version: 1.0.0
 model: Loki
 vendor: home-lab
 enabled_capabilities:

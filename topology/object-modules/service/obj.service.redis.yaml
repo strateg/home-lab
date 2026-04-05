@@ -1,6 +1,6 @@
-object: obj.service.redis
-class_ref: class.service.cache
-version: 1.0.0
+@object: obj.service.redis
+@extends: class.service.cache
+@version: 1.0.0
 model: Redis
 vendor: home-lab
 enabled_capabilities:

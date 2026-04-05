@@ -1,8 +1,8 @@
-instance: inst.os.linux.generic.arm64
-object_ref: obj.os.linux.generic.arm64
+@instance: inst.os.linux.generic.arm64
+@extends: obj.os.linux.generic.arm64
 group: os
-layer: L1
-version: 1.0.0
+@layer: L1
+@version: 1.0.0
 source_id: inst.os.linux.generic.arm64
 status: mapped
 notes: ADR0064 os instance

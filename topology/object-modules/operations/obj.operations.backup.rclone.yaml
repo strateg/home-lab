@@ -1,7 +1,7 @@
-object: obj.operations.backup.rclone
-class_ref: class.operations.backup
-version: 1.0.0
-description: Rclone-based offsite cloud backup
+@object: obj.operations.backup.rclone
+@extends: class.operations.backup
+@version: 1.0.0
+@description: Rclone-based offsite cloud backup
 
 properties:
   method: rclone

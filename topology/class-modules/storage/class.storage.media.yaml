@@ -1,7 +1,7 @@
-class: class.storage.media
-version: 1.0.0
-description: Physical or virtual storage media (disks, flash, volumes)
-layer: L1
+@class: class.storage.media
+@version: 1.0.0
+@description: Physical or virtual storage media (disks, flash, volumes)
+@layer: L1
 
 properties:
   required:

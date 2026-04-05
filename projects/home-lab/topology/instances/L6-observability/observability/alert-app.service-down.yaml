@@ -1,14 +1,14 @@
-instance: alert-app.service-down
-object_ref: obj.observability.alert.application
+@instance: alert-app.service-down
+@extends: obj.observability.alert.application
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: alert-app.service-down
 status: mapped
 notes: Critical alert for service failure
 
 name: Critical Service Down
-description: A critical service is not running
+@description: A critical service is not running
 severity: critical
 
 trigger:

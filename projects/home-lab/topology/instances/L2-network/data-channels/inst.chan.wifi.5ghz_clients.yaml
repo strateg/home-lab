@@ -1,8 +1,8 @@
-instance: inst.chan.wifi.5ghz_clients
-object_ref: obj.network.wifi_ap_channel
+@instance: inst.chan.wifi.5ghz_clients
+@extends: obj.network.wifi_ap_channel
 group: data-channels
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: link-wifi-5ghz-clients
 status: mapped
 notes: WiFi 5GHz client access on router AP interface

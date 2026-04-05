@@ -1,14 +1,14 @@
-instance: alert-infra.internet-down
-object_ref: obj.observability.alert.infrastructure
+@instance: alert-infra.internet-down
+@extends: obj.observability.alert.infrastructure
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: alert-infra.internet-down
 status: mapped
 notes: Critical alert for internet connectivity loss
 
 name: Internet Down
-description: No internet connectivity
+@description: No internet connectivity
 severity: critical
 
 trigger:

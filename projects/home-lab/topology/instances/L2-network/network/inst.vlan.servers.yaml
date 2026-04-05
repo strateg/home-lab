@@ -1,8 +1,8 @@
-instance: inst.vlan.servers
-object_ref: obj.network.vlan.servers
+@instance: inst.vlan.servers
+@extends: obj.network.vlan.servers
 group: network
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: net-servers
 status: modeled
 notes: Server VLAN is staged in topology; currently not configured on rtr-mikrotik-chateau

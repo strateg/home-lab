@@ -1,6 +1,6 @@
-object: obj.service.proxmox.web_ui
-class_ref: class.service.web_ui
-version: 1.0.0
+@object: obj.service.proxmox.web_ui
+@extends: class.service.web_ui
+@version: 1.0.0
 model: Proxmox Web Ui
 vendor: proxmox
 enabled_capabilities:

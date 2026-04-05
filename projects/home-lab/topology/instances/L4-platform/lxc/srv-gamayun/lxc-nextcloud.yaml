@@ -1,15 +1,15 @@
-instance: lxc-nextcloud
-object_ref: obj.proxmox.lxc.debian12.nextcloud
+@instance: lxc-nextcloud
+@extends: obj.proxmox.lxc.debian12.nextcloud
 group: lxc
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: lxc-nextcloud
 status: mapped
 notes: Nextcloud file sync and collaboration
 
 vmid: 202
 hostname: nextcloud
-description: Nextcloud file sync and collaboration
+@description: Nextcloud file sync and collaboration
 tags:
   - web
   - production

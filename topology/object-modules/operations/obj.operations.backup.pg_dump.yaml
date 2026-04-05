@@ -1,7 +1,7 @@
-object: obj.operations.backup.pg_dump
-class_ref: class.operations.backup
-version: 1.0.0
-description: PostgreSQL database dump backup
+@object: obj.operations.backup.pg_dump
+@extends: class.operations.backup
+@version: 1.0.0
+@description: PostgreSQL database dump backup
 
 properties:
   method: pg_dump

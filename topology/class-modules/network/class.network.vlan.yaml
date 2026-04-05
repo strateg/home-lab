@@ -1,7 +1,7 @@
-class: class.network.vlan
-version: 1.0.0
-description: Network segment with VLAN tagging and IP addressing
-layer: L2
+@class: class.network.vlan
+@version: 1.0.0
+@description: Network segment with VLAN tagging and IP addressing
+@layer: L2
 
 properties:
   required:

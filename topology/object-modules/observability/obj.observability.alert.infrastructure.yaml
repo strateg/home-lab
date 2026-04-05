@@ -1,7 +1,7 @@
-object: obj.observability.alert.infrastructure
-class_ref: class.observability.alert
-version: 1.0.0
-description: Infrastructure alerts (router, disk, memory, temperature)
+@object: obj.observability.alert.infrastructure
+@extends: class.observability.alert
+@version: 1.0.0
+@description: Infrastructure alerts (router, disk, memory, temperature)
 
 properties:
   domains:

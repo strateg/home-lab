@@ -1,6 +1,6 @@
-object: obj.firmware.openwrt.glinet.4x
-class_ref: class.firmware
-version: 1.0.0
+@object: obj.firmware.openwrt.glinet.4x
+@extends: class.firmware
+@version: 1.0.0
 vendor: glinet
 model: GL.iNet OpenWrt Firmware 4.x
 properties:

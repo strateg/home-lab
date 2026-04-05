@@ -1,8 +1,8 @@
-instance: docker-nextcloud
-object_ref: obj.docker.container.generic
+@instance: docker-nextcloud
+@extends: obj.docker.container.generic
 group: docker
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: docker-nextcloud
 status: modeled
 notes: ADR0087 docker workload target

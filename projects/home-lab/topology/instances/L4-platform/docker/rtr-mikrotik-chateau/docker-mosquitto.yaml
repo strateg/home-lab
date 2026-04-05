@@ -1,8 +1,8 @@
-instance: docker-mosquitto
-object_ref: obj.docker.container.generic
+@instance: docker-mosquitto
+@extends: obj.docker.container.generic
 group: docker
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: docker-mosquitto
 status: modeled
 notes: ADR0087 docker workload target

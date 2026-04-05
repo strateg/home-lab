@@ -1,14 +1,14 @@
-instance: net-mon-bandwidth
-object_ref: obj.observability.healthcheck.network
+@instance: net-mon-bandwidth
+@extends: obj.observability.healthcheck.network
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: net-mon-bandwidth
 status: mapped
 notes: Network bandwidth monitoring
 
 name: Bandwidth Monitoring
-description: Monitor network throughput
+@description: Monitor network throughput
 target_ref: rtr-mikrotik-chateau
 enabled: true
 

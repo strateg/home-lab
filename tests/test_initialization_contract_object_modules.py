@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import jsonschema
-import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+V5_TOOLS = REPO_ROOT / "topology-tools"
+sys.path.insert(0, str(V5_TOOLS))
+
+from yaml_loader import load_yaml_file
+
 SCHEMA_PATH = REPO_ROOT / "schemas" / "initialization-contract.schema.json"
 MIKROTIK_OBJECT_PATH = REPO_ROOT / "topology" / "object-modules" / "mikrotik" / "obj.mikrotik.chateau_lte7_ax.yaml"
 PROXMOX_OBJECT_PATH = REPO_ROOT / "topology" / "object-modules" / "proxmox" / "obj.proxmox.ve.yaml"
@@ -15,7 +20,7 @@ ORANGEPI_OBJECT_PATH = REPO_ROOT / "topology" / "object-modules" / "orangepi" / 
 
 def test_mikrotik_object_has_valid_initialization_contract() -> None:
     schema_payload = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-    object_payload = yaml.safe_load(MIKROTIK_OBJECT_PATH.read_text(encoding="utf-8")) or {}
+    object_payload = load_yaml_file(MIKROTIK_OBJECT_PATH) or {}
     contract = object_payload.get("initialization_contract")
 
     assert isinstance(contract, dict), "MikroTik object must define initialization_contract mapping."
@@ -24,7 +29,7 @@ def test_mikrotik_object_has_valid_initialization_contract() -> None:
 
 def test_proxmox_object_has_valid_initialization_contract() -> None:
     schema_payload = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-    object_payload = yaml.safe_load(PROXMOX_OBJECT_PATH.read_text(encoding="utf-8")) or {}
+    object_payload = load_yaml_file(PROXMOX_OBJECT_PATH) or {}
     contract = object_payload.get("initialization_contract")
 
     assert isinstance(contract, dict), "Proxmox object must define initialization_contract mapping."
@@ -33,7 +38,7 @@ def test_proxmox_object_has_valid_initialization_contract() -> None:
 
 def test_orangepi_object_has_valid_initialization_contract() -> None:
     schema_payload = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
-    object_payload = yaml.safe_load(ORANGEPI_OBJECT_PATH.read_text(encoding="utf-8")) or {}
+    object_payload = load_yaml_file(ORANGEPI_OBJECT_PATH) or {}
     contract = object_payload.get("initialization_contract")
 
     assert isinstance(contract, dict), "Orange Pi object must define initialization_contract mapping."

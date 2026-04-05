@@ -1,7 +1,7 @@
-object: obj.storage.data_asset.logs
-class_ref: class.storage.data_asset
-version: 1.0.0
-description: Logs and metrics data asset for observability data
+@object: obj.storage.data_asset.logs
+@extends: class.storage.data_asset
+@version: 1.0.0
+@description: Logs and metrics data asset for observability data
 
 properties:
   category: logs

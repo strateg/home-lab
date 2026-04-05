@@ -73,12 +73,14 @@ def build_ansible_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         if not _is_ansible_host_candidate(row):
             continue
         host = deepcopy(row)
+        host.pop("instance", None)
         host["inventory_group"] = "devices"
         hosts.append(host)
     for idx, row in enumerate(lxc):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.lxc[{idx}]")
         _require_object_ref(row, path=f"compiled_json.instances.lxc[{idx}]")
         host = deepcopy(row)
+        host.pop("instance", None)
         host["inventory_group"] = "lxc"
         hosts.append(host)
 

@@ -1,8 +1,8 @@
-instance: inst.data_asset.jellyfin
-object_ref: obj.storage.data_asset.config
+@instance: inst.data_asset.jellyfin
+@extends: obj.storage.data_asset.config
 group: data-assets
-layer: L3
-version: 1.0.0
+@layer: L3
+@version: 1.0.0
 source_id: data-jellyfin-config
 status: mapped
 notes: Jellyfin configuration

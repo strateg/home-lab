@@ -1,15 +1,15 @@
-instance: svc-tailscale
-object_ref: obj.service.tailscale
+@instance: svc-tailscale
+@extends: obj.service.tailscale
 group: services
-layer: L5
-version: 1.0.0
+@layer: L5
+@version: 1.0.0
 source_id: svc-tailscale
 status: mapped
 notes: Tailscale mesh VPN (container on MikroTik)
 
 trust_zone_ref: inst.trust_zone.user
 vpn_type: tailscale
-description: Tailscale mesh VPN for zero-config access
+@description: Tailscale mesh VPN for zero-config access
 critical: true
 
 runtime:

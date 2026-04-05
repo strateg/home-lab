@@ -1,8 +1,8 @@
-instance: inst.bridge.vmbr0
-object_ref: obj.network.bridge.vmbr0
+@instance: inst.bridge.vmbr0
+@extends: obj.network.bridge.vmbr0
 group: network
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: bridge-vmbr0
 status: mapped
 notes: Primary Proxmox VLAN-aware bridge

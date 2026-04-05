@@ -1,15 +1,15 @@
-instance: lxc-homeassistant
-object_ref: obj.proxmox.lxc.debian12.homeassistant
+@instance: lxc-homeassistant
+@extends: obj.proxmox.lxc.debian12.homeassistant
 group: lxc
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: lxc-homeassistant
 status: mapped
 notes: Home Assistant home automation
 
 vmid: 204
 hostname: home-assistant
-description: Home Assistant home automation
+@description: Home Assistant home automation
 tags:
   - iot
   - production

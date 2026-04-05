@@ -1,6 +1,6 @@
-object: obj.service.syslog_forwarder
-class_ref: class.service.logging
-version: 1.0.0
+@object: obj.service.syslog_forwarder
+@extends: class.service.logging
+@version: 1.0.0
 model: Syslog Forwarder
 vendor: home-lab
 enabled_capabilities:

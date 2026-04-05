@@ -1,6 +1,6 @@
-object: obj.service.homeassistant
-class_ref: class.service.home_automation
-version: 1.0.0
+@object: obj.service.homeassistant
+@extends: class.service.home_automation
+@version: 1.0.0
 model: Homeassistant
 vendor: home-lab
 enabled_capabilities:

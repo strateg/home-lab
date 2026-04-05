@@ -1,14 +1,14 @@
-instance: health-postgresql
-object_ref: obj.observability.healthcheck.service
+@instance: health-postgresql
+@extends: obj.observability.healthcheck.service
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: health-postgresql
 status: mapped
 notes: PostgreSQL database health monitoring
 
 name: PostgreSQL Database Health
-description: Monitor PostgreSQL LXC and database service
+@description: Monitor PostgreSQL LXC and database service
 target_ref: lxc-postgresql
 service_ref: svc-postgresql
 enabled: true

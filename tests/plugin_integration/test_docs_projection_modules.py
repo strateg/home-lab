@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import copy
 import sys
 from pathlib import Path
 
@@ -17,7 +18,8 @@ from plugins.generators.docs.storage_projection import build_storage_projection 
 
 
 def _compiled_fixture() -> dict:
-    return {
+    return _semanticize(
+        {
         "instances": {
             "devices": [
                 {
@@ -157,6 +159,33 @@ def _compiled_fixture() -> dict:
             ],
         }
     }
+    )
+
+
+def _semanticize(compiled_json: dict) -> dict:
+    payload = copy.deepcopy(compiled_json)
+    instances = payload.get("instances")
+    if not isinstance(instances, dict):
+        return payload
+    for rows in instances.values():
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            object_ref = row.pop("object_ref", None)
+            class_ref = row.pop("class_ref", None)
+            if not isinstance(object_ref, str) and not isinstance(class_ref, str):
+                continue
+            instance_block = row.get("instance")
+            if not isinstance(instance_block, dict):
+                instance_block = {}
+                row["instance"] = instance_block
+            if isinstance(object_ref, str) and object_ref:
+                instance_block.setdefault("materializes_object", object_ref)
+            if isinstance(class_ref, str) and class_ref:
+                instance_block.setdefault("materializes_class", class_ref)
+    return payload
 
 
 def test_network_projection_extracts_vlan_bridge_and_allocations() -> None:

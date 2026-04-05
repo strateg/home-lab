@@ -1,14 +1,14 @@
-instance: health-nextcloud
-object_ref: obj.observability.healthcheck.service
+@instance: health-nextcloud
+@extends: obj.observability.healthcheck.service
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: health-nextcloud
 status: mapped
 notes: Nextcloud application health monitoring
 
 name: Nextcloud Application Health
-description: Monitor Nextcloud on Orange Pi 5
+@description: Monitor Nextcloud on Orange Pi 5
 target_ref: srv-orangepi5
 service_ref: svc-nextcloud@docker.srv-orangepi5
 enabled: true

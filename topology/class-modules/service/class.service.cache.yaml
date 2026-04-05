@@ -1,7 +1,7 @@
-class: class.service.cache
-version: 1.0.0
-title: Service Cache
-summary: In-memory caching service role.
+@class: class.service.cache
+@version: 1.0.0
+@title: Service Cache
+@summary: In-memory caching service role.
 os_policy: forbidden
 required_capabilities:
 - cap.service.cache.runtime

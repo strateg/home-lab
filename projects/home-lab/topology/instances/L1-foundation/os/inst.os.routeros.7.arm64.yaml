@@ -1,8 +1,8 @@
-instance: inst.os.routeros.7.arm64
-object_ref: obj.os.routeros.7.arm64
+@instance: inst.os.routeros.7.arm64
+@extends: obj.os.routeros.7.arm64
 group: os
-layer: L1
-version: 1.0.0
+@layer: L1
+@version: 1.0.0
 source_id: inst.os.routeros.7.arm64
 embedded_in: inst.firmware.routeros.7.arm64
 status: mapped

@@ -85,7 +85,7 @@ def test_effective_model_compiler_publishes_candidate():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
 
-    assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
+    assert result.status == PluginStatus.SUCCESS
     assert not result.has_errors
     keys = ctx.get_published_keys(PLUGIN_ID)
     assert "effective_model_candidate" in keys
@@ -111,7 +111,8 @@ def test_effective_model_compiler_publishes_candidate():
     assert isinstance(ctx.compiled_json.get("compiled_at"), str)
     assert isinstance(ctx.compiled_json.get("compiler_pipeline_version"), str)
     assert isinstance(ctx.compiled_json.get("source_manifest_digest"), str)
-    assert any(diag.code == "W3201" and diag.severity == "warning" for diag in result.diagnostics)
+    assert "class_ref" not in first_row
+    assert "object_ref" not in first_row
 
 
 def test_effective_model_compiler_requires_subscribed_normalized_rows():
@@ -206,7 +207,7 @@ def test_effective_model_compiler_reads_normalized_rows_via_subscribe():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
 
-    assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
+    assert result.status == PluginStatus.SUCCESS
     assert not result.has_errors
     rows = ctx.compiled_json["instances"]["devices"]
     assert [row["instance_id"] for row in rows] == ["rtr-from-subscribe"]
@@ -255,7 +256,7 @@ def test_effective_model_compiler_includes_inherited_lineage_fields():
 
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
 
-    assert result.status in {PluginStatus.SUCCESS, PluginStatus.PARTIAL}
+    assert result.status == PluginStatus.SUCCESS
     assert not result.has_errors
     row = ctx.compiled_json["instances"]["devices"][0]
     assert row["class"]["lineage"] == ["class.base", "class.child"]
@@ -264,115 +265,3 @@ def test_effective_model_compiler_includes_inherited_lineage_fields():
     assert row["instance"]["resolved_lineage"] == ["class.base", "class.child"]
     assert ctx.compiled_json["classes"]["class.child"]["lineage"] == ["class.base", "class.child"]
     assert ctx.compiled_json["objects"]["obj.child"]["class_lineage"] == ["class.base", "class.child"]
-
-
-def test_effective_model_compiler_enforce_mode_omits_legacy_bridge_fields():
-    registry = _registry()
-    ctx = PluginContext(
-        topology_path="topology/topology.yaml",
-        profile="test",
-        model_lock={},
-        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
-        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
-        objects={"obj.router.test": {"object": "obj.router.test", "version": "1.0.0", "class_ref": "class.router"}},
-        config={"legacy_bridge_mode": "enforce"},
-        instance_bindings={"instance_bindings": {"devices": []}},
-    )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
-        "normalized_rows",
-        [
-            {
-                "group": "devices",
-                "instance": "rtr-1",
-                "layer": "L1",
-                "source_id": "rtr-1",
-                "class_ref": "class.router",
-                "object_ref": "obj.router.test",
-                "status": "modeled",
-                "notes": "",
-                "runtime": None,
-                "firmware_ref": None,
-                "os_refs": [],
-                "embedded_in": None,
-                "extensions": {},
-            }
-        ],
-    )
-    ctx._clear_execution_context()
-
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
-
-    assert result.status == PluginStatus.SUCCESS
-    assert not result.has_errors
-    assert not any(diag.code == "W3201" for diag in result.diagnostics)
-    row = ctx.compiled_json["instances"]["devices"][0]
-    assert "class_ref" not in row
-    assert "object_ref" not in row
-    assert row["instance"]["materializes_object"] == "obj.router.test"
-    assert row["instance"]["materializes_class"] == "class.router"
-
-
-def test_effective_model_compiler_warn_gate_new_suppresses_bridge_fields_for_gate_statuses():
-    registry = _registry()
-    ctx = PluginContext(
-        topology_path="topology/topology.yaml",
-        profile="test",
-        model_lock={},
-        raw_yaml={"version": "5.0.0", "model": "class-object-instance"},
-        classes={"class.router": {"class": "class.router", "version": "1.0.0"}},
-        objects={"obj.router.test": {"object": "obj.router.test", "version": "1.0.0", "class_ref": "class.router"}},
-        config={
-            "legacy_bridge_mode": "warn+gate-new",
-            "legacy_bridge_gate_statuses": ["modeled"],
-        },
-        instance_bindings={"instance_bindings": {"devices": []}},
-    )
-    ctx._set_execution_context("base.compiler.instance_rows", set())
-    ctx.publish(
-        "normalized_rows",
-        [
-            {
-                "group": "devices",
-                "instance": "rtr-modeled",
-                "layer": "L1",
-                "source_id": "rtr-modeled",
-                "class_ref": "class.router",
-                "object_ref": "obj.router.test",
-                "status": "modeled",
-                "notes": "",
-                "runtime": None,
-                "firmware_ref": None,
-                "os_refs": [],
-                "embedded_in": None,
-                "extensions": {},
-            },
-            {
-                "group": "devices",
-                "instance": "rtr-observed",
-                "layer": "L1",
-                "source_id": "rtr-observed",
-                "class_ref": "class.router",
-                "object_ref": "obj.router.test",
-                "status": "runtime-observed",
-                "notes": "",
-                "runtime": None,
-                "firmware_ref": None,
-                "os_refs": [],
-                "embedded_in": None,
-                "extensions": {},
-            },
-        ],
-    )
-    ctx._clear_execution_context()
-
-    result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
-
-    assert result.status == PluginStatus.PARTIAL
-    assert not result.has_errors
-    assert any(diag.code == "W3201" for diag in result.diagnostics)
-    rows = {row["instance_id"]: row for row in ctx.compiled_json["instances"]["devices"]}
-    assert "class_ref" not in rows["rtr-modeled"]
-    assert "object_ref" not in rows["rtr-modeled"]
-    assert rows["rtr-observed"]["class_ref"] == "class.router"
-    assert rows["rtr-observed"]["object_ref"] == "obj.router.test"

@@ -1,7 +1,7 @@
-class: class.os
-version: 1.0.0
-title: OS Entity
-summary: Canonical operating system entity contract (class -> object -> instance).
+@class: class.os
+@version: 1.0.0
+@title: OS Entity
+@summary: Canonical operating system entity contract (class -> object -> instance).
 os_policy: forbidden
 firmware_policy: forbidden
 required_capabilities: []

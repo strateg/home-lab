@@ -1,11 +1,11 @@
-object: obj.glinet.slate_ax1800
-class_ref: class.router
-version: 1.0.0
-title: GL.iNet Slate AX (GL-AXT1800)
+@object: obj.glinet.slate_ax1800
+@extends: class.router
+@version: 1.0.0
+@title: GL.iNet Slate AX (GL-AXT1800)
 vendor: GL.iNet
 model: GL-AXT1800
 
-description: |
+@description: |
   GL.iNet Slate AX (GL-AXT1800) - Compact portable travel router with WiFi 6,
   dual UI (GL.iNet + OpenWRT LuCI), advanced VPN client features, and WiFi
   repeater mode. Perfect for travel, remote work, and secure hotel WiFi access.

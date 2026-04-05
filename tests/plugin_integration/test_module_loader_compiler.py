@@ -44,11 +44,11 @@ def test_module_loader_plugin_owner_loads_modules(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.router.yaml").write_text(
-        "class: class.router\nversion: 1.0.0\n",
+        "@class: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.router.yaml").write_text(
-        "object: obj.router\nclass_ref: class.router\nversion: 1.0.0\n",
+        "@object: obj.router\n@extends: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 
@@ -75,11 +75,11 @@ def test_module_loader_rejects_unsafe_class_and_object_ids(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.router.yaml").write_text(
-        "class: class.router:bad\nversion: 1.0.0\n",
+        "@class: class.router:bad\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.router.yaml").write_text(
-        "object: obj.router?bad\nclass_ref: class.router\nversion: 1.0.0\n",
+        "@object: obj.router?bad\n@extends: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 
@@ -109,11 +109,11 @@ def test_module_loader_rejects_duplicate_yaml_keys(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.router.yaml").write_text(
-        "class: class.router\nclass: class.router.dup\nversion: 1.0.0\n",
+        "@class: class.router\n@class: class.router.dup\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.router.yaml").write_text(
-        "object: obj.router\nclass_ref: class.router\nversion: 1.0.0\n",
+        "@object: obj.router\n@extends: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 
@@ -179,11 +179,11 @@ def test_module_loader_rejects_semantic_key_collision(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.router.yaml").write_text(
-        "class: class.router\n@class: class.router\nversion: 1.0.0\n",
+        "@class: class.router\nclass: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.router.yaml").write_text(
-        "object: obj.router\nclass_ref: class.router\nversion: 1.0.0\n",
+        "@object: obj.router\n@extends: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 
@@ -199,7 +199,7 @@ def test_module_loader_rejects_semantic_key_collision(tmp_path):
     )
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.has_errors
-    assert any(d.code == "E8803" and "collision" in d.message for d in result.diagnostics)
+    assert any(d.code == "E8801" and "legacy semantic keys" in d.message for d in result.diagnostics)
 
 
 def test_module_loader_rejects_extends_and_class_ref_mix(tmp_path):
@@ -209,11 +209,11 @@ def test_module_loader_rejects_extends_and_class_ref_mix(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.router.yaml").write_text(
-        "class: class.router\nversion: 1.0.0\n",
+        "@class: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.router.yaml").write_text(
-        "object: obj.router\n@extends: class.router\nclass_ref: class.router\nversion: 1.0.0\n",
+        "@object: obj.router\n@extends: class.router\nclass_ref: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 
@@ -229,7 +229,7 @@ def test_module_loader_rejects_extends_and_class_ref_mix(tmp_path):
     )
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.has_errors
-    assert any(d.code == "E8803" and "both '@extends' and legacy 'class_ref'" in d.message for d in result.diagnostics)
+    assert any(d.code == "E8801" and "class_ref" in d.message for d in result.diagnostics)
 
 
 def test_module_loader_rejects_metadata_collision(tmp_path):
@@ -239,11 +239,11 @@ def test_module_loader_rejects_metadata_collision(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.router.yaml").write_text(
-        "class: class.router\n@title: Router class\ntitle: Router class duplicate\nversion: 1.0.0\n",
+        "@class: class.router\n@title: Router class\ntitle: Router class duplicate\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.router.yaml").write_text(
-        "object: obj.router\nclass_ref: class.router\nversion: 1.0.0\n",
+        "@object: obj.router\n@extends: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 
@@ -259,7 +259,7 @@ def test_module_loader_rejects_metadata_collision(tmp_path):
     )
     result = registry.execute_plugin(PLUGIN_ID, ctx, Stage.COMPILE)
     assert result.has_errors
-    assert any(d.code == "E8803" and "entity_title" in d.message for d in result.diagnostics)
+    assert any(d.code == "E8801" and "title" in d.message for d in result.diagnostics)
 
 
 def test_module_loader_rejects_typed_extends_mismatch_for_object(tmp_path):
@@ -269,15 +269,15 @@ def test_module_loader_rejects_typed_extends_mismatch_for_object(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.router.yaml").write_text(
-        "class: class.router\nversion: 1.0.0\n",
+        "@class: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.base.yaml").write_text(
-        "object: obj.base\nclass_ref: class.router\nversion: 1.0.0\n",
+        "@object: obj.base\n@extends: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.child.yaml").write_text(
-        "object: obj.child\n@extends: obj.base\nversion: 1.0.0\n",
+        "@object: obj.child\n@extends: obj.base\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 
@@ -303,11 +303,11 @@ def test_module_loader_rejects_typed_extends_mismatch_for_class(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.router.yaml").write_text(
-        "class: class.router\n@extends: obj.base\nversion: 1.0.0\n",
+        "@class: class.router\n@extends: obj.base\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.base.yaml").write_text(
-        "object: obj.base\nclass_ref: class.router\nversion: 1.0.0\n",
+        "@object: obj.base\n@extends: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 
@@ -333,11 +333,11 @@ def test_module_loader_rejects_unknown_parent_class_target(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.child.yaml").write_text(
-        "class: class.child\n@extends: class.missing\nversion: 1.0.0\n",
+        "@class: class.child\n@extends: class.missing\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.child.yaml").write_text(
-        "object: obj.child\nclass_ref: class.child\nversion: 1.0.0\n",
+        "@object: obj.child\n@extends: class.child\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 
@@ -363,11 +363,11 @@ def test_module_loader_rejects_unknown_object_class_target(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.router.yaml").write_text(
-        "class: class.router\nversion: 1.0.0\n",
+        "@class: class.router\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.child.yaml").write_text(
-        "object: obj.child\nclass_ref: class.missing\nversion: 1.0.0\n",
+        "@object: obj.child\n@extends: class.missing\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 
@@ -393,15 +393,15 @@ def test_module_loader_rejects_class_inheritance_cycle(tmp_path):
     class_dir.mkdir()
     object_dir.mkdir()
     (class_dir / "class.a.yaml").write_text(
-        "class: class.a\n@extends: class.b\nversion: 1.0.0\n",
+        "@class: class.a\n@extends: class.b\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (class_dir / "class.b.yaml").write_text(
-        "class: class.b\n@extends: class.a\nversion: 1.0.0\n",
+        "@class: class.b\n@extends: class.a\n@version: 1.0.0\n",
         encoding="utf-8",
     )
     (object_dir / "obj.a.yaml").write_text(
-        "object: obj.a\nclass_ref: class.a\nversion: 1.0.0\n",
+        "@object: obj.a\n@extends: class.a\n@version: 1.0.0\n",
         encoding="utf-8",
     )
 

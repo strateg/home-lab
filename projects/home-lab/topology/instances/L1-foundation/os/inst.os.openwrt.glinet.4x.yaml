@@ -1,8 +1,8 @@
-instance: inst.os.openwrt.glinet.4x
-object_ref: obj.os.openwrt.glinet.4x
+@instance: inst.os.openwrt.glinet.4x
+@extends: obj.os.openwrt.glinet.4x
 group: os
-layer: L1
-version: 1.0.0
+@layer: L1
+@version: 1.0.0
 source_id: inst.os.openwrt.glinet.4x
 embedded_in: inst.firmware.openwrt.glinet.4x
 status: mapped

@@ -1,8 +1,8 @@
-instance: inst.firmware.pdu.generic.managed
-object_ref: obj.firmware.pdu.generic.managed
+@instance: inst.firmware.pdu.generic.managed
+@extends: obj.firmware.pdu.generic.managed
 group: firmware
-layer: L1
-version: 1.0.0
+@layer: L1
+@version: 1.0.0
 source_id: inst.firmware.pdu.generic.managed
 status: mapped
 notes: ADR0064 firmware instance

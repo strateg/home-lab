@@ -1,7 +1,7 @@
-class: class.storage.volume
-version: 1.0.0
-description: Logical volume attached to workloads
-layer: L3
+@class: class.storage.volume
+@version: 1.0.0
+@description: Logical volume attached to workloads
+@layer: L3
 
 properties:
   required:

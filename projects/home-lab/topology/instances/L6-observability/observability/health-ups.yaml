@@ -1,14 +1,14 @@
-instance: health-ups
-object_ref: obj.observability.healthcheck.ups
+@instance: health-ups
+@extends: obj.observability.healthcheck.ups
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: health-ups
 status: mapped
 notes: UPS health and power monitoring
 
 name: UPS Health
-description: Monitor UPS status via NUT
+@description: Monitor UPS status via NUT
 target_ref: ups-main
 enabled: true
 critical: true

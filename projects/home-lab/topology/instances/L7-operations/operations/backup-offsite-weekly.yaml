@@ -1,14 +1,14 @@
-instance: backup-offsite-weekly
-object_ref: obj.operations.backup.rclone
+@instance: backup-offsite-weekly
+@extends: obj.operations.backup.rclone
 group: operations
-layer: L7
-version: 1.0.0
+@layer: L7
+@version: 1.0.0
 source_id: backup-offsite-weekly
 status: mapped
 notes: Weekly encrypted offsite backup to cloud storage (Backblaze B2)
 
 name: Weekly Offsite Backup
-description: Critical data to cloud storage (encrypted)
+@description: Critical data to cloud storage (encrypted)
 schedule: "0 5 * * 0"
 
 targets:

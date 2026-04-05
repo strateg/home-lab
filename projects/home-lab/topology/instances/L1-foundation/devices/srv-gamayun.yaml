@@ -1,8 +1,8 @@
-instance: srv-gamayun
-object_ref: obj.proxmox.ve
+@instance: srv-gamayun
+@extends: obj.proxmox.ve
 group: devices
-layer: L1
-version: 1.0.0
+@layer: L1
+@version: 1.0.0
 source_id: srv-gamayun
 status: mapped
 notes: module scaffold exists; capability profile tuning pending

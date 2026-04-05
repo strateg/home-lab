@@ -1,8 +1,8 @@
-instance: svc-postgresql
-object_ref: obj.service.postgresql
+@instance: svc-postgresql
+@extends: obj.service.postgresql
 group: services
-layer: L5
-version: 1.0.0
+@layer: L5
+@version: 1.0.0
 source_id: svc-postgresql
 status: mapped
 notes: PostgreSQL database server
@@ -10,7 +10,7 @@ notes: PostgreSQL database server
 port: 5432
 protocol: tcp
 trust_zone_ref: inst.trust_zone.servers
-description: PostgreSQL database server for Nextcloud and homelab apps
+@description: PostgreSQL database server for Nextcloud and homelab apps
 
 runtime:
   type: lxc

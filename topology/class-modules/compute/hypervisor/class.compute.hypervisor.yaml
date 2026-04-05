@@ -1,7 +1,7 @@
-class: class.compute.hypervisor
-version: 2.0.0
-title: Compute Hypervisor
-summary: Abstract base class for hypervisor platforms.
+@class: class.compute.hypervisor
+@version: 2.0.0
+@title: Compute Hypervisor
+@summary: Abstract base class for hypervisor platforms.
 abstract: true
 os_policy: required
 firmware_policy: required

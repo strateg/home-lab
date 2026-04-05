@@ -1,7 +1,7 @@
-object: obj.observability.alert.application
-class_ref: class.observability.alert
-version: 1.0.0
-description: Application alerts (service down, errors)
+@object: obj.observability.alert.application
+@extends: class.observability.alert
+@version: 1.0.0
+@description: Application alerts (service down, errors)
 
 properties:
   domains:

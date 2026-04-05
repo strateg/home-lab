@@ -1,7 +1,7 @@
-class: class.power.pdu
-version: 1.0.0
-title: Power Distribution Unit
-summary: Power distribution and outlet control abstraction.
+@class: class.power.pdu
+@version: 1.0.0
+@title: Power Distribution Unit
+@summary: Power distribution and outlet control abstraction.
 os_policy: forbidden
 firmware_policy: required
 os_cardinality:

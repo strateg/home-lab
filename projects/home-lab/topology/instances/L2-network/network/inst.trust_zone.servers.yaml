@@ -1,8 +1,8 @@
-instance: inst.trust_zone.servers
-object_ref: obj.network.trust_zone.servers
+@instance: inst.trust_zone.servers
+@extends: obj.network.trust_zone.servers
 group: network
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: trust-zone-servers
 status: mapped
 notes: Server zone for infrastructure services

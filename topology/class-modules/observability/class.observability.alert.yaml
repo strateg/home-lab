@@ -1,7 +1,7 @@
-class: class.observability.alert
-version: 1.0.0
-description: Alert rule definition
-layer: L6
+@class: class.observability.alert
+@version: 1.0.0
+@description: Alert rule definition
+@layer: L6
 
 properties:
   required:

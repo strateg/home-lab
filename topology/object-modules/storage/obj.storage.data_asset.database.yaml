@@ -1,7 +1,7 @@
-object: obj.storage.data_asset.database
-class_ref: class.storage.data_asset
-version: 1.0.0
-description: Database data asset for persistent DBMS storage
+@object: obj.storage.data_asset.database
+@extends: class.storage.data_asset
+@version: 1.0.0
+@description: Database data asset for persistent DBMS storage
 
 properties:
   category: database

@@ -1,8 +1,8 @@
-instance: inst.data_asset.homeassistant
-object_ref: obj.storage.data_asset.config
+@instance: inst.data_asset.homeassistant
+@extends: obj.storage.data_asset.config
 group: data-assets
-layer: L3
-version: 1.0.0
+@layer: L3
+@version: 1.0.0
 source_id: data-homeassistant
 status: mapped
 notes: Home Assistant config

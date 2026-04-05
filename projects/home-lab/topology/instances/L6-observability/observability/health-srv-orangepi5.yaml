@@ -1,14 +1,14 @@
-instance: health-srv-orangepi5
-object_ref: obj.observability.healthcheck.device
+@instance: health-srv-orangepi5
+@extends: obj.observability.healthcheck.device
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: health-srv-orangepi5
 status: mapped
 notes: Orange Pi 5 application server health monitoring
 
 name: Orange Pi 5 Health
-description: Monitor Orange Pi 5 application server
+@description: Monitor Orange Pi 5 application server
 target_ref: srv-orangepi5
 enabled: true
 critical: true

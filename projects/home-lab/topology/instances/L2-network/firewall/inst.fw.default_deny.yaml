@@ -1,8 +1,8 @@
-instance: inst.fw.default_deny
-object_ref: obj.network.firewall_policy.default_deny
+@instance: inst.fw.default_deny
+@extends: obj.network.firewall_policy.default_deny
 group: firewall
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: fw-default-deny
 status: mapped
 notes: Default deny policy for unsolicited WAN traffic (!dstnat); does not block LAN to WAN forwarding

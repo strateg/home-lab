@@ -1,8 +1,8 @@
-instance: svc-loki
-object_ref: obj.service.loki
+@instance: svc-loki
+@extends: obj.service.loki
 group: services
-layer: L5
-version: 1.0.0
+@layer: L5
+@version: 1.0.0
 source_id: svc-loki
 status: mapped
 notes: Loki centralized log aggregation (Docker on Orange Pi 5)
@@ -10,7 +10,7 @@ notes: Loki centralized log aggregation (Docker on Orange Pi 5)
 port: 3100
 protocol: http
 trust_zone_ref: inst.trust_zone.servers
-description: Centralized log aggregation
+@description: Centralized log aggregation
 
 log_sources:
   - name: mikrotik

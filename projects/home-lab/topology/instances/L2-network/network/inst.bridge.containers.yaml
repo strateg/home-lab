@@ -1,8 +1,8 @@
-instance: inst.bridge.containers
-object_ref: obj.network.bridge.containers
+@instance: inst.bridge.containers
+@extends: obj.network.bridge.containers
 group: network
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: bridge-containers
 status: mapped
 notes: RouterOS container bridge on rtr-mikrotik-chateau; hosts veth1 for Docker workloads

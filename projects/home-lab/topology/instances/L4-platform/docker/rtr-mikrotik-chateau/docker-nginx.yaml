@@ -1,8 +1,8 @@
-instance: docker-nginx
-object_ref: obj.docker.container.generic
+@instance: docker-nginx
+@extends: obj.docker.container.generic
 group: docker
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: docker-nginx
 status: mapped
 notes: nginx container running on rtr-mikrotik-chateau; observed live 2026-04-04

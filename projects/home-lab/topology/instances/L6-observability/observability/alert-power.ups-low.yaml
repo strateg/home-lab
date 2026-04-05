@@ -1,14 +1,14 @@
-instance: alert-power.ups-low
-object_ref: obj.observability.alert.power
+@instance: alert-power.ups-low
+@extends: obj.observability.alert.power
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: alert-power.ups-low
 status: mapped
 notes: Critical alert for low UPS battery
 
 name: UPS Low Battery
-description: UPS battery critically low
+@description: UPS battery critically low
 severity: critical
 
 trigger:

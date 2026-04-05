@@ -1,14 +1,14 @@
-instance: alert-infra.temperature-high
-object_ref: obj.observability.alert.infrastructure
+@instance: alert-infra.temperature-high
+@extends: obj.observability.alert.infrastructure
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: alert-infra.temperature-high
 status: mapped
 notes: Warning alert for high temperature
 
 name: High Temperature
-description: Device temperature is high
+@description: Device temperature is high
 severity: warning
 
 trigger:

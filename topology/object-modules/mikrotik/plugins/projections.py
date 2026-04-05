@@ -156,7 +156,9 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
         if object_ref.startswith("obj.mikrotik."):
-            routers.append(row)
+            export_row = dict(row)
+            export_row.pop("instance", None)
+            routers.append(export_row)
             router_ids.add(instance_id)
 
     networks: list[dict[str, Any]] = []
@@ -166,7 +168,9 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
     for idx, row in enumerate(network):
         _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.network[{idx}]")
         object_ref = _require_object_ref(row, path=f"compiled_json.instances.network[{idx}]")
-        networks.append(row)
+        export_row = dict(row)
+        export_row.pop("instance", None)
+        networks.append(export_row)
 
         # Extract VLANs managed by MikroTik routers
         if "vlan" in object_ref:
@@ -187,7 +191,9 @@ def build_mikrotik_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
             raise ProjectionError(f"compiled_json.instances.services[{idx}].runtime must be mapping/object")
         target_ref = runtime.get("target_ref") if isinstance(runtime, dict) else None
         if isinstance(target_ref, str) and target_ref in router_ids:
-            selected_services.append(row)
+            export_row = dict(row)
+            export_row.pop("instance", None)
+            selected_services.append(export_row)
 
     capability_flags = _derive_mikrotik_capability_flags(routers)
     return {

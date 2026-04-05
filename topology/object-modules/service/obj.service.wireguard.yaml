@@ -1,6 +1,6 @@
-object: obj.service.wireguard
-class_ref: class.service.vpn
-version: 1.0.0
+@object: obj.service.wireguard
+@extends: class.service.vpn
+@version: 1.0.0
 model: Wireguard
 vendor: home-lab
 enabled_capabilities:

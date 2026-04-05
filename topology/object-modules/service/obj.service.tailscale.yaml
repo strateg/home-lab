@@ -1,6 +1,6 @@
-object: obj.service.tailscale
-class_ref: class.service.vpn
-version: 1.0.0
+@object: obj.service.tailscale
+@extends: class.service.vpn
+@version: 1.0.0
 model: Tailscale
 vendor: home-lab
 enabled_capabilities:

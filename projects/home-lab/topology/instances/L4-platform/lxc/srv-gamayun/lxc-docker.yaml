@@ -1,15 +1,15 @@
-instance: lxc-docker
-object_ref: obj.proxmox.lxc.debian12.docker
+@instance: lxc-docker
+@extends: obj.proxmox.lxc.debian12.docker
 group: lxc
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: lxc-docker
 status: mapped
 notes: Docker container host
 
 vmid: 208
 hostname: docker-host
-description: Docker container host
+@description: Docker container host
 tags:
   - docker
   - production

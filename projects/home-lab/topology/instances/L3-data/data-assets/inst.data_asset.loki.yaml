@@ -1,8 +1,8 @@
-instance: inst.data_asset.loki
-object_ref: obj.storage.data_asset.logs
+@instance: inst.data_asset.loki
+@extends: obj.storage.data_asset.logs
 group: data-assets
-layer: L3
-version: 1.0.0
+@layer: L3
+@version: 1.0.0
 source_id: data-loki
 status: mapped
 notes: Loki log storage chunks and index

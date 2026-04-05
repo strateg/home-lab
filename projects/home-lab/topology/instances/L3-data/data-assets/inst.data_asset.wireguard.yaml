@@ -1,8 +1,8 @@
-instance: inst.data_asset.wireguard
-object_ref: obj.storage.data_asset.config
+@instance: inst.data_asset.wireguard
+@extends: obj.storage.data_asset.config
 group: data-assets
-layer: L3
-version: 1.0.0
+@layer: L3
+@version: 1.0.0
 source_id: data-wireguard
 status: mapped
 notes: WireGuard keys and peer configuration (stored in RouterOS)

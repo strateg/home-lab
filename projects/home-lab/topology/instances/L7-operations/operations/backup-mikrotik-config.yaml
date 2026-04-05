@@ -1,14 +1,14 @@
-instance: backup-mikrotik-config
-object_ref: obj.operations.backup.config_export
+@instance: backup-mikrotik-config
+@extends: obj.operations.backup.config_export
 group: operations
-layer: L7
-version: 1.0.0
+@layer: L7
+@version: 1.0.0
 source_id: backup-mikrotik-config
 status: mapped
 notes: MikroTik RouterOS configuration export to Git repository
 
 name: MikroTik Config Backup
-description: Export RouterOS configuration to Git repository
+@description: Export RouterOS configuration to Git repository
 schedule: "0 4 * * *"
 
 target_ref: rtr-mikrotik-chateau

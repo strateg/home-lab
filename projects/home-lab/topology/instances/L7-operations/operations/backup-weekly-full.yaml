@@ -1,14 +1,14 @@
-instance: backup-weekly-full
-object_ref: obj.operations.backup.vzdump
+@instance: backup-weekly-full
+@extends: obj.operations.backup.vzdump
 group: operations
-layer: L7
-version: 1.0.0
+@layer: L7
+@version: 1.0.0
 source_id: backup-weekly-full
 status: mapped
 notes: Complete weekly vzdump backup of all LXC containers
 
 name: Weekly Full Infrastructure Backup
-description: Complete weekly backup of all LXC containers
+@description: Complete weekly backup of all LXC containers
 schedule: "0 1 * * 0"
 
 targets:

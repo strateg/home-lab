@@ -1,7 +1,7 @@
-object: obj.operations.backup.config_export
-class_ref: class.operations.backup
-version: 1.0.0
-description: Configuration export backup (RouterOS, switch configs)
+@object: obj.operations.backup.config_export
+@extends: class.operations.backup
+@version: 1.0.0
+@description: Configuration export backup (RouterOS, switch configs)
 
 properties:
   method: config-export

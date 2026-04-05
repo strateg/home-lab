@@ -1,8 +1,8 @@
-instance: inst.vlan.guest
-object_ref: obj.network.vlan.guest
+@instance: inst.vlan.guest
+@extends: obj.network.vlan.guest
 group: network
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: net-guest
 status: modeled
 notes: Guest WiFi segment is staged in topology; currently not configured on rtr-mikrotik-chateau

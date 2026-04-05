@@ -1,8 +1,8 @@
-instance: inst.qos.wan_shaping
-object_ref: obj.network.qos.wan_shaping
+@instance: inst.qos.wan_shaping
+@extends: obj.network.qos.wan_shaping
 group: qos
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: qos-wan
 status: modeled
 notes: Advanced WAN shaping profile is staged in topology; current router has only default fq-codel queues

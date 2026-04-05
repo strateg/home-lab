@@ -4,12 +4,18 @@
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+V5_TOOLS = REPO_ROOT / "topology-tools"
+sys.path.insert(0, str(V5_TOOLS))
+
+from yaml_loader import load_yaml_file
+
 PLUGINS_MANIFEST = REPO_ROOT / "topology-tools" / "plugins" / "plugins.yaml"
 INSTANCE_ROOT = REPO_ROOT / "projects" / "home-lab" / "topology" / "instances"
 
@@ -87,7 +93,7 @@ def test_strict_instance_profiles_have_no_unresolved_placeholders() -> None:
     mode, strict_statuses = _strict_policy()
     violations: list[str] = []
     for instance_file in sorted(INSTANCE_ROOT.rglob("*.yaml")):
-        payload = yaml.safe_load(instance_file.read_text(encoding="utf-8")) or {}
+        payload = load_yaml_file(instance_file) or {}
         if not isinstance(payload, dict):
             continue
         if not _is_strict_instance(mode, strict_statuses, payload):

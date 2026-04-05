@@ -1,7 +1,7 @@
-object: obj.storage.data_asset.backup
-class_ref: class.storage.data_asset
-version: 1.0.0
-description: Backup data asset for backup artifacts and dumps
+@object: obj.storage.data_asset.backup
+@extends: class.storage.data_asset
+@version: 1.0.0
+@description: Backup data asset for backup artifacts and dumps
 
 properties:
   category: backup

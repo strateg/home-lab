@@ -1,7 +1,7 @@
-object: obj.observability.alert.operations
-class_ref: class.observability.alert
-version: 1.0.0
-description: Operations alerts (backup failed, scheduled tasks)
+@object: obj.observability.alert.operations
+@extends: class.observability.alert
+@version: 1.0.0
+@description: Operations alerts (backup failed, scheduled tasks)
 
 properties:
   domains:

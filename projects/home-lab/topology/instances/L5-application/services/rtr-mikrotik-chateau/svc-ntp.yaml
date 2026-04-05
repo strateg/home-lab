@@ -1,8 +1,8 @@
-instance: svc-ntp
-object_ref: obj.service.ntp
+@instance: svc-ntp
+@extends: obj.service.ntp
 group: services
-layer: L5
-version: 1.0.0
+@layer: L5
+@version: 1.0.0
 source_id: svc-ntp
 status: mapped
 notes: Network Time Protocol server (native RouterOS)
@@ -10,7 +10,7 @@ notes: Network Time Protocol server (native RouterOS)
 port: 123
 protocol: udp
 trust_zone_ref: inst.trust_zone.servers
-description: NTP server providing time synchronization for all LAN clients
+@description: NTP server providing time synchronization for all LAN clients
 critical: true
 
 features:

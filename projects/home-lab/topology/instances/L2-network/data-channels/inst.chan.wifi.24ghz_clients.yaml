@@ -1,8 +1,8 @@
-instance: inst.chan.wifi.24ghz_clients
-object_ref: obj.network.wifi_ap_channel
+@instance: inst.chan.wifi.24ghz_clients
+@extends: obj.network.wifi_ap_channel
 group: data-channels
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: link-wifi-24ghz-clients
 status: mapped
 notes: WiFi 2.4GHz client access on router AP interface

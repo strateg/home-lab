@@ -84,14 +84,18 @@ def build_proxmox_projection(compiled_json: dict[str, Any]) -> dict[str, Any]:
         object_ref = _require_object_ref(row, path=f"compiled_json.instances.devices[{idx}]")
         if object_ref == "obj.proxmox.ve":
             _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.devices[{idx}]")
-            proxmox_nodes.append(row)
+            export_row = dict(row)
+            export_row.pop("instance", None)
+            proxmox_nodes.append(export_row)
 
     lxc_rows: list[dict[str, Any]] = []
     lxc_targets: set[str] = set()
     for idx, row in enumerate(lxc):
         instance_id = _require_non_empty_str(row, field="instance_id", path=f"compiled_json.instances.lxc[{idx}]")
         _require_object_ref(row, path=f"compiled_json.instances.lxc[{idx}]")
-        lxc_rows.append(row)
+        export_row = dict(row)
+        export_row.pop("instance", None)
+        lxc_rows.append(export_row)
         lxc_targets.add(instance_id)
 
     service_rows: list[dict[str, Any]] = []

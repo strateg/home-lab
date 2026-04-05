@@ -1,14 +1,14 @@
-instance: alert-infra.memory-critical
-object_ref: obj.observability.alert.infrastructure
+@instance: alert-infra.memory-critical
+@extends: obj.observability.alert.infrastructure
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: alert-infra.memory-critical
 status: mapped
 notes: Critical alert for memory usage
 
 name: Memory Usage Critical
-description: Memory usage exceeds 95%
+@description: Memory usage exceeds 95%
 severity: critical
 
 trigger:

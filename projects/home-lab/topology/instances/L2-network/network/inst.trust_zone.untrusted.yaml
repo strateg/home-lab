@@ -1,8 +1,8 @@
-instance: inst.trust_zone.untrusted
-object_ref: obj.network.trust_zone.untrusted
+@instance: inst.trust_zone.untrusted
+@extends: obj.network.trust_zone.untrusted
 group: network
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: trust-zone-untrusted
 status: mapped
 notes: External untrusted zone (ISP, Internet, LTE)

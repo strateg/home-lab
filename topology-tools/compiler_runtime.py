@@ -235,6 +235,21 @@ def _load_sharded_instance_payload(
                 path=_diag_path(repo_root=repo_root, path=path),
             )
             continue
+        legacy_keys = ("instance", "extends", "object_ref", "version", "title", "summary", "description", "layer")
+        present_legacy = [key for key in legacy_keys if key in payload]
+        if present_legacy:
+            add_diag(
+                code="E8801",
+                severity="error",
+                stage="validate",
+                message=(
+                    "Instance shard uses legacy semantic keys: "
+                    f"{', '.join(present_legacy)}. "
+                    "Use canonical '@'-prefixed semantic keys only."
+                ),
+                path=_diag_path(repo_root=repo_root, path=path),
+            )
+            continue
 
         version_resolution = resolve_semantic_value(
             payload,
@@ -264,7 +279,7 @@ def _load_sharded_instance_payload(
                 message=(
                     "Unsupported shard version metadata. "
                     f"version='{shard_version}'. "
-                    "Use strict contract 'version: 1.0.0'; 'schema_version' is not supported."
+                    "Use strict contract '@version: 1.0.0'."
                 ),
                 path=_diag_path(repo_root=repo_root, path=path),
             )
@@ -327,16 +342,6 @@ def _load_sharded_instance_payload(
             )
             continue
 
-        if parent_resolution.found and "object_ref" in payload:
-            add_diag(
-                code="E8803",
-                severity="error",
-                stage="validate",
-                message="Instance shard must not define both '@extends' and legacy 'object_ref'.",
-                path=_diag_path(repo_root=repo_root, path=path),
-            )
-            continue
-
         metadata_values: dict[str, Any] = {}
         metadata_tokens = (
             ("entity_title", "title"),
@@ -371,7 +376,7 @@ def _load_sharded_instance_payload(
 
         normalized_instance = instance_resolution.value
         normalized_layer = layer_resolution.value
-        normalized_object_ref = parent_resolution.value if parent_resolution.found else payload.get("object_ref")
+        normalized_object_ref = parent_resolution.value if parent_resolution.found else None
         missing: list[str] = []
         if normalized_instance is None:
             missing.append("instance")

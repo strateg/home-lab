@@ -1,15 +1,15 @@
-instance: lxc-gitea
-object_ref: obj.proxmox.lxc.debian12.gitea
+@instance: lxc-gitea
+@extends: obj.proxmox.lxc.debian12.gitea
 group: lxc
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: lxc-gitea
 status: mapped
 notes: Gitea self-hosted Git service
 
 vmid: 203
 hostname: gitea
-description: Gitea self-hosted Git service
+@description: Gitea self-hosted Git service
 tags:
   - git
   - production

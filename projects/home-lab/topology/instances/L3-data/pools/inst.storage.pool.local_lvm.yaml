@@ -1,8 +1,8 @@
-instance: inst.storage.pool.local_lvm
-object_ref: obj.storage.pool.local_lvm
+@instance: inst.storage.pool.local_lvm
+@extends: obj.storage.pool.local_lvm
 group: pools
-layer: L3
-version: 1.0.0
+@layer: L3
+@version: 1.0.0
 source_id: se-lvm
 status: mapped
 notes: LVM thin storage on Proxmox SSD

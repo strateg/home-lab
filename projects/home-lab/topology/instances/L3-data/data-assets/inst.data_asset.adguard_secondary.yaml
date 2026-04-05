@@ -1,8 +1,8 @@
-instance: inst.data_asset.adguard_secondary
-object_ref: obj.storage.data_asset.config
+@instance: inst.data_asset.adguard_secondary
+@extends: obj.storage.data_asset.config
 group: data-assets
-layer: L3
-version: 1.0.0
+@layer: L3
+@version: 1.0.0
 source_id: data-adguard-secondary
 status: mapped
 notes: Secondary AdGuard configuration and query logs

@@ -1,14 +1,14 @@
-instance: alert-infra.router-down
-object_ref: obj.observability.alert.infrastructure
+@instance: alert-infra.router-down
+@extends: obj.observability.alert.infrastructure
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: alert-infra.router-down
 status: mapped
 notes: Critical alert for router failure
 
 name: Router Down
-description: MikroTik router is unreachable
+@description: MikroTik router is unreachable
 severity: critical
 
 trigger:

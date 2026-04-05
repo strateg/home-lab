@@ -1,8 +1,8 @@
-instance: svc-mikrotik-ui
-object_ref: obj.service.mikrotik.web_ui
+@instance: svc-mikrotik-ui
+@extends: obj.service.mikrotik.web_ui
 group: services
-layer: L5
-version: 1.0.0
+@layer: L5
+@version: 1.0.0
 source_id: svc-mikrotik-ui
 status: mapped
 notes: MikroTik RouterOS management endpoints observed on bootstrap baseline (REST/WebFig HTTPS on 8443)
@@ -15,7 +15,7 @@ ports:
   api_ssl: 8729
 protocol: http
 trust_zone_ref: inst.trust_zone.management
-description: MikroTik RouterOS WebFig/API management (HTTP active, HTTPS active on 8443 after bootstrap)
+@description: MikroTik RouterOS WebFig/API management (HTTP active, HTTPS active on 8443 after bootstrap)
 critical: true
 
 security:

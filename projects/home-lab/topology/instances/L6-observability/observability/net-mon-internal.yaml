@@ -1,14 +1,14 @@
-instance: net-mon-internal
-object_ref: obj.observability.healthcheck.network
+@instance: net-mon-internal
+@extends: obj.observability.healthcheck.network
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: net-mon-internal
 status: mapped
 notes: Internal network connectivity monitoring
 
 name: Internal Network Connectivity
-description: Monitor inter-VLAN connectivity
+@description: Monitor inter-VLAN connectivity
 enabled: true
 critical: true
 

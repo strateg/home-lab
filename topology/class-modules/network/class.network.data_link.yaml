@@ -1,7 +1,7 @@
-class: class.network.data_link
-version: 1.0.0
-description: Logical data channel for information flow between endpoints
-layer: L2
+@class: class.network.data_link
+@version: 1.0.0
+@description: Logical data channel for information flow between endpoints
+@layer: L2
 
 properties:
   required:

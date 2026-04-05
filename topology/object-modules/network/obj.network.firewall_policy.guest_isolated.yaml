@@ -1,7 +1,7 @@
-object: obj.network.firewall_policy.guest_isolated
-class_ref: class.network.firewall_policy
-version: 1.0.0
-description: Guest isolation - only internet access allowed
+@object: obj.network.firewall_policy.guest_isolated
+@extends: class.network.firewall_policy
+@version: 1.0.0
+@description: Guest isolation - only internet access allowed
 
 properties:
   name: Guest Isolation

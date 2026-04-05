@@ -1,8 +1,8 @@
-instance: svc-grafana@docker.srv-orangepi5
-object_ref: obj.service.grafana
+@instance: svc-grafana@docker.srv-orangepi5
+@extends: obj.service.grafana
 group: services
-layer: L5
-version: 1.0.0
+@layer: L5
+@version: 1.0.0
 source_id: svc-grafana
 status: mapped
 notes: Grafana dashboards and visualization (Docker on Orange Pi 5)
@@ -12,7 +12,7 @@ protocol: http
 trust_zone_ref: inst.trust_zone.servers
 domain: grafana.home.local
 url: http://grafana.home.local:3000
-description: Grafana dashboards and visualization
+@description: Grafana dashboards and visualization
 
 dependencies:
   - service_ref: svc-prometheus@docker.srv-orangepi5

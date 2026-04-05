@@ -1,8 +1,8 @@
-instance: inst.chan.lte.backhaul
-object_ref: obj.network.lte_channel
+@instance: inst.chan.lte.backhaul
+@extends: obj.network.lte_channel
 group: data-channels
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: link-lte-backhaul
 status: mapped
 notes: LTE backhaul used as WAN failover path

@@ -1,8 +1,8 @@
-object: obj.mikrotik.chr
-class_ref: class.router
-version: 1.1.0
-title: MikroTik CHR (Cloud Hosted Router)
-description: |
+@object: obj.mikrotik.chr
+@extends: class.router
+@version: 1.1.0
+@title: MikroTik CHR (Cloud Hosted Router)
+@description: |
   Virtual RouterOS appliance for cloud or virtualized deployments.
   Uses the same router capability contract as physical MikroTik routers,
   without hardware-specific features such as WiFi or LTE modem.

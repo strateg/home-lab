@@ -1,7 +1,7 @@
-object: obj.storage.data_asset.media
-class_ref: class.storage.data_asset
-version: 1.0.0
-description: Media data asset for user files and media libraries
+@object: obj.storage.data_asset.media
+@extends: class.storage.data_asset
+@version: 1.0.0
+@description: Media data asset for user files and media libraries
 
 properties:
   category: media

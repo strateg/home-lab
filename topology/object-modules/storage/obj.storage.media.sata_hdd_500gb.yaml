@@ -1,7 +1,7 @@
-object: obj.storage.media.sata_hdd_500gb
-class_ref: class.storage.media
-version: 1.0.0
-description: 500GB 2.5" SATA HDD for secondary capacity storage
+@object: obj.storage.media.sata_hdd_500gb
+@extends: class.storage.media
+@version: 1.0.0
+@description: 500GB 2.5" SATA HDD for secondary capacity storage
 
 properties:
   media_type: hdd

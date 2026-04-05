@@ -76,9 +76,9 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
             if not isinstance(payload, dict):
                 continue
 
-            layer = payload.get("layer")
+            layer = payload.get("@layer")
             group = payload.get("group")
-            instance_id = payload.get("instance")
+            instance_id = payload.get("@instance")
             if not isinstance(layer, str) or not isinstance(group, str) or not isinstance(instance_id, str):
                 diagnostics.append(
                     self.emit_diagnostic(
@@ -86,7 +86,7 @@ class FoundationFilePlacementValidator(ValidatorYamlPlugin):
                         severity="warning",
                         stage=stage,
                         message=(
-                            f"Instance file '{rel}' should declare string fields: layer, group, instance "
+                            f"Instance file '{rel}' should declare string fields: @layer, group, @instance "
                             "for placement checks."
                         ),
                         path=f"project:{file_path}",

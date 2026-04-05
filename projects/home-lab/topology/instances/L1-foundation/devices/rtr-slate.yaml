@@ -1,8 +1,8 @@
-instance: rtr-slate
-object_ref: obj.glinet.slate_ax1800
+@instance: rtr-slate
+@extends: obj.glinet.slate_ax1800
 group: devices
-layer: L1
-version: 1.0.0
+@layer: L1
+@version: 1.0.0
 source_id: rtr-slate
 status: mapped
 notes: Personal GL-AXT1800 router instance with device identity placeholders

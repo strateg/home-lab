@@ -1,8 +1,8 @@
-instance: inst.vlan.management
-object_ref: obj.network.vlan.management
+@instance: inst.vlan.management
+@extends: obj.network.vlan.management
 group: network
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: net-management
 status: modeled
 notes: Management VLAN is staged in topology; currently not configured on rtr-mikrotik-chateau

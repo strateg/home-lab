@@ -1,14 +1,14 @@
-instance: health-mikrotik
-object_ref: obj.observability.healthcheck.device
+@instance: health-mikrotik
+@extends: obj.observability.healthcheck.device
 group: observability
-layer: L6
-version: 1.0.0
+@layer: L6
+@version: 1.0.0
 source_id: health-mikrotik
 status: mapped
 notes: MikroTik central router health monitoring
 
 name: MikroTik Router Health
-description: Monitor MikroTik central router
+@description: Monitor MikroTik central router
 target_ref: rtr-mikrotik-chateau
 enabled: true
 critical: true

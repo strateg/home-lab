@@ -1,9 +1,9 @@
-object: obj.proxmox.lxc.debian12.docker
-class_ref: class.compute.workload.lxc
-version: 1.0.0
+@object: obj.proxmox.lxc.debian12.docker
+@extends: class.compute.workload.lxc
+@version: 1.0.0
 model: LXC Debian 12 Docker Host
 vendor: proxmox
-description: Docker container host in LXC
+@description: Docker container host in LXC
 software_contract:
   os_obj_refs:
   - obj.os.debian.12.proxmox.lxc

@@ -1,8 +1,8 @@
-instance: inst.fw.guest_isolated
-object_ref: obj.network.firewall_policy.guest_isolated
+@instance: inst.fw.guest_isolated
+@extends: obj.network.firewall_policy.guest_isolated
 group: firewall
-layer: L2
-version: 1.0.0
+@layer: L2
+@version: 1.0.0
 source_id: fw-guest-isolated
 status: modeled
 notes: Guest isolation policy is staged in topology; currently not configured on rtr-mikrotik-chateau

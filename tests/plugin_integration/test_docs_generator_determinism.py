@@ -27,7 +27,7 @@ def _context(tmp_path: Path, compiled_json: dict) -> PluginContext:
         topology_path="topology/topology.yaml",
         profile="test",
         model_lock={},
-        compiled_json=compiled_json,
+        compiled_json=_semanticize(compiled_json),
         output_dir=str(tmp_path / "build"),
         config={"generator_artifacts_root": str(tmp_path / "generated")},
     )
@@ -97,6 +97,32 @@ def _compiled_fixture() -> dict:
             "vms": [],
         }
     }
+
+
+def _semanticize(compiled_json: dict) -> dict:
+    payload = copy.deepcopy(compiled_json)
+    instances = payload.get("instances")
+    if not isinstance(instances, dict):
+        return payload
+    for rows in instances.values():
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            object_ref = row.pop("object_ref", None)
+            class_ref = row.pop("class_ref", None)
+            if not isinstance(object_ref, str) and not isinstance(class_ref, str):
+                continue
+            instance_block = row.get("instance")
+            if not isinstance(instance_block, dict):
+                instance_block = {}
+                row["instance"] = instance_block
+            if isinstance(object_ref, str) and object_ref:
+                instance_block.setdefault("materializes_object", object_ref)
+            if isinstance(class_ref, str) and class_ref:
+                instance_block.setdefault("materializes_class", class_ref)
+    return payload
 
 
 def _render_docs(tmp_path: Path, compiled_json: dict) -> dict[str, str]:

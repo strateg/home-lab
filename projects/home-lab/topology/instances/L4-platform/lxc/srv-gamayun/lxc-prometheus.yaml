@@ -1,15 +1,15 @@
-instance: lxc-prometheus
-object_ref: obj.proxmox.lxc.debian12.prometheus
+@instance: lxc-prometheus
+@extends: obj.proxmox.lxc.debian12.prometheus
 group: lxc
-layer: L4
-version: 1.0.0
+@layer: L4
+@version: 1.0.0
 source_id: lxc-prometheus
 status: mapped
 notes: Prometheus metrics collection
 
 vmid: 206
 hostname: prometheus
-description: Prometheus metrics collection
+@description: Prometheus metrics collection
 tags:
   - monitoring
   - production

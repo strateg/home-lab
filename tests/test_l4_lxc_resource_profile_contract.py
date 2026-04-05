@@ -3,11 +3,17 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+V5_TOOLS = REPO_ROOT / "topology-tools"
+sys.path.insert(0, str(V5_TOOLS))
+
+from yaml_loader import load_yaml_file
+
 LXC_ROOT = REPO_ROOT / "projects" / "home-lab" / "topology" / "instances" / "L4-platform" / "lxc"
 PLUGIN_MANIFEST = REPO_ROOT / "topology-tools" / "plugins" / "plugins.yaml"
 LXC_PLUGIN_ID = "base.validator.lxc_refs"
@@ -36,7 +42,7 @@ def test_l4_lxc_instances_use_known_resource_profile_refs_without_inline_resourc
 
     violations: list[str] = []
     for path in sorted(LXC_ROOT.glob("*.yaml")):
-        payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        payload = load_yaml_file(path) or {}
         rel = path.relative_to(REPO_ROOT)
         if "resources" in payload:
             violations.append(f"{rel}: legacy top-level 'resources' is forbidden")

@@ -85,9 +85,6 @@ def _require_non_empty_str(row: dict[str, Any], *, field: str, path: str) -> str
 
 
 def _resolved_object_ref(row: dict[str, Any]) -> str:
-    object_ref = row.get("object_ref")
-    if isinstance(object_ref, str) and object_ref:
-        return object_ref
     instance_block = row.get("instance")
     if isinstance(instance_block, dict):
         for field in ("extends_object", "materializes_object"):
@@ -98,9 +95,6 @@ def _resolved_object_ref(row: dict[str, Any]) -> str:
 
 
 def _resolved_class_ref(row: dict[str, Any]) -> str:
-    class_ref = row.get("class_ref")
-    if isinstance(class_ref, str) and class_ref:
-        return class_ref
     instance_block = row.get("instance")
     if isinstance(instance_block, dict):
         value = instance_block.get("materializes_class")
