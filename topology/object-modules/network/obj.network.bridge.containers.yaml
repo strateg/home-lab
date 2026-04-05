@@ -1,0 +1,17 @@
+object: obj.network.bridge.containers
+class_ref: class.network.bridge
+version: 1.0.0
+description: MikroTik RouterOS container bridge for Docker workloads
+
+properties:
+  name: containers
+  description: Isolated bridge for RouterOS container networking (veth endpoints)
+  vlan_aware: false
+  stp_enabled: false
+  mtu: 1500
+
+enabled_capabilities:
+  - cap.bridge.container_isolation
+
+vendor_capabilities:
+  - vendor.mikrotik.routeros.container

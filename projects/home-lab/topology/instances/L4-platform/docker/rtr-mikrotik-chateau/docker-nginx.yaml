@@ -1,0 +1,25 @@
+instance: docker-nginx
+object_ref: obj.docker.container.generic
+group: docker
+layer: L4
+version: 1.0.0
+source_id: docker-nginx
+status: mapped
+notes: nginx container running on rtr-mikrotik-chateau; observed live 2026-04-04
+host_ref: rtr-mikrotik-chateau
+network:
+  bridge_ref: inst.bridge.containers
+  interface: veth1
+  ip: 172.18.0.2/24
+  gateway: 172.18.0.1
+runtime:
+  image: library/nginx:latest
+  root_dir: /usb1/containers/nginx
+  start_on_boot: true
+nat_rules:
+  - chain: dstnat
+    protocol: tcp
+    dst_port: 8080
+    to_address: 172.18.0.2
+    to_port: 80
+    comment: External HTTP access to nginx container

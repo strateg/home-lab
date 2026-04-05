@@ -8,7 +8,7 @@ status: mapped
 notes: WiFi 2.4GHz client access on router AP interface
 endpoint_a:
   device_ref: rtr-mikrotik-chateau
-  port: wlan2
+  port: wifi2
 endpoint_b:
   external_ref: wifi-clients-24ghz
   type: wireless-clients

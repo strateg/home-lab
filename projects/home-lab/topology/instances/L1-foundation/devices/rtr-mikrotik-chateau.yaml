@@ -15,21 +15,80 @@ power:
   voltage_v: 24
   max_watts: 21.5
 observed_runtime:
-  captured_at: "2026-04-02"
+  captured_at: "2026-04-04"
   identity: rtr-mikrotik-chateau
   routeros_version: "7.22"
+  # serial_number and software_id are in SOPS secrets (secrets/instances/rtr-mikrotik-chateau.yaml)
   wan:
     primary_interface: ether1
     backup_interface: lte1
     dhcp_client_on_primary: true
+    dynamic_ip: 192.168.0.17/24
+    interface_list_wan: [ether1, lte1]
   lan:
     bridge_interface: bridge
+    bridge_admin_mac: D0:EA:11:4E:C0:4E
     bridge_vlan_filtering: false
+    bridge_ports: [ether2, ether3, ether4, ether5, wifi1, wifi2]
     gateway_ref: inst.vlan.lan
+    dhcp_server: defconf
     dhcp_pool: 192.168.88.10-192.168.88.254
+    dhcp_lease_time: 30m
+    interface_list_lan: [bridge]
+  containers:
+    bridge_interface: containers
+    bridge_ip: 172.18.0.1/24
+    veth_ports: [veth1]
+    registry_url: https://registry-1.docker.io
+    running:
+      - name: nginx:latest
+        image: library/nginx:latest
+        interface: veth1
+        root_dir: /usb1/containers/nginx
+        start_on_boot: true
+  wifi:
+    wifi1:
+      band: 5ghz-ax
+      ssid: "Chateau*"
+      mode: ap
+      channel_width: 20/40/80mhz
+      status: running
+    wifi2:
+      band: 2.4ghz-ax
+      ssid: "Chateau"
+      mode: ap
+      channel_width: 20/40mhz
+      status: bound
+  dns:
+    servers: [1.1.1.1, 8.8.8.8]
+    dynamic_servers: [85.253.0.130, 85.253.0.2]
+    allow_remote_requests: true
+    cache_size_kib: 2048
+    static_entries:
+      - name: router.lan
+        address: 192.168.88.1
+  nat:
+    - chain: srcnat
+      action: masquerade
+      out_interface: ether1
+    - chain: dstnat
+      action: dst-nat
+      protocol: tcp
+      dst_port: 8080
+      to_addresses: 172.18.0.2
+      to_ports: 80
+  firewall:
+    input_rules: 5
+    forward_rules: 12
+    notes: defconf + 3 duplicated topology-managed rules (12-17)
+  wireguard:
+    configured: false
   services:
     webfig_http_port: 80
     webfig_https_enabled: true
     ssh_port: 22
     api_port: 8728
     api_ssl_port: 8729
+  users:
+    - name: admin
+      group: full

@@ -1,0 +1,11 @@
+instance: inst.bridge.containers
+object_ref: obj.network.bridge.containers
+group: network
+layer: L2
+version: 1.0.0
+source_id: bridge-containers
+status: mapped
+notes: RouterOS container bridge on rtr-mikrotik-chateau; hosts veth1 for Docker workloads
+host_ref: rtr-mikrotik-chateau
+ip: 172.18.0.1/24
+cidr: 172.18.0.0/24

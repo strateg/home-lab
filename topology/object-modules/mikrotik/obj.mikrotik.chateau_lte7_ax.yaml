@@ -96,7 +96,7 @@ hardware_specs:
         description: LAN port 4
 
     wireless:
-      - name: wlan1
+      - name: wifi1
         mac: "@optional_secret:mac"
         band: 5ghz
         standard: 802.11ax
@@ -111,7 +111,7 @@ hardware_specs:
         tx_power_dbm: 20
         description: WiFi 6 5GHz radio
 
-      - name: wlan2
+      - name: wifi2
         mac: "@optional_secret:mac"
         band: 2.4ghz
         standard: 802.11ax
@@ -360,8 +360,9 @@ defaults:
     default_lan_network: 192.168.88.0/24
 
   wireless:
-    country: RU
-    default_ssid_prefix: MikroTik
+    country: EE
+    ssid_5ghz: "Chateau*"
+    ssid_24ghz: "Chateau"
     default_security: wpa3
 
   lte:

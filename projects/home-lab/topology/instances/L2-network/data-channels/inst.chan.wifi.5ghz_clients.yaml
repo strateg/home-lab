@@ -8,7 +8,7 @@ status: mapped
 notes: WiFi 5GHz client access on router AP interface
 endpoint_a:
   device_ref: rtr-mikrotik-chateau
-  port: wlan1
+  port: wifi1
 endpoint_b:
   external_ref: wifi-clients-5ghz
   type: wireless-clients
